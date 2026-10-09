@@ -21,6 +21,7 @@
 package credentials
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -35,6 +36,16 @@ import (
 
 // FileName is the secrets file inside the user data directory.
 const FileName = "credentials.json"
+
+// Load errors. They are stable so callers can branch with errors.Is.
+var (
+	// ErrUnsupportedEnvelopeVersion marks a safeStorage envelope whose
+	// version this package does not implement.
+	ErrUnsupportedEnvelopeVersion = errors.New("credentials: unsupported envelope version")
+	// ErrInvalidCredentialsFormat marks a document that is neither a valid
+	// plaintext credentials object nor a well-formed supported envelope.
+	ErrInvalidCredentialsFormat = errors.New("credentials: invalid credentials format")
+)
 
 // LocalStateName is Chromium's key database next to credentials.json.
 const LocalStateName = "Local State"
@@ -81,30 +92,99 @@ type localState struct {
 // Load reads credentials.json from dir. A missing file yields the zero
 // Credentials and no error. A safeStorage envelope is decrypted with the
 // DPAPI-protected key from Local State; a plaintext file is read as-is.
+//
+// A document that carries envelope markers but is not a well-formed,
+// supported envelope is rejected with ErrInvalidCredentialsFormat or
+// ErrUnsupportedEnvelopeVersion; it is never reinterpreted as plaintext.
+// Loading never writes and never returns partial credentials with an error.
 func Load(dir string) (Credentials, error) {
-	var creds Credentials
-	data, err := os.ReadFile(filepath.Join(dir, FileName))
+	path := filepath.Join(dir, FileName)
+	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return creds, nil
+		return Credentials{}, nil
 	}
 	if err != nil {
-		return creds, err
+		return Credentials{}, err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return creds, fmt.Errorf("credentials: %s: %w", filepath.Join(dir, FileName), err)
+	kind, err := classifyDocument(data)
+	if err != nil {
+		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
 	}
-	if isEnvelope(raw) {
-		var env envelope
-		if err := json.Unmarshal(data, &env); err != nil {
-			return creds, fmt.Errorf("credentials: %s: %w", filepath.Join(dir, FileName), err)
-		}
-		return decryptEnvelope(dir, env.Payload)
+	if kind == docEnvelope {
+		return decryptEnvelope(dir, data)
 	}
-	if err := json.Unmarshal(data, &creds); err != nil {
-		return creds, fmt.Errorf("credentials: %s: %w", filepath.Join(dir, FileName), err)
+	var creds Credentials
+	if err := decodeCredentialsObject(data, &creds); err != nil {
+		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
 	}
 	return creds, nil
+}
+
+// documentKind is how a credentials.json document must be decoded.
+type documentKind int
+
+const (
+	docPlaintext documentKind = iota
+	docEnvelope
+)
+
+// classifyDocument decides how a credentials.json document should be decoded.
+// It inspects structure only, so it never needs the Local State key and its
+// result does not depend on DPAPI availability.
+func classifyDocument(data []byte) (documentKind, error) {
+	var doc json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return docPlaintext, ErrInvalidCredentialsFormat
+	}
+	trimmed := bytes.TrimSpace(doc)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return docPlaintext, ErrInvalidCredentialsFormat
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &raw); err != nil {
+		return docPlaintext, ErrInvalidCredentialsFormat
+	}
+	versionRaw, hasVersion := raw["version"]
+	payloadRaw, hasPayload := raw["payload"]
+	if !hasVersion && !hasPayload {
+		return docPlaintext, nil
+	}
+	// Envelope markers are present: the document must be a well-formed
+	// supported envelope, even if ordinary credential fields also appear.
+	var version string
+	if !hasVersion || json.Unmarshal(versionRaw, &version) != nil || version == "" {
+		return docPlaintext, fmt.Errorf("%w: version", ErrInvalidCredentialsFormat)
+	}
+	if version != EnvelopeVersion {
+		return docPlaintext, ErrUnsupportedEnvelopeVersion
+	}
+	var payload string
+	if !hasPayload || json.Unmarshal(payloadRaw, &payload) != nil || payload == "" {
+		return docPlaintext, fmt.Errorf("%w: payload", ErrInvalidCredentialsFormat)
+	}
+	if _, err := base64.StdEncoding.DecodeString(payload); err != nil {
+		return docPlaintext, fmt.Errorf("%w: payload is not base64", ErrInvalidCredentialsFormat)
+	}
+	return docEnvelope, nil
+}
+
+// decodeCredentialsObject requires a JSON object and only assigns out on
+// success, so a malformed document never leaves partial credentials behind.
+func decodeCredentialsObject(data []byte, out *Credentials) error {
+	var doc json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return ErrInvalidCredentialsFormat
+	}
+	trimmed := bytes.TrimSpace(doc)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return ErrInvalidCredentialsFormat
+	}
+	var creds Credentials
+	if err := json.Unmarshal(trimmed, &creds); err != nil {
+		return ErrInvalidCredentialsFormat
+	}
+	*out = creds
+	return nil
 }
 
 // Save writes credentials.json as a safeStorage-v1 envelope encrypted with
@@ -130,31 +210,29 @@ func Save(dir string, creds Credentials) error {
 	return writeAtomic(filepath.Join(dir, FileName), data)
 }
 
-func isEnvelope(raw map[string]json.RawMessage) bool {
-	var version string
-	if v, ok := raw["version"]; ok && json.Unmarshal(v, &version) == nil && version == EnvelopeVersion {
-		_, hasPayload := raw["payload"]
-		return hasPayload
+// decryptEnvelope decodes a document already classified as docEnvelope. The
+// payload is validated before the Local State key is read.
+func decryptEnvelope(dir string, data []byte) (Credentials, error) {
+	path := filepath.Join(dir, FileName)
+	var env envelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
 	}
-	return false
-}
-
-func decryptEnvelope(dir, payload string) (Credentials, error) {
-	var creds Credentials
+	blob, err := base64.StdEncoding.DecodeString(env.Payload)
+	if err != nil {
+		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
+	}
 	key, err := loadLocalStateKey(dir)
 	if err != nil {
-		return creds, err
-	}
-	blob, err := base64.StdEncoding.DecodeString(payload)
-	if err != nil {
-		return creds, fmt.Errorf("credentials: envelope payload is not base64: %w", err)
+		return Credentials{}, err
 	}
 	plaintext, err := open(key, blob)
 	if err != nil {
-		return creds, err
+		return Credentials{}, err
 	}
-	if err := json.Unmarshal(plaintext, &creds); err != nil {
-		return creds, fmt.Errorf("credentials: decrypted envelope is not JSON: %w", err)
+	var creds Credentials
+	if err := decodeCredentialsObject(plaintext, &creds); err != nil {
+		return Credentials{}, fmt.Errorf("credentials: %s: decrypted envelope: %w", path, err)
 	}
 	return creds, nil
 }

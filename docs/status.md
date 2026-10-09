@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | Go 工具链与脚本 | 完成 | `scripts/env.ps1`、`scripts/build-harness.ps1` |
 | harness 运行时构建 | 完成 | `runtime/vendor/` 8 个目录，产物已验证 |
-| 配置 `internal/config` | 完成 | 全字段 + 钳制，测试通过 |
-| 凭据 `internal/credentials` | 完成 | DPAPI + AES-GCM 信封，测试通过 |
+| 配置 `internal/config` | 完成 | 全字段 + 钳制 + 快照隔离 + 冲突拒绝，测试通过 |
+| 凭据 `internal/credentials` | 完成 | DPAPI + AES-GCM 信封，分类加载，测试通过 |
 | 路径 `internal/paths` | 完成 | userData / dsh-home / runtime |
 | 应用骨架 `cmd/whaleisle` | 骨架完成 | 窗口 / 托盘 / 单实例 / 关窗到托盘 |
 | 接口生成器 `tools/gen-api` | 完成 | 标准库实现，测试通过 |
@@ -45,14 +45,17 @@
 - 完整 config.json 模型：对照原版 `src/main/config.js` 的 DEFAULTS 逐项核对，钳制逻辑镜像原版（端口 1024–65535、重启 1–10 次 / 500–30000ms、relay 端点归一化、下载路由 gitee→cnb 等）。
 - 未知键、`pet`、`live2dPet`、`pluginRecovery` 原样携带，与 Electron 版共用数据目录。
 - 修正旧代码两处偏差：`theme` 的 JSON 名 `appearance`→`theme`；默认值 `system`→`deepseek`。
-- 测试 8 个，全绿。
+- 快照隔离：`Get` 返回深拷贝（`disabledPlugins` / `components`），`Update` 给回调独立的候选副本；提交值不与回调保留的引用或调用方缓冲区共享存储，并保留 nil 与空的区别。
+- 陈旧写入拒绝：`Open` 记录磁盘基线（存在性 + 精确字节）；`Update` 在调用回调前与替换前各比较一次，不一致返回 `ErrConflict`，不调用回调、不写盘，不自动合并 / 重载 / 重试；进程内用提交互斥串行化"比较-替换"（回调不在互斥内）。
+- 测试 19 个，全绿（含快照隔离、失败写入回滚、外部编辑 / 文件出现或消失 / 字节级编辑 / 回调期间编辑 / 双 store 顺序与并发冲突）。
 
 ### 4. `internal/credentials`（新包）
 
 - credentials.json 六字段读写：apiKey、baseUrl、githubToken、remoteToken、remoteRelayToken、remoteDevices。
 - `safeStorage-v1` 信封：`v10` 前缀 + 12 字节 nonce + AES-256-GCM；密钥用 crypt32.dll 的 DPAPI 从 Local State 的 `os_crypt.encrypted_key` 解出。纯标准库，无 cgo，未加依赖。
 - 兼容明文 JSON 读取；原子写（临时文件 + 重命名）。
-- 测试 8 个（真实 DPAPI 往返、合成 Local State、篡改检测），全绿；只使用临时目录。
+- 加载分类：文档若带 `version` / `payload` 标记，必须是结构完好且受支持的信封，否则以 `ErrInvalidCredentialsFormat` / `ErrUnsupportedEnvelopeVersion` 拒绝（`errors.Is` 可判），绝不回退当明文读；缺失文件返回零值且无错误；base64 校验先于读取 Local State 密钥；失败时不返回部分字段，错误文本不含取值 / payload / 版本号。
+- 测试 9 个（真实 DPAPI 往返、合成 Local State、篡改检测、分类表驱动），全绿；只使用临时目录。
 - 未确认点：Electron 44 的 safeStorage 在 Windows 是否确实产出 v10 AES-GCM 信封，需用真实安装版生成的 credentials.json 实测一次。
 
 ### 5. `internal/paths`
@@ -108,8 +111,10 @@
 5. API 生成物仅覆盖 27 / 140+ 端点；会话事件类型尚未生成。
 6. 与 Electron 版共用数据目录，两个版本不能同时运行。
 7. dshbot 与 dsh-whale 下的 dsh-llm 产物完全相同，重新生成时传一个即可（生成器自动去重）。
+8. config 的冲突检测只覆盖"读到的基线 → 替换"之间的进程内串行化；跨进程（同时运行的 Electron 版）在最终比较与重命名之间仍可能写入，未做原子 CAS，也未验证两版同时运行。
 
 ## 下一步顺序
 
-1. 全量重生成 API + 生成会话事件类型（M0 收尾）。
-2. M1 底座 → M2 harness 生命周期 → M3 客户端 → M4 对话最小可用（详见 plan.md §5）。
+1. 配置持久化门禁（本轮已完成：快照隔离 + 陈旧写入拒绝）——先于 API 补全。
+2. 全量重生成 API + 生成会话事件类型（M0 收尾）。
+3. M1 底座 → M2 harness 生命周期 → M3 客户端 → M4 对话最小可用（详见 plan.md §5）。

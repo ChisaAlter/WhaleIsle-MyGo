@@ -1,9 +1,11 @@
 package credentials
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -194,18 +196,21 @@ func TestTamperedPayloadFailsClearly(t *testing.T) {
 	}
 	path := filepath.Join(dir, FileName)
 
+	// Keep the pristine envelope so every case mutates a fresh copy rather
+	// than compounding the previous mutation.
+	pristine, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cases := map[string]func(payload []byte) []byte{
 		"truncated":    func(p []byte) []byte { return p[:10] },
 		"wrong prefix": func(p []byte) []byte { p[0] = 'v'; p[1] = '9'; return p },
 		"flipped byte": func(p []byte) []byte { p[len(p)-1] ^= 0xff; return p },
 	}
 	for name, mutate := range cases {
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
 		var env envelope
-		if err := json.Unmarshal(raw, &env); err != nil {
+		if err := json.Unmarshal(pristine, &env); err != nil {
 			t.Fatal(err)
 		}
 		payload, err := base64.StdEncoding.DecodeString(env.Payload)
@@ -237,6 +242,148 @@ func TestLoadNotBase64Payload(t *testing.T) {
 	_, err := Load(dir)
 	if err == nil {
 		t.Fatal("non-base64 payload loaded without error")
+	}
+}
+
+// TestLoadClassifiesCredentialDocuments pins how Load tells a plaintext
+// credentials object, a supported envelope and a rejected document apart.
+// Every rejected load must return zero credentials, leave the file
+// byte-for-byte untouched, and never echo secret-looking values in its error.
+func TestLoadClassifiesCredentialDocuments(t *testing.T) {
+	const marker = "MARKER-SECRET-9f2c"
+	// A payload that decodes to a short v10 blob: the envelope is structurally
+	// valid, so classification reaches the (missing) Local State key.
+	validBlob := base64.StdEncoding.EncodeToString([]byte(v10Prefix + "0123456789ab" + "0123456789abcdef"))
+
+	cases := []struct {
+		name      string
+		doc       string
+		wantOK    bool
+		wantErrIs error // errors.Is target; nil means "rejected, class not pinned"
+		want      Credentials
+	}{
+		{
+			name:   "valid plaintext object",
+			doc:    `{"apiKey":"` + marker + `","baseUrl":"http://127.0.0.1:3080"}`,
+			wantOK: true,
+			want:   Credentials{APIKey: marker, BaseURL: "http://127.0.0.1:3080"},
+		},
+		{
+			name:      "unknown envelope version",
+			doc:       `{"version":"safeStorage-v2","payload":"AAAA"}`,
+			wantErrIs: ErrUnsupportedEnvelopeVersion,
+		},
+		{
+			name:      "missing version",
+			doc:       `{"payload":"AAAA"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "missing payload",
+			doc:       `{"version":"safeStorage-v1"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "version wrong type",
+			doc:       `{"version":123,"payload":"AAAA"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "payload wrong type",
+			doc:       `{"version":"safeStorage-v1","payload":123}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "empty version",
+			doc:       `{"version":"","payload":"AAAA"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "empty payload",
+			doc:       `{"version":"safeStorage-v1","payload":""}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "payload not base64",
+			doc:       `{"version":"safeStorage-v1","payload":"!!` + marker + `!!"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "null document",
+			doc:       `null`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "array document",
+			doc:       `[1,2,3]`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "string document",
+			doc:       `"` + marker + `"`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "invalid json",
+			doc:       `{"apiKey":`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			name:      "envelope markers with malformed payload and credential fields",
+			doc:       `{"version":"safeStorage-v1","payload":"!!` + marker + `!!","apiKey":"` + marker + `"}`,
+			wantErrIs: ErrInvalidCredentialsFormat,
+		},
+		{
+			// Structurally a valid envelope, so it is decrypted, not treated
+			// as plaintext; the missing Local State rejects it without ever
+			// exposing the credential fields riding along in the document.
+			name: "envelope markers with credential fields",
+			doc:  `{"version":"safeStorage-v1","payload":"` + validBlob + `","apiKey":"` + marker + `"}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, FileName)
+			original := []byte(tc.doc)
+			if err := os.WriteFile(path, original, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			creds, err := Load(dir)
+
+			after, readErr := os.ReadFile(path)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if !bytes.Equal(original, after) {
+				t.Fatalf("Load modified the file: %q -> %q", original, after)
+			}
+
+			if tc.wantOK {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if !reflect.DeepEqual(creds, tc.want) {
+					t.Fatalf("got %+v, want %+v", creds, tc.want)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("document was accepted but must be rejected")
+			}
+			if tc.wantErrIs != nil && !errors.Is(err, tc.wantErrIs) {
+				t.Fatalf("error %v does not match %v", err, tc.wantErrIs)
+			}
+			if !reflect.DeepEqual(creds, Credentials{}) {
+				t.Fatalf("rejected load returned partial credentials: %+v", creds)
+			}
+			if strings.Contains(err.Error(), marker) {
+				t.Fatalf("error leaked a secret-looking value: %v", err)
+			}
+		})
 	}
 }
 
