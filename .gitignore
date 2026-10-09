@@ -1,0 +1,14 @@
+# Go toolchain, module and build caches (regenerate with scripts/env.ps1)
+.toolchain/
+
+# Built harness runtime + node_modules; rebuild with scripts/build-harness.ps1
+# (sources are copied from the reference snapshot, see reference/README.md)
+runtime/
+
+# Read-only snapshot of the original Electron app (regenerate per reference/README.md)
+reference/electron/
+
+# Build output
+dist/
+*.exe
+*.log
