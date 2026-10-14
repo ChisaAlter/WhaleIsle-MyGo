@@ -2,7 +2,9 @@ package session
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,7 +93,9 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 	} else if name := out.Attachment.Name; name != nil && filepath.Ext(*name) != "" {
 		ext = filepath.Ext(*name)
 	}
-	local := filepath.Join(dir, attachmentID+ext)
+	// IDs are provider-owned and opaque; never interpret them as local paths.
+	cacheKey := sha256.Sum256([]byte(sessionID + "\x00" + attachmentID))
+	local := filepath.Join(dir, fmt.Sprintf("%x", cacheKey)+ext)
 	if err := os.WriteFile(local, raw, 0o644); err != nil {
 		return "", err
 	}
@@ -113,4 +117,12 @@ func decodeAttachmentData(data string) ([]byte, error) {
 		data = data[i+1:]
 	}
 	return base64.StdEncoding.DecodeString(data)
+}
+
+// ForgetCachedAttachment allows an explicit retry after missing/corrupt cache
+// content. The next read still goes through the session-authorized endpoint.
+func ForgetCachedAttachment(attachmentID string) {
+	attachmentCache.mu.Lock()
+	delete(attachmentCache.paths, strings.TrimSpace(attachmentID))
+	attachmentCache.mu.Unlock()
 }

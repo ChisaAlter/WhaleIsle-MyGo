@@ -2,11 +2,13 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -26,6 +28,7 @@ var attachmentFetcher struct {
 func SetAttachmentFetcher(fn func(ctx context.Context, attachmentID string) (string, error)) {
 	attachmentFetcher.mu.Lock()
 	attachmentFetcher.fn = fn
+	attachmentLoads.reset()
 	attachmentFetcher.mu.Unlock()
 }
 
@@ -102,7 +105,7 @@ func ImageInlineView(c *ui.Context, path string, fg, muted ui.Color, onOpen func
 }
 
 func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen func(string)) {
-	if local := session.CachedAttachmentPath(id); local != "" {
+	if local := session.CachedAttachmentPath(id); local != "" && loadChatBitmap(local) != nil {
 		paintInlineImage(c, local, muted, onOpen)
 		return
 	}
@@ -114,10 +117,30 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 		return
 	}
 	svc := c.Services()
-	go func() {
-		_, _ = fn(context.Background(), id)
-		svc.Invalidate()
-	}()
+	state := attachmentLoads.ensure(id, func(ctx context.Context, id string) (string, error) {
+		path, err := fn(ctx, id)
+		if err == nil && loadChatBitmap(path) == nil {
+			return "", fmt.Errorf("invalid or unreadable image")
+		}
+		return path, err
+	}, svc.Invalidate)
+	if state.err != nil {
+		ui.Text(c, "图片加载失败 / Image failed: "+state.err.Error()).FontSize(12).TextColor(fg)
+		if ui.Button(c, "重试 / Retry").Clicked() {
+			session.ForgetCachedAttachment(id)
+			attachmentLoads.retry(id)
+			svc.Invalidate()
+		}
+		return
+	}
+	if state.path != "" {
+		if loadChatBitmap(state.path) == nil {
+			ui.Text(c, "图片无法解码 / Invalid image").FontSize(12).TextColor(fg)
+			return
+		}
+		paintInlineImage(c, state.path, muted, onOpen)
+		return
+	}
 	ui.Text(c, "[image…] attachment:"+id).FontSize(12).TextColor(muted)
 }
 
@@ -248,4 +271,60 @@ func loadChatBitmap(path string) *ui.Bitmap {
 	chatImageCache.path = path
 	chatImageCache.bmp = bmp
 	return bmp
+}
+
+// attachmentLoadCache suppresses per-frame fetches and retains a failed state
+// until the user explicitly retries. A replacement fetcher invalidates old work.
+type attachmentLoad struct {
+	path string
+	err  error
+}
+type attachmentLoadCache struct {
+	mu      sync.Mutex
+	entries map[string]*attachmentLoad
+}
+
+var attachmentLoads attachmentLoadCache
+
+func (a *attachmentLoadCache) reset() {
+	a.mu.Lock()
+	a.entries = make(map[string]*attachmentLoad)
+	a.mu.Unlock()
+}
+func (a *attachmentLoadCache) retry(id string) {
+	a.mu.Lock()
+	delete(a.entries, id)
+	a.mu.Unlock()
+}
+func (a *attachmentLoadCache) ensure(id string, fetch func(context.Context, string) (string, error), invalidate func()) attachmentLoad {
+	a.mu.Lock()
+	if state := a.entries[id]; state != nil {
+		snapshot := *state
+		a.mu.Unlock()
+		return snapshot
+	}
+	if a.entries == nil {
+		a.entries = make(map[string]*attachmentLoad)
+	}
+	pending := &attachmentLoad{}
+	a.entries[id] = pending
+	a.mu.Unlock()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		path, err := fetch(ctx, id)
+		if err == nil && path == "" {
+			err = fmt.Errorf("empty attachment response")
+		}
+		a.mu.Lock()
+		current := a.entries[id] == pending
+		if current {
+			pending.path, pending.err = path, err
+		}
+		a.mu.Unlock()
+		if current && invalidate != nil {
+			invalidate()
+		}
+	}()
+	return attachmentLoad{}
 }

@@ -155,7 +155,16 @@ func View(c *ui.Context, m Model) {
 				switch msg.Kind {
 				case session.MessageKindTool:
 					tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
-					ToolCardView(row.Context, msg.EventType, msg.Raw, tc)
+					ToolCardView(row.Context, msg.EventType, msg.Raw, tc, ToolImageGalleryOptions{
+						ID: msg.ID, Expanded: m.ThinkingExpanded,
+						OnOpen: func(path string) {
+							if m.OnOpenImageLightbox != nil {
+								m.OnOpenImageLightbox(path)
+							} else if m.ImageLightboxPath != nil {
+								*m.ImageLightboxPath = path
+							}
+						},
+					})
 					CitationsView(row.Context, CitationsForMessage(msg), muted, chrome.Color(colors.Accent), m.OnOpenCitationURL)
 				case session.MessageKindDeliverables:
 					DeliverablesView(row.Context, msg, fg, muted, border, chrome.Color(colors.Field), m.OnOpenDeliverable)

@@ -26,6 +26,7 @@ type ToolCardInfo struct {
 	Name   string
 	Status string
 	Detail string
+	Images []string
 }
 
 // ParseToolCard extracts name, status, and truncated args/result from raw JSON.
@@ -50,7 +51,14 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 		if json.Unmarshal(raw, &ev) == nil {
 			info.Name = toolResultName(ev)
 			info.Status = toolResultStatus(ev)
+			info.Images = toolImageReferences(ev.Data.Message.Content)
+			if info.Status == "error" {
+				info.Images = nil
+			}
 			info.Detail = truncateToolText(toolResultText(ev), 200)
+			if len(info.Images) > 0 {
+				info.Detail = toolResultText(ev)
+			}
 		}
 	case events.TypeToolPtcDispatchStart:
 		var ev events.ToolPtcDispatchStart
@@ -64,7 +72,13 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 		if json.Unmarshal(raw, &ev) == nil {
 			info.Name = ev.Data.Name
 			info.Status = ptcStatus(ev.Data.IsError)
+			if !ev.Data.IsError {
+				info.Images = toolImageReferences(ev.Data.Content)
+			}
 			info.Detail = truncateToolText(ptcDetail(ev.Data), 200)
+			if len(info.Images) > 0 {
+				info.Detail = toolImageText(ev.Data.Content, true)
+			}
 		}
 	default:
 		info.Name = strings.TrimPrefix(eventType, "tool/")
@@ -77,7 +91,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 }
 
 // ToolCardView renders a bordered compact tool card with a kind chip.
-func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolCardStyle) {
+func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolCardStyle, gallery ...ToolImageGalleryOptions) {
 	info := ParseToolCard(eventType, raw)
 	kind, chip := ClassifyToolName(info.Name)
 	size := st.FontSize
@@ -114,10 +128,13 @@ func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolC
 	}
 	ui.Column(c).Padding(8, 10, 8, 10).Gap(4).Fill().Background(st.Field).Border(1, st.Border).Radius(6).Children(func() {
 		ui.Row(c).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, chip).FontSize(size - 2).Bold().TextColor(st.FG).Background(chipBG).Padding(2, 6, 2, 6).Radius(4)
+			ui.Text(c, chip).FontSize(size-2).Bold().TextColor(st.FG).Background(chipBG).Padding(2, 6, 2, 6).Radius(4)
 			ui.Text(c, info.Name).FontSize(size).Bold().TextColor(st.FG).Grow(1)
 			ui.Text(c, info.Status).FontSize(size - 1).TextColor(statusColor)
 		})
+		if len(info.Images) > 0 && len(gallery) > 0 {
+			toolImageGallery(c, info.Images, st, gallery[0])
+		}
 		if info.Detail != "" {
 			ui.Text(c, info.Detail).FontSize(size - 1).TextColor(st.Muted)
 		}
@@ -139,12 +156,7 @@ func toolResultStatus(ev events.ToolResult) string {
 }
 
 func toolResultText(ev events.ToolResult) string {
-	var parts []string
-	for _, block := range ev.Data.Message.Content {
-		if t := extractLooseText(block); t != "" {
-			parts = append(parts, t)
-		}
-	}
+	parts := []string{toolImageText(ev.Data.Message.Content, len(toolImageReferences(ev.Data.Message.Content)) > 0 && toolResultStatus(ev) != "error")}
 	if ev.Data.Error != nil && ev.Data.Error.Reason != nil {
 		parts = append(parts, *ev.Data.Error.Reason)
 	}
@@ -162,14 +174,8 @@ func ptcDetail(d events.ToolPtcDispatchData) string {
 	if d.IsError && d.Error != nil && d.Error.Reason != nil {
 		return *d.Error.Reason
 	}
-	var parts []string
-	for _, block := range d.Content {
-		if t := extractLooseText(block); t != "" {
-			parts = append(parts, t)
-		}
-	}
-	if len(parts) > 0 {
-		return strings.Join(parts, "\n")
+	if len(d.Content) > 0 {
+		return toolImageText(d.Content, !d.IsError && len(toolImageReferences(d.Content)) > 0)
 	}
 	return mustJSON(d.Arguments)
 }
