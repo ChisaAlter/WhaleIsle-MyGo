@@ -14,6 +14,7 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
 	sessionID := s.selectedID
+	generation := s.followGeneration
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		return
@@ -29,11 +30,12 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 		title := titleFromProjections(json.RawMessage(out.Values))
 
 		s.mu.Lock()
-		if s.selectedID != sessionID || s.client != client {
+		if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
 			s.mu.Unlock()
 			return
 		}
 		s.applyCostBaselineLocked(sessionID, out.AsOfSeq, out.Values)
+		s.applyQueueValuesLocked(out.Values, out.AsOfSeq)
 		for i := range s.items {
 			if s.items[i].SessionID == sessionID {
 				if title != "" && (strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID) {

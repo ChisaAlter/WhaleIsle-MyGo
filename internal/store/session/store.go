@@ -68,6 +68,8 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	QueueEditor QueueEditorState
+
  CostSources []sessioncost.Source
  SelectedProvider string
 
@@ -133,6 +135,12 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	queueEditor queueEditor
+	queueEditorToken uint64
+	queueProjectionSessionID string
+	queueProjectionGeneration uint64
+	queueProjectionSeq float64
+
  costProjections map[string]costProjection
 
 	noDirectoryMu        sync.Mutex
@@ -390,6 +398,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		QueueEditor: s.queueEditorSnapshotLocked(),
  CostSources:s.costSourcesLocked(),
 		ClientReady:       s.client != nil,
 		ScratchCwd:        s.scratchCwd,

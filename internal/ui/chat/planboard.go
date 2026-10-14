@@ -14,9 +14,13 @@ import (
 
 // PlanBoardModel drives the compact plan/goal/queue/todo panel under chat.
 type PlanBoardModel struct {
-	Board      session.PlanBoard
-	ThemeID    string
-	SystemDark bool
+	QueueEditor       session.QueueEditorState
+	OnChangeQueueEdit func(token uint64, text string)
+	OnSaveQueueEdit   func(token uint64)
+	OnCancelQueueEdit func(token uint64)
+	Board             session.PlanBoard
+	ThemeID           string
+	SystemDark        bool
 	// Open nil means always expanded; non-nil is a toggle.
 	Open *bool
 	// GoalDraft is the create/edit objective field (Electron goals strip).
@@ -108,6 +112,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardGoal), muted, fg, func() {
 				paintPlanGoal(c, m, fg, muted, accent)
 			})
+			paintQueueEditor(c, m, fg, muted)
 			if m.Board.Empty() {
 				return
 			}
@@ -125,19 +130,19 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, line).FontSize(12).TextColor(fg).Grow(1)
 						if m.OnQueueEdit != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(m.QueueEditor.Loading || m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueEdit(item.ID, item.Preview)
 							}
 						}
 						if m.OnQueueSteer != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).Disabled(m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(accent).Clicked() {
 								m.OnQueueSteer(item.ID)
 							}
 						}
 						if m.OnQueueRemove != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).Disabled(m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueRemove(item.ID)
 							}
@@ -303,4 +308,36 @@ func todoStatusGlyph(status string) string {
 	default:
 		return "○"
 	}
+}
+
+func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
+	e := m.QueueEditor
+	if e.ItemID == "" {
+		return
+	}
+	ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(12).TextColor(fg)
+		if e.Loading {
+			ui.Text(c, "…").TextColor(muted)
+		}
+		if e.Ready {
+			draft := e.Text
+			ui.TextArea(c.Key("queue-edit-"+e.ItemID), &draft).FillWidth().Lines(2, 6).ReadOnly(e.Saving).OnChange(func() {
+				if m.OnChangeQueueEdit != nil {
+					m.OnChangeQueueEdit(e.Token, draft)
+				}
+			})
+		}
+		if e.Error != "" {
+			ui.Text(c, e.Error).FontSize(11).TextColor(fg)
+		}
+		ui.Row(c).Gap(8).Children(func() {
+			if e.Ready && m.OnSaveQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Disabled(e.Saving || strings.TrimSpace(e.Text) == "").Clicked() {
+				m.OnSaveQueueEdit(e.Token)
+			}
+			if m.OnCancelQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).Disabled(e.Saving).Clicked() {
+				m.OnCancelQueueEdit(e.Token)
+			}
+		})
+	})
 }
