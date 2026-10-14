@@ -96,6 +96,8 @@ type mainState struct {
 	taskRestartPending   bool
 	quitting             bool
 	phoneRuntime         *phoneremote.Runtime
+ phoneGitSession string
+ phoneGitRoot string
 	phoneOp              sync.Mutex
 	closeToTray          bool
 	cfgStore             *config.Store
@@ -491,10 +493,12 @@ func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
 	defer s.mu.Unlock()
 	if s.phoneRuntime == nil {
 		s.phoneRuntime = phoneremote.NewRuntime()
+ s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
 	}
 	return s.phoneRuntime
 }
 func (s *mainState) stopPhoneRuntime() {
+ s.revokePhoneGit()
 	s.phoneOp.Lock()
 	defer s.phoneOp.Unlock()
 	s.phoneRuntimeManager().Stop()
@@ -518,7 +522,9 @@ func (s *mainState) refreshPhoneRemote() string {
 		manager.Stop()
 		return "disabled"
 	}
-	runtimeConfig := map[string]any{
+	gitEnabled,gitRoot:=s.phoneGitGrant()
+ runtimeConfig := map[string]any{
+ "remoteGitEnabled":gitEnabled,"remoteGitRoot":gitRoot,
 		"remoteEnabled": cfg.RemoteEnabled, "remoteMode": cfg.RemoteMode,
 		"remotePort": cfg.RemotePort, "remoteBindAddress": cfg.RemoteBindAddress,
 		"remoteLanTls": cfg.RemoteLanTls, "remoteAppBaseUrl": cfg.RemoteAppBaseUrl,
@@ -661,6 +667,7 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 }
 
 func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store, ws string, mkdirLocal bool) {
+ s.revokePhoneGit()
 	ws = strings.TrimSpace(ws)
 	if !directorypicker.SelectablePath(ws) {
 		return
@@ -857,7 +864,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.settingsAboutActive = false
 	case deeplink.ActionSession:
 		if s.sessions != nil && t.SessionID != "" {
-			s.sessions.Select(t.SessionID)
+			s.revokePhoneGit();s.sessions.Select(t.SessionID)
 		}
 		s.launcherOpen = false
 		s.settingsOpen = false
@@ -1032,7 +1039,7 @@ func (s *mainState) assistantNativeWhale(
 	}
 	asst.SetSessionID(ens.SessionID)
 	if sessions != nil {
-		sessions.Select(ens.SessionID)
+		s.revokePhoneGit();sessions.Select(ens.SessionID)
 	}
 
 	asst.SetLastAction(i18n.T(i18n.KeyAssistantChatting), "")
@@ -2924,7 +2931,8 @@ func mainView(c *ui.Context) {
 	launcherStartFailed := state.launcherStartFailed
 	launcherStartErr := state.launcherStartErr
 	cfgRemoteWorkspace := false
-	cfgRemoteEnabled := false
+	cfgPhoneGitEnabled := state.phoneGitSession!=""
+ cfgRemoteEnabled := false
 	cfgRemoteMode := ""
 	cfgRemotePort := 0
 	cfgRemoteBind := ""
@@ -3960,6 +3968,8 @@ func mainView(c *ui.Context) {
 				SystemDark:             mygo.Theme.IsDark(),
 				RemoteWorkspaceEnabled: cfgRemoteWorkspace,
 				RemoteEnabled:          cfgRemoteEnabled,
+ PhoneGitEnabled:cfgPhoneGitEnabled,
+ OnTogglePhoneGit:func(enabled bool){state.setPhoneGit(enabled);go state.refreshPhoneRemote();if win!=nil{win.Update(func(){})}},
 				RemoteMode:             cfgRemoteMode,
 				RemotePort:             cfgRemotePort,
 				RemoteBindAddress:      cfgRemoteBind,
@@ -3985,6 +3995,7 @@ func mainView(c *ui.Context) {
 				SSHTunnelState:         tunnelState,
 				SSHTunnelMsg:           sshTunnelMsg,
 				OnClose: func() {
+ state.revokePhoneGit()
 					state.mu.Lock()
 					state.remoteOpen = false
 					state.sshHost = sshHost
@@ -4303,7 +4314,7 @@ func mainView(c *ui.Context) {
 				},
 				OnOpenSession: func(sessionID string) {
 					if sessions != nil && strings.TrimSpace(sessionID) != "" {
-						sessions.Select(sessionID)
+						state.revokePhoneGit();sessions.Select(sessionID)
 					}
 					state.mu.Lock()
 					state.assistantOpen = false
@@ -4368,7 +4379,7 @@ func mainView(c *ui.Context) {
 							asst.SetSessionID(ens.SessionID)
 						}
 						if sessions != nil {
-							sessions.Select(ens.SessionID)
+							state.revokePhoneGit();sessions.Select(ens.SessionID)
 						}
 						return ens.SessionID, nil
 					})
@@ -4478,7 +4489,7 @@ func mainView(c *ui.Context) {
 				},
 				OnDshbotOpenRosterSession: func(sessionID string) {
 					if sessions != nil && strings.TrimSpace(sessionID) != "" {
-						sessions.Select(sessionID)
+						state.revokePhoneGit();sessions.Select(sessionID)
 					}
 					if asst != nil {
 						asst.SetSessionID(sessionID)
@@ -4635,7 +4646,7 @@ func mainView(c *ui.Context) {
 					if sessions == nil {
 						return
 					}
-					sessions.Select(id)
+					state.revokePhoneGit();sessions.Select(id)
 					sessions.FollowSelected(context.Background())
 					state.mu.Lock()
 					state.usageOpen = false

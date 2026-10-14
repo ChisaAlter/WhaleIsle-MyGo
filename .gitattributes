@@ -3,3 +3,6 @@
 *.ps1 text eol=crlf
 *.png binary
 *.ico binary
+
+# Preserve vendored mobile Git source bytes and recorded provenance hashes.
+internal/desktop/phoneremote/git-source/** -text

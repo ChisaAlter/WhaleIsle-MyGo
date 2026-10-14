@@ -43,14 +43,16 @@ type Child interface {
 var bridgeScript string
 
 type Runtime struct {
-	op          sync.Mutex
-	mu          sync.Mutex
-	state       RuntimeState
-	child       Child
-	done        chan struct{}
-	spawn       func(Resources) (Child, error)
-	resources   func(string, string) (Resources, error)
-	stopTimeout time.Duration
+	op           sync.Mutex
+	writeMu      sync.Mutex
+	authorizeGit func(string, string) bool
+	mu           sync.Mutex
+	state        RuntimeState
+	child        Child
+	done         chan struct{}
+	spawn        func(Resources) (Child, error)
+	resources    func(string, string) (Resources, error)
+	stopTimeout  time.Duration
 }
 
 func NewRuntime() *Runtime {
@@ -138,7 +140,7 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 		r.mu.Unlock()
 		close(done)
 	}()
-	if err := writeControl(child, map[string]any{"action": "start", "config": config}); err != nil {
+	if err := r.sendControl(child, map[string]any{"action": "start", "config": config}); err != nil {
 		r.stopLocked()
 		r.set(RuntimeState{Status: "offline", Message: "remote control unavailable"})
 	}
@@ -150,7 +152,7 @@ func (r *Runtime) Refresh(config map[string]any) {
 	child := r.child
 	r.mu.Unlock()
 	if child != nil {
-		if writeControl(child, map[string]any{"action": "refresh", "config": config}) != nil {
+		if r.sendControl(child, map[string]any{"action": "refresh", "config": config}) != nil {
 			r.stopLocked()
 		}
 	}
@@ -166,7 +168,7 @@ func (r *Runtime) stopLocked() {
 	if child == nil {
 		return
 	}
-	_ = writeControl(child, map[string]any{"action": "stop"})
+	_ = r.sendControl(child, map[string]any{"action": "stop"})
 	select {
 	case <-done:
 	case <-time.After(r.stopTimeout):
@@ -197,6 +199,9 @@ func (r *Runtime) Snapshot() RuntimeState {
 func (r *Runtime) consume(child Child, b []byte) {
 	var event struct {
 		Kind           string `json:"kind"`
+		ID             string `json:"id"`
+		Root           string `json:"root"`
+		Action         string `json:"action"`
 		Listening      bool   `json:"listening"`
 		RelayConnected bool   `json:"relayConnected"`
 		URL            string `json:"url"`
@@ -204,6 +209,15 @@ func (r *Runtime) consume(child Child, b []byte) {
 		Code           string `json:"code"`
 	}
 	if json.Unmarshal(b, &event) != nil {
+		return
+	}
+	if event.Kind == "git-authorize" {
+		r.mu.Lock()
+		current := r.child == child
+		authorize := r.authorizeGit
+		r.mu.Unlock()
+		allowed := current && authorize != nil && len(event.ID) < 64 && authorize(event.Root, event.Action)
+		_ = r.sendControl(child, map[string]any{"action": "git-authorize-result", "id": event.ID, "allowed": allowed})
 		return
 	}
 	r.mu.Lock()
@@ -292,17 +306,41 @@ func writeControl(c Child, v any) error {
 }
 
 type execChild struct {
-	cmd *exec.Cmd
-	in  io.WriteCloser
-	out io.ReadCloser
+	cmd    *exec.Cmd
+	in     io.WriteCloser
+	out    io.ReadCloser
+	script string
 }
 
 func (c *execChild) Input() io.Writer  { return c.in }
 func (c *execChild) Output() io.Reader { return c.out }
-func (c *execChild) Wait() error       { return c.cmd.Wait() }
+func (c *execChild) Wait() error       { defer os.Remove(c.script); return c.cmd.Wait() }
 func (c *execChild) Kill()             { _ = c.in.Close(); _ = c.cmd.Process.Kill() }
 func spawnBridge(r Resources) (Child, error) {
-	cmd := exec.Command(r.Node, "-e", bridgeScript, r.Module, r.Home)
+	if e := os.MkdirAll(r.Home, 0700); e != nil {
+		return nil, e
+	}
+	script, e := os.CreateTemp(r.Home, ".mygo-phone-bridge-*.cjs")
+	if e != nil {
+		return nil, e
+	}
+	scriptName := script.Name()
+	if _, e = script.WriteString(composedBridgeScript()); e != nil {
+		script.Close()
+		os.Remove(scriptName)
+		return nil, e
+	}
+	if e = script.Close(); e != nil {
+		os.Remove(scriptName)
+		return nil, e
+	}
+	started := false
+	defer func() {
+		if !started {
+			os.Remove(scriptName)
+		}
+	}()
+	cmd := exec.Command(r.Node, "-e", "const file=process.argv[1];process.argv.splice(1,1);require(file)", scriptName, r.Module, r.Home)
 	cmd.Dir = filepath.Dir(r.Module)
 	cmd.Stderr = io.Discard
 	in, e := cmd.StdinPipe()
@@ -319,5 +357,6 @@ func spawnBridge(r Resources) (Child, error) {
 		out.Close()
 		return nil, e
 	}
-	return &execChild{cmd, in, out}, nil
+	started = true
+	return &execChild{cmd: cmd, in: in, out: out, script: scriptName}, nil
 }

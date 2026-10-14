@@ -21,6 +21,8 @@ processStub.argv=['node','/fixture/src/main/dshd-remote.js','fixture-home'];
 processStub.execPath='fictional-node';processStub.stdin={};
 processStub.stdout={write:s=>events.push(JSON.parse(s))};processStub.exit=()=>{};
 vm.runInNewContext(fs.readFileSync(__dirname+'/bridge.cjs','utf8'), {
+ __MYGO_GIT_SOURCES__:{},loadOriginalGit:()=>({git:{},authority:{}}),
+ createGitGate:()=>({git:{},configure(){},revoke(){}}),
  process:processStub,console:{},Buffer,URL,setInterval:f=>{tick=f;return 1;},clearInterval:()=>{},
  require:id=>{
   if(id==='node:path')return path;

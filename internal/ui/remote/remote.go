@@ -28,6 +28,8 @@ type Model struct {
 
 	RemoteWorkspaceEnabled bool
 	RemoteEnabled          bool
+	PhoneGitEnabled        bool
+	OnTogglePhoneGit       func(bool)
 	RemoteMode             string
 	RemotePort             int
 	RemoteBindAddress      string
@@ -124,6 +126,19 @@ func View(c *ui.Context, m Model) {
 							}
 							if ui.Button(c, label).FontSize(11).Clicked() {
 								m.OnTogglePairing(!m.RemoteEnabled)
+							}
+						}
+					})
+					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyRemotePhoneGit)).FontSize(12).TextColor(muted).Width(160)
+						ui.Text(c, onOff(m.PhoneGitEnabled)).FontSize(12).TextColor(fg).Grow(1)
+						if m.OnTogglePhoneGit != nil {
+							label := i18n.T(i18n.KeyRemoteToggleOn)
+							if m.PhoneGitEnabled {
+								label = i18n.T(i18n.KeyRemoteToggleOff)
+							}
+							if ui.Button(c, label).FontSize(11).Clicked() {
+								m.OnTogglePhoneGit(!m.PhoneGitEnabled)
 							}
 						}
 					})

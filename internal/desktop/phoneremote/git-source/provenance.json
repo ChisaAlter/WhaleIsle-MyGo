@@ -1,0 +1,19 @@
+{
+  "source": "Preserved original 2026-10-13 user source snapshot; unchanged JS files",
+  "files": {
+    "main/git.js": "90ec5a226aa352305be6ca5576555c5109acb10053417610591601c2638deaa2",
+    "main/git-templates.js": "799daecc71dc4c3a90132f5215dbbf01b6d0cf07e4889483af7cf59b0abd3381",
+    "main/git-pullrequest.js": "0fdc4d22d88ff998a8a9f037dd0599c335865160dc37c863e9ed8d3c5e770f97",
+    "main/git-remotes.js": "c201c1c1542d3ba24297c0e08682d1154b02b8f2b803a2699b3083afc49b3cd1",
+    "main/git-exec.js": "f5bfd8f5fbc863a288e47ab616fd43aa6f17de8974c2dd9ad1fdf326787843cd",
+    "main/workspace-authority.js": "7128928223e79faa53d97090853cdc749bc75660ddc42de600802db89f25c77c",
+    "shared/dsh-home.js": "3a886a933c9650a9cdb41e49e3a9f407a52582128b6f00d8c5aec59953cc9c1d",
+    "main/git-diff.js": "e5e45dfabdb8c9891b0d7b75b318c39cf8e2dda1e7e9702e1f9ce5864dd18c99",
+    "main/git-read-context.js": "725091d44252b86f4e097192cdc6e82968832bccc29753982ab35d71f7af9a52",
+    "main/git-fetch.js": "d1f6aa08102932717c95454f2d14125fe45e223df14c555a4d2e0e501bde5e1e",
+    "main/git-trace2.js": "629d65319976741fa455766eab6bd4094769dce98b6b92117411d23052c0cf56",
+    "main/git-generate.js": "2175657746c35f66cba32ce2b70a1dd5f82b74bf688669408cb20dc4ef8f7033",
+    "shared/cleartext-base-url.js": "2ba729fd9c1220753565fe266cb29701db658380d812525590a3676ca515db80"
+  },
+  "excludedDynamicModule": "main/config.js: ambient model generation is not enabled by the mobile Git bridge"
+}

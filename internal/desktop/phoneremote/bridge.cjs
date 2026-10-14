@@ -29,11 +29,16 @@ function usableURL(s) {
   } catch { return ''; }
 }
 
+const originalGit=loadOriginalGit(__MYGO_GIT_SOURCES__);
+const gitPending=new Map();let gitSequence=0;
+const gitGate=createGitGate({...originalGit,backend:originalGit.git,authorize:(root,action)=>new Promise(resolve=>{const id=String(++gitSequence);const timer=setTimeout(()=>{gitPending.delete(id);resolve(false);},2500);gitPending.set(id,allowed=>{clearTimeout(timer);resolve(allowed);});emit({kind:'git-authorize',id,root,action});})});
+function revokeGit(){gitGate.revoke();for(const done of gitPending.values())done(false);gitPending.clear();}
 let remote, config = {}, stopping = false, starting = false;
 try {
   const { DshdRemote } = require(process.argv[1]);
   remote = new DshdRemote({
     getConfig: () => config,
+    git: gitGate.git,
     getHomeDir: () => process.argv[2],
     execPath: process.execPath,
     log: () => {},
@@ -69,6 +74,7 @@ let queue = Promise.resolve();
 async function stop() {
   if (stopping) return;
   stopping = true;
+  revokeGit();
   clearQR();
   clearInterval(timer);
   await remote.stopDaemon();
@@ -80,14 +86,17 @@ remote.on('listening',snapshot);
 const input=readline.createInterface({input:process.stdin});
 input.on('line',line=>{
   if(line.length>128*1024)return;
+  let immediate;try{immediate=JSON.parse(line);}catch{return;}
+  if(immediate.action==='git-authorize-result'){const done=gitPending.get(immediate.id);if(done){gitPending.delete(immediate.id);done(immediate.allowed===true);}return;}
+  if(immediate.action==='git-revoke'||immediate.action==='stop'){revokeGit();if(immediate.action==='git-revoke')return;}
   queue=queue.then(async()=>{
     const command=JSON.parse(line);
     if(command.action==='stop')return stop();
     if(stopping)return;
-    if(command.action==='start') {clearQR();config=command.config||{};starting=true;try { await remote.sync(); } finally { starting=false; }}
-    else if(command.action==='refresh' && remote.daemon) {clearQR();emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;starting=true;try {await remote.sync();} finally {starting=false;}}
+    if(command.action==='start') {clearQR();config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync(); } finally { starting=false; }}
+    else if(command.action==='refresh' && remote.daemon) {clearQR();emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();} finally {starting=false;}}
     snapshot();
   }).catch(()=>emit({kind:'error',code:'operation'}));
 });
-input.on('close',()=>{queue=queue.then(stop).catch(()=>process.exit(1));});
-process.on('SIGTERM',()=>{queue=queue.then(stop).catch(()=>process.exit(1));});
+input.on('close',()=>{revokeGit();queue=queue.then(stop).catch(()=>process.exit(1));});
+process.on('SIGTERM',()=>{revokeGit();queue=queue.then(stop).catch(()=>process.exit(1));});

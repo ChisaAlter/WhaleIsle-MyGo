@@ -519,6 +519,7 @@ const (
 	KeyRemoteToggleOff                    = "remote.toggle_off"
 	KeyRemoteHarnessOverlay               = "remote.harness_overlay"
 	KeyRemotePairingEnabled               = "remote.pairing_enabled"
+	KeyRemotePhoneGit                     = "remote.phone_git"
 	KeyRemoteMode                         = "remote.mode"
 	KeyRemotePort                         = "remote.port"
 	KeyRemoteMux                          = "remote.mux"
@@ -1577,6 +1578,7 @@ var zhCN = map[string]string{
 	KeyRemoteToggleOn:                     "开启",
 	KeyRemoteToggleOff:                    "关闭",
 	KeyRemoteHarnessOverlay:               "Harness dsh-remote 覆盖",
+	KeyRemotePhoneGit:                     "手机 Git（仅当前会话工作区）",
 	KeyRemotePairingEnabled:               "手机/LAN 远程 (remoteEnabled)",
 	KeyRemoteMode:                         "remoteMode",
 	KeyRemotePort:                         "remotePort",
@@ -2500,6 +2502,7 @@ var en = map[string]string{
 	KeyRemoteToggleOn:                     "Enable",
 	KeyRemoteToggleOff:                    "Disable",
 	KeyRemoteHarnessOverlay:               "Harness dsh-remote overlay",
+	KeyRemotePhoneGit:                     "Phone Git (current session workspace only)",
 	KeyRemotePairingEnabled:               "Phone/LAN remote (remoteEnabled)",
 	KeyRemoteMode:                         "remoteMode",
 	KeyRemotePort:                         "remotePort",
