@@ -57,7 +57,8 @@
 - 鲸桥启动就绪：后台显式启动，30 秒 deadline 和进程早退通道，状态 ID/PID/版本与认证 loopback API 双核验；失败不伪报成功，只清理本次启动句柄，不动已有实例。仅 mock，无真实进程/组件账号连接。
 - 鲸桥发布源对齐：按已核实新版官方独立仓读取 latest manifest，再固定 manifest.version 对应发布 EXE；CNB 保留列表并补 vendor Accept。坏版本/哈希拒绝，不从旧共享仓猜资源；仅 mock，未实际下载。
 - THA4 桌宠：默认关闭的可选神经渲染，同源固定资源白名单，WebNN→WebGPU→WASM 降级、task.json 更新不重载模型、关闭释放；修复 MyGo 自定义 scheme localhost 路由，固定资源独立暂存/NSIS清单。模型静态形状与 mock/资源 staging 已核验，资源二进制不入 git，未实测 Windows 动画或 GPU 性能。
-- 最新 Host 可选组合：默认保留旧定制，显式选择固定官方 commit 的独立构建目录；平台/架构、产物 SHA 和真实桌面桥能力门禁，缺产物或桥接能力保持关闭。当前仅源码装配/配置 fixture，实际官方 build-only 仍进行，不代表最新 Host 已可运行。
+- 最新 Host 可选组合：默认保留旧定制，显式选择固定官方 commit 的独立构建目录；平台/架构、产物 SHA 和真实桌面桥能力门禁，缺产物或桥接能力保持关闭。当前仅源码装配/配置 fixture，依赖安装成功，官方 build-only 受 tsx IPC EPERM 及升级环境 bwrap 准备失败阻断，未产生构建清单，最新 Host 仍不可用。
+- HTML 预览桥边界：独立有界请求解析和 HTML/尺寸/主题校验，当前合法请求明确返回 503 unavailable，能力为 false；尚未具备严格隔离截图实现，不宣称截图或 HTML 生成可用。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
