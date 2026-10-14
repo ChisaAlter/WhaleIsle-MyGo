@@ -50,11 +50,12 @@ type Model struct {
 	SSHTunnelState string
 	SSHTunnelMsg   string
 
-	OnClose         func()
-	OnProbeSSH      func()
-	OnSaveTunnel    func()
-	OnConnectSSH    func()
-	OnDisconnectSSH func()
+	OnUseWorkspaceMirror func(localMirror string)
+	OnClose              func()
+	OnProbeSSH           func()
+	OnSaveTunnel         func()
+	OnConnectSSH         func()
+	OnDisconnectSSH      func()
 
 	OnCopyConnectURL func()
 	OnOpenConnectURL func()
@@ -88,6 +89,7 @@ func View(c *ui.Context, m Model) {
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
 				viewMachines(c, m)
+				viewDirectory(c, m)
 
 				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
 					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {

@@ -3893,6 +3893,9 @@ func mainView(c *ui.Context) {
 			}
 			state.mu.Unlock()
 			remoteui.View(c, remoteui.Model{
+				OnUseWorkspaceMirror: func(localMirror string) {
+					go state.applyWorkspacePath(win, sessions, localMirror, false)
+				},
 				Machines:               remoteMachines,
 				MachineEditor:          &state.remoteMachineEditor,
 				ThemeID:                themeID,

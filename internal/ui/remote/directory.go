@@ -1,0 +1,63 @@
+package remote
+
+import (
+	"github.com/egoist/mygo/ui"
+	remotestore "whaleisle/internal/store/remote"
+)
+
+func viewDirectory(c *ui.Context, m Model) {
+	if m.Machines == nil {
+		return
+	}
+	s := m.Machines.Snapshot()
+	d := s.Directory
+	if s.CurrentID == "" {
+		return
+	}
+	disabled := s.Busy || s.Error != "" || !m.HarnessReady || !m.RemoteWorkspaceEnabled
+	ui.Column(c).Gap(8).Children(func() {
+		ui.Text(c, label("远程目录 / 工作区镜像", "Remote directory / workspace mirror")).Bold()
+		ui.Text(c, label("浏览当前选择的机器。创建镜像后，点击使用以切换工作区；不会自动同步文件。", "Browse the selected machine. Create a mirror, then use it to switch workspace; files are not synced automatically.")).FontSize(11)
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Text(c, emptyDash(d.Path)).Grow(1)
+			if ui.Button(c, label("上级", "Up")).Disabled(disabled || !d.Loaded || d.Path == "" || d.Path == "/").Clicked() {
+				m.Machines.Browse(remotestore.ParentDirectory(d.Path))
+			}
+			if ui.Button(c, label("浏览 / 刷新", "Browse / refresh")).Disabled(disabled).Clicked() {
+				m.Machines.Browse(d.Path)
+			}
+		})
+		if s.Busy {
+			if d.Choosing {
+				ui.Text(c, label("正在创建镜像…", "Creating mirror…"))
+			} else {
+				ui.Text(c, label("正在加载…", "Loading…"))
+			}
+		}
+		if d.Error != "" {
+			ui.Text(c, d.Error)
+		}
+		if d.Loaded && len(d.Items) == 0 && d.Error == "" {
+			ui.Text(c, label("此目录为空", "This directory is empty"))
+		}
+		for _, entry := range d.Items {
+			entry := entry
+			ui.Row(c).Gap(8).Children(func() {
+				ui.Text(c, entry.Name).Grow(1)
+				if entry.IsDirectory() && ui.Button(c, label("打开目录", "Open directory")).Disabled(disabled || entry.Path == "").Clicked() {
+					m.Machines.Browse(entry.Path)
+				}
+			})
+		}
+		if ui.Button(c, label("选择此目录并创建镜像", "Select directory and create mirror")).Disabled(disabled || !d.CanChoose()).Clicked() {
+			m.Machines.ChooseDirectory()
+		}
+		if d.LocalMirror != "" {
+			ui.Text(c, label("已选目录：", "Selected directory: ")+d.SelectedPath).FontSize(11)
+			ui.Text(c, label("本地镜像：", "Local mirror: ")+d.LocalMirror).FontSize(11)
+			if m.OnUseWorkspaceMirror != nil && ui.Button(c, label("使用此镜像作为工作区", "Use this mirror as workspace")).Disabled(disabled).Clicked() {
+				m.OnUseWorkspaceMirror(d.LocalMirror)
+			}
+		}
+	})
+}

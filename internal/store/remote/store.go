@@ -37,6 +37,7 @@ func (m *Machine) UnmarshalJSON(b []byte) error {
 
 type Draft struct{ ID, Name, Host, Port, Username, PrivateKeyPath, Workspace string }
 type Snapshot struct {
+	Directory       DirectorySnapshot
 	Machines        []Machine
 	CurrentID       string
 	Connected       bool
@@ -72,6 +73,7 @@ func (s *Store) Snapshot() Snapshot {
 	defer s.mu.Unlock()
 	v := s.view
 	v.Machines = append([]Machine(nil), v.Machines...)
+	v.Directory.Items = append([]DirectoryEntry(nil), v.Directory.Items...)
 	return v
 }
 func request(ctx context.Context, c *dsh.Client, method, route string, body any, out any) error {
@@ -172,11 +174,27 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 		s.view.Busy = false
 		s.view.Loaded = true
 		s.view.MutationApplied = mutationApplied
+		if mutationApplied && err != nil {
+			s.view.Directory = DirectorySnapshot{}
+		}
 		if err != nil {
 			s.view.Error = err.Error()
 			s.view.Connected = false
 		} else {
+			for _, old := range s.view.Machines {
+				if old.ID != s.view.CurrentID {
+					continue
+				}
+				for _, next := range registry.Machines {
+					if next.ID == old.ID && (next.Host != old.Host || next.Port != old.Port || next.Username != old.Username) {
+						s.view.Directory = DirectorySnapshot{}
+					}
+				}
+			}
 			s.view.Machines = registry.Machines
+			if s.view.CurrentID != registry.CurrentID {
+				s.view.Directory = DirectorySnapshot{}
+			}
 			s.view.CurrentID = registry.CurrentID
 			s.view.Connected = status.Connected
 
