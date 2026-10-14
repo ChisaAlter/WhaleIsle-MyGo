@@ -7,9 +7,8 @@ import (
 	"strings"
 )
 
-// CopyOnlyNotice is shown in both preview and confirmation. It describes actual
-// backend behavior, including limits that differ from Electron's section merge.
-const CopyOnlyNotice = "设置/MCP 当前按整文件复制，不是按勾选节合并：选中任一 YAML 项会复制整份 settings.yaml / mcp-servers.yaml（含其他节）。目标已有同名文件默认跳过；启用覆盖将替换整份文件。引用凭据不迁移，导入的配置可能需要重新设置凭据才能使用。插件请在插件市场安装。"
+// CopyOnlyNotice documents the supported import subset without exposing secrets.
+const CopyOnlyNotice = "设置仅合并勾选的白名单节；MCP 按勾选的服务器 id 合并。未选节和服务器保留，同名项默认跳过，启用覆盖只替换所选同名项。引用凭据不迁移，配置可能需重新设置凭据；MCP 所选记录内的 header/token 随配置迁移，但不展示。OAuth 会话、跨节 YAML 锚点、非标准 MCP 目录布局不支持。插件请在插件市场安装。"
 
 func (s ApplySelection) Count() int {
 	n := len(s.SelectedRels) + len(s.SelectedSkillIDs) + len(s.SelectedMcpIDs) + len(s.SelectedSettingIDs) + len(s.SelectedPresetIDs)
@@ -34,9 +33,38 @@ func (c Catalog) Snapshot() Catalog {
 func Confirmation(c Catalog, s ApplySelection) string {
 	policy := "已有同名数据：跳过并保留"
 	if s.Overwrite {
-		policy = "已有同名数据：覆盖；设置/MCP 将整文件替换，无法撤销"
+		policy = "已有同名数据：覆盖；设置/MCP 只替换所选同名项，无法撤销"
 	}
-	return fmt.Sprintf("来源（只读）：%s\n目标：%s\n已选 %d 项（附件按整树计）\n%s\n\n%s\n\n只复制已确认的选择；取消不写入。", c.SourceHome, c.DestHome, s.Count(), policy, CopyOnlyNotice)
+	var preview []string
+	for _, group := range []struct {
+		label string
+		ids   []string
+		rows  []CatalogItem
+	}{
+		{"设置", s.SelectedSettingIDs, c.Settings}, {"MCP", s.SelectedMcpIDs, c.MCP},
+	} {
+		for _, id := range group.ids {
+			action := "跳过（不存在或不支持）"
+			for _, row := range group.rows {
+				if row.ID == id && !row.Unsupported {
+					action = "新增"
+					if row.Conflict {
+						action = "跳过并保留"
+						if s.Overwrite {
+							action = "替换所选项"
+						}
+					}
+					break
+				}
+			}
+			preview = append(preview, group.label+" / "+id+"："+action)
+		}
+	}
+	detail := ""
+	if len(preview) > 0 {
+		detail = "\n\n扫描预览（写入前重新检查冲突）：\n" + strings.Join(preview, "\n")
+	}
+	return fmt.Sprintf("来源（只读）：%s\n目标：%s\n已选 %d 项（附件按整树计）\n%s\n\n%s\n\n只复制已确认的选择；取消不写入。", c.SourceHome, c.DestHome, s.Count(), policy, CopyOnlyNotice+detail)
 }
 
 // ValidateRoots rejects recursive/self import, including existing symlink aliases.

@@ -132,78 +132,53 @@ func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, 
 		note("复制技能 " + it.Label)
 	}
 
-	// MCP — copy whole file when any id selected (merge-lite).
-	if len(sel.SelectedMcpIDs) > 0 {
-		if err := ctx.Err(); err != nil {
-			return ApplyResult{}, err
+	// Settings and MCP publish only the selected sections/records. One file is
+	// committed at a time; earlier completed files remain on later failure.
+	for _, group := range []struct {
+		ids   []string
+		mcp   bool
+		label string
+	}{
+		{sel.SelectedMcpIDs, true, "MCP"}, {sel.SelectedSettingIDs, false, "设置"},
+	} {
+		var yamlIDs []string
+		for _, id := range group.ids {
+			if id != "agents-md" || group.mcp {
+				yamlIDs = append(yamlIDs, id)
+			}
 		}
-		src := filepath.Join(cat.SourceHome, "mcp-servers.yaml")
-		dst := filepath.Join(cat.DestHome, "mcp-servers.yaml")
-		if entryExists(src, false) {
-			if entryExists(dst, false) && !sel.Overwrite {
-				skipped++
-				note("跳过 MCP（冲突） mcp-servers.yaml")
-			} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
-				return ApplyResult{}, err
-			} else {
-				copied++
-				note("复制 MCP mcp-servers.yaml")
+		if len(yamlIDs) > 0 {
+			n, skip, err := mergeSelected(ctx, cat, yamlIDs, group.mcp, sel.Overwrite)
+			copied += n
+			skipped += skip
+			if err != nil {
+				return ApplyResult{}, fmt.Errorf("%s 合并失败: %w", group.label, err)
 			}
-		} else {
-			for _, it := range cat.MCP {
-				if !contains(sel.SelectedMcpIDs, it.ID) || it.Abs == "" {
-					continue
-				}
-				dstDir := filepath.Join(cat.DestHome, it.ID)
-				if err := copyDir(it.Abs, dstDir, sel.Overwrite); err != nil {
-					return ApplyResult{}, err
-				}
-				copied++
-				note("复制 MCP " + it.ID)
-			}
+			note(fmt.Sprintf("%s：合并 %d 项，跳过 %d 项", group.label, n, skip))
 		}
 	}
-
-	// Settings whitelist sections: copy settings.yaml wholesale when selected;
-	// AGENTS.md copied by id.
-	if len(sel.SelectedSettingIDs) > 0 {
+	if contains(sel.SelectedSettingIDs, "agents-md") {
 		if err := ctx.Err(); err != nil {
 			return ApplyResult{}, err
 		}
-		wantYAML := false
-		for _, id := range sel.SelectedSettingIDs {
-			if id == "agents-md" {
-				src := filepath.Join(cat.SourceHome, "AGENTS.md")
-				dst := filepath.Join(cat.DestHome, "AGENTS.md")
-				if entryExists(src, false) {
-					if entryExists(dst, false) && !sel.Overwrite {
-						skipped++
-						note("跳过设置（冲突） AGENTS.md")
-					} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
-						return ApplyResult{}, err
-					} else {
-						copied++
-						note("复制设置 AGENTS.md")
-					}
-				}
-				continue
-			}
-			wantYAML = true
+		src, err := readImportText(filepath.Join(cat.SourceHome, "AGENTS.md"))
+		if err != nil {
+			return ApplyResult{}, err
 		}
-		if wantYAML {
-			src := filepath.Join(cat.SourceHome, "settings.yaml")
-			dst := filepath.Join(cat.DestHome, "settings.yaml")
-			if entryExists(src, false) {
-				if entryExists(dst, false) && !sel.Overwrite {
-					skipped++
-					note("跳过设置（冲突） settings.yaml")
-				} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
-					return ApplyResult{}, err
-				} else {
-					copied++
-					note("复制设置 settings.yaml")
-				}
+		path := filepath.Join(cat.DestHome, "AGENTS.md")
+		before, err := readImportText(path)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		if src == nil || (before != nil && !sel.Overwrite) {
+			skipped++
+			note("跳过设置 AGENTS.md")
+		} else {
+			if err := writeMergedFile(path, before, src); err != nil {
+				return ApplyResult{}, err
 			}
+			copied++
+			note("复制设置 AGENTS.md")
 		}
 	}
 
@@ -256,6 +231,7 @@ func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, 
 	if skipped > 0 {
 		msg += fmt.Sprintf("，跳过 %d 项（冲突未覆盖或不受支持）", skipped)
 	}
+	msg += "。引用凭据未迁移，可能需要重新配置。"
 	note(msg)
 	return ApplyResult{OK: true, Copied: copied, Skipped: skipped, Message: msg, Journal: journal}, nil
 }

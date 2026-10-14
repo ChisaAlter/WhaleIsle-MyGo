@@ -64,24 +64,24 @@ func TestImportWorkflowFixtures(t *testing.T) {
 	if err == nil || res.Copied != 1 || len(res.Journal) < 2 {
 		t.Fatalf("partial failure: %+v %v", res, err)
 	}
-	write(filepath.Join(dest, "settings.yaml"), "original\n")
+	write(filepath.Join(dest, "settings.yaml"), "ui-theme:\n  mode: original\n")
 	sel := ApplySelection{SelectedSettingIDs: []string{"ui-theme"}}
 	res, err = ApplyCatalog(cat, sel)
 	data, _ := os.ReadFile(filepath.Join(dest, "settings.yaml"))
-	if err != nil || res.Skipped != 1 || string(data) != "original\n" {
+	if err != nil || res.Skipped != 1 || string(data) != "ui-theme:\n  mode: original\n" {
 		t.Fatalf("default conflict: %+v %v %q", res, err, data)
 	}
 	sel.Overwrite = true
 	confirmation := Confirmation(cat, sel)
-	for _, warning := range []string{source, dest, "整文件替换", "引用凭据不迁移", "其他节"} {
+	for _, warning := range []string{source, dest, "只替换所选同名项", "引用凭据不迁移", "未选节"} {
 		if !strings.Contains(confirmation, warning) {
 			t.Fatalf("missing disclosure %q", warning)
 		}
 	}
 	res, err = ApplyCatalog(cat, sel)
 	data, _ = os.ReadFile(filepath.Join(dest, "settings.yaml"))
-	if err != nil || res.Copied != 1 || !strings.Contains(string(data), "other:") {
-		t.Fatalf("explicit whole-file copy: %+v %v", res, err)
+	if err != nil || res.Copied != 1 || strings.Contains(string(data), "other:") || !strings.Contains(string(data), "mode: dark") {
+		t.Fatalf("explicit selected-section merge: %+v %v", res, err)
 	}
 	for _, pair := range [][2]string{{source, source}, {source, filepath.Join(source, "nested")}, {filepath.Join(source, "nested"), source}} {
 		if ValidateRoots(pair[0], pair[1]) == nil {

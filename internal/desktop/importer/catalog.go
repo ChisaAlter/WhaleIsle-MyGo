@@ -86,8 +86,15 @@ func BuildCatalog(sourceHome, destHome string) (Catalog, error) {
 	cat.Sessions = scanSessions(src, dst)
 	cat.Skills, cat.SkillRoots = scanSkills(src, dst)
 	cat.Plugins = scanPlugins(src, dst)
-	cat.MCP = scanMCP(src, dst)
-	cat.Settings = scanSettings(src, dst)
+	var err error
+	cat.MCP, err = scanMCP(src, dst)
+	if err != nil {
+		return cat, err
+	}
+	cat.Settings, err = scanSettings(src, dst)
+	if err != nil {
+		return cat, err
+	}
 	cat.Presets = scanPresets(src, dst)
 	cat.HasAttachments = entryExists(filepath.Join(src, "attachments"), true)
 	cat.DestEmpty = len(walkSessionRels(filepath.Join(dst, "sessions"))) == 0
@@ -481,76 +488,60 @@ func scanPlugins(src, dst string) []CatalogItem {
 	return out
 }
 
-func scanMCP(src, dst string) []CatalogItem {
-	srcFile := filepath.Join(src, "mcp-servers.yaml")
-	if !entryExists(srcFile, false) {
-		// Alternate layouts used by some desktop homes.
-		for _, alt := range []string{"mcp", "mcpServers"} {
-			dir := filepath.Join(src, alt)
-			if entryExists(dir, true) {
-				return []CatalogItem{{ID: alt, Label: alt + " 目录", Abs: dir}}
-			}
-		}
-		return nil
-	}
-	raw, err := os.ReadFile(srcFile)
+func scanMCP(src, dst string) ([]CatalogItem, error) {
+	source, err := readImportText(filepath.Join(src, "mcp-servers.yaml"))
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	ids := yamlTopLevelIDs(string(raw))
-	destIDs := map[string]bool{}
-	if destRaw, err := os.ReadFile(filepath.Join(dst, "mcp-servers.yaml")); err == nil {
-		for _, id := range yamlTopLevelIDs(string(destRaw)) {
-			destIDs[id] = true
-		}
+	target, err := readImportText(filepath.Join(dst, "mcp-servers.yaml"))
+	if err != nil {
+		return nil, err
 	}
-	out := make([]CatalogItem, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, CatalogItem{
-			ID: id, Label: id, Abs: srcFile, Conflict: destIDs[id],
-		})
+	_, from, err := splitMCP(string(source))
+	if err != nil {
+		return nil, err
 	}
-	return out
+	_, to, err := splitMCP(string(target))
+	if err != nil {
+		return nil, err
+	}
+	var rows []CatalogItem
+	for _, id := range from.order {
+		_, conflict := to.blocks[id]
+		rows = append(rows, CatalogItem{ID: id, Label: id, Abs: filepath.Join(src, "mcp-servers.yaml"), Conflict: conflict})
+	}
+	return rows, nil
 }
 
-func scanSettings(src, dst string) []CatalogItem {
-	whitelist := []string{"llm-deepseek", "llm-pi-ai", "agent-default-model", "vision-fallback", "ui-theme"}
-	var out []CatalogItem
-	srcFile := filepath.Join(src, "settings.yaml")
-	if entryExists(srcFile, false) {
-		raw, err := os.ReadFile(srcFile)
-		if err == nil {
-			present := map[string]bool{}
-			for _, id := range yamlTopLevelIDs(string(raw)) {
-				present[id] = true
-			}
-			destPresent := map[string]bool{}
-			if destRaw, err := os.ReadFile(filepath.Join(dst, "settings.yaml")); err == nil {
-				for _, id := range yamlTopLevelIDs(string(destRaw)) {
-					destPresent[id] = true
-				}
-			}
-			for _, id := range whitelist {
-				if !present[id] {
-					continue
-				}
-				out = append(out, CatalogItem{
-					ID: id, Label: id, Abs: srcFile, Conflict: destPresent[id],
-				})
-			}
+func scanSettings(src, dst string) ([]CatalogItem, error) {
+	source, err := readImportText(filepath.Join(src, "settings.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	target, err := readImportText(filepath.Join(dst, "settings.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	from, err := splitSections(string(source))
+	if err != nil {
+		return nil, err
+	}
+	to, err := splitSections(string(target))
+	if err != nil {
+		return nil, err
+	}
+	var rows []CatalogItem
+	for _, id := range settingSections {
+		if _, ok := from.blocks[id]; !ok {
+			continue
 		}
+		_, conflict := to.blocks[id]
+		rows = append(rows, CatalogItem{ID: id, Label: id, Abs: filepath.Join(src, "settings.yaml"), Conflict: conflict})
 	}
 	if entryExists(filepath.Join(src, "AGENTS.md"), false) {
-		out = append(out, CatalogItem{
-			ID: "agents-md", Label: "AGENTS.md", Abs: filepath.Join(src, "AGENTS.md"),
-			Conflict: entryExists(filepath.Join(dst, "AGENTS.md"), false),
-		})
+		rows = append(rows, CatalogItem{ID: "agents-md", Label: "AGENTS.md", Abs: filepath.Join(src, "AGENTS.md"), Conflict: entryExists(filepath.Join(dst, "AGENTS.md"), false)})
 	}
-	// Electron userData also carries config.json / credentials.json.
-	if entryExists(filepath.Join(src, "config.json"), false) || entryExists(filepath.Join(filepath.Dir(src), "config.json"), false) {
-		// When scanning dsh-home, parent userData may hold shell config.
-	}
-	return out
+	return rows, nil
 }
 
 func scanPresets(src, dst string) []CatalogItem {
