@@ -92,6 +92,7 @@ type mainState struct {
 	bootLogs             []string
 
 	sessions                   *session.Store
+	agentPresetManager         *session.AgentPresetManager
 	interactions               *interaction.Store
 	settings                   *settingsstore.Store
 	settingsOpen               bool
@@ -6027,6 +6028,12 @@ func mainView(c *ui.Context) {
 			state.mu.Unlock()
 		}
 		if sessions != nil {
+			state.mu.Lock()
+			if state.agentPresetManager == nil {
+				state.agentPresetManager = session.NewAgentPresetManager(sessions)
+			}
+			agentPresetManager := state.agentPresetManager
+			state.mu.Unlock()
 			// Body under the title bar must Grow into remaining height (not Fill%).
 			ui.Column(c).Grow(1).MinHeight(0).Children(func() {
 				state.mu.Lock()
@@ -6103,8 +6110,9 @@ func mainView(c *ui.Context) {
 				filesPaneOpen := state.filesPaneOpen
 				state.mu.Unlock()
 				frame.View(c, frame.Model{
-					Store:        sessions,
-					Interactions: interactions,
+					Store:              sessions,
+					AgentPresetManager: agentPresetManager,
+					Interactions:       interactions,
 					OnAutoAllowChanged: func(on bool) {
 						state.mu.Lock()
 						state.desktopDraft.autoAllowTools = on

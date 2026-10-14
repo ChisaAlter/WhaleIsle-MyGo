@@ -15,6 +15,7 @@ import (
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
+	Manager     *session.AgentPresetManager
 	Snapshot    session.ViewState
 	ThemeID     string
 	SystemDark  bool
@@ -82,6 +83,9 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
+		if m.Manager != nil {
+			presetManagerView(c, m.Manager, fg, muted)
+		}
 		ui.Column(c).FillWidth().Padding(10, 12, 10, 12).Gap(8).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAgentsRootLabel)).FontSize(11).TextColor(muted)
 			rootBtn := ui.Button(c, rootTitle).FontSize(13).FontWeight(600).TextColor(fg).

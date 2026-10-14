@@ -126,6 +126,7 @@ func DefaultLayout() LayoutSizes {
 // Model wires the frame to session state and layout handles.
 type Model struct {
 	Store                 *session.Store
+	AgentPresetManager    *session.AgentPresetManager
 	Interactions          *interaction.Store
 	OnAutoAllowChanged    func(on bool)
 	Sizes                 *LayoutSizes
@@ -914,6 +915,7 @@ func rightPane(c *ui.Context, m Model) {
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			agents.View(c, agents.Model{
+				Manager:     m.AgentPresetManager,
 				Snapshot:    store.Snapshot(),
 				ThemeID:     m.ThemeID,
 				SystemDark:  m.SystemDark,
