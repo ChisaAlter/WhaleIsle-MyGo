@@ -118,7 +118,7 @@ func decodeOverview(raw json.RawMessage) error {
 func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.mu.Lock()
 	client := s.client
-	if client == nil || s.stats.Loading {
+	if client == nil || s.stats.Loading || s.repair.Busy {
 		s.mu.Unlock()
 		return
 	}
@@ -126,6 +126,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.statsCancel = cancel
 	epoch := s.statsEpoch
 	s.resetRankingLocked()
+	s.repair.PendingID = ""
 	s.stats.Loading = true
 	s.stats.Err = ""
 	ep := client.Endpoint

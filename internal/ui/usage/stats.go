@@ -17,6 +17,7 @@ func usageText(zh, en string) string {
 }
 func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	pricingView(c, m, fg, muted, accent)
+	repairView(c, m, fg, muted, accent)
 	st := m.Store.Stats()
 	ui.Text(c, usageText("Token 用量统计", "Token usage statistics")).Bold().TextColor(fg)
 	if st.Loading {
