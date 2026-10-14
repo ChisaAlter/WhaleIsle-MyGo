@@ -64,22 +64,27 @@ type Overview struct {
 	Stale       bool           `json:"stale"`
 }
 type statsState struct {
-	Raw     json.RawMessage
-	Loading bool
-	Err     string
-	Days    int
+	Range                            DateRange
+	RangeStart, RangeEnd, RangeError string
+	Raw                              json.RawMessage
+	Loading                          bool
+	Err                              string
+	Days                             int
 }
 type StatsView struct {
-	Overview *Overview
-	Loading  bool
-	Err      string
-	Days     int
+	raw                              json.RawMessage
+	Range                            DateRange
+	RangeStart, RangeEnd, RangeError string
+	Overview                         *Overview
+	Loading                          bool
+	Err                              string
+	Days                             int
 }
 
 func (s *Store) Stats() StatsView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := StatsView{Loading: s.stats.Loading, Err: s.stats.Err, Days: s.stats.Days}
+	v := StatsView{raw: append(json.RawMessage(nil), s.stats.Raw...), Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Err: s.stats.Err, Days: s.stats.Days}
 	if v.Days == 0 {
 		v.Days = 7
 	}
@@ -144,6 +149,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 			s.stats.Err = "用量统计后端不可用 / Usage statistics unavailable: " + err.Error()
 		} else {
 			s.stats.Raw = append(json.RawMessage(nil), raw...)
+			s.reconcileStatsRangeLocked()
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -153,11 +159,20 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 // ExportStats preserves the full host payload for JSON, including billing buckets.
 // CSV exports token rows only, with no invented estimates for unpriced models.
 func (s *Store) ExportStats(format string) ([]byte, error) {
-	s.mu.Lock()
-	raw := append(json.RawMessage(nil), s.stats.Raw...)
-	s.mu.Unlock()
+	v := s.Stats()
+	if v.Range.Active() && format == "sessions" {
+		return nil, errors.New("session ranking is all-time only; clear the date selection to export sessions")
+	}
+	raw := v.raw
 	if len(raw) == 0 {
 		return nil, errors.New("no usage overview to export")
+	}
+	if v.Range.Active() {
+		var err error
+		raw, err = filteredExport(raw, v)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if format == "json" {
 		var out bytes.Buffer
@@ -187,7 +202,11 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 	}
 	switch format {
 	case "models":
-		for _, m := range o.AllTime.ByModel {
+		models := o.AllTime.ByModel
+		if v.Range.Active() {
+			models = o.ByModel
+		}
+		for _, m := range models {
 			write("model", m.Model, m.Provider, m.Totals)
 		}
 	case "days":

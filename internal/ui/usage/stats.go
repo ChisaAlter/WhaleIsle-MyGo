@@ -47,15 +47,19 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	ui.Row(c).Gap(6).Children(func() {
 		for _, n := range []int{7, 14, 30} {
 			if ui.Button(c, fmt.Sprintf("%d days", n)).Clicked() {
-				m.Store.SetStatsDays(n)
+				m.Store.SelectStatsRecentDays(n)
 			}
 		}
 		if ui.Button(c, usageText("重新扫描", "Rescan")).Clicked() {
 			m.Store.RefreshStats(context.Background(), true)
 		}
 	})
+	timeRangeView(c, m, fg, muted, accent)
 	days := o.Days
-	if len(days) > st.Days {
+	if st.Range.Active() {
+		days = st.Selection().Days
+	}
+	if !st.Range.Active() && len(days) > st.Days {
 		days = days[len(days)-st.Days:]
 	}
 	bars := make([]Bar, 0, len(days))
@@ -79,14 +83,27 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	ui.Row(c).Gap(6).Children(func() {
 		for _, kind := range []string{"json", "days", "models", "sessions"} {
 			kind := kind
+			if st.Range.Active() && kind == "sessions" {
+				continue
+			}
 			if m.OnExportStats != nil && ui.Button(c, usageText("导出 ", "Export ")+kind).Clicked() {
 				m.OnExportStats(kind)
 			}
 		}
 	})
-	ui.Text(c, usageText("按模型（全部历史）", "Models (all time)")).Bold().TextColor(fg)
-	for _, row := range o.AllTime.ByModel {
+	models := o.AllTime.ByModel
+	modelTitle := usageText("按模型（全部历史）", "Models (all time)")
+	if st.Range.Active() {
+		models = st.Selection().Models
+		modelTitle = usageText("按模型（选定日期）", "Models (selected dates)")
+	}
+	ui.Text(c, modelTitle).Bold().TextColor(fg)
+	for _, row := range models {
 		ui.Text(c, fmt.Sprintf("%s · %s · %.0f tokens", row.Model, row.Provider, row.Total)).FontSize(12).TextColor(fg)
+	}
+	if st.Range.Active() {
+		ui.Text(c, usageText("会话排行仅支持全部历史；清除日期选择后可查看和导出。", "Session ranking is all-time only; clear the date selection to view and export it.")).TextColor(muted)
+		return
 	}
 	ui.Text(c, usageText("Top 会话（全部历史）", "Top sessions (all time)")).Bold().TextColor(fg)
 	for _, row := range o.TopSessions {
