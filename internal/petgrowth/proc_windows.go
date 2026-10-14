@@ -1,0 +1,12 @@
+//go:build windows
+
+package petgrowth
+
+import (
+	"os/exec"
+	"syscall"
+)
+
+func hideScanner(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+}

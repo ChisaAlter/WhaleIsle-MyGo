@@ -66,6 +66,12 @@ func (s *Store) FeedPetFile(now time.Time) error {
 	if err != nil {
 		return err
 	}
+	return s.commitPetLocked(pet)
+}
+
+// Caller holds s.mu; all care/growth awards use the existing atomic config writer.
+func (s *Store) commitPetLocked(pet map[string]json.RawMessage) error {
+	var err error
 	merged := make(map[string]json.RawMessage, len(s.raw)+1)
 	for key, value := range s.raw {
 		merged[key] = value

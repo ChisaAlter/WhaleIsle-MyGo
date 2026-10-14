@@ -19,25 +19,27 @@ var assets embed.FS
 // Companion is owned by the UI thread. Use Window.Update to call it from a
 // harness callback. Only ServeHTTP runs concurrently, using an immutable sheet.
 type Companion struct {
-	Store         *config.Store
-	Enabled       bool
-	SkinID        string
-	Neural        bool
-	Error         string
-	Skins         []Skin
-	ready         bool
-	win           *mygo.Window
-	assetMu       sync.RWMutex
-	sheet         []byte
-	renderAssets  map[string][]byte
-	neuralActive  bool
-	renderNotice  string
-	task          TaskStatus
-	chat          chatEntry
-	feeding       bool
-	feedMessage   string
-	OnOpenChat    func()
-	OnOpenSession func(string)
+	Store           *config.Store
+	Enabled         bool
+	SkinID          string
+	Neural          bool
+	Error           string
+	Skins           []Skin
+	ready           bool
+	win             *mygo.Window
+	assetMu         sync.RWMutex
+	sheet           []byte
+	renderAssets    map[string][]byte
+	neuralActive    bool
+	renderNotice    string
+	task            TaskStatus
+	chat            chatEntry
+	growth          chatEntry
+	OnRefreshGrowth func()
+	feeding         bool
+	feedMessage     string
+	OnOpenChat      func()
+	OnOpenSession   func(string)
 }
 
 func New(store *config.Store) *Companion {
@@ -84,6 +86,7 @@ func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
 	p.assetMu.Lock()
 	p.chat.close()
+	p.growth.close()
 	p.feeding = false
 	p.feedMessage = ""
 	p.renderAssets = nil
@@ -128,7 +131,7 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 332, MinHeight: 332, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 438, MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
 		p.close()
@@ -137,7 +140,7 @@ func (p *Companion) sync() {
 	p.win = w
 	// StateKey restores older window sizes as well as position. Keep all action
 	// links reachable when an existing installation restores the shorter card.
-	w.SetSize(220, 332)
+	w.SetSize(220, 438)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
 			return
@@ -152,6 +155,12 @@ func (p *Companion) sync() {
 		switch taskAction(e.URL, task) {
 		case "hide":
 			p.close()
+		case "refresh-growth":
+			if p.OnRefreshGrowth != nil {
+				p.OnRefreshGrowth()
+			}
+		case "feed-tokens":
+			p.feedTokens()
 		case "feed-file":
 			p.feedFile()
 		case "chat":
@@ -178,6 +187,7 @@ func (p *Companion) sync() {
 			p.win = nil
 			p.assetMu.Lock()
 			p.chat.close()
+			p.growth.close()
 			p.feeding = false
 			p.feedMessage = ""
 			p.renderAssets = nil
@@ -203,15 +213,18 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		body = renderCarePage(body, p.careStatus())
+		body = renderGrowthPage(body, p.growthStatus())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	case "/task.json":
 		care := p.careStatus()
+		growth := p.growthStatus()
 		p.assetMu.RLock()
 		body, _ = json.Marshal(struct {
 			TaskStatus
-			Chat ChatStatus
-			Care CareStatus
-		}{p.task, p.chat.status, care})
+			Chat   ChatStatus
+			Care   CareStatus
+			Growth GrowthStatus
+		}{p.task, p.chat.status, care, growth})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/tha4.js", "/pet-runtime.js":

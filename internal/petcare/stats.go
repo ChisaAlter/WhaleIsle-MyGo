@@ -1,5 +1,5 @@
-// Package petcare implements the real fileEat care action from Electron's
-// pet-stats.js. It deliberately has no token ledger, file IO or renderer logic.
+// Package petcare implements the real fileEat/feedToken care actions from
+// Electron's pet-stats.js. It deliberately has no token ledger, file IO or renderer logic.
 package petcare
 
 import (
@@ -55,5 +55,27 @@ func FeedFile(raw []byte, now time.Time) Stats {
 	s := Snapshot(raw, now)
 	s.Satiety = clamp(math.Round(s.Satiety) + 2)
 	s.Mood = clamp(math.Round(s.Mood) + 1)
+	return s
+}
+
+// FeedToken is granted only after a nonzero local-food meal. Electron's same
+// action cooldown reduces +5 affection to floor(5/4)=1 for ten minutes.
+func FeedToken(raw []byte, now time.Time) Stats {
+	s := Snapshot(raw, now)
+	s.Satiety = clamp(math.Round(s.Satiety) + 45)
+	s.Mood = clamp(math.Round(s.Mood) + 12)
+	affection := float64(5)
+	var saved struct {
+		Care map[string]json.RawMessage `json:"care"`
+	}
+	if json.Unmarshal(raw, &saved) == nil {
+		var last any
+		if json.Unmarshal(saved.Care["feedToken"], &last) == nil {
+			if n, ok := last.(float64); ok && n >= 0 && float64(now.UnixMilli())-n < 600000 {
+				affection = 1
+			}
+		}
+	}
+	s.Affection += affection
 	return s
 }

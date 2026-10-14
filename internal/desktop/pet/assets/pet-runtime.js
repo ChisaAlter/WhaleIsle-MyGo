@@ -25,6 +25,14 @@
       const feed = document.getElementById('feed-file');
       feed.setAttribute('aria-disabled', String(!!task.Care?.Busy));
       if (task.Care?.Busy) feed.removeAttribute('href'); else feed.setAttribute('href', 'feed-file');
+      document.getElementById('growth-label').textContent = task.Growth?.Label || '';
+      document.getElementById('growth-detail').textContent = task.Growth?.Detail || '';
+      document.getElementById('growth-message').textContent = task.Growth?.Message || '';
+      for (const [id, enabled] of [['refresh-growth', !task.Growth?.Busy], ['feed-tokens', !!task.Growth?.CanFeed]]) {
+        const link = document.getElementById(id);
+        link.setAttribute('aria-disabled', String(!enabled));
+        if (enabled) link.setAttribute('href', id); else link.removeAttribute('href');
+      }
       const chat = document.getElementById('pet-chat');
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
       if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');

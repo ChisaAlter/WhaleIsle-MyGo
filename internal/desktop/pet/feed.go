@@ -27,7 +27,7 @@ func (p *Companion) careStatus() CareStatus {
 	if message == "" {
 		message = "不读取内容，不修改文件 / Files stay untouched"
 	}
-	return CareStatus{Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f", stats.Satiety, stats.Mood), Busy: busy, Message: message}
+	return CareStatus{Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
 }
 func renderCarePage(page []byte, care CareStatus) []byte {
 	return []byte(strings.NewReplacer("{{CARE_LABEL}}", html.EscapeString(care.Label), "{{CARE_MESSAGE}}", html.EscapeString(care.Message)).Replace(string(page)))

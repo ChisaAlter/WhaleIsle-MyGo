@@ -2,7 +2,7 @@
 
 The MyGo shell now owns a small independent transparent, frameless, topmost sprite window. Settings → Pet provides an explicit enable switch, local skin selection, refresh and save. It works offline, without a Harness connection. Default is off; no scans, timer or pet window are started while off. Refresh scans only when explicitly requested, or when opening an enabled companion. Position restoration and disconnected-screen clamping use MyGo's existing `StateKey` window-state implementation. Drag the character to move the window; use Settings to hide it. Closing the app destroys the companion without changing its enabled preference.
 
-Configuration is stored under `mygoDesktopPet` in the existing conflict-checked config store. Electron `pet` and `live2dPet` enabled state, growth, preferences and unknown fields are not migrated or rewritten. Explicit file feeding updates only the shared `live2dPet.stats` care fields described below. A saved unavailable skin is preserved and falls back visually to the bundled Whale image. Select the empty entry for that image. Local Codex packages are read from `${CODEX_HOME:-~/.codex}/pets`, using directory names as stable IDs. Only bounded `pet.json` and confined 1536×1872 / 1536×2288 WebP sheets are read; scripts are never executed, symlink escapes and traversal are rejected, and nothing is uploaded or downloaded.
+Configuration is stored under `mygoDesktopPet` in the existing conflict-checked config store. Electron `pet` and `live2dPet` enabled state, preferences and unknown fields are preserved. Explicit care/token-feeding actions update the shared `live2dPet.stats` and `live2dPet.growth` fields described below. A saved unavailable skin is preserved and falls back visually to the bundled Whale image. Select the empty entry for that image. Local Codex packages are read from `${CODEX_HOME:-~/.codex}/pets`, using directory names as stable IDs. Only bounded `pet.json` and confined 1536×1872 / 1536×2288 WebP sheets are read; scripts are never executed, symlink escapes and traversal are rejected, and nothing is uploaded or downloaded.
 
 The page is served from a fixed `whale-pet://localhost` resource allowlist. Page navigation and new windows are blocked; four exact local navigation intents (open the displayed current session, open the dedicated pet conversation, choose a file meal, hide this instance) are intercepted without navigating. The new opt-in MyGo `PageOptions.WindowControlsOnly` mode only permits DOM readiness and native CSS dragging; application methods, broadcasts, file drops, maximize and other bridge messages are blocked. `DisableBindings` retains its original behavior. This is a small rectangular window, not an all-screen click-through overlay: its rectangle can intercept clicks. Fine-grained shaped hit regions and nonfocusable native windows are not claimed here.
 
@@ -14,7 +14,7 @@ The page is served from a fixed `whale-pet://localhost` resource allowlist. Page
 
 Electron's feature named `desktop-live2d-pet` uses THA4/ONNX neural animation, not Cubism. The optional `mygoDesktopPet.neural` setting now connects the fixed 512px THA4 model with WebNN → WebGPU → WASM provider fallback. Both the companion and neural rendering remain off by default. The adapter is based on official WhaleIsle commit `90465b67ec16765631d54c195af19d9ff3c3a770`, including premultiplied image input, reusable 45-channel pose tensor, byte-scale CHW output, no concurrent inference/backlog, and deduplicated output disposal in `finally`. It uses the original crop and 50ms inference-start budget, slowing to 110ms after five minutes without pointer interaction. Hidden documents pause inference; close/unload releases the session after any in-flight run, and native destruction ends the webview.
 
-This is a bounded small-window implementation, not full Electron rendering/performance parity. Graph capture, GPU packed readback, Anime4K super-resolution, rig/state sprites, full-screen wandering, click-through regions, growth, floating quick-chat input and broad Electron APIs are not ported. The dedicated conversation entry is described below. GPU uses default CPU readback; browser/provider limitations fall back through providers. Missing/changed assets or model/runtime failures show an explicit notice and the selected local sprite or bundled image. A transparent first frame is a failure, never a success notice.
+This is a bounded small-window implementation, not full Electron rendering/performance parity. Graph capture, GPU packed readback, Anime4K super-resolution, rig/state sprites, full-screen wandering, click-through regions, floating quick-chat input and broad Electron APIs are not ported. The dedicated conversation entry is described below. GPU uses default CPU readback; browser/provider limitations fall back through providers. Missing/changed assets or model/runtime failures show an explicit notice and the selected local sprite or bundled image. A transparent first frame is a failure, never a success notice.
 
 ### Fixed assets and staging
 
@@ -56,7 +56,7 @@ Electron's real `pet-live2d.js` ↗ path (`openWhale` → `__dshWhaleOpen` →
 `dsh-whale/assistant/ensure` → open the returned session), rather than relabeling
 the existing current-task link. Opening sends no prompt and performs no model
 inference. The ordinary native session composer and history remain the chat UI;
-the floating overlay input/model picker and feeding/growth are still out of scope.
+the floating overlay input/model picker remains out of scope. Explicit local token feeding is described below.
 
 The existing Whale plugin owns the stable assistant identity, preset, name and
 model settings under `${DSH_HOME}/data/whale/settings.json`. The client does not
@@ -103,8 +103,8 @@ an outstanding selection.
 The separate original `fileEat(names)` metadata-history endpoint has a daily
 cap, but this renderer does **not** call it. This implementation follows the
 actually wired care action and does not add that disconnected history/quota
-behavior. Token/compute feeding still requires its real usage ledger and is not
-simulated or claimed here.
+behavior. Token feeding uses the separate real settlement ledger below; its food
+is derived from settled usage rather than simulated.
 
 Care uses the same `config.json` and `live2dPet.stats` object as Electron:
 `satiety`, `mood`, `affection`, `lastTick` and `care.fileEat`. Unknown nested fields,
@@ -126,3 +126,57 @@ refusal without a reward, exact action URL, escaped UI and resource/action
 separation. No real files were selected or read; no models, accounts or Host
 were used. The integration owner alone performs Windows compilation. Actual
 native picker/close flow and Windows rendering remain unverified.
+
+
+## Local token-food ledger
+
+The companion exposes **刷新粮碗** and **喂 Token**, porting the real
+`src/main/pet-growth.js` and `pet-stats.js` contracts. These are local game
+points, not priced usage, currency, prepaid API credit, or account balances.
+No model, payment, billing API, network request or extra plugin is invoked.
+Refresh is explicit; status polling never scans logs or writes preferences.
+Feeding consumes only already-recorded local food, so a scan error does not
+prevent using an existing bowl. Refresh first to include newly-used tokens.
+
+The runtime uses the existing configured/PATH Node resolver and an embedded,
+builtin-only scanner. The sole path comes from native `paths.DshHome()/sessions`
+(the same authorized application data-home as the Host), never the page. It
+never reads other applications' histories. Session bodies are decompressed in
+a child process; only usage counts and SHA256 settlement identities are returned,
+with no message text, filenames, paths, credentials or session titles persisted
+or exposed. No NODE_OPTIONS/NODE_PATH loader or shell command is accepted.
+Node with builtin zstd support is required, as for the existing Host runtime.
+
+The original zstd concatenated-frame format, assistant message/attempt/chunk
+last-wins settlements, separate compaction usage, cross-version log dedup and
+SHA256(JSON.stringify([session basename, "turn:step"])) identities are retained.
+Input + cache-read + cache-write + output count once; reasoning is already in
+output. The original `food.version=1`, `food.seen` high-water marks and available
+balance remain compatible, without a second source/grain ledger. Moving a
+workspace, deleting logs, restoring logs or reopening the app cannot re-credit
+an observed settlement. Decreased usage does not revoke earned food. Missing
+high-water entries remain saved. The first successful scan seeds the baseline
+without awarding the historical corpus; legacy unspent food and lifetime points
+survive migration. Today uses local calendar days and records observed deltas,
+not an estimate of historical daily spend.
+
+A click consumes at most the next original level gap (100M first promotion,
+20B final tier), one local food token per growth point. A positive meal also
+applies the original feedToken care: +45 satiety, +12 mood, +5 affection, or +1
+affection within ten minutes of the previous token meal. Empty bowls grant
+nothing. Points, food, lifetime feeding and care are merged atomically into the
+existing config.json with optimistic conflict checking. Save failure changes
+neither disk nor memory. Other-shell settings, enable flags and unknown fields
+remain intact. Invalid/unsupported persisted ledgers are refused instead of
+silently reinitialized and potentially awarding old usage again.
+
+The scan has a 30-second window-owned deadline (the process itself also has a
+60-second cap); close/replacement cancels it. A Host generation, data-home or
+runtime change discards its result before persistence. Symlinks/junctions below
+the authorized root are not followed. Limits are 20,000 log files, 50,000
+directories, 128 MiB compressed per file, 256 MiB per decoded frame, 512 MiB total
+decoded corpus, 200,000 settlements and 32 MiB process output. Unreadable,
+truncated, oversized or invalid data aborts the refresh without a partial
+baseline/award; retry after an active write finishes. There is no extrapolation
+or fallback to incomplete rankings. Windows native rendering remains unverified
+by the targeted synthetic fixture and compile alone.

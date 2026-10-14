@@ -2296,6 +2296,7 @@ func main() {
 		state.desktopPet = pet.New(cfgStore)
 		state.desktopPet.OnOpenSession = state.openPetSession
 		state.desktopPet.OnOpenChat = state.openPetChat
+		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })
 
