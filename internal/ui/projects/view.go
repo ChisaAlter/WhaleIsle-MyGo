@@ -1,0 +1,103 @@
+// Package projects draws the native Project entry beside workspace sessions.
+package projects
+
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
+)
+
+type Model struct {
+	Expanded, Busy, Loaded                        bool
+	Listing                                       projectflow.Listing
+	Error, Workspace, SelectedSession, RenameID   string
+	RenameDraft                                   *string
+	OnToggle, OnRefresh, OnCreate, OnCancelRename func()
+	OnOpen                                        func(string)
+	OnBeginRename                                 func(projectflow.Project)
+	OnRename                                      func(string, string)
+}
+
+func tr(zh, en string) string {
+	if i18n.Locale() == i18n.LocaleEN {
+		return en
+	}
+	return zh
+}
+func View(c *ui.Context, m Model) {
+	ui.Column(c).FillWidth().Gap(4).Children(func() {
+		ui.Row(c).FillWidth().Gap(4).Children(func() {
+			arrow := "▸ "
+			if m.Expanded {
+				arrow = "▾ "
+			}
+			if ui.Button(c, arrow+"Projects").Grow(1).Clicked() && m.OnToggle != nil {
+				m.OnToggle()
+			}
+			if m.Expanded && ui.Button(c, tr("刷新", "Refresh")).Disabled(m.Busy).Clicked() && m.OnRefresh != nil {
+				m.OnRefresh()
+			}
+		})
+		if !m.Expanded {
+			return
+		}
+		if m.Busy {
+			ui.Text(c, tr("正在处理…", "Working…")).FontSize(12)
+		}
+		if m.Error != "" {
+			ui.Text(c, m.Error).FontSize(12)
+		}
+		if m.Loaded && !m.Listing.Available {
+			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(12)
+		}
+		if m.Workspace != "" {
+			ui.Text(c, m.Workspace).FontSize(11)
+		}
+		if ui.Button(c, tr("从当前授权工作区创建", "Create from current authorized workspace")).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.Workspace == "").Clicked() && m.OnCreate != nil {
+			m.OnCreate()
+		}
+		if m.Loaded && m.Listing.Available && len(m.Listing.Projects) == 0 {
+			ui.Text(c, tr("尚无 Project", "No Projects yet")).FontSize(12)
+		}
+		if len(m.Listing.Projects) == 0 {
+			return
+		}
+		ui.Scroll(c).Height(200).Children(func() {
+			ui.Column(c).FillWidth().Gap(4).Children(func() {
+				for _, p := range m.Listing.Projects {
+					p := p
+					ui.Column(c).FillWidth().Gap(2).Children(func() {
+						title := p.Title
+						if p.CoordinatorSessionID == m.SelectedSession {
+							title = "● " + title
+						}
+						ui.Row(c).FillWidth().Gap(4).Children(func() {
+							if ui.Button(c, title).Grow(1).Tooltip(p.CanonicalWorkingDirectory).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnOpen != nil {
+								m.OnOpen(p.ID)
+							}
+							if ui.Button(c, tr("改名", "Rename")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnBeginRename != nil {
+								m.OnBeginRename(p)
+							}
+						})
+						status := p.Lifecycle
+						if p.Activity.State != "" {
+							status += " · " + p.Activity.State
+						}
+						ui.Text(c, status).FontSize(11)
+						if m.RenameID == p.ID && m.RenameDraft != nil {
+							ui.TextInput(c, m.RenameDraft).FillWidth()
+							ui.Row(c).Gap(4).Children(func() {
+								if ui.Button(c, tr("保存", "Save")).Disabled(m.Busy).Clicked() && m.OnRename != nil {
+									m.OnRename(p.ID, *m.RenameDraft)
+								}
+								if ui.Button(c, tr("取消", "Cancel")).Disabled(m.Busy).Clicked() && m.OnCancelRename != nil {
+									m.OnCancelRename()
+								}
+							})
+						}
+					})
+				}
+			})
+		})
+	})
+}

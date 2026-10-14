@@ -85,6 +85,7 @@ import (
 )
 
 type mainState struct {
+	projectFlow          projectFlowState
 	resumeStore          *recovery.Store
 	resumeError          string
 	resumePendingSession string
@@ -6048,6 +6049,7 @@ func mainView(c *ui.Context) {
 				filesPaneOpen := state.filesPaneOpen
 				state.mu.Unlock()
 				frame.View(c, frame.Model{
+					Projects:           state.projectModel(win),
 					Store:              sessions,
 					AgentPresetManager: agentPresetManager,
 					Interactions:       interactions,

@@ -21,6 +21,7 @@ import (
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/i18n"
 	interui "whaleisle/internal/ui/interaction"
+	"whaleisle/internal/ui/projects"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/sidebar"
 	termui "whaleisle/internal/ui/terminal"
@@ -127,6 +128,7 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	Projects              projects.Model
 	Store                 *session.Store
 	AgentPresetManager    *session.AgentPresetManager
 	Interactions          *interaction.Store
@@ -314,6 +316,7 @@ func clampSidebarWidth(w float32) float32 {
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
 	sidebarColumns(c, m.Sizes, func() {
 		sidebar.View(c, sidebar.Model{
+			Projects:        m.Projects,
 			Collapsed:       m.Sizes.Sidebar <= 0,
 			OnToggle:        m.Sizes.ToggleSidebar,
 			Snapshot:        snap,

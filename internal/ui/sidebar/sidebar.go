@@ -9,11 +9,13 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
 )
 
 // Model is sidebar state for one frame.
 type Model struct {
+	Projects        projects.Model
 	Collapsed       bool
 	OnToggle        func()
 	Snapshot        session.ViewState
@@ -197,6 +199,7 @@ func View(c *ui.Context, m Model) {
 			if m.WorkspaceMenuOpen != nil {
 				menuOpen = m.WorkspaceMenuOpen
 			}
+			projects.View(c, m.Projects)
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {

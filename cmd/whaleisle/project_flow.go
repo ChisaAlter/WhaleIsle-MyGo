@@ -1,0 +1,175 @@
+package main
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"github.com/egoist/mygo"
+	"time"
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/projects"
+)
+
+type projectFlowState struct {
+	navigation                 uint64
+	client                     *dsh.Client
+	listing                    projectflow.Listing
+	expanded, busy, loaded     bool
+	err, renameID, renameDraft string
+	generation                 uint64
+}
+
+func (s *mainState) projectModel(win *mygo.Window) projects.Model {
+	s.mu.Lock()
+	f := &s.projectFlow
+	if f.client != s.dshClient {
+		expanded := f.expanded
+		generation := f.generation + 1
+		*f = projectFlowState{client: s.dshClient, expanded: expanded, generation: generation}
+	}
+	workspace := ""
+	if s.cfgStore != nil {
+		workspace = s.cfgStore.Get().Workspace
+	}
+	listing := f.listing
+	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
+	m := projects.Model{Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	sessions := s.sessions
+	s.mu.Unlock()
+	if sessions != nil {
+		m.SelectedSession = sessions.Snapshot().SelectedID
+	}
+	m.OnToggle = func() {
+		s.mu.Lock()
+		s.projectFlow.expanded = !s.projectFlow.expanded
+		s.projectFlow.navigation++
+		load := s.projectFlow.expanded && !s.projectFlow.loaded
+		s.mu.Unlock()
+		if load {
+			s.runProjectAction(win, "list", "", "")
+		}
+	}
+	m.OnRefresh = func() { s.runProjectAction(win, "list", "", "") }
+	m.OnCreate = func() { s.runProjectAction(win, "create", workspace, "") }
+	m.OnOpen = func(id string) { s.runProjectAction(win, "open", id, "") }
+	m.OnBeginRename = func(p projectflow.Project) {
+		s.mu.Lock()
+		s.projectFlow.renameID = p.ID
+		s.projectFlow.renameDraft = p.Title
+		s.mu.Unlock()
+	}
+	m.OnCancelRename = func() { s.mu.Lock(); s.projectFlow.renameID = ""; s.projectFlow.renameDraft = ""; s.mu.Unlock() }
+	m.OnRename = func(id, title string) { s.runProjectAction(win, "rename", id, title) }
+	return m
+}
+func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
+	if win == nil {
+		return
+	}
+	s.mu.Lock()
+	f := &s.projectFlow
+	client := s.dshClient
+	if f.busy {
+		s.mu.Unlock()
+		return
+	}
+	if client == nil || f.client != client {
+		f.err = resumeText("Host 尚未连接，请刷新。", "Host is not connected; refresh when ready.")
+		s.mu.Unlock()
+		return
+	}
+	if action != "list" && !f.listing.Available {
+		f.err = resumeText("Project Host 不可用。", "Project Host is unavailable.")
+		s.mu.Unlock()
+		return
+	}
+	workspace := ""
+	if s.cfgStore != nil {
+		workspace = s.cfgStore.Get().Workspace
+	}
+	f.busy = true
+	f.err = ""
+	f.generation++
+	generation := f.generation
+	navigation := f.navigation
+	sessions := s.sessions
+	s.mu.Unlock()
+	selected := ""
+	if sessions != nil {
+		selected = sessions.Snapshot().SelectedID
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		rpc := projectflow.Client{Origin: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTP: client.HTTP}
+		var listing projectflow.Listing
+		var err error
+		var lead string
+		var changed bool
+		switch action {
+		case "list":
+			listing, err = rpc.List(ctx)
+		case "create":
+			var token [16]byte
+			_, err = rand.Read(token[:])
+			if err == nil {
+				var p projectflow.Project
+				p, err = rpc.Create(ctx, arg, []string{workspace}, hex.EncodeToString(token[:]))
+				if err == nil {
+					changed = true
+					lead, err = rpc.Open(ctx, p.ID)
+				}
+			}
+		case "rename":
+			_, err = rpc.Rename(ctx, arg, title)
+			changed = err == nil
+		case "open":
+			lead, err = rpc.Open(ctx, arg)
+		default:
+			err = fmt.Errorf("unsupported Project action")
+		}
+		// A successful mutation is followed by authoritative list state. A failed read
+		// does not replay the mutation or pretend it did not happen.
+		if changed {
+			var refreshErr error
+			listing, refreshErr = rpc.List(ctx)
+			if err == nil {
+				err = refreshErr
+			}
+		}
+		win.Update(func() {
+			s.mu.Lock()
+			f := &s.projectFlow
+			if s.dshClient != client || f.client != client || f.generation != generation {
+				s.mu.Unlock()
+				return
+			}
+			f.busy = false
+			if action == "list" || changed {
+				f.loaded = true
+				f.listing = listing
+			}
+			if err != nil {
+				f.err = err.Error()
+				if action == "list" {
+					f.listing.Available = false
+					f.listing.Projects = nil
+				}
+			} else {
+				f.err = listing.Error
+				if action == "rename" {
+					f.renameID = ""
+					f.renameDraft = ""
+				}
+			}
+			stillOpen := f.expanded && f.navigation == navigation
+			s.mu.Unlock()
+			if lead != "" && stillOpen && sessions != nil && sessions.Snapshot().SelectedID == selected {
+				sessions.RefreshList(context.Background())
+				sessions.Select(lead)
+			}
+		})
+	}()
+}
