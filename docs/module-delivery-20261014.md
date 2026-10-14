@@ -82,6 +82,7 @@
 - Project 生命周期：整个项目真实 archive/restore，与要求卡归档分开；先读详情，活动或未知状态需明确确认停止并归档，成功核验生命周期，恢复不自动启动旧任务。无 delete 假接口，只 mock 未操作真实项目。
 - 鲸桥安全更新/回滚：先验证清单与完整字节再受保护切换，原 Host 不重启时成功释放任务锁；认证 maintenance 拒绝活动 DSH，Windows 固定句柄核验确切进程路径，失败就绪恢复旧版本，退出不确定拒绝重复启动。保留旧目录/data与停止态，Stop复用保护；仅mock/编译，未执行真实组件/Windows进程操作。
 - 手机 runtime 实际构建/暂存：隔离 Linux x64 原版依赖安装、native rebuild、server/CLI 与 browser bundle 成功，SQLite 内存/node-pty加载及 4.4GiB 暂存清单校验通过；提交仅跨平台脚本、固定来源缺件与许可证，保留真实依赖链接。不是 Windows runtime，也未启动 daemon/Host/配对/模型；大体积产物不入源码交付。
+- 原生终端资源：固定官方 MyGo/Ghostty DLL 离线 SHA 校验、许可证与来源 sidecar，打包/NSIS必需暂存，运行前校验且禁止首次打开隐式下载；缺资源可补齐后重试，不改现有 PTY 会话链。真实 DLL 字节及离线 staging 已验证，未执行 Windows DLL/终端命令，二进制不入源码。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

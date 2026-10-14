@@ -41,6 +41,10 @@ func Open(workspaceRoot string, dark bool) *Panel {
 		p.Err = errors.New("terminal workspace is not a directory")
 		return p
 	}
+	if err := prepareNativeRuntime(); err != nil {
+		p.Err = err
+		return p
+	}
 	light := myterm.LightTheme()
 	darkT := myterm.DarkTheme()
 	opts := myterm.Options{

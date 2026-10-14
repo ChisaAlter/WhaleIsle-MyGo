@@ -34,6 +34,10 @@ UninstPage instfiles
 Section "Install"
   SetOutPath "$INSTDIR"
   File "${STAGE_DIR}\${EXE_NAME}"
+  ; Required native terminal ABI: staged and hashed by tools/stage-terminal.
+  File "${STAGE_DIR}\ghostty-vt.dll"
+  File "${STAGE_DIR}\ghostty-vt.dll.LICENSE"
+  File "${STAGE_DIR}\terminal-runtime.json"
   IfFileExists "${STAGE_DIR}\resources" stage_resources skip_resources
 stage_resources:
   CreateDirectory "$INSTDIR\resources"
@@ -77,6 +81,9 @@ SectionEnd
 
 Section "Uninstall"
   Delete "$INSTDIR\${EXE_NAME}"
+  Delete "$INSTDIR\ghostty-vt.dll"
+  Delete "$INSTDIR\ghostty-vt.dll.LICENSE"
+  Delete "$INSTDIR\terminal-runtime.json"
   RMDir /r "$INSTDIR\resources"
   RMDir /r "$INSTDIR\runtime"
   RMDir /r "$INSTDIR\pet-render-assets"

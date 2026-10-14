@@ -41,6 +41,14 @@ if (Test-Path $ResSrc) {
     Write-Host "Note: resources/ not found at repo root; skipping copy"
 }
 
+# The native terminal uses MyGo's pinned DLL, not the Host's Ghostty WASM.
+# Require verified local input before marking a package ready. This never fetches
+# or executes the library; WHALEISLE_TERMINAL_LIBRARY can name the official asset.
+$TerminalOS = (& go env GOOS).Trim()
+$TerminalArch = (& go env GOARCH).Trim()
+& go run ./tools/stage-terminal -target "$TerminalOS-$TerminalArch" -out $Stage
+if ($LASTEXITCODE -ne 0) { throw 'Native terminal runtime staging failed; set WHALEISLE_TERMINAL_LIBRARY to the pinned official library.' }
+
 # Optional vendored harness + Node for NSIS (skip when absent / WHALEISLE_PACKAGE_SKIP_RUNTIME=1).
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
@@ -96,6 +104,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 ## Staged layout
 
 - `whaleisle/whaleisle.exe` - MyGo desktop shell (link-time `main.buildVersion` via `go build -ldflags`)
+- `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
 - `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`)
 - `whaleisle/runtime/node/` - Node tree when `WHALEISLE_NODE_DIR` or a known local Node path exists
