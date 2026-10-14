@@ -99,6 +99,9 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 	}
 
 	if root := resolveHarnessRoot(o); root != "" {
+		if err := ValidateCurrentHostForLaunch(root); err != nil {
+			return Plan{}, err
+		}
 		binJS := filepath.Join(root, "apps", "cli", "lib", "bin.js")
 		if _, err := os.Stat(binJS); err != nil {
 			return Plan{}, fmt.Errorf("vendored harness missing bin.js at %s: %w", binJS, err)

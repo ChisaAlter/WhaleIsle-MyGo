@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {applyReadinessGuard, inspectReadinessGuard} from './current-host-readiness.mjs';
 export const commit = '90465b67ec16765631d54c195af19d9ff3c3a770';
 const manifestName = 'current-host-build.json';
 export const artifacts = [
@@ -43,15 +44,17 @@ export function prepare(source, work) {
  for(const name of ['deepseek-harness','dsh-project']) copy(path.join(source,'vendor',name),path.join(work,name));
  // Preserve original desktop composition/bridge code without importing it here.
  if(fs.existsSync(path.join(source,'src'))) copy(path.join(source,'src'),path.join(work,'desktop-source/src'));
+ applyReadinessGuard(work);
  fs.writeFileSync(path.join(work,'source-selection.json'),JSON.stringify({sourceCommit:commit,sourcePath:source,packageManager:pkg.packageManager,lockSHA256:digest(path.join(work,'deepseek-harness/pnpm-lock.yaml'))},null,2));
  return {work,sourceCommit:commit,packageManager:pkg.packageManager};
 }
 export function finalize(work) {
  const selection=read(path.join(work,'source-selection.json'));
  if(selection.sourceCommit !== commit || selection.lockSHA256 !== digest(path.join(work,'deepseek-harness/pnpm-lock.yaml'))) throw new Error('Source/lock selection changed during build');
+ const safetyPatch=inspectReadinessGuard(work);
  const hashes={};
  for(const f of artifacts) hashes[f]=digest(path.join(work,f));
- const manifest={schemaVersion:1,sourceCommit:commit,sourcePath:selection.sourcePath,packageManager:selection.packageManager,buildProfile:'official',platform:process.platform,arch:process.arch,node:process.version,artifacts:hashes,
+ const manifest={schemaVersion:1,sourceCommit:commit,sourcePath:selection.sourcePath,packageManager:selection.packageManager,buildProfile:'official',safetyPatch,platform:process.platform,arch:process.arch,node:process.version,artifacts:hashes,
  // A successful build is not a working desktop bridge or an authenticated Host.
  capabilities:{project:false,team:false,visualReplies:false}};
  fs.writeFileSync(path.join(work,manifestName),JSON.stringify(manifest,null,2));
@@ -60,6 +63,8 @@ export function finalize(work) {
 export function verify(root) {
  const m=read(path.join(root,manifestName));
  if(m.schemaVersion!==1 || m.sourceCommit!==commit || m.buildProfile!=='official') throw new Error('Unsupported current Host build provenance');
+ const safetyPatch=inspectReadinessGuard(root);
+ if(JSON.stringify(m.safetyPatch)!==JSON.stringify(safetyPatch)) throw new Error('Current Host build is missing the matching visual readiness safety patch');
  if(m.platform!==process.platform || m.arch!==process.arch) throw new Error('Current Host build platform/architecture does not match this runtime');
  for(const f of artifacts) if(!m.artifacts?.[f] || digest(path.join(root,f))!==m.artifacts[f]) throw new Error(`Current Host artifact missing or changed: ${f}`);
  return m;
@@ -71,8 +76,8 @@ export function stage(work,legacyVendor,target) {
   if(!fs.existsSync(path.join(legacyVendor,n,'package.json'))) throw new Error(`Build the legacy desktop runtime first: ${n}`);
  fs.mkdirSync(target,{recursive:true});
  // Keep customized desktop/mobile packages. Never replace their source checkout.
- for(const n of fs.readdirSync(legacyVendor)) if(!['deepseek-harness','dsh-project',manifestName,'desktop-source'].includes(n)) fs.cpSync(path.join(legacyVendor,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
- for(const n of ['deepseek-harness','dsh-project','desktop-source',manifestName]) fs.cpSync(path.join(work,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
+ for(const n of fs.readdirSync(legacyVendor)) if(!['deepseek-harness','dsh-project',manifestName,'desktop-source','visual-readiness-patch.json'].includes(n)) fs.cpSync(path.join(legacyVendor,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
+ for(const n of ['deepseek-harness','dsh-project','desktop-source',manifestName,'visual-readiness-patch.json']) fs.cpSync(path.join(work,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
  verify(target);
  return {vendorDir:target,sourceCommit:commit,requiresBridgeVerification:true};
 }
