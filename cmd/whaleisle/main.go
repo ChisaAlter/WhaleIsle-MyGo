@@ -6162,6 +6162,7 @@ func mainView(c *ui.Context) {
 						state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq)
 					},
 					OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
+ OnPasteComposerImage: func(explicit bool){state.pasteComposerImage(win,sessions,snap.SelectedID,activeDraft,explicit)},
 					EditMessageSeq:        &editMessageSeq,
 					FeedbackCommentMsgID:  &feedbackCommentMsgID,
 					FeedbackCommentDraft:  &feedbackCommentDraft,

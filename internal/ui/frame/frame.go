@@ -148,6 +148,7 @@ type Model struct {
 	ComposerState         *composer.DraftState
 	OnSubmitComposer      func()
 	OnAttachComposerFiles func([]string)
+	OnPasteComposerImage  func(bool)
 	ModelPick             *string
 	PermissionPick        *string
 	AgentPresetPick       *string
@@ -584,6 +585,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnSubmit:      m.OnSubmitComposer,
 						OnOpenURL:     m.OnOpenCitationURL,
 						OnAttachFiles: m.OnAttachComposerFiles,
+						OnPasteImage:  m.OnPasteComposerImage,
 						Editing:       editing,
 						OnCancelEdit: func() {
 							if m.ComposerState != nil {

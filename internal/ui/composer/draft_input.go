@@ -179,7 +179,12 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				client.ReplaceText(nil, "")
 			}
 		case "paste":
-			client.ReplaceText(nil, mygo.Clipboard.ReadText())
+			if m.OnPasteImage != nil {
+				m.OnPasteImage(false)
+			}
+			if text := mygo.Clipboard.ReadText(); text != "" {
+				client.ReplaceText(nil, text)
+			}
 		case "delete":
 			client.ReplaceText(nil, "")
 		default:

@@ -26,6 +26,7 @@ type Model struct {
 	OnSubmit        func()
 	OnOpenURL       func(string)
 	OnAttachFiles   func([]string)
+	OnPasteImage    func(bool)
 	ModelPick       *string
 	PermissionPick  *string
 	AgentPresetPick *string
@@ -307,6 +308,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							m.OnPickImage()
 						} else if m.OnPickDirectory != nil {
 							m.OnPickDirectory()
+						}
+					}
+					if m.OnPasteImage != nil {
+						disabled := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
+						if ui.Button(c, "粘贴图片 / Paste image").Height(btnH).Disabled(disabled).Clicked() {
+							m.OnPasteImage(true)
 						}
 					}
 					if m.OnPickDirectory != nil && m.OnPickImage != nil {
