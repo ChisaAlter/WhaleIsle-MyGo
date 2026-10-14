@@ -773,7 +773,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										UsageJobsToday:   m.UsageJobsToday,
 										UsageBalance:     m.UsageBalance,
 										OnOpenUsage:      m.OnOpenUsage,
-										OnMessageFeedback: func(messageID, rating, note string) {
+										FeedbackStore: m.Store,
+ OnMessageFeedback: func(messageID, rating, note string) {
 											m.Store.RateMessage(context.Background(), messageID, rating, note)
 										},
 										OnClearMessageFeedback: func(messageID string) {

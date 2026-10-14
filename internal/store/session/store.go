@@ -135,6 +135,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+ feedback feedbackState
 	visualReply visualReplyRead
 	visualReplyToken uint64
 	queueEditor queueEditor

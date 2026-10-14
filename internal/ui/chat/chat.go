@@ -19,6 +19,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	FeedbackStore *session.Store
 	EditReturnSeq *float64
 	EditingSeq    float64
 	OnCancelEdit  func()
@@ -271,37 +272,8 @@ func View(c *ui.Context, m Model) {
 						}
 					})
 				}
-				if showMessageFeedback(msg) && m.OnMessageFeedback != nil {
-					selected := ""
-					if m.Snapshot.MessageRatings != nil {
-						selected = m.Snapshot.MessageRatings[msg.ID]
-					}
-					commentOpen := m.FeedbackCommentMsgID != nil && *m.FeedbackCommentMsgID == msg.ID
-					feedbackRow(row.Context, FeedbackRowModel{
-						MessageID:   msg.ID,
-						Selected:    selected,
-						Busy:        m.Snapshot.FeedbackBusyID != "",
-						CommentOpen: commentOpen,
-						Comment:     m.FeedbackCommentDraft,
-						OnVote:      m.OnMessageFeedback,
-						OnClear:     m.OnClearMessageFeedback,
-						OnOpenDown: func(messageID string) {
-							if m.FeedbackCommentMsgID != nil {
-								if *m.FeedbackCommentMsgID != messageID && m.FeedbackCommentDraft != nil {
-									*m.FeedbackCommentDraft = ""
-								}
-								*m.FeedbackCommentMsgID = messageID
-							}
-						},
-						OnCancelDown: func() {
-							if m.FeedbackCommentMsgID != nil {
-								*m.FeedbackCommentMsgID = ""
-							}
-							if m.FeedbackCommentDraft != nil {
-								*m.FeedbackCommentDraft = ""
-							}
-						},
-					})
+				if showMessageFeedback(msg) && m.FeedbackStore != nil {
+					authoritativeFeedbackRow(row.Context, m.FeedbackStore, msg.ID)
 				}
 			})
 		})
