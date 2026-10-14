@@ -137,7 +137,7 @@ func (w *window) createWebView() {
 	if w.closed {
 		return
 	}
-	if w.b.envErr != nil {
+	if !w.opts.IsolatedPreview && w.b.envErr != nil {
 		w.webViewFailed(w.b.envErr)
 		return
 	}
@@ -163,7 +163,7 @@ func (w *window) createWebView() {
 		}
 		addRef(controller)
 		w.setUp(controller)
-	}, func(h uintptr) uintptr { return comCall(w.b.env, envCreateController, w.hwnd, h) })
+	}, func(h uintptr) uintptr { return comCall(w.environment(), envCreateController, w.hwnd, h) })
 	if failed(hr) {
 		w.creationFailed(hr)
 	}
@@ -186,14 +186,21 @@ func (w *window) setUp(controller uintptr) {
 	w.controller = controller
 	comCall(controller, ctlGetCoreWebView2, uintptr(unsafe.Pointer(&w.webview)))
 	comCall(w.webview, wvGetSettings, uintptr(unsafe.Pointer(&w.settings)))
+	if w.opts.IsolatedPreview {
+		if err := w.installPreviewPolicy(); err != nil {
+			w.webViewFailed(err)
+			w.destroy()
+			return
+		}
+	}
 	o := w.opts
 	s := w.settings
 	comCall(s, setPutIsScriptEnabled, 1)
-	comCall(s, setPutIsWebMessageEnabled, 1)
-	comCall(s, setPutAreDefaultScriptDialogsEnabled, 1)
+	comCall(s, setPutIsWebMessageEnabled, boolArg(!o.IsolatedPreview))
+	comCall(s, setPutAreDefaultScriptDialogsEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsStatusBarEnabled, 0)
 	comCall(s, setPutAreDevToolsEnabled, boolArg(o.DevTools))
-	comCall(s, setPutAreDefaultContextMenusEnabled, 1)
+	comCall(s, setPutAreDefaultContextMenusEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsZoomControlEnabled, 1)
 	if o.UserAgent != "" {
 		w.setUserAgent(o.UserAgent)
@@ -224,7 +231,9 @@ func (w *window) setUp(controller uintptr) {
 	add := func(index int, fn func(sender, args uintptr)) {
 		withHandler(fn, func(h uintptr) uintptr { return comCall(w.webview, index, h, tok) })
 	}
-	add(wvAddNavigationStarting, w.navigationStarting)
+	if !o.IsolatedPreview {
+		add(wvAddNavigationStarting, w.navigationStarting)
+	}
 	add(wvAddContentLoading, func(_, _ uintptr) { w.h.NavigationCommitted(w.URL()) })
 	add(wvAddNavigationCompleted, w.navigationCompleted)
 	add(wvAddDocumentTitleChanged, func(_, _ uintptr) {
@@ -242,10 +251,14 @@ func (w *window) setUp(controller uintptr) {
 		}
 		w.h.Message(takeWstr(p))
 	})
-	add(wvAddNewWindowRequested, w.newWindowRequested)
-	add(wvAddPermissionRequested, w.permissionRequested)
+	if !o.IsolatedPreview {
+		add(wvAddNewWindowRequested, w.newWindowRequested)
+		add(wvAddPermissionRequested, w.permissionRequested)
+	}
 	if wv4 := queryInterface(w.webview, &iidICoreWebView2_4); wv4 != 0 {
-		withHandler(w.downloadStarting, func(h uintptr) uintptr { return comCall(wv4, wv4AddDownloadStarting, h, tok) })
+		if !o.IsolatedPreview {
+			withHandler(w.downloadStarting, func(h uintptr) uintptr { return comCall(wv4, wv4AddDownloadStarting, h, tok) })
+		}
 		release(wv4)
 	}
 	add(wvAddWindowCloseRequested, func(_, _ uintptr) { w.h.ClosedByPage() })
@@ -261,7 +274,9 @@ func (w *window) setUp(controller uintptr) {
 			w.h.RenderProcessGone("unresponsive")
 		}
 	})
-	add(wvAddWebResourceRequested, w.resourceRequested)
+	if !o.IsolatedPreview {
+		add(wvAddWebResourceRequested, w.resourceRequested)
+	}
 	for _, scheme := range o.Schemes {
 		w.addFilter("http://" + scheme + ".localhost/*")
 	}
@@ -316,6 +331,17 @@ func (w *window) focusWebView() {
 }
 
 func (w *window) navigationStarting(_, args uintptr) {
+	if w.opts.IsolatedPreview {
+		var uri uintptr
+		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
+		target := takeWstr(uri)
+		allowed := !failed(hr) && w.programmatic && target == "about:blank"
+		w.programmatic = false
+		if !allowed {
+			w.cancelPreviewNavigation(args)
+		}
+		return
+	}
 	var p uintptr
 	comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&p)))
 	uri := w.appURL(takeWstr(p))
@@ -357,6 +383,10 @@ func (w *window) navigationCompleted(_, args uintptr) {
 // download UI, and reports when it ended. What custom schemes serve comes
 // from the app itself, so it is downloaded from there.
 func (w *window) downloadStarting(_, args uintptr) {
+	if w.opts.IsolatedPreview {
+		w.previewMust(comCall(args, dlStartPutCancel, 1))
+		return
+	}
 	var op uintptr
 	if failed(comCall(args, dlStartGetOperation, uintptr(unsafe.Pointer(&op)))) || op == 0 {
 		return
@@ -396,6 +426,10 @@ func (w *window) downloadStarting(_, args uintptr) {
 // permissionRequested decides camera, microphone, location and notification
 // requests; WebView2 asks the user about the others.
 func (w *window) permissionRequested(_, args uintptr) {
+	if w.opts.IsolatedPreview {
+		w.previewMust(comCall(args, permPutState, 2))
+		return
+	}
 	var kind int32
 	comCall(args, permGetKind, uintptr(unsafe.Pointer(&kind)))
 	name := map[int32]string{1: "microphone", 2: "camera", 3: "geolocation", 4: "notifications"}[kind]
@@ -459,6 +493,10 @@ func (w *window) DroppedFiles() []string {
 }
 
 func (w *window) newWindowRequested(_, args uintptr) {
+	if w.opts.IsolatedPreview {
+		w.previewMust(comCall(args, newWinPutHandled, 1))
+		return
+	}
 	// WebView2 must not open windows of its own.
 	comCall(args, newWinPutHandled, 1)
 	var p uintptr
@@ -715,11 +753,11 @@ func (w *window) CapturePage(cb func([]byte, error)) {
 		id := w.nextCall
 		w.calls[id] = func(string, error) { cb(nil, errDestroyed) }
 		hr := withHandler(func(hr, _ uintptr) {
+			defer release(stream)
 			if w.calls[id] == nil {
 				return // the window closed
 			}
 			delete(w.calls, id)
-			defer release(stream)
 			if failed(hr) {
 				cb(nil, hresultError("CapturePreview", hr))
 				return
@@ -789,6 +827,10 @@ func (w *window) PrintToPDF(o platform.PDFOptions, cb func([]byte, error)) {
 // Custom scheme requests.
 
 func (w *window) resourceRequested(_, args uintptr) {
+	if w.opts.IsolatedPreview {
+		w.denyPreviewResource(args)
+		return
+	}
 	var req uintptr
 	if comCall(args, resReqGetRequest, uintptr(unsafe.Pointer(&req))) != sOK || req == 0 {
 		return
@@ -867,7 +909,7 @@ func (w *window) respond(args, deferral uintptr, status int, header http.Header,
 	}
 	stream := memStream(body)
 	var resp uintptr
-	hr := comCall(w.b.env, envCreateWebResourceResponse, stream, uintptr(status),
+	hr := comCall(w.environment(), envCreateWebResourceResponse, stream, uintptr(status),
 		uintptr(unsafe.Pointer(u16(http.StatusText(status)))), uintptr(unsafe.Pointer(u16(raw.String()))), uintptr(unsafe.Pointer(&resp)))
 	release(stream)
 	if !failed(hr) && resp != 0 {

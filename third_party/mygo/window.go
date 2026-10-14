@@ -348,6 +348,17 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
+	if opts.Page.IsolatedPreview {
+		if runtime.GOOS != "windows" {
+			panic("mygo: isolated preview is unavailable on this platform")
+		}
+		opts.Page.DisableBindings = true
+		opts.Page.PreloadScript = ""
+		opts.Page.DevTools = DevToolsDisabled
+		opts.Hidden = true
+		opts.Frameless = true
+		opts.SkipTaskbar = true
+	}
 	w := &Window{id: id, parent: opts.Parent, trustedOrigins: opts.Page.TrustedOrigins, disableBindings: opts.Page.DisableBindings, windowControlsOnly: opts.Page.WindowControlsOnly, secret: rand.Text(), stateKey: opts.StateKey, background: bg, content: opts.Content}
 	w.pg = &Page{w}
 	w.hiddenTitleBar = !opts.Frameless && (opts.TitleBarStyle == TitleBarHidden || opts.TitleBarStyle == TitleBarHiddenInset)
@@ -393,38 +404,39 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
-		Title:          o.Title,
-		X:              o.X,
-		Y:              o.Y,
-		Width:          or(o.Width, 800),
-		Height:         or(o.Height, 600),
-		Center:         o.X == 0 && o.Y == 0,
-		UseContentSize: o.UseContentSize,
-		MinSize:        platform.Size{Width: o.MinWidth, Height: o.MinHeight},
-		MaxSize:        platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
-		Resizable:      !o.DisableResize,
-		Movable:        !o.DisableMove,
-		Minimizable:    !o.DisableMinimize,
-		Maximizable:    !o.DisableMaximize,
-		Closable:       !o.DisableClose,
-		Focusable:      true,
-		Fullscreenable: !o.DisableFullScreen,
-		AlwaysOnTop:    o.AlwaysOnTop,
-		FullScreen:     o.FullScreen,
-		Maximized:      o.Maximized,
-		SkipTaskbar:    o.SkipTaskbar,
-		AutoHideMenu:   o.AutoHideMenuBar,
-		HasShadow:      !o.DisableShadow,
-		Frameless:      o.Frameless,
-		Transparent:    o.Transparent,
-		TitleBarStyle:  string(o.TitleBarStyle),
-		TitleBarHeight: max(o.TitleBarHeight, 0),
-		Vibrancy:       string(o.Vibrancy),
-		Opacity:        o.Opacity,
-		Modal:          o.Modal,
-		UserAgent:      po.UserAgent,
-		Zoom:           po.ZoomFactor,
-		Schemes:        Protocol.schemes(),
+		IsolatedPreview: po.IsolatedPreview,
+		Title:           o.Title,
+		X:               o.X,
+		Y:               o.Y,
+		Width:           or(o.Width, 800),
+		Height:          or(o.Height, 600),
+		Center:          o.X == 0 && o.Y == 0,
+		UseContentSize:  o.UseContentSize,
+		MinSize:         platform.Size{Width: o.MinWidth, Height: o.MinHeight},
+		MaxSize:         platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
+		Resizable:       !o.DisableResize,
+		Movable:         !o.DisableMove,
+		Minimizable:     !o.DisableMinimize,
+		Maximizable:     !o.DisableMaximize,
+		Closable:        !o.DisableClose,
+		Focusable:       true,
+		Fullscreenable:  !o.DisableFullScreen,
+		AlwaysOnTop:     o.AlwaysOnTop,
+		FullScreen:      o.FullScreen,
+		Maximized:       o.Maximized,
+		SkipTaskbar:     o.SkipTaskbar,
+		AutoHideMenu:    o.AutoHideMenuBar,
+		HasShadow:       !o.DisableShadow,
+		Frameless:       o.Frameless,
+		Transparent:     o.Transparent,
+		TitleBarStyle:   string(o.TitleBarStyle),
+		TitleBarHeight:  max(o.TitleBarHeight, 0),
+		Vibrancy:        string(o.Vibrancy),
+		Opacity:         o.Opacity,
+		Modal:           o.Modal,
+		UserAgent:       po.UserAgent,
+		Zoom:            po.ZoomFactor,
+		Schemes:         Protocol.schemes(),
 	}
 	if p.Title == "" {
 		p.Title = App.Name()

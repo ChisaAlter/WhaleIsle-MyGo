@@ -61,6 +61,7 @@
 - HTML 预览桥边界：独立有界请求解析和 HTML/尺寸/主题校验，当前合法请求明确返回 503 unavailable，能力为 false；尚未具备严格隔离截图实现，不宣称截图或 HTML 生成可用。
 - Project 桌面桥：固定官方原样 helper，经现有 install-control 认证和受限固定操作分发；只接受桌面已选/注册根，路径授权及原版 overlay 成功后挂载。启动依赖匹配新 Host 产物和真实 Node/overlay Ready，当前构建阻断下保持未启用；未运行 Git/PR/真实 Host。
 - 已发布 visual reply 阅读：识别真实原生/PTC 发布引用，匹配新 Host 能力后调用授权 readVisualReply，完整只读源码与明确另存；会话/世代/token 隔离晚到结果，25MiB 解码上限和身份/字节数校验，旧 Host 失败不回退普通附件或网页。未执行 HTML、未开启生成/截图，当前缺匹配 Host 构建仍受门禁。
+- HTML 隔离平台基础：Windows 可选独立临时 WebView2 环境/UDF 校验及退出清理，拒绝资源、导航、弹窗、下载和权限，禁用宿主桥；普通窗口默认不变。仅编译基础，尚无安全 shell/capture 生命周期或实机隔离验收，预览能力仍 false。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

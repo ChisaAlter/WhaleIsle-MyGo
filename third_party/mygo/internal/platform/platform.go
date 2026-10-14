@@ -193,13 +193,14 @@ type AboutPanelOptions struct {
 // WindowOptions configures a native window and its webview. The public
 // package fills in all defaults before calling NewWindow.
 type WindowOptions struct {
-	Title          string
-	X, Y           int
-	Width, Height  int
-	Center         bool
-	UseContentSize bool
-	MinSize        Size
-	MaxSize        Size
+	IsolatedPreview bool
+	Title           string
+	X, Y            int
+	Width, Height   int
+	Center          bool
+	UseContentSize  bool
+	MinSize         Size
+	MaxSize         Size
 
 	Resizable      bool
 	Movable        bool

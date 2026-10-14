@@ -24,6 +24,12 @@ func (p *Page) Window() *Window { return p.w }
 
 // PageOptions configure the web page of a window.
 type PageOptions struct {
+	// IsolatedPreview requests a dedicated temporary WebView2 environment with
+	// native bindings and resource/navigation/permission/download access denied.
+	// Experimental platform prerequisite only: it is NOT a renderer-readiness
+	// signal. Callers must still use a strict opaque sandbox and validated capture
+	// lifecycle. Unsupported platforms fail closed. Ordinary windows are unchanged.
+	IsolatedPreview bool
 	// WindowControlsOnly keeps DOM-ready and CSS drag regions, but rejects
 	// application calls, events, drops and all other native bridge messages.
 	// DisableBindings takes precedence and disables the bridge entirely.

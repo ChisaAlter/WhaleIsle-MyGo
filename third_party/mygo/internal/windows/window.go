@@ -21,6 +21,7 @@ type window struct {
 	// The WebView2 controller is created asynchronously; calls that need
 	// it wait in pending until it exists, or fail with webViewErr, why it
 	// could not be created.
+	isolated     *previewEnvironment
 	controller   uintptr // ICoreWebView2Controller
 	webview      uintptr // ICoreWebView2
 	settings     uintptr // ICoreWebView2Settings
@@ -82,7 +83,7 @@ type window struct {
 }
 
 func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler) (platform.Window, error) {
-	if !o.Surface {
+	if !o.Surface && !o.IsolatedPreview {
 		if err := b.startEnvironment(); err != nil {
 			return nil, err
 		}
@@ -164,7 +165,11 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		w.caption.layout()
 	}
 	if !o.Surface {
-		b.whenEnvironment(w.createWebView)
+		if o.IsolatedPreview {
+			w.startPreviewEnvironment()
+		} else {
+			b.whenEnvironment(w.createWebView)
+		}
 	}
 	return w, nil
 }
@@ -476,6 +481,9 @@ func (w *window) cleanup() {
 		release(w.webview)
 		release(w.controller)
 		w.controller, w.webview, w.settings = 0, 0, 0
+	}
+	if w.isolated != nil {
+		w.isolated.close()
 	}
 	w.b.menus.drop(w.owner)
 	// Windows destroys the menu bar on the window, not one hidden off it.
