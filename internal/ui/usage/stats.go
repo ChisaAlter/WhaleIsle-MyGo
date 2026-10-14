@@ -93,4 +93,5 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		}
 	})
 	rankingView(c, m, st, fg, muted, accent)
+	projectRankingView(c, m, st, fg, muted, accent)
 }

@@ -55,16 +55,17 @@ type Bonus struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
-	ranking     rankingState
-	repair      repairState
-	billing     billingState
-	stats       statsState
-	statsEpoch  uint64
-	statsCancel context.CancelFunc
-	mu          sync.Mutex
-	client      *dsh.Client
-	mux         *dsh.Mux
-	notify      func()
+	ranking        rankingState
+	projectRanking projectRankingState
+	repair         repairState
+	billing        billingState
+	stats          statsState
+	statsEpoch     uint64
+	statsCancel    context.CancelFunc
+	mu             sync.Mutex
+	client         *dsh.Client
+	mux            *dsh.Mux
+	notify         func()
 
 	jobFollowCancel    context.CancelFunc
 	accountWatchCancel context.CancelFunc

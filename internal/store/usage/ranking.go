@@ -25,6 +25,7 @@ type rankingState struct {
 }
 
 func (s *Store) resetRankingLocked() {
+	s.resetProjectRankingLocked()
 	if s.ranking.cancel != nil {
 		s.ranking.cancel()
 	}

@@ -263,6 +263,7 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 		if err != nil {
 			s.billing.Err = err.Error()
 		} else {
+			s.resetProjectRankingLocked()
 			s.billing.Settings = settings
 			s.billing.Drafts = priceDrafts(settings.Prices)
 			s.billing.Loaded = true
