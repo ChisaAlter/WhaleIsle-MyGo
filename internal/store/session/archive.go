@@ -86,7 +86,6 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 	}
 	s.mu.Lock()
 	client := s.client
-	wasSelected := s.selectedID == sessionID
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -103,9 +102,7 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 			s.fire()
 			return
 		}
-		if wasSelected {
-			s.selectedID = ""
-		}
+		s.applyDeleteResultLocked(out)
 		s.lastAction = "session deleted"
 		s.mu.Unlock()
 		s.fire()

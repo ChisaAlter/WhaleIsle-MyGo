@@ -7,7 +7,16 @@ import (
 )
 
 func sidebarItems(snap session.ViewState, queryPtr *string) []session.Item {
-	items := snap.Items
+	archived := make(map[string]bool, len(snap.ArchivedSessionIDs))
+	for _, id := range snap.ArchivedSessionIDs {
+		archived[id] = true
+	}
+	items := make([]session.Item, 0, len(snap.Items))
+	for _, it := range snap.Items {
+		if !archived[it.SessionID] {
+			items = append(items, it)
+		}
+	}
 	if queryPtr == nil {
 		return items
 	}

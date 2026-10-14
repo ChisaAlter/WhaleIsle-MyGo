@@ -262,23 +262,6 @@ func View(c *ui.Context, m Model) {
 				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
 					nodes := buildTree(items, m.Snapshot.PinnedSessionIDs)
-					if len(nodes) == 0 {
-						sel := ""
-						for _, it := range m.Snapshot.Items {
-							if it.SessionID == m.Snapshot.SelectedID {
-								sel = strings.TrimSpace(it.Title)
-								break
-							}
-						}
-						if sel == "" {
-							sel = i18n.T(i18n.KeySidebarNewSessionFallback)
-						}
-						bg := selectedBackground(colors)
-						ui.Row(c).FillWidth().Background(bg).Padding(6, 8, 6, 20).Radius(8).Children(func() {
-							ui.Text(c, sel).FontSize(12).TextColor(fg).Grow(1)
-						})
-						return
-					}
 					var paint func(nodes []treeNode, depth int)
 					paint = func(nodes []treeNode, depth int) {
 						for _, n := range nodes {
@@ -294,12 +277,22 @@ func View(c *ui.Context, m Model) {
 							Padding(8, 0, 2, 0)
 						for _, id := range m.Snapshot.ArchivedSessionIDs {
 							aid := id
+							label := aid
+							for _, it := range m.Snapshot.Items {
+								if it.SessionID == aid && strings.TrimSpace(it.Title) != "" {
+									label = it.Title
+									break
+								}
+							}
 							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
-								ui.Text(c, aid).FontSize(11).TextColor(muted).Grow(1)
+								ui.Text(c, label).FontSize(11).TextColor(muted).Grow(1)
 								if m.OnUnarchive != nil {
 									if ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).FontSize(11).Clicked() {
 										m.OnUnarchive(aid)
 									}
+								}
+								if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).FontSize(11).Clicked() {
+									m.OnDelete(aid)
 								}
 							})
 						}
@@ -399,9 +392,6 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			if m.OnArchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarArchive)).FontSize(11).Clicked() {
 				m.OnArchive(it.SessionID)
 			}
-			if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).FontSize(11).Clicked() {
-				m.OnDelete(it.SessionID)
-			}
 			if m.OnCopySessionID != nil && ui.Button(c, i18n.T(i18n.KeySidebarCopyID)).FontSize(11).Clicked() {
 				m.OnCopySessionID(it.SessionID)
 			}
@@ -432,7 +422,9 @@ func buildTree(items []session.Item, pinnedOrder []string) []treeNode {
 	var roots []session.Item
 	for _, it := range items {
 		byID[it.SessionID] = it
-		if it.ParentID == "" {
+	}
+	for _, it := range items {
+		if _, parentPresent := byID[it.ParentID]; it.ParentID == "" || !parentPresent {
 			roots = append(roots, it)
 		} else {
 			children[it.ParentID] = append(children[it.ParentID], it)
