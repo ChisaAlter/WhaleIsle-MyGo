@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -40,25 +41,9 @@ func verifyBridgeReady(ctx context.Context, st bridgeState, version string, pid 
 	if st.ID != "whalebridge" || !st.Ready || st.PID <= 0 || st.PID != pid || st.Version != version {
 		return fmt.Errorf("鲸桥进程 PID 或版本与启动记录不一致")
 	}
-	u, err := url.Parse(st.URL)
-	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
-		return fmt.Errorf("鲸桥本机管理地址无效")
-	}
-	key := u.Query().Get("k")
-	endpoint := "http://" + u.Host + "/api/whalebridge/status"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	resp, err := bridgeLocalRequest(ctx, st, http.MethodGet, "status", nil, client)
 	if err != nil {
-		return fmt.Errorf("鲸桥状态请求无效")
-	}
-	req.AddCookie(&http.Cookie{Name: "magpie_web_" + u.Port(), Value: key})
-	// Do not forward the authentication cookie through redirects or proxies.
-	safe := *client
-	safe.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	safe.Transport = &http.Transport{Proxy: nil}
-	defer safe.Transport.(*http.Transport).CloseIdleConnections()
-	resp, err := safe.Do(req)
-	if err != nil {
-		return fmt.Errorf("鲸桥本机状态接口不可用")
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -70,6 +55,53 @@ func verifyBridgeReady(ctx context.Context, st bridgeState, version string, pid 
 	}
 	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&status) != nil || status.PID != pid || status.Version != version {
 		return fmt.Errorf("鲸桥状态接口 PID 或版本不一致")
+	}
+	return nil
+}
+
+// Both lifecycle calls share the same exact-loopback, no-proxy, no-redirect
+// authentication boundary. Never place the management key in request URLs.
+func bridgeLocalRequest(ctx context.Context, st bridgeState, method, route string, body io.Reader, client *http.Client) (*http.Response, error) {
+	u, err := url.Parse(st.URL)
+	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
+		return nil, fmt.Errorf("鲸桥本机管理地址无效")
+	}
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+u.Host+"/api/whalebridge/"+route, body)
+	if err != nil {
+		return nil, fmt.Errorf("鲸桥本机请求无效")
+	}
+	req.AddCookie(&http.Cookie{Name: "magpie_web_" + u.Port(), Value: u.Query().Get("k")})
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	safe := *client
+	safe.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	safe.Transport = &http.Transport{Proxy: nil, DisableKeepAlives: true}
+	resp, err := safe.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("鲸桥本机管理接口不可用")
+	}
+	return resp, nil
+}
+
+func bridgeMaintenance(ctx context.Context, st bridgeState, on bool, client *http.Client) error {
+	b, _ := json.Marshal(map[string]bool{"on": on})
+	resp, err := bridgeLocalRequest(ctx, st, http.MethodPost, "maintenance", bytes.NewReader(b), client)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusConflict {
+		return fmt.Errorf("鲸桥仍有正在生成的回复，请完成后重试；未停止现有实例")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("鲸桥维护接口 HTTP %d", resp.StatusCode)
+	}
+	var result struct {
+		Active *int `json:"active"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&result) != nil || result.Active == nil || on && *result.Active != 0 {
+		return fmt.Errorf("鲸桥维护状态未确认，已取消操作")
 	}
 	return nil
 }

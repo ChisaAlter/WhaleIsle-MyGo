@@ -346,6 +346,8 @@ const (
 	KeyLauncherVerDev                     = "launcher.ver.dev"
 	KeyLauncherVerNeedInstall             = "launcher.ver.need_install"
 	KeyLauncherVerNeedInstallDesc         = "launcher.ver.need_install_desc"
+	KeyLauncherCompCheckUpdate            = "launcher.comp.check_update"
+	KeyLauncherCompRollback               = "launcher.comp.rollback"
 	KeyLauncherVerBackHome                = "launcher.ver.back_home"
 	KeyLauncherVerInstallPath             = "launcher.ver.install_path"
 	KeyLauncherVerUpdateTo                = "launcher.ver.update_to"
@@ -1401,6 +1403,8 @@ var zhCN = map[string]string{
 	KeyLauncherVerDev:                     "源码运行",
 	KeyLauncherVerNeedInstall:             "需要先安装桌面端",
 	KeyLauncherVerNeedInstallDesc:         "选择线路后可继续浏览版本列表并下载安装。",
+	KeyLauncherCompCheckUpdate:            "检查并更新",
+	KeyLauncherCompRollback:               "回滚至 v%s",
 	KeyLauncherVerBackHome:                "回到首页安装",
 	KeyLauncherVerInstallPath:             "安装位置  %s",
 	KeyLauncherVerUpdateTo:                "更新到此版本",
@@ -2322,6 +2326,8 @@ var en = map[string]string{
 	KeyLauncherVerDev:                     "Running from source",
 	KeyLauncherVerNeedInstall:             "Install the desktop app first",
 	KeyLauncherVerNeedInstallDesc:         "Pick a download route, then browse versions and install.",
+	KeyLauncherCompCheckUpdate:            "Check and update",
+	KeyLauncherCompRollback:               "Roll back to v%s",
 	KeyLauncherVerBackHome:                "Back to home to install",
 	KeyLauncherVerInstallPath:             "Install path  %s",
 	KeyLauncherVerUpdateTo:                "Update to this version",

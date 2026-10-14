@@ -3237,6 +3237,10 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnComponentAction: func(id, action string) {
+					if id == "whalebridge" && (action == "update" || action == "rollback" || action == "stop") {
+						state.changeWhaleBridge(win, action)
+						return
+					}
 					if id == "whalebridge" && action == "start" {
 						state.mu.Lock()
 						state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"

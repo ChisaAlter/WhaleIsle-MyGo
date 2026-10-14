@@ -60,12 +60,17 @@ func RunAction(userData, id, action string) error {
 }
 
 var bridgeStartMu sync.Mutex
+var errBridgeExitUnconfirmed = errors.New("鲸桥启动失败，进程退出尚未确认，请查看组件日志")
 
 func startWhalebridge(root, dshHome string) error {
 	if !bridgeStartMu.TryLock() {
 		return fmt.Errorf("鲸桥正在启动")
 	}
 	defer bridgeStartMu.Unlock()
+	return startWhalebridgeLocked(root, dshHome)
+}
+
+func startWhalebridgeLocked(root, dshHome string) error {
 	inst := readInstalled(filepath.Join(root, "installed.json"))
 	ver := inst.Version
 	if ver == "" {
@@ -119,6 +124,13 @@ func startWhalebridge(root, dshHome string) error {
 	if err := waitBridgeReady(ctx, statePath, ver, cmd.Process.Pid, exited, client); err != nil {
 		// Only the process handle owned by this launch is eligible for cleanup.
 		_ = cmd.Process.Kill()
+		// Do not clear state or let rollback start a second instance until the
+		// owned process has actually exited (a PID lookup is insufficient).
+		select {
+		case <-exited:
+		case <-time.After(10 * time.Second):
+			return errBridgeExitUnconfirmed
+		}
 		if st, e := readBridgeState(statePath); e == nil && st.PID == cmd.Process.Pid && st.Version == ver {
 			_ = os.Remove(statePath)
 		}
@@ -128,27 +140,22 @@ func startWhalebridge(root, dshHome string) error {
 }
 
 func stopWhalebridge(root string) error {
-	statePath := filepath.Join(root, "data", "state.json")
-	b, err := os.ReadFile(statePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+	if !bridgeStartMu.TryLock() {
+		return fmt.Errorf("鲸桥正在启动或切换")
 	}
-	var st struct {
-		PID int `json:"pid"`
-	}
-	if json.Unmarshal(b, &st) != nil || st.PID <= 0 {
-		_ = os.Remove(statePath)
+	defer bridgeStartMu.Unlock()
+	// A missing state remains an idempotent stop, including an uninstalled component.
+	if _, err := os.Lstat(filepath.Join(root, "data", "state.json")); os.IsNotExist(err) {
 		return nil
 	}
-	proc, err := os.FindProcess(st.PID)
-	if err == nil && proc != nil {
-		_ = proc.Kill()
+	inst, err := checkedBridgeInstalled(root)
+	if err != nil {
+		return err
 	}
-	_ = os.Remove(statePath)
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	_, err = stopBridgeInstance(ctx, root, inst.Version, bridgeRuntime())
+	return err
 }
 
 func openWhalebridge(root string) error {

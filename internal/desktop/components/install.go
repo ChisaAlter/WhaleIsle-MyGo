@@ -66,15 +66,23 @@ func InstallWhaleBridge(ctx context.Context, userData, route string) error {
 	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
 		return fmt.Errorf("鲸桥首版仅支持 Windows x64")
 	}
+	endpoint, err := bridgeReleaseEndpoint(route)
+	if err != nil {
+		return err
+	}
+	return installBridge(ctx, userData, endpoint, &http.Client{Timeout: 5 * time.Minute}, false)
+}
+
+func bridgeReleaseEndpoint(route string) (string, error) {
 	endpoint := bridgeGitHubReleases + "/latest/download/" + bridgeManifest
 	switch strings.ToLower(strings.TrimSpace(route)) {
 	case "", "github":
 	case "cnb", "gitee":
 		endpoint = "https://cnb.cool/ayasealter/WhaleIsle/-/releases?page_size=100"
 	default:
-		return fmt.Errorf("未知组件下载线路")
+		return "", fmt.Errorf("未知组件下载线路")
 	}
-	return installBridge(ctx, userData, endpoint, &http.Client{Timeout: 5 * time.Minute}, false)
+	return endpoint, nil
 }
 
 func installBridge(ctx context.Context, userData, endpoint string, client *http.Client, fixture bool) error {
@@ -99,23 +107,39 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 			return fmt.Errorf("鲸桥已有版本，首次安装不能覆盖")
 		}
 	}
-	var m bridgeReleaseManifest
-	var binaryAsset bridgeReleaseAsset
+	m, binaryAsset, err := resolveBridgeRelease(ctx, endpoint, client, fixture)
+	if err != nil {
+		return err
+	}
+	target, err := stageBridgeRelease(ctx, root, m, binaryAsset, client, fixture)
+	if err != nil {
+		return err
+	}
+
+	record, _ := json.Marshal(installedFile{Version: m.Version})
+	if err := bridgeWriteNewRecord(root, record); err != nil {
+		_ = os.RemoveAll(target)
+		return err
+	}
+	return nil
+}
+
+func resolveBridgeRelease(ctx context.Context, endpoint string, client *http.Client, fixture bool) (m bridgeReleaseManifest, binaryAsset bridgeReleaseAsset, err error) {
 	latestSuffix := "/latest/download/" + bridgeManifest
 	if strings.HasSuffix(endpoint, latestSuffix) {
 		// Fetch latest metadata once, then pin payload to that validated version.
 		// No GitHub REST quota is used and a moving latest cannot mix releases.
 		if err := bridgeJSON(ctx, client, endpoint, &m, fixture); err != nil {
-			return err
+			return m, binaryAsset, err
 		}
 		if err := validateBridgeManifest(m); err != nil {
-			return err
+			return m, binaryAsset, err
 		}
 		binaryAsset = bridgeReleaseAsset{Name: bridgeAsset, URL: strings.TrimSuffix(endpoint, latestSuffix) + "/download/whalebridge-v" + m.Version + "/" + bridgeAsset, Size: m.Platforms["win32-x64"].Size}
 	} else {
 		var releases []bridgeRelease
 		if err := bridgeJSON(ctx, client, endpoint, &releases, fixture); err != nil {
-			return err
+			return m, binaryAsset, err
 		}
 		var selected *bridgeRelease
 		for i := range releases {
@@ -129,7 +153,7 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 			}
 		}
 		if selected == nil {
-			return fmt.Errorf("鲸桥组件尚未发布到当前线路")
+			return m, binaryAsset, fmt.Errorf("鲸桥组件尚未发布到当前线路")
 		}
 		var manifestAsset bridgeReleaseAsset
 		for _, a := range selected.Assets {
@@ -141,59 +165,70 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 			}
 		}
 		if manifestAsset.address() == "" || binaryAsset.address() == "" {
-			return fmt.Errorf("鲸桥发布缺少组件文件")
+			return m, binaryAsset, fmt.Errorf("鲸桥发布缺少组件文件")
 		}
 		if err := bridgeJSON(ctx, client, manifestAsset.address(), &m, fixture); err != nil {
-			return err
+			return m, binaryAsset, err
 		}
 		spec := m.Platforms["win32-x64"]
 		if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || selected.Tag != "whalebridge-v"+m.Version || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || binaryAsset.Size != spec.Size || !strings.Contains(m.License, "MIT License") {
-			return fmt.Errorf("鲸桥发布清单或资产不一致")
+			return m, binaryAsset, fmt.Errorf("鲸桥发布清单或资产不一致")
 		}
 	}
+	return m, binaryAsset, nil
+}
+
+func stageBridgeRelease(ctx context.Context, root string, m bridgeReleaseManifest, binaryAsset bridgeReleaseAsset, client *http.Client, fixture bool) (string, error) {
 	spec := m.Platforms["win32-x64"]
 	if err := bridgeURL(binaryAsset.address(), fixture); err != nil {
-		return err
+		return "", err
+	}
+	target := filepath.Join(root, "versions", m.Version)
+	if _, err := os.Lstat(target); err == nil {
+		got, err := verifyBridgeVersion(root, m.Version)
+		if err != nil {
+			return "", err
+		}
+		if got.Platforms["win32-x64"] != spec {
+			return "", fmt.Errorf("目标版本已存在且清单不一致，拒绝覆盖")
+		}
+		return target, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
 	}
 	versions := filepath.Join(root, "versions")
 	if err := os.MkdirAll(versions, 0755); err != nil {
-		return err
+		return "", err
 	}
 	staging, err := os.MkdirTemp(versions, ".staging-")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(staging)
 	staged, err := update.DownloadAndStageOpts(ctx, update.StageOptions{ReleaseURL: binaryAsset.address(), DestDir: staging, HTTPClient: client, ExpectSize: spec.Size, ExpectSHA256: spec.SHA256})
 	if err != nil {
-		return err
+		return "", err
 	}
 	fixed := filepath.Join(staging, bridgeAsset)
 	if staged.Path != fixed {
 		if err := os.Rename(staged.Path, fixed); err != nil {
-			return err
+			return "", err
 		}
 	}
 	manifestBytes, _ := json.MarshalIndent(m, "", "  ")
 	if err := os.WriteFile(filepath.Join(staging, bridgeManifest), manifestBytes, 0600); err != nil {
-		return err
+		return "", err
 	}
 	if err := os.WriteFile(filepath.Join(staging, "LICENSE"), []byte(m.License), 0600); err != nil {
-		return err
+		return "", err
 	}
-	target := filepath.Join(versions, m.Version)
 	if _, err := os.Lstat(target); !os.IsNotExist(err) {
-		return fmt.Errorf("目标版本已存在，拒绝覆盖")
+		return "", fmt.Errorf("目标版本已存在，拒绝覆盖")
 	}
 	if err := os.Rename(staging, target); err != nil {
-		return err
+		return "", err
 	}
-	record, _ := json.Marshal(installedFile{Version: m.Version})
-	if err := bridgeWriteNewRecord(root, record); err != nil {
-		_ = os.RemoveAll(target)
-		return err
-	}
-	return nil
+	return target, nil
 }
 
 func bridgeWriteNewRecord(root string, b []byte) error {

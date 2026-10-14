@@ -34,6 +34,8 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 		label = resumeText("重启", "Restart")
 	} else if operation == "update" {
 		label = resumeText("安装更新并退出", "Install update and quit")
+	} else if operation == "component" {
+		label = resumeText("更改鲸桥组件", "Change WhaleBridge component")
 	} else if operation == "stop" {
 		label = resumeText("停止内核", "Stop runtime")
 	}
@@ -90,6 +92,8 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 			label = resumeText("重启", "Restart")
 		} else if operation == "update" {
 			label = resumeText("安装更新并退出", "Install update and quit")
+		} else if operation == "component" {
+			label = resumeText("更改鲸桥组件", "Change WhaleBridge component")
 		} else if operation == "stop" {
 			label = resumeText("停止内核", "Stop runtime")
 		}

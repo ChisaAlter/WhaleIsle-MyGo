@@ -166,9 +166,9 @@ func (c *Client) Coordinate(ctx context.Context, operation string, confirm func(
 	}
 	identity := map[string]any{"owner": owner, "lockId": lock.LockID}
 	defer func() {
-		if proceeded {
+		if proceeded && operation != "component" {
 			return
-		} // Successful quit/restart ends the old Host; never release against its replacement.
+		} // Component changes keep this Host alive, so release their lock even on success.
 		var released map[string]any
 		if e := c.call(context.Background(), "release", identity, &released, 5*time.Second); e != nil {
 			err = errors.Join(err, fmt.Errorf("admission lock release failed (expires automatically): %w", e))

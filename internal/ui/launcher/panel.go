@@ -682,6 +682,11 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 							Radius(14).Background(colPrimary).BorderWidth(0).
 							TextColor(colPrimaryFg).FontSize(12)
 					}
+					if row.ID == "whalebridge" && row.InstalledVersion != "" {
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Clicked() && m.OnComponentAction != nil {
+							m.OnComponentAction(row.ID, "update")
+						}
+					}
 					switch row.State {
 					case "available":
 						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Clicked() && m.OnComponentAction != nil {
@@ -868,9 +873,18 @@ func versionsPanel(c *ui.Context, m Model) {
 					})
 					ui.Text(c, i18n.T(i18n.KeyLauncherVerInstalled)).FontSize(12).TextColor(colTertiary)
 				})
-				if r.UpdateAvailable {
-					if ghostSmall(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherVerUpdateToV), r.Version)).Clicked() && m.OnComponentAction != nil {
-						m.OnComponentAction(r.ID, "install")
+				if r.ID == "whalebridge" {
+					label := i18n.T(i18n.KeyLauncherCompCheckUpdate)
+					if r.UpdateAvailable {
+						label = fmt.Sprintf(i18n.T(i18n.KeyLauncherVerUpdateToV), r.Version)
+					}
+					if ghostSmall(c, label).Clicked() && m.OnComponentAction != nil {
+						m.OnComponentAction(r.ID, "update")
+					}
+					if r.PreviousVersion != "" && r.PreviousVersion != r.InstalledVersion {
+						if ghostSmall(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompRollback), r.PreviousVersion)).Clicked() && m.OnComponentAction != nil {
+							m.OnComponentAction(r.ID, "rollback")
+						}
 					}
 				}
 			})

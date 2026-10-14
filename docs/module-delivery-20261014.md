@@ -53,7 +53,7 @@
 - 手机配对二维码：复用原 server qrcode 在内存生成 PNG 并显示，offer revision 防异步旧图回填，断连/过期/停止清理图像；无外部二维码服务、不保存敏感配对图。仅 Node fixture 通过及累计编译，真实 runtime/配对未运行。
 - 更新安装器交接：全量/增量包先完成校验且不启动，明确安装并退出后保存快照，再持 Host 保护锁启动已复核 SHA/size 的安装器；启动失败保留窗口/Host，成功才退出。仅 mock，未真实下载、执行安装或停止进程。
 - 正文文件提及：同轮显式交付及已成功根级写文件工具建立词表，行内代码精确路径/唯一 basename 原位点击复用交付文件打开；未知或 PTC 归属不猜测，不新增 browser-doc mini。
-- 鲸桥首次安装：真实原版 release/manifest 契约和 SHA256/size 校验，后台下载走所选线路，独占暂存后原子发布安装记录；已有安装/状态/版本记录一律拒绝覆盖，成功保持 stopped，启动另行显式操作。仅本地 HTTP mock，未真实下载安装；更新/回滚未覆盖；运行就绪由后续模块补齐，DSH 同步由官方组件负责。
+- 鲸桥首次安装：真实原版 release/manifest 契约和 SHA256/size 校验，后台下载走所选线路，独占暂存后原子发布安装记录；已有安装/状态/版本记录一律拒绝覆盖，成功保持 stopped，启动另行显式操作。仅本地 HTTP mock，未真实下载安装；更新/回滚由后续安全切换模块补齐；运行就绪由后续模块补齐，DSH 同步由官方组件负责。
 - 鲸桥启动就绪：后台显式启动，30 秒 deadline 和进程早退通道，状态 ID/PID/版本与认证 loopback API 双核验；失败不伪报成功，只清理本次启动句柄，不动已有实例。仅 mock，无真实进程/组件账号连接。
 - 鲸桥发布源对齐：按已核实新版官方独立仓读取 latest manifest，再固定 manifest.version 对应发布 EXE；CNB 保留列表并补 vendor Accept。坏版本/哈希拒绝，不从旧共享仓猜资源；仅 mock，未实际下载。
 - THA4 桌宠：默认关闭的可选神经渲染，同源固定资源白名单，WebNN→WebGPU→WASM 降级、task.json 更新不重载模型、关闭释放；修复 MyGo 自定义 scheme localhost 路由，固定资源独立暂存/NSIS清单。模型静态形状与 mock/资源 staging 已核验，资源二进制不入 git，未实测 Windows 动画或 GPU 性能。
@@ -80,6 +80,7 @@
 - Project 交付物操作：原 workstreamId/delegationRef/path 经 Host 授权打开并显示 canonicalPath/modifiedSinceReport，缺引用拒绝；文件复用现有脏草稿安全打开，目录/diff走真实接口，diff 明确当前工作区而非历史回滚。仅 mock，未操作真实交付文件。
 - 市场待重启生效：保留 restart-required 状态并提供显式受保护重启，取消/失败不清除，只有新 Host generation Ready 后才完成并刷新插件；仍停在插件面板才恢复逻辑页与新认证，离开不抢回。复用原热重载/owner清理，不自动中断或重复安装。
 - Project 生命周期：整个项目真实 archive/restore，与要求卡归档分开；先读详情，活动或未知状态需明确确认停止并归档，成功核验生命周期，恢复不自动启动旧任务。无 delete 假接口，只 mock 未操作真实项目。
+- 鲸桥安全更新/回滚：先验证清单与完整字节再受保护切换，原 Host 不重启时成功释放任务锁；认证 maintenance 拒绝活动 DSH，Windows 固定句柄核验确切进程路径，失败就绪恢复旧版本，退出不确定拒绝重复启动。保留旧目录/data与停止态，Stop复用保护；仅mock/编译，未执行真实组件/Windows进程操作。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
