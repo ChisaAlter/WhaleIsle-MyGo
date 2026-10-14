@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -16,6 +17,7 @@ import (
 
 // Model wires the settings panel to store state.
 type Model struct {
+	Pet        *pet.Companion
 	Store      *settings.Store
 	ThemeID    string
 	SystemDark bool
@@ -335,6 +337,10 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if m.AboutActive && m.About != nil {
 			aboutPane(c, m, fg, muted)
+			return
+		}
+		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {
+			petPane(c, m.Pet, fg, muted)
 			return
 		}
 		if snap.Err != "" {

@@ -33,6 +33,7 @@ import (
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/desktop/providerprofiles"
@@ -89,6 +90,7 @@ type mainState struct {
 	quitting             bool
 	closeToTray          bool
 	cfgStore             *config.Store
+	desktopPet           *pet.Companion
 	themeID              string
 	sup                  *harness.Supervisor
 	bootStatus           harness.Status
@@ -1660,6 +1662,9 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.mu.Lock()
 	s.quitting = true
 	s.mu.Unlock()
+	if s.desktopPet != nil {
+		s.desktopPet.Close()
+	}
 	s.closeWebViewHost()
 	s.stopDSH()
 	s.closeTerminal()
@@ -2245,6 +2250,9 @@ func main() {
 		// Wallpaper: config goWallpaperPath -> mainView chrome.WallpaperBackdrop
 		// (WindowOptions has BackgroundColor only in mygo v0.3.5).
 		win := mygo.NewWindow(winOpts)
+		state.desktopPet = pet.New(cfgStore)
+		state.desktopPet.SetReady(true)
+		win.OnClosed(func() { state.desktopPet.Close() })
 
 		win.OnClose(func(e *mygo.CloseEvent) {
 			state.mu.Lock()
@@ -4687,6 +4695,7 @@ func mainView(c *ui.Context) {
 				})
 			}
 			settings.View(c, settings.Model{
+				Pet:           state.desktopPet,
 				Store:         setStore,
 				ThemeID:       themeID,
 				SystemDark:    mygo.Theme.IsDark(),

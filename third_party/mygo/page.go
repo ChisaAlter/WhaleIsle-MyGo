@@ -24,6 +24,10 @@ func (p *Page) Window() *Window { return p.w }
 
 // PageOptions configure the web page of a window.
 type PageOptions struct {
+	// WindowControlsOnly keeps DOM-ready and CSS drag regions, but rejects
+	// application calls, events, drops and all other native bridge messages.
+	// DisableBindings takes precedence and disables the bridge entirely.
+	WindowControlsOnly bool
 	// DisableBindings isolates untrusted browsing: no Go calls or app events,
 	// even for origins otherwise trusted by the application.
 	DisableBindings bool

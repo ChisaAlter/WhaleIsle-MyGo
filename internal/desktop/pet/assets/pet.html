@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Whale Isle companion</title><style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}body{display:grid;place-items:center;user-select:none}canvas,img{width:96px;height:104px;object-fit:contain;--app-region:drag}img{border-radius:50%;object-fit:cover;width:88px;height:88px} [hidden]{display:none!important}
+</style></head><body><img id="fallback" src="fallback.png" alt="Whale Isle companion; drag to move; manage in Settings → Pet" title="拖动移动 · 设置 → 桌宠"><canvas id="sprite" width="192" height="208" hidden aria-label="Desktop pet"></canvas><script>
+// Codex v1/v2 both use 192x208 cells, eight frames; row zero is idle.
+// This deliberately small renderer consumes images only, never package scripts.
+const sheet=new Image(), canvas=document.getElementById('sprite'), ctx=canvas.getContext('2d');
+let frame=0,timer=null,lastInteraction=Date.now();
+function paint(){ctx.clearRect(0,0,192,208);ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208)}
+function start(){if(timer)return;timer=setInterval(()=>{if(document.hidden||Date.now()-lastInteraction>90000){clearInterval(timer);timer=null;return}frame=(frame+1)%8;paint()},120)}
+sheet.onload=()=>{document.getElementById('fallback').hidden=true;canvas.hidden=false;paint();start()};sheet.src='sprite.webp';
+document.addEventListener('pointermove',()=>{lastInteraction=Date.now();if(sheet.complete&&sheet.naturalWidth)start()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastInteraction=Date.now();if(sheet.naturalWidth)start()}});
+</script></body></html>

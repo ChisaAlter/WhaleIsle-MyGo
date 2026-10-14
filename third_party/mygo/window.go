@@ -205,9 +205,10 @@ type Window struct {
 
 	// trusted reports whether the current page may call bound methods.
 	// Main thread only.
-	trusted         bool
-	trustedOrigins  []string
-	disableBindings bool
+	trusted            bool
+	trustedOrigins     []string
+	disableBindings    bool
+	windowControlsOnly bool
 
 	mu                sync.Mutex
 	openHandler       func(WindowOpenRequest) *WindowOptions
@@ -347,7 +348,7 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
-	w := &Window{id: id, parent: opts.Parent, trustedOrigins: opts.Page.TrustedOrigins, disableBindings: opts.Page.DisableBindings, secret: rand.Text(), stateKey: opts.StateKey, background: bg, content: opts.Content}
+	w := &Window{id: id, parent: opts.Parent, trustedOrigins: opts.Page.TrustedOrigins, disableBindings: opts.Page.DisableBindings, windowControlsOnly: opts.Page.WindowControlsOnly, secret: rand.Text(), stateKey: opts.StateKey, background: bg, content: opts.Content}
 	w.pg = &Page{w}
 	w.hiddenTitleBar = !opts.Frameless && (opts.TitleBarStyle == TitleBarHidden || opts.TitleBarStyle == TitleBarHiddenInset)
 	w.resetPage()
@@ -979,7 +980,7 @@ func resolveFile(path string) (string, error) {
 
 // isTrusted reports whether a page at rawURL may call bound methods.
 func (w *Window) isTrusted(rawURL string) bool {
-	if w.disableBindings {
+	if w.disableBindings || w.windowControlsOnly {
 		return false
 	}
 	u, err := url.Parse(rawURL)
@@ -1286,7 +1287,7 @@ const maxHeldEvents = 1024
 // the DOM of the page is ready; replies to calls are sent right away since
 // the page is waiting for them.
 func (w *Window) enqueue(msg message, event bool) {
-	if w.disableBindings {
+	if w.disableBindings || w.windowControlsOnly {
 		return
 	}
 	if w.content != nil {
@@ -1649,6 +1650,16 @@ func (w *Window) handleMessage(msg string) {
 	msg, ok := strings.CutPrefix(msg, w.secret)
 	if !ok {
 		return // not from the bridge
+	}
+	// A restricted companion bridge can only announce readiness or start a
+	// native drag. Decode before the call fast path so no app call escapes.
+	if w.windowControlsOnly {
+		var control struct {
+			T string `json:"t"`
+		}
+		if json.Unmarshal(stringBytes(msg), &control) != nil || (control.T != "dom-ready" && control.T != "drag") {
+			return
+		}
 	}
 	// Calls are decoded and executed off the main thread. The page context
 	// is captured here so a navigation cannot slip in between.
