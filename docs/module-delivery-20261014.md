@@ -71,6 +71,7 @@
 - 最新 Host 暂存验证：真实 Linux 产物经过临时 staging 与 manifest 校验，原版 Project overlay 生成成功，7 个 peer 均解析到 staged Harness；未启动 Host，Linux 产物不能充当 Windows 部署。
 - HTML 隔离状态查询：现有 token 认证下只读 GET /desktop/html-preview/status 返回当前进程 available/reason，no-store、无 Probe 副作用，其他方法拒绝；Host 全 checkpoint 防跨重启旧启用状态还需后续保护补丁。
 - Team 工作详情/过程：真实 workstreams/get 保持原 childId，session/follow 首快照后立即取消并按 throughSeq 分页，continuable 只读查看；失败重试仅准备原 Lead 草稿，已有草稿/附件/发送/编辑时不覆盖，不假造 retry API 或自动运行模型。
+- 隔离截图 PNG 流：仅隔离 CapturePage 按 IStream 逻辑长度读取并限制 64MiB，不将分配容量尾字节作为图片传回；普通截图路径不变。未运行真实 WebView 截图。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

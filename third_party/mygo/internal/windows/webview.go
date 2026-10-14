@@ -762,7 +762,12 @@ func (w *window) CapturePage(cb func([]byte, error)) {
 				cb(nil, hresultError("CapturePreview", hr))
 				return
 			}
-			cb(hglobalBytes(stream), nil)
+			if w.opts.IsolatedPreview {
+				data, err := readPreviewPNG(stream)
+				cb(data, err)
+			} else {
+				cb(hglobalBytes(stream), nil)
+			}
 		}, func(h uintptr) uintptr {
 			return comCall(w.webview, wvCapturePreview, 0, stream, h) // COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG
 		})
