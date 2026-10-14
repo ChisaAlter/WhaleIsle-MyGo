@@ -8,10 +8,14 @@ import (
 )
 
 type Model struct {
-	ArchiveCandidate                   *projectflow.Project
-	LifecycleNote                      string
-	OnArchiveProject, OnRestoreProject func(string)
-	OnConfirmArchive, OnCancelArchive  func()
+	Material                                                             *projectflow.MaterialDraft
+	MaterialMutable                                                      bool
+	OnMaterial                                                           func(string, string)
+	OnSaveMaterial, OnReloadMaterial, OnDiscardMaterial, OnCloseMaterial func()
+	ArchiveCandidate                                                     *projectflow.Project
+	LifecycleNote                                                        string
+	OnArchiveProject, OnRestoreProject                                   func(string)
+	OnConfirmArchive, OnCancelArchive                                    func()
 
 	AssetNote          string
 	AssetDiff          *projectflow.WorkDiff
@@ -92,6 +96,10 @@ func View(c *ui.Context, m Model) {
 			archiveConfirmation(c, m)
 			return
 		}
+		if m.Material != nil {
+			materialsView(c, m)
+			return
+		}
 		if m.RequestProjectID != "" {
 			requestsView(c, m)
 			return
@@ -144,6 +152,13 @@ func View(c *ui.Context, m Model) {
 								m.OnArchiveProject(p.ID)
 							}
 						}
+						ui.Row(c).Gap(4).Children(func() {
+							for _, path := range []string{"notes.md", "preferences.md"} {
+								if ui.Button(c, path).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnMaterial != nil {
+									m.OnMaterial(p.ID, path)
+								}
+							}
+						})
 						status := p.Lifecycle
 						if p.Activity.State != "" {
 							status += " · " + p.Activity.State
