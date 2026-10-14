@@ -48,18 +48,48 @@ type Store struct {
 	namespaces []Namespace
 	selectedNS string
 	drafts     map[string]map[string]string
+	dirty      map[string]map[string]bool
+	generation uint64
+	origin     string
+	hostDrafts map[string]map[string]map[string]string
+	hostDirty  map[string]map[string]map[string]bool
 }
 
 // New returns an empty settings store.
 func New() *Store {
 	return &Store{
 		drafts: map[string]map[string]string{},
+		dirty:  map[string]map[string]bool{},
 	}
 }
 
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.generation++
+	if client != nil && s.origin != client.Endpoint.Origin {
+		if s.hostDrafts == nil {
+			s.hostDrafts = map[string]map[string]map[string]string{}
+			s.hostDirty = map[string]map[string]map[string]bool{}
+		}
+		s.hostDrafts[s.origin] = s.drafts
+		s.hostDirty[s.origin] = s.dirty
+		s.origin = client.Endpoint.Origin
+		s.drafts = s.hostDrafts[s.origin]
+		s.dirty = s.hostDirty[s.origin]
+		if s.drafts == nil {
+			s.drafts = map[string]map[string]string{}
+		}
+		if s.dirty == nil {
+			s.dirty = map[string]map[string]bool{}
+		}
+		s.namespaces = nil
+		s.selectedNS = ""
+		s.writable = false
+		s.lastAction = ""
+	}
+	s.saving = false
+	s.loading = false
 	s.client = client
 	s.notify = notify
 	s.err = nil
@@ -69,6 +99,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // Detach clears the client when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.generation++
 	s.client = nil
 	s.loading = false
 	s.saving = false
@@ -95,6 +126,10 @@ func (s *Store) Snapshot() ViewState {
 		st.Err = s.err.Error()
 	}
 	st.Namespaces = append([]Namespace(nil), s.namespaces...)
+	for i := range st.Namespaces {
+		st.Namespaces[i].Fields = append([]Field(nil), st.Namespaces[i].Fields...)
+		st.Namespaces[i].Value = append(json.RawMessage(nil), st.Namespaces[i].Value...)
+	}
 	if s.selectedNS != "" {
 		if d, ok := s.drafts[s.selectedNS]; ok {
 			for k, v := range d {
@@ -129,12 +164,20 @@ func (s *Store) SetDraft(key, value string) {
 		s.drafts[s.selectedNS] = map[string]string{}
 	}
 	s.drafts[s.selectedNS][key] = value
+	if s.dirty == nil {
+		s.dirty = map[string]map[string]bool{}
+	}
+	if s.dirty[s.selectedNS] == nil {
+		s.dirty[s.selectedNS] = map[string]bool{}
+	}
+	s.dirty[s.selectedNS][key] = true
 }
 
 // RefreshDescribe loads settings/describe on a background goroutine.
 func (s *Store) RefreshDescribe(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
+	generation := s.generation
 	if client == nil {
 		s.mu.Unlock()
 		return
@@ -149,6 +192,10 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		err := client.Call(ctx, "settings/describe", nil, &out)
 
 		s.mu.Lock()
+		if s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
 		s.loading = false
 		if err != nil {
 			s.err = err
@@ -174,6 +221,11 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 				Schema:   append(json.RawMessage(nil), item.Schema...),
 			})
 		}
+		for i := range nsList {
+			if old := s.findNamespaceLocked(nsList[i].NS); old != nil && len(s.dirty[old.NS]) > 0 {
+				nsList[i].Revision = old.Revision
+			}
+		}
 		s.namespaces = nsList
 		if s.selectedNS == "" && len(nsList) > 0 {
 			s.selectedNS = nsList[0].NS
@@ -190,9 +242,16 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 // Empty section fails closed with Err/LastAction (no RPC).
 func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMessage) {
 	s.mu.Lock()
+	name := s.selectedNS
+	s.mu.Unlock()
+	s.saveReplace(ctx, name, section)
+}
+func (s *Store) saveReplace(ctx context.Context, name string, section map[string]json.RawMessage) {
+	s.mu.Lock()
 	client := s.client
-	ns := s.findNamespaceLocked(s.selectedNS)
-	if client == nil || ns == nil {
+	generation := s.generation
+	ns := s.findNamespaceLocked(name)
+	if s.saving || client == nil || ns == nil {
 		s.mu.Unlock()
 		return
 	}
@@ -209,6 +268,7 @@ func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMess
 		s.fire()
 		return
 	}
+	submitted := copyDrafts(s.drafts[ns.NS])
 	rev := ns.Revision
 	nsName := ns.NS
 	s.saving = true
@@ -225,6 +285,10 @@ func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMess
 		var out api.SettingsNamespaceView
 		err := client.Call(ctx, "settings/replace", args, &out)
 		s.mu.Lock()
+		if s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
 		s.saving = false
 		if err != nil {
 			s.err = err
@@ -240,7 +304,7 @@ func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMess
 				s.namespaces[i].Revision = out.Revision
 				s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
 				seed := s.namespaces[i]
-				s.seedDraftsLocked(seed)
+				s.acknowledgeDraftsLocked(seed, submitted)
 				break
 			}
 		}
@@ -267,9 +331,12 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 	}
 	drafts := copyDrafts(s.drafts[ns.NS])
 	fields := append([]Field(nil), ns.Fields...)
+	nsName := ns.NS
+	value := append(json.RawMessage(nil), ns.Value...)
 	s.mu.Unlock()
 
 	section := map[string]json.RawMessage{}
+	_ = json.Unmarshal(value, &section)
 	for _, f := range fields {
 		draft := drafts[f.Key]
 		raw, err := PatchValue(f.Kind, draft)
@@ -283,7 +350,7 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 		}
 		section[f.Key] = raw
 	}
-	s.SaveReplace(ctx, section)
+	s.saveReplace(ctx, nsName, section)
 }
 
 // SaveMutate posts settings/mutate ops for one field set (path replace) when
@@ -291,8 +358,9 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 	s.mu.Lock()
 	client := s.client
+	generation := s.generation
 	ns := s.findNamespaceLocked(s.selectedNS)
-	if client == nil || ns == nil || len(ops) == 0 {
+	if s.saving || client == nil || ns == nil || len(ops) == 0 {
 		s.mu.Unlock()
 		return
 	}
@@ -302,6 +370,7 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 		s.fire()
 		return
 	}
+	submitted := copyDrafts(s.drafts[ns.NS])
 	rev := ns.Revision
 	nsName := ns.NS
 	s.saving = true
@@ -317,6 +386,10 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 		var out api.SettingsNamespaceView
 		err := client.Call(ctx, "settings/mutate", args, &out)
 		s.mu.Lock()
+		if s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
 		s.saving = false
 		if err != nil {
 			s.err = err
@@ -332,7 +405,7 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 				s.namespaces[i].Revision = out.Revision
 				s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
 				seed := s.namespaces[i]
-				s.seedDraftsLocked(seed)
+				s.acknowledgeDraftsLocked(seed, submitted)
 				break
 			}
 		}
@@ -345,8 +418,9 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 func (s *Store) SaveUpdate(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
+	generation := s.generation
 	ns := s.findNamespaceLocked(s.selectedNS)
-	if client == nil || ns == nil {
+	if s.saving || client == nil || ns == nil {
 		s.mu.Unlock()
 		return
 	}
@@ -356,7 +430,10 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 		s.fire()
 		return
 	}
+	captured := *ns
+	ns = &captured
 	drafts := copyDrafts(s.drafts[ns.NS])
+	submitted := drafts
 	s.saving = true
 	s.mu.Unlock()
 	s.fire()
@@ -371,6 +448,10 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 			raw, err := PatchValue(f.Kind, draft)
 			if err != nil {
 				s.mu.Lock()
+				if s.generation != generation {
+					s.mu.Unlock()
+					return
+				}
 				s.saving = false
 				s.err = err
 				s.mu.Unlock()
@@ -387,6 +468,10 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 		var out api.SettingsNamespaceView
 		err := client.Call(ctx, "settings/update", args, &out)
 		s.mu.Lock()
+		if s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
 		s.saving = false
 		if err != nil {
 			s.err = err
@@ -402,7 +487,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 				s.namespaces[i].Revision = out.Revision
 				s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
 				seed := s.namespaces[i]
-				s.seedDraftsLocked(seed)
+				s.acknowledgeDraftsLocked(seed, submitted)
 				break
 			}
 		}
@@ -542,7 +627,9 @@ func (s *Store) seedDraftsLocked(ns Namespace) {
 		s.drafts[ns.NS] = map[string]string{}
 	}
 	for _, f := range ns.Fields {
-		s.drafts[ns.NS][f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
+		if !s.dirty[ns.NS][f.Key] {
+			s.drafts[ns.NS][f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
+		}
 	}
 }
 
@@ -561,4 +648,25 @@ func (s *Store) fire() {
 	if fn != nil {
 		fn()
 	}
+}
+
+// Only the submitted draft is acknowledged; edits made during a write survive.
+func (s *Store) acknowledgeDraftsLocked(ns Namespace, submitted map[string]string) {
+	for key, value := range submitted {
+		if s.drafts[ns.NS][key] == value {
+			delete(s.dirty[ns.NS], key)
+		}
+	}
+	s.seedDraftsLocked(ns)
+}
+
+// DiscardDrafts abandons only the selected namespace and reloads its current revision.
+func (s *Store) DiscardDrafts(ctx context.Context) {
+	s.mu.Lock()
+	ns := s.selectedNS
+	delete(s.dirty, ns)
+	delete(s.drafts, ns)
+	s.ensureDraftsLocked(ns)
+	s.mu.Unlock()
+	s.RefreshDescribe(ctx)
 }

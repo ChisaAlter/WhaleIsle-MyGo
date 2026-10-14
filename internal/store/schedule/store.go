@@ -14,10 +14,14 @@ import (
 
 // Entry is one scheduled job row.
 type Entry struct {
-	ID     string
-	Title  string
-	Detail string
-	Raw    json.RawMessage // original list item for schedule/update expected
+	ID        string
+	Title     string
+	Detail    string
+	SessionID string
+	Origin    string
+	Prompt    string
+	Status    string
+	Raw       json.RawMessage // original list item for schedule/update expected
 }
 
 // ViewState is a UI-safe snapshot.
@@ -27,6 +31,9 @@ type ViewState struct {
 	Err         string
 	Rows        []Entry
 	CatalogHint string
+	SessionID   string
+	LastAction  string
+	Busy        bool
 }
 
 // Store fetches schedule/list for the selected session.
@@ -39,6 +46,10 @@ type Store struct {
 	err         error
 	rows        []Entry
 	catalogHint string
+	sessionID   string
+	generation  uint64
+	lastAction  string
+	busy        bool
 }
 
 // New returns an empty schedule store.
@@ -49,6 +60,7 @@ func New() *Store {
 // Attach binds a dsh client.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.generation++
 	s.client = client
 	s.notify = notify
 	s.err = nil
@@ -58,8 +70,10 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // Detach clears the client.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.generation++
 	s.client = nil
 	s.loading = false
+	s.busy = false
 	s.rows = nil
 	s.catalogHint = ""
 	s.mu.Unlock()
@@ -74,6 +88,9 @@ func (s *Store) Snapshot() ViewState {
 		ClientReady: s.client != nil,
 		Loading:     s.loading,
 		CatalogHint: s.catalogHint,
+		SessionID:   s.sessionID,
+		LastAction:  s.lastAction,
+		Busy:        s.busy,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()
@@ -90,6 +107,9 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		s.mu.Unlock()
 		return
 	}
+	s.generation++
+	generation := s.generation
+	s.sessionID = sessionID
 	s.loading = true
 	s.err = nil
 	s.mu.Unlock()
@@ -98,13 +118,16 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	go func() {
 		var catalog api.CatalogResult
 		catalogHint := ""
-		if err := client.Call(ctx, "schedule/catalog", nil, &catalog); err == nil {
+		catalogErr := client.Call(ctx, "schedule/catalog", nil, &catalog)
+		if catalogErr == nil {
 			catalogHint = formatCatalogHint(catalog)
 		}
 
 		var rows []Entry
 		var callErr error
-		if sessionID == "" {
+		if catalogErr == nil {
+			rows = parseScheduleList(catalog)
+		} else if sessionID == "" {
 			callErr = fmt.Errorf("select a session to list schedules")
 		} else {
 			var list api.ListResult4
@@ -114,7 +137,25 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 				rows = parseScheduleList(list)
 			}
 		}
-		s.finish(callErr, rows, catalogHint)
+		s.mu.Lock()
+		if s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
+		for i := range rows {
+			rows[i].Origin = client.Endpoint.Origin
+			if catalogErr != nil && rows[i].SessionID == "" {
+				rows[i].SessionID = sessionID
+			}
+		}
+		s.loading = false
+		s.err = callErr
+		if callErr == nil {
+			s.rows = rows
+		}
+		s.catalogHint = catalogHint
+		s.mu.Unlock()
+		s.fire()
 	}()
 }
 
@@ -139,45 +180,24 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 		return "", err
 	}
 	raw, _ := json.MarshalIndent(out, "", "  ")
-	if len(raw) > 4000 {
-		return string(raw[:4000]) + "\n…", nil
+	if err := resultError(out); err != nil {
+		return "", err
 	}
 	return string(raw), nil
 }
 
 // Delete removes one schedule by id in the given session.
 func (s *Store) Delete(ctx context.Context, sessionID, id string) {
-	id = trim(id)
-	sessionID = trim(sessionID)
-	if id == "" || sessionID == "" {
-		return
-	}
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil {
-		return
-	}
-	go func() {
-		req := api.ScheduleDeleteRequest{Id: id, SessionId: sessionID}
-		var out api.ScheduleDeleteResult
-		err := client.Call(ctx, "schedule/delete", map[string]any{"request": req}, &out)
-		if err != nil {
-			s.mu.Lock()
-			s.err = err
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		s.Refresh(ctx, sessionID)
-	}()
+	go func() { _ = s.DeleteChecked(ctx, sessionID, id) }()
 }
 
 func (s *Store) finish(err error, rows []Entry, catalogHint string) {
 	s.mu.Lock()
 	s.loading = false
 	s.err = err
-	s.rows = rows
+	if err == nil {
+		s.rows = rows
+	}
 	s.catalogHint = catalogHint
 	s.mu.Unlock()
 	s.fire()
@@ -187,11 +207,18 @@ func parseScheduleList(list api.ListResult4) []Entry {
 	out := make([]Entry, 0, len(list))
 	for _, raw := range list {
 		var item struct {
-			ID     string `json:"id"`
-			Title  string `json:"title"`
-			Prompt string `json:"prompt"`
-			Cron   string `json:"cron"`
-			Status string `json:"status"`
+			ID           string `json:"id"`
+			Title        string `json:"title"`
+			Prompt       string `json:"prompt"`
+			Cron         string `json:"cron"`
+			Status       string `json:"status"`
+			SessionID    string `json:"sessionId"`
+			Kind         string `json:"kind"`
+			ScheduledAt  string `json:"scheduledAt"`
+			Time         string `json:"time"`
+			TimeZone     string `json:"timeZone"`
+			Expression   string `json:"expression"`
+			EverySeconds int    `json:"everySeconds"`
 		}
 		if json.Unmarshal(raw, &item) != nil {
 			out = append(out, Entry{Title: "schedule", Detail: string(raw), Raw: append(json.RawMessage(nil), raw...)})
@@ -204,7 +231,10 @@ func parseScheduleList(list api.ListResult4) []Entry {
 		if title == "" {
 			title = "schedule"
 		}
-		detail := item.Status
+		detail := strings.Join([]string{item.Status, item.Kind, item.ScheduledAt, item.Time, item.TimeZone, item.Expression}, " · ")
+		if item.EverySeconds > 0 {
+			detail += fmt.Sprintf(" · %ds", item.EverySeconds)
+		}
 		if item.Cron != "" {
 			if detail != "" {
 				detail += " · "
@@ -217,7 +247,7 @@ func parseScheduleList(list api.ListResult4) []Entry {
 			}
 			detail += truncate(item.Prompt, 80)
 		}
-		out = append(out, Entry{ID: item.ID, Title: title, Detail: detail, Raw: append(json.RawMessage(nil), raw...)})
+		out = append(out, Entry{ID: item.ID, Title: title, Detail: detail, SessionID: item.SessionID, Prompt: item.Prompt, Status: item.Status, Raw: append(json.RawMessage(nil), raw...)})
 	}
 	return out
 }
@@ -241,40 +271,22 @@ func (s *Store) UpdatePrompt(ctx context.Context, sessionID, id, prompt string) 
 }
 
 func (s *Store) updateFields(ctx context.Context, sessionID, id string, title, prompt *string) error {
-	id = trim(id)
-	sessionID = trim(sessionID)
-	if id == "" || sessionID == "" {
-		return fmt.Errorf("missing schedule id/session")
-	}
 	s.mu.Lock()
-	client := s.client
-	var expected json.RawMessage
-	for _, row := range s.rows {
-		if row.ID == id {
-			expected = append(json.RawMessage(nil), row.Raw...)
+	var row Entry
+	for _, r := range s.rows {
+		if r.ID == id && (r.SessionID == sessionID || r.SessionID == "") {
+			row = r
 			break
 		}
 	}
 	s.mu.Unlock()
-	if client == nil {
-		return fmt.Errorf("not connected")
+	if row.ID == "" {
+		return fmt.Errorf("schedule no longer loaded; refresh before editing")
 	}
-	if len(expected) == 0 {
-		expected = json.RawMessage(`{}`)
+	if row.SessionID == "" {
+		row.SessionID = sessionID
 	}
-	req := api.ScheduleUpdateRequest{
-		Expected:  expected,
-		Id:        id,
-		SessionId: sessionID,
-		Title:     title,
-		Prompt:    prompt,
-	}
-	var out api.ScheduleUpdateResult
-	if err := client.Call(ctx, "schedule/update", map[string]any{"request": req}, &out); err != nil {
-		return err
-	}
-	s.Refresh(ctx, sessionID)
-	return nil
+	return s.Update(ctx, row, title, prompt, nil)
 }
 
 func formatCatalogHint(catalog api.CatalogResult) string {

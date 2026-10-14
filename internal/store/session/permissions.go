@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
@@ -129,7 +130,7 @@ func (s *Store) RefreshPermissionCatalog(ctx context.Context) {
 	}()
 }
 
-// SelectPermissionPreset applies settings/update on the permission namespace when writable; selection is always kept locally.
+// SelectPermissionPreset applies settings/update on the permission namespace when writable; selection is committed only after Host persistence succeeds.
 func (s *Store) SelectPermissionPreset(ctx context.Context, label string) {
 	s.mu.Lock()
 	opt, ok := permissionOptionByLabel(label, s.permissionOptions)
@@ -143,18 +144,15 @@ func (s *Store) SelectPermissionPreset(ctx context.Context, label string) {
 		return
 	}
 	go func() {
-		s.mu.Lock()
-		s.selectedPermissionLabel = label
-		s.mu.Unlock()
-		s.fire()
 
 		if ns == "" || !writable {
 			s.mu.Lock()
 			if ns == "" {
-				s.lastAction = "permission preset (local; no settings ns)"
+				s.lastAction = "permission preset not saved: no settings namespace"
 			} else {
-				s.lastAction = "permission preset (local; settings read-only)"
+				s.lastAction = "permission preset not saved: settings read-only"
 			}
+			s.permissionsErr = fmt.Errorf("%s", s.lastAction)
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -177,8 +175,16 @@ func (s *Store) SelectPermissionPreset(ctx context.Context, label string) {
 		}
 		var out api.SettingsNamespaceView
 		err := client.Call(ctx, "settings/update", args, &out)
+		if err == nil && parseDefaultPreset(out.Value) == "" {
+			err = fmt.Errorf("permission save returned no committed preset")
+		}
 		s.mu.Lock()
+		if s.client != client || s.permSettingsNS != ns {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
+			s.permissionsErr = err
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()
@@ -190,6 +196,7 @@ func (s *Store) SelectPermissionPreset(ctx context.Context, label string) {
 				s.selectedPermissionLabel = lbl
 			}
 		}
+		s.permissionsErr = nil
 		s.lastAction = "permission preset updated"
 		s.mu.Unlock()
 		s.fire()

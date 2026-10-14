@@ -115,6 +115,8 @@ type mainState struct {
 	settingsSkillEditWritable  bool
 	settingsAgentPresetsActive bool
 	settingsModelLabel         string
+	settingsModelSession       string
+	settingsModelDrafts        map[string]string
 	settingsAgentPresetLabel   string
 	settingsAgentPresetDoc     string
 	settingsMCPRows            []settings.MCPServerRow
@@ -251,6 +253,7 @@ type mainState struct {
 	fileEditViewMode files.EditViewMode
 	fileEditSplit    float32
 
+	schedulePanel      scheduleui.Panel
 	scheduleEditID     string
 	scheduleEditTitle  string
 	scheduleEditPrompt string
@@ -346,6 +349,7 @@ type credentialsDraft struct {
 func (s *mainState) settingsDraftPtr(ns, field, seed string) *string {
 	for i := range s.settingsDrafts {
 		if s.settingsDrafts[i].ns == ns && s.settingsDrafts[i].field == field {
+			s.settingsDrafts[i].val = seed
 			return &s.settingsDrafts[i].val
 		}
 	}
@@ -354,6 +358,9 @@ func (s *mainState) settingsDraftPtr(ns, field, seed string) *string {
 }
 
 func (s *mainState) seedDesktopDraft() {
+	if s.desktopDraft.seeded {
+		return
+	}
 	if s.cfgStore == nil {
 		return
 	}
@@ -656,7 +663,8 @@ func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store
 func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
 	for i := range s.settingsDrafts {
 		if s.settingsDrafts[i].ns == ns && s.settingsDrafts[i].field == field {
-			s.settingsDrafts[i].boolV = s.settingsDrafts[i].val == "true"
+			s.settingsDrafts[i].val = seed
+			s.settingsDrafts[i].boolV = seed == "true"
 			return &s.settingsDrafts[i].boolV
 		}
 	}
@@ -2963,6 +2971,9 @@ func mainView(c *ui.Context) {
 	sup := state.sup
 	sessions := state.sessions
 	interactions := state.interactions
+	if state.settings == nil {
+		state.settings = settingsstore.New()
+	}
 	setStore := state.settings
 	settingsOpen := state.settingsOpen
 	usageStore := state.usage
@@ -4001,105 +4012,29 @@ func mainView(c *ui.Context) {
 			if sessions != nil {
 				sid = sessions.Snapshot().SelectedID
 			}
-			scheduleHistory := state.scheduleHistoryText
-			scheduleEditID := state.scheduleEditID
-			scheduleEditTitle := state.scheduleEditTitle
-			scheduleEditPrompt := state.scheduleEditPrompt
-			scheduleui.View(c, scheduleui.Model{
-				Store:       schedStore,
-				SessionID:   sid,
-				ThemeID:     themeID,
-				SystemDark:  mygo.Theme.IsDark(),
-				HistoryText: scheduleHistory,
-				EditID:      &scheduleEditID,
-				EditTitle:   &scheduleEditTitle,
-				EditPrompt:  &scheduleEditPrompt,
+			state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 				OnClose: func() {
 					state.mu.Lock()
 					state.scheduleOpen = false
-					state.scheduleHistoryText = ""
-					state.scheduleEditID = ""
-					state.scheduleEditTitle = ""
-					state.scheduleEditPrompt = ""
 					state.mu.Unlock()
 					if win != nil {
 						win.Update(func() {})
 					}
 				},
-				OnRefresh: func() {
-					schedStore.Refresh(context.Background(), sid)
+				OnInvalidate: func() {
 					if win != nil {
 						win.Update(func() {})
 					}
-				},
-				OnHistory: func(id string) {
-					go func() {
-						text, err := schedStore.History(context.Background(), sid, id)
-						state.mu.Lock()
-						if err != nil {
-							state.scheduleHistoryText = err.Error()
-						} else {
-							state.scheduleHistoryText = text
-						}
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnSaveTitle: func(id, title string) {
-					go func() {
-						err := schedStore.UpdateTitle(context.Background(), sid, id, title)
-						state.mu.Lock()
-						if err != nil {
-							state.scheduleHistoryText = err.Error()
-						} else {
-							state.scheduleEditID = ""
-							state.scheduleEditTitle = ""
-							state.scheduleEditPrompt = ""
-						}
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnSavePrompt: func(id, prompt string) {
-					go func() {
-						err := schedStore.UpdatePrompt(context.Background(), sid, id, prompt)
-						state.mu.Lock()
-						if err != nil {
-							state.scheduleHistoryText = err.Error()
-						} else {
-							state.scheduleEditID = ""
-							state.scheduleEditTitle = ""
-							state.scheduleEditPrompt = ""
-						}
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
 				},
 				OnCopyHistory: func(text string) {
 					if strings.TrimSpace(text) != "" {
 						mygo.Clipboard.WriteText(text)
 					}
 				},
-				OnDelete: func(id string) {
-					schedStore.Delete(context.Background(), sid, id)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
 			})
-			state.mu.Lock()
-			state.scheduleEditID = scheduleEditID
-			state.scheduleEditTitle = scheduleEditTitle
-			state.scheduleEditPrompt = scheduleEditPrompt
-			state.mu.Unlock()
 			return
 		}
+
 		if acceptPanelOK && imOpen && imStore != nil {
 			state.mu.Lock()
 			muxReadyIM := state.dshMuxReady
@@ -4950,7 +4885,7 @@ func mainView(c *ui.Context) {
 			})
 			return
 		}
-		if acceptPanelOK && settingsOpen && setStore != nil {
+		if settingsOpen && setStore != nil {
 			snap := setStore.Snapshot()
 			state.mu.Lock()
 			if !state.desktopDraft.seeded {
@@ -5001,6 +4936,14 @@ func mainView(c *ui.Context) {
 			sessSnap := session.ViewState{}
 			if sessions != nil {
 				sessSnap = sessions.Snapshot()
+				if state.settingsModelSession != sessSnap.SelectedID {
+					if state.settingsModelDrafts == nil {
+						state.settingsModelDrafts = map[string]string{}
+					}
+					state.settingsModelDrafts[state.settingsModelSession] = state.settingsModelLabel
+					state.settingsModelSession = sessSnap.SelectedID
+					state.settingsModelLabel = state.settingsModelDrafts[sessSnap.SelectedID]
+				}
 				if state.settingsModelLabel == "" && sessSnap.SelectedModel != "" {
 					state.settingsModelLabel = sessSnap.SelectedModel
 				}
@@ -5442,7 +5385,7 @@ func mainView(c *ui.Context) {
 						label := state.settingsModelLabel
 						state.mu.Unlock()
 						if sessions != nil && label != "" {
-							sessions.SelectModelForSession(context.Background(), label)
+							sessions.SelectModelForSessionID(context.Background(), sessSnap.SelectedID, label)
 						}
 						if win != nil {
 							win.Update(func() {})
@@ -6307,12 +6250,10 @@ func mainView(c *ui.Context) {
 					state.settingsPluginsActive = false
 					state.settingsSkillsActive = false
 					state.settingsAgentPresetsActive = false
-					state.settingsModelLabel = ""
 					state.settingsAgentPresetLabel = ""
 					state.settingsDrafts = nil
 					state.settingsNSFilter = ""
 					state.settingsRevealSecrets = false
-					state.desktopDraft.seeded = false
 					state.desktopSaveErr = ""
 					state.desktopLastAction = ""
 					state.credsDraft.seeded = false

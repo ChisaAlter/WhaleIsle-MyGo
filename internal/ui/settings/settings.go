@@ -381,18 +381,21 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Saving || !snap.Writable || snap.SelectedNS == "" {
+			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" {
 				save = save.Disabled(true)
 			}
 			if save.Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Saving || !snap.Writable || snap.SelectedNS == "" {
+			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" {
 				replace = replace.Disabled(true)
 			}
 			if replace.Clicked() {
 				RequestReplace(m)
+			}
+			if ui.Button(c, "放弃草稿 / Discard drafts").Disabled(snap.Loading || snap.Saving).Clicked() {
+				m.Store.DiscardDrafts(context.Background())
 			}
 		})
 		ui.Text(c, i18n.T(i18n.KeySettingsReplaceHint)).FontSize(11).TextColor(muted)

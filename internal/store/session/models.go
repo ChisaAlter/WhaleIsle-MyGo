@@ -158,12 +158,20 @@ func (s *Store) RefreshModelCatalog(ctx context.Context) {
 // SelectModelForSession applies session/selectModel for the chosen catalog row.
 func (s *Store) SelectModelForSession(ctx context.Context, label string) {
 	s.mu.Lock()
+	id := s.selectedID
+	s.mu.Unlock()
+	s.SelectModelForSessionID(ctx, id, label)
+}
+
+// SelectModelForSessionID binds settings edits to the Session shown in the form.
+func (s *Store) SelectModelForSessionID(ctx context.Context, sessionID, label string) {
+	s.mu.Lock()
 	opt, ok := optionByLabel(label, s.modelOptions)
 	client := s.client
-	sessionID := s.selectedID
+	currentID := s.selectedID
 	prev := s.selectedModelLabel
 	s.mu.Unlock()
-	if !ok || client == nil || sessionID == "" || label == prev {
+	if !ok || client == nil || sessionID == "" || currentID != sessionID || label == prev {
 		return
 	}
 	go func() {
@@ -174,8 +182,16 @@ func (s *Store) SelectModelForSession(ctx context.Context, label string) {
 		}
 		var out api.SessionSelectModelValue
 		err := client.Call(ctx, "session/selectModel", map[string]any{"request": req}, &out)
+		if err == nil && out.Selected.Model == "" {
+			err = fmt.Errorf("model save returned no committed selection")
+		}
 		s.mu.Lock()
+		if s.client != client || s.selectedID != sessionID {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
+			s.modelsErr = err
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()
@@ -186,6 +202,7 @@ func (s *Store) SelectModelForSession(ctx context.Context, label string) {
 		} else {
 			s.selectedModelLabel = label
 		}
+		s.modelsErr = nil
 		s.lastAction = "model selected"
 		s.mu.Unlock()
 		s.fire()

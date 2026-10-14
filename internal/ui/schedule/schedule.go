@@ -15,16 +15,17 @@ import (
 
 // Model wires the schedule panel.
 type Model struct {
-	Store      *schedstore.Store
-	SessionID  string
-	ThemeID    string
-	SystemDark bool
-	OnClose    func()
-	OnRefresh  func()
-	OnDelete   func(id string)
-	OnHistory  func(id string)
-	OnSaveTitle  func(id, title string)
-	OnSavePrompt func(id, prompt string)
+	Store         *schedstore.Store
+	SessionID     string
+	ThemeID       string
+	SystemDark    bool
+	OnClose       func()
+	OnInvalidate  func()
+	OnRefresh     func()
+	OnDelete      func(id string)
+	OnHistory     func(id string)
+	OnSaveTitle   func(id, title string)
+	OnSavePrompt  func(id, prompt string)
 	OnCopyHistory func(text string)
 	// HistoryText is the last schedule/history JSON preview for the selected id.
 	HistoryText string
