@@ -19,19 +19,19 @@ const PanelChromeHeight = 48
 
 // Model wires the browser preview panel (URL bar + host status).
 type Model struct {
-	ThemeID    string
-	SystemDark bool
-	URLDraft   *string
-	HostActive bool
-	HostURL    string
-	HostError  string
-	NavigateError string
-	OnClose    func()
-	OnNavigate func(url string)
+	ThemeID        string
+	SystemDark     bool
+	URLDraft       *string
+	HostActive     bool
+	HostURL        string
+	HostError      string
+	NavigateError  string
+	OnClose        func()
+	OnNavigate     func(url string)
 	OnOpenExternal func(url string)
-	OnCopyURL  func(url string)
-	OnReload   func(url string)
-	OnCloseHost func()
+	OnCopyURL      func(url string)
+	OnReload       func(url string)
+	OnCloseHost    func()
 }
 
 // View paints the browser preview chrome strip; WebView2 covers the body when active.
@@ -46,7 +46,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Height(float32(PanelChromeHeight - 1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewTitle)).FontSize(15).Bold().TextColor(fg)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyBrowserPreviewBack)).Clicked() {
 				m.OnClose()
@@ -133,7 +133,7 @@ func NormalizeURL(raw string) string {
 	default:
 		return ""
 	}
-	if u.Host == "" {
+	if u.Hostname() == "" || u.User != nil {
 		return ""
 	}
 	return u.String()

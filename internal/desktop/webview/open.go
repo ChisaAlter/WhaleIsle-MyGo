@@ -15,6 +15,9 @@ func OpenExternal(raw string) error {
 	if raw == "" {
 		return errors.New("webview: empty URL")
 	}
+	if err := validateHTTPURL(raw); err != nil {
+		return err
+	}
 	u, err := url.Parse(raw)
 	if err != nil {
 		return err

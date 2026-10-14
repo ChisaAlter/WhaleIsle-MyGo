@@ -1,0 +1,238 @@
+package browserpreview
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
+)
+
+// Controller owns isolated native pages. It is used only from the UI thread;
+// page state is owned by Host and its native navigation callbacks.
+type Controller struct {
+	Tabs   []*Tab
+	Active int
+	next   int
+	parent *mygo.Window
+}
+type Tab struct {
+	ID           int
+	Draft, Error string
+	lastURL      string
+	Host         *desktop.Host
+}
+
+const BrowserChromeHeight = 144
+
+func NewController(parent *mygo.Window) *Controller { return &Controller{parent: parent} }
+func (b *Controller) current() *Tab {
+	if b.Active < 0 || b.Active >= len(b.Tabs) {
+		return nil
+	}
+	return b.Tabs[b.Active]
+}
+func (b *Controller) update() {
+	if b.parent != nil {
+		b.parent.Update(func() {})
+	}
+}
+func (b *Controller) NewTab(raw string) {
+	b.Hide()
+	b.next++
+	b.Tabs = append(b.Tabs, &Tab{ID: b.next})
+	b.Active = len(b.Tabs) - 1
+	if raw != "" {
+		b.Navigate(raw)
+	}
+	b.update()
+}
+func (b *Controller) Navigate(raw string) {
+	if b.current() == nil {
+		b.NewTab("")
+	}
+	t := b.current()
+	t.Draft = raw
+	normalized := NormalizeURL(raw)
+	if normalized == "" {
+		t.Error = "请输入有效的 HTTP(S) 地址"
+		b.update()
+		return
+	}
+	t.Draft = normalized
+	t.Error = ""
+	if t.Host != nil && t.Host.Alive() {
+		if err := t.Host.Navigate(normalized); err != nil {
+			t.Error = err.Error()
+		}
+		t.Host.SetVisible(true)
+		return
+	}
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
+	if err != nil {
+		t.Error = err.Error()
+		b.update()
+		return
+	}
+	t.Host = h
+	h.SetVisible(true)
+	b.update()
+}
+func (b *Controller) Hide() {
+	for _, t := range b.Tabs {
+		if t.Host != nil {
+			t.Host.SetVisible(false)
+		}
+	}
+}
+func (b *Controller) Select(index int) {
+	if index < 0 || index >= len(b.Tabs) {
+		return
+	}
+	b.Hide()
+	b.Active = index
+	if t := b.current(); t.Host != nil {
+		t.Host.SetVisible(true)
+		t.Draft = t.Host.State().URL
+	}
+	b.update()
+}
+func (b *Controller) CloseTab(index int) {
+	if index < 0 || index >= len(b.Tabs) {
+		return
+	}
+	b.Hide()
+	if h := b.Tabs[index].Host; h != nil {
+		_ = h.Close()
+	}
+	b.Tabs = append(b.Tabs[:index], b.Tabs[index+1:]...)
+	if index < b.Active {
+		b.Active--
+	}
+	if b.Active >= len(b.Tabs) {
+		b.Active = len(b.Tabs) - 1
+	}
+	if len(b.Tabs) == 0 {
+		b.NewTab("")
+	} else {
+		b.Select(b.Active)
+	}
+}
+func (b *Controller) Close() {
+	for _, t := range b.Tabs {
+		if t.Host != nil {
+			_ = t.Host.Close()
+		}
+	}
+	b.Tabs = nil
+	b.Active = 0
+}
+func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func()) {
+	if b.current() == nil {
+		b.NewTab("")
+	}
+	t := b.current()
+	colors := theme.Resolve(themeID).Active(dark)
+	s := desktop.State{}
+	if t.Host != nil {
+		s = t.Host.State()
+		if s.URL != "" && s.URL != t.lastURL {
+			t.Draft = s.URL
+			t.lastURL = s.URL
+		}
+		t.Host.SyncBounds()
+		t.Host.SetVisible(true)
+	}
+	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
+		ui.Column(c).Height(BrowserChromeHeight).Padding(6, 12, 6, 12).Gap(4).Children(func() {
+			ui.Row(c).Height(30).Gap(6).AlignItems(ui.Center).Children(func() {
+				if ui.Button(c, "返回工作区").Clicked() {
+					b.Hide()
+					if onClose != nil {
+						onClose()
+					}
+				}
+				// A horizontal scroller keeps every tab reachable instead of clipping.
+				ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
+					ui.Row(c).Gap(4).Children(func() {
+						for i, tab := range b.Tabs {
+							label := fmt.Sprintf("%d", tab.ID)
+							if tab.Host != nil {
+								st := tab.Host.State()
+								if st.Title != "" {
+									label += " " + truncate(st.Title, 12)
+								}
+							}
+							if i == b.Active {
+								label = "● " + label
+							}
+							if ui.Button(c, label).Clicked() {
+								b.Select(i)
+							}
+						}
+					})
+				})
+				if ui.Button(c, "+ 新标签").Clicked() {
+					b.NewTab("")
+				}
+				if ui.Button(c, "关闭标签").Clicked() {
+					b.CloseTab(b.Active)
+				}
+			})
+			ui.Row(c).Height(32).Gap(6).AlignItems(ui.Center).Children(func() {
+				if ui.Button(c, "←").Disabled(!s.CanBack).Clicked() && t.Host != nil {
+					t.Host.Back()
+				}
+				if ui.Button(c, "→").Disabled(!s.CanForward).Clicked() && t.Host != nil {
+					t.Host.Forward()
+				}
+				if s.Loading {
+					if ui.Button(c, "停止").Clicked() {
+						t.Host.Stop()
+					}
+				} else if ui.Button(c, "刷新").Disabled(t.Host == nil).Clicked() {
+					t.Host.Reload()
+				}
+				if ui.TextInput(c, &t.Draft).Placeholder("https://example.com").Grow(1).Submitted() {
+					b.Navigate(t.Draft)
+				}
+				if ui.Button(c, "前往").Clicked() {
+					b.Navigate(t.Draft)
+				}
+				if ui.Button(c, "复制链接").Clicked() {
+					raw := s.URL
+					if raw == "" {
+						raw = t.Draft
+					}
+					mygo.Clipboard.WriteText(raw)
+				}
+			})
+			err := t.Error
+			if err == "" {
+				err = s.Error
+			}
+			status := s.URL
+			if status == "" {
+				status = "每个标签保留独立页面和历史；网页无法调用应用权限。"
+			}
+			if s.Loading {
+				status = "加载中 · " + status
+			}
+			if err != "" {
+				status = err
+			}
+			ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted))
+		})
+		ui.Box(c).Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
+	})
+}
+func truncate(s string, n int) string {
+	r := []rune(strings.TrimSpace(s))
+	if len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return string(r)
+}

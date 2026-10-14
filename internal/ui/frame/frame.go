@@ -219,6 +219,7 @@ type Model struct {
 	OnToggleTools        func()
 	OnToggleTerminal     func()
 	OnRestartTerminal    func()
+	OnCloseTerminal      func()
 
 	Terminal           *termui.Panel
 	TerminalShellsNote string
@@ -845,7 +846,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			centerTerminalColumn(c, m, paintChat, func() {
 				termui.View(c, termui.Model{
 					Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
-					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal,
+					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
 				})
 			})
 		}

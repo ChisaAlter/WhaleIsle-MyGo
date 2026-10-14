@@ -3,6 +3,8 @@ package terminal
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -28,6 +30,15 @@ func Open(workspaceRoot string, dark bool) *Panel {
 	p := &Panel{cwd: root}
 	if root == "" {
 		p.Err = errors.New("no workspace directory")
+		return p
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		p.Err = fmt.Errorf("terminal workspace: %w", err)
+		return p
+	}
+	if !info.IsDir() {
+		p.Err = errors.New("terminal workspace is not a directory")
 		return p
 	}
 	light := myterm.LightTheme()
@@ -74,6 +85,7 @@ type Model struct {
 	// ShellsNote is optional terminal/shells + terminal/environment summary.
 	ShellsNote string
 	OnRestart  func()
+	OnClose    func()
 }
 
 // View paints the terminal or a short error line in the bottom split.
@@ -94,12 +106,16 @@ func View(c *ui.Context, m Model) {
 					}
 				}
 			}
+			if m.OnClose != nil && ui.Button(c, "关闭终端").FontSize(11).Clicked() {
+				m.OnClose()
+			}
 			if m.OnRestart != nil {
 				if ui.Button(c, i18n.T(i18n.KeyTerminalRestart)).FontSize(11).Clicked() {
 					m.OnRestart()
 				}
 			}
 		})
+		ui.Text(c, "切换工作区保留进程；关闭或重启会终止当前工作区终端").FontSize(10).TextColor(muted).Padding(0, 8, 2, 8)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if note := strings.TrimSpace(m.ShellsNote); note != "" {
 			ui.Text(c, note).FontSize(11).TextColor(muted).Padding(4, 12, 4, 12)
@@ -114,6 +130,15 @@ func View(c *ui.Context, m Model) {
 				Padding(8, 12, 8, 12)
 			return
 		}
-		myterm.View(c, m.Panel.Term).Fill().Grow(1)
+		if m.Panel.Term == nil {
+			ui.Text(c, "终端已关闭，点击重启重新打开").FontSize(12).TextColor(muted)
+			return
+		}
+		select {
+		case <-m.Panel.Term.Done():
+			ui.Text(c, fmt.Sprintf("进程已退出 (code %d)，重启可新建终端", m.Panel.Term.ExitCode())).FontSize(11).TextColor(muted)
+		default:
+		}
+		myterm.View(c, m.Panel.Term).Fill().Grow(1).AutoFocus()
 	})
 }

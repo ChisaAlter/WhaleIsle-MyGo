@@ -178,6 +178,7 @@ type mainState struct {
 	sshProbeLine               string
 	webviewOpen                bool
 	browserPreviewOpen         bool
+	browserController          *browserpreviewui.Controller
 	browserPreviewDraft        string
 	browserPreviewNavigateErr  string
 	webviewHost                *desktopwebview.Host
@@ -308,6 +309,7 @@ type mainState struct {
 	composerDrafts        map[string]*composer.DraftState
 
 	terminalPanel       *termui.Panel
+	terminalSessions    termui.Sessions
 	terminalShellsNote  string
 	remoteTerminalID    string
 	terminalVisible     bool
@@ -1150,22 +1152,17 @@ func (s *mainState) openWebViewHostPlugin(origin, pluginID string) {
 }
 
 func (s *mainState) showBrowserPreview(rawURL string) {
-	normalized := browserpreviewui.NormalizeURL(rawURL)
 	s.mu.Lock()
 	s.browserPreviewOpen = true
 	s.webviewOpen = false
-	s.browserPreviewNavigateErr = ""
-	if normalized != "" {
-		s.browserPreviewDraft = normalized
-	}
 	win := s.win
 	s.mu.Unlock()
-	if normalized != "" {
-		s.openWebViewURL(normalized)
-	} else if normalized == "" && strings.TrimSpace(rawURL) != "" {
-		s.mu.Lock()
-		s.browserPreviewNavigateErr = i18n.T(i18n.KeyBrowserPreviewInvalidURL)
-		s.mu.Unlock()
+	s.closeWebViewHost()
+	if s.browserController == nil {
+		s.browserController = browserpreviewui.NewController(win)
+	}
+	if strings.TrimSpace(rawURL) != "" {
+		s.browserController.Navigate(rawURL)
 	}
 	if win != nil {
 		win.Update(func() {})
@@ -1264,13 +1261,10 @@ func (s *mainState) ensureTerminal(workspaceRoot string, systemDark bool) {
 	if !s.terminalVisible || s.layout.Bottom <= terminalMinBottom {
 		return
 	}
-	if s.terminalPanel != nil && s.terminalPanel.Workspace() == root && s.terminalPanel.Err == nil {
+	if s.terminalPanel != nil && s.terminalPanel.Workspace() == root {
 		return
 	}
-	if s.terminalPanel != nil {
-		s.terminalPanel.Close()
-	}
-	s.terminalPanel = termui.Open(root, systemDark)
+	s.terminalPanel = s.terminalSessions.Get(root, systemDark)
 	go s.refreshTerminalShells()
 }
 
@@ -1460,10 +1454,8 @@ func (s *mainState) closeTerminal() {
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	if s.terminalPanel != nil {
-		s.terminalPanel.Close()
-		s.terminalPanel = nil
-	}
+	s.terminalSessions.Close()
+	s.terminalPanel = nil
 	s.terminalShellsNote = ""
 	remoteID := s.remoteTerminalID
 	sessionID := ""
@@ -1483,10 +1475,8 @@ func (s *mainState) closeTerminal() {
 
 func (s *mainState) restartTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
-	if s.terminalPanel != nil {
-		s.terminalPanel.Close()
-		s.terminalPanel = nil
-	}
+	s.terminalSessions.CloseWorkspace(workspaceRoot)
+	s.terminalPanel = nil
 	s.terminalShellsNote = ""
 	s.terminalVisible = true
 	if s.layout.Bottom <= terminalMinBottom {
@@ -1655,6 +1645,9 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.closeWebViewHost()
 	s.stopDSH()
 	s.closeTerminal()
+	if s.browserController != nil {
+		s.browserController.Close()
+	}
 	if sup != nil {
 		sup.Stop()
 	}
@@ -2855,8 +2848,6 @@ func mainView(c *ui.Context) {
 	phoneActionMsg := state.phoneActionMsg
 	webviewOpen := state.webviewOpen
 	browserPreviewOpen := state.browserPreviewOpen
-	browserPreviewDraft := state.browserPreviewDraft
-	browserPreviewNavigateErr := state.browserPreviewNavigateErr
 	assistantOpen := state.assistantOpen
 	launcherOpen := state.launcherOpen
 	toolsMenuOpen := state.toolsMenuOpen
@@ -3008,6 +2999,9 @@ func mainView(c *ui.Context) {
 		fileOpenWithApps = nil
 	}
 	state.mu.Unlock()
+	if !browserPreviewOpen && state.browserController != nil {
+		state.browserController.Hide()
+	}
 	if !webviewOpen && !browserPreviewOpen {
 		state.closeWebViewHost()
 	}
@@ -4429,89 +4423,20 @@ func mainView(c *ui.Context) {
 			return
 		}
 		if acceptPanelOK && browserPreviewOpen {
-			state.mu.Lock()
-			host := state.webviewHost
-			hostErr := state.webviewHostErr
-			hostActive := host != nil && host.Alive()
-			hostURL := ""
-			if hostActive {
-				hostURL = host.URL()
+			if state.browserController == nil {
+				state.browserController = browserpreviewui.NewController(win)
 			}
-			draft := browserPreviewDraft
-			navErr := browserPreviewNavigateErr
-			state.mu.Unlock()
-			if hostActive {
-				host.SyncBounds()
-			}
-			browserpreviewui.View(c, browserpreviewui.Model{
-				ThemeID:       themeID,
-				SystemDark:    mygo.Theme.IsDark(),
-				URLDraft:      &draft,
-				HostActive:    hostActive,
-				HostURL:       hostURL,
-				HostError:     hostErr,
-				NavigateError: navErr,
-				OnClose: func() {
-					state.closeWebViewHost()
-					state.mu.Lock()
-					state.browserPreviewOpen = false
-					state.browserPreviewNavigateErr = ""
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnNavigate: func(u string) {
-					if u == "" {
-						state.mu.Lock()
-						state.browserPreviewNavigateErr = i18n.T(i18n.KeyBrowserPreviewInvalidURL)
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
-					state.mu.Lock()
-					state.browserPreviewDraft = u
-					state.browserPreviewNavigateErr = ""
-					state.mu.Unlock()
-					state.openWebViewURL(u)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenExternal: func(u string) {
-					if err := desktopwebview.OpenExternal(u); err != nil {
-						log.Printf("browser preview: open external: %v", err)
-					}
-				},
-				OnCopyURL: func(u string) {
-					if strings.TrimSpace(u) != "" {
-						mygo.Clipboard.WriteText(u)
-					}
-				},
-				OnReload: func(u string) {
-					u = strings.TrimSpace(u)
-					if u == "" {
-						return
-					}
-					state.openWebViewURL(u)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCloseHost: func() {
-					state.closeWebViewHost()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
+			state.browserController.View(c, themeID, mygo.Theme.IsDark(), func() {
+				state.mu.Lock()
+				state.browserPreviewOpen = false
+				state.mu.Unlock()
+				if win != nil {
+					win.Update(func() {})
+				}
 			})
-			state.mu.Lock()
-			state.browserPreviewDraft = draft
-			state.mu.Unlock()
 			return
 		}
+
 		if acceptPanelOK && webviewOpen {
 			origin := st.Endpoint.Origin
 			state.mu.Lock()
@@ -6656,6 +6581,17 @@ func mainView(c *ui.Context) {
 						state.toolsMenuOpen = false
 						state.mu.Unlock()
 						state.setFilesPaneOpen(next)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCloseTerminal: func() {
+						state.mu.Lock()
+						state.terminalSessions.CloseWorkspace(workspaceRoot)
+						state.terminalPanel = nil
+						state.terminalVisible = false
+						state.layout.Bottom = 0
+						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
 						}

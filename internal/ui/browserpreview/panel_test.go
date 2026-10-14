@@ -15,13 +15,13 @@ func TestViewBrowserPreviewLabels(t *testing.T) {
 	draft := "example.com"
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{
-			ThemeID:    "deepseek",
-			URLDraft:   &draft,
-			HostActive: true,
-			HostURL:    "https://example.com/",
-			OnNavigate: func(string) {},
+			ThemeID:        "deepseek",
+			URLDraft:       &draft,
+			HostActive:     true,
+			HostURL:        "https://example.com/",
+			OnNavigate:     func(string) {},
 			OnOpenExternal: func(string) {},
-			OnCloseHost: func() {},
+			OnCloseHost:    func() {},
 		})
 	}, 720, 480)
 

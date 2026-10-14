@@ -11,6 +11,9 @@ import (
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	// Untrusted disables all native bindings and app events for browsing.
+	Untrusted bool
+	OnChange  func()
 	// Parent is the main Content window the host stays above.
 	Parent *mygo.Window
 	// URL is loaded on create (http/https only).
@@ -32,6 +35,12 @@ type Host struct {
 	topInset  int
 	url       string
 	offResize func()
+	offMove   func()
+	loading   bool
+	stopped   bool
+	err       string
+	title     string
+	changed   func()
 }
 
 // NewHost creates a hidden frameless child WebView2 window. Call
@@ -55,13 +64,13 @@ func NewHost(opts HostOptions) (*Host, error) {
 		title = "Plugin Web"
 	}
 	trusted := append([]string(nil), opts.TrustedOrigins...)
-	if len(trusted) == 0 {
+	if !opts.Untrusted && len(trusted) == 0 {
 		if o := urlOrigin(raw); o != "" {
 			trusted = []string{o}
 		}
 	}
 
-	h := &Host{parent: opts.Parent, topInset: opts.TopInset, url: raw}
+	h := &Host{parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	child := mygo.NewWindow(mygo.WindowOptions{
 		Title:           title,
 		URL:             raw,
@@ -73,14 +82,46 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
-			TrustedOrigins: trusted,
-			DevTools:       mygo.DevToolsDisabled,
+			TrustedOrigins:  trusted,
+			DisableBindings: opts.Untrusted,
+			DevTools:        mygo.DevToolsDisabled,
 		},
 	})
 	if child == nil || child.IsDestroyed() {
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
+	pg := child.Page()
+	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
+		if opts.Untrusted && validateHTTPURL(e.URL) != nil {
+			e.PreventDefault()
+			h.setError("Only HTTP(S) navigation is allowed")
+			return
+		}
+		h.beginLoad()
+	})
+	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.url = raw; h.err = ""; h.mu.Unlock(); h.notify() })
+	pg.OnDidFinishLoad(func() { h.mu.Lock(); h.loading = false; h.mu.Unlock(); h.notify() })
+	pg.OnDidFailLoad(func(err *mygo.LoadError) {
+		h.mu.Lock()
+		stopped := h.stopped
+		h.mu.Unlock()
+		if !stopped {
+			h.setError(err.Error())
+		}
+	})
+	pg.OnRenderProcessGone(func(reason string) { h.setError("Page process exited: " + reason) })
+	pg.OnPageTitleUpdated(func(e *mygo.TitleEvent) { h.mu.Lock(); h.title = e.Title; h.mu.Unlock(); h.notify() })
+	if opts.Untrusted {
+		pg.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
+			// Keep popups inside the same isolated page; never create a privileged child.
+			if err := h.Navigate(req.URL); err != nil {
+				h.setError(err.Error())
+			}
+			return nil
+		})
+	}
+	h.offMove = opts.Parent.OnMove(h.SyncBounds)
 	h.offResize = opts.Parent.OnResize(func() {
 		h.SyncBounds()
 	})
@@ -103,7 +144,6 @@ func (h *Host) Navigate(raw string) error {
 	}
 	h.mu.Lock()
 	win := h.win
-	h.url = raw
 	h.mu.Unlock()
 	if win == nil || win.IsDestroyed() {
 		return errors.New("webview: host closed")
@@ -112,7 +152,17 @@ func (h *Host) Navigate(raw string) error {
 	if pg == nil {
 		return errors.New("webview: no page")
 	}
-	return pg.LoadURL(raw)
+	h.beginLoad()
+	if err := pg.LoadURL(raw); err != nil {
+		h.setError(err.Error())
+		return err
+	}
+	h.mu.Lock()
+	h.url = raw
+	h.err = ""
+	h.mu.Unlock()
+	h.notify()
+	return nil
 }
 
 // URL returns the last navigated URL.
@@ -138,7 +188,9 @@ func (h *Host) SetVisible(visible bool) {
 	}
 	if visible {
 		h.SyncBounds()
-		win.Show()
+		if !win.IsVisible() {
+			win.ShowInactive()
+		}
 	} else {
 		win.Hide()
 	}
@@ -193,10 +245,15 @@ func (h *Host) Close() error {
 	}
 	h.mu.Lock()
 	off := h.offResize
+	offMove := h.offMove
+	h.offMove = nil
 	win := h.win
 	h.offResize = nil
 	h.win = nil
 	h.mu.Unlock()
+	if offMove != nil {
+		offMove()
+	}
 	if off != nil {
 		off()
 	}
@@ -223,6 +280,9 @@ func validateHTTPURL(raw string) error {
 	}
 	switch strings.ToLower(u.Scheme) {
 	case "http", "https":
+		if u.Hostname() == "" || u.User != nil {
+			return errors.New("webview: invalid host or URL credentials")
+		}
 		return nil
 	default:
 		return errors.New("webview: only http(s) URLs are allowed")
@@ -235,4 +295,80 @@ func urlOrigin(raw string) string {
 		return ""
 	}
 	return u.Scheme + "://" + u.Host
+}
+
+// State reads native navigation state, including link clicks and redirects.
+type State struct {
+	URL, Title, Error            string
+	Loading, CanBack, CanForward bool
+}
+
+func (h *Host) State() State {
+	if h == nil {
+		return State{}
+	}
+	h.mu.Lock()
+	s := State{URL: h.url, Title: h.title, Error: h.err, Loading: h.loading}
+	w := h.win
+	stopped := h.stopped
+	h.mu.Unlock()
+	if w != nil && !w.IsDestroyed() {
+		p := w.Page()
+		s.Loading = s.Loading || (!stopped && p.IsLoading())
+		s.CanBack = p.CanGoBack()
+		s.CanForward = p.CanGoForward()
+		if u := p.URL(); u != "" {
+			s.URL = u
+		}
+	}
+	return s
+}
+func (h *Host) notify() {
+	if h.changed != nil {
+		h.changed()
+	}
+}
+func (h *Host) setError(err string) {
+	h.mu.Lock()
+	h.err = err
+	if err != "" {
+		h.loading = false
+	}
+	h.mu.Unlock()
+	h.notify()
+}
+func (h *Host) pageAction(fn func(*mygo.Page)) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	w := h.win
+	h.mu.Unlock()
+	if w != nil && !w.IsDestroyed() {
+		fn(w.Page())
+		h.notify()
+	}
+}
+func (h *Host) Back()    { h.pageAction(func(p *mygo.Page) { p.GoBack() }) }
+func (h *Host) Forward() { h.pageAction(func(p *mygo.Page) { p.GoForward() }) }
+func (h *Host) Reload()  { h.setError(""); h.pageAction(func(p *mygo.Page) { p.Reload() }) }
+func (h *Host) Stop() {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.stopped = true
+	h.loading = false
+	h.err = ""
+	h.mu.Unlock()
+	h.pageAction(func(p *mygo.Page) { p.Stop() })
+}
+
+func (h *Host) beginLoad() {
+	h.mu.Lock()
+	h.loading = true
+	h.stopped = false
+	h.err = ""
+	h.mu.Unlock()
+	h.notify()
 }
