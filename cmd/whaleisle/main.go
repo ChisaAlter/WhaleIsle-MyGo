@@ -1907,6 +1907,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	if s.settings == nil {
 		s.settings = settingsstore.New()
+		s.settings.SetVisualReplyEnableCheck(s.verifyVisualReplyEnable)
 	}
 	if s.usage == nil {
 		s.usage = usagestore.New()
@@ -2842,6 +2843,7 @@ func mainView(c *ui.Context) {
 	interactions := state.interactions
 	if state.settings == nil {
 		state.settings = settingsstore.New()
+		state.settings.SetVisualReplyEnableCheck(state.verifyVisualReplyEnable)
 	}
 	setStore := state.settings
 	settingsOpen := state.settingsOpen

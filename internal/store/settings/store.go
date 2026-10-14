@@ -35,9 +35,10 @@ type ViewState struct {
 
 // Store tracks harness settings for the generic form renderer.
 type Store struct {
-	mu     sync.Mutex
-	client *dsh.Client
-	notify func()
+	mu                     sync.Mutex
+	client                 *dsh.Client
+	notify                 func()
+	visualReplyEnableCheck func(context.Context, string) error
 
 	loading    bool
 	saving     bool
@@ -302,7 +303,10 @@ func (s *Store) saveReplace(ctx context.Context, name string, section map[string
 			"expectedRevision": rev,
 		}
 		var out api.SettingsNamespaceView
-		err := client.Call(ctx, "settings/replace", args, &out)
+		err := s.verifyVisualReplyEnable(ctx, nsName, visualReplyEnabled(section), client.Endpoint.Origin, generation)
+		if err == nil {
+			err = client.Call(ctx, "settings/replace", args, &out)
+		}
 		s.mu.Lock()
 		if s.generation != generation {
 			s.mu.Unlock()
@@ -415,7 +419,10 @@ func (s *Store) saveMutate(ctx context.Context, name string, ops []json.RawMessa
 			"expectedRevision": rev,
 		}
 		var out api.SettingsNamespaceView
-		err := client.Call(ctx, "settings/mutate", args, &out)
+		err := s.verifyVisualReplyEnable(ctx, nsName, visualReplyMutationEnables(ops), client.Endpoint.Origin, generation)
+		if err == nil {
+			err = client.Call(ctx, "settings/mutate", args, &out)
+		}
 		s.mu.Lock()
 		if s.generation != generation {
 			s.mu.Unlock()
@@ -503,7 +510,10 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 			"expectedRevision": ns.Revision,
 		}
 		var out api.SettingsNamespaceView
-		err := client.Call(ctx, "settings/update", args, &out)
+		err := s.verifyVisualReplyEnable(ctx, ns.NS, visualReplyEnabled(patch), client.Endpoint.Origin, generation)
+		if err == nil {
+			err = client.Call(ctx, "settings/update", args, &out)
+		}
 		s.mu.Lock()
 		if s.generation != generation {
 			s.mu.Unlock()

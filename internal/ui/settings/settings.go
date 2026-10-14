@@ -389,6 +389,9 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 				}
 			}
 		}
+		if snap.SelectedNS == settings.VisualRepliesNamespace {
+			ui.Text(c, "启用 HTML 视觉回复前会检查本机隔离渲染；失败时保持关闭并显示原因。 / Enabling HTML visual replies first checks isolated rendering; failure keeps the setting off.").FontSize(12).TextColor(muted)
+		}
 		for _, f := range ns.Fields {
 			fieldRow(c, m, snap, f, fg, muted)
 		}

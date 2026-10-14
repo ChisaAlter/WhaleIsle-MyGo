@@ -67,6 +67,8 @@
 - Project 目录选择：真实系统目录对话框只采用用户选中路径，校验并经现有 EnsureWorkspace 登记后才更新配置/会话，原桥再次核验根；取消/代际变化不登记不回退，拒绝 .git、并发与登记失败。仅临时目录/mock，未触真实工作区。
 - HTML 运行时验收 API：显式 Probe 仅运行固定合成页，成功验证独立环境、隔离边界和真实内存 PNG 后才置 Available；失败/重试关闭能力，暴露未隔离 WebRTC 则拒绝。此 Linux 环境未执行 Windows 探针，设置入口待后续接线，不能以编译通过宣称可截图。
 - Project Team 面板：读取真实详情与 Lead agentTeam 投影，成员状态/权威任务板/工作分页，支持真实 stop/resume 并明确解除暂停不自动运行；idle 不等于任务完成，缺投影明确不可用。目录选择空配置仅用默认路径作初始位置，不预授权。仅 mock，未运行团队任务。
+- Visual replies 显式启用：现有设置 enabled 写 true 前先核验当前本机 Host/产物，再执行固定合成 Probe，能力成立才提交设置；失败显示具体原因且不发启用 RPC，关闭不受阻，默认仍 off。真实 Windows 探针未运行，不能宣称隔离验收通过。
+- 最新 Host 暂存验证：真实 Linux 产物经过临时 staging 与 manifest 校验，原版 Project overlay 生成成功，7 个 peer 均解析到 staged Harness；未启动 Host，Linux 产物不能充当 Windows 部署。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

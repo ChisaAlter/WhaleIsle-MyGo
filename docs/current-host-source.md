@@ -50,3 +50,5 @@ rewrite the lockfile, or use unofficial mirrors to make the build appear complet
 ## Verified build result (2026-10-14)
 
 The pinned official Linux x64 build completed native-system, Host, Client and Web with exit 0. The manifest verified 12 critical artifact SHA256 values and the upstream build recorded 386 client artifacts. No Host, daemon, account, GUI or test suite was run. This Linux build cannot satisfy the Windows platform gate; a matching Windows build and actual bridge/isolation readiness remain required.
+
+The completed Linux artifacts also passed temporary staging and staged-manifest verification. The unchanged official Project overlay helper returned success; all seven Project peers resolved within the staged Harness. These checks did not start Host and do not supply a Windows runtime.
