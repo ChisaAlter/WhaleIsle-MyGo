@@ -88,6 +88,7 @@ type mainState struct {
 	resumeWorkspace      string
 	mu                   sync.Mutex
 	win                  *mygo.Window
+	taskRestartPending   bool
 	quitting             bool
 	closeToTray          bool
 	cfgStore             *config.Store
@@ -2271,20 +2272,16 @@ func main() {
 				state.finalizeQuit(sup)
 				return
 			}
-			if !state.confirmQuit(win) {
-				e.PreventDefault()
-				return
-			}
-			if closeToTray && state.sessionRunningCount() == 0 {
+			if taskguard.HideOnClose(quitting, closeToTray) {
 				e.PreventDefault()
 				win.Hide()
 				return
 			}
-			state.finalizeQuit(sup)
-			if closeToTray {
-				mygo.App.Quit()
+			if !state.confirmQuit(win) {
 				e.PreventDefault()
+				return
 			}
+			state.finalizeQuit(sup)
 		})
 
 		state.mu.Lock()

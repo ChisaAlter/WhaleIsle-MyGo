@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/desktop/taskguard"
 	"whaleisle/internal/harness"
 )
 
@@ -88,7 +89,8 @@ func (s *mainState) startImport(win *mygo.Window) {
 	}()
 }
 
-// All native restart entry points share the same import admission check.
+// Native restarts preserve import admission and require explicit consent for
+// known running sessions. This local check is not full Host task protection.
 func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	if sup == nil {
 		return
@@ -96,6 +98,41 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	s.mu.Lock()
 	if s.launcherImportBusy {
 		s.launcherImport = "导入尚未结束，暂不能重启内核。"
+		s.mu.Unlock()
+		return
+	}
+	if s.taskRestartPending || s.quitting {
+		s.mu.Unlock()
+		return
+	}
+	s.taskRestartPending = true
+	win := s.win
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
+	approved, err := taskguard.ConfirmAction(win, s.sessionRunningCount(),
+		resumeText("重启内核", "Restart runtime"),
+		resumeText("当前有 %d 个会话仍在运行。重启会中断这些任务，仍要重启吗？", "%d sessions are still running. Restarting will interrupt them. Restart anyway?"),
+		resumeText("仍要重启", "Restart anyway"), resumeText("取消", "Cancel"))
+	if err != nil {
+		s.mu.Lock()
+		s.launcherStartErr = resumeText("无法确认重启，已保留运行中的任务：", "Could not confirm restart; running work was kept: ") + err.Error()
+		s.launcherStartFailed = true
+		s.launcherOpen = true
+		s.mu.Unlock()
+		if win != nil {
+			win.Update(func() {})
+		}
+		return
+	}
+	if !approved {
+		return
+	}
+	// Recheck after the dialog: import or another lifecycle action may have begun.
+	s.mu.Lock()
+	if s.launcherImportBusy || s.quitting || s.sup != sup {
+		if s.launcherImportBusy {
+			s.launcherImport = "导入尚未结束，暂不能重启内核。"
+		}
 		s.mu.Unlock()
 		return
 	}
