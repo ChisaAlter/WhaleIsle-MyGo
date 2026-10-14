@@ -43,6 +43,12 @@ if (Test-Path $ResSrc) {
 
 # Optional vendored harness + Node for NSIS (skip when absent / WHALEISLE_PACKAGE_SKIP_RUNTIME=1).
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
+    # Refuse incomplete phone runtime before copying or writing .runtime-staged.
+    $MobileRoot = Join-Path $ProjectRoot 'runtime\vendor\dshd-remote'
+    $MobileNode = Join-Path $MobileRoot 'node\node.exe'
+    if (-not (Test-Path $MobileNode)) { throw 'Mobile runtime missing. Run scripts/build-harness.ps1 first, or explicitly set WHALEISLE_PACKAGE_SKIP_RUNTIME=1 for a shell-only package.' }
+    & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify $MobileRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Mobile runtime incomplete or changed; rebuild before packaging.' }
     $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor'
     if (Test-Path $VendorSrc) {
         $VendorDst = Join-Path $Stage 'runtime\vendor'
@@ -66,6 +72,8 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     } else {
         Write-Host "Note: Node directory not found; set WHALEISLE_NODE_DIR to include it in staging"
     }
+    & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
+    if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }
     $RuntimeRoot = Join-Path $Stage 'runtime'
     if ((Test-Path $RuntimeRoot) -and (Get-ChildItem $RuntimeRoot -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
         $Marker = Join-Path $Stage '.runtime-staged'
