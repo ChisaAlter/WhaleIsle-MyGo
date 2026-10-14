@@ -3194,6 +3194,22 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnComponentAction: func(id, action string) {
+					if id == "whalebridge" && action == "install" {
+						route := state.updateDownloadRoute()
+						state.mu.Lock()
+						state.launcherUpdate = "正在下载并校验鲸桥组件…"
+						state.mu.Unlock()
+						go func() {
+							err := desktopcomponents.InstallWhaleBridge(context.Background(), paths.UserDataDir(), route)
+							state.mu.Lock()
+							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
+							if err == nil { state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行" }
+							state.mu.Unlock()
+							state.refreshLauncherComponents()
+							if win != nil { win.Update(func() {}) }
+						}()
+						return
+					}
 					ud := paths.UserDataDir()
 					err := desktopcomponents.RunAction(ud, id, action)
 					state.mu.Lock()

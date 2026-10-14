@@ -63,12 +63,7 @@ func ListUserData(userData string) []Row {
 func whalebridgeRow(dir string) (Row, bool) {
 	cat := readCatalog(filepath.Join(dir, "catalog.json"))
 	inst := readInstalled(filepath.Join(dir, "installed.json"))
-	if inst.Version == "" {
-		inst.Version = newestVersionDir(filepath.Join(dir, "versions"))
-	}
-	if cat.Manifest.ID == "" && inst.Version == "" {
-		return Row{}, false
-	}
+
 	name := cat.Manifest.Name
 	if name == "" {
 		name = "鲸桥"
@@ -79,7 +74,7 @@ func whalebridgeRow(dir string) (Row, bool) {
 	}
 	ver := cat.Manifest.Version
 	if ver == "" {
-		ver = "1.0.0"
+		ver = inst.Version
 	}
 	state := "available"
 	if inst.Version != "" {
@@ -110,7 +105,7 @@ func newestVersionDir(dir string) string {
 	}
 	best := ""
 	for _, e := range ents {
-		if !e.IsDir() {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
 		name := e.Name()

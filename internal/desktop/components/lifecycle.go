@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +21,7 @@ var ErrUnknownAction = errors.New("components: unknown action")
 var ErrNotInstalled = errors.New("components: not installed")
 
 // RunAction performs a launcher component lifecycle action against userData.
-// install is a no-op stub until release download is ported; start/stop/open
+// install fetches and verifies the official first-install release; start/stop/open
 // work for whalebridge when a versions/<ver>/WhaleBridge-win32-x64.exe exists.
 func RunAction(userData, id, action string) error {
 	id = strings.TrimSpace(id)
@@ -31,7 +32,10 @@ func RunAction(userData, id, action string) error {
 	root := filepath.Join(userData, "components", id)
 	switch action {
 	case "install":
-		return fmt.Errorf("components: install not wired (use Electron release catalog)")
+		if id != "whalebridge" {
+			return fmt.Errorf("components: install unsupported for %s", id)
+		}
+		return InstallWhaleBridge(context.Background(), userData, "github")
 	case "start":
 		if id == "whalebridge" {
 			return startWhalebridge(root, filepath.Join(userData, "dsh-home"))
@@ -56,9 +60,6 @@ func RunAction(userData, id, action string) error {
 func startWhalebridge(root, dshHome string) error {
 	inst := readInstalled(filepath.Join(root, "installed.json"))
 	ver := inst.Version
-	if ver == "" {
-		ver = newestVersionDir(filepath.Join(root, "versions"))
-	}
 	if ver == "" {
 		return ErrNotInstalled
 	}
