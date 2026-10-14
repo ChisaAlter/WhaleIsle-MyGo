@@ -95,6 +95,7 @@ func (s *Store) SetStatsDateRange(start, end string) error {
 			return errors.New("Selected range includes unavailable daily coverage")
 		}
 	}
+	s.ranking.modelLimit = 0
 	s.stats.Range = DateRange{start, end}
 	s.stats.RangeError = ""
 	s.mu.Unlock()
@@ -103,6 +104,7 @@ func (s *Store) SetStatsDateRange(start, end string) error {
 }
 func (s *Store) ClearStatsDateRange() {
 	s.mu.Lock()
+	s.ranking.modelLimit = 0
 	s.stats.Range = DateRange{}
 	s.stats.RangeStart = ""
 	s.stats.RangeEnd = ""
@@ -206,6 +208,7 @@ func (s *Store) reconcileStatsRangeLocked() {
 		valid = available[d.Format("2006-01-02")]
 	}
 	if !valid {
+		s.ranking.modelLimit = 0
 		s.stats.Range = DateRange{}
 		s.stats.RangeError = "Date selection cleared: refreshed daily coverage no longer contains the full range."
 	}

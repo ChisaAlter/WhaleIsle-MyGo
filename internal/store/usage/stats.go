@@ -125,6 +125,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	s.statsCancel = cancel
 	epoch := s.statsEpoch
+	s.resetRankingLocked()
 	s.stats.Loading = true
 	s.stats.Err = ""
 	ep := client.Endpoint

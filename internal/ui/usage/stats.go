@@ -91,32 +91,5 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 			}
 		}
 	})
-	models := o.AllTime.ByModel
-	modelTitle := usageText("按模型（全部历史）", "Models (all time)")
-	if st.Range.Active() {
-		models = st.Selection().Models
-		modelTitle = usageText("按模型（选定日期）", "Models (selected dates)")
-	}
-	ui.Text(c, modelTitle).Bold().TextColor(fg)
-	for _, row := range models {
-		ui.Text(c, fmt.Sprintf("%s · %s · %.0f tokens", row.Model, row.Provider, row.Total)).FontSize(12).TextColor(fg)
-	}
-	if st.Range.Active() {
-		ui.Text(c, usageText("会话排行仅支持全部历史；清除日期选择后可查看和导出。", "Session ranking is all-time only; clear the date selection to view and export it.")).TextColor(muted)
-		return
-	}
-	ui.Text(c, usageText("Top 会话（全部历史）", "Top sessions (all time)")).Bold().TextColor(fg)
-	for _, row := range o.TopSessions {
-		row := row
-		title := row.Title
-		if title == "" {
-			title = row.ID
-		}
-		ui.Row(c).Gap(6).Children(func() {
-			ui.Text(c, fmt.Sprintf("%s · %.0f tokens", title, row.Totals.Total)).FontSize(12).TextColor(fg).Grow(1)
-			if m.OnOpenSession != nil && ui.Button(c, usageText("打开", "Open")).Clicked() {
-				m.OnOpenSession(row.ID)
-			}
-		})
-	}
+	rankingView(c, m, st, fg, muted, accent)
 }
