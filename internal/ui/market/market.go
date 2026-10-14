@@ -29,6 +29,9 @@ type Model struct {
 	InstallSpec          *string
 	InstallBusy          bool
 	InstallMessage       string
+	Activation           marketstore.Activation
+	CanRestart           bool
+	OnRestart            func()
 	// InstallLog is the trailing installctrl.Result.Log (phase output).
 	InstallLog       string
 	NeedsAllowBuilds bool
@@ -139,6 +142,23 @@ func View(c *ui.Context, m Model) {
 				}
 				if m.InstallMessage != "" {
 					ui.Text(c, m.InstallMessage).TextColor(accent)
+				}
+				if m.Activation.Pending {
+					text := marketText("插件变更已保存，等待重启生效。", "Plugin changes are saved and await a runtime restart.")
+					if m.Activation.Failed {
+						text = marketText("重启未成功，变更仍待生效；无需再次安装。", "Restart failed. Saved changes still await activation; do not install again.")
+					}
+					if m.Activation.Restarting {
+						text = marketText("正在重启运行时，等待新的 Host 就绪…", "Restarting; waiting for the new Host to become ready…")
+					}
+					ui.Text(c, text).TextColor(accent)
+					if m.CanRestart && !m.InstallBusy && !m.Activation.Restarting && m.OnRestart != nil {
+						if ui.Button(c, marketText("重启运行时并应用", "Restart runtime and apply")).Clicked() {
+							m.OnRestart()
+						}
+					}
+				} else if m.Activation.Refreshed {
+					ui.Text(c, marketText("新的运行时已就绪，请在插件列表中查看加载状态。", "The new runtime is ready. Check the plugin list for loading status.")).TextColor(muted)
 				}
 				if m.InstallBusy {
 					ui.Row(c).Gap(8).Children(func() {

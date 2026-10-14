@@ -41,3 +41,18 @@ Verification: one temporary mock fixture covers live view activation/disposal,
 HTTP and WebSocket forwarding, denied cross-origin requests/redirects, changed
 Host credentials and complete gateway shutdown. No real Host, account, workspace
 or plugin state is used.
+
+## Applying saved marketplace changes
+
+A `restart-required` result remains visibly pending in the native marketplace.
+The explicit “Restart runtime and apply” action uses the existing import and
+Host task-protection checks; it never repeats installation. Cancellation or a
+failed restart keeps the pending change. Only a newer Supervisor generation
+that is actually Ready clears it and refreshes inventory, including same-port
+restarts. Existing `applied` changes continue to use the original client HMR
+reconciliation and Cordis owner disposal.
+
+When a Host restarts while the plugin panel is still selected, its old window
+and authorization are destroyed, then the logical plugin URL is restored on
+the new Ready generation. Closing the view or navigating elsewhere cancels
+that restoration.

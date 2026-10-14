@@ -1,6 +1,9 @@
 package main
 
-import "whaleisle/internal/harness"
+import (
+	desktopwebview "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/harness"
+)
 
 func (s *mainState) openInstalledPluginView(name string) {
 	s.mu.Lock()
@@ -20,9 +23,33 @@ func (s *mainState) openInstalledPluginView(name string) {
 // Revokes the temporary browser transport as soon as its Host generation ends.
 func (s *mainState) syncPluginViewHost(st harness.Status) {
 	s.mu.Lock()
-	host := s.webviewHost
+	host, sup := s.webviewHost, s.sup
+	hostGeneration := s.pluginViewHostGeneration
 	s.mu.Unlock()
-	if host != nil && host.HasSession() && (st.State != harness.Ready || !host.MatchesSession(st.Endpoint.Origin, st.Endpoint.Cookie)) {
+	if sup != nil {
+		actual := sup.Status()
+		if actual.Generation != st.Generation || actual.State != st.State {
+			return
+		}
+	}
+	if host != nil && host.HasSession() && (st.State != harness.Ready || hostGeneration != st.Generation || !host.MatchesSession(st.Endpoint.Origin, st.Endpoint.Cookie)) {
 		s.closeWebViewHost()
+		s.mu.Lock()
+		s.pluginViewResumeAfterRestart = s.webviewOpen && !s.browserPreviewOpen
+		s.mu.Unlock()
+	}
+	if st.State != harness.Ready {
+		return
+	}
+	s.mu.Lock()
+	resume := s.pluginViewResumeAfterRestart && s.webviewOpen && !s.browserPreviewOpen
+	s.pluginViewResumeAfterRestart = false
+	raw := desktopwebview.RestorePanelURL(st.Endpoint.Origin, s.lastWebViewOrigin, s.lastWebViewURL)
+	if resume {
+		s.lastWebViewOrigin = st.Endpoint.Origin
+	}
+	s.mu.Unlock()
+	if resume {
+		s.openWebViewURL(raw)
 	}
 }

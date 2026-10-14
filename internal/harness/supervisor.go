@@ -45,8 +45,10 @@ func (s State) String() string {
 
 // Status is one observable snapshot of the supervisor.
 type Status struct {
-	State    State
-	Endpoint Endpoint
+	// Generation identifies the owned process attempt, including same-port restarts.
+	Generation int
+	State      State
+	Endpoint   Endpoint
 	// Err explains a Failed state.
 	Err error
 	// Source names the launcher of the current or last attempt.
@@ -206,6 +208,7 @@ func (s *Supervisor) current(gen int) bool {
 }
 
 func (s *Supervisor) setLocked(st Status) {
+	st.Generation = s.gen
 	st.Attempt = s.attempt
 	s.status = st
 	if s.opts.OnChange != nil {

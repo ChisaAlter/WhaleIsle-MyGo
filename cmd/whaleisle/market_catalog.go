@@ -216,6 +216,13 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 	s.marketInstallRequestID = ""
 	s.marketInstallMsg = r.message
 	s.marketInstallLog = r.log
+	if r.accepted && r.outcome == "restart-required" {
+		generation := s.bootStatus.Generation
+		if s.sup != nil {
+			generation = s.sup.Status().Generation
+		}
+		s.marketActivation.Require(generation)
+	}
 	if install {
 		s.marketAllowBuilds = r.pending
 		s.marketNeedsAllowBuilds = len(r.pending) > 0

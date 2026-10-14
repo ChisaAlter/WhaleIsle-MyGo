@@ -185,6 +185,7 @@ type mainState struct {
 	marketInstallRequestID      string
 	marketInstallMsg            string
 	marketInstallLog            string
+	marketActivation            marketstore.Activation
 	marketNeedsAllowBuilds      bool
 	marketAllowBuilds           []string
 	marketIncompatible          []api.ChangeResultErrorIncompatibleItem
@@ -203,6 +204,8 @@ type mainState struct {
 	webviewHostErr              string
 	lastWebViewURL              string
 	lastWebViewOrigin           string
+	pluginViewResumeAfterRestart bool
+	pluginViewHostGeneration     int
 	assistantOpen               bool
 	assistantDraft              string
 	assistantLastAct            string
@@ -883,6 +886,7 @@ func (s *mainState) closeWebViewHost() {
 		s.lastWebViewURL = host.URL()
 	}
 	s.webviewHost = nil
+	s.pluginViewResumeAfterRestart = false
 	s.webviewHostErr = ""
 	s.mu.Unlock()
 	if host != nil {
@@ -1213,6 +1217,7 @@ func (s *mainState) openWebViewURL(browse string) {
 	win := s.win
 	existing := s.webviewHost
 	ep := s.bootStatus.Endpoint
+	hostGeneration := s.bootStatus.Generation
 	s.mu.Unlock()
 	if win == nil {
 		return
@@ -1238,6 +1243,7 @@ func (s *mainState) openWebViewURL(browse string) {
 		existing.SetVisible(true)
 		s.mu.Lock()
 		s.lastWebViewURL = browse
+		s.pluginViewResumeAfterRestart = false
 		s.webviewHostErr = ""
 		s.mu.Unlock()
 		return
@@ -1273,6 +1279,8 @@ func (s *mainState) openWebViewURL(browse string) {
 		return
 	}
 	s.webviewHost = host
+	s.pluginViewResumeAfterRestart = false
+	s.pluginViewHostGeneration = hostGeneration
 	s.lastWebViewURL = browse
 	s.webviewHostErr = ""
 	host.SetVisible(true)
@@ -1879,6 +1887,7 @@ func (s *mainState) refreshBoot(st harness.Status) {
 	s.mu.Unlock()
 	s.syncPluginViewHost(st)
 	s.syncDialogue(st)
+	s.observeMarketActivation(st)
 	if win != nil {
 		win.Update(s.refreshPetTask)
 	}
@@ -2869,6 +2878,8 @@ func mainView(c *ui.Context) {
 	marketCanCancel := state.marketInstallBusy && state.marketInstallRequestID != ""
 	marketInstallMsg := state.marketInstallMsg
 	marketInstallLog := state.marketInstallLog
+	marketActivation := state.marketActivation
+	marketCanRestart := state.sup != nil && state.marketWorker == nil && !state.taskRestartPending && st.State != harness.Starting
 	marketNeedsAllowBuilds := state.marketNeedsAllowBuilds
 	marketAllowBuilds := append([]string(nil), state.marketAllowBuilds...)
 	marketIncompatible := append([]api.ChangeResultErrorIncompatibleItem(nil), state.marketIncompatible...)
@@ -3754,6 +3765,9 @@ func mainView(c *ui.Context) {
 				InstallBusy:          marketInstallBusy,
 				InstallMessage:       marketInstallMsg,
 				InstallLog:           marketInstallLog,
+				Activation:           marketActivation,
+				CanRestart:           marketCanRestart,
+				OnRestart:            state.restartMarketPlugins,
 				NeedsAllowBuilds:     marketNeedsAllowBuilds,
 				AllowBuilds:          marketAllowBuilds,
 				CanCancelInstall:     marketCanCancel,
