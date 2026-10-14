@@ -3,11 +3,13 @@ package markdown
 
 import (
 	"bytes"
+	"net/url"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -59,7 +61,7 @@ func Links(source string) []Link {
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New()
+	md := goldmark.New(goldmark.WithExtensions(extension.Linkify))
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []Link
@@ -67,25 +69,37 @@ func Links(source string) []Link {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
-		link, ok := n.(*ast.Link)
-		if !ok {
+		var destination, label string
+		switch link := n.(type) {
+		case *ast.Link:
+			destination = string(link.Destination)
+			var buf bytes.Buffer
+			for c := link.FirstChild(); c != nil; c = c.NextSibling() {
+				if t, ok := c.(*ast.Text); ok {
+					buf.Write(t.Segment.Value([]byte(source)))
+				}
+			}
+			label = strings.TrimSpace(buf.String())
+		case *ast.AutoLink:
+			destination = string(link.URL([]byte(source)))
+			label = string(link.Label([]byte(source)))
+		default:
 			return ast.WalkContinue, nil
 		}
-		url := strings.TrimSpace(string(link.Destination))
-		if url == "" || !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+		destination = strings.TrimSpace(destination)
+		parsed, err := url.Parse(destination)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil {
 			return ast.WalkContinue, nil
 		}
-		var buf bytes.Buffer
-		for c := link.FirstChild(); c != nil; c = c.NextSibling() {
-			if t, ok := c.(*ast.Text); ok {
-				buf.Write(t.Segment.Value([]byte(source)))
+		for _, existing := range out {
+			if existing.URL == destination {
+				return ast.WalkContinue, nil
 			}
 		}
-		label := strings.TrimSpace(buf.String())
 		if label == "" {
-			label = url
+			label = destination
 		}
-		out = append(out, Link{Label: label, URL: url})
+		out = append(out, Link{Label: label, URL: destination})
 		return ast.WalkContinue, nil
 	})
 	return out
@@ -94,15 +108,19 @@ func Links(source string) []Link {
 // ViewInteractive renders markdown RichText plus clickable http(s) link chips.
 func ViewInteractive(c *ui.Context, source string, st Style, onLink func(url string)) {
 	View(c, source, st)
-	links := Links(source)
+	LinkActions(c, Links(source), st, onLink)
+}
+
+// LinkActions only invokes navigation after an explicit user click.
+func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 	if len(links) == 0 || onLink == nil {
 		return
 	}
-	ui.Row(c).Gap(6).Children(func() {
-		for _, l := range links {
-			link := l
-			if ui.Button(c, "↗ "+link.Label).FontSize(st.FontSize - 1).BorderWidth(0).
-				Background(ui.Transparent).TextColor(st.Accent).Clicked() {
+	ui.Column(c).FillWidth().Gap(4).Children(func() {
+		for _, link := range links {
+			if ui.Button(c, "").Label("↗ " + link.Label).Tooltip(link.URL).
+				MaxWidthPercent(100).MinWidth(0).FontSize(st.FontSize - 1).
+				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent).Clicked() {
 				onLink(link.URL)
 			}
 		}

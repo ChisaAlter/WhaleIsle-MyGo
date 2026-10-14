@@ -157,6 +157,7 @@ func View(c *ui.Context, m Model) {
 					tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 					ToolCardView(row.Context, msg.EventType, msg.Raw, tc, ToolImageGalleryOptions{
 						ID: msg.ID, Expanded: m.ThinkingExpanded,
+						OnOpenURL: m.OnOpenCitationURL,
 						OnOpen: func(path string) {
 							if m.OnOpenImageLightbox != nil {
 								m.OnOpenImageLightbox(path)

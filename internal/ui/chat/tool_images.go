@@ -11,9 +11,10 @@ import (
 
 // ToolImageGalleryOptions keeps disclosure state in the owning chat model.
 type ToolImageGalleryOptions struct {
-	ID       string
-	Expanded *map[string]bool
-	OnOpen   func(string)
+	ID        string
+	Expanded  *map[string]bool
+	OnOpen    func(string)
+	OnOpenURL func(string)
 }
 
 func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolImageGalleryOptions) {

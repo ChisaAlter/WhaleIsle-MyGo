@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets/markdown"
 )
 
 // Model is composer state for one frame.
@@ -23,6 +24,7 @@ type Model struct {
 	Draft           *string
 	State           *DraftState
 	OnSubmit        func()
+	OnOpenURL       func(string)
 	OnAttachFiles   func([]string)
 	ModelPick       *string
 	PermissionPick  *string
@@ -135,6 +137,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		padBot = 0
 	}
 	ui.Column(c).Padding(padTop, padRight, padBot, padLeft).Children(func() {
+		markdown.LinkActions(c, markdown.Links(draft), markdown.Style{FontSize: 12, Accent: accent}, m.OnOpenURL)
 		if m.SkillsOpen {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}

@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/dsh/events"
+	"whaleisle/internal/ui/widgets/markdown"
 )
 
 // ToolCardStyle colors for compact tool rows.
@@ -27,6 +28,7 @@ type ToolCardInfo struct {
 	Status string
 	Detail string
 	Images []string
+	Links  []markdown.Link
 }
 
 // ParseToolCard extracts name, status, and truncated args/result from raw JSON.
@@ -44,6 +46,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 				info.Name = "tool"
 			}
 			info.Status = "call"
+			info.Links = markdown.Links(ev.Data.Arguments)
 			info.Detail = truncateToolText(ev.Data.Arguments, 160)
 		}
 	case events.TypeToolResult:
@@ -55,6 +58,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 			if info.Status == "error" {
 				info.Images = nil
 			}
+			info.Links = markdown.Links(toolResultText(ev))
 			info.Detail = truncateToolText(toolResultText(ev), 200)
 			if len(info.Images) > 0 {
 				info.Detail = toolResultText(ev)
@@ -75,6 +79,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 			if !ev.Data.IsError {
 				info.Images = toolImageReferences(ev.Data.Content)
 			}
+			info.Links = markdown.Links(ptcDetail(ev.Data))
 			info.Detail = truncateToolText(ptcDetail(ev.Data), 200)
 			if len(info.Images) > 0 {
 				info.Detail = toolImageText(ev.Data.Content, true)
@@ -134,6 +139,9 @@ func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolC
 		})
 		if len(info.Images) > 0 && len(gallery) > 0 {
 			toolImageGallery(c, info.Images, st, gallery[0])
+		}
+		if len(gallery) > 0 {
+			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, gallery[0].OnOpenURL)
 		}
 		if info.Detail != "" {
 			ui.Text(c, info.Detail).FontSize(size - 1).TextColor(st.Muted)

@@ -547,6 +547,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						Draft:         m.Draft,
 						State:         m.ComposerState,
 						OnSubmit:      m.OnSubmitComposer,
+						OnOpenURL:     m.OnOpenCitationURL,
 						OnAttachFiles: m.OnAttachComposerFiles,
 						Editing:       editing,
 						OnCancelEdit: func() {
