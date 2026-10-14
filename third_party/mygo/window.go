@@ -348,6 +348,15 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
+	if opts.Page.LocalPDFURL != "" && opts.Page.LocalHTMLURL != "" {
+		panic("mygo: local PDF and HTML preview URLs are mutually exclusive")
+	}
+	if opts.Page.LocalHTMLURL != "" {
+		if !platform.LocalHTMLAllowed(opts.Page.LocalHTMLURL, opts.Page.LocalHTMLURL) {
+			panic("mygo: invalid isolated HTML URL")
+		}
+		opts.Page.IsolatedPreview = true
+	}
 	if opts.Page.LocalPDFURL != "" {
 		if !platform.LocalPDFAllowed(opts.Page.LocalPDFURL, opts.Page.LocalPDFURL) {
 			panic("mygo: invalid isolated PDF URL")
@@ -412,6 +421,7 @@ func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	p := &platform.WindowOptions{
 		IsolatedPreview: po.IsolatedPreview,
 		LocalPDFURL:     po.LocalPDFURL,
+		LocalHTMLURL:    po.LocalHTMLURL,
 		Title:           o.Title,
 		X:               o.X,
 		Y:               o.Y,

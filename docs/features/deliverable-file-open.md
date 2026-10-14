@@ -9,6 +9,6 @@
 
 原版依据：`docs/features/surfaces-work-loops.md` 的 User paths 2、Invariants 的所属 Session cwd / Host fallback / dirty tabs。
 
-范围说明：这里只补交付卡到现有 Files/Host 的路径和草稿闭环。PDF 已补 [应用内只读预览](local-pdf-preview.md)。原版 HTML/HTM/XHTML 交付卡 Browser mini 的呈现方式，以及收尾正文文件提及词表，仍未在此变更中实现，不能视作全部等价。
+范围说明：这里只补交付卡到现有 Files/Host 的路径和草稿闭环。PDF 已补 [应用内只读预览](local-pdf-preview.md)。HTML/HTM/XHTML 交付卡与 Files 工具栏已补 [隔离 HTML 文档预览](local-html-document.md)，保留源码草稿与系统打开。它预览当前保存文件的静态快照；脚本、同目录资源与外网依赖不加载，不能宣称完整网页运行环境等价。
 
 验证：单个临时文件 fixture 覆盖相对/绝对文件、重复打开、根目录返回、缺 cwd、越界、异平台路径、无效 URL 及 dirty close 保护。Windows 主程序编译由整合者统一执行。

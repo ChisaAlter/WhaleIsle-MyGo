@@ -28,6 +28,12 @@ type PageOptions struct {
 	// isolated preview. No external resources, scripts, popups, permissions,
 	// downloads or bindings are allowed. Windows only; never accepts file:.
 	LocalPDFURL string
+	// LocalHTMLURL permits one exact loopback HTML capability, mutually exclusive
+	// with LocalPDFURL. The caller must wrap content in an opaque sandbox with a
+	// restrictive CSP. Scripts, network resources, native bindings,
+	// permissions, popups, downloads, preloads and developer tools are disabled.
+	// Windows only; the URL must be http://127.0.0.1:port/<64hex>/document.html.
+	LocalHTMLURL string
 	// IsolatedPreview requests a dedicated temporary WebView2 environment with
 	// native bindings and resource/navigation/permission/download access denied.
 	// Experimental platform prerequisite only: it is NOT a renderer-readiness

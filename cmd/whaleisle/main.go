@@ -204,6 +204,7 @@ type mainState struct {
 	webviewOpen                 bool
 	browserPreviewOpen          bool
 	pdfPreviewRequest           uint64
+	htmlDocumentRequest         uint64
 	browserController           *browserpreviewui.Controller
 	browserPreviewDraft         string
 	browserPreviewNavigateErr   string
@@ -3075,6 +3076,7 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	if state.browserController != nil {
 		state.browserController.PrunePDFDocuments()
+		state.browserController.PruneHTMLDocuments()
 	}
 	if !browserPreviewOpen && state.browserController != nil {
 		state.browserController.Hide()
@@ -6676,6 +6678,10 @@ func mainView(c *ui.Context) {
 							}
 							return
 						}
+						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocHTML {
+							state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+							return
+						}
 						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
 							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
 							return
@@ -6692,6 +6698,10 @@ func mainView(c *ui.Context) {
 					},
 					FileOpenWithApps: fileOpenWithApps,
 					OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
+						if inWebView && kind == workspacefs.DocHTML {
+							state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
+							return
+						}
 						if inWebView && kind == workspacefs.DocPDF {
 							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
 							return

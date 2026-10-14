@@ -176,6 +176,9 @@ func (w *window) installPreviewPolicy() error {
 		}
 		return nil
 	}
+	if hr := comCall(w.settings, setPutIsScriptEnabled, boolArg(w.opts.LocalPDFURL == "" && w.opts.LocalHTMLURL == "")); failed(hr) {
+		return hresultError("isolated preview script policy", hr)
+	}
 	for _, setting := range []int{setPutIsWebMessageEnabled, setPutAreDefaultScriptDialogsEnabled, setPutAreDevToolsEnabled, previewPutHostObjectsAllowed, setPutAreDefaultContextMenusEnabled} {
 		if hr := comCall(w.settings, setting, 0); failed(hr) {
 			return hresultError("isolated preview settings", hr)
@@ -227,7 +230,7 @@ func (w *window) denyPreviewResource(args uintptr) {
 	if w.closed || w.environment() == 0 {
 		return
 	}
-	if w.opts.LocalPDFURL != "" {
+	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" {
 		var req uintptr
 		if !failed(comCall(args, resReqGetRequest, uintptr(unsafe.Pointer(&req)))) && req != 0 {
 			defer release(req)
@@ -235,7 +238,11 @@ func (w *window) denyPreviewResource(args uintptr) {
 			uriHR := comCall(req, reqGetURI, uintptr(unsafe.Pointer(&uri)))
 			methodHR := comCall(req, reqGetMethod, uintptr(unsafe.Pointer(&method)))
 			target, verb := takeWstr(uri), takeWstr(method)
-			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) {
+			pdfAllowed := platform.LocalPDFAllowed(w.opts.LocalPDFURL, target)
+			// Resource requests have no fragment allowance: HTML grants only one
+			// GET/HEAD resource, never arbitrary same-origin paths or redirects.
+			htmlAllowed := target == w.opts.LocalHTMLURL && platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target)
+			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && (pdfAllowed || htmlAllowed) {
 				return
 			}
 		}

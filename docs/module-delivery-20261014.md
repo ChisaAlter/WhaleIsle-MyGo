@@ -103,6 +103,7 @@
 - 主聊天麦克风录音：显式开始/停止/取消，WinMM内存PCM/WAV有界采集，复用真实speech catalog/transcribe授权；会话/Host/面板/窗口变化取消，UTF16原光标写草稿、冲突保留手动插入。无自动安装/prepare/发送，仅合成fixture与编译，未访问真实麦克风或验收Windows驱动/权限。
 - 消息反馈：修正真实positive/negative与null/opaque版本CAS，赞踩先编辑再显式提交，删除冲突保护/失败留稿；按Host业务ok判定，不再缺接口本地伪成功，不增加sessionFeedback外发。仅mock与编译，未发送真实反馈。
 - 手机 Git 桥：原版 DshdRemote.git/dispatch/Git闭包原字节接入，严格操作allowlist与私有stdio逐次核对桌面session/canonical cwd；默认关闭、显式临时授权，切会话/工作区/关闭面板或服务撤权并丢弃过期结果。只mock，无真实Git/隧道/手机配对验收，原源码许可证/哈希保留。
+- 本地 HTML 文档：交付卡/Files 的 htm/html/xhtml 保存快照进入独立文档预览，opaque sandbox仅静态CSS/data图片，原生禁JS且CSP script-src none，禁外部/同目录资源、bindings/Host凭据/权限；保留源码草稿和系统fallback。仅合成fixture/编译，未执行真实HTML或验收Windows隔离。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

@@ -195,7 +195,7 @@ func (w *window) setUp(controller uintptr) {
 	}
 	o := w.opts
 	s := w.settings
-	comCall(s, setPutIsScriptEnabled, boolArg(o.LocalPDFURL == ""))
+	comCall(s, setPutIsScriptEnabled, boolArg(o.LocalPDFURL == "" && o.LocalHTMLURL == ""))
 	comCall(s, setPutIsWebMessageEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutAreDefaultScriptDialogsEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsStatusBarEnabled, 0)
@@ -241,16 +241,18 @@ func (w *window) setUp(controller uintptr) {
 		comCall(w.webview, wvGetDocumentTitle, uintptr(unsafe.Pointer(&p)))
 		w.h.TitleChanged(takeWstr(p))
 	})
-	add(wvAddWebMessageReceived, func(_, args uintptr) {
-		var p uintptr
-		if failed(comCall(args, msgTryGetWebMessageAsString, uintptr(unsafe.Pointer(&p)))) {
-			return // not a string
-		}
-		if paths := postedFiles(args); len(paths) > 0 {
-			w.dropped = paths
-		}
-		w.h.Message(takeWstr(p))
-	})
+	if !o.IsolatedPreview {
+		add(wvAddWebMessageReceived, func(_, args uintptr) {
+			var p uintptr
+			if failed(comCall(args, msgTryGetWebMessageAsString, uintptr(unsafe.Pointer(&p)))) {
+				return // not a string
+			}
+			if paths := postedFiles(args); len(paths) > 0 {
+				w.dropped = paths
+			}
+			w.h.Message(takeWstr(p))
+		})
+	}
 	if !o.IsolatedPreview {
 		add(wvAddNewWindowRequested, w.newWindowRequested)
 		add(wvAddPermissionRequested, w.permissionRequested)
@@ -335,7 +337,8 @@ func (w *window) navigationStarting(_, args uintptr) {
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)
-		allowed := !failed(hr) && ((w.programmatic && target == "about:blank") || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target))
+		blankAllowed := w.opts.LocalHTMLURL == "" && w.programmatic && target == "about:blank"
+		allowed := !failed(hr) && (blankAllowed || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) || platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target))
 		w.programmatic = false
 		if !allowed {
 			w.cancelPreviewNavigation(args)
@@ -548,6 +551,16 @@ func (w *window) acceleratorKeyPressed(_, args uintptr) {
 }
 
 func (w *window) LoadURL(raw string) {
+	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" {
+		failedLoad := func(err error) { w.h.LoadFailed(raw, 0, err.Error()) }
+		w.withWebViewOr(func() {
+			w.programmatic = true
+			if hr := comCall(w.webview, wvNavigate, uintptr(unsafe.Pointer(u16(w.webURL(raw))))); failed(hr) {
+				failedLoad(hresultError("isolated preview navigation", hr))
+			}
+		}, failedLoad)
+		return
+	}
 	w.withWebView(func() {
 		w.programmatic = true
 		comCall(w.webview, wvNavigate, uintptr(unsafe.Pointer(u16(w.webURL(raw)))))

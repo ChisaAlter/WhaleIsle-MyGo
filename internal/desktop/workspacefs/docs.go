@@ -11,15 +11,18 @@ import (
 type DocKind string
 
 const (
-	DocNone DocKind = ""
-	DocPDF  DocKind = "pdf"
-	DocXLSX DocKind = "xlsx"
+	DocNone  DocKind = ""
+	DocPDF   DocKind = "pdf"
+	DocHTML  DocKind = "html"
+	DocXLSX  DocKind = "xlsx"
 	DocOther DocKind = "other"
 )
 
 // ClassifyDoc returns a document kind for preview routing.
 func ClassifyDoc(path string) DocKind {
 	switch strings.ToLower(filepath.Ext(path)) {
+	case ".htm", ".html", ".xhtml":
+		return DocHTML
 	case ".pdf":
 		return DocPDF
 	case ".xlsx", ".xls":

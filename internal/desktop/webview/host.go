@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,7 +17,11 @@ type HostOptions struct {
 	// LocalPDFURL is a single read-only local PDF capability. It uses the
 	// dedicated isolated WebView profile and exact-resource deny-by-default policy.
 	LocalPDFURL string
-	OnClosed    func()
+	// LocalHTMLURL is one sandboxed local HTML capability. It is mutually
+	// exclusive with PDF and Host sessions and uses a private preview profile.
+	LocalHTMLURL string
+	// OnClosed releases the local document lease, including creation failures.
+	OnClosed func()
 
 	// SessionOrigin/SessionCookie reuse one exact loopback Host session through a
 	// temporary transport. This always disables all native bindings.
@@ -40,9 +45,10 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
-	viewport    *mygo.Rectangle
-	localPDFURL string
-	onClosed    func()
+	viewport     *mygo.Rectangle
+	localPDFURL  string
+	localHTMLURL string
+	onClosed     func()
 
 	gateway   *pluginslots.Gateway
 	mu        sync.Mutex
@@ -62,6 +68,26 @@ type Host struct {
 // NewHost creates a hidden frameless child WebView2 window. Call
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
+	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != ""
+	created := false
+	if localPreview {
+		// The lease is released exactly once, even if creation fails before a
+		// Host exists or native destruction follows a load/process failure.
+		callback := opts.OnClosed
+		var closeOnce sync.Once
+		opts.OnClosed = func() {
+			closeOnce.Do(func() {
+				if callback != nil {
+					callback()
+				}
+			})
+		}
+		defer func() {
+			if !created {
+				opts.OnClosed()
+			}
+		}()
+	}
 	if opts.Parent == nil {
 		return nil, errors.New("webview: parent window is required")
 	}
@@ -71,6 +97,21 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	if err := validateHTTPURL(raw); err != nil {
 		return nil, err
+	}
+	if localPreview && (opts.SessionOrigin != "" || opts.SessionCookie != "") {
+		return nil, errors.New("local document previews cannot use Host sessions or cookies")
+	}
+	if opts.LocalPDFURL != "" && opts.LocalHTMLURL != "" {
+		return nil, errors.New("local PDF and HTML previews are mutually exclusive")
+	}
+	if opts.LocalHTMLURL != "" {
+		if runtime.GOOS != "windows" {
+			return nil, errors.New("HTML WebView preview is unavailable on this platform; use system open")
+		}
+		if opts.LocalHTMLURL != raw || !validLocalHTMLURL(raw) {
+			return nil, errors.New("invalid local HTML view")
+		}
+		opts.Untrusted = true
 	}
 	if opts.LocalPDFURL != "" {
 		if runtime.GOOS != "windows" {
@@ -110,10 +151,15 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{localPDFURL: opts.LocalPDFURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	initialURL := pageURL
+	if localPreview {
+		// Register the lease cleanup handlers before starting asynchronous load.
+		initialURL = ""
+	}
 	child := mygo.NewWindow(mygo.WindowOptions{
 		Title:           title,
-		URL:             pageURL,
+		URL:             initialURL,
 		Parent:          opts.Parent,
 		Frameless:       true,
 		Hidden:          true,
@@ -123,6 +169,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Height:          600,
 		Page: mygo.PageOptions{
 			LocalPDFURL:     opts.LocalPDFURL,
+			LocalHTMLURL:    opts.LocalHTMLURL,
 			TrustedOrigins:  trusted,
 			DisableBindings: opts.Untrusted,
 			DevTools:        mygo.DevToolsDisabled,
@@ -149,8 +196,12 @@ func NewHost(opts HostOptions) (*Host, error) {
 		stopped := h.stopped
 		h.mu.Unlock()
 		if !stopped {
-			if opts.LocalPDFURL != "" {
-				h.setError("PDF preview failed; use system open")
+			if localPreview {
+				if opts.LocalHTMLURL != "" {
+					h.setError("HTML preview failed; use system open")
+				} else {
+					h.setError("PDF preview failed; use system open")
+				}
 				_ = h.Close()
 			} else if gateway != nil {
 				h.setError("Plugin Host page failed to load")
@@ -161,7 +212,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 	})
 	pg.OnRenderProcessGone(func(reason string) {
 		h.setError("Page process exited: " + reason)
-		if opts.LocalPDFURL != "" {
+		if localPreview {
 			_ = h.Close()
 		}
 	})
@@ -181,13 +232,26 @@ func NewHost(opts HostOptions) (*Host, error) {
 	})
 	child.OnClose(func(e *mygo.CloseEvent) {
 		e.PreventDefault()
-		if gateway != nil || opts.LocalPDFURL != "" {
+		if gateway != nil || localPreview {
 			_ = h.Close()
 		} else {
 			h.SetVisible(false)
 		}
 	})
+	if localPreview {
+		child.OnClosed(func() { _ = h.Close() })
+	}
 	h.SyncBounds()
+	if localPreview {
+		if err := pg.LoadURL(pageURL); err != nil {
+			_ = h.Close()
+			return nil, err
+		}
+		if !h.Alive() {
+			return nil, errors.New("webview: local document preview failed to start")
+		}
+	}
+	created = true
 	return h, nil
 }
 
@@ -199,6 +263,9 @@ func (h *Host) Navigate(raw string) error {
 	raw = strings.TrimSpace(raw)
 	if h.localPDFURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localPDFURL {
 		return errors.New("PDF navigation outside this document is blocked")
+	}
+	if h.localHTMLURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localHTMLURL {
+		return errors.New("HTML navigation outside this document is blocked")
 	}
 	if err := validateHTTPURL(raw); err != nil {
 		return err
@@ -227,7 +294,13 @@ func (h *Host) Navigate(raw string) error {
 			err = errors.New("Plugin Host navigation failed")
 		}
 		h.setError(err.Error())
+		if h.localPDFURL != "" || h.localHTMLURL != "" {
+			_ = h.Close()
+		}
 		return err
+	}
+	if (h.localPDFURL != "" || h.localHTMLURL != "") && !h.Alive() {
+		return errors.New("webview: local document preview closed")
 	}
 	h.mu.Lock()
 	h.url = h.logicalURL(raw)
@@ -365,6 +438,22 @@ func validateHTTPURL(raw string) error {
 	default:
 		return errors.New("webview: only http(s) URLs are allowed")
 	}
+}
+
+// validLocalHTMLURL mirrors the framework's narrow capability shape before
+// NewWindow, whose invalid-option contract is to panic. Never accept an origin,
+// directory, query, escaped path, credentials or an arbitrary loopback URL.
+func validLocalHTMLURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.User != nil || u.Opaque != "" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawFragment != "" || u.String() != raw {
+		return false
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil || port < 1 || port > 65535 || u.Host != "127.0.0.1:"+strconv.Itoa(port) {
+		return false
+	}
+	parts := strings.Split(u.Path, "/")
+	return len(parts) == 3 && parts[0] == "" && len(parts[1]) == 64 && strings.Trim(parts[1], "0123456789abcdefABCDEF") == "" && parts[2] == "document.html"
 }
 
 func urlOrigin(raw string) string {

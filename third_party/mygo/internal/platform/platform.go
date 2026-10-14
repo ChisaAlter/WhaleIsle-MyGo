@@ -194,6 +194,7 @@ type AboutPanelOptions struct {
 // package fills in all defaults before calling NewWindow.
 type WindowOptions struct {
 	LocalPDFURL     string
+	LocalHTMLURL    string
 	IsolatedPreview bool
 	Title           string
 	X, Y            int

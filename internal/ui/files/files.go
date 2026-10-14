@@ -298,7 +298,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					Padding(2, 6, 2, 6)
 			}
 			if m.OnOpenDoc != nil && fullPath != "" {
-				if docKind == workspacefs.DocPDF && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
+				if (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
 					m.OnOpenDoc(fullPath, docKind, true)
 				}
 				// Electron preview toolbar: open with system default for any file.
@@ -329,7 +329,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && docKind == workspacefs.DocNone && (m.PreviewErr == nil || *m.PreviewErr == "") {
+			if !editing && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
 					if m.EditStatus != nil {

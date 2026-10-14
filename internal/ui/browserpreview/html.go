@@ -1,0 +1,65 @@
+package browserpreview
+
+import (
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/htmldocument"
+	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/chrome"
+)
+
+// OpenHTML owns only the selected file's immutable snapshot. It does not prepare
+// a visual reply, capture a bitmap, serve sibling assets, or expose a Host bridge.
+func (b *Controller) OpenHTML(doc *htmldocument.Document) error {
+	b.Hide()
+	b.next++
+	t := &Tab{ID: b.next, HTML: doc, Draft: doc.Name}
+	b.Tabs = append(b.Tabs, t)
+	b.Active = len(b.Tabs) - 1
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalHTMLURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnClosed: doc.Close})
+	if err != nil {
+		doc.Close()
+		t.Error = "HTML 预览不可用，请使用系统打开 / HTML preview unavailable; use system open"
+	} else {
+		t.Host = h
+		h.SetVisible(true)
+	}
+	b.update()
+	return err
+}
+
+// PruneHTMLDocuments is called with the existing PDF lease sweep on every frame.
+func (b *Controller) PruneHTMLDocuments() {
+	for _, t := range b.Tabs {
+		if t.HTML == nil || t.HTML.Valid() {
+			continue
+		}
+		if t.Host != nil && t.Host.Alive() {
+			_ = t.Host.Close()
+		}
+		t.HTML.Close()
+		if t.Error == "" {
+			t.Error = "HTML 预览已关闭、过期或所属会话改变；请重新打开文件，或使用系统打开。"
+		}
+	}
+}
+func (b *Controller) htmlControls(c *ui.Context, t *Tab) {
+	ui.Text(c, t.HTML.Name).FontSize(12).Grow(1)
+	if ui.Button(c, "系统打开").Clicked() {
+		path, err := t.HTML.ExternalPath()
+		if err == nil {
+			err = mygo.Shell.OpenPath(path)
+		}
+		if err != nil {
+			t.Error = err.Error()
+		}
+	}
+	if ui.Button(c, "复制文件路径").Clicked() {
+		path, err := t.HTML.ExternalPath()
+		if err != nil {
+			t.Error = err.Error()
+		} else {
+			mygo.Clipboard.WriteText(path)
+		}
+	}
+}
