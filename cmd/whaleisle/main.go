@@ -43,6 +43,7 @@ import (
 	desktopupdate "whaleisle/internal/desktop/update"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
@@ -651,7 +652,7 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 
 func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store, ws string, mkdirLocal bool) {
 	ws = strings.TrimSpace(ws)
-	if ws == "" {
+	if !directorypicker.SelectablePath(ws) {
 		return
 	}
 	if mkdirLocal {

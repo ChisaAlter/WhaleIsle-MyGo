@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -81,7 +82,7 @@ func View(c *ui.Context, m Model) {
 							m.OnNavigate(e.Path)
 						}
 					}
-					if m.OnPick != nil {
+					if m.OnPick != nil && directorypicker.SelectablePath(e.Path) {
 						if ui.Button(c, i18n.T(i18n.KeyDirPickSelect)).FontSize(11).Clicked() {
 							m.OnPick(e.Path)
 						}
@@ -89,7 +90,7 @@ func View(c *ui.Context, m Model) {
 				})
 			}
 		})
-		if m.NewName != nil && m.OnCreate != nil {
+		if m.NewName != nil && m.OnCreate != nil && directorypicker.SelectablePath(m.Listing.Path) {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.TextInput(c, m.NewName).FillWidth().Grow(1).Placeholder(i18n.T(i18n.KeyDirPickNewName))
 				if ui.Button(c, i18n.T(i18n.KeyDirPickCreate)).FontSize(11).Clicked() {
@@ -101,7 +102,7 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 		}
-		if m.OnPick != nil && strings.TrimSpace(m.Listing.Path) != "" {
+		if m.OnPick != nil && directorypicker.SelectablePath(m.Listing.Path) {
 			if ui.Button(c, i18n.T(i18n.KeyDirPickSelectHere)).FontSize(11).TextColor(accent).Clicked() {
 				m.OnPick(m.Listing.Path)
 			}

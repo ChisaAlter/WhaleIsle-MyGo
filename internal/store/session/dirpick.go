@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -51,8 +52,8 @@ func (s *Store) CreateDirectory(ctx context.Context, parent, name string) (strin
 	if client == nil {
 		return "", ErrNoClient
 	}
-	if parent == "" || name == "" {
-		return "", ErrNoClient
+	if !directorypicker.SelectablePath(parent) || name == "" {
+		return "", errors.New("directory-create-failed: select a filesystem directory")
 	}
 	var out api.CreateDirectoryResult
 	err := client.Call(ctx, "directoryPicker/createDirectory", map[string]any{
