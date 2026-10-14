@@ -195,7 +195,7 @@ func (w *window) setUp(controller uintptr) {
 	}
 	o := w.opts
 	s := w.settings
-	comCall(s, setPutIsScriptEnabled, 1)
+	comCall(s, setPutIsScriptEnabled, boolArg(o.LocalPDFURL == ""))
 	comCall(s, setPutIsWebMessageEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutAreDefaultScriptDialogsEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsStatusBarEnabled, 0)
@@ -335,7 +335,7 @@ func (w *window) navigationStarting(_, args uintptr) {
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)
-		allowed := !failed(hr) && w.programmatic && target == "about:blank"
+		allowed := !failed(hr) && ((w.programmatic && target == "about:blank") || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target))
 		w.programmatic = false
 		if !allowed {
 			w.cancelPreviewNavigation(args)

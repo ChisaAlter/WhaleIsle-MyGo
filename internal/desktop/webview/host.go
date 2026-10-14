@@ -3,6 +3,7 @@ package webview
 import (
 	"errors"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -12,6 +13,11 @@ import (
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	// LocalPDFURL is a single read-only local PDF capability. It uses the
+	// dedicated isolated WebView profile and exact-resource deny-by-default policy.
+	LocalPDFURL string
+	OnClosed    func()
+
 	// SessionOrigin/SessionCookie reuse one exact loopback Host session through a
 	// temporary transport. This always disables all native bindings.
 	SessionOrigin string
@@ -34,6 +40,9 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	localPDFURL string
+	onClosed    func()
+
 	gateway   *pluginslots.Gateway
 	mu        sync.Mutex
 	parent    *mygo.Window
@@ -61,6 +70,15 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	if err := validateHTTPURL(raw); err != nil {
 		return nil, err
+	}
+	if opts.LocalPDFURL != "" {
+		if runtime.GOOS != "windows" {
+			return nil, errors.New("PDF WebView preview is unavailable on this platform; use system open")
+		}
+		if opts.LocalPDFURL != raw || opts.SessionOrigin != "" {
+			return nil, errors.New("invalid local PDF view")
+		}
+		opts.Untrusted = true
 	}
 	if opts.TopInset < 0 {
 		opts.TopInset = 0
@@ -91,7 +109,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{localPDFURL: opts.LocalPDFURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	child := mygo.NewWindow(mygo.WindowOptions{
 		Title:           title,
 		URL:             pageURL,
@@ -103,6 +121,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
+			LocalPDFURL:     opts.LocalPDFURL,
 			TrustedOrigins:  trusted,
 			DisableBindings: opts.Untrusted,
 			DevTools:        mygo.DevToolsDisabled,
@@ -129,14 +148,22 @@ func NewHost(opts HostOptions) (*Host, error) {
 		stopped := h.stopped
 		h.mu.Unlock()
 		if !stopped {
-			if gateway != nil {
+			if opts.LocalPDFURL != "" {
+				h.setError("PDF preview failed; use system open")
+				_ = h.Close()
+			} else if gateway != nil {
 				h.setError("Plugin Host page failed to load")
 			} else {
 				h.setError(err.Error())
 			}
 		}
 	})
-	pg.OnRenderProcessGone(func(reason string) { h.setError("Page process exited: " + reason) })
+	pg.OnRenderProcessGone(func(reason string) {
+		h.setError("Page process exited: " + reason)
+		if opts.LocalPDFURL != "" {
+			_ = h.Close()
+		}
+	})
 	pg.OnPageTitleUpdated(func(e *mygo.TitleEvent) { h.mu.Lock(); h.title = e.Title; h.mu.Unlock(); h.notify() })
 	if opts.Untrusted {
 		pg.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
@@ -153,7 +180,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 	})
 	child.OnClose(func(e *mygo.CloseEvent) {
 		e.PreventDefault()
-		if gateway != nil {
+		if gateway != nil || opts.LocalPDFURL != "" {
 			_ = h.Close()
 		} else {
 			h.SetVisible(false)
@@ -169,6 +196,9 @@ func (h *Host) Navigate(raw string) error {
 		return errors.New("webview: nil host")
 	}
 	raw = strings.TrimSpace(raw)
+	if h.localPDFURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localPDFURL {
+		return errors.New("PDF navigation outside this document is blocked")
+	}
 	if err := validateHTTPURL(raw); err != nil {
 		return err
 	}
@@ -291,8 +321,13 @@ func (h *Host) Close() error {
 	win := h.win
 	h.offResize = nil
 	h.win = nil
+	onClosed := h.onClosed
+	h.onClosed = nil
 	h.mu.Unlock()
 	h.gateway.Close()
+	if onClosed != nil {
+		onClosed()
+	}
 	if offMove != nil {
 		offMove()
 	}

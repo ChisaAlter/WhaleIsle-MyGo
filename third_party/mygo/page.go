@@ -24,6 +24,10 @@ func (p *Page) Window() *Window { return p.w }
 
 // PageOptions configure the web page of a window.
 type PageOptions struct {
+	// LocalPDFURL permits one exact loopback PDF capability in an otherwise
+	// isolated preview. No external resources, scripts, popups, permissions,
+	// downloads or bindings are allowed. Windows only; never accepts file:.
+	LocalPDFURL string
 	// IsolatedPreview requests a dedicated temporary WebView2 environment with
 	// native bindings and resource/navigation/permission/download access denied.
 	// Experimental platform prerequisite only: it is NOT a renderer-readiness

@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -20,6 +21,8 @@ type Controller struct {
 	parent *mygo.Window
 }
 type Tab struct {
+	Document *pdfpreview.Document
+
 	ID           int
 	Draft, Error string
 	lastURL      string
@@ -55,6 +58,10 @@ func (b *Controller) Navigate(raw string) {
 		b.NewTab("")
 	}
 	t := b.current()
+	if t.Document != nil {
+		b.NewTab(raw)
+		return
+	}
 	t.Draft = raw
 	normalized := NormalizeURL(raw)
 	if normalized == "" {
@@ -96,7 +103,9 @@ func (b *Controller) Select(index int) {
 	b.Active = index
 	if t := b.current(); t.Host != nil {
 		t.Host.SetVisible(true)
-		t.Draft = t.Host.State().URL
+		if t.Document == nil {
+			t.Draft = t.Host.State().URL
+		}
 	}
 	b.update()
 }
@@ -105,6 +114,9 @@ func (b *Controller) CloseTab(index int) {
 		return
 	}
 	b.Hide()
+	if d := b.Tabs[index].Document; d != nil {
+		d.Close()
+	}
 	if h := b.Tabs[index].Host; h != nil {
 		_ = h.Close()
 	}
@@ -123,6 +135,9 @@ func (b *Controller) CloseTab(index int) {
 }
 func (b *Controller) Close() {
 	for _, t := range b.Tabs {
+		if t.Document != nil {
+			t.Document.Close()
+		}
 		if t.Host != nil {
 			_ = t.Host.Close()
 		}
@@ -139,7 +154,7 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 	s := desktop.State{}
 	if t.Host != nil {
 		s = t.Host.State()
-		if s.URL != "" && s.URL != t.lastURL {
+		if t.Document == nil && s.URL != "" && s.URL != t.lastURL {
 			t.Draft = s.URL
 			t.lastURL = s.URL
 		}
@@ -160,7 +175,9 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 					ui.Row(c).Gap(4).Children(func() {
 						for i, tab := range b.Tabs {
 							label := fmt.Sprintf("%d", tab.ID)
-							if tab.Host != nil {
+							if tab.Document != nil {
+								label += " " + truncate(tab.Document.Name, 12)
+							} else if tab.Host != nil {
 								st := tab.Host.State()
 								if st.Title != "" {
 									label += " " + truncate(st.Title, 12)
@@ -183,6 +200,10 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 				}
 			})
 			ui.Row(c).Height(32).Gap(6).AlignItems(ui.Center).Children(func() {
+				if t.Document != nil {
+					b.documentControls(c, t)
+					return
+				}
 				if ui.Button(c, "←").Disabled(!s.CanBack).Clicked() && t.Host != nil {
 					t.Host.Back()
 				}
@@ -215,6 +236,9 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 				err = s.Error
 			}
 			status := s.URL
+			if t.Document != nil {
+				status = t.Document.Name + " · PDF 只读快照；外部导航和脚本已禁用"
+			}
 			if status == "" {
 				status = "每个标签保留独立页面和历史；网页无法调用应用权限。"
 			}

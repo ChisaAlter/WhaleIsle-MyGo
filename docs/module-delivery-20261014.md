@@ -84,6 +84,7 @@
 - 手机 runtime 实际构建/暂存：隔离 Linux x64 原版依赖安装、native rebuild、server/CLI 与 browser bundle 成功，SQLite 内存/node-pty加载及 4.4GiB 暂存清单校验通过；提交仅跨平台脚本、固定来源缺件与许可证，保留真实依赖链接。不是 Windows runtime，也未启动 daemon/Host/配对/模型；大体积产物不入源码交付。
 - 原生终端资源：固定官方 MyGo/Ghostty DLL 离线 SHA 校验、许可证与来源 sidecar，打包/NSIS必需暂存，运行前校验且禁止首次打开隐式下载；缺资源可补齐后重试，不改现有 PTY 会话链。真实 DLL 字节及离线 staging 已验证，未执行 Windows DLL/终端命令，二进制不入源码。
 - 远程会话文件：真实 sessionBound/status、ls及按sessionId读写，mtime冲突保留草稿且禁止重放，二进制/截断内容禁写；显式下载两阶段确认镜像同名覆盖，不造同步RPC/进度。每session+origin独立草稿，切换/断连取消和世代隔离；仅mock，未连接真实SSH/Host或操作文件。
+- 本地 PDF 预览：Files/交付卡/Office结果通过单文件有界内存快照和短期精确URL能力进入独立只读PDF页，保留脏草稿；仅该PDF GET/HEAD允许，禁脚本/宿主绑定/外网/下载，关闭/会话失效撤销。加载失败可明确系统打开，合成PDF fixture通过；未实测Windows PDF渲染或真实文档。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

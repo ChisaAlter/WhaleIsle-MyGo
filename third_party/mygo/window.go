@@ -348,6 +348,12 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
+	if opts.Page.LocalPDFURL != "" {
+		if !platform.LocalPDFAllowed(opts.Page.LocalPDFURL, opts.Page.LocalPDFURL) {
+			panic("mygo: invalid isolated PDF URL")
+		}
+		opts.Page.IsolatedPreview = true
+	}
 	if opts.Page.IsolatedPreview {
 		if runtime.GOOS != "windows" {
 			panic("mygo: isolated preview is unavailable on this platform")
@@ -405,6 +411,7 @@ func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
 		IsolatedPreview: po.IsolatedPreview,
+		LocalPDFURL:     po.LocalPDFURL,
 		Title:           o.Title,
 		X:               o.X,
 		Y:               o.Y,

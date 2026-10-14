@@ -199,6 +199,7 @@ type mainState struct {
 	sshProbeLine                string
 	webviewOpen                 bool
 	browserPreviewOpen          bool
+	pdfPreviewRequest           uint64
 	browserController           *browserpreviewui.Controller
 	browserPreviewDraft         string
 	browserPreviewNavigateErr   string
@@ -3053,6 +3054,9 @@ func mainView(c *ui.Context) {
 		fileOpenWithApps = nil
 	}
 	state.mu.Unlock()
+	if state.browserController != nil {
+		state.browserController.PrunePDFDocuments()
+	}
 	if !browserPreviewOpen && state.browserController != nil {
 		state.browserController.Hide()
 	}
@@ -6634,6 +6638,10 @@ func mainView(c *ui.Context) {
 							}
 							return
 						}
+						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
+							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+							return
+						}
 						state.mu.Lock()
 						state.filesPaneOpen = true
 						state.rightPaneTab = "files"
@@ -6647,10 +6655,7 @@ func mainView(c *ui.Context) {
 					FileOpenWithApps: fileOpenWithApps,
 					OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
 						if inWebView && kind == workspacefs.DocPDF {
-							state.showBrowserPreview(workspacefs.FileURL(absPath))
-							if win != nil {
-								win.Update(func() {})
-							}
+							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
 							return
 						}
 						if sessions != nil && st.State == harness.Ready {
@@ -6672,23 +6677,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnRenderOfficePDF: func(rel string) {
-						if sessions == nil {
-							return
-						}
-						go func() {
-							abs, err := sessions.RenderOfficePDF(context.Background(), rel)
-							if err != nil {
-								sessions.SetLastAction(err.Error())
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-							state.showBrowserPreview(workspacefs.FileURL(abs))
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
+						state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
 					},
 				})
 				if state.dirPickOpen {

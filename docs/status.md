@@ -190,7 +190,7 @@
   - 已完成（vendor 审计）：`runtime/vendor/dsh-im` **无** 会话/消息历史 RPC（无 `listMessages`/`getHistory`/`inbox`/`timeline`/`im/*` typert 模式）。对外 Cordis 仅为 **连接与 bot 管理**（`plugin-src/client/channels/shared/token-api.js` + 各 channel `api.js`/`host/channels/*/rpc.mjs`）：共性 `connection.status`、`bot.bind-credentials`、`bot.reconnect`（可选 `sendTest` 触发插件内 **固定测试消息**，非任意正文）、`bot.delete`、`bot.workspace.set`、`bot.preset.set`；各渠道另有 `provision.*`、钉钉 `bot.sender.*`、Telegram/WhatsApp `bot.access-policy.set`、飞书 `bot.callback-repair.begin` 等；消息收发在插件 runtime/bridge 内，不暴露给 Harness Typert Remote。
   - 已完成（原生等价）：Cordis 列表行 **Detail** 展示 `health.summary` 与 `lastMessageError.message`（见 `internal/store/im/cordis.go`）；**SendDraft** 仍仅探测 codegen `im/send` 候选，vendor 无通用 send → 本地 `history.json` + `LastSend` 说明；完整 IM 仍靠 dsh-im WebView。
   - 已完成（本轮）：**浏览器预览面板** — `internal/ui/browserpreview`（URL 栏 + 导航/系统浏览器/关闭 WebView）；标题栏与工作环右栏入口；复用 `internal/desktop/webview.Host` 加载任意 http(s)（与 M10 插件 SlotURL 面板独立）；PDF「WebView2 打开」走预览面板；`ui.NewTester` 标签冒烟。
-  - 待做：无（`file://` 等 scheme 仍受 WebView2 校验限制；非 http(s) 文档仍走系统打开）。
+  - 本地 PDF：已接入 [只读 PDF 标签](features/local-pdf-preview.md)，采用单文件快照与临时 loopback 能力地址；继续拒绝 `file://`。Office 转换产物精确归属请求，保留系统打开；Windows 实机渲染仍未验证。
 - **M10 鲸鱼娘助理与 webview 兜底（进行中）**：
   - 已完成：`internal/desktop/webview.Host` — MyGo 无边框 Parent URL 子窗口（WebView2）、`Navigate`/`SetVisible`/`SetBounds`/`SyncBounds`/`Close`；标题栏「插件 Web」+「打开内嵌 WebView2」；离开面板自动销毁 Host。
   - 已完成：`internal/ui/assistant` 原生面板（标题栏「助理」）— 开关 `whaleAssistantEnabled`/`dshbotEnabled`、vendor 存在检测、WebView2 打开 `dsh-whale`/`dshbot` 插槽；单测 `ui.NewTester`。

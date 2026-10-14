@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unsafe"
+
+	"github.com/egoist/mygo/internal/platform"
 )
 
 // ABI values verified against Microsoft's Microsoft.Web.WebView2 1.0.3537.50
@@ -192,7 +194,10 @@ func (w *window) installPreviewPolicy() error {
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)
-		if !failed(hr) && target == "about:srcdoc" && !w.isolated.frameStarted {
+		if !failed(hr) && platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) {
+			return
+		}
+		if !failed(hr) && w.opts.LocalPDFURL == "" && target == "about:srcdoc" && !w.isolated.frameStarted {
 			w.isolated.frameStarted = true
 			return
 		}
@@ -221,6 +226,19 @@ func (w *window) cancelPreviewNavigation(args uintptr) {
 func (w *window) denyPreviewResource(args uintptr) {
 	if w.closed || w.environment() == 0 {
 		return
+	}
+	if w.opts.LocalPDFURL != "" {
+		var req uintptr
+		if !failed(comCall(args, resReqGetRequest, uintptr(unsafe.Pointer(&req)))) && req != 0 {
+			defer release(req)
+			var uri, method uintptr
+			uriHR := comCall(req, reqGetURI, uintptr(unsafe.Pointer(&uri)))
+			methodHR := comCall(req, reqGetMethod, uintptr(unsafe.Pointer(&method)))
+			target, verb := takeWstr(uri), takeWstr(method)
+			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) {
+				return
+			}
+		}
 	}
 	// data: images are embedded by the Host and normally do not issue resource
 	// requests. Any event that does arrive is denied, including custom schemes,

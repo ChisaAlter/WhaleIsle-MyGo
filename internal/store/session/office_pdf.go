@@ -11,14 +11,25 @@ import (
 // RenderOfficePDF calls officeToPdf/render for a workspace-relative path and
 // returns the AbsolutePath of the generated PDF when present.
 func (s *Store) RenderOfficePDF(ctx context.Context, relPath string) (string, error) {
+	s.mu.Lock()
+	sid := s.selectedID
+	s.mu.Unlock()
+	return s.RenderOfficePDFForSession(ctx, sid, relPath)
+}
+
+// RenderOfficePDFForSession pins a conversion to the initiating click's Session.
+func (s *Store) RenderOfficePDFForSession(ctx context.Context, sessionID, relPath string) (string, error) {
 	relPath = strings.TrimSpace(relPath)
 	if relPath == "" {
 		return "", fmt.Errorf("empty path")
 	}
 	s.mu.Lock()
 	client := s.client
-	sessionID := s.selectedID
+	same := sessionID != "" && s.selectedID == sessionID
 	s.mu.Unlock()
+	if !same {
+		return "", fmt.Errorf("Office conversion session changed")
+	}
 	if client == nil {
 		return "", fmt.Errorf("harness not ready")
 	}
