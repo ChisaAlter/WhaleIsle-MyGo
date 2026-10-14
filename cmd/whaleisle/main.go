@@ -58,9 +58,9 @@ import (
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/files"
-	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
 	imui "whaleisle/internal/ui/im"
@@ -293,6 +293,7 @@ type mainState struct {
 	composerSkillsSession string
 	composerChipEdit      composer.ChipEdit
 	composerTextInput     *composer.DraftClient
+	composerDrafts        map[string]*composer.DraftState
 
 	terminalPanel       *termui.Panel
 	terminalShellsNote  string
@@ -300,14 +301,14 @@ type mainState struct {
 	terminalVisible     bool
 	terminalSavedBottom float32
 
-	dshMu             sync.Mutex
-	dshCancel         context.CancelFunc
-	dshEndpoint       string
-	dshClient         *dsh.Client
-	dshMux            *dsh.Mux
-	dshMuxReady       bool
-	dshMuxLost        bool
-	filesWatchCancel  context.CancelFunc
+	dshMu            sync.Mutex
+	dshCancel        context.CancelFunc
+	dshEndpoint      string
+	dshClient        *dsh.Client
+	dshMux           *dsh.Mux
+	dshMuxReady      bool
+	dshMuxLost       bool
+	filesWatchCancel context.CancelFunc
 }
 
 var state mainState
@@ -613,6 +614,11 @@ func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store
 			return
 		}
 	}
+	s.mu.Lock()
+	if home := s.composerDrafts[""]; home != nil && !home.Sending && home.Preparing == 0 {
+		home.TargetID = ""
+	}
+	s.mu.Unlock()
 	if store := s.cfgStore; store != nil {
 		_ = store.Update(func(c *config.Config) {
 			c.Workspace = ws
@@ -620,7 +626,9 @@ func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store
 	}
 	if sessions != nil {
 		sessions.SetWorkspaceCwd(ws)
-		sessions.RefreshList(context.Background())
+		if sessions.Snapshot().SelectedID != "" {
+			sessions.RefreshList(context.Background())
+		}
 	}
 	s.mu.Lock()
 	sup := s.sup
@@ -2636,9 +2644,19 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 		return
 	}
 	_, reviewedToken, reviewErr := desktopgit.IndexReview(root)
-	if reviewErr != nil { s.mu.Lock(); s.gitMsg = reviewErr.Error(); s.mu.Unlock(); return }
+	if reviewErr != nil {
+		s.mu.Lock()
+		s.gitMsg = reviewErr.Error()
+		s.mu.Unlock()
+		return
+	}
 	summary, reviewErr := desktopgit.StagedSummary(root)
-	if reviewErr != nil { s.mu.Lock(); s.gitMsg = reviewErr.Error(); s.mu.Unlock(); return }
+	if reviewErr != nil {
+		s.mu.Lock()
+		s.gitMsg = reviewErr.Error()
+		s.mu.Unlock()
+		return
+	}
 	res, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent:        win,
 		Type:          mygo.MessageQuestion,
@@ -5063,15 +5081,15 @@ func mainView(c *ui.Context) {
 				},
 				AccountActive: accountActive,
 				Account: &settings.AccountAccess{
-					ClientReady:    usageSnap.ClientReady,
-					Loading:        usageSnap.Loading,
-					Err:            usageSnap.Err,
-					Status:         usageSnap.AccountStatus,
-					Email:          usageSnap.Email,
-					Name:           usageSnap.Name,
-					Plan:           usageSnap.Plan,
-					UsageURL:       usageSnap.UsageURL,
-					TopUpURL:       usageSnap.TopUpURL,
+					ClientReady:     usageSnap.ClientReady,
+					Loading:         usageSnap.Loading,
+					Err:             usageSnap.Err,
+					Status:          usageSnap.AccountStatus,
+					Email:           usageSnap.Email,
+					Name:            usageSnap.Name,
+					Plan:            usageSnap.Plan,
+					UsageURL:        usageSnap.UsageURL,
+					TopUpURL:        usageSnap.TopUpURL,
 					BalanceSummary:  usageSnap.BalanceSummary,
 					HasRunningTasks: usageSnap.HasRunningTasks,
 					AttemptPhase:    usageSnap.AttemptPhase,
@@ -5295,11 +5313,11 @@ func mainView(c *ui.Context) {
 				},
 				AboutActive: aboutActive,
 				About: &settings.AboutAccess{
-					AppName:    i18n.T(i18n.KeyAppName),
-					Version:    buildVersion,
-					Identifier: "ai.deepseek.harness.gui",
-					UserData:   paths.UserDataDir(),
-					VendorRoot: paths.VendorDir(),
+					AppName:          i18n.T(i18n.KeyAppName),
+					Version:          buildVersion,
+					Identifier:       "ai.deepseek.harness.gui",
+					UserData:         paths.UserDataDir(),
+					VendorRoot:       paths.VendorDir(),
 					AnalyticsEnabled: state.analyticsEnabled,
 					OnRevealUserData: func() {
 						_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
@@ -5380,8 +5398,8 @@ func mainView(c *ui.Context) {
 					AutoStartDesktop: &state.desktopDraft.autoStartDesktop,
 					ShowViewTabs:     &state.desktopDraft.showViewTabs,
 					AutoAllowTools:   &state.desktopDraft.autoAllowTools,
-					LastAction:     desktopAction,
-					Err:            desktopErr,
+					LastAction:       desktopAction,
+					Err:              desktopErr,
 					OnSave: func() {
 						state.mu.Lock()
 						showTabs := state.desktopDraft.showViewTabs
@@ -5709,9 +5727,9 @@ func mainView(c *ui.Context) {
 				},
 				SkillsActive: skillsActive,
 				Skills: &settings.SkillsAccess{
-					Skills:     skillRows,
-					SessionID:  sessSnap.SelectedID,
-					Err:        sessSnap.SkillsErr,
+					Skills:    skillRows,
+					SessionID: sessSnap.SelectedID,
+					Err:       sessSnap.SkillsErr,
 					LastAction: func() string {
 						if state.settingsSkillsLastAction != "" {
 							return state.settingsSkillsLastAction
@@ -5917,11 +5935,17 @@ func mainView(c *ui.Context) {
 							return
 						}
 						state.mu.Lock()
-						draft := strings.TrimRight(state.draft, " ")
+						id := ""
+						if sessions != nil {
+							id = sessions.Snapshot().SelectedID
+						}
+						skillDraft := state.composerDraftLocked(id)
+						draft := strings.TrimRight(skillDraft.Text, " ")
 						if draft != "" {
 							draft += " "
 						}
-						state.draft = draft + "/" + name + " "
+						skillDraft.Text = draft + "/" + name + " "
+						skillDraft.Client.Sync()
 						state.settingsOpen = false
 						state.mu.Unlock()
 						if win != nil {
@@ -6388,6 +6412,11 @@ func mainView(c *ui.Context) {
 					}
 				}
 				snap := sessions.Snapshot()
+				state.mu.Lock()
+				activeDraft := state.composerDraftLocked(snap.SelectedID)
+				draft = activeDraft.Text
+				state.composerTextInput = activeDraft.Client
+				state.mu.Unlock()
 				if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
 					modelPick = snap.SelectedModel
 				}
@@ -6426,9 +6455,6 @@ func mainView(c *ui.Context) {
 				composerSkillsFilter := state.composerSkillsFilter
 				skillCreateName := state.skillCreateName
 				composerChipEdit := state.composerChipEdit
-				if state.composerTextInput == nil {
-					state.composerTextInput = composer.NewDraftClient(&draft)
-				}
 				if composerSkillsOpen && snap.SelectedID != "" && snap.SelectedID != state.composerSkillsSession {
 					sessions.RefreshSkills(context.Background())
 					state.composerSkillsSession = snap.SelectedID
@@ -6494,46 +6520,51 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
-					Sizes:                &layout,
-					ChatList:             &chatList,
-					ThemeID:              themeID,
-					SystemDark:           mygo.Theme.IsDark(),
-					Draft:                &draft,
-					EditMessageSeq:       &editMessageSeq,
-					FeedbackCommentMsgID: &feedbackCommentMsgID,
-					FeedbackCommentDraft: &feedbackCommentDraft,
-					ModelPick:            &modelPick,
-					PermissionPick:       &permissionPick,
-					AgentPresetPick:      &agentPresetPick,
-					ThinkingExpanded:     &thinkingExpanded,
-					RenameSessionID:      &renameSessionID,
-					RenameDraft:          &renameDraft,
-					SessionSearch:        &sessionSearch,
-					WorkspaceRoot:        workspaceRoot,
-					FileExpanded:         &fileExpanded,
-					SelectedFile:         &selectedFile,
-					FileFilter:           &fileFilter,
-					FilePreview:          &filePreview,
-					FilePreviewErr:       &filePreviewErr,
-					FilePreviewList:      &filePreviewList,
-					FileEditing:          &fileEditing,
-					FileEditDraft:        &fileEditDraft,
-					FileTabs: &fileTabs,
-					GitWorkbench: &gitWorkbench,
-					FileEditStatus:       &fileEditStatus,
-					FileEditViewMode:     &fileEditViewMode,
-					FileEditSplit:        &fileEditSplit,
-					FilePaneWidth:        &filePaneWidth,
-					RightPaneOpen:        filesPaneOpen,
-					RightPaneTab:         &rightPaneTab,
-					AgentsPromptDraft:    &agentsPromptDraft,
-					GoalDraft:            &goalDraft,
-					DiffPath:             &diffPath,
-					DiffText:             &diffText,
-					DiffErr:              &diffErr,
-					PlanBoardOpen:        &planBoardOpen,
-					TodoPanelCollapsed:   &todoPanelCollapsed,
-					ChatPaneTab:          &chatPaneTab,
+					Sizes:         &layout,
+					ChatList:      &chatList,
+					ThemeID:       themeID,
+					SystemDark:    mygo.Theme.IsDark(),
+					Draft:         &activeDraft.Text,
+					ComposerState: activeDraft,
+					OnSubmitComposer: func() {
+						state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq)
+					},
+					OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
+					EditMessageSeq:        &editMessageSeq,
+					FeedbackCommentMsgID:  &feedbackCommentMsgID,
+					FeedbackCommentDraft:  &feedbackCommentDraft,
+					ModelPick:             &modelPick,
+					PermissionPick:        &permissionPick,
+					AgentPresetPick:       &agentPresetPick,
+					ThinkingExpanded:      &thinkingExpanded,
+					RenameSessionID:       &renameSessionID,
+					RenameDraft:           &renameDraft,
+					SessionSearch:         &sessionSearch,
+					WorkspaceRoot:         workspaceRoot,
+					FileExpanded:          &fileExpanded,
+					SelectedFile:          &selectedFile,
+					FileFilter:            &fileFilter,
+					FilePreview:           &filePreview,
+					FilePreviewErr:        &filePreviewErr,
+					FilePreviewList:       &filePreviewList,
+					FileEditing:           &fileEditing,
+					FileEditDraft:         &fileEditDraft,
+					FileTabs:              &fileTabs,
+					GitWorkbench:          &gitWorkbench,
+					FileEditStatus:        &fileEditStatus,
+					FileEditViewMode:      &fileEditViewMode,
+					FileEditSplit:         &fileEditSplit,
+					FilePaneWidth:         &filePaneWidth,
+					RightPaneOpen:         filesPaneOpen,
+					RightPaneTab:          &rightPaneTab,
+					AgentsPromptDraft:     &agentsPromptDraft,
+					GoalDraft:             &goalDraft,
+					DiffPath:              &diffPath,
+					DiffText:              &diffText,
+					DiffErr:               &diffErr,
+					PlanBoardOpen:         &planBoardOpen,
+					TodoPanelCollapsed:    &todoPanelCollapsed,
+					ChatPaneTab:           &chatPaneTab,
 					HideChatViewTabs: func() bool {
 						if settingsOpen && state.settingsInterfaceActive {
 							return !state.desktopDraft.showViewTabs
@@ -6573,7 +6604,7 @@ func mainView(c *ui.Context) {
 					ComposerSkillsFilter: &composerSkillsFilter,
 					ComposerChipEdit:     &composerChipEdit,
 					ComposerTextInput:    state.composerTextInput,
-					// TextInput client pins a paint-local *string; TextArea follows state.draft.
+					// The native client and composer share the stable session-owned draft.
 					UseComposerTextInput: true,
 					OnSearchSkillHub: func(query string) {
 						if sessions != nil {
@@ -6734,7 +6765,7 @@ func mainView(c *ui.Context) {
 						if picked == "" {
 							return
 						}
-						if err := composer.InsertDirectoryMention(&draft, root, picked); err != nil {
+						if err := composer.InsertDirectoryMention(&activeDraft.Text, root, picked); err != nil {
 							if sessions != nil {
 								sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
 							}
@@ -6745,47 +6776,15 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnPickComposerImage: func() {
-						root := strings.TrimSpace(workspaceRoot)
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-							Parent:      win,
-							Title:       i18n.T(i18n.KeyComposerPickImage),
-							DefaultPath: root,
-						})
+						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: "Attach files or images", DefaultPath: workspaceRoot, Multiple: true})
 						if err != nil {
-							if sessions != nil {
-								sessions.SetLastAction(err.Error())
-							}
+							activeDraft.Error = err.Error()
 							return
 						}
-						if len(paths) == 0 {
-							return
+						state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths)
+						if win != nil {
+							win.Update(func() {})
 						}
-						if root != "" {
-							if err := composer.InsertImageMention(&draft, root, paths[0]); err == nil {
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-						}
-						// Outside workspace (or no root): fileUploads/upload → attachmentId.
-						if sessions == nil {
-							return
-						}
-						go func() {
-							id, err := sessions.UploadEncodedFile(context.Background(), paths[0])
-							if err != nil {
-								sessions.SetLastAction(err.Error())
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-							_ = composer.InsertAttachmentImageMention(&draft, id)
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
 					},
 					OnPickComposerSpeech: func() {
 						if sessions == nil {
@@ -6811,11 +6810,8 @@ func mainView(c *ui.Context) {
 								}
 								return
 							}
-							state.mu.Lock()
-							composer.AppendTranscript(&state.draft, text)
-							state.mu.Unlock()
 							if win != nil {
-								win.Update(func() {})
+								win.Update(func() { composer.AppendTranscript(&activeDraft.Text, text) })
 							}
 						}()
 					},
@@ -7110,7 +7106,7 @@ func mainView(c *ui.Context) {
 												if root == "" && state.cfgStore != nil {
 													root = strings.TrimSpace(state.cfgStore.Get().Workspace)
 												}
-												if err := composer.InsertDirectoryMention(&draft, root, path); err != nil {
+												if err := composer.InsertDirectoryMention(&activeDraft.Text, root, path); err != nil {
 													if sessions != nil {
 														sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
 													}
@@ -7179,7 +7175,7 @@ func mainView(c *ui.Context) {
 				state.skillCreateName = skillCreateName
 				state.composerChipEdit = composerChipEdit
 				state.chatList = chatList
-				state.draft = draft
+				state.draft = activeDraft.Text
 				state.editMessageSeq = editMessageSeq
 				state.feedbackCommentMsgID = feedbackCommentMsgID
 				state.feedbackCommentDraft = feedbackCommentDraft

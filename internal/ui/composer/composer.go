@@ -21,6 +21,9 @@ type Model struct {
 	SystemDark      bool
 	WorkspaceRoot   string
 	Draft           *string
+	State           *DraftState
+	OnSubmit        func()
+	OnAttachFiles   func([]string)
 	ModelPick       *string
 	PermissionPick  *string
 	AgentPresetPick *string
@@ -148,7 +151,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			ui.Row(c).FillWidth().Gap(2).AlignItems(ui.Center).Padding(0, 0, 0, 8).Children(func() {
 				wsBtn := ui.Button(c, "").Height(28).Radius(8).Padding(0, 8, 0, 8).
 					Background(ui.Transparent).BorderWidth(0)
-				if m.OnPickHeroWorkspace == nil && m.OnPickDirectory == nil {
+				if (m.OnPickHeroWorkspace == nil && m.OnPickDirectory == nil) || (m.State != nil && (m.State.Sending || m.State.Preparing > 0)) {
 					wsBtn = wsBtn.Disabled(true)
 				}
 				wsBtn.Children(func() {
@@ -194,6 +197,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		ui.Column(c).Label("Composer card").FillWidth().Background(chrome.Color(colors.InputMajor)).
 			Radius(28).Padding(8, 0, 0, 0).Gap(12).
 			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 28, 0.5) }).Children(func() {
+			if m.State != nil {
+				paintDraftAttachments(c, m, fg, muted)
+			}
 			if m.Editing {
 				ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
 			}
@@ -266,7 +272,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					plus := ui.Button(c, "+").Tooltip(plusTip).
 						Width(btnH).Height(btnH).Radius(btnH / 2).BorderWidth(0).
 						Background(selectorFill).TextColor(fg).FontSize(18)
-					if strings.TrimSpace(m.WorkspaceRoot) == "" {
+					if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 						plus = plus.Disabled(true)
 					}
 					if plus.Clicked() {
@@ -378,7 +384,13 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					} else {
 						ui.Text(c, i18n.T(i18n.KeyComposerModel)+" ▾").FontSize(13).FontWeight(500).TextColor(muted)
 					}
-					if m.Snapshot.PromptBusy && m.OnStop != nil {
+					running := m.Snapshot.PromptBusy
+					for _, item := range m.Snapshot.Items {
+						if item.SessionID == m.Snapshot.SelectedID && item.Running {
+							running = true
+						}
+					}
+					if (m.Snapshot.PromptBusy || (running && strings.TrimSpace(draft) == "" && (m.State == nil || len(m.State.Attachments) == 0))) && m.OnStop != nil {
 						stop := ui.Button(c, "■").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
@@ -391,7 +403,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
 							TextColor(onAccent).FontSize(16)
-						if send.Clicked() && m.OnSend != nil && m.Draft != nil {
+						if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+							send = send.Disabled(true)
+						}
+						if send.Clicked() && m.OnSubmit != nil {
+							m.OnSubmit()
+						} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
 							text := *m.Draft
 							if handleSlashSend(m, text) {
 								*m.Draft = ""
@@ -436,10 +453,16 @@ func buildSuggestItems(m Model, kind SuggestKind, query string) []suggestItem {
 		}
 		out := make([]suggestItem, 0, len(paths))
 		for _, p := range paths {
+			label := "file"
+			insert := "@" + p + " "
+			if strings.HasSuffix(p, "/") {
+				label = "directory · enter"
+				insert = "@" + p
+			}
 			out = append(out, suggestItem{
 				label:  p,
-				sub:    "file",
-				insert: "@" + p,
+				sub:    label,
+				insert: insert,
 				kind:   SuggestMention,
 			})
 		}
@@ -714,7 +737,11 @@ func wireFileDrop(area ui.Element, m Model) {
 		return
 	}
 	if dropped := area.DroppedFiles(); len(dropped) > 0 {
-		AppendDroppedFiles(m.Draft, strings.TrimSpace(m.WorkspaceRoot), dropped)
+		if m.OnAttachFiles != nil {
+			m.OnAttachFiles(dropped)
+		} else {
+			AppendDroppedFiles(m.Draft, strings.TrimSpace(m.WorkspaceRoot), dropped)
+		}
 	}
 }
 
@@ -824,4 +851,27 @@ func FromAPIList(list []api.ListResultItem2) []SlashCommand {
 		out = append(out, SlashCommand{Line: name, Description: it.Description})
 	}
 	return out
+}
+
+func paintDraftAttachments(c *ui.Context, m Model, fg, muted ui.Color) {
+	d := m.State
+	ui.Row(c).Wrap().Gap(6).Padding(0, 14, 0, 14).Children(func() {
+		for i, a := range d.Attachments {
+			label := a.Name
+			if label == "" {
+				label = a.Path
+			}
+			if d.Sending || d.Preparing > 0 {
+				label += " …"
+			}
+			b := ui.Button(c, label+" ×").FontSize(12).TextColor(fg).Disabled(d.Sending || d.Preparing > 0)
+			if b.Clicked() {
+				d.Attachments = append(d.Attachments[:i], d.Attachments[i+1:]...)
+				break
+			}
+		}
+	})
+	if d.Error != "" {
+		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14, 0, 14)
+	}
 }

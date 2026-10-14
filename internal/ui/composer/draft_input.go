@@ -134,12 +134,19 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			client.ReplaceText(&r, "")
 			return true
 		case ui.KeyEnter:
+			if client.marked != nil {
+				return false
+			}
 			// Shift+Enter → newline; Enter → send (chat parity with Electron).
 			if ev.Mods&ui.Shift != 0 {
 				client.ReplaceText(nil, "\n")
 				return true
 			}
 			if m.Draft == nil || m.Snapshot.PromptBusy {
+				return true
+			}
+			if m.OnSubmit != nil {
+				m.OnSubmit()
 				return true
 			}
 			text := *m.Draft

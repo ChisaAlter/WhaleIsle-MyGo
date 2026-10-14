@@ -585,6 +585,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		err := client.Call(ctx, "session/prompt", map[string]any{"request": req}, &promptResult)
 
 		s.mu.Lock()
+		if s.selectedID != sessionID { s.mu.Unlock(); return }
 		s.promptBusy = false
 		if err != nil {
 			s.lastAction = err.Error()

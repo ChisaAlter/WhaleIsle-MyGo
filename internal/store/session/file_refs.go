@@ -35,7 +35,11 @@ func (s *Store) ListFileReferences(ctx context.Context, query string) []string {
 		"query":   query,
 	}, &out); err == nil {
 		for _, item := range out {
-			add(item.Path)
+			path := item.Path
+			if item.Kind == "directory" {
+				path = strings.TrimSuffix(path, "/") + "/"
+			}
+			add(path)
 		}
 	}
 	var refs api.CandidatesResult

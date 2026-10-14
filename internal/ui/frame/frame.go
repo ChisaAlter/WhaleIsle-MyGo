@@ -125,21 +125,24 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	Store              *session.Store
-	Interactions       *interaction.Store
-	OnAutoAllowChanged func(on bool)
-	Sizes              *LayoutSizes
-	ChatList           *ui.ListState
-	ThemeID            string
-	SystemDark         bool
-	Draft              *string
-	ModelPick          *string
-	PermissionPick     *string
-	AgentPresetPick    *string
-	ThinkingExpanded   *map[string]bool
-	RenameSessionID    *string
-	RenameDraft        *string
-	SessionSearch      *string
+	Store                 *session.Store
+	Interactions          *interaction.Store
+	OnAutoAllowChanged    func(on bool)
+	Sizes                 *LayoutSizes
+	ChatList              *ui.ListState
+	ThemeID               string
+	SystemDark            bool
+	Draft                 *string
+	ComposerState         *composer.DraftState
+	OnSubmitComposer      func()
+	OnAttachComposerFiles func([]string)
+	ModelPick             *string
+	PermissionPick        *string
+	AgentPresetPick       *string
+	ThinkingExpanded      *map[string]bool
+	RenameSessionID       *string
+	RenameDraft           *string
+	SessionSearch         *string
 
 	WorkspaceRoot    string
 	FileTabs         *files.Tabs
@@ -535,6 +538,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						SystemDark:         m.SystemDark,
 						WorkspaceRoot:      m.WorkspaceRoot,
 						Draft:              m.Draft,
+						State:              m.ComposerState,
+						OnSubmit:           m.OnSubmitComposer,
+						OnAttachFiles:      m.OnAttachComposerFiles,
 						Editing:            editing,
 						Hero:               hero,
 						ModelPick:          m.ModelPick,
@@ -930,7 +936,7 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if tab == "diff" {
 			diffsurface.View(c, diffsurface.Model{
-				Workbench: m.GitWorkbench,
+				Workbench:     m.GitWorkbench,
 				WorkspaceRoot: m.WorkspaceRoot,
 				ThemeID:       m.ThemeID,
 				SystemDark:    m.SystemDark,
@@ -941,7 +947,7 @@ func rightPane(c *ui.Context, m Model) {
 			return
 		}
 		files.View(c, files.Model{
-			Tabs: m.FileTabs,
+			Tabs:          m.FileTabs,
 			WorkspaceRoot: m.WorkspaceRoot,
 			ThemeID:       m.ThemeID,
 			SystemDark:    m.SystemDark,
@@ -963,7 +969,9 @@ func rightPane(c *ui.Context, m Model) {
 			StatRemote:    m.OnStatWorkspaceFile,
 			StatNote:      m.FileStatNote,
 			OnShowDiff: func(rel string) {
-				if m.GitWorkbench != nil { m.GitWorkbench.Staged = false }
+				if m.GitWorkbench != nil {
+					m.GitWorkbench.Staged = false
+				}
 				if m.RightPaneTab != nil {
 					*m.RightPaneTab = "diff"
 				}
