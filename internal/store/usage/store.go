@@ -55,6 +55,7 @@ type Bonus struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
+	billing     billingState
 	stats       statsState
 	statsEpoch  uint64
 	statsCancel context.CancelFunc
@@ -101,6 +102,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.statsCancel = nil
 	}
 	s.stats = statsState{}
+	s.resetBillingLocked()
 	s.notify = notify
 	s.err = nil
 	s.mu.Unlock()
@@ -128,6 +130,7 @@ func (s *Store) Detach() {
 		s.statsCancel = nil
 	}
 	s.stats = statsState{}
+	s.resetBillingLocked()
 	s.mux = nil
 	s.loading = false
 	s.accountStatus = ""

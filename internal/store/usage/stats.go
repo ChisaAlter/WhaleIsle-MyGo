@@ -24,6 +24,7 @@ type Totals struct {
 	Total      float64 `json:"total"`
 }
 type ModelUsage struct {
+	Cost *PhaseBuckets `json:"cost"`
 	Totals
 	Model    string `json:"model"`
 	Provider string `json:"provider"`
