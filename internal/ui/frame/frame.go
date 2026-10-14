@@ -811,12 +811,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									OnQueueSteer: func(itemID string) {
 										m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionSteer)
 									},
-									OnQueueEdit: func(itemID, preview string) {
-										if m.Draft != nil {
-											*m.Draft = preview
-										}
-										m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionEdit, preview)
-									},
+									// Queue edits need full text and explicit Save/Cancel; a truncated
+									// preview must never be submitted by clicking Edit.
 								})
 							})
 							ui.Box(c).Grow(1).MinWidth(0)
