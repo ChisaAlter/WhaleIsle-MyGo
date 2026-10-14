@@ -12,6 +12,14 @@ import (
 )
 
 func TestHostProtectionContract(t *testing.T) {
+	testProtectionContract(t, "restart")
+}
+
+func TestStopProtectionContract(t *testing.T) {
+	testProtectionContract(t, "stop")
+}
+
+func testProtectionContract(t *testing.T, operation string) {
 	for _, mode := range []string{"clean", "active-cancel", "late-work-cancel", "unknown-approved", "unknown-cancel", "drain-failure", "commit-failure", "generation-change", "expired", "renew-failure", "missing-coverage"} {
 		t.Run(mode, func(t *testing.T) {
 			calls := []string{}
@@ -49,7 +57,7 @@ func TestHostProtectionContract(t *testing.T) {
 						result["hostGeneration"] = "g2"
 					}
 				case "acquire":
-					if body["owner"] != "mygo-restart" || body["kind"] != "restart" {
+					if body["owner"] != "mygo-"+operation || body["kind"] != operation {
 						t.Error("invalid acquisition")
 					}
 					if mode == "drain-failure" {
@@ -68,7 +76,7 @@ func TestHostProtectionContract(t *testing.T) {
 						result["ok"] = false
 						result["code"] = "fixture-token"
 					}
-					if body["lockId"] != "lock1" || body["owner"] != "mygo-restart" {
+					if body["lockId"] != "lock1" || body["owner"] != "mygo-"+operation {
 						t.Error("invalid lock identity")
 					}
 				default:
@@ -78,7 +86,7 @@ func TestHostProtectionContract(t *testing.T) {
 			}))
 			defer srv.Close()
 			client := New(srv.URL+"/?token=must-not-be-sent", "fixture-token")
-			did, err := client.Coordinate(context.Background(), "restart", func(i Inspection) (bool, error) {
+			did, err := client.Coordinate(context.Background(), operation, func(i Inspection) (bool, error) {
 				prompts++
 				if strings.HasPrefix(mode, "unknown") && i.Unknown == "" {
 					t.Error("missing unknown warning")

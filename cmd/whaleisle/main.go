@@ -3235,16 +3235,8 @@ func mainView(c *ui.Context) {
 				OnStop: func() {
 					state.mu.Lock()
 					sup := state.sup
-					state.launcherStartBusy = false
-					state.launcherStartFailed = false
-					state.launcherStartErr = ""
 					state.mu.Unlock()
-					if sup != nil {
-						sup.Stop()
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
+					state.stopProtected(win, sup)
 				},
 				OnStart: func() {
 					state.mu.Lock()

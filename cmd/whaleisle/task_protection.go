@@ -31,8 +31,13 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	label := resumeText("退出", "Quit")
 	if operation == "restart" {
 		label = resumeText("重启", "Restart")
+	} else if operation == "stop" {
+		label = resumeText("停止内核", "Stop runtime")
 	}
 	lines := []string{}
+	if operation == "stop" {
+		lines = append(lines, resumeText("这会停止 Host 内核，桌面应用窗口将保持打开。", "This stops the Host runtime. The desktop application window will stay open."))
+	}
 	if i.Unknown != "" {
 		lines = append(lines, resumeText("Host 任务保护不可用，无法确认后台任务、定时任务或在途请求是否已排空。继续将仅依赖本地会话信息，可能中断未显示的工作。", "Host task protection is unavailable. Background work, scheduled tasks and in-flight requests cannot be verified or drained. Continuing relies only on local session information and may interrupt unseen work."), i.Unknown)
 	}
@@ -80,6 +85,8 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 		label := resumeText("退出", "Quit")
 		if operation == "restart" {
 			label = resumeText("重启", "Restart")
+		} else if operation == "stop" {
+			label = resumeText("停止内核", "Stop runtime")
 		}
 		did, err = taskguard.ConfirmAction(win, s.sessionRunningCount(), label, resumeText("当前有 %d 个会话仍在运行。继续会中断任务，仍要继续吗？", "%d sessions are still running. Continuing will interrupt work. Continue?"), label, resumeText("取消", "Cancel"))
 		if did && err == nil {
@@ -115,4 +122,39 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 		s.finalizeQuit(sup)
 		return nil
 	})
+}
+
+// stopProtected is the launcher's explicit Stop entry. Keep the window and
+// running Host intact until the same admission checks used by restart succeed.
+func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
+	if sup == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.taskRestartPending || s.quitting {
+		s.mu.Unlock()
+		return
+	}
+	s.taskRestartPending = true
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
+	s.withTaskProtection(win, sup, "stop", func() error {
+		s.mu.Lock()
+		if s.launcherImportBusy || s.quitting || s.sup != sup {
+			s.mu.Unlock()
+			return errors.New("runtime or import state changed; retry stop")
+		}
+		s.mu.Unlock()
+		s.stopPhoneRuntime()
+		sup.Stop()
+		s.mu.Lock()
+		s.launcherStartBusy = false
+		s.launcherStartFailed = false
+		s.launcherStartErr = ""
+		s.mu.Unlock()
+		return nil
+	})
+	if win != nil {
+		win.Update(func() {})
+	}
 }
