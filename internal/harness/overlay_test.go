@@ -30,8 +30,8 @@ func TestPrepareWritesOverlaysAndJunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 6 { // 4 builtin + remote + market overlay
-		t.Fatalf("got %d patches, want 6: %v", len(patches), patches)
+	if len(patches) != 7 { // 4 builtin + remote + plugin views + market overlay
+		t.Fatalf("got %d patches, want 7: %v", len(patches), patches)
 	}
 	joined := strings.Join(patches, "\n")
 	if !strings.Contains(joined, "desktop-dsh-market.patch.yml") {
@@ -73,8 +73,8 @@ func TestPrepareOptionalPlugins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 7 { // 4 builtin + dshbot + whale + market, no remote
-		t.Fatalf("got %d patches, want 7", len(patches))
+	if len(patches) != 8 { // 4 builtin + dshbot + whale + plugin views + market, no remote
+		t.Fatalf("got %d patches, want 8", len(patches))
 	}
 	joined := strings.Join(patches, "\n")
 	if !strings.Contains(joined, "desktop-dshbot.patch.yml") || !strings.Contains(joined, "desktop-dsh-whale.patch.yml") {

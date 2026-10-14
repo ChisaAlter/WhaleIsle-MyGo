@@ -3,9 +3,9 @@
 //
 // # Plugin slot URLs
 //
-// Harness serves plugin client modules at /plugins/<package>/…. Whale Isle
-// opens the harness web origin in WebView2 with a query that asks the shell
-// to show only that package's mounted Cordis slots:
+// Whale Isle opens the harness web origin with a query consumed by its
+// desktop plugin-views adapter. The adapter discovers live registered views
+// and opens them through their original owners; the Host shell stays intact:
 //
 //	SlotURL(base, pluginID, extra) →
 //	  {base}/?desktopPlugin={package}[&extra…]

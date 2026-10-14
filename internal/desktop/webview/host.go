@@ -7,10 +7,15 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/desktop/pluginslots"
 )
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	// SessionOrigin/SessionCookie reuse one exact loopback Host session through a
+	// temporary transport. This always disables all native bindings.
+	SessionOrigin string
+	SessionCookie string
 	// Untrusted disables all native bindings and app events for browsing.
 	Untrusted bool
 	OnChange  func()
@@ -29,6 +34,7 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	gateway   *pluginslots.Gateway
 	mu        sync.Mutex
 	parent    *mygo.Window
 	win       *mygo.Window
@@ -63,6 +69,21 @@ func NewHost(opts HostOptions) (*Host, error) {
 	if title == "" {
 		title = "Plugin Web"
 	}
+	var gateway *pluginslots.Gateway
+	pageURL := raw
+	if opts.SessionOrigin != "" {
+		var err error
+		gateway, err = pluginslots.NewGateway(opts.SessionOrigin, opts.SessionCookie)
+		if err != nil {
+			return nil, err
+		}
+		pageURL, err = gateway.EntryURL(raw)
+		if err != nil {
+			gateway.Close()
+			return nil, err
+		}
+		opts.Untrusted = true
+	}
 	trusted := append([]string(nil), opts.TrustedOrigins...)
 	if !opts.Untrusted && len(trusted) == 0 {
 		if o := urlOrigin(raw); o != "" {
@@ -70,10 +91,10 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	child := mygo.NewWindow(mygo.WindowOptions{
 		Title:           title,
-		URL:             raw,
+		URL:             pageURL,
 		Parent:          opts.Parent,
 		Frameless:       true,
 		Hidden:          true,
@@ -88,26 +109,31 @@ func NewHost(opts HostOptions) (*Host, error) {
 		},
 	})
 	if child == nil || child.IsDestroyed() {
+		gateway.Close()
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
 	pg := child.Page()
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
-		if opts.Untrusted && validateHTTPURL(e.URL) != nil {
+		if (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
 			e.PreventDefault()
-			h.setError("Only HTTP(S) navigation is allowed")
+			h.setError("Navigation outside this view is blocked")
 			return
 		}
 		h.beginLoad()
 	})
-	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.url = raw; h.err = ""; h.mu.Unlock(); h.notify() })
+	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.url = h.logicalURL(raw); h.err = ""; h.mu.Unlock(); h.notify() })
 	pg.OnDidFinishLoad(func() { h.mu.Lock(); h.loading = false; h.mu.Unlock(); h.notify() })
 	pg.OnDidFailLoad(func(err *mygo.LoadError) {
 		h.mu.Lock()
 		stopped := h.stopped
 		h.mu.Unlock()
 		if !stopped {
-			h.setError(err.Error())
+			if gateway != nil {
+				h.setError("Plugin Host page failed to load")
+			} else {
+				h.setError(err.Error())
+			}
 		}
 	})
 	pg.OnRenderProcessGone(func(reason string) { h.setError("Page process exited: " + reason) })
@@ -127,7 +153,11 @@ func NewHost(opts HostOptions) (*Host, error) {
 	})
 	child.OnClose(func(e *mygo.CloseEvent) {
 		e.PreventDefault()
-		h.SetVisible(false)
+		if gateway != nil {
+			_ = h.Close()
+		} else {
+			h.SetVisible(false)
+		}
 	})
 	h.SyncBounds()
 	return h, nil
@@ -152,13 +182,24 @@ func (h *Host) Navigate(raw string) error {
 	if pg == nil {
 		return errors.New("webview: no page")
 	}
+	pageURL := raw
+	if h.gateway != nil {
+		var err error
+		pageURL, err = h.gateway.EntryURL(h.logicalURL(raw))
+		if err != nil {
+			return err
+		}
+	}
 	h.beginLoad()
-	if err := pg.LoadURL(raw); err != nil {
+	if err := pg.LoadURL(pageURL); err != nil {
+		if h.gateway != nil {
+			err = errors.New("Plugin Host navigation failed")
+		}
 		h.setError(err.Error())
 		return err
 	}
 	h.mu.Lock()
-	h.url = raw
+	h.url = h.logicalURL(raw)
 	h.err = ""
 	h.mu.Unlock()
 	h.notify()
@@ -251,6 +292,7 @@ func (h *Host) Close() error {
 	h.offResize = nil
 	h.win = nil
 	h.mu.Unlock()
+	h.gateway.Close()
 	if offMove != nil {
 		offMove()
 	}
@@ -318,7 +360,7 @@ func (h *Host) State() State {
 		s.CanBack = p.CanGoBack()
 		s.CanForward = p.CanGoForward()
 		if u := p.URL(); u != "" {
-			s.URL = u
+			s.URL = h.logicalURL(u)
 		}
 	}
 	return s
@@ -371,4 +413,31 @@ func (h *Host) beginLoad() {
 	h.err = ""
 	h.mu.Unlock()
 	h.notify()
+}
+
+// MatchesSession prevents reusing a page after Host restart or credential change.
+func (h *Host) MatchesSession(origin, cookie string) bool {
+	if h == nil {
+		return false
+	}
+	if h.gateway == nil {
+		return origin == ""
+	}
+	return h.gateway.Matches(origin, cookie)
+}
+func (h *Host) HasSession() bool { return h != nil && h.gateway != nil }
+func (h *Host) logicalURL(raw string) string {
+	if h.gateway != nil {
+		return h.gateway.LogicalURL(raw)
+	}
+	return raw
+}
+
+// IsHostURL requires an exact scheme, host and port, with no URL credentials.
+func IsHostURL(raw, origin string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.User != nil {
+		return false
+	}
+	return origin != "" && urlOrigin(raw) == strings.TrimRight(origin, "/")
 }

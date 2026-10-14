@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Query key read by the harness web shell to scope the page to one plugin's
-// mounted Cordis slots (hide the rest of the desktop chrome). Base origin is
+// Query key consumed by the desktop plugin-views adapter to discover and open
+// a plugin's live slots through their original owners. Base origin is
 // always runtime-provided — never baked in at build time.
 const DesktopPluginQuery = "desktopPlugin"
 
@@ -51,7 +51,7 @@ func CanonicalPluginID(pluginID string) string {
 	return pluginID
 }
 
-// SlotURL builds a harness frontend URL scoped to one plugin's mounted slots.
+// SlotURL selects the plugin whose live view entries the desktop adapter opens.
 //
 // URL shape:
 //

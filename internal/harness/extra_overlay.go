@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/desktop/pluginslots"
 )
 
 const (
@@ -14,7 +15,11 @@ const (
 )
 
 func extraOverlays(o PrepareOptions) ([]string, error) {
-	var out []string
+	viewPatch, err := pluginslots.Prepare(o.ProfileDir)
+	if err != nil {
+		return nil, err
+	}
+	out := []string{viewPatch}
 	if !o.SkipUserPlugins {
 		p, err := writeSessionSearchOverlay(o)
 		if err != nil {

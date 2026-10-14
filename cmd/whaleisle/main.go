@@ -1212,6 +1212,7 @@ func (s *mainState) openWebViewURL(browse string) {
 	s.mu.Lock()
 	win := s.win
 	existing := s.webviewHost
+	ep := s.bootStatus.Endpoint
 	s.mu.Unlock()
 	if win == nil {
 		return
@@ -1223,7 +1224,11 @@ func (s *mainState) openWebViewURL(browse string) {
 		s.mu.Unlock()
 		return
 	}
-	if existing != nil && existing.Alive() {
+	sessionOrigin, sessionCookie := "", ""
+	if desktopwebview.IsHostURL(browse, ep.Origin) {
+		sessionOrigin, sessionCookie = ep.Origin, ep.Cookie
+	}
+	if existing != nil && existing.Alive() && existing.MatchesSession(sessionOrigin, sessionCookie) {
 		if err := existing.Navigate(browse); err != nil {
 			s.mu.Lock()
 			s.webviewHostErr = err.Error()
@@ -1251,11 +1256,14 @@ func (s *mainState) openWebViewURL(browse string) {
 	}
 	inset := chrome.TitleBarHeight + panelH
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
-		OnChange: func() { win.Update(func() {}) },
-		Parent:   win,
-		URL:      browse,
-		Title:    hostTitle,
-		TopInset: inset,
+		Untrusted:     true,
+		SessionOrigin: sessionOrigin,
+		SessionCookie: sessionCookie,
+		OnChange:      func() { win.Update(func() {}) },
+		Parent:        win,
+		URL:           browse,
+		Title:         hostTitle,
+		TopInset:      inset,
 	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1869,6 +1877,7 @@ func (s *mainState) refreshBoot(st harness.Status) {
 	}
 	win := s.win
 	s.mu.Unlock()
+	s.syncPluginViewHost(st)
 	s.syncDialogue(st)
 	if win != nil {
 		win.Update(s.refreshPetTask)
@@ -5234,6 +5243,7 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnOpenView: state.openInstalledPluginView,
 					OnInspect: func(name string) {
 						name = strings.TrimSpace(name)
 						if name == "" {

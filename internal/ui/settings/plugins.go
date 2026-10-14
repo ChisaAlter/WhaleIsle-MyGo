@@ -24,6 +24,7 @@ type PluginsAccess struct {
 	// OnSetDisabled toggles go DisabledPlugins for a plugin name (restart may be required).
 	OnSetDisabled func(name string, disabled bool)
 	OnInspect     func(name string)
+	OnOpenView    func(name string)
 }
 
 func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -54,6 +55,11 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						ui.Text(c, r.Status).FontSize(11).TextColor(muted).Grow(1)
 					} else {
 						ui.Box(c).Grow(1).MinWidth(0)
+					}
+					if a.OnOpenView != nil && r.Name != "" && !r.Disabled {
+						if ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).FontSize(11).Clicked() {
+							a.OnOpenView(r.Name)
+						}
 					}
 					if a.OnInspect != nil && r.Name != "" {
 						if ui.Button(c, i18n.T(i18n.KeySettingsPluginsInspect)).FontSize(11).Clicked() {
