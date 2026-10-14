@@ -15,11 +15,14 @@ import (
 
 // Entry is one row in the installed-plugin list.
 type Entry struct {
-	Label     string
-	Detail    string
-	Enabled   *bool  // from listBundles when present
-	Removable bool   // from listBundles when present
-	Source    string // listBundles source or empty
+	Label         string
+	Detail        string
+	Enabled       *bool  // from listBundles when present
+	Removable     bool   // from listBundles when present
+	Source        string // listBundles source or empty
+	Version       string
+	Installed     bool
+	IdentityKnown bool
 }
 
 // ViewState is a UI-safe snapshot of the store.
@@ -30,17 +33,20 @@ type ViewState struct {
 	HasListRPC     bool
 	ListMethod     string
 	Methods        []string
-	Rows            []Entry
-	RawListPreview  string
-	RegistriesNote  string
-	ExemptionsNote  string
+	Rows           []Entry
+	RawListPreview string
+	RegistriesNote string
+	ExemptionsNote string
 }
 
 // Store fetches pluginManager/listPlugins when available.
 type Store struct {
-	mu     sync.Mutex
-	client *dsh.Client
-	notify func()
+	mu         sync.Mutex
+	client     *dsh.Client
+	generation uint64
+	refreshID  uint64
+	discovery  discoveryState
+	notify     func()
 
 	loading        bool
 	err            error
@@ -55,12 +61,16 @@ type Store struct {
 
 // New returns an empty market store.
 func New() *Store {
-	return &Store{}
+	return &Store{discovery: newDiscoveryState()}
 }
 
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.generation++
+	s.refreshID++
+	s.rows = nil
+	s.loading = false
 	s.client = client
 	s.notify = notify
 	s.err = nil
@@ -70,6 +80,8 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // Detach clears the client when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.generation++
+	s.refreshID++
 	s.client = nil
 	s.loading = false
 	s.hasListRPC = false
@@ -116,20 +128,18 @@ func (s *Store) Refresh(ctx context.Context) {
 		s.mu.Unlock()
 		return
 	}
+	s.refreshID++
+	generation, refreshID := s.generation, s.refreshID
 	s.loading = true
 	s.err = nil
 	s.hasListRPC = hasRPC
 	s.listMethod = listMethod
 	s.methods = append([]string(nil), methods...)
-	s.rows = nil
-	s.rawListPreview = ""
-	s.registriesNote = ""
-	s.exemptionsNote = ""
 	s.mu.Unlock()
 	s.fire()
 
 	if !hasRPC {
-		s.finishRefresh(nil, nil, "", "", "")
+		s.finishRefresh(client, generation, refreshID, nil, nil, "", "", "")
 		return
 	}
 
@@ -168,18 +178,18 @@ func (s *Store) Refresh(ctx context.Context) {
 			}
 		}
 		var bundles api.ListBundlesResult
-		if err := client.Call(ctx, "pluginManager/listBundles", map[string]any{}, &bundles); err == nil && len(bundles) > 0 {
+		if err := client.Call(ctx, "pluginManager/listBundles", map[string]any{}, &bundles); err == nil {
 			rows := entriesFromBundles(bundles)
-			s.finishRefresh(nil, rows, "", regNote, exNote)
+			s.finishRefresh(client, generation, refreshID, nil, rows, "", regNote, exNote)
 			return
 		}
 		var raw json.RawMessage
 		if err := client.Call(ctx, "pluginManager/listPlugins", nil, &raw); err != nil {
-			s.finishRefresh(err, nil, "", regNote, exNote)
+			s.finishRefresh(client, generation, refreshID, err, nil, "", regNote, exNote)
 			return
 		}
 		rows, preview := parsePluginList(raw)
-		s.finishRefresh(nil, rows, preview, regNote, exNote)
+		s.finishRefresh(client, generation, refreshID, nil, rows, preview, regNote, exNote)
 	}()
 }
 
@@ -220,24 +230,33 @@ func entriesFromBundles(bundles api.ListBundlesResult) []Entry {
 			src = *b.Source
 		}
 		out = append(out, Entry{
-			Label:     b.Name,
-			Detail:    detail,
-			Enabled:   &en,
-			Removable: b.Removable,
-			Source:    src,
+			Label:         b.Name,
+			Detail:        detail,
+			Enabled:       &en,
+			Removable:     b.Removable,
+			Source:        src,
+			Version:       valueOrEmpty(b.Version),
+			Installed:     b.Installed,
+			IdentityKnown: true,
 		})
 	}
 	return out
 }
 
-func (s *Store) finishRefresh(err error, rows []Entry, preview, regNote, exNote string) {
+func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, err error, rows []Entry, preview, regNote, exNote string) {
 	s.mu.Lock()
+	if s.client != client || s.generation != generation || s.refreshID != refreshID {
+		s.mu.Unlock()
+		return
+	}
 	s.loading = false
 	s.err = err
-	s.rows = rows
-	s.rawListPreview = preview
-	s.registriesNote = regNote
-	s.exemptionsNote = exNote
+	if err == nil {
+		s.rows = rows
+		s.rawListPreview = preview
+		s.registriesNote = regNote
+		s.exemptionsNote = exNote
+	}
 	s.mu.Unlock()
 	s.fire()
 }
@@ -355,3 +374,13 @@ func (s *Store) fire() {
 		fn()
 	}
 }
+
+func valueOrEmpty(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+// RuntimeToken changes on every attachment, including reconnect to the same client.
+func (s *Store) RuntimeToken() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.generation }

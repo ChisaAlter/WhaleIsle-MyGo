@@ -3,7 +3,9 @@ package market
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	desktopmarket "whaleisle/internal/desktop/market"
 
 	"github.com/egoist/mygo/ui"
 
@@ -35,46 +37,39 @@ type Model struct {
 	CanCancelInstall bool
 	Incompatible     []api.ChangeResultErrorIncompatibleItem
 
-	OnClose       func()
-	OnRefresh     func()
-	OnInstallSpec func(spec string, allowBuilds []string)
-	OnRemoveBundle   func(name string)
+	OnClose            func()
+	OnRefresh          func()
+	OnInstallSpec      func(spec string, allowBuilds []string)
+	OnInstallCatalog   func(target marketstore.InstallTarget)
+	OnRemoveBundle     func(name string)
 	OnSetBundleEnabled func(name string, enabled bool)
 	OnCancelInstall    func()
 	OnAcceptExemption  func(packageVersion, runtimeVersion string)
-	OnCopyInstallLog func(log string)
+	OnCopyInstallLog   func(log string)
 	// OnOpenHarnessMarket opens the Electron ui-settings-market WebView when overlay is on.
 	OnOpenHarnessMarket func()
 }
 
-// View paints the plugin market stub panel.
+// View is a native discovery and installed-plugin surface.
 func View(c *ui.Context, m Model) {
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
-	border := chrome.Color(colors.Border)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	field := chrome.Color(colors.Field)
-	accent := chrome.Color(colors.Accent)
-
-	var snap marketstore.ViewState
-	if m.Store != nil {
-		snap = m.Store.Snapshot()
+	if m.Store == nil {
+		return
 	}
-
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	bg, border, fg, muted, field, accent := chrome.Color(colors.BG), chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
+	snap := m.Store.Snapshot()
+	d := m.Store.Discovery()
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
-			if snap.Loading || m.InstallBusy {
-				ui.Text(c, i18n.T(i18n.KeyMarketLoading)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).Bold().Grow(1).TextColor(fg)
+			if ui.Button(c, marketText("发现", "Discover")).Clicked() {
+				m.Store.SetTab("discover")
 			}
-			if m.HarnessReady && m.HarnessMarketOverlay && !m.PluginDisabled && m.OnOpenHarnessMarket != nil {
-				if ui.Button(c, i18n.T(i18n.KeyMarketOpenHarness)).FontSize(12).Clicked() {
-					m.OnOpenHarnessMarket()
-				}
+			if ui.Button(c, marketText("已安装", "Installed")).Clicked() {
+				m.Store.SetTab("installed")
 			}
-			if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Clicked() {
+				m.Store.RefreshCatalog(true, i18n.Locale())
 				if m.OnRefresh != nil {
 					m.OnRefresh()
 				} else {
@@ -82,174 +77,210 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Clicked() {
+				m.Store.CloseDetails()
 				m.OnClose()
 			}
 		})
-		ui.Box(c).Fill().Height(1).Background(border)
-
-		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
-			if !snap.HasListRPC {
-				ui.Text(c, i18n.T(i18n.KeyMarketStubNote)).FontSize(12).TextColor(muted)
-			}
-
-			rows := []struct{ label, value string }{
-				{i18n.T(i18n.KeyMarketHarnessOverlay), onOff(m.HarnessMarketOverlay)},
-				{i18n.T(i18n.KeyMarketPluginDisabled), onOff(m.PluginDisabled)},
-				{i18n.T(i18n.KeyMarketMux), muxLabel(m.HarnessReady, m.MuxConnected)},
-				{i18n.T(i18n.KeyMarketGeneratedRPC), rpcLabel(snap.HasListRPC, len(snap.Methods))},
-				{i18n.T(i18n.KeyMarketInstallToolchain), onOff(m.InstallReady)},
-			}
-			if snap.RegistriesNote != "" {
-				rows = append(rows, struct{ label, value string }{i18n.T(i18n.KeyMarketRegistry), snap.RegistriesNote})
-			}
-			if snap.ExemptionsNote != "" {
-				rows = append(rows, struct{ label, value string }{i18n.T(i18n.KeyMarketExemptions), snap.ExemptionsNote})
-			}
-			ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-				for _, row := range rows {
-					ui.Row(c).Gap(12).Children(func() {
-						ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(160)
-						ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
-					})
-				}
-			})
-
-			if m.PluginDisabled {
-				ui.Text(c, i18n.T(i18n.KeyMarketPluginOff)).FontSize(12).TextColor(accent)
-			}
-			if snap.Err != "" {
-				ui.Text(c, snap.Err).FontSize(12).TextColor(accent)
-			}
-
-			if snap.HasListRPC {
-				ui.Text(c, i18n.T(i18n.KeyMarketListVia)+": "+snap.ListMethod).FontSize(12).Bold().TextColor(fg)
-				if len(snap.Rows) == 0 {
-					if snap.RawListPreview != "" {
-						ui.Text(c, snap.RawListPreview).FontSize(11).TextColor(muted)
-					} else {
-						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).FontSize(12).TextColor(muted)
-					}
+		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
+			ui.Column(c).Gap(10).FillWidth().Children(func() {
+				if d.Tab != "installed" {
+					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
 				} else {
-					ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
-						Padding(8, 10, 8, 10).Gap(6).Children(func() {
-						for _, row := range snap.Rows {
-							r := row
-							ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-								ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-									ui.Text(c, r.Label).FontSize(12).Bold().TextColor(fg)
-									if r.Detail != "" {
-										ui.Text(c, r.Detail).FontSize(11).TextColor(muted)
-									}
-								})
-								spec := marketInstallSpec(r)
-								if spec != "" && m.OnInstallSpec != nil && !m.InstallBusy {
-									if ui.Button(c, i18n.T(i18n.KeyMarketInstallButton)).FontSize(11).Clicked() {
-										m.OnInstallSpec(spec, nil)
-									}
+					if snap.Err != "" {
+						ui.Text(c, snap.Err).TextColor(accent)
+					}
+					if snap.Loading {
+						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
+					}
+					if !snap.ClientReady {
+						ui.Text(c, marketText("运行时未连接；目录仍可浏览。", "Runtime disconnected; the catalog remains available.")).TextColor(muted)
+					}
+					if len(snap.Rows) == 0 {
+						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
+					}
+					for _, row := range snap.Rows {
+						r := row
+						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+							ui.Column(c).Grow(1).MinWidth(0).Children(func() { ui.Text(c, r.Label).Bold().TextColor(fg); ui.Text(c, r.Detail).FontSize(11).TextColor(muted) })
+							if !m.InstallBusy && r.Enabled != nil && m.OnSetBundleEnabled != nil {
+								label := i18n.T(i18n.KeySettingsPluginsEnable)
+								if *r.Enabled {
+									label = i18n.T(i18n.KeySettingsPluginsDisable)
 								}
-								if m.OnSetBundleEnabled != nil && r.Label != "" && !m.InstallBusy {
-									enableLabel := i18n.T(i18n.KeySettingsPluginsEnable)
-									disableLabel := i18n.T(i18n.KeySettingsPluginsDisable)
-									if r.Enabled != nil {
-										if *r.Enabled {
-											if ui.Button(c, disableLabel).FontSize(11).Clicked() {
-												m.OnSetBundleEnabled(r.Label, false)
-											}
-										} else {
-											if ui.Button(c, enableLabel).FontSize(11).Clicked() {
-												m.OnSetBundleEnabled(r.Label, true)
-											}
-										}
-									} else {
-										if ui.Button(c, disableLabel).FontSize(11).Clicked() {
-											m.OnSetBundleEnabled(r.Label, false)
-										}
-										if ui.Button(c, enableLabel).FontSize(11).Clicked() {
-											m.OnSetBundleEnabled(r.Label, true)
-										}
-									}
+								if ui.Button(c, label).Clicked() {
+									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
 								}
-								if m.OnRemoveBundle != nil && r.Label != "" && !m.InstallBusy && (r.Removable || r.Enabled == nil) {
-									if ui.Button(c, i18n.T(i18n.KeyMarketRemove)).FontSize(11).Clicked() {
-										m.OnRemoveBundle(r.Label)
-									}
-								}
-							})
-						}
-					})
+							}
+							if !m.InstallBusy && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Clicked() {
+								m.OnRemoveBundle(r.Label)
+							}
+						})
+					}
+					installSection(c, m, fg, muted, field, border, accent)
 				}
-			} else {
-				ui.Text(c, i18n.T(i18n.KeyMarketNoRPC)).FontSize(12).TextColor(muted)
-				ui.Text(c, i18n.T(i18n.KeyMarketInstallHint)).FontSize(12).TextColor(fg)
-				installSection(c, m, fg, muted, field, border, accent)
-			}
-
-			if snap.HasListRPC {
-				ui.Text(c, i18n.T(i18n.KeyMarketInstallAdd)).FontSize(12).TextColor(muted)
-				installSection(c, m, fg, muted, field, border, accent)
-			}
-
-			if m.InstallMessage != "" {
-				ui.Text(c, m.InstallMessage).FontSize(12).TextColor(accent)
-			}
-			if m.InstallBusy {
-				ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).FontSize(12).TextColor(muted)
-					if m.CanCancelInstall && m.OnCancelInstall != nil {
-						if ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).FontSize(11).Clicked() {
+				if m.InstallMessage != "" {
+					ui.Text(c, m.InstallMessage).TextColor(accent)
+				}
+				if m.InstallBusy {
+					ui.Row(c).Gap(8).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).TextColor(muted)
+						if m.CanCancelInstall && m.OnCancelInstall != nil && ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).Clicked() {
 							m.OnCancelInstall()
 						}
-					}
-				})
-			}
-			if log := strings.TrimSpace(m.InstallLog); log != "" {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyMarketInstallLog)).FontSize(11).Bold().TextColor(muted).Grow(1)
-					if m.OnCopyInstallLog != nil {
-						if ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).FontSize(11).Clicked() {
-							m.OnCopyInstallLog(log)
-						}
-					}
-				})
-				lines := strings.Split(log, "\n")
-				if len(lines) > 40 {
-					lines = lines[len(lines)-40:]
+					})
 				}
-				ui.Column(c).Fill().MinHeight(0).MaxHeight(180).Background(field).
-					Padding(8, 10, 8, 10).Gap(2).Children(func() {
-					for _, line := range lines {
-						ui.Text(c, line).FontSize(11).TextColor(fg)
+				if m.NeedsAllowBuilds && len(m.AllowBuilds) > 0 {
+					ui.Text(c, i18n.T(i18n.KeyMarketAllowBuilds)+": "+strings.Join(m.AllowBuilds, ", ")).TextColor(fg)
+					if d.Tab != "installed" && !m.InstallBusy && m.OnInstallSpec != nil && m.InstallSpec != nil && ui.Button(c, i18n.T(i18n.KeyMarketAllowBuildsButton)).Clicked() {
+						m.OnInstallSpec(*m.InstallSpec, append([]string(nil), m.AllowBuilds...))
 					}
-				})
-			}
-			if m.NeedsAllowBuilds && len(m.AllowBuilds) > 0 {
-				ui.Text(c, i18n.T(i18n.KeyMarketAllowBuilds)+": "+strings.Join(m.AllowBuilds, ", ")).FontSize(12).TextColor(fg)
-			}
-			if len(m.Incompatible) > 0 {
-				ui.Text(c, i18n.T(i18n.KeyMarketIncompatible)).FontSize(12).Bold().TextColor(accent)
+				}
 				for _, item := range m.Incompatible {
 					it := item
-					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						label := it.Name + "@" + it.Version
-						if it.RuntimeVersion != "" {
-							label += " (runtime " + it.RuntimeVersion + ")"
-						}
-						ui.Text(c, label).FontSize(11).TextColor(fg).Grow(1)
-						if m.OnAcceptExemption != nil && it.Name != "" && it.Version != "" {
-							if ui.Button(c, i18n.T(i18n.KeyMarketAcceptExemption)).FontSize(11).Clicked() {
-								m.OnAcceptExemption(it.Name+"@"+it.Version, it.RuntimeVersion)
-							}
+					ui.Row(c).Gap(8).Children(func() {
+						ui.Text(c, it.Name+"@"+it.Version+" · runtime "+it.RuntimeVersion).TextColor(accent)
+						if !m.InstallBusy && m.OnAcceptExemption != nil && it.Name != "" && it.Version != "" && ui.Button(c, i18n.T(i18n.KeyMarketAcceptExemption)).Clicked() {
+							m.OnAcceptExemption(it.Name+"@"+it.Version, it.RuntimeVersion)
 						}
 					})
 				}
-			}
-
-			if len(snap.Methods) > 0 {
-				ui.Text(c, i18n.T(i18n.KeyMarketMethods)).FontSize(11).TextColor(muted)
-				ui.Text(c, strings.Join(snap.Methods, ", ")).FontSize(11).TextColor(fg)
-			}
+				if log := strings.TrimSpace(m.InstallLog); log != "" {
+					if m.OnCopyInstallLog != nil && ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).Clicked() {
+						m.OnCopyInstallLog(log)
+					}
+					lines := strings.Split(log, "\n")
+					if len(lines) > 40 {
+						lines = lines[len(lines)-40:]
+					}
+					ui.Text(c, strings.Join(lines, "\n")).FontSize(11).TextColor(muted)
+				}
+			})
 		})
 	})
+}
+
+func marketText(zh, en string) string {
+	if strings.HasPrefix(i18n.Locale(), "zh") {
+		return zh
+	}
+	return en
+}
+
+func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
+	ui.Text(c, marketText("目录来源：", "Catalog source: ")+d.Catalog.Source+" · "+marketText("更新日期：", "updated: ")+d.Catalog.Updated).FontSize(11).TextColor(muted)
+	if !d.Catalog.FetchedAt.IsZero() {
+		ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(11).TextColor(muted)
+	}
+	if d.Catalog.Warning != "" {
+		ui.Text(c, d.Catalog.Warning).FontSize(11).TextColor(accent)
+	}
+	if d.Err != "" {
+		ui.Text(c, d.Err).TextColor(accent)
+	}
+	if d.Loading {
+		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
+	}
+	if d.Selected != nil {
+		item := *d.Selected
+		if ui.Button(c, marketText("返回目录", "Back to catalog")).Clicked() {
+			m.Store.CloseDetails()
+		}
+		ui.Text(c, item.ID).Bold().TextColor(fg)
+		ui.Text(c, item.Description).TextColor(fg)
+		ui.Text(c, item.Homepage).FontSize(12).TextColor(muted)
+		ui.Text(c, marketText("安装目标：", "Install target: ")+item.InstallSpec).FontSize(12).TextColor(fg)
+		if item.Deprecated {
+			ui.Text(c, marketText("已弃用；不提供安装。", "Deprecated; installation unavailable.")+" "+item.Replacement).TextColor(accent)
+		}
+		catalogInstallButton(c, m, d, item, inventory, fg, muted)
+		if d.DetailsLoading {
+			ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
+		}
+		if d.DetailsErr != "" {
+			ui.Text(c, d.DetailsErr).TextColor(accent)
+		}
+		if d.Details.Partial {
+			ui.Text(c, marketText("部分详情加载失败。", "Some details could not be loaded.")).TextColor(accent)
+		}
+		if !d.DetailsLoading && ui.Button(c, marketText("重新加载详情", "Reload details")).Clicked() {
+			m.Store.SelectDetails(item.ID, true)
+		}
+		if d.Details.Version != "" {
+			ui.Text(c, "Version: "+d.Details.Version).TextColor(fg)
+		}
+		ui.Text(c, marketText("声明的依赖要求（不代表兼容性验证）：", "Declared requirements (not a compatibility verdict):")).FontSize(12).TextColor(muted)
+		for _, req := range d.Details.Requirements {
+			ui.Text(c, req).FontSize(12).TextColor(fg)
+		}
+		ui.Text(c, marketText("仓库 README（纯文本，仅供参考）", "Repository README (plain text, reference only)")).Bold().TextColor(muted)
+		ui.Text(c, d.Details.Readme).FontSize(12).TextColor(fg)
+		return
+	}
+	query := d.Query
+	ui.TextInput(c, &query).FillWidth().Placeholder(marketText("搜索名称、包名或描述", "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
+	labels := make([]string, 0, len(d.Catalog.Categories))
+	selected := ""
+	for _, cat := range d.Catalog.Categories {
+		label := fmt.Sprintf("%s (%d)", cat.Label, cat.Count)
+		labels = append(labels, label)
+		if cat.ID == d.Category {
+			selected = label
+		}
+	}
+	if len(labels) > 0 {
+		ui.Select(c, &selected, labels).FillWidth().OnChange(func() {
+			for n, label := range labels {
+				if label == selected {
+					m.Store.SetCategory(d.Catalog.Categories[n].ID)
+					break
+				}
+			}
+		})
+	}
+	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(12).TextColor(muted)
+	for _, item := range d.Rows {
+		i := item
+		ui.Column(c).FillWidth().Background(field).Border(1, border).Radius(6).Padding(8, 10, 8, 10).Gap(4).Children(func() {
+			ui.Text(c, i.ID).Bold().TextColor(fg)
+			ui.Text(c, i.Description).FontSize(12).TextColor(muted)
+			ui.Row(c).Gap(8).Children(func() {
+				ui.Text(c, i.Category).FontSize(11).TextColor(muted)
+				if name := marketstore.InstalledName(i, inventory.Rows); name != "" {
+					ui.Text(c, marketText("已安装：", "Installed: ")+name).FontSize(11).TextColor(fg)
+				}
+				if ui.Button(c, marketText("详情", "Details")).Clicked() {
+					m.Store.SelectDetails(i.ID, false)
+				}
+			})
+		})
+	}
+	ui.Row(c).Gap(8).Children(func() {
+		if d.Page > 0 && ui.Button(c, marketText("上一页", "Previous")).Clicked() {
+			m.Store.SetPage(d.Page - 1)
+		}
+		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText("下一页", "Next")).Clicked() {
+			m.Store.SetPage(d.Page + 1)
+		}
+	})
+}
+func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item desktopmarket.CatalogItem, inventory marketstore.ViewState, fg, muted ui.Color) {
+	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
+		ui.Text(c, marketText("已安装：", "Installed: ")+name).TextColor(fg)
+		return
+	}
+	if !desktopmarket.ValidInstallItem(item) {
+		ui.Text(c, marketText("无受支持的安装目标。", "No supported install target.")).TextColor(muted)
+		return
+	}
+	if !d.RuntimeReady {
+		ui.Text(c, marketText("请连接运行时后安装。", "Connect the runtime to install.")).TextColor(muted)
+		return
+	}
+	if !m.InstallBusy && !d.Loading && m.OnInstallCatalog != nil && ui.Button(c, i18n.T(i18n.KeyMarketInstallButton)).Clicked() {
+		if target, e := m.Store.CaptureTarget(item.ID); e == nil {
+			m.OnInstallCatalog(target)
+		}
+	}
 }
 
 func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
@@ -275,19 +306,6 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 			ui.Text(c, i18n.T(i18n.KeyMarketInstallNotReady)).FontSize(11).TextColor(accent)
 		}
 	})
-}
-
-// marketInstallSpec returns a github:/name@ver candidate from a list row.
-func marketInstallSpec(row marketstore.Entry) string {
-	d := strings.TrimSpace(row.Detail)
-	if strings.HasPrefix(d, "github:") || strings.Contains(d, "@") {
-		return d
-	}
-	l := strings.TrimSpace(row.Label)
-	if strings.HasPrefix(l, "github:") {
-		return l
-	}
-	return ""
 }
 
 func onOff(v bool) string {

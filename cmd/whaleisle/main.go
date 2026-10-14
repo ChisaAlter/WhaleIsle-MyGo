@@ -158,6 +158,10 @@ type mainState struct {
 	scheduleOpen               bool
 	scheduleHistoryText        string
 	remoteOpen                 bool
+	marketActive               *marketAttempt
+	marketWorker               *marketAttempt
+	marketApproval             *marketAttempt
+	marketCatalogTarget        *marketstore.InstallTarget
 	marketInstallSpec          string
 	marketInstallBusy          bool
 	marketInstallRequestID     string
@@ -1954,6 +1958,7 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
+	s.invalidateMarketLocked()
 	if s.dshCancel != nil {
 		s.dshCancel()
 		s.dshCancel = nil
@@ -2808,179 +2813,12 @@ func marketInstallRequestID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (s *mainState) runMarketInstall(spec string, allowBuilds []string) {
-	spec = strings.TrimSpace(spec)
-	if spec == "" {
-		return
-	}
-	s.mu.Lock()
-	if s.marketInstallBusy {
-		s.mu.Unlock()
-		return
-	}
-	s.marketInstallBusy = true
-	s.marketInstallMsg = ""
-	s.marketInstallLog = ""
-	s.marketInstallRequestID = ""
-	s.marketIncompatible = nil
-	nodeBin := ""
-	if s.cfgStore != nil {
-		nodeBin = s.cfgStore.Get().NodeBin
-	}
-	sup := s.sup
-	marketStore := s.market
-	win := s.win
-	s.mu.Unlock()
-
-	s.dshMu.Lock()
-	client := s.dshClient
-	s.dshMu.Unlock()
-
-	reqID := ""
-	if client != nil {
-		reqID = marketInstallRequestID()
-		s.mu.Lock()
-		s.marketInstallRequestID = reqID
-		s.mu.Unlock()
-	}
-
-	go func() {
-		msg := ""
-		logText := ""
-		needsAllow := false
-		allowOut := append([]string(nil), allowBuilds...)
-		ok := false
-		usedRPC := false
-		var incompat []api.ChangeResultErrorIncompatibleItem
-
-		if client != nil && reqID != "" {
-			opts := map[string]any{"requestId": reqID}
-			if len(allowBuilds) > 0 {
-				opts["approvedBuilds"] = allowBuilds
-			}
-			var out api.ChangeResult
-			err := client.Call(context.Background(), "pluginManager/installBundle", map[string]any{
-				"spec":    spec,
-				"options": opts,
-			}, &out)
-			usedRPC = true
-			stage := strings.ToLower(strings.TrimSpace(out.Stage))
-			if err == nil && (stage == "pending" || stage == "running" || stage == "installing" || stage == "queued") {
-				var waited api.ChangeResult
-				if werr := client.Call(context.Background(), "pluginManager/waitForInstall", map[string]any{
-					"requestId": reqID,
-				}, &waited); werr == nil {
-					out = waited
-				} else if werr != nil && msg == "" {
-					msg = werr.Error()
-				}
-			}
-			if err != nil {
-				msg = err.Error()
-			} else if out.Error != nil && out.Error.Code != "" {
-				msg = out.Error.Code
-				if out.Error.Diagnostic != nil && *out.Error.Diagnostic != "" {
-					msg += ": " + *out.Error.Diagnostic
-				}
-				if len(out.Error.Incompatible) > 0 {
-					incompat = append([]api.ChangeResultErrorIncompatibleItem(nil), out.Error.Incompatible...)
-				}
-				if len(out.PendingBuilds) > 0 {
-					needsAllow = true
-					allowOut = append([]string(nil), out.PendingBuilds...)
-				}
-				if out.PackageResult != nil {
-					logText = out.PackageResult.Output
-				}
-			} else {
-				ok = true
-				msg = i18n.T(i18n.KeyMarketInstallOK)
-				if out.PackageResult != nil {
-					logText = out.PackageResult.Output
-				}
-				if len(out.PendingBuilds) > 0 {
-					needsAllow = true
-					allowOut = append([]string(nil), out.PendingBuilds...)
-					ok = false
-				}
-			}
-		}
-
-		if !usedRPC {
-			res := desktopmarket.InstallGithubSpec(spec, allowBuilds, desktopmarket.InstallOptions{NodeBin: nodeBin})
-			msg = res.Error
-			if res.OK {
-				msg = i18n.T(i18n.KeyMarketInstallOK)
-				ok = true
-			}
-			logText = res.Log
-			needsAllow = res.NeedsAllowBuilds
-			allowOut = append([]string(nil), res.AllowBuilds...)
-		}
-
-		s.mu.Lock()
-		s.marketInstallBusy = false
-		s.marketInstallRequestID = ""
-		s.marketInstallMsg = msg
-		s.marketInstallLog = logText
-		s.marketNeedsAllowBuilds = needsAllow
-		s.marketAllowBuilds = allowOut
-		s.marketIncompatible = incompat
-		s.mu.Unlock()
-
-		if ok && !needsAllow && usedRPC {
-			// installBundle applies in-process; refresh list without full restart.
-		} else if ok && !needsAllow && sup != nil {
-			sup.Restart()
-		}
-		if marketStore != nil {
-			marketStore.Refresh(context.Background())
-		}
-		if win != nil {
-			win.Update(func() {})
-		}
-	}()
-}
-
-func (s *mainState) cancelMarketInstall() {
-	s.mu.Lock()
-	reqID := s.marketInstallRequestID
-	busy := s.marketInstallBusy
-	s.mu.Unlock()
-	if !busy || reqID == "" {
-		return
-	}
-	s.dshMu.Lock()
-	client := s.dshClient
-	s.dshMu.Unlock()
-	if client == nil {
-		return
-	}
-	win := s.win
-	go func() {
-		var out api.PluginInstallCancellation
-		err := client.Call(context.Background(), "pluginManager/cancelInstall", map[string]any{
-			"requestId": reqID,
-		}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.marketInstallMsg = err.Error()
-		} else {
-			s.marketInstallMsg = i18n.T(i18n.KeyMarketCancelOK)
-			if out.Status != "" {
-				s.marketInstallMsg += " (" + out.Status + ")"
-			}
-		}
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
-	}()
-}
-
 func mainView(c *ui.Context) {
 	state.restoreResumeSelection()
 	state.mu.Lock()
+	if state.market == nil {
+		state.market = marketstore.New()
+	}
 	themeID := state.themeID
 	st := state.bootStatus
 	logs := append([]string(nil), state.bootLogs...)
@@ -3737,6 +3575,7 @@ func mainView(c *ui.Context) {
 					toolBtn(i18n.T(i18n.KeyMarketOpen), func() {
 						openTool(func() { state.marketOpen = true })
 						marketStore.Refresh(context.Background())
+						marketStore.EnsureCatalog(i18n.Locale())
 					})
 				}
 				if schedStore != nil {
@@ -3857,6 +3696,12 @@ func mainView(c *ui.Context) {
 			})
 		}
 		if acceptPanelOK && marketOpen && marketStore != nil {
+			marketStore.SetNotify(func() {
+				if win != nil {
+					win.Update(func() {})
+				}
+			})
+			marketStore.EnsureCatalog(i18n.Locale())
 			state.mu.Lock()
 			muxReadyMarket := state.dshMuxReady
 			state.mu.Unlock()
@@ -3892,114 +3737,17 @@ func mainView(c *ui.Context) {
 						win.Update(func() {})
 					}
 				},
+				OnInstallCatalog: state.runMarketCatalogInstall,
 				OnInstallSpec: func(spec string, allowBuilds []string) {
 					state.runMarketInstall(spec, allowBuilds)
 				},
 				OnCancelInstall: func() {
 					state.cancelMarketInstall()
 				},
-				OnAcceptExemption: func(packageVersion, runtimeVersion string) {
-					packageVersion = strings.TrimSpace(packageVersion)
-					runtimeVersion = strings.TrimSpace(runtimeVersion)
-					if packageVersion == "" || runtimeVersion == "" {
-						return
-					}
-					state.dshMu.Lock()
-					client := state.dshClient
-					state.dshMu.Unlock()
-					if client == nil {
-						return
-					}
-					go func() {
-						enabled := true
-						accept := true
-						var out api.ChangeResult
-						err := client.Call(context.Background(), "pluginManager/setVersionExemption", map[string]any{
-							"packageVersion": packageVersion,
-							"runtimeVersion": runtimeVersion,
-							"enabled":        enabled,
-							"acceptRisk":     accept,
-						}, &out)
-						state.mu.Lock()
-						if err != nil {
-							state.marketInstallMsg = err.Error()
-						} else {
-							state.marketInstallMsg = i18n.T(i18n.KeyMarketAcceptExemption) + ": " + packageVersion
-							state.marketIncompatible = nil
-						}
-						state.mu.Unlock()
-						if marketStore != nil {
-							marketStore.Refresh(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnRemoveBundle: func(name string) {
-					name = strings.TrimSpace(name)
-					if name == "" {
-						return
-					}
-					state.dshMu.Lock()
-					client := state.dshClient
-					state.dshMu.Unlock()
-					if client == nil {
-						return
-					}
-					go func() {
-						var out api.ChangeResult
-						err := client.Call(context.Background(), "pluginManager/removeBundle", map[string]any{
-							"name": name,
-						}, &out)
-						state.mu.Lock()
-						if err != nil {
-							state.marketInstallMsg = err.Error()
-						} else {
-							state.marketInstallMsg = i18n.T(i18n.KeyMarketRemove) + ": " + name
-						}
-						state.mu.Unlock()
-						if marketStore != nil {
-							marketStore.Refresh(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
+				OnAcceptExemption: state.acceptMarketExemption,
+				OnRemoveBundle:    func(name string) { state.runMarketChange("pluginManager/removeBundle", map[string]any{"name": name}) },
 				OnSetBundleEnabled: func(name string, enabled bool) {
-					name = strings.TrimSpace(name)
-					if name == "" {
-						return
-					}
-					state.dshMu.Lock()
-					client := state.dshClient
-					state.dshMu.Unlock()
-					if client == nil {
-						return
-					}
-					go func() {
-						var out api.ChangeResult
-						err := client.Call(context.Background(), "pluginManager/setBundleEnabled", map[string]any{
-							"name":    name,
-							"enabled": enabled,
-						}, &out)
-						state.mu.Lock()
-						if err != nil {
-							state.marketInstallMsg = err.Error()
-						} else if enabled {
-							state.marketInstallMsg = i18n.T(i18n.KeySettingsPluginsEnable) + ": " + name
-						} else {
-							state.marketInstallMsg = i18n.T(i18n.KeySettingsPluginsDisable) + ": " + name
-						}
-						state.mu.Unlock()
-						if marketStore != nil {
-							marketStore.Refresh(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
+					state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled})
 				},
 				OnCopyInstallLog: func(log string) {
 					if strings.TrimSpace(log) != "" {
