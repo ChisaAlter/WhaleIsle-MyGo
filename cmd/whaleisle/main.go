@@ -43,6 +43,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/recovery"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	imstore "whaleisle/internal/store/im"
@@ -76,15 +77,19 @@ import (
 )
 
 type mainState struct {
-	mu          sync.Mutex
-	win         *mygo.Window
-	quitting    bool
-	closeToTray bool
-	cfgStore    *config.Store
-	themeID     string
-	sup         *harness.Supervisor
-	bootStatus  harness.Status
-	bootLogs    []string
+	resumeStore          *recovery.Store
+	resumeError          string
+	resumePendingSession string
+	resumeWorkspace      string
+	mu                   sync.Mutex
+	win                  *mygo.Window
+	quitting             bool
+	closeToTray          bool
+	cfgStore             *config.Store
+	themeID              string
+	sup                  *harness.Supervisor
+	bootStatus           harness.Status
+	bootLogs             []string
 
 	sessions                   *session.Store
 	interactions               *interaction.Store
@@ -1509,7 +1514,7 @@ func (s *mainState) confirmQuit(win *mygo.Window) bool {
 		i18n.T(i18n.KeyQuitConfirmMessage),
 		i18n.T(i18n.KeyQuitConfirmQuit),
 		i18n.T(i18n.KeyQuitConfirmCancel),
-	)
+	) && s.saveResumeBeforeClose(win)
 }
 
 // promptAcceptUnknownSSHHost asks whether to trust an unknown host key (TOFU).
@@ -2218,7 +2223,9 @@ func main() {
 
 		cfgStore, err := config.Open(userData)
 		if err != nil {
-			log.Fatal("config: ", err)
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageWarning, Title: "Configuration could not be loaded / 配置读取失败", Message: err.Error() + "\n\nThe original file is preserved. Back up and repair config.json, then restart. / 原文件已保留，请备份并修复 config.json 后重启。"})
+			mygo.App.Quit()
+			return
 		}
 		cfg := cfgStore.Get()
 		i18n.SetLocale(cfg.Locale)
@@ -2326,6 +2333,14 @@ func main() {
 		state.trajActualDur = true
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
+
+		state.openResume(userData)
+		state.mu.Lock()
+		resumeErr := state.resumeError
+		state.mu.Unlock()
+		if resumeErr != "" {
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("恢复状态需要处理", "Resume state needs attention"), Message: resumeErr + "\n\n" + resumeText("原文件已保留，请备份后修复。当前窗口不会自动覆盖该文件。", "The original file is preserved. Back it up before repairing it. This window will not automatically overwrite it.")})
+		}
 
 		tray, err := mygo.NewTray(mygo.TrayOptions{
 			Icon:    trayIcon(),
@@ -2964,6 +2979,7 @@ func (s *mainState) cancelMarketInstall() {
 }
 
 func mainView(c *ui.Context) {
+	state.restoreResumeSelection()
 	state.mu.Lock()
 	themeID := state.themeID
 	st := state.bootStatus
@@ -7167,6 +7183,14 @@ func mainView(c *ui.Context) {
 			return
 		}
 		boot.View(c, boot.Model{
+			OnConfigure: func() {
+				state.mu.Lock()
+				state.launcherOpen = true
+				state.mu.Unlock()
+				if win != nil {
+					win.Update(func() {})
+				}
+			},
 			Status:     st,
 			Logs:       logs,
 			ThemeID:    themeID,

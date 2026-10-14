@@ -16,28 +16,29 @@ import (
 
 // Model is the boot page's observable state (filled by the shell).
 type Model struct {
-	Status     harness.Status
-	Logs       []string // newest last; view shows a tail
-	ThemeID    string
-	SystemDark bool
-	OnRetry    func()
-	OnExport   func()
+	Status      harness.Status
+	Logs        []string // newest last; view shows a tail
+	ThemeID     string
+	SystemDark  bool
+	OnRetry     func()
+	OnExport    func()
+	OnConfigure func()
 }
 
 const logTail = 40
 
 // i18n keys for the boot page.
 const (
-	KeyTitle     = "boot.title"
-	KeyStarting  = "boot.starting"
-	KeyReady     = "boot.ready"
-	KeyFailed    = "boot.failed"
-	KeyStopped   = "boot.stopped"
-	KeyRetry     = "boot.retry"
-	KeyExportLog = "boot.export"
-	KeyWaiting        = "boot.waiting"
-	KeyPlugins             = "boot.plugins"
-	KeyPluginsDetail       = "boot.plugins_detail"
+	KeyTitle                = "boot.title"
+	KeyStarting             = "boot.starting"
+	KeyReady                = "boot.ready"
+	KeyFailed               = "boot.failed"
+	KeyStopped              = "boot.stopped"
+	KeyRetry                = "boot.retry"
+	KeyExportLog            = "boot.export"
+	KeyWaiting              = "boot.waiting"
+	KeyPlugins              = "boot.plugins"
+	KeyPluginsDetail        = "boot.plugins_detail"
 	KeyPluginsIndeterminate = "boot.plugins_indeterminate"
 )
 
@@ -53,11 +54,27 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Fill().Background(bg).Padding(24, 32, 24, 32).Gap(16).Children(func() {
 		ui.Text(c, i18n.T(KeyTitle)).FontSize(22).Bold().TextColor(fg)
 		ui.Text(c, statusLine(m.Status)).FontSize(14).TextColor(muted)
+		if m.Status.State == harness.Failed {
+			hint := "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
+			if i18n.Locale() == "en" {
+				hint = "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
+			}
+			ui.Text(c, hint).FontSize(13).TextColor(fg)
+		}
 		if line := pluginProgressLine(m.Status); line != "" {
 			ui.Text(c, line).FontSize(13).TextColor(fg)
 		}
 
 		ui.Row(c).Gap(8).Children(func() {
+			if m.OnConfigure != nil {
+				label := "打开启动器"
+				if i18n.Locale() == "en" {
+					label = "Open launcher"
+				}
+				if ui.Button(c, label).Clicked() {
+					m.OnConfigure()
+				}
+			}
 			if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
 				m.OnRetry()
 			}
