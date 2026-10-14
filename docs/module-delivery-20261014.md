@@ -65,6 +65,7 @@
 - 原生 Project 入口：通过真实 /dsh-project pluginrpc 列表/创建/改名/详情→Lead 会话，创建仅当前已授权目录；忙碌/Host代际/关闭/切会话隔离，不自动发送 prompt。后端或桌面桥不可用时明确不可用，仍需匹配当前平台 Host 构建及桥接能力，Linux 构建成功不等同 Windows 运行验收。
 - HTML 隔离渲染管线：opaque sandbox/CSP shell、独立 Windows 窗口、内存 PNG、取消/20 秒超时/4000 高度边界；核心仅 mock 验证，实际设备验收探针尚未接入，Available 仍 false，不开放真实 capture。
 - Project 目录选择：真实系统目录对话框只采用用户选中路径，校验并经现有 EnsureWorkspace 登记后才更新配置/会话，原桥再次核验根；取消/代际变化不登记不回退，拒绝 .git、并发与登记失败。仅临时目录/mock，未触真实工作区。
+- HTML 运行时验收 API：显式 Probe 仅运行固定合成页，成功验证独立环境、隔离边界和真实内存 PNG 后才置 Available；失败/重试关闭能力，暴露未隔离 WebRTC 则拒绝。此 Linux 环境未执行 Windows 探针，设置入口待后续接线，不能以编译通过宣称可截图。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

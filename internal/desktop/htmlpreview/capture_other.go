@@ -10,3 +10,7 @@ import (
 func capturePrepared(context.Context, request) (captureResult, error) {
 	return captureResult{}, errors.New(UnavailableReason)
 }
+
+func captureNative(context.Context, request) (captureResult, error) {
+	return captureResult{}, errors.New(UnavailableReason)
+}

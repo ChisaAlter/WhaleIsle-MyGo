@@ -23,12 +23,6 @@ const (
 	UnavailableReason    = "HTML preview rendering service is unavailable: an isolated, network-blocked capture context has not been verified on this platform."
 )
 
-// Available is intentionally false on every platform. MyGo's CapturePage is
-// real PNG capture, but ordinary windows share browser state and do not provide
-// an all-resource deny policy. Neither DisableBindings nor a hidden window
-// establishes the isolation required to execute supplied HTML safely.
-func Available() bool { return false }
-
 type request struct {
 	HTML       string `json:"html"`
 	Width      int    `json:"width"`

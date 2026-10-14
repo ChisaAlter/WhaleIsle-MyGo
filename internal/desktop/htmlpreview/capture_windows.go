@@ -15,8 +15,13 @@ func capturePrepared(ctx context.Context, input request) (captureResult, error) 
 	// Do not silently promote compile-time API availability to a verified safe
 	// renderer. This stays unavailable pending a Windows fixture runtime check.
 	if !Available() {
-		return captureResult{}, errors.New(UnavailableReason)
+		return captureResult{}, errors.New(Readiness().Reason)
 	}
+	return captureNative(ctx, input)
+}
+
+// captureNative is private; the only ungated caller is the fixed built-in probe.
+func captureNative(ctx context.Context, input request) (captureResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, CaptureTimeout)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
