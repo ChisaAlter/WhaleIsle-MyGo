@@ -8,6 +8,11 @@ import (
 )
 
 type Model struct {
+	Reports                                                              *projectflow.ReportBrowser
+	OnReports                                                            func(string)
+	OnReportAction                                                       func(string, string)
+	OnReportFile                                                         func(string, func(string))
+	OnCloseReports, OnReportWork                                         func()
 	Material                                                             *projectflow.MaterialDraft
 	MaterialMutable                                                      bool
 	OnMaterial                                                           func(string, string)
@@ -96,6 +101,10 @@ func View(c *ui.Context, m Model) {
 			archiveConfirmation(c, m)
 			return
 		}
+		if m.Reports != nil {
+			reportsView(c, m)
+			return
+		}
 		if m.Material != nil {
 			materialsView(c, m)
 			return
@@ -159,6 +168,9 @@ func View(c *ui.Context, m Model) {
 								}
 							}
 						})
+						if ui.Button(c, tr("历史报告", "Recorded reports")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnReports != nil {
+							m.OnReports(p.ID)
+						}
 						status := p.Lifecycle
 						if p.Activity.State != "" {
 							status += " · " + p.Activity.State

@@ -14,6 +14,7 @@ import (
 )
 
 type projectFlowState struct {
+	reports                       *projectflow.ReportBrowser
 	materials                     map[string]*projectflow.MaterialDraft
 	materialKey                   string
 	archiveCandidate              *projectflow.Project
@@ -167,6 +168,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		}
 	}
 	m.OnCancelArchive = func() { s.mu.Lock(); s.projectFlow.archiveCandidate = nil; s.mu.Unlock() }
+	s.bindProjectHistory(win, &m)
 	s.bindProjectMaterials(win, &m)
 	return m
 }
