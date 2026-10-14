@@ -8,6 +8,12 @@ import (
 )
 
 type Model struct {
+	TeamID, TeamNote                              string
+	Team                                          *projectflow.Overview
+	OnTeam                                        func(string)
+	OnCloseTeam                                   func()
+	OnControl                                     func(string, string)
+	OnNextWork                                    func(string)
 	Expanded, Busy, Loaded                        bool
 	Listing                                       projectflow.Listing
 	Error, Workspace, SelectedSession, RenameID   string
@@ -50,10 +56,14 @@ func View(c *ui.Context, m Model) {
 		if m.Loaded && !m.Listing.Available {
 			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(12)
 		}
-		if m.Workspace != "" {
-			ui.Text(c, m.Workspace).FontSize(11)
+		if m.TeamID != "" {
+			teamView(c, m)
+			return
 		}
-		if ui.Button(c, tr("从当前授权工作区创建", "Create from current authorized workspace")).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.Workspace == "").Clicked() && m.OnCreate != nil {
+		if m.Workspace != "" {
+			ui.Text(c, tr("初始目录：", "Starting directory: ")+m.Workspace).FontSize(11)
+		}
+		if ui.Button(c, tr("选择目录并授权创建 Project", "Choose and authorize a Project directory")).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.Workspace == "").Clicked() && m.OnCreate != nil {
 			m.OnCreate()
 		}
 		if m.Loaded && m.Listing.Available && len(m.Listing.Projects) == 0 {
@@ -74,6 +84,9 @@ func View(c *ui.Context, m Model) {
 						ui.Row(c).FillWidth().Gap(4).Children(func() {
 							if ui.Button(c, title).Grow(1).Tooltip(p.CanonicalWorkingDirectory).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnOpen != nil {
 								m.OnOpen(p.ID)
+							}
+							if ui.Button(c, "Team").Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnTeam != nil {
+								m.OnTeam(p.ID)
 							}
 							if ui.Button(c, tr("改名", "Rename")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnBeginRename != nil {
 								m.OnBeginRename(p)

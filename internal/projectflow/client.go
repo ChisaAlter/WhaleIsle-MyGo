@@ -11,13 +11,15 @@ import (
 )
 
 type Project struct {
+	Paused                    bool   `json:"paused"`
 	ID                        string `json:"id"`
 	Title                     string `json:"title"`
 	CanonicalWorkingDirectory string `json:"canonicalWorkingDirectory"`
 	CoordinatorSessionID      string `json:"coordinatorSessionId"`
 	Lifecycle                 string `json:"lifecycle"`
 	Activity                  struct {
-		State string `json:"state"`
+		State              string `json:"state"`
+		CoordinatorRunning bool   `json:"coordinatorRunning"`
 	} `json:"activity"`
 }
 type Listing struct {
@@ -50,7 +52,7 @@ func (c Client) Create(ctx context.Context, path string, authorized []string, re
 		}
 	}
 	if !allowed || strings.TrimSpace(requestID) == "" {
-		return Project{}, fmt.Errorf("select an existing authorized workspace")
+		return Project{}, fmt.Errorf("select an existing authorized workspace as the picker starting directory")
 	}
 	var out struct {
 		Project Project `json:"project"`

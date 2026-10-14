@@ -8,11 +8,14 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/projects"
 )
 
 type projectFlowState struct {
+	teamID, teamNote           string
+	team                       *projectflow.Overview
 	navigation                 uint64
 	client                     *dsh.Client
 	listing                    projectflow.Listing
@@ -33,9 +36,12 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	if s.cfgStore != nil {
 		workspace = s.cfgStore.Get().Workspace
 	}
+	if workspace == "" {
+		workspace = paths.DefaultWorkspace()
+	}
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
-	m := projects.Model{Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m := projects.Model{TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
@@ -62,6 +68,10 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnCancelRename = func() { s.mu.Lock(); s.projectFlow.renameID = ""; s.projectFlow.renameDraft = ""; s.mu.Unlock() }
 	m.OnRename = func(id, title string) { s.runProjectAction(win, "rename", id, title) }
+	m.OnTeam = func(id string) { s.runProjectTeam(win, id, "inspect", "") }
+	m.OnCloseTeam = func() { s.mu.Lock(); s.projectFlow.teamID = ""; s.projectFlow.team = nil; s.mu.Unlock() }
+	m.OnControl = func(action, workID string) { s.runProjectTeam(win, m.TeamID, action, workID) }
+	m.OnNextWork = func(cursor string) { s.runProjectTeam(win, m.TeamID, "next", cursor) }
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
@@ -88,6 +98,9 @@ func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string
 	workspace := ""
 	if s.cfgStore != nil {
 		workspace = s.cfgStore.Get().Workspace
+	}
+	if workspace == "" {
+		workspace = paths.DefaultWorkspace()
 	}
 	f.busy = true
 	f.err = ""
