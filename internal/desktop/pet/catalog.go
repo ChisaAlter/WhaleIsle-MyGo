@@ -1,4 +1,4 @@
-// Package pet owns the opt-in sprite companion. It does not implement THA4 or Cubism.
+// Package pet owns the opt-in sprite/THA4 companion. It does not implement Cubism.
 package pet
 
 import (

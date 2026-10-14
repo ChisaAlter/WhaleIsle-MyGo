@@ -32,15 +32,15 @@ func TestPetTaskStatus(t *testing.T) {
 	if strings.Contains(page, "<script>") || !strings.Contains(page, "&lt;script&gt;") {
 		t.Fatal(page)
 	}
-	if taskAction("whale-pet://pet/open?session=a%3C%26", running) != "open" {
+	if taskAction("whale-pet://localhost/open?session=a%3C%26", running) != "open" {
 		t.Fatal("valid click lost")
 	}
-	for _, url := range []string{"whale-pet://pet/open?session=other", "https://pet/hide", "whale-pet://pet/hide?extra=1", "whale-pet://pet/open?session=a%3C%26&extra=1", "whale-pet://user@pet/hide"} {
+	for _, url := range []string{"whale-pet://localhost/open?session=other", "https://pet/hide", "whale-pet://localhost/hide?extra=1", "whale-pet://localhost/open?session=a%3C%26&extra=1", "whale-pet://user@pet/hide"} {
 		if taskAction(url, running) != "" {
 			t.Fatalf("accepted %s", url)
 		}
 	}
-	if taskAction("whale-pet://pet/hide", running) != "hide" {
+	if taskAction("whale-pet://localhost/hide", running) != "hide" {
 		t.Fatal("hide lost")
 	}
 }

@@ -1,0 +1,112 @@
+'use strict';
+// Fixed-origin presentation only; no application bridge or user package code.
+(async function() {
+  const fallback = document.getElementById('fallback');
+  const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
+  const notice = document.getElementById('render-notice');
+  let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
+  const stop = () => {
+    stopped = true;
+    cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer);
+    if (engine) void engine.close().catch(() => {});
+  };
+  window.addEventListener('pagehide', stop, { once: true });
+  // Updating task text must not reload/reallocate a multi-megabyte model.
+  async function taskTick() {
+    try {
+      const response = await fetch('task.json');
+      if (!response.ok) throw new Error('status unavailable');
+      const task = await response.json();
+      if (stopped) return;
+      document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
+      document.getElementById('task-title').textContent = task.Title || '';
+      const open = document.getElementById('task-open'); open.replaceChildren();
+      if (task.SessionID) {
+        const link = document.createElement('a'); link.textContent = '回到会话 / Open chat';
+        link.href = 'open?session=' + encodeURIComponent(task.SessionID).replace(/%20/g, '+').replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+        open.appendChild(link);
+      }
+    } catch { if (!stopped) document.getElementById('task-status').textContent = '状态未知 / Unknown'; }
+    if (!stopped) taskTimer = setTimeout(taskTick, 1500);
+  }
+  taskTimer = setTimeout(taskTick, 1500);
+  function spriteFallback() {
+    const sheet = new Image(); let frame = 0, lastInteraction=performance.now();
+    const paint = () => { ctx.clearRect(0,0,192,208); ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208); };
+    function start() {
+      if (stopped || spriteTimer || !sheet.naturalWidth) return;
+      spriteTimer=setInterval(() => {
+        if (document.hidden || performance.now()-lastInteraction>90000) {clearInterval(spriteTimer);spriteTimer=0;return;}
+        frame=(frame+1)%8;paint();
+      },120);
+    }
+    sheet.onload = () => {
+      if (stopped) return;
+      canvas.width=192; canvas.height=208;
+      paint();canvas.hidden=false;fallback.hidden=true;start();
+    };
+    document.addEventListener('pointermove',()=>{lastInteraction=performance.now();start();});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastInteraction=performance.now();start();}});
+    sheet.src='sprite.webp';
+  }
+  if (document.body.dataset.neural !== 'true') { spriteFallback(); return; }
+  function script(src) { return new Promise((resolve,reject) => { const tag=document.createElement('script');tag.src=src;tag.onload=resolve;tag.onerror=()=>reject(new Error('runtime unavailable'));document.head.appendChild(tag); }); }
+  let session = null;
+  try {
+    notice.textContent='正在载入 THA4… / Loading THA4…';
+    await script('tha4.js'); await script('render/ort/ort.all.min.js');
+    if (stopped) return;
+    ort.env.wasm.wasmPaths=new URL('render/ort/', location.href).href;
+    ort.env.wasm.numThreads=1; ort.env.wasm.proxy=false; ort.env.logLevel='warning';
+    let provider='wasm';
+    for (const ep of ['webnn','webgpu','wasm']) {
+      try { session=await ort.InferenceSession.create(new URL('render/avatar/model.onnx', location.href).href,{executionProviders:[ep]}); provider=ep; break; }
+      catch { if (stopped) return; }
+    }
+    if (!session) throw new Error('No supported inference provider');
+    if (stopped) { await session.release(); return; }
+    const img = new Image();
+    await new Promise((resolve,reject) => {img.onload=resolve;img.onerror=()=>reject(new Error('character unavailable'));img.src='render/avatar/character.png';});
+    if (img.naturalWidth !== 512 || img.naturalHeight !== 512) throw new Error('character shape');
+    if (stopped) { await session.release(); return; }
+    const source=document.createElement('canvas');source.width=source.height=512;
+    const sourceCtx=source.getContext('2d',{willReadFrequently:true}); sourceCtx.drawImage(img,0,0);
+    engine=WhaleTHA4.createEngine(ort,session,WhaleTHA4.imageCHW(sourceCtx.getImageData(0,0,512,512).data));
+    session=null; // Engine owns disposal from now on.
+    const output=sourceCtx.createImageData(512,512), pose=new Float32Array(45);
+    canvas.width=390; canvas.height=492;
+    let last=0, busy=false, first=true, lastInteraction=performance.now();
+    document.addEventListener('pointermove',()=>{lastInteraction=performance.now();});
+    // Upstream's 20fps inference budget; no backlog when a frame is slower.
+    // WASM remains adaptive rather than silently capped to an unusable 4fps.
+    async function tick(now) {
+      if (stopped) return;
+      raf=requestAnimationFrame(tick);
+      if (document.hidden || busy || now-last < (now-lastInteraction>300000?110:50)) return;
+      last=now; busy=true;
+      try {
+        const t=now/1000;
+        pose.fill(0); pose[44]=0.4*Math.sin(t*1.5);pose[42]=0.35*Math.sin(t*0.7);pose[43]=0.3*Math.sin(t*0.6);
+        pose[39]=0.18*Math.sin(t*1.1);pose[40]=0.14*Math.sin(t*1.3);pose[41]=0.08*Math.sin(t*0.55);
+        const blink=t%4;pose[12]=pose[13]=blink<0.24?Math.sin(blink/0.24*Math.PI):0;
+        const pixels=await engine.frame(pose);
+        if (!pixels || stopped || document.hidden) return;
+        let alphaMax=0;for(let i=3;i<pixels.length;i+=4)alphaMax=Math.max(alphaMax,pixels[i]);
+        if(alphaMax<4){if(first)throw new Error('transparent first frame');return;}
+        output.data.set(pixels);sourceCtx.putImageData(output,0,0);
+        ctx.clearRect(0,0,390,492);ctx.drawImage(source,60,20,390,492,0,0,390,492);
+        fallback.hidden=true;canvas.hidden=false;first=false;
+        notice.textContent='THA4 · '+provider;
+      } catch {
+        cancelAnimationFrame(raf);try {await engine.close();} catch {} engine=null;
+        if (!stopped) {canvas.hidden=true;fallback.hidden=false;notice.textContent='THA4 运行失败，已回退 / Renderer failed; fallback';spriteFallback();}
+      } finally { busy=false; }
+    }
+    // No concurrent session.run; rAF callbacks already queued are canceled on failure.
+    raf=requestAnimationFrame(tick);
+  } catch {
+    if (session) {try {await session.release();}catch{}}
+    if (engine) {try {await engine.close();}catch{} engine=null;}
+    if (!stopped) { notice.textContent='THA4 资源或运行时不可用，已回退 / THA4 unavailable; fallback';spriteFallback(); }
+  }
+})();

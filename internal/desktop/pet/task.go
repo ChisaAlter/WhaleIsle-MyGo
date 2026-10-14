@@ -42,7 +42,7 @@ func renderTaskPage(page []byte, task TaskStatus) []byte {
 	}
 	open := ""
 	if task.SessionID != "" {
-		open = `<a id="open" href="whale-pet://pet/open?session=` + html.EscapeString(url.QueryEscape(task.SessionID)) + `" title="回到此会话 / Open this conversation">回到会话 / Open chat</a>`
+		open = `<a id="open" href="open?session=` + html.EscapeString(url.QueryEscape(task.SessionID)) + `" title="回到此会话 / Open this conversation">回到会话 / Open chat</a>`
 	}
 	return []byte(strings.NewReplacer("{{STATUS}}", html.EscapeString(label), "{{TITLE}}", html.EscapeString(task.Title), "{{OPEN}}", open).Replace(string(page)))
 }
@@ -51,13 +51,13 @@ func renderTaskPage(page []byte, task TaskStatus) []byte {
 // arbitrary IPC, a file API, a URL opener, or a session selector.
 func taskAction(raw string, task TaskStatus) string {
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "whale-pet" || u.Host != "pet" || u.User != nil || u.Fragment != "" {
+	if err != nil || u.Scheme != "whale-pet" || u.Host != "localhost" || u.User != nil || u.Fragment != "" {
 		return ""
 	}
 	if u.Path == "/hide" && u.RawQuery == "" {
 		return "hide"
 	}
-	if task.SessionID != "" && raw == "whale-pet://pet/open?session="+url.QueryEscape(task.SessionID) {
+	if task.SessionID != "" && raw == "whale-pet://localhost/open?session="+url.QueryEscape(task.SessionID) {
 		return "open"
 	}
 	return ""

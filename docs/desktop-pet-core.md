@@ -4,7 +4,7 @@ The MyGo shell now owns a small independent transparent, frameless, topmost spri
 
 Configuration is stored under `mygoDesktopPet` in the existing conflict-checked config store. Electron `pet` and `live2dPet`, including enabled state, growth and unknown fields, are not migrated or rewritten. A saved unavailable skin is preserved and falls back visually to the bundled Whale image. Select the empty entry for that image. Local Codex packages are read from `${CODEX_HOME:-~/.codex}/pets`, using directory names as stable IDs. Only bounded `pet.json` and confined 1536×1872 / 1536×2288 WebP sheets are read; scripts are never executed, symlink escapes and traversal are rejected, and nothing is uploaded or downloaded.
 
-The page is served from a fixed `whale-pet://pet` resource allowlist. Page navigation and new windows are blocked; two exact local navigation intents (open the displayed current session, hide this instance) are intercepted without navigating. The new opt-in MyGo `PageOptions.WindowControlsOnly` mode only permits DOM readiness and native CSS dragging; application methods, broadcasts, file drops, maximize and other bridge messages are blocked. `DisableBindings` retains its original behavior. This is a small rectangular window, not an all-screen click-through overlay: its rectangle can intercept clicks. Fine-grained shaped hit regions and nonfocusable native windows are not claimed here.
+The page is served from a fixed `whale-pet://localhost` resource allowlist. Page navigation and new windows are blocked; two exact local navigation intents (open the displayed current session, hide this instance) are intercepted without navigating. The new opt-in MyGo `PageOptions.WindowControlsOnly` mode only permits DOM readiness and native CSS dragging; application methods, broadcasts, file drops, maximize and other bridge messages are blocked. `DisableBindings` retains its original behavior. This is a small rectangular window, not an all-screen click-through overlay: its rectangle can intercept clicks. Fine-grained shaped hit regions and nonfocusable native windows are not claimed here.
 
 ## Source and licensing
 
@@ -12,7 +12,23 @@ The page is served from a fixed `whale-pet://pet` resource allowlist. Page navig
 
 ## Renderer parity boundary
 
-Electron's feature named `desktop-live2d-pet` actually uses THA4/ONNX neural animation; it is not evidence of a Cubism implementation. The supplied source includes `pet-live2d.js/html`, `ort.all.min.js`, `ort-wasm-simd-threaded*.mjs`, `anime4k.js` and rig JSON manifests. It does not include `avatar/model.onnx`, `avatar/character.png`, ORT `.wasm`, rig PNG parts or `states/*.webp`. No Cubism SDK, `.moc3` or `.model3.json` references/assets were found in the checked source. This module does not claim THA4, Cubism, feeding/growth, live expressions, gaze, chat or pixel-shape click-through completion. It neither downloads replacements nor accepts new licenses.
+Electron's feature named `desktop-live2d-pet` uses THA4/ONNX neural animation, not Cubism. The optional `mygoDesktopPet.neural` setting now connects the fixed 512px THA4 model with WebNN → WebGPU → WASM provider fallback. Both the companion and neural rendering remain off by default. The adapter is based on official WhaleIsle commit `90465b67ec16765631d54c195af19d9ff3c3a770`, including premultiplied image input, reusable 45-channel pose tensor, byte-scale CHW output, no concurrent inference/backlog, and deduplicated output disposal in `finally`. It uses the original crop and 50ms inference-start budget, slowing to 110ms after five minutes without pointer interaction. Hidden documents pause inference; close/unload releases the session after any in-flight run, and native destruction ends the webview.
+
+This is a bounded small-window implementation, not full Electron rendering/performance parity. Graph capture, GPU packed readback, Anime4K super-resolution, rig/state sprites, full-screen wandering, click-through regions, growth, chat and broad Electron APIs are not ported. GPU uses default CPU readback; browser/provider limitations fall back through providers. Missing/changed assets or model/runtime failures show an explicit notice and the selected local sprite or bundled image. A transparent first frame is a failure, never a success notice.
+
+### Fixed assets and staging
+
+`internal/desktop/pet/assets/render-manifest.json` pins exact source URLs, sizes and SHA256 values for seven runtime/model files plus both MIT licenses. Assets are restored separately from that fixed official commit; binary assets are not in Git. The executable accepts only `pet-render-assets/` beside itself. On opt-in, `os.Root` confines reads, bounded sizes and SHA256 are checked, and only those seven verified byte buffers are published through exact resource routes. A sidecar manifest cannot add paths. No network download, file selection API or arbitrary asset path is exposed. Closing drops these buffers.
+
+After packaging (which recreates `dist/whaleisle`), stage the restored fixed source directory:
+
+    node scripts/pet-render-assets.mjs <restored-asset-directory> dist/whaleisle
+
+For a development executable, replace `dist/whaleisle` with the directory containing that executable. The staging command verifies every file before writing, copies licenses, and emits the provenance manifest. It never executes the model. An ordinary `go run` uses a temporary executable path and therefore intentionally reports missing assets unless staged there. Installer builds include only the manifest-listed files when the staging marker exists.
+
+Windows uses MyGo's existing `whale-pet://localhost` mapping to `http://whale-pet.localhost`; relative JS/model/module URLs retain that exact origin. The old `//pet` host did not match Windows' protocol mapper and has been corrected without changing the framework. The pet-only CSP permits same-origin scripts/fetch and WebAssembly compilation, forbids workers, remote connections and frames, and no longer permits inline scripts. `WindowControlsOnly` and the exact open/hide navigation whitelist are retained.
+
+Source licensing: upstream root MIT (Chisa 2026), ORT 1.22.0 Microsoft MIT; both files are staged. No separate avatar model card, training-data provenance or art-rights chain is established here.
 
 ## Verification
 
@@ -25,6 +41,10 @@ The companion shows the currently selected session from MyGo's existing session 
 
 Open chat validates the exact displayed session ID again against the live current selection, then reveals/focuses the main window and switches to that chat. Deleted/stale targets cannot redirect to another chat. Hide destroys only the companion instance, leaving the persisted opt-in unchanged; Settings → Pet → Save restores it. OS close has the same session-only behavior. Main app exit destroys it. Store/mux refresh callbacks update the pet independently of main-window painting, including when the main window is hidden.
 
-The local HTML uses escaped text and URL components, no fetch, no application bridge and no external content. Status changes reload the fixed allowlisted page only. The retained WindowControlsOnly bridge whitelist is unchanged; action URLs are accepted only in the navigation handler, not through the resource handler.
+The local HTML uses escaped text and URL components, no application bridge and no external content. A fixed, same-origin task.json endpoint refreshes only the current-chat card every 1.5 seconds; changes do not reload the model. The retained WindowControlsOnly bridge whitelist is unchanged; action URLs are accepted only in the navigation handler, not through the resource handler.
 
 One additional offline fixture covers running/idle/unknown/offline, missing and failed source, HTML escaping, exact open-session targeting, foreign origins/extra parameters and hide. No real Host or user data was used. Interactive Windows checks remain: run/idle and disconnect transitions while main window is hidden, click to reveal the matching chat from settings, stale/deleted target rejection, hide → state change stays hidden → settings Save restores, and OS close/quit. Cumulative Windows compilation belongs to the integrator.
+
+## THA4 verification boundary
+
+One synthetic JS fixture passed for image normalization, named inputs/shapes, byte-scale CHW conversion, malformed output, duplicate-output disposal, single in-flight run and close-during-run/input/session cleanup. A single focused Go invocation passed the existing core/status fixtures and new resource-boundary fixture: missing resource rejection, exact routing, query rejection and closing removal. JS syntax checks passed. The offline staging command also verified and copied all nine pinned resources successfully without executing them. No real ORT runtime/model, user skin, user Host or Windows GUI was run. Cumulative Windows compilation belongs to the integration owner; interactive opt-in/load/animate/provider-fallback/hide/quit and actual performance remain unverified.

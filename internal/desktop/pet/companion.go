@@ -2,15 +2,18 @@ package pet
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
 )
 
-//go:embed assets/pet-head.png assets/pet.html
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a
@@ -19,19 +22,23 @@ type Companion struct {
 	Store         *config.Store
 	Enabled       bool
 	SkinID        string
+	Neural        bool
 	Error         string
 	Skins         []Skin
 	ready         bool
 	win           *mygo.Window
 	assetMu       sync.RWMutex
 	sheet         []byte
+	renderAssets  map[string][]byte
+	neuralActive  bool
+	renderNotice  string
 	task          TaskStatus
 	OnOpenSession func(string)
 }
 
 func New(store *config.Store) *Companion {
 	cfg := store.DesktopPet()
-	p := &Companion{Store: store, Enabled: cfg.Enabled, SkinID: cfg.SkinID, ready: true}
+	p := &Companion{Store: store, Enabled: cfg.Enabled, SkinID: cfg.SkinID, Neural: cfg.Neural, ready: true}
 	if err := mygo.Protocol.Handle("whale-pet", p); err != nil {
 		p.Error = err.Error()
 	}
@@ -60,7 +67,7 @@ func (p *Companion) Save() {
 			return
 		}
 	}
-	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID}); err != nil {
+	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural}); err != nil {
 		p.Error = err.Error()
 		return
 	}
@@ -71,6 +78,10 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.assetMu.Lock()
+	p.renderAssets = nil
+	p.neuralActive = false
+	p.assetMu.Unlock()
 	if p.win != nil {
 		w := p.win
 		p.win = nil
@@ -94,17 +105,31 @@ func (p *Companion) sync() {
 			break
 		}
 	}
+	var neuralAssets map[string][]byte
+	notice := ""
+	if cfg.Neural {
+		var err error
+		neuralAssets, err = loadRenderAssets(defaultRenderRoot())
+		if err != nil {
+			p.Error = err.Error()
+			notice = "THA4 资源不可用，已回退 / Missing or changed THA4 assets; fallback"
+		}
+	}
 	p.assetMu.Lock()
+	p.renderAssets = neuralAssets
+	p.neuralActive = cfg.Neural && neuralAssets != nil
+	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://pet/index.html", Width: 220, Height: 198, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 198, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
+		p.close()
 		return
 	}
 	p.win = w
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
-		if e.URL == "whale-pet://pet/index.html" {
+		if e.URL == "whale-pet://localhost/index.html" {
 			return
 		}
 		e.PreventDefault()
@@ -132,25 +157,38 @@ func (p *Companion) sync() {
 	w.OnClosed(func() {
 		if p.win == w {
 			p.win = nil
+			p.assetMu.Lock()
+			p.renderAssets = nil
+			p.neuralActive = false
+			p.assetMu.Unlock()
 		}
 	})
 }
 func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Host != "pet" || (r.Method != "GET" && r.Method != "HEAD") {
+	if r.URL.Host != "localhost" || r.URL.User != nil || r.URL.RawQuery != "" || r.URL.Fragment != "" || (r.Method != "GET" && r.Method != "HEAD") {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'")
 	var body []byte
 	switch r.URL.Path {
 	case "/index.html":
 		body, _ = assets.ReadFile("assets/pet.html")
 		p.assetMu.RLock()
 		body = renderTaskPage(body, p.task)
+		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	case "/task.json":
+		p.assetMu.RLock()
+		body, _ = json.Marshal(p.task)
+		p.assetMu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+	case "/tha4.js", "/pet-runtime.js":
+		body, _ = assets.ReadFile("assets" + r.URL.Path)
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":
 		p.assetMu.RLock()
 		body = p.sheet
@@ -164,8 +202,14 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = assets.ReadFile("assets/pet-head.png")
 		w.Header().Set("Content-Type", "image/png")
 	default:
-		http.NotFound(w, r)
-		return
+		p.assetMu.RLock()
+		body = p.renderAssets[r.URL.Path]
+		p.assetMu.RUnlock()
+		if len(body) == 0 {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", renderContentType(r.URL.Path))
 	}
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	if r.Method != "HEAD" {
@@ -177,12 +221,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // saving settings is the explicit way to show them again.
 func (p *Companion) UpdateTask(task TaskStatus) {
 	p.assetMu.Lock()
-	changed := p.task != task
 	p.task = task
 	p.assetMu.Unlock()
-	if changed && p.win != nil && !p.win.IsDestroyed() {
-		if err := p.win.Page().LoadURL("whale-pet://pet/index.html"); err != nil {
-			p.Error = err.Error()
-		}
-	}
+	// The fixed local status endpoint updates text without restarting inference.
 }

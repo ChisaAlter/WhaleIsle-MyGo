@@ -12,3 +12,6 @@ reference/electron/
 dist/
 *.exe
 *.log
+
+# Verified THA4 runtime is staged locally, never checked in.
+pet-render-assets/

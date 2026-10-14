@@ -7,6 +7,7 @@ import "encoding/json"
 type DesktopPet struct {
 	Enabled bool   `json:"enabled"`
 	SkinID  string `json:"skinId"`
+	Neural  bool   `json:"neural,omitempty"`
 }
 
 func (s *Store) DesktopPet() DesktopPet {
@@ -18,6 +19,7 @@ func (s *Store) DesktopPet() DesktopPet {
 	if json.Unmarshal(s.raw["mygoDesktopPet"], &raw) == nil {
 		_ = json.Unmarshal(raw["enabled"], &out.Enabled)
 		_ = json.Unmarshal(raw["skinId"], &out.SkinID)
+		_ = json.Unmarshal(raw["neural"], &out.Neural)
 	}
 	return out
 }

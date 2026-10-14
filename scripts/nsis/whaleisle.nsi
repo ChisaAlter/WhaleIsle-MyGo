@@ -44,6 +44,24 @@ skip_resources:
   File /r "${STAGE_DIR}\runtime\*.*"
 !endif
 
+!if /FileExists "${STAGE_DIR}\.pet-render-staged"
+  ; Exact manifest selection only; do not package arbitrary sidecar files.
+  SetOutPath "$INSTDIR\pet-render-assets\avatar"
+  File "${STAGE_DIR}\pet-render-assets\avatar\character.png"
+  File "${STAGE_DIR}\pet-render-assets\avatar\model.onnx"
+  SetOutPath "$INSTDIR\pet-render-assets\ort"
+  File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.mjs"
+  File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.wasm"
+  File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.mjs"
+  File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.wasm"
+  File "${STAGE_DIR}\pet-render-assets\ort\ort.all.min.js"
+  SetOutPath "$INSTDIR\pet-render-assets"
+  File "${STAGE_DIR}\pet-render-assets\LICENSE"
+  SetOutPath "$INSTDIR\pet-render-assets\ort"
+  File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
+  SetOutPath "$INSTDIR"
+!endif
+
   WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayVersion" "${VERSION}"
@@ -61,6 +79,7 @@ Section "Uninstall"
   Delete "$INSTDIR\${EXE_NAME}"
   RMDir /r "$INSTDIR\resources"
   RMDir /r "$INSTDIR\runtime"
+  RMDir /r "$INSTDIR\pet-render-assets"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"

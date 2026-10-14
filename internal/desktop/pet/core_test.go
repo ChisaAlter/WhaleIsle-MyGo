@@ -77,7 +77,7 @@ func TestDesktopPetCore(t *testing.T) {
 	for _, route := range []struct {
 		url  string
 		code int
-	}{{"whale-pet://pet/index.html", 200}, {"whale-pet://pet/sprite.webp", 200}, {"whale-pet://pet/fallback.png", 200}, {"whale-pet://pet/../config.json", 404}, {"whale-pet://wrong/index.html", 404}} {
+	}{{"whale-pet://localhost/index.html", 200}, {"whale-pet://localhost/sprite.webp", 200}, {"whale-pet://localhost/fallback.png", 200}, {"whale-pet://localhost/../config.json", 404}, {"whale-pet://wrong/index.html", 404}} {
 		req := httptest.NewRequest("GET", route.url, nil)
 		res := httptest.NewRecorder()
 		p.ServeHTTP(res, req)
