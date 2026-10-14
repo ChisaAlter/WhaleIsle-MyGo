@@ -45,14 +45,17 @@ type Store struct {
 	err        error
 	lastAction string
 
-	namespaces []Namespace
-	selectedNS string
-	drafts     map[string]map[string]string
-	dirty      map[string]map[string]bool
-	generation uint64
-	origin     string
-	hostDrafts map[string]map[string]map[string]string
-	hostDirty  map[string]map[string]map[string]bool
+	namespaces    []Namespace
+	selectedNS    string
+	drafts        map[string]map[string]string
+	dirty         map[string]map[string]bool
+	generation    uint64
+	origin        string
+	hostDrafts    map[string]map[string]map[string]string
+	hostDirty     map[string]map[string]map[string]bool
+	visionRoutes  []VisionRoute
+	visionLoading bool
+	visionErr     string
 }
 
 // New returns an empty settings store.
@@ -67,6 +70,9 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.generation++
+	s.visionRoutes = nil
+	s.visionLoading = false
+	s.visionErr = ""
 	if client != nil && s.origin != client.Endpoint.Origin {
 		if s.hostDrafts == nil {
 			s.hostDrafts = map[string]map[string]map[string]string{}
@@ -100,6 +106,9 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 func (s *Store) Detach() {
 	s.mu.Lock()
 	s.generation++
+	s.visionRoutes = nil
+	s.visionLoading = false
+	s.visionErr = ""
 	s.client = nil
 	s.loading = false
 	s.saving = false
@@ -367,9 +376,16 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 // the generic form prefers mutate over patch update.
 func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 	s.mu.Lock()
+	name := s.selectedNS
+	s.mu.Unlock()
+	s.saveMutate(ctx, name, ops)
+}
+
+func (s *Store) saveMutate(ctx context.Context, name string, ops []json.RawMessage) {
+	s.mu.Lock()
 	client := s.client
 	generation := s.generation
-	ns := s.findNamespaceLocked(s.selectedNS)
+	ns := s.findNamespaceLocked(name)
 	if s.saving || client == nil || ns == nil || len(ops) == 0 {
 		s.mu.Unlock()
 		return
@@ -381,9 +397,14 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 		return
 	}
 	submitted := copyDrafts(s.drafts[ns.NS])
+	// The dedicated vision picker must not acknowledge unrelated generic drafts.
+	if name == VisionNamespace {
+		submitted = map[string]string{}
+	}
 	rev := ns.Revision
 	nsName := ns.NS
 	s.saving = true
+	s.err = nil
 	s.mu.Unlock()
 	s.fire()
 

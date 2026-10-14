@@ -9,6 +9,7 @@ import (
 // ModelsAccess is the dedicated Models settings page (session/modelCatalog).
 type ModelsAccess struct {
 	ProviderProfiles *ProviderProfilesAccess
+	Vision           *VisionAccess
 	Labels           []string
 	Selected         *string
 	SessionID        string
@@ -24,6 +25,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Models
+	visionPane(c, a.Vision, fg, muted)
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsHint)).FontSize(12).TextColor(muted)

@@ -1950,7 +1950,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 			[]byte(`{"name":"desktop.ready","source":"whaleisle"}`),
 		))
 	}()
-	setStore.RefreshDescribe(context.Background())
+	setStore.RefreshVision(context.Background())
 	go s.hydrateViewTabsFromHarness(setStore)
 	s.mu.Lock()
 	workspace := ""
@@ -5075,6 +5075,7 @@ func mainView(c *ui.Context) {
 				ModelsActive: modelsActive,
 				Models: &settings.ModelsAccess{
 					ProviderProfiles: state.providerProfilesAccess(),
+					Vision:           state.visionSettingsAccess(),
 					Labels:           sessSnap.ModelLabels,
 					Selected:         &state.settingsModelLabel,
 					SessionID:        sessSnap.SelectedID,
@@ -5697,6 +5698,7 @@ func mainView(c *ui.Context) {
 					}
 					state.mu.Unlock()
 					state.refreshProviderProfiles()
+					state.refreshVisionSettings()
 					if sessions != nil {
 						sessions.RefreshModelCatalog(context.Background())
 					}
