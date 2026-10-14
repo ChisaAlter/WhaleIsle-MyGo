@@ -8,6 +8,17 @@ import (
 )
 
 type Model struct {
+	RequestProjectID, RequestKind   string
+	RequestPage                     projectflow.RequestPage
+	RequestCard                     *projectflow.RequestCard
+	RequestPageNumber               int
+	RequestLoaded, RequestMutable   bool
+	OnRequests                      func(string)
+	OnRequestList, OnRequestGet     func(string)
+	OnRequestPage                   func(int)
+	OnRequestArchive                func(string, bool)
+	OnCloseRequests, OnBackRequests func()
+
 	Detail                                        *projectflow.WorkDetail
 	Process                                       *projectflow.ProcessSnapshot
 	OnInspect                                     func(string, string)
@@ -61,6 +72,10 @@ func View(c *ui.Context, m Model) {
 		if m.Loaded && !m.Listing.Available {
 			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(12)
 		}
+		if m.RequestProjectID != "" {
+			requestsView(c, m)
+			return
+		}
 		if m.TeamID != "" {
 			teamView(c, m)
 			return
@@ -89,6 +104,9 @@ func View(c *ui.Context, m Model) {
 						ui.Row(c).FillWidth().Gap(4).Children(func() {
 							if ui.Button(c, title).Grow(1).Tooltip(p.CanonicalWorkingDirectory).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnOpen != nil {
 								m.OnOpen(p.ID)
+							}
+							if ui.Button(c, tr("要求", "Requests")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnRequests != nil {
+								m.OnRequests(p.ID)
 							}
 							if ui.Button(c, "Team").Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnTeam != nil {
 								m.OnTeam(p.ID)

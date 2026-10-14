@@ -11,6 +11,7 @@ import (
 )
 
 type Project struct {
+	Archiving                 bool   `json:"archiving"`
 	Paused                    bool   `json:"paused"`
 	ID                        string `json:"id"`
 	Title                     string `json:"title"`

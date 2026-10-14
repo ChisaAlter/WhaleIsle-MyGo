@@ -14,6 +14,13 @@ import (
 )
 
 type projectFlowState struct {
+	requestProjectID, requestKind string
+	requestPage                   projectflow.RequestPage
+	requestCard                   *projectflow.RequestCard
+	requestCursors                []string
+	requestLoaded                 bool
+	requestGeneration             uint64
+
 	detail                     *projectflow.WorkDetail
 	process                    *projectflow.ProcessSnapshot
 	detailGeneration           uint64
@@ -44,7 +51,12 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
-	m := projects.Model{Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m := projects.Model{RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	for _, p := range listing.Projects {
+		if p.ID == f.requestProjectID {
+			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
+		}
+	}
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
@@ -99,6 +111,31 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.runProjectDetail(win, m.TeamID, action, "", "")
 	}
 	m.OnRetryDraft = func() { s.runProjectDetail(win, m.TeamID, "retry-draft", "", "") }
+	m.OnRequests = func(id string) { s.runProjectRequests(win, id, "list", "current") }
+	m.OnRequestList = func(kind string) { s.runProjectRequests(win, m.RequestProjectID, "list", kind) }
+	m.OnRequestGet = func(id string) { s.runProjectRequests(win, m.RequestProjectID, "get", id) }
+	m.OnRequestPage = func(direction int) {
+		action := "next"
+		if direction < 0 {
+			action = "previous"
+		}
+		s.runProjectRequests(win, m.RequestProjectID, action, "")
+	}
+	m.OnRequestArchive = func(id string, archive bool) {
+		action := "restore"
+		if archive {
+			action = "archive"
+		}
+		s.runProjectRequests(win, m.RequestProjectID, action, id)
+	}
+	m.OnBackRequests = func() { s.mu.Lock(); s.projectFlow.requestCard = nil; s.projectFlow.requestGeneration++; s.mu.Unlock() }
+	m.OnCloseRequests = func() {
+		s.mu.Lock()
+		s.projectFlow.requestProjectID = ""
+		s.projectFlow.requestCard = nil
+		s.projectFlow.requestGeneration++
+		s.mu.Unlock()
+	}
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {

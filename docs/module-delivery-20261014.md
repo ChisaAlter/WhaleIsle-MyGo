@@ -76,6 +76,7 @@
 - Host 显式启动路径：configured DshBin 指向 Harness CLI 时也校验真实根的 readiness guard，避免配置优先级绕过 vendored runtime 门禁；不修改无 visual 包的 legacy 启动。
 - 历史 visual reply 安全图片预览：先走原授权源码读取，再经显式 Probe/RenderSaved 门禁，成功仅显示内存 PNG 与裁剪说明；失败保留源码/另存并显示原因。关闭/重读/切会话或连接变化取消渲染并丢弃迟到结果；只 mock 和编译，未实际 Windows HTML 渲染。
 - 插件插槽消费：应用自有 Cordis overlay 按真实 registrant/owner 打开 main/settings/sidebar/remote 视图，嵌套设置与卸载同步；临时 HTTP/WS 网关仅转发当前精确 loopback Host，认证留在 Go，关闭/Host变化撤销连接，插件页面无宿主绑定。仅 mock/编译，未启动真实 Host/WebView2。
+- Project 用户要求卡：真实 requests/list/get 三态分页、目标/版本/交付证据和剩余问题；完成态显示已交付并区别 Team 底层任务。归档前重读并遵循 Host completed/current 原子校验，支持恢复；变更成功但刷新失败明确提示且不自动重放。仅 mock，未修改真实 Project。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
