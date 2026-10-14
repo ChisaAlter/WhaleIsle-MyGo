@@ -78,9 +78,19 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		reply(w, http.StatusBadRequest, "Preview appearance must be light or dark.")
 		return
 	}
-	if r.Context().Err() == nil {
-		reply(w, http.StatusServiceUnavailable, UnavailableReason)
+	// Both entry points keep the production readiness gate closed until the
+	// Windows runtime isolation/capture checks have been verified.
+	result, err := capturePrepared(r.Context(), input)
+	if r.Context().Err() != nil {
+		return
 	}
+	if err != nil {
+		reply(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func reply(w http.ResponseWriter, status int, message string) {
