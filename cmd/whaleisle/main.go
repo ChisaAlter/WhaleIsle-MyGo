@@ -2381,7 +2381,7 @@ func startHarness(cfg config.Config) {
 	var projectPatches []string
 	currentHost := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 	if currentHost.ArtifactsReady && !cfg.SkipUserPlugins {
-		bridge := harness.NewProjectBridge(cfg.NodeBin, paths.DshHome(), cfg.Workspace, desktopcomponents.OpenInFileManager)
+		bridge := harness.NewProjectBridge(cfg.NodeBin, paths.DshHome(), cfg.Workspace, desktopcomponents.OpenInFileManager, state.selectProjectDirectory)
 		if bridge.Ready(context.Background()) {
 			overlay, err := bridge.PrepareOverlay(context.Background(), filepath.Join(paths.VendorDir(), "dsh-project"), paths.WebProfileDir(), paths.HarnessRoot())
 			if err == nil {

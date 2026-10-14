@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/directorypicker"
 )
 
 //go:embed runner.js source
@@ -24,11 +25,13 @@ const SourceCommit = "90465b67ec16765631d54c195af19d9ff3c3a770"
 type Options struct {
 	NodeBin, Home, Workspace string
 	// OpenPath is a trusted native opener. The bridge resolves and authorizes first.
-	OpenPath func(string) error
+	OpenPath        func(string) error
+	SelectDirectory func(context.Context, string) (string, error)
 }
 type Bridge struct {
-	opts Options
-	mu   sync.Mutex
+	opts        Options
+	mu          sync.Mutex
+	selectionMu sync.Mutex
 }
 
 func New(opts Options) *Bridge { return &Bridge{opts: opts} }
@@ -61,11 +64,37 @@ func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[strin
 	default:
 		return failure("unsupported Project operation")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if action == "select-directory" {
+		if !b.selectionMu.TryLock() {
+			return failure("Project directory selection already open")
+		}
+		defer b.selectionMu.Unlock()
+		if b.opts.SelectDirectory == nil {
+			return failure("unsupported: native Project directory picker unavailable")
+		}
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	request := make(map[string]any, len(payload))
 	for k, v := range payload {
 		request[k] = v
+	}
+	if action == "select-directory" {
+		suggested, _ := request["workingDirectory"].(string)
+		selected, err := b.opts.SelectDirectory(ctx, suggested)
+		if errors.Is(err, directorypicker.ErrCancelled) || (err == nil && selected == "") {
+			return map[string]any{"ok": false, "cancelled": true, "error": "Project directory selection cancelled"}
+		}
+		if err != nil {
+			return failure("Project directory selection or workspace registration failed")
+		}
+		if ctx.Err() != nil {
+			return failure("Project directory selection interrupted")
+		}
+		request["workingDirectory"] = selected
 	}
 	if action == "open-path" {
 		if b.opts.OpenPath == nil {
