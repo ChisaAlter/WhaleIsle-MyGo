@@ -88,7 +88,7 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 			// A configured path to the same source CLI must not bypass current-host
 			// safety validation merely because it precedes vendor resolution.
 			clean := filepath.Clean(o.DshBin)
-			if strings.HasSuffix(clean, filepath.Join("apps", "cli", "lib", "bin.js")) {
+			if strings.HasSuffix(strings.ToLower(clean), strings.ToLower(filepath.Join("apps", "cli", "lib", "bin.js"))) {
 				root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(clean))))
 				if err := ValidateCurrentHostForLaunch(root); err != nil {
 					return Plan{}, err
