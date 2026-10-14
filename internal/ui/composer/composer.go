@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -73,7 +74,9 @@ type Model struct {
 	// OnPickImage attaches a local image path into the draft (Electron InputBar + menu).
 	OnPickImage func()
 	// OnPickSpeech picks an audio file and appends speech/transcribe text to the draft.
-	OnPickSpeech func()
+	OnPickSpeech                                            func()
+	Voice                                                   voiceinput.Status
+	OnStartVoice, OnStopVoice, OnCancelVoice, OnInsertVoice func()
 	// OnCycleSpeech advances speech/configure provider from catalog.
 	OnCycleSpeech func()
 	// OnPickHeroWorkspace switches the session workspace (HeroShell chip); not @ mention.
@@ -323,8 +326,35 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							m.OnPickDirectory()
 						}
 					}
+					if m.OnStartVoice != nil {
+						locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
+						if !m.Voice.Busy() && m.Voice.Pending == "" {
+							if ui.Button(c, "录音 / Record").Height(btnH).Disabled(locked).
+								Tooltip("点击使用系统默认麦克风；停止或到时交当前语音提供方转写，只填草稿，不发送消息。" + m.Snapshot.SpeechSelection).Clicked() {
+								m.OnStartVoice()
+							}
+						}
+						if m.Voice.Phase == "recording" && m.OnStopVoice != nil {
+							if ui.Button(c, "停止并转写 / Stop").Height(btnH).Clicked() {
+								m.OnStopVoice()
+							}
+						}
+						if m.Voice.Pending != "" && m.OnInsertVoice != nil {
+							if ui.Button(c, "插入文字 / Insert").Height(btnH).Disabled(locked).Clicked() {
+								m.OnInsertVoice()
+							}
+						}
+						if m.Voice.Phase != "" && m.OnCancelVoice != nil {
+							if ui.Button(c, "取消录音 / Discard").Height(btnH).Clicked() {
+								m.OnCancelVoice()
+							}
+						}
+						if m.Voice.Message != "" {
+							ui.Text(c, m.Voice.Message).FontSize(11).TextColor(muted).Tooltip(m.Voice.Pending)
+						}
+					}
 					if m.OnPickSpeech != nil {
-						speechBtn := ui.Button(c, i18n.T(i18n.KeyComposerSpeech)).Height(btnH).Radius(8).
+						speechBtn := ui.Button(c, "音频文件 / Audio file").Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
 							Padding(0, 8, 0, 8).Background(selectorFill).BorderWidth(0).
 							TextColor(fg).FontSize(12)
 						if sel := strings.TrimSpace(m.Snapshot.SpeechSelection); sel != "" {
@@ -334,7 +364,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							m.OnPickSpeech()
 						}
 						if m.OnCycleSpeech != nil {
-							cycle := ui.Button(c, i18n.T(i18n.KeyComposerSpeechCycle)).Height(btnH).Radius(8).
+							cycle := ui.Button(c, i18n.T(i18n.KeyComposerSpeechCycle)).Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
 								Padding(0, 6, 0, 6).Background(selectorFill).BorderWidth(0).
 								TextColor(muted).FontSize(11)
 							if sel := strings.TrimSpace(m.Snapshot.SpeechSelection); sel != "" {

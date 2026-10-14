@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/store/session"
@@ -203,6 +204,13 @@ type Model struct {
 	OnPickComposerImage     func()
 	OnPickComposerSpeech    func()
 	OnCycleComposerSpeech   func()
+
+	ComposerVoice         voiceinput.Status
+	OnStartComposerVoice  func()
+	OnStopComposerVoice   func()
+	OnCancelComposerVoice func()
+	OnInsertComposerVoice func()
+
 	// OnListWorkspaceFiles is optional workspaceFiles/list fallback for the files pane.
 	OnListWorkspaceFiles func(rel string) ([]workspacefs.Entry, error)
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
@@ -656,6 +664,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnPickDirectory:     m.OnPickComposerDirectory,
 						OnPickImage:         m.OnPickComposerImage,
 						OnPickSpeech:        m.OnPickComposerSpeech,
+						Voice:               m.ComposerVoice,
+						OnStartVoice:        m.OnStartComposerVoice,
+						OnStopVoice:         m.OnStopComposerVoice,
+						OnCancelVoice:       m.OnCancelComposerVoice,
+						OnInsertVoice:       m.OnInsertComposerVoice,
 						OnCycleSpeech:       m.OnCycleComposerSpeech,
 						OnPickHeroWorkspace: m.OnPickHeroWorkspace,
 						OnNoDirectory:       m.OnNoDirectory,

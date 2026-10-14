@@ -100,6 +100,7 @@
 - Windows便携候选布局：复用144c8d3已编译EXE、终端sidecar/resources/9项宠物资源与runtime图，依赖链接改清单并提供普通权限junction/hardlink恢复；静态拒逃逸/异常覆盖，不提权或改策略。实际本地目录已装配，runtime_verified=false、无生产成功marker；未运行任何PE，需Windows验收，巨型目录不入源码交付。
 - Windows候选显式验收入口：固定Win32/x64 Node/ABI/hash、干净临时home的受限native加载，再通过原Host/mobile verifier才写成功marker，失败撤回新记录；mobile目标包置于自身根内，不放宽链接边界。入口已装配但未执行Windows，runtime_verified仍false，native通过也不等于Host/UI验收。
 - 聊天剪贴板图片：显式粘贴才读PNG，16MiB/24MP界限并复用既有附件发送；会话/Host/编辑身份变化丢弃迟到结果，仅清理本次新缓存。图片-only不擦除选中文字；仅合成fixture与编译，未读取真实剪贴板。
+- 主聊天麦克风录音：显式开始/停止/取消，WinMM内存PCM/WAV有界采集，复用真实speech catalog/transcribe授权；会话/Host/面板/窗口变化取消，UTF16原光标写草稿、冲突保留手动插入。无自动安装/prepare/发送，仅合成fixture与编译，未访问真实麦克风或验收Windows驱动/权限。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

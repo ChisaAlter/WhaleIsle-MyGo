@@ -85,6 +85,7 @@ import (
 )
 
 type mainState struct {
+	voice                *composerVoiceOperation
 	projectFlow          projectFlowState
 	resumeStore          *recovery.Store
 	resumeError          string
@@ -1696,6 +1697,7 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 }
 
 func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
+	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.quitting = true
 	s.mu.Unlock()
@@ -1959,6 +1961,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMu.Unlock()
 
 	refresh := func() {
+		s.cancelComposerVoiceIfStale()
 		if win != nil {
 			win.Update(s.refreshPetTask)
 		}
@@ -2021,6 +2024,7 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
+	s.cancelComposerVoice()
 	if s.remoteFiles != nil { s.remoteFiles.Bind(nil,"",nil) }
  if s.remoteMachines != nil {
 		s.remoteMachines.Attach(nil, nil)
@@ -2299,6 +2303,9 @@ func main() {
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })
+		win.OnBlur(state.cancelComposerVoiceOnBlur)
+		win.OnHide(state.cancelComposerVoice)
+		win.OnClosed(state.cancelComposerVoice)
 
 		win.OnClose(func(e *mygo.CloseEvent) {
 			state.mu.Lock()
@@ -2854,6 +2861,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.cancelComposerVoiceIfStale()
 	state.restoreResumeSelection()
 	state.refreshPetTask()
 	state.mu.Lock()
@@ -6420,6 +6428,11 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					ComposerVoice: state.composerVoiceStatus(),
+					OnStartComposerVoice: func() { state.startComposerVoice(win, sessions, snap.SelectedID, activeDraft) },
+					OnStopComposerVoice: state.stopComposerVoice,
+					OnCancelComposerVoice: state.cancelComposerVoice,
+					OnInsertComposerVoice: state.insertComposerVoice,
 					OnPickComposerSpeech: func() {
 						if sessions == nil {
 							return
