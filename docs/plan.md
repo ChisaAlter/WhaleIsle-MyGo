@@ -13,7 +13,7 @@
 
 ## 2. 现状
 
-实现进度不再在此处维护，见 `docs/status.md`（随开发更新）。当前要点：工具链与 harness 运行时构建（M0 核心）已完成；`internal/config`、`internal/credentials`（独立包）、`internal/paths`、应用骨架与接口生成器已完成并有测试；dsh 客户端与全部界面尚未开始。
+当前 dsh 客户端与原生界面已有持续实现；最新模块范围见 [2026-10-14 模块交付记录](module-delivery-20261014.md)，历史里程碑见 `docs/status.md`。当前累计交付完成的是定向 fixture 与 Windows 交叉编译范围，真实 Host、Windows 桌面运行和端到端体验仍需另行验收。
 
 ## 3. 调研结论
 

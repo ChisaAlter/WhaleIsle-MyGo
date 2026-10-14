@@ -204,8 +204,8 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 		}
 		// plan §3.2 general — open harness general namespace when present.
 		if m.OnSelectNamespace != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionGeneral), false, fg, hover, func() {
-				m.OnSelectNamespace("general")
+			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionGeneral), snap.SelectedNS == generalNamespace(snap), fg, hover, func() {
+				m.OnSelectNamespace(generalNamespace(snap))
 			})
 		}
 		if m.Appearance != nil {
@@ -382,19 +382,26 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 				ui.Checkbox(c, m.RevealSecrets, i18n.T(i18n.KeySettingsRevealSecrets))
 			}
 		}
+		if snap.SelectedNS == "general" && m.OnSelectNamespace != nil {
+			for _, candidate := range snap.Namespaces {
+				if candidate.NS == settings.CustomInstructionsNamespace && ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
+					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
+				}
+			}
+		}
 		for _, f := range ns.Fields {
 			fieldRow(c, m, snap, f, fg, muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" {
+			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
 				save = save.Disabled(true)
 			}
 			if save.Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" {
+			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
 				replace = replace.Disabled(true)
 			}
 			if replace.Clicked() {
@@ -421,6 +428,10 @@ func RequestReplace(m Model) {
 }
 
 func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color) {
+	if snap.SelectedNS == settings.CustomInstructionsNamespace && f.Key == settings.CustomInstructionsField {
+		customInstructionsRow(c, m, snap, fg, muted)
+		return
+	}
 	if m.DraftPtr == nil {
 		return
 	}

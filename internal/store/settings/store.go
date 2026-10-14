@@ -255,6 +255,16 @@ func (s *Store) saveReplace(ctx context.Context, name string, section map[string
 		s.mu.Unlock()
 		return
 	}
+	if name == CustomInstructionsNamespace {
+		var text string
+		_ = json.Unmarshal(section[CustomInstructionsField], &text)
+		if err := validateCustomInstructions(name, map[string]string{CustomInstructionsField: text}); err != nil {
+			s.err = err
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
+	}
 	if len(section) == 0 {
 		s.err = fmt.Errorf("settings replace rejected: empty section")
 		s.lastAction = s.err.Error()
@@ -433,6 +443,12 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 	captured := *ns
 	ns = &captured
 	drafts := copyDrafts(s.drafts[ns.NS])
+	if err := validateCustomInstructions(ns.NS, drafts); err != nil {
+		s.err = err
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
 	submitted := drafts
 	s.saving = true
 	s.mu.Unlock()
