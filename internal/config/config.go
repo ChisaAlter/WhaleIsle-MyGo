@@ -4,8 +4,9 @@
 // directory (see reference/electron/src/main/config.js). Every field the
 // Electron shell persists is decoded with its exact JSON name and default;
 // the pet state blobs (pet, live2dPet) and the pluginRecovery object are
-// NOT decoded — they stay in the raw key/value map and are carried through
-// byte-for-byte on save, so the two shells can share one data directory.
+// carried through in the raw key/value map on ordinary saves, so the shells
+// can share one data directory. Explicit native file-feeding care updates only
+// live2dPet.stats via pet_care.go; other pet fields remain untouched.
 //
 // Secrets (apiKey, baseUrl, githubToken, remoteToken, remoteRelayToken,
 // remoteDevices) never live in config.json: the Electron shell strips them

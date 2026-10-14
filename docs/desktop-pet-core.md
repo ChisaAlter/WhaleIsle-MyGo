@@ -2,9 +2,9 @@
 
 The MyGo shell now owns a small independent transparent, frameless, topmost sprite window. Settings → Pet provides an explicit enable switch, local skin selection, refresh and save. It works offline, without a Harness connection. Default is off; no scans, timer or pet window are started while off. Refresh scans only when explicitly requested, or when opening an enabled companion. Position restoration and disconnected-screen clamping use MyGo's existing `StateKey` window-state implementation. Drag the character to move the window; use Settings to hide it. Closing the app destroys the companion without changing its enabled preference.
 
-Configuration is stored under `mygoDesktopPet` in the existing conflict-checked config store. Electron `pet` and `live2dPet`, including enabled state, growth and unknown fields, are not migrated or rewritten. A saved unavailable skin is preserved and falls back visually to the bundled Whale image. Select the empty entry for that image. Local Codex packages are read from `${CODEX_HOME:-~/.codex}/pets`, using directory names as stable IDs. Only bounded `pet.json` and confined 1536×1872 / 1536×2288 WebP sheets are read; scripts are never executed, symlink escapes and traversal are rejected, and nothing is uploaded or downloaded.
+Configuration is stored under `mygoDesktopPet` in the existing conflict-checked config store. Electron `pet` and `live2dPet` enabled state, growth, preferences and unknown fields are not migrated or rewritten. Explicit file feeding updates only the shared `live2dPet.stats` care fields described below. A saved unavailable skin is preserved and falls back visually to the bundled Whale image. Select the empty entry for that image. Local Codex packages are read from `${CODEX_HOME:-~/.codex}/pets`, using directory names as stable IDs. Only bounded `pet.json` and confined 1536×1872 / 1536×2288 WebP sheets are read; scripts are never executed, symlink escapes and traversal are rejected, and nothing is uploaded or downloaded.
 
-The page is served from a fixed `whale-pet://localhost` resource allowlist. Page navigation and new windows are blocked; three exact local navigation intents (open the displayed current session, open the dedicated pet conversation, hide this instance) are intercepted without navigating. The new opt-in MyGo `PageOptions.WindowControlsOnly` mode only permits DOM readiness and native CSS dragging; application methods, broadcasts, file drops, maximize and other bridge messages are blocked. `DisableBindings` retains its original behavior. This is a small rectangular window, not an all-screen click-through overlay: its rectangle can intercept clicks. Fine-grained shaped hit regions and nonfocusable native windows are not claimed here.
+The page is served from a fixed `whale-pet://localhost` resource allowlist. Page navigation and new windows are blocked; four exact local navigation intents (open the displayed current session, open the dedicated pet conversation, choose a file meal, hide this instance) are intercepted without navigating. The new opt-in MyGo `PageOptions.WindowControlsOnly` mode only permits DOM readiness and native CSS dragging; application methods, broadcasts, file drops, maximize and other bridge messages are blocked. `DisableBindings` retains its original behavior. This is a small rectangular window, not an all-screen click-through overlay: its rectangle can intercept clicks. Fine-grained shaped hit regions and nonfocusable native windows are not claimed here.
 
 ## Source and licensing
 
@@ -86,3 +86,43 @@ and unchanged client configuration. JS syntax and patch whitespace checks
 passed. The integration owner performs cumulative Windows compilation. Actual
 Windows clicks/focus/layout and a live installed Whale plugin remain unverified;
 no real Host, user account, model or pet directory was used.
+
+
+## File feeding and persisted hunger
+
+The supplied original has a real renderer drop action: `pet-live2d.js:4205–4219`
+invokes `care('fileEat')`; `desktop-live2d.js:476–491` persists it through
+`pet-stats.js`. The native companion now exposes **喂文件 / Feed file**, an
+explicit native single-file picker adapting that same action. A successful
+selection grants +2 satiety and +1 mood, clamped to 100, with no affection award.
+Cancel does nothing. The selected path/name is not read, saved, displayed,
+uploaded, moved or deleted. Only a deliberate choice counts, and repeated
+clicks cannot open concurrent pickers; closing/replacing the pet invalidates
+an outstanding selection.
+
+The separate original `fileEat(names)` metadata-history endpoint has a daily
+cap, but this renderer does **not** call it. This implementation follows the
+actually wired care action and does not add that disconnected history/quota
+behavior. Token/compute feeding still requires its real usage ledger and is not
+simulated or claimed here.
+
+Care uses the same `config.json` and `live2dPet.stats` object as Electron:
+`satiety`, `mood`, `affection`, `lastTick` and `care.fileEat`. Unknown nested fields,
+other care timestamps, growth, `fileEaten`, preferences and enable flags survive.
+Existing atomic/conflict-checked config writes commit all changed stats together;
+a failed save grants nothing and reports failure. Ordinary MyGo pet preference
+saves retain these values. Missing stats use the original 70/70/0 defaults and
+are first persisted by the explicit feeding action, not by status polling.
+
+The existing pet status endpoint shows current satiety/mood. Reads lazily fold
+elapsed time: satiety −3/hour; mood approaches 62 at 8/hour; elapsed drift is
+capped at 72 hours, and affection never decays. Persisted timestamps retain
+hunger across app restarts without new timers or renderer animations.
+
+One temporary fixture passed: defaults/normalization, elapsed hunger/mood,
+actual care increments, repeated explicit meals, restart preservation, unknown
+nested settings, later native preference saves, read-only polling, stale-write
+refusal without a reward, exact action URL, escaped UI and resource/action
+separation. No real files were selected or read; no models, accounts or Host
+were used. The integration owner alone performs Windows compilation. Actual
+native picker/close flow and Windows rendering remain unverified.

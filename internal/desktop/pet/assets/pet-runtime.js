@@ -20,6 +20,11 @@
       if (stopped) return;
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
+      document.getElementById('care-label').textContent = task.Care?.Label || '';
+      document.getElementById('care-message').textContent = task.Care?.Message || '';
+      const feed = document.getElementById('feed-file');
+      feed.setAttribute('aria-disabled', String(!!task.Care?.Busy));
+      if (task.Care?.Busy) feed.removeAttribute('href'); else feed.setAttribute('href', 'feed-file');
       const chat = document.getElementById('pet-chat');
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
       if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
