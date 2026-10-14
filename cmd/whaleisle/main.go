@@ -6511,9 +6511,15 @@ func mainView(c *ui.Context) {
 					},
 					Terminal:           termPanel,
 					TerminalShellsNote: termShellsNote,
-					OnOpenBrowserPreview: func() {
-						state.showBrowserPreview(state.browserPreviewDraft)
-					},
+					BrowserContent: func(c *ui.Context) {
+                        if state.browserController==nil {state.browserController=browserpreviewui.NewController(win)}
+                        state.browserController.ViewDocked(c,themeID,mygo.Theme.IsDark(),func(){rightPaneTab="files";state.browserController.Hide()})
+                    },
+                    OnHideBrowser: func(){if state.browserController!=nil {state.browserController.Hide()}},
+                    OnOpenBrowserPreview: func() {
+                        rightPaneTab="browser"
+                        filesPaneOpen=true
+                    },
 					OnOpenMarket: func() {
 						state.mu.Lock()
 						state.marketOpen = true

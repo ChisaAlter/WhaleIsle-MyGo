@@ -15,10 +15,11 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
-	Tabs   []*Tab
-	Active int
-	next   int
-	parent *mygo.Window
+	viewport *mygo.Rectangle
+	Tabs     []*Tab
+	Active   int
+	next     int
+	parent   *mygo.Window
 }
 type Tab struct {
 	Document *pdfpreview.Document
@@ -75,7 +76,7 @@ func (b *Controller) Navigate(raw string) {
 		if err := t.Host.Navigate(normalized); err != nil {
 			t.Error = err.Error()
 		}
-		t.Host.SetVisible(true)
+		b.showHost(t.Host)
 		return
 	}
 	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
@@ -85,7 +86,7 @@ func (b *Controller) Navigate(raw string) {
 		return
 	}
 	t.Host = h
-	h.SetVisible(true)
+	b.showHost(h)
 	b.update()
 }
 func (b *Controller) Hide() {
@@ -102,7 +103,7 @@ func (b *Controller) Select(index int) {
 	b.Hide()
 	b.Active = index
 	if t := b.current(); t.Host != nil {
-		t.Host.SetVisible(true)
+		b.showHost(t.Host)
 		if t.Document == nil {
 			t.Draft = t.Host.State().URL
 		}
@@ -146,6 +147,10 @@ func (b *Controller) Close() {
 	b.Active = 0
 }
 func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func()) {
+	b.viewport = nil
+	b.view(c, themeID, dark, onClose)
+}
+func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func()) {
 	if b.current() == nil {
 		b.NewTab("")
 	}
@@ -159,7 +164,7 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 			t.lastURL = s.URL
 		}
 		t.Host.SyncBounds()
-		t.Host.SetVisible(true)
+		b.showHost(t.Host)
 	}
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
 		ui.Column(c).Height(BrowserChromeHeight).Padding(6, 12, 6, 12).Gap(4).Children(func() {

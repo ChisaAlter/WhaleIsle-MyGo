@@ -40,6 +40,7 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	viewport    *mygo.Rectangle
 	localPDFURL string
 	onClosed    func()
 
@@ -296,17 +297,17 @@ func (h *Host) SyncBounds() {
 	parent := h.parent
 	win := h.win
 	inset := h.topInset
+	var seat *mygo.Rectangle
+	if h.viewport != nil {
+		r := *h.viewport
+		seat = &r
+	}
 	h.mu.Unlock()
 	if parent == nil || parent.IsDestroyed() || win == nil || win.IsDestroyed() {
 		return
 	}
 	cb := parent.ContentBounds()
-	y := cb.Y + inset
-	height := cb.Height - inset
-	if height < 1 {
-		height = 1
-	}
-	win.SetBounds(mygo.Rectangle{X: cb.X, Y: y, Width: cb.Width, Height: height})
+	win.SetBounds(viewportBounds(cb, inset, seat))
 }
 
 // Close destroys the child window and unregisters resize sync.

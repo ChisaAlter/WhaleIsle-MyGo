@@ -128,6 +128,8 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	BrowserContent func(*ui.Context)
+	OnHideBrowser  func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
 	ExternalNavigation bool
 	OnSelectSession    func(string)
@@ -954,7 +956,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "diff", "agents":
+		case "diff", "agents", "browser":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -978,12 +980,17 @@ func rightPane(c *ui.Context, m Model) {
 			})
 			if m.OnOpenBrowserPreview != nil {
 				ui.Box(c).Grow(1)
-				if ui.Button(c, i18n.T(i18n.KeyBrowserPreviewOpen)).Clicked() {
-					m.OnOpenBrowserPreview()
-				}
+				paintRightTab(c, tab == "browser", i18n.T(i18n.KeyBrowserPreviewTitle), fg, muted, accent, m.OnOpenBrowserPreview)
 			}
 		})
 		ui.Box(c).Fill().Height(1).Background(border)
+		if tab == "browser" && m.BrowserContent != nil {
+			m.BrowserContent(c)
+			return
+		}
+		if m.OnHideBrowser != nil {
+			m.OnHideBrowser()
+		}
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			agents.View(c, agents.Model{
