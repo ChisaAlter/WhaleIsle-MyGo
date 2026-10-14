@@ -6050,6 +6050,8 @@ func mainView(c *ui.Context) {
 				state.mu.Lock()
 				filesPaneOpen := state.filesPaneOpen
 				state.mu.Unlock()
+				visualReplyState := sessions.VisualReplySnapshot()
+				if visualReplyState.SessionID != snap.SelectedID { visualReplyState = session.VisualReplyState{} }
 				frame.View(c, frame.Model{
 					Projects:           state.projectModel(win),
 					Store:              sessions,
@@ -6568,8 +6570,8 @@ func mainView(c *ui.Context) {
 					OnOpenCitationURL: func(u string) {
 						state.showBrowserPreview(u)
 					},
-					VisualReply: sessions.VisualReplySnapshot(),
-					VisualReplyBitmap: publishedHTMLBitmap(sessions.VisualReplySnapshot()),
+					VisualReply: visualReplyState,
+					VisualReplyBitmap: publishedHTMLBitmap(visualReplyState),
 					OnPreviewVisualReply: func(id string){previewPublishedHTML(sessions,snap.SelectedID,id)},
 					OnReadVisualReply: func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
 					OnSaveVisualReply: func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
