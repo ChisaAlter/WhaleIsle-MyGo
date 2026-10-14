@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -57,71 +59,71 @@ func RunAction(userData, id, action string) error {
 	}
 }
 
+var bridgeStartMu sync.Mutex
+
 func startWhalebridge(root, dshHome string) error {
+	if !bridgeStartMu.TryLock() {
+		return fmt.Errorf("鲸桥正在启动")
+	}
+	defer bridgeStartMu.Unlock()
 	inst := readInstalled(filepath.Join(root, "installed.json"))
 	ver := inst.Version
 	if ver == "" {
 		return ErrNotInstalled
 	}
-	exe := filepath.Join(root, "versions", ver, "WhaleBridge-win32-x64.exe")
-	if runtime.GOOS != "windows" {
-		// Dev / non-Windows: look for any executable under versions/ver.
-		if _, err := os.Stat(exe); err != nil {
-			alt := filepath.Join(root, "versions", ver)
-			entries, _ := os.ReadDir(alt)
-			for _, e := range entries {
-				if !e.IsDir() {
-					exe = filepath.Join(alt, e.Name())
-					break
-				}
-			}
-		}
+	if !bridgeVersion.MatchString(ver) {
+		return fmt.Errorf("鲸桥安装版本无效")
 	}
-	if _, err := os.Stat(exe); err != nil {
-		return fmt.Errorf("whalebridge binary missing: %w", err)
-	}
-	if readStatePID(filepath.Join(root, "data", "state.json")) {
-		return nil // already running
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client := &http.Client{Timeout: 2 * time.Second}
 	dataDir := filepath.Join(root, "data")
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	statePath := filepath.Join(dataDir, "state.json")
+	if st, err := readBridgeState(statePath); err == nil {
+		// Never kill or replace an instance we did not start. A stale/foreign state
+		// needs explicit lifecycle recovery, not an implicit duplicate launch.
+		return verifyBridgeReady(ctx, st, ver, st.PID, client)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("鲸桥已有状态记录无法验证，请先检查组件日志")
+	}
+	exe := filepath.Join(root, "versions", ver, bridgeAsset)
+	if info, err := os.Stat(exe); err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("鲸桥程序缺失或不是常规文件")
+	}
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return err
 	}
-	_ = os.Remove(filepath.Join(dataDir, "state.json"))
-	logPath := filepath.Join(dataDir, "component.log")
-	logF, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logF, err := os.OpenFile(filepath.Join(dataDir, "component.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	defer logF.Close()
-
 	cmd := exec.Command(exe, "whalebridge")
 	cmd.Dir = filepath.Dir(exe)
-	cmd.Env = append(os.Environ(),
-		"LAUNCHER_COMPONENT_ID=whalebridge",
-		"LAUNCHER_COMPONENT_DATA_DIR="+dataDir,
-		"WHALEBRIDGE_DSH_HOME="+dshHome,
-		"MAGPIE_ADDR=127.0.0.1:3427",
-	)
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		switch strings.ToUpper(name) {
+		case "ELECTRON_RUN_AS_NODE", "MAGPIE_WEB_KEY", "MAGPIE_WEB_RUNKEY", "LAUNCHER_COMPONENT_ID", "LAUNCHER_COMPONENT_DATA_DIR", "WHALEBRIDGE_DSH_HOME", "MAGPIE_ADDR":
+			continue
+		}
+		cmd.Env = append(cmd.Env, entry)
+	}
+	cmd.Env = append(cmd.Env, "LAUNCHER_COMPONENT_ID=whalebridge", "LAUNCHER_COMPONENT_DATA_DIR="+dataDir, "WHALEBRIDGE_DSH_HOME="+dshHome, "MAGPIE_ADDR=127.0.0.1:3427")
 	cmd.Stdout = logF
 	cmd.Stderr = logF
 	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("鲸桥进程无法启动，请查看组件日志")
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait(); close(exited) }()
+	if err := waitBridgeReady(ctx, statePath, ver, cmd.Process.Pid, exited, client); err != nil {
+		// Only the process handle owned by this launch is eligible for cleanup.
+		_ = cmd.Process.Kill()
+		if st, e := readBridgeState(statePath); e == nil && st.PID == cmd.Process.Pid && st.Version == ver {
+			_ = os.Remove(statePath)
+		}
 		return err
 	}
-	// Wait briefly for ready state.json (Electron polls up to 30s).
-	deadline := time.Now().Add(8 * time.Second)
-	for time.Now().Before(deadline) {
-		if readStatePID(filepath.Join(dataDir, "state.json")) {
-			_ = cmd.Process.Release()
-			return nil
-		}
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			return fmt.Errorf("whalebridge exited early; see %s", logPath)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	// Leave process running; UI will pick up state when ready.
-	_ = cmd.Process.Release()
 	return nil
 }
 
