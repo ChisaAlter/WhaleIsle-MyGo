@@ -202,5 +202,38 @@ The existing care status reflects the saved mood/affection immediately.
 
 This deliberately does not restore the removed play/tease menu entries or
 invent a persistent rest reward. Original sleep is a renderer-only temporary
-state; explicit waking has a separate -7 mood action. Sleep/wake animation and
-its temporary state are not part of this small persistent-pat increment.
+state; explicit waking has a separate -7 mood action. Sleep/wake animation was not part of that persistent-pat increment; the
+temporary native rest operation is described below.
+
+
+## Temporary sleep / wake
+
+The actual original nap menu (`pet-live2d.js:1782–1783`) toggles a renderer-local
+`sleeping` flag. Sleep itself gives no saved stat reward. Explicit waking calls
+`care('wake')`, which costs seven mood, clamped at zero; no food, growth or bond
+is granted or consumed. **睡觉 / Sleep** and **叫醒 / Wake** now expose this
+operation in the native companion. Sleep does not write config. A real explicit
+wake atomically saves only the existing stats and `care.wake`; failure retains
+sleep and grants no partial stat change. Sleep/wake URLs are distinct and
+idempotent, so repeating a stale action cannot repeatedly charge mood.
+
+The current window reports its transient rest state through the fixed status
+endpoint. Close, hide/recreate, page reload or application restart starts awake,
+as the original renderer does; sleep is never a preference. Saved care values
+remain saved and existing elapsed decay still applies. A successful pat, file
+meal or nonzero token meal wakes without an additional wake penalty. Character
+pointer contact likewise wakes without a care charge, matching the original
+contact path; moving over the controls does not cancel sleep. Cancelled/failed
+meals and ordinary usage refresh/status updates do not wake the pet.
+
+Sleeping cancels the existing sprite interval and THA4 rAF loop, retaining the
+last image and renderer instance. A frame already running may finish, but its
+pixels are not painted while sleeping and no further frame is submitted. Wake
+resumes the existing instance with the existing timing policy. Page close still
+owns final disposal; no new pose/model/sprite resources or alternate renderer
+were added. Failed renderers use the existing fallback; no auto-idle sleep,
+extra sleep animation or performance-tuning project is implied by this control.
+
+The single temporary synthetic fixture covers config/state and mock sprite/THA4
+pause/resume/in-flight-frame/close lifecycle. It does not run a model or validate
+native Windows appearance, hover delivery or real GPU behavior.

@@ -60,6 +60,11 @@ func taskAction(raw string, task TaskStatus) string {
 	if raw == "whale-pet://localhost/feed-tokens" {
 		return "feed-tokens"
 	}
+	for _, action := range []string{"sleep-pet", "wake-pet", "wake-contact"} {
+		if raw == "whale-pet://localhost/"+action {
+			return action
+		}
+	}
 	if raw == "whale-pet://localhost/pat-pet" {
 		return "pat-pet"
 	}

@@ -5,8 +5,24 @@
   const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
   const notice = document.getElementById('render-notice');
   let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
+  let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null;
+  function setSleeping(next) {
+    if (stopped || sleeping === next) return;
+    sleeping = next;
+    if (sleeping) {
+      cancelAnimationFrame(raf); raf = 0;
+      clearInterval(spriteTimer); spriteTimer = 0;
+    } else if (resumeRenderer) resumeRenderer();
+  }
+  // Only contact with the character wakes without a care charge, as upstream.
+  // Moving over buttons/card text must not immediately undo explicit sleep.
+  function contactWake() {
+    if (sleeping && !stopped) location.href = 'whale-pet://localhost/wake-contact';
+  }
+  canvas.addEventListener('pointerenter', contactWake);
+  fallback.addEventListener('pointerenter', contactWake);
   const stop = () => {
-    stopped = true;
+    stopped = true; resumeRenderer = null;
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer);
     if (engine) void engine.close().catch(() => {});
   };
@@ -40,6 +56,13 @@
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
       if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
       document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
+      setSleeping(task.Rest?.Sleeping === true);
+      const rest = document.getElementById('rest-pet');
+      rest.textContent = task.Rest?.Label || '睡觉 / Sleep';
+      rest.setAttribute('aria-disabled', String(!!task.Care?.Busy));
+      if (task.Care?.Busy) rest.removeAttribute('href');
+      else rest.setAttribute('href', sleeping ? 'wake-pet' : 'sleep-pet');
+      document.getElementById('rest-message').textContent = task.Rest?.Message || '';
       const open = document.getElementById('task-open'); open.replaceChildren();
       if (task.SessionID) {
         const link = document.createElement('a'); link.textContent = '回到会话 / Open chat';
@@ -54,9 +77,9 @@
     const sheet = new Image(); let frame = 0, lastInteraction=performance.now();
     const paint = () => { ctx.clearRect(0,0,192,208); ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208); };
     function start() {
-      if (stopped || spriteTimer || !sheet.naturalWidth) return;
+      if (stopped || sleeping || document.hidden || spriteTimer || !sheet.naturalWidth) return;
       spriteTimer=setInterval(() => {
-        if (document.hidden || performance.now()-lastInteraction>90000) {clearInterval(spriteTimer);spriteTimer=0;return;}
+        if (sleeping || document.hidden || performance.now()-lastInteraction>90000) {clearInterval(spriteTimer);spriteTimer=0;return;}
         frame=(frame+1)%8;paint();
       },120);
     }
@@ -67,6 +90,7 @@
     };
     document.addEventListener('pointermove',()=>{lastInteraction=performance.now();start();});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastInteraction=performance.now();start();}});
+    resumeRenderer = () => {lastInteraction=performance.now();start();};
     sheet.src='sprite.webp';
   }
   if (document.body.dataset.neural !== 'true') { spriteFallback(); return; }
@@ -100,7 +124,8 @@
     // Upstream's 20fps inference budget; no backlog when a frame is slower.
     // WASM remains adaptive rather than silently capped to an unusable 4fps.
     async function tick(now) {
-      if (stopped) return;
+      raf=0;
+      if (stopped || sleeping) return;
       raf=requestAnimationFrame(tick);
       if (document.hidden || busy || now-last < (now-lastInteraction>300000?110:50)) return;
       last=now; busy=true;
@@ -110,7 +135,7 @@
         pose[39]=0.18*Math.sin(t*1.1);pose[40]=0.14*Math.sin(t*1.3);pose[41]=0.08*Math.sin(t*0.55);
         const blink=t%4;pose[12]=pose[13]=blink<0.24?Math.sin(blink/0.24*Math.PI):0;
         const pixels=await engine.frame(pose);
-        if (!pixels || stopped || document.hidden) return;
+        if (!pixels || stopped || sleeping || document.hidden) return;
         let alphaMax=0;for(let i=3;i<pixels.length;i+=4)alphaMax=Math.max(alphaMax,pixels[i]);
         if(alphaMax<4){if(first)throw new Error('transparent first frame');return;}
         output.data.set(pixels);sourceCtx.putImageData(output,0,0);
@@ -118,12 +143,17 @@
         fallback.hidden=true;canvas.hidden=false;first=false;
         notice.textContent='THA4 · '+provider;
       } catch {
-        cancelAnimationFrame(raf);try {await engine.close();} catch {} engine=null;
+        resumeRenderer=null;cancelAnimationFrame(raf);raf=0;try {await engine.close();} catch {} engine=null;
         if (!stopped) {canvas.hidden=true;fallback.hidden=false;notice.textContent='THA4 运行失败，已回退 / Renderer failed; fallback';spriteFallback();}
       } finally { busy=false; }
     }
     // No concurrent session.run; rAF callbacks already queued are canceled on failure.
-    raf=requestAnimationFrame(tick);
+    resumeRenderer = () => {
+      if (!stopped && !sleeping && !raf) {
+        lastInteraction=performance.now(); last=0; raf=requestAnimationFrame(tick);
+      }
+    };
+    resumeRenderer();
   } catch {
     if (session) {try {await session.release();}catch{}}
     if (engine) {try {await engine.close();}catch{} engine=null;}

@@ -62,17 +62,22 @@ func (p *Companion) feedFile() {
 		return
 	}
 	message := ""
+	fed := false
 	if err != nil {
 		message = "文件选择失败 / File selection failed"
 	} else if len(paths) > 0 {
 		if err = p.Store.FeedPetFile(time.Now()); err != nil {
 			message = "保存失败，未计入状态 / Save failed; not applied"
 		} else {
+			fed = true
 			message = "已投喂：饱食 +2，心情 +1（上限 100） / Fed"
 		}
 	}
 	p.assetMu.Lock()
 	p.feeding = false
+	if fed {
+		_ = p.rest.wake(nil)
+	}
 	p.feedMessage = message
 	p.assetMu.Unlock()
 }

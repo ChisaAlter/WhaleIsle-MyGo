@@ -35,6 +35,7 @@ type Companion struct {
 	task            TaskStatus
 	chat            chatEntry
 	growth          chatEntry
+	rest            restState
 	OnRefreshGrowth func()
 	feeding         bool
 	feedMessage     string
@@ -87,6 +88,7 @@ func (p *Companion) close() {
 	p.assetMu.Lock()
 	p.chat.close()
 	p.growth.close()
+	p.rest = restState{}
 	p.feeding = false
 	p.feedMessage = ""
 	p.renderAssets = nil
@@ -161,6 +163,8 @@ func (p *Companion) sync() {
 			}
 		case "feed-tokens":
 			p.feedTokens()
+		case "sleep-pet", "wake-pet", "wake-contact":
+			p.restPet(taskAction(e.URL, task))
 		case "pat-pet":
 			p.patPet()
 		case "feed-file":
@@ -176,6 +180,14 @@ func (p *Companion) sync() {
 		}
 	})
 	w.Page().SetWindowOpenHandler(func(mygo.WindowOpenRequest) *mygo.WindowOptions { return nil })
+	// Original sleep lives in the page: a reload/recreation starts awake too.
+	w.Page().OnDidFinishLoad(func() {
+		if p.win == w {
+			p.assetMu.Lock()
+			p.rest = restState{}
+			p.assetMu.Unlock()
+		}
+	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) { p.Error = err.Error(); p.close() })
 	w.OnReadyToShow(func() {
 		if p.win == w && p.ready {
@@ -190,6 +202,7 @@ func (p *Companion) sync() {
 			p.assetMu.Lock()
 			p.chat.close()
 			p.growth.close()
+			p.rest = restState{}
 			p.feeding = false
 			p.feedMessage = ""
 			p.renderAssets = nil
@@ -216,17 +229,20 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.assetMu.RUnlock()
 		body = renderCarePage(body, p.careStatus())
 		body = renderGrowthPage(body, p.growthStatus())
+		body = renderRestPage(body, p.restStatus())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	case "/task.json":
 		care := p.careStatus()
 		growth := p.growthStatus()
+		rest := p.restStatus()
 		p.assetMu.RLock()
 		body, _ = json.Marshal(struct {
 			TaskStatus
 			Chat   ChatStatus
 			Care   CareStatus
 			Growth GrowthStatus
-		}{p.task, p.chat.status, care, growth})
+			Rest   RestStatus
+		}{p.task, p.chat.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/tha4.js", "/pet-runtime.js":

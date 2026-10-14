@@ -41,6 +41,11 @@ func (s *Store) PatPet(now time.Time) error {
 	return s.applyPetCare("pat", petcare.Pat, now)
 }
 
+// WakePet persists the original explicit wake mood cost, never a sleep reward.
+func (s *Store) WakePet(now time.Time) error {
+	return s.applyPetCare("wake", petcare.Wake, now)
+}
+
 func (s *Store) applyPetCare(kind string, effect func([]byte, time.Time) petcare.Stats, now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

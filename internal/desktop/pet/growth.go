@@ -91,5 +91,6 @@ func (p *Companion) feedTokens() {
 		p.growth.status.Message = "粮碗空了，先刷新实际用量 / No local food"
 		return
 	}
+	_ = p.rest.wake(nil)
 	p.growth.status.Message = fmt.Sprintf("已喂 %d 本地粮，成长 +%d / Fed", fed, fed)
 }

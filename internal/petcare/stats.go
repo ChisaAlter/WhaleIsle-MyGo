@@ -95,3 +95,12 @@ func careAffection(raw []byte, kind string, amount float64, now time.Time) float
 	}
 	return amount
 }
+
+// Wake is the original explicit nap-menu wake action. Sleeping itself has no
+// saved reward; cursor/feeding/patting wake paths do not apply this penalty.
+func Wake(raw []byte, now time.Time) Stats {
+	s := Snapshot(raw, now)
+	s.Satiety = math.Round(s.Satiety)
+	s.Mood = clamp(math.Round(s.Mood) - 7)
+	return s
+}
