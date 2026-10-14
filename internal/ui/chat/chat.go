@@ -53,6 +53,10 @@ type Model struct {
 	OnOpenCitationURL    func(url string)
 	// OnOpenDeliverable opens a presented file path in the files dock.
 	OnOpenDeliverable func(path string)
+	VisualReply session.VisualReplyState
+	OnReadVisualReply func(attachmentID string)
+	OnSaveVisualReply func(attachmentID string)
+	OnCloseVisualReply func()
 }
 
 // View paints the message list with FollowEnd for future streaming.
@@ -151,6 +155,9 @@ func View(c *ui.Context, m Model) {
 						}
 						ui.Text(row.Context, role).FontSize(11).Bold().TextColor(muted)
 					}
+				}
+				if publication, ok := session.PublishedVisualReply(msg.Raw); ok {
+					VisualReplyView(row.Context, publication, m, fg, muted, border, chrome.Color(colors.Field))
 				}
 				switch msg.Kind {
 				case session.MessageKindTool:

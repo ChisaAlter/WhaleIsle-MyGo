@@ -60,6 +60,7 @@
 - 最新 Host 可选组合：默认保留旧定制，显式选择固定官方 commit 的独立构建目录；平台/架构、产物 SHA 和真实桌面桥能力门禁，缺产物或桥接能力保持关闭。当前仅源码装配/配置 fixture，依赖安装成功，官方 build-only 受 tsx IPC EPERM 及升级环境 bwrap 准备失败阻断，未产生构建清单，最新 Host 仍不可用。
 - HTML 预览桥边界：独立有界请求解析和 HTML/尺寸/主题校验，当前合法请求明确返回 503 unavailable，能力为 false；尚未具备严格隔离截图实现，不宣称截图或 HTML 生成可用。
 - Project 桌面桥：固定官方原样 helper，经现有 install-control 认证和受限固定操作分发；只接受桌面已选/注册根，路径授权及原版 overlay 成功后挂载。启动依赖匹配新 Host 产物和真实 Node/overlay Ready，当前构建阻断下保持未启用；未运行 Git/PR/真实 Host。
+- 已发布 visual reply 阅读：识别真实原生/PTC 发布引用，匹配新 Host 能力后调用授权 readVisualReply，完整只读源码与明确另存；会话/世代/token 隔离晚到结果，25MiB 解码上限和身份/字节数校验，旧 Host 失败不回退普通附件或网页。未执行 HTML、未开启生成/截图，当前缺匹配 Host 构建仍受门禁。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

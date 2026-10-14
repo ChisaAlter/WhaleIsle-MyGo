@@ -246,6 +246,10 @@ type Model struct {
 	OnCloseImageLightbox func()
 	OnOpenCitationURL    func(url string)
 	OnOpenDeliverable    func(path string)
+	VisualReply session.VisualReplyState
+	OnReadVisualReply func(attachmentID string)
+	OnSaveVisualReply func(attachmentID string)
+	OnCloseVisualReply func()
 	// ChatPaneTab is ConversationRoot in-column tab: "chat" (default) or "trajectory".
 	ChatPaneTab *string
 	// HideChatViewTabs mirrors Electron submissionPolicy.viewTabs=false.
@@ -770,6 +774,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnCloseImageLightbox: m.OnCloseImageLightbox,
 										OnOpenCitationURL:    m.OnOpenCitationURL,
 										OnOpenDeliverable:    m.OnOpenDeliverable,
+										VisualReply: m.VisualReply,
+										OnReadVisualReply: m.OnReadVisualReply,
+										OnSaveVisualReply: m.OnSaveVisualReply,
+										OnCloseVisualReply: m.OnCloseVisualReply,
 									})
 								}
 							})

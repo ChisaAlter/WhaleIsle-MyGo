@@ -86,7 +86,16 @@ func (c *Client) Call(ctx context.Context, method string, args any, out any) err
 		return err
 	}
 	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
+	// A 25 MiB UTF-8 HTML page can expand six-fold in JSON escaping.
+	// Only the authenticated published-page method gets the larger wire cap.
+	limit := int64(8 << 20)
+	if method == "session/readVisualReply" {
+		limit = 160 << 20
+	}
+	raw, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err == nil && int64(len(raw)) > limit {
+		return fmt.Errorf("dsh %s: response exceeds bounded wire limit", method)
+	}
 	if err != nil {
 		return err
 	}

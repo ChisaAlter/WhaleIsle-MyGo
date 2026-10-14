@@ -6564,6 +6564,10 @@ func mainView(c *ui.Context) {
 					OnOpenCitationURL: func(u string) {
 						state.showBrowserPreview(u)
 					},
+					VisualReply: sessions.VisualReplySnapshot(),
+					OnReadVisualReply: func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
+					OnSaveVisualReply: func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
+					OnCloseVisualReply: sessions.CloseVisualReply,
 					OnOpenDeliverable: func(path string) {
 						if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
 							return
