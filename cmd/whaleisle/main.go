@@ -49,6 +49,7 @@ import (
 	imstore "whaleisle/internal/store/im"
 	"whaleisle/internal/store/interaction"
 	marketstore "whaleisle/internal/store/market"
+	remotestore "whaleisle/internal/store/remote"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	settingsstore "whaleisle/internal/store/settings"
@@ -130,6 +131,8 @@ type mainState struct {
 	settingsMCPErr             string
 	settingsMCPLastAction      string
 	settingsMCPDraftSpec       string
+	remoteMachines             *remotestore.Store
+	remoteMachineEditor        remoteui.MachineEditor
 	sshTunnel                  *sshremote.TunnelSession
 	sshHost                    string
 	sshUser                    string
@@ -1884,6 +1887,9 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	if s.usage == nil {
 		s.usage = usagestore.New()
 	}
+	if s.remoteMachines == nil {
+		s.remoteMachines = remotestore.New()
+	}
 	if s.im == nil {
 		s.im = imstore.New()
 	}
@@ -1897,6 +1903,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	inter := s.interactions
 	setStore := s.settings
 	usageStore := s.usage
+	remoteMachines := s.remoteMachines
 	imStore := s.im
 	marketStore := s.market
 	schedStore := s.schedule
@@ -1915,6 +1922,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	})
 	setStore.Attach(client, refresh)
 	usageStore.Attach(client, refresh)
+	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
 	marketStore.Attach(client, refresh)
 	schedStore.Attach(client, refresh)
@@ -1965,6 +1973,9 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
+	if s.remoteMachines != nil {
+		s.remoteMachines.Attach(nil, nil)
+	}
 	s.invalidateMarketLocked()
 	if s.dshCancel != nil {
 		s.dshCancel()
@@ -3864,6 +3875,7 @@ func mainView(c *ui.Context) {
 		if acceptPanelOK && remoteOpen {
 			state.mu.Lock()
 			muxReady := state.dshMuxReady
+			remoteMachines := state.remoteMachines
 			sshProbeLine := state.sshProbeLine
 			sshHost := state.sshHost
 			sshUser := state.sshUser
@@ -3881,6 +3893,8 @@ func mainView(c *ui.Context) {
 			}
 			state.mu.Unlock()
 			remoteui.View(c, remoteui.Model{
+				Machines:               remoteMachines,
+				MachineEditor:          &state.remoteMachineEditor,
 				ThemeID:                themeID,
 				SystemDark:             mygo.Theme.IsDark(),
 				RemoteWorkspaceEnabled: cfgRemoteWorkspace,

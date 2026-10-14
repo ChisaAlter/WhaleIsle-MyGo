@@ -1,4 +1,4 @@
-// Package remote is the M9 remote workspace status stub panel.
+// Package remote provides native remote workspace and SSH controls.
 package remote
 
 import (
@@ -10,15 +10,18 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/sshremote"
+	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-// Model carries config-derived remote workspace status (no dsh-remote RPC yet).
+// Model carries remote plugin and desktop connection state.
 type Model struct {
-	ThemeID    string
-	SystemDark bool
+	Machines      *remotestore.Store
+	MachineEditor *MachineEditor
+	ThemeID       string
+	SystemDark    bool
 
 	RemoteWorkspaceEnabled bool
 	RemoteEnabled          bool
@@ -62,7 +65,7 @@ type Model struct {
 	OnTogglePairing   func(enabled bool)
 }
 
-// View paints the remote workspace stub panel.
+// View paints the remote workspace panel.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -82,165 +85,167 @@ func View(c *ui.Context, m Model) {
 		})
 		ui.Box(c).Fill().Height(1).Background(border)
 
-		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyRemoteStubNote)).FontSize(12).TextColor(muted)
+		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
+			ui.Column(c).Gap(10).Children(func() {
+				viewMachines(c, m)
 
-			ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceToggle)).FontSize(12).TextColor(muted).Width(160)
-					ui.Text(c, onOff(m.RemoteWorkspaceEnabled)).FontSize(12).TextColor(fg).Grow(1)
-					if m.OnToggleWorkspace != nil {
-						label := i18n.T(i18n.KeyRemoteToggleOn)
-						if m.RemoteWorkspaceEnabled {
-							label = i18n.T(i18n.KeyRemoteToggleOff)
-						}
-						if ui.Button(c, label).FontSize(11).Clicked() {
-							m.OnToggleWorkspace(!m.RemoteWorkspaceEnabled)
-						}
-					}
-				})
-				ui.Row(c).Gap(12).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyRemoteHarnessOverlay)).FontSize(12).TextColor(muted).Width(160)
-					ui.Text(c, onOff(m.HarnessRemoteOverlay)).FontSize(12).TextColor(fg).Grow(1)
-				})
-				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyRemotePairingEnabled)).FontSize(12).TextColor(muted).Width(160)
-					ui.Text(c, onOff(m.RemoteEnabled)).FontSize(12).TextColor(fg).Grow(1)
-					if m.OnTogglePairing != nil {
-						label := i18n.T(i18n.KeyRemoteToggleOn)
-						if m.RemoteEnabled {
-							label = i18n.T(i18n.KeyRemoteToggleOff)
-						}
-						if ui.Button(c, label).FontSize(11).Clicked() {
-							m.OnTogglePairing(!m.RemoteEnabled)
-						}
-					}
-				})
-				for _, row := range []struct{ label, value string }{
-					{i18n.T(i18n.KeyRemoteMode), emptyDash(m.RemoteMode)},
-					{i18n.T(i18n.KeyRemotePort), strconv.Itoa(m.RemotePort)},
-					{i18n.T(i18n.KeyRemoteMux), muxLabel(m.HarnessReady, m.MuxConnected)},
-					{i18n.T(i18n.KeyRemoteCredentials), credLabel(m.HasRemoteToken)},
-				} {
-					ui.Row(c).Gap(12).Children(func() {
-						ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(160)
-						ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
-					})
-				}
-			})
-
-			if !m.RemoteWorkspaceEnabled {
-				ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceOff)).FontSize(12).TextColor(accent)
-			}
-
-			viewPhoneSection(c, m, fg, muted, field, border, accent)
-
-			sshSnap := sshremote.Snapshot{
-				Active:                 sshremote.ModeUsesSSH(m.RemoteMode),
-				RemoteWorkspaceEnabled: m.RemoteWorkspaceEnabled,
-				RemoteEnabled:          m.RemoteEnabled,
-				RemotePort:             m.RemotePort,
-				RemoteBindAddress:      m.RemoteBindAddress,
-				RemoteLanTLS:           m.RemoteLanTls,
-				HasRemoteToken:         m.HasRemoteToken,
-				HasRemoteRelayToken:    m.HasRemoteRelayToken,
-			}
-			sshSnap.Readiness, sshSnap.Missing = sshremote.Assess(sshSnap)
-			if sshSnap.Active {
-				ui.Text(c, i18n.T(i18n.KeyRemoteSSHStubNote)).FontSize(12).Bold().TextColor(fg)
-				sshRows := []struct{ label, value string }{
-					{i18n.T(i18n.KeyRemoteSSHStatus), sshReadinessLabel(sshSnap.Readiness)},
-					{i18n.T(i18n.KeyRemoteSSHBind), emptyDash(sshSnap.RemoteBindAddress)},
-					{i18n.T(i18n.KeyRemoteSSHLanTLS), onOff(sshSnap.RemoteLanTLS)},
-					{i18n.T(i18n.KeyRemoteSSHRelayToken), credLabel(sshSnap.HasRemoteRelayToken)},
-					{i18n.T(i18n.KeyRemoteSSHProbe), emptyDash(m.SSHProbeLine)},
-				}
 				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-					for _, row := range sshRows {
+					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceToggle)).FontSize(12).TextColor(muted).Width(160)
+						ui.Text(c, onOff(m.RemoteWorkspaceEnabled)).FontSize(12).TextColor(fg).Grow(1)
+						if m.OnToggleWorkspace != nil {
+							label := i18n.T(i18n.KeyRemoteToggleOn)
+							if m.RemoteWorkspaceEnabled {
+								label = i18n.T(i18n.KeyRemoteToggleOff)
+							}
+							if ui.Button(c, label).FontSize(11).Clicked() {
+								m.OnToggleWorkspace(!m.RemoteWorkspaceEnabled)
+							}
+						}
+					})
+					ui.Row(c).Gap(12).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyRemoteHarnessOverlay)).FontSize(12).TextColor(muted).Width(160)
+						ui.Text(c, onOff(m.HarnessRemoteOverlay)).FontSize(12).TextColor(fg).Grow(1)
+					})
+					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyRemotePairingEnabled)).FontSize(12).TextColor(muted).Width(160)
+						ui.Text(c, onOff(m.RemoteEnabled)).FontSize(12).TextColor(fg).Grow(1)
+						if m.OnTogglePairing != nil {
+							label := i18n.T(i18n.KeyRemoteToggleOn)
+							if m.RemoteEnabled {
+								label = i18n.T(i18n.KeyRemoteToggleOff)
+							}
+							if ui.Button(c, label).FontSize(11).Clicked() {
+								m.OnTogglePairing(!m.RemoteEnabled)
+							}
+						}
+					})
+					for _, row := range []struct{ label, value string }{
+						{i18n.T(i18n.KeyRemoteMode), emptyDash(m.RemoteMode)},
+						{i18n.T(i18n.KeyRemotePort), strconv.Itoa(m.RemotePort)},
+						{i18n.T(i18n.KeyRemoteMux), muxLabel(m.HarnessReady, m.MuxConnected)},
+						{i18n.T(i18n.KeyRemoteCredentials), credLabel(m.HasRemoteToken)},
+					} {
 						ui.Row(c).Gap(12).Children(func() {
 							ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(160)
 							ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
 						})
 					}
 				})
-				if m.OnProbeSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHProbeBtn)).Clicked() {
-					m.OnProbeSSH()
-				}
-				if len(sshSnap.Missing) > 0 {
-					ui.Text(c, i18n.T(i18n.KeyRemoteSSHMissing)+": "+strings.Join(sshSnap.Missing, ", ")).FontSize(12).TextColor(accent)
-				}
-				if !sshSnap.RemoteEnabled {
-					ui.Text(c, i18n.T(i18n.KeyRemoteSSHPairingOff)).FontSize(12).TextColor(accent)
+
+				if !m.RemoteWorkspaceEnabled {
+					ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceOff)).FontSize(12).TextColor(accent)
 				}
 
-				ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelTitle)).FontSize(12).Bold().TextColor(fg)
-				ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelNote)).FontSize(11).TextColor(muted)
-				ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelState)+": "+emptyDash(m.SSHTunnelState)).FontSize(12).TextColor(fg)
-				if m.SSHTunnelMsg != "" {
-					ui.Text(c, m.SSHTunnelMsg).FontSize(11).TextColor(accent)
+				viewPhoneSection(c, m, fg, muted, field, border, accent)
+
+				sshSnap := sshremote.Snapshot{
+					Active:                 sshremote.ModeUsesSSH(m.RemoteMode),
+					RemoteWorkspaceEnabled: m.RemoteWorkspaceEnabled,
+					RemoteEnabled:          m.RemoteEnabled,
+					RemotePort:             m.RemotePort,
+					RemoteBindAddress:      m.RemoteBindAddress,
+					RemoteLanTLS:           m.RemoteLanTls,
+					HasRemoteToken:         m.HasRemoteToken,
+					HasRemoteRelayToken:    m.HasRemoteRelayToken,
 				}
-				if m.SSHHost != nil {
-					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldHost)).FontSize(11).TextColor(muted).Width(80)
-						ui.TextInput(c, m.SSHHost).FillWidth()
-					})
-				}
-				if m.SSHUser != nil {
-					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldUser)).FontSize(11).TextColor(muted).Width(80)
-						ui.TextInput(c, m.SSHUser).FillWidth()
-					})
-				}
-				if m.SSHPort != nil {
-					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldPort)).FontSize(11).TextColor(muted).Width(80)
-						ui.TextInput(c, m.SSHPort).FillWidth()
-					})
-				}
-				if m.SSHIdentity != nil {
-					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldIdentity)).FontSize(11).TextColor(muted).Width(80)
-						ui.TextInput(c, m.SSHIdentity).FillWidth()
-					})
-				}
-				if m.SSHForward != nil {
-					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldForward)).FontSize(11).TextColor(muted).Width(80)
-						ui.TextInput(c, m.SSHForward).FillWidth()
-					})
-				}
-				ui.Row(c).Gap(8).Children(func() {
-					if m.OnCopySSHTarget != nil && m.SSHHost != nil && strings.TrimSpace(*m.SSHHost) != "" {
-						if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
-							user := ""
-							if m.SSHUser != nil {
-								user = strings.TrimSpace(*m.SSHUser)
-							}
-							port := ""
-							if m.SSHPort != nil {
-								port = strings.TrimSpace(*m.SSHPort)
-							}
-							target := strings.TrimSpace(*m.SSHHost)
-							if user != "" {
-								target = user + "@" + target
-							}
-							if port != "" && port != "22" {
-								target = target + ":" + port
-							}
-							m.OnCopySSHTarget(target)
+				sshSnap.Readiness, sshSnap.Missing = sshremote.Assess(sshSnap)
+				if sshSnap.Active {
+					ui.Text(c, i18n.T(i18n.KeyRemoteSSHStubNote)).FontSize(12).Bold().TextColor(fg)
+					sshRows := []struct{ label, value string }{
+						{i18n.T(i18n.KeyRemoteSSHStatus), sshReadinessLabel(sshSnap.Readiness)},
+						{i18n.T(i18n.KeyRemoteSSHBind), emptyDash(sshSnap.RemoteBindAddress)},
+						{i18n.T(i18n.KeyRemoteSSHLanTLS), onOff(sshSnap.RemoteLanTLS)},
+						{i18n.T(i18n.KeyRemoteSSHRelayToken), credLabel(sshSnap.HasRemoteRelayToken)},
+						{i18n.T(i18n.KeyRemoteSSHProbe), emptyDash(m.SSHProbeLine)},
+					}
+					ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+						for _, row := range sshRows {
+							ui.Row(c).Gap(12).Children(func() {
+								ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(160)
+								ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
+							})
 						}
+					})
+					if m.OnProbeSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHProbeBtn)).Clicked() {
+						m.OnProbeSSH()
 					}
-					if m.OnSaveTunnel != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelSave)).Clicked() {
-						m.OnSaveTunnel()
+					if len(sshSnap.Missing) > 0 {
+						ui.Text(c, i18n.T(i18n.KeyRemoteSSHMissing)+": "+strings.Join(sshSnap.Missing, ", ")).FontSize(12).TextColor(accent)
 					}
-					if m.OnConnectSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelConnect)).Clicked() {
-						m.OnConnectSSH()
+					if !sshSnap.RemoteEnabled {
+						ui.Text(c, i18n.T(i18n.KeyRemoteSSHPairingOff)).FontSize(12).TextColor(accent)
 					}
-					if m.OnDisconnectSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelDisconnect)).Clicked() {
-						m.OnDisconnectSSH()
+
+					ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelTitle)).FontSize(12).Bold().TextColor(fg)
+					ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelNote)).FontSize(11).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyRemoteSSHTunnelState)+": "+emptyDash(m.SSHTunnelState)).FontSize(12).TextColor(fg)
+					if m.SSHTunnelMsg != "" {
+						ui.Text(c, m.SSHTunnelMsg).FontSize(11).TextColor(accent)
 					}
-				})
-			}
+					if m.SSHHost != nil {
+						ui.Row(c).Gap(8).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldHost)).FontSize(11).TextColor(muted).Width(80)
+							ui.TextInput(c, m.SSHHost).FillWidth()
+						})
+					}
+					if m.SSHUser != nil {
+						ui.Row(c).Gap(8).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldUser)).FontSize(11).TextColor(muted).Width(80)
+							ui.TextInput(c, m.SSHUser).FillWidth()
+						})
+					}
+					if m.SSHPort != nil {
+						ui.Row(c).Gap(8).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldPort)).FontSize(11).TextColor(muted).Width(80)
+							ui.TextInput(c, m.SSHPort).FillWidth()
+						})
+					}
+					if m.SSHIdentity != nil {
+						ui.Row(c).Gap(8).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldIdentity)).FontSize(11).TextColor(muted).Width(80)
+							ui.TextInput(c, m.SSHIdentity).FillWidth()
+						})
+					}
+					if m.SSHForward != nil {
+						ui.Row(c).Gap(8).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyRemoteSSHFieldForward)).FontSize(11).TextColor(muted).Width(80)
+							ui.TextInput(c, m.SSHForward).FillWidth()
+						})
+					}
+					ui.Row(c).Gap(8).Children(func() {
+						if m.OnCopySSHTarget != nil && m.SSHHost != nil && strings.TrimSpace(*m.SSHHost) != "" {
+							if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+								user := ""
+								if m.SSHUser != nil {
+									user = strings.TrimSpace(*m.SSHUser)
+								}
+								port := ""
+								if m.SSHPort != nil {
+									port = strings.TrimSpace(*m.SSHPort)
+								}
+								target := strings.TrimSpace(*m.SSHHost)
+								if user != "" {
+									target = user + "@" + target
+								}
+								if port != "" && port != "22" {
+									target = target + ":" + port
+								}
+								m.OnCopySSHTarget(target)
+							}
+						}
+						if m.OnSaveTunnel != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelSave)).Clicked() {
+							m.OnSaveTunnel()
+						}
+						if m.OnConnectSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelConnect)).Clicked() {
+							m.OnConnectSSH()
+						}
+						if m.OnDisconnectSSH != nil && ui.Button(c, i18n.T(i18n.KeyRemoteSSHTunnelDisconnect)).Clicked() {
+							m.OnDisconnectSSH()
+						}
+					})
+				}
+			})
 		})
 	})
 }
