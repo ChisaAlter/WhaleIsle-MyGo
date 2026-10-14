@@ -2,10 +2,13 @@ package phoneremote
 
 import (
 	"bufio"
+	"bytes"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/png"
 	"io"
 	"net/url"
 	"os"
@@ -22,6 +25,7 @@ type RuntimeState struct {
 	Status                    string
 	Listening, RelayConnected bool
 	PairingURL                string
+	PairingImage              image.Image
 	ExpiresAt                 time.Time
 	Message                   string
 }
@@ -180,11 +184,14 @@ func (r *Runtime) Snapshot() RuntimeState {
 	s := r.state
 	if !s.ExpiresAt.IsZero() && !time.Now().Before(s.ExpiresAt) {
 		s.PairingURL = ""
+		s.PairingImage = nil
 		s.Status = "expired"
 	}
-	if !s.Listening || !s.RelayConnected {
+	if s.Status != "ready" || !s.Listening || !s.RelayConnected {
 		s.PairingURL = ""
+		s.PairingImage = nil
 	}
+	r.state = s
 	return s
 }
 func (r *Runtime) consume(child Child, b []byte) {
@@ -193,6 +200,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 		Listening      bool   `json:"listening"`
 		RelayConnected bool   `json:"relayConnected"`
 		URL            string `json:"url"`
+		QRPNG          string `json:"qrPNG"`
 		Code           string `json:"code"`
 	}
 	if json.Unmarshal(b, &event) != nil {
@@ -231,6 +239,15 @@ func (r *Runtime) consume(child Child, b []byte) {
 			if time.Now().Before(expires) {
 				s.Status = "ready"
 				s.PairingURL = event.URL
+				if event.URL == r.state.PairingURL && event.QRPNG != "" && r.state.PairingImage != nil {
+					s.PairingImage = r.state.PairingImage
+				} else if len(event.QRPNG) <= 128*1024 {
+					if data, err := base64.StdEncoding.DecodeString(event.QRPNG); err == nil {
+						if size, err := png.DecodeConfig(bytes.NewReader(data)); err == nil && size.Width > 0 && size.Width <= 1024 && size.Height == size.Width {
+							s.PairingImage, _ = png.Decode(bytes.NewReader(data))
+						}
+					}
+				}
 			} else {
 				s.Status = "expired"
 			}

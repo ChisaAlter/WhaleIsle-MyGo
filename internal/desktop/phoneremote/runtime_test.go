@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"sync"
 	"testing"
@@ -34,19 +36,23 @@ func TestRuntimeFixture(t *testing.T) {
 	defer m.Stop()
 	expires := time.Now().Add(time.Minute).UnixMilli()
 	offer := base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"v":2,"serverId":"fixture","daemonPublicKeyB64":"fictional","authBootstrap":{"version":1,"pairingToken":"fictional-only","expiresAtMs":%d},"relay":{"endpoint":"relay.example.test:443"}}`, expires)))
-	go fmt.Fprintf(w, `{"kind":"snapshot","listening":true,"relayConnected":true,"url":"https://app.example.test/#offer=%s"}`+"\n", offer)
+	var qr bytes.Buffer
+	if err := png.Encode(&qr, image.NewRGBA(image.Rect(0, 0, 16, 16))); err != nil {
+		t.Fatal(err)
+	}
+	go fmt.Fprintf(w, `{"kind":"snapshot","listening":true,"relayConnected":true,"url":"https://app.example.test/#offer=%s","qrPNG":"%s"}`+"\n", offer, base64.StdEncoding.EncodeToString(qr.Bytes()))
 	deadline := time.Now().Add(time.Second)
 	for m.Snapshot().Status != "ready" && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
 	s := m.Snapshot()
-	if s.Status != "ready" || s.PairingURL == "" {
+	if s.Status != "ready" || s.PairingURL == "" || s.PairingImage == nil {
 		t.Fatal("valid offer not exposed")
 	}
 	m.mu.Lock()
 	m.state.ExpiresAt = time.Now().Add(-time.Second)
 	m.mu.Unlock()
-	if s = m.Snapshot(); s.Status != "expired" || s.PairingURL != "" {
+	if s = m.Snapshot(); s.Status != "expired" || s.PairingURL != "" || s.PairingImage != nil {
 		t.Fatal("expired offer leaked")
 	}
 	m.mu.Lock()
@@ -60,7 +66,7 @@ func TestRuntimeFixture(t *testing.T) {
 		t.Fatal("raw error leaked")
 	}
 	m.Stop()
-	if s = m.Snapshot(); s.PairingURL != "" || s.Listening {
+	if s = m.Snapshot(); s.PairingURL != "" || s.Listening || s.PairingImage != nil {
 		t.Fatal("stop retained offer")
 	}
 	if !bytes.Contains(child.input.Bytes(), []byte(`"action":"stop"`)) {

@@ -14,7 +14,7 @@ Enabling the setting does not imply online. Enable then Refresh explicitly start
 
 Offers and harness cookies travel only over local stdin/stdout pipes, never launch files/command arguments added by this bridge or logs. Pairing URL is transient UI data, not configuration. The original daemon may write its normal upstream credential storage when explicitly started; no credentials are migrated or changed by this bridge. The external-open action never falls back to the application's persisted webview history.
 
-QR bitmap rendering and the desktop Git RPC tunnel are not implemented. Device list still reflects existing credentials data, not a live bridge store. These are remaining parity limitations.
+QR images use the original server workspace’s declared `qrcode` encoder, resolved with Node `createRequire` from `@chisacode/server/package.json`. PNG bytes pass only over the local pipe and decode to an in-memory image for MyGo. Generation is bound to an offer revision; completion rechecks the live offer and relay. Changing offers, refresh, relay loss, expiry, shutdown and errors discard the QR. Missing encoder or encoding failure leaves private link actions available. PNG byte/dimension limits bound decoding. No QR URL or file is created. The desktop Git RPC tunnel is not implemented. Device list still reflects existing credentials data, not a live bridge store. These are remaining parity limitations.
 
 ## Safe verification
 

@@ -3,6 +3,7 @@ package remote
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -117,17 +118,22 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if runtime.Message != "" {
 		ui.Text(c, runtime.Message).FontSize(11).TextColor(accent)
 	}
-	if runtime.PairingURL != "" && status == "ready" {
+	if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) {
 		ui.Text(c, "配对链接有效 / Pairing link valid · "+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(11).TextColor(fg)
-		ui.Text(c, "配对链接仅临时复制使用，请勿分享或写入日志。二维码图像尚未实现。 / Copy the temporary link privately. QR rendering is not implemented.").FontSize(11).TextColor(muted)
+		if runtime.PairingImage != nil {
+			ui.Image(c, ui.NewBitmap(runtime.PairingImage)).Width(320).Height(320).Fit(ui.Contain)
+			ui.Text(c, "用手机扫码配对，请勿分享二维码。 / Scan privately to pair your phone.").FontSize(11).TextColor(muted)
+		} else {
+			ui.Text(c, "二维码不可用，可复制临时配对链接。 / QR unavailable; copy the temporary link privately.").FontSize(11).TextColor(muted)
+		}
 	} else {
 		ui.Text(c, "没有可用配对链接。启用后刷新以启动已安装的原版运行时。 / No usable offer. Enable and refresh to start the installed runtime.").FontSize(11).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if runtime.PairingURL != "" && status == "ready" && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if runtime.PairingURL != "" && status == "ready" && m.OnOpenConnectURL != nil && ui.Button(c, "打开配对链接 / Open pairing link").Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && ui.Button(c, "打开配对链接 / Open pairing link").Clicked() {
 			m.OnOpenConnectURL()
 		}
 		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Clicked() {
