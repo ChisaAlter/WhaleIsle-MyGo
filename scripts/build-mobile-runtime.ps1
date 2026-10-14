@@ -30,7 +30,7 @@ try {
     & $Npm run build:server
     if ($LASTEXITCODE -ne 0) { throw 'Mobile server build failed' }
 } finally { Pop-Location }
-& $Node (Join-Path $Work 'scripts\bundle-chisacode-mobile-client.mjs')
+& $Node $Helper bundle $Work
 if ($LASTEXITCODE -ne 0) { throw 'Mobile browser bundle build failed' }
 # Load native modules only. No daemon, listening socket, home or credentials.
 $Probe = @'

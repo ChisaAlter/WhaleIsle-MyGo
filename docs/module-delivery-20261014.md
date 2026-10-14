@@ -81,6 +81,7 @@
 - 市场待重启生效：保留 restart-required 状态并提供显式受保护重启，取消/失败不清除，只有新 Host generation Ready 后才完成并刷新插件；仍停在插件面板才恢复逻辑页与新认证，离开不抢回。复用原热重载/owner清理，不自动中断或重复安装。
 - Project 生命周期：整个项目真实 archive/restore，与要求卡归档分开；先读详情，活动或未知状态需明确确认停止并归档，成功核验生命周期，恢复不自动启动旧任务。无 delete 假接口，只 mock 未操作真实项目。
 - 鲸桥安全更新/回滚：先验证清单与完整字节再受保护切换，原 Host 不重启时成功释放任务锁；认证 maintenance 拒绝活动 DSH，Windows 固定句柄核验确切进程路径，失败就绪恢复旧版本，退出不确定拒绝重复启动。保留旧目录/data与停止态，Stop复用保护；仅mock/编译，未执行真实组件/Windows进程操作。
+- 手机 runtime 实际构建/暂存：隔离 Linux x64 原版依赖安装、native rebuild、server/CLI 与 browser bundle 成功，SQLite 内存/node-pty加载及 4.4GiB 暂存清单校验通过；提交仅跨平台脚本、固定来源缺件与许可证，保留真实依赖链接。不是 Windows runtime，也未启动 daemon/Host/配对/模型；大体积产物不入源码交付。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

@@ -1,97 +1,53 @@
-# Original mobile runtime build/staging
+# Mobile runtime build and platform boundary
 
-The Go phone bridge requires an actual built original DshdRemote runtime, not
-just `src/main/dshd-remote.js`. Its packaged root is
-`runtime/vendor/dshd-remote/`; the existing component override expects that same
-layout at `components/dshd-remote/versions/<version>/` with `installed.json`.
-These scripts do not install/activate a component or write userData. The generic
-component install action remains unsupported; do not advertise an online installer.
+The mobile runtime is the original ChisaCode server/client plus MyGo's existing
+desktop shell hooks. Building it does not pair a phone, start the daemon, open a
+tunnel, configure credentials, or run a model.
 
-## Sources and provenance
+`scripts/build-mobile-runtime.ps1` remains the Windows entrypoint. It requires an
+official Windows Node distribution and produces Windows native modules. Its
+browser step now calls `mobile-runtime.mjs bundle`, which uses esbuild's public JS
+API. The original script's `node esbuild/bin/esbuild` invocation fails when npm
+has installed a native ELF/Mach-O executable at that path.
 
-Set `WHALEISLE_ELECTRON_SOURCE` to a complete original Electron source snapshot
-(default: `reference/electron`) and `WHALEISLE_NODE_DIR` to an official Windows
-Node distribution including npm. Use the same Node for building and shipping.
-The supplied snapshot identifies Electron 0.3.3 and ChisaCode 1.0.3
-(`vendor/chisacode-remote/package.json`, repository
-https://github.com/ChisaAlter/ChisaCode). The separate harness pin is
-`dsh-v0.2.1-alpha.1`, SHA `5badb15009ae1756c3afe0ae0cef1faafc290ccc`.
-Do not mistake that harness SHA for a ChisaCode commit. ChisaCode's vendored fork
-is identified by its source snapshot and recorded lockfile/manager SHA256, not an
-invented upstream commit. Retain its LICENSE, NOTICE and corresponding source
-when distributing (AGPL-3.0-or-later).
+For a Linux/macOS build-only workflow, use the same prepared source in an isolated
+work directory and an official same-platform Node distribution with headers:
 
-Run `scripts/build-harness.ps1` then `scripts/package.ps1`.
-The former copies missing harness/plugin source directories, builds the harness,
-then invokes `build-mobile-runtime.ps1`. To change source snapshots, first use a
-fresh runtime build/vendor workspace rather than mixing old and new directories.
+1. `mobile-runtime.mjs prepare SOURCE WORK VERIFIED_SILERO_FILE`.
+2. In WORK/vendor/chisacode-remote: `npm ci --ignore-scripts --no-audit --no-fund`
+   against the official registry, then `npm rebuild esbuild better-sqlite3 node-pty`.
+3. Run the original `npm run build:server` (server dependencies, server, CLI).
+4. Run `mobile-runtime.mjs bundle WORK` and `mobile-runtime.mjs record WORK`.
+   The latter only loads native modules and runs SQLite `select 1` in memory.
+5. `mobile-runtime.mjs stage WORK BUILT_HARNESS NODE_DISTRIBUTION DESTINATION`.
+6. `mobile-runtime.mjs verify DESTINATION` checks hashes and dependency links.
 
-The phone build uses a fresh workspace, `npm ci --ignore-scripts`, explicit
-`npm rebuild esbuild better-sqlite3 node-pty`, original `npm run build:server`,
-and original `bundle-chisacode-mobile-client.mjs`. It deliberately never invokes
-`prepare-dshd-remote.mjs --runtime`: that script targets Electron's SQLite ABI
-and starts a daemon probe. The MyGo script checks native module loading using
-plain Node and an in-memory SQLite database, without starting a daemon, opening
-a socket or generating credentials. Dependency retrieval/build occurs only when
-a developer actually runs the build script.
+Use workspace-local npm cache/TMPDIR and npm_config_nodedir pointing to that
+complete Node distribution when development headers are not otherwise installed.
+Never replace the source snapshot or alter its lockfile to mask a build failure.
 
-Staging preserves the original module/mobile/vendor topology, dereferences
-workspace links, includes the complete built harness needed by the manager's
-fallback, and ships the exact Node executable whose ABI passed the native check.
-It currently preserves the locked workspace dependencies rather than attempting
-an unverified production prune, so output can be large. A SHA256 inventory covers
-all staged files. Packaging verifies the source and copied inventories before
-writing `.runtime-staged`; missing or changed resources fail the package build.
-`WHALEISLE_PACKAGE_SKIP_RUNTIME=1` explicitly creates a shell-only package.
+## Source closure
 
-## Verified limits in the supplied 2026-10-13 snapshot
+The restored customized snapshot omitted server/src/share/QRCode.ts. Preparation
+supplements only that missing original file from the vendored, licensed copy under
+scripts/mobile-runtime-source. The importing pairing-qr.ts must match the fixed
+90465b67 source exactly, and the supplement has its own SHA256. Existing customized
+QRCode.ts files are never replaced. source-provenance.json records the supplement.
+Silero remains pinned and validated separately; it is not automatically downloaded.
 
-The original server build script requires this source asset, which is absent
-from both inspected source/baseline trees:
+## Staging
 
-`vendor/chisacode-remote/packages/server/src/server/speech/providers/local/sherpa/assets/silero_vad.onnx`
+Format-2 manifests record platform/architecture, file hashes and dependency links.
+The exact Node executable hash must match the build record. Workspace and pnpm
+links are preserved instead of recursively duplicating dependency graphs. External
+or changed links fail verification; Windows absolute junctions are rebased after
+the staging directory moves. The unrelated Harness CLI test-profile directory is
+excluded because it contains an external snapshot fixture link, not runtime code.
+The twelve built Harness packages required by ChisaCode's original provider are
+linked at its expected node_modules/@deepseek-ai scope without rewriting them.
 
-A verified local copy can now be supplied without changing the reference tree:
-
-```powershell
-$env:WHALEISLE_ELECTRON_SOURCE = 'C:\path\to\WhaleIsle-Electron'
-$env:WHALEISLE_SILERO_VAD_FILE = 'C:\verified-assets\silero_vad.onnx'
-.\scripts\build-harness.ps1
-# Or build only the phone runtime after the harness already exists:
-.\scripts\build-mobile-runtime.ps1 -SileroVadFile $env:WHALEISLE_SILERO_VAD_FILE
-```
-
-The fixed provenance/checksum is in `scripts/mobile-runtime-assets.json`:
-ChisaAlter/ChisaCode commit `943c042f09dbf4a2f8752ccb11d54fcc68d9cf5b`,
-asset Git blob `d1b57f7bb9e6fca4f05ed0272a4d6c0f1dec3f74`, 643854 bytes,
-SHA256 `9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6`.
-The source snapshot's Silero provider/session and sherpa model-catalog files
-match that commit. This does not establish that the whole vendored tree is the
-same commit. The project declares AGPL-3.0-or-later; independent model-specific
-licensing remains unverified. No model binary is committed by this change.
-
-Preparation validates size and SHA256 before modifying the work directory,
-copies the verified model only into the fresh work tree, and records the asset
-identity in `source-provenance.json`. An existing model in a complete source tree
-must pass the same pin. Missing input and incorrect bytes fail before dependency
-installation. There is no automatic download or model execution. This supplies
-one source asset; it does not prove the full native build or live phone runtime.
-Additional missing assets/dependencies may still be surfaced by the real build.
-
-The asset-input fixture is `scripts/mobile-model-resource.test.mjs`; it requires
-`WHALEISLE_SILERO_VAD_FILE` and otherwise explicitly skips. One temporary fixture
-with the verified local model confirmed matching input, a same-length corrupted
-file rejection, missing-input failure, and unchanged read-only source content.
-
-Validation performed here: one temporary-directory fixture exercising staging,
-its complete required inventory, repeated staging, missing bundle/manager
-failures, and missing source-model failure. No npm install, Windows native build,
-PowerShell execution, daemon startup, pairing credentials or live relay/phone
-acceptance was performed. The fixture uses inert files and proves packaging
-control flow, not that a working native runtime exists. This is a script-only
-change; no additional Go/Windows compilation is claimed or needed for these files.
-
-A single source-only preparation against the supplied original snapshot and the
-verified local model also succeeded in an isolated directory. The reference tree
-remained unchanged; the prepared model's size/SHA256 and asset receipt matched.
-This preparation did not install dependencies or execute any original source.
+Format-1 Windows manifests remain readable. Windows package.ps1 still requires
+node/node.exe and the Windows mobile runtime. Linux artifacts use node/bin/node;
+they cannot satisfy or masquerade as the Windows deployment package. A successful
+build/stage does not establish live phone/relay interoperability or runtime UI
+acceptance; those require separately authorized use of the matching platform.
