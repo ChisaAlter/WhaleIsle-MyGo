@@ -59,6 +59,7 @@
 - THA4 桌宠：默认关闭的可选神经渲染，同源固定资源白名单，WebNN→WebGPU→WASM 降级、task.json 更新不重载模型、关闭释放；修复 MyGo 自定义 scheme localhost 路由，固定资源独立暂存/NSIS清单。模型静态形状与 mock/资源 staging 已核验，资源二进制不入 git，未实测 Windows 动画或 GPU 性能。
 - 最新 Host 可选组合：默认保留旧定制，显式选择固定官方 commit 的独立构建目录；平台/架构、产物 SHA 和真实桌面桥能力门禁，缺产物或桥接能力保持关闭。当前仅源码装配/配置 fixture，依赖安装成功，官方 build-only 受 tsx IPC EPERM 及升级环境 bwrap 准备失败阻断，未产生构建清单，最新 Host 仍不可用。
 - HTML 预览桥边界：独立有界请求解析和 HTML/尺寸/主题校验，当前合法请求明确返回 503 unavailable，能力为 false；尚未具备严格隔离截图实现，不宣称截图或 HTML 生成可用。
+- Project 桌面桥：固定官方原样 helper，经现有 install-control 认证和受限固定操作分发；只接受桌面已选/注册根，路径授权及原版 overlay 成功后挂载。启动依赖匹配新 Host 产物和真实 Node/overlay Ready，当前构建阻断下保持未启用；未运行 Git/PR/真实 Host。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

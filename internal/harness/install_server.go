@@ -1,14 +1,18 @@
 package harness
 
 import (
+	"context"
+	"net/http"
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
 )
 
 // InstallServerOptions configures the loopback install control plane.
 type InstallServerOptions struct {
-	NodeBin   string
-	OnRestart func()
+	Project     func(context.Context, map[string]any) map[string]any
+	HTMLPreview http.Handler
+	NodeBin     string
+	OnRestart   func()
 }
 
 // NewInstallServer returns a loopback install control server wired to restart
@@ -43,7 +47,9 @@ func NewInstallServer(opts InstallServerOptions) *installctrl.Server {
 	}
 
 	return installctrl.New(installctrl.Options{
-		OnRestart: opts.OnRestart,
-		Install:   install,
+		OnRestart:   opts.OnRestart,
+		Project:     opts.Project,
+		HTMLPreview: opts.HTMLPreview,
+		Install:     install,
 	})
 }

@@ -46,9 +46,11 @@ type InstallFunc func(spec string, opts InstallOpts) Result
 
 // Options configure the loopback server.
 type Options struct {
-	Install       InstallFunc
-	OnRestart     func()
-	RestartDelay  time.Duration
+	HTMLPreview  http.Handler
+	Project      func(context.Context, map[string]any) map[string]any
+	Install      InstallFunc
+	OnRestart    func()
+	RestartDelay time.Duration
 }
 
 // Server is a loopback HTTP install control plane.
@@ -151,7 +153,7 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/install" {
+	if r.URL.Path != "/install" && r.URL.Path != "/desktop/project" && r.URL.Path != "/desktop/html-preview" {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
@@ -164,6 +166,18 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+		return
+	}
+	if r.URL.Path == "/desktop/html-preview" {
+		if s.opts.HTMLPreview == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "available": false, "error": "isolated HTML preview unavailable"})
+			return
+		}
+		s.opts.HTMLPreview.ServeHTTP(w, r)
+		return
+	}
+	if r.URL.Path == "/desktop/project" {
+		s.handleProject(w, r)
 		return
 	}
 	s.handleInstall(w, r)
@@ -273,4 +287,19 @@ func StubOKInstall() InstallFunc {
 	return func(spec string, _ InstallOpts) Result {
 		return Result{OK: true, Spec: spec}
 	}
+}
+
+// Project shares the existing loopback bearer boundary; no separate credential.
+func (s *Server) handleProject(w http.ResponseWriter, r *http.Request) {
+	body, err := readBody(r)
+	var payload map[string]any
+	if err != nil || json.Unmarshal(body, &payload) != nil || payload == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid Project request"})
+		return
+	}
+	if s.opts.Project == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "available": false, "error": "Project desktop bridge unavailable"})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.opts.Project(r.Context(), payload))
 }

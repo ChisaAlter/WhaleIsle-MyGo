@@ -30,6 +30,7 @@ import (
 	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/desktop/deeplink"
 	desktopgit "whaleisle/internal/desktop/git"
+	"whaleisle/internal/desktop/htmlpreview"
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
@@ -2374,8 +2375,26 @@ func startHarness(cfg config.Config) {
 	if port == 0 {
 		port = 3080
 	}
+	// Project is mounted only with matching staged Host artifacts and a real bridge.
+	var projectDispatch func(context.Context, map[string]any) map[string]any
+	var projectPatches []string
+	currentHost := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
+	if currentHost.ArtifactsReady && !cfg.SkipUserPlugins {
+		bridge := harness.NewProjectBridge(cfg.NodeBin, paths.DshHome(), cfg.Workspace, desktopcomponents.OpenInFileManager)
+		if bridge.Ready(context.Background()) {
+			overlay, err := bridge.PrepareOverlay(context.Background(), filepath.Join(paths.VendorDir(), "dsh-project"), paths.WebProfileDir(), paths.HarnessRoot())
+			if err == nil {
+				projectDispatch = bridge.Dispatch
+				projectPatches = append(projectPatches, overlay)
+			} else {
+				log.Println("Project unavailable: desktop overlay preparation failed")
+			}
+		}
+	}
 	installSrv := harness.NewInstallServer(harness.InstallServerOptions{
-		NodeBin: cfg.NodeBin,
+		Project:     projectDispatch,
+		HTMLPreview: htmlpreview.Handler(),
+		NodeBin:     cfg.NodeBin,
 		OnRestart: func() {
 			state.mu.Lock()
 			s := state.sup
@@ -2388,6 +2407,7 @@ func startHarness(cfg config.Config) {
 	sup := harness.New(harness.Options{
 		Install: installSrv,
 		Launch: harness.LaunchOptions{
+			PatchFiles:      projectPatches,
 			Host:            host,
 			Port:            port,
 			Home:            paths.DshHome(),
