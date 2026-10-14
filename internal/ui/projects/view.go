@@ -8,6 +8,14 @@ import (
 )
 
 type Model struct {
+	AssetNote          string
+	AssetDiff          *projectflow.WorkDiff
+	OnArtifact         func(projectflow.Artifact, func(string))
+	OnResolvedFile     func(string)
+	OnWorkDiff         func(string)
+	OnProjectDirectory func()
+	OnCloseDiff        func()
+
 	RequestProjectID, RequestKind   string
 	RequestPage                     projectflow.RequestPage
 	RequestCard                     *projectflow.RequestCard

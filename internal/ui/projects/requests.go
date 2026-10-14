@@ -77,6 +77,16 @@ func requestArchiveButton(c *ui.Context, m Model, card projectflow.RequestCard) 
 }
 func requestDetailView(c *ui.Context, m Model) {
 	card := m.RequestCard
+	if m.AssetNote != "" {
+		ui.Text(c, m.AssetNote).FontSize(11)
+	}
+	if m.AssetDiff != nil {
+		assetDiffView(c, m)
+		return
+	}
+	if ui.Button(c, tr("打开项目目录", "Open Project directory")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnProjectDirectory != nil {
+		m.OnProjectDirectory()
+	}
 	if ui.Button(c, tr("返回要求列表", "Back to request list")).Disabled(m.Busy).Clicked() && m.OnBackRequests != nil {
 		m.OnBackRequests()
 	}
@@ -102,6 +112,17 @@ func requestDetailView(c *ui.Context, m Model) {
 				ui.Text(c, tr("尚无最终交付，成员报告可能仍已保存。", "No final delivery yet; member reports may already be saved.")).FontSize(12)
 			} else {
 				delivery := card.Delivery
+				for _, file := range delivery.Artifacts {
+					file := file
+					label := file.Title
+					if label == "" {
+						label = file.Path
+					}
+					if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.OnResolvedFile == nil).Clicked() && m.OnArtifact != nil {
+						m.OnArtifact(file, m.OnResolvedFile)
+					}
+					ui.Text(c, file.DelegationRef).FontSize(11)
+				}
 				ui.Text(c, tr("交付：", "Delivery: ")+delivery.Outcome).FontSize(12)
 				if !delivery.Applicable {
 					ui.Text(c, tr("此交付不再适用于当前要求或依据。", "This delivery no longer applies to the current requirement or evidence.")).FontSize(12)
@@ -116,6 +137,10 @@ func requestDetailView(c *ui.Context, m Model) {
 			}
 			ui.Text(c, tr("关联工作", "Associated work")).FontSize(12)
 			for _, work := range card.Work {
+				work := work
+				if ui.Button(c, tr("查看当前工作区差异", "View current workspace diff")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnWorkDiff != nil {
+					m.OnWorkDiff(work.WorkstreamID)
+				}
 				ui.Text(c, work.Title+" · "+stateLabel(work.Status)).FontSize(11)
 				ui.Text(c, work.MemberName+" · "+work.WorkstreamID+" · "+work.DelegationRef).FontSize(11)
 				if work.BlockedReason != "" {

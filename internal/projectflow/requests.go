@@ -20,13 +20,14 @@ type RequestCard struct {
 	AuthorityError string   `json:"authorityError"`
 	HandoverError  string   `json:"handoverError"`
 	Delivery       *struct {
-		ID              string   `json:"id"`
-		Outcome         string   `json:"outcome"`
-		Applicable      bool     `json:"applicable"`
-		Summary         string   `json:"summary"`
-		SummaryPreview  string   `json:"summaryPreview"`
-		Evidence        []string `json:"evidence"`
-		RemainingIssues []string `json:"remainingIssues"`
+		Artifacts       []Artifact `json:"artifacts"`
+		ID              string     `json:"id"`
+		Outcome         string     `json:"outcome"`
+		Applicable      bool       `json:"applicable"`
+		Summary         string     `json:"summary"`
+		SummaryPreview  string     `json:"summaryPreview"`
+		Evidence        []string   `json:"evidence"`
+		RemainingIssues []string   `json:"remainingIssues"`
 	} `json:"delivery"`
 	Versions []struct {
 		Revision int    `json:"revision"`

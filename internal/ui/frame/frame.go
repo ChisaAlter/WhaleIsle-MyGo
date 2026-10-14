@@ -317,8 +317,10 @@ func clampSidebarWidth(w float32) float32 {
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
 	sidebarColumns(c, m.Sizes, func() {
+		projectModel := m.Projects
+		projectModel.OnResolvedFile = m.OnOpenDeliverable
 		sidebar.View(c, sidebar.Model{
-			Projects:        m.Projects,
+			Projects:        projectModel,
 			Collapsed:       m.Sizes.Sidebar <= 0,
 			OnToggle:        m.Sizes.ToggleSidebar,
 			Snapshot:        snap,

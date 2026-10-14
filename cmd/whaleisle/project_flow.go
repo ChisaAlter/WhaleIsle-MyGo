@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	assetDiff                     *projectflow.WorkDiff
+	assetNote                     string
 	requestProjectID, requestKind string
 	requestPage                   projectflow.RequestPage
 	requestCard                   *projectflow.RequestCard
@@ -51,7 +53,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
-	m := projects.Model{RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m := projects.Model{AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
 	for _, p := range listing.Projects {
 		if p.ID == f.requestProjectID {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
@@ -128,14 +130,31 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		}
 		s.runProjectRequests(win, m.RequestProjectID, action, id)
 	}
-	m.OnBackRequests = func() { s.mu.Lock(); s.projectFlow.requestCard = nil; s.projectFlow.requestGeneration++; s.mu.Unlock() }
+	m.OnBackRequests = func() {
+		s.mu.Lock()
+		s.projectFlow.requestCard = nil
+		s.projectFlow.assetDiff = nil
+		s.projectFlow.assetNote = ""
+		s.projectFlow.requestGeneration++
+		s.mu.Unlock()
+	}
 	m.OnCloseRequests = func() {
 		s.mu.Lock()
 		s.projectFlow.requestProjectID = ""
 		s.projectFlow.requestCard = nil
+		s.projectFlow.assetDiff = nil
+		s.projectFlow.assetNote = ""
 		s.projectFlow.requestGeneration++
 		s.mu.Unlock()
 	}
+	m.OnArtifact = func(file projectflow.Artifact, open func(string)) {
+		s.runProjectAsset(win, m.RequestProjectID, "file", file, "", open)
+	}
+	m.OnWorkDiff = func(workID string) {
+		s.runProjectAsset(win, m.RequestProjectID, "diff", projectflow.Artifact{}, workID, nil)
+	}
+	m.OnProjectDirectory = func() { s.runProjectAsset(win, m.RequestProjectID, "directory", projectflow.Artifact{}, "", nil) }
+	m.OnCloseDiff = func() { s.mu.Lock(); s.projectFlow.assetDiff = nil; s.mu.Unlock() }
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {

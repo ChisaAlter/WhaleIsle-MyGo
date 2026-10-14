@@ -124,6 +124,8 @@ func (s *mainState) runProjectRequests(win *mygo.Window, id, action, arg string)
 				}
 				return
 			}
+			f.assetDiff = nil
+			f.assetNote = ""
 			if action == "get" {
 				f.requestCard = &card
 				return
