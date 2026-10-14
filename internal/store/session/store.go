@@ -63,6 +63,9 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	ScratchCwd       string
+	SelectedCwd      string
+	WorkspaceMembers map[string]bool
 	ClientReady     bool
 	ListLoading     bool
 	ListErr         string
@@ -122,6 +125,12 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	noDirectoryMu        sync.Mutex
+	scratchCwd           string
+	workspaceReady       bool
+	workspaceErr         error
+	workspaceChanged     chan struct{}
+	workspaceMemberships map[string]workspaceMembership
 	mu     sync.Mutex
 	client *dsh.Client
 	mux    *dsh.Mux
@@ -202,6 +211,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.resetWorkspaceLocked()
 		s.eventsGeneration++
 		s.invalidateFollowLocked()
 		s.listGeneration++
@@ -223,8 +233,30 @@ func (s *Store) SetWorkspaceCwd(cwd string) {
 
 // CreateSession calls session/create then refreshes the list and selects the new id.
 // Prefers session/blankReuse when a blank session already exists for the cwd
-// (falls back to local Blank matching when the RPC rejects).
+// Offline callers retain local blank reuse; an online Host error is never approval.
 func (s *Store) CreateSession(ctx context.Context) {
+	snap := s.Snapshot()
+	for _, it := range snap.Items {
+		if it.SessionID == snap.SelectedID && snap.IsNoDirectory(it) {
+			go func() {
+				// Generic new-session actions cannot inspect UI-owned unsent drafts.
+				// Never reuse another identity without that knowledge.
+				ids := make([]string, 0, len(snap.Items))
+				for _, candidate := range snap.Items {
+					ids = append(ids, candidate.SessionID)
+				}
+				id, err := s.CreateNoDirectorySession(ctx, ids...)
+				if err != nil {
+					s.SetLastAction("no workspace folder: " + err.Error())
+					return
+				}
+				if s.Snapshot().SelectedID == snap.SelectedID {
+					s.Select(id)
+				}
+			}()
+			return
+		}
+	}
 	s.mu.Lock()
 	client := s.client
 	cwd := s.cwd
@@ -265,10 +297,9 @@ func (s *Store) CreateSession(ctx context.Context) {
 			return
 		}
 		if err != nil {
-			// RPC missing/unavailable: fall back to local blank reuse.
-			s.Select(id)
+			// A failed authoritative check is not permission to reuse an identity.
 			s.mu.Lock()
-			s.lastAction = "blank session reused"
+			s.lastAction = "blank session check: " + err.Error()
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -305,6 +336,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetWorkspaceLocked()
 	s.eventsGeneration++
 	s.invalidateFollowLocked()
 	s.listGeneration++
@@ -348,6 +380,8 @@ func (s *Store) Snapshot() ViewState {
 	defer s.mu.Unlock()
 	st := ViewState{
 		ClientReady:       s.client != nil,
+		ScratchCwd:        s.scratchCwd,
+		WorkspaceMembers:  s.workspaceMembersLocked(),
 		LastAction:        s.lastAction,
 		ListLoading:       s.listLoading,
 		SelectedID:        s.selectedID,
@@ -378,6 +412,12 @@ func (s *Store) Snapshot() ViewState {
 		st.SkillsErr = s.skillsErr.Error()
 	}
 	st.Items = append([]Item(nil), s.items...)
+	for _, it := range s.items {
+		if it.SessionID == s.selectedID {
+			st.SelectedCwd = it.Cwd
+			break
+		}
+	}
 	st.Messages = projectMessageEdits(s.messages)
 	st.SelectedModel = s.selectedModelLabel
 	for _, o := range s.modelOptions {

@@ -200,6 +200,7 @@ type Model struct {
 	OnStatWorkspaceFile  func(rel string) string
 	FileStatNote         *string
 	OnPickHeroWorkspace  func()
+	OnNoDirectory        func()
 	OnBrowseWorkspace    func() // SidebarRoot ☰ / folder row
 	OnRevealWorkspace    func()
 	OnRenameWorkspace    func(title string)
@@ -313,7 +314,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			ThemeID:         m.ThemeID,
 			SystemDark:      m.SystemDark,
 			SearchQuery:     m.SessionSearch,
-			WorkspaceLabel:  m.WorkspaceRoot,
+			WorkspaceLabel:  m.Store.WorkspaceCwd(),
 			RenameSessionID: derefString(m.RenameSessionID),
 			RenameDraft:     m.RenameDraft,
 			OnSelect:        m.Store.Select,
@@ -329,6 +330,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			OnOpenLauncher:       m.OnOpenLauncher,
 			OnOpenSettings:       m.OnOpenSettings,
 			OnBrowseWorkspace:    m.OnBrowseWorkspace,
+			OnNoDirectory:        m.OnNoDirectory,
 			OnRevealWorkspace:    m.OnRevealWorkspace,
 			OnRenameWorkspace:    m.OnRenameWorkspace,
 			OnDeleteWorkspace:    m.OnDeleteWorkspace,
@@ -616,6 +618,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnPickSpeech:        m.OnPickComposerSpeech,
 						OnCycleSpeech:       m.OnCycleComposerSpeech,
 						OnPickHeroWorkspace: m.OnPickHeroWorkspace,
+						OnNoDirectory:       m.OnNoDirectory,
 						OnPromptModeChange: func(mode session.PromptMode) {
 							m.Store.SetPromptMode(mode)
 						},

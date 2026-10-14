@@ -30,6 +30,15 @@ func (s *Store) FollowWorkspace(ctx context.Context) {
 }
 
 func (s *Store) runWorkspaceFollow(ctx context.Context, mux *dsh.Mux) {
+	defer func() {
+		s.mu.Lock()
+		if s.mux == mux && ctx.Err() == nil {
+			s.workspaceErr = errors.New("workspace follow unavailable; reconnect and try again")
+			s.signalWorkspaceLocked()
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
 	if err := mux.Dial(ctx); err != nil {
 		s.mu.Lock()
 		s.lastAction = "workspace follow dial: " + err.Error()
@@ -82,6 +91,25 @@ func (s *Store) applyWorkspaceFollowFrame(raw json.RawMessage) {
 	switch head.Type {
 	case "baseline":
 		s.applyWorkspaceBaseline(raw)
+	case "upsert", "remove":
+		var frame struct {
+			Workspace   workspaceMembership `json:"workspace"`
+			WorkspaceID string              `json:"workspaceId"`
+		}
+		if json.Unmarshal(raw, &frame) != nil {
+			return
+		}
+		s.mu.Lock()
+		if s.workspaceMemberships == nil {
+			s.workspaceMemberships = map[string]workspaceMembership{}
+		}
+		if head.Type == "remove" {
+			delete(s.workspaceMemberships, frame.WorkspaceID)
+		} else if frame.Workspace.WorkspaceID != "" {
+			s.workspaceMemberships[frame.Workspace.WorkspaceID] = frame.Workspace
+		}
+		s.mu.Unlock()
+		s.fire()
 	case "pinned":
 		s.applyWorkspacePinned(raw)
 	case "archived":
@@ -92,14 +120,24 @@ func (s *Store) applyWorkspaceFollowFrame(raw json.RawMessage) {
 func (s *Store) applyWorkspaceBaseline(raw json.RawMessage) {
 	var frame struct {
 		Value *struct {
-			PinnedSessionIds   []string `json:"pinnedSessionIds"`
-			ArchivedSessionIds []string `json:"archivedSessionIds"`
+			ScratchCwd         string                `json:"scratchCwd"`
+			Items              []workspaceMembership `json:"items"`
+			PinnedSessionIds   []string              `json:"pinnedSessionIds"`
+			ArchivedSessionIds []string              `json:"archivedSessionIds"`
 		} `json:"value"`
 	}
 	if json.Unmarshal(raw, &frame) != nil || frame.Value == nil || frame.Value.PinnedSessionIds == nil || frame.Value.ArchivedSessionIds == nil {
 		return
 	}
 	s.mu.Lock()
+	s.scratchCwd = strings.TrimSpace(frame.Value.ScratchCwd)
+	s.workspaceReady = true
+	s.workspaceErr = nil
+	s.workspaceMemberships = map[string]workspaceMembership{}
+	for _, ws := range frame.Value.Items {
+		s.workspaceMemberships[ws.WorkspaceID] = ws
+	}
+	s.signalWorkspaceLocked()
 	s.pinnedSessionIDs = append([]string(nil), frame.Value.PinnedSessionIds...)
 	s.archivedSessionIDs = append([]string(nil), frame.Value.ArchivedSessionIds...)
 	s.applyPinnedFlagsLocked()

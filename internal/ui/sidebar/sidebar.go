@@ -24,6 +24,7 @@ type Model struct {
 	OnSelect        func(sessionID string)
 	OnRefresh       func()
 	OnCreate        func()
+	OnNoDirectory   func()
 	OnOpenMarket    func()
 	OnOpenSchedule  func()
 	OnOpenAssistant func()
@@ -276,7 +277,15 @@ func View(c *ui.Context, m Model) {
 				}
 				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
-					nodes := buildTree(items, m.Snapshot.PinnedSessionIDs)
+					var regular, scratch []session.Item
+					for _, it := range items {
+						if m.Snapshot.IsNoDirectory(it) {
+							scratch = append(scratch, it)
+						} else {
+							regular = append(regular, it)
+						}
+					}
+					nodes := buildTree(regular, m.Snapshot.PinnedSessionIDs)
 					var paint func(nodes []treeNode, depth int)
 					paint = func(nodes []treeNode, depth int) {
 						for _, n := range nodes {
@@ -287,6 +296,15 @@ func View(c *ui.Context, m Model) {
 						}
 					}
 					paint(nodes, 0)
+					if len(scratch) > 0 {
+						ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyNoDirectory)).FontSize(11).Bold().TextColor(muted).Grow(1)
+							if m.OnNoDirectory != nil && ui.Button(c, "＋").FontSize(12).Clicked() {
+								m.OnNoDirectory()
+							}
+						})
+						paint(buildTree(scratch, m.Snapshot.PinnedSessionIDs), 0)
+					}
 					if len(m.Snapshot.ArchivedSessionIDs) > 0 {
 						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(11).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)

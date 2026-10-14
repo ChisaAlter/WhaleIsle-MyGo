@@ -2961,6 +2961,12 @@ func mainView(c *ui.Context) {
 	if state.cfgStore != nil {
 		workspaceRoot = state.cfgStore.Get().Workspace
 	}
+	// A selected session owns its actual directory, including Host scratch sessions.
+	if sessions != nil {
+		if cwd := sessions.Snapshot().SelectedCwd; cwd != "" {
+			workspaceRoot = cwd
+		}
+	}
 	// Refresh open-with apps when the selected file changes (Electron workspacePathApplications).
 	if selectedFile != "" && selectedFile != state.fileOpenWithFor && sessions != nil && st.State == harness.Ready {
 		rel := selectedFile
@@ -6193,6 +6199,7 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
 					OnPickHeroWorkspace: func() {
 						state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
 					},

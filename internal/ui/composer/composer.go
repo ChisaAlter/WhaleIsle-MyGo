@@ -75,6 +75,7 @@ type Model struct {
 	OnCycleSpeech func()
 	// OnPickHeroWorkspace switches the session workspace (HeroShell chip); not @ mention.
 	OnPickHeroWorkspace func()
+	OnNoDirectory       func()
 	OnPromptModeChange  func(mode session.PromptMode)
 	// OnSearchFileRefs calls fileReferences/list for @ mention query (optional).
 	OnSearchFileRefs func(query string) []string
@@ -151,6 +152,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			} else if i := strings.LastIndexAny(wsLabel, `/\`); i >= 0 && i+1 < len(wsLabel) {
 				wsLabel = wsLabel[i+1:]
 			}
+			if m.Snapshot.ScratchCwd != "" && filepathCleanForLabel(m.WorkspaceRoot) == filepathCleanForLabel(m.Snapshot.ScratchCwd) {
+				wsLabel = i18n.T(i18n.KeyNoDirectory)
+				folderIcon = ""
+			}
 			// HeroShell.workspaceRow: pad-left 8 above card; chips min-h 28 pad 0 8.
 			ui.Row(c).FillWidth().Gap(2).AlignItems(ui.Center).Padding(0, 0, 0, 8).Children(func() {
 				wsBtn := ui.Button(c, "").Height(28).Radius(8).Padding(0, 8, 0, 8).
@@ -170,6 +175,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						m.OnPickHeroWorkspace()
 					} else if m.OnPickDirectory != nil {
 						m.OnPickDirectory()
+					}
+				}
+				if m.OnNoDirectory != nil {
+					if ui.Button(c, i18n.T(i18n.KeyNoDirectory)).Height(28).FontSize(13).Disabled(m.State != nil && (m.State.Sending || m.State.Preparing > 0)).Clicked() {
+						m.OnNoDirectory()
 					}
 				}
 				// Agent preset chip (Electron default label when roster empty).
@@ -890,4 +900,8 @@ func paintDraftAttachments(c *ui.Context, m Model, fg, muted ui.Color) {
 	if d.Error != "" {
 		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14, 0, 14)
 	}
+}
+
+func filepathCleanForLabel(p string) string {
+	return strings.TrimSpace(strings.ReplaceAll(p, "\\", "/"))
 }
