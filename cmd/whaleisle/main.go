@@ -35,6 +35,7 @@ import (
 	"whaleisle/internal/desktop/mcpconfig"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/desktop/sshremote"
 	"whaleisle/internal/desktop/taskguard"
 	desktopupdate "whaleisle/internal/desktop/update"
@@ -128,6 +129,7 @@ type mainState struct {
 	settingsAgentPresetLabel   string
 	settingsAgentPresetDoc     string
 	settingsMCPController      mcpconfig.Controller
+	settingsProviderProfiles   providerprofiles.Controller
 	remoteMachines             *remotestore.Store
 	remoteMachineEditor        remoteui.MachineEditor
 	sshTunnel                  *sshremote.TunnelSession
@@ -5059,11 +5061,12 @@ func mainView(c *ui.Context) {
 				},
 				ModelsActive: modelsActive,
 				Models: &settings.ModelsAccess{
-					Labels:     sessSnap.ModelLabels,
-					Selected:   &state.settingsModelLabel,
-					SessionID:  sessSnap.SelectedID,
-					Err:        sessSnap.ModelsErr,
-					LastAction: sessSnap.LastAction,
+					ProviderProfiles: state.providerProfilesAccess(),
+					Labels:           sessSnap.ModelLabels,
+					Selected:         &state.settingsModelLabel,
+					SessionID:        sessSnap.SelectedID,
+					Err:              sessSnap.ModelsErr,
+					LastAction:       sessSnap.LastAction,
 					OnRefresh: func() {
 						if sessions != nil {
 							sessions.RefreshModelCatalog(context.Background())
@@ -5696,6 +5699,7 @@ func mainView(c *ui.Context) {
 						state.settingsModelLabel = sessions.Snapshot().SelectedModel
 					}
 					state.mu.Unlock()
+					state.refreshProviderProfiles()
 					if sessions != nil {
 						sessions.RefreshModelCatalog(context.Background())
 					}

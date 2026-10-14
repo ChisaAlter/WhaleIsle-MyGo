@@ -8,14 +8,15 @@ import (
 
 // ModelsAccess is the dedicated Models settings page (session/modelCatalog).
 type ModelsAccess struct {
-	Labels     []string
-	Selected   *string
-	SessionID  string
-	Err        string
-	LastAction string
-	OnRefresh  func()
-	OnDiscover func()
-	OnApply    func()
+	ProviderProfiles *ProviderProfilesAccess
+	Labels           []string
+	Selected         *string
+	SessionID        string
+	Err              string
+	LastAction       string
+	OnRefresh        func()
+	OnDiscover       func()
+	OnApply          func()
 }
 
 func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -23,6 +24,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Models
+	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsHint)).FontSize(12).TextColor(muted)
 	if a.SessionID != "" {
