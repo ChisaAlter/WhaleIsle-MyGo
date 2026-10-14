@@ -40,6 +40,7 @@ type Model struct {
 	FeedbackCommentMsgID *string
 	FeedbackCommentDraft *string
 	OnEditMessage        func(seq float64, body string)
+	OnForkTurn           func(seq float64)
 	// OnQuoteMessage inserts a markdown quote of the message into the composer draft.
 	OnQuoteMessage       func(body string)
 	OnLoadEarlier        func()
@@ -97,7 +98,14 @@ func View(c *ui.Context, m Model) {
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
 				// Electron turn/end strip: 「已完成，用时 … ▾」.
 				if msg.Role == "status" && msg.EventType == "turn/end" {
-					ui.Text(row.Context, formatTurnStatus(msg.Body)+" ▾").FontSize(12).TextColor(muted)
+					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {
+						ui.Text(row.Context, formatTurnStatus(msg.Body)).FontSize(12).TextColor(muted)
+						if m.OnForkTurn != nil && session.CanForkTurn(msgs, msg.Seq) {
+							if ui.Button(row.Context, "从这里分支 / Branch here").FontSize(11).Disabled(m.Snapshot.HistoryBranchBusy || !m.Snapshot.ClientReady).Clicked() {
+								m.OnForkTurn(msg.Seq)
+							}
+						}
+					})
 					return
 				}
 				// Electron chat: system failures as red banner; no role chips on user/assistant.

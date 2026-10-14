@@ -95,9 +95,10 @@ type ViewState struct {
 	// PlanBoard is the folded plan/goal/queue/todo strip from follow events.
 	PlanBoard PlanBoard
 
-	HistoryHasMore  bool
-	HistoryPageBusy bool
-	HistoryPageErr  string
+	HistoryBranchBusy bool
+	HistoryHasMore    bool
+	HistoryPageBusy   bool
+	HistoryPageErr    string
 
 	// PromptMode is the session/prompt wire mode: "queue" (排队) or "steer" (插话).
 	PromptMode PromptMode
@@ -131,6 +132,7 @@ type Store struct {
 	selectedID               string
 	messages                 []Message
 	promptBusy               bool
+	historyBranchBusy        bool
 	lastAction               string
 	messageRatings           map[string]string
 	feedbackBusyID           string
@@ -335,12 +337,13 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		ClientReady:    s.client != nil,
-		LastAction:     s.lastAction,
-		ListLoading:    s.listLoading,
-		SelectedID:     s.selectedID,
-		PromptBusy:     s.promptBusy,
-		FeedbackBusyID: s.feedbackBusyID,
+		ClientReady:       s.client != nil,
+		LastAction:        s.lastAction,
+		ListLoading:       s.listLoading,
+		SelectedID:        s.selectedID,
+		PromptBusy:        s.promptBusy,
+		HistoryBranchBusy: s.historyBranchBusy,
+		FeedbackBusyID:    s.feedbackBusyID,
 	}
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))

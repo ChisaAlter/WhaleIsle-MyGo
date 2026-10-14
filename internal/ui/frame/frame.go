@@ -718,6 +718,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										},
 										FeedbackCommentMsgID: m.FeedbackCommentMsgID,
 										FeedbackCommentDraft: m.FeedbackCommentDraft,
+										OnForkTurn:           func(seq float64) { m.Store.ForkTurn(context.Background(), snap.SelectedID, seq) },
 										OnEditMessage: func(seq float64, body string) {
 											if m.Draft != nil {
 												*m.Draft = body

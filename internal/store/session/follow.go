@@ -211,7 +211,7 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 			elapsed = head.Time - s.turnStartMs
 		}
 		s.turnStartMs = 0
-		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
+		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", Raw: append(json.RawMessage(nil), raw...), Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
 		return true
 	}
 	msg, ok := classifyPersistenceEvent(raw)
