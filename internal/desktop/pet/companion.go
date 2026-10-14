@@ -33,6 +33,8 @@ type Companion struct {
 	neuralActive  bool
 	renderNotice  string
 	task          TaskStatus
+	chat          chatEntry
+	OnOpenChat    func()
 	OnOpenSession func(string)
 }
 
@@ -79,6 +81,7 @@ func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
 	p.assetMu.Lock()
+	p.chat.close()
 	p.renderAssets = nil
 	p.neuralActive = false
 	p.assetMu.Unlock()
@@ -121,24 +124,34 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 198, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 268, MinHeight: 268, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
 		p.close()
 		return
 	}
 	p.win = w
+	// StateKey restores older window sizes as well as position. Keep all action
+	// links reachable when an existing installation restores the shorter card.
+	w.SetSize(220, 268)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
 			return
 		}
 		e.PreventDefault()
+		if p.win != w {
+			return
+		}
 		p.assetMu.RLock()
 		task := p.task
 		p.assetMu.RUnlock()
 		switch taskAction(e.URL, task) {
 		case "hide":
 			p.close()
+		case "chat":
+			if p.OnOpenChat != nil {
+				p.OnOpenChat()
+			}
 		case "open":
 			if p.OnOpenSession != nil {
 				p.OnOpenSession(task.SessionID)
@@ -158,6 +171,7 @@ func (p *Companion) sync() {
 		if p.win == w {
 			p.win = nil
 			p.assetMu.Lock()
+			p.chat.close()
 			p.renderAssets = nil
 			p.neuralActive = false
 			p.assetMu.Unlock()
@@ -178,12 +192,15 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = assets.ReadFile("assets/pet.html")
 		p.assetMu.RLock()
 		body = renderTaskPage(body, p.task)
-		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice)).Replace(string(body)))
+		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	case "/task.json":
 		p.assetMu.RLock()
-		body, _ = json.Marshal(p.task)
+		body, _ = json.Marshal(struct {
+			TaskStatus
+			Chat ChatStatus
+		}{p.task, p.chat.status})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/tha4.js", "/pet-runtime.js":

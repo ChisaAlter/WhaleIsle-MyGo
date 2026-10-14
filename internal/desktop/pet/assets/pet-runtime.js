@@ -20,6 +20,10 @@
       if (stopped) return;
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
+      const chat = document.getElementById('pet-chat');
+      chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
+      if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
+      document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
       const open = document.getElementById('task-open'); open.replaceChildren();
       if (task.SessionID) {
         const link = document.createElement('a'); link.textContent = '回到会话 / Open chat';

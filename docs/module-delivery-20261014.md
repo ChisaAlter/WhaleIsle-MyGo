@@ -87,6 +87,7 @@
 - 本地 PDF 预览：Files/交付卡/Office结果通过单文件有界内存快照和短期精确URL能力进入独立只读PDF页，保留脏草稿；仅该PDF GET/HEAD允许，禁脚本/宿主绑定/外网/下载，关闭/会话失效撤销。加载失败可明确系统打开，合成PDF fixture通过；未实测Windows PDF渲染或真实文档。
 - Project 笔记/偏好：真实 store/read/write 原生编辑，notes 只改 userText、generatedText只读；显式保存、失败留稿、按Project/path隔离草稿，归档项目禁写。仅mock，未修改真实项目资料。
 - Project 历史报告：真实 store/list 与 store/results 分页，按精确 delegationRef 读取详情并保留 request/version 元数据；交付物复用授权解析及脏草稿安全打开，原工作复用 Team/detail。仅mock，无历史回滚或真实文件操作。
+- 桌宠专属聊天：单独 Pet chat 动作调用真实 assistant/ensure 后选中返回的持久会话，与当前任务返回分开；不发prompt/自动启插件，缺插件可见失败，重复/关闭/Host或导航变化隔离迟到响应。只mock/编译，未实测Windows交互或模型调用。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
