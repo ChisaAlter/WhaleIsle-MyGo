@@ -42,15 +42,17 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
-	ID        string
-	Kind      MessageKind
-	Role      string
-	Body      string
-	Seq       float64         // persistence seq when known (editMessageSeq)
-	EventType string          // persistence type when Kind is tool / deliverables
-	Raw       json.RawMessage // full persistence event JSON
-	Streaming bool
-	Files     []string // deliverables/presented paths
+	ID          string
+	Kind        MessageKind
+	Role        string
+	Body        string
+	Seq         float64         // persistence seq when known (editMessageSeq)
+	EventType   string          // persistence type when Kind is tool / deliverables
+	Raw         json.RawMessage // full persistence event JSON
+	TurnSeq     float64         // owning turn/start seq for edit projection
+	TurnOpening bool
+	Streaming   bool
+	Files       []string // deliverables/presented paths
 	// Model is the assistant source model when known (trajectory 模型 column).
 	Model string
 	// Args is tool-call arguments / structured payload for the inspector 参数 tab.
@@ -61,14 +63,15 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
-	ClientReady bool
-	ListLoading bool
-	ListErr     string
-	Items       []Item
-	SelectedID  string
-	Messages    []Message
-	PromptBusy  bool
-	LastAction  string
+	ClientReady     bool
+	ListLoading     bool
+	ListErr         string
+	Items           []Item
+	SelectedID      string
+	Messages        []Message
+	MessageEditBusy bool
+	PromptBusy      bool
+	LastAction      string
 	// MessageRatings maps assistant message id → "up"|"down" for the current session.
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
@@ -185,6 +188,8 @@ type Store struct {
 	promptMode               PromptMode
 	pinnedSessionIDs         []string
 	archivedSessionIDs       []string
+	editTurnSeq              float64
+	editTurnOpening          bool
 	turnStartMs              float64
 }
 
@@ -347,6 +352,7 @@ func (s *Store) Snapshot() ViewState {
 		ListLoading:       s.listLoading,
 		SelectedID:        s.selectedID,
 		PromptBusy:        s.promptBusy,
+		MessageEditBusy:   s.editTurnSeq > 0,
 		HistoryBranchBusy: s.historyBranchBusy,
 		FeedbackBusyID:    s.feedbackBusyID,
 	}
@@ -372,7 +378,7 @@ func (s *Store) Snapshot() ViewState {
 		st.SkillsErr = s.skillsErr.Error()
 	}
 	st.Items = append([]Item(nil), s.items...)
-	st.Messages = append([]Message(nil), s.messages...)
+	st.Messages = projectMessageEdits(s.messages)
 	st.SelectedModel = s.selectedModelLabel
 	for _, o := range s.modelOptions {
 		st.ModelLabels = append(st.ModelLabels, o.Label)

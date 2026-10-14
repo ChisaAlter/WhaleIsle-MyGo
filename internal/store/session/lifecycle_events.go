@@ -232,6 +232,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 	s.selectedID = sessionID
 	s.messages = nil
 	s.turnStartMs = 0
+	s.editTurnSeq, s.editTurnOpening = 0, false
 	s.resetPlanBoardLocked()
 	s.resetHistoryPagingLocked()
 	s.historyThroughSeq = 0

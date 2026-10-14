@@ -74,7 +74,11 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				if body != "" {
 					ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
 						Background(chrome.Color(colors.Bubble)).Radius(20).Padding(10, 16, 10, 16).Children(func() {
-						ui.Text(c, body).FontSize(14).FixedLineHeight(22).TextColor(fg).Selectable()
+						ink := fg
+						if msg.Seq == m.EditingSeq {
+							ink = muted
+						}
+						ui.Text(c, body).FontSize(14).FixedLineHeight(22).TextColor(ink).Selectable()
 					})
 				}
 				// Preserve the existing URL-opening action alongside literal user text.
@@ -111,8 +115,24 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 			if showMessageCopy(msg) && m.OnQuoteMessage != nil {
 				action("↗", i18n.T(i18n.KeyChatQuote), func() { m.OnQuoteMessage(msg.Body) })
 			}
-			if showMessageEdit(msg) && m.OnEditMessage != nil {
-				action("✎", i18n.T(i18n.KeyChatEdit), func() { m.OnEditMessage(msg.Seq, msg.Body) })
+			if msg.Seq == m.EditingSeq && m.OnCancelEdit != nil {
+				ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
+				action("×", i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
+			} else if msg.Seq == session.LatestEditableMessage(m.Snapshot.Messages) && m.OnEditMessage != nil {
+				tip := i18n.T(i18n.KeyChatEdit)
+				if m.Snapshot.PromptBusy || m.Snapshot.MessageEditBusy {
+					tip = i18n.T(i18n.KeyChatEditRunning)
+				} else if !session.CanEditMessage(m.Snapshot, msg.Seq) {
+					tip = i18n.T(i18n.KeyChatEditUnsupported)
+				}
+				button := ui.Button(c, "✎").Label(i18n.T(i18n.KeyChatEdit)).Tooltip(tip).Width(28).Height(28).Disabled(!session.CanEditMessage(m.Snapshot, msg.Seq))
+				if m.EditReturnSeq != nil && *m.EditReturnSeq == msg.Seq {
+					button.Focus()
+					*m.EditReturnSeq = 0
+				}
+				if button.Clicked() {
+					m.OnEditMessage(msg.Seq, msg.Body)
+				}
 			}
 		})
 	})

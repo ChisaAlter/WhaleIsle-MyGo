@@ -102,6 +102,10 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 	s.mu.Lock()
 	client := s.client
 	mode := NormalizePromptMode(string(s.promptMode))
+	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.turnStartMs > 0}, editSeq)) {
+		s.mu.Unlock()
+		return errors.New("当前消息已变化或会话正在运行，请取消编辑后重试")
+	}
 	s.mu.Unlock()
 	if client == nil || id == "" {
 		return ErrNoClient
@@ -126,7 +130,7 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 		parts = append(parts, b)
 	}
 	line := strings.TrimSpace(text)
-	if strings.HasPrefix(line, "/") && !strings.Contains(line, "\n") {
+	if editSeq == 0 && strings.HasPrefix(line, "/") && !strings.Contains(line, "\n") {
 		if len(parts) > 0 {
 			var commands api.ListResult3
 			if err := client.Call(ctx, "commands/list", map[string]any{"agentId": id}, &commands); err != nil {
@@ -171,6 +175,10 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 		req.EditMessageSeq = &editSeq
 	}
 	s.mu.Lock()
+	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.turnStartMs > 0}, editSeq)) {
+		s.mu.Unlock()
+		return errors.New("the edited message is no longer the latest idle user turn")
+	}
 	if s.selectedID == id {
 		s.promptBusy = true
 	}

@@ -116,6 +116,12 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			}
 		}
 		switch ev.Key {
+		case ui.KeyEscape:
+			if m.Editing && client.marked == nil && m.OnCancelEdit != nil {
+				m.OnCancelEdit()
+				return true
+			}
+			return false
 		case ui.KeyHome:
 			client.move(0, ev.Mods&ui.Shift != 0)
 			return true

@@ -568,6 +568,9 @@ const (
 	KeyChatLoadEarlierBusy                = "chat.load_earlier_busy"
 	KeyChatEdit                           = "chat.edit"
 	KeyChatEditHint                       = "chat.edit_hint"
+	KeyChatEditRunning                    = "chat.edit_running"
+	KeyChatEditUnsupported                = "chat.edit_unsupported"
+	KeyChatEditStale                      = "chat.edit_stale"
 	KeyChatCopy                           = "chat.copy"
 	KeyChatQuote                          = "chat.quote"
 	KeyChatReconnect                      = "chat.reconnect"
@@ -1601,7 +1604,10 @@ var zhCN = map[string]string{
 	KeyChatLoadEarlier:                    "加载更早消息",
 	KeyChatLoadEarlierBusy:                "加载中…",
 	KeyChatEdit:                           "编辑",
-	KeyChatEditHint:                       "编辑中（将带 editMessageSeq 重发）",
+	KeyChatEditHint:                       "正在重新编辑此消息",
+	KeyChatEditRunning:                    "会话运行中，暂时无法编辑",
+	KeyChatEditUnsupported:                "仅支持编辑纯文本消息",
+	KeyChatEditStale:                      "当前消息已变化或会话正在运行，请取消编辑后重试",
 	KeyChatCopy:                           "复制",
 	KeyChatQuote:                          "引用",
 	KeyChatReconnect:                      "重连",
@@ -2519,7 +2525,10 @@ var en = map[string]string{
 	KeyChatLoadEarlier:                    "Load earlier messages",
 	KeyChatLoadEarlierBusy:                "Loading…",
 	KeyChatEdit:                           "Edit",
-	KeyChatEditHint:                       "Editing (will resend with editMessageSeq)",
+	KeyChatEditHint:                       "Re-editing this message",
+	KeyChatEditRunning:                    "Cannot edit while the conversation is running",
+	KeyChatEditUnsupported:                "Only text messages can be edited",
+	KeyChatEditStale:                      "The message changed or the conversation is running. Cancel editing and try again.",
 	KeyChatCopy:                           "Copy",
 	KeyChatQuote:                          "Quote",
 	KeyChatReconnect:                      "Reconnect",

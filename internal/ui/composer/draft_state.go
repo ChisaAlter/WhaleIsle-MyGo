@@ -10,13 +10,19 @@ import (
 // DraftState is a stable UI-owned draft. Async work returns through Window.Update.
 // Each session keeps its own text input client, selection, attachments and error.
 type DraftState struct {
-	Text        string
-	Attachments []session.ComposerAttachment
-	Client      *DraftClient
-	Sending     bool
-	Preparing   int
-	Error       string
-	TargetID    string
+	Text               string
+	Attachments        []session.ComposerAttachment
+	Client             *DraftClient
+	Sending            bool
+	Preparing          int
+	Error              string
+	TargetID           string
+	EditSeq            float64
+	EditSessionID      string
+	EditReturnSeq      float64
+	EditFocus          bool
+	stashedText        string
+	stashedAttachments []session.ComposerAttachment
 }
 
 func NewDraftState(text string) *DraftState {
@@ -28,6 +34,9 @@ func NewDraftState(text string) *DraftState {
 // SaveDraft persists only user inputs. Staged Host receipts and image bytes are
 // deliberately excluded, since a restarted Host needs a fresh upload.
 func (d *DraftState) SaveDraft() json.RawMessage {
+	if d.EditSeq > 0 {
+		return (&DraftState{Text: d.stashedText, Attachments: d.stashedAttachments}).SaveDraft()
+	}
 	type file struct {
 		Path string
 		Name string

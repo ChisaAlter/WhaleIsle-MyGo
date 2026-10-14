@@ -76,6 +76,8 @@ func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, g
 	}
 	s.messages = nil
 	s.turnStartMs = 0
+	s.editTurnOpening = false
+	s.editTurnSeq = 0
 	s.resetPlanBoardLocked()
 	s.resetHistoryPagingLocked()
 	s.historyThroughSeq = 0
@@ -142,6 +144,8 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		}
 		s.messages = nil
 		s.turnStartMs = 0
+		s.editTurnOpening = false
+		s.editTurnSeq = 0
 		s.resetPlanBoardLocked()
 		s.resetHistoryPagingLocked()
 		s.historyThroughSeq = 0
@@ -203,15 +207,19 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	}
 	switch head.Type {
 	case "turn/start":
+		s.editTurnSeq, s.editTurnOpening = head.Seq, true
 		s.turnStartMs = head.Time
 		return true
 	case "turn/end":
+		turnSeq := s.editTurnSeq
 		elapsed := 0.0
 		if s.turnStartMs > 0 && head.Time >= s.turnStartMs {
 			elapsed = head.Time - s.turnStartMs
 		}
 		s.turnStartMs = 0
-		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", Raw: append(json.RawMessage(nil), raw...), Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
+		s.editTurnOpening = false
+		s.editTurnSeq = 0
+		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", TurnSeq: turnSeq, Raw: append(json.RawMessage(nil), raw...), Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
 		return true
 	}
 	msg, ok := classifyPersistenceEvent(raw)
@@ -221,6 +229,7 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	if msg.ID == "" {
 		msg.ID = newRequestID()
 	}
+	annotateEditMessage(&msg, s.editTurnSeq, &s.editTurnOpening)
 	s.messages = append(s.messages, msg)
 	return true
 }
@@ -237,7 +246,7 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 	}
 	switch wrap.Frame.Type {
 	case "start":
-		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "assistant", Streaming: true})
+		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "assistant", TurnSeq: s.editTurnSeq, Streaming: true})
 	case "chunk":
 		text := extractChunkText(wrap.Frame.Chunk)
 		if text == "" {

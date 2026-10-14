@@ -157,6 +157,8 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 		}
 	}
 	var batch []Message
+	var turnSeq float64
+	opening := false
 	for _, rec := range records {
 		if rec.Type != "event" {
 			continue
@@ -166,6 +168,14 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 			continue
 		}
 		s.bumpHistoryThroughSeq(rec.Event.Seq)
+		var head struct {
+			Type string  `json:"type"`
+			Seq  float64 `json:"seq"`
+		}
+		_ = json.Unmarshal(raw, &head)
+		if head.Type == "turn/start" {
+			turnSeq, opening = head.Seq, true
+		}
 		msg, ok := classifyPersistenceEvent(raw)
 		if !ok {
 			continue
@@ -179,6 +189,7 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 			}
 			seen[msg.Seq] = struct{}{}
 		}
+		annotateEditMessage(&msg, turnSeq, &opening)
 		batch = append(batch, msg)
 	}
 	if len(batch) == 0 {

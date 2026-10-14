@@ -524,7 +524,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						filePaths = m.OnIndexWorkspace(strings.TrimSpace(m.WorkspaceRoot))
 					}
 				}
-				editing := m.EditMessageSeq != nil && *m.EditMessageSeq > 0
+				editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
 				paintComposer := func(hero bool) {
 					if !hero {
 						// Electron TodoPanel: todos-only dock above composer (not PlanBoard).
@@ -536,15 +536,20 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
-						Snapshot:           snap,
-						ThemeID:            m.ThemeID,
-						SystemDark:         m.SystemDark,
-						WorkspaceRoot:      m.WorkspaceRoot,
-						Draft:              m.Draft,
-						State:              m.ComposerState,
-						OnSubmit:           m.OnSubmitComposer,
-						OnAttachFiles:      m.OnAttachComposerFiles,
-						Editing:            editing,
+						Snapshot:      snap,
+						ThemeID:       m.ThemeID,
+						SystemDark:    m.SystemDark,
+						WorkspaceRoot: m.WorkspaceRoot,
+						Draft:         m.Draft,
+						State:         m.ComposerState,
+						OnSubmit:      m.OnSubmitComposer,
+						OnAttachFiles: m.OnAttachComposerFiles,
+						Editing:       editing,
+						OnCancelEdit: func() {
+							if m.ComposerState != nil {
+								m.ComposerState.EndEdit()
+							}
+						},
 						Hero:               hero,
 						ModelPick:          m.ModelPick,
 						PermissionPick:     m.PermissionPick,
@@ -721,12 +726,31 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										FeedbackCommentMsgID: m.FeedbackCommentMsgID,
 										FeedbackCommentDraft: m.FeedbackCommentDraft,
 										OnForkTurn:           func(seq float64) { m.Store.ForkTurn(context.Background(), snap.SelectedID, seq) },
-										OnEditMessage: func(seq float64, body string) {
-											if m.Draft != nil {
-												*m.Draft = body
+										EditingSeq: func() float64 {
+											if m.ComposerState != nil {
+												return m.ComposerState.EditSeq
 											}
-											if m.EditMessageSeq != nil {
-												*m.EditMessageSeq = seq
+											return 0
+										}(),
+										EditReturnSeq: func() *float64 {
+											if m.ComposerState != nil {
+												return &m.ComposerState.EditReturnSeq
+											}
+											return nil
+										}(),
+										OnCancelEdit: func() {
+											if m.ComposerState != nil {
+												snapLastEditSeq := m.ComposerState.EditSeq
+												m.ComposerState.EndEdit()
+												if !m.ComposerState.Sending {
+													m.ComposerState.EditFocus = false
+													m.ComposerState.EditReturnSeq = snapLastEditSeq
+												}
+											}
+										},
+										OnEditMessage: func(seq float64, body string) {
+											if m.ComposerState != nil && session.CanEditMessage(snap, seq) {
+												m.ComposerState.BeginEdit(snap.SelectedID, seq, body)
 											}
 										},
 										OnQuoteMessage: func(body string) {

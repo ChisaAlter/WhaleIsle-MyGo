@@ -19,9 +19,12 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
-	Snapshot   session.ViewState
-	ThemeID    string
-	SystemDark bool
+	EditReturnSeq *float64
+	EditingSeq    float64
+	OnCancelEdit  func()
+	Snapshot      session.ViewState
+	ThemeID       string
+	SystemDark    bool
 	// ContentWidth is the shared chat width axis; zero uses the original 748px fallback.
 	ContentWidth     float32
 	List             *ui.ListState

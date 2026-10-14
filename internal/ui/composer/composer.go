@@ -79,7 +79,8 @@ type Model struct {
 	// OnSearchFileRefs calls fileReferences/list for @ mention query (optional).
 	OnSearchFileRefs func(query string) []string
 
-	Editing bool // draft is a message edit (editMessageSeq)
+	OnCancelEdit func()
+	Editing      bool // draft is a message edit (editMessageSeq)
 	// Hero paints the Electron empty-session centered composer (larger card,
 	// build-oriented placeholder, workspace/mode chips above the card).
 	Hero bool
@@ -110,6 +111,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		draft = *m.Draft
 	}
 	kind, query, tok, suggestOpen := ActiveSuggest(draft)
+	if m.Editing && kind == SuggestSlash {
+		suggestOpen = false
+	}
 	items := buildSuggestItems(m, kind, query)
 	skillsQuery := ""
 	if m.SkillsFilter != nil {
@@ -201,7 +205,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				paintDraftAttachments(c, m, fg, muted)
 			}
 			if m.Editing {
-				ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
+				ui.Row(c).FillWidth().Padding(0, 16).Gap(8).Children(func() {
+					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
+					if ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(m.State != nil && m.State.Sending).Clicked() && m.OnCancelEdit != nil {
+						m.OnCancelEdit()
+					}
+				})
 			}
 			if len(mentions) > 0 && m.Draft != nil {
 				paintMentionChips(c, m, mentions, muted, accent, selectIsUTF16, &selectStart, &selectEnd)
@@ -246,6 +255,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				}
 				if suggestOpen && len(items) > 0 {
 					wireSuggestKeys(area, m, items, kind, tok)
+				}
+				if m.State != nil && m.State.EditFocus {
+					area.Focus()
+					m.State.EditFocus = false
 				}
 				wireFileDrop(area, m)
 				if m.UseTextInputClient && m.TextInput != nil {
@@ -782,6 +795,9 @@ func applySuggest(m Model, it suggestItem, tok TokenRange) {
 }
 
 func handleSlashSend(m Model, text string) bool {
+	if m.Editing {
+		return false
+	}
 	text = strings.TrimSpace(text)
 	if text == "" || !strings.HasPrefix(text, "/") {
 		return false

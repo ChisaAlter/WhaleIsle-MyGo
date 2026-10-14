@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 // composerDraftLocked is called while mainState.mu is held. A draft's pointer
@@ -63,14 +64,19 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	if win == nil || sessions == nil {
 		return
 	}
+	editSeq = d.EditSeq
+	if editSeq > 0 && !d.EditAllowed(sessions.Snapshot()) {
+		d.Error = i18n.T(i18n.KeyChatEditStale)
+		return
+	}
 	text := d.Text
 	// Local commands never consume attachments or dispatch to the Host.
-	if len(d.Attachments) == 0 && strings.TrimSpace(text) == "/clear" {
+	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/clear" {
 		d.Text = ""
 		d.Client.Sync()
 		return
 	}
-	if len(d.Attachments) == 0 && strings.TrimSpace(text) == "/new" {
+	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/new" {
 		sessions.CreateSession(context.Background())
 		return
 	}
@@ -104,6 +110,10 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			if err != nil {
 				d.Error = err.Error()
 				d.Attachments = attachments
+				return
+			}
+			if editSeq > 0 {
+				d.EndEdit()
 				return
 			}
 			// Typing while sending is allowed. Never erase newer edits.
