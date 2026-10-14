@@ -8,6 +8,11 @@ import (
 )
 
 type Model struct {
+	ArchiveCandidate                   *projectflow.Project
+	LifecycleNote                      string
+	OnArchiveProject, OnRestoreProject func(string)
+	OnConfirmArchive, OnCancelArchive  func()
+
 	AssetNote          string
 	AssetDiff          *projectflow.WorkDiff
 	OnArtifact         func(projectflow.Artifact, func(string))
@@ -80,6 +85,13 @@ func View(c *ui.Context, m Model) {
 		if m.Loaded && !m.Listing.Available {
 			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(12)
 		}
+		if m.LifecycleNote != "" {
+			ui.Text(c, m.LifecycleNote).FontSize(11)
+		}
+		if m.ArchiveCandidate != nil {
+			archiveConfirmation(c, m)
+			return
+		}
 		if m.RequestProjectID != "" {
 			requestsView(c, m)
 			return
@@ -123,6 +135,15 @@ func View(c *ui.Context, m Model) {
 								m.OnBeginRename(p)
 							}
 						})
+						if p.Lifecycle == "archived" {
+							if ui.Button(c, tr("恢复 Project", "Restore Project")).Disabled(m.Busy || !m.Listing.Available || p.Archiving).Clicked() && m.OnRestoreProject != nil {
+								m.OnRestoreProject(p.ID)
+							}
+						} else {
+							if ui.Button(c, tr("归档 Project", "Archive Project")).Disabled(m.Busy || !m.Listing.Available || p.Archiving || p.Lifecycle != "ready").Clicked() && m.OnArchiveProject != nil {
+								m.OnArchiveProject(p.ID)
+							}
+						}
 						status := p.Lifecycle
 						if p.Activity.State != "" {
 							status += " · " + p.Activity.State

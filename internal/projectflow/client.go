@@ -21,6 +21,9 @@ type Project struct {
 	Activity                  struct {
 		State              string `json:"state"`
 		CoordinatorRunning bool   `json:"coordinatorRunning"`
+		Running            int    `json:"running"`
+		Queued             int    `json:"queued"`
+		Provisioning       int    `json:"provisioning"`
 	} `json:"activity"`
 }
 type Listing struct {

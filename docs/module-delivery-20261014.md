@@ -79,6 +79,7 @@
 - Project 用户要求卡：真实 requests/list/get 三态分页、目标/版本/交付证据和剩余问题；完成态显示已交付并区别 Team 底层任务。归档前重读并遵循 Host completed/current 原子校验，支持恢复；变更成功但刷新失败明确提示且不自动重放。仅 mock，未修改真实 Project。
 - Project 交付物操作：原 workstreamId/delegationRef/path 经 Host 授权打开并显示 canonicalPath/modifiedSinceReport，缺引用拒绝；文件复用现有脏草稿安全打开，目录/diff走真实接口，diff 明确当前工作区而非历史回滚。仅 mock，未操作真实交付文件。
 - 市场待重启生效：保留 restart-required 状态并提供显式受保护重启，取消/失败不清除，只有新 Host generation Ready 后才完成并刷新插件；仍停在插件面板才恢复逻辑页与新认证，离开不抢回。复用原热重载/owner清理，不自动中断或重复安装。
+- Project 生命周期：整个项目真实 archive/restore，与要求卡归档分开；先读详情，活动或未知状态需明确确认停止并归档，成功核验生命周期，恢复不自动启动旧任务。无 delete 假接口，只 mock 未操作真实项目。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

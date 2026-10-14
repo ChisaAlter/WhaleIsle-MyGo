@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	archiveCandidate              *projectflow.Project
+	lifecycleNote                 string
 	assetDiff                     *projectflow.WorkDiff
 	assetNote                     string
 	requestProjectID, requestKind string
@@ -53,7 +55,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
-	m := projects.Model{AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
 	for _, p := range listing.Projects {
 		if p.ID == f.requestProjectID {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
@@ -155,6 +157,14 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnProjectDirectory = func() { s.runProjectAsset(win, m.RequestProjectID, "directory", projectflow.Artifact{}, "", nil) }
 	m.OnCloseDiff = func() { s.mu.Lock(); s.projectFlow.assetDiff = nil; s.mu.Unlock() }
+	m.OnArchiveProject = func(id string) { s.runProjectLifecycle(win, id, "prepare") }
+	m.OnRestoreProject = func(id string) { s.runProjectLifecycle(win, id, "restore") }
+	m.OnConfirmArchive = func() {
+		if m.ArchiveCandidate != nil {
+			s.runProjectLifecycle(win, m.ArchiveCandidate.ID, "archive")
+		}
+	}
+	m.OnCancelArchive = func() { s.mu.Lock(); s.projectFlow.archiveCandidate = nil; s.mu.Unlock() }
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
