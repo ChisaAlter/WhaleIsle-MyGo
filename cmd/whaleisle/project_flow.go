@@ -14,6 +14,9 @@ import (
 )
 
 type projectFlowState struct {
+	detail                     *projectflow.WorkDetail
+	process                    *projectflow.ProcessSnapshot
+	detailGeneration           uint64
 	teamID, teamNote           string
 	team                       *projectflow.Overview
 	navigation                 uint64
@@ -41,7 +44,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
-	m := projects.Model{TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m := projects.Model{Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
@@ -69,9 +72,33 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnCancelRename = func() { s.mu.Lock(); s.projectFlow.renameID = ""; s.projectFlow.renameDraft = ""; s.mu.Unlock() }
 	m.OnRename = func(id, title string) { s.runProjectAction(win, "rename", id, title) }
 	m.OnTeam = func(id string) { s.runProjectTeam(win, id, "inspect", "") }
-	m.OnCloseTeam = func() { s.mu.Lock(); s.projectFlow.teamID = ""; s.projectFlow.team = nil; s.mu.Unlock() }
+	m.OnCloseTeam = func() {
+		s.mu.Lock()
+		s.projectFlow.teamID = ""
+		s.projectFlow.team = nil
+		s.projectFlow.detail = nil
+		s.projectFlow.process = nil
+		s.projectFlow.detailGeneration++
+		s.mu.Unlock()
+	}
 	m.OnControl = func(action, workID string) { s.runProjectTeam(win, m.TeamID, action, workID) }
 	m.OnNextWork = func(cursor string) { s.runProjectTeam(win, m.TeamID, "next", cursor) }
+	m.OnInspect = func(workID, memberID string) { s.runProjectDetail(win, m.TeamID, "detail", workID, memberID) }
+	m.OnCloseDetail = func() {
+		s.mu.Lock()
+		s.projectFlow.detail = nil
+		s.projectFlow.process = nil
+		s.projectFlow.detailGeneration++
+		s.mu.Unlock()
+	}
+	m.OnProcess = func(earlier bool) {
+		action := "process"
+		if earlier {
+			action = "earlier"
+		}
+		s.runProjectDetail(win, m.TeamID, action, "", "")
+	}
+	m.OnRetryDraft = func() { s.runProjectDetail(win, m.TeamID, "retry-draft", "", "") }
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {

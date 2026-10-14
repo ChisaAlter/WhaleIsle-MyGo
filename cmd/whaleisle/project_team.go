@@ -39,6 +39,9 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 		f.team = nil
 		f.teamNote = ""
 	}
+	f.detail = nil
+	f.process = nil
+	f.detailGeneration++
 	f.teamID = id
 	f.busy = true
 	f.err = ""

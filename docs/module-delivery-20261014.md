@@ -70,6 +70,7 @@
 - Visual replies 显式启用：现有设置 enabled 写 true 前先核验当前本机 Host/产物，再执行固定合成 Probe，能力成立才提交设置；失败显示具体原因且不发启用 RPC，关闭不受阻，默认仍 off。真实 Windows 探针未运行，不能宣称隔离验收通过。
 - 最新 Host 暂存验证：真实 Linux 产物经过临时 staging 与 manifest 校验，原版 Project overlay 生成成功，7 个 peer 均解析到 staged Harness；未启动 Host，Linux 产物不能充当 Windows 部署。
 - HTML 隔离状态查询：现有 token 认证下只读 GET /desktop/html-preview/status 返回当前进程 available/reason，no-store、无 Probe 副作用，其他方法拒绝；Host 全 checkpoint 防跨重启旧启用状态还需后续保护补丁。
+- Team 工作详情/过程：真实 workstreams/get 保持原 childId，session/follow 首快照后立即取消并按 throughSeq 分页，continuable 只读查看；失败重试仅准备原 Lead 草稿，已有草稿/附件/发送/编辑时不覆盖，不假造 retry API 或自动运行模型。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

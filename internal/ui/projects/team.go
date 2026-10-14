@@ -15,6 +15,10 @@ func stateLabel(state string) string {
 	return state
 }
 func teamView(c *ui.Context, m Model) {
+	if m.Detail != nil {
+		detailView(c, m)
+		return
+	}
 	ui.Row(c).Gap(4).Children(func() {
 		if ui.Button(c, tr("返回项目", "Back to Projects")).Clicked() && m.OnCloseTeam != nil {
 			m.OnCloseTeam()
@@ -54,6 +58,7 @@ func teamView(c *ui.Context, m Model) {
 			}
 			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(o.Team.Members))).FontSize(12)
 			for _, member := range o.Team.Members {
+				member := member
 				name := member.Name
 				if member.Role == "lead" {
 					name = "Lead"
@@ -62,6 +67,9 @@ func teamView(c *ui.Context, m Model) {
 					name = member.ID
 				}
 				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(12)
+				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
+					m.OnInspect("", member.ID)
+				}
 				if member.Description != "" {
 					ui.Text(c, member.Description).FontSize(11)
 				}
@@ -93,6 +101,9 @@ func teamView(c *ui.Context, m Model) {
 			ui.Text(c, fmt.Sprintf(tr("工作流（本页 %d；当前总数 %d）", "Workstreams (%d on page; %d current total)"), len(o.Workstreams), o.WorkPage.CurrentTotal)).FontSize(12)
 			for _, work := range o.Workstreams {
 				work := work
+				if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
+					m.OnInspect(work.ID, "")
+				}
 				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(12)
 				if work.BlockedReason != "" {
 					ui.Text(c, work.BlockedReason).FontSize(11)

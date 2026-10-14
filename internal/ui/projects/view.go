@@ -8,6 +8,11 @@ import (
 )
 
 type Model struct {
+	Detail                                        *projectflow.WorkDetail
+	Process                                       *projectflow.ProcessSnapshot
+	OnInspect                                     func(string, string)
+	OnCloseDetail, OnRetryDraft                   func()
+	OnProcess                                     func(bool)
 	TeamID, TeamNote                              string
 	Team                                          *projectflow.Overview
 	OnTeam                                        func(string)
