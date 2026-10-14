@@ -11,24 +11,30 @@ import (
 
 // MCPServerRow is one host MCP server for the dedicated settings page.
 type MCPServerRow struct {
-	ID      string
-	Origin  string
-	Enabled bool
-	Status  string
+	ID       string
+	Origin   string
+	Enabled  bool
+	Writable bool
+	Status   string
 }
 
 // MCPAccess is the dedicated MCP settings page (mcpServers/list when present).
 type MCPAccess struct {
-	Servers      []MCPServerRow
-	HasListRPC   bool
-	Err          string
-	LastAction   string
-	OnRefresh    func()
-	OnSetEnabled func(id string, enabled bool)
-	OnRetry      func(id string)
-	OnAuthorize  func(id string)
-	OnTest       func(id string)
-	OnDelete     func(id string)
+	Servers                                       []MCPServerRow
+	Busy                                          bool
+	EditingID, DeletingID                         string
+	OnEdit                                        func(string)
+	OnDraftChanged                                func(string)
+	OnCancelEdit, OnConfirmDelete, OnCancelDelete func()
+	HasListRPC                                    bool
+	Err                                           string
+	LastAction                                    string
+	OnRefresh                                     func()
+	OnSetEnabled                                  func(id string, enabled bool)
+	OnRetry                                       func(id string)
+	OnAuthorize                                   func(id string)
+	OnTest                                        func(id string)
+	OnDelete                                      func(id string)
 	// DraftSpec is optional JSON for mcpServers/upsert (Electron add-server form).
 	DraftSpec *string
 	OnUpsert  func(specJSON string)
@@ -58,39 +64,65 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			r := row
 			desktopRow(c, emptyDash(r.ID), func() {
 				ui.Text(c, mcpRowDetail(r)).FontSize(11).TextColor(muted)
+				if !r.Writable {
+					ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(11).TextColor(muted)
+				}
 				ui.Row(c).Gap(6).Children(func() {
+					if r.Writable && a.OnEdit != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).FontSize(11).Disabled(a.Busy).Clicked() {
+						a.OnEdit(r.ID)
+					}
 					toggle := i18n.T(i18n.KeySettingsMCPEnable)
 					if r.Enabled {
 						toggle = i18n.T(i18n.KeySettingsMCPDisable)
 					}
-					if a.OnSetEnabled != nil && ui.Button(c, toggle).FontSize(11).Clicked() {
+					if r.Writable && a.OnSetEnabled != nil && ui.Button(c, toggle).FontSize(11).Disabled(a.Busy).Clicked() {
 						a.OnSetEnabled(r.ID, !r.Enabled)
 					}
-					if a.OnRetry != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPRetry)).FontSize(11).Clicked() {
+					if r.Writable && a.OnRetry != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPRetry)).FontSize(11).Disabled(a.Busy).Clicked() {
 						a.OnRetry(r.ID)
 					}
-					if a.OnAuthorize != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPAuthorize)).FontSize(11).Clicked() {
+					if r.Writable && a.OnAuthorize != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPAuthorize)).FontSize(11).Disabled(a.Busy).Clicked() {
 						a.OnAuthorize(r.ID)
 					}
-					if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).FontSize(11).Clicked() {
+					if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).FontSize(11).Disabled(a.Busy).Clicked() {
 						a.OnTest(r.ID)
 					}
-					if a.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).FontSize(11).Clicked() {
+					if r.Writable && a.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).FontSize(11).Disabled(a.Busy).Clicked() {
 						a.OnDelete(r.ID)
 					}
 				})
 			}, fg, muted)
 		}
 	}
+	if a.DeletingID != "" {
+		ui.Text(c, "确认移除 / Confirm removal: "+a.DeletingID).FontSize(12).Bold().TextColor(fg)
+		ui.Row(c).Gap(8).Children(func() {
+			if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Disabled(a.Busy).Clicked() {
+				a.OnConfirmDelete()
+			}
+			if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
+				a.OnCancelDelete()
+			}
+		})
+	}
 	if a.DraftSpec != nil {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(12).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsertHint)).FontSize(11).TextColor(muted)
-		ui.TextArea(c, a.DraftSpec).Fill().MinHeight(72)
-		if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Clicked() {
+		if a.EditingID != "" {
+			ui.Text(c, i18n.T(i18n.KeyFilesEdit)+": "+a.EditingID).FontSize(12).TextColor(fg)
+		}
+		area := ui.TextArea(c, a.DraftSpec).Fill().MinHeight(72)
+		if area.Changed() && a.OnDraftChanged != nil {
+			a.OnDraftChanged(*a.DraftSpec)
+		}
+		if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
 			a.OnUpsert(*a.DraftSpec)
 		}
+		if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
+			a.OnCancelEdit()
+		}
 	}
-	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
+	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(a.Busy).Clicked() {
 		a.OnRefresh()
 	}
 }

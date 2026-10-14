@@ -32,6 +32,7 @@ import (
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/desktop/mcpconfig"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/desktop/sshremote"
@@ -126,11 +127,7 @@ type mainState struct {
 	settingsModelDrafts        map[string]string
 	settingsAgentPresetLabel   string
 	settingsAgentPresetDoc     string
-	settingsMCPRows            []settings.MCPServerRow
-	settingsMCPHasRPC          bool
-	settingsMCPErr             string
-	settingsMCPLastAction      string
-	settingsMCPDraftSpec       string
+	settingsMCPController      mcpconfig.Controller
 	remoteMachines             *remotestore.Store
 	remoteMachineEditor        remoteui.MachineEditor
 	sshTunnel                  *sshremote.TunnelSession
@@ -2014,74 +2011,7 @@ func (s *mainState) stopDSHLocked() {
 }
 
 func (s *mainState) refreshSettingsMCP() {
-	_, hasRPC := api.Registry["mcpServers/list"]
-	s.dshMu.Lock()
-	client := s.dshClient
-	s.dshMu.Unlock()
-
-	s.mu.Lock()
-	s.settingsMCPHasRPC = hasRPC
-	win := s.win
-	s.mu.Unlock()
-	refreshUI := func() {
-		if win != nil {
-			win.Update(func() {})
-		}
-	}
-
-	if !hasRPC {
-		s.mu.Lock()
-		s.settingsMCPRows = nil
-		s.settingsMCPErr = ""
-		s.settingsMCPLastAction = i18n.T(i18n.KeySettingsMCPStubHint)
-		s.mu.Unlock()
-		refreshUI()
-		return
-	}
-	if client == nil {
-		s.mu.Lock()
-		// Codegen may list mcpServers/list, but host plugin is not connected yet.
-		s.settingsMCPHasRPC = false
-		s.settingsMCPRows = nil
-		s.settingsMCPErr = ""
-		s.settingsMCPLastAction = i18n.T(i18n.KeySettingsMCPStubHint)
-		s.mu.Unlock()
-		refreshUI()
-		return
-	}
-	go func() {
-		var snap api.McpServerSnapshot
-		err := client.Call(context.Background(), "mcpServers/list", nil, &snap)
-		rows := make([]settings.MCPServerRow, 0, len(snap.Servers))
-		if err == nil {
-			for _, srv := range snap.Servers {
-				health := ""
-				var lastErr *string
-				if srv.Connection != nil {
-					health = srv.Connection.Health
-					lastErr = srv.Connection.LastError
-				}
-				rows = append(rows, settings.MCPServerRow{
-					ID:      srv.Id,
-					Origin:  srv.Origin,
-					Enabled: srv.Enabled,
-					Status:  settings.FormatMCPStatus(srv.FiberPhase, health, lastErr),
-				})
-			}
-		}
-		s.mu.Lock()
-		s.settingsMCPHasRPC = true
-		if err != nil {
-			s.settingsMCPErr = err.Error()
-			s.settingsMCPLastAction = ""
-		} else {
-			s.settingsMCPErr = ""
-			s.settingsMCPRows = rows
-			s.settingsMCPLastAction = fmt.Sprintf("%s: %s", i18n.T(i18n.KeySettingsRefresh), settings.FormatMCPServerCount(len(rows)))
-		}
-		s.mu.Unlock()
-		refreshUI()
-	}()
+	s.runMCPSettings(func(ctx context.Context, client mcpconfig.Caller) { s.settingsMCPController.Refresh(ctx, client) })
 }
 
 func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
@@ -4676,10 +4606,6 @@ func mainView(c *ui.Context) {
 			pluginsActive := state.settingsPluginsActive
 			skillsActive := state.settingsSkillsActive
 			agentPresetsActive := state.settingsAgentPresetsActive
-			mcpRows := append([]settings.MCPServerRow(nil), state.settingsMCPRows...)
-			mcpHasRPC := state.settingsMCPHasRPC
-			mcpErr := state.settingsMCPErr
-			mcpAction := state.settingsMCPLastAction
 			desktopErr := state.desktopSaveErr
 			desktopAction := state.desktopLastAction
 			if !state.credsDraft.seeded {
@@ -5166,137 +5092,8 @@ func mainView(c *ui.Context) {
 						}
 					},
 				},
-				MCPActive: mcpActive,
-				MCP: &settings.MCPAccess{
-					Servers:    mcpRows,
-					HasListRPC: mcpHasRPC,
-					Err:        mcpErr,
-					LastAction: mcpAction,
-					DraftSpec:  &state.settingsMCPDraftSpec,
-					OnRefresh: func() {
-						state.refreshSettingsMCP()
-					},
-					OnUpsert: func(specJSON string) {
-						specJSON = strings.TrimSpace(specJSON)
-						if specJSON == "" {
-							return
-						}
-						if !json.Valid([]byte(specJSON)) {
-							state.mu.Lock()
-							state.settingsMCPLastAction = "invalid JSON"
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-							return
-						}
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
-						}
-						go func() {
-							var out api.UpsertResult
-							req := api.McpServerUpsertRequest{Spec: json.RawMessage(specJSON)}
-							err := client.Call(context.Background(), "mcpServers/upsert", map[string]any{"request": req}, &out)
-							state.mu.Lock()
-							if err != nil {
-								state.settingsMCPLastAction = err.Error()
-							} else {
-								state.settingsMCPLastAction = i18n.T(i18n.KeySettingsMCPUpsertSave)
-								state.settingsMCPDraftSpec = ""
-							}
-							state.mu.Unlock()
-							state.refreshSettingsMCP()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					OnSetEnabled: func(id string, enabled bool) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || id == "" {
-							return
-						}
-						go func() {
-							var out api.SetEnabledResult
-							req := api.McpServerEnableRequest{Id: id, Enabled: enabled}
-							_ = client.Call(context.Background(), "mcpServers/setEnabled", map[string]any{"request": req}, &out)
-							state.refreshSettingsMCP()
-						}()
-					},
-					OnRetry: func(id string) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || id == "" {
-							return
-						}
-						go func() {
-							var out api.RetryResult
-							req := api.McpServerIdRequest{Id: id}
-							_ = client.Call(context.Background(), "mcpServers/retry", map[string]any{"request": req}, &out)
-							state.refreshSettingsMCP()
-						}()
-					},
-					OnAuthorize: func(id string) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || id == "" {
-							return
-						}
-						go func() {
-							var out api.AuthorizeResult
-							req := api.McpServerIdRequest{Id: id}
-							_ = client.Call(context.Background(), "mcpServers/authorize", map[string]any{"request": req}, &out)
-							state.refreshSettingsMCP()
-						}()
-					},
-					OnTest: func(id string) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || id == "" {
-							return
-						}
-						go func() {
-							var out api.McpServerTestResult
-							req := api.McpServerIdRequest{Id: id}
-							err := client.Call(context.Background(), "mcpServers/test", map[string]any{"request": req}, &out)
-							msg := "test failed"
-							if err != nil {
-								msg = err.Error()
-							} else if out.Ok {
-								msg = fmt.Sprintf("test ok · %s · %d tools", out.ServerName, int(out.ToolCount))
-							}
-							state.mu.Lock()
-							state.settingsMCPLastAction = msg
-							win := state.win
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					OnDelete: func(id string) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || id == "" {
-							return
-						}
-						go func() {
-							var out api.DeleteResult
-							req := api.McpServerIdRequest{Id: id}
-							_ = client.Call(context.Background(), "mcpServers/delete", map[string]any{"request": req}, &out)
-							state.refreshSettingsMCP()
-						}()
-					},
-				},
+				MCPActive:     mcpActive,
+				MCP:           state.settingsMCPAccess(),
 				PluginsActive: pluginsActive,
 				Plugins: &settings.PluginsAccess{
 					Rows:       pluginRows,
