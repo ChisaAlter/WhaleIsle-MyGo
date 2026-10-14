@@ -32,6 +32,16 @@ func (s *Store) PetStats(now time.Time) petcare.Stats {
 // config.json. No filename/path or file content is accepted or persisted.
 // On a stale-write or disk error neither raw state nor the care award advances.
 func (s *Store) FeedPetFile(now time.Time) error {
+	return s.applyPetCare("fileEat", petcare.FeedFile, now)
+}
+
+// PatPet implements only the actual original status-menu/head-touch action.
+// The action is fixed by native code; no page-supplied arbitrary care kind.
+func (s *Store) PatPet(now time.Time) error {
+	return s.applyPetCare("pat", petcare.Pat, now)
+}
+
+func (s *Store) applyPetCare(kind string, effect func([]byte, time.Time) petcare.Stats, now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	pet, err := rawObject(s.raw["live2dPet"])
@@ -46,7 +56,7 @@ func (s *Store) FeedPetFile(now time.Time) error {
 	if err != nil {
 		return err
 	}
-	next := petcare.FeedFile(pet["stats"], now)
+	next := effect(pet["stats"], now)
 	fields := map[string]any{"satiety": next.Satiety, "mood": next.Mood, "affection": next.Affection, "lastTick": next.LastTick}
 	for key, value := range fields {
 		stats[key], err = json.Marshal(value)
@@ -54,7 +64,7 @@ func (s *Store) FeedPetFile(now time.Time) error {
 			return err
 		}
 	}
-	care["fileEat"], err = json.Marshal(now.UnixMilli())
+	care[kind], err = json.Marshal(now.UnixMilli())
 	if err != nil {
 		return err
 	}

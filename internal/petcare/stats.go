@@ -1,4 +1,4 @@
-// Package petcare implements the real fileEat/feedToken care actions from
+// Package petcare implements the real fileEat/feedToken/pat care actions from
 // Electron's pet-stats.js. It deliberately has no token ledger, file IO or renderer logic.
 package petcare
 
@@ -64,18 +64,34 @@ func FeedToken(raw []byte, now time.Time) Stats {
 	s := Snapshot(raw, now)
 	s.Satiety = clamp(math.Round(s.Satiety) + 45)
 	s.Mood = clamp(math.Round(s.Mood) + 12)
-	affection := float64(5)
+	s.Affection += careAffection(raw, "feedToken", 5, now)
+	return s
+}
+
+// Pat is the wired status-panel/head-touch action: +10 mood and +4 bond,
+// with only +1 bond when pat was already used within the last ten minutes.
+// It consumes no food, changes no growth points and never calls a model.
+func Pat(raw []byte, now time.Time) Stats {
+	s := Snapshot(raw, now)
+	s.Satiety = math.Round(s.Satiety)
+	s.Mood = clamp(math.Round(s.Mood) + 10)
+	s.Affection += careAffection(raw, "pat", 4, now)
+	return s
+}
+
+// The original cooldown is keyed by care kind, never by the most recent
+// interaction of any kind. Reuse it for token feeding and explicit patting.
+func careAffection(raw []byte, kind string, amount float64, now time.Time) float64 {
 	var saved struct {
 		Care map[string]json.RawMessage `json:"care"`
 	}
 	if json.Unmarshal(raw, &saved) == nil {
 		var last any
-		if json.Unmarshal(saved.Care["feedToken"], &last) == nil {
+		if json.Unmarshal(saved.Care[kind], &last) == nil {
 			if n, ok := last.(float64); ok && n >= 0 && float64(now.UnixMilli())-n < 600000 {
-				affection = 1
+				return math.Floor(amount * 0.25)
 			}
 		}
 	}
-	s.Affection += affection
-	return s
+	return amount
 }

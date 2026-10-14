@@ -11,6 +11,7 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Shows the selected task. Pet chat opens Whale’s own saved conversation without sending a message; Open chat returns to the task. / 显示当前任务；和宠物聊聊打开鲸鱼娘专属持久会话，不自动发送消息。回到会话仍返回当前任务。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Feed file opens a native picker and changes only saved care stats; selected files stay untouched. / 喂文件只保存饱食/心情变化，不读取或改动所选文件。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Refresh bowl reads this app’s actual usage. Feed Token spends local game food only, never API credit. / 刷新粮碗读取本应用真实用量；喂 Token 只消费本地游戏粮点，不扣账户余额。").FontSize(12).TextColor(muted)
+	ui.Text(c, "Pat saves the original mood/bond care effect; repeat pats use its ten-minute bond cooldown. / 摸摸头保存原版心情/亲密变化，重复互动沿用十分钟亲密冷却。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Optional THA4 neural animation uses verified local assets. Missing resources or runtime errors fall back to sprites. / 可选 THA4 神经渲染；资源或运行时不可用则回退图集。").FontSize(12).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).FontSize(12).TextColor(fg)

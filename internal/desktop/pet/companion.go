@@ -161,6 +161,8 @@ func (p *Companion) sync() {
 			}
 		case "feed-tokens":
 			p.feedTokens()
+		case "pat-pet":
+			p.patPet()
 		case "feed-file":
 			p.feedFile()
 		case "chat":

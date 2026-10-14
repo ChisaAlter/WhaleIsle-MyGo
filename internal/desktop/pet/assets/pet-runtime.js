@@ -33,6 +33,9 @@
         link.setAttribute('aria-disabled', String(!enabled));
         if (enabled) link.setAttribute('href', id); else link.removeAttribute('href');
       }
+      const pat = document.getElementById('pat-pet');
+      pat.setAttribute('aria-disabled', String(!!task.Care?.Busy));
+      if (task.Care?.Busy) pat.removeAttribute('href'); else pat.setAttribute('href', 'pat-pet');
       const chat = document.getElementById('pet-chat');
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
       if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');

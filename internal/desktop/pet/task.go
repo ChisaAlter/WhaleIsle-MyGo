@@ -60,6 +60,9 @@ func taskAction(raw string, task TaskStatus) string {
 	if raw == "whale-pet://localhost/feed-tokens" {
 		return "feed-tokens"
 	}
+	if raw == "whale-pet://localhost/pat-pet" {
+		return "pat-pet"
+	}
 	if raw == "whale-pet://localhost/feed-file" {
 		return "feed-file"
 	}

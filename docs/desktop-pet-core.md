@@ -180,3 +180,27 @@ truncated, oversized or invalid data aborts the refresh without a partial
 baseline/award; retry after an active write finishes. There is no extrapolation
 or fallback to incomplete rankings. Windows native rendering remains unverified
 by the targeted synthetic fixture and compile alone.
+
+## Explicit head-pat care
+
+The supplied `pet-live2d.js` really exposes `pat` in `PANEL_ACTIONS` (1588–1595),
+dispatches it through `runAction` (4306–4312), and persists `care('pat')` via
+`desktop-live2d.js`. The native **摸摸头 / Pat** entry now performs that actual
+care action: +10 mood (capped at 100), +4 affection, reduced to +1 affection
+when another pat happened within the previous ten minutes. Cooldowns are keyed
+by action, so file/token meals do not suppress or reset the pat cooldown.
+Existing elapsed hunger/mood decay is folded before the award.
+
+The fixed native `pat-pet` navigation is the only new action. No query-supplied
+care kind or application bridge is exposed; fetching its resource route cannot
+mutate state. A closed/disabled pet or active native file picker refuses it.
+It uses the same atomic, conflict-checked stats writer as file care and the
+same original affection-cooldown calculation as token feeding. Only stats and
+`care.pat` change; local food, points, native preferences, other care timestamps
+and unknown fields are preserved. Failed saves show failure and grant nothing.
+The existing care status reflects the saved mood/affection immediately.
+
+This deliberately does not restore the removed play/tease menu entries or
+invent a persistent rest reward. Original sleep is a renderer-only temporary
+state; explicit waking has a separate -7 mood action. Sleep/wake animation and
+its temporary state are not part of this small persistent-pat increment.
