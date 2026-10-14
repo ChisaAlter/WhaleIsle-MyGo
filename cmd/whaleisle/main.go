@@ -1636,7 +1636,7 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 			apply, aerr = desktopupdate.ApplyIncremental(context.Background(), desktopupdate.IncrementalOptions{
 				CurrentVersion:    buildVersion,
 				Feed:              res.Feed,
-				Start:             true,
+				Start:             false,
 				OldPath:           strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_OLD_INSTALLER")),
 				RequireSignature:  requireSig,
 				ExpectedPublisher: expectPub,
@@ -1644,12 +1644,15 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 		} else {
 			apply, aerr = desktopupdate.DownloadAndStageOpts(context.Background(), desktopupdate.StageOptions{
 				ReleaseURL:        res.ReleaseURL,
-				Start:             true,
+				Start:             false,
 				ExpectSHA256:      res.SHA256,
 				ExpectSize:        res.Size,
 				RequireSignature:  requireSig,
 				ExpectedPublisher: expectPub,
 			})
+		}
+		if aerr == nil && desktopupdate.CanStartStaged(apply) && s.installStagedUpdate(win, apply) {
+			return
 		}
 		amsg := apply.Message
 		if aerr != nil {

@@ -15,6 +15,8 @@ func TestHostProtectionContract(t *testing.T) {
 	testProtectionContract(t, "restart")
 }
 
+func TestUpdateProtectionContract(t *testing.T) { testProtectionContract(t, "update") }
+
 func TestStopProtectionContract(t *testing.T) {
 	testProtectionContract(t, "stop")
 }

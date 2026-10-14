@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/taskcontrol"
 	"whaleisle/internal/desktop/taskguard"
+	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 )
 
@@ -31,6 +32,8 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	label := resumeText("退出", "Quit")
 	if operation == "restart" {
 		label = resumeText("重启", "Restart")
+	} else if operation == "update" {
+		label = resumeText("安装更新并退出", "Install update and quit")
 	} else if operation == "stop" {
 		label = resumeText("停止内核", "Stop runtime")
 	}
@@ -85,6 +88,8 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 		label := resumeText("退出", "Quit")
 		if operation == "restart" {
 			label = resumeText("重启", "Restart")
+		} else if operation == "update" {
+			label = resumeText("安装更新并退出", "Install update and quit")
 		} else if operation == "stop" {
 			label = resumeText("停止内核", "Stop runtime")
 		}
@@ -157,4 +162,46 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 	if win != nil {
 		win.Update(func() {})
 	}
+}
+
+// installStagedUpdate hands off only verified bytes and uses the already-held
+// lifecycle lock for final cleanup, without reentering quitProtected.
+func (s *mainState) installStagedUpdate(win *mygo.Window, staged desktopupdate.ApplyResult) bool {
+	s.mu.Lock()
+	if s.taskRestartPending || s.quitting || s.launcherImportBusy {
+		s.mu.Unlock()
+		return false
+	}
+	s.taskRestartPending = true
+	sup := s.sup
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
+	choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
+		Title:   resumeText("安装更新", "Install update"),
+		Message: resumeText("更新已下载并校验。继续会启动安装器，停止 Host 并退出桌面应用。", "The update has been downloaded and verified. Continuing starts the installer, stops the Host and quits the desktop application."),
+		Buttons: []string{resumeText("稍后", "Later"), resumeText("安装并退出", "Install and quit")}, DefaultButton: 0, CancelButton: 0})
+	if err != nil {
+		s.taskProtectionError(win, err)
+		return false
+	}
+	if choice.Button != 1 || !s.saveResumeBeforeClose(win) {
+		return false
+	}
+	did := s.withTaskProtection(win, sup, "update", func() error {
+		s.mu.Lock()
+		changed := s.launcherImportBusy || s.quitting || s.sup != sup
+		s.mu.Unlock()
+		if changed {
+			return errors.New("runtime or import state changed; retry update")
+		}
+		if _, err := desktopupdate.StartStaged(staged); err != nil {
+			return err
+		}
+		s.finalizeQuit(sup)
+		return nil
+	})
+	if did {
+		mygo.App.Quit()
+	}
+	return did
 }

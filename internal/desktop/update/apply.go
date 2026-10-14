@@ -8,9 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -163,13 +161,8 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	if sig.Status == SignatureValid {
 		out.Message += "; authenticode ok"
 	}
-	if opt.Start && runtime.GOOS == "windows" && strings.HasSuffix(strings.ToLower(dest), ".exe") {
-		if err := exec.Command(dest).Start(); err != nil {
-			out.Message += "; start failed: " + err.Error()
-			return out, err
-		}
-		out.Started = true
-		out.Message += "; installer started"
+	if opt.Start && CanStartStaged(out) {
+		return StartStaged(out)
 	}
 	return out, nil
 }
@@ -218,7 +211,7 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 	res, err := DownloadAndStageOpts(ctx, StageOptions{
 		ReleaseURL:        releaseURL,
 		DestDir:           opt.DestDir,
-		Start:             opt.Start,
+		Start:             false,
 		HTTPClient:        client,
 		ExpectSHA256:      opt.Feed.SHA256,
 		ExpectSize:        opt.Feed.Size,
@@ -233,5 +226,8 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 		return ApplyResult{}, fmt.Errorf("blockmap verify failed: %w", err)
 	}
 	res.Message += "; blockmap verified (full download)"
+	if opt.Start && CanStartStaged(res) {
+		return StartStaged(res)
+	}
 	return res, nil
 }

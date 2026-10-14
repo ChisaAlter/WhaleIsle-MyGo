@@ -9,9 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -244,13 +242,8 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	if sig.Status == SignatureValid {
 		out.Message += "; authenticode ok"
 	}
-	if opt.Start && runtime.GOOS == "windows" && strings.HasSuffix(strings.ToLower(dest), ".exe") {
-		if err := exec.Command(dest).Start(); err != nil {
-			out.Message += "; start failed: " + err.Error()
-			return out, err
-		}
-		out.Started = true
-		out.Message += "; installer started"
+	if opt.Start && CanStartStaged(out) {
+		return StartStaged(out)
 	}
 	return out, nil
 }
@@ -259,7 +252,7 @@ func downloadFullAndVerify(ctx context.Context, opt PatchOptions) (ApplyResult, 
 	res, err := DownloadAndStageOpts(ctx, StageOptions{
 		ReleaseURL:        opt.Feed.URL,
 		DestDir:           opt.DestDir,
-		Start:             opt.Start,
+		Start:             false,
 		HTTPClient:        opt.HTTPClient,
 		ExpectSHA256:      opt.Feed.SHA256,
 		ExpectSize:        opt.Feed.Size,
@@ -275,6 +268,9 @@ func downloadFullAndVerify(ctx context.Context, opt PatchOptions) (ApplyResult, 
 	}
 	res.Message += "; blockmap verified (full download; Range unsupported)"
 	res.UsedRange = false
+	if opt.Start && CanStartStaged(res) {
+		return StartStaged(res)
+	}
 	return res, nil
 }
 
