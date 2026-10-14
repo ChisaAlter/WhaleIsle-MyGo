@@ -4564,7 +4564,42 @@ func mainView(c *ui.Context) {
 				sid = sessions.Snapshot().SelectedID
 			}
 			usageui.View(c, usageui.Model{
-				Store:      usageStore,
+				Store: usageStore,
+				OnExportStats: func(format string) {
+					data, err := usageStore.ExportStats(format)
+					if err != nil {
+						mygo.Dialog.Error("Usage export", err.Error())
+						return
+					}
+					ext := "csv"
+					if format == "json" {
+						ext = "json"
+					}
+					path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "Export usage statistics", DefaultPath: "usage-" + format + "." + ext})
+					if err != nil {
+						mygo.Dialog.Error("Usage export", err.Error())
+						return
+					}
+					if path == "" {
+						return
+					}
+					if err = os.WriteFile(path, data, 0600); err != nil {
+						mygo.Dialog.Error("Usage export", err.Error())
+					}
+				},
+				OnOpenSession: func(id string) {
+					if sessions == nil {
+						return
+					}
+					sessions.Select(id)
+					sessions.FollowSelected(context.Background())
+					state.mu.Lock()
+					state.usageOpen = false
+					state.mu.Unlock()
+					if win != nil {
+						win.Update(func() {})
+					}
+				},
 				SessionID:  sid,
 				ThemeID:    themeID,
 				SystemDark: mygo.Theme.IsDark(),

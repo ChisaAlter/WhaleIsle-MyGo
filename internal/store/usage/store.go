@@ -1,8 +1,4 @@
-// Package usage loads account and session activity stubs for the M9 usage panel.
-//
-// Generated dsh APIs expose account/getState (links.usageUrl), account/getBalance,
-// and job/list — not the dsh-usage-panel chart RPCs. Full charts stay in the
-// harness plugin until native porting.
+// Package usage loads account state and real token statistics from the built-in usage panel.
 package usage
 
 import (
@@ -27,17 +23,17 @@ type Entry struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
-	ClientReady    bool
-	Loading        bool
-	Err            string
-	AccountStatus  string
-	UsageURL       string
-	TopUpURL       string
-	Email          string
-	Name           string
-	Plan           string
-	AttemptPhase   string
-	AttemptID      string
+	ClientReady     bool
+	Loading         bool
+	Err             string
+	AccountStatus   string
+	UsageURL        string
+	TopUpURL        string
+	Email           string
+	Name            string
+	Plan            string
+	AttemptPhase    string
+	AttemptID       string
 	AuthorizeURL    string
 	ExpiryNote      string
 	BalanceSummary  string
@@ -59,27 +55,30 @@ type Bonus struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
-	mu     sync.Mutex
-	client *dsh.Client
-	mux    *dsh.Mux
-	notify func()
+	stats       statsState
+	statsEpoch  uint64
+	statsCancel context.CancelFunc
+	mu          sync.Mutex
+	client      *dsh.Client
+	mux         *dsh.Mux
+	notify      func()
 
 	jobFollowCancel    context.CancelFunc
 	accountWatchCancel context.CancelFunc
 	expiryWatchCancel  context.CancelFunc
 
-	loading        bool
-	err            error
-	accountStatus  string
-	usageURL       string
-	topUpURL       string
-	email          string
-	name           string
-	plan           string
-	attemptPhase   string
-	attemptID      string
-	authorizeURL   string
-	expiryNote     string
+	loading         bool
+	err             error
+	accountStatus   string
+	usageURL        string
+	topUpURL        string
+	email           string
+	name            string
+	plan            string
+	attemptPhase    string
+	attemptID       string
+	authorizeURL    string
+	expiryNote      string
 	balanceSummary  string
 	hasRunningTasks bool
 	bonuses         []Bonus
@@ -96,6 +95,12 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.client = client
+	s.statsEpoch++
+	if s.statsCancel != nil {
+		s.statsCancel()
+		s.statsCancel = nil
+	}
+	s.stats = statsState{}
 	s.notify = notify
 	s.err = nil
 	s.mu.Unlock()
@@ -117,6 +122,12 @@ func (s *Store) Detach() {
 		s.expiryWatchCancel = nil
 	}
 	s.client = nil
+	s.statsEpoch++
+	if s.statsCancel != nil {
+		s.statsCancel()
+		s.statsCancel = nil
+	}
+	s.stats = statsState{}
 	s.mux = nil
 	s.loading = false
 	s.accountStatus = ""
@@ -143,18 +154,18 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		ClientReady:    s.client != nil,
-		Loading:        s.loading,
-		AccountStatus:  s.accountStatus,
-		UsageURL:       s.usageURL,
-		TopUpURL:       s.topUpURL,
-		Email:          s.email,
-		Name:           s.name,
-		Plan:           s.plan,
-		AttemptPhase:   s.attemptPhase,
-		AttemptID:      s.attemptID,
-		AuthorizeURL:   s.authorizeURL,
-		ExpiryNote:     s.expiryNote,
+		ClientReady:     s.client != nil,
+		Loading:         s.loading,
+		AccountStatus:   s.accountStatus,
+		UsageURL:        s.usageURL,
+		TopUpURL:        s.topUpURL,
+		Email:           s.email,
+		Name:            s.name,
+		Plan:            s.plan,
+		AttemptPhase:    s.attemptPhase,
+		AttemptID:       s.attemptID,
+		AuthorizeURL:    s.authorizeURL,
+		ExpiryNote:      s.expiryNote,
 		BalanceSummary:  s.balanceSummary,
 		HasRunningTasks: s.hasRunningTasks,
 	}
@@ -169,6 +180,7 @@ func (s *Store) Snapshot() ViewState {
 
 // Refresh loads account/getState, account/getBalance, and job/list for sessionID.
 func (s *Store) Refresh(ctx context.Context, sessionID string) {
+	s.RefreshStats(ctx, false)
 	s.mu.Lock()
 	client := s.client
 	if client == nil {
