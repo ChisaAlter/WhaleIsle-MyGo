@@ -128,6 +128,11 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
+	ExternalNavigation bool
+	OnSelectSession    func(string)
+	OnCreateSession    func()
+
 	Projects              projects.Model
 	Store                 *session.Store
 	AgentPresetManager    *session.AgentPresetManager
@@ -315,102 +320,119 @@ func clampSidebarWidth(w float32) float32 {
 	return w
 }
 
+// navigationView is shared by chat and the global main panels. Its owning
+// shell stays mounted while only the center content changes.
+func navigationView(c *ui.Context, m Model, snap session.ViewState) {
+	selectSession := m.OnSelectSession
+	if selectSession == nil {
+		selectSession = m.Store.Select
+	}
+	createSession := m.OnCreateSession
+	if createSession == nil {
+		createSession = func() { m.Store.CreateSession(context.Background()) }
+	}
+	projectModel := m.Projects
+	projectModel.OnResolvedFile = m.OnOpenDeliverable
+	sidebar.View(c, sidebar.Model{
+		Projects:        projectModel,
+		Collapsed:       m.Sizes.Sidebar <= 0,
+		OnToggle:        m.Sizes.ToggleSidebar,
+		Snapshot:        snap,
+		ThemeID:         m.ThemeID,
+		SystemDark:      m.SystemDark,
+		SearchQuery:     m.SessionSearch,
+		WorkspaceLabel:  m.Store.WorkspaceCwd(),
+		RenameSessionID: derefString(m.RenameSessionID),
+		RenameDraft:     m.RenameDraft,
+		OnSelect:        selectSession,
+		OnRefresh: func() {
+			m.Store.RefreshList(context.Background())
+		},
+		OnCreate:             createSession,
+		OnOpenMarket:         m.OnOpenMarket,
+		OnOpenSchedule:       m.OnOpenSchedule,
+		OnOpenAssistant:      m.OnOpenAssistant,
+		OnOpenLauncher:       m.OnOpenLauncher,
+		OnOpenSettings:       m.OnOpenSettings,
+		OnBrowseWorkspace:    m.OnBrowseWorkspace,
+		OnNoDirectory:        m.OnNoDirectory,
+		OnRevealWorkspace:    m.OnRevealWorkspace,
+		OnRenameWorkspace:    m.OnRenameWorkspace,
+		OnDeleteWorkspace:    m.OnDeleteWorkspace,
+		OnMoveSessionBefore:  m.OnMoveSessionBefore,
+		WorkspaceRenameDraft: m.WorkspaceRenameDraft,
+		WorkspaceMenuOpen:    m.WorkspaceMenuOpen,
+		OnBeginRename: func(sessionID, title string) {
+			if m.RenameSessionID != nil {
+				*m.RenameSessionID = sessionID
+			}
+			if m.RenameDraft != nil {
+				*m.RenameDraft = title
+			}
+		},
+		OnCommitRename: func(sessionID, title string) {
+			m.Store.RenameSession(context.Background(), sessionID, title)
+			if m.RenameSessionID != nil {
+				*m.RenameSessionID = ""
+			}
+			if m.RenameDraft != nil {
+				*m.RenameDraft = ""
+			}
+		},
+		OnCancelRename: func() {
+			if m.RenameSessionID != nil {
+				*m.RenameSessionID = ""
+			}
+			if m.RenameDraft != nil {
+				*m.RenameDraft = ""
+			}
+		},
+		OnArchive: func(sessionID string) {
+			m.Store.ArchiveSession(context.Background(), sessionID)
+		},
+		OnUnarchive: func(sessionID string) {
+			m.Store.UnarchiveSession(context.Background(), sessionID)
+		},
+		OnDelete: func(sessionID string) {
+			// Electron session delete: confirm before session/delete.
+			choice, _ := mygo.Dialog.Message(mygo.MessageOptions{
+				Type:    mygo.MessageWarning,
+				Title:   i18n.T(i18n.KeySidebarDelete),
+				Message: i18n.T(i18n.KeySidebarDeleteConfirm),
+				Buttons: []string{i18n.T(i18n.KeySidebarDelete), i18n.T(i18n.KeySidebarRenameCancel)},
+			})
+			if choice.Button != 0 {
+				return
+			}
+			m.Store.DeleteSession(context.Background(), sessionID)
+		},
+		OnPin: func(sessionID string) {
+			m.Store.PinSession(context.Background(), sessionID)
+		},
+		OnUnpin: func(sessionID string) {
+			m.Store.UnpinSession(context.Background(), sessionID)
+		},
+		OnCopySessionID: func(sessionID string) {
+			if strings.TrimSpace(sessionID) != "" {
+				mygo.Clipboard.WriteText(sessionID)
+				m.Store.SetLastAction(i18n.T(i18n.KeySidebarCopyID) + ": " + sessionID)
+			}
+		},
+		OnFork: func(sessionID string) {
+			m.Store.ForkSession(context.Background(), sessionID)
+		},
+	})
+}
+
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
-	sidebarColumns(c, m.Sizes, func() {
-		projectModel := m.Projects
-		projectModel.OnResolvedFile = m.OnOpenDeliverable
-		sidebar.View(c, sidebar.Model{
-			Projects:        projectModel,
-			Collapsed:       m.Sizes.Sidebar <= 0,
-			OnToggle:        m.Sizes.ToggleSidebar,
-			Snapshot:        snap,
-			ThemeID:         m.ThemeID,
-			SystemDark:      m.SystemDark,
-			SearchQuery:     m.SessionSearch,
-			WorkspaceLabel:  m.Store.WorkspaceCwd(),
-			RenameSessionID: derefString(m.RenameSessionID),
-			RenameDraft:     m.RenameDraft,
-			OnSelect:        m.Store.Select,
-			OnRefresh: func() {
-				m.Store.RefreshList(context.Background())
-			},
-			OnCreate: func() {
-				m.Store.CreateSession(context.Background())
-			},
-			OnOpenMarket:         m.OnOpenMarket,
-			OnOpenSchedule:       m.OnOpenSchedule,
-			OnOpenAssistant:      m.OnOpenAssistant,
-			OnOpenLauncher:       m.OnOpenLauncher,
-			OnOpenSettings:       m.OnOpenSettings,
-			OnBrowseWorkspace:    m.OnBrowseWorkspace,
-			OnNoDirectory:        m.OnNoDirectory,
-			OnRevealWorkspace:    m.OnRevealWorkspace,
-			OnRenameWorkspace:    m.OnRenameWorkspace,
-			OnDeleteWorkspace:    m.OnDeleteWorkspace,
-			OnMoveSessionBefore:  m.OnMoveSessionBefore,
-			WorkspaceRenameDraft: m.WorkspaceRenameDraft,
-			WorkspaceMenuOpen:    m.WorkspaceMenuOpen,
-			OnBeginRename: func(sessionID, title string) {
-				if m.RenameSessionID != nil {
-					*m.RenameSessionID = sessionID
-				}
-				if m.RenameDraft != nil {
-					*m.RenameDraft = title
-				}
-			},
-			OnCommitRename: func(sessionID, title string) {
-				m.Store.RenameSession(context.Background(), sessionID, title)
-				if m.RenameSessionID != nil {
-					*m.RenameSessionID = ""
-				}
-				if m.RenameDraft != nil {
-					*m.RenameDraft = ""
-				}
-			},
-			OnCancelRename: func() {
-				if m.RenameSessionID != nil {
-					*m.RenameSessionID = ""
-				}
-				if m.RenameDraft != nil {
-					*m.RenameDraft = ""
-				}
-			},
-			OnArchive: func(sessionID string) {
-				m.Store.ArchiveSession(context.Background(), sessionID)
-			},
-			OnUnarchive: func(sessionID string) {
-				m.Store.UnarchiveSession(context.Background(), sessionID)
-			},
-			OnDelete: func(sessionID string) {
-				// Electron session delete: confirm before session/delete.
-				choice, _ := mygo.Dialog.Message(mygo.MessageOptions{
-					Type:    mygo.MessageWarning,
-					Title:   i18n.T(i18n.KeySidebarDelete),
-					Message: i18n.T(i18n.KeySidebarDeleteConfirm),
-					Buttons: []string{i18n.T(i18n.KeySidebarDelete), i18n.T(i18n.KeySidebarRenameCancel)},
-				})
-				if choice.Button != 0 {
-					return
-				}
-				m.Store.DeleteSession(context.Background(), sessionID)
-			},
-			OnPin: func(sessionID string) {
-				m.Store.PinSession(context.Background(), sessionID)
-			},
-			OnUnpin: func(sessionID string) {
-				m.Store.UnpinSession(context.Background(), sessionID)
-			},
-			OnCopySessionID: func(sessionID string) {
-				if strings.TrimSpace(sessionID) != "" {
-					mygo.Clipboard.WriteText(sessionID)
-					m.Store.SetLastAction(i18n.T(i18n.KeySidebarCopyID) + ": " + sessionID)
-				}
-			},
-			OnFork: func(sessionID string) {
-				m.Store.ForkSession(context.Background(), sessionID)
-			},
-		})
-	}, func() {
+	withNavigation := func(body func()) {
+		if m.ExternalNavigation {
+			body()
+			return
+		}
+		sidebarColumns(c, m.Sizes, func() { navigationView(c, m, snap) }, body)
+	}
+	withNavigation(func() {
 		// Electron desktop defaults to 2-column (rail | chat). Files/diff mounts
 		// only when FilePaneWidth > 0 (tools toggle); otherwise chat fills.
 		paintChat := func() {

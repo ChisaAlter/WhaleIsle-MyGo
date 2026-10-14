@@ -13,13 +13,17 @@ func registerPageCommands(c *ui.Context, m Model) {
 	if m.Sizes != nil {
 		toggleSidebar = m.Sizes.ToggleSidebar
 	}
+	create := m.OnCreateSession
+	if create == nil {
+		create = func() { m.Store.CreateSession(context.Background()) }
+	}
 	commands := []struct {
 		mods ui.Modifiers
 		key  ui.Key
 		run  func()
 	}{
 		{ui.Cmd, ui.KeyB, toggleSidebar},
-		{ui.Cmd, ui.KeyN, func() { m.Store.CreateSession(context.Background()) }},
+		{ui.Cmd, ui.KeyN, create},
 		{ui.Cmd, ui.KeyO, m.OnBrowseWorkspace},
 		{ui.Cmd, ui.KeyComma, m.OnOpenSettings},
 		{ui.Cmd, ui.KeyBackslash, m.OnToggleTools},

@@ -99,6 +99,7 @@ type mainState struct {
 	closeToTray          bool
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
+	navigationFile       *navigationFileRequest
 	themeID              string
 	sup                  *harness.Supervisor
 	bootStatus           harness.Status
@@ -3754,6 +3755,9 @@ func mainView(c *ui.Context) {
 				},
 			})
 		}
+		sharedNavigation := !settingsOpen && !usageOpen && !imOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen
+		if sessions == nil { state.mu.Lock(); if state.sessions == nil { state.sessions = session.New() }; sessions = state.sessions; state.mu.Unlock() }
+		paintMainContent := func() {
 		if acceptPanelOK && marketOpen && marketStore != nil {
 			marketStore.SetNotify(func() {
 				if win != nil {
@@ -6090,7 +6094,8 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				visualReplyState := sessions.VisualReplySnapshot()
 				if visualReplyState.SessionID != snap.SelectedID { visualReplyState = session.VisualReplyState{} }
-				frame.View(c, frame.Model{
+				frameModel := frame.Model{
+					ExternalNavigation: sharedNavigation,
 					Projects:           state.projectModel(win),
 					Store:              sessions,
 					AgentPresetManager: agentPresetManager,
@@ -6680,7 +6685,9 @@ func mainView(c *ui.Context) {
 					OnRenderOfficePDF: func(rel string) {
 						state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
 					},
-				})
+				}
+				state.consumeNavigationFile(frameModel)
+				frame.View(c, frameModel)
 				if state.dirPickOpen {
 					ui.Overlay(c, func() {
 						ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).
@@ -6872,6 +6879,13 @@ func mainView(c *ui.Context) {
 				}
 			},
 		})
+		}
+		state.withMainNavigation(c, sharedNavigation, frame.Model{
+			Store: sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
+			SessionSearch: &sessionSearch, RenameSessionID: &renameSessionID, RenameDraft: &renameDraft,
+			WorkspaceRoot: workspaceRoot,
+		}, paintMainContent)
+
 	})
 }
 
