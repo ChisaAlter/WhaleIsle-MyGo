@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/sshremote"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
@@ -35,6 +36,7 @@ type Model struct {
 	RemoteDeviceCount      int
 	RemoteDeviceNames      []string
 	PhoneActionMsg         string
+	PhoneRuntime           phoneremote.RuntimeState
 	HarnessRemoteOverlay   bool
 	MuxConnected           bool
 	HarnessReady           bool

@@ -90,6 +90,8 @@ type mainState struct {
 	win                  *mygo.Window
 	taskRestartPending   bool
 	quitting             bool
+	phoneRuntime         *phoneremote.Runtime
+	phoneOp              sync.Mutex
 	closeToTray          bool
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
@@ -471,57 +473,68 @@ func (s *mainState) applyRemoteCredentials(creds credentials.Credentials) {
 	s.remoteDeviceNames = phoneremote.DeviceNames(creds.RemoteDevices)
 }
 
+func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.phoneRuntime == nil {
+		s.phoneRuntime = phoneremote.NewRuntime()
+	}
+	return s.phoneRuntime
+}
+func (s *mainState) stopPhoneRuntime() {
+	s.phoneOp.Lock()
+	defer s.phoneOp.Unlock()
+	s.phoneRuntimeManager().Stop()
+}
 func (s *mainState) refreshPhoneRemote() string {
-	creds, err := credentials.Load(paths.UserDataDir())
-	if err != nil {
-		return err.Error()
+	s.phoneOp.Lock()
+	defer s.phoneOp.Unlock()
+	manager := s.phoneRuntimeManager()
+	if s.cfgStore == nil {
+		return "remote configuration unavailable"
+	}
+	cfg := s.cfgStore.Get()
+	s.mu.Lock()
+	ep := s.bootStatus.Endpoint
+	quitting := s.quitting
+	s.mu.Unlock()
+	if quitting {
+		return "offline"
+	}
+	if !cfg.RemoteEnabled {
+		manager.Stop()
+		return "disabled"
+	}
+	runtimeConfig := map[string]any{
+		"remoteEnabled": cfg.RemoteEnabled, "remoteMode": cfg.RemoteMode,
+		"remotePort": cfg.RemotePort, "remoteBindAddress": cfg.RemoteBindAddress,
+		"remoteLanTls": cfg.RemoteLanTls, "remoteAppBaseUrl": cfg.RemoteAppBaseUrl,
+		"remoteRelayEndpoint": cfg.RemoteRelayEndpoint, "remoteRelayUseTls": cfg.RemoteRelayUseTls,
+		"harnessOrigin": ep.Origin, "harnessCookie": ep.Cookie,
+	}
+	if manager.Snapshot().Status == "starting" {
+		return "starting"
+	}
+	if manager.Snapshot().Listening {
+		manager.Refresh(runtimeConfig)
+	} else {
+		manager.Start(paths.UserDataDir(), paths.VendorDir(), runtimeConfig)
+	}
+	snapshot := manager.Snapshot()
+	msg := snapshot.Status
+	if snapshot.Message != "" {
+		msg += ": " + snapshot.Message
 	}
 	s.mu.Lock()
-	s.applyRemoteCredentials(creds)
-	s.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneRefreshed)
-	msg := s.phoneActionMsg
+	s.phoneActionMsg = msg
 	s.mu.Unlock()
 	return msg
 }
-
 func (s *mainState) phoneConnectURL() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cfgRemoteEnabled := false
-	cfgRemoteMode := ""
-	cfgRemotePort := 0
-	cfgRemoteBind := ""
-	cfgRemoteLanTls := false
-	cfgRemoteAppBase := ""
-	cfgRemoteRelayEndpoint := ""
-	cfgRemoteRelayUseTLS := false
-	if s.cfgStore != nil {
-		cfg := s.cfgStore.Get()
-		cfgRemoteEnabled = cfg.RemoteEnabled
-		cfgRemoteMode = cfg.RemoteMode
-		cfgRemotePort = cfg.RemotePort
-		cfgRemoteBind = cfg.RemoteBindAddress
-		cfgRemoteLanTls = cfg.RemoteLanTls
-		cfgRemoteAppBase = cfg.RemoteAppBaseUrl
-		cfgRemoteRelayEndpoint = cfg.RemoteRelayEndpoint
-		cfgRemoteRelayUseTLS = cfg.RemoteRelayUseTls
+	if s.cfgStore == nil || !s.cfgStore.Get().RemoteEnabled {
+		return ""
 	}
-	snap := phoneremote.Snapshot{
-		RemoteEnabled:       cfgRemoteEnabled,
-		RemoteMode:          cfgRemoteMode,
-		RemotePort:          cfgRemotePort,
-		RemoteBindAddress:   cfgRemoteBind,
-		RemoteLanTLS:        cfgRemoteLanTls,
-		RemoteAppBaseURL:    cfgRemoteAppBase,
-		RemoteRelayEndpoint: cfgRemoteRelayEndpoint,
-		RemoteRelayUseTLS:   cfgRemoteRelayUseTLS,
-		HasRemoteToken:      s.hasRemoteToken,
-		HasRemoteRelayToken: s.hasRemoteRelayToken,
-		MuxReady:            s.dshMuxReady && s.bootStatus.State == harness.Ready,
-		DeviceCount:         s.remoteDeviceCount,
-		DeviceNames:         append([]string(nil), s.remoteDeviceNames...),
-	}
-	return phoneremote.ConnectURL(snap)
+	return s.phoneRuntimeManager().Snapshot().PairingURL
 }
 
 func (s *mainState) saveDesktopConfig() {
@@ -1672,6 +1685,7 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	if s.desktopPet != nil {
 		s.desktopPet.Close()
 	}
+	s.stopPhoneRuntime()
 	s.closeWebViewHost()
 	s.stopDSH()
 	s.closeTerminal()
@@ -3867,6 +3881,7 @@ func mainView(c *ui.Context) {
 				RemoteDeviceCount:      remoteDeviceCount,
 				RemoteDeviceNames:      remoteDeviceNames,
 				PhoneActionMsg:         phoneActionMsg,
+				PhoneRuntime:           state.phoneRuntimeManager().Snapshot(),
 				HarnessRemoteOverlay:   cfgRemoteWorkspace,
 				MuxConnected:           muxReady,
 				HarnessReady:           st.State == harness.Ready,
@@ -3911,6 +3926,9 @@ func mainView(c *ui.Context) {
 					_ = state.cfgStore.Update(func(c *config.Config) {
 						c.RemoteEnabled = enabled
 					})
+					if !enabled {
+						go state.stopPhoneRuntime()
+					}
 					if win != nil {
 						win.Update(func() {})
 					}
@@ -3944,47 +3962,29 @@ func mainView(c *ui.Context) {
 				},
 				OnOpenConnectURL: func() {
 					url := state.phoneConnectURL()
-					if url == "" {
-						state.mu.Lock()
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneNoURL)
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
+					message := i18n.T(i18n.KeyRemotePhoneNoURL)
+					if url != "" {
+						if err := desktopwebview.OpenExternal(url); err == nil {
+							message = i18n.T(i18n.KeyRemotePhoneOpened)
+						} else {
+							message = i18n.T(i18n.KeyRemotePhoneOpenFailed)
 						}
-						return
 					}
-					if err := desktopwebview.OpenExternal(url); err == nil {
-						state.mu.Lock()
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneOpened)
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
+					// Never put an offer into persisted webview navigation/history.
 					state.mu.Lock()
-					state.remoteOpen = false
-					state.webviewOpen = true
-					state.mu.Unlock()
-					state.openWebViewURL(url)
-					state.mu.Lock()
-					if state.webviewHostErr != "" {
-						state.webviewOpen = false
-						state.remoteOpen = true
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneOpenFailed) + ": " + state.webviewHostErr
-					} else {
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneOpened)
-					}
+					state.phoneActionMsg = message
 					state.mu.Unlock()
 					if win != nil {
 						win.Update(func() {})
 					}
 				},
 				OnRefreshPhone: func() {
-					_ = state.refreshPhoneRemote()
-					if win != nil {
-						win.Update(func() {})
-					}
+					go func() {
+						_ = state.refreshPhoneRemote()
+						if win != nil {
+							win.Update(func() {})
+						}
+					}()
 				},
 				OnProbeSSH: func() {
 					line := remoteui.RunSSHProbe(remoteui.Model{

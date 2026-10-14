@@ -105,12 +105,29 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Text(c, i18n.T(i18n.KeyRemotePhoneURLUnavailable)).FontSize(11).TextColor(muted)
 	}
 
-	ui.Text(c, i18n.T(i18n.KeyRemotePhoneQRPlaceholder)).FontSize(11).TextColor(muted)
+	runtime := m.PhoneRuntime
+	status := runtime.Status
+	if !m.RemoteEnabled {
+		status = "disabled"
+	}
+	if status == "" {
+		status = "offline"
+	}
+	ui.Text(c, "offer v2 · "+status).FontSize(12).Bold().TextColor(fg)
+	if runtime.Message != "" {
+		ui.Text(c, runtime.Message).FontSize(11).TextColor(accent)
+	}
+	if runtime.PairingURL != "" && status == "ready" {
+		ui.Text(c, "配对链接有效 / Pairing link valid · "+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(11).TextColor(fg)
+		ui.Text(c, "配对链接仅临时复制使用，请勿分享或写入日志。二维码图像尚未实现。 / Copy the temporary link privately. QR rendering is not implemented.").FontSize(11).TextColor(muted)
+	} else {
+		ui.Text(c, "没有可用配对链接。启用后刷新以启动已安装的原版运行时。 / No usable offer. Enable and refresh to start the installed runtime.").FontSize(11).TextColor(muted)
+	}
 	ui.Row(c).Gap(8).Children(func() {
-		if snap.ConnectURL != "" && m.OnCopyConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneCopyURL)).Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if snap.ConnectURL != "" && m.OnOpenConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneOpenURL)).Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && m.OnOpenConnectURL != nil && ui.Button(c, "打开配对链接 / Open pairing link").Clicked() {
 			m.OnOpenConnectURL()
 		}
 		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Clicked() {

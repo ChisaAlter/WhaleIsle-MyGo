@@ -138,5 +138,6 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	}
 	s.launcherStartBusy = true
 	s.mu.Unlock()
+	s.stopPhoneRuntime()
 	sup.Restart()
 }

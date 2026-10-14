@@ -1,0 +1,21 @@
+# Phone offer v2 runtime bridge
+
+The Go shell runs a bounded Node adapter (`internal/desktop/phoneremote/bridge.cjs`). It instantiates the original `DshdRemote`, calls `sync()` and `snapshot()`, and uses `sync()` to refresh pairing or reconcile changed configuration. The original implementation retains its daemon runner, JSON stdout lifecycle and stop/stdin-close contract. There is no replacement pairing/authentication implementation.
+
+## Required installed resources
+
+Resolve only `<userData>/components/dshd-remote/versions/<installed.json version>` or `<paths.VendorDir()>/dshd-remote`. This root must contain the original source layout (`src/main`, `src/shared`, `mobile/web`) plus its fully built `vendor/chisacode-remote/node_modules` tree. The module's own relative vendor resolution is preserved. Node must be bundled at `node.exe`, `node/node.exe` or `node/bin/node` under that root. No PATH fallback, fetching, unknown binary copy, or partial source transpilation occurs.
+
+`ResolveResources` checks the original module, runner, hooks, direct helper files, mobile landing asset, and built server/pairing/device-store entries. Transitive package loading still occurs in the isolated runtime process and may report `runtime-load` or `operation` failure; presence of entry files alone is not proof that every transitive dependency is complete. Missing resources are reported with the required relative path. Recovery and reference source checkouts do not currently provide a ready-to-run bundled component.
+
+## UI/lifecycle
+
+Enabling the setting does not imply online. Enable then Refresh explicitly starts the installed runtime; another Refresh reconciles settings and renews the offer. The adapter sends only structured snapshots and fixed error codes. Go exposes an offer only with an observed listening daemon, connected relay, v2 bootstrap metadata, and unexpired timestamp. `ready` means pairing-link ready, not verified mobile end-to-end connectivity. Disabling, stopping, restarting the harness, closing the app, child exit and expiry hide the offer. The underlying configuration checklist remains separate.
+
+Offers and harness cookies travel only over local stdin/stdout pipes, never launch files/command arguments added by this bridge or logs. Pairing URL is transient UI data, not configuration. The original daemon may write its normal upstream credential storage when explicitly started; no credentials are migrated or changed by this bridge. The external-open action never falls back to the application's persisted webview history.
+
+QR bitmap rendering and the desktop Git RPC tunnel are not implemented. Device list still reflects existing credentials data, not a live bridge store. These are remaining parity limitations.
+
+## Safe verification
+
+`go test ./internal/desktop/phoneremote -run TestRuntimeFixture -count=1` uses in-memory fake child pipes and fictional offer data. `node internal/desktop/phoneremote/bridge.fixture.cjs` executes the adapter in a VM against a fake original manager. Neither command starts the daemon, makes network requests, generates real keys/tokens or reads real credentials. Windows build verification belongs to the integrator. No end-to-end phone connection has been tested.
