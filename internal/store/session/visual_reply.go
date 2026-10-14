@@ -99,16 +99,22 @@ func PublishedVisualReply(raw json.RawMessage) (VisualReplyPublication, bool) {
 }
 
 type VisualReplyState struct {
-	SessionID    string
-	AttachmentID string
-	Name         string
-	HTML         string
-	Loading      bool
-	Ready        bool
-	Error        string
+	PreviewLoading                                            bool
+	PreviewError                                              string
+	PreviewPNG                                                []byte
+	PreviewID                                                 uint64
+	PreviewWidth, PreviewContentHeight, PreviewCapturedHeight int
+	SessionID                                                 string
+	AttachmentID                                              string
+	Name                                                      string
+	HTML                                                      string
+	Loading                                                   bool
+	Ready                                                     bool
+	Error                                                     string
 }
 
 type visualReplyRead struct {
+	previewCancel context.CancelFunc
 	VisualReplyState
 	generation uint64
 	token      uint64
@@ -127,8 +133,7 @@ func (s *Store) VisualReplySnapshot() VisualReplyState {
 
 func (s *Store) CloseVisualReply() {
 	s.mu.Lock()
-	s.visualReplyToken++
-	s.visualReply = visualReplyRead{}
+	s.cancelVisualReplyLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -155,6 +160,7 @@ func (s *Store) LoadVisualReply(ctx context.Context, sessionID, attachmentID str
 		return
 	}
 	client, generation := s.client, s.followGeneration
+	s.cancelVisualReplyLocked()
 	s.visualReplyToken++
 	token := s.visualReplyToken
 	s.visualReply = visualReplyRead{VisualReplyState: VisualReplyState{SessionID: sessionID, AttachmentID: attachmentID, Name: pub.File.Name, Loading: true}, generation: generation, token: token}

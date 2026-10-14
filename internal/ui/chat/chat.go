@@ -52,11 +52,13 @@ type Model struct {
 	OnCloseImageLightbox func()
 	OnOpenCitationURL    func(url string)
 	// OnOpenDeliverable opens a presented file path in the files dock.
-	OnOpenDeliverable func(path string)
-	VisualReply session.VisualReplyState
-	OnReadVisualReply func(attachmentID string)
-	OnSaveVisualReply func(attachmentID string)
-	OnCloseVisualReply func()
+	OnOpenDeliverable    func(path string)
+	VisualReply          session.VisualReplyState
+	VisualReplyBitmap    *ui.Bitmap
+	OnPreviewVisualReply func(attachmentID string)
+	OnReadVisualReply    func(attachmentID string)
+	OnSaveVisualReply    func(attachmentID string)
+	OnCloseVisualReply   func()
 }
 
 // View paints the message list with FollowEnd for future streaming.

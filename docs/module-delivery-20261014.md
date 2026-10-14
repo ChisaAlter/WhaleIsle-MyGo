@@ -74,6 +74,7 @@
 - 隔离截图 PNG 流：仅隔离 CapturePage 按 IStream 逻辑长度读取并限制 64MiB，不将分配容量尾字节作为图片传回；普通截图路径不变。未运行真实 WebView 截图。
 - Host 跨重启 HTML 门禁：仅新构建副本在原 requireEnabled checkpoint 查询认证 readiness，保留用户持久 enabled；manifest 记录 guard 补丁/hash，stage/launch 拒绝未加保护的 current runtime，legacy 无 visual 包不受影响。带 guard 的 Linux 增量官方构建 exit0，manifest 与暂存校验通过；旧纯官方产物因缺补丁记录被拒绝，不再作为 HTML 生成就绪依据。
 - Host 显式启动路径：configured DshBin 指向 Harness CLI 时也校验真实根的 readiness guard，避免配置优先级绕过 vendored runtime 门禁；不修改无 visual 包的 legacy 启动。
+- 历史 visual reply 安全图片预览：先走原授权源码读取，再经显式 Probe/RenderSaved 门禁，成功仅显示内存 PNG 与裁剪说明；失败保留源码/另存并显示原因。关闭/重读/切会话或连接变化取消渲染并丢弃迟到结果；只 mock 和编译，未实际 Windows HTML 渲染。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

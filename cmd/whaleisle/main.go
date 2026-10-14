@@ -6569,6 +6569,8 @@ func mainView(c *ui.Context) {
 						state.showBrowserPreview(u)
 					},
 					VisualReply: sessions.VisualReplySnapshot(),
+					VisualReplyBitmap: publishedHTMLBitmap(sessions.VisualReplySnapshot()),
+					OnPreviewVisualReply: func(id string){previewPublishedHTML(sessions,snap.SelectedID,id)},
 					OnReadVisualReply: func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
 					OnSaveVisualReply: func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
 					OnCloseVisualReply: sessions.CloseVisualReply,

@@ -245,6 +245,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.cancelVisualReplyLocked()
 	s.followGeneration++
 	s.historyBranchBusy = false
 	if s.followCancel != nil {
