@@ -24,6 +24,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
 	desktopcomponents "whaleisle/internal/desktop/components"
@@ -96,155 +97,156 @@ type mainState struct {
 	bootStatus           harness.Status
 	bootLogs             []string
 
-	sessions                   *session.Store
-	agentPresetManager         *session.AgentPresetManager
-	interactions               *interaction.Store
-	settings                   *settingsstore.Store
-	settingsOpen               bool
-	settingsNSFilter           string
-	settingsRevealSecrets      bool
-	settingsDesktopActive      bool
-	settingsAccountActive      bool
-	settingsCredentialsActive  bool
-	settingsAboutActive        bool
-	settingsAppearanceActive   bool
-	settingsInterfaceActive    bool
-	settingsModelsActive       bool
-	settingsMCPActive          bool
-	settingsPluginsActive      bool
-	settingsPluginsLastAction  string
-	settingsSkillsActive       bool
-	settingsSkillHubQuery      string
-	settingsSkillHubHits       []settings.SkillHubHit
-	settingsSkillsLastAction   string
-	settingsSkillsDetail       string
+	sessions                    *session.Store
+	agentPresetManager          *session.AgentPresetManager
+	interactions                *interaction.Store
+	settings                    *settingsstore.Store
+	settingsOpen                bool
+	settingsNSFilter            string
+	settingsRevealSecrets       bool
+	settingsDesktopActive       bool
+	settingsAccountActive       bool
+	accountLogin                accountlogin.Flow
+	settingsCredentialsActive   bool
+	settingsAboutActive         bool
+	settingsAppearanceActive    bool
+	settingsInterfaceActive     bool
+	settingsModelsActive        bool
+	settingsMCPActive           bool
+	settingsPluginsActive       bool
+	settingsPluginsLastAction   string
+	settingsSkillsActive        bool
+	settingsSkillHubQuery       string
+	settingsSkillHubHits        []settings.SkillHubHit
+	settingsSkillsLastAction    string
+	settingsSkillsDetail        string
 	settingsSkillEditSession    string
 	settingsSkillInspectVersion uint64
 	settingsSkillEditGroups     string
 	settingsSkillEditWhen       *string
-	settingsSkillEditName      string
-	settingsSkillEditDesc      string
-	settingsSkillEditContent   string
-	settingsSkillEditModel     bool
-	settingsSkillEditUser      bool
-	settingsSkillEditWritable  bool
-	settingsAgentPresetsActive bool
-	settingsModelLabel         string
-	settingsModelSession       string
-	settingsModelDrafts        map[string]string
-	settingsAgentPresetLabel   string
-	settingsAgentPresetDoc     string
-	settingsMCPController      mcpconfig.Controller
-	settingsProviderProfiles   providerprofiles.Controller
-	remoteMachines             *remotestore.Store
-	remoteMachineEditor        remoteui.MachineEditor
-	sshTunnel                  *sshremote.TunnelSession
-	sshHost                    string
-	sshUser                    string
-	sshPort                    string
-	sshIdentity                string
-	sshForward                 string
-	sshTunnelMsg               string
-	imDraft                    string
-	assistant                  *assiststore.Store
-	dshbotRoster               *dshbotstore.Store
-	desktopDraft               desktopConfigDraft
-	desktopSaveErr             string
-	desktopLastAction          string
-	credsDraft                 credentialsDraft
-	credsSaveErr               string
-	credsLastAction            string
-	credsHarnessNote           string
-	analyticsEnabled           *bool
-	credsShowSecrets           bool
-	usage                      *usagestore.Store
-	im                         *imstore.Store
-	market                     *marketstore.Store
-	schedule                   *schedstore.Store
-	usageOpen                  bool
-	imOpen                     bool
-	marketOpen                 bool
-	scheduleOpen               bool
-	scheduleHistoryText        string
-	remoteOpen                 bool
-	marketActive               *marketAttempt
-	marketWorker               *marketAttempt
-	marketApproval             *marketAttempt
-	marketCatalogTarget        *marketstore.InstallTarget
-	marketInstallSpec          string
-	marketInstallBusy          bool
-	marketInstallRequestID     string
-	marketInstallMsg           string
-	marketInstallLog           string
-	marketNeedsAllowBuilds     bool
-	marketAllowBuilds          []string
-	marketIncompatible         []api.ChangeResultErrorIncompatibleItem
-	hasRemoteToken             bool
-	hasRemoteRelayToken        bool
-	remoteDeviceCount          int
-	remoteDeviceNames          []string
-	phoneActionMsg             string
-	sshProbeLine               string
-	webviewOpen                bool
-	browserPreviewOpen         bool
-	browserController          *browserpreviewui.Controller
-	browserPreviewDraft        string
-	browserPreviewNavigateErr  string
-	webviewHost                *desktopwebview.Host
-	webviewHostErr             string
-	lastWebViewURL             string
-	lastWebViewOrigin          string
-	assistantOpen              bool
-	assistantDraft             string
-	assistantLastAct           string
-	assistantPluginBusy        bool
-	assistantPluginDetail      string
-	launcherOpen               bool
-	toolsMenuOpen              bool
-	filesPaneOpen              bool // Electron tools → files/diff right dock
-	launcherTab                string
-	launcherWorkspaceDraft     string
-	launcherImport             string
-	launcherImportJournal      []string
-	launcherImportBusy         bool
-	launcherImportCancel       context.CancelFunc
-	launcherUpdate             string
-	launcherUpdateAvailable    bool
-	launcherUpdateSynced       bool
-	launcherNote               string
-	launcherTriedStart         bool
-	launcherStartBusy          bool
-	launcherStartFailed        bool
-	launcherStartErr           string
-	launcherPrefsSeeded        bool
-	launcherQuitAfterStart     bool
-	launcherAutoStartDesktop   bool
-	launcherAskOnUpdate        bool
-	launcherDownloadRoute      string
-	launcherImportOverwrite    bool
-	launcherImportAttachments  bool
-	launcherImportCategories   map[string]bool
-	launcherImportCatalog      *importer.Catalog
-	launcherComponents         []desktopcomponents.Row
-	launcherComponentsFresh    bool
-	launcherRoutePopOpen       bool
-	workspaceMenuOpen          bool
-	workspaceRenameDraft       string
-	pendingDeeplink            deeplink.Target
-	settingsDrafts             []settingsDraftSlot
-	layout                     frame.LayoutSizes
-	chatList                   ui.ListState
-	draft                      string
-	editMessageSeq             float64
-	feedbackCommentMsgID       string
-	feedbackCommentDraft       string
-	modelPick                  string
-	permissionPick             string
-	agentPresetPick            string
-	thinkingExpanded           map[string]bool
-	renameSessionID            string
-	renameDraft                string
-	sessionSearch              string
+	settingsSkillEditName       string
+	settingsSkillEditDesc       string
+	settingsSkillEditContent    string
+	settingsSkillEditModel      bool
+	settingsSkillEditUser       bool
+	settingsSkillEditWritable   bool
+	settingsAgentPresetsActive  bool
+	settingsModelLabel          string
+	settingsModelSession        string
+	settingsModelDrafts         map[string]string
+	settingsAgentPresetLabel    string
+	settingsAgentPresetDoc      string
+	settingsMCPController       mcpconfig.Controller
+	settingsProviderProfiles    providerprofiles.Controller
+	remoteMachines              *remotestore.Store
+	remoteMachineEditor         remoteui.MachineEditor
+	sshTunnel                   *sshremote.TunnelSession
+	sshHost                     string
+	sshUser                     string
+	sshPort                     string
+	sshIdentity                 string
+	sshForward                  string
+	sshTunnelMsg                string
+	imDraft                     string
+	assistant                   *assiststore.Store
+	dshbotRoster                *dshbotstore.Store
+	desktopDraft                desktopConfigDraft
+	desktopSaveErr              string
+	desktopLastAction           string
+	credsDraft                  credentialsDraft
+	credsSaveErr                string
+	credsLastAction             string
+	credsHarnessNote            string
+	analyticsEnabled            *bool
+	credsShowSecrets            bool
+	usage                       *usagestore.Store
+	im                          *imstore.Store
+	market                      *marketstore.Store
+	schedule                    *schedstore.Store
+	usageOpen                   bool
+	imOpen                      bool
+	marketOpen                  bool
+	scheduleOpen                bool
+	scheduleHistoryText         string
+	remoteOpen                  bool
+	marketActive                *marketAttempt
+	marketWorker                *marketAttempt
+	marketApproval              *marketAttempt
+	marketCatalogTarget         *marketstore.InstallTarget
+	marketInstallSpec           string
+	marketInstallBusy           bool
+	marketInstallRequestID      string
+	marketInstallMsg            string
+	marketInstallLog            string
+	marketNeedsAllowBuilds      bool
+	marketAllowBuilds           []string
+	marketIncompatible          []api.ChangeResultErrorIncompatibleItem
+	hasRemoteToken              bool
+	hasRemoteRelayToken         bool
+	remoteDeviceCount           int
+	remoteDeviceNames           []string
+	phoneActionMsg              string
+	sshProbeLine                string
+	webviewOpen                 bool
+	browserPreviewOpen          bool
+	browserController           *browserpreviewui.Controller
+	browserPreviewDraft         string
+	browserPreviewNavigateErr   string
+	webviewHost                 *desktopwebview.Host
+	webviewHostErr              string
+	lastWebViewURL              string
+	lastWebViewOrigin           string
+	assistantOpen               bool
+	assistantDraft              string
+	assistantLastAct            string
+	assistantPluginBusy         bool
+	assistantPluginDetail       string
+	launcherOpen                bool
+	toolsMenuOpen               bool
+	filesPaneOpen               bool // Electron tools → files/diff right dock
+	launcherTab                 string
+	launcherWorkspaceDraft      string
+	launcherImport              string
+	launcherImportJournal       []string
+	launcherImportBusy          bool
+	launcherImportCancel        context.CancelFunc
+	launcherUpdate              string
+	launcherUpdateAvailable     bool
+	launcherUpdateSynced        bool
+	launcherNote                string
+	launcherTriedStart          bool
+	launcherStartBusy           bool
+	launcherStartFailed         bool
+	launcherStartErr            string
+	launcherPrefsSeeded         bool
+	launcherQuitAfterStart      bool
+	launcherAutoStartDesktop    bool
+	launcherAskOnUpdate         bool
+	launcherDownloadRoute       string
+	launcherImportOverwrite     bool
+	launcherImportAttachments   bool
+	launcherImportCategories    map[string]bool
+	launcherImportCatalog       *importer.Catalog
+	launcherComponents          []desktopcomponents.Row
+	launcherComponentsFresh     bool
+	launcherRoutePopOpen        bool
+	workspaceMenuOpen           bool
+	workspaceRenameDraft        string
+	pendingDeeplink             deeplink.Target
+	settingsDrafts              []settingsDraftSlot
+	layout                      frame.LayoutSizes
+	chatList                    ui.ListState
+	draft                       string
+	editMessageSeq              float64
+	feedbackCommentMsgID        string
+	feedbackCommentDraft        string
+	modelPick                   string
+	permissionPick              string
+	agentPresetPick             string
+	thinkingExpanded            map[string]bool
+	renameSessionID             string
+	renameDraft                 string
+	sessionSearch               string
 
 	gitBranch      string
 	gitDirty       bool
@@ -4680,6 +4682,13 @@ func mainView(c *ui.Context) {
 			if usageStore != nil {
 				usageSnap = usageStore.Snapshot()
 			}
+			state.accountLogin.Observe(api.AccountView{Status: usageSnap.AccountStatus, Attempt: api.AccountViewAttempt{
+				Id: usageSnap.AttemptID, Phase: usageSnap.AttemptPhase, AuthorizeUrl: &usageSnap.AuthorizeURL,
+			}}, desktopwebview.OpenExternal)
+			loginState := state.accountLogin.Snapshot()
+			if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
+				usageSnap.AuthorizeURL = loginState.URL
+			}
 			disabledSet := map[string]bool{}
 			if state.cfgStore != nil {
 				for _, p := range state.cfgStore.Get().DisabledPlugins {
@@ -4746,9 +4755,10 @@ func mainView(c *ui.Context) {
 				},
 				AccountActive: accountActive,
 				Account: &settings.AccountAccess{
+					SignInBusy:      loginState.Busy,
 					ClientReady:     usageSnap.ClientReady,
 					Loading:         usageSnap.Loading,
-					Err:             usageSnap.Err,
+					Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error),
 					Status:          usageSnap.AccountStatus,
 					Email:           usageSnap.Email,
 					Name:            usageSnap.Name,
@@ -4803,7 +4813,9 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenAuthorize: func(u string) {
-						state.showBrowserPreview(u)
+						if err := desktopwebview.OpenExternal(u); err != nil {
+							log.Printf("account: open authorization: %v", err)
+						}
 					},
 					OnOpenUsage: func(u string) {
 						if strings.TrimSpace(u) == "" {
@@ -4830,7 +4842,7 @@ func mainView(c *ui.Context) {
 						state.dshMu.Lock()
 						client := state.dshClient
 						state.dshMu.Unlock()
-						if client == nil {
+						if client == nil || !state.accountLogin.Begin() {
 							return
 						}
 						go func() {
@@ -4846,13 +4858,7 @@ func mainView(c *ui.Context) {
 								"callbackOrigin": "whaleisle://auth",
 								"loginSource":    "desktop",
 							}, &view)
-							if err != nil {
-								log.Printf("account/startSignIn: %v", err)
-								return
-							}
-							if view.Attempt.AuthorizeUrl != nil && strings.TrimSpace(*view.Attempt.AuthorizeUrl) != "" {
-								state.showBrowserPreview(*view.Attempt.AuthorizeUrl)
-							}
+							state.accountLogin.Started(view, err, desktopwebview.OpenExternal)
 							if usageStore != nil {
 								sid := ""
 								if sessions != nil {
@@ -4912,6 +4918,8 @@ func mainView(c *ui.Context) {
 								"attemptId": attemptID,
 							}, &out); err != nil {
 								log.Printf("account/cancelSignIn: %v", err)
+							} else {
+								state.accountLogin.Finish()
 							}
 							if usageStore != nil {
 								sid := ""
@@ -5264,8 +5272,8 @@ func mainView(c *ui.Context) {
 				},
 				SkillsActive: skillsActive,
 				Skills: &settings.SkillsAccess{
-					Skills:    skillRows,
-					SessionID: sessSnap.SelectedID,
+					Skills:     skillRows,
+					SessionID:  sessSnap.SelectedID,
 					Err:        sessSnap.SkillCatalog.Err,
 					Notice:     sessSnap.SkillCatalog.Notice,
 					Busy:       sessSnap.SkillCatalog.Busy,

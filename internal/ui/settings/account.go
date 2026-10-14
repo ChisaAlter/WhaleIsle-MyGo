@@ -6,12 +6,14 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/ui/i18n"
 )
 
 // AccountAccess is the dedicated Account / Login settings page
 // (account/getState + optional profile/balance from the usage store).
 type AccountAccess struct {
+	SignInBusy      bool
 	ClientReady     bool
 	Loading         bool
 	Err             string
@@ -28,13 +30,13 @@ type AccountAccess struct {
 	OnOpenAuthorize func(url string)
 	OnOpenUsage     func(url string)
 	OnOpenTopUp     func(url string)
-	OnSignIn         func()
-	OnSignOut        func()
-	OnCancelSignIn   func()
-	SignInAttemptID  string
-	Bonuses          []AccountBonus
-	OnAckBonus       func(accountID, orderID string)
-	HasRunningTasks  bool
+	OnSignIn        func()
+	OnSignOut       func()
+	OnCancelSignIn  func()
+	SignInAttemptID string
+	Bonuses         []AccountBonus
+	OnAckBonus      func(accountID, orderID string)
+	HasRunningTasks bool
 }
 
 // AccountBonus is one row from account/getUnnotifiedBonuses.
@@ -125,13 +127,13 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
 			a.OnRefresh()
 		}
-		if a.OnSignIn != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Clicked() {
+		if a.ClientReady && !a.SignInBusy && !accountlogin.Active(a.AttemptPhase) && a.Status != "credential-stored" && a.OnSignIn != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Clicked() {
 			a.OnSignIn()
 		}
-		if a.OnSignOut != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountSignOut)).Clicked() {
+		if a.ClientReady && !a.SignInBusy && a.Status == "credential-stored" && a.OnSignOut != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountSignOut)).Clicked() {
 			a.OnSignOut()
 		}
-		if a.OnCancelSignIn != nil && strings.TrimSpace(a.SignInAttemptID) != "" {
+		if a.ClientReady && !a.SignInBusy && accountlogin.Active(a.AttemptPhase) && a.AttemptPhase != "committing" && a.OnCancelSignIn != nil && strings.TrimSpace(a.SignInAttemptID) != "" {
 			if ui.Button(c, i18n.T(i18n.KeySettingsAccountCancelSignIn)).Clicked() {
 				a.OnCancelSignIn()
 			}
