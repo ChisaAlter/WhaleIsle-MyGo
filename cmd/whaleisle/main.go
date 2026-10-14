@@ -146,6 +146,8 @@ type mainState struct {
 	settingsMCPController       mcpconfig.Controller
 	settingsProviderProfiles    providerprofiles.Controller
 	remoteMachines              *remotestore.Store
+ remoteFiles *remotestore.Files
+ remoteFileEditor remoteui.FileEditor
 	remoteMachineEditor         remoteui.MachineEditor
 	sshTunnel                   *sshremote.TunnelSession
 	sshHost                     string
@@ -2017,7 +2019,8 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
-	if s.remoteMachines != nil {
+	if s.remoteFiles != nil { s.remoteFiles.Bind(nil,"",nil) }
+ if s.remoteMachines != nil {
 		s.remoteMachines.Attach(nil, nil)
 	}
 	s.invalidateMarketLocked()
@@ -3932,6 +3935,8 @@ func mainView(c *ui.Context) {
 					go state.applyWorkspacePath(win, sessions, localMirror, false)
 				},
 				Machines:               remoteMachines,
+ Files: state.remoteSessionFiles(win,sessions),
+ FileEditor: &state.remoteFileEditor,
 				MachineEditor:          &state.remoteMachineEditor,
 				ThemeID:                themeID,
 				SystemDark:             mygo.Theme.IsDark(),

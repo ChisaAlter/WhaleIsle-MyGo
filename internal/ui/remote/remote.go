@@ -19,6 +19,8 @@ import (
 
 // Model carries remote plugin and desktop connection state.
 type Model struct {
+	Files         *remotestore.Files
+	FileEditor    *FileEditor
 	Machines      *remotestore.Store
 	MachineEditor *MachineEditor
 	ThemeID       string
@@ -92,6 +94,7 @@ func View(c *ui.Context, m Model) {
 			ui.Column(c).Gap(10).Children(func() {
 				viewMachines(c, m)
 				viewDirectory(c, m)
+				viewSessionFiles(c, m)
 
 				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
 					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
