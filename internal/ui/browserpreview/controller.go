@@ -259,7 +259,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				status = t.Document.Name + " · PDF 只读快照；外部导航和脚本已禁用"
 			}
 			if t.HTML != nil {
-				status = t.HTML.Name + " · 静态 HTML 快照；脚本、外链与同目录资源禁用，草稿保留"
+				status = t.HTML.Name + " · " + t.HTML.Resources.Summary() + "；静态预览，脚本/外网禁用"
 			}
 			if status == "" {
 				status = "每个标签保留独立页面和历史；网页无法调用应用权限。"
@@ -270,7 +270,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if err != "" {
 				status = err
 			}
-			ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted))
+			ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
 		})
 		ui.Box(c).Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
 	})

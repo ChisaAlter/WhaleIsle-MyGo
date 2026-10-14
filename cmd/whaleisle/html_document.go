@@ -64,7 +64,7 @@ func (s *mainState) openLocalHTML(sessions *session.Store, sid, root, path strin
 			if err := s.browserController.OpenHTML(doc); err != nil {
 				sessions.SetLastAction("HTML 预览不可用，请在预览标签使用系统打开")
 			} else {
-				sessions.SetLastAction("静态 HTML 快照已打开；脚本、外链和同目录资源禁用，源文件与编辑草稿保持不变")
+				sessions.SetLastAction("静态 HTML 快照已打开；" + doc.Resources.Summary() + "；源文件与编辑草稿保持不变")
 			}
 		})
 	}()

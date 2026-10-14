@@ -2,7 +2,7 @@
 
 2026-10-14 补充：最新逐模块交付与验证边界以 [模块交付记录](module-delivery-20261014.md) 为准。下文历史环境的实测记录不代表当前累计版本已通过真实 Host 或 Windows 桌面验收。
 
-2026-10-14 文档预览补充：本地 `.htm/.html/.xhtml` 已接通交付卡和 Files 工具栏 → 隔离 WebView 文档标签，见 [HTML 文档预览](features/local-html-document.md)。仅保存文件快照，草稿保留；静态 HTML/CSS/嵌入图片可显示，脚本禁用，同目录与外网资源禁用，失败保留系统打开。Windows 实际呈现与隔离行为仍待实机验收。
+2026-10-14 文档预览补充：本地 `.htm/.html/.xhtml` 已接通交付卡和 Files 工具栏 → 隔离 WebView 文档标签，见 [HTML 文档预览](features/local-html-document.md)。仅保存文件快照，草稿保留；静态 HTML/CSS/图片/字体可显示，声明的同工作区资源有界快照内联，脚本和外网禁用，失败保留系统打开。Windows 实际呈现与隔离行为仍待实机验收。
 
 更新时间：2026-10-10。总体计划见 `docs/plan.md`（里程碑 M0–M11）；本文记录每项的实现状态，随开发更新。
 

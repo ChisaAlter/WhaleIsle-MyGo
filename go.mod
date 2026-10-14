@@ -9,8 +9,10 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/egoist/mygo v0.3.5
 	github.com/sergi/go-diff v1.4.0
+	github.com/tdewolff/parse/v2 v2.7.21
 	github.com/yuin/goldmark v1.7.8
 	golang.org/x/crypto v0.45.0
+	golang.org/x/net v0.47.0
 )
 
 require (

@@ -19,16 +19,17 @@
 ## 内容与边界
 
 `htmldocument.OpenWorkspace` 只接收当前会话实际 cwd 与明确选中的路径，用 `os.Root`
-限制读取，包括 symlink/junction 逃逸；只读取一个 regular file 的 UTF-8 快照。
-不使用 `file://`，不把目录或临时路径当作服务根，不从页面接收文件读取参数。
+限制读取，包括 symlink/junction 逃逸；读取主文档及其有限声明依赖的快照。
+不使用 `file://`，不把目录或临时路径当作服务根，不从页面接收文件读取参数。资源仅由打开时的有限声明图读取。
 输入上限 8 MiB，sandbox 编码后上限 25 MiB。XHTML 按 HTML 兼容内容显示。
 
-内容通过 `htmlpreview` 构造静态 `sandbox=""` opaque-origin iframe。支持静态 HTML、
+内容与有限授权静态资源一起通过 `htmlpreview` 构造静态 `sandbox=""` opaque-origin iframe。支持静态 HTML、
 内联 CSS、内嵌 data 图片与字体；native WebView、响应 CSP 和 iframe 三层均禁脚本。
-不运行 JavaScript，也无法访问应用/Host、源码文件、外网或同目录依赖，不能保存文件。
+不运行 JavaScript，也无法访问应用/Host、外网或额外源码文件，不能保存文件或追加读取同目录依赖。
 此入口没有运行 capture 的 isolation Probe（其中 RTC 构造器暴露会判失败），因此
 不能仅凭 WebResourceRequested/CSP 允许脚本。若以后开放脚本，必须先满足同等门禁。
-不解析、自动授权或加载 sibling CSS/JS/images；依赖这些资源的页面需使用系统打开。
+已补有限的 [静态资源快照图](local-html-resources.md)：同工作区声明的 CSS、图片、字体
+在打开时读取并内联，不开放目录服务。脚本/外网/未知类型及超限资源仍禁用，并显示限制。
 这不是通用网站托管，也不能宣称与原版任意 HTML 网页完全等价。
 
 每个标签有单独的 `127.0.0.1:随机端口/256bit能力/document.html` 服务，仅提供该

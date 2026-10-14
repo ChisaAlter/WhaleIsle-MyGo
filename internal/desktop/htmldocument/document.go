@@ -28,6 +28,7 @@ const Lifetime = 30 * time.Minute
 
 type Document struct {
 	Name          string
+	Resources     ResourceReport
 	path          string
 	identity      os.FileInfo
 	data          []byte
@@ -70,10 +71,10 @@ func OpenWorkspace(root, raw string, valid func() bool) (*Document, error) {
 		return nil, errors.New("HTML cannot be opened within the session workspace")
 	}
 	defer f.Close()
-	return snapshot(f, full, valid)
+	return snapshot(f, r, rel, full, valid)
 }
 
-func snapshot(f *os.File, path string, valid func() bool) (*Document, error) {
+func snapshot(f *os.File, root *os.Root, relative, path string, valid func() bool) (*Document, error) {
 	if valid == nil || !valid() {
 		return nil, errors.New("HTML request no longer belongs to the active session")
 	}
@@ -98,9 +99,13 @@ func snapshot(f *os.File, path string, valid func() bool) (*Document, error) {
 	if len(data) == 0 || len(data) > MaxBytes || !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return nil, errors.New("HTML preview requires a nonempty UTF-8 document")
 	}
-	// Never serve arbitrary local assets. Only this file's frozen bytes enter an
-	// opaque sandbox, wrapped using the existing HTML isolation policy.
-	data = []byte(htmlpreview.DocumentShell(string(data)))
+	// Freeze only declared, bounded static dependencies before publishing. The
+	// browser receives no filesystem reader, asset routes or directory authority.
+	prepared, resources, err := prepareResources(root, relative, string(data), valid)
+	if err != nil {
+		return nil, err
+	}
+	data = []byte(htmlpreview.DocumentShell(prepared))
 	if len(data) > htmlpreview.MaxPreparedHTMLBytes {
 		return nil, errors.New("HTML document is too large after sandbox encoding")
 	}
@@ -115,7 +120,7 @@ func snapshot(f *os.File, path string, valid func() bool) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &Document{Name: filepath.Base(path), path: path, identity: info, data: data, origin: "http://" + listener.Addr().String(), route: "/" + hex.EncodeToString(secret) + "/document.html", valid: valid}
+	d := &Document{Name: filepath.Base(path), Resources: resources, path: path, identity: info, data: data, origin: "http://" + listener.Addr().String(), route: "/" + hex.EncodeToString(secret) + "/document.html", valid: valid}
 	d.server = &http.Server{Handler: http.HandlerFunc(d.serve), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 << 10}
 	d.timer = time.AfterFunc(Lifetime, func() { d.Close() })
 	go func() { _ = d.server.Serve(listener) }()
