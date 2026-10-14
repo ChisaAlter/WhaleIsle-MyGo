@@ -1,8 +1,9 @@
 package phoneremote
 
 import (
-	"fmt"
 	"net"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"whaleisle/internal/config"
@@ -96,32 +97,25 @@ func Assess(s Snapshot) (Readiness, []string) {
 	return ReadinessReady, nil
 }
 
-// ConnectURL returns a phone connect URL when constructable from config.
-// Prefers remoteAppBaseUrl; otherwise builds a LAN http(s)://bind:port URL
-// when mode is lan and the bind address is not loopback.
+// ConnectURL returns only an explicitly configured, credential-free mobile
+// landing page. A daemon listening endpoint is not a mobile web server. This
+// does not create a pairing offer or establish that the service is running.
 func ConnectURL(s Snapshot) string {
-	if base := strings.TrimSpace(s.RemoteAppBaseURL); base != "" {
-		return strings.TrimRight(base, "/")
-	}
-	if normalizeMode(s.RemoteMode) != "lan" {
+	base := strings.TrimSpace(s.RemoteAppBaseURL)
+	u, err := url.Parse(base)
+	if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(base, "#") {
 		return ""
 	}
-	bind := strings.TrimSpace(s.RemoteBindAddress)
-	if bind == "" || isLoopbackBind(bind) {
+	if ip := net.ParseIP(u.Hostname()); ip != nil && ip.IsUnspecified() {
 		return ""
 	}
-	if s.RemotePort < 1024 || s.RemotePort > 65535 {
-		return ""
+	if port := u.Port(); port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return ""
+		}
 	}
-	scheme := "http"
-	if s.RemoteLanTLS {
-		scheme = "https"
-	}
-	host := bind
-	if ip := net.ParseIP(bind); ip != nil && ip.To4() == nil {
-		host = "[" + bind + "]"
-	}
-	return fmt.Sprintf("%s://%s:%d", scheme, host, s.RemotePort)
+	return strings.TrimRight(u.String(), "/")
 }
 
 func normalizeMode(mode string) string {
@@ -138,16 +132,4 @@ func normalizeMode(mode string) string {
 		}
 		return "relay"
 	}
-}
-
-func isLoopbackBind(bind string) bool {
-	b := strings.TrimSpace(strings.ToLower(bind))
-	switch b {
-	case "127.0.0.1", "localhost", "::1", "0.0.0.0", "[::]", "::":
-		return true
-	}
-	if ip := net.ParseIP(bind); ip != nil {
-		return ip.IsLoopback() || ip.IsUnspecified()
-	}
-	return false
 }

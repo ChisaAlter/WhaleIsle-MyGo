@@ -1,9 +1,9 @@
 // Package phoneremote documents the M11 phone remote surface.
 //
-// Electron parity: phone/LAN pairing via remoteEnabled + remoteMode
-// (relay|lan) and credentials.remoteToken / remoteRelayToken. The Go shell
-// does not ship a mobile client; this package assesses config readiness,
-// builds a connect URL for the remote panel, and labels credentials.remoteDevices.
+// This package assesses configuration only; the Go shell has not integrated
+// the offer v2 pairing runtime or relay-connected state. It validates a
+// credential-free mobile landing URL and labels credentials.remoteDevices.
+// Daemon listen endpoints must never be presented as mobile web entry points.
 //
 // # config.Config (config.json)
 //

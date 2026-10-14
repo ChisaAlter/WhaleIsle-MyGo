@@ -8,12 +8,12 @@ import (
 
 func TestAssessDisabledWhenPairingOff(t *testing.T) {
 	s := Snapshot{
-		RemoteEnabled:  false,
-		RemoteMode:     "lan",
-		RemotePort:     6767,
+		RemoteEnabled:     false,
+		RemoteMode:        "lan",
+		RemotePort:        6767,
 		RemoteBindAddress: "0.0.0.0",
-		HasRemoteToken: true,
-		MuxReady:       true,
+		HasRemoteToken:    true,
+		MuxReady:          true,
 	}
 	r, missing := Assess(s)
 	if r != ReadinessDisabled {
@@ -88,9 +88,9 @@ func TestAssessRelayNeedsRelayToken(t *testing.T) {
 
 func TestConnectURLPrefersAppBase(t *testing.T) {
 	s := Snapshot{
-		RemoteMode:       "relay",
-		RemoteAppBaseURL: "https://app.example.com/dshd/",
-		RemotePort:       6767,
+		RemoteMode:        "relay",
+		RemoteAppBaseURL:  "https://app.example.com/dshd/",
+		RemotePort:        6767,
 		RemoteBindAddress: "192.168.1.10",
 	}
 	got := ConnectURL(s)
@@ -99,7 +99,7 @@ func TestConnectURLPrefersAppBase(t *testing.T) {
 	}
 }
 
-func TestConnectURLLanNonLoopback(t *testing.T) {
+func TestConnectURLDoesNotTreatDaemonAsLandingPage(t *testing.T) {
 	s := Snapshot{
 		RemoteMode:        "lan",
 		RemotePort:        6767,
@@ -107,7 +107,7 @@ func TestConnectURLLanNonLoopback(t *testing.T) {
 		RemoteLanTLS:      true,
 	}
 	got := ConnectURL(s)
-	if got != "https://192.168.1.10:6767" {
+	if got != "" {
 		t.Fatalf("ConnectURL = %q", got)
 	}
 }
@@ -134,7 +134,7 @@ func TestFromConfig(t *testing.T) {
 	if s.Readiness != ReadinessReady {
 		t.Fatalf("Readiness = %q missing=%v", s.Readiness, s.Missing)
 	}
-	if s.ConnectURL != "http://192.168.1.20:7000" {
+	if s.ConnectURL != "" {
 		t.Fatalf("ConnectURL = %q", s.ConnectURL)
 	}
 	if s.DeviceCount != 2 {

@@ -74,7 +74,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		)
 	}
 	rows = append(rows,
-		struct{ label, value string }{i18n.T(i18n.KeyRemoteMobileAppBase), emptyDash(snap.RemoteAppBaseURL)},
+		struct{ label, value string }{i18n.T(i18n.KeyRemoteMobileAppBase), emptyDash(snap.ConnectURL)},
 		struct{ label, value string }{i18n.T(i18n.KeyRemoteMobileDevices), strconv.Itoa(snap.DeviceCount)},
 	)
 
@@ -100,17 +100,17 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if snap.ConnectURL != "" {
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
 			ui.Text(c, snap.ConnectURL).FontSize(12).TextColor(fg)
-			ui.Text(c, i18n.T(i18n.KeyRemotePhoneQRPlaceholder)).FontSize(11).TextColor(muted)
 		})
 	} else {
 		ui.Text(c, i18n.T(i18n.KeyRemotePhoneURLUnavailable)).FontSize(11).TextColor(muted)
 	}
 
+	ui.Text(c, i18n.T(i18n.KeyRemotePhoneQRPlaceholder)).FontSize(11).TextColor(muted)
 	ui.Row(c).Gap(8).Children(func() {
-		if m.OnCopyConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneCopyURL)).Clicked() {
+		if snap.ConnectURL != "" && m.OnCopyConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneCopyURL)).Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if m.OnOpenConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneOpenURL)).Clicked() {
+		if snap.ConnectURL != "" && m.OnOpenConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneOpenURL)).Clicked() {
 			m.OnOpenConnectURL()
 		}
 		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Clicked() {
