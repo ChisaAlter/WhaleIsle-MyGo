@@ -82,6 +82,7 @@ type ViewState struct {
 	AgentPresetLabels   []string
 	SelectedAgentPreset string
 	AgentPresetsErr     string
+	SkillCatalog        SkillCatalog
 	SkillOptions        []SkillOption
 	SkillsErr           string
 	SkillHubHits        []SkillHubHit
@@ -145,6 +146,10 @@ type Store struct {
 	agentPresetOptions       []AgentPresetOption
 	selectedAgentPresetLabel string
 	agentPresetsErr          error
+	skillCatalog                         SkillCatalog
+	skillCatalogScope                    api.SkillInventoryScope
+	skillCatalogVersion                  uint64
+	skillCatalogSession, skillCatalogCwd string
 	skillOptions             []SkillOption
 	skillsErr                error
 	skillHubHits             []SkillHubHit
@@ -380,6 +385,10 @@ func (s *Store) Snapshot() ViewState {
 	for _, o := range s.agentPresetOptions {
 		st.AgentPresetLabels = append(st.AgentPresetLabels, o.Label)
 	}
+	st.SkillCatalog = s.skillCatalog.clone()
+	if s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+		st.SkillCatalog = SkillCatalog{}
+	}
 	st.SkillOptions = append([]SkillOption(nil), s.skillOptions...)
 	st.SkillHubHits = append([]SkillHubHit(nil), s.skillHubHits...)
 	st.SearchLoading = s.searchLoading
@@ -588,7 +597,10 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		err := client.Call(ctx, "session/prompt", map[string]any{"request": req}, &promptResult)
 
 		s.mu.Lock()
-		if s.selectedID != sessionID { s.mu.Unlock(); return }
+		if s.selectedID != sessionID {
+			s.mu.Unlock()
+			return
+		}
 		s.promptBusy = false
 		if err != nil {
 			s.lastAction = err.Error()

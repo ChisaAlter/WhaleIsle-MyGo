@@ -56,6 +56,7 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 // RefreshSkills loads skills/list for the composer skills menu.
 // Falls back to skillInventory/list when session skills/list is unavailable.
 func (s *Store) RefreshSkills(ctx context.Context) {
+	s.RefreshSkillCatalog(ctx)
 	s.mu.Lock()
 	client := s.client
 	sessionID := s.selectedID

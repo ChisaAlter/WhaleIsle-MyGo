@@ -118,6 +118,10 @@ type mainState struct {
 	settingsSkillHubHits       []settings.SkillHubHit
 	settingsSkillsLastAction   string
 	settingsSkillsDetail       string
+	settingsSkillEditSession    string
+	settingsSkillInspectVersion uint64
+	settingsSkillEditGroups     string
+	settingsSkillEditWhen       *string
 	settingsSkillEditName      string
 	settingsSkillEditDesc      string
 	settingsSkillEditContent   string
@@ -4688,12 +4692,13 @@ func mainView(c *ui.Context) {
 					Name: row.Label, Status: row.Detail, Disabled: disabledSet[row.Label],
 				})
 			}
-			skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillOptions))
-			for _, sk := range sessSnap.SkillOptions {
+			skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillCatalog.Skills))
+			for _, sk := range sessSnap.SkillCatalog.Skills {
 				skillRows = append(skillRows, settings.SkillRow{
 					Name:           sk.Name,
 					Description:    sk.Description,
-					ModelInvocable: !sk.UserOnly,
+					ModelInvocable: sk.ModelInvocable,
+					Groups:         sk.Groups, Writable: sk.Writable, UserInvocable: sk.UserInvocable, Error: sessSnap.SkillCatalog.Errors[sk.Name],
 				})
 			}
 			settings.View(c, settings.Model{
@@ -5261,35 +5266,32 @@ func mainView(c *ui.Context) {
 				Skills: &settings.SkillsAccess{
 					Skills:    skillRows,
 					SessionID: sessSnap.SelectedID,
-					Err:       sessSnap.SkillsErr,
-					LastAction: func() string {
-						if state.settingsSkillsLastAction != "" {
-							return state.settingsSkillsLastAction
+					Err:        sessSnap.SkillCatalog.Err,
+					Notice:     sessSnap.SkillCatalog.Notice,
+					Busy:       sessSnap.SkillCatalog.Busy,
+					LastAction: strings.TrimSpace(strings.Join([]string{state.settingsSkillsLastAction, sessSnap.LastAction, sessSnap.SkillCatalog.Action}, "\n")),
+					EditGroups: &state.settingsSkillEditGroups,
+					OnSetGroupInvocable: func(group string, enabled bool) {
+						if sessions != nil {
+							sessions.SetSkillGroupInvocation(context.Background(), group, enabled)
 						}
-						return sessSnap.LastAction
-					}(),
+					},
 					CreateName:    &state.skillCreateName,
 					DetailPreview: state.settingsSkillsDetail,
 					EditName:      state.settingsSkillEditName,
 					EditDesc:      &state.settingsSkillEditDesc,
 					EditContent:   &state.settingsSkillEditContent,
-					EditWritable:  state.settingsSkillEditWritable,
+					EditWritable:  state.settingsSkillEditWritable && state.settingsSkillEditSession == sessSnap.SelectedID,
 					OnSaveUpdate: func() {
 						name := strings.TrimSpace(state.settingsSkillEditName)
-						if sessions == nil || name == "" || !state.settingsSkillEditWritable {
+						if sessions == nil || name == "" || !state.settingsSkillEditWritable || state.settingsSkillEditSession != sessions.Snapshot().SelectedID {
 							return
 						}
-						sessions.UpdateSkillInventory(
-							context.Background(),
-							name,
-							state.settingsSkillEditDesc,
-							state.settingsSkillEditContent,
-							state.settingsSkillEditModel,
-							state.settingsSkillEditUser,
-						)
-						state.mu.Lock()
-						state.settingsSkillsLastAction = "skill update: " + name
-						state.mu.Unlock()
+						sessions.SaveCatalogSkill(context.Background(), api.SkillInventoryDetail{
+							Name: name, Description: state.settingsSkillEditDesc, Content: state.settingsSkillEditContent,
+							Groups: strings.Split(state.settingsSkillEditGroups, ","), WhenToUse: state.settingsSkillEditWhen,
+							Writable: state.settingsSkillEditWritable, ModelInvocable: state.settingsSkillEditModel, UserInvocable: state.settingsSkillEditUser,
+						})
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -5315,8 +5317,14 @@ func mainView(c *ui.Context) {
 						if sessions == nil || name == "" {
 							return
 						}
+						state.mu.Lock()
+						state.settingsSkillInspectVersion++
+						inspectVersion := state.settingsSkillInspectVersion
+						state.settingsSkillEditWritable = false
+						state.mu.Unlock()
+						inspectSession := sessSnap.SelectedID
 						go func() {
-							doc, err := sessions.GetSkillInventoryDetail(context.Background(), name)
+							doc, err := sessions.GetCatalogSkillDetail(context.Background(), name)
 							preview := ""
 							editName := ""
 							editDesc := ""
@@ -5358,8 +5366,15 @@ func mainView(c *ui.Context) {
 								}
 							}
 							state.mu.Lock()
+							if state.settingsSkillInspectVersion != inspectVersion || sessions.Snapshot().SelectedID != inspectSession {
+								state.mu.Unlock()
+								return
+							}
+							state.settingsSkillEditSession = inspectSession
 							state.settingsSkillsDetail = preview
 							state.settingsSkillEditName = editName
+							state.settingsSkillEditGroups = strings.Join(doc.Groups, ", ")
+							state.settingsSkillEditWhen = doc.WhenToUse
 							state.settingsSkillEditDesc = editDesc
 							state.settingsSkillEditContent = editContent
 							state.settingsSkillEditModel = editModel
@@ -5485,35 +5500,9 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnSetModelInvocable: func(name string, modelInvocable bool) {
-						name = strings.TrimSpace(name)
-						if name == "" {
-							return
+						if sessions != nil {
+							sessions.SetCatalogSkillInvocation(context.Background(), name, modelInvocable)
 						}
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
-						}
-						sid := sessSnap.SelectedID
-						go func() {
-							req := api.SkillInventoryInvocationRequest{
-								Name:           name,
-								ModelInvocable: modelInvocable,
-								UserInvocable:  true,
-							}
-							if sid != "" {
-								req.SessionId = &sid
-							}
-							var out api.SetInvocationResult
-							_ = client.Call(context.Background(), "skillInventory/setInvocation", map[string]any{"request": req}, &out)
-							if sessions != nil {
-								sessions.RefreshSkills(context.Background())
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
 					},
 				},
 				AgentPresetsActive: agentPresetsActive,
