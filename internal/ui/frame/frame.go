@@ -262,6 +262,7 @@ func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
+	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	border := chrome.Color(colors.Border)

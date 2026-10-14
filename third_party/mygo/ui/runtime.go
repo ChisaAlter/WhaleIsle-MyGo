@@ -282,9 +282,10 @@ type hit struct {
 }
 
 type shortcutReg struct {
-	id   uint64
-	mods Modifiers
-	key  Key
+	pageOnly bool // never claims input from editors, custom input widgets or overlays
+	id       uint64
+	mods     Modifiers
+	key      Key
 	// overlay marks the registration of an overlay (overlayShortcut),
 	// made serial-th in its pass: the overlay made last is on top.
 	overlay bool

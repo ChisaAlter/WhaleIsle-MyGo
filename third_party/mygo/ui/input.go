@@ -497,7 +497,7 @@ func (rt *engine) claimed(k keyEvent) bool { return rt.claimedBy(k, true) }
 func (rt *engine) claimedBy(k keyEvent, window bool) bool {
 	var chain []uint64
 	for _, r := range rt.regs {
-		if r.mods != k.mods || r.key != k.key || r.overlay {
+		if r.mods != k.mods || r.key != k.key || r.overlay || (r.pageOnly && !rt.pageCommandAllowed()) {
 			continue // an overlay takes what the focus leaves
 		}
 		if r.id == 0 {
@@ -523,6 +523,15 @@ func (rt *engine) keyDown(mods Modifiers, key Key, repeat bool) bool {
 		return true
 	}
 	k := keyEvent{mods, key}
+	// Navigation commands are one-shot; holding a chord must not repeatedly
+	// open folders, create sessions or toggle panels.
+	if repeat && rt.pageCommandAllowed() {
+		for _, r := range rt.regs {
+			if r.pageOnly && r.mods == mods && r.key == key {
+				return true
+			}
+		}
+	}
 	if key == KeyEscape && mods == 0 && rt.dragCancel() {
 		return true
 	}
@@ -701,7 +710,7 @@ func (rt *engine) routeKeys() {
 		}
 		if !found {
 			for _, r := range rt.regs {
-				if r.id == 0 && r.mods == k.mods && r.key == k.key {
+				if r.id == 0 && r.mods == k.mods && r.key == k.key && (!r.pageOnly || rt.pageCommandAllowed()) {
 					found = true
 					break
 				}
