@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -46,6 +48,7 @@ type Store struct {
 	generation uint64
 	refreshID  uint64
 	discovery  discoveryState
+	personal   personalState
 	notify     func()
 
 	loading        bool
@@ -61,7 +64,11 @@ type Store struct {
 
 // New returns an empty market store.
 func New() *Store {
-	return &Store{discovery: newDiscoveryState()}
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return NewWithPersonalPath("")
+	}
+	return NewWithPersonalPath(filepath.Join(dir, "whaleisle", "market-personal.json"))
 }
 
 // Attach binds a dsh client and an optional UI refresh hook.

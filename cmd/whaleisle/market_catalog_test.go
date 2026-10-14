@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -63,7 +64,8 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			}))
 			defer srv.Close()
 			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
-			store := marketstore.New()
+			historyPath := filepath.Join(t.TempDir(), "personal.json")
+			store := marketstore.NewWithPersonalPath(historyPath)
 			store.SetCatalogService(catalogFixture{})
 			store.Attach(client, nil)
 			store.RefreshCatalog(true, "en")
@@ -82,6 +84,10 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			s.mu.Lock()
 			message := s.marketInstallMsg
 			s.mu.Unlock()
+			history := marketstore.NewWithPersonalPath(historyPath).Personal().History
+			if len(history) != 1 || history[0].Result != application || history[0].Plugin != "fixture/plugin" {
+				t.Fatalf("incorrect persisted history: %+v", history)
+			}
 			if !waited.Load() {
 				t.Fatal("queued installation was not awaited")
 			}

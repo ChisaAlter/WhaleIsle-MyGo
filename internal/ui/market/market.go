@@ -59,11 +59,18 @@ func View(c *ui.Context, m Model) {
 	bg, border, fg, muted, field, accent := chrome.Color(colors.BG), chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot()
 	d := m.Store.Discovery()
+	personal := m.Store.Personal()
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).Bold().Grow(1).TextColor(fg)
 			if ui.Button(c, marketText("发现", "Discover")).Clicked() {
 				m.Store.SetTab("discover")
+			}
+			if ui.Button(c, marketText("收藏", "Favorites")).Clicked() {
+				m.Store.SetTab("favorites")
+			}
+			if ui.Button(c, marketText("安装历史", "History")).Clicked() {
+				m.Store.SetTab("history")
 			}
 			if ui.Button(c, marketText("已安装", "Installed")).Clicked() {
 				m.Store.SetTab("installed")
@@ -83,7 +90,18 @@ func View(c *ui.Context, m Model) {
 		})
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).FillWidth().Children(func() {
-				if d.Tab != "installed" {
+				if personal.Err != "" {
+					ui.Text(c, personal.Err).TextColor(accent)
+				}
+				if d.Tab == "history" {
+					ui.Text(c, marketText("最近 200 次结果；unknown 表示未确认，不表示安装成功。", "Latest 200 outcomes; unknown means unconfirmed, never success.")).TextColor(muted)
+					if len(personal.History) == 0 {
+						ui.Text(c, marketText("暂无安装历史。", "No installation history yet.")).TextColor(muted)
+					}
+					for _, h := range personal.History {
+						ui.Text(c, h.At.Local().Format("2006-01-02 15:04:05 MST")+" · "+h.Plugin+" · "+h.Result+" "+h.Error).TextColor(fg)
+					}
+				} else if d.Tab != "installed" {
 					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
 				} else {
 					if snap.Err != "" {
@@ -186,6 +204,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			m.Store.CloseDetails()
 		}
 		ui.Text(c, item.ID).Bold().TextColor(fg)
+		favoriteButton(c, m, item.ID)
 		ui.Text(c, item.Description).TextColor(fg)
 		ui.Text(c, item.Homepage).FontSize(12).TextColor(muted)
 		ui.Text(c, marketText("安装目标：", "Install target: ")+item.InstallSpec).FontSize(12).TextColor(fg)
@@ -245,6 +264,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			ui.Text(c, i.Description).FontSize(12).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Text(c, i.Category).FontSize(11).TextColor(muted)
+				favoriteButton(c, m, i.ID)
 				if name := marketstore.InstalledName(i, inventory.Rows); name != "" {
 					ui.Text(c, marketText("已安装：", "Installed: ")+name).FontSize(11).TextColor(fg)
 				}
@@ -333,4 +353,14 @@ func rpcLabel(hasRPC bool, count int) string {
 		return i18n.T(i18n.KeyMarketRPCPartial)
 	}
 	return i18n.T(i18n.KeyMarketRPCNo)
+}
+
+func favoriteButton(c *ui.Context, m Model, id string) {
+	label := marketText("收藏", "Favorite")
+	if m.Store.Personal().Favorites[id] {
+		label = marketText("取消收藏", "Unfavorite")
+	}
+	if ui.Button(c, label).Clicked() {
+		_ = m.Store.ToggleFavorite(id)
+	}
 }

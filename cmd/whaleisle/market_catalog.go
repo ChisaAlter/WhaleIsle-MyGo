@@ -139,14 +139,15 @@ func (s *mainState) beginMarketAttempt(spec string, allow []string, install bool
 }
 
 type marketResult struct {
-	message, log string
-	accepted     bool
-	pending      []string
-	incompatible []api.ChangeResultErrorIncompatibleItem
+	message, log          string
+	outcome, historyError string
+	accepted              bool
+	pending               []string
+	incompatible          []api.ChangeResultErrorIncompatibleItem
 }
 
 func marketResultFor(out *api.ChangeResult, err error) marketResult {
-	r := marketResult{}
+	r := marketResult{outcome: "unknown", historyError: "result-unconfirmed"}
 	if err != nil {
 		r.message = marketMessage("结果未知：", "Result unknown: ") + err.Error()
 		return r
@@ -163,6 +164,7 @@ func marketResultFor(out *api.ChangeResult, err error) marketResult {
 		r.log = strings.TrimSpace(r.log + "\n" + strings.Join(out.Warnings, "\n"))
 	}
 	if out.Error != nil {
+		r.outcome, r.historyError = "failed", "operation-failed"
 		r.message = out.Error.Code
 		if out.Error.Diagnostic != nil {
 			r.message += " " + *out.Error.Diagnostic
@@ -174,20 +176,25 @@ func marketResultFor(out *api.ChangeResult, err error) marketResult {
 	} else {
 		switch out.Application {
 		case "applied":
+			r.outcome, r.historyError = "applied", ""
 			r.accepted = true
 			r.message = marketMessage("已应用；正在核对库存。", "Applied; checking inventory.")
 		case "restart-required":
+			r.outcome, r.historyError = "restart-required", ""
 			r.accepted = true
 			r.message = marketMessage("已保存，需重启运行时后生效。", "Saved; a runtime restart is required to take effect.")
 		case "cancelled":
+			r.outcome, r.historyError = "cancelled", ""
 			r.message = marketMessage("安装已取消。", "Installation cancelled.")
 		case "failed":
+			r.outcome, r.historyError = "failed", "operation-failed"
 			r.message = marketMessage("操作失败。", "Operation failed.")
 		default:
 			r.message = marketMessage("结果未确认，请刷新库存。", "Result unconfirmed; refresh inventory.")
 		}
 	}
 	if len(r.pending) > 0 {
+		r.outcome = ""
 		r.accepted = false
 		r.message += " " + marketMessage("需要明确授权以下构建脚本。", "Explicit build-script approval is required.")
 	}
@@ -221,6 +228,13 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 	}
 	win := s.win
 	s.mu.Unlock()
+	if install && op.store != nil && r.outcome != "" {
+		id := "manual-install"
+		if op.target != nil {
+			id = op.target.ID
+		}
+		_ = op.store.RecordInstall(id, r.outcome, r.historyError)
+	}
 	if op.store != nil {
 		op.store.Refresh(context.Background())
 	}
@@ -278,11 +292,13 @@ func (s *mainState) runMarketInstall(spec string, allowBuilds []string) {
 			r = marketResultFor(out, err)
 		} else {
 			res := desktopmarket.InstallGithubSpec(spec, allowBuilds, desktopmarket.InstallOptions{NodeBin: node})
-			r = marketResult{message: res.Error, log: res.Log}
+			r = marketResult{message: res.Error, log: res.Log, outcome: "failed", historyError: "operation-failed"}
 			if res.NeedsAllowBuilds {
 				r.pending = append([]string(nil), res.AllowBuilds...)
+				r.outcome = ""
 			}
 			if res.OK && !res.NeedsAllowBuilds {
+				r.outcome, r.historyError = "restart-required", ""
 				r.accepted = true
 				r.message = marketMessage("已保存，需重启运行时后生效。", "Saved; a runtime restart is required.")
 			}
@@ -346,7 +362,7 @@ func (s *mainState) cancelMarketInstall() {
 		var out api.PluginInstallCancellation
 		e := op.client.Call(op.ctx, "pluginManager/cancelInstall", map[string]any{"requestId": op.requestID}, &out)
 		if e == nil && out.Status == "cancelled" {
-			s.finishMarket(op, marketResult{message: marketMessage("安装已取消。", "Installation cancelled.")}, true)
+			s.finishMarket(op, marketResult{message: marketMessage("安装已取消。", "Installation cancelled."), outcome: "cancelled"}, true)
 			op.cancel()
 			return
 		}

@@ -124,6 +124,9 @@ func (s *Store) Discovery() Discovery {
 			x := item
 			out.Selected = &x
 		}
+		if d.tab == "favorites" && !s.personal.data.Favorites[item.ID] {
+			continue
+		}
 		if d.category != "all" && d.category != "" && item.Category != d.category {
 			continue
 		}
@@ -158,7 +161,14 @@ func (s *Store) SetCategory(category string) {
 	s.mu.Unlock()
 	s.fire()
 }
-func (s *Store) SetTab(tab string) { s.mu.Lock(); s.discovery.tab = tab; s.mu.Unlock(); s.fire() }
+func (s *Store) SetTab(tab string) {
+	s.mu.Lock()
+	s.discovery.tab = tab
+	s.discovery.page = 0
+	s.discovery.selected = ""
+	s.mu.Unlock()
+	s.fire()
+}
 func (s *Store) SetPage(page int) {
 	s.mu.Lock()
 	if page < 0 {
