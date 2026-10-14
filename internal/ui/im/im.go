@@ -56,7 +56,7 @@ func View(c *ui.Context, m Model) {
 			if m.OnOpenPluginWeb != nil && ui.Button(c, i18n.T(i18n.KeyIMOpenWeb)).Clicked() {
 				m.OnOpenPluginWeb()
 			}
-			if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyIMRefresh)).Clicked() {
+			if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyIMRefresh)).Disabled(snap.ConnectionBusy).Clicked() {
 				if m.OnRefresh != nil {
 					m.OnRefresh()
 				} else {
@@ -155,6 +155,57 @@ func View(c *ui.Context, m Model) {
 
 				// History + compose
 				ui.Column(c).Grow(1).Fill().MinHeight(0).Gap(8).Children(func() {
+
+					if snap.BridgeMode == "cordis" {
+						var selected imstore.Entry
+						for _, row := range snap.Rows {
+							if row.ID == snap.SelectedID {
+								selected = row
+								break
+							}
+						}
+						ui.Text(c, "机器人连接与会话配置").FontSize(13).Bold().TextColor(fg)
+						if selected.BotID == "" {
+							ui.Text(c, "请选择机器人；添加账号请打开插件页面。").FontSize(12).TextColor(muted)
+							return
+						}
+						ui.Text(c, selected.Label+" · "+selected.Channel+" · "+selected.State).FontSize(12).TextColor(fg)
+						ui.Text(c, selected.Detail).FontSize(11).TextColor(muted)
+						disabled := snap.ConnectionBusy || snap.Loading || m.PluginDisabled || m.Store == nil
+						if ui.Button(c, "重新连接").Disabled(disabled).Clicked() {
+							_ = m.Store.ReconnectBot(context.Background(), selected.ID)
+						}
+						ui.Text(c, "重连不会发送测试消息。账号凭证请在插件页面管理。").FontSize(11).TextColor(muted)
+						ui.Text(c, "工作区绝对路径").FontSize(12).Bold().TextColor(fg)
+						workspace := snap.WorkspaceDraft
+						ui.TextInput(c, &workspace).FillWidth().Placeholder("/path/to/workspace 或 C:\\workspace")
+						if m.Store != nil && workspace != snap.WorkspaceDraft {
+							m.Store.SetWorkspaceDraft(selected.ID, workspace)
+						}
+						if ui.Button(c, "保存工作区").Disabled(disabled || strings.TrimSpace(workspace) == selected.Workspace).Clicked() {
+							_ = m.Store.SaveWorkspace(context.Background(), selected.ID, workspace)
+						}
+						currentPreset := selected.AgentPreset
+						if currentPreset == "" {
+							currentPreset = "跟随 Host 默认"
+						}
+						ui.Text(c, "Agent Preset："+currentPreset).FontSize(12).Bold().TextColor(fg)
+						ui.Row(c).Gap(6).Children(func() {
+							if ui.Button(c, "跟随 Host 默认").Disabled(disabled || selected.AgentPreset == "").Clicked() {
+								_ = m.Store.SaveAgentPreset(context.Background(), selected.ID, "")
+							}
+							for _, preset := range selected.Presets {
+								if ui.Button(c, preset.Label).Disabled(disabled || selected.AgentPreset == preset.ID).Clicked() {
+									_ = m.Store.SaveAgentPreset(context.Background(), selected.ID, preset.ID)
+								}
+							}
+						})
+						ui.Text(c, "配置影响新会话；已有聊天请在对应 IM 中发送 /new 后再发送普通消息。").FontSize(11).TextColor(muted)
+						if snap.ConnectionNote != "" {
+							ui.Text(c, snap.ConnectionNote).FontSize(12).TextColor(accent)
+						}
+						return
+					}
 					ui.Text(c, i18n.T(i18n.KeyIMHistory)).FontSize(13).Bold().TextColor(fg)
 					if snap.SelectedID == "" {
 						ui.Text(c, i18n.T(i18n.KeyIMNoChannel)).FontSize(12).TextColor(muted)

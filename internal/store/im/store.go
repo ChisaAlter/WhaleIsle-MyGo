@@ -34,9 +34,15 @@ func Dir(userData string) string {
 
 // Entry is one row in the channel / conversation list.
 type Entry struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Detail string `json:"detail,omitempty"`
+	ID          string   `json:"id"`
+	Label       string   `json:"label"`
+	Detail      string   `json:"detail,omitempty"`
+	Channel     string   `json:"-"`
+	BotID       string   `json:"-"`
+	State       string   `json:"-"`
+	Workspace   string   `json:"-"`
+	AgentPreset string   `json:"-"`
+	Presets     []Preset `json:"-"`
 }
 
 // Message is one history line for a channel (local and/or remote).
@@ -51,6 +57,9 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	ConnectionBusy bool
+	ConnectionNote string
+	WorkspaceDraft string
 	ClientReady    bool
 	Loading        bool
 	Err            string
@@ -79,21 +88,25 @@ type Store struct {
 	plugin *pluginrpc.Client
 	notify func()
 
-	loading        bool
-	err            error
-	hasIMRPC       bool
-	listMethod     string
-	historyMethod  string
-	methods        []string
-	rows           []Entry
-	rawListPreview string
-	selectedID     string
-	lastSend       string
-	drafts         map[string]string
-	history        map[string][]Message
-	bridgeMode     string
-	pluginDiag     string
-	syncedRemote   bool
+	loading         bool
+	err             error
+	hasIMRPC        bool
+	listMethod      string
+	historyMethod   string
+	methods         []string
+	rows            []Entry
+	rawListPreview  string
+	selectedID      string
+	lastSend        string
+	drafts          map[string]string
+	history         map[string][]Message
+	bridgeMode      string
+	pluginDiag      string
+	syncedRemote    bool
+	connectionBusy  bool
+	connectionNote  string
+	workspaceDrafts map[string]string
+	connectionEpoch uint64
 }
 
 // New returns an in-memory IM store with no persistence root.
@@ -140,7 +153,11 @@ func (s *Store) Root() string {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.connectionEpoch++
+	s.connectionBusy = false
+	s.connectionNote = ""
 	s.client = client
+	s.plugin = nil
 	s.notify = notify
 	s.err = nil
 	if client != nil && strings.TrimSpace(client.Endpoint.Origin) != "" {
@@ -152,6 +169,9 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // AttachPlugin binds a Cordis-style plugin HTTP client (POST /{channel}/connection.status).
 func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 	s.mu.Lock()
+	s.connectionEpoch++
+	s.connectionBusy = false
+	s.connectionNote = ""
 	s.plugin = plugin
 	s.mu.Unlock()
 }
@@ -159,6 +179,9 @@ func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 // Detach clears the client when harness stops; local channels/history stay.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.connectionEpoch++
+	s.connectionBusy = false
+	s.connectionNote = ""
 	s.client = nil
 	s.plugin = nil
 	s.loading = false
@@ -182,6 +205,9 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		ConnectionBusy: s.connectionBusy,
+		ConnectionNote: s.connectionNote,
+		WorkspaceDraft: s.workspaceDraftLocked(s.selectedID),
 		ClientReady:    s.client != nil,
 		Loading:        s.loading,
 		HasIMRPC:       s.hasIMRPC,
@@ -201,6 +227,9 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.Methods = append([]string(nil), s.methods...)
 	st.Rows = append([]Entry(nil), s.rows...)
+	for i := range st.Rows {
+		st.Rows[i].Presets = append([]Preset(nil), st.Rows[i].Presets...)
+	}
 	if msgs := s.history[s.selectedID]; len(msgs) > 0 {
 		st.Messages = append([]Message(nil), msgs...)
 	}
@@ -345,6 +374,10 @@ func (s *Store) Refresh(ctx context.Context) {
 	histCands := api.IMHistoryMethodCandidates()
 
 	s.mu.Lock()
+	if s.connectionBusy {
+		s.mu.Unlock()
+		return
+	}
 	client := s.client
 	plugin := s.plugin
 	s.loading = true

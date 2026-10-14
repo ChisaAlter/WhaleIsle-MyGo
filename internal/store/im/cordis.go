@@ -28,7 +28,7 @@ func probeCordisStatus(ctx context.Context, plugin *pluginrpc.Client) (rows []En
 		}
 		hits = append(hits, fmt.Sprintf("%s %d bot(s)", ch, len(bots)))
 		rows = append(rows, bots...)
-		parts = append(parts, string(raw))
+		parts = append(parts, fmt.Sprintf("%s: %d bots", ch, len(bots)))
 	}
 	if len(parts) > 0 {
 		preview = strings.Join(parts, "\n")
@@ -41,14 +41,17 @@ func probeCordisStatus(ctx context.Context, plugin *pluginrpc.Client) (rows []En
 
 func parseCordisBots(raw json.RawMessage, channel string) []Entry {
 	var wrap struct {
-		Snapshot *cordisSnapshot `json:"snapshot"`
-		Bots     []cordisBot     `json:"bots"`
+		Snapshot           *cordisSnapshot `json:"snapshot"`
+		Bots               []cordisBot     `json:"bots"`
+		AgentPresetCatalog presetCatalog   `json:"agentPresetCatalog"`
 	}
 	if err := json.Unmarshal(raw, &wrap); err != nil {
 		return nil
 	}
 	bots := wrap.Bots
-	if wrap.Snapshot != nil && len(wrap.Snapshot.Bots) > 0 {
+	catalog := wrap.AgentPresetCatalog
+	if wrap.Snapshot != nil {
+		catalog = wrap.Snapshot.AgentPresetCatalog
 		bots = wrap.Snapshot.Bots
 	}
 	out := make([]Entry, 0, len(bots))
@@ -62,16 +65,17 @@ func parseCordisBots(raw json.RawMessage, channel string) []Entry {
 			label = channel + " " + id
 		}
 		out = append(out, Entry{
-			ID:     channel + ":" + id,
-			Label:  label,
-			Detail: cordisBotDetail(channel, b),
+			ID:      channel + ":" + id,
+			Label:   label,
+			Detail:  cordisBotDetail(channel, b),
+			Channel: channel, BotID: id, State: botState(b), Workspace: b.Workspace, AgentPreset: b.AgentPreset, Presets: catalog.presets(),
 		})
 	}
 	return out
 }
 
 func cordisBotDetail(channel string, b cordisBot) string {
-	state := strings.TrimSpace(b.State)
+	state := botState(b)
 	if b.Connected {
 		state = "connected"
 	}
@@ -99,14 +103,18 @@ func cordisBotDetail(channel string, b cordisBot) string {
 }
 
 type cordisSnapshot struct {
-	Bots []cordisBot `json:"bots"`
+	Bots               []cordisBot   `json:"bots"`
+	AgentPresetCatalog presetCatalog `json:"agentPresetCatalog"`
 }
 
 type cordisBot struct {
-	BotID     string `json:"botId"`
-	Connected bool   `json:"connected"`
-	State     string `json:"state"`
-	Health    struct {
+	BotID       string `json:"botId"`
+	Phase       string `json:"phase"`
+	Workspace   string `json:"workspace"`
+	AgentPreset string `json:"agentPreset"`
+	Connected   bool   `json:"connected"`
+	State       string `json:"state"`
+	Health      struct {
 		Summary string `json:"summary"`
 	} `json:"health"`
 	LastMessageError struct {
@@ -118,4 +126,17 @@ type cordisBot struct {
 	Bot struct {
 		Name string `json:"name"`
 	} `json:"bot"`
+}
+
+func botState(b cordisBot) string {
+	if b.Connected {
+		return "connected"
+	}
+	if b.State != "" {
+		return b.State
+	}
+	if b.Phase != "" {
+		return b.Phase
+	}
+	return "offline"
 }
