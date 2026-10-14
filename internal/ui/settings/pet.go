@@ -8,6 +8,7 @@ import (
 func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Desktop companion / 桌面宠物").FontSize(14).Bold().TextColor(fg)
 	ui.Text(c, "Independent sprite window. Default off. Drag the character to move it; position is restored on restart. / 独立图集宠物窗，默认关闭；拖动角色移动，重启恢复位置。").FontSize(12).TextColor(muted)
+	ui.Text(c, "Shows only the selected chat on the current connection. Idle does not mean success. Use Open chat to return; Hide closes this instance, Save shows it again. / 仅显示当前连接所选会话；未运行不代表成功。点击回会话；隐藏后保存可重新显示。").FontSize(12).TextColor(muted)
 	ui.Text(c, "THA4 / Live2D is not connected. / 尚未接通 THA4 / Live2D 渲染。").FontSize(12).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).FontSize(12).TextColor(fg)

@@ -16,15 +16,17 @@ var assets embed.FS
 // Companion is owned by the UI thread. Use Window.Update to call it from a
 // harness callback. Only ServeHTTP runs concurrently, using an immutable sheet.
 type Companion struct {
-	Store   *config.Store
-	Enabled bool
-	SkinID  string
-	Error   string
-	Skins   []Skin
-	ready   bool
-	win     *mygo.Window
-	assetMu sync.RWMutex
-	sheet   []byte
+	Store         *config.Store
+	Enabled       bool
+	SkinID        string
+	Error         string
+	Skins         []Skin
+	ready         bool
+	win           *mygo.Window
+	assetMu       sync.RWMutex
+	sheet         []byte
+	task          TaskStatus
+	OnOpenSession func(string)
 }
 
 func New(store *config.Store) *Companion {
@@ -95,15 +97,27 @@ func (p *Companion) sync() {
 	p.assetMu.Lock()
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://pet/index.html", Width: 112, Height: 128, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://pet/index.html", Width: 220, Height: 198, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
 		return
 	}
 	p.win = w
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
-		if e.URL != "whale-pet://pet/index.html" {
-			e.PreventDefault()
+		if e.URL == "whale-pet://pet/index.html" {
+			return
+		}
+		e.PreventDefault()
+		p.assetMu.RLock()
+		task := p.task
+		p.assetMu.RUnlock()
+		switch taskAction(e.URL, task) {
+		case "hide":
+			p.close()
+		case "open":
+			if p.OnOpenSession != nil {
+				p.OnOpenSession(task.SessionID)
+			}
 		}
 	})
 	w.Page().SetWindowOpenHandler(func(mygo.WindowOpenRequest) *mygo.WindowOptions { return nil })
@@ -133,6 +147,9 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/index.html":
 		body, _ = assets.ReadFile("assets/pet.html")
+		p.assetMu.RLock()
+		body = renderTaskPage(body, p.task)
+		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	case "/sprite.webp":
 		p.assetMu.RLock()
@@ -153,5 +170,19 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	if r.Method != "HEAD" {
 		_, _ = w.Write(body)
+	}
+}
+
+// UpdateTask runs on the main UI thread. Hidden/closed pets remain hidden;
+// saving settings is the explicit way to show them again.
+func (p *Companion) UpdateTask(task TaskStatus) {
+	p.assetMu.Lock()
+	changed := p.task != task
+	p.task = task
+	p.assetMu.Unlock()
+	if changed && p.win != nil && !p.win.IsDestroyed() {
+		if err := p.win.Page().LoadURL("whale-pet://pet/index.html"); err != nil {
+			p.Error = err.Error()
+		}
 	}
 }

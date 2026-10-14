@@ -1853,7 +1853,7 @@ func (s *mainState) refreshBoot(st harness.Status) {
 	s.mu.Unlock()
 	s.syncDialogue(st)
 	if win != nil {
-		win.Update(func() {})
+		win.Update(s.refreshPetTask)
 	}
 }
 
@@ -1919,7 +1919,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 
 	refresh := func() {
 		if win != nil {
-			win.Update(func() {})
+			win.Update(s.refreshPetTask)
 		}
 	}
 	sessions.Attach(client, refresh)
@@ -2031,7 +2031,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 	s.mu.Unlock()
 	refresh := func() {
 		if win != nil {
-			win.Update(func() {})
+			win.Update(s.refreshPetTask)
 		}
 	}
 	setMuxState := func(ready, lost bool) {
@@ -2251,6 +2251,7 @@ func main() {
 		// (WindowOptions has BackgroundColor only in mygo v0.3.5).
 		win := mygo.NewWindow(winOpts)
 		state.desktopPet = pet.New(cfgStore)
+		state.desktopPet.OnOpenSession = state.openPetSession
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })
 
@@ -2796,6 +2797,7 @@ func marketInstallRequestID() string {
 
 func mainView(c *ui.Context) {
 	state.restoreResumeSelection()
+	state.refreshPetTask()
 	state.mu.Lock()
 	if state.market == nil {
 		state.market = marketstore.New()
