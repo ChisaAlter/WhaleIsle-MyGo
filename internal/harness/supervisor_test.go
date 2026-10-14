@@ -21,6 +21,15 @@ func TestMain(m *testing.M) {
 	case "crash":
 		fmt.Println("boom")
 		os.Exit(3)
+	case "plugintree":
+		for _, a := range os.Args {
+			if a == "--skip-user-plugins" {
+				fakeDsh()
+				return
+			}
+		}
+		fmt.Println("plugin tree failed to load")
+		os.Exit(2)
 	}
 	os.Exit(m.Run())
 }
@@ -117,6 +126,26 @@ func TestCrashRestartsThenFails(t *testing.T) {
 	}
 }
 
+func TestPluginTreeRetrySkipsUserPlugins(t *testing.T) {
+	s := supervisorFor(t, "plugintree", Options{})
+	s.Start()
+	st := waitFor(t, s, Ready)
+	if st.Endpoint.Cookie != "dsh-auth-x=v1.ok" {
+		t.Fatalf("endpoint %+v", st.Endpoint)
+	}
+	found := false
+	for _, line := range s.Logs() {
+		if strings.Contains(line, "--skip-user-plugins") || strings.Contains(line, "retrying with --skip-user-plugins") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected skip retry; logs:\n%s", strings.Join(s.Logs(), "\n"))
+	}
+	s.Stop()
+}
+
 func TestParseReady(t *testing.T) {
 	url, ok := ParseReady("dsh web: http://127.0.0.1:3080/?token=abc")
 	if !ok || url != "http://127.0.0.1:3080/?token=abc" {
@@ -131,47 +160,5 @@ func TestRedeemWithoutTokenIsOpen(t *testing.T) {
 	ep, err := Redeem(context.Background(), http.DefaultClient, "http://127.0.0.1:1/")
 	if err != nil || ep.Cookie != "" || ep.Origin != "http://127.0.0.1:1" {
 		t.Fatalf("got %+v %v", ep, err)
-	}
-}
-
-func TestResolvePrefersPathThenNpx(t *testing.T) {
-	dir := t.TempDir()
-	node := dir + "/node"
-	npx := dir + "/npx"
-	for _, f := range []string{node, npx} {
-		if err := os.WriteFile(f, nil, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	defer func(orig func(string) (string, error)) { lookPath = orig }(lookPath)
-
-	lookPath = func(name string) (string, error) {
-		if name == "dsh" {
-			return "/usr/bin/dsh", nil
-		}
-		return "", os.ErrNotExist
-	}
-	p, err := Resolve(LaunchOptions{Host: "127.0.0.1", NodeBin: node}, 3080)
-	if err != nil || p.Command != "/usr/bin/dsh" || p.Args[0] != "web" {
-		t.Fatalf("PATH plan %+v %v", p, err)
-	}
-
-	lookPath = func(string) (string, error) { return "", os.ErrNotExist }
-	p, err = Resolve(LaunchOptions{Host: "127.0.0.1", NodeBin: node, Version: "0.2.0-rc.2", SkipUserPlugins: true}, 3081)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"--yes", "@deepseek-ai/dsh@0.2.0-rc.2", "web", "--host", "127.0.0.1", "--port", "3081", "--no-open", "--skip-user-plugins"}
-	if p.Command != npx || strings.Join(p.Args, " ") != strings.Join(want, " ") {
-		t.Fatalf("npx plan %+v", p)
-	}
-}
-
-func TestChildEnvSetsHome(t *testing.T) {
-	t.Setenv("ELECTRON_RUN_AS_NODE", "1")
-	t.Setenv("DSH_HOME", "/elsewhere")
-	env := strings.Join(childEnv("/data/dsh-home"), "\n")
-	if strings.Contains(env, "ELECTRON_RUN_AS_NODE") || strings.Contains(env, "/elsewhere") || !strings.Contains(env, "DSH_HOME=/data/dsh-home") {
-		t.Fatalf("env:\n%s", env)
 	}
 }

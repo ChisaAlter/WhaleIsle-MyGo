@@ -1,0 +1,177 @@
+package session
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/dsh/events"
+)
+
+// AgentPresetOption is one row in the composer agent preset picker.
+type AgentPresetOption struct {
+	Label string
+	ID    string
+}
+
+func flattenAgentPresetRoster(roster api.AgentPresetRoster) []AgentPresetOption {
+	var out []AgentPresetOption
+	seen := map[string]struct{}{}
+	for _, p := range roster.Presets {
+		if p.Id == "" {
+			continue
+		}
+		if p.Hidden != nil && *p.Hidden {
+			continue
+		}
+		if _, ok := seen[p.Id]; ok {
+			continue
+		}
+		seen[p.Id] = struct{}{}
+		label := p.Id
+		if p.Name != nil && *p.Name != "" {
+			label = *p.Name
+		}
+		if p.Broken != nil && *p.Broken != "" {
+			label = label + " ⚠"
+		}
+		out = append(out, AgentPresetOption{Label: label, ID: p.Id})
+	}
+	return out
+}
+
+func labelForAgentPresetID(id string, options []AgentPresetOption) string {
+	for _, o := range options {
+		if o.ID == id {
+			return o.Label
+		}
+	}
+	if id != "" {
+		return id
+	}
+	return ""
+}
+
+func agentPresetOptionByLabel(label string, options []AgentPresetOption) (AgentPresetOption, bool) {
+	for _, o := range options {
+		if o.Label == label {
+			return o, true
+		}
+	}
+	return AgentPresetOption{}, false
+}
+
+func defaultAgentPresetLabel(options []AgentPresetOption, roster api.AgentPresetRoster) string {
+	for _, p := range roster.Presets {
+		if p.IsDefault {
+			if lbl := labelForAgentPresetID(p.Id, options); lbl != "" {
+				return lbl
+			}
+		}
+	}
+	if len(options) > 0 {
+		return options[0].Label
+	}
+	return ""
+}
+
+// RefreshAgentPresets loads agentPresets/list for the composer picker.
+func (s *Store) RefreshAgentPresets(ctx context.Context) {
+	s.mu.Lock()
+	client := s.client
+	s.mu.Unlock()
+	if client == nil {
+		return
+	}
+	go func() {
+		var roster api.AgentPresetRoster
+		err := client.Call(ctx, "agentPresets/list", map[string]any{}, &roster)
+		s.mu.Lock()
+		if err != nil {
+			s.agentPresetsErr = err
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
+		s.agentPresetsErr = nil
+		s.agentPresetOptions = flattenAgentPresetRoster(roster)
+		if lbl := defaultAgentPresetLabel(s.agentPresetOptions, roster); lbl != "" && s.selectedAgentPresetLabel == "" {
+			s.selectedAgentPresetLabel = lbl
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+// ReadAgentPresetDocument loads agentPresets/read for the preset id (or label match).
+func (s *Store) ReadAgentPresetDocument(ctx context.Context, labelOrID string) (api.AgentPresetDocument, error) {
+	labelOrID = strings.TrimSpace(labelOrID)
+	s.mu.Lock()
+	client := s.client
+	id := labelOrID
+	if opt, ok := agentPresetOptionByLabel(labelOrID, s.agentPresetOptions); ok {
+		id = opt.ID
+	}
+	s.mu.Unlock()
+	if client == nil || id == "" {
+		return api.AgentPresetDocument{}, fmt.Errorf("harness not ready")
+	}
+	var doc api.AgentPresetDocument
+	err := client.Call(ctx, "agentPresets/read", map[string]any{"agentPreset": id}, &doc)
+	return doc, err
+}
+
+// SelectAgentPresetForSession applies agentPresets/select for the active session.
+func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
+	s.mu.Lock()
+	opt, ok := agentPresetOptionByLabel(label, s.agentPresetOptions)
+	client := s.client
+	sessionID := s.selectedID
+	prev := s.selectedAgentPresetLabel
+	s.mu.Unlock()
+	if !ok || client == nil || sessionID == "" || label == prev {
+		return
+	}
+	go func() {
+		var result api.SelectResult
+		err := client.Call(ctx, "agentPresets/select", map[string]any{
+			"agentId":     sessionID,
+			"agentPreset": opt.ID,
+		}, &result)
+		s.mu.Lock()
+		if err != nil {
+			s.lastAction = err.Error()
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
+		if lbl := labelForAgentPresetID(string(result), s.agentPresetOptions); lbl != "" {
+			s.selectedAgentPresetLabel = lbl
+		} else {
+			s.selectedAgentPresetLabel = label
+		}
+		s.lastAction = "agent preset selected"
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+func (s *Store) applyAgentPresetSelectedEvent(raw json.RawMessage) bool {
+	var ev events.AgentPresetSelected
+	if err := json.Unmarshal(raw, &ev); err != nil || ev.Type != events.TypeAgentPresetSelected {
+		return false
+	}
+	id := ev.Data.AgentPreset
+	if id == "" {
+		return true
+	}
+	s.mu.Lock()
+	if lbl := labelForAgentPresetID(id, s.agentPresetOptions); lbl != "" {
+		s.selectedAgentPresetLabel = lbl
+	}
+	s.mu.Unlock()
+	s.fire()
+	return true
+}

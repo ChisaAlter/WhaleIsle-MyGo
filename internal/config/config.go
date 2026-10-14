@@ -81,7 +81,7 @@ type Config struct {
 	// Remote pairing daemon (phone/LAN remote), gated by the desktop build.
 	RemoteEnabled       bool   `json:"remoteEnabled"`
 	RemotePort          int    `json:"remotePort"`
-	RemoteMode          string `json:"remoteMode"` // "relay" or "lan"
+	RemoteMode          string `json:"remoteMode"` // "relay", "lan", or "ssh"
 	RemoteBindAddress   string `json:"remoteBindAddress"`
 	RemoteLanTls        bool   `json:"remoteLanTls"`
 	RemoteRelayUrl      string `json:"remoteRelayUrl"`
@@ -116,6 +116,13 @@ type Config struct {
 	// These are Go-native keys, absent from the Electron DEFAULTS.
 	SidebarWidth   float32 `json:"goSidebarWidth"`
 	TerminalHeight float32 `json:"goTerminalHeight"`
+	// WallpaperPath is an optional local image for the main window backdrop
+	// (Go-native; Electron wallpaper lives in ui-theme host settings).
+	WallpaperPath string `json:"goWallpaperPath"`
+	// HideChatViewTabs hides ConversationRoot「对话/轨迹」tabs (Electron viewTabs=false).
+	HideChatViewTabs bool `json:"goHideChatViewTabs"`
+	// AutoAllowTools auto-answers approval/request (Electron tool auto-allow).
+	AutoAllowTools bool `json:"goAutoAllowTools"`
 }
 
 // Defaults returns the configuration of a first run. Values mirror
@@ -149,7 +156,7 @@ func Defaults() Config {
 		DshbotEnabled:             false,
 		WhaleAssistantEnabled:     true,
 		RemoteWorkspaceEnabled:    true,
-		SidebarWidth:              260,
+		SidebarWidth:              280,
 		TerminalHeight:            240,
 	}
 }
@@ -158,9 +165,29 @@ func Defaults() Config {
 type Store struct {
 	path string
 
-	mu  sync.Mutex
-	raw map[string]json.RawMessage
-	cfg Config
+	mu       sync.Mutex
+	raw      map[string]json.RawMessage
+	cfg      Config
+	baseline fileBaseline
+	// rename replaces the temp-file rename step; nil means os.Rename. It is
+	// a per-instance seam so tests can inject a deterministic write failure.
+	rename func(oldpath, newpath string) error
+}
+
+// cloneConfig returns a Config whose mutable fields share no storage with c,
+// preserving the nil-versus-empty distinction. It is used at every ownership
+// boundary (Get, the update callback, and the committed value).
+func cloneConfig(c Config) Config {
+	out := c
+	if c.DisabledPlugins != nil {
+		out.DisabledPlugins = make([]string, len(c.DisabledPlugins))
+		copy(out.DisabledPlugins, c.DisabledPlugins)
+	}
+	if c.Components != nil {
+		out.Components = make(json.RawMessage, len(c.Components))
+		copy(out.Components, c.Components)
+	}
+	return out
 }
 
 // Open reads the configuration in dir, creating nothing until Save.
@@ -176,6 +203,7 @@ func Open(dir string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.baseline = fileBaseline{exists: true, data: data}
 	if err := json.Unmarshal(data, &s.raw); err != nil {
 		return nil, fmt.Errorf("config: %s: %w", s.path, err)
 	}
@@ -197,26 +225,41 @@ func Open(dir string) (*Store, error) {
 // Path returns the file the store reads and writes.
 func (s *Store) Path() string { return s.path }
 
-// Get returns a copy of the current configuration.
+// Get returns a detached snapshot of the current configuration.
 func (s *Store) Get() Config {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.cfg
+	return cloneConfig(s.cfg)
 }
 
 // Update changes the configuration with fn and writes it to disk. Unknown
 // keys (pet, live2dPet, pluginRecovery, ...) are carried through unchanged.
+//
+// Update refuses to write when config.json no longer matches what this store
+// last read, returning ErrConflict. It never merges, reloads or retries the
+// callback on its own.
 func (s *Store) Update(fn func(*Config)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	next := s.cfg
-	fn(&next)
-	if next.SkipUserPlugins != s.cfg.SkipUserPlugins {
+
+	// Refuse to build on a stale snapshot before running the callback, so a
+	// conflicting update has no side effects. commitMu is held for every
+	// on-disk comparison and write (but never across the callback), so no two
+	// stores in this process touch config.json at the same time.
+	if err := s.checkBaseline(); err != nil {
+		return err
+	}
+
+	candidate := cloneConfig(s.cfg)
+	fn(&candidate)
+	if candidate.SkipUserPlugins != s.cfg.SkipUserPlugins {
 		// SkipUserPlugins is projected from pluginRecovery, never written
 		// back as a top-level key.
-		next.SkipUserPlugins = s.cfg.SkipUserPlugins
+		candidate.SkipUserPlugins = s.cfg.SkipUserPlugins
 	}
-	next = normalize(next)
+	// The committed value must not share mutable storage with anything the
+	// callback may still hold.
+	next := normalize(cloneConfig(candidate))
 	encoded, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -236,10 +279,33 @@ func (s *Store) Update(fn func(*Config)) error {
 	if err != nil {
 		return err
 	}
-	if err := writeAtomic(s.path, data); err != nil {
+
+	// The final compare-and-replace is serialized across all stores in this
+	// process, catching an edit made while the callback or serialization ran.
+	commitMu.Lock()
+	defer commitMu.Unlock()
+	if err := s.checkBaseline(); err != nil {
+		return err
+	}
+	if err := writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw, s.cfg = merged, next
+	s.baseline = fileBaseline{exists: true, data: data}
+	return nil
+}
+
+// checkBaseline compares the on-disk file against the recorded baseline. It
+// must be called with commitMu held so the comparison cannot race a write
+// from another store in this process.
+func (s *Store) checkBaseline() error {
+	ok, err := s.baseline.matches(s.path)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrConflict
+	}
 	return nil
 }
 
@@ -272,7 +338,9 @@ func normalize(c Config) Config {
 	if c.RemotePort < 1024 || c.RemotePort > 65535 {
 		c.RemotePort = d.RemotePort
 	}
-	if c.RemoteMode != "lan" {
+	switch c.RemoteMode {
+	case "lan", "ssh":
+	default:
 		c.RemoteMode = "relay"
 	}
 	c.RemoteBindAddress = normalizeBindAddress(c.RemoteBindAddress)
@@ -311,8 +379,12 @@ func normalize(c Config) Config {
 	c.DisabledPlugins = normalizeDisabledPlugins(c.DisabledPlugins)
 
 	// Go-shell layout clamps (goSidebarWidth / goTerminalHeight).
-	if c.SidebarWidth < 180 {
+	// Sidebar matches ui-layout SIDEBAR_MIN/MAX (264–420 DIP).
+	if c.SidebarWidth < 264 {
 		c.SidebarWidth = d.SidebarWidth
+	}
+	if c.SidebarWidth > 420 {
+		c.SidebarWidth = 420
 	}
 	if c.TerminalHeight < 80 {
 		c.TerminalHeight = d.TerminalHeight
@@ -489,23 +561,4 @@ func normalizeDisabledPlugins(list []string) []string {
 		out = append(out, name)
 	}
 	return out
-}
-
-func writeAtomic(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.json")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
 }

@@ -13,9 +13,7 @@
 
 ## 2. 现状
 
-实现进度不再在此处维护，见 `docs/status.md`（随开发更新）。当前要点：工具链与 harness 运行时构建（M0 核心）已完成；`internal/config`、`internal/credentials`、`internal/paths`、应用骨架与接口生成器已完成并有测试；dsh 客户端与全部界面尚未开始。
-| 工具链 | Go 1.27.2 在 `.toolchain`，用 `scripts/env.ps1` 设置环境。 |
-| 主程序、界面 | 没有。 |
+实现进度不再在此处维护，见 `docs/status.md`（随开发更新）。当前要点：工具链与 harness 运行时构建（M0 核心）已完成；`internal/config`、`internal/credentials`（独立包）、`internal/paths`、应用骨架与接口生成器已完成并有测试；dsh 客户端与全部界面尚未开始。
 
 ## 3. 调研结论
 
@@ -90,7 +88,8 @@ node.exe vendor/deepseek-harness/apps/cli/lib/bin.js web  (dsh web)
 | --- | --- |
 | `cmd/whaleisle` | `main`：组装各模块 |
 | `internal/paths` | userData、dsh-home、运行时目录 |
-| `internal/config` | `config.json`（补全全部字段）、`credentials.json`（含 DPAPI 解密） |
+| `internal/config` | `config.json`（补全全部字段、快照隔离、冲突拒绝） |
+| `internal/credentials` | `credentials.json`（DPAPI + AES-GCM 信封、分类加载） |
 | `internal/harness` | 定位 vendored harness、Node、覆盖文件、junction、启动、监管、换 cookie |
 | `internal/dsh` | RPC 客户端、WebSocket 多路复用、`$events` 与 waterfall 应答、重连 |
 | `internal/dsh/api` | 由 `typert.remote-client.js` 生成的 Go 类型与方法 |
@@ -193,6 +192,9 @@ node.exe vendor/deepseek-harness/apps/cli/lib/bin.js web  (dsh web)
 
 - userData：`%APPDATA%\Deepseek-Harness-Desktop`；dsh-home：`userData\dsh-home`；不读官方 `~/.dsh`（导入除外）。
 - `config.json` 写回时保留所有未知字段；写入方式为临时文件 + 重命名。
+- `config.json` 以快照方式持有：读取返回深拷贝，写回基于独立候选值；`Open` 记录磁盘基线，`Update` 在回调前与替换前各比较一次，不一致返回 `ErrConflict`，不覆盖、不合并、不重载。
+- 该冲突检测与"比较-替换"只在同一进程内串行（进程级提交互斥，回调不在互斥内），不是跨进程原子 CAS：同时运行的 Electron 版仍可能在最终比较与重命名之间写入，两版同时运行未验证。
+- `credentials.json` 按文档结构分类加载：带信封标记的文档必须是受支持且结构完好的信封，否则报错拒绝，绝不回退当明文读；缺失文件返回零值。
 - 覆盖文件、junction、`disabledPlugins` 的处理与 Electron 版一致，切换版本后插件状态不乱。
 
 ## 8. 验证方式

@@ -8,11 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/harness/installctrl"
 )
 
 // State is the supervisor's lifecycle phase.
@@ -47,11 +51,17 @@ type Status struct {
 	Source string
 	// Attempt counts automatic restarts since the last Ready.
 	Attempt int
+	// PluginLoad carries overlay/runtime plugin progress for the boot page.
+	PluginLoad PluginProgress
 }
 
 // Options configure a Supervisor.
 type Options struct {
 	Launch LaunchOptions
+	// Prepare configures desktop plugin overlays/junctions before each start.
+	Prepare PrepareOptions
+	// Workspace is registered with workspace/create after auth (optional).
+	Workspace string
 	// AutoRestart relaunches dsh after an unexpected exit, up to MaxAttempts
 	// times with doubling delays from BaseDelay.
 	AutoRestart bool
@@ -61,6 +71,9 @@ type Options struct {
 	ReadyTimeout time.Duration
 	// OnChange receives every status change, on the supervisor's goroutines.
 	OnChange func(Status)
+	// Install is the loopback install control server; started with the supervisor
+	// and its env is injected into each harness child.
+	Install *installctrl.Server
 }
 
 // logLimit is how many output lines the boot log keeps.
@@ -81,6 +94,8 @@ type Supervisor struct {
 	gen     int
 	logs    []string
 	attempt int
+	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
+	skippedOnce bool
 }
 
 // New returns a stopped supervisor.
@@ -115,6 +130,14 @@ func (s *Supervisor) SetSkipUserPlugins(skip bool) {
 	s.mu.Unlock()
 }
 
+// SetPrepareOptions replaces desktop overlay selection for the next start
+// (e.g. whale / dshbot toggles from config).
+func (s *Supervisor) SetPrepareOptions(prep PrepareOptions) {
+	s.mu.Lock()
+	s.opts.Prepare = prep
+	s.mu.Unlock()
+}
+
 // Start launches dsh unless it is already starting or ready.
 func (s *Supervisor) Start() {
 	s.mu.Lock()
@@ -122,9 +145,16 @@ func (s *Supervisor) Start() {
 		s.mu.Unlock()
 		return
 	}
+	install := s.opts.Install
 	s.attempt = 0
 	gen := s.nextGenLocked()
 	s.mu.Unlock()
+	if install != nil {
+		if err := install.Start(context.Background()); err != nil {
+			s.set(gen, Status{State: Failed, Err: fmt.Errorf("install control: %w", err)})
+			return
+		}
+	}
 	go s.run(gen)
 }
 
@@ -137,11 +167,15 @@ func (s *Supervisor) Restart() {
 // Stop ends the child, waiting for it to exit.
 func (s *Supervisor) Stop() {
 	s.mu.Lock()
+	install := s.opts.Install
 	s.nextGenLocked()
 	cmd, exited := s.cmd, s.exited
 	s.cmd, s.exited = nil, nil
 	s.setLocked(Status{State: Stopped})
 	s.mu.Unlock()
+	if install != nil {
+		install.Stop()
+	}
 	if cmd == nil {
 		return
 	}
@@ -186,16 +220,27 @@ func (s *Supervisor) set(gen int, st Status) bool {
 
 func (s *Supervisor) log(line string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.logs = append(s.logs, line)
 	if over := len(s.logs) - logLimit; over > 0 {
 		s.logs = append(s.logs[:0], s.logs[over:]...)
+	}
+	// Notify while Starting so the launcher can stream logs. Copy status under
+	// the lock; refreshBoot ignores Starting after Ready/Failed.
+	st := s.status
+	cb := s.opts.OnChange
+	notify := st.State == Starting && cb != nil
+	s.mu.Unlock()
+	if notify {
+		go cb(st)
 	}
 }
 
 func (s *Supervisor) run(gen int) {
 	s.mu.Lock()
 	launch := s.opts.Launch
+	if install := s.opts.Install; install != nil {
+		launch.ExtraEnv = install.Env()
+	}
 	s.mu.Unlock()
 
 	port, err := FreePort(launch.Host, launch.Port)
@@ -203,15 +248,32 @@ func (s *Supervisor) run(gen int) {
 		s.set(gen, Status{State: Failed, Err: err})
 		return
 	}
-	plan, err := Resolve(launch, port)
+	var plan Plan
+	var patches []string
+	if launch.DshBin != "" {
+		// Configured / test launchers skip desktop overlay preparation.
+		plan, err = Resolve(launch, port)
+	} else {
+		s.mu.Lock()
+		prep := s.opts.Prepare
+		s.mu.Unlock()
+		var start StartPlan
+		start, err = PlanStart(launch, prep, port)
+		plan, patches = start.Plan, start.PatchFiles
+	}
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
 		return
 	}
-	if !s.set(gen, Status{State: Starting, Source: plan.Source}) {
+	if !s.set(gen, Status{State: Starting, Source: plan.Source, PluginLoad: PluginProgress{Phase: "runtime"}}) {
 		return
 	}
 	s.log(fmt.Sprintf("» %s %s", plan.Command, strings.Join(plan.Args, " ")))
+	if n := len(patches); n > 0 {
+		overlayLine := fmt.Sprintf("» %d desktop --patch overlay(s)", n)
+		s.log(overlayLine)
+		s.notePluginLog(overlayLine)
+	}
 
 	cmd := exec.Command(plan.Command, plan.Args...)
 	cmd.Env = plan.Env
@@ -247,38 +309,68 @@ func (s *Supervisor) run(gen int) {
 
 	timer := time.NewTimer(s.opts.ReadyTimeout)
 	defer timer.Stop()
-	select {
-	case url := <-ready:
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		ep, err := Redeem(ctx, s.client, url)
-		cancel()
-		if err != nil {
-			s.log("auth: " + err.Error())
+	probe := time.NewTicker(750 * time.Millisecond)
+	defer probe.Stop()
+	loggedListen := false
+	for {
+		select {
+		case url := <-ready:
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ep, err := Redeem(ctx, s.client, url)
+			cancel()
+			if err != nil {
+				s.log("auth: " + err.Error())
+				_ = terminate(cmd, true)
+				<-exited
+				s.fail(gen, err, plan.Source)
+				return
+			}
+			if ws := s.opts.Workspace; ws != "" {
+				wctx, wcancel := context.WithTimeout(context.Background(), 15*time.Second)
+				werr := EnsureWorkspace(wctx, s.client, ep, ws)
+				wcancel()
+				if werr != nil {
+					s.log("workspace: " + werr.Error())
+				} else {
+					s.log("workspace registered: " + ws)
+				}
+			}
+			s.mu.Lock()
+			s.attempt = 0
+			s.mu.Unlock()
+			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
+				return
+			}
+			<-exited
+			s.exitedUnexpectedly(gen, waitErr, plan.Source)
+			return
+		case <-exited:
+			s.exitedUnexpectedly(gen, waitErr, plan.Source)
+			return
+		case <-timer.C:
 			_ = terminate(cmd, true)
 			<-exited
-			s.fail(gen, err, plan.Source)
+			s.fail(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source)
 			return
+		case <-probe.C:
+			if loggedListen {
+				continue
+			}
+			addr := net.JoinHostPort(launch.Host, strconv.Itoa(port))
+			c, err := net.DialTimeout("tcp", addr, 200*time.Millisecond)
+			if err != nil {
+				continue
+			}
+			_ = c.Close()
+			loggedListen = true
+			s.log("listening on http://" + addr + " — waiting for dsh web ready URL")
 		}
-		s.mu.Lock()
-		s.attempt = 0
-		s.mu.Unlock()
-		if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
-			return
-		}
-		<-exited
-		s.exitedUnexpectedly(gen, waitErr, plan.Source)
-	case <-exited:
-		s.exitedUnexpectedly(gen, waitErr, plan.Source)
-	case <-timer.C:
-		_ = terminate(cmd, true)
-		<-exited
-		s.fail(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source)
 	}
 }
 
 // scan copies output lines into the log and reports the first ready URL.
 func (s *Supervisor) scan(r io.Reader, ready chan<- string) {
-	sc := bufio.NewScanner(r)
+	sc := bufio.NewScanner(crToLF{r})
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	sent := false
 	for sc.Scan() {
@@ -291,7 +383,32 @@ func (s *Supervisor) scan(r io.Reader, ready chan<- string) {
 				line = line[:i] + "?token=…"
 			}
 		}
+		s.notePluginLog(line)
 		s.log(line)
+	}
+}
+
+type crToLF struct{ r io.Reader }
+
+func (c crToLF) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	for i := 0; i < n; i++ {
+		if p[i] == '\r' {
+			p[i] = '\n'
+		}
+	}
+	return n, err
+}
+
+func (s *Supervisor) notePluginLog(line string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.status.State != Starting {
+		return
+	}
+	if ApplyPluginLogLine(&s.status.PluginLoad, line) && s.opts.OnChange != nil {
+		st := s.status
+		go s.opts.OnChange(st)
 	}
 }
 
@@ -314,6 +431,17 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		return
 	}
 	s.cmd, s.exited = nil, nil
+	blob := err.Error() + "\n" + strings.Join(s.logs, "\n")
+	if !s.opts.Launch.SkipUserPlugins && !s.skippedOnce && looksLikePluginTreeFailure(blob) {
+		s.opts.Launch.SkipUserPlugins = true
+		s.skippedOnce = true
+		next := s.nextGenLocked()
+		s.setLocked(Status{State: Starting, Err: err, Source: source})
+		s.mu.Unlock()
+		s.log("plugin tree failed; retrying with --skip-user-plugins")
+		go s.run(next)
+		return
+	}
 	if !s.opts.AutoRestart || s.attempt >= s.opts.MaxAttempts {
 		s.setLocked(Status{State: Failed, Err: err, Source: source})
 		s.mu.Unlock()

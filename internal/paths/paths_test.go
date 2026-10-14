@@ -17,6 +17,9 @@ func TestUserDataDirOverride(t *testing.T) {
 func TestDerivedPaths(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "user-data")
 	t.Setenv(EnvUserData, dir)
+	if got, want := DefaultWorkspace(), filepath.Join(dir, "workspace"); got != want {
+		t.Fatalf("DefaultWorkspace() = %q, want %q", got, want)
+	}
 	if got, want := DshHome(), filepath.Join(dir, "dsh-home"); got != want {
 		t.Fatalf("DshHome() = %q, want %q", got, want)
 	}
@@ -25,6 +28,27 @@ func TestDerivedPaths(t *testing.T) {
 	}
 	if got, want := PidFile(), filepath.Join(dir, "runtime", "whaleisle.pid"); got != want {
 		t.Fatalf("PidFile() = %q, want %q", got, want)
+	}
+	if got, want := WebProfileDir(), filepath.Join(dir, "dsh-home", "profiles", "web"); got != want {
+		t.Fatalf("WebProfileDir() = %q, want %q", got, want)
+	}
+}
+
+func TestVendorDirOverride(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "deepseek-harness")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvVendor, dir)
+	if got := VendorDir(); got != dir {
+		t.Fatalf("VendorDir() = %q, want %q", got, dir)
+	}
+	if got := HarnessRoot(); got != root {
+		t.Fatalf("HarnessRoot() = %q, want %q", got, root)
+	}
+	if got, want := HarnessBinJS(), filepath.Join(root, "apps", "cli", "lib", "bin.js"); got != want {
+		t.Fatalf("HarnessBinJS() = %q, want %q", got, want)
 	}
 }
 

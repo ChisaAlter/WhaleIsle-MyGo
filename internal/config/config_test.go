@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -207,7 +208,7 @@ func TestNormalizeClamps(t *testing.T) {
 	if c.Port != d.Port || c.Theme != d.Theme || c.Locale != d.Locale {
 		t.Fatalf("core clamp failed: %+v", c)
 	}
-	if c.RemotePort != d.RemotePort || c.RemoteMode != "relay" || c.RemoteBindAddress != d.RemoteBindAddress {
+	if c.RemotePort != d.RemotePort || c.RemoteMode != "ssh" || c.RemoteBindAddress != d.RemoteBindAddress {
 		t.Fatalf("remote clamp failed: %+v", c)
 	}
 	if c.RemoteRelayUrl != "relay.example.com:443" || c.RemoteRelayEndpoint != "relay.example.com:443" || c.RemoteRelayUseTls {
@@ -227,6 +228,10 @@ func TestNormalizeClamps(t *testing.T) {
 	}
 	if c.SidebarWidth != d.SidebarWidth || c.TerminalHeight != d.TerminalHeight {
 		t.Fatalf("layout clamp failed: %+v", c)
+	}
+	wide := normalize(Config{SidebarWidth: 600})
+	if wide.SidebarWidth != 420 {
+		t.Fatalf("sidebar max clamp: got %v want 420", wide.SidebarWidth)
 	}
 }
 
@@ -277,5 +282,96 @@ func TestUpdateClampsOnWrite(t *testing.T) {
 	c := s.Get()
 	if c.Port != Defaults().Port || c.RemotePort != Defaults().RemotePort || c.DownloadRoute != "cnb" {
 		t.Fatalf("clamp not applied on update: %+v", c)
+	}
+}
+
+// TestGetReturnsDetachedSnapshot checks that mutating a returned Config
+// cannot reach back into the store's own state.
+func TestGetReturnsDetachedSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	initial := `{"disabledPlugins":["a","b"],"components":{"terminal":{"enabled":true}}}`
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(initial), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := s.Get()
+	first.DisabledPlugins[0] = "mutated"
+	first.Components[0] = '[' // corrupt the caller's copy only
+
+	second := s.Get()
+	if len(second.DisabledPlugins) != 2 || second.DisabledPlugins[0] != "a" {
+		t.Fatalf("store state changed through a Get snapshot: %v", second.DisabledPlugins)
+	}
+	if string(second.Components) != `{"terminal":{"enabled":true}}` {
+		t.Fatalf("store components changed through a Get snapshot: %s", second.Components)
+	}
+}
+
+// TestUpdateIsolatesCallbackAndCallerBuffers checks that a committed Config
+// shares no mutable storage with references the callback retained or with
+// buffers the caller keeps mutating after Update returns.
+func TestUpdateIsolatesCallbackAndCallerBuffers(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	callerBuf := json.RawMessage(`{"b":2}`)
+	var retainedPlugins []string
+	var retainedComponents json.RawMessage
+	if err := s.Update(func(c *Config) {
+		c.DisabledPlugins = []string{"x"}
+		c.Components = callerBuf
+		retainedPlugins = c.DisabledPlugins
+		retainedComponents = c.Components
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Mutate everything the callback could still reach.
+	retainedPlugins[0] = "evil"
+	retainedComponents[0] = '['
+	callerBuf[0] = '['
+
+	c := s.Get()
+	if len(c.DisabledPlugins) != 1 || c.DisabledPlugins[0] != "x" {
+		t.Fatalf("committed value aliases the callback slice: %v", c.DisabledPlugins)
+	}
+	if string(c.Components) != `{"b":2}` {
+		t.Fatalf("committed value aliases a caller buffer: %s", c.Components)
+	}
+}
+
+// TestUpdateFailedWriteLeavesStateUnchanged forces the atomic replace to fail
+// through the rename seam and checks that memory, the file and the temp
+// directory are all left alone.
+func TestUpdateFailedWriteLeavesStateUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rename = func(oldpath, newpath string) error { return errors.New("injected rename failure") }
+
+	if err := s.Update(func(c *Config) { c.Port = 4000 }); err == nil {
+		t.Fatal("Update succeeded despite an injected rename failure")
+	}
+	if got := s.Get(); got.Port != Defaults().Port {
+		t.Fatalf("memory changed after a failed write: %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, FileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("config.json was created despite a failed write: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("temp file was not cleaned up: %v", entries)
 	}
 }

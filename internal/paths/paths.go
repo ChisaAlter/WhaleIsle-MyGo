@@ -39,6 +39,11 @@ func UserDataDir() string {
 	return filepath.Join(base, config.DataDirName)
 }
 
+// DefaultWorkspace is the first-run project folder when config.workspace is empty.
+func DefaultWorkspace() string {
+	return filepath.Join(UserDataDir(), "workspace")
+}
+
 // DshHome returns the dsh home directory inside the user data directory,
 // where dsh keeps its sessions and settings. It does not create it; see
 // EnsureDshHome.
@@ -57,6 +62,55 @@ func RuntimeDir() string {
 // inside the runtime directory.
 func PidFile() string {
 	return filepath.Join(RuntimeDir(), "whaleisle.pid")
+}
+
+// EnvVendor, when set, overrides the vendored runtime directory that holds
+// deepseek-harness and the desktop plugin packages.
+const EnvVendor = "WHALEISLE_VENDOR"
+
+// VendorDir returns the directory of vendored harness + desktop plugins
+// (runtime/vendor). Override with WHALEISLE_VENDOR; otherwise look next to
+// the executable, then under the working directory.
+func VendorDir() string {
+	if override := os.Getenv(EnvVendor); override != "" {
+		return override
+	}
+	candidates := []string{}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "runtime", "vendor"))
+	}
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(wd, "runtime", "vendor"))
+	}
+	for _, c := range candidates {
+		if st, err := os.Stat(filepath.Join(c, "deepseek-harness")); err == nil && st.IsDir() {
+			return c
+		}
+	}
+	// Prefer a working-directory candidate over an exe-adjacent miss (test
+	// binaries live under GOCACHE/gotmp and have no runtime/vendor tree).
+	if wd, err := os.Getwd(); err == nil {
+		return filepath.Join(wd, "runtime", "vendor")
+	}
+	if len(candidates) > 0 {
+		return candidates[len(candidates)-1]
+	}
+	return filepath.Join("runtime", "vendor")
+}
+
+// HarnessRoot is the vendored deepseek-harness checkout under VendorDir.
+func HarnessRoot() string {
+	return filepath.Join(VendorDir(), "deepseek-harness")
+}
+
+// HarnessBinJS is the CLI entry used to launch `dsh web` from source.
+func HarnessBinJS() string {
+	return filepath.Join(HarnessRoot(), "apps", "cli", "lib", "bin.js")
+}
+
+// WebProfileDir is the dsh web profile inside DshHome (overlays + junctions).
+func WebProfileDir() string {
+	return filepath.Join(DshHome(), "profiles", "web")
 }
 
 // EnsureUserData creates the user data directory if it is missing.

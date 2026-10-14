@@ -1,4 +1,5 @@
 {
   "name": "Whale Isle",
-  "identifier": "com.whaleisle.app"
+  "identifier": "ai.deepseek.harness.gui",
+  "urlSchemes": ["whaleisle"]
 }
