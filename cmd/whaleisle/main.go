@@ -6512,46 +6512,35 @@ func mainView(c *ui.Context) {
 						state.showBrowserPreview(u)
 					},
 					OnOpenDeliverable: func(path string) {
-						rel := strings.TrimSpace(path)
-						if rel == "" {
+						if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
 							return
 						}
-						// Prefer workspace-relative path when under root.
-						absOpen := rel
-						if workspaceRoot != "" {
-							if abs, err := filepath.Abs(rel); err == nil {
-								absOpen = abs
-								if rootAbs, err := filepath.Abs(workspaceRoot); err == nil {
-									if r, err := filepath.Rel(rootAbs, abs); err == nil && !strings.HasPrefix(r, "..") {
-										rel = filepath.ToSlash(r)
-									}
-								}
-							}
+						handled, err := files.OpenPresentedPath(files.Model{
+							WorkspaceRoot: snap.SelectedCwd,
+							Tabs:          &fileTabs, SelectedFile: &selectedFile,
+							Preview: &filePreview, PreviewErr: &filePreviewErr,
+							Editing: &fileEditing, EditDraft: &fileEditDraft,
+							EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
+						}, path)
+						if err != nil {
+							sessions.SetLastAction(err.Error())
+							return
 						}
-						if sessions != nil && st.State == harness.Ready {
-							sessions.OpenWorkspacePath(context.Background(), absOpen, "", "")
-						}
-						text, errMsg := files.LoadPreview(workspaceRoot, rel)
-						if errMsg != "" {
-							state.dshMu.Lock()
-							client := state.dshClient
-							state.dshMu.Unlock()
-							if remote, rerr := files.LoadPreviewRemote(func(p string) (string, error) {
-								return workspacefs.ReadRemoteText(context.Background(), client, p, workspacefs.DefaultMaxReadBytes)
-							}, rel); rerr == "" {
-								text, errMsg = remote, ""
+						if !handled {
+							// Keep remote, missing-cwd and outside-cwd paths intact.
+							// Only the explicit card click invokes the existing Host opener.
+							if st.State == harness.Ready {
+								sessions.OpenWorkspacePath(context.Background(), path, "", "")
+							} else {
+								sessions.SetLastAction("workspace path open unavailable")
 							}
+							return
 						}
 						state.mu.Lock()
 						state.filesPaneOpen = true
 						state.rightPaneTab = "files"
-						state.selectedFile = rel
-						state.filePreview = text
-						state.filePreviewErr = errMsg
 						state.mu.Unlock()
-						selectedFile = rel
-						filePreview = text
-						filePreviewErr = errMsg
+						filesPaneOpen = true
 						rightPaneTab = "files"
 						if win != nil {
 							win.Update(func() {})
