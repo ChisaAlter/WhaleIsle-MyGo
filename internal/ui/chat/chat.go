@@ -225,6 +225,8 @@ func View(c *ui.Context, m Model) {
 							CodeBG:   chrome.Color(colors.Field),
 							Accent:   chrome.Color(colors.Accent),
 						}
+						md.ResolveFile = FileMentionResolver(msgs, msg)
+						md.OnOpenFile = m.OnOpenDeliverable
 						paintMD := func() {
 							if m.OnOpenCitationURL != nil {
 								markdown.ViewInteractive(row.Context, body, md, m.OnOpenCitationURL)

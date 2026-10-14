@@ -20,6 +20,10 @@ type Style struct {
 	Muted    ui.Color
 	CodeBG   ui.Color
 	Accent   ui.Color
+	// File mentions resolve only inline code, never ordinary prose or code blocks.
+	ResolveFile func(string) string
+	OnOpenFile  func(string)
+	codeSpanAt  func(int, string)
 }
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
@@ -42,11 +46,33 @@ func Spans(source string, st Style) []ui.Span {
 
 // View renders markdown in a RichText element.
 func View(c *ui.Context, source string, st Style) {
+	targets := map[int]string{}
+	if st.ResolveFile != nil && st.OnOpenFile != nil {
+		st.codeSpanAt = func(index int, value string) {
+			if path := st.ResolveFile(value); path != "" {
+				targets[index] = path
+			}
+		}
+	}
 	spans := Spans(source, st)
 	if len(spans) == 0 {
 		return
 	}
-	ui.RichText(c, spans...).FontSize(st.FontSize).TextColor(st.FG)
+	if len(targets) == 0 {
+		ui.RichText(c, spans...).FontSize(st.FontSize).TextColor(st.FG)
+		return
+	}
+	ui.RichText(c).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
+		for index, span := range spans {
+			el := ui.RichText(c, span)
+			if path := targets[index]; path != "" {
+				el = el.Tooltip(path).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
+				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+					st.OnOpenFile(path)
+				}
+			}
+		}
+	})
 }
 
 // Link is one markdown hyperlink extracted for interactive rendering.
@@ -224,6 +250,9 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 			if t, ok := c.(*ast.Text); ok {
 				buf.Write(t.Segment.Value([]byte(src)))
 			}
+		}
+		if st.codeSpanAt != nil {
+			st.codeSpanAt(len(*out), buf.String())
 		}
 		*out = append(*out, codeSpan(buf.String(), st))
 	case *ast.Link:
