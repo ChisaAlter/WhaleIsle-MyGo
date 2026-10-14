@@ -20,6 +20,7 @@ import (
 
 const bridgeAsset = "WhaleBridge-win32-x64.exe"
 const bridgeManifest = "WhaleBridge-component.json"
+const bridgeGitHubReleases = "https://github.com/ChisaAlter/WhaleBridge/releases"
 
 var componentInstallMu sync.Mutex
 var bridgeVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
@@ -65,7 +66,7 @@ func InstallWhaleBridge(ctx context.Context, userData, route string) error {
 	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
 		return fmt.Errorf("鲸桥首版仅支持 Windows x64")
 	}
-	endpoint := "https://api.github.com/repos/ChisaAlter/Deepseek-Harness-Desktop/releases?per_page=100"
+	endpoint := bridgeGitHubReleases + "/latest/download/" + bridgeManifest
 	switch strings.ToLower(strings.TrimSpace(route)) {
 	case "", "github":
 	case "cnb", "gitee":
@@ -98,44 +99,59 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 			return fmt.Errorf("鲸桥已有版本，首次安装不能覆盖")
 		}
 	}
-	var releases []bridgeRelease
-	if err := bridgeJSON(ctx, client, endpoint, &releases, fixture); err != nil {
-		return err
-	}
-	var selected *bridgeRelease
-	for i := range releases {
-		r := &releases[i]
-		v := strings.TrimPrefix(r.Tag, "whalebridge-v")
-		if r.Draft || r.Prerelease || !strings.HasPrefix(r.Tag, "whalebridge-v") || !bridgeVersion.MatchString(v) {
-			continue
-		}
-		if selected == nil || compareVersions(v, strings.TrimPrefix(selected.Tag, "whalebridge-v")) > 0 {
-			selected = r
-		}
-	}
-	if selected == nil {
-		return fmt.Errorf("鲸桥组件尚未发布到当前线路")
-	}
-	var manifestAsset, binaryAsset bridgeReleaseAsset
-	for _, a := range selected.Assets {
-		switch a.Name {
-		case bridgeManifest:
-			manifestAsset = a
-		case bridgeAsset:
-			binaryAsset = a
-		}
-	}
-	if manifestAsset.address() == "" || binaryAsset.address() == "" {
-		return fmt.Errorf("鲸桥发布缺少组件文件")
-	}
 	var m bridgeReleaseManifest
-	if err := bridgeJSON(ctx, client, manifestAsset.address(), &m, fixture); err != nil {
-		return err
+	var binaryAsset bridgeReleaseAsset
+	latestSuffix := "/latest/download/" + bridgeManifest
+	if strings.HasSuffix(endpoint, latestSuffix) {
+		// Fetch latest metadata once, then pin payload to that validated version.
+		// No GitHub REST quota is used and a moving latest cannot mix releases.
+		if err := bridgeJSON(ctx, client, endpoint, &m, fixture); err != nil {
+			return err
+		}
+		if err := validateBridgeManifest(m); err != nil {
+			return err
+		}
+		binaryAsset = bridgeReleaseAsset{Name: bridgeAsset, URL: strings.TrimSuffix(endpoint, latestSuffix) + "/download/whalebridge-v" + m.Version + "/" + bridgeAsset, Size: m.Platforms["win32-x64"].Size}
+	} else {
+		var releases []bridgeRelease
+		if err := bridgeJSON(ctx, client, endpoint, &releases, fixture); err != nil {
+			return err
+		}
+		var selected *bridgeRelease
+		for i := range releases {
+			r := &releases[i]
+			v := strings.TrimPrefix(r.Tag, "whalebridge-v")
+			if r.Draft || r.Prerelease || !strings.HasPrefix(r.Tag, "whalebridge-v") || !bridgeVersion.MatchString(v) {
+				continue
+			}
+			if selected == nil || compareVersions(v, strings.TrimPrefix(selected.Tag, "whalebridge-v")) > 0 {
+				selected = r
+			}
+		}
+		if selected == nil {
+			return fmt.Errorf("鲸桥组件尚未发布到当前线路")
+		}
+		var manifestAsset bridgeReleaseAsset
+		for _, a := range selected.Assets {
+			switch a.Name {
+			case bridgeManifest:
+				manifestAsset = a
+			case bridgeAsset:
+				binaryAsset = a
+			}
+		}
+		if manifestAsset.address() == "" || binaryAsset.address() == "" {
+			return fmt.Errorf("鲸桥发布缺少组件文件")
+		}
+		if err := bridgeJSON(ctx, client, manifestAsset.address(), &m, fixture); err != nil {
+			return err
+		}
+		spec := m.Platforms["win32-x64"]
+		if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || selected.Tag != "whalebridge-v"+m.Version || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || binaryAsset.Size != spec.Size || !strings.Contains(m.License, "MIT License") {
+			return fmt.Errorf("鲸桥发布清单或资产不一致")
+		}
 	}
 	spec := m.Platforms["win32-x64"]
-	if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || selected.Tag != "whalebridge-v"+m.Version || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || binaryAsset.Size != spec.Size || !strings.Contains(m.License, "MIT License") {
-		return fmt.Errorf("鲸桥发布清单或资产不一致")
-	}
 	if err := bridgeURL(binaryAsset.address(), fixture); err != nil {
 		return err
 	}
@@ -229,6 +245,9 @@ func bridgeJSON(ctx context.Context, client *http.Client, raw string, out any, f
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
+	if u, err := url.Parse(raw); err == nil && u.Hostname() == "cnb.cool" {
+		req.Header.Set("Accept", "application/vnd.cnb.api+json")
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -238,4 +257,12 @@ func bridgeJSON(ctx context.Context, client *http.Client, raw string, out any, f
 		return fmt.Errorf("组件元数据 HTTP %d", resp.StatusCode)
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(out)
+}
+
+func validateBridgeManifest(m bridgeReleaseManifest) error {
+	spec := m.Platforms["win32-x64"]
+	if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || !strings.Contains(m.License, "MIT License") {
+		return fmt.Errorf("鲸桥发布清单无效")
+	}
+	return nil
 }
