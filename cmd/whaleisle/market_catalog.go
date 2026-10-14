@@ -97,6 +97,9 @@ func (s *mainState) beginMarketAttempt(spec string, allow []string, install bool
 		}
 	}
 	var target *marketstore.InstallTarget
+	if !install && len(approval) > 0 && approval[0] != nil {
+		target = approval[0].target
+	}
 	if install && s.marketCatalogTarget != nil && s.marketCatalogTarget.Spec == spec {
 		t := *s.marketCatalogTarget
 		if s.market == nil {
@@ -235,7 +238,11 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 		}
 		_ = op.store.RecordInstall(id, r.outcome, r.historyError)
 	}
-	if op.store != nil {
+	// A pending update approval is tied to the displayed inventory receipt.
+	// These stages do not apply the update. Keep that receipt until approval;
+	// terminal outcomes still refresh inventory, and manual refresh expires it.
+	awaitingUpdateApproval := op.target != nil && op.target.UpdateVersion != "" && (len(r.pending) > 0 || len(r.incompatible) > 0 || (op.method == "pluginManager/setVersionExemption" && r.accepted))
+	if op.store != nil && !awaitingUpdateApproval {
 		op.store.Refresh(context.Background())
 	}
 	if win != nil {

@@ -113,6 +113,7 @@ func View(c *ui.Context, m Model) {
 					if !snap.ClientReady {
 						ui.Text(c, marketText("运行时未连接；目录仍可浏览。", "Runtime disconnected; the catalog remains available.")).TextColor(muted)
 					}
+					updatesView(c, m, snap, fg, muted, accent)
 					if len(snap.Rows) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
@@ -362,5 +363,59 @@ func favoriteButton(c *ui.Context, m Model, id string) {
 	}
 	if ui.Button(c, label).Clicked() {
 		_ = m.Store.ToggleFavorite(id)
+	}
+}
+
+// updatesView reuses catalog install receipts, so updates share build approval,
+// cancellation, runtime guards, and installation history with normal installs.
+func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, muted, accent ui.Color) {
+	u := m.Store.Updates()
+	ui.Text(c, marketText("插件版本更新", "Plugin version updates")).Bold().TextColor(fg)
+	if !m.InstallBusy && !inventory.Loading && inventory.Err == "" && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
+		if ui.Button(c, marketText("检查插件更新", "Check plugin updates")).Clicked() {
+			m.Store.CheckUpdates()
+		}
+	}
+	if u.Loading {
+		ui.Text(c, marketText("正在检查版本元数据…", "Checking version metadata…")).TextColor(muted)
+	}
+	if u.Err != "" {
+		ui.Text(c, u.Err).TextColor(accent)
+	}
+	if !u.CheckedAt.IsZero() {
+		ui.Text(c, marketText("检查时间：", "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(11).TextColor(muted)
+	}
+	ui.Text(c, marketText("仅比较已确认的 npm 稳定版本；Git、本地来源及不可比较版本显示未知。检查不会自动安装。", "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(11).TextColor(muted)
+	for _, row := range u.Rows {
+		r := row
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			current, latest := r.Current, r.Latest
+			if current == "" {
+				current = marketText("未知", "unknown")
+			}
+			if latest == "" {
+				latest = marketText("未知", "unknown")
+			}
+			status := marketText("未知", "unknown")
+			if r.Known {
+				status = marketText("没有较新版本", "No newer version")
+			}
+			if r.Available {
+				status = marketText("可更新", "Update available")
+			}
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				ui.Text(c, r.Name+" · "+current+" → "+latest+" · "+status).TextColor(fg)
+				if r.Reason != "" {
+					ui.Text(c, r.Reason).FontSize(11).TextColor(muted)
+				}
+			})
+			if r.Available && !m.InstallBusy && !u.Loading && u.Err == "" && m.OnInstallCatalog != nil {
+				if target, err := m.Store.CaptureUpdateTarget(r.ID); err == nil {
+					if ui.Button(c, marketText("更新至 ", "Update to ")+r.Latest).Clicked() {
+						m.OnInstallCatalog(target)
+					}
+				}
+			}
+		})
 	}
 }

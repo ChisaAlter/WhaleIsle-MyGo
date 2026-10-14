@@ -38,8 +38,10 @@ type Discovery struct {
 
 // InstallTarget is an immutable receipt for one displayed catalog and runtime.
 type InstallTarget struct {
-	ID, Spec          string
-	Revision, Runtime uint64
+	ID, Spec                      string
+	Revision, Runtime             uint64
+	UpdateVersion, CurrentVersion string
+	Inventory, UpdateCheck        uint64
 }
 
 func newDiscoveryState() discoveryState {
@@ -52,6 +54,7 @@ func newDiscoveryState() discoveryState {
 }
 func (s *Store) SetCatalogService(service CatalogService) {
 	s.mu.Lock()
+	s.invalidateUpdatesLocked()
 	s.discovery = newDiscoveryState()
 	s.discovery.service = service
 	s.mu.Unlock()
@@ -68,6 +71,7 @@ func (s *Store) EnsureCatalog(locale string) {
 func (s *Store) RefreshCatalog(force bool, locale string) {
 	s.mu.Lock()
 	d := &s.discovery
+	s.invalidateUpdatesLocked()
 	if d.cancel != nil {
 		d.cancel()
 	}
@@ -249,7 +253,7 @@ func (s *Store) CaptureTarget(id string) (InstallTarget, error) {
 	}
 	for _, i := range d.catalog.Items {
 		if i.ID == id && desktopmarket.ValidInstallItem(i) {
-			return InstallTarget{i.ID, i.InstallSpec, d.revision, s.generation}, nil
+			return InstallTarget{ID: i.ID, Spec: i.InstallSpec, Revision: d.revision, Runtime: s.generation}, nil
 		}
 	}
 	return InstallTarget{}, errors.New("Catalog target is not installable.")
@@ -259,6 +263,9 @@ func (s *Store) ValidateTarget(t InstallTarget) error {
 	defer s.mu.Unlock()
 	if s.client == nil || s.generation != t.Runtime || s.discovery.revision != t.Revision || s.discovery.loading {
 		return errors.New("Catalog or runtime changed; select the plugin again.")
+	}
+	if t.UpdateVersion != "" {
+		return s.validateUpdateLocked(t)
 	}
 	for _, i := range s.discovery.catalog.Items {
 		if i.ID == t.ID && i.InstallSpec == t.Spec && desktopmarket.ValidInstallItem(i) {

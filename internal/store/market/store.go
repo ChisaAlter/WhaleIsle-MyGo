@@ -48,6 +48,7 @@ type Store struct {
 	generation uint64
 	refreshID  uint64
 	discovery  discoveryState
+	updates    updateState
 	personal   personalState
 	notify     func()
 
@@ -74,6 +75,9 @@ func New() *Store {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	if s.updates.cancel != nil {
+		s.updates.cancel()
+	}
 	s.generation++
 	s.refreshID++
 	s.rows = nil
@@ -87,6 +91,9 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // Detach clears the client when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	if s.updates.cancel != nil {
+		s.updates.cancel()
+	}
 	s.generation++
 	s.refreshID++
 	s.client = nil
@@ -134,6 +141,9 @@ func (s *Store) Refresh(ctx context.Context) {
 	if client == nil {
 		s.mu.Unlock()
 		return
+	}
+	if s.updates.cancel != nil {
+		s.updates.cancel()
 	}
 	s.refreshID++
 	generation, refreshID := s.generation, s.refreshID
