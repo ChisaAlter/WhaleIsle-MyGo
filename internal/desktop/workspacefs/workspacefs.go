@@ -127,12 +127,35 @@ func WriteFileText(filePath, text string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	tmp := filePath + ".whaleisle-tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	mode := os.FileMode(0o644)
+	if st, err := os.Lstat(filePath); err == nil {
+		if !st.Mode().IsRegular() {
+			return ErrNotFile
+		}
+		mode = st.Mode().Perm()
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if err := os.Rename(tmp, filePath); err != nil {
-		_ = os.Remove(tmp)
+	f, err := os.CreateTemp(dir, ".whaleisle-save-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if err = f.Chmod(mode); err == nil {
+		_, err = f.Write(data)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err = os.Rename(tmp, filePath); err != nil {
 		return err
 	}
 	return nil

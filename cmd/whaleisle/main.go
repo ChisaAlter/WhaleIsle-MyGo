@@ -60,6 +60,7 @@ import (
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/files"
+	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
 	imui "whaleisle/internal/ui/im"
@@ -235,6 +236,8 @@ type mainState struct {
 	gitPRRoot      string
 	gitPRAt        time.Time
 
+	fileTabs         files.Tabs
+	gitWorkbench     diffsurface.Workbench
 	fileExpanded     map[string]bool
 	selectedFile     string
 	fileFilter       string
@@ -2509,13 +2512,13 @@ func (s *mainState) runGitPush(root string) {
 	}, i18n.T(i18n.KeyGitPushOK), i18n.T(i18n.KeyGitActionFailed))
 }
 
-func (s *mainState) runGitCommit(root, message string) {
+func (s *mainState) runGitCommit(root, message, reviewedToken string) {
 	message = strings.TrimSpace(message)
 	if message == "" {
 		return
 	}
 	s.runGitRemote("commit", root, func() (string, error) {
-		return desktopgit.CommitAll(root, message)
+		return desktopgit.CommitReviewed(root, message, reviewedToken)
 	}, i18n.T(i18n.KeyGitCommitOK), i18n.T(i18n.KeyGitActionFailed))
 }
 
@@ -2632,13 +2635,17 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 	if message == "" {
 		return
 	}
+	_, reviewedToken, reviewErr := desktopgit.IndexReview(root)
+	if reviewErr != nil { s.mu.Lock(); s.gitMsg = reviewErr.Error(); s.mu.Unlock(); return }
+	summary, reviewErr := desktopgit.StagedSummary(root)
+	if reviewErr != nil { s.mu.Lock(); s.gitMsg = reviewErr.Error(); s.mu.Unlock(); return }
 	res, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent:        win,
 		Type:          mygo.MessageQuestion,
 		Title:         i18n.T(i18n.KeyGitCommitConfirmTitle),
-		Message:       i18n.T(i18n.KeyGitCommitConfirmMessage),
+		Message:       "Commit only these staged changes / 仅提交以下已暂存变更：\n" + summary + "\n\nUnstaged files and editor drafts are excluded; no push. / 不含未暂存文件或编辑器草稿，不会推送。",
 		Buttons:       []string{i18n.T(i18n.KeyGitCommitCancel), i18n.T(i18n.KeyGitCommit)},
-		DefaultButton: 1,
+		DefaultButton: 0,
 		CancelButton:  0,
 	})
 	if err != nil || res.Button != 1 {
@@ -2648,7 +2655,7 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 	s.gitCommitOpen = false
 	s.gitCommitDraft = ""
 	s.mu.Unlock()
-	s.runGitCommit(root, message)
+	s.runGitCommit(root, message, reviewedToken)
 }
 
 func (s *mainState) runGitRemote(_ string, root string, run func() (string, error), okLabel, failLabel string) {
@@ -3040,6 +3047,8 @@ func mainView(c *ui.Context) {
 	gitPROpen := state.gitPROpen
 	gitPRReport := state.gitPRReport
 	gitPRBusy := state.gitPRBusy
+	fileTabs := state.fileTabs
+	gitWorkbench := state.gitWorkbench
 	fileExpanded := state.fileExpanded
 	selectedFile := state.selectedFile
 	fileFilter := state.fileFilter
@@ -6509,6 +6518,8 @@ func mainView(c *ui.Context) {
 					FilePreviewList:      &filePreviewList,
 					FileEditing:          &fileEditing,
 					FileEditDraft:        &fileEditDraft,
+					FileTabs: &fileTabs,
+					GitWorkbench: &gitWorkbench,
 					FileEditStatus:       &fileEditStatus,
 					FileEditViewMode:     &fileEditViewMode,
 					FileEditSplit:        &fileEditSplit,
@@ -7182,6 +7193,8 @@ func mainView(c *ui.Context) {
 				if sessions != nil {
 					sessions.UpdateSessionSearch(context.Background(), sessionSearch)
 				}
+				state.fileTabs = fileTabs
+				state.gitWorkbench = gitWorkbench
 				state.fileExpanded = fileExpanded
 				state.selectedFile = selectedFile
 				state.fileFilter = fileFilter

@@ -142,6 +142,8 @@ type Model struct {
 	SessionSearch      *string
 
 	WorkspaceRoot    string
+	FileTabs         *files.Tabs
+	GitWorkbench     *diffsurface.Workbench
 	FileExpanded     *map[string]bool
 	SelectedFile     *string
 	FileFilter       *string
@@ -928,6 +930,7 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if tab == "diff" {
 			diffsurface.View(c, diffsurface.Model{
+				Workbench: m.GitWorkbench,
 				WorkspaceRoot: m.WorkspaceRoot,
 				ThemeID:       m.ThemeID,
 				SystemDark:    m.SystemDark,
@@ -938,6 +941,7 @@ func rightPane(c *ui.Context, m Model) {
 			return
 		}
 		files.View(c, files.Model{
+			Tabs: m.FileTabs,
 			WorkspaceRoot: m.WorkspaceRoot,
 			ThemeID:       m.ThemeID,
 			SystemDark:    m.SystemDark,
@@ -959,6 +963,7 @@ func rightPane(c *ui.Context, m Model) {
 			StatRemote:    m.OnStatWorkspaceFile,
 			StatNote:      m.FileStatNote,
 			OnShowDiff: func(rel string) {
+				if m.GitWorkbench != nil { m.GitWorkbench.Staged = false }
 				if m.RightPaneTab != nil {
 					*m.RightPaneTab = "diff"
 				}

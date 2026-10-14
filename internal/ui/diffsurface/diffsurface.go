@@ -17,6 +17,7 @@ import (
 
 // Model is diff panel state for one frame.
 type Model struct {
+	Workbench     *Workbench
 	WorkspaceRoot string
 	ThemeID       string
 	SystemDark    bool
@@ -36,7 +37,8 @@ func LoadDiff(root, relPath string) (text, errMsg string) {
 	if strings.TrimSpace(relPath) != "" {
 		paths = []string{relPath}
 	}
-	out, err := git.Diff(root, paths...)
+	_ = paths
+	out, err := git.DiffScope(root, relPath, false)
 	if err != nil {
 		if errors.Is(err, git.ErrNotRepo) {
 			return "", i18n.T(i18n.KeyDiffNotRepo)
@@ -55,6 +57,16 @@ func refresh(m Model) {
 		rel = *m.PathFilter
 	}
 	text, errMsg := LoadDiff(m.WorkspaceRoot, rel)
+	if m.Workbench != nil {
+		var err error
+		text, err = git.DiffScope(m.WorkspaceRoot, rel, m.Workbench.Staged)
+		errMsg = ""
+		if err != nil {
+			errMsg = err.Error()
+		} else if text == "" {
+			errMsg = i18n.T(i18n.KeyDiffEmpty)
+		}
+	}
 	if m.Text != nil {
 		*m.Text = text
 	}
@@ -82,9 +94,10 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 			if ui.Button(c, i18n.T(i18n.KeyDiffRefresh)).Clicked() {
-				refresh(m)
+				refreshWorkbench(m)
 			}
 		})
+		paintWorkbench(c, m, fg, muted)
 		scope := ""
 		if m.PathFilter != nil {
 			scope = strings.TrimSpace(*m.PathFilter)

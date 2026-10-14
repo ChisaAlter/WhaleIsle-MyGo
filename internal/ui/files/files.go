@@ -35,6 +35,7 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
+	Tabs          *Tabs
 	WorkspaceRoot string
 	ThemeID       string
 	SystemDark    bool
@@ -92,6 +93,8 @@ var editSplitFallback float32 = 200
 
 // View paints the file tree and plain-text preview.
 func View(c *ui.Context, m Model) {
+	prepareTabs(m)
+	defer capture(m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
@@ -258,6 +261,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
 		ui.Box(c).Fill().Height(1).Background(border)
+		paintTabs(c, m, fg, muted)
 		sel := ""
 		if m.SelectedFile != nil {
 			sel = *m.SelectedFile
@@ -325,12 +329,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && docKind == workspacefs.DocNone {
+			if !editing && docKind == workspacefs.DocNone && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
-					if m.Preview != nil {
-						*m.EditDraft = *m.Preview
-					}
 					if m.EditStatus != nil {
 						*m.EditStatus = ""
 					}
@@ -339,8 +340,11 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnShowDiff(sel)
 				}
 			} else if editing {
+				if m.EditDraft != nil && ui.Button(c, label("复制草稿", "Copy draft")).Clicked() {
+					mygo.Clipboard.WriteText(*m.EditDraft)
+				}
 				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Clicked() {
-					if err := m.OnSaveEdit(sel, *m.EditDraft); err != nil {
+					if err := saveDraft(m); err != nil {
 						if m.EditStatus != nil {
 							*m.EditStatus = err.Error()
 						}
@@ -359,7 +363,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 						}
 					}
 				}
-				if m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesCancelEdit)).Clicked() {
+				if m.Editing != nil && ui.Button(c, label("保留草稿并预览", "Keep draft and preview")).Clicked() {
 					*m.Editing = false
 					if m.EditStatus != nil {
 						*m.EditStatus = ""
@@ -391,6 +395,10 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		text := ""
 		if m.Preview != nil {
 			text = *m.Preview
+		}
+		if m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview {
+			text = *m.EditDraft
+			ui.Text(c, label("未保存草稿（仅保留在此窗口）", "Unsaved draft (kept in this window)")).FontSize(11).TextColor(muted)
 		}
 		rel := ""
 		if m.SelectedFile != nil {
@@ -477,6 +485,17 @@ func toggleExpanded(m Model, rel string) {
 }
 
 func selectFile(m Model, rel string) {
+	if selectTab(m, rel) {
+		return
+	}
+	// Legacy callers without a tab owner must never silently overwrite edits.
+	if m.Tabs == nil && m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview {
+		if m.EditStatus != nil {
+			*m.EditStatus = label("请先保存当前草稿再切换文件", "Save the current draft before switching files")
+		}
+		return
+	}
+	defer rememberTab(m, rel)
 	if m.SelectedFile != nil {
 		*m.SelectedFile = rel
 	}
@@ -652,11 +671,6 @@ func LoadPreview(root, rel string) (text, errMsg string) {
 			return "", err.Error()
 		default:
 			return "", err.Error()
-		}
-	}
-	if workspacefs.IsCSVPath(full) {
-		if table, ok := workspacefs.FormatCSVTable(res.Text, 80, 16); ok {
-			return table, ""
 		}
 	}
 	return res.Text, ""
