@@ -98,6 +98,7 @@
 - 桌宠临时睡眠/唤醒：睡眠不落配置/不发奖励，显式叫醒原版心情−7且重复wake幂等，成功照料/接触唤醒不追加惩罚；关闭重建清醒，睡眠暂停既有sprite/THA4循环，醒来复用实例。仅合成fixture与编译，未运行模型。
 - Windows离线runtime候选：已用官方固定Node/ABI137 SQLite及35个精确平台包装配Host/mobile依赖图，静态PE/内部链接/来源hash检查完成；298426文件、17738相对链接和431相对cmd包装。状态prepared/runtime_verified=false，保留Linux来源清单，不伪造Windows成功marker；尚需Windows链接恢复/native-load验收，不能称解压即用，巨型产物不入源码附件。
 - Windows便携候选布局：复用144c8d3已编译EXE、终端sidecar/resources/9项宠物资源与runtime图，依赖链接改清单并提供普通权限junction/hardlink恢复；静态拒逃逸/异常覆盖，不提权或改策略。实际本地目录已装配，runtime_verified=false、无生产成功marker；未运行任何PE，需Windows验收，巨型目录不入源码交付。
+- Windows候选显式验收入口：固定Win32/x64 Node/ABI/hash、干净临时home的受限native加载，再通过原Host/mobile verifier才写成功marker，失败撤回新记录；mobile目标包置于自身根内，不放宽链接边界。入口已装配但未执行Windows，runtime_verified仍false，native通过也不等于Host/UI验收。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
