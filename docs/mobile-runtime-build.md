@@ -51,10 +51,37 @@ from both inspected source/baseline trees:
 
 `vendor/chisacode-remote/packages/server/src/server/speech/providers/local/sherpa/assets/silero_vad.onnx`
 
-Source preparation fails with that exact path before any npm install. Supply the
-complete matching original source release including this asset; these scripts do
-not download a substitute, create a dummy model, or bypass the original build.
+A verified local copy can now be supplied without changing the reference tree:
+
+```powershell
+$env:WHALEISLE_ELECTRON_SOURCE = 'C:\path\to\WhaleIsle-Electron'
+$env:WHALEISLE_SILERO_VAD_FILE = 'C:\verified-assets\silero_vad.onnx'
+.\scripts\build-harness.ps1
+# Or build only the phone runtime after the harness already exists:
+.\scripts\build-mobile-runtime.ps1 -SileroVadFile $env:WHALEISLE_SILERO_VAD_FILE
+```
+
+The fixed provenance/checksum is in `scripts/mobile-runtime-assets.json`:
+ChisaAlter/ChisaCode commit `943c042f09dbf4a2f8752ccb11d54fcc68d9cf5b`,
+asset Git blob `d1b57f7bb9e6fca4f05ed0272a4d6c0f1dec3f74`, 643854 bytes,
+SHA256 `9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6`.
+The source snapshot's Silero provider/session and sherpa model-catalog files
+match that commit. This does not establish that the whole vendored tree is the
+same commit. The project declares AGPL-3.0-or-later; independent model-specific
+licensing remains unverified. No model binary is committed by this change.
+
+Preparation validates size and SHA256 before modifying the work directory,
+copies the verified model only into the fresh work tree, and records the asset
+identity in `source-provenance.json`. An existing model in a complete source tree
+must pass the same pin. Missing input and incorrect bytes fail before dependency
+installation. There is no automatic download or model execution. This supplies
+one source asset; it does not prove the full native build or live phone runtime.
 Additional missing assets/dependencies may still be surfaced by the real build.
+
+The asset-input fixture is `scripts/mobile-model-resource.test.mjs`; it requires
+`WHALEISLE_SILERO_VAD_FILE` and otherwise explicitly skips. One temporary fixture
+with the verified local model confirmed matching input, a same-length corrupted
+file rejection, missing-input failure, and unchanged read-only source content.
 
 Validation performed here: one temporary-directory fixture exercising staging,
 its complete required inventory, repeated staging, missing bundle/manager
@@ -63,3 +90,8 @@ PowerShell execution, daemon startup, pairing credentials or live relay/phone
 acceptance was performed. The fixture uses inert files and proves packaging
 control flow, not that a working native runtime exists. This is a script-only
 change; no additional Go/Windows compilation is claimed or needed for these files.
+
+A single source-only preparation against the supplied original snapshot and the
+verified local model also succeeded in an isolated directory. The reference tree
+remained unchanged; the prepared model's size/SHA256 and asset receipt matched.
+This preparation did not install dependencies or execute any original source.

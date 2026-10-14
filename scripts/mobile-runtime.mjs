@@ -24,6 +24,7 @@ export const required = [
   `${server}speech/providers/local/sherpa/assets/silero_vad.onnx`,
   ...['dsh-llm-deepseek','dsh-sandbox-local','dsh-sandbox-policy','dsh-subprocess-local','dsh-bash-sandbox','dsh-user-approval','dsh-fs-sandbox','dsh-fs-observation-policy','dsh-tool-fs','dsh-token-meter','dsh-compaction-basic','dsh-repeat-tool-reminder'].map(n => `vendor/deepseek-harness/node_modules/@deepseek-ai/${n}/lib/index.js`),
 ];
+const assetPin = JSON.parse(fs.readFileSync(new URL('./mobile-runtime-assets.json', import.meta.url))).sileroVad;
 const sha = p => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 function assertFiles(root, files) {
   for (const f of files) if (!fs.statSync(path.join(root, f), {throwIfNoEntry:false})?.isFile())
@@ -33,8 +34,15 @@ function copy(from, to, filter) {
   fs.mkdirSync(path.dirname(to), {recursive:true});
   fs.cpSync(from, to, {recursive:true, dereference:true, filter});
 }
-export function prepare(source, work) {
-  assertFiles(source, [...sourceAssets, ...shellFiles, 'mobile/web/index.html', 'scripts/bundle-chisacode-mobile-client.mjs',
+export function prepare(source, work, modelFile = '') {
+  const model = modelFile || path.join(source, sourceAssets[0]);
+  if (!fs.statSync(model, {throwIfNoEntry:false})?.isFile()) {
+    throw new Error(`Mobile runtime resource missing: ${sourceAssets[0]}. Supply the verified local model using -SileroVadFile or WHALEISLE_SILERO_VAD_FILE.`);
+  }
+  if (fs.statSync(model).size !== assetPin.bytes || sha(model) !== assetPin.sha256) {
+    throw new Error('Silero VAD model checksum mismatch; expected the pinned original asset. Source/work trees were not modified.');
+  }
+  assertFiles(source, [...shellFiles, 'mobile/web/index.html', 'scripts/bundle-chisacode-mobile-client.mjs',
     'vendor/chisacode-remote/package.json', 'vendor/chisacode-remote/package-lock.json']);
   // A fresh work tree prevents stale dist/native outputs from qualifying as a build.
   fs.rmSync(work, {recursive:true, force:true});
@@ -43,11 +51,13 @@ export function prepare(source, work) {
   copy(path.join(source,'scripts/bundle-chisacode-mobile-client.mjs'), path.join(work,'scripts/bundle-chisacode-mobile-client.mjs'));
   copy(path.join(source,'vendor/chisacode-remote'), path.join(work,'vendor/chisacode-remote'),
     p => !['node_modules','.git','.tmp','dist'].includes(path.basename(p)));
+  copy(model, path.join(work, sourceAssets[0]));
   const pkg = JSON.parse(fs.readFileSync(path.join(work,'vendor/chisacode-remote/package.json')));
   fs.writeFileSync(path.join(work,'source-provenance.json'), JSON.stringify({
     repository:pkg.repository, version:pkg.version,
     lockSHA256:sha(path.join(work,'vendor/chisacode-remote/package-lock.json')),
     managerSHA256:sha(path.join(work,'src/main/dshd-remote.js')),
+    assets: [{...assetPin, suppliedVia: modelFile ? 'explicit-local-file' : 'source-snapshot', stagedPath: sourceAssets[0]}],
   },null,2));
 }
 export function stage(work, harness, nodeDir, destination) {

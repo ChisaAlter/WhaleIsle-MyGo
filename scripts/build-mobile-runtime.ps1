@@ -1,5 +1,8 @@
 # Build the original mobile runtime with plain Node ABI, never Electron ABI.
-param([string]$SourceRoot = $env:WHALEISLE_ELECTRON_SOURCE)
+param(
+    [string]$SourceRoot = $env:WHALEISLE_ELECTRON_SOURCE,
+    [string]$SileroVadFile = $env:WHALEISLE_SILERO_VAD_FILE
+)
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $SourceRoot) { $SourceRoot = Join-Path $ProjectRoot 'reference\electron' }
@@ -14,7 +17,7 @@ $env:npm_config_target = (& $Node -p 'process.versions.node')
 if ($LASTEXITCODE -ne 0) { throw 'Could not inspect bundled Node version' }
 $Work = Join-Path $ProjectRoot 'runtime\build\mobile'
 $Helper = Join-Path $PSScriptRoot 'mobile-runtime.mjs'
-& $Node $Helper prepare $SourceRoot $Work
+& $Node $Helper prepare $SourceRoot $Work $SileroVadFile
 if ($LASTEXITCODE -ne 0) { throw 'Mobile source preparation failed' }
 $Upstream = Join-Path $Work 'vendor\chisacode-remote'
 Push-Location $Upstream
