@@ -36,8 +36,13 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Height(float32(PanelChromeHeight - 1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWebViewTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
+		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyWebViewTitle)).FontSize(15).Bold().TextColor(fg)
+			if m.HostActive && m.HostError != "" {
+				ui.Text(c, m.HostError).FontSize(11).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1)
+			} else {
+				ui.Box(c).Grow(1)
+			}
 			if m.HostActive && m.HostURL != "" && m.OnCopyURL != nil {
 				if ui.Button(c, i18n.T(i18n.KeyWebViewCopyURL)).FontSize(11).Clicked() {
 					m.OnCopyURL(m.HostURL)

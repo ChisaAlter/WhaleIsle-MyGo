@@ -185,6 +185,7 @@ type mainState struct {
 	webviewHost                *desktopwebview.Host
 	webviewHostErr             string
 	lastWebViewURL             string
+	lastWebViewOrigin          string
 	assistantOpen              bool
 	assistantDraft             string
 	assistantLastAct           string
@@ -847,6 +848,9 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 func (s *mainState) closeWebViewHost() {
 	s.mu.Lock()
 	host := s.webviewHost
+	if host != nil {
+		s.lastWebViewURL = host.URL()
+	}
 	s.webviewHost = nil
 	s.webviewHostErr = ""
 	s.mu.Unlock()
@@ -1149,6 +1153,9 @@ func (s *mainState) openWebViewHost(origin string) {
 }
 
 func (s *mainState) openWebViewHostPlugin(origin, pluginID string) {
+	s.mu.Lock()
+	s.lastWebViewOrigin = origin
+	s.mu.Unlock()
 	s.openWebViewURL(desktopwebview.SlotURL(origin, pluginID, nil))
 }
 
@@ -1186,7 +1193,12 @@ func (s *mainState) openWebViewURL(browse string) {
 		return
 	}
 	if existing != nil && existing.Alive() {
-		_ = existing.Navigate(browse)
+		if err := existing.Navigate(browse); err != nil {
+			s.mu.Lock()
+			s.webviewHostErr = err.Error()
+			s.mu.Unlock()
+			return
+		}
 		existing.SetVisible(true)
 		s.mu.Lock()
 		s.lastWebViewURL = browse
@@ -1208,6 +1220,7 @@ func (s *mainState) openWebViewURL(browse string) {
 	}
 	inset := chrome.TitleBarHeight + panelH
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
+		OnChange: func() { win.Update(func() {}) },
 		Parent:   win,
 		URL:      browse,
 		Title:    hostTitle,
@@ -4446,8 +4459,13 @@ func mainView(c *ui.Context) {
 			hostActive := host != nil && host.Alive()
 			hostURL := ""
 			if hostActive {
-				hostURL = host.URL()
+				hostState := host.State()
+				hostURL = hostState.URL
+				if hostState.Error != "" {
+					hostErr = hostState.Error
+				}
 			}
+			resumeURL := desktopwebview.RestorePanelURL(origin, state.lastWebViewOrigin, state.lastWebViewURL)
 			state.mu.Unlock()
 			if hostActive {
 				host.SyncBounds()
@@ -4470,7 +4488,10 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnOpenHost: func() {
-					state.openWebViewHost(origin)
+					state.mu.Lock()
+					state.lastWebViewOrigin = origin
+					state.mu.Unlock()
+					state.openWebViewURL(resumeURL)
 					if win != nil {
 						win.Update(func() {})
 					}
@@ -4491,13 +4512,24 @@ func mainView(c *ui.Context) {
 					if u == "" {
 						return
 					}
-					state.openWebViewURL(u)
+					state.mu.Lock()
+					state.webviewHostErr = ""
+					state.mu.Unlock()
+					if host != nil && host.Alive() {
+						host.Reload()
+					} else {
+						state.openWebViewURL(u)
+					}
 					if win != nil {
 						win.Update(func() {})
 					}
 				},
 				OnOpenBrowser: func() {
-					if u := desktopwebview.HarnessBrowseURL(origin); u != "" {
+					u := resumeURL
+					if hostActive {
+						u = hostURL
+					}
+					if u != "" {
 						if err := desktopwebview.OpenExternal(u); err != nil {
 							log.Printf("webview: open browser: %v", err)
 						}
