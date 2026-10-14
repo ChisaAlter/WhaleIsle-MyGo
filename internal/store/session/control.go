@@ -34,11 +34,7 @@ func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID str
 	if err := mux.Dial(ctx); err != nil {
 		return
 	}
-	stream, err := mux.Open(ctx, "session/control", map[string]any{
-		"args": map[string]any{
-			"request": map[string]any{"sessionId": sessionID},
-		},
-	})
+	stream, err := mux.Open(ctx, "session/control", map[string]any{"args": map[string]any{}})
 	if err != nil {
 		return
 	}
@@ -62,10 +58,11 @@ func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID str
 			note = truncateRunes(string(raw), 80)
 		}
 		s.mu.Lock()
-		if s.selectedID != sessionID {
+		if s.selectedID != sessionID || ctx.Err() != nil || s.mux != mux {
 			s.mu.Unlock()
 			return
 		}
+		s.applyCostControlLocked(raw)
 		s.controlNote = note
 		s.mu.Unlock()
 		s.fire()

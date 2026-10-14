@@ -170,6 +170,11 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			if !m.hasTitle && s.items[index].Title != "" {
 				m.item.Title = s.items[index].Title
 			}
+			if m.item.BilledUsage == nil {
+				m.item.BilledUsage = s.items[index].BilledUsage
+				m.item.BilledUsageSeq = s.items[index].BilledUsageSeq
+				m.item.BilledUsageKind = s.items[index].BilledUsageKind
+			}
 			s.items[index] = m.item
 		}
 		s.applyPinnedFlagsLocked()

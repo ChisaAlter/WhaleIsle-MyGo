@@ -132,6 +132,10 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 	switch head.Type {
 	case "snapshot":
 		var snap struct {
+			Projections *struct {
+				AsOfSeq float64
+				Values  json.RawMessage
+			} `json:"projections"`
 			Cursor  *float64 `json:"cursor"`
 			HasMore *bool    `json:"hasMore"`
 			Records []struct {
@@ -141,6 +145,9 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		}
 		if json.Unmarshal(raw, &snap) != nil || snap.Records == nil {
 			return false
+		}
+		if snap.Projections != nil {
+			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.messages = nil
 		s.turnStartMs = 0

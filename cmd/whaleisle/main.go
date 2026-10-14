@@ -74,6 +74,7 @@ import (
 	marketui "whaleisle/internal/ui/market"
 	remoteui "whaleisle/internal/ui/remote"
 	scheduleui "whaleisle/internal/ui/schedule"
+	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/settings"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
@@ -309,6 +310,7 @@ type mainState struct {
 	dirPickErr         string
 	dirPickNewName     string
 
+	sessionCostState      costui.State
 	composerSuggestSel    int
 	composerSuggest       ui.ListState
 	composerPathsRoot     string
@@ -1938,6 +1940,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	})
 	setStore.Attach(client, refresh)
 	usageStore.Attach(client, refresh)
+	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
 	marketStore.Attach(client, refresh)
@@ -6011,6 +6014,12 @@ func mainView(c *ui.Context) {
 							state.restartUnlessImport(sup)
 						}
 					},
+					SessionCost: costui.Model{Billing: func() usagestore.BillingView {
+						if usageStore != nil {
+							return usageStore.Billing()
+						}
+						return usagestore.BillingView{}
+					}(), Preferences: setStore.Snapshot(), State: &state.sessionCostState, OnPrices: func() { state.mu.Lock(); state.usageOpen = true; state.mu.Unlock() }},
 					UsageJobsToday: usageJobsToday,
 					UsageBalance:   usageBalance,
 					OnOpenUsage: func() {

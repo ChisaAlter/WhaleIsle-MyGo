@@ -8,6 +8,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/sessioncost"
 )
 
 // FollowWorkspace opens workspace/follow until ctx ends or Detach cancels it.
@@ -178,6 +179,11 @@ func itemFromListRow(it api.SessionListValueItemsItem) Item {
 		Running:        it.Running,
 		Blank:          it.Blank,
 		UpdatedAt:      it.UpdatedAt,
+	}
+	if it.Projections != nil {
+		row.BilledUsage = sessioncost.Decode(it.Projections.Values)
+		row.BilledUsageSeq = it.Projections.AsOfSeq
+		row.BilledUsageKind = it.Projections.Kind
 	}
 	if it.Cwd != nil {
 		row.Cwd = strings.TrimSpace(*it.Cwd)

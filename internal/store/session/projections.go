@@ -27,17 +27,16 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 			return
 		}
 		title := titleFromProjections(json.RawMessage(out.Values))
-		if title == "" {
-			return
-		}
+
 		s.mu.Lock()
-		if s.selectedID != sessionID {
+		if s.selectedID != sessionID || s.client != client {
 			s.mu.Unlock()
 			return
 		}
+		s.applyCostBaselineLocked(sessionID, out.AsOfSeq, out.Values)
 		for i := range s.items {
 			if s.items[i].SessionID == sessionID {
-				if strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID {
+				if title != "" && (strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID) {
 					s.items[i].Title = title
 				}
 				break

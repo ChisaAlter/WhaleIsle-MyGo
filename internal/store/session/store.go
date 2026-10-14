@@ -12,10 +12,15 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+ "whaleisle/internal/store/sessioncost"
 )
 
 // Item is one row in the session tree.
 type Item struct {
+ BilledUsage *sessioncost.Projection
+ BilledUsageSeq float64
+ BilledUsageKind string
+
 	SessionID string
 	ParentID  string
 	Title     string
@@ -63,6 +68,9 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+ CostSources []sessioncost.Source
+ SelectedProvider string
+
 	ScratchCwd       string
 	SelectedCwd      string
 	WorkspaceMembers map[string]bool
@@ -125,6 +133,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+ costProjections map[string]costProjection
+
 	noDirectoryMu        sync.Mutex
 	scratchCwd           string
 	workspaceReady       bool
@@ -218,6 +228,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.listLoading = false
 		s.listMutations = nil
 	}
+	s.costProjections = nil
 	s.client = client
 	s.notify = notify
 	s.listErr = nil
@@ -379,6 +390,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+ CostSources:s.costSourcesLocked(),
 		ClientReady:       s.client != nil,
 		ScratchCwd:        s.scratchCwd,
 		WorkspaceMembers:  s.workspaceMembersLocked(),
@@ -390,6 +402,7 @@ func (s *Store) Snapshot() ViewState {
 		HistoryBranchBusy: s.historyBranchBusy,
 		FeedbackBusyID:    s.feedbackBusyID,
 	}
+	if opt,ok:=optionByLabel(s.selectedModelLabel,s.modelOptions);ok{st.SelectedProvider=opt.Provider}
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))
 		for k, v := range s.messageRatings {

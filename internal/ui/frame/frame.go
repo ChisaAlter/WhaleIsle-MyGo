@@ -21,6 +21,7 @@ import (
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/i18n"
 	interui "whaleisle/internal/ui/interaction"
+	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/sidebar"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
@@ -231,6 +232,7 @@ type Model struct {
 	OnReconnect          func()
 	UsageJobsToday       *int
 	UsageBalance         string
+	SessionCost          costui.Model
 	OnOpenUsage          func()
 	EditMessageSeq       *float64
 	FeedbackCommentMsgID *string
@@ -866,6 +868,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						ui.Box(c).Grow(1).MinWidth(0)
 						ui.Column(c).Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).Children(func() {
 							paintComposer(false)
+							costModel := m.SessionCost
+							costModel.Snapshot = snap
+							costui.View(c, costModel, muted)
 						})
 						ui.Box(c).Grow(1).MinWidth(0)
 					})
