@@ -42,6 +42,12 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	if r.Context().Err() != nil {
 		return
 	}
+	if r.URL.Path == "/desktop/html-preview/status" && r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(Readiness())
+		return
+	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		reply(w, http.StatusMethodNotAllowed, "method not allowed")

@@ -153,7 +153,7 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/install" && r.URL.Path != "/desktop/project" && r.URL.Path != "/desktop/html-preview" {
+	if r.URL.Path != "/install" && r.URL.Path != "/desktop/project" && r.URL.Path != "/desktop/html-preview" && r.URL.Path != "/desktop/html-preview/status" {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
@@ -162,6 +162,20 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if token == "" || r.Header.Get("Authorization") != "Bearer "+token {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthorized"})
+		return
+	}
+	// Readiness is authenticated with the same token as capture and never runs
+	// a probe or enables settings as a side effect.
+	if r.URL.Path == "/desktop/html-preview/status" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
+			return
+		}
+		if s.opts.HTMLPreview == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"available": false, "reason": "isolated HTML preview unavailable"})
+			return
+		}
+		s.opts.HTMLPreview.ServeHTTP(w, r)
 		return
 	}
 	if r.Method != http.MethodPost {
