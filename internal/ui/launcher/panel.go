@@ -104,8 +104,10 @@ type Model struct {
 	// ImportCategories maps chip id ??found (from importer.Report.CategoryFound).
 	ImportCategories map[string]bool
 	// ImportCatalog is the live scanImport inventory (item rows + selection).
-	ImportCatalog *importer.Catalog
-	OnStartImport func()
+	ImportCatalog  *importer.Catalog
+	OnStartImport  func()
+	ImportBusy     bool
+	OnCancelImport func()
 	// RoutePopOpen controls #rail-route-pop listbox visibility.
 	RoutePopOpen *bool
 }
@@ -880,10 +882,25 @@ func versionsPanel(c *ui.Context, m Model) {
 }
 
 func importPanel(c *ui.Context, m Model) {
+	if m.ImportBusy {
+		ui.Column(c).FillWidth().Gap(8).Children(func() {
+			ui.Text(c, "正在导入 · 操作结束前不能再次开始").FontSize(14).TextColor(colPrimary)
+			ui.Text(c, m.ImportSummary).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, "取消会在当前项目完成后停止；已完成的数据保留，可安全重扫。 ").FontSize(12).TextColor(colSecondary)
+			if ghostSmall(c, "取消后续导入").Clicked() && m.OnCancelImport != nil {
+				m.OnCancelImport()
+			}
+			for _, line := range m.ImportJournal {
+				ui.Text(c, line).FontSize(11).TextColor(colTertiary)
+			}
+		})
+		return
+	}
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportLede)).
 			FontSize(12).TextColor(colSecondary)
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(12).TextColor(colAccent)
+		ui.Text(c, importer.CopyOnlyNotice).FontSize(12).TextColor(colSecondary)
 
 		pathLine := i18n.T(i18n.KeyLauncherImportEmpty)
 		if m.ImportSummary != "" {

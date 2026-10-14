@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -36,6 +37,12 @@ var ErrEmptySelection = errors.New("importer: empty selection")
 // ApplyCatalog copies selected catalog items from SourceHome → DestHome.
 // Plugins are not reinstalled (needs Electron installPlugin channel).
 func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
+	return ApplyCatalogProgress(context.Background(), cat, sel, nil)
+}
+
+// ApplyCatalogProgress reports completed items and retains their journal on failure.
+// Cancellation is checked between items; a completed item is never rolled back.
+func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, progress func(ApplyResult)) (result ApplyResult, resultErr error) {
 	empty := len(sel.SelectedRels) == 0 && len(sel.SelectedSkillIDs) == 0 &&
 		len(sel.SelectedMcpIDs) == 0 && len(sel.SelectedSettingIDs) == 0 &&
 		len(sel.SelectedPresetIDs) == 0 && !sel.ImportAttachments
@@ -45,19 +52,39 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 	if cat.SourceHome == "" || cat.DestHome == "" {
 		return ApplyResult{}, ErrNotDirectory
 	}
+	if err := ValidateRoots(cat.SourceHome, cat.DestHome); err != nil {
+		return ApplyResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := os.MkdirAll(cat.DestHome, 0o755); err != nil {
 		return ApplyResult{}, err
 	}
 
 	var copied, skipped int
 	var journal []string
-	note := func(line string) { journal = append(journal, line) }
+	defer func() {
+		if resultErr != nil {
+			result = ApplyResult{Copied: copied, Skipped: skipped, Message: fmt.Sprintf("导入未完成：已复制 %d 项，跳过 %d 项；已完成项保留。%v", copied, skipped, resultErr), Journal: append([]string(nil), journal...)}
+			result.Journal = append(result.Journal, result.Message)
+		}
+	}()
+	note := func(line string) {
+		journal = append(journal, line)
+		if progress != nil {
+			progress(ApplyResult{Copied: copied, Skipped: skipped, Message: line, Journal: append([]string(nil), journal...)})
+		}
+	}
 	// Sessions
 	byRel := map[string]CatalogItem{}
 	for _, it := range cat.Sessions {
 		byRel[it.Rel] = it
 	}
 	for _, rel := range sel.SelectedRels {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		it, ok := byRel[rel]
 		if !ok || it.Unsupported {
 			skipped++
@@ -83,6 +110,9 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 		bySkill[it.ID] = it
 	}
 	for _, id := range sel.SelectedSkillIDs {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		it, ok := bySkill[id]
 		if !ok {
 			skipped++
@@ -104,6 +134,9 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 
 	// MCP — copy whole file when any id selected (merge-lite).
 	if len(sel.SelectedMcpIDs) > 0 {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		src := filepath.Join(cat.SourceHome, "mcp-servers.yaml")
 		dst := filepath.Join(cat.DestHome, "mcp-servers.yaml")
 		if entryExists(src, false) {
@@ -134,6 +167,9 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 	// Settings whitelist sections: copy settings.yaml wholesale when selected;
 	// AGENTS.md copied by id.
 	if len(sel.SelectedSettingIDs) > 0 {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		wantYAML := false
 		for _, id := range sel.SelectedSettingIDs {
 			if id == "agents-md" {
@@ -177,6 +213,9 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 		byPreset[it.ID] = it
 	}
 	for _, id := range sel.SelectedPresetIDs {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		it, ok := byPreset[id]
 		if !ok || it.Unsupported {
 			skipped++
@@ -197,6 +236,9 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 	}
 
 	if sel.ImportAttachments {
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
 		src := filepath.Join(cat.SourceHome, "attachments")
 		dst := filepath.Join(cat.DestHome, "attachments")
 		if entryExists(src, true) {

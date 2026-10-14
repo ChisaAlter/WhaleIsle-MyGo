@@ -200,6 +200,8 @@ type mainState struct {
 	launcherWorkspaceDraft     string
 	launcherImport             string
 	launcherImportJournal      []string
+	launcherImportBusy         bool
+	launcherImportCancel       context.CancelFunc
 	launcherUpdate             string
 	launcherUpdateAvailable    bool
 	launcherUpdateSynced       bool
@@ -902,7 +904,7 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 	}
 	if sup != nil {
 		s.syncHarnessFromConfig()
-		sup.Restart()
+		state.restartUnlessImport(sup)
 	}
 	if win != nil {
 		win.Update(func() {})
@@ -2334,6 +2336,15 @@ func main() {
 }
 
 func startHarness(cfg config.Config) {
+	state.mu.Lock()
+	if state.launcherImportBusy {
+		state.launcherStartBusy = false
+		state.launcherImport = "导入尚未结束，暂不能启动内核。"
+		state.mu.Unlock()
+		return
+	}
+	state.launcherStartBusy = true
+	state.mu.Unlock()
 	host := cfg.Host
 	if host == "" {
 		host = "127.0.0.1"
@@ -2349,7 +2360,7 @@ func startHarness(cfg config.Config) {
 			s := state.sup
 			state.mu.Unlock()
 			if s != nil {
-				s.Restart()
+				state.restartUnlessImport(s)
 			}
 		},
 	})
@@ -2730,6 +2741,12 @@ func (s *mainState) hydrateViewTabsFromHarness(setStore *settingsstore.Store) {
 }
 
 func (s *mainState) applyImportCatalog(win *mygo.Window, sourceHome string) {
+	s.mu.Lock()
+	busy := s.launcherImportBusy
+	s.mu.Unlock()
+	if busy {
+		return
+	}
 	src := strings.TrimSpace(sourceHome)
 	if src == "" {
 		src = importer.OfficialDshHome()
@@ -2820,6 +2837,7 @@ func mainView(c *ui.Context) {
 	}
 	launcherImport := state.launcherImport
 	launcherImportJournal := append([]string(nil), state.launcherImportJournal...)
+	launcherImportBusy := state.launcherImportBusy
 	launcherUpdate := state.launcherUpdate
 	launcherUpdateAvailable := state.launcherUpdateAvailable
 	launcherNote := state.launcherNote
@@ -3322,34 +3340,14 @@ func mainView(c *ui.Context) {
 					}
 					mygo.Clipboard.WriteText(strings.Join(lines, "\n"))
 				},
-				OnStartImport: func() {
+				OnStartImport: func() { state.startImport(win) },
+				ImportBusy:    launcherImportBusy,
+				OnCancelImport: func() {
 					state.mu.Lock()
-					cat := state.launcherImportCatalog
-					ow := state.launcherImportOverwrite
-					att := state.launcherImportAttachments
+					cancel := state.launcherImportCancel
 					state.mu.Unlock()
-					if cat == nil {
-						state.mu.Lock()
-						state.launcherImport = i18n.T(i18n.KeyLauncherImportRescanFirst)
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
-					sel := importer.SelectionFromCatalog(*cat, att, ow)
-					res, err := importer.ApplyCatalog(*cat, sel)
-					state.mu.Lock()
-					if err != nil {
-						state.launcherImport = err.Error()
-						state.launcherImportJournal = []string{err.Error()}
-					} else {
-						state.launcherImport = res.Message
-						state.launcherImportJournal = append([]string(nil), res.Journal...)
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
+					if cancel != nil {
+						cancel()
 					}
 				},
 				OnInstallUpdate: func() {
@@ -3426,7 +3424,7 @@ func mainView(c *ui.Context) {
 					if err == nil {
 						state.syncHarnessFromConfig()
 						if harnessSup != nil {
-							harnessSup.Restart()
+							state.restartUnlessImport(harnessSup)
 						}
 					}
 					if win != nil {
@@ -3448,7 +3446,7 @@ func mainView(c *ui.Context) {
 					if err == nil {
 						state.syncHarnessFromConfig()
 						if harnessSup != nil {
-							harnessSup.Restart()
+							state.restartUnlessImport(harnessSup)
 						}
 					}
 					if win != nil {
@@ -3458,7 +3456,7 @@ func mainView(c *ui.Context) {
 				OnRestartHarness: func() {
 					state.syncHarnessFromConfig()
 					if harnessSup != nil {
-						harnessSup.Restart()
+						state.restartUnlessImport(harnessSup)
 					}
 					state.mu.Lock()
 					state.launcherNote = i18n.T(i18n.KeyLauncherRestartHarness)
@@ -6020,7 +6018,7 @@ func mainView(c *ui.Context) {
 						sup := state.sup
 						state.mu.Unlock()
 						if sup != nil {
-							sup.Restart()
+							state.restartUnlessImport(sup)
 						}
 					},
 					UsageJobsToday: usageJobsToday,
@@ -6780,7 +6778,7 @@ func mainView(c *ui.Context) {
 			SystemDark: mygo.Theme.IsDark(),
 			OnRetry: func() {
 				if sup != nil {
-					sup.Restart()
+					state.restartUnlessImport(sup)
 				}
 			},
 			OnExport: func() {
