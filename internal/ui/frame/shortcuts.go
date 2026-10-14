@@ -9,11 +9,16 @@ import (
 // follow the Electron feature owners, not the older documentation summary.
 // PageShortcut deliberately leaves text/IME, terminal and guest-page input alone.
 func registerPageCommands(c *ui.Context, m Model) {
+	var toggleSidebar func()
+	if m.Sizes != nil {
+		toggleSidebar = m.Sizes.ToggleSidebar
+	}
 	commands := []struct {
 		mods ui.Modifiers
 		key  ui.Key
 		run  func()
 	}{
+		{ui.Cmd, ui.KeyB, toggleSidebar},
 		{ui.Cmd, ui.KeyN, func() { m.Store.CreateSession(context.Background()) }},
 		{ui.Cmd, ui.KeyO, m.OnBrowseWorkspace},
 		{ui.Cmd, ui.KeyComma, m.OnOpenSettings},

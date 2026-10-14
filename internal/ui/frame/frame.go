@@ -28,12 +28,13 @@ import (
 
 // LayoutSizes persist split pane dimensions (DIPs) across frames.
 type LayoutSizes struct {
-	Sidebar   float32
-	Center    float32 // resolved chat width; not a saved right-pane preference
-	Right     float32 // remembered right width, 0 = first-open viewport default
-	Main      float32 // height of the dialogue column when the terminal is open
-	Bottom    float32 // >40 shows the terminal (saved height preference when hidden)
-	RightTree float32 // height of file tree above preview in the right pane
+	Sidebar         float32
+	SidebarExpanded float32 // last expanded preference; Sidebar=0 is the compact rail
+	Center          float32 // resolved chat width; not a saved right-pane preference
+	Right           float32 // remembered right width, 0 = first-open viewport default
+	Main            float32 // height of the dialogue column when the terminal is open
+	Bottom          float32 // >40 shows the terminal (saved height preference when hidden)
+	RightTree       float32 // height of file tree above preview in the right pane
 }
 
 // Desktop ui-layout columns.ts contract (anywhere-labs harness-desktop).
@@ -304,11 +305,10 @@ func clampSidebarWidth(w float32) float32 {
 }
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
-	if m.Sizes != nil {
-		m.Sizes.Sidebar = clampSidebarWidth(m.Sizes.Sidebar)
-	}
-	ui.Split(c, &m.Sizes.Sidebar, func() {
+	sidebarColumns(c, m.Sizes, func() {
 		sidebar.View(c, sidebar.Model{
+			Collapsed:       m.Sizes.Sidebar <= 0,
+			OnToggle:        m.Sizes.ToggleSidebar,
 			Snapshot:        snap,
 			ThemeID:         m.ThemeID,
 			SystemDark:      m.SystemDark,
@@ -878,7 +878,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			})
 		}
 		centerRightColumns(c, m, paintCenter, func() { rightPane(c, m) })
-	}).Grow(1).MinWidth(0).MinHeight(0).Changed()
+	})
 }
 
 func derefString(p *string) string {

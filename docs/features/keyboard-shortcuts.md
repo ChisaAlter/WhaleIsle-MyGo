@@ -3,6 +3,7 @@
 The main conversation shell routes these defaults to its existing button actions
 (Command replaces Ctrl on macOS):
 
+- Ctrl+B: collapse/expand the left sidebar, restoring its last dragged width
 - Ctrl+N: new conversation, using the existing blank-session reuse behavior
 - Ctrl+O: browse/open a workspace
 - Ctrl+,: settings
@@ -28,7 +29,7 @@ frames, rather than relying only on the last rendered focus state.
 ## Deliberately not implemented here
 
 No custom-binding editor, keybindings persistence, guest interception or separate
-command registry. Left sidebar collapse, search focus and other commands without
+command registry. Search focus and other commands without
 an existing matching shell action are not falsely mapped to another action.
 
 ## Directed fixture
@@ -36,3 +37,15 @@ an existing matching shell action are not falsely mapped to another action.
 `go test ./internal/ui/frame -run '^TestPageCommandsRespectInputOwnership$' -count=1`
 checks callback dispatch, exact modifiers, plain-key pass-through, text/IME,
 custom-input ownership, and modal suppression/recovery without starting a Host.
+
+## Left sidebar preference
+
+The expanded sidebar remains 264–420 DIP. Collapsing keeps a 56-DIP rail with an
+expand button; the expanded header has a collapse button. The compact rail has
+no draggable divider. The last expanded width and collapsed state are saved in
+the existing go-resume snapshot; older snapshots fall back to the configured
+expanded width. Sidebar toggling retains the center pane's tree identity.
+
+`go test ./internal/ui/frame -run '^TestSidebarCollapseRestore$' -count=1`
+checks actual shell toggle buttons, Ctrl+B, divider resize, geometry, resume
+serialization and text/IME/custom-input ownership without starting a Host.

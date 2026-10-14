@@ -21,15 +21,16 @@ var ErrBusy = errors.New("resume data is being saved by another instance; retry 
 
 // Layout stores preferences, never viewport-constrained measurements.
 type Layout struct {
-	Sidebar       float32 `json:"sidebar"`
-	Right         float32 `json:"right"`
-	Bottom        float32 `json:"bottom"`
-	RightTree     float32 `json:"rightTree"`
-	RightOpen     bool    `json:"rightOpen"`
-	RightTab      string  `json:"rightTab"`
-	ChatTab       string  `json:"chatTab"`
-	PlanOpen      bool    `json:"planOpen"`
-	TodoCollapsed bool    `json:"todoCollapsed"`
+	Sidebar         float32 `json:"sidebar"`
+	SidebarExpanded float32 `json:"sidebarExpanded,omitempty"`
+	Right           float32 `json:"right"`
+	Bottom          float32 `json:"bottom"`
+	RightTree       float32 `json:"rightTree"`
+	RightOpen       bool    `json:"rightOpen"`
+	RightTab        string  `json:"rightTab"`
+	ChatTab         string  `json:"chatTab"`
+	PlanOpen        bool    `json:"planOpen"`
+	TodoCollapsed   bool    `json:"todoCollapsed"`
 }
 
 type State struct {

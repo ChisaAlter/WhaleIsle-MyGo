@@ -14,6 +14,8 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	Collapsed       bool
+	OnToggle        func()
 	Snapshot        session.ViewState
 	ThemeID         string
 	SystemDark      bool
@@ -69,6 +71,14 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	bg := chrome.Color(colors.Sidebar)
 	border := chrome.Color(colors.Border)
+	if m.Collapsed {
+		ui.Column(c).Fill().MinWidth(0).Padding(6, 8, 6, 8).Background(bg).Children(func() {
+			if ui.Button(c, "›").Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand)+" (Ctrl+B)").FillWidth().Height(40).Clicked() && m.OnToggle != nil {
+				m.OnToggle()
+			}
+		})
+		return
+	}
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
@@ -89,6 +99,11 @@ func View(c *ui.Context, m Model) {
 					})
 					ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(9).TextColor(muted)
 				})
+				if m.OnToggle != nil {
+					if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
+						m.OnToggle()
+					}
+				}
 			})
 			if m.OnCreate != nil {
 				// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
