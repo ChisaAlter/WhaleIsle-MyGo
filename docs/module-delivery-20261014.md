@@ -96,6 +96,7 @@
 - 桌宠摸头：显式 pat 复用原版care，心情+10/亲密+4，同类十分钟内亲密+1；沿用原子stats保存，不消费粮/积分、不调用模型。仅合成fixture与编译。
 - 隔离 Linux Host 烟测：一次新临时HOME/数据目录、最小环境和loopback网络约束启动成功，认证根页200、原版Project list 200且available=true；未创建项目/会话、未模型调用，HTML fresh status仍false，SIGTERM正常exit0。仅Linux基础启动/组合验证，不代表Windows原生UI/手机配对验收。
 - 桌宠临时睡眠/唤醒：睡眠不落配置/不发奖励，显式叫醒原版心情−7且重复wake幂等，成功照料/接触唤醒不追加惩罚；关闭重建清醒，睡眠暂停既有sprite/THA4循环，醒来复用实例。仅合成fixture与编译，未运行模型。
+- Windows离线runtime候选：已用官方固定Node/ABI137 SQLite及35个精确平台包装配Host/mobile依赖图，静态PE/内部链接/来源hash检查完成；298426文件、17738相对链接和431相对cmd包装。状态prepared/runtime_verified=false，保留Linux来源清单，不伪造Windows成功marker；尚需Windows链接恢复/native-load验收，不能称解压即用，巨型产物不入源码附件。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围

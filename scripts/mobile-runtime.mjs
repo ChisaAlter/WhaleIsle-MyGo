@@ -1,5 +1,6 @@
 // Build/staging utilities only. Never import the daemon or create a device identity.
 import fs from 'node:fs';
+import {prepare as prepareOfflineWindows} from './offline-windows-runtime.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -215,10 +216,11 @@ export function verify(root) {
 }
 if(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [mode,...args] = process.argv.slice(2);
-  if(mode === 'prepare') prepare(...args);
+  if(mode === 'prepare-offline-windows') console.log(JSON.stringify(prepareOfflineWindows(...args),null,2));
+  else if(mode === 'prepare') prepare(...args);
   else if(mode === 'bundle') bundle(...args);
   else if(mode === 'record') record(...args);
   else if(mode === 'stage') stage(...args);
   else if(mode === 'verify') verify(...args);
-  else throw new Error('Expected prepare, bundle, record, stage, or verify');
+  else throw new Error('Expected prepare-offline-windows, prepare, bundle, record, stage, or verify');
 }

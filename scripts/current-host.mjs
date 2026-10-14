@@ -1,5 +1,6 @@
 // Build/staging only. Never starts Host, imports a daemon, or touches user profiles.
 import fs from 'node:fs';
+import {prepare as prepareOfflineWindows} from './offline-windows-runtime.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -82,6 +83,6 @@ export function stage(work,legacyVendor,target) {
  return {vendorDir:target,sourceCommit:commit,requiresBridgeVerification:true};
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
- try {const [command,...args]=process.argv.slice(2);const fn={prepare,finalize,verify,stage}[command];if(!fn)throw new Error('Usage: current-host.mjs prepare|finalize|verify|stage ...');console.log(JSON.stringify(fn(...args),null,2));}
+ try {const [command,...args]=process.argv.slice(2);const fn={prepare,finalize,verify,stage,'prepare-offline-windows':prepareOfflineWindows}[command];if(!fn)throw new Error('Usage: current-host.mjs prepare|finalize|verify|stage|prepare-offline-windows ...');console.log(JSON.stringify(fn(...args),null,2));}
  catch(e){console.error(e.message);process.exitCode=1;}
 }
