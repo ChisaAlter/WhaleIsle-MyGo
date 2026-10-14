@@ -123,6 +123,7 @@ func TestMuxStreamError(t *testing.T) {
 func TestFollowEventsWaterfallNext(t *testing.T) {
 	var resultBody atomic.Value
 	muxDone := make(chan struct{})
+	resultDone := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == EventsResultPath && r.Method == http.MethodPost:
@@ -130,6 +131,7 @@ func TestFollowEventsWaterfallNext(t *testing.T) {
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			resultBody.Store(body)
 			w.WriteHeader(http.StatusNoContent)
+			close(resultDone)
 		case r.URL.Path == MuxPath:
 			c, err := websocket.Accept(w, r, nil)
 			if err != nil {
@@ -160,6 +162,7 @@ func TestFollowEventsWaterfallNext(t *testing.T) {
 					`{"type":"waterfall","event":"approval/request","eventId":"e1","agentId":"a1","request":{"x":1}}`,
 				),
 			})
+			<-resultDone
 			_ = wsjson.Write(r.Context(), c, ServerFrame{
 				Type:     FrameEnd,
 				StreamID: open.StreamID,

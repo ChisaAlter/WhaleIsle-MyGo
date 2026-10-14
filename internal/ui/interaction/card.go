@@ -93,7 +93,20 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				})
 			}
 		}
+		if p.Error != "" {
+			ui.Text(c, p.Error).FontSize(12).TextColor(muted)
+		}
 		ui.Row(c).Gap(8).Children(func() {
+			if p.Sending {
+				ui.Button(c, i18n.T(i18n.KeyInteractionContinue)).Disabled(true)
+				return
+			}
+			if p.Error != "" {
+				if ui.Button(c, i18n.T(i18n.KeyBootRetry)).Clicked() {
+					store.Retry(p.EventID)
+				}
+				return
+			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
 				canSubmit := store.QuestionsCanSubmit(p.EventID)
@@ -110,12 +123,6 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			default:
 				if ui.Button(c, i18n.T(i18n.KeyInteractionAllow)).Clicked() {
 					store.ResolveAllow(p.EventID)
-				}
-				if ui.Button(c, i18n.T(i18n.KeyInteractionAllowAlways)).Clicked() {
-					store.ResolveAllowAlways(p.EventID)
-					if onAuto != nil {
-						onAuto(true)
-					}
 				}
 				if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
 					store.ResolveDeny(p.EventID)
@@ -135,19 +142,28 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 			if label != "" {
 				ui.Text(c, label).FontSize(12).TextColor(fg)
 			}
-			if len(row.OptionLabels) == 0 {
+			if row.Detail != "" {
+				ui.Text(c, row.Detail).FontSize(12).TextColor(muted)
+			}
+			// The protocol permits a custom answer even when choices are supplied.
+			defer func() {
 				ptr := store.QuestionCustomPtr(eventID, row.ID)
 				inp := ui.TextInput(c, ptr).Fill()
 				if inp.Changed() {
 					store.SetQuestionCustom(eventID, row.ID, *ptr)
 				}
+			}()
+			if len(row.OptionLabels) == 0 {
 				return
 			}
 			if row.MultiSelect {
-				for _, opt := range row.OptionLabels {
+				for index, opt := range row.OptionLabels {
 					opt := opt
 					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
 					box := ui.Checkbox(c, checked, opt)
+					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
+						ui.Text(c, row.OptionDescriptions[index]).FontSize(11).TextColor(muted)
+					}
 					if box.Changed() {
 						store.SetQuestionOptionChecked(eventID, row.ID, opt, *checked)
 					}
@@ -155,10 +171,13 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 				return
 			}
 			if len(row.OptionLabels) <= 4 {
-				for _, opt := range row.OptionLabels {
+				for index, opt := range row.OptionLabels {
 					opt := opt
 					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
 					box := ui.Checkbox(c, checked, opt)
+					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
+						ui.Text(c, row.OptionDescriptions[index]).FontSize(11).TextColor(muted)
+					}
 					if box.Changed() && *checked {
 						store.SetQuestionOptionChecked(eventID, row.ID, opt, true)
 					}

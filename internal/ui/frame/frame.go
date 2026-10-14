@@ -796,7 +796,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
 								interui.View(c, interui.Model{
-									Snapshot:           m.Interactions.Snapshot(),
+									Snapshot:           m.Interactions.SnapshotForAgent(snap.SelectedID),
 									ThemeID:            m.ThemeID,
 									SystemDark:         m.SystemDark,
 									Store:              m.Interactions,

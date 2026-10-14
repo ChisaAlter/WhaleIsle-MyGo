@@ -9,15 +9,13 @@ import (
 	"sync"
 
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 )
 
 const (
-	EventApproval        = "approval/request"
-	EventUserQuestions   = "user-questions/request"
-	outcomeAllowedOnce   = "allowed-once"
-	outcomeAllowedAlways = "allowed-always"
-	outcomeRejected      = "rejected"
+	EventApproval      = "approval/request"
+	EventUserQuestions = "user-questions/request"
+	outcomeAllowedOnce = "allowed-once"
+	outcomeRejected    = "rejected"
 )
 
 // Pending is one waterfall waiting for a UI or policy answer.
@@ -30,7 +28,9 @@ type Pending struct {
 	// Args is a monospace preview of tool input (approval cards).
 	Args string
 	// CallID is the harness tool call id when present.
-	CallID string
+	CallID  string
+	Sending bool
+	Error   string
 }
 
 // ViewState is UI-safe interaction state.
@@ -51,7 +51,10 @@ type Store struct {
 	banner         string
 	pending        []Pending
 	waiters        map[string]chan dsh.EventResultOutcome
+	responses      map[string]dsh.EventResultOutcome
+	cancelled      map[string]bool
 	questionDrafts map[string]*draftSession
+	waitCancels    map[string]context.CancelFunc
 }
 
 // New returns an interaction store with manual tool approval (Electron default).
@@ -60,7 +63,10 @@ func New() *Store {
 		autoAllow:      false,
 		banner:         "",
 		waiters:        make(map[string]chan dsh.EventResultOutcome),
+		responses:      make(map[string]dsh.EventResultOutcome),
+		cancelled:      make(map[string]bool),
 		questionDrafts: make(map[string]*draftSession),
+		waitCancels:    make(map[string]context.CancelFunc),
 	}
 }
 
@@ -76,7 +82,12 @@ func (s *Store) Detach() {
 	s.mu.Lock()
 	s.client = nil
 	s.mux = nil
+	for id, cancel := range s.waitCancels {
+		cancel()
+		delete(s.waitCancels, id)
+	}
 	for id, ch := range s.waiters {
+		s.cancelled[id] = true
 		select {
 		case ch <- dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: "client stopped"}}:
 		default:
@@ -84,6 +95,7 @@ func (s *Store) Detach() {
 		delete(s.waiters, id)
 	}
 	s.pending = nil
+	s.responses = make(map[string]dsh.EventResultOutcome)
 	s.banner = ""
 	s.questionDrafts = make(map[string]*draftSession)
 	s.mu.Unlock()
@@ -122,17 +134,20 @@ func (s *Store) ResolveAllow(eventID string) {
 	s.resolve(eventID, approvalOutcome(outcomeAllowedOnce))
 }
 
-// ResolveAllowAlways answers with allowed-always and enables local auto-allow.
-func (s *Store) ResolveAllowAlways(eventID string) {
-	s.mu.Lock()
-	s.autoAllow = true
-	s.banner = ""
-	s.mu.Unlock()
-	s.resolve(eventID, approvalOutcome(outcomeAllowedAlways))
-}
+// ResolveAllowAlways is retained for callers compiled against the old shell.
+// The Host protocol grants only one action; it never enables automatic approval.
+func (s *Store) ResolveAllowAlways(eventID string) { s.ResolveAllow(eventID) }
 
 // ResolveDeny rejects a pending approval or question.
 func (s *Store) ResolveDeny(eventID string) {
+	s.mu.Lock()
+	p := s.findPending(eventID)
+	question := p != nil && p.Event == EventUserQuestions
+	s.mu.Unlock()
+	if question {
+		s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "User declined to answer"}})
+		return
+	}
 	s.resolve(eventID, approvalOutcome(outcomeRejected))
 }
 
@@ -140,39 +155,17 @@ func (s *Store) ResolveDeny(eventID string) {
 func (s *Store) ResolveQuestions(eventID string) {
 	s.mu.Lock()
 	ds := s.questionDrafts[eventID]
-	s.mu.Unlock()
-	if ds == nil {
-		s.mu.Lock()
-		p := s.findPending(eventID)
+	if ds == nil || !ds.answerValid() {
 		s.mu.Unlock()
-		if p == nil {
-			return
-		}
-		var req userQuestionsRequest
-		_ = json.Unmarshal([]byte(p.Detail), &req)
-		ds = newDraftSession(req)
-	}
-	if !ds.answerValid() {
 		return
 	}
 	answer := ds.buildAnswer()
+	s.mu.Unlock()
+
 	raw, err := json.Marshal(answer)
 	if err != nil {
 		s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: err.Error()}})
 		return
-	}
-	s.mu.Lock()
-	p := s.findPending(eventID)
-	agentID, callID := "", ""
-	if p != nil {
-		agentID = p.AgentID
-		callID = p.CallID
-	}
-	s.mu.Unlock()
-	if callID != "" {
-		var rpcAns api.AskUserQuestionAnswer
-		_ = json.Unmarshal(raw, &rpcAns)
-		s.AnswerUserQuestionsRPC(context.Background(), agentID, callID, rpcAns)
 	}
 	s.resolve(eventID, dsh.EventResultOutcome{Kind: "result", Value: raw})
 }
@@ -185,6 +178,7 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 	if ad == nil {
 		return
 	}
+	ad.custom = ""
 	ad.selected = []string{label}
 	ad.selectWire = label
 	for l, ptr := range ad.checks {
@@ -225,6 +219,7 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 		return
 	}
 	if on {
+		ad.custom = ""
 		ad.selected = []string{label}
 		ad.selectWire = label
 		for l, ptr := range ad.checks {
@@ -244,6 +239,20 @@ func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 		return
 	}
 	ad.custom = text
+	if strings.TrimSpace(text) != "" {
+		ds := s.questionDrafts[eventID]
+		for _, q := range ds.req.Questions {
+			if q.ID == questionID && !q.MultiSelect {
+				ad.selected = nil
+				ad.selectWire = ""
+				for _, ptr := range ad.checks {
+					if ptr != nil {
+						*ptr = false
+					}
+				}
+			}
+		}
+	}
 }
 
 // QuestionSingleSelectPtr returns a stable select binding for one question.
@@ -316,19 +325,71 @@ func (s *Store) answerDraftLocked(eventID, questionID string) *answerDraft {
 
 func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 	s.mu.Lock()
-	if eventID == "" && len(s.pending) > 0 {
-		eventID = s.pending[0].EventID
+	p := s.findPending(eventID)
+	if p == nil || p.Sending {
+		s.mu.Unlock()
+		return
 	}
-	ch, ok := s.waiters[eventID]
-	if ok {
-		delete(s.waiters, eventID)
+	eventID = p.EventID
+	ch := s.waiters[eventID]
+	if ch == nil {
+		s.mu.Unlock()
+		return
 	}
-	s.dropPending(eventID)
+	p.Sending, p.Error = true, ""
+	s.responses[eventID] = outcome
+	ch <- outcome
+	s.mu.Unlock()
+	s.fire()
+}
+
+// OnResult retains the card and its exact response on delivery failure.
+// Returning true lets the event stream wait for an explicit user retry.
+func (s *Store) OnResult(result dsh.EventResult, err error) bool {
+	s.mu.Lock()
+	p := s.findPending(result.EventID)
+	retry := false
+	if p != nil {
+		if err == nil {
+			delete(s.waiters, result.EventID)
+			s.dropPending(result.EventID)
+		} else {
+			p.Sending = false
+			p.Error = err.Error()
+			retry = true
+		}
+	}
+	s.mu.Unlock()
+	s.fire()
+	return retry
+}
+
+func (s *Store) Retry(eventID string) {
+	s.mu.Lock()
+	p := s.findPending(eventID)
+	outcome, ok := s.responses[eventID]
+	ok = ok && p != nil && p.Error != ""
 	s.mu.Unlock()
 	if ok {
-		ch <- outcome
+		s.resolve(eventID, outcome)
 	}
-	s.fire()
+}
+
+// SnapshotForAgent prevents a request from appearing in another conversation.
+func (s *Store) SnapshotForAgent(agentID string) ViewState {
+	snap := s.Snapshot()
+	pending := snap.Pending[:0]
+	cards := make(map[string]QuestionCardView)
+	for _, p := range snap.Pending {
+		if p.AgentID == agentID && agentID != "" {
+			pending = append(pending, p)
+			if card, ok := snap.QuestionCards[p.EventID]; ok {
+				cards[p.EventID] = card
+			}
+		}
+	}
+	snap.Pending, snap.QuestionCards = pending, cards
+	return snap
 }
 
 func (s *Store) dropPending(eventID string) {
@@ -337,6 +398,11 @@ func (s *Store) dropPending(eventID string) {
 		s.questionDrafts = make(map[string]*draftSession)
 		return
 	}
+	if cancel := s.waitCancels[eventID]; cancel != nil {
+		cancel()
+		delete(s.waitCancels, eventID)
+	}
+	delete(s.responses, eventID)
 	delete(s.questionDrafts, eventID)
 	out := s.pending[:0]
 	for _, p := range s.pending {
@@ -353,7 +419,7 @@ func (s *Store) findPending(eventID string) *Pending {
 			return &s.pending[i]
 		}
 	}
-	if len(s.pending) > 0 {
+	if eventID == "" && len(s.pending) > 0 {
 		return &s.pending[0]
 	}
 	return nil
@@ -361,6 +427,19 @@ func (s *Store) findPending(eventID string) *Pending {
 
 // HandleWaterfall implements dsh.EventsHandler waterfall dispatch for the shell.
 func (s *Store) HandleWaterfall(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+	s.mu.Lock()
+	ch := s.waiters[wf.EventID]
+	cancelled := s.cancelled[wf.EventID]
+	s.mu.Unlock()
+	if cancelled {
+		out := approvalOutcome("cancelled")
+		return &out, nil
+	}
+	if ch != nil {
+		out := <-ch
+		return &out, nil
+	}
+
 	switch wf.Event {
 	case EventApproval:
 		return s.handleApproval(wf)
@@ -379,8 +458,14 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 		title = wf.Event
 	}
 	detail := req.Reason
-	if req.DisplayReason != "" {
-		detail = req.DisplayReason
+	if len(req.DisplayReason) > 0 {
+		var localized map[string]string
+		var plain string
+		if json.Unmarshal(req.DisplayReason, &plain) == nil && plain != "" {
+			detail = plain
+		} else if json.Unmarshal(req.DisplayReason, &localized) == nil && localized["en"] != "" {
+			detail = localized["en"]
+		}
 	}
 	args := approvalArgsPreview(req)
 	callID := req.CallID
@@ -402,6 +487,11 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
+	if s.cancelled[wf.EventID] {
+		s.mu.Unlock()
+		out := approvalOutcome("cancelled")
+		return &out, nil
+	}
 	s.waiters[wf.EventID] = ch
 	s.pending = append(s.pending, Pending{
 		EventID: wf.EventID,
@@ -425,12 +515,22 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 	title := questionCardTitle(req)
 	detail := string(wf.Request)
 	callID := strings.TrimSpace(req.CallID)
+	if callID == "" && req.Wait != nil {
+		callID = req.Wait.CallID
+	}
 
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
 	mux := s.mux
+	if s.cancelled[wf.EventID] {
+		s.mu.Unlock()
+		out := approvalOutcome("cancelled")
+		return &out, nil
+	}
 	s.waiters[wf.EventID] = ch
 	s.questionDrafts[wf.EventID] = newDraftSession(req)
+	waitCtx, cancelWait := context.WithCancel(context.Background())
+	s.waitCancels[wf.EventID] = cancelWait
 	s.pending = append(s.pending, Pending{
 		EventID: wf.EventID,
 		Event:   wf.Event,
@@ -441,8 +541,8 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 	})
 	s.mu.Unlock()
 	s.fire()
-	if callID != "" {
-		s.AttachUserQuestionsWait(context.Background(), mux, wf.AgentID, callID)
+	if callID != "" && req.Wait != nil && req.Wait.Timed {
+		s.attachQuestionWait(waitCtx, mux, wf.AgentID, callID, wf.EventID)
 	}
 
 	out := <-ch
@@ -452,6 +552,7 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 // OnCancel drops a pending waterfall when the host cancels it.
 func (s *Store) OnCancel(c dsh.EventsCancel) {
 	s.mu.Lock()
+	s.cancelled[c.EventID] = true
 	ch, ok := s.waiters[c.EventID]
 	if ok {
 		delete(s.waiters, c.EventID)
@@ -459,7 +560,10 @@ func (s *Store) OnCancel(c dsh.EventsCancel) {
 	s.dropPending(c.EventID)
 	s.mu.Unlock()
 	if ok {
-		ch <- dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: "cancelled"}}
+		select {
+		case ch <- dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: "cancelled"}}:
+		default:
+		}
 	}
 	s.fire()
 }
@@ -488,7 +592,7 @@ func strPtr(s string) *string { return &s }
 type approvalRequest struct {
 	ToolName      string          `json:"toolName"`
 	Reason        string          `json:"reason"`
-	DisplayReason string          `json:"displayReason"`
+	DisplayReason json.RawMessage `json:"displayReason"`
 	RequestID     string          `json:"requestId"`
 	CallID        string          `json:"callId"`
 	Input         json.RawMessage `json:"input"`
@@ -527,13 +631,18 @@ func approvalArgsPreview(req approvalRequest) string {
 }
 
 type userQuestionsRequest struct {
-	CallID    string             `json:"callId"`
+	CallID string `json:"callId"`
+	Wait   *struct {
+		CallID string `json:"callId"`
+		Timed  bool   `json:"timed"`
+	} `json:"wait"`
 	Questions []userQuestionItem `json:"questions"`
 }
 
 type userQuestionItem struct {
 	ID          string               `json:"id"`
 	Question    string               `json:"question"`
+	Detail      string               `json:"detail"`
 	Header      string               `json:"header"`
 	MultiSelect bool                 `json:"multiSelect"`
 	Options     []userQuestionOption `json:"options"`
@@ -559,7 +668,8 @@ func questionCardTitle(req userQuestionsRequest) string {
 }
 
 type userQuestionOption struct {
-	Label string `json:"label"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
 }
 
 type userQuestionsAnswer struct {
@@ -568,7 +678,7 @@ type userQuestionsAnswer struct {
 
 type userQuestionsAnswerItem struct {
 	ID       string   `json:"id"`
-	Selected []string `json:"selected,omitempty"`
+	Selected []string `json:"selected"`
 	Custom   *string  `json:"custom,omitempty"`
 }
 

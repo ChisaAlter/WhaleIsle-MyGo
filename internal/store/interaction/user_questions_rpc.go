@@ -2,7 +2,9 @@ package interaction
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -36,10 +38,8 @@ func (s *Store) AnswerUserQuestionsRPC(ctx context.Context, agentID, callID stri
 	}()
 }
 
-// AttachUserQuestionsWait opens userQuestions/attachWait briefly for remainingMs probe.
-func (s *Store) AttachUserQuestionsWait(ctx context.Context, mux *dsh.Mux, agentID, callID string) {
-	agentID = strings.TrimSpace(agentID)
-	callID = strings.TrimSpace(callID)
+// attachQuestionWait holds the timed Host claim until answer, cancellation, or timeout.
+func (s *Store) attachQuestionWait(ctx context.Context, mux *dsh.Mux, agentID, callID, eventID string) {
 	if mux == nil || callID == "" {
 		return
 	}
@@ -47,16 +47,25 @@ func (s *Store) AttachUserQuestionsWait(ctx context.Context, mux *dsh.Mux, agent
 		if err := mux.Dial(ctx); err != nil {
 			return
 		}
-		stream, err := mux.Open(ctx, "userQuestions/attachWait", map[string]any{
-			"args": map[string]any{
-				"agentId": agentID,
-				"callId":  callID,
-			},
-		})
+		stream, err := mux.Open(ctx, "userQuestions/attachWait", map[string]any{"args": map[string]any{"agentId": agentID, "callId": callID}})
 		if err != nil {
 			return
 		}
 		defer stream.Cancel()
-		_, _ = stream.Recv(ctx)
+		raw, err := stream.Recv(ctx)
+		if err != nil {
+			return
+		}
+		var wait api.AttachWaitResult
+		if json.Unmarshal(raw, &wait) != nil || wait.RemainingMs < 0 || wait.RemainingMs > 2147483647 {
+			return
+		}
+		timer := time.NewTimer(time.Duration(wait.RemainingMs) * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+		case <-timer.C:
+			s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_TIMED_OUT", Message: "Question timed out"}})
+		}
 	}()
 }

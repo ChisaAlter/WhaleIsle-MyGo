@@ -39,11 +39,6 @@ func TestApprovalOutcomeWire(t *testing.T) {
 	if err := json.Unmarshal(out.Value, &s); err != nil || s != outcomeAllowedOnce {
 		t.Fatalf("value %q err %v", out.Value, err)
 	}
-	always := approvalOutcome(outcomeAllowedAlways)
-	var a string
-	if err := json.Unmarshal(always.Value, &a); err != nil || a != outcomeAllowedAlways {
-		t.Fatalf("always %q err %v", always.Value, err)
-	}
 	_ = dsh.EventResultOutcome{}
 }
 
@@ -70,11 +65,11 @@ func TestResolveAllowAlways(t *testing.T) {
 	go s.ResolveAllowAlways("ev-a")
 	out := <-ch
 	var decision string
-	if err := json.Unmarshal(out.Value, &decision); err != nil || decision != outcomeAllowedAlways {
+	if err := json.Unmarshal(out.Value, &decision); err != nil || decision != outcomeAllowedOnce {
 		t.Fatalf("decision %q err %v", out.Value, err)
 	}
-	if !s.Snapshot().AutoAllow {
-		t.Fatal("expected auto-allow on")
+	if s.Snapshot().AutoAllow {
+		t.Fatal("one request must not enable automatic approval")
 	}
 }
 
@@ -114,8 +109,9 @@ func TestQuestionDraftMultiSelect(t *testing.T) {
 		t.Fatal("expected valid draft")
 	}
 
+	ch := s.waiters["ev1"]
 	go s.ResolveQuestions("ev1")
-	out := <-s.waiters["ev1"]
+	out := <-ch
 	if out.Kind != "result" {
 		t.Fatalf("kind %q", out.Kind)
 	}
@@ -153,8 +149,9 @@ func TestQuestionDraftFreeText(t *testing.T) {
 	if !s.QuestionsCanSubmit("ev2") {
 		t.Fatal("custom text should satisfy question")
 	}
+	ch := s.waiters["ev2"]
 	go s.ResolveQuestions("ev2")
-	out := <-s.waiters["ev2"]
+	out := <-ch
 	var ans userQuestionsAnswer
 	if err := json.Unmarshal(out.Value, &ans); err != nil {
 		t.Fatal(err)

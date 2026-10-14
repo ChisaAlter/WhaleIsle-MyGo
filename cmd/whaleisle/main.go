@@ -2061,6 +2061,12 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 					}
 					return inter.HandleWaterfall(wf)
 				},
+				Result: func(result dsh.EventResult, err error) bool {
+					if inter != nil {
+						return inter.OnResult(result, err)
+					}
+					return false
+				},
 				Cancel: func(c dsh.EventsCancel) {
 					if inter != nil {
 						inter.OnCancel(c)

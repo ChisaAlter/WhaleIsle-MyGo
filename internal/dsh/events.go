@@ -26,6 +26,7 @@ type EventsFuncs struct {
 	Emit      func(EventsEmit)
 	Waterfall func(EventsWaterfall) (*EventResultOutcome, error)
 	Cancel    func(EventsCancel)
+	Result    func(EventResult, error) bool
 }
 
 func (f EventsFuncs) OnReady(ready EventsReady) {
@@ -51,6 +52,14 @@ func (f EventsFuncs) OnCancel(cancel EventsCancel) {
 	if f.Cancel != nil {
 		f.Cancel(cancel)
 	}
+}
+
+// OnResult reports delivery acknowledgement. True requests a user-driven retry.
+func (f EventsFuncs) OnResult(result EventResult, err error) bool {
+	if f.Result != nil {
+		return f.Result(result, err)
+	}
+	return false
 }
 
 // EventsSession owns one $events logical stream generation.
@@ -82,14 +91,79 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 	}
 	defer stream.Cancel()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	sess := &EventsSession{client: c, mux: mux, stream: stream}
+	failures := make(chan error, 1)
+	var activeMu sync.Mutex
+	active := make(map[string]context.CancelFunc)
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
+			select {
+			case failure := <-failures:
+				return failure
+			default:
+			}
 			if err == ErrStreamEnd {
 				return nil
 			}
 			return err
+		}
+		var head struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(raw, &head) == nil && head.Type == EventWaterfall {
+			var wf EventsWaterfall
+			if err := json.Unmarshal(raw, &wf); err != nil {
+				return err
+			}
+			requestCtx, requestCancel := context.WithCancel(ctx)
+			activeMu.Lock()
+			active[wf.EventID] = requestCancel
+			activeMu.Unlock()
+			// A prompt must not block later requests or its own cancellation frame.
+			go func() {
+				defer func() {
+					requestCancel()
+					activeMu.Lock()
+					delete(active, wf.EventID)
+					activeMu.Unlock()
+				}()
+				done := make(chan struct{})
+				defer close(done)
+				go func() {
+					select {
+					case <-requestCtx.Done():
+						select {
+						case <-done:
+							return
+						default:
+						}
+						handler.OnCancel(EventsCancel{Type: EventCancel, EventID: wf.EventID})
+					case <-done:
+					}
+				}()
+				if err := sess.answerWaterfall(requestCtx, handler, wf); err != nil && requestCtx.Err() == nil {
+					select {
+					case failures <- err:
+					default:
+					}
+					stream.Cancel()
+				}
+			}()
+			continue
+		}
+		if head.Type == EventCancel {
+			var event EventsCancel
+			if json.Unmarshal(raw, &event) == nil {
+				activeMu.Lock()
+				cancelRequest := active[event.EventID]
+				activeMu.Unlock()
+				if cancelRequest != nil {
+					cancelRequest()
+				}
+			}
 		}
 		if err := sess.dispatch(ctx, handler, raw); err != nil {
 			return err
@@ -148,23 +222,29 @@ func (s *EventsSession) answerWaterfall(ctx context.Context, handler EventsHandl
 	if clientID == "" {
 		return fmt.Errorf("dsh events: waterfall before ready")
 	}
-	outcome, err := handler.OnWaterfall(wf)
-	if err != nil {
-		rej := &EventRejection{Name: "Error", Message: err.Error()}
-		return s.client.PostEventResult(ctx, EventResult{
-			ClientID: clientID,
-			EventID:  wf.EventID,
-			Outcome:  EventResultOutcome{Kind: "rejected", Error: rej},
-		})
+	for {
+		outcome, err := handler.OnWaterfall(wf)
+		result := EventResult{ClientID: clientID, EventID: wf.EventID}
+		if err != nil {
+			result.Outcome = EventResultOutcome{Kind: "rejected", Error: &EventRejection{Name: "Error", Message: err.Error()}}
+		} else if outcome == nil {
+			result = EventResultNext(clientID, wf.EventID)
+		} else {
+			result.Outcome = *outcome
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		err = s.client.PostEventResult(ctx, result)
+		retry := false
+		if observer, ok := handler.(interface{ OnResult(EventResult, error) bool }); ok {
+			retry = observer.OnResult(result, err)
+		}
+		if err == nil || !retry {
+			return err
+		}
 	}
-	if outcome == nil {
-		return s.client.PostEventResult(ctx, EventResultNext(clientID, wf.EventID))
-	}
-	return s.client.PostEventResult(ctx, EventResult{
-		ClientID: clientID,
-		EventID:  wf.EventID,
-		Outcome:  *outcome,
-	})
+
 }
 
 // PostEventResult answers one Host waterfall via HTTP RPC.

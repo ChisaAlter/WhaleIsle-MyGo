@@ -4,11 +4,13 @@ import "strings"
 
 // QuestionRowView is one question line in the interaction card.
 type QuestionRowView struct {
-	ID           string
-	Question     string
-	Header       string
-	OptionLabels []string
-	MultiSelect  bool
+	ID                 string
+	Question           string
+	Detail             string
+	OptionDescriptions []string
+	Header             string
+	OptionLabels       []string
+	MultiSelect        bool
 }
 
 // QuestionCardView is parsed user-questions/request payload for UI.
@@ -57,10 +59,12 @@ func (ds *draftSession) cardView(eventID string) QuestionCardView {
 			ID:          q.ID,
 			Question:    q.Question,
 			Header:      q.Header,
+			Detail:      q.Detail,
 			MultiSelect: q.MultiSelect,
 		}
 		for _, o := range q.Options {
 			row.OptionLabels = append(row.OptionLabels, o.Label)
+			row.OptionDescriptions = append(row.OptionDescriptions, o.Description)
 		}
 		cv.Rows = append(cv.Rows, row)
 	}
@@ -74,10 +78,11 @@ func (ds *draftSession) buildAnswer() userQuestionsAnswer {
 		if ad == nil {
 			continue
 		}
-		item := userQuestionsAnswerItem{ID: q.ID}
+		item := userQuestionsAnswerItem{ID: q.ID, Selected: []string{}}
 		if len(q.Options) > 0 {
-			item.Selected = append([]string(nil), ad.selected...)
-		} else if strings.TrimSpace(ad.custom) != "" {
+			item.Selected = append([]string{}, ad.selected...)
+		}
+		if strings.TrimSpace(ad.custom) != "" {
 			c := strings.TrimSpace(ad.custom)
 			item.Custom = &c
 		}
@@ -93,7 +98,7 @@ func (ds *draftSession) answerValid() bool {
 			return false
 		}
 		if len(q.Options) > 0 {
-			if len(ad.selected) == 0 {
+			if len(ad.selected) == 0 && strings.TrimSpace(ad.custom) == "" {
 				return false
 			}
 			continue
