@@ -11,6 +11,18 @@
 # Re-running is safe: every step is idempotent (package managers converge,
 # build scripts overwrite their own outputs).
 
+param(
+    [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
+    [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
+    [switch]$BuildOnly
+)
+if ($SourceMode -eq 'current') {
+    if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the fixed 90465b67 official source checkout.' }
+    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -BuildOnly:$BuildOnly
+    return
+}
+if ($BuildOnly) { throw 'BuildOnly is supported by the isolated current source mode only.' }
+
 $ErrorActionPreference = 'Stop'
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot

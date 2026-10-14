@@ -44,12 +44,17 @@ if (Test-Path $ResSrc) {
 # Optional vendored harness + Node for NSIS (skip when absent / WHALEISLE_PACKAGE_SKIP_RUNTIME=1).
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
-    $MobileRoot = Join-Path $ProjectRoot 'runtime\vendor\dshd-remote'
+    $VendorSrc = $env:WHALEISLE_VENDOR
+    if (-not $VendorSrc) { $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor' }
+    if (Test-Path (Join-Path $VendorSrc 'current-host-build.json')) {
+        & node (Join-Path $PSScriptRoot 'current-host.mjs') verify $VendorSrc
+        if ($LASTEXITCODE -ne 0) { throw 'Selected current Host artifacts failed verification' }
+    }
+    $MobileRoot = Join-Path $VendorSrc 'dshd-remote'
     $MobileNode = Join-Path $MobileRoot 'node\node.exe'
     if (-not (Test-Path $MobileNode)) { throw 'Mobile runtime missing. Run scripts/build-harness.ps1 first, or explicitly set WHALEISLE_PACKAGE_SKIP_RUNTIME=1 for a shell-only package.' }
     & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify $MobileRoot
     if ($LASTEXITCODE -ne 0) { throw 'Mobile runtime incomplete or changed; rebuild before packaging.' }
-    $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor'
     if (Test-Path $VendorSrc) {
         $VendorDst = Join-Path $Stage 'runtime\vendor'
         Write-Host "Copying runtime/vendor -> $VendorDst (may take a while)"
