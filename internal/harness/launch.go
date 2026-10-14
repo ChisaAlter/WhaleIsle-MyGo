@@ -85,6 +85,15 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 			return Plan{}, fmt.Errorf("configured dshBin %s: %w", o.DshBin, err)
 		}
 		if isScript(o.DshBin) {
+			// A configured path to the same source CLI must not bypass current-host
+			// safety validation merely because it precedes vendor resolution.
+			clean := filepath.Clean(o.DshBin)
+			if strings.HasSuffix(clean, filepath.Join("apps", "cli", "lib", "bin.js")) {
+				root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(clean))))
+				if err := ValidateCurrentHostForLaunch(root); err != nil {
+					return Plan{}, err
+				}
+			}
 			node, err := resolveNode(o.NodeBin)
 			if err != nil {
 				return Plan{}, err

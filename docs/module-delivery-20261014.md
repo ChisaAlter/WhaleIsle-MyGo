@@ -72,7 +72,8 @@
 - HTML 隔离状态查询：现有 token 认证下只读 GET /desktop/html-preview/status 返回当前进程 available/reason，no-store、无 Probe 副作用，其他方法拒绝；Host 全 checkpoint 通过后续保护补丁查询当前隔离状态。
 - Team 工作详情/过程：真实 workstreams/get 保持原 childId，session/follow 首快照后立即取消并按 throughSeq 分页，continuable 只读查看；失败重试仅准备原 Lead 草稿，已有草稿/附件/发送/编辑时不覆盖，不假造 retry API 或自动运行模型。
 - 隔离截图 PNG 流：仅隔离 CapturePage 按 IStream 逻辑长度读取并限制 64MiB，不将分配容量尾字节作为图片传回；普通截图路径不变。未运行真实 WebView 截图。
-- Host 跨重启 HTML 门禁：仅新构建副本在原 requireEnabled checkpoint 查询认证 readiness，保留用户持久 enabled；manifest 记录 guard 补丁/hash，stage/launch 拒绝未加保护的 current runtime，legacy 无 visual 包不受影响。带保护新产物增量构建进行中，旧纯官方产物不再作为 HTML 生成就绪依据。
+- Host 跨重启 HTML 门禁：仅新构建副本在原 requireEnabled checkpoint 查询认证 readiness，保留用户持久 enabled；manifest 记录 guard 补丁/hash，stage/launch 拒绝未加保护的 current runtime，legacy 无 visual 包不受影响。带 guard 的 Linux 增量官方构建 exit0，manifest 与暂存校验通过；旧纯官方产物因缺补丁记录被拒绝，不再作为 HTML 生成就绪依据。
+- Host 显式启动路径：configured DshBin 指向 Harness CLI 时也校验真实根的 readiness guard，避免配置优先级绕过 vendored runtime 门禁；不修改无 visual 包的 legacy 启动。
 - 原生用量：真实 Token 汇总/覆盖度、7/14/30 天 UTC 图、模型及会话排行、会话跳转、原生保存 CSV/完整 JSON；失败刷新标明旧数据。
 
 ## 实际验证范围
