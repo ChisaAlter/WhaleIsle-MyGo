@@ -1540,17 +1540,6 @@ func (s *mainState) sessionRunningCount() int {
 	return store.RunningCount()
 }
 
-func (s *mainState) confirmQuit(win *mygo.Window) bool {
-	return taskguard.ConfirmQuit(
-		win,
-		s.sessionRunningCount(),
-		i18n.T(i18n.KeyQuitConfirmTitle),
-		i18n.T(i18n.KeyQuitConfirmMessage),
-		i18n.T(i18n.KeyQuitConfirmQuit),
-		i18n.T(i18n.KeyQuitConfirmCancel),
-	) && s.saveResumeBeforeClose(win)
-}
-
 // promptAcceptUnknownSSHHost asks whether to trust an unknown host key (TOFU).
 // Returns true when the user chooses Accept.
 func promptAcceptUnknownSSHHost(win *mygo.Window, unknown *sshremote.UnknownHostKey) bool {
@@ -2291,11 +2280,10 @@ func main() {
 				win.Hide()
 				return
 			}
-			if !state.confirmQuit(win) {
+			if !state.quitProtected(win, sup) {
 				e.PreventDefault()
 				return
 			}
-			state.finalizeQuit(sup)
 		})
 
 		state.mu.Lock()
@@ -2454,10 +2442,9 @@ func trayMenu() *mygo.Menu {
 			win := state.win
 			sup := state.sup
 			state.mu.Unlock()
-			if !state.confirmQuit(win) {
+			if !state.quitProtected(win, sup) {
 				return
 			}
-			state.finalizeQuit(sup)
 			mygo.App.Quit()
 		}},
 	})

@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
-	"whaleisle/internal/desktop/taskguard"
 	"whaleisle/internal/harness"
 )
 
@@ -89,8 +89,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 	}()
 }
 
-// Native restarts preserve import admission and require explicit consent for
-// known running sessions. This local check is not full Host task protection.
+// Native restarts preserve import admission and coordinate Host task protection.
 func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	if sup == nil {
 		return
@@ -109,35 +108,17 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	win := s.win
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
-	approved, err := taskguard.ConfirmAction(win, s.sessionRunningCount(),
-		resumeText("重启内核", "Restart runtime"),
-		resumeText("当前有 %d 个会话仍在运行。重启会中断这些任务，仍要重启吗？", "%d sessions are still running. Restarting will interrupt them. Restart anyway?"),
-		resumeText("仍要重启", "Restart anyway"), resumeText("取消", "Cancel"))
-	if err != nil {
+	s.withTaskProtection(win, sup, "restart", func() error {
+		// Recheck after Host inspection/confirmation and before the first side effect.
 		s.mu.Lock()
-		s.launcherStartErr = resumeText("无法确认重启，已保留运行中的任务：", "Could not confirm restart; running work was kept: ") + err.Error()
-		s.launcherStartFailed = true
-		s.launcherOpen = true
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
+		if s.launcherImportBusy || s.quitting || s.sup != sup {
+			s.mu.Unlock()
+			return errors.New("runtime or import state changed; retry restart")
 		}
-		return
-	}
-	if !approved {
-		return
-	}
-	// Recheck after the dialog: import or another lifecycle action may have begun.
-	s.mu.Lock()
-	if s.launcherImportBusy || s.quitting || s.sup != sup {
-		if s.launcherImportBusy {
-			s.launcherImport = "导入尚未结束，暂不能重启内核。"
-		}
+		s.launcherStartBusy = true
 		s.mu.Unlock()
-		return
-	}
-	s.launcherStartBusy = true
-	s.mu.Unlock()
-	s.stopPhoneRuntime()
-	sup.Restart()
+		s.stopPhoneRuntime()
+		sup.Restart()
+		return nil
+	})
 }

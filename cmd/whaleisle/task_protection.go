@@ -1,0 +1,118 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/egoist/mygo"
+	"whaleisle/internal/desktop/taskcontrol"
+	"whaleisle/internal/desktop/taskguard"
+	"whaleisle/internal/harness"
+)
+
+func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
+	if err == nil || err == taskcontrol.ErrCancelled {
+		return
+	}
+	s.mu.Lock()
+	s.launcherStartErr = resumeText("操作未完成，已保留当前窗口：", "Action did not complete; the window was kept open: ") + err.Error()
+	s.launcherStartFailed = true
+	s.launcherOpen = true
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
+}
+
+func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
+	label := resumeText("退出", "Quit")
+	if operation == "restart" {
+		label = resumeText("重启", "Restart")
+	}
+	lines := []string{}
+	if i.Unknown != "" {
+		lines = append(lines, resumeText("Host 任务保护不可用，无法确认后台任务、定时任务或在途请求是否已排空。继续将仅依赖本地会话信息，可能中断未显示的工作。", "Host task protection is unavailable. Background work, scheduled tasks and in-flight requests cannot be verified or drained. Continuing relies only on local session information and may interrupt unseen work."), i.Unknown)
+	}
+	if i.Unknown != "" {
+		lines = append(lines, fmt.Sprintf(resumeText("本地已知运行会话：%d；Host 活动和计划工作：未知。", "Known local running sessions: %d; Host active and scheduled work: unknown."), i.LocalRunning))
+	} else {
+		lines = append(lines, fmt.Sprintf(resumeText("本地已知运行会话：%d；Host 活动工作：%d；计划工作：%d。", "Known local running sessions: %d; Host active work: %d; scheduled work: %d."), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
+	}
+	missing := []string{}
+	for key, value := range i.Coverage {
+		if value != "ok" && value != "intentional-disabled" {
+			missing = append(missing, key+": "+value)
+		}
+	}
+	if i.Unknown == "" && i.HostGeneration != "" {
+		for _, key := range []string{"agents", "jobs", "schedule", "bots"} {
+			if _, ok := i.Coverage[key]; !ok {
+				missing = append(missing, key+": unknown")
+			}
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		lines = append(lines, resumeText("以下检查状态未知：", "These checks are unknown: ")+strings.Join(missing, ", "))
+	}
+	lines = append(lines, resumeText("继续可能中断任务；这不代表任务已经完成。是否仍要", "Continuing may interrupt work; this does not mean it has finished. Continue with ")+label+"?")
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: label, Message: strings.Join(lines, "\n\n"), Buttons: []string{resumeText("取消", "Cancel"), resumeText("仍要", "Continue: ") + label}, DefaultButton: 0, CancelButton: 0})
+	return err == nil && result.Button == 1, err
+}
+
+func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) bool {
+	s.mu.Lock()
+	busy := s.launcherImportBusy
+	s.mu.Unlock()
+	if busy {
+		s.taskProtectionError(win, errors.New(resumeText("导入尚未结束，请等待完成或取消后重试。", "Import is still running; wait for completion or cancel it before retrying.")))
+		return false
+	}
+	var did bool
+	var err error
+	if sup != nil {
+		did, err = sup.ProtectTaskAction(context.Background(), operation, s.sessionRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
+	} else {
+		// No owned Host exists. Preserve the original local-session confirmation.
+		label := resumeText("退出", "Quit")
+		if operation == "restart" {
+			label = resumeText("重启", "Restart")
+		}
+		did, err = taskguard.ConfirmAction(win, s.sessionRunningCount(), label, resumeText("当前有 %d 个会话仍在运行。继续会中断任务，仍要继续吗？", "%d sessions are still running. Continuing will interrupt work. Continue?"), label, resumeText("取消", "Cancel"))
+		if did && err == nil {
+			err = commit()
+			did = err == nil
+		}
+	}
+	s.taskProtectionError(win, err)
+	return did && err == nil
+}
+
+func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) bool {
+	s.mu.Lock()
+	busy := s.launcherImportBusy
+	s.mu.Unlock()
+	if busy {
+		s.taskProtectionError(win, errors.New("import is still running; finish or cancel it before quitting"))
+		return false
+	}
+	// Save before acquiring the Host admission lock: a disk-recovery dialog must
+	// not leave a lock held indefinitely or let its TTL expire before shutdown.
+	if !s.saveResumeBeforeClose(win) {
+		return false
+	}
+	return s.withTaskProtection(win, sup, "quit", func() error {
+		s.mu.Lock()
+		busy := s.launcherImportBusy
+		same := s.sup == sup
+		s.mu.Unlock()
+		if busy || !same {
+			return errors.New("runtime or import state changed; retry quit")
+		}
+		s.finalizeQuit(sup)
+		return nil
+	})
+}

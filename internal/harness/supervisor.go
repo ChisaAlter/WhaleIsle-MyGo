@@ -5,6 +5,8 @@ package harness
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -87,13 +89,15 @@ type Supervisor struct {
 	opts   Options
 	client *http.Client
 
-	mu      sync.Mutex
-	status  Status
-	cmd     *exec.Cmd
-	exited  chan struct{}
-	gen     int
-	logs    []string
-	attempt int
+	protectionMu     sync.Mutex
+	taskControlToken string
+	mu               sync.Mutex
+	status           Status
+	cmd              *exec.Cmd
+	exited           chan struct{}
+	gen              int
+	logs             []string
+	attempt          int
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
 	skippedOnce bool
 }
@@ -191,6 +195,7 @@ func (s *Supervisor) Stop() {
 // nextGenLocked invalidates every goroutine of earlier attempts.
 func (s *Supervisor) nextGenLocked() int {
 	s.gen++
+	s.taskControlToken = ""
 	return s.gen
 }
 
@@ -236,10 +241,27 @@ func (s *Supervisor) log(line string) {
 }
 
 func (s *Supervisor) run(gen int) {
+	// Generate only at actual child launch, not during configuration or inspection.
+	var secret [24]byte
+	if _, err := rand.Read(secret[:]); err != nil {
+		s.set(gen, Status{State: Failed, Err: fmt.Errorf("task-control token initialization failed")})
+		return
+	}
+	token := hex.EncodeToString(secret[:])
 	s.mu.Lock()
+	if s.gen != gen {
+		s.mu.Unlock()
+		return
+	}
+	s.taskControlToken = token
 	launch := s.opts.Launch
+	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
 	if install := s.opts.Install; install != nil {
-		launch.ExtraEnv = install.Env()
+		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
+	}
+	launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_TASK_CONTROL_TOKEN="+token)
+	if s.opts.Prepare.Dshbot {
+		launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_DSHBOT_ENABLED=1")
 	}
 	s.mu.Unlock()
 
@@ -300,7 +322,7 @@ func (s *Supervisor) run(gen int) {
 	s.mu.Unlock()
 
 	ready := make(chan string, 1)
-	go s.scan(out, ready)
+	go s.scan(out, ready, token)
 	var waitErr error
 	go func() {
 		waitErr = cmd.Wait()
@@ -369,12 +391,16 @@ func (s *Supervisor) run(gen int) {
 }
 
 // scan copies output lines into the log and reports the first ready URL.
-func (s *Supervisor) scan(r io.Reader, ready chan<- string) {
+func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string) {
 	sc := bufio.NewScanner(crToLF{r})
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	sent := false
 	for sc.Scan() {
 		line := sc.Text()
+		// Capture the child generation token so late output after Stop is also safe.
+		if taskToken != "" {
+			line = strings.ReplaceAll(line, taskToken, "[redacted]")
+		}
 		if url, ok := ParseReady(line); ok && !sent {
 			sent = true
 			ready <- url

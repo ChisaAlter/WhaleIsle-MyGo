@@ -228,7 +228,8 @@ func childEnv(o LaunchOptions) []string {
 		key, _, _ := strings.Cut(kv, "=")
 		switch strings.ToUpper(key) {
 		case "DSH_HOME", "DSH_HARNESS_ROOT", "ELECTRON_RUN_AS_NODE", "ELECTRON_NO_ASAR",
-			"DSH_DESKTOP_INSTALL_URL", "DSH_DESKTOP_INSTALL_TOKEN":
+			"DSH_DESKTOP_INSTALL_URL", "DSH_DESKTOP_INSTALL_TOKEN",
+			"DSHD_TASK_CONTROL_TOKEN", "DSHD_DSHBOT_ENABLED", "DSHD_SCHEDULE_ENABLED":
 			continue
 		}
 		env = append(env, kv)
