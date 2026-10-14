@@ -69,8 +69,10 @@ func (c *Controller) Edit(id string) {
 func (c *Controller) SetDraft(text string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.state.Draft = text
-	c.revision++
+	if c.state.Draft != text {
+		c.state.Draft = text
+		c.revision++
+	}
 }
 func (c *Controller) CancelEdit() {
 	c.mu.Lock()
