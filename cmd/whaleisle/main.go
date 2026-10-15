@@ -189,6 +189,7 @@ type mainState struct {
 	assistantRoutineCreator       dshbotstore.RoutineCreator
 	assistantRoomCreator          dshbotstore.RoomCreator
 	assistantRoomEditor           dshbotstore.RoomEditor
+	assistantRoomRuntime          dshbotstore.RoomRuntimeReader
 	whaleSettings                 assiststore.WhaleSettingsEditor
 	desktopDraft                  desktopConfigDraft
 	desktopSaveErr                string
@@ -715,6 +716,7 @@ func (s *mainState) showMainWindow() {
 func (s *mainState) applyDeeplink(t deeplink.Target) {
 	s.assistantRoomCreator.Suspend()
 	s.assistantRoomEditor.Suspend()
+	s.assistantRoomRuntime.Suspend()
 	s.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 	s.mu.Lock()
 	s.pendingDeeplink = t
@@ -1802,6 +1804,7 @@ func (s *mainState) stopDSH() {
 func (s *mainState) stopDSHLocked() {
 	s.assistantRoomCreator.Suspend()
 	s.assistantRoomEditor.Suspend()
+	s.assistantRoomRuntime.Suspend()
 	s.hostTerminals.Bind(nil, nil, false, nil)
 	s.cancelComposerVoice()
 	s.mu.Lock()
@@ -2129,10 +2132,13 @@ func main() {
 		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnHide(state.assistantRoomCreator.Suspend)
 		win.OnHide(state.assistantRoomEditor.Suspend)
+		win.OnHide(state.assistantRoomRuntime.Suspend)
 		win.OnMinimize(state.assistantRoomCreator.Suspend)
 		win.OnMinimize(state.assistantRoomEditor.Suspend)
+		win.OnMinimize(state.assistantRoomRuntime.Suspend)
 		win.OnClosed(state.assistantRoomCreator.Suspend)
 		win.OnClosed(state.assistantRoomEditor.Suspend)
+		win.OnClosed(state.assistantRoomRuntime.Suspend)
 		win.OnHide(state.suspendMCPHealth)
 		win.OnMinimize(state.suspendMCPHealth)
 		win.OnClosed(state.suspendMCPHealth)
@@ -2708,6 +2714,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	roomRuntimeRendered := false
+	defer func() { state.observeAssistantRoomRuntime(roomRuntimeRendered) }()
 	roomEditRendered := false
 	defer func() { state.observeAssistantRoomEditor(roomEditRendered) }()
 	roomCreateRendered := false
@@ -2768,6 +2776,7 @@ func mainView(c *ui.Context) {
 		state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 		state.assistantRoomCreator.Suspend()
 		state.assistantRoomEditor.Suspend()
+		state.assistantRoomRuntime.Suspend()
 	}
 	launcherOpen := state.launcherOpen
 	toolsMenuOpen := state.toolsMenuOpen
@@ -4233,11 +4242,14 @@ func mainView(c *ui.Context) {
 				roomCreateModel := state.assistantRoomCreateModel(ep)
 				roomEditRendered = asstSnap.Mode == assiststore.ModeDshbot
 				roomEditModel := state.assistantRoomEditModel(ep, dshbotSelectedID)
+				roomRuntimeRendered = asstSnap.Mode == assiststore.ModeDshbot
+				roomRuntimeModel := state.assistantRoomRuntimeModel(ep, dshbotSelectedID)
 				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
 				assistant.View(c, assistant.Model{
 					RoutineCreate:       routineCreateModel,
 					RoomCreate:          roomCreateModel,
 					RoomEdit:            roomEditModel,
+					RoomRuntime:         roomRuntimeModel,
 					Routines:            routineModel,
 					WhaleSettings:       whaleSettingsModel,
 					Tasks:               taskModel,
@@ -4249,7 +4261,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:  whaleVendor,
 					DshbotVendorPresent: dshbotVendor,
 					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || roomEditModel.State.Busy,
+					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
 					LastWebViewURL:      lastWebURL,
 					LastNativeAction:    lastNative,
 					LastErr:             asstSnap.LastErr,
@@ -4263,6 +4275,7 @@ func mainView(c *ui.Context) {
 					DshbotSelectedID:    dshbotSelectedID,
 					OnDshbotSelect: func(botID string) {
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						asst.SelectDshbot(botID, origin)
@@ -4270,6 +4283,7 @@ func mainView(c *ui.Context) {
 					OnSetMode: func(mode assiststore.Mode) {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
@@ -4283,6 +4297,7 @@ func mainView(c *ui.Context) {
 					OnOpenModeWeb: func() {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						plugin := desktopwebview.PluginWhale
@@ -4302,6 +4317,7 @@ func mainView(c *ui.Context) {
 					OnOpenSession: func(sessionID string) {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						if sessions != nil && strings.TrimSpace(sessionID) != "" {
@@ -4320,6 +4336,7 @@ func mainView(c *ui.Context) {
 						state.whaleSettings.Suspend()
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.mu.Lock()
@@ -4337,6 +4354,7 @@ func mainView(c *ui.Context) {
 					OnToggleDshbot: func(enabled bool) {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.setAssistantFlag(nil, &enabled)
@@ -4344,6 +4362,7 @@ func mainView(c *ui.Context) {
 					OnOpenWhaleWeb: func() {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
@@ -4360,6 +4379,7 @@ func mainView(c *ui.Context) {
 					OnOpenDshbotWeb: func() {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
@@ -4501,6 +4521,7 @@ func mainView(c *ui.Context) {
 					OnDshbotOpenRosterSession: func(botID string) {
 						state.assistantRoomCreator.Suspend()
 						state.assistantRoomEditor.Suspend()
+						state.assistantRoomRuntime.Suspend()
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.openAssistantDshbot(ep, botID)
 					},
