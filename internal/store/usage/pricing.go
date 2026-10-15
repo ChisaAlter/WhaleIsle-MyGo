@@ -47,12 +47,15 @@ type BillingView struct {
 type billingState struct {
 	BillingView
 	cancel context.CancelFunc
+	models BillingModelsView
+	modelsCancel context.CancelFunc
 }
 
 func (s *Store) resetBillingLocked() {
 	if s.billing.cancel != nil {
 		s.billing.cancel()
 	}
+	if s.billing.modelsCancel != nil { s.billing.modelsCancel() }
 	s.billing = billingState{}
 }
 func (s *Store) Billing() BillingView {
@@ -215,7 +218,10 @@ func (s *Store) DiscardPrices() {
 	s.mu.Unlock()
 	s.fire()
 }
-func (s *Store) LoadBilling(ctx context.Context) { s.billingRequest(ctx, false) }
+func (s *Store) LoadBilling(ctx context.Context) {
+	s.billingRequest(ctx, false)
+	s.LoadBillingModels(ctx)
+}
 func (s *Store) SaveBilling(ctx context.Context) { s.billingRequest(ctx, true) }
 func (s *Store) billingRequest(ctx context.Context, save bool) {
 	s.mu.Lock()
@@ -263,7 +269,7 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 		if err != nil {
 			s.billing.Err = err.Error()
 		} else {
-			s.resetProjectRankingLocked()
+			s.resetRankingLocked()
 			s.billing.Settings = settings
 			s.billing.Drafts = priceDrafts(settings.Prices)
 			s.billing.Loaded = true

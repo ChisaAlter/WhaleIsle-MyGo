@@ -13,6 +13,7 @@ const rankPageSize = 10
 // SessionRanking is all-time only: sessions.more has no date-range parameters.
 type SessionRanking struct {
 	Rows                      []SessionUsage
+	Sort                      string
 	Started, Loading, HasMore bool
 	Err                       string
 }
@@ -26,16 +27,22 @@ type rankingState struct {
 
 func (s *Store) resetRankingLocked() {
 	s.resetProjectRankingLocked()
+	s.resetSessionRankingLocked()
+}
+func (s *Store) resetSessionRankingLocked() {
+	sort := s.ranking.Sort
 	if s.ranking.cancel != nil {
 		s.ranking.cancel()
 	}
-	s.ranking = rankingState{epoch: s.ranking.epoch + 1}
+	s.ranking = rankingState{SessionRanking: SessionRanking{Sort: sort}, epoch: s.ranking.epoch + 1}
 }
 func (s *Store) SessionRanking() SessionRanking {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v := s.ranking.SessionRanking
+	if v.Sort == "" { v.Sort = "tokens" }
 	v.Rows = append([]SessionUsage(nil), v.Rows...)
+	for i := range v.Rows { v.Rows[i].Models = append([]ModelUsage(nil), v.Rows[i].Models...) }
 	return v
 }
 func (s *Store) ModelRankLimit() int {
@@ -61,7 +68,8 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 		return
 	}
 	ep := s.client.Endpoint
-	offset, epoch := r.offset, r.epoch
+	if r.Sort == "" { r.Sort = "tokens" }
+	offset, epoch, sort := r.offset, r.epoch, r.Sort
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	r.cancel = cancel
 	r.Loading = true
@@ -75,7 +83,7 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 			Sessions []SessionUsage `json:"sessions"`
 			HasMore  *bool          `json:"hasMore"`
 		}
-		err := rpc.Call(ctx, "usage-stats", "sessions.more", map[string]any{"offset": offset, "sort": "tokens"}, &page)
+		err := rpc.Call(ctx, "usage-stats", "sessions.more", map[string]any{"offset": offset, "sort": sort}, &page)
 		if err == nil && (page.Sessions == nil || page.HasMore == nil) {
 			err = errors.New("incomplete session page contract")
 		}
@@ -118,4 +126,20 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+func (s *Store) ResetSessionRanking(ctx context.Context, sort string) {
+	if sort != "tokens" && sort != "cost" { return }
+	s.mu.Lock()
+	if s.client == nil || s.stats.Loading { s.mu.Unlock(); return }
+	s.resetSessionRankingLocked()
+	s.ranking.Sort = sort
+	s.mu.Unlock()
+	s.LoadMoreSessions(ctx)
+}
+
+// SessionEstimate requires complete host-provided model buckets and saved
+// user prices. An unpriced model makes the whole session explicitly unpriced.
+func SessionEstimate(row SessionUsage, billing BillingView) (float64, bool) {
+	return ProjectEstimate(ProjectUsage{Models: row.Models}, billing)
 }

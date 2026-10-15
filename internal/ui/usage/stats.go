@@ -42,6 +42,7 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	}
 	cv := o.Coverage
 	ui.Text(c, fmt.Sprintf("Coverage: %d/%d · Failed %d · Pending %d · %s · UTC", cv.SessionsOk, cv.SessionsTotal, cv.SessionsFailed, cv.SessionsPending, cv.Mode)).FontSize(11).TextColor(muted)
+	ui.Text(c, fmt.Sprintf("Events %d · Retries %d · Compaction %.0f tokens · Main %d · Subagent %d", cv.EventsCounted, cv.Retries, cv.CompactionTokens, cv.UsageSessionsMain, cv.UsageSessionsSubagent)).FontSize(11).TextColor(muted)
 	if len(cv.FailedSessionIDs) > 0 {
 		ui.Text(c, usageText("读取失败的会话：", "Sessions that could not be read: ")+strings.Join(cv.FailedSessionIDs, ", ")).FontSize(11).TextColor(accent)
 	}
@@ -94,4 +95,10 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	})
 	rankingView(c, m, st, fg, muted, accent)
 	projectRankingView(c, m, st, fg, muted, accent)
+	ui.Text(c, usageText("服务商用量（全部历史）", "Provider usage (all time)")).Bold().TextColor(fg)
+	for _, provider := range o.Providers {
+		name := provider.Name
+		if name == "" { name = provider.ID }
+		ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).FontSize(12).TextColor(fg)
+	}
 }

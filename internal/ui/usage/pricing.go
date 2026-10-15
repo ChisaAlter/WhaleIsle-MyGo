@@ -37,6 +37,7 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		ui.Text(c, usageText("先读取已有价格后才能编辑；未配置价格的模型不估算。", "Load existing prices before editing. Models without configured prices stay unpriced.")).FontSize(11).TextColor(muted)
 		return
 	}
+	billingModelsView(c, m, fg, muted, accent)
 	if v.Dirty {
 		ui.Text(c, usageText("有未保存草稿；估算仍使用已保存价格。保存失败可重试。", "Unsaved draft; estimates still use saved prices. Failed saves can be retried.")).TextColor(accent)
 	}
@@ -52,7 +53,9 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 				key := key
 				d := v.Drafts[key]
 				ui.Row(c).Gap(6).Children(func() {
-					ui.Text(c, key).TextColor(fg).Grow(1)
+					title := key
+					if v.NewKey == key { title = "● " + title }
+					ui.Text(c, title).TextColor(fg).Grow(1)
 					if ui.Button(c, usageText("删除价格", "Remove price")).Clicked() {
 						m.Store.RemovePrice(key)
 					}

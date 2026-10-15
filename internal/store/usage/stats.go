@@ -35,12 +35,20 @@ type DayUsage struct {
 	Models map[string]Totals `json:"models"`
 }
 type SessionUsage struct {
+	Models []ModelUsage `json:"models"`
+	LastActive int64 `json:"lastActive"`
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Totals Totals `json:"totals"`
 	Depth  int    `json:"depth"`
 }
+type ProviderUsage struct {
+	ID string `json:"id"`
+	Name string `json:"name"`
+	Totals Totals `json:"totals"`
+}
 type Overview struct {
+	Providers []ProviderUsage `json:"providers"`
 	Days         []DayUsage   `json:"days"`
 	Totals       Totals       `json:"totals"`
 	SessionCount int          `json:"sessionCount"`
@@ -58,6 +66,11 @@ type Overview struct {
 		SessionsFailed   int      `json:"sessionsFailed"`
 		SessionsPending  int      `json:"sessionsPending"`
 		FailedSessionIDs []string `json:"failedSessionIds"`
+		EventsCounted int64 `json:"eventsCounted"`
+		Retries int64 `json:"retries"`
+		CompactionTokens float64 `json:"compactionTokens"`
+		UsageSessionsMain int `json:"usageSessionsMain"`
+		UsageSessionsSubagent int `json:"usageSessionsSubagent"`
 	} `json:"coverage"`
 	TopSessions []SessionUsage `json:"topSessions"`
 	UpdatedAt   int64          `json:"updatedAt"`
