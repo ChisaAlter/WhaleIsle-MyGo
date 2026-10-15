@@ -23,6 +23,7 @@ type Event struct {
 	Type      string `json:"type"`
 	Text      string `json:"text"`
 	SessionID string `json:"sessionID,omitempty"`
+	MediaPath string `json:"mediaPath,omitempty"`
 	Pinned    bool   `json:"pinned,omitempty"`
 }
 type Snapshot struct {
@@ -33,11 +34,11 @@ type Snapshot struct {
 // Run blocks until cancellation or scanner exit. The owner serializes runs for
 // one home, and gates every callback on the originating Host generation. Ack
 // only receipts the renderer has visibly shown and dismissed/finished showing.
-func Run(ctx context.Context, node, home string, acknowledgements <-chan string, report func(Snapshot)) error {
+func Run(ctx context.Context, node, home, stickerRoot string, acknowledgements <-chan string, report func(Snapshot)) error {
 	if node == "" || !filepath.IsAbs(home) {
 		return errors.New("pet event source unavailable")
 	}
-	cmd := exec.CommandContext(ctx, node, "--max-old-space-size=256", "-e", script, "--", "--pet-event-worker", home)
+	cmd := exec.CommandContext(ctx, node, "--max-old-space-size=256", "-e", script, "--", "--pet-event-worker", home, stickerRoot)
 	hideScanner(cmd)
 	cmd.Env = []string{}
 	for _, key := range []string{"SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG"} {

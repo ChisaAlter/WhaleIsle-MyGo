@@ -104,7 +104,7 @@ func (s *mainState) syncPetEvents() {
 		err := harness.WatchPetEvents(ctx, target.source, acknowledgements, func(snapshot petwatch.Snapshot) {
 			target.window.Update(func() {
 				if current() {
-					target.pet.UpdateNotifications(owner, snapshot, acknowledge)
+					target.pet.UpdateNotifications(owner, snapshot, acknowledge, target.source.Home, target.source.StickerRoot)
 				}
 			})
 		})
@@ -116,7 +116,7 @@ func (s *mainState) syncPetEvents() {
 				return
 			}
 			_ = err // Do not expose filesystem/runtime errors or source paths to the page.
-			target.pet.UpdateNotifications(owner, petwatch.Snapshot{State: "unavailable"}, acknowledge)
+			target.pet.UpdateNotifications(owner, petwatch.Snapshot{State: "unavailable"}, acknowledge, target.source.Home, target.source.StickerRoot)
 			s.petEvents.cancel = nil
 			s.petEvents.timer = time.AfterFunc(30*time.Second, func() {
 				target.window.Update(func() {

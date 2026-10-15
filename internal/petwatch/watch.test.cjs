@@ -49,5 +49,29 @@ test('all-session tails, durable acknowledgement, torn writes, restart and bound
     assert.equal(w.poll().events.length,before,'symlink source rejected');
     fs.truncateSync(outbox,0);w.poll();fs.appendFileSync(outbox,'{"kind":"say","text":"new after truncation"}\n');assert(w.poll().events.some(e=>e.text==='new after truncation'));
     now+=46*60000;fs.appendFileSync(a,frame([event(4,'turn/start',{turn:2})]));w.poll();now+=46*60000;assert(w.poll().events.some(e=>e.type==='rest'));
+    const stickers=path.join(whale,'stickers');fs.mkdirSync(stickers);
+    const png=path.join(stickers,'safe.png');fs.writeFileSync(png,Buffer.from('89504e470d0a1a0a','hex'));
+    fs.appendFileSync(outbox,JSON.stringify({kind:'sticker',text:'safe sticker',path:png})+'\n');
+    assert.equal(w.poll().events.find(e=>e.text==='safe sticker').mediaPath,png);
+    fs.appendFileSync(outbox,JSON.stringify({kind:'sticker',text:'outside',path:escape})+'\n');
+    assert.equal(w.poll().events.find(e=>e.text==='outside').mediaPath,'');
+    const linked=path.join(stickers,'linked.png');fs.symlinkSync(escape,linked);
+    fs.appendFileSync(outbox,JSON.stringify({kind:'sticker',text:'linked',path:linked})+'\n');
+    assert.equal(w.poll().events.find(e=>e.text==='linked').mediaPath,'');
+    const html=path.join(stickers,'unsafe.svg');fs.writeFileSync(html,'<svg onload="alert(1)"/>');
+    fs.appendFileSync(outbox,JSON.stringify({kind:'sticker',text:'vector',path:html})+'\n');
+    assert.equal(w.poll().events.find(e=>e.text==='vector').mediaPath,'');
+    for(const e of w.snapshot().events)w.ack(e.id);
+    const d=session('d');fs.appendFileSync(d,frame(Array.from({length:300},(_,i)=>event(i+1,'turn/end',{reason:{kind:'completed'}}))));
+    const first=w.poll().events.filter(e=>e.sessionID==='d');assert.equal(first.length,256,'bounded queue');
+    for(const e of first)w.ack(e.id);
+    const second=w.poll().events.filter(e=>e.sessionID==='d');assert.equal(second.length,44,'large complete frame resumes without dropping or repeating');
+    assert.equal(new Set([...first,...second].map(e=>e.id)).size,300);
+    const oldSize=fs.statSync(outbox).size;
+    fs.writeFileSync(outbox,JSON.stringify({kind:'say',text:'same-inode replacement',padding:'x'.repeat(oldSize)})+'\n');
+    assert(w.poll().events.some(e=>e.text==='same-inode replacement'),'same-inode rewrite beyond prior size is not lost');
+
+
+
   } finally { fs.rmSync(home,{recursive:true,force:true}); }
 });

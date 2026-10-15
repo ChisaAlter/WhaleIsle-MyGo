@@ -8,7 +8,7 @@
   panel.hidden=true;
   const body=document.createElement('div'),open=document.createElement('a'),close=document.createElement('a');
   open.textContent='打开会话 / Open chat';close.textContent='知道了 / Dismiss';
-  panel.append(body,open,close);document.querySelector('.task')?.prepend(panel);
+  const picture=document.createElement('img');picture.alt='鲸鱼娘贴纸 / Whale sticker';picture.hidden=true;Object.assign(picture.style,{width:'96px',height:'96px',borderRadius:'4px',objectFit:'contain',display:'block',margin:'auto','--app-region':'no-drag'});picture.addEventListener('error',()=>{picture.hidden=true;});panel.append(body,picture,open,close);document.querySelector('.task')?.prepend(panel);
   let stopped=false,timer=0,current='',owner='',shownAt=0,visibleMs=0,lastTick=0,acknowledging=false;
   const encode=value=>encodeURIComponent(value).replace(/%20/g,'+').replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
   const action=(kind,id)=>kind+'?owner='+encode(owner)+'&id='+encode(id);
@@ -17,7 +17,7 @@
     const r=panel.getBoundingClientRect(),clip=panel.parentElement.getBoundingClientRect();
     return r.width>0&&r.height>0&&Math.min(r.bottom,clip.bottom,innerHeight)>Math.max(r.top,clip.top,0)&&Math.min(r.right,clip.right,innerWidth)>Math.max(r.left,clip.left,0);
   };
-  function clear(){current='';shownAt=0;visibleMs=0;lastTick=0;acknowledging=false;panel.hidden=true;body.textContent='';open.removeAttribute('href');close.removeAttribute('href');}
+  function clear(){current='';shownAt=0;visibleMs=0;lastTick=0;acknowledging=false;panel.hidden=true;body.textContent='';picture.hidden=true;picture.removeAttribute('src');open.removeAttribute('href');close.removeAttribute('href');}
   function ack(){if(!current||!visiblyShown()||acknowledging)return;acknowledging=true;location.href=action('notification-ack',current);}
   close.addEventListener('click',e=>{e.preventDefault();ack();});
   document.addEventListener('visibilitychange',()=>{lastTick=0;});
@@ -30,7 +30,7 @@
       let event=events.find(e=>e.id===current);
       if(!event){clear();event=events.find(e=>e.type==='error'||e.pinned)||events[0];}
       if(event&&owner){
-        if(current!==event.id){current=event.id;body.textContent=event.text;shownAt=performance.now();lastTick=shownAt;panel.hidden=false;}
+        if(current!==event.id){current=event.id;body.textContent=event.text;shownAt=performance.now();lastTick=shownAt;panel.hidden=false;if(typeof event.image==='string'&&/^notification-image\/[0-9]+\/[a-f0-9]{32}$/.test(event.image)){picture.src=event.image;picture.hidden=false;}}
         open.hidden=!event.sessionID;if(event.sessionID)open.href=action('notification-open',event.id);
         close.href=action('notification-ack',event.id);
         const now=performance.now();if(visiblyShown()&&lastTick)visibleMs+=Math.min(now-lastTick,2000);lastTick=now;
