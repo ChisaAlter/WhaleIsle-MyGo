@@ -166,7 +166,11 @@ func DshbotCreatedBot(cmd DshbotBotCreateCommand, v DshbotBotCatalog) (DshbotBot
 			return DshbotBotItem{}, fmt.Errorf("Bot canonical identity differs")
 		}
 		for key, value := range dshbotBotCreateProfile(cmd) {
-			if !sameCapabilityJSON(value, row.Profile[key]) {
+			matches := sameCapabilityJSON(value, row.Profile[key])
+			if key == "avatar" {
+				matches = sameDshbotAvatarReceipt(value, row.Profile[key])
+			}
+			if !matches {
 				return DshbotBotItem{}, fmt.Errorf("Bot reviewed field %s differs or is missing; inspect the existing record", key)
 			}
 		}
@@ -218,7 +222,7 @@ func (c *Client) DshbotCreateBot(ctx context.Context, cmd DshbotBotCreateCommand
 		return out, err
 	}
 	item, err := decodeDshbotBotItem(reply.Item)
-	if err != nil || reply.SessionID != cmd.SessionID || !sameDshbotBotItem(item, out.Item) {
+	if err != nil || reply.SessionID != cmd.SessionID || !sameDshbotCreatedItemReceipt(item, out.Item) {
 		return out, fmt.Errorf("inconsistent Bot creation receipt; read back without retry")
 	}
 	return out, nil

@@ -104,8 +104,7 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		if err := DshbotRouteApplied(route[0], out.Status); err != nil {
 			return out, err
 		}
-		profile, _ := json.Marshal(out.Status.Profile)
-		if response.SessionID != out.Status.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
+		if response.SessionID != out.Status.Bot.SessionID || !sameDshbotProfileReceipt(response.Item, out.Status.Profile) {
 			return out, fmt.Errorf("canonical route receipt is inconsistent; read back")
 		}
 		matches := 0
@@ -144,8 +143,7 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		if err := DshbotTextProfileApplied(DshbotTextProfileCommand{Expected: expected, Values: values}, out.Status); err != nil {
 			return out, err
 		}
-		profile, _ := json.Marshal(out.Status.Profile)
-		if response.SessionID != expected.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
+		if response.SessionID != expected.Bot.SessionID || !sameDshbotProfileReceipt(response.Item, out.Status.Profile) {
 			return out, fmt.Errorf("text profile item/session receipt differs; read back")
 		}
 		return out, nil
@@ -159,8 +157,7 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		if err := DshbotSenderPolicyApplied(cmd, out.Status); err != nil {
 			return out, err
 		}
-		profile, _ := json.Marshal(out.Status.Profile)
-		if response.SessionID != expected.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
+		if response.SessionID != expected.Bot.SessionID || !sameDshbotProfileReceipt(response.Item, out.Status.Profile) {
 			return out, fmt.Errorf("source policy item/session receipt differs; read back")
 		}
 		return out, nil

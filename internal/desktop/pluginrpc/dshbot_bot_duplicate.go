@@ -192,7 +192,7 @@ func (c *Client) DshbotDuplicateBot(ctx context.Context, cmd DshbotBotDuplicateC
 	if err != nil {
 		return out, err
 	}
-	if !sameDshbotBotItem(item, out.Item) {
+	if !sameDshbotCreatedItemReceipt(item, out.Item) {
 		return out, fmt.Errorf("duplicate item and catalog receipts disagree")
 	}
 	return out, nil
