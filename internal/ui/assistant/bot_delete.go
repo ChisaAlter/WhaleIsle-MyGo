@@ -27,7 +27,7 @@ func botDeleteBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 	botDeleteView(c, m.BotDelete, m.Busy || m.PluginRPCBusy || !m.DshbotEnabled || !m.HarnessReady, fg, muted, field, border, accent)
 }
 func botDeleteReviewText(host string, p pluginrpc.DshbotBotDeletePlan) string {
-	return fmt.Sprintf("Host: %s · catalog revision %d\n精确目标 ID: %s\n稳定名称 / Exact stable name: %s\n显示名 / Display title: %s\n原 canonical session: %s\n完整当前删除影响 / Complete current deletion effects:\n%s", host, p.Catalog.Revision, p.Target.ID, p.Target.Name, p.Target.Title, p.Target.SessionID, string(p.Impact))
+	return fmt.Sprintf("Host: %s · catalog revision %d · kind: %s\n精确目标 ID: %s\n稳定名称 / Exact stable name: %s\n显示名 / Display title: %s\n原 canonical session: %s\n完整当前删除影响 / Complete current deletion effects:\n%s", host, p.Catalog.Revision, p.Target.Kind, p.Target.ID, p.Target.Name, p.Target.Title, p.Target.SessionID, string(p.Impact))
 }
 func botDeleteReviewConfirmed(r *dshbotstore.BotDeleteReview) bool {
 	return r != nil && r.Acknowledged && r.TypedID == r.Plan.Target.ID && r.TypedName == r.Plan.Target.Name && r.TypedID != "" && r.TypedName != ""
@@ -36,7 +36,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-bot-delete")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "删除选中个人 Bot / Delete selected personal Bot").FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, "删除选中 Bot 或群聊 / Delete selected Bot or room").FontSize(13).Bold().TextColor(fg)
 		ui.Text(c, "先读取完整影响；默认取消，读取预览不会删除。此入口不会删除其它选中目标，不额外发送 stop、prompt 或打开会话。").FontSize(11).TextColor(muted)
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
@@ -79,13 +79,14 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 			return
 		}
 		r := s.Review
+		effects, confirmLabel, cancelLabel, idLabel := botDeleteReviewedLabels(r.Plan.Target.Kind)
 		ui.Column(c.Key("bot-delete-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(8).Children(func() {
 			ui.Text(c, "删除前当次确认，默认取消 / Destructive confirmation; cancel by default").Bold().TextColor(accent)
-			if m.OnCancel != nil && ui.Button(c, "取消，保留此 Bot / Cancel and keep Bot").Disabled(blocked).Clicked() {
+			if m.OnCancel != nil && ui.Button(c, cancelLabel).Disabled(blocked).Clicked() {
 				m.OnCancel()
 			}
 			ui.Text(c, botDeleteReviewText(m.HostLabel, r.Plan)).FontSize(12).TextColor(fg).Selectable()
-			ui.Text(c, botDeleteEffectsWarning).FontSize(12).TextColor(accent).Selectable()
+			ui.Text(c, effects).FontSize(12).TextColor(accent).Selectable()
 			ui.Text(c, "notepad 按列出的 Host Home 相对文件名删除当前全部内容，无内容 revision；若其它 routine 共用相同规范化文件名，也会失去该文件。此列表不是文件内容备份。").FontSize(11).TextColor(accent)
 			name := r.TypedName
 			ui.TextInput(c.Key("bot-delete-exact-name"), &name).Label("输入上方精确稳定名称 / Type exact stable name").FillWidth().Disabled(blocked).OnChange(func() {
@@ -94,7 +95,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 				}
 			})
 			id := r.TypedID
-			ui.TextInput(c.Key("bot-delete-exact-id"), &id).Label("输入上方精确 Bot ID / Type exact Bot ID").FillWidth().Disabled(blocked).OnChange(func() {
+			ui.TextInput(c.Key("bot-delete-exact-id"), &id).Label(idLabel).FillWidth().Disabled(blocked).OnChange(func() {
 				if m.OnIdentity != nil {
 					m.OnIdentity(id, r.TypedName)
 				}
@@ -103,7 +104,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 			if ui.Checkbox(c, &ack, botDeleteDangerAcknowledgement).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if m.OnConfirm != nil && ui.Button(c, botDeleteConfirmLabel).Disabled(blocked || !s.Writable || !botDeleteReviewConfirmed(r)).Clicked() {
+			if m.OnConfirm != nil && ui.Button(c, confirmLabel).Disabled(blocked || !s.Writable || !botDeleteReviewConfirmed(r)).Clicked() {
 				m.OnConfirm()
 			}
 		})

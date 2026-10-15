@@ -186,10 +186,10 @@ func BuildDshbotBotDeletePlan(c DshbotDeleteCatalog, p DshbotDeletePreview, id s
 			found++
 		}
 	}
-	if found != 1 || target.Kind != "bot" || target.Hidden || target.Name == "" {
+	if found != 1 || (target.Kind != "bot" && target.Kind != "room") || target.Hidden || target.Name == "" {
 		return fail()
 	}
-	expected := DshbotDeletePreview{Item: DshbotDeleteIdentity{ID: id, Name: deleteDisplayName(target), Kind: "bot"}, Dependencies: DshbotDeleteDependencies{Groups: []DshbotDeleteGroup{}, Routines: []DshbotDeleteNamed{}, Tasks: []DshbotDeleteTask{}, Sources: []DshbotDeleteNamed{}}, Preserves: []string{"conversation-history", "memory"}, Warnings: p.Warnings}
+	expected := DshbotDeletePreview{Item: DshbotDeleteIdentity{ID: id, Name: deleteDisplayName(target), Kind: target.Kind}, Dependencies: DshbotDeleteDependencies{Groups: []DshbotDeleteGroup{}, Routines: []DshbotDeleteNamed{}, Tasks: []DshbotDeleteTask{}, Sources: []DshbotDeleteNamed{}}, Preserves: []string{"conversation-history", "memory"}, Warnings: p.Warnings}
 	routines, tasks, groups, sources, inboxes, notepads, releases, retained := []any{}, []any{}, []any{}, []any{}, []any{}, []any{}, []any{}, []any{}
 	removedRoutines, cancelledTasks, removedItems := map[string]bool{}, map[string]bool{}, map[string]bool{id: true}
 	seenRoutines, seenTasks := map[string]bool{}, map[string]bool{}
@@ -296,6 +296,11 @@ func BuildDshbotBotDeletePlan(c DshbotDeleteCatalog, p DshbotDeletePreview, id s
 	}
 	oldAudit := c.Audit[:prune]
 	impact := map[string]any{"targetCatalogProfileRemoved": target.Profile, "groups": groups, "routineCatalogEntriesRemoved": routines, "routineNotepadFilesPermanentlyRemoved": notepads, "unfinishedTasksCancelled": tasks, "peerSourcePoliciesChanged": sources, "inboxEntriesRemoved": inboxes, "sessionPresentationsReleased": releases, "disbandedGroupMemberSessionsRetained": retained, "auditEntriesPruned": oldAudit, "auditAppended": map[string]any{"type": "bot.deleted", "fromId": "user", "toId": id, "maxEntries": 200}, "preserves": p.Preserves}
+	if target.Kind == "room" {
+		if err := addDshbotRoomDeleteImpact(c, target, impact); err != nil {
+			return DshbotBotDeletePlan{}, err
+		}
+	}
 	body, e := json.MarshalIndent(impact, "", "  ")
 	if e != nil {
 		return fail()
@@ -311,7 +316,7 @@ func ValidateDshbotBotDelete(cmd DshbotBotDeleteCommand) error {
 		return fmt.Errorf("deletion review changed")
 	}
 	if !cmd.Acknowledged || cmd.ConfirmedID != p.Target.ID || cmd.ConfirmedName != p.Target.Name {
-		return fmt.Errorf("confirm irreversible effects and type the exact original Bot name and ID for this deletion")
+		return fmt.Errorf("confirm irreversible effects and type the exact original Bot/room name and ID for this deletion")
 	}
 	return nil
 }
@@ -393,6 +398,9 @@ func ValidateDshbotBotDeleteReceipt(cmd DshbotBotDeleteCommand, out DshbotBotDel
 			return fmt.Errorf("deleted identity still present in receipt; outcome remains unknown")
 		}
 	}
+	if cmd.Plan.Target.Kind == "room" {
+		return validateDshbotRoomDeleteReceipt(cmd, out)
+	}
 	return nil
 }
 
@@ -434,6 +442,10 @@ func DshbotBotDeleteObservation(p DshbotBotDeletePlan, c DshbotDeleteCatalog) st
 			}
 		}
 	}
-	b, _ := json.MarshalIndent(map[string]any{"outcome": "unknown; readback cannot establish this attempt's effects or safe retry", "latestCatalogRevision": c.Revision, "originalTargetId": p.Target.ID, "originalCanonicalSession": p.Target.SessionID, "targetCatalogState": targetState, "currentTarget": target, "currentRelatedGroups": groups, "currentRelatedRoutines": routines, "currentRelatedTasks": tasks, "currentRelatedSources": sources, "runtimeAndNotepadEffects": "unknown; no automatic retry or rollback"}, "", "  ")
+	observation := map[string]any{"outcome": "unknown; readback cannot establish this attempt's effects or safe retry", "latestCatalogRevision": c.Revision, "originalTargetId": p.Target.ID, "originalCanonicalSession": p.Target.SessionID, "targetCatalogState": targetState, "currentTarget": target, "currentRelatedGroups": groups, "currentRelatedRoutines": routines, "currentRelatedTasks": tasks, "currentRelatedSources": sources, "runtimeAndNotepadEffects": "unknown; no automatic retry or rollback"}
+	if p.Target.Kind == "room" {
+		observation["roomMemberBotCatalogState"] = dshbotRoomDeleteObservation(p, c)
+	}
+	b, _ := json.MarshalIndent(observation, "", "  ")
 	return string(b)
 }
