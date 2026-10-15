@@ -2378,9 +2378,7 @@ func (s *mainState) runGitPull(root string) {
 }
 
 func (s *mainState) runGitPush(root string) {
-	s.runGitRemote("push", root, func() (string, error) {
-		return desktopgit.Push(root)
-	}, i18n.T(i18n.KeyGitPushOK), i18n.T(i18n.KeyGitActionFailed))
+	s.reviewGitPush(root)
 }
 
 func (s *mainState) runGitCommit(root, message, reviewedToken string) {
