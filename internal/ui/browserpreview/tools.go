@@ -15,17 +15,13 @@ type browserTools struct {
 	resize       *browserViewportDrag
 	settings     browserToolSettings
 	operation    *browserToolOperation
-	confirmation *browserCacheConfirmation
+	confirmation *browserDataConfirmation[*desktop.Host]
 }
 type browserToolOperation struct {
 	host   *desktop.Host
 	epoch  uint64
 	ctx    context.Context
 	cancel context.CancelFunc
-}
-type browserCacheConfirmation struct {
-	host  *desktop.Host
-	epoch uint64
 }
 
 func (b *Controller) browserToolsCurrent(t *Tab, h *desktop.Host, epoch uint64) bool {
@@ -62,11 +58,11 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 		return
 	}
 	h, epoch := t.Host, t.Host.BrowserPageVersion()
-	if kind == "cache" {
-		confirm := t.tools.confirmation
-		if confirm == nil || confirm.host != h || confirm.epoch != epoch {
-			return
-		}
+	if kind != "scheme" && !isBrowserDataClear(kind) {
+		return
+	}
+	if isBrowserDataClear(kind) && !takeBrowserDataConfirmation(&t.tools.confirmation, kind, h, epoch) {
+		return
 	}
 	b.CancelAction()
 	if !b.browserToolsCurrent(t, h, epoch) {
@@ -79,12 +75,16 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 	t.ActionMessage = "正在应用网页外观…"
 	if kind == "cache" {
 		t.ActionMessage = "正在清除 Browser 专属登录区的 HTTP 缓存…"
+	} else if kind == "cookies" {
+		t.ActionMessage = "正在清除全部 Browser 页签共享的登录 Cookie…"
 	}
 	b.update()
 	go func() {
 		var err error
 		if kind == "cache" {
 			err = h.ClearBrowserHTTPCache(ctx)
+		} else if kind == "cookies" {
+			err = h.ClearBrowserLoginCookies(ctx, epoch)
 		} else {
 			err = h.SetBrowserColorScheme(ctx, mygo.BrowserColorScheme(scheme))
 		}
@@ -106,6 +106,8 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 			}
 			if kind == "cache" {
 				t.ActionMessage = "Browser HTTP 缓存已清除；Cookies 和站点数据保留，插件不受影响"
+			} else if kind == "cookies" {
+				t.ActionMessage = "Browser 全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，插件不受影响"
 			} else {
 				t.tools.settings.Scheme = scheme
 				t.ActionMessage = "网页 prefers-color-scheme 已更新"
@@ -174,6 +176,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	busy := t.tools.operation != nil || b.operation != nil
 	disabled := t.Host == nil || state.Loading || busy || b.current() != t
 	supported := !disabled && t.Host.BrowserToolsAvailable()
+	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()
 	zoom := 1.0
 	if t.Host != nil {
 		zoom = t.Host.BrowserZoom()
@@ -211,7 +214,12 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				}
 				if ui.Button(c, "清 HTTP 缓存…").Disabled(!supported).Clicked() {
 					b.CancelAction()
-					t.tools.confirmation = &browserCacheConfirmation{t.Host, t.Host.BrowserPageVersion()}
+					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cache", host: t.Host, epoch: t.Host.BrowserPageVersion()}
+					b.update()
+				}
+				if ui.Button(c, "清 Browser 登录 Cookie…").Disabled(!cookieSupported).Tooltip("仅 Browser 专属区的全部 Cookie；需确认，可能退出所有 Browser 页签登录。保留 localStorage、IndexedDB、WebSQL、Service Worker 和 HTTP 缓存。").Clicked() {
+					b.CancelAction()
+					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cookies", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
 				if b.pip != nil {
@@ -227,10 +235,16 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				}
 			})
 			ui.Row(c).Height(28).Gap(6).AlignItems(ui.Center).Children(func() {
-				if t.tools.confirmation != nil {
-					ui.Text(c, "清除 Browser 专属登录区全部 HTTP 缓存（含其他 Browser 页签）；保留 Cookies/站点数据，插件不受影响。继续？").FontSize(11)
-					if ui.Button(c, "确认清除").Disabled(disabled).Clicked() {
-						b.startBrowserTool(t, "cache", "")
+				if confirm := t.tools.confirmation; confirm != nil {
+					notice := "清除 Browser 专属登录区全部 HTTP 缓存（含其他 Browser 页签）；保留 Cookies/站点数据，插件不受影响。继续？"
+					unavailable := !supported
+					if confirm.kind == "cookies" {
+						notice = browserCookieClearNotice
+						unavailable = !cookieSupported
+					}
+					ui.Text(c, notice).FontSize(11).Tooltip(notice)
+					if ui.Button(c, "确认清除").Key(confirm).Disabled(disabled || unavailable).Clicked() {
+						b.startBrowserTool(t, confirm.kind, "")
 					}
 					if ui.Button(c, "取消").Clicked() {
 						t.tools.confirmation = nil
