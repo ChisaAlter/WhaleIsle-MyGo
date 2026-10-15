@@ -61,6 +61,7 @@ func (b *Controller) CancelAction() {
 // PruneActions is called each owning-window frame, including session/Host
 // changes when this browser's chrome is not being painted.
 func (b *Controller) PruneActions() {
+	b.prunePictureInPicture()
 	b.pruneBrowserTools()
 	if op := b.operation; op != nil && !b.actionCurrent(op) {
 		b.CancelAction()

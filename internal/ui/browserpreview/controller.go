@@ -16,6 +16,7 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	pip          *browserPictureInPicture
 	rendered     bool
 	actionTarget func() ActionTarget
 	operation    *previewOperation
@@ -151,6 +152,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.stopPictureInPicture()
 	b.CancelAction()
 	b.cancelInteractivePreviews()
 	for _, t := range b.Tabs {

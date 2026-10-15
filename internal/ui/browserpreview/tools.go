@@ -209,6 +209,13 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					t.tools.confirmation = &browserCacheConfirmation{t.Host, t.Host.BrowserPageVersion()}
 					b.update()
 				}
+				if b.pip != nil {
+					if ui.Button(c, "关闭画中画").Clicked() {
+						b.stopPictureInPicture()
+					}
+				} else if ui.Button(c, "画中画").Disabled(disabled).Clicked() {
+					b.openPictureInPicture(t)
+				}
 				if t.tools.operation != nil && ui.Button(c, "取消等待").Clicked() {
 					b.cancelBrowserTools()
 					t.ActionMessage = "已取消等待；已提交的浏览器操作可能已生效"
