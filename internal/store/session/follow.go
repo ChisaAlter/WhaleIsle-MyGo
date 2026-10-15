@@ -187,6 +187,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 			s.applyQuestionValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyPermissionValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyModelValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
+			s.applyHistoryOutlineValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 		}
 		if snap.Cursor != nil {
 			s.bumpHistoryThroughSeq(*snap.Cursor)
@@ -234,6 +235,7 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	timingChanged := s.captureTrajectoryBoundaryLocked(raw)
 	s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
+	s.noteHistoryBaseLocked(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
 	changed = changed || timingChanged
 	if head.Type == events.TypeAgentPresetSelected {

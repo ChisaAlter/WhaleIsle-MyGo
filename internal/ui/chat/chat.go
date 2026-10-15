@@ -20,6 +20,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	HistoryStore  *session.Store
 	FeedbackStore *session.Store
 	EditReturnSeq *float64
 	EditingSeq    float64
@@ -82,12 +83,14 @@ func View(c *ui.Context, m Model) {
 		list = &ui.ListState{FollowEnd: true}
 	}
 
+	prepareHistoryNavigation(m, msgs, list)
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
 		ConnBannerView(c, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
 		UsageLabelView(c, FormatUsageLabel(m.UsageJobsToday, m.UsageBalance), muted, chrome.Color(colors.Field), border, m.OnOpenUsage)
 		if m.Snapshot.LastAction != "" {
 			ui.Text(c, m.Snapshot.LastAction).FontSize(11).TextColor(muted).Padding(8, 12, 0, 12)
 		}
+		HistoryNavigationView(c, m, list, muted)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil {
 			label := i18n.T(i18n.KeyChatLoadEarlier)

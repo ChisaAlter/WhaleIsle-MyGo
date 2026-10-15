@@ -788,6 +788,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).FillHeight().MinWidth(0).Children(func() {
 								if paneTab == "trajectory" {
+									if snap.HistoryNavigation.Busy || snap.HistoryNavigation.Ready {
+										m.Store.CancelHistoryTurnJump(snap.SelectedID, snap.HistoryNavigation.Request)
+									}
+									if m.ChatList != nil {
+										m.ChatList.Key = nil
+									}
 									// Electron ui-trajectory: toolbar + timeline + ledger (not PlanBoard).
 									chat.TrajectoryView(c, chat.TrajectoryModel{
 										Snapshot:       snap,
@@ -823,6 +829,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										UsageBalance:     m.UsageBalance,
 										OnOpenUsage:      m.OnOpenUsage,
 										FeedbackStore:    m.Store,
+										HistoryStore:     m.Store,
 										OnMessageFeedback: func(messageID, rating, note string) {
 											m.Store.RateMessage(context.Background(), messageID, rating, note)
 										},

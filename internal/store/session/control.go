@@ -13,6 +13,7 @@ import (
 func (s *Store) WatchControl(ctx context.Context) {
 	s.mu.Lock()
 	mux := s.mux
+	client := s.client
 	sessionID := s.selectedID
 	if s.controlCancel != nil {
 		s.controlCancel()
@@ -27,10 +28,14 @@ func (s *Store) WatchControl(ctx context.Context) {
 	fctx, cancel := context.WithCancel(ctx)
 	s.controlCancel = cancel
 	s.mu.Unlock()
-	go s.runControlWatch(fctx, mux, sessionID)
+	go s.runControlWatch(fctx, client, mux, sessionID)
 }
 
-func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID string) {
+func (s *Store) controlWatchCurrentLocked(ctx context.Context, client *dsh.Client, mux *dsh.Mux, sessionID string) bool {
+	return ctx.Err() == nil && s.selectedID == sessionID && s.client == client && s.mux == mux
+}
+
+func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *dsh.Mux, sessionID string) {
 	if err := mux.Dial(ctx); err != nil {
 		return
 	}
@@ -58,7 +63,7 @@ func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID str
 			note = truncateRunes(string(raw), 80)
 		}
 		s.mu.Lock()
-		if s.selectedID != sessionID || ctx.Err() != nil || s.mux != mux {
+		if !s.controlWatchCurrentLocked(ctx, client, mux, sessionID) {
 			s.mu.Unlock()
 			return
 		}
@@ -67,6 +72,7 @@ func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID str
 		s.applyQuestionControlLocked(raw)
 		s.applyPermissionControlLocked(raw)
 		s.applyModelControlLocked(raw)
+		s.applyHistoryOutlineControlLocked(raw)
 		s.controlNote = note
 		s.mu.Unlock()
 		s.fire()

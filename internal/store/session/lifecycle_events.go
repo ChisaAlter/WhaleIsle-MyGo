@@ -255,6 +255,8 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.resetHistoryPagingLocked()
+	s.clearHistoryOutlineLocked()
 	s.trajectoryBoundaries = nil
 	s.planHistoryBinding = ""
 	s.invalidateJobsLocked()

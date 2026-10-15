@@ -42,6 +42,7 @@ func maxPersistenceSeq(msgs []Message) float64 {
 }
 
 func (s *Store) resetHistoryPagingLocked() {
+	s.resetHistoryNavigationLocked()
 	s.historyPageRequest++
 	s.historyHasMore = false
 	s.historyPageBusy = false
@@ -81,7 +82,7 @@ func (s *Store) LoadEarlierHistory(ctx context.Context) {
 	sessionID := s.selectedID
 	generation := s.followGeneration
 	through := s.historyThroughSeq
-	before := oldestPersistenceSeq(s.messages)
+	before := s.historyBeforeSeqLocked()
 	if through <= 0 {
 		through = maxPersistenceSeq(s.messages)
 	}
@@ -168,6 +169,7 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 			continue
 		}
 		s.bumpHistoryThroughSeq(rec.Event.Seq)
+		s.noteHistoryBaseLocked(rec.Event.Seq)
 		s.captureWorkflowBoundaryLocked(raw)
 		s.captureTrajectoryBoundaryLocked(raw)
 		var head struct {

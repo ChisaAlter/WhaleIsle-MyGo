@@ -138,6 +138,7 @@ type ViewState struct {
 	// PlanBoard is the folded plan/goal/queue/todo strip from follow events.
 	PlanBoard PlanBoard
 
+	HistoryNavigation HistoryNavigationView
 	HistoryBranchBusy bool
 	HistoryHasMore    bool
 	HistoryPageBusy   bool
@@ -263,6 +264,7 @@ type Store struct {
 	cwd                                  string
 	workspaceID                          string
 	planBoard                            PlanBoard
+	historyNavigation                    historyNavigationState
 	historyHasMore                       bool
 	historyPageBusy                      bool
 	historyPageRequest                   uint64
@@ -527,6 +529,7 @@ func (s *Store) Snapshot() ViewState {
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)
+	st.HistoryNavigation = s.historyNavigationSnapshotLocked()
 	st.SelectedPermission = s.permissionLabelLocked()
 	if s.permissionProjectionCurrentLocked() {
 		for _, o := range s.permissionOptions {
