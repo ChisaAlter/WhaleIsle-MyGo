@@ -41,14 +41,14 @@ func (s *mainState) botNotificationCurrent(run *botNotificationRun) bool {
 	current := s.botNotifications == run && s.win == run.window && s.botNotificationPageActiveLocked()
 	asst := s.assistant
 	s.mu.Unlock()
-	if !current || asst == nil || asst.Snapshot().Mode != assiststore.ModeDshbot {
+	if !current || run.window == nil || run.window.IsDestroyed() || asst == nil || asst.Snapshot().Mode != assiststore.ModeDshbot {
 		return false
 	}
 	return s.assistantDshbotCurrent(run.endpoint, run.client)
 }
 
-// Called by the render's existing visible-Bot-page lifecycle. Hidden windows
-// cancel directly through OnHide/OnMinimize/OnClosed as well as this fallback.
+// Called by the active Bot page lifecycle. OS hide/minimize does not retire
+// this read-only observer; page/account/Host departure and OnClosed still do.
 func (s *mainState) observeBotNotifications(rendered bool) {
 	s.mu.Lock()
 	active := s.botNotificationPageActiveLocked()
@@ -56,7 +56,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 	ep := s.bootStatus.Endpoint
 	asst := s.assistant
 	s.mu.Unlock()
-	if !rendered || !active || win == nil || win.IsDestroyed() || !win.IsVisible() || win.IsMinimized() || asst == nil || asst.Snapshot().Mode != assiststore.ModeDshbot {
+	if !rendered || !active || win == nil || win.IsDestroyed() || asst == nil || asst.Snapshot().Mode != assiststore.ModeDshbot {
 		s.stopBotNotifications()
 		return
 	}
@@ -108,7 +108,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 		applied := make(chan struct{})
 		win.Update(func() {
 			defer close(applied)
-			if !s.botNotificationCurrent(run) || win.IsDestroyed() || !win.IsVisible() || win.IsMinimized() {
+			if !s.botNotificationCurrent(run) || win.IsDestroyed() {
 				return
 			}
 			if err != nil {
@@ -204,7 +204,7 @@ func (s *mainState) clearFocusedBotNotifications() {
 }
 
 func (s *mainState) deliverBotNotification(run *botNotificationRun) {
-	if !s.botNotificationCurrent(run) || run.window.IsDestroyed() || !run.window.IsVisible() || run.window.IsMinimized() || run.window.IsFocused() {
+	if !s.botNotificationCurrent(run) || run.window.IsDestroyed() || run.window.IsFocused() {
 		run.pending = nil
 		return
 	}
@@ -223,7 +223,29 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 		n := mygo.NewNotification(mygo.NotificationOptions{Title: notice.Name, Body: strings.Join(notice.Events, "\n"), Group: "whaleisle-bot"})
 		run.notices[notice.Ticket] = n
 		n.OnClick(func() {
-			if !s.botNotificationCurrent(run) || run.notices[notice.Ticket] != n || !run.tracker.Current(notice.Ticket) {
+			current := func() bool {
+				return s.botNotificationCurrent(run) && run.notices[notice.Ticket] == n && run.tracker.Current(notice.Ticket)
+			}
+			if !current() {
+				return
+			}
+			// Hidden/minimized windows retain this read-only observer. Restore
+			// its exact window before selecting or revealing management UI.
+			// Native callbacks may change page/account ownership at each step.
+			run.window.Show()
+			if !current() {
+				return
+			}
+			run.window.Restore()
+			if !current() {
+				return
+			}
+			run.window.Focus()
+			if !current() {
+				return
+			}
+			if !run.window.IsVisible() || run.window.IsMinimized() {
+				s.botNotificationStatus("无法显示通知目标窗口 / Could not restore the notification target window")
 				return
 			}
 			// The latest accepted catalog/activity pair owns this exact item,
@@ -264,9 +286,6 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 
 			n.Close()
 			delete(run.notices, notice.Ticket)
-			run.window.Show()
-			run.window.Restore()
-			run.window.Focus()
 			run.window.Invalidate()
 			// Navigation only: no bot/open, session prompt, task, answer, or routine run.
 		})
@@ -274,9 +293,9 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 		s.botNotificationShowing = true
 		s.mu.Unlock()
 		go func() {
-			// A worker can start after a same-frame hide/focus/account change.
+			// A worker can start after a same-frame page/focus/account change.
 			var err error
-			if !s.botNotificationCurrent(run) || run.window.IsDestroyed() || !run.window.IsVisible() || run.window.IsMinimized() || run.window.IsFocused() {
+			if !s.botNotificationCurrent(run) || run.window.IsDestroyed() || run.window.IsFocused() {
 				err = context.Canceled
 			} else {
 				err = n.Show() // one outstanding native permission/submission

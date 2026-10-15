@@ -2167,8 +2167,6 @@ func main() {
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnClosed(state.whaleSettings.Suspend)
-		win.OnHide(state.stopBotNotifications)
-		win.OnMinimize(state.stopBotNotifications)
 		win.OnClosed(state.stopBotNotifications)
 		win.OnFocus(state.clearFocusedBotNotifications)
 		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
