@@ -11,6 +11,9 @@ import (
 
 // ToolImageGalleryOptions keeps disclosure state in the owning chat model.
 type ToolImageGalleryOptions struct {
+	// TextOnly is an addressed read-only seat: never load images/open links,
+	// and retain image attachment evidence in expanded tool output.
+	TextOnly  bool
 	ID        string
 	Expanded  *map[string]bool
 	OnOpen    func(string)

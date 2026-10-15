@@ -15,7 +15,18 @@ import (
 // ToolMessageView draws one complete callId lifecycle and its subcalls. The
 // projection and rendering both avoid recursion, including malformed histories.
 func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+	if gallery.TextOnly {
+		gallery.OnOpen, gallery.OnOpenURL = nil, nil
+	}
 	if msg.Tool == nil {
+		if gallery.TextOnly {
+			info := ParseToolCard(msg.EventType, msg.Raw)
+			info.Images, info.Links = nil, nil
+			info.Detail = truncateToolText(string(msg.Raw), 200)
+			toolCardInfoView(c, info, st)
+			toolLifecycleDetail(c, "tool-event:"+msg.ID, "原始记录 / Event", string(msg.Raw), st, gallery.Expanded, true)
+			return
+		}
 		ToolCardView(c, msg.EventType, msg.Raw, st, gallery)
 		CitationsView(c, CitationsForMessage(msg), st.Muted, st.Accent, gallery.OnOpenURL)
 		return
@@ -44,19 +55,32 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			if item.depth > 0 {
 				ui.Text(c, "↳ "+call.ParentCallID).FontSize(10).TextColor(st.Muted)
 			}
-			toolCardInfoView(c, ToolLifecycleCardInfo(call), st, childGallery)
-			toolLifecycleDetail(c, "tool-args:"+call.CallID, "参数 / Arguments", prettyToolPayload(call.Arguments), st, childGallery.Expanded)
+			info := ToolLifecycleCardInfo(call)
+			arguments := call.Arguments
+			output := toolLifecycleOutputFor(call, !childGallery.TextOnly)
+			if childGallery.TextOnly {
+				info.Images, info.Links = nil, nil
+				if call.Result != nil {
+					info.Detail = truncateToolText(output, 200)
+				}
+			} else {
+				arguments = prettyToolPayload(arguments)
+			}
+			toolCardInfoView(c, info, st, childGallery)
+			toolLifecycleDetail(c, "tool-args:"+call.CallID, "参数 / Arguments", arguments, st, childGallery.Expanded, childGallery.TextOnly)
 			if call.Result != nil {
-				toolLifecycleDetail(c, "tool-result:"+call.CallID, "结果 / Result", toolLifecycleOutput(call), st, childGallery.Expanded)
+				toolLifecycleDetail(c, "tool-result:"+call.CallID, "结果 / Result", output, st, childGallery.Expanded, childGallery.TextOnly)
 			}
 			if call.ParentIssue != "" {
 				ui.Text(c, "调用关系 / Call relation: "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
 			}
-			var citations []Citation
-			for _, source := range call.Events {
-				citations = append(citations, CitationsForMessage(source)...)
+			if !childGallery.TextOnly {
+				var citations []Citation
+				for _, source := range call.Events {
+					citations = append(citations, CitationsForMessage(source)...)
+				}
+				CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, childGallery.OnOpenURL)
 			}
-			CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, childGallery.OnOpenURL)
 		})
 		for i := len(call.Children) - 1; i >= 0; i-- {
 			stack = append(stack, entry{call.Children[i], item.depth + 1})
@@ -88,7 +112,7 @@ func ToolLifecycleCardInfo(call *session.ToolCallView) ToolCardInfo {
 	return info
 }
 
-func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyle, expanded *map[string]bool) {
+func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyle, expanded *map[string]bool, textOnly bool) {
 	if body == "" {
 		return
 	}
@@ -103,7 +127,11 @@ func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyl
 				toggleThinkingExpanded(expanded, key)
 			}
 			if open && ui.Button(c, "复制 / Copy").FontSize(10).Clicked() {
-				mygo.Clipboard.WriteText(body)
+				if textOnly {
+					c.Services().WriteClipboard(body)
+				} else {
+					mygo.Clipboard.WriteText(body)
+				}
 			}
 		})
 		if open {
@@ -121,6 +149,10 @@ func prettyToolPayload(body string) string {
 }
 
 func toolLifecycleOutput(call *session.ToolCallView) string {
+	return toolLifecycleOutputFor(call, true)
+}
+
+func toolLifecycleOutputFor(call *session.ToolCallView, allowGallery bool) string {
 	if call == nil || call.Result == nil {
 		return ""
 	}
@@ -146,8 +178,12 @@ func toolLifecycleOutput(call *session.ToolCallView) string {
 	}
 	// Images still use the validated native gallery. On error/invalid references,
 	// keep their full JSON evidence, matching the existing renderer's behavior.
-	gallery := call.State == "ok" && len(toolImageReferences(content)) > 0
-	parts := []string{toolImageText(content, gallery)}
+	gallery := allowGallery && call.State == "ok" && len(toolImageReferences(content)) > 0
+	body := toolImageText(content, gallery)
+	if !allowGallery {
+		body = readOnlyToolContent(content)
+	}
+	parts := []string{body}
 	if e := event.Data.Error; e != nil {
 		detail := strings.TrimSpace(e.Reason)
 		if detail == "" {

@@ -251,8 +251,7 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 		}
 		var err error
 		if v.Address.validChild() && earlier {
-			v.Process, v.Body, err = readAgentNavigationPage(ctx, client, v.Address, v.Process)
-			v.Messages = nil
+			v.Process, v.Messages, v.Body, err = readAgentNavigationPage(ctx, client, v.Address, v.Process)
 		}
 		if err == nil && !earlier && current() {
 			var projection api.SessionProjectionsValue
@@ -343,7 +342,7 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 	}
 	return rows, nil
 }
-func readAgentNavigationPage(ctx context.Context, client *dsh.Client, address AgentSessionAddress, previous projectflow.ProcessSnapshot) (projectflow.ProcessSnapshot, string, error) {
+func readAgentNavigationPage(ctx context.Context, client *dsh.Client, address AgentSessionAddress, previous projectflow.ProcessSnapshot) (projectflow.ProcessSnapshot, []Message, string, error) {
 	before := agentNavigationBefore(previous)
 	var page struct {
 		Records []json.RawMessage `json:"records"`
@@ -351,44 +350,10 @@ func readAgentNavigationPage(ctx context.Context, client *dsh.Client, address Ag
 	}
 	err := client.Call(ctx, "session/page", map[string]any{"request": map[string]any{"address": address, "throughSeq": previous.Cursor, "beforeSeq": before, "maxMessages": 30}}, &page)
 	if err != nil {
-		return projectflow.ProcessSnapshot{}, "", err
+		return projectflow.ProcessSnapshot{}, nil, "", err
 	}
 	raw, _ := json.Marshal(map[string]any{"type": "snapshot", "cursor": previous.Cursor, "records": page.Records, "hasMore": page.HasMore})
-	return renderAgentNavigationHistory(raw, previous.Cursor, before)
-}
-func renderAgentNavigationHistory(raw json.RawMessage, through, before float64) (projectflow.ProcessSnapshot, string, error) {
-	var page projectflow.ProcessSnapshot
-	if err := json.Unmarshal(raw, &page); err != nil {
-		return page, "", err
-	}
-	if page.Records == nil {
-		return page, "", fmt.Errorf("Invalid child history records")
-	}
-	for _, r := range page.Records {
-		if r.Type != "event" || r.Event.Seq <= 0 || r.Event.Seq > through || (before > 0 && r.Event.Seq >= before) {
-			return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Child history page crossed its fixed cursor")
-		}
-	}
-	if len(page.Records) == 0 && page.HasMore {
-		return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Child history made no backward progress")
-	}
-	// Reuse the verified, transport-free history/assistant reducer. This does not
-	// open the Workflow observer or borrow any of its state or main-chat cursors.
-	reducer := newWorkflowMemberStream()
-	restart, err := reducer.apply(raw)
-	if err != nil {
-		return projectflow.ProcessSnapshot{}, "", err
-	}
-	if restart {
-		return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Invalid child history presentation")
-	}
-	process := reducer.process
-	process.Live = false
-	body := WorkflowMemberDisplayText(WorkflowMemberView{Process: process, Messages: reducer.messages(), PresentationReady: true})
-	if body == "" {
-		body = WorkflowProcessText(WorkflowMemberView{Process: process})
-	}
-	return process, body, nil
+	return ProjectAgentNavigationHistory(raw, previous.Cursor, before)
 }
 
 // Agent actions are bound to the exact rendered navigation token and complete

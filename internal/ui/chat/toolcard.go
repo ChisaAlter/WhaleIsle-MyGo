@@ -141,10 +141,10 @@ func toolCardInfoView(c *ui.Context, info ToolCardInfo, st ToolCardStyle, galler
 			ui.Text(c, info.Name).FontSize(size).Bold().TextColor(st.FG).Grow(1)
 			ui.Text(c, info.Status).FontSize(size - 1).TextColor(statusColor)
 		})
-		if len(info.Images) > 0 && len(gallery) > 0 {
+		if len(info.Images) > 0 && len(gallery) > 0 && !gallery[0].TextOnly {
 			toolImageGallery(c, info.Images, st, gallery[0])
 		}
-		if len(gallery) > 0 {
+		if len(gallery) > 0 && !gallery[0].TextOnly {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, gallery[0].OnOpenURL)
 		}
 		if info.Detail != "" {

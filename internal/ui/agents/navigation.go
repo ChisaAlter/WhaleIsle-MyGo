@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -118,7 +119,8 @@ func navigationView(c *ui.Context, m Model) {
 					if body == "" && !v.Busy {
 						body = agentText("尚无可显示记录。", "No visible records yet.")
 					}
-					ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
+					chat.ReadOnlyHistoryView(c, chat.ReadOnlyHistoryScope(snap.PlanHistoryBinding, v.Address, v.Token), v.Messages, body,
+						chat.DefaultToolCardStyle(fg, muted, chrome.Color(colors.Border), chrome.Color(colors.Field), chrome.Color(colors.Accent)))
 					// Preserve the existing dedicated continuation route. Never send through
 					// the main composer or pretend one-shot history is an ordinary Session.
 					if v.Address.Mode == "continuable" && m.PromptDraft != nil {
