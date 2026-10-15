@@ -15,6 +15,7 @@ import (
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
+	Store       *session.Store
 	Manager     *session.AgentPresetManager
 	Snapshot    session.ViewState
 	ThemeID     string
@@ -29,6 +30,10 @@ type Model struct {
 
 // View paints child sessions of the selected root (ParentID tree).
 func View(c *ui.Context, m Model) {
+	if m.Store != nil {
+		navigationView(c, m)
+		return
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)

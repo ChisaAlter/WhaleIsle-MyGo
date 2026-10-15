@@ -259,6 +259,7 @@ func (s *Store) invalidateFollowLocked() {
 	s.planHistoryBinding = ""
 	s.invalidateJobsLocked()
 	s.invalidateWorkflowLocked()
+	s.invalidateAgentNavigationLocked()
 	s.resetPermissionRiskLocked()
 	s.resetAssistantStreamLocked()
 	s.cancelVisualReplyLocked()

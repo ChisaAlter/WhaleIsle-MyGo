@@ -310,6 +310,9 @@ func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
+	if !m.RightPaneOpen || derefString(m.RightPaneTab) != "agents" {
+		m.Store.CloseAgentNavigation()
+	}
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -1075,21 +1078,12 @@ func rightPane(c *ui.Context, m Model) {
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			agents.View(c, agents.Model{
+				Store:       store,
 				Manager:     m.AgentPresetManager,
 				Snapshot:    store.Snapshot(),
 				ThemeID:     m.ThemeID,
 				SystemDark:  m.SystemDark,
 				PromptDraft: m.AgentsPromptDraft,
-				OnSelect:    store.Select,
-				OnStop: func(sessionID string) {
-					store.CancelSession(context.Background(), sessionID)
-				},
-				OnInterrupt: func(parentID, childID string) {
-					store.InterruptChild(context.Background(), parentID, childID, "cancel")
-				},
-				OnPrompt: func(parentID, childID, text string) {
-					store.PromptChild(context.Background(), parentID, childID, text)
-				},
 				OnClose: func() {
 					if m.RightPaneTab != nil {
 						*m.RightPaneTab = "files"

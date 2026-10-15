@@ -164,6 +164,7 @@ type Store struct {
 	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
+	agentNavigation           agentNavigationState
 	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64

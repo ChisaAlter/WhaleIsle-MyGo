@@ -2114,6 +2114,9 @@ func main() {
 		win.OnHide(func() {
 			state.mu.Lock()
 			state.fileTabs.CancelPlanRead()
+			if state.sessions != nil {
+				state.sessions.CloseAgentNavigation()
+			}
 			state.fileTabs.Pause()
 			state.projectWindowHidden = true
 			state.stopProjectRefreshLocked()
@@ -2131,6 +2134,9 @@ func main() {
 			state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 			state.mu.Lock()
 			state.fileTabs.Dispose()
+			if state.sessions != nil {
+				state.sessions.CloseAgentNavigation()
+			}
 			state.stopProjectProcessLocked()
 			state.stopProjectRefreshLocked()
 			state.mu.Unlock()
@@ -2926,6 +2932,9 @@ func mainView(c *ui.Context) {
 	if sessions == nil || launcherOpen || settingsOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
 		state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 		fileTabs.CancelPlanRead()
+		if sessions != nil {
+			sessions.CloseAgentNavigation()
+		}
 		fileTabs.Pause()
 	}
 	state.mu.Lock()
