@@ -13,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/workspacefs"
 )
 
@@ -41,6 +42,19 @@ func imageMode(m Model, path string) bool {
 }
 
 func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
+	if imagepreview.Supports(path) && m.OnOpenDoc != nil {
+		ui.Row(c).Gap(6).Padding(4, 12, 4, 12).Children(func() {
+			if ui.Button(c, label("隔离兼容预览", "Isolated compatibility preview")).FontSize(11).Clicked() {
+				full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
+				if err != nil {
+					setFileStatus(m, err.Error())
+				} else {
+					m.OnOpenDoc(full, workspacefs.DocNone, true)
+				}
+			}
+		})
+		ui.Text(c, label("GIF 动画 / ICO / AVIF / SVG：先校验大小、尺寸和资源边界，再用无脚本、无网络的隔离图片页打开。", "GIF animation / ICO / AVIF / SVG: validate size, dimensions and resource bounds, then open an isolated image page with no scripts or network.")).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+	}
 	t := selectedTab(m)
 	var preview *imagePreview
 	if t != nil {

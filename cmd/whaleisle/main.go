@@ -6451,6 +6451,10 @@ func mainView(c *ui.Context) {
 						},
 						FileOpenWithApps: fileOpenWithApps,
 						OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
+							if inWebView && supportsImagePreview(absPath) {
+								state.openLocalImage(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
+								return
+							}
 							if inWebView && kind == workspacefs.DocHTML {
 								state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
 								return
