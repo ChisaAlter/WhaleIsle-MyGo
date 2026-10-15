@@ -114,6 +114,7 @@ type mainState struct {
 	desktopTray          *mygo.Tray
 	trayHideNotice       trayHideNotice
 	trayHideNotification *mygo.Notification
+	bridgeAlerts         *bridgeAlertUI
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
 	petEvents            petEventController
@@ -1481,6 +1482,7 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 }
 
 func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
+	s.closeWhaleBridgeAlerts()
 	s.closeDesktopTray()
 	s.cancelComposerVoice()
 	s.mu.Lock()
@@ -1522,6 +1524,7 @@ func (s *mainState) refreshLauncherComponents() {
 	s.mu.Lock()
 	s.launcherComponents = rows
 	s.mu.Unlock()
+	s.observeWhaleBridgeAlerts()
 }
 
 // acceptOpenHookPath is a one-shot acceptance driver: write a panel id, app opens it.
@@ -2252,6 +2255,7 @@ func main() {
 		}
 
 		state.setupDesktopTray()
+		state.startWhaleBridgeAlerts(win)
 
 		// Electron launcher.js: show launcher first; auto-start desktop only when
 		// workspace is set AND autoStartDesktop is enabled (default true).

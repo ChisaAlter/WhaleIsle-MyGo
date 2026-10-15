@@ -92,7 +92,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	if pendingUpdate && m.UpdateAvailable {
 		m.UpdateStatus += resumeText("，等待确认。可在启动器中选择稍后或下载。", "; awaiting confirmation. Choose Later or Download in the launcher.")
 	}
-	return withApplicationUninstall(win, s.withStartupDiagnostics(m))
+	return withApplicationUninstall(win, s.withStartupDiagnostics(s.withWhaleBridgeAlerts(m)))
 }
 
 func (s *mainState) nativeReleaseNotify(win *mygo.Window) {

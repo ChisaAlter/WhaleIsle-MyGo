@@ -54,6 +54,7 @@ var (
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
+	BridgeAlerts                BridgeAlertsModel
 	ApplicationUninstall        ApplicationUninstallModel
 	StartupDiagnostics          startuprec.Diagnostics
 	StartupRepairBusy           bool
@@ -342,6 +343,9 @@ func stage(c *ui.Context, m Model, tab string) {
 
 func stageBody(c *ui.Context, m Model, tab string) {
 	ui.Column(c).FillWidth().Gap(0).Children(func() {
+		if tab != TabComponents {
+			bridgeAlertSummary(c, m, false)
+		}
 		switch tab {
 		case TabComponents:
 			routePageHead(c, m, i18n.T(i18n.KeyLauncherTabComponents), i18n.T(i18n.KeyLauncherComponentsLede))
@@ -591,6 +595,7 @@ func homeComponents(c *ui.Context, m Model) {
 
 func componentsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(12).Children(func() {
+		bridgeAlertSummary(c, m, true)
 		if m.UpdateStatus != "" {
 			ui.Text(c, m.UpdateStatus).FontSize(12).TextColor(colSecondary)
 		}
