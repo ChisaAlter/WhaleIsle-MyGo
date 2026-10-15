@@ -86,6 +86,18 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		})
 	}
 	return &settings.MCPAccess{
+		Import: &settings.MCPImportAccess{
+			State:     snap.Import,
+			OnInput:   func(text, name string) { controller.SetImportInput(text, name); s.updateMCPSettingsUI() },
+			OnParse:   func() { controller.ParseImport(); s.updateMCPSettingsUI() },
+			OnClear:   func() { controller.ClearImport(); s.updateMCPSettingsUI() },
+			OnSelect:  func(index int) { controller.SelectImport(index); s.updateMCPSettingsUI() },
+			OnReplace: func(value bool) { controller.SetImportReplace(value); s.updateMCPSettingsUI() },
+			OnStage: func() {
+				controller.StageImportExpected(snap.Import.Token, snap.Import.Selected)
+				s.updateMCPSettingsUI()
+			},
+		},
 		Form: &settings.MCPFormAccess{
 			Draft: snap.Form, Errors: snap.FormErrors,
 			OnOpen:   func() { controller.OpenForm(); s.updateMCPSettingsUI() },

@@ -17,6 +17,7 @@ type Caller interface {
 	Call(context.Context, string, any, any) error
 }
 type Snapshot struct {
+	Import                                        ImportState
 	Form                                          *FormDraft
 	FormErrors                                    map[string]string
 	Query, EnabledFilter, ExpandedID              string
@@ -26,15 +27,17 @@ type Snapshot struct {
 	Draft, EditingID, DeletingID, Err, LastAction string
 }
 type Controller struct {
-	mu       sync.Mutex
-	state    Snapshot
-	revision uint64
+	importSequence uint64
+	mu             sync.Mutex
+	state          Snapshot
+	revision       uint64
 }
 
 func (c *Controller) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := c.state
+	s.Import = cloneImport(s.Import)
 	if c.state.Form != nil {
 		form := *c.state.Form
 		s.Form = &form
@@ -80,6 +83,7 @@ func (c *Controller) Edit(id string) {
 				c.state.Err = "Invalid server configuration"
 				return
 			}
+			c.cancelImportDraft()
 			c.state.Form = nil
 			c.state.FormErrors = nil
 			c.state.Draft = pretty.String()
@@ -106,6 +110,7 @@ func (c *Controller) CancelEdit() {
 	if c.state.Busy {
 		return
 	}
+	c.cancelImportDraft()
 	c.state.Form = nil
 	c.state.FormErrors = nil
 	c.state.Draft = ""
@@ -246,6 +251,7 @@ func (c *Controller) saveExpectedVersion(ctx context.Context, client Caller, dra
 	err = client.Call(ctx, "mcpServers/upsert", map[string]any{"request": api.McpServerUpsertRequest{Spec: spec}}, &out)
 	c.finish(ctx, client, err, "Saved", func() {
 		if c.revision == revision {
+			c.finishImportSave(spec)
 			c.state.Form = nil
 			c.state.FormErrors = nil
 			c.state.Draft = ""

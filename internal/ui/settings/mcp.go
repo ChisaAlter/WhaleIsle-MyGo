@@ -21,6 +21,7 @@ type MCPServerRow struct {
 
 // MCPAccess is the dedicated MCP settings page (mcpServers/list when present).
 type MCPAccess struct {
+	Import                                        *MCPImportAccess
 	Form                                          *MCPFormAccess
 	Catalog                                       *MCPCatalogAccess
 	Servers                                       []MCPServerRow
@@ -118,6 +119,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 	}
+	mcpImportPane(c, a.Import, a.Busy, fg, muted)
 	formOpen := mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
 	if a.DraftSpec != nil && !formOpen {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(12).Bold().TextColor(fg)
