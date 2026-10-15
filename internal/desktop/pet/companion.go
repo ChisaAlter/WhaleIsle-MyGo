@@ -90,6 +90,11 @@ func (p *Companion) Save() {
 		return
 	}
 	p.Error = ""
+	if !p.Behavior.ChatEnabled {
+		p.assetMu.Lock()
+		p.chat.close()
+		p.assetMu.Unlock()
+	}
 	if previous.Enabled != p.Enabled || previous.SkinID != p.SkinID || previous.Neural != p.Neural {
 		p.close()
 	}

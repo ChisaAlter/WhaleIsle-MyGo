@@ -66,8 +66,15 @@ func (p *Companion) StartChat() (context.Context, func(string) bool) {
 		return nil, nil
 	}
 	return ctx, func(message string) bool {
+		allowed := p.ChatAllowed() && p.win != nil && !p.win.IsDestroyed()
 		p.assetMu.Lock()
 		defer p.assetMu.Unlock()
+		if !allowed {
+			if p.chat.serial == serial {
+				p.chat.close()
+			}
+			return false
+		}
 		return p.chat.finish(serial, message)
 	}
 }
