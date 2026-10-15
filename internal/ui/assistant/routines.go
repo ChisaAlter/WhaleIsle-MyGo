@@ -10,6 +10,7 @@ import (
 )
 
 type RoutineModel struct {
+	Memory                                             BotMemoryModel
 	State                                              dshbotstore.RoutineSnapshot
 	HostLabel                                          string
 	OnRefresh, OnEdit, OnDiscard, OnConfirm, OnDismiss func()
@@ -67,6 +68,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 	s := r.State
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
 	ui.Column(c.Key("bot-routines")).Gap(8).Children(func() {
+		botMemoryBlock(c, r.Memory, blocked, fg, muted, accent)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Bot 例行任务 / Bot routines").FontSize(13).Bold().TextColor(fg).Grow(1)
 			if ui.Button(c, "刷新例行任务 / Refresh routines").Disabled(blocked || s.Scope.BotID == "").Clicked() {

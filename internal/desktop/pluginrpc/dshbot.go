@@ -17,10 +17,12 @@ import (
 //   describe          payload {} or {botId}; value { view, capabilities }
 //   group/runtime     payload {roomId}; value { roomId, sessionId, members[] }
 //   bot/activity      payload {ids?}; value { entries[] }
-//   bot/trigger-token payload {}; value { token }
 //   routine/missed    payload {}; value { ids[] }
 //   memory/get        payload { id }; value { botId, bot, user, limits }
 //   bot/delete-preview payload { id }; value { item, dependencies, preserves }
+//
+// Credential mutation: bot/trigger-token payload {}; value { token }. This is
+// Host-directory-wide get-or-create, not a read-only lookup; explicit consent only.
 //
 // Write endpoints (revision-gated where noted): catalog/items, bot/*, section/*,
 // memory/replace, bot/objective/*, task/*, routine/*, bot/stop.
