@@ -14,6 +14,9 @@ import (
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	// BrowserProfile selects the persistent Browser-only login/storage area.
+	// It cannot be combined with an authenticated Host session or local preview.
+	BrowserProfile bool
 	// LocalPDFURL is a single read-only local PDF capability. It uses the
 	// dedicated isolated WebView profile and exact-resource deny-by-default policy.
 	LocalPDFURL string
@@ -71,6 +74,15 @@ type Host struct {
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
 	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != ""
+	if opts.BrowserProfile {
+		if runtime.GOOS != "windows" {
+			return nil, errors.New("Browser profile is unavailable on this platform")
+		}
+		if localPreview || opts.SessionOrigin != "" || opts.SessionCookie != "" {
+			return nil, errors.New("Browser profile cannot use local previews or Host sessions")
+		}
+		opts.Untrusted = true
+	}
 	created := false
 	if localPreview {
 		// The lease is released exactly once, even if creation fails before a
@@ -155,8 +167,8 @@ func NewHost(opts HostOptions) (*Host, error) {
 
 	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
-	if localPreview {
-		// Register the lease cleanup handlers before starting asynchronous load.
+	if localPreview || opts.BrowserProfile {
+		// Register lifecycle and failure handlers before asynchronous load.
 		initialURL = ""
 	}
 	child := mygo.NewWindow(mygo.WindowOptions{
@@ -170,6 +182,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
+			BrowserProfile:  opts.BrowserProfile,
 			LocalPDFURL:     opts.LocalPDFURL,
 			LocalHTMLURL:    opts.LocalHTMLURL,
 			TrustedOrigins:  trusted,
@@ -212,6 +225,12 @@ func NewHost(opts HostOptions) (*Host, error) {
 					h.setError("PDF preview failed; use system open")
 				}
 				_ = h.Close()
+			} else if opts.BrowserProfile {
+				h.setError(err.Error())
+				if !pg.BrowserToolsAvailable() {
+					// Environment creation failed; allow a fresh Host on retry.
+					_ = h.Close()
+				}
 			} else if gateway != nil {
 				h.setError("Plugin Host page failed to load")
 			} else {
@@ -251,12 +270,15 @@ func NewHost(opts HostOptions) (*Host, error) {
 		child.OnClosed(func() { _ = h.Close() })
 	}
 	h.SyncBounds()
-	if localPreview {
+	if localPreview || opts.BrowserProfile {
 		if err := pg.LoadURL(pageURL); err != nil {
 			_ = h.Close()
 			return nil, err
 		}
 		if !h.Alive() {
+			if opts.BrowserProfile {
+				return nil, errors.New("webview: Browser profile failed to start")
+			}
 			return nil, errors.New("webview: local document preview failed to start")
 		}
 	}

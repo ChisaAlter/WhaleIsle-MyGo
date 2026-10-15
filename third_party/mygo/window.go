@@ -363,6 +363,15 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 		}
 		opts.Page.IsolatedPreview = true
 	}
+	if opts.Page.BrowserProfile {
+		if runtime.GOOS != "windows" || opts.Page.IsolatedPreview || opts.Content != nil {
+			panic("mygo: Browser profile requires an ordinary Windows web page")
+		}
+		opts.Page.DisableBindings = true
+		opts.Page.WindowControlsOnly = false
+		opts.Page.PreloadScript = ""
+		opts.Page.DevTools = DevToolsDisabled
+	}
 	if opts.Page.IsolatedPreview {
 		if runtime.GOOS != "windows" {
 			panic("mygo: isolated preview is unavailable on this platform")
@@ -419,6 +428,7 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
+		BrowserProfile:  po.BrowserProfile,
 		IsolatedPreview: po.IsolatedPreview,
 		LocalPDFURL:     po.LocalPDFURL,
 		LocalHTMLURL:    po.LocalHTMLURL,

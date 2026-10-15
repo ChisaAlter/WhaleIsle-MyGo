@@ -193,6 +193,7 @@ type AboutPanelOptions struct {
 // WindowOptions configures a native window and its webview. The public
 // package fills in all defaults before calling NewWindow.
 type WindowOptions struct {
+	BrowserProfile  bool
 	LocalPDFURL     string
 	LocalHTMLURL    string
 	IsolatedPreview bool

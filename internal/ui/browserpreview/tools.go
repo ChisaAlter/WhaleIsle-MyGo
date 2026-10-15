@@ -78,7 +78,7 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 	t.Error = ""
 	t.ActionMessage = "正在应用网页外观…"
 	if kind == "cache" {
-		t.ActionMessage = "正在清除本应用共享 WebView 配置的 HTTP 缓存…"
+		t.ActionMessage = "正在清除 Browser 专属登录区的 HTTP 缓存…"
 	}
 	b.update()
 	go func() {
@@ -105,7 +105,7 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 				return
 			}
 			if kind == "cache" {
-				t.ActionMessage = "共享 WebView 配置的 HTTP 缓存已清除；Cookies 和站点数据保留"
+				t.ActionMessage = "Browser HTTP 缓存已清除；Cookies 和站点数据保留，插件不受影响"
 			} else {
 				t.tools.settings.Scheme = scheme
 				t.ActionMessage = "网页 prefers-color-scheme 已更新"
@@ -228,7 +228,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 			})
 			ui.Row(c).Height(28).Gap(6).AlignItems(ui.Center).Children(func() {
 				if t.tools.confirmation != nil {
-					ui.Text(c, "清除本应用共享 WebView 配置的全部 HTTP 缓存（含其他页签/插件）；保留 Cookies/站点数据。继续？").FontSize(11)
+					ui.Text(c, "清除 Browser 专属登录区全部 HTTP 缓存（含其他 Browser 页签）；保留 Cookies/站点数据，插件不受影响。继续？").FontSize(11)
 					if ui.Button(c, "确认清除").Disabled(disabled).Clicked() {
 						b.startBrowserTool(t, "cache", "")
 					}

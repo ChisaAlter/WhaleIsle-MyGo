@@ -35,6 +35,7 @@ type Backend struct {
 	envErr     error
 	envStarted bool
 	envWaiters []func()
+	browser    *browserEnvironment // opt-in persistent Browser environment
 
 	menus menuTable
 
@@ -539,13 +540,13 @@ func (a appController) Package() (platform.PackageInfo, bool) {
 func (a appController) ClearBrowsingData(done func(error)) {
 	var web uintptr
 	for _, w := range a.b.windows {
-		if w.webview != 0 {
+		if w.webview != 0 && !w.opts.BrowserProfile && !w.opts.IsolatedPreview {
 			web = w.webview
 			break
 		}
 	}
 	if web == 0 {
-		done(errors.New("mygo: clearing browsing data needs an open window"))
+		done(errors.New("mygo: clearing browsing data needs an open default-profile window"))
 		return
 	}
 	wv13 := queryInterface(web, &iidICoreWebView2_13)

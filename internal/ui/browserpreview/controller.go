@@ -16,6 +16,7 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	profileSeen      bool
 	floatingDocument *floatingDocumentWindow
 	pip              *browserPictureInPicture
 	rendered         bool
@@ -91,7 +92,7 @@ func (b *Controller) Navigate(raw string) {
 		b.showHost(t.Host)
 		return
 	}
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
 	if err != nil {
 		t.Error = err.Error()
 		b.update()
@@ -301,7 +302,17 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if err != "" {
 				status = err
 			}
-			ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
+			if !b.profileSeen && t.Document == nil && t.HTML == nil && err == "" {
+				const notice = "Browser 已启用独立登录区，首次需要重新登录；旧共享数据未迁移或删除。"
+				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, notice).FontSize(11).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
+					if ui.Button(c, "知道了").Clicked() {
+						b.profileSeen = true
+					}
+				})
+			} else {
+				ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
+			}
 		})
 		canvas := ui.Box(c).Key("browser-device-canvas").Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
 		canvas.Children(func() { b.deviceResizeRails(c, t, canvas, chrome.Color(colors.Border)) })

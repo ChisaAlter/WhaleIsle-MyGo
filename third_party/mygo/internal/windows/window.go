@@ -21,6 +21,7 @@ type window struct {
 	// The WebView2 controller is created asynchronously; calls that need
 	// it wait in pending until it exists, or fail with webViewErr, why it
 	// could not be created.
+	browser      *browserEnvironment
 	isolated     *previewEnvironment
 	controller   uintptr // ICoreWebView2Controller
 	webview      uintptr // ICoreWebView2
@@ -167,6 +168,8 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	if !o.Surface {
 		if o.IsolatedPreview {
 			w.startPreviewEnvironment()
+		} else if o.BrowserProfile {
+			b.whenEnvironment(w.startBrowserEnvironment)
 		} else {
 			b.whenEnvironment(w.createWebView)
 		}
@@ -485,6 +488,7 @@ func (w *window) cleanup() {
 	if w.isolated != nil {
 		w.isolated.close()
 	}
+	w.releaseBrowserEnvironment()
 	w.b.menus.drop(w.owner)
 	// Windows destroys the menu bar on the window, not one hidden off it.
 	if w.hmenu != 0 && !w.menuShown() {

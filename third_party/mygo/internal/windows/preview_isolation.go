@@ -51,6 +51,12 @@ func (w *window) environment() uintptr {
 		}
 		return w.isolated.env
 	}
+	if w.opts.BrowserProfile {
+		if w.browser == nil {
+			return 0
+		}
+		return w.browser.env
+	}
 	return w.b.env
 }
 

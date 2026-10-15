@@ -137,7 +137,7 @@ func (w *window) createWebView() {
 	if w.closed {
 		return
 	}
-	if !w.opts.IsolatedPreview && w.b.envErr != nil {
+	if !w.opts.IsolatedPreview && !w.opts.BrowserProfile && w.b.envErr != nil {
 		w.webViewFailed(w.b.envErr)
 		return
 	}
@@ -551,6 +551,16 @@ func (w *window) acceleratorKeyPressed(_, args uintptr) {
 }
 
 func (w *window) LoadURL(raw string) {
+	if w.opts.BrowserProfile {
+		failedLoad := func(err error) { w.h.LoadFailed(raw, 0, err.Error()) }
+		w.withWebViewOr(func() {
+			w.programmatic = true
+			if hr := comCall(w.webview, wvNavigate, uintptr(unsafe.Pointer(u16(w.webURL(raw))))); failed(hr) {
+				failedLoad(hresultError("Browser navigation", hr))
+			}
+		}, failedLoad)
+		return
+	}
 	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" {
 		failedLoad := func(err error) { w.h.LoadFailed(raw, 0, err.Error()) }
 		w.withWebViewOr(func() {

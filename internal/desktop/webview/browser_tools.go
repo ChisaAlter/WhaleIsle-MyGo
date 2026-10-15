@@ -64,7 +64,7 @@ func (h *Host) SetBrowserColorScheme(ctx context.Context, scheme mygo.BrowserCol
 	return h.browserTool(ctx, func(ctx context.Context, p *mygo.Page) error { return p.SetBrowserColorScheme(ctx, scheme) })
 }
 
-// The caller must confirm the shared-profile HTTP cache scope before this call.
+// The caller must confirm the whole current-profile HTTP cache scope first.
 func (h *Host) ClearBrowserHTTPCache(ctx context.Context) error {
 	return h.browserTool(ctx, func(ctx context.Context, p *mygo.Page) error { return p.ClearBrowserHTTPCache(ctx) })
 }
