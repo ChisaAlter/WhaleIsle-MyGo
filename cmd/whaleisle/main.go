@@ -346,7 +346,6 @@ type mainState struct {
 	terminalPanel       *termui.Panel
 	terminalSessions    termui.Sessions
 	terminalShellsNote  string
-	remoteTerminalID    string
 	terminalVisible     bool
 	terminalSavedBottom float32
 
@@ -1284,147 +1283,6 @@ func (s *mainState) ensureTerminal(workspaceRoot string, systemDark bool) {
 		return
 	}
 	s.terminalPanel = s.terminalSessions.Get(root, systemDark)
-	go s.refreshTerminalShells()
-}
-
-func (s *mainState) refreshTerminalShells() {
-	s.dshMu.Lock()
-	client := s.dshClient
-	s.dshMu.Unlock()
-	s.mu.Lock()
-	sessionID := ""
-	if s.sessions != nil {
-		sessionID = s.sessions.Snapshot().SelectedID
-	}
-	win := s.win
-	s.mu.Unlock()
-	if client == nil || sessionID == "" {
-		return
-	}
-	var shells api.ShellsResult
-	err := client.Call(context.Background(), "terminal/shells", map[string]any{
-		"agentId": sessionID,
-	}, &shells)
-	note := ""
-	if err == nil && len(shells) > 0 {
-		names := make([]string, 0, len(shells))
-		for _, sh := range shells {
-			n := strings.TrimSpace(sh.Name)
-			if n == "" {
-				n = strings.TrimSpace(sh.Path)
-			}
-			if n != "" {
-				names = append(names, n)
-			}
-		}
-		if len(names) > 0 {
-			note = strings.Join(names, ", ")
-		}
-	}
-	var env api.TerminalEnvironment
-	if err2 := client.Call(context.Background(), "terminal/environment", map[string]any{
-		"agentId": sessionID,
-	}, &env); err2 == nil && strings.TrimSpace(env.Cwd) != "" {
-		if note != "" {
-			note += " · "
-		}
-		note += "cwd=" + strings.TrimSpace(env.Cwd)
-	}
-	var list api.ListResult2
-	if err3 := client.Call(context.Background(), "terminal/list", map[string]any{
-		"agentId": sessionID,
-	}, &list); err3 == nil {
-		if len(list) == 0 {
-			// Prefer an existing remote PTY; otherwise create one for Electron parity.
-			termID := "mygo-" + sessionID
-			if len(termID) > 48 {
-				termID = termID[:48]
-			}
-			var created api.WebTerminalInfo
-			if cerr := client.Call(context.Background(), "terminal/create", map[string]any{
-				"agentId": sessionID,
-				"request": api.TerminalCreateRequest{
-					Id:   termID,
-					Cols: 80,
-					Rows: 24,
-				},
-			}, &created); cerr == nil {
-				list = append(list, created)
-				s.mu.Lock()
-				s.remoteTerminalID = strings.TrimSpace(created.Id)
-				if s.remoteTerminalID == "" {
-					s.remoteTerminalID = termID
-				}
-				s.mu.Unlock()
-				// Best-effort handshake write + resize so remote PTY matches local pane.
-				var wout api.WriteResult
-				_ = client.Call(context.Background(), "terminal/write", map[string]any{
-					"agentId": sessionID,
-					"id":      termID,
-					"data":    "",
-				}, &wout)
-				var rout api.ResizeResult
-				_ = client.Call(context.Background(), "terminal/resize", map[string]any{
-					"agentId": sessionID,
-					"id":      termID,
-					"cols":    80.0,
-					"rows":    24.0,
-				}, &rout)
-				var renOut api.RenameResult
-				_ = client.Call(context.Background(), "terminal/rename", map[string]any{
-					"agentId": sessionID,
-					"id":      termID,
-					"title":   "WhaleIsle",
-				}, &renOut)
-				var retain api.TerminalRetentionFrame
-				_ = client.Call(context.Background(), "terminal/retain", map[string]any{
-					"agentId": sessionID,
-					"id":      termID,
-				}, &retain)
-				s.dshMu.Lock()
-				mux := s.dshMux
-				s.dshMu.Unlock()
-				if mux != nil {
-					go s.probeTerminalFollow(mux, sessionID, termID)
-				}
-			}
-		}
-		if len(list) > 0 {
-			if note != "" {
-				note += " · "
-			}
-			note += fmt.Sprintf("%d remote", len(list))
-		}
-	}
-	if note == "" {
-		return
-	}
-	s.mu.Lock()
-	s.terminalShellsNote = note
-	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
-}
-
-func (s *mainState) probeTerminalFollow(mux *dsh.Mux, sessionID, termID string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := mux.Dial(ctx); err != nil {
-		return
-	}
-	stream, err := mux.Open(ctx, "terminal/follow", map[string]any{
-		"args": map[string]any{
-			"agentId":      sessionID,
-			"id":           termID,
-			"attachmentId": "mygo",
-		},
-	})
-	if err != nil {
-		return
-	}
-	defer stream.Cancel()
-	_, _ = stream.Recv(ctx)
 }
 
 func (s *mainState) setFilesPaneOpen(open bool) {
@@ -1469,33 +1327,16 @@ func (s *mainState) setFilesPaneOpen(open bool) {
 }
 
 func (s *mainState) closeTerminal() {
-	s.dshMu.Lock()
-	client := s.dshClient
-	s.dshMu.Unlock()
 	s.mu.Lock()
 	s.terminalSessions.Close()
 	s.terminalPanel = nil
 	s.terminalShellsNote = ""
-	remoteID := s.remoteTerminalID
-	sessionID := ""
-	if s.sessions != nil {
-		sessionID = s.sessions.Snapshot().SelectedID
-	}
-	s.remoteTerminalID = ""
 	s.mu.Unlock()
-	if client != nil && remoteID != "" && sessionID != "" {
-		var out api.CloseResult
-		_ = client.Call(context.Background(), "terminal/close", map[string]any{
-			"agentId": sessionID,
-			"id":      remoteID,
-		}, &out)
-	}
 }
 
 func (s *mainState) restartTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
-	s.terminalSessions.CloseWorkspace(workspaceRoot)
-	s.terminalPanel = nil
+	s.terminalPanel = s.terminalSessions.Restart(workspaceRoot, systemDark)
 	s.terminalShellsNote = ""
 	s.terminalVisible = true
 	if s.layout.Bottom <= terminalMinBottom {

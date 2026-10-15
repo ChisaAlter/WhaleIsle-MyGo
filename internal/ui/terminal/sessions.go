@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Sessions keeps one PTY per workspace. Switching or hiding never kills a shell.
-// The owner calls CloseWorkspace for an explicit close/restart and Close at exit.
+// Sessions keeps each workspace's PTYs and split groups together. Switching or
+// hiding never kills a shell. CloseWorkspace removes a workspace; Close is for exit.
 // Access is serialized by the main state's lock.
 type Sessions struct {
 	panels map[string]*Panel
@@ -47,6 +47,15 @@ func (s *Sessions) Get(root string, dark bool) *Panel {
 	s.panels[key] = p
 	return p
 }
+// Restart replaces the active shell only, or opens the first for a new workspace.
+func (s *Sessions) Restart(root string, dark bool) *Panel {
+	if p := s.panels[workspaceKey(root)]; p != nil {
+		p.Restart(dark)
+		return p
+	}
+	return s.Get(root, dark)
+}
+
 func (s *Sessions) CloseWorkspace(root string) {
 	key := workspaceKey(root)
 	if p := s.panels[key]; p != nil {
