@@ -6539,7 +6539,7 @@ func mainView(c *ui.Context) {
 							if state.browserController == nil {
 								state.browserController = state.newBrowserController(win)
 							}
-							state.browserController.ViewDocked(c, themeID, mygo.Theme.IsDark(), func() { rightPaneTab = "files"; state.browserController.Hide() })
+							state.browserController.ViewDocked(c, themeID, mygo.Theme.IsDark(), func() { rightPaneTab = layout.Workspace.CloseKind("browser"); state.browserController.Hide() })
 						},
 						OnHideBrowser: func() {
 							if state.browserController != nil {

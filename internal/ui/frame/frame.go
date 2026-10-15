@@ -36,6 +36,7 @@ import (
 
 // LayoutSizes persist split pane dimensions (DIPs) across frames.
 type LayoutSizes struct {
+	Workspace       *WorkspacePanes
 	Sidebar         float32
 	SidebarExpanded float32 // last expanded preference; Sidebar=0 is the compact rail
 	Center          float32 // resolved chat width; not a saved right-pane preference
@@ -308,19 +309,29 @@ type Model struct {
 	TrajCallsCollapsed *bool
 	TrajDetailTab      *string
 
-	centerHeight float32 // resolved height below titlebar for terminal concessions
+	workspacePane *WorkspacePane
+	centerHeight  float32 // resolved height below titlebar for terminal concessions
 }
 
 // View paints the main dialogue shell below the title bar.
 func View(c *ui.Context, m Model) {
-	if m.FileTabs != nil && (!m.RightPaneOpen || (m.RightPaneTab != nil && *m.RightPaneTab != "" && *m.RightPaneTab != "files")) {
+	if m.Sizes == nil {
+		fallback := DefaultLayout()
+		m.Sizes = &fallback
+	}
+	prepareWorkspace(m)
+	if !workspaceVisible(m, "browser") && m.OnHideBrowser != nil {
+		m.OnHideBrowser()
+	}
+
+	if m.FileTabs != nil && !workspaceVisible(m, "files") {
 		m.FileTabs.CancelPlanRead()
 		m.FileTabs.Pause()
 	}
 	if m.Store == nil {
 		return
 	}
-	if !m.RightPaneOpen || derefString(m.RightPaneTab) != "agents" {
+	if !workspaceVisible(m, "agents") {
 		m.Store.CloseAgentNavigation()
 	}
 	registerPageCommands(c, m)
@@ -330,7 +341,7 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	snap := m.Store.Snapshot()
 	if m.HostTerminalUI != nil {
-		m.HostTerminalUI.Observe(m.HostTerminalStore, snap.SelectedID, m.RightPaneOpen && derefString(m.RightPaneTab) == "host-terminal")
+		m.HostTerminalUI.Observe(m.HostTerminalStore, snap.SelectedID, workspaceVisible(m, "host-terminal"))
 	}
 	if m.FileTabs != nil {
 		m.FileTabs.SyncPlanSession(snap.SelectedID)
@@ -1031,7 +1042,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				})
 			})
 		}
-		centerRightColumns(c, m, paintCenter, func() { rightPane(c, m) })
+		workspaceColumns(c, m, paintCenter)
 	})
 }
 
@@ -1067,6 +1078,7 @@ func rightPane(c *ui.Context, m Model) {
 	}
 
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
+		workspacePaneControls(c, m)
 		ui.Row(c).Padding(8, 8, 0, 8).Gap(4).FillWidth().Children(func() {
 			paintRightTab(c, tab == "files", i18n.T(i18n.KeyRightPaneFiles), fg, muted, accent, func() {
 				if m.RightPaneTab != nil {
