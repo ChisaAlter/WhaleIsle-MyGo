@@ -53,6 +53,7 @@ func (s *Store) SelectBillingModel(provider, model string) {
 		s.billing.Dirty = true
 	}
 	s.billing.Err = ""
+	s.billing.Notice = ""
 	s.mu.Unlock()
 	s.fire()
 }

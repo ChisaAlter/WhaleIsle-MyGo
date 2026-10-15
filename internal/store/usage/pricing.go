@@ -43,6 +43,7 @@ type BillingView struct {
 	Drafts              map[string]PriceDraft
 	Loaded, Busy, Dirty bool
 	Err                 string
+	Notice              string
 }
 type billingState struct {
 	BillingView
@@ -195,6 +196,7 @@ func (s *Store) EditPrice(key string, d PriceDraft) {
 	s.billing.Drafts[key] = d
 	s.billing.Dirty = true
 	s.billing.Err = ""
+	s.billing.Notice = ""
 	s.mu.Unlock()
 	s.fire()
 }
@@ -207,6 +209,7 @@ func (s *Store) RemovePrice(key string) {
 	delete(s.billing.Drafts, key)
 	s.billing.Dirty = true
 	s.billing.Err = ""
+	s.billing.Notice = ""
 	s.mu.Unlock()
 	s.fire()
 }
@@ -216,6 +219,7 @@ func (s *Store) DiscardPrices() {
 		s.billing.Drafts = priceDrafts(s.billing.Settings.Prices)
 		s.billing.Dirty = false
 		s.billing.Err = ""
+		s.billing.Notice = ""
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -244,17 +248,18 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 		method = "billing.set"
 		payload = next
 	}
-	ep := s.client.Endpoint
+	ep, httpClient := s.client.Endpoint, s.client.HTTP
 	epoch := s.statsEpoch
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	s.billing.cancel = cancel
 	s.billing.Busy = true
 	s.billing.Err = ""
+	s.billing.Notice = ""
 	s.mu.Unlock()
 	s.fire()
 	go func() {
 		defer cancel()
-		rpc := &pluginrpc.Client{BaseURL: ep.Origin, Cookie: ep.Cookie}
+		rpc := &pluginrpc.Client{BaseURL: ep.Origin, Cookie: ep.Cookie, HTTPClient: httpClient}
 		var raw json.RawMessage
 		err := rpc.Call(ctx, "usage-stats", method, payload, &raw)
 		var settings BillingSettings
@@ -276,6 +281,9 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 			s.billing.Drafts = priceDrafts(settings.Prices)
 			s.billing.Loaded = true
 			s.billing.Dirty = false
+			if save {
+				s.billing.Notice = "价格已保存 / Prices saved"
+			}
 		}
 		s.mu.Unlock()
 		s.fire()

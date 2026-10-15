@@ -10,15 +10,17 @@ import (
 
 // MachineEditor keeps transient form values in this window; the host owns saved credentials.
 type MachineEditor struct {
-	Open          bool
-	Draft         remotestore.Draft
-	Error         string
-	PendingRemove string
-	Saving        bool
-	Forward       remotestore.ForwardDraft
-	ForwardError  string
-	PendingForget string
-	ShowAudit     bool
+	Open              bool
+	Draft             remotestore.Draft
+	Error             string
+	PendingRemove     string
+	RemovalGeneration uint64
+	Removing          bool
+	Saving            bool
+	Forward           remotestore.ForwardDraft
+	ForwardError      string
+	PendingForget     string
+	ShowAudit         bool
 }
 
 func label(zh, en string) string {
@@ -32,6 +34,7 @@ func viewMachines(c *ui.Context, m Model) {
 		return
 	}
 	s, e := m.Machines.Snapshot(), m.MachineEditor
+	e.syncRemoval(s)
 	if !s.Loaded && !s.Busy && m.HarnessReady && m.RemoteWorkspaceEnabled {
 		m.Machines.Refresh()
 	}
@@ -101,19 +104,16 @@ func viewMachines(c *ui.Context, m Model) {
 				}
 				if ui.Button(c, label("移除", "Remove")).Disabled(s.Busy).Clicked() {
 					e.PendingRemove = machine.ID
+					e.RemovalGeneration = s.Generation
 				}
 			})
 			if e.PendingRemove == machine.ID {
 				ui.Row(c).Gap(8).Children(func() {
-					ui.Text(c, label("移除此机器配置？不会删除远程文件。", "Remove this machine configuration? Remote files are retained.")).Grow(1)
+					ui.Text(c, label("移除机器「"+title+"」？本机保存的凭据也会移除；不会删除远程文件。", "Remove machine \""+title+"\"? Locally saved credentials will also be removed; remote files are retained.")).Grow(1)
 					if ui.Button(c, label("确认移除", "Confirm removal")).Disabled(s.Busy).Clicked() {
-						m.Machines.Remove(machine.ID)
-						e.PendingRemove = ""
-						if e.Draft.ID == machine.ID {
-							e.Open = false
-						}
+						e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
 					}
-					if ui.Button(c, label("取消", "Cancel")).Clicked() {
+					if ui.Button(c, label("取消", "Cancel")).Disabled(s.Busy || e.Removing).Clicked() {
 						e.PendingRemove = ""
 					}
 				})

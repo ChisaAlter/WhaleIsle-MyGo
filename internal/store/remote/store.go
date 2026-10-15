@@ -40,6 +40,8 @@ type Draft struct {
 	Options                                                   *ConnectionDraft
 }
 type Snapshot struct {
+	Generation      uint64
+	RemovedID       string
 	Tools           ToolsSnapshot
 	Notice          string
 	Status          ConnectionStatus
@@ -71,7 +73,7 @@ func (s *Store) Attach(c *dsh.Client, notify func()) {
 	s.client = c
 	s.notify = notify
 	s.generation++
-	s.view = Snapshot{}
+	s.view = Snapshot{Generation: s.generation}
 	s.mu.Unlock()
 }
 func (s *Store) Snapshot() Snapshot {
@@ -138,15 +140,21 @@ func request(ctx context.Context, c *dsh.Client, method, route string, body any,
 	return nil
 }
 func (s *Store) run(action func(context.Context, *dsh.Client) error) {
+	s.runMutation(action, nil, nil)
+}
+
+// The completion runs under the generation guard after the mutation and refresh.
+func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, generation *uint64, applied func(*Snapshot, error, []Machine, bool)) bool {
 	s.mu.Lock()
-	if s.view.Busy {
+	if s.view.Busy || (generation != nil && *generation != s.generation) {
 		s.mu.Unlock()
-		return
+		return false
 	}
 	s.view.Busy = true
 	s.view.Error = ""
 	s.view.Notice = ""
 	s.view.MutationApplied = false
+	s.view.RemovedID = ""
 	c, n, g := s.client, s.notify, s.generation
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	s.cancel = cancel
@@ -166,8 +174,10 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 			CurrentID string    `json:"currentId"`
 		}
 		var status ConnectionStatus
+		registryLoaded := false
 		if err == nil {
 			err = request(ctx, c, "GET", "machines", nil, &registry)
+			registryLoaded = err == nil
 		}
 		if err == nil {
 			err = request(ctx, c, "GET", "status", nil, &status)
@@ -207,11 +217,15 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 			s.view.Connected = status.Connected
 
 		}
+		if mutationApplied && applied != nil {
+			applied(&s.view, err, registry.Machines, registryLoaded)
+		}
 		s.mu.Unlock()
 		if n != nil {
 			n()
 		}
 	}()
+	return true
 }
 func (s *Store) Refresh() { s.run(nil) }
 func (s *Store) Select(id string) {
@@ -225,9 +239,7 @@ func (s *Store) Connect() {
 	})
 }
 func (s *Store) Remove(id string) {
-	s.run(func(ctx context.Context, c *dsh.Client) error {
-		return request(ctx, c, "POST", "machines", map[string]string{"action": "delete", "id": id}, nil)
-	})
+	s.RemoveAtGeneration(id, s.Snapshot().Generation)
 }
 
 // Save preserves existing authentication fields unless the editor supplies options.

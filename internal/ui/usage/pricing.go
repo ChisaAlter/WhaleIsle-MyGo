@@ -15,6 +15,8 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	ui.Text(c, usageText("单位：CNY / 百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(11).TextColor(muted)
 	if v.Err != "" {
 		ui.Text(c, v.Err).TextColor(accent)
+	} else if v.Notice != "" {
+		ui.Text(c, v.Notice).TextColor(accent)
 	}
 	if v.Busy {
 		ui.Text(c, usageText("正在读写价格…", "Loading/saving prices…")).TextColor(muted)
