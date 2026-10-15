@@ -30,6 +30,7 @@ func (b *Controller) OpenPDF(doc *pdfpreview.Document) error {
 
 // Called on every owning-window frame, including session/Host changes.
 func (b *Controller) PrunePDFDocuments() {
+	b.pruneFloatingDocument()
 	for _, t := range b.Tabs {
 		if t.Document == nil || t.Document.Valid() {
 			continue
@@ -45,6 +46,9 @@ func (b *Controller) PrunePDFDocuments() {
 }
 func (b *Controller) documentControls(c *ui.Context, t *Tab) {
 	ui.Text(c, t.Document.Name).FontSize(12).Grow(1)
+	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
+		b.openFloatingDocument(t)
+	}
 	if ui.Button(c, "系统打开").Clicked() {
 		path, err := t.Document.ExternalPath()
 		if err == nil {

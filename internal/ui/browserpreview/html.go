@@ -30,6 +30,7 @@ func (b *Controller) OpenHTML(doc *htmldocument.Document) error {
 
 // PruneHTMLDocuments is called with the existing PDF lease sweep on every frame.
 func (b *Controller) PruneHTMLDocuments() {
+	b.pruneFloatingDocument()
 	for _, t := range b.Tabs {
 		if t.HTML == nil || t.HTML.Valid() {
 			continue
@@ -45,6 +46,9 @@ func (b *Controller) PruneHTMLDocuments() {
 }
 func (b *Controller) htmlControls(c *ui.Context, t *Tab, dark bool) {
 	ui.Text(c, t.HTML.Name).FontSize(12).Grow(1)
+	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
+		b.openFloatingDocument(t)
+	}
 	if t.HTML.CanRunScripts() {
 		b.interactiveHTMLControls(c, t, dark)
 	}

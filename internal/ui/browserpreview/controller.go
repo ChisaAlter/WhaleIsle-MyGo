@@ -16,15 +16,16 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
-	pip          *browserPictureInPicture
-	rendered     bool
-	actionTarget func() ActionTarget
-	operation    *previewOperation
-	viewport     *mygo.Rectangle
-	Tabs         []*Tab
-	Active       int
-	next         int
-	parent       *mygo.Window
+	floatingDocument *floatingDocumentWindow
+	pip              *browserPictureInPicture
+	rendered         bool
+	actionTarget     func() ActionTarget
+	operation        *previewOperation
+	viewport         *mygo.Rectangle
+	Tabs             []*Tab
+	Active           int
+	next             int
+	parent           *mygo.Window
 }
 type Tab struct {
 	tools       browserTools
@@ -129,6 +130,9 @@ func (b *Controller) CloseTab(index int) {
 		return
 	}
 	b.Hide()
+	if b.floatingDocument != nil && b.floatingDocument.tab == b.Tabs[index] {
+		b.stopFloatingDocument()
+	}
 	if d := b.Tabs[index].Document; d != nil {
 		d.Close()
 	}
@@ -152,6 +156,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.stopFloatingDocument()
 	b.stopPictureInPicture()
 	b.CancelAction()
 	b.cancelInteractivePreviews()
