@@ -50,7 +50,13 @@ func selectedCommand(ctx context.Context, root, index string, args ...string) ([
 	if index != "" {
 		cmd.Env = append(cmd.Env, "GIT_INDEX_FILE="+index)
 	}
-	out, err := cmd.CombinedOutput()
+	var out []byte
+	var err error
+	if shouldObserveGit(args) {
+		out, err = observedCombinedOutput(ctx, cmd)
+	} else {
+		out, err = cmd.CombinedOutput()
+	}
 	if err != nil {
 		return out, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(string(out)))
 	}
@@ -358,11 +364,13 @@ func CommitSelectedReviewed(ctx context.Context, root, message string, review Se
 		return result, e
 	}
 	if review.NewBranch != "" {
+		emitPhase(ctx, "Preparing feature branch…")
 		if _, e = selectedText(ctx, root, index, "switch", "-c", review.NewBranch); e != nil {
 			return result, e
 		}
 		result.CreatedBranch = review.NewBranch
 	}
+	emitPhase(ctx, "Committing selected files…")
 	hooks, hookErr := guardedCommitHooks(ctx, root, review)
 	if hookErr != nil {
 		return result, hookErr

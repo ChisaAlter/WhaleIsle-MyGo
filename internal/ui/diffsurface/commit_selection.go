@@ -54,6 +54,9 @@ func (w *Workbench) cancelCommitPreparation() {
 	if w.Commit != nil && w.Commit.Task != nil {
 		w.Commit.Task.cancel()
 		w.Commit.Task = nil
+		if w.Progress != nil {
+			w.Progress.Finish(word("准备已取消", "Preparation canceled"), false)
+		}
 	}
 	w.invalidateCommitReview()
 }
@@ -162,6 +165,9 @@ func beginCommitPreparation(c *ui.Context, m Model, push bool) {
 	s.Task = task
 	w.Status = ""
 	invalidate := c.Services().Invalidate
+	progress := git.NewProgress(root, word("正在准备所选文件…", "Preparing selected files…"), invalidate)
+	w.Progress = progress
+	ctx = git.WithProgress(ctx, progress)
 	go func() {
 		r := commitPrepared{message: message}
 		r.plan, r.err = git.PrepareSelectedCommit(ctx, root, paths, branch)
@@ -169,6 +175,7 @@ func beginCommitPreparation(c *ui.Context, m Model, push bool) {
 			r.err = errors.New("selected file size changed; refresh and review the large-file warning")
 		}
 		if r.err == nil && strings.TrimSpace(message) == "" {
+			progress.Phase(word("正在生成提交说明…", "Generating commit message…"))
 			var generated git.GeneratedCommitMessage
 			generated, r.err = git.GenerateSelectedCommitMessage(ctx, root, r.plan)
 			r.message, r.source = generated.Text(), generated.Source
@@ -176,6 +183,11 @@ func beginCommitPreparation(c *ui.Context, m Model, push bool) {
 		if r.err == nil && push {
 			r.push, r.err = git.PreparePush(root)
 		}
+		phase := word("核对内容已准备好", "Review ready")
+		if r.err != nil {
+			phase = word("准备失败，可重试或手写说明", "Preparation failed; retry or enter a message")
+		}
+		progress.Finish(phase, r.err != nil)
 		task.done <- r
 		if invalidate != nil {
 			invalidate()
@@ -317,7 +329,7 @@ func confirmSelectedCommit(c *ui.Context, m Model) {
 		return
 	}
 	w.invalidateCommitReview()
-	beginGitOperation(c, w, word("正在提交所选文件", "Committing selected files"), func() gitOperationResult {
+	beginGitOperation(c, w, word("正在提交所选文件", "Committing selected files"), func(ctx context.Context) gitOperationResult {
 		if push {
 			current, e := git.PreparePush(root)
 			if e != nil {
@@ -327,8 +339,6 @@ func confirmSelectedCommit(c *ui.Context, m Model) {
 				return gitOperationResult{err: errors.New("push destination changed; review again")}
 			}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCommandTimeout)
-		defer cancel()
 		result, e := git.CommitSelectedReviewed(ctx, root, message, plan)
 		text := result.Output
 		if result.CreatedBranch != "" {
@@ -339,7 +349,7 @@ func confirmSelectedCommit(c *ui.Context, m Model) {
 		}
 		if e == nil && push {
 			var pushed string
-			pushed, e = git.PushReviewed(root, pushPlan)
+			pushed, e = git.PushReviewedContext(ctx, root, pushPlan)
 			text += "\n" + pushed
 			if e != nil {
 				text += "\nCommitted locally. Use Push to retry without creating another commit."

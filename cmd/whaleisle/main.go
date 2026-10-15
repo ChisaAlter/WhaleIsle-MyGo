@@ -279,6 +279,7 @@ type mainState struct {
 	gitDirty       bool
 	gitMsg         string
 	gitBusy        bool
+	gitProgress    *desktopgit.Progress
 	gitCommitOpen  bool
 	gitCommitDraft string
 	gitCheckedRoot string
@@ -2353,14 +2354,14 @@ func firstLine(s string) string {
 }
 
 func (s *mainState) runGitFetch(root string) {
-	s.runGitRemote("fetch", root, func() (string, error) {
-		return desktopgit.Fetch(root)
+	s.runGitRemote("fetch", root, func(ctx context.Context) (string, error) {
+		return desktopgit.FetchContext(ctx, root)
 	}, i18n.T(i18n.KeyGitFetchOK), i18n.T(i18n.KeyGitActionFailed))
 }
 
 func (s *mainState) runGitPull(root string) {
-	s.runGitRemote("pull", root, func() (string, error) {
-		return desktopgit.Pull(root)
+	s.runGitRemote("pull", root, func(ctx context.Context) (string, error) {
+		return desktopgit.PullContext(ctx, root)
 	}, i18n.T(i18n.KeyGitPullOK), i18n.T(i18n.KeyGitActionFailed))
 }
 
@@ -2373,14 +2374,14 @@ func (s *mainState) runGitCommit(root, message, reviewedToken string) {
 	if message == "" {
 		return
 	}
-	s.runGitRemote("commit", root, func() (string, error) {
+	s.runGitRemote("commit", root, func(ctx context.Context) (string, error) {
 		return desktopgit.CommitReviewed(root, message, reviewedToken)
 	}, i18n.T(i18n.KeyGitCommitOK), i18n.T(i18n.KeyGitActionFailed))
 }
 
 func (s *mainState) runGitPRView(root string) {
-	s.runGitRemote("pr-view", root, func() (string, error) {
-		st := desktopgit.ViewPR(context.Background(), root)
+	s.runGitRemote("pr-view", root, func(ctx context.Context) (string, error) {
+		st := desktopgit.ViewPR(ctx, root)
 		if !st.OK {
 			return "", fmt.Errorf("%s", st.Err)
 		}
@@ -2392,8 +2393,8 @@ func (s *mainState) runGitPRView(root string) {
 }
 
 func (s *mainState) runGitPRCreate(root string) {
-	s.runGitRemote("pr-create", root, func() (string, error) {
-		st := desktopgit.CreatePRDraft(context.Background(), root)
+	s.runGitRemote("pr-create", root, func(ctx context.Context) (string, error) {
+		st := desktopgit.CreatePRDraft(ctx, root)
 		if !st.OK {
 			return "", fmt.Errorf("%s", st.Err)
 		}
@@ -2408,8 +2409,8 @@ func (s *mainState) runGitPRCreate(root string) {
 }
 
 func (s *mainState) runGitPRCheckout(root string, number int) {
-	s.runGitRemote("pr-checkout", root, func() (string, error) {
-		st := desktopgit.CheckoutPR(context.Background(), root, number)
+	s.runGitRemote("pr-checkout", root, func(ctx context.Context) (string, error) {
+		st := desktopgit.CheckoutPR(ctx, root, number)
 		if !st.OK {
 			return "", fmt.Errorf("%s", st.Err)
 		}
@@ -2524,7 +2525,7 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 	s.runGitCommit(root, message, reviewedToken)
 }
 
-func (s *mainState) runGitRemote(_ string, root string, run func() (string, error), okLabel, failLabel string) {
+func (s *mainState) runGitRemote(action string, root string, run func(context.Context) (string, error), okLabel, failLabel string) {
 	root = strings.TrimSpace(root)
 	if root == "" {
 		return
@@ -2538,11 +2539,21 @@ func (s *mainState) runGitRemote(_ string, root string, run func() (string, erro
 	s.gitMsg = ""
 	win := s.win
 	sessions := s.sessions
+	progressWindow := win
+	progress := desktopgit.NewProgress(root, action+"…", func() {
+		if progressWindow != nil {
+			progressWindow.Invalidate()
+		}
+	})
+	s.gitProgress = progress
 	s.mu.Unlock()
 
 	go func() {
-		out, err := run()
+		ctx, cancel := context.WithTimeout(desktopgit.WithProgress(context.Background(), progress), desktopgit.DefaultCommandTimeout)
+		defer cancel()
+		out, err := run(ctx)
 		msg := gitStatusLine(okLabel, failLabel, out, err)
+		progress.Finish(msg, err != nil)
 
 		s.mu.Lock()
 		s.gitBusy = false
@@ -2755,6 +2766,7 @@ func mainView(c *ui.Context) {
 	gitBranch := state.gitBranch
 	gitDirty := state.gitDirty
 	gitMsg := state.gitMsg
+	gitProgress := state.gitProgress
 	gitBusy := state.gitBusy
 	gitCommitOpen := state.gitCommitOpen
 	gitCommitDraft := state.gitCommitDraft
@@ -3487,6 +3499,7 @@ func mainView(c *ui.Context) {
 				})
 			})
 		}
+		diffsurface.DrawGitProgress(c, gitProgress, chrome.Color(colors.FG), chrome.Color(colors.Muted), func() { state.mu.Lock(); state.gitProgress = nil; state.mu.Unlock() })
 		if gitBranch != "" {
 			root := workspaceRoot
 			chrome.DrawGitCommitStrip(c, titleColors, gitCommitOpen, chrome.GitCommitStrip{

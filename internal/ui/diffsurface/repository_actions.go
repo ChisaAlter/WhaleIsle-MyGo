@@ -1,6 +1,7 @@
 package diffsurface
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -19,7 +20,7 @@ type gitOperation struct {
 	done        chan gitOperationResult
 }
 
-func beginGitOperation(c *ui.Context, w *Workbench, label string, run func() gitOperationResult) {
+func beginGitOperation(c *ui.Context, w *Workbench, label string, run func(context.Context) gitOperationResult) {
 	if w.Operation != nil {
 		return
 	}
@@ -29,8 +30,21 @@ func beginGitOperation(c *ui.Context, w *Workbench, label string, run func() git
 	w.ReviewText = ""
 	w.Status = ""
 	invalidate := c.Services().Invalidate
+	progress := git.NewProgress(w.Root, label, invalidate)
+	w.Progress = progress
 	go func() {
-		operation.done <- run()
+		ctx, cancel := context.WithTimeout(git.WithProgress(context.Background(), progress), git.DefaultCommandTimeout)
+		defer cancel()
+		result := run(ctx)
+		phase := word("操作完成", "Action finished")
+		if result.err != nil {
+			phase = word("操作失败；保留已完成步骤，请查看详情", "Action failed; completed steps are preserved. Review the details")
+		}
+		if result.committed && result.err != nil {
+			phase = word("本地提交已创建；后续步骤失败", "Local commit created; a later step failed")
+		}
+		progress.Finish(phase, result.err != nil)
+		operation.done <- result
 		if invalidate != nil {
 			invalidate()
 		}
@@ -81,6 +95,7 @@ func finishGitOperation(m Model) {
 func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	w := m.Workbench
 	finishGitOperation(m)
+	DrawGitProgress(c, w.Progress, fg, muted, func() { w.Progress = nil })
 	if w.Operation != nil {
 		ui.Text(c, w.Operation.label+" · "+w.Operation.root).FontSize(11).TextColor(fg)
 		ui.Text(c, word("操作进行中，请勿重复提交。", "Operation in progress. Do not submit it again.")).FontSize(10).TextColor(muted)
@@ -90,7 +105,7 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("此目录尚未初始化 Git。初始化会创建本地 main 分支，不提交文件。", "This folder has no Git repository. Initialize creates a local main branch without committing files.")).FontSize(11).TextColor(muted)
 		if ui.Button(c, word("初始化 Git", "Initialize Git")).Disabled(strings.TrimSpace(m.WorkspaceRoot) == "").Clicked() {
 			root := m.WorkspaceRoot
-			beginGitOperation(c, w, word("正在初始化", "Initializing"), func() gitOperationResult {
+			beginGitOperation(c, w, word("正在初始化", "Initializing"), func(ctx context.Context) gitOperationResult {
 				out, err := git.Initialize(root)
 				return gitOperationResult{text: out, err: err}
 			})
@@ -160,7 +175,7 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 		if ui.Button(c, word("确认发布仓库", "Confirm publish repository")).Clicked() {
 			root := m.WorkspaceRoot
 			w.PublishReview = false
-			beginGitOperation(c, w, word("正在发布仓库", "Publishing repository"), func() gitOperationResult {
+			beginGitOperation(c, w, word("正在发布仓库", "Publishing repository"), func(ctx context.Context) gitOperationResult {
 				out, err := git.PublishRepository(root, input)
 				return gitOperationResult{text: out, err: err}
 			})
@@ -213,7 +228,7 @@ func confirmReviewedCommit(c *ui.Context, m Model) {
 	if push {
 		label = word("正在提交并推送", "Committing and pushing")
 	}
-	beginGitOperation(c, w, label, func() gitOperationResult {
+	beginGitOperation(c, w, label, func(ctx context.Context) gitOperationResult {
 		if push {
 			result, err := git.CommitPushReviewed(root, message, token, plan)
 			return gitOperationResult{text: result.Output, err: err, committed: result.Committed}

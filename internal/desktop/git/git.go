@@ -40,7 +40,7 @@ func execRunner(dir, name string, args ...string) ([]byte, error) {
 func combinedExecRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	return cmd.CombinedOutput()
+	return observedCombinedOutput(ctx, cmd)
 }
 
 func cleanWorkspaceRoot(workspaceRoot string) string {

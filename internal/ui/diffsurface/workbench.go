@@ -8,6 +8,7 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
+	Progress                                  *git.Progress
 	Commit                                    *commitSelectionState
 	View                                      patchViewState
 	Discard                                   *git.DiscardPlan

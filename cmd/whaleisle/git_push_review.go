@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/egoist/mygo"
@@ -45,7 +46,7 @@ func (s *mainState) reviewGitPush(root string) {
 	if err != nil || result.Button != 1 {
 		return
 	}
-	s.runGitRemote("push", root, func() (string, error) {
-		return desktopgit.PushReviewed(root, plan)
+	s.runGitRemote("push", root, func(ctx context.Context) (string, error) {
+		return desktopgit.PushReviewedContext(ctx, root, plan)
 	}, i18n.T(i18n.KeyGitPushOK), i18n.T(i18n.KeyGitActionFailed))
 }
