@@ -47,6 +47,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	Command     *CommandView
 	ID          string
 	Kind        MessageKind
 	Role        string
@@ -68,6 +69,9 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	SlashCommands        []api.ListResultItem2
+	SlashCommandsLoading bool
+	SlashCommandsErr     string
 	QueueEditor QueueEditorState
 
  CostSources []sessioncost.Source
@@ -135,6 +139,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	commandCatalog commandCatalog
  feedback feedbackState
 	visualReply visualReplyRead
 	visualReplyToken uint64
@@ -232,6 +237,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
 		s.eventsGeneration++
 		s.invalidateFollowLocked()
@@ -358,6 +364,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.invalidateCommandsLocked()
 	s.resetWorkspaceLocked()
 	s.eventsGeneration++
 	s.invalidateFollowLocked()
@@ -443,7 +450,8 @@ func (s *Store) Snapshot() ViewState {
 			break
 		}
 	}
-	st.Messages = projectMessageEdits(s.messages)
+	st.Messages = projectCommandMessages(projectMessageEdits(s.messages))
+	s.snapshotCommandsLocked(&st)
 	st.SelectedModel = s.selectedModelLabel
 	for _, o := range s.modelOptions {
 		st.ModelLabels = append(st.ModelLabels, o.Label)

@@ -76,6 +76,9 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 	if err := json.Unmarshal(raw, &ev); err != nil || ev.Type == "" {
 		return Message{}, false
 	}
+	if ev.Type == "command/run" || ev.Type == "command/done" {
+		return classifyCommandEvent(raw)
+	}
 	if ev.Type == "turn/end" {
 		return Message{Kind: MessageKindText, Role: "status", Seq: ev.Seq, EventType: ev.Type, Raw: append(json.RawMessage(nil), raw...), Body: "0"}, true
 	}

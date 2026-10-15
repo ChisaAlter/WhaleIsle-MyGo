@@ -151,7 +151,7 @@ func View(c *ui.Context, m Model) {
 					return
 				}
 				if msg.Kind != session.MessageKindText || (msg.Role != "user" && msg.Role != "assistant") {
-					if msg.Kind != session.MessageKindThinking {
+					if msg.Kind != session.MessageKindThinking && msg.Kind != session.MessageKindCommand {
 						role := msg.Role
 						if msg.Streaming {
 							role += " …"
@@ -163,6 +163,8 @@ func View(c *ui.Context, m Model) {
 					VisualReplyView(row.Context, publication, m, fg, muted, border, chrome.Color(colors.Field))
 				}
 				switch msg.Kind {
+				case session.MessageKindCommand:
+					CommandCardView(row.Context, msg, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
 				case session.MessageKindTool:
 					tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 					ToolCardView(row.Context, msg.EventType, msg.Raw, tc, ToolImageGalleryOptions{

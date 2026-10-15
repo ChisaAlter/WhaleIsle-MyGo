@@ -113,7 +113,9 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 	if strings.TrimSpace(text) == "" && len(attachments) == 0 {
 		return errors.New("message is empty")
 	}
-	var parts []json.RawMessage
+	// The Host command executor reads submittedAttachments.length; no files
+	// must be encoded as [] rather than JSON null.
+	parts := make([]json.RawMessage, 0, len(attachments)+1)
 	for _, a := range attachments {
 		if a.SessionID != id {
 			return errors.New("attachment belongs to a different session; retry upload")
@@ -130,41 +132,20 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 		parts = append(parts, b)
 	}
 	line := strings.TrimSpace(text)
-	if editSeq == 0 && strings.HasPrefix(line, "/") && !strings.Contains(line, "\n") {
-		if len(parts) > 0 {
-			var commands api.ListResult3
-			if err := client.Call(ctx, "commands/list", map[string]any{"agentId": id}, &commands); err != nil {
-				return err
-			}
-			name := strings.TrimPrefix(strings.Fields(line)[0], "/")
-			allowed := false
-			for _, command := range commands {
-				if command.Name == name && command.Input != nil && command.Input.Attachments != nil && *command.Input.Attachments {
-					allowed = true
-				}
-			}
-			if !allowed {
-				return fmt.Errorf("/%s does not accept attachments", name)
-			}
-		}
-		var result api.ExecuteResult
-		if err := client.Call(ctx, "commands/execute", map[string]any{"agentId": id, "line": line, "submittedAttachments": parts}, &result); err != nil {
+	if editSeq == 0 && strings.HasPrefix(line, "/") {
+		// Match the current Host catalog before taking ownership of the draft.
+		// Input commands accept multiline arguments; unclaimed tokens (including
+		// skill invocations) remain ordinary prompts, as in the original composer.
+		var commands api.ListResult3
+		if err := client.Call(ctx, "commands/list", map[string]any{"agentId": id}, &commands); err != nil {
 			return err
 		}
-		var outcome struct {
-			Kind string `json:"kind"`
-			Text string `json:"text"`
+		if command, ok := commandForLine(commands, line); ok {
+			if len(parts) > 0 && (command.Input == nil || command.Input.Attachments == nil || !*command.Input.Attachments) {
+				return fmt.Errorf("/%s does not accept attachments", command.Name)
+			}
+			return executeCommand(ctx, client, id, line, parts)
 		}
-		if err := json.Unmarshal(result.Result, &outcome); err != nil {
-			return err
-		}
-		if outcome.Kind == "error" {
-			return errors.New(outcome.Text)
-		}
-		if outcome.Kind != "success" {
-			return errors.New("command was not accepted; check its name and retry")
-		}
-		return nil
 	}
 	if strings.TrimSpace(text) != "" {
 		b, _ := json.Marshal(map[string]string{"type": "text", "text": text})

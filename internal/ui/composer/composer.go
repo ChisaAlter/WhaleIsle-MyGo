@@ -32,6 +32,7 @@ type Model struct {
 	PermissionPick  *string
 	AgentPresetPick *string
 
+	OnRetrySlashCommands func()
 	SlashCatalog []SlashCommand
 	FilePaths    []string
 	SuggestList  *ui.ListState
@@ -142,6 +143,18 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	}
 	ui.Column(c).Padding(padTop, padRight, padBot, padLeft).Children(func() {
 		markdown.LinkActions(c, markdown.Links(draft), markdown.Style{FontSize: 12, Accent: accent}, m.OnOpenURL)
+		if kind == SuggestSlash && !m.Editing {
+			if m.Snapshot.SlashCommandsLoading {
+				ui.Text(c, i18n.T(i18n.KeyCommandCatalogLoading)).FontSize(12).TextColor(muted).Padding(4, 8)
+			} else if m.Snapshot.SlashCommandsErr != "" {
+				ui.Row(c).FillWidth().Gap(8).Padding(4, 8).Children(func() {
+					ui.Text(c, m.Snapshot.SlashCommandsErr).FontSize(12).TextColor(muted).Grow(1)
+					if m.OnRetrySlashCommands != nil && ui.Button(c, i18n.T(i18n.KeyCommandCatalogRetry)).FontSize(11).Clicked() {
+						m.OnRetrySlashCommands()
+					}
+				})
+			}
+		}
 		if m.SkillsOpen {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}

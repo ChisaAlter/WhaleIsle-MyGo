@@ -6021,14 +6021,10 @@ func mainView(c *ui.Context) {
 				if state.composerSuggest.Selected == nil {
 					state.composerSuggest.Selected = &state.composerSuggestSel
 				}
-				slashKey := snap.SelectedID
 				if strings.HasPrefix(draft, "/") && snap.ClientReady {
-					if slashKey != state.composerSlashKey {
-						remote := composer.FromAPIList(sessions.ListSlashCommands(context.Background()))
-						state.composerSlash = composer.BuildSlashCatalog(composer.StubSlashCommands(), remote)
-						state.composerSlashKey = slashKey
-					}
+					sessions.EnsureSlashCommands(context.Background())
 				}
+				state.composerSlash = composer.BuildSlashCatalog(composer.StubSlashCommands(), composer.FromAPIList(snap.SlashCommands))
 				if kind, _, _, ok := composer.ActiveSuggest(draft); ok && kind == composer.SuggestMention {
 					root := strings.TrimSpace(workspaceRoot)
 					if root != "" && root != state.composerPathsRoot {

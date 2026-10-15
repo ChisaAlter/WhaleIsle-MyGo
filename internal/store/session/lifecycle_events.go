@@ -42,6 +42,7 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 		return nil
 	}
 	s.eventsGeneration++
+	s.invalidateCommandsLocked()
 	s.listGeneration++
 	s.listLoading = false
 	s.listMutations = nil
@@ -80,11 +81,18 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 		return
 	}
 	mutation, ok := parseLifecycleEmit(emit)
-	if !ok {
-		return
-	}
 	s.mu.Lock()
 	if !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
+		return
+	}
+	if s.applyCommandCatalogEmitLocked(emit) {
+		s.mu.Unlock()
+		s.EnsureSlashCommands(owner.ctx)
+		s.fire()
+		return
+	}
+	if !ok {
 		s.mu.Unlock()
 		return
 	}
@@ -234,6 +242,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 		return
 	}
 	s.invalidateFollowLocked()
+	s.invalidateCommandsLocked()
 	s.selectedID = sessionID
 	s.messages = nil
 	s.turnStartMs = 0

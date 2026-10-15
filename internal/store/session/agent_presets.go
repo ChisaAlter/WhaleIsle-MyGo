@@ -130,6 +130,7 @@ func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
 	client := s.client
 	sessionID := s.selectedID
 	prev := s.selectedAgentPresetLabel
+	generation := s.followGeneration
 	s.mu.Unlock()
 	if !ok || client == nil || sessionID == "" || label == prev {
 		return
@@ -141,6 +142,10 @@ func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
 			"agentPreset": opt.ID,
 		}, &result)
 		s.mu.Lock()
+		if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 			s.mu.Unlock()
@@ -153,6 +158,7 @@ func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
 			s.selectedAgentPresetLabel = label
 		}
 		s.lastAction = "agent preset selected"
+		s.invalidateCommandsLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -170,6 +176,7 @@ func (s *Store) applyAgentPresetSelectedEvent(raw json.RawMessage) bool {
 	s.mu.Lock()
 	if lbl := labelForAgentPresetID(id, s.agentPresetOptions); lbl != "" {
 		s.selectedAgentPresetLabel = lbl
+		s.invalidateCommandsLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

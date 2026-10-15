@@ -19,6 +19,12 @@ const (
 
 // Shell chrome keys seeded for M1.
 const (
+	KeyCommandTitle = "command.title"
+	KeyCommandRunning = "command.running"
+	KeyCommandDone = "command.done"
+	KeyCommandFailed = "command.failed"
+	KeyCommandCatalogLoading = "command.catalog_loading"
+	KeyCommandCatalogRetry = "command.catalog_retry"
 	KeyAppName                            = "app.name"
 	KeyTrayOpen                           = "tray.open"
 	KeyTrayQuit                           = "tray.quit"
@@ -952,6 +958,12 @@ var (
 )
 
 var zhCN = map[string]string{
+	KeyCommandTitle: "命令",
+	KeyCommandRunning: "正在执行…",
+	KeyCommandDone: "已完成",
+	KeyCommandFailed: "执行失败",
+	KeyCommandCatalogLoading: "正在加载命令…",
+	KeyCommandCatalogRetry: "重试加载命令",
 	KeyAppName:                        "Whale Isle",
 	KeyTrayOpen:                       "打开主窗口",
 	KeyTrayQuit:                       "退出",
@@ -1877,6 +1889,12 @@ var zhCN = map[string]string{
 }
 
 var en = map[string]string{
+	KeyCommandTitle: "Command",
+	KeyCommandRunning: "Running…",
+	KeyCommandDone: "Completed",
+	KeyCommandFailed: "Failed",
+	KeyCommandCatalogLoading: "Loading commands…",
+	KeyCommandCatalogRetry: "Retry command list",
 	KeyAppName:                            "Whale Isle",
 	KeyTrayOpen:                           "Open main window",
 	KeyTrayQuit:                           "Quit",

@@ -605,6 +605,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						PermissionPick:     m.PermissionPick,
 						AgentPresetPick:    m.AgentPresetPick,
 						SlashCatalog:       slashCatalog,
+						OnRetrySlashCommands: func() { m.Store.RefreshSlashCommands(context.Background()) },
 						FilePaths:          filePaths,
 						OnSearchFileRefs:   m.OnSearchFileRefs,
 						SuggestList:        m.ComposerSuggest,
