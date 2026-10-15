@@ -255,6 +255,8 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.resetTurnFilesLocked()
+	s.turnFilesHistoryBinding = ""
 	s.resetHistoryPagingLocked()
 	s.clearHistoryOutlineLocked()
 	s.trajectoryBoundaries = nil

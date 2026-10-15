@@ -73,7 +73,7 @@ func TestClassifyDeliverables(t *testing.T) {
 	if !ok || msg.Kind != MessageKindDeliverables || len(msg.Files) != 1 {
 		t.Fatalf("%#v ok=%v", msg, ok)
 	}
-	if msg.Files[0] != "out.md — notes" {
+	if msg.Files[0] != "out.md" {
 		t.Fatalf("files = %#v", msg.Files)
 	}
 }

@@ -77,7 +77,7 @@ func View(c *ui.Context, m Model) {
 	// Let the frame desk-wash show through (Electron chat pane is translucent mica).
 	_ = colors.BG
 
-	msgs := session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns))
+	msgs := session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
 	list := m.List
 	if list == nil {
 		list = &ui.ListState{FollowEnd: true}
@@ -115,6 +115,10 @@ func View(c *ui.Context, m Model) {
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
 				if msg.Submission != nil {
 					paintPendingSubmission(row.Context, *msg.Submission, fg, muted)
+					return
+				}
+				if msg.TurnDelivery != nil {
+					TurnDeliveryView(row.Context, *msg.TurnDelivery, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
 					return
 				}
 				if msg.Workflow != nil {
@@ -198,7 +202,8 @@ func View(c *ui.Context, m Model) {
 						},
 					})
 				case session.MessageKindDeliverables:
-					DeliverablesView(row.Context, msg, fg, muted, border, chrome.Color(colors.Field), m.OnOpenDeliverable)
+					// Unbound/legacy declarations remain readable without path-open authority.
+					DeliverablesView(row.Context, msg, fg, muted, border, chrome.Color(colors.Field), nil)
 				case session.MessageKindCompaction:
 					CompactionView(row.Context, msg, fg, muted, chrome.Color(colors.Field))
 				case session.MessageKindThinking:

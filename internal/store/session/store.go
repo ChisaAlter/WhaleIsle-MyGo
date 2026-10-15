@@ -48,6 +48,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	TurnDelivery   *TurnDelivery
 	TrajectoryTime *TrajectoryTiming
 	Workflow       *workflowrun.Run
 	Submission     *PendingSubmission
@@ -75,6 +76,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	TurnFiles    TurnFilesSnapshot
 	WorkflowRuns []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
 	PlanHistoryBinding   string
@@ -258,6 +260,8 @@ type Store struct {
 	searchDebounce                       *time.Timer
 	followCancel                         context.CancelFunc
 	followGeneration                     uint64
+	turnFiles                            turnFilesState
+	turnFilesHistoryBinding              string
 	workspaceFollowCancel                context.CancelFunc
 	bandCancel                           context.CancelFunc
 	bandActions                          []BandAction
@@ -481,6 +485,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		TurnFiles:           s.turnFilesSnapshotLocked(),
 		PlanHistoryBinding:  s.planHistoryBinding,
 		WorkspaceLayout:     s.workspaceLayoutLocked(),
 		Workspaces:          s.workspaceRowsLocked(),

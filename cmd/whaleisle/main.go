@@ -6828,6 +6828,12 @@ func mainView(c *ui.Context) {
 							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
 								return
 							}
+							state.dshMu.Lock()
+							currentClient := state.dshClient
+							state.dshMu.Unlock()
+							if fmt.Sprintf("%p\x00%s", currentClient, snap.SelectedID) != fileBindingID {
+								return
+							}
 							fileTabs.Plans.ShowFiles(snap.SelectedID)
 							if mediapreview.Supports(path) {
 								state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, false)

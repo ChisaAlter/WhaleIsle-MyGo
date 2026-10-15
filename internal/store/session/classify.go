@@ -111,6 +111,9 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 		}
 		return msg, true
 	}
+	if ev.Type == "workspace/changes" {
+		return Message{Kind: MessageKindTurnDelivery, Role: "assistant", Seq: ev.Seq, EventType: ev.Type, Raw: append(json.RawMessage(nil), raw...)}, true
+	}
 	if ev.Type == "deliverables/presented" {
 		files := extractDeliverablePaths(ev.Data)
 		if len(files) == 0 {
@@ -190,24 +193,18 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 
 func extractDeliverablePaths(data json.RawMessage) []string {
 	var d struct {
-		Files []struct {
-			Path        string  `json:"path"`
-			Description *string `json:"description,omitempty"`
-		} `json:"files"`
+		Files []json.RawMessage `json:"files"`
 	}
 	if json.Unmarshal(data, &d) != nil {
 		return nil
 	}
-	out := make([]string, 0, len(d.Files))
-	for _, f := range d.Files {
-		p := strings.TrimSpace(f.Path)
-		if p == "" {
-			continue
+	var out []string
+	for _, raw := range d.Files {
+		var f struct {
+			Path string `json:"path"`
 		}
-		if f.Description != nil && strings.TrimSpace(*f.Description) != "" {
-			out = append(out, p+" — "+strings.TrimSpace(*f.Description))
-		} else {
-			out = append(out, p)
+		if json.Unmarshal(raw, &f) == nil && strings.TrimSpace(f.Path) != "" {
+			out = append(out, f.Path)
 		}
 	}
 	return out

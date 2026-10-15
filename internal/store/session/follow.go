@@ -161,6 +161,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
+		s.turnFilesHistoryBinding = turnFileHistoryBinding(s.client, s.selectedID)
 		s.messages = nil
 		s.workflowBoundaries = nil
 		s.trajectoryBoundaries = nil
