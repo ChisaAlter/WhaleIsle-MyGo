@@ -20,6 +20,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/diffsurface"
+	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/i18n"
 	interui "whaleisle/internal/ui/interaction"
@@ -601,17 +602,18 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
-						Snapshot:      snap,
-						ThemeID:       m.ThemeID,
-						SystemDark:    m.SystemDark,
-						WorkspaceRoot: m.WorkspaceRoot,
-						Draft:         m.Draft,
-						State:         m.ComposerState,
-						OnSubmit:      m.OnSubmitComposer,
-						OnOpenURL:     m.OnOpenCitationURL,
-						OnAttachFiles: m.OnAttachComposerFiles,
-						OnPasteImage:  m.OnPasteComposerImage,
-						Editing:       editing,
+						Snapshot:             snap,
+						ThemeID:              m.ThemeID,
+						SystemDark:           m.SystemDark,
+						WorkspaceRoot:        m.WorkspaceRoot,
+						Draft:                m.Draft,
+						State:                m.ComposerState,
+						OnSubmit:             m.OnSubmitComposer,
+						OnOpenURL:            m.OnOpenCitationURL,
+						OnAttachFiles:        m.OnAttachComposerFiles,
+						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
+						OnPasteImage:         m.OnPasteComposerImage,
+						Editing:              editing,
 						OnCancelEdit: func() {
 							if m.ComposerState != nil {
 								m.ComposerState.EndEdit()
@@ -1110,6 +1112,8 @@ func rightPane(c *ui.Context, m Model) {
 		files.View(c, files.Model{
 			Tabs:              m.FileTabs,
 			BindingID:         m.FileBindingID,
+			SessionID:         m.Store.Snapshot().SelectedID,
+			OnReferenceFile:   func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
 			WorkspaceRoot:     m.WorkspaceRoot,
 			ThemeID:           m.ThemeID,
 			SystemDark:        m.SystemDark,

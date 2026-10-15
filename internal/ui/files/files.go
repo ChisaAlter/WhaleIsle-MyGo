@@ -12,6 +12,7 @@ import (
 
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -39,9 +40,11 @@ type Model struct {
 	Tabs          *Tabs
 	WorkspaceRoot string
 	// BindingID identifies the current Host connection and selected session.
-	BindingID  string
-	ThemeID    string
-	SystemDark bool
+	SessionID       string
+	OnReferenceFile func(filelink.Reference) error
+	BindingID       string
+	ThemeID         string
+	SystemDark      bool
 
 	Expanded     *map[string]bool // rel dir path → expanded; missing means collapsed
 	SelectedFile *string          // rel file path
@@ -203,11 +206,14 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Padding(4, 8, 4, 8).FillWidth()
+		row := ui.Row(c).Key(workspaceReference(m, path)).Padding(4, 8, 4, 8).Gap(4).FillWidth().Drag(workspaceReference(m, path))
 		if m.SelectedFile != nil && *m.SelectedFile == path {
 			row.Background(accent).Opacity(0.12)
 		}
-		row.Children(func() { ui.Text(c, path).FontSize(12).TextColor(fg) })
+		row.Children(func() {
+			ui.Text(c, path).FontSize(12).TextColor(fg).Grow(1)
+			paintReferenceButtons(c, m, path)
+		})
 		if row.Clicked() {
 			selectFile(m, path)
 		}
@@ -275,12 +281,13 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
 	pad := float32(4 + depth*14)
 	selected := m.SelectedFile != nil && *m.SelectedFile == rel
-	row := ui.Row(c).Padding(pad+16, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center)
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Padding(pad+16, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center).Drag(workspaceReference(m, rel))
 	if selected {
 		row.Background(accent).Opacity(0.12)
 	}
 	row.Children(func() {
 		ui.Text(c, name).FontSize(12).TextColor(fg).Grow(1)
+		paintReferenceButtons(c, m, rel)
 	})
 	if row.Clicked() {
 		selectFile(m, rel)
@@ -315,6 +322,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, sel).FontSize(11).Bold().TextColor(muted).Grow(1)
 			if sel != "" {
+				paintReferenceButtons(c, m, sel)
 				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(11).Clicked() {
 					path := sel
 					if fullPath != "" {

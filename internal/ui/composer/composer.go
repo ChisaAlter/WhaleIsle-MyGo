@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -18,19 +19,20 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
-	Snapshot        session.ViewState
-	ThemeID         string
-	SystemDark      bool
-	WorkspaceRoot   string
-	Draft           *string
-	State           *DraftState
-	OnSubmit        func()
-	OnOpenURL       func(string)
-	OnAttachFiles   func([]string)
-	OnPasteImage    func(bool)
-	ModelPick       *string
-	PermissionPick  *string
-	AgentPresetPick *string
+	Snapshot             session.ViewState
+	ThemeID              string
+	SystemDark           bool
+	WorkspaceRoot        string
+	Draft                *string
+	State                *DraftState
+	OnSubmit             func()
+	OnOpenURL            func(string)
+	OnAttachFiles        func([]string)
+	OnWorkspaceReference func(filelink.Reference) error
+	OnPasteImage         func(bool)
+	ModelPick            *string
+	PermissionPick       *string
+	AgentPresetPick      *string
 
 	OnRetrySlashCommands func()
 	SlashCatalog         []SlashCommand
@@ -313,6 +315,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					m.State.EditFocus = false
 				}
 				wireFileDrop(area, m)
+				wireWorkspaceReferenceDrop(area, m)
+				if _, over := ui.DragOver[filelink.Reference](area); over {
+					ui.Text(c, "添加文件引用 / Add file reference").FontSize(11).TextColor(muted)
+				}
 				if m.UseTextInputClient && m.TextInput != nil {
 					m.TextInput.Sync()
 				}
