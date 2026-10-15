@@ -8,16 +8,16 @@ import (
 
 // ModelsAccess is the dedicated Models settings page (session/modelCatalog).
 type ModelsAccess struct {
-	ProviderProfiles *ProviderProfilesAccess
-	Vision           *VisionAccess
-	Labels           []string
-	Selected         *string
-	SessionID        string
-	Err              string
-	LastAction       string
-	OnRefresh        func()
-	OnDiscover       func()
-	OnApply          func()
+	ProviderDiscovery *ProviderDiscoveryAccess
+	ProviderProfiles  *ProviderProfilesAccess
+	Vision            *VisionAccess
+	Labels            []string
+	Selected          *string
+	SessionID         string
+	Err               string
+	LastAction        string
+	OnRefresh         func()
+	OnApply           func()
 }
 
 func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -37,6 +37,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	referencedCredentialsPane(c, m.ReferencedCredentials, "", fg, muted)
+	providerDiscoveryPane(c, a.ProviderDiscovery, fg, muted)
 	visionPane(c, a.Vision, fg, muted)
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)
@@ -66,9 +67,6 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Row(c).Gap(8).Children(func() {
 		if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
 			a.OnRefresh()
-		}
-		if a.OnDiscover != nil && ui.Button(c, i18n.T(i18n.KeySettingsModelsDiscover)).Clicked() {
-			a.OnDiscover()
 		}
 		if a.OnApply != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 			a.OnApply()

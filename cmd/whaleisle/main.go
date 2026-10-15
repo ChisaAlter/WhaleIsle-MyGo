@@ -41,6 +41,7 @@ import (
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/desktop/providerdiscovery"
 	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/desktop/sshremote"
 	"whaleisle/internal/desktop/taskguard"
@@ -167,6 +168,7 @@ type mainState struct {
 	settingsMCPController         *mcpconfig.Controller
 	settingsProviderProfiles      providerprofiles.Controller
 	settingsReferencedCredentials credentialrefs.Controller
+	settingsProviderDiscovery     providerdiscovery.Controller
 	settingsPluginInventory       plugininventory.Controller
 	remoteMachines                *remotestore.Store
 	remoteFiles                   *remotestore.Files
@@ -1683,6 +1685,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshClient = client
 	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
+	s.settingsProviderDiscovery.Attach(client)
 	s.mu.Lock()
 	if s.sessions == nil {
 		s.sessions = session.New()
@@ -1738,6 +1741,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	setStore.Attach(client, refresh)
 	s.refreshPluginInventory()
 	s.refreshReferencedCredentials()
+	s.refreshProviderDiscovery()
 	usageStore.Attach(client, refresh)
 	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
@@ -1815,6 +1819,7 @@ func (s *mainState) stopDSHLocked() {
 	s.dshClient = nil
 	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
+	s.settingsProviderDiscovery.Attach(nil)
 	s.dshMux = nil
 	s.dshMuxReady = false
 	s.dshMuxLost = false
@@ -2121,6 +2126,9 @@ func main() {
 		win.OnClosed(state.suspendMCPHealth)
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
+		win.OnHide(state.settingsProviderDiscovery.Suspend)
+		win.OnMinimize(state.settingsProviderDiscovery.Suspend)
+		win.OnClosed(state.settingsProviderDiscovery.Suspend)
 		win.OnHide(func() {
 			state.mu.Lock()
 			state.fileTabs.CancelPlanRead()
@@ -2688,6 +2696,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	providerDiscoveryRendered := false
+	defer func() { state.observeProviderDiscovery(providerDiscoveryRendered) }()
 	mcpPanelRendered := false
 	defer func() { state.observeMCPHealth(mcpPanelRendered) }()
 	state.observeWhaleSettings()
@@ -4679,6 +4689,7 @@ func mainView(c *ui.Context) {
 				appearanceActive := state.settingsAppearanceActive
 				interfaceActive := state.settingsInterfaceActive
 				modelsActive := state.settingsModelsActive
+				providerDiscoveryRendered = modelsActive
 				mcpActive := state.settingsMCPActive
 				mcpPanelRendered = mcpActive
 				pluginsActive := state.settingsPluginsActive
@@ -5142,24 +5153,17 @@ func mainView(c *ui.Context) {
 					},
 					ModelsActive: modelsActive,
 					Models: &settings.ModelsAccess{
-						ProviderProfiles: state.providerProfilesAccess(),
-						Vision:           state.visionSettingsAccess(),
-						Labels:           sessSnap.ModelLabels,
-						Selected:         &state.settingsModelLabel,
-						SessionID:        sessSnap.SelectedID,
-						Err:              sessSnap.ModelsErr,
-						LastAction:       sessSnap.LastAction,
+						ProviderDiscovery: state.providerDiscoveryAccess(),
+						ProviderProfiles:  state.providerProfilesAccess(),
+						Vision:            state.visionSettingsAccess(),
+						Labels:            sessSnap.ModelLabels,
+						Selected:          &state.settingsModelLabel,
+						SessionID:         sessSnap.SelectedID,
+						Err:               sessSnap.ModelsErr,
+						LastAction:        sessSnap.LastAction,
 						OnRefresh: func() {
 							if sessions != nil {
 								sessions.RefreshModelCatalog(context.Background())
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						OnDiscover: func() {
-							if sessions != nil {
-								sessions.DiscoverLLMProviders(context.Background())
 							}
 							if win != nil {
 								win.Update(func() {})
