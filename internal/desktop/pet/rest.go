@@ -7,37 +7,18 @@ import (
 	"time"
 )
 
-// restState belongs to one pet page/window, never config.json. A duplicate
-// sleep/wake URL is idempotent; only an actual explicit wake charges care.
-type restState struct {
-	sleeping bool
-	message  string
-}
-
-func (r *restState) sleep() { r.sleeping = true; r.message = "" }
-func (r *restState) wake(commit func() error) error {
-	if !r.sleeping {
-		return nil
-	}
-	if commit != nil {
-		if err := commit(); err != nil {
-			return err
-		}
-	}
-	r.sleeping = false
-	r.message = ""
-	return nil
-}
-
 type RestStatus struct {
-	Sleeping               bool
+	Sleeping, Dozing       bool
 	Label, Action, Message string
 }
 
 func (p *Companion) restStatus() RestStatus {
 	p.assetMu.RLock()
 	defer p.assetMu.RUnlock()
-	status := RestStatus{Sleeping: p.rest.sleeping, Label: "睡觉 / Sleep", Action: "sleep-pet", Message: "清醒 / Awake"}
+	status := RestStatus{Sleeping: p.rest.sleeping, Dozing: p.rest.dozing, Label: "睡觉 / Sleep", Action: "sleep-pet", Message: "清醒 / Awake"}
+	if status.Dozing {
+		status.Message = "打盹中 / Dozing"
+	}
 	if status.Sleeping {
 		status.Label = "叫醒 / Wake"
 		status.Action = "wake-pet"

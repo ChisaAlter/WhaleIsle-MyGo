@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
@@ -13,13 +14,19 @@ import (
 func (s *mainState) refreshPetTask() {
 	s.syncPetEvents()
 	s.syncPetPersonality()
+	s.dshMu.Lock()
+	careClient := s.dshClient
+	s.dshMu.Unlock()
 	s.mu.Lock()
 	p, sessions := s.desktopPet, s.sessions
+	careGeneration := s.bootStatus.Generation
+	careOwner := fmt.Sprintf("%p/%p", s.sup, careClient)
 	online := s.bootStatus.State == harness.Ready && s.dshMuxReady
 	s.mu.Unlock()
 	if p == nil {
 		return
 	}
+	p.SetCareRuntime(careOwner, careGeneration)
 	snap := session.ViewState{}
 	if sessions != nil {
 		snap = sessions.Snapshot()

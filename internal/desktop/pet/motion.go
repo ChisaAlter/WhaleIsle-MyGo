@@ -134,6 +134,7 @@ func (p *Companion) motionContact() {
 		return
 	}
 	now := time.Now()
+	p.touchRest(now)
 	m.lastContact = now
 	m.contactUntil = now.Add(2 * time.Second)
 	if m.glide != nil {
@@ -264,6 +265,7 @@ func (p *Companion) motionMoved(now time.Time) {
 	}
 	// Native app-region dragging may consume page pointer events. Once a real
 	// contacted move begins, each native move renews the interaction lease.
+	p.touchRest(now)
 	m.lastContact = now
 	m.contactUntil = now.Add(2 * time.Second)
 	m.glide = nil

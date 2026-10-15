@@ -43,6 +43,7 @@ type Companion struct {
 	growth                    chatEntry
 	motion                    motionState
 	rest                      restState
+	restClock                 restClock
 	OnRefreshGrowth           func()
 	OnPersonality             func(string)
 	feeding                   bool
@@ -112,6 +113,7 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.stopRestClock()
 	p.clearNotifications()
 	p.CloseQuickChat()
 	p.stopMotion()
@@ -239,9 +241,20 @@ func (p *Companion) sync() {
 			p.assetMu.Lock()
 			p.rest = restState{}
 			p.assetMu.Unlock()
+			p.startRestClock()
 		}
 	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) { p.Error = err.Error(); p.close() })
+	w.OnHide(func() {
+		if p.win == w {
+			p.stopRestClock()
+		}
+	})
+	w.OnShow(func() {
+		if p.win == w {
+			p.startRestClock()
+		}
+	})
 	w.OnReadyToShow(func() {
 		if p.win == w && p.ready {
 			w.ShowInactive()
@@ -254,6 +267,7 @@ func (p *Companion) sync() {
 	// Explicit disable belongs to the main settings page, including on quit.
 	w.OnClosed(func() {
 		if p.win == w {
+			p.stopRestClock()
 			p.clearNotifications()
 			p.CloseQuickChat()
 			p.stopMotion()
