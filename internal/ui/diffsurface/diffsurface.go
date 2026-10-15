@@ -131,6 +131,10 @@ func View(c *ui.Context, m Model) {
 		if m.Text != nil {
 			text = *m.Text
 		}
+		if m.Workbench != nil && m.Workbench.Commit != nil && m.Workbench.Commit.Plan != nil {
+			text = m.Workbench.Commit.Plan.Patch
+			errMsg = ""
+		}
 		if errMsg != "" {
 			ui.Text(c, errMsg).FontSize(12).TextColor(accent).Padding(12, 12, 12, 12)
 			return

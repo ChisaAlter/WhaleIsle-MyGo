@@ -2,13 +2,13 @@ package diffsurface
 
 import (
 	"github.com/egoist/mygo/ui"
-	"strings"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
 )
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
+	Commit                                    *commitSelectionState
 	View                                      patchViewState
 	Discard                                   *git.DiscardPlan
 	Root                                      string
@@ -50,10 +50,12 @@ func (w *Workbench) reload(root string) {
 		return
 	}
 	w.Changes = changes
+	w.scanCommitFiles()
 }
 func refreshWorkbench(m Model) {
 	if m.Workbench != nil {
 		w := m.Workbench
+		w.cancelCommitPreparation()
 		if w.Loaded && w.Root != m.WorkspaceRoot {
 			w.CancelComparison()
 			operation := w.Operation
@@ -83,6 +85,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	if !w.Loaded || w.Root != m.WorkspaceRoot {
+		w.cancelCommitPreparation()
 		w.CancelComparison()
 		if w.Loaded && w.Root != m.WorkspaceRoot {
 			if m.Text != nil {
@@ -105,6 +108,9 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		if paintRepositoryActions(c, m, fg, muted) {
 			return
 		}
+		if paintCommitPreparation(c, m, fg, muted) {
+			return
+		}
 		paintComparison(c, m, fg, muted)
 		paintBranches(c, m, fg, muted)
 		ui.Row(c).Gap(6).Children(func() {
@@ -115,12 +121,13 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 				scopeDiff(m, "", true)
 			}
 		})
-		ui.Text(c, word("单文件暂存；提交仅包含已暂存内容。编辑器草稿须先保存。", "Stage individual files; commits contain only staged changes. Save editor drafts first.")).FontSize(10).TextColor(muted)
+		ui.Text(c, word("勾选本次提交的文件。可单独暂存；编辑器草稿须先保存。", "Check files for this commit. Individual staging is also available. Save editor drafts first.")).FontSize(10).TextColor(muted)
 		ui.Scroll(c).Height(150).FillWidth().Children(func() {
 			ui.Column(c).Gap(2).Children(func() {
 				for _, change := range w.Changes {
 					ch := change
 					ui.Row(c).Gap(5).Children(func() {
+						paintCommitCheckbox(c, w, ch.Path)
 						ui.Text(c, string([]byte{ch.Index, ch.Worktree})).FontSize(11).TextColor(muted)
 						if ui.Button(c, ch.Path).FontSize(11).Clicked() {
 							scopeDiff(m, ch.Path, !ch.Unstaged())
@@ -135,7 +142,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 									paths = append(paths, ch.Original)
 								}
 								_, err := git.StagePaths(m.WorkspaceRoot, paths...)
-								w.ReviewToken = ""
+								w.invalidateCommitReview()
 								if err != nil {
 									w.Status = err.Error()
 								} else {
@@ -155,7 +162,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 									paths = append(paths, ch.Original)
 								}
 								_, err := git.UnstagePaths(m.WorkspaceRoot, paths...)
-								w.ReviewToken = ""
+								w.invalidateCommitReview()
 								if err != nil {
 									w.Status = err.Error()
 								} else {
@@ -170,45 +177,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 		})
 		paintDiscard(c, m, fg, muted)
-		ui.TextInput(c, &w.Message).FillWidth().Placeholder(word("提交说明（仅已暂存）", "Commit message (staged only)"))
-		if w.ReviewToken == "" {
-			if ui.Button(c, word("核对已暂存内容并提交…", "Review staged changes to commit…")).Clicked() {
-				if strings.TrimSpace(w.Message) == "" {
-					w.Status = word("请填写提交说明", "Enter a commit message")
-				} else {
-					text, token, err := git.IndexReview(m.WorkspaceRoot)
-					if err != nil {
-						w.Status = err.Error()
-					} else {
-						w.PushAfterCommit = false
-						w.ReviewToken = token
-						w.ReviewText = text
-						scopeDiff(m, "", true)
-						w.Status = word("核对下方完整已暂存diff，确认后创建本地提交，不会推送。", "Review the complete staged diff below. Confirm creates a local commit; it does not push.")
-					}
-				}
-			}
-			if ui.Button(c, word("核对提交并推送…", "Review commit and push…")).Clicked() {
-				reviewCommitPush(m)
-			}
-		} else {
-			if w.PushAfterCommit {
-				ui.Text(c, pushReviewText(w.ReviewedPush)).FontSize(11).TextColor(fg)
-			}
-			ui.Row(c).Gap(6).Children(func() {
-				caption := word("确认提交已暂存内容", "Confirm staged commit")
-				if w.PushAfterCommit {
-					caption = word("确认提交并推送", "Confirm commit and push")
-				}
-				if ui.Button(c, caption).Clicked() {
-					confirmReviewedCommit(c, m)
-				}
-				if ui.Button(c, word("取消", "Cancel")).Clicked() {
-					w.ReviewToken = ""
-					w.Status = ""
-				}
-			})
-		}
+		paintCommitSelection(c, m, fg, muted)
 		if w.Status != "" {
 			ui.Text(c, w.Status).FontSize(11).TextColor(fg)
 		}

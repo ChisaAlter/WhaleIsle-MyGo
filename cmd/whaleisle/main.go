@@ -2912,9 +2912,14 @@ func mainView(c *ui.Context) {
 			gitBadge.OnPush = func() { state.runGitPush(root) }
 			gitBadge.OnCommit = func() {
 				state.mu.Lock()
-				state.gitCommitOpen = !state.gitCommitOpen
+				state.gitCommitOpen = false
+				state.filesPaneOpen = true
+				state.rightPaneTab = "diff"
+				rightPaneTab = "diff"
+				gitCommitOpen = false
 				state.gitPROpen = false
 				state.mu.Unlock()
+				state.gitWorkbench.RequestCommit(root, gitCommitDraft)
 				if win != nil {
 					win.Update(func() {})
 				}
@@ -3492,7 +3497,13 @@ func mainView(c *ui.Context) {
 				CancelLabel: i18n.T(i18n.KeyGitCommitCancel),
 				OnCommit: func() {
 					if st.State == harness.Ready && root != "" && !gitBusy {
-						state.confirmGitCommit(win, root, gitCommitDraft, gitDirty)
+						state.gitWorkbench.RequestCommit(root, gitCommitDraft)
+						rightPaneTab = "diff"
+						gitCommitOpen = false
+						state.mu.Lock()
+						state.filesPaneOpen, state.rightPaneTab = true, "diff"
+						state.gitCommitOpen = false
+						state.mu.Unlock()
 					}
 				},
 				OnCancel: func() {
