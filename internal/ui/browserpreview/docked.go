@@ -7,8 +7,9 @@ import (
 )
 
 func (b *Controller) showHost(h *desktop.Host) {
-	h.SetViewport(b.viewport)
-	if b.viewport != nil && (b.viewport.Width < 1 || b.viewport.Height < 1) {
+	viewport := b.browserDeviceViewport(h)
+	h.SetViewport(viewport)
+	if viewport != nil && (viewport.Width < 1 || viewport.Height < 1) {
 		b.CancelAction()
 		h.SetVisible(false)
 		return

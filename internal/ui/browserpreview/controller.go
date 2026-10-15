@@ -26,6 +26,7 @@ type Controller struct {
 	parent       *mygo.Window
 }
 type Tab struct {
+	tools       browserTools
 	Document    *pdfpreview.Document
 	HTML        *htmldocument.Document
 	interactive *interactivePreview
@@ -38,7 +39,7 @@ type Tab struct {
 	Host          *desktop.Host
 }
 
-const BrowserChromeHeight = 144
+const BrowserChromeHeight = 208
 
 func NewController(parent *mygo.Window) *Controller { return &Controller{parent: parent} }
 func (b *Controller) current() *Tab {
@@ -95,6 +96,7 @@ func (b *Controller) Navigate(raw string) {
 		return
 	}
 	t.Host = h
+	t.tools.settings.Scheme = "system"
 	b.showHost(h)
 	b.update()
 }
@@ -268,6 +270,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				}
 			})
 			b.actionControls(c, t, s)
+			b.toolControls(c, t, s)
 			err := t.Error
 			if err == "" {
 				err = s.Error

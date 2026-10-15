@@ -50,6 +50,7 @@ func (b *Controller) EndFrame() {
 
 // CancelAction is also called by Hide, navigation, tab changes and Close.
 func (b *Controller) CancelAction() {
+	b.cancelBrowserTools()
 	if op := b.operation; op != nil {
 		b.operation = nil
 		op.cancel()
@@ -60,6 +61,7 @@ func (b *Controller) CancelAction() {
 // PruneActions is called each owning-window frame, including session/Host
 // changes when this browser's chrome is not being painted.
 func (b *Controller) PruneActions() {
+	b.pruneBrowserTools()
 	if op := b.operation; op != nil && !b.actionCurrent(op) {
 		b.CancelAction()
 	}
