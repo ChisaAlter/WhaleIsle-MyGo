@@ -397,7 +397,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
+			if !editing && !previewTruncated(m) && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
 					if m.EditStatus != nil {
@@ -411,7 +411,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				if m.EditDraft != nil && ui.Button(c, label("复制草稿", "Copy draft")).Clicked() {
 					mygo.Clipboard.WriteText(*m.EditDraft)
 				}
-				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Clicked() {
+				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Disabled(previewTruncated(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
@@ -430,6 +430,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				}
 			}
 		})
+		if previewTruncated(m) {
+			ui.Text(c, previewTruncationNotice(m)).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
+		}
 		paintSourceActions(c, m, sel, muted)
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
@@ -548,11 +551,12 @@ func selectFile(m Model, rel string) {
 		return
 	}
 	pauseSave(selectedTab(m))
-	remotePreview := false
+	remotePreview, truncated := false, false
 	defer func() {
 		rememberTab(m, rel)
 		if t := selectedTab(m); t != nil {
 			t.Remote = remotePreview
+			t.Truncated = truncated
 		}
 	}()
 	if m.SelectedFile != nil {
@@ -564,11 +568,17 @@ func selectFile(m Model, rel string) {
 	if m.EditStatus != nil {
 		*m.EditStatus = ""
 	}
-	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
+	text, errMsg, prefix := loadPreview(m.WorkspaceRoot, rel)
+	truncated = prefix
+	if truncated && m.Tabs == nil {
+		// Legacy callers cannot retain read metadata; do not expose a prefix as complete.
+		errMsg = truncatedPreviewNotice()
+	}
 	if errMsg != "" && m.ReadRemote != nil {
 		if remote, rerr := LoadPreviewRemote(m.ReadRemote, rel); rerr == "" {
 			text, errMsg = remote, ""
 			remotePreview = true
+			truncated = false
 		}
 	}
 	if m.Preview != nil {
@@ -704,44 +714,52 @@ func LoadPreviewRemote(readRemote func(rel string) (string, error), rel string) 
 
 // LoadPreview reads the selected file for display.
 func LoadPreview(root, rel string) (text, errMsg string) {
+	text, errMsg, truncated := loadPreview(root, rel)
+	if truncated {
+		return "", truncatedPreviewNotice()
+	}
+	return text, errMsg
+}
+
+func loadPreview(root, rel string) (text, errMsg string, truncated bool) {
 	if mediapreview.Supports(rel) {
-		return "", ""
+		return "", "", false
 	} // No client-side path resolution or binary text read.
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
-		return "", err.Error()
+		return "", err.Error(), false
 	}
 	if isPreviewImage(rel) {
-		return "", "" // Decoded separately; never offer binary image bytes for editing.
+		return "", "", false // Decoded separately; never offer binary image bytes for editing.
 	}
 	switch workspacefs.ClassifyDoc(rel) {
 	case workspacefs.DocPDF:
-		return "", i18n.T(i18n.KeyFilesPDFHint)
+		return "", i18n.T(i18n.KeyFilesPDFHint), false
 	case workspacefs.DocXLSX:
 		table, xerr := workspacefs.FormatXLSXPreview(full, 60, 16)
 		if xerr == nil && table != "" {
-			return table, ""
+			return table, "", false
 		}
 		hint := i18n.T(i18n.KeyFilesXLSXHint)
 		if xerr != nil {
 			hint = hint + " (" + xerr.Error() + ")"
 		}
-		return "", hint
+		return "", hint, false
 	case workspacefs.DocOther:
-		return "", i18n.T(i18n.KeyFilesOfficeHint)
+		return "", i18n.T(i18n.KeyFilesOfficeHint), false
 	}
-	res, err := workspacefs.ReadFileText(full, workspacefs.DefaultMaxReadBytes)
+	res, err := workspacefs.ReadFileTextPreview(full)
 	if err != nil {
 		switch {
 		case errors.Is(err, workspacefs.ErrTooLarge):
-			return "", i18n.T(i18n.KeyFilesTooLarge)
+			return "", i18n.T(i18n.KeyFilesTooLarge), false
 		case errors.Is(err, workspacefs.ErrBinary):
-			return "", i18n.T(i18n.KeyFilesBinary)
+			return "", i18n.T(i18n.KeyFilesBinary), false
 		case errors.Is(err, workspacefs.ErrNotFile):
-			return "", err.Error()
+			return "", err.Error(), false
 		default:
-			return "", err.Error()
+			return "", err.Error(), false
 		}
 	}
-	return res.Text, ""
+	return res.Text, "", res.Truncated
 }

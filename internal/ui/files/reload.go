@@ -25,18 +25,27 @@ func reloadSelectedFile(m Model) {
 	}
 	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
 	remotePreview := false
-	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
+	text, errMsg, truncated := loadPreview(m.WorkspaceRoot, rel)
+	if truncated && m.Tabs == nil {
+		errMsg = truncatedPreviewNotice()
+	}
 	if errMsg != "" && m.ReadRemote != nil {
 		if remote, remoteErr := LoadPreviewRemote(m.ReadRemote, rel); remoteErr == "" {
 			text, errMsg = remote, ""
 			remotePreview = true
+			truncated = false
 		}
+	}
+	if tab := selectedTab(m); tab != nil && errMsg == "" {
+		tab.Truncated = truncated
 	}
 	if dirty {
 		if m.EditStatus != nil {
 			switch {
 			case errMsg != "":
 				*m.EditStatus = label("重新载入失败，草稿保留：", "Reload failed; draft kept: ") + errMsg
+			case truncated:
+				*m.EditStatus = label("磁盘文件已超出完整预览上限，草稿保留且停止保存。请复制草稿并在外部编辑器核对。", "File now exceeds the complete preview limit. Draft kept and saving stopped. Copy it and reconcile in an external editor.")
 			case text != *m.Preview:
 				*m.EditStatus = label("磁盘文件已变化，草稿保留。请复制草稿后关闭并重新打开文件核对。", "File changed on disk; draft kept. Copy the draft, then close and reopen to reconcile.")
 			default:
@@ -46,7 +55,7 @@ func reloadSelectedFile(m Model) {
 		capture(m)
 		return
 	}
-	if (isPreviewImage(rel) || mediaMode(m, rel)) && m.Editing != nil {
+	if (truncated || isPreviewImage(rel) || mediaMode(m, rel)) && m.Editing != nil {
 		*m.Editing = false
 	}
 	if m.PreviewErr != nil {

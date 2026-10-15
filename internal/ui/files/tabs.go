@@ -51,6 +51,7 @@ type FileTab struct {
 	saveRevision                              uint64
 	closeWhenSaved                            bool
 	Remote                                    bool
+	Truncated                                 bool // incomplete local prefix; persisted with tab recovery
 }
 
 func (t *FileTab) Dirty() bool { return t.Draft != t.Preview }
@@ -234,6 +235,9 @@ func closeTab(m Model, path string, discard bool) bool {
 	return true
 }
 func saveDraft(m Model) error {
+	if err := checkPreviewComplete(m); err != nil {
+		return err
+	}
 	if m.SelectedFile == nil || m.EditDraft == nil || m.Preview == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}

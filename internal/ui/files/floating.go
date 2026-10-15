@@ -41,6 +41,12 @@ func openFloatingPreview(m Model) error {
 	if err != nil {
 		return err
 	}
+	if previewTruncated(m) {
+		if snapshot.Problem != "" {
+			snapshot.Problem += "\n"
+		}
+		snapshot.Problem += previewTruncationNotice(m)
+	}
 	var image *imagePreview
 	if snapshot.Image {
 		tab := selectedTab(m)

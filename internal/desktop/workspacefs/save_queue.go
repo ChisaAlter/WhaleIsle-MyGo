@@ -178,7 +178,7 @@ func SaveTextChecked(ctx context.Context, root, rel, baseline, text string, writ
 	if err != nil {
 		return err
 	}
-	current, err := ReadFileText(full, DefaultMaxReadBytes)
+	current, err := ReadFileText(full, TextPreviewLimit)
 	if err != nil {
 		return err
 	}

@@ -12,6 +12,9 @@ func ensureSaveQueue(m Model, t *FileTab) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
+	if t.Truncated {
+		return errors.New(label("不完整文件预览不能保存；草稿保留，请在外部编辑器核对。", "Cannot save an incomplete file preview. Draft kept; reconcile in an external editor."))
+	}
 	if t.Remote {
 		return errors.New(label("远程预览草稿已保留，请使用会话远程文件保存。", "Remote preview draft kept. Save through the session's remote file editor."))
 	}
