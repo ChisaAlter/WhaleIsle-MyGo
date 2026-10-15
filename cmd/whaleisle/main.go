@@ -1662,7 +1662,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
 	if win != nil {
-		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray() })
+		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray(); s.refreshStartupUpdateAttention(win) })
 	}
 }
 

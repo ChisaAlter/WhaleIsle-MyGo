@@ -12,27 +12,30 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/launcher"
 )
 
 type nativeReleaseState struct {
-	initialized     bool
-	route           string
-	catalogRoute    string
-	rows            []update.NativeRelease
-	selected        string
-	busy            bool
-	cancel          context.CancelFunc
-	status          string
-	err             string
-	received, total int64
-	staged          update.ApplyResult
-	stagedTag       string
+	initialized         bool
+	attentionGeneration uint64
+	route               string
+	catalogRoute        string
+	rows                []update.NativeRelease
+	selected            string
+	busy                bool
+	cancel              context.CancelFunc
+	status              string
+	err                 string
+	received, total     int64
+	staged              update.ApplyResult
+	stagedTag           string
 }
 
 func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launcher.Model {
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
+	s.startupRecovery.updateVendorReady = m.VendorReady
 	refresh := !s.nativeReleases.busy && (!s.nativeReleases.initialized || s.nativeReleases.route != route)
 	snapshot := s.nativeReleases
 	snapshot.rows = append([]update.NativeRelease(nil), snapshot.rows...)
@@ -83,12 +86,18 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 		}
 	}
 	s.maybeAskStartupUpdate(win, snapshot, m.VendorReady)
+	s.mu.Lock()
+	pendingUpdate := s.startupRecovery.updateAttention.Pending()
+	s.mu.Unlock()
+	if pendingUpdate && m.UpdateAvailable {
+		m.UpdateStatus += resumeText("，等待确认。可在启动器中选择稍后或下载。", "; awaiting confirmation. Choose Later or Download in the launcher.")
+	}
 	return withApplicationUninstall(win, s.withStartupDiagnostics(m))
 }
 
 func (s *mainState) nativeReleaseNotify(win *mygo.Window) {
 	if win != nil {
-		win.Update(func() {})
+		win.Update(func() { s.refreshStartupUpdateAttention(win) })
 	}
 }
 
@@ -100,6 +109,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	s.nativeReleases.attentionGeneration++
 	s.nativeReleases.initialized = true
 	s.nativeReleases.route = route
 	s.nativeReleases.busy, s.nativeReleases.cancel = true, cancel
@@ -149,10 +159,18 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 	s.nativeReleaseNotify(win)
 }
 
-func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireRuntime bool) {
+func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireRuntime bool, expected ...startuprec.UpdateAttentionScope) {
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
 	r := &s.nativeReleases
+	if len(expected) > 0 {
+		scope, _ := s.startupUpdateScopeLocked(win, *r, !requireRuntime)
+		if scope != expected[0] || route != expected[0].Route || tag != expected[0].Tag || s.cfgStore == nil || !s.cfgStore.Get().AskOnUpdate {
+			s.mu.Unlock()
+			return
+		}
+		s.startupRecovery.updateHold = true
+	}
 	if r.busy {
 		s.mu.Unlock()
 		return
@@ -168,6 +186,8 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		rows = nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	r.attentionGeneration++
+	s.startupRecovery.updateAttention.DismissCurrent()
 	r.initialized, r.route, r.busy, r.cancel = true, route, true, cancel
 	r.status, r.err = resumeText("正在选择并校验 MyGo 安装包…", "Selecting and verifying a MyGo installer…"), ""
 	r.received, r.total = 0, 0

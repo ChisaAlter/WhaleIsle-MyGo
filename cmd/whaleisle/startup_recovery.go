@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
-	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/startuprec"
 )
@@ -19,9 +17,14 @@ type startupRecoveryState struct {
 	recordedGeneration int
 	recordedState      harness.State
 	recorded           bool
-	updatePromptBusy   bool
-	updateSeen         map[string]bool
 	updateHold         bool
+	updateAttention    startuprec.UpdateAttention
+	updateVendorReady  bool
+	updateNotice       *mygo.Notification
+	updateNoticeWindow *mygo.Window
+	updateNoticeTicket startuprec.UpdateAttentionTicket
+	updateWatchWindow  *mygo.Window
+	updateWatchOff     []func()
 }
 
 func (s *mainState) openStartupRecovery(dir string, cfg *config.Store) {
@@ -98,78 +101,6 @@ func (s *mainState) recordStartupStatusLocked(st harness.Status) bool {
 		s.launcherNote = resumeText("恢复模式已就绪；用户插件仍被跳过。请在插件页检查原因并明确恢复。", "Recovery mode is ready; user plugins are still skipped. Review the cause on the Plugins page before restoring them.")
 	}
 	return r.loadError != "" || r.saveError != ""
-}
-
-// This consumes the existing pinned native-release catalog. It never starts a
-// second check, delays the local start decision or opens/focuses a hidden window.
-func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeReleaseState, vendorReady bool) {
-	if win == nil || snapshot.busy || snapshot.err != "" || snapshot.catalogRoute != snapshot.route {
-		return
-	}
-	var release update.NativeRelease
-	for _, row := range snapshot.rows {
-		if !row.Prerelease && row.Validate(runtime.GOOS, runtime.GOARCH, !vendorReady) == nil && update.CompareVersions(row.Version, buildVersion) > 0 {
-			release = row
-			break
-		}
-	}
-	if release.Tag == "" {
-		return
-	}
-	key := snapshot.catalogRoute + "\x00" + release.Tag
-	visible := win.IsVisible() && !win.IsMinimized()
-	s.mu.Lock()
-	r := &s.startupRecovery
-	if r.updateSeen == nil {
-		r.updateSeen = map[string]bool{}
-	}
-	ask := s.cfgStore != nil && s.cfgStore.Get().AskOnUpdate
-	if !ask {
-		r.updateSeen[key] = true
-	}
-	can := startuprec.CanPromptUpdate(ask, !r.updateSeen[key], visible, s.launcherOpen, s.launcherStartBusy, r.updatePromptBusy || s.nativeReleases.busy, s.quitting)
-	if can {
-		r.updatePromptBusy = true
-	}
-	s.mu.Unlock()
-	if !can {
-		return
-	}
-	win.Update(func() {
-		// A queued callback may run after Hide, navigation, a restart or route change.
-		visible := win.IsVisible() && !win.IsMinimized()
-		s.mu.Lock()
-		r := &s.startupRecovery
-		ask := s.cfgStore != nil && s.cfgStore.Get().AskOnUpdate
-		can := startuprec.CanPromptUpdate(ask, !r.updateSeen[key], visible, s.launcherOpen, s.launcherStartBusy, s.nativeReleases.busy, s.quitting) && s.win == win && s.nativeReleases.catalogRoute == snapshot.catalogRoute && s.nativeReleases.route == snapshot.route
-		if !can {
-			r.updatePromptBusy = false
-			s.mu.Unlock()
-			return
-		}
-		r.updateSeen[key] = true
-		s.mu.Unlock()
-		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageInfo,
-			Title:   resumeText("MyGo 更新可用", "MyGo update available"),
-			Message: fmt.Sprintf(resumeText("发现 %s。现在下载并校验该版本？安装仍需单独确认，可稍后重试。", "%s is available. Download and verify this version now? Installation needs a separate confirmation; you can retry later."), release.Version),
-			Buttons: []string{resumeText("稍后", "Later"), resumeText("下载更新", "Download update")}, DefaultButton: 0, CancelButton: 0})
-		visible = win.IsVisible() && !win.IsMinimized()
-		s.mu.Lock()
-		r = &s.startupRecovery
-		r.updatePromptBusy = false
-		allowed := err == nil && choice.Button == 1 && visible && s.win == win && s.launcherOpen && !s.launcherStartBusy && !s.quitting && !s.launcherImportBusy && !s.nativeReleases.busy && s.nativeReleases.route == snapshot.route && s.nativeReleases.catalogRoute == snapshot.catalogRoute
-		if allowed {
-			r.updateHold = true
-			s.launcherOpen = true
-		}
-		if err != nil {
-			s.launcherNote = startuprec.RedactLine(err.Error())
-		}
-		s.mu.Unlock()
-		if allowed {
-			s.downloadNativeRelease(win, release.Tag, !vendorReady)
-		}
-	})
 }
 
 func recoveryReason(reason string) string { return startuprec.RedactLine(strings.TrimSpace(reason)) }
