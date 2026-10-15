@@ -30,10 +30,13 @@ func ReadOnlyHistoryScope(binding string, address session.AgentSessionAddress, t
 	return string(raw)
 }
 
-// ReadOnlyHistoryView intentionally has no chat Model or action/open callbacks.
-// It cannot edit/retry/approve, resolve files against a workspace, fetch images,
-// open URLs, or submit prompts. Its only interaction is local disclosure/copy.
-func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle) {
+// ReadOnlyHistoryView keeps chat mutation callbacks absent; optional addressed
+// resources enable explicit read-only navigation without changing the main session.
+func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle, resources ...ReadOnlyResourceOptions) {
+	var resource ReadOnlyResourceOptions
+	if len(resources) > 0 {
+		resource = resources[0]
+	}
 	rows, limited := readOnlyHistoryMessages(messages)
 	limited = limited || (len(rows) == 0 && len(fallback) > readOnlyMessageByteLimit)
 	box := ui.Column(c.Key("readonly-history:" + scope)).FillWidth().Gap(8)
@@ -66,7 +69,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 		}
 	}
 	box.Children(func() {
-		ui.Text(c, "只读正文；图片/文件/链接仅保留身份文字，尚未连接子会话附件。 / Read-only; images, files and links remain text-only; child attachment access is not connected.").FontSize(10).TextColor(st.Muted)
+		ui.Text(c, "子会话只读阅读 / Child read-only history").FontSize(10).TextColor(st.Muted)
 		if limited {
 			ui.Text(c, "展示已截断：最多400行、每行64 KiB、合计512 KiB；原始历史与游标未变。 / Display clipped; history and cursors are unchanged.").FontSize(10).TextColor(st.Muted)
 		}
@@ -89,6 +92,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				ui.Text(c, label).FontSize(10).TextColor(st.Muted)
 				if msg.Kind == session.MessageKindTool {
 					ToolMessageView(c, msg, st, ToolImageGalleryOptions{ID: msg.ID, Expanded: expanded, TextOnly: true})
+					readOnlyToolResources(c, msg, resource, st)
 					return
 				}
 				body := msg.Body
@@ -99,16 +103,20 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				case msg.Kind == session.MessageKindThinking:
 					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: 12})
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
-					markdown.View(c, body, markdown.Style{FontSize: 13, FG: st.FG, Muted: st.Muted, CodeBG: st.Field, Accent: st.Accent})
+					markdown.View(c, body, markdown.Style{FontSize: 13, FG: st.FG, Muted: st.Muted, CodeBG: st.Field, Accent: st.Accent, ResolveFile: FileMentionResolver(messages, msg), OnOpenFile: resource.OnOpenFile})
 					for _, ref := range readOnlyReferences(body) {
-						ui.Text(c, "引用（未打开） / Reference (not opened): "+ref).FontSize(10).TextColor(st.Muted).Selectable()
+						readOnlyResourceLink(c, ref, resource, st)
 					}
 				default:
 					ui.Text(c, body).FontSize(12).TextColor(st.FG).Selectable()
 				}
 				for _, path := range msg.Files {
-					ui.Text(c, "文件（未打开） / File (not opened): "+path).FontSize(11).TextColor(st.Muted).Selectable()
+					readOnlyResourceLink(c, path, resource, st)
 				}
+				for _, ref := range session.ImageRefs(body) {
+					readOnlyResourceLink(c, ref, resource, st)
+				}
+				CitationsView(c, CitationsForMessage(msg), st.Muted, st.Accent, resource.OnOpenURL)
 				if body != "" && ui.Button(c, "复制消息 / Copy message").FontSize(10).Clicked() {
 					c.Services().WriteClipboard(body)
 				}

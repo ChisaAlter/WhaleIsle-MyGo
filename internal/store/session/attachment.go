@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -58,6 +59,11 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 	if client == nil || sessionID == "" {
 		return "", ErrNoClient
 	}
+	return fetchSessionAttachment(ctx, client, sessionID, attachmentID, attachmentID)
+}
+
+// fetchSessionAttachment shares decoding and storage while callers choose the cache namespace.
+func fetchSessionAttachment(ctx context.Context, client *dsh.Client, sessionID, attachmentID, identity string) (string, error) {
 	var out api.SessionAttachmentValue
 	err := client.Call(ctx, "session/attachment", map[string]any{
 		"request": api.SessionAttachmentRequest{
@@ -94,7 +100,7 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 		ext = filepath.Ext(*name)
 	}
 	// IDs are provider-owned and opaque; never interpret them as local paths.
-	cacheKey := sha256.Sum256([]byte(sessionID + "\x00" + attachmentID))
+	cacheKey := sha256.Sum256([]byte(sessionID + "\x00" + identity))
 	local := filepath.Join(dir, fmt.Sprintf("%x", cacheKey)+ext)
 	if err := os.WriteFile(local, raw, 0o644); err != nil {
 		return "", err
@@ -103,7 +109,7 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 	if attachmentCache.paths == nil {
 		attachmentCache.paths = map[string]string{}
 	}
-	attachmentCache.paths[attachmentID] = local
+	attachmentCache.paths[identity] = local
 	attachmentCache.mu.Unlock()
 	return local, nil
 }

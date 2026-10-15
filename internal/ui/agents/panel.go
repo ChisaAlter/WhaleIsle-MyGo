@@ -25,6 +25,7 @@ type Model struct {
 	OnStop      func(sessionID string) // session/cancel for a running child
 	OnInterrupt func(parentID, childID string)
 	OnPrompt    func(parentID, childID, text string)
+	OnOpenURL   func(string)
 	OnClose     func()
 }
 

@@ -119,8 +119,10 @@ func navigationView(c *ui.Context, m Model) {
 					if body == "" && !v.Busy {
 						body = agentText("尚无可显示记录。", "No visible records yet.")
 					}
+					resources := childResourceOptions(m, v)
 					chat.ReadOnlyHistoryView(c, chat.ReadOnlyHistoryScope(snap.PlanHistoryBinding, v.Address, v.Token), v.Messages, body,
-						chat.DefaultToolCardStyle(fg, muted, chrome.Color(colors.Border), chrome.Color(colors.Field), chrome.Color(colors.Accent)))
+						chat.DefaultToolCardStyle(fg, muted, chrome.Color(colors.Border), chrome.Color(colors.Field), chrome.Color(colors.Accent)), resources)
+					childDeliveriesView(c, m, v, chat.DefaultToolCardStyle(fg, muted, chrome.Color(colors.Border), chrome.Color(colors.Field), chrome.Color(colors.Accent)))
 					// Preserve the existing dedicated continuation route. Never send through
 					// the main composer or pretend one-shot history is an ordinary Session.
 					if v.Address.Mode == "continuable" && m.PromptDraft != nil {

@@ -33,7 +33,9 @@ type AgentNavigationRow struct {
 }
 type AgentNavigationView struct {
 	catalog          agentNavigationCatalog // Host-computed whole value and its watermark
-	Messages         []Message              // isolated live presentation; never main chat messages
+	Resources        map[string]AgentResourceRead
+	TurnFiles        TurnFilesSnapshot
+	Messages         []Message // isolated live presentation; never main chat messages
 	ActionBusy       bool
 	ActionStatus     string
 	Token            uint64
@@ -75,6 +77,8 @@ func (s *Store) agentNavigationOwnedLocked() bool {
 	return n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
+	v.Resources = cloneAgentResources(v.Resources)
+	v.TurnFiles.Results = cloneAgentTurnResults(v.TurnFiles.Results)
 	v.Rows = append([]AgentNavigationRow(nil), v.Rows...)
 	v.Messages = append([]Message(nil), v.Messages...)
 	v.Process.Records = append([]projectflow.ProcessRecord(nil), v.Process.Records...)

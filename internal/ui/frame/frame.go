@@ -1132,6 +1132,7 @@ func rightPane(c *ui.Context, m Model) {
 				ThemeID:     m.ThemeID,
 				SystemDark:  m.SystemDark,
 				PromptDraft: m.AgentsPromptDraft,
+				OnOpenURL:   m.OnOpenCitationURL,
 				OnClose: func() {
 					if m.RightPaneTab != nil {
 						*m.RightPaneTab = "files"
