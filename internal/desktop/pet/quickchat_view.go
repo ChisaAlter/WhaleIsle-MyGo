@@ -17,26 +17,36 @@ func quickChatName(name, fallback string) string {
 // This is native MyGo content, not a page with general IPC/model credentials.
 // Enter inserts a newline (including IME); only the explicit Send button sends.
 func (q *QuickChat) view(c *ui.Context) {
+	direct := q.options.Direct != nil
 	active := q.win != nil && q.check()
 	theme := c.Theme()
 	ui.Column(c).Fill().Padding(14).Gap(10).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Text(c, quickChatName(q.state.Name, "鲸鱼娘")+" · 聊聊").Bold().FontSize(17).Grow(1)
-			if ui.Button(c, "↗ 主会话 / Open").Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
+			if !direct && ui.Button(c, "↗ 主会话 / Open").Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
-			if ui.Button(c, "×").Label("关闭聊天卡片 / Close quick chat").Tooltip("关闭只取消本地等待，Host 可能继续 / Closing only cancels the local wait").Clicked() {
+			if ui.Button(c, "×").Label("关闭聊天卡片 / Close quick chat").Tooltip("关闭只取消本地等待，服务端可能继续 / Closing only cancels the local wait").Clicked() {
 				q.owner.CloseQuickChat()
 			}
 		})
-		ui.Text(c, "与主窗口共享模型、上下文和持久记录 / One shared conversation").FontSize(11).TextColor(theme.TextMuted)
+		if direct {
+			ui.Text(c, "联网临时聊天 · deepseek-chat · 使用桌面 API 设置；仅保留本窗口最近 6 轮，不写入共同会话 / Temporary online API chat").FontSize(11).TextColor(theme.Warning)
+		} else {
+			ui.Text(c, "与主窗口共享模型、上下文和持久记录 / One shared conversation").FontSize(11).TextColor(theme.TextMuted)
+		}
 		if q.state.SessionID != "" {
 			ui.Text(c, q.state.SessionID).Label("宠物会话 ID / Pet session ID").SingleLine().FontSize(10).TextColor(theme.TextMuted).Selectable()
 		}
-		q.modelPicker(c, active)
+		if !direct {
+			q.modelPicker(c, active)
+		}
 		if len(q.state.History) == 0 {
 			ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
 				line := "正在读取共同记录… / Loading shared history…"
+				if direct {
+					line = "输入后点联网发送才会请求 API / Click Send to API to send"
+				}
 				if q.state.SessionID != "" {
 					line = "还没有文字记录 / No messages yet"
 				}
@@ -46,7 +56,11 @@ func (q *QuickChat) view(c *ui.Context) {
 				ui.Text(c, line).TextColor(theme.TextMuted).FontSize(12)
 			})
 		} else {
-			ui.List(c, &q.list, len(q.state.History)).Label("共同会话记录 / Shared history").Grow(1).FillWidth().MinHeight(80).Rows(func(row ui.ListRow) {
+			historyLabel := "共同会话记录 / Shared history"
+			if direct {
+				historyLabel = "临时 API 聊天记录 / Temporary API history"
+			}
+			ui.List(c, &q.list, len(q.state.History)).Label(historyLabel).Grow(1).FillWidth().MinHeight(80).Rows(func(row ui.ListRow) {
 				message := q.state.History[row.Index]
 				label, color := q.state.Name, theme.Text
 				switch message.Role {
@@ -74,21 +88,29 @@ func (q *QuickChat) view(c *ui.Context) {
 			input.AutoFocus()
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, "发送 / Send").Disabled(!active || q.state.SessionID == "" || q.sending.busy() || q.picking.busy() || q.stopping.busy() || strings.TrimSpace(q.draft) == "").Clicked() {
+			sendLabel := "发送 / Send"
+			if direct {
+				sendLabel = "联网发送 / Send to API"
+			}
+			if ui.Button(c, sendLabel).Disabled(!active || (!direct && q.state.SessionID == "") || q.sending.busy() || q.picking.busy() || q.stopping.busy() || strings.TrimSpace(q.draft) == "").Clicked() {
 				q.send()
 			}
 			if q.sending.busy() && ui.Button(c, "取消等待 / Cancel wait").Disabled(!active).Clicked() {
 				q.cancelWait()
 			}
-			if ui.Button(c, "停止当前轮 / Stop turn").Disabled(!active || q.state.SessionID == "" || q.stopping.busy() || q.picking.busy()).Clicked() {
+			if !direct && ui.Button(c, "停止当前轮 / Stop turn").Disabled(!active || q.state.SessionID == "" || q.stopping.busy() || q.picking.busy()).Clicked() {
 				q.stopTurn()
 			}
-			if ui.Button(c, "刷新 / Refresh").Disabled(!active || q.history.busy()).Clicked() {
+			if !direct && ui.Button(c, "刷新 / Refresh").Disabled(!active || q.history.busy()).Clicked() {
 				q.refreshHistory()
 				q.refreshCatalog()
 			}
 		})
-		ui.Text(c, "取消等待不会撤回消息。停止仅作用于此宠物会话的当前轮；排队消息请到主会话管理。").FontSize(10).TextColor(theme.TextMuted)
+		if direct {
+			ui.Text(c, "取消不保证撤回 API 请求。关闭清除临时记录；Host 恢复后重新点聊聊进入共同会话。").FontSize(10).TextColor(theme.TextMuted)
+		} else {
+			ui.Text(c, "取消等待不会撤回消息。停止仅作用于此宠物会话的当前轮；排队消息请到主会话管理。").FontSize(10).TextColor(theme.TextMuted)
+		}
 	})
 	if c.Shortcut(0, ui.KeyEscape) {
 		q.owner.CloseQuickChat()

@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/petdirect"
 )
 
 // QuickChatOptions bind one compact card to one authenticated Host generation.
@@ -17,6 +19,9 @@ type QuickChatOptions struct {
 	Unavailable string
 	Current     func() bool
 	OpenMain    func(string)
+	// Direct is set only when opening a card with Host/Whale already unavailable.
+	// A shared-session request can never switch or fall back to this client.
+	Direct *petdirect.Client
 }
 
 // QuickChat is UI-thread owned, including every request slot and draft. Worker
@@ -32,6 +37,7 @@ type QuickChat struct {
 	closed      bool
 	stale       bool
 	state       quickChatSnapshot
+	direct      petdirect.Memory
 	draft       string
 	status      string
 	readNote    string
@@ -59,14 +65,16 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 			old.win.Focus()
 			return
 		}
-		draft = old.draft
+		draft = petdirect.RetainDraft(old.options.Direct != nil, options.Direct != nil, old.draft)
 		p.CloseQuickChat()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &QuickChat{owner: p, parent: p.win, options: options, life: ctx, cancel: cancel, draft: draft, status: "正在读取共同会话… / Loading shared conversation…"}
 	q.list.FollowEnd = true
 	q.list.Key = func(index int) any { return quickChatHistoryKey(q.state, index) }
-	if options.Unavailable != "" {
+	if options.Direct != nil {
+		q.status = options.Unavailable + " 联网发送使用桌面 API 设置 / Send uses desktop API settings"
+	} else if options.Unavailable != "" {
 		q.stale, q.status = true, options.Unavailable
 	} else {
 		client, err := newQuickChatClient(options.Origin, options.Cookie)
@@ -162,10 +170,16 @@ func (q *QuickChat) shutdown() {
 		return
 	}
 	q.closed = true
+	q.direct.Reset()
+	if q.options.Direct != nil {
+		q.state.History = nil
+		q.draft = ""
+	}
 	q.cancel()
 	q.abortRequests()
 }
 func (q *QuickChat) abortRequests() {
+	q.direct.Cancel()
 	q.history.abort()
 	q.catalog.abort()
 	q.sending.abort()
@@ -191,6 +205,9 @@ func (q *QuickChat) check() bool {
 	return false
 }
 func (q *QuickChat) refreshHistory() {
+	if q.options.Direct != nil {
+		return
+	}
 	if !q.check() || q.picking.busy() {
 		return
 	}
@@ -232,6 +249,9 @@ func (q *QuickChat) refreshHistory() {
 	}()
 }
 func (q *QuickChat) refreshCatalog() {
+	if q.options.Direct != nil {
+		return
+	}
 	if !q.check() || q.state.SessionID == "" || q.picking.busy() {
 		return
 	}
@@ -264,6 +284,10 @@ func (q *QuickChat) refreshCatalog() {
 	}()
 }
 func (q *QuickChat) send() {
+	if q.options.Direct != nil {
+		q.sendDirect()
+		return
+	}
 	if !q.check() || q.state.SessionID == "" || q.picking.busy() || q.stopping.busy() {
 		return
 	}
@@ -305,6 +329,11 @@ func (q *QuickChat) cancelWait() {
 		return
 	}
 	q.sending.abort()
+	q.direct.Cancel()
+	if q.options.Direct != nil {
+		q.status = "已取消本地等待；API 可能已收到请求，请勿直接重复发送 / Wait cancelled; API may continue"
+		return
+	}
 	q.status = "已取消本地等待。Host 可能仍在运行或排队。 / Wait cancelled; Host may continue."
 	q.refreshHistory()
 }
