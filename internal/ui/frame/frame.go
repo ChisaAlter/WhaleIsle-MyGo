@@ -1085,6 +1085,8 @@ func rightPane(c *ui.Context, m Model) {
 			StatNote:          m.FileStatNote,
 			OnShowDiff: func(rel string) {
 				if m.GitWorkbench != nil {
+					m.GitWorkbench.CancelComparison()
+					m.GitWorkbench.BaseRef = ""
 					m.GitWorkbench.Staged = false
 				}
 				if m.RightPaneTab != nil {

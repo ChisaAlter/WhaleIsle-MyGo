@@ -10,6 +10,11 @@ import (
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
 	Root                                      string
+	BaseRef, CompareQuery, CompareError       string
+	CompareOpen                               bool
+	CompareBranches                           []git.Branch
+	comparison                                *comparisonRequest
+	invalidate                                func()
 	Changes                                   []git.Change
 	Staged                                    bool
 	Message, Status, ReviewToken, ReviewText  string
@@ -55,6 +60,8 @@ func scopeDiff(m Model, path string, staged bool) {
 		*m.PathFilter = path
 	}
 	if m.Workbench != nil {
+		m.Workbench.CancelComparison()
+		m.Workbench.BaseRef = ""
 		m.Workbench.Staged = staged
 	}
 	refresh(m)
@@ -65,14 +72,24 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	if !w.Loaded || w.Root != m.WorkspaceRoot {
+		w.CancelComparison()
+		if m.Text != nil {
+			*m.Text = ""
+		}
+		if m.ErrMsg != nil {
+			*m.ErrMsg = ""
+		}
 		operation := w.Operation
 		*w = Workbench{Operation: operation}
 		w.reload(m.WorkspaceRoot)
 	}
+	w.invalidate = c.Services().Invalidate
+	finishComparison(m)
 	ui.Column(c).Gap(4).Padding(4, 12, 8, 12).Children(func() {
 		if paintRepositoryActions(c, m, fg, muted) {
 			return
 		}
+		paintComparison(c, m, fg, muted)
 		paintBranches(c, m, fg, muted)
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, word("全部未暂存", "All unstaged")).Clicked() {

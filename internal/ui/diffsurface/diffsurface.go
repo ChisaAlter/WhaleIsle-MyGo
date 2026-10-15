@@ -56,6 +56,13 @@ func refresh(m Model) {
 	if m.PathFilter != nil {
 		rel = *m.PathFilter
 	}
+	if m.Workbench != nil && m.Workbench.BaseRef != "" {
+		beginComparison(m, rel)
+		return
+	}
+	if m.Workbench != nil {
+		m.Workbench.CancelComparison()
+	}
 	text, errMsg := LoadDiff(m.WorkspaceRoot, rel)
 	if m.Workbench != nil {
 		var err error
