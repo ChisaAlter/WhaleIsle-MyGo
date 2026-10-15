@@ -29,7 +29,7 @@
 ## 2026-10-15 后续工作流修复
 
 - **助手真实路由** — [4f7fbe0](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/4f7fbe0b62abf42c030a26adcd34815628b03791)：Bot/房间选择经真实 bot/open 解析专属会话；修复仅加前缀却发往当前会话的错误，describe 传递 botId；仅 prompt accepted 后清草稿。
-- **命令执行与历史** — [73b0f03](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/73b0f039db8321a20deba4aadccef8eb721cc497)：持久化配对 run/done 卡片和错误/输出，异步目录及变更刷新、空附件数组、多行命令/技能分流、会话/Host 隔离。手动压缩专用卡与通用命令卡的融合尚未补齐。
+- **命令执行与历史** — [73b0f03](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/73b0f039db8321a20deba4aadccef8eb721cc497)：持久化配对 run/done 卡片和错误/输出，异步目录及变更刷新、空附件数组、多行命令/技能分流、会话/Host 隔离。手动压缩专用卡后续已于 c74b597 融合（见下文）。
 - **插件配置与启停** — [f812aa4](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/f812aa4851e14433f886dfbf5dcadb79871466e9)：原版 plugins 配置 owner 路由；启停遵循 Host 库存、只读限制及 ChangeResult，不提前伪改本地状态或错误降级 RPC。
 - **定时任务编辑恢复** — [d1257b7](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d1257b710fa050310923da1d6e08d681edf7a800)：冲突刷新 rebase 保留用户编辑，原会话有效性检查后跳转，历史请求/连接身份隔离。
 
@@ -58,13 +58,25 @@
 - Helper：13,556,224 字节；SHA256 ce820c52ded9415e9fd5ce347064dd71a1720199996c74a966ffd524d291d4bf。
 - 之前“云端磁盘阻止编译”的记录是历史状态：清理经验证的失败重复副本与官方可重建 Go 缓存后已恢复约 1.3 GiB。未删除源代码、既有候选或备份。
 
+## 2026-10-15 01:33 UTC 新增功能与代码级云端证据
+
+- 桌宠持久隐藏与直接设置入口：abb09b3855b7e8c1e43f328853d22aa789a5cd93；保存失败保留窗口，OS关闭仍是临时行为。
+- 图片隔离兼容：63d44bfeb81a287ad73b45392ecf365b9d284ebf；单文件 os.Root 快照、字节/像素/帧/结构边界，固定 data image，沿静态禁脚本路径；图片快照不能升级到脚本 helper。
+- 桌宠手动屏幕观察：fc42f579128ae9a3a7c225816eaf06938c0690dd；每次明确确认截图范围及 provider/model/Host、可能会话保存后才捕获。DPI物理坐标设置或视觉目录刷新失败则拒绝；单显示器有界JPEG、原 pet/look 路由、重复/取消/晚到隔离，无自动截图。
+- 原生导入目录事务：提交 a61f07a82a05caf9c39031141902eb53bb0577f7；先私有暂存、指纹复核、日志目录替换，启动前恢复且未决阻止启动；完成项目保留，未完成项目恢复，不伪称整体原子导入。
+
+上述各逻辑模块增量均一次 Windows amd64 主程序编译通过，helper沿用已成功编译且未改变的代码。2026-10-15 01:33 UTC，Windows目标的 go vet ./cmd/... ./internal/... 一次通过；本轮9个改动JS/CJS/MJS的 node --check 均通过。仅静态分析/语法解析，没有执行测试套件、页面、截屏、模型、Host、真实导入或GUI。
+
+最新主程序39,391,232字节，SHA256 235384c4fc3d9f40698de26e16149fda977076afbee15a2193b6417464dee99a。该证据截止本段代码；后续模块需要自己的必要检查，不能把本轮静态通过描述为功能验收或永久覆盖未来改动。
+
 ## 尚未关闭的实现与集成问题
 
-- **图片兼容性**：普通图片及 PNG 型 ICO 已实现；AVIF、旧 ICO、GIF 动画和复杂 SVG 的有界兼容预览仍在收口，不将外部打开等同内嵌能力完整对齐。
+- **图片兼容边界**：已实现显式隔离兼容预览，支持有界 GIF、PNG/DIB ICO、单图 AVIF 和受限静态 SVG。范围外格式如 AVIF 动画/图集、SVG 活动元素/滤镜等明确拒绝；实际 AVIF 解码仍取决于安装的 WebView2，不宣称所有原版浏览器图片能力均已验证。
 - **隔离动态 HTML 运行兼容性**：真实 AppContainer/helper 及显式产品入口已实现并通过 Windows amd64 编译，但尚未运行验证实际 WebView2 进程树兼容性。无法满足 token/Job 门禁时关闭动态路径，不能宣称功能已验收可用。
 - **兼容运行包供应**：安装流程已有代码，实际可验证 MyGo runtime 发布资产尚不存在。不得伪造发布清单或误装 Electron 发行包。
 - **交付物版本**：新的累计 EXE 已编译；既有 Windows 便携候选及 Library v26 尚未更新，仍不可用旧产物代表新功能。arm64 编译和真实原生行为不在本次成功证据内。
-- **覆盖收口**：桌宠 Hide/Settings/手动屏幕观察动作、导入目录事务与中断恢复正在补齐；全量完成结论仍未成立，不进入验收。
+- **桌宠剩余功能**：Hide/Settings/逐次确认的手动屏幕观察已接通。原版桌宠更多设置及其实际行为仍在补齐，紧凑聊天卡尚未实现；已有主会话/专属会话导航不等同该卡片。该域完成前不进入整体验收。
+- **导入恢复边界**：原生目录暂存/替换日志与进程中断恢复已接通；旧 Electron 未决事务仅阻止启动并保留副本，不猜测恢复其内部状态。不是突然断电耐久保证，也不协调不遵守导入锁的外部写入。
 
 已排除的假缺口：原版同样禁止编辑带附件的队列项；独立 Electron launcher 的 peer 握手不能直接视为原生同进程架构缺失；Project 重试以准备 Lead 草稿承接真实契约，不虚构前端重试 RPC。
 
