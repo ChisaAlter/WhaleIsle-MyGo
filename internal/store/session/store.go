@@ -473,6 +473,7 @@ func (s *Store) Snapshot() ViewState {
 		}
 	}
 	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
+	st.Messages = s.projectPreparingToolsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)
 	st.SelectedPermission = s.permissionLabelLocked()

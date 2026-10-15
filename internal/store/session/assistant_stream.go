@@ -18,6 +18,7 @@ type assistantStreamState struct {
 }
 
 type assistantStreamAttempt struct {
+	tools           toolPreparingState
 	AttemptID       string            `json:"attemptId"`
 	StartedAfterSeq float64           `json:"startedAfterSeq"`
 	Turn            float64           `json:"turn"`
@@ -255,6 +256,7 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 		return s.rebaselineAssistantLocked()
 	}
 	a.blocks, a.rows = nil, nil
+	a.tools = toolPreparingState{}
 	st.active = a
 	for _, chunk := range chunks {
 		s.applyAssistantChunkLocked(a, chunk.chunk, chunk.time)
@@ -263,12 +265,13 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 }
 
 func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64) bool {
+	toolChanged := foldToolPreparingChunk(&a.tools, raw, time)
 	if a.blocks == nil {
 		a.blocks = make(map[int]assistantStreamBlock)
 	}
 	index, changed := foldAssistantChunk(a.blocks, raw, time)
 	if !changed {
-		return false
+		return toolChanged
 	}
 	block := a.blocks[index]
 	if a.rows == nil {

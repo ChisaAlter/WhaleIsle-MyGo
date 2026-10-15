@@ -77,6 +77,8 @@ func ToolLifecycleCardInfo(call *session.ToolCallView) ToolCardInfo {
 	info := ToolCardInfo{}
 	if source != nil {
 		info = ParseToolCard(source.EventType, source.Raw)
+	} else {
+		info.Detail = truncateToolText(call.Arguments, 160)
 	}
 	info.Name, info.Status = call.Name, call.State
 	info.Links = append(markdown.Links(call.Arguments), info.Links...)

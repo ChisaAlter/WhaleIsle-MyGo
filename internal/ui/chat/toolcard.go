@@ -113,7 +113,7 @@ func toolCardInfoView(c *ui.Context, info ToolCardInfo, st ToolCardStyle, galler
 		statusColor = st.OK
 	case "error", "failed":
 		statusColor = st.Err
-	case "call", "running":
+	case "call", "running", "preparing":
 		statusColor = st.Accent
 	}
 	chipBG := st.Border

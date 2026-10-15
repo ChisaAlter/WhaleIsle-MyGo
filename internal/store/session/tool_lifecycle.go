@@ -14,7 +14,7 @@ type ToolCallView struct {
 	RootCallID   string
 	Name         string
 	Arguments    string
-	State        string // running, ok, error, stopped
+	State        string // preparing, running, ok, error, stopped
 	ParentIssue  string
 	Call         *Message
 	Result       *Message
