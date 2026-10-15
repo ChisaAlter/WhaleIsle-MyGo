@@ -30,6 +30,7 @@ type CatalogItem struct {
 	Group       string // sessions: cwd; skills: source prefix
 	Rel         string
 	Abs         string
+	Spec        string // plugins: original dependency spec, never a local copy source
 	Conflict    bool
 	Unsupported bool
 	Selected    bool // UI default: true when importable
@@ -438,54 +439,6 @@ func scanSkills(src, dst string) ([]CatalogItem, []string) {
 		}
 	}
 	return out, skillRoots
-}
-
-func scanPlugins(src, dst string) []CatalogItem {
-	manifest := filepath.Join(src, "profiles", "web", "package.json")
-	if !entryExists(manifest, false) {
-		// Fallback: list plugin dirs when package.json absent (desktop layout).
-		for _, sub := range []string{"plugins", "user-plugins"} {
-			dir := filepath.Join(src, sub)
-			if !entryExists(dir, true) {
-				continue
-			}
-			entries, err := os.ReadDir(dir)
-			if err != nil {
-				continue
-			}
-			var out []CatalogItem
-			for _, e := range entries {
-				if !e.IsDir() {
-					continue
-				}
-				out = append(out, CatalogItem{
-					ID: e.Name(), Label: e.Name(), Abs: filepath.Join(dir, e.Name()),
-					Conflict:    entryExists(filepath.Join(dst, sub, e.Name()), true),
-					Unsupported: true, // apply skips plugins — install via market
-					Group:       "需插件市场安装",
-				})
-			}
-			return out
-		}
-		return nil
-	}
-	raw, err := os.ReadFile(manifest)
-	if err != nil {
-		return nil
-	}
-	// Lightweight dep name extraction without full JSON parse of nested fields.
-	deps := extractJSONObjectKeys(string(raw), "dependencies")
-	var out []CatalogItem
-	for _, name := range deps {
-		out = append(out, CatalogItem{
-			ID: name, Label: name,
-			// Copy-import cannot reinstall npm plugins; surface in UI as unsupported.
-			Unsupported: true,
-			Group:       "需插件市场安装",
-			Conflict:    entryExists(filepath.Join(dst, "profiles", "web"), true),
-		})
-	}
-	return out
 }
 
 func scanMCP(src, dst string) ([]CatalogItem, error) {

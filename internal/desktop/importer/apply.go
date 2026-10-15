@@ -9,10 +9,11 @@ import (
 	"path/filepath"
 )
 
-// ApplySelection mirrors Electron runImport checkbox payload (copy-only subset).
+// ApplySelection mirrors Electron runImport checkbox payload, including supported plugin reinstalls.
 type ApplySelection struct {
 	SelectedRels       []string
 	SelectedSkillIDs   []string
+	SelectedPluginIDs  []string
 	SelectedMcpIDs     []string
 	SelectedSettingIDs []string
 	SelectedPresetIDs  []string
@@ -26,6 +27,9 @@ type ApplyResult struct {
 	Empty   bool
 	Copied  int
 	Skipped int
+	Installed int
+	Failed int
+	Plugins []PluginResult
 	Message string
 	// Journal is a per-item line log (Electron runImport journal list).
 	Journal []string
@@ -35,17 +39,21 @@ type ApplyResult struct {
 var ErrEmptySelection = errors.New("importer: empty selection")
 
 // ApplyCatalog copies selected catalog items from SourceHome → DestHome.
-// Plugins are not reinstalled (needs Electron installPlugin channel).
+// Plugin selections require ApplyCatalogWithPlugins and an explicit installer.
 func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 	return ApplyCatalogProgress(context.Background(), cat, sel, nil)
 }
 
 // ApplyCatalogProgress reports completed items and retains their journal on failure.
 // Cancellation is checked between items; a completed item is never rolled back.
-func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, progress func(ApplyResult)) (result ApplyResult, resultErr error) {
-	empty := len(sel.SelectedRels) == 0 && len(sel.SelectedSkillIDs) == 0 &&
-		len(sel.SelectedMcpIDs) == 0 && len(sel.SelectedSettingIDs) == 0 &&
-		len(sel.SelectedPresetIDs) == 0 && !sel.ImportAttachments
+func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, progress func(ApplyResult)) (ApplyResult, error) {
+	return ApplyCatalogWithPlugins(ctx, cat, sel, nil, progress)
+}
+
+// ApplyCatalogWithPlugins copies selected data and reinstalls selected supported
+// plugins through the supplied installer. Plugin failures are recorded per item.
+func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelection, install PluginInstaller, progress func(ApplyResult)) (result ApplyResult, resultErr error) {
+	empty := sel.Count() == 0
 	if empty {
 		return ApplyResult{OK: true, Empty: true, Message: "未选择任何项，未写入。", Journal: []string{"未选择任何项，未写入。"}}, nil
 	}
@@ -62,18 +70,19 @@ func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, 
 		return ApplyResult{}, err
 	}
 
-	var copied, skipped int
+	var copied, skipped, installed, failed int
+	var plugins []PluginResult
 	var journal []string
 	defer func() {
 		if resultErr != nil {
-			result = ApplyResult{Copied: copied, Skipped: skipped, Message: fmt.Sprintf("导入未完成：已复制 %d 项，跳过 %d 项；已完成项保留。%v", copied, skipped, resultErr), Journal: append([]string(nil), journal...)}
+			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Message: fmt.Sprintf("导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留。%v", copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
 			result.Journal = append(result.Journal, result.Message)
 		}
 	}()
 	note := func(line string) {
 		journal = append(journal, line)
 		if progress != nil {
-			progress(ApplyResult{Copied: copied, Skipped: skipped, Message: line, Journal: append([]string(nil), journal...)})
+			progress(ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Message: line, Journal: append([]string(nil), journal...)})
 		}
 	}
 	// Sessions
@@ -227,13 +236,72 @@ func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, 
 		}
 	}
 
-	msg := fmt.Sprintf("已复制 %d 项", copied)
+	byPlugin := map[string]CatalogItem{}
+	for _, row := range cat.Plugins {
+		byPlugin[row.ID] = row
+	}
+	seenPlugins := map[string]bool{}
+	for _, id := range sel.SelectedPluginIDs {
+		if seenPlugins[id] {
+			continue
+		}
+		seenPlugins[id] = true
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
+		row, exists := byPlugin[id]
+		record := PluginResult{Name: id, Status: "skipped"}
+		spec := PluginReinstallSpec(row.ID, row.Spec)
+		switch {
+		case !exists || row.Unsupported || pluginSkipReason(row.ID, row.Spec) != "" || spec == "":
+			record.Reason = "unsupported"
+		default:
+			conflict, err := pluginInstalled(cat.DestHome, id)
+			if err != nil {
+				record.Status, record.Error = "failed", err.Error()
+			} else if conflict && !sel.Overwrite {
+				record.Reason = "installed"
+			} else if install == nil {
+				record.Status, record.Error = "failed", "missing-installer"
+			} else {
+				out := install(ctx, row, spec)
+				record.Log = out.Log
+				if out.OK {
+					record.Status = "installed"
+				} else {
+					record.Status, record.Error = "failed", out.Error
+					if record.Error == "" {
+						record.Error = "installation-failed"
+					}
+				}
+			}
+		}
+		plugins = append(plugins, record)
+		switch record.Status {
+		case "installed":
+			installed++
+		case "failed":
+			failed++
+		default:
+			skipped++
+		}
+		line := "插件 " + id + "：" + record.Status
+		if record.Reason != "" { line += " (" + record.Reason + ")" }
+		if record.Error != "" { line += "；" + record.Error }
+		if record.Log != "" { line += "\n" + record.Log }
+		note(line)
+		if err := ctx.Err(); err != nil {
+			return ApplyResult{}, err
+		}
+	}
+
+	msg := fmt.Sprintf("已复制 %d 项，安装插件 %d 项，失败 %d 项", copied, installed, failed)
 	if skipped > 0 {
 		msg += fmt.Sprintf("，跳过 %d 项（冲突未覆盖或不受支持）", skipped)
 	}
 	msg += "。引用凭据未迁移，可能需要重新配置。"
 	note(msg)
-	return ApplyResult{OK: true, Copied: copied, Skipped: skipped, Message: msg, Journal: journal}, nil
+	return ApplyResult{OK: failed == 0, Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: plugins, Message: msg, Journal: journal}, nil
 }
 
 // SelectionFromCatalog builds ApplySelection from current checkbox state on items.
@@ -247,6 +315,11 @@ func SelectionFromCatalog(cat Catalog, importAttachments, overwrite bool) ApplyS
 	for _, it := range cat.Skills {
 		if it.Selected {
 			sel.SelectedSkillIDs = append(sel.SelectedSkillIDs, it.ID)
+		}
+	}
+	for _, it := range cat.Plugins {
+		if it.Selected && !it.Unsupported {
+			sel.SelectedPluginIDs = append(sel.SelectedPluginIDs, it.ID)
 		}
 	}
 	for _, it := range cat.MCP {

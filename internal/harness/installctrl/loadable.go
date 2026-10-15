@@ -182,6 +182,8 @@ func ResolveAddedPackageNames(spec string, before, after []string) []string {
 				add(n)
 			}
 		}
+	} else if name := RegistryPluginName(spec); name != "" {
+		add(name)
 	} else if isValidPackageName(spec) {
 		add(spec)
 	}

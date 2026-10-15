@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-// CopyOnlyNotice documents the supported import subset without exposing secrets.
-const CopyOnlyNotice = "设置仅合并勾选的白名单节；MCP 按勾选的服务器 id 合并。未选节和服务器保留，同名项默认跳过，启用覆盖只替换所选同名项。引用凭据不迁移，配置可能需重新设置凭据；MCP 所选记录内的 header/token 随配置迁移，但不展示。OAuth 会话、跨节 YAML 锚点、非标准 MCP 目录布局不支持。插件请在插件市场安装。"
+// CopyOnlyNotice documents import behavior without exposing configuration secrets.
+const CopyOnlyNotice = "设置仅合并勾选的白名单节；MCP 按勾选的服务器 id 合并。未选节和服务器保留，同名项默认跳过，启用覆盖只替换所选同名项。引用凭据不迁移，配置可能需重新设置凭据；MCP 所选记录内的 header/token 随配置迁移，但不展示。OAuth 会话、跨节 YAML 锚点、非标准 MCP 目录布局不支持。支持的插件按原 GitHub/npm 版本规格重新下载安装；内置、本地、tarball 和不支持的来源跳过。构建脚本需逐项明确批准，取消保留已完成项。"
 
 func (s ApplySelection) Count() int {
-	n := len(s.SelectedRels) + len(s.SelectedSkillIDs) + len(s.SelectedMcpIDs) + len(s.SelectedSettingIDs) + len(s.SelectedPresetIDs)
+	n := len(s.SelectedRels) + len(s.SelectedSkillIDs) + len(s.SelectedPluginIDs) + len(s.SelectedMcpIDs) + len(s.SelectedSettingIDs) + len(s.SelectedPresetIDs)
 	if s.ImportAttachments {
 		n++
 	}
@@ -60,11 +60,22 @@ func Confirmation(c Catalog, s ApplySelection) string {
 			preview = append(preview, group.label+" / "+id+"："+action)
 		}
 	}
+	for _, id := range s.SelectedPluginIDs {
+		for _, row := range c.Plugins {
+			if row.ID != id { continue }
+			spec := PluginReinstallSpec(row.ID, row.Spec)
+			action := "重新下载安装"
+			if row.Unsupported || spec == "" { action = "跳过（不支持）" }
+			if row.Conflict && !s.Overwrite { action = "跳过（已安装）" }
+			preview = append(preview, "插件 / " + id + "：" + action + "；来源 " + spec)
+			break
+		}
+	}
 	detail := ""
 	if len(preview) > 0 {
 		detail = "\n\n扫描预览（写入前重新检查冲突）：\n" + strings.Join(preview, "\n")
 	}
-	return fmt.Sprintf("来源（只读）：%s\n目标：%s\n已选 %d 项（附件按整树计）\n%s\n\n%s\n\n只复制已确认的选择；取消不写入。", c.SourceHome, c.DestHome, s.Count(), policy, CopyOnlyNotice+detail)
+	return fmt.Sprintf("来源（只读）：%s\n目标：%s\n已选 %d 项（附件按整树计）\n%s\n\n%s\n\n仅处理已确认的选择；此处取消不写入。", c.SourceHome, c.DestHome, s.Count(), policy, CopyOnlyNotice+detail)
 }
 
 // ValidateRoots rejects recursive/self import, including existing symlink aliases.

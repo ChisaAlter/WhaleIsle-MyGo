@@ -35,6 +35,7 @@ type InstallConfig struct {
 	Timeout     time.Duration
 	Runner      CommandRunner
 	HomeDir     string
+	ExpectedPackageName string // confirmed manifest name, including GitHub aliases
 }
 
 // InstallReady reports whether node and the vendored dsh CLI entry exist.
@@ -66,14 +67,33 @@ func harnessBinJS(root string) string {
 // PNPMInstall returns an InstallFunc that runs `dsh plugin --profile web add`
 // in the web profile (pnpm under the hood), matching the Electron desktop flow.
 func PNPMInstall(cfg InstallConfig) InstallFunc {
+	return PNPMInstallContext(context.Background(), cfg)
+}
+
+// PNPMInstallContext shares the marketplace installer while allowing import
+// cancellation to terminate the current CLI command and restore its snapshot.
+func PNPMInstallContext(ctx context.Context, cfg InstallConfig) InstallFunc {
 	return func(spec string, opts InstallOpts) Result {
-		return runPluginInstall(cfg, spec, opts)
+		return runPluginInstallContext(ctx, cfg, spec, opts)
 	}
 }
 
 func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
+	return runPluginInstallContext(context.Background(), cfg, spec, opts)
+}
+
+func runPluginInstallContext(parent context.Context, cfg InstallConfig, spec string, opts InstallOpts) Result {
 	spec = strings.TrimSpace(spec)
 	out := Result{Spec: spec, AllowBuilds: []string{}}
+	if err := parent.Err(); err != nil {
+		out.Error = err.Error()
+		return out
+	}
+
+	if cfg.ExpectedPackageName != "" && RegistryPluginName(cfg.ExpectedPackageName+"@0.0.0") != cfg.ExpectedPackageName {
+		out.Error = "预期插件包名无效"
+		return out
+	}
 
 	if !InstallReady(cfg) {
 		out.Error = "未找到 Node.js 或 dsh CLI；请安装 Node.js 22+ 并构建 vendored harness"
@@ -95,13 +115,6 @@ func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
 		out.Error = "allowBuilds 包含非法包名"
 		return out
 	}
-	if len(allowBuilds) > 0 {
-		if _, err := mergeAllowBuildsIntoWorkspace(profile, allowBuilds); err != nil {
-			out.Error = err.Error()
-			return out
-		}
-	}
-
 	beforeModules := ListNodeModuleNames(profile)
 	snap, snapErr := CaptureInstallSnapshot(profile)
 	if snapErr != nil {
@@ -109,11 +122,20 @@ func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
 		return out
 	}
 
+	// Capture approval-file changes too, so cancellation/failure never leaves
+	// an approved-build mutation outside the same rollback boundary.
+	if len(allowBuilds) > 0 {
+		if _, err := mergeAllowBuildsIntoWorkspace(profile, allowBuilds); err != nil {
+			out.Error = err.Error()
+			return RollbackInstall(snap, out)
+		}
+	}
+
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = DefaultInstallTimeout
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	runner := cfg.Runner
@@ -137,8 +159,11 @@ func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
 		return RollbackInstall(snap, out)
 	}
 
-	if runErr != nil && ctx.Err() == context.DeadlineExceeded {
-		return fail("安装超时")
+	if ctx.Err() != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fail("安装超时")
+		}
+		return fail("安装已取消")
 	}
 	if runErr != nil && !errors.Is(runErr, errExitCode) {
 		return fail(runErr.Error())
@@ -157,6 +182,12 @@ func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
 
 	afterModules := ListNodeModuleNames(profile)
 	names := ResolveAddedPackageNames(spec, beforeModules, afterModules)
+	if cfg.ExpectedPackageName != "" {
+		// Reinstalls do not add a directory, and pnpm packages may be symlinks.
+		// The confirmed manifest name is authoritative; a GitHub repo basename
+		// is only a fallback for manual installs without an expected identity.
+		names = []string{cfg.ExpectedPackageName}
+	}
 	if msg := ValidateLoadablePackages(profile, names); msg != "" {
 		out.NeedsAllowBuilds = false
 		out.AllowBuilds = []string{}

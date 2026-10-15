@@ -52,7 +52,7 @@ func (s *mainState) invalidateMarketLocked() {
 func (s *mainState) runMarketCatalogInstall(target marketstore.InstallTarget) {
 	s.dshMu.Lock()
 	s.mu.Lock()
-	if s.market == nil || s.marketWorker != nil {
+	if s.market == nil || s.marketWorker != nil || s.launcherImportBusy {
 		s.mu.Unlock()
 		s.dshMu.Unlock()
 		return
@@ -74,7 +74,7 @@ func (s *mainState) beginMarketAttempt(spec string, allow []string, install bool
 	defer s.dshMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.marketWorker != nil || s.marketInstallBusy {
+	if s.marketWorker != nil || s.marketInstallBusy || s.launcherImportBusy {
 		return nil, ""
 	}
 	if len(approval) > 0 {

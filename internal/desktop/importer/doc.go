@@ -12,5 +12,6 @@
 // publication, not a multi-file transaction or protection against external path
 // replacement races. Referenced credentials/OAuth state are not migrated;
 // cross-section YAML anchors and alternate MCP directory layouts are unsupported.
-// Plugin reinstall is deferred (needs installPlugin).
+// Supported GitHub/npm plugin specs are reinstalled by an injected marketplace
+// installer; explicit build approval and cancellation belong to the caller.
 package importer

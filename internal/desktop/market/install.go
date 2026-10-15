@@ -1,6 +1,7 @@
 package market
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -16,46 +17,57 @@ import (
 // InstallOptions optionally overrides Node.js location (config nodeBin).
 type InstallOptions struct {
 	NodeBin string
+	DshHome string // optional confirmed import destination
+	ExpectedPackageName string // optional confirmed manifest package identity
 }
 
 // InstallGithubSpec runs dsh plugin add for github:owner/repo[#ref] in the web
 // profile, matching the loopback installctrl server.
 func InstallGithubSpec(spec string, allowBuilds []string, opts InstallOptions) installctrl.Result {
-	spec = strings.TrimSpace(spec)
 	if !installctrl.IsValidGithubSpec(spec) {
-		return installctrl.Result{
-			OK:    false,
-			Spec:  spec,
-			Error: "仅支持 github:owner/repo[#ref] 安装规格",
-		}
+		return installctrl.Result{Spec: strings.TrimSpace(spec), Error: "仅支持 github:owner/repo[#ref] 安装规格"}
+	}
+	return InstallSpecContext(context.Background(), spec, allowBuilds, opts)
+}
+
+// InstallSpecContext is the shared offline marketplace/import path. It accepts
+// GitHub or pinned registry specs only; callers own explicit build approval.
+func InstallSpecContext(ctx context.Context, spec string, allowBuilds []string, opts InstallOptions) installctrl.Result {
+	spec = strings.TrimSpace(spec)
+	if !installctrl.IsValidGithubSpec(spec) && installctrl.RegistryPluginName(spec) == "" {
+		return installctrl.Result{Spec: spec, Error: "仅支持 GitHub 或明确版本的 npm 安装规格"}
+	}
+	if err := ctx.Err(); err != nil {
+		return installctrl.Result{Spec: spec, Error: err.Error()}
+	}
+	if opts.ExpectedPackageName != "" && installctrl.RegistryPluginName(opts.ExpectedPackageName+"@0.0.0") != opts.ExpectedPackageName {
+		return installctrl.Result{Spec: spec, Error: "预期插件包名无效"}
 	}
 	normalized := installctrl.NormalizeAllowBuilds(allowBuilds)
 	if normalized == nil {
-		return installctrl.Result{
-			OK:    false,
-			Spec:  spec,
-			Error: "allowBuilds 包含非法包名",
-		}
+		return installctrl.Result{Spec: spec, Error: "allowBuilds 包含非法包名"}
 	}
-
+	home := strings.TrimSpace(opts.DshHome)
+	if home == "" {
+		home = paths.DshHome()
+	}
 	cfg := installctrl.InstallConfig{
-		ProfileDir:  paths.WebProfileDir(),
-		DshHome:     paths.DshHome(),
+		ProfileDir: filepath.Join(home, "profiles", "web"),
+		DshHome: home,
 		HarnessRoot: paths.HarnessRoot(),
+		ExpectedPackageName: opts.ExpectedPackageName,
 	}
 	if node, err := resolveNode(opts.NodeBin); err == nil {
 		cfg.NodeBin = node
 	}
-
 	if !installctrl.InstallReady(cfg) {
 		msg := "desktop plugin install requires Node.js and a built vendored harness (setup-harness)"
 		if _, err := resolveNode(opts.NodeBin); err != nil {
 			msg = err.Error()
 		}
-		return installctrl.Result{OK: false, Spec: spec, Error: msg}
+		return installctrl.Result{Spec: spec, Error: msg}
 	}
-
-	return installctrl.PNPMInstall(cfg)(spec, installctrl.InstallOpts{AllowBuilds: normalized})
+	return installctrl.PNPMInstallContext(ctx, cfg)(spec, installctrl.InstallOpts{AllowBuilds: normalized})
 }
 
 // InstallReady reports whether github:spec installs can run on this machine.

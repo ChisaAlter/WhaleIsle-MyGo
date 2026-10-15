@@ -80,3 +80,20 @@ func NormalizeAllowBuilds(value []string) []string {
 	}
 	return keys
 }
+
+var registryVersionSpec = regexp.MustCompile(`^[~^]?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
+
+// RegistryPluginName accepts only name@exact, name@^version or name@~version.
+// Dist-tags, aliases, arbitrary ranges and URL/local specs are intentionally rejected.
+func RegistryPluginName(spec string) string {
+	value := strings.TrimSpace(spec)
+	at := strings.LastIndexByte(value, '@')
+	if at <= 0 {
+		return ""
+	}
+	name, version := value[:at], value[at+1:]
+	if name != strings.TrimSpace(name) || !isValidPackageName(name) || !registryVersionSpec.MatchString(version) {
+		return ""
+	}
+	return name
+}

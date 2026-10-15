@@ -20,6 +20,12 @@ func (s *mainState) startImport(win *mygo.Window) {
 		s.mu.Unlock()
 		return
 	}
+	if s.marketWorker != nil || s.marketInstallBusy || s.taskRestartPending || s.quitting {
+		s.launcherImport = "插件操作或运行时切换尚未结束，请稍后再导入。"
+		s.mu.Unlock()
+		refresh()
+		return
+	}
 	if s.launcherImportCatalog == nil {
 		s.launcherImport = "请先扫描导入来源。"
 		s.mu.Unlock()
@@ -64,11 +70,15 @@ func (s *mainState) startImport(win *mygo.Window) {
 	s.launcherImportCancel = cancel
 	s.launcherImport = "正在导入；可取消后续项目，已完成项目将保留。"
 	s.launcherImportJournal = nil
+	node := ""
+	if s.cfgStore != nil {
+		node = s.cfgStore.Get().NodeBin
+	}
 	s.mu.Unlock()
 	refresh()
 	go func() {
 		defer cancel()
-		result, err := importer.ApplyCatalogProgress(ctx, cat, sel, func(progress importer.ApplyResult) {
+		result, err := importer.ApplyCatalogWithPlugins(ctx, cat, sel, s.importPluginInstaller(win, cat.DestHome, node), func(progress importer.ApplyResult) {
 			s.mu.Lock()
 			s.launcherImport = progress.Message
 			s.launcherImportJournal = progress.Journal
