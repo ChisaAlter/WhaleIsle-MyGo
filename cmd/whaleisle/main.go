@@ -400,17 +400,20 @@ type settingsDraftSlot struct {
 }
 
 type desktopConfigDraft struct {
-	workspace        string
-	port             string
-	theme            string
-	locale           string
-	closeToTray      bool
-	openAtLogin      bool
-	autoStartDesktop bool
-	wallpaperPath    string
-	showViewTabs     bool // Electron viewTabs; stored inverted as HideChatViewTabs
-	autoAllowTools   bool
-	seeded           bool
+	harnessAutoRestart        bool
+	harnessRestartMaxAttempts string
+	harnessRestartBaseDelayMs string
+	workspace                 string
+	port                      string
+	theme                     string
+	locale                    string
+	closeToTray               bool
+	openAtLogin               bool
+	autoStartDesktop          bool
+	wallpaperPath             string
+	showViewTabs              bool // Electron viewTabs; stored inverted as HideChatViewTabs
+	autoAllowTools            bool
+	seeded                    bool
 }
 
 type credentialsDraft struct {
@@ -442,17 +445,20 @@ func (s *mainState) seedDesktopDraft() {
 	}
 	cfg := s.cfgStore.Get()
 	s.desktopDraft = desktopConfigDraft{
-		workspace:        cfg.Workspace,
-		port:             strconv.Itoa(cfg.Port),
-		theme:            cfg.Theme,
-		locale:           cfg.Locale,
-		closeToTray:      cfg.CloseToTray,
-		openAtLogin:      cfg.OpenAtLogin,
-		autoStartDesktop: cfg.AutoStartDesktop,
-		wallpaperPath:    cfg.WallpaperPath,
-		showViewTabs:     !cfg.HideChatViewTabs,
-		autoAllowTools:   cfg.AutoAllowTools,
-		seeded:           true,
+		harnessAutoRestart:        cfg.HarnessAutoRestart,
+		harnessRestartMaxAttempts: strconv.Itoa(cfg.HarnessRestartMaxAttempts),
+		harnessRestartBaseDelayMs: strconv.Itoa(cfg.HarnessRestartBaseDelayMs),
+		workspace:                 cfg.Workspace,
+		port:                      strconv.Itoa(cfg.Port),
+		theme:                     cfg.Theme,
+		locale:                    cfg.Locale,
+		closeToTray:               cfg.CloseToTray,
+		openAtLogin:               cfg.OpenAtLogin,
+		autoStartDesktop:          cfg.AutoStartDesktop,
+		wallpaperPath:             cfg.WallpaperPath,
+		showViewTabs:              !cfg.HideChatViewTabs,
+		autoAllowTools:            cfg.AutoAllowTools,
+		seeded:                    true,
 	}
 	s.desktopSaveErr = ""
 }
@@ -601,7 +607,14 @@ func (s *mainState) saveDesktopConfig() {
 		s.desktopLastAction = ""
 		return
 	}
+	restartPolicy, err := config.ParseRestartPreferences(s.desktopDraft.harnessAutoRestart, s.desktopDraft.harnessRestartMaxAttempts, s.desktopDraft.harnessRestartBaseDelayMs)
+	if err != nil {
+		s.desktopSaveErr = err.Error()
+		s.desktopLastAction = ""
+		return
+	}
 	err = s.cfgStore.Update(func(c *config.Config) {
+		restartPolicy.Apply(c)
 		c.Workspace = strings.TrimSpace(s.desktopDraft.workspace)
 		c.Port = port
 		c.Theme = s.desktopDraft.theme
@@ -618,9 +631,14 @@ func (s *mainState) saveDesktopConfig() {
 		s.desktopLastAction = ""
 		return
 	}
+	cfg := s.cfgStore.Get()
+	if config.RestartPreferencesFrom(cfg) != restartPolicy {
+		s.desktopSaveErr = "Harness restart policy was not saved; draft retained"
+		s.desktopLastAction = ""
+		return
+	}
 	s.desktopSaveErr = ""
 	s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
-	cfg := s.cfgStore.Get()
 	s.closeToTray = cfg.CloseToTray
 	s.themeID = cfg.Theme
 	i18n.SetLocale(cfg.Locale)
@@ -2328,10 +2346,18 @@ func startHarness(cfg config.Config) {
 			Whale:           cfg.WhaleAssistantEnabled,
 			Dshbot:          cfg.DshbotEnabled,
 		},
-		Workspace:    cfg.Workspace,
-		AutoRestart:  cfg.HarnessAutoRestart,
-		MaxAttempts:  cfg.HarnessRestartMaxAttempts,
-		BaseDelay:    time.Duration(cfg.HarnessRestartBaseDelayMs) * time.Millisecond,
+		Workspace:   cfg.Workspace,
+		AutoRestart: cfg.HarnessAutoRestart,
+		MaxAttempts: cfg.HarnessRestartMaxAttempts,
+		BaseDelay:   time.Duration(cfg.HarnessRestartBaseDelayMs) * time.Millisecond,
+		ReadRestartPolicy: func() harness.RestartPolicy {
+			// Store.Get returns one committed snapshot. Do not take state.mu here.
+			current := cfg
+			if cfgStore != nil {
+				current = cfgStore.Get()
+			}
+			return harness.RestartPolicy{AutoRestart: current.HarnessAutoRestart, MaxAttempts: current.HarnessRestartMaxAttempts, BaseDelay: time.Duration(current.HarnessRestartBaseDelayMs) * time.Millisecond}
+		},
 		ReadyTimeout: 3 * time.Minute,
 		OnChange:     func(st harness.Status) { state.refreshBoot(st, sup) },
 		OnPluginRecovery: func(reason string, logs []string) error {
@@ -4767,15 +4793,23 @@ func mainView(c *ui.Context) {
 				credsHarness := state.credsHarnessNote
 				exeDir, _ := os.Executable()
 				wallpaperChoices := theme.ListWallpapers(theme.WallpaperGalleryDirs(paths.UserDataDir(), filepath.Dir(exeDir))...)
+				var restartPolicy *config.RestartPreferences
+				if state.cfgStore != nil {
+					savedPolicy := config.RestartPreferencesFrom(state.cfgStore.Get())
+					restartPolicy = &savedPolicy
+				}
 				desktopFields := settings.DesktopFields{
-					Workspace:        &state.desktopDraft.workspace,
-					Port:             &state.desktopDraft.port,
-					Theme:            &state.desktopDraft.theme,
-					Locale:           &state.desktopDraft.locale,
-					CloseToTray:      &state.desktopDraft.closeToTray,
-					OpenAtLogin:      &state.desktopDraft.openAtLogin,
-					WallpaperPath:    &state.desktopDraft.wallpaperPath,
-					WallpaperChoices: wallpaperChoices,
+					HarnessAutoRestart:        &state.desktopDraft.harnessAutoRestart,
+					HarnessRestartMaxAttempts: &state.desktopDraft.harnessRestartMaxAttempts,
+					HarnessRestartBaseDelayMs: &state.desktopDraft.harnessRestartBaseDelayMs,
+					Workspace:                 &state.desktopDraft.workspace,
+					Port:                      &state.desktopDraft.port,
+					Theme:                     &state.desktopDraft.theme,
+					Locale:                    &state.desktopDraft.locale,
+					CloseToTray:               &state.desktopDraft.closeToTray,
+					OpenAtLogin:               &state.desktopDraft.openAtLogin,
+					WallpaperPath:             &state.desktopDraft.wallpaperPath,
+					WallpaperChoices:          wallpaperChoices,
 				}
 				credFields := settings.CredentialsFields{
 					APIKey:           &state.credsDraft.apiKey,
@@ -4842,9 +4876,10 @@ func mainView(c *ui.Context) {
 					SystemDark:            mygo.Theme.IsDark(),
 					DesktopActive:         desktopActive,
 					Desktop: &settings.DesktopAccess{
-						Fields:     desktopFields,
-						LastAction: desktopAction,
-						Err:        desktopErr,
+						RestartPolicy: restartPolicy,
+						Fields:        desktopFields,
+						LastAction:    desktopAction,
+						Err:           desktopErr,
 						OnSave: func() {
 							state.mu.Lock()
 							state.saveDesktopConfig()

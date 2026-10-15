@@ -3,18 +3,22 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/config"
 	"whaleisle/internal/ui/i18n"
 )
 
 // DesktopFields is the editable subset of internal/config shown in the 桌面 section.
 type DesktopFields struct {
-	Workspace     *string
-	Port          *string
-	Theme         *string
-	Locale        *string
-	CloseToTray   *bool
-	OpenAtLogin   *bool
-	WallpaperPath *string
+	HarnessAutoRestart        *bool
+	HarnessRestartMaxAttempts *string
+	HarnessRestartBaseDelayMs *string
+	Workspace                 *string
+	Port                      *string
+	Theme                     *string
+	Locale                    *string
+	CloseToTray               *bool
+	OpenAtLogin               *bool
+	WallpaperPath             *string
 	// WallpaperChoices are absolute image paths for the gallery Select
 	// (first option is empty = none).
 	WallpaperChoices []string
@@ -22,13 +26,15 @@ type DesktopFields struct {
 
 // DesktopAccess reads and writes local config.json via callbacks from main.
 type DesktopAccess struct {
-	Fields           DesktopFields
-	OnSave           func()
-	OnDetectElectron func()
-	OnCheckUpdates   func()
+	// RestartPolicy is the committed snapshot, separate from the editable draft.
+	RestartPolicy     *config.RestartPreferences
+	Fields            DesktopFields
+	OnSave            func()
+	OnDetectElectron  func()
+	OnCheckUpdates    func()
 	OnBrowseWorkspace func()
-	LastAction       string
-	Err              string
+	LastAction        string
+	Err               string
 }
 
 func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -75,8 +81,9 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		ui.TextInput(c, d.Fields.Port).FillWidth()
 	}, fg, muted)
+	harnessRestartPane(c, d, fg, muted)
 	// Theme/wallpaper → Appearance; locale/tray/login → Interface (ui-settings partition).
-	save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
+	save := ui.Button(c, i18n.T(i18n.KeySettingsSave)).Label("save-desktop-config")
 	if d.OnSave == nil {
 		save = save.Disabled(true)
 	}

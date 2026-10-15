@@ -73,6 +73,9 @@ type Options struct {
 	AutoRestart bool
 	MaxAttempts int
 	BaseDelay   time.Duration
+	// ReadRestartPolicy returns committed settings for each new failure decision.
+	// It runs outside the supervisor lock and must not mutate lifecycle state.
+	ReadRestartPolicy func() RestartPolicy
 	// ReadyTimeout bounds one start; npx downloads can take minutes.
 	ReadyTimeout time.Duration
 	// OnChange receives every status change, on the supervisor's goroutines.
@@ -484,6 +487,9 @@ func (s *Supervisor) exitedUnexpectedly(gen int, waitErr error, source string) {
 
 // fail records the failure, or schedules a restart when attempts remain.
 func (s *Supervisor) fail(gen int, err error, source string) {
+	// Take one policy snapshot without holding the supervisor mutex. A save
+	// never changes this decision or any timer it has already scheduled.
+	policy := s.RestartPolicy()
 	s.mu.Lock()
 	if s.gen != gen {
 		s.mu.Unlock()
@@ -510,16 +516,17 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		go s.run(next)
 		return
 	}
-	if !s.opts.AutoRestart || s.attempt >= s.opts.MaxAttempts {
+	delay, retry := policy.retryDelay(s.attempt)
+	if !retry {
 		s.setLocked(Status{State: Failed, Err: err, Source: source})
 		s.mu.Unlock()
 		return
 	}
-	delay := s.opts.BaseDelay << s.attempt
 	s.attempt++
+	attempt := s.attempt
 	next := s.nextGenLocked()
 	s.setLocked(Status{State: Starting, Err: err, Source: source})
 	s.mu.Unlock()
-	s.log(fmt.Sprintf("restart %d/%d in %s", s.attempt, s.opts.MaxAttempts, delay), next)
+	s.log(fmt.Sprintf("restart %d/%d in %s", attempt, policy.MaxAttempts, delay), next)
 	time.AfterFunc(delay, func() { s.run(next) })
 }
