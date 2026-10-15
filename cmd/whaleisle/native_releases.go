@@ -83,7 +83,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 		}
 	}
 	s.maybeAskStartupUpdate(win, snapshot, m.VendorReady)
-	return s.withStartupDiagnostics(m)
+	return withApplicationUninstall(win, s.withStartupDiagnostics(m))
 }
 
 func (s *mainState) nativeReleaseNotify(win *mygo.Window) {

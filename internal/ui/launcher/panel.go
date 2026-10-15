@@ -54,6 +54,7 @@ var (
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
+	ApplicationUninstall        ApplicationUninstallModel
 	StartupDiagnostics          startuprec.Diagnostics
 	StartupRepairBusy           bool
 	OnRefreshStartupDiagnostics func()
@@ -1218,6 +1219,7 @@ func settingsPanel(c *ui.Context, m Model) {
 		if m.AskOnUpdate != nil {
 			switchCheck(c, i18n.T(i18n.KeyLauncherOptAskTitle), i18n.T(i18n.KeyLauncherOptAskDesc), m.AskOnUpdate, m.OnSaveLauncherPrefs)
 		}
+		applicationUninstallPanel(c, m.ApplicationUninstall)
 	})
 }
 
