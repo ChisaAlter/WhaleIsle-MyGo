@@ -285,12 +285,18 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, sel).FontSize(11).Bold().TextColor(muted).Grow(1)
 			if sel != "" {
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(11).Clicked() {
 					path := sel
 					if fullPath != "" {
 						path = fullPath
 					}
 					mygo.Clipboard.WriteText(path)
+				}
+				if ui.Button(c, label("复制相对路径", "Copy relative path")).FontSize(11).Clicked() {
+					mygo.Clipboard.WriteText(sel)
+				}
+				if ui.Button(c, label("重新载入", "Reload")).FontSize(11).Clicked() {
+					reloadSelectedFile(m)
 				}
 			}
 			if lang := languageChipLabel(sel); lang != "" {

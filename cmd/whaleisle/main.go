@@ -6583,6 +6583,7 @@ func mainView(c *ui.Context) {
 						}
 						if sessions != nil && st.State == harness.Ready {
 							sessions.OpenWorkspacePath(context.Background(), absPath, "", "")
+							return
 						}
 						if err := workspacefs.OpenExternal(absPath); err != nil {
 							log.Println("open document:", err)
@@ -6591,6 +6592,7 @@ func mainView(c *ui.Context) {
 					OnRevealFile: func(absPath string) {
 						if sessions != nil && st.State == harness.Ready {
 							sessions.OpenWorkspacePath(context.Background(), absPath, "reveal", "")
+							return
 						}
 						_ = desktopcomponents.OpenInFileManager(absPath)
 					},

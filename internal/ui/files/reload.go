@@ -1,0 +1,50 @@
+package files
+
+// reloadSelectedFile follows the original Files activation/Refresh contract:
+// reread clean tabs while preserving both the draft and its original save base
+// when an unsaved tab encounters new, missing, binary or truncated disk bytes.
+func reloadSelectedFile(m Model) {
+	if m.SelectedFile == nil || *m.SelectedFile == "" {
+		return
+	}
+	rel := *m.SelectedFile
+	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
+	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
+	if errMsg != "" && m.ReadRemote != nil {
+		if remote, remoteErr := LoadPreviewRemote(m.ReadRemote, rel); remoteErr == "" {
+			text, errMsg = remote, ""
+		}
+	}
+	if dirty {
+		if m.EditStatus != nil {
+			switch {
+			case errMsg != "":
+				*m.EditStatus = label("重新载入失败，草稿保留：", "Reload failed; draft kept: ") + errMsg
+			case text != *m.Preview:
+				*m.EditStatus = label("磁盘文件已变化，草稿保留。请复制草稿后关闭并重新打开文件核对。", "File changed on disk; draft kept. Copy the draft, then close and reopen to reconcile.")
+			default:
+				*m.EditStatus = label("文件未变化，未保存草稿已保留", "File unchanged; unsaved draft kept")
+			}
+		}
+		capture(m)
+		return
+	}
+	if m.PreviewErr != nil {
+		*m.PreviewErr = errMsg
+	}
+	if errMsg == "" {
+		if m.Preview != nil {
+			*m.Preview = text
+		}
+		if m.EditDraft != nil {
+			*m.EditDraft = text
+		}
+	}
+	if m.EditStatus != nil {
+		*m.EditStatus = ""
+	}
+	if m.StatNote != nil && m.StatRemote != nil {
+		*m.StatNote = m.StatRemote(rel)
+	}
+	capture(m)
+}

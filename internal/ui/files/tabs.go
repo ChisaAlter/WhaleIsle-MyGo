@@ -141,6 +141,7 @@ func selectTab(m Model, path string) bool {
 	if t := findTab(w, path); t != nil {
 		w.Active = path
 		restore(m, t)
+		reloadSelectedFile(m)
 		return true
 	}
 	return false
