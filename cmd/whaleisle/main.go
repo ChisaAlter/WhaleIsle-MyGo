@@ -38,6 +38,7 @@ import (
 	"whaleisle/internal/desktop/mcpconfig"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
+	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/desktop/sshremote"
@@ -159,6 +160,7 @@ type mainState struct {
 	settingsMCPController         mcpconfig.Controller
 	settingsProviderProfiles      providerprofiles.Controller
 	settingsReferencedCredentials credentialrefs.Controller
+	settingsPluginInventory       plugininventory.Controller
 	remoteMachines                *remotestore.Store
 	remoteFiles                   *remotestore.Files
 	remoteFileEditor              remoteui.FileEditor
@@ -1662,6 +1664,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMuxLost = false
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.dshClient = client
+	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
 	s.mu.Lock()
 	if s.sessions == nil {
@@ -1716,6 +1719,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		return sessions.FetchAttachment(ctx, attachmentID)
 	})
 	setStore.Attach(client, refresh)
+	s.refreshPluginInventory()
 	s.refreshReferencedCredentials()
 	usageStore.Attach(client, refresh)
 	usageStore.LoadBilling(context.Background())
@@ -1788,6 +1792,7 @@ func (s *mainState) stopDSHLocked() {
 	}
 	s.dshEndpoint = ""
 	s.dshClient = nil
+	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
 	s.dshMux = nil
 	s.dshMuxReady = false
@@ -5098,6 +5103,7 @@ func mainView(c *ui.Context) {
 					MCP:           state.settingsMCPAccess(),
 					PluginsActive: pluginsActive,
 					Plugins: &settings.PluginsAccess{
+						Inventory:        state.pluginInventoryAccess(),
 						Rows:             pluginRows,
 						HasListRPC:       marketSnap.HasListRPC,
 						Err:              marketSnap.Err,
@@ -5679,6 +5685,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnSelectPlugins: func() {
+						state.refreshPluginInventory()
 						state.mu.Lock()
 						state.settingsPluginsActive = true
 						state.settingsDesktopActive = false

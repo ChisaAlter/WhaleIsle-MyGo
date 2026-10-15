@@ -20,6 +20,7 @@ type PluginRow struct {
 
 // PluginsAccess is the dedicated Plugins settings page (pluginManager/listPlugins).
 type PluginsAccess struct {
+	Inventory        *PluginInventoryAccess
 	Rows             []PluginRow
 	HasListRPC       bool
 	Err              string
@@ -47,6 +48,8 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, i18n.T(i18n.KeySettingsPluginsTitle)).FontSize(14).Bold().TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsPluginsHint)).FontSize(12).TextColor(muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsPluginsMarketHint)).FontSize(11).TextColor(muted)
+	pluginInventoryPane(c, a.Inventory, fg, muted)
+	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(14).Bold().TextColor(fg)
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(12).TextColor(muted)
 	}
