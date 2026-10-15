@@ -82,6 +82,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 			break
 		}
 	}
+	s.maybeAskStartupUpdate(win, snapshot, m.VendorReady)
 	return m
 }
 

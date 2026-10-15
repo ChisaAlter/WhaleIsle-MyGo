@@ -51,6 +51,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/startuprec"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	imstore "whaleisle/internal/store/im"
@@ -86,6 +87,7 @@ import (
 )
 
 type mainState struct {
+	startupRecovery      startupRecoveryState
 	voice                *composerVoiceOperation
 	projectFlow          projectFlowState
 	resumeStore          *recovery.Store
@@ -1645,12 +1647,23 @@ func (s *mainState) watchAcceptOpenHook() {
 	}()
 }
 
-func (s *mainState) refreshBoot(st harness.Status) {
+func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor) {
 	s.mu.Lock()
+	if len(owner) > 0 && owner[0] != s.sup {
+		s.mu.Unlock()
+		return
+	}
+	if st.Generation != 0 && s.sup != nil {
+		actual := s.sup.Status()
+		if st.Generation != actual.Generation || st.State != actual.State {
+			s.mu.Unlock()
+			return
+		}
+	}
 	prev := s.bootStatus.State
 	// Log lines fire OnChange with a Starting snapshot; those goroutines can
 	// land after Ready/Failed and must not regress the shell or tear down DSH.
-	if st.State == harness.Starting && (prev == harness.Ready || prev == harness.Failed) {
+	if st.State == harness.Starting && st.Generation <= s.bootStatus.Generation && (prev == harness.Ready || prev == harness.Failed) {
 		if s.sup != nil {
 			s.bootLogs = s.sup.Logs()
 		}
@@ -1662,6 +1675,7 @@ func (s *mainState) refreshBoot(st harness.Status) {
 		return
 	}
 	s.bootStatus = st
+	persistenceFailed := s.recordStartupStatusLocked(st)
 	switch st.State {
 	case harness.Starting:
 		s.launcherStartBusy = true
@@ -1674,8 +1688,10 @@ func (s *mainState) refreshBoot(st harness.Status) {
 		if s.cfgStore != nil {
 			quitLauncher = s.cfgStore.Get().QuitAfterStart
 		}
-		if quitLauncher {
+		if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || s.startupRecovery.updateHold) {
 			s.launcherOpen = false
+		} else {
+			s.launcherOpen = true
 		}
 	case harness.Failed:
 		s.launcherStartBusy = false
@@ -2050,6 +2066,7 @@ func main() {
 			mygo.App.Quit()
 			return
 		}
+		state.openStartupRecovery(userData, cfgStore)
 		cfg := cfgStore.Get()
 		i18n.SetLocale(cfg.Locale)
 		applyAppearance(cfg.Theme)
@@ -2201,7 +2218,7 @@ func main() {
 		state.launcherOpen = true
 		state.mu.Unlock()
 		canStartAfterRecovery := state.recoverImportBeforeStart()
-		if canStartAfterRecovery && strings.TrimSpace(cfg.Workspace) != "" && cfg.AutoStartDesktop {
+		if state.coldStartupAllowed(cfg, canStartAfterRecovery) {
 			state.mu.Lock()
 			state.launcherTriedStart = true
 			state.launcherStartBusy = true
@@ -2217,6 +2234,8 @@ func main() {
 
 func startHarness(cfg config.Config) {
 	state.mu.Lock()
+	cfgStore := state.cfgStore
+	startupStore := state.startupRecovery.store
 	if state.launcherImportBusy {
 		state.launcherStartBusy = false
 		state.launcherImport = "导入尚未结束，暂不能启动内核。"
@@ -2265,7 +2284,8 @@ func startHarness(cfg config.Config) {
 			}
 		},
 	})
-	sup := harness.New(harness.Options{
+	var sup *harness.Supervisor
+	sup = harness.New(harness.Options{
 		Install: installSrv,
 		Launch: harness.LaunchOptions{
 			PatchFiles:      projectPatches,
@@ -2290,10 +2310,20 @@ func startHarness(cfg config.Config) {
 		MaxAttempts:  cfg.HarnessRestartMaxAttempts,
 		BaseDelay:    time.Duration(cfg.HarnessRestartBaseDelayMs) * time.Millisecond,
 		ReadyTimeout: 3 * time.Minute,
-		OnChange:     state.refreshBoot,
+		OnChange:     func(st harness.Status) { state.refreshBoot(st, sup) },
+		OnPluginRecovery: func(reason string, logs []string) error {
+			if cfgStore == nil || startupStore == nil {
+				return fmt.Errorf("startup recovery storage is unavailable")
+			}
+			if err := cfgStore.RecordAutomaticPluginRecovery(buildVersion, reason, logs); err != nil {
+				return err
+			}
+			return startupStore.Record(false, reason, logs, buildVersion)
+		},
 	})
 	state.mu.Lock()
 	state.sup = sup
+	state.startupRecovery.recorded = false
 	state.mu.Unlock()
 
 	if strings.TrimSpace(cfg.Workspace) == "" {
@@ -2992,24 +3022,7 @@ func mainView(c *ui.Context) {
 	}
 	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
 		if launcherOpen {
-			// Electron syncUpdateNotice: background feed check once per launcher session.
-			if !state.launcherUpdateSynced {
-				state.launcherUpdateSynced = true
-				route := state.updateDownloadRoute()
-				go func(r string) {
-					res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, r)
-					state.mu.Lock()
-					if err == nil && res.Status == desktopupdate.StatusUpdateAvailable {
-						state.launcherUpdateAvailable = true
-						state.launcherUpdate = fmt.Sprintf(i18n.T(i18n.KeyLauncherUpdateAvailable), res.Version, buildVersion)
-					}
-					w := state.win
-					state.mu.Unlock()
-					if w != nil {
-						w.Update(func() {})
-					}
-				}(route)
-			}
+			// The pinned native release catalog owns the one background lookup.
 			// Full-window launcher shell (Electron parity): no main chrome.
 			vendorReady := false
 			if info, err := os.Stat(filepath.Join(paths.VendorDir(), "deepseek-harness", "apps", "cli", "lib", "bin.js")); err == nil && !info.IsDir() {
@@ -3023,7 +3036,7 @@ func mainView(c *ui.Context) {
 			if cfgStore != nil {
 				cfg := cfgStore.Get()
 				disabled = append([]string(nil), cfg.DisabledPlugins...)
-				rec := cfgStore.PluginRecovery()
+				rec := cfgStore.PluginRecoveryEvidence()
 				skipUserPlugins = rec.SkipUserPlugins
 				pluginRecoveryReason = rec.Reason
 			}
@@ -3200,6 +3213,7 @@ func mainView(c *ui.Context) {
 					state.launcherTriedStart = true
 					state.launcherStartBusy = true
 					state.launcherStartErr = ""
+					state.startupRecovery.updateHold = false
 					state.mu.Unlock()
 					if store == nil {
 						state.mu.Lock()
@@ -3377,6 +3391,7 @@ func mainView(c *ui.Context) {
 					}
 					err := cfgStore.UpdatePluginRecovery(func(m map[string]any) {
 						m["skipUserPlugins"] = true
+						m["appVersion"] = "" // explicit manual recovery survives upgrades
 						if _, ok := m["reason"]; !ok {
 							m["reason"] = "launcher"
 						}

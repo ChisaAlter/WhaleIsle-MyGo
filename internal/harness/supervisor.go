@@ -57,6 +57,8 @@ type Status struct {
 	Attempt int
 	// PluginLoad carries overlay/runtime plugin progress for the boot page.
 	PluginLoad PluginProgress
+	// Recovery is true when this attempt skips the user plugin layer.
+	Recovery bool
 }
 
 // Options configure a Supervisor.
@@ -75,6 +77,9 @@ type Options struct {
 	ReadyTimeout time.Duration
 	// OnChange receives every status change, on the supervisor's goroutines.
 	OnChange func(Status)
+	// OnPluginRecovery must persist the marker before a skipped-plugin retry.
+	// Called under the supervisor lock; it must not call back into Supervisor.
+	OnPluginRecovery func(reason string, logs []string) error
 	// Install is the loopback install control server; started with the supervisor
 	// and its env is injected into each harness child.
 	Install *installctrl.Server
@@ -99,6 +104,7 @@ type Supervisor struct {
 	exited           chan struct{}
 	gen              int
 	logs             []string
+	startLogs        []string // current attempt only; old attempts cannot implicate plugins
 	attempt          int
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
 	skippedOnce bool
@@ -129,10 +135,21 @@ func (s *Supervisor) Logs() []string {
 	return append([]string(nil), s.logs...)
 }
 
+// CurrentStartLogs returns only evidence from the current process attempt.
+func (s *Supervisor) CurrentStartLogs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.startLogs...)
+}
+
 // SetSkipUserPlugins changes the recovery flag used by the next start.
 func (s *Supervisor) SetSkipUserPlugins(skip bool) {
 	s.mu.Lock()
 	s.opts.Launch.SkipUserPlugins = skip
+	s.opts.Prepare.SkipUserPlugins = skip
+	if !skip {
+		s.skippedOnce = false
+	}
 	s.mu.Unlock()
 }
 
@@ -210,6 +227,7 @@ func (s *Supervisor) current(gen int) bool {
 func (s *Supervisor) setLocked(st Status) {
 	st.Generation = s.gen
 	st.Attempt = s.attempt
+	st.Recovery = s.opts.Launch.SkipUserPlugins
 	s.status = st
 	if s.opts.OnChange != nil {
 		go s.opts.OnChange(st)
@@ -229,6 +247,10 @@ func (s *Supervisor) set(gen int, st Status) bool {
 func (s *Supervisor) log(line string) {
 	s.mu.Lock()
 	s.logs = append(s.logs, line)
+	s.startLogs = append(s.startLogs, line)
+	if len(s.startLogs) > logLimit {
+		s.startLogs = append([]string(nil), s.startLogs[len(s.startLogs)-logLimit:]...)
+	}
 	if over := len(s.logs) - logLimit; over > 0 {
 		s.logs = append(s.logs[:0], s.logs[over:]...)
 	}
@@ -257,6 +279,7 @@ func (s *Supervisor) run(gen int) {
 		return
 	}
 	s.taskControlToken = token
+	s.startLogs = nil
 	launch := s.opts.Launch
 	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
 	if install := s.opts.Install; install != nil {
@@ -460,9 +483,17 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		return
 	}
 	s.cmd, s.exited = nil, nil
-	blob := err.Error() + "\n" + strings.Join(s.logs, "\n")
+	blob := err.Error() + "\n" + strings.Join(s.startLogs, "\n")
 	if !s.opts.Launch.SkipUserPlugins && !s.skippedOnce && looksLikePluginTreeFailure(blob) {
+		if persist := s.opts.OnPluginRecovery; persist != nil {
+			if saveErr := persist(err.Error(), append([]string(nil), s.startLogs...)); saveErr != nil {
+				s.setLocked(Status{State: Failed, Err: fmt.Errorf("plugin recovery could not be saved: %w", saveErr), Source: source})
+				s.mu.Unlock()
+				return
+			}
+		}
 		s.opts.Launch.SkipUserPlugins = true
+		s.opts.Prepare.SkipUserPlugins = true
 		s.skippedOnce = true
 		next := s.nextGenLocked()
 		s.setLocked(Status{State: Starting, Err: err, Source: source})
