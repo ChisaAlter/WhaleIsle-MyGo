@@ -14,6 +14,10 @@ import (
 type Tabs struct {
 	Workspaces map[string]*WorkspaceTabs
 	Root       string
+	binding    string
+	boundRoot  string
+	Tree       *workspacefs.DirectoryTree `json:"-"`
+	Search     *workspacefs.Search        `json:"-"`
 }
 type WorkspaceTabs struct {
 	Open         []*FileTab
@@ -289,7 +293,7 @@ func (t *Tabs) Restore(data []byte) error {
 	if err := json.Unmarshal(data, &restored); err != nil {
 		return err
 	}
-	for root, w := range restored.Workspaces {
+	for _, w := range restored.Workspaces {
 		if w == nil {
 			return errors.New("invalid saved workspace")
 		}
@@ -297,7 +301,7 @@ func (t *Tabs) Restore(data []byte) error {
 			if tab == nil || tab.Path == "" {
 				return errors.New("invalid saved tab")
 			}
-			if _, err := workspacefs.JoinRoot(root, tab.Path); err != nil {
+			if err := workspacefs.ValidateRelativePath(tab.Path); err != nil {
 				return err
 			}
 		}
@@ -306,4 +310,19 @@ func (t *Tabs) Restore(data []byte) error {
 	restored.Root = ""
 	*t = restored
 	return nil
+}
+
+// Bind cancels obsolete background reads even while the Files pane is hidden.
+// Drafts stay attached to their workspace and are never flushed on a switch.
+func (t *Tabs) Bind(binding, root string) {
+	if t.binding == binding && t.boundRoot == root {
+		return
+	}
+	if t.Search != nil {
+		t.Search.Cancel()
+	}
+	if t.Tree != nil {
+		t.Tree.Cancel()
+	}
+	t.binding, t.boundRoot = binding, root
 }

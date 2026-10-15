@@ -159,6 +159,7 @@ type Model struct {
 	SessionSearch         *string
 
 	WorkspaceRoot    string
+	FileBindingID    string
 	FileTabs         *files.Tabs
 	GitWorkbench     *diffsurface.Workbench
 	FileExpanded     *map[string]bool
@@ -212,7 +213,8 @@ type Model struct {
 	OnInsertComposerVoice func()
 
 	// OnListWorkspaceFiles is optional workspaceFiles/list fallback for the files pane.
-	OnListWorkspaceFiles func(rel string) ([]workspacefs.Entry, error)
+	OnListWorkspaceFiles        func(rel string) ([]workspacefs.Entry, error)
+	OnListWorkspaceFilesContext workspacefs.RemoteDirectoryLister
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
 	OnReadWorkspaceFile func(rel string) (string, error)
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
@@ -1051,27 +1053,29 @@ func rightPane(c *ui.Context, m Model) {
 			return
 		}
 		files.View(c, files.Model{
-			Tabs:          m.FileTabs,
-			WorkspaceRoot: m.WorkspaceRoot,
-			ThemeID:       m.ThemeID,
-			SystemDark:    m.SystemDark,
-			Expanded:      m.FileExpanded,
-			SelectedFile:  m.SelectedFile,
-			Filter:        m.FileFilter,
-			Preview:       m.FilePreview,
-			PreviewErr:    m.FilePreviewErr,
-			PreviewList:   m.FilePreviewList,
-			PreviewSplit:  &m.Sizes.RightTree,
-			Editing:       m.FileEditing,
-			EditDraft:     m.FileEditDraft,
-			EditStatus:    m.FileEditStatus,
-			EditViewMode:  m.FileEditViewMode,
-			EditSplit:     m.FileEditSplit,
-			PaneWidth:     m.FilePaneWidth,
-			ListRemote:    m.OnListWorkspaceFiles,
-			ReadRemote:    m.OnReadWorkspaceFile,
-			StatRemote:    m.OnStatWorkspaceFile,
-			StatNote:      m.FileStatNote,
+			Tabs:              m.FileTabs,
+			BindingID:         m.FileBindingID,
+			WorkspaceRoot:     m.WorkspaceRoot,
+			ThemeID:           m.ThemeID,
+			SystemDark:        m.SystemDark,
+			Expanded:          m.FileExpanded,
+			SelectedFile:      m.SelectedFile,
+			Filter:            m.FileFilter,
+			Preview:           m.FilePreview,
+			PreviewErr:        m.FilePreviewErr,
+			PreviewList:       m.FilePreviewList,
+			PreviewSplit:      &m.Sizes.RightTree,
+			Editing:           m.FileEditing,
+			EditDraft:         m.FileEditDraft,
+			EditStatus:        m.FileEditStatus,
+			EditViewMode:      m.FileEditViewMode,
+			EditSplit:         m.FileEditSplit,
+			PaneWidth:         m.FilePaneWidth,
+			ListRemote:        m.OnListWorkspaceFiles,
+			ListRemoteContext: m.OnListWorkspaceFilesContext,
+			ReadRemote:        m.OnReadWorkspaceFile,
+			StatRemote:        m.OnStatWorkspaceFile,
+			StatNote:          m.FileStatNote,
 			OnShowDiff: func(rel string) {
 				if m.GitWorkbench != nil {
 					m.GitWorkbench.Staged = false

@@ -2,13 +2,13 @@
 package workspacefs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -22,28 +22,10 @@ type Entry struct {
 	IsDir bool
 }
 
-// ListDir reads immediate children of dirPath. Hidden dot entries are omitted.
+// ListDir lists immediate children using the original visibility policy.
+// Call ListWorkspaceDir when the workspace root and relative path are known.
 func ListDir(dirPath string) ([]Entry, error) {
-	dirPath = filepath.Clean(dirPath)
-	ents, err := os.ReadDir(dirPath)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Entry, 0, len(ents))
-	for _, e := range ents {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		out = append(out, Entry{Name: name, IsDir: e.IsDir()})
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].IsDir != out[j].IsDir {
-			return out[i].IsDir
-		}
-		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
-	})
-	return out, nil
+	return ListWorkspaceDir(context.Background(), dirPath, "")
 }
 
 // ReadTextResult is the outcome of ReadFileText.
@@ -175,20 +157,54 @@ func RelPath(root, path string) (string, error) {
 	return filepath.ToSlash(rel), nil
 }
 
-// JoinRoot joins root with a slash-relative rel path and ensures it stays under root.
+// JoinRoot validates both lexical and existing symlink ancestry. The root is
+// the authorized boundary; .git metadata and aliases to it are never allowed.
 func JoinRoot(root, rel string) (string, error) {
+	if strings.TrimSpace(root) == "" {
+		return "", fmt.Errorf("workspacefs: no workspace root")
+	}
+	if err := ValidateRelativePath(rel); err != nil {
+		return "", err
+	}
 	root = filepath.Clean(root)
-	rel = strings.TrimPrefix(filepath.ToSlash(rel), "/")
-	if rel == "" || rel == "." {
-		return root, nil
-	}
-	if strings.Contains(rel, "..") {
-		return "", fmt.Errorf("workspacefs: invalid relative path")
-	}
+	rel = filepath.ToSlash(rel)
 	full := filepath.Clean(filepath.Join(root, filepath.FromSlash(rel)))
-	rootPrefix := root + string(os.PathSeparator)
-	if full != root && !strings.HasPrefix(full, rootPrefix) {
-		return "", fmt.Errorf("workspacefs: path outside root")
+	if _, err := RelPath(root, full); err != nil {
+		return "", err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	// Nonexistent leaf names are allowed for saves. Resolve the nearest existing
+	// ancestor so a symlinked parent cannot escape the workspace on creation.
+	node := full
+	for {
+		real, resolveErr := filepath.EvalSymlinks(node)
+		if resolveErr == nil {
+			relative, boundaryErr := RelPath(realRoot, real)
+			if boundaryErr != nil {
+				return "", boundaryErr
+			}
+			for _, part := range strings.Split(relative, "/") {
+				if strings.EqualFold(part, ".git") {
+					return "", fmt.Errorf("workspacefs: git metadata is outside file access")
+				}
+			}
+			break
+		}
+		if !errors.Is(resolveErr, os.ErrNotExist) {
+			return "", resolveErr
+		}
+		// Broken links must not become writable paths after ancestor fallback.
+		if _, statErr := os.Lstat(node); statErr == nil {
+			return "", resolveErr
+		}
+		parent := filepath.Dir(node)
+		if node == root || parent == node {
+			return "", resolveErr
+		}
+		node = parent
 	}
 	return full, nil
 }
@@ -205,4 +221,19 @@ func bytesContainsNUL(b []byte) bool {
 // IsNotExist reports whether err is fs.ErrNotExist or wraps it.
 func IsNotExist(err error) bool {
 	return errors.Is(err, fs.ErrNotExist)
+}
+
+// ValidateRelativePath checks recovered/offline tab names without touching disk.
+// The complete canonical authority check still occurs before each local access.
+func ValidateRelativePath(rel string) error {
+	rel = filepath.ToSlash(rel)
+	if filepath.IsAbs(rel) || filepath.VolumeName(rel) != "" || strings.ContainsAny(rel, "\\\x00") {
+		return fmt.Errorf("workspacefs: invalid relative path")
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == ".." || strings.EqualFold(part, ".git") {
+			return fmt.Errorf("workspacefs: invalid relative path")
+		}
+	}
+	return nil
 }

@@ -5765,6 +5765,11 @@ func mainView(c *ui.Context) {
 						}
 					}
 					snap := sessions.Snapshot()
+					state.dshMu.Lock()
+					fileClient := state.dshClient
+					state.dshMu.Unlock()
+					fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, snap.SelectedID)
+					fileTabs.Bind(fileBindingID, workspaceRoot)
 					state.mu.Lock()
 					activeDraft := state.composerDraftLocked(snap.SelectedID)
 					draft = activeDraft.Text
@@ -5913,6 +5918,7 @@ func mainView(c *ui.Context) {
 						FileEditing:           &fileEditing,
 						FileEditDraft:         &fileEditDraft,
 						FileTabs:              &fileTabs,
+						FileBindingID:         fileBindingID,
 						GitWorkbench:          &gitWorkbench,
 						FileEditStatus:        &fileEditStatus,
 						FileEditViewMode:      &fileEditViewMode,
@@ -6192,6 +6198,9 @@ func mainView(c *ui.Context) {
 							if win != nil {
 								win.Update(func() {})
 							}
+						},
+						OnListWorkspaceFilesContext: func(ctx context.Context, rel string) ([]workspacefs.Entry, error) {
+							return workspacefs.ListRemoteDir(ctx, fileClient, rel)
 						},
 						OnListWorkspaceFiles: func(rel string) ([]workspacefs.Entry, error) {
 							state.dshMu.Lock()

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestListDirSortAndSkipHidden(t *testing.T) {
+func TestListDirSortAndVisibleDotfiles(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"b.txt", "a.go", "Sub", ".git", ".hidden"} {
 		p := filepath.Join(dir, name)
@@ -25,13 +25,13 @@ func TestListDirSortAndSkipHidden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ents) != 3 {
-		t.Fatalf("len = %d, want 3", len(ents))
+	if len(ents) != 4 {
+		t.Fatalf("len = %d, want 4", len(ents))
 	}
 	if !ents[0].IsDir || ents[0].Name != "Sub" {
 		t.Fatalf("first = %#v", ents[0])
 	}
-	if ents[1].Name != "a.go" || ents[2].Name != "b.txt" {
+	if ents[1].Name != ".hidden" || ents[2].Name != "a.go" || ents[3].Name != "b.txt" {
 		t.Fatalf("files order = %#v", ents[1:])
 	}
 }

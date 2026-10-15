@@ -3,6 +3,7 @@ package files
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -37,8 +38,10 @@ const sideBySideMinWidth float32 = 520
 type Model struct {
 	Tabs          *Tabs
 	WorkspaceRoot string
-	ThemeID       string
-	SystemDark    bool
+	// BindingID identifies the current Host connection and selected session.
+	BindingID  string
+	ThemeID    string
+	SystemDark bool
 
 	Expanded     *map[string]bool // rel dir path → expanded; missing means collapsed
 	SelectedFile *string          // rel file path
@@ -71,7 +74,8 @@ type Model struct {
 	// Filter narrows the tree to matching relative paths (live IndexRelPaths).
 	Filter *string
 	// ListRemote is optional workspaceFiles/list fallback when local ListDir fails.
-	ListRemote func(rel string) ([]workspacefs.Entry, error)
+	ListRemote        func(rel string) ([]workspacefs.Entry, error)
+	ListRemoteContext workspacefs.RemoteDirectoryLister
 	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
 	ReadRemote func(rel string) (string, error)
 	// StatRemote is optional workspaceFiles/stat note for the selected file.
@@ -96,8 +100,25 @@ var editSplitFallback float32 = 200
 
 // View paints the file tree and plain-text preview.
 func View(c *ui.Context, m Model) {
+	if m.Tabs != nil {
+		m.Tabs.Bind(m.BindingID, m.WorkspaceRoot)
+	}
 	prepareTabs(m)
 	defer capture(m)
+	if m.Tabs != nil {
+		if m.Tabs.Search == nil {
+			m.Tabs.Search = &workspacefs.Search{}
+		}
+		if m.Tabs.Tree == nil {
+			m.Tabs.Tree = &workspacefs.DirectoryTree{}
+		}
+		m.Tabs.Tree.Ensure(m.BindingID, m.WorkspaceRoot)
+		query := ""
+		if m.Filter != nil {
+			query = strings.TrimSpace(*m.Filter)
+		}
+		m.Tabs.Search.Ensure(m.BindingID, m.WorkspaceRoot, query, m.ListRemoteContext, c.Invalidate)
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
@@ -110,7 +131,15 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		ui.Row(c).Padding(12, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(14).Bold().TextColor(fg).Grow(1)
-			ui.Text(c, i18n.T(i18n.KeyFilesRefreshHint)).FontSize(10).TextColor(muted)
+			if ui.Button(c, label("刷新", "Refresh")).FontSize(10).Clicked() && m.Tabs != nil {
+				if m.Tabs.Tree != nil {
+					m.Tabs.Tree.Cancel()
+				}
+				if m.Tabs.Search != nil {
+					m.Tabs.Search.Cancel()
+				}
+				c.Invalidate()
+			}
 		})
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
@@ -152,63 +181,52 @@ func View(c *ui.Context, m Model) {
 }
 
 func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accent ui.Color) {
-	paths, err := workspacefs.IndexRelPaths(root, 2000)
-	if err != nil {
-		ui.Text(c, err.Error()).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+	if m.Tabs == nil || m.Tabs.Search == nil {
 		return
 	}
-	needle := strings.ToLower(filter)
-	n := 0
-	for _, rel := range paths {
-		if !strings.Contains(strings.ToLower(rel), needle) {
-			continue
-		}
-		n++
-		path := rel
+	state := m.Tabs.Search.Snapshot()
+	if state.Busy {
+		ui.Text(c, label("正在搜索全部文件…", "Searching all files…")).FontSize(11).TextColor(muted).Padding(8, 8, 8, 8)
+		return
+	}
+	if state.Error != "" {
+		ui.Text(c, state.Error).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		return
+	}
+	for _, path := range state.Paths {
 		row := ui.Row(c).Padding(4, 8, 4, 8).FillWidth()
 		if m.SelectedFile != nil && *m.SelectedFile == path {
 			row.Background(accent).Opacity(0.12)
 		}
-		row.Children(func() {
-			ui.Text(c, path).FontSize(12).TextColor(fg)
-		})
+		row.Children(func() { ui.Text(c, path).FontSize(12).TextColor(fg) })
 		if row.Clicked() {
 			selectFile(m, path)
 		}
-		if n >= 200 {
-			ui.Text(c, "…").FontSize(11).TextColor(muted).Padding(4, 8, 4, 8)
-			break
+	}
+	if len(state.Paths) < state.Total {
+		if ui.Button(c, fmt.Sprintf(label("加载更多（%d / %d）", "Show more (%d / %d)"), len(state.Paths), state.Total)).Clicked() {
+			m.Tabs.Search.More()
 		}
 	}
-	if n == 0 {
+	if state.Total == 0 {
 		ui.Text(c, i18n.T(i18n.KeyFilesFilterEmpty)).FontSize(12).TextColor(muted).Padding(8, 8, 8, 8)
 	}
 }
 
 func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, accent ui.Color) {
-	var ents []workspacefs.Entry
-	var err error
-	if root != "" {
-		dirPath, jerr := workspacefs.JoinRoot(root, rel)
-		if jerr == nil {
-			ents, err = workspacefs.ListDir(dirPath)
-		} else {
-			err = jerr
-		}
-	} else {
-		err = errors.New("no workspace root")
-	}
-	if err != nil && m.ListRemote != nil {
-		if remote, rerr := m.ListRemote(rel); rerr == nil {
-			ents, err = remote, nil
-		} else if err == nil {
-			err = rerr
-		}
-	}
-	if err != nil {
-		ui.Text(c, err.Error()).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+	if m.Tabs == nil || m.Tabs.Tree == nil {
 		return
 	}
+	state := m.Tabs.Tree.Get(rel, m.ListRemoteContext, c.Invalidate)
+	if state.Busy {
+		ui.Text(c, label("加载中…", "Loading…")).FontSize(11).TextColor(muted).Padding(8, 8, 8, 8)
+		return
+	}
+	if state.Error != "" {
+		ui.Text(c, state.Error).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		return
+	}
+	ents := state.Entries
 	for _, e := range ents {
 		childRel := e.Name
 		if rel != "" {
