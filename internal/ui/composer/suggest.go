@@ -3,6 +3,7 @@ package composer
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -41,30 +42,60 @@ func SlashToken(draft string) (query string, tok TokenRange, ok bool) {
 	return draft[1:end], TokenRange{0, end}, true
 }
 
-// MentionToken finds the active @ mention at the end of the draft (caret at end).
+// MentionToken finds an active mention at the end of the draft.
 func MentionToken(draft string) (query string, tok TokenRange, ok bool) {
-	at := -1
-	for i := 0; i < len(draft); {
-		r, size := utf8.DecodeRuneInString(draft[i:])
-		if r == '@' && mentionStartOK(draft, i) {
-			at = i
-		}
-		i += size
-	}
-	if at < 0 {
+	return MentionTokenAt(draft, len(draft))
+}
+
+// MentionTokenAt follows the Host grammar at the current byte caret. Open
+// quoted paths may contain spaces; complete canonical session mentions are not
+// completion queries. Only the prefix before the caret is replaced.
+func MentionTokenAt(draft string, caret int) (query string, tok TokenRange, ok bool) {
+	if caret < 0 || caret > len(draft) || !utf8.ValidString(draft[:caret]) {
 		return "", TokenRange{}, false
 	}
-	// Ignore earlier mentions when the tail is already past this token.
-	start := at + 1
-	end := len(draft)
-	for i := start; i < len(draft); {
-		r, size := utf8.DecodeRuneInString(draft[i:])
-		if r == ' ' || r == '\n' || r == '\t' {
-			return "", TokenRange{}, false
+	before := draft[:caret]
+	for at := 0; at < len(before); at++ {
+		if before[at] != '@' || !mentionStartOK(before, at) {
+			continue
 		}
-		i += size
+		tail := before[at+1:]
+		if strings.HasPrefix(tail, `"`) && !strings.Contains(tail[1:], `"`) {
+			return tail[1:], TokenRange{at, caret}, true
+		}
 	}
-	return draft[start:end], TokenRange{at, end}, true
+	at := strings.LastIndexByte(before, '@')
+	if at < 0 || !mentionStartOK(before, at) {
+		return "", TokenRange{}, false
+	}
+	tail := before[at+1:]
+	if strings.ContainsAny(tail, `"[]`) || strings.IndexFunc(tail, unicode.IsSpace) >= 0 {
+		return "", TokenRange{}, false
+	}
+	return tail, TokenRange{at, caret}, true
+}
+
+// FormatFileMention uses the Host's quoted path grammar and rejects characters
+// that cannot be represented safely. Directories leave the quote open to drill.
+func FormatFileMention(path string, directory, preserveQuote bool) (string, bool) {
+	if directory {
+		path = strings.TrimSuffix(path, "/") + "/"
+	}
+	if path == "" {
+		return "", false
+	}
+	for _, r := range path {
+		if r == '"' || r < 0x20 || r >= 0x7f && r <= 0x9f {
+			return "", false
+		}
+	}
+	if preserveQuote || strings.IndexFunc(path, unicode.IsSpace) >= 0 {
+		if directory {
+			return `@"` + path, true
+		}
+		return `@"` + path + `"`, true
+	}
+	return "@" + path, true
 }
 
 func mentionStartOK(draft string, at int) bool {
@@ -72,15 +103,22 @@ func mentionStartOK(draft string, at int) bool {
 		return true
 	}
 	prev, _ := utf8.DecodeLastRuneInString(draft[:at])
-	return prev == ' ' || prev == '\n' || prev == '\t'
+	return unicode.IsSpace(prev)
 }
 
 // ActiveSuggest picks slash over mention when both could apply (draft starts with /).
 func ActiveSuggest(draft string) (kind SuggestKind, query string, tok TokenRange, ok bool) {
-	if q, tr, okSlash := SlashToken(draft); okSlash {
+	return ActiveSuggestAt(draft, len(draft))
+}
+
+func ActiveSuggestAt(draft string, caret int) (kind SuggestKind, query string, tok TokenRange, ok bool) {
+	if caret < 0 || caret > len(draft) {
+		return SuggestNone, "", TokenRange{}, false
+	}
+	if q, tr, okSlash := SlashToken(draft[:caret]); okSlash {
 		return SuggestSlash, q, tr, true
 	}
-	if q, tr, okAt := MentionToken(draft); okAt {
+	if q, tr, okAt := MentionTokenAt(draft, caret); okAt {
 		return SuggestMention, q, tr, true
 	}
 	return SuggestNone, "", TokenRange{}, false

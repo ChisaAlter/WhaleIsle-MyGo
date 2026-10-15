@@ -3,57 +3,105 @@ package session
 import (
 	"context"
 	"strings"
-
+	"sync"
 	"whaleisle/internal/dsh/api"
 )
 
-// ListFileReferences calls fileReferences/list for the selected session.
-// Returns workspace-relative paths matching query (Electron @ mention search).
-// Also merges sessionReferenceResolver/candidates mentions when available.
-func (s *Store) ListFileReferences(ctx context.Context, query string) []string {
-	query = strings.TrimSpace(query)
+// ReferenceCandidate keeps opaque session identity separate from its display
+// title. Mention is Host-produced text and must be inserted without another @.
+type ReferenceCandidate struct {
+	Kind, Path, Label, Mention, SessionID, Cwd string
+	SameWorkspace                              bool
+}
+
+// ListReferenceCandidates reads both existing Host namespaces concurrently and
+// drops results after a Host or selection-generation change. Quoted paths only
+// ask for files, matching the reference client's grammar.
+func (s *Store) ListReferenceCandidates(ctx context.Context, sessionID, query string, quoted bool) []ReferenceCandidate {
 	s.mu.Lock()
-	client := s.client
-	sessionID := s.selectedID
+	client, generation := s.client, s.followGeneration
+	valid := sessionID != "" && sessionID == s.selectedID
 	s.mu.Unlock()
-	if client == nil || sessionID == "" {
+	if client == nil || !valid {
 		return nil
 	}
-	paths := make([]string, 0, 16)
-	seen := map[string]bool{}
-	add := func(p string) {
-		p = strings.TrimSpace(p)
-		if p == "" || seen[p] {
-			return
-		}
-		seen[p] = true
-		paths = append(paths, p)
-	}
-	var out api.ListResult
-	if err := client.Call(ctx, "fileReferences/list", map[string]any{
-		"agentId": sessionID,
-		"query":   query,
-	}, &out); err == nil {
-		for _, item := range out {
-			path := item.Path
-			if item.Kind == "directory" {
-				path = strings.TrimSuffix(path, "/") + "/"
-			}
-			add(path)
-		}
-	}
+	var files api.ListResult
 	var refs api.CandidatesResult
-	if err := client.Call(ctx, "sessionReferenceResolver/candidates", map[string]any{
-		"agentId": sessionID,
-		"query":   query,
-	}, &refs); err == nil {
-		for _, it := range refs {
-			m := strings.TrimSpace(it.Mention)
-			if m == "" {
-				m = strings.TrimSpace(it.Label)
-			}
-			add(m)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if client.Call(ctx, "fileReferences/list", map[string]any{"agentId": sessionID, "query": query}, &files) != nil {
+			files = nil
 		}
+	}()
+	if !quoted {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if client.Call(ctx, "sessionReferenceResolver/candidates", map[string]any{"agentId": sessionID, "query": query}, &refs) != nil {
+				refs = nil
+			}
+		}()
 	}
-	return paths
+	wg.Wait()
+	s.mu.Lock()
+	valid = s.client == client && s.selectedID == sessionID && s.followGeneration == generation
+	s.mu.Unlock()
+	if !valid || ctx.Err() != nil {
+		return nil
+	}
+	out := make([]ReferenceCandidate, 0, len(files)+len(refs))
+	seen := map[string]bool{}
+	for _, item := range files {
+		if item.Path == "" || (item.Kind != "file" && item.Kind != "directory") {
+			continue
+		}
+		key := item.Kind + ":" + item.Path
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, ReferenceCandidate{Kind: item.Kind, Path: item.Path, Label: item.Path})
+	}
+	for _, item := range refs {
+		if item.SessionId == "" || item.Mention == "" {
+			continue
+		}
+		key := "session:" + item.SessionId
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		label := item.Label
+		if item.DisplayTitle != nil && *item.DisplayTitle != "" {
+			label = *item.DisplayTitle
+		}
+		row := ReferenceCandidate{Kind: "session", Label: label, Mention: item.Mention, SessionID: item.SessionId, SameWorkspace: item.SameWorkspace}
+		if item.Cwd != nil {
+			row.Cwd = *item.Cwd
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// ListFileReferences preserves the legacy path-only caller surface.
+func (s *Store) ListFileReferences(ctx context.Context, query string) []string {
+	s.mu.Lock()
+	id := s.selectedID
+	s.mu.Unlock()
+	candidates := s.ListReferenceCandidates(ctx, id, strings.TrimSpace(query), false)
+	out := make([]string, 0, len(candidates))
+	for _, item := range candidates {
+		path := item.Path
+		if item.Kind == "session" {
+			path = item.Mention
+		}
+		if item.Kind == "directory" {
+			path = strings.TrimSuffix(path, "/") + "/"
+		}
+		out = append(out, path)
+	}
+	return out
 }

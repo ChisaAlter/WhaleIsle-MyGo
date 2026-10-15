@@ -195,6 +195,7 @@ type Model struct {
 	UseComposerTextInput    bool
 	OnIndexWorkspace        func(root string) []string
 	OnSearchFileRefs        func(query string) []string
+	OnSearchReferences      func(query string, quoted bool) []session.ReferenceCandidate
 	OnToggleComposerSkills  func(open bool)
 	OnSearchSkillHub        func(query string)
 	OnInstallSkillHub       func(hit session.SkillHubHit)
@@ -621,6 +622,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnRetrySlashCommands: func() { m.Store.RefreshSlashCommands(context.Background()) },
 						FilePaths:            filePaths,
 						OnSearchFileRefs:     m.OnSearchFileRefs,
+						OnSearchReferences:   m.OnSearchReferences,
 						SuggestList:          m.ComposerSuggest,
 						SkillsOpen:           m.ComposerSkillsOpen,
 						Skills:               snap.SkillOptions,

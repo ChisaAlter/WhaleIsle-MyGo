@@ -6310,11 +6310,11 @@ func mainView(c *ui.Context) {
 							state.mu.Unlock()
 							return paths
 						},
-						OnSearchFileRefs: func(query string) []string {
+						OnSearchReferences: func(query string, quoted bool) []session.ReferenceCandidate {
 							if sessions == nil || st.State != harness.Ready {
 								return nil
 							}
-							return sessions.ListFileReferences(context.Background(), query)
+							return sessions.ListReferenceCandidates(context.Background(), snap.SelectedID, query, quoted)
 						},
 						Terminal:              termPanel,
 						TerminalShellsNote:    termShellsNote,

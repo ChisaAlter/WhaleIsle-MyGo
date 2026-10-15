@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -13,6 +14,7 @@ type DraftMentionKind int
 const (
 	DraftMentionAt DraftMentionKind = iota
 	DraftMentionSkill
+	DraftMentionSession
 )
 
 // DraftMention is one display token parsed from the composer draft.
@@ -55,8 +57,23 @@ func ParseDraftMentions(draft string) []DraftMention {
 				}
 				end += nsz
 			}
+			if r == '@' {
+				if match := sessionMentionPattern.FindString(draft[i:]); match != "" {
+					end = i + len(match)
+				} else if i+1 < len(draft) && draft[i+1] == '"' {
+					if close := strings.IndexByte(draft[i+2:], '"'); close >= 0 {
+						end = i + 3 + close
+					} else {
+						i = skipToken(draft, i)
+						continue
+					}
+				}
+			}
 			if end > i+size {
 				kind := DraftMentionAt
+				if r == '@' && strings.HasPrefix(draft[i:end], "@[") {
+					kind = DraftMentionSession
+				}
 				if r == '/' {
 					kind = DraftMentionSkill
 				}
@@ -167,9 +184,17 @@ func MentionRuneRange(draft string, m DraftMention) (start, end int, ok bool) {
 	return start, end, true
 }
 
+var sessionMentionPattern = regexp.MustCompile(`^@\[((?:\\.|[^\\\]])*)\]\((dsh-session:[A-Za-z0-9_-]+)\)`)
+
 // ChipLabel returns a short display label with a kind prefix for chip buttons.
 func ChipLabel(m DraftMention) string {
 	switch m.Kind {
+	case DraftMentionSession:
+		match := sessionMentionPattern.FindStringSubmatch(m.Text)
+		if len(match) > 1 {
+			return "session @" + strings.NewReplacer(`\]`, "]", `\\`, `\`).Replace(match[1])
+		}
+		return "session " + m.Text
 	case DraftMentionSkill:
 		if strings.HasPrefix(m.Text, "/") {
 			return "skill " + m.Text

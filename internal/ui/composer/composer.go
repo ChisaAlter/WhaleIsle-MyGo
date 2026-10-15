@@ -87,7 +87,8 @@ type Model struct {
 	OnNoDirectory       func()
 	OnPromptModeChange  func(mode session.PromptMode)
 	// OnSearchFileRefs calls fileReferences/list for @ mention query (optional).
-	OnSearchFileRefs func(query string) []string
+	OnSearchFileRefs   func(query string) []string
+	OnSearchReferences func(query string, quoted bool) []session.ReferenceCandidate
 
 	OnCancelEdit func()
 	Editing      bool // draft is a message edit (editMessageSeq)
@@ -120,11 +121,16 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	if m.Draft != nil {
 		draft = *m.Draft
 	}
-	kind, query, tok, suggestOpen := ActiveSuggest(draft)
+	caret := len(draft)
+	if m.UseTextInputClient && m.TextInput != nil {
+		caret = ui.UTF16ByteOffset(draft, m.TextInput.Selection().Caret())
+	}
+	kind, query, tok, suggestOpen := ActiveSuggestAt(draft, caret)
 	if m.Editing && kind == SuggestSlash {
 		suggestOpen = false
 	}
-	items := buildSuggestItems(m, kind, query)
+	quoted := suggestOpen && kind == SuggestMention && strings.HasPrefix(draft[tok.Start:tok.End], `@"`)
+	items := buildSuggestItemsWithQuote(m, kind, query, quoted)
 	skillsQuery := ""
 	if m.SkillsFilter != nil {
 		skillsQuery = *m.SkillsFilter
@@ -492,6 +498,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 }
 
 func buildSuggestItems(m Model, kind SuggestKind, query string) []suggestItem {
+	return buildSuggestItemsWithQuote(m, kind, query, false)
+}
+
+func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted bool) []suggestItem {
 	switch kind {
 	case SuggestSlash:
 		filtered := FilterSlashCommands(m.SlashCatalog, query, 8)
@@ -506,32 +516,61 @@ func buildSuggestItems(m Model, kind SuggestKind, query string) []suggestItem {
 		}
 		return out
 	case SuggestMention:
-		var paths []string
-		if m.OnSearchFileRefs != nil {
-			if refs := m.OnSearchFileRefs(query); len(refs) > 0 {
-				paths = refs
-				if len(paths) > 8 {
-					paths = paths[:8]
+		var candidates []session.ReferenceCandidate
+		if m.OnSearchReferences != nil {
+			candidates = m.OnSearchReferences(query, quoted)
+		}
+		if len(candidates) == 0 {
+			var paths []string
+			if m.OnSearchFileRefs != nil {
+				paths = m.OnSearchFileRefs(query)
+			}
+			if len(paths) == 0 {
+				paths = FilterPaths(m.FilePaths, query, 8)
+			}
+			for _, path := range paths {
+				kind := "file"
+				if strings.HasSuffix(path, "/") {
+					kind = "directory"
+				}
+				candidate := session.ReferenceCandidate{Kind: kind, Path: path, Label: path}
+				if strings.HasPrefix(path, "@[") {
+					candidate.Kind, candidate.Mention = "session", path
+				}
+				candidates = append(candidates, candidate)
+			}
+		}
+		out := make([]suggestItem, 0, len(candidates))
+		for _, candidate := range candidates {
+			label, sub, insert := candidate.Label, candidate.Kind, candidate.Mention
+			if candidate.Kind == "session" {
+				if quoted || insert == "" {
+					continue
+				}
+				if candidate.Cwd != "" && !candidate.SameWorkspace {
+					sub += " · " + candidate.Cwd
+				}
+				// An opaque identity distinguishes equally titled sessions even within one workspace.
+				if candidate.SessionID != "" {
+					sub += " · " + candidate.SessionID
+				}
+				insert += " "
+			} else {
+				var ok bool
+				insert, ok = FormatFileMention(candidate.Path, candidate.Kind == "directory", quoted)
+				if !ok {
+					continue
+				}
+				if label == "" {
+					label = candidate.Path
+				}
+				if candidate.Kind == "directory" {
+					sub = "directory · enter"
+				} else {
+					insert += " "
 				}
 			}
-		}
-		if len(paths) == 0 {
-			paths = FilterPaths(m.FilePaths, query, 8)
-		}
-		out := make([]suggestItem, 0, len(paths))
-		for _, p := range paths {
-			label := "file"
-			insert := "@" + p + " "
-			if strings.HasSuffix(p, "/") {
-				label = "directory · enter"
-				insert = "@" + p
-			}
-			out = append(out, suggestItem{
-				label:  p,
-				sub:    label,
-				insert: insert,
-				kind:   SuggestMention,
-			})
+			out = append(out, suggestItem{label: label, sub: sub, insert: insert, kind: SuggestMention})
 		}
 		return out
 	default:
@@ -848,6 +887,11 @@ func applySuggest(m Model, it suggestItem, tok TokenRange) {
 		*m.Draft = ReplaceToken(*m.Draft, tok, it.insert)
 	case SuggestMention:
 		*m.Draft = ReplaceToken(*m.Draft, tok, it.insert)
+	}
+	if m.TextInput != nil {
+		m.TextInput.Sync()
+		caret := ui.UTF16Len((*m.Draft)[:tok.Start+len(it.insert)])
+		m.TextInput.SetSelectionUTF16(caret, caret)
 	}
 }
 
