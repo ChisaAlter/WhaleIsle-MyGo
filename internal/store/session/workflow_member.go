@@ -13,6 +13,8 @@ import (
 )
 
 type WorkflowMemberView struct {
+	Messages                        []Message
+	PresentationReady               bool
 	Token                           uint64
 	Open, Busy                      bool
 	ParentID, RunID, ChildID, Label string
@@ -42,6 +44,7 @@ func (s *Store) WorkflowMemberSnapshot() WorkflowMemberView {
 	defer s.mu.Unlock()
 	s.workflowMember.notifyPending = false
 	v := s.workflowMember.view
+	v.Messages = append([]Message(nil), v.Messages...)
 	v.Process.Records = append([]projectflow.ProcessRecord(nil), v.Process.Records...)
 	return v
 }
@@ -114,46 +117,7 @@ func (s *Store) OpenWorkflowMember(binding, parent, runID string, memberSeq floa
 		}
 		s.workflowMember.address = address
 		s.mu.Unlock()
-		if err = mux.Dial(ctx); err != nil {
-			s.finishWorkflowMember(ctx, token, err)
-			return
-		}
-		stream, err := mux.Open(ctx, "session/follow", map[string]any{"args": map[string]any{"request": map[string]any{"address": address, "maxMessages": 30}}})
-		if err != nil {
-			s.finishWorkflowMember(ctx, token, err)
-			return
-		}
-		defer stream.Cancel()
-		var state projectflow.ProcessSnapshot
-		for {
-			raw, e := stream.Recv(ctx)
-			if e != nil {
-				s.finishWorkflowMember(ctx, token, e)
-				return
-			}
-			state, e = projectflow.FoldProcessFrame(state, raw)
-			if e != nil {
-				s.finishWorkflowMember(ctx, token, e)
-				return
-			}
-			s.mu.Lock()
-			if !s.workflowMemberCurrentLocked(ctx, token) {
-				s.mu.Unlock()
-				return
-			}
-			if state.Type != "snapshot" {
-				s.mu.Unlock()
-				continue
-			}
-			notify := !s.workflowMember.notifyPending
-			s.workflowMember.notifyPending = true
-			s.workflowMember.view.Process = state
-			s.workflowMember.view.Busy = false
-			s.mu.Unlock()
-			if notify {
-				s.fire()
-			}
-		}
+		s.followWorkflowMember(ctx, token, mux, address)
 	}()
 }
 func (s *Store) finishWorkflowMember(ctx context.Context, token uint64, err error) {
@@ -202,6 +166,8 @@ func (s *Store) EarlierWorkflowMember(token uint64) {
 	token = w.view.Token
 	w.view.Busy = true
 	w.view.Process.Live = false
+	w.view.Messages = nil
+	w.view.PresentationReady = false
 	client, address := w.client, w.address
 	s.mu.Unlock()
 	s.fire()

@@ -48,7 +48,7 @@ func workflowMemberDialog(c *ui.Context, m Model) {
 						snap := m.Store.Snapshot()
 						m.Store.OpenWorkflowMember(snap.PlanHistoryBinding, v.ParentID, v.RunID, v.MemberSeq, v.ChildID, v.Label)
 					}
-					if ui.Button(c, archiveText("复制记录", "Copy records")).FontSize(11).Disabled(len(v.Process.Records) == 0).Clicked() {
+					if ui.Button(c, archiveText("复制持久记录", "Copy durable records")).FontSize(11).Disabled(len(v.Process.Records) == 0).Clicked() {
 						mygo.Clipboard.WriteText(session.WorkflowProcessText(v))
 					}
 				})
@@ -58,12 +58,28 @@ func workflowMemberDialog(c *ui.Context, m Model) {
 				if v.Process.Truncated {
 					ui.Text(c, archiveText("仅保留最近400条；较早记录可分页读取。", "Showing the latest 400 records; earlier history remains pageable.")).FontSize(11).TextColor(muted)
 				}
-				ui.Scroll(c.Key(fmt.Sprintf("workflow-member:%s:%s:%d", v.ParentID, v.ChildID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
-					body := session.WorkflowProcessText(v)
-					if body == "" {
-						body = archiveText("尚无持久过程记录。", "No durable process records yet.")
+				rawKey := fmt.Sprintf("workflow-member-raw:%s:%s:%d", v.ParentID, v.ChildID, v.Token)
+				rawOpen := false
+				if m.ThinkingExpanded != nil {
+					if *m.ThinkingExpanded == nil {
+						*m.ThinkingExpanded = map[string]bool{}
 					}
-					ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
+					rawOpen = (*m.ThinkingExpanded)[rawKey]
+					if ui.Button(c, archiveText("显示/隐藏原始持久记录", "Show/hide durable raw records")).FontSize(11).Clicked() {
+						(*m.ThinkingExpanded)[rawKey] = !rawOpen
+					}
+				}
+				ui.Scroll(c.Key(fmt.Sprintf("workflow-member:%s:%s:%d", v.ParentID, v.ChildID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
+					body := session.WorkflowMemberDisplayText(v)
+					if body == "" {
+						body = archiveText("尚无可显示内容。", "No visible content yet.")
+					}
+					ui.Column(c).FillWidth().Gap(12).Children(func() {
+						ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
+						if rawOpen && v.PresentationReady {
+							ui.Text(c, session.WorkflowProcessText(v)).FontSize(11).TextColor(muted).Selectable()
+						}
+					})
 				})
 			})
 		})
