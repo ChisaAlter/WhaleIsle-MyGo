@@ -26,11 +26,22 @@
 3. **浏览器元素选取与截图** — [d6eabbd](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d6eabbd53b1d0ab6f292694d9b88557ed749ff7e)：实际工具栏到原生选取/可见区域截图闭环；选取追加发起会话草稿、不发送，截图本地保存；导航、会话和 Host 变化隔离迟到结果。
 4. **首次安装与指定版本选择** — [84663eb](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/84663eb9a1717c78d3827dbb9d2a9212004cd1bb)：MyGo 兼容 catalog、版本选择、哈希/大小校验、下载进度/取消/重试及既有任务保护安装交接；修正 NSIS runtime 目录与 bundled Node 发现。仓库尚无实际兼容发布资产，不能声称现在即可下载安装。
 
+## 2026-10-15 后续工作流修复
+
+- **助手真实路由** — [4f7fbe0](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/4f7fbe0b62abf42c030a26adcd34815628b03791)：Bot/房间选择经真实 bot/open 解析专属会话；修复仅加前缀却发往当前会话的错误，describe 传递 botId；仅 prompt accepted 后清草稿。
+- **命令执行与历史** — [73b0f03](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/73b0f039db8321a20deba4aadccef8eb721cc497)：持久化配对 run/done 卡片和错误/输出，异步目录及变更刷新、空附件数组、多行命令/技能分流、会话/Host 隔离。手动压缩专用卡与通用命令卡的融合尚未补齐。
+- **插件配置与启停** — [f812aa4](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/f812aa4851e14433f886dfbf5dcadb79871466e9)：原版 plugins 配置 owner 路由；启停遵循 Host 库存、只读限制及 ChangeResult，不提前伪改本地状态或错误降级 RPC。
+- **定时任务编辑恢复** — [d1257b7](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d1257b710fa050310923da1d6e08d681edf7a800)：冲突刷新 rebase 保留用户编辑，原会话有效性检查后跳转，历史请求/连接身份隔离。
+
+- **设置安全保存** — [4fceecc](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/4fceecc7b08eb2b07aa1b4c785ad3ee5acf913cc)：仅提交已修改字段，显式 unset/reset，细粒度 JSON 路径操作及隐藏密钥路径保护；不重建继承值/被脱敏值，保留指令空白，完善 provider/agent 配置导航。
+
+以上仍只有必要代码检查及部分内存 JS fixture，Go 编译/测试未运行。正在补 Files/Git/Terminal 和 Team 实际工作流缺口；不把有限范围检查称作完整全项目审查。
+
 ## 尚未关闭的实现与集成问题
 
 - **动态 HTML 文档执行**：当前只有静态、禁 JavaScript 的安全预览。现有 WebView2 隔离不能证明覆盖 WebRTC/ICE/STUN/TURN 的全传输禁网，因此保持脚本禁用；需要可验证的隔离实现，不以猜测 flags 或资源拦截替代。
 - **兼容运行包供应**：安装流程已接线，但实际可验证 MyGo runtime 发布资产尚不存在。Windows 候选仍未验证，不可伪造发布清单或误装 Electron 发行包。
-- **本轮累计编译/云端检查**：存储故障尚未恢复；四模块新源码仅在开发分支，本地候选及 v26 备份仍是旧 05668bef 源码，不能用旧二进制代表新功能。
+- **本轮累计编译/云端检查**：存储故障尚未恢复；本轮新增模块源码仅在开发分支，本地候选及 v26 备份仍是旧 05668bef 源码，不能用旧二进制代表新功能。
 - 全项目功能完成度仍须按实际覆盖范围确认；不把本轮四项修复等同全量功能对齐。
 
 已排除的假缺口：原版同样禁止编辑带附件的队列项；独立 Electron launcher 的 peer 握手不能直接视为原生同进程架构缺失；Project 重试以准备 Lead 草稿承接真实契约，不虚构前端重试 RPC。
