@@ -71,6 +71,10 @@ func View(c *ui.Context, m Model) {
 }
 
 func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color) {
+	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
+		planReviewCard(c, p, card, store, fg, muted, accent)
+		return
+	}
 	ui.Column(c).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
 		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {

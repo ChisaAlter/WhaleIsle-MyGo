@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/diff"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -72,7 +73,7 @@ func View(c *ui.Context, m Model) {
 	// Let the frame desk-wash show through (Electron chat pane is translucent mica).
 	_ = colors.BG
 
-	msgs := session.ProjectToolMessages(m.Snapshot.Messages)
+	msgs := session.ProjectToolMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages))
 	list := m.List
 	if list == nil {
 		list = &ui.ListState{FollowEnd: true}
@@ -106,6 +107,10 @@ func View(c *ui.Context, m Model) {
 			padT, padR, padB, padL := float32(12), float32(16), float32(8), float32(16)
 			isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
+				if msg.Kind == session.MessageKindSubmittedPlan {
+					SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)})
+					return
+				}
 				// Electron turn/end strip: 「已完成，用时 … ▾」.
 				if msg.Role == "status" && msg.EventType == "turn/end" {
 					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {

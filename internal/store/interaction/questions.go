@@ -15,13 +15,16 @@ type QuestionRowView struct {
 
 // QuestionCardView is parsed user-questions/request payload for UI.
 type QuestionCardView struct {
-	EventID string
-	Rows    []QuestionRowView
+	PlanReview       *PlanReview
+	PlanReviewHidden bool
+	EventID          string
+	Rows             []QuestionRowView
 }
 
 type draftSession struct {
-	req     userQuestionsRequest
-	answers map[string]*answerDraft
+	planReviewHidden bool
+	req              userQuestionsRequest
+	answers          map[string]*answerDraft
 }
 
 type answerDraft struct {
@@ -38,7 +41,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 	}
 	for _, q := range req.Questions {
 		ad := &answerDraft{checks: make(map[string]*bool)}
-		if len(q.Options) > 0 && !q.MultiSelect {
+		if len(q.Options) > 0 && !q.MultiSelect && planReviewOf(req.Questions) == nil {
 			label := q.Options[0].Label
 			ad.selected = []string{label}
 			ad.selectWire = label
@@ -53,7 +56,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 }
 
 func (ds *draftSession) cardView(eventID string) QuestionCardView {
-	cv := QuestionCardView{EventID: eventID}
+	cv := QuestionCardView{EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
 	for _, q := range ds.req.Questions {
 		row := QuestionRowView{
 			ID:          q.ID,

@@ -163,7 +163,7 @@ func (s *Store) ResolveDeny(eventID string) {
 func (s *Store) ResolveQuestions(eventID string) {
 	s.mu.Lock()
 	ds := s.questionDrafts[eventID]
-	if ds == nil || !ds.answerValid() {
+	if ds == nil || planReviewOf(ds.req.Questions) != nil || !ds.answerValid() {
 		s.mu.Unlock()
 		return
 	}
@@ -318,7 +318,7 @@ func (s *Store) QuestionsCanSubmit(eventID string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ds := s.questionDrafts[eventID]
-	if ds == nil {
+	if ds == nil || planReviewOf(ds.req.Questions) != nil {
 		return false
 	}
 	return ds.answerValid()
@@ -385,7 +385,13 @@ func (s *Store) Retry(eventID string) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
 	if p != nil && p.Continued {
+		draft := s.questionDrafts[eventID]
+		plan := draft != nil && planReviewOf(draft.req.Questions) != nil
 		s.mu.Unlock()
+		if plan {
+			s.ApprovePlanReview(eventID)
+			return
+		}
 		s.ResolveQuestions(eventID)
 		return
 	}
@@ -673,6 +679,7 @@ type userQuestionsRequest struct {
 }
 
 type userQuestionItem struct {
+	Intent      *planReviewIntent    `json:"intent"`
 	ID          string               `json:"id"`
 	Question    string               `json:"question"`
 	Detail      string               `json:"detail"`
