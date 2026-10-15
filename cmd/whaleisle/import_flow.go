@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
 )
 
 func (s *mainState) startImport(win *mygo.Window) {
@@ -118,6 +119,10 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	win := s.win
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
+	if err := importer.CheckImportReady(paths.DshHome()); err != nil {
+		s.taskProtectionError(win, err)
+		return
+	}
 	s.withTaskProtection(win, sup, "restart", func() error {
 		// Recheck after Host inspection/confirmation and before the first side effect.
 		s.mu.Lock()

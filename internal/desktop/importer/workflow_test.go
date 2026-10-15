@@ -61,8 +61,8 @@ func TestImportWorkflowFixtures(t *testing.T) {
 	broken := cat.Snapshot()
 	broken.Sessions[1].Abs = filepath.Join(source, "missing")
 	res, err = ApplyCatalogProgress(context.Background(), broken, ApplySelection{SelectedRels: []string{"a", "b"}}, nil)
-	if err == nil || res.Copied != 1 || len(res.Journal) < 2 {
-		t.Fatalf("partial failure: %+v %v", res, err)
+	if err == nil || res.Copied != 0 || res.Skipped != 1 || len(res.Journal) < 2 {
+		t.Fatalf("partial failure with live conflict skipped: %+v %v", res, err)
 	}
 	write(filepath.Join(dest, "settings.yaml"), "ui-theme:\n  mode: original\n")
 	sel := ApplySelection{SelectedSettingIDs: []string{"ui-theme"}}

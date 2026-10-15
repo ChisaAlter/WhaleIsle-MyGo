@@ -2177,7 +2177,8 @@ func main() {
 		state.mu.Lock()
 		state.launcherOpen = true
 		state.mu.Unlock()
-		if strings.TrimSpace(cfg.Workspace) != "" && cfg.AutoStartDesktop {
+		canStartAfterRecovery := state.recoverImportBeforeStart()
+		if canStartAfterRecovery && strings.TrimSpace(cfg.Workspace) != "" && cfg.AutoStartDesktop {
 			state.mu.Lock()
 			state.launcherTriedStart = true
 			state.launcherStartBusy = true
@@ -2201,6 +2202,9 @@ func startHarness(cfg config.Config) {
 	}
 	state.launcherStartBusy = true
 	state.mu.Unlock()
+	if !state.recoverImportBeforeStart() {
+		return
+	}
 	host := cfg.Host
 	if host == "" {
 		host = "127.0.0.1"

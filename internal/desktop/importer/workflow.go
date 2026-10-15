@@ -8,7 +8,7 @@ import (
 )
 
 // CopyOnlyNotice documents import behavior without exposing configuration secrets.
-const CopyOnlyNotice = "设置仅合并勾选的白名单节；MCP 按勾选的服务器 id 合并。未选节和服务器保留，同名项默认跳过，启用覆盖只替换所选同名项。引用凭据不迁移，配置可能需重新设置凭据；MCP 所选记录内的 header/token 随配置迁移，但不展示。OAuth 会话、跨节 YAML 锚点、非标准 MCP 目录布局不支持。支持的插件按原 GitHub/npm 版本规格重新下载安装；内置、本地、tarball 和不支持的来源跳过。构建脚本需逐项明确批准，取消保留已完成项。"
+const CopyOnlyNotice = "设置仅合并勾选的白名单节；MCP 按勾选的服务器 id 合并。未选节和服务器保留，同名项默认跳过，启用覆盖只替换所选同名项。引用凭据不迁移，配置可能需重新设置凭据；MCP 所选记录内的 header/token 随配置迁移，但不展示。OAuth 会话、跨节 YAML 锚点、非标准 MCP 目录布局不支持。支持的插件按原 GitHub/npm 版本规格重新下载安装；内置、本地、tarball 和不支持的来源跳过。构建脚本需逐项明确批准。会话、技能、预设先完整暂存再替换所选目录；附件保留目标独有内容并按覆盖选项合并。中断时恢复已登记的替换，状态不明则保留所有副本并阻止启动/后续导入。取消保留已完成项。"
 
 func (s ApplySelection) Count() int {
 	n := len(s.SelectedRels) + len(s.SelectedSkillIDs) + len(s.SelectedPluginIDs) + len(s.SelectedMcpIDs) + len(s.SelectedSettingIDs) + len(s.SelectedPresetIDs)

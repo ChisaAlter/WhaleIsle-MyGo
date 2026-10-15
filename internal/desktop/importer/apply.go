@@ -66,9 +66,14 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 	if err := ctx.Err(); err != nil {
 		return ApplyResult{}, err
 	}
-	if err := os.MkdirAll(cat.DestHome, 0o755); err != nil {
+	if err := validateSelectedSkills(cat, sel); err != nil {
 		return ApplyResult{}, err
 	}
+	release, err := beginImport(cat.DestHome)
+	if err != nil {
+		return ApplyResult{}, err
+	}
+	defer release()
 
 	var copied, skipped, installed, failed int
 	var plugins []PluginResult
@@ -106,7 +111,12 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			note("跳过会话（冲突） " + rel)
 			continue
 		}
-		if err := copyDir(it.Abs, dst, sel.Overwrite); err != nil {
+		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
+			if errors.Is(err, errImportConflict) {
+				skipped++
+				note("跳过（写入前发现冲突） " + rel)
+				continue
+			}
 			return ApplyResult{}, fmt.Errorf("session %s: %w", rel, err)
 		}
 		copied++
@@ -134,7 +144,12 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			note("跳过技能（冲突） " + it.Label)
 			continue
 		}
-		if err := copyDir(it.Abs, dst, sel.Overwrite); err != nil {
+		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
+			if errors.Is(err, errImportConflict) {
+				skipped++
+				note("跳过（写入前发现冲突） " + id)
+				continue
+			}
 			return ApplyResult{}, fmt.Errorf("skill %s: %w", id, err)
 		}
 		copied++
@@ -212,7 +227,12 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			note("跳过预设（冲突） " + id)
 			continue
 		}
-		if err := copyDir(it.Abs, dst, sel.Overwrite); err != nil {
+		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
+			if errors.Is(err, errImportConflict) {
+				skipped++
+				note("跳过（写入前发现冲突） " + id)
+				continue
+			}
 			return ApplyResult{}, fmt.Errorf("preset %s: %w", id, err)
 		}
 		copied++
@@ -226,7 +246,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		src := filepath.Join(cat.SourceHome, "attachments")
 		dst := filepath.Join(cat.DestHome, "attachments")
 		if entryExists(src, true) {
-			if err := copyDir(src, dst, sel.Overwrite); err != nil {
+			if err := publishDirectory(ctx, cat.DestHome, src, dst, sel.Overwrite, true); err != nil {
 				return ApplyResult{}, err
 			}
 			copied++
