@@ -12,11 +12,10 @@ import (
 // AgentPresetsAccess edits the persisted default for future sessions. The
 // composer owns current-session agentPresets/select independently.
 type AgentPresetsAccess struct {
-	Manager    *session.AgentPresetManager
-	Creator    *CreatorTaskAccess
-	Selected   *string
-	DocPreview string
-	OnRead     func(id string)
+	Manager  *session.AgentPresetManager
+	Creator  *CreatorTaskAccess
+	Selected *string
+	Reader   *AgentPresetReaderAccess
 }
 
 func agentPresetSettingsLabel(row session.ManagedAgentPreset) string {
@@ -70,7 +69,9 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(11).TextColor(muted)
 			return
 		}
-		ui.Select(c, a.Selected, options).FillWidth().Disabled(snap.Busy || !snap.Writable)
+		if ui.Select(c, a.Selected, options).FillWidth().Disabled(snap.Busy || !snap.Writable).Changed() && a.Reader != nil && a.Reader.OnClose != nil {
+			a.Reader.OnClose(a.Reader.State.Ticket)
+		}
 	}, fg, muted)
 	selectedID := ""
 	if a.Selected != nil {
@@ -80,15 +81,10 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(snap.Busy).Clicked() {
 			go a.Manager.Refresh(context.Background())
 		}
-		if a.OnRead != nil && ui.Button(c, i18n.T(i18n.KeySettingsAgentPresetsRead)).Disabled(selectedID == "" || snap.Busy).Clicked() {
-			a.OnRead(selectedID)
-		}
 		if ui.Button(c, i18n.T(i18n.KeySettingsSave)).Disabled(!snap.Loaded || !snap.Writable || snap.Busy || selectedID == "" || selectedID == snap.DefaultID).Clicked() {
 			go a.Manager.SaveDefault(context.Background(), selectedID)
 		}
 	})
 	creatorTaskPane(c, a.Creator, snap, fg, muted)
-	if a.DocPreview != "" {
-		ui.Text(c, a.DocPreview).FontSize(11).TextColor(muted)
-	}
+	agentPresetReaderPane(c, a.Reader, snap, fg, muted)
 }

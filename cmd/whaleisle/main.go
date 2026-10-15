@@ -166,7 +166,8 @@ type mainState struct {
 	settingsModelSession          string
 	settingsModelDrafts           map[string]string
 	settingsAgentPresetLabel      string
-	settingsAgentPresetDoc        string
+	agentPresetReader             *session.AgentPresetReader
+	agentPresetReaderSource       *session.Store
 	settingsMCPController         *mcpconfig.Controller
 	settingsProviderProfiles      providerprofiles.Controller
 	settingsReferencedCredentials credentialrefs.Controller
@@ -2201,6 +2202,9 @@ func main() {
 		win.OnHide(state.suspendCreatorTask)
 		win.OnMinimize(state.suspendCreatorTask)
 		win.OnClosed(state.suspendCreatorTask)
+		win.OnHide(state.suspendAgentPresetReader)
+		win.OnMinimize(state.suspendAgentPresetReader)
+		win.OnClosed(state.suspendAgentPresetReader)
 		win.OnHide(state.settingsProviderDiscovery.Suspend)
 		win.OnMinimize(state.settingsProviderDiscovery.Suspend)
 		win.OnClosed(state.settingsProviderDiscovery.Suspend)
@@ -2794,6 +2798,7 @@ func mainView(c *ui.Context) {
 	defer func() { state.observeBotNotifications(roomCreateRendered) }()
 	creatorTaskRendered := false
 	defer func() { state.observeCreatorTask(creatorTaskRendered) }()
+	defer func() { state.observeAgentPresetReader(creatorTaskRendered) }()
 	providerDiscoveryRendered := false
 	defer func() { state.observeProviderDiscovery(providerDiscoveryRendered) }()
 	mcpPanelRendered := false
@@ -5762,36 +5767,10 @@ func mainView(c *ui.Context) {
 					},
 					AgentPresetsActive: agentPresetsActive,
 					AgentPresets: &settings.AgentPresetsAccess{
-						Creator:    state.creatorTaskAccess(sessions),
-						Manager:    state.agentPresetManager,
-						Selected:   &state.settingsAgentPresetLabel,
-						DocPreview: state.settingsAgentPresetDoc,
-						OnRead: func(id string) {
-							if sessions == nil || id == "" {
-								return
-							}
-							go func() {
-								doc, err := sessions.ReadAgentPresetDocument(context.Background(), id)
-								preview := ""
-								if err != nil {
-									preview = err.Error()
-								} else {
-									preview = strings.TrimSpace(doc.Content)
-									if doc.Description != nil && strings.TrimSpace(*doc.Description) != "" {
-										preview = strings.TrimSpace(*doc.Description) + "\n\n" + preview
-									}
-									if len(preview) > 1200 {
-										preview = preview[:1200] + "…"
-									}
-								}
-								state.mu.Lock()
-								state.settingsAgentPresetDoc = preview
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
-						},
+						Creator:  state.creatorTaskAccess(sessions),
+						Manager:  state.agentPresetManager,
+						Selected: &state.settingsAgentPresetLabel,
+						Reader:   state.agentPresetReaderAccess(sessions),
 					},
 					OnSelectDesktop: func() {
 						state.mu.Lock()
