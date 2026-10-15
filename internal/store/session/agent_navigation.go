@@ -32,6 +32,7 @@ type AgentNavigationRow struct {
 	Running bool
 }
 type AgentNavigationView struct {
+	Messages         []Message // isolated live presentation; never main chat messages
 	ActionBusy       bool
 	ActionStatus     string
 	Token            uint64
@@ -45,16 +46,17 @@ type AgentNavigationView struct {
 	Body             string
 }
 type agentNavigationState struct {
-	actionCancel context.CancelFunc
-	actionEpoch  uint64
-	view         AgentNavigationView
-	parents      []AgentNavigationView
-	binding      string
-	root         string
-	client       *dsh.Client
-	mux          *dsh.Mux
-	generation   uint64
-	cancel       context.CancelFunc
+	notifyPending bool // coalesce live repaint requests until the pane reads
+	actionCancel  context.CancelFunc
+	actionEpoch   uint64
+	view          AgentNavigationView
+	parents       []AgentNavigationView
+	binding       string
+	root          string
+	client        *dsh.Client
+	mux           *dsh.Mux
+	generation    uint64
+	cancel        context.CancelFunc
 }
 
 func (s *Store) invalidateAgentNavigationLocked() {
@@ -73,6 +75,7 @@ func (s *Store) agentNavigationOwnedLocked() bool {
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
 	v.Rows = append([]AgentNavigationRow(nil), v.Rows...)
+	v.Messages = append([]Message(nil), v.Messages...)
 	v.Process.Records = append([]projectflow.ProcessRecord(nil), v.Process.Records...)
 	return v
 }
@@ -82,6 +85,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 	if !s.agentNavigationOwnedLocked() {
 		return AgentNavigationView{}
 	}
+	s.agentNavigation.notifyPending = false
 	return cloneAgentNavigationView(s.agentNavigation.view)
 }
 
@@ -95,6 +99,7 @@ func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 		return AgentNavigationView{}
 	}
 	if s.agentNavigationOwnedLocked() {
+		s.agentNavigation.notifyPending = false
 		v := cloneAgentNavigationView(s.agentNavigation.view)
 		s.mu.Unlock()
 		return v
@@ -145,7 +150,7 @@ func (s *Store) OpenAgentNavigation(token uint64, address AgentSessionAddress) {
 		s.mu.Unlock()
 		return
 	}
-	n.parents = append(n.parents, cloneAgentNavigationView(n.view))
+	n.parents = append(n.parents, freezeAgentNavigationView(n.view))
 	n.view = AgentNavigationView{Token: token, SessionID: address.ChildSessionID, Title: row.Label, Address: address, Depth: len(n.parents)}
 	s.startAgentNavigationReadLocked(false)
 	s.mu.Unlock()
@@ -164,7 +169,8 @@ func (s *Store) BackAgentNavigation(token uint64) {
 		n.cancel()
 		n.cancel = nil
 	}
-	v := n.parents[len(n.parents)-1]
+	v := freezeAgentNavigationView(n.parents[len(n.parents)-1])
+	n.notifyPending = false
 	n.parents = n.parents[:len(n.parents)-1]
 	v.Token = n.view.Token + 1
 	v.Busy = false
@@ -222,13 +228,19 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 	if n.cancel != nil {
 		n.cancel()
 	}
+	n.view = freezeAgentNavigationView(n.view)
+	n.notifyPending = false
+	if !earlier && n.view.Address.validChild() {
+		s.startAgentNavigationLiveLocked()
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	n.cancel = cancel
 	n.view.Token++
 	n.view.Busy = true
 	n.view.Error = ""
 	v := cloneAgentNavigationView(n.view)
-	client, mux := n.client, n.mux
+	client := n.client
 	items := append([]Item(nil), s.items...)
 	go func() {
 		defer cancel()
@@ -238,12 +250,9 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 			return ctx.Err() == nil && s.agentNavigationOwnedLocked() && s.agentNavigation.view.Token == v.Token
 		}
 		var err error
-		if v.Address.validChild() {
-			if earlier {
-				v.Process, v.Body, err = readAgentNavigationPage(ctx, client, v.Address, v.Process)
-			} else {
-				v.Process, v.Body, err = readAgentNavigationOpening(ctx, mux, v.Address, current)
-			}
+		if v.Address.validChild() && earlier {
+			v.Process, v.Body, err = readAgentNavigationPage(ctx, client, v.Address, v.Process)
+			v.Messages = nil
 		}
 		if err == nil && !earlier && current() {
 			var projection api.SessionProjectionsValue
@@ -333,46 +342,6 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 		}
 	}
 	return rows, nil
-}
-func readAgentNavigationOpening(ctx context.Context, mux *dsh.Mux, address AgentSessionAddress, current func() bool) (projectflow.ProcessSnapshot, string, error) {
-	if !current() {
-		return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Obsolete agent navigation binding")
-	}
-	if err := mux.Dial(ctx); err != nil {
-		return projectflow.ProcessSnapshot{}, "", err
-	}
-	if !current() {
-		return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Obsolete agent navigation binding")
-	}
-	stream, err := mux.Open(ctx, "session/follow", map[string]any{"args": map[string]any{"request": map[string]any{"address": address, "maxMessages": 30}}})
-	if err != nil {
-		return projectflow.ProcessSnapshot{}, "", err
-	}
-	defer stream.Cancel()
-	for {
-		raw, err := stream.Recv(ctx)
-		if err != nil {
-			return projectflow.ProcessSnapshot{}, "", err
-		}
-		var head struct {
-			Type   string `json:"type"`
-			Header struct {
-				ID string `json:"id"`
-			} `json:"header"`
-			Cursor *float64 `json:"cursor"`
-		}
-		if json.Unmarshal(raw, &head) != nil {
-			return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Invalid child history snapshot")
-		}
-		if head.Type != "snapshot" {
-			continue
-		}
-		stream.Cancel()
-		if head.Header.ID != address.ChildSessionID || head.Cursor == nil || *head.Cursor < 0 {
-			return projectflow.ProcessSnapshot{}, "", fmt.Errorf("Child history address/cursor mismatch")
-		}
-		return renderAgentNavigationHistory(raw, *head.Cursor, 0)
-	}
 }
 func readAgentNavigationPage(ctx context.Context, client *dsh.Client, address AgentSessionAddress, previous projectflow.ProcessSnapshot) (projectflow.ProcessSnapshot, string, error) {
 	before := agentNavigationBefore(previous)

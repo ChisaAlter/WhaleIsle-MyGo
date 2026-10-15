@@ -54,7 +54,11 @@ func navigationView(c *ui.Context, m Model) {
 				m.Store.BackAgentNavigation(v.Token)
 			}
 			ui.Text(c, v.Title).FontSize(13).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, agentText("刷新", "Refresh")).FontSize(11).Disabled(v.Busy).Clicked() {
+			caption := agentText("刷新目录", "Refresh directory")
+			if v.Depth > 0 {
+				caption = agentText("回到最新 / 重连", "Latest / reconnect")
+			}
+			if ui.Button(c, caption).FontSize(11).Disabled(v.Busy).Clicked() {
 				m.Store.RefreshAgentNavigation(v.Token)
 			}
 		})
@@ -69,13 +73,20 @@ func navigationView(c *ui.Context, m Model) {
 		if v.ActionStatus != "" {
 			ui.Text(c, v.ActionStatus).FontSize(11).TextColor(muted).Selectable()
 		}
+		if v.Depth > 0 {
+			status := agentText("实时输出已暂停；回到最新恢复。", "Live output paused; choose Latest to resume.")
+			if v.Process.Live {
+				status = agentText("实时过程（只读观察）", "Live process (read-only observation)")
+			}
+			ui.Text(c, status).FontSize(11).TextColor(muted)
+		}
 		if v.Busy {
 			ui.Text(c, agentText("正在读取…", "Loading…")).FontSize(11).TextColor(muted)
 		}
 		ui.Scroll(c.Key(fmt.Sprintf("agents-navigation:%s:%d", v.SessionID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(10, 12).Gap(8).Children(func() {
 				ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(11).TextColor(muted)
-				ui.Text(c, agentText("点击只读加载子代理历史。", "Click to read child history (read-only).")).FontSize(10).TextColor(muted)
+				ui.Text(c, agentText("点击只读跟进子代理过程。", "Click to follow child progress (read-only).")).FontSize(10).TextColor(muted)
 				if len(v.Rows) == 0 && !v.Busy {
 					ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(12).TextColor(muted)
 				}

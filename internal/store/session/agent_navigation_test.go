@@ -142,7 +142,7 @@ func TestNativeAgentNavigationFixture(t *testing.T) {
 		t.Fatal("unlisted identity was opened")
 	}
 	s.OpenAgentNavigation(root.Token, root.Rows[0].Address)
-	child := wait(func(v AgentNavigationView) bool { return v.SessionID == "child/one" && !v.Busy })
+	child := wait(func(v AgentNavigationView) bool { return v.SessionID == "child/one" && !v.Busy && len(v.Rows) == 1 })
 	if child.Error != "" || child.Depth != 1 || len(child.Rows) != 1 || child.Rows[0].Address.ParentSessionID != "child/one" || child.Process.Cursor != 50 {
 		t.Fatalf("child navigation: %+v", child)
 	}
