@@ -130,4 +130,5 @@ func (s *mainState) bindBotAvatarModel(m *assistantui.RoutineModel, ep harness.E
 			}()
 		},
 	}
+	s.bindBotAvatarImageActions(&m.Avatar, k, current, viewCurrent)
 }

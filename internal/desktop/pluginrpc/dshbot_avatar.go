@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"whaleisle/internal/desktop/avatarimage"
 )
 
-// Exact pinned Host avatar vocabulary. Native writes only explicit blob choices;
-// image import/cropping remains in the original Web editor.
+// Exact pinned Host avatar vocabulary. Image imports are explicitly cropped
+// locally, reviewed and sent through the same full-profile CAS transport.
 func DshbotAvatarShapes() []string {
 	return []string{"circle", "soft", "square", "pill", "triangle", "hex", "cloud", "drop"}
 }
@@ -82,8 +83,10 @@ func ValidateDshbotAvatarCommand(c DshbotAvatarCommand) error {
 	if err != nil {
 		return err
 	}
-	if next.Kind != "blob" {
-		return fmt.Errorf("native avatar save requires an explicit blob choice; image editing remains in Bot Web")
+	if next.Kind == "image" && (before.Kind != "image" || next.DataURL != before.DataURL) {
+		if err := avatarimage.ValidateBaked(next.DataURL); err != nil {
+			return err
+		}
 	}
 	if next == before {
 		return fmt.Errorf("avatar unchanged")

@@ -15,6 +15,7 @@ type AvatarConfirmation struct {
 	Acknowledged bool
 }
 type AvatarSnapshot struct {
+	ImageImport                                         AvatarImageImportSnapshot
 	Scope                                               RoutineScope
 	Generation                                          uint64
 	Loaded, Busy, Writable, Dirty, Uncertain, Candidate bool
@@ -30,10 +31,11 @@ type avatarAttempt struct {
 	Sent     bool
 }
 type avatarEntry struct {
-	state    AvatarSnapshot
-	attempt  *avatarAttempt
-	loading  uint64
-	hasDraft bool
+	state      AvatarSnapshot
+	attempt    *avatarAttempt
+	loading    uint64
+	hasDraft   bool
+	imageDraft bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -43,6 +45,7 @@ type AvatarControls struct {
 	active               RoutineScope
 	generation, sequence uint64
 	entries              map[RoutineScope]*avatarEntry
+	imageImport          *avatarImagePending
 }
 
 func (c *AvatarControls) entry(k RoutineScope) *avatarEntry {
@@ -63,6 +66,7 @@ func (c *AvatarControls) Bind(k RoutineScope) {
 	if c.active == k {
 		return
 	}
+	c.clearImageImportLocked()
 	c.generation++
 	c.active = k
 	if k.HostKey != "" {
@@ -106,7 +110,7 @@ func (c *AvatarControls) BeginLoad(k RoutineScope) (AvatarTicket, bool) {
 		return AvatarTicket{}, false
 	}
 	e := c.entry(k)
-	if e.state.Busy {
+	if e.state.Busy || e.state.ImageImport.Busy || e.state.ImageImport.Ready {
 		return AvatarTicket{}, false
 	}
 	c.sequence++
@@ -167,7 +171,7 @@ func (c *AvatarControls) editable(k RoutineScope) *avatarEntry {
 		return nil
 	}
 	e := c.entry(k)
-	if !e.state.Loaded || !e.state.Writable || e.state.Busy || e.attempt != nil || e.state.Status.WriteError != "" {
+	if !e.state.Loaded || !e.state.Writable || e.state.Busy || e.attempt != nil || e.state.Status.WriteError != "" || e.state.ImageImport.Busy || e.state.ImageImport.Ready {
 		return nil
 	}
 	return e
@@ -185,6 +189,7 @@ func (c *AvatarControls) SetDraft(k RoutineScope, v pluginrpc.DshbotAvatarValues
 	}
 	e.state.Draft = v
 	e.state.Dirty = v != before
+	e.imageDraft = e.state.Dirty && v.Kind == "image"
 	e.hasDraft = true
 	c.generation++
 }
@@ -200,6 +205,7 @@ func (c *AvatarControls) Discard(k RoutineScope) {
 		return
 	}
 	e.state.Draft = before
+	e.imageDraft = false
 	e.state.Dirty = false
 	e.state.Review = nil
 	e.state.Error = ""
@@ -236,6 +242,13 @@ func (c *AvatarControls) Dismiss(k RoutineScope, r *AvatarConfirmation) {
 	e := c.entry(k)
 	if !e.state.Busy && r != nil && e.state.Review != nil && r.Sequence == e.state.Review.Sequence {
 		e.state.Review = nil
+		if e.imageDraft {
+			if before, err := pluginrpc.DshbotAvatarValue(e.state.Status); err == nil {
+				e.state.Draft = before
+				e.state.Dirty = false
+			}
+			e.imageDraft = false
+		}
 		c.generation++
 	}
 }
