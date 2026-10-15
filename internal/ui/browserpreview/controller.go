@@ -298,7 +298,8 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			}
 			ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
 		})
-		ui.Box(c).Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
+		canvas := ui.Box(c).Key("browser-device-canvas").Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
+		canvas.Children(func() { b.deviceResizeRails(c, t, canvas, chrome.Color(colors.Border)) })
 	})
 }
 func truncate(s string, n int) string {

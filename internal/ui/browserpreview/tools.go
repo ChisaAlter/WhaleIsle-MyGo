@@ -12,6 +12,7 @@ import (
 )
 
 type browserTools struct {
+	resize       *browserViewportDrag
 	settings     browserToolSettings
 	operation    *browserToolOperation
 	confirmation *browserCacheConfirmation
@@ -32,6 +33,7 @@ func (b *Controller) browserToolsCurrent(t *Tab, h *desktop.Host, epoch uint64) 
 }
 func (b *Controller) cancelBrowserTools() {
 	for _, t := range b.Tabs {
+		b.cancelBrowserResize(t, true)
 		t.tools.confirmation = nil
 		if op := t.tools.operation; op != nil {
 			op.cancel()
@@ -42,6 +44,9 @@ func (b *Controller) cancelBrowserTools() {
 }
 func (b *Controller) pruneBrowserTools() {
 	for _, t := range b.Tabs {
+		if drag := t.tools.resize; drag != nil && !b.browserResizeCurrent(t, drag) {
+			b.cancelBrowserResize(t, true)
+		}
 		if op := t.tools.operation; op != nil && (!b.browserToolsCurrent(t, op.host, op.epoch) || op.ctx.Err() != nil) {
 			op.cancel()
 			t.tools.operation = nil
@@ -153,7 +158,7 @@ func (b *Controller) browserDeviceViewport(h *desktop.Host) *mygo.Rectangle {
 		seat = mygo.Rectangle{Y: chrome.TitleBarHeight + BrowserChromeHeight, Width: bounds.Width, Height: max(0, bounds.Height-chrome.TitleBarHeight-BrowserChromeHeight)}
 	}
 	s := t.tools.settings
-	x, y, w, height, _ := fitBrowserDevice(seat.Width, seat.Height, s.Width, s.Height, h.BrowserZoom())
+	x, y, w, height, _ := browserDeviceLayout(seat.Width, seat.Height, s.Width, s.Height, h.BrowserZoom())
 	return &mygo.Rectangle{X: seat.X + x, Y: seat.Y + y, Width: w, Height: height}
 }
 
