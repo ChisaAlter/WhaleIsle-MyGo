@@ -8,6 +8,7 @@ import (
 )
 
 type Model struct {
+	RefreshNote                                                          string
 	ProcessWatching                                                      bool
 	OnStopProcess                                                        func()
 	Reports                                                              *projectflow.ReportBrowser
@@ -88,6 +89,9 @@ func View(c *ui.Context, m Model) {
 		})
 		if !m.Expanded {
 			return
+		}
+		if m.RefreshNote != "" {
+			ui.Text(c, m.RefreshNote).FontSize(11)
 		}
 		if m.Busy {
 			ui.Text(c, tr("正在处理…", "Working…")).FontSize(12)

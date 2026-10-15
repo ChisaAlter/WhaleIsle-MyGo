@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	refreshLoop                   *projectRefreshLoop
+	refreshNote                   string
 	processCancel                 context.CancelFunc
 	processMux                    *dsh.Mux
 	processWatchGeneration        uint64
@@ -48,6 +50,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.stopProjectRefreshLocked()
 		s.stopProjectProcessLocked()
 		expanded := f.expanded
 		generation := f.generation + 1
@@ -61,6 +64,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		workspace = paths.DefaultWorkspace()
 	}
 	s.syncProjectProcessLocked()
+	s.ensureProjectRefreshLocked(win)
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
@@ -70,6 +74,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		}
 	}
 	m.ProcessWatching = f.processCancel != nil
+	m.RefreshNote = projectRefreshStatus(f.refreshLoop != nil, f.refreshNote)
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
@@ -79,6 +84,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
 		if !s.projectFlow.expanded {
+			s.stopProjectRefreshLocked()
 			s.stopProjectProcessLocked()
 		}
 		s.projectFlow.navigation++

@@ -36,7 +36,9 @@ func teamView(c *ui.Context, m Model) {
 	}
 	o := m.Team
 	ui.Text(c, o.Project.Title+" · Team").FontSize(13)
-	ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(11)
+	if m.RefreshNote == "" {
+		ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(11)
+	}
 	if m.TeamNote != "" {
 		ui.Text(c, m.TeamNote).FontSize(12)
 	}

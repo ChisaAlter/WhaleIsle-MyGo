@@ -87,6 +87,7 @@ import (
 )
 
 type mainState struct {
+	projectWindowHidden  bool
 	startupRecovery      startupRecoveryState
 	voice                *composerVoiceOperation
 	projectFlow          projectFlowState
@@ -1772,6 +1773,7 @@ func (s *mainState) stopDSHLocked() {
 	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.stopProjectProcessLocked()
+	s.stopProjectRefreshLocked()
 	s.mu.Unlock()
 	if s.remoteFiles != nil {
 		s.remoteFiles.Bind(nil, "", nil)
@@ -2071,12 +2073,21 @@ func main() {
 		win.OnHide(func() {
 			state.mu.Lock()
 			state.fileTabs.Pause()
+			state.projectWindowHidden = true
+			state.stopProjectRefreshLocked()
 			state.mu.Unlock()
+		})
+		win.OnShow(func() {
+			state.mu.Lock()
+			state.projectWindowHidden = false
+			state.mu.Unlock()
+			win.Invalidate()
 		})
 		win.OnClosed(func() {
 			state.mu.Lock()
 			state.fileTabs.Dispose()
 			state.stopProjectProcessLocked()
+			state.stopProjectRefreshLocked()
 			state.mu.Unlock()
 		})
 
