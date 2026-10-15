@@ -5859,7 +5859,7 @@ func mainView(c *ui.Context) {
 					if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
 						modelPick = snap.SelectedModel
 					}
-					if snap.SelectedPermission != "" && permissionPick != snap.SelectedPermission {
+					if permissionPick != snap.SelectedPermission {
 						permissionPick = snap.SelectedPermission
 					}
 					if snap.SelectedAgentPreset != "" && agentPresetPick != snap.SelectedAgentPreset {

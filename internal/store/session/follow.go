@@ -181,6 +181,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.restoreAssistantStreamLocked(snap.AssistantStream)
 		if snap.Projections != nil {
 			s.applyQueueValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
+			s.applyPermissionValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 		}
 		if snap.Cursor != nil {
 			s.bumpHistoryThroughSeq(*snap.Cursor)

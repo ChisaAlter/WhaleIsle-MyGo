@@ -438,6 +438,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		},
 	})
 	archiveConfirmation(c, m)
+	permissionRiskConfirmation(c, m)
 }
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {

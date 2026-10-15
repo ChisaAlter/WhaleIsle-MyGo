@@ -140,6 +140,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	permissionRisk            *permissionRiskOperation
+	permissionRiskToken       uint64
 	assistantStream           assistantStreamState
 	archive                   archiveOperation
 	archiveToken              uint64
@@ -183,7 +185,7 @@ type Store struct {
 	selectedModelLabel                   string
 	modelsErr                            error
 	permissionOptions                    []PermissionOption
-	selectedPermissionLabel              string
+	permissionProjection                 permissionProjectionState
 	permissionsErr                       error
 	agentPresetOptions                   []AgentPresetOption
 	selectedAgentPresetLabel             string
@@ -203,9 +205,6 @@ type Store struct {
 	searchHits                           map[string]struct{}
 	searchSeq                            uint64
 	searchDebounce                       *time.Timer
-	permSettingsNS                       string
-	permSettingsRevision                 float64
-	permSettingsWritable                 bool
 	followCancel                         context.CancelFunc
 	followGeneration                     uint64
 	workspaceFollowCancel                context.CancelFunc
@@ -241,6 +240,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.permissionOptions = nil
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
@@ -465,9 +465,11 @@ func (s *Store) Snapshot() ViewState {
 	for _, o := range s.modelOptions {
 		st.ModelLabels = append(st.ModelLabels, o.Label)
 	}
-	st.SelectedPermission = s.selectedPermissionLabel
-	for _, o := range s.permissionOptions {
-		st.PermissionLabels = append(st.PermissionLabels, o.Label)
+	st.SelectedPermission = s.permissionLabelLocked()
+	if s.permissionProjectionCurrentLocked() {
+		for _, o := range s.permissionOptions {
+			st.PermissionLabels = append(st.PermissionLabels, o.Label)
+		}
 	}
 	st.SelectedAgentPreset = s.selectedAgentPresetLabel
 	for _, o := range s.agentPresetOptions {

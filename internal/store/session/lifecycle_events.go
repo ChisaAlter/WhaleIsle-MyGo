@@ -255,9 +255,12 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.resetPermissionRiskLocked()
 	s.resetAssistantStreamLocked()
 	s.cancelVisualReplyLocked()
 	s.followGeneration++
+	s.permissionProjection = permissionProjectionState{}
+	s.permissionsErr = nil
 	s.historyBranchBusy = false
 	if s.followCancel != nil {
 		s.followCancel()
