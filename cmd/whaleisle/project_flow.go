@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	historical                    *projectHistoricalState
+	historicalGeneration          uint64
 	activity                      *projectActivityState
 	deliveries                    *projectDeliveryState
 	documents                     *projectDocumentState
@@ -53,6 +55,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.closeProjectHistoricalLocked()
 		s.closeProjectActivityLocked()
 		s.closeProjectDeliveriesLocked()
 		s.closeProjectDocumentsLocked()
@@ -90,6 +93,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
 		if !s.projectFlow.expanded {
+			s.closeProjectHistoricalLocked()
 			s.closeProjectActivityLocked()
 			s.closeProjectDeliveriesLocked()
 			s.closeProjectDocumentsLocked()
@@ -203,6 +207,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectActivity(win, &m)
 	s.bindProjectDeliveries(win, &m)
 	s.bindProjectDocuments(win, &m)
+	s.bindProjectHistorical(win, &m)
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {

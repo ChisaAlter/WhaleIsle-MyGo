@@ -1795,6 +1795,7 @@ func (s *mainState) stopDSHLocked() {
 	s.mu.Lock()
 	s.stopProjectProcessLocked()
 	s.stopProjectRefreshLocked()
+	s.closeProjectHistoricalLocked()
 	s.mu.Unlock()
 	if s.remoteFiles != nil {
 		s.remoteFiles.Bind(nil, "", nil)
@@ -2143,6 +2144,7 @@ func main() {
 			}
 			state.stopProjectProcessLocked()
 			state.stopProjectRefreshLocked()
+			state.closeProjectHistoricalLocked()
 			state.mu.Unlock()
 		})
 

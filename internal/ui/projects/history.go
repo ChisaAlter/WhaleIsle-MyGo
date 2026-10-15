@@ -34,10 +34,8 @@ func reportsView(c *ui.Context, m Model) {
 				label = tr("当前委派报告", "Current delegation report")
 			}
 			ui.Text(c, label).FontSize(11)
-			if ui.Button(c, tr("原工作详情 / 过程", "Original work details / process")).Disabled(m.Busy).Clicked() && m.OnReportWork != nil {
-				m.OnReportWork()
-			}
 		}
+		historicalSourceButton(c, m, "reports")
 		ui.Text(c, r.Outcome+" · "+time.UnixMilli(int64(r.At)).Format(time.RFC3339)).FontSize(11)
 		if r.PrerequisitesChanged {
 			ui.Text(c, tr("此报告依赖的依据已变化。", "Prerequisite evidence has changed since this report.")).FontSize(11)

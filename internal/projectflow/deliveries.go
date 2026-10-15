@@ -162,6 +162,10 @@ type DeliveryBrowser struct {
 	serial uint64
 	active bool
 }
+
+// NavigationToken identifies this exact delivery selection/read generation.
+func (b *DeliveryBrowser) NavigationToken() uint64 { return b.serial }
+
 type DeliveryRequest struct {
 	owner     *DeliveryBrowser
 	scope     DeliveryScope

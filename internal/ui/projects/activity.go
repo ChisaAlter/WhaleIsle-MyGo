@@ -190,6 +190,7 @@ func activityReportView(c *ui.Context, m Model) {
 		return
 	}
 	r := a.Report
+	historicalSourceButton(c, m, "activity")
 	ui.Scroll(c).Height(380).Children(func() {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			ui.Text(c, r.Outcome+" · "+time.UnixMilli(int64(r.At)).Format(time.RFC3339)).FontSize(11)

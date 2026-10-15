@@ -8,6 +8,9 @@ import (
 )
 
 type Model struct {
+	Historical                                                           *projectflow.HistoricalSnapshot
+	OnHistoricalSource                                                   func(string)
+	OnHistoricalAction                                                   func(string)
 	Activity                                                             *projectflow.ActivitySnapshot
 	OnRequestActivity                                                    func()
 	OnActivityAction                                                     func(string, string)
@@ -118,6 +121,10 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.ArchiveCandidate != nil {
 			archiveConfirmation(c, m)
+			return
+		}
+		if m.Historical != nil {
+			historicalProcessView(c, m)
 			return
 		}
 		if m.Documents != nil {
