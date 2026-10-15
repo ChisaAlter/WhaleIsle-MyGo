@@ -17,6 +17,10 @@ func CommandCardView(c *ui.Context, msg session.Message, m Model, st ToolCardSty
 	if command == nil {
 		return
 	}
+	if command.Compaction != nil {
+		ManualCompactionCardView(c, msg, m, st)
+		return
+	}
 	title := i18n.T(i18n.KeyCommandTitle)
 	if command.Name != "" {
 		title = "/" + command.Name

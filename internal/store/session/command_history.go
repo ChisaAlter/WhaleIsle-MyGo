@@ -11,6 +11,7 @@ const MessageKindCommand MessageKind = "command"
 // CommandView pairs command/run and command/done by the Host-owned commandId.
 // SourceEventSeq retains a successful command's richer domain-event reference.
 type CommandView struct {
+	Compaction     *ManualCompactionView
 	CommandID      string
 	Name           string
 	Args           string
@@ -48,7 +49,7 @@ func classifyCommandEvent(raw json.RawMessage) (Message, bool) {
 			return Message{}, false
 		}
 		command.State, command.Text = event.Data.Kind, event.Data.Text
-		if command.State == "success" && event.Data.SourceEventSeq != nil && *event.Data.SourceEventSeq >= 0 {
+		if command.State == "success" && event.Data.SourceEventSeq != nil && validCompactionSeq(*event.Data.SourceEventSeq) {
 			seq := *event.Data.SourceEventSeq
 			command.SourceEventSeq = &seq
 		}
@@ -119,5 +120,5 @@ func projectCommandMessages(messages []Message) []Message {
 		}
 		out = append(out, msg)
 	}
-	return out
+	return projectManualCompactionMessages(out)
 }
