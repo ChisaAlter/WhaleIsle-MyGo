@@ -41,10 +41,14 @@ type Companion struct {
 	chat                      chatEntry
 	look                      lookEntry
 	growth                    chatEntry
+	growthClock               restClock
+	growthAutomatic           bool
 	motion                    motionState
 	rest                      restState
 	restClock                 restClock
 	OnRefreshGrowth           func()
+	OnAutoRefreshGrowth       func()
+	OnFeedTokens              func()
 	OnPersonality             func(string)
 	feeding                   bool
 	feedMessage               string
@@ -113,6 +117,7 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.stopGrowthClock()
 	p.stopRestClock()
 	p.clearNotifications()
 	p.CloseQuickChat()
@@ -179,6 +184,7 @@ func (p *Companion) sync() {
 	p.startMotion(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
+			p.stopGrowthClock()
 			return
 		}
 		e.PreventDefault()
@@ -213,7 +219,9 @@ func (p *Companion) sync() {
 				p.OnRefreshGrowth()
 			}
 		case "feed-tokens":
-			p.feedTokens()
+			if p.OnFeedTokens != nil {
+				p.OnFeedTokens()
+			}
 		case "sleep-pet", "wake-pet", "wake-contact":
 			p.restPet(taskAction(e.URL, task))
 		case "pat-pet":
@@ -242,17 +250,20 @@ func (p *Companion) sync() {
 			p.rest = restState{}
 			p.assetMu.Unlock()
 			p.startRestClock()
+			p.startGrowthClock()
 		}
 	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) { p.Error = err.Error(); p.close() })
 	w.OnHide(func() {
 		if p.win == w {
+			p.stopGrowthClock()
 			p.stopRestClock()
 		}
 	})
 	w.OnShow(func() {
 		if p.win == w {
 			p.startRestClock()
+			p.startGrowthClock()
 		}
 	})
 	w.OnReadyToShow(func() {
@@ -267,6 +278,7 @@ func (p *Companion) sync() {
 	// Explicit disable belongs to the main settings page, including on quit.
 	w.OnClosed(func() {
 		if p.win == w {
+			p.stopGrowthClock()
 			p.stopRestClock()
 			p.clearNotifications()
 			p.CloseQuickChat()

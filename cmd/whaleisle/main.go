@@ -2077,6 +2077,8 @@ func main() {
 		state.desktopPet.OnQuickChat = state.openPetQuickChat
 		win.OnClosed(state.cancelPetPersonality)
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
+		state.desktopPet.OnAutoRefreshGrowth = state.autoRefreshPetGrowth
+		state.desktopPet.OnFeedTokens = state.feedPetTokens
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })
 		win.OnBlur(state.cancelComposerVoiceOnBlur)

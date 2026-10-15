@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 )
 
@@ -18,7 +19,7 @@ func (s *mainState) refreshPetTask() {
 	careClient := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	p, sessions := s.desktopPet, s.sessions
+	p, sessions, careStore := s.desktopPet, s.sessions, s.cfgStore
 	careGeneration := s.bootStatus.Generation
 	careOwner := fmt.Sprintf("%p/%p", s.sup, careClient)
 	online := s.bootStatus.State == harness.Ready && s.dshMuxReady
@@ -27,6 +28,10 @@ func (s *mainState) refreshPetTask() {
 		return
 	}
 	p.SetCareRuntime(careOwner, careGeneration)
+	if careStore != nil {
+		growthOwner := fmt.Sprintf("%s/%q/%q", careOwner, careStore.Get().NodeBin, paths.DshHome())
+		p.SetGrowthRuntime(growthOwner, careGeneration)
+	}
 	snap := session.ViewState{}
 	if sessions != nil {
 		snap = sessions.Snapshot()

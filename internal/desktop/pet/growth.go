@@ -28,7 +28,9 @@ func (p *Companion) growthStatus() GrowthStatus {
 	}
 	status.Label = fmt.Sprintf("Lv.%d %s · %d 成长点", snap.Level, snap.LevelName, snap.Points)
 	status.Detail = fmt.Sprintf("本地粮 %d · 本次可喂 %d · 今日新增 %d", snap.Available, snap.NextFeed, snap.TodayUsed)
-	status.CanFeed = !busy && snap.NextFeed > 0
+	// An empty displayed bowl may have new unsettled usage. A deliberate click
+	// must still be able to run the original pre-feed refresh.
+	status.CanFeed = !busy
 	if status.Message == "" {
 		status.Message = "刷新实际用量；首次仅建基线 / Local game only"
 	}
@@ -41,12 +43,17 @@ func renderGrowthPage(page []byte, status GrowthStatus) []byte {
 // StartGrowth uses the same per-window cancellation/serial gate as explicit
 // chat entry. The native main callback provides fixed app data/runtime paths.
 func (p *Companion) StartGrowth() (context.Context, func(string, func() error) bool) {
-	if p.win == nil || p.win.IsDestroyed() || !p.ready {
+	return p.StartGrowthRefresh(false)
+}
+
+func (p *Companion) StartGrowthRefresh(automatic bool) (context.Context, func(string, func() error) bool) {
+	if p.win == nil || p.win.IsDestroyed() || !p.win.IsVisible() || !p.ready || p.Store == nil || !p.Store.DesktopPet().Enabled {
 		return nil, nil
 	}
 	p.assetMu.Lock()
 	ctx, serial := p.growth.begin()
 	if ctx != nil {
+		p.growthAutomatic = automatic
 		p.growth.status.Message = "读取本应用实际用量… / Reading local usage…"
 	}
 	p.assetMu.Unlock()
@@ -59,10 +66,12 @@ func (p *Companion) StartGrowth() (context.Context, func(string, func() error) b
 		if p.growth.serial != serial || !p.growth.status.Busy {
 			return false
 		}
+		p.growthAutomatic = false
+		if ctx.Err() != nil {
+			p.growth.finish(serial, "读取已取消，未改动账本 / Cancelled")
+			return false
+		}
 		if commit != nil {
-			if ctx.Err() != nil {
-				return p.growth.finish(serial, "读取已取消，未改动账本 / Cancelled")
-			}
 			if err := commit(); err != nil {
 				message = "账本保存失败，粮与成长未改动 / Save failed; unchanged"
 			}
@@ -71,15 +80,22 @@ func (p *Companion) StartGrowth() (context.Context, func(string, func() error) b
 	}
 }
 
-// feedTokens is synchronous on the native UI thread and never launches a
+// FeedTokensAfterRefresh is reached only after an explicit feed request and
+// an accepted scan completion. Timer refreshes never invoke it.
+func (p *Companion) FeedTokensAfterRefresh(fresh bool) { p.consumePetTokens(fresh) }
+
+// feedTokens retains the direct internal entry for existing local callers.
+func (p *Companion) feedTokens() { p.consumePetTokens(true) }
+
+// consumePetTokens is synchronous on the native UI thread and never launches a
 // model or an account request. Empty bowls earn no points or care reward.
-func (p *Companion) feedTokens() {
-	if p.win == nil || p.win.IsDestroyed() || !p.ready || p.Store == nil || !p.Store.DesktopPet().Enabled {
+func (p *Companion) consumePetTokens(fresh bool) {
+	if p.win == nil || p.win.IsDestroyed() || !p.win.IsVisible() || !p.ready || p.Store == nil || !p.Store.DesktopPet().Enabled {
 		return
 	}
 	p.assetMu.Lock()
 	defer p.assetMu.Unlock()
-	if p.growth.status.Busy {
+	if p.growth.status.Busy || p.feeding {
 		return
 	}
 	fed, err := p.Store.FeedPetTokens(time.Now())
@@ -93,4 +109,7 @@ func (p *Companion) feedTokens() {
 	}
 	_ = p.rest.wake(nil)
 	p.growth.status.Message = fmt.Sprintf("已喂 %d 本地粮，成长 +%d / Fed", fed, fed)
+	if !fresh {
+		p.growth.status.Message += "（刷新不可用，仅使用已结算粮 / saved food only）"
+	}
 }
