@@ -88,7 +88,7 @@ func (p *Page) SetBrowserColorScheme(ctx context.Context, scheme BrowserColorSch
 
 // ClearBrowserHTTPCache clears HTTP cache for this page's entire WebView profile,
 // including every page sharing it, not just this URL or tab. A BrowserProfile
-// page uses the Browser-only profile. Explain the scope and confirm first.
+// page uses its specific BrowserPartition. Explain the scope and confirm first.
 // Cookies, local storage and profile directories are not deleted by this API.
 func (p *Page) ClearBrowserHTTPCache(ctx context.Context) error {
 	return p.browserToolCall(ctx, func(n browserToolsBackend, done func(error)) { n.ClearBrowserHTTPCache(done) })

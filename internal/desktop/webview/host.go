@@ -17,6 +17,8 @@ type HostOptions struct {
 	// BrowserProfile selects the persistent Browser-only login/storage area.
 	// It cannot be combined with an authenticated Host session or local preview.
 	BrowserProfile bool
+	// BrowserPartition is a stable opaque Host/workspace digest, never a path.
+	BrowserPartition string
 	// LocalPDFURL is a single read-only local PDF capability. It uses the
 	// dedicated isolated WebView profile and exact-resource deny-by-default policy.
 	LocalPDFURL string
@@ -77,7 +79,13 @@ type Host struct {
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
 	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != ""
+	if opts.BrowserPartition != "" && !opts.BrowserProfile {
+		return nil, errors.New("Browser partition requires a dedicated Browser profile")
+	}
 	if opts.BrowserProfile {
+		if len(opts.BrowserPartition) != 64 || strings.Trim(opts.BrowserPartition, "0123456789abcdef") != "" {
+			return nil, errors.New("Browser requires a stable workspace partition")
+		}
 		if runtime.GOOS != "windows" {
 			return nil, errors.New("Browser profile is unavailable on this platform")
 		}
@@ -191,13 +199,14 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
-			BrowserProfile:  opts.BrowserProfile,
-			LocalPDFURL:     opts.LocalPDFURL,
-			LocalHTMLURL:    opts.LocalHTMLURL,
-			LocalMediaURL:   opts.LocalMediaURL,
-			TrustedOrigins:  trusted,
-			DisableBindings: opts.Untrusted,
-			DevTools:        mygo.DevToolsDisabled,
+			BrowserProfile:   opts.BrowserProfile,
+			BrowserPartition: opts.BrowserPartition,
+			LocalPDFURL:      opts.LocalPDFURL,
+			LocalHTMLURL:     opts.LocalHTMLURL,
+			LocalMediaURL:    opts.LocalMediaURL,
+			TrustedOrigins:   trusted,
+			DisableBindings:  opts.Untrusted,
+			DevTools:         mygo.DevToolsDisabled,
 		},
 	})
 	if child == nil || child.IsDestroyed() {

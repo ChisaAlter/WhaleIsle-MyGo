@@ -369,7 +369,13 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 		}
 		opts.Page.IsolatedPreview = true
 	}
+	if opts.Page.BrowserPartition != "" && !opts.Page.BrowserProfile {
+		panic("mygo: BrowserPartition requires BrowserProfile")
+	}
 	if opts.Page.BrowserProfile {
+		if !platform.BrowserPartitionValid(opts.Page.BrowserPartition) {
+			panic("mygo: Browser profile requires a stable SHA-256 partition key")
+		}
 		if runtime.GOOS != "windows" || opts.Page.IsolatedPreview || opts.Content != nil {
 			panic("mygo: Browser profile requires an ordinary Windows web page")
 		}
@@ -434,43 +440,44 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
-		BrowserProfile:  po.BrowserProfile,
-		IsolatedPreview: po.IsolatedPreview,
-		LocalPDFURL:     po.LocalPDFURL,
-		LocalHTMLURL:    po.LocalHTMLURL,
-		LocalMediaURL:   po.LocalMediaURL,
-		Title:           o.Title,
-		X:               o.X,
-		Y:               o.Y,
-		Width:           or(o.Width, 800),
-		Height:          or(o.Height, 600),
-		Center:          o.X == 0 && o.Y == 0,
-		UseContentSize:  o.UseContentSize,
-		MinSize:         platform.Size{Width: o.MinWidth, Height: o.MinHeight},
-		MaxSize:         platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
-		Resizable:       !o.DisableResize,
-		Movable:         !o.DisableMove,
-		Minimizable:     !o.DisableMinimize,
-		Maximizable:     !o.DisableMaximize,
-		Closable:        !o.DisableClose,
-		Focusable:       true,
-		Fullscreenable:  !o.DisableFullScreen,
-		AlwaysOnTop:     o.AlwaysOnTop,
-		FullScreen:      o.FullScreen,
-		Maximized:       o.Maximized,
-		SkipTaskbar:     o.SkipTaskbar,
-		AutoHideMenu:    o.AutoHideMenuBar,
-		HasShadow:       !o.DisableShadow,
-		Frameless:       o.Frameless,
-		Transparent:     o.Transparent,
-		TitleBarStyle:   string(o.TitleBarStyle),
-		TitleBarHeight:  max(o.TitleBarHeight, 0),
-		Vibrancy:        string(o.Vibrancy),
-		Opacity:         o.Opacity,
-		Modal:           o.Modal,
-		UserAgent:       po.UserAgent,
-		Zoom:            po.ZoomFactor,
-		Schemes:         Protocol.schemes(),
+		BrowserProfile:   po.BrowserProfile,
+		BrowserPartition: po.BrowserPartition,
+		IsolatedPreview:  po.IsolatedPreview,
+		LocalPDFURL:      po.LocalPDFURL,
+		LocalHTMLURL:     po.LocalHTMLURL,
+		LocalMediaURL:    po.LocalMediaURL,
+		Title:            o.Title,
+		X:                o.X,
+		Y:                o.Y,
+		Width:            or(o.Width, 800),
+		Height:           or(o.Height, 600),
+		Center:           o.X == 0 && o.Y == 0,
+		UseContentSize:   o.UseContentSize,
+		MinSize:          platform.Size{Width: o.MinWidth, Height: o.MinHeight},
+		MaxSize:          platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
+		Resizable:        !o.DisableResize,
+		Movable:          !o.DisableMove,
+		Minimizable:      !o.DisableMinimize,
+		Maximizable:      !o.DisableMaximize,
+		Closable:         !o.DisableClose,
+		Focusable:        true,
+		Fullscreenable:   !o.DisableFullScreen,
+		AlwaysOnTop:      o.AlwaysOnTop,
+		FullScreen:       o.FullScreen,
+		Maximized:        o.Maximized,
+		SkipTaskbar:      o.SkipTaskbar,
+		AutoHideMenu:     o.AutoHideMenuBar,
+		HasShadow:        !o.DisableShadow,
+		Frameless:        o.Frameless,
+		Transparent:      o.Transparent,
+		TitleBarStyle:    string(o.TitleBarStyle),
+		TitleBarHeight:   max(o.TitleBarHeight, 0),
+		Vibrancy:         string(o.Vibrancy),
+		Opacity:          o.Opacity,
+		Modal:            o.Modal,
+		UserAgent:        po.UserAgent,
+		Zoom:             po.ZoomFactor,
+		Schemes:          Protocol.schemes(),
 	}
 	if p.Title == "" {
 		p.Title = App.Name()

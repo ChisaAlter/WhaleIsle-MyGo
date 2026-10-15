@@ -8,7 +8,7 @@ import "errors"
 // in browser_environment.go. Do not fall back to the application's shared env.
 func (w *window) BrowserCookieToolsAvailable() bool {
 	p := w.browser
-	if !w.BrowserToolsAvailable() || w.destroying || !w.opts.BrowserProfile || p == nil || p != w.b.browser || p.env == 0 || p.err != nil || p.owners.closed {
+	if !w.BrowserToolsAvailable() || w.destroying || !w.opts.BrowserProfile || p == nil || p.key != w.opts.BrowserPartition || p != w.b.browsers[w.opts.BrowserPartition] || p.env == 0 || p.err != nil || p.owners.closed {
 		return false
 	}
 	_, owned := p.owners.members[w]

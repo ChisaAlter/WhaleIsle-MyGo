@@ -35,7 +35,7 @@ type Backend struct {
 	envErr     error
 	envStarted bool
 	envWaiters []func()
-	browser    *browserEnvironment // opt-in persistent Browser environment
+	browsers   map[string]*browserEnvironment // opt-in persistent Browser partitions
 
 	menus menuTable
 

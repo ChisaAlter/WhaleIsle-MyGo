@@ -12,6 +12,7 @@ import (
 func (s *mainState) newBrowserController(win *mygo.Window) *browserpreviewui.Controller {
 	browser := browserpreviewui.NewController(win)
 	browser.SetActionTarget(s.browserActionTarget)
+	browser.SetWorkspaceOwner(s.browserWorkspaceOwner)
 	return browser
 }
 

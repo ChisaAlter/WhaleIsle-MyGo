@@ -25,8 +25,8 @@ func (p *Page) BrowserCookieToolsAvailable() bool {
 }
 
 // ClearBrowserLoginCookies clears ALL cookies, including login cookies, in the
-// verified BrowserProfile shared by Browser tabs. This can sign users out of
-// every Browser tab. Local storage, IndexedDB, WebSQL, service workers and HTTP
+// verified BrowserPartition shared by its Browser tabs. This can sign users out
+// of all tabs in that workspace/shared partition. Other partitions are untouched. Local storage, IndexedDB, WebSQL, service workers and HTTP
 // cache are retained; other profiles are untouched. Call only after the user
 // explicitly confirms this scope. No arbitrary CDP or native bridge is exposed.
 func (p *Page) ClearBrowserLoginCookies(ctx context.Context) error {

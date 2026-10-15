@@ -17,6 +17,7 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	workspaceOwner   func() WorkspaceOwner
 	profileSeen      bool
 	floatingDocument *floatingDocumentWindow
 	pip              *browserPictureInPicture
@@ -31,6 +32,7 @@ type Controller struct {
 	parent           *mygo.Window
 }
 type Tab struct {
+	workspace   browserWorkspace
 	tools       browserTools
 	Document    *pdfpreview.Document
 	HTML        *htmldocument.Document
@@ -63,7 +65,8 @@ func (b *Controller) update() {
 func (b *Controller) NewTab(raw string) {
 	b.Hide()
 	b.next++
-	b.Tabs = append(b.Tabs, &Tab{ID: b.next})
+	workspace, _ := b.browserWorkspace()
+	b.Tabs = append(b.Tabs, &Tab{ID: b.next, workspace: workspace})
 	b.Active = len(b.Tabs) - 1
 	if raw != "" {
 		b.Navigate(raw)
@@ -76,10 +79,18 @@ func (b *Controller) Navigate(raw string) {
 		b.NewTab("")
 	}
 	t := b.current()
-	if t.Document != nil || t.HTML != nil || t.Media != nil {
-		b.NewTab(raw)
+	workspace, scopeErr := b.browserWorkspace()
+	if scopeErr != nil {
+		t.Error = scopeErr.Error()
+		b.update()
 		return
 	}
+	if t.Document != nil || t.HTML != nil || t.Media != nil || t.workspace.needsNewTab(workspace) {
+		// Existing tabs keep their cookies/history in their original partition.
+		b.NewTab("")
+		t = b.current()
+	}
+	t.workspace = workspace
 	t.Draft = raw
 	normalized := NormalizeURL(raw)
 	if normalized == "" {
@@ -96,7 +107,7 @@ func (b *Controller) Navigate(raw string) {
 		b.showHost(t.Host)
 		return
 	}
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
 	if err != nil {
 		t.Error = err.Error()
 		b.update()
@@ -236,7 +247,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 							if i == b.Active {
 								label = "● " + label
 							}
-							if ui.Button(c, label).Clicked() {
+							if ui.Button(c, label).Tooltip("Browser 分区：" + tab.browserWorkspaceLabel()).Clicked() {
 								b.Select(i)
 							}
 						}
@@ -321,8 +332,11 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if err != "" {
 				status = err
 			}
+			if t.Document == nil && t.HTML == nil && t.Media == nil {
+				status = "分区「" + t.browserWorkspaceLabel() + "」 · " + status
+			}
 			if !b.profileSeen && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
-				const notice = "Browser 已启用独立登录区，首次需要重新登录；旧共享数据未迁移或删除。"
+				const notice = "Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。"
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, notice).FontSize(11).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
 					if ui.Button(c, "知道了").Clicked() {

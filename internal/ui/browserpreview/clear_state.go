@@ -22,4 +22,4 @@ func takeBrowserDataConfirmation[Host comparable](slot **browserDataConfirmation
 	return true
 }
 
-const browserCookieClearNotice = "清除 Browser 专属区全部 Cookie（含登录 Cookie），影响全部 Browser 页签，可能退出登录；保留站点存储、Service Worker 和 HTTP 缓存，插件不受影响。继续？"
+const browserCookieClearNotice = "清除当前标签所属分区的全部 Cookie（含登录 Cookie），同分区全部页签可能退出登录；保留站点存储、Service Worker 和 HTTP 缓存，其他工作区/插件不受影响。继续？"

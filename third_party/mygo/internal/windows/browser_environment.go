@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unsafe"
+
+	"github.com/egoist/mygo/internal/platform"
 )
 
 // This is a persistent Browser-only UDF, not an IsolatedPreview. The existing
@@ -17,6 +19,7 @@ import (
 // https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2environment7?view=webview2-1.0.3537.50
 // All fields, callbacks and COM references are confined to MyGo's main thread.
 type browserEnvironment struct {
+	key    string
 	owners browserEnvironmentOwners[*window]
 	env    uintptr
 	err    error
@@ -37,7 +40,10 @@ func browserEnvironmentFolder(env uintptr) (string, error) {
 	return filepath.Clean(folder), nil
 }
 
-func browserProfileDirectory(appName, shared string) (string, error) {
+func browserProfileDirectory(appName, shared, key string) (string, error) {
+	if !platform.BrowserPartitionValid(key) {
+		return "", errors.New("mygo: invalid Browser partition key")
+	}
 	// Never change global overrides, silently fall back to the shared profile,
 	// or accept an arbitrary caller-supplied path.
 	for _, name := range []string{"WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "WEBVIEW2_PIPE_FOR_SCRIPT_DEBUGGER", "WEBVIEW2_WAIT_FOR_SCRIPT_DEBUGGER"} {
@@ -49,7 +55,8 @@ func browserProfileDirectory(appName, shared string) (string, error) {
 	if !filepath.IsAbs(base) {
 		return "", errors.New("mygo: Browser profile requires an absolute LOCALAPPDATA directory")
 	}
-	folder := filepath.Join(base, sanitize(appName), "WebView2-Browser")
+	// Keep the earlier single Browser UDF intact. No migration or deletion.
+	folder := filepath.Join(base, sanitize(appName), "WebView2-Browser-Workspaces", key)
 	if strings.EqualFold(filepath.Clean(shared), folder) {
 		return "", errors.New("mygo: Browser profile overlaps the application's shared profile")
 	}
@@ -78,10 +85,18 @@ func (w *window) startBrowserEnvironment() {
 		w.webViewFailed(w.b.envErr)
 		return
 	}
-	p := w.b.browser
+	key := w.opts.BrowserPartition
+	if !platform.BrowserPartitionValid(key) {
+		w.webViewFailed(errors.New("mygo: invalid Browser partition key"))
+		return
+	}
+	if w.b.browsers == nil {
+		w.b.browsers = make(map[string]*browserEnvironment)
+	}
+	p := w.b.browsers[key]
 	if p == nil {
-		p = &browserEnvironment{}
-		w.b.browser = p
+		p = &browserEnvironment{key: key}
+		w.b.browsers[key] = p
 	}
 	if !p.owners.add(w) {
 		w.webViewFailed(errors.New("mygo: Browser environment has closed"))
@@ -104,7 +119,7 @@ func (w *window) startBrowserEnvironment() {
 		p.complete(0, err)
 		return
 	}
-	folder, err := browserProfileDirectory(w.b.name, shared)
+	folder, err := browserProfileDirectory(w.b.name, shared, key)
 	if err != nil {
 		p.complete(0, err)
 		return
@@ -159,8 +174,8 @@ func (w *window) releaseBrowserEnvironment() {
 	if p == nil || !p.owners.remove(w) {
 		return
 	}
-	if w.b.browser == p {
-		w.b.browser = nil
+	if w.b.browsers[p.key] == p {
+		delete(w.b.browsers, p.key)
 	}
 	// cleanup closed the native controller first. A pending environment callback
 	// sees the retired generation and releases its result without creating a page.

@@ -74,9 +74,9 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 	t.Error = ""
 	t.ActionMessage = "正在应用网页外观…"
 	if kind == "cache" {
-		t.ActionMessage = "正在清除 Browser 专属登录区的 HTTP 缓存…"
+		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的 HTTP 缓存…"
 	} else if kind == "cookies" {
-		t.ActionMessage = "正在清除全部 Browser 页签共享的登录 Cookie…"
+		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的登录 Cookie…"
 	}
 	b.update()
 	go func() {
@@ -105,9 +105,9 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 				return
 			}
 			if kind == "cache" {
-				t.ActionMessage = "Browser HTTP 缓存已清除；Cookies 和站点数据保留，插件不受影响"
+				t.ActionMessage = "当前分区 HTTP 缓存已清除；Cookies 和站点数据保留，其他工作区/插件不受影响"
 			} else if kind == "cookies" {
-				t.ActionMessage = "Browser 全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，插件不受影响"
+				t.ActionMessage = "当前分区全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，其他工作区/插件不受影响"
 			} else {
 				t.tools.settings.Scheme = scheme
 				t.ActionMessage = "网页 prefers-color-scheme 已更新"
@@ -217,7 +217,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cache", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
-				if ui.Button(c, "清 Browser 登录 Cookie…").Disabled(!cookieSupported).Tooltip("仅 Browser 专属区的全部 Cookie；需确认，可能退出所有 Browser 页签登录。保留 localStorage、IndexedDB、WebSQL、Service Worker 和 HTTP 缓存。").Clicked() {
+				if ui.Button(c, "清 Browser 登录 Cookie…").Disabled(!cookieSupported).Tooltip("仅当前标签所属分区的全部 Cookie；需确认，可能退出同分区页签登录。其他工作区/插件不受影响，保留站点存储、Service Worker 和 HTTP 缓存。").Clicked() {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cookies", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
@@ -236,12 +236,13 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 			})
 			ui.Row(c).Height(28).Gap(6).AlignItems(ui.Center).Children(func() {
 				if confirm := t.tools.confirmation; confirm != nil {
-					notice := "清除 Browser 专属登录区全部 HTTP 缓存（含其他 Browser 页签）；保留 Cookies/站点数据，插件不受影响。继续？"
+					notice := "清除当前标签所属分区的全部 HTTP 缓存（含同分区页签）；保留 Cookies/站点数据，其他工作区/插件不受影响。继续？"
 					unavailable := !supported
 					if confirm.kind == "cookies" {
 						notice = browserCookieClearNotice
 						unavailable = !cookieSupported
 					}
+					notice = "分区「" + t.browserWorkspaceLabel() + "」：" + notice
 					ui.Text(c, notice).FontSize(11).Tooltip(notice)
 					if ui.Button(c, "确认清除").Key(confirm).Disabled(disabled || unavailable).Clicked() {
 						b.startBrowserTool(t, confirm.kind, "")

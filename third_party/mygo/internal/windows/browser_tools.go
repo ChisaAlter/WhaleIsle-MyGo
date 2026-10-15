@@ -32,7 +32,7 @@ func (w *window) SetBrowserColorScheme(scheme string, done func(error)) {
 	w.devtools("Emulation.setEmulatedMedia", string(params), func(_ string, err error) { done(err) })
 }
 func (w *window) ClearBrowserHTTPCache(done func(error)) {
-	if !w.BrowserToolsAvailable() {
+	if !w.BrowserToolsAvailable() || (w.opts.BrowserProfile && !w.BrowserCookieToolsAvailable()) {
 		done(errors.New("mygo: browser page is not ready for cache controls"))
 		return
 	}
