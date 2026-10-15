@@ -4603,8 +4603,8 @@ func mainView(c *ui.Context) {
 					if state.settingsModelLabel == "" && sessSnap.SelectedModel != "" {
 						state.settingsModelLabel = sessSnap.SelectedModel
 					}
-					if state.settingsAgentPresetLabel == "" && sessSnap.SelectedAgentPreset != "" {
-						state.settingsAgentPresetLabel = sessSnap.SelectedAgentPreset
+					if state.agentPresetManager == nil {
+						state.agentPresetManager = session.NewAgentPresetManager(sessions)
 					}
 				}
 				state.mu.Unlock()
@@ -5359,29 +5359,15 @@ func mainView(c *ui.Context) {
 					},
 					AgentPresetsActive: agentPresetsActive,
 					AgentPresets: &settings.AgentPresetsAccess{
-						Labels:     sessSnap.AgentPresetLabels,
+						Manager:    state.agentPresetManager,
 						Selected:   &state.settingsAgentPresetLabel,
-						SessionID:  sessSnap.SelectedID,
-						Err:        sessSnap.AgentPresetsErr,
-						LastAction: sessSnap.LastAction,
 						DocPreview: state.settingsAgentPresetDoc,
-						OnRefresh: func() {
-							if sessions != nil {
-								sessions.RefreshAgentPresets(context.Background())
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						OnRead: func() {
-							state.mu.Lock()
-							label := state.settingsAgentPresetLabel
-							state.mu.Unlock()
-							if sessions == nil || label == "" {
+						OnRead: func(id string) {
+							if sessions == nil || id == "" {
 								return
 							}
 							go func() {
-								doc, err := sessions.ReadAgentPresetDocument(context.Background(), label)
+								doc, err := sessions.ReadAgentPresetDocument(context.Background(), id)
 								preview := ""
 								if err != nil {
 									preview = err.Error()
@@ -5401,17 +5387,6 @@ func mainView(c *ui.Context) {
 									win.Update(func() {})
 								}
 							}()
-						},
-						OnApply: func() {
-							state.mu.Lock()
-							label := state.settingsAgentPresetLabel
-							state.mu.Unlock()
-							if sessions != nil && label != "" {
-								sessions.SelectAgentPresetForSession(context.Background(), label)
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
 						},
 					},
 					OnSelectDesktop: func() {
@@ -5638,12 +5613,11 @@ func mainView(c *ui.Context) {
 						state.settingsMCPActive = false
 						state.settingsPluginsActive = false
 						state.settingsSkillsActive = false
-						if state.settingsAgentPresetLabel == "" && sessions != nil {
-							state.settingsAgentPresetLabel = sessions.Snapshot().SelectedAgentPreset
-						}
+						state.settingsAgentPresetLabel = ""
+						manager := state.agentPresetManager
 						state.mu.Unlock()
-						if sessions != nil {
-							sessions.RefreshAgentPresets(context.Background())
+						if manager != nil {
+							go manager.Refresh(context.Background())
 						}
 						if win != nil {
 							win.Update(func() {})
