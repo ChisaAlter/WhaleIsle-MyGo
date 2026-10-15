@@ -69,6 +69,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	ArchiveConfirmation  *ArchiveConfirmation
 	SlashCommands        []api.ListResultItem2
 	SlashCommandsLoading bool
 	SlashCommandsErr     string
@@ -139,6 +140,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	archive                   archiveOperation
+	archiveToken              uint64
 	commandCatalog            commandCatalog
 	feedback                  feedbackState
 	visualReply               visualReplyRead
@@ -237,6 +240,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
 		s.eventsGeneration++
@@ -364,6 +368,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.invalidateArchiveLocked()
 	s.invalidateCommandsLocked()
 	s.resetWorkspaceLocked()
 	s.eventsGeneration++
@@ -408,18 +413,19 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		QueueEditor:       s.queueEditorSnapshotLocked(),
-		CostSources:       s.costSourcesLocked(),
-		ClientReady:       s.client != nil,
-		ScratchCwd:        s.scratchCwd,
-		WorkspaceMembers:  s.workspaceMembersLocked(),
-		LastAction:        s.lastAction,
-		ListLoading:       s.listLoading,
-		SelectedID:        s.selectedID,
-		PromptBusy:        s.promptBusy,
-		MessageEditBusy:   s.editTurnSeq > 0,
-		HistoryBranchBusy: s.historyBranchBusy,
-		FeedbackBusyID:    s.feedbackBusyID,
+		ArchiveConfirmation: s.archiveConfirmationLocked(),
+		QueueEditor:         s.queueEditorSnapshotLocked(),
+		CostSources:         s.costSourcesLocked(),
+		ClientReady:         s.client != nil,
+		ScratchCwd:          s.scratchCwd,
+		WorkspaceMembers:    s.workspaceMembersLocked(),
+		LastAction:          s.lastAction,
+		ListLoading:         s.listLoading,
+		SelectedID:          s.selectedID,
+		PromptBusy:          s.promptBusy,
+		MessageEditBusy:     s.editTurnSeq > 0,
+		HistoryBranchBusy:   s.historyBranchBusy,
+		FeedbackBusyID:      s.feedbackBusyID,
 	}
 	if opt, ok := optionByLabel(s.selectedModelLabel, s.modelOptions); ok {
 		st.SelectedProvider = opt.Provider

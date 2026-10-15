@@ -435,6 +435,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 			m.Store.ForkSession(context.Background(), sessionID)
 		},
 	})
+	archiveConfirmation(c, m)
 }
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {

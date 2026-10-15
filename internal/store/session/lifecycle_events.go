@@ -241,6 +241,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 	if s.selectedID == sessionID {
 		return
 	}
+	s.invalidateArchiveLocked()
 	s.invalidateFollowLocked()
 	s.invalidateCommandsLocked()
 	s.selectedID = sessionID
