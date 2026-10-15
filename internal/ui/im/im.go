@@ -33,6 +33,10 @@ type Model struct {
 
 // View paints the IM panel with channel list, local history, and composer.
 func View(c *ui.Context, m Model) {
+	if m.Store != nil && m.Store.Office.Snapshot().Open {
+		officeSettingsView(c, m)
+		return
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	bg := chrome.Color(colors.BG)
@@ -50,6 +54,9 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
+			if m.Store != nil && ui.Button(c, "AI Office").Disabled(m.PluginDisabled).Clicked() {
+				m.Store.Office.Show(context.Background())
+			}
 			if snap.Loading {
 				ui.Text(c, i18n.T(i18n.KeyIMLoading)).FontSize(12).TextColor(muted)
 			}

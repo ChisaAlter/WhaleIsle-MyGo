@@ -2086,6 +2086,8 @@ func main() {
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnClosed(state.whaleSettings.Suspend)
+		win.OnHide(state.hideOfficeSettings)
+		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(func() {
 			state.mu.Lock()
 			state.fileTabs.CancelPlanRead()
@@ -2881,6 +2883,9 @@ func mainView(c *ui.Context) {
 		fileOpenWithApps = nil
 	}
 	state.mu.Unlock()
+	if !imOpen || launcherOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
+		state.hideOfficeSettings()
+	}
 	// Global native pages return before frame.View. Retire old bindings and
 	// pause debounce work here as well, without flushing hidden drafts.
 	fileSessionID := ""

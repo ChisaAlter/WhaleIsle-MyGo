@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	officestore "whaleisle/internal/store/office"
 )
 
 const (
@@ -82,6 +83,7 @@ type ViewState struct {
 // Store fetches im/* list/history/send when available and persists local
 // channels / drafts / history under root (userData/im).
 type Store struct {
+	Office officestore.Store
 	mu     sync.Mutex
 	root   string
 	client *dsh.Client
@@ -163,6 +165,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	if client != nil && strings.TrimSpace(client.Endpoint.Origin) != "" {
 		s.plugin = &pluginrpc.Client{BaseURL: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTPClient: client.HTTP}
 	}
+	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
 	s.mu.Unlock()
 }
 
@@ -173,6 +176,7 @@ func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 	s.connectionBusy = false
 	s.connectionNote = ""
 	s.plugin = plugin
+	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
 	s.mu.Unlock()
 }
 
@@ -184,6 +188,7 @@ func (s *Store) Detach() {
 	s.connectionNote = ""
 	s.client = nil
 	s.plugin = nil
+	s.Office.Bind(nil, s.connectionEpoch, s.fire)
 	s.loading = false
 	s.hasIMRPC = false
 	s.listMethod = ""
