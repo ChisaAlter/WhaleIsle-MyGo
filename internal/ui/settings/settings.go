@@ -406,18 +406,21 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
 		}
 		for _, f := range ns.Fields {
+			if configurationField(c, m, snap, *ns, f, fg, muted) {
+				continue
+			}
 			fieldRow(c, m, snap, f, fg, muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) {
 				save = save.Disabled(true)
 			}
 			if save.Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) {
 				replace = replace.Disabled(true)
 			}
 			if replace.Clicked() {

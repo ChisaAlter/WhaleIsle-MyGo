@@ -53,19 +53,22 @@ type Store struct {
 	err        error
 	lastAction string
 
-	namespaces    []Namespace
-	selectedNS    string
-	drafts        map[string]map[string]string
-	dirty         map[string]map[string]bool
-	resets        map[string]map[string]bool
-	generation    uint64
-	origin        string
-	hostDrafts    map[string]map[string]map[string]string
-	hostDirty     map[string]map[string]map[string]bool
-	hostResets    map[string]map[string]map[string]bool
-	visionRoutes  []VisionRoute
-	visionLoading bool
-	visionErr     string
+	namespaces          []Namespace
+	selectedNS          string
+	drafts              map[string]map[string]string
+	dirty               map[string]map[string]bool
+	resets              map[string]map[string]bool
+	generation          uint64
+	origin              string
+	hostDrafts          map[string]map[string]map[string]string
+	hostDirty           map[string]map[string]map[string]bool
+	hostResets          map[string]map[string]map[string]bool
+	modelRoutes         []VisionRoute
+	modelCatalogErr     string
+	modelCatalogLoading bool
+	visionRoutes        []VisionRoute
+	visionLoading       bool
+	visionErr           string
 }
 
 // New returns an empty settings store.
@@ -81,6 +84,9 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.generation++
+	s.modelRoutes = nil
+	s.modelCatalogErr = ""
+	s.modelCatalogLoading = false
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
@@ -123,6 +129,9 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 func (s *Store) Detach() {
 	s.mu.Lock()
 	s.generation++
+	s.modelRoutes = nil
+	s.modelCatalogErr = ""
+	s.modelCatalogLoading = false
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
