@@ -513,9 +513,14 @@ func (s *mainState) stopPhoneRuntime() {
 	defer s.phoneOp.Unlock()
 	s.phoneRuntimeManager().Stop()
 }
-func (s *mainState) refreshPhoneRemote() string {
+func (s *mainState) refreshPhoneRemote() (msg string) {
 	s.phoneOp.Lock()
 	defer s.phoneOp.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.phoneActionMsg = msg
+		s.mu.Unlock()
+	}()
 	manager := s.phoneRuntimeManager()
 	if s.cfgStore == nil {
 		return "remote configuration unavailable"
@@ -550,13 +555,10 @@ func (s *mainState) refreshPhoneRemote() string {
 		manager.Start(paths.UserDataDir(), paths.VendorDir(), runtimeConfig)
 	}
 	snapshot := manager.Snapshot()
-	msg := snapshot.Status
+	msg = snapshot.Status
 	if snapshot.Message != "" {
 		msg += ": " + snapshot.Message
 	}
-	s.mu.Lock()
-	s.phoneActionMsg = msg
-	s.mu.Unlock()
 	return msg
 }
 func (s *mainState) phoneConnectURL() string {
@@ -3856,12 +3858,30 @@ func mainView(c *ui.Context) {
 						if state.cfgStore == nil {
 							return
 						}
-						_ = state.cfgStore.Update(func(c *config.Config) {
+						if err := state.cfgStore.Update(func(c *config.Config) {
 							c.RemoteEnabled = enabled
-						})
-						if !enabled {
-							go state.stopPhoneRuntime()
+						}); err != nil {
+							state.mu.Lock()
+							state.phoneActionMsg = "手机 Remote 设置未保存，请重试。 / Phone Remote setting was not saved; retry."
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
 						}
+						if !enabled {
+							// Revoke before the asynchronous stop; no phone Git
+							// request may use the previous desktop grant meanwhile.
+							state.revokePhoneGit()
+						}
+						go func() {
+							// Read the latest saved setting inside phoneOp. A queued
+							// disable must not stop a more recent enable request.
+							_ = state.refreshPhoneRemote()
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
 						if win != nil {
 							win.Update(func() {})
 						}

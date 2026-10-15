@@ -43,7 +43,7 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 				ui.Text(c, "· "+name).FontSize(12).TextColor(muted)
 			}
 		}
-		ui.Text(c, label("启用并刷新手机运行时以读取已配对设备。", "Enable and refresh the phone runtime to read paired devices.")).FontSize(11).TextColor(muted)
+		ui.Text(c, label("启用手机运行时后自动读取已配对设备；读取失败可刷新重试。", "Enable the phone runtime to load paired devices; refresh to retry if loading fails.")).FontSize(11).TextColor(muted)
 		return
 	}
 	ui.Text(c, label("已配对手机", "Paired phones")).FontSize(12).Bold().TextColor(fg)

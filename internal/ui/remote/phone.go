@@ -127,7 +127,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 			ui.Text(c, "二维码不可用，可复制临时配对链接。 / QR unavailable; copy the temporary link privately.").FontSize(11).TextColor(muted)
 		}
 	} else {
-		ui.Text(c, "没有可用配对链接。启用后刷新以启动已安装的原版运行时。 / No usable offer. Enable and refresh to start the installed runtime.").FontSize(11).TextColor(muted)
+		ui.Text(c, "没有可用配对链接。启用会自动启动已安装的原版运行时；失败时请检查运行时后刷新重试。 / No usable offer. Enabling starts the installed runtime automatically; check the runtime and refresh to retry if needed.").FontSize(11).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
