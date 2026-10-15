@@ -16,6 +16,7 @@ type RoutineModel struct {
 	OnSelect                                           func(string)
 	OnChange                                           func(field, value string)
 	OnReview                                           func(action string)
+	OnAcknowledgeWatch                                 func(bool)
 }
 
 func routineActionLabel(action string, enabled bool) string {
@@ -47,9 +48,9 @@ func routineImpact(cmd pluginrpc.DshbotRoutineCommand) string {
 		return "将启用后续调度并重算下次时间，Bot 可能按提示词执行工具、发送外部消息并产生模型费用。"
 	case "save":
 		if cmd.Edit.Enabled {
-			return "将保存以下配置并重算下次执行时间，保持启用。Bot 可能按此提示词周期执行工具、发送外部消息并产生模型费用。其他上下文、watch 与静默配置由 Host 保留。"
+			return "将保存以下配置并重算下次执行时间，按启用配置调度。Bot 可能按此提示词周期执行工具、发送外部消息并产生模型费用。仅明确修改的高级字段会一并提交，未改字段由 Host 保留。"
 		}
-		return "将保存以下配置并保持暂停，重算下次时间、取消未投递邮件。不会停止已运行的模型；其他上下文、watch 与静默配置由 Host 保留。"
+		return "将保存以下配置并保持暂停，重算下次时间、取消未投递邮件。不会停止已运行的模型；仅明确修改的高级字段会一并提交，未改字段由 Host 保留。"
 	}
 	return ""
 }
@@ -67,7 +68,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				r.OnRefresh()
 			}
 		})
-		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建每日任务；watch 编辑和触发凭据仍在原 Bot Web 页管理。").FontSize(11).TextColor(muted)
+		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建八种时间类型；已有任务可编辑上下文、静默及 watch，触发凭据仍由原 Bot Web 页管理。").FontSize(11).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, "先选择当前 Host 的 Bot / Select a Bot first").TextColor(muted)
 			return
@@ -159,11 +160,14 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					ui.Text(c, fmt.Sprintf("Enabled: %t · Max runs: %s", cmd.Edit.Enabled, routineLimit(cmd.Edit.MaxRuns))).FontSize(12).TextColor(fg)
 				}
 				ui.Text(c, routineImpact(cmd)).FontSize(12).TextColor(accent)
+				if cmd.Action != "delete" {
+					routineAdvancedReview(c, r, *review, fg, muted, accent)
+				}
 				ui.Row(c).Gap(8).Children(func() {
 					if r.OnDismiss != nil && ui.Button(c, "返回 / Back to routine").Disabled(s.Busy).Clicked() {
 						r.OnDismiss()
 					}
-					if r.OnConfirm != nil && ui.Button(c, "确认例行任务操作 / Confirm routine action").Disabled(blocked || !s.Loaded || cmd.Revision != s.Revision).Clicked() {
+					if r.OnConfirm != nil && ui.Button(c, "确认例行任务操作 / Confirm routine action").Disabled(blocked || !s.Loaded || cmd.Revision != s.Revision || dshbotstore.RoutineReviewNeedsWatchAcknowledgement(*review) && !review.WatchAcknowledged).Clicked() {
 						r.OnConfirm()
 					}
 				})
@@ -201,6 +205,7 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, accen
 				m.OnChange("prompt", prompt)
 			}
 		})
+		routineAdvancedEditor(c, m, disabled, fg, muted, accent)
 		enabledLabel := "草稿：暂停 / Draft paused"
 		if d.Edit.Enabled {
 			enabledLabel = "草稿：启用 / Draft enabled"

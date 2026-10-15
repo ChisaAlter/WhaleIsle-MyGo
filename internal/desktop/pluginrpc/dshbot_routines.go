@@ -102,8 +102,8 @@ func (c *Client) DshbotMissedRoutines(ctx context.Context) ([]string, error) {
 	return result.IDs, err
 }
 
-// Only these edited fields are sent. Omitted contextFrom, watch, silentAllowed,
-// history and runtime fields remain Host-owned; no catalog round-trip is used.
+// Base fields are edited together. Advanced fields have independent presence
+// flags: untouched contextFrom/watch/silentAllowed and runtime fields are omitted.
 type DshbotRoutineEdit struct {
 	Name, Prompt, Schedule, Timezone string
 	MaxRuns                          int
@@ -114,6 +114,7 @@ type DshbotRoutineCommand struct {
 	Revision          int
 	EnabledBefore     bool
 	Edit              DshbotRoutineEdit
+	Advanced          DshbotRoutineAdvancedPatch
 }
 
 var routineDurationPattern = regexp.MustCompile(`(?i)^(every\s+)?(\d+)([mhd])$`)
@@ -163,6 +164,10 @@ func (c *Client) DshbotControlRoutine(ctx context.Context, cmd DshbotRoutineComm
 		if err := ValidateDshbotRoutineEdit(cmd.Edit); err != nil {
 			return nil, err
 		}
+		if err := ValidateDshbotRoutineAdvanced(cmd.Advanced); err != nil {
+			return nil, err
+		}
+		applyRoutineAdvancedPayload(payload, cmd.Advanced)
 		payload["botId"] = cmd.BotID
 		payload["name"] = strings.TrimSpace(cmd.Edit.Name)
 		payload["prompt"] = strings.TrimSpace(cmd.Edit.Prompt)
@@ -210,6 +215,9 @@ func ValidateDshbotRoutineReceipt(cmd DshbotRoutineCommand, v *DshbotRoutineView
 	}
 	if cmd.Action == "save" && (r.Name != strings.TrimSpace(cmd.Edit.Name) || r.Prompt != strings.TrimSpace(cmd.Edit.Prompt) || r.Enabled != cmd.Edit.Enabled || r.MaxRuns != cmd.Edit.MaxRuns || r.Schedule != normalizedRoutineSchedule(cmd.Edit.Schedule) || r.Timezone != strings.TrimSpace(cmd.Edit.Timezone)) {
 		return fmt.Errorf("Host returned different saved fields; refresh before continuing")
+	}
+	if cmd.Action == "save" {
+		return validateRoutineAdvancedReceipt(cmd.Advanced, r)
 	}
 	return nil
 }

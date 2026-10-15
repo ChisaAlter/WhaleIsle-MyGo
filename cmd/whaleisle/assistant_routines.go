@@ -61,8 +61,9 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 			}
 		}()
 	}
+	snapshot := s.assistantRoutines.Snapshot(scope)
 	return assistantui.RoutineModel{
-		State: s.assistantRoutines.Snapshot(scope), HostLabel: ep.Origin, OnRefresh: refresh,
+		State: snapshot, HostLabel: ep.Origin, OnRefresh: refresh,
 		OnSelect: func(id string) {
 			if current() {
 				s.assistantRoutines.Select(scope, id)
@@ -99,11 +100,17 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 				s.updateAssistantTasks()
 			}
 		},
+		OnAcknowledgeWatch: func(ack bool) {
+			if current() {
+				s.assistantRoutines.AcknowledgeWatch(scope, snapshot.Review, ack)
+				s.updateAssistantTasks()
+			}
+		},
 		OnConfirm: func() {
 			if !current() {
 				return
 			}
-			ticket, command, ok := s.assistantRoutines.BeginAction(scope)
+			ticket, command, ok := s.assistantRoutines.BeginAction(scope, snapshot.Review)
 			s.updateAssistantTasks()
 			if !ok {
 				return

@@ -19,12 +19,17 @@ type RoutineDraft struct {
 	Revision      int
 	Edit          pluginrpc.DshbotRoutineEdit
 	MaxRunsText   string
+	Advanced      RoutineAdvancedDraft
 	Version       uint64
 }
 type RoutineReview struct {
 	Command                          pluginrpc.DshbotRoutineCommand
 	SessionID                        string
 	DraftVersion                     uint64
+	Sequence                         uint64
+	WorkspaceID                      string
+	Advanced                         RoutineAdvancedDraft
+	WatchAcknowledged                bool
 	Name, Prompt, Schedule, Timezone string
 }
 type RoutineSnapshot struct {
@@ -32,6 +37,7 @@ type RoutineSnapshot struct {
 	Loaded, Busy                   bool
 	Revision                       int
 	BotName, SessionID, SelectedID string
+	WorkspaceID                    string
 	Routines                       []pluginrpc.DshbotRoutine
 	MissedIDs                      []string
 	MissedKnown                    bool
@@ -40,11 +46,12 @@ type RoutineSnapshot struct {
 	Error, Notice                  string
 }
 type RoutineControls struct {
-	mu         sync.Mutex
-	state      RoutineSnapshot
-	generation uint64
-	binding    uint64
-	drafts     map[string]RoutineDraft
+	mu             sync.Mutex
+	state          RoutineSnapshot
+	generation     uint64
+	binding        uint64
+	reviewSequence uint64
+	drafts         map[string]RoutineDraft
 }
 
 func (c *RoutineControls) Bind(scope RoutineScope) {
@@ -102,10 +109,11 @@ func (c *RoutineControls) Snapshot(scope RoutineScope) RoutineSnapshot {
 	}
 	out.MissedIDs = append([]string(nil), out.MissedIDs...)
 	if d, ok := c.drafts[out.SelectedID]; ok {
+		d = cloneRoutineDraft(d)
 		out.Draft = &d
 	}
 	if out.Review != nil {
-		r := *out.Review
+		r := cloneRoutineReview(*out.Review)
 		out.Review = &r
 	}
 	return out
@@ -154,6 +162,7 @@ func (c *RoutineControls) replace(v *pluginrpc.DshbotRoutineView) error {
 		c.state.BotName = b.ID
 	}
 	c.state.SessionID = b.SessionID
+	c.state.WorkspaceID = b.WorkspaceID
 	c.state.Revision = v.Revision
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].Name == rows[j].Name {
@@ -234,7 +243,7 @@ func (c *RoutineControls) StartEdit(s RoutineScope) {
 	if schedule == "" && r.IntervalMinutes > 0 {
 		schedule = fmt.Sprintf("every %dm", r.IntervalMinutes)
 	}
-	c.drafts[r.ID] = RoutineDraft{ID: r.ID, SessionID: c.state.SessionID, Revision: c.state.Revision, Edit: pluginrpc.DshbotRoutineEdit{Name: r.Name, Prompt: r.Prompt, Schedule: schedule, Timezone: r.Timezone, MaxRuns: r.MaxRuns, Enabled: r.Enabled}, MaxRunsText: strconv.Itoa(r.MaxRuns)}
+	c.drafts[r.ID] = RoutineDraft{ID: r.ID, SessionID: c.state.SessionID, Revision: c.state.Revision, Edit: pluginrpc.DshbotRoutineEdit{Name: r.Name, Prompt: r.Prompt, Schedule: schedule, Timezone: r.Timezone, MaxRuns: r.MaxRuns, Enabled: r.Enabled}, MaxRunsText: strconv.Itoa(r.MaxRuns), Advanced: routineAdvancedFromRecord(r)}
 	c.state.Review = nil
 }
 func (c *RoutineControls) Edit(s RoutineScope, field, value string) {
@@ -261,7 +270,15 @@ func (c *RoutineControls) Edit(s RoutineScope, field, value string) {
 	case "enabled":
 		d.Edit.Enabled = value == "true"
 	default:
-		return
+		changed, err := editRoutineAdvanced(&d.Advanced, field, value, s.BotID, d.ID, c.state.Routines)
+		if err != nil {
+			c.state.Error = err.Error()
+			c.state.Review = nil
+			return
+		}
+		if !changed {
+			return
+		}
 	}
 	d.Version++
 	c.drafts[d.ID] = d
@@ -296,7 +313,7 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 	}
 	c.state.Review = nil
 	cmd := pluginrpc.DshbotRoutineCommand{Action: action, ID: r.ID, BotID: s.BotID, Revision: c.state.Revision, EnabledBefore: r.Enabled}
-	review := &RoutineReview{Command: cmd, SessionID: c.state.SessionID, Name: r.Name, Prompt: r.Prompt, Schedule: r.Schedule, Timezone: r.Timezone}
+	review := &RoutineReview{Command: cmd, SessionID: c.state.SessionID, Name: r.Name, Prompt: r.Prompt, Schedule: r.Schedule, Timezone: r.Timezone, WorkspaceID: c.state.WorkspaceID, Advanced: routineAdvancedFromRecord(r)}
 	switch action {
 	case "save":
 		d, ok := c.drafts[r.ID]
@@ -321,6 +338,13 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 			c.state.Error = "启用时次数上限必须大于已执行次数 / Limit must exceed current run count"
 			return
 		}
+		advanced, err := prepareRoutineAdvanced(d.Advanced, s.BotID, r.ID, c.state.Routines)
+		if err != nil {
+			c.state.Error = err.Error()
+			return
+		}
+		review.Command.Advanced = advanced
+		review.Advanced = routineAdvancedReviewValue(d.Advanced, advanced)
 		review.Command.Edit = d.Edit
 		review.DraftVersion = d.Version
 		review.Name = d.Edit.Name
@@ -336,11 +360,13 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 	default:
 		return
 	}
+	c.reviewSequence++
+	review.Sequence = c.reviewSequence
 	c.state.Review = review
 	c.state.Error = ""
 	c.state.Notice = ""
 }
-func (c *RoutineControls) BeginAction(s RoutineScope) (RoutineTicket, pluginrpc.DshbotRoutineCommand, bool) {
+func (c *RoutineControls) BeginAction(s RoutineScope, expected ...*RoutineReview) (RoutineTicket, pluginrpc.DshbotRoutineCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var empty pluginrpc.DshbotRoutineCommand
@@ -348,7 +374,14 @@ func (c *RoutineControls) BeginAction(s RoutineScope) (RoutineTicket, pluginrpc.
 		return RoutineTicket{}, empty, false
 	}
 	r := c.state.Review
+	if len(expected) > 0 && (expected[0] == nil || expected[0].Sequence != r.Sequence) {
+		return RoutineTicket{}, empty, false
+	}
+	if RoutineReviewNeedsWatchAcknowledgement(*r) && !r.WatchAcknowledged {
+		return RoutineTicket{}, empty, false
+	}
 	cmd := r.Command
+	cmd.Advanced = pluginrpc.CloneDshbotRoutineAdvanced(cmd.Advanced)
 	if cmd.BotID != s.BotID || cmd.ID != c.state.SelectedID || cmd.Revision != c.state.Revision || r.SessionID != c.state.SessionID {
 		return RoutineTicket{}, empty, false
 	}
