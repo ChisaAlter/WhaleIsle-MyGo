@@ -22,11 +22,17 @@ type commitSelectionState struct {
 	Push                          bool
 	PushPlan                      git.PushPlan
 	Source                        string
+	WantPR                        bool
+	PRTitle, PRBody               string
+	PRPlan                        *git.PullRequestPlan
+	StackPlan                     *git.StackPlan
 }
 type commitPrepared struct {
 	plan            git.SelectedCommitPlan
 	message, source string
 	push            git.PushPlan
+	pr              *git.PullRequestPlan
+	stack           git.StackPlan
 	err             error
 }
 type commitPreparation struct {
@@ -45,6 +51,8 @@ func (w *Workbench) commitState() *commitSelectionState {
 func (w *Workbench) invalidateCommitReview() {
 	if w.Commit != nil {
 		w.Commit.Plan = nil
+		w.Commit.PRPlan = nil
+		w.Commit.StackPlan = nil
 		w.Commit.Source = ""
 	}
 	w.ReviewToken = ""
@@ -85,6 +93,8 @@ func (w *Workbench) scanCommitFiles() {
 // RequestCommit routes all native entry points to the same selection/review flow.
 func (w *Workbench) RequestCommit(root, message string) {
 	w.cancelCommitPreparation()
+	w.cancelRemotePreparation()
+	w.Remote = nil
 	if w.Root != root {
 		*w = Workbench{Operation: w.Operation}
 	}
@@ -112,6 +122,11 @@ func finishCommitPreparation(m Model) {
 			return
 		}
 		s.Plan = &result.plan
+		s.StackPlan = &result.stack
+		s.PRPlan = result.pr
+		if result.pr != nil {
+			s.PRTitle, s.PRBody = result.pr.Title, result.pr.Body
+		}
 		s.MessageSnapshot = result.message
 		s.Source = result.source
 		s.Push, s.PushPlan = task.push, result.push
@@ -124,7 +139,7 @@ func finishCommitPreparation(m Model) {
 	default:
 	}
 }
-func beginCommitPreparation(c *ui.Context, m Model, push bool) {
+func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 	w := m.Workbench
 	s := w.commitState()
 	if s.Task != nil || w.Operation != nil {
@@ -159,6 +174,7 @@ func beginCommitPreparation(c *ui.Context, m Model, push bool) {
 	}
 	largeAcknowledged := s.LargeAcknowledged
 	root, message := m.WorkspaceRoot, w.Message
+	prTitle, prBody := s.PRTitle, s.PRBody
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	task := &commitPreparation{root: root, cancel: cancel, done: make(chan commitPrepared, 1), push: push}
 	w.invalidateCommitReview()
@@ -182,6 +198,24 @@ func beginCommitPreparation(c *ui.Context, m Model, push bool) {
 		}
 		if r.err == nil && push {
 			r.push, r.err = git.PreparePush(root)
+		}
+		if r.err == nil && createPR {
+			if strings.TrimSpace(prTitle) == "" {
+				prTitle = strings.SplitN(r.message, "\n", 2)[0]
+			}
+			if strings.TrimSpace(prBody) == "" {
+				prBody = r.plan.Summary
+			}
+			var pr git.PullRequestPlan
+			pr, r.err = git.PreparePullRequest(ctx, root, r.push, prTitle, prBody)
+			r.pr = &pr
+		}
+		if r.err == nil {
+			var pushPlan *git.PushPlan
+			if push {
+				pushPlan = &r.push
+			}
+			r.stack, r.err = git.PrepareStack(ctx, root, &r.plan, r.message, pushPlan, r.pr)
 		}
 		phase := word("核对内容已准备好", "Review ready")
 		if r.err != nil {
@@ -273,15 +307,28 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	if beforeMessage != w.Message || beforeBranch != s.NewBranch || beforeMake != s.MakeBranch {
 		w.invalidateCommitReview()
 	}
+	beforePR, beforeTitle, beforeBody := s.WantPR, s.PRTitle, s.PRBody
+	ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建草稿 PR", "Prepare commit, push and draft PR"))
+	if s.WantPR {
+		ui.TextInput(c, &s.PRTitle).FillWidth().Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)"))
+		ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)"))
+		ui.Text(c, word("PR 使用手写文案；会展示收件仓库和目标分支，创建前要求仓库干净。", "PR text is editable. Review the recipient and base; PR creation requires a clean repository.")).FontSize(10).TextColor(muted)
+	}
+	if beforePR != s.WantPR || beforeTitle != s.PRTitle || beforeBody != s.PRBody {
+		w.invalidateCommitReview()
+	}
 	if s.Plan == nil {
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, word("核对所选文件并提交…", "Review selected files to commit…")).Clicked() {
-				beginCommitPreparation(c, m, false)
+				beginCommitPreparation(c, m, false, false)
 			}
 			if ui.Button(c, word("核对提交并推送…", "Review commit and push…")).Disabled(s.MakeBranch).Clicked() {
-				beginCommitPreparation(c, m, true)
+				beginCommitPreparation(c, m, true, false)
 			}
 		})
+		if s.WantPR && ui.Button(c, word("核对提交、推送及草稿 PR…", "Review commit, push and draft PR…")).Disabled(s.MakeBranch).Clicked() {
+			beginCommitPreparation(c, m, true, true)
+		}
 		return
 	}
 	plan := *s.Plan
@@ -302,10 +349,16 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	if s.Push {
 		ui.Text(c, pushReviewText(s.PushPlan)).FontSize(11).TextColor(fg)
 	}
+	if s.PRPlan != nil {
+		paintPRReview(c, *s.PRPlan, fg, muted)
+	}
 	ui.Row(c).Gap(6).Children(func() {
 		caption := word("确认提交所选文件", "Confirm selected commit")
 		if s.Push {
 			caption = word("确认所选提交并推送", "Confirm selected commit and push")
+		}
+		if s.PRPlan != nil {
+			caption = word("确认提交、推送并创建草稿 PR", "Confirm commit, push and draft PR")
 		}
 		if ui.Button(c, caption).Clicked() {
 			confirmSelectedCommit(c, m)
@@ -319,42 +372,18 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 func confirmSelectedCommit(c *ui.Context, m Model) {
 	w := m.Workbench
 	s := w.commitState()
-	if s.Plan == nil {
+	if s.Plan == nil || s.StackPlan == nil {
 		return
 	}
-	root, message, plan, push, pushPlan := m.WorkspaceRoot, w.Message, *s.Plan, s.Push, s.PushPlan
-	if message != s.MessageSnapshot {
+	if w.Message != s.MessageSnapshot {
 		w.invalidateCommitReview()
 		w.Status = word("说明已更改，请重新核对。", "Message changed; review again.")
 		return
 	}
+	root, plan := m.WorkspaceRoot, *s.StackPlan
 	w.invalidateCommitReview()
-	beginGitOperation(c, w, word("正在提交所选文件", "Committing selected files"), func(ctx context.Context) gitOperationResult {
-		if push {
-			current, e := git.PreparePush(root)
-			if e != nil {
-				return gitOperationResult{err: e}
-			}
-			if current != pushPlan {
-				return gitOperationResult{err: errors.New("push destination changed; review again")}
-			}
-		}
-		result, e := git.CommitSelectedReviewed(ctx, root, message, plan)
-		text := result.Output
-		if result.CreatedBranch != "" {
-			text = "Created branch: " + result.CreatedBranch + "\n" + text
-		}
-		if e != nil && result.Committed {
-			text += "\nCommit created: " + result.CommitSHA + ". Do not repeat the commit."
-		}
-		if e == nil && push {
-			var pushed string
-			pushed, e = git.PushReviewedContext(ctx, root, pushPlan)
-			text += "\n" + pushed
-			if e != nil {
-				text += "\nCommitted locally. Use Push to retry without creating another commit."
-			}
-		}
-		return gitOperationResult{text: text, err: e, committed: result.Committed}
+	beginGitOperation(c, w, word("正在执行已核对的 Git 操作", "Running reviewed Git actions"), func(ctx context.Context) gitOperationResult {
+		result, e := git.RunCommitStack(ctx, root, plan)
+		return gitOperationResult{text: result.Output, err: e, committed: result.Committed, stack: &result}
 	})
 }

@@ -13,6 +13,7 @@ type gitOperationResult struct {
 	text      string
 	err       error
 	committed bool
+	stack     *git.StackResult
 }
 
 type gitOperation struct {
@@ -62,6 +63,9 @@ func finishGitOperation(m Model) {
 		w.Operation = nil
 		sameRoot := operation.root == m.WorkspaceRoot
 		if sameRoot {
+			if result.stack != nil {
+				w.LastStack = mergeStackHistory(w.LastStack, result.stack)
+			}
 			w.reload(m.WorkspaceRoot)
 			if w.BranchesOpen {
 				w.reloadBranches()
@@ -101,6 +105,10 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("操作进行中，请勿重复提交。", "Operation in progress. Do not submit it again.")).FontSize(10).TextColor(muted)
 		return true
 	}
+	paintGitFollowups(c, m, fg, muted)
+	if paintRemoteWorkflow(c, m, fg, muted) {
+		return true
+	}
 	if !w.Repository {
 		ui.Text(c, word("此目录尚未初始化 Git。初始化会创建本地 main 分支，不提交文件。", "This folder has no Git repository. Initialize creates a local main branch without committing files.")).FontSize(11).TextColor(muted)
 		if ui.Button(c, word("初始化 Git", "Initialize Git")).Disabled(strings.TrimSpace(m.WorkspaceRoot) == "").Clicked() {
@@ -114,6 +122,9 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			ui.Text(c, w.Status).FontSize(11).TextColor(fg)
 		}
 		return true
+	}
+	if ui.Button(c, word("核对草稿 PR…", "Review draft PR…")).Clicked() {
+		w.RequestPR(m.WorkspaceRoot)
 	}
 	if ui.Button(c, word("发布仓库…", "Publish repository…")).Clicked() {
 		w.PublishOpen = !w.PublishOpen

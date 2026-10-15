@@ -9,6 +9,8 @@ import (
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
 	Progress                                  *git.Progress
+	LastStack                                 *git.StackResult
+	Remote                                    *remoteWorkflowState
 	Commit                                    *commitSelectionState
 	View                                      patchViewState
 	Discard                                   *git.DiscardPlan
@@ -57,6 +59,7 @@ func refreshWorkbench(m Model) {
 	if m.Workbench != nil {
 		w := m.Workbench
 		w.cancelCommitPreparation()
+		w.cancelRemotePreparation()
 		if w.Loaded && w.Root != m.WorkspaceRoot {
 			w.CancelComparison()
 			operation := w.Operation
@@ -87,6 +90,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if !w.Loaded || w.Root != m.WorkspaceRoot {
 		w.cancelCommitPreparation()
+		w.cancelRemotePreparation()
 		w.CancelComparison()
 		if w.Loaded && w.Root != m.WorkspaceRoot {
 			if m.Text != nil {

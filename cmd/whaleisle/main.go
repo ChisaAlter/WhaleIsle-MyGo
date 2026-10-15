@@ -2393,22 +2393,6 @@ func (s *mainState) runGitPRView(root string) {
 	}, i18n.T(i18n.KeyGitPRView), i18n.T(i18n.KeyGitActionFailed))
 }
 
-func (s *mainState) runGitPRCreate(root string) {
-	s.runGitRemote("pr-create", root, func(ctx context.Context) (string, error) {
-		st := desktopgit.CreatePRDraft(ctx, root)
-		if !st.OK {
-			return "", fmt.Errorf("%s", st.Err)
-		}
-		s.mu.Lock()
-		s.gitPRAt = time.Time{}
-		s.mu.Unlock()
-		if st.URL != "" {
-			return st.URL, nil
-		}
-		return st.Summary, nil
-	}, i18n.T(i18n.KeyGitPRCreate), i18n.T(i18n.KeyGitActionFailed))
-}
-
 func (s *mainState) runGitPRCheckout(root string, number int) {
 	s.runGitRemote("pr-checkout", root, func(ctx context.Context) (string, error) {
 		st := desktopgit.CheckoutPR(ctx, root, number)
@@ -2932,7 +2916,7 @@ func mainView(c *ui.Context) {
 				gitCommitOpen = false
 				state.gitPROpen = false
 				state.mu.Unlock()
-				state.gitWorkbench.RequestCommit(root, gitCommitDraft)
+				gitWorkbench.RequestCommit(root, gitCommitDraft)
 				if win != nil {
 					win.Update(func() {})
 				}
@@ -2953,7 +2937,18 @@ func mainView(c *ui.Context) {
 				}
 			}
 			gitBadge.OnPRView = func() { state.runGitPRView(root) }
-			gitBadge.OnPRCreate = func() { state.runGitPRCreate(root) }
+			gitBadge.OnPRCreate = func() {
+				state.mu.Lock()
+				state.filesPaneOpen = true
+				state.rightPaneTab = "diff"
+				state.gitPROpen = false
+				state.mu.Unlock()
+				rightPaneTab, gitPROpen = "diff", false
+				gitWorkbench.RequestPR(root)
+				if win != nil {
+					win.Invalidate()
+				}
+			}
 		}
 	}
 	titleColors := chrome.TitleBarColorsFrom(colors)
@@ -3511,7 +3506,7 @@ func mainView(c *ui.Context) {
 				CancelLabel: i18n.T(i18n.KeyGitCommitCancel),
 				OnCommit: func() {
 					if st.State == harness.Ready && root != "" && !gitBusy {
-						state.gitWorkbench.RequestCommit(root, gitCommitDraft)
+						gitWorkbench.RequestCommit(root, gitCommitDraft)
 						rightPaneTab = "diff"
 						gitCommitOpen = false
 						state.mu.Lock()
@@ -3567,7 +3562,16 @@ func mainView(c *ui.Context) {
 				},
 				OnCreate: func() {
 					if st.State == harness.Ready && root != "" && !gitBusy {
-						state.runGitPRCreate(root)
+						state.mu.Lock()
+						state.filesPaneOpen = true
+						state.rightPaneTab = "diff"
+						state.gitPROpen = false
+						state.mu.Unlock()
+						rightPaneTab, gitPROpen = "diff", false
+						gitWorkbench.RequestPR(root)
+						if win != nil {
+							win.Invalidate()
+						}
 					}
 				},
 				OnClose: func() {
