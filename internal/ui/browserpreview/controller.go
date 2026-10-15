@@ -296,6 +296,14 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				if ui.Button(c, "前往").Clicked() {
 					b.Navigate(t.Draft)
 				}
+				if ui.Button(c, "系统浏览器打开").Disabled(b.current() != t || NormalizeURL(t.Draft) == "").Tooltip("打开地址栏中的 HTTP(S) 地址；使用系统浏览器自己的登录状态，不传递 Browser 分区 Cookie。").Clicked() && b.current() == t {
+					if err := openBrowserAddress(t.Draft, desktop.OpenExternal); err != nil {
+						t.Error = err.Error()
+					} else {
+						t.Error = ""
+						t.ActionMessage = "已提交到系统浏览器；当前 Browser 页签和分区保持不变"
+					}
+				}
 				if ui.Button(c, "复制链接").Clicked() {
 					raw := s.URL
 					if raw == "" {
