@@ -86,6 +86,18 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		})
 	}
 	return &settings.MCPAccess{
+		Form: &settings.MCPFormAccess{
+			Draft: snap.Form, Errors: snap.FormErrors,
+			OnOpen:   func() { controller.OpenForm(); s.updateMCPSettingsUI() },
+			OnChange: func(form mcpconfig.FormDraft) { controller.SetForm(form); s.updateMCPSettingsUI() },
+			OnJSON:   func() { controller.ShowJSON(); s.updateMCPSettingsUI() },
+			OnCancel: func() { controller.CancelEdit(); s.updateMCPSettingsUI() },
+			OnSave: func(form mcpconfig.FormDraft) {
+				s.runMCPSettings(controller, func(ctx context.Context, caller mcpconfig.Caller) {
+					controller.SaveFormExpected(ctx, caller, form, snap.EditingID)
+				})
+			},
+		},
 		Catalog: &settings.MCPCatalogAccess{
 			Snapshot:  snap,
 			OnQuery:   func(value string) { controller.SetQuery(value); s.updateMCPSettingsUI() },

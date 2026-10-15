@@ -17,6 +17,8 @@ type Caller interface {
 	Call(context.Context, string, any, any) error
 }
 type Snapshot struct {
+	Form                                          *FormDraft
+	FormErrors                                    map[string]string
 	Query, EnabledFilter, ExpandedID              string
 	Tests                                         map[string]TestDiagnostic
 	Rows                                          []api.McpServerSnapshotServersItem
@@ -33,6 +35,14 @@ func (c *Controller) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := c.state
+	if c.state.Form != nil {
+		form := *c.state.Form
+		s.Form = &form
+	}
+	s.FormErrors = make(map[string]string, len(c.state.FormErrors))
+	for key, message := range c.state.FormErrors {
+		s.FormErrors[key] = message
+	}
 	s.Tests = cloneDiagnostics(s.Tests)
 	s.Rows = append([]api.McpServerSnapshotServersItem(nil), s.Rows...)
 	for i := range s.Rows {
@@ -70,6 +80,8 @@ func (c *Controller) Edit(id string) {
 				c.state.Err = "Invalid server configuration"
 				return
 			}
+			c.state.Form = nil
+			c.state.FormErrors = nil
 			c.state.Draft = pretty.String()
 			c.state.EditingID = id
 			c.state.Err = ""
@@ -82,6 +94,8 @@ func (c *Controller) SetDraft(text string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Draft != text {
+		c.state.Form = nil
+		c.state.FormErrors = nil
 		c.state.Draft = text
 		c.revision++
 	}
@@ -92,6 +106,8 @@ func (c *Controller) CancelEdit() {
 	if c.state.Busy {
 		return
 	}
+	c.state.Form = nil
+	c.state.FormErrors = nil
 	c.state.Draft = ""
 	c.state.EditingID = ""
 	c.state.Err = ""
@@ -184,7 +200,14 @@ func (c *Controller) Save(ctx context.Context, client Caller) {
 
 // SaveExpected rejects a queued click after the user has selected another draft.
 func (c *Controller) SaveExpected(ctx context.Context, client Caller, draft, editingID string) {
+	c.saveExpectedVersion(ctx, client, draft, editingID, nil)
+}
+func (c *Controller) saveExpectedVersion(ctx context.Context, client Caller, draft, editingID string, expectedRevision *uint64) {
 	c.mu.Lock()
+	if expectedRevision != nil && c.revision != *expectedRevision {
+		c.mu.Unlock()
+		return
+	}
 	if c.state.Draft != draft || c.state.EditingID != editingID {
 		c.mu.Unlock()
 		return
@@ -223,6 +246,8 @@ func (c *Controller) SaveExpected(ctx context.Context, client Caller, draft, edi
 	err = client.Call(ctx, "mcpServers/upsert", map[string]any{"request": api.McpServerUpsertRequest{Spec: spec}}, &out)
 	c.finish(ctx, client, err, "Saved", func() {
 		if c.revision == revision {
+			c.state.Form = nil
+			c.state.FormErrors = nil
 			c.state.Draft = ""
 			c.state.EditingID = ""
 		}
@@ -278,6 +303,8 @@ func (c *Controller) DeleteExpected(ctx context.Context, client Caller, id strin
 	c.finish(ctx, client, err, "Removed "+id, func() {
 		c.state.DeletingID = ""
 		if c.state.EditingID == id {
+			c.state.Form = nil
+			c.state.FormErrors = nil
 			c.state.EditingID = ""
 			c.state.Draft = ""
 			c.revision++
