@@ -10,6 +10,7 @@ import (
 )
 
 type RoutineModel struct {
+	ObjectiveConfig                                    BotObjectiveConfigModel
 	MemoryReview                                       BotMemoryReviewModel
 	Capabilities                                       BotCapabilityModel
 	Objective                                          BotObjectiveModel
@@ -75,6 +76,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		botMemoryReviewBlock(c, r.MemoryReview, blocked, fg, muted, accent)
 		botCapabilitiesBlock(c, r.Capabilities, blocked, fg, muted, accent)
 		botObjectiveBlock(c, r.Objective, blocked, fg, muted, accent)
+		botObjectiveConfigBlock(c, r.ObjectiveConfig, blocked, fg, muted, accent)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Bot 例行任务 / Bot routines").FontSize(13).Bold().TextColor(fg).Grow(1)
 			if ui.Button(c, "刷新例行任务 / Refresh routines").Disabled(blocked || s.Scope.BotID == "").Clicked() {

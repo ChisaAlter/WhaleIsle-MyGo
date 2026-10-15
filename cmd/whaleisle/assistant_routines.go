@@ -141,5 +141,6 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 	s.bindBotMemoryReviewModel(&model, ep, scope, current)
 	s.bindBotCapabilityModel(&model, ep, scope, current)
 	s.bindBotObjectiveModel(&model, ep, scope, current)
+	s.bindBotObjectiveConfigModel(&model, ep, scope, current)
 	return model
 }

@@ -47,6 +47,7 @@ type RoutineSnapshot struct {
 	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
+	ObjectiveConfig ObjectiveConfigControls
 	MemoryReview    MemoryReviewControls
 	Capabilities    CapabilityControls
 	Objective       ObjectiveControls
@@ -69,6 +70,7 @@ func (c *RoutineControls) Bind(scope RoutineScope) {
 		c.MemoryReview.Bind(scope)
 		c.Capabilities.Bind(scope)
 		c.Objective.Bind(scope)
+		c.ObjectiveConfig.Bind(scope)
 		c.clearRoutineTrigger()
 		c.generation++
 		c.binding++

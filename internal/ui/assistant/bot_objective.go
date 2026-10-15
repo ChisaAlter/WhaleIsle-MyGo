@@ -60,7 +60,7 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-objective")).Gap(7).Children(func() {
 		ui.Text(c, "Bot 目标循环 / Bot objective").FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "此处管理已配置的目录目标；新增或修改目标及轮数请使用现有 Bot Web 资料编辑器。普通会话目标面板不能替代 Bot 目录配置。 / Configure in the existing Bot Web profile editor.").FontSize(11).TextColor(muted)
+		ui.Text(c, "此处管理目录目标的开始、暂停和清除；下方可新增或修改目标配置。无法无损编辑的资料仍保留现有 Bot Web 入口。普通会话目标面板不能替代 Bot 目录配置。").FontSize(11).TextColor(muted)
 		if ui.Button(c, "刷新 Bot 目标状态 / Refresh objective").Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
