@@ -54,6 +54,7 @@ import (
 	"whaleisle/internal/startuprec"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/store/hostterminal"
 	imstore "whaleisle/internal/store/im"
 	"whaleisle/internal/store/interaction"
 	marketstore "whaleisle/internal/store/market"
@@ -358,6 +359,8 @@ type mainState struct {
 
 	terminalPanel       *termui.Panel
 	terminalSessions    termui.Sessions
+	hostTerminals       hostterminal.Store
+	hostTerminalUI      termui.HostState
 	terminalShellsNote  string
 	terminalVisible     bool
 	terminalSavedBottom float32
@@ -1749,6 +1752,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMu.Lock()
 	s.dshMux = mux
 	s.dshMu.Unlock()
+	s.hostTerminals.Bind(client, mux, false, refresh)
 	sessions.AttachMux(mux)
 	if s.usage != nil {
 		s.usage.AttachMux(mux)
@@ -1775,6 +1779,7 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
+	s.hostTerminals.Bind(nil, nil, false, nil)
 	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.stopProjectProcessLocked()
@@ -1845,6 +1850,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		s.dshMuxReady = ready
 		s.dshMuxLost = lost
 		s.mu.Unlock()
+		s.hostTerminals.Transport(client, ready)
 		refresh()
 	}
 	_ = dsh.MaintainMux(ctx, mux, dsh.Backoff{}, func(ctx context.Context) error {
@@ -2083,6 +2089,7 @@ func main() {
 			state.projectWindowHidden = true
 			state.stopProjectRefreshLocked()
 			state.mu.Unlock()
+			state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 		})
 		win.OnShow(func() {
 			state.mu.Lock()
@@ -2091,6 +2098,8 @@ func main() {
 			win.Invalidate()
 		})
 		win.OnClosed(func() {
+			state.hostTerminals.Bind(nil, nil, false, nil)
+			state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 			state.mu.Lock()
 			state.fileTabs.Dispose()
 			state.stopProjectProcessLocked()
@@ -2879,6 +2888,7 @@ func mainView(c *ui.Context) {
 	fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, fileSessionID)
 	fileTabs.Bind(fileBindingID, workspaceRoot)
 	if sessions == nil || launcherOpen || settingsOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
+		state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 		fileTabs.CancelPlanRead()
 		fileTabs.Pause()
 	}
@@ -6397,6 +6407,8 @@ func mainView(c *ui.Context) {
 							return sessions.ListReferenceCandidates(context.Background(), snap.SelectedID, query, quoted)
 						},
 						Terminal:              termPanel,
+						HostTerminalStore:     &state.hostTerminals,
+						HostTerminalUI:        &state.hostTerminalUI,
 						TerminalShellsNote:    termShellsNote,
 						CanAddSelectionToChat: sessions != nil && snap.SelectedID != "" && !activeDraft.Sending,
 						OnAddSelectionToChat: func(fragment string) error {

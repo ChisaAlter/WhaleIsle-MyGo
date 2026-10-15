@@ -642,6 +642,14 @@ func (t *Terminal) resize(s gridSize) {
 		t.timer.Stop()
 		defer func() { go t.start(o) }() // at this size
 	}
+	// A remote connection can preserve its authoritative grid while read-only
+	// and bound writable resize proposals to its Host limits.
+	if conn, ok := t.src.(interface {
+		TerminalSize(cols, rows int) (int, int)
+	}); ok {
+		s.cols, s.rows = conn.TerminalSize(s.cols, s.rows)
+		s.cols, s.rows = max(1, s.cols), max(1, s.rows)
+	}
 	if s == t.size {
 		return
 	}

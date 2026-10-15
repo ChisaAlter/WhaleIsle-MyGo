@@ -13,6 +13,7 @@ import (
 
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
@@ -251,6 +252,8 @@ type Model struct {
 	OnCloseTerminal      func()
 
 	Terminal              *termui.Panel
+	HostTerminalStore     *hostterminal.Store
+	HostTerminalUI        *termui.HostState
 	TerminalShellsNote    string
 	OnAddSelectionToChat  func(string) error
 	CanAddSelectionToChat bool
@@ -312,6 +315,9 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
 	snap := m.Store.Snapshot()
+	if m.HostTerminalUI != nil {
+		m.HostTerminalUI.Observe(m.HostTerminalStore, snap.SelectedID, m.RightPaneOpen && derefString(m.RightPaneTab) == "host-terminal")
+	}
 	if m.FileTabs != nil {
 		m.FileTabs.SyncPlanSession(snap.SelectedID)
 	}
@@ -1019,7 +1025,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "diff", "agents", "browser":
+		case "diff", "agents", "browser", "host-terminal":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -1041,6 +1047,13 @@ func rightPane(c *ui.Context, m Model) {
 					*m.RightPaneTab = "agents"
 				}
 			})
+			if m.HostTerminalStore != nil {
+				paintRightTab(c, tab == "host-terminal", termui.HostTitle(), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "host-terminal"
+					}
+				})
+			}
 			if m.OnOpenBrowserPreview != nil {
 				ui.Box(c).Grow(1)
 				paintRightTab(c, tab == "browser", i18n.T(i18n.KeyBrowserPreviewTitle), fg, muted, accent, m.OnOpenBrowserPreview)
@@ -1053,6 +1066,10 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if m.OnHideBrowser != nil {
 			m.OnHideBrowser()
+		}
+		if tab == "host-terminal" && m.Store != nil {
+			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.Snapshot().SelectedID, m.ThemeID, m.SystemDark)
+			return
 		}
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
