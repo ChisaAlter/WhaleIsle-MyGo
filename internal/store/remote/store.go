@@ -35,8 +35,14 @@ func (m *Machine) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &m.raw)
 }
 
-type Draft struct{ ID, Name, Host, Port, Username, PrivateKeyPath, Workspace string }
+type Draft struct {
+	ID, Name, Host, Port, Username, PrivateKeyPath, Workspace string
+	Options *ConnectionDraft
+}
 type Snapshot struct {
+	Tools           ToolsSnapshot
+	Notice          string
+	Status          ConnectionStatus
 	Directory       DirectorySnapshot
 	Machines        []Machine
 	CurrentID       string
@@ -74,6 +80,7 @@ func (s *Store) Snapshot() Snapshot {
 	v := s.view
 	v.Machines = append([]Machine(nil), v.Machines...)
 	v.Directory.Items = append([]DirectoryEntry(nil), v.Directory.Items...)
+	v.Tools = cloneTools(v.Tools)
 	return v
 }
 func request(ctx context.Context, c *dsh.Client, method, route string, body any, out any) error {
@@ -138,6 +145,7 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 	}
 	s.view.Busy = true
 	s.view.Error = ""
+	s.view.Notice = ""
 	s.view.MutationApplied = false
 	c, n, g := s.client, s.notify, s.generation
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -157,9 +165,7 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 			Machines  []Machine `json:"machines"`
 			CurrentID string    `json:"currentId"`
 		}
-		var status struct {
-			Connected bool `json:"connected"`
-		}
+		var status ConnectionStatus
 		if err == nil {
 			err = request(ctx, c, "GET", "machines", nil, &registry)
 		}
@@ -194,7 +200,9 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 			s.view.Machines = registry.Machines
 			if s.view.CurrentID != registry.CurrentID {
 				s.view.Directory = DirectorySnapshot{}
+				s.view.Tools = ToolsSnapshot{}
 			}
+			s.view.Status = status
 			s.view.CurrentID = registry.CurrentID
 			s.view.Connected = status.Connected
 
@@ -222,15 +230,26 @@ func (s *Store) Remove(id string) {
 	})
 }
 
-// Save keeps the backend's existing authentication fields unchanged when editing.
-// Password/token entry and host-key policy controls intentionally stay in their
-// existing flows; this editor changes only machine address and workspace fields.
+// Save preserves existing authentication fields unless the editor supplies options.
+// Blank passwords keep the existing host-managed secret; no credentials are stored locally.
 func (s *Store) Save(d Draft) error {
 	body, err := s.payload(d)
 	if err != nil {
 		return err
 	}
-	s.run(func(ctx context.Context, c *dsh.Client) error { return request(ctx, c, "POST", "machines", body, nil) })
+	s.run(func(ctx context.Context, c *dsh.Client) error {
+		var result struct {
+			Warning string `json:"warning"`
+			WarningDetail string `json:"warningDetail"`
+		}
+		err := request(ctx, c, "POST", "machines", body, &result)
+		if err == nil && result.Warning != "" {
+			s.mu.Lock()
+			if c == s.client { s.view.Notice = strings.TrimSpace(result.Warning + " " + result.WarningDetail) }
+			s.mu.Unlock()
+		}
+		return err
+	})
 	return nil
 }
 func (s *Store) payload(d Draft) (map[string]any, error) {
@@ -278,5 +297,8 @@ func (s *Store) payload(d Draft) (map[string]any, error) {
 	body["username"] = strings.TrimSpace(d.Username)
 	body["privateKeyPath"] = strings.TrimSpace(d.PrivateKeyPath)
 	body["workspace"] = strings.TrimSpace(d.Workspace)
+	if d.Options != nil {
+		if err := d.Options.apply(body); err != nil { return nil, err }
+	}
 	return body, nil
 }
