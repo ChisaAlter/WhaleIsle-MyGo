@@ -20,6 +20,8 @@ type DirectoryEntry struct {
 func (e DirectoryEntry) IsDirectory() bool { return e.Type == "dir" || e.Drive }
 
 type DirectorySnapshot struct {
+	InputPath, NewName string
+	MkdirOpen bool
 	Path         string           `json:"path"`
 	Platform     string           `json:"platform"`
 	Items        []DirectoryEntry `json:"items"`
@@ -120,6 +122,7 @@ func (s *Store) directoryRequest(path string, choosing bool) {
 			d.SelectedPath = path
 		} else {
 			listing.Loaded = true
+			listing.InputPath = listing.Path
 			listing.SelectedPath = d.SelectedPath
 			listing.LocalMirror = d.LocalMirror
 			*d = listing
