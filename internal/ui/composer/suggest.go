@@ -134,6 +134,7 @@ type SlashCommand struct {
 // StubSlashCommands are used when commands/list is unavailable.
 func StubSlashCommands() []SlashCommand {
 	return []SlashCommand{
+		{Line: "/model", Description: "Choose model and reasoning effort", LocalAction: "model"},
 		{Line: "/clear", Description: "Clear draft", LocalAction: "clear"},
 		{Line: "/new", Description: "New session", LocalAction: "new"},
 	}

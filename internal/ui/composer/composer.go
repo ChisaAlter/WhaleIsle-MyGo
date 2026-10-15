@@ -171,6 +171,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				})
 			}
 		}
+		if m.State != nil {
+			m.State.ModelCommand.Sync(m.Snapshot.SelectedID)
+			if m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
+				paintModelCommand(c, m, panel, border, fg, muted)
+			}
+		}
 		if m.SkillsOpen {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}
@@ -464,7 +470,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					paintModelPicker(c, m, muted, btnH)
+					if m.State == nil || !m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
+						paintModelPicker(c, m, muted, btnH)
+					}
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {
 						if item.SessionID == m.Snapshot.SelectedID && item.Running {
@@ -487,7 +495,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 							send = send.Disabled(true)
 						}
-						if send.Clicked() && m.OnSubmit != nil {
+						if send.Clicked() && handleModelCommand(m) {
+							// Local entry consumes no prompt or attachment.
+						} else if send.Clicked() && m.OnSubmit != nil {
 							m.OnSubmit()
 						} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
 							text := *m.Draft

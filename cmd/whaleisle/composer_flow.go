@@ -70,6 +70,9 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		return
 	}
 	text := d.Text
+	if d.HandleModelCommand(sessions.Snapshot().SelectedID) {
+		return
+	}
 	// Bare feedback is local; text-bearing feedback stays on the Host command path.
 	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/feedback" {
 		feedbackID := id

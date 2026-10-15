@@ -117,6 +117,10 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		}
 		switch ev.Key {
 		case ui.KeyEscape:
+			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
+				m.State.ModelCommand.Open = false
+				return true
+			}
 			if m.Editing && client.marked == nil && m.OnCancelEdit != nil {
 				m.OnCancelEdit()
 				return true
@@ -149,6 +153,9 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				return true
 			}
 			if m.Draft == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+				return true
+			}
+			if handleModelCommand(m) {
 				return true
 			}
 			if m.OnSubmit != nil {
