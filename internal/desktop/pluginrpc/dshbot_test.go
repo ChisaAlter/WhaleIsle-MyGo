@@ -111,7 +111,7 @@ func TestDshbotOpenUsesSelectedIdentity(t *testing.T) {
 		t.Run(map[bool]string{false: "canonical", true: "changed"}[mismatched], func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var req struct {
-					RPCID string `json:"rpcId"`
+					RPCID   string         `json:"rpcId"`
 					Payload map[string]any `json:"payload"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

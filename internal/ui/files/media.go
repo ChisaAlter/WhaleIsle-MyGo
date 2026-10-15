@@ -176,7 +176,7 @@ func icoPNG(data []byte) ([]byte, error) {
 	var selected []byte
 	best := 0
 	for i := 0; i < count; i++ {
-		entry := data[6+i*16:6+(i+1)*16]
+		entry := data[6+i*16 : 6+(i+1)*16]
 		size, offset := uint64(binary.LittleEndian.Uint32(entry[8:])), uint64(binary.LittleEndian.Uint32(entry[12:]))
 		if offset > uint64(len(data)) || size > uint64(len(data))-offset || size < 8 {
 			continue
@@ -186,8 +186,12 @@ func icoPNG(data []byte) ([]byte, error) {
 			continue
 		}
 		w, h := int(entry[0]), int(entry[1])
-		if w == 0 { w = 256 }
-		if h == 0 { h = 256 }
+		if w == 0 {
+			w = 256
+		}
+		if h == 0 {
+			h = 256
+		}
 		if w*h > best {
 			selected, best = frame, w*h
 		}

@@ -37,7 +37,7 @@ func (m *Machine) UnmarshalJSON(b []byte) error {
 
 type Draft struct {
 	ID, Name, Host, Port, Username, PrivateKeyPath, Workspace string
-	Options *ConnectionDraft
+	Options                                                   *ConnectionDraft
 }
 type Snapshot struct {
 	Tools           ToolsSnapshot
@@ -239,13 +239,15 @@ func (s *Store) Save(d Draft) error {
 	}
 	s.run(func(ctx context.Context, c *dsh.Client) error {
 		var result struct {
-			Warning string `json:"warning"`
+			Warning       string `json:"warning"`
 			WarningDetail string `json:"warningDetail"`
 		}
 		err := request(ctx, c, "POST", "machines", body, &result)
 		if err == nil && result.Warning != "" {
 			s.mu.Lock()
-			if c == s.client { s.view.Notice = strings.TrimSpace(result.Warning + " " + result.WarningDetail) }
+			if c == s.client {
+				s.view.Notice = strings.TrimSpace(result.Warning + " " + result.WarningDetail)
+			}
 			s.mu.Unlock()
 		}
 		return err
@@ -298,7 +300,9 @@ func (s *Store) payload(d Draft) (map[string]any, error) {
 	body["privateKeyPath"] = strings.TrimSpace(d.PrivateKeyPath)
 	body["workspace"] = strings.TrimSpace(d.Workspace)
 	if d.Options != nil {
-		if err := d.Options.apply(body); err != nil { return nil, err }
+		if err := d.Options.apply(body); err != nil {
+			return nil, err
+		}
 	}
 	return body, nil
 }

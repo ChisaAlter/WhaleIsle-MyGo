@@ -121,12 +121,16 @@ func scanPlugins(src, dst string) []CatalogItem {
 		for _, sub := range []string{"plugins", "user-plugins"} {
 			dir := filepath.Join(src, sub)
 			entries, err := os.ReadDir(dir)
-			if err != nil { continue }
+			if err != nil {
+				continue
+			}
 			for _, entry := range entries {
-				if !entry.IsDir() { continue }
+				if !entry.IsDir() {
+					continue
+				}
 				out = append(out, CatalogItem{
 					ID: entry.Name(), Label: entry.Name(), Abs: filepath.Join(dir, entry.Name()),
-					Conflict: entryExists(filepath.Join(dst, sub, entry.Name()), true),
+					Conflict:    entryExists(filepath.Join(dst, sub, entry.Name()), true),
 					Unsupported: true, Group: "local-spec",
 				})
 			}
@@ -134,9 +138,13 @@ func scanPlugins(src, dst string) []CatalogItem {
 		return out
 	}
 	deps, err := readPluginDependencies(src)
-	if err != nil { return nil }
+	if err != nil {
+		return nil
+	}
 	names := make([]string, 0, len(deps))
-	for name := range deps { names = append(names, name) }
+	for name := range deps {
+		names = append(names, name)
+	}
 	sort.Strings(names)
 	var out []CatalogItem
 	for _, name := range names {
@@ -146,7 +154,9 @@ func scanPlugins(src, dst string) []CatalogItem {
 		reason := pluginSkipReason(name, spec)
 		conflict, err := pluginInstalled(dst, name)
 		// A broken destination manifest must never imply that overwrite is safe.
-		if err != nil { conflict = true }
+		if err != nil {
+			conflict = true
+		}
 		out = append(out, CatalogItem{
 			ID: name, Label: name, Spec: spec, Group: reason,
 			Unsupported: reason != "", Conflict: conflict,

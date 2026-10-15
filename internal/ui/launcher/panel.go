@@ -69,46 +69,46 @@ type Model struct {
 	ActiveTab       string
 	ImportSummary   string
 	// ImportJournal is the per-item apply log (Electron runImport journal).
-	ImportJournal           []string
-	UpdateStatus            string
-	UpdateAvailable         bool // Electron syncUpdateNotice: only show #home-update when true
-	DisabledPlugins         []string
-	SkipUserPlugins         bool
-	PluginRecoveryReason    string
-	StatusNote              string
-	OnTab                   func(tab string)
-	OnClose                 func()
-	OnStart                 func()
-	OnStop                  func()
-	OnScanImport            func() // scan official ~/.dsh
-	OnPickImportSource      func() // pick custom source home
-	OnAddSkillImportDir     func() // add skill import directory
-	OnCopyImportJournal     func(lines []string)
-	OnCheckUpdate           func()
-	Releases []update.NativeRelease
-	ReleaseBusy bool
+	ImportJournal                                                     []string
+	UpdateStatus                                                      string
+	UpdateAvailable                                                   bool // Electron syncUpdateNotice: only show #home-update when true
+	DisabledPlugins                                                   []string
+	SkipUserPlugins                                                   bool
+	PluginRecoveryReason                                              string
+	StatusNote                                                        string
+	OnTab                                                             func(tab string)
+	OnClose                                                           func()
+	OnStart                                                           func()
+	OnStop                                                            func()
+	OnScanImport                                                      func() // scan official ~/.dsh
+	OnPickImportSource                                                func() // pick custom source home
+	OnAddSkillImportDir                                               func() // add skill import directory
+	OnCopyImportJournal                                               func(lines []string)
+	OnCheckUpdate                                                     func()
+	Releases                                                          []update.NativeRelease
+	ReleaseBusy                                                       bool
 	ReleaseStatus, ReleaseError, ReleaseSelectedTag, ReleaseStagedTag string
-	ReleaseReceived, ReleaseTotal int64
-	OnRefreshReleases func()
-	OnSelectRelease func(tag string)
-	OnInstallRuntime func()
-	OnInstallRelease func(tag string)
-	OnCancelRelease func()
-	OnStartStagedRelease func()
-	OnOpenSettings          func()
-	OnEnableSkipUserPlugins func()
-	OnClearPluginRecovery   func()
-	OnRestartHarness        func()
-	WorkspacePtr            *string
-	QuitAfterStart          *bool
-	CloseToTray             *bool
-	AutoStartDesktop        *bool
-	AskOnUpdate             *bool
-	DownloadRoute           *string // "", "github", "cnb"
-	OnSaveLauncherPrefs     func()
-	Components              []components.Row
-	OnRefreshComponents     func()
-	OnComponentAction       func(id, action string) // install|start|stop|open
+	ReleaseReceived, ReleaseTotal                                     int64
+	OnRefreshReleases                                                 func()
+	OnSelectRelease                                                   func(tag string)
+	OnInstallRuntime                                                  func()
+	OnInstallRelease                                                  func(tag string)
+	OnCancelRelease                                                   func()
+	OnStartStagedRelease                                              func()
+	OnOpenSettings                                                    func()
+	OnEnableSkipUserPlugins                                           func()
+	OnClearPluginRecovery                                             func()
+	OnRestartHarness                                                  func()
+	WorkspacePtr                                                      *string
+	QuitAfterStart                                                    *bool
+	CloseToTray                                                       *bool
+	AutoStartDesktop                                                  *bool
+	AskOnUpdate                                                       *bool
+	DownloadRoute                                                     *string // "", "github", "cnb"
+	OnSaveLauncherPrefs                                               func()
+	Components                                                        []components.Row
+	OnRefreshComponents                                               func()
+	OnComponentAction                                                 func(id, action string) // install|start|stop|open
 	// ImportOverwrite / ImportAttachments mirror launcher.html #import-overwrite / #import-attachments.
 	ImportOverwrite   *bool
 	ImportAttachments *bool
@@ -817,7 +817,9 @@ func versionsPanel(c *ui.Context, m Model) {
 		}
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil { m.OnRefreshReleases() }
+			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil {
+				m.OnRefreshReleases()
+			}
 		})
 		ui.Text(c, releaseText("按发布标签选择原生 MyGo 安装包；下载校验后再确认安装。", "Select a native MyGo release tag; installation is confirmed after download verification.")).FontSize(12).TextColor(colTertiary)
 		for _, release := range m.Releases {
@@ -827,7 +829,9 @@ func versionsPanel(c *ui.Context, m Model) {
 				unavailable = releaseText("此发布不包含 Host 运行时。", "This release does not contain the Host runtime.")
 			}
 			bg := colSidebar
-			if m.ReleaseSelectedTag == r.Tag && unavailable == "" { bg = colNavActive }
+			if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
+				bg = colNavActive
+			}
 			ui.Column(c).FillWidth().Background(bg).Border(1, colBorderL2).Radius(10).Padding(12).Gap(6).Children(func() {
 				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, r.Tag).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
@@ -835,16 +839,28 @@ func versionsPanel(c *ui.Context, m Model) {
 					if r.Version == m.Version || "v"+r.Version == m.Version {
 						ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(11).TextColor(colAccent)
 					}
-					if r.Prerelease { ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(11).TextColor(colSecondary) }
-					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil { m.OnSelectRelease(r.Tag) }
+					if r.Prerelease {
+						ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(11).TextColor(colSecondary)
+					}
+					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil {
+						m.OnSelectRelease(r.Tag)
+					}
 				})
 				label := releaseText("仅桌面端", "Desktop only")
-				if r.RuntimeIncluded { label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime") }
+				if r.RuntimeIncluded {
+					label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime")
+				}
 				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(12).TextColor(colSecondary)
-				if r.Notes != "" { ui.Text(c, r.Notes).FontSize(12).TextColor(colSecondary) }
-				if unavailable != "" { ui.Text(c, unavailable).FontSize(12).TextColor(colTertiary) }
+				if r.Notes != "" {
+					ui.Text(c, r.Notes).FontSize(12).TextColor(colSecondary)
+				}
+				if unavailable != "" {
+					ui.Text(c, unavailable).FontSize(12).TextColor(colTertiary)
+				}
 				if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
-					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil { m.OnInstallRelease(r.Tag) }
+					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil {
+						m.OnInstallRelease(r.Tag)
+					}
 				}
 			})
 		}

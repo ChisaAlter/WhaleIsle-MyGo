@@ -12,14 +12,14 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
- "whaleisle/internal/store/sessioncost"
+	"whaleisle/internal/store/sessioncost"
 )
 
 // Item is one row in the session tree.
 type Item struct {
- BilledUsage *sessioncost.Projection
- BilledUsageSeq float64
- BilledUsageKind string
+	BilledUsage     *sessioncost.Projection
+	BilledUsageSeq  float64
+	BilledUsageKind string
 
 	SessionID string
 	ParentID  string
@@ -72,23 +72,23 @@ type ViewState struct {
 	SlashCommands        []api.ListResultItem2
 	SlashCommandsLoading bool
 	SlashCommandsErr     string
-	QueueEditor QueueEditorState
+	QueueEditor          QueueEditorState
 
- CostSources []sessioncost.Source
- SelectedProvider string
+	CostSources      []sessioncost.Source
+	SelectedProvider string
 
 	ScratchCwd       string
 	SelectedCwd      string
 	WorkspaceMembers map[string]bool
-	ClientReady     bool
-	ListLoading     bool
-	ListErr         string
-	Items           []Item
-	SelectedID      string
-	Messages        []Message
-	MessageEditBusy bool
-	PromptBusy      bool
-	LastAction      string
+	ClientReady      bool
+	ListLoading      bool
+	ListErr          string
+	Items            []Item
+	SelectedID       string
+	Messages         []Message
+	MessageEditBusy  bool
+	PromptBusy       bool
+	LastAction       string
 	// MessageRatings maps assistant message id → "up"|"down" for the current session.
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
@@ -139,17 +139,17 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
-	commandCatalog commandCatalog
- feedback feedbackState
-	visualReply visualReplyRead
-	visualReplyToken uint64
-	queueEditor queueEditor
-	queueEditorToken uint64
-	queueProjectionSessionID string
+	commandCatalog            commandCatalog
+	feedback                  feedbackState
+	visualReply               visualReplyRead
+	visualReplyToken          uint64
+	queueEditor               queueEditor
+	queueEditorToken          uint64
+	queueProjectionSessionID  string
 	queueProjectionGeneration uint64
-	queueProjectionSeq float64
+	queueProjectionSeq        float64
 
- costProjections map[string]costProjection
+	costProjections map[string]costProjection
 
 	noDirectoryMu        sync.Mutex
 	scratchCwd           string
@@ -157,75 +157,75 @@ type Store struct {
 	workspaceErr         error
 	workspaceChanged     chan struct{}
 	workspaceMemberships map[string]workspaceMembership
-	mu     sync.Mutex
-	client *dsh.Client
-	mux    *dsh.Mux
-	notify func()
+	mu                   sync.Mutex
+	client               *dsh.Client
+	mux                  *dsh.Mux
+	notify               func()
 
-	listLoading              bool
-	listGeneration           uint64
-	eventsGeneration         uint64
-	listMutations            []lifecycleMutation
-	listErr                  error
-	items                    []Item
-	selectedID               string
-	messages                 []Message
-	promptBusy               bool
-	historyBranchBusy        bool
-	lastAction               string
-	messageRatings           map[string]string
-	feedbackBusyID           string
-	modelOptions             []ModelOption
-	selectedModelLabel       string
-	modelsErr                error
-	permissionOptions        []PermissionOption
-	selectedPermissionLabel  string
-	permissionsErr           error
-	agentPresetOptions       []AgentPresetOption
-	selectedAgentPresetLabel string
-	agentPresetsErr          error
+	listLoading                          bool
+	listGeneration                       uint64
+	eventsGeneration                     uint64
+	listMutations                        []lifecycleMutation
+	listErr                              error
+	items                                []Item
+	selectedID                           string
+	messages                             []Message
+	promptBusy                           bool
+	historyBranchBusy                    bool
+	lastAction                           string
+	messageRatings                       map[string]string
+	feedbackBusyID                       string
+	modelOptions                         []ModelOption
+	selectedModelLabel                   string
+	modelsErr                            error
+	permissionOptions                    []PermissionOption
+	selectedPermissionLabel              string
+	permissionsErr                       error
+	agentPresetOptions                   []AgentPresetOption
+	selectedAgentPresetLabel             string
+	agentPresetsErr                      error
 	skillCatalog                         SkillCatalog
 	skillCatalogScope                    api.SkillInventoryScope
 	skillCatalogVersion                  uint64
 	skillCatalogSession, skillCatalogCwd string
-	skillOptions             []SkillOption
-	skillsErr                error
-	skillHubHits             []SkillHubHit
-	searchInput              string
-	searchLoading            bool
-	searchUseLocal           bool
-	searchErr                error
-	searchRPCQuery           string
-	searchHits               map[string]struct{}
-	searchSeq                uint64
-	searchDebounce           *time.Timer
-	permSettingsNS           string
-	permSettingsRevision     float64
-	permSettingsWritable     bool
-	followCancel             context.CancelFunc
-	followGeneration         uint64
-	workspaceFollowCancel    context.CancelFunc
-	bandCancel               context.CancelFunc
-	bandActions              []BandAction
-	bandGeneration           float64
-	speechFollowCancel       context.CancelFunc
-	speechSelection          string
-	controlCancel            context.CancelFunc
-	controlNote              string
-	cwd                      string
-	workspaceID              string
-	planBoard                PlanBoard
-	historyHasMore           bool
-	historyPageBusy          bool
-	historyPageRequest       uint64
-	historyPageErr           error
-	historyThroughSeq        float64
-	promptMode               PromptMode
-	pinnedSessionIDs         []string
-	archivedSessionIDs       []string
-	editTurnSeq              float64
-	editTurnOpening          bool
-	turnStartMs              float64
+	skillOptions                         []SkillOption
+	skillsErr                            error
+	skillHubHits                         []SkillHubHit
+	searchInput                          string
+	searchLoading                        bool
+	searchUseLocal                       bool
+	searchErr                            error
+	searchRPCQuery                       string
+	searchHits                           map[string]struct{}
+	searchSeq                            uint64
+	searchDebounce                       *time.Timer
+	permSettingsNS                       string
+	permSettingsRevision                 float64
+	permSettingsWritable                 bool
+	followCancel                         context.CancelFunc
+	followGeneration                     uint64
+	workspaceFollowCancel                context.CancelFunc
+	bandCancel                           context.CancelFunc
+	bandActions                          []BandAction
+	bandGeneration                       float64
+	speechFollowCancel                   context.CancelFunc
+	speechSelection                      string
+	controlCancel                        context.CancelFunc
+	controlNote                          string
+	cwd                                  string
+	workspaceID                          string
+	planBoard                            PlanBoard
+	historyHasMore                       bool
+	historyPageBusy                      bool
+	historyPageRequest                   uint64
+	historyPageErr                       error
+	historyThroughSeq                    float64
+	promptMode                           PromptMode
+	pinnedSessionIDs                     []string
+	archivedSessionIDs                   []string
+	editTurnSeq                          float64
+	editTurnOpening                      bool
+	turnStartMs                          float64
 }
 
 // New returns an empty store; call Attach when the harness endpoint is ready.
@@ -408,8 +408,8 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		QueueEditor: s.queueEditorSnapshotLocked(),
- CostSources:s.costSourcesLocked(),
+		QueueEditor:       s.queueEditorSnapshotLocked(),
+		CostSources:       s.costSourcesLocked(),
 		ClientReady:       s.client != nil,
 		ScratchCwd:        s.scratchCwd,
 		WorkspaceMembers:  s.workspaceMembersLocked(),
@@ -421,7 +421,9 @@ func (s *Store) Snapshot() ViewState {
 		HistoryBranchBusy: s.historyBranchBusy,
 		FeedbackBusyID:    s.feedbackBusyID,
 	}
-	if opt,ok:=optionByLabel(s.selectedModelLabel,s.modelOptions);ok{st.SelectedProvider=opt.Provider}
+	if opt, ok := optionByLabel(s.selectedModelLabel, s.modelOptions); ok {
+		st.SelectedProvider = opt.Provider
+	}
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))
 		for k, v := range s.messageRatings {

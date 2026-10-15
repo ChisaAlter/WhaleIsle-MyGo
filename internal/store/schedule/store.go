@@ -27,15 +27,15 @@ type Entry struct {
 // ViewState is a UI-safe snapshot.
 type ViewState struct {
 	ConnectionEpoch uint64
-	Origin string
-	ClientReady bool
-	Loading     bool
-	Err         string
-	Rows        []Entry
-	CatalogHint string
-	SessionID   string
-	LastAction  string
-	Busy        bool
+	Origin          string
+	ClientReady     bool
+	Loading         bool
+	Err             string
+	Rows            []Entry
+	CatalogHint     string
+	SessionID       string
+	LastAction      string
+	Busy            bool
 }
 
 // Store fetches schedule/list for the selected session.
@@ -44,15 +44,15 @@ type Store struct {
 	client *dsh.Client
 	notify func()
 
-	loading     bool
-	err         error
-	rows        []Entry
-	catalogHint string
-	sessionID   string
-	generation  uint64
+	loading         bool
+	err             error
+	rows            []Entry
+	catalogHint     string
+	sessionID       string
+	generation      uint64
 	connectionEpoch uint64
-	lastAction  string
-	busy        bool
+	lastAction      string
+	busy            bool
 }
 
 // New returns an empty schedule store.
@@ -98,12 +98,12 @@ func (s *Store) Snapshot() ViewState {
 	defer s.mu.Unlock()
 	st := ViewState{
 		ConnectionEpoch: s.connectionEpoch,
-		ClientReady: s.client != nil,
-		Loading:     s.loading,
-		CatalogHint: s.catalogHint,
-		SessionID:   s.sessionID,
-		LastAction:  s.lastAction,
-		Busy:        s.busy,
+		ClientReady:     s.client != nil,
+		Loading:         s.loading,
+		CatalogHint:     s.catalogHint,
+		SessionID:       s.sessionID,
+		LastAction:      s.lastAction,
+		Busy:            s.busy,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()

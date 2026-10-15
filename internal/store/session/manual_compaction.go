@@ -10,17 +10,17 @@ import (
 type ManualCompactionView struct {
 	CompactionID       string
 	CheckpointSeq      float64
-	SummaryEventSeq     *float64
+	SummaryEventSeq    *float64
 	Summary            string
-	ShadowedItemCount   *int
-	ShadowedTokenCount  *int
+	ShadowedItemCount  *int
+	ShadowedTokenCount *int
 }
 
 type manualCompactionFact struct {
 	kind, commandID, compactionID string
-	seq, time                    float64
-	summary                      string
-	itemCount, tokenCount        *int
+	seq, time                     float64
+	summary                       string
+	itemCount, tokenCount         *int
 }
 
 func validCompactionSeq(value float64) bool {
@@ -31,24 +31,26 @@ func validCompactionSeq(value float64) bool {
 // temporal proximity, a command name, or a numeric sourceEventSeq alone.
 func parseManualCompactionFact(raw json.RawMessage) (manualCompactionFact, bool) {
 	var event struct {
-		Type string  `json:"type"`
-		Seq  float64 `json:"seq"`
-		Time float64 `json:"time"`
-		SurfaceOp struct { Op string `json:"op"` } `json:"surfaceOp"`
+		Type      string  `json:"type"`
+		Seq       float64 `json:"seq"`
+		Time      float64 `json:"time"`
+		SurfaceOp struct {
+			Op string `json:"op"`
+		} `json:"surfaceOp"`
 		Data struct {
-			CompactionID   string `json:"compactionId"`
+			CompactionID    string `json:"compactionId"`
 			SourceCommandID string `json:"sourceCommandId"`
-			Source struct {
-				Kind string `json:"kind"`
-				CompactionID string `json:"compactionId"`
+			Source          struct {
+				Kind            string `json:"kind"`
+				CompactionID    string `json:"compactionId"`
 				SourceCommandID string `json:"sourceCommandId"`
 			} `json:"source"`
 			Summary []struct {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			} `json:"summary"`
-			ShadowedSeqs []float64 `json:"shadowedSeqs"`
-			ShadowedTokenCount *float64 `json:"shadowedTokenCount"`
+			ShadowedSeqs       []float64 `json:"shadowedSeqs"`
+			ShadowedTokenCount *float64  `json:"shadowedTokenCount"`
 		} `json:"data"`
 	}
 	if json.Unmarshal(raw, &event) != nil || !validCompactionSeq(event.Seq) {
@@ -116,7 +118,10 @@ func classifyManualCompactionCheckpoint(raw json.RawMessage) (Message, bool) {
 // checkpoint before either command record, in which case identity is retained
 // and the outcome remains unknown/running until command/done is loaded.
 func projectManualCompactionMessages(messages []Message) []Message {
-	type locatedFact struct { index int; fact manualCompactionFact }
+	type locatedFact struct {
+		index int
+		fact  manualCompactionFact
+	}
 	groups := make(map[string][]locatedFact)
 	commandRows := make(map[string]int)
 	for i, msg := range messages {

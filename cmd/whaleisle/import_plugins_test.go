@@ -13,14 +13,20 @@ func TestImportPluginRequiresExactBuildApproval(t *testing.T) {
 	approvals := 0
 	out := installImportPlugin(context.Background(), "fixture@1.0.0", func(allow []string) installctrl.Result {
 		calls = append(calls, append([]string(nil), allow...))
-		if len(allow) == 0 { return installctrl.Result{NeedsAllowBuilds: true, AllowBuilds: []string{"esbuild"}, Log: "first"} }
+		if len(allow) == 0 {
+			return installctrl.Result{NeedsAllowBuilds: true, AllowBuilds: []string{"esbuild"}, Log: "first"}
+		}
 		return installctrl.Result{OK: true, Log: "second"}
 	}, func(builds []string) bool {
 		approvals++
-		if !reflect.DeepEqual(builds, []string{"esbuild"}) { t.Fatalf("approval widened: %v", builds) }
+		if !reflect.DeepEqual(builds, []string{"esbuild"}) {
+			t.Fatalf("approval widened: %v", builds)
+		}
 		return true
 	})
-	if !out.OK || approvals != 1 || len(calls) != 2 || len(calls[0]) != 0 || !reflect.DeepEqual(calls[1], []string{"esbuild"}) || out.Log != "first\nsecond" { t.Fatalf("approval flow: %+v calls=%v approvals=%d", out, calls, approvals) }
+	if !out.OK || approvals != 1 || len(calls) != 2 || len(calls[0]) != 0 || !reflect.DeepEqual(calls[1], []string{"esbuild"}) || out.Log != "first\nsecond" {
+		t.Fatalf("approval flow: %+v calls=%v approvals=%d", out, calls, approvals)
+	}
 }
 
 func TestImportPluginDeclinedOrCancelledApprovalNeverRetries(t *testing.T) {
@@ -31,11 +37,16 @@ func TestImportPluginDeclinedOrCancelledApprovalNeverRetries(t *testing.T) {
 			calls++
 			return installctrl.Result{NeedsAllowBuilds: true, AllowBuilds: []string{"esbuild"}}
 		}, func([]string) bool {
-			if cancelOnApprove { cancel(); return true }
+			if cancelOnApprove {
+				cancel()
+				return true
+			}
 			return false
 		})
 		cancel()
-		if out.OK || calls != 1 { t.Fatalf("retry after refusal/cancel: %+v calls=%d", out, calls) }
+		if out.OK || calls != 1 {
+			t.Fatalf("retry after refusal/cancel: %+v calls=%d", out, calls)
+		}
 	}
 }
 
@@ -43,10 +54,14 @@ func TestImportPluginRepeatedBuildFailureDoesNotLoop(t *testing.T) {
 	calls, approvals := 0, 0
 	out := installImportPlugin(context.Background(), "fixture@1.0.0", func([]string) installctrl.Result {
 		calls++
-		if calls > 2 { t.Fatal("unbounded retry") }
+		if calls > 2 {
+			t.Fatal("unbounded retry")
+		}
 		return installctrl.Result{NeedsAllowBuilds: true, AllowBuilds: []string{"esbuild"}}
 	}, func([]string) bool { approvals++; return true })
-	if out.OK || calls != 2 || approvals != 1 { t.Fatalf("repeated build: %+v calls=%d approvals=%d", out, calls, approvals) }
+	if out.OK || calls != 2 || approvals != 1 {
+		t.Fatalf("repeated build: %+v calls=%d approvals=%d", out, calls, approvals)
+	}
 }
 
 func TestMarketAdmissionBlockedDuringImport(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 // FileEditor keeps the native text input pointer stable while Files owns per-session drafts.
 type FileEditor struct {
-	Actions FileActions
+	Actions                  FileActions
 	Key                      string
 	Revision                 uint64
 	Draft                    string
@@ -69,7 +69,11 @@ func viewSessionFiles(c *ui.Context, m Model) {
 					}
 					ui.Row(c).Gap(5).Children(func() {
 						if ui.Button(c, caption).Grow(1).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
-							if item.IsDirectory() { m.Files.Browse(item.Path) } else { m.Files.Open(item.Path) }
+							if item.IsDirectory() {
+								m.Files.Browse(item.Path)
+							} else {
+								m.Files.Open(item.Path)
+							}
 						}
 						fileRowActions(c, m, item, s, disabled)
 					})

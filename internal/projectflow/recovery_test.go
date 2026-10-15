@@ -50,7 +50,10 @@ func TestSummaryRecoveryRequiresOriginalSavedEvidence(t *testing.T) {
 		{"missing failure", func(d *WorkDetail) { d.Workstream.SummaryFailure = nil }},
 		{"authority error", func(d *WorkDetail) { d.Workstream.Request.AuthorityError = "missing source" }},
 		{"missing evidence", func(d *WorkDetail) { d.Workstream.LatestReport = nil; d.Workstream.RecentSettlements = nil }},
-		{"foreign terminal", func(d *WorkDetail) { d.Workstream.LatestReport = nil; d.Workstream.RecentSettlements[0].DelegationRefs = []string{"other"} }},
+		{"foreign terminal", func(d *WorkDetail) {
+			d.Workstream.LatestReport = nil
+			d.Workstream.RecentSettlements[0].DelegationRefs = []string{"other"}
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

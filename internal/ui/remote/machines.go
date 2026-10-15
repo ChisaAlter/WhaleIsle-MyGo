@@ -58,7 +58,9 @@ func viewMachines(c *ui.Context, m Model) {
 		if s.Error != "" {
 			ui.Text(c, s.Error)
 		}
-		if s.Notice != "" { ui.Text(c, s.Notice) }
+		if s.Notice != "" {
+			ui.Text(c, s.Notice)
+		}
 		if s.Loaded && len(s.Machines) == 0 && s.Error == "" {
 			ui.Text(c, label("尚无远程机器。新增后可选择并连接。", "No remote machines. Add one, then select and connect."))
 		}
@@ -134,7 +136,11 @@ func viewMachines(c *ui.Context, m Model) {
 			}
 			ui.Row(c).Gap(8).Children(func() {
 				if ui.Button(c, label("测试表单", "Test draft")).Disabled(s.Busy).Clicked() {
-					if err := m.Machines.TestDraft(e.Draft); err != nil { e.Error = err.Error() } else { e.Error = "" }
+					if err := m.Machines.TestDraft(e.Draft); err != nil {
+						e.Error = err.Error()
+					} else {
+						e.Error = ""
+					}
 				}
 				if ui.Button(c, label("保存", "Save")).Disabled(s.Busy).Clicked() {
 					if err := m.Machines.Save(e.Draft); err != nil {

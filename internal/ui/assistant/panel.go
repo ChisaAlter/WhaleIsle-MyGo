@@ -80,37 +80,37 @@ func View(c *ui.Context, m Model) {
 		ui.Box(c).Fill().Height(1).Background(border)
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-		ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(12).TextColor(muted)
+			ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(12).TextColor(muted)
 
-			modeBlock(c, m, fg, muted, accent)
-			dshbotRosterBlock(c, m, fg, muted, field, border, accent)
-			composeBlock(c, m, fg, muted, accent)
-			pluginRPCBlock(c, m, fg, muted, accent)
-			historyBlock(c, m, fg, muted, field, border, accent)
+				modeBlock(c, m, fg, muted, accent)
+				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
+				composeBlock(c, m, fg, muted, accent)
+				pluginRPCBlock(c, m, fg, muted, accent)
+				historyBlock(c, m, fg, muted, field, border, accent)
 
-			statusBlock(c, field, border, fg, muted, []kv{
-				{i18n.T(i18n.KeyAssistantModeLabel), modeLabel(m.Mode)},
-				{i18n.T(i18n.KeyAssistantWhaleTitle) + " · " + i18n.T(i18n.KeyAssistantConfigEnabled), onOff(m.WhaleEnabled)},
-				{i18n.T(i18n.KeyAssistantWhaleTitle) + " · " + i18n.T(i18n.KeyAssistantVendorPresent), onOff(m.WhaleVendorPresent)},
-				{i18n.T(i18n.KeyAssistantDshbotTitle) + " · " + i18n.T(i18n.KeyAssistantConfigEnabled), onOff(m.DshbotEnabled)},
-				{i18n.T(i18n.KeyAssistantDshbotTitle) + " · " + i18n.T(i18n.KeyAssistantVendorPresent), onOff(m.DshbotVendorPresent)},
-				{i18n.T(i18n.KeyAssistantLastWebURL), dash(m.LastWebViewURL)},
-				{i18n.T(i18n.KeyAssistantLastAction), dash(m.LastNativeAction)},
-				{i18n.T(i18n.KeyAssistantLastErr), dash(m.LastErr)},
-				{i18n.T(i18n.KeyAssistantSessionID), dash(m.SessionID)},
+				statusBlock(c, field, border, fg, muted, []kv{
+					{i18n.T(i18n.KeyAssistantModeLabel), modeLabel(m.Mode)},
+					{i18n.T(i18n.KeyAssistantWhaleTitle) + " · " + i18n.T(i18n.KeyAssistantConfigEnabled), onOff(m.WhaleEnabled)},
+					{i18n.T(i18n.KeyAssistantWhaleTitle) + " · " + i18n.T(i18n.KeyAssistantVendorPresent), onOff(m.WhaleVendorPresent)},
+					{i18n.T(i18n.KeyAssistantDshbotTitle) + " · " + i18n.T(i18n.KeyAssistantConfigEnabled), onOff(m.DshbotEnabled)},
+					{i18n.T(i18n.KeyAssistantDshbotTitle) + " · " + i18n.T(i18n.KeyAssistantVendorPresent), onOff(m.DshbotVendorPresent)},
+					{i18n.T(i18n.KeyAssistantLastWebURL), dash(m.LastWebViewURL)},
+					{i18n.T(i18n.KeyAssistantLastAction), dash(m.LastNativeAction)},
+					{i18n.T(i18n.KeyAssistantLastErr), dash(m.LastErr)},
+					{i18n.T(i18n.KeyAssistantSessionID), dash(m.SessionID)},
+				})
+
+				section(c, i18n.T(i18n.KeyAssistantWhaleTitle), fg, m.WhaleEnabled, m.OnToggleWhale,
+					m.HarnessReady && m.WhaleEnabled, m.OnOpenWhaleWeb,
+					i18n.T(i18n.KeyAssistantOpenWhaleWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
+
+				section(c, i18n.T(i18n.KeyAssistantDshbotTitle), fg, m.DshbotEnabled, m.OnToggleDshbot,
+					m.HarnessReady && m.DshbotEnabled, m.OnOpenDshbotWeb,
+					i18n.T(i18n.KeyAssistantOpenDshbotWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
+
+				ui.Text(c, i18n.T(i18n.KeyAssistantRestartNote)).FontSize(11).TextColor(accent)
 			})
-
-			section(c, i18n.T(i18n.KeyAssistantWhaleTitle), fg, m.WhaleEnabled, m.OnToggleWhale,
-				m.HarnessReady && m.WhaleEnabled, m.OnOpenWhaleWeb,
-				i18n.T(i18n.KeyAssistantOpenWhaleWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
-
-			section(c, i18n.T(i18n.KeyAssistantDshbotTitle), fg, m.DshbotEnabled, m.OnToggleDshbot,
-				m.HarnessReady && m.DshbotEnabled, m.OnOpenDshbotWeb,
-				i18n.T(i18n.KeyAssistantOpenDshbotWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
-
-			ui.Text(c, i18n.T(i18n.KeyAssistantRestartNote)).FontSize(11).TextColor(accent)
-		})
 		})
 	})
 }

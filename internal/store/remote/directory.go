@@ -21,16 +21,16 @@ func (e DirectoryEntry) IsDirectory() bool { return e.Type == "dir" || e.Drive }
 
 type DirectorySnapshot struct {
 	InputPath, NewName string
-	MkdirOpen bool
-	Path         string           `json:"path"`
-	Platform     string           `json:"platform"`
-	Items        []DirectoryEntry `json:"items"`
-	Missing      bool             `json:"missing"`
-	Loaded       bool
-	Error        string
-	Choosing     bool
-	SelectedPath string
-	LocalMirror  string
+	MkdirOpen          bool
+	Path               string           `json:"path"`
+	Platform           string           `json:"platform"`
+	Items              []DirectoryEntry `json:"items"`
+	Missing            bool             `json:"missing"`
+	Loaded             bool
+	Error              string
+	Choosing           bool
+	SelectedPath       string
+	LocalMirror        string
 }
 
 func (d DirectorySnapshot) CanChoose() bool {

@@ -61,9 +61,15 @@ func prepareResourceMode(root *os.Root, relative, source string, valid func() bo
 		return out
 	}
 	loadScript := func(ref string) string {
-		if hasBase && !embeddedReference(ref) { g.warn("base URL 相对脚本已跳过"); return "data:text/javascript," }
+		if hasBase && !embeddedReference(ref) {
+			g.warn("base URL 相对脚本已跳过")
+			return "data:text/javascript,"
+		}
 		value, err := g.script(relative, ref)
-		if err != nil { g.warn(err.Error()); return "data:text/javascript," }
+		if err != nil {
+			g.warn(err.Error())
+			return "data:text/javascript,"
+		}
 		return value
 	}
 	loadURL := g.asset
@@ -119,7 +125,9 @@ func prepareResourceMode(root *os.Root, relative, source string, valid func() bo
 				if strings.EqualFold(attr(t, "type"), "module") {
 					g.warn("模块的运行时 import/fetch 依赖不展开")
 				}
-				if err := appendText(t.String()); err != nil { return "", g.report, err }
+				if err := appendText(t.String()); err != nil {
+					return "", g.report, err
+				}
 				continue
 			}
 			if script && !interactive {
@@ -202,7 +210,9 @@ func prepareResourceMode(root *os.Root, relative, source string, valid func() bo
 			t := z.Token()
 			if t.Data == "script" {
 				script = false
-				if !interactive { continue }
+				if !interactive {
+					continue
+				}
 			}
 			if script && !interactive {
 				continue
@@ -214,7 +224,9 @@ func prepareResourceMode(root *os.Root, relative, source string, valid func() bo
 				picture--
 			}
 		} else if script {
-			if !interactive { continue }
+			if !interactive {
+				continue
+			}
 		} else if style && kind == xhtml.TextToken {
 			css, err := inlineCSS(raw, relative, 0, loadCSS, loadURL, g.warn)
 			if err != nil {

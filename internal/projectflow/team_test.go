@@ -99,7 +99,7 @@ func TestTeamOverviewPageRetainsHostCursorAndWaitingReason(t *testing.T) {
 				cursor = "unrequested"
 			}
 			value = map[string]any{
-				"project": map[string]any{"id": "p", "coordinatorSessionId": "lead"},
+				"project":  map[string]any{"id": "p", "coordinatorSessionId": "lead"},
 				"workPage": map[string]any{"currentCursor": cursor, "currentTotal": 23},
 				"workstreams": []any{map[string]any{"id": "w", "workerSessionId": "member", "title": "Build",
 					"delegation": map[string]any{"phase": "queued", "waitingReason": map[string]any{"kind": "directory", "workTitles": []string{"Other work"}}}}},

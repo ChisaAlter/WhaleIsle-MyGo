@@ -96,8 +96,8 @@ type Model struct {
 	ShellsNote string
 	OnRestart  func()
 	// OnClose hides/removes the workspace panel once its last PTY is closed.
-	OnClose func()
-	OnAddToChat func(string) error
+	OnClose      func()
+	OnAddToChat  func(string) error
 	CanAddToChat bool
 }
 

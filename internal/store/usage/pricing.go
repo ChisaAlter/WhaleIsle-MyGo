@@ -46,8 +46,8 @@ type BillingView struct {
 }
 type billingState struct {
 	BillingView
-	cancel context.CancelFunc
-	models BillingModelsView
+	cancel       context.CancelFunc
+	models       BillingModelsView
 	modelsCancel context.CancelFunc
 }
 
@@ -55,7 +55,9 @@ func (s *Store) resetBillingLocked() {
 	if s.billing.cancel != nil {
 		s.billing.cancel()
 	}
-	if s.billing.modelsCancel != nil { s.billing.modelsCancel() }
+	if s.billing.modelsCancel != nil {
+		s.billing.modelsCancel()
+	}
 	s.billing = billingState{}
 }
 func (s *Store) Billing() BillingView {

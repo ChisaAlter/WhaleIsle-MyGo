@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	BrowserPickTimeout = 60 * time.Second
-	BrowserScreenshotTimeout = 15 * time.Second
+	BrowserPickTimeout        = 60 * time.Second
+	BrowserScreenshotTimeout  = 15 * time.Second
 	MaxBrowserScreenshotBytes = 32 * 1024 * 1024
-	maxBrowserCapturePixels = 16 * 1024 * 1024
+	maxBrowserCapturePixels   = 16 * 1024 * 1024
 )
 
 //go:embed picker.js
@@ -31,16 +31,16 @@ var browserPickerScript string
 // PickedElement contains bounded page data, never an input value or executable HTML.
 // A page can manipulate its own DOM; annotations are untrusted text for user review.
 type PickedElement struct {
-	URL string `json:"url"`
-	Tag string `json:"tag"`
-	Selector string `json:"selector"`
-	Text string `json:"text"`
-	Role string `json:"role"`
-	Label string `json:"label"`
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Width float64 `json:"width"`
-	Height float64 `json:"height"`
+	URL      string  `json:"url"`
+	Tag      string  `json:"tag"`
+	Selector string  `json:"selector"`
+	Text     string  `json:"text"`
+	Role     string  `json:"role"`
+	Label    string  `json:"label"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	Width    float64 `json:"width"`
+	Height   float64 `json:"height"`
 }
 
 // Markdown quotes every page-controlled field as data. It never sends a prompt.
@@ -51,11 +51,11 @@ func (p PickedElement) Markdown() string {
 		"> Selector: " + annotationLine(p.Selector, 1024),
 		"> Element: " + annotationLine(p.Tag, 64),
 	}
-	for _, field := range []struct{name, value string}{
+	for _, field := range []struct{ name, value string }{
 		{"Role", p.Role}, {"Label", p.Label}, {"Text", p.Text},
 	} {
 		if value := annotationLine(field.value, 512); value != "" {
-			lines = append(lines, "> " + field.name + ": " + value)
+			lines = append(lines, "> "+field.name+": "+value)
 		}
 	}
 	lines = append(lines, fmt.Sprintf("> Bounds (viewport px): x=%.1f, y=%.1f, width=%.1f, height=%.1f", p.X, p.Y, p.Width, p.Height))
@@ -197,9 +197,9 @@ func (h *Host) PickElement(ctx context.Context) (PickedElement, error) {
 			return PickedElement{}, errors.New("browser: invalid picker response")
 		}
 		var result struct {
-			Done bool `json:"done"`
-			Cancelled bool `json:"cancelled"`
-			Element *PickedElement `json:"element"`
+			Done      bool           `json:"done"`
+			Cancelled bool           `json:"cancelled"`
+			Element   *PickedElement `json:"element"`
 		}
 		if err := json.Unmarshal(encoded, &result); err != nil {
 			return PickedElement{}, err
@@ -249,7 +249,10 @@ func (h *Host) CaptureBrowserScreenshot(ctx context.Context) ([]byte, error) {
 	}
 	h.capturePending = true
 	h.mu.Unlock()
-	type result struct { data []byte; err error }
+	type result struct {
+		data []byte
+		err  error
+	}
 	done := make(chan result, 1)
 	go func() {
 		data, err := w.CapturePage()

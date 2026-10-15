@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/desktop/htmldocument"
+	"whaleisle/internal/desktop/previewprocess"
 )
 
 type interactivePreview struct {
-	ctx context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -35,7 +35,9 @@ func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
 }
 
 func (b *Controller) stopInteractiveHTML(t *Tab) {
-	if t == nil || t.interactive == nil { return }
+	if t == nil || t.interactive == nil {
+		return
+	}
 	op := t.interactive
 	t.interactive = nil
 	t.ActionMessage = "交互预览已停止；当前静态快照保留"
@@ -43,46 +45,68 @@ func (b *Controller) stopInteractiveHTML(t *Tab) {
 }
 
 func (b *Controller) cancelInteractivePreviews() {
-	for _, t := range b.Tabs { b.stopInteractiveHTML(t) }
+	for _, t := range b.Tabs {
+		b.stopInteractiveHTML(t)
+	}
 }
 
 func (b *Controller) ownsInteractiveHTML(t *Tab, op *interactivePreview) bool {
-	if t == nil || t.interactive != op || op.ctx.Err() != nil || t.HTML == nil || !t.HTML.Valid() { return false }
-	for _, candidate := range b.Tabs { if candidate == t { return true } }
+	if t == nil || t.interactive != op || op.ctx.Err() != nil || t.HTML == nil || !t.HTML.Valid() {
+		return false
+	}
+	for _, candidate := range b.Tabs {
+		if candidate == t {
+			return true
+		}
+	}
 	return false
 }
 
 func installedPreviewHelper() (string, error) {
 	executable, err := os.Executable()
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	path := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
 	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() { return "", fmt.Errorf("隔离 helper 未随应用安装，保留静态预览") }
+	if err != nil || !info.Mode().IsRegular() {
+		return "", fmt.Errorf("隔离 helper 未随应用安装，保留静态预览")
+	}
 	return path, nil
 }
 
 // This is the only product call site enabling the helper. No startup path,
 // environment variable or persistent preference automatically selects it.
 func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
-	if b.parent == nil || t == nil || t.HTML == nil || t.interactive != nil || !t.HTML.Valid() { return }
+	if b.parent == nil || t == nil || t.HTML == nil || t.interactive != nil || !t.HTML.Valid() {
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	op := &interactivePreview{ctx: ctx, cancel: cancel}
 	t.interactive = op
 	t.ActionMessage = "正在检查隔离条件并准备独立窗口；静态快照保持打开…"
 	doc := t.HTML
 	appearance := "light"
-	if dark { appearance = "dark" }
+	if dark {
+		appearance = "dark"
+	}
 	// Lease checks continue even if the owning window is not painting. A
 	// session/Host/cwd change closes Document, which cancels the helper job.
 	go func() {
-		ticker := time.NewTicker(100*time.Millisecond)
+		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done(): return
-			case <-doc.Done(): cancel(); return
+			case <-ctx.Done():
+				return
+			case <-doc.Done():
+				cancel()
+				return
 			case <-ticker.C:
-				if !doc.Valid() { cancel(); return }
+				if !doc.Valid() {
+					cancel()
+					return
+				}
 			}
 		}
 	}()
@@ -100,24 +124,32 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 			session, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helper},
 				previewprocess.Document{HTML: prepared, Width: 900, Appearance: appearance})
 		}
-		if ctx.Err() != nil && err == nil { err = ctx.Err() }
+		if ctx.Err() != nil && err == nil {
+			err = ctx.Err()
+		}
 		b.parent.Update(func() {
 			if err != nil {
 				// Update may run after this worker returns and cancels ctx.
 				// A completed failure still belongs to this tab/document;
 				// Hide/Close already clears op, so genuinely stale results lose.
-				if t.interactive != op || t.HTML != doc || !doc.Valid() { return }
+				if t.interactive != op || t.HTML != doc || !doc.Valid() {
+					return
+				}
 				t.interactive = nil
 				t.ActionMessage = "交互预览未启动，静态快照已保留：" + err.Error()
 				return
 			}
 			if !b.ownsInteractiveHTML(t, op) {
-				if t.interactive == op { t.interactive = nil }
+				if t.interactive == op {
+					t.interactive = nil
+				}
 				return
 			}
 			t.ActionMessage = "交互预览已在独立隔离窗口打开；" + resources + "；网络/运行时文件依赖禁用，关闭/切换标签会停止脚本"
 		})
-		if session == nil { return }
+		if session == nil {
+			return
+		}
 		defer session.Close()
 		select {
 		case <-ctx.Done():
@@ -125,7 +157,9 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 		case <-session.Done():
 		}
 		b.parent.Update(func() {
-			if t.interactive != op { return }
+			if t.interactive != op {
+				return
+			}
 			t.interactive = nil
 			t.ActionMessage = "交互预览已结束；当前静态快照保留"
 		})

@@ -18,6 +18,7 @@ import (
 )
 
 const NativeApplication = "whaleisle-mygo"
+
 // These must match the native Host launch contract in harness/current_host.go.
 const NativeHostSourceCommit = "90465b67ec16765631d54c195af19d9ff3c3a770"
 const NativeHostReadinessGuard = "mygo-visual-readiness-v1"
@@ -53,17 +54,23 @@ var nativeTag = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 // rejected rather than guessing that an arbitrary .exe contains MyGo/Host.
 func NativeCatalogURL(route string) (string, error) {
 	for _, key := range []string{"WHALEISLE_RELEASE_CATALOG", EnvFeedURL} {
-		if value := strings.TrimSpace(os.Getenv(key)); value != "" { return value, nil }
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			return value, nil
+		}
 	}
 	switch strings.ToLower(strings.TrimSpace(route)) {
 	case "", "github":
 		for _, key := range []string{"WHALEISLE_RELEASE_CATALOG_GITHUB", EnvFeedURLGithub} {
-			if value := strings.TrimSpace(os.Getenv(key)); value != "" { return value, nil }
+			if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+				return value, nil
+			}
 		}
 		return "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/latest/download/" + NativeCatalogAsset, nil
 	case "cnb", "gitee":
 		for _, key := range []string{"WHALEISLE_RELEASE_CATALOG_CNB", EnvFeedURLCNB} {
-			if value := strings.TrimSpace(os.Getenv(key)); value != "" { return value, nil }
+			if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+				return value, nil
+			}
 		}
 		return "", fmt.Errorf("MyGo CNB release catalog is not configured; choose GitHub or set WHALEISLE_RELEASE_CATALOG_CNB")
 	default:
@@ -92,13 +99,17 @@ func (r NativeRelease) Validate(goos, arch string, requireRuntime bool) error {
 	if r.Platform != goos || r.Arch != arch || r.Platform != "windows" || r.Format != "nsis" {
 		return fmt.Errorf("no compatible MyGo NSIS installer for %s/%s", goos, arch)
 	}
-	if r.Arch != "amd64" && r.Arch != "arm64" { return fmt.Errorf("unsupported native installer architecture") }
+	if r.Arch != "amd64" && r.Arch != "arm64" {
+		return fmt.Errorf("unsupported native installer architecture")
+	}
 	hash, err := hex.DecodeString(r.SHA256)
 	if err != nil || len(hash) != 32 || r.Size <= 0 || r.Size > NativeMaxInstallerBytes {
 		return fmt.Errorf("native installer requires SHA-256 and a bounded exact size")
 	}
 	u, err := nativeHTTPS(r.URL)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	if !strings.HasSuffix(strings.ToLower(u.Path), ".exe") || u.RawQuery != "" {
 		return fmt.Errorf("native release must reference a pinned installer")
 	}
@@ -109,7 +120,9 @@ func (r NativeRelease) Validate(goos, arch string, requireRuntime bool) error {
 			return fmt.Errorf("installer is not pinned to the selected MyGo release tag")
 		}
 	}
-	if requireRuntime && !r.RuntimeIncluded { return fmt.Errorf("selected release is shell-only and cannot install the Host runtime") }
+	if requireRuntime && !r.RuntimeIncluded {
+		return fmt.Errorf("selected release is shell-only and cannot install the Host runtime")
+	}
 	if r.RuntimeIncluded && (r.HostSourceCommit != NativeHostSourceCommit || r.HostReadinessGuard != NativeHostReadinessGuard) {
 		return fmt.Errorf("bundled Host does not match this MyGo build's source and readiness guard")
 	}
@@ -118,22 +131,32 @@ func (r NativeRelease) Validate(goos, arch string, requireRuntime bool) error {
 
 func DecodeNativeCatalog(body []byte, goos, arch string) ([]NativeRelease, error) {
 	var catalog NativeCatalog
-	if err := json.Unmarshal(body, &catalog); err != nil { return nil, fmt.Errorf("invalid native release catalog: %w", err) }
+	if err := json.Unmarshal(body, &catalog); err != nil {
+		return nil, fmt.Errorf("invalid native release catalog: %w", err)
+	}
 	if catalog.SchemaVersion != 1 || catalog.Application != NativeApplication {
 		return nil, fmt.Errorf("release manifest is not a WhaleIsle-MyGo native catalog; Electron and legacy feeds cannot install this runtime")
 	}
-	if len(catalog.Releases) > 500 { return nil, fmt.Errorf("native release catalog exceeds 500 entries") }
+	if len(catalog.Releases) > 500 {
+		return nil, fmt.Errorf("native release catalog exceeds 500 entries")
+	}
 	seen := map[string]bool{}
 	rows := append([]NativeRelease(nil), catalog.Releases...)
 	for i := range rows {
 		r := &rows[i]
 		key := r.Tag + "/" + r.Platform + "/" + r.Arch
-		if seen[key] { return nil, fmt.Errorf("native release catalog contains duplicate tag/target %s", key) }
+		if seen[key] {
+			return nil, fmt.Errorf("native release catalog contains duplicate tag/target %s", key)
+		}
 		seen[key] = true
-		if err := r.Validate(goos, arch, false); err != nil { r.UnavailableReason = err.Error() }
+		if err := r.Validate(goos, arch, false); err != nil {
+			r.UnavailableReason = err.Error()
+		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].Prerelease != rows[j].Prerelease { return !rows[i].Prerelease }
+		if rows[i].Prerelease != rows[j].Prerelease {
+			return !rows[i].Prerelease
+		}
 		return CompareVersions(rows[i].Version, rows[j].Version) > 0
 	})
 	return rows, nil
@@ -143,34 +166,50 @@ func DecodeNativeCatalog(body []byte, goos, arch string) ([]NativeRelease, error
 // installs that exact entry; a subsequent moving "latest" cannot change it.
 func ListNativeReleases(ctx context.Context, route string) ([]NativeRelease, error) {
 	address, err := NativeCatalogURL(route)
-	if err != nil { return nil, err }
-	if _, err := nativeHTTPS(address); err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
+	if _, err := nativeHTTPS(address); err != nil {
+		return nil, err
+	}
 	client := nativeHTTPClient(20 * time.Second)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Accept", "application/json")
 	resp, err := client.Do(req)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("MyGo release catalog HTTP %d; a compatible published native installer is required", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
-	if err != nil { return nil, err }
-	if len(body) > 2<<20 { return nil, fmt.Errorf("native catalog exceeds size limit") }
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > 2<<20 {
+		return nil, fmt.Errorf("native catalog exceeds size limit")
+	}
 	return DecodeNativeCatalog(body, runtime.GOOS, runtime.GOARCH)
 }
 
 func nativeHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{Timeout: timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 10 { return fmt.Errorf("too many native release redirects") }
+		if len(via) >= 10 {
+			return fmt.Errorf("too many native release redirects")
+		}
 		_, err := nativeHTTPS(req.URL.String())
 		return err
 	}}
 }
 
 func StageNativeRelease(ctx context.Context, release NativeRelease, requireRuntime bool, destDir string, onProgress func(int64, int64)) (ApplyResult, error) {
-	if err := release.Validate(runtime.GOOS, runtime.GOARCH, requireRuntime); err != nil { return ApplyResult{}, err }
+	if err := release.Validate(runtime.GOOS, runtime.GOARCH, requireRuntime); err != nil {
+		return ApplyResult{}, err
+	}
 	requireSignature := strings.EqualFold(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE"), "true") || os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE") == "1"
 	return DownloadAndStageOpts(ctx, StageOptions{
 		ReleaseURL: release.URL, DestDir: destDir, HTTPClient: nativeHTTPClient(30 * time.Minute),

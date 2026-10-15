@@ -163,7 +163,7 @@ func sourceRanges(path, text string, style markdown.Style) []ui.TextRange {
 	limit, at := utf8.RuneCountInString(text), 0
 	var ranges []ui.TextRange
 	for _, span := range spans {
-		end := min(at + utf8.RuneCountInString(span.Text), limit)
+		end := min(at+utf8.RuneCountInString(span.Text), limit)
 		if end > at {
 			ranges = append(ranges, ui.TextRange{Start: at, End: end, Color: span.Color, Weight: span.Weight})
 		}
@@ -172,7 +172,7 @@ func sourceRanges(path, text string, style markdown.Style) []ui.TextRange {
 	return ranges
 }
 
-type sourceLine struct { start, end int }
+type sourceLine struct{ start, end int }
 
 // sourceLines recognizes LF, CRLF and CR while retaining native rune offsets.
 func sourceLines(text []rune) []sourceLine {
@@ -186,7 +186,7 @@ func sourceLines(text []rune) []sourceLine {
 		if text[i] == '\r' && i+1 < len(text) && text[i+1] == '\n' {
 			i++
 		}
-		start = i+1
+		start = i + 1
 	}
 	return append(out, sourceLine{start, len(text)})
 }
@@ -194,10 +194,10 @@ func sourceLines(text []rune) []sourceLine {
 func lineAt(lines []sourceLine, offset int) int {
 	for i := 1; i < len(lines); i++ {
 		if offset < lines[i].start {
-			return i-1
+			return i - 1
 		}
 	}
-	return len(lines)-1
+	return len(lines) - 1
 }
 
 func backtickFence(text string, minimum int) string {
@@ -225,7 +225,7 @@ func FormatSelectedLines(path, text string, start, end int) (string, bool) {
 	lines := sourceLines(runes)
 	first, last := lineAt(lines, start), lineAt(lines, end-1)
 	var selected []string
-	for _, line := range lines[first:last+1] {
+	for _, line := range lines[first : last+1] {
 		selected = append(selected, string(runes[line.start:line.end]))
 	}
 	body := strings.Join(selected, "\n")

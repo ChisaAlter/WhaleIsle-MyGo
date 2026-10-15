@@ -19,7 +19,7 @@
 
 ## 2026-10-15 已补齐的代码模块
 
-下列模块已分别提交并推送至开发分支 dot/mygo-reconstruction-20261014，经过一次必要整合代码核对。云端文件系统空间耗尽使 shell 无法启动，本轮 Go 编译与仓库测试尚未执行；未开展验收，不把“已提交”写成“已验证可用”。
+下列模块已分别提交并推送至开发分支 dot/mygo-reconstruction-20261014，经过一次必要整合代码核对。各模块提交时云端空间故障阻断编译；现已完成后文所述累计编译。仓库测试和验收未执行，不把“已提交/已编译”写成“已验证可用”。
 
 1. **导入后重装插件** — [997bbd3](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/997bbd3205934cbb02158c9e76f5a70fcb7f4f54)：来源规格白名单、选择、冲突复检、逐项结果与日志、取消传播、明确构建批准；修正 GitHub 仓库名不同于 package.name 的覆盖重装识别。
 2. **手机配对设备管理** — [83ddc6c](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/83ddc6cbaa5b7f8708dfacb62a32eec8a4749ab5)：真实设备 ID、重命名、确认解绑、配对 offer 更新，子进程与请求身份校验。保持原版设备身份和旧 offer TTL，不直接修改内部凭据文件。单次内存 JS fixture 9 项通过，不代表真实设备验证。
@@ -35,14 +35,36 @@
 
 - **设置安全保存** — [4fceecc](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/4fceecc7b08eb2b07aa1b4c785ad3ee5acf913cc)：仅提交已修改字段，显式 unset/reset，细粒度 JSON 路径操作及隐藏密钥路径保护；不重建继承值/被脱敏值，保留指令空白，完善 provider/agent 配置导航。
 
-以上仍只有必要代码检查及部分内存 JS fixture，Go 编译/测试未运行。正在补 Files/Git/Terminal 和 Team 实际工作流缺口；不把有限范围检查称作完整全项目审查。
+上述模块的提交时证据是必要代码检查及部分内存 JS fixture；后续累计编译证据见下文。不把有限范围检查称作完整全项目审查。
+
+## 2026-10-15 后续功能提交与累计编译
+
+- Team 工作分页/等待原因/真实 Host 成员：50820d106980d5913f6db8ddfa84cb92627f7c05。
+- 文件单执行端打开、保留草稿的刷新和路径复制：19ead52f4fb3e67b16a5c1df3da89446f11092fe。
+- Git 分支列表/创建/切换与 ff-only Pull：f444f69370d15fe266426bac5ebddba50e205696。
+- 隔离动态 HTML helper 核心：a7713a95856a6e8faac22f5d4add5fa7b12790d7；显式入口与打包：3d9962d379305e367affd26fcb1a684524347eed。静态仍是默认；不修改全局 Probe/readiness，helper 失败保留静态页。
+- 多 PTY/分栏及移除隐形 Host PTY：834a6ef2379183ed061e43dfa57dc3f64ea9736a。
+- Project summary/handover 证据绑定恢复草稿：2361f5ad957a04839a547022e913aabf2ea0cf0e。
+- 手动压缩命令与检查点卡片融合：c74b597f2891bd7e57f5bcd2c1212d4c7d02668e；前文该未完成项已关闭。
+- 远程认证选项/SSH 导入/连接测试/密钥与端口转发管理：6843b08feebf5e67b0397369f137554ed934ceda。
+- Git 初始化、明确目标发布及提交后推送：63bce2d2ebe5522bcc509c3d7d7ae96dea5abbaf。
+- Usage 模型目录、费用排序与会话费用列：0cba439485431eafc8c6df5034704c25e21cf30c。
+- 终端最大化/还原与真实选文加入草稿：bd06cf2803d309a9228f35ba6a70b537d48551bc。
+- 会话绑定远程文件 mkdir/rename/remove：89870e000f491a49c0aa7aba5617157ab3ac013a；Remote picker Home/目录跳转/创建：e121693fd170237675a2168ed988f71308f9ba15。
+- Files Markdown Source/Rendered、图片、选中行加入草稿与跳行：e3a671b84a404e29b57f6539ddd57939f75238e3。
+
+**累计编译证据（2026-10-15 01:17 UTC）：** API 已提交源码按每文件 Git SHA 同步，本次新增 Go 文件格式化后，Windows amd64 主程序及独立预览 helper 均一次编译成功。没有运行测试套件、真实服务或 GUI 验收。
+- 主程序：39,107,584 字节；SHA256 afb20152d715cf2cdcd30a33be8d1cb95957f5eb7f83bfe1305dc3fa2d7a1f82。
+- Helper：13,556,224 字节；SHA256 ce820c52ded9415e9fd5ce347064dd71a1720199996c74a966ffd524d291d4bf。
+- 之前“云端磁盘阻止编译”的记录是历史状态：清理经验证的失败重复副本与官方可重建 Go 缓存后已恢复约 1.3 GiB。未删除源代码、既有候选或备份。
 
 ## 尚未关闭的实现与集成问题
 
-- **动态 HTML 文档执行**：当前只有静态、禁 JavaScript 的安全预览。现有 WebView2 隔离不能证明覆盖 WebRTC/ICE/STUN/TURN 的全传输禁网，因此保持脚本禁用；需要可验证的隔离实现，不以猜测 flags 或资源拦截替代。
-- **兼容运行包供应**：安装流程已接线，但实际可验证 MyGo runtime 发布资产尚不存在。Windows 候选仍未验证，不可伪造发布清单或误装 Electron 发行包。
-- **本轮累计编译/云端检查**：存储故障尚未恢复；本轮新增模块源码仅在开发分支，本地候选及 v26 备份仍是旧 05668bef 源码，不能用旧二进制代表新功能。
-- 全项目功能完成度仍须按实际覆盖范围确认；不把本轮四项修复等同全量功能对齐。
+- **图片兼容性**：普通图片及 PNG 型 ICO 已实现；AVIF、旧 ICO、GIF 动画和复杂 SVG 的有界兼容预览仍在收口，不将外部打开等同内嵌能力完整对齐。
+- **隔离动态 HTML 运行兼容性**：真实 AppContainer/helper 及显式产品入口已实现并通过 Windows amd64 编译，但尚未运行验证实际 WebView2 进程树兼容性。无法满足 token/Job 门禁时关闭动态路径，不能宣称功能已验收可用。
+- **兼容运行包供应**：安装流程已有代码，实际可验证 MyGo runtime 发布资产尚不存在。不得伪造发布清单或误装 Electron 发行包。
+- **交付物版本**：新的累计 EXE 已编译；既有 Windows 便携候选及 Library v26 尚未更新，仍不可用旧产物代表新功能。arm64 编译和真实原生行为不在本次成功证据内。
+- **覆盖收口**：桌宠 Hide/Settings/手动屏幕观察动作、导入目录事务与中断恢复正在补齐；全量完成结论仍未成立，不进入验收。
 
 已排除的假缺口：原版同样禁止编辑带附件的队列项；独立 Electron launcher 的 peer 握手不能直接视为原生同进程架构缺失；Project 重试以准备 Lead 草稿承接真实契约，不虚构前端重试 RPC。
 

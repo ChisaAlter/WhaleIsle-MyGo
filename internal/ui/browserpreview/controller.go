@@ -16,26 +16,26 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
-	rendered bool
+	rendered     bool
 	actionTarget func() ActionTarget
-	operation *previewOperation
-	viewport *mygo.Rectangle
-	Tabs     []*Tab
-	Active   int
-	next     int
-	parent   *mygo.Window
+	operation    *previewOperation
+	viewport     *mygo.Rectangle
+	Tabs         []*Tab
+	Active       int
+	next         int
+	parent       *mygo.Window
 }
 type Tab struct {
-	Document *pdfpreview.Document
-	HTML     *htmldocument.Document
+	Document    *pdfpreview.Document
+	HTML        *htmldocument.Document
 	interactive *interactivePreview
 
 	ActionMessage string
-	ArtifactPath string
-	ID           int
-	Draft, Error string
-	lastURL      string
-	Host         *desktop.Host
+	ArtifactPath  string
+	ID            int
+	Draft, Error  string
+	lastURL       string
+	Host          *desktop.Host
 }
 
 const BrowserChromeHeight = 144

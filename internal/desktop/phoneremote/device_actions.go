@@ -23,8 +23,8 @@ type Device struct {
 
 type DeviceActionState struct {
 	ID, Operation, DeviceID string
-	Busy, Applied          bool
-	Error, Message         string
+	Busy, Applied           bool
+	Error, Message          string
 }
 
 // DeviceAction queues one original-runtime operation. It never starts a daemon

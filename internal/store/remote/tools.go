@@ -8,35 +8,35 @@ import (
 )
 
 type ConnectionStatus struct {
-	Connected bool `json:"connected"`
-	HostKeyKnown bool `json:"hostKeyKnown"`
-	Workspace string `json:"workspace"`
-	LocalMirror string `json:"localMirror"`
+	Connected    bool   `json:"connected"`
+	HostKeyKnown bool   `json:"hostKeyKnown"`
+	Workspace    string `json:"workspace"`
+	LocalMirror  string `json:"localMirror"`
 }
 
 type Forward struct {
-	ID string `json:"id"`
-	Direction string `json:"direction"`
-	ListenPort int `json:"listenPort"`
+	ID         string `json:"id"`
+	Direction  string `json:"direction"`
+	ListenPort int    `json:"listenPort"`
 	TargetHost string `json:"targetHost"`
-	TargetPort int `json:"targetPort"`
-	MachineID string `json:"machineId"`
-	AutoStart bool `json:"autoStart"`
-	Active bool `json:"active"`
+	TargetPort int    `json:"targetPort"`
+	MachineID  string `json:"machineId"`
+	AutoStart  bool   `json:"autoStart"`
+	Active     bool   `json:"active"`
 }
 
 type ForwardDraft struct {
 	Direction, ListenPort, TargetHost, TargetPort string
-	AutoStart bool
+	AutoStart                                     bool
 }
 
 type ToolsSnapshot struct {
-	Loaded bool
-	Error, Notice string
-	Forwards []Forward
-	SSHEntries []SSHConfigEntry
+	Loaded                    bool
+	Error, Notice             string
+	Forwards                  []Forward
+	SSHEntries                []SSHConfigEntry
 	AuditLoaded, AuditEnabled bool
-	AuditLines []string
+	AuditLines                []string
 }
 
 func cloneTools(v ToolsSnapshot) ToolsSnapshot {
@@ -46,35 +46,56 @@ func cloneTools(v ToolsSnapshot) ToolsSnapshot {
 	return v
 }
 
-func (s *Store) LoadTools() { s.toolsRequest("load", nil, "") }
-func (s *Store) LoadAudit() { s.toolsRequest("audit", nil, "") }
+func (s *Store) LoadTools()     { s.toolsRequest("load", nil, "") }
+func (s *Store) LoadAudit()     { s.toolsRequest("audit", nil, "") }
 func (s *Store) ForgetHostKey() { s.toolsRequest("forget-key", map[string]any{}, "") }
 func (s *Store) TestMachine(id string) {
 	s.mu.Lock()
 	found := false
-	for _, m := range s.view.Machines { if m.ID == id { found = true; break } }
+	for _, m := range s.view.Machines {
+		if m.ID == id {
+			found = true
+			break
+		}
+	}
 	s.mu.Unlock()
-	if found { s.toolsRequest("test-connect", map[string]any{"machineId": id}, id) }
+	if found {
+		s.toolsRequest("test-connect", map[string]any{"machineId": id}, id)
+	}
 }
 func (s *Store) TestDraft(d Draft) error {
 	payload, err := s.payload(d)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	delete(payload, "action")
 	delete(payload, "id")
-	if d.ID != "" { payload["machineId"] = d.ID }
+	if d.ID != "" {
+		payload["machineId"] = d.ID
+	}
 	s.toolsRequest("test-connect", payload, d.ID)
 	return nil
 }
 func (s *Store) DefineForward(d ForwardDraft) error {
 	listen, err := parsePort(d.ListenPort, 0)
-	if err != nil || listen == 0 { return fmt.Errorf("Listen port must be 1–65535") }
+	if err != nil || listen == 0 {
+		return fmt.Errorf("Listen port must be 1–65535")
+	}
 	target, err := parsePort(d.TargetPort, listen)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	direction := d.Direction
-	if direction == "" { direction = "local" }
-	if direction != "local" && direction != "reverse" { return fmt.Errorf("Invalid forwarding direction") }
+	if direction == "" {
+		direction = "local"
+	}
+	if direction != "local" && direction != "reverse" {
+		return fmt.Errorf("Invalid forwarding direction")
+	}
 	host := strings.TrimSpace(d.TargetHost)
-	if host == "" { host = "127.0.0.1" }
+	if host == "" {
+		host = "127.0.0.1"
+	}
 	s.toolsRequest("forwards", map[string]any{
 		"action": "define", "direction": direction, "listenPort": listen,
 		"targetHost": host, "targetPort": target, "autoStart": d.AutoStart,
@@ -82,7 +103,9 @@ func (s *Store) DefineForward(d ForwardDraft) error {
 	return nil
 }
 func (s *Store) ForwardAction(id, action string) {
-	if action != "start" && action != "stop" && action != "remove" { return }
+	if action != "start" && action != "stop" && action != "remove" {
+		return
+	}
 	s.mu.Lock()
 	found := false
 	for _, f := range s.view.Tools.Forwards {
@@ -92,7 +115,9 @@ func (s *Store) ForwardAction(id, action string) {
 		}
 	}
 	s.mu.Unlock()
-	if found { s.toolsRequest("forwards", map[string]any{"action": action, "id": id}, "") }
+	if found {
+		s.toolsRequest("forwards", map[string]any{"action": action, "id": id}, "")
+	}
 }
 
 // All settings operations share the registry busy gate. A selection/reconnect
@@ -111,19 +136,25 @@ func (s *Store) toolsRequest(operation string, payload any, machineID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	s.cancel = cancel
 	s.mu.Unlock()
-	if n != nil { n() }
+	if n != nil {
+		n()
+	}
 	go func() {
 		defer cancel()
 		var err error
 		switch operation {
 		case "load":
-			var entries struct { Entries []SSHConfigEntry `json:"entries"` }
+			var entries struct {
+				Entries []SSHConfigEntry `json:"entries"`
+			}
 			err = request(ctx, c, "GET", "ssh-config", nil, &entries)
-			if err == nil { value.SSHEntries = entries.Entries }
+			if err == nil {
+				value.SSHEntries = entries.Entries
+			}
 		case "audit":
 			var audit struct {
-				AuditEnabled bool `json:"auditEnabled"`
-				Lines []string `json:"lines"`
+				AuditEnabled bool     `json:"auditEnabled"`
+				Lines        []string `json:"lines"`
 			}
 			err = request(ctx, c, "GET", "audit?limit=100", nil, &audit)
 			if err == nil {
@@ -132,41 +163,57 @@ func (s *Store) toolsRequest(operation string, payload any, machineID string) {
 			}
 		case "test-connect":
 			var probe struct {
-				LatencyMS int `json:"latencyMs"`
-				Platform string `json:"platform"`
+				LatencyMS int    `json:"latencyMs"`
+				Platform  string `json:"platform"`
 			}
 			err = request(ctx, c, "POST", operation, payload, &probe)
-			if err == nil { value.Notice = fmt.Sprintf("Connected: %d ms · %s", probe.LatencyMS, probe.Platform) }
+			if err == nil {
+				value.Notice = fmt.Sprintf("Connected: %d ms · %s", probe.LatencyMS, probe.Platform)
+			}
 		case "forwards", "forget-key":
 			err = request(ctx, c, "POST", operation, payload, nil)
-			if err == nil && operation == "forget-key" { value.Notice = "Host key forgotten. Verify the fingerprint before reconnecting." }
+			if err == nil && operation == "forget-key" {
+				value.Notice = "Host key forgotten. Verify the fingerprint before reconnecting."
+			}
 		default:
 			err = fmt.Errorf("Unknown remote settings operation")
 		}
 		if err == nil && (operation == "load" || operation == "forwards") {
-			var list struct { Forwards []Forward `json:"forwards"` }
+			var list struct {
+				Forwards []Forward `json:"forwards"`
+			}
 			err = request(ctx, c, "GET", "forwards", nil, &list)
-			if err == nil { value.Forwards = list.Forwards }
+			if err == nil {
+				value.Forwards = list.Forwards
+			}
 		}
 		var status ConnectionStatus
 		if err == nil && operation == "forget-key" {
 			err = request(ctx, c, "GET", "status", nil, &status)
 		}
 		s.mu.Lock()
-		if g != s.generation { s.mu.Unlock(); return }
+		if g != s.generation {
+			s.mu.Unlock()
+			return
+		}
 		s.cancel = nil
 		s.view.Busy = false
-		if operation == "load" { value.Loaded = true }
+		if operation == "load" {
+			value.Loaded = true
+		}
 		if err != nil {
 			value.Error = err.Error()
 			// A successful mutation followed by a failed refresh is not retried.
-			if operation == "forwards" { value.Notice = "Refresh the forwarding list before retrying an uncertain operation." }
+			if operation == "forwards" {
+				value.Notice = "Refresh the forwarding list before retrying an uncertain operation."
+			}
 		} else if operation == "forget-key" {
 			s.view.Status, s.view.Connected = status, status.Connected
 		}
 		s.view.Tools = value
 		s.mu.Unlock()
-		if n != nil { n() }
+		if n != nil {
+			n()
+		}
 	}()
 }
-

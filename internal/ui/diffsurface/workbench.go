@@ -9,21 +9,21 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
-	Root                                     string
-	Changes                                  []git.Change
-	Staged                                   bool
-	Message, Status, ReviewToken, ReviewText string
-	Loaded                                   bool
-	Branches                                 []git.Branch
-	BranchesOpen                             bool
+	Root                                      string
+	Changes                                   []git.Change
+	Staged                                    bool
+	Message, Status, ReviewToken, ReviewText  string
+	Loaded                                    bool
+	Branches                                  []git.Branch
+	BranchesOpen                              bool
 	BranchQuery, BranchName, BranchStatus     string
-	Repository                               bool
-	Operation                                *gitOperation
+	Repository                                bool
+	Operation                                 *gitOperation
 	PublishOpen, PublishReview, PublishPublic bool
 	PublishName, PublishRemoteURL             string
-	ReviewedPublish                          git.PublishInput
-	PushAfterCommit                          bool
-	ReviewedPush                             git.PushPlan
+	ReviewedPublish                           git.PublishInput
+	PushAfterCommit                           bool
+	ReviewedPush                              git.PushPlan
 }
 
 func word(zh, en string) string {

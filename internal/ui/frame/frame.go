@@ -243,9 +243,9 @@ type Model struct {
 	OnRestartTerminal    func()
 	OnCloseTerminal      func()
 
-	Terminal           *termui.Panel
-	TerminalShellsNote string
-	OnAddSelectionToChat func(string) error
+	Terminal              *termui.Panel
+	TerminalShellsNote    string
+	OnAddSelectionToChat  func(string) error
 	CanAddSelectionToChat bool
 
 	ConnectionBanner     string
@@ -602,29 +602,29 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.ComposerState.EndEdit()
 							}
 						},
-						Hero:               hero,
-						ModelPick:          m.ModelPick,
-						PermissionPick:     m.PermissionPick,
-						AgentPresetPick:    m.AgentPresetPick,
-						SlashCatalog:       slashCatalog,
+						Hero:                 hero,
+						ModelPick:            m.ModelPick,
+						PermissionPick:       m.PermissionPick,
+						AgentPresetPick:      m.AgentPresetPick,
+						SlashCatalog:         slashCatalog,
 						OnRetrySlashCommands: func() { m.Store.RefreshSlashCommands(context.Background()) },
-						FilePaths:          filePaths,
-						OnSearchFileRefs:   m.OnSearchFileRefs,
-						SuggestList:        m.ComposerSuggest,
-						SkillsOpen:         m.ComposerSkillsOpen,
-						Skills:             snap.SkillOptions,
-						SkillsList:         m.ComposerSkillsList,
-						SkillsFilter:       m.ComposerSkillsFilter,
-						SkillHubHits:       snap.SkillHubHits,
-						OnSearchSkillHub:   m.OnSearchSkillHub,
-						OnInstallSkillHub:  m.OnInstallSkillHub,
-						OnDeleteSkill:      m.OnDeleteSkill,
-						SkillCreateName:    m.SkillCreateName,
-						OnCreateSkill:      m.OnCreateSkill,
-						OnToggleSkillModel: m.OnToggleSkillModel,
-						ChipEdit:           m.ComposerChipEdit,
-						UseTextInputClient: m.UseComposerTextInput,
-						TextInput:          m.ComposerTextInput,
+						FilePaths:            filePaths,
+						OnSearchFileRefs:     m.OnSearchFileRefs,
+						SuggestList:          m.ComposerSuggest,
+						SkillsOpen:           m.ComposerSkillsOpen,
+						Skills:               snap.SkillOptions,
+						SkillsList:           m.ComposerSkillsList,
+						SkillsFilter:         m.ComposerSkillsFilter,
+						SkillHubHits:         snap.SkillHubHits,
+						OnSearchSkillHub:     m.OnSearchSkillHub,
+						OnInstallSkillHub:    m.OnInstallSkillHub,
+						OnDeleteSkill:        m.OnDeleteSkill,
+						SkillCreateName:      m.SkillCreateName,
+						OnCreateSkill:        m.OnCreateSkill,
+						OnToggleSkillModel:   m.OnToggleSkillModel,
+						ChipEdit:             m.ComposerChipEdit,
+						UseTextInputClient:   m.UseComposerTextInput,
+						TextInput:            m.ComposerTextInput,
 						OnSend: func(text string) {
 							editSeq := float64(0)
 							if m.EditMessageSeq != nil {
@@ -776,8 +776,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										UsageJobsToday:   m.UsageJobsToday,
 										UsageBalance:     m.UsageBalance,
 										OnOpenUsage:      m.OnOpenUsage,
-										FeedbackStore: m.Store,
- OnMessageFeedback: func(messageID, rating, note string) {
+										FeedbackStore:    m.Store,
+										OnMessageFeedback: func(messageID, rating, note string) {
 											m.Store.RateMessage(context.Background(), messageID, rating, note)
 										},
 										OnClearMessageFeedback: func(messageID string) {
@@ -1101,8 +1101,8 @@ func rightPane(c *ui.Context, m Model) {
 			OnOpenWith:   m.OnOpenWithApp,
 			OpenWithApps: m.FileOpenWithApps,
 			OnRenderPDF:  m.OnRenderOfficePDF,
-			OnAddToChat:   m.OnAddSelectionToChat,
-			CanAddToChat:  m.CanAddSelectionToChat,
+			OnAddToChat:  m.OnAddSelectionToChat,
+			CanAddToChat: m.CanAddSelectionToChat,
 			OnOpenLink:   m.OnOpenCitationURL,
 		})
 	})

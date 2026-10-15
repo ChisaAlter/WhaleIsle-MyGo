@@ -50,21 +50,21 @@ type Host struct {
 	localHTMLURL string
 	onClosed     func()
 
-	gateway   *pluginslots.Gateway
-	mu        sync.Mutex
-	parent    *mygo.Window
-	win       *mygo.Window
-	topInset  int
-	url       string
-	offResize func()
-	offMove   func()
+	gateway         *pluginslots.Gateway
+	mu              sync.Mutex
+	parent          *mygo.Window
+	win             *mygo.Window
+	topInset        int
+	url             string
+	offResize       func()
+	offMove         func()
 	navigationEpoch uint64
-	capturePending bool
-	loading   bool
-	stopped   bool
-	err       string
-	title     string
-	changed   func()
+	capturePending  bool
+	loading         bool
+	stopped         bool
+	err             string
+	title           string
+	changed         func()
 }
 
 // NewHost creates a hidden frameless child WebView2 window. Call
@@ -191,7 +191,14 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 		h.beginLoad()
 	})
-	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.navigationEpoch++; h.url = h.logicalURL(raw); h.err = ""; h.mu.Unlock(); h.notify() })
+	pg.OnDidNavigate(func(raw string) {
+		h.mu.Lock()
+		h.navigationEpoch++
+		h.url = h.logicalURL(raw)
+		h.err = ""
+		h.mu.Unlock()
+		h.notify()
+	})
 	pg.OnDidFinishLoad(func() { h.mu.Lock(); h.loading = false; h.mu.Unlock(); h.notify() })
 	pg.OnDidFailLoad(func(err *mygo.LoadError) {
 		h.mu.Lock()

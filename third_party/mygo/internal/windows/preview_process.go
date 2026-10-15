@@ -16,10 +16,16 @@ const previewBrowserPIDSlot = 37
 
 // BrowserProcessID observes the native identity after WebView2 initialization.
 func (w *window) BrowserProcessID() (uint32, error) {
-	if w.webview == 0 { return 0, errors.New("WebView2 is not initialized") }
+	if w.webview == 0 {
+		return 0, errors.New("WebView2 is not initialized")
+	}
 	var pid uint32
 	hr := comCall(w.webview, previewBrowserPIDSlot, uintptr(unsafe.Pointer(&pid)))
-	if failed(hr) { return 0, hresultError("get_BrowserProcessId", hr) }
-	if pid == 0 { return 0, errors.New("WebView2 returned an empty browser process ID") }
+	if failed(hr) {
+		return 0, hresultError("get_BrowserProcessId", hr)
+	}
+	if pid == 0 {
+		return 0, errors.New("WebView2 returned an empty browser process ID")
+	}
 	return pid, nil
 }

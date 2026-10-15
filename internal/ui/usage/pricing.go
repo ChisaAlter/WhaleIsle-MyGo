@@ -54,7 +54,9 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 				d := v.Drafts[key]
 				ui.Row(c).Gap(6).Children(func() {
 					title := key
-					if v.NewKey == key { title = "● " + title }
+					if v.NewKey == key {
+						title = "● " + title
+					}
 					ui.Text(c, title).TextColor(fg).Grow(1)
 					if ui.Button(c, usageText("删除价格", "Remove price")).Clicked() {
 						m.Store.RemovePrice(key)

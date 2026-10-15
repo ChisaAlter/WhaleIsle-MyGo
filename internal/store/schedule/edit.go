@@ -45,7 +45,7 @@ func RuleSnapshot(raw json.RawMessage) (json.RawMessage, error) {
 
 // ResultError retains the Host recovery code without parsing display text.
 type ResultError struct {
-	Code string
+	Code    string
 	Message string
 }
 

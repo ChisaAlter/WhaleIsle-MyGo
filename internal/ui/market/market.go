@@ -126,8 +126,12 @@ func View(c *ui.Context, m Model) {
 							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 								ui.Text(c, r.Label).Bold().TextColor(fg)
 								ui.Text(c, r.Detail).FontSize(11).TextColor(muted)
-								if r.ReadOnlyReason != "" { ui.Text(c, r.ReadOnlyReason).FontSize(11).TextColor(muted) }
-								if r.Error != "" { ui.Text(c, r.Error).FontSize(11).TextColor(accent) }
+								if r.ReadOnlyReason != "" {
+									ui.Text(c, r.ReadOnlyReason).FontSize(11).TextColor(muted)
+								}
+								if r.Error != "" {
+									ui.Text(c, r.Error).FontSize(11).TextColor(accent)
+								}
 							})
 							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
 								label := i18n.T(i18n.KeySettingsPluginsEnable)

@@ -10,15 +10,15 @@ import (
 )
 
 type BillingModelOption struct {
-	Provider string `json:"provider"`
-	ProviderName string `json:"providerName"`
-	Models []string `json:"models"`
+	Provider     string   `json:"provider"`
+	ProviderName string   `json:"providerName"`
+	Models       []string `json:"models"`
 }
 
 type BillingModelsView struct {
-	Options []BillingModelOption
+	Options         []BillingModelOption
 	Loaded, Loading bool
-	Error, Filter string
+	Error, Filter   string
 }
 
 func (s *Store) BillingModels() BillingModelsView {
@@ -26,7 +26,9 @@ func (s *Store) BillingModels() BillingModelsView {
 	defer s.mu.Unlock()
 	v := s.billing.models
 	v.Options = append([]BillingModelOption(nil), v.Options...)
-	for i := range v.Options { v.Options[i].Models = append([]string(nil), v.Options[i].Models...) }
+	for i := range v.Options {
+		v.Options[i].Models = append([]string(nil), v.Options[i].Models...)
+	}
 	return v
 }
 
@@ -57,7 +59,10 @@ func (s *Store) SelectBillingModel(provider, model string) {
 
 func (s *Store) LoadBillingModels(ctx context.Context) {
 	s.mu.Lock()
-	if s.client == nil || s.billing.models.Loading { s.mu.Unlock(); return }
+	if s.client == nil || s.billing.models.Loading {
+		s.mu.Unlock()
+		return
+	}
 	client, epoch := s.client, s.statsEpoch
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	s.billing.modelsCancel = cancel
@@ -67,9 +72,13 @@ func (s *Store) LoadBillingModels(ctx context.Context) {
 	go func() {
 		defer cancel()
 		rpc := &pluginrpc.Client{BaseURL: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTPClient: client.HTTP}
-		var result struct { Options []BillingModelOption `json:"options"` }
+		var result struct {
+			Options []BillingModelOption `json:"options"`
+		}
 		err := rpc.Call(ctx, "usage-stats", "billing.models", map[string]any{}, &result)
-		if err == nil && result.Options == nil { err = errors.New("incomplete billing model directory") }
+		if err == nil && result.Options == nil {
+			err = errors.New("incomplete billing model directory")
+		}
 		if err == nil {
 			for _, option := range result.Options {
 				if strings.TrimSpace(option.Provider) == "" || option.Models == nil {
@@ -79,10 +88,15 @@ func (s *Store) LoadBillingModels(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.statsEpoch != epoch || s.client != client { s.mu.Unlock(); return }
+		if s.statsEpoch != epoch || s.client != client {
+			s.mu.Unlock()
+			return
+		}
 		s.billing.modelsCancel = nil
 		s.billing.models.Loading = false
-		if err != nil { s.billing.models.Error = err.Error() } else {
+		if err != nil {
+			s.billing.models.Error = err.Error()
+		} else {
 			s.billing.models.Options = result.Options
 			s.billing.models.Loaded = true
 		}

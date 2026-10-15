@@ -47,6 +47,7 @@ func (s *Sessions) Get(root string, dark bool) *Panel {
 	s.panels[key] = p
 	return p
 }
+
 // Restart replaces the active shell only, or opens the first for a new workspace.
 func (s *Sessions) Restart(root string, dark bool) *Panel {
 	if p := s.panels[workspaceKey(root)]; p != nil {

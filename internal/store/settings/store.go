@@ -13,14 +13,14 @@ import (
 
 // Namespace is one settings form from describe.
 type Namespace struct {
-	NS       string
-	Revision float64
-	Fields   []Field
-	Value    json.RawMessage
-	Schema   json.RawMessage
-	Base     json.RawMessage
-	User     json.RawMessage
-	HasSecrets bool
+	NS          string
+	Revision    float64
+	Fields      []Field
+	Value       json.RawMessage
+	Schema      json.RawMessage
+	Base        json.RawMessage
+	User        json.RawMessage
+	HasSecrets  bool
 	SecretPaths [][]string
 }
 
@@ -245,14 +245,14 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 				return
 			}
 			nsList = append(nsList, Namespace{
-				NS:       item.Ns,
-				Revision: item.Revision,
-				Fields:   fields,
-				Value:    append(json.RawMessage(nil), item.Value...),
-				Schema:   append(json.RawMessage(nil), item.Schema...),
-				Base:     append(json.RawMessage(nil), item.Base...),
-				User:     append(json.RawMessage(nil), item.User...),
-				HasSecrets: hasSetSecrets(item.Secrets),
+				NS:          item.Ns,
+				Revision:    item.Revision,
+				Fields:      fields,
+				Value:       append(json.RawMessage(nil), item.Value...),
+				Schema:      append(json.RawMessage(nil), item.Schema...),
+				Base:        append(json.RawMessage(nil), item.Base...),
+				User:        append(json.RawMessage(nil), item.User...),
+				HasSecrets:  hasSetSecrets(item.Secrets),
 				SecretPaths: configuredSecretPaths(item.Secrets),
 			})
 		}
@@ -678,10 +678,10 @@ func (s *Store) PatchBool(ctx context.Context, nsName, key string, value bool) {
 				if s.namespaces[i].NS == nsName {
 					s.namespaces[i].Revision = out.Revision
 					s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
-				s.namespaces[i].Base = append(json.RawMessage(nil), out.Base...)
-				s.namespaces[i].User = append(json.RawMessage(nil), out.User...)
-				s.namespaces[i].HasSecrets = hasSetSecrets(out.Secrets)
-				s.namespaces[i].SecretPaths = configuredSecretPaths(out.Secrets)
+					s.namespaces[i].Base = append(json.RawMessage(nil), out.Base...)
+					s.namespaces[i].User = append(json.RawMessage(nil), out.User...)
+					s.namespaces[i].HasSecrets = hasSetSecrets(out.Secrets)
+					s.namespaces[i].SecretPaths = configuredSecretPaths(out.Secrets)
 					break
 				}
 			}

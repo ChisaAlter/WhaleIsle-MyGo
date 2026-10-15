@@ -89,8 +89,10 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		return ApplyResult{}, fmt.Errorf("empty release URL")
 	}
 	maxBytes := opt.MaxBytes
-	if maxBytes == 0 { maxBytes = 512 << 20 }
-	if maxBytes < 1 || maxBytes > 8 << 30 || opt.ExpectSize > maxBytes {
+	if maxBytes == 0 {
+		maxBytes = 512 << 20
+	}
+	if maxBytes < 1 || maxBytes > 8<<30 || opt.ExpectSize > maxBytes {
 		return ApplyResult{}, fmt.Errorf("installer exceeds download size limit")
 	}
 	client := opt.HTTPClient
@@ -129,8 +131,12 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	h := sha256.New()
 	progress := &stageProgressWriter{notify: opt.OnProgress, total: opt.ExpectSize}
 	n, err := io.Copy(io.MultiWriter(f, h, progress), io.LimitReader(resp.Body, maxBytes+1))
-	if err == nil { err = ctx.Err() }
-	if err == nil && n > maxBytes { err = fmt.Errorf("installer exceeds download size limit") }
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err == nil && n > maxBytes {
+		err = fmt.Errorf("installer exceeds download size limit")
+	}
 	if err != nil {
 		_ = f.Close()
 		_ = os.Remove(dest)
@@ -164,7 +170,9 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		_ = os.Remove(dest)
 		return ApplyResult{}, err
 	}
-	if opt.OnProgress != nil { opt.OnProgress(n, opt.ExpectSize) }
+	if opt.OnProgress != nil {
+		opt.OnProgress(n, opt.ExpectSize)
+	}
 	if err := ctx.Err(); err != nil {
 		_ = os.Remove(dest)
 		return ApplyResult{}, err
@@ -254,12 +262,11 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 	return res, nil
 }
 
-
 type stageProgressWriter struct {
-	notify func(int64, int64)
-	total int64
+	notify   func(int64, int64)
+	total    int64
 	received int64
-	last time.Time
+	last     time.Time
 }
 
 func (p *stageProgressWriter) Write(b []byte) (int, error) {

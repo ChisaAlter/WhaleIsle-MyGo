@@ -17,17 +17,17 @@ import (
 // ActionTarget is captured on the UI thread at the user's gesture. Valid and
 // Append are called only on that thread, never from a capture goroutine.
 type ActionTarget struct {
-	Valid func() bool
+	Valid  func() bool
 	Append func(string) bool
 }
 
 type previewOperation struct {
-	tab *Tab
-	host *desktop.Host
+	tab    *Tab
+	host   *desktop.Host
 	target ActionTarget
-	ctx context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
-	kind string
+	kind   string
 }
 
 // SetActionTarget wires the owning session's draft without giving web pages
@@ -158,22 +158,22 @@ func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) 
 	disabled := t.Host == nil || state.Loading || busy
 	ui.ScrollHorizontal(c).Height(28).FillWidth().Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, "选择元素").Disabled(disabled).Clicked() {
-			b.startAction(t, "pick")
-		}
-		if ui.Button(c, "网页截图").Disabled(disabled).Clicked() {
-			b.startAction(t, "screenshot")
-		}
-		if busy && ui.Button(c, "取消").Clicked() {
-			b.CancelAction()
-		}
-		if t.ArtifactPath != "" && ui.Button(c, "显示截图").Clicked() {
-			if info, err := os.Stat(t.ArtifactPath); err == nil && info.Mode().IsRegular() {
-				mygo.Shell.ShowItemInFolder(t.ArtifactPath)
-			} else {
-				t.Error = "截图文件已移除，请重新截图"
+			if ui.Button(c, "选择元素").Disabled(disabled).Clicked() {
+				b.startAction(t, "pick")
 			}
-		}
+			if ui.Button(c, "网页截图").Disabled(disabled).Clicked() {
+				b.startAction(t, "screenshot")
+			}
+			if busy && ui.Button(c, "取消").Clicked() {
+				b.CancelAction()
+			}
+			if t.ArtifactPath != "" && ui.Button(c, "显示截图").Clicked() {
+				if info, err := os.Stat(t.ArtifactPath); err == nil && info.Mode().IsRegular() {
+					mygo.Shell.ShowItemInFolder(t.ArtifactPath)
+				} else {
+					t.Error = "截图文件已移除，请重新截图"
+				}
+			}
 		})
 	})
 }

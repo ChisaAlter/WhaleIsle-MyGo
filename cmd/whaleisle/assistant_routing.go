@@ -100,8 +100,8 @@ func (s *mainState) sendAssistantDshbot(ep harness.Endpoint, sessions *session.S
 	request := api.SessionPromptRequest{
 		RequestId: fmt.Sprintf("mygo-assistant-%d", time.Now().UnixNano()),
 		SessionId: sid,
-		Mode: "queue",
-		Content: []json.RawMessage{part},
+		Mode:      "queue",
+		Content:   []json.RawMessage{part},
 	}
 	if !s.assistantDshbotCurrent(ep, client) {
 		fail(fmt.Errorf("Host connection changed before sending"))

@@ -1,8 +1,8 @@
 package settings
 
 import (
-	"strings"
 	"github.com/egoist/mygo/ui"
+	"strings"
 
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/i18n"
@@ -10,29 +10,29 @@ import (
 
 // PluginRow is one installed plugin for the dedicated settings page.
 type PluginRow struct {
-	Name     string
-	Status   string
-	Disabled bool // authoritative Host bundle state
-	CanToggle bool
+	Name           string
+	Status         string
+	Disabled       bool // authoritative Host bundle state
+	CanToggle      bool
 	ReadOnlyReason string
-	Error string
+	Error          string
 }
 
 // PluginsAccess is the dedicated Plugins settings page (pluginManager/listPlugins).
 type PluginsAccess struct {
-	Rows         []PluginRow
-	HasListRPC   bool
-	Err          string
-	LastAction   string
-	ClientReady  bool
-	Loading      bool
-	Busy         bool
+	Rows             []PluginRow
+	HasListRPC       bool
+	Err              string
+	LastAction       string
+	ClientReady      bool
+	Loading          bool
+	Busy             bool
 	OperationMessage string
-	Activation   marketstore.Activation
-	CanRestart   bool
-	OnRestart    func()
-	OnRefresh    func()
-	OnOpenMarket func()
+	Activation       marketstore.Activation
+	CanRestart       bool
+	OnRestart        func()
+	OnRefresh        func()
+	OnOpenMarket     func()
 	// OnSetDisabled changes the Host bundle and surfaces its ChangeResult.
 	OnSetDisabled func(name string, disabled bool)
 	OnInspect     func(name string)

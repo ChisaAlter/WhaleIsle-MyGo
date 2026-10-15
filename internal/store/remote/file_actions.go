@@ -16,15 +16,19 @@ func remoteChild(parent, name string) (string, error) {
 		return "", fmt.Errorf("Enter one file or folder name without path separators")
 	}
 	parent = strings.TrimSpace(parent)
-	if parent == "" { return "", fmt.Errorf("Browse a remote directory first") }
+	if parent == "" {
+		return "", fmt.Errorf("Browse a remote directory first")
+	}
 	sep := "/"
-	if strings.Contains(parent, "\\") || len(parent) >= 2 && parent[1] == ':' { sep = "\\" }
+	if strings.Contains(parent, "\\") || len(parent) >= 2 && parent[1] == ':' {
+		sep = "\\"
+	}
 	return strings.TrimRight(parent, "/\\") + sep + name, nil
 }
 
-func (s *Files) Mkdir(name string) error { return s.mutate("mkdir", "", name) }
+func (s *Files) Mkdir(name string) error        { return s.mutate("mkdir", "", name) }
 func (s *Files) Rename(path, name string) error { return s.mutate("rename", path, name) }
-func (s *Files) Remove(path string) error { return s.mutate("remove", path, "") }
+func (s *Files) Remove(path string) error       { return s.mutate("remove", path, "") }
 
 func (s *Files) mutate(operation, path, name string) error {
 	s.mu.Lock()
@@ -44,22 +48,37 @@ func (s *Files) mutate(operation, path, name string) error {
 	} else {
 		known := false
 		for _, entry := range v.Items {
-			if entry.Path == path && !entry.Drive && path != "/" { known = true; break }
+			if entry.Path == path && !entry.Drive && path != "/" {
+				known = true
+				break
+			}
 		}
-		if !known { err = fmt.Errorf("Choose a file or folder from the current session listing") }
+		if !known {
+			err = fmt.Errorf("Choose a file or folder from the current session listing")
+		}
 		if operation == "rename" && err == nil {
 			dest, err = remoteChild(ParentDirectory(path), name)
-			if err == nil && dest == path { err = fmt.Errorf("The new name is unchanged") }
+			if err == nil && dest == path {
+				err = fmt.Errorf("The new name is unchanged")
+			}
 		}
 	}
 	if err == nil && operation != "remove" {
 		candidate := target
-		if operation == "rename" { candidate = dest }
+		if operation == "rename" {
+			candidate = dest
+		}
 		for _, entry := range v.Items {
-			if entry.Path == candidate { err = fmt.Errorf("That name already exists; overwriting is not supported"); break }
+			if entry.Path == candidate {
+				err = fmt.Errorf("That name already exists; overwriting is not supported")
+				break
+			}
 		}
 	}
-	if err != nil { s.mu.Unlock(); return err }
+	if err != nil {
+		s.mu.Unlock()
+		return err
+	}
 	c, key, g, n := s.client, s.key, s.generation, s.notify
 	captured := *v
 	v.Busy, v.MutationApplied = true, false
@@ -67,16 +86,18 @@ func (s *Files) mutate(operation, path, name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	s.cancel = cancel
 	s.mu.Unlock()
-	if n != nil { n() }
+	if n != nil {
+		n()
+	}
 	go func() {
 		defer cancel()
 		var status struct {
-			SessionBound bool `json:"sessionBound"`
-			SessionMode string `json:"sessionMode"`
-			Workspace string `json:"workspace"`
-			Host string `json:"host"`
-			Username string `json:"username"`
-			Port int `json:"port"`
+			SessionBound bool   `json:"sessionBound"`
+			SessionMode  string `json:"sessionMode"`
+			Workspace    string `json:"workspace"`
+			Host         string `json:"host"`
+			Username     string `json:"username"`
+			Port         int    `json:"port"`
 		}
 		err := request(ctx, c, "GET", "status?sessionId="+url.QueryEscape(captured.SessionID), nil, &status)
 		if err == nil && (!status.SessionBound || status.SessionMode != "remote") {
@@ -89,29 +110,38 @@ func (s *Files) mutate(operation, path, name string) error {
 		applied, attempted := false, false
 		if err == nil {
 			body := map[string]any{"sessionId": captured.SessionID, "op": operation, "path": target}
-			if operation == "rename" { body["dest"] = dest }
+			if operation == "rename" {
+				body["dest"] = dest
+			}
 			attempted = true
 			err = request(ctx, c, "POST", "fs", body, nil)
 			applied = err == nil
 		}
 		var listing struct {
-			Path string `json:"path"`
-			Items []DirectoryEntry `json:"items"`
-			Bound bool `json:"bound"`
-			Missing bool `json:"missing"`
+			Path    string           `json:"path"`
+			Items   []DirectoryEntry `json:"items"`
+			Bound   bool             `json:"bound"`
+			Missing bool             `json:"missing"`
 		}
 		if err == nil {
 			err = request(ctx, c, "GET", "ls?sessionId="+url.QueryEscape(captured.SessionID)+"&path="+url.QueryEscape(captured.Path), nil, &listing)
-			if err == nil && (!listing.Bound || listing.Missing) { err = fmt.Errorf("The changed directory could not be refreshed") }
+			if err == nil && (!listing.Bound || listing.Missing) {
+				err = fmt.Errorf("The changed directory could not be refreshed")
+			}
 		}
 		s.mu.Lock()
-		if s.generation != g || s.key != key || s.client != c { s.mu.Unlock(); return }
+		if s.generation != g || s.key != key || s.client != c {
+			s.mu.Unlock()
+			return
+		}
 		v = s.states[key]
 		v.Busy, v.Operation, v.MutationApplied = false, "", applied
 		s.cancel = nil
 		if applied {
 			v.Notice = operation + " completed: " + target
-			if operation == "rename" { v.Notice += " → " + dest }
+			if operation == "rename" {
+				v.Notice += " → " + dest
+			}
 			normalized, normalizedTarget := strings.ReplaceAll(v.FilePath, "\\", "/"), strings.ReplaceAll(target, "\\", "/")
 			affected := normalized == normalizedTarget || strings.HasPrefix(normalized, strings.TrimRight(normalizedTarget, "/")+"/")
 			if affected && (operation == "remove" || operation == "rename") {
@@ -124,14 +154,20 @@ func (s *Files) mutate(operation, path, name string) error {
 		if err != nil {
 			v.Loaded, v.Bound = false, false
 			v.Error = err.Error()
-			if attempted && !applied { v.Error += "; outcome may be uncertain. Refresh before retrying." }
-			if applied { v.Error += "; the operation succeeded but the listing refresh failed." }
+			if attempted && !applied {
+				v.Error += "; outcome may be uncertain. Refresh before retrying."
+			}
+			if applied {
+				v.Error += "; the operation succeeded but the listing refresh failed."
+			}
 		} else {
 			v.Path, v.Items = listing.Path, listing.Items
 			v.Loaded, v.Bound = true, true
 		}
 		s.mu.Unlock()
-		if n != nil { n() }
+		if n != nil {
+			n()
+		}
 	}()
 	return nil
 }

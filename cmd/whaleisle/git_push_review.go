@@ -37,9 +37,9 @@ func (s *mainState) reviewGitPush(root string) {
 	}
 	result, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: win, Type: mygo.MessageQuestion,
-		Title: gitActionLabel("确认推送目标", "Confirm push destination"),
-		Message: message,
-		Buttons: []string{gitActionLabel("取消", "Cancel"), gitActionLabel("确认推送", "Confirm push")},
+		Title:         gitActionLabel("确认推送目标", "Confirm push destination"),
+		Message:       message,
+		Buttons:       []string{gitActionLabel("取消", "Cancel"), gitActionLabel("确认推送", "Confirm push")},
 		DefaultButton: 0, CancelButton: 0,
 	})
 	if err != nil || result.Button != 1 {

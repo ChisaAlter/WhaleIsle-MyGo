@@ -150,3 +150,37 @@
 - 普通 JSON set/unset 与已配置 secret 路径祖先/后代重叠时拒绝，避免数组替换或对象类型变化丢失隐藏密钥；非敏感叶编辑仍可用。整体替换不从脱敏 effective 值重建秘密。
 - 增加 schema-backed provider/agent/search/log/subagent/shell 导航，保留现有 MCP/技能实现。
 - 一次必要代码整合检查完成；云端存储故障，Go 编译、测试未运行，无实际账户/密钥修改和验收。
+
+## 2026-10-15 Project、文件/Git/终端、用量与隔离核心增量（尚未编译）
+
+以下已逐模块发布到开发分支，均完成一次必要源码接口/生命周期检查。云端空间耗尽仍阻塞 shell，未执行 Go 编译、仓库测试、Windows GUI 或真实用户服务。现有候选 EXE 与 Library v26 仍截至 05668bef，不包含这些 API 提交。
+
+- Team 分页与状态（50820d106980d5913f6db8ddfa84cb92627f7c05）：上一页、刷新保留 currentCursor、失效锚点回首页、排队等待原因及 Host worker roster 补全。
+- 文件动作（19ead52f4fb3e67b16a5c1df3da89446f11092fe）：激活/手动重读干净标签；外部更改或读取失败保留脏草稿与原保存基线；分别复制相对/绝对路径，Host 与原生打开/定位互斥。
+- Git 分支（f444f69370d15fe266426bac5ebddba50e205696）：列表/筛选/刷新、正常切换及创建分支、远端 tracking；保留 dirty-tree/worktree 保护，pull 使用 ff-only，不强制覆盖。
+- 动态 HTML 隔离核心（a7713a95856a6e8faac22f5d4add5fa7b12790d7）：新增默认关闭的独立 helper；fresh AppContainer 零 capabilities、原子 Job 绑定、实际 helper/browser/进程树 token 核验后才传快照，取消回收，失败关闭。BrowserProcessID slot 37 已由固定 Microsoft 官方 vtable 源码核实。此提交没有产品入口/打包接线；同 SID/零 capabilities 的实际 WebView2 兼容性未验证，不能据此宣称动态预览已可用。此前静态禁 JS 边界继续有效。
+- 终端会话组（834a6ef2379183ed061e43dfa57dc3f64ea9736a）：真实原生 PTY 独立组、每组最多四个分栏、当前终端关闭/重启；隐藏保留进程。移除不可见的 Host PTY 探测创建/写入链。
+- Project 恢复草稿（2361f5ad957a04839a547022e913aabf2ea0cf0e）：刷新原 Lead、workstream、要求版本和报告/终态身份，仅向空的原 Lead 草稿准备 summary/handover 重试文字；不新造 retry RPC、不发送 prompt。导航、Host、原始身份及正在编辑/发送保护拒绝迟到覆盖。
+- 手动压缩卡（c74b597f2891bd7e57f5bcd2c1212d4c7d02668e）：补齐前节所述专用卡片缺口，按明确 command/compaction 标识融合原 replace checkpoint 与对应摘要，展示历史条目/token数量、失败或未加载摘要；保留原 journal。
+- SSH/远程配置（6843b08feebf5e67b0397369f137554ed934ceda）：SSH config 导入、草稿/已保存配置测试、认证/跳板/主机密钥控件、明确忘记密钥、转发生命周期和审计尾部。单跳 ProxyJump 解析用户/端口/IPv6，拒绝不支持多跳；同跳板留空密码沿 Host 保留原 secret。未执行 SSH、转发或密钥操作。
+- Git 初始化/发布/提交并推送（63bce2d2ebe5522bcc509c3d7d7ae96dea5abbaf）：显式初始化；已有 URL 或 gh 创建仓库，默认私有、不覆盖 origin；确认目标与可见性后才发布。推送复核分支/远端/ref/URL，提示默认分支；提交仅包含已核对暂存内容，推送失败保留本地提交，避免重试时重复提交。未执行真实 Git 或创建远端。
+- 用量目录与排序（0cba439485431eafc8c6df5034704c25e21cf30c）：真实 billing.models 服务商/模型选择，不虚构价格；sessions.more 的 tokens/cost 排序分页，使用已保存价格与完整分时桶估算；主/子会话、最近时间、all-time provider 和覆盖状态展示。缺价/缺数据明确未计价，估算不等于实际账单。
+- 终端最大化/选文（bd06cf2803d309a9228f35ba6a70b537d48551bc）：最大化保留原布局、还原与拖拽退出；读取真实选区，复制或添加 fenced 片段到捕获的当前会话草稿，保留已有文本/附件；发送、IME 和会话切换保护，无自动发送。
+
+本节记录代码能力与未验证边界，不以提交数代替完成比例。动态产品入口仍另行整合，原生 runtime 发布目录仍无实际 MyGo 安装资产；其余真实功能缺口继续逐域闭合。
+
+
+### 2026-10-15 显式隔离预览、Remote 目录及 Files 完整入口
+
+- 3d9962d379305e367affd26fcb1a684524347eed：静态默认不变，点击后冻结授权图片/CSS/JS依赖快照，启动受限helper；tab/context撤销关闭整个Job。静态fallback与错误原因保留；标准/离线打包携带受控helper，不提升全局readiness。
+- 89870e000f491a49c0aa7aba5617157ab3ac013a：Remote会话目录创建、改名、明确确认永久删除、路径复制；确认Key含RemoteIdentity，不将旧主机确认复用于新绑定。
+- e121693fd170237675a2168ed988f71308f9ba15：Remote picker Home、路径跳转、新建目录后选择，保留Windows卷层CanChoose门禁。
+- e3a671b84a404e29b57f6539ddd57939f75238e3：Files Markdown默认Source/Rendered、可选源码和语法颜色、完整选中行加入草稿、跳行、有限图片/PNG型ICO；复杂格式兼容仍在收口。
+
+### 2026-10-15 01:17 UTC 累计编译（不是验收）
+
+清理经逐字节核对无独有内容的失败副本以及官方可重建Go缓存，恢复约1.3GiB空间。177+7路径加Files最终8项按远端Git SHA同步，Go格式化后Windows amd64 main/helper累计编译一次通过，无需逻辑修补。未运行测试套件、真实服务、GUI或用户文件操作。
+
+- main 39,107,584 bytes，SHA256 afb20152d715cf2cdcd30a33be8d1cb95957f5eb7f83bfe1305dc3fa2d7a1f82。
+- helper 13,556,224 bytes，SHA256 ce820c52ded9415e9fd5ce347064dd71a1720199996c74a966ffd524d291d4bf。
+- 证据只覆盖本次代码快照的编译，不代表Windows运行兼容、ARM64、功能全量验收或实际发布资产。现有候选与Library v26尚未据此更新。

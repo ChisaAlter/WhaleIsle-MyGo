@@ -45,7 +45,7 @@ type Model struct {
 	Process                                       *projectflow.ProcessSnapshot
 	OnInspect                                     func(string, string)
 	OnCloseDetail, OnRetryDraft                   func()
-	OnSummaryRetryDraft, OnHandoverRetryDraft       func()
+	OnSummaryRetryDraft, OnHandoverRetryDraft     func()
 	OnProcess                                     func(bool)
 	TeamID, TeamNote                              string
 	Team                                          *projectflow.Overview

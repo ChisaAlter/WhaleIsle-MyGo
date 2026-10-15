@@ -40,9 +40,13 @@ func (s *Store) SessionRanking() SessionRanking {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v := s.ranking.SessionRanking
-	if v.Sort == "" { v.Sort = "tokens" }
+	if v.Sort == "" {
+		v.Sort = "tokens"
+	}
 	v.Rows = append([]SessionUsage(nil), v.Rows...)
-	for i := range v.Rows { v.Rows[i].Models = append([]ModelUsage(nil), v.Rows[i].Models...) }
+	for i := range v.Rows {
+		v.Rows[i].Models = append([]ModelUsage(nil), v.Rows[i].Models...)
+	}
 	return v
 }
 func (s *Store) ModelRankLimit() int {
@@ -68,7 +72,9 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 		return
 	}
 	ep := s.client.Endpoint
-	if r.Sort == "" { r.Sort = "tokens" }
+	if r.Sort == "" {
+		r.Sort = "tokens"
+	}
 	offset, epoch, sort := r.offset, r.epoch, r.Sort
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	r.cancel = cancel
@@ -129,9 +135,14 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 }
 
 func (s *Store) ResetSessionRanking(ctx context.Context, sort string) {
-	if sort != "tokens" && sort != "cost" { return }
+	if sort != "tokens" && sort != "cost" {
+		return
+	}
 	s.mu.Lock()
-	if s.client == nil || s.stats.Loading { s.mu.Unlock(); return }
+	if s.client == nil || s.stats.Loading {
+		s.mu.Unlock()
+		return
+	}
 	s.resetSessionRankingLocked()
 	s.ranking.Sort = sort
 	s.mu.Unlock()

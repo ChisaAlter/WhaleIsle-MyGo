@@ -9,10 +9,14 @@ import (
 )
 
 func (s *Store) SetDirectoryPath(path string) {
-	s.mu.Lock(); s.view.Directory.InputPath = path; s.mu.Unlock()
+	s.mu.Lock()
+	s.view.Directory.InputPath = path
+	s.mu.Unlock()
 }
 func (s *Store) SetDirectoryName(name string) {
-	s.mu.Lock(); s.view.Directory.NewName = name; s.mu.Unlock()
+	s.mu.Lock()
+	s.view.Directory.NewName = name
+	s.mu.Unlock()
 }
 func (s *Store) ShowDirectoryCreate(open bool) {
 	s.mu.Lock()
@@ -23,9 +27,11 @@ func (s *Store) ShowDirectoryCreate(open bool) {
 	}
 	n := s.notify
 	s.mu.Unlock()
-	if n != nil { n() }
+	if n != nil {
+		n()
+	}
 }
-func (s *Store) BrowseHome() { _ = s.directoryAction("home", "") }
+func (s *Store) BrowseHome()                       { _ = s.directoryAction("home", "") }
 func (s *Store) CreateDirectory(name string) error { return s.directoryAction("mkdir", name) }
 
 func (s *Store) directoryAction(operation, name string) error {
@@ -43,7 +49,10 @@ func (s *Store) directoryAction(operation, name string) error {
 		}
 		var err error
 		path, err = remoteChild(captured.Path, name)
-		if err != nil { s.mu.Unlock(); return err }
+		if err != nil {
+			s.mu.Unlock()
+			return err
+		}
 	}
 	c, n, g, machineID := s.client, s.notify, s.generation, s.view.CurrentID
 	s.view.Busy = true
@@ -51,17 +60,23 @@ func (s *Store) directoryAction(operation, name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	s.cancel = cancel
 	s.mu.Unlock()
-	if n != nil { n() }
+	if n != nil {
+		n()
+	}
 	go func() {
 		defer cancel()
-		var current struct { CurrentID string `json:"currentId"` }
+		var current struct {
+			CurrentID string `json:"currentId"`
+		}
 		err := request(ctx, c, "GET", "status", nil, &current)
-		if err == nil && current.CurrentID != machineID { err = fmt.Errorf("Active remote machine changed; refresh before continuing") }
+		if err == nil && current.CurrentID != machineID {
+			err = fmt.Errorf("Active remote machine changed; refresh before continuing")
+		}
 		applied := false
 		if err == nil && operation == "home" {
 			var result struct {
-				Home string `json:"home"`
-				Hint string `json:"hint"`
+				Home  string `json:"home"`
+				Hint  string `json:"hint"`
 				Error string `json:"error"`
 			}
 			err = request(ctx, c, "POST", "home", map[string]any{}, &result)
@@ -69,7 +84,9 @@ func (s *Store) directoryAction(operation, name string) error {
 				path = strings.TrimSpace(result.Home)
 				if path == "" {
 					detail := strings.TrimSpace(result.Error + " " + result.Hint)
-					if detail == "" { detail = "The remote host did not provide a home directory" }
+					if detail == "" {
+						detail = "The remote host did not provide a home directory"
+					}
 					err = fmt.Errorf("%s", detail)
 				}
 			}
@@ -82,10 +99,15 @@ func (s *Store) directoryAction(operation, name string) error {
 		var listing DirectorySnapshot
 		if err == nil {
 			err = request(ctx, c, "GET", "ls?path="+url.QueryEscape(path), nil, &listing)
-			if err == nil && listing.Missing { err = fmt.Errorf("Remote directory is missing") }
+			if err == nil && listing.Missing {
+				err = fmt.Errorf("Remote directory is missing")
+			}
 		}
 		s.mu.Lock()
-		if s.generation != g { s.mu.Unlock(); return }
+		if s.generation != g {
+			s.mu.Unlock()
+			return
+		}
 		s.cancel = nil
 		s.view.Busy = false
 		if err != nil {
@@ -100,7 +122,9 @@ func (s *Store) directoryAction(operation, name string) error {
 			s.view.Directory = listing
 		}
 		s.mu.Unlock()
-		if n != nil { n() }
+		if n != nil {
+			n()
+		}
 	}()
 	return nil
 }
@@ -110,5 +134,7 @@ func (s *Store) SetDirectoryError(message string) {
 	s.view.Directory.Error = message
 	n := s.notify
 	s.mu.Unlock()
-	if n != nil { n() }
+	if n != nil {
+		n()
+	}
 }

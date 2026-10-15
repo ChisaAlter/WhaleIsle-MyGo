@@ -33,17 +33,29 @@ func TestNativeCatalogRejectsLegacyAndDuplicates(t *testing.T) {
 
 func TestNativeReleaseCompatibilityAndRuntime(t *testing.T) {
 	r := nativeFixture()
-	if err := r.Validate("windows", "amd64", true); err != nil { t.Fatal(err) }
+	if err := r.Validate("windows", "amd64", true); err != nil {
+		t.Fatal(err)
+	}
 	r.RuntimeIncluded = false
-	if err := r.Validate("windows", "amd64", true); err == nil { t.Fatal("shell-only release accepted for runtime install") }
-	if err := r.Validate("windows", "amd64", false); err != nil { t.Fatal(err) }
+	if err := r.Validate("windows", "amd64", true); err == nil {
+		t.Fatal("shell-only release accepted for runtime install")
+	}
+	if err := r.Validate("windows", "amd64", false); err != nil {
+		t.Fatal(err)
+	}
 	r = nativeFixture()
 	r.HostSourceCommit = "old"
-	if err := r.Validate("windows", "amd64", true); err == nil { t.Fatal("old Host accepted") }
+	if err := r.Validate("windows", "amd64", true); err == nil {
+		t.Fatal("old Host accepted")
+	}
 	r = nativeFixture()
-	if err := r.Validate("linux", "amd64", false); err == nil { t.Fatal("Windows installer accepted on Linux") }
+	if err := r.Validate("linux", "amd64", false); err == nil {
+		t.Fatal("Windows installer accepted on Linux")
+	}
 	r.URL = "https://github.com/ChisaAlter/WhaleIsle/releases/download/v1.2.3/setup.exe"
-	if err := r.Validate("windows", "amd64", false); err == nil { t.Fatal("Electron source accepted") }
+	if err := r.Validate("windows", "amd64", false); err == nil {
+		t.Fatal("Electron source accepted")
+	}
 }
 
 func TestStageProgressCancellationRemovesPartial(t *testing.T) {
@@ -55,5 +67,7 @@ func TestStageProgressCancellationRemovesPartial(t *testing.T) {
 	defer server.Close()
 	seen := false
 	_, err := DownloadAndStageOpts(ctx, StageOptions{ReleaseURL: server.URL + "/setup.exe", DestDir: t.TempDir(), OnProgress: func(n, total int64) { seen = true; cancel() }})
-	if !seen || err == nil { t.Fatal("cancellation must prevent staging success") }
+	if !seen || err == nil {
+		t.Fatal("cancellation must prevent staging success")
+	}
 }

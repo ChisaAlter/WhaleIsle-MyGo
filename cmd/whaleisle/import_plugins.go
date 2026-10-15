@@ -25,11 +25,15 @@ func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) i
 		if !allowed {
 			return importer.PluginInstallResult{Error: "导入状态或运行时状态已改变，插件未安装。"}
 		}
-		if win != nil { win.Update(func() {}) }
+		if win != nil {
+			win.Update(func() {})
+		}
 		return installImportPlugin(ctx, spec, func(allow []string) installctrl.Result {
 			return desktopmarket.InstallSpecContext(ctx, spec, allow, desktopmarket.InstallOptions{NodeBin: node, DshHome: dest, ExpectedPackageName: row.ID})
 		}, func(builds []string) bool {
-			if ctx.Err() != nil || win == nil { return false }
+			if ctx.Err() != nil || win == nil {
+				return false
+			}
 			answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 				Parent: win, Type: mygo.MessageQuestion, Title: "批准插件构建脚本",
 				Message: fmt.Sprintf("插件：%s\n来源：%s\n目标：%s\n\n以下包要求在本机运行构建脚本，可能访问本机文件和网络：\n%s\n\n仅批准本次列出的脚本并重试该插件安装？", row.ID, spec, dest, strings.Join(builds, "\n")),
@@ -51,9 +55,13 @@ func installImportPlugin(ctx context.Context, spec string, run func([]string) in
 			return importer.PluginInstallResult{Error: err.Error(), Log: strings.Join(logs, "\n")}
 		}
 		result := run(append([]string(nil), approved...))
-		if result.Log != "" { logs = append(logs, result.Log) }
+		if result.Log != "" {
+			logs = append(logs, result.Log)
+		}
 		out := importer.PluginInstallResult{OK: result.OK && !result.NeedsAllowBuilds, Error: result.Error, Log: strings.Join(logs, "\n")}
-		if !result.NeedsAllowBuilds { return out }
+		if !result.NeedsAllowBuilds {
+			return out
+		}
 		if err := ctx.Err(); err != nil {
 			out.Error = err.Error()
 			return out

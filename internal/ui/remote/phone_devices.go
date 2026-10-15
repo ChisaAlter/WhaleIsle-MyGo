@@ -10,8 +10,8 @@ import (
 // original runtime's public snapshot; no device secret is displayed or cached.
 type PhoneDeviceEditor struct {
 	EditingID, Name, PendingUnbind string
-	ConfirmRotate, Submitted      bool
-	Error                         string
+	ConfirmRotate, Submitted       bool
+	Error                          string
 }
 
 func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {

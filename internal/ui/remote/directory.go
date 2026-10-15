@@ -20,8 +20,12 @@ func viewDirectory(c *ui.Context, m Model) {
 		ui.Text(c, label("浏览当前选择的机器。创建镜像后，点击使用以切换工作区；不会自动同步文件。", "Browse the selected machine. Create a mirror, then use it to switch workspace; files are not synced automatically.")).FontSize(11)
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, emptyDash(d.Path)).Grow(1)
-			if ui.Button(c, label("远程主目录", "Remote home")).Disabled(disabled).Clicked() { m.Machines.BrowseHome() }
-			if ui.Button(c, label("机器默认目录", "Machine default directory")).Disabled(disabled).Clicked() { m.Machines.Browse("") }
+			if ui.Button(c, label("远程主目录", "Remote home")).Disabled(disabled).Clicked() {
+				m.Machines.BrowseHome()
+			}
+			if ui.Button(c, label("机器默认目录", "Machine default directory")).Disabled(disabled).Clicked() {
+				m.Machines.Browse("")
+			}
 			if ui.Button(c, label("上级", "Up")).Disabled(disabled || !d.Loaded || d.Path == "" || d.Path == "/").Clicked() {
 				m.Machines.Browse(remotestore.ParentDirectory(d.Path))
 			}
@@ -32,7 +36,9 @@ func viewDirectory(c *ui.Context, m Model) {
 		path := d.InputPath
 		ui.Row(c).Gap(8).Children(func() {
 			ui.TextInput(c, &path).FillWidth().Disabled(disabled).Placeholder(label("远程绝对路径", "Remote absolute path")).OnChange(func() { m.Machines.SetDirectoryPath(path) })
-			if ui.Button(c, label("跳转", "Go")).Disabled(disabled || path == "").Clicked() { m.Machines.Browse(path) }
+			if ui.Button(c, label("跳转", "Go")).Disabled(disabled || path == "").Clicked() {
+				m.Machines.Browse(path)
+			}
 		})
 		if s.Busy {
 			if d.Choosing {
@@ -56,15 +62,21 @@ func viewDirectory(c *ui.Context, m Model) {
 				}
 			})
 		}
-		if ui.Button(c, label("新建文件夹", "New folder")).Disabled(disabled || !d.CanChoose()).Clicked() { m.Machines.ShowDirectoryCreate(true) }
+		if ui.Button(c, label("新建文件夹", "New folder")).Disabled(disabled || !d.CanChoose()).Clicked() {
+			m.Machines.ShowDirectoryCreate(true)
+		}
 		if d.MkdirOpen {
 			ui.Text(c, label("创建于：", "Create in: ")+d.Path)
 			name := d.NewName
 			ui.TextInput(c, &name).FillWidth().Disabled(disabled).Placeholder(label("文件夹名称", "Folder name")).OnChange(func() { m.Machines.SetDirectoryName(name) })
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, label("取消创建", "Cancel creation")).Disabled(disabled).Clicked() { m.Machines.ShowDirectoryCreate(false) }
+				if ui.Button(c, label("取消创建", "Cancel creation")).Disabled(disabled).Clicked() {
+					m.Machines.ShowDirectoryCreate(false)
+				}
 				if ui.Button(c, label("确认创建文件夹", "Create folder")).Disabled(disabled || !d.CanChoose() || name == "").Clicked() {
-					if err := m.Machines.CreateDirectory(name); err != nil { m.Machines.SetDirectoryError(err.Error()) }
+					if err := m.Machines.CreateDirectory(name); err != nil {
+						m.Machines.SetDirectoryError(err.Error())
+					}
 				}
 			})
 		}

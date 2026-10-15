@@ -62,12 +62,18 @@ func Confirmation(c Catalog, s ApplySelection) string {
 	}
 	for _, id := range s.SelectedPluginIDs {
 		for _, row := range c.Plugins {
-			if row.ID != id { continue }
+			if row.ID != id {
+				continue
+			}
 			spec := PluginReinstallSpec(row.ID, row.Spec)
 			action := "重新下载安装"
-			if row.Unsupported || spec == "" { action = "跳过（不支持）" }
-			if row.Conflict && !s.Overwrite { action = "跳过（已安装）" }
-			preview = append(preview, "插件 / " + id + "：" + action + "；来源 " + spec)
+			if row.Unsupported || spec == "" {
+				action = "跳过（不支持）"
+			}
+			if row.Conflict && !s.Overwrite {
+				action = "跳过（已安装）"
+			}
+			preview = append(preview, "插件 / "+id+"："+action+"；来源 "+spec)
 			break
 		}
 	}

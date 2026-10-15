@@ -40,6 +40,7 @@ type Worker struct {
 		ID string `json:"id"`
 	} `json:"jobs"`
 }
+
 // WaitingReason is the Host-provided reason a queued assignment cannot start.
 type WaitingReason struct {
 	Kind       string   `json:"kind"`

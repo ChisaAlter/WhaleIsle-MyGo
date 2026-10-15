@@ -27,22 +27,22 @@ const MaxBytes = 8 << 20
 const Lifetime = 30 * time.Minute
 
 type Document struct {
-	Name          string
-	Resources     ResourceReport
-	path          string
-	identity      os.FileInfo
-	data          []byte
+	Name      string
+	Resources ResourceReport
+	path      string
+	identity  os.FileInfo
+	data      []byte
 	// Source bytes and directory identity belong to the original authorized read.
 	// Interactive dependencies are frozen only after a separate user gesture.
 	source, root, relative string
-	rootIdentity os.FileInfo
-	done chan struct{}
-	origin, route string
-	valid         func() bool
-	server        *http.Server
-	timer         *time.Timer
-	mu            sync.RWMutex
-	closed        bool
+	rootIdentity           os.FileInfo
+	done                   chan struct{}
+	origin, route          string
+	valid                  func() bool
+	server                 *http.Server
+	timer                  *time.Timer
+	mu                     sync.RWMutex
+	closed                 bool
 }
 
 // OpenWorkspace confines reads with os.Root, including symlink/junction races.
@@ -105,7 +105,9 @@ func snapshot(f *os.File, root *os.Root, relative, path string, valid func() boo
 		return nil, errors.New("HTML preview requires a nonempty UTF-8 document")
 	}
 	rootIdentity, err := root.Stat(".")
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	source := string(data)
 	// Freeze only declared, bounded static dependencies before publishing. The
 	// browser receives no filesystem reader, asset routes or directory authority.
@@ -213,7 +215,9 @@ func (d *Document) Close() {
 	d.closed = true
 	d.data = nil
 	d.source = ""
-	if d.done != nil { close(d.done) }
+	if d.done != nil {
+		close(d.done)
+	}
 	if d.timer != nil {
 		d.timer.Stop()
 	}

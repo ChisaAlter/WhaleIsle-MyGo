@@ -8,13 +8,13 @@ import (
 const maxAllowBuilds = 32
 
 var (
-	githubOwnerPattern    = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
-	githubRepoPattern     = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$`)
-	githubRefPattern      = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._/-]{0,254})$`)
-	packageAllowBuild     = regexp.MustCompile(`^(?:@[A-Za-z0-9][A-Za-z0-9._-]{0,63}/)?[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
-	githubAllowBuild      = regexp.MustCompile(`^github\.com/[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
-	gitAllowBuild         = regexp.MustCompile(`^[A-Za-z0-9@/_.-]+@git\+https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+\.git$`)
-	githubSpecPattern     = regexp.MustCompile(`^github:([^/#]+)/([^/#]+)(?:#([^#]+))?$`)
+	githubOwnerPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
+	githubRepoPattern  = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$`)
+	githubRefPattern   = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._/-]{0,254})$`)
+	packageAllowBuild  = regexp.MustCompile(`^(?:@[A-Za-z0-9][A-Za-z0-9._-]{0,63}/)?[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+	githubAllowBuild   = regexp.MustCompile(`^github\.com/[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+	gitAllowBuild      = regexp.MustCompile(`^[A-Za-z0-9@/_.-]+@git\+https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+\.git$`)
+	githubSpecPattern  = regexp.MustCompile(`^github:([^/#]+)/([^/#]+)(?:#([^#]+))?$`)
 )
 
 // IsValidGithubSpec reports whether spec is github:owner/repo with optional #ref.

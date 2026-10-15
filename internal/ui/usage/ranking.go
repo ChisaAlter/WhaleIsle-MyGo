@@ -3,8 +3,8 @@ package usage
 import (
 	"context"
 	"fmt"
-	"time"
 	"github.com/egoist/mygo/ui"
+	"time"
 	usagestore "whaleisle/internal/store/usage"
 )
 
@@ -39,11 +39,19 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		for _, sort := range []string{"tokens", "cost"} {
 			sort := sort
 			label := usageText("按 Token 排序", "Sort by tokens")
-			if sort == "cost" { label = usageText("按估算费用排序", "Sort by estimated cost") }
-			if rank.Sort == sort { label = "● " + label }
-			if ui.Button(c, label).Disabled(st.Loading || rank.Loading).Clicked() { m.Store.ResetSessionRanking(context.Background(), sort) }
+			if sort == "cost" {
+				label = usageText("按估算费用排序", "Sort by estimated cost")
+			}
+			if rank.Sort == sort {
+				label = "● " + label
+			}
+			if ui.Button(c, label).Disabled(st.Loading || rank.Loading).Clicked() {
+				m.Store.ResetSessionRanking(context.Background(), sort)
+			}
 		}
-		if ui.Button(c, usageText("刷新会话排行", "Refresh session ranking")).Disabled(st.Loading || rank.Loading).Clicked() { m.Store.ResetSessionRanking(context.Background(), rank.Sort) }
+		if ui.Button(c, usageText("刷新会话排行", "Refresh session ranking")).Disabled(st.Loading || rank.Loading).Clicked() {
+			m.Store.ResetSessionRanking(context.Background(), rank.Sort)
+		}
 	})
 	rows := st.Overview.TopSessions
 	title = usageText("Top 会话（全部历史）", "Top sessions (all time)")
@@ -52,7 +60,9 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		title = usageText("会话排行（全部历史）", "Session ranking (all time)")
 	}
 	ui.Text(c, title).Bold().TextColor(fg)
-	if rank.Sort == "cost" && !rank.Started && !rank.Loading && rank.Err == "" && !st.Loading { m.Store.LoadMoreSessions(context.Background()) }
+	if rank.Sort == "cost" && !rank.Started && !rank.Loading && rank.Err == "" && !st.Loading {
+		m.Store.LoadMoreSessions(context.Background())
+	}
 	for i, row := range rows {
 		row := row
 		name := row.Title
@@ -61,15 +71,21 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		}
 		ui.Row(c).Gap(6).Children(func() {
 			cost := usageText("费用未完整计价", "Cost not fully priced")
-			if cents, ok := usagestore.SessionEstimate(row, billing); ok { cost = fmt.Sprintf("≈ CNY %.2f", cents/100) }
+			if cents, ok := usagestore.SessionEstimate(row, billing); ok {
+				cost = fmt.Sprintf("≈ CNY %.2f", cents/100)
+			}
 			ui.Text(c, fmt.Sprintf("%d. %s · %.0f tokens · %s", i+1, name, row.Totals.Total, cost)).FontSize(12).TextColor(fg).Grow(1)
 			if m.OnOpenSession != nil && ui.Button(c, usageText("打开", "Open")).Clicked() {
 				m.OnOpenSession(row.ID)
 			}
 		})
 		kind := usageText("主会话", "Main session")
-		if row.Depth > 0 { kind = usageText("子代理会话", "Subagent session") }
-		if row.LastActive > 0 { kind += " · " + time.UnixMilli(row.LastActive).UTC().Format("2006-01-02 15:04 UTC") }
+		if row.Depth > 0 {
+			kind = usageText("子代理会话", "Subagent session")
+		}
+		if row.LastActive > 0 {
+			kind += " · " + time.UnixMilli(row.LastActive).UTC().Format("2006-01-02 15:04 UTC")
+		}
 		ui.Text(c, kind).FontSize(11).TextColor(muted)
 	}
 	if rank.Err != "" {

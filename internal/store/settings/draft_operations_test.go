@@ -9,7 +9,7 @@ import (
 func TestDraftWriteOnlyStagedFields(t *testing.T) {
 	ns := Namespace{
 		Fields: []Field{{Key: "baseURL", Kind: FieldString}, {Key: "maxUses", Kind: FieldNumber}, {Key: "enabled", Kind: FieldBool}},
-		Value: json.RawMessage(`{"baseURL":"https://old.example","enabled":true}`),
+		Value:  json.RawMessage(`{"baseURL":"https://old.example","enabled":true}`),
 	}
 	patch, ops, submitted, err := draftWrite(ns,
 		map[string]string{"baseURL": "https://new.example", "maxUses": "", "enabled": "true"},
@@ -22,7 +22,7 @@ func TestDraftWriteOnlyStagedFields(t *testing.T) {
 func TestDraftWriteNestedJSONPreservesUnseenSecrets(t *testing.T) {
 	ns := Namespace{
 		Fields: []Field{{Key: "providers", Kind: FieldJSON}},
-		Value: json.RawMessage(`{"providers":{"custom":{"baseURL":"https://old.example","timeoutMs":1000},"other":{"models":[{"id":"keep"}]}}}`),
+		Value:  json.RawMessage(`{"providers":{"custom":{"baseURL":"https://old.example","timeoutMs":1000},"other":{"models":[{"id":"keep"}]}}}`),
 	}
 	patch, ops, _, err := draftWrite(ns,
 		map[string]string{"providers": `{"custom":{"baseURL":"https://new.example","timeoutMs":1000},"other":{"models":[{"id":"keep"}]}}`},
@@ -47,9 +47,9 @@ func TestDraftWriteClearsNumericOverrideWithoutNull(t *testing.T) {
 func TestReplacementUsesOnlyStoredUserLayer(t *testing.T) {
 	ns := Namespace{
 		Fields: []Field{{Key: "maxDepth", Kind: FieldNumber}, {Key: "maxActiveSubagents", Kind: FieldNumber}},
-		Value: json.RawMessage(`{"maxDepth":3,"maxActiveSubagents":8}`),
-		Base: json.RawMessage(`{"maxDepth":3,"maxActiveSubagents":8}`),
-		User: json.RawMessage(`{"maxDepth":4}`),
+		Value:  json.RawMessage(`{"maxDepth":3,"maxActiveSubagents":8}`),
+		Base:   json.RawMessage(`{"maxDepth":3,"maxActiveSubagents":8}`),
+		User:   json.RawMessage(`{"maxDepth":4}`),
 	}
 	section, err := replacementFromDrafts(ns,
 		map[string]string{"maxDepth": "5", "maxActiveSubagents": "8"}, map[string]bool{"maxDepth": true}, nil)

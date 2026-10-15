@@ -16,8 +16,8 @@ import (
 
 // InstallOptions optionally overrides Node.js location (config nodeBin).
 type InstallOptions struct {
-	NodeBin string
-	DshHome string // optional confirmed import destination
+	NodeBin             string
+	DshHome             string // optional confirmed import destination
 	ExpectedPackageName string // optional confirmed manifest package identity
 }
 
@@ -52,9 +52,9 @@ func InstallSpecContext(ctx context.Context, spec string, allowBuilds []string, 
 		home = paths.DshHome()
 	}
 	cfg := installctrl.InstallConfig{
-		ProfileDir: filepath.Join(home, "profiles", "web"),
-		DshHome: home,
-		HarnessRoot: paths.HarnessRoot(),
+		ProfileDir:          filepath.Join(home, "profiles", "web"),
+		DshHome:             home,
+		HarnessRoot:         paths.HarnessRoot(),
 		ExpectedPackageName: opts.ExpectedPackageName,
 	}
 	if node, err := resolveNode(opts.NodeBin); err == nil {

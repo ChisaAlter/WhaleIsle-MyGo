@@ -23,7 +23,7 @@ type Panel struct {
 	deleting        *schedstore.Entry
 	initialized     bool
 	connectionEpoch uint64
-	historyRequest uint64
+	historyRequest  uint64
 	mu              sync.Mutex
 	history, status string
 	historyKey      string

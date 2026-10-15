@@ -33,9 +33,9 @@ type Model struct {
 	AgentPresetPick *string
 
 	OnRetrySlashCommands func()
-	SlashCatalog []SlashCommand
-	FilePaths    []string
-	SuggestList  *ui.ListState
+	SlashCatalog         []SlashCommand
+	FilePaths            []string
+	SuggestList          *ui.ListState
 
 	SkillsOpen   bool
 	Skills       []session.SkillOption

@@ -63,7 +63,7 @@ func TestCommandSubmissionUsesArraysAndCatalogOwnership(t *testing.T) {
 	var promptCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			RPCID any `json:"rpcId"`
+			RPCID   any `json:"rpcId"`
 			Payload struct {
 				Args map[string]json.RawMessage `json:"args"`
 			} `json:"payload"`
@@ -74,7 +74,7 @@ func TestCommandSubmissionUsesArraysAndCatalogOwnership(t *testing.T) {
 		args := body.Payload.Args
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/commands/list"):
-			rpcOK(w, body.RPCID, []any{map[string]any{"name":"inspect", "description":"Inspect", "input":map[string]any{"hint":"Details"}}})
+			rpcOK(w, body.RPCID, []any{map[string]any{"name": "inspect", "description": "Inspect", "input": map[string]any{"hint": "Details"}}})
 		case strings.HasSuffix(r.URL.Path, "/commands/execute"):
 			executeCount.Add(1)
 			if string(args["submittedAttachments"]) != "[]" {
@@ -90,12 +90,14 @@ func TestCommandSubmissionUsesArraysAndCatalogOwnership(t *testing.T) {
 			if line == "/fail" {
 				kind = "error"
 			}
-			rpcOK(w, body.RPCID, map[string]any{"commandId":"cmd-test", "result":map[string]any{"kind":kind, "text":"retryable failure"}})
+			rpcOK(w, body.RPCID, map[string]any{"commandId": "cmd-test", "result": map[string]any{"kind": kind, "text": "retryable failure"}})
 		case strings.HasSuffix(r.URL.Path, "/session/prompt"):
 			promptCount.Add(1)
 			var req struct {
 				SessionID string `json:"sessionId"`
-				Content []struct { Text string `json:"text"` } `json:"content"`
+				Content   []struct {
+					Text string `json:"text"`
+				} `json:"content"`
 			}
 			_ = json.Unmarshal(args["request"], &req)
 			if req.SessionID != "original" || len(req.Content) != 1 || req.Content[0].Text != "/my_skill brief" {
@@ -108,7 +110,7 @@ func TestCommandSubmissionUsesArraysAndCatalogOwnership(t *testing.T) {
 	}))
 	defer srv.Close()
 	st := New()
-	st.Attach(&dsh.Client{Endpoint:dsh.Endpoint{Origin:srv.URL}}, nil)
+	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	st.selectedID = "original"
 	if err := st.SubmitComposer(context.Background(), "original", "/inspect\nline one\nline two", nil, 0); err != nil {
 		t.Fatal(err)
@@ -134,27 +136,32 @@ func TestCommandCatalogRejectsLateRepliesAndStaleEvents(t *testing.T) {
 		if calls.Add(1) == 1 {
 			entered <- struct{}{}
 			<-release
-			rpcOK(w, body["rpcId"], []any{map[string]any{"name":"obsolete"}})
+			rpcOK(w, body["rpcId"], []any{map[string]any{"name": "obsolete"}})
 			return
 		}
-		rpcOK(w, body["rpcId"], []any{map[string]any{"name":"fresh"}})
+		rpcOK(w, body["rpcId"], []any{map[string]any{"name": "fresh"}})
 	}))
 	defer srv.Close()
 	defer close(release)
 	wake := make(chan struct{}, 16)
 	st := New()
-	client := &dsh.Client{Endpoint:dsh.Endpoint{Origin:srv.URL}}
-	st.Attach(client, func() { select { case wake <- struct{}{}: default: } })
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+	st.Attach(client, func() {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	})
 	st.selectedID = "original"
 	owner := st.BeginEvents(context.Background(), client)
 	st.EnsureSlashCommands(context.Background())
 	select {
 	case <-entered:
-	case <-time.After(2*time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("catalog did not start")
 	}
-	st.OnEmit(owner, dsh.EventsEmit{Type:dsh.EventEmit, Event:"commands/change"})
-	deadline := time.NewTimer(2*time.Second)
+	st.OnEmit(owner, dsh.EventsEmit{Type: dsh.EventEmit, Event: "commands/change"})
+	deadline := time.NewTimer(2 * time.Second)
 	defer deadline.Stop()
 	for {
 		snap := st.Snapshot()
@@ -170,7 +177,7 @@ func TestCommandCatalogRejectsLateRepliesAndStaleEvents(t *testing.T) {
 	st.mu.Lock()
 	st.eventsGeneration++
 	st.mu.Unlock()
-	st.OnEmit(owner, dsh.EventsEmit{Type:dsh.EventEmit, Event:"commands/change"})
+	st.OnEmit(owner, dsh.EventsEmit{Type: dsh.EventEmit, Event: "commands/change"})
 	if snap := st.Snapshot(); len(snap.SlashCommands) != 1 || snap.SlashCommands[0].Name != "fresh" {
 		t.Fatal("superseded stream cleared the current catalog")
 	}

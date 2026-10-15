@@ -23,14 +23,14 @@ type ApplySelection struct {
 
 // ApplyResult summarizes a completed ApplyCatalog.
 type ApplyResult struct {
-	OK      bool
-	Empty   bool
-	Copied  int
-	Skipped int
+	OK        bool
+	Empty     bool
+	Copied    int
+	Skipped   int
 	Installed int
-	Failed int
-	Plugins []PluginResult
-	Message string
+	Failed    int
+	Plugins   []PluginResult
+	Message   string
 	// Journal is a per-item line log (Electron runImport journal list).
 	Journal []string
 }
@@ -286,9 +286,15 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			skipped++
 		}
 		line := "插件 " + id + "：" + record.Status
-		if record.Reason != "" { line += " (" + record.Reason + ")" }
-		if record.Error != "" { line += "；" + record.Error }
-		if record.Log != "" { line += "\n" + record.Log }
+		if record.Reason != "" {
+			line += " (" + record.Reason + ")"
+		}
+		if record.Error != "" {
+			line += "；" + record.Error
+		}
+		if record.Log != "" {
+			line += "\n" + record.Log
+		}
 		note(line)
 		if err := ctx.Err(); err != nil {
 			return ApplyResult{}, err

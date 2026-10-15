@@ -112,7 +112,9 @@ func gitPath(path string) bool {
 
 func (g *resourceGraph) read(base, reference string, cssOnly bool) (resourceFile, string, string, error) {
 	kind := "asset"
-	if cssOnly { kind = "css" }
+	if cssOnly {
+		kind = "css"
+	}
 	return g.readKind(base, reference, kind)
 }
 
@@ -247,7 +249,9 @@ func resourceMIME(ext string, data []byte) (string, error) {
 		if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 			return "", bad
 		}
-		if ext != ".css" { return "text/javascript", nil }
+		if ext != ".css" {
+			return "text/javascript", nil
+		}
 		return "text/css", nil
 	}
 	if ext == ".svg" {

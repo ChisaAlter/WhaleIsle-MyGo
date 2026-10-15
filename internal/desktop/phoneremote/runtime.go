@@ -46,18 +46,18 @@ type Child interface {
 var bridgeScript string
 
 type Runtime struct {
-	op           sync.Mutex
-	writeMu      sync.Mutex
-	authorizeGit func(string, string) bool
-	mu           sync.Mutex
-	state        RuntimeState
-	child        Child
-	done         chan struct{}
-	spawn        func(Resources) (Child, error)
-	resources    func(string, string) (Resources, error)
-	stopTimeout  time.Duration
-	deviceAction DeviceActionState
-	deviceSequence uint64
+	op               sync.Mutex
+	writeMu          sync.Mutex
+	authorizeGit     func(string, string) bool
+	mu               sync.Mutex
+	state            RuntimeState
+	child            Child
+	done             chan struct{}
+	spawn            func(Resources) (Child, error)
+	resources        func(string, string) (Resources, error)
+	stopTimeout      time.Duration
+	deviceAction     DeviceActionState
+	deviceSequence   uint64
 	deviceActionDone chan struct{}
 }
 
@@ -213,19 +213,19 @@ func (r *Runtime) Snapshot() RuntimeState {
 }
 func (r *Runtime) consume(child Child, b []byte) {
 	var event struct {
-		Kind           string `json:"kind"`
-		ID             string `json:"id"`
-		Root           string `json:"root"`
-		Action         string `json:"action"`
-		Listening      bool   `json:"listening"`
-		RelayConnected bool   `json:"relayConnected"`
-		URL            string `json:"url"`
-		QRPNG          string `json:"qrPNG"`
-		Code           string `json:"code"`
-		Operation      string `json:"operation"`
-		Applied        bool   `json:"applied"`
+		Kind           string   `json:"kind"`
+		ID             string   `json:"id"`
+		Root           string   `json:"root"`
+		Action         string   `json:"action"`
+		Listening      bool     `json:"listening"`
+		RelayConnected bool     `json:"relayConnected"`
+		URL            string   `json:"url"`
+		QRPNG          string   `json:"qrPNG"`
+		Code           string   `json:"code"`
+		Operation      string   `json:"operation"`
+		Applied        bool     `json:"applied"`
 		Devices        []Device `json:"devices"`
-		DevicesLoaded  bool   `json:"devicesLoaded"`
+		DevicesLoaded  bool     `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
 		return

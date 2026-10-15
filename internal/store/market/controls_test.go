@@ -11,7 +11,7 @@ func TestBundleControlsHonorHostState(t *testing.T) {
 	on, off := true, false
 	tests := []struct {
 		name string
-		row Entry
+		row  Entry
 		want bool
 	}{
 		{"live", Entry{IdentityKnown: true, Enabled: &on}, true},

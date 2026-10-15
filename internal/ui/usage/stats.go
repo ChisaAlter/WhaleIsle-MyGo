@@ -98,7 +98,9 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	ui.Text(c, usageText("服务商用量（全部历史）", "Provider usage (all time)")).Bold().TextColor(fg)
 	for _, provider := range o.Providers {
 		name := provider.Name
-		if name == "" { name = provider.ID }
+		if name == "" {
+			name = provider.ID
+		}
 		ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).FontSize(12).TextColor(fg)
 	}
 }

@@ -28,13 +28,13 @@ type CommandRunner func(ctx context.Context, dir, name string, args ...string) (
 
 // InstallConfig locates the web profile and toolchain for plugin add.
 type InstallConfig struct {
-	ProfileDir  string
-	DshHome     string
-	HarnessRoot string
-	NodeBin     string
-	Timeout     time.Duration
-	Runner      CommandRunner
-	HomeDir     string
+	ProfileDir          string
+	DshHome             string
+	HarnessRoot         string
+	NodeBin             string
+	Timeout             time.Duration
+	Runner              CommandRunner
+	HomeDir             string
 	ExpectedPackageName string // confirmed manifest name, including GitHub aliases
 }
 

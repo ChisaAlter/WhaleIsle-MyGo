@@ -202,10 +202,10 @@ func (s *Files) run(action, path string) {
 			var status struct {
 				SessionBound bool   `json:"sessionBound"`
 				SessionMode  string `json:"sessionMode"`
-				Workspace string `json:"workspace"`
-				Host string `json:"host"`
-				Username string `json:"username"`
-				Port int `json:"port"`
+				Workspace    string `json:"workspace"`
+				Host         string `json:"host"`
+				Username     string `json:"username"`
+				Port         int    `json:"port"`
 			}
 			err = request(ctx, c, "GET", "status?sessionId="+url.QueryEscape(captured.SessionID), nil, &status)
 			if err == nil && (!status.SessionBound || status.SessionMode != "remote") {

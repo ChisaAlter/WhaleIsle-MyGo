@@ -40,13 +40,13 @@ type Turn struct {
 
 // ViewState is a UI-safe snapshot.
 type ViewState struct {
-	Mode       Mode
-	Busy       bool
-	LastAction string
-	LastErr    string
-	SessionID  string // last known assistant / bot session from ensure/RPC
-	History    []Turn
-	DshbotID   string
+	Mode         Mode
+	Busy         bool
+	LastAction   string
+	LastErr      string
+	SessionID    string // last known assistant / bot session from ensure/RPC
+	History      []Turn
+	DshbotID     string
 	DshbotOrigin string
 }
 
@@ -56,18 +56,18 @@ type modeDisk struct {
 
 // Store holds mode + local history under root (userData/assistant).
 type Store struct {
-	mu         sync.Mutex
-	root       string
-	notify     func()
-	mode       Mode
-	busy       bool
-	lastAction string
-	lastErr    string
-	sessionID  string
-	dshbotID   string
-	dshbotOrigin string
+	mu             sync.Mutex
+	root           string
+	notify         func()
+	mode           Mode
+	busy           bool
+	lastAction     string
+	lastErr        string
+	sessionID      string
+	dshbotID       string
+	dshbotOrigin   string
 	acceptedPrompt string
-	history    []Turn
+	history        []Turn
 }
 
 // Dir returns userData/assistant.
@@ -112,12 +112,12 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		Mode:       s.mode,
-		Busy:       s.busy,
-		LastAction: s.lastAction,
-		LastErr:    s.lastErr,
-		SessionID:  s.sessionID,
-		DshbotID: s.dshbotID,
+		Mode:         s.mode,
+		Busy:         s.busy,
+		LastAction:   s.lastAction,
+		LastErr:      s.lastErr,
+		SessionID:    s.sessionID,
+		DshbotID:     s.dshbotID,
 		DshbotOrigin: s.dshbotOrigin,
 	}
 	st.History = append([]Turn(nil), s.history...)

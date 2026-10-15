@@ -75,11 +75,11 @@ type Model struct {
 	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
 	ReadRemote func(rel string) (string, error)
 	// StatRemote is optional workspaceFiles/stat note for the selected file.
-	StatRemote func(rel string) string
-	StatNote   *string
-	OnAddToChat func(string) error
+	StatRemote   func(rel string) string
+	StatNote     *string
+	OnAddToChat  func(string) error
 	CanAddToChat bool
-	OnOpenLink func(string)
+	OnOpenLink   func(string)
 }
 
 // OpenWithApp is one harness-registered application for a workspace path.

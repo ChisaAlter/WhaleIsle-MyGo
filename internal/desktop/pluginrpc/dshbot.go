@@ -31,11 +31,11 @@ import (
 
 // DshbotSettingsView is the `view` field of describe (settings namespace dsh-bot).
 type DshbotSettingsView struct {
-	NS       string              `json:"ns"`
-	Revision int                 `json:"revision"`
-	Value    DshbotCatalogValue  `json:"value"`
-	Schema   json.RawMessage     `json:"schema,omitempty"`
-	Applies  string              `json:"applies,omitempty"`
+	NS       string             `json:"ns"`
+	Revision int                `json:"revision"`
+	Value    DshbotCatalogValue `json:"value"`
+	Schema   json.RawMessage    `json:"schema,omitempty"`
+	Applies  string             `json:"applies,omitempty"`
 }
 
 // DshbotCatalogValue is the catalog document embedded in describe.view.value.
@@ -85,8 +85,8 @@ type DshbotRosterRow struct {
 
 // DshbotGroupRuntimeResult is the value of dshbot/group/runtime.
 type DshbotGroupRuntimeResult struct {
-	RoomID    string                   `json:"roomId"`
-	SessionID string                   `json:"sessionId"`
+	RoomID    string                     `json:"roomId"`
+	SessionID string                     `json:"sessionId"`
 	Members   []DshbotGroupRuntimeMember `json:"members"`
 }
 
@@ -215,7 +215,7 @@ func (c *Client) DshbotOpen(ctx context.Context, item DshbotCatalogItem, revisio
 	}
 	var out struct {
 		Item      DshbotCatalogItem `json:"item"`
-		SessionID string           `json:"sessionId"`
+		SessionID string            `json:"sessionId"`
 	}
 	err := c.Call(ctx, "dshbot", "bot/open", map[string]any{
 		"id": id, "revision": revision, "scratchCwd": strings.TrimSpace(scratchCwd),

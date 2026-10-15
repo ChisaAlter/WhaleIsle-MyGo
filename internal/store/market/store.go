@@ -17,14 +17,14 @@ import (
 
 // Entry is one row in the installed-plugin list.
 type Entry struct {
-	Label         string
-	Detail        string
-	Enabled       *bool  // from listBundles when present
-	Removable     bool   // from listBundles when present
-	Source        string // listBundles source or empty
-	Version       string
-	Installed     bool
-	IdentityKnown bool
+	Label          string
+	Detail         string
+	Enabled        *bool  // from listBundles when present
+	Removable      bool   // from listBundles when present
+	Source         string // listBundles source or empty
+	Version        string
+	Installed      bool
+	IdentityKnown  bool
 	ReadOnlyReason string
 	Error          string
 }
@@ -249,14 +249,14 @@ func entriesFromBundles(bundles api.ListBundlesResult) []Entry {
 			src = *b.Source
 		}
 		out = append(out, Entry{
-			Label:         b.Name,
-			Detail:        detail,
-			Enabled:       &en,
-			Removable:     b.Removable,
-			Source:        src,
-			Version:       valueOrEmpty(b.Version),
-			Installed:     b.Installed,
-			IdentityKnown: true,
+			Label:          b.Name,
+			Detail:         detail,
+			Enabled:        &en,
+			Removable:      b.Removable,
+			Source:         src,
+			Version:        valueOrEmpty(b.Version),
+			Installed:      b.Installed,
+			IdentityKnown:  true,
 			ReadOnlyReason: valueOrEmpty(b.ReadOnlyReason),
 			Error:          bundleError(b.Error),
 		})

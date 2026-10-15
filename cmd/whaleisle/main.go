@@ -97,8 +97,8 @@ type mainState struct {
 	quitting             bool
 	phoneRuntime         *phoneremote.Runtime
 	phoneDeviceEditor    remoteui.PhoneDeviceEditor
- phoneGitSession string
- phoneGitRoot string
+	phoneGitSession      string
+	phoneGitRoot         string
 	phoneOp              sync.Mutex
 	closeToTray          bool
 	cfgStore             *config.Store
@@ -109,164 +109,164 @@ type mainState struct {
 	bootStatus           harness.Status
 	bootLogs             []string
 
-	sessions                    *session.Store
-	agentPresetManager          *session.AgentPresetManager
-	interactions                *interaction.Store
-	settings                    *settingsstore.Store
-	settingsOpen                bool
-	settingsNSFilter            string
-	settingsRevealSecrets       bool
-	settingsDesktopActive       bool
-	settingsAccountActive       bool
-	accountLogin                accountlogin.Flow
-	settingsCredentialsActive   bool
-	settingsAboutActive         bool
-	settingsAppearanceActive    bool
-	settingsInterfaceActive     bool
-	settingsModelsActive        bool
-	settingsMCPActive           bool
-	settingsPluginsActive       bool
-	settingsPluginsLastAction   string
-	settingsSkillsActive        bool
-	settingsSkillHubQuery       string
-	settingsSkillHubHits        []settings.SkillHubHit
-	settingsSkillsLastAction    string
-	settingsSkillsDetail        string
-	settingsSkillEditSession    string
-	settingsSkillInspectVersion uint64
-	settingsSkillEditGroups     string
-	settingsSkillEditWhen       *string
-	settingsSkillEditName       string
-	settingsSkillEditDesc       string
-	settingsSkillEditContent    string
-	settingsSkillEditModel      bool
-	settingsSkillEditUser       bool
-	settingsSkillEditWritable   bool
-	settingsAgentPresetsActive  bool
-	settingsModelLabel          string
-	settingsModelSession        string
-	settingsModelDrafts         map[string]string
-	settingsAgentPresetLabel    string
-	settingsAgentPresetDoc      string
-	settingsMCPController       mcpconfig.Controller
-	settingsProviderProfiles    providerprofiles.Controller
-	remoteMachines              *remotestore.Store
- remoteFiles *remotestore.Files
- remoteFileEditor remoteui.FileEditor
-	remoteMachineEditor         remoteui.MachineEditor
-	sshTunnel                   *sshremote.TunnelSession
-	sshHost                     string
-	sshUser                     string
-	sshPort                     string
-	sshIdentity                 string
-	sshForward                  string
-	sshTunnelMsg                string
-	imDraft                     string
-	assistant                   *assiststore.Store
-	dshbotRoster                *dshbotstore.Store
-	desktopDraft                desktopConfigDraft
-	desktopSaveErr              string
-	desktopLastAction           string
-	credsDraft                  credentialsDraft
-	credsSaveErr                string
-	credsLastAction             string
-	credsHarnessNote            string
-	analyticsEnabled            *bool
-	credsShowSecrets            bool
-	usage                       *usagestore.Store
-	im                          *imstore.Store
-	market                      *marketstore.Store
-	schedule                    *schedstore.Store
-	usageOpen                   bool
-	imOpen                      bool
-	marketOpen                  bool
-	scheduleOpen                bool
-	scheduleHistoryText         string
-	remoteOpen                  bool
-	marketActive                *marketAttempt
-	marketWorker                *marketAttempt
-	marketApproval              *marketAttempt
-	marketCatalogTarget         *marketstore.InstallTarget
-	marketInstallSpec           string
-	marketInstallBusy           bool
-	marketInstallRequestID      string
-	marketInstallMsg            string
-	marketInstallLog            string
-	marketActivation            marketstore.Activation
-	marketNeedsAllowBuilds      bool
-	marketAllowBuilds           []string
-	marketIncompatible          []api.ChangeResultErrorIncompatibleItem
-	hasRemoteToken              bool
-	hasRemoteRelayToken         bool
-	remoteDeviceCount           int
-	remoteDeviceNames           []string
-	phoneActionMsg              string
-	sshProbeLine                string
-	webviewOpen                 bool
-	browserPreviewOpen          bool
-	pdfPreviewRequest           uint64
-	htmlDocumentRequest         uint64
-	browserController           *browserpreviewui.Controller
-	browserPreviewDraft         string
-	browserPreviewNavigateErr   string
-	webviewHost                 *desktopwebview.Host
-	webviewHostErr              string
-	lastWebViewURL              string
-	lastWebViewOrigin           string
+	sessions                     *session.Store
+	agentPresetManager           *session.AgentPresetManager
+	interactions                 *interaction.Store
+	settings                     *settingsstore.Store
+	settingsOpen                 bool
+	settingsNSFilter             string
+	settingsRevealSecrets        bool
+	settingsDesktopActive        bool
+	settingsAccountActive        bool
+	accountLogin                 accountlogin.Flow
+	settingsCredentialsActive    bool
+	settingsAboutActive          bool
+	settingsAppearanceActive     bool
+	settingsInterfaceActive      bool
+	settingsModelsActive         bool
+	settingsMCPActive            bool
+	settingsPluginsActive        bool
+	settingsPluginsLastAction    string
+	settingsSkillsActive         bool
+	settingsSkillHubQuery        string
+	settingsSkillHubHits         []settings.SkillHubHit
+	settingsSkillsLastAction     string
+	settingsSkillsDetail         string
+	settingsSkillEditSession     string
+	settingsSkillInspectVersion  uint64
+	settingsSkillEditGroups      string
+	settingsSkillEditWhen        *string
+	settingsSkillEditName        string
+	settingsSkillEditDesc        string
+	settingsSkillEditContent     string
+	settingsSkillEditModel       bool
+	settingsSkillEditUser        bool
+	settingsSkillEditWritable    bool
+	settingsAgentPresetsActive   bool
+	settingsModelLabel           string
+	settingsModelSession         string
+	settingsModelDrafts          map[string]string
+	settingsAgentPresetLabel     string
+	settingsAgentPresetDoc       string
+	settingsMCPController        mcpconfig.Controller
+	settingsProviderProfiles     providerprofiles.Controller
+	remoteMachines               *remotestore.Store
+	remoteFiles                  *remotestore.Files
+	remoteFileEditor             remoteui.FileEditor
+	remoteMachineEditor          remoteui.MachineEditor
+	sshTunnel                    *sshremote.TunnelSession
+	sshHost                      string
+	sshUser                      string
+	sshPort                      string
+	sshIdentity                  string
+	sshForward                   string
+	sshTunnelMsg                 string
+	imDraft                      string
+	assistant                    *assiststore.Store
+	dshbotRoster                 *dshbotstore.Store
+	desktopDraft                 desktopConfigDraft
+	desktopSaveErr               string
+	desktopLastAction            string
+	credsDraft                   credentialsDraft
+	credsSaveErr                 string
+	credsLastAction              string
+	credsHarnessNote             string
+	analyticsEnabled             *bool
+	credsShowSecrets             bool
+	usage                        *usagestore.Store
+	im                           *imstore.Store
+	market                       *marketstore.Store
+	schedule                     *schedstore.Store
+	usageOpen                    bool
+	imOpen                       bool
+	marketOpen                   bool
+	scheduleOpen                 bool
+	scheduleHistoryText          string
+	remoteOpen                   bool
+	marketActive                 *marketAttempt
+	marketWorker                 *marketAttempt
+	marketApproval               *marketAttempt
+	marketCatalogTarget          *marketstore.InstallTarget
+	marketInstallSpec            string
+	marketInstallBusy            bool
+	marketInstallRequestID       string
+	marketInstallMsg             string
+	marketInstallLog             string
+	marketActivation             marketstore.Activation
+	marketNeedsAllowBuilds       bool
+	marketAllowBuilds            []string
+	marketIncompatible           []api.ChangeResultErrorIncompatibleItem
+	hasRemoteToken               bool
+	hasRemoteRelayToken          bool
+	remoteDeviceCount            int
+	remoteDeviceNames            []string
+	phoneActionMsg               string
+	sshProbeLine                 string
+	webviewOpen                  bool
+	browserPreviewOpen           bool
+	pdfPreviewRequest            uint64
+	htmlDocumentRequest          uint64
+	browserController            *browserpreviewui.Controller
+	browserPreviewDraft          string
+	browserPreviewNavigateErr    string
+	webviewHost                  *desktopwebview.Host
+	webviewHostErr               string
+	lastWebViewURL               string
+	lastWebViewOrigin            string
 	pluginViewResumeAfterRestart bool
 	pluginViewHostGeneration     int
-	assistantOpen               bool
-	assistantDraft              string
-	assistantLastAct            string
-	assistantPluginBusy         bool
-	assistantPluginDetail       string
-	launcherOpen                bool
-	toolsMenuOpen               bool
-	filesPaneOpen               bool // Electron tools → files/diff right dock
-	launcherTab                 string
-	launcherWorkspaceDraft      string
-	launcherImport              string
-	launcherImportJournal       []string
-	launcherImportBusy          bool
-	launcherImportCancel        context.CancelFunc
-	launcherUpdate              string
-	nativeReleases              nativeReleaseState
-	launcherUpdateAvailable     bool
-	launcherUpdateSynced        bool
-	launcherNote                string
-	launcherTriedStart          bool
-	launcherStartBusy           bool
-	launcherStartFailed         bool
-	launcherStartErr            string
-	launcherPrefsSeeded         bool
-	launcherQuitAfterStart      bool
-	launcherAutoStartDesktop    bool
-	launcherAskOnUpdate         bool
-	launcherDownloadRoute       string
-	launcherImportOverwrite     bool
-	launcherImportAttachments   bool
-	launcherImportCategories    map[string]bool
-	launcherImportCatalog       *importer.Catalog
-	launcherComponents          []desktopcomponents.Row
-	launcherComponentsFresh     bool
-	launcherRoutePopOpen        bool
-	workspaceMenuOpen           bool
-	workspaceRenameDraft        string
-	pendingDeeplink             deeplink.Target
-	settingsDrafts              []settingsDraftSlot
-	layout                      frame.LayoutSizes
-	chatList                    ui.ListState
-	draft                       string
-	editMessageSeq              float64
-	feedbackCommentMsgID        string
-	feedbackCommentDraft        string
-	modelPick                   string
-	permissionPick              string
-	agentPresetPick             string
-	thinkingExpanded            map[string]bool
-	renameSessionID             string
-	renameDraft                 string
-	sessionSearch               string
+	assistantOpen                bool
+	assistantDraft               string
+	assistantLastAct             string
+	assistantPluginBusy          bool
+	assistantPluginDetail        string
+	launcherOpen                 bool
+	toolsMenuOpen                bool
+	filesPaneOpen                bool // Electron tools → files/diff right dock
+	launcherTab                  string
+	launcherWorkspaceDraft       string
+	launcherImport               string
+	launcherImportJournal        []string
+	launcherImportBusy           bool
+	launcherImportCancel         context.CancelFunc
+	launcherUpdate               string
+	nativeReleases               nativeReleaseState
+	launcherUpdateAvailable      bool
+	launcherUpdateSynced         bool
+	launcherNote                 string
+	launcherTriedStart           bool
+	launcherStartBusy            bool
+	launcherStartFailed          bool
+	launcherStartErr             string
+	launcherPrefsSeeded          bool
+	launcherQuitAfterStart       bool
+	launcherAutoStartDesktop     bool
+	launcherAskOnUpdate          bool
+	launcherDownloadRoute        string
+	launcherImportOverwrite      bool
+	launcherImportAttachments    bool
+	launcherImportCategories     map[string]bool
+	launcherImportCatalog        *importer.Catalog
+	launcherComponents           []desktopcomponents.Row
+	launcherComponentsFresh      bool
+	launcherRoutePopOpen         bool
+	workspaceMenuOpen            bool
+	workspaceRenameDraft         string
+	pendingDeeplink              deeplink.Target
+	settingsDrafts               []settingsDraftSlot
+	layout                       frame.LayoutSizes
+	chatList                     ui.ListState
+	draft                        string
+	editMessageSeq               float64
+	feedbackCommentMsgID         string
+	feedbackCommentDraft         string
+	modelPick                    string
+	permissionPick               string
+	agentPresetPick              string
+	thinkingExpanded             map[string]bool
+	renameSessionID              string
+	renameDraft                  string
+	sessionSearch                string
 
 	gitBranch      string
 	gitDirty       bool
@@ -495,12 +495,12 @@ func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
 	defer s.mu.Unlock()
 	if s.phoneRuntime == nil {
 		s.phoneRuntime = phoneremote.NewRuntime()
- s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
+		s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
 	}
 	return s.phoneRuntime
 }
 func (s *mainState) stopPhoneRuntime() {
- s.revokePhoneGit()
+	s.revokePhoneGit()
 	s.phoneOp.Lock()
 	defer s.phoneOp.Unlock()
 	s.phoneRuntimeManager().Stop()
@@ -524,9 +524,9 @@ func (s *mainState) refreshPhoneRemote() string {
 		manager.Stop()
 		return "disabled"
 	}
-	gitEnabled,gitRoot:=s.phoneGitGrant()
- runtimeConfig := map[string]any{
- "remoteGitEnabled":gitEnabled,"remoteGitRoot":gitRoot,
+	gitEnabled, gitRoot := s.phoneGitGrant()
+	runtimeConfig := map[string]any{
+		"remoteGitEnabled": gitEnabled, "remoteGitRoot": gitRoot,
 		"remoteEnabled": cfg.RemoteEnabled, "remoteMode": cfg.RemoteMode,
 		"remotePort": cfg.RemotePort, "remoteBindAddress": cfg.RemoteBindAddress,
 		"remoteLanTls": cfg.RemoteLanTls, "remoteAppBaseUrl": cfg.RemoteAppBaseUrl,
@@ -669,7 +669,7 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 }
 
 func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store, ws string, mkdirLocal bool) {
- s.revokePhoneGit()
+	s.revokePhoneGit()
 	ws = strings.TrimSpace(ws)
 	if !directorypicker.SelectablePath(ws) {
 		return
@@ -866,7 +866,8 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.settingsAboutActive = false
 	case deeplink.ActionSession:
 		if s.sessions != nil && t.SessionID != "" {
-			s.revokePhoneGit();s.sessions.Select(t.SessionID)
+			s.revokePhoneGit()
+			s.sessions.Select(t.SessionID)
 		}
 		s.launcherOpen = false
 		s.settingsOpen = false
@@ -1041,7 +1042,8 @@ func (s *mainState) assistantNativeWhale(
 	}
 	asst.SetSessionID(ens.SessionID)
 	if sessions != nil {
-		s.revokePhoneGit();sessions.Select(ens.SessionID)
+		s.revokePhoneGit()
+		sessions.Select(ens.SessionID)
 	}
 
 	asst.SetLastAction(i18n.T(i18n.KeyAssistantChatting), "")
@@ -1819,8 +1821,10 @@ func (s *mainState) stopDSH() {
 
 func (s *mainState) stopDSHLocked() {
 	s.cancelComposerVoice()
-	if s.remoteFiles != nil { s.remoteFiles.Bind(nil,"",nil) }
- if s.remoteMachines != nil {
+	if s.remoteFiles != nil {
+		s.remoteFiles.Bind(nil, "", nil)
+	}
+	if s.remoteMachines != nil {
 		s.remoteMachines.Attach(nil, nil)
 	}
 	s.invalidateMarketLocked()
@@ -2716,8 +2720,8 @@ func mainView(c *ui.Context) {
 	launcherStartFailed := state.launcherStartFailed
 	launcherStartErr := state.launcherStartErr
 	cfgRemoteWorkspace := false
-	cfgPhoneGitEnabled := state.phoneGitSession!=""
- cfgRemoteEnabled := false
+	cfgPhoneGitEnabled := state.phoneGitSession != ""
+	cfgRemoteEnabled := false
 	cfgRemoteMode := ""
 	cfgRemotePort := 0
 	cfgRemoteBind := ""
@@ -3066,7 +3070,9 @@ func mainView(c *ui.Context) {
 							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
 							state.mu.Unlock()
 							state.refreshLauncherComponents()
-							if win != nil { win.Update(func() {}) }
+							if win != nil {
+								win.Update(func() {})
+							}
 						}()
 						return
 					}
@@ -3079,10 +3085,14 @@ func mainView(c *ui.Context) {
 							err := desktopcomponents.InstallWhaleBridge(context.Background(), paths.UserDataDir(), route)
 							state.mu.Lock()
 							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
-							if err == nil { state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行" }
+							if err == nil {
+								state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行"
+							}
 							state.mu.Unlock()
 							state.refreshLauncherComponents()
-							if win != nil { win.Update(func() {}) }
+							if win != nil {
+								win.Update(func() {})
+							}
 						}()
 						return
 					}
@@ -3562,1434 +3572,1998 @@ func mainView(c *ui.Context) {
 			})
 		}
 		sharedNavigation := !settingsOpen && !usageOpen && !imOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen
-		if sessions == nil { state.mu.Lock(); if state.sessions == nil { state.sessions = session.New() }; sessions = state.sessions; state.mu.Unlock() }
+		if sessions == nil {
+			state.mu.Lock()
+			if state.sessions == nil {
+				state.sessions = session.New()
+			}
+			sessions = state.sessions
+			state.mu.Unlock()
+		}
 		paintMainContent := func() {
-		if acceptPanelOK && marketOpen && marketStore != nil {
-			marketStore.SetNotify(func() {
-				if win != nil {
-					win.Update(func() {})
-				}
-			})
-			marketStore.EnsureCatalog(i18n.Locale())
-			state.mu.Lock()
-			muxReadyMarket := state.dshMuxReady
-			state.mu.Unlock()
-			marketui.View(c, marketui.Model{
-				Store:                marketStore,
-				ThemeID:              themeID,
-				SystemDark:           mygo.Theme.IsDark(),
-				HarnessReady:         st.State == harness.Ready,
-				MuxConnected:         muxReadyMarket,
-				HarnessMarketOverlay: !marketPluginDisabled,
-				PluginDisabled:       marketPluginDisabled,
-				InstallReady:         marketInstallReady,
-				InstallSpec:          marketInstallSpecPtr,
-				InstallBusy:          marketInstallBusy,
-				InstallMessage:       marketInstallMsg,
-				InstallLog:           marketInstallLog,
-				Activation:           marketActivation,
-				CanRestart:           marketCanRestart,
-				OnRestart:            state.restartMarketPlugins,
-				NeedsAllowBuilds:     marketNeedsAllowBuilds,
-				AllowBuilds:          marketAllowBuilds,
-				CanCancelInstall:     marketCanCancel,
-				Incompatible:         marketIncompatible,
-				OnClose: func() {
-					state.mu.Lock()
-					state.marketOpen = false
-					state.scheduleOpen = false
-					state.mu.Unlock()
+			if acceptPanelOK && marketOpen && marketStore != nil {
+				marketStore.SetNotify(func() {
 					if win != nil {
 						win.Update(func() {})
 					}
-				},
-				OnRefresh: func() {
-					marketStore.Refresh(context.Background())
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnInstallCatalog: state.runMarketCatalogInstall,
-				OnInstallSpec: func(spec string, allowBuilds []string) {
-					state.runMarketInstall(spec, allowBuilds)
-				},
-				OnCancelInstall: func() {
-					state.cancelMarketInstall()
-				},
-				OnAcceptExemption: state.acceptMarketExemption,
-				OnRemoveBundle:    func(name string) { state.runMarketChange("pluginManager/removeBundle", map[string]any{"name": name}) },
-				OnSetBundleEnabled: func(name string, enabled bool) {
-					state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled})
-				},
-				OnCopyInstallLog: func(log string) {
-					if strings.TrimSpace(log) != "" {
-						mygo.Clipboard.WriteText(log)
-					}
-				},
-				OnOpenHarnessMarket: func() {
-					origin := ""
-					state.mu.Lock()
-					if state.sup != nil {
-						st := state.sup.Status()
-						if st.State == harness.Ready {
-							origin = st.Endpoint.Origin
-						}
-					}
-					state.mu.Unlock()
-					if origin != "" {
-						state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
-					}
-				},
-			})
-			return
-		}
-		if acceptPanelOK && scheduleOpen && schedStore != nil {
-			sid := ""
-			sessionLinks := map[string]string{}
-			if sessions != nil {
-				sessionSnap := sessions.Snapshot()
-				sid = sessionSnap.SelectedID
-				sessionLinks = scheduleSessionLinks(sessionSnap)
-			}
-			state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
-				SessionLinks: sessionLinks,
-				OnOpenSession: state.openScheduleSession,
-				OnClose: func() {
-					state.mu.Lock()
-					state.scheduleOpen = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnInvalidate: func() {
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCopyHistory: func(text string) {
-					if strings.TrimSpace(text) != "" {
-						mygo.Clipboard.WriteText(text)
-					}
-				},
-			})
-			return
-		}
-
-		if acceptPanelOK && imOpen && imStore != nil {
-			state.mu.Lock()
-			muxReadyIM := state.dshMuxReady
-			imDraft := state.imDraft
-			state.mu.Unlock()
-			imui.View(c, imui.Model{
-				Store:            imStore,
-				ThemeID:          themeID,
-				SystemDark:       mygo.Theme.IsDark(),
-				HarnessReady:     st.State == harness.Ready,
-				MuxConnected:     muxReadyIM,
-				HarnessIMOverlay: !imPluginDisabled,
-				PluginDisabled:   imPluginDisabled,
-				Draft:            &imDraft,
-				OnClose: func() {
-					if sel := imStore.Snapshot().SelectedID; sel != "" {
-						imStore.SetDraft(sel, imDraft)
-					}
-					_ = imStore.Persist()
-					state.mu.Lock()
-					state.imOpen = false
-					state.imDraft = imDraft
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnRefresh: func() {
-					imStore.Refresh(context.Background())
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenPluginWeb: func() {
-					state.openWebViewHostPlugin(st.Endpoint.Origin, desktopwebview.PluginIM)
-					state.mu.Lock()
-					state.webviewOpen = true
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSend: func(channelID, text string) {
-					imStore.SendDraft(context.Background(), channelID, text)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-			})
-			state.mu.Lock()
-			state.imDraft = imDraft
-			state.mu.Unlock()
-			return
-		}
-		if acceptPanelOK && remoteOpen {
-			state.mu.Lock()
-			muxReady := state.dshMuxReady
-			remoteMachines := state.remoteMachines
-			sshProbeLine := state.sshProbeLine
-			sshHost := state.sshHost
-			sshUser := state.sshUser
-			sshPort := state.sshPort
-			sshIdentity := state.sshIdentity
-			sshForward := state.sshForward
-			sshTunnelMsg := state.sshTunnelMsg
-			tunnelState := string(sshremote.TunnelIdle)
-			if state.sshTunnel != nil {
-				_, stt, errLine := state.sshTunnel.Snapshot()
-				tunnelState = string(stt)
-				if errLine != "" && sshTunnelMsg == "" {
-					sshTunnelMsg = errLine
-				}
-			}
-			state.mu.Unlock()
-			remoteui.View(c, remoteui.Model{
-				OnUseWorkspaceMirror: func(localMirror string) {
-					go state.applyWorkspacePath(win, sessions, localMirror, false)
-				},
-				Machines:               remoteMachines,
- Files: state.remoteSessionFiles(win,sessions),
- FileEditor: &state.remoteFileEditor,
-				MachineEditor:          &state.remoteMachineEditor,
-				ThemeID:                themeID,
-				SystemDark:             mygo.Theme.IsDark(),
-				RemoteWorkspaceEnabled: cfgRemoteWorkspace,
-				RemoteEnabled:          cfgRemoteEnabled,
- PhoneGitEnabled:cfgPhoneGitEnabled,
- OnTogglePhoneGit:func(enabled bool){state.setPhoneGit(enabled);go state.refreshPhoneRemote();if win!=nil{win.Update(func(){})}},
-				RemoteMode:             cfgRemoteMode,
-				RemotePort:             cfgRemotePort,
-				RemoteBindAddress:      cfgRemoteBind,
-				RemoteLanTls:           cfgRemoteLanTls,
-				RemoteAppBaseURL:       cfgRemoteAppBase,
-				RemoteRelayEndpoint:    cfgRemoteRelayEndpoint,
-				RemoteRelayUseTLS:      cfgRemoteRelayUseTLS,
-				RemoteDeviceCount:      remoteDeviceCount,
-				RemoteDeviceNames:      remoteDeviceNames,
-				PhoneActionMsg:         phoneActionMsg,
-				PhoneRuntime:           state.phoneRuntimeManager().Snapshot(),
-				PhoneDeviceEditor:      &state.phoneDeviceEditor,
-				OnPhoneDeviceAction:    state.phoneDeviceAction,
-				HarnessRemoteOverlay:   cfgRemoteWorkspace,
-				MuxConnected:           muxReady,
-				HarnessReady:           st.State == harness.Ready,
-				HasRemoteToken:         hasRemoteToken,
-				HasRemoteRelayToken:    hasRemoteRelayToken,
-				SSHProbeLine:           sshProbeLine,
-				SSHHost:                &sshHost,
-				SSHUser:                &sshUser,
-				SSHPort:                &sshPort,
-				SSHIdentity:            &sshIdentity,
-				SSHForward:             &sshForward,
-				SSHTunnelState:         tunnelState,
-				SSHTunnelMsg:           sshTunnelMsg,
-				OnClose: func() {
- state.revokePhoneGit()
-					state.mu.Lock()
-					state.remoteOpen = false
-					state.sshHost = sshHost
-					state.sshUser = sshUser
-					state.sshPort = sshPort
-					state.sshIdentity = sshIdentity
-					state.sshForward = sshForward
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnToggleWorkspace: func(enabled bool) {
-					if state.cfgStore == nil {
-						return
-					}
-					_ = state.cfgStore.Update(func(c *config.Config) {
-						c.RemoteWorkspaceEnabled = enabled
-					})
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnTogglePairing: func(enabled bool) {
-					if state.cfgStore == nil {
-						return
-					}
-					_ = state.cfgStore.Update(func(c *config.Config) {
-						c.RemoteEnabled = enabled
-					})
-					if !enabled {
-						go state.stopPhoneRuntime()
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCopyConnectURL: func() {
-					url := state.phoneConnectURL()
-					state.mu.Lock()
-					if url == "" {
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneNoURL)
-					} else {
-						mygo.Clipboard.WriteText(url)
-						state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneCopied)
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCopySSHTarget: func(target string) {
-					target = strings.TrimSpace(target)
-					if target == "" {
-						return
-					}
-					mygo.Clipboard.WriteText(target)
-					state.mu.Lock()
-					state.sshTunnelMsg = i18n.T(i18n.KeyChatCopy) + ": " + target
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenConnectURL: func() {
-					url := state.phoneConnectURL()
-					message := i18n.T(i18n.KeyRemotePhoneNoURL)
-					if url != "" {
-						if err := desktopwebview.OpenExternal(url); err == nil {
-							message = i18n.T(i18n.KeyRemotePhoneOpened)
-						} else {
-							message = i18n.T(i18n.KeyRemotePhoneOpenFailed)
-						}
-					}
-					// Never put an offer into persisted webview navigation/history.
-					state.mu.Lock()
-					state.phoneActionMsg = message
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnRefreshPhone: func() {
-					go func() {
-						_ = state.refreshPhoneRemote()
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnProbeSSH: func() {
-					line := remoteui.RunSSHProbe(remoteui.Model{
-						RemoteWorkspaceEnabled: cfgRemoteWorkspace,
-						RemoteEnabled:          cfgRemoteEnabled,
-						RemoteMode:             cfgRemoteMode,
-						RemotePort:             cfgRemotePort,
-						RemoteBindAddress:      cfgRemoteBind,
-						RemoteLanTls:           cfgRemoteLanTls,
-						HasRemoteToken:         hasRemoteToken,
-						HasRemoteRelayToken:    hasRemoteRelayToken,
-					})
-					state.mu.Lock()
-					state.sshProbeLine = line
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSaveTunnel: func() {
-					port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
-					cfg := sshremote.TunnelConfig{
-						Host:         strings.TrimSpace(sshHost),
-						User:         strings.TrimSpace(sshUser),
-						Port:         port,
-						IdentityFile: strings.TrimSpace(sshIdentity),
-						LocalForward: strings.TrimSpace(sshForward),
-					}
-					err := sshremote.SaveTunnelConfig(paths.UserDataDir(), cfg)
-					state.mu.Lock()
-					state.sshHost = cfg.Host
-					state.sshUser = cfg.User
-					state.sshPort = strconv.Itoa(cfg.Port)
-					state.sshIdentity = cfg.IdentityFile
-					state.sshForward = cfg.LocalForward
-					if state.sshTunnel == nil {
-						state.sshTunnel = sshremote.NewTunnelSession()
-					}
-					state.sshTunnel.SetConfig(cfg)
-					if err != nil {
-						state.sshTunnelMsg = err.Error()
-					} else {
-						state.sshTunnelMsg = "saved ssh-tunnel.json"
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnConnectSSH: func() {
-					port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
-					cfg := sshremote.TunnelConfig{
-						Host:         strings.TrimSpace(sshHost),
-						User:         strings.TrimSpace(sshUser),
-						Port:         port,
-						IdentityFile: strings.TrimSpace(sshIdentity),
-						LocalForward: strings.TrimSpace(sshForward),
-					}
-					state.mu.Lock()
-					if state.sshTunnel == nil {
-						state.sshTunnel = sshremote.NewTunnelSession()
-					}
-					tun := state.sshTunnel
-					tun.SetConfig(cfg)
-					tun.SetTrustOnFirstUse(false)
-					state.mu.Unlock()
-					go func() {
-						err := tun.Connect(context.Background())
-						msg := ""
-						if err != nil {
-							var changed *sshremote.HostKeyChanged
-							var unknown *sshremote.UnknownHostKey
-							switch {
-							case errors.As(err, &changed):
-								showSSHHostKeyChanged(win, changed)
-								msg = i18n.T(i18n.KeyRemoteSSHHostChangedStatus) + ": " + changed.Error()
-							case errors.As(err, &unknown):
-								if promptAcceptUnknownSSHHost(win, unknown) {
-									kh := sshremote.KnownHostsPath(paths.UserDataDir())
-									if aerr := sshremote.AcceptHostKey(kh, unknown.Address, unknown.Key); aerr != nil {
-										msg = aerr.Error()
-									} else if err = tun.Connect(context.Background()); err != nil {
-										msg = err.Error()
-									} else {
-										msg = i18n.T(i18n.KeyRemoteSSHConnected)
-									}
-								} else {
-									msg = i18n.T(i18n.KeyRemoteSSHHostDeclined)
-								}
-							default:
-								msg = err.Error()
-							}
-						} else {
-							msg = i18n.T(i18n.KeyRemoteSSHConnected)
-						}
-						state.mu.Lock()
-						state.sshTunnelMsg = msg
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnDisconnectSSH: func() {
-					state.mu.Lock()
-					if state.sshTunnel != nil {
-						state.sshTunnel.Disconnect()
-					}
-					state.sshTunnelMsg = "disconnected"
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-			})
-			state.mu.Lock()
-			state.sshHost = sshHost
-			state.sshUser = sshUser
-			state.sshPort = sshPort
-			state.sshIdentity = sshIdentity
-			state.sshForward = sshForward
-			state.mu.Unlock()
-			return
-		}
-		if acceptPanelOK && assistantOpen {
-			origin := st.Endpoint.Origin
-			ep := st.Endpoint
-			whaleOn := true
-			dshbotOn := false
-			if state.cfgStore != nil {
-				cfg := state.cfgStore.Get()
-				whaleOn = cfg.WhaleAssistantEnabled
-				dshbotOn = cfg.DshbotEnabled
-			}
-			whaleVendor := false
-			dshbotVendor := false
-			if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dsh-whale")); err == nil && info.IsDir() {
-				whaleVendor = true
-			}
-			if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dshbot")); err == nil && info.IsDir() {
-				dshbotVendor = true
-			}
-			state.mu.Lock()
-			assistantDraft := state.assistantDraft
-			lastWebURL := state.lastWebViewURL
-			lastNative := state.assistantLastAct
-			pluginBusy := state.assistantPluginBusy
-			pluginDetail := state.assistantPluginDetail
-			asst := state.assistant
-			var dshbotRows []dshbotstore.Row
-			var dshbotRosterAt string
-			if dr := state.dshbotRoster; dr != nil {
-				snap := dr.Snapshot()
-				if snap.Origin == origin {
-					dshbotRows = snap.Rows
-					dshbotRosterAt = snap.FetchedAt
-				}
-			}
-			state.mu.Unlock()
-			if asst == nil {
-				asst = assiststore.New()
-				state.mu.Lock()
-				state.assistant = asst
-				state.mu.Unlock()
-			}
-			asst.Attach(func() {
-				if win != nil {
-					win.Update(func() {})
-				}
-			})
-			asstSnap := asst.Snapshot()
-			assistantDraft = asst.ConsumeAcceptedDraft(assistantDraft)
-			dshbotSelectedID := ""
-			if asstSnap.DshbotOrigin == origin {
-				dshbotSelectedID = asstSnap.DshbotID
-			}
-			if lastNative == "" {
-				lastNative = asstSnap.LastAction
-			}
-			if lastNative == "" && sessions != nil {
-				lastNative = sessions.Snapshot().LastAction
-			}
-			history := asstSnap.History
-			if len(history) == 0 && sessions != nil {
-				sessSnap := sessions.Snapshot()
-				var pairs []struct{ Role, Body string }
-				for _, m := range sessSnap.Messages {
-					pairs = append(pairs, struct{ Role, Body string }{m.Role, m.Body})
-				}
-				history = assiststore.HistoryFromSessionMessages(pairs, 8)
-			}
-			assistant.View(c, assistant.Model{
-				ThemeID:             themeID,
-				SystemDark:          mygo.Theme.IsDark(),
-				Mode:                asstSnap.Mode,
-				WhaleEnabled:        whaleOn,
-				DshbotEnabled:       dshbotOn,
-				WhaleVendorPresent:  whaleVendor,
-				DshbotVendorPresent: dshbotVendor,
-				HarnessReady:        true,
-				Busy:                asstSnap.Busy || pluginBusy,
-				LastWebViewURL:      lastWebURL,
-				LastNativeAction:    lastNative,
-				LastErr:             asstSnap.LastErr,
-				SessionID:           asstSnap.SessionID,
-				History:             history,
-				Draft:               &assistantDraft,
-				PluginRPCBusy:       pluginBusy,
-				PluginRPCDetail:     pluginDetail,
-				DshbotRoster:        dshbotRows,
-				DshbotRosterFetched: dshbotRosterAt,
-				DshbotSelectedID: dshbotSelectedID,
-				OnDshbotSelect: func(botID string) {
-					asst.SelectDshbot(botID, origin)
-				},
-				OnSetMode: func(mode assiststore.Mode) {
-					if asst != nil {
-						asst.SetMode(mode)
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenModeWeb: func() {
-					plugin := desktopwebview.PluginWhale
-					if assiststore.NormalizeMode(asstSnap.Mode) == assiststore.ModeDshbot {
-						plugin = desktopwebview.PluginDshbot
-					}
-					state.mu.Lock()
-					state.webviewOpen = true
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.mu.Unlock()
-					state.openWebViewHostPlugin(origin, plugin)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenSession: func(sessionID string) {
-					if sessions != nil && strings.TrimSpace(sessionID) != "" {
-						state.revokePhoneGit();sessions.Select(sessionID)
-					}
-					state.mu.Lock()
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnClose: func() {
-					state.mu.Lock()
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnToggleWhale: func(enabled bool) {
-					state.setAssistantFlag(&enabled, nil)
-				},
-				OnToggleDshbot: func(enabled bool) {
-					state.setAssistantFlag(nil, &enabled)
-				},
-				OnOpenWhaleWeb: func() {
-					state.mu.Lock()
-					state.webviewOpen = true
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenWhaleWeb)
-					state.mu.Unlock()
-					state.openWebViewHostPlugin(origin, desktopwebview.PluginWhale)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenDshbotWeb: func() {
-					state.mu.Lock()
-					state.webviewOpen = true
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenDshbotWeb)
-					state.mu.Unlock()
-					state.openWebViewHostPlugin(origin, desktopwebview.PluginDshbot)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnNativePrompt: func(text string) {
-					state.handleAssistantNativePrompt(origin, ep, text)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnWhaleEnsure: func() {
-					state.runAssistantPluginRPC(win, ep, "assistant/ensure", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						ens, err := c.WhaleEnsureTyped(ctx)
-						if err != nil {
-							return "", err
-						}
-						if asst != nil {
-							asst.SetSessionID(ens.SessionID)
-						}
-						if sessions != nil {
-							state.revokePhoneGit();sessions.Select(ens.SessionID)
-						}
-						return ens.SessionID, nil
-					})
-				},
-				OnWhaleCatalog: func() {
-					state.runAssistantPluginRPC(win, ep, "catalog", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						out, err := c.WhaleCatalog(ctx)
-						return string(out), err
-					})
-				},
-				OnWhalePetChat: func(text string) {
-					state.handleAssistantNativePrompt(origin, ep, text)
-				},
-				OnWhalePetState: func() {
-					state.runAssistantPluginRPC(win, ep, "pet/state", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						out, err := c.WhalePetState(ctx, false)
-						return string(out), err
-					})
-				},
-				OnWhalePetLook: func() {
-					paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-						Parent: win,
-						Title:  i18n.T(i18n.KeyAssistantWhalePetLook),
-					})
-					if err != nil {
-						state.mu.Lock()
-						state.assistantPluginDetail = "pet/look: " + err.Error()
-						state.assistantLastAct = state.assistantPluginDetail
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
-					if len(paths) == 0 {
-						return
-					}
-					imgPath := paths[0]
-					state.runAssistantPluginRPC(win, ep, "pet/look", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						st, err := c.WhalePetStateTyped(ctx, false)
-						if err != nil {
-							return "", err
-						}
-						if st.Model == nil || strings.TrimSpace(st.Model.Provider) == "" || strings.TrimSpace(st.Model.Model) == "" {
-							return "", fmt.Errorf("no whale model selected (open whale WebView and pick a vision model)")
-						}
-						raw, err := os.ReadFile(imgPath)
-						if err != nil {
-							return "", err
-						}
-						if len(raw) == 0 || len(raw) > 4<<20 {
-							return "", fmt.Errorf("image empty or larger than 4MiB")
-						}
-						b64 := base64.StdEncoding.EncodeToString(raw)
-						out, err := c.WhalePetLook(ctx, st.Model.Provider, st.Model.Model, b64)
-						return string(out), err
-					})
-				},
-				OnDshbotDescribe: func() {
-					state.runAssistantPluginRPC(win, ep, "describe", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						out, err := c.DshbotDescribe(ctx)
-						return string(out), err
-					})
-				},
-				OnDshbotCatalog: func() {
-					state.runAssistantPluginRPC(win, ep, "catalog/items", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						out, err := c.DshbotCatalog(ctx)
-						return string(out), err
-					})
-				},
-				OnDshbotActivity: func() {
-					state.runAssistantPluginRPC(win, ep, "bot/activity", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						act, err := c.DshbotActivityTyped(ctx, nil)
-						if err != nil {
-							return "", err
-						}
-						return fmt.Sprintf("%d entries", len(act.Entries)), nil
-					})
-				},
-				OnDshbotRefreshRoster: func() {
-					label := i18n.T(i18n.KeyAssistantDshbotRosterRefresh)
-					state.runAssistantPluginRPC(win, ep, label, func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-						res, err := c.DshbotDescribeTyped(ctx, "")
-						if err != nil {
-							return "", err
-						}
-						state.mu.Lock()
-						roster := state.dshbotRoster
-						state.mu.Unlock()
-						if roster != nil {
-							roster.SetFromDescribeForHost(res, false, origin)
-							if act, aerr := c.DshbotActivityTyped(ctx, nil); aerr == nil {
-								roster.MergeActivity(act)
-							}
-							for _, row := range roster.Snapshot().Rows {
-								if row.Kind != "room" {
-									continue
-								}
-								if rt, rerr := c.DshbotGroupRuntime(ctx, row.ID); rerr == nil {
-									roster.ApplyGroupRuntime(rt)
-								}
-							}
-						}
-						rows := pluginrpc.RosterRowsFromDescribe(res, false)
-						return fmt.Sprintf("%d", len(rows)), nil
-					})
-				},
-				OnDshbotOpenRosterSession: func(botID string) {
-					state.openAssistantDshbot(ep, botID)
-				},
-			})
-			state.mu.Lock()
-			state.assistantDraft = assistantDraft
-			state.mu.Unlock()
-			return
-		}
-		if acceptPanelOK && browserPreviewOpen {
-			if state.browserController == nil {
-				state.browserController = state.newBrowserController(win)
-			}
-			state.browserController.View(c, themeID, mygo.Theme.IsDark(), func() {
-				state.mu.Lock()
-				state.browserPreviewOpen = false
-				state.mu.Unlock()
-				if win != nil {
-					win.Update(func() {})
-				}
-			})
-			return
-		}
-
-		if acceptPanelOK && webviewOpen {
-			origin := st.Endpoint.Origin
-			state.mu.Lock()
-			host := state.webviewHost
-			hostErr := state.webviewHostErr
-			hostActive := host != nil && host.Alive()
-			hostURL := ""
-			if hostActive {
-				hostState := host.State()
-				hostURL = hostState.URL
-				if hostState.Error != "" {
-					hostErr = hostState.Error
-				}
-			}
-			resumeURL := desktopwebview.RestorePanelURL(origin, state.lastWebViewOrigin, state.lastWebViewURL)
-			state.mu.Unlock()
-			if hostActive {
-				host.SyncBounds()
-			}
-			webviewui.View(c, webviewui.Model{
-				HarnessOrigin: origin,
-				ThemeID:       themeID,
-				SystemDark:    mygo.Theme.IsDark(),
-				HostActive:    hostActive,
-				HostURL:       hostURL,
-				HostError:     hostErr,
-				OnClose: func() {
-					state.closeWebViewHost()
-					state.mu.Lock()
-					state.webviewOpen = false
-					state.assistantOpen = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenHost: func() {
-					state.mu.Lock()
-					state.lastWebViewOrigin = origin
-					state.mu.Unlock()
-					state.openWebViewURL(resumeURL)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCloseHost: func() {
-					state.closeWebViewHost()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCopyURL: func(u string) {
-					if strings.TrimSpace(u) != "" {
-						mygo.Clipboard.WriteText(u)
-					}
-				},
-				OnReload: func(u string) {
-					u = strings.TrimSpace(u)
-					if u == "" {
-						return
-					}
-					state.mu.Lock()
-					state.webviewHostErr = ""
-					state.mu.Unlock()
-					if host != nil && host.Alive() {
-						host.Reload()
-					} else {
-						state.openWebViewURL(u)
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenBrowser: func() {
-					u := resumeURL
-					if hostActive {
-						u = hostURL
-					}
-					if u != "" {
-						if err := desktopwebview.OpenExternal(u); err != nil {
-							log.Printf("webview: open browser: %v", err)
-						}
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-			})
-			return
-		}
-		if acceptPanelOK && usageOpen && usageStore != nil {
-			sid := ""
-			if sessions != nil {
-				sid = sessions.Snapshot().SelectedID
-			}
-			usageui.View(c, usageui.Model{
-				Store: usageStore,
-				OnExportStats: func(format string) {
-					data, err := usageStore.ExportStats(format)
-					if err != nil {
-						mygo.Dialog.Error("Usage export", err.Error())
-						return
-					}
-					ext := "csv"
-					if format == "json" {
-						ext = "json"
-					}
-					path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "Export usage statistics", DefaultPath: "usage-" + format + "." + ext})
-					if err != nil {
-						mygo.Dialog.Error("Usage export", err.Error())
-						return
-					}
-					if path == "" {
-						return
-					}
-					if err = os.WriteFile(path, data, 0600); err != nil {
-						mygo.Dialog.Error("Usage export", err.Error())
-					}
-				},
-				OnOpenSession: func(id string) {
-					if sessions == nil {
-						return
-					}
-					state.revokePhoneGit();sessions.Select(id)
-					sessions.FollowSelected(context.Background())
-					state.mu.Lock()
-					state.usageOpen = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				SessionID:  sid,
-				ThemeID:    themeID,
-				SystemDark: mygo.Theme.IsDark(),
-				OnClose: func() {
-					state.mu.Lock()
-					state.usageOpen = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnRefresh: func() {
-					usageStore.Refresh(context.Background(), sid)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenUsageWeb: func() {
-					u := usageStore.Snapshot().UsageURL
-					if u == "" {
-						return
-					}
-					state.mu.Lock()
-					state.usageOpen = false
-					state.webviewOpen = true
-					state.assistantOpen = false
-					state.mu.Unlock()
-					state.openWebViewURL(u)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenTopUp: func() {
-					u := usageStore.Snapshot().TopUpURL
-					if u == "" {
-						return
-					}
-					if err := desktopwebview.OpenExternal(u); err != nil {
-						log.Printf("usage: open top-up: %v", err)
-					}
-				},
-				OnCopyUsageURL: func(u string) {
-					if strings.TrimSpace(u) != "" {
-						mygo.Clipboard.WriteText(u)
-					}
-				},
-				OnCopyTopUpURL: func(u string) {
-					if strings.TrimSpace(u) != "" {
-						mygo.Clipboard.WriteText(u)
-					}
-				},
-				OnCopyBalance: func(text string) {
-					if strings.TrimSpace(text) != "" {
-						mygo.Clipboard.WriteText(text)
-					}
-				},
-			})
-			return
-		}
-		if settingsOpen && setStore != nil {
-			snap := setStore.Snapshot()
-			state.mu.Lock()
-			if !state.desktopDraft.seeded {
-				state.seedDesktopDraft()
-			}
-			desktopActive := state.settingsDesktopActive
-			accountActive := state.settingsAccountActive
-			credsActive := state.settingsCredentialsActive
-			aboutActive := state.settingsAboutActive
-			appearanceActive := state.settingsAppearanceActive
-			interfaceActive := state.settingsInterfaceActive
-			modelsActive := state.settingsModelsActive
-			mcpActive := state.settingsMCPActive
-			pluginsActive := state.settingsPluginsActive
-			skillsActive := state.settingsSkillsActive
-			agentPresetsActive := state.settingsAgentPresetsActive
-			desktopErr := state.desktopSaveErr
-			desktopAction := state.desktopLastAction
-			if !state.credsDraft.seeded {
-				state.seedCredentialsDraft()
-			}
-			credsErr := state.credsSaveErr
-			credsAction := state.credsLastAction
-			credsHarness := state.credsHarnessNote
-			exeDir, _ := os.Executable()
-			wallpaperChoices := theme.ListWallpapers(theme.WallpaperGalleryDirs(paths.UserDataDir(), filepath.Dir(exeDir))...)
-			desktopFields := settings.DesktopFields{
-				Workspace:        &state.desktopDraft.workspace,
-				Port:             &state.desktopDraft.port,
-				Theme:            &state.desktopDraft.theme,
-				Locale:           &state.desktopDraft.locale,
-				CloseToTray:      &state.desktopDraft.closeToTray,
-				OpenAtLogin:      &state.desktopDraft.openAtLogin,
-				WallpaperPath:    &state.desktopDraft.wallpaperPath,
-				WallpaperChoices: wallpaperChoices,
-			}
-			credFields := settings.CredentialsFields{
-				APIKey:           &state.credsDraft.apiKey,
-				BaseURL:          &state.credsDraft.baseURL,
-				GithubToken:      &state.credsDraft.githubToken,
-				RemoteToken:      &state.credsDraft.remoteToken,
-				RemoteRelayToken: &state.credsDraft.remoteRelayToken,
-			}
-			sessSnap := session.ViewState{}
-			if sessions != nil {
-				sessSnap = sessions.Snapshot()
-				if state.settingsModelSession != sessSnap.SelectedID {
-					if state.settingsModelDrafts == nil {
-						state.settingsModelDrafts = map[string]string{}
-					}
-					state.settingsModelDrafts[state.settingsModelSession] = state.settingsModelLabel
-					state.settingsModelSession = sessSnap.SelectedID
-					state.settingsModelLabel = state.settingsModelDrafts[sessSnap.SelectedID]
-				}
-				if state.settingsModelLabel == "" && sessSnap.SelectedModel != "" {
-					state.settingsModelLabel = sessSnap.SelectedModel
-				}
-				if state.settingsAgentPresetLabel == "" && sessSnap.SelectedAgentPreset != "" {
-					state.settingsAgentPresetLabel = sessSnap.SelectedAgentPreset
-				}
-			}
-			state.mu.Unlock()
-			marketSnap := marketstore.ViewState{}
-			if marketStore != nil {
-				marketSnap = marketStore.Snapshot()
-			}
-			usageSnap := usagestore.ViewState{}
-			if usageStore != nil {
-				usageSnap = usageStore.Snapshot()
-			}
-			state.accountLogin.Observe(api.AccountView{Status: usageSnap.AccountStatus, Attempt: api.AccountViewAttempt{
-				Id: usageSnap.AttemptID, Phase: usageSnap.AttemptPhase, AuthorizeUrl: &usageSnap.AuthorizeURL,
-			}}, desktopwebview.OpenExternal)
-			loginState := state.accountLogin.Snapshot()
-			if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
-				usageSnap.AuthorizeURL = loginState.URL
-			}
-			pluginRows := make([]settings.PluginRow, 0, len(marketSnap.Rows))
-			for _, row := range marketSnap.Rows {
-				pluginRows = append(pluginRows, settings.PluginRow{
-					Name: row.Label, Status: row.Detail, Disabled: row.Enabled != nil && !*row.Enabled,
-					CanToggle: row.CanToggle(), ReadOnlyReason: row.ReadOnlyReason, Error: row.Error,
 				})
-			}
-			skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillCatalog.Skills))
-			for _, sk := range sessSnap.SkillCatalog.Skills {
-				skillRows = append(skillRows, settings.SkillRow{
-					Name:           sk.Name,
-					Description:    sk.Description,
-					ModelInvocable: sk.ModelInvocable,
-					Groups:         sk.Groups, Writable: sk.Writable, UserInvocable: sk.UserInvocable, Error: sessSnap.SkillCatalog.Errors[sk.Name],
-				})
-			}
-			settings.View(c, settings.Model{
-				Pet:           state.desktopPet,
-				Store:         setStore,
-				ThemeID:       themeID,
-				SystemDark:    mygo.Theme.IsDark(),
-				DesktopActive: desktopActive,
-				Desktop: &settings.DesktopAccess{
-					Fields:     desktopFields,
-					LastAction: desktopAction,
-					Err:        desktopErr,
-					OnSave: func() {
+				marketStore.EnsureCatalog(i18n.Locale())
+				state.mu.Lock()
+				muxReadyMarket := state.dshMuxReady
+				state.mu.Unlock()
+				marketui.View(c, marketui.Model{
+					Store:                marketStore,
+					ThemeID:              themeID,
+					SystemDark:           mygo.Theme.IsDark(),
+					HarnessReady:         st.State == harness.Ready,
+					MuxConnected:         muxReadyMarket,
+					HarnessMarketOverlay: !marketPluginDisabled,
+					PluginDisabled:       marketPluginDisabled,
+					InstallReady:         marketInstallReady,
+					InstallSpec:          marketInstallSpecPtr,
+					InstallBusy:          marketInstallBusy,
+					InstallMessage:       marketInstallMsg,
+					InstallLog:           marketInstallLog,
+					Activation:           marketActivation,
+					CanRestart:           marketCanRestart,
+					OnRestart:            state.restartMarketPlugins,
+					NeedsAllowBuilds:     marketNeedsAllowBuilds,
+					AllowBuilds:          marketAllowBuilds,
+					CanCancelInstall:     marketCanCancel,
+					Incompatible:         marketIncompatible,
+					OnClose: func() {
 						state.mu.Lock()
-						state.saveDesktopConfig()
+						state.marketOpen = false
+						state.scheduleOpen = false
 						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnBrowseWorkspace: func() {
-						def := strings.TrimSpace(state.desktopDraft.workspace)
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-							Parent:      win,
-							Title:       i18n.T(i18n.KeySettingsDesktopBrowseWorkspace),
-							DefaultPath: def,
-							Directory:   true,
-						})
-						if err != nil || len(paths) == 0 {
-							return
-						}
-						state.mu.Lock()
-						state.desktopDraft.workspace = paths[0]
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnDetectElectron: func() {
-						state.showElectronImportReport(win)
-					},
-					OnCheckUpdates: func() {
-						state.showUpdateCheck(win)
-					},
-				},
-				AccountActive: accountActive,
-				Account: &settings.AccountAccess{
-					SignInBusy:      loginState.Busy,
-					ClientReady:     usageSnap.ClientReady,
-					Loading:         usageSnap.Loading,
-					Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error),
-					Status:          usageSnap.AccountStatus,
-					Email:           usageSnap.Email,
-					Name:            usageSnap.Name,
-					Plan:            usageSnap.Plan,
-					UsageURL:        usageSnap.UsageURL,
-					TopUpURL:        usageSnap.TopUpURL,
-					BalanceSummary:  usageSnap.BalanceSummary,
-					HasRunningTasks: usageSnap.HasRunningTasks,
-					AttemptPhase:    usageSnap.AttemptPhase,
-					SignInAttemptID: usageSnap.AttemptID,
-					AuthorizeURL:    usageSnap.AuthorizeURL,
-					Bonuses: func() []settings.AccountBonus {
-						out := make([]settings.AccountBonus, 0, len(usageSnap.Bonuses))
-						for _, b := range usageSnap.Bonuses {
-							label := strings.TrimSpace(b.Amount + " " + b.Currency)
-							if label == "" {
-								label = b.Campaign
-							}
-							out = append(out, settings.AccountBonus{
-								AccountID: b.AccountID,
-								OrderID:   b.OrderID,
-								Label:     label,
-								Detail:    b.Message,
-							})
-						}
-						return out
-					}(),
-					OnAckBonus: func(accountID, orderID string) {
-						if usageStore == nil {
-							return
-						}
-						sid := ""
-						if sessions != nil {
-							sid = sessions.Snapshot().SelectedID
-						}
-						usageStore.AckBonusNotified(context.Background(), accountID, orderID, sid)
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
 					OnRefresh: func() {
-						if usageStore == nil {
+						marketStore.Refresh(context.Background())
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnInstallCatalog: state.runMarketCatalogInstall,
+					OnInstallSpec: func(spec string, allowBuilds []string) {
+						state.runMarketInstall(spec, allowBuilds)
+					},
+					OnCancelInstall: func() {
+						state.cancelMarketInstall()
+					},
+					OnAcceptExemption: state.acceptMarketExemption,
+					OnRemoveBundle:    func(name string) { state.runMarketChange("pluginManager/removeBundle", map[string]any{"name": name}) },
+					OnSetBundleEnabled: func(name string, enabled bool) {
+						state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled})
+					},
+					OnCopyInstallLog: func(log string) {
+						if strings.TrimSpace(log) != "" {
+							mygo.Clipboard.WriteText(log)
+						}
+					},
+					OnOpenHarnessMarket: func() {
+						origin := ""
+						state.mu.Lock()
+						if state.sup != nil {
+							st := state.sup.Status()
+							if st.State == harness.Ready {
+								origin = st.Endpoint.Origin
+							}
+						}
+						state.mu.Unlock()
+						if origin != "" {
+							state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
+						}
+					},
+				})
+				return
+			}
+			if acceptPanelOK && scheduleOpen && schedStore != nil {
+				sid := ""
+				sessionLinks := map[string]string{}
+				if sessions != nil {
+					sessionSnap := sessions.Snapshot()
+					sid = sessionSnap.SelectedID
+					sessionLinks = scheduleSessionLinks(sessionSnap)
+				}
+				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
+					SessionLinks:  sessionLinks,
+					OnOpenSession: state.openScheduleSession,
+					OnClose: func() {
+						state.mu.Lock()
+						state.scheduleOpen = false
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnInvalidate: func() {
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCopyHistory: func(text string) {
+						if strings.TrimSpace(text) != "" {
+							mygo.Clipboard.WriteText(text)
+						}
+					},
+				})
+				return
+			}
+
+			if acceptPanelOK && imOpen && imStore != nil {
+				state.mu.Lock()
+				muxReadyIM := state.dshMuxReady
+				imDraft := state.imDraft
+				state.mu.Unlock()
+				imui.View(c, imui.Model{
+					Store:            imStore,
+					ThemeID:          themeID,
+					SystemDark:       mygo.Theme.IsDark(),
+					HarnessReady:     st.State == harness.Ready,
+					MuxConnected:     muxReadyIM,
+					HarnessIMOverlay: !imPluginDisabled,
+					PluginDisabled:   imPluginDisabled,
+					Draft:            &imDraft,
+					OnClose: func() {
+						if sel := imStore.Snapshot().SelectedID; sel != "" {
+							imStore.SetDraft(sel, imDraft)
+						}
+						_ = imStore.Persist()
+						state.mu.Lock()
+						state.imOpen = false
+						state.imDraft = imDraft
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnRefresh: func() {
+						imStore.Refresh(context.Background())
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenPluginWeb: func() {
+						state.openWebViewHostPlugin(st.Endpoint.Origin, desktopwebview.PluginIM)
+						state.mu.Lock()
+						state.webviewOpen = true
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSend: func(channelID, text string) {
+						imStore.SendDraft(context.Background(), channelID, text)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+				})
+				state.mu.Lock()
+				state.imDraft = imDraft
+				state.mu.Unlock()
+				return
+			}
+			if acceptPanelOK && remoteOpen {
+				state.mu.Lock()
+				muxReady := state.dshMuxReady
+				remoteMachines := state.remoteMachines
+				sshProbeLine := state.sshProbeLine
+				sshHost := state.sshHost
+				sshUser := state.sshUser
+				sshPort := state.sshPort
+				sshIdentity := state.sshIdentity
+				sshForward := state.sshForward
+				sshTunnelMsg := state.sshTunnelMsg
+				tunnelState := string(sshremote.TunnelIdle)
+				if state.sshTunnel != nil {
+					_, stt, errLine := state.sshTunnel.Snapshot()
+					tunnelState = string(stt)
+					if errLine != "" && sshTunnelMsg == "" {
+						sshTunnelMsg = errLine
+					}
+				}
+				state.mu.Unlock()
+				remoteui.View(c, remoteui.Model{
+					OnUseWorkspaceMirror: func(localMirror string) {
+						go state.applyWorkspacePath(win, sessions, localMirror, false)
+					},
+					Machines:               remoteMachines,
+					Files:                  state.remoteSessionFiles(win, sessions),
+					FileEditor:             &state.remoteFileEditor,
+					MachineEditor:          &state.remoteMachineEditor,
+					ThemeID:                themeID,
+					SystemDark:             mygo.Theme.IsDark(),
+					RemoteWorkspaceEnabled: cfgRemoteWorkspace,
+					RemoteEnabled:          cfgRemoteEnabled,
+					PhoneGitEnabled:        cfgPhoneGitEnabled,
+					OnTogglePhoneGit: func(enabled bool) {
+						state.setPhoneGit(enabled)
+						go state.refreshPhoneRemote()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					RemoteMode:           cfgRemoteMode,
+					RemotePort:           cfgRemotePort,
+					RemoteBindAddress:    cfgRemoteBind,
+					RemoteLanTls:         cfgRemoteLanTls,
+					RemoteAppBaseURL:     cfgRemoteAppBase,
+					RemoteRelayEndpoint:  cfgRemoteRelayEndpoint,
+					RemoteRelayUseTLS:    cfgRemoteRelayUseTLS,
+					RemoteDeviceCount:    remoteDeviceCount,
+					RemoteDeviceNames:    remoteDeviceNames,
+					PhoneActionMsg:       phoneActionMsg,
+					PhoneRuntime:         state.phoneRuntimeManager().Snapshot(),
+					PhoneDeviceEditor:    &state.phoneDeviceEditor,
+					OnPhoneDeviceAction:  state.phoneDeviceAction,
+					HarnessRemoteOverlay: cfgRemoteWorkspace,
+					MuxConnected:         muxReady,
+					HarnessReady:         st.State == harness.Ready,
+					HasRemoteToken:       hasRemoteToken,
+					HasRemoteRelayToken:  hasRemoteRelayToken,
+					SSHProbeLine:         sshProbeLine,
+					SSHHost:              &sshHost,
+					SSHUser:              &sshUser,
+					SSHPort:              &sshPort,
+					SSHIdentity:          &sshIdentity,
+					SSHForward:           &sshForward,
+					SSHTunnelState:       tunnelState,
+					SSHTunnelMsg:         sshTunnelMsg,
+					OnClose: func() {
+						state.revokePhoneGit()
+						state.mu.Lock()
+						state.remoteOpen = false
+						state.sshHost = sshHost
+						state.sshUser = sshUser
+						state.sshPort = sshPort
+						state.sshIdentity = sshIdentity
+						state.sshForward = sshForward
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnToggleWorkspace: func(enabled bool) {
+						if state.cfgStore == nil {
 							return
 						}
-						sid := ""
-						if sessions != nil {
-							sid = sessions.Snapshot().SelectedID
+						_ = state.cfgStore.Update(func(c *config.Config) {
+							c.RemoteWorkspaceEnabled = enabled
+						})
+						if win != nil {
+							win.Update(func() {})
 						}
+					},
+					OnTogglePairing: func(enabled bool) {
+						if state.cfgStore == nil {
+							return
+						}
+						_ = state.cfgStore.Update(func(c *config.Config) {
+							c.RemoteEnabled = enabled
+						})
+						if !enabled {
+							go state.stopPhoneRuntime()
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCopyConnectURL: func() {
+						url := state.phoneConnectURL()
+						state.mu.Lock()
+						if url == "" {
+							state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneNoURL)
+						} else {
+							mygo.Clipboard.WriteText(url)
+							state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneCopied)
+						}
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCopySSHTarget: func(target string) {
+						target = strings.TrimSpace(target)
+						if target == "" {
+							return
+						}
+						mygo.Clipboard.WriteText(target)
+						state.mu.Lock()
+						state.sshTunnelMsg = i18n.T(i18n.KeyChatCopy) + ": " + target
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenConnectURL: func() {
+						url := state.phoneConnectURL()
+						message := i18n.T(i18n.KeyRemotePhoneNoURL)
+						if url != "" {
+							if err := desktopwebview.OpenExternal(url); err == nil {
+								message = i18n.T(i18n.KeyRemotePhoneOpened)
+							} else {
+								message = i18n.T(i18n.KeyRemotePhoneOpenFailed)
+							}
+						}
+						// Never put an offer into persisted webview navigation/history.
+						state.mu.Lock()
+						state.phoneActionMsg = message
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnRefreshPhone: func() {
+						go func() {
+							_ = state.refreshPhoneRemote()
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
+					OnProbeSSH: func() {
+						line := remoteui.RunSSHProbe(remoteui.Model{
+							RemoteWorkspaceEnabled: cfgRemoteWorkspace,
+							RemoteEnabled:          cfgRemoteEnabled,
+							RemoteMode:             cfgRemoteMode,
+							RemotePort:             cfgRemotePort,
+							RemoteBindAddress:      cfgRemoteBind,
+							RemoteLanTls:           cfgRemoteLanTls,
+							HasRemoteToken:         hasRemoteToken,
+							HasRemoteRelayToken:    hasRemoteRelayToken,
+						})
+						state.mu.Lock()
+						state.sshProbeLine = line
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSaveTunnel: func() {
+						port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
+						cfg := sshremote.TunnelConfig{
+							Host:         strings.TrimSpace(sshHost),
+							User:         strings.TrimSpace(sshUser),
+							Port:         port,
+							IdentityFile: strings.TrimSpace(sshIdentity),
+							LocalForward: strings.TrimSpace(sshForward),
+						}
+						err := sshremote.SaveTunnelConfig(paths.UserDataDir(), cfg)
+						state.mu.Lock()
+						state.sshHost = cfg.Host
+						state.sshUser = cfg.User
+						state.sshPort = strconv.Itoa(cfg.Port)
+						state.sshIdentity = cfg.IdentityFile
+						state.sshForward = cfg.LocalForward
+						if state.sshTunnel == nil {
+							state.sshTunnel = sshremote.NewTunnelSession()
+						}
+						state.sshTunnel.SetConfig(cfg)
+						if err != nil {
+							state.sshTunnelMsg = err.Error()
+						} else {
+							state.sshTunnelMsg = "saved ssh-tunnel.json"
+						}
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnConnectSSH: func() {
+						port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
+						cfg := sshremote.TunnelConfig{
+							Host:         strings.TrimSpace(sshHost),
+							User:         strings.TrimSpace(sshUser),
+							Port:         port,
+							IdentityFile: strings.TrimSpace(sshIdentity),
+							LocalForward: strings.TrimSpace(sshForward),
+						}
+						state.mu.Lock()
+						if state.sshTunnel == nil {
+							state.sshTunnel = sshremote.NewTunnelSession()
+						}
+						tun := state.sshTunnel
+						tun.SetConfig(cfg)
+						tun.SetTrustOnFirstUse(false)
+						state.mu.Unlock()
+						go func() {
+							err := tun.Connect(context.Background())
+							msg := ""
+							if err != nil {
+								var changed *sshremote.HostKeyChanged
+								var unknown *sshremote.UnknownHostKey
+								switch {
+								case errors.As(err, &changed):
+									showSSHHostKeyChanged(win, changed)
+									msg = i18n.T(i18n.KeyRemoteSSHHostChangedStatus) + ": " + changed.Error()
+								case errors.As(err, &unknown):
+									if promptAcceptUnknownSSHHost(win, unknown) {
+										kh := sshremote.KnownHostsPath(paths.UserDataDir())
+										if aerr := sshremote.AcceptHostKey(kh, unknown.Address, unknown.Key); aerr != nil {
+											msg = aerr.Error()
+										} else if err = tun.Connect(context.Background()); err != nil {
+											msg = err.Error()
+										} else {
+											msg = i18n.T(i18n.KeyRemoteSSHConnected)
+										}
+									} else {
+										msg = i18n.T(i18n.KeyRemoteSSHHostDeclined)
+									}
+								default:
+									msg = err.Error()
+								}
+							} else {
+								msg = i18n.T(i18n.KeyRemoteSSHConnected)
+							}
+							state.mu.Lock()
+							state.sshTunnelMsg = msg
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
+					OnDisconnectSSH: func() {
+						state.mu.Lock()
+						if state.sshTunnel != nil {
+							state.sshTunnel.Disconnect()
+						}
+						state.sshTunnelMsg = "disconnected"
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+				})
+				state.mu.Lock()
+				state.sshHost = sshHost
+				state.sshUser = sshUser
+				state.sshPort = sshPort
+				state.sshIdentity = sshIdentity
+				state.sshForward = sshForward
+				state.mu.Unlock()
+				return
+			}
+			if acceptPanelOK && assistantOpen {
+				origin := st.Endpoint.Origin
+				ep := st.Endpoint
+				whaleOn := true
+				dshbotOn := false
+				if state.cfgStore != nil {
+					cfg := state.cfgStore.Get()
+					whaleOn = cfg.WhaleAssistantEnabled
+					dshbotOn = cfg.DshbotEnabled
+				}
+				whaleVendor := false
+				dshbotVendor := false
+				if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dsh-whale")); err == nil && info.IsDir() {
+					whaleVendor = true
+				}
+				if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dshbot")); err == nil && info.IsDir() {
+					dshbotVendor = true
+				}
+				state.mu.Lock()
+				assistantDraft := state.assistantDraft
+				lastWebURL := state.lastWebViewURL
+				lastNative := state.assistantLastAct
+				pluginBusy := state.assistantPluginBusy
+				pluginDetail := state.assistantPluginDetail
+				asst := state.assistant
+				var dshbotRows []dshbotstore.Row
+				var dshbotRosterAt string
+				if dr := state.dshbotRoster; dr != nil {
+					snap := dr.Snapshot()
+					if snap.Origin == origin {
+						dshbotRows = snap.Rows
+						dshbotRosterAt = snap.FetchedAt
+					}
+				}
+				state.mu.Unlock()
+				if asst == nil {
+					asst = assiststore.New()
+					state.mu.Lock()
+					state.assistant = asst
+					state.mu.Unlock()
+				}
+				asst.Attach(func() {
+					if win != nil {
+						win.Update(func() {})
+					}
+				})
+				asstSnap := asst.Snapshot()
+				assistantDraft = asst.ConsumeAcceptedDraft(assistantDraft)
+				dshbotSelectedID := ""
+				if asstSnap.DshbotOrigin == origin {
+					dshbotSelectedID = asstSnap.DshbotID
+				}
+				if lastNative == "" {
+					lastNative = asstSnap.LastAction
+				}
+				if lastNative == "" && sessions != nil {
+					lastNative = sessions.Snapshot().LastAction
+				}
+				history := asstSnap.History
+				if len(history) == 0 && sessions != nil {
+					sessSnap := sessions.Snapshot()
+					var pairs []struct{ Role, Body string }
+					for _, m := range sessSnap.Messages {
+						pairs = append(pairs, struct{ Role, Body string }{m.Role, m.Body})
+					}
+					history = assiststore.HistoryFromSessionMessages(pairs, 8)
+				}
+				assistant.View(c, assistant.Model{
+					ThemeID:             themeID,
+					SystemDark:          mygo.Theme.IsDark(),
+					Mode:                asstSnap.Mode,
+					WhaleEnabled:        whaleOn,
+					DshbotEnabled:       dshbotOn,
+					WhaleVendorPresent:  whaleVendor,
+					DshbotVendorPresent: dshbotVendor,
+					HarnessReady:        true,
+					Busy:                asstSnap.Busy || pluginBusy,
+					LastWebViewURL:      lastWebURL,
+					LastNativeAction:    lastNative,
+					LastErr:             asstSnap.LastErr,
+					SessionID:           asstSnap.SessionID,
+					History:             history,
+					Draft:               &assistantDraft,
+					PluginRPCBusy:       pluginBusy,
+					PluginRPCDetail:     pluginDetail,
+					DshbotRoster:        dshbotRows,
+					DshbotRosterFetched: dshbotRosterAt,
+					DshbotSelectedID:    dshbotSelectedID,
+					OnDshbotSelect: func(botID string) {
+						asst.SelectDshbot(botID, origin)
+					},
+					OnSetMode: func(mode assiststore.Mode) {
+						if asst != nil {
+							asst.SetMode(mode)
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenModeWeb: func() {
+						plugin := desktopwebview.PluginWhale
+						if assiststore.NormalizeMode(asstSnap.Mode) == assiststore.ModeDshbot {
+							plugin = desktopwebview.PluginDshbot
+						}
+						state.mu.Lock()
+						state.webviewOpen = true
+						state.assistantOpen = false
+						state.assistantDraft = assistantDraft
+						state.mu.Unlock()
+						state.openWebViewHostPlugin(origin, plugin)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenSession: func(sessionID string) {
+						if sessions != nil && strings.TrimSpace(sessionID) != "" {
+							state.revokePhoneGit()
+							sessions.Select(sessionID)
+						}
+						state.mu.Lock()
+						state.assistantOpen = false
+						state.assistantDraft = assistantDraft
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnClose: func() {
+						state.mu.Lock()
+						state.assistantOpen = false
+						state.assistantDraft = assistantDraft
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnToggleWhale: func(enabled bool) {
+						state.setAssistantFlag(&enabled, nil)
+					},
+					OnToggleDshbot: func(enabled bool) {
+						state.setAssistantFlag(nil, &enabled)
+					},
+					OnOpenWhaleWeb: func() {
+						state.mu.Lock()
+						state.webviewOpen = true
+						state.assistantOpen = false
+						state.assistantDraft = assistantDraft
+						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenWhaleWeb)
+						state.mu.Unlock()
+						state.openWebViewHostPlugin(origin, desktopwebview.PluginWhale)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenDshbotWeb: func() {
+						state.mu.Lock()
+						state.webviewOpen = true
+						state.assistantOpen = false
+						state.assistantDraft = assistantDraft
+						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenDshbotWeb)
+						state.mu.Unlock()
+						state.openWebViewHostPlugin(origin, desktopwebview.PluginDshbot)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnNativePrompt: func(text string) {
+						state.handleAssistantNativePrompt(origin, ep, text)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnWhaleEnsure: func() {
+						state.runAssistantPluginRPC(win, ep, "assistant/ensure", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							ens, err := c.WhaleEnsureTyped(ctx)
+							if err != nil {
+								return "", err
+							}
+							if asst != nil {
+								asst.SetSessionID(ens.SessionID)
+							}
+							if sessions != nil {
+								state.revokePhoneGit()
+								sessions.Select(ens.SessionID)
+							}
+							return ens.SessionID, nil
+						})
+					},
+					OnWhaleCatalog: func() {
+						state.runAssistantPluginRPC(win, ep, "catalog", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							out, err := c.WhaleCatalog(ctx)
+							return string(out), err
+						})
+					},
+					OnWhalePetChat: func(text string) {
+						state.handleAssistantNativePrompt(origin, ep, text)
+					},
+					OnWhalePetState: func() {
+						state.runAssistantPluginRPC(win, ep, "pet/state", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							out, err := c.WhalePetState(ctx, false)
+							return string(out), err
+						})
+					},
+					OnWhalePetLook: func() {
+						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+							Parent: win,
+							Title:  i18n.T(i18n.KeyAssistantWhalePetLook),
+						})
+						if err != nil {
+							state.mu.Lock()
+							state.assistantPluginDetail = "pet/look: " + err.Error()
+							state.assistantLastAct = state.assistantPluginDetail
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
+						}
+						if len(paths) == 0 {
+							return
+						}
+						imgPath := paths[0]
+						state.runAssistantPluginRPC(win, ep, "pet/look", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							st, err := c.WhalePetStateTyped(ctx, false)
+							if err != nil {
+								return "", err
+							}
+							if st.Model == nil || strings.TrimSpace(st.Model.Provider) == "" || strings.TrimSpace(st.Model.Model) == "" {
+								return "", fmt.Errorf("no whale model selected (open whale WebView and pick a vision model)")
+							}
+							raw, err := os.ReadFile(imgPath)
+							if err != nil {
+								return "", err
+							}
+							if len(raw) == 0 || len(raw) > 4<<20 {
+								return "", fmt.Errorf("image empty or larger than 4MiB")
+							}
+							b64 := base64.StdEncoding.EncodeToString(raw)
+							out, err := c.WhalePetLook(ctx, st.Model.Provider, st.Model.Model, b64)
+							return string(out), err
+						})
+					},
+					OnDshbotDescribe: func() {
+						state.runAssistantPluginRPC(win, ep, "describe", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							out, err := c.DshbotDescribe(ctx)
+							return string(out), err
+						})
+					},
+					OnDshbotCatalog: func() {
+						state.runAssistantPluginRPC(win, ep, "catalog/items", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							out, err := c.DshbotCatalog(ctx)
+							return string(out), err
+						})
+					},
+					OnDshbotActivity: func() {
+						state.runAssistantPluginRPC(win, ep, "bot/activity", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							act, err := c.DshbotActivityTyped(ctx, nil)
+							if err != nil {
+								return "", err
+							}
+							return fmt.Sprintf("%d entries", len(act.Entries)), nil
+						})
+					},
+					OnDshbotRefreshRoster: func() {
+						label := i18n.T(i18n.KeyAssistantDshbotRosterRefresh)
+						state.runAssistantPluginRPC(win, ep, label, func(ctx context.Context, c *pluginrpc.Client) (string, error) {
+							res, err := c.DshbotDescribeTyped(ctx, "")
+							if err != nil {
+								return "", err
+							}
+							state.mu.Lock()
+							roster := state.dshbotRoster
+							state.mu.Unlock()
+							if roster != nil {
+								roster.SetFromDescribeForHost(res, false, origin)
+								if act, aerr := c.DshbotActivityTyped(ctx, nil); aerr == nil {
+									roster.MergeActivity(act)
+								}
+								for _, row := range roster.Snapshot().Rows {
+									if row.Kind != "room" {
+										continue
+									}
+									if rt, rerr := c.DshbotGroupRuntime(ctx, row.ID); rerr == nil {
+										roster.ApplyGroupRuntime(rt)
+									}
+								}
+							}
+							rows := pluginrpc.RosterRowsFromDescribe(res, false)
+							return fmt.Sprintf("%d", len(rows)), nil
+						})
+					},
+					OnDshbotOpenRosterSession: func(botID string) {
+						state.openAssistantDshbot(ep, botID)
+					},
+				})
+				state.mu.Lock()
+				state.assistantDraft = assistantDraft
+				state.mu.Unlock()
+				return
+			}
+			if acceptPanelOK && browserPreviewOpen {
+				if state.browserController == nil {
+					state.browserController = state.newBrowserController(win)
+				}
+				state.browserController.View(c, themeID, mygo.Theme.IsDark(), func() {
+					state.mu.Lock()
+					state.browserPreviewOpen = false
+					state.mu.Unlock()
+					if win != nil {
+						win.Update(func() {})
+					}
+				})
+				return
+			}
+
+			if acceptPanelOK && webviewOpen {
+				origin := st.Endpoint.Origin
+				state.mu.Lock()
+				host := state.webviewHost
+				hostErr := state.webviewHostErr
+				hostActive := host != nil && host.Alive()
+				hostURL := ""
+				if hostActive {
+					hostState := host.State()
+					hostURL = hostState.URL
+					if hostState.Error != "" {
+						hostErr = hostState.Error
+					}
+				}
+				resumeURL := desktopwebview.RestorePanelURL(origin, state.lastWebViewOrigin, state.lastWebViewURL)
+				state.mu.Unlock()
+				if hostActive {
+					host.SyncBounds()
+				}
+				webviewui.View(c, webviewui.Model{
+					HarnessOrigin: origin,
+					ThemeID:       themeID,
+					SystemDark:    mygo.Theme.IsDark(),
+					HostActive:    hostActive,
+					HostURL:       hostURL,
+					HostError:     hostErr,
+					OnClose: func() {
+						state.closeWebViewHost()
+						state.mu.Lock()
+						state.webviewOpen = false
+						state.assistantOpen = false
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenHost: func() {
+						state.mu.Lock()
+						state.lastWebViewOrigin = origin
+						state.mu.Unlock()
+						state.openWebViewURL(resumeURL)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCloseHost: func() {
+						state.closeWebViewHost()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnCopyURL: func(u string) {
+						if strings.TrimSpace(u) != "" {
+							mygo.Clipboard.WriteText(u)
+						}
+					},
+					OnReload: func(u string) {
+						u = strings.TrimSpace(u)
+						if u == "" {
+							return
+						}
+						state.mu.Lock()
+						state.webviewHostErr = ""
+						state.mu.Unlock()
+						if host != nil && host.Alive() {
+							host.Reload()
+						} else {
+							state.openWebViewURL(u)
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenBrowser: func() {
+						u := resumeURL
+						if hostActive {
+							u = hostURL
+						}
+						if u != "" {
+							if err := desktopwebview.OpenExternal(u); err != nil {
+								log.Printf("webview: open browser: %v", err)
+							}
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+				})
+				return
+			}
+			if acceptPanelOK && usageOpen && usageStore != nil {
+				sid := ""
+				if sessions != nil {
+					sid = sessions.Snapshot().SelectedID
+				}
+				usageui.View(c, usageui.Model{
+					Store: usageStore,
+					OnExportStats: func(format string) {
+						data, err := usageStore.ExportStats(format)
+						if err != nil {
+							mygo.Dialog.Error("Usage export", err.Error())
+							return
+						}
+						ext := "csv"
+						if format == "json" {
+							ext = "json"
+						}
+						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "Export usage statistics", DefaultPath: "usage-" + format + "." + ext})
+						if err != nil {
+							mygo.Dialog.Error("Usage export", err.Error())
+							return
+						}
+						if path == "" {
+							return
+						}
+						if err = os.WriteFile(path, data, 0600); err != nil {
+							mygo.Dialog.Error("Usage export", err.Error())
+						}
+					},
+					OnOpenSession: func(id string) {
+						if sessions == nil {
+							return
+						}
+						state.revokePhoneGit()
+						sessions.Select(id)
+						sessions.FollowSelected(context.Background())
+						state.mu.Lock()
+						state.usageOpen = false
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					SessionID:  sid,
+					ThemeID:    themeID,
+					SystemDark: mygo.Theme.IsDark(),
+					OnClose: func() {
+						state.mu.Lock()
+						state.usageOpen = false
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnRefresh: func() {
 						usageStore.Refresh(context.Background(), sid)
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
-					OnOpenAuthorize: func(u string) {
-						if err := desktopwebview.OpenExternal(u); err != nil {
-							log.Printf("account: open authorization: %v", err)
-						}
-					},
-					OnOpenUsage: func(u string) {
-						if strings.TrimSpace(u) == "" {
+					OnOpenUsageWeb: func() {
+						u := usageStore.Snapshot().UsageURL
+						if u == "" {
 							return
 						}
 						state.mu.Lock()
-						state.settingsOpen = false
+						state.usageOpen = false
 						state.webviewOpen = true
+						state.assistantOpen = false
 						state.mu.Unlock()
 						state.openWebViewURL(u)
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
-					OnOpenTopUp: func(u string) {
-						if strings.TrimSpace(u) == "" {
+					OnOpenTopUp: func() {
+						u := usageStore.Snapshot().TopUpURL
+						if u == "" {
 							return
 						}
 						if err := desktopwebview.OpenExternal(u); err != nil {
-							log.Printf("account: open top-up: %v", err)
+							log.Printf("usage: open top-up: %v", err)
 						}
 					},
-					OnSignIn: func() {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || !state.accountLogin.Begin() {
-							return
-						}
-						go func() {
-							_, zoneOff := time.Now().Zone()
-							clientMeta := api.AccountClientMetadata{
-								Version:               "whaleisle",
-								Locale:                "zh-CN",
-								TimezoneOffsetSeconds: float64(zoneOff),
-							}
-							var view api.AccountView
-							err := client.Call(context.Background(), "account/startSignIn", map[string]any{
-								"client":         clientMeta,
-								"callbackOrigin": "whaleisle://auth",
-								"loginSource":    "desktop",
-							}, &view)
-							state.accountLogin.Started(view, err, desktopwebview.OpenExternal)
-							if usageStore != nil {
-								sid := ""
-								if sessions != nil {
-									sid = sessions.Snapshot().SelectedID
-								}
-								usageStore.Refresh(context.Background(), sid)
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					OnSignOut: func() {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
-						}
-						go func() {
-							_, zoneOff := time.Now().Zone()
-							clientMeta := api.AccountClientMetadata{
-								Version:               "whaleisle",
-								Locale:                "zh-CN",
-								TimezoneOffsetSeconds: float64(zoneOff),
-							}
-							var view api.AccountView
-							if err := client.Call(context.Background(), "account/signOut", map[string]any{"client": clientMeta}, &view); err != nil {
-								log.Printf("account/signOut: %v", err)
-							}
-							if usageStore != nil {
-								sid := ""
-								if sessions != nil {
-									sid = sessions.Snapshot().SelectedID
-								}
-								usageStore.Refresh(context.Background(), sid)
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					OnCancelSignIn: func() {
-						attemptID := strings.TrimSpace(usageSnap.AttemptID)
-						if attemptID == "" {
-							return
-						}
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
-						}
-						go func() {
-							var out api.AccountView
-							if err := client.Call(context.Background(), "account/cancelSignIn", map[string]any{
-								"attemptId": attemptID,
-							}, &out); err != nil {
-								log.Printf("account/cancelSignIn: %v", err)
-							} else {
-								state.accountLogin.Finish()
-							}
-							if usageStore != nil {
-								sid := ""
-								if sessions != nil {
-									sid = sessions.Snapshot().SelectedID
-								}
-								usageStore.Refresh(context.Background(), sid)
-							}
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-				},
-				CredentialsActive: credsActive,
-				Credentials: &settings.CredentialsAccess{
-					Fields:      credFields,
-					ShowSecrets: &state.credsShowSecrets,
-					LastAction:  credsAction,
-					HarnessNote: credsHarness,
-					Err:         credsErr,
-					OnSave: func() {
-						state.mu.Lock()
-						state.saveCredentials()
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
+					OnCopyUsageURL: func(u string) {
+						if strings.TrimSpace(u) != "" {
+							mygo.Clipboard.WriteText(u)
 						}
 					},
-					OnDescribe: func() {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							state.mu.Lock()
-							state.credsHarnessNote = "credentials/describe: no client"
-							state.mu.Unlock()
-							return
+					OnCopyTopUpURL: func(u string) {
+						if strings.TrimSpace(u) != "" {
+							mygo.Clipboard.WriteText(u)
 						}
-						go func() {
-							desc, err := settingsstore.DescribeCredentials(context.Background(), client, []string{
-								settingsstore.CredRefAPIKey, settingsstore.CredRefGithubToken,
-							})
-							state.mu.Lock()
-							if err != nil {
-								state.credsHarnessNote = err.Error()
-							} else {
-								parts := make([]string, 0, len(desc))
-								for ref, v := range desc {
-									flag := "off"
-									if v.Configured {
-										flag = "on"
-									}
-									parts = append(parts, ref+"="+flag)
-								}
-								state.credsHarnessNote = "credentials/describe: " + strings.Join(parts, ", ")
-							}
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
 					},
-				},
-				AboutActive: aboutActive,
-				About: &settings.AboutAccess{
-					AppName:          i18n.T(i18n.KeyAppName),
-					Version:          buildVersion,
-					Identifier:       "ai.deepseek.harness.gui",
-					UserData:         paths.UserDataDir(),
-					VendorRoot:       paths.VendorDir(),
-					AnalyticsEnabled: state.analyticsEnabled,
-					OnRevealUserData: func() {
-						_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
-					},
-					OnRevealLogs: func() {
-						dir := filepath.Join(paths.UserDataDir(), "logs")
-						_ = os.MkdirAll(dir, 0o755)
-						_ = desktopcomponents.OpenInFileManager(dir)
-					},
-					OnRevealVendor: func() {
-						_ = desktopcomponents.OpenInFileManager(paths.VendorDir())
-					},
-					OnCopyUserData: func() {
-						mygo.Clipboard.WriteText(paths.UserDataDir())
-					},
-					OnCopyVersion: func() {
-						mygo.Clipboard.WriteText(buildVersion)
-					},
-					OnCheckUpdates: func() {
-						state.showUpdateCheck(win)
-					},
-					OnRefreshAnalytics: func() {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
+					OnCopyBalance: func(text string) {
+						if strings.TrimSpace(text) != "" {
+							mygo.Clipboard.WriteText(text)
 						}
-						go func() {
-							on, err := settingsstore.ProductAnalyticsEnabled(context.Background(), client)
-							state.mu.Lock()
-							if err == nil {
-								state.analyticsEnabled = &on
-							}
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
 					},
-				},
-				AppearanceActive: appearanceActive,
-				Appearance: &settings.AppearanceAccess{
+				})
+				return
+			}
+			if settingsOpen && setStore != nil {
+				snap := setStore.Snapshot()
+				state.mu.Lock()
+				if !state.desktopDraft.seeded {
+					state.seedDesktopDraft()
+				}
+				desktopActive := state.settingsDesktopActive
+				accountActive := state.settingsAccountActive
+				credsActive := state.settingsCredentialsActive
+				aboutActive := state.settingsAboutActive
+				appearanceActive := state.settingsAppearanceActive
+				interfaceActive := state.settingsInterfaceActive
+				modelsActive := state.settingsModelsActive
+				mcpActive := state.settingsMCPActive
+				pluginsActive := state.settingsPluginsActive
+				skillsActive := state.settingsSkillsActive
+				agentPresetsActive := state.settingsAgentPresetsActive
+				desktopErr := state.desktopSaveErr
+				desktopAction := state.desktopLastAction
+				if !state.credsDraft.seeded {
+					state.seedCredentialsDraft()
+				}
+				credsErr := state.credsSaveErr
+				credsAction := state.credsLastAction
+				credsHarness := state.credsHarnessNote
+				exeDir, _ := os.Executable()
+				wallpaperChoices := theme.ListWallpapers(theme.WallpaperGalleryDirs(paths.UserDataDir(), filepath.Dir(exeDir))...)
+				desktopFields := settings.DesktopFields{
+					Workspace:        &state.desktopDraft.workspace,
+					Port:             &state.desktopDraft.port,
 					Theme:            &state.desktopDraft.theme,
-					WallpaperPath:    &state.desktopDraft.wallpaperPath,
-					WallpaperChoices: wallpaperChoices,
-					LastAction:       desktopAction,
-					Err:              desktopErr,
-					OnBrowseWallpaper: func() {
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-							Parent: win,
-							Title:  i18n.T(i18n.KeySettingsAppearanceBrowseWallpaper),
-						})
-						if err != nil || len(paths) == 0 {
-							return
-						}
-						state.mu.Lock()
-						state.desktopDraft.wallpaperPath = paths[0]
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnSave: func() {
-						state.mu.Lock()
-						state.saveDesktopConfig()
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-				},
-				InterfaceActive: interfaceActive,
-				Interface: &settings.InterfaceAccess{
 					Locale:           &state.desktopDraft.locale,
 					CloseToTray:      &state.desktopDraft.closeToTray,
 					OpenAtLogin:      &state.desktopDraft.openAtLogin,
-					AutoStartDesktop: &state.desktopDraft.autoStartDesktop,
-					ShowViewTabs:     &state.desktopDraft.showViewTabs,
-					AutoAllowTools:   &state.desktopDraft.autoAllowTools,
-					LastAction:       desktopAction,
-					Err:              desktopErr,
-					OnSave: func() {
+					WallpaperPath:    &state.desktopDraft.wallpaperPath,
+					WallpaperChoices: wallpaperChoices,
+				}
+				credFields := settings.CredentialsFields{
+					APIKey:           &state.credsDraft.apiKey,
+					BaseURL:          &state.credsDraft.baseURL,
+					GithubToken:      &state.credsDraft.githubToken,
+					RemoteToken:      &state.credsDraft.remoteToken,
+					RemoteRelayToken: &state.credsDraft.remoteRelayToken,
+				}
+				sessSnap := session.ViewState{}
+				if sessions != nil {
+					sessSnap = sessions.Snapshot()
+					if state.settingsModelSession != sessSnap.SelectedID {
+						if state.settingsModelDrafts == nil {
+							state.settingsModelDrafts = map[string]string{}
+						}
+						state.settingsModelDrafts[state.settingsModelSession] = state.settingsModelLabel
+						state.settingsModelSession = sessSnap.SelectedID
+						state.settingsModelLabel = state.settingsModelDrafts[sessSnap.SelectedID]
+					}
+					if state.settingsModelLabel == "" && sessSnap.SelectedModel != "" {
+						state.settingsModelLabel = sessSnap.SelectedModel
+					}
+					if state.settingsAgentPresetLabel == "" && sessSnap.SelectedAgentPreset != "" {
+						state.settingsAgentPresetLabel = sessSnap.SelectedAgentPreset
+					}
+				}
+				state.mu.Unlock()
+				marketSnap := marketstore.ViewState{}
+				if marketStore != nil {
+					marketSnap = marketStore.Snapshot()
+				}
+				usageSnap := usagestore.ViewState{}
+				if usageStore != nil {
+					usageSnap = usageStore.Snapshot()
+				}
+				state.accountLogin.Observe(api.AccountView{Status: usageSnap.AccountStatus, Attempt: api.AccountViewAttempt{
+					Id: usageSnap.AttemptID, Phase: usageSnap.AttemptPhase, AuthorizeUrl: &usageSnap.AuthorizeURL,
+				}}, desktopwebview.OpenExternal)
+				loginState := state.accountLogin.Snapshot()
+				if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
+					usageSnap.AuthorizeURL = loginState.URL
+				}
+				pluginRows := make([]settings.PluginRow, 0, len(marketSnap.Rows))
+				for _, row := range marketSnap.Rows {
+					pluginRows = append(pluginRows, settings.PluginRow{
+						Name: row.Label, Status: row.Detail, Disabled: row.Enabled != nil && !*row.Enabled,
+						CanToggle: row.CanToggle(), ReadOnlyReason: row.ReadOnlyReason, Error: row.Error,
+					})
+				}
+				skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillCatalog.Skills))
+				for _, sk := range sessSnap.SkillCatalog.Skills {
+					skillRows = append(skillRows, settings.SkillRow{
+						Name:           sk.Name,
+						Description:    sk.Description,
+						ModelInvocable: sk.ModelInvocable,
+						Groups:         sk.Groups, Writable: sk.Writable, UserInvocable: sk.UserInvocable, Error: sessSnap.SkillCatalog.Errors[sk.Name],
+					})
+				}
+				settings.View(c, settings.Model{
+					Pet:           state.desktopPet,
+					Store:         setStore,
+					ThemeID:       themeID,
+					SystemDark:    mygo.Theme.IsDark(),
+					DesktopActive: desktopActive,
+					Desktop: &settings.DesktopAccess{
+						Fields:     desktopFields,
+						LastAction: desktopAction,
+						Err:        desktopErr,
+						OnSave: func() {
+							state.mu.Lock()
+							state.saveDesktopConfig()
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnBrowseWorkspace: func() {
+							def := strings.TrimSpace(state.desktopDraft.workspace)
+							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+								Parent:      win,
+								Title:       i18n.T(i18n.KeySettingsDesktopBrowseWorkspace),
+								DefaultPath: def,
+								Directory:   true,
+							})
+							if err != nil || len(paths) == 0 {
+								return
+							}
+							state.mu.Lock()
+							state.desktopDraft.workspace = paths[0]
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDetectElectron: func() {
+							state.showElectronImportReport(win)
+						},
+						OnCheckUpdates: func() {
+							state.showUpdateCheck(win)
+						},
+					},
+					AccountActive: accountActive,
+					Account: &settings.AccountAccess{
+						SignInBusy:      loginState.Busy,
+						ClientReady:     usageSnap.ClientReady,
+						Loading:         usageSnap.Loading,
+						Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error),
+						Status:          usageSnap.AccountStatus,
+						Email:           usageSnap.Email,
+						Name:            usageSnap.Name,
+						Plan:            usageSnap.Plan,
+						UsageURL:        usageSnap.UsageURL,
+						TopUpURL:        usageSnap.TopUpURL,
+						BalanceSummary:  usageSnap.BalanceSummary,
+						HasRunningTasks: usageSnap.HasRunningTasks,
+						AttemptPhase:    usageSnap.AttemptPhase,
+						SignInAttemptID: usageSnap.AttemptID,
+						AuthorizeURL:    usageSnap.AuthorizeURL,
+						Bonuses: func() []settings.AccountBonus {
+							out := make([]settings.AccountBonus, 0, len(usageSnap.Bonuses))
+							for _, b := range usageSnap.Bonuses {
+								label := strings.TrimSpace(b.Amount + " " + b.Currency)
+								if label == "" {
+									label = b.Campaign
+								}
+								out = append(out, settings.AccountBonus{
+									AccountID: b.AccountID,
+									OrderID:   b.OrderID,
+									Label:     label,
+									Detail:    b.Message,
+								})
+							}
+							return out
+						}(),
+						OnAckBonus: func(accountID, orderID string) {
+							if usageStore == nil {
+								return
+							}
+							sid := ""
+							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
+							}
+							usageStore.AckBonusNotified(context.Background(), accountID, orderID, sid)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnRefresh: func() {
+							if usageStore == nil {
+								return
+							}
+							sid := ""
+							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
+							}
+							usageStore.Refresh(context.Background(), sid)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnOpenAuthorize: func(u string) {
+							if err := desktopwebview.OpenExternal(u); err != nil {
+								log.Printf("account: open authorization: %v", err)
+							}
+						},
+						OnOpenUsage: func(u string) {
+							if strings.TrimSpace(u) == "" {
+								return
+							}
+							state.mu.Lock()
+							state.settingsOpen = false
+							state.webviewOpen = true
+							state.mu.Unlock()
+							state.openWebViewURL(u)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnOpenTopUp: func(u string) {
+							if strings.TrimSpace(u) == "" {
+								return
+							}
+							if err := desktopwebview.OpenExternal(u); err != nil {
+								log.Printf("account: open top-up: %v", err)
+							}
+						},
+						OnSignIn: func() {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil || !state.accountLogin.Begin() {
+								return
+							}
+							go func() {
+								_, zoneOff := time.Now().Zone()
+								clientMeta := api.AccountClientMetadata{
+									Version:               "whaleisle",
+									Locale:                "zh-CN",
+									TimezoneOffsetSeconds: float64(zoneOff),
+								}
+								var view api.AccountView
+								err := client.Call(context.Background(), "account/startSignIn", map[string]any{
+									"client":         clientMeta,
+									"callbackOrigin": "whaleisle://auth",
+									"loginSource":    "desktop",
+								}, &view)
+								state.accountLogin.Started(view, err, desktopwebview.OpenExternal)
+								if usageStore != nil {
+									sid := ""
+									if sessions != nil {
+										sid = sessions.Snapshot().SelectedID
+									}
+									usageStore.Refresh(context.Background(), sid)
+								}
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						OnSignOut: func() {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil {
+								return
+							}
+							go func() {
+								_, zoneOff := time.Now().Zone()
+								clientMeta := api.AccountClientMetadata{
+									Version:               "whaleisle",
+									Locale:                "zh-CN",
+									TimezoneOffsetSeconds: float64(zoneOff),
+								}
+								var view api.AccountView
+								if err := client.Call(context.Background(), "account/signOut", map[string]any{"client": clientMeta}, &view); err != nil {
+									log.Printf("account/signOut: %v", err)
+								}
+								if usageStore != nil {
+									sid := ""
+									if sessions != nil {
+										sid = sessions.Snapshot().SelectedID
+									}
+									usageStore.Refresh(context.Background(), sid)
+								}
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						OnCancelSignIn: func() {
+							attemptID := strings.TrimSpace(usageSnap.AttemptID)
+							if attemptID == "" {
+								return
+							}
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil {
+								return
+							}
+							go func() {
+								var out api.AccountView
+								if err := client.Call(context.Background(), "account/cancelSignIn", map[string]any{
+									"attemptId": attemptID,
+								}, &out); err != nil {
+									log.Printf("account/cancelSignIn: %v", err)
+								} else {
+									state.accountLogin.Finish()
+								}
+								if usageStore != nil {
+									sid := ""
+									if sessions != nil {
+										sid = sessions.Snapshot().SelectedID
+									}
+									usageStore.Refresh(context.Background(), sid)
+								}
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+					},
+					CredentialsActive: credsActive,
+					Credentials: &settings.CredentialsAccess{
+						Fields:      credFields,
+						ShowSecrets: &state.credsShowSecrets,
+						LastAction:  credsAction,
+						HarnessNote: credsHarness,
+						Err:         credsErr,
+						OnSave: func() {
+							state.mu.Lock()
+							state.saveCredentials()
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDescribe: func() {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil {
+								state.mu.Lock()
+								state.credsHarnessNote = "credentials/describe: no client"
+								state.mu.Unlock()
+								return
+							}
+							go func() {
+								desc, err := settingsstore.DescribeCredentials(context.Background(), client, []string{
+									settingsstore.CredRefAPIKey, settingsstore.CredRefGithubToken,
+								})
+								state.mu.Lock()
+								if err != nil {
+									state.credsHarnessNote = err.Error()
+								} else {
+									parts := make([]string, 0, len(desc))
+									for ref, v := range desc {
+										flag := "off"
+										if v.Configured {
+											flag = "on"
+										}
+										parts = append(parts, ref+"="+flag)
+									}
+									state.credsHarnessNote = "credentials/describe: " + strings.Join(parts, ", ")
+								}
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+					},
+					AboutActive: aboutActive,
+					About: &settings.AboutAccess{
+						AppName:          i18n.T(i18n.KeyAppName),
+						Version:          buildVersion,
+						Identifier:       "ai.deepseek.harness.gui",
+						UserData:         paths.UserDataDir(),
+						VendorRoot:       paths.VendorDir(),
+						AnalyticsEnabled: state.analyticsEnabled,
+						OnRevealUserData: func() {
+							_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
+						},
+						OnRevealLogs: func() {
+							dir := filepath.Join(paths.UserDataDir(), "logs")
+							_ = os.MkdirAll(dir, 0o755)
+							_ = desktopcomponents.OpenInFileManager(dir)
+						},
+						OnRevealVendor: func() {
+							_ = desktopcomponents.OpenInFileManager(paths.VendorDir())
+						},
+						OnCopyUserData: func() {
+							mygo.Clipboard.WriteText(paths.UserDataDir())
+						},
+						OnCopyVersion: func() {
+							mygo.Clipboard.WriteText(buildVersion)
+						},
+						OnCheckUpdates: func() {
+							state.showUpdateCheck(win)
+						},
+						OnRefreshAnalytics: func() {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil {
+								return
+							}
+							go func() {
+								on, err := settingsstore.ProductAnalyticsEnabled(context.Background(), client)
+								state.mu.Lock()
+								if err == nil {
+									state.analyticsEnabled = &on
+								}
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+					},
+					AppearanceActive: appearanceActive,
+					Appearance: &settings.AppearanceAccess{
+						Theme:            &state.desktopDraft.theme,
+						WallpaperPath:    &state.desktopDraft.wallpaperPath,
+						WallpaperChoices: wallpaperChoices,
+						LastAction:       desktopAction,
+						Err:              desktopErr,
+						OnBrowseWallpaper: func() {
+							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+								Parent: win,
+								Title:  i18n.T(i18n.KeySettingsAppearanceBrowseWallpaper),
+							})
+							if err != nil || len(paths) == 0 {
+								return
+							}
+							state.mu.Lock()
+							state.desktopDraft.wallpaperPath = paths[0]
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnSave: func() {
+							state.mu.Lock()
+							state.saveDesktopConfig()
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+					},
+					InterfaceActive: interfaceActive,
+					Interface: &settings.InterfaceAccess{
+						Locale:           &state.desktopDraft.locale,
+						CloseToTray:      &state.desktopDraft.closeToTray,
+						OpenAtLogin:      &state.desktopDraft.openAtLogin,
+						AutoStartDesktop: &state.desktopDraft.autoStartDesktop,
+						ShowViewTabs:     &state.desktopDraft.showViewTabs,
+						AutoAllowTools:   &state.desktopDraft.autoAllowTools,
+						LastAction:       desktopAction,
+						Err:              desktopErr,
+						OnSave: func() {
+							state.mu.Lock()
+							showTabs := state.desktopDraft.showViewTabs
+							state.saveDesktopConfig()
+							set := state.settings
+							state.mu.Unlock()
+							if set != nil {
+								set.SyncViewTabs(context.Background(), showTabs)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+					},
+					ModelsActive: modelsActive,
+					Models: &settings.ModelsAccess{
+						ProviderProfiles: state.providerProfilesAccess(),
+						Vision:           state.visionSettingsAccess(),
+						Labels:           sessSnap.ModelLabels,
+						Selected:         &state.settingsModelLabel,
+						SessionID:        sessSnap.SelectedID,
+						Err:              sessSnap.ModelsErr,
+						LastAction:       sessSnap.LastAction,
+						OnRefresh: func() {
+							if sessions != nil {
+								sessions.RefreshModelCatalog(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDiscover: func() {
+							if sessions != nil {
+								sessions.DiscoverLLMProviders(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnApply: func() {
+							state.mu.Lock()
+							label := state.settingsModelLabel
+							state.mu.Unlock()
+							if sessions != nil && label != "" {
+								sessions.SelectModelForSessionID(context.Background(), sessSnap.SelectedID, label)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+					},
+					MCPActive:     mcpActive,
+					MCP:           state.settingsMCPAccess(),
+					PluginsActive: pluginsActive,
+					Plugins: &settings.PluginsAccess{
+						Rows:             pluginRows,
+						HasListRPC:       marketSnap.HasListRPC,
+						Err:              marketSnap.Err,
+						ClientReady:      marketSnap.ClientReady,
+						Loading:          marketSnap.Loading,
+						Busy:             marketInstallBusy,
+						OperationMessage: marketInstallMsg,
+						Activation:       marketActivation,
+						CanRestart:       marketCanRestart,
+						OnRestart:        state.restartMarketPlugins,
+						LastAction: func() string {
+							if state.settingsPluginsLastAction != "" {
+								return state.settingsPluginsLastAction
+							}
+							return marketSnap.ListMethod
+						}(),
+						OnRefresh: func() {
+							if marketStore != nil {
+								marketStore.Refresh(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnSetDisabled: func(name string, disabled bool) {
+							state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": !disabled})
+						},
+						OnOpenView: state.openInstalledPluginView,
+						OnInspect:  state.inspectInstalledPlugin,
+						OnOpenMarket: func() {
+							origin := ""
+							marketDisabled := false
+							state.mu.Lock()
+							state.settingsOpen = false
+							state.settingsDesktopActive = false
+							state.settingsAccountActive = false
+							state.settingsCredentialsActive = false
+							state.settingsAboutActive = false
+							state.settingsAppearanceActive = false
+							state.settingsInterfaceActive = false
+							state.settingsModelsActive = false
+							state.settingsMCPActive = false
+							state.settingsPluginsActive = false
+							state.settingsSkillsActive = false
+							state.settingsAgentPresetsActive = false
+							if state.cfgStore != nil {
+								for _, p := range state.cfgStore.Get().DisabledPlugins {
+									if p == "ui-settings-market" || p == "dsh-client-ui-settings-market" ||
+										p == "@deepseek-ai/dsh-client-ui-settings-market" {
+										marketDisabled = true
+										break
+									}
+								}
+							}
+							if state.sup != nil {
+								st := state.sup.Status()
+								if st.State == harness.Ready && !marketDisabled {
+									origin = st.Endpoint.Origin
+								}
+							}
+							if origin == "" {
+								state.marketOpen = true
+							}
+							state.mu.Unlock()
+							if origin != "" {
+								state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
+							} else if marketStore != nil {
+								marketStore.Refresh(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+					},
+					SkillsActive: skillsActive,
+					Skills: &settings.SkillsAccess{
+						Skills:     skillRows,
+						SessionID:  sessSnap.SelectedID,
+						Err:        sessSnap.SkillCatalog.Err,
+						Notice:     sessSnap.SkillCatalog.Notice,
+						Busy:       sessSnap.SkillCatalog.Busy,
+						LastAction: strings.TrimSpace(strings.Join([]string{state.settingsSkillsLastAction, sessSnap.LastAction, sessSnap.SkillCatalog.Action}, "\n")),
+						EditGroups: &state.settingsSkillEditGroups,
+						OnSetGroupInvocable: func(group string, enabled bool) {
+							if sessions != nil {
+								sessions.SetSkillGroupInvocation(context.Background(), group, enabled)
+							}
+						},
+						CreateName:    &state.skillCreateName,
+						DetailPreview: state.settingsSkillsDetail,
+						EditName:      state.settingsSkillEditName,
+						EditDesc:      &state.settingsSkillEditDesc,
+						EditContent:   &state.settingsSkillEditContent,
+						EditWritable:  state.settingsSkillEditWritable && state.settingsSkillEditSession == sessSnap.SelectedID,
+						OnSaveUpdate: func() {
+							name := strings.TrimSpace(state.settingsSkillEditName)
+							if sessions == nil || name == "" || !state.settingsSkillEditWritable || state.settingsSkillEditSession != sessions.Snapshot().SelectedID {
+								return
+							}
+							sessions.SaveCatalogSkill(context.Background(), api.SkillInventoryDetail{
+								Name: name, Description: state.settingsSkillEditDesc, Content: state.settingsSkillEditContent,
+								Groups: strings.Split(state.settingsSkillEditGroups, ","), WhenToUse: state.settingsSkillEditWhen,
+								Writable: state.settingsSkillEditWritable, ModelInvocable: state.settingsSkillEditModel, UserInvocable: state.settingsSkillEditUser,
+							})
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnCreate: func(name string) {
+							if sessions != nil {
+								sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDelete: func(name string) {
+							if sessions != nil {
+								sessions.DeleteSkillInventory(context.Background(), name)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnInspect: func(name string) {
+							name = strings.TrimSpace(name)
+							if sessions == nil || name == "" {
+								return
+							}
+							state.mu.Lock()
+							state.settingsSkillInspectVersion++
+							inspectVersion := state.settingsSkillInspectVersion
+							state.settingsSkillEditWritable = false
+							state.mu.Unlock()
+							inspectSession := sessSnap.SelectedID
+							go func() {
+								doc, err := sessions.GetCatalogSkillDetail(context.Background(), name)
+								preview := ""
+								editName := ""
+								editDesc := ""
+								editContent := ""
+								editModel := false
+								editUser := true
+								writable := false
+								if err != nil {
+									preview = err.Error()
+								} else {
+									editName = doc.Name
+									editDesc = doc.Description
+									editContent = doc.Content
+									editModel = doc.ModelInvocable
+									editUser = doc.UserInvocable
+									writable = doc.Writable
+									preview = strings.TrimSpace(doc.Description)
+									if doc.Source != "" {
+										if preview != "" {
+											preview += " · "
+										}
+										preview += doc.Source
+									}
+									if writable {
+										if preview != "" {
+											preview += " · "
+										}
+										preview += "writable"
+									}
+									body := strings.TrimSpace(doc.Content)
+									if body != "" {
+										if preview != "" {
+											preview += "\n"
+										}
+										if len(body) > 800 {
+											body = body[:800] + "…"
+										}
+										preview += body
+									}
+								}
+								state.mu.Lock()
+								if state.settingsSkillInspectVersion != inspectVersion || sessions.Snapshot().SelectedID != inspectSession {
+									state.mu.Unlock()
+									return
+								}
+								state.settingsSkillEditSession = inspectSession
+								state.settingsSkillsDetail = preview
+								state.settingsSkillEditName = editName
+								state.settingsSkillEditGroups = strings.Join(doc.Groups, ", ")
+								state.settingsSkillEditWhen = doc.WhenToUse
+								state.settingsSkillEditDesc = editDesc
+								state.settingsSkillEditContent = editContent
+								state.settingsSkillEditModel = editModel
+								state.settingsSkillEditUser = editUser
+								state.settingsSkillEditWritable = writable
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						HubQuery: &state.settingsSkillHubQuery,
+						HubHits:  append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
+						OnRefresh: func() {
+							if sessions != nil {
+								sessions.RefreshSkills(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnSearchHub: func(query string) {
+							query = strings.TrimSpace(query)
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil || query == "" {
+								return
+							}
+							sid := sessSnap.SelectedID
+							go func() {
+								root := "user"
+								req := api.SkillHubSearchRequest{Query: query, Root: root}
+								if sid != "" {
+									req.SessionId = &sid
+								}
+								var out api.SearchHubResult
+								err := client.Call(context.Background(), "skillInventory/searchHub", map[string]any{"request": req}, &out)
+								hits := make([]settings.SkillHubHit, 0, len(out))
+								if err == nil {
+									for _, item := range out {
+										st := ""
+										if item.InstallationStatus != nil {
+											st = *item.InstallationStatus
+										}
+										hits = append(hits, settings.SkillHubHit{
+											SkillName:   item.SkillName,
+											Repo:        item.Repo,
+											Path:        item.Path,
+											Description: item.Description,
+											Stars:       item.Stars,
+											Status:      st,
+										})
+									}
+								}
+								state.mu.Lock()
+								if err != nil {
+									state.settingsSkillsLastAction = err.Error()
+									state.settingsSkillHubHits = nil
+								} else {
+									state.settingsSkillsLastAction = fmt.Sprintf("hub: %d", len(hits))
+									state.settingsSkillHubHits = hits
+								}
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						OnInstallHub: func(repo, path, skillName string) {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							if client == nil || repo == "" || path == "" || skillName == "" {
+								return
+							}
+							sid := sessSnap.SelectedID
+							go func() {
+								req := api.SkillHubInstallRequest{
+									Repo: repo, Path: path, SkillName: skillName, Root: "user",
+								}
+								if sid != "" {
+									req.SessionId = &sid
+								}
+								var out api.SkillHubInstallResult
+								err := client.Call(context.Background(), "skillInventory/installHub", map[string]any{"request": req}, &out)
+								state.mu.Lock()
+								if err != nil {
+									state.settingsSkillsLastAction = err.Error()
+								} else {
+									state.settingsSkillsLastAction = fmt.Sprintf("installed %s (%s)", out.SkillName, out.Status)
+								}
+								state.mu.Unlock()
+								if sessions != nil {
+									sessions.RefreshSkills(context.Background())
+								}
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						OnInsert: func(name string) {
+							name = strings.TrimSpace(name)
+							if name == "" {
+								return
+							}
+							state.mu.Lock()
+							id := ""
+							if sessions != nil {
+								id = sessions.Snapshot().SelectedID
+							}
+							skillDraft := state.composerDraftLocked(id)
+							draft := strings.TrimRight(skillDraft.Text, " ")
+							if draft != "" {
+								draft += " "
+							}
+							skillDraft.Text = draft + "/" + name + " "
+							skillDraft.Client.Sync()
+							state.settingsOpen = false
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnSetModelInvocable: func(name string, modelInvocable bool) {
+							if sessions != nil {
+								sessions.SetCatalogSkillInvocation(context.Background(), name, modelInvocable)
+							}
+						},
+					},
+					AgentPresetsActive: agentPresetsActive,
+					AgentPresets: &settings.AgentPresetsAccess{
+						Labels:     sessSnap.AgentPresetLabels,
+						Selected:   &state.settingsAgentPresetLabel,
+						SessionID:  sessSnap.SelectedID,
+						Err:        sessSnap.AgentPresetsErr,
+						LastAction: sessSnap.LastAction,
+						DocPreview: state.settingsAgentPresetDoc,
+						OnRefresh: func() {
+							if sessions != nil {
+								sessions.RefreshAgentPresets(context.Background())
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnRead: func() {
+							state.mu.Lock()
+							label := state.settingsAgentPresetLabel
+							state.mu.Unlock()
+							if sessions == nil || label == "" {
+								return
+							}
+							go func() {
+								doc, err := sessions.ReadAgentPresetDocument(context.Background(), label)
+								preview := ""
+								if err != nil {
+									preview = err.Error()
+								} else {
+									preview = strings.TrimSpace(doc.Content)
+									if doc.Description != nil && strings.TrimSpace(*doc.Description) != "" {
+										preview = strings.TrimSpace(*doc.Description) + "\n\n" + preview
+									}
+									if len(preview) > 1200 {
+										preview = preview[:1200] + "…"
+									}
+								}
+								state.mu.Lock()
+								state.settingsAgentPresetDoc = preview
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+							}()
+						},
+						OnApply: func() {
+							state.mu.Lock()
+							label := state.settingsAgentPresetLabel
+							state.mu.Unlock()
+							if sessions != nil && label != "" {
+								sessions.SelectAgentPresetForSession(context.Background(), label)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+					},
+					OnSelectDesktop: func() {
 						state.mu.Lock()
-						showTabs := state.desktopDraft.showViewTabs
-						state.saveDesktopConfig()
-						set := state.settings
+						state.settingsDesktopActive = true
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
 						state.mu.Unlock()
-						if set != nil {
-							set.SyncViewTabs(context.Background(), showTabs)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectAccount: func() {
+						state.mu.Lock()
+						state.settingsAccountActive = true
+						state.settingsDesktopActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						state.mu.Unlock()
+						if usageStore != nil {
+							sid := ""
+							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
+							}
+							usageStore.Refresh(context.Background(), sid)
 						}
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
-				},
-				ModelsActive: modelsActive,
-				Models: &settings.ModelsAccess{
-					ProviderProfiles: state.providerProfilesAccess(),
-					Vision:           state.visionSettingsAccess(),
-					Labels:           sessSnap.ModelLabels,
-					Selected:         &state.settingsModelLabel,
-					SessionID:        sessSnap.SelectedID,
-					Err:              sessSnap.ModelsErr,
-					LastAction:       sessSnap.LastAction,
-					OnRefresh: func() {
+					OnSelectCredentials: func() {
+						state.mu.Lock()
+						state.settingsCredentialsActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						if !state.credsDraft.seeded {
+							state.seedCredentialsDraft()
+						}
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectAbout: func() {
+						state.mu.Lock()
+						state.settingsAboutActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectAppearance: func() {
+						state.mu.Lock()
+						state.settingsAppearanceActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						if !state.desktopDraft.seeded {
+							state.seedDesktopDraft()
+						}
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectInterface: func() {
+						state.mu.Lock()
+						state.settingsInterfaceActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						if !state.desktopDraft.seeded {
+							state.seedDesktopDraft()
+						}
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectModels: func() {
+						state.mu.Lock()
+						state.settingsModelsActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						if state.settingsModelLabel == "" && sessions != nil {
+							state.settingsModelLabel = sessions.Snapshot().SelectedModel
+						}
+						state.mu.Unlock()
+						state.refreshProviderProfiles()
+						state.refreshVisionSettings()
 						if sessions != nil {
 							sessions.RefreshModelCatalog(context.Background())
 						}
@@ -4997,47 +5571,39 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
-					OnDiscover: func() {
-						if sessions != nil {
-							sessions.DiscoverLLMProviders(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnApply: func() {
+					OnSelectMCP: func() {
 						state.mu.Lock()
-						label := state.settingsModelLabel
+						state.settingsMCPActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
 						state.mu.Unlock()
-						if sessions != nil && label != "" {
-							sessions.SelectModelForSessionID(context.Background(), sessSnap.SelectedID, label)
-						}
+						state.refreshSettingsMCP()
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
-				},
-				MCPActive:     mcpActive,
-				MCP:           state.settingsMCPAccess(),
-				PluginsActive: pluginsActive,
-				Plugins: &settings.PluginsAccess{
-					Rows:       pluginRows,
-					HasListRPC: marketSnap.HasListRPC,
-					Err:        marketSnap.Err,
-					ClientReady: marketSnap.ClientReady,
-					Loading: marketSnap.Loading,
-					Busy: marketInstallBusy,
-					OperationMessage: marketInstallMsg,
-					Activation: marketActivation,
-					CanRestart: marketCanRestart,
-					OnRestart: state.restartMarketPlugins,
-					LastAction: func() string {
-						if state.settingsPluginsLastAction != "" {
-							return state.settingsPluginsLastAction
-						}
-						return marketSnap.ListMethod
-					}(),
-					OnRefresh: func() {
+					OnSelectPlugins: func() {
+						state.mu.Lock()
+						state.settingsPluginsActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						state.mu.Unlock()
 						if marketStore != nil {
 							marketStore.Refresh(context.Background())
 						}
@@ -5045,14 +5611,71 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
-					OnSetDisabled: func(name string, disabled bool) {
-						state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": !disabled})
+					OnSelectSkills: func() {
+						state.mu.Lock()
+						state.settingsSkillsActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsAgentPresetsActive = false
+						state.mu.Unlock()
+						if sessions != nil {
+							sessions.RefreshSkills(context.Background())
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
 					},
-					OnOpenView: state.openInstalledPluginView,
-					OnInspect: state.inspectInstalledPlugin,
-					OnOpenMarket: func() {
-						origin := ""
-						marketDisabled := false
+					OnSelectAgentPresets: func() {
+						state.mu.Lock()
+						state.settingsAgentPresetsActive = true
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						if state.settingsAgentPresetLabel == "" && sessions != nil {
+							state.settingsAgentPresetLabel = sessions.Snapshot().SelectedAgentPreset
+						}
+						state.mu.Unlock()
+						if sessions != nil {
+							sessions.RefreshAgentPresets(context.Background())
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnSelectNamespace: func(ns string) {
+						state.mu.Lock()
+						state.settingsDesktopActive = false
+						state.settingsAccountActive = false
+						state.settingsCredentialsActive = false
+						state.settingsAboutActive = false
+						state.settingsAppearanceActive = false
+						state.settingsInterfaceActive = false
+						state.settingsModelsActive = false
+						state.settingsMCPActive = false
+						state.settingsPluginsActive = false
+						state.settingsSkillsActive = false
+						state.settingsAgentPresetsActive = false
+						state.mu.Unlock()
+						setStore.Select(ns)
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnClose: func() {
 						state.mu.Lock()
 						state.settingsOpen = false
 						state.settingsDesktopActive = false
@@ -5066,1579 +5689,992 @@ func mainView(c *ui.Context) {
 						state.settingsPluginsActive = false
 						state.settingsSkillsActive = false
 						state.settingsAgentPresetsActive = false
-						if state.cfgStore != nil {
-							for _, p := range state.cfgStore.Get().DisabledPlugins {
-								if p == "ui-settings-market" || p == "dsh-client-ui-settings-market" ||
-									p == "@deepseek-ai/dsh-client-ui-settings-market" {
-									marketDisabled = true
-									break
-								}
-							}
-						}
-						if state.sup != nil {
-							st := state.sup.Status()
-							if st.State == harness.Ready && !marketDisabled {
-								origin = st.Endpoint.Origin
-							}
-						}
-						if origin == "" {
-							state.marketOpen = true
-						}
+						state.settingsAgentPresetLabel = ""
+						state.settingsDrafts = nil
+						state.settingsNSFilter = ""
+						state.settingsRevealSecrets = false
+						state.desktopSaveErr = ""
+						state.desktopLastAction = ""
+						state.credsDraft.seeded = false
+						state.credsSaveErr = ""
+						state.credsLastAction = ""
+						state.credsShowSecrets = false
 						state.mu.Unlock()
-						if origin != "" {
-							state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
-						} else if marketStore != nil {
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnDraft: setStore.SetDraft,
+					DraftPtr: func(key, seed string) *string {
+						return state.settingsDraftPtr(snap.SelectedNS, key, seed)
+					},
+					BoolPtr: func(key, seed string) *bool {
+						return state.settingsBoolPtr(snap.SelectedNS, key, seed)
+					},
+					OnOpenMarket: func() {
+						state.mu.Lock()
+						state.settingsOpen = false
+						state.marketOpen = true
+						state.mu.Unlock()
+						if marketStore != nil {
 							marketStore.Refresh(context.Background())
 						}
 						if win != nil {
 							win.Update(func() {})
 						}
 					},
-				},
-				SkillsActive: skillsActive,
-				Skills: &settings.SkillsAccess{
-					Skills:     skillRows,
-					SessionID:  sessSnap.SelectedID,
-					Err:        sessSnap.SkillCatalog.Err,
-					Notice:     sessSnap.SkillCatalog.Notice,
-					Busy:       sessSnap.SkillCatalog.Busy,
-					LastAction: strings.TrimSpace(strings.Join([]string{state.settingsSkillsLastAction, sessSnap.LastAction, sessSnap.SkillCatalog.Action}, "\n")),
-					EditGroups: &state.settingsSkillEditGroups,
-					OnSetGroupInvocable: func(group string, enabled bool) {
-						if sessions != nil {
-							sessions.SetSkillGroupInvocation(context.Background(), group, enabled)
-						}
-					},
-					CreateName:    &state.skillCreateName,
-					DetailPreview: state.settingsSkillsDetail,
-					EditName:      state.settingsSkillEditName,
-					EditDesc:      &state.settingsSkillEditDesc,
-					EditContent:   &state.settingsSkillEditContent,
-					EditWritable:  state.settingsSkillEditWritable && state.settingsSkillEditSession == sessSnap.SelectedID,
-					OnSaveUpdate: func() {
-						name := strings.TrimSpace(state.settingsSkillEditName)
-						if sessions == nil || name == "" || !state.settingsSkillEditWritable || state.settingsSkillEditSession != sessions.Snapshot().SelectedID {
-							return
-						}
-						sessions.SaveCatalogSkill(context.Background(), api.SkillInventoryDetail{
-							Name: name, Description: state.settingsSkillEditDesc, Content: state.settingsSkillEditContent,
-							Groups: strings.Split(state.settingsSkillEditGroups, ","), WhenToUse: state.settingsSkillEditWhen,
-							Writable: state.settingsSkillEditWritable, ModelInvocable: state.settingsSkillEditModel, UserInvocable: state.settingsSkillEditUser,
-						})
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnCreate: func(name string) {
-						if sessions != nil {
-							sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnDelete: func(name string) {
-						if sessions != nil {
-							sessions.DeleteSkillInventory(context.Background(), name)
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnInspect: func(name string) {
-						name = strings.TrimSpace(name)
-						if sessions == nil || name == "" {
-							return
-						}
+					OnOpenRemote: func() {
 						state.mu.Lock()
-						state.settingsSkillInspectVersion++
-						inspectVersion := state.settingsSkillInspectVersion
-						state.settingsSkillEditWritable = false
+						state.settingsOpen = false
+						state.remoteOpen = true
 						state.mu.Unlock()
-						inspectSession := sessSnap.SelectedID
-						go func() {
-							doc, err := sessions.GetCatalogSkillDetail(context.Background(), name)
-							preview := ""
-							editName := ""
-							editDesc := ""
-							editContent := ""
-							editModel := false
-							editUser := true
-							writable := false
-							if err != nil {
-								preview = err.Error()
-							} else {
-								editName = doc.Name
-								editDesc = doc.Description
-								editContent = doc.Content
-								editModel = doc.ModelInvocable
-								editUser = doc.UserInvocable
-								writable = doc.Writable
-								preview = strings.TrimSpace(doc.Description)
-								if doc.Source != "" {
-									if preview != "" {
-										preview += " · "
-									}
-									preview += doc.Source
-								}
-								if writable {
-									if preview != "" {
-										preview += " · "
-									}
-									preview += "writable"
-								}
-								body := strings.TrimSpace(doc.Content)
-								if body != "" {
-									if preview != "" {
-										preview += "\n"
-									}
-									if len(body) > 800 {
-										body = body[:800] + "…"
-									}
-									preview += body
-								}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					OnOpenUsage: func() {
+						state.mu.Lock()
+						state.settingsOpen = false
+						state.usageOpen = true
+						state.mu.Unlock()
+						if usageStore != nil {
+							sid := ""
+							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
 							}
+							usageStore.Refresh(context.Background(), sid)
+						}
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
+					FilterPtr:     &state.settingsNSFilter,
+					RevealSecrets: &state.settingsRevealSecrets,
+					ConfirmReplace: func() bool {
+						res, err := mygo.Dialog.Message(mygo.MessageOptions{
+							Parent:        win,
+							Type:          mygo.MessageQuestion,
+							Title:         i18n.T(i18n.KeySettingsReplaceConfirmTitle),
+							Message:       i18n.T(i18n.KeySettingsReplaceConfirmMessage),
+							Buttons:       []string{i18n.T(i18n.KeySettingsReplaceCancel), i18n.T(i18n.KeySettingsReplace)},
+							DefaultButton: 0,
+							CancelButton:  0,
+						})
+						return err == nil && res.Button == 1
+					},
+				})
+				return
+			}
+			// Electron keeps the desk rail+chat chrome visible while harness boots
+			// or fails; exclusive boot.View hid the entire left rail and blocked
+			// pixel acceptance. Paint the dialogue shell whenever we have a store.
+			if sessions == nil {
+				state.mu.Lock()
+				if state.sessions == nil {
+					state.sessions = session.New()
+				}
+				sessions = state.sessions
+				state.mu.Unlock()
+			}
+			if sessions != nil {
+				state.mu.Lock()
+				if state.agentPresetManager == nil {
+					state.agentPresetManager = session.NewAgentPresetManager(sessions)
+				}
+				agentPresetManager := state.agentPresetManager
+				state.mu.Unlock()
+				// Body under the title bar must Grow into remaining height (not Fill%).
+				ui.Column(c).Grow(1).MinHeight(0).Children(func() {
+					state.mu.Lock()
+					connBanner := connectionBanner(st, state.dshMuxReady, state.dshMuxLost)
+					state.mu.Unlock()
+					var usageJobsToday *int
+					usageBalance := ""
+					if usageStore != nil {
+						us := usageStore.Snapshot()
+						usageBalance = us.BalanceSummary
+						if n, ok := usagestore.TodayJobCount(us.DayBuckets); ok {
+							usageJobsToday = &n
+						}
+					}
+					snap := sessions.Snapshot()
+					state.mu.Lock()
+					activeDraft := state.composerDraftLocked(snap.SelectedID)
+					draft = activeDraft.Text
+					state.composerTextInput = activeDraft.Client
+					state.mu.Unlock()
+					if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
+						modelPick = snap.SelectedModel
+					}
+					if snap.SelectedPermission != "" && permissionPick != snap.SelectedPermission {
+						permissionPick = snap.SelectedPermission
+					}
+					if snap.SelectedAgentPreset != "" && agentPresetPick != snap.SelectedAgentPreset {
+						agentPresetPick = snap.SelectedAgentPreset
+					}
+					state.mu.Lock()
+					if state.composerSuggest.Selected == nil {
+						state.composerSuggest.Selected = &state.composerSuggestSel
+					}
+					if strings.HasPrefix(draft, "/") && snap.ClientReady {
+						sessions.EnsureSlashCommands(context.Background())
+					}
+					state.composerSlash = composer.BuildSlashCatalog(composer.StubSlashCommands(), composer.FromAPIList(snap.SlashCommands))
+					if kind, _, _, ok := composer.ActiveSuggest(draft); ok && kind == composer.SuggestMention {
+						root := strings.TrimSpace(workspaceRoot)
+						if root != "" && root != state.composerPathsRoot {
+							if paths, err := workspacefs.IndexRelPaths(root, 4000); err == nil {
+								state.composerPathsRoot = root
+								state.composerPaths = paths
+							}
+						}
+					}
+					composerSlash := state.composerSlash
+					composerPaths := state.composerPaths
+					composerSuggest := state.composerSuggest
+					composerSkillsOpen := state.composerSkillsOpen
+					composerSkillsList := state.composerSkillsList
+					composerSkillsFilter := state.composerSkillsFilter
+					skillCreateName := state.skillCreateName
+					composerChipEdit := state.composerChipEdit
+					if composerSkillsOpen && snap.SelectedID != "" && snap.SelectedID != state.composerSkillsSession {
+						sessions.RefreshSkills(context.Background())
+						state.composerSkillsSession = snap.SelectedID
+					}
+					if composerSkillsList.Selected == nil {
+						composerSkillsList.Selected = &state.composerSkillsSel
+					}
+					state.mu.Unlock()
+					state.ensureTerminal(workspaceRoot, mygo.Theme.IsDark())
+					state.mu.Lock()
+					termPanel := state.terminalPanel
+					termShellsNote := state.terminalShellsNote
+					state.mu.Unlock()
+					filePaneWidth := float32(0)
+					state.mu.Lock()
+					filesPaneOpen := state.filesPaneOpen
+					state.mu.Unlock()
+					visualReplyState := sessions.VisualReplySnapshot()
+					if visualReplyState.SessionID != snap.SelectedID {
+						visualReplyState = session.VisualReplyState{}
+					}
+					frameModel := frame.Model{
+						ExternalNavigation: sharedNavigation,
+						Projects:           state.projectModel(win),
+						Store:              sessions,
+						AgentPresetManager: agentPresetManager,
+						Interactions:       interactions,
+						OnAutoAllowChanged: func(on bool) {
 							state.mu.Lock()
-							if state.settingsSkillInspectVersion != inspectVersion || sessions.Snapshot().SelectedID != inspectSession {
-								state.mu.Unlock()
+							state.desktopDraft.autoAllowTools = on
+							if state.cfgStore != nil {
+								_ = state.cfgStore.Update(func(c *config.Config) {
+									c.AutoAllowTools = on
+								})
+							}
+							state.mu.Unlock()
+						},
+						ConnectionBanner: connBanner,
+						OnReconnect: func() {
+							state.mu.Lock()
+							sup := state.sup
+							state.mu.Unlock()
+							if sup != nil {
+								state.restartUnlessImport(sup)
+							}
+						},
+						SessionCost: costui.Model{Billing: func() usagestore.BillingView {
+							if usageStore != nil {
+								return usageStore.Billing()
+							}
+							return usagestore.BillingView{}
+						}(), Preferences: setStore.Snapshot(), State: &state.sessionCostState, OnPrices: func() { state.mu.Lock(); state.usageOpen = true; state.mu.Unlock() }},
+						UsageJobsToday: usageJobsToday,
+						UsageBalance:   usageBalance,
+						OnOpenUsage: func() {
+							if usageStore == nil {
 								return
 							}
-							state.settingsSkillEditSession = inspectSession
-							state.settingsSkillsDetail = preview
-							state.settingsSkillEditName = editName
-							state.settingsSkillEditGroups = strings.Join(doc.Groups, ", ")
-							state.settingsSkillEditWhen = doc.WhenToUse
-							state.settingsSkillEditDesc = editDesc
-							state.settingsSkillEditContent = editContent
-							state.settingsSkillEditModel = editModel
-							state.settingsSkillEditUser = editUser
-							state.settingsSkillEditWritable = writable
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					HubQuery: &state.settingsSkillHubQuery,
-					HubHits:  append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
-					OnRefresh: func() {
-						if sessions != nil {
-							sessions.RefreshSkills(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnSearchHub: func(query string) {
-						query = strings.TrimSpace(query)
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || query == "" {
-							return
-						}
-						sid := sessSnap.SelectedID
-						go func() {
-							root := "user"
-							req := api.SkillHubSearchRequest{Query: query, Root: root}
-							if sid != "" {
-								req.SessionId = &sid
-							}
-							var out api.SearchHubResult
-							err := client.Call(context.Background(), "skillInventory/searchHub", map[string]any{"request": req}, &out)
-							hits := make([]settings.SkillHubHit, 0, len(out))
-							if err == nil {
-								for _, item := range out {
-									st := ""
-									if item.InstallationStatus != nil {
-										st = *item.InstallationStatus
-									}
-									hits = append(hits, settings.SkillHubHit{
-										SkillName:   item.SkillName,
-										Repo:        item.Repo,
-										Path:        item.Path,
-										Description: item.Description,
-										Stars:       item.Stars,
-										Status:      st,
-									})
-								}
-							}
 							state.mu.Lock()
-							if err != nil {
-								state.settingsSkillsLastAction = err.Error()
-								state.settingsSkillHubHits = nil
-							} else {
-								state.settingsSkillsLastAction = fmt.Sprintf("hub: %d", len(hits))
-								state.settingsSkillHubHits = hits
-							}
+							state.usageOpen = true
+							state.imOpen = false
+							state.settingsOpen = false
+							state.webviewOpen = false
+							state.browserPreviewOpen = false
+							state.assistantOpen = false
+							state.remoteOpen = false
+							state.marketOpen = false
+							state.scheduleOpen = false
 							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
-					OnInstallHub: func(repo, path, skillName string) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil || repo == "" || path == "" || skillName == "" {
-							return
-						}
-						sid := sessSnap.SelectedID
-						go func() {
-							req := api.SkillHubInstallRequest{
-								Repo: repo, Path: path, SkillName: skillName, Root: "user",
-							}
-							if sid != "" {
-								req.SessionId = &sid
-							}
-							var out api.SkillHubInstallResult
-							err := client.Call(context.Background(), "skillInventory/installHub", map[string]any{"request": req}, &out)
-							state.mu.Lock()
-							if err != nil {
-								state.settingsSkillsLastAction = err.Error()
-							} else {
-								state.settingsSkillsLastAction = fmt.Sprintf("installed %s (%s)", out.SkillName, out.Status)
-							}
-							state.mu.Unlock()
+							sid := ""
 							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
+							}
+							usageStore.Refresh(context.Background(), sid)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						Sizes:         &layout,
+						ChatList:      &chatList,
+						ThemeID:       themeID,
+						SystemDark:    mygo.Theme.IsDark(),
+						Draft:         &activeDraft.Text,
+						ComposerState: activeDraft,
+						OnSubmitComposer: func() {
+							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq)
+						},
+						OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
+						OnPasteComposerImage:  func(explicit bool) { state.pasteComposerImage(win, sessions, snap.SelectedID, activeDraft, explicit) },
+						EditMessageSeq:        &editMessageSeq,
+						FeedbackCommentMsgID:  &feedbackCommentMsgID,
+						FeedbackCommentDraft:  &feedbackCommentDraft,
+						ModelPick:             &modelPick,
+						PermissionPick:        &permissionPick,
+						AgentPresetPick:       &agentPresetPick,
+						ThinkingExpanded:      &thinkingExpanded,
+						RenameSessionID:       &renameSessionID,
+						RenameDraft:           &renameDraft,
+						SessionSearch:         &sessionSearch,
+						WorkspaceRoot:         workspaceRoot,
+						FileExpanded:          &fileExpanded,
+						SelectedFile:          &selectedFile,
+						FileFilter:            &fileFilter,
+						FilePreview:           &filePreview,
+						FilePreviewErr:        &filePreviewErr,
+						FilePreviewList:       &filePreviewList,
+						FileEditing:           &fileEditing,
+						FileEditDraft:         &fileEditDraft,
+						FileTabs:              &fileTabs,
+						GitWorkbench:          &gitWorkbench,
+						FileEditStatus:        &fileEditStatus,
+						FileEditViewMode:      &fileEditViewMode,
+						FileEditSplit:         &fileEditSplit,
+						FilePaneWidth:         &filePaneWidth,
+						RightPaneOpen:         filesPaneOpen,
+						RightPaneTab:          &rightPaneTab,
+						AgentsPromptDraft:     &agentsPromptDraft,
+						GoalDraft:             &goalDraft,
+						DiffPath:              &diffPath,
+						DiffText:              &diffText,
+						DiffErr:               &diffErr,
+						PlanBoardOpen:         &planBoardOpen,
+						TodoPanelCollapsed:    &todoPanelCollapsed,
+						ChatPaneTab:           &chatPaneTab,
+						HideChatViewTabs: func() bool {
+							if settingsOpen && state.settingsInterfaceActive {
+								return !state.desktopDraft.showViewTabs
+							}
+							return state.cfgStore != nil && state.cfgStore.Get().HideChatViewTabs
+						}(),
+						TrajSearch:         &trajSearch,
+						TrajSelectedID:     &trajSelectedID,
+						TrajActualDuration: &trajActualDur,
+						TrajTurnsCollapsed: &trajTurnsFold,
+						TrajCallsCollapsed: &trajCallsFold,
+						TrajDetailTab:      &trajDetailTab,
+						ImageLightboxPath:  &imageLightboxPath,
+						OnOpenImageLightbox: func(p string) {
+							imageLightboxPath = p
+							state.mu.Lock()
+							state.imageLightboxPath = p
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnCloseImageLightbox: func() {
+							imageLightboxPath = ""
+							state.mu.Lock()
+							state.imageLightboxPath = ""
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						ComposerSuggest:      &composerSuggest,
+						ComposerSlash:        composerSlash,
+						ComposerPaths:        composerPaths,
+						ComposerSkillsOpen:   composerSkillsOpen,
+						ComposerSkillsList:   &composerSkillsList,
+						ComposerSkillsFilter: &composerSkillsFilter,
+						ComposerChipEdit:     &composerChipEdit,
+						ComposerTextInput:    state.composerTextInput,
+						// The native client and composer share the stable session-owned draft.
+						UseComposerTextInput: true,
+						OnSearchSkillHub: func(query string) {
+							if sessions != nil {
+								sessions.SearchSkillHub(context.Background(), query, "user")
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnInstallSkillHub: func(hit session.SkillHubHit) {
+							if sessions != nil {
+								sessions.InstallSkillHub(context.Background(), hit, "user")
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDeleteSkill: func(name string) {
+							if sessions != nil {
+								sessions.DeleteSkillInventory(context.Background(), name)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						SkillCreateName: &skillCreateName,
+						OnCreateSkill: func(name string) {
+							if sessions != nil {
+								sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnToggleSkillModel: func(name string, modelInvocable bool) {
+							if sessions != nil {
+								sessions.SetSkillInvocation(context.Background(), name, modelInvocable, true)
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnToggleComposerSkills: func(open bool) {
+							state.mu.Lock()
+							state.composerSkillsOpen = open
+							state.mu.Unlock()
+							if open && sessions != nil {
 								sessions.RefreshSkills(context.Background())
 							}
 							if win != nil {
 								win.Update(func() {})
 							}
-						}()
-					},
-					OnInsert: func(name string) {
-						name = strings.TrimSpace(name)
-						if name == "" {
-							return
-						}
-						state.mu.Lock()
-						id := ""
-						if sessions != nil {
-							id = sessions.Snapshot().SelectedID
-						}
-						skillDraft := state.composerDraftLocked(id)
-						draft := strings.TrimRight(skillDraft.Text, " ")
-						if draft != "" {
-							draft += " "
-						}
-						skillDraft.Text = draft + "/" + name + " "
-						skillDraft.Client.Sync()
-						state.settingsOpen = false
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnSetModelInvocable: func(name string, modelInvocable bool) {
-						if sessions != nil {
-							sessions.SetCatalogSkillInvocation(context.Background(), name, modelInvocable)
-						}
-					},
-				},
-				AgentPresetsActive: agentPresetsActive,
-				AgentPresets: &settings.AgentPresetsAccess{
-					Labels:     sessSnap.AgentPresetLabels,
-					Selected:   &state.settingsAgentPresetLabel,
-					SessionID:  sessSnap.SelectedID,
-					Err:        sessSnap.AgentPresetsErr,
-					LastAction: sessSnap.LastAction,
-					DocPreview: state.settingsAgentPresetDoc,
-					OnRefresh: func() {
-						if sessions != nil {
-							sessions.RefreshAgentPresets(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnRead: func() {
-						state.mu.Lock()
-						label := state.settingsAgentPresetLabel
-						state.mu.Unlock()
-						if sessions == nil || label == "" {
-							return
-						}
-						go func() {
-							doc, err := sessions.ReadAgentPresetDocument(context.Background(), label)
-							preview := ""
-							if err != nil {
-								preview = err.Error()
-							} else {
-								preview = strings.TrimSpace(doc.Content)
-								if doc.Description != nil && strings.TrimSpace(*doc.Description) != "" {
-									preview = strings.TrimSpace(*doc.Description) + "\n\n" + preview
+						},
+						OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
+						OnPickHeroWorkspace: func() {
+							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
+						},
+						OnBrowseWorkspace: func() {
+							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
+						},
+						OnRevealWorkspace: func() {
+							root := strings.TrimSpace(workspaceRoot)
+							if root == "" && state.cfgStore != nil {
+								root = strings.TrimSpace(state.cfgStore.Get().Workspace)
+							}
+							if root == "" {
+								return
+							}
+							_ = desktopcomponents.OpenInFileManager(root)
+						},
+						WorkspaceRenameDraft: &state.workspaceRenameDraft,
+						OnRenameWorkspace: func(title string) {
+							if sessions == nil {
+								return
+							}
+							id := sessions.WorkspaceID()
+							if id == "" {
+								sessions.SetLastAction("workspace rename: no workspace id")
+								return
+							}
+							sessions.RenameWorkspace(context.Background(), id, title)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnDeleteWorkspace: func() {
+							if sessions == nil {
+								return
+							}
+							id := sessions.WorkspaceID()
+							if id == "" {
+								sessions.SetLastAction("workspace delete: no workspace id")
+								return
+							}
+							sessions.DeleteWorkspace(context.Background(), id)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnMoveSessionBefore: func(sessionID, beforeSessionID string) {
+							if sessions == nil {
+								return
+							}
+							sessions.InsertSessionBefore(context.Background(), sessions.WorkspaceID(), sessionID, beforeSessionID)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						WorkspaceMenuOpen: &state.workspaceMenuOpen,
+						OnOpenAgents: func() {
+							state.mu.Lock()
+							state.filesPaneOpen = true
+							state.rightPaneTab = "agents"
+							state.mu.Unlock()
+							rightPaneTab = "agents"
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnPickComposerDirectory: func() {
+							root := strings.TrimSpace(workspaceRoot)
+							if root == "" {
+								if sessions != nil {
+									sessions.SetLastAction(i18n.T(i18n.KeyComposerDirNoWorkspace))
 								}
-								if len(preview) > 1200 {
-									preview = preview[:1200] + "…"
+								return
+							}
+							picked := ""
+							state.mu.Lock()
+							tunnel := state.sshTunnel
+							state.mu.Unlock()
+							hostPick := false
+							if tunnel != nil {
+								if _, st, _ := tunnel.Snapshot(); st == sshremote.TunnelConnected {
+									hostPick = true
 								}
 							}
+							if hostPick && sessions != nil {
+								state.openDirectoryPicker(sessions, win, "mention")
+								return
+							} else {
+								paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+									Parent:      win,
+									Title:       i18n.T(i18n.KeyComposerDirDialogTitle),
+									DefaultPath: root,
+									Directory:   true,
+								})
+								if err != nil {
+									if sessions != nil {
+										sessions.SetLastAction(err.Error())
+									}
+									return
+								}
+								if len(paths) == 0 {
+									return // cancelled
+								}
+								picked = paths[0]
+							}
+							if picked == "" {
+								return
+							}
+							if err := composer.InsertDirectoryMention(&activeDraft.Text, root, picked); err != nil {
+								if sessions != nil {
+									sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
+								}
+								return
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnPickComposerImage: func() {
+							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: "Attach files or images", DefaultPath: workspaceRoot, Multiple: true})
+							if err != nil {
+								activeDraft.Error = err.Error()
+								return
+							}
+							state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						ComposerVoice:         state.composerVoiceStatus(),
+						OnStartComposerVoice:  func() { state.startComposerVoice(win, sessions, snap.SelectedID, activeDraft) },
+						OnStopComposerVoice:   state.stopComposerVoice,
+						OnCancelComposerVoice: state.cancelComposerVoice,
+						OnInsertComposerVoice: state.insertComposerVoice,
+						OnPickComposerSpeech: func() {
+							if sessions == nil {
+								return
+							}
+							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+								Parent: win,
+								Title:  i18n.T(i18n.KeyComposerSpeech),
+							})
+							if err != nil {
+								sessions.SetLastAction(err.Error())
+								return
+							}
+							if len(paths) == 0 {
+								return
+							}
+							go func() {
+								text, err := sessions.TranscribeAudioFile(context.Background(), paths[0])
+								if err != nil {
+									sessions.SetLastAction(err.Error())
+									if win != nil {
+										win.Update(func() {})
+									}
+									return
+								}
+								if win != nil {
+									win.Update(func() { composer.AppendTranscript(&activeDraft.Text, text) })
+								}
+							}()
+						},
+						OnCycleComposerSpeech: func() {
+							if sessions == nil {
+								return
+							}
+							sessions.CycleSpeechProvider(context.Background())
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnListWorkspaceFiles: func(rel string) ([]workspacefs.Entry, error) {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							return workspacefs.ListRemoteDir(context.Background(), client, rel)
+						},
+						OnReadWorkspaceFile: func(rel string) (string, error) {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							return workspacefs.ReadRemoteText(context.Background(), client, rel, workspacefs.DefaultMaxReadBytes)
+						},
+						FileStatNote: &state.fileStatNote,
+						OnStatWorkspaceFile: func(rel string) string {
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							st, err := workspacefs.StatRemote(context.Background(), client, rel)
+							if err != nil {
+								return ""
+							}
+							note := strings.TrimSpace(st.Version)
+							if st.Bytes != nil {
+								if note != "" {
+									note += " · "
+								}
+								note += fmt.Sprintf("%.0f B", *st.Bytes)
+							}
+							if note == "" {
+								note = strings.TrimSpace(st.AbsolutePath)
+							}
+							return note
+						},
+						OnIndexWorkspace: func(root string) []string {
+							if root == "" {
+								return nil
+							}
+							paths, err := workspacefs.IndexRelPaths(root, 4000)
+							if err != nil {
+								return nil
+							}
 							state.mu.Lock()
-							state.settingsAgentPresetDoc = preview
+							state.composerPathsRoot = root
+							state.composerPaths = paths
+							state.mu.Unlock()
+							return paths
+						},
+						OnSearchFileRefs: func(query string) []string {
+							if sessions == nil || st.State != harness.Ready {
+								return nil
+							}
+							return sessions.ListFileReferences(context.Background(), query)
+						},
+						Terminal:              termPanel,
+						TerminalShellsNote:    termShellsNote,
+						CanAddSelectionToChat: sessions != nil && snap.SelectedID != "" && !activeDraft.Sending,
+						OnAddSelectionToChat: func(fragment string) error {
+							return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment)
+						},
+						BrowserContent: func(c *ui.Context) {
+							if state.browserController == nil {
+								state.browserController = state.newBrowserController(win)
+							}
+							state.browserController.ViewDocked(c, themeID, mygo.Theme.IsDark(), func() { rightPaneTab = "files"; state.browserController.Hide() })
+						},
+						OnHideBrowser: func() {
+							if state.browserController != nil {
+								state.browserController.Hide()
+							}
+						},
+						OnOpenBrowserPreview: func() {
+							rightPaneTab = "browser"
+							filesPaneOpen = true
+						},
+						OnOpenMarket: func() {
+							state.mu.Lock()
+							state.marketOpen = true
+							state.scheduleOpen = false
+							state.assistantOpen = false
+							state.settingsOpen = false
+							state.launcherOpen = false
 							state.mu.Unlock()
 							if win != nil {
 								win.Update(func() {})
 							}
-						}()
-					},
-					OnApply: func() {
-						state.mu.Lock()
-						label := state.settingsAgentPresetLabel
-						state.mu.Unlock()
-						if sessions != nil && label != "" {
-							sessions.SelectAgentPresetForSession(context.Background(), label)
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-				},
-				OnSelectDesktop: func() {
-					state.mu.Lock()
-					state.settingsDesktopActive = true
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectAccount: func() {
-					state.mu.Lock()
-					state.settingsAccountActive = true
-					state.settingsDesktopActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					if usageStore != nil {
-						sid := ""
-						if sessions != nil {
-							sid = sessions.Snapshot().SelectedID
-						}
-						usageStore.Refresh(context.Background(), sid)
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectCredentials: func() {
-					state.mu.Lock()
-					state.settingsCredentialsActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					if !state.credsDraft.seeded {
-						state.seedCredentialsDraft()
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectAbout: func() {
-					state.mu.Lock()
-					state.settingsAboutActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectAppearance: func() {
-					state.mu.Lock()
-					state.settingsAppearanceActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					if !state.desktopDraft.seeded {
-						state.seedDesktopDraft()
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectInterface: func() {
-					state.mu.Lock()
-					state.settingsInterfaceActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					if !state.desktopDraft.seeded {
-						state.seedDesktopDraft()
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectModels: func() {
-					state.mu.Lock()
-					state.settingsModelsActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					if state.settingsModelLabel == "" && sessions != nil {
-						state.settingsModelLabel = sessions.Snapshot().SelectedModel
-					}
-					state.mu.Unlock()
-					state.refreshProviderProfiles()
-					state.refreshVisionSettings()
-					if sessions != nil {
-						sessions.RefreshModelCatalog(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectMCP: func() {
-					state.mu.Lock()
-					state.settingsMCPActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					state.refreshSettingsMCP()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectPlugins: func() {
-					state.mu.Lock()
-					state.settingsPluginsActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					if marketStore != nil {
-						marketStore.Refresh(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectSkills: func() {
-					state.mu.Lock()
-					state.settingsSkillsActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					if sessions != nil {
-						sessions.RefreshSkills(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectAgentPresets: func() {
-					state.mu.Lock()
-					state.settingsAgentPresetsActive = true
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					if state.settingsAgentPresetLabel == "" && sessions != nil {
-						state.settingsAgentPresetLabel = sessions.Snapshot().SelectedAgentPreset
-					}
-					state.mu.Unlock()
-					if sessions != nil {
-						sessions.RefreshAgentPresets(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnSelectNamespace: func(ns string) {
-					state.mu.Lock()
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.mu.Unlock()
-					setStore.Select(ns)
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnClose: func() {
-					state.mu.Lock()
-					state.settingsOpen = false
-					state.settingsDesktopActive = false
-					state.settingsAccountActive = false
-					state.settingsCredentialsActive = false
-					state.settingsAboutActive = false
-					state.settingsAppearanceActive = false
-					state.settingsInterfaceActive = false
-					state.settingsModelsActive = false
-					state.settingsMCPActive = false
-					state.settingsPluginsActive = false
-					state.settingsSkillsActive = false
-					state.settingsAgentPresetsActive = false
-					state.settingsAgentPresetLabel = ""
-					state.settingsDrafts = nil
-					state.settingsNSFilter = ""
-					state.settingsRevealSecrets = false
-					state.desktopSaveErr = ""
-					state.desktopLastAction = ""
-					state.credsDraft.seeded = false
-					state.credsSaveErr = ""
-					state.credsLastAction = ""
-					state.credsShowSecrets = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnDraft: setStore.SetDraft,
-				DraftPtr: func(key, seed string) *string {
-					return state.settingsDraftPtr(snap.SelectedNS, key, seed)
-				},
-				BoolPtr: func(key, seed string) *bool {
-					return state.settingsBoolPtr(snap.SelectedNS, key, seed)
-				},
-				OnOpenMarket: func() {
-					state.mu.Lock()
-					state.settingsOpen = false
-					state.marketOpen = true
-					state.mu.Unlock()
-					if marketStore != nil {
-						marketStore.Refresh(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenRemote: func() {
-					state.mu.Lock()
-					state.settingsOpen = false
-					state.remoteOpen = true
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnOpenUsage: func() {
-					state.mu.Lock()
-					state.settingsOpen = false
-					state.usageOpen = true
-					state.mu.Unlock()
-					if usageStore != nil {
-						sid := ""
-						if sessions != nil {
-							sid = sessions.Snapshot().SelectedID
-						}
-						usageStore.Refresh(context.Background(), sid)
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				FilterPtr:     &state.settingsNSFilter,
-				RevealSecrets: &state.settingsRevealSecrets,
-				ConfirmReplace: func() bool {
-					res, err := mygo.Dialog.Message(mygo.MessageOptions{
-						Parent:        win,
-						Type:          mygo.MessageQuestion,
-						Title:         i18n.T(i18n.KeySettingsReplaceConfirmTitle),
-						Message:       i18n.T(i18n.KeySettingsReplaceConfirmMessage),
-						Buttons:       []string{i18n.T(i18n.KeySettingsReplaceCancel), i18n.T(i18n.KeySettingsReplace)},
-						DefaultButton: 0,
-						CancelButton:  0,
-					})
-					return err == nil && res.Button == 1
-				},
-			})
-			return
-		}
-		// Electron keeps the desk rail+chat chrome visible while harness boots
-		// or fails; exclusive boot.View hid the entire left rail and blocked
-		// pixel acceptance. Paint the dialogue shell whenever we have a store.
-		if sessions == nil {
-			state.mu.Lock()
-			if state.sessions == nil {
-				state.sessions = session.New()
-			}
-			sessions = state.sessions
-			state.mu.Unlock()
-		}
-		if sessions != nil {
-			state.mu.Lock()
-			if state.agentPresetManager == nil {
-				state.agentPresetManager = session.NewAgentPresetManager(sessions)
-			}
-			agentPresetManager := state.agentPresetManager
-			state.mu.Unlock()
-			// Body under the title bar must Grow into remaining height (not Fill%).
-			ui.Column(c).Grow(1).MinHeight(0).Children(func() {
-				state.mu.Lock()
-				connBanner := connectionBanner(st, state.dshMuxReady, state.dshMuxLost)
-				state.mu.Unlock()
-				var usageJobsToday *int
-				usageBalance := ""
-				if usageStore != nil {
-					us := usageStore.Snapshot()
-					usageBalance = us.BalanceSummary
-					if n, ok := usagestore.TodayJobCount(us.DayBuckets); ok {
-						usageJobsToday = &n
-					}
-				}
-				snap := sessions.Snapshot()
-				state.mu.Lock()
-				activeDraft := state.composerDraftLocked(snap.SelectedID)
-				draft = activeDraft.Text
-				state.composerTextInput = activeDraft.Client
-				state.mu.Unlock()
-				if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
-					modelPick = snap.SelectedModel
-				}
-				if snap.SelectedPermission != "" && permissionPick != snap.SelectedPermission {
-					permissionPick = snap.SelectedPermission
-				}
-				if snap.SelectedAgentPreset != "" && agentPresetPick != snap.SelectedAgentPreset {
-					agentPresetPick = snap.SelectedAgentPreset
-				}
-				state.mu.Lock()
-				if state.composerSuggest.Selected == nil {
-					state.composerSuggest.Selected = &state.composerSuggestSel
-				}
-				if strings.HasPrefix(draft, "/") && snap.ClientReady {
-					sessions.EnsureSlashCommands(context.Background())
-				}
-				state.composerSlash = composer.BuildSlashCatalog(composer.StubSlashCommands(), composer.FromAPIList(snap.SlashCommands))
-				if kind, _, _, ok := composer.ActiveSuggest(draft); ok && kind == composer.SuggestMention {
-					root := strings.TrimSpace(workspaceRoot)
-					if root != "" && root != state.composerPathsRoot {
-						if paths, err := workspacefs.IndexRelPaths(root, 4000); err == nil {
-							state.composerPathsRoot = root
-							state.composerPaths = paths
-						}
-					}
-				}
-				composerSlash := state.composerSlash
-				composerPaths := state.composerPaths
-				composerSuggest := state.composerSuggest
-				composerSkillsOpen := state.composerSkillsOpen
-				composerSkillsList := state.composerSkillsList
-				composerSkillsFilter := state.composerSkillsFilter
-				skillCreateName := state.skillCreateName
-				composerChipEdit := state.composerChipEdit
-				if composerSkillsOpen && snap.SelectedID != "" && snap.SelectedID != state.composerSkillsSession {
-					sessions.RefreshSkills(context.Background())
-					state.composerSkillsSession = snap.SelectedID
-				}
-				if composerSkillsList.Selected == nil {
-					composerSkillsList.Selected = &state.composerSkillsSel
-				}
-				state.mu.Unlock()
-				state.ensureTerminal(workspaceRoot, mygo.Theme.IsDark())
-				state.mu.Lock()
-				termPanel := state.terminalPanel
-				termShellsNote := state.terminalShellsNote
-				state.mu.Unlock()
-				filePaneWidth := float32(0)
-				state.mu.Lock()
-				filesPaneOpen := state.filesPaneOpen
-				state.mu.Unlock()
-				visualReplyState := sessions.VisualReplySnapshot()
-				if visualReplyState.SessionID != snap.SelectedID { visualReplyState = session.VisualReplyState{} }
-				frameModel := frame.Model{
-					ExternalNavigation: sharedNavigation,
-					Projects:           state.projectModel(win),
-					Store:              sessions,
-					AgentPresetManager: agentPresetManager,
-					Interactions:       interactions,
-					OnAutoAllowChanged: func(on bool) {
-						state.mu.Lock()
-						state.desktopDraft.autoAllowTools = on
-						if state.cfgStore != nil {
-							_ = state.cfgStore.Update(func(c *config.Config) {
-								c.AutoAllowTools = on
-							})
-						}
-						state.mu.Unlock()
-					},
-					ConnectionBanner: connBanner,
-					OnReconnect: func() {
-						state.mu.Lock()
-						sup := state.sup
-						state.mu.Unlock()
-						if sup != nil {
-							state.restartUnlessImport(sup)
-						}
-					},
-					SessionCost: costui.Model{Billing: func() usagestore.BillingView {
-						if usageStore != nil {
-							return usageStore.Billing()
-						}
-						return usagestore.BillingView{}
-					}(), Preferences: setStore.Snapshot(), State: &state.sessionCostState, OnPrices: func() { state.mu.Lock(); state.usageOpen = true; state.mu.Unlock() }},
-					UsageJobsToday: usageJobsToday,
-					UsageBalance:   usageBalance,
-					OnOpenUsage: func() {
-						if usageStore == nil {
-							return
-						}
-						state.mu.Lock()
-						state.usageOpen = true
-						state.imOpen = false
-						state.settingsOpen = false
-						state.webviewOpen = false
-						state.browserPreviewOpen = false
-						state.assistantOpen = false
-						state.remoteOpen = false
-						state.marketOpen = false
-						state.scheduleOpen = false
-						state.mu.Unlock()
-						sid := ""
-						if sessions != nil {
-							sid = sessions.Snapshot().SelectedID
-						}
-						usageStore.Refresh(context.Background(), sid)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					Sizes:         &layout,
-					ChatList:      &chatList,
-					ThemeID:       themeID,
-					SystemDark:    mygo.Theme.IsDark(),
-					Draft:         &activeDraft.Text,
-					ComposerState: activeDraft,
-					OnSubmitComposer: func() {
-						state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq)
-					},
-					OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
- OnPasteComposerImage: func(explicit bool){state.pasteComposerImage(win,sessions,snap.SelectedID,activeDraft,explicit)},
-					EditMessageSeq:        &editMessageSeq,
-					FeedbackCommentMsgID:  &feedbackCommentMsgID,
-					FeedbackCommentDraft:  &feedbackCommentDraft,
-					ModelPick:             &modelPick,
-					PermissionPick:        &permissionPick,
-					AgentPresetPick:       &agentPresetPick,
-					ThinkingExpanded:      &thinkingExpanded,
-					RenameSessionID:       &renameSessionID,
-					RenameDraft:           &renameDraft,
-					SessionSearch:         &sessionSearch,
-					WorkspaceRoot:         workspaceRoot,
-					FileExpanded:          &fileExpanded,
-					SelectedFile:          &selectedFile,
-					FileFilter:            &fileFilter,
-					FilePreview:           &filePreview,
-					FilePreviewErr:        &filePreviewErr,
-					FilePreviewList:       &filePreviewList,
-					FileEditing:           &fileEditing,
-					FileEditDraft:         &fileEditDraft,
-					FileTabs:              &fileTabs,
-					GitWorkbench:          &gitWorkbench,
-					FileEditStatus:        &fileEditStatus,
-					FileEditViewMode:      &fileEditViewMode,
-					FileEditSplit:         &fileEditSplit,
-					FilePaneWidth:         &filePaneWidth,
-					RightPaneOpen:         filesPaneOpen,
-					RightPaneTab:          &rightPaneTab,
-					AgentsPromptDraft:     &agentsPromptDraft,
-					GoalDraft:             &goalDraft,
-					DiffPath:              &diffPath,
-					DiffText:              &diffText,
-					DiffErr:               &diffErr,
-					PlanBoardOpen:         &planBoardOpen,
-					TodoPanelCollapsed:    &todoPanelCollapsed,
-					ChatPaneTab:           &chatPaneTab,
-					HideChatViewTabs: func() bool {
-						if settingsOpen && state.settingsInterfaceActive {
-							return !state.desktopDraft.showViewTabs
-						}
-						return state.cfgStore != nil && state.cfgStore.Get().HideChatViewTabs
-					}(),
-					TrajSearch:         &trajSearch,
-					TrajSelectedID:     &trajSelectedID,
-					TrajActualDuration: &trajActualDur,
-					TrajTurnsCollapsed: &trajTurnsFold,
-					TrajCallsCollapsed: &trajCallsFold,
-					TrajDetailTab:      &trajDetailTab,
-					ImageLightboxPath:  &imageLightboxPath,
-					OnOpenImageLightbox: func(p string) {
-						imageLightboxPath = p
-						state.mu.Lock()
-						state.imageLightboxPath = p
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnCloseImageLightbox: func() {
-						imageLightboxPath = ""
-						state.mu.Lock()
-						state.imageLightboxPath = ""
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					ComposerSuggest:      &composerSuggest,
-					ComposerSlash:        composerSlash,
-					ComposerPaths:        composerPaths,
-					ComposerSkillsOpen:   composerSkillsOpen,
-					ComposerSkillsList:   &composerSkillsList,
-					ComposerSkillsFilter: &composerSkillsFilter,
-					ComposerChipEdit:     &composerChipEdit,
-					ComposerTextInput:    state.composerTextInput,
-					// The native client and composer share the stable session-owned draft.
-					UseComposerTextInput: true,
-					OnSearchSkillHub: func(query string) {
-						if sessions != nil {
-							sessions.SearchSkillHub(context.Background(), query, "user")
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnInstallSkillHub: func(hit session.SkillHubHit) {
-						if sessions != nil {
-							sessions.InstallSkillHub(context.Background(), hit, "user")
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnDeleteSkill: func(name string) {
-						if sessions != nil {
-							sessions.DeleteSkillInventory(context.Background(), name)
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					SkillCreateName: &skillCreateName,
-					OnCreateSkill: func(name string) {
-						if sessions != nil {
-							sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnToggleSkillModel: func(name string, modelInvocable bool) {
-						if sessions != nil {
-							sessions.SetSkillInvocation(context.Background(), name, modelInvocable, true)
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnToggleComposerSkills: func(open bool) {
-						state.mu.Lock()
-						state.composerSkillsOpen = open
-						state.mu.Unlock()
-						if open && sessions != nil {
-							sessions.RefreshSkills(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
-					OnPickHeroWorkspace: func() {
-						state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
-					},
-					OnBrowseWorkspace: func() {
-						state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
-					},
-					OnRevealWorkspace: func() {
-						root := strings.TrimSpace(workspaceRoot)
-						if root == "" && state.cfgStore != nil {
-							root = strings.TrimSpace(state.cfgStore.Get().Workspace)
-						}
-						if root == "" {
-							return
-						}
-						_ = desktopcomponents.OpenInFileManager(root)
-					},
-					WorkspaceRenameDraft: &state.workspaceRenameDraft,
-					OnRenameWorkspace: func(title string) {
-						if sessions == nil {
-							return
-						}
-						id := sessions.WorkspaceID()
-						if id == "" {
-							sessions.SetLastAction("workspace rename: no workspace id")
-							return
-						}
-						sessions.RenameWorkspace(context.Background(), id, title)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnDeleteWorkspace: func() {
-						if sessions == nil {
-							return
-						}
-						id := sessions.WorkspaceID()
-						if id == "" {
-							sessions.SetLastAction("workspace delete: no workspace id")
-							return
-						}
-						sessions.DeleteWorkspace(context.Background(), id)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnMoveSessionBefore: func(sessionID, beforeSessionID string) {
-						if sessions == nil {
-							return
-						}
-						sessions.InsertSessionBefore(context.Background(), sessions.WorkspaceID(), sessionID, beforeSessionID)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					WorkspaceMenuOpen: &state.workspaceMenuOpen,
-					OnOpenAgents: func() {
-						state.mu.Lock()
-						state.filesPaneOpen = true
-						state.rightPaneTab = "agents"
-						state.mu.Unlock()
-						rightPaneTab = "agents"
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnPickComposerDirectory: func() {
-						root := strings.TrimSpace(workspaceRoot)
-						if root == "" {
-							if sessions != nil {
-								sessions.SetLastAction(i18n.T(i18n.KeyComposerDirNoWorkspace))
+						},
+						OnOpenSchedule: func() {
+							state.mu.Lock()
+							state.scheduleOpen = true
+							state.marketOpen = false
+							state.assistantOpen = false
+							state.settingsOpen = false
+							state.launcherOpen = false
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
 							}
-							return
-						}
-						picked := ""
-						state.mu.Lock()
-						tunnel := state.sshTunnel
-						state.mu.Unlock()
-						hostPick := false
-						if tunnel != nil {
-							if _, st, _ := tunnel.Snapshot(); st == sshremote.TunnelConnected {
-								hostPick = true
+						},
+						OnOpenAssistant: func() {
+							state.mu.Lock()
+							state.assistantOpen = true
+							state.marketOpen = false
+							state.scheduleOpen = false
+							state.settingsOpen = false
+							state.launcherOpen = false
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
 							}
-						}
-						if hostPick && sessions != nil {
-							state.openDirectoryPicker(sessions, win, "mention")
-							return
-						} else {
-							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-								Parent:      win,
-								Title:       i18n.T(i18n.KeyComposerDirDialogTitle),
-								DefaultPath: root,
-								Directory:   true,
-							})
-							if err != nil {
-								if sessions != nil {
-									sessions.SetLastAction(err.Error())
-								}
-								return
+						},
+						OnOpenLauncher: func() {
+							state.mu.Lock()
+							state.launcherOpen = true
+							state.launcherTab = launcher.TabHome
+							state.toolsMenuOpen = false
+							state.settingsOpen = false
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
 							}
-							if len(paths) == 0 {
-								return // cancelled
-							}
-							picked = paths[0]
-						}
-						if picked == "" {
-							return
-						}
-						if err := composer.InsertDirectoryMention(&activeDraft.Text, root, picked); err != nil {
-							if sessions != nil {
-								sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
-							}
-							return
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnPickComposerImage: func() {
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: "Attach files or images", DefaultPath: workspaceRoot, Multiple: true})
-						if err != nil {
-							activeDraft.Error = err.Error()
-							return
-						}
-						state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					ComposerVoice: state.composerVoiceStatus(),
-					OnStartComposerVoice: func() { state.startComposerVoice(win, sessions, snap.SelectedID, activeDraft) },
-					OnStopComposerVoice: state.stopComposerVoice,
-					OnCancelComposerVoice: state.cancelComposerVoice,
-					OnInsertComposerVoice: state.insertComposerVoice,
-					OnPickComposerSpeech: func() {
-						if sessions == nil {
-							return
-						}
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-							Parent: win,
-							Title:  i18n.T(i18n.KeyComposerSpeech),
-						})
-						if err != nil {
-							sessions.SetLastAction(err.Error())
-							return
-						}
-						if len(paths) == 0 {
-							return
-						}
-						go func() {
-							text, err := sessions.TranscribeAudioFile(context.Background(), paths[0])
-							if err != nil {
-								sessions.SetLastAction(err.Error())
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
+						},
+						OnOpenSettings: func() {
+							state.mu.Lock()
+							state.settingsOpen = true
+							state.settingsDesktopActive = true
+							state.launcherOpen = false
+							state.toolsMenuOpen = false
+							state.seedDesktopDraft()
+							state.mu.Unlock()
+							if state.settings != nil {
+								state.settings.OpenSettingsDocument(context.Background())
 							}
 							if win != nil {
-								win.Update(func() { composer.AppendTranscript(&activeDraft.Text, text) })
+								win.Update(func() {})
 							}
-						}()
-					},
-					OnCycleComposerSpeech: func() {
-						if sessions == nil {
-							return
-						}
-						sessions.CycleSpeechProvider(context.Background())
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnListWorkspaceFiles: func(rel string) ([]workspacefs.Entry, error) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						return workspacefs.ListRemoteDir(context.Background(), client, rel)
-					},
-					OnReadWorkspaceFile: func(rel string) (string, error) {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						return workspacefs.ReadRemoteText(context.Background(), client, rel, workspacefs.DefaultMaxReadBytes)
-					},
-					FileStatNote: &state.fileStatNote,
-					OnStatWorkspaceFile: func(rel string) string {
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						st, err := workspacefs.StatRemote(context.Background(), client, rel)
-						if err != nil {
-							return ""
-						}
-						note := strings.TrimSpace(st.Version)
-						if st.Bytes != nil {
-							if note != "" {
-								note += " · "
+						},
+						OnToggleTools: func() {
+							state.mu.Lock()
+							// Electron ▦ opens the files/diff right dock (not a full-width menu).
+							next := !state.filesPaneOpen
+							state.toolsMenuOpen = false
+							state.mu.Unlock()
+							state.setFilesPaneOpen(next)
+							if win != nil {
+								win.Update(func() {})
 							}
-							note += fmt.Sprintf("%.0f B", *st.Bytes)
-						}
-						if note == "" {
-							note = strings.TrimSpace(st.AbsolutePath)
-						}
-						return note
-					},
-					OnIndexWorkspace: func(root string) []string {
-						if root == "" {
-							return nil
-						}
-						paths, err := workspacefs.IndexRelPaths(root, 4000)
-						if err != nil {
-							return nil
-						}
-						state.mu.Lock()
-						state.composerPathsRoot = root
-						state.composerPaths = paths
-						state.mu.Unlock()
-						return paths
-					},
-					OnSearchFileRefs: func(query string) []string {
-						if sessions == nil || st.State != harness.Ready {
-							return nil
-						}
-						return sessions.ListFileReferences(context.Background(), query)
-					},
-					Terminal:           termPanel,
-					TerminalShellsNote: termShellsNote,
-					CanAddSelectionToChat: sessions != nil && snap.SelectedID != "" && !activeDraft.Sending,
-					OnAddSelectionToChat: func(fragment string) error { return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment) },
-					BrowserContent: func(c *ui.Context) {
-                        if state.browserController == nil { state.browserController = state.newBrowserController(win) }
-                        state.browserController.ViewDocked(c,themeID,mygo.Theme.IsDark(),func(){rightPaneTab="files";state.browserController.Hide()})
-                    },
-                    OnHideBrowser: func(){if state.browserController!=nil {state.browserController.Hide()}},
-                    OnOpenBrowserPreview: func() {
-                        rightPaneTab="browser"
-                        filesPaneOpen=true
-                    },
-					OnOpenMarket: func() {
-						state.mu.Lock()
-						state.marketOpen = true
-						state.scheduleOpen = false
-						state.assistantOpen = false
-						state.settingsOpen = false
-						state.launcherOpen = false
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenSchedule: func() {
-						state.mu.Lock()
-						state.scheduleOpen = true
-						state.marketOpen = false
-						state.assistantOpen = false
-						state.settingsOpen = false
-						state.launcherOpen = false
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenAssistant: func() {
-						state.mu.Lock()
-						state.assistantOpen = true
-						state.marketOpen = false
-						state.scheduleOpen = false
-						state.settingsOpen = false
-						state.launcherOpen = false
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenLauncher: func() {
-						state.mu.Lock()
-						state.launcherOpen = true
-						state.launcherTab = launcher.TabHome
-						state.toolsMenuOpen = false
-						state.settingsOpen = false
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenSettings: func() {
-						state.mu.Lock()
-						state.settingsOpen = true
-						state.settingsDesktopActive = true
-						state.launcherOpen = false
-						state.toolsMenuOpen = false
-						state.seedDesktopDraft()
-						state.mu.Unlock()
-						if state.settings != nil {
-							state.settings.OpenSettingsDocument(context.Background())
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnToggleTools: func() {
-						state.mu.Lock()
-						// Electron ▦ opens the files/diff right dock (not a full-width menu).
-						next := !state.filesPaneOpen
-						state.toolsMenuOpen = false
-						state.mu.Unlock()
-						state.setFilesPaneOpen(next)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnCloseTerminal: func() {
-						state.mu.Lock()
-						state.terminalSessions.CloseWorkspace(workspaceRoot)
-						state.terminalPanel = nil
-						state.terminalVisible = false
-						state.layout.Bottom = 0
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnRestartTerminal: func() {
-						state.restartTerminal(workspaceRoot, systemDark)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnToggleTerminal: func() {
-						state.toggleTerminal(workspaceRoot, systemDark)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenCitationURL: func(u string) {
-						state.showBrowserPreview(u)
-					},
-					VisualReply: visualReplyState,
-					VisualReplyBitmap: publishedHTMLBitmap(visualReplyState),
-					OnPreviewVisualReply: func(id string){previewPublishedHTML(sessions,snap.SelectedID,id)},
-					OnReadVisualReply: func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
-					OnSaveVisualReply: func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
-					OnCloseVisualReply: sessions.CloseVisualReply,
-					OnOpenDeliverable: func(path string) {
-						if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
-							return
-						}
-						handled, err := files.OpenPresentedPath(files.Model{
-							WorkspaceRoot: snap.SelectedCwd,
-							Tabs:          &fileTabs, SelectedFile: &selectedFile,
-							Preview: &filePreview, PreviewErr: &filePreviewErr,
-							Editing: &fileEditing, EditDraft: &fileEditDraft,
-							EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
-						}, path)
-						if err != nil {
-							sessions.SetLastAction(err.Error())
-							return
-						}
-						if !handled {
-							// Keep remote, missing-cwd and outside-cwd paths intact.
-							// Only the explicit card click invokes the existing Host opener.
-							if st.State == harness.Ready {
-								sessions.OpenWorkspacePath(context.Background(), path, "", "")
-							} else {
-								sessions.SetLastAction("workspace path open unavailable")
+						},
+						OnCloseTerminal: func() {
+							state.mu.Lock()
+							state.terminalSessions.CloseWorkspace(workspaceRoot)
+							state.terminalPanel = nil
+							state.terminalVisible = false
+							state.layout.Bottom = 0
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
 							}
-							return
-						}
-						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocHTML {
-							state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
-							return
-						}
-						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
-							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
-							return
-						}
-						state.mu.Lock()
-						state.filesPaneOpen = true
-						state.rightPaneTab = "files"
-						state.mu.Unlock()
-						filesPaneOpen = true
-						rightPaneTab = "files"
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					FileOpenWithApps: fileOpenWithApps,
-					OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
-						if inWebView && kind == workspacefs.DocHTML {
-							state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
-							return
-						}
-						if inWebView && kind == workspacefs.DocPDF {
-							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
-							return
-						}
-						if sessions != nil && st.State == harness.Ready {
-							sessions.OpenWorkspacePath(context.Background(), absPath, "", "")
-							return
-						}
-						if err := workspacefs.OpenExternal(absPath); err != nil {
-							log.Println("open document:", err)
-						}
-					},
-					OnRevealFile: func(absPath string) {
-						if sessions != nil && st.State == harness.Ready {
-							sessions.OpenWorkspacePath(context.Background(), absPath, "reveal", "")
-							return
-						}
-						_ = desktopcomponents.OpenInFileManager(absPath)
-					},
-					OnOpenWithApp: func(absPath, appID string) {
-						if sessions != nil && st.State == harness.Ready {
-							sessions.OpenWorkspacePath(context.Background(), absPath, "", appID)
-						}
-					},
-					OnRenderOfficePDF: func(rel string) {
-						state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
-					},
-				}
-				state.consumeNavigationFile(frameModel)
-				frame.View(c, frameModel)
-				if state.dirPickOpen {
-					ui.Overlay(c, func() {
-						ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).
-							Background(ui.RGBA(0, 0, 0, 120)).Children(func() {
-							ui.Box(c).Grow(1)
-							ui.Row(c).Children(func() {
+						},
+						OnRestartTerminal: func() {
+							state.restartTerminal(workspaceRoot, systemDark)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnToggleTerminal: func() {
+							state.toggleTerminal(workspaceRoot, systemDark)
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnOpenCitationURL: func(u string) {
+							state.showBrowserPreview(u)
+						},
+						VisualReply:          visualReplyState,
+						VisualReplyBitmap:    publishedHTMLBitmap(visualReplyState),
+						OnPreviewVisualReply: func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
+						OnReadVisualReply:    func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
+						OnSaveVisualReply:    func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
+						OnCloseVisualReply:   sessions.CloseVisualReply,
+						OnOpenDeliverable: func(path string) {
+							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
+								return
+							}
+							handled, err := files.OpenPresentedPath(files.Model{
+								WorkspaceRoot: snap.SelectedCwd,
+								Tabs:          &fileTabs, SelectedFile: &selectedFile,
+								Preview: &filePreview, PreviewErr: &filePreviewErr,
+								Editing: &fileEditing, EditDraft: &fileEditDraft,
+								EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
+							}, path)
+							if err != nil {
+								sessions.SetLastAction(err.Error())
+								return
+							}
+							if !handled {
+								// Keep remote, missing-cwd and outside-cwd paths intact.
+								// Only the explicit card click invokes the existing Host opener.
+								if st.State == harness.Ready {
+									sessions.OpenWorkspacePath(context.Background(), path, "", "")
+								} else {
+									sessions.SetLastAction("workspace path open unavailable")
+								}
+								return
+							}
+							if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocHTML {
+								state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+								return
+							}
+							if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
+								state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+								return
+							}
+							state.mu.Lock()
+							state.filesPaneOpen = true
+							state.rightPaneTab = "files"
+							state.mu.Unlock()
+							filesPaneOpen = true
+							rightPaneTab = "files"
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						FileOpenWithApps: fileOpenWithApps,
+						OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
+							if inWebView && kind == workspacefs.DocHTML {
+								state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
+								return
+							}
+							if inWebView && kind == workspacefs.DocPDF {
+								state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, absPath)
+								return
+							}
+							if sessions != nil && st.State == harness.Ready {
+								sessions.OpenWorkspacePath(context.Background(), absPath, "", "")
+								return
+							}
+							if err := workspacefs.OpenExternal(absPath); err != nil {
+								log.Println("open document:", err)
+							}
+						},
+						OnRevealFile: func(absPath string) {
+							if sessions != nil && st.State == harness.Ready {
+								sessions.OpenWorkspacePath(context.Background(), absPath, "reveal", "")
+								return
+							}
+							_ = desktopcomponents.OpenInFileManager(absPath)
+						},
+						OnOpenWithApp: func(absPath, appID string) {
+							if sessions != nil && st.State == harness.Ready {
+								sessions.OpenWorkspacePath(context.Background(), absPath, "", appID)
+							}
+						},
+						OnRenderOfficePDF: func(rel string) {
+							state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
+						},
+					}
+					state.consumeNavigationFile(frameModel)
+					frame.View(c, frameModel)
+					if state.dirPickOpen {
+						ui.Overlay(c, func() {
+							ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).
+								Background(ui.RGBA(0, 0, 0, 120)).Children(func() {
 								ui.Box(c).Grow(1)
-								ui.Column(c).Width(420).Children(func() {
-									dirpick.View(c, dirpick.Model{
-										Listing:    state.dirPickListing,
-										ThemeID:    themeID,
-										SystemDark: systemDark,
-										NewName:    &state.dirPickNewName,
-										Err:        state.dirPickErr,
-										OnNavigate: func(path string) {
-											if sessions == nil {
-												return
-											}
-											go func() {
-												listing, err := sessions.ListDirectories(context.Background(), path)
-												state.mu.Lock()
-												if err != nil {
-													state.dirPickErr = err.Error()
-												} else {
-													state.dirPickErr = ""
-													state.dirPickListing = listing
+								ui.Row(c).Children(func() {
+									ui.Box(c).Grow(1)
+									ui.Column(c).Width(420).Children(func() {
+										dirpick.View(c, dirpick.Model{
+											Listing:    state.dirPickListing,
+											ThemeID:    themeID,
+											SystemDark: systemDark,
+											NewName:    &state.dirPickNewName,
+											Err:        state.dirPickErr,
+											OnNavigate: func(path string) {
+												if sessions == nil {
+													return
 												}
-												state.mu.Unlock()
-												if win != nil {
-													win.Update(func() {})
-												}
-											}()
-										},
-										OnPick: func(path string) {
-											state.mu.Lock()
-											mode := state.dirPickMode
-											state.dirPickOpen = false
-											state.mu.Unlock()
-											if mode == "mention" {
-												root := strings.TrimSpace(workspaceRoot)
-												if root == "" && state.cfgStore != nil {
-													root = strings.TrimSpace(state.cfgStore.Get().Workspace)
-												}
-												if err := composer.InsertDirectoryMention(&activeDraft.Text, root, path); err != nil {
-													if sessions != nil {
-														sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
-													}
-												}
-												if win != nil {
-													win.Update(func() {})
-												}
-												return
-											}
-											state.applyWorkspacePath(win, sessions, path, false)
-										},
-										OnCreate: func(parent, name string) {
-											if sessions == nil {
-												return
-											}
-											go func() {
-												created, err := sessions.CreateDirectory(context.Background(), parent, name)
-												if err != nil {
+												go func() {
+													listing, err := sessions.ListDirectories(context.Background(), path)
 													state.mu.Lock()
-													state.dirPickErr = err.Error()
+													if err != nil {
+														state.dirPickErr = err.Error()
+													} else {
+														state.dirPickErr = ""
+														state.dirPickListing = listing
+													}
 													state.mu.Unlock()
+													if win != nil {
+														win.Update(func() {})
+													}
+												}()
+											},
+											OnPick: func(path string) {
+												state.mu.Lock()
+												mode := state.dirPickMode
+												state.dirPickOpen = false
+												state.mu.Unlock()
+												if mode == "mention" {
+													root := strings.TrimSpace(workspaceRoot)
+													if root == "" && state.cfgStore != nil {
+														root = strings.TrimSpace(state.cfgStore.Get().Workspace)
+													}
+													if err := composer.InsertDirectoryMention(&activeDraft.Text, root, path); err != nil {
+														if sessions != nil {
+															sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
+														}
+													}
 													if win != nil {
 														win.Update(func() {})
 													}
 													return
 												}
-												listing, lerr := sessions.ListDirectories(context.Background(), parent)
+												state.applyWorkspacePath(win, sessions, path, false)
+											},
+											OnCreate: func(parent, name string) {
+												if sessions == nil {
+													return
+												}
+												go func() {
+													created, err := sessions.CreateDirectory(context.Background(), parent, name)
+													if err != nil {
+														state.mu.Lock()
+														state.dirPickErr = err.Error()
+														state.mu.Unlock()
+														if win != nil {
+															win.Update(func() {})
+														}
+														return
+													}
+													listing, lerr := sessions.ListDirectories(context.Background(), parent)
+													state.mu.Lock()
+													if lerr != nil {
+														state.dirPickErr = lerr.Error()
+													} else {
+														state.dirPickErr = ""
+														state.dirPickListing = listing
+													}
+													_ = created
+													state.mu.Unlock()
+													if win != nil {
+														win.Update(func() {})
+													}
+												}()
+											},
+											OnClose: func() {
 												state.mu.Lock()
-												if lerr != nil {
-													state.dirPickErr = lerr.Error()
-												} else {
-													state.dirPickErr = ""
-													state.dirPickListing = listing
-												}
-												_ = created
+												state.dirPickOpen = false
 												state.mu.Unlock()
-												if win != nil {
-													win.Update(func() {})
-												}
-											}()
-										},
-										OnClose: func() {
-											state.mu.Lock()
-											state.dirPickOpen = false
-											state.mu.Unlock()
-										},
+											},
+										})
 									})
+									ui.Box(c).Grow(1)
 								})
 								ui.Box(c).Grow(1)
 							})
-							ui.Box(c).Grow(1)
 						})
-					})
-				}
-				state.mu.Lock()
-				// Splitters mutate Sidebar/Right/Main/RightTree on the paint-local
-				// copy. Do not clobber Bottom: toggleTerminal writes it on state and
-				// a concurrent paint used to wipe the terminal open height back to 0.
-				bottom := state.layout.Bottom
-				state.layout = layout
-				state.layout.Bottom = bottom
-				state.composerSuggest = composerSuggest
-				state.composerSkillsList = composerSkillsList
-				state.composerSkillsOpen = composerSkillsOpen
-				state.composerSkillsFilter = composerSkillsFilter
-				state.skillCreateName = skillCreateName
-				state.composerChipEdit = composerChipEdit
-				state.chatList = chatList
-				state.draft = activeDraft.Text
-				state.editMessageSeq = editMessageSeq
-				state.feedbackCommentMsgID = feedbackCommentMsgID
-				state.feedbackCommentDraft = feedbackCommentDraft
-				state.modelPick = modelPick
-				state.permissionPick = permissionPick
-				state.agentPresetPick = agentPresetPick
-				state.thinkingExpanded = thinkingExpanded
-				state.renameSessionID = renameSessionID
-				state.renameDraft = renameDraft
-				state.sessionSearch = sessionSearch
-				if sessions != nil {
-					sessions.UpdateSessionSearch(context.Background(), sessionSearch)
-				}
-				state.fileTabs = fileTabs
-				state.gitWorkbench = gitWorkbench
-				state.fileExpanded = fileExpanded
-				state.selectedFile = selectedFile
-				state.fileFilter = fileFilter
-				state.filePreview = filePreview
-				state.filePreviewErr = filePreviewErr
-				state.filePreviewList = filePreviewList
-				state.fileEditing = fileEditing
-				state.fileEditDraft = fileEditDraft
-				state.fileEditStatus = fileEditStatus
-				state.fileEditViewMode = fileEditViewMode
-				state.fileEditSplit = fileEditSplit
-				state.rightPaneTab = rightPaneTab
-				state.agentsPromptDraft = agentsPromptDraft
-				state.goalDraft = goalDraft
-				state.diffPath = diffPath
-				state.diffText = diffText
-				state.diffErr = diffErr
-				state.planBoardOpen = planBoardOpen
-				state.todoPanelCollapsed = todoPanelCollapsed
-				state.chatPaneTab = chatPaneTab
-				state.trajSearch = trajSearch
-				state.trajSelectedID = trajSelectedID
-				state.trajActualDur = trajActualDur
-				state.trajTurnsFold = trajTurnsFold
-				state.trajCallsFold = trajCallsFold
-				state.trajDetailTab = trajDetailTab
-				state.imageLightboxPath = imageLightboxPath
-				state.gitCommitOpen = gitCommitOpen
-				state.gitCommitDraft = gitCommitDraft
-				state.gitPROpen = gitPROpen
-				state.mu.Unlock()
+					}
+					state.mu.Lock()
+					// Splitters mutate Sidebar/Right/Main/RightTree on the paint-local
+					// copy. Do not clobber Bottom: toggleTerminal writes it on state and
+					// a concurrent paint used to wipe the terminal open height back to 0.
+					bottom := state.layout.Bottom
+					state.layout = layout
+					state.layout.Bottom = bottom
+					state.composerSuggest = composerSuggest
+					state.composerSkillsList = composerSkillsList
+					state.composerSkillsOpen = composerSkillsOpen
+					state.composerSkillsFilter = composerSkillsFilter
+					state.skillCreateName = skillCreateName
+					state.composerChipEdit = composerChipEdit
+					state.chatList = chatList
+					state.draft = activeDraft.Text
+					state.editMessageSeq = editMessageSeq
+					state.feedbackCommentMsgID = feedbackCommentMsgID
+					state.feedbackCommentDraft = feedbackCommentDraft
+					state.modelPick = modelPick
+					state.permissionPick = permissionPick
+					state.agentPresetPick = agentPresetPick
+					state.thinkingExpanded = thinkingExpanded
+					state.renameSessionID = renameSessionID
+					state.renameDraft = renameDraft
+					state.sessionSearch = sessionSearch
+					if sessions != nil {
+						sessions.UpdateSessionSearch(context.Background(), sessionSearch)
+					}
+					state.fileTabs = fileTabs
+					state.gitWorkbench = gitWorkbench
+					state.fileExpanded = fileExpanded
+					state.selectedFile = selectedFile
+					state.fileFilter = fileFilter
+					state.filePreview = filePreview
+					state.filePreviewErr = filePreviewErr
+					state.filePreviewList = filePreviewList
+					state.fileEditing = fileEditing
+					state.fileEditDraft = fileEditDraft
+					state.fileEditStatus = fileEditStatus
+					state.fileEditViewMode = fileEditViewMode
+					state.fileEditSplit = fileEditSplit
+					state.rightPaneTab = rightPaneTab
+					state.agentsPromptDraft = agentsPromptDraft
+					state.goalDraft = goalDraft
+					state.diffPath = diffPath
+					state.diffText = diffText
+					state.diffErr = diffErr
+					state.planBoardOpen = planBoardOpen
+					state.todoPanelCollapsed = todoPanelCollapsed
+					state.chatPaneTab = chatPaneTab
+					state.trajSearch = trajSearch
+					state.trajSelectedID = trajSelectedID
+					state.trajActualDur = trajActualDur
+					state.trajTurnsFold = trajTurnsFold
+					state.trajCallsFold = trajCallsFold
+					state.trajDetailTab = trajDetailTab
+					state.imageLightboxPath = imageLightboxPath
+					state.gitCommitOpen = gitCommitOpen
+					state.gitCommitDraft = gitCommitDraft
+					state.gitPROpen = gitPROpen
+					state.mu.Unlock()
+				})
+				return
+			}
+			boot.View(c, boot.Model{
+				OnConfigure: func() {
+					state.mu.Lock()
+					state.launcherOpen = true
+					state.mu.Unlock()
+					if win != nil {
+						win.Update(func() {})
+					}
+				},
+				Status:     st,
+				Logs:       logs,
+				ThemeID:    themeID,
+				SystemDark: mygo.Theme.IsDark(),
+				OnRetry: func() {
+					if sup != nil {
+						state.restartUnlessImport(sup)
+					}
+				},
+				OnExport: func() {
+					path, err := harness.ExportLogsDialog(win, logs, i18n.T(i18n.KeyBootExport))
+					if err != nil {
+						log.Println("export log:", err)
+						return
+					}
+					if path != "" {
+						log.Println(i18n.T(i18n.KeyBootExportSaved), path)
+					}
+				},
 			})
-			return
-		}
-		boot.View(c, boot.Model{
-			OnConfigure: func() {
-				state.mu.Lock()
-				state.launcherOpen = true
-				state.mu.Unlock()
-				if win != nil {
-					win.Update(func() {})
-				}
-			},
-			Status:     st,
-			Logs:       logs,
-			ThemeID:    themeID,
-			SystemDark: mygo.Theme.IsDark(),
-			OnRetry: func() {
-				if sup != nil {
-					state.restartUnlessImport(sup)
-				}
-			},
-			OnExport: func() {
-				path, err := harness.ExportLogsDialog(win, logs, i18n.T(i18n.KeyBootExport))
-				if err != nil {
-					log.Println("export log:", err)
-					return
-				}
-				if path != "" {
-					log.Println(i18n.T(i18n.KeyBootExportSaved), path)
-				}
-			},
-		})
 		}
 		state.withMainNavigation(c, sharedNavigation, frame.Model{
 			Store: sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,

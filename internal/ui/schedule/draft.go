@@ -31,7 +31,7 @@ func (d *taskDraft) rebase(row schedstore.Entry) {
 		d.Clock, d.Zone, d.Weekdays, d.Expression = latest.Clock, latest.Zone, latest.Weekdays, latest.Expression
 	} else if d.Kind == base.Kind && latest.Kind == base.Kind {
 		for _, fields := range []struct {
-			shown *string
+			shown      *string
 			old, fresh string
 		}{
 			{&d.At, base.At, latest.At},

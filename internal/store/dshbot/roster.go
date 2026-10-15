@@ -95,7 +95,7 @@ func (s *Store) SetFromDescribeForHost(res pluginrpc.DshbotDescribeResult, inclu
 	}
 	s.mu.Lock()
 	s.snap = Snapshot{
-		Origin: strings.TrimSpace(origin),
+		Origin:    strings.TrimSpace(origin),
 		Revision:  res.View.Revision,
 		FetchedAt: time.Now().UTC().Format(time.RFC3339),
 		Rows:      converted,
