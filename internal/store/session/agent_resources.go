@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/dsh/api"
 )
 
 type AgentResourceRead struct {
+	Table             *workspacefs.XLSXPage
 	Busy              bool
 	Path, Text, Error string
 	EOF               bool

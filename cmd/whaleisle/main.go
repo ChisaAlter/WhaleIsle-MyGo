@@ -6173,13 +6173,16 @@ func mainView(c *ui.Context) {
 						RightPaneOpen:         filesPaneOpen,
 						RightPaneTab:          &rightPaneTab,
 						AgentsPromptDraft:     &agentsPromptDraft,
-						GoalDraft:             &goalDraft,
-						DiffPath:              &diffPath,
-						DiffText:              &diffText,
-						DiffErr:               &diffErr,
-						PlanBoardOpen:         &planBoardOpen,
-						TodoPanelCollapsed:    &todoPanelCollapsed,
-						ChatPaneTab:           &chatPaneTab,
+						OnOpenAgentDocument: func(token uint64, address session.AgentSessionAddress, path string) {
+							state.openAgentDocument(sessions, token, address, path)
+						},
+						GoalDraft:          &goalDraft,
+						DiffPath:           &diffPath,
+						DiffText:           &diffText,
+						DiffErr:            &diffErr,
+						PlanBoardOpen:      &planBoardOpen,
+						TodoPanelCollapsed: &todoPanelCollapsed,
+						ChatPaneTab:        &chatPaneTab,
 						HideChatViewTabs: func() bool {
 							if settingsOpen && state.settingsInterfaceActive {
 								return !state.desktopDraft.showViewTabs

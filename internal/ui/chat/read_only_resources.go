@@ -7,14 +7,16 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
 )
 
 type ReadOnlyResourceOptions struct {
-	OnOpenFile func(string)
-	OnOpenURL  func(string)
-	OnRead     func(string, bool)
-	Reads      map[string]session.AgentResourceRead
+	OnReadTable func(string, workspacefs.XLSXPageRequest)
+	OnOpenFile  func(string)
+	OnOpenURL   func(string)
+	OnRead      func(string, bool)
+	Reads       map[string]session.AgentResourceRead
 }
 
 func readOnlyResourceLink(c *ui.Context, ref string, opts ReadOnlyResourceOptions, st ToolCardStyle) {
@@ -121,6 +123,9 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		}
 		if read.Path != "" {
 			ImageInlineView(c, read.Path, st.FG, st.Muted, nil)
+		}
+		if read.Table != nil {
+			childWorkbookView(c, ref, read, opts, st)
 		}
 		if read.Text != "" {
 			ui.Text(c, read.Text).FontSize(12).TextColor(st.FG).Selectable()

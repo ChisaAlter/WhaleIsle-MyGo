@@ -189,12 +189,13 @@ type Model struct {
 	FilePaneWidth    *float32 // resolved width for responsive file-preview layout
 	RightPaneOpen    bool     // explicit visibility; Sizes.Right remains remembered when closed
 
-	RightPaneTab      *string // "files" | "diff" | "agents"
-	OnOpenAgents      func()
-	AgentsPromptDraft *string
-	DiffPath          *string
-	DiffText          *string
-	DiffErr           *string
+	RightPaneTab        *string // "files" | "diff" | "agents"
+	OnOpenAgents        func()
+	AgentsPromptDraft   *string
+	OnOpenAgentDocument func(uint64, session.AgentSessionAddress, string)
+	DiffPath            *string
+	DiffText            *string
+	DiffErr             *string
 
 	ComposerSuggest         *ui.ListState
 	ComposerSlash           []composer.SlashCommand
@@ -1126,13 +1127,14 @@ func rightPane(c *ui.Context, m Model) {
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			agents.View(c, agents.Model{
-				Store:       store,
-				Manager:     m.AgentPresetManager,
-				Snapshot:    store.Snapshot(),
-				ThemeID:     m.ThemeID,
-				SystemDark:  m.SystemDark,
-				PromptDraft: m.AgentsPromptDraft,
-				OnOpenURL:   m.OnOpenCitationURL,
+				Store:          store,
+				Manager:        m.AgentPresetManager,
+				Snapshot:       store.Snapshot(),
+				ThemeID:        m.ThemeID,
+				SystemDark:     m.SystemDark,
+				PromptDraft:    m.AgentsPromptDraft,
+				OnOpenURL:      m.OnOpenCitationURL,
+				OnOpenDocument: m.OnOpenAgentDocument,
 				OnClose: func() {
 					if m.RightPaneTab != nil {
 						*m.RightPaneTab = "files"
