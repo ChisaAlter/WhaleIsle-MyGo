@@ -153,6 +153,7 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 	default:
 		return false
 	}
+	s.restoreWorkspacePreferencesLocked()
 	s.signalWorkspaceLocked()
 	return true
 }

@@ -154,6 +154,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	workspacePreferences      workspacePreferenceBinding
 	rename                    SessionRenameView
 	renameEpoch               uint64
 	sessionFeedback           SessionFeedbackView

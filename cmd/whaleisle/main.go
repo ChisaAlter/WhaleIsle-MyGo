@@ -1707,6 +1707,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		}
 	}
 	sessions.Attach(client, refresh)
+	s.bindWorkspacePreferences(sessions, client)
 	chat.SetAttachmentFetcher(func(ctx context.Context, attachmentID string) (string, error) {
 		return sessions.FetchAttachment(ctx, attachmentID)
 	})

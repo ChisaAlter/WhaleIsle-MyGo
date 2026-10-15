@@ -11,11 +11,13 @@ import (
 )
 
 type WorkspaceLayoutState struct {
-	GroupBy    string
-	OrderBy    string
-	Collapsed  map[string]bool
-	Reordering bool
-	Error      string
+	HostGeneration  uint64
+	PreferenceError string
+	GroupBy         string
+	OrderBy         string
+	Collapsed       map[string]bool
+	Reordering      bool
+	Error           string
 }
 type workspaceLayoutState struct {
 	view    WorkspaceLayoutState
@@ -24,6 +26,7 @@ type workspaceLayoutState struct {
 
 func (s *Store) workspaceLayoutLocked() WorkspaceLayoutState {
 	out := s.workspaceLayout.view
+	out.HostGeneration = s.eventsGeneration
 	if out.GroupBy == "" {
 		out.GroupBy = "workspace"
 	}
@@ -42,6 +45,7 @@ func (s *Store) SetWorkspaceGrouping(mode string) {
 	}
 	s.mu.Lock()
 	s.workspaceLayout.view.GroupBy = mode
+	s.workspacePreferencesChangedLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -51,6 +55,7 @@ func (s *Store) SetWorkspaceOrdering(mode string) {
 	}
 	s.mu.Lock()
 	s.workspaceLayout.view.OrderBy = mode
+	s.workspacePreferencesChangedLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -60,21 +65,26 @@ func (s *Store) ToggleWorkspaceGroup(id string) {
 		s.workspaceLayout.view.Collapsed = map[string]bool{}
 	}
 	s.workspaceLayout.view.Collapsed[id] = !s.workspaceLayout.view.Collapsed[id]
+	s.workspacePreferencesChangedLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 func (s *Store) resetWorkspaceLayoutHostLocked() {
+	s.resetWorkspacePreferencesHostLocked()
 	s.workspaceLayout.request++
 	s.workspaceLayout.view.Collapsed = nil
 	s.workspaceLayout.view.Reordering = false
 	s.workspaceLayout.view.Error = ""
 }
 func (s *Store) reorderWorkspace(ctx context.Context, id, beforeID string) {
+	s.reorderWorkspaceForHost(ctx, 0, id, beforeID)
+}
+func (s *Store) reorderWorkspaceForHost(ctx context.Context, expectedGeneration uint64, id, beforeID string) {
 	id = strings.TrimSpace(id)
 	beforeID = strings.TrimSpace(beforeID)
 	s.mu.Lock()
 	client, generation := s.client, s.eventsGeneration
-	if client == nil || !s.workspaceReady || s.workspaceLayout.view.Reordering || id == "" || id == beforeID || ctx.Err() != nil {
+	if (expectedGeneration != 0 && expectedGeneration != generation) || client == nil || !s.workspaceReady || s.workspaceLayout.view.Reordering || id == "" || id == beforeID || ctx.Err() != nil {
 		s.mu.Unlock()
 		return
 	}

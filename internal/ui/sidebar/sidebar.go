@@ -15,6 +15,8 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	OnRetryWorkspacePreferences  func()
+	OnDropWorkspaceBefore        func(uint64, string, string)
 	OnSelectWorkspace            func(string)
 	OnManageWorkspace            func(string)
 	OnWorkspaceGrouping          func(string)

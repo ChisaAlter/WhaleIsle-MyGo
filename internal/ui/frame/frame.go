@@ -377,12 +377,16 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
-		OnCreate:               createSession,
-		OnOpenMarket:           m.OnOpenMarket,
-		OnOpenSchedule:         m.OnOpenSchedule,
-		OnOpenAssistant:        m.OnOpenAssistant,
-		OnOpenLauncher:         m.OnOpenLauncher,
-		OnOpenSettings:         m.OnOpenSettings,
+		OnCreate:                    createSession,
+		OnOpenMarket:                m.OnOpenMarket,
+		OnOpenSchedule:              m.OnOpenSchedule,
+		OnOpenAssistant:             m.OnOpenAssistant,
+		OnOpenLauncher:              m.OnOpenLauncher,
+		OnOpenSettings:              m.OnOpenSettings,
+		OnRetryWorkspacePreferences: m.Store.RetryWorkspacePreferences,
+		OnDropWorkspaceBefore: func(generation uint64, id, before string) {
+			m.Store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)
+		},
 		OnSelectWorkspace:      m.OnSelectWorkspace,
 		OnManageWorkspace:      m.Store.BeginWorkspaceManagement,
 		OnWorkspaceGrouping:    m.Store.SetWorkspaceGrouping,

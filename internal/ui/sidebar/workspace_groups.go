@@ -59,6 +59,12 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	layout := m.Snapshot.WorkspaceLayout
 	hiddenParents := map[string]bool{}
 	owners := session.WorkspaceSessionOwners(m.Snapshot.Workspaces, items)
+	if layout.PreferenceError != "" {
+		ui.Text(c, layout.PreferenceError).FontSize(11).TextColor(fg)
+		if ui.Button(c, workspaceText("重试视图偏好", "Retry view preferences")).FontSize(11).Clicked() && m.OnRetryWorkspacePreferences != nil {
+			m.OnRetryWorkspacePreferences()
+		}
+	}
 	if layout.Error != "" {
 		ui.Text(c, layout.Error).FontSize(11).TextColor(fg)
 	}
@@ -83,7 +89,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if g.Kind == "other" {
 				title = workspaceText("其他会话", "Other sessions")
 			}
-			ui.Row(c.Key("workspace-header-"+g.Key)).FillWidth().Gap(4).AlignItems(ui.Center).Padding(4, 0, 4, float32(g.Depth*12)).Children(func() {
+			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Gap(4).AlignItems(ui.Center).Padding(4, 0, 4, float32(g.Depth*12)).Children(func() {
 				fold := "▾"
 				if collapsed {
 					fold = "▸"
@@ -91,7 +97,11 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				if ui.Button(c, fold).Width(20).BorderWidth(0).Background(ui.Transparent).Clicked() && m.OnToggleWorkspaceGroup != nil {
 					m.OnToggleWorkspaceGroup(g.Key)
 				}
-				if ui.Button(c, title).Grow(1).FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path).Clicked() && g.Kind == "workspace" && m.OnSelectWorkspace != nil {
+				titleButton := ui.Button(c, title).Grow(1).FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
+				if g.Kind == "workspace" && !layout.Reordering {
+					titleButton.Drag(workspaceDrag{HostGeneration: layout.HostGeneration, ID: g.Key})
+				}
+				if titleButton.Clicked() && g.Kind == "workspace" && m.OnSelectWorkspace != nil {
 					m.OnSelectWorkspace(g.Key)
 				}
 				if g.Kind == "workspace" {
@@ -110,6 +120,11 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 					m.OnNoDirectory()
 				}
 			})
+			workspaceDropTarget(header, m, g, groups, false, fg)
+			if g.Kind == "workspace" {
+				after := ui.Box(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "after/" + g.Key})).FillWidth().Height(5)
+				workspaceDropTarget(after, m, g, groups, true, fg)
+			}
 		}
 		if collapsed {
 			hiddenParents[g.Key] = true
