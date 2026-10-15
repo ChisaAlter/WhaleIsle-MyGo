@@ -46,6 +46,9 @@ type Companion struct {
 	OnLook          func()
 	OnOpenSettings  func()
 	OnOpenChat      func()
+	OnQuickChat     func()
+	QuickChat       *QuickChat
+	quickChatOpen   bool
 	OnOpenSession   func(string)
 }
 
@@ -92,6 +95,7 @@ func (p *Companion) Save() {
 	}
 	p.sync()
 	p.applyBehavior()
+	p.CheckQuickChat()
 	if p.OnPersonality != nil {
 		p.OnPersonality(p.Behavior.Personality)
 	}
@@ -99,6 +103,7 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.CloseQuickChat()
 	p.stopMotion()
 	p.assetMu.Lock()
 	p.chat.close()
@@ -200,6 +205,10 @@ func (p *Companion) sync() {
 			p.patPet()
 		case "feed-file":
 			p.feedFile()
+		case "quick-chat":
+			if p.ChatAllowed() && p.OnQuickChat != nil {
+				p.OnQuickChat()
+			}
 		case "chat":
 			if p.ChatAllowed() && p.OnOpenChat != nil {
 				p.OnOpenChat()
@@ -229,6 +238,7 @@ func (p *Companion) sync() {
 	// Explicit disable belongs to the main settings page, including on quit.
 	w.OnClosed(func() {
 		if p.win == w {
+			p.CloseQuickChat()
 			p.stopMotion()
 			p.win = nil
 			p.assetMu.Lock()
@@ -274,13 +284,14 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.assetMu.RLock()
 		body, _ = json.Marshal(struct {
 			TaskStatus
-			Behavior config.PetBehavior
-			Chat     ChatStatus
-			Look     LookStatus
-			Care     CareStatus
-			Growth   GrowthStatus
-			Rest     RestStatus
-		}{p.task, behavior, p.chat.status, p.look.status, care, growth, rest})
+			QuickChatOpen bool
+			Behavior      config.PetBehavior
+			Chat          ChatStatus
+			Look          LookStatus
+			Care          CareStatus
+			Growth        GrowthStatus
+			Rest          RestStatus
+		}{p.task, p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/pet-dialogue.json":
@@ -323,5 +334,6 @@ func (p *Companion) UpdateTask(task TaskStatus) {
 	p.assetMu.Lock()
 	p.task = task
 	p.assetMu.Unlock()
+	p.CheckQuickChat()
 	// The fixed local status endpoint updates text without restarting inference.
 }

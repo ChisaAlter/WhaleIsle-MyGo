@@ -135,7 +135,7 @@
     }
 
     function occupied(status) {
-      return !status || sleeping(status) || ['Care', 'Chat', 'Look', 'Growth']
+      return !status || sleeping(status) || status.QuickChatOpen === true || ['Care', 'Chat', 'Look', 'Growth']
         .some(key => status[key] && status[key].Busy === true);
     }
 

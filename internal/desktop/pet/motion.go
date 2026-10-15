@@ -181,7 +181,7 @@ func (p *Companion) tickMotion(now time.Time) {
 	}
 	p.assetMu.RLock()
 	sleeping := p.rest.sleeping
-	busy := p.feeding || p.chat.status.Busy || p.look.status.Busy || p.growth.status.Busy || p.task.State == "running"
+	busy := p.quickChatOpen || p.feeding || p.chat.status.Busy || p.look.status.Busy || p.growth.status.Busy || p.task.State == "running"
 	p.assetMu.RUnlock()
 	paused := wanderPaused(cfg.Behavior.Wander, sleeping, busy, cfg.Behavior.PowerSave, m.lastContact, now)
 	if paused || !m.window.IsVisible() || now.Before(m.contactUntil) || m.manualPending {

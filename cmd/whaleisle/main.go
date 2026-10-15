@@ -2102,6 +2102,7 @@ func main() {
 		state.desktopPet.OnOpenSettings = state.openPetSettings
 		state.desktopPet.OnLook = state.lookFromPet
 		state.desktopPet.OnPersonality = state.queuePetPersonality
+		state.desktopPet.OnQuickChat = state.openPetQuickChat
 		win.OnClosed(state.cancelPetPersonality)
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.SetReady(true)

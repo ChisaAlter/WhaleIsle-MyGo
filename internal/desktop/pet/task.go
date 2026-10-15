@@ -80,6 +80,9 @@ func taskAction(raw string, task TaskStatus) string {
 	if raw == "whale-pet://localhost/settings" {
 		return "settings"
 	}
+	if raw == "whale-pet://localhost/quick-chat" {
+		return "quick-chat"
+	}
 	if raw == "whale-pet://localhost/chat" {
 		return "chat"
 	}

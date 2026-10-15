@@ -108,6 +108,9 @@
       const pat = document.getElementById('pat-pet');
       pat.setAttribute('aria-disabled', String(!!task.Care?.Busy));
       if (task.Care?.Busy) pat.removeAttribute('href'); else pat.setAttribute('href', 'pat-pet');
+      const quickChat = document.getElementById('pet-quick-chat');
+      quickChat.setAttribute('aria-disabled', String(settings.chatEnabled === false));
+      if (settings.chatEnabled === false) quickChat.removeAttribute('href'); else quickChat.setAttribute('href', 'quick-chat');
       const chat = document.getElementById('pet-chat');
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy || settings.chatEnabled === false));
       if (task.Chat?.Busy || settings.chatEnabled === false) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');

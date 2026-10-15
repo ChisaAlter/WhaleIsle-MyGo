@@ -10,7 +10,7 @@ import (
 func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Desktop companion / 桌面宠物").FontSize(14).Bold().TextColor(fg)
 	ui.Text(c, "Independent sprite window. Default off. Drag the character to move it; the last deliberate drag position is restored on restart. / 独立图集宠物窗，默认关闭；拖动角色移动，重启恢复最后一次手动位置，自主移动不覆盖它。").FontSize(12).TextColor(muted)
-	ui.Text(c, "Shows the selected task. Pet chat opens Whale’s own saved conversation without sending a message; Open chat returns to the task. / 显示当前任务；和宠物聊聊打开鲸鱼娘专属持久会话，不自动发送消息。回到会话仍返回当前任务。").FontSize(12).TextColor(muted)
+	ui.Text(c, "Shows the selected task. Quick chat opens a compact card on Whale’s saved conversation; Main pet chat opens that same session in the main window. / 显示当前任务；聊聊打开紧凑聊天卡，宠物主会话打开相同持久会话；回到会话仍返回当前任务。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Feed file opens a native picker and changes only saved care stats; selected files stay untouched. / 喂文件只保存饱食/心情变化，不读取或改动所选文件。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Refresh bowl reads this app’s actual usage. Feed Token spends local game food only, never API credit. / 刷新粮碗读取本应用真实用量；喂 Token 只消费本地游戏粮点，不扣账户余额。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Pat saves the original mood/bond care effect; repeat pats use its ten-minute bond cooldown. / 摸摸头保存原版心情/亲密变化，重复互动沿用十分钟亲密冷却。").FontSize(12).TextColor(muted)
