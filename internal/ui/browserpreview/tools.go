@@ -187,6 +187,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	supported := !disabled && t.Host.BrowserToolsAvailable()
 	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()
 	siteDataSupported := !disabled && t.Host.BrowserSiteDataToolsAvailable()
+	devToolsSupported := !disabled && t.Host.BrowserDevToolsAvailable()
 	zoom := 1.0
 	if t.Host != nil {
 		zoom = t.Host.BrowserZoom()
@@ -236,6 +237,9 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "site-data", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
+				}
+				if ui.Button(c, "开发者工具").Disabled(!devToolsSupported).Tooltip("仅打开当前 Browser 页的原生开发者工具；控制台可修改本站点，请勿粘贴不明代码。插件与隔离文档预览不可用。").Clicked() {
+					b.openBrowserDevTools(t)
 				}
 				if b.pip != nil {
 					if ui.Button(c, "关闭画中画").Clicked() {

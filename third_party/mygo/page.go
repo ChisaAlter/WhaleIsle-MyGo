@@ -28,8 +28,9 @@ type PageOptions struct {
 	// data folder. Pages with the same BrowserPartition share it; different
 	// partitions and default-profile windows remain isolated. Existing cookies
 	// and storage are not migrated or deleted, so users
-	// must sign in again on first use. Native bindings, preloads and DevTools
-	// are disabled. Windows only; incompatible with local/isolated previews.
+	// must sign in again on first use. Native bindings, preloads and automatic
+	// DevTools entrypoints are disabled. Only explicit host OpenBrowserDevTools
+	// may open this page's inspector. Windows only; incompatible with local/isolated previews.
 	BrowserProfile bool
 	// BrowserPartition is a required stable, opaque lowercase SHA-256 key for
 	// BrowserProfile. It must identify the trusted Host/workspace scope, never a
