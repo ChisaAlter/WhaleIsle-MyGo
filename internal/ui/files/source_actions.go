@@ -69,6 +69,7 @@ func paintSourceActions(c *ui.Context, m Model, path string, muted ui.Color) {
 	}
 	text := previewText(m)
 	ui.Row(c).Padding(2, 12, 4, 12).Gap(6).AlignItems(ui.Center).Children(func() {
+		paintWrapToggle(c, m)
 		if isMarkdown(path) {
 			if ui.Button(c, label("源码", "Source")).FontSize(11).Disabled(!t.RenderedMarkdown).Clicked() {
 				t.RenderedMarkdown = false
@@ -117,8 +118,7 @@ func setFileStatus(m Model, text string) {
 // decorate the original source; rendered Markdown never substitutes for it.
 func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly bool, key string, fg, muted ui.Color) {
 	ui.Column(c).Key(path + "/" + key).Fill().MinHeight(0).MinWidth(0).Children(func() {
-		editor := ui.TextArea(c, text).Fill().MinHeight(0).Font("Consolas").
-			FontSize(12).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly)
+		editor := sourceTextArea(c, m, text, readOnly, key, fg)
 		if !isMarkdown(path) && markdown.CanSourceHighlight(path, *text) {
 			editor.TextRanges(sourceRanges(path, *text, sourceStyle(m, fg, muted))...)
 		}
@@ -132,6 +132,7 @@ func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly
 			editor.SetTextSelection(ranges[line].start, ranges[line].end).Focus()
 			t.revealLine = 0
 		}
+		revealSourceCaret(c, m, editor, *text, key)
 		if editor.Focused() {
 			if editor.Shortcut(ui.Cmd, ui.KeyS) {
 				if err := requestSaveDraft(m); err != nil {

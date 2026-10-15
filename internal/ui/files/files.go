@@ -105,6 +105,7 @@ var editSplitFallback float32 = 200
 // View paints the file tree and plain-text preview.
 func View(c *ui.Context, m Model) {
 	m.notify = c.Invalidate
+	previewPreferences(m)
 	if m.Tabs != nil {
 		m.Tabs.Bind(m.BindingID, m.WorkspaceRoot)
 	}
@@ -323,6 +324,11 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			ui.Text(c, sel).FontSize(11).Bold().TextColor(muted).Grow(1)
 			if sel != "" {
 				paintReferenceButtons(c, m, sel)
+				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(11).Disabled(m.Tabs == nil).Clicked() {
+					if err := openFloatingPreview(m); err != nil {
+						setFileStatus(m, err.Error())
+					}
+				}
 				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(11).Clicked() {
 					path := sel
 					if fullPath != "" {

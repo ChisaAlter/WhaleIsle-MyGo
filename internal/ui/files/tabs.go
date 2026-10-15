@@ -14,12 +14,14 @@ import (
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
-	Workspaces map[string]*WorkspaceTabs
-	Root       string
-	binding    string
-	boundRoot  string
-	Tree       *workspacefs.DirectoryTree `json:"-"`
-	Search     *workspacefs.Search        `json:"-"`
+	Preferences *PreviewPreferences
+	floating    *floatingPreview
+	Workspaces  map[string]*WorkspaceTabs
+	Root        string
+	binding     string
+	boundRoot   string
+	Tree        *workspacefs.DirectoryTree `json:"-"`
+	Search      *workspacefs.Search        `json:"-"`
 }
 type WorkspaceTabs struct {
 	Open         []*FileTab
@@ -29,6 +31,10 @@ type WorkspaceTabs struct {
 type FileTab struct {
 	Path, Preview, Draft, Error, Status, Stat string
 	Editing                                   bool
+	sourceViews                               map[string]*sourceViewState
+	sourceWidthText                           string
+	sourceWidth                               float32
+	sourceWidthValid                          bool
 	RenderedMarkdown                          bool
 	selectionText                             string
 	selectionStart, selectionEnd              int
@@ -348,5 +354,6 @@ func (t *Tabs) Bind(binding, root string) {
 			}
 		}
 	}
+	t.closeFloatingPreview()
 	t.binding, t.boundRoot = binding, root
 }
