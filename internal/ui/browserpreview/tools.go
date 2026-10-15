@@ -77,6 +77,8 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的 HTTP 缓存…"
 	} else if kind == "cookies" {
 		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的登录 Cookie…"
+	} else if kind == "site-data" {
+		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的五类站点数据…"
 	}
 	b.update()
 	go func() {
@@ -85,6 +87,8 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 			err = h.ClearBrowserHTTPCache(ctx)
 		} else if kind == "cookies" {
 			err = h.ClearBrowserLoginCookies(ctx, epoch)
+		} else if kind == "site-data" {
+			err = h.ClearBrowserSiteData(ctx, epoch)
 		} else {
 			err = h.SetBrowserColorScheme(ctx, mygo.BrowserColorScheme(scheme))
 		}
@@ -101,6 +105,9 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
 					t.Error = err.Error()
+					if kind == "site-data" {
+						t.Error = "五类站点数据清理未确认完成，可能已部分生效；不会自动重试：" + err.Error()
+					}
 				}
 				return
 			}
@@ -108,6 +115,8 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 				t.ActionMessage = "当前分区 HTTP 缓存已清除；Cookies 和站点数据保留，其他工作区/插件不受影响"
 			} else if kind == "cookies" {
 				t.ActionMessage = "当前分区全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，其他工作区/插件不受影响"
+			} else if kind == "site-data" {
+				t.ActionMessage = "当前分区五类站点数据已清除；HTTP 缓存、CacheStorage 等其他数据保留，其他工作区/插件不受影响。活跃站点可能再次创建数据。"
 			} else {
 				t.tools.settings.Scheme = scheme
 				t.ActionMessage = "网页 prefers-color-scheme 已更新"
@@ -177,6 +186,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	disabled := t.Host == nil || state.Loading || busy || b.current() != t
 	supported := !disabled && t.Host.BrowserToolsAvailable()
 	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()
+	siteDataSupported := !disabled && t.Host.BrowserSiteDataToolsAvailable()
 	zoom := 1.0
 	if t.Host != nil {
 		zoom = t.Host.BrowserZoom()
@@ -222,6 +232,11 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cookies", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
+				if ui.Button(c, "清五类站点数据…").Disabled(!siteDataSupported).Tooltip("需 WebView2 Profile2。仅清当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；需确认，保留 HTTP 缓存和 CacheStorage，其他工作区/插件不受影响。").Clicked() {
+					b.CancelAction()
+					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "site-data", host: t.Host, epoch: t.Host.BrowserPageVersion()}
+					b.update()
+				}
 				if b.pip != nil {
 					if ui.Button(c, "关闭画中画").Clicked() {
 						b.stopPictureInPicture()
@@ -241,6 +256,9 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					if confirm.kind == "cookies" {
 						notice = browserCookieClearNotice
 						unavailable = !cookieSupported
+					} else if confirm.kind == "site-data" {
+						notice = browserSiteDataClearNotice
+						unavailable = !siteDataSupported
 					}
 					notice = "分区「" + t.browserWorkspaceLabel() + "」：" + notice
 					ui.Text(c, notice).FontSize(11).Tooltip(notice)
