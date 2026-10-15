@@ -23,14 +23,15 @@ type ApplySelection struct {
 
 // ApplyResult summarizes a completed ApplyCatalog.
 type ApplyResult struct {
-	OK        bool
-	Empty     bool
-	Copied    int
-	Skipped   int
-	Installed int
-	Failed    int
-	Plugins   []PluginResult
-	Message   string
+	OK          bool
+	Empty       bool
+	Copied      int
+	Skipped     int
+	Installed   int
+	Failed      int
+	Credentials []CredentialResult
+	Plugins     []PluginResult
+	Message     string
 	// Journal is a per-item line log (Electron runImport journal list).
 	Journal []string
 }
@@ -77,17 +78,18 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 
 	var copied, skipped, installed, failed int
 	var plugins []PluginResult
+	var credentialRows []CredentialResult
 	var journal []string
 	defer func() {
 		if resultErr != nil {
-			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Message: fmt.Sprintf("导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留。%v", copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
+			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: fmt.Sprintf("导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留。%v", copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
 			result.Journal = append(result.Journal, result.Message)
 		}
 	}()
 	note := func(line string) {
 		journal = append(journal, line)
 		if progress != nil {
-			progress(ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Message: line, Journal: append([]string(nil), journal...)})
+			progress(ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: line, Journal: append([]string(nil), journal...)})
 		}
 	}
 	// Sessions
@@ -172,13 +174,35 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			}
 		}
 		if len(yamlIDs) > 0 {
-			n, skip, err := mergeSelected(ctx, cat, yamlIDs, group.mcp, sel.Overwrite)
+			n, skip, refs, err := mergeSelectedWithRefs(ctx, cat, yamlIDs, group.mcp, sel.Overwrite)
 			copied += n
 			skipped += skip
 			if err != nil {
 				return ApplyResult{}, fmt.Errorf("%s 合并失败: %w", group.label, err)
 			}
 			note(fmt.Sprintf("%s：合并 %d 项，跳过 %d 项", group.label, n, skip))
+			if len(refs) > 0 {
+				rows, err := importCredentialRefs(ctx, cat, refs, sel.Overwrite)
+				for _, row := range rows {
+					credentialRows = append(credentialRows, row)
+					switch row.Status {
+					case "copied":
+						copied++
+					case "skipped":
+						skipped++
+					default:
+						failed++
+					}
+					line := "凭据引用 " + row.Ref + "：" + row.Status
+					if row.Reason != "" {
+						line += " (" + row.Reason + ")"
+					}
+					note(line)
+				}
+				if err != nil {
+					return ApplyResult{}, err
+				}
+			}
 		}
 	}
 	if contains(sel.SelectedSettingIDs, "agents-md") {
@@ -325,9 +349,15 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 	if skipped > 0 {
 		msg += fmt.Sprintf("，跳过 %d 项（冲突未覆盖或不受支持）", skipped)
 	}
-	msg += "。引用凭据未迁移，可能需要重新配置。"
+	msg += "。"
+	for _, row := range credentialRows {
+		if row.Status == "missing" || row.Status == "unsupported" || row.Status == "failed" {
+			msg += "部分引用凭据未迁移，请查看凭据结果并重新配置。"
+			break
+		}
+	}
 	note(msg)
-	return ApplyResult{OK: failed == 0, Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: plugins, Message: msg, Journal: journal}, nil
+	return ApplyResult{OK: failed == 0, Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: plugins, Credentials: credentialRows, Message: msg, Journal: journal}, nil
 }
 
 // SelectionFromCatalog builds ApplySelection from current checkbox state on items.

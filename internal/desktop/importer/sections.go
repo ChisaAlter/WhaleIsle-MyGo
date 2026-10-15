@@ -242,18 +242,23 @@ func writeMergedFileWithRename(path string, before, data []byte, rename func(str
 }
 
 func mergeSelected(ctx context.Context, cat Catalog, ids []string, mcp, overwrite bool) (copied, skipped int, err error) {
+	copied, skipped, _, err = mergeSelectedWithRefs(ctx, cat, ids, mcp, overwrite)
+	return
+}
+
+func mergeSelectedWithRefs(ctx context.Context, cat Catalog, ids []string, mcp, overwrite bool) (copied, skipped int, refs []string, err error) {
 	file := "settings.yaml"
 	if mcp {
 		file = "mcp-servers.yaml"
 	}
 	src, err := readImportText(filepath.Join(cat.SourceHome, file))
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
 	dstPath := filepath.Join(cat.DestHome, file)
 	before, err := readImportText(dstPath)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
 	var source, dest, doc textSections
 	if mcp {
@@ -268,12 +273,12 @@ func mergeSelected(ctx context.Context, cat Catalog, ids []string, mcp, overwrit
 		}
 	}
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		if err := ctx.Err(); err != nil {
-			return 0, 0, err
+			return 0, 0, nil, err
 		}
 		if seen[id] {
 			continue
@@ -286,6 +291,16 @@ func mergeSelected(ctx context.Context, cat Catalog, ids []string, mcp, overwrit
 		}
 		_, exists = dest.blocks[id]
 		if exists && !overwrite {
+			// A skipped source section may fill a missing credential only when
+			// that same name remains referenced by the retained target section.
+			if !mcp {
+				targetRefs := credentialRefsOfSection(id, dest.blocks[id])
+				for _, ref := range credentialRefsOfSection(id, block) {
+					if contains(targetRefs, ref) {
+						refs = append(refs, ref)
+					}
+				}
+			}
 			skipped++
 			continue
 		}
@@ -293,10 +308,13 @@ func mergeSelected(ctx context.Context, cat Catalog, ids []string, mcp, overwrit
 			dest.order = append(dest.order, id)
 		}
 		dest.blocks[id] = block
+		if !mcp {
+			refs = append(refs, credentialRefsOfSection(id, block)...)
+		}
 		copied++
 	}
 	if copied == 0 {
-		return copied, skipped, nil
+		return copied, skipped, refs, nil
 	}
 	var data string
 	if mcp {
@@ -309,10 +327,10 @@ func mergeSelected(ctx context.Context, cat Catalog, ids []string, mcp, overwrit
 		data = dest.render()
 	}
 	if err := ctx.Err(); err != nil {
-		return 0, skipped, err
+		return 0, skipped, nil, err
 	}
 	if err := writeMergedFile(dstPath, before, []byte(data)); err != nil {
-		return 0, skipped, err
+		return 0, skipped, nil, err
 	}
-	return copied, skipped, nil
+	return copied, skipped, refs, nil
 }
