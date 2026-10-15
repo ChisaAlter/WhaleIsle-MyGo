@@ -22,6 +22,7 @@ func (s *Store) PreviewVisualReply(ctx context.Context, sessionID, attachmentID 
 		s.mu.Unlock()
 		return
 	}
+	s.stopInteractiveVisualReplyLocked()
 	client, generation, html := s.client, s.followGeneration, v.HTML
 	s.visualReplyToken++
 	token := s.visualReplyToken
@@ -63,6 +64,7 @@ func (s *Store) PreviewVisualReply(ctx context.Context, sessionID, attachmentID 
 	s.fire()
 }
 func (s *Store) cancelVisualReplyLocked() {
+	s.stopInteractiveVisualReplyLocked()
 	if s.visualReply.previewCancel != nil {
 		s.visualReply.previewCancel()
 	}

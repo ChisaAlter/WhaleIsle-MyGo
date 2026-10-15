@@ -6460,12 +6460,14 @@ func mainView(c *ui.Context) {
 						OnOpenCitationURL: func(u string) {
 							state.showBrowserPreview(u)
 						},
-						VisualReply:          visualReplyState,
-						VisualReplyBitmap:    publishedHTMLBitmap(visualReplyState),
-						OnPreviewVisualReply: func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
-						OnReadVisualReply:    func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
-						OnSaveVisualReply:    func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
-						OnCloseVisualReply:   sessions.CloseVisualReply,
+						VisualReply:                  visualReplyState,
+						VisualReplyBitmap:            publishedHTMLBitmap(visualReplyState),
+						OnPreviewVisualReply:         func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
+						OnInteractVisualReply:        interactivePublishedHTMLHandler(sessions, snap.SelectedID, mygo.Theme.IsDark()),
+						OnStopInteractiveVisualReply: sessions.StopInteractiveVisualReply,
+						OnReadVisualReply:            func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
+						OnSaveVisualReply:            func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
+						OnCloseVisualReply:           sessions.CloseVisualReply,
 						OnOpenDeliverable: func(path string) {
 							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
 								return

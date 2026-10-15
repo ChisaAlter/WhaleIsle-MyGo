@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmlpreview"
+	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
@@ -115,4 +117,50 @@ func publishedHTMLBitmap(page session.VisualReplyState) *ui.Bitmap {
 		publishedHTMLImage.bitmap = bitmap
 	}
 	return publishedHTMLImage.bitmap
+}
+
+// This callback is offered only on the platform with the existing AppContainer
+// helper. No preference, transcript replay or paint automatically starts it.
+func interactivePublishedHTMLHandler(s *session.Store, sessionID string, dark bool) func(string) {
+	if runtime.GOOS != "windows" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+		return nil
+	}
+	return func(attachmentID string) {
+		if s == nil || s.Snapshot().SelectedID != sessionID {
+			return
+		}
+		caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
+		if !caps.VisualReplyReader {
+			s.SetLastAction("Published HTML unavailable: " + caps.Reason)
+			return
+		}
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+			s.OpenInteractiveVisualReply(ctx, sessionID, attachmentID, func(ctx context.Context, html string) (session.VisualReplyInteractive, error) {
+				executable, err := os.Executable()
+				if err != nil {
+					return nil, err
+				}
+				helper := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
+				info, err := os.Stat(helper)
+				if err != nil || !info.Mode().IsRegular() {
+					return nil, fmt.Errorf("隔离 helper 未随应用安装 / Isolated preview helper is not installed")
+				}
+				// readVisualReply returns the already-prepared attachment: local
+				// images were embedded by the original publication. Never resolve
+				// workspace/file/remote references or pass Host credentials here.
+				handle, err := previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helper},
+					previewprocess.Document{HTML: html, Width: 900, Appearance: appearance})
+				if err != nil {
+					return nil, err
+				}
+				return handle, nil
+			})
+		}()
+	}
 }

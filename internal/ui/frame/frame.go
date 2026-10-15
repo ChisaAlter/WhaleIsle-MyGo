@@ -265,18 +265,20 @@ type Model struct {
 	PlanBoardOpen        *bool
 	GoalDraft            *string
 	// TodoPanelCollapsed mirrors Electron TodoPanel header chevron (composer dock).
-	TodoPanelCollapsed   *bool
-	ImageLightboxPath    *string
-	OnOpenImageLightbox  func(displayPath string)
-	OnCloseImageLightbox func()
-	OnOpenCitationURL    func(url string)
-	OnOpenDeliverable    func(path string)
-	VisualReply          session.VisualReplyState
-	VisualReplyBitmap    *ui.Bitmap
-	OnPreviewVisualReply func(attachmentID string)
-	OnReadVisualReply    func(attachmentID string)
-	OnSaveVisualReply    func(attachmentID string)
-	OnCloseVisualReply   func()
+	TodoPanelCollapsed           *bool
+	ImageLightboxPath            *string
+	OnOpenImageLightbox          func(displayPath string)
+	OnCloseImageLightbox         func()
+	OnOpenCitationURL            func(url string)
+	OnOpenDeliverable            func(path string)
+	VisualReply                  session.VisualReplyState
+	VisualReplyBitmap            *ui.Bitmap
+	OnPreviewVisualReply         func(attachmentID string)
+	OnInteractVisualReply        func(attachmentID string)
+	OnStopInteractiveVisualReply func()
+	OnReadVisualReply            func(attachmentID string)
+	OnSaveVisualReply            func(attachmentID string)
+	OnCloseVisualReply           func()
 	// ChatPaneTab is ConversationRoot in-column tab: "chat" (default) or "trajectory".
 	ChatPaneTab *string
 	// HideChatViewTabs mirrors Electron submissionPolicy.viewTabs=false.
@@ -841,17 +843,19 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnLoadEarlier: func() {
 											m.Store.LoadEarlierHistory(context.Background())
 										},
-										ImageLightboxPath:    m.ImageLightboxPath,
-										OnOpenImageLightbox:  m.OnOpenImageLightbox,
-										OnCloseImageLightbox: m.OnCloseImageLightbox,
-										OnOpenCitationURL:    m.OnOpenCitationURL,
-										OnOpenDeliverable:    m.OnOpenDeliverable,
-										VisualReply:          m.VisualReply,
-										VisualReplyBitmap:    m.VisualReplyBitmap,
-										OnPreviewVisualReply: m.OnPreviewVisualReply,
-										OnReadVisualReply:    m.OnReadVisualReply,
-										OnSaveVisualReply:    m.OnSaveVisualReply,
-										OnCloseVisualReply:   m.OnCloseVisualReply,
+										ImageLightboxPath:            m.ImageLightboxPath,
+										OnOpenImageLightbox:          m.OnOpenImageLightbox,
+										OnCloseImageLightbox:         m.OnCloseImageLightbox,
+										OnOpenCitationURL:            m.OnOpenCitationURL,
+										OnOpenDeliverable:            m.OnOpenDeliverable,
+										VisualReply:                  m.VisualReply,
+										VisualReplyBitmap:            m.VisualReplyBitmap,
+										OnPreviewVisualReply:         m.OnPreviewVisualReply,
+										OnInteractVisualReply:        m.OnInteractVisualReply,
+										OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
+										OnReadVisualReply:            m.OnReadVisualReply,
+										OnSaveVisualReply:            m.OnSaveVisualReply,
+										OnCloseVisualReply:           m.OnCloseVisualReply,
 									})
 								}
 							})

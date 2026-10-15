@@ -99,6 +99,9 @@ func PublishedVisualReply(raw json.RawMessage) (VisualReplyPublication, bool) {
 }
 
 type VisualReplyState struct {
+	InteractiveLoading                                        bool
+	InteractiveActive                                         bool
+	InteractiveError                                          string
 	PreviewLoading                                            bool
 	PreviewError                                              string
 	PreviewPNG                                                []byte
@@ -114,6 +117,7 @@ type VisualReplyState struct {
 }
 
 type visualReplyRead struct {
+	interaction   *visualReplyInteraction
 	previewCancel context.CancelFunc
 	VisualReplyState
 	generation uint64
@@ -142,10 +146,16 @@ func (s *Store) CloseVisualReply() {
 // Host independently authorizes it against durable session events. Never fall
 // back to attachment/image APIs, workspace files, URLs, or generation tools.
 func (s *Store) LoadVisualReply(ctx context.Context, sessionID, attachmentID string) {
+	s.loadVisualReply(ctx, sessionID, attachmentID)
+}
+
+// The read token binds an interactive launch to this exact authorized read,
+// including repeated requests for the same attachment. Zero means no authority.
+func (s *Store) loadVisualReply(ctx context.Context, sessionID, attachmentID string) uint64 {
 	s.mu.Lock()
 	if s.client == nil || sessionID == "" || s.selectedID != sessionID || ctx.Err() != nil {
 		s.mu.Unlock()
-		return
+		return 0
 	}
 	var pub VisualReplyPublication
 	found := false
@@ -157,7 +167,7 @@ func (s *Store) LoadVisualReply(ctx context.Context, sessionID, attachmentID str
 	}
 	if !found {
 		s.mu.Unlock()
-		return
+		return 0
 	}
 	client, generation := s.client, s.followGeneration
 	s.cancelVisualReplyLocked()
@@ -177,7 +187,7 @@ func (s *Store) LoadVisualReply(ctx context.Context, sessionID, attachmentID str
 	s.mu.Lock()
 	if s.client != client || s.selectedID != sessionID || s.followGeneration != generation || s.visualReply.token != token || s.visualReplyToken != token {
 		s.mu.Unlock()
-		return
+		return 0
 	}
 	s.visualReply.Loading = false
 	if err != nil {
@@ -188,4 +198,8 @@ func (s *Store) LoadVisualReply(ctx context.Context, sessionID, attachmentID str
 	}
 	s.mu.Unlock()
 	s.fire()
+	if err != nil {
+		return 0
+	}
+	return token
 }

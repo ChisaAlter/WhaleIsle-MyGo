@@ -11,7 +11,9 @@ func TestProcessDocumentShellKeepsOpaqueSandbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, required := range []string{
-		"frame.setAttribute('sandbox','allow-scripts')",
+		"frame.setAttribute('sandbox','allow-scripts allow-forms')",
+		"whale-visual-reply-theme",
+		"form-action",
 		"event.source!==frame.contentWindow",
 		"event.origin!=='null'",
 		"connect-src",
@@ -21,7 +23,7 @@ func TestProcessDocumentShellKeepsOpaqueSandbox(t *testing.T) {
 			t.Fatalf("missing %q", required)
 		}
 	}
-	if strings.Contains(shell, "allow-same-origin") {
+	if strings.Contains(shell, "allow-same-origin") || strings.Contains(shell, "allow-top-navigation") || strings.Contains(shell, "allow-popups") {
 		t.Fatal("opaque origin was relaxed")
 	}
 	// The ordinary document path remains independently script-free.

@@ -17,8 +17,9 @@ The documented AppContainer/system-executable firewall exception is not, by
 itself, a reachable HTML attack: a page would first need a native process-launch
 primitive. This helper exposes none. The existing native policy rejects
 navigation/external protocols, new windows, downloads, permissions and bindings;
-the child iframe has only allow-scripts, without same-origin, forms, popups,
-modals or top navigation. No direct permitted webpage-to-system-EXE path was
+the child iframe grants allow-scripts and allow-forms for local JavaScript
+submit handlers. form-action none still prohibits form transmission; there is
+no same-origin, popup, modal or top-navigation grant. No direct permitted webpage-to-system-EXE path was
 identified in the bounded source review.
 
 ## Implemented path
@@ -72,8 +73,8 @@ Package it only with trusted application binaries. The optional SDK loader must
 be beside that helper. This implementation otherwise uses the installed
 WebView2 runtime; fixed-version runtime packaging is not added here.
 
-The HTML tab's "运行脚本（隔离实验）" button is the only product caller that opts
-in. It keeps the static Host open while attempting a separate helper. Missing
+The HTML tab's "运行脚本（隔离实验）" button and a published visual reply's
+"打开交互页" button are explicit per-document product callers. It keeps the static Host open while attempting a separate helper. Missing
 helper, expired ownership or any containment/initialization error preserves the
 static snapshot and reports the reason. There is an explicit stop button.
 
@@ -96,6 +97,16 @@ NSIS requires that exact companion and removes it on uninstall; neither build
 nor install runs it. The offline-candidate path supports explicit previewHelper
 plus previewHelperSHA256 inputs. Omitting it keeps old candidates static-only,
 rather than discovering or trusting another executable automatically.
+
+Published visual replies use only session/readVisualReply after verifying the
+exact durable native/PTC publication. Their attachment bytes are already prepared
+by the Host (including data-URL images); this path does not resolve filesystem,
+relative, file: or remote resource URLs. It supplies only those bytes, dimensions
+and initial appearance to the helper. Close, another read, stop, session or Host
+replacement revoke the owning read and cancel the helper. The window supports
+controls, local form handlers and scrolling beyond the static capture limit.
+It follows the opening appearance; live app-theme synchronization and an inline
+embedded interactive chat surface are not implemented by this one-document IPC.
 
 Remaining engineering work:
 - Compile both Windows architectures and run the synthetic protocol tests.

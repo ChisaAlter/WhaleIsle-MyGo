@@ -21,5 +21,5 @@ func ProcessDocumentShell(preparedHTML string, width int, appearance string) (st
 	if appearance == "dark" {
 		palette = previewPalette{Background: "#171717", Surface: "#242424", Text: "#eeeeee", Secondary: "#aaaaaa", Border: "#444444", Accent: "#60a5fa"}
 	}
-	return buildShell(request{HTML: preparedHTML, Width: width, Appearance: appearance}, palette), nil
+	return buildShellMode(request{HTML: preparedHTML, Width: width, Appearance: appearance}, palette, true), nil
 }

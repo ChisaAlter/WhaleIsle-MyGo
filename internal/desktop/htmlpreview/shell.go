@@ -6,13 +6,25 @@ import (
 )
 
 // A stricter CSP is inserted before supplied markup. The sandbox never grants
-// same-origin, navigation, forms, popups, downloads, or native bridge access.
+// same-origin, navigation, popups, downloads, or native bridge access. Form
+// submission stays blocked by CSP even in the interactive form-handling mode.
 const childCSP = "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'"
 const parentCSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self' about:; connect-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
 
 type previewPalette struct{ Background, Surface, Text, Secondary, Border, Accent string }
 
 func buildShell(input request, palette previewPalette) string {
+	return buildShellMode(input, palette, false)
+}
+
+// Forms are enabled only inside the out-of-process helper. They may run local
+// submit handlers, but form-action none and native frame/top-level navigation
+// denial remain in force. The screenshot path keeps its existing sandbox.
+func buildShellMode(input request, palette previewPalette, interactive bool) string {
+	sandbox := "allow-scripts"
+	if interactive {
+		sandbox += " allow-forms"
+	}
 	variables, _ := json.Marshal(map[string]string{
 		"--bg": palette.Background, "--background": palette.Background, "--surface": palette.Surface,
 		"--text": palette.Text, "--text-secondary": palette.Secondary, "--border": palette.Border, "--accent": palette.Accent,
@@ -37,9 +49,13 @@ addEventListener('load',async()=>{try{
 })();</script>` + input.HTML
 	encoded, _ := json.Marshal(child) // escapes '<', so supplied markup cannot close our script
 	background, _ := json.Marshal(palette.Background)
+	themeBridge := ""
+	if interactive {
+		themeBridge = `frame.addEventListener('load',()=>frame.contentWindow?.postMessage({type:'whale-visual-reply-theme',appearance:` + string(appearance) + `,variables:` + string(variables) + `},'*'));`
+	}
 	return `<!doctype html><meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(parentCSP) + `"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0;width:100%;height:100vh}</style><script>
 window.__previewState={ready:false,height:0,error:'',consoleMessages:[],omitted:0};
-const frame=document.createElement('iframe');frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('referrerpolicy','no-referrer');
+const frame=document.createElement('iframe');frame.setAttribute('sandbox','` + sandbox + `');frame.setAttribute('referrerpolicy','no-referrer');
 addEventListener('message',event=>{
  if(event.source!==frame.contentWindow||event.origin!=='null'||!event.data||typeof event.data!=='object')return;
  const state=window.__previewState,data=event.data;
@@ -50,6 +66,7 @@ addEventListener('message',event=>{
  }else if(data.type==='preview-error'&&typeof data.error==='string')state.error=data.error.slice(0,500);
 });
 document.documentElement.style.backgroundColor=` + string(background) + `;
+` + themeBridge + `
 addEventListener('DOMContentLoaded',()=>{frame.srcdoc=` + string(encoded) + `;document.body.append(frame)},{once:true});
 </script><body></body>`
 }
