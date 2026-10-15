@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 )
 
 // freezeAgentNavigationView discards transient previews when leaving latest.
@@ -124,16 +123,12 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 				n.view.Error = ""
 				// Original follow carries the authoritative same-cut projection baseline.
 				// Use it without blocking stream draining on another RPC or activating anything.
-				var values json.RawMessage
 				if baseline.Projections != nil {
-					values = baseline.Projections.Values
+					if catalogErr := seedAgentNavigationCatalog(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq, s.items); catalogErr != nil {
+						n.view.Error = "Agent directory: " + catalogErr.Error()
+					}
 				}
-				rows, catalogErr := agentNavigationRows(address.ChildSessionID, values, s.items)
-				if catalogErr == nil {
-					n.view.Rows = rows
-				} else {
-					n.view.Error = "Agent directory: " + catalogErr.Error()
-				}
+				s.refreshAgentNavigationRowsLocked(&n.view)
 			}
 			notify := !n.notifyPending
 			n.notifyPending = true
@@ -212,11 +207,9 @@ type agentNavigationLiveBaseline struct {
 	Header struct {
 		ID string `json:"id"`
 	} `json:"header"`
-	Cursor      *float64          `json:"cursor"`
-	Records     []json.RawMessage `json:"records"`
-	Projections *struct {
-		Values json.RawMessage `json:"values"`
-	} `json:"projections"`
+	Cursor      *float64                   `json:"cursor"`
+	Records     []json.RawMessage          `json:"records"`
+	Projections *agentNavigationProjection `json:"projections"`
 }
 
 func parseAgentNavigationLiveOpening(raw json.RawMessage, address AgentSessionAddress) (*agentNavigationLiveBaseline, error) {
@@ -247,7 +240,7 @@ func parseAgentNavigationLiveOpening(raw json.RawMessage, address AgentSessionAd
 func (s *Store) loadAgentNavigationLiveCatalog(ctx context.Context, token uint64, client *dsh.Client, mux *dsh.Mux, address AgentSessionAddress) {
 	query, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	var projection api.SessionProjectionsValue
+	var projection agentNavigationProjection
 	err := client.Call(query, "session/projections", map[string]any{"request": map[string]any{"sessionId": address.ChildSessionID}}, &projection)
 	s.mu.Lock()
 	if !s.agentNavigationLiveCurrentLocked(query, token, client, mux, address) {
@@ -256,7 +249,8 @@ func (s *Store) loadAgentNavigationLiveCatalog(ctx context.Context, token uint64
 	}
 	n := &s.agentNavigation
 	if err == nil {
-		n.view.Rows, err = agentNavigationRows(address.ChildSessionID, projection.Values, s.items)
+		err = seedAgentNavigationCatalog(&n.view, projection.Values, projection.AsOfSeq, s.items)
+		s.refreshAgentNavigationRowsLocked(&n.view)
 	}
 	if err != nil {
 		n.view.Error = "Agent directory: " + err.Error()

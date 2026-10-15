@@ -32,7 +32,8 @@ type AgentNavigationRow struct {
 	Running bool
 }
 type AgentNavigationView struct {
-	Messages         []Message // isolated live presentation; never main chat messages
+	catalog          agentNavigationCatalog // Host-computed whole value and its watermark
+	Messages         []Message              // isolated live presentation; never main chat messages
 	ActionBusy       bool
 	ActionStatus     string
 	Token            uint64
@@ -86,6 +87,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 		return AgentNavigationView{}
 	}
 	s.agentNavigation.notifyPending = false
+	s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
 	return cloneAgentNavigationView(s.agentNavigation.view)
 }
 
@@ -99,6 +101,7 @@ func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 		return AgentNavigationView{}
 	}
 	if s.agentNavigationOwnedLocked() {
+		s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
 		s.agentNavigation.notifyPending = false
 		v := cloneAgentNavigationView(s.agentNavigation.view)
 		s.mu.Unlock()
@@ -241,7 +244,6 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 	n.view.Error = ""
 	v := cloneAgentNavigationView(n.view)
 	client := n.client
-	items := append([]Item(nil), s.items...)
 	go func() {
 		defer cancel()
 		current := func() bool {
@@ -250,15 +252,12 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 			return ctx.Err() == nil && s.agentNavigationOwnedLocked() && s.agentNavigation.view.Token == v.Token
 		}
 		var err error
+		var projection agentNavigationProjection
 		if v.Address.validChild() && earlier {
 			v.Process, v.Messages, v.Body, err = readAgentNavigationPage(ctx, client, v.Address, v.Process)
 		}
 		if err == nil && !earlier && current() {
-			var projection api.SessionProjectionsValue
 			err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": v.SessionID}}, &projection)
-			if err == nil {
-				v.Rows, err = agentNavigationRows(v.SessionID, projection.Values, items)
-			}
 		}
 		s.mu.Lock()
 		n := &s.agentNavigation
@@ -271,6 +270,14 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 		}
 		n.view.Busy = false
 		n.cancel = nil
+		if err == nil {
+			// A control push may have landed while this RPC/page was in flight.
+			v.catalog = n.view.catalog
+			if !earlier {
+				err = seedAgentNavigationCatalog(&v, projection.Values, projection.AsOfSeq, s.items)
+			}
+			s.refreshAgentNavigationRowsLocked(&v)
+		}
 		if err != nil {
 			n.view.Error = err.Error()
 		} else {
@@ -303,12 +310,11 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 		if err := json.Unmarshal(projection.Catalog, &entries); err != nil {
 			return nil, err
 		}
-		seen := map[string]bool{}
+		// Original catalog is ordered facts, not a map keyed by child id.
 		for _, entry := range entries {
-			if entry.ID == "" || entry.ID == parent || seen[entry.ID] {
+			if entry.ID == "" || entry.ID == parent {
 				continue
 			}
-			seen[entry.ID] = true
 			mode := entry.Mode
 			if mode != "continuable" && mode != "one-shot" {
 				mode = "unknown"
@@ -427,7 +433,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 			if !valid {
 				err = ctx.Err()
 				if err == nil {
-					return
+					err = fmt.Errorf("Child target is no longer in the current directory; refresh before retrying")
 				}
 				break
 			}
