@@ -350,6 +350,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {
 			petPane(c, m.Pet, fg, muted)
+			petLookPane(c, m.Pet, m.Store, fg, muted)
 			return
 		}
 		if snap.Err != "" {

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"math"
+	"whaleisle/internal/petlook"
 )
 
 // PetBehavior holds the native companion's persisted display and interaction
@@ -19,6 +20,8 @@ type PetBehavior struct {
 	ShiftToDrag  bool    `json:"shiftToDrag"`
 	PowerSave    bool    `json:"powerSave"`
 	ClickSound   bool    `json:"clickSound"`
+	LookProvider string  `json:"lookProvider"`
+	LookModel    string  `json:"lookModel"`
 }
 
 // PetPosition is a native window position, including negative coordinates on
@@ -46,6 +49,8 @@ func NormalizePetBehavior(value PetBehavior) PetBehavior {
 }
 
 func normalizePetBehaviorFields(value PetBehavior) PetBehavior {
+	value.LookProvider = petlook.NormalizeID(value.LookProvider)
+	value.LookModel = petlook.NormalizeID(value.LookModel)
 	value.Scale = normalizePetNumber(value.Scale, 0.6, 1.6, 10)
 	value.Opacity = normalizePetNumber(value.Opacity, 0.3, 1, 20)
 	switch value.Personality {
@@ -88,6 +93,8 @@ func (value *PetBehavior) UnmarshalJSON(data []byte) error {
 	_ = json.Unmarshal(raw["shiftToDrag"], &value.ShiftToDrag)
 	_ = json.Unmarshal(raw["powerSave"], &value.PowerSave)
 	_ = json.Unmarshal(raw["clickSound"], &value.ClickSound)
+	_ = json.Unmarshal(raw["lookProvider"], &value.LookProvider)
+	_ = json.Unmarshal(raw["lookModel"], &value.LookModel)
 	*value = normalizePetBehaviorFields(*value)
 	return nil
 }

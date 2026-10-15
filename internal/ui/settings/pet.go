@@ -16,7 +16,7 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Pat saves the original mood/bond care effect; repeat pats use its ten-minute bond cooldown. / 摸摸头保存原版心情/亲密变化，重复互动沿用十分钟亲密冷却。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Sleep pauses rendering for this window; Wake uses the original mood −7, with no rest reward. / 睡觉临时暂停渲染；叫醒沿用原版心情 −7，无休息收益，重新开窗恢复清醒。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Optional THA4 neural animation uses verified local assets. Missing resources or runtime errors fall back to sprites. / 可选 THA4 神经渲染；资源或运行时不可用则回退图集。").FontSize(12).TextColor(muted)
-	ui.Text(c, "Look asks before each screenshot and uses the configured image-capable vision route in Settings → Models; replies appear on the pet. / 看看每次截图前确认，使用设置 → 模型中已配置的视觉路由；回复显示在桌宠上。").FontSize(12).TextColor(muted)
+	ui.Text(c, "Look asks before each screenshot and uses the pet-specific image route selected below; replies appear on the pet. / 看看每次截图前确认，使用下方独立选择的桌宠视觉路由；回复显示在桌宠上。").FontSize(12).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).FontSize(12).TextColor(fg)
 	}

@@ -9,6 +9,9 @@
   try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
   function applySettings(next) {
     if (next && typeof next === 'object') settings = next;
+    const look = document.getElementById('pet-look');
+    look.hidden = !(settings.lookProvider && settings.lookModel);
+    if (look.hidden) look.removeAttribute('href');
     const scale = Math.max(.6, Math.min(1.6, Number(settings.scale) || 1));
     const opacity = Math.max(.3, Math.min(1, Number(settings.opacity) || 1));
     document.documentElement.style.setProperty('--pet-scale', String(scale));
@@ -116,8 +119,9 @@
       if (task.Chat?.Busy || settings.chatEnabled === false) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
       document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
       const look = document.getElementById('pet-look');
-      look.setAttribute('aria-disabled', String(!!task.Look?.Busy));
-      if (task.Look?.Busy) look.removeAttribute('href'); else look.setAttribute('href', 'look-screen');
+      const lookDisabled = !!task.Look?.Busy || !(settings.lookProvider && settings.lookModel);
+      look.setAttribute('aria-disabled', String(lookDisabled));
+      if (lookDisabled) look.removeAttribute('href'); else look.setAttribute('href', 'look-screen');
       document.getElementById('pet-look-status').textContent = task.Look?.Message || '';
       setSleeping(task.Rest?.Sleeping === true);
       behaviorController?.applySettings(settings);

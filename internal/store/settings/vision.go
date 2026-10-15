@@ -45,6 +45,12 @@ func (s *Store) VisionSnapshot() VisionView {
 // RefreshVision uses the same global catalog contract as remote.session.modelCatalog.
 func (s *Store) RefreshVision(ctx context.Context) {
 	s.RefreshDescribe(ctx)
+	s.RefreshImageCatalog(ctx)
+}
+
+// RefreshImageCatalog reads only session/modelCatalog, without changing or
+// depending on the global vision fallback configuration.
+func (s *Store) RefreshImageCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.generation
 	if client == nil || s.visionLoading {

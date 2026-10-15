@@ -100,6 +100,7 @@ func (p *Companion) Save() {
 		return
 	}
 	p.Error = ""
+	p.cancelChangedLook(previous.Behavior, p.Behavior)
 	if !p.Behavior.ChatEnabled {
 		p.assetMu.Lock()
 		p.chat.close()

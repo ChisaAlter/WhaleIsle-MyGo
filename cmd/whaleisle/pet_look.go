@@ -5,24 +5,20 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/screenglance"
 	"whaleisle/internal/harness"
-	settingsstore "whaleisle/internal/store/settings"
+	"whaleisle/internal/petlook"
 )
 
-// petLookRoute requires the explicit configured vision route to still appear
-// in the live image-capable catalog. The current chat model is not a fallback.
-func petLookRoute(v settingsstore.VisionView) (string, string, bool) {
-	if !v.Present || !v.Writable || v.Loading || v.Saving || v.Err != "" || v.CatalogErr != "" || v.Provider == "" || v.Model == "" {
+// petLookRoute uses only the committed pet-specific pair and image catalog.
+// Global fallback and the assistant's current model never select a destination.
+func petLookRoute(b config.PetBehavior, catalog petlook.Catalog) (string, string, bool) {
+	if !petlook.Resolve(b.LookProvider, b.LookModel, catalog) {
 		return "", "", false
 	}
-	for _, route := range v.Routes {
-		if route.Provider == v.Provider && route.Model == v.Model {
-			return v.Provider, v.Model, true
-		}
-	}
-	return "", "", false
+	return b.LookProvider, b.LookModel, true
 }
 
 // lookFromPet is reached only through the exact manual pet action. Permission
@@ -43,9 +39,9 @@ func (s *mainState) lookFromPet() {
 		attempt.Finish("请连接 Host 并启用鲸鱼娘 / Connect Host and enable Whale first")
 		return
 	}
-	provider, model, available := petLookRoute(settings.VisionSnapshot())
+	provider, model, available := petLookRoute(cfg.DesktopPet().Behavior, settings.ImageCatalogSnapshot())
 	if !available {
-		attempt.Finish("请在设置 → 模型配置并刷新视觉模型 / Configure and refresh the vision model in Settings → Models")
+		attempt.Finish("请在设置 → 桌宠选择看看模型并刷新图像目录 / Select the Pet Look model and refresh its image catalog in Settings → Pet")
 		return
 	}
 	selected := sessions.Snapshot().SelectedID
@@ -61,7 +57,7 @@ func (s *mainState) lookFromPet() {
 		if !same || !cfg.Get().WhaleAssistantEnabled || sessions.Snapshot().SelectedID != selected {
 			return false
 		}
-		p, m, ok := petLookRoute(settings.VisionSnapshot())
+		p, m, ok := petLookRoute(cfg.DesktopPet().Behavior, settings.ImageCatalogSnapshot())
 		return ok && p == provider && m == model
 	}
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{

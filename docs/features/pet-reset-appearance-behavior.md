@@ -1,7 +1,8 @@
 # Restore desktop pet appearance and behavior
 
 Settings → Pet now offers **恢复外观与行为默认 / Reset appearance and behavior**.
-An explicit confirmation lists the eleven native preferences and their defaults.
+An explicit confirmation lists the eleven appearance/interaction defaults and clears
+the pet-specific vision provider/model pair, turning Look off.
 Cancel and dialog failure do not save; a save failure keeps the current editing
 draft. Success saves immediately and updates the existing pet through its current
 behavior/status path without recreating the window. A changed personality uses
@@ -27,11 +28,12 @@ Verified against original commit `e9f584be6d3b491ce777bb6823f30bc2bbc6f195`:
 - [pet-settings.js:26–43](https://github.com/ChisaAlter/WhaleIsle/blob/e9f584be6d3b491ce777bb6823f30bc2bbc6f195/src/main/pet-settings.js#L26-L43)
   supplies the exact defaults. The eleven native behavior fields agree.
 
-This is a bounded PET-05 increment, not full-row parity: the original additionally
-resets pet-specific `approvalButtons`, `lookModel`, and `lookProvider`. Those fields
-do not exist in MyGo's native behavior settings; its current Look action uses the
-shared Host vision route. This action does not add those features or change that
-shared route. Skin and THA4 are native-only selection fields outside behavior.
+The subsequent [pet-specific Look model increment](pet-look-model.md) adds and resets
+`lookModel` and `lookProvider`. The original `approvalButtons` is a reserved
+normalized field with no available approval bridge, not a missing shipped approval
+feature; see [the source boundary](pet-approval-reserved.md).
+Global Host vision configuration is unchanged. Skin and THA4 are native-only
+selection fields outside behavior.
 The legacy Electron state, care/growth ledger and saved native position survive.
 
 ## Verification boundary
