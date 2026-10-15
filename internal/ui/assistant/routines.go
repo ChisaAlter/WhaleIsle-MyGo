@@ -10,6 +10,7 @@ import (
 )
 
 type RoutineModel struct {
+	Capabilities                                       BotCapabilityModel
 	Objective                                          BotObjectiveModel
 	Memory                                             BotMemoryModel
 	State                                              dshbotstore.RoutineSnapshot
@@ -70,6 +71,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
 	ui.Column(c.Key("bot-routines")).Gap(8).Children(func() {
 		botMemoryBlock(c, r.Memory, blocked, fg, muted, accent)
+		botCapabilitiesBlock(c, r.Capabilities, blocked, fg, muted, accent)
 		botObjectiveBlock(c, r.Objective, blocked, fg, muted, accent)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Bot 例行任务 / Bot routines").FontSize(13).Bold().TextColor(fg).Grow(1)

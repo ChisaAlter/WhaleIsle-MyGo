@@ -138,6 +138,7 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 	}
 	s.bindRoutineTriggerModel(&model, ep, scope, current)
 	s.bindBotMemoryModel(&model, ep, scope, current)
+	s.bindBotCapabilityModel(&model, ep, scope, current)
 	s.bindBotObjectiveModel(&model, ep, scope, current)
 	return model
 }
