@@ -133,8 +133,10 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	BrowserContent func(*ui.Context)
-	OnHideBrowser  func()
+	// PageShortcutBindings contains committed native overrides; nil uses defaults.
+	PageShortcutBindings map[string]string
+	BrowserContent       func(*ui.Context)
+	OnHideBrowser        func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
 	ExternalNavigation bool
 	OnSelectSession    func(string)

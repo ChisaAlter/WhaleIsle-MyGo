@@ -29,6 +29,7 @@ func (s *mainState) selectMainPanel(panel string) {
 // withMainNavigation is the stable parent of both chat and the three native
 // global panels. Settings and guest/PDF views deliberately bypass this shell.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
+	m.PageShortcutBindings = s.pageShortcutBindings()
 	if !enabled {
 		content()
 		return

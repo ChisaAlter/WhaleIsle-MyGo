@@ -52,6 +52,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/startuprec"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
@@ -90,6 +91,7 @@ import (
 )
 
 type mainState struct {
+	shortcutEditor       *shortcuts.Editor
 	projectWindowHidden  bool
 	startupRecovery      startupRecoveryState
 	voice                *composerVoiceOperation
@@ -5115,6 +5117,7 @@ func mainView(c *ui.Context) {
 					},
 					InterfaceActive: interfaceActive,
 					Interface: &settings.InterfaceAccess{
+						Shortcuts:        state.pageShortcutEditor(),
 						Locale:           &state.desktopDraft.locale,
 						CloseToTray:      &state.desktopDraft.closeToTray,
 						OpenAtLogin:      &state.desktopDraft.openAtLogin,
@@ -6028,11 +6031,12 @@ func mainView(c *ui.Context) {
 						visualReplyState = session.VisualReplyState{}
 					}
 					frameModel := frame.Model{
-						ExternalNavigation: sharedNavigation,
-						Projects:           state.projectModel(win),
-						Store:              sessions,
-						AgentPresetManager: agentPresetManager,
-						Interactions:       interactions,
+						ExternalNavigation:   sharedNavigation,
+						PageShortcutBindings: state.pageShortcutBindings(),
+						Projects:             state.projectModel(win),
+						Store:                sessions,
+						AgentPresetManager:   agentPresetManager,
+						Interactions:         interactions,
 						OnAutoAllowChanged: func(on bool) {
 							state.mu.Lock()
 							state.desktopDraft.autoAllowTools = on

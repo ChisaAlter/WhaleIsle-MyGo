@@ -3,11 +3,13 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
 )
 
 // InterfaceAccess is the dedicated Interface settings page (locale + chrome prefs).
 type InterfaceAccess struct {
+	Shortcuts   *shortcuts.Editor
 	Locale      *string
 	CloseToTray *bool
 	OpenAtLogin *bool
@@ -77,4 +79,5 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 		a.OnSave()
 	}
+	shortcutsPane(c, a.Shortcuts, fg, muted)
 }
