@@ -47,6 +47,8 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	// Tool is populated only by the read-only chat lifecycle projection.
+	Tool        *ToolCallView
 	Command     *CommandView
 	ID          string
 	Kind        MessageKind

@@ -97,7 +97,11 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 
 // ToolCardView renders a bordered compact tool card with a kind chip.
 func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolCardStyle, gallery ...ToolImageGalleryOptions) {
-	info := ParseToolCard(eventType, raw)
+	toolCardInfoView(c, ParseToolCard(eventType, raw), st, gallery...)
+}
+
+// toolCardInfoView shares image, link and style rendering with lifecycle cards.
+func toolCardInfoView(c *ui.Context, info ToolCardInfo, st ToolCardStyle, gallery ...ToolImageGalleryOptions) {
 	kind, chip := ClassifyToolName(info.Name)
 	size := st.FontSize
 	if size <= 0 {

@@ -72,7 +72,7 @@ func View(c *ui.Context, m Model) {
 	// Let the frame desk-wash show through (Electron chat pane is translucent mica).
 	_ = colors.BG
 
-	msgs := m.Snapshot.Messages
+	msgs := session.ProjectToolMessages(m.Snapshot.Messages)
 	list := m.List
 	if list == nil {
 		list = &ui.ListState{FollowEnd: true}
@@ -110,7 +110,7 @@ func View(c *ui.Context, m Model) {
 				if msg.Role == "status" && msg.EventType == "turn/end" {
 					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(row.Context, formatTurnStatus(msg.Body)).FontSize(12).TextColor(muted)
-						if m.OnForkTurn != nil && session.CanForkTurn(msgs, msg.Seq) {
+						if m.OnForkTurn != nil && session.CanForkTurn(m.Snapshot.Messages, msg.Seq) {
 							if ui.Button(row.Context, "从这里分支 / Branch here").FontSize(11).Disabled(m.Snapshot.HistoryBranchBusy || !m.Snapshot.ClientReady).Clicked() {
 								m.OnForkTurn(msg.Seq)
 							}
@@ -167,7 +167,7 @@ func View(c *ui.Context, m Model) {
 					CommandCardView(row.Context, msg, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
 				case session.MessageKindTool:
 					tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
-					ToolCardView(row.Context, msg.EventType, msg.Raw, tc, ToolImageGalleryOptions{
+					ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
 						ID: msg.ID, Expanded: m.ThinkingExpanded,
 						OnOpenURL: m.OnOpenCitationURL,
 						OnOpen: func(path string) {
@@ -178,7 +178,6 @@ func View(c *ui.Context, m Model) {
 							}
 						},
 					})
-					CitationsView(row.Context, CitationsForMessage(msg), muted, chrome.Color(colors.Accent), m.OnOpenCitationURL)
 				case session.MessageKindDeliverables:
 					DeliverablesView(row.Context, msg, fg, muted, border, chrome.Color(colors.Field), m.OnOpenDeliverable)
 				case session.MessageKindCompaction:
@@ -237,7 +236,7 @@ func View(c *ui.Context, m Model) {
 							CodeBG:   chrome.Color(colors.Field),
 							Accent:   chrome.Color(colors.Accent),
 						}
-						md.ResolveFile = FileMentionResolver(msgs, msg)
+						md.ResolveFile = FileMentionResolver(m.Snapshot.Messages, msg)
 						md.OnOpenFile = m.OnOpenDeliverable
 						paintMD := func() {
 							if m.OnOpenCitationURL != nil {
