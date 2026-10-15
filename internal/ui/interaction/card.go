@@ -31,7 +31,7 @@ func View(c *ui.Context, m Model) {
 	snap := m.Snapshot
 	// Idle in manual mode: omit strip. Auto-allow on → banner (toggle to manual).
 	// Pending → approval / question cards.
-	if snap.Banner == "" && len(snap.Pending) == 0 && snap.QuestionStatus == "" && !snap.AutoAllow {
+	if snap.Banner == "" && len(snap.Pending) == 0 && len(snap.QuestionHistory) == 0 && snap.QuestionStatus == "" && !snap.AutoAllow {
 		return
 	}
 	th := theme.Resolve(m.ThemeID)
@@ -64,6 +64,7 @@ func View(c *ui.Context, m Model) {
 			text := questionStatusText(snap.QuestionStatus)
 			ui.Text(c, text).FontSize(12).TextColor(muted)
 		}
+		questionHistory(c, snap.QuestionHistory, m.Store, fg, muted, accent)
 		for _, p := range snap.Pending {
 			pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent)
 		}
@@ -73,6 +74,15 @@ func View(c *ui.Context, m Model) {
 func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color) {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
 		planReviewCard(c, p, card, store, fg, muted, accent)
+		return
+	}
+	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Text(c, p.Title).FontSize(12).TextColor(muted).Grow(1)
+			if ui.Button(c, "重新打开问题 / Reopen questions").Clicked() {
+				store.ReopenQuestion(p.EventID)
+			}
+		})
 		return
 	}
 	ui.Column(c).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
@@ -120,6 +130,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
+				if ui.Button(c, "暂时隐藏 / Hide for now").Clicked() {
+					store.HideQuestion(p.EventID)
+				}
 				canSubmit := store.QuestionsCanSubmit(p.EventID)
 				label := i18n.T(i18n.KeyInteractionContinue)
 				if p.Continued {

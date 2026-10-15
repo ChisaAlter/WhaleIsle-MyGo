@@ -308,6 +308,7 @@ func View(c *ui.Context, m Model) {
 	snap := m.Store.Snapshot()
 	if m.Interactions != nil {
 		m.Interactions.SyncProjectedQuestions(snap.SelectedID, snap.QuestionProjection.Questions, snap.QuestionProjection.Inbox, snap.QuestionProjection.QuestionsSeq, snap.QuestionProjection.InboxSeq)
+		syncQuestionHistory(m.Interactions, snap)
 	}
 	if m.Sizes == nil {
 		fallback := DefaultLayout()

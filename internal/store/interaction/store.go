@@ -36,15 +36,17 @@ type Pending struct {
 
 // ViewState is UI-safe interaction state.
 type ViewState struct {
-	QuestionStatus string
-	AutoAllow      bool
-	Banner         string
-	Pending        []Pending
-	QuestionCards  map[string]QuestionCardView
+	QuestionHistory []QuestionHistoryView
+	QuestionStatus  string
+	AutoAllow       bool
+	Banner          string
+	Pending         []Pending
+	QuestionCards   map[string]QuestionCardView
 }
 
 // Store serializes waterfall handlers with the main-thread UI.
 type Store struct {
+	questionHistory  map[string]*questionHistoryState
 	questionRecovery questionRecovery
 	mu               sync.Mutex
 	notify           func()
@@ -421,6 +423,7 @@ func (s *Store) SnapshotForAgent(agentID string) ViewState {
 	if p := s.questionRecovery.agents[agentID]; p != nil {
 		snap.QuestionStatus = p.status
 	}
+	snap.QuestionHistory = s.questionHistorySnapshotLocked(agentID)
 	s.mu.Unlock()
 	return snap
 }

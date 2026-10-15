@@ -15,6 +15,7 @@ type QuestionRowView struct {
 
 // QuestionCardView is parsed user-questions/request payload for UI.
 type QuestionCardView struct {
+	Hidden           bool
 	PlanReview       *PlanReview
 	PlanReviewHidden bool
 	EventID          string
@@ -22,6 +23,7 @@ type QuestionCardView struct {
 }
 
 type draftSession struct {
+	hidden           bool
 	planReviewHidden bool
 	req              userQuestionsRequest
 	answers          map[string]*answerDraft
@@ -56,7 +58,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 }
 
 func (ds *draftSession) cardView(eventID string) QuestionCardView {
-	cv := QuestionCardView{EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
+	cv := QuestionCardView{Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
 	for _, q := range ds.req.Questions {
 		row := QuestionRowView{
 			ID:          q.ID,

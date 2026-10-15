@@ -8,5 +8,5 @@ func hasSessionInteractions(store *interaction.Store, sessionID string) bool {
 		return false
 	}
 	snap := store.SnapshotForAgent(sessionID)
-	return len(snap.Pending) > 0 || snap.QuestionStatus != ""
+	return len(snap.Pending) > 0 || len(snap.QuestionHistory) > 0 || snap.QuestionStatus != ""
 }

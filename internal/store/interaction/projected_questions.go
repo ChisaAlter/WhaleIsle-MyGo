@@ -215,6 +215,7 @@ func (s *Store) questionWaterfallDeliveredLocked(pending Pending, outcome dsh.Ev
 	}
 }
 func (s *Store) resetQuestionRecoveryLocked() {
+	s.questionHistory = nil
 	for _, p := range append([]Pending(nil), s.pending...) {
 		if p.Continued {
 			s.dropPending(p.EventID)
