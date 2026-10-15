@@ -10,6 +10,7 @@ import (
 )
 
 type RoutineModel struct {
+	Avatar                                             BotAvatarModel
 	SenderPolicy                                       BotSenderPolicyModel
 	TextProfile                                        BotTextProfileModel
 	Route                                              BotRouteModel
@@ -77,6 +78,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 	ui.Column(c.Key("bot-routines")).Gap(8).Children(func() {
 		botTextProfileBlock(c, r.TextProfile, blocked, fg, muted, accent)
 		botSenderPolicyBlock(c, r.SenderPolicy, blocked, fg, muted, accent)
+		botAvatarBlock(c, r.Avatar, blocked, fg, muted, accent)
 		botRouteBlock(c, r.Route, blocked, fg, muted, accent)
 		botMemoryBlock(c, r.Memory, blocked, fg, muted, accent)
 		botMemoryReviewBlock(c, r.MemoryReview, blocked, fg, muted, accent)

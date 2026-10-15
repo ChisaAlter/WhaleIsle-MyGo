@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// Avatar edits also use this restricted full-profile transport.
 // Shared exact bot/update transport, restricted to the independently reviewed
 // capability, memory-review, objective-configuration, route and text-profile editors.
 func (c *Client) saveDshbotProfileField(ctx context.Context, expected DshbotCapabilityStatus, field string, value json.RawMessage) (DshbotCapabilityReceipt, error) {
@@ -35,6 +36,14 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 			return out, err
 		}
 		if err := ValidateDshbotObjectiveConfigCommand(DshbotObjectiveConfigCommand{Expected: expected, Desired: value}); err != nil {
+			return out, err
+		}
+	case len(fields) == 1 && fields["avatar"] != nil:
+		values, err := DshbotAvatarValue(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := ValidateDshbotAvatarCommand(DshbotAvatarCommand{Expected: expected, Values: values}); err != nil {
 			return out, err
 		}
 	case len(fields) == 3 && fields["name"] != nil && fields["title"] != nil && fields["description"] != nil:
@@ -111,6 +120,19 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		}
 		if matches != 1 {
 			return out, fmt.Errorf("new canonical session identity is ambiguous")
+		}
+		return out, nil
+	}
+	if len(fields) == 1 && fields["avatar"] != nil {
+		values, err := DshbotAvatarValue(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := DshbotAvatarApplied(DshbotAvatarCommand{Expected: expected, Values: values}, out.Status); err != nil {
+			return out, err
+		}
+		if response.SessionID != expected.Bot.SessionID || !dshbotAvatarItemReceipt(response.Item, out.Status) {
+			return out, fmt.Errorf("avatar item/session receipt differs; read back")
 		}
 		return out, nil
 	}

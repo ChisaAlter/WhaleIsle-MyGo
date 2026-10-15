@@ -47,6 +47,7 @@ type RoutineSnapshot struct {
 	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
+	Avatar          AvatarControls
 	SenderPolicy    SenderPolicyControls
 	TextProfile     TextProfileControls
 	Route           RouteControls
@@ -71,6 +72,7 @@ func (c *RoutineControls) Bind(scope RoutineScope) {
 	if c.state.Scope != scope {
 		c.TextProfile.Bind(scope)
 		c.SenderPolicy.Bind(scope)
+		c.Avatar.Bind(scope)
 		c.Route.Bind(scope)
 		c.Memory.Bind(scope)
 		c.MemoryReview.Bind(scope)
