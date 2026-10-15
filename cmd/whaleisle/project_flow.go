@@ -14,6 +14,7 @@ import (
 )
 
 type projectFlowState struct {
+	activity                      *projectActivityState
 	deliveries                    *projectDeliveryState
 	documents                     *projectDocumentState
 	refreshLoop                   *projectRefreshLoop
@@ -52,6 +53,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.closeProjectActivityLocked()
 		s.closeProjectDeliveriesLocked()
 		s.closeProjectDocumentsLocked()
 		s.stopProjectRefreshLocked()
@@ -88,6 +90,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
 		if !s.projectFlow.expanded {
+			s.closeProjectActivityLocked()
 			s.closeProjectDeliveriesLocked()
 			s.closeProjectDocumentsLocked()
 			s.stopProjectRefreshLocked()
@@ -197,6 +200,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnCancelArchive = func() { s.mu.Lock(); s.projectFlow.archiveCandidate = nil; s.mu.Unlock() }
 	s.bindProjectHistory(win, &m)
 	s.bindProjectMaterials(win, &m)
+	s.bindProjectActivity(win, &m)
 	s.bindProjectDeliveries(win, &m)
 	s.bindProjectDocuments(win, &m)
 	return m

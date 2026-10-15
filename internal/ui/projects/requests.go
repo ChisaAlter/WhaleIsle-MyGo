@@ -93,6 +93,9 @@ func requestDetailView(c *ui.Context, m Model) {
 	ui.Text(c, card.Title).FontSize(13)
 	ui.Text(c, fmt.Sprintf(tr("第%d版 · %s", "Revision %d · %s"), card.Revision, requestStatus(card.Status))).FontSize(12)
 	requestArchiveButton(c, m, *card)
+	if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnRequestActivity != nil {
+		m.OnRequestActivity()
+	}
 	ui.Scroll(c).Height(280).Children(func() {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			ui.Text(c, card.Goal).FontSize(12)

@@ -8,6 +8,10 @@ import (
 )
 
 type Model struct {
+	Activity                                                             *projectflow.ActivitySnapshot
+	OnRequestActivity                                                    func()
+	OnActivityAction                                                     func(string, string)
+	OnActivityReport                                                     func(string, projectflow.DeliveryReportRef)
 	Deliveries                                                           *projectflow.DeliverySnapshot
 	OnDeliveries                                                         func(string)
 	OnDeliveryAction                                                     func(string, string)
@@ -130,6 +134,10 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Material != nil {
 			materialsView(c, m)
+			return
+		}
+		if m.Activity != nil {
+			requestActivityView(c, m)
 			return
 		}
 		if m.RequestProjectID != "" {
