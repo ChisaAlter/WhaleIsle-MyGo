@@ -154,6 +154,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	rename                    SessionRenameView
+	renameEpoch               uint64
 	sessionFeedback           SessionFeedbackView
 	sessionFeedbackEpoch      uint64
 	workspaceLayout           workspaceLayoutState
@@ -264,6 +266,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.invalidateRenameLocked()
 		s.invalidateSessionFeedbackLocked()
 		s.questionProjections = nil
 		s.permissionOptions = nil
@@ -400,6 +403,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.invalidateRenameLocked()
 	s.invalidateSessionFeedbackLocked()
 	s.resetModelCatalogLocked()
 	s.questionProjections = nil
@@ -750,42 +754,6 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		}
 		s.mu.Unlock()
 		s.fire()
-	}()
-}
-
-// RenameSession sets session/rename and updates the local list title.
-func (s *Store) RenameSession(ctx context.Context, sessionID, title string) {
-	title = strings.TrimSpace(title)
-	if title == "" || sessionID == "" {
-		return
-	}
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil {
-		return
-	}
-	go func() {
-		req := api.SessionRenameRequest{SessionId: sessionID, Title: title}
-		var out api.SessionRenameValue
-		err := client.Call(ctx, "session/rename", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = err.Error()
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		for i := range s.items {
-			if s.items[i].SessionID == sessionID {
-				s.items[i].Title = out.Title
-				break
-			}
-		}
-		s.lastAction = "session renamed"
-		s.mu.Unlock()
-		s.fire()
-		s.SetPresentation(ctx, sessionID, out.Title)
 	}()
 }
 

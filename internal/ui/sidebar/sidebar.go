@@ -50,19 +50,22 @@ type Model struct {
 	OnDeleteWorkspace    func()
 	WorkspaceRenameDraft *string
 	// WorkspaceMenuOpen toggles the ☰ popover; nil uses a package fallback.
-	WorkspaceMenuOpen *bool
-	RenameSessionID   string
-	RenameDraft       *string
-	OnBeginRename     func(sessionID, currentTitle string)
-	OnCommitRename    func(sessionID, title string)
-	OnCancelRename    func()
-	OnArchive         func(sessionID string)
-	OnUnarchive       func(sessionID string)
-	OnDelete          func(sessionID string)
-	OnPin             func(sessionID string)
-	OnUnpin           func(sessionID string)
-	OnCopySessionID   func(sessionID string)
-	OnFork            func(sessionID string)
+	WorkspaceMenuOpen    *bool
+	RenameSessionID      string
+	RenameDraft          *string
+	RenameBusy           bool
+	RenameError          string
+	OnRenameDraftChanged func(string)
+	OnBeginRename        func(sessionID, currentTitle string)
+	OnCommitRename       func(sessionID, title string)
+	OnCancelRename       func()
+	OnArchive            func(sessionID string)
+	OnUnarchive          func(sessionID string)
+	OnDelete             func(sessionID string)
+	OnPin                func(sessionID string)
+	OnUnpin              func(sessionID string)
+	OnCopySessionID      func(sessionID string)
+	OnFork               func(sessionID string)
 	// OnMoveSessionBefore reorders via workspace/insertSessionBefore (beforeSessionID may be empty = top).
 	OnMoveSessionBefore func(sessionID, beforeSessionID string)
 }
@@ -357,14 +360,20 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	// WorkspaceBrowser Rows.module.css: .sessionRow height 32; selected uses hover fill.
 	if renaming {
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
-			inp := ui.TextInput(c, m.RenameDraft).Grow(1)
-			if inp.Submitted() && m.OnCommitRename != nil {
+			inp := ui.TextInput(c, m.RenameDraft).Grow(1).Disabled(m.RenameBusy)
+			if inp.Changed() && m.OnRenameDraftChanged != nil {
+				m.OnRenameDraftChanged(*m.RenameDraft)
+			}
+			if inp.Submitted() && !m.RenameBusy && m.OnCommitRename != nil {
 				m.OnCommitRename(it.SessionID, *m.RenameDraft)
 			}
-			if ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).Clicked() && m.OnCancelRename != nil {
+			if ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).Disabled(m.RenameBusy).Clicked() && m.OnCancelRename != nil {
 				m.OnCancelRename()
 			}
 		})
+		if m.RenameError != "" {
+			ui.Text(c, m.RenameError).FontSize(11).TextColor(muted)
+		}
 		return
 	}
 	if !selected {

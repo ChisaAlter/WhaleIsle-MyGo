@@ -355,20 +355,24 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	if createSession == nil {
 		createSession = func() { m.Store.CreateSession(context.Background()) }
 	}
+	rename := m.Store.SessionRename()
 	projectModel := m.Projects
 	projectModel.OnResolvedFile = m.OnOpenDeliverable
 	sidebar.View(c, sidebar.Model{
-		Projects:        projectModel,
-		Collapsed:       m.Sizes.Sidebar <= 0,
-		OnToggle:        m.Sizes.ToggleSidebar,
-		Snapshot:        snap,
-		ThemeID:         m.ThemeID,
-		SystemDark:      m.SystemDark,
-		SearchQuery:     m.SessionSearch,
-		WorkspaceLabel:  m.Store.WorkspaceCwd(),
-		RenameSessionID: derefString(m.RenameSessionID),
-		RenameDraft:     m.RenameDraft,
-		OnSelect:        selectSession,
+		Projects:             projectModel,
+		Collapsed:            m.Sizes.Sidebar <= 0,
+		OnToggle:             m.Sizes.ToggleSidebar,
+		Snapshot:             snap,
+		ThemeID:              m.ThemeID,
+		SystemDark:           m.SystemDark,
+		SearchQuery:          m.SessionSearch,
+		WorkspaceLabel:       m.Store.WorkspaceCwd(),
+		RenameSessionID:      rename.SessionID,
+		RenameDraft:          &rename.Draft,
+		RenameBusy:           rename.Busy,
+		RenameError:          rename.Error,
+		OnRenameDraftChanged: m.Store.EditSessionRename,
+		OnSelect:             selectSession,
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
@@ -395,31 +399,9 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnMoveSessionBefore:  m.OnMoveSessionBefore,
 		WorkspaceRenameDraft: m.WorkspaceRenameDraft,
 		WorkspaceMenuOpen:    m.WorkspaceMenuOpen,
-		OnBeginRename: func(sessionID, title string) {
-			if m.RenameSessionID != nil {
-				*m.RenameSessionID = sessionID
-			}
-			if m.RenameDraft != nil {
-				*m.RenameDraft = title
-			}
-		},
-		OnCommitRename: func(sessionID, title string) {
-			m.Store.RenameSession(context.Background(), sessionID, title)
-			if m.RenameSessionID != nil {
-				*m.RenameSessionID = ""
-			}
-			if m.RenameDraft != nil {
-				*m.RenameDraft = ""
-			}
-		},
-		OnCancelRename: func() {
-			if m.RenameSessionID != nil {
-				*m.RenameSessionID = ""
-			}
-			if m.RenameDraft != nil {
-				*m.RenameDraft = ""
-			}
-		},
+		OnBeginRename:        m.Store.BeginSessionRename,
+		OnCommitRename:       m.Store.SubmitSessionRename,
+		OnCancelRename:       m.Store.CancelSessionRename,
 		OnArchive: func(sessionID string) {
 			m.Store.ArchiveSession(context.Background(), sessionID)
 		},
