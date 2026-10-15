@@ -8,6 +8,9 @@ import (
 )
 
 func classifyPersistenceEvent(raw json.RawMessage) (Message, bool) {
+	if msg, ok := classifyAssistantPersistence(raw); ok {
+		return msg, true
+	}
 	if msg, ok := classifyPersistenceEventTyped(raw); ok {
 		return msg, true
 	}

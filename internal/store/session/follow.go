@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/events"
@@ -56,9 +57,19 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 }
 
 func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) {
+	for s.runFollowConnection(ctx, mux, sessionID, generation) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) bool {
 	if err := mux.Dial(ctx); err != nil {
 		s.reportFollowError(ctx, sessionID, generation, "follow dial: ", err)
-		return
+		return false
 	}
 	payload := map[string]any{"args": map[string]any{"request": map[string]any{
 		"address": sessionAddressJSON(sessionID), "assistantStream": true,
@@ -66,21 +77,14 @@ func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, g
 	stream, err := mux.Open(ctx, "session/follow", payload)
 	if err != nil {
 		s.reportFollowError(ctx, sessionID, generation, "follow open: ", err)
-		return
+		return false
 	}
 	defer stream.Cancel()
 	s.mu.Lock()
 	if !s.followCurrentLocked(ctx, sessionID, generation) {
 		s.mu.Unlock()
-		return
+		return false
 	}
-	s.messages = nil
-	s.turnStartMs = 0
-	s.editTurnOpening = false
-	s.editTurnSeq = 0
-	s.resetPlanBoardLocked()
-	s.resetHistoryPagingLocked()
-	s.historyThroughSeq = 0
 	s.mu.Unlock()
 	s.fire()
 	for {
@@ -89,10 +93,16 @@ func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, g
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
 			}
-			return
+			return false
 		}
 		if !s.applyFollowFrameForTarget(ctx, sessionID, generation, raw) {
-			return
+			return false
+		}
+		s.mu.Lock()
+		restart := s.followCurrentLocked(ctx, sessionID, generation) && s.assistantStream.rebaseline
+		s.mu.Unlock()
+		if restart {
+			return true
 		}
 	}
 }
@@ -136,9 +146,10 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 				AsOfSeq float64
 				Values  json.RawMessage
 			} `json:"projections"`
-			Cursor  *float64 `json:"cursor"`
-			HasMore *bool    `json:"hasMore"`
-			Records []struct {
+			AssistantStream *assistantStreamBaseline `json:"assistantStream"`
+			Cursor          *float64                 `json:"cursor"`
+			HasMore         *bool                    `json:"hasMore"`
+			Records         []struct {
 				Type  string          `json:"type"`
 				Event json.RawMessage `json:"event"`
 			} `json:"records"`
@@ -150,6 +161,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.messages = nil
+		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0
 		s.editTurnOpening = false
 		s.editTurnSeq = 0
@@ -158,9 +170,15 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.historyThroughSeq = 0
 		for _, rec := range snap.Records {
 			if rec.Type == "event" {
-				s.applyPersistenceEventLocked(rec.Event)
+				var head struct {
+					Seq float64 `json:"seq"`
+				}
+				if json.Unmarshal(rec.Event, &head) == nil {
+					s.publishAssistantDurableLocked(rec.Event, head.Seq)
+				}
 			}
 		}
+		s.restoreAssistantStreamLocked(snap.AssistantStream)
 		if snap.Projections != nil {
 			s.applyQueueValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 		}
@@ -180,7 +198,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		if json.Unmarshal(raw, &wrap) != nil {
 			return false
 		}
-		return s.applyPersistenceEventLocked(wrap.Event)
+		return s.acceptAssistantDurableLocked(wrap.Event)
 	case "assistant-stream":
 		return s.applyAssistantStreamLocked(raw)
 	default:
@@ -245,35 +263,6 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	return true
 }
 
-func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
-	var wrap struct {
-		Frame struct {
-			Type  string          `json:"type"`
-			Chunk json.RawMessage `json:"chunk"`
-		} `json:"frame"`
-	}
-	if json.Unmarshal(raw, &wrap) != nil {
-		return false
-	}
-	switch wrap.Frame.Type {
-	case "start":
-		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "assistant", TurnSeq: s.editTurnSeq, Streaming: true})
-	case "chunk":
-		text := extractChunkText(wrap.Frame.Chunk)
-		if text == "" {
-			return false
-		}
-		s.appendStreamDeltaLocked("assistant", text)
-	case "end":
-		if n := len(s.messages); n > 0 && s.messages[n-1].Streaming {
-			s.messages[n-1].Streaming = false
-		}
-	default:
-		return false
-	}
-	return true
-}
-
 func summarizeEvent(typ string, data json.RawMessage) (role, body string) {
 	switch typ {
 	case "user/message", "user/prompt":
@@ -298,7 +287,14 @@ func extractChunkText(chunk json.RawMessage) string {
 	if err := json.Unmarshal(chunk, &asString); err == nil {
 		return asString
 	}
-	return extractTextish(chunk)
+	var typed struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(chunk, &typed) == nil && (typed.Type == "text-delta" || typed.Type == "text") {
+		return typed.Text
+	}
+	return ""
 }
 
 func extractTextish(raw json.RawMessage) string {

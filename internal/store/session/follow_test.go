@@ -18,11 +18,11 @@ func TestApplyAssistantStreamChunks(t *testing.T) {
 	start, _ := json.Marshal(map[string]any{
 		"type": "assistant-stream",
 		"frame": map[string]any{
-			"type":      "start",
-			"attemptId": "a",
-			"revision":  1,
-			"turn":      0,
-			"step":      0,
+			"type":            "start",
+			"attemptId":       "a",
+			"revision":        1,
+			"turn":            0,
+			"step":            0,
 			"startedAfterSeq": -1,
 		},
 	})
@@ -32,7 +32,7 @@ func TestApplyAssistantStreamChunks(t *testing.T) {
 		"frame": map[string]any{
 			"type":      "chunk",
 			"attemptId": "a",
-			"revision":  1,
+			"revision":  2,
 			"index":     0,
 			"time":      0,
 			"chunk":     map[string]any{"type": "text", "text": "Hel"},
@@ -44,7 +44,7 @@ func TestApplyAssistantStreamChunks(t *testing.T) {
 		"frame": map[string]any{
 			"type":      "chunk",
 			"attemptId": "a",
-			"revision":  1,
+			"revision":  3,
 			"index":     1,
 			"time":      1,
 			"chunk":     map[string]any{"type": "text", "text": "lo"},

@@ -140,6 +140,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	assistantStream           assistantStreamState
 	archive                   archiveOperation
 	archiveToken              uint64
 	commandCatalog            commandCatalog
@@ -458,7 +459,7 @@ func (s *Store) Snapshot() ViewState {
 			break
 		}
 	}
-	st.Messages = projectCommandMessages(projectMessageEdits(s.messages))
+	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 	s.snapshotCommandsLocked(&st)
 	st.SelectedModel = s.selectedModelLabel
 	for _, o := range s.modelOptions {
