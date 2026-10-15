@@ -17,6 +17,7 @@ import (
 
 // Model wires whale assistant / dshbot status and actions.
 type Model struct {
+	WhaleSettings             WhaleSettingsModel
 	Tasks                     TaskModel
 	ThemeID                   string
 	SystemDark                bool
@@ -85,6 +86,7 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(12).TextColor(muted)
 
 				modeBlock(c, m, fg, muted, accent)
+				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
 				taskControlBlock(c, m, fg, muted, field, border, accent)
 				composeBlock(c, m, fg, muted, accent)

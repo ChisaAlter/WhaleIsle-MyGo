@@ -177,6 +177,7 @@ type mainState struct {
 	assistant                     *assiststore.Store
 	dshbotRoster                  *dshbotstore.Store
 	assistantTasks                dshbotstore.TaskControls
+	whaleSettings                 assiststore.WhaleSettingsEditor
 	desktopDraft                  desktopConfigDraft
 	desktopSaveErr                string
 	desktopLastAction             string
@@ -2084,6 +2085,7 @@ func main() {
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
+		win.OnClosed(state.whaleSettings.Suspend)
 		win.OnHide(func() {
 			state.mu.Lock()
 			state.fileTabs.CancelPlanRead()
@@ -2672,6 +2674,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.observeWhaleSettings()
 	state.cancelComposerVoiceIfStale()
 	state.restoreResumeSelection()
 	state.refreshPetTask()
@@ -4166,7 +4169,9 @@ func mainView(c *ui.Context) {
 					history = assiststore.HistoryFromSessionMessages(pairs, 8)
 				}
 				taskModel := state.assistantTasksModel(ep, dshbotSelectedID)
+				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
 				assistant.View(c, assistant.Model{
+					WhaleSettings:       whaleSettingsModel,
 					Tasks:               taskModel,
 					ThemeID:             themeID,
 					SystemDark:          mygo.Theme.IsDark(),
@@ -4176,7 +4181,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:  whaleVendor,
 					DshbotVendorPresent: dshbotVendor,
 					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy,
+					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy,
 					LastWebViewURL:      lastWebURL,
 					LastNativeAction:    lastNative,
 					LastErr:             asstSnap.LastErr,
@@ -4193,6 +4198,7 @@ func mainView(c *ui.Context) {
 						asst.SelectDshbot(botID, origin)
 					},
 					OnSetMode: func(mode assiststore.Mode) {
+						state.whaleSettings.Suspend()
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						if asst != nil {
 							asst.SetMode(mode)
@@ -4202,6 +4208,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenModeWeb: func() {
+						state.whaleSettings.Suspend()
 						plugin := desktopwebview.PluginWhale
 						if assiststore.NormalizeMode(asstSnap.Mode) == assiststore.ModeDshbot {
 							plugin = desktopwebview.PluginDshbot
@@ -4217,6 +4224,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenSession: func(sessionID string) {
+						state.whaleSettings.Suspend()
 						if sessions != nil && strings.TrimSpace(sessionID) != "" {
 							state.revokePhoneGit()
 							sessions.Select(sessionID)
@@ -4230,6 +4238,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnClose: func() {
+						state.whaleSettings.Suspend()
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.mu.Lock()
 						state.assistantOpen = false
@@ -4240,6 +4249,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnToggleWhale: func(enabled bool) {
+						state.whaleSettings.Suspend()
 						state.setAssistantFlag(&enabled, nil)
 					},
 					OnToggleDshbot: func(enabled bool) {
@@ -4247,6 +4257,7 @@ func mainView(c *ui.Context) {
 						state.setAssistantFlag(nil, &enabled)
 					},
 					OnOpenWhaleWeb: func() {
+						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
 						state.assistantOpen = false
@@ -4259,6 +4270,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenDshbotWeb: func() {
+						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
 						state.assistantOpen = false
