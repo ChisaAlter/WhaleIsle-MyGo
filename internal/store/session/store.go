@@ -247,6 +247,8 @@ type Store struct {
 	skillCatalog                         SkillCatalog
 	skillCatalogScope                    api.SkillInventoryScope
 	skillCatalogVersion                  uint64
+	skillRemoval                         SkillRemovalReview
+	skillRemovalSequence                 uint64
 	skillCatalogSession, skillCatalogCwd string
 	skillOptions                         []SkillOption
 	skillsErr                            error

@@ -311,37 +311,7 @@ func (s *Store) SetSkillInvocation(ctx context.Context, name string, modelInvoca
 	}()
 }
 
-// DeleteSkillInventory calls skillInventory/delete for a writable skill.
+// DeleteSkillInventory only prepares review. A separate one-use confirmation is required.
 func (s *Store) DeleteSkillInventory(ctx context.Context, name string) {
-	name = strings.TrimSpace(name)
-	s.mu.Lock()
-	client := s.client
-	sessionID := s.selectedID
-	cwd := s.cwd
-	s.mu.Unlock()
-	if client == nil || name == "" {
-		return
-	}
-	go func() {
-		req := api.SkillInventoryRemoveRequest{Name: name}
-		if sessionID != "" {
-			req.SessionId = &sessionID
-		}
-		if cwd != "" {
-			req.Cwd = &cwd
-		}
-		var out api.DeleteResult2
-		err := client.Call(ctx, "skillInventory/delete", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = err.Error()
-		} else {
-			s.lastAction = "skill deleted " + name
-		}
-		s.mu.Unlock()
-		s.fire()
-		if err == nil {
-			s.RefreshSkills(ctx)
-		}
-	}()
+	go s.ReviewSkillRemoval(ctx, strings.TrimSpace(name))
 }

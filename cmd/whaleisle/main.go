@@ -126,191 +126,192 @@ type mainState struct {
 	bootStatus           harness.Status
 	bootLogs             []string
 
-	sessions                      *session.Store
-	agentPresetManager            *session.AgentPresetManager
-	creatorTask                   *session.CreatorTask
-	interactions                  *interaction.Store
-	settings                      *settingsstore.Store
-	settingsOpen                  bool
-	settingsNSFilter              string
-	settingsRevealSecrets         bool
-	settingsDesktopActive         bool
-	settingsAccountActive         bool
-	accountLogin                  accountlogin.Flow
-	accountSignOut                accountlogout.Flow
-	settingsCredentialsActive     bool
-	settingsAboutActive           bool
-	settingsAppearanceActive      bool
-	settingsInterfaceActive       bool
-	settingsModelsActive          bool
-	settingsMCPActive             bool
-	settingsPluginsActive         bool
-	settingsPluginsLastAction     string
-	settingsSkillsActive          bool
-	settingsSkillRoot             string
-	settingsSkillHubTarget        session.SkillTarget
-	settingsSkillHubQuery         string
-	settingsSkillHubHits          []settings.SkillHubHit
-	settingsSkillsLastAction      string
-	settingsSkillsDetail          string
-	settingsSkillEditSession      string
-	settingsSkillInspectVersion   uint64
-	settingsSkillEditGroups       string
-	settingsSkillEditWhen         string
-	settingsSkillEditTarget       session.SkillEditTarget
-	settingsSkillEditorSaving     bool
-	settingsSkillEditName         string
-	settingsSkillEditDesc         string
-	settingsSkillEditContent      string
-	settingsSkillEditModel        bool
-	settingsSkillEditUser         bool
-	settingsSkillEditWritable     bool
-	settingsAgentPresetsActive    bool
-	settingsModelLabel            string
-	settingsModelSession          string
-	settingsModelDrafts           map[string]string
-	settingsAgentPresetLabel      string
-	agentPresetReader             *session.AgentPresetReader
-	agentPresetReaderSource       *session.Store
-	settingsMCPController         *mcpconfig.Controller
-	settingsProviderProfiles      providerprofiles.Controller
-	settingsReferencedCredentials credentialrefs.Controller
-	settingsProviderDiscovery     providerdiscovery.Controller
-	settingsPluginInventory       plugininventory.Controller
-	remoteMachines                *remotestore.Store
-	remoteFiles                   *remotestore.Files
-	remoteFileEditor              remoteui.FileEditor
-	remoteMachineEditor           remoteui.MachineEditor
-	sshTunnel                     *sshremote.TunnelSession
-	sshHost                       string
-	sshUser                       string
-	sshPort                       string
-	sshIdentity                   string
-	sshForward                    string
-	sshTunnelMsg                  string
-	imDraft                       string
-	assistant                     *assiststore.Store
-	dshbotRoster                  *dshbotstore.Store
-	assistantTasks                dshbotstore.TaskControls
-	assistantRoutines             dshbotstore.RoutineControls
-	botNotifications              *botNotificationRun
-	botNotificationMessage        string
-	botNotificationShowing        bool
-	botNotificationDenied         bool
-	botNotificationReadSlot       chan struct{}
-	assistantRoutineCreator       dshbotstore.RoutineCreator
-	assistantRoomCreator          dshbotstore.RoomCreator
-	assistantBotVisibility        dshbotstore.BotVisibilityManager
-	assistantBotCreator           dshbotstore.BotCreator
-	assistantBotDeleter           dshbotstore.BotDeleter
-	assistantBotDuplicator        dshbotstore.BotDuplicator
-	assistantRoomEditor           dshbotstore.RoomEditor
-	assistantRoomRuntime          dshbotstore.RoomRuntimeReader
-	whaleSettings                 assiststore.WhaleSettingsEditor
-	desktopDraft                  desktopConfigDraft
-	desktopSaveErr                string
-	desktopLastAction             string
-	credsDraft                    credentialsDraft
-	credsSaveErr                  string
-	credsLastAction               string
-	credsHarnessNote              string
-	analyticsEnabled              *bool
-	credsShowSecrets              bool
-	usage                         *usagestore.Store
-	im                            *imstore.Store
-	market                        *marketstore.Store
-	schedule                      *schedstore.Store
-	usageOpen                     bool
-	imOpen                        bool
-	marketOpen                    bool
-	scheduleOpen                  bool
-	scheduleHistoryText           string
-	remoteOpen                    bool
-	marketActive                  *marketAttempt
-	marketWorker                  *marketAttempt
-	marketApproval                *marketAttempt
-	marketCatalogTarget           *marketstore.InstallTarget
-	marketInstallSpec             string
-	marketInstallBusy             bool
-	marketInstallRequestID        string
-	marketInstallMsg              string
-	marketInstallLog              string
-	marketActivation              marketstore.Activation
-	marketNeedsAllowBuilds        bool
-	marketAllowBuilds             []string
-	marketIncompatible            []api.ChangeResultErrorIncompatibleItem
-	hasRemoteToken                bool
-	hasRemoteRelayToken           bool
-	remoteDeviceCount             int
-	remoteDeviceNames             []string
-	phoneActionMsg                string
-	sshProbeLine                  string
-	webviewOpen                   bool
-	browserPreviewOpen            bool
-	pdfPreviewRequest             uint64
-	mediaPreviewRequest           uint64
-	htmlDocumentRequest           uint64
-	browserController             *browserpreviewui.Controller
-	browserPreviewDraft           string
-	browserPreviewNavigateErr     string
-	webviewHost                   *desktopwebview.Host
-	webviewHostErr                string
-	lastWebViewURL                string
-	lastWebViewOrigin             string
-	pluginViewResumeAfterRestart  bool
-	pluginViewHostGeneration      int
-	assistantOpen                 bool
-	assistantDraft                string
-	assistantLastAct              string
-	assistantPluginBusy           bool
-	assistantPluginDetail         string
-	launcherOpen                  bool
-	toolsMenuOpen                 bool
-	filesPaneOpen                 bool // Electron tools → files/diff right dock
-	launcherTab                   string
-	launcherWorkspaceDraft        string
-	launcherImport                string
-	launcherImportJournal         []string
-	launcherImportBusy            bool
-	launcherImportCancel          context.CancelFunc
-	launcherUpdate                string
-	nativeReleases                nativeReleaseState
-	launcherUpdateAvailable       bool
-	launcherUpdateSynced          bool
-	launcherNote                  string
-	launcherTriedStart            bool
-	launcherStartBusy             bool
-	launcherStartFailed           bool
-	launcherStartErr              string
-	launcherPrefsSeeded           bool
-	launcherQuitAfterStart        bool
-	launcherAutoStartDesktop      bool
-	launcherAskOnUpdate           bool
-	launcherDownloadRoute         string
-	launcherImportOverwrite       bool
-	launcherImportAttachments     bool
-	launcherImportCategories      map[string]bool
-	launcherImportCatalog         *importer.Catalog
-	launcherComponents            []desktopcomponents.Row
-	launcherComponentsFresh       bool
-	launcherRoutePopOpen          bool
-	workspaceMenuOpen             bool
-	workspaceRenameDraft          string
-	pendingDeeplink               deeplink.Target
-	settingsDrafts                []settingsDraftSlot
-	layout                        frame.LayoutSizes
-	chatList                      ui.ListState
-	draft                         string
-	editMessageSeq                float64
-	feedbackCommentMsgID          string
-	feedbackCommentDraft          string
-	modelPick                     string
-	permissionPick                string
-	agentPresetPick               string
-	thinkingExpanded              map[string]bool
-	renameSessionID               string
-	renameDraft                   string
-	sessionSearch                 string
+	sessions                                *session.Store
+	agentPresetManager                      *session.AgentPresetManager
+	creatorTask                             *session.CreatorTask
+	interactions                            *interaction.Store
+	settings                                *settingsstore.Store
+	settingsOpen                            bool
+	settingsNSFilter                        string
+	settingsRevealSecrets                   bool
+	settingsDesktopActive                   bool
+	settingsAccountActive                   bool
+	accountLogin                            accountlogin.Flow
+	accountSignOut                          accountlogout.Flow
+	settingsCredentialsActive               bool
+	settingsAboutActive                     bool
+	settingsAppearanceActive                bool
+	settingsInterfaceActive                 bool
+	settingsModelsActive                    bool
+	settingsMCPActive                       bool
+	settingsPluginsActive                   bool
+	settingsPluginsLastAction               string
+	settingsSkillsActive                    bool
+	settingsSkillRoot                       string
+	settingsSkillHubTarget                  session.SkillTarget
+	settingsSkillHubQuery                   string
+	settingsSkillHubHits                    []settings.SkillHubHit
+	settingsSkillsLastAction                string
+	settingsSkillsDetail                    string
+	settingsSkillEditSession                string
+	settingsSkillInspectVersion             uint64
+	settingsSkillEditGroups                 string
+	settingsSkillEditWhen                   string
+	settingsSkillEditTarget                 session.SkillEditTarget
+	settingsSkillEditorSaving               bool
+	settingsSkillQuery, settingsSkillSource string
+	settingsSkillEditName                   string
+	settingsSkillEditDesc                   string
+	settingsSkillEditContent                string
+	settingsSkillEditModel                  bool
+	settingsSkillEditUser                   bool
+	settingsSkillEditWritable               bool
+	settingsAgentPresetsActive              bool
+	settingsModelLabel                      string
+	settingsModelSession                    string
+	settingsModelDrafts                     map[string]string
+	settingsAgentPresetLabel                string
+	agentPresetReader                       *session.AgentPresetReader
+	agentPresetReaderSource                 *session.Store
+	settingsMCPController                   *mcpconfig.Controller
+	settingsProviderProfiles                providerprofiles.Controller
+	settingsReferencedCredentials           credentialrefs.Controller
+	settingsProviderDiscovery               providerdiscovery.Controller
+	settingsPluginInventory                 plugininventory.Controller
+	remoteMachines                          *remotestore.Store
+	remoteFiles                             *remotestore.Files
+	remoteFileEditor                        remoteui.FileEditor
+	remoteMachineEditor                     remoteui.MachineEditor
+	sshTunnel                               *sshremote.TunnelSession
+	sshHost                                 string
+	sshUser                                 string
+	sshPort                                 string
+	sshIdentity                             string
+	sshForward                              string
+	sshTunnelMsg                            string
+	imDraft                                 string
+	assistant                               *assiststore.Store
+	dshbotRoster                            *dshbotstore.Store
+	assistantTasks                          dshbotstore.TaskControls
+	assistantRoutines                       dshbotstore.RoutineControls
+	botNotifications                        *botNotificationRun
+	botNotificationMessage                  string
+	botNotificationShowing                  bool
+	botNotificationDenied                   bool
+	botNotificationReadSlot                 chan struct{}
+	assistantRoutineCreator                 dshbotstore.RoutineCreator
+	assistantRoomCreator                    dshbotstore.RoomCreator
+	assistantBotVisibility                  dshbotstore.BotVisibilityManager
+	assistantBotCreator                     dshbotstore.BotCreator
+	assistantBotDeleter                     dshbotstore.BotDeleter
+	assistantBotDuplicator                  dshbotstore.BotDuplicator
+	assistantRoomEditor                     dshbotstore.RoomEditor
+	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
+	whaleSettings                           assiststore.WhaleSettingsEditor
+	desktopDraft                            desktopConfigDraft
+	desktopSaveErr                          string
+	desktopLastAction                       string
+	credsDraft                              credentialsDraft
+	credsSaveErr                            string
+	credsLastAction                         string
+	credsHarnessNote                        string
+	analyticsEnabled                        *bool
+	credsShowSecrets                        bool
+	usage                                   *usagestore.Store
+	im                                      *imstore.Store
+	market                                  *marketstore.Store
+	schedule                                *schedstore.Store
+	usageOpen                               bool
+	imOpen                                  bool
+	marketOpen                              bool
+	scheduleOpen                            bool
+	scheduleHistoryText                     string
+	remoteOpen                              bool
+	marketActive                            *marketAttempt
+	marketWorker                            *marketAttempt
+	marketApproval                          *marketAttempt
+	marketCatalogTarget                     *marketstore.InstallTarget
+	marketInstallSpec                       string
+	marketInstallBusy                       bool
+	marketInstallRequestID                  string
+	marketInstallMsg                        string
+	marketInstallLog                        string
+	marketActivation                        marketstore.Activation
+	marketNeedsAllowBuilds                  bool
+	marketAllowBuilds                       []string
+	marketIncompatible                      []api.ChangeResultErrorIncompatibleItem
+	hasRemoteToken                          bool
+	hasRemoteRelayToken                     bool
+	remoteDeviceCount                       int
+	remoteDeviceNames                       []string
+	phoneActionMsg                          string
+	sshProbeLine                            string
+	webviewOpen                             bool
+	browserPreviewOpen                      bool
+	pdfPreviewRequest                       uint64
+	mediaPreviewRequest                     uint64
+	htmlDocumentRequest                     uint64
+	browserController                       *browserpreviewui.Controller
+	browserPreviewDraft                     string
+	browserPreviewNavigateErr               string
+	webviewHost                             *desktopwebview.Host
+	webviewHostErr                          string
+	lastWebViewURL                          string
+	lastWebViewOrigin                       string
+	pluginViewResumeAfterRestart            bool
+	pluginViewHostGeneration                int
+	assistantOpen                           bool
+	assistantDraft                          string
+	assistantLastAct                        string
+	assistantPluginBusy                     bool
+	assistantPluginDetail                   string
+	launcherOpen                            bool
+	toolsMenuOpen                           bool
+	filesPaneOpen                           bool // Electron tools → files/diff right dock
+	launcherTab                             string
+	launcherWorkspaceDraft                  string
+	launcherImport                          string
+	launcherImportJournal                   []string
+	launcherImportBusy                      bool
+	launcherImportCancel                    context.CancelFunc
+	launcherUpdate                          string
+	nativeReleases                          nativeReleaseState
+	launcherUpdateAvailable                 bool
+	launcherUpdateSynced                    bool
+	launcherNote                            string
+	launcherTriedStart                      bool
+	launcherStartBusy                       bool
+	launcherStartFailed                     bool
+	launcherStartErr                        string
+	launcherPrefsSeeded                     bool
+	launcherQuitAfterStart                  bool
+	launcherAutoStartDesktop                bool
+	launcherAskOnUpdate                     bool
+	launcherDownloadRoute                   string
+	launcherImportOverwrite                 bool
+	launcherImportAttachments               bool
+	launcherImportCategories                map[string]bool
+	launcherImportCatalog                   *importer.Catalog
+	launcherComponents                      []desktopcomponents.Row
+	launcherComponentsFresh                 bool
+	launcherRoutePopOpen                    bool
+	workspaceMenuOpen                       bool
+	workspaceRenameDraft                    string
+	pendingDeeplink                         deeplink.Target
+	settingsDrafts                          []settingsDraftSlot
+	layout                                  frame.LayoutSizes
+	chatList                                ui.ListState
+	draft                                   string
+	editMessageSeq                          float64
+	feedbackCommentMsgID                    string
+	feedbackCommentDraft                    string
+	modelPick                               string
+	permissionPick                          string
+	agentPresetPick                         string
+	thinkingExpanded                        map[string]bool
+	renameSessionID                         string
+	renameDraft                             string
+	sessionSearch                           string
 
 	gitBranch      string
 	gitDirty       bool
@@ -4974,11 +4975,16 @@ func mainView(c *ui.Context) {
 				skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillCatalog.Skills))
 				for _, sk := range sessSnap.SkillCatalog.Skills {
 					skillRows = append(skillRows, settings.SkillRow{
-						Name:           sk.Name,
+						Name:   sk.Name,
+						Source: sk.Source, Path: skillPathValue(sk.Path), Directory: skillPathValue(sk.Directory),
 						Description:    sk.Description,
 						ModelInvocable: sk.ModelInvocable,
 						Groups:         sk.Groups, Writable: sk.Writable, UserInvocable: sk.UserInvocable, Error: sessSnap.SkillCatalog.Errors[sk.Name],
 					})
+				}
+				removal := session.SkillRemovalReview{}
+				if sessions != nil {
+					removal = sessions.SkillRemovalReview()
 				}
 				settings.View(c, settings.Model{
 					Pet:                   state.desktopPet,
@@ -5434,7 +5440,29 @@ func mainView(c *ui.Context) {
 					},
 					SkillsActive: skillsActive,
 					Skills: &settings.SkillsAccess{
-						Skills:     skillRows,
+						Skills: skillRows,
+						Query:  &state.settingsSkillQuery, SourceFilter: &state.settingsSkillSource,
+						RemovalID: removal.ID, RemovalLabel: removal.Label, RemovalMessage: removal.Message, RemovalReady: removal.Ready, RemovalBusy: removal.Busy,
+						OnCancelRemoval: func() {
+							if sessions != nil {
+								sessions.CancelSkillRemoval(removal.ID)
+							}
+						},
+						OnConfirmRemoval: func() {
+							if sessions != nil {
+								go sessions.ConfirmSkillRemoval(context.Background(), removal.ID)
+							}
+						},
+						OnOpenDirectory: func(name string) {
+							if sessions != nil {
+								ticket, err := sessions.CaptureSkillDirectory(name)
+								if err != nil {
+									sessions.SetLastAction(err.Error())
+									return
+								}
+								go sessions.OpenCapturedSkillDirectory(context.Background(), ticket)
+							}
+						},
 						SessionID:  sessSnap.SelectedID,
 						Err:        sessSnap.SkillCatalog.Err,
 						Notice:     sessSnap.SkillCatalog.Notice,
@@ -6280,6 +6308,20 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnDeleteSkill: func(name string) {
+							state.mu.Lock()
+							state.settingsOpen = true
+							state.settingsSkillsActive = true
+							state.settingsDesktopActive = false
+							state.settingsAccountActive = false
+							state.settingsCredentialsActive = false
+							state.settingsAboutActive = false
+							state.settingsAppearanceActive = false
+							state.settingsInterfaceActive = false
+							state.settingsModelsActive = false
+							state.settingsMCPActive = false
+							state.settingsPluginsActive = false
+							state.settingsAgentPresetsActive = false
+							state.mu.Unlock()
 							if sessions != nil {
 								sessions.DeleteSkillInventory(context.Background(), name)
 							}

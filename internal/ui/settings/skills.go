@@ -10,13 +10,14 @@ import (
 
 // SkillRow is one skills/list entry for the dedicated settings page.
 type SkillRow struct {
-	Name           string
-	Description    string
-	ModelInvocable bool
-	Groups         []string
-	Writable       bool
-	UserInvocable  bool
-	Error          string
+	Name                    string
+	Source, Path, Directory string
+	Description             string
+	ModelInvocable          bool
+	Groups                  []string
+	Writable                bool
+	UserInvocable           bool
+	Error                   string
 }
 
 // SkillHubHit is one skillInventory/searchHub result row.
@@ -39,12 +40,18 @@ type SkillsAccess struct {
 	// OnInsert inserts `/name ` into the composer (Electron ui-skill slash invoke).
 	OnInsert func(name string)
 	// OnSetModelInvocable toggles skillInventory/setInvocation modelInvocable.
-	OnSetModelInvocable func(name string, modelInvocable bool)
-	OnDelete            func(name string)
-	OnCreate            func(name string)
-	OnInspect           func(name string)
-	CreateName          *string
-	DetailPreview       string
+	OnSetModelInvocable               func(name string, modelInvocable bool)
+	OnDelete                          func(name string)
+	Query, SourceFilter               *string
+	OnOpenDirectory                   func(name string)
+	RemovalID                         uint64
+	RemovalLabel, RemovalMessage      string
+	RemovalReady, RemovalBusy         bool
+	OnConfirmRemoval, OnCancelRemoval func()
+	OnCreate                          func(name string)
+	OnInspect                         func(name string)
+	CreateName                        *string
+	DetailPreview                     string
 	// Edit* hold skillInventory/get → skillInventory/update draft (writable skills only).
 	EditGroups          *string
 	Busy                bool
@@ -155,10 +162,44 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			a.OnSaveUpdate()
 		}
 	}
-	if len(a.Skills) == 0 {
+	if a.RemovalID != 0 {
+		ui.Text(c, "删除审阅 / Review deletion").FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, a.RemovalLabel).FontSize(11).TextColor(muted)
+		ui.Text(c, a.RemovalMessage).FontSize(12).TextColor(fg)
+		if a.OnCancelRemoval != nil && ui.Button(c, "取消 / Cancel").Disabled(a.RemovalBusy).Clicked() {
+			a.OnCancelRemoval()
+		}
+		if a.OnConfirmRemoval != nil && ui.Button(c, "确认永久删除 / Confirm permanent deletion").Disabled(!a.RemovalReady || a.RemovalBusy).Clicked() {
+			a.OnConfirmRemoval()
+		}
+	}
+	if a.Query != nil {
+		ui.TextInput(c, a.Query).FillWidth().Placeholder("搜索名称、说明或来源 / Search name, description or source")
+	}
+	if a.SourceFilter != nil {
+		ui.Text(c, "来源 / Source").FontSize(11).TextColor(muted)
+		if ui.Button(c, "全部 / All").Clicked() {
+			*a.SourceFilter = ""
+		}
+		seen := map[string]bool{}
+		for _, row := range a.Skills {
+			if row.Source != "" && !seen[row.Source] {
+				seen[row.Source] = true
+				label := row.Source
+				if *a.SourceFilter == row.Source {
+					label = "✓ " + label
+				}
+				if ui.Button(c, label).Clicked() {
+					*a.SourceFilter = row.Source
+				}
+			}
+		}
+	}
+	visible := filterSkillRows(a.Skills, a.Query, a.SourceFilter)
+	if len(visible) == 0 {
 		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(12).TextColor(muted)
 	} else {
-		for _, group := range skillSections(a.Skills) {
+		for _, group := range skillSections(visible) {
 			label := group.Name
 			if label == "" {
 				label = "Ungrouped"
@@ -181,6 +222,13 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 				desktopRow(c, emptyDash(row.Name), func() {
 					ui.Text(c, flag).FontSize(11).TextColor(muted)
+					ui.Text(c, row.Source+" · "+row.Path).FontSize(11).TextColor(muted)
+					if row.Directory != "" {
+						ui.Text(c, row.Directory).FontSize(11).TextColor(muted)
+					}
+					if a.OnOpenDirectory != nil && row.Directory != "" && ui.Button(c, "打开目录 / Open directory on Host").Disabled(a.Busy).Clicked() {
+						a.OnOpenDirectory(row.Name)
+					}
 					if !row.Writable {
 						ui.Text(c, "Read-only").FontSize(11).TextColor(muted)
 					}
@@ -212,7 +260,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 								a.OnInspect(row.Name)
 							}
 						}
-						if a.OnDelete != nil && row.Name != "" && !row.ModelInvocable && row.Writable && !a.Busy {
+						if a.OnDelete != nil && row.Name != "" && row.Writable && !a.Busy && !a.RemovalBusy {
 							if ui.Button(c, i18n.T(i18n.KeyComposerSkillsDelete)).FontSize(11).Clicked() {
 								a.OnDelete(row.Name)
 							}
