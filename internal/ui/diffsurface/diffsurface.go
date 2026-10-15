@@ -17,6 +17,7 @@ import (
 
 // Model is diff panel state for one frame.
 type Model struct {
+	OnOpenFile    func(path string) error
 	Workbench     *Workbench
 	WorkspaceRoot string
 	ThemeID       string
@@ -105,6 +106,7 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 		paintWorkbench(c, m, fg, muted)
+		paintDiffControls(c, m)
 		scope := ""
 		if m.PathFilter != nil {
 			scope = strings.TrimSpace(*m.PathFilter)
@@ -140,7 +142,7 @@ func View(c *ui.Context, m Model) {
 		}
 
 		ui.Scroll(c).Fill().MinHeight(0).Padding(8, 8, 8, 8).Children(func() {
-			diff.View(c, text, diff.Style{
+			paintPatchFiles(c, m, text, diff.Style{
 				FontSize: 12,
 				FG:       fg,
 				Add:      ui.RGB(61, 153, 112),

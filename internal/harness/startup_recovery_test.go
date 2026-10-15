@@ -41,6 +41,7 @@ func TestStartupRecoveryStatusAndManualReset(t *testing.T) {
 	s.skippedOnce = true
 	s.SetSkipUserPlugins(true)
 	s.mu.Lock()
+	s.attemptRecovery = true
 	s.setLocked(Status{State: Ready})
 	s.mu.Unlock()
 	if !s.Status().Recovery || !s.opts.Prepare.SkipUserPlugins {
@@ -49,5 +50,26 @@ func TestStartupRecoveryStatusAndManualReset(t *testing.T) {
 	s.SetSkipUserPlugins(false)
 	if s.skippedOnce || s.opts.Prepare.SkipUserPlugins {
 		t.Fatal("manual full retry did not reset skip guard")
+	}
+}
+
+func TestStartupRecoveryIgnoresLateGenerationLogs(t *testing.T) {
+	s := New(Options{})
+	s.gen = 2
+	s.status = Status{State: Starting}
+	s.scan(strings.NewReader("plugin tree failed to load\n"), make(chan string, 1), "", 1)
+	if len(s.CurrentStartLogs()) != 0 {
+		t.Fatal("late prior generation polluted current evidence")
+	}
+}
+func TestStartupRecoveryLiveFlagUnaffectedByNextLaunchSetting(t *testing.T) {
+	s := New(Options{})
+	s.attemptRecovery = true
+	s.SetSkipUserPlugins(false)
+	s.mu.Lock()
+	s.setLocked(Status{State: Ready})
+	s.mu.Unlock()
+	if !s.Status().Recovery {
+		t.Fatal("next-launch preference relabeled a recovered Host as full healthy")
 	}
 }

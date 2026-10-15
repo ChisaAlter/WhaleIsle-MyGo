@@ -20,6 +20,9 @@ type DiscardPlan struct {
 }
 
 func discardPath(root, path string) (string, string, error) {
+	if cleanWorkspaceRoot(root) == "" {
+		return "", "", ErrNotRepo
+	}
 	if err := literalPath(path); err != nil {
 		return "", "", err
 	}

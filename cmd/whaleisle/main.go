@@ -1661,19 +1661,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		}
 	}
 	prev := s.bootStatus.State
-	// Log lines fire OnChange with a Starting snapshot; those goroutines can
-	// land after Ready/Failed and must not regress the shell or tear down DSH.
-	if st.State == harness.Starting && st.Generation <= s.bootStatus.Generation && (prev == harness.Ready || prev == harness.Failed) {
-		if s.sup != nil {
-			s.bootLogs = s.sup.Logs()
-		}
-		win := s.win
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
-		return
-	}
+	// The actual supervisor generation/state check above rejects late snapshots.
 	s.bootStatus = st
 	persistenceFailed := s.recordStartupStatusLocked(st)
 	switch st.State {

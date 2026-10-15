@@ -145,7 +145,7 @@ func TestRedactIndependentCredentialForms(t *testing.T) {
 	for _, line := range []string{
 		`token=syntheticToken`, `password="synthetic password"`, `api_key=syntheticKey`,
 		`https://person:syntheticPass@example.invalid/a?token=syntheticQuery&other=1`,
-		`Cookie: session=syntheticCookie`, `Authorization: Bearer syntheticSecret`,
+		`Cookie: session=syntheticCookie`, `Authorization: Bearer syntheticSecret`, `{"Cookie":"session=syntheticCookie"}`,
 	} {
 		if got := RedactLine(line); strings.Contains(got, "synthetic") {
 			t.Fatalf("secret survived: %s", got)

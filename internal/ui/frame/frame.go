@@ -4,6 +4,7 @@ package frame
 
 import (
 	"context"
+	"errors"
 	"math"
 	"strings"
 
@@ -1049,6 +1050,32 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if tab == "diff" {
 			diffsurface.View(c, diffsurface.Model{
+				OnOpenFile: func(path string) error {
+					handled, err := files.OpenPresentedPath(files.Model{
+						Tabs:          m.FileTabs,
+						BindingID:     m.FileBindingID,
+						WorkspaceRoot: m.WorkspaceRoot,
+						SelectedFile:  m.SelectedFile,
+						Preview:       m.FilePreview,
+						PreviewErr:    m.FilePreviewErr,
+						Editing:       m.FileEditing,
+						EditDraft:     m.FileEditDraft,
+						EditStatus:    m.FileEditStatus,
+						StatNote:      m.FileStatNote,
+						ReadRemote:    m.OnReadWorkspaceFile,
+						StatRemote:    m.OnStatWorkspaceFile,
+					}, path)
+					if err != nil {
+						return err
+					}
+					if !handled {
+						return errors.New("file is unavailable in this workspace (it may have been deleted)")
+					}
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "files"
+					}
+					return nil
+				},
 				Workbench:     m.GitWorkbench,
 				WorkspaceRoot: m.WorkspaceRoot,
 				ThemeID:       m.ThemeID,

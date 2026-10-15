@@ -105,6 +105,7 @@ type Supervisor struct {
 	gen              int
 	logs             []string
 	startLogs        []string // current attempt only; old attempts cannot implicate plugins
+	attemptRecovery  bool     // flags captured for the current attempt, not mutable next-launch settings
 	attempt          int
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
 	skippedOnce bool
@@ -170,6 +171,7 @@ func (s *Supervisor) Start() {
 	}
 	install := s.opts.Install
 	s.attempt = 0
+	s.attemptRecovery = s.opts.Launch.SkipUserPlugins
 	gen := s.nextGenLocked()
 	s.mu.Unlock()
 	if install != nil {
@@ -227,7 +229,7 @@ func (s *Supervisor) current(gen int) bool {
 func (s *Supervisor) setLocked(st Status) {
 	st.Generation = s.gen
 	st.Attempt = s.attempt
-	st.Recovery = s.opts.Launch.SkipUserPlugins
+	st.Recovery = s.attemptRecovery
 	s.status = st
 	if s.opts.OnChange != nil {
 		go s.opts.OnChange(st)
@@ -244,8 +246,12 @@ func (s *Supervisor) set(gen int, st Status) bool {
 	return true
 }
 
-func (s *Supervisor) log(line string) {
+func (s *Supervisor) log(line string, generation ...int) {
 	s.mu.Lock()
+	if len(generation) > 0 && generation[0] != s.gen {
+		s.mu.Unlock()
+		return
+	}
 	s.logs = append(s.logs, line)
 	s.startLogs = append(s.startLogs, line)
 	if len(s.startLogs) > logLimit {
@@ -281,6 +287,7 @@ func (s *Supervisor) run(gen int) {
 	s.taskControlToken = token
 	s.startLogs = nil
 	launch := s.opts.Launch
+	s.attemptRecovery = launch.SkipUserPlugins
 	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
 	if install := s.opts.Install; install != nil {
 		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
@@ -316,11 +323,11 @@ func (s *Supervisor) run(gen int) {
 	if !s.set(gen, Status{State: Starting, Source: plan.Source, PluginLoad: PluginProgress{Phase: "runtime"}}) {
 		return
 	}
-	s.log(fmt.Sprintf("» %s %s", plan.Command, strings.Join(plan.Args, " ")))
+	s.log(fmt.Sprintf("» %s %s", plan.Command, strings.Join(plan.Args, " ")), gen)
 	if n := len(patches); n > 0 {
 		overlayLine := fmt.Sprintf("» %d desktop --patch overlay(s)", n)
-		s.log(overlayLine)
-		s.notePluginLog(overlayLine)
+		s.log(overlayLine, gen)
+		s.notePluginLog(overlayLine, gen)
 	}
 
 	cmd := exec.Command(plan.Command, plan.Args...)
@@ -348,7 +355,7 @@ func (s *Supervisor) run(gen int) {
 	s.mu.Unlock()
 
 	ready := make(chan string, 1)
-	go s.scan(out, ready, token)
+	go s.scan(out, ready, token, gen)
 	var waitErr error
 	go func() {
 		waitErr = cmd.Wait()
@@ -378,9 +385,9 @@ func (s *Supervisor) run(gen int) {
 				werr := EnsureWorkspace(wctx, s.client, ep, ws)
 				wcancel()
 				if werr != nil {
-					s.log("workspace: " + werr.Error())
+					s.log("workspace: "+werr.Error(), gen)
 				} else {
-					s.log("workspace registered: " + ws)
+					s.log("workspace registered: "+ws, gen)
 				}
 			}
 			s.mu.Lock()
@@ -411,13 +418,13 @@ func (s *Supervisor) run(gen int) {
 			}
 			_ = c.Close()
 			loggedListen = true
-			s.log("listening on http://" + addr + " — waiting for dsh web ready URL")
+			s.log("listening on http://"+addr+" — waiting for dsh web ready URL", gen)
 		}
 	}
 }
 
 // scan copies output lines into the log and reports the first ready URL.
-func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string) {
+func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string, generation ...int) {
 	sc := bufio.NewScanner(crToLF{r})
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	sent := false
@@ -435,8 +442,8 @@ func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string) {
 				line = line[:i] + "?token=…"
 			}
 		}
-		s.notePluginLog(line)
-		s.log(line)
+		s.notePluginLog(line, generation...)
+		s.log(line, generation...)
 	}
 }
 
@@ -452,10 +459,10 @@ func (c crToLF) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (s *Supervisor) notePluginLog(line string) {
+func (s *Supervisor) notePluginLog(line string, generation ...int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.status.State != Starting {
+	if s.status.State != Starting || (len(generation) > 0 && generation[0] != s.gen) {
 		return
 	}
 	if ApplyPluginLogLine(&s.status.PluginLoad, line) && s.opts.OnChange != nil {
@@ -471,7 +478,7 @@ func (s *Supervisor) exitedUnexpectedly(gen int, waitErr error, source string) {
 	if waitErr == nil {
 		waitErr = errors.New("dsh web exited")
 	}
-	s.log("exit: " + waitErr.Error())
+	s.log("exit: "+waitErr.Error(), gen)
 	s.fail(gen, fmt.Errorf("dsh web exited: %w", waitErr), source)
 }
 
@@ -494,11 +501,12 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		}
 		s.opts.Launch.SkipUserPlugins = true
 		s.opts.Prepare.SkipUserPlugins = true
+		s.attemptRecovery = true
 		s.skippedOnce = true
 		next := s.nextGenLocked()
 		s.setLocked(Status{State: Starting, Err: err, Source: source})
 		s.mu.Unlock()
-		s.log("plugin tree failed; retrying with --skip-user-plugins")
+		s.log("plugin tree failed; retrying with --skip-user-plugins", next)
 		go s.run(next)
 		return
 	}
@@ -512,6 +520,6 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	next := s.nextGenLocked()
 	s.setLocked(Status{State: Starting, Err: err, Source: source})
 	s.mu.Unlock()
-	s.log(fmt.Sprintf("restart %d/%d in %s", s.attempt, s.opts.MaxAttempts, delay))
+	s.log(fmt.Sprintf("restart %d/%d in %s", s.attempt, s.opts.MaxAttempts, delay), next)
 	time.AfterFunc(delay, func() { s.run(next) })
 }

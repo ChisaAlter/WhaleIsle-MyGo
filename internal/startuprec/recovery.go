@@ -142,7 +142,7 @@ func CanPromptUpdate(ask, pending, visible, launcher, starting, busy, quitting b
 	return ask && pending && visible && launcher && !starting && !busy && !quitting
 }
 
-var secretHeaders = regexp.MustCompile(`(?i)\b(?:authorization|proxy-authorization|cookie|set-cookie)\s*[:=].*`)
+var secretHeaders = regexp.MustCompile(`(?i)\b(?:authorization|proxy-authorization|cookie|set-cookie)["']?\s*[:=].*`)
 var secretValues = regexp.MustCompile(`(?i)(["']?(?:[a-z0-9_-]*(?:token|password|passwd|secret|api[_-]?key|credential)[a-z0-9_-]*)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&]+)`)
 var urlCredentials = regexp.MustCompile(`(?i)(https?://)[^\s/@]+(?::[^\s/@]*)?@`)
 var urlQuery = regexp.MustCompile(`(https?://[^\s?#]+)[?#][^\s]*`)

@@ -9,6 +9,7 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
+	View                                      patchViewState
 	Discard                                   *git.DiscardPlan
 	Root                                      string
 	BaseRef, CompareQuery, CompareError       string
@@ -52,7 +53,16 @@ func (w *Workbench) reload(root string) {
 }
 func refreshWorkbench(m Model) {
 	if m.Workbench != nil {
-		m.Workbench.reload(m.WorkspaceRoot)
+		w := m.Workbench
+		if w.Loaded && w.Root != m.WorkspaceRoot {
+			w.CancelComparison()
+			operation := w.Operation
+			*w = Workbench{Operation: operation}
+			if m.PathFilter != nil {
+				*m.PathFilter = ""
+			}
+		}
+		w.reload(m.WorkspaceRoot)
 	}
 	refresh(m)
 }
@@ -74,11 +84,16 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if !w.Loaded || w.Root != m.WorkspaceRoot {
 		w.CancelComparison()
-		if m.Text != nil {
-			*m.Text = ""
-		}
-		if m.ErrMsg != nil {
-			*m.ErrMsg = ""
+		if w.Loaded && w.Root != m.WorkspaceRoot {
+			if m.Text != nil {
+				*m.Text = ""
+			}
+			if m.ErrMsg != nil {
+				*m.ErrMsg = ""
+			}
+			if m.PathFilter != nil {
+				*m.PathFilter = ""
+			}
 		}
 		operation := w.Operation
 		*w = Workbench{Operation: operation}

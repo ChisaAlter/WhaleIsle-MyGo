@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -53,21 +54,25 @@ var (
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
-	ThemeID         string
-	SystemDark      bool
-	Version         string
-	Workspace       string
-	VendorReady     bool
-	LauncherPackage bool // Electron: tray row visible when packaged (not only when desk running)
-	DesktopRunning  bool
-	OnInstallUpdate func()
-	StartBusy       bool
-	StartFailed     bool
-	StartError      string
-	BootLogs        []string
-	PluginLoad      harness.PluginProgress
-	ActiveTab       string
-	ImportSummary   string
+	StartupDiagnostics          startuprec.Diagnostics
+	StartupRepairBusy           bool
+	OnRefreshStartupDiagnostics func()
+	OnRepairStartupSuspects     func()
+	ThemeID                     string
+	SystemDark                  bool
+	Version                     string
+	Workspace                   string
+	VendorReady                 bool
+	LauncherPackage             bool // Electron: tray row visible when packaged (not only when desk running)
+	DesktopRunning              bool
+	OnInstallUpdate             func()
+	StartBusy                   bool
+	StartFailed                 bool
+	StartError                  string
+	BootLogs                    []string
+	PluginLoad                  harness.PluginProgress
+	ActiveTab                   string
+	ImportSummary               string
 	// ImportJournal is the per-item apply log (Electron runImport journal).
 	ImportJournal                                                     []string
 	UpdateStatus                                                      string
@@ -803,6 +808,7 @@ func diag(c *ui.Context, m Model) {
 		}
 		kv(c, i18n.T(i18n.KeyLauncherVersion), nonempty(m.Version, "dev"))
 		kv(c, i18n.T(i18n.KeyLauncherVendor), onOff(m.VendorReady))
+		startupDiagnosticsPanel(c, m)
 	})
 }
 
@@ -1099,6 +1105,7 @@ func importPanel(c *ui.Context, m Model) {
 
 func pluginsPanel(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
+		startupDiagnosticsPanel(c, m)
 		if !m.VendorReady {
 			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(12).
 				Padding(14, 16, 14, 16).Gap(6).Children(func() {
