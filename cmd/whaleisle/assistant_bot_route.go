@@ -173,6 +173,7 @@ func (s *mainState) observeAssistantBotRoute() {
 	ep := s.bootStatus.Endpoint
 	s.mu.Unlock()
 	if s.assistantRoomClient(ep) == nil {
+		s.assistantRoutines.TextProfile.Bind(dshbotstore.RoutineScope{})
 		s.assistantRoutines.Route.Bind(dshbotstore.RoutineScope{})
 	}
 }

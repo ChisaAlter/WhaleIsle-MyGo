@@ -7,7 +7,7 @@ import (
 )
 
 // Shared exact bot/update transport, restricted to the independently reviewed
-// capability, memory-review, objective-configuration and route editors.
+// capability, memory-review, objective-configuration, route and text-profile editors.
 func (c *Client) saveDshbotProfileField(ctx context.Context, expected DshbotCapabilityStatus, field string, value json.RawMessage) (DshbotCapabilityReceipt, error) {
 	return c.saveDshbotProfileFields(ctx, expected, map[string]json.RawMessage{field: value})
 }
@@ -31,6 +31,14 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 			return out, err
 		}
 		if err := ValidateDshbotObjectiveConfigCommand(DshbotObjectiveConfigCommand{Expected: expected, Desired: value}); err != nil {
+			return out, err
+		}
+	case len(fields) == 3 && fields["name"] != nil && fields["title"] != nil && fields["description"] != nil:
+		values, err := DshbotTextProfileValue(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := ValidateDshbotTextProfileCommand(DshbotTextProfileCommand{Expected: expected, Values: values}); err != nil {
 			return out, err
 		}
 	case len(fields) == 2 && fields["model"] != nil && fields["workspaceId"] != nil && len(route) == 1:
@@ -99,6 +107,20 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		}
 		if matches != 1 {
 			return out, fmt.Errorf("new canonical session identity is ambiguous")
+		}
+		return out, nil
+	}
+	if len(fields) == 3 && fields["name"] != nil && fields["title"] != nil && fields["description"] != nil {
+		values, err := DshbotTextProfileValue(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := DshbotTextProfileApplied(DshbotTextProfileCommand{Expected: expected, Values: values}, out.Status); err != nil {
+			return out, err
+		}
+		profile, _ := json.Marshal(out.Status.Profile)
+		if response.SessionID != expected.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
+			return out, fmt.Errorf("text profile item/session receipt differs; read back")
 		}
 		return out, nil
 	}
