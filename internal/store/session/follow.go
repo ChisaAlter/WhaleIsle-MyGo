@@ -183,6 +183,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 			s.applyQueueValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyQuestionValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyPermissionValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
+			s.applyModelValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 		}
 		if snap.Cursor != nil {
 			s.bumpHistoryThroughSeq(*snap.Cursor)
@@ -237,6 +238,8 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 		return true
 	}
 	switch head.Type {
+	case events.TypeModelSelection:
+		return s.applyModelSelectionEventLocked(raw)
 	case "turn/start":
 		s.editTurnSeq, s.editTurnOpening = head.Seq, true
 		s.turnStartMs = head.Time

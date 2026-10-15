@@ -259,6 +259,7 @@ func (s *Store) invalidateFollowLocked() {
 	s.resetAssistantStreamLocked()
 	s.cancelVisualReplyLocked()
 	s.followGeneration++
+	s.resetModelSelectionLocked()
 	s.permissionProjection = permissionProjectionState{}
 	s.permissionsErr = nil
 	s.historyBranchBusy = false

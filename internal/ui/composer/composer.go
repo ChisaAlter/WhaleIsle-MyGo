@@ -65,6 +65,8 @@ type Model struct {
 	OnSend              func(text string)
 	OnStop              func()
 	OnModelChange       func(label string)
+	OnModelEffortChange func(label string)
+	OnRetryModels       func()
 	OnPermissionChange  func(label string)
 	OnAgentPresetChange func(label string)
 	OnClearDraft        func()
@@ -448,18 +450,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					if len(m.Snapshot.ModelLabels) > 0 && m.ModelPick != nil {
-						sel := composerSelect(c, m.ModelPick, m.Snapshot.ModelLabels).
-							Height(btnH).FontSize(13).FontWeight(500).
-							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-						if sel.Changed() && m.OnModelChange != nil {
-							m.OnModelChange(*m.ModelPick)
-						}
-					} else if m.Snapshot.ModelsErr != "" {
-						ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).TextColor(muted)
-					} else {
-						ui.Text(c, i18n.T(i18n.KeyComposerModel)+" ▾").FontSize(13).FontWeight(500).TextColor(muted)
-					}
+					paintModelPicker(c, m, muted, btnH)
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {
 						if item.SessionID == m.Snapshot.SelectedID && item.Running {

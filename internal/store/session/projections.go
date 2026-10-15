@@ -38,6 +38,7 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 		s.applyQueueValuesLocked(out.Values, out.AsOfSeq)
 		s.applyQuestionValuesLocked(out.Values, out.AsOfSeq)
 		s.applyPermissionValuesLocked(out.Values, out.AsOfSeq)
+		s.applyModelValuesLocked(out.Values, out.AsOfSeq)
 		for i := range s.items {
 			if s.items[i].SessionID == sessionID {
 				if title != "" && (strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID) {

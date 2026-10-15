@@ -66,6 +66,7 @@ func (s *Store) runControlWatch(ctx context.Context, mux *dsh.Mux, sessionID str
 		s.applyQueueControlLocked(raw)
 		s.applyQuestionControlLocked(raw)
 		s.applyPermissionControlLocked(raw)
+		s.applyModelControlLocked(raw)
 		s.controlNote = note
 		s.mu.Unlock()
 		s.fire()

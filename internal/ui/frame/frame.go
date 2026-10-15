@@ -652,7 +652,18 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							m.Store.CancelRunning(context.Background())
 						},
 						OnModelChange: func(label string) {
-							m.Store.SelectModelForSession(context.Background(), label)
+							if choice, ok := snap.ModelChoices[label]; ok {
+								m.Store.SelectModelSelectionForSessionID(context.Background(), snap.SelectedID, choice)
+							}
+						},
+						OnRetryModels: func() {
+							m.Store.RefreshModelCatalog(context.Background())
+							m.Store.RefreshProjections(context.Background())
+						},
+						OnModelEffortChange: func(label string) {
+							if choice, ok := snap.ModelEffortChoices[label]; ok {
+								m.Store.SelectModelEffortSelectionForSessionID(context.Background(), snap.SelectedID, choice)
+							}
 						},
 						OnPermissionChange: func(label string) {
 							m.Store.SelectPermissionPreset(context.Background(), label)

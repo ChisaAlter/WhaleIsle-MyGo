@@ -3,51 +3,94 @@ package session
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"whaleisle/internal/dsh/api"
 )
 
-// ModelOption is one row in the composer model picker.
+// ModelOption retains the exact route and adapter-owned reasoning metadata.
+// Labels are presentation only; requests are always built from this object.
 type ModelOption struct {
-	Label    string
-	Provider string
-	Model    string
+	Label     string
+	Provider  string
+	Model     string
+	Reasoning *api.ModelCatalogGroupsItemModelsItemReasoning
 }
 
-func modelChoiceKey(provider, model string) string {
-	return provider + "/" + model
+type modelRoute struct{ provider, model string }
+
+func modelChoiceKey(provider, model string) modelRoute { return modelRoute{provider, model} }
+
+func cloneModelSelection(v api.ModelCatalogDefault) api.ModelCatalogDefault {
+	if v.ReasoningEffort != nil {
+		effort := *v.ReasoningEffort
+		v.ReasoningEffort = &effort
+	}
+	return v
 }
 
 func flattenModelCatalog(cat api.ModelCatalog) []ModelOption {
 	var out []ModelOption
-	seen := map[string]struct{}{}
+	seen := map[modelRoute]bool{}
+	counts := map[string]int{}
 	for _, g := range cat.Groups {
 		for _, m := range g.Models {
 			key := modelChoiceKey(g.Id, m.Id)
-			if _, ok := seen[key]; ok {
+			if seen[key] || g.Id == "" || m.Id == "" {
 				continue
 			}
-			seen[key] = struct{}{}
+			seen[key] = true
 			label := m.Name
-			if g.Name != "" && g.Name != m.Name {
-				label = fmt.Sprintf("%s — %s", g.Name, m.Name)
+			if label == "" {
+				label = m.Id
 			}
-			out = append(out, ModelOption{
-				Label:    label,
-				Provider: g.Id,
-				Model:    m.Id,
-			})
+			if g.Name != "" && g.Name != label {
+				label = fmt.Sprintf("%s — %s", g.Name, label)
+			}
+			opt := ModelOption{Label: label, Provider: g.Id, Model: m.Id}
+			if m.Reasoning != nil {
+				r := *m.Reasoning
+				r.Efforts = append([]api.ModelCatalogGroupsItemModelsItemReasoningEffortsItem(nil), r.Efforts...)
+				if r.DefaultEffort != nil {
+					effort := *r.DefaultEffort
+					r.DefaultEffort = &effort
+				}
+				opt.Reasoning = &r
+			}
+			counts[label]++
+			out = append(out, opt)
 		}
+	}
+	// SelectBase carries string values: disambiguate human-readable collisions,
+	// then ensure even an adversarial catalog caption cannot alias another row.
+	used := map[string]bool{}
+	for i := range out {
+		label := out[i].Label
+		if counts[label] > 1 {
+			label += fmt.Sprintf(" [%s / %s]", out[i].Provider, out[i].Model)
+		}
+		candidate := label
+		for n := 2; used[candidate]; n++ {
+			candidate = fmt.Sprintf("%s (%d)", label, n)
+		}
+		out[i].Label = candidate
+		used[candidate] = true
 	}
 	return out
 }
 
-func labelForSelection(sel api.ModelCatalogDefault, options []ModelOption) string {
-	key := modelChoiceKey(sel.Provider, sel.Model)
+func modelOptionForSelection(sel api.ModelCatalogDefault, options []ModelOption) (ModelOption, bool) {
 	for _, o := range options {
-		if modelChoiceKey(o.Provider, o.Model) == key {
-			return o.Label
+		if o.Provider == sel.Provider && o.Model == sel.Model {
+			return o, true
 		}
+	}
+	return ModelOption{}, false
+}
+
+func labelForSelection(sel api.ModelCatalogDefault, options []ModelOption) string {
+	if o, ok := modelOptionForSelection(sel, options); ok {
+		return o.Label
 	}
 	if sel.Model != "" {
 		return sel.Provider + " / " + sel.Model
@@ -62,6 +105,66 @@ func optionByLabel(label string, options []ModelOption) (ModelOption, bool) {
 		}
 	}
 	return ModelOption{}, false
+}
+
+type modelEffortOption struct {
+	Label string
+	Value *string
+}
+
+func modelEffortOptions(opt ModelOption) []modelEffortOption {
+	if opt.Reasoning == nil {
+		return nil
+	}
+	var out []modelEffortOption
+	if opt.Reasoning.DefaultEffort == nil {
+		out = append(out, modelEffortOption{Label: "提供商默认"})
+	}
+	counts := map[string]int{}
+	for _, e := range opt.Reasoning.Efforts {
+		counts[e.Name]++
+	}
+	seen := map[string]bool{}
+	labels := map[string]bool{"提供商默认": opt.Reasoning.DefaultEffort == nil}
+	for _, e := range opt.Reasoning.Efforts {
+		if seen[e.Id] {
+			continue
+		}
+		seen[e.Id] = true
+		label := e.Name
+		if label == "" {
+			label = e.Id
+		}
+		if counts[e.Name] > 1 || labels[label] {
+			label += " [" + e.Id + "]"
+		}
+		candidate := label
+		for n := 2; labels[candidate]; n++ {
+			candidate = fmt.Sprintf("%s (%d)", label, n)
+		}
+		labels[candidate] = true
+		id := e.Id
+		out = append(out, modelEffortOption{Label: candidate, Value: &id})
+	}
+	return out
+}
+
+func effectiveModelEffort(sel api.ModelCatalogDefault, options []ModelOption) *string {
+	if sel.ReasoningEffort != nil {
+		return sel.ReasoningEffort
+	}
+	if o, ok := modelOptionForSelection(sel, options); ok && o.Reasoning != nil {
+		return o.Reasoning.DefaultEffort
+	}
+	return nil
+}
+
+func sameModelSelection(a, b api.ModelCatalogDefault, options []ModelOption) bool {
+	if a.Provider != b.Provider || a.Model != b.Model {
+		return false
+	}
+	ae, be := effectiveModelEffort(a, options), effectiveModelEffort(b, options)
+	return (ae == nil && be == nil) || (ae != nil && be != nil && *ae == *be)
 }
 
 // DiscoverLLMProviders calls llm/listConfigurableProviders then llm/discoverModels
@@ -125,37 +228,41 @@ func (s *Store) InitializeDefaultModel(ctx context.Context) {
 	}()
 }
 
-// RefreshModelCatalog loads session/modelCatalog for the composer picker.
+// RefreshModelCatalog refreshes Host-level choices, never the active session's
+// selection. The default applies only after modelSelection.next is known null.
 func (s *Store) RefreshModelCatalog(ctx context.Context) {
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
+	s.modelState.CatalogRequest++
+	request := s.modelState.CatalogRequest
 	s.mu.Unlock()
-	if client == nil {
+	if client == nil || ctx.Err() != nil {
 		return
 	}
 	go func() {
 		var cat api.ModelCatalog
 		err := client.Call(ctx, "session/modelCatalog", map[string]any{}, &cat)
 		s.mu.Lock()
-		if err != nil {
-			s.modelsErr = err
+		if s.client != client || s.eventsGeneration != generation || request != s.modelState.CatalogRequest || ctx.Err() != nil {
 			s.mu.Unlock()
-			s.fire()
 			return
 		}
-		s.modelsErr = nil
-		s.modelOptions = flattenModelCatalog(cat)
-		if lbl := labelForSelection(cat.Default, s.modelOptions); lbl != "" {
-			s.selectedModelLabel = lbl
-		} else if len(s.modelOptions) > 0 {
-			s.selectedModelLabel = s.modelOptions[0].Label
+		s.modelsErr = err
+		if err == nil {
+			s.modelOptions = flattenModelCatalog(cat)
+			s.modelState.Default = cloneModelSelection(cat.Default)
+			s.modelState.CatalogReady = true
+			var failures []string
+			for _, f := range cat.Failures {
+				failures = append(failures, f.Name+": "+f.Message)
+			}
+			s.modelState.CatalogWarning = strings.Join(failures, "; ")
 		}
 		s.mu.Unlock()
 		s.fire()
 	}()
 }
 
-// SelectModelForSession applies session/selectModel for the chosen catalog row.
 func (s *Store) SelectModelForSession(ctx context.Context, label string) {
 	s.mu.Lock()
 	id := s.selectedID
@@ -163,47 +270,149 @@ func (s *Store) SelectModelForSession(ctx context.Context, label string) {
 	s.SelectModelForSessionID(ctx, id, label)
 }
 
-// SelectModelForSessionID binds settings edits to the Session shown in the form.
+// SelectModelForSessionID binds a catalog row to the session rendered by the UI.
 func (s *Store) SelectModelForSessionID(ctx context.Context, sessionID, label string) {
 	s.mu.Lock()
 	opt, ok := optionByLabel(label, s.modelOptions)
-	client := s.client
-	currentID := s.selectedID
-	prev := s.selectedModelLabel
-	s.mu.Unlock()
-	if !ok || client == nil || sessionID == "" || currentID != sessionID || label == prev {
+	current, known := s.currentModelSelectionLocked()
+	if !ok {
+		s.mu.Unlock()
 		return
 	}
-	go func() {
-		req := api.SessionSelectModelRequest{
-			SessionId: sessionID,
-			Provider:  opt.Provider,
-			Model:     opt.Model,
+	selection := api.ModelCatalogDefault{Provider: opt.Provider, Model: opt.Model}
+	if known && current.Provider == opt.Provider && current.Model == opt.Model {
+		// Re-selecting a route must not silently reset its adapter-owned effort.
+		selection.ReasoningEffort = effectiveModelEffort(current, s.modelOptions)
+	} else if opt.Reasoning != nil {
+		selection.ReasoningEffort = opt.Reasoning.DefaultEffort
+	}
+	s.mu.Unlock()
+	s.SelectModelSelectionForSessionID(ctx, sessionID, selection)
+}
+
+func (s *Store) SelectModelEffortForSessionID(ctx context.Context, sessionID, label string) {
+	s.mu.Lock()
+	selection, known := s.currentModelSelectionLocked()
+	opt, ok := modelOptionForSelection(selection, s.modelOptions)
+	if !known || !ok || s.selectedID != sessionID {
+		s.mu.Unlock()
+		return
+	}
+	var value *string
+	found := false
+	for _, e := range modelEffortOptions(opt) {
+		if e.Label == label {
+			value = e.Value
+			found = true
+			break
 		}
-		var out api.SessionSelectModelValue
-		err := client.Call(ctx, "session/selectModel", map[string]any{"request": req}, &out)
-		if err == nil && out.Selected.Model == "" {
-			err = fmt.Errorf("model save returned no committed selection")
+	}
+	s.mu.Unlock()
+	if !found {
+		return
+	}
+	selection.ReasoningEffort = value
+	s.SelectModelEffortSelectionForSessionID(ctx, sessionID, selection)
+}
+
+// SelectModelSelectionForSessionID sends only the Host's existing request fields.
+// The UI stays on committed projection state until the Host confirms the change.
+func (s *Store) SelectModelSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault) {
+	s.selectModelSelectionForSessionID(ctx, sessionID, selection, false)
+}
+
+// Effort picks are also bound to the model route shown when the menu was built.
+func (s *Store) SelectModelEffortSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault) {
+	s.selectModelSelectionForSessionID(ctx, sessionID, selection, true)
+}
+
+func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault, effortOnly bool) {
+	s.mu.Lock()
+	client, generation := s.client, s.followGeneration
+	current, known := s.currentModelSelectionLocked()
+	opt, available := modelOptionForSelection(selection, s.modelOptions)
+	if client == nil || sessionID == "" || s.selectedID != sessionID || ctx.Err() != nil || !known || !available || !s.modelSelectionAvailableLocked() || s.modelState.Pending {
+		s.mu.Unlock()
+		return
+	}
+	if effortOnly && (current.Provider != selection.Provider || current.Model != selection.Model) {
+		s.mu.Unlock()
+		return
+	}
+	if selection.ReasoningEffort != nil {
+		valid := false
+		if opt.Reasoning != nil {
+			for _, e := range opt.Reasoning.Efforts {
+				if e.Id == *selection.ReasoningEffort {
+					valid = true
+					break
+				}
+			}
 		}
-		s.mu.Lock()
-		if s.client != client || s.selectedID != sessionID {
+		if !valid {
 			s.mu.Unlock()
 			return
 		}
-		if err != nil {
-			s.modelsErr = err
-			s.lastAction = err.Error()
+	}
+	if sameModelSelection(current, selection, s.modelOptions) {
+		s.mu.Unlock()
+		return
+	}
+	selection = cloneModelSelection(selection)
+	s.modelState.Operation++
+	operation := s.modelState.Operation
+	startSeq := s.modelState.Projection.Seq
+	s.modelState.Pending = true
+	s.modelsErr = nil
+	s.mu.Unlock()
+	s.fire()
+	go func() {
+		s.mu.Lock()
+		valid := s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation
+		s.mu.Unlock()
+		var out api.SessionSelectModelValue
+		var baseline api.SessionProjectionsValue
+		var err error
+		if valid {
+			req := api.SessionSelectModelRequest{SessionId: sessionID, Provider: selection.Provider, Model: selection.Model, ReasoningEffort: selection.ReasoningEffort}
+			err = client.Call(ctx, "session/selectModel", map[string]any{"request": req}, &out)
+			if err == nil && (out.Selected.Model == "" || out.Selected.Provider == "") {
+				err = fmt.Errorf("Host 未返回已提交的模型选择")
+			}
+			s.mu.Lock()
+			valid = s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation
+			s.mu.Unlock()
+			if err == nil && valid {
+				err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &baseline)
+				if err != nil {
+					err = fmt.Errorf("模型选择已提交，读取当前会话状态失败：%w", err)
+				}
+			}
+		}
+		s.mu.Lock()
+		if s.client != client || s.selectedID != sessionID || s.followGeneration != generation || s.modelState.Operation != operation {
+			s.mu.Unlock()
+			return
+		}
+		s.modelState.Pending = false
+		if !valid || ctx.Err() != nil {
 			s.mu.Unlock()
 			s.fire()
 			return
 		}
-		if lbl := labelForSelection(out.Selected, s.modelOptions); lbl != "" {
-			s.selectedModelLabel = lbl
-		} else {
-			s.selectedModelLabel = label
+		if err == nil {
+			s.applyModelValuesLocked(baseline.Values, baseline.AsOfSeq)
+			actual, known := s.currentModelSelectionLocked()
+			if !known || (!sameModelSelection(actual, out.Selected, s.modelOptions) && s.modelState.Projection.Seq <= startSeq) {
+				err = fmt.Errorf("Host 尚未返回当前会话的模型投影，请刷新后重试")
+			}
 		}
-		s.modelsErr = nil
-		s.lastAction = "model selected"
+		s.modelsErr = err
+		if err != nil {
+			s.lastAction = err.Error()
+		} else {
+			s.lastAction = "当前会话模型已更新"
+		}
 		s.mu.Unlock()
 		s.fire()
 	}()

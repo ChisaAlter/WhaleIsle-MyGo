@@ -95,6 +95,13 @@ type ViewState struct {
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
 	FeedbackBusyID      string
+	ModelChoices        map[string]api.ModelCatalogDefault
+	ModelEffortChoices  map[string]api.ModelCatalogDefault
+	ModelSelection      *api.ModelCatalogDefault
+	ModelSelectionKnown bool
+	ModelSelectionBusy  bool
+	ModelEffortLabels   []string
+	SelectedModelEffort string
 	ModelLabels         []string
 	SelectedModel       string
 	ModelsErr           string
@@ -184,7 +191,7 @@ type Store struct {
 	messageRatings                       map[string]string
 	feedbackBusyID                       string
 	modelOptions                         []ModelOption
-	selectedModelLabel                   string
+	modelState                           modelSelectionState
 	modelsErr                            error
 	permissionOptions                    []PermissionOption
 	permissionProjection                 permissionProjectionState
@@ -244,6 +251,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	if s.client != client {
 		s.questionProjections = nil
 		s.permissionOptions = nil
+		s.resetModelCatalogLocked()
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
@@ -372,6 +380,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetModelCatalogLocked()
 	s.questionProjections = nil
 	s.invalidateArchiveLocked()
 	s.invalidateCommandsLocked()
@@ -433,9 +442,6 @@ func (s *Store) Snapshot() ViewState {
 		HistoryBranchBusy:   s.historyBranchBusy,
 		FeedbackBusyID:      s.feedbackBusyID,
 	}
-	if opt, ok := optionByLabel(s.selectedModelLabel, s.modelOptions); ok {
-		st.SelectedProvider = opt.Provider
-	}
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))
 		for k, v := range s.messageRatings {
@@ -466,10 +472,7 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 	s.snapshotCommandsLocked(&st)
-	st.SelectedModel = s.selectedModelLabel
-	for _, o := range s.modelOptions {
-		st.ModelLabels = append(st.ModelLabels, o.Label)
-	}
+	s.snapshotModelsLocked(&st)
 	st.SelectedPermission = s.permissionLabelLocked()
 	if s.permissionProjectionCurrentLocked() {
 		for _, o := range s.permissionOptions {
