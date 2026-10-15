@@ -242,6 +242,8 @@ type Store struct {
 	agentPresetOptions                   []AgentPresetOption
 	selectedAgentPresetLabel             string
 	agentPresetsErr                      error
+	skillCatalogClient                   *dsh.Client
+	skillCatalogLoading                  bool
 	skillCatalog                         SkillCatalog
 	skillCatalogScope                    api.SkillInventoryScope
 	skillCatalogVersion                  uint64
@@ -302,6 +304,10 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	if s.client != client {
 		s.clearSearchLocked()
 		s.resetComposerHostLocked()
+		s.skillCatalogVersion++
+		s.skillCatalog = SkillCatalog{}
+		s.skillCatalogClient = nil
+		s.skillCatalogLoading = false
 		s.invalidateRenameLocked()
 		s.invalidateSessionFeedbackLocked()
 		s.questionProjections = nil
@@ -556,7 +562,7 @@ func (s *Store) Snapshot() ViewState {
 		st.AgentPresetLabels = append(st.AgentPresetLabels, o.Label)
 	}
 	st.SkillCatalog = s.skillCatalog.clone()
-	if s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+	if s.skillCatalogClient != s.client || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
 		st.SkillCatalog = SkillCatalog{}
 	}
 	st.SkillOptions = append([]SkillOption(nil), s.skillOptions...)

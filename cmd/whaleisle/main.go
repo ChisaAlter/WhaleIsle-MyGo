@@ -154,7 +154,9 @@ type mainState struct {
 	settingsSkillEditSession      string
 	settingsSkillInspectVersion   uint64
 	settingsSkillEditGroups       string
-	settingsSkillEditWhen         *string
+	settingsSkillEditWhen         string
+	settingsSkillEditTarget       session.SkillEditTarget
+	settingsSkillEditorSaving     bool
 	settingsSkillEditName         string
 	settingsSkillEditDesc         string
 	settingsSkillEditContent      string
@@ -5449,7 +5451,7 @@ func mainView(c *ui.Context) {
 						SessionID:  sessSnap.SelectedID,
 						Err:        sessSnap.SkillCatalog.Err,
 						Notice:     sessSnap.SkillCatalog.Notice,
-						Busy:       sessSnap.SkillCatalog.Busy,
+						Busy:       sessSnap.SkillCatalog.Busy || state.settingsSkillEditorSaving,
 						LastAction: strings.TrimSpace(strings.Join([]string{state.settingsSkillsLastAction, sessSnap.LastAction, sessSnap.SkillCatalog.Action}, "\n")),
 						EditGroups: &state.settingsSkillEditGroups,
 						OnSetGroupInvocable: func(group string, enabled bool) {
@@ -5457,26 +5459,18 @@ func mainView(c *ui.Context) {
 								sessions.SetSkillGroupInvocation(context.Background(), group, enabled)
 							}
 						},
-						CreateName:    &state.skillCreateName,
-						DetailPreview: state.settingsSkillsDetail,
-						EditName:      state.settingsSkillEditName,
-						EditDesc:      &state.settingsSkillEditDesc,
-						EditContent:   &state.settingsSkillEditContent,
-						EditWritable:  state.settingsSkillEditWritable && state.settingsSkillEditSession == sessSnap.SelectedID,
-						OnSaveUpdate: func() {
-							name := strings.TrimSpace(state.settingsSkillEditName)
-							if sessions == nil || name == "" || !state.settingsSkillEditWritable || state.settingsSkillEditSession != sessions.Snapshot().SelectedID {
-								return
-							}
-							sessions.SaveCatalogSkill(context.Background(), api.SkillInventoryDetail{
-								Name: name, Description: state.settingsSkillEditDesc, Content: state.settingsSkillEditContent,
-								Groups: strings.Split(state.settingsSkillEditGroups, ","), WhenToUse: state.settingsSkillEditWhen,
-								Writable: state.settingsSkillEditWritable, ModelInvocable: state.settingsSkillEditModel, UserInvocable: state.settingsSkillEditUser,
-							})
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
+						CreateName:         &state.skillCreateName,
+						DetailPreview:      state.settingsSkillsDetail,
+						EditName:           state.settingsSkillEditName,
+						EditDesc:           &state.settingsSkillEditDesc,
+						EditContent:        &state.settingsSkillEditContent,
+						EditWritable:       state.settingsSkillEditWritable,
+						EditWhenToUse:      &state.settingsSkillEditWhen,
+						EditModelInvocable: &state.settingsSkillEditModel,
+						EditUserInvocable:  &state.settingsSkillEditUser,
+						EditCanSave:        sessions != nil && sessions.SkillEditorCurrent(state.settingsSkillEditTarget),
+						OnCancelEdit:       state.cancelSettingsSkillEdit,
+						OnSaveUpdate:       state.saveSettingsSkillEdit,
 						OnCreate: func(name string) {
 							if sessions != nil {
 								sessions.CreateSkillInventory(context.Background(), name, name, "", state.settingsSkillRoot)
@@ -5493,80 +5487,7 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnInspect: func(name string) {
-							name = strings.TrimSpace(name)
-							if sessions == nil || name == "" {
-								return
-							}
-							state.mu.Lock()
-							state.settingsSkillInspectVersion++
-							inspectVersion := state.settingsSkillInspectVersion
-							state.settingsSkillEditWritable = false
-							state.mu.Unlock()
-							inspectSession := sessSnap.SelectedID
-							go func() {
-								doc, err := sessions.GetCatalogSkillDetail(context.Background(), name)
-								preview := ""
-								editName := ""
-								editDesc := ""
-								editContent := ""
-								editModel := false
-								editUser := true
-								writable := false
-								if err != nil {
-									preview = err.Error()
-								} else {
-									editName = doc.Name
-									editDesc = doc.Description
-									editContent = doc.Content
-									editModel = doc.ModelInvocable
-									editUser = doc.UserInvocable
-									writable = doc.Writable
-									preview = strings.TrimSpace(doc.Description)
-									if doc.Source != "" {
-										if preview != "" {
-											preview += " · "
-										}
-										preview += doc.Source
-									}
-									if writable {
-										if preview != "" {
-											preview += " · "
-										}
-										preview += "writable"
-									}
-									body := strings.TrimSpace(doc.Content)
-									if body != "" {
-										if preview != "" {
-											preview += "\n"
-										}
-										if len(body) > 800 {
-											body = body[:800] + "…"
-										}
-										preview += body
-									}
-								}
-								state.mu.Lock()
-								if state.settingsSkillInspectVersion != inspectVersion || sessions.Snapshot().SelectedID != inspectSession {
-									state.mu.Unlock()
-									return
-								}
-								state.settingsSkillEditSession = inspectSession
-								state.settingsSkillsDetail = preview
-								state.settingsSkillEditName = editName
-								state.settingsSkillEditGroups = strings.Join(doc.Groups, ", ")
-								state.settingsSkillEditWhen = doc.WhenToUse
-								state.settingsSkillEditDesc = editDesc
-								state.settingsSkillEditContent = editContent
-								state.settingsSkillEditModel = editModel
-								state.settingsSkillEditUser = editUser
-								state.settingsSkillEditWritable = writable
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
-						},
+						OnInspect:  state.inspectSettingsSkill,
 						TargetRoot: state.settingsSkillRoot,
 						ProjectCwd: func() string {
 							if sessions == nil {

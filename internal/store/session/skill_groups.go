@@ -46,13 +46,14 @@ func NormalizeSkillGroups(groups []string) []string {
 func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, sid, cwd := s.client, s.selectedID, s.cwd
-	if client == nil || (s.skillCatalog.Busy && s.skillCatalogSession == sid && s.skillCatalogCwd == cwd) {
+	if client == nil || (s.skillCatalog.Busy && s.skillCatalogClient == client && s.skillCatalogSession == sid && s.skillCatalogCwd == cwd) {
 		s.mu.Unlock()
 		return
 	}
-	if s.skillCatalogSession != sid || s.skillCatalogCwd != cwd {
+	if s.skillCatalogClient != client || s.skillCatalogSession != sid || s.skillCatalogCwd != cwd {
 		s.skillCatalog = SkillCatalog{}
 	}
+	s.skillCatalogClient, s.skillCatalogLoading = client, true
 	s.skillCatalogSession, s.skillCatalogCwd = sid, cwd
 	s.skillCatalogVersion++
 	version := s.skillCatalogVersion
@@ -76,10 +77,11 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.skillCatalogVersion != version || s.selectedID != sid || s.cwd != cwd {
+		if s.client != client || s.skillCatalogVersion != version || s.selectedID != sid || s.cwd != cwd {
 			s.mu.Unlock()
 			return
 		}
+		s.skillCatalogLoading = false
 		if err != nil {
 			s.skillCatalog.Err = err.Error()
 			s.skillCatalog.Skills = nil
@@ -135,7 +137,7 @@ func (s *Store) SetCatalogSkillInvocation(ctx context.Context, name string, enab
 func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.SkillInventorySnapshotSkillsItem) bool, enabled bool) {
 	s.mu.Lock()
 	client, scope := s.client, s.skillCatalogScope
-	if client == nil || s.skillCatalog.Busy || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+	if client == nil || s.skillCatalogClient != client || s.skillCatalogLoading || s.skillCatalog.Busy || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
 		s.mu.Unlock()
 		return
 	}
@@ -191,7 +193,7 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDetail) {
 	s.mu.Lock()
 	client, scope := s.client, s.skillCatalogScope
-	if client == nil || s.skillCatalog.Busy || !doc.Writable || doc.Name == "" || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+	if client == nil || s.skillCatalogClient != client || s.skillCatalogLoading || s.skillCatalog.Busy || !doc.Writable || doc.Name == "" || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
 		s.mu.Unlock()
 		return
 	}

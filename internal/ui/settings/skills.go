@@ -55,6 +55,11 @@ type SkillsAccess struct {
 	EditContent         *string
 	EditWritable        bool
 	OnSaveUpdate        func()
+	EditWhenToUse       *string
+	EditModelInvocable  *bool
+	EditUserInvocable   *bool
+	EditCanSave         bool
+	OnCancelEdit        func()
 
 	TargetRoot   string
 	ProjectCwd   string
@@ -92,13 +97,27 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.DetailPreview != "" {
 		ui.Text(c, a.DetailPreview).FontSize(11).TextColor(muted)
 	}
-	if a.EditWritable && a.EditName != "" && a.EditDesc != nil && a.EditContent != nil && a.OnSaveUpdate != nil && !a.Busy {
+	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, "取消编辑 / Cancel edit").Disabled(a.Busy).Clicked() {
+		a.OnCancelEdit()
+	}
+	if a.EditWritable && a.EditName != "" && a.EditDesc != nil && a.EditContent != nil && a.OnSaveUpdate != nil {
 		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(12).Bold().TextColor(fg)
-		ui.TextInput(c, a.EditDesc).FillWidth().Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
-		ui.TextInput(c, a.EditContent).FillWidth().Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
+		ui.TextInput(c, a.EditDesc).FillWidth().Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
+		if a.EditWhenToUse != nil {
+			ui.Text(c, "使用条件（清空以移除） / When to use (empty removes it)").FontSize(11).TextColor(muted)
+			ui.TextArea(c, a.EditWhenToUse).FillWidth().Lines(2, 5).Disabled(a.Busy)
+		}
+		ui.TextArea(c, a.EditContent).FillWidth().Lines(5, 16).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
+		if a.EditModelInvocable != nil {
+			ui.Checkbox(c, a.EditModelInvocable, "模型可调用 / Model invocable").Disabled(a.Busy)
+		}
+		if a.EditUserInvocable != nil {
+			ui.Checkbox(c, a.EditUserInvocable, "用户可调用 / User invocable").Disabled(a.Busy)
+		}
+		ui.Text(c, "仅保存会写入 Skill 文件；文本不会在此执行。 / Only Save writes the Skill file; text is not executed here.").FontSize(11).TextColor(muted)
 		if a.EditGroups != nil {
 			ui.Text(c, "Groups (comma-separated; leave empty to clear)").FontSize(11).TextColor(muted)
-			ui.TextInput(c, a.EditGroups).FillWidth()
+			ui.TextInput(c, a.EditGroups).FillWidth().Disabled(a.Busy)
 			for _, group := range skillSections(a.Skills) {
 				if group.Name == "" {
 					continue
@@ -113,7 +132,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if selected {
 					label = "− " + group.Name
 				}
-				if ui.Button(c, label).FontSize(11).Clicked() {
+				if ui.Button(c, label).FontSize(11).Disabled(a.Busy).Clicked() {
 					tags := []string{}
 					for _, tag := range strings.Split(*a.EditGroups, ",") {
 						tag = strings.TrimSpace(tag)
@@ -129,7 +148,10 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(11).Clicked() {
+		if !a.EditCanSave && !a.Busy {
+			ui.Text(c, "草稿已保留；目标或版本已变化，请重新查看后再保存。 / Draft retained; inspect again before saving after a target, revision, or result change.").FontSize(11).TextColor(muted)
+		}
+		if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(11).Disabled(a.Busy || !a.EditCanSave).Clicked() {
 			a.OnSaveUpdate()
 		}
 	}

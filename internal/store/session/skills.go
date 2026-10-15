@@ -93,6 +93,10 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
+		if s.client != client || s.selectedID != sessionID || s.cwd != cwd {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.skillsErr = err
 			s.mu.Unlock()
@@ -109,7 +113,7 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 func flattenSkillInventory(inv api.SkillInventorySnapshot) []SkillOption {
 	out := make([]SkillOption, 0, len(inv.Skills))
 	for _, sk := range inv.Skills {
-		if sk.Name == "" {
+		if sk.Name == "" || !sk.UserInvocable {
 			continue
 		}
 		out = append(out, SkillOption{
