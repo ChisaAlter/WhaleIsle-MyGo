@@ -958,8 +958,8 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 }
 
 // handleAssistantNativePrompt routes by assistant mode: Whale → /dsh-whale
-// ensure + pet/chat; Dshbot → describe probe + [dshbot]-prefixed session prompt.
-// Falls back to the matching WebView slot when plugin/session RPC is unavailable.
+// ensure + pet/chat; Dshbot → explicit catalog target + bot/open + session/prompt.
+// Drafts remain until the selected Host accepts the request.
 func (s *mainState) handleAssistantNativePrompt(origin string, ep harness.Endpoint, text string) {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -1066,6 +1066,7 @@ func (s *mainState) assistantNativeWhale(
 		return
 	}
 	msg := i18n.T(i18n.KeyAssistantWhaleRPCSent)
+	asst.AcceptPrompt(text)
 	asst.SetLastAction(msg, "")
 	asst.AppendTurn(assiststore.Turn{
 		Mode:      assiststore.ModeWhale,
@@ -1091,65 +1092,7 @@ func (s *mainState) assistantNativeDshbot(
 	plugin string,
 	text string,
 ) {
-	cli := s.pluginRPCClient(ep)
-	if _, err := cli.DshbotDescribe(context.Background()); err != nil {
-		probe := i18n.T(i18n.KeyAssistantDshbotProbeErr) + ": " + err.Error()
-		asst.SetLastAction(probe, probe)
-		s.mu.Lock()
-		s.assistantLastAct = probe
-		s.mu.Unlock()
-	} else {
-		asst.SetLastAction(i18n.T(i18n.KeyAssistantDshbotProbeOK), "")
-	}
-
-	if sessions == nil {
-		msg := i18n.T(i18n.KeyAssistantNoSession)
-		asst.SetLastAction(msg, msg)
-		asst.AppendTurn(assiststore.Turn{Mode: assiststore.ModeDshbot, Prompt: text, Err: msg, Source: "local"})
-		s.mu.Lock()
-		s.assistantLastAct = msg
-		s.mu.Unlock()
-		return
-	}
-	snap := sessions.Snapshot()
-	if !snap.ClientReady {
-		msg := i18n.T(i18n.KeyAssistantNoRPC)
-		asst.SetLastAction(msg, msg)
-		asst.AppendTurn(assiststore.Turn{Mode: assiststore.ModeDshbot, Prompt: text, Err: msg, Source: "local"})
-		s.mu.Lock()
-		s.assistantLastAct = msg
-		s.webviewOpen = true
-		s.mu.Unlock()
-		sessions.SetLastAction(msg)
-		s.openWebViewHostPlugin(origin, plugin)
-		return
-	}
-	if snap.SelectedID == "" {
-		msg := i18n.T(i18n.KeyAssistantNoSession)
-		asst.SetLastAction(msg, msg)
-		asst.AppendTurn(assiststore.Turn{Mode: assiststore.ModeDshbot, Prompt: text, Err: msg, Source: "local"})
-		s.mu.Lock()
-		s.assistantLastAct = msg
-		s.mu.Unlock()
-		sessions.SetLastAction(msg)
-		return
-	}
-	routed := assiststore.PrefixForMode(assiststore.ModeDshbot) + text
-	sessions.SendPrompt(context.Background(), routed)
-	msg := i18n.T(i18n.KeyAssistantDshbotRouted)
-	asst.SetLastAction(msg, "")
-	asst.AppendTurn(assiststore.Turn{
-		Mode:      assiststore.ModeDshbot,
-		Prompt:    text,
-		Response:  msg,
-		SessionID: snap.SelectedID,
-		Source:    "session",
-	})
-	asst.SetSessionID(snap.SelectedID)
-	s.mu.Lock()
-	s.assistantLastAct = msg
-	s.mu.Unlock()
-	sessions.SetLastAction(msg)
+	s.sendAssistantDshbot(ep, sessions, asst, text)
 }
 
 func (s *mainState) pluginRPCClient(ep harness.Endpoint) *pluginrpc.Client {
@@ -4247,8 +4190,10 @@ func mainView(c *ui.Context) {
 			var dshbotRosterAt string
 			if dr := state.dshbotRoster; dr != nil {
 				snap := dr.Snapshot()
-				dshbotRows = snap.Rows
-				dshbotRosterAt = snap.FetchedAt
+				if snap.Origin == origin {
+					dshbotRows = snap.Rows
+					dshbotRosterAt = snap.FetchedAt
+				}
 			}
 			state.mu.Unlock()
 			if asst == nil {
@@ -4263,6 +4208,11 @@ func mainView(c *ui.Context) {
 				}
 			})
 			asstSnap := asst.Snapshot()
+			assistantDraft = asst.ConsumeAcceptedDraft(assistantDraft)
+			dshbotSelectedID := ""
+			if asstSnap.DshbotOrigin == origin {
+				dshbotSelectedID = asstSnap.DshbotID
+			}
 			if lastNative == "" {
 				lastNative = asstSnap.LastAction
 			}
@@ -4298,6 +4248,10 @@ func mainView(c *ui.Context) {
 				PluginRPCDetail:     pluginDetail,
 				DshbotRoster:        dshbotRows,
 				DshbotRosterFetched: dshbotRosterAt,
+				DshbotSelectedID: dshbotSelectedID,
+				OnDshbotSelect: func(botID string) {
+					asst.SelectDshbot(botID, origin)
+				},
 				OnSetMode: func(mode assiststore.Mode) {
 					if asst != nil {
 						asst.SetMode(mode)
@@ -4479,7 +4433,7 @@ func mainView(c *ui.Context) {
 						roster := state.dshbotRoster
 						state.mu.Unlock()
 						if roster != nil {
-							roster.SetFromDescribe(res, false)
+							roster.SetFromDescribeForHost(res, false, origin)
 							if act, aerr := c.DshbotActivityTyped(ctx, nil); aerr == nil {
 								roster.MergeActivity(act)
 							}
@@ -4496,20 +4450,8 @@ func mainView(c *ui.Context) {
 						return fmt.Sprintf("%d", len(rows)), nil
 					})
 				},
-				OnDshbotOpenRosterSession: func(sessionID string) {
-					if sessions != nil && strings.TrimSpace(sessionID) != "" {
-						state.revokePhoneGit();sessions.Select(sessionID)
-					}
-					if asst != nil {
-						asst.SetSessionID(sessionID)
-					}
-					state.mu.Lock()
-					state.assistantOpen = false
-					state.assistantDraft = assistantDraft
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
+				OnDshbotOpenRosterSession: func(botID string) {
+					state.openAssistantDshbot(ep, botID)
 				},
 			})
 			state.mu.Lock()

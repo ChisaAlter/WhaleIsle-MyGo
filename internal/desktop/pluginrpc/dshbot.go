@@ -25,8 +25,9 @@ import (
 // Write endpoints (revision-gated where noted): catalog/items, bot/*, section/*,
 // memory/replace, bot/objective/*, task/*, routine/*, bot/stop.
 //
-// There is no dshbot chat/pet RPC; native chat uses harness session/prompt with
-// a [dshbot] prefix. Loopback-only: POST /dshbot-hook/routine/{id} + x-dshbot-token.
+// There is no dshbot chat/pet RPC. Resolve the selected catalog item with bot/open,
+// then send the unchanged prompt to that canonical harness session.
+// Loopback-only: POST /dshbot-hook/routine/{id} + x-dshbot-token.
 
 // DshbotSettingsView is the `view` field of describe (settings namespace dsh-bot).
 type DshbotSettingsView struct {
@@ -48,6 +49,7 @@ type DshbotCatalogItem struct {
 	ID           string   `json:"id"`
 	Kind         string   `json:"kind"`
 	SessionID    string   `json:"sessionId"`
+	WorkspaceID  string   `json:"workspaceId"`
 	Name         string   `json:"name"`
 	Title        string   `json:"title"`
 	Hidden       bool     `json:"hidden"`
@@ -118,12 +120,8 @@ func (c *Client) DshbotDescribeTyped(ctx context.Context, botID string) (DshbotD
 	if id := strings.TrimSpace(botID); id != "" {
 		payload["botId"] = id
 	}
-	raw, err := c.DshbotDescribe(ctx)
-	if err != nil {
-		return DshbotDescribeResult{}, err
-	}
 	var out DshbotDescribeResult
-	if err := json.Unmarshal(raw, &out); err != nil {
+	if err := c.Call(ctx, "dshbot", "describe", payload, &out); err != nil {
 		return DshbotDescribeResult{}, fmt.Errorf("pluginrpc: decode dshbot describe: %w", err)
 	}
 	if out.View.NS == "" {
@@ -205,4 +203,28 @@ func (c *Client) DshbotActivityTyped(ctx context.Context, ids []string) (DshbotA
 	var out DshbotActivityResult
 	err := c.Call(ctx, "dshbot", "bot/activity", payload, &out)
 	return out, err
+}
+
+// DshbotOpen resolves or restores the chosen Bot/room's canonical session.
+// The client includes the catalog revision as the original UI does, but the
+// server's open operation is not CAS-gated; validate its returned identity.
+func (c *Client) DshbotOpen(ctx context.Context, item DshbotCatalogItem, revision int, scratchCwd string) (string, error) {
+	id, expectedSession := strings.TrimSpace(item.ID), strings.TrimSpace(item.SessionID)
+	if id == "" || expectedSession == "" {
+		return "", fmt.Errorf("pluginrpc: Bot profile has no canonical session")
+	}
+	var out struct {
+		Item      DshbotCatalogItem `json:"item"`
+		SessionID string           `json:"sessionId"`
+	}
+	err := c.Call(ctx, "dshbot", "bot/open", map[string]any{
+		"id": id, "revision": revision, "scratchCwd": strings.TrimSpace(scratchCwd),
+	}, &out)
+	if err != nil {
+		return "", err
+	}
+	if out.Item.ID != id || strings.TrimSpace(out.SessionID) != expectedSession || strings.TrimSpace(out.Item.SessionID) != expectedSession {
+		return "", fmt.Errorf("pluginrpc: Bot session changed; refresh the roster and try again")
+	}
+	return expectedSession, nil
 }

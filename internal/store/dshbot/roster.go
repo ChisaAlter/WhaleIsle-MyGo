@@ -31,6 +31,7 @@ type Row struct {
 
 // Snapshot is the on-disk roster cache.
 type Snapshot struct {
+	Origin    string `json:"origin,omitempty"`
 	Revision  int    `json:"revision,omitempty"`
 	FetchedAt string `json:"fetchedAt"`
 	Rows      []Row  `json:"rows"`
@@ -72,6 +73,11 @@ func (s *Store) Snapshot() Snapshot {
 
 // SetFromDescribe replaces the cache from a describe result.
 func (s *Store) SetFromDescribe(res pluginrpc.DshbotDescribeResult, includeHidden bool) {
+	s.SetFromDescribeForHost(res, includeHidden, "")
+}
+
+// SetFromDescribeForHost binds cached identities to the Host that supplied them.
+func (s *Store) SetFromDescribeForHost(res pluginrpc.DshbotDescribeResult, includeHidden bool, origin string) {
 	rows := pluginrpc.RosterRowsFromDescribe(res, includeHidden)
 	converted := make([]Row, 0, len(rows))
 	for _, r := range rows {
@@ -89,6 +95,7 @@ func (s *Store) SetFromDescribe(res pluginrpc.DshbotDescribeResult, includeHidde
 	}
 	s.mu.Lock()
 	s.snap = Snapshot{
+		Origin: strings.TrimSpace(origin),
 		Revision:  res.View.Revision,
 		FetchedAt: time.Now().UTC().Format(time.RFC3339),
 		Rows:      converted,

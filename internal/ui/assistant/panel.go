@@ -50,7 +50,9 @@ type Model struct {
 	OnDshbotCatalog           func()
 	OnDshbotActivity          func()
 	OnDshbotRefreshRoster     func()
-	OnDshbotOpenRosterSession func(sessionID string)
+	OnDshbotOpenRosterSession func(botID string)
+	OnDshbotSelect            func(botID string)
+	DshbotSelectedID          string
 	DshbotRoster              []dshbotstore.Row
 	DshbotRosterFetched       string
 	PluginRPCBusy             bool
@@ -77,7 +79,8 @@ func View(c *ui.Context, m Model) {
 		})
 		ui.Box(c).Fill().Height(1).Background(border)
 
-		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(12).Children(func() {
+		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+		ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(12).TextColor(muted)
 
 			modeBlock(c, m, fg, muted, accent)
@@ -108,6 +111,7 @@ func View(c *ui.Context, m Model) {
 
 			ui.Text(c, i18n.T(i18n.KeyAssistantRestartNote)).FontSize(11).TextColor(accent)
 		})
+		})
 	})
 }
 
@@ -126,10 +130,10 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			if m.Mode == assiststore.ModeDshbot {
 				dshLabel = "• " + dshLabel
 			}
-			if m.OnSetMode != nil && ui.Button(c, whaleLabel).Clicked() {
+			if m.OnSetMode != nil && ui.Button(c, whaleLabel).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
 				m.OnSetMode(assiststore.ModeWhale)
 			}
-			if m.OnSetMode != nil && ui.Button(c, dshLabel).Clicked() {
+			if m.OnSetMode != nil && ui.Button(c, dshLabel).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
 				m.OnSetMode(assiststore.ModeDshbot)
 			}
 			if m.HarnessReady && m.OnOpenModeWeb != nil && ui.Button(c, i18n.T(i18n.KeyAssistantOpenModeWeb)).Clicked() {
@@ -229,10 +233,7 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterEmpty)).FontSize(12).TextColor(muted)
 			return
 		}
-		limit := 12
-		if len(m.DshbotRoster) < limit {
-			limit = len(m.DshbotRoster)
-		}
+		limit := len(m.DshbotRoster)
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
 			for i := 0; i < limit; i++ {
 				row := m.DshbotRoster[i]
@@ -250,14 +251,20 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 				if row.Pinned {
 					label = "★ " + label
 				}
-				sid := strings.TrimSpace(row.SessionID)
-				canOpen := sid != "" && m.OnDshbotOpenRosterSession != nil
+				id := strings.TrimSpace(row.ID)
+				canOpen := id != "" && m.OnDshbotOpenRosterSession != nil
+				if id == m.DshbotSelectedID {
+					label = "• " + label
+				}
 				ui.Column(c).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, kindLabel).FontSize(11).TextColor(muted).Width(88)
 						ui.Text(c, clip(label, 120)).FontSize(12).TextColor(fg).Grow(1)
-						if canOpen && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterOpen)).Disabled(busy).Clicked() {
-							m.OnDshbotOpenRosterSession(sid)
+						if m.OnDshbotSelect != nil && ui.Button(c, "选择 / Select").Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
+							m.OnDshbotSelect(id)
+						}
+						if canOpen && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterOpen)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+							m.OnDshbotOpenRosterSession(id)
 						}
 					})
 					if d := strings.TrimSpace(row.Detail); d != "" {
@@ -277,12 +284,16 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(13).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyAssistantComposeHint)).FontSize(11).TextColor(muted)
 		ui.TextArea(c, m.Draft).Lines(2, 4).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
-		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy
+		available := m.HarnessReady && m.WhaleEnabled
+		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
+			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""
+			ui.Text(c, "先选择上方 Bot / 群聊；消息发送到该条目的专属会话。").FontSize(11).TextColor(muted)
+		}
+		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy || m.PluginRPCBusy || !available
 		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Disabled(empty).Clicked() {
 			text := strings.TrimSpace(*m.Draft)
 			if text != "" && m.OnNativePrompt != nil {
 				m.OnNativePrompt(text)
-				*m.Draft = ""
 			}
 		}
 		if m.LastNativeAction != "" {
@@ -309,7 +320,7 @@ func pluginRPCBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			if m.OnWhaleCatalog != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleCatalog)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhaleCatalog()
 			}
-			if m.OnWhalePetChat != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetChat)).Disabled(busy || !m.WhaleEnabled || m.Draft == nil || strings.TrimSpace(*m.Draft) == "").Clicked() {
+			if m.OnWhalePetChat != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetChat)).Disabled(busy || m.Mode != assiststore.ModeWhale || !m.WhaleEnabled || m.Draft == nil || strings.TrimSpace(*m.Draft) == "").Clicked() {
 				m.OnWhalePetChat(strings.TrimSpace(*m.Draft))
 			}
 			if m.OnWhalePetState != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetState)).Disabled(busy || !m.WhaleEnabled).Clicked() {

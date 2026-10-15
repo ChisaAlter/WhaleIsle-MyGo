@@ -105,3 +105,57 @@ func TestDshbotGroupRuntimeAndActivity(t *testing.T) {
 		t.Fatalf("activity = %+v err=%v", act, err)
 	}
 }
+
+func TestDshbotOpenUsesSelectedIdentity(t *testing.T) {
+	for _, mismatched := range []bool{false, true} {
+		t.Run(map[bool]string{false: "canonical", true: "changed"}[mismatched], func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					RPCID string `json:"rpcId"`
+					Payload map[string]any `json:"payload"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					t.Error(err)
+					http.Error(w, "invalid request", http.StatusBadRequest)
+					return
+				}
+				var value any
+				switch r.URL.Path {
+				case "/dshbot/describe":
+					if req.Payload["botId"] != "chosen" {
+						t.Errorf("describe lost botId: %#v", req.Payload)
+					}
+					value = DshbotDescribeResult{View: DshbotSettingsView{NS: "dsh-bot", Revision: 7}}
+				case "/dshbot/bot/open":
+					if req.Payload["id"] != "chosen" || req.Payload["revision"] != float64(7) || req.Payload["scratchCwd"] != "/scratch" {
+						t.Errorf("open payload: %#v", req.Payload)
+					}
+					sid := "canonical"
+					if mismatched {
+						sid = "other-session"
+					}
+					value = map[string]any{"item": DshbotCatalogItem{ID: "chosen", SessionID: sid}, "sessionId": sid}
+				default:
+					t.Errorf("unexpected request: %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(serverResponse{Type: "server-response", RPCID: req.RPCID,
+					Result: mustRaw(t, resultEnvelope{OK: true, Value: mustRaw(t, value)})})
+			}))
+			defer srv.Close()
+			client := &Client{BaseURL: srv.URL}
+			if _, err := client.DshbotDescribeTyped(context.Background(), "chosen"); err != nil {
+				t.Fatal(err)
+			}
+			sid, err := client.DshbotOpen(context.Background(), DshbotCatalogItem{ID: "chosen", SessionID: "canonical"}, 7, "/scratch")
+			if mismatched {
+				if err == nil || sid != "" {
+					t.Fatalf("changed session accepted: %q, %v", sid, err)
+				}
+			} else if err != nil || sid != "canonical" {
+				t.Fatalf("open = %q, %v", sid, err)
+			}
+		})
+	}
+}

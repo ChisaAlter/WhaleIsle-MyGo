@@ -46,6 +46,8 @@ type ViewState struct {
 	LastErr    string
 	SessionID  string // last known assistant / bot session from ensure/RPC
 	History    []Turn
+	DshbotID   string
+	DshbotOrigin string
 }
 
 type modeDisk struct {
@@ -62,6 +64,9 @@ type Store struct {
 	lastAction string
 	lastErr    string
 	sessionID  string
+	dshbotID   string
+	dshbotOrigin string
+	acceptedPrompt string
 	history    []Turn
 }
 
@@ -112,6 +117,8 @@ func (s *Store) Snapshot() ViewState {
 		LastAction: s.lastAction,
 		LastErr:    s.lastErr,
 		SessionID:  s.sessionID,
+		DshbotID: s.dshbotID,
+		DshbotOrigin: s.dshbotOrigin,
 	}
 	st.History = append([]Turn(nil), s.history...)
 	return st
@@ -299,4 +306,35 @@ func (s *Store) fire() {
 
 func newID() string {
 	return time.Now().UTC().Format("20060102T150405.000000000")
+}
+
+// SelectDshbot captures an explicit Bot/room choice for this Host. It is not
+// persisted: a cached roster or the currently open chat must never choose a
+// recipient after reconnect or restart.
+func (s *Store) SelectDshbot(id, origin string) {
+	s.mu.Lock()
+	s.dshbotID = strings.TrimSpace(id)
+	s.dshbotOrigin = strings.TrimSpace(origin)
+	s.mu.Unlock()
+	s.fire()
+}
+
+// AcceptPrompt queues a one-shot acknowledgement. The UI clears only the exact
+// draft accepted by the Host, preserving edits made while the request ran.
+func (s *Store) AcceptPrompt(text string) {
+	s.mu.Lock()
+	s.acceptedPrompt = strings.TrimSpace(text)
+	s.mu.Unlock()
+	s.fire()
+}
+
+func (s *Store) ConsumeAcceptedDraft(draft string) string {
+	s.mu.Lock()
+	accepted := s.acceptedPrompt
+	s.acceptedPrompt = ""
+	s.mu.Unlock()
+	if accepted != "" && strings.TrimSpace(draft) == accepted {
+		return ""
+	}
+	return draft
 }
