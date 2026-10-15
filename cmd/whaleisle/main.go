@@ -105,6 +105,7 @@ type mainState struct {
 	closeToTray          bool
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
+	petEvents            petEventController
 	petPersonality       petPersonalityMirror
 	navigationFile       *navigationFileRequest
 	themeID              string
@@ -2044,6 +2045,9 @@ func main() {
 		win := mygo.NewWindow(winOpts)
 		state.desktopPet = pet.New(cfgStore)
 		state.desktopPet.OnOpenSession = state.openPetSession
+		state.desktopPet.OnNotificationsClosed = state.cancelPetEvents
+		state.desktopPet.OnNotificationsReady = state.syncPetEvents
+		state.desktopPet.OnOpenNotificationSession = state.openPetNotificationSession
 		state.desktopPet.OnOpenChat = state.openPetChat
 		state.desktopPet.OnOpenSettings = state.openPetSettings
 		state.desktopPet.OnLook = state.lookFromPet

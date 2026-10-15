@@ -8,8 +8,10 @@ import (
 )
 
 // refreshPetTask uses the same current connection and session roster as chat.
-// It does not read arbitrary logs, other workspaces, or infer job completion.
+// The separate notification reader uses only the running Host's owned data home;
+// selected-session status remains derived from the authenticated chat snapshot.
 func (s *mainState) refreshPetTask() {
+	s.syncPetEvents()
 	s.syncPetPersonality()
 	s.mu.Lock()
 	p, sessions := s.desktopPet, s.sessions

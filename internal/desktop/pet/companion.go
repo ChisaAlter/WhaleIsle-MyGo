@@ -19,37 +19,41 @@ var assets embed.FS
 // Companion is owned by the UI thread. Use Window.Update to call it from a
 // harness callback. Only ServeHTTP runs concurrently, using an immutable sheet.
 type Companion struct {
-	Store           *config.Store
-	Enabled         bool
-	SkinID          string
-	Neural          bool
-	Behavior        config.PetBehavior
-	Error           string
-	Skins           []Skin
-	ready           bool
-	win             *mygo.Window
-	assetMu         sync.RWMutex
-	sheet           []byte
-	renderAssets    map[string][]byte
-	neuralActive    bool
-	renderNotice    string
-	task            TaskStatus
-	chat            chatEntry
-	look            lookEntry
-	growth          chatEntry
-	motion          motionState
-	rest            restState
-	OnRefreshGrowth func()
-	OnPersonality   func(string)
-	feeding         bool
-	feedMessage     string
-	OnLook          func()
-	OnOpenSettings  func()
-	OnOpenChat      func()
-	OnQuickChat     func()
-	QuickChat       *QuickChat
-	quickChatOpen   bool
-	OnOpenSession   func(string)
+	Store                     *config.Store
+	Enabled                   bool
+	SkinID                    string
+	Neural                    bool
+	Behavior                  config.PetBehavior
+	Error                     string
+	Skins                     []Skin
+	ready                     bool
+	win                       *mygo.Window
+	assetMu                   sync.RWMutex
+	sheet                     []byte
+	renderAssets              map[string][]byte
+	neuralActive              bool
+	renderNotice              string
+	notifications             notificationState
+	OnNotificationsClosed     func()
+	OnNotificationsReady      func()
+	OnOpenNotificationSession func(string, string)
+	task                      TaskStatus
+	chat                      chatEntry
+	look                      lookEntry
+	growth                    chatEntry
+	motion                    motionState
+	rest                      restState
+	OnRefreshGrowth           func()
+	OnPersonality             func(string)
+	feeding                   bool
+	feedMessage               string
+	OnLook                    func()
+	OnOpenSettings            func()
+	OnOpenChat                func()
+	OnQuickChat               func()
+	QuickChat                 *QuickChat
+	quickChatOpen             bool
+	OnOpenSession             func(string)
 }
 
 func New(store *config.Store) *Companion {
@@ -108,6 +112,7 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.clearNotifications()
 	p.CloseQuickChat()
 	p.stopMotion()
 	p.assetMu.Lock()
@@ -181,6 +186,9 @@ func (p *Companion) sync() {
 		p.assetMu.RLock()
 		task := p.task
 		p.assetMu.RUnlock()
+		if p.notificationAction(e.URL) {
+			return
+		}
 		action := taskAction(e.URL, task)
 		if action != "" {
 			p.motionContact()
@@ -237,12 +245,16 @@ func (p *Companion) sync() {
 	w.OnReadyToShow(func() {
 		if p.win == w && p.ready {
 			w.ShowInactive()
+			if p.OnNotificationsReady != nil {
+				p.OnNotificationsReady()
+			}
 		}
 	})
 	// An OS close hides only this instance; the persisted opt-in is unchanged.
 	// Explicit disable belongs to the main settings page, including on quit.
 	w.OnClosed(func() {
 		if p.win == w {
+			p.clearNotifications()
 			p.CloseQuickChat()
 			p.stopMotion()
 			p.win = nil
@@ -267,10 +279,14 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'")
+	if p.serveNotifications(w, r) {
+		return
+	}
 	var body []byte
 	switch r.URL.Path {
 	case "/index.html":
 		body, _ = assets.ReadFile("assets/pet.html")
+		body = renderNotificationPage(body)
 		p.assetMu.RLock()
 		body = renderTaskPage(body, p.task)
 		body = renderLookPage(body, p.look.status)
