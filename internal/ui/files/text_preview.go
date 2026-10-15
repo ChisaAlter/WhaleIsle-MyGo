@@ -12,6 +12,9 @@ func truncatedPreviewNotice() string {
 }
 
 func checkPreviewComplete(m Model) error {
+	if textReadBlocked(m) {
+		return errors.New(label("读取尚未成功完成，不能保存；草稿已保留。", "Read has not completed successfully; cannot save. Draft kept."))
+	}
 	if previewTruncated(m) {
 		return errors.New(previewTruncationNotice(m))
 	}

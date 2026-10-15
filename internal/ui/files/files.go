@@ -88,6 +88,9 @@ type Model struct {
 	ListRemoteContext workspacefs.RemoteDirectoryLister
 	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
 	ReadRemote func(rel string) (string, error)
+	// Context readers are captured from the same frame as BindingID.
+	ReadRemoteContext func(context.Context, string) (string, error)
+	StatRemoteContext func(context.Context, string) string
 	// StatRemote is optional workspaceFiles/stat note for the selected file.
 	StatRemote   func(rel string) string
 	StatNote     *string
@@ -122,6 +125,7 @@ func View(c *ui.Context, m Model) {
 		return
 	}
 	prepareTabs(m)
+	syncTextRead(m)
 	syncSaveResults(m)
 	if t := selectedTab(m); t != nil && t.Editing {
 		_ = ensureSaveQueue(m, t)
@@ -323,7 +327,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			return
 		}
 		editing := m.Editing != nil && *m.Editing
-		fullPath, _ := workspacefs.JoinRoot(m.WorkspaceRoot, sel)
+		fullPath := textPreviewPath(m, sel)
 		docKind := workspacefs.ClassifyDoc(sel)
 		canHL := false
 		if m.EditDraft != nil {
@@ -367,16 +371,16 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			}
 			if m.OnOpenDoc != nil && fullPath != "" {
 				if (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
-					m.OnOpenDoc(fullPath, docKind, true)
+					withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, true) })
 				}
 				// Electron preview toolbar: open with system default for any file.
 				if ui.Button(c, i18n.T(i18n.KeyFilesOpenExternal)).Clicked() {
-					m.OnOpenDoc(fullPath, docKind, false)
+					withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, false) })
 				}
 			}
 			if m.OnReveal != nil && fullPath != "" {
 				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(11).Clicked() {
-					m.OnReveal(fullPath)
+					withPreviewPath(m, sel, fullPath, m.OnReveal)
 				}
 			}
 			if m.OnOpenWith != nil && fullPath != "" && len(m.OpenWithApps) > 0 {
@@ -388,7 +392,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 						label = a.ID
 					}
 					if ui.Button(c, label).FontSize(11).Clicked() {
-						m.OnOpenWith(fullPath, a.ID)
+						withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenWith(path, a.ID) })
 					}
 				}
 			}
@@ -397,7 +401,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && !previewTruncated(m) && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
+			if !editing && !textReadBlocked(m) && !previewTruncated(m) && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
 					if m.EditStatus != nil {
@@ -411,7 +415,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				if m.EditDraft != nil && ui.Button(c, label("复制草稿", "Copy draft")).Clicked() {
 					mygo.Clipboard.WriteText(*m.EditDraft)
 				}
-				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Disabled(previewTruncated(m)).Clicked() {
+				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Disabled(previewTruncated(m) || textReadBlocked(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
@@ -430,6 +434,15 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				}
 			}
 		})
+		if tab := selectedTab(m); tab != nil && tab.readLoading {
+			ui.Row(c).Gap(8).Padding(0, 12, 4, 12).Children(func() {
+				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(11).TextColor(muted)
+				if ui.Button(c, label("取消读取", "Cancel read")).Clicked() {
+					m.Tabs.stopTextRead(false, false)
+					setFileStatus(m, label("读取已取消，草稿保留。点击重新载入可重试。", "Read cancelled; draft kept. Choose Reload to retry."))
+				}
+			})
+		}
 		if previewTruncated(m) {
 			ui.Text(c, previewTruncationNotice(m)).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
 		}
@@ -551,6 +564,15 @@ func selectFile(m Model, rel string) {
 		return
 	}
 	pauseSave(selectedTab(m))
+	if m.Tabs != nil {
+		m.Tabs.stopTextRead(true, false)
+		if isAsyncTextPath(rel) {
+			restore(m, &FileTab{Path: rel})
+			rememberTab(m, rel)
+			beginTextRead(m)
+			return
+		}
+	}
 	remotePreview, truncated := false, false
 	defer func() {
 		rememberTab(m, rel)

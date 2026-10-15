@@ -16,6 +16,9 @@ import (
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
+	textReader      *textReadQueue
+	readTab         *FileTab
+	readSerial      uint64
 	planRead        *session.PlanResourceRead
 	planReadAddress string // runtime-only explicit user-open gate
 	planSession     string
@@ -35,6 +38,10 @@ type WorkspaceTabs struct {
 	PendingClose string
 }
 type FileTab struct {
+	readID                                    uint64
+	readFullPath                              string
+	pendingLine                               textReadLine
+	readLoading, readBlocked, readResume      bool
 	Path, Preview, Draft, Error, Status, Stat string
 	Editing                                   bool
 	sourceViews                               map[string]*sourceViewState
@@ -172,6 +179,7 @@ func selectTab(m Model, path string) bool {
 	capture(m)
 	if t := findTab(w, path); t != nil {
 		if path != w.Active {
+			m.Tabs.stopTextRead(true, false)
 			pauseSave(findTab(w, w.Active))
 		}
 		w.Active = path
@@ -215,6 +223,9 @@ func closeTab(m Model, path string, discard bool) bool {
 		return false
 	}
 	disposeSave(t)
+	if m.Tabs != nil && m.Tabs.readTab == t {
+		m.Tabs.stopTextRead(false, false)
+	}
 	for i, v := range w.Open {
 		if v.Path == path {
 			w.Open = append(w.Open[:i], w.Open[i+1:]...)
@@ -226,6 +237,7 @@ func closeTab(m Model, path string, discard bool) bool {
 		w.Active = ""
 		if len(w.Open) > 0 {
 			next := w.Open[len(w.Open)-1]
+			next.readResume = isAsyncTextPath(next.Path)
 			w.Active = next.Path
 			restore(m, next)
 		} else {
@@ -353,6 +365,7 @@ func (t *Tabs) Bind(binding, root string) {
 		return
 	}
 	t.CancelPlanRead()
+	t.stopTextRead(true, false)
 	if t.Search != nil {
 		t.Search.Cancel()
 	}
@@ -363,6 +376,11 @@ func (t *Tabs) Bind(binding, root string) {
 		if w != nil {
 			for _, tab := range w.Open {
 				disposeSave(tab)
+				tab.pendingLine.reset()
+				tab.revealLine = 0
+				if isAsyncTextPath(tab.Path) {
+					tab.readBlocked, tab.readResume = true, true
+				}
 			}
 		}
 	}

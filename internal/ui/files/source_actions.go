@@ -45,6 +45,22 @@ func RequestLine(m Model, line int) {
 	if t == nil {
 		return
 	}
+	if t.readLoading || t.readResume {
+		t.pendingLine.begin()
+	}
+	if t.pendingLine.deferRequest(line) {
+		t.revealLine = 0 // The painter must not consume a target against stale text.
+		t.lineDraft = strconv.Itoa(max(1, line))
+		return
+	}
+	requestLineNow(m, line)
+}
+
+func requestLineNow(m Model, line int) {
+	t := selectedTab(m)
+	if t == nil {
+		return
+	}
 	lines := sourceLines([]rune(previewText(m)))
 	if line < 1 {
 		line = 1

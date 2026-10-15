@@ -221,7 +221,9 @@ type Model struct {
 	OnListWorkspaceFiles        func(rel string) ([]workspacefs.Entry, error)
 	OnListWorkspaceFilesContext workspacefs.RemoteDirectoryLister
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
-	OnReadWorkspaceFile func(rel string) (string, error)
+	OnReadWorkspaceFile        func(rel string) (string, error)
+	OnReadWorkspaceFileContext func(context.Context, string) (string, error)
+	OnStatWorkspaceFileContext func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
 	OnStatWorkspaceFile  func(rel string) string
 	FileStatNote         *string
@@ -1103,18 +1105,21 @@ func rightPane(c *ui.Context, m Model) {
 			diffsurface.View(c, diffsurface.Model{
 				OnOpenFile: func(path string) error {
 					handled, err := files.OpenPresentedPath(files.Model{
-						Tabs:          m.FileTabs,
-						BindingID:     m.FileBindingID,
-						WorkspaceRoot: m.WorkspaceRoot,
-						SelectedFile:  m.SelectedFile,
-						Preview:       m.FilePreview,
-						PreviewErr:    m.FilePreviewErr,
-						Editing:       m.FileEditing,
-						EditDraft:     m.FileEditDraft,
-						EditStatus:    m.FileEditStatus,
-						StatNote:      m.FileStatNote,
-						ReadRemote:    m.OnReadWorkspaceFile,
-						StatRemote:    m.OnStatWorkspaceFile,
+						Tabs:              m.FileTabs,
+						BindingID:         m.FileBindingID,
+						SessionID:         m.Store.Snapshot().SelectedID,
+						WorkspaceRoot:     m.WorkspaceRoot,
+						SelectedFile:      m.SelectedFile,
+						Preview:           m.FilePreview,
+						PreviewErr:        m.FilePreviewErr,
+						Editing:           m.FileEditing,
+						EditDraft:         m.FileEditDraft,
+						EditStatus:        m.FileEditStatus,
+						StatNote:          m.FileStatNote,
+						ReadRemote:        m.OnReadWorkspaceFile,
+						ReadRemoteContext: m.OnReadWorkspaceFileContext,
+						StatRemoteContext: m.OnStatWorkspaceFileContext,
+						StatRemote:        m.OnStatWorkspaceFile,
 					}, path)
 					if err != nil {
 						return err
@@ -1164,6 +1169,8 @@ func rightPane(c *ui.Context, m Model) {
 			ListRemote:        m.OnListWorkspaceFiles,
 			ListRemoteContext: m.OnListWorkspaceFilesContext,
 			ReadRemote:        m.OnReadWorkspaceFile,
+			ReadRemoteContext: m.OnReadWorkspaceFileContext,
+			StatRemoteContext: m.OnStatWorkspaceFileContext,
 			StatRemote:        m.OnStatWorkspaceFile,
 			StatNote:          m.FileStatNote,
 			OnShowDiff: func(rel string) {

@@ -6415,6 +6415,12 @@ func mainView(c *ui.Context) {
 							state.dshMu.Unlock()
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
+						OnReadWorkspaceFileContext: func(ctx context.Context, rel string) (string, error) {
+							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)
+						},
+						OnStatWorkspaceFileContext: func(ctx context.Context, rel string) string {
+							return workspacePreviewStat(ctx, fileClient, rel)
+						},
 						OnReadWorkspaceFile: func(rel string) (string, error) {
 							state.dshMu.Lock()
 							client := state.dshClient
@@ -6624,6 +6630,7 @@ func mainView(c *ui.Context) {
 								return
 							}
 							handled, err := files.OpenPresentedPath(files.Model{
+								BindingID: fileBindingID, SessionID: snap.SelectedID,
 								WorkspaceRoot: snap.SelectedCwd,
 								Tabs:          &fileTabs, SelectedFile: &selectedFile,
 								Preview: &filePreview, PreviewErr: &filePreviewErr,

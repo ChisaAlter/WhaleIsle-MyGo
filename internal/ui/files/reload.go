@@ -23,6 +23,10 @@ func reloadSelectedFile(m Model) {
 		tab.selectionText = ""
 		tab.selectionStart, tab.selectionEnd = 0, 0
 	}
+	if m.Tabs != nil && isAsyncTextPath(rel) {
+		beginTextRead(m)
+		return
+	}
 	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
 	remotePreview := false
 	text, errMsg, truncated := loadPreview(m.WorkspaceRoot, rel)

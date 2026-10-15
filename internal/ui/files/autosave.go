@@ -12,6 +12,9 @@ func ensureSaveQueue(m Model, t *FileTab) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
+	if t.readBlocked {
+		return errors.New(label("读取尚未成功完成，草稿保留；请等待或重新载入后保存。", "Read has not completed successfully. Draft kept; wait or reload before saving."))
+	}
 	if t.Truncated {
 		return errors.New(label("不完整文件预览不能保存；草稿保留，请在外部编辑器核对。", "Cannot save an incomplete file preview. Draft kept; reconcile in an external editor."))
 	}
@@ -135,6 +138,7 @@ func disposeSave(t *FileTab) {
 // Dispose cancels queued file work on window shutdown without flushing drafts.
 // Existing recovery serialization still owns draft persistence.
 func (t *Tabs) Dispose() {
+	t.stopTextRead(false, true)
 	t.CancelPlanRead()
 	t.closeFloatingPreview()
 	if t.Search != nil {
@@ -155,6 +159,7 @@ func (t *Tabs) Dispose() {
 // Pause stops debounce work when the Files surface is hidden, without throwing
 // away drafts or completion receipts for writes that had already started.
 func (t *Tabs) Pause() {
+	t.stopTextRead(true, false)
 	if t.Search != nil {
 		t.Search.Cancel()
 	}
