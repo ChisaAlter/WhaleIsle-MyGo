@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/accountdetails"
 	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/ui/i18n"
@@ -14,6 +15,7 @@ import (
 // AccountAccess is the dedicated Account / Login settings page
 // (account/getState + optional profile/balance from the usage store).
 type AccountAccess struct {
+	Details          accountdetails.State
 	SignInBusy       bool
 	ClientReady      bool
 	Loading          bool
@@ -77,12 +79,8 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 	rows := []struct{ label, value string }{
 		{i18n.T(i18n.KeySettingsAccountStatus), emptyDash(a.Status)},
-		{i18n.T(i18n.KeySettingsAccountEmail), emptyDash(a.Email)},
-		{i18n.T(i18n.KeySettingsAccountName), emptyDash(a.Name)},
-		{i18n.T(i18n.KeySettingsAccountPlan), emptyDash(a.Plan)},
 		{i18n.T(i18n.KeySettingsAccountUsageURL), emptyDash(a.UsageURL)},
 		{i18n.T(i18n.KeySettingsAccountTopUpURL), emptyDash(a.TopUpURL)},
-		{i18n.T(i18n.KeySettingsAccountBalance), emptyDash(a.BalanceSummary)},
 	}
 	if a.AttemptPhase != "" || a.AuthorizeURL != "" {
 		rows = append(rows,
@@ -102,6 +100,8 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 	}
+
+	accountDetailsPane(c, a.Details, fg, muted)
 
 	ui.Text(c, i18n.T(i18n.KeySettingsAccountBonuses)).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 	if len(a.Bonuses) == 0 {

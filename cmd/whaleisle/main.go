@@ -5039,6 +5039,7 @@ func mainView(c *ui.Context) {
 						UsageURL:        usageSnap.UsageURL,
 						TopUpURL:        usageSnap.TopUpURL,
 						BalanceSummary:  usageSnap.BalanceSummary,
+						Details:         usageSnap.Details,
 						HasRunningTasks: usageSnap.HasRunningTasks,
 						AttemptPhase:    usageSnap.AttemptPhase,
 						SignInAttemptID: usageSnap.AttemptID,

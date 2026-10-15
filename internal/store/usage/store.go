@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"whaleisle/internal/accountdetails"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
@@ -23,6 +24,7 @@ type Entry struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	Details         accountdetails.State
 	ClientReady     bool
 	Loading         bool
 	Err             string
@@ -55,6 +57,9 @@ type Bonus struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
+	details        accountdetails.State
+	accountEpoch   uint64
+	accountRead    uint64
 	ranking        rankingState
 	projectRanking projectRankingState
 	repair         repairState
@@ -92,13 +97,26 @@ type Store struct {
 
 // New returns an empty usage store.
 func New() *Store {
-	return &Store{}
+	return &Store{details: accountdetails.Empty()}
 }
 
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.client = client
+	s.resetAccountDetailsLocked()
+	s.accountStatus, s.usageURL, s.topUpURL = "", "", ""
+	s.attemptPhase, s.attemptID, s.authorizeURL, s.expiryNote = "", "", "", ""
+	s.bonuses = nil
+	s.mux = nil
+	if s.accountWatchCancel != nil {
+		s.accountWatchCancel()
+		s.accountWatchCancel = nil
+	}
+	if s.expiryWatchCancel != nil {
+		s.expiryWatchCancel()
+		s.expiryWatchCancel = nil
+	}
 	s.statsEpoch++
 	if s.statsCancel != nil {
 		s.statsCancel()
@@ -129,6 +147,7 @@ func (s *Store) Detach() {
 		s.expiryWatchCancel = nil
 	}
 	s.client = nil
+	s.resetAccountDetailsLocked()
 	s.statsEpoch++
 	if s.statsCancel != nil {
 		s.statsCancel()
@@ -164,6 +183,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		Details:         s.details.Clone(),
 		ClientReady:     s.client != nil,
 		Loading:         s.loading,
 		AccountStatus:   s.accountStatus,
@@ -197,6 +217,8 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		s.mu.Unlock()
 		return
 	}
+	s.resetAccountDetailsLocked()
+	epoch := s.accountEpoch
 	s.loading = true
 	s.err = nil
 	s.mu.Unlock()
@@ -206,7 +228,8 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		var state api.AccountView
 		if err := client.Call(ctx, "account/getState", nil, &state); err != nil {
 			s.finishRefresh(accountRefresh{
-				err: err,
+				err:    err,
+				client: client, epoch: epoch,
 			})
 			return
 		}
@@ -227,21 +250,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 			TimezoneOffsetSeconds: float64(zoneOff),
 		}
 
-		var profileRaw api.GetProfileResult
-		email, name, plan := "", "", ""
-		if err := client.Call(ctx, "account/getProfile", map[string]any{"client": clientMeta}, &profileRaw); err == nil {
-			email, name, plan = ParseProfileSummary(profileRaw)
-		}
-
-		var balanceRaw api.GetBalanceResult
-		balanceSummary := ""
-		if err := client.Call(ctx, "account/getBalance", map[string]any{"client": clientMeta}, &balanceRaw); err != nil {
-			balanceSummary = fmt.Sprintf("(account/getBalance: %v)", err)
-		} else if len(balanceRaw) > 0 {
-			balanceSummary = truncateJSON(string(balanceRaw), 480)
-		} else {
-			balanceSummary = "(empty balance response)"
-		}
+		s.refreshAccountDetails(ctx, client, epoch, status)
 
 		// account/watch + account/watchExpiry are ModeStream — see WatchAccount / WatchExpiry.
 		var hasTasks api.HasRunningAccountTasksResult
@@ -317,16 +326,13 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		}
 
 		s.finishRefresh(accountRefresh{
-			status:          status,
-			usageURL:        usageURL,
-			topUpURL:        topUpURL,
-			email:           email,
-			name:            name,
-			plan:            plan,
-			attemptPhase:    attemptPhase,
-			attemptID:       attemptID,
-			authorizeURL:    authorizeURL,
-			balanceSummary:  balanceSummary,
+			status:       status,
+			usageURL:     usageURL,
+			topUpURL:     topUpURL,
+			attemptPhase: attemptPhase,
+			attemptID:    attemptID,
+			authorizeURL: authorizeURL,
+			client:       client, epoch: epoch,
 			hasRunningTasks: bool(hasTasks),
 			bonuses:         bonuses,
 			recent:          recent,
@@ -336,6 +342,8 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 }
 
 type accountRefresh struct {
+	client          *dsh.Client
+	epoch           uint64
 	err             error
 	status          string
 	usageURL        string
@@ -355,18 +363,18 @@ type accountRefresh struct {
 
 func (s *Store) finishRefresh(r accountRefresh) {
 	s.mu.Lock()
+	if s.client != r.client || s.accountEpoch != r.epoch {
+		s.mu.Unlock()
+		return
+	}
 	s.loading = false
 	s.err = r.err
 	s.accountStatus = r.status
 	s.usageURL = r.usageURL
 	s.topUpURL = r.topUpURL
-	s.email = r.email
-	s.name = r.name
-	s.plan = r.plan
 	s.attemptPhase = r.attemptPhase
 	s.attemptID = r.attemptID
 	s.authorizeURL = r.authorizeURL
-	s.balanceSummary = r.balanceSummary
 	s.hasRunningTasks = r.hasRunningTasks
 	s.bonuses = r.bonuses
 	s.recent = r.recent

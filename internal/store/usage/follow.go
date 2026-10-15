@@ -67,6 +67,10 @@ func (s *Store) runExpiryWatch(ctx context.Context, mux *dsh.Mux) {
 			continue
 		}
 		s.mu.Lock()
+		if ctx.Err() != nil || s.mux != mux {
+			s.mu.Unlock()
+			return
+		}
 		s.expiryNote = truncateJSON(line, 120)
 		s.mu.Unlock()
 		s.fire()
@@ -115,6 +119,16 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			continue
 		}
 		s.mu.Lock()
+		if ctx.Err() != nil || s.mux != mux {
+			s.mu.Unlock()
+			return
+		}
+		s.resetAccountDetailsLocked()
+		client, epoch := s.client, s.accountEpoch
+		s.loading = false
+		s.err = nil
+		s.email, s.name, s.plan = "", "", ""
+		s.bonuses = nil
 		if view.Status != "" {
 			s.accountStatus = view.Status
 		}
@@ -130,11 +144,17 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		if view.Attempt.Id != "" {
 			s.attemptID = view.Attempt.Id
 		}
+		s.attemptPhase = view.Attempt.Phase
+		s.attemptID = view.Attempt.Id
+		s.authorizeURL = ""
 		if view.Attempt.AuthorizeUrl != nil {
 			s.authorizeURL = *view.Attempt.AuthorizeUrl
 		}
 		s.mu.Unlock()
 		s.fire()
+		if client != nil {
+			s.refreshAccountDetails(ctx, client, epoch, view.Status)
+		}
 	}
 }
 
