@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"whaleisle/internal/dsh"
 )
@@ -69,23 +70,27 @@ func (s *Store) UpdateQueue(ctx context.Context, sessionID, itemID string, actio
 	go s.runUpdateQueue(ctx, client, sessionID, generation, itemID, action, req)
 }
 
-func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, itemID string, action UpdateQueueAction, req map[string]any) {
+func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, itemID string, action UpdateQueueAction, req map[string]any, composerBatch ...bool) error {
+	batch := len(composerBatch) > 0 && composerBatch[0]
 	var out struct {
 		Accepted bool `json:"accepted"`
 	}
 	err := client.Call(ctx, "session/updateQueue", map[string]any{"request": req}, &out)
+	if err == nil && !out.Accepted {
+		err = errors.New("mutation was not accepted")
+	}
 	s.mu.Lock()
 	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
 		s.mu.Unlock()
-		return
+		return context.Canceled
 	}
-	if s.queueMutationScope == s.queueActionsLocked().Scope && s.queueMutationID == itemID {
+	if !batch && s.queueMutationScope == s.queueActionsLocked().Scope && s.queueMutationID == itemID {
 		s.queueMutationScope, s.queueMutationID = "", ""
 	}
 	if err != nil {
-		s.lastAction = "queue: " + err.Error()
-	} else if !out.Accepted {
-		s.lastAction = "queue: mutation was not accepted"
+		if !batch || !queueSteerConverged(err) {
+			s.lastAction = "queue: " + err.Error()
+		}
 	} else {
 		s.lastAction = "queue " + string(action) + " " + itemID
 		// Steer consumes the pending next-turn occurrence too.
@@ -101,4 +106,5 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 	}
 	s.mu.Unlock()
 	s.fire()
+	return err
 }

@@ -58,7 +58,7 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 }
 
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
-	if d.Sending || d.Preparing > 0 || (strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0) {
+	if d.Sending || d.Preparing > 0 {
 		return
 	}
 	if win == nil || sessions == nil {
@@ -70,6 +70,12 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	s.mu.Unlock()
 	live := sessions.Snapshot()
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
+		return
+	}
+	if strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
+		if d.CanSteerPendingQueue(id, accelerated) {
+			sessions.SteerComposerQueue(context.Background(), id, hostGeneration)
+		}
 		return
 	}
 	editSeq = d.EditSeq
