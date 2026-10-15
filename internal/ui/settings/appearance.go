@@ -4,17 +4,19 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // AppearanceAccess is the dedicated Appearance settings page (theme + wallpaper).
 type AppearanceAccess struct {
-	Theme            *string
-	WallpaperPath    *string
-	WallpaperChoices []string
+	Preferences       *theme.Editor
+	Theme             *string
+	WallpaperPath     *string
+	WallpaperChoices  []string
 	OnBrowseWallpaper func()
-	OnSave           func()
-	LastAction       string
-	Err              string
+	OnSave            func()
+	LastAction        string
+	Err               string
 }
 
 func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -22,13 +24,14 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Appearance
-	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceHint)).FontSize(12).TextColor(muted)
+	themeFontPane(c, a.Preferences)
+	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, a.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	desktopRow(c, i18n.T(i18n.KeySettingsDesktopTheme), func() {
 		if a.Theme == nil {
@@ -45,15 +48,15 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		opts := append([]string{""}, a.WallpaperChoices...)
 		ui.Select(c, a.WallpaperPath, opts)
 		if len(a.WallpaperChoices) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsAppearanceWallpaperDir)).FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsAppearanceWallpaperDir)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if a.OnBrowseWallpaper != nil {
-				if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceBrowseWallpaper)).FontSize(11).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceBrowseWallpaper)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					a.OnBrowseWallpaper()
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceClearWallpaper)).FontSize(11).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceClearWallpaper)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				*a.WallpaperPath = ""
 			}
 		})

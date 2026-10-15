@@ -98,13 +98,13 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery)
 	if m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(11).TextColor(muted)
+		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if m.Snapshot.SearchErr != "" {
-		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(11).TextColor(muted)
+		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("没有匹配的会话", "No matching sessions")).FontSize(12).TextColor(muted)
+		ui.Text(c, workspaceText("没有匹配的会话", "No matching sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	for _, result := range rows {
 		row := result
@@ -125,14 +125,14 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				if row.Item.Running {
 					title = "● " + title
 				}
-				ui.Text(c, title).FontSize(13).TextColor(fg)
+				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 				label := row.Workspace
 				if label == "" {
 					label = workspaceText("无目录会话", "No workspace folder")
 				}
-				ui.Text(c, label).FontSize(11).TextColor(muted)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if row.Snippet != "" {
-					ui.Text(c, row.Snippet).FontSize(11).TextColor(muted)
+					ui.Text(c, row.Snippet).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 			})
 		})
@@ -143,7 +143,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		}
 	}
 	if more {
-		ui.Text(c, workspaceText("还有更多匹配，请缩小搜索范围。", "More matches exist. Refine your search.")).FontSize(11).TextColor(muted)
+		ui.Text(c, workspaceText("还有更多匹配，请缩小搜索范围。", "More matches exist. Refine your search.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	return true
 }

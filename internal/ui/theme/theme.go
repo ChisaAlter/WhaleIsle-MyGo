@@ -122,6 +122,7 @@ func Resolve(id string) Theme {
 		Light:  deepseekLight,
 		Dark:   deepseekDark,
 	}
+	base = selectedPalettes(base)
 	switch id {
 	case "", DefaultID, IDSystem:
 		return base

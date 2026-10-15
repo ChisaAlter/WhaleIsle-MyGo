@@ -18,8 +18,8 @@ func sessionFeedbackDialog(c *ui.Context, m Model) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.4))
 		panel.Width(520).MaxWidthPercent(92).Padding(20).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
-				ui.Text(c, archiveText("会话反馈", "Session feedback")).FontSize(16).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, archiveText("提交后，Host 会记录这条反馈，并可能发送相关会话日志供审阅。", "Submitting records your feedback and may send related session logs for review.")).FontSize(12).TextColor(chrome.Color(colors.Muted))
+				ui.Text(c, archiveText("会话反馈", "Session feedback")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
+				ui.Text(c, archiveText("提交后，Host 会记录这条反馈，并可能发送相关会话日志供审阅。", "Submitting records your feedback and may send related session logs for review.")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
 				text := v.Text
 				ui.TextArea(c, &text).FillWidth().Height(100).Disabled(v.Busy).OnChange(func() { m.Store.EditSessionFeedback(text, v.Category) })
 				ui.Row(c).Wrap().Gap(4).Children(func() {
@@ -38,7 +38,7 @@ func sessionFeedbackDialog(c *ui.Context, m Model) {
 					}
 				})
 				if v.Error != "" {
-					ui.Text(c, v.Error).FontSize(12).TextColor(chrome.Color(colors.FG))
+					ui.Text(c, v.Error).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
 				}
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, archiveText("取消", "Cancel")).Disabled(v.Busy).Clicked() {

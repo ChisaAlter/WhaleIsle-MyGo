@@ -276,6 +276,24 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, fmt.Sprintf(terminalLabel("进程已退出（code %d），重启可新建当前终端", "Process exited (code %d). Restart reopens this terminal."), shell.term.ExitCode())).FontSize(11).TextColor(muted)
 					default:
 					}
+					font := theme.CurrentPreferences().Terminal
+					if shell.appearanceFont != font {
+						shell.term.SetFont(myterm.Font{Family: font.Family, Size: font.Size})
+						shell.appearanceFont = font
+					}
+					colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+					if shell.appearanceColors != colors {
+						native := myterm.LightTheme()
+						if m.SystemDark {
+							native = myterm.DarkTheme()
+						}
+						native.Background = chrome.Color(colors.BG)
+						native.Foreground = chrome.Color(colors.FG)
+						native.Cursor = chrome.Color(colors.Accent)
+						native.Selection = chrome.Color(colors.Accent).Alpha(.3)
+						shell.term.SetTheme(native, native)
+						shell.appearanceColors = colors
+					}
 					myterm.View(c, shell.term).Fill().Grow(1).FocusBind(&p.focused, shell.id)
 				})
 			}

@@ -517,7 +517,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							} else if i := strings.LastIndexAny(title, `/\`); i >= 0 && i+1 < len(title) {
 								title = title[i+1:]
 							}
-							ui.Text(c, title).FontSize(13).FontWeight(600).TextColor(chrome.Color(colors.FG))
+							ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(chrome.Color(colors.FG))
 							if m.OnOpenLauncher != nil {
 								if ui.Button(c, "···").Tooltip(i18n.T(i18n.KeyLauncherOpen)).
 									FontSize(14).BorderWidth(0).Background(ui.Transparent).
@@ -525,32 +525,32 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									m.OnOpenLauncher()
 								}
 							} else {
-								ui.Text(c, "···").FontSize(14).TextColor(muted)
+								ui.Text(c, "···").FontSize(theme.InterfaceSize(14)).TextColor(muted)
 							}
 							ui.Box(c).Grow(1).MinWidth(0)
 							jobsHeader(c, m)
 							agentsCaption := i18n.T(i18n.KeyFrameCaptionAgents)
 							docsCaption := i18n.T(i18n.KeyFrameCaptionProjectDocs)
 							if m.OnOpenAgents != nil {
-								if ui.Button(c, agentsCaption).FontSize(12).BorderWidth(0).
+								if ui.Button(c, agentsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
 									Background(ui.Transparent).TextColor(muted).Clicked() {
 									m.OnOpenAgents()
 								}
 							} else if m.OnOpenAssistant != nil {
-								if ui.Button(c, agentsCaption).FontSize(12).BorderWidth(0).
+								if ui.Button(c, agentsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
 									Background(ui.Transparent).TextColor(muted).Clicked() {
 									m.OnOpenAssistant()
 								}
 							} else {
-								ui.Text(c, agentsCaption).FontSize(12).TextColor(muted)
+								ui.Text(c, agentsCaption).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 							}
 							if m.OnToggleTools != nil {
-								if ui.Button(c, docsCaption).FontSize(12).BorderWidth(0).
+								if ui.Button(c, docsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
 									Background(ui.Transparent).TextColor(muted).Clicked() {
 									m.OnToggleTools()
 								}
 							} else {
-								ui.Text(c, docsCaption).FontSize(12).TextColor(muted)
+								ui.Text(c, docsCaption).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 							}
 							if m.OnOpenLauncher != nil {
 								if ui.Button(c, "⌂").Tooltip(i18n.T(i18n.KeyLauncherOpen)).
@@ -560,7 +560,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								}
 							}
 							if m.OnOpenHostTerminal != nil {
-								if ui.Button(c, termui.HostTitle()).FontSize(11).Clicked() {
+								if ui.Button(c, termui.HostTitle()).FontSize(theme.InterfaceSize(11)).Clicked() {
 									m.OnOpenHostTerminal()
 								}
 							}
@@ -601,7 +601,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										weight = 700
 									}
 									ui.Column(c).Gap(3).Children(func() {
-										b := ui.Button(c, label).FontSize(14).FontWeight(weight).
+										b := ui.Button(c, label).FontSize(theme.InterfaceSize(14)).FontWeight(weight).
 											BorderWidth(0).Background(ui.Transparent).TextColor(ink).
 											Padding(0, 0, 6, 0)
 										if b.Clicked() && m.ChatPaneTab != nil {
@@ -772,7 +772,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										ui.Image(c, bmp).Width(34).Height(25).Fit(ui.Contain)
 									}
 									ui.Row(c).Gap(7).AlignItems(ui.Center).Children(func() {
-										ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(26).FontWeight(500).
+										ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FontWeight(500).
 											TextColor(chrome.Color(colors.FG))
 										previewFG := chrome.Color("rgb(70, 110, 160)")
 										previewBG := chrome.Color("rgba(120, 160, 210, 0.18)")
@@ -783,7 +783,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											previewBG = chrome.Color("rgba(103, 158, 254, 0.16)")
 											previewBD = chrome.Color("rgba(103, 158, 254, 0.35)")
 										}
-										ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(12).FontWeight(500).
+										ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(theme.InterfaceSize(12)).FontWeight(500).
 											TextColor(previewFG).
 											Padding(1, 7, 0, 7).
 											Background(previewBG).
@@ -984,11 +984,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						ui.Row(c).FillWidth().Children(func() {
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Gap(6).Padding(0, 0, 6, 0).Children(func() {
-								ui.Text(c, i18n.T(i18n.KeyChatBandTitle)).FontSize(11).TextColor(muted)
+								ui.Text(c, i18n.T(i18n.KeyChatBandTitle)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 								ui.Row(c).FillWidth().Gap(6).Children(func() {
 									for _, a := range snap.BandActions {
 										act := a
-										if ui.Button(c, act.Label).FontSize(11).Clicked() {
+										if ui.Button(c, act.Label).FontSize(theme.InterfaceSize(11)).Clicked() {
 											m.Store.PressBand(context.Background(), act.ID)
 										}
 									}
@@ -1001,7 +1001,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						ui.Row(c).FillWidth().Children(func() {
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Padding(0, 0, 4, 0).Children(func() {
-								ui.Text(c, i18n.T(i18n.KeyChatControlNote)+": "+note).FontSize(11).TextColor(muted)
+								ui.Text(c, i18n.T(i18n.KeyChatControlNote)+": "+note).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 							})
 							ui.Box(c).Grow(1).MinWidth(0)
 						})
@@ -1244,7 +1244,7 @@ func paintRightTab(c *ui.Context, active bool, label string, fg, muted, accent u
 		weight = 700
 	}
 	ui.Column(c).Gap(3).Padding(0, 4, 0, 4).Children(func() {
-		b := ui.Button(c, label).FontSize(12).FontWeight(weight).
+		b := ui.Button(c, label).FontSize(theme.InterfaceSize(12)).FontWeight(weight).
 			BorderWidth(0).Background(ui.Transparent).TextColor(color).
 			Padding(4, 4, 2, 4)
 		if b.Clicked() && onSelect != nil {

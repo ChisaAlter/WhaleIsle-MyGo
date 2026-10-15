@@ -109,9 +109,9 @@ func View(c *ui.Context, m Model) {
 
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
 	ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
+		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
 		if snap.Loading {
-			ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeySettingsBack)).Clicked() {
 			m.OnClose()
@@ -189,7 +189,7 @@ func settingsNavItem(c *ui.Context, label string, active bool, fg, hover ui.Colo
 		}
 	}
 	btn := ui.Button(c, label).FillWidth().Height(36).Radius(8).
-		BorderWidth(0).Background(bg).TextColor(fg).FontSize(13).
+		BorderWidth(0).Background(bg).TextColor(fg).FontSize(theme.InterfaceSize(13)).
 		Padding(0, 10, 0, 10).AlignItems(ui.Center)
 	if onClick != nil && btn.Clicked() {
 		onClick()
@@ -274,15 +274,15 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 		}
 		filtered := FilterNamespaces(names, query)
 		if len(names) == 0 && m.Desktop == nil {
-			ui.Text(c, i18n.T(i18n.KeySettingsEmpty)).FontSize(12).TextColor(muted).Padding(4, 4, 4, 4)
+			ui.Text(c, i18n.T(i18n.KeySettingsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 4, 4, 4)
 		} else if len(names) > 0 && len(filtered) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsFilterEmpty)).FontSize(12).TextColor(muted).Padding(4, 4, 4, 4)
+			ui.Text(c, i18n.T(i18n.KeySettingsFilterEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 4, 4, 4)
 		}
 		dedicated := m.DesktopActive || m.AccountActive || m.CredentialsActive || m.AboutActive ||
 			m.AppearanceActive || m.InterfaceActive || m.ModelsActive || m.MCPActive ||
 			m.PluginsActive || m.SkillsActive || m.AgentPresetsActive
 		for _, group := range GroupNamespaces(filtered) {
-			ui.Text(c, sectionLabel(group.Section)).FontSize(11).Bold().TextColor(muted).Padding(4, 2, 0, 2)
+			ui.Text(c, sectionLabel(group.Section)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Padding(4, 2, 0, 2)
 			for _, ns := range group.Items {
 				active := !dedicated && ns == snap.SelectedNS
 				nsID := ns
@@ -354,10 +354,10 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			return
 		}
 		if snap.Err != "" {
-			ui.Text(c, snap.Err).FontSize(12).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent))
+			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent))
 		}
 		if snap.LastAction != "" {
-			ui.Text(c, snap.LastAction).FontSize(11).TextColor(muted)
+			ui.Text(c, snap.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		var ns *settings.Namespace
 		for i := range snap.Namespaces {
@@ -367,17 +367,17 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			}
 		}
 		if ns == nil {
-			ui.Text(c, i18n.T(i18n.KeySettingsPickNS)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsPickNS)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, ns.NS).FontSize(14).Bold().TextColor(fg).Grow(1)
-			ui.Text(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySettingsRevision), ns.Revision)).FontSize(11).TextColor(muted)
+			ui.Text(c, ns.NS).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySettingsRevision), ns.Revision)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			if snap.Writable {
-				ui.Text(c, i18n.T(i18n.KeySettingsWritable)).FontSize(11).Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeySettingsWritable)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(fg)
 			} else {
 				accent := chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
-				ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(11).Bold().TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(accent)
 			}
 		})
 		if m.RevealSecrets != nil {
@@ -400,7 +400,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			}
 		}
 		if snap.SelectedNS == settings.VisualRepliesNamespace {
-			ui.Text(c, "启用 HTML 视觉回复前会检查本机隔离渲染；失败时保持关闭并显示原因。 / Enabling HTML visual replies first checks isolated rendering; failure keeps the setting off.").FontSize(12).TextColor(muted)
+			ui.Text(c, "启用 HTML 视觉回复前会检查本机隔离渲染；失败时保持关闭并显示原因。 / Enabling HTML visual replies first checks isolated rendering; failure keeps the setting off.").FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if ns.NS == "llm-deepseek" || ns.NS == "llm-pi-ai" || ns.NS == "web-search-deepseek" {
 			referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
@@ -430,11 +430,11 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 				m.Store.DiscardDrafts(context.Background())
 			}
 		})
-		ui.Text(c, providerCopy("保存只提交已修改字段；重置会删除覆盖值并继承默认设置。", "Save submits changed fields only. Reset removes an override and inherits its default.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("保存只提交已修改字段；重置会删除覆盖值并继承默认设置。", "Save submits changed fields only. Reset removes an override and inherits its default.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		if ns.HasSecrets {
-			ui.Text(c, providerCopy("此配置包含隐藏密钥，完整替换不可用；普通保存会保留未编辑的密钥。", "This section contains hidden secrets. Use Save to preserve unedited secrets; full replacement is unavailable.")).FontSize(11).TextColor(muted)
+			ui.Text(c, providerCopy("此配置包含隐藏密钥，完整替换不可用；普通保存会保留未编辑的密钥。", "This section contains hidden secrets. Use Save to preserve unedited secrets; full replacement is unavailable.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Text(c, i18n.T(i18n.KeySettingsReplaceHint)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsReplaceHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	})
 	_ = border
 }
@@ -464,16 +464,16 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 			label += " *"
 		}
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, label).FontSize(12).TextColor(fg).Grow(1)
-			if m.Store != nil && ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).FontSize(11).Disabled(snap.Loading || snap.Saving || !snap.Writable).Clicked() {
+			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+			if m.Store != nil && ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).FontSize(theme.InterfaceSize(11)).Disabled(snap.Loading || snap.Saving || !snap.Writable).Clicked() {
 				m.Store.ResetDraft(f.Key)
 			}
 		})
 		if snap.Resets[f.Key] {
-			ui.Text(c, providerCopy("保存后使用继承值；再次编辑可取消重置。", "Will inherit after Save. Edit again to cancel the reset.")).FontSize(11).TextColor(muted)
+			ui.Text(c, providerCopy("保存后使用继承值；再次编辑可取消重置。", "Will inherit after Save. Edit again to cancel the reset.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		if f.Description != "" {
-			ui.Text(c, f.Description).FontSize(11).TextColor(muted)
+			ui.Text(c, f.Description).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		seed := snap.Drafts[f.Key]
 		switch f.Kind {

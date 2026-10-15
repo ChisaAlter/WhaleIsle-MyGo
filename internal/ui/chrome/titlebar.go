@@ -4,6 +4,7 @@ package chrome
 
 import (
 	"strings"
+	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -86,7 +87,7 @@ func TitleBarWithActions(c *ui.Context, title string, colors TitleBarColors, git
 			if bar.Left > 0 {
 				ui.Box(c).Width(bar.Left)
 			}
-			ui.Text(c, title).FontSize(13).Bold().TextColor(colors.Foreground)
+			ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(colors.Foreground)
 			if git != nil && git.Branch != "" {
 				label := git.Branch
 				if git.Dirty {
@@ -96,13 +97,13 @@ func TitleBarWithActions(c *ui.Context, title string, colors TitleBarColors, git
 				if muted.A == 0 && muted.R == 0 && muted.G == 0 && muted.B == 0 {
 					muted = colors.Foreground
 				}
-				branchBtn := ui.Button(c, label).FontSize(12).TextColor(muted).
+				branchBtn := ui.Button(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 					BorderWidth(0).Background(ui.Transparent).Padding(0, 4, 0, 4)
 				if branchBtn.Clicked() && strings.TrimSpace(git.Branch) != "" {
 					mygo.Clipboard.WriteText(git.Branch)
 				}
 				if git.PRSummary != "" {
-					ui.Text(c, git.PRSummary).FontSize(11).TextColor(muted)
+					ui.Text(c, git.PRSummary).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 				if git.OnFetch != nil && git.FetchLabel != "" {
 					if ui.Button(c, git.FetchLabel).Tooltip(git.FetchLabel).Clicked() {
@@ -140,7 +141,7 @@ func TitleBarWithActions(c *ui.Context, title string, colors TitleBarColors, git
 					}
 				}
 				if git.StatusText != "" {
-					ui.Text(c, git.StatusText).FontSize(11).TextColor(muted)
+					ui.Text(c, git.StatusText).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 			}
 			ui.Box(c).Grow(1) // push remaining space; controls sit on the right

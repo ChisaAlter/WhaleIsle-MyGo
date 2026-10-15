@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"net/url"
 	"strings"
+	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark"
@@ -28,6 +29,7 @@ type Style struct {
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
 func Spans(source string, st Style) []ui.Span {
+	st.FontSize = theme.CurrentPreferences().Chat.Size
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return nil
@@ -46,6 +48,7 @@ func Spans(source string, st Style) []ui.Span {
 
 // View renders markdown in a RichText element.
 func View(c *ui.Context, source string, st Style) {
+	st.FontSize = theme.CurrentPreferences().Chat.Size
 	targets := map[int]string{}
 	if st.ResolveFile != nil && st.OnOpenFile != nil {
 		st.codeSpanAt = func(index int, value string) {
@@ -59,10 +62,10 @@ func View(c *ui.Context, source string, st Style) {
 		return
 	}
 	if len(targets) == 0 {
-		ui.RichText(c, spans...).FontSize(st.FontSize).TextColor(st.FG)
+		ui.RichText(c, spans...).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
 		return
 	}
-	ui.RichText(c).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
+	ui.RichText(c).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
 		for index, span := range spans {
 			el := ui.RichText(c, span)
 			if path := targets[index]; path != "" {
@@ -286,10 +289,10 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 func codeSpan(text string, st Style) ui.Span {
 	return ui.Span{
 		Text:       text,
-		Size:       st.FontSize - 1,
+		Size:       theme.CurrentPreferences().Code.Size,
 		Color:      st.FG,
 		Background: st.CodeBG,
-		Font:       "Consolas",
+		Font:       theme.CurrentPreferences().Code.Family,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func workspaceText(zh, en string) string {
@@ -60,13 +61,13 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	hiddenParents := map[string]bool{}
 	owners := session.WorkspaceSessionOwners(m.Snapshot.Workspaces, items)
 	if layout.PreferenceError != "" {
-		ui.Text(c, layout.PreferenceError).FontSize(11).TextColor(fg)
-		if ui.Button(c, workspaceText("重试视图偏好", "Retry view preferences")).FontSize(11).Clicked() && m.OnRetryWorkspacePreferences != nil {
+		ui.Text(c, layout.PreferenceError).FontSize(theme.InterfaceSize(11)).TextColor(fg)
+		if ui.Button(c, workspaceText("重试视图偏好", "Retry view preferences")).FontSize(theme.InterfaceSize(11)).Clicked() && m.OnRetryWorkspacePreferences != nil {
 			m.OnRetryWorkspacePreferences()
 		}
 	}
 	if layout.Error != "" {
-		ui.Text(c, layout.Error).FontSize(11).TextColor(fg)
+		ui.Text(c, layout.Error).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 	}
 	for _, group := range groups {
 		g := group
@@ -97,7 +98,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				if ui.Button(c, fold).Width(20).BorderWidth(0).Background(ui.Transparent).Clicked() && m.OnToggleWorkspaceGroup != nil {
 					m.OnToggleWorkspaceGroup(g.Key)
 				}
-				titleButton := ui.Button(c, title).Grow(1).FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
+				titleButton := ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
 				if g.Kind == "workspace" && !layout.Reordering {
 					titleButton.Drag(workspaceDrag{HostGeneration: layout.HostGeneration, ID: g.Key})
 				}
@@ -107,16 +108,16 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				if g.Kind == "workspace" {
 					beforeUp, up := session.WorkspaceMoveAnchor(groups, g.Key, -1)
 					beforeDown, down := session.WorkspaceMoveAnchor(groups, g.Key, 1)
-					if ui.Button(c, "↑").FontSize(10).Disabled(!up || layout.Reordering).Tooltip(workspaceText("上移工作区", "Move workspace up")).Clicked() && m.OnMoveWorkspaceBefore != nil {
+					if ui.Button(c, "↑").FontSize(theme.InterfaceSize(10)).Disabled(!up || layout.Reordering).Tooltip(workspaceText("上移工作区", "Move workspace up")).Clicked() && m.OnMoveWorkspaceBefore != nil {
 						m.OnMoveWorkspaceBefore(g.Key, beforeUp)
 					}
-					if ui.Button(c, "↓").FontSize(10).Disabled(!down || layout.Reordering).Tooltip(workspaceText("下移工作区", "Move workspace down")).Clicked() && m.OnMoveWorkspaceBefore != nil {
+					if ui.Button(c, "↓").FontSize(theme.InterfaceSize(10)).Disabled(!down || layout.Reordering).Tooltip(workspaceText("下移工作区", "Move workspace down")).Clicked() && m.OnMoveWorkspaceBefore != nil {
 						m.OnMoveWorkspaceBefore(g.Key, beforeDown)
 					}
-					if ui.Button(c, "⋯").FontSize(11).Tooltip(workspaceText("管理工作区", "Manage workspace")).Clicked() && m.OnManageWorkspace != nil {
+					if ui.Button(c, "⋯").FontSize(theme.InterfaceSize(11)).Tooltip(workspaceText("管理工作区", "Manage workspace")).Clicked() && m.OnManageWorkspace != nil {
 						m.OnManageWorkspace(g.Key)
 					}
-				} else if g.Kind == "scratch" && m.OnNoDirectory != nil && ui.Button(c, "＋").FontSize(11).Clicked() {
+				} else if g.Kind == "scratch" && m.OnNoDirectory != nil && ui.Button(c, "＋").FontSize(theme.InterfaceSize(11)).Clicked() {
 					m.OnNoDirectory()
 				}
 			})

@@ -62,7 +62,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			ui.Box(c).Label("Composer placeholder").Absolute().Left(draftInputLeft).Right(draftInputRight).
 				Top(draftInputTop).Children(func() {
 				display := ui.Text(c, placeholder).FillWidth().Font(client.font.Family).FontSize(client.font.Size).
-					FixedLineHeight(draftInputLineHeight).TextColor(placeholderInk).PassThrough()
+					FixedLineHeight(client.lineHeight()).TextColor(placeholderInk).PassThrough()
 				if m.Hero {
 					display.MaxLines(2)
 				} else {
@@ -73,7 +73,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		}
 		ui.Text(c, text).Absolute().Left(draftInputLeft).Right(draftInputRight).
 			Top(draftInputTop - client.scrollY).Font(client.font.Family).FontSize(client.font.Size).
-			FixedLineHeight(draftInputLineHeight).TextColor(fg).PassThrough()
+			FixedLineHeight(client.lineHeight()).TextColor(fg).PassThrough()
 	})
 
 	return box

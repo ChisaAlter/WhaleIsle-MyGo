@@ -3,6 +3,7 @@ package terminal
 import (
 	"errors"
 	"strings"
+	"whaleisle/internal/ui/theme"
 
 	myterm "github.com/egoist/mygo/plugins/terminal"
 )
@@ -10,9 +11,11 @@ import (
 const maxPanesPerGroup = 4
 
 type terminalPane struct {
-	id   uint64
-	term *myterm.Terminal
-	err  error
+	appearanceFont   theme.FontPreference
+	appearanceColors theme.Colors
+	id               uint64
+	term             *myterm.Terminal
+	err              error
 }
 
 type terminalGroup struct {

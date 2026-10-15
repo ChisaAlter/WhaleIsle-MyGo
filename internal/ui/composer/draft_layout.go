@@ -35,8 +35,8 @@ func (c *DraftClient) buildVisualLines() {
 
 func (c *DraftClient) projectRect(b ui.Rect) ui.Rect {
 	line := max(0, sort.Search(len(c.visualLines), func(i int) bool { return c.visualLines[i].rawY > b.Y+.01 })-1)
-	b.Y = float32(line) * draftInputLineHeight
-	b.H = draftInputLineHeight
+	b.Y = float32(line) * c.lineHeight()
+	b.H = c.lineHeight()
 	return b
 }
 func (c *DraftClient) visualCaret(at int) ui.Rect { return c.projectRect(c.layout.Caret(at)) }
@@ -51,13 +51,13 @@ func (c *DraftClient) rawPoint(p ui.Point) ui.Point {
 	if len(c.visualLines) == 0 {
 		return p
 	}
-	line := min(len(c.visualLines)-1, max(0, int(p.Y/draftInputLineHeight)))
+	line := min(len(c.visualLines)-1, max(0, int(p.Y/c.lineHeight())))
 	v := c.visualLines[line]
 	p.Y = v.rawY + v.rawHeight/2
 	return p
 }
 func (c *DraftClient) visualHeight() float32 {
-	return float32(len(c.visualLines)) * draftInputLineHeight
+	return float32(len(c.visualLines)) * c.lineHeight()
 }
 
 func (c *DraftClient) setViewport(height float32) {

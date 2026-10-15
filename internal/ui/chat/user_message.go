@@ -78,7 +78,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 						if msg.Seq == m.EditingSeq {
 							ink = muted
 						}
-						ui.Text(c, body).FontSize(14).FixedLineHeight(22).TextColor(ink).Selectable()
+						ui.Text(c, body).Font(theme.CurrentPreferences().Chat.Family).FontSize(theme.CurrentPreferences().Chat.Size).FixedLineHeight(theme.CurrentPreferences().Chat.Size * 22 / 14).TextColor(ink).Selectable()
 					})
 				}
 				// Preserve the existing URL-opening action alongside literal user text.

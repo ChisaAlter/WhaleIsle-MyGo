@@ -112,10 +112,10 @@ func View(c *ui.Context, m Model) {
 				}
 				ui.Column(c).Gap(0).Grow(1).Children(func() {
 					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(15).FontWeight(400).TextColor(fg)
-						ui.Text(c, "WHALE ISLE").FontSize(11).FontWeight(400).TextColor(muted)
+						ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(theme.InterfaceSize(15)).FontWeight(400).TextColor(fg)
+						ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
 					})
-					ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(9).TextColor(muted)
+					ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(9)).TextColor(muted)
 				})
 				if m.OnToggle != nil {
 					if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
@@ -127,7 +127,7 @@ func View(c *ui.Context, m Model) {
 				// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
 				btn := ui.Button(c, "+  "+i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
 					Background(chrome.Color(colors.Field)).Border(1, border).
-					TextColor(fg).FontSize(14).FontWeight(500).Padding(8, 16, 8, 16)
+					TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 16, 8, 16)
 				if btn.Clicked() {
 					m.OnCreate()
 				}
@@ -144,7 +144,7 @@ func View(c *ui.Context, m Model) {
 							if drawIcon != nil {
 								drawIcon()
 							}
-							ui.Text(c, label).FontSize(14).TextColor(fg).Grow(1)
+							ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
 						})
 					})
 					if fn != nil && row.Clicked() {
@@ -193,9 +193,9 @@ func View(c *ui.Context, m Model) {
 						if bmp := chrome.BrandAvatar(); bmp != nil {
 							ui.Image(c, bmp).Width(18).Height(18).Fit(ui.Contain)
 						} else {
-							ui.Text(c, "◉").FontSize(14).TextColor(muted)
+							ui.Text(c, "◉").FontSize(theme.InterfaceSize(14)).TextColor(muted)
 						}
-						ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(14).TextColor(fg).Grow(1)
+						ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
 					})
 				})
 				if m.OnOpenAssistant != nil && assist.Clicked() {
@@ -218,26 +218,26 @@ func View(c *ui.Context, m Model) {
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeySidebarWorkspaceSection)).FontSize(11).FontWeight(600).TextColor(muted).Grow(1)
+					ui.Text(c, i18n.T(i18n.KeySidebarWorkspaceSection)).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(muted).Grow(1)
 					if m.OnRefresh != nil {
-						if ui.Button(c, "⌕").FontSize(12).BorderWidth(0).Background(ui.Transparent).
+						if ui.Button(c, "⌕").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 							TextColor(muted).Clicked() {
 							m.OnRefresh()
 						}
 					} else {
-						ui.Text(c, "⌕").FontSize(12).TextColor(muted)
+						ui.Text(c, "⌕").FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
-					if ui.Button(c, "☰").FontSize(12).BorderWidth(0).Background(ui.Transparent).
+					if ui.Button(c, "☰").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 						TextColor(muted).Clicked() {
 						*menuOpen = !*menuOpen
 					}
 					if m.OnCreate != nil {
-						if ui.Button(c, "＋").FontSize(12).BorderWidth(0).Background(ui.Transparent).
+						if ui.Button(c, "＋").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 							TextColor(muted).Clicked() {
 							m.OnCreate()
 						}
 					} else {
-						ui.Text(c, "＋").FontSize(12).TextColor(muted)
+						ui.Text(c, "＋").FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
 				})
 				if *menuOpen {
@@ -245,14 +245,14 @@ func View(c *ui.Context, m Model) {
 					ui.Column(c).FillWidth().Background(menuBG).Border(1, border).
 						Radius(10).Padding(6, 8, 6, 8).Gap(2).Children(func() {
 						workspaceViewOptions(c, m)
-						if ui.Button(c, i18n.T(i18n.KeySidebarBrowseWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).
+						if ui.Button(c, i18n.T(i18n.KeySidebarBrowseWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 							TextColor(fg).FillWidth().Clicked() {
 							*menuOpen = false
 							if m.OnBrowseWorkspace != nil {
 								m.OnBrowseWorkspace()
 							}
 						}
-						if ui.Button(c, i18n.T(i18n.KeySidebarRevealWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).
+						if ui.Button(c, i18n.T(i18n.KeySidebarRevealWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 							TextColor(fg).FillWidth().Clicked() {
 							*menuOpen = false
 							if m.OnRevealWorkspace != nil {
@@ -260,13 +260,13 @@ func View(c *ui.Context, m Model) {
 							}
 						}
 						if m.OnRenameWorkspace != nil {
-							if ui.Button(c, i18n.T(i18n.KeySidebarRenameWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(fg).FillWidth().Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeySidebarRenameWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).TextColor(fg).FillWidth().Clicked() {
 								*menuOpen = false
 								m.OnRenameWorkspace("")
 							}
 						}
 						if m.OnDeleteWorkspace != nil {
-							if ui.Button(c, i18n.T(i18n.KeySidebarDeleteWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).
+							if ui.Button(c, i18n.T(i18n.KeySidebarDeleteWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
 								TextColor(fg).FillWidth().Clicked() {
 								*menuOpen = false
 								m.OnDeleteWorkspace()
@@ -279,8 +279,8 @@ func View(c *ui.Context, m Model) {
 					Padding(0, 0, 0, 0).Radius(8)
 				folder.Children(func() {
 					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "📁").FontSize(13)
-						ui.Text(c, base).FontSize(12).TextColor(fg).Grow(1)
+						ui.Text(c, "📁").FontSize(theme.InterfaceSize(13))
+						ui.Text(c, base).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 					})
 				})
 				if folder.Clicked() && m.OnBrowseWorkspace != nil {
@@ -296,7 +296,7 @@ func View(c *ui.Context, m Model) {
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
 					workspaceRowsView(c, m, items, fg, muted, border)
 					if len(m.Snapshot.ArchivedSessionIDs) > 0 {
-						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(11).Bold().TextColor(muted).
+						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)
 						for _, id := range m.Snapshot.ArchivedSessionIDs {
 							aid := id
@@ -308,13 +308,13 @@ func View(c *ui.Context, m Model) {
 								}
 							}
 							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
-								ui.Text(c, label).FontSize(11).TextColor(muted).Grow(1)
+								ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
 								if m.OnUnarchive != nil {
-									if ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).FontSize(11).Clicked() {
+									if ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).FontSize(theme.InterfaceSize(11)).Clicked() {
 										m.OnUnarchive(aid)
 									}
 								}
-								if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).FontSize(11).Clicked() {
+								if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).FontSize(theme.InterfaceSize(11)).Clicked() {
 									m.OnDelete(aid)
 								}
 							})
@@ -326,7 +326,7 @@ func View(c *ui.Context, m Model) {
 			ui.Column(c).FillWidth().Padding(8, 0, 4, 0).Gap(2).Children(func() {
 				if m.OnOpenLauncher != nil {
 					btn := ui.Button(c, i18n.T(i18n.KeyLauncherOpen)).FillWidth().Height(32).Radius(8).
-						BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(13).
+						BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(13)).
 						Padding(0, 8, 0, 8).AlignItems(ui.Center)
 					if btn.Clicked() {
 						m.OnOpenLauncher()
@@ -334,7 +334,7 @@ func View(c *ui.Context, m Model) {
 				}
 				if m.OnOpenSettings != nil {
 					btn := ui.Button(c, i18n.T(i18n.KeySettingsOpen)).FillWidth().Height(32).Radius(8).
-						BorderWidth(0).Background(ui.Transparent).TextColor(fg).FontSize(13).
+						BorderWidth(0).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(13)).
 						Padding(0, 8, 0, 8).AlignItems(ui.Center)
 					if btn.Clicked() {
 						m.OnOpenSettings()
@@ -386,7 +386,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			}
 		})
 		if m.RenameError != "" {
-			ui.Text(c, m.RenameError).FontSize(11).TextColor(muted)
+			ui.Text(c, m.RenameError).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		return
 	}
@@ -395,7 +395,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			Background(bg).BorderWidth(0).
 			Padding(0, 8, 0, pad).AlignItems(ui.Center)
 		row.Children(func() {
-			ui.Text(c, label).FontSize(13).TextColor(titleColor).Grow(1)
+			ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor).Grow(1)
 		})
 		if m.OnSelect != nil && row.Clicked() {
 			m.OnSelect(it.SessionID)
@@ -407,34 +407,34 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	// Selected: title + optional cwd + action strip (overflow menu proxy).
 	cell := ui.Column(c).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
 	cell.Children(func() {
-		ui.Text(c, label).FontSize(13).TextColor(titleColor)
+		ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor)
 		if taskHint != "" {
-			ui.Text(c, strings.TrimSpace(taskHint)).FontSize(11).TextColor(metaColor)
+			ui.Text(c, strings.TrimSpace(taskHint)).FontSize(theme.InterfaceSize(11)).TextColor(metaColor)
 		}
 		if it.Cwd != "" {
-			ui.Text(c, it.Cwd).FontSize(11).TextColor(metaColor)
+			ui.Text(c, it.Cwd).FontSize(theme.InterfaceSize(11)).TextColor(metaColor)
 		}
 		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 			if it.Pinned {
-				if m.OnUnpin != nil && ui.Button(c, i18n.T(i18n.KeySidebarUnpin)).Tooltip(i18n.T(i18n.KeySidebarUnpin)).FontSize(11).Clicked() {
+				if m.OnUnpin != nil && ui.Button(c, i18n.T(i18n.KeySidebarUnpin)).Tooltip(i18n.T(i18n.KeySidebarUnpin)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					m.OnUnpin(it.SessionID)
 				}
-			} else if m.OnPin != nil && ui.Button(c, i18n.T(i18n.KeySidebarPin)).Tooltip(i18n.T(i18n.KeySidebarPin)).FontSize(11).Clicked() {
+			} else if m.OnPin != nil && ui.Button(c, i18n.T(i18n.KeySidebarPin)).Tooltip(i18n.T(i18n.KeySidebarPin)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnPin(it.SessionID)
 			}
-			if m.OnMoveSessionBefore != nil && ui.Button(c, i18n.T(i18n.KeySidebarMoveUp)).Tooltip(i18n.T(i18n.KeySidebarMoveUp)).FontSize(11).Clicked() {
+			if m.OnMoveSessionBefore != nil && ui.Button(c, i18n.T(i18n.KeySidebarMoveUp)).Tooltip(i18n.T(i18n.KeySidebarMoveUp)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnMoveSessionBefore(it.SessionID, "")
 			}
-			if m.OnBeginRename != nil && ui.Button(c, i18n.T(i18n.KeySidebarRename)).FontSize(11).Clicked() {
+			if m.OnBeginRename != nil && ui.Button(c, i18n.T(i18n.KeySidebarRename)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnBeginRename(it.SessionID, it.Title)
 			}
-			if m.OnArchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarArchive)).FontSize(11).Clicked() {
+			if m.OnArchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarArchive)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnArchive(it.SessionID)
 			}
-			if m.OnCopySessionID != nil && ui.Button(c, i18n.T(i18n.KeySidebarCopyID)).FontSize(11).Clicked() {
+			if m.OnCopySessionID != nil && ui.Button(c, i18n.T(i18n.KeySidebarCopyID)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnCopySessionID(it.SessionID)
 			}
-			if m.OnFork != nil && ui.Button(c, i18n.T(i18n.KeySidebarFork)).FontSize(11).Clicked() {
+			if m.OnFork != nil && ui.Button(c, i18n.T(i18n.KeySidebarFork)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.OnFork(it.SessionID)
 			}
 		})

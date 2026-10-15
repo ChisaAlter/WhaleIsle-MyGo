@@ -93,6 +93,8 @@ import (
 )
 
 type mainState struct {
+	appearanceEditor     *theme.Editor
+	appearanceVisible    bool
 	shortcutEditor       *shortcuts.Editor
 	projectWindowHidden  bool
 	startupRecovery      startupRecoveryState
@@ -1984,6 +1986,9 @@ func main() {
 			mygo.App.Quit()
 			return
 		}
+		if p, err := cfgStore.Appearance(); err == nil {
+			theme.SetPreferences(p)
+		}
 		state.openStartupRecovery(userData, cfgStore)
 		cfg := cfgStore.Get()
 		state.hostTerminals.ConfigureShellPreference(cfg.HostTerminalShell, func(path string) error {
@@ -2681,6 +2686,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.beginAppearanceFrame(c)
+	defer state.endAppearanceFrame()
 	defer state.observeAssistantBotRoute()
 	roomRuntimeRendered := false
 	defer func() { state.observeAssistantRoomRuntime(roomRuntimeRendered) }()
@@ -5166,6 +5173,7 @@ func mainView(c *ui.Context) {
 					},
 					AppearanceActive: appearanceActive,
 					Appearance: &settings.AppearanceAccess{
+						Preferences:      state.themeFontEditor(appearanceActive),
 						Theme:            &state.desktopDraft.theme,
 						WallpaperPath:    &state.desktopDraft.wallpaperPath,
 						WallpaperChoices: wallpaperChoices,

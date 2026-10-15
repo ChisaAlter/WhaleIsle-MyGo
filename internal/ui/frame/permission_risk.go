@@ -27,9 +27,9 @@ func permissionRiskConfirmation(c *ui.Context, m Model) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.4))
 		panel.Width(520).MaxWidthPercent(92).Padding(20).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
 			ui.Column(c).Gap(12).Children(func() {
-				ui.Text(c, title).FontSize(16).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, request.SessionID).FontSize(11).TextColor(chrome.Color(colors.Muted))
-				ui.Text(c, description).FontSize(12).TextColor(chrome.Color(colors.FG))
+				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
+				ui.Text(c, request.SessionID).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
+				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
 				acknowledged := request.Acknowledged
 				ui.Checkbox(c, &acknowledged, archiveText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue"))
 				if acknowledged != request.Acknowledged {

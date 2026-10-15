@@ -294,7 +294,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						minLines, maxLines = 2, 10
 					}
 					ta := ui.TextArea(c, m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
-						FontSize(14).FixedLineHeight(24).Padding(4, 8, 0, 14).
+						Font(theme.CurrentPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(theme.CurrentPreferences().Composer.Size*24/14).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					if m.Hero {
 						ta = ta.MinHeight(52)

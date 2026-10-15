@@ -2,6 +2,7 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/theme"
 )
 
 const (
@@ -47,6 +48,12 @@ func NewDraftClient(draft *string) *DraftClient {
 
 // Sync reconciles selection after the draft was changed without ReplaceText.
 func (c *DraftClient) Sync() {
+	p := theme.CurrentPreferences().Composer
+	if c.font.Family != p.Family || c.font.Size != p.Size {
+		c.font.Family = p.Family
+		c.font.Size = p.Size
+		c.shape()
+	}
 	c.ensure()
 }
 

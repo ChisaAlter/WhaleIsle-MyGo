@@ -3,6 +3,7 @@ package markdown
 import (
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -66,22 +67,24 @@ func CanSourceHighlight(path, code string) bool {
 
 // SourceSpans highlights a whole source file using chroma (by path or analyser).
 func SourceSpans(path, code string, st Style) []ui.Span {
+	st.FontSize = theme.CurrentPreferences().Code.Size
 	lang := LanguageFromPath(path)
 	switch lang {
 	case "markdown":
 		return Spans(code, st)
 	case "csv", "tsv":
-		return []ui.Span{{Text: code, Size: st.FontSize, Color: st.FG, Font: "Consolas"}}
+		return []ui.Span{{Text: code, Size: st.FontSize, Color: st.FG, Font: theme.CurrentPreferences().Code.Family}}
 	}
 	return highlightedCodeSpans(lang, code, st)
 }
 
 // SourceView paints highlighted source in RichText.
 func SourceView(c *ui.Context, path, code string, st Style) {
+	st.FontSize = theme.CurrentPreferences().Code.Size
 	spans := SourceSpans(path, code, st)
 	if len(spans) == 0 {
-		ui.Text(c, code).FontSize(st.FontSize).TextColor(st.FG)
+		ui.Text(c, code).Font(theme.CurrentPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
 		return
 	}
-	ui.RichText(c, spans...).FontSize(st.FontSize).TextColor(st.FG)
+	ui.RichText(c, spans...).Font(theme.CurrentPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
 }

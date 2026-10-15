@@ -2,6 +2,7 @@ package chrome
 
 import (
 	"fmt"
+	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -50,7 +51,7 @@ func DrawPRPanel(c *ui.Context, colors TitleBarColors, open bool, m PRPanel) {
 					summary = m.EmptyText
 				}
 				if summary != "" {
-					ui.Text(c, summary).FontSize(12).TextColor(colors.Foreground).Grow(1)
+					ui.Text(c, summary).FontSize(theme.InterfaceSize(12)).TextColor(colors.Foreground).Grow(1)
 				} else {
 					ui.Box(c).Grow(1)
 				}
@@ -83,7 +84,7 @@ func DrawPRPanel(c *ui.Context, colors TitleBarColors, open bool, m PRPanel) {
 						if label == "" {
 							label = fmt.Sprintf("#%d", i+1)
 						}
-						ui.Text(c, label).FontSize(11).TextColor(muted).Grow(1)
+						ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
 						if it.OnCheckout != nil && it.CheckoutLabel != "" {
 							if ui.Button(c, it.CheckoutLabel).Clicked() {
 								it.OnCheckout()

@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"strings"
+	"whaleisle/internal/ui/theme"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
@@ -39,16 +40,16 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 		}
 		out = append(out, ui.Span{
 			Text:       tok.Value,
-			Size:       st.FontSize - 1,
+			Size:       theme.CurrentPreferences().Code.Size,
 			Color:      chromaColor(style, tok.Type, st.FG),
 			Background: st.CodeBG,
-			Font:       "Consolas",
+			Font:       theme.CurrentPreferences().Code.Family,
 		})
 	}
 	if len(out) == 0 {
 		return []ui.Span{codeSpan(code+"\n", st)}
 	}
-	out = append(out, ui.Span{Text: "\n", Size: st.FontSize - 1, Background: st.CodeBG, Font: "Consolas"})
+	out = append(out, ui.Span{Text: "\n", Size: theme.CurrentPreferences().Code.Size, Background: st.CodeBG, Font: theme.CurrentPreferences().Code.Family})
 	return out
 }
 

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
@@ -29,13 +30,13 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Interface
-	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, a.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	desktopRow(c, i18n.T(i18n.KeySettingsDesktopLocale), func() {
 		if a.Locale == nil {
@@ -61,21 +62,21 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		ui.Checkbox(c, a.AutoStartDesktop, "")
 	}, fg, muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoStartDesc)).FontSize(11).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoStartDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	desktopRow(c, i18n.T(i18n.KeySettingsInterfaceViewTabs), func() {
 		if a.ShowViewTabs == nil {
 			return
 		}
 		ui.Checkbox(c, a.ShowViewTabs, "")
 	}, fg, muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(11).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	desktopRow(c, i18n.T(i18n.KeySettingsInterfaceAutoAllow), func() {
 		if a.AutoAllowTools == nil {
 			return
 		}
 		ui.Checkbox(c, a.AutoAllowTools, "")
 	}, fg, muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(11).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 		a.OnSave()
 	}
