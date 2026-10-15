@@ -110,9 +110,9 @@ func Fetch(workspaceRoot string) (string, error) {
 	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "fetch")
 }
 
-// Pull runs `git pull` in workspaceRoot and returns combined stdout/stderr.
+// Pull updates only by fast-forward; divergent history is left for explicit resolution.
 func Pull(workspaceRoot string) (string, error) {
-	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "pull")
+	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "pull", "--ff-only")
 }
 
 // Push runs `git push` in workspaceRoot and returns combined stdout/stderr.

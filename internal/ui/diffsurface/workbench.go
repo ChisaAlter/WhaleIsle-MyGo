@@ -14,6 +14,9 @@ type Workbench struct {
 	Staged                                   bool
 	Message, Status, ReviewToken, ReviewText string
 	Loaded                                   bool
+	Branches                                 []git.Branch
+	BranchesOpen                             bool
+	BranchQuery, BranchName, BranchStatus     string
 }
 
 func word(zh, en string) string {
@@ -58,6 +61,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.reload(m.WorkspaceRoot)
 	}
 	ui.Column(c).Gap(4).Padding(4, 12, 8, 12).Children(func() {
+		paintBranches(c, m, fg, muted)
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, word("全部未暂存", "All unstaged")).Clicked() {
 				scopeDiff(m, "", false)
