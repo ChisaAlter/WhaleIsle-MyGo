@@ -110,24 +110,17 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		// TrajectoryTimeline — overview strip from row kinds.
 		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(11).TextColor(muted)
-			ui.Row(c).FillWidth().Height(18).Gap(2).AlignItems(ui.Center).Children(func() {
-				if len(rows) == 0 {
-					ui.Box(c).Grow(1).Height(8).Background(border).Radius(4)
-					return
-				}
-				for _, r := range rows {
-					row := r
-					w := float32(1)
-					if *actualDur {
-						w = float32(trajWeight(row.Kind))
+			if *actualDur {
+				paintRecordedTrajectoryTimeline(c, rows, selected, accent, muted, border)
+			} else {
+				ui.Row(c).FillWidth().Height(18).Gap(2).AlignItems(ui.Center).Children(func() {
+					for _, row := range rows {
+						if ui.Button(c, "").Grow(1).Height(10).Background(trajKindColor(row.Kind, accent, muted, border)).BorderWidth(0).Radius(2).Clicked() {
+							*selected = row.ID
+						}
 					}
-					col := trajKindColor(row.Kind, accent, muted, border)
-					seg := ui.Button(c, "").Grow(w).Height(10).Background(col).BorderWidth(0).Radius(2)
-					if seg.Clicked() {
-						*selected = row.ID
-					}
-				}
-			})
+				})
+			}
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 
@@ -259,12 +252,8 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					copyBody = body
 					ui.Text(c, body).FontSize(12).TextColor(fg)
 				case "timing":
-					if detail.Time != "" {
-						copyBody = detail.Time
-						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyTrajTimingLine), detail.Time)).FontSize(12).TextColor(fg)
-					} else {
-						ui.Text(c, i18n.T(i18n.KeyTrajNoTiming)).FontSize(12).TextColor(muted)
-					}
+					copyBody = trajectoryTimingDetail(*detail)
+					ui.Text(c, copyBody).FontSize(12).TextColor(fg)
 				default: // overview
 					ui.Text(c, kindLabelZH(detail.Kind)).FontSize(12).FontWeight(600).TextColor(accent)
 					var parts []string
@@ -326,16 +315,18 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 }
 
 type trajRow struct {
-	ID      string
-	Kind    session.MessageKind
-	Role    string
-	Input   string
-	Output  string
-	Think   string
-	Time    string
-	Model   string
-	Tools   string
-	RawHint string
+	Timing    *session.TrajectoryTiming
+	EventTime float64
+	ID        string
+	Kind      session.MessageKind
+	Role      string
+	Input     string
+	Output    string
+	Think     string
+	Time      string
+	Model     string
+	Tools     string
+	RawHint   string
 }
 
 func buildTrajectoryRows(msgs []session.Message, query string, turnsFold, callsFold bool) []trajRow {
@@ -373,10 +364,12 @@ func messageToTrajRow(msg session.Message) trajRow {
 	}
 	body := clipRunes(strings.TrimSpace(msg.Body), 80)
 	row := trajRow{
-		ID:    id,
-		Kind:  msg.Kind,
-		Role:  msg.Role,
-		Model: msg.Model,
+		ID:        id,
+		Kind:      msg.Kind,
+		Role:      msg.Role,
+		Model:     msg.Model,
+		Timing:    msg.TrajectoryTime,
+		EventTime: msg.EventTime,
 	}
 	switch msg.Kind {
 	case session.MessageKindTool:
@@ -427,13 +420,7 @@ func messageToTrajRow(msg session.Message) trajRow {
 			row.Input = body
 		}
 	}
-	if msg.Streaming {
-		row.Time = i18n.T(i18n.KeyTrajInProgress)
-	} else if msg.EventTime > 0 {
-		row.Time = formatEventTime(msg.EventTime)
-	} else if msg.Seq > 0 {
-		row.Time = fmt.Sprintf("#%.0f", msg.Seq)
-	}
+	row.Time = trajectoryDurationLabel(msg.TrajectoryTime, msg.Streaming)
 	if row.RawHint == "" && msg.Args != "" {
 		row.RawHint = msg.Args
 	}
@@ -449,7 +436,7 @@ func formatEventTime(ms float64) string {
 	if sec <= 0 {
 		return ""
 	}
-	return time.Unix(sec, 0).Local().Format("15:04:05")
+	return time.UnixMilli(int64(ms)).Local().Format("15:04:05.000")
 }
 
 func findTrajectoryRow(rows []trajRow, id string) *trajRow {
@@ -476,17 +463,6 @@ func kindLabelZH(k session.MessageKind) string {
 		return i18n.T(i18n.KeyTrajDeliverables)
 	default:
 		return i18n.T(i18n.KeyTrajKindMessage)
-	}
-}
-
-func trajWeight(k session.MessageKind) int {
-	switch k {
-	case session.MessageKindTool:
-		return 2
-	case session.MessageKindThinking:
-		return 1
-	default:
-		return 3
 	}
 }
 

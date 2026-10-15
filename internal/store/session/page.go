@@ -169,6 +169,7 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 		}
 		s.bumpHistoryThroughSeq(rec.Event.Seq)
 		s.captureWorkflowBoundaryLocked(raw)
+		s.captureTrajectoryBoundaryLocked(raw)
 		var head struct {
 			Type string  `json:"type"`
 			Seq  float64 `json:"seq"`

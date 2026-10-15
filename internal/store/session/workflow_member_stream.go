@@ -82,6 +82,11 @@ func (p *workflowMemberStream) prune() {
 			delete(s.workflowBoundaries, seq)
 		}
 	}
+	for seq := range s.trajectoryBoundaries {
+		if seq < floor {
+			delete(s.trajectoryBoundaries, seq)
+		}
+	}
 }
 func (p *workflowMemberStream) messages() []Message {
 	s := p.presentation

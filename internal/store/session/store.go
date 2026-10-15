@@ -48,8 +48,9 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
-	Workflow   *workflowrun.Run
-	Submission *PendingSubmission
+	TrajectoryTime *TrajectoryTiming
+	Workflow       *workflowrun.Run
+	Submission     *PendingSubmission
 	// Tool is populated only by the read-only chat lifecycle projection.
 	Tool        *ToolCallView
 	Command     *CommandView
@@ -160,6 +161,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
 	planHistoryBinding        string
@@ -520,6 +522,7 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 	st.Messages = s.projectPreparingToolsLocked(st.Messages)
+	st.Messages = s.projectTrajectoryTimingLocked(st.Messages)
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)

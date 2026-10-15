@@ -163,6 +163,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
 		s.messages = nil
 		s.workflowBoundaries = nil
+		s.trajectoryBoundaries = nil
 		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0
 		s.editTurnOpening = false
@@ -230,9 +231,11 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 		return false
 	}
 	s.captureWorkflowBoundaryLocked(raw)
+	timingChanged := s.captureTrajectoryBoundaryLocked(raw)
 	s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
+	changed = changed || timingChanged
 	if head.Type == events.TypeAgentPresetSelected {
 		var ev events.AgentPresetSelected
 		if json.Unmarshal(raw, &ev) == nil && ev.Data.AgentPreset != "" {

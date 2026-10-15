@@ -18,16 +18,17 @@ type assistantStreamState struct {
 }
 
 type assistantStreamAttempt struct {
-	tools           toolPreparingState
-	AttemptID       string            `json:"attemptId"`
-	StartedAfterSeq float64           `json:"startedAfterSeq"`
-	Turn            float64           `json:"turn"`
-	Step            float64           `json:"step"`
-	NextIndex       int               `json:"nextIndex"`
-	Stream          []json.RawMessage `json:"stream"`
-	blocks          map[int]assistantStreamBlock
-	rows            map[int]string
-	settlementSeq   float64
+	trajectoryFirstToken *float64
+	tools                toolPreparingState
+	AttemptID            string            `json:"attemptId"`
+	StartedAfterSeq      float64           `json:"startedAfterSeq"`
+	Turn                 float64           `json:"turn"`
+	Step                 float64           `json:"step"`
+	NextIndex            int               `json:"nextIndex"`
+	Stream               []json.RawMessage `json:"stream"`
+	blocks               map[int]assistantStreamBlock
+	rows                 map[int]string
+	settlementSeq        float64
 }
 
 type assistantStreamBaseline struct {
@@ -265,6 +266,9 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 }
 
 func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64) bool {
+	if a.trajectoryFirstToken == nil {
+		a.trajectoryFirstToken = trajectoryTokenTime(raw, time)
+	}
 	toolChanged := foldToolPreparingChunk(&a.tools, raw, time)
 	if a.blocks == nil {
 		a.blocks = make(map[int]assistantStreamBlock)
