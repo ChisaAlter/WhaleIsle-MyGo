@@ -21,6 +21,9 @@ type RemoteFile struct {
 }
 type FileSnapshot struct {
 	BindingID                                                              string
+	RootPath                                                               string
+	RemoteIdentity                                                         string
+	MutationApplied                                                        bool
 	SessionID, Path, FilePath, Draft, Error, Notice, Operation, Downloaded string
 	Items                                                                  []DirectoryEntry
 	File                                                                   RemoteFile
@@ -58,9 +61,10 @@ func (s *Files) Bind(c *dsh.Client, sessionID string, notify func()) {
 	}
 	s.generation++
 	if old := s.states[s.key]; old != nil {
-		if old.Busy && old.Operation == "write" {
+		if old.Busy && (old.Operation == "write" || isFileMutation(old.Operation)) {
 			old.Stale = true
-			old.Error = "Connection or session changed during save; draft retained and write outcome is uncertain."
+			old.Error = "Connection or session changed during a remote mutation; outcome is uncertain. Refresh before retrying."
+			old.Loaded, old.Bound = false, false
 		}
 		old.Busy = false
 	}
@@ -165,6 +169,7 @@ func (s *Files) run(action, path string) {
 		return
 	}
 	v.Busy = true
+	v.MutationApplied = false
 	v.Error = ""
 	v.Notice = ""
 	v.Operation = action
@@ -186,6 +191,7 @@ func (s *Files) run(action, path string) {
 			Missing bool             `json:"missing"`
 		}
 		var file RemoteFile
+		rootPath, remoteIdentity := captured.RootPath, captured.RemoteIdentity
 		var receipt struct {
 			Mtime *float64 `json:"mtime"`
 			Local string   `json:"local"`
@@ -196,12 +202,18 @@ func (s *Files) run(action, path string) {
 			var status struct {
 				SessionBound bool   `json:"sessionBound"`
 				SessionMode  string `json:"sessionMode"`
+				Workspace string `json:"workspace"`
+				Host string `json:"host"`
+				Username string `json:"username"`
+				Port int `json:"port"`
 			}
 			err = request(ctx, c, "GET", "status?sessionId="+url.QueryEscape(captured.SessionID), nil, &status)
 			if err == nil && (!status.SessionBound || status.SessionMode != "remote") {
 				err = fmt.Errorf("Selected session is not bound to a remote workspace; no machine-default fallback is used")
 			}
 			if err == nil {
+				rootPath = status.Workspace
+				remoteIdentity = fmt.Sprintf("%s\x00%s\x00%d\x00%s", status.Host, status.Username, status.Port, status.Workspace)
 				err = request(ctx, c, "GET", "ls?sessionId="+url.QueryEscape(captured.SessionID)+"&path="+url.QueryEscape(path), nil, &directory)
 			}
 			if err == nil && (!directory.Bound || directory.Missing) {
@@ -243,6 +255,11 @@ func (s *Files) run(action, path string) {
 		} else {
 			switch action {
 			case "browse":
+				if v.RemoteIdentity != "" && v.RemoteIdentity != remoteIdentity {
+					v.Stale = v.FileLoaded
+					v.Notice = "Session remote binding changed; reload the file before editing."
+				}
+				v.RootPath, v.RemoteIdentity = rootPath, remoteIdentity
 				v.Path = directory.Path
 				v.Items = directory.Items
 				v.Loaded = true

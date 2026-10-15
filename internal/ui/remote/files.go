@@ -8,6 +8,7 @@ import (
 
 // FileEditor keeps the native text input pointer stable while Files owns per-session drafts.
 type FileEditor struct {
+	Actions FileActions
 	Key                      string
 	Revision                 uint64
 	Draft                    string
@@ -35,7 +36,7 @@ func viewSessionFiles(c *ui.Context, m Model) {
 			return
 		}
 		ui.Text(c, s.SessionID).FontSize(11)
-		ui.Text(c, label("所有读取、保存和下载都绑定此会话，不使用当前机器默认目录。", "Reads, saves and downloads use this session binding, never the active machine default.")).FontSize(11)
+		ui.Text(c, label("所有远程文件操作都绑定此会话，不使用当前机器默认目录。", "All remote file operations use this session binding, never the active machine default.")).FontSize(11)
 		disabled := s.Busy || !m.HarnessReady || !m.RemoteWorkspaceEnabled
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, label("浏览 / 刷新会话目录", "Browse / refresh session directory")).Disabled(disabled || s.Dirty()).Clicked() {
@@ -66,16 +67,16 @@ func viewSessionFiles(c *ui.Context, m Model) {
 					if item.IsDirectory() {
 						caption = "▸ " + caption
 					}
-					if ui.Button(c, caption).FillWidth().Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
-						if item.IsDirectory() {
-							m.Files.Browse(item.Path)
-						} else {
-							m.Files.Open(item.Path)
+					ui.Row(c).Gap(5).Children(func() {
+						if ui.Button(c, caption).Grow(1).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
+							if item.IsDirectory() { m.Files.Browse(item.Path) } else { m.Files.Open(item.Path) }
 						}
-					}
+						fileRowActions(c, m, item, s, disabled)
+					})
 				}
 			})
 		})
+		remoteFileActionsView(c, m, s, disabled)
 		if !s.FileLoaded {
 			return
 		}
