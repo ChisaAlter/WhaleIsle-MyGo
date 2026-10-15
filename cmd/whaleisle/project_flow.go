@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	searchQuery                   string
+	history                       bool
 	historical                    *projectHistoricalState
 	historicalGeneration          uint64
 	activity                      *projectActivityState
@@ -77,6 +79,9 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m.SearchQuery = f.searchQuery
+	m.History = f.history
+	filterClient := f.client
 	for _, p := range listing.Projects {
 		if p.ID == f.requestProjectID {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
@@ -106,6 +111,26 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		if load {
 			s.runProjectAction(win, "list", "", "")
 		}
+	}
+	m.OnSearchQuery = func(query string) {
+		s.dshMu.Lock()
+		client := s.dshClient
+		s.dshMu.Unlock()
+		s.mu.Lock()
+		if client == filterClient && s.projectFlow.client == filterClient {
+			s.projectFlow.searchQuery = query
+		}
+		s.mu.Unlock()
+	}
+	m.OnHistory = func(history bool) {
+		s.dshMu.Lock()
+		client := s.dshClient
+		s.dshMu.Unlock()
+		s.mu.Lock()
+		if client == filterClient && s.projectFlow.client == filterClient {
+			s.projectFlow.history = history
+		}
+		s.mu.Unlock()
 	}
 	m.OnRefresh = func() { s.runProjectAction(win, "list", "", "") }
 	m.OnCreate = func() { s.runProjectAction(win, "create", workspace, "") }

@@ -8,6 +8,10 @@ import (
 )
 
 type Model struct {
+	SearchQuery                                                          string
+	History                                                              bool
+	OnSearchQuery                                                        func(string)
+	OnHistory                                                            func(bool)
 	Historical                                                           *projectflow.HistoricalSnapshot
 	OnHistoricalSource                                                   func(string)
 	OnHistoricalAction                                                   func(string)
@@ -155,21 +159,23 @@ func View(c *ui.Context, m Model) {
 			teamView(c, m)
 			return
 		}
+		projectFilterControls(c, &m)
+		visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
 		if m.Workspace != "" {
 			ui.Text(c, tr("初始目录：", "Starting directory: ")+m.Workspace).FontSize(11)
 		}
 		if ui.Button(c, tr("选择目录并授权创建 Project", "Choose and authorize a Project directory")).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.Workspace == "").Clicked() && m.OnCreate != nil {
 			m.OnCreate()
 		}
-		if m.Loaded && m.Listing.Available && len(m.Listing.Projects) == 0 {
-			ui.Text(c, tr("尚无 Project", "No Projects yet")).FontSize(12)
+		if m.Loaded && m.Listing.Available && len(visible) == 0 {
+			ui.Text(c, projectEmptyLabel(m)).FontSize(12)
 		}
-		if len(m.Listing.Projects) == 0 {
+		if len(visible) == 0 {
 			return
 		}
 		ui.Scroll(c).Height(200).Children(func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				for _, p := range m.Listing.Projects {
+				for _, p := range visible {
 					p := p
 					ui.Column(c).FillWidth().Gap(2).Children(func() {
 						title := p.Title
