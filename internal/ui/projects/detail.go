@@ -19,8 +19,11 @@ func detailView(c *ui.Context, m Model) {
 		if ui.Button(c, tr("打开 Lead", "Open Lead")).Disabled(m.Busy).Clicked() && m.OnOpen != nil {
 			m.OnOpen(m.TeamID)
 		}
-		if ui.Button(c, tr("查看成员过程", "View member history")).Disabled(m.Busy || d.Worker == nil || !d.Worker.Materialized).Clicked() && m.OnProcess != nil {
+		if ui.Button(c, tr("实时跟进成员过程", "Follow member live")).Disabled(m.Busy || m.ProcessWatching || d.Worker == nil || !d.Worker.Materialized).Clicked() && m.OnProcess != nil {
 			m.OnProcess(false)
+		}
+		if m.ProcessWatching && ui.Button(c, tr("停止跟进", "Stop following")).Clicked() && m.OnStopProcess != nil {
+			m.OnStopProcess()
 		}
 	})
 	if d.Worker != nil && d.Worker.Phase == "failed" {
@@ -55,7 +58,17 @@ func detailView(c *ui.Context, m Model) {
 				ui.Text(c, attempt.Ref+" · "+attempt.Phase+" · "+attempt.RunID).FontSize(11)
 			}
 			if m.Process != nil {
-				ui.Text(c, tr("成员过程快照（只读，最近最多30条消息）", "Member history snapshot (read-only, up to 30 recent messages)")).FontSize(11)
+				label := tr("成员过程历史（只读）", "Member process history (read-only)")
+				if m.ProcessWatching {
+					label = tr("正在持续跟进成员过程（只读）", "Following member process live (read-only)")
+				}
+				ui.Text(c, label).FontSize(11)
+				if m.Process.Error != "" {
+					ui.Text(c, m.Process.Error).FontSize(11)
+				}
+				if m.Process.Truncated {
+					ui.Text(c, tr("只保留最近400条记录；更早内容可通过历史分页读取。", "Showing the latest 400 records; use earlier history for older content.")).FontSize(11)
+				}
 				for _, record := range m.Process.Records {
 					if record.Type != "event" {
 						ui.Text(c, record.Type).FontSize(11)
@@ -76,7 +89,7 @@ func detailView(c *ui.Context, m Model) {
 					}
 					ui.Text(c, body).FontSize(11)
 				}
-				if m.Process.HasMore && ui.Button(c, tr("更早的过程记录", "Earlier history")).Disabled(m.Busy).Clicked() && m.OnProcess != nil {
+				if m.Process.HasMore && ui.Button(c, tr("查看更早记录（停止实时跟进）", "Earlier history (stop live follow)")).Disabled(m.Busy).Clicked() && m.OnProcess != nil {
 					m.OnProcess(true)
 				}
 			}

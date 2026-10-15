@@ -8,6 +8,8 @@ import (
 )
 
 type Model struct {
+	ProcessWatching                                                      bool
+	OnStopProcess                                                        func()
 	Reports                                                              *projectflow.ReportBrowser
 	OnReports                                                            func(string)
 	OnReportAction                                                       func(string, string)

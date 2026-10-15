@@ -2,7 +2,6 @@ package projectflow
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"whaleisle/internal/dsh"
 )
@@ -63,30 +62,6 @@ func RetryDraft(p Project, d WorkDetail) (string, error) {
 		return "", fmt.Errorf("refresh a failed original member before preparing a retry request")
 	}
 	return fmt.Sprintf("Please retry the failed original Project work %q (workstreamId: %s, member session / childId: %s). Inspect the failure first and continue this existing workstream with its original member identity and authorized scope. Do not create a duplicate task or replacement member. If the original identity cannot be resumed safely, explain the blocker before taking another approach.", d.Workstream.Title, d.Workstream.ID, d.Worker.SessionID), nil
-}
-
-type ProcessRecord struct {
-	Type  string `json:"type"`
-	Event struct {
-		Type string          `json:"type"`
-		Seq  float64         `json:"seq"`
-		Data json.RawMessage `json:"data"`
-	} `json:"event"`
-}
-type ProcessSnapshot struct {
-	Type    string          `json:"type"`
-	Cursor  float64         `json:"cursor"`
-	Records []ProcessRecord `json:"records"`
-	HasMore bool            `json:"hasMore"`
-}
-
-func ParseProcessSnapshot(raw []byte) (ProcessSnapshot, error) {
-	var out ProcessSnapshot
-	err := json.Unmarshal(raw, &out)
-	if err == nil && (out.Type != "snapshot" || out.Records == nil) {
-		err = fmt.Errorf("invalid member history opening snapshot")
-	}
-	return out, err
 }
 
 // ReadProcess captures one non-activating continuable follow opening and releases

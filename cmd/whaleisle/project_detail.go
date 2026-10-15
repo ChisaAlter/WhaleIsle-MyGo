@@ -24,6 +24,7 @@ func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, membe
 		s.mu.Unlock()
 		return
 	}
+	s.stopProjectProcessLocked()
 	p := f.team.Project
 	prior := f.detail
 	oldProcess := f.process

@@ -14,6 +14,9 @@ import (
 )
 
 type projectFlowState struct {
+	processCancel                 context.CancelFunc
+	processMux                    *dsh.Mux
+	processWatchGeneration        uint64
 	reports                       *projectflow.ReportBrowser
 	materials                     map[string]*projectflow.MaterialDraft
 	materialKey                   string
@@ -45,6 +48,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.stopProjectProcessLocked()
 		expanded := f.expanded
 		generation := f.generation + 1
 		*f = projectFlowState{client: s.dshClient, expanded: expanded, generation: generation}
@@ -56,6 +60,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	if workspace == "" {
 		workspace = paths.DefaultWorkspace()
 	}
+	s.syncProjectProcessLocked()
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
@@ -64,6 +69,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
 		}
 	}
+	m.ProcessWatching = f.processCancel != nil
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
@@ -72,6 +78,9 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnToggle = func() {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
+		if !s.projectFlow.expanded {
+			s.stopProjectProcessLocked()
+		}
 		s.projectFlow.navigation++
 		load := s.projectFlow.expanded && !s.projectFlow.loaded
 		s.mu.Unlock()
@@ -93,6 +102,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnTeam = func(id string) { s.runProjectTeam(win, id, "inspect", "") }
 	m.OnCloseTeam = func() {
 		s.mu.Lock()
+		s.stopProjectProcessLocked()
 		s.projectFlow.teamID = ""
 		s.projectFlow.team = nil
 		s.projectFlow.detail = nil
@@ -106,17 +116,19 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnInspect = func(workID, memberID string) { s.runProjectDetail(win, m.TeamID, "detail", workID, memberID) }
 	m.OnCloseDetail = func() {
 		s.mu.Lock()
+		s.stopProjectProcessLocked()
 		s.projectFlow.detail = nil
 		s.projectFlow.process = nil
 		s.projectFlow.detailGeneration++
 		s.mu.Unlock()
 	}
+	m.OnStopProcess = func() { s.mu.Lock(); s.stopProjectProcessLocked(); s.mu.Unlock() }
 	m.OnProcess = func(earlier bool) {
-		action := "process"
 		if earlier {
-			action = "earlier"
+			s.runProjectDetail(win, m.TeamID, "earlier", "", "")
+			return
 		}
-		s.runProjectDetail(win, m.TeamID, action, "", "")
+		s.watchProjectProcess(win, m.TeamID)
 	}
 	m.OnRetryDraft = func() { s.runProjectDetail(win, m.TeamID, "retry-draft", "", "") }
 	m.OnSummaryRetryDraft = func() { s.runProjectRecoveryDraft(win, m.TeamID, "summary") }

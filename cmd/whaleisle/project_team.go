@@ -35,6 +35,7 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 		s.mu.Unlock()
 		return
 	}
+	s.stopProjectProcessLocked()
 	if f.teamID != id {
 		f.team = nil
 		f.teamNote = ""

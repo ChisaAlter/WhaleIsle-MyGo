@@ -1769,6 +1769,9 @@ func (s *mainState) stopDSH() {
 
 func (s *mainState) stopDSHLocked() {
 	s.cancelComposerVoice()
+	s.mu.Lock()
+	s.stopProjectProcessLocked()
+	s.mu.Unlock()
 	if s.remoteFiles != nil {
 		s.remoteFiles.Bind(nil, "", nil)
 	}
@@ -2072,6 +2075,7 @@ func main() {
 		win.OnClosed(func() {
 			state.mu.Lock()
 			state.fileTabs.Dispose()
+			state.stopProjectProcessLocked()
 			state.mu.Unlock()
 		})
 
