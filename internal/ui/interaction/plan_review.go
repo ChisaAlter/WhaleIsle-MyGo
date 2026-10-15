@@ -10,7 +10,7 @@ import (
 
 // planReviewCard deliberately replaces generic Continue/Deny. Discussion only
 // dismisses the panel; approval is sent exclusively by the explicit decision.
-func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, fg, muted, accent ui.Color) {
+func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
 	review := card.PlanReview
 	if review == nil {
 		return
@@ -37,6 +37,13 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 		title = strings.TrimSpace(strings.TrimPrefix(title, "#"))
 		if title == "" {
 			title = planpreview.Text("提交的计划", "Submitted plan")
+		}
+		if onOpen != nil && ui.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar")).FontSize(11).Clicked() {
+			address := planpreview.ReviewAddress(pending.AgentID, pending.EventID)
+			if review.CallID != "" {
+				address = planpreview.PlanAddress(pending.AgentID, review.CallID)
+			}
+			onOpen(planpreview.Document{Address: address, Title: title, Markdown: review.Plan})
 		}
 		planpreview.View(c, "review-document:"+pending.AgentID+":"+pending.EventID, title, review.Plan, true, planpreview.Style{FG: fg, Muted: muted, Accent: accent, Field: accent.Alpha(0.03), Border: accent.Alpha(0.18)})
 		if pending.Error != "" {

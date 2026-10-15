@@ -24,6 +24,7 @@ import (
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/i18n"
 	interui "whaleisle/internal/ui/interaction"
+	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/projects"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/sidebar"
@@ -271,6 +272,7 @@ type Model struct {
 	OnOpenImageLightbox          func(displayPath string)
 	OnCloseImageLightbox         func()
 	OnOpenCitationURL            func(url string)
+	OnOpenPlanResource           func(planpreview.Document)
 	OnOpenDeliverable            func(path string)
 	VisualReply                  session.VisualReplyState
 	VisualReplyBitmap            *ui.Bitmap
@@ -309,6 +311,9 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
 	snap := m.Store.Snapshot()
+	if m.FileTabs != nil {
+		m.FileTabs.SyncPlanSession(snap.SelectedID)
+	}
 	if m.Interactions != nil {
 		m.Interactions.SyncProjectedQuestions(snap.SelectedID, snap.QuestionProjection.Questions, snap.QuestionProjection.Inbox, snap.QuestionProjection.QuestionsSeq, snap.QuestionProjection.InboxSeq)
 		syncQuestionHistory(m.Interactions, snap)
@@ -852,6 +857,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnOpenImageLightbox:          m.OnOpenImageLightbox,
 										OnCloseImageLightbox:         m.OnCloseImageLightbox,
 										OnOpenCitationURL:            m.OnOpenCitationURL,
+										OnOpenPlanResource:           m.OnOpenPlanResource,
 										OnOpenDeliverable:            m.OnOpenDeliverable,
 										VisualReply:                  m.VisualReply,
 										VisualReplyBitmap:            m.VisualReplyBitmap,
@@ -925,6 +931,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									SystemDark:         m.SystemDark,
 									Store:              m.Interactions,
 									OnAutoAllowChanged: m.OnAutoAllowChanged,
+									OnOpenPlanResource: m.OnOpenPlanResource,
 								})
 							})
 							ui.Box(c).Grow(1).MinWidth(0)
@@ -1110,6 +1117,8 @@ func rightPane(c *ui.Context, m Model) {
 			return
 		}
 		files.View(c, files.Model{
+			PlanSnapshot:      m.Store.Snapshot(),
+			OnLoadPlanHistory: func() { m.Store.LoadEarlierHistory(context.Background()) },
 			Tabs:              m.FileTabs,
 			BindingID:         m.FileBindingID,
 			SessionID:         m.Store.Snapshot().SelectedID,

@@ -75,6 +75,7 @@ import (
 	imui "whaleisle/internal/ui/im"
 	"whaleisle/internal/ui/launcher"
 	marketui "whaleisle/internal/ui/market"
+	"whaleisle/internal/ui/planpreview"
 	remoteui "whaleisle/internal/ui/remote"
 	scheduleui "whaleisle/internal/ui/schedule"
 	costui "whaleisle/internal/ui/sessioncost"
@@ -6496,10 +6497,33 @@ func mainView(c *ui.Context) {
 						OnReadVisualReply:            func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
 						OnSaveVisualReply:            func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },
 						OnCloseVisualReply:           sessions.CloseVisualReply,
+						OnOpenPlanResource: func(doc planpreview.Document) {
+							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
+								return
+							}
+							state.dshMu.Lock()
+							currentClient := state.dshClient
+							state.dshMu.Unlock()
+							if fmt.Sprintf("%p\x00%s", currentClient, snap.SelectedID) != fileBindingID {
+								return
+							}
+							if err := fileTabs.OpenPlanResource(snap.SelectedID, fileBindingID, doc); err != "" {
+								sessions.SetLastAction(err)
+								return
+							}
+							state.mu.Lock()
+							state.filesPaneOpen, state.rightPaneTab = true, "files"
+							state.mu.Unlock()
+							filesPaneOpen, rightPaneTab = true, "files"
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
 						OnOpenDeliverable: func(path string) {
 							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
 								return
 							}
+							fileTabs.Plans.ShowFiles(snap.SelectedID)
 							handled, err := files.OpenPresentedPath(files.Model{
 								WorkspaceRoot: snap.SelectedCwd,
 								Tabs:          &fileTabs, SelectedFile: &selectedFile,

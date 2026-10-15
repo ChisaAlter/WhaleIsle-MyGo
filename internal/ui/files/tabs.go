@@ -8,12 +8,15 @@ import (
 	"path/filepath"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/planpreview"
 )
 
 // Tabs owns drafts for all open workspace files for the lifetime of this window.
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
+	planSession string
+	Plans       planpreview.Resources
 	Preferences *PreviewPreferences
 	floating    *floatingPreview
 	Workspaces  map[string]*WorkspaceTabs
@@ -338,6 +341,7 @@ func (t *Tabs) Restore(data []byte) error {
 // Bind cancels obsolete background reads even while the Files pane is hidden.
 // Drafts stay attached to their workspace and are never flushed on a switch.
 func (t *Tabs) Bind(binding, root string) {
+	t.Plans.BindOwner(planpreview.HostOwner(binding))
 	if t.binding == binding && t.boundRoot == root {
 		return
 	}

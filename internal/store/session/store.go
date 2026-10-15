@@ -72,6 +72,8 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	// PlanHistoryBinding owns the last authoritative follow snapshot.
+	PlanHistoryBinding   string
 	WorkspaceLayout      WorkspaceLayoutState
 	Workspaces           []WorkspaceRow
 	WorkspaceReady       bool
@@ -155,6 +157,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64
 	composerOrder             uint64
@@ -462,6 +465,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		PlanHistoryBinding:  s.planHistoryBinding,
 		WorkspaceLayout:     s.workspaceLayoutLocked(),
 		Workspaces:          s.workspaceRowsLocked(),
 		WorkspaceReady:      s.workspaceReady,

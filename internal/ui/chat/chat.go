@@ -53,6 +53,7 @@ type Model struct {
 	OnOpenImageLightbox  func(displayPath string)
 	OnCloseImageLightbox func()
 	OnOpenCitationURL    func(url string)
+	OnOpenPlanResource   func(planpreview.Document)
 	// OnOpenDeliverable opens a presented file path in the files dock.
 	OnOpenDeliverable            func(path string)
 	VisualReply                  session.VisualReplyState
@@ -114,7 +115,7 @@ func View(c *ui.Context, m Model) {
 					return
 				}
 				if msg.Kind == session.MessageKindSubmittedPlan {
-					SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)})
+					SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenPlanResource)
 					return
 				}
 				// Electron turn/end strip: 「已完成，用时 … ▾」.

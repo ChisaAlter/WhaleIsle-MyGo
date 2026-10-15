@@ -160,6 +160,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		if snap.Projections != nil {
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
+		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
 		s.messages = nil
 		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0

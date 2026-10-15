@@ -10,15 +10,17 @@ import (
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
 )
 
 // Model wires the card to the interaction store snapshot.
 type Model struct {
-	Snapshot   interaction.ViewState
-	ThemeID    string
-	SystemDark bool
-	Store      *interaction.Store
+	OnOpenPlanResource func(planpreview.Document)
+	Snapshot           interaction.ViewState
+	ThemeID            string
+	SystemDark         bool
+	Store              *interaction.Store
 	// OnAutoAllowChanged is optional persistence when the user toggles auto-allow.
 	OnAutoAllowChanged func(on bool)
 }
@@ -66,14 +68,14 @@ func View(c *ui.Context, m Model) {
 		}
 		questionHistory(c, snap.QuestionHistory, m.Store, fg, muted, accent)
 		for _, p := range snap.Pending {
-			pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent)
+			pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent, m.OnOpenPlanResource)
 		}
 	})
 }
 
-func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color) {
+func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
-		planReviewCard(c, p, card, store, fg, muted, accent)
+		planReviewCard(c, p, card, store, fg, muted, accent, onOpenPlan)
 		return
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {

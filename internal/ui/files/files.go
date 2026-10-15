@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
@@ -37,8 +38,10 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
-	Tabs          *Tabs
-	WorkspaceRoot string
+	PlanSnapshot      session.ViewState
+	OnLoadPlanHistory func()
+	Tabs              *Tabs
+	WorkspaceRoot     string
 	// BindingID identifies the current Host connection and selected session.
 	SessionID       string
 	OnReferenceFile func(filelink.Reference) error
@@ -109,6 +112,11 @@ func View(c *ui.Context, m Model) {
 	if m.Tabs != nil {
 		m.Tabs.Bind(m.BindingID, m.WorkspaceRoot)
 	}
+	observePlanHistory(m)
+	if paintPlanResource(c, m) {
+		m.Tabs.Pause()
+		return
+	}
 	prepareTabs(m)
 	syncSaveResults(m)
 	if t := selectedTab(m); t != nil && t.Editing {
@@ -151,6 +159,7 @@ func View(c *ui.Context, m Model) {
 				c.Invalidate()
 			}
 		})
+		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
 				ui.TextInput(c, m.Filter).FillWidth().Placeholder(i18n.T(i18n.KeyFilesFilter))
@@ -512,6 +521,9 @@ func toggleExpanded(m Model, rel string) {
 }
 
 func selectFile(m Model, rel string) {
+	if m.Tabs != nil {
+		m.Tabs.Plans.ShowFiles(m.Tabs.planSession)
+	}
 	if selectTab(m, rel) {
 		return
 	}
