@@ -312,6 +312,7 @@ func (s *mainState) openAssistantDuplicateBot(ep harness.Endpoint, client *dsh.C
 					s.assistantRoomEditor.Suspend()
 					s.assistantRoomRuntime.Suspend()
 					s.mu.Lock()
+					s.assistantConversationGeneration++
 					s.assistantOpen = false
 					s.mu.Unlock()
 				} else {

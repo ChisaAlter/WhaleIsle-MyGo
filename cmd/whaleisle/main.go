@@ -261,6 +261,7 @@ type mainState struct {
 	pluginViewResumeAfterRestart            bool
 	pluginViewHostGeneration                int
 	assistantOpen                           bool
+	assistantConversationGeneration         uint64
 	assistantDraft                          string
 	assistantLastAct                        string
 	assistantPluginBusy                     bool
@@ -767,6 +768,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 	case deeplink.ActionSettings:
 		s.settingsOpen = true
@@ -775,6 +777,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
@@ -825,6 +828,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 	case deeplink.ActionMarket:
 		s.marketOpen = true
@@ -834,6 +838,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 	case deeplink.ActionSchedule:
 		s.scheduleOpen = true
@@ -843,6 +848,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 	case deeplink.ActionAgents:
 		s.filesPaneOpen = true
@@ -861,6 +867,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
+		s.assistantConversationGeneration++
 		s.assistantOpen = false
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
@@ -966,143 +973,20 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 	}
 }
 
-// handleAssistantNativePrompt routes by assistant mode: Whale → /dsh-whale
-// ensure + pet/chat; Dshbot → explicit catalog target + bot/open + session/prompt.
-// Drafts remain until the selected Host accepts the request.
-func (s *mainState) handleAssistantNativePrompt(origin string, ep harness.Endpoint, text string) {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return
-	}
+// Assistant entry hands the resolved canonical session to the existing chat owner.
+func (s *mainState) handleAssistantNativePrompt(_ string, ep harness.Endpoint, text string) {
 	s.mu.Lock()
 	asst := s.assistant
-	sessions := s.sessions
-	win := s.win
-	pluginBusy := s.assistantPluginBusy
-	if asst == nil {
-		asst = assiststore.New()
-		s.assistant = asst
-	}
 	s.mu.Unlock()
-	mode := asst.Snapshot().Mode
-
-	plugin := desktopwebview.PluginWhale
-	if mode == assiststore.ModeDshbot {
-		plugin = desktopwebview.PluginDshbot
-	}
-
-	if asst.Snapshot().Busy || pluginBusy {
+	if asst == nil || strings.TrimSpace(text) == "" {
 		return
 	}
-	asst.SetBusy(true)
-	asst.SetLastAction(i18n.T(i18n.KeyAssistantBusy), "")
-	s.mu.Lock()
-	s.assistantLastAct = i18n.T(i18n.KeyAssistantBusy)
-	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
-
-	go func() {
-		defer func() {
-			asst.SetBusy(false)
-			if win != nil {
-				win.Update(func() {})
-			}
-		}()
-
-		switch mode {
-		case assiststore.ModeDshbot:
-			s.assistantNativeDshbot(origin, ep, sessions, asst, plugin, text)
-		default:
-			s.assistantNativeWhale(origin, ep, sessions, asst, plugin, text)
-		}
-	}()
-}
-
-func (s *mainState) assistantNativeWhale(
-	origin string,
-	ep harness.Endpoint,
-	sessions *session.Store,
-	asst *assiststore.Store,
-	plugin string,
-	text string,
-) {
-	asst.SetLastAction(i18n.T(i18n.KeyAssistantEnsuring), "")
-	s.mu.Lock()
-	s.assistantLastAct = i18n.T(i18n.KeyAssistantEnsuring)
-	s.mu.Unlock()
-
-	cli := s.pluginRPCClient(ep)
-	ens, err := cli.WhaleEnsureTyped(context.Background())
-	if err != nil {
-		msg := i18n.T(i18n.KeyAssistantWhaleRPCErr) + ": " + err.Error()
-		asst.SetLastAction(i18n.T(i18n.KeyAssistantNoRPC), msg)
-		asst.AppendTurn(assiststore.Turn{Mode: assiststore.ModeWhale, Prompt: text, Err: msg, Source: "rpc"})
-		s.mu.Lock()
-		s.assistantLastAct = msg
-		s.webviewOpen = true
-		s.mu.Unlock()
-		if sessions != nil {
-			sessions.SetLastAction(msg)
-		}
-		s.openWebViewHostPlugin(origin, plugin)
+	target := asst.Snapshot()
+	if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
+		asst.SetLastAction("Select a Bot from the current Host roster first", "Host changed; draft retained")
 		return
 	}
-	asst.SetSessionID(ens.SessionID)
-	if sessions != nil {
-		s.revokePhoneGit()
-		sessions.Select(ens.SessionID)
-	}
-
-	asst.SetLastAction(i18n.T(i18n.KeyAssistantChatting), "")
-	s.mu.Lock()
-	s.assistantLastAct = i18n.T(i18n.KeyAssistantChatting)
-	s.mu.Unlock()
-
-	chat, err := cli.WhalePetChatTyped(context.Background(), text)
-	if err != nil {
-		msg := i18n.T(i18n.KeyAssistantWhaleRPCErr) + ": " + err.Error()
-		asst.SetLastAction(msg, msg)
-		asst.AppendTurn(assiststore.Turn{
-			Mode: assiststore.ModeWhale, Prompt: text, SessionID: ens.SessionID, Err: msg, Source: "rpc",
-		})
-		s.mu.Lock()
-		s.assistantLastAct = msg
-		s.mu.Unlock()
-		if sessions != nil {
-			sessions.SetLastAction(msg)
-		}
-		return
-	}
-	msg := i18n.T(i18n.KeyAssistantWhaleRPCSent)
-	asst.AcceptPrompt(text)
-	asst.SetLastAction(msg, "")
-	asst.AppendTurn(assiststore.Turn{
-		Mode:      assiststore.ModeWhale,
-		Prompt:    text,
-		Response:  chat.Reply,
-		SessionID: ens.SessionID,
-		Source:    "rpc",
-	})
-	s.mu.Lock()
-	s.assistantLastAct = msg
-	s.mu.Unlock()
-	if sessions != nil {
-		sessions.SetLastAction(msg)
-		sessions.RefreshList(context.Background())
-	}
-}
-
-func (s *mainState) assistantNativeDshbot(
-	origin string,
-	ep harness.Endpoint,
-	sessions *session.Store,
-	asst *assiststore.Store,
-	plugin string,
-	text string,
-) {
-	s.sendAssistantDshbot(ep, sessions, asst, text)
+	s.openAssistantConversation(ep, target.Mode, target.DshbotID, strings.TrimSpace(text))
 }
 
 func (s *mainState) pluginRPCClient(ep harness.Endpoint) *pluginrpc.Client {
@@ -1577,6 +1461,7 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	s.remoteOpen = false
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
+	s.assistantConversationGeneration++
 	s.assistantOpen = false
 	switch cmd {
 	case "market":
@@ -1584,6 +1469,7 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	case "usage":
 		s.usageOpen = true
 	case "assist", "assistant":
+		s.assistantConversationGeneration++
 		s.assistantOpen = true
 	case "schedule", "sched":
 		s.scheduleOpen = true
@@ -3615,6 +3501,7 @@ func mainView(c *ui.Context) {
 				state.remoteOpen = false
 				state.webviewOpen = false
 				state.browserPreviewOpen = false
+				state.assistantConversationGeneration++
 				state.assistantOpen = false
 				apply()
 				state.mu.Unlock()
@@ -3635,7 +3522,7 @@ func mainView(c *ui.Context) {
 					openTool(func() { state.browserPreviewOpen = true })
 				})
 				toolBtn(i18n.T(i18n.KeyAssistantOpen), func() {
-					openTool(func() { state.assistantOpen = true })
+					openTool(func() { state.assistantConversationGeneration++; state.assistantOpen = true })
 				})
 				toolBtn(i18n.T(i18n.KeyWebViewOpen), func() {
 					openTool(func() { state.webviewOpen = true })
@@ -4419,6 +4306,7 @@ func mainView(c *ui.Context) {
 						}
 						state.mu.Lock()
 						state.webviewOpen = true
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.assistantDraft = assistantDraft
 						state.mu.Unlock()
@@ -4427,27 +4315,13 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
-					OnOpenSession: func(sessionID string) {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.whaleSettings.Suspend()
-						if sessions != nil && strings.TrimSpace(sessionID) != "" {
-							state.revokePhoneGit()
-							sessions.Select(sessionID)
+					OnOpenSession: func(_ string) {
+						target := asst.Snapshot()
+						if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
+							asst.SetLastAction("Select a Bot from the current Host roster first", "Host changed; draft retained")
+							return
 						}
-						state.mu.Lock()
-						state.assistantOpen = false
-						state.assistantDraft = assistantDraft
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
+						state.openAssistantConversation(ep, target.Mode, target.DshbotID, "")
 					},
 					OnClose: func() {
 						state.whaleSettings.Suspend()
@@ -4461,6 +4335,7 @@ func mainView(c *ui.Context) {
 						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.mu.Lock()
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.assistantDraft = assistantDraft
 						state.mu.Unlock()
@@ -4496,6 +4371,7 @@ func mainView(c *ui.Context) {
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.assistantDraft = assistantDraft
 						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenWhaleWeb)
@@ -4517,6 +4393,7 @@ func mainView(c *ui.Context) {
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.assistantDraft = assistantDraft
 						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenDshbotWeb)
@@ -4533,20 +4410,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnWhaleEnsure: func() {
-						state.runAssistantPluginRPC(win, ep, "assistant/ensure", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							ens, err := c.WhaleEnsureTyped(ctx)
-							if err != nil {
-								return "", err
-							}
-							if asst != nil {
-								asst.SetSessionID(ens.SessionID)
-							}
-							if sessions != nil {
-								state.revokePhoneGit()
-								sessions.Select(ens.SessionID)
-							}
-							return ens.SessionID, nil
-						})
+						state.openAssistantConversation(ep, assiststore.ModeWhale, "", "")
 					},
 					OnWhaleCatalog: func() {
 						state.runAssistantPluginRPC(win, ep, "catalog", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
@@ -4713,6 +4577,7 @@ func mainView(c *ui.Context) {
 						state.closeWebViewHost()
 						state.mu.Lock()
 						state.webviewOpen = false
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.mu.Unlock()
 						if win != nil {
@@ -4841,6 +4706,7 @@ func mainView(c *ui.Context) {
 						state.mu.Lock()
 						state.usageOpen = false
 						state.webviewOpen = true
+						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.mu.Unlock()
 						state.openWebViewURL(u)
@@ -6189,6 +6055,7 @@ func mainView(c *ui.Context) {
 							state.settingsOpen = false
 							state.webviewOpen = false
 							state.browserPreviewOpen = false
+							state.assistantConversationGeneration++
 							state.assistantOpen = false
 							state.remoteOpen = false
 							state.marketOpen = false
@@ -6628,6 +6495,7 @@ func mainView(c *ui.Context) {
 							state.mu.Lock()
 							state.marketOpen = true
 							state.scheduleOpen = false
+							state.assistantConversationGeneration++
 							state.assistantOpen = false
 							state.settingsOpen = false
 							state.launcherOpen = false
@@ -6640,6 +6508,7 @@ func mainView(c *ui.Context) {
 							state.mu.Lock()
 							state.scheduleOpen = true
 							state.marketOpen = false
+							state.assistantConversationGeneration++
 							state.assistantOpen = false
 							state.settingsOpen = false
 							state.launcherOpen = false
@@ -6650,6 +6519,7 @@ func mainView(c *ui.Context) {
 						},
 						OnOpenAssistant: func() {
 							state.mu.Lock()
+							state.assistantConversationGeneration++
 							state.assistantOpen = true
 							state.marketOpen = false
 							state.scheduleOpen = false

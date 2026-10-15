@@ -17,6 +17,7 @@ func (s *mainState) selectMainPanel(panel string) {
 	s.mu.Lock()
 	s.marketOpen = panel == "market"
 	s.scheduleOpen = panel == "schedule"
+	s.assistantConversationGeneration++
 	s.assistantOpen = panel == "assistant"
 	s.toolsMenuOpen = false
 	win := s.win

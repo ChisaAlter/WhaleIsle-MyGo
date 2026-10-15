@@ -17,6 +17,7 @@ func (s *mainState) openPetSettings() {
 	s.remoteOpen = false
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
+	s.assistantConversationGeneration++
 	s.assistantOpen = false
 	s.toolsMenuOpen = false
 	s.settingsDesktopActive = false

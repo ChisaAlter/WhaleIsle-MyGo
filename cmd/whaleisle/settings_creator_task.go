@@ -91,6 +91,7 @@ func (s *mainState) openCreatorTask(creator *session.CreatorTask, source *sessio
 	s.settingsAgentPresetsActive = false
 	s.marketOpen = false
 	s.scheduleOpen = false
+	s.assistantConversationGeneration++
 	s.assistantOpen = false
 	s.toolsMenuOpen = false
 	s.mu.Unlock()

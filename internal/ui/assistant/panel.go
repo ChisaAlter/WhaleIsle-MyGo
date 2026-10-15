@@ -113,7 +113,7 @@ func View(c *ui.Context, m Model) {
 				routineCreateBlock(c, m, fg, muted, field, border, accent)
 				composeBlock(c, m, fg, muted, accent)
 				pluginRPCBlock(c, m, fg, muted, accent)
-				historyBlock(c, m, fg, muted, field, border, accent)
+				ui.Text(c, "完整消息历史、流式回复、工具审批与停止请在主会话中查看。 / Full history, streaming replies, approvals and stop live in the main conversation.").FontSize(11).TextColor(muted)
 
 				statusBlock(c, field, border, fg, muted, []kv{
 					{i18n.T(i18n.KeyAssistantModeLabel), modeLabel(m.Mode)},
@@ -165,7 +165,7 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			if m.HarnessReady && m.OnOpenModeWeb != nil && ui.Button(c, i18n.T(i18n.KeyAssistantOpenModeWeb)).Clicked() {
 				m.OnOpenModeWeb()
 			}
-			canOpenSess := strings.TrimSpace(m.SessionID) != "" && m.OnOpenSession != nil
+			canOpenSess := m.HarnessReady && !m.Busy && !m.PluginRPCBusy && m.OnOpenSession != nil && ((m.Mode == assiststore.ModeWhale && m.WhaleEnabled) || (m.Mode == assiststore.ModeDshbot && m.DshbotEnabled && m.DshbotSelectedID != ""))
 			if canOpenSess && ui.Button(c, i18n.T(i18n.KeyAssistantOpenSession)).Clicked() {
 				m.OnOpenSession(m.SessionID)
 			}
@@ -308,7 +308,7 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyAssistantComposeHint)).FontSize(11).TextColor(muted)
+		ui.Text(c, "打开专属主会话并发送；回复、审批和停止均在主聊天中。 / Open the canonical chat to send, follow replies, approve tools and stop.").FontSize(11).TextColor(muted)
 		ui.TextArea(c, m.Draft).Lines(2, 4).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {

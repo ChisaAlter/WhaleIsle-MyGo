@@ -299,6 +299,7 @@ func (s *mainState) openAssistantCreatedBot(ep harness.Endpoint, client *dsh.Cli
 					s.assistantRoomEditor.Suspend()
 					s.assistantRoomRuntime.Suspend()
 					s.mu.Lock()
+					s.assistantConversationGeneration++
 					s.assistantOpen = false
 					s.mu.Unlock()
 				} else {

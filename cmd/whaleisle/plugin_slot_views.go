@@ -14,6 +14,7 @@ func (s *mainState) openInstalledPluginView(name string) {
 	}
 	s.settingsOpen = false
 	s.browserPreviewOpen = false
+	s.assistantConversationGeneration++
 	s.assistantOpen = false
 	s.webviewOpen = true
 	s.mu.Unlock()

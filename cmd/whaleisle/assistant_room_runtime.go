@@ -151,6 +151,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 						s.assistantRoomEditor.Suspend()
 						reader.Suspend()
 						s.mu.Lock()
+						s.assistantConversationGeneration++
 						s.assistantOpen = false
 						s.mu.Unlock()
 					}

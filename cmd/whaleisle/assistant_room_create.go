@@ -283,6 +283,7 @@ func (s *mainState) openAssistantCreatedRoom(ep harness.Endpoint, client *dsh.Cl
 				sessions.Select(sid)
 				s.assistantRoomCreator.Suspend()
 				s.mu.Lock()
+				s.assistantConversationGeneration++
 				s.assistantOpen = false
 				s.mu.Unlock()
 				go func() { sessions.FollowSelected(context.Background()); sessions.RefreshList(context.Background()) }()
