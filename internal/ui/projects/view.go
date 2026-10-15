@@ -8,6 +8,10 @@ import (
 )
 
 type Model struct {
+	Deliveries                                                           *projectflow.DeliverySnapshot
+	OnDeliveries                                                         func(string)
+	OnDeliveryAction                                                     func(string, string)
+	OnDeliveryReport                                                     func(string, projectflow.DeliveryReportRef)
 	Documents                                                            *projectflow.DocumentSnapshot
 	OnDocuments                                                          func(string)
 	OnDocumentAction                                                     func(string, string)
@@ -116,6 +120,10 @@ func View(c *ui.Context, m Model) {
 			documentsView(c, m)
 			return
 		}
+		if m.Deliveries != nil {
+			deliveryHistoryView(c, m)
+			return
+		}
 		if m.Reports != nil {
 			reportsView(c, m)
 			return
@@ -185,6 +193,9 @@ func View(c *ui.Context, m Model) {
 						})
 						if ui.Button(c, tr("项目资料", "Project documents")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnDocuments != nil {
 							m.OnDocuments(p.ID)
+						}
+						if ui.Button(c, tr("历次交付", "Delivery history")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnDeliveries != nil {
+							m.OnDeliveries(p.ID)
 						}
 						if ui.Button(c, tr("历史报告", "Recorded reports")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnReports != nil {
 							m.OnReports(p.ID)
