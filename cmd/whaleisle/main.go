@@ -4743,16 +4743,11 @@ func mainView(c *ui.Context) {
 			if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
 				usageSnap.AuthorizeURL = loginState.URL
 			}
-			disabledSet := map[string]bool{}
-			if state.cfgStore != nil {
-				for _, p := range state.cfgStore.Get().DisabledPlugins {
-					disabledSet[p] = true
-				}
-			}
 			pluginRows := make([]settings.PluginRow, 0, len(marketSnap.Rows))
 			for _, row := range marketSnap.Rows {
 				pluginRows = append(pluginRows, settings.PluginRow{
-					Name: row.Label, Status: row.Detail, Disabled: disabledSet[row.Label],
+					Name: row.Label, Status: row.Detail, Disabled: row.Enabled != nil && !*row.Enabled,
+					CanToggle: row.CanToggle(), ReadOnlyReason: row.ReadOnlyReason, Error: row.Error,
 				})
 			}
 			skillRows := make([]settings.SkillRow, 0, len(sessSnap.SkillCatalog.Skills))
@@ -5185,6 +5180,13 @@ func mainView(c *ui.Context) {
 					Rows:       pluginRows,
 					HasListRPC: marketSnap.HasListRPC,
 					Err:        marketSnap.Err,
+					ClientReady: marketSnap.ClientReady,
+					Loading: marketSnap.Loading,
+					Busy: marketInstallBusy,
+					OperationMessage: marketInstallMsg,
+					Activation: marketActivation,
+					CanRestart: marketCanRestart,
+					OnRestart: state.restartMarketPlugins,
 					LastAction: func() string {
 						if state.settingsPluginsLastAction != "" {
 							return state.settingsPluginsLastAction
@@ -5200,87 +5202,10 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnSetDisabled: func(name string, disabled bool) {
-						name = strings.TrimSpace(name)
-						if name == "" || state.cfgStore == nil {
-							return
-						}
-						_ = state.cfgStore.Update(func(c *config.Config) {
-							out := make([]string, 0, len(c.DisabledPlugins)+1)
-							for _, p := range c.DisabledPlugins {
-								if p != name {
-									out = append(out, p)
-								}
-							}
-							if disabled {
-								out = append(out, name)
-							}
-							c.DisabledPlugins = out
-						})
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client != nil {
-							go func() {
-								var out api.ChangeResult
-								err := client.Call(context.Background(), "pluginManager/setBundleEnabled", map[string]any{
-									"name":    name,
-									"enabled": !disabled,
-								}, &out)
-								if err != nil {
-									// Fall back to per-plugin id toggle when bundle name fails.
-									_ = client.Call(context.Background(), "pluginManager/setPluginEnabled", map[string]any{
-										"id":      name,
-										"enabled": !disabled,
-									}, &out)
-								}
-								if marketStore != nil {
-									marketStore.Refresh(context.Background())
-								}
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
-							return
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
+						state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": !disabled})
 					},
 					OnOpenView: state.openInstalledPluginView,
-					OnInspect: func(name string) {
-						name = strings.TrimSpace(name)
-						if name == "" {
-							return
-						}
-						state.dshMu.Lock()
-						client := state.dshClient
-						state.dshMu.Unlock()
-						if client == nil {
-							return
-						}
-						go func() {
-							var out api.PluginSpecInspection
-							err := client.Call(context.Background(), "pluginManager/inspect", map[string]any{
-								"spec": name,
-							}, &out)
-							msg := name
-							if err != nil {
-								msg = err.Error()
-							} else if len(out) > 0 {
-								s := string(out)
-								if len(s) > 480 {
-									s = s[:480] + "…"
-								}
-								msg = s
-							}
-							state.mu.Lock()
-							state.settingsPluginsLastAction = msg
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-					},
+					OnInspect: state.inspectInstalledPlugin,
 					OnOpenMarket: func() {
 						origin := ""
 						marketDisabled := false

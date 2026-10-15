@@ -25,6 +25,8 @@ type Entry struct {
 	Version       string
 	Installed     bool
 	IdentityKnown bool
+	ReadOnlyReason string
+	Error          string
 }
 
 // ViewState is a UI-safe snapshot of the store.
@@ -255,6 +257,8 @@ func entriesFromBundles(bundles api.ListBundlesResult) []Entry {
 			Version:       valueOrEmpty(b.Version),
 			Installed:     b.Installed,
 			IdentityKnown: true,
+			ReadOnlyReason: valueOrEmpty(b.ReadOnlyReason),
+			Error:          bundleError(b.Error),
 		})
 	}
 	return out

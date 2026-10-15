@@ -186,6 +186,9 @@ func marketResultFor(out *api.ChangeResult, err error) marketResult {
 			r.outcome, r.historyError = "restart-required", ""
 			r.accepted = true
 			r.message = marketMessage("已保存，需重启运行时后生效。", "Saved; a runtime restart is required to take effect.")
+		case "overridden":
+			r.outcome, r.historyError = "overridden", ""
+			r.message = marketMessage("此变更被更高优先级配置覆盖；请检查插件配置。", "This change is overridden by higher-priority configuration; check plugin settings.")
 		case "cancelled":
 			r.outcome, r.historyError = "cancelled", ""
 			r.message = marketMessage("安装已取消。", "Installation cancelled.")
@@ -332,6 +335,19 @@ func (s *mainState) runMarketChangeApproved(method string, args map[string]any, 
 		return
 	}
 	op.method = method
+	if method == "pluginManager/setBundleEnabled" || method == "pluginManager/removeBundle" {
+		name, _ := args["name"].(string)
+		if op.store == nil {
+			s.finishMarket(op, marketResult{message: marketMessage("插件库存不可用，请刷新。", "Plugin inventory unavailable; refresh first.")}, false)
+			s.releaseMarket(op)
+			return
+		}
+		if err := op.store.ValidateBundleChange(name, method == "pluginManager/removeBundle"); err != nil {
+			s.finishMarket(op, marketResult{message: err.Error()}, false)
+			s.releaseMarket(op)
+			return
+		}
+	}
 	go func() {
 		defer s.releaseMarket(op)
 		var out *api.ChangeResult

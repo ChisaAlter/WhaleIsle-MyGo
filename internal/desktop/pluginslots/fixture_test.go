@@ -154,7 +154,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 let exported,paint,changed,selected=[],settings=[],disposed=false;
 const entries={main:[{options:{key:'custom-view',registrant:'fixture',label:'Custom view'}}], 'settings.section':[], 'sidebar.page':[], 'sidebar.nav.tab':[], 'settings.remote.tab':[]};
 const react={createElement(){return null},useState(v){return [v,()=>{}]},useEffect(){},useSyncExternalStore(){return 0}};
-let buttons=[];const document={querySelectorAll(){return buttons}};
+let buttons=[],cards=[];const document={documentElement:{},querySelectorAll(selector){return selector==='[data-plugin-item]'?cards:buttons}};
 const context={URL,URLSearchParams,location:{search:'?desktopPlugin=fixture'},document,console,queueMicrotask,MutationObserver:class{observe(){} disconnect(){}},setTimeout,clearTimeout,window:{__ModuleLoader__:{load(row){exported=row.factory(id=>react)}}}};
 vm.runInNewContext(fs.readFileSync(process.argv[2],'utf8'),context);
 const ctx={slots:{entriesOfSlot(k){return entries[k]||[]},entries(k){return entries[k]||[]},inject(k,fn){return fn()},register(o,c){paint=c;return ()=>{disposed=true}},snapshot(){return []}},layout:{selectPanel(id){selected.push(id)}},settingsNavigation:{open(id){settings.push(id)}},effect(fn){this.dispose=fn()},on(k,fn){changed=fn;return ()=>{}},get(k){return this[k]}};
@@ -173,5 +173,19 @@ buttons=[{getAttribute(name){return name==='aria-label'?'Bots':null},hasAttribut
 exported.apply(ctx);assert.equal(clicks,2);ctx.dispose();
 entries['sidebar.page']=[];entries['settings.section']=[{options:{id:'general',registrant:'host',children:{'settings.general.item':{}}}}];entries['settings.general.item']=[{options:{id:'custom',registrant:'fixture'}}];
 exported.apply(ctx);assert.equal(settings.at(-1),'general');ctx.dispose();
-console.log('live main/settings declarations, single auto navigation and disposal passed');
+entries['settings.section']=[];entries['settings.general.item']=[];
+entries.main=[{options:{key:'plugins',registrant:'manager',children:{'plugins.bundle.config':{},'plugins.row.config':{},'plugins.item':{}}}}];
+entries['plugins.bundle.config']=[{options:{key:'fixture-bundle',registrant:'fixture'}}];
+const openedBundles=[];ctx.pluginNavigation={openBundle(name){openedBundles.push(name)}};
+exported.apply(ctx);assert.deepEqual(openedBundles,['fixture-bundle']);changed('plugins.bundle.config');assert.equal(openedBundles.length,1);ctx.dispose();
+entries['plugins.bundle.config']=[];entries['plugins.row.config']=[{options:{key:'fixture-bundle#worker',registrant:'fixture'}}];
+exported.apply(ctx);assert.equal(openedBundles.at(-1),'fixture-bundle');ctx.dispose();
+entries['plugins.row.config']=[];entries['plugins.item']=[{options:{id:'official-settings',registrant:'fixture',label:'Official settings'}}];
+cards=[{getAttribute(){return 'official-settings'},querySelectorAll(){return [{click(){clicks++}}]}}];
+exported.apply(ctx);assert.equal(selected.at(-1),'plugins');assert.equal(clicks,3);
+entries['plugins.item']=[];changed('plugins.item');assert.equal(clicks,3);ctx.dispose();
+entries.main=[{options:{key:'custom-owner',registrant:'host',children:{'custom.settings':{}}}}];
+entries['custom.settings']=[{options:{id:'contribution',registrant:'fixture'}}];
+exported.apply(ctx);assert.equal(selected.at(-1),'custom-owner');ctx.dispose();
+console.log('main/settings/plugin configuration owners, single activation and disposal passed');
 `

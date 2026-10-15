@@ -12,11 +12,12 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');
       if (!plugin) return;
-      let stopped = false, opened = false, revision = 0, views = [], navigationError = '', cancelPending = () => {};
+      let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', cancelPending = () => {};
       const listeners = new Set();
       const changed = () => { revision++; for (const listener of listeners) listener(); };
       const entries = slot => ctx.slots.entriesOfSlot(slot);
       const own = entry => entry.options.registrant === plugin;
+      const viewKey = view => [view.slot, view.id, view.bundle || '', view.item || ''].join(':');
       const buildViews = () => {
         const rows = [];
         for (const slot of ['main', 'settings.section', 'settings.remote.tab', 'sidebar.page']) {
@@ -41,6 +42,33 @@ window.__ModuleLoader__.load({
           if (options.id && !rows.some(row => row.slot === 'settings.section' && row.id === options.id)
             && hasContribution(Object.keys(options.children || {}))) {
             rows.push({slot:'settings.section',id:options.id,label:label(options)});
+          }
+        }
+        // Plugins owns its configuration forms and supplies their Host-backed
+        // form/revision props. Follow that main owner's declared child slots;
+        // never render plugins.* entries as standalone React components.
+        for (const panel of entries('main')) {
+          const options = panel.options, children = Object.keys(options.children || {});
+          if (!options.key || options.key === 'conversation' || !hasContribution(children)) continue;
+          const bundles = new Set();
+          if (children.includes('plugins.bundle.config')) {
+            for (const entry of entries('plugins.bundle.config').filter(own)) {
+              if (entry.options.key) bundles.add(entry.options.key);
+            }
+          }
+          if (children.includes('plugins.row.config')) {
+            for (const entry of entries('plugins.row.config').filter(own)) {
+              const key = entry.options.key || '', separator = key.indexOf('#');
+              if (separator > 0) bundles.add(key.slice(0, separator));
+            }
+          }
+          for (const bundle of bundles) rows.push({slot:'main',id:options.key,bundle,label:bundle});
+          const items = children.includes('plugins.item') ? entries('plugins.item').filter(own) : [];
+          for (const item of items) {
+            if (item.options.id) rows.push({slot:'main',id:options.key,item:item.options.id,label:label(item.options)});
+          }
+          if (!bundles.size && !items.length && !rows.some(row => row.slot === 'main' && row.id === options.key)) {
+            rows.push({slot:'main',id:options.key,label:label(options)});
           }
         }
         return rows;
@@ -68,10 +96,35 @@ window.__ModuleLoader__.load({
         }
         return stop;
       }
+      function activatePluginItem(id) {
+        let observer, timer;
+        const stop = () => { observer?.disconnect(); clearTimeout(timer); };
+        const find = () => {
+          const cards = [...document.querySelectorAll('[data-plugin-item]')].filter(card => card.getAttribute('data-plugin-item') === id);
+          if (cards.length !== 1) return false;
+          // The original card's accessible title button owns navigation.
+          const buttons = [...cards[0].querySelectorAll('button[aria-label]')];
+          if (buttons.length !== 1) return false;
+          stop(); buttons[0].click(); return true;
+        };
+        if (!find()) {
+          observer = new MutationObserver(find);
+          observer.observe(document.documentElement, {childList:true,subtree:true});
+          timer = setTimeout(() => {
+            stop(); if (!stopped) { navigationError = '未能定位此插件的配置入口，请在插件页面中选择。'; changed(); }
+          }, 5000);
+        }
+        return stop;
+      }
       function open(view) {
-        cancelPending(); navigationError = '';
+        cancelPending(); navigationError = ''; activeView = viewKey(view);
         try {
-        if (view.slot === 'main') ctx.layout.selectPanel(view.id);
+        if (view.slot === 'main') {
+          const navigation = view.bundle ? ctx.get('pluginNavigation') : null;
+          if (navigation?.openBundle) navigation.openBundle(view.bundle);
+          else ctx.layout.selectPanel(view.id);
+          if (view.item) cancelPending = activatePluginItem(view.item);
+        }
         else if (view.slot === 'settings.section') ctx.settingsNavigation.open(view.id);
         else if (view.slot === 'settings.remote.tab') {
           ctx.settingsNavigation.open('remote');
@@ -83,6 +136,10 @@ window.__ModuleLoader__.load({
       function sync() {
         if (stopped) return;
         views = buildViews(); revision++;
+        if (activeView && !views.some(view => viewKey(view) === activeView)) {
+          cancelPending(); activeView = '';
+          navigationError = '该插件视图已卸载或停用。';
+        }
         // One initial activation only: do not steal navigation after a user's
         // close/back action, or after the plugin opens its own conversation.
         if (!opened && views.length) { opened = true; open(views[0]); }
@@ -93,7 +150,7 @@ window.__ModuleLoader__.load({
         return h('div', {role: 'region', 'aria-label': 'Plugin views', style: {pointerEvents:'auto',position:'fixed',right:12,bottom:12,zIndex:10000,maxWidth:'min(640px,90vw)',padding:'8px 12px',border:'1px solid var(--border,#777)',borderRadius:8,background:'var(--bg,#fff)',color:'var(--text,#222)',font:'12px system-ui'}},
           h('span', null, plugin + ' · '),
           navigationError ? h('span', {role:'status'}, navigationError) : null,
-          views.length ? views.map(view => h('button', {key: view.slot+':'+view.id,onClick:()=>open(view),style:{margin:'0 4px'}},view.label))
+          views.length ? views.map(view => h('button', {key: viewKey(view),onClick:()=>open(view),style:{margin:'0 4px'}},view.label))
             : h('span', {role:'status'}, '此插件尚无可独立打开的视图。会话内插槽需要在相应会话中使用。'));
       }
       ctx.effect(() => {

@@ -123,8 +123,13 @@ func View(c *ui.Context, m Model) {
 					for _, row := range snap.Rows {
 						r := row
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-							ui.Column(c).Grow(1).MinWidth(0).Children(func() { ui.Text(c, r.Label).Bold().TextColor(fg); ui.Text(c, r.Detail).FontSize(11).TextColor(muted) })
-							if !m.InstallBusy && r.Enabled != nil && m.OnSetBundleEnabled != nil {
+							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+								ui.Text(c, r.Label).Bold().TextColor(fg)
+								ui.Text(c, r.Detail).FontSize(11).TextColor(muted)
+								if r.ReadOnlyReason != "" { ui.Text(c, r.ReadOnlyReason).FontSize(11).TextColor(muted) }
+								if r.Error != "" { ui.Text(c, r.Error).FontSize(11).TextColor(accent) }
+							})
+							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
 								label := i18n.T(i18n.KeySettingsPluginsEnable)
 								if *r.Enabled {
 									label = i18n.T(i18n.KeySettingsPluginsDisable)
@@ -133,7 +138,7 @@ func View(c *ui.Context, m Model) {
 									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
 								}
 							}
-							if !m.InstallBusy && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Clicked() {
+							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Clicked() {
 								m.OnRemoveBundle(r.Label)
 							}
 						})
