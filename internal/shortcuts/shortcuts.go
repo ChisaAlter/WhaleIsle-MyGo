@@ -1,4 +1,4 @@
-// Package shortcuts owns the seven native page bindings, not system hotkeys.
+// Package shortcuts owns native application and page bindings, not system hotkeys.
 package shortcuts
 
 import (
@@ -20,6 +20,30 @@ var commands = []Command{
 	{"tools.toggle", "切换右侧面板", "Toggle tools pane", "Mod+\\"},
 	{"tools.toggle.alternate", "切换右侧面板（备用）", "Toggle tools pane (alternate)", "Mod+Alt+B"},
 	{"terminal.toggle", "切换终端", "Toggle terminal", "Mod+`"},
+	{"session.search", "搜索对话", "Search conversations", "Mod+Shift+K"},
+	{"session.rename", "重命名当前对话", "Rename conversation", "Mod+Shift+R"},
+	{"session.fork", "分支当前对话", "Fork conversation", "Mod+Shift+J"},
+	{"session.archive", "归档当前对话", "Archive conversation", "Mod+Shift+E"},
+	{"session.previous", "上一个对话", "Previous conversation", "Mod+Alt+["},
+	{"session.next", "下一个对话", "Next conversation", "Mod+Alt+]"},
+	{"workspace.add", "添加工作区", "Add workspace", "Mod+Shift+O"},
+	{"workspace.openLocal", "在文件管理器中打开工作区", "Reveal workspace", "Mod+Alt+O"},
+	{"workspace.files", "打开工作区文件", "Open workspace files", "Mod+Shift+B"},
+	{"browser.open", "打开浏览器面板", "Open browser pane", "Mod+Shift+U"},
+	{"terminal.host", "打开 Host 终端面板", "Open Host terminal pane", "Mod+Alt+T"},
+	{"sessions.refresh", "刷新对话列表", "Refresh conversations", "Mod+Alt+R"},
+	{"market.open", "打开市场", "Open marketplace", "Mod+Shift+P"},
+	{"schedule.open", "打开日程", "Open schedules", "Mod+Shift+D"},
+	{"assistant.open", "打开助手", "Open assistant", "Mod+Shift+G"},
+	{"launcher.open", "打开启动器", "Open launcher", "Mod+Shift+L"},
+	{"shortcuts.open", "打开快捷键设置", "Open shortcut settings", "Mod+/"},
+	{"window.zoomIn", "放大应用界面", "Zoom in", "Mod+="},
+	{"window.zoomOut", "缩小应用界面", "Zoom out", "Mod+-"},
+	{"window.actualSize", "应用界面实际大小", "Actual size", "Mod+0"},
+	{"window.fullscreen", "切换应用全屏", "Toggle fullscreen", "Mod+Shift+I"},
+	{"pane.split", "向右拆分当前面板", "Split pane right", "Mod+Shift+\\"},
+	{"pane.splitDown", "向下拆分当前面板", "Split pane down", "Mod+Alt+\\"},
+	{"pane.fullscreen.toggle", "切换面板全屏", "Toggle pane fullscreen", "Mod+Alt+Enter"},
 }
 
 func Commands() []Command { return commandsForPlatform(runtime.GOOS) }
@@ -105,8 +129,8 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 			}
 			chord.Alt = true
 		default:
-			if i != len(parts)-1 || len(token) != 1 || !strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,\\`.;'[]-=/", token) {
-				return Chord{}, errors.New("无效按键；支持字母、数字和标点 / Invalid key; use a letter, digit or punctuation")
+			if i != len(parts)-1 || (token != "ENTER" && (len(token) != 1 || !strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,\\`.;'[]-=/", token))) {
+				return Chord{}, errors.New("无效按键；支持字母、数字、标点或 Enter / Invalid key; use a letter, digit, punctuation or Enter")
 			}
 			chord.Key = token
 		}

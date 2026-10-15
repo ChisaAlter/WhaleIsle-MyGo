@@ -31,6 +31,14 @@ func (s *mainState) selectMainPanel(panel string) {
 // global panels. Settings and guest/PDF views deliberately bypass this shell.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
 	m.PageShortcutBindings = s.pageShortcutBindings()
+	m.SessionSearchFocus = &s.commandSearchFocus
+	m.OnOpenWorkspaceFiles = func() {
+		s.selectMainPanel("")
+		s.mu.Lock()
+		s.filesPaneOpen = true
+		s.rightPaneTab = "files"
+		s.mu.Unlock()
+	}
 	if !enabled {
 		content()
 		return

@@ -68,6 +68,7 @@ func (v *Content) AttachContent(conn *surface.Conn) {
 type windowHost struct {
 	conn *surface.Conn
 	rt   *engine
+	zoom float64
 	gpu  gpuRenderer
 	// gpuTried tells that the first frame tried the GPU, onGPU that its
 	// renderer drew on a GPU, degraded that one drawing in software took
@@ -110,6 +111,11 @@ var newGPU = newGPURenderer
 // event handles an event of the surface, noting when it asks for a frame:
 // only then may renderers draw (OpenGL's context is current only then).
 func (h *windowHost) event(ev platform.SurfaceEvent) bool {
+	z := h.zoomFactor()
+	ev.X /= z
+	ev.Y /= z
+	ev.DX /= z
+	ev.DY /= z
 	if ev.Kind == platform.SurfaceFrame {
 		h.framing = true
 		defer func() { h.framing = false }()
@@ -159,7 +165,8 @@ func (h *windowHost) size() (float32, float32, float32) {
 	if s <= 0 {
 		s = 1
 	}
-	return float32(w), float32(ht), float32(s)
+	z := h.zoomFactor()
+	return float32(w / z), float32(ht / z), float32(s * z)
 }
 
 func (h *windowHost) present(s *scene.Scene) {
@@ -386,7 +393,8 @@ func (h *windowHost) detach() {
 func (h *windowHost) requestFrame() { h.conn.Surface.RequestFrame() }
 
 func (h *windowHost) startDataDrag(data transfer.Data, local any, options transfer.DragOptions, x, y float32) error {
-	return h.conn.StartDataDrag(data, local, options, float64(x), float64(y))
+	z := h.zoomFactor()
+	return h.conn.StartDataDrag(data, local, options, float64(x)*z, float64(y)*z)
 }
 func (h *windowHost) cancelDataDrag()                    { h.conn.CancelDataDrag() }
 func (h *windowHost) setDropFormats(f []transfer.Format) { h.conn.Surface.SetDropFormats(f) }
@@ -414,9 +422,24 @@ func (h *windowHost) uiFont() {
 
 func (h *windowHost) setCursor(c Cursor) { h.conn.Surface.SetCursor(platform.Cursor(c)) }
 
-func (h *windowHost) setTextInput(t platform.TextInputState) { h.conn.Surface.SetTextInput(t) }
+func (h *windowHost) setTextInput(t platform.TextInputState) {
+	z := h.zoomFactor()
+	t.Caret = zoomRect(t.Caret, z)
+	if t.Client != nil {
+		t.Client = zoomTextClient{TextInputClient: t.Client, zoom: z}
+	}
+	h.conn.Surface.SetTextInput(t)
+}
 
 func (h *windowHost) updateAccessibility(tree *platform.AccessTree) {
+	if tree != nil {
+		copyTree := *tree
+		copyTree.Nodes = append([]platform.AccessNode(nil), tree.Nodes...)
+		for i := range copyTree.Nodes {
+			copyTree.Nodes[i].Bounds = zoomRect(copyTree.Nodes[i].Bounds, h.zoomFactor())
+		}
+		tree = &copyTree
+	}
 	h.conn.Surface.UpdateAccessibility(tree)
 }
 
@@ -459,7 +482,8 @@ func (h *windowHost) titleBar() TitleBar {
 		return TitleBar{}
 	}
 	t := h.conn.TitleBar()
-	return TitleBar{Height: float32(t.Height), Left: float32(t.Left), Right: float32(t.Right)}
+	z := float32(h.zoomFactor())
+	return TitleBar{Height: float32(t.Height) / z, Left: float32(t.Left) / z, Right: float32(t.Right) / z}
 }
 
 func (h *windowHost) vibrancy() bool {
@@ -477,6 +501,6 @@ func (h *windowHost) openURL(u string, done func(error)) {
 
 func (h *windowHost) popupMenu(m *platform.Menu, x, y float32, chosen func(int)) {
 	if h.conn.PopupMenu != nil {
-		h.conn.PopupMenu(m, float64(x), float64(y), chosen)
+		h.conn.PopupMenu(m, float64(x)*h.zoomFactor(), float64(y)*h.zoomFactor(), chosen)
 	}
 }

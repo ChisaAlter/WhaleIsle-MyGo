@@ -23,6 +23,7 @@ func registerPageCommands(c *ui.Context, m Model) {
 		"settings.open": m.OnOpenSettings, "tools.toggle": m.OnToggleTools,
 		"tools.toggle.alternate": m.OnToggleTools, "terminal.toggle": m.OnToggleTerminal,
 	}
+	addBusinessCommands(c, m, actions)
 	bindings := shortcuts.Resolve(m.PageShortcutBindings)
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]
@@ -30,13 +31,13 @@ func registerPageCommands(c *ui.Context, m Model) {
 		if !ok || run == nil {
 			continue
 		}
-		mods, key := nativePageChord(chord)
+		mods, key := NativeCommandChord(chord)
 		if key != ui.KeyUnknown && c.PageShortcut(mods, key) {
 			run()
 		}
 	}
 }
-func nativePageChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) {
+func NativeCommandChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) {
 	mods := ui.Cmd
 	if chord.Shift {
 		mods |= ui.Shift
@@ -54,6 +55,6 @@ func nativePageChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) {
 			return mods, digits[i]
 		}
 	}
-	keys := map[string]ui.Key{",": ui.KeyComma, "\\": ui.KeyBackslash, "`": ui.KeyBackquote, ".": ui.KeyPeriod, ";": ui.KeySemicolon, "'": ui.KeyQuote, "[": ui.KeyBracketLeft, "]": ui.KeyBracketRight, "-": ui.KeyMinus, "=": ui.KeyEqual, "/": ui.KeySlash}
+	keys := map[string]ui.Key{"ENTER": ui.KeyEnter, ",": ui.KeyComma, "\\": ui.KeyBackslash, "`": ui.KeyBackquote, ".": ui.KeyPeriod, ";": ui.KeySemicolon, "'": ui.KeyQuote, "[": ui.KeyBracketLeft, "]": ui.KeyBracketRight, "-": ui.KeyMinus, "=": ui.KeyEqual, "/": ui.KeySlash}
 	return mods, keys[chord.Key]
 }

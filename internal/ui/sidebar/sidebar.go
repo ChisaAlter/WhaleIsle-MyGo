@@ -34,6 +34,7 @@ type Model struct {
 	ThemeID         string
 	SystemDark      bool
 	SearchQuery     *string
+	SearchFocus     *bool
 	WorkspaceLabel  string
 	OnSelect        func(sessionID string)
 	OnRefresh       func()
@@ -287,7 +288,11 @@ func View(c *ui.Context, m Model) {
 					m.OnBrowseWorkspace()
 				}
 				if m.SearchQuery != nil {
-					ui.TextInput(c, m.SearchQuery).FillWidth().Placeholder(i18n.T(i18n.KeySidebarSearch))
+					searchInput := ui.TextInput(c, m.SearchQuery).FillWidth().Placeholder(i18n.T(i18n.KeySidebarSearch))
+					if m.SearchFocus != nil && *m.SearchFocus {
+						searchInput.Focus()
+						*m.SearchFocus = false
+					}
 				}
 				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					if sessionSearchResultsView(c, m, fg, muted) {

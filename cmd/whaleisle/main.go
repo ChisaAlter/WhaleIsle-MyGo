@@ -93,6 +93,7 @@ import (
 )
 
 type mainState struct {
+	commandSearchFocus   bool
 	appearanceEditor     *theme.Editor
 	appearanceVisible    bool
 	shortcutEditor       *shortcuts.Editor
@@ -2694,6 +2695,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.registerApplicationCommands(c)
 	state.beginAppearanceFrame(c)
 	defer state.endAppearanceFrame()
 	defer state.observeAssistantBotRoute()
@@ -6063,6 +6065,8 @@ func mainView(c *ui.Context) {
 					frameModel := frame.Model{
 						ExternalNavigation:   sharedNavigation,
 						PageShortcutBindings: state.pageShortcutBindings(),
+						SessionSearchFocus:   &state.commandSearchFocus,
+						OnOpenWorkspaceFiles: func() { filesPaneOpen = true; rightPaneTab = "files" },
 						Projects:             state.projectModel(win),
 						Store:                sessions,
 						ScheduleStore:        schedStore, OnOpenScheduleTask: state.openScheduleTask,

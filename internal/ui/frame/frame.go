@@ -139,6 +139,8 @@ type Model struct {
 	OnOpenScheduleTask func(schedstore.Entry)
 	// PageShortcutBindings contains committed native overrides; nil uses defaults.
 	PageShortcutBindings map[string]string
+	SessionSearchFocus   *bool
+	OnOpenWorkspaceFiles func()
 	BrowserContent       func(*ui.Context)
 	OnHideBrowser        func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
@@ -415,6 +417,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		ThemeID:              m.ThemeID,
 		SystemDark:           m.SystemDark,
 		SearchQuery:          m.SessionSearch,
+		SearchFocus:          m.SessionSearchFocus,
 		WorkspaceLabel:       m.Store.WorkspaceCwd(),
 		RenameSessionID:      rename.SessionID,
 		RenameDraft:          &rename.Draft,
