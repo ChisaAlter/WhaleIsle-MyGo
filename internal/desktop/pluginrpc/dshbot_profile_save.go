@@ -22,6 +22,14 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		if err := validateDshbotSenderField(expected, fields["allowedSenderIds"]); err != nil {
 			return out, err
 		}
+	case len(fields) == 1 && fields["notify"] != nil:
+		enabled, err := DshbotNotifyEnabled(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := ValidateDshbotNotifyCommand(DshbotNotifyCommand{Expected: expected, Enabled: enabled}); err != nil {
+			return out, err
+		}
 	case len(fields) == 1 && fields["memoryReview"] != nil:
 		if _, err := DshbotMemoryReviewEnabled(DshbotCapabilityStatus{Profile: fields}); err != nil {
 			return out, err
@@ -119,6 +127,19 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		}
 		if matches != 1 {
 			return out, fmt.Errorf("new canonical session identity is ambiguous")
+		}
+		return out, nil
+	}
+	if len(fields) == 1 && fields["notify"] != nil {
+		enabled, err := DshbotNotifyEnabled(DshbotCapabilityStatus{Profile: fields})
+		if err != nil {
+			return out, err
+		}
+		if err := DshbotNotifyApplied(DshbotNotifyCommand{Expected: expected, Enabled: enabled}, out.Status); err != nil {
+			return out, err
+		}
+		if response.SessionID != expected.Bot.SessionID || !sameDshbotProfileReceipt(response.Item, out.Status.Profile) {
+			return out, fmt.Errorf("notification item/session receipt differs; read back")
 		}
 		return out, nil
 	}

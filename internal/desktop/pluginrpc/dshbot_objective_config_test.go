@@ -94,7 +94,7 @@ func TestBotObjectiveConfigLimitsAndLosslessBoundary(t *testing.T) {
 		t.Fatal("unknown nested dropped")
 	}
 	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(*http.Request) (*http.Response, error) { t.Fatal("invalid patch sent"); return nil, nil })}}
-	for _, fields := range []map[string]json.RawMessage{{"objective": json.RawMessage(`"x"`)}, {"objective": json.RawMessage(`"x"`), "objectiveMaxRounds": json.RawMessage(`16`), "notify": json.RawMessage(`true`)}, {"notify": json.RawMessage(`true`)}} {
+	for _, fields := range []map[string]json.RawMessage{{"objective": json.RawMessage(`"x"`)}, {"objective": json.RawMessage(`"x"`), "objectiveMaxRounds": json.RawMessage(`16`), "notify": json.RawMessage(`true`)}, {"hidden": json.RawMessage(`true`)}} {
 		if out, err := c.saveDshbotProfileFields(context.Background(), base, fields); err == nil || out.Attempted {
 			t.Fatal("unsupported patch")
 		}

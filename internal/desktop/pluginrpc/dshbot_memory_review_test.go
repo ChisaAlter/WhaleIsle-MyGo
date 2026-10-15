@@ -82,7 +82,7 @@ func TestBotMemoryReviewRejectMissingUnchangedAndForeignFields(t *testing.T) {
 		t.Fatal("missing flag defaulted")
 	}
 	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unexpected mutation"); return nil, nil })}}
-	if _, err := c.saveDshbotProfileField(context.Background(), base, "notify", json.RawMessage(`true`)); err == nil {
+	if _, err := c.saveDshbotProfileField(context.Background(), base, "hidden", json.RawMessage(`true`)); err == nil {
 		t.Fatal("invented editor field")
 	}
 	copy := CloneDshbotCapabilities(base)

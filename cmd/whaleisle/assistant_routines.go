@@ -144,6 +144,7 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 	s.bindBotObjectiveConfigModel(&model, ep, scope, current)
 	s.bindBotRouteModel(&model, ep, scope, current)
 	s.bindBotAvatarModel(&model, ep, scope, current)
+	s.bindBotNotifyModel(&model, ep, scope, current)
 	s.bindBotSenderPolicyModel(&model, ep, scope, current)
 	s.bindBotTextProfileModel(&model, ep, scope, current)
 	return model
