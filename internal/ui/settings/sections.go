@@ -25,6 +25,10 @@ const (
 	SectionAbout           SectionID = "about"
 	SectionUsageStats      SectionID = "usage-stats"
 	SectionRemoteWorkspace SectionID = "remote-workspace"
+	SectionAgentLoop       SectionID = "agent-loop"
+	SectionWebSearch       SectionID = "web-search"
+	SectionSubagent        SectionID = "subagent"
+	SectionShell           SectionID = "shell"
 	SectionOther           SectionID = "other"
 )
 
@@ -45,12 +49,30 @@ var planSectionOrder = []SectionID{
 	SectionAbout,
 	SectionUsageStats,
 	SectionRemoteWorkspace,
+	SectionAgentLoop,
+	SectionWebSearch,
+	SectionSubagent,
+	SectionShell,
 	SectionOther,
 }
 
 // namespaceToSection maps settings/describe namespace ids to a plan section.
 // Unknown namespaces fall through to SectionOther.
 var namespaceToSection = map[string]SectionID{
+	"agent-loop":       SectionAgentLoop,
+	"web-search-deepseek": SectionWebSearch,
+	"session-log-deepseek": SectionGeneral,
+	"subagent":         SectionSubagent,
+	"subagent-model-selection-settings": SectionSubagent,
+	"bash-sandbox":     SectionShell,
+	"pwsh-sandbox":     SectionShell,
+	"bash-local":       SectionShell,
+	"pwsh-local":       SectionShell,
+	"llm-deepseek":     SectionModels,
+	"llm-deepseek-api-key": SectionModels,
+	"llm-deepseek-account": SectionModels,
+	"llm-pi-ai":        SectionModels,
+	"llm-vision-fallback": SectionModels,
 	"account":          SectionAccount,
 	"general":          SectionGeneral,
 	"appearance":       SectionAppearance,

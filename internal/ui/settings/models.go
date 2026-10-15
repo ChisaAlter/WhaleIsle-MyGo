@@ -25,6 +25,17 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Models
+	if m.Store != nil && m.OnSelectNamespace != nil {
+		for _, namespace := range m.Store.Snapshot().Namespaces {
+			if SectionForNamespace(namespace.NS) != SectionModels || namespace.NS == "llm-vision-fallback" {
+				continue
+			}
+			ns := namespace.NS
+			if ui.Button(c, providerCopy("编辑 Provider / 模型配置：", "Edit provider / model settings: ")+ns).Clicked() {
+				m.OnSelectNamespace(ns)
+			}
+		}
+	}
 	visionPane(c, a.Vision, fg, muted)
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)

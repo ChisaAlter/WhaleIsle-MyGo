@@ -151,6 +151,14 @@ func sectionLabel(id SectionID) string {
 		return i18n.T(i18n.KeySettingsSectionUsageStats)
 	case SectionRemoteWorkspace:
 		return i18n.T(i18n.KeySettingsSectionRemoteWorkspace)
+	case SectionAgentLoop:
+		return providerCopy("智能体循环", "Agent loop")
+	case SectionWebSearch:
+		return providerCopy("网页搜索", "Web search")
+	case SectionSubagent:
+		return providerCopy("子智能体", "Subagents")
+	case SectionShell:
+		return providerCopy("命令执行", "Shell")
 	case SectionOther:
 		return i18n.T(i18n.KeySettingsSectionOther)
 	default:
@@ -189,7 +197,7 @@ func settingsNavItem(c *ui.Context, label string, active bool, fg, hover ui.Colo
 
 func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color) {
 	// Electron ui-settings nav column is ~240 DIP.
-	ui.Column(c).Width(240).Shrink(0).MinHeight(0).Background(navBG).Padding(8, 8, 8, 8).Gap(2).Children(func() {
+	ui.Scroll(c).Width(240).Shrink(0).MinHeight(0).Background(navBG).Padding(8, 8, 8, 8).Gap(2).Children(func() {
 		if m.FilterPtr != nil {
 			ui.TextInput(c, m.FilterPtr).FillWidth().Placeholder(i18n.T(i18n.KeySettingsFilter))
 		}
@@ -294,7 +302,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 }
 
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color) {
-	ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(12, 16, 12, 16).Gap(10).Children(func() {
+	ui.Scroll(c).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(12, 16, 12, 16).Gap(10).Children(func() {
 		if m.DesktopActive && m.Desktop != nil {
 			desktopPane(c, m, fg, muted)
 			return
@@ -397,14 +405,14 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
 				save = save.Disabled(true)
 			}
 			if save.Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) {
 				replace = replace.Disabled(true)
 			}
 			if replace.Clicked() {
@@ -414,6 +422,10 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 				m.Store.DiscardDrafts(context.Background())
 			}
 		})
+		ui.Text(c, providerCopy("保存只提交已修改字段；重置会删除覆盖值并继承默认设置。", "Save submits changed fields only. Reset removes an override and inherits its default.")).FontSize(11).TextColor(muted)
+		if ns.HasSecrets {
+			ui.Text(c, providerCopy("此配置包含隐藏密钥，完整替换不可用；普通保存会保留未编辑的密钥。", "This section contains hidden secrets. Use Save to preserve unedited secrets; full replacement is unavailable.")).FontSize(11).TextColor(muted)
+		}
 		ui.Text(c, i18n.T(i18n.KeySettingsReplaceHint)).FontSize(11).TextColor(muted)
 	})
 	_ = border
@@ -443,7 +455,15 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 		if f.Required {
 			label += " *"
 		}
-		ui.Text(c, label).FontSize(12).TextColor(fg)
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).FontSize(12).TextColor(fg).Grow(1)
+			if m.Store != nil && ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).FontSize(11).Disabled(snap.Loading || snap.Saving || !snap.Writable).Clicked() {
+				m.Store.ResetDraft(f.Key)
+			}
+		})
+		if snap.Resets[f.Key] {
+			ui.Text(c, providerCopy("保存后使用继承值；再次编辑可取消重置。", "Will inherit after Save. Edit again to cancel the reset.")).FontSize(11).TextColor(muted)
+		}
 		if f.Description != "" {
 			ui.Text(c, f.Description).FontSize(11).TextColor(muted)
 		}

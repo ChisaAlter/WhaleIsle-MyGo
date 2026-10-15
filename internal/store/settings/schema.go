@@ -88,11 +88,7 @@ func collectFields(node schemaNode, prefix string, out *[]Field) {
 			}
 			if child.Type == "object" && len(child.Dict) > 0 {
 				if prefix == "" {
-					*out = append(*out, Field{
-						Key:   key,
-						Label: key,
-						Kind:  FieldJSON,
-					})
+					*out = append(*out, fieldForNode(key, child))
 				} else {
 					collectFields(child, key, out)
 				}
@@ -109,7 +105,7 @@ func collectFields(node schemaNode, prefix string, out *[]Field) {
 }
 
 func fieldForNode(key string, node schemaNode) Field {
-	required := true
+	required := false
 	label := key
 	desc := ""
 	if node.Meta != nil {
@@ -221,9 +217,12 @@ func resolveRef(ctx schemaNode, ref json.RawMessage) (schemaNode, error) {
 
 // PatchValue parses a draft string for one field into JSON for settings/update.
 func PatchValue(kind FieldKind, draft string) (json.RawMessage, error) {
+	if kind == FieldString {
+		return json.Marshal(draft)
+	}
 	draft = strings.TrimSpace(draft)
 	switch kind {
-	case FieldString, FieldEnum:
+	case FieldEnum:
 		b, err := json.Marshal(draft)
 		return b, err
 	case FieldNumber:
