@@ -23,6 +23,7 @@ type Companion struct {
 	Enabled         bool
 	SkinID          string
 	Neural          bool
+	Behavior        config.PetBehavior
 	Error           string
 	Skins           []Skin
 	ready           bool
@@ -48,7 +49,7 @@ type Companion struct {
 
 func New(store *config.Store) *Companion {
 	cfg := store.DesktopPet()
-	p := &Companion{Store: store, Enabled: cfg.Enabled, SkinID: cfg.SkinID, Neural: cfg.Neural, ready: true}
+	p := &Companion{Store: store, Enabled: cfg.Enabled, SkinID: cfg.SkinID, Neural: cfg.Neural, Behavior: cfg.Behavior, ready: true}
 	if err := mygo.Protocol.Handle("whale-pet", p); err != nil {
 		p.Error = err.Error()
 	}
@@ -64,6 +65,7 @@ func (p *Companion) Refresh() {
 	p.Error = ""
 }
 func (p *Companion) Save() {
+	previous := p.Store.DesktopPet()
 	if p.SkinID != "" {
 		found := false
 		for _, s := range p.Skins {
@@ -72,18 +74,22 @@ func (p *Companion) Save() {
 			}
 		}
 		// Keep an already-saved missing skin, but don't allow arbitrary new IDs.
-		if !found && p.SkinID != p.Store.DesktopPet().SkinID {
+		if !found && p.SkinID != previous.SkinID {
 			p.Error = "Selected skin is unavailable / 皮肤不可用"
 			return
 		}
 	}
-	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural}); err != nil {
+	p.Behavior = config.NormalizePetBehavior(p.Behavior)
+	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural, Behavior: p.Behavior, Position: previous.Position}); err != nil {
 		p.Error = err.Error()
 		return
 	}
 	p.Error = ""
-	p.close()
+	if previous.Enabled != p.Enabled || previous.SkinID != p.SkinID || previous.Neural != p.Neural {
+		p.close()
+	}
 	p.sync()
+	p.applyBehavior()
 }
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
@@ -137,7 +143,7 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: 438, MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
 		p.close()
@@ -146,7 +152,7 @@ func (p *Companion) sync() {
 	p.win = w
 	// StateKey restores older window sizes as well as position. Keep all action
 	// links reachable when an existing installation restores the shorter card.
-	w.SetSize(220, 438)
+	w.SetSize(220, petWindowHeight(cfg.Behavior))
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
 			return
@@ -182,7 +188,7 @@ func (p *Companion) sync() {
 		case "feed-file":
 			p.feedFile()
 		case "chat":
-			if p.OnOpenChat != nil {
+			if p.ChatAllowed() && p.OnOpenChat != nil {
 				p.OnOpenChat()
 			}
 		case "open":
@@ -241,6 +247,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = renderLookPage(body, p.look.status)
 		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
+		body = renderBehaviorPage(body, p.savedBehavior())
 		body = renderCarePage(body, p.careStatus())
 		body = renderGrowthPage(body, p.growthStatus())
 		body = renderRestPage(body, p.restStatus())
@@ -249,15 +256,17 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		care := p.careStatus()
 		growth := p.growthStatus()
 		rest := p.restStatus()
+		behavior := p.savedBehavior()
 		p.assetMu.RLock()
 		body, _ = json.Marshal(struct {
 			TaskStatus
-			Chat   ChatStatus
-			Look   LookStatus
-			Care   CareStatus
-			Growth GrowthStatus
-			Rest   RestStatus
-		}{p.task, p.chat.status, p.look.status, care, growth, rest})
+			Behavior config.PetBehavior
+			Chat     ChatStatus
+			Look     LookStatus
+			Care     CareStatus
+			Growth   GrowthStatus
+			Rest     RestStatus
+		}{p.task, behavior, p.chat.status, p.look.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/tha4.js", "/pet-runtime.js":

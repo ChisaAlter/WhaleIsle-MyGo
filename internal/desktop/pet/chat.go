@@ -56,7 +56,7 @@ func (e *chatEntry) close() {
 // StartChat runs on the UI thread, as does its completion callback. A nil
 // context means the instance is closed or already opening its conversation.
 func (p *Companion) StartChat() (context.Context, func(string) bool) {
-	if p.win == nil || p.win.IsDestroyed() {
+	if p.win == nil || p.win.IsDestroyed() || !p.ChatAllowed() {
 		return nil, nil
 	}
 	p.assetMu.Lock()

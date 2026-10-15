@@ -5,21 +5,25 @@ import "encoding/json"
 // DesktopPet is the native sprite companion's opt-in configuration. It does
 // not migrate or overwrite Electron's pet/live2dPet state.
 type DesktopPet struct {
-	Enabled bool   `json:"enabled"`
-	SkinID  string `json:"skinId"`
-	Neural  bool   `json:"neural,omitempty"`
+	Enabled  bool         `json:"enabled"`
+	SkinID   string       `json:"skinId"`
+	Neural   bool         `json:"neural,omitempty"`
+	Behavior PetBehavior  `json:"behavior"`
+	Position *PetPosition `json:"position,omitempty"`
 }
 
 func (s *Store) DesktopPet() DesktopPet {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var out DesktopPet
+	out := DesktopPet{Behavior: DefaultPetBehavior()}
 	// Decode individually so a malformed field cannot enable the companion.
 	var raw map[string]json.RawMessage
 	if json.Unmarshal(s.raw["mygoDesktopPet"], &raw) == nil {
 		_ = json.Unmarshal(raw["enabled"], &out.Enabled)
 		_ = json.Unmarshal(raw["skinId"], &out.SkinID)
 		_ = json.Unmarshal(raw["neural"], &out.Neural)
+		_ = json.Unmarshal(raw["behavior"], &out.Behavior)
+		out.Position = decodePetPosition(raw["position"])
 	}
 	return out
 }
@@ -27,6 +31,7 @@ func (s *Store) DesktopPet() DesktopPet {
 func (s *Store) SaveDesktopPet(value DesktopPet) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	value.Behavior = NormalizePetBehavior(value.Behavior)
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err

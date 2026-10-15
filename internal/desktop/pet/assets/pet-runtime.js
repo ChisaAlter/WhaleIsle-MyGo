@@ -4,6 +4,42 @@
   const fallback = document.getElementById('fallback');
   const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
   const notice = document.getElementById('render-notice');
+  let settings = {}, shiftHeld = false, clickAudio = null;
+  try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
+  function applySettings(next) {
+    if (next && typeof next === 'object') settings = next;
+    const scale = Math.max(.6, Math.min(1.6, Number(settings.scale) || 1));
+    const opacity = Math.max(.3, Math.min(1, Number(settings.opacity) || 1));
+    document.documentElement.style.setProperty('--pet-scale', String(scale));
+    document.querySelector('.task').style.maxHeight = 'calc(100vh - ' + Math.ceil(130 * scale) + 'px)';
+    for (const character of [canvas, fallback]) {
+      character.style.opacity = String(opacity);
+      character.style.setProperty('--app-region', settings.lockPosition || (settings.shiftToDrag && !shiftHeld) ? 'no-drag' : 'drag');
+    }
+  }
+  function modifier(event) { const next = !!event.shiftKey; if (shiftHeld !== next) {shiftHeld = next; applySettings();} }
+  document.addEventListener('pointermove', modifier);
+  document.addEventListener('pointerenter', modifier, true);
+  document.addEventListener('keydown', modifier);
+  document.addEventListener('keyup', modifier);
+  window.addEventListener('blur', () => {shiftHeld = false; applySettings();});
+  document.addEventListener('click', event => {
+    if (!settings.clickSound || !event.target.closest('a[href]')) return;
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return;
+      clickAudio ||= new Audio();
+      if (clickAudio.state === 'suspended') void clickAudio.resume().catch(() => {});
+      const time = clickAudio.currentTime, oscillator = clickAudio.createOscillator(), gain = clickAudio.createGain();
+      oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(880, time);
+      oscillator.frequency.linearRampToValueAtTime(1320, time + .06);
+      gain.gain.setValueAtTime(.08, time); gain.gain.exponentialRampToValueAtTime(.0001, time + .09);
+      oscillator.connect(gain); gain.connect(clickAudio.destination);
+      oscillator.onended = () => {oscillator.disconnect(); gain.disconnect();};
+      oscillator.start(time); oscillator.stop(time + .1);
+    } catch {}
+  });
+  applySettings(settings);
   let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null;
   function setSleeping(next) {
@@ -23,6 +59,7 @@
   fallback.addEventListener('pointerenter', contactWake);
   const stop = () => {
     stopped = true; resumeRenderer = null;
+    if (clickAudio) void clickAudio.close().catch(() => {});
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer);
     if (engine) void engine.close().catch(() => {});
   };
@@ -34,6 +71,7 @@
       if (!response.ok) throw new Error('status unavailable');
       const task = await response.json();
       if (stopped) return;
+      applySettings(task.Behavior);
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
       document.getElementById('care-label').textContent = task.Care?.Label || '';
@@ -53,8 +91,8 @@
       pat.setAttribute('aria-disabled', String(!!task.Care?.Busy));
       if (task.Care?.Busy) pat.removeAttribute('href'); else pat.setAttribute('href', 'pat-pet');
       const chat = document.getElementById('pet-chat');
-      chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
-      if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
+      chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy || settings.chatEnabled === false));
+      if (task.Chat?.Busy || settings.chatEnabled === false) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
       document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
       const look = document.getElementById('pet-look');
       look.setAttribute('aria-disabled', String(!!task.Look?.Busy));

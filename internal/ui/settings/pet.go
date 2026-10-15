@@ -1,7 +1,9 @@
 package settings
 
 import (
+	"fmt"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
 )
 
@@ -20,6 +22,27 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	}
 	ui.Checkbox(c, &p.Enabled, "Show companion / 显示桌宠")
 	ui.Checkbox(c, &p.Neural, "THA4 animation (optional) / THA4 动画（可选）")
+	ui.Text(c, fmt.Sprintf("大小 / Scale %.1f · 透明度 / Opacity %.0f%%", p.Behavior.Scale, p.Behavior.Opacity*100)).FontSize(12).TextColor(fg)
+	ui.Row(c).Gap(6).Children(func() {
+		if ui.Button(c, "− 大小").Clicked() {
+			p.Behavior.Scale -= .1
+		}
+		if ui.Button(c, "+ 大小").Clicked() {
+			p.Behavior.Scale += .1
+		}
+		if ui.Button(c, "− 透明度").Clicked() {
+			p.Behavior.Opacity -= .05
+		}
+		if ui.Button(c, "+ 透明度").Clicked() {
+			p.Behavior.Opacity += .05
+		}
+		p.Behavior = config.NormalizePetBehavior(p.Behavior)
+	})
+	ui.Checkbox(c, &p.Behavior.LockPosition, "Lock position / 锁定拖动")
+	ui.Checkbox(c, &p.Behavior.ShiftToDrag, "Hold Shift to drag / 按住 Shift 拖动")
+	ui.Checkbox(c, &p.Behavior.ClickSound, "Click sound / 点击音效")
+	ui.Checkbox(c, &p.Behavior.ChatEnabled, "Enable pet chat / 允许桌宠聊天入口")
+	ui.Text(c, "Save applies appearance and interaction settings without restarting the pet. / 保存后应用外观与交互设置，无需重建桌宠窗口。").FontSize(11).TextColor(muted)
 	options := []string{""}
 	found := p.SkinID == ""
 	for _, s := range p.Skins {
