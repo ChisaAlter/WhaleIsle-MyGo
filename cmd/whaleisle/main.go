@@ -204,6 +204,7 @@ type mainState struct {
 	assistantRoutineCreator                 dshbotstore.RoutineCreator
 	assistantRoomCreator                    dshbotstore.RoomCreator
 	assistantBotVisibility                  dshbotstore.BotVisibilityManager
+	assistantContacts                       dshbotstore.ContactControls
 	assistantBotCreator                     dshbotstore.BotCreator
 	assistantBotDeleter                     dshbotstore.BotDeleter
 	assistantBotDuplicator                  dshbotstore.BotDuplicator
@@ -756,6 +757,7 @@ func (s *mainState) showMainWindow() {
 func (s *mainState) applyDeeplink(t deeplink.Target) {
 	s.assistantBotCreator.Suspend()
 	s.assistantBotVisibility.Suspend()
+	s.assistantContacts.Suspend()
 	s.assistantBotDeleter.Suspend()
 	s.assistantBotDuplicator.Suspend()
 	s.assistantRoomCreator.Suspend()
@@ -1738,6 +1740,7 @@ func (s *mainState) stopDSH() {
 func (s *mainState) stopDSHLocked() {
 	s.assistantBotCreator.Suspend()
 	s.assistantBotVisibility.Suspend()
+	s.assistantContacts.Suspend()
 	s.assistantBotDeleter.Suspend()
 	s.assistantBotDuplicator.Suspend()
 	s.assistantRoomCreator.Suspend()
@@ -2080,6 +2083,7 @@ func main() {
 		win.OnHide(state.assistantRoomCreator.Suspend)
 		win.OnHide(state.assistantBotCreator.Suspend)
 		win.OnHide(state.assistantBotVisibility.Suspend)
+		win.OnHide(state.assistantContacts.Suspend)
 		win.OnHide(state.assistantBotDeleter.Suspend)
 		win.OnHide(state.assistantBotDuplicator.Suspend)
 		win.OnHide(state.assistantRoomEditor.Suspend)
@@ -2087,6 +2091,7 @@ func main() {
 		win.OnMinimize(state.assistantRoomCreator.Suspend)
 		win.OnMinimize(state.assistantBotCreator.Suspend)
 		win.OnMinimize(state.assistantBotVisibility.Suspend)
+		win.OnMinimize(state.assistantContacts.Suspend)
 		win.OnMinimize(state.assistantBotDeleter.Suspend)
 		win.OnMinimize(state.assistantBotDuplicator.Suspend)
 		win.OnMinimize(state.assistantRoomEditor.Suspend)
@@ -2094,6 +2099,7 @@ func main() {
 		win.OnClosed(state.assistantRoomCreator.Suspend)
 		win.OnClosed(state.assistantBotCreator.Suspend)
 		win.OnClosed(state.assistantBotVisibility.Suspend)
+		win.OnClosed(state.assistantContacts.Suspend)
 		win.OnClosed(state.assistantBotDeleter.Suspend)
 		win.OnClosed(state.assistantBotDuplicator.Suspend)
 		win.OnClosed(state.assistantRoomEditor.Suspend)
@@ -2699,6 +2705,7 @@ func mainView(c *ui.Context) {
 	defer func() { state.observeAssistantRoomCreator(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotCreator(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotVisibility(roomCreateRendered) }()
+	defer func() { state.observeAssistantContacts(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotDeleter(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotDuplicator(roomCreateRendered) }()
 	defer func() { state.observeBotNotifications(roomCreateRendered) }()
@@ -2760,6 +2767,7 @@ func mainView(c *ui.Context) {
 	if !assistantOpen || st.State != harness.Ready {
 		state.assistantBotCreator.Suspend()
 		state.assistantBotVisibility.Suspend()
+		state.assistantContacts.Suspend()
 		state.assistantBotDeleter.Suspend()
 		state.assistantBotDuplicator.Suspend()
 		state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
@@ -4240,6 +4248,10 @@ func mainView(c *ui.Context) {
 				roomCreateModel := state.assistantRoomCreateModel(ep)
 				botCreateModel := state.assistantBotCreateModel(ep)
 				botVisibilityModel := state.assistantBotVisibilityModel(ep)
+				contactsModel := assistant.ContactsModel{}
+				if asstSnap.Mode == assiststore.ModeDshbot {
+					contactsModel = state.assistantContactsModel(ep)
+				}
 				botDeleteModel := state.assistantBotDeleteModel(ep, dshbotSelectedID)
 				botDuplicateModel := state.assistantBotDuplicateModel(ep, dshbotSelectedID)
 				roomEditRendered = asstSnap.Mode == assiststore.ModeDshbot
@@ -4252,6 +4264,7 @@ func mainView(c *ui.Context) {
 					RoomCreate:            roomCreateModel,
 					BotCreate:             botCreateModel,
 					BotVisibility:         botVisibilityModel,
+					Contacts:              contactsModel,
 					BotDelete:             botDeleteModel,
 					BotDuplicate:          botDuplicateModel,
 					RoomEdit:              roomEditModel,
@@ -4267,7 +4280,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:    whaleVendor,
 					DshbotVendorPresent:   dshbotVendor,
 					HarnessReady:          true,
-					Busy:                  asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
+					Busy:                  asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || contactsModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
 					LastWebViewURL:        lastWebURL,
 					LastNativeAction:      lastNative,
 					LastErr:               asstSnap.LastErr,
@@ -4283,6 +4296,8 @@ func mainView(c *ui.Context) {
 					OnDshbotSelect: func(botID string) {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomEditor.Suspend()
@@ -4294,6 +4309,8 @@ func mainView(c *ui.Context) {
 					OnSetMode: func(mode assiststore.Mode) {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4312,6 +4329,8 @@ func mainView(c *ui.Context) {
 					OnOpenModeWeb: func() {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4346,6 +4365,8 @@ func mainView(c *ui.Context) {
 						state.whaleSettings.Suspend()
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4369,6 +4390,8 @@ func mainView(c *ui.Context) {
 					OnToggleDshbot: func(enabled bool) {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4381,6 +4404,8 @@ func mainView(c *ui.Context) {
 					OnOpenWhaleWeb: func() {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4403,6 +4428,8 @@ func mainView(c *ui.Context) {
 					OnOpenDshbotWeb: func() {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()
@@ -4537,6 +4564,8 @@ func mainView(c *ui.Context) {
 					OnDshbotOpenRosterSession: func(botID string) {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
+						state.assistantContacts.Suspend()
+						state.assistantContacts.Suspend()
 						state.assistantBotDeleter.Suspend()
 						state.assistantBotDuplicator.Suspend()
 						state.assistantRoomCreator.Suspend()

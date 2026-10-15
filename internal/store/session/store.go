@@ -22,14 +22,15 @@ type Item struct {
 	BilledUsageSeq  float64
 	BilledUsageKind string
 
-	SessionID string
-	ParentID  string
-	Title     string
-	Cwd       string
-	Running   bool
-	Blank     bool
-	UpdatedAt float64
-	Pinned    bool
+	SessionID    string
+	ParentID     string
+	Title        string
+	Cwd          string
+	Running      bool
+	ContactError string
+	Blank        bool
+	UpdatedAt    float64
+	Pinned       bool
 	// Origin identifies durable subagents; a removed live Agent does not delete them.
 	Origin         string
 	AgentAvailable bool

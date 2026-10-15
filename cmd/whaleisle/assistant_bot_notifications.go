@@ -19,6 +19,7 @@ type botNotificationRun struct {
 	key               string
 	cancel            context.CancelFunc
 	tracker           botnotify.Tracker // UI-thread only below this line
+	contactActivity   []botnotify.ContactActivity
 	notices           map[botnotify.Ticket]*mygo.Notification
 	pending           []botnotify.Notice
 	deliveryBlocked   bool
@@ -112,6 +113,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 				return
 			}
 			if err != nil {
+				run.contactActivity = nil
 				run.tracker.Clear()
 				run.pending = nil
 				for ticket, n := range run.notices {
@@ -121,6 +123,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 				s.botNotificationStatus(err.Error())
 				return
 			}
+			run.contactActivity = append([]botnotify.ContactActivity(nil), snapshot.Contacts...)
 			s.mu.Lock()
 			denied := s.botNotificationDenied
 			s.mu.Unlock()

@@ -198,6 +198,9 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 	switch m.kind {
 	case "api-session/status":
 		s.items[index].Running = m.running
+		if m.running {
+			s.items[index].ContactError = ""
+		}
 		s.items[index].AgentAvailable = true
 	case "api-session/activity":
 		s.items[index].UpdatedAt = m.updatedAt
@@ -214,8 +217,9 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			s.selectSessionLocked("")
 		}
 	case "api-session/error":
+		s.items[index].ContactError = m.message
 		if !live || s.selectedID != m.sessionID {
-			return false
+			return true
 		}
 		s.lastAction = m.message
 	}

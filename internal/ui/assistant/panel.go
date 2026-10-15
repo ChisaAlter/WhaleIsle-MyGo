@@ -19,6 +19,7 @@ import (
 type Model struct {
 	RoomCreate                RoomCreateModel
 	BotVisibility             BotVisibilityModel
+	Contacts                  ContactsModel
 	BotCreate                 BotCreateModel
 	BotDelete                 BotDeleteModel
 	BotDuplicate              BotDuplicateModel
@@ -239,6 +240,10 @@ func statusBlock(c *ui.Context, field, border, fg, muted ui.Color, rows []kv) {
 
 func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	if assiststore.NormalizeMode(m.Mode) != assiststore.ModeDshbot {
+		return
+	}
+	if m.Contacts.OnRefresh != nil {
+		contactsView(c, m, fg, muted, field, border, accent)
 		return
 	}
 	if m.OnDshbotRefreshRoster == nil && len(m.DshbotRoster) == 0 {

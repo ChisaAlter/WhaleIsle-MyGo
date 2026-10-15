@@ -51,6 +51,7 @@ func (c *Client) DshbotNotificationSnapshot(ctx context.Context) (botnotify.Snap
 			return botnotify.Snapshot{}, fmt.Errorf("Bot notification activity identity or status unavailable")
 		}
 		seen[a.BotID] = true
+		out.Contacts = append(out.Contacts, botnotify.ContactActivity{ID: p.ID, SessionID: p.SessionID, ActivityAt: a.ActivityAt, Attention: a.Attention, Preview: a.Preview})
 		// A cold/uninspectable Bot cannot erase another Bot's valid activity.
 		// Omit this row so its old click/baseline is retired; recovery begins
 		// with a new baseline rather than manufacturing an attention edge.

@@ -38,6 +38,7 @@ type Row struct {
 	Run                       Run
 }
 type Snapshot struct {
+	Contacts    []ContactActivity
 	Revision    int
 	Unavailable int
 	Rows        []Row
