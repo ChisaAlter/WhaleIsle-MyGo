@@ -34,11 +34,13 @@ type Companion struct {
 	renderNotice    string
 	task            TaskStatus
 	chat            chatEntry
+	look            lookEntry
 	growth          chatEntry
 	rest            restState
 	OnRefreshGrowth func()
 	feeding         bool
 	feedMessage     string
+	OnLook          func()
 	OnOpenSettings  func()
 	OnOpenChat      func()
 	OnOpenSession   func(string)
@@ -88,6 +90,7 @@ func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
 	p.assetMu.Lock()
 	p.chat.close()
+	p.look.close()
 	p.growth.close()
 	p.rest = restState{}
 	p.feeding = false
@@ -158,6 +161,10 @@ func (p *Companion) sync() {
 		switch taskAction(e.URL, task) {
 		case "hide":
 			p.hide()
+		case "look-screen":
+			if p.OnLook != nil {
+				p.OnLook()
+			}
 		case "settings":
 			if p.OnOpenSettings != nil {
 				p.OnOpenSettings()
@@ -206,6 +213,7 @@ func (p *Companion) sync() {
 			p.win = nil
 			p.assetMu.Lock()
 			p.chat.close()
+			p.look.close()
 			p.growth.close()
 			p.rest = restState{}
 			p.feeding = false
@@ -230,6 +238,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = assets.ReadFile("assets/pet.html")
 		p.assetMu.RLock()
 		body = renderTaskPage(body, p.task)
+		body = renderLookPage(body, p.look.status)
 		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		body = renderCarePage(body, p.careStatus())
@@ -244,10 +253,11 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = json.Marshal(struct {
 			TaskStatus
 			Chat   ChatStatus
+			Look   LookStatus
 			Care   CareStatus
 			Growth GrowthStatus
 			Rest   RestStatus
-		}{p.task, p.chat.status, care, growth, rest})
+		}{p.task, p.chat.status, p.look.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/tha4.js", "/pet-runtime.js":

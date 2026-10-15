@@ -56,6 +56,10 @@
       chat.setAttribute('aria-disabled', String(!!task.Chat?.Busy));
       if (task.Chat?.Busy) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
       document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
+      const look = document.getElementById('pet-look');
+      look.setAttribute('aria-disabled', String(!!task.Look?.Busy));
+      if (task.Look?.Busy) look.removeAttribute('href'); else look.setAttribute('href', 'look-screen');
+      document.getElementById('pet-look-status').textContent = task.Look?.Message || '';
       setSleeping(task.Rest?.Sleeping === true);
       const rest = document.getElementById('rest-pet');
       rest.textContent = task.Rest?.Label || '睡觉 / Sleep';

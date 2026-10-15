@@ -2099,6 +2099,7 @@ func main() {
 		state.desktopPet.OnOpenSession = state.openPetSession
 		state.desktopPet.OnOpenChat = state.openPetChat
 		state.desktopPet.OnOpenSettings = state.openPetSettings
+		state.desktopPet.OnLook = state.lookFromPet
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })

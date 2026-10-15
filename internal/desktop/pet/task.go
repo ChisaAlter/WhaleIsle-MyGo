@@ -71,6 +71,9 @@ func taskAction(raw string, task TaskStatus) string {
 	if raw == "whale-pet://localhost/feed-file" {
 		return "feed-file"
 	}
+	if raw == "whale-pet://localhost/look-screen" {
+		return "look-screen"
+	}
 	if raw == "whale-pet://localhost/settings" {
 		return "settings"
 	}
