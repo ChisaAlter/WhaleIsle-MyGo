@@ -65,6 +65,7 @@ type Store struct {
 	repair         repairState
 	billing        billingState
 	stats          statsState
+	statsCachePath string
 	statsEpoch     uint64
 	statsCancel    context.CancelFunc
 	mu             sync.Mutex
@@ -123,6 +124,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.statsCancel = nil
 	}
 	s.stats = statsState{}
+	s.restoreStatsCacheLocked()
 	s.resetRankingLocked()
 	s.resetBillingLocked()
 	s.resetRepairLocked()

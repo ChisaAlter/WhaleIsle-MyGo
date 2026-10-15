@@ -35,9 +35,13 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	t := o.AllTime.Totals
 	ui.Text(c, fmt.Sprintf("Input %.0f · Output %.0f · Cache read %.0f · Cache write %.0f", t.Input, t.Output, t.CacheRead, t.CacheWrite)).FontSize(12).TextColor(muted)
 	ui.Text(c, usageText("近30天", "Recent 30 days")+fmt.Sprintf(": %.0f tokens · %d sessions", o.Totals.Total, o.SessionCount)).TextColor(fg)
+	ui.Text(c, totalsText(o.Totals)).FontSize(12).TextColor(muted)
 	stamp := time.UnixMilli(o.UpdatedAt).UTC().Format("2006-01-02 15:04:05 UTC")
 	ui.Text(c, usageText("最近成功更新：", "Last successful update: ")+stamp).FontSize(11).TextColor(muted)
-	if o.Stale || st.Err != "" {
+	if st.Cached {
+		ui.Text(c, usageText("已恢复上次启动的缓存；时间仍为上次成功更新。", "Restored cached overview. Timestamp is the last successful update.")).FontSize(11).TextColor(muted)
+	}
+	if st.Cached || o.Stale || st.Err != "" {
 		ui.Text(c, usageText("正在显示上次结果，可能已过期。", "Showing previous results; they may be stale.")).TextColor(accent)
 	}
 	cv := o.Coverage
@@ -57,31 +61,7 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		}
 	})
 	timeRangeView(c, m, fg, muted, accent)
-	days := o.Days
-	if st.Range.Active() {
-		days = st.Selection().Days
-	}
-	if !st.Range.Active() && len(days) > st.Days {
-		days = days[len(days)-st.Days:]
-	}
-	bars := make([]Bar, 0, len(days))
-	for _, d := range days {
-		label := d.Date
-		if len(label) > 5 {
-			label = label[5:]
-		}
-		bars = append(bars, Bar{Label: label, Value: d.Total})
-	}
-	ui.Text(c, usageText("每日 Token（UTC）", "Daily tokens (UTC)")).TextColor(fg)
-	// Split into week-sized rows so every day remains reachable on narrow windows.
-	ui.Scroll(c).Height(160).Children(func() {
-		ui.Column(c).Gap(8).Children(func() {
-			for start := 0; start < len(bars); start += 7 {
-				end := min(start+7, len(bars))
-				BarChartView(c, bars[start:end], fg, muted, accent, field)
-			}
-		})
-	})
+	statisticsDimensionsView(c, m, st, fg, muted, accent, field)
 	if st.Range.Active() {
 		ui.Text(c, usageText("JSON / 每日 / 模型导出：当前选定 UTC 日期。费用为 CNY 分；未知留空，部分计价另列覆盖数。", "JSON / daily / model exports: selected UTC dates. Costs are CNY cents; unknown values are blank and partial pricing has coverage counts.")).FontSize(11).TextColor(muted)
 	} else {
@@ -100,12 +80,5 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	})
 	rankingView(c, m, st, fg, muted, accent)
 	projectRankingView(c, m, st, fg, muted, accent)
-	ui.Text(c, usageText("服务商用量（全部历史）", "Provider usage (all time)")).Bold().TextColor(fg)
-	for _, provider := range o.Providers {
-		name := provider.Name
-		if name == "" {
-			name = provider.ID
-		}
-		ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).FontSize(12).TextColor(fg)
-	}
+
 }

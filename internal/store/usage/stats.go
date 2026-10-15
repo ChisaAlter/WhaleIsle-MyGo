@@ -83,6 +83,7 @@ type statsState struct {
 	RangeStart, RangeEnd, RangeError string
 	Raw                              json.RawMessage
 	Loading                          bool
+	Cached                           bool
 	Err                              string
 	Days                             int
 }
@@ -92,6 +93,7 @@ type StatsView struct {
 	RangeStart, RangeEnd, RangeError string
 	Overview                         *Overview
 	Loading                          bool
+	Cached                           bool
 	Err                              string
 	Days                             int
 }
@@ -99,7 +101,7 @@ type StatsView struct {
 func (s *Store) Stats() StatsView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := StatsView{raw: append(json.RawMessage(nil), s.stats.Raw...), Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Err: s.stats.Err, Days: s.stats.Days}
+	v := StatsView{raw: append(json.RawMessage(nil), s.stats.Raw...), Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Cached: s.stats.Cached, Err: s.stats.Err, Days: s.stats.Days}
 	if v.Days == 0 {
 		v.Days = 7
 	}
@@ -172,6 +174,8 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 			s.stats.Err = "用量统计后端不可用 / Usage statistics unavailable: " + err.Error()
 		} else {
 			s.stats.Raw = append(json.RawMessage(nil), raw...)
+			s.stats.Cached = false
+			s.saveStatsCacheLocked()
 			s.reconcileStatsRangeLocked()
 		}
 		s.finishRepairScanLocked(err)

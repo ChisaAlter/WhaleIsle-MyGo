@@ -1636,6 +1636,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	if s.usage == nil {
 		s.usage = usagestore.New()
+		s.usage.SetStatsCachePath(filepath.Join(paths.DshHome(), "cache", "mygo-usage-overview-v4.json"))
 	}
 	if s.remoteMachines == nil {
 		s.remoteMachines = remotestore.New()
@@ -1677,6 +1678,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.refreshReferencedCredentials()
 	s.refreshProviderDiscovery()
 	usageStore.Attach(client, refresh)
+	usageStore.RefreshStats(context.Background(), false)
 	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
