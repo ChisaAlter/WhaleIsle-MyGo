@@ -14,14 +14,16 @@ import (
 
 // Entry is one scheduled job row.
 type Entry struct {
-	ID        string
-	Title     string
-	Detail    string
-	SessionID string
-	Origin    string
-	Prompt    string
-	Status    string
-	Raw       json.RawMessage // original list item for schedule/update expected
+	ID          string
+	Title       string
+	Detail      string
+	SessionID   string
+	Origin      string
+	Prompt      string
+	Status      string
+	ScheduledAt string          // Host-committed next instant, or final instant when inactive.
+	TimeZone    string          // Rule zone; empty for absolute/interval rules.
+	Raw         json.RawMessage // original list item for schedule/update expected
 }
 
 // ViewState is a UI-safe snapshot.
@@ -44,15 +46,17 @@ type Store struct {
 	client *dsh.Client
 	notify func()
 
-	loading         bool
-	err             error
-	rows            []Entry
-	catalogHint     string
-	sessionID       string
-	generation      uint64
-	connectionEpoch uint64
-	lastAction      string
-	busy            bool
+	loading          bool
+	err              error
+	rows             []Entry
+	catalogHint      string
+	sessionID        string
+	generation       uint64
+	connectionEpoch  uint64
+	eventsGeneration uint64
+	requested        bool
+	lastAction       string
+	busy             bool
 }
 
 // New returns an empty schedule store.
@@ -65,6 +69,8 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.generation++
 	if s.client != client {
+		s.eventsGeneration++
+		s.requested = false
 		s.connectionEpoch++
 		s.loading = false
 		s.busy = false
@@ -83,6 +89,8 @@ func (s *Store) Detach() {
 	s.mu.Lock()
 	s.generation++
 	s.connectionEpoch++
+	s.eventsGeneration++
+	s.requested = false
 	s.client = nil
 	s.loading = false
 	s.busy = false
@@ -117,7 +125,21 @@ func (s *Store) Snapshot() ViewState {
 
 // Refresh loads schedule/list (and optional catalog) for sessionID.
 func (s *Store) Refresh(ctx context.Context, sessionID string) {
+	s.refresh(ctx, sessionID, nil)
+}
+
+func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwner) {
+	if ctx == nil || ctx.Err() != nil {
+		return
+	}
 	s.mu.Lock()
+	if owner != nil {
+		if !s.requested || !s.eventsOwnerCurrentLocked(owner) {
+			s.mu.Unlock()
+			return
+		}
+		sessionID = s.sessionID
+	}
 	client := s.client
 	if client == nil {
 		s.mu.Unlock()
@@ -126,6 +148,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	s.generation++
 	generation := s.generation
 	s.sessionID = sessionID
+	s.requested = true
 	s.loading = true
 	s.err = nil
 	s.mu.Unlock()
@@ -136,7 +159,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		catalogHint := ""
 		catalogErr := client.Call(ctx, "schedule/catalog", nil, &catalog)
 		if catalogErr == nil {
-			catalogHint = formatCatalogHint(catalog)
+			catalogHint = "全部会话 / All sessions · " + formatCatalogHint(catalog)
 		}
 
 		var rows []Entry
@@ -144,8 +167,9 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		if catalogErr == nil {
 			rows = parseScheduleList(catalog)
 		} else if sessionID == "" {
-			callErr = fmt.Errorf("select a session to list schedules")
+			callErr = fmt.Errorf("Host catalog unavailable; select a Session to list its active schedules")
 		} else {
+			catalogHint = "仅当前会话 / Current session only: " + sessionID + " · 全局目录不可用 / Host catalog unavailable"
 			var list api.ListResult4
 			req := map[string]any{"sessionId": sessionID}
 			callErr = client.Call(ctx, "schedule/list", map[string]any{"request": req}, &list)
@@ -154,22 +178,30 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 			}
 		}
 		s.mu.Lock()
-		if s.generation != generation {
+		if s.generation != generation || s.client != client {
 			s.mu.Unlock()
+			return
+		}
+		if ctx.Err() != nil || (owner != nil && !s.eventsOwnerCurrentLocked(owner)) {
+			s.loading = false
+			s.mu.Unlock()
+			s.fire()
 			return
 		}
 		for i := range rows {
 			rows[i].Origin = client.Endpoint.Origin
-			if catalogErr != nil && rows[i].SessionID == "" {
+			if catalogErr != nil {
+				// schedule/list returns active records for the requested Session.
 				rows[i].SessionID = sessionID
+				rows[i].Status = "active"
 			}
 		}
 		s.loading = false
 		s.err = callErr
 		if callErr == nil {
 			s.rows = rows
+			s.catalogHint = catalogHint
 		}
-		s.catalogHint = catalogHint
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -263,7 +295,7 @@ func parseScheduleList(list api.ListResult4) []Entry {
 			}
 			detail += truncate(item.Prompt, 80)
 		}
-		out = append(out, Entry{ID: item.ID, Title: title, Detail: detail, SessionID: item.SessionID, Prompt: item.Prompt, Status: item.Status, Raw: append(json.RawMessage(nil), raw...)})
+		out = append(out, Entry{ID: item.ID, Title: title, Detail: detail, SessionID: item.SessionID, Prompt: item.Prompt, Status: item.Status, ScheduledAt: item.ScheduledAt, TimeZone: item.TimeZone, Raw: append(json.RawMessage(nil), raw...)})
 	}
 	return out
 }

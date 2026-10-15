@@ -1838,6 +1838,7 @@ func (s *mainState) refreshSettingsMCP() {
 func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
 	s.mu.Lock()
 	sessions := s.sessions
+	schedStore := s.schedule
 	setStore := s.settings
 	win := s.win
 	s.mu.Unlock()
@@ -1856,6 +1857,10 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 	}
 	_ = dsh.MaintainMux(ctx, mux, dsh.Backoff{}, func(ctx context.Context) error {
 		setMuxState(true, false)
+		var scheduleEventsOwner *schedstore.EventsOwner
+		if schedStore != nil {
+			scheduleEventsOwner = schedStore.BeginEvents(ctx, client)
+		}
 		var eventsOwner *session.EventsOwner
 		if sessions != nil {
 			eventsOwner = sessions.BeginEvents(ctx, client)
@@ -1863,11 +1868,17 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		go func() {
 			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
+					if schedStore != nil {
+						schedStore.OnEventsReady(scheduleEventsOwner)
+					}
 					if sessions != nil {
 						sessions.OnEventsReady(eventsOwner)
 					}
 				},
 				Emit: func(emit dsh.EventsEmit) {
+					if schedStore != nil {
+						schedStore.OnEmit(scheduleEventsOwner, emit)
+					}
 					if setStore != nil {
 						setStore.OnEmitMaybeRefresh(ctx, emit)
 					}

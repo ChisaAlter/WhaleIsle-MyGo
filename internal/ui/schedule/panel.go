@@ -18,19 +18,20 @@ import (
 // Panel retains each task's unfinished draft when switching tasks or closing the panel.
 // Background requests publish only status/history; they never overwrite editor inputs.
 type Panel struct {
-	drafts          map[string]*taskDraft
-	selected        string
-	deleting        *schedstore.Entry
-	initialized     bool
-	connectionEpoch uint64
-	historyRequest  uint64
-	mu              sync.Mutex
-	history, status string
-	historyKey      string
-	historyRow      schedstore.Entry
-	historyBefore   string
-	historyLoading  bool
-	committed       map[string]savedDraft
+	drafts              map[string]*taskDraft
+	selected            string
+	query, statusFilter string
+	deleting            *schedstore.Entry
+	initialized         bool
+	connectionEpoch     uint64
+	historyRequest      uint64
+	mu                  sync.Mutex
+	history, status     string
+	historyKey          string
+	historyRow          schedstore.Entry
+	historyBefore       string
+	historyLoading      bool
+	committed           map[string]savedDraft
 }
 type savedDraft struct {
 	row    schedstore.Entry
@@ -137,6 +138,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		p.initialized = true
 		p.connectionEpoch = snap.ConnectionEpoch
 		p.selected = ""
+		p.query, p.statusFilter = "", "all"
 		p.deleting = nil
 		p.mu.Lock()
 		p.historyRequest++
@@ -177,25 +179,45 @@ func (p *Panel) View(c *ui.Context, m Model) {
 			}
 		})
 		ui.Text(c, "任务保留原始 Session；新建任务请在该会话中提出计划要求。").FontSize(11).TextColor(muted)
+		ui.Row(c).Gap(8).Children(func() {
+			ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
+			ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
+			if ui.Button(c, "清除筛选 / Clear filters").Clicked() {
+				p.query, p.statusFilter = "", "all"
+			}
+		})
+		if snap.CatalogHint != "" {
+			ui.Text(c, snap.CatalogHint).FontSize(11).TextColor(muted)
+		}
+		visibleRows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
+		ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(11).TextColor(muted)
 		for _, text := range []string{snap.Err, snap.LastAction, status} {
 			if text != "" {
 				ui.Text(c, text).FontSize(12).TextColor(fg)
 			}
+		}
+		if snap.Err != "" && len(snap.Rows) > 0 {
+			ui.Text(c, "刷新失败，以下保留上次成功读取的数据 / Refresh failed; showing last successful rows").FontSize(11).TextColor(muted)
 		}
 		if !snap.ClientReady {
 			ui.Text(c, "Host 未连接，连接后可管理计划。").TextColor(muted)
 		}
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).Gap(8).Children(func() {
-				if len(snap.Rows) == 0 && !snap.Loading {
-					ui.Text(c, "暂无定时任务 / No scheduled tasks").TextColor(muted)
+				if len(visibleRows) == 0 && !snap.Loading && snap.Err == "" {
+					text := "没有匹配的任务 / No matching tasks"
+					if len(snap.Rows) == 0 {
+						text = "暂无定时任务 / No scheduled tasks"
+					}
+					ui.Text(c, text).TextColor(muted)
 				}
-				for _, r := range snap.Rows {
+				for _, r := range visibleRows {
 					row := r
 					key := taskKey(row)
 					ui.Column(c).Border(1, chrome.Color(colors.Border)).Radius(6).Padding(8, 8, 8, 8).Gap(4).Children(func() {
 						ui.Text(c, row.Title).Bold().TextColor(fg)
 						ui.Text(c, row.Detail).FontSize(11).TextColor(muted)
+						ui.Text(c, schedstore.TimingLabel(row)).FontSize(11).TextColor(muted)
 						ui.Text(c, "Session: "+row.SessionID).FontSize(11).TextColor(muted)
 						ui.Row(c).Gap(8).Children(func() {
 							sessionLabel, canOpen := m.SessionLinks[row.SessionID]
