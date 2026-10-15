@@ -5087,8 +5087,6 @@ func mainView(c *ui.Context) {
 						OnOpenView: state.openInstalledPluginView,
 						OnInspect:  state.inspectInstalledPlugin,
 						OnOpenMarket: func() {
-							origin := ""
-							marketDisabled := false
 							state.mu.Lock()
 							state.settingsOpen = false
 							state.settingsDesktopActive = false
@@ -5102,28 +5100,13 @@ func mainView(c *ui.Context) {
 							state.settingsPluginsActive = false
 							state.settingsSkillsActive = false
 							state.settingsAgentPresetsActive = false
-							if state.cfgStore != nil {
-								for _, p := range state.cfgStore.Get().DisabledPlugins {
-									if p == "ui-settings-market" || p == "dsh-client-ui-settings-market" ||
-										p == "@deepseek-ai/dsh-client-ui-settings-market" {
-										marketDisabled = true
-										break
-									}
-								}
-							}
-							if state.sup != nil {
-								st := state.sup.Status()
-								if st.State == harness.Ready && !marketDisabled {
-									origin = st.Endpoint.Origin
-								}
-							}
-							if origin == "" {
-								state.marketOpen = true
-							}
+							// MyGo uses its native market. The Host market requires Electron's
+							// shell IPC and cannot register in the untrusted WebView.
+							state.marketOpen = true
+							state.webviewOpen = false
+							state.browserPreviewOpen = false
 							state.mu.Unlock()
-							if origin != "" {
-								state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
-							} else if marketStore != nil {
+							if marketStore != nil {
 								marketStore.Refresh(context.Background())
 							}
 							if win != nil {
