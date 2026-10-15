@@ -288,6 +288,9 @@ func View(c *ui.Context, m Model) {
 					ui.TextInput(c, m.SearchQuery).FillWidth().Placeholder(i18n.T(i18n.KeySidebarSearch))
 				}
 				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+					if sessionSearchResultsView(c, m, fg, muted) {
+						return
+					}
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
 					workspaceRowsView(c, m, items, fg, muted, border)
 					if len(m.Snapshot.ArchivedSessionIDs) > 0 {

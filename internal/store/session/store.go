@@ -134,6 +134,8 @@ type ViewState struct {
 	SearchErr      string
 	SearchRPCQuery string
 	SearchHitIDs   map[string]bool
+	SearchResults  []api.SessionSearchValueItemsItem
+	SearchHasMore  bool
 
 	// PlanBoard is the folded plan/goal/queue/todo strip from follow events.
 	PlanBoard PlanBoard
@@ -249,6 +251,9 @@ type Store struct {
 	searchErr                            error
 	searchRPCQuery                       string
 	searchHits                           map[string]struct{}
+	searchResults                        []api.SessionSearchValueItemsItem
+	searchHasMore                        bool
+	searchCancel                         context.CancelFunc
 	searchSeq                            uint64
 	searchDebounce                       *time.Timer
 	followCancel                         context.CancelFunc
@@ -287,6 +292,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.clearSearchLocked()
 		s.resetComposerHostLocked()
 		s.invalidateRenameLocked()
 		s.invalidateSessionFeedbackLocked()
@@ -549,6 +555,8 @@ func (s *Store) Snapshot() ViewState {
 	st.SearchLoading = s.searchLoading
 	st.SearchUseLocal = s.searchUseLocal
 	st.SearchRPCQuery = s.searchRPCQuery
+	st.SearchResults = append([]api.SessionSearchValueItemsItem(nil), s.searchResults...)
+	st.SearchHasMore = s.searchHasMore
 	if s.searchErr != nil {
 		st.SearchErr = s.searchErr.Error()
 	}

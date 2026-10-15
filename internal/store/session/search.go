@@ -5,12 +5,16 @@ import (
 	"strings"
 	"time"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
 const sessionSearchDebounce = 300 * time.Millisecond
 
-// UpdateSessionSearch debounces sidebar queries and calls session/search when non-empty.
+// SessionSearchResultLimit is the original Host-owned merged search bound.
+const SessionSearchResultLimit = 20
+
+// UpdateSessionSearch keeps immediate local matches while debouncing content search.
 func (s *Store) UpdateSessionSearch(ctx context.Context, query string) {
 	if s == nil {
 		return
@@ -20,112 +24,127 @@ func (s *Store) UpdateSessionSearch(ctx context.Context, query string) {
 		s.mu.Unlock()
 		return
 	}
+	s.clearSearchLocked()
 	s.searchInput = query
 	trimmed := strings.TrimSpace(query)
-	if trimmed == "" {
-		if s.searchDebounce != nil {
-			s.searchDebounce.Stop()
-			s.searchDebounce = nil
-		}
-		s.searchSeq++
-		s.clearSearchLocked()
-		s.mu.Unlock()
-		s.fire()
-		return
-	}
-	s.searchLoading = true
-	s.searchUseLocal = false
-	s.searchErr = nil
-	s.searchRPCQuery = ""
-	s.searchHits = nil
-	gen := s.searchSeq + 1
-	s.searchSeq = gen
-	if s.searchDebounce != nil {
-		s.searchDebounce.Stop()
+	if trimmed != "" {
+		s.searchLoading = true
+		gen := s.searchSeq
+		// Install under the same lock as the query so an older timer cannot replace
+		// the timer belonging to newer input.
+		s.searchDebounce = time.AfterFunc(sessionSearchDebounce, func() { s.startSessionSearch(ctx, trimmed, gen) })
 	}
 	s.mu.Unlock()
 	s.fire()
-
-	s.mu.Lock()
-	s.searchDebounce = time.AfterFunc(sessionSearchDebounce, func() {
-		s.mu.Lock()
-		if s.searchSeq != gen {
-			s.mu.Unlock()
-			return
-		}
-		q := strings.TrimSpace(s.searchInput)
-		if q == "" {
-			s.mu.Unlock()
-			return
-		}
-		s.mu.Unlock()
-		s.SearchSessions(ctx, q)
-	})
-	s.mu.Unlock()
 }
 
-// SearchSessions calls session/search and stores hit session ids for the sidebar tree.
+// SearchSessions refreshes the current query without changing input ownership.
 func (s *Store) SearchSessions(ctx context.Context, query string) {
-	query = strings.TrimSpace(query)
-	if query == "" {
+	if s == nil {
 		return
 	}
 	s.mu.Lock()
-	client := s.client
 	gen := s.searchSeq
 	s.mu.Unlock()
+	s.startSessionSearch(ctx, strings.TrimSpace(query), gen)
+}
+
+func (s *Store) startSessionSearch(ctx context.Context, query string, expected uint64) {
+	s.mu.Lock()
+	if query == "" || s.searchSeq != expected || strings.TrimSpace(s.searchInput) != query {
+		s.mu.Unlock()
+		return
+	}
+	if s.searchDebounce != nil {
+		s.searchDebounce.Stop()
+		s.searchDebounce = nil
+	}
+	if s.searchCancel != nil {
+		s.searchCancel()
+		s.searchCancel = nil
+	}
+	s.searchSeq++
+	gen, client := s.searchSeq, s.client
+	s.searchResults = nil
+	s.searchHits = nil
+	s.searchHasMore = false
+	s.searchRPCQuery = ""
+	s.searchErr = nil
 	if client == nil {
-		s.mu.Lock()
-		if s.searchSeq == gen && strings.TrimSpace(s.searchInput) == query {
-			s.searchLoading = false
-			s.searchUseLocal = true
-			s.searchErr = nil
-		}
+		s.searchLoading = false
+		s.searchUseLocal = true
 		s.mu.Unlock()
 		s.fire()
 		return
 	}
+	requestCtx, cancel := context.WithCancel(ctx)
+	s.searchCancel = cancel
+	s.searchLoading = true
+	s.searchUseLocal = false
+	s.mu.Unlock()
+	s.fire()
+	go s.runSessionSearch(requestCtx, client, gen, query)
+}
 
-	go func() {
-		req := api.SessionSearchRequest{Query: query}
-		var out api.SessionSearchValue
-		err := client.Call(ctx, "session/search", map[string]any{"request": req}, &out)
-
-		s.mu.Lock()
-		if s.searchSeq != gen || strings.TrimSpace(s.searchInput) != query {
-			s.mu.Unlock()
-			return
-		}
-		s.searchLoading = false
-		if err != nil {
-			s.searchUseLocal = true
-			s.searchErr = err
-			s.searchRPCQuery = ""
-			s.searchHits = nil
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
+func (s *Store) runSessionSearch(ctx context.Context, client *dsh.Client, gen uint64, query string) {
+	req := api.SessionSearchRequest{Query: query}
+	var out api.SessionSearchValue
+	err := client.Call(ctx, "session/search", map[string]any{"request": req}, &out)
+	s.mu.Lock()
+	if s.client != client || s.searchSeq != gen || strings.TrimSpace(s.searchInput) != query {
+		s.mu.Unlock()
+		return
+	}
+	// A transport may finish at the same time as cancellation. Never publish its
+	// success after the owner has canceled the query.
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if s.searchCancel != nil {
+		s.searchCancel()
+		s.searchCancel = nil
+	}
+	s.searchLoading = false
+	if err != nil {
+		s.searchUseLocal = true
+		s.searchErr = err
+		s.searchRPCQuery = ""
+		s.searchHits = nil
+		s.searchResults = nil
+		s.searchHasMore = false
+	} else {
 		s.searchUseLocal = false
 		s.searchErr = nil
 		s.searchRPCQuery = query
-		hits := make(map[string]struct{}, len(out.Items))
+		s.searchResults = append([]api.SessionSearchValueItemsItem(nil), out.Items...)
+		s.searchHasMore = out.HasMore
+		s.searchHits = make(map[string]struct{}, len(out.Items))
 		for _, it := range out.Items {
 			if it.SessionId != "" {
-				hits[it.SessionId] = struct{}{}
+				s.searchHits[it.SessionId] = struct{}{}
 			}
 		}
-		s.searchHits = hits
-		s.mu.Unlock()
-		s.fire()
-	}()
+	}
+	s.mu.Unlock()
+	s.fire()
 }
 
 func (s *Store) clearSearchLocked() {
+	if s.searchDebounce != nil {
+		s.searchDebounce.Stop()
+		s.searchDebounce = nil
+	}
+	if s.searchCancel != nil {
+		s.searchCancel()
+		s.searchCancel = nil
+	}
+	s.searchSeq++
 	s.searchLoading = false
 	s.searchUseLocal = false
 	s.searchErr = nil
 	s.searchRPCQuery = ""
 	s.searchHits = nil
 	s.searchInput = ""
+	s.searchResults = nil
+	s.searchHasMore = false
 }
