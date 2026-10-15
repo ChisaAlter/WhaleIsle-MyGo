@@ -29,6 +29,14 @@ func detailView(c *ui.Context, m Model) {
 			m.OnRetryDraft()
 		}
 	}
+	if d.Workstream.SummaryFailure != nil {
+		ui.Text(c, tr("成果已保存，Lead 汇总未完成。可准备只读取原有记录的恢复指令。", "Results are saved, but the Lead summary is incomplete. Prepare a request to read the existing records.")).FontSize(11)
+		ui.Text(c, d.Workstream.SummaryFailure.Error.Message).FontSize(11)
+		disabled := m.Busy || !m.Listing.Available || m.Team == nil || m.Team.Project.Lifecycle != "ready" || m.Team.Project.Archiving
+		if ui.Button(c, tr("准备重新汇总草稿", "Prepare summary recovery draft")).Disabled(disabled).Clicked() && m.OnSummaryRetryDraft != nil {
+			m.OnSummaryRetryDraft()
+		}
+	}
 	ui.Scroll(c).Height(280).Children(func() {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			ui.Text(c, d.Workstream.Brief).FontSize(12)

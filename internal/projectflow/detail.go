@@ -12,6 +12,13 @@ type WorkDetail struct {
 		Workstream
 		ProjectID   string `json:"projectId"`
 		Brief       string `json:"brief"`
+		Request     struct {
+			ID             string `json:"id"`
+			Revision       int    `json:"revision"`
+			AuthorityError string `json:"authorityError"`
+		} `json:"request"`
+		LatestReport      *Report      `json:"latestReport"`
+		RecentSettlements []Settlement `json:"recentSettlements"`
 		Delegations []struct {
 			Ref   string `json:"ref"`
 			RunID string `json:"runId"`

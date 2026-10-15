@@ -119,6 +119,8 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.runProjectDetail(win, m.TeamID, action, "", "")
 	}
 	m.OnRetryDraft = func() { s.runProjectDetail(win, m.TeamID, "retry-draft", "", "") }
+	m.OnSummaryRetryDraft = func() { s.runProjectRecoveryDraft(win, m.TeamID, "summary") }
+	m.OnHandoverRetryDraft = func() { s.runProjectRecoveryDraft(win, m.RequestProjectID, "handover") }
 	m.OnRequests = func(id string) { s.runProjectRequests(win, id, "list", "current") }
 	m.OnRequestList = func(kind string) { s.runProjectRequests(win, m.RequestProjectID, "list", kind) }
 	m.OnRequestGet = func(id string) { s.runProjectRequests(win, m.RequestProjectID, "get", id) }

@@ -63,8 +63,11 @@ type Workstream struct {
 		WaitingReason *WaitingReason `json:"waitingReason"`
 	} `json:"delegation"`
 	SummaryFailure *struct {
-		DelegationRef string `json:"delegationRef"`
+		DelegationRef string  `json:"delegationRef"`
+		RunID         string  `json:"runId"`
+		At            float64 `json:"at"`
 		Error         struct {
+			Code    string `json:"code"`
 			Message string `json:"message"`
 		} `json:"error"`
 	} `json:"summaryFailure"`
