@@ -18,6 +18,7 @@ import (
 // Model wires whale assistant / dshbot status and actions.
 type Model struct {
 	RoomCreate                RoomCreateModel
+	BotVisibility             BotVisibilityModel
 	BotCreate                 BotCreateModel
 	BotDelete                 BotDeleteModel
 	BotDuplicate              BotDuplicateModel
@@ -96,6 +97,7 @@ func View(c *ui.Context, m Model) {
 				modeBlock(c, m, fg, muted, accent)
 				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
+				botVisibilityBlock(c, m, fg, muted, field, border, accent)
 				roomCreateBlock(c, m, fg, muted, field, border, accent)
 				botCreateBlock(c, m, fg, muted, field, border, accent)
 				botDeleteBlock(c, m, fg, muted, field, border, accent)
