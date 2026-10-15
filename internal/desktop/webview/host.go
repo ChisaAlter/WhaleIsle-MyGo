@@ -58,6 +58,8 @@ type Host struct {
 	url       string
 	offResize func()
 	offMove   func()
+	navigationEpoch uint64
+	capturePending bool
 	loading   bool
 	stopped   bool
 	err       string
@@ -189,7 +191,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 		h.beginLoad()
 	})
-	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.url = h.logicalURL(raw); h.err = ""; h.mu.Unlock(); h.notify() })
+	pg.OnDidNavigate(func(raw string) { h.mu.Lock(); h.navigationEpoch++; h.url = h.logicalURL(raw); h.err = ""; h.mu.Unlock(); h.notify() })
 	pg.OnDidFinishLoad(func() { h.mu.Lock(); h.loading = false; h.mu.Unlock(); h.notify() })
 	pg.OnDidFailLoad(func(err *mygo.LoadError) {
 		h.mu.Lock()
@@ -533,6 +535,7 @@ func (h *Host) Stop() {
 
 func (h *Host) beginLoad() {
 	h.mu.Lock()
+	h.navigationEpoch++
 	h.loading = true
 	h.stopped = false
 	h.err = ""

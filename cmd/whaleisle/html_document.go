@@ -3,7 +3,6 @@ package main
 import (
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/store/session"
-	browserpreviewui "whaleisle/internal/ui/browserpreview"
 )
 
 // openLocalHTML is reached only by an explicit Files/confirmed delivery gesture.
@@ -59,7 +58,7 @@ func (s *mainState) openLocalHTML(sessions *session.Store, sid, root, path strin
 			s.webviewOpen = false
 			s.mu.Unlock()
 			if s.browserController == nil {
-				s.browserController = browserpreviewui.NewController(win)
+				s.browserController = s.newBrowserController(win)
 			}
 			if err := s.browserController.OpenHTML(doc); err != nil {
 				sessions.SetLastAction("HTML 预览不可用，请在预览标签使用系统打开")

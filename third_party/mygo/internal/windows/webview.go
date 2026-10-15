@@ -775,12 +775,10 @@ func (w *window) CapturePage(cb func([]byte, error)) {
 				cb(nil, hresultError("CapturePreview", hr))
 				return
 			}
-			if w.opts.IsolatedPreview {
-				data, err := readPreviewPNG(stream)
-				cb(data, err)
-			} else {
-				cb(hglobalBytes(stream), nil)
-			}
+			// Read only bounded logical PNG bytes for every page, including
+			// untrusted browser screenshots. Never copy allocation padding.
+			data, err := readPreviewPNG(stream)
+			cb(data, err)
 		}, func(h uintptr) uintptr {
 			return comCall(w.webview, wvCapturePreview, 0, stream, h) // COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG
 		})

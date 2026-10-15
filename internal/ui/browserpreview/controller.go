@@ -16,6 +16,9 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	rendered bool
+	actionTarget func() ActionTarget
+	operation *previewOperation
 	viewport *mygo.Rectangle
 	Tabs     []*Tab
 	Active   int
@@ -26,6 +29,8 @@ type Tab struct {
 	Document *pdfpreview.Document
 	HTML     *htmldocument.Document
 
+	ActionMessage string
+	ArtifactPath string
 	ID           int
 	Draft, Error string
 	lastURL      string
@@ -57,6 +62,7 @@ func (b *Controller) NewTab(raw string) {
 	b.update()
 }
 func (b *Controller) Navigate(raw string) {
+	b.CancelAction()
 	if b.current() == nil {
 		b.NewTab("")
 	}
@@ -92,6 +98,7 @@ func (b *Controller) Navigate(raw string) {
 	b.update()
 }
 func (b *Controller) Hide() {
+	b.CancelAction()
 	for _, t := range b.Tabs {
 		if t.Host != nil {
 			t.Host.SetVisible(false)
@@ -140,6 +147,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.CancelAction()
 	for _, t := range b.Tabs {
 		if t.HTML != nil {
 			t.HTML.Close()
@@ -159,6 +167,8 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 	b.view(c, themeID, dark, onClose)
 }
 func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func()) {
+	b.rendered = true
+	b.PruneActions()
 	if b.current() == nil {
 		b.NewTab("")
 	}
@@ -224,16 +234,20 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					return
 				}
 				if ui.Button(c, "←").Disabled(!s.CanBack).Clicked() && t.Host != nil {
+					b.CancelAction()
 					t.Host.Back()
 				}
 				if ui.Button(c, "→").Disabled(!s.CanForward).Clicked() && t.Host != nil {
+					b.CancelAction()
 					t.Host.Forward()
 				}
 				if s.Loading {
 					if ui.Button(c, "停止").Clicked() {
+						b.CancelAction()
 						t.Host.Stop()
 					}
 				} else if ui.Button(c, "刷新").Disabled(t.Host == nil).Clicked() {
+					b.CancelAction()
 					t.Host.Reload()
 				}
 				if ui.TextInput(c, &t.Draft).Placeholder("https://example.com").Grow(1).Submitted() {
@@ -250,6 +264,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					mygo.Clipboard.WriteText(raw)
 				}
 			})
+			b.actionControls(c, t, s)
 			err := t.Error
 			if err == "" {
 				err = s.Error
@@ -266,6 +281,9 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			}
 			if s.Loading {
 				status = "加载中 · " + status
+			}
+			if t.ActionMessage != "" {
+				status = t.ActionMessage
 			}
 			if err != "" {
 				status = err

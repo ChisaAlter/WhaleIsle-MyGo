@@ -1216,7 +1216,7 @@ func (s *mainState) showBrowserPreview(rawURL string) {
 	s.mu.Unlock()
 	s.closeWebViewHost()
 	if s.browserController == nil {
-		s.browserController = browserpreviewui.NewController(win)
+		s.browserController = s.newBrowserController(win)
 	}
 	if strings.TrimSpace(rawURL) != "" {
 		s.browserController.Navigate(rawURL)
@@ -3078,10 +3078,13 @@ func mainView(c *ui.Context) {
 	if state.browserController != nil {
 		state.browserController.PrunePDFDocuments()
 		state.browserController.PruneHTMLDocuments()
+		state.browserController.BeginFrame()
 	}
-	if !browserPreviewOpen && state.browserController != nil {
-		state.browserController.Hide()
-	}
+	defer func() {
+		if state.browserController != nil {
+			state.browserController.EndFrame()
+		}
+	}()
 	if !webviewOpen && !browserPreviewOpen {
 		state.closeWebViewHost()
 	}
@@ -4515,7 +4518,7 @@ func mainView(c *ui.Context) {
 		}
 		if acceptPanelOK && browserPreviewOpen {
 			if state.browserController == nil {
-				state.browserController = browserpreviewui.NewController(win)
+				state.browserController = state.newBrowserController(win)
 			}
 			state.browserController.View(c, themeID, mygo.Theme.IsDark(), func() {
 				state.mu.Lock()
@@ -6543,7 +6546,7 @@ func mainView(c *ui.Context) {
 					Terminal:           termPanel,
 					TerminalShellsNote: termShellsNote,
 					BrowserContent: func(c *ui.Context) {
-                        if state.browserController==nil {state.browserController=browserpreviewui.NewController(win)}
+                        if state.browserController == nil { state.browserController = state.newBrowserController(win) }
                         state.browserController.ViewDocked(c,themeID,mygo.Theme.IsDark(),func(){rightPaneTab="files";state.browserController.Hide()})
                     },
                     OnHideBrowser: func(){if state.browserController!=nil {state.browserController.Hide()}},

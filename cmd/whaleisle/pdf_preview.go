@@ -9,7 +9,6 @@ import (
 	"whaleisle/internal/desktop/pdfpreview"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
-	browserpreviewui "whaleisle/internal/ui/browserpreview"
 )
 
 func (s *mainState) openLocalPDF(sessions *session.Store, sid, root, path string) {
@@ -85,7 +84,7 @@ func (s *mainState) startPDFPreview(sessions *session.Store, sid, root, path str
 			s.webviewOpen = false
 			s.mu.Unlock()
 			if s.browserController == nil {
-				s.browserController = browserpreviewui.NewController(win)
+				s.browserController = s.newBrowserController(win)
 			}
 			if err := s.browserController.OpenPDF(doc); err != nil {
 				sessions.SetLastAction(err.Error())

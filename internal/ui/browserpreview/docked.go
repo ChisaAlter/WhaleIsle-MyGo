@@ -9,6 +9,7 @@ import (
 func (b *Controller) showHost(h *desktop.Host) {
 	h.SetViewport(b.viewport)
 	if b.viewport != nil && (b.viewport.Width < 1 || b.viewport.Height < 1) {
+		b.CancelAction()
 		h.SetVisible(false)
 		return
 	}
