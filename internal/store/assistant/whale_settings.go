@@ -10,6 +10,7 @@ import (
 // WhaleSettingsEditor holds only this native editor's in-memory drafts. It
 // never reads local MEMORY.md, persists drafts, or starts model/session work.
 type WhaleSettingsEditor struct {
+	Preferences                 WhalePreferencesEditor
 	mu                          sync.Mutex
 	host                        string
 	epoch, serial, revision     uint64
@@ -37,6 +38,7 @@ type WhaleSettingsCommand struct {
 }
 
 func (s *WhaleSettingsEditor) Bind(host string) {
+	s.Preferences.Bind(host)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.host == host {
@@ -56,6 +58,7 @@ func (s *WhaleSettingsEditor) Bind(host string) {
 	s.revision++
 }
 func (s *WhaleSettingsEditor) Suspend() {
+	s.Preferences.Suspend()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.epoch++

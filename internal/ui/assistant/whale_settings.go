@@ -8,6 +8,7 @@ import (
 )
 
 type WhaleSettingsModel struct {
+	Preferences                                  WhalePreferencesModel
 	State                                        assiststore.WhaleSettingsSnapshot
 	OnRefresh                                    func()
 	OnEdit                                       func(field, value string)
@@ -43,6 +44,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if !s.Loaded {
 			ui.Text(c, "请先读取当前 Host 内容。失败或结果不确定时，重新读取后才可提交。 / Refresh before editing or retrying.").FontSize(11).TextColor(muted)
 		}
+		whalePreferencesBlock(c, w.Preferences, blocked, fg, muted, accent)
 		if s.Server.HomeDir == "" {
 			return
 		}

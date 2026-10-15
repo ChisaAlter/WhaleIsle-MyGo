@@ -122,12 +122,15 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 			}
 		}()
 	}
+	preferences := s.assistantWhalePreferencesModel(ep)
 	state := s.whaleSettings.Snapshot()
+	state.Busy = state.Busy || preferences.State.Busy
 	if host == "" {
 		state = assiststore.WhaleSettingsSnapshot{}
 	}
 	return assistantui.WhaleSettingsModel{
-		State: state,
+		Preferences: preferences,
+		State:       state,
 		OnRefresh: func() {
 			if !current() {
 				return
