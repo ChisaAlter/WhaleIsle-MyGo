@@ -175,6 +175,7 @@ type mainState struct {
 	imDraft                       string
 	assistant                     *assiststore.Store
 	dshbotRoster                  *dshbotstore.Store
+	assistantTasks                dshbotstore.TaskControls
 	desktopDraft                  desktopConfigDraft
 	desktopSaveErr                string
 	desktopLastAction             string
@@ -4150,7 +4151,9 @@ func mainView(c *ui.Context) {
 					}
 					history = assiststore.HistoryFromSessionMessages(pairs, 8)
 				}
+				taskModel := state.assistantTasksModel(ep, dshbotSelectedID)
 				assistant.View(c, assistant.Model{
+					Tasks:               taskModel,
 					ThemeID:             themeID,
 					SystemDark:          mygo.Theme.IsDark(),
 					Mode:                asstSnap.Mode,
@@ -4159,7 +4162,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:  whaleVendor,
 					DshbotVendorPresent: dshbotVendor,
 					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy,
+					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy,
 					LastWebViewURL:      lastWebURL,
 					LastNativeAction:    lastNative,
 					LastErr:             asstSnap.LastErr,
@@ -4172,9 +4175,11 @@ func mainView(c *ui.Context) {
 					DshbotRosterFetched: dshbotRosterAt,
 					DshbotSelectedID:    dshbotSelectedID,
 					OnDshbotSelect: func(botID string) {
+						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						asst.SelectDshbot(botID, origin)
 					},
 					OnSetMode: func(mode assiststore.Mode) {
+						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						if asst != nil {
 							asst.SetMode(mode)
 						}
@@ -4211,6 +4216,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnClose: func() {
+						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.mu.Lock()
 						state.assistantOpen = false
 						state.assistantDraft = assistantDraft
@@ -4223,6 +4229,7 @@ func mainView(c *ui.Context) {
 						state.setAssistantFlag(&enabled, nil)
 					},
 					OnToggleDshbot: func(enabled bool) {
+						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.setAssistantFlag(nil, &enabled)
 					},
 					OnOpenWhaleWeb: func() {

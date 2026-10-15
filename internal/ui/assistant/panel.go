@@ -17,6 +17,7 @@ import (
 
 // Model wires whale assistant / dshbot status and actions.
 type Model struct {
+	Tasks                     TaskModel
 	ThemeID                   string
 	SystemDark                bool
 	Mode                      assiststore.Mode
@@ -85,6 +86,7 @@ func View(c *ui.Context, m Model) {
 
 				modeBlock(c, m, fg, muted, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
+				taskControlBlock(c, m, fg, muted, field, border, accent)
 				composeBlock(c, m, fg, muted, accent)
 				pluginRPCBlock(c, m, fg, muted, accent)
 				historyBlock(c, m, fg, muted, field, border, accent)
