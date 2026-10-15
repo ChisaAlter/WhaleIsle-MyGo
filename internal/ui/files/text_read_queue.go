@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"sync"
+	"whaleisle/internal/desktop/workspacefs"
 )
 
 // The UI supplies a fresh tab identity, not merely a reusable path. No UI
@@ -13,6 +14,7 @@ type textReadOwner struct {
 }
 
 type textReadResult struct {
+	table                *workspacefs.XLSXPage
 	text, stat, fullPath string
 	err                  error
 	truncated, remote    bool

@@ -38,6 +38,9 @@ type WorkspaceTabs struct {
 	PendingClose string
 }
 type FileTab struct {
+	tablePage                                 *workspacefs.XLSXPage
+	tableRequest                              workspacefs.XLSXPageRequest
+	tableCell                                 string
 	readID                                    uint64
 	readFullPath                              string
 	pendingLine                               textReadLine
@@ -237,7 +240,7 @@ func closeTab(m Model, path string, discard bool) bool {
 		w.Active = ""
 		if len(w.Open) > 0 {
 			next := w.Open[len(w.Open)-1]
-			next.readResume = isAsyncTextPath(next.Path)
+			next.readResume = isAsyncPreviewPath(next.Path)
 			w.Active = next.Path
 			restore(m, next)
 		} else {
@@ -378,7 +381,11 @@ func (t *Tabs) Bind(binding, root string) {
 				disposeSave(tab)
 				tab.pendingLine.reset()
 				tab.revealLine = 0
-				if isAsyncTextPath(tab.Path) {
+				if isTablePreviewPath(tab.Path) {
+					tab.tablePage = nil
+					tab.tableRequest = workspacefs.XLSXPageRequest{}
+				}
+				if isAsyncPreviewPath(tab.Path) {
 					tab.readBlocked, tab.readResume = true, true
 				}
 			}

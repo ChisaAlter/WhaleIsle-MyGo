@@ -12,6 +12,9 @@ func ensureSaveQueue(m Model, t *FileTab) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
+	if isTablePreviewPath(t.Path) {
+		return errors.New(label("表格分页是只读视图，不能保存为原文件。", "Workbook pages are read-only and cannot be saved over the original file."))
+	}
 	if t.readBlocked {
 		return errors.New(label("读取尚未成功完成，草稿保留；请等待或重新载入后保存。", "Read has not completed successfully. Draft kept; wait or reload before saving."))
 	}

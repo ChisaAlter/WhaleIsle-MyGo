@@ -15,6 +15,10 @@ func isAsyncTextPath(path string) bool {
 	return !isPreviewImage(path) && !mediapreview.Supports(path) && (kind == workspacefs.DocNone || kind == workspacefs.DocHTML)
 }
 
+func isAsyncPreviewPath(path string) bool {
+	return isAsyncTextPath(path) || isTablePreviewPath(path)
+}
+
 func textReadBlocked(m Model) bool {
 	t := selectedTab(m)
 	return t != nil && t.readBlocked
@@ -40,7 +44,7 @@ func (t *Tabs) stopTextRead(resume, closeQueue bool) {
 
 func beginTextRead(m Model) {
 	tab := selectedTab(m)
-	if m.Tabs == nil || tab == nil || !isAsyncTextPath(tab.Path) {
+	if m.Tabs == nil || tab == nil || !isAsyncPreviewPath(tab.Path) {
 		return
 	}
 	capture(m)
@@ -71,6 +75,12 @@ func beginTextRead(m Model) {
 	tab.readBlocked, tab.readLoading, tab.readResume = true, true, false
 	t.readTab = tab
 	root, path := m.WorkspaceRoot, tab.Path
+	tableRequest := tab.tableRequest
+	if isTablePreviewPath(path) && !tab.Dirty() {
+		tab.Preview, tab.Draft, tab.Error = "", "", ""
+		tab.Editing = false
+		restore(m, tab)
+	}
 	remote, stat := m.ReadRemoteContext, m.StatRemoteContext
 	// Capture immutable values and context-capable, frame-bound Host readers.
 	// Legacy callbacks may resolve a different Host at invocation time and must
@@ -85,12 +95,19 @@ func beginTextRead(m Model) {
 		full, err := workspacefs.JoinRoot(root, path)
 		out.fullPath = full
 		if err == nil && ctx.Err() == nil {
-			var local workspacefs.ReadTextResult
-			local, err = workspacefs.ReadFileTextPreview(full)
-			out.text, out.truncated = local.Text, local.Truncated
+			if isTablePreviewPath(path) {
+				out.table, err = readTablePreview(ctx, full, tableRequest)
+				if out.table != nil {
+					out.text = out.table.Text
+				}
+			} else {
+				var local workspacefs.ReadTextResult
+				local, err = workspacefs.ReadFileTextPreview(full)
+				out.text, out.truncated = local.Text, local.Truncated
+			}
 		}
 		out.err = err
-		if out.err != nil && remote != nil && ctx.Err() == nil {
+		if out.err != nil && remote != nil && ctx.Err() == nil && !isTablePreviewPath(path) {
 			if body, remoteErr := remote(ctx, path); remoteErr == nil {
 				out.text, out.err, out.remote, out.truncated = body, nil, true, false
 			}
@@ -111,7 +128,7 @@ func syncTextRead(m Model) {
 		return
 	}
 	tab := selectedTab(m)
-	if tab == nil || !isAsyncTextPath(tab.Path) {
+	if tab == nil || !isAsyncPreviewPath(tab.Path) {
 		return
 	}
 	if tab.readResume {
@@ -150,6 +167,13 @@ func applyTextRead(m Model, result textReadResult) {
 	tab.Preview, tab.Draft = next.preview, next.draft
 	tab.Truncated, tab.Remote, tab.readBlocked = next.truncated, next.remote, next.blocked
 	tab.readFullPath = result.fullPath
+	if isTablePreviewPath(tab.Path) && result.err == nil {
+		tab.tablePage = result.table
+		if result.table != nil {
+			tab.tableRequest = result.table.Request
+		}
+		tab.Editing = false
+	}
 	if dirty {
 		switch {
 		case problem != "":
@@ -180,7 +204,7 @@ func applyTextRead(m Model, result textReadResult) {
 // A text toolbar reuses only the path already authorized by its completed read.
 // Revalidate on explicit filesystem actions, not on every UI paint.
 func textPreviewPath(m Model, path string) string {
-	if t := selectedTab(m); t != nil && isAsyncTextPath(path) {
+	if t := selectedTab(m); t != nil && isAsyncPreviewPath(path) {
 		return t.readFullPath
 	}
 	full, _ := workspacefs.JoinRoot(m.WorkspaceRoot, path)
@@ -188,7 +212,7 @@ func textPreviewPath(m Model, path string) string {
 }
 
 func withPreviewPath(m Model, rel, full string, action func(string)) {
-	if isAsyncTextPath(rel) {
+	if isAsyncPreviewPath(rel) {
 		var err error
 		full, err = workspacefs.JoinRoot(m.WorkspaceRoot, rel)
 		if err != nil {

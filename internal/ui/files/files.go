@@ -446,6 +446,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if previewTruncated(m) {
 			ui.Text(c, previewTruncationNotice(m)).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
 		}
+		paintTableControls(c, m, muted)
 		paintSourceActions(c, m, sel, muted)
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
@@ -566,7 +567,7 @@ func selectFile(m Model, rel string) {
 	pauseSave(selectedTab(m))
 	if m.Tabs != nil {
 		m.Tabs.stopTextRead(true, false)
-		if isAsyncTextPath(rel) {
+		if isAsyncPreviewPath(rel) {
 			restore(m, &FileTab{Path: rel})
 			rememberTab(m, rel)
 			beginTextRead(m)
@@ -596,7 +597,7 @@ func selectFile(m Model, rel string) {
 		// Legacy callers cannot retain read metadata; do not expose a prefix as complete.
 		errMsg = truncatedPreviewNotice()
 	}
-	if errMsg != "" && m.ReadRemote != nil {
+	if errMsg != "" && m.ReadRemote != nil && !isTablePreviewPath(rel) {
 		if remote, rerr := LoadPreviewRemote(m.ReadRemote, rel); rerr == "" {
 			text, errMsg = remote, ""
 			remotePreview = true
@@ -758,7 +759,11 @@ func loadPreview(root, rel string) (text, errMsg string, truncated bool) {
 	case workspacefs.DocPDF:
 		return "", i18n.T(i18n.KeyFilesPDFHint), false
 	case workspacefs.DocXLSX:
-		table, xerr := workspacefs.FormatXLSXPreview(full, 60, 16)
+		page, xerr := readTablePreview(context.Background(), full, workspacefs.XLSXPageRequest{})
+		table := ""
+		if page != nil {
+			table = page.Text
+		}
 		if xerr == nil && table != "" {
 			return table, "", false
 		}

@@ -23,7 +23,10 @@ func reloadSelectedFile(m Model) {
 		tab.selectionText = ""
 		tab.selectionStart, tab.selectionEnd = 0, 0
 	}
-	if m.Tabs != nil && isAsyncTextPath(rel) {
+	if tab := selectedTab(m); tab != nil && isTablePreviewPath(rel) {
+		tab.tableRequest.Version = "" // Explicit Reload permits a new file version.
+	}
+	if m.Tabs != nil && isAsyncPreviewPath(rel) {
 		beginTextRead(m)
 		return
 	}
@@ -33,7 +36,7 @@ func reloadSelectedFile(m Model) {
 	if truncated && m.Tabs == nil {
 		errMsg = truncatedPreviewNotice()
 	}
-	if errMsg != "" && m.ReadRemote != nil {
+	if errMsg != "" && m.ReadRemote != nil && !isTablePreviewPath(rel) {
 		if remote, remoteErr := LoadPreviewRemote(m.ReadRemote, rel); remoteErr == "" {
 			text, errMsg = remote, ""
 			remotePreview = true
