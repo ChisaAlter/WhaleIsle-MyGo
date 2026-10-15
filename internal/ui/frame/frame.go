@@ -259,6 +259,7 @@ type Model struct {
 	HostTerminalUI        *termui.HostState
 	TerminalShellsNote    string
 	OnAddSelectionToChat  func(string) error
+	OnOpenTerminalTarget  func(string) error
 	CanAddSelectionToChat bool
 
 	ConnectionBanner     string
@@ -1005,6 +1006,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
 					OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
+					TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget,
 				})
 			})
 		}

@@ -6710,6 +6710,15 @@ func mainView(c *ui.Context) {
 							state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
 						},
 					}
+					frameModel.OnOpenTerminalTarget = state.terminalTargetHandler(win, frameModel, func(tab string) {
+						state.mu.Lock()
+						state.filesPaneOpen, state.rightPaneTab = true, tab
+						state.mu.Unlock()
+						filesPaneOpen, rightPaneTab = true, tab
+						if win != nil {
+							win.Update(func() {})
+						}
+					})
 					state.consumeNavigationFile(frameModel)
 					frame.View(c, frameModel)
 					state.workspaceNavigationView(c, win, sessions, themeID, systemDark, func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) })

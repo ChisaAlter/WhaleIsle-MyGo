@@ -99,6 +99,9 @@ type Model struct {
 	OnClose      func()
 	OnAddToChat  func(string) error
 	CanAddToChat bool
+	// TargetBinding identifies the painted Host/session for pointer ownership.
+	TargetBinding string
+	OnOpenTarget  func(selection string) error
 }
 
 func terminalLabel(zh, en string) string {
@@ -149,6 +152,8 @@ func View(c *ui.Context, m Model) {
 		}
 	}
 
+	selectionKey := captureSelectionKey(m, selection)
+
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
 		ui.Row(c).Padding(4, 8, 4, 8).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyTerminalTitle)).FontSize(12).Bold().TextColor(fg).Grow(1)
@@ -193,6 +198,7 @@ func View(c *ui.Context, m Model) {
 		}
 		if fragment := FormatSelection(selection); fragment != "" {
 			ui.Row(c).Gap(6).Padding(4, 8, 4, 8).Children(func() {
+				paintSelectionTarget(c, m, selectionKey)
 				if ui.Button(c, terminalLabel("复制所选文本", "Copy selection")).FontSize(11).Clicked() {
 					mygo.Clipboard.WriteText(selection)
 				}
