@@ -40,6 +40,9 @@ type PageOptions struct {
 	// permissions, popups, downloads, preloads and developer tools are disabled.
 	// Windows only; the URL must be http://127.0.0.1:port/<64hex>/document.html.
 	LocalHTMLURL string
+	// LocalMediaURL permits a fixed, script-free player and its one derived media
+	// resource. Mutually exclusive with PDF/HTML; Windows isolated profile only.
+	LocalMediaURL string
 	// IsolatedPreview requests a dedicated temporary WebView2 environment with
 	// native bindings and resource/navigation/permission/download access denied.
 	// Experimental platform prerequisite only: it is NOT a renderer-readiness

@@ -45,7 +45,7 @@ func (b *Controller) browserResizeCurrent(t *Tab, drag *browserViewportDrag) boo
 // The rails belong to the native parent surface and stay outside the child
 // WebView rectangle. MyGo's Dragged captures pointer deltas across the guest.
 func (b *Controller) deviceResizeRails(c *ui.Context, t *Tab, canvas ui.Element, railColor ui.Color) {
-	if t == nil || b.current() != t || t.Host == nil || t.Document != nil || t.HTML != nil || !t.tools.settings.Device {
+	if t == nil || b.current() != t || t.Host == nil || t.Document != nil || t.HTML != nil || t.Media != nil || !t.tools.settings.Device {
 		return
 	}
 	bounds := canvas.Bounds()

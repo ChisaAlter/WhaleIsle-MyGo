@@ -182,7 +182,7 @@ func (w *window) installPreviewPolicy() error {
 		}
 		return nil
 	}
-	if hr := comCall(w.settings, setPutIsScriptEnabled, boolArg(w.opts.LocalPDFURL == "" && w.opts.LocalHTMLURL == "")); failed(hr) {
+	if hr := comCall(w.settings, setPutIsScriptEnabled, boolArg(w.opts.LocalPDFURL == "" && w.opts.LocalHTMLURL == "" && w.opts.LocalMediaURL == "")); failed(hr) {
 		return hresultError("isolated preview script policy", hr)
 	}
 	for _, setting := range []int{setPutIsWebMessageEnabled, setPutAreDefaultScriptDialogsEnabled, setPutAreDevToolsEnabled, previewPutHostObjectsAllowed, setPutAreDefaultContextMenusEnabled} {
@@ -206,7 +206,7 @@ func (w *window) installPreviewPolicy() error {
 		if !failed(hr) && platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) {
 			return
 		}
-		if !failed(hr) && w.opts.LocalPDFURL == "" && target == "about:srcdoc" && !w.isolated.frameStarted {
+		if !failed(hr) && w.opts.LocalPDFURL == "" && w.opts.LocalMediaURL == "" && target == "about:srcdoc" && !w.isolated.frameStarted {
 			w.isolated.frameStarted = true
 			return
 		}
@@ -236,7 +236,7 @@ func (w *window) denyPreviewResource(args uintptr) {
 	if w.closed || w.environment() == 0 {
 		return
 	}
-	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" {
+	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
 		var req uintptr
 		if !failed(comCall(args, resReqGetRequest, uintptr(unsafe.Pointer(&req)))) && req != 0 {
 			defer release(req)
@@ -248,7 +248,7 @@ func (w *window) denyPreviewResource(args uintptr) {
 			// Resource requests have no fragment allowance: HTML grants only one
 			// GET/HEAD resource, never arbitrary same-origin paths or redirects.
 			htmlAllowed := target == w.opts.LocalHTMLURL && platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target)
-			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && (pdfAllowed || htmlAllowed) {
+			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && (pdfAllowed || htmlAllowed || platform.LocalMediaResourceAllowed(w.opts.LocalMediaURL, target)) {
 				return
 			}
 		}

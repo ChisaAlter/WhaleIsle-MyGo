@@ -28,7 +28,7 @@ type browserPictureInPicture struct {
 // Picture-in-picture is a view-only window fed from a pinned WebView, not screen
 // recording, media encoding, a second browser navigation or a native JS bridge.
 func (b *Controller) openPictureInPicture(t *Tab) {
-	if t == nil || b.current() != t || t.Host == nil || !t.Host.Alive() || t.Document != nil || t.HTML != nil || b.parent == nil {
+	if t == nil || b.current() != t || t.Host == nil || !t.Host.Alive() || t.Document != nil || t.HTML != nil || t.Media != nil || b.parent == nil {
 		return
 	}
 	if t.Host.State().Loading {

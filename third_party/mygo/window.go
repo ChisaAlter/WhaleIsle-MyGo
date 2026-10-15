@@ -348,6 +348,12 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
+	if opts.Page.LocalMediaURL != "" {
+		if opts.Page.LocalPDFURL != "" || opts.Page.LocalHTMLURL != "" || !platform.LocalMediaAllowed(opts.Page.LocalMediaURL, opts.Page.LocalMediaURL) {
+			panic("mygo: invalid or mixed local media capability")
+		}
+		opts.Page.IsolatedPreview = true
+	}
 	if opts.Page.LocalPDFURL != "" && opts.Page.LocalHTMLURL != "" {
 		panic("mygo: local PDF and HTML preview URLs are mutually exclusive")
 	}
@@ -432,6 +438,7 @@ func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 		IsolatedPreview: po.IsolatedPreview,
 		LocalPDFURL:     po.LocalPDFURL,
 		LocalHTMLURL:    po.LocalHTMLURL,
+		LocalMediaURL:   po.LocalMediaURL,
 		Title:           o.Title,
 		X:               o.X,
 		Y:               o.Y,

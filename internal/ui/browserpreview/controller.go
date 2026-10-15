@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmldocument"
+	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
@@ -32,6 +33,7 @@ type Tab struct {
 	tools       browserTools
 	Document    *pdfpreview.Document
 	HTML        *htmldocument.Document
+	Media       *mediapreview.Document
 	interactive *interactivePreview
 
 	ActionMessage string
@@ -72,7 +74,7 @@ func (b *Controller) Navigate(raw string) {
 		b.NewTab("")
 	}
 	t := b.current()
-	if t.Document != nil || t.HTML != nil {
+	if t.Document != nil || t.HTML != nil || t.Media != nil {
 		b.NewTab(raw)
 		return
 	}
@@ -120,7 +122,7 @@ func (b *Controller) Select(index int) {
 	b.Active = index
 	if t := b.current(); t.Host != nil {
 		b.showHost(t.Host)
-		if t.Document == nil && t.HTML == nil {
+		if t.Document == nil && t.HTML == nil && t.Media == nil {
 			t.Draft = t.Host.State().URL
 		}
 	}
@@ -135,6 +137,9 @@ func (b *Controller) CloseTab(index int) {
 		b.stopFloatingDocument()
 	}
 	if d := b.Tabs[index].Document; d != nil {
+		d.Close()
+	}
+	if d := b.Tabs[index].Media; d != nil {
 		d.Close()
 	}
 	if d := b.Tabs[index].HTML; d != nil {
@@ -162,6 +167,9 @@ func (b *Controller) Close() {
 	b.CancelAction()
 	b.cancelInteractivePreviews()
 	for _, t := range b.Tabs {
+		if t.Media != nil {
+			t.Media.Close()
+		}
 		if t.HTML != nil {
 			t.HTML.Close()
 		}
@@ -190,7 +198,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 	s := desktop.State{}
 	if t.Host != nil {
 		s = t.Host.State()
-		if t.Document == nil && t.HTML == nil && s.URL != "" && s.URL != t.lastURL {
+		if t.Document == nil && t.HTML == nil && t.Media == nil && s.URL != "" && s.URL != t.lastURL {
 			t.Draft = s.URL
 			t.lastURL = s.URL
 		}
@@ -213,6 +221,8 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 							label := fmt.Sprintf("%d", tab.ID)
 							if tab.Document != nil {
 								label += " " + truncate(tab.Document.Name, 12)
+							} else if tab.Media != nil {
+								label += " " + truncate(tab.Media.Name, 12)
 							} else if tab.HTML != nil {
 								label += " " + truncate(tab.HTML.Name, 12)
 							} else if tab.Host != nil {
@@ -238,6 +248,10 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				}
 			})
 			ui.Row(c).Height(32).Gap(6).AlignItems(ui.Center).Children(func() {
+				if t.Media != nil {
+					b.mediaControls(c, t)
+					return
+				}
 				if t.Document != nil {
 					b.documentControls(c, t)
 					return
@@ -284,6 +298,9 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				err = s.Error
 			}
 			status := s.URL
+			if t.Media != nil {
+				status = t.Media.Name + " · 媒体快照；只允许本文件，脚本/外网禁用；无法播放时请使用 Files 外部打开"
+			}
 			if t.Document != nil {
 				status = t.Document.Name + " · PDF 只读快照；外部导航和脚本已禁用"
 			}
@@ -302,7 +319,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if err != "" {
 				status = err
 			}
-			if !b.profileSeen && t.Document == nil && t.HTML == nil && err == "" {
+			if !b.profileSeen && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
 				const notice = "Browser 已启用独立登录区，首次需要重新登录；旧共享数据未迁移或删除。"
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, notice).FontSize(11).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)

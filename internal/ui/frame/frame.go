@@ -236,6 +236,7 @@ type Model struct {
 	WorkspaceRenameDraft *string
 	WorkspaceMenuOpen    *bool
 	OnOpenDoc            func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	OnOpenMedia          func(path string, floating bool)
 	OnRevealFile         func(absPath string)
 	OnOpenWithApp        func(absPath, appID string)
 	FileOpenWithApps     []files.OpenWithApp
@@ -1192,6 +1193,7 @@ func rightPane(c *ui.Context, m Model) {
 				return workspacefs.WriteFileText(full, text)
 			},
 			OnOpenDoc:    m.OnOpenDoc,
+			OnOpenMedia:  m.OnOpenMedia,
 			OnReveal:     m.OnRevealFile,
 			OnOpenWith:   m.OnOpenWithApp,
 			OpenWithApps: m.FileOpenWithApps,

@@ -23,6 +23,8 @@ type HostOptions struct {
 	// LocalHTMLURL is one sandboxed local HTML capability. It is mutually
 	// exclusive with PDF and Host sessions and uses a private preview profile.
 	LocalHTMLURL string
+	// LocalMediaURL is a fixed player plus exactly one derived media route.
+	LocalMediaURL string
 	// OnClosed releases the local document lease, including creation failures.
 	OnClosed func()
 
@@ -48,10 +50,11 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
-	viewport     *mygo.Rectangle
-	localPDFURL  string
-	localHTMLURL string
-	onClosed     func()
+	viewport      *mygo.Rectangle
+	localPDFURL   string
+	localHTMLURL  string
+	localMediaURL string
+	onClosed      func()
 
 	gateway         *pluginslots.Gateway
 	mu              sync.Mutex
@@ -73,7 +76,7 @@ type Host struct {
 // NewHost creates a hidden frameless child WebView2 window. Call
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
-	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != ""
+	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != ""
 	if opts.BrowserProfile {
 		if runtime.GOOS != "windows" {
 			return nil, errors.New("Browser profile is unavailable on this platform")
@@ -114,6 +117,12 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	if localPreview && (opts.SessionOrigin != "" || opts.SessionCookie != "") {
 		return nil, errors.New("local document previews cannot use Host sessions or cookies")
+	}
+	if opts.LocalMediaURL != "" {
+		if runtime.GOOS != "windows" || opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != raw || !validLocalMediaURL(raw) {
+			return nil, errors.New("invalid media capability or unavailable WebView2 runtime")
+		}
+		opts.Untrusted = true
 	}
 	if opts.LocalPDFURL != "" && opts.LocalHTMLURL != "" {
 		return nil, errors.New("local PDF and HTML previews are mutually exclusive")
@@ -165,7 +174,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
 	if localPreview || opts.BrowserProfile {
 		// Register lifecycle and failure handlers before asynchronous load.
@@ -185,6 +194,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 			BrowserProfile:  opts.BrowserProfile,
 			LocalPDFURL:     opts.LocalPDFURL,
 			LocalHTMLURL:    opts.LocalHTMLURL,
+			LocalMediaURL:   opts.LocalMediaURL,
 			TrustedOrigins:  trusted,
 			DisableBindings: opts.Untrusted,
 			DevTools:        mygo.DevToolsDisabled,
@@ -485,6 +495,13 @@ func validLocalHTMLURL(raw string) bool {
 	}
 	parts := strings.Split(u.Path, "/")
 	return len(parts) == 3 && parts[0] == "" && len(parts[1]) == 64 && strings.Trim(parts[1], "0123456789abcdefABCDEF") == "" && parts[2] == "document.html"
+}
+
+func validLocalMediaURL(raw string) bool {
+	if !strings.HasSuffix(raw, "/player.html") {
+		return false
+	}
+	return validLocalHTMLURL(strings.TrimSuffix(raw, "player.html") + "document.html")
 }
 
 func urlOrigin(raw string) string {

@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmldocument"
+	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 )
@@ -17,6 +18,7 @@ type floatingDocumentWindow struct {
 	tab    *Tab
 	pdf    *pdfpreview.Document
 	html   *htmldocument.Document
+	media  *mediapreview.Document
 	host   *desktop.Host
 	win    *mygo.Window
 	done   chan struct{}
@@ -29,8 +31,20 @@ type floatingDocumentWindow struct {
 // a Host cookie, or release its lease when only this borrowed view closes.
 func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 	opts := desktop.HostOptions{TopInset: floatingDocumentChromeHeight, Untrusted: true}
-	if t == nil || (t.Document == nil) == (t.HTML == nil) {
-		return opts, errors.New("请先打开 PDF 或静态 HTML 文件预览")
+	count := 0
+	if t != nil {
+		if t.Document != nil {
+			count++
+		}
+		if t.HTML != nil {
+			count++
+		}
+		if t.Media != nil {
+			count++
+		}
+	}
+	if count != 1 {
+		return opts, errors.New("请先打开 PDF、静态 HTML 或音视频文件预览")
 	}
 	if t.Document != nil {
 		if !t.Document.Valid() {
@@ -38,6 +52,12 @@ func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 		}
 		opts.Title, opts.URL = t.Document.Name, t.Document.URL()
 		opts.LocalPDFURL = opts.URL
+	} else if t.Media != nil {
+		if !t.Media.Valid() {
+			return opts, errors.New("媒体预览已过期；请重新打开文件")
+		}
+		opts.Title, opts.URL = t.Media.Name, t.Media.URL()
+		opts.LocalMediaURL = opts.URL
 	} else {
 		if !t.HTML.Valid() {
 			return opts, errors.New("HTML 预览已过期；请重新打开文件")
@@ -59,7 +79,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 		return
 	}
 	b.stopFloatingDocument()
-	f := &floatingDocumentWindow{tab: t, pdf: t.Document, html: t.HTML, done: make(chan struct{})}
+	f := &floatingDocumentWindow{tab: t, pdf: t.Document, html: t.HTML, media: t.Media, done: make(chan struct{})}
 	b.floatingDocument = f
 	w := mygo.NewWindow(mygo.WindowOptions{
 		Title: "浮动预览 · " + opts.Title, Width: 720, Height: 520, MinWidth: 320, MinHeight: 220,
@@ -129,7 +149,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 }
 
 func (b *Controller) floatingDocumentCurrent(f *floatingDocumentWindow) bool {
-	if f == nil || f.closed || b.floatingDocument != f || f.tab == nil || f.tab.Document != f.pdf || f.tab.HTML != f.html {
+	if f == nil || f.closed || b.floatingDocument != f || f.tab == nil || f.tab.Document != f.pdf || f.tab.HTML != f.html || f.tab.Media != f.media {
 		return false
 	}
 	found := false

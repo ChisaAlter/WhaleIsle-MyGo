@@ -195,7 +195,7 @@ func (w *window) setUp(controller uintptr) {
 	}
 	o := w.opts
 	s := w.settings
-	comCall(s, setPutIsScriptEnabled, boolArg(o.LocalPDFURL == "" && o.LocalHTMLURL == ""))
+	comCall(s, setPutIsScriptEnabled, boolArg(o.LocalPDFURL == "" && o.LocalHTMLURL == "" && o.LocalMediaURL == ""))
 	comCall(s, setPutIsWebMessageEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutAreDefaultScriptDialogsEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsStatusBarEnabled, 0)
@@ -337,8 +337,8 @@ func (w *window) navigationStarting(_, args uintptr) {
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)
-		blankAllowed := w.opts.LocalHTMLURL == "" && w.programmatic && target == "about:blank"
-		allowed := !failed(hr) && (blankAllowed || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) || platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target))
+		blankAllowed := w.opts.LocalHTMLURL == "" && w.opts.LocalMediaURL == "" && w.programmatic && target == "about:blank"
+		allowed := !failed(hr) && (blankAllowed || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) || platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target) || platform.LocalMediaAllowed(w.opts.LocalMediaURL, target))
 		w.programmatic = false
 		if !allowed {
 			w.cancelPreviewNavigation(args)
@@ -561,7 +561,7 @@ func (w *window) LoadURL(raw string) {
 		}, failedLoad)
 		return
 	}
-	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" {
+	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
 		failedLoad := func(err error) { w.h.LoadFailed(raw, 0, err.Error()) }
 		w.withWebViewOr(func() {
 			w.programmatic = true

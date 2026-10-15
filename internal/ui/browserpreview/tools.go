@@ -25,7 +25,7 @@ type browserToolOperation struct {
 }
 
 func (b *Controller) browserToolsCurrent(t *Tab, h *desktop.Host, epoch uint64) bool {
-	return t != nil && b.current() == t && t.Document == nil && t.HTML == nil && t.Host == h && h != nil && h.Alive() && h.BrowserPageVersion() == epoch
+	return t != nil && b.current() == t && t.Document == nil && t.HTML == nil && t.Media == nil && t.Host == h && h != nil && h.Alive() && h.BrowserPageVersion() == epoch
 }
 func (b *Controller) cancelBrowserTools() {
 	for _, t := range b.Tabs {
@@ -146,7 +146,7 @@ func (b *Controller) changeBrowserZoom(t *Tab, zoom float64) {
 // original dock seat or applies settings from one tab to another Host.
 func (b *Controller) browserDeviceViewport(h *desktop.Host) *mygo.Rectangle {
 	t := b.current()
-	if t == nil || t.Host != h || t.Document != nil || t.HTML != nil || !t.tools.settings.Device {
+	if t == nil || t.Host != h || t.Document != nil || t.HTML != nil || t.Media != nil || !t.tools.settings.Device {
 		return b.viewport
 	}
 	var seat mygo.Rectangle
@@ -165,7 +165,7 @@ func (b *Controller) browserDeviceViewport(h *desktop.Host) *mygo.Rectangle {
 }
 
 func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
-	if t == nil || t.Document != nil || t.HTML != nil {
+	if t == nil || t.Document != nil || t.HTML != nil || t.Media != nil {
 		return
 	}
 	s := &t.tools.settings

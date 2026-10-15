@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -67,10 +68,11 @@ type Model struct {
 	// PaneWidth is the preview pane width in DIPs; used to pick side-by-side vs stack.
 	PaneWidth *float32
 	// EditSplit is the first-pane size for the edit/preview split (width or height).
-	EditSplit  *float32
-	OnShowDiff func(rel string)
-	OnSaveEdit func(rel, text string) error
-	OnOpenDoc  func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	EditSplit   *float32
+	OnShowDiff  func(rel string)
+	OnSaveEdit  func(rel, text string) error
+	OnOpenDoc   func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	OnOpenMedia func(path string, floating bool)
 	// OnReveal opens the selected file's folder in the OS file manager.
 	OnReveal func(absPath string)
 	// OnRenderPDF converts an Office doc via officeToPdf/render then previews PDF.
@@ -336,7 +338,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			if sel != "" {
 				paintReferenceButtons(c, m, sel)
 				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(11).Disabled(m.Tabs == nil).Clicked() {
-					if err := openFloatingPreview(m); err != nil {
+					if mediaMode(m, sel) && m.OnOpenMedia != nil {
+						m.OnOpenMedia(sel, true)
+					} else if err := openFloatingPreview(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
 				}
@@ -357,6 +361,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			if lang := languageChipLabel(sel); lang != "" {
 				ui.Text(c, lang).FontSize(10).Bold().TextColor(muted).
 					Padding(2, 6, 2, 6)
+			}
+			if mediaMode(m, sel) && m.OnOpenMedia != nil && ui.Button(c, label("音视频预览", "Media preview")).Clicked() {
+				m.OnOpenMedia(sel, false)
 			}
 			if m.OnOpenDoc != nil && fullPath != "" {
 				if (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
@@ -390,7 +397,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && !imageMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
+			if !editing && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
 					if m.EditStatus != nil {
@@ -433,6 +440,10 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if m.PreviewErr != nil && *m.PreviewErr != "" {
 			ui.Text(c, *m.PreviewErr).FontSize(12).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).
 				Padding(4, 12, 8, 12)
+			return
+		}
+		if mediaMode(m, sel) {
+			ui.Text(c, label("点击音视频预览或浮动预览；仅当前 Host/会话单文件，最大 32 MiB，30 分钟有效。播放取决于 WebView2 编解码支持。", "Choose Media preview or Floating preview. One current Host/session file, up to 32 MiB, valid for 30 minutes. Playback depends on WebView2 codecs.")).FontSize(12).TextColor(muted).Padding(12)
 			return
 		}
 		if imageMode(m, sel) {
@@ -676,6 +687,10 @@ func editViewModeCycleLabel(current EditViewMode) string {
 }
 
 // LoadPreviewRemote reads via workspaceFiles/read when local preview fails.
+func mediaMode(m Model, path string) bool {
+	return mediapreview.Supports(path) && !(m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview)
+}
+
 func LoadPreviewRemote(readRemote func(rel string) (string, error), rel string) (text, errMsg string) {
 	if readRemote == nil {
 		return "", "no remote reader"
@@ -689,6 +704,9 @@ func LoadPreviewRemote(readRemote func(rel string) (string, error), rel string) 
 
 // LoadPreview reads the selected file for display.
 func LoadPreview(root, rel string) (text, errMsg string) {
+	if mediapreview.Supports(rel) {
+		return "", ""
+	} // No client-side path resolution or binary text read.
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
 		return "", err.Error()

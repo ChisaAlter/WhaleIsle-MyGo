@@ -154,7 +154,7 @@ func (b *Controller) startAction(t *Tab, kind string) {
 }
 
 func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) {
-	if t.Document != nil || t.HTML != nil {
+	if t.Document != nil || t.HTML != nil || t.Media != nil {
 		return
 	}
 	busy := b.operation != nil

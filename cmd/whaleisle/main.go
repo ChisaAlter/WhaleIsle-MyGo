@@ -36,6 +36,7 @@ import (
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/plugininventory"
@@ -219,6 +220,7 @@ type mainState struct {
 	webviewOpen                   bool
 	browserPreviewOpen            bool
 	pdfPreviewRequest             uint64
+	mediaPreviewRequest           uint64
 	htmlDocumentRequest           uint64
 	browserController             *browserpreviewui.Controller
 	browserPreviewDraft           string
@@ -2918,6 +2920,7 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	if state.browserController != nil {
 		state.browserController.PrunePDFDocuments()
+		state.browserController.PruneMediaDocuments()
 		state.browserController.PruneHTMLDocuments()
 		state.browserController.BeginFrame()
 	}
@@ -6593,6 +6596,10 @@ func mainView(c *ui.Context) {
 								return
 							}
 							fileTabs.Plans.ShowFiles(snap.SelectedID)
+							if mediapreview.Supports(path) {
+								state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, false)
+								return
+							}
 							handled, err := files.OpenPresentedPath(files.Model{
 								WorkspaceRoot: snap.SelectedCwd,
 								Tabs:          &fileTabs, SelectedFile: &selectedFile,
@@ -6633,6 +6640,9 @@ func mainView(c *ui.Context) {
 							}
 						},
 						FileOpenWithApps: fileOpenWithApps,
+						OnOpenMedia: func(path string, floating bool) {
+							state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, floating)
+						},
 						OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
 							if inWebView && supportsImagePreview(absPath) {
 								state.openLocalImage(sessions, snap.SelectedID, snap.SelectedCwd, absPath)

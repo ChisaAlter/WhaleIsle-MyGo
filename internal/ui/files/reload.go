@@ -46,7 +46,7 @@ func reloadSelectedFile(m Model) {
 		capture(m)
 		return
 	}
-	if isPreviewImage(rel) && m.Editing != nil {
+	if (isPreviewImage(rel) || mediaMode(m, rel)) && m.Editing != nil {
 		*m.Editing = false
 	}
 	if m.PreviewErr != nil {

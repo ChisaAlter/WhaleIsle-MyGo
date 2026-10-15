@@ -196,6 +196,7 @@ type WindowOptions struct {
 	BrowserProfile  bool
 	LocalPDFURL     string
 	LocalHTMLURL    string
+	LocalMediaURL   string
 	IsolatedPreview bool
 	Title           string
 	X, Y            int
