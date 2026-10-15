@@ -81,6 +81,7 @@ type entry struct {
 	holdCancel             context.CancelFunc
 	holdSerial             uint64
 	attachment             *Attachment
+	rename                 renameState
 }
 
 type Store struct {
@@ -543,6 +544,7 @@ func (s *Store) Close(owner uint64, session, id string) {
 		s.mu.Unlock()
 		return
 	}
+	s.cancelRenameLocked(e)
 	e.closing = true
 	if st := s.sessions[session]; st != nil {
 		st.operation++
