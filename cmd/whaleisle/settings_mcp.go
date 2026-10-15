@@ -86,6 +86,7 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		})
 	}
 	return &settings.MCPAccess{
+		HealthRefreshFailed: snap.HealthRefreshFailed,
 		Import: &settings.MCPImportAccess{
 			State:     snap.Import,
 			OnInput:   func(text, name string) { controller.SetImportInput(text, name); s.updateMCPSettingsUI() },

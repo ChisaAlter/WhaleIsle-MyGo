@@ -21,6 +21,7 @@ type MCPServerRow struct {
 
 // MCPAccess is the dedicated MCP settings page (mcpServers/list when present).
 type MCPAccess struct {
+	HealthRefreshFailed                           bool
 	Import                                        *MCPImportAccess
 	Form                                          *MCPFormAccess
 	Catalog                                       *MCPCatalogAccess
@@ -60,6 +61,12 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if a.LastAction != "" {
 		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
+	}
+	if a.HasListRPC {
+		ui.Text(c, mcpCatalogText("面板可见时每2秒读取服务器状态；后台刷新只调用列表。", "Server status refreshes every 2 seconds while this panel is visible; background refresh only lists servers.")).FontSize(11).TextColor(muted)
+	}
+	if a.HealthRefreshFailed {
+		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Use Refresh to retry the read.")).FontSize(11).TextColor(fg)
 	}
 	mcpCatalogControls(c, a.Catalog, fg, muted)
 	if len(a.Servers) == 0 {

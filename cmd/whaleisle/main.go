@@ -1677,8 +1677,8 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMuxReady = false
 	s.dshMuxLost = false
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
+	s.replaceMCPControllerLocked()
 	s.dshClient = client
-	s.settingsMCPController = &mcpconfig.Controller{}
 	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
 	s.mu.Lock()
@@ -1809,8 +1809,8 @@ func (s *mainState) stopDSHLocked() {
 		s.dshCancel = nil
 	}
 	s.dshEndpoint = ""
+	s.replaceMCPControllerLocked()
 	s.dshClient = nil
-	s.settingsMCPController = &mcpconfig.Controller{}
 	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
 	s.dshMux = nil
@@ -2114,6 +2114,9 @@ func main() {
 		win.OnClosed(state.whaleSettings.Suspend)
 		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
+		win.OnHide(state.suspendMCPHealth)
+		win.OnMinimize(state.suspendMCPHealth)
+		win.OnClosed(state.suspendMCPHealth)
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(func() {
@@ -2683,6 +2686,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	mcpPanelRendered := false
+	defer func() { state.observeMCPHealth(mcpPanelRendered) }()
 	state.observeWhaleSettings()
 	state.cancelComposerVoiceIfStale()
 	state.restoreResumeSelection()
@@ -4669,6 +4674,7 @@ func mainView(c *ui.Context) {
 				interfaceActive := state.settingsInterfaceActive
 				modelsActive := state.settingsModelsActive
 				mcpActive := state.settingsMCPActive
+				mcpPanelRendered = mcpActive
 				pluginsActive := state.settingsPluginsActive
 				skillsActive := state.settingsSkillsActive
 				agentPresetsActive := state.settingsAgentPresetsActive

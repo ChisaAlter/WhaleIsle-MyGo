@@ -17,6 +17,7 @@ type Caller interface {
 	Call(context.Context, string, any, any) error
 }
 type Snapshot struct {
+	HealthRefreshFailed                           bool
 	Import                                        ImportState
 	Form                                          *FormDraft
 	FormErrors                                    map[string]string
@@ -27,6 +28,8 @@ type Snapshot struct {
 	Draft, EditingID, DeletingID, Err, LastAction string
 }
 type Controller struct {
+	healthLoop     *healthRefreshLoop
+	healthRead     *healthRefreshRead
 	importSequence uint64
 	mu             sync.Mutex
 	state          Snapshot
@@ -142,6 +145,7 @@ func (c *Controller) begin(client Caller) bool {
 		c.state.Err = "MCP host is not connected"
 		return false
 	}
+	c.cancelHealthReadLocked()
 	c.state.Busy = true
 	c.state.Err = ""
 	c.state.LastAction = ""
@@ -170,6 +174,7 @@ func (c *Controller) Refresh(ctx context.Context, client Caller) {
 	c.state.Rows = snap.Servers
 	c.reconcileDiagnostics()
 	c.state.Ready = true
+	c.state.HealthRefreshFailed = false
 }
 func validateDraft(text, editingID string) (json.RawMessage, error) {
 	var value map[string]json.RawMessage
@@ -287,6 +292,7 @@ func (c *Controller) finish(ctx context.Context, client Caller, err error, actio
 	c.state.Rows = snap.Servers
 	c.reconcileDiagnostics()
 	c.state.Ready = true
+	c.state.HealthRefreshFailed = false
 }
 func (c *Controller) Delete(ctx context.Context, client Caller) {
 	c.DeleteExpected(ctx, client, c.Snapshot().DeletingID)
