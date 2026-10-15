@@ -48,6 +48,7 @@ type DshbotCatalogValue struct {
 
 // DshbotCatalogItem is one bot or room row in the catalog.
 type DshbotCatalogItem struct {
+	Notify       *bool    `json:"notify"` // nil is unavailable evidence, never guessed true
 	ID           string   `json:"id"`
 	Kind         string   `json:"kind"`
 	SessionID    string   `json:"sessionId"`
@@ -107,13 +108,16 @@ type DshbotActivityResult struct {
 
 // DshbotActivityEntry summarizes session activity for one catalog item.
 type DshbotActivityEntry struct {
-	BotID       string `json:"botId"`
-	SessionID   string `json:"sessionId"`
-	Preview     string `json:"preview"`
-	Attention   bool   `json:"attention"`
-	ActivityAt  int64  `json:"activityAt"`
-	ActivitySeq int    `json:"activitySeq"`
-	Error       string `json:"error,omitempty"`
+	NotificationShapeKnown bool            `json:"-"`
+	Goal                   json.RawMessage `json:"goal"`
+	LastRun                json.RawMessage `json:"lastRun"`
+	BotID                  string          `json:"botId"`
+	SessionID              string          `json:"sessionId"`
+	Preview                string          `json:"preview"`
+	Attention              bool            `json:"attention"`
+	ActivityAt             int64           `json:"activityAt"`
+	ActivitySeq            int             `json:"activitySeq"`
+	Error                  string          `json:"error,omitempty"`
 }
 
 // DshbotDescribeTyped calls describe and decodes the catalog view.

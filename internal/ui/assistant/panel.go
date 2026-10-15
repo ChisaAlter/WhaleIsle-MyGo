@@ -68,6 +68,7 @@ type Model struct {
 	DshbotRosterFetched       string
 	PluginRPCBusy             bool
 	PluginRPCDetail           string
+	BotNotificationStatus     string
 }
 
 // View paints the M10 assistant / dshbot panel.
@@ -97,6 +98,9 @@ func View(c *ui.Context, m Model) {
 				modeBlock(c, m, fg, muted, accent)
 				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
+				if m.Mode == assiststore.ModeDshbot && m.BotNotificationStatus != "" {
+					ui.Text(c, m.BotNotificationStatus).FontSize(11).TextColor(muted)
+				}
 				botVisibilityBlock(c, m, fg, muted, field, border, accent)
 				roomCreateBlock(c, m, fg, muted, field, border, accent)
 				botCreateBlock(c, m, fg, muted, field, border, accent)

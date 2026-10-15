@@ -188,6 +188,11 @@ type mainState struct {
 	dshbotRoster                  *dshbotstore.Store
 	assistantTasks                dshbotstore.TaskControls
 	assistantRoutines             dshbotstore.RoutineControls
+	botNotifications              *botNotificationRun
+	botNotificationMessage        string
+	botNotificationShowing        bool
+	botNotificationDenied         bool
+	botNotificationReadSlot       chan struct{}
 	assistantRoutineCreator       dshbotstore.RoutineCreator
 	assistantRoomCreator          dshbotstore.RoomCreator
 	assistantBotVisibility        dshbotstore.BotVisibilityManager
@@ -2162,6 +2167,10 @@ func main() {
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnClosed(state.whaleSettings.Suspend)
+		win.OnHide(state.stopBotNotifications)
+		win.OnMinimize(state.stopBotNotifications)
+		win.OnClosed(state.stopBotNotifications)
+		win.OnFocus(state.clearFocusedBotNotifications)
 		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnMinimize(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
@@ -2784,6 +2793,7 @@ func mainView(c *ui.Context) {
 	defer func() { state.observeAssistantBotVisibility(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotDeleter(roomCreateRendered) }()
 	defer func() { state.observeAssistantBotDuplicator(roomCreateRendered) }()
+	defer func() { state.observeBotNotifications(roomCreateRendered) }()
 	creatorTaskRendered := false
 	defer func() { state.observeCreatorTask(creatorTaskRendered) }()
 	providerDiscoveryRendered := false
@@ -4320,37 +4330,38 @@ func mainView(c *ui.Context) {
 				roomRuntimeModel := state.assistantRoomRuntimeModel(ep, dshbotSelectedID)
 				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
 				assistant.View(c, assistant.Model{
-					RoutineCreate:       routineCreateModel,
-					RoomCreate:          roomCreateModel,
-					BotCreate:           botCreateModel,
-					BotVisibility:       botVisibilityModel,
-					BotDelete:           botDeleteModel,
-					BotDuplicate:        botDuplicateModel,
-					RoomEdit:            roomEditModel,
-					RoomRuntime:         roomRuntimeModel,
-					Routines:            routineModel,
-					WhaleSettings:       whaleSettingsModel,
-					Tasks:               taskModel,
-					ThemeID:             themeID,
-					SystemDark:          mygo.Theme.IsDark(),
-					Mode:                asstSnap.Mode,
-					WhaleEnabled:        whaleOn,
-					DshbotEnabled:       dshbotOn,
-					WhaleVendorPresent:  whaleVendor,
-					DshbotVendorPresent: dshbotVendor,
-					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
-					LastWebViewURL:      lastWebURL,
-					LastNativeAction:    lastNative,
-					LastErr:             asstSnap.LastErr,
-					SessionID:           asstSnap.SessionID,
-					History:             history,
-					Draft:               &assistantDraft,
-					PluginRPCBusy:       pluginBusy,
-					PluginRPCDetail:     pluginDetail,
-					DshbotRoster:        dshbotRows,
-					DshbotRosterFetched: dshbotRosterAt,
-					DshbotSelectedID:    dshbotSelectedID,
+					RoutineCreate:         routineCreateModel,
+					RoomCreate:            roomCreateModel,
+					BotCreate:             botCreateModel,
+					BotVisibility:         botVisibilityModel,
+					BotDelete:             botDeleteModel,
+					BotDuplicate:          botDuplicateModel,
+					RoomEdit:              roomEditModel,
+					RoomRuntime:           roomRuntimeModel,
+					Routines:              routineModel,
+					WhaleSettings:         whaleSettingsModel,
+					Tasks:                 taskModel,
+					ThemeID:               themeID,
+					SystemDark:            mygo.Theme.IsDark(),
+					Mode:                  asstSnap.Mode,
+					WhaleEnabled:          whaleOn,
+					DshbotEnabled:         dshbotOn,
+					WhaleVendorPresent:    whaleVendor,
+					DshbotVendorPresent:   dshbotVendor,
+					HarnessReady:          true,
+					Busy:                  asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
+					LastWebViewURL:        lastWebURL,
+					LastNativeAction:      lastNative,
+					LastErr:               asstSnap.LastErr,
+					SessionID:             asstSnap.SessionID,
+					History:               history,
+					Draft:                 &assistantDraft,
+					PluginRPCBusy:         pluginBusy,
+					PluginRPCDetail:       pluginDetail,
+					DshbotRoster:          dshbotRows,
+					DshbotRosterFetched:   dshbotRosterAt,
+					BotNotificationStatus: state.botNotificationStatusText(),
+					DshbotSelectedID:      dshbotSelectedID,
 					OnDshbotSelect: func(botID string) {
 						state.assistantBotCreator.Suspend()
 						state.assistantBotVisibility.Suspend()
