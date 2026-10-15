@@ -17,6 +17,8 @@ type Caller interface {
 	Call(context.Context, string, any, any) error
 }
 type Snapshot struct {
+	Query, EnabledFilter, ExpandedID              string
+	Tests                                         map[string]TestDiagnostic
 	Rows                                          []api.McpServerSnapshotServersItem
 	Ready, Busy                                   bool
 	Draft, EditingID, DeletingID, Err, LastAction string
@@ -31,9 +33,19 @@ func (c *Controller) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := c.state
+	s.Tests = cloneDiagnostics(s.Tests)
 	s.Rows = append([]api.McpServerSnapshotServersItem(nil), s.Rows...)
 	for i := range s.Rows {
 		s.Rows[i].Spec = append(json.RawMessage(nil), s.Rows[i].Spec...)
+		if connection := s.Rows[i].Connection; connection != nil {
+			copy := *connection
+			copy.Tools = append([]string(nil), connection.Tools...)
+			if connection.LastError != nil {
+				message := *connection.LastError
+				copy.LastError = &message
+			}
+			s.Rows[i].Connection = &copy
+		}
 	}
 	return s
 }
@@ -135,6 +147,7 @@ func (c *Controller) Refresh(ctx context.Context, client Caller) {
 		return
 	}
 	c.state.Rows = snap.Servers
+	c.reconcileDiagnostics()
 	c.state.Ready = true
 }
 func validateDraft(text, editingID string) (json.RawMessage, error) {
@@ -237,10 +250,11 @@ func (c *Controller) finish(ctx context.Context, client Caller, err error, actio
 	defer c.mu.Unlock()
 	c.state.Busy = false
 	if refreshErr != nil {
-		c.state.Err = "Saved change, but refresh failed: " + refreshErr.Error()
+		c.state.Err = action + " completed, but refresh failed: " + refreshErr.Error()
 		return
 	}
 	c.state.Rows = snap.Servers
+	c.reconcileDiagnostics()
 	c.state.Ready = true
 }
 func (c *Controller) Delete(ctx context.Context, client Caller) {
@@ -291,10 +305,18 @@ func (c *Controller) rowAction(ctx context.Context, client Caller, id, action st
 		c.mu.Unlock()
 		return
 	}
+	if action == "test" {
+		delete(c.state.Tests, id)
+	}
 	c.mu.Unlock()
 	var result json.RawMessage
 	err := client.Call(ctx, "mcpServers/"+action, map[string]any{"request": request}, &result)
 	message := action + ": " + id
+	if action == "test" {
+		c.mu.Lock()
+		err = c.recordTest(id, result, err)
+		c.mu.Unlock()
+	}
 	if err == nil && action == "test" {
 		var test api.McpServerTestResult
 		if json.Unmarshal(result, &test) == nil && test.Ok {

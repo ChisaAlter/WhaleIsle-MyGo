@@ -11,15 +11,17 @@ import (
 
 // MCPServerRow is one host MCP server for the dedicated settings page.
 type MCPServerRow struct {
-	ID       string
-	Origin   string
-	Enabled  bool
-	Writable bool
-	Status   string
+	ServerName string
+	ID         string
+	Origin     string
+	Enabled    bool
+	Writable   bool
+	Status     string
 }
 
 // MCPAccess is the dedicated MCP settings page (mcpServers/list when present).
 type MCPAccess struct {
+	Catalog                                       *MCPCatalogAccess
 	Servers                                       []MCPServerRow
 	Busy                                          bool
 	EditingID, DeletingID                         string
@@ -57,13 +59,23 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.LastAction != "" {
 		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
 	}
+	mcpCatalogControls(c, a.Catalog, fg, muted)
 	if len(a.Servers) == 0 {
-		ui.Text(c, i18n.T(i18n.KeySettingsMCPEmpty)).FontSize(12).TextColor(muted)
+		message := i18n.T(i18n.KeySettingsMCPEmpty)
+		if a.Catalog != nil && len(a.Catalog.Snapshot.Rows) > 0 {
+			message = mcpCatalogText("没有匹配的服务器", "No matching servers")
+		}
+		ui.Text(c, message).FontSize(12).TextColor(muted)
 	} else {
 		for _, row := range a.Servers {
 			r := row
-			desktopRow(c, emptyDash(r.ID), func() {
+			title := r.ID
+			if r.ServerName != "" && r.ServerName != r.ID {
+				title = r.ServerName + " · " + r.ID
+			}
+			desktopRow(c, emptyDash(title), func() {
 				ui.Text(c, mcpRowDetail(r)).FontSize(11).TextColor(muted)
+				mcpCatalogDetails(c, a.Catalog, r.ID, fg, muted)
 				if !r.Writable {
 					ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(11).TextColor(muted)
 				}

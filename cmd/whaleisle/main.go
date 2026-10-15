@@ -159,7 +159,7 @@ type mainState struct {
 	settingsModelDrafts           map[string]string
 	settingsAgentPresetLabel      string
 	settingsAgentPresetDoc        string
-	settingsMCPController         mcpconfig.Controller
+	settingsMCPController         *mcpconfig.Controller
 	settingsProviderProfiles      providerprofiles.Controller
 	settingsReferencedCredentials credentialrefs.Controller
 	settingsPluginInventory       plugininventory.Controller
@@ -1673,6 +1673,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMuxLost = false
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.dshClient = client
+	s.settingsMCPController = &mcpconfig.Controller{}
 	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
 	s.mu.Lock()
@@ -1803,6 +1804,7 @@ func (s *mainState) stopDSHLocked() {
 	}
 	s.dshEndpoint = ""
 	s.dshClient = nil
+	s.settingsMCPController = &mcpconfig.Controller{}
 	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
 	s.dshMux = nil
@@ -1836,7 +1838,7 @@ func (s *mainState) stopDSHLocked() {
 }
 
 func (s *mainState) refreshSettingsMCP() {
-	s.runMCPSettings(func(ctx context.Context, client mcpconfig.Caller) { s.settingsMCPController.Refresh(ctx, client) })
+	s.refreshMCPController()
 }
 
 func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
