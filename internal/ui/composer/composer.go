@@ -589,7 +589,10 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, panel
 								ui.Text(c, sub).FontSize(11).TextColor(muted)
 							}
 						})
-						if !h.Installed && m.OnInstallSkillHub != nil {
+						if h.Status != "" {
+							ui.Text(c, h.Status).FontSize(11).TextColor(muted)
+						}
+						if !h.Installed && h.Status != "conflict" && m.OnInstallSkillHub != nil {
 							if ui.Button(c, i18n.T(i18n.KeyComposerSkillsHubInstall)).FontSize(11).Clicked() {
 								m.OnInstallSkillHub(h)
 							}

@@ -56,6 +56,9 @@ type SkillsAccess struct {
 	EditWritable        bool
 	OnSaveUpdate        func()
 
+	TargetRoot   string
+	ProjectCwd   string
+	OnSelectRoot func(root string)
 	HubQuery     *string
 	HubHits      []SkillHubHit
 	OnSearchHub  func(query string)
@@ -197,6 +200,28 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	}
+	if a.OnSelectRoot != nil {
+		ui.Text(c, "Create / install target").FontSize(12).Bold().TextColor(fg)
+		ui.Row(c).Gap(8).Children(func() {
+			userLabel, projectLabel := "User skills", "Project skills"
+			if a.TargetRoot == "project-dsh" {
+				projectLabel = "✓ " + projectLabel
+			} else {
+				userLabel = "✓ " + userLabel
+			}
+			if ui.Button(c, userLabel).Clicked() {
+				a.OnSelectRoot("user-dsh")
+			}
+			if a.ProjectCwd != "" && ui.Button(c, projectLabel).Clicked() {
+				a.OnSelectRoot("project-dsh")
+			}
+		})
+		if a.TargetRoot == "project-dsh" && a.ProjectCwd != "" {
+			ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(11).TextColor(muted)
+		} else if a.ProjectCwd == "" {
+			ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(11).TextColor(muted)
+		}
+	}
 	if a.CreateName != nil && a.OnCreate != nil {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, a.CreateName).Grow(1).Placeholder(i18n.T(i18n.KeyComposerSkillsCreateName))
@@ -245,7 +270,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if detail != "" {
 					ui.Text(c, detail).FontSize(11).TextColor(muted)
 				}
-				if a.OnInstallHub != nil && h.Repo != "" && h.Path != "" && h.SkillName != "" {
+				if a.OnInstallHub != nil && h.Repo != "" && h.Path != "" && h.SkillName != "" && h.Status != "installed" && h.Status != "conflict" {
 					if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubInstall)).FontSize(11).Clicked() {
 						a.OnInstallHub(h.Repo, h.Path, h.SkillName)
 					}

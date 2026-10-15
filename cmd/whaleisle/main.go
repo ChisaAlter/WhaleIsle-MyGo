@@ -129,6 +129,8 @@ type mainState struct {
 	settingsPluginsActive        bool
 	settingsPluginsLastAction    string
 	settingsSkillsActive         bool
+	settingsSkillRoot            string
+	settingsSkillHubTarget       session.SkillTarget
 	settingsSkillHubQuery        string
 	settingsSkillHubHits         []settings.SkillHubHit
 	settingsSkillsLastAction     string
@@ -5150,7 +5152,7 @@ func mainView(c *ui.Context) {
 						},
 						OnCreate: func(name string) {
 							if sessions != nil {
-								sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
+								sessions.CreateSkillInventory(context.Background(), name, name, "", state.settingsSkillRoot)
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -5238,6 +5240,24 @@ func mainView(c *ui.Context) {
 								}
 							}()
 						},
+						TargetRoot: state.settingsSkillRoot,
+						ProjectCwd: func() string {
+							if sessions == nil {
+								return ""
+							}
+							target, _ := sessions.SkillInventoryTarget(session.SkillRootUser)
+							return target.Cwd
+						}(),
+						OnSelectRoot: func(root string) {
+							state.mu.Lock()
+							state.settingsSkillRoot = root
+							state.settingsSkillHubHits = nil
+							state.settingsSkillHubTarget = session.SkillTarget{}
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
 						HubQuery: &state.settingsSkillHubQuery,
 						HubHits:  append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
 						OnRefresh: func() {
@@ -5253,15 +5273,29 @@ func mainView(c *ui.Context) {
 							state.dshMu.Lock()
 							client := state.dshClient
 							state.dshMu.Unlock()
-							if client == nil || query == "" {
+							if client == nil || sessions == nil || query == "" {
 								return
 							}
-							sid := sessSnap.SelectedID
+							target, targetErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
+							if targetErr == nil && !target.MatchesClient(client) {
+								return
+							}
+							if targetErr != nil {
+								state.mu.Lock()
+								state.settingsSkillsLastAction = targetErr.Error()
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+								return
+							}
 							go func() {
-								root := "user"
-								req := api.SkillHubSearchRequest{Query: query, Root: root}
-								if sid != "" {
-									req.SessionId = &sid
+								req := api.SkillHubSearchRequest{Query: query, Root: target.Root}
+								if target.SessionID != "" {
+									req.SessionId = &target.SessionID
+								}
+								if target.Cwd != "" {
+									req.Cwd = &target.Cwd
 								}
 								var out api.SearchHubResult
 								err := client.Call(context.Background(), "skillInventory/searchHub", map[string]any{"request": req}, &out)
@@ -5283,12 +5317,18 @@ func mainView(c *ui.Context) {
 									}
 								}
 								state.mu.Lock()
+								currentTarget, currentErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
+								if currentErr != nil || currentTarget != target {
+									state.mu.Unlock()
+									return
+								}
 								if err != nil {
 									state.settingsSkillsLastAction = err.Error()
 									state.settingsSkillHubHits = nil
 								} else {
 									state.settingsSkillsLastAction = fmt.Sprintf("hub: %d", len(hits))
 									state.settingsSkillHubHits = hits
+									state.settingsSkillHubTarget = target
 								}
 								state.mu.Unlock()
 								if win != nil {
@@ -5300,27 +5340,68 @@ func mainView(c *ui.Context) {
 							state.dshMu.Lock()
 							client := state.dshClient
 							state.dshMu.Unlock()
-							if client == nil || repo == "" || path == "" || skillName == "" {
+							if client == nil || sessions == nil || repo == "" || path == "" || skillName == "" {
 								return
 							}
-							sid := sessSnap.SelectedID
+							target, targetErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
+							if targetErr == nil && !target.MatchesClient(client) {
+								return
+							}
+							if targetErr != nil {
+								state.mu.Lock()
+								state.settingsSkillsLastAction = targetErr.Error()
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+								return
+							}
+							state.mu.Lock()
+							if state.settingsSkillHubTarget != target {
+								state.settingsSkillsLastAction = "Skill target changed; search again before installing."
+								state.settingsSkillHubHits = nil
+								state.mu.Unlock()
+								if win != nil {
+									win.Update(func() {})
+								}
+								return
+							}
+							state.mu.Unlock()
 							go func() {
 								req := api.SkillHubInstallRequest{
-									Repo: repo, Path: path, SkillName: skillName, Root: "user",
+									Repo: repo, Path: path, SkillName: skillName, Root: target.Root,
 								}
-								if sid != "" {
-									req.SessionId = &sid
+								if target.SessionID != "" {
+									req.SessionId = &target.SessionID
+								}
+								if target.Cwd != "" {
+									req.Cwd = &target.Cwd
 								}
 								var out api.SkillHubInstallResult
 								err := client.Call(context.Background(), "skillInventory/installHub", map[string]any{"request": req}, &out)
+								message := ""
+								if err == nil {
+									message, err = session.SkillHubInstallMessage(out.Status, out.SkillName, out.Directory)
+								}
 								state.mu.Lock()
+								currentTarget, currentErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
+								if currentErr != nil || currentTarget != target {
+									state.mu.Unlock()
+									return
+								}
 								if err != nil {
 									state.settingsSkillsLastAction = err.Error()
 								} else {
-									state.settingsSkillsLastAction = fmt.Sprintf("installed %s (%s)", out.SkillName, out.Status)
+									state.settingsSkillsLastAction = message
+									for i := range state.settingsSkillHubHits {
+										row := &state.settingsSkillHubHits[i]
+										if row.Repo == repo && row.Path == path && row.SkillName == skillName {
+											row.Status = "installed"
+										}
+									}
 								}
 								state.mu.Unlock()
-								if sessions != nil {
+								if err == nil {
 									sessions.RefreshSkills(context.Background())
 								}
 								if win != nil {
@@ -5977,7 +6058,7 @@ func mainView(c *ui.Context) {
 						UseComposerTextInput: true,
 						OnSearchSkillHub: func(query string) {
 							if sessions != nil {
-								sessions.SearchSkillHub(context.Background(), query, "user")
+								sessions.SearchSkillHub(context.Background(), query, session.SkillRootUser)
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -5985,7 +6066,7 @@ func mainView(c *ui.Context) {
 						},
 						OnInstallSkillHub: func(hit session.SkillHubHit) {
 							if sessions != nil {
-								sessions.InstallSkillHub(context.Background(), hit, "user")
+								sessions.InstallSkillHub(context.Background(), hit, session.SkillRootUser)
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -6002,7 +6083,7 @@ func mainView(c *ui.Context) {
 						SkillCreateName: &skillCreateName,
 						OnCreateSkill: func(name string) {
 							if sessions != nil {
-								sessions.CreateSkillInventory(context.Background(), name, name, "", "user")
+								sessions.CreateSkillInventory(context.Background(), name, name, "", session.SkillRootUser)
 							}
 							if win != nil {
 								win.Update(func() {})
