@@ -155,6 +155,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	jobs                      nativeJobsState
 	composerHostGeneration    uint64
 	composerOrder             uint64
 	composerPending           map[string]*composerPending

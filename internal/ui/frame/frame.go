@@ -334,6 +334,7 @@ func View(c *ui.Context, m Model) {
 	shell.Children(func() {
 		mainRow(c, m, snap, colors, border, muted)
 	})
+	jobsDialog(c, m)
 }
 
 func clampSidebarWidth(w float32) float32 {
@@ -470,6 +471,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					// Keep a thin drag strip for the Windows caption region only.
 					ui.Row(c).FillWidth().Height(40).Padding(0, 140, 0, 20).DragWindow().Children(func() {
 						ui.Box(c).Grow(1).MinWidth(0)
+						jobsHeader(c, m)
 					})
 				} else {
 					// Electron: caption row (workspace + actions) then 对话/轨迹 tabs.
@@ -492,6 +494,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Text(c, "···").FontSize(14).TextColor(muted)
 							}
 							ui.Box(c).Grow(1).MinWidth(0)
+							jobsHeader(c, m)
 							agentsCaption := i18n.T(i18n.KeyFrameCaptionAgents)
 							docsCaption := i18n.T(i18n.KeyFrameCaptionProjectDocs)
 							if m.OnOpenAgents != nil {

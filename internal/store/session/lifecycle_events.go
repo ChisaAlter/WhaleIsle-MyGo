@@ -255,6 +255,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.invalidateJobsLocked()
 	s.resetPermissionRiskLocked()
 	s.resetAssistantStreamLocked()
 	s.cancelVisualReplyLocked()
