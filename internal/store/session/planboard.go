@@ -14,6 +14,7 @@ type PlanBoard struct {
 	Todos        []PlanTodo
 	Queue        []PlanQueueItem
 	QueueActions QueueActionState
+	Pending      []PendingSubmission
 }
 
 // PlanGoal is the current durable goal snapshot (nil when cleared / absent).
@@ -42,7 +43,7 @@ type PlanQueueItem struct {
 
 // Empty reports whether the board has nothing useful to show.
 func (b PlanBoard) Empty() bool {
-	return !b.PlanMode && b.Goal == nil && len(b.Todos) == 0 && len(b.Queue) == 0
+	return !b.PlanMode && b.Goal == nil && len(b.Todos) == 0 && len(b.Queue) == 0 && len(b.Pending) == 0
 }
 
 // ApplyPlanBoardEvent folds one persistence event into the board.

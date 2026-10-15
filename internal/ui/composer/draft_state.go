@@ -10,6 +10,10 @@ import (
 // DraftState is a stable UI-owned draft. Async work returns through Window.Update.
 // Each session keeps its own text input client, selection, attachments and error.
 type DraftState struct {
+	flightSeq          uint64
+	flights            map[uint64]DraftFlight
+	failedSends        map[uint64]DraftFlight
+	failedRestored     *DraftFlight
 	Text               string
 	Attachments        []session.ComposerAttachment
 	Client             *DraftClient
@@ -44,7 +48,8 @@ func (d *DraftState) SaveDraft() json.RawMessage {
 	value := struct {
 		Text  string
 		Files []file
-	}{Text: d.Text}
+		Sends []savedComposerSend
+	}{Text: d.Text, Sends: d.recoverySends()}
 	for _, a := range d.Attachments {
 		value.Files = append(value.Files, file{a.Path, a.Name})
 	}
@@ -65,6 +70,7 @@ func RestoreDraft(raw json.RawMessage) *DraftState {
 func RestoreDraftChecked(raw json.RawMessage) (*DraftState, error) {
 	var value struct {
 		Text  *string
+		Sends []savedComposerSend
 		Files []struct {
 			Path string
 			Name string
@@ -83,5 +89,6 @@ func RestoreDraftChecked(raw json.RawMessage) (*DraftState, error) {
 		}
 		d.Attachments = append(d.Attachments, session.ComposerAttachment{Path: a.Path, Name: a.Name})
 	}
+	d.restoreRecoverySends(value.Sends)
 	return d, nil
 }

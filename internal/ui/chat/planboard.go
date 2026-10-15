@@ -119,7 +119,10 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 				return
 			}
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardQueue), muted, fg, func() {
-				if len(m.Board.Queue) == 0 {
+				for _, pending := range m.Board.Pending {
+					paintPendingSubmission(c, pending, fg, muted)
+				}
+				if len(m.Board.Queue) == 0 && len(m.Board.Pending) == 0 {
 					ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEmpty)).FontSize(12).TextColor(muted)
 					return
 				}
@@ -296,7 +299,7 @@ func planBoardSummary(b session.PlanBoard) string {
 	if b.Goal != nil {
 		parts = append(parts, i18n.T(i18n.KeyPlanBoardGoal))
 	}
-	if n := len(b.Queue); n > 0 {
+	if n := len(b.Queue) + len(b.Pending); n > 0 {
 		parts = append(parts, fmt.Sprintf("%s %d", i18n.T(i18n.KeyPlanBoardQueue), n))
 	}
 	return strings.Join(parts, "\u2002·\u2002")

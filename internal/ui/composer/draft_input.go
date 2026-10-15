@@ -148,7 +148,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				client.ReplaceText(nil, "\n")
 				return true
 			}
-			if m.Draft == nil || m.Snapshot.PromptBusy {
+			if m.Draft == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 				return true
 			}
 			if m.OnSubmit != nil {

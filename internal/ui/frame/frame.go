@@ -898,8 +898,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									OnQueueSteer: func(itemID string) {
 										m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionSteer)
 									},
-									QueueEditor:       snap.QueueEditor,
-									OnQueueEdit:       func(itemID, _ string) { m.Store.BeginQueueEdit(context.Background(), itemID) },
+									QueueEditor: snap.QueueEditor,
+									OnQueueEdit: func(itemID, _ string) {
+										m.Store.BeginQueueEditForSession(context.Background(), snap.SelectedID, itemID)
+									},
 									OnChangeQueueEdit: m.Store.ChangeQueueEdit,
 									OnCancelQueueEdit: m.Store.CancelQueueEdit,
 									OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },

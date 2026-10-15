@@ -227,6 +227,7 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	if json.Unmarshal(raw, &head) != nil || head.Type == "" {
 		return false
 	}
+	s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
 	if head.Type == events.TypeAgentPresetSelected {

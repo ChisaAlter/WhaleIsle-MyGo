@@ -35,7 +35,7 @@ func TestMessageEditFixture(t *testing.T) {
 		if req.SessionID != "s" || req.EditMessageSeq != 2 || len(req.Content) != 1 || req.Content[0].Text != "/new" {
 			t.Errorf("edit sent as command/wrong target: %+v", req)
 		}
-		rpcOK(w, body.RPCID, map[string]any{})
+		rpcOK(w, body.RPCID, map[string]any{"accepted": true})
 	}))
 	defer srv.Close()
 	st := New()

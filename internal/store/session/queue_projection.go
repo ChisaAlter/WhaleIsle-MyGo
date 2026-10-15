@@ -35,8 +35,16 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	}
 	next := make([]PlanQueueItem, 0, len(inbox.Next))
 	for _, row := range inbox.Next {
+		requestID := ""
+		if row.Source.Kind == "user" {
+			requestID = row.Source.RPCID
+			s.observeComposerRequestLocked(requestID, seq, true)
+		}
+		if s.hideComposerQueueLocked(requestID) {
+			continue
+		}
 		var parts []string
-		item := PlanQueueItem{ID: row.ID, Source: row.Source.Kind, RequestID: row.Source.RPCID, ContentKnown: true, TextOnly: true}
+		item := PlanQueueItem{ID: row.ID, Source: row.Source.Kind, RequestID: requestID, ContentKnown: true, TextOnly: true}
 		for _, part := range row.Content {
 			if part.Type == "text" {
 				parts = append(parts, part.Text)

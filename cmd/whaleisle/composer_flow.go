@@ -97,9 +97,18 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		sessions.CreateSession(context.Background())
 		return
 	}
+	if editSeq == 0 && id != "" && !strings.HasPrefix(strings.TrimSpace(text), "/") {
+		s.submitDetachedComposer(win, sessions, d, id)
+		return
+	}
 	attachments := append([]session.ComposerAttachment(nil), d.Attachments...)
 	if d.TargetID != "" {
 		id = d.TargetID
+	}
+	owner, captureErr := sessions.CaptureComposerTarget(id)
+	if captureErr != nil {
+		d.Error = captureErr.Error()
+		return
 	}
 	d.Sending = true
 	d.Error = ""
@@ -108,18 +117,18 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		target := id
 		var err error
 		if target == "" {
-			target, err = sessions.CreateComposerSession(ctx, cwd)
+			target, err = owner.CreateSession(ctx, cwd)
 		}
 		if err == nil {
 			for i := range attachments {
-				attachments[i], err = sessions.PrepareComposerAttachment(ctx, target, attachments[i])
+				attachments[i], err = owner.PrepareAttachment(ctx, attachments[i])
 				if err != nil {
 					break
 				}
 			}
 		}
 		if err == nil {
-			err = sessions.SubmitComposer(ctx, target, text, attachments, editSeq)
+			err = owner.Submit(ctx, text, attachments, editSeq, "")
 		}
 		win.Update(func() {
 			d.Sending = false

@@ -53,7 +53,7 @@ func TestComposerSubmissionChain(t *testing.T) {
 			if req.SessionID != "original" || len(req.Content) != 2 || req.Content[1]["receiptId"] != "receipt-1" || req.Content[0]["text"] != "Keep\n\nformatting" {
 				t.Errorf("wrong prompt: %+v", req)
 			}
-			rpcOK(w, body.RPCID, map[string]any{})
+			rpcOK(w, body.RPCID, map[string]any{"accepted": true})
 		case strings.HasSuffix(r.URL.Path, "/commands/list"):
 			rpcOK(w, body.RPCID, []any{map[string]any{"name": "review", "input": map[string]any{"attachments": true}}})
 		case strings.HasSuffix(r.URL.Path, "/commands/execute"):

@@ -47,6 +47,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	Submission *PendingSubmission
 	// Tool is populated only by the read-only chat lifecycle projection.
 	Tool        *ToolCallView
 	Command     *CommandView
@@ -154,6 +155,11 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	composerHostGeneration    uint64
+	composerOrder             uint64
+	composerPending           map[string]*composerPending
+	composerObserved          map[string]composerObserved
+	composerAdmissions        map[string]*ComposerTarget
 	workspacePreferences      workspacePreferenceBinding
 	rename                    SessionRenameView
 	renameEpoch               uint64
@@ -267,6 +273,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.resetComposerHostLocked()
 		s.invalidateRenameLocked()
 		s.invalidateSessionFeedbackLocked()
 		s.questionProjections = nil
@@ -404,6 +411,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetComposerHostLocked()
 	s.invalidateRenameLocked()
 	s.invalidateSessionFeedbackLocked()
 	s.resetModelCatalogLocked()
@@ -467,8 +475,8 @@ func (s *Store) Snapshot() ViewState {
 		LastAction:          s.lastAction,
 		ListLoading:         s.listLoading,
 		SelectedID:          s.selectedID,
-		PromptBusy:          s.promptBusy,
-		MessageEditBusy:     s.editTurnSeq > 0,
+		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
+		MessageEditBusy:     s.editTurnSeq > 0 || s.composerPendingForSelectedLocked(),
 		HistoryBranchBusy:   s.historyBranchBusy,
 		FeedbackBusyID:      s.feedbackBusyID,
 	}
@@ -550,6 +558,7 @@ func (s *Store) Snapshot() ViewState {
 	st.BandActions = append([]BandAction(nil), s.bandActions...)
 	st.SpeechSelection = s.speechSelection
 	st.ControlNote = s.controlNote
+	s.projectComposerSubmissionsLocked(&st)
 	return st
 }
 

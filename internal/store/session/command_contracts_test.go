@@ -103,7 +103,7 @@ func TestCommandSubmissionUsesArraysAndCatalogOwnership(t *testing.T) {
 			if req.SessionID != "original" || len(req.Content) != 1 || req.Content[0].Text != "/my_skill brief" {
 				t.Errorf("unclaimed skill token was changed: %+v", req)
 			}
-			rpcOK(w, body.RPCID, map[string]any{})
+			rpcOK(w, body.RPCID, map[string]any{"accepted": true})
 		default:
 			t.Errorf("unexpected call: %s", r.URL.Path)
 		}

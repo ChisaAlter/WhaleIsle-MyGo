@@ -150,6 +150,14 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		padBot = 0
 	}
 	ui.Column(c).Padding(padTop, padRight, padBot, padLeft).Children(func() {
+		if m.State != nil && m.State.FailedSendCount() > 0 {
+			ui.Row(c).Gap(8).Children(func() {
+				ui.Text(c, "未发送草稿 / Unsent drafts").FontSize(11).TextColor(muted)
+				if !m.State.FailedSendsRestored() && ui.Button(c, "恢复 / Restore").FontSize(11).Disabled(m.State.Sending || m.State.Preparing > 0 || m.Editing).Clicked() {
+					m.State.RestoreFailedSends()
+				}
+			})
+		}
 		markdown.LinkActions(c, markdown.Links(draft), markdown.Style{FontSize: 12, Accent: accent}, m.OnOpenURL)
 		if kind == SuggestSlash && !m.Editing {
 			if m.Snapshot.SlashCommandsLoading {
@@ -463,7 +471,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							running = true
 						}
 					}
-					if (m.Snapshot.PromptBusy || (running && strings.TrimSpace(draft) == "" && (m.State == nil || len(m.State.Attachments) == 0))) && m.OnStop != nil {
+					if (running && strings.TrimSpace(draft) == "" && (m.State == nil || len(m.State.Attachments) == 0)) && m.OnStop != nil {
 						stop := ui.Button(c, "■").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).

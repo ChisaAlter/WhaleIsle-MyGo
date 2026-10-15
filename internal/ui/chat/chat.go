@@ -109,6 +109,10 @@ func View(c *ui.Context, m Model) {
 			padT, padR, padB, padL := float32(12), float32(16), float32(8), float32(16)
 			isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
+				if msg.Submission != nil {
+					paintPendingSubmission(row.Context, *msg.Submission, fg, muted)
+					return
+				}
 				if msg.Kind == session.MessageKindSubmittedPlan {
 					SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)})
 					return

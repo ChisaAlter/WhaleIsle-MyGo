@@ -10,27 +10,76 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
-// ComposerAttachment retains the upload receipt, not just its durable file ID.
-// SessionID prevents a staged receipt from being reused in a different session.
+// ComposerAttachment retains its staged receipt and exact session/Host owner.
 type ComposerAttachment struct {
-	Path      string
-	Name      string
-	SessionID string
-	Upload    api.FileUploadValue
-	ImageData string
-	MediaType string
+	Path, Name, SessionID, HostScope string
+	Upload                           api.FileUploadValue
+	ImageData, MediaType             string
 }
 
-// PrepareComposerAttachment reads actual local bytes and uses the original wire
-// contract: encoded images, or staged file upload receipts for ordinary files.
+// ComposerTarget pins every step of one admission to one Host and mode. A
+// navigation may change the selected session, but never retarget this request.
+type ComposerTarget struct {
+	SessionID               string
+	store                   *Store
+	client                  *dsh.Client
+	epoch, followGeneration uint64
+	mode                    PromptMode
+}
+
+func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.client == nil {
+		return nil, ErrNoClient
+	}
+	return &ComposerTarget{SessionID: id, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: NormalizePromptMode(string(s.promptMode))}, nil
+}
+func (t *ComposerTarget) currentLocked() bool {
+	return t.store.client == t.client && t.store.composerHostGeneration == t.epoch
+}
+func (t *ComposerTarget) Current() bool {
+	t.store.mu.Lock()
+	defer t.store.mu.Unlock()
+	return t.currentLocked()
+}
+func (t *ComposerTarget) scope() string { return fmt.Sprintf("%p:%d", t.client, t.epoch) }
+func (t *ComposerTarget) check(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !t.Current() {
+		return errors.New("Host changed; draft retained, retry on the current Host")
+	}
+	return nil
+}
+
 func (s *Store) PrepareComposerAttachment(ctx context.Context, id string, a ComposerAttachment) (ComposerAttachment, error) {
-	if a.SessionID == id && (a.Upload.ReceiptId != "" || a.ImageData != "") {
+	t, err := s.CaptureComposerTarget(id)
+	if err != nil {
+		return a, err
+	}
+	return t.PrepareAttachment(ctx, a)
+}
+func (t *ComposerTarget) PrepareAttachment(ctx context.Context, a ComposerAttachment) (ComposerAttachment, error) {
+	if err := t.check(ctx); err != nil {
+		return a, err
+	}
+	if t.SessionID == "" {
+		return a, ErrNoClient
+	}
+	if a.SessionID == t.SessionID && a.HostScope == t.scope() && (a.Upload.ReceiptId != "" || a.ImageData != "") {
 		return a, nil
 	}
+	// Never reuse the prior Host's receipt, even when session IDs are equal.
+	a.Upload = api.FileUploadValue{}
+	a.ImageData = ""
+	a.SessionID = ""
+	a.HostScope = ""
 	raw, err := os.ReadFile(a.Path)
 	if err != nil {
 		return a, err
@@ -41,21 +90,30 @@ func (s *Store) PrepareComposerAttachment(ctx context.Context, id string, a Comp
 	case "image/png", "image/jpeg", "image/gif", "image/webp":
 		a.ImageData = base64.StdEncoding.EncodeToString(raw)
 	default:
-		a.Upload, err = s.UploadFileForSession(ctx, id, a.Path)
+		a.Upload, err = t.uploadFile(ctx, a.Path)
 		if err != nil {
 			return a, err
 		}
 	}
-	a.SessionID = id
+	if err = t.check(ctx); err != nil {
+		return a, err
+	}
+	a.SessionID, a.HostScope = t.SessionID, t.scope()
 	return a, nil
 }
-
 func (s *Store) UploadFileForSession(ctx context.Context, id, path string) (api.FileUploadValue, error) {
+	t, err := s.CaptureComposerTarget(id)
+	if err != nil {
+		return api.FileUploadValue{}, err
+	}
+	return t.uploadFile(ctx, path)
+}
+func (t *ComposerTarget) uploadFile(ctx context.Context, path string) (api.FileUploadValue, error) {
 	var out api.FileUploadValue
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || id == "" {
+	if err := t.check(ctx); err != nil {
+		return out, err
+	}
+	if t.SessionID == "" {
 		return out, ErrNoClient
 	}
 	raw, err := os.ReadFile(path)
@@ -63,62 +121,74 @@ func (s *Store) UploadFileForSession(ctx context.Context, id, path string) (api.
 		return out, err
 	}
 	name := filepath.Base(path)
-	err = client.Call(ctx, "fileUploads/upload", map[string]any{"agentId": id, "request": api.EncodedFileUploadRequest{Data: base64.StdEncoding.EncodeToString(raw), Name: &name}}, &out)
+	err = t.client.Call(ctx, "fileUploads/upload", map[string]any{"agentId": t.SessionID, "request": api.EncodedFileUploadRequest{Data: base64.StdEncoding.EncodeToString(raw), Name: &name}}, &out)
 	if err != nil {
 		return out, err
+	}
+	if err = t.check(ctx); err != nil {
+		return api.FileUploadValue{}, err
 	}
 	if strings.TrimSpace(out.ReceiptId) == "" || strings.TrimSpace(out.File.AttachmentId) == "" {
 		return out, errors.New("upload returned an incomplete file receipt")
 	}
 	return out, nil
 }
-
-// CreateComposerSession creates a target for a home draft without switching an
-// unrelated session selected while the request was in flight.
 func (s *Store) CreateComposerSession(ctx context.Context, cwd string) (string, error) {
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil {
-		return "", ErrNoClient
+	t, err := s.CaptureComposerTarget("")
+	if err != nil {
+		return "", err
+	}
+	return t.CreateSession(ctx, cwd)
+}
+func (t *ComposerTarget) CreateSession(ctx context.Context, cwd string) (string, error) {
+	if err := t.check(ctx); err != nil {
+		return "", err
 	}
 	if strings.TrimSpace(cwd) == "" {
 		return "", errors.New("choose a workspace before sending")
 	}
 	var out api.SessionCreateValue
-	err := client.Call(ctx, "session/create", map[string]any{"request": api.SessionCreateRequest{Cwd: &cwd}}, &out)
-	if err != nil {
+	if err := t.client.Call(ctx, "session/create", map[string]any{"request": api.SessionCreateRequest{Cwd: &cwd}}, &out); err != nil {
+		return "", err
+	}
+	if err := t.check(ctx); err != nil {
 		return "", err
 	}
 	if out.SessionId == "" {
 		return "", errors.New("session/create returned no session")
 	}
+	t.SessionID = out.SessionId
 	return out.SessionId, nil
 }
 
-// SubmitComposer is synchronous so its owner can clear only after acceptance.
-// The caller runs it off the UI thread and retains the draft on every error.
+// SubmitComposer keeps the synchronous adapter for existing callers. UI sends
+// capture their target before detaching, then submit with their echo request ID.
 func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments []ComposerAttachment, editSeq float64) error {
-	s.mu.Lock()
-	client := s.client
-	mode := NormalizePromptMode(string(s.promptMode))
-	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.turnStartMs > 0}, editSeq)) {
-		s.mu.Unlock()
-		return errors.New("当前消息已变化或会话正在运行，请取消编辑后重试")
+	t, err := s.CaptureComposerTarget(id)
+	if err != nil {
+		return err
 	}
-	s.mu.Unlock()
-	if client == nil || id == "" {
+	return t.Submit(ctx, text, attachments, editSeq, "")
+}
+func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []ComposerAttachment, editSeq float64, requestID string) (err error) {
+	s, id := t.store, t.SessionID
+	if requestID == "" {
+		requestID = newRequestID()
+	}
+	defer func() { err = t.finishSubmission(requestID, err) }()
+	if err = t.check(ctx); err != nil {
+		return err
+	}
+	if id == "" {
 		return ErrNoClient
 	}
 	if strings.TrimSpace(text) == "" && len(attachments) == 0 {
 		return errors.New("message is empty")
 	}
-	// The Host command executor reads submittedAttachments.length; no files
-	// must be encoded as [] rather than JSON null.
 	parts := make([]json.RawMessage, 0, len(attachments)+1)
 	for _, a := range attachments {
-		if a.SessionID != id {
-			return errors.New("attachment belongs to a different session; retry upload")
+		if a.SessionID != id || a.HostScope != t.scope() {
+			return errors.New("attachment belongs to another session or Host; retry upload")
 		}
 		var value any
 		if a.ImageData != "" {
@@ -133,50 +203,53 @@ func (s *Store) SubmitComposer(ctx context.Context, id, text string, attachments
 	}
 	line := strings.TrimSpace(text)
 	if editSeq == 0 && strings.HasPrefix(line, "/") {
-		// Match the current Host catalog before taking ownership of the draft.
-		// Input commands accept multiline arguments; unclaimed tokens (including
-		// skill invocations) remain ordinary prompts, as in the original composer.
 		var commands api.ListResult3
-		if err := client.Call(ctx, "commands/list", map[string]any{"agentId": id}, &commands); err != nil {
+		if err = t.client.Call(ctx, "commands/list", map[string]any{"agentId": id}, &commands); err != nil {
+			return err
+		}
+		if err = t.check(ctx); err != nil {
 			return err
 		}
 		if command, ok := commandForLine(commands, line); ok {
 			if len(parts) > 0 && (command.Input == nil || command.Input.Attachments == nil || !*command.Input.Attachments) {
 				return fmt.Errorf("/%s does not accept attachments", command.Name)
 			}
-			return executeCommand(ctx, client, id, line, parts)
+			err = executeCommand(ctx, t.client, id, line, parts)
+			if err != nil {
+				return err
+			}
+			return t.check(ctx)
 		}
 	}
 	if strings.TrimSpace(text) != "" {
 		b, _ := json.Marshal(map[string]string{"type": "text", "text": text})
 		parts = append([]json.RawMessage{b}, parts...)
 	}
-	req := api.SessionPromptRequest{RequestId: newRequestID(), SessionId: id, Mode: string(mode), Content: parts}
+	req := api.SessionPromptRequest{RequestId: requestID, SessionId: id, Mode: string(t.mode), Content: parts}
 	if editSeq > 0 {
 		req.EditMessageSeq = &editSeq
 	}
 	s.mu.Lock()
-	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.turnStartMs > 0}, editSeq)) {
+	if !t.currentLocked() {
+		s.mu.Unlock()
+		return errors.New("Host changed; draft retained")
+	}
+	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.composerPromptBusyLocked() || s.composerPendingForSelectedLocked() || s.turnStartMs > 0}, editSeq)) {
 		s.mu.Unlock()
 		return errors.New("the edited message is no longer the latest idle user turn")
 	}
-	if s.selectedID == id {
-		s.promptBusy = true
+	if s.composerAdmissions == nil {
+		s.composerAdmissions = make(map[string]*ComposerTarget)
 	}
+	s.composerAdmissions[requestID] = t
 	s.mu.Unlock()
 	s.fire()
-	var result json.RawMessage
-	err := client.Call(ctx, "session/prompt", map[string]any{"request": req}, &result)
-	s.mu.Lock()
-	if s.selectedID == id {
-		s.promptBusy = false
-		if err != nil {
-			s.lastAction = err.Error()
-		} else {
-			s.lastAction = "prompt sent"
-		}
+	var result struct {
+		Accepted bool `json:"accepted"`
 	}
-	s.mu.Unlock()
-	s.fire()
+	err = t.client.Call(ctx, "session/prompt", map[string]any{"request": req}, &result)
+	if err == nil && !result.Accepted {
+		err = errors.New("prompt was not accepted; draft retained")
+	}
 	return err
 }

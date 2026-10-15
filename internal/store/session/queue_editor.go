@@ -37,6 +37,19 @@ func (s *Store) queueEditorCurrentLocked(ctx context.Context, client *dsh.Client
 // an editing source; mixed attachment content remains unchanged and uneditable.
 func (s *Store) BeginQueueEdit(ctx context.Context, itemID string) {
 	s.mu.Lock()
+	sessionID := s.selectedID
+	s.mu.Unlock()
+	s.BeginQueueEditForSession(ctx, sessionID, itemID)
+}
+
+// BeginQueueEditForSession binds the editor to the session rendered by the
+// clicked row. A stale frame cannot load the new selection's same-named item.
+func (s *Store) BeginQueueEditForSession(ctx context.Context, sessionID, itemID string) {
+	s.mu.Lock()
+	if sessionID == "" || sessionID != s.selectedID {
+		s.mu.Unlock()
+		return
+	}
 	if s.client == nil || s.selectedID == "" || itemID == "" || !s.queueActionsLocked().Can(QueueActionEdit, s.queueItemLocked(itemID)) {
 		s.mu.Unlock()
 		return
