@@ -178,6 +178,7 @@ type mainState struct {
 	assistant                     *assiststore.Store
 	dshbotRoster                  *dshbotstore.Store
 	assistantTasks                dshbotstore.TaskControls
+	assistantRoutines             dshbotstore.RoutineControls
 	whaleSettings                 assiststore.WhaleSettingsEditor
 	desktopDraft                  desktopConfigDraft
 	desktopSaveErr                string
@@ -702,6 +703,7 @@ func (s *mainState) showMainWindow() {
 }
 
 func (s *mainState) applyDeeplink(t deeplink.Target) {
+	s.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 	s.mu.Lock()
 	s.pendingDeeplink = t
 	switch t.Action {
@@ -2102,6 +2104,8 @@ func main() {
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnClosed(state.whaleSettings.Suspend)
+		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
+		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(func() {
@@ -2740,6 +2744,9 @@ func mainView(c *ui.Context) {
 	webviewOpen := state.webviewOpen
 	browserPreviewOpen := state.browserPreviewOpen
 	assistantOpen := state.assistantOpen
+	if !assistantOpen || st.State != harness.Ready {
+		state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
+	}
 	launcherOpen := state.launcherOpen
 	toolsMenuOpen := state.toolsMenuOpen
 	launcherTab := state.launcherTab
@@ -4191,8 +4198,10 @@ func mainView(c *ui.Context) {
 					history = assiststore.HistoryFromSessionMessages(pairs, 8)
 				}
 				taskModel := state.assistantTasksModel(ep, dshbotSelectedID)
+				routineModel := state.assistantRoutinesModel(ep, dshbotSelectedID)
 				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
 				assistant.View(c, assistant.Model{
+					Routines:            routineModel,
 					WhaleSettings:       whaleSettingsModel,
 					Tasks:               taskModel,
 					ThemeID:             themeID,
@@ -4203,7 +4212,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:  whaleVendor,
 					DshbotVendorPresent: dshbotVendor,
 					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy,
+					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy,
 					LastWebViewURL:      lastWebURL,
 					LastNativeAction:    lastNative,
 					LastErr:             asstSnap.LastErr,
@@ -4216,10 +4225,12 @@ func mainView(c *ui.Context) {
 					DshbotRosterFetched: dshbotRosterAt,
 					DshbotSelectedID:    dshbotSelectedID,
 					OnDshbotSelect: func(botID string) {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						asst.SelectDshbot(botID, origin)
 					},
 					OnSetMode: func(mode assiststore.Mode) {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						if asst != nil {
@@ -4230,6 +4241,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenModeWeb: func() {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						plugin := desktopwebview.PluginWhale
 						if assiststore.NormalizeMode(asstSnap.Mode) == assiststore.ModeDshbot {
@@ -4246,6 +4258,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenSession: func(sessionID string) {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						if sessions != nil && strings.TrimSpace(sessionID) != "" {
 							state.revokePhoneGit()
@@ -4261,6 +4274,7 @@ func mainView(c *ui.Context) {
 					},
 					OnClose: func() {
 						state.whaleSettings.Suspend()
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.mu.Lock()
 						state.assistantOpen = false
@@ -4275,10 +4289,12 @@ func mainView(c *ui.Context) {
 						state.setAssistantFlag(&enabled, nil)
 					},
 					OnToggleDshbot: func(enabled bool) {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.assistantTasks.Bind(dshbotstore.TaskScope{})
 						state.setAssistantFlag(nil, &enabled)
 					},
 					OnOpenWhaleWeb: func() {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
@@ -4292,6 +4308,7 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenDshbotWeb: func() {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.whaleSettings.Suspend()
 						state.mu.Lock()
 						state.webviewOpen = true
@@ -4430,6 +4447,7 @@ func mainView(c *ui.Context) {
 						})
 					},
 					OnDshbotOpenRosterSession: func(botID string) {
+						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 						state.openAssistantDshbot(ep, botID)
 					},
 				})
