@@ -55,7 +55,7 @@ func openNativeTerminal(root string, dark bool) (*myterm.Terminal, error) {
 		return nil, err
 	}
 	light, darkTheme := myterm.LightTheme(), myterm.DarkTheme()
-	opts := myterm.Options{Dir: root, Theme: light, DarkTheme: darkTheme}
+	opts := myterm.Options{Dir: root, Theme: light, DarkTheme: darkTheme, Transparent: true}
 	if dark {
 		opts.Theme = darkTheme
 	}
@@ -137,7 +137,7 @@ func View(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
-	field := chrome.Color(colors.Field)
+	field := chrome.BackdropTerminal(chrome.Color(colors.Field))
 	border := chrome.Color(colors.Border)
 	p := m.Panel
 	// FocusBind writes pointer/keyboard focus back without replacing active state

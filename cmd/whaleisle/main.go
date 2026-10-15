@@ -93,6 +93,8 @@ import (
 )
 
 type mainState struct {
+	wallpaperControls    *settings.WallpaperEditor
+	wallpaperVisible     bool
 	commandSearchFocus   bool
 	appearanceEditor     *theme.Editor
 	appearanceVisible    bool
@@ -635,6 +637,10 @@ func (s *mainState) saveDesktopConfig() {
 	if err != nil {
 		s.desktopSaveErr = err.Error()
 		s.desktopLastAction = ""
+		return
+	}
+	if err := s.materializeWallpaperDraft(); err != nil {
+		s.desktopSaveErr = err.Error()
 		return
 	}
 	err = s.cfgStore.Update(func(c *config.Config) {
@@ -2695,6 +2701,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.beginWallpaperFrame()
+	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
 	state.beginAppearanceFrame(c)
 	defer state.endAppearanceFrame()
@@ -3494,7 +3502,7 @@ func mainView(c *ui.Context) {
 			}))
 			return
 		}
-		chrome.WallpaperBackdrop(c, wallpaperPath)
+		state.drawWallpaper(c, wallpaperPath)
 		// Exclusive panels (settings/market/…) must not keep desktop title actions.
 		desktopChromeLocked := settingsOpen || usageOpen || imOpen || marketOpen ||
 			scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen
@@ -5208,6 +5216,7 @@ func mainView(c *ui.Context) {
 					},
 					AppearanceActive: appearanceActive,
 					Appearance: &settings.AppearanceAccess{
+						Background:       state.wallpaperSettings(appearanceActive),
 						Preferences:      state.themeFontEditor(appearanceActive),
 						Theme:            &state.desktopDraft.theme,
 						WallpaperPath:    &state.desktopDraft.wallpaperPath,
@@ -5222,9 +5231,9 @@ func mainView(c *ui.Context) {
 							if err != nil || len(paths) == 0 {
 								return
 							}
-							state.mu.Lock()
-							state.desktopDraft.wallpaperPath = paths[0]
-							state.mu.Unlock()
+							if gallery := state.wallpaperEditor(); gallery != nil {
+								gallery.ImportFile(paths[0])
+							}
 							if win != nil {
 								win.Update(func() {})
 							}

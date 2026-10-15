@@ -254,7 +254,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		}
 		// InputBar.card: 8px top pad, 12px gap, 28px radius. The hairline
 		// is painted as elevation, so it does not consume draft layout space.
-		ui.Column(c).Label("Composer card").FillWidth().Background(chrome.Color(colors.InputMajor)).
+		ui.Column(c).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
 			Radius(28).Padding(8, 0, 0, 0).Gap(12).
 			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 28, 0.5) }).Children(func() {
 			if m.State != nil {

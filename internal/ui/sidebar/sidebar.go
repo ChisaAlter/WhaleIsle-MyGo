@@ -88,7 +88,7 @@ func View(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
-	bg := chrome.Color(colors.Sidebar)
+	bg := chrome.BackdropSidebar(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
 	if m.Collapsed {
 		ui.Column(c).Fill().MinWidth(0).Padding(6, 8, 6, 8).Background(bg).Children(func() {

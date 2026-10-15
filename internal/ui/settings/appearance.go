@@ -9,6 +9,7 @@ import (
 
 // AppearanceAccess is the dedicated Appearance settings page (theme + wallpaper).
 type AppearanceAccess struct {
+	Background        *WallpaperEditor
 	Preferences       *theme.Editor
 	Theme             *string
 	WallpaperPath     *string
@@ -61,6 +62,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 	}, fg, muted)
+	wallpaperBackgroundPane(c, a.Background, fg, muted)
 	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 		a.OnSave()
 	}

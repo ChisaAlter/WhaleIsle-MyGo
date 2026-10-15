@@ -366,7 +366,7 @@ func View(c *ui.Context, m Model) {
 
 	// Grow below titlebar without percent-height double counting. Theme BG is
 	// the center's surface; the sidebar and right track own their own surfaces.
-	shell := ui.Column(c).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG))
+	shell := ui.Column(c).Grow(1).MinHeight(0).Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
 	_, height := c.Size()
 	// The titlebar is above this shell. Its previous-frame origin remains
 	// stable during a window resize; preserve a visible terminal below it.
@@ -1066,7 +1066,7 @@ func conversationContentWidth(colW float32) float32 {
 func rightPane(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	field := chrome.Color(colors.Sidebar)
+	field := chrome.BackdropSurface(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
 	fg := chrome.Color(colors.FG)
