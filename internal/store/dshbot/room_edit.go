@@ -10,6 +10,7 @@ import (
 )
 
 type RoomEditDraft struct {
+	Name, Description    string
 	MemberBotIDs         []string
 	MaxRounds, MaxSpeaks string
 	Version              uint64
@@ -27,6 +28,7 @@ type RoomEditSnapshot struct {
 	Draft                                        *RoomEditDraft
 	Review                                       *RoomEditReview
 	Error, Notice                                string
+	Warnings                                     []string
 }
 type RoomEditTicket struct {
 	Scope                string
@@ -96,6 +98,7 @@ func (c *RoomEditor) Snapshot(k string) RoomEditSnapshot {
 		return RoomEditSnapshot{Scope: k, Generation: c.generation}
 	}
 	v := e.state
+	v.Warnings = append([]string(nil), e.state.Warnings...)
 	v.Generation = c.generation
 	v.Status = pluginrpc.CloneDshbotRoomEdit(v.Status)
 	if v.Draft != nil {
@@ -168,7 +171,8 @@ func (c *RoomEditor) Start(k string) {
 		return
 	}
 	r := e.state.Status.Item
-	e.state.Draft = &RoomEditDraft{MemberBotIDs: append([]string(nil), r.MemberBotIDs...), MaxRounds: strconv.Itoa(r.MaxRounds), MaxSpeaks: strconv.Itoa(r.MaxSpeaks)}
+	e.state.Warnings = nil
+	e.state.Draft = &RoomEditDraft{Name: r.Name, Description: r.Description, MemberBotIDs: append([]string(nil), r.MemberBotIDs...), MaxRounds: strconv.Itoa(r.MaxRounds), MaxSpeaks: strconv.Itoa(r.MaxSpeaks)}
 	e.state.Error = ""
 	e.state.Notice = ""
 }
@@ -190,6 +194,10 @@ func (c *RoomEditor) Change(k, field, value string) {
 		return
 	}
 	switch field {
+	case "name":
+		e.state.Draft.Name = value
+	case "description":
+		e.state.Draft.Description = value
 	case "maxRounds":
 		e.state.Draft.MaxRounds = value
 	case "maxSpeaks":
@@ -263,19 +271,24 @@ func (c *RoomEditor) Prepare(k string) {
 	}
 	e.state.Review = nil
 	d := e.state.Draft
+	textValues, textErr := pluginrpc.ParseDshbotRoomText(pluginrpc.DshbotRoomTextValues{Name: d.Name, Description: d.Description})
+	if textErr != nil {
+		e.state.Error = textErr.Error()
+		return
+	}
 	r, er := strconv.Atoi(strings.TrimSpace(d.MaxRounds))
 	s, es := strconv.Atoi(strings.TrimSpace(d.MaxSpeaks))
 	if er != nil || es != nil {
 		e.state.Error = "轮数和发言上限须为整数 / Limits must be integers"
 		return
 	}
-	cmd := pluginrpc.DshbotRoomEditCommand{Expected: pluginrpc.CloneDshbotRoomEdit(e.state.Status), Values: pluginrpc.DshbotRoomEditValues{MemberBotIDs: append([]string(nil), d.MemberBotIDs...), MaxRounds: r, MaxSpeaks: s}}
+	cmd := pluginrpc.DshbotRoomEditCommand{Expected: pluginrpc.CloneDshbotRoomEdit(e.state.Status), Values: pluginrpc.DshbotRoomEditValues{MemberBotIDs: append([]string(nil), d.MemberBotIDs...), MaxRounds: r, MaxSpeaks: s, Text: &textValues}}
 	if err := pluginrpc.ValidateDshbotRoomEdit(cmd); err != nil {
 		e.state.Error = err.Error()
 		return
 	}
 	before := cmd.Expected.Item
-	if r == before.MaxRounds && s == before.MaxSpeaks && reflect.DeepEqual(d.MemberBotIDs, before.MemberBotIDs) {
+	if r == before.MaxRounds && s == before.MaxSpeaks && reflect.DeepEqual(d.MemberBotIDs, before.MemberBotIDs) && !pluginrpc.DshbotRoomTextChanged(cmd) {
 		e.state.Error = "草稿没有变更 / No changes to save"
 		return
 	}
@@ -360,6 +373,7 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
+	e.state.Warnings = append([]string(nil), result.Warnings...)
 	if !result.Attempted {
 		e.attempt = nil
 		e.state.Uncertain = false
@@ -383,9 +397,6 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 	e.state.Uncertain = false
 	e.state.Error = ""
 	e.state.Notice = "Host 已确认群聊资料保存 / Host confirmed group update"
-	if len(result.Warnings) > 0 {
-		e.state.Notice += "\n" + strings.Join(result.Warnings, "\n")
-	}
 	e.attempt = nil
 }
 func (c *RoomEditor) Adopt(k string) bool {

@@ -10,7 +10,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 )
 
-const roomEditAcknowledgement = "我理解成员和限额变更会影响群聊执行 / I understand group execution effects"
+const roomEditAcknowledgement = "我理解群资料及会话展示变更的影响 / I understand group profile and session effects"
 const roomEditConfirmLabel = "确认保存群聊设置 / Confirm group update"
 
 type RoomEditModel struct {
@@ -51,8 +51,8 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-room-edit")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "群聊成员与限额 / Group members and limits").FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "编辑已选群聊的成员顺序、轮数与发言上限。名称、说明、工作区、头像及其他资料保持原样。").FontSize(11).TextColor(muted)
+		ui.Text(c, "群名、说明、成员与限额 / Group profile and limits").FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, "编辑已选群聊的名称、完整说明，以及原有成员顺序和限额。工作区、头像及其他资料保持原样；没有独立 title 输入。").FontSize(11).TextColor(muted)
 		if m.OnRefresh != nil && ui.Button(c, "读取群聊资料 / Read group profile").Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
@@ -61,6 +61,9 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		}
 		if s.Notice != "" {
 			ui.Text(c, s.Notice).FontSize(11).TextColor(muted).Selectable()
+		}
+		for _, warning := range s.Warnings {
+			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}
 		if !s.Loaded {
 			ui.Text(c, "先读取完整资料与 revision；旧草稿不会自动覆盖 Host / Read complete profile and revision first").FontSize(11).TextColor(muted)
@@ -82,6 +85,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			return
 		}
 		disabled := blocked || s.Uncertain || s.Review != nil
+		roomEditTextInputs(c, m, disabled)
 		for _, f := range []struct{ id, label, value string }{{"maxRounds", "轮数 / Rounds (1–3)", s.Draft.MaxRounds}, {"maxSpeaks", "成员发言上限 / Speaks (1–10)", s.Draft.MaxSpeaks}} {
 			f := f
 			v := f.value
@@ -146,6 +150,9 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 				ui.Text(c, "保存前完整审阅 / Review group update").FontSize(13).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s · revision %d\nGroup: %s (%s) · Session: %s\n轮数 / Rounds: %d → %d\n发言上限 / Speaks: %d → %d\n原成员 / Before members:\n%s\n新成员 / After members:\n%s", m.HostLabel, cmd.Expected.Catalog.Revision, before.Name, before.ID, before.SessionID, before.MaxRounds, after.MaxRounds, before.MaxSpeaks, after.MaxSpeaks, roomEditMembers(before.MemberBotIDs, cmd.Expected.Catalog), roomEditMembers(after.MemberBotIDs, cmd.Expected.Catalog))).FontSize(12).TextColor(fg).Selectable()
 				ui.Text(c, "Host 会写入目录和审计记录，更新原会话展示并尝试同步会话标题。新成员与限额影响群聊后续读取配置时的执行，成员可能调用模型、工具或外部消息并产生费用；不保证正在进行的讨论立刻采用新设置。本次保存不发送提示词、不启动或停止群聊。工作区和 canonical session 不变。").FontSize(12).TextColor(accent)
+				if cmd.Values.Text != nil {
+					ui.Text(c, roomEditTextReview(cmd)).FontSize(12).TextColor(accent).Selectable()
+				}
 				ui.Text(c, roomEditReviewText(cmd)).FontSize(11).TextColor(muted).Selectable()
 				ack := r.Acknowledged
 				if ui.Checkbox(c, &ack, roomEditAcknowledgement).Disabled(blocked).Changed() && m.OnAcknowledge != nil {

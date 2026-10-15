@@ -20,6 +20,7 @@ type DshbotRoomEditStatus struct {
 	WriteError string
 }
 type DshbotRoomEditValues struct {
+	Text                 *DshbotRoomTextValues // nil preserves the original member/limit-only command
 	MemberBotIDs         []string
 	MaxRounds, MaxSpeaks int
 }
@@ -47,6 +48,10 @@ func CloneDshbotRoomEdit(v DshbotRoomEditStatus) DshbotRoomEditStatus {
 func CloneDshbotRoomEditCommand(v DshbotRoomEditCommand) DshbotRoomEditCommand {
 	v.Expected = CloneDshbotRoomEdit(v.Expected)
 	v.Values.MemberBotIDs = append([]string(nil), v.Values.MemberBotIDs...)
+	if v.Values.Text != nil {
+		text := *v.Values.Text
+		v.Values.Text = &text
+	}
 	return v
 }
 func SameDshbotRoomEdit(a, b DshbotRoomEditStatus) bool {
@@ -54,6 +59,10 @@ func SameDshbotRoomEdit(a, b DshbotRoomEditStatus) bool {
 }
 func DshbotRoomEditProfile(cmd DshbotRoomEditCommand) map[string]json.RawMessage {
 	p := CloneDshbotRoomEdit(cmd.Expected).Profile
+	if cmd.Values.Text != nil {
+		p["name"], _ = json.Marshal(cmd.Values.Text.Name)
+		p["description"], _ = json.Marshal(cmd.Values.Text.Description)
+	}
 	p["memberBotIds"], _ = json.Marshal(cmd.Values.MemberBotIDs)
 	p["maxRounds"], _ = json.Marshal(cmd.Values.MaxRounds)
 	p["maxSpeaks"], _ = json.Marshal(cmd.Values.MaxSpeaks)
@@ -296,6 +305,15 @@ func ValidateDshbotRoomEdit(cmd DshbotRoomEditCommand) error {
 		return err
 	}
 	v := cmd.Values
+	if v.Text != nil {
+		normalized, err := ParseDshbotRoomText(*v.Text)
+		if err != nil {
+			return err
+		}
+		if normalized != *v.Text {
+			return fmt.Errorf("review normalized room name/description before saving")
+		}
+	}
 	if v.MaxRounds < 1 || v.MaxRounds > 3 || v.MaxSpeaks < 1 || v.MaxSpeaks > 10 || len(v.MemberBotIDs) < 2 || len(v.MemberBotIDs) > 6 {
 		return fmt.Errorf("choose 2–6 Bots, 1–3 rounds and 1–10 speaks")
 	}
