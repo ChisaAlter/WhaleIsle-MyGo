@@ -29,7 +29,7 @@ func composedBridgeScript() string {
 		return nil
 	})
 	encoded, _ := json.Marshal(sources)
-	return gitGateScript + "\n" + strings.ReplaceAll(bridgeScript, "__MYGO_GIT_SOURCES__", string(encoded))
+	return gitGateScript + "\n" + deviceActionsScript + "\n" + strings.ReplaceAll(bridgeScript, "__MYGO_GIT_SOURCES__", string(encoded))
 }
 
 // SetGitAuthorizer checks the current desktop session for each authenticated

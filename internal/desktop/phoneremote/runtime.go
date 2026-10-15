@@ -28,6 +28,9 @@ type RuntimeState struct {
 	PairingImage              image.Image
 	ExpiresAt                 time.Time
 	Message                   string
+	Devices                   []Device
+	DevicesLoaded             bool
+	DeviceAction              DeviceActionState
 }
 type Resources struct{ Node, Module, Home string }
 
@@ -53,6 +56,9 @@ type Runtime struct {
 	spawn        func(Resources) (Child, error)
 	resources    func(string, string) (Resources, error)
 	stopTimeout  time.Duration
+	deviceAction DeviceActionState
+	deviceSequence uint64
+	deviceActionDone chan struct{}
 }
 
 func NewRuntime() *Runtime {
@@ -131,6 +137,7 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 		_ = child.Wait()
 		r.mu.Lock()
 		if r.child == child {
+			r.finishDeviceActionLocked("stopped", false)
 			message := r.state.Message
 			if message == "" {
 				message = "remote bridge stopped"
@@ -161,6 +168,7 @@ func (r *Runtime) Stop() { r.op.Lock(); defer r.op.Unlock(); r.stopLocked() }
 func (r *Runtime) stopLocked() {
 	r.mu.Lock()
 	child, done := r.child, r.done
+	r.finishDeviceActionLocked("stopped", false)
 	r.child = nil
 	r.done = nil
 	r.state = RuntimeState{Status: "offline"}
@@ -194,6 +202,13 @@ func (r *Runtime) Snapshot() RuntimeState {
 		s.PairingImage = nil
 	}
 	r.state = s
+	s.Devices = append([]Device(nil), s.Devices...)
+	s.DeviceAction = r.deviceAction
+	if s.DeviceAction.Busy && s.DeviceAction.Operation != "rename" {
+		s.PairingURL = ""
+		s.PairingImage = nil
+		s.Status = "updating"
+	}
 	return s
 }
 func (r *Runtime) consume(child Child, b []byte) {
@@ -207,6 +222,10 @@ func (r *Runtime) consume(child Child, b []byte) {
 		URL            string `json:"url"`
 		QRPNG          string `json:"qrPNG"`
 		Code           string `json:"code"`
+		Operation      string `json:"operation"`
+		Applied        bool   `json:"applied"`
+		Devices        []Device `json:"devices"`
+		DevicesLoaded  bool   `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
 		return
@@ -225,6 +244,12 @@ func (r *Runtime) consume(child Child, b []byte) {
 	if r.child != child {
 		return
 	}
+	if event.Kind == "device-action-result" {
+		if r.deviceAction.Busy && event.ID == r.deviceAction.ID && event.Operation == r.deviceAction.Operation {
+			r.finishDeviceActionLocked(event.Code, event.Applied)
+		}
+		return
+	}
 	if event.Kind == "error" {
 		message := "remote startup or pairing failed; check installed runtime and retry"
 		if event.Code == "runtime-load" {
@@ -239,7 +264,8 @@ func (r *Runtime) consume(child Child, b []byte) {
 	if event.Kind != "snapshot" {
 		return
 	}
-	s := RuntimeState{Status: "offline", Listening: event.Listening, RelayConnected: event.RelayConnected}
+	s := RuntimeState{Status: "offline", Listening: event.Listening, RelayConnected: event.RelayConnected,
+		Devices: event.Devices, DevicesLoaded: event.DevicesLoaded}
 	if s.Listening {
 		s.Status = "relay-offline"
 	}

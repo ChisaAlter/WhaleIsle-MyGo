@@ -96,6 +96,7 @@ type mainState struct {
 	taskRestartPending   bool
 	quitting             bool
 	phoneRuntime         *phoneremote.Runtime
+	phoneDeviceEditor    remoteui.PhoneDeviceEditor
  phoneGitSession string
  phoneGitRoot string
 	phoneOp              sync.Mutex
@@ -3983,6 +3984,8 @@ func mainView(c *ui.Context) {
 				RemoteDeviceNames:      remoteDeviceNames,
 				PhoneActionMsg:         phoneActionMsg,
 				PhoneRuntime:           state.phoneRuntimeManager().Snapshot(),
+				PhoneDeviceEditor:      &state.phoneDeviceEditor,
+				OnPhoneDeviceAction:    state.phoneDeviceAction,
 				HarnessRemoteOverlay:   cfgRemoteWorkspace,
 				MuxConnected:           muxReady,
 				HarnessReady:           st.State == harness.Ready,

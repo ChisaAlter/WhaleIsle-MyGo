@@ -15,10 +15,10 @@ try {
     '../../vendor/chisacode-remote/node_modules/@chisacode/server/package.json'));
   qrEncoder = serverRequire('qrcode');
 } catch { /* Link pairing remains available when the optional QR encoder is missing. */ }
-let qrURL = '', qrPNG = '', qrGeneration = 0;
+let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false;
 function clearQR() { qrURL = ''; qrPNG = ''; ++qrGeneration; }
 function usableURL(s) {
-  if (!s.listening || !s.relayConnected) return '';
+  if (offerBlocked || !s.listening || !s.relayConnected) return '';
   const raw = s.urls?.[0]?.pairingUrl || '';
   try {
     if (raw.length > 8192) return '';
@@ -68,7 +68,38 @@ function snapshot() {
     }
   }
   emit({kind:'snapshot', listening:!!s.listening, relayConnected:!!s.relayConnected,
-    url, qrPNG: url ? qrPNG : ''});
+    url, qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices)});
+}
+async function deviceAction(command) {
+  if (typeof command.id !== 'string' || !/^[0-9]{1,20}$/.test(command.id)) return;
+  let applied = false, code = '';
+  clearQR();
+  starting = true;
+  try {
+    await managePhoneDevice(remote, command, {
+      hideOffer() {
+        offerBlocked = true;
+        clearQR();
+        emit({kind:'snapshot',listening:false,relayConnected:false,url:'',devices:publicPhoneDevices(remote.snapshot()),devicesLoaded:true});
+      },
+      revokeGit,
+      applied() { applied = true; },
+    });
+    applied = true;
+    if (command.operation === 'unbind') {
+      // A workspace may disappear during reconnect. Keep Git fail-closed
+      // without misreporting an already applied device revocation as failed.
+      try { gitGate.configure(config); } catch { revokeGit(); }
+    }
+    if (command.operation !== 'rename') offerBlocked = false;
+  } catch (error) {
+    const known = ['invalid-action','runtime-offline','device-missing','invalid-name','rename-failed','unbind-failed'];
+    code = known.includes(error?.message) ? error.message : 'operation';
+  } finally {
+    starting = false;
+  }
+  try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); }
+  emit({kind:'device-action-result',id:command.id,operation:command.operation,code,applied});
 }
 let queue = Promise.resolve();
 async function stop() {
@@ -93,8 +124,9 @@ input.on('line',line=>{
     const command=JSON.parse(line);
     if(command.action==='stop')return stop();
     if(stopping)return;
-    if(command.action==='start') {clearQR();config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync(); } finally { starting=false; }}
-    else if(command.action==='refresh' && remote.daemon) {clearQR();emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();} finally {starting=false;}}
+    if(command.action==='device-action')return deviceAction(command);
+    if(command.action==='start') {clearQR();offerBlocked=true;config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync();offerBlocked=false; } finally { starting=false; }}
+    else if(command.action==='refresh' && remote.daemon) {clearQR();offerBlocked=true;emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();offerBlocked=false;} finally {starting=false;}}
     snapshot();
   }).catch(()=>emit({kind:'error',code:'operation'}));
 });

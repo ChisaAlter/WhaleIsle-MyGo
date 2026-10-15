@@ -15,6 +15,13 @@ import (
 func phoneSnapshot(m Model) phoneremote.Snapshot {
 	names := append([]string(nil), m.RemoteDeviceNames...)
 	count := m.RemoteDeviceCount
+	if m.PhoneRuntime.DevicesLoaded {
+		names = make([]string, len(m.PhoneRuntime.Devices))
+		for i, device := range m.PhoneRuntime.Devices {
+			names[i] = device.Name
+		}
+		count = len(names)
+	}
 	if count == 0 && len(names) > 0 {
 		count = len(names)
 	}
@@ -88,14 +95,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		}
 	})
 
-	if len(snap.DeviceNames) > 0 {
-		ui.Text(c, i18n.T(i18n.KeyRemotePhoneDeviceList)).FontSize(12).Bold().TextColor(fg)
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
-			for _, name := range snap.DeviceNames {
-				ui.Text(c, "· "+name).FontSize(12).TextColor(fg)
-			}
-		})
-	}
+	viewPhoneDevices(c, m, fg, muted, field, border, accent)
 
 	ui.Text(c, i18n.T(i18n.KeyRemotePhoneConnectURL)).FontSize(12).Bold().TextColor(fg)
 	if snap.ConnectURL != "" {
@@ -136,7 +136,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && ui.Button(c, "打开配对链接 / Open pairing link").Clicked() {
 			m.OnOpenConnectURL()
 		}
-		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Clicked() {
+		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Disabled(runtime.DeviceAction.Busy).Clicked() {
 			m.OnRefreshPhone()
 		}
 	})

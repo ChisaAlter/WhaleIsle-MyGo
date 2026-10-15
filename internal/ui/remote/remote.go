@@ -41,6 +41,8 @@ type Model struct {
 	RemoteDeviceNames      []string
 	PhoneActionMsg         string
 	PhoneRuntime           phoneremote.RuntimeState
+	PhoneDeviceEditor      *PhoneDeviceEditor
+	OnPhoneDeviceAction    func(operation, id, name string) error
 	HarnessRemoteOverlay   bool
 	MuxConnected           bool
 	HarnessReady           bool
