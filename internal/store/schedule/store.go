@@ -26,6 +26,8 @@ type Entry struct {
 
 // ViewState is a UI-safe snapshot.
 type ViewState struct {
+	ConnectionEpoch uint64
+	Origin string
 	ClientReady bool
 	Loading     bool
 	Err         string
@@ -48,6 +50,7 @@ type Store struct {
 	catalogHint string
 	sessionID   string
 	generation  uint64
+	connectionEpoch uint64
 	lastAction  string
 	busy        bool
 }
@@ -61,6 +64,14 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.generation++
+	if s.client != client {
+		s.connectionEpoch++
+		s.loading = false
+		s.busy = false
+		s.rows = nil
+		s.catalogHint = ""
+		s.lastAction = ""
+	}
 	s.client = client
 	s.notify = notify
 	s.err = nil
@@ -71,6 +82,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 func (s *Store) Detach() {
 	s.mu.Lock()
 	s.generation++
+	s.connectionEpoch++
 	s.client = nil
 	s.loading = false
 	s.busy = false
@@ -85,6 +97,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		ConnectionEpoch: s.connectionEpoch,
 		ClientReady: s.client != nil,
 		Loading:     s.loading,
 		CatalogHint: s.catalogHint,
@@ -94,6 +107,9 @@ func (s *Store) Snapshot() ViewState {
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()
+	}
+	if s.client != nil {
+		st.Origin = s.client.Endpoint.Origin
 	}
 	st.Rows = append([]Entry(nil), s.rows...)
 	return st

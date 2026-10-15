@@ -3,6 +3,7 @@ package schedule
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"whaleisle/internal/dsh/api"
@@ -42,6 +43,14 @@ func RuleSnapshot(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(out)
 }
 
+// ResultError retains the Host recovery code without parsing display text.
+type ResultError struct {
+	Code string
+	Message string
+}
+
+func (e *ResultError) Error() string { return e.Code + ": " + e.Message }
+
 func resultError(raw json.RawMessage) error {
 	var out struct {
 		Code    string `json:"code"`
@@ -51,7 +60,7 @@ func resultError(raw json.RawMessage) error {
 		return fmt.Errorf("invalid schedule result: %w", err)
 	}
 	if out.Code != "" {
-		return fmt.Errorf("%s: %s", out.Code, out.Message)
+		return &ResultError{Code: out.Code, Message: out.Message}
 	}
 	return nil
 }
@@ -118,7 +127,10 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 	sid := s.sessionID
 	s.mu.Unlock()
 	s.fire()
-	if err == nil && current {
+	var failure *ResultError
+	refresh := err == nil || (errors.As(err, &failure) &&
+		(failure.Code == "schedule_conflict" || failure.Code == "schedule_ended" || failure.Code == "schedule_not_found"))
+	if refresh && current {
 		s.Refresh(ctx, sid)
 	}
 	return err

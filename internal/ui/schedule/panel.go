@@ -22,6 +22,8 @@ type Panel struct {
 	selected        string
 	deleting        *schedstore.Entry
 	initialized     bool
+	connectionEpoch uint64
+	historyRequest uint64
 	mu              sync.Mutex
 	history, status string
 	historyKey      string
@@ -130,11 +132,21 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
-	if !p.initialized {
-		p.initialized = true
-		m.Store.Refresh(context.Background(), m.SessionID)
-	}
 	snap := m.Store.Snapshot()
+	if !p.initialized || p.connectionEpoch != snap.ConnectionEpoch {
+		p.initialized = true
+		p.connectionEpoch = snap.ConnectionEpoch
+		p.selected = ""
+		p.deleting = nil
+		p.mu.Lock()
+		p.historyRequest++
+		p.historyKey, p.history, p.historyBefore = "", "", ""
+		p.historyLoading = false
+		p.committed = nil
+		p.mu.Unlock()
+		m.Store.Refresh(context.Background(), m.SessionID)
+		snap = m.Store.Snapshot()
+	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -149,6 +161,11 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	}
 	p.committed = nil
 	p.mu.Unlock()
+	for _, row := range snap.Rows {
+		if d := p.drafts[taskKey(row)]; d != nil {
+			d.rebase(row)
+		}
+	}
 	ui.Column(c).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG)).Padding(12, 16, 12, 16).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, "定时任务 / Scheduled tasks").Bold().Grow(1)
@@ -175,12 +192,19 @@ func (p *Panel) View(c *ui.Context, m Model) {
 				}
 				for _, r := range snap.Rows {
 					row := r
-					key := row.Origin + "/" + row.SessionID + "/" + row.ID
+					key := taskKey(row)
 					ui.Column(c).Border(1, chrome.Color(colors.Border)).Radius(6).Padding(8, 8, 8, 8).Gap(4).Children(func() {
 						ui.Text(c, row.Title).Bold().TextColor(fg)
 						ui.Text(c, row.Detail).FontSize(11).TextColor(muted)
 						ui.Text(c, "Session: "+row.SessionID).FontSize(11).TextColor(muted)
 						ui.Row(c).Gap(8).Children(func() {
+							sessionLabel, canOpen := m.SessionLinks[row.SessionID]
+							if sessionLabel == "" {
+								sessionLabel = row.SessionID
+							}
+							if m.OnOpenSession != nil && ui.Button(c, "原会话 / Session: "+sessionLabel).Disabled(!canOpen || row.Origin != snap.Origin).Clicked() {
+								m.OnOpenSession(row)
+							}
 							if ui.Button(c, "编辑 / Edit").Disabled(row.Status == "inactive" || snap.Busy).Clicked() {
 								if p.drafts == nil {
 									p.drafts = map[string]*taskDraft{}
@@ -194,6 +218,9 @@ func (p *Panel) View(c *ui.Context, m Model) {
 							if ui.Button(c, "历史 / History").Clicked() {
 								p.mu.Lock()
 								p.historyKey = key
+								p.historyRequest++
+								request := p.historyRequest
+								epoch := snap.ConnectionEpoch
 								p.history = "加载中 / Loading"
 								p.historyRow = row
 								p.historyBefore = ""
@@ -205,7 +232,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 										text = err.Error()
 									}
 									p.mu.Lock()
-									if p.historyKey == key {
+									if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().ConnectionEpoch == epoch {
 										p.history = row.Title + " · " + row.SessionID + "\n" + text
 										p.historyBefore = next
 										p.historyLoading = false
@@ -244,6 +271,16 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					})
 				}
 				if d := p.drafts[p.selected]; d != nil {
+					available := false
+					for _, row := range snap.Rows {
+						if taskKey(row) == p.selected && row.Status != "inactive" {
+							available = true
+							break
+						}
+					}
+					if !available {
+						ui.Text(c, "任务已结束、被删除或未完成刷新；当前草稿不能保存。").TextColor(muted)
+					}
 					ui.Text(c, "编辑 · "+d.row.ID+" · Session: "+d.row.SessionID).Bold().TextColor(fg)
 					input := func(label string, value *string) {
 						ui.Text(c, label).FontSize(11).TextColor(muted)
@@ -269,7 +306,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 						input("时区 / IANA zone", &d.Zone)
 					}
 					ui.Row(c).Gap(8).Children(func() {
-						if ui.Button(c, "保存全部 / Save all").Disabled(snap.Busy || !snap.ClientReady).Clicked() {
+						if ui.Button(c, "保存全部 / Save all").Disabled(snap.Busy || snap.Loading || !snap.ClientReady || !available).Clicked() {
 							title, prompt := strings.TrimSpace(d.Title), strings.TrimSpace(d.Prompt)
 							change, err := d.change()
 							if title == "" || prompt == "" || len([]rune(title)) > 120 {
@@ -290,7 +327,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 											p.committed = map[string]savedDraft{}
 										}
 										for _, r := range m.Store.Snapshot().Rows {
-											if r.ID == row.ID && r.SessionID == row.SessionID {
+											if taskKey(r) == key {
 												p.committed[key] = savedDraft{row: r, timing: timing}
 												break
 											}
@@ -317,11 +354,14 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					p.mu.Lock()
 					p.historyLoading = true
 					key := p.historyKey
+					p.historyRequest++
+					request := p.historyRequest
+					epoch := snap.ConnectionEpoch
 					p.mu.Unlock()
 					go func() {
 						text, next, err := m.Store.HistoryPage(context.Background(), historyRow, historyBefore)
 						p.mu.Lock()
-						if p.historyKey == key {
+						if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().ConnectionEpoch == epoch {
 							p.historyLoading = false
 							if err != nil {
 								p.status = err.Error()

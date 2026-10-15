@@ -3806,10 +3806,15 @@ func mainView(c *ui.Context) {
 		}
 		if acceptPanelOK && scheduleOpen && schedStore != nil {
 			sid := ""
+			sessionLinks := map[string]string{}
 			if sessions != nil {
-				sid = sessions.Snapshot().SelectedID
+				sessionSnap := sessions.Snapshot()
+				sid = sessionSnap.SelectedID
+				sessionLinks = scheduleSessionLinks(sessionSnap)
 			}
 			state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
+				SessionLinks: sessionLinks,
+				OnOpenSession: state.openScheduleSession,
 				OnClose: func() {
 					state.mu.Lock()
 					state.scheduleOpen = false

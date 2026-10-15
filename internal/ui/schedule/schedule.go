@@ -17,6 +17,8 @@ import (
 type Model struct {
 	Store         *schedstore.Store
 	SessionID     string
+	SessionLinks map[string]string
+	OnOpenSession func(row schedstore.Entry)
 	ThemeID       string
 	SystemDark    bool
 	OnClose       func()

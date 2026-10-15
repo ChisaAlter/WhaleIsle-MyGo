@@ -11,6 +11,7 @@ import (
 func (s *Store) HistoryPage(ctx context.Context, row Entry, before string) (string, string, error) {
 	s.mu.Lock()
 	client := s.client
+	epoch := s.connectionEpoch
 	s.mu.Unlock()
 	if client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		return "", "", fmt.Errorf("not connected to the task's Host")
@@ -25,6 +26,12 @@ func (s *Store) HistoryPage(ctx context.Context, row Entry, before string) (stri
 	var out api.ScheduleDeliveryHistoryResult
 	if err := client.Call(ctx, "schedule/history", map[string]any{"request": req}, &out); err != nil {
 		return "", "", err
+	}
+	s.mu.Lock()
+	current := s.client == client && s.connectionEpoch == epoch
+	s.mu.Unlock()
+	if !current {
+		return "", "", fmt.Errorf("Host connection changed; reload task history")
 	}
 	if err := resultError(out); err != nil {
 		return "", "", err
