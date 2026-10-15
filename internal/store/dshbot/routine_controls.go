@@ -47,6 +47,7 @@ type RoutineSnapshot struct {
 	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
+	SenderPolicy    SenderPolicyControls
 	TextProfile     TextProfileControls
 	Route           RouteControls
 	ObjectiveConfig ObjectiveConfigControls
@@ -69,6 +70,7 @@ func (c *RoutineControls) Bind(scope RoutineScope) {
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
 		c.TextProfile.Bind(scope)
+		c.SenderPolicy.Bind(scope)
 		c.Route.Bind(scope)
 		c.Memory.Bind(scope)
 		c.MemoryReview.Bind(scope)

@@ -17,6 +17,10 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		return out, fmt.Errorf("route arguments require exactly model and workspaceId")
 	}
 	switch {
+	case len(fields) == 1 && fields["allowedSenderIds"] != nil:
+		if err := validateDshbotSenderField(expected, fields["allowedSenderIds"]); err != nil {
+			return out, err
+		}
 	case len(fields) == 1 && fields["memoryReview"] != nil:
 		if _, err := DshbotMemoryReviewEnabled(DshbotCapabilityStatus{Profile: fields}); err != nil {
 			return out, err
@@ -121,6 +125,21 @@ func (c *Client) saveDshbotProfileFields(ctx context.Context, expected DshbotCap
 		profile, _ := json.Marshal(out.Status.Profile)
 		if response.SessionID != expected.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
 			return out, fmt.Errorf("text profile item/session receipt differs; read back")
+		}
+		return out, nil
+	}
+	if len(fields) == 1 && fields["allowedSenderIds"] != nil {
+		ids, err := senderPolicyIDs(fields["allowedSenderIds"])
+		if err != nil {
+			return out, err
+		}
+		cmd := DshbotSenderPolicyCommand{Expected: DshbotSenderPolicyStatus{DshbotCapabilityStatus: expected}, Values: DshbotSenderPolicyValues{Selected: len(ids) > 0, IDs: ids}}
+		if err := DshbotSenderPolicyApplied(cmd, out.Status); err != nil {
+			return out, err
+		}
+		profile, _ := json.Marshal(out.Status.Profile)
+		if response.SessionID != expected.Bot.SessionID || !sameCapabilityJSON(response.Item, profile) {
+			return out, fmt.Errorf("source policy item/session receipt differs; read back")
 		}
 		return out, nil
 	}
