@@ -2,6 +2,7 @@
 package files
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -40,6 +41,7 @@ const sideBySideMinWidth float32 = 520
 type Model struct {
 	PlanSnapshot      session.ViewState
 	OnLoadPlanHistory func()
+	ReadSubagentPlan  func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
 	Tabs              *Tabs
 	WorkspaceRoot     string
 	// BindingID identifies the current Host connection and selected session.

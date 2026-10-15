@@ -132,6 +132,7 @@ func disposeSave(t *FileTab) {
 // Dispose cancels queued file work on window shutdown without flushing drafts.
 // Existing recovery serialization still owns draft persistence.
 func (t *Tabs) Dispose() {
+	t.CancelPlanRead()
 	t.closeFloatingPreview()
 	if t.Search != nil {
 		t.Search.Cancel()

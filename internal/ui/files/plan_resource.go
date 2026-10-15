@@ -1,6 +1,7 @@
 package files
 
 import (
+	"context"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -20,16 +21,72 @@ func (t *Tabs) OpenPlanResource(sessionID, expectedBinding string, doc planprevi
 	if !ok || target.SessionID != sessionID {
 		return "Invalid plan resource for the current session"
 	}
+	t.CancelPlanRead()
 	t.planSession = sessionID
 	// A durable address resolves from history, never from a live question's text.
 	if target.Temporary {
 		t.Plans.Observe(doc)
 	}
 	t.Pause()
-	return t.Plans.Navigate(sessionID, doc.Address)
+	err := t.Plans.Navigate(sessionID, doc.Address)
+	if err == "" {
+		t.AllowPlanRead(t.Plans.ActiveAddress(sessionID))
+	}
+	return err
 }
 
-func (t *Tabs) SyncPlanSession(sessionID string) { t.planSession = sessionID }
+func (t *Tabs) SyncPlanSession(sessionID string) {
+	if t.planSession != sessionID {
+		t.CancelPlanRead()
+	}
+	t.planSession = sessionID
+}
+
+// CancelPlanRead retires a resource-only stream, never the chat follow stream.
+func (t *Tabs) CancelPlanRead() {
+	t.planReadAddress = ""
+	if t.planRead != nil {
+		t.planRead.Cancel()
+		t.planRead = nil
+	}
+}
+
+// AllowPlanRead is called only by explicit user navigation. It is not saved in
+// layout, so recovery never opens a potentially activating follow stream.
+func (t *Tabs) AllowPlanRead(address string) {
+	t.CancelPlanRead()
+	t.planReadAddress = address
+}
+
+func syncSubagentPlanRead(m Model, address string, target planpreview.Address) session.PlanResourceReadState {
+	t := m.Tabs
+	if !target.IsSubagent() {
+		t.CancelPlanRead()
+		return session.PlanResourceReadState{}
+	}
+	if _, ok := t.Plans.Current(m.PlanSnapshot.SelectedID); ok {
+		t.CancelPlanRead()
+		return session.PlanResourceReadState{}
+	}
+	if t.planReadAddress != address {
+		return session.PlanResourceReadState{}
+	}
+	if m.ReadSubagentPlan == nil {
+		return session.PlanResourceReadState{Error: "Addressed subagent plan history is unavailable"}
+	}
+	request := session.PlanResourceTarget{ParentSessionID: target.SessionID, ChildSessionID: target.ChildSessionID, Mode: target.Mode, CallID: target.ID}
+	if !t.planRead.Matches(m.BindingID, request) {
+		if t.planRead != nil {
+			t.planRead.Cancel()
+		}
+		t.planRead = m.ReadSubagentPlan(context.Background(), m.BindingID, request, m.notify)
+	}
+	state := t.planRead.Snapshot()
+	if state.Plan.CallID == target.ID && state.Error == "" && !state.Loading {
+		t.Plans.Observe(planpreview.Document{Address: address, Title: state.Plan.Title, Markdown: state.Plan.Markdown})
+	}
+	return state
+}
 
 func observePlanHistory(m Model) {
 	if m.Tabs == nil || !m.PlanSnapshot.ClientReady || !planpreview.HistoryMatchesBinding(m.PlanSnapshot.PlanHistoryBinding, m.BindingID) {
@@ -53,6 +110,7 @@ func paintPlanTabs(c *ui.Context, m Model) {
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(4).Padding(6, 8).Children(func() {
 		if ui.Button(c, label("文件", "Files")).FontSize(11).Clicked() {
+			m.Tabs.CancelPlanRead()
 			r.ShowFiles(sid)
 		}
 		for _, address := range r.SessionTabs(sid) {
@@ -65,8 +123,12 @@ func paintPlanTabs(c *ui.Context, m Model) {
 			}
 			if ui.Button(c, name).Tooltip(address).FontSize(11).Clicked() {
 				r.Navigate(sid, address)
+				m.Tabs.AllowPlanRead(r.ActiveAddress(sid))
 			}
 			if ui.Button(c, "×").Tooltip(label("关闭计划", "Close plan")).FontSize(11).Clicked() {
+				if r.ActiveAddress(sid) == address {
+					m.Tabs.CancelPlanRead()
+				}
 				r.Close(sid, address)
 			}
 		}
@@ -81,8 +143,11 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 	sid := m.PlanSnapshot.SelectedID
 	address := r.ActiveAddress(sid)
 	if address == "" {
+		m.Tabs.CancelPlanRead()
 		return false
 	}
+	target, _ := planpreview.ParseAddress(address)
+	readState := syncSubagentPlanRead(m, address, target)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, accent := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Accent)
 	root := ui.Column(c.Key("plan-resource:" + sid)).Fill().MinHeight(0).Gap(6)
@@ -97,6 +162,9 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 			ui.TextInput(c, &nav.Draft).Grow(1).Label("Plan resource address")
 			if ui.Button(c, label("前往", "Go")).Clicked() {
 				nav.Error = r.Navigate(sid, nav.Draft)
+				if nav.Error == "" {
+					m.Tabs.AllowPlanRead(r.ActiveAddress(sid))
+				}
 			}
 			if ui.Button(c, label("复制地址", "Copy address")).Clicked() {
 				mygo.Clipboard.WriteText(address)
@@ -110,6 +178,25 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 			target, _ := planpreview.ParseAddress(address)
 			message := label("未找到此计划。", "Plan not found.")
 			switch {
+			case target.IsSubagent() && m.Tabs.planReadAddress != address:
+				message = label("打开后读取子代理历史；Host 可能激活已准备的会话。", "Opening reads subagent history; the Host may activate a prepared Session.")
+				if ui.Button(c, label("打开子代理计划", "Open subagent plan")).Clicked() {
+					m.Tabs.AllowPlanRead(address)
+					if m.notify != nil {
+						m.notify()
+					}
+				}
+			case target.IsSubagent():
+				message = readState.Error
+				if message == "" {
+					message = label("正在读取子代理计划…", "Reading subagent plan…")
+				}
+				if readState.Error != "" && ui.Button(c, label("重试", "Retry")).Clicked() {
+					m.Tabs.AllowPlanRead(address)
+					if m.notify != nil {
+						m.notify()
+					}
+				}
 			case target.Temporary:
 				message = label("临时审批预览已过期，请从当前审批卡重新打开。", "This temporary review preview expired; reopen it from the current review card.")
 			case !m.PlanSnapshot.ClientReady || !planpreview.HistoryMatchesBinding(m.PlanSnapshot.PlanHistoryBinding, m.BindingID):

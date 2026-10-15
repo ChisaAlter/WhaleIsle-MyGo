@@ -11,9 +11,15 @@ type Document struct{ Address, Title, Markdown string }
 type Address struct {
 	SessionID, ID string
 	Temporary     bool
+	// SessionID remains the parent/tab owner for an addressed child.
+	ChildSessionID, Mode string
 }
 
 func PlanAddress(sessionID, callID string) string { return resourceAddress("plan", sessionID, callID) }
+func (a Address) IsSubagent() bool                { return a.ChildSessionID != "" }
+func SubagentPlanAddress(parentID, childID, mode, callID string) string {
+	return "dsh-resource://plan/subagent/" + escapePart(parentID) + "/" + escapePart(childID) + "/" + escapePart(mode) + "/" + escapePart(callID)
+}
 func ReviewAddress(sessionID, requestID string) string {
 	return resourceAddress("plan-review", sessionID, requestID)
 }
@@ -30,6 +36,9 @@ func canonicalAddress(address string) string {
 	if !ok {
 		return address
 	}
+	if target.IsSubagent() {
+		return SubagentPlanAddress(target.SessionID, target.ChildSessionID, target.Mode, target.ID)
+	}
 	if target.Temporary {
 		return ReviewAddress(target.SessionID, target.ID)
 	}
@@ -41,18 +50,20 @@ func ParseAddress(raw string) (Address, bool) {
 		return Address{}, false
 	}
 	parts := strings.Split(strings.TrimPrefix(u.EscapedPath(), "/"), "/")
-	if len(parts) != 2 {
-		return Address{}, false
+	for i, part := range parts {
+		decoded, err := url.PathUnescape(part)
+		if err != nil || decoded == "" {
+			return Address{}, false
+		}
+		parts[i] = decoded
 	}
-	sid, err := url.PathUnescape(parts[0])
-	if err != nil || sid == "" {
-		return Address{}, false
+	if len(parts) == 2 {
+		return Address{SessionID: parts[0], ID: parts[1], Temporary: u.Host == "plan-review"}, true
 	}
-	id, err := url.PathUnescape(parts[1])
-	if err != nil || id == "" {
-		return Address{}, false
+	if len(parts) == 5 && u.Host == "plan" && parts[0] == "subagent" && (parts[3] == "one-shot" || parts[3] == "continuable" || parts[3] == "unknown") {
+		return Address{SessionID: parts[1], ChildSessionID: parts[2], Mode: parts[3], ID: parts[4]}, true
 	}
-	return Address{sid, id, u.Host == "plan-review"}, true
+	return Address{}, false
 }
 
 // Resources reuses the window's right-pane tab owner. Only resource identities

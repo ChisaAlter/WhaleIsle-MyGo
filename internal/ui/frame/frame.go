@@ -300,6 +300,7 @@ type Model struct {
 // View paints the main dialogue shell below the title bar.
 func View(c *ui.Context, m Model) {
 	if m.FileTabs != nil && (!m.RightPaneOpen || (m.RightPaneTab != nil && *m.RightPaneTab != "" && *m.RightPaneTab != "files")) {
+		m.FileTabs.CancelPlanRead()
 		m.FileTabs.Pause()
 	}
 	if m.Store == nil {
@@ -1120,6 +1121,7 @@ func rightPane(c *ui.Context, m Model) {
 		files.View(c, files.Model{
 			PlanSnapshot:      m.Store.Snapshot(),
 			OnLoadPlanHistory: func() { m.Store.LoadEarlierHistory(context.Background()) },
+			ReadSubagentPlan:  m.Store.ReadSubagentPlan,
 			Tabs:              m.FileTabs,
 			BindingID:         m.FileBindingID,
 			SessionID:         m.Store.Snapshot().SelectedID,

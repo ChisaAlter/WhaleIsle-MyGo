@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"path/filepath"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 )
@@ -15,16 +16,18 @@ import (
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
-	planSession string
-	Plans       planpreview.Resources
-	Preferences *PreviewPreferences
-	floating    *floatingPreview
-	Workspaces  map[string]*WorkspaceTabs
-	Root        string
-	binding     string
-	boundRoot   string
-	Tree        *workspacefs.DirectoryTree `json:"-"`
-	Search      *workspacefs.Search        `json:"-"`
+	planRead        *session.PlanResourceRead
+	planReadAddress string // runtime-only explicit user-open gate
+	planSession     string
+	Plans           planpreview.Resources
+	Preferences     *PreviewPreferences
+	floating        *floatingPreview
+	Workspaces      map[string]*WorkspaceTabs
+	Root            string
+	binding         string
+	boundRoot       string
+	Tree            *workspacefs.DirectoryTree `json:"-"`
+	Search          *workspacefs.Search        `json:"-"`
 }
 type WorkspaceTabs struct {
 	Open         []*FileTab
@@ -345,6 +348,7 @@ func (t *Tabs) Bind(binding, root string) {
 	if t.binding == binding && t.boundRoot == root {
 		return
 	}
+	t.CancelPlanRead()
 	if t.Search != nil {
 		t.Search.Cancel()
 	}

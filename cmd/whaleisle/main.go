@@ -2078,6 +2078,7 @@ func main() {
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnHide(func() {
 			state.mu.Lock()
+			state.fileTabs.CancelPlanRead()
 			state.fileTabs.Pause()
 			state.projectWindowHidden = true
 			state.stopProjectRefreshLocked()
@@ -2878,6 +2879,7 @@ func mainView(c *ui.Context) {
 	fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, fileSessionID)
 	fileTabs.Bind(fileBindingID, workspaceRoot)
 	if sessions == nil || launcherOpen || settingsOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
+		fileTabs.CancelPlanRead()
 		fileTabs.Pause()
 	}
 	state.mu.Lock()
