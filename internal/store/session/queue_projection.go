@@ -22,13 +22,11 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	}
 	var inbox struct {
 		Next []struct {
-			ID      string `json:"id"`
-			Content []struct {
-				Type string `json:"type"`
-				Text string `json:"text"`
-			} `json:"content"`
-			Source struct {
-				Kind string `json:"kind"`
+			ID      string              `json:"id"`
+			Content []queueContentBlock `json:"content"`
+			Source  struct {
+				Kind  string `json:"kind"`
+				RPCID string `json:"rpcId"`
 			} `json:"source"`
 		} `json:"next-turn"`
 	}
@@ -38,14 +36,27 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	next := make([]PlanQueueItem, 0, len(inbox.Next))
 	for _, row := range inbox.Next {
 		var parts []string
+		item := PlanQueueItem{ID: row.ID, Source: row.Source.Kind, RequestID: row.Source.RPCID, ContentKnown: true, TextOnly: true}
 		for _, part := range row.Content {
 			if part.Type == "text" {
 				parts = append(parts, part.Text)
+				continue
+			}
+			item.TextOnly = false
+			if part.Type == "file" || part.Type == "image" {
+				if part.Attachment != nil && part.Attachment.AttachmentID != "" {
+					attachment := *part.Attachment
+					attachment.Kind = part.Type
+					item.Attachments = append(item.Attachments, attachment)
+				} else {
+					parts = append(parts, "["+part.Type+"]")
+				}
 			} else {
 				parts = append(parts, "["+part.Type+"]")
 			}
 		}
-		next = append(next, PlanQueueItem{ID: row.ID, Preview: truncateRunes(strings.Join(parts, ""), 120), Source: row.Source.Kind})
+		item.Preview = truncateRunes(strings.Join(parts, " "), 120)
+		next = append(next, item)
 	}
 	s.queueProjectionSessionID = s.selectedID
 	s.queueProjectionGeneration = s.followGeneration

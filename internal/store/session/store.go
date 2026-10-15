@@ -168,6 +168,8 @@ type Store struct {
 	visualReply               visualReplyRead
 	visualReplyToken          uint64
 	queueEditor               queueEditor
+	queueMutationScope        string
+	queueMutationID           string
 	queueEditorToken          uint64
 	queueProjectionSessionID  string
 	queueProjectionGeneration uint64
@@ -519,6 +521,7 @@ func (s *Store) Snapshot() ViewState {
 		}
 	}
 	st.PlanBoard = clonePlanBoard(s.planBoard)
+	st.PlanBoard.QueueActions = s.queueActionsLocked()
 	st.HistoryHasMore = s.historyHasMore
 	st.HistoryPageBusy = s.historyPageBusy
 	if s.historyPageErr != nil {
@@ -539,7 +542,7 @@ func (s *Store) Snapshot() ViewState {
 }
 
 func clonePlanBoard(b PlanBoard) PlanBoard {
-	out := PlanBoard{PlanMode: b.PlanMode}
+	out := PlanBoard{PlanMode: b.PlanMode, QueueActions: b.QueueActions}
 	if b.Goal != nil {
 		g := *b.Goal
 		out.Goal = &g
@@ -549,6 +552,9 @@ func clonePlanBoard(b PlanBoard) PlanBoard {
 	}
 	if len(b.Queue) > 0 {
 		out.Queue = append([]PlanQueueItem(nil), b.Queue...)
+		for i := range out.Queue {
+			out.Queue[i].Attachments = append([]QueueAttachment(nil), b.Queue[i].Attachments...)
+		}
 	}
 	return out
 }

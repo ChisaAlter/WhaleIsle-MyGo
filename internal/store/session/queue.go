@@ -48,6 +48,14 @@ func (s *Store) UpdateQueue(ctx context.Context, sessionID, itemID string, actio
 		sessionID = s.selectedID
 	}
 	generation := s.followGeneration
+	if client != nil && sessionID != "" {
+		state := s.queueActionsLocked()
+		if sessionID != s.selectedID || !state.Can(action, s.queueItemLocked(itemID)) {
+			s.mu.Unlock()
+			return
+		}
+		s.queueMutationScope, s.queueMutationID = state.Scope, itemID
+	}
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		s.mu.Lock()
@@ -57,6 +65,7 @@ func (s *Store) UpdateQueue(ctx context.Context, sessionID, itemID string, actio
 		return
 	}
 	req := map[string]any{"sessionId": sessionID, "itemId": itemID, "action": payload}
+	s.fire()
 	go s.runUpdateQueue(ctx, client, sessionID, generation, itemID, action, req)
 }
 
@@ -69,6 +78,9 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
 		s.mu.Unlock()
 		return
+	}
+	if s.queueMutationScope == s.queueActionsLocked().Scope && s.queueMutationID == itemID {
+		s.queueMutationScope, s.queueMutationID = "", ""
 	}
 	if err != nil {
 		s.lastAction = "queue: " + err.Error()

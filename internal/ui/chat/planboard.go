@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,7 @@ type PlanBoardModel struct {
 	OnSaveQueueEdit   func(token uint64)
 	OnCancelQueueEdit func(token uint64)
 	Board             session.PlanBoard
+	LoadQueueImage    func(context.Context, string) (string, error)
 	ThemeID           string
 	SystemDark        bool
 	// Open nil means always expanded; non-nil is a toggle.
@@ -128,21 +130,24 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 						line = item.Source + ": " + line
 					}
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, line).FontSize(12).TextColor(fg).Grow(1)
+						ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+							paintQueueAttachments(c, m, item, fg, muted)
+							ui.Text(c, line).FontSize(12).TextColor(fg)
+						})
 						if m.OnQueueEdit != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(m.QueueEditor.Loading || m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(!m.Board.QueueActions.Can(session.QueueActionEdit, item)).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueEdit(item.ID, item.Preview)
 							}
 						}
 						if m.OnQueueSteer != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).Disabled(m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).Disabled(!m.Board.QueueActions.Can(session.QueueActionSteer, item)).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(accent).Clicked() {
 								m.OnQueueSteer(item.ID)
 							}
 						}
 						if m.OnQueueRemove != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).Disabled(m.QueueEditor.Saving).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).Disabled(!m.Board.QueueActions.Can(session.QueueActionRemove, item)).FontSize(11).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueRemove(item.ID)
 							}

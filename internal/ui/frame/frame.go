@@ -866,11 +866,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
 								chat.PlanBoardView(c, chat.PlanBoardModel{
-									Board:      snap.PlanBoard,
-									ThemeID:    m.ThemeID,
-									SystemDark: m.SystemDark,
-									Open:       m.PlanBoardOpen,
-									GoalDraft:  m.GoalDraft,
+									Board:          snap.PlanBoard,
+									LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
+									ThemeID:        m.ThemeID,
+									SystemDark:     m.SystemDark,
+									Open:           m.PlanBoardOpen,
+									GoalDraft:      m.GoalDraft,
 									OnCreateGoal: func(objective string) {
 										m.Store.CreateGoal(context.Background(), objective)
 									},

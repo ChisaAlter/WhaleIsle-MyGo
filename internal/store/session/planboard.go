@@ -9,10 +9,11 @@ import (
 
 // PlanBoard is the folded plan / goal / queue / todo strip for the active follow.
 type PlanBoard struct {
-	PlanMode bool
-	Goal     *PlanGoal
-	Todos    []PlanTodo
-	Queue    []PlanQueueItem
+	PlanMode     bool
+	Goal         *PlanGoal
+	Todos        []PlanTodo
+	Queue        []PlanQueueItem
+	QueueActions QueueActionState
 }
 
 // PlanGoal is the current durable goal snapshot (nil when cleared / absent).
@@ -31,9 +32,12 @@ type PlanTodo struct {
 
 // PlanQueueItem is a queued prompt / team message waiting to run.
 type PlanQueueItem struct {
-	ID      string
-	Preview string
-	Source  string
+	ID                     string
+	Preview                string
+	Source                 string
+	RequestID              string
+	ContentKnown, TextOnly bool
+	Attachments            []QueueAttachment
 }
 
 // Empty reports whether the board has nothing useful to show.

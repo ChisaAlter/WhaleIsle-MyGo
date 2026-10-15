@@ -37,7 +37,7 @@ func (s *Store) queueEditorCurrentLocked(ctx context.Context, client *dsh.Client
 // an editing source; mixed attachment content remains unchanged and uneditable.
 func (s *Store) BeginQueueEdit(ctx context.Context, itemID string) {
 	s.mu.Lock()
-	if s.client == nil || s.selectedID == "" || itemID == "" || s.queueEditorSnapshotLocked().Saving {
+	if s.client == nil || s.selectedID == "" || itemID == "" || !s.queueActionsLocked().Can(QueueActionEdit, s.queueItemLocked(itemID)) {
 		s.mu.Unlock()
 		return
 	}
@@ -120,7 +120,7 @@ func (s *Store) CancelQueueEdit(token uint64) {
 func (s *Store) SaveQueueEdit(ctx context.Context, token uint64) {
 	s.mu.Lock()
 	e := s.queueEditorSnapshotLocked()
-	if e.Token != token || !e.Ready || e.Saving || strings.TrimSpace(e.Text) == "" {
+	if e.Token != token || !e.Ready || e.Saving || strings.TrimSpace(e.Text) == "" || !s.queueActionsLocked().Can(QueueActionEdit, s.queueItemLocked(e.ItemID)) {
 		s.mu.Unlock()
 		return
 	}
