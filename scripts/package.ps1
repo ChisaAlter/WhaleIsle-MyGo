@@ -32,6 +32,18 @@ $ldflags = "-s -w -X main.buildVersion=$Version"
 & go build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
 if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
 
+# Package the separate helper, but never run it during build/staging.
+# Its presence does not enable scripts: the product requires an explicit
+# per-document gesture followed by the runtime AppContainer/job gate.
+$PreviewOS = (& go env GOOS).Trim()
+$PreviewArch = (& go env GOARCH).Trim()
+if ($PreviewOS -eq 'windows') {
+    if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
+    $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
+    & go build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
+    if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
+}
+
 $ResSrc = Join-Path $ProjectRoot 'resources'
 $ResDst = Join-Path $Stage 'resources'
 if (Test-Path $ResSrc) {
@@ -104,6 +116,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 ## Staged layout
 
 - `whaleisle/whaleisle.exe` - MyGo desktop shell (link-time `main.buildVersion` via `go build -ldflags`)
+- `whaleisle/whaleisle-preview.exe` - separate Windows AppContainer helper; scripts remain off until an explicit per-document action and successful runtime checks
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
 - `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`)

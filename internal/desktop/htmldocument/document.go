@@ -32,6 +32,11 @@ type Document struct {
 	path          string
 	identity      os.FileInfo
 	data          []byte
+	// Source bytes and directory identity belong to the original authorized read.
+	// Interactive dependencies are frozen only after a separate user gesture.
+	source, root, relative string
+	rootIdentity os.FileInfo
+	done chan struct{}
 	origin, route string
 	valid         func() bool
 	server        *http.Server
@@ -99,6 +104,9 @@ func snapshot(f *os.File, root *os.Root, relative, path string, valid func() boo
 	if len(data) == 0 || len(data) > MaxBytes || !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return nil, errors.New("HTML preview requires a nonempty UTF-8 document")
 	}
+	rootIdentity, err := root.Stat(".")
+	if err != nil { return nil, err }
+	source := string(data)
 	// Freeze only declared, bounded static dependencies before publishing. The
 	// browser receives no filesystem reader, asset routes or directory authority.
 	prepared, resources, err := prepareResources(root, relative, string(data), valid)
@@ -120,7 +128,7 @@ func snapshot(f *os.File, root *os.Root, relative, path string, valid func() boo
 	if err != nil {
 		return nil, err
 	}
-	d := &Document{Name: filepath.Base(path), Resources: resources, path: path, identity: info, data: data, origin: "http://" + listener.Addr().String(), route: "/" + hex.EncodeToString(secret) + "/document.html", valid: valid}
+	d := &Document{Name: filepath.Base(path), Resources: resources, path: path, identity: info, data: data, source: source, root: root.Name(), relative: relative, rootIdentity: rootIdentity, done: make(chan struct{}), origin: "http://" + listener.Addr().String(), route: "/" + hex.EncodeToString(secret) + "/document.html", valid: valid}
 	d.server = &http.Server{Handler: http.HandlerFunc(d.serve), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 << 10}
 	d.timer = time.AfterFunc(Lifetime, func() { d.Close() })
 	go func() { _ = d.server.Serve(listener) }()
@@ -204,6 +212,8 @@ func (d *Document) Close() {
 	}
 	d.closed = true
 	d.data = nil
+	d.source = ""
+	if d.done != nil { close(d.done) }
 	if d.timer != nil {
 		d.timer.Stop()
 	}

@@ -1,8 +1,9 @@
 # Experimental AppContainer document helper
 
-Status: source implementation, default disabled, not connected to the product's
-static HTML entry point. No Windows build or runtime claim is made by this
-change. The creation/cleanup APIs below were not executed during development.
+Status: source implementation with an explicit per-document product entry.
+Static preview remains the default; no persistent preference or startup path
+enables scripts. No Windows build or runtime claim is made by this change.
+The creation/cleanup APIs below were not executed during development.
 
 ## Scope
 
@@ -71,12 +72,30 @@ Package it only with trusted application binaries. The optional SDK loader must
 be beside that helper. This implementation otherwise uses the installed
 WebView2 runtime; fixed-version runtime packaging is not added here.
 
-Future application wiring must pass the existing authorized/frozen snapshot,
-retain Session for the document lifetime, call Close on workspace/session
-revocation, and keep the existing static path on every error. Do not call the
-helper for an arbitrary path supplied by a page and do not load this dynamic
-shell into the main application WebView. No production preference or CLI
-silently enables the helper in this change.
+The HTML tab's "运行脚本（隔离实验）" button is the only product caller that opts
+in. It keeps the static Host open while attempting a separate helper. Missing
+helper, expired ownership or any containment/initialization error preserves the
+static snapshot and reports the reason. There is an explicit stop button.
+
+InteractiveSnapshot reuses the HTML bytes from the original saved-file read.
+It checks the original directory and file identities, freezes declared JS/CSS/
+image/font files under os.Root, then rechecks authorization and source identity.
+Relative classic script files become bounded data URLs; inline scripts and
+event handlers are retained only in this separate preparation mode. The
+default prepareResources path continues to remove scripts and event handlers.
+Runtime import/fetch dependencies, network, nested documents and evaluation
+features forbidden by the existing CSP are not silently enabled or proxied.
+
+The per-tab operation owns the Session. Parent cancellation, hide/tab switch,
+tab close, document expiry and owner/session/cwd/Host revocation stop it.
+Document ownership is checked even while the main window is not painting.
+The helper receives bytes only; it never receives a workspace path or a URL.
+
+scripts/package.ps1 builds the separate Windows helper alongside the main EXE.
+NSIS requires that exact companion and removes it on uninstall; neither build
+nor install runs it. The offline-candidate path supports explicit previewHelper
+plus previewHelperSHA256 inputs. Omitting it keeps old candidates static-only,
+rather than discovering or trusting another executable automatically.
 
 Remaining engineering work:
 - Compile both Windows architectures and run the synthetic protocol tests.
@@ -84,8 +103,6 @@ Remaining engineering work:
   condition for their complete process collection. A runtime that adds or
   changes capabilities/SIDs currently fails closed; no permissive exception
   has been invented.
-- Integrate helper packaging and a default-off product entry, including
-  authorization-lifetime ownership and static fallback.
 - Validate successful runtime behavior separately; that does not block other
   modules. The dynamic-preview parity item remains open.
 

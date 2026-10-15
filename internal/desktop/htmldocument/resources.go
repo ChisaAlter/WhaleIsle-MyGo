@@ -111,6 +111,12 @@ func gitPath(path string) bool {
 }
 
 func (g *resourceGraph) read(base, reference string, cssOnly bool) (resourceFile, string, string, error) {
+	kind := "asset"
+	if cssOnly { kind = "css" }
+	return g.readKind(base, reference, kind)
+}
+
+func (g *resourceGraph) readKind(base, reference, kind string) (resourceFile, string, string, error) {
 	if !g.valid() {
 		return resourceFile{}, "", "", errors.New("预览所属会话已改变")
 	}
@@ -123,7 +129,7 @@ func (g *resourceGraph) read(base, reference string, cssOnly bool) (resourceFile
 		return resourceFile{}, "", "", err
 	}
 	ext := strings.ToLower(filepath.Ext(rel))
-	if (cssOnly && ext != ".css") || (!cssOnly && !binaryExtension(ext)) {
+	if !resourceKindAllows(kind, ext) {
 		return resourceFile{}, "", "", errors.New("不支持的资源类型")
 	}
 	info, err := g.root.Stat(rel)
@@ -141,7 +147,7 @@ func (g *resourceGraph) read(base, reference string, cssOnly bool) (resourceFile
 		return resourceFile{}, "", "", errors.New("资源越出授权工作区或位于 .git")
 	}
 	if cached, ok := g.files[canonical]; ok {
-		if (cssOnly && cached.mime != "text/css") || (!cssOnly && cached.mime == "text/css") {
+		if !resourceKindMIME(kind, cached.mime) {
 			return resourceFile{}, "", "", errors.New("资源类型别名不匹配")
 		}
 		return cached, rel, canonical, nil
@@ -237,10 +243,11 @@ func binaryExtension(ext string) bool {
 }
 func resourceMIME(ext string, data []byte) (string, error) {
 	bad := errors.New("资源内容与允许类型不符")
-	if ext == ".css" {
+	if ext == ".css" || ext == ".js" || ext == ".mjs" {
 		if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 			return "", bad
 		}
+		if ext != ".css" { return "text/javascript", nil }
 		return "text/css", nil
 	}
 	if ext == ".svg" {

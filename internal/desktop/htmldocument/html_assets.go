@@ -14,6 +14,11 @@ import (
 const maxHTMLTokens = 200000
 
 func prepareResources(root *os.Root, relative, source string, valid func() bool) (string, ResourceReport, error) {
+	return prepareResourceMode(root, relative, source, valid, false)
+}
+
+// interactive is never selected by the static URL-serving path.
+func prepareResourceMode(root *os.Root, relative, source string, valid func() bool, interactive bool) (string, ResourceReport, error) {
 	g, err := newResourceGraph(root, len(source), valid)
 	if err != nil {
 		return "", ResourceReport{}, err
@@ -54,6 +59,12 @@ func prepareResources(root *os.Root, relative, source string, valid func() bool)
 			return "data:,"
 		}
 		return out
+	}
+	loadScript := func(ref string) string {
+		if hasBase && !embeddedReference(ref) { g.warn("base URL 相对脚本已跳过"); return "data:text/javascript," }
+		value, err := g.script(relative, ref)
+		if err != nil { g.warn(err.Error()); return "data:text/javascript," }
+		return value
 	}
 	loadURL := g.asset
 	loadCSS := g.stylesheet
@@ -96,10 +107,22 @@ func prepareResources(root *os.Root, relative, source string, valid func() bool)
 			tag := t.Data
 			if tag == "script" {
 				script = true
-				g.warn("脚本禁用")
+				if !interactive {
+					g.warn("脚本禁用")
+					continue
+				}
+				for i := range t.Attr {
+					if key := strings.ToLower(t.Attr[i].Key); key == "src" || key == "href" || key == "xlink:href" {
+						t.Attr[i].Val = loadScript(t.Attr[i].Val)
+					}
+				}
+				if strings.EqualFold(attr(t, "type"), "module") {
+					g.warn("模块的运行时 import/fetch 依赖不展开")
+				}
+				if err := appendText(t.String()); err != nil { return "", g.report, err }
 				continue
 			}
-			if script {
+			if script && !interactive {
 				continue
 			}
 			if tag == "base" {
@@ -133,7 +156,7 @@ func prepareResources(root *os.Root, relative, source string, valid func() bool)
 			attrs := make([]xhtml.Attribute, 0, len(t.Attr))
 			for _, a := range t.Attr {
 				key := strings.ToLower(a.Key)
-				if strings.HasPrefix(key, "on") {
+				if strings.HasPrefix(key, "on") && !interactive {
 					g.warn("事件脚本禁用")
 					continue
 				}
@@ -179,9 +202,9 @@ func prepareResources(root *os.Root, relative, source string, valid func() bool)
 			t := z.Token()
 			if t.Data == "script" {
 				script = false
-				continue
+				if !interactive { continue }
 			}
-			if script {
+			if script && !interactive {
 				continue
 			}
 			if t.Data == "style" {
@@ -191,7 +214,7 @@ func prepareResources(root *os.Root, relative, source string, valid func() bool)
 				picture--
 			}
 		} else if script {
-			continue
+			if !interactive { continue }
 		} else if style && kind == xhtml.TextToken {
 			css, err := inlineCSS(raw, relative, 0, loadCSS, loadURL, g.warn)
 			if err != nil {

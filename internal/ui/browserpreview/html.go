@@ -43,8 +43,9 @@ func (b *Controller) PruneHTMLDocuments() {
 		}
 	}
 }
-func (b *Controller) htmlControls(c *ui.Context, t *Tab) {
+func (b *Controller) htmlControls(c *ui.Context, t *Tab, dark bool) {
 	ui.Text(c, t.HTML.Name).FontSize(12).Grow(1)
+	b.interactiveHTMLControls(c, t, dark)
 	if ui.Button(c, "系统打开").Clicked() {
 		path, err := t.HTML.ExternalPath()
 		if err == nil {

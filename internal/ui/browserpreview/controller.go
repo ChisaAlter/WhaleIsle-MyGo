@@ -28,6 +28,7 @@ type Controller struct {
 type Tab struct {
 	Document *pdfpreview.Document
 	HTML     *htmldocument.Document
+	interactive *interactivePreview
 
 	ActionMessage string
 	ArtifactPath string
@@ -99,6 +100,7 @@ func (b *Controller) Navigate(raw string) {
 }
 func (b *Controller) Hide() {
 	b.CancelAction()
+	b.cancelInteractivePreviews()
 	for _, t := range b.Tabs {
 		if t.Host != nil {
 			t.Host.SetVisible(false)
@@ -148,6 +150,7 @@ func (b *Controller) CloseTab(index int) {
 }
 func (b *Controller) Close() {
 	b.CancelAction()
+	b.cancelInteractivePreviews()
 	for _, t := range b.Tabs {
 		if t.HTML != nil {
 			t.HTML.Close()
@@ -230,7 +233,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					return
 				}
 				if t.HTML != nil {
-					b.htmlControls(c, t)
+					b.htmlControls(c, t, dark)
 					return
 				}
 				if ui.Button(c, "←").Disabled(!s.CanBack).Clicked() && t.Host != nil {

@@ -92,6 +92,9 @@ if (-not (Test-Path $StageExe)) {
     throw "Staging missing: $StageExe (run package.ps1 first)"
 }
 
+$StagePreview = Join-Path $ProjectRoot 'dist\whaleisle\whaleisle-preview.exe'
+if (-not (Test-Path $StagePreview)) { throw 'Staged preview helper missing; rebuild with package.ps1' }
+
 $Nsi = Join-Path $PSScriptRoot 'nsis\whaleisle.nsi'
 if (-not (Test-Path $Nsi)) {
     throw "NSIS script missing: $Nsi"
@@ -148,6 +151,10 @@ if ($SilentInstall) {
     $exeLen = (Get-Item $InstalledExe).Length
     if ($exeLen -le 0) {
         throw "Installed exe size invalid: $exeLen"
+    }
+    $InstalledPreview = Join-Path $InstallRoot 'whaleisle-preview.exe'
+    if (-not (Test-Path $InstalledPreview) -or (Get-Item $InstalledPreview).Length -le 0) {
+        throw "Silent install missing preview helper: $InstalledPreview"
     }
     Write-Host "OK installed: $InstalledExe ($exeLen bytes)"
 

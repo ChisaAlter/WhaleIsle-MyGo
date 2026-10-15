@@ -34,6 +34,8 @@ UninstPage instfiles
 Section "Install"
   SetOutPath "$INSTDIR"
   File "${STAGE_DIR}\${EXE_NAME}"
+  ; Required companion, built from the same source. Never launched by NSIS.
+  File "${STAGE_DIR}\whaleisle-preview.exe"
   ; Required native terminal ABI: staged and hashed by tools/stage-terminal.
   File "${STAGE_DIR}\ghostty-vt.dll"
   File "${STAGE_DIR}\ghostty-vt.dll.LICENSE"
@@ -81,6 +83,7 @@ SectionEnd
 
 Section "Uninstall"
   Delete "$INSTDIR\${EXE_NAME}"
+  Delete "$INSTDIR\whaleisle-preview.exe"
   Delete "$INSTDIR\ghostty-vt.dll"
   Delete "$INSTDIR\ghostty-vt.dll.LICENSE"
   Delete "$INSTDIR\terminal-runtime.json"
