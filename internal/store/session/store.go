@@ -154,6 +154,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	sessionFeedback           SessionFeedbackView
+	sessionFeedbackEpoch      uint64
 	workspaceLayout           workspaceLayoutState
 	workspaceNavigation       workspaceNavigationOperation
 	workspaceNavigationToken  uint64
@@ -262,6 +264,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.invalidateSessionFeedbackLocked()
 		s.questionProjections = nil
 		s.permissionOptions = nil
 		s.resetModelCatalogLocked()
@@ -397,6 +400,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.invalidateSessionFeedbackLocked()
 	s.resetModelCatalogLocked()
 	s.questionProjections = nil
 	s.invalidateArchiveLocked()

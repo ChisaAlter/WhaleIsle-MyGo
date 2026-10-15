@@ -456,6 +456,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		},
 	})
 	archiveConfirmation(c, m)
+	sessionFeedbackDialog(c, m)
 	permissionRiskConfirmation(c, m)
 }
 

@@ -70,6 +70,23 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		return
 	}
 	text := d.Text
+	// Bare feedback is local; text-bearing feedback stays on the Host command path.
+	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/feedback" {
+		feedbackID := id
+		if d.TargetID != "" {
+			feedbackID = d.TargetID
+		}
+		// The dialog belongs to the visibly selected session. A failed home
+		// draft may hold a created target without selecting it; keep that draft.
+		if feedbackID != "" && sessions.Snapshot().SelectedID == feedbackID && sessions.OpenSessionFeedback(feedbackID) {
+			d.Text = ""
+			d.Error = ""
+			d.Client.Sync()
+		} else {
+			d.Error = "Select a session before opening feedback"
+		}
+		return
+	}
 	// Local commands never consume attachments or dispatch to the Host.
 	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/clear" {
 		d.Text = ""
