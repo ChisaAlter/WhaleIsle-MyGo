@@ -45,6 +45,8 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	s.mu.Unlock()
 	sessions := m.Store
+	m.ScheduleStore = s.schedule
+	m.OnOpenScheduleTask = s.openScheduleTask
 	m.Projects = s.projectModel(win)
 	projectOpen := m.Projects.OnOpen
 	m.Projects.OnOpen = func(id string) {

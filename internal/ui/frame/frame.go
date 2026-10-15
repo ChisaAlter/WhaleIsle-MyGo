@@ -15,6 +15,7 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/store/interaction"
+	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/chat"
@@ -133,6 +134,8 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	ScheduleStore      *schedstore.Store
+	OnOpenScheduleTask func(schedstore.Entry)
 	// PageShortcutBindings contains committed native overrides; nil uses defaults.
 	PageShortcutBindings map[string]string
 	BrowserContent       func(*ui.Context)
@@ -386,7 +389,13 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	rename := m.Store.SessionRename()
 	projectModel := m.Projects
 	projectModel.OnResolvedFile = m.OnOpenDeliverable
+	schedules := schedstore.ViewState{}
+	if m.ScheduleStore != nil {
+		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
+		schedules = m.ScheduleStore.Snapshot()
+	}
 	sidebar.View(c, sidebar.Model{
+		Schedules:            schedules,
 		Projects:             projectModel,
 		Collapsed:            m.Sizes.Sidebar <= 0,
 		OnToggle:             m.Sizes.ToggleSidebar,
@@ -825,6 +834,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
+										ScheduleStore: m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
 										Snapshot:         snap,
 										ContentWidth:     contentAxis,
 										ThemeID:          m.ThemeID,

@@ -3772,6 +3772,12 @@ func mainView(c *ui.Context) {
 				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 					SessionLinks:  sessionLinks,
 					OnOpenSession: state.openScheduleSession,
+					OnNewTask: func() {
+						state.selectMainPanel("")
+						if sessions != nil {
+							sessions.CreateSession(context.Background())
+						}
+					},
 					OnClose: func() {
 						state.mu.Lock()
 						state.scheduleOpen = false
@@ -6016,8 +6022,9 @@ func mainView(c *ui.Context) {
 						PageShortcutBindings: state.pageShortcutBindings(),
 						Projects:             state.projectModel(win),
 						Store:                sessions,
-						AgentPresetManager:   agentPresetManager,
-						Interactions:         interactions,
+						ScheduleStore:        schedStore, OnOpenScheduleTask: state.openScheduleTask,
+						AgentPresetManager: agentPresetManager,
+						Interactions:       interactions,
 						OnAutoAllowChanged: func(on bool) {
 							state.mu.Lock()
 							state.desktopDraft.autoAllowTools = on

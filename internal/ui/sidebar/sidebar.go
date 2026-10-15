@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -15,6 +16,7 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	Schedules                    schedstore.ViewState
 	OnRetryWorkspacePreferences  func()
 	OnDropWorkspaceBefore        func(uint64, string, string)
 	OnSelectWorkspace            func(string)
@@ -356,6 +358,13 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if it.Running && !renaming {
 		label = "● " + label
 	}
+	taskHint := ""
+	for _, task := range schedstore.ActiveForSession(m.Schedules, it.SessionID) {
+		taskHint += task.Title + " · " + schedstore.TimingLabel(task) + "\n"
+	}
+	if taskHint != "" && !it.Running && !renaming {
+		label = "◷ " + label
+	}
 	titleColor := fg
 	metaColor := muted
 	bg := ui.Transparent
@@ -382,7 +391,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		return
 	}
 	if !selected {
-		row := ui.Button(c, "").FillWidth().Height(32).Radius(8).
+		row := ui.Button(c, "").Tooltip(taskHint).FillWidth().Height(32).Radius(8).
 			Background(bg).BorderWidth(0).
 			Padding(0, 8, 0, pad).AlignItems(ui.Center)
 		row.Children(func() {
@@ -399,6 +408,9 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	cell := ui.Column(c).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
 	cell.Children(func() {
 		ui.Text(c, label).FontSize(13).TextColor(titleColor)
+		if taskHint != "" {
+			ui.Text(c, strings.TrimSpace(taskHint)).FontSize(11).TextColor(metaColor)
+		}
 		if it.Cwd != "" {
 			ui.Text(c, it.Cwd).FontSize(11).TextColor(metaColor)
 		}

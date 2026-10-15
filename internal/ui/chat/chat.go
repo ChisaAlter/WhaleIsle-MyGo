@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -20,14 +21,16 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
-	HistoryStore  *session.Store
-	FeedbackStore *session.Store
-	EditReturnSeq *float64
-	EditingSeq    float64
-	OnCancelEdit  func()
-	Snapshot      session.ViewState
-	ThemeID       string
-	SystemDark    bool
+	ScheduleStore      *schedstore.Store
+	OnOpenScheduleTask func(schedstore.Entry)
+	HistoryStore       *session.Store
+	FeedbackStore      *session.Store
+	EditReturnSeq      *float64
+	EditingSeq         float64
+	OnCancelEdit       func()
+	Snapshot           session.ViewState
+	ThemeID            string
+	SystemDark         bool
 	// ContentWidth is the shared chat width axis; zero uses the original 748px fallback.
 	ContentWidth     float32
 	List             *ui.ListState
@@ -83,6 +86,7 @@ func View(c *ui.Context, m Model) {
 		list = &ui.ListState{FollowEnd: true}
 	}
 
+	cards := prepareScheduleContext(m)
 	prepareHistoryNavigation(m, msgs, list)
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
 		ConnBannerView(c, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
@@ -90,6 +94,7 @@ func View(c *ui.Context, m Model) {
 		if m.Snapshot.LastAction != "" {
 			ui.Text(c, m.Snapshot.LastAction).FontSize(11).TextColor(muted).Padding(8, 12, 0, 12)
 		}
+		ScheduleHeaderView(c, m)
 		HistoryNavigationView(c, m, list, muted)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil {
@@ -131,6 +136,7 @@ func View(c *ui.Context, m Model) {
 				}
 				// Electron turn/end strip: 「已完成，用时 … ▾」.
 				if msg.Role == "status" && msg.EventType == "turn/end" {
+					ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
 					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(row.Context, formatTurnStatus(msg.Body)).FontSize(12).TextColor(muted)
 						if m.OnForkTurn != nil && session.CanForkTurn(m.Snapshot.Messages, msg.Seq) {

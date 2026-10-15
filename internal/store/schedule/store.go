@@ -54,6 +54,7 @@ type Store struct {
 	generation       uint64
 	connectionEpoch  uint64
 	eventsGeneration uint64
+	receiptKeys      map[string]bool
 	requested        bool
 	lastAction       string
 	busy             bool
@@ -71,6 +72,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	if s.client != client {
 		s.eventsGeneration++
 		s.requested = false
+		s.receiptKeys = nil
 		s.connectionEpoch++
 		s.loading = false
 		s.busy = false

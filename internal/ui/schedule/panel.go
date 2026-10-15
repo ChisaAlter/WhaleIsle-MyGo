@@ -171,6 +171,9 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	ui.Column(c).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG)).Padding(12, 16, 12, 16).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, "定时任务 / Scheduled tasks").Bold().Grow(1)
+			if m.OnNewTask != nil && ui.Button(c, "新任务 / New task").Disabled(!snap.ClientReady).Clicked() {
+				m.OnNewTask()
+			}
 			if ui.Button(c, "刷新 / Refresh").Disabled(snap.Loading || snap.Busy).Clicked() {
 				m.Store.Refresh(context.Background(), m.SessionID)
 			}
@@ -178,7 +181,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 				m.OnClose()
 			}
 		})
-		ui.Text(c, "任务保留原始 Session；新建任务请在该会话中提出计划要求。").FontSize(11).TextColor(muted)
+		ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
 			ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
