@@ -59,6 +59,10 @@ type Options struct {
 	// is typed is written to it. Command, Dir and Env are then ignored. A
 	// Conn with a method Resize(cols, rows int) error is told the size.
 	Conn io.ReadWriteCloser
+	// ReadOnly blocks all outgoing input while retaining local selection/copy.
+	ReadOnly bool
+	// CanCopy optionally validates selection ownership at every copy action.
+	CanCopy func() bool
 
 	// Font is the font of the text: the system's monospaced font at 13
 	// DIPs when zero.
@@ -171,6 +175,7 @@ func New(opts Options) (*Terminal, error) {
 	}
 	opts.Font.Features = append([]string(nil), opts.Font.Features...)
 	t := &Terminal{opts: opts, done: make(chan struct{})}
+	t.SetReadOnly(opts.ReadOnly)
 	t.size = gridSize{80, 24, 8, 16}
 	var err error
 	t.term, err = vt.NewTerminal(80, 24, vt.Effects{
@@ -534,6 +539,9 @@ func (t *Terminal) Send(data []byte) {
 // Paste pastes text, bracketed when the program asks (mode 2004), so that
 // it does not run as commands as it would typed.
 func (t *Terminal) Paste(text string) {
+	if t.ReadOnly() {
+		return
+	}
 	t.mu.Lock()
 	if t.term == nil {
 		t.mu.Unlock()
@@ -626,7 +634,9 @@ func (t *Terminal) resizeConn(c interface{ Resize(cols, rows int) error }, s gri
 				return
 			}
 			t.connMu.Unlock()
-			c.Resize(s.cols, s.rows)
+			if !t.ReadOnly() {
+				c.Resize(s.cols, s.rows)
+			}
 			sent = s
 		}
 	}()
@@ -655,6 +665,9 @@ func (t *Terminal) resize(s gridSize) {
 	}
 	t.size = s
 	t.term.Resize(s.cols, s.rows, s.cellW, s.cellH)
+	if t.ReadOnly() {
+		return
+	}
 	switch src := t.src.(type) {
 	case *pty.PTY:
 		src.Resize(s.cols, s.rows, s.cols*s.cellW, s.rows*s.cellH)
@@ -728,10 +741,11 @@ func unhex(c byte) (byte, bool) {
 // goroutine of its own: a program that does not read its input must not
 // block the reader, which answers its queries.
 type inputQueue struct {
-	mu     sync.Mutex
-	cond   *sync.Cond
-	queue  [][]byte
-	closed bool
+	mu       sync.Mutex
+	cond     *sync.Cond
+	queue    [][]byte
+	closed   bool
+	readOnly bool
 }
 
 func (q *inputQueue) init() {
@@ -743,7 +757,7 @@ func (q *inputQueue) init() {
 func (q *inputQueue) push(p []byte) {
 	q.mu.Lock()
 	q.init()
-	if !q.closed {
+	if !q.closed && !q.readOnly {
 		q.queue = append(q.queue, p)
 		q.cond.Signal()
 	}

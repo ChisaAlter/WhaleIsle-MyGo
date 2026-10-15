@@ -76,7 +76,8 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 					scrollback = min(20<<20, v.Environment.Scrollback*max(80, v.Environment.MaxCols)*4)
 				}
 				light, darkTheme := myterm.LightTheme(), myterm.DarkTheme()
-				opts := myterm.Options{Conn: v.Attachment, Theme: light, DarkTheme: darkTheme, Scrollback: scrollback}
+				copyOwner, copyID, copyAttachment := v.Owner, v.ActiveID, v.Attachment
+				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: light, DarkTheme: darkTheme, Scrollback: scrollback}
 				if dark {
 					opts.Theme = darkTheme
 				}
@@ -89,6 +90,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 			}
 		}
 		if h.terminal != nil {
+			h.terminal.SetReadOnly(!v.Writable)
 			if r.Snapshot {
 				h.terminal.Resize(r.Cols, r.Rows)
 			}
@@ -178,10 +180,17 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 			ui.Text(c, h.renderError).FontSize(11).TextColor(muted)
 		}
 		if h.terminal != nil {
-			if ui.Button(c, terminalLabel("复制终端内容", "Copy terminal content")).FontSize(10).Clicked() {
-				mygo.Clipboard.WriteText(h.terminal.Text())
+			h.terminal.SetReadOnly(!v.Writable)
+			selection, selected := h.terminal.SelectionText()
+			if ui.Button(c, terminalLabel("复制选区", "Copy selection")).FontSize(10).Disabled(!selected || selection == "").Clicked() {
+				if store.CanCopySelection(v.Owner, session, v.ActiveID, h.attachment) {
+					// Read again at the action, never substitute the full screen.
+					if text, ok := h.terminal.SelectionText(); ok && text != "" {
+						mygo.Clipboard.WriteText(text)
+					}
+				}
 			}
-			myterm.View(c, h.terminal).Fill().Grow(1).MinHeight(0).Disabled(!v.Writable)
+			myterm.View(c, h.terminal).Fill().Grow(1).MinHeight(0)
 		}
 	})
 }

@@ -106,6 +106,9 @@ func (v *view) build(c *ui.Context, e ui.Element) {
 	t := v.t
 	dark := c.Theme().Dark
 	focused := e.Focused()
+	if t.ReadOnly() {
+		v.preedit, v.pending, v.reporting = "", nil, false
+	}
 	t.mu.Lock()
 	theme := t.opts.Theme
 	if dark && t.opts.DarkTheme != nil {
@@ -122,7 +125,7 @@ func (v *view) build(c *ui.Context, e ui.Element) {
 			v.applied = theme
 		}
 		t.curTheme = theme
-		if focused != v.focused && t.term.Mode(vt.ModeFocusEvent) {
+		if !t.ReadOnly() && focused != v.focused && t.term.Mode(vt.ModeFocusEvent) {
 			t.in.push(vt.EncodeFocus(focused))
 		}
 		// Input methods compose where the cursor is now, which the last
@@ -200,23 +203,30 @@ func (v *view) menu(m *ui.Menu) {
 		text, selected = t.term.SelectionText()
 	}
 	t.mu.Unlock()
-	if m.Item("Copy").Shortcut(cmd, ui.KeyC).Disabled(!selected || text == "").Chosen() {
+	if m.Item("Copy").Shortcut(cmd, ui.KeyC).Disabled(!selected || text == "" || !t.canCopy()).Chosen() && t.canCopy() {
 		v.services.WriteClipboard(text)
 	}
-	if m.Item("Paste").Shortcut(cmd, ui.KeyV).Chosen() {
+	if m.Item("Paste").Shortcut(cmd, ui.KeyV).Disabled(t.ReadOnly()).Chosen() {
 		v.paste()
 	}
 	if m.Item("Select All").Chosen() {
 		v.selectAll()
 	}
 	m.Separator()
-	if m.Item("Clear Scrollback").Chosen() {
+	if m.Item("Clear Scrollback").Disabled(t.ReadOnly()).Chosen() {
 		t.Feed([]byte("\x1b[3J"))
 	}
 }
 
 // input handles the input of the view as it comes.
 func (v *view) input(ev ui.InputEvent) bool {
+	if v.t.ReadOnly() {
+		v.preedit, v.pending = "", nil
+		switch ev.Kind {
+		case ui.InputText, ui.InputCompose, ui.InputKeyUp:
+			return true
+		}
+	}
 	switch ev.Kind {
 	case ui.InputKeyDown:
 		return v.keyDown(ev)
@@ -267,6 +277,9 @@ func (v *view) keyDown(ev ui.InputEvent) bool {
 		return true
 	case mods&ui.Super != 0:
 		return false // the app's shortcuts
+	}
+	if t.ReadOnly() {
+		return true
 	}
 	k, unshifted := vtKey(key)
 	if k == vt.KeyUnidentified {
@@ -386,6 +399,9 @@ func (v *view) sendKey(k vt.KeyEvent) {
 }
 
 func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
+	if v.t.ReadOnly() {
+		return false
+	}
 	t := v.t
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -413,6 +429,9 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
 
 // sendText sends text that is no key, as of an input method.
 func (v *view) sendText(text string) {
+	if v.t.ReadOnly() {
+		return
+	}
 	t := v.t
 	t.mu.Lock()
 	if t.term != nil {
@@ -425,6 +444,9 @@ func (v *view) sendText(text string) {
 }
 
 func (v *view) copy() {
+	if !v.t.canCopy() {
+		return
+	}
 	t := v.t
 	t.mu.Lock()
 	text, ok := "", false
@@ -438,6 +460,9 @@ func (v *view) copy() {
 }
 
 func (v *view) paste() {
+	if v.t.ReadOnly() {
+		return
+	}
 	if text := v.services.ReadClipboard(); text != "" {
 		v.t.Paste(text)
 	}
@@ -476,7 +501,10 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
 	if t.term == nil || v.cellW == 0 {
 		return false
 	}
-	tracking := t.term.MouseTracking() && ev.Mods&ui.Shift == 0
+	if t.ReadOnly() {
+		v.reporting = false
+	}
+	tracking := !t.ReadOnly() && t.term.MouseTracking() && ev.Mods&ui.Shift == 0
 	if tracking && !v.selecting || v.reporting {
 		return v.report(ev)
 	}
@@ -494,7 +522,7 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
 		if ev.Button != 0 {
 			return false // the context menu
 		}
-		if ev.Mods&ui.Cmd != 0 {
+		if !t.ReadOnly() && ev.Mods&ui.Cmd != 0 {
 			// A hyperlink (OSC 8), or a URL printed as text.
 			url := ""
 			if ref, ok := t.term.CellAt(col, row); ok {
@@ -572,6 +600,10 @@ func (v *view) autoscroll() {
 
 // report reports the pointer to the program; t.mu is held.
 func (v *view) report(ev ui.InputEvent) bool {
+	if v.t.ReadOnly() {
+		v.reporting = false
+		return false
+	}
 	t := v.t
 	if v.mouse == nil {
 		m, err := vt.NewMouseEncoder()
@@ -628,7 +660,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
 		return false
 	}
 	switch {
-	case t.term.MouseTracking() && ev.Mods&ui.Shift == 0:
+	case !t.ReadOnly() && t.term.MouseTracking() && ev.Mods&ui.Shift == 0:
 		if v.mouse == nil {
 			m, err := vt.NewMouseEncoder()
 			if err != nil {
@@ -646,7 +678,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
 				t.in.push(append([]byte(nil), out...))
 			}
 		}
-	case t.term.AltScreen() && t.term.Mode(vt.ModeAltScroll):
+	case !t.ReadOnly() && t.term.AltScreen() && t.term.Mode(vt.ModeAltScroll):
 		// Full-screen programs scroll with the arrows (mode 1007).
 		if v.keys == nil {
 			var err error

@@ -64,6 +64,9 @@ validation step. Native local-PTY behavior and its existing entry remain intact.
 
 ## Deliberate interaction scope
 
+[Read-only Host selection](host-terminal-readonly.md) enables real Ghostty
+selection/copy/scrolling while keeping every outgoing input path blocked.
+
 Selected-title editing is added by [Host terminal rename](host-terminal-rename.md).
 Shell discovery and client-local memory are added by [Host terminal shells](host-terminal-shells.md).
 
@@ -73,9 +76,6 @@ terminal interactions. These original interactions remain outside this module:
 - The original multiple sidebar occurrences, saved occurrence/navigation
   bindings, and the dedicated new-Host-terminal keyboard command. The native
   view presents one active screen with a retained-identity list per Session.
-- Read-only terminal text selection parity. The native read-only screen disables
-  interactive input/selection and provides Copy terminal content; it does not
-  reproduce xterm's separate read-only selection interaction.
 - Retained-screen selection-to-chat and application-specific URL/file routing.
   Existing local-PTY selection/chat and split-pane controls are preserved, but
   are not evidence that the new Host screen has those same commands.
