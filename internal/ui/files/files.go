@@ -90,6 +90,7 @@ type Model struct {
 	ReadRemote func(rel string) (string, error)
 	// Context readers are captured from the same frame as BindingID.
 	ReadRemoteContext func(context.Context, string) (string, error)
+	ReadTableContext  func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
 	StatRemoteContext func(context.Context, string) string
 	// StatRemote is optional workspaceFiles/stat note for the selected file.
 	StatRemote   func(rel string) string
@@ -369,13 +370,18 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			if mediaMode(m, sel) && m.OnOpenMedia != nil && ui.Button(c, label("音视频预览", "Media preview")).Clicked() {
 				m.OnOpenMedia(sel, false)
 			}
-			if m.OnOpenDoc != nil && fullPath != "" {
-				if (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
-					withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, true) })
-				}
+			if m.OnOpenDoc != nil && (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
+				// A selected Host path does not need a matching file on this computer.
+				m.OnOpenDoc(sel, docKind, true)
+			}
+			if m.OnOpenDoc != nil && (fullPath != "" || m.ReadRemoteContext != nil) {
 				// Electron preview toolbar: open with system default for any file.
 				if ui.Button(c, i18n.T(i18n.KeyFilesOpenExternal)).Clicked() {
-					withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, false) })
+					if fullPath == "" {
+						m.OnOpenDoc(sel, docKind, false)
+					} else {
+						withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, false) })
+					}
 				}
 			}
 			if m.OnReveal != nil && fullPath != "" {

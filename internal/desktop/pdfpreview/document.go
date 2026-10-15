@@ -113,6 +113,17 @@ func snapshot(f *os.File, path string, valid func() bool) (*Document, error) {
 	if err != nil || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) || int64(len(data)) != info.Size() {
 		return nil, errors.New("PDF changed while reading; open it again")
 	}
+	return openSnapshot(path, info, data, valid)
+}
+
+// OpenBytes opens one authenticated Host snapshot without a local filesystem path.
+func OpenBytes(name string, data []byte, valid func() bool) (*Document, error) {
+	return openSnapshot(name, nil, data, valid)
+}
+func openSnapshot(path string, info os.FileInfo, data []byte, valid func() bool) (*Document, error) {
+	if valid == nil || !valid() {
+		return nil, errors.New("PDF request is no longer active")
+	}
 	// Do not give renamed HTML a local document origin. The native PDF renderer
 	// still validates the PDF structure; scripts/network are disabled separately.
 	tail := bytes.TrimSpace(data)
@@ -190,6 +201,9 @@ func (d *Document) serve(w http.ResponseWriter, r *http.Request) {
 func (d *Document) ExternalPath() (string, error) {
 	if d == nil || !d.valid() {
 		return "", errors.New("PDF preview owner changed; reopen the document")
+	}
+	if d.identity == nil {
+		return "", errors.New("Remote PDF: use Files external open on the Host")
 	}
 	current, err := os.Stat(d.path)
 	if err != nil || !os.SameFile(d.identity, current) || current.Size() != d.identity.Size() || !current.ModTime().Equal(d.identity.ModTime()) {

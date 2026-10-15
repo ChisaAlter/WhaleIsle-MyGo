@@ -5,7 +5,6 @@ package mediapreview
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 )
@@ -30,7 +29,8 @@ type fileBytes struct {
 
 // ValidPath accepts a single explicit Host path, never a URL or traversal. Host
 // paths are opaque and are NEVER resolved, opened, or statted on this computer.
-func ValidPath(p string) bool {
+func ValidPath(p string) bool { return validFilePath(p) && Supports(p) }
+func validFilePath(p string) bool {
 	if p == "" || strings.TrimSpace(p) != p || strings.ContainsAny(p, "\x00\r\n") || strings.Contains(p, "://") || strings.HasPrefix(p, `\\`) || strings.HasPrefix(p, "//") {
 		return false
 	}
@@ -44,7 +44,7 @@ func ValidPath(p string) bool {
 	if len(q) > 2 && ((q[0] >= 'a' && q[0] <= 'z') || (q[0] >= 'A' && q[0] <= 'Z')) && q[1] == ':' && q[2] == '/' {
 		q = q[2:]
 	}
-	return !strings.Contains(q, ":") && Supports(p)
+	return !strings.Contains(q, ":")
 }
 func (s fileStat) size() (int, error) {
 	if s.AbsolutePath == "" || s.Version == "" || s.Bytes == nil || math.IsNaN(*s.Bytes) || math.IsInf(*s.Bytes, 0) || *s.Bytes < 1 || *s.Bytes > MaxBytes || math.Trunc(*s.Bytes) != *s.Bytes {
@@ -62,8 +62,24 @@ func (s fileStat) matches(other fileStat) bool {
 // final stat. Any unsupported Host/backend, cancellation or mismatch fails
 // closed, with no local-path or unscoped attachment-cache fallback.
 func Read(ctx context.Context, client Caller, sid, path string, valid func() bool) ([]byte, error) {
+	if !ValidPath(path) {
+		return nil, errors.New("invalid media path")
+	}
+	data, err := ReadSnapshot(ctx, client, sid, path, MaxBytes, valid)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, err = Validate(path, data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// ReadSnapshot reuses the media transport for a selected document's real bytes.
+// The caller chooses its existing document size limit and validates its format.
+func ReadSnapshot(ctx context.Context, client Caller, sid, path string, limit int, valid func() bool) ([]byte, error) {
 	current := func() bool { return ctx.Err() == nil && valid != nil && valid() }
-	if client == nil || sid == "" || !ValidPath(path) || !current() {
+	if client == nil || sid == "" || !validFilePath(path) || !current() {
 		return nil, errors.New("media request has no current Host/session or valid file")
 	}
 	args := map[string]any{"workspaceFileScopeId": sid, "path": path}
@@ -74,6 +90,9 @@ func Read(ctx context.Context, client Caller, sid, path string, valid func() boo
 	size, err := first.size()
 	if err != nil {
 		return nil, err
+	}
+	if size > limit {
+		return nil, errors.New("document exceeds its preview size limit")
 	}
 	data := make([]byte, 0, size)
 	for offset := 0; offset < size; {
@@ -98,9 +117,6 @@ func Read(ctx context.Context, client Caller, sid, path string, valid func() boo
 	}
 	if !current() || !first.matches(last) {
 		return nil, errors.New("media changed while reading; reopen the file")
-	}
-	if _, _, err = Validate(path, data); err != nil {
-		return nil, fmt.Errorf("media preview: %w", err)
 	}
 	return data, nil
 }

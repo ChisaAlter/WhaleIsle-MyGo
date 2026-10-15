@@ -230,9 +230,10 @@ type Model struct {
 	OnListWorkspaceFiles        func(rel string) ([]workspacefs.Entry, error)
 	OnListWorkspaceFilesContext workspacefs.RemoteDirectoryLister
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
-	OnReadWorkspaceFile        func(rel string) (string, error)
-	OnReadWorkspaceFileContext func(context.Context, string) (string, error)
-	OnStatWorkspaceFileContext func(context.Context, string) string
+	OnReadWorkspaceFile         func(rel string) (string, error)
+	OnReadWorkspaceFileContext  func(context.Context, string) (string, error)
+	OnReadWorkspaceTableContext func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
+	OnStatWorkspaceFileContext  func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
 	OnStatWorkspaceFile  func(rel string) string
 	FileStatNote         *string
@@ -1156,6 +1157,7 @@ func rightPane(c *ui.Context, m Model) {
 						StatNote:          m.FileStatNote,
 						ReadRemote:        m.OnReadWorkspaceFile,
 						ReadRemoteContext: m.OnReadWorkspaceFileContext,
+						ReadTableContext:  m.OnReadWorkspaceTableContext,
 						StatRemoteContext: m.OnStatWorkspaceFileContext,
 						StatRemote:        m.OnStatWorkspaceFile,
 					}, path)
@@ -1208,6 +1210,7 @@ func rightPane(c *ui.Context, m Model) {
 			ListRemoteContext: m.OnListWorkspaceFilesContext,
 			ReadRemote:        m.OnReadWorkspaceFile,
 			ReadRemoteContext: m.OnReadWorkspaceFileContext,
+			ReadTableContext:  m.OnReadWorkspaceTableContext,
 			StatRemoteContext: m.OnStatWorkspaceFileContext,
 			StatRemote:        m.OnStatWorkspaceFile,
 			StatNote:          m.FileStatNote,

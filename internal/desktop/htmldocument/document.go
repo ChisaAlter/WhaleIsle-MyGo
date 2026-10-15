@@ -193,6 +193,9 @@ func (d *Document) ExternalPath() (string, error) {
 	if d == nil || !d.valid() {
 		return "", errors.New("HTML preview owner changed; reopen the document")
 	}
+	if d.identity == nil {
+		return "", errors.New("Remote HTML: use Files external open on the Host")
+	}
 	current, err := os.Stat(d.path)
 	if err != nil || !os.SameFile(d.identity, current) || current.Size() != d.identity.Size() || !current.ModTime().Equal(d.identity.ModTime()) {
 		return "", errors.New("HTML source changed; reopen it before using the system viewer")

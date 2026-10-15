@@ -82,6 +82,7 @@ func beginTextRead(m Model) {
 		restore(m, tab)
 	}
 	remote, stat := m.ReadRemoteContext, m.StatRemoteContext
+	remoteTable := m.ReadTableContext
 	// Capture immutable values and context-capable, frame-bound Host readers.
 	// Legacy callbacks may resolve a different Host at invocation time and must
 	// never run on this worker.
@@ -94,9 +95,14 @@ func beginTextRead(m Model) {
 		}
 		full, err := workspacefs.JoinRoot(root, path)
 		out.fullPath = full
-		if err == nil && ctx.Err() == nil {
+		if (err == nil || (isTablePreviewPath(path) && remoteTable != nil)) && ctx.Err() == nil {
 			if isTablePreviewPath(path) {
-				out.table, err = readTablePreview(ctx, full, tableRequest)
+				if remoteTable != nil {
+					out.table, err = remoteTable(ctx, path, tableRequest)
+					out.remote = true
+				} else {
+					out.table, err = readTablePreview(ctx, full, tableRequest)
+				}
 				if out.table != nil {
 					out.text = out.table.Text
 				}

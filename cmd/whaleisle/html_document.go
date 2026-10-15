@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"time"
 	"whaleisle/internal/desktop/htmldocument"
+	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/store/session"
 )
 
@@ -20,20 +23,33 @@ func (s *mainState) openLocalHTML(sessions *session.Store, sid, root, path strin
 	if win == nil {
 		return
 	}
+	reader, sourceValid, sourceErr := sessions.MediaPreviewSource(sid)
 	valid := func() bool {
 		s.mu.Lock()
 		st := s.bootStatus
 		current := !s.quitting && s.sessions == sessions && s.win == win && st.Generation == host.Generation && st.State == host.State && st.Endpoint.Origin == host.Endpoint.Origin && st.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()
 		snap := sessions.Snapshot()
-		return current && snap.SelectedID == sid && snap.SelectedCwd == root
+		return current && (sourceErr != nil || sourceValid()) && snap.SelectedID == sid && snap.SelectedCwd == root
 	}
 	if !valid() {
 		return
 	}
 	sessions.SetLastAction("正在打开已保存的 HTML 快照，编辑草稿保持不变…")
 	go func() {
-		doc, err := htmldocument.OpenWorkspace(root, path, valid)
+		var doc *htmldocument.Document
+		var err error
+		if sourceErr == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			defer cancel()
+			var data []byte
+			data, err = mediapreview.ReadSnapshot(ctx, reader, sid, path, htmldocument.MaxBytes, valid)
+			if err == nil {
+				doc, err = htmldocument.OpenBytes(path, data, valid)
+			}
+		} else {
+			doc, err = htmldocument.OpenWorkspace(root, path, valid)
+		}
 		win.Update(func() {
 			s.mu.Lock()
 			same := s.htmlDocumentRequest == request

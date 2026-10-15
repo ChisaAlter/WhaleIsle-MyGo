@@ -2,7 +2,9 @@ package workspacefs
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -61,15 +63,6 @@ func ReadXLSXPage(ctx context.Context, filePath string, request XLSXPageRequest)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if request.Row < 0 || request.Row >= 1048576 || request.Column < 0 || request.Column >= 16384 {
-		return nil, errors.New("XLSX page is outside worksheet coordinates")
-	}
-	if request.Rows < 1 || request.Rows > xlsxMaxRows {
-		request.Rows = xlsxMaxRows
-	}
-	if request.Columns < 1 || request.Columns > xlsxMaxCols {
-		request.Columns = xlsxMaxCols
-	}
 	st, err := os.Stat(filePath)
 	if err != nil {
 		return nil, err
@@ -93,10 +86,49 @@ func ReadXLSXPage(ctx context.Context, filePath string, request XLSXPageRequest)
 		return nil, errors.New("XLSX changed or exceeds the 16 MiB native reader limit")
 	}
 	version := fmt.Sprintf("%d:%d", st.Size(), st.ModTime().UnixNano())
+	page, err := readXLSXPage(ctx, file, st.Size(), version, request)
+	if err != nil {
+		return nil, err
+	}
+	after, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	current, err := os.Stat(filePath)
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(st, current) || after.Size() != st.Size() || !after.ModTime().Equal(st.ModTime()) {
+		return nil, errors.New("Workbook changed during reading; choose Reload")
+	}
+	return page, nil
+}
+
+// ReadXLSXBytesPage uses exactly the same workbook/sheet/page reader as local files.
+func ReadXLSXBytesPage(ctx context.Context, data []byte, request XLSXPageRequest) (*XLSXPage, error) {
+	if int64(len(data)) > xlsxMaxFileBytes {
+		return nil, errors.New("XLSX exceeds the 16 MiB native reader limit")
+	}
+	version := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
+	return readXLSXPage(ctx, bytes.NewReader(data), int64(len(data)), version, request)
+}
+func readXLSXPage(ctx context.Context, reader io.ReaderAt, size int64, version string, request XLSXPageRequest) (*XLSXPage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if request.Row < 0 || request.Row >= 1048576 || request.Column < 0 || request.Column >= 16384 {
+		return nil, errors.New("XLSX page is outside worksheet coordinates")
+	}
+	if request.Rows < 1 || request.Rows > xlsxMaxRows {
+		request.Rows = xlsxMaxRows
+	}
+	if request.Columns < 1 || request.Columns > xlsxMaxCols {
+		request.Columns = xlsxMaxCols
+	}
 	if request.Version != "" && request.Version != version {
 		return nil, errors.New("Workbook changed; choose Reload before reading another page")
 	}
-	zr, err := zip.NewReader(xlsxContextReaderAt{ctx, file}, st.Size())
+	zr, err := zip.NewReader(xlsxContextReaderAt{ctx, reader}, size)
 	if err != nil {
 		return nil, err
 	}
@@ -144,17 +176,6 @@ func ReadXLSXPage(ctx context.Context, filePath string, request XLSXPageRequest)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-	after, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	current, err := os.Stat(filePath)
-	if err != nil {
-		return nil, err
-	}
-	if !os.SameFile(st, current) || after.Size() != st.Size() || !after.ModTime().Equal(st.ModTime()) {
-		return nil, errors.New("Workbook changed during reading; choose Reload")
 	}
 	page.Sheets, page.Version = sheets, version
 	page.Request.Version = version

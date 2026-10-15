@@ -6478,6 +6478,7 @@ func mainView(c *ui.Context) {
 							state.dshMu.Unlock()
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
+						OnReadWorkspaceTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
 						OnReadWorkspaceFileContext: func(ctx context.Context, rel string) (string, error) {
 							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)
 						},
