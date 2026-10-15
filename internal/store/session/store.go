@@ -13,6 +13,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/sessioncost"
+	"whaleisle/internal/workflowrun"
 )
 
 // Item is one row in the session tree.
@@ -47,6 +48,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	Workflow   *workflowrun.Run
 	Submission *PendingSubmission
 	// Tool is populated only by the read-only chat lifecycle projection.
 	Tool        *ToolCallView
@@ -72,6 +74,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	WorkflowRuns []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
 	PlanHistoryBinding   string
 	WorkspaceLayout      WorkspaceLayoutState
@@ -157,6 +160,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	workflowBoundaries        map[float64]json.RawMessage
+	workflowMember            workflowMemberState
 	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64
@@ -515,6 +520,7 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 	st.Messages = s.projectPreparingToolsLocked(st.Messages)
+	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)
 	st.SelectedPermission = s.permissionLabelLocked()

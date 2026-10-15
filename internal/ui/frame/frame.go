@@ -341,6 +341,7 @@ func View(c *ui.Context, m Model) {
 		mainRow(c, m, snap, colors, border, muted)
 	})
 	jobsDialog(c, m)
+	workflowMemberDialog(c, m)
 }
 
 func clampSidebarWidth(w float32) float32 {

@@ -162,6 +162,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		}
 		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
 		s.messages = nil
+		s.workflowBoundaries = nil
 		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0
 		s.editTurnOpening = false
@@ -228,6 +229,7 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	if json.Unmarshal(raw, &head) != nil || head.Type == "" {
 		return false
 	}
+	s.captureWorkflowBoundaryLocked(raw)
 	s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
