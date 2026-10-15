@@ -2114,6 +2114,16 @@ func main() {
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
+		win.OnHide(func() {
+			state.mu.Lock()
+			state.fileTabs.Pause()
+			state.mu.Unlock()
+		})
+		win.OnClosed(func() {
+			state.mu.Lock()
+			state.fileTabs.Dispose()
+			state.mu.Unlock()
+		})
 
 		win.OnClose(func(e *mygo.CloseEvent) {
 			state.mu.Lock()
@@ -2875,6 +2885,23 @@ func mainView(c *ui.Context) {
 		state.fileOpenWithApps = nil
 		fileOpenWithApps = nil
 	}
+	state.mu.Unlock()
+	// Global native pages return before frame.View. Retire old bindings and
+	// pause debounce work here as well, without flushing hidden drafts.
+	fileSessionID := ""
+	if sessions != nil {
+		fileSessionID = sessions.Snapshot().SelectedID
+	}
+	state.dshMu.Lock()
+	fileClient := state.dshClient
+	state.dshMu.Unlock()
+	fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, fileSessionID)
+	fileTabs.Bind(fileBindingID, workspaceRoot)
+	if sessions == nil || launcherOpen || settingsOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
+		fileTabs.Pause()
+	}
+	state.mu.Lock()
+	state.fileTabs = fileTabs
 	state.mu.Unlock()
 	if state.browserController != nil {
 		state.browserController.PrunePDFDocuments()
@@ -5848,11 +5875,6 @@ func mainView(c *ui.Context) {
 						}
 					}
 					snap := sessions.Snapshot()
-					state.dshMu.Lock()
-					fileClient := state.dshClient
-					state.dshMu.Unlock()
-					fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, snap.SelectedID)
-					fileTabs.Bind(fileBindingID, workspaceRoot)
 					state.mu.Lock()
 					activeDraft := state.composerDraftLocked(snap.SelectedID)
 					draft = activeDraft.Text

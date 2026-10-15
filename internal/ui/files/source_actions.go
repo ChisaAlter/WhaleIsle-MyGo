@@ -133,6 +133,11 @@ func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly
 			t.revealLine = 0
 		}
 		if editor.Focused() {
+			if editor.Shortcut(ui.Cmd, ui.KeyS) {
+				if err := requestSaveDraft(m); err != nil {
+					setFileStatus(m, err.Error())
+				}
+			}
 			if editor.Composing() {
 				t.selectionText = ""
 				t.selectionStart, t.selectionEnd = 0, 0

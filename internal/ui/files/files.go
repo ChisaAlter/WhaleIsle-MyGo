@@ -84,6 +84,7 @@ type Model struct {
 	OnAddToChat  func(string) error
 	CanAddToChat bool
 	OnOpenLink   func(string)
+	notify       func()
 }
 
 // OpenWithApp is one harness-registered application for a workspace path.
@@ -100,11 +101,21 @@ var editSplitFallback float32 = 200
 
 // View paints the file tree and plain-text preview.
 func View(c *ui.Context, m Model) {
+	m.notify = c.Invalidate
 	if m.Tabs != nil {
 		m.Tabs.Bind(m.BindingID, m.WorkspaceRoot)
 	}
 	prepareTabs(m)
-	defer capture(m)
+	syncSaveResults(m)
+	if t := selectedTab(m); t != nil && t.Editing {
+		_ = ensureSaveQueue(m, t)
+	}
+	defer observeAutosave(m)
+	if m.SelectedFile != nil && *m.SelectedFile != "" && c.PageShortcut(ui.Cmd, ui.KeyS) {
+		if err := requestSaveDraft(m); err != nil {
+			setFileStatus(m, err.Error())
+		}
+	}
 	if m.Tabs != nil {
 		if m.Tabs.Search == nil {
 			m.Tabs.Search = &workspacefs.Search{}
@@ -113,11 +124,6 @@ func View(c *ui.Context, m Model) {
 			m.Tabs.Tree = &workspacefs.DirectoryTree{}
 		}
 		m.Tabs.Tree.Ensure(m.BindingID, m.WorkspaceRoot)
-		query := ""
-		if m.Filter != nil {
-			query = strings.TrimSpace(*m.Filter)
-		}
-		m.Tabs.Search.Ensure(m.BindingID, m.WorkspaceRoot, query, m.ListRemoteContext, c.Invalidate)
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -161,6 +167,9 @@ func View(c *ui.Context, m Model) {
 		filter := ""
 		if m.Filter != nil {
 			filter = strings.TrimSpace(*m.Filter)
+		}
+		if m.Tabs != nil && m.Tabs.Search != nil {
+			m.Tabs.Search.Ensure(m.BindingID, m.WorkspaceRoot, filter, m.ListRemoteContext, c.Invalidate)
 		}
 		ui.SplitVertical(c, split, func() {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
@@ -371,23 +380,8 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					mygo.Clipboard.WriteText(*m.EditDraft)
 				}
 				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Clicked() {
-					if err := saveDraft(m); err != nil {
-						if m.EditStatus != nil {
-							*m.EditStatus = err.Error()
-						}
-					} else {
-						if m.Preview != nil {
-							*m.Preview = *m.EditDraft
-						}
-						if m.Editing != nil {
-							*m.Editing = false
-						}
-						if m.EditStatus != nil {
-							*m.EditStatus = i18n.T(i18n.KeyFilesSaved)
-						}
-						if m.PreviewErr != nil {
-							*m.PreviewErr = ""
-						}
+					if err := requestSaveDraft(m); err != nil {
+						setFileStatus(m, err.Error())
 					}
 				}
 				if m.Editing != nil && ui.Button(c, label("保留草稿并预览", "Keep draft and preview")).Clicked() {
@@ -514,7 +508,14 @@ func selectFile(m Model, rel string) {
 		}
 		return
 	}
-	defer rememberTab(m, rel)
+	pauseSave(selectedTab(m))
+	remotePreview := false
+	defer func() {
+		rememberTab(m, rel)
+		if t := selectedTab(m); t != nil {
+			t.Remote = remotePreview
+		}
+	}()
 	if m.SelectedFile != nil {
 		*m.SelectedFile = rel
 	}
@@ -528,6 +529,7 @@ func selectFile(m Model, rel string) {
 	if errMsg != "" && m.ReadRemote != nil {
 		if remote, rerr := LoadPreviewRemote(m.ReadRemote, rel); rerr == "" {
 			text, errMsg = remote, ""
+			remotePreview = true
 		}
 	}
 	if m.Preview != nil {

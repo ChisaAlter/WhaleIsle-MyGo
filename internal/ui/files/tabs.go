@@ -1,6 +1,7 @@
 package files
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/egoist/mygo/ui"
@@ -10,7 +11,8 @@ import (
 )
 
 // Tabs owns drafts for all open workspace files for the lifetime of this window.
-// Switching tabs/workspaces never discards a draft. It is not a disk autosave.
+// Switching tabs/workspaces never discards a draft. Runtime save queues are
+// deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
 	Workspaces map[string]*WorkspaceTabs
 	Root       string
@@ -33,6 +35,10 @@ type FileTab struct {
 	lineDraft                                 string
 	revealLine                                int
 	image                                     *imagePreview
+	save                                      *workspacefs.SaveQueue
+	saveRevision                              uint64
+	closeWhenSaved                            bool
+	Remote                                    bool
 }
 
 func (t *FileTab) Dirty() bool { return t.Draft != t.Preview }
@@ -152,8 +158,12 @@ func selectTab(m Model, path string) bool {
 	}
 	capture(m)
 	if t := findTab(w, path); t != nil {
+		if path != w.Active {
+			pauseSave(findTab(w, w.Active))
+		}
 		w.Active = path
 		restore(m, t)
+		applySaveResult(m, t)
 		reloadSelectedFile(m)
 		return true
 	}
@@ -180,10 +190,18 @@ func closeTab(m Model, path string, discard bool) bool {
 	if t == nil {
 		return true
 	}
+	applySaveResult(m, t)
+	if t.save != nil && t.save.Snapshot().Running {
+		w.PendingClose = path
+		setFileStatus(m, label("保存正在进行，草稿保留。请稍候再关闭。", "A save is in progress; draft kept. Wait before closing."))
+		return false
+	}
 	if t.Dirty() && !discard {
+		pauseSave(t)
 		w.PendingClose = path
 		return false
 	}
+	disposeSave(t)
 	for i, v := range w.Open {
 		if v.Path == path {
 			w.Open = append(w.Open[:i], w.Open[i+1:]...)
@@ -207,18 +225,13 @@ func saveDraft(m Model) error {
 	if m.SelectedFile == nil || m.EditDraft == nil || m.Preview == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
-	full, err := workspacefs.JoinRoot(m.WorkspaceRoot, *m.SelectedFile)
-	if err != nil {
-		return err
+	if t := selectedTab(m); t != nil && t.save != nil {
+		if t.save.Snapshot().Running {
+			return errors.New("save already in progress")
+		}
+		disposeSave(t)
 	}
-	current, err := workspacefs.ReadFileText(full, workspacefs.DefaultMaxReadBytes)
-	if err != nil {
-		return err
-	}
-	if current.Text != *m.Preview {
-		return errors.New(label("磁盘文件已变化，草稿保留。请先复制草稿，再重新打开文件核对。", "File changed on disk. Draft kept. Copy your draft before reopening to reconcile."))
-	}
-	if err = m.OnSaveEdit(*m.SelectedFile, *m.EditDraft); err != nil {
+	if err := workspacefs.SaveTextChecked(context.Background(), m.WorkspaceRoot, *m.SelectedFile, *m.Preview, *m.EditDraft, m.OnSaveEdit); err != nil {
 		return err
 	}
 	*m.Preview = *m.EditDraft
@@ -264,12 +277,16 @@ func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 				if ui.Button(c, label("保存并关闭", "Save and close")).Clicked() {
 					selectFile(m, path)
-					if err := saveDraft(m); err != nil {
+					if err := requestSaveDraft(m); err != nil {
 						if m.EditStatus != nil {
 							*m.EditStatus = err.Error()
 						}
 					} else {
-						closeTab(m, path, false)
+						if t := selectedTab(m); t != nil && t.save != nil {
+							t.closeWhenSaved = true
+						} else {
+							closeTab(m, path, false)
+						}
 					}
 				}
 				if ui.Button(c, label("丢弃并关闭", "Discard and close")).Clicked() {
@@ -323,6 +340,13 @@ func (t *Tabs) Bind(binding, root string) {
 	}
 	if t.Tree != nil {
 		t.Tree.Cancel()
+	}
+	for _, w := range t.Workspaces {
+		if w != nil {
+			for _, tab := range w.Open {
+				disposeSave(tab)
+			}
+		}
 	}
 	t.binding, t.boundRoot = binding, root
 }

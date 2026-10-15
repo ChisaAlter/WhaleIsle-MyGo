@@ -291,6 +291,9 @@ type Model struct {
 
 // View paints the main dialogue shell below the title bar.
 func View(c *ui.Context, m Model) {
+	if m.FileTabs != nil && (!m.RightPaneOpen || (m.RightPaneTab != nil && *m.RightPaneTab != "" && *m.RightPaneTab != "files")) {
+		m.FileTabs.Pause()
+	}
 	if m.Store == nil {
 		return
 	}

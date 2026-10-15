@@ -7,6 +7,16 @@ func reloadSelectedFile(m Model) {
 	if m.SelectedFile == nil || *m.SelectedFile == "" {
 		return
 	}
+	capture(m)
+	if tab := selectedTab(m); tab != nil {
+		applySaveResult(m, tab)
+		if tab.save != nil && tab.save.Snapshot().Running {
+			setFileStatus(m, label("保存正在进行，暂不重新载入。草稿已保留。", "Save in progress; reload paused and draft kept."))
+			capture(m)
+			return
+		}
+		disposeSave(tab)
+	}
 	rel := *m.SelectedFile
 	if tab := selectedTab(m); tab != nil {
 		tab.image = nil
@@ -14,10 +24,12 @@ func reloadSelectedFile(m Model) {
 		tab.selectionStart, tab.selectionEnd = 0, 0
 	}
 	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
+	remotePreview := false
 	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
 	if errMsg != "" && m.ReadRemote != nil {
 		if remote, remoteErr := LoadPreviewRemote(m.ReadRemote, rel); remoteErr == "" {
 			text, errMsg = remote, ""
+			remotePreview = true
 		}
 	}
 	if dirty {
@@ -41,6 +53,9 @@ func reloadSelectedFile(m Model) {
 		*m.PreviewErr = errMsg
 	}
 	if errMsg == "" {
+		if tab := selectedTab(m); tab != nil {
+			tab.Remote = remotePreview
+		}
 		if m.Preview != nil {
 			*m.Preview = text
 		}
