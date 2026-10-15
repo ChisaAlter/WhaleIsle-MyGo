@@ -296,7 +296,9 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		}
+		beforeLargeAcknowledged := s.LargeAcknowledged
 		ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解可能被拒绝", "Keep checked large files; I understand they may be rejected"))
+		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
 	}
 	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch
 	ui.TextInput(c, &w.Message).FillWidth().Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
@@ -386,4 +388,11 @@ func confirmSelectedCommit(c *ui.Context, m Model) {
 		result, e := git.RunCommitStack(ctx, root, plan)
 		return gitOperationResult{text: result.Output, err: e, committed: result.Committed, stack: &result}
 	})
+}
+
+// Revoking the large-file choice also revokes the already-prepared commit.
+func (w *Workbench) invalidateChangedLargeAcknowledgement(before bool) {
+	if w.Commit != nil && before != w.Commit.LargeAcknowledged {
+		w.invalidateCommitReview()
+	}
 }

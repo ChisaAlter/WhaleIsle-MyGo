@@ -16,6 +16,9 @@ type remoteWorkflowState struct {
 	PR                *git.PullRequestPlan
 	Push              git.PushPlan
 	Task              *remotePreparation
+	Generation        *prGenerationTask
+	Generated         *git.GeneratedPRContent
+	GenerationError   string
 }
 type remotePreparation struct {
 	root   string
@@ -30,6 +33,7 @@ type remotePrepared struct {
 }
 
 func (w *Workbench) cancelRemotePreparation() {
+	w.cancelPRGeneration()
 	if w.Remote != nil && w.Remote.Task != nil {
 		w.Remote.Task.cancel()
 		w.Remote.Task = nil
@@ -61,7 +65,7 @@ func paintPRReview(c *ui.Context, p git.PullRequestPlan, fg, muted ui.Color) {
 func beginRemotePreparation(c *ui.Context, m Model) {
 	w := m.Workbench
 	s := w.Remote
-	if s == nil || s.Task != nil || w.Operation != nil {
+	if s == nil || s.Task != nil || s.Generation != nil || w.Operation != nil {
 		return
 	}
 	root, mode, title, body := m.WorkspaceRoot, s.Mode, s.Title, s.Body
@@ -144,9 +148,10 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				s.Plan = nil
 				s.PR = nil
 			}
+			paintPRGeneration(c, m, fg, muted)
 		}
 		if s.Plan == nil {
-			if ui.Button(c, word("准备核对", "Prepare review")).Clicked() {
+			if ui.Button(c, word("准备核对", "Prepare review")).Disabled(s.Generation != nil).Clicked() {
 				beginRemotePreparation(c, m)
 			}
 		} else {
