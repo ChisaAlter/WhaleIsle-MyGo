@@ -113,7 +113,8 @@ type Model struct {
 	OnSaveLauncherPrefs                                               func()
 	Components                                                        []components.Row
 	OnRefreshComponents                                               func()
-	OnComponentAction                                                 func(id, action string) // install|start|stop|open
+	ComponentBusy                                                     bool
+	OnComponentAction                                                 func(id, action string) // install|start|stop|open|update|rollback|uninstall
 	// ImportOverwrite / ImportAttachments mirror launcher.html #import-overwrite / #import-attachments.
 	ImportOverwrite   *bool
 	ImportAttachments *bool
@@ -589,6 +590,12 @@ func homeComponents(c *ui.Context, m Model) {
 
 func componentsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(12).Children(func() {
+		if m.UpdateStatus != "" {
+			ui.Text(c, m.UpdateStatus).FontSize(12).TextColor(colSecondary)
+		}
+		if !components.WhaleBridgeManagementSupported() {
+			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(12).TextColor(colSecondary)
+		}
 		// Electron: compact ????pill, not a full-width bar.
 		ui.Row(c).AlignSelf(ui.Start).Children(func() {
 			if ghostSmall(c, i18n.T(i18n.KeyUsageRefresh)).Clicked() && m.OnRefreshComponents != nil {
@@ -638,7 +645,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					label = i18n.T(i18n.KeyLauncherCompInstall)
 				}
 				ui.Row(c).Children(func() {
-					if primaryBtn(c, label).Clicked() && m.OnComponentAction != nil {
+					if primaryBtn(c, label).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 						action := "start"
 						if row.State == "available" {
 							action = "install"
@@ -688,11 +695,11 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					}
 				}
 			})
-			ui.Column(c).Gap(8).AlignItems(ui.End).Children(func() {
+			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
 					ui.Text(c, stateLabel(row.State)).FontSize(12).FontWeight(500).TextColor(colSecondary)
 				})
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Justify(ui.End).Gap(8).AlignItems(ui.Center).Children(func() {
 					compPrimary := func(label string) ui.Element {
 						// Electron ?? ??72�42 device-px @150% ??~48�28 DIP.
 						return ui.Button(c, label).Height(28).Padding(0, 10, 0, 10).
@@ -700,20 +707,29 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 							TextColor(colPrimaryFg).FontSize(12)
 					}
 					if row.ID == "whalebridge" && row.InstalledVersion != "" {
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Clicked() && m.OnComponentAction != nil {
+						disabled := m.ComponentBusy || !components.WhaleBridgeManagementSupported()
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "update")
+						}
+						if row.PreviousVersion != "" && row.PreviousVersion != row.InstalledVersion {
+							if ghostSmall(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompRollback), row.PreviousVersion)).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
+								m.OnComponentAction(row.ID, "rollback")
+							}
+						}
+						if ghostSmall(c, releaseText("卸载", "Uninstall")).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
+							m.OnComponentAction(row.ID, "uninstall")
 						}
 					}
 					switch row.State {
 					case "available":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "install")
 						}
 					case "running":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Clicked() && m.OnComponentAction != nil {
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "stop")
 						}
 					default:
@@ -721,10 +737,10 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						if row.State == "error" {
 							label = i18n.T(i18n.KeyLauncherCompRetry)
 						}
-						if compPrimary(label).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(label).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "start")
 						}
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompManage)).Clicked() && m.OnComponentAction != nil {
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompManage)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
 					}

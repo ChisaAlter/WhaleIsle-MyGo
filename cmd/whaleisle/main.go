@@ -3109,6 +3109,7 @@ func mainView(c *ui.Context) {
 				ImportCategories:     state.launcherImportCategories,
 				ImportCatalog:        state.launcherImportCatalog,
 				Components:           compRows,
+				ComponentBusy:        bridgeChangeActive.Load(),
 				OnRefreshComponents: func() {
 					state.refreshLauncherComponents()
 					state.launcherComponentsFresh = true
@@ -3117,7 +3118,10 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnComponentAction: func(id, action string) {
-					if id == "whalebridge" && (action == "update" || action == "rollback" || action == "stop") {
+					if bridgeChangeActive.Load() {
+						return
+					}
+					if id == "whalebridge" && (action == "update" || action == "rollback" || action == "uninstall" || action == "stop") {
 						state.changeWhaleBridge(win, action)
 						return
 					}
