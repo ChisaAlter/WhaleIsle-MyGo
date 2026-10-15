@@ -9,6 +9,7 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
+	Discard                                   *git.DiscardPlan
 	Root                                      string
 	BaseRef, CompareQuery, CompareError       string
 	CompareOpen                               bool
@@ -110,6 +111,9 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 							scopeDiff(m, ch.Path, !ch.Unstaged())
 						}
 						if ch.Unstaged() {
+							if ui.Button(c, word("丢弃此文件…", "Discard file…")).FontSize(10).Clicked() {
+								reviewDiscard(m, ch.Path)
+							}
 							if ui.Button(c, word("暂存此文件", "Stage file")).FontSize(10).Clicked() {
 								paths := []string{ch.Path}
 								if ch.Original != "" {
@@ -150,6 +154,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		})
+		paintDiscard(c, m, fg, muted)
 		ui.TextInput(c, &w.Message).FillWidth().Placeholder(word("提交说明（仅已暂存）", "Commit message (staged only)"))
 		if w.ReviewToken == "" {
 			if ui.Button(c, word("核对已暂存内容并提交…", "Review staged changes to commit…")).Clicked() {
