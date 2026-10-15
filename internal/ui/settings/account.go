@@ -7,36 +7,41 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/accountlogin"
+	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/ui/i18n"
 )
 
 // AccountAccess is the dedicated Account / Login settings page
 // (account/getState + optional profile/balance from the usage store).
 type AccountAccess struct {
-	SignInBusy      bool
-	ClientReady     bool
-	Loading         bool
-	Err             string
-	Status          string
-	Email           string
-	Name            string
-	Plan            string
-	UsageURL        string
-	TopUpURL        string
-	BalanceSummary  string
-	AttemptPhase    string
-	AuthorizeURL    string
-	OnRefresh       func()
-	OnOpenAuthorize func(url string)
-	OnOpenUsage     func(url string)
-	OnOpenTopUp     func(url string)
-	OnSignIn        func()
-	OnSignOut       func()
-	OnCancelSignIn  func()
-	SignInAttemptID string
-	Bonuses         []AccountBonus
-	OnAckBonus      func(accountID, orderID string)
-	HasRunningTasks bool
+	SignInBusy       bool
+	ClientReady      bool
+	Loading          bool
+	Err              string
+	Status           string
+	Email            string
+	Name             string
+	Plan             string
+	UsageURL         string
+	TopUpURL         string
+	BalanceSummary   string
+	AttemptPhase     string
+	AuthorizeURL     string
+	OnRefresh        func()
+	OnOpenAuthorize  func(url string)
+	OnOpenUsage      func(url string)
+	OnOpenTopUp      func(url string)
+	OnSignIn         func()
+	OnSignOut        func()
+	SignOut          accountlogout.State
+	OnConfirmSignOut func()
+	OnCancelSignOut  func()
+	OnCheckSignOut   func()
+	OnCancelSignIn   func()
+	SignInAttemptID  string
+	Bonuses          []AccountBonus
+	OnAckBonus       func(accountID, orderID string)
+	HasRunningTasks  bool
 }
 
 // AccountBonus is one row from account/getUnnotifiedBonuses.
@@ -65,6 +70,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.Err != "" {
 		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
 	}
+	accountSignOutPane(c, a, fg, muted)
 	if a.HasRunningTasks {
 		ui.Text(c, i18n.T(i18n.KeySettingsAccountRunningTasks)).FontSize(12).TextColor(fg)
 	}

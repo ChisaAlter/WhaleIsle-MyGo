@@ -25,6 +25,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/accountlogin"
+	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
 	desktopcomponents "whaleisle/internal/desktop/components"
@@ -136,6 +137,7 @@ type mainState struct {
 	settingsDesktopActive         bool
 	settingsAccountActive         bool
 	accountLogin                  accountlogin.Flow
+	accountSignOut                accountlogout.Flow
 	settingsCredentialsActive     bool
 	settingsAboutActive           bool
 	settingsAppearanceActive      bool
@@ -1727,6 +1729,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.replaceMCPControllerLocked()
 	s.dshClient = client
+	s.accountSignOut.Bind(client)
 	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
 	s.settingsProviderDiscovery.Attach(client)
@@ -1868,6 +1871,7 @@ func (s *mainState) stopDSHLocked() {
 	s.dshEndpoint = ""
 	s.replaceMCPControllerLocked()
 	s.dshClient = nil
+	s.accountSignOut.Bind(nil)
 	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
 	s.settingsProviderDiscovery.Attach(nil)
@@ -2150,6 +2154,8 @@ func main() {
 		// Wallpaper: config goWallpaperPath -> mainView chrome.WallpaperBackdrop
 		// (WindowOptions has BackgroundColor only in mygo v0.3.5).
 		win := mygo.NewWindow(winOpts)
+		state.accountSignOut.SetNotify(win.Invalidate)
+		win.OnClosed(func() { state.accountSignOut.Bind(nil) })
 		state.desktopPet = pet.New(cfgStore)
 		state.desktopPet.OnOpenSession = state.openPetSession
 		state.desktopPet.OnNotificationsClosed = state.cancelPetEvents
@@ -4954,6 +4960,7 @@ func mainView(c *ui.Context) {
 					Id: usageSnap.AttemptID, Phase: usageSnap.AttemptPhase, AuthorizeUrl: &usageSnap.AuthorizeURL,
 				}}, desktopwebview.OpenExternal)
 				loginState := state.accountLogin.Snapshot()
+				signOutState := state.accountSignOutAccess()
 				if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
 					usageSnap.AuthorizeURL = loginState.URL
 				}
@@ -5020,7 +5027,8 @@ func mainView(c *ui.Context) {
 					},
 					AccountActive: accountActive,
 					Account: &settings.AccountAccess{
-						SignInBusy:      loginState.Busy,
+						SignInBusy:      loginState.Busy || signOutState.Open || signOutState.Busy,
+						SignOut:         signOutState,
 						ClientReady:     usageSnap.ClientReady,
 						Loading:         usageSnap.Loading,
 						Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error),
@@ -5136,35 +5144,13 @@ func mainView(c *ui.Context) {
 								}
 							}()
 						},
-						OnSignOut: func() {
-							state.dshMu.Lock()
-							client := state.dshClient
-							state.dshMu.Unlock()
-							if client == nil {
-								return
-							}
-							go func() {
-								_, zoneOff := time.Now().Zone()
-								clientMeta := api.AccountClientMetadata{
-									Version:               "whaleisle",
-									Locale:                "zh-CN",
-									TimezoneOffsetSeconds: float64(zoneOff),
-								}
-								var view api.AccountView
-								if err := client.Call(context.Background(), "account/signOut", map[string]any{"client": clientMeta}, &view); err != nil {
-									log.Printf("account/signOut: %v", err)
-								}
-								if usageStore != nil {
-									sid := ""
-									if sessions != nil {
-										sid = sessions.Snapshot().SelectedID
-									}
-									usageStore.Refresh(context.Background(), sid)
-								}
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
+						OnSignOut: func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
+						OnConfirmSignOut: func() {
+							state.runAccountSignOut(win, func(ctx context.Context, meta any) { state.accountSignOut.Confirm(ctx, meta, signOutState.ReviewID) })
+						},
+						OnCancelSignOut: func() { state.accountSignOut.Cancel(signOutState.ReviewID) },
+						OnCheckSignOut: func() {
+							state.runAccountSignOut(win, func(ctx context.Context, meta any) { state.accountSignOut.Check(ctx, meta, signOutState.ReviewID) })
 						},
 						OnCancelSignIn: func() {
 							attemptID := strings.TrimSpace(usageSnap.AttemptID)
