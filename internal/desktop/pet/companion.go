@@ -39,6 +39,7 @@ type Companion struct {
 	OnRefreshGrowth func()
 	feeding         bool
 	feedMessage     string
+	OnOpenSettings  func()
 	OnOpenChat      func()
 	OnOpenSession   func(string)
 }
@@ -156,7 +157,11 @@ func (p *Companion) sync() {
 		p.assetMu.RUnlock()
 		switch taskAction(e.URL, task) {
 		case "hide":
-			p.close()
+			p.hide()
+		case "settings":
+			if p.OnOpenSettings != nil {
+				p.OnOpenSettings()
+			}
 		case "refresh-growth":
 			if p.OnRefreshGrowth != nil {
 				p.OnRefreshGrowth()

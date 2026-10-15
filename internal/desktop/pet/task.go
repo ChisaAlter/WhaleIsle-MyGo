@@ -71,10 +71,13 @@ func taskAction(raw string, task TaskStatus) string {
 	if raw == "whale-pet://localhost/feed-file" {
 		return "feed-file"
 	}
+	if raw == "whale-pet://localhost/settings" {
+		return "settings"
+	}
 	if raw == "whale-pet://localhost/chat" {
 		return "chat"
 	}
-	if u.Path == "/hide" && u.RawQuery == "" {
+	if raw == "whale-pet://localhost/hide" {
 		return "hide"
 	}
 	if task.SessionID != "" && raw == "whale-pet://localhost/open?session="+url.QueryEscape(task.SessionID) {
