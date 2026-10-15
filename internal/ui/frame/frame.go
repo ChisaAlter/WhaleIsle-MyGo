@@ -245,6 +245,8 @@ type Model struct {
 
 	Terminal           *termui.Panel
 	TerminalShellsNote string
+	OnAddSelectionToChat func(string) error
+	CanAddSelectionToChat bool
 
 	ConnectionBanner     string
 	OnReconnect          func()
@@ -940,6 +942,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				termui.View(c, termui.Model{
 					Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
+					OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
 				})
 			})
 		}

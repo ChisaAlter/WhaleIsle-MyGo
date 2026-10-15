@@ -22,6 +22,8 @@ type Panel struct {
 	Term *myterm.Terminal
 	Err  error
 	cwd  string
+	// Maximized uses 75% of the center column without overwriting its saved size.
+	Maximized bool
 
 	panes   []*terminalPane
 	groups  []*terminalGroup
@@ -95,6 +97,8 @@ type Model struct {
 	OnRestart  func()
 	// OnClose hides/removes the workspace panel once its last PTY is closed.
 	OnClose func()
+	OnAddToChat func(string) error
+	CanAddToChat bool
 }
 
 func terminalLabel(zh, en string) string {
@@ -138,6 +142,12 @@ func View(c *ui.Context, m Model) {
 	if p != nil && p.focused != 0 && p.focused != p.active {
 		p.activate(p.focused)
 	}
+	selection := ""
+	if p != nil && p.Term != nil {
+		if text, ok := p.Term.SelectionText(); ok {
+			selection = text
+		}
+	}
 
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
 		ui.Row(c).Padding(4, 8, 4, 8).Gap(6).AlignItems(ui.Center).Children(func() {
@@ -145,6 +155,13 @@ func View(c *ui.Context, m Model) {
 			if p != nil {
 				if ui.Button(c, i18n.T(i18n.KeyTerminalCopyCwd)).FontSize(11).Disabled(p.cwd == "").Clicked() {
 					mygo.Clipboard.WriteText(p.currentDirectory())
+				}
+				maximizeLabel := terminalLabel("最大化", "Maximize")
+				if p.Maximized {
+					maximizeLabel = terminalLabel("还原", "Restore")
+				}
+				if ui.Button(c, maximizeLabel).FontSize(11).Clicked() {
+					p.Maximized = !p.Maximized
 				}
 				if ui.Button(c, terminalLabel("新终端", "New terminal")).FontSize(11).Disabled(p.cwd == "").Clicked() {
 					_ = p.createPane(m.SystemDark, false, false)
@@ -173,6 +190,20 @@ func View(c *ui.Context, m Model) {
 		if p == nil {
 			ui.Text(c, i18n.T(i18n.KeyTerminalUnavailable)).FontSize(12).TextColor(muted).Padding(8, 12, 8, 12)
 			return
+		}
+		if fragment := FormatSelection(selection); fragment != "" {
+			ui.Row(c).Gap(6).Padding(4, 8, 4, 8).Children(func() {
+				if ui.Button(c, terminalLabel("复制所选文本", "Copy selection")).FontSize(11).Clicked() {
+					mygo.Clipboard.WriteText(selection)
+				}
+				if ui.Button(c, terminalLabel("添加到对话", "Add to chat")).FontSize(11).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+					if err := m.OnAddToChat(fragment); err != nil {
+						p.notice = err.Error()
+					} else {
+						p.notice = terminalLabel("已添加到对话草稿", "Added to the chat draft")
+					}
+				}
+			})
 		}
 		if p.notice != "" && len(p.panes) > 0 {
 			ui.Row(c).Gap(6).Children(func() {

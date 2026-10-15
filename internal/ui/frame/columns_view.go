@@ -86,6 +86,9 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 			main = DefaultLayout().Main
 		}
 		main = min(main, maxMain)
+		if m.Terminal != nil && m.Terminal.Maximized {
+			main = min(maxMain, maxf(min(float32(80), maxMain), height*0.25))
+		}
 	}
 	drag := ui.Local(col, "terminal-drag", func() paneDrag { return paneDrag{} })
 	col.Children(func() {
@@ -97,7 +100,12 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		minMain := min(float32(80), maxMain)
 		div := ui.Box(c).Height(SplitterWidth).Shrink(0).Focusable().Role(ui.RoleSplitter).
 			Label("Terminal pane divider").Range(float64(minMain), float64(maxMain), float64(main)).Step(10)
-		setMain := func(value float32) { m.Sizes.Main = min(maxf(minMain, value), maxMain) }
+		setMain := func(value float32) {
+			if m.Terminal != nil {
+				m.Terminal.Maximized = false
+			}
+			m.Sizes.Main = min(maxf(minMain, value), maxMain)
+		}
 		if div.Shortcut(0, ui.KeyUp) {
 			setMain(main - 10)
 		}

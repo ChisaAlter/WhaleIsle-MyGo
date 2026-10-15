@@ -6253,6 +6253,8 @@ func mainView(c *ui.Context) {
 					},
 					Terminal:           termPanel,
 					TerminalShellsNote: termShellsNote,
+					CanAddSelectionToChat: sessions != nil && snap.SelectedID != "" && !activeDraft.Sending,
+					OnAddSelectionToChat: func(fragment string) error { return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment) },
 					BrowserContent: func(c *ui.Context) {
                         if state.browserController == nil { state.browserController = state.newBrowserController(win) }
                         state.browserController.ViewDocked(c,themeID,mygo.Theme.IsDark(),func(){rightPaneTab="files";state.browserController.Hide()})
