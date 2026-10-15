@@ -8,6 +8,9 @@ import (
 )
 
 type Model struct {
+	Documents                                                            *projectflow.DocumentSnapshot
+	OnDocuments                                                          func(string)
+	OnDocumentAction                                                     func(string, string)
 	RefreshNote                                                          string
 	ProcessWatching                                                      bool
 	OnStopProcess                                                        func()
@@ -109,6 +112,10 @@ func View(c *ui.Context, m Model) {
 			archiveConfirmation(c, m)
 			return
 		}
+		if m.Documents != nil {
+			documentsView(c, m)
+			return
+		}
 		if m.Reports != nil {
 			reportsView(c, m)
 			return
@@ -176,6 +183,9 @@ func View(c *ui.Context, m Model) {
 								}
 							}
 						})
+						if ui.Button(c, tr("项目资料", "Project documents")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnDocuments != nil {
+							m.OnDocuments(p.ID)
+						}
 						if ui.Button(c, tr("历史报告", "Recorded reports")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnReports != nil {
 							m.OnReports(p.ID)
 						}

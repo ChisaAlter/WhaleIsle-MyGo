@@ -14,6 +14,7 @@ import (
 )
 
 type projectFlowState struct {
+	documents                     *projectDocumentState
 	refreshLoop                   *projectRefreshLoop
 	refreshNote                   string
 	processCancel                 context.CancelFunc
@@ -50,6 +51,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.closeProjectDocumentsLocked()
 		s.stopProjectRefreshLocked()
 		s.stopProjectProcessLocked()
 		expanded := f.expanded
@@ -84,6 +86,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
 		if !s.projectFlow.expanded {
+			s.closeProjectDocumentsLocked()
 			s.stopProjectRefreshLocked()
 			s.stopProjectProcessLocked()
 		}
@@ -191,6 +194,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnCancelArchive = func() { s.mu.Lock(); s.projectFlow.archiveCandidate = nil; s.mu.Unlock() }
 	s.bindProjectHistory(win, &m)
 	s.bindProjectMaterials(win, &m)
+	s.bindProjectDocuments(win, &m)
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
