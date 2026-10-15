@@ -18,7 +18,7 @@
     document.querySelector('.task').style.maxHeight = 'calc(100vh - ' + Math.ceil(130 * scale) + 'px)';
     for (const character of [canvas, fallback]) {
       character.style.opacity = String(opacity);
-      character.style.setProperty('--app-region', settings.lockPosition || (settings.shiftToDrag && !shiftHeld) ? 'no-drag' : 'drag');
+      character.style.setProperty('--app-region', 'no-drag');
     }
   }
   function modifier(event) { const next = !!event.shiftKey; if (shiftHeld !== next) {shiftHeld = next; applySettings();} }
@@ -57,6 +57,7 @@
     if (document.querySelector("#sprite:hover,#fallback:hover,.task:hover,#pet-bubble:hover")) motionContact();
   }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null;
+  const interactionController = window.WhalePetInteraction.create({characters: [canvas, fallback], getSettings: () => settings, isSleeping: () => sleeping});
   behaviorController = window.WhalePetBehavior?.create({
     bubble: document.getElementById('pet-bubble'), getSettings: () => settings,
     getStatus: () => currentTask, isSleeping: () => sleeping,
@@ -79,6 +80,7 @@
   const stop = () => {
     stopped = true; resumeRenderer = null;
     behaviorController?.close();
+    interactionController.close();
     if (clickAudio) void clickAudio.close().catch(() => {});
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer); clearInterval(contactTimer);
     if (engine) void engine.close().catch(() => {});
@@ -198,10 +200,7 @@
       if (document.hidden || busy || now-last < (behaviorController?.powerSaving(now)?110:50)) return;
       last=now; busy=true;
       try {
-        const t=now/1000;
-        pose.fill(0); pose[44]=0.4*Math.sin(t*1.5);pose[42]=0.35*Math.sin(t*0.7);pose[43]=0.3*Math.sin(t*0.6);
-        pose[39]=0.18*Math.sin(t*1.1);pose[40]=0.14*Math.sin(t*1.3);pose[41]=0.08*Math.sin(t*0.55);
-        const blink=t%4;pose[12]=pose[13]=blink<0.24?Math.sin(blink/0.24*Math.PI):0;
+        interactionController.pose(pose);
         const pixels=await engine.frame(pose);
         if (!pixels || stopped || sleeping || document.hidden) return;
         let alphaMax=0;for(let i=3;i<pixels.length;i+=4)alphaMax=Math.max(alphaMax,pixels[i]);

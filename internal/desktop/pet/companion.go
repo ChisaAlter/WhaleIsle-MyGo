@@ -13,7 +13,7 @@ import (
 	"whaleisle/internal/config"
 )
 
-//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a
@@ -44,6 +44,7 @@ type Companion struct {
 	growthClock               restClock
 	growthAutomatic           bool
 	motion                    motionState
+	interaction               interactionState
 	rest                      restState
 	restClock                 restClock
 	OnRefreshGrowth           func()
@@ -127,6 +128,7 @@ func (p *Companion) close() {
 	p.clearNotifications()
 	p.CloseQuickChat()
 	p.stopMotion()
+	p.stopInteraction()
 	p.assetMu.Lock()
 	p.chat.close()
 	p.look.close()
@@ -199,6 +201,9 @@ func (p *Companion) sync() {
 		p.assetMu.RLock()
 		task := p.task
 		p.assetMu.RUnlock()
+		if p.interactionAction(e.URL) {
+			return
+		}
 		if p.notificationAction(e.URL) {
 			return
 		}
@@ -256,17 +261,20 @@ func (p *Companion) sync() {
 			p.assetMu.Unlock()
 			p.startRestClock()
 			p.startGrowthClock()
+			p.startInteraction()
 		}
 	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) { p.Error = err.Error(); p.close() })
 	w.OnHide(func() {
 		if p.win == w {
+			p.stopInteraction()
 			p.stopGrowthClock()
 			p.stopRestClock()
 		}
 	})
 	w.OnShow(func() {
 		if p.win == w {
+			p.startInteraction()
 			p.startRestClock()
 			p.startGrowthClock()
 		}
@@ -288,6 +296,7 @@ func (p *Companion) sync() {
 			p.clearNotifications()
 			p.CloseQuickChat()
 			p.stopMotion()
+			p.stopInteraction()
 			p.win = nil
 			p.assetMu.Lock()
 			p.chat.close()
@@ -310,6 +319,9 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'")
+	if p.serveInteraction(w, r) {
+		return
+	}
 	if p.serveNotifications(w, r) {
 		return
 	}
@@ -349,7 +361,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/pet-dialogue.json":
 		body, _ = assets.ReadFile("assets/pet-dialogue.json")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	case "/tha4.js", "/pet-runtime.js", "/pet-behavior.js":
+	case "/tha4.js", "/pet-runtime.js", "/pet-interaction.js", "/pet-behavior.js":
 		body, _ = assets.ReadFile("assets" + r.URL.Path)
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":
