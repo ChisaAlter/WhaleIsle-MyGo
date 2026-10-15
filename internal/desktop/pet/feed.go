@@ -11,9 +11,11 @@ import (
 )
 
 type CareStatus struct {
-	Label   string
-	Busy    bool
-	Message string
+	Label          string
+	Busy           bool
+	Message        string
+	Satiety        float64
+	AffectionLevel int
 }
 
 func (p *Companion) careStatus() CareStatus {
@@ -27,7 +29,13 @@ func (p *Companion) careStatus() CareStatus {
 	if message == "" {
 		message = "不读取内容，不修改文件 / Files stay untouched"
 	}
-	return CareStatus{Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
+	level := 1
+	for _, threshold := range []float64{40, 120, 260, 520} {
+		if stats.Affection >= threshold {
+			level++
+		}
+	}
+	return CareStatus{Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
 }
 func renderCarePage(page []byte, care CareStatus) []byte {
 	return []byte(strings.NewReplacer("{{CARE_LABEL}}", html.EscapeString(care.Label), "{{CARE_MESSAGE}}", html.EscapeString(care.Message)).Replace(string(page)))

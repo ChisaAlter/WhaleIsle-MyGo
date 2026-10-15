@@ -5,6 +5,7 @@
   const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
   const notice = document.getElementById('render-notice');
   let settings = {}, shiftHeld = false, clickAudio = null;
+  let behaviorController = null, currentTask = {};
   try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
   function applySettings(next) {
     if (next && typeof next === 'object') settings = next;
@@ -41,7 +42,22 @@
   });
   applySettings(settings);
   let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
+  let contactTimer = 0, lastNativeContact = -Infinity;
+  function motionContact() {
+    const now = performance.now();
+    if (stopped || document.hidden || now - lastNativeContact < 1000) return;
+    lastNativeContact = now;
+    location.href = "whale-pet://localhost/motion-contact";
+  }
+  for (const event of ["pointerdown", "pointerover", "focusin", "keydown"]) document.addEventListener(event, motionContact);
+  contactTimer = setInterval(() => {
+    if (document.querySelector("#sprite:hover,#fallback:hover,.task:hover,#pet-bubble:hover")) motionContact();
+  }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null;
+  behaviorController = window.WhalePetBehavior?.create({
+    bubble: document.getElementById('pet-bubble'), getSettings: () => settings,
+    getStatus: () => currentTask, isSleeping: () => sleeping,
+  });
   function setSleeping(next) {
     if (stopped || sleeping === next) return;
     sleeping = next;
@@ -59,8 +75,9 @@
   fallback.addEventListener('pointerenter', contactWake);
   const stop = () => {
     stopped = true; resumeRenderer = null;
+    behaviorController?.close();
     if (clickAudio) void clickAudio.close().catch(() => {});
-    cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer);
+    cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer); clearInterval(contactTimer);
     if (engine) void engine.close().catch(() => {});
   };
   window.addEventListener('pagehide', stop, { once: true });
@@ -71,6 +88,7 @@
       if (!response.ok) throw new Error('status unavailable');
       const task = await response.json();
       if (stopped) return;
+      currentTask = task;
       applySettings(task.Behavior);
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
@@ -99,6 +117,7 @@
       if (task.Look?.Busy) look.removeAttribute('href'); else look.setAttribute('href', 'look-screen');
       document.getElementById('pet-look-status').textContent = task.Look?.Message || '';
       setSleeping(task.Rest?.Sleeping === true);
+      behaviorController?.applySettings(settings);
       const rest = document.getElementById('rest-pet');
       rest.textContent = task.Rest?.Label || '睡觉 / Sleep';
       rest.setAttribute('aria-disabled', String(!!task.Care?.Busy));
@@ -116,23 +135,24 @@
   }
   taskTimer = setTimeout(taskTick, 1500);
   function spriteFallback() {
-    const sheet = new Image(); let frame = 0, lastInteraction=performance.now();
+    const sheet = new Image(); let frame = 0;
     const paint = () => { ctx.clearRect(0,0,192,208); ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208); };
     function start() {
       if (stopped || sleeping || document.hidden || spriteTimer || !sheet.naturalWidth) return;
-      spriteTimer=setInterval(() => {
-        if (sleeping || document.hidden || performance.now()-lastInteraction>90000) {clearInterval(spriteTimer);spriteTimer=0;return;}
-        frame=(frame+1)%8;paint();
-      },120);
+      spriteTimer=setTimeout(() => {
+        spriteTimer=0;
+        if (stopped || sleeping || document.hidden) return;
+        frame=(frame+1)%8;paint();start();
+      },behaviorController?.powerSaving(performance.now()) ? 240 : 120);
     }
     sheet.onload = () => {
       if (stopped) return;
       canvas.width=192; canvas.height=208;
       paint();canvas.hidden=false;fallback.hidden=true;start();
     };
-    document.addEventListener('pointermove',()=>{lastInteraction=performance.now();start();});
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastInteraction=performance.now();start();}});
-    resumeRenderer = () => {lastInteraction=performance.now();start();};
+    document.addEventListener('pointermove',start);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)start();});
+    resumeRenderer = start;
     sheet.src='sprite.webp';
   }
   if (document.body.dataset.neural !== 'true') { spriteFallback(); return; }
@@ -161,15 +181,14 @@
     session=null; // Engine owns disposal from now on.
     const output=sourceCtx.createImageData(512,512), pose=new Float32Array(45);
     canvas.width=390; canvas.height=492;
-    let last=0, busy=false, first=true, lastInteraction=performance.now();
-    document.addEventListener('pointermove',()=>{lastInteraction=performance.now();});
+    let last=0, busy=false, first=true;
     // Upstream's 20fps inference budget; no backlog when a frame is slower.
     // WASM remains adaptive rather than silently capped to an unusable 4fps.
     async function tick(now) {
       raf=0;
       if (stopped || sleeping) return;
       raf=requestAnimationFrame(tick);
-      if (document.hidden || busy || now-last < (now-lastInteraction>300000?110:50)) return;
+      if (document.hidden || busy || now-last < (behaviorController?.powerSaving(now)?110:50)) return;
       last=now; busy=true;
       try {
         const t=now/1000;
@@ -192,7 +211,7 @@
     // No concurrent session.run; rAF callbacks already queued are canceled on failure.
     resumeRenderer = () => {
       if (!stopped && !sleeping && !raf) {
-        lastInteraction=performance.now(); last=0; raf=requestAnimationFrame(tick);
+        last=0; raf=requestAnimationFrame(tick);
       }
     };
     resumeRenderer();

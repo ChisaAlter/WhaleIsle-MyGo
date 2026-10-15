@@ -9,7 +9,7 @@ import (
 
 func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Desktop companion / 桌面宠物").FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, "Independent sprite window. Default off. Drag the character to move it; position is restored on restart. / 独立图集宠物窗，默认关闭；拖动角色移动，重启恢复位置。").FontSize(12).TextColor(muted)
+	ui.Text(c, "Independent sprite window. Default off. Drag the character to move it; the last deliberate drag position is restored on restart. / 独立图集宠物窗，默认关闭；拖动角色移动，重启恢复最后一次手动位置，自主移动不覆盖它。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Shows the selected task. Pet chat opens Whale’s own saved conversation without sending a message; Open chat returns to the task. / 显示当前任务；和宠物聊聊打开鲸鱼娘专属持久会话，不自动发送消息。回到会话仍返回当前任务。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Feed file opens a native picker and changes only saved care stats; selected files stay untouched. / 喂文件只保存饱食/心情变化，不读取或改动所选文件。").FontSize(12).TextColor(muted)
 	ui.Text(c, "Refresh bowl reads this app’s actual usage. Feed Token spends local game food only, never API credit. / 刷新粮碗读取本应用真实用量；喂 Token 只消费本地游戏粮点，不扣账户余额。").FontSize(12).TextColor(muted)
@@ -38,6 +38,14 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 		}
 		p.Behavior = config.NormalizePetBehavior(p.Behavior)
 	})
+	ui.Text(c, "Personality / 性格").FontSize(12).TextColor(fg)
+	ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth()
+	ui.Text(c, "natural 自然 · genki 元气 · tsundere 傲娇 · poison 毒舌").FontSize(11).TextColor(muted)
+	ui.Text(c, "Activity / 活跃程度（quiet 安静 / balanced 均衡 / active 活泼）").FontSize(12).TextColor(fg)
+	ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth()
+	ui.Checkbox(c, &p.Behavior.Wander, "Wander around / 自主移动")
+	ui.Checkbox(c, &p.Behavior.SelfTalk, "Idle self-talk / 自言自语")
+	ui.Checkbox(c, &p.Behavior.PowerSave, "Power save after five idle minutes / 闲置五分钟后省电")
 	ui.Checkbox(c, &p.Behavior.LockPosition, "Lock position / 锁定拖动")
 	ui.Checkbox(c, &p.Behavior.ShiftToDrag, "Hold Shift to drag / 按住 Shift 拖动")
 	ui.Checkbox(c, &p.Behavior.ClickSound, "Click sound / 点击音效")

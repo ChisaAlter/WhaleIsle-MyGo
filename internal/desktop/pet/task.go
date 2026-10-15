@@ -54,6 +54,9 @@ func taskAction(raw string, task TaskStatus) string {
 	if err != nil || u.Scheme != "whale-pet" || u.Host != "localhost" || u.User != nil || u.Fragment != "" {
 		return ""
 	}
+	if raw == "whale-pet://localhost/motion-contact" {
+		return "motion-contact"
+	}
 	if raw == "whale-pet://localhost/refresh-growth" {
 		return "refresh-growth"
 	}

@@ -13,7 +13,7 @@ import (
 	"whaleisle/internal/config"
 )
 
-//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/render-manifest.json
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a
@@ -37,6 +37,7 @@ type Companion struct {
 	chat            chatEntry
 	look            lookEntry
 	growth          chatEntry
+	motion          motionState
 	rest            restState
 	OnRefreshGrowth func()
 	feeding         bool
@@ -94,6 +95,7 @@ func (p *Companion) Save() {
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }
 func (p *Companion) close() {
+	p.stopMotion()
 	p.assetMu.Lock()
 	p.chat.close()
 	p.look.close()
@@ -143,16 +145,17 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, StateKey: "mygo-desktop-pet", Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = "Companion window could not open / 桌宠窗口创建失败"
 		p.close()
 		return
 	}
 	p.win = w
-	// StateKey restores older window sizes as well as position. Keep all action
-	// links reachable when an existing installation restores the shorter card.
+	// Apply the footprint before restoring the deliberate drag anchor. Roaming
+	// is transient and must not be saved by MyGo automatic window state.
 	w.SetSize(220, petWindowHeight(cfg.Behavior))
+	p.startMotion(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
 			return
@@ -164,7 +167,13 @@ func (p *Companion) sync() {
 		p.assetMu.RLock()
 		task := p.task
 		p.assetMu.RUnlock()
-		switch taskAction(e.URL, task) {
+		action := taskAction(e.URL, task)
+		if action != "" {
+			p.motionContact()
+		}
+		switch action {
+		case "motion-contact":
+			// Contact only: no page-provided coordinates or native move API.
 		case "hide":
 			p.hide()
 		case "look-screen":
@@ -216,6 +225,7 @@ func (p *Companion) sync() {
 	// Explicit disable belongs to the main settings page, including on quit.
 	w.OnClosed(func() {
 		if p.win == w {
+			p.stopMotion()
 			p.win = nil
 			p.assetMu.Lock()
 			p.chat.close()
@@ -269,7 +279,10 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}{p.task, behavior, p.chat.status, p.look.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
-	case "/tha4.js", "/pet-runtime.js":
+	case "/pet-dialogue.json":
+		body, _ = assets.ReadFile("assets/pet-dialogue.json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	case "/tha4.js", "/pet-runtime.js", "/pet-behavior.js":
 		body, _ = assets.ReadFile("assets" + r.URL.Path)
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":
