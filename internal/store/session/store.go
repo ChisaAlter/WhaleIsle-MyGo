@@ -69,6 +69,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	QuestionProjection   QuestionProjectionState
 	ArchiveConfirmation  *ArchiveConfirmation
 	SlashCommands        []api.ListResultItem2
 	SlashCommandsLoading bool
@@ -140,6 +141,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	questionProjections       map[string]QuestionProjectionState
 	permissionRisk            *permissionRiskOperation
 	permissionRiskToken       uint64
 	assistantStream           assistantStreamState
@@ -240,6 +242,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.questionProjections = nil
 		s.permissionOptions = nil
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
@@ -369,6 +372,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.questionProjections = nil
 	s.invalidateArchiveLocked()
 	s.invalidateCommandsLocked()
 	s.resetWorkspaceLocked()
@@ -414,6 +418,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		QuestionProjection:  s.questionProjectionLocked(),
 		ArchiveConfirmation: s.archiveConfirmationLocked(),
 		QueueEditor:         s.queueEditorSnapshotLocked(),
 		CostSources:         s.costSourcesLocked(),

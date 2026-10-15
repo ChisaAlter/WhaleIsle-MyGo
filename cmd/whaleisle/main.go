@@ -1935,6 +1935,8 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		if sessions != nil {
 			sessions.FollowWorkspace(ctx)
 			sessions.FollowSelected(ctx)
+			sessions.WatchControl(ctx)
+			sessions.RefreshProjections(ctx)
 		}
 		go settingsstore.WatchAnalyticsPolicy(ctx, mux, func(on bool) {
 			s.mu.Lock()

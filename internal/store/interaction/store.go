@@ -20,11 +20,12 @@ const (
 
 // Pending is one waterfall waiting for a UI or policy answer.
 type Pending struct {
-	EventID string
-	Event   string
-	AgentID string
-	Title   string
-	Detail  string
+	Continued bool // durable late-answer card; submits only through userQuestions/answer
+	EventID   string
+	Event     string
+	AgentID   string
+	Title     string
+	Detail    string
 	// Args is a monospace preview of tool input (approval cards).
 	Args string
 	// CallID is the harness tool call id when present.
@@ -35,26 +36,28 @@ type Pending struct {
 
 // ViewState is UI-safe interaction state.
 type ViewState struct {
-	AutoAllow     bool
-	Banner        string
-	Pending       []Pending
-	QuestionCards map[string]QuestionCardView
+	QuestionStatus string
+	AutoAllow      bool
+	Banner         string
+	Pending        []Pending
+	QuestionCards  map[string]QuestionCardView
 }
 
 // Store serializes waterfall handlers with the main-thread UI.
 type Store struct {
-	mu             sync.Mutex
-	notify         func()
-	client         *dsh.Client
-	mux            *dsh.Mux
-	autoAllow      bool
-	banner         string
-	pending        []Pending
-	waiters        map[string]chan dsh.EventResultOutcome
-	responses      map[string]dsh.EventResultOutcome
-	cancelled      map[string]bool
-	questionDrafts map[string]*draftSession
-	waitCancels    map[string]context.CancelFunc
+	questionRecovery questionRecovery
+	mu               sync.Mutex
+	notify           func()
+	client           *dsh.Client
+	mux              *dsh.Mux
+	autoAllow        bool
+	banner           string
+	pending          []Pending
+	waiters          map[string]chan dsh.EventResultOutcome
+	responses        map[string]dsh.EventResultOutcome
+	cancelled        map[string]bool
+	questionDrafts   map[string]*draftSession
+	waitCancels      map[string]context.CancelFunc
 }
 
 // New returns an interaction store with manual tool approval (Electron default).
@@ -80,6 +83,7 @@ func (s *Store) Attach(notify func()) {
 // Detach clears pending state when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetQuestionRecoveryLocked()
 	s.client = nil
 	s.mux = nil
 	for id, cancel := range s.waitCancels {
@@ -143,6 +147,10 @@ func (s *Store) ResolveDeny(eventID string) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
 	question := p != nil && p.Event == EventUserQuestions
+	if p != nil && p.Continued {
+		s.mu.Unlock()
+		return
+	}
 	s.mu.Unlock()
 	if question {
 		s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "User declined to answer"}})
@@ -160,7 +168,13 @@ func (s *Store) ResolveQuestions(eventID string) {
 		return
 	}
 	answer := ds.buildAnswer()
+	p := s.findPending(eventID)
+	continued := p != nil && p.Continued
 	s.mu.Unlock()
+	if continued {
+		s.resolveContinuedQuestions(eventID, answer)
+		return
+	}
 
 	raw, err := json.Marshal(answer)
 	if err != nil {
@@ -351,8 +365,11 @@ func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 	retry := false
 	if p != nil {
 		if err == nil {
+			agentID := p.AgentID
+			s.questionWaterfallDeliveredLocked(*p, s.responses[result.EventID])
 			delete(s.waiters, result.EventID)
 			s.dropPending(result.EventID)
+			s.reconcileProjectedQuestionsLocked(agentID)
 		} else {
 			p.Sending = false
 			p.Error = err.Error()
@@ -367,6 +384,11 @@ func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 func (s *Store) Retry(eventID string) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
+	if p != nil && p.Continued {
+		s.mu.Unlock()
+		s.ResolveQuestions(eventID)
+		return
+	}
 	outcome, ok := s.responses[eventID]
 	ok = ok && p != nil && p.Error != ""
 	s.mu.Unlock()
@@ -389,10 +411,16 @@ func (s *Store) SnapshotForAgent(agentID string) ViewState {
 		}
 	}
 	snap.Pending, snap.QuestionCards = pending, cards
+	s.mu.Lock()
+	if p := s.questionRecovery.agents[agentID]; p != nil {
+		snap.QuestionStatus = p.status
+	}
+	s.mu.Unlock()
 	return snap
 }
 
 func (s *Store) dropPending(eventID string) {
+	s.rememberQuestionDraftLocked(eventID)
 	if eventID == "" {
 		s.pending = nil
 		s.questionDrafts = make(map[string]*draftSession)
@@ -528,7 +556,7 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 		return &out, nil
 	}
 	s.waiters[wf.EventID] = ch
-	s.questionDrafts[wf.EventID] = newDraftSession(req)
+	s.questionDrafts[wf.EventID] = s.liveQuestionDraftLocked(wf.AgentID, callID, req)
 	waitCtx, cancelWait := context.WithCancel(context.Background())
 	s.waitCancels[wf.EventID] = cancelWait
 	s.pending = append(s.pending, Pending{
@@ -557,7 +585,12 @@ func (s *Store) OnCancel(c dsh.EventsCancel) {
 	if ok {
 		delete(s.waiters, c.EventID)
 	}
+	agentID := ""
+	if p := s.findPending(c.EventID); p != nil {
+		agentID = p.AgentID
+	}
 	s.dropPending(c.EventID)
+	s.reconcileProjectedQuestionsLocked(agentID)
 	s.mu.Unlock()
 	if ok {
 		select {

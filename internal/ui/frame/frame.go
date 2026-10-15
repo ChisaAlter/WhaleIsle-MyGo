@@ -300,6 +300,9 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
 	snap := m.Store.Snapshot()
+	if m.Interactions != nil {
+		m.Interactions.SyncProjectedQuestions(snap.SelectedID, snap.QuestionProjection.Questions, snap.QuestionProjection.Inbox, snap.QuestionProjection.QuestionsSeq, snap.QuestionProjection.InboxSeq)
+	}
 	if m.Sizes == nil {
 		fallback := DefaultLayout()
 		m.Sizes = &fallback
@@ -453,7 +456,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 		// Electron desktop defaults to 2-column (rail | chat). Files/diff mounts
 		// only when FilePaneWidth > 0 (tools toggle); otherwise chat fills.
 		paintChat := func() {
-			emptyHero := len(snap.Messages) == 0
+			emptyHero := len(snap.Messages) == 0 && !hasSessionInteractions(m.Interactions, snap.SelectedID)
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {

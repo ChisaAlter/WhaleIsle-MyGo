@@ -31,7 +31,7 @@ func View(c *ui.Context, m Model) {
 	snap := m.Snapshot
 	// Idle in manual mode: omit strip. Auto-allow on → banner (toggle to manual).
 	// Pending → approval / question cards.
-	if snap.Banner == "" && len(snap.Pending) == 0 && !snap.AutoAllow {
+	if snap.Banner == "" && len(snap.Pending) == 0 && snap.QuestionStatus == "" && !snap.AutoAllow {
 		return
 	}
 	th := theme.Resolve(m.ThemeID)
@@ -60,6 +60,10 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 		}
+		if snap.QuestionStatus != "" {
+			text := questionStatusText(snap.QuestionStatus)
+			ui.Text(c, text).FontSize(12).TextColor(muted)
+		}
 		for _, p := range snap.Pending {
 			pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent)
 		}
@@ -70,6 +74,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	ui.Column(c).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
 		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
+			if p.Continued {
+				ui.Text(c, questionStatusText("continued")).FontSize(11).TextColor(muted)
+			}
 			if card, ok := snap.QuestionCards[p.EventID]; ok {
 				questionsBody(c, p.EventID, card, store, fg, muted)
 			}
@@ -110,15 +117,21 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			switch p.Event {
 			case interaction.EventUserQuestions:
 				canSubmit := store.QuestionsCanSubmit(p.EventID)
-				btn := ui.Button(c, i18n.T(i18n.KeyInteractionContinue))
+				label := i18n.T(i18n.KeyInteractionContinue)
+				if p.Continued {
+					label = questionStatusText("submit")
+				}
+				btn := ui.Button(c, label)
 				if !canSubmit {
 					btn = btn.Disabled(true)
 				}
 				if btn.Clicked() && canSubmit {
 					store.ResolveQuestions(p.EventID)
 				}
-				if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
-					store.ResolveDeny(p.EventID)
+				if !p.Continued {
+					if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
+						store.ResolveDeny(p.EventID)
+					}
 				}
 			default:
 				if ui.Button(c, i18n.T(i18n.KeyInteractionAllow)).Clicked() {
@@ -190,5 +203,31 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 				store.SetQuestionSingleSelect(eventID, row.ID, *ptr)
 			}
 		})
+	}
+}
+
+func questionStatusText(status string) string {
+	zh := i18n.Locale() == i18n.LocaleZH
+	switch status {
+	case "continued":
+		if zh {
+			return "等待已结束，任务已继续；你仍可补充回答。"
+		}
+		return "The wait ended and work continued. You can still send a late answer."
+	case "submit":
+		if zh {
+			return "发送补充回答"
+		}
+		return "Send late answer"
+	case "submitted":
+		if zh {
+			return "补充回答已提交。"
+		}
+		return "Late answer submitted."
+	default:
+		if zh {
+			return "此问题已不再接受补充回答。"
+		}
+		return "This question no longer accepts a late answer."
 	}
 }

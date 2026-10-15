@@ -3,7 +3,6 @@ package interaction
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"whaleisle/internal/dsh"
@@ -13,29 +12,18 @@ import (
 // AttachClient binds an optional dsh client for userQuestions/* RPC (waterfall remains primary).
 func (s *Store) AttachClient(client *dsh.Client, mux *dsh.Mux) {
 	s.mu.Lock()
+	if s.client != client {
+		s.resetQuestionRecoveryLocked()
+	}
 	s.client = client
 	s.mux = mux
 	s.mu.Unlock()
 }
 
-// AnswerUserQuestionsRPC best-effort calls userQuestions/answer alongside waterfall resolve.
+// AnswerUserQuestionsRPC submits a recovered continued question. Live requests
+// retain their waterfall outcome contract and never send a duplicate RPC.
 func (s *Store) AnswerUserQuestionsRPC(ctx context.Context, agentID, callID string, answer api.AskUserQuestionAnswer) {
-	agentID = strings.TrimSpace(agentID)
-	callID = strings.TrimSpace(callID)
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || callID == "" {
-		return
-	}
-	go func() {
-		var out api.AnswerResult
-		_ = client.Call(ctx, "userQuestions/answer", map[string]any{
-			"agentId": agentID,
-			"callId":  callID,
-			"answer":  answer,
-		}, &out)
-	}()
+	s.submitQuestionAnswer(ctx, agentID, callID, answer)
 }
 
 // attachQuestionWait holds the timed Host claim until answer, cancellation, or timeout.
