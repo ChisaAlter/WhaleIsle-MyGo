@@ -123,7 +123,8 @@ func (s *Store) CloseAgentNavigation() {
 }
 
 // OpenAgentNavigation is called only by an explicit click on a current catalog
-// row. The original Host may activate a prepared Session when following it.
+// row. Addressed subagent follow only observes history; the Host promotes
+// prepared Sessions only for ordinary kind:"session" addresses.
 func (s *Store) OpenAgentNavigation(token uint64, address AgentSessionAddress) {
 	s.mu.Lock()
 	n := &s.agentNavigation

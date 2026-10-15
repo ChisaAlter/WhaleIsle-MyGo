@@ -17,9 +17,9 @@ type RoutineCreateModel struct {
 
 func routineCreateImpact(enabled bool) string {
 	if enabled {
-		return "将创建并启用每日例行任务。Host 会计算下次时间并自动调度，Bot 可能执行工具、发送外部消息并产生模型费用；本次保存不会额外调用立即运行。"
+		return "将创建并启用例行任务。Host 会计算下次时间并自动调度，Bot 可能执行工具、发送外部消息并产生模型费用；本次保存不会额外调用立即运行。"
 	}
-	return "将创建暂停的每日例行任务，后续须单独确认启用才会自动调度。本次保存不会调用立即运行；启用后可能执行工具、发送外部消息并产生模型费用。"
+	return "将创建暂停的例行任务，后续须单独确认启用才会自动调度。本次保存不会调用立即运行；启用后可能执行工具、发送外部消息并产生模型费用。"
 }
 func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	w := m.RoutineCreate
@@ -47,9 +47,42 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		}
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
-		ui.Text(c, "每日任务 / Daily · 默认09:00、暂停、次数不限；不设置watch或跨任务上下文。").FontSize(11).TextColor(muted)
+		ui.Text(c, "支持每日、延迟一次、固定间隔；默认暂停、次数不限，无watch或跨任务上下文。").FontSize(11).TextColor(muted)
+		frequency := d.Frequency
+		if frequency == "" {
+			frequency = "daily"
+		}
+		ui.Text(c, "类型 / Frequency: "+routineCreateFrequencyLabel(frequency)).FontSize(12).TextColor(fg)
+		ui.Row(c).Gap(8).Children(func() {
+			for _, choice := range []string{"daily", "once", "interval"} {
+				choice := choice
+				if ui.Button(c, routineCreateFrequencyLabel(choice)).Disabled(disabled || frequency == choice).Clicked() && w.OnChange != nil {
+					w.OnChange("frequency", choice)
+				}
+			}
+		})
+		ui.Text(c, routineCreateTimingHint(frequency)).FontSize(11).TextColor(muted)
 		ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · revision %d", w.HostLabel, w.BotName, s.Scope.BotID, d.Revision)).FontSize(11).TextColor(muted).Selectable()
-		for _, f := range []struct{ id, label, value string }{{"name", "新任务名称 / New routine name", d.Name}, {"hour", "小时 / Hour (00–23)", d.Hour}, {"minute", "分钟 / Minute (00–59)", d.Minute}, {"timezone", "时区 / IANA timezone (例如 Asia/Shanghai)", d.Timezone}, {"maxRuns", "执行次数上限 / Max runs (0 = unlimited)", d.MaxRuns}} {
+		fields := []struct{ id, label, value string }{{"name", "新任务名称 / New routine name", d.Name}}
+		switch frequency {
+		case "once":
+			fields = append(fields, struct{ id, label, value string }{"onceDelay", "延迟 / Delay (例如 30m、1h、1d)", d.OnceDelay})
+		case "interval":
+			fields = append(fields, struct{ id, label, value string }{"intervalAmount", "间隔数量 / Interval amount (positive integer)", d.IntervalAmount})
+			ui.Text(c, "间隔单位 / Interval unit: "+d.IntervalUnit).FontSize(11).TextColor(muted)
+			ui.Row(c).Gap(8).Children(func() {
+				for _, choice := range []struct{ id, label string }{{"m", "分钟 / Minutes"}, {"h", "小时 / Hours"}, {"d", "天 / Days"}} {
+					choice := choice
+					if ui.Button(c, choice.label).Disabled(disabled || d.IntervalUnit == choice.id).Clicked() && w.OnChange != nil {
+						w.OnChange("intervalUnit", choice.id)
+					}
+				}
+			})
+		default:
+			fields = append(fields, struct{ id, label, value string }{"hour", "小时 / Hour (00–23)", d.Hour}, struct{ id, label, value string }{"minute", "分钟 / Minute (00–59)", d.Minute})
+		}
+		fields = append(fields, struct{ id, label, value string }{"timezone", "时区 / IANA timezone (例如 Asia/Shanghai)", d.Timezone}, struct{ id, label, value string }{"maxRuns", "执行次数上限 / Max runs (0 = unlimited)", d.MaxRuns})
+		for _, f := range fields {
 			f := f
 			value := f.value
 			ui.TextInput(c.Key("create-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
@@ -107,6 +140,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Column(c.Key("create-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
 				ui.Text(c, "确认创建 / Review creation").FontSize(13).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s\nName: %s · revision %d\nPrompt: %s\nSchedule: %s · %s\nEnabled: %t · Max runs: %s", w.HostLabel, w.BotName, cmd.BotID, cmd.SessionID, cmd.Edit.Name, cmd.Revision, cmd.Edit.Prompt, cmd.Edit.Schedule, cmd.Edit.Timezone, cmd.Edit.Enabled, routineLimit(cmd.Edit.MaxRuns))).FontSize(12).TextColor(fg).Selectable()
+				ui.Text(c, "类型 / Frequency: "+routineCreateFrequencyLabel(frequency)+"\n"+routineCreateTimingHint(frequency)).FontSize(12).TextColor(fg)
 				ui.Text(c, routineCreateImpact(cmd.Edit.Enabled)).FontSize(12).TextColor(accent)
 				ui.Text(c, "无watch、无跨任务上下文，允许静默；Host保存后生成任务ID。 / No watch or cross-routine context; silent responses allowed.").FontSize(11).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {

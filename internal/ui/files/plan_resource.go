@@ -179,7 +179,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 			message := label("未找到此计划。", "Plan not found.")
 			switch {
 			case target.IsSubagent() && m.Tabs.planReadAddress != address:
-				message = label("打开后读取子代理历史；Host 可能激活已准备的会话。", "Opening reads subagent history; the Host may activate a prepared Session.")
+				message = label("打开后只读加载子代理历史。", "Opening reads subagent history (read-only).")
 				if ui.Button(c, label("打开子代理计划", "Open subagent plan")).Clicked() {
 					m.Tabs.AllowPlanRead(address)
 					if m.notify != nil {

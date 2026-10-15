@@ -75,7 +75,7 @@ func navigationView(c *ui.Context, m Model) {
 		ui.Scroll(c.Key(fmt.Sprintf("agents-navigation:%s:%d", v.SessionID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(10, 12).Gap(8).Children(func() {
 				ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(11).TextColor(muted)
-				ui.Text(c, agentText("点击打开历史；Host 可能激活已准备的会话。", "Click to open history; the Host may activate a prepared Session.")).FontSize(10).TextColor(muted)
+				ui.Text(c, agentText("点击只读加载子代理历史。", "Click to read child history (read-only).")).FontSize(10).TextColor(muted)
 				if len(v.Rows) == 0 && !v.Busy {
 					ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(12).TextColor(muted)
 				}

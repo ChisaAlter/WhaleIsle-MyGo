@@ -13,11 +13,12 @@ import (
 )
 
 type RoutineCreateDraft struct {
-	Name, Prompt, Hour, Minute, Timezone, MaxRuns string
-	Enabled                                       bool
-	Revision                                      int
-	SessionID, RequestID                          string
-	Version                                       uint64
+	Name, Prompt, Hour, Minute, Timezone, MaxRuns      string
+	Frequency, OnceDelay, IntervalAmount, IntervalUnit string
+	Enabled                                            bool
+	Revision                                           int
+	SessionID, RequestID                               string
+	Version                                            uint64
 }
 type RoutineCreateReview struct {
 	Command pluginrpc.DshbotRoutineCreateCommand
@@ -173,7 +174,7 @@ func (c *RoutineCreator) Start(k RoutineScope, zone string) {
 		e.state.Error = err.Error()
 		return
 	}
-	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
+	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Frequency: "daily", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
 	e.state.CreatedID = ""
 	e.state.Error = ""
 	e.state.Notice = ""
@@ -194,6 +195,20 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 		d.Name = value
 	case "prompt":
 		d.Prompt = value
+	case "frequency":
+		if value != "daily" && value != "once" && value != "interval" {
+			return
+		}
+		d.Frequency = value
+	case "onceDelay":
+		d.OnceDelay = value
+	case "intervalAmount":
+		d.IntervalAmount = value
+	case "intervalUnit":
+		if value != "m" && value != "h" && value != "d" {
+			return
+		}
+		d.IntervalUnit = value
 	case "hour":
 		d.Hour = value
 	case "minute":
@@ -281,13 +296,12 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 		e.state.Error = "目录已变化；先核对当前目录再审阅创建 / Catalog changed; recheck before reviewing"
 		return
 	}
-	hour, hErr := strconv.Atoi(strings.TrimSpace(d.Hour))
-	minute, mErr := strconv.Atoi(strings.TrimSpace(d.Minute))
-	limit, lErr := strconv.Atoi(strings.TrimSpace(d.MaxRuns))
-	if hErr != nil || mErr != nil || hour < 0 || hour > 23 || minute < 0 || minute > 59 {
-		e.state.Error = "请填写有效时间（00–23时，00–59分） / Enter a valid daily time"
+	schedule, err := routineCreateSchedule(*d)
+	if err != nil {
+		e.state.Error = err.Error()
 		return
 	}
+	limit, lErr := strconv.Atoi(strings.TrimSpace(d.MaxRuns))
 	if lErr != nil {
 		e.state.Error = "执行次数上限须为整数 / Run limit must be an integer"
 		return
@@ -301,7 +315,7 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 		e.state.Error = "时区无效 / Invalid IANA timezone: " + zone
 		return
 	}
-	edit := pluginrpc.DshbotRoutineEdit{Name: d.Name, Prompt: d.Prompt, Schedule: fmt.Sprintf("%d %d * * *", minute, hour), Timezone: d.Timezone, MaxRuns: limit, Enabled: d.Enabled}
+	edit := pluginrpc.DshbotRoutineEdit{Name: d.Name, Prompt: d.Prompt, Schedule: schedule, Timezone: d.Timezone, MaxRuns: limit, Enabled: d.Enabled}
 	if err := pluginrpc.ValidateDshbotRoutineEdit(edit); err != nil {
 		e.state.Error = err.Error()
 		return

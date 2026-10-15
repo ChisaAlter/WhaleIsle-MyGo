@@ -74,7 +74,8 @@ func (r *PlanResourceRead) Cancel() {
 // ReadSubagentPlan reuses the real session/follow and session/page faces. Like
 // the original resource provider, follow stops at its opening snapshot and all
 // pages use that snapshot's fixed cursor and the SAME addressed Session.
-// Host follow may activate a prepared Session; this never sends a prompt.
+// Addressed subagent follow only observes history and never sends a prompt.
+// The Host promotes prepared Sessions only for ordinary kind:"session" addresses.
 func (s *Store) ReadSubagentPlan(ctx context.Context, binding string, target PlanResourceTarget, notify func()) *PlanResourceRead {
 	readCtx, cancel := context.WithCancel(ctx)
 	r := &PlanResourceRead{binding: binding, target: target, cancel: cancel, done: make(chan struct{})}
