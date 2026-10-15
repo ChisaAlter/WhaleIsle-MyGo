@@ -20,6 +20,7 @@ type Controller struct {
 	profileSeen      bool
 	floatingDocument *floatingDocumentWindow
 	pip              *browserPictureInPicture
+	recording        *browserRecording
 	rendered         bool
 	actionTarget     func() ActionTarget
 	operation        *previewOperation
@@ -38,6 +39,7 @@ type Tab struct {
 
 	ActionMessage string
 	ArtifactPath  string
+	RecordingPath string
 	ID            int
 	Draft, Error  string
 	lastURL       string

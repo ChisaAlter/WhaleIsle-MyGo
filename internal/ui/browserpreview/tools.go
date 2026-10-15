@@ -173,7 +173,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 		s.setSize(375, 667, "iPhone SE")
 		s.Scheme = "system"
 	}
-	busy := t.tools.operation != nil || b.operation != nil
+	busy := t.tools.operation != nil || b.operation != nil || b.recording != nil
 	disabled := t.Host == nil || state.Loading || busy || b.current() != t
 	supported := !disabled && t.Host.BrowserToolsAvailable()
 	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()

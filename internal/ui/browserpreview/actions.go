@@ -50,6 +50,7 @@ func (b *Controller) EndFrame() {
 
 // CancelAction is also called by Hide, navigation, tab changes and Close.
 func (b *Controller) CancelAction() {
+	b.cancelBrowserRecording("录制已取消，未导出")
 	b.cancelBrowserTools()
 	if op := b.operation; op != nil {
 		b.operation = nil
@@ -62,6 +63,7 @@ func (b *Controller) CancelAction() {
 // changes when this browser's chrome is not being painted.
 func (b *Controller) PruneActions() {
 	b.prunePictureInPicture()
+	b.pruneBrowserRecording()
 	b.pruneBrowserTools()
 	if op := b.operation; op != nil && !b.actionCurrent(op) {
 		b.CancelAction()
@@ -158,9 +160,10 @@ func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) 
 		return
 	}
 	busy := b.operation != nil
-	disabled := t.Host == nil || state.Loading || busy
+	disabled := t.Host == nil || state.Loading || busy || b.recording != nil
 	ui.ScrollHorizontal(c).Height(28).FillWidth().Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+			b.recordingControls(c, t, disabled)
 			if ui.Button(c, "选择元素").Disabled(disabled).Clicked() {
 				b.startAction(t, "pick")
 			}
