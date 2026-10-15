@@ -10,6 +10,7 @@ import (
 )
 
 type RoutineModel struct {
+	Route                                              BotRouteModel
 	ObjectiveConfig                                    BotObjectiveConfigModel
 	MemoryReview                                       BotMemoryReviewModel
 	Capabilities                                       BotCapabilityModel
@@ -72,6 +73,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 	s := r.State
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
 	ui.Column(c.Key("bot-routines")).Gap(8).Children(func() {
+		botRouteBlock(c, r.Route, blocked, fg, muted, accent)
 		botMemoryBlock(c, r.Memory, blocked, fg, muted, accent)
 		botMemoryReviewBlock(c, r.MemoryReview, blocked, fg, muted, accent)
 		botCapabilitiesBlock(c, r.Capabilities, blocked, fg, muted, accent)

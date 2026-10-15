@@ -2154,6 +2154,7 @@ func main() {
 		win.OnClosed(state.cancelComposerVoice)
 		win.OnClosed(state.whaleSettings.Suspend)
 		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
+		win.OnMinimize(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnHide(state.assistantRoomCreator.Suspend)
 		win.OnHide(state.assistantBotCreator.Suspend)
@@ -2754,6 +2755,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	defer state.observeAssistantBotRoute()
 	roomRuntimeRendered := false
 	defer func() { state.observeAssistantRoomRuntime(roomRuntimeRendered) }()
 	roomEditRendered := false

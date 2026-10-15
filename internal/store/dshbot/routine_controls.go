@@ -47,6 +47,7 @@ type RoutineSnapshot struct {
 	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
+	Route           RouteControls
 	ObjectiveConfig ObjectiveConfigControls
 	MemoryReview    MemoryReviewControls
 	Capabilities    CapabilityControls
@@ -66,6 +67,7 @@ func (c *RoutineControls) Bind(scope RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
+		c.Route.Bind(scope)
 		c.Memory.Bind(scope)
 		c.MemoryReview.Bind(scope)
 		c.Capabilities.Bind(scope)
