@@ -110,7 +110,7 @@ func navigationView(c *ui.Context, m Model) {
 					ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
 					// Preserve the existing dedicated continuation route. Never send through
 					// the main composer or pretend one-shot history is an ordinary Session.
-					if v.Address.Mode != "one-shot" && m.PromptDraft != nil {
+					if v.Address.Mode == "continuable" && m.PromptDraft != nil {
 						ui.Text(c, agentText("向此子代理发送（专用入口）", "Send to this child (dedicated route)")).FontSize(11).TextColor(muted)
 						ui.TextInput(c, m.PromptDraft).FillWidth().Placeholder(i18n.T(i18n.KeyAgentsPromptPlaceholder))
 						if ui.Button(c, i18n.T(i18n.KeyAgentsPromptSend)).FontSize(11).Disabled(v.Busy || v.ActionBusy || strings.TrimSpace(*m.PromptDraft) == "").Clicked() {

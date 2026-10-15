@@ -441,7 +441,7 @@ func (s *Store) agentNavigationActionAllowedLocked(token uint64, address AgentSe
 }
 func (s *Store) PromptAgentNavigation(token uint64, address AgentSessionAddress, text string) {
 	text = trimPrompt(text)
-	if text == "" || address.Mode == "one-shot" {
+	if text == "" || address.Mode != "continuable" {
 		return
 	}
 	s.agentNavigationAction(token, []AgentSessionAddress{address}, text)
@@ -463,7 +463,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		}
 	}
 	client, generation := n.client, n.generation
-	mode := string(NormalizePromptMode(string(s.promptMode)))
+	delivery := string(NormalizePromptMode(string(s.promptMode)))
 	n.actionEpoch++
 	epoch := n.actionEpoch
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -498,7 +498,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				break
 			}
 			if text != "" {
-				req := api.SubagentPromptRequest{RequestId: newRequestID(), ParentSessionId: address.ParentSessionID, ChildSessionId: address.ChildSessionID, Mode: mode, Delivery: "session", Content: PromptContentBlocks(text)}
+				req := api.SubagentPromptRequest{RequestId: newRequestID(), ParentSessionId: address.ParentSessionID, ChildSessionId: address.ChildSessionID, Mode: "continuable", Delivery: delivery, Content: PromptContentBlocks(text)}
 				var receipt api.SubagentPromptReceipt
 				err = client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &receipt)
 				if err == nil && strings.TrimSpace(receipt.MessageId) == "" {
