@@ -13,6 +13,7 @@ import (
 func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
+	generation, token, cwd, selected := s.eventsGeneration, s.workspaceNavigationToken, s.cwd, s.selectedID
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -21,6 +22,10 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 		var out api.InitializeDefaultResult
 		err := client.Call(ctx, "workspace/initializeDefault", map[string]any{}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation || s.workspaceNavigationToken != token || s.cwd != cwd || s.selectedID != selected {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = "workspace init: " + err.Error()
 		} else {
@@ -51,39 +56,22 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 func (s *Store) WorkspaceID() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.workspaceID
+	if ws, ok := s.workspaceMemberships[s.workspaceID]; ok && ws.Path == s.cwd {
+		return ws.WorkspaceID
+	}
+	for _, ws := range s.workspaceMemberships {
+		if ws.Path == s.cwd {
+			return ws.WorkspaceID
+		}
+	}
+	return ""
 }
 
-// DeleteWorkspace calls workspace/delete for a workspace id.
+// DeleteWorkspace opens confirmation; it never removes a registration directly.
 func (s *Store) DeleteWorkspace(ctx context.Context, workspaceID string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || workspaceID == "" {
-		return
+	if ctx.Err() == nil {
+		s.BeginWorkspaceRemoval(workspaceID)
 	}
-	go func() {
-		req := api.WorkspaceDeleteRequest{WorkspaceId: workspaceID}
-		var out api.WorkspaceDeleteValue
-		err := client.Call(ctx, "workspace/delete", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = "workspace delete: " + err.Error()
-		} else if out.Deleted {
-			s.lastAction = "workspace deleted"
-			if s.workspaceID == workspaceID {
-				s.workspaceID = ""
-			}
-		} else {
-			s.lastAction = "workspace not deleted"
-		}
-		s.mu.Unlock()
-		s.fire()
-		if err == nil && out.Deleted {
-			s.RefreshList(ctx)
-		}
-	}()
 }
 
 // InsertWorkspaceBefore reorders workspaces via workspace/insertBefore.
@@ -152,27 +140,16 @@ func (s *Store) InsertSessionBefore(ctx context.Context, workspaceID, sessionID,
 	}()
 }
 
-// RenameWorkspace calls workspace/rename for a workspace id.
+// RenameWorkspace opens an editable, retryable rename draft.
 func (s *Store) RenameWorkspace(ctx context.Context, workspaceID, title string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	title = strings.TrimSpace(title)
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || workspaceID == "" || title == "" {
+	if ctx.Err() != nil {
 		return
 	}
-	go func() {
-		req := api.WorkspaceRenameRequest{WorkspaceId: workspaceID, Title: title}
-		var out json.RawMessage
-		err := client.Call(ctx, "workspace/rename", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = "workspace rename: " + err.Error()
-		} else {
-			s.lastAction = "workspace renamed: " + title
-		}
-		s.mu.Unlock()
-		s.fire()
-	}()
+	s.BeginWorkspaceRename(workspaceID)
+	s.mu.Lock()
+	if s.workspaceNavigation.view.Mode == "rename" && s.workspaceNavigation.view.TargetID == workspaceID && strings.TrimSpace(title) != "" {
+		s.workspaceNavigation.view.Draft = title
+	}
+	s.mu.Unlock()
+	s.fire()
 }

@@ -71,6 +71,9 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	Workspaces           []WorkspaceRow
+	WorkspaceReady       bool
+	WorkspaceNavigation  *WorkspaceNavigationState
 	QuestionProjection   QuestionProjectionState
 	ArchiveConfirmation  *ArchiveConfirmation
 	SlashCommands        []api.ListResultItem2
@@ -150,6 +153,10 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	workspaceNavigation       workspaceNavigationOperation
+	workspaceNavigationToken  uint64
+	workspaceOrder            []string
+	workspaceFollowGeneration uint64
 	questionProjections       map[string]QuestionProjectionState
 	permissionRisk            *permissionRiskOperation
 	permissionRiskToken       uint64
@@ -273,6 +280,10 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // SetWorkspaceCwd sets the cwd used for session/create.
 func (s *Store) SetWorkspaceCwd(cwd string) {
 	s.mu.Lock()
+	if s.cwd != cwd {
+		s.invalidateWorkspaceNavigationLocked()
+		s.workspaceID = ""
+	}
 	s.cwd = cwd
 	s.mu.Unlock()
 }
@@ -429,6 +440,9 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		Workspaces:          s.workspaceRowsLocked(),
+		WorkspaceReady:      s.workspaceReady,
+		WorkspaceNavigation: s.workspaceNavigationSnapshotLocked(),
 		QuestionProjection:  s.questionProjectionLocked(),
 		ArchiveConfirmation: s.archiveConfirmationLocked(),
 		QueueEditor:         s.queueEditorSnapshotLocked(),

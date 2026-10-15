@@ -243,15 +243,10 @@ func View(c *ui.Context, m Model) {
 								m.OnRevealWorkspace()
 							}
 						}
-						if m.OnRenameWorkspace != nil && m.WorkspaceRenameDraft != nil {
-							ui.TextInput(c, m.WorkspaceRenameDraft).FillWidth().Placeholder(i18n.T(i18n.KeySidebarRenameWorkspace))
-							if ui.Button(c, i18n.T(i18n.KeySidebarRenameWorkspaceSave)).FontSize(12).BorderWidth(0).Background(ui.Transparent).
-								TextColor(fg).FillWidth().Clicked() {
-								title := strings.TrimSpace(*m.WorkspaceRenameDraft)
+						if m.OnRenameWorkspace != nil {
+							if ui.Button(c, i18n.T(i18n.KeySidebarRenameWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(fg).FillWidth().Clicked() {
 								*menuOpen = false
-								if title != "" {
-									m.OnRenameWorkspace(title)
-								}
+								m.OnRenameWorkspace("")
 							}
 						}
 						if m.OnDeleteWorkspace != nil {

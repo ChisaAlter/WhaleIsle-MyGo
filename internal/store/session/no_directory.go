@@ -9,10 +9,7 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
-type workspaceMembership struct {
-	WorkspaceID string   `json:"workspaceId"`
-	SessionIDs  []string `json:"sessionIds"`
-}
+type workspaceMembership WorkspaceRow
 
 // IsNoDirectory requires the Host's actual scratch root and absence of membership.
 // An orphaned or directory-less header must never masquerade as a scratch session.
@@ -28,6 +25,10 @@ func (s *Store) signalWorkspaceLocked() {
 }
 
 func (s *Store) resetWorkspaceLocked() {
+	s.invalidateWorkspaceNavigationLocked()
+	s.workspaceID = ""
+	s.workspaceOrder = nil
+	s.workspaceFollowGeneration++
 	s.scratchCwd = ""
 	s.workspaceReady = false
 	s.workspaceErr = nil

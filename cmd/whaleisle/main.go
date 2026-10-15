@@ -45,7 +45,6 @@ import (
 	desktopupdate "whaleisle/internal/desktop/update"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/desktop/workspacefs"
-	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
@@ -610,43 +609,15 @@ func (s *mainState) saveDesktopConfig() {
 	}
 }
 
-// pickAndApplyWorkspace opens a directory dialog (or directoryPicker/pick when
-// SSH tunnel is connected), persists config.Workspace, updates the session store,
-// and registers the path with a Ready harness.
+// pickAndApplyWorkspace opens the Host registry picker. Launcher startup-directory
+// selection remains independent and can still be used while the Host is offline.
 func (s *mainState) pickAndApplyWorkspace(win *mygo.Window, sessions *session.Store, defaultPath string) {
-	ws := ""
-	s.mu.Lock()
-	tunnel := s.sshTunnel
-	s.mu.Unlock()
-	useHostPicker := false
-	if tunnel != nil {
-		if _, st, _ := tunnel.Snapshot(); st == sshremote.TunnelConnected {
-			useHostPicker = true
-		}
+	if sessions != nil {
+		sessions.OpenWorkspacePicker()
 	}
-	if useHostPicker && sessions != nil {
-		s.openDirectoryPicker(sessions, win, "workspace")
-		return
-	} else {
-		root := strings.TrimSpace(defaultPath)
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-			Parent:      win,
-			Title:       i18n.T(i18n.KeyChatHeroChooseWorkspace),
-			DefaultPath: root,
-			Directory:   true,
-		})
-		if err != nil {
-			if sessions != nil {
-				sessions.SetLastAction(err.Error())
-			}
-			return
-		}
-		if len(paths) == 0 {
-			return
-		}
-		ws = paths[0]
+	if win != nil {
+		win.Update(func() {})
 	}
-	s.applyWorkspacePath(win, sessions, ws, !useHostPicker)
 }
 
 func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Window, mode string) {
@@ -675,57 +646,18 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 	}()
 }
 
+// applyWorkspacePath adopts a Host path transactionally. mkdirLocal is retained
+// for call compatibility; registry adoption never creates desktop directories.
 func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store, ws string, mkdirLocal bool) {
-	s.revokePhoneGit()
-	ws = strings.TrimSpace(ws)
-	if !directorypicker.SelectablePath(ws) {
+	if sessions == nil {
 		return
 	}
-	if mkdirLocal {
-		if err := os.MkdirAll(ws, 0o755); err != nil {
-			if sessions != nil {
-				sessions.SetLastAction(err.Error())
-			}
-			return
-		}
+	sessions.OpenWorkspacePicker()
+	request := sessions.Snapshot().WorkspaceNavigation
+	if request == nil || request.Mode != "pick" || request.Busy {
+		return
 	}
-	s.mu.Lock()
-	if home := s.composerDrafts[""]; home != nil && !home.Sending && home.Preparing == 0 {
-		home.TargetID = ""
-	}
-	s.mu.Unlock()
-	if store := s.cfgStore; store != nil {
-		_ = store.Update(func(c *config.Config) {
-			c.Workspace = ws
-		})
-	}
-	if sessions != nil {
-		sessions.SetWorkspaceCwd(ws)
-		if sessions.Snapshot().SelectedID != "" {
-			sessions.RefreshList(context.Background())
-		}
-	}
-	s.mu.Lock()
-	sup := s.sup
-	s.mu.Unlock()
-	if sup != nil {
-		st := sup.Status()
-		if st.State == harness.Ready && st.Endpoint.Origin != "" {
-			wctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			werr := harness.EnsureWorkspace(wctx, nil, st.Endpoint, ws)
-			cancel()
-			if sessions != nil {
-				if werr != nil {
-					sessions.SetLastAction("workspace: " + werr.Error())
-				} else {
-					sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyWorkspaceRegistered), ws))
-				}
-			}
-		}
-	}
-	if win != nil {
-		win.Update(func() {})
-	}
+	sessions.RegisterWorkspace(context.Background(), request.Token, ws, s.persistRegisteredWorkspace, func(row session.WorkspaceRow) { s.workspaceSelectionCommitted(win, sessions, row.Path) })
 }
 
 func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
@@ -6578,6 +6510,7 @@ func mainView(c *ui.Context) {
 					}
 					state.consumeNavigationFile(frameModel)
 					frame.View(c, frameModel)
+					state.workspaceNavigationView(c, win, sessions, themeID, systemDark, func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) })
 					if state.dirPickOpen {
 						ui.Overlay(c, func() {
 							ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).
