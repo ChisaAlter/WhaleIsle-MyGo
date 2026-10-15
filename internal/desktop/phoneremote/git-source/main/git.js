@@ -908,7 +908,46 @@ async function readRangeContext(cwd) {
   return { ...(await collectRangeContext(cwd, 'HEAD')), baseRef: 'HEAD' };
 }
 
+let changeRequestGenerator = generatePrContent;
+function setChangeRequestGenerator(generator) { changeRequestGenerator = generator; }
+
+async function gitGenerateChangeRequest(cwd) {
+  const root = asCwd(cwd);
+  if (!root) return fail('Git status is unavailable.');
+  const status = await gitStatus(cwd);
+  if (!status?.refName) return fail('Select a branch before generating change-request content.');
+  let targetRepository = null;
+  if (status.sourceControlProvider?.kind === 'github') {
+    const lookup = await lookupOpenPullRequest(root, status.refName);
+    if (lookup.failed) return fail('Could not resolve the PR target repository.');
+    targetRepository = lookup.targetRepository;
+  }
+  const baseBranch = status.sourceControlProvider?.kind === 'github'
+    ? await resolvePrBaseBranch(root, status.refName, Boolean(status.hasPrimaryRemote), targetRepository)
+    : await defaultRefName(root, Boolean(status.hasPrimaryRemote));
+  if (!baseBranch) return fail('Fetch the target default branch before generating content.');
+  let remote = await resolvePrimaryRemoteName(root);
+  if (targetRepository) {
+    remote = null;
+    for (const name of await listRemoteNames(root)) {
+      const url = await runGit(root, ['remote', 'get-url', name]);
+      if (url.code === 0 && normalizeGitRemoteUrl(url.stdout) === normalizeGitRemoteUrl(targetRepository.url)) { remote = name; break; }
+    }
+  }
+  const baseRef = remote ? `refs/remotes/${remote}/${baseBranch}` : baseBranch;
+  const base = await runGit(root, ['rev-parse', '--verify', `${baseRef}^{commit}`]);
+  const head = await runGit(root, ['rev-parse', '--verify', 'HEAD^{commit}']);
+  if (base.code !== 0 || head.code !== 0) return fail('Fetch the target base branch before generating content.');
+  const range = await collectRangeContext(root, `${base.stdout.trim()}..${head.stdout.trim()}`);
+  const generated = await changeRequestGenerator({ ...range, fallbackTitle: status.refName,
+    changeRequestTemplate: await readPrTemplate(root, base.stdout.trim()) }, root);
+  if (generated.error) return fail(generated.error);
+  return ok({ ...generated, status: 'draft', base: baseBranch, head: status.refName,
+    provider: status.sourceControlProvider?.kind || '', shortLabel: changeRequestTerms(status.sourceControlProvider).shortLabel });
+}
+
 async function gitCreateChangeRequest(cwd, input, onProgress) {
+  if (input?.generateOnly === true) return gitGenerateChangeRequest(cwd);
   const emit = typeof onProgress === 'function' ? onProgress : () => {};
   const root = asCwd(cwd);
   if (!root) return fail('Git status is unavailable.');
@@ -1353,6 +1392,7 @@ async function gitCheckLargeFiles(cwd) {
 }
 
 module.exports = {
+  setChangeRequestGenerator,
   gitStatus,
   gitFetchForStatus,
   gitReadPullRequest,

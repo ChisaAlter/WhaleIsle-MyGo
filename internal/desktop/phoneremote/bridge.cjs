@@ -31,10 +31,19 @@ function usableURL(s) {
 
 const originalGit=loadOriginalGit(__MYGO_GIT_SOURCES__);
 const gitPending=new Map();let gitSequence=0;
+const draftPending = new Map();
+originalGit.git.setChangeRequestGenerator((input, root) => new Promise(resolve => {
+ const id = String(++gitSequence);
+ const timer = setTimeout(() => { draftPending.delete(id); resolve({error:'Generation timed out; retry or edit manually.'}); }, 65000);
+ draftPending.set(id, result => { clearTimeout(timer); resolve(result); });
+ const bounded = {commitSummary:input.commitSummary.slice(0,20000),diffSummary:input.diffSummary.slice(0,20000),diffPatch:input.diffPatch.slice(0,60000),fallbackTitle:input.fallbackTitle.slice(0,256),changeRequestTemplate:input.changeRequestTemplate.slice(0,8000)};
+ emit({kind:'git-generate-draft', id, root, input:bounded});
+}));
 const gitGate=createGitGate({...originalGit,backend:originalGit.git,authorize:(root,action)=>new Promise(resolve=>{const id=String(++gitSequence);const timer=setTimeout(()=>{gitPending.delete(id);resolve(false);},2500);gitPending.set(id,allowed=>{clearTimeout(timer);resolve(allowed);});emit({kind:'git-authorize',id,root,action});})});
-function revokeGit(){gitGate.revoke();for(const done of gitPending.values())done(false);gitPending.clear();}
+function revokeGit(){gitGate.revoke();for(const done of gitPending.values())done(false);gitPending.clear();for(const done of draftPending.values())done({error:'Mobile Git permission was revoked'});draftPending.clear();}
 let remote, config = {}, stopping = false, starting = false;
 try {
+  installMobileDraftUI(process.argv[1], __MYGO_MOBILE_DRAFT_UI__);
   const { DshdRemote } = require(process.argv[1]);
   remote = new DshdRemote({
     getConfig: () => config,
@@ -118,6 +127,7 @@ const input=readline.createInterface({input:process.stdin});
 input.on('line',line=>{
   if(line.length>128*1024)return;
   let immediate;try{immediate=JSON.parse(line);}catch{return;}
+  if(immediate.action==='git-generation-result'){const done=draftPending.get(immediate.id);if(done){draftPending.delete(immediate.id);done(immediate.error?{error:immediate.error}:immediate.value);}return;}
   if(immediate.action==='git-authorize-result'){const done=gitPending.get(immediate.id);if(done){gitPending.delete(immediate.id);done(immediate.allowed===true);}return;}
   if(immediate.action==='git-revoke'||immediate.action==='stop'){revokeGit();if(immediate.action==='git-revoke')return;}
   queue=queue.then(async()=>{

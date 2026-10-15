@@ -129,7 +129,7 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 	r.mu.Unlock()
 	go func() {
 		scanner := bufio.NewScanner(child.Output())
-		scanner.Buffer(make([]byte, 4096), 256*1024)
+		scanner.Buffer(make([]byte, 4096), 1024*1024)
 		for scanner.Scan() {
 			r.consume(child, scanner.Bytes())
 		}
@@ -228,6 +228,10 @@ func (r *Runtime) consume(child Child, b []byte) {
 		DevicesLoaded  bool     `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
+		return
+	}
+	if event.Kind == "git-generate-draft" {
+		go r.generateGitDraft(child, append([]byte(nil), b...))
 		return
 	}
 	if event.Kind == "git-authorize" {

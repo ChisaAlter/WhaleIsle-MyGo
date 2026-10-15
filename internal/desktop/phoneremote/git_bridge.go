@@ -10,6 +10,12 @@ import (
 //go:embed git-gate.cjs
 var gitGateScript string
 
+//go:embed mobile-draft-ui.js
+var mobileDraftUI string
+
+//go:embed mobile-draft-server.cjs
+var mobileDraftServer string
+
 //go:embed git-source
 var originalGitSources embed.FS
 
@@ -29,7 +35,10 @@ func composedBridgeScript() string {
 		return nil
 	})
 	encoded, _ := json.Marshal(sources)
-	return gitGateScript + "\n" + deviceActionsScript + "\n" + strings.ReplaceAll(bridgeScript, "__MYGO_GIT_SOURCES__", string(encoded))
+	draftUI, _ := json.Marshal(mobileDraftUI)
+	bridge := strings.ReplaceAll(bridgeScript, "__MYGO_GIT_SOURCES__", string(encoded))
+	bridge = strings.ReplaceAll(bridge, "__MYGO_MOBILE_DRAFT_UI__", string(draftUI))
+	return gitGateScript + "\n" + deviceActionsScript + "\n" + mobileDraftServer + "\n" + bridge
 }
 
 // SetGitAuthorizer checks the current desktop session for each authenticated
