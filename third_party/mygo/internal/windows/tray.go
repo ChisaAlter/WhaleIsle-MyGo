@@ -73,8 +73,10 @@ type tray struct {
 func (b *Backend) NewTray(h platform.TrayHandler) (platform.Tray, error) {
 	b.nextTray++
 	t := &tray{b: b, h: h, id: b.nextTray}
+	if err := t.add(); err != nil {
+		return nil, err
+	}
 	b.trays[t.id] = t
-	t.add()
 	return t, nil
 }
 
@@ -91,10 +93,12 @@ func (t *tray) data(flags uint32) notifyIconData {
 	return d
 }
 
-func (t *tray) add() {
+func (t *tray) add() error {
 	d := t.data(0)
-	procShellNotifyIconW.Call(nimAdd, uintptr(unsafe.Pointer(&d)))
-	t.added = true
+	result, _, _ := procShellNotifyIconW.Call(nimAdd, uintptr(unsafe.Pointer(&d)))
+	var err error
+	t.added, err = trayAddResult(result)
+	return err
 }
 
 func (t *tray) update() {
@@ -246,8 +250,10 @@ func (b *Backend) showNotification(n *platform.Notification) error {
 		if t.icon == 0 {
 			t.icon, _, _ = procLoadIconW.Call(0, 32512) // IDI_APPLICATION
 		}
+		if err := t.add(); err != nil {
+			return err
+		}
 		b.trays[t.id] = t
-		t.add()
 	}
 	t.notification = n.ID
 	b.notifications[n.ID] = &notification{tray: t}

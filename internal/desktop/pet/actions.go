@@ -18,4 +18,7 @@ func (p *Companion) hide() {
 	p.Enabled = false
 	p.Error = ""
 	p.close()
+	if p.OnEnabledChanged != nil {
+		p.OnEnabledChanged()
+	}
 }

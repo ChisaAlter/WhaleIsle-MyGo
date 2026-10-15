@@ -59,6 +59,7 @@ type Companion struct {
 	QuickChat                 *QuickChat
 	quickChatOpen             bool
 	OnOpenSession             func(string)
+	OnEnabledChanged          func()
 }
 
 func New(store *config.Store) *Companion {
@@ -103,6 +104,9 @@ func (p *Companion) Save() {
 		p.assetMu.Lock()
 		p.chat.close()
 		p.assetMu.Unlock()
+	}
+	if previous.Enabled != p.Enabled && p.OnEnabledChanged != nil {
+		p.OnEnabledChanged()
 	}
 	if previous.Enabled != p.Enabled || previous.SkinID != p.SkinID || previous.Neural != p.Neural {
 		p.close()

@@ -1,0 +1,181 @@
+package main
+
+import (
+	"log"
+	"path/filepath"
+	"runtime"
+
+	"github.com/egoist/mygo"
+	"whaleisle/internal/desktop/deeplink"
+	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/i18n"
+)
+
+func (s *mainState) setupDesktopTray() {
+	// Windows and macOS use explicit right-click popup so an attached native
+	// menu cannot consume the left-click restore action. AppIndicator on Linux
+	// requires a persistent menu; its backend does not expose left-click events.
+	options := mygo.TrayOptions{Icon: trayIcon(), ToolTip: i18n.T(i18n.KeyAppName)}
+	if runtime.GOOS == "linux" {
+		options.Menu = s.desktopTrayMenu()
+	}
+	tray, err := mygo.NewTray(options)
+	if err != nil {
+		log.Println("tray:", err)
+		s.showMainWindow() // also undo hidden login startup when the tray failed
+		return
+	}
+	s.mu.Lock()
+	s.desktopTray = tray
+	s.trayHideNotice.markerPath = filepath.Join(paths.UserDataDir(), "tray-hide-acknowledged")
+	s.mu.Unlock()
+	tray.OnClick(s.showMainWindow)
+	tray.OnRightClick(func() {
+		if runtime.GOOS == "linux" {
+			s.refreshDesktopTray()
+			return
+		}
+		tray.SetMenu(s.desktopTrayMenu())
+		tray.PopUpMenu()
+		tray.SetMenu(nil)
+	})
+	if s.desktopPet != nil {
+		s.desktopPet.OnEnabledChanged = s.refreshDesktopTray
+	}
+}
+
+func (s *mainState) refreshDesktopTray() {
+	s.mu.Lock()
+	tray := s.desktopTray
+	quitting := s.quitting
+	s.mu.Unlock()
+	if tray != nil && !quitting && runtime.GOOS == "linux" {
+		tray.SetMenu(s.desktopTrayMenu())
+	}
+}
+
+func (s *mainState) closeDesktopTray() {
+	s.mu.Lock()
+	tray := s.desktopTray
+	s.desktopTray = nil
+	notice := s.trayHideNotification
+	s.trayHideNotification = nil
+	s.mu.Unlock()
+	if notice != nil {
+		notice.Close()
+	}
+	if tray != nil {
+		tray.Destroy()
+	}
+}
+
+func (s *mainState) desktopTrayMenu() *mygo.Menu {
+	s.mu.Lock()
+	canRestart := s.sup != nil && !s.quitting && !s.launcherImportBusy && !s.taskRestartPending
+	p := s.desktopPet
+	canToggle := p != nil && !s.quitting
+	s.mu.Unlock()
+	enabled := false
+	if p != nil && p.Store != nil {
+		enabled = p.Store.DesktopPet().Enabled
+	}
+	return buildDesktopTrayMenu(desktopTrayActions{
+		open:     s.showMainWindow,
+		launcher: func() { s.openDesktopTrayPage(deeplink.ActionLauncher) },
+		settings: func() { s.openDesktopTrayPage(deeplink.ActionSettings) },
+		market:   func() { s.openDesktopTrayPage(deeplink.ActionMarket) },
+		restart: func() {
+			s.mu.Lock()
+			sup := s.sup
+			quitting := s.quitting
+			s.mu.Unlock()
+			if sup == nil || quitting {
+				return
+			}
+			s.openDesktopTrayPage(deeplink.ActionLauncher)
+			go s.restartUnlessImport(sup)
+		},
+		quit:       s.quitDesktopTray,
+		pet:        s.setDesktopTrayPet,
+		canRestart: canRestart, canTogglePet: canToggle, petEnabled: enabled,
+	})
+}
+
+func (s *mainState) openDesktopTrayPage(action deeplink.Action) {
+	s.mu.Lock()
+	if s.quitting {
+		s.mu.Unlock()
+		return
+	}
+	// The existing deep-link routes own the actual panels and backends. Clear
+	// other route flags first so a hidden remote/IM pane cannot mask the target.
+	s.imOpen = false
+	s.remoteOpen = false
+	s.marketOpen = false
+	s.toolsMenuOpen = false
+	s.mu.Unlock()
+	s.applyDeeplink(deeplink.Target{Action: action})
+}
+
+func (s *mainState) quitDesktopTray() {
+	s.mu.Lock()
+	win, sup, quitting := s.win, s.sup, s.quitting
+	s.mu.Unlock()
+	if quitting {
+		return
+	}
+	// Parent confirmation must be visible, including when invoked from the tray.
+	s.showMainWindow()
+	if s.quitProtected(win, sup) {
+		mygo.App.Quit()
+	}
+}
+
+func (s *mainState) setDesktopTrayPet(enabled bool) {
+	s.mu.Lock()
+	p, quitting := s.desktopPet, s.quitting
+	s.mu.Unlock()
+	if p == nil || quitting {
+		return
+	}
+	if err := p.SetEnabled(enabled); err != nil {
+		s.openPetSettings()
+	}
+	s.refreshDesktopTray()
+}
+
+func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor) {
+	s.mu.Lock()
+	ready := s.desktopTray != nil
+	quitting, closeToTray := s.quitting, s.closeToTray
+	s.mu.Unlock()
+	if desktopCloseDecision(quitting, closeToTray, ready) != desktopCloseHide {
+		// Closing was requested as Hide, so never silently reinterpret failure as
+		// permission to stop background work. Explicit Quit still uses task checks.
+		s.showMainWindow()
+		result, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
+			Title:   resumeText("托盘不可用", "Tray unavailable"),
+			Message: resumeText("系统托盘未能创建，已保留窗口和后台任务。可以保留窗口，或明确退出应用。", "The system tray could not be created. The window and background work were kept open. Keep the window, or explicitly quit the application."),
+			Buttons: []string{resumeText("保留窗口", "Keep window"), resumeText("退出应用", "Quit application")}, DefaultButton: 0, CancelButton: 0})
+		if err == nil && result.Button == 1 && s.quitProtected(win, sup) {
+			mygo.App.Quit()
+		}
+		return
+	}
+	err := s.trayHideNotice.close(win.Hide, func() error {
+		if !mygo.NotificationsSupported() {
+			return nil
+		}
+		n := mygo.NewNotification(mygo.NotificationOptions{ID: "whaleisle-tray-hide", Title: resumeText("已最小化到托盘", "Minimized to tray"),
+			Body: resumeText("点击托盘图标可重新打开窗口，托盘菜单可完全退出。可在设置中更改关闭到托盘。", "Click the tray icon to reopen the window, or choose Quit from its menu. Change close-to-tray in Settings."), Silent: true})
+		n.OnClick(s.showMainWindow)
+		s.mu.Lock()
+		s.trayHideNotification = n
+		s.mu.Unlock()
+		return n.Show()
+	})
+	if err != nil {
+		log.Println("tray hide notice:", err)
+	}
+}

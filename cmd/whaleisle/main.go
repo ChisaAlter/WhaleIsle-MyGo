@@ -108,6 +108,9 @@ type mainState struct {
 	phoneGitRoot         string
 	phoneOp              sync.Mutex
 	closeToTray          bool
+	desktopTray          *mygo.Tray
+	trayHideNotice       trayHideNotice
+	trayHideNotification *mygo.Notification
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
 	petEvents            petEventController
@@ -1450,6 +1453,7 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 }
 
 func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
+	s.closeDesktopTray()
 	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.quitting = true
@@ -1650,7 +1654,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
 	if win != nil {
-		win.Update(s.refreshPetTask)
+		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray() })
 	}
 }
 
@@ -2154,7 +2158,7 @@ func main() {
 			}
 			if taskguard.HideOnClose(quitting, closeToTray) {
 				e.PreventDefault()
-				win.Hide()
+				state.hideToDesktopTray(win, sup)
 				return
 			}
 			if !state.quitProtected(win, sup) {
@@ -2196,16 +2200,7 @@ func main() {
 			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("恢复状态需要处理", "Resume state needs attention"), Message: resumeErr + "\n\n" + resumeText("原文件已保留，请备份后修复。当前窗口不会自动覆盖该文件。", "The original file is preserved. Back it up before repairing it. This window will not automatically overwrite it.")})
 		}
 
-		tray, err := mygo.NewTray(mygo.TrayOptions{
-			Icon:    trayIcon(),
-			ToolTip: i18n.T(i18n.KeyAppName),
-			Menu:    trayMenu(),
-		})
-		if err != nil {
-			log.Println("tray:", err)
-		} else {
-			_ = tray
-		}
+		state.setupDesktopTray()
 
 		// Electron launcher.js: show launcher first; auto-start desktop only when
 		// workspace is set AND autoStartDesktop is enabled (default true).
@@ -2342,25 +2337,6 @@ func startHarness(cfg config.Config) {
 		return
 	}
 	sup.Start()
-}
-
-func trayMenu() *mygo.Menu {
-	return mygo.NewMenu([]*mygo.MenuItem{
-		{Label: i18n.T(i18n.KeyTrayOpen), Click: func(*mygo.MenuItem, *mygo.Window) {
-			state.showMainWindow()
-		}},
-		mygo.Separator(),
-		{Label: i18n.T(i18n.KeyTrayQuit), Click: func(*mygo.MenuItem, *mygo.Window) {
-			state.mu.Lock()
-			win := state.win
-			sup := state.sup
-			state.mu.Unlock()
-			if !state.quitProtected(win, sup) {
-				return
-			}
-			mygo.App.Quit()
-		}},
-	})
 }
 
 func applyAppearance(id string) {
