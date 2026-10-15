@@ -6089,6 +6089,16 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
+						OnSelectWorkspace: func(id string) {
+							if sessions == nil {
+								return
+							}
+							sessions.OpenWorkspacePicker()
+							request := sessions.Snapshot().WorkspaceNavigation
+							if request != nil && request.Mode == "pick" && sessions.ChooseRegisteredWorkspace(request.Token, id, state.persistRegisteredWorkspace) {
+								state.workspaceSelectionCommitted(win, sessions, sessions.WorkspaceCwd())
+							}
+						},
 						OnPickHeroWorkspace: func() {
 							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
 						},

@@ -2,8 +2,6 @@ package session
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
@@ -74,70 +72,14 @@ func (s *Store) DeleteWorkspace(ctx context.Context, workspaceID string) {
 	}
 }
 
-// InsertWorkspaceBefore reorders workspaces via workspace/insertBefore.
+// InsertWorkspaceBefore reorders the real Host registry and projects its receipt.
 func (s *Store) InsertWorkspaceBefore(ctx context.Context, workspaceID, beforeWorkspaceID string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	beforeWorkspaceID = strings.TrimSpace(beforeWorkspaceID)
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || workspaceID == "" {
-		return
-	}
-	go func() {
-		req := api.WorkspaceInsertBeforeRequest{WorkspaceId: workspaceID}
-		if beforeWorkspaceID != "" {
-			req.BeforeWorkspaceId = &beforeWorkspaceID
-		}
-		var out api.WorkspaceOrderValue
-		err := client.Call(ctx, "workspace/insertBefore", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = "workspace order: " + err.Error()
-		} else {
-			s.lastAction = fmt.Sprintf("workspace order: %d", len(out.WorkspaceIds))
-		}
-		s.mu.Unlock()
-		s.fire()
-	}()
+	s.reorderWorkspace(ctx, workspaceID, beforeWorkspaceID)
 }
 
-// InsertSessionBefore reorders a session within a workspace via workspace/insertSessionBefore.
+// InsertSessionBefore moves a member within its owning Host workspace.
 func (s *Store) InsertSessionBefore(ctx context.Context, workspaceID, sessionID, beforeSessionID string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	sessionID = strings.TrimSpace(sessionID)
-	beforeSessionID = strings.TrimSpace(beforeSessionID)
-	s.mu.Lock()
-	client := s.client
-	if workspaceID == "" {
-		workspaceID = s.workspaceID
-	}
-	s.mu.Unlock()
-	if client == nil || workspaceID == "" || sessionID == "" {
-		return
-	}
-	go func() {
-		req := api.WorkspaceInsertSessionBeforeRequest{
-			WorkspaceId: workspaceID,
-			SessionId:   sessionID,
-		}
-		if beforeSessionID != "" {
-			req.BeforeSessionId = &beforeSessionID
-		}
-		var out json.RawMessage
-		err := client.Call(ctx, "workspace/insertSessionBefore", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = "session order: " + err.Error()
-		} else {
-			s.lastAction = "session reordered"
-		}
-		s.mu.Unlock()
-		s.fire()
-		if err == nil {
-			s.RefreshList(ctx)
-		}
-	}()
+	s.reorderWorkspaceSession(ctx, workspaceID, sessionID, beforeSessionID)
 }
 
 // RenameWorkspace opens an editable, retryable rename draft.

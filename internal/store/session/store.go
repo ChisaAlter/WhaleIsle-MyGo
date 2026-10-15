@@ -71,6 +71,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	WorkspaceLayout      WorkspaceLayoutState
 	Workspaces           []WorkspaceRow
 	WorkspaceReady       bool
 	WorkspaceNavigation  *WorkspaceNavigationState
@@ -153,6 +154,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	workspaceLayout           workspaceLayoutState
 	workspaceNavigation       workspaceNavigationOperation
 	workspaceNavigationToken  uint64
 	workspaceOrder            []string
@@ -442,6 +444,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		WorkspaceLayout:     s.workspaceLayoutLocked(),
 		Workspaces:          s.workspaceRowsLocked(),
 		WorkspaceReady:      s.workspaceReady,
 		WorkspaceNavigation: s.workspaceNavigationSnapshotLocked(),

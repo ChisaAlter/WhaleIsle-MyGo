@@ -224,6 +224,7 @@ type Model struct {
 	FileStatNote         *string
 	OnPickHeroWorkspace  func()
 	OnNoDirectory        func()
+	OnSelectWorkspace    func(string)
 	OnBrowseWorkspace    func() // SidebarRoot ☰ / folder row
 	OnRevealWorkspace    func()
 	OnRenameWorkspace    func(title string)
@@ -371,12 +372,21 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
-		OnCreate:             createSession,
-		OnOpenMarket:         m.OnOpenMarket,
-		OnOpenSchedule:       m.OnOpenSchedule,
-		OnOpenAssistant:      m.OnOpenAssistant,
-		OnOpenLauncher:       m.OnOpenLauncher,
-		OnOpenSettings:       m.OnOpenSettings,
+		OnCreate:               createSession,
+		OnOpenMarket:           m.OnOpenMarket,
+		OnOpenSchedule:         m.OnOpenSchedule,
+		OnOpenAssistant:        m.OnOpenAssistant,
+		OnOpenLauncher:         m.OnOpenLauncher,
+		OnOpenSettings:         m.OnOpenSettings,
+		OnSelectWorkspace:      m.OnSelectWorkspace,
+		OnManageWorkspace:      m.Store.BeginWorkspaceManagement,
+		OnWorkspaceGrouping:    m.Store.SetWorkspaceGrouping,
+		OnWorkspaceOrdering:    m.Store.SetWorkspaceOrdering,
+		OnToggleWorkspaceGroup: m.Store.ToggleWorkspaceGroup,
+		OnMoveWorkspaceBefore:  func(id, before string) { m.Store.InsertWorkspaceBefore(context.Background(), id, before) },
+		OnMoveWorkspaceSessionBefore: func(workspaceID, id, before string) {
+			m.Store.InsertSessionBefore(context.Background(), workspaceID, id, before)
+		},
 		OnBrowseWorkspace:    m.OnBrowseWorkspace,
 		OnNoDirectory:        m.OnNoDirectory,
 		OnRevealWorkspace:    m.OnRevealWorkspace,

@@ -50,7 +50,7 @@ func View(c *ui.Context, m Model) {
 					if !snap.WorkspaceReady {
 						ui.Text(c, text("正在等待 Host 工作区列表…", "Waiting for the Host workspace list…")).TextColor(muted)
 					}
-					ui.Scroll(c).MaxHeight(260).Gap(4).Children(func() {
+					ui.Scroll(c).Height(180).MaxHeight(260).Gap(4).Children(func() {
 						for _, row := range snap.Workspaces {
 							ws := row
 							title := ws.Title
@@ -81,6 +81,14 @@ func View(c *ui.Context, m Model) {
 					}
 					if request.Listing != nil && !request.Busy {
 						dirpick.View(c, dirpick.Model{Listing: *request.Listing, ThemeID: m.ThemeID, SystemDark: m.SystemDark, OnNavigate: func(path string) { m.Store.BrowseWorkspaceDirectories(context.Background(), request.Token, path) }, OnPick: func(path string) { m.Store.SetWorkspaceNavigationDraft(request.Token, path) }})
+					}
+				case "manage":
+					ui.Text(c, request.TargetTitle).FontSize(16).Bold().TextColor(fg)
+					if ui.Button(c, text("重命名工作区", "Rename workspace")).Clicked() {
+						m.Store.BeginWorkspaceRename(request.TargetID)
+					}
+					if ui.Button(c, text("移除工作区注册…", "Remove workspace registration…")).Clicked() {
+						m.Store.BeginWorkspaceRemoval(request.TargetID)
 					}
 				case "rename":
 					ui.Text(c, text("重命名工作区", "Rename workspace")).FontSize(16).Bold().TextColor(fg)

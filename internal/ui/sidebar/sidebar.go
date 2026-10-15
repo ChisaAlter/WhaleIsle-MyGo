@@ -15,6 +15,14 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	OnSelectWorkspace            func(string)
+	OnManageWorkspace            func(string)
+	OnWorkspaceGrouping          func(string)
+	OnWorkspaceOrdering          func(string)
+	OnToggleWorkspaceGroup       func(string)
+	OnMoveWorkspaceBefore        func(string, string)
+	OnMoveWorkspaceSessionBefore func(string, string, string)
+
 	Projects        projects.Model
 	Collapsed       bool
 	OnToggle        func()
@@ -229,6 +237,7 @@ func View(c *ui.Context, m Model) {
 					menuBG := chrome.Color(colors.Field)
 					ui.Column(c).FillWidth().Background(menuBG).Border(1, border).
 						Radius(10).Padding(6, 8, 6, 8).Gap(2).Children(func() {
+						workspaceViewOptions(c, m)
 						if ui.Button(c, i18n.T(i18n.KeySidebarBrowseWorkspace)).FontSize(12).BorderWidth(0).Background(ui.Transparent).
 							TextColor(fg).FillWidth().Clicked() {
 							*menuOpen = false
@@ -273,36 +282,9 @@ func View(c *ui.Context, m Model) {
 				if m.SearchQuery != nil {
 					ui.TextInput(c, m.SearchQuery).FillWidth().Placeholder(i18n.T(i18n.KeySidebarSearch))
 				}
-				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
-					var regular, scratch []session.Item
-					for _, it := range items {
-						if m.Snapshot.IsNoDirectory(it) {
-							scratch = append(scratch, it)
-						} else {
-							regular = append(regular, it)
-						}
-					}
-					nodes := buildTree(regular, m.Snapshot.PinnedSessionIDs)
-					var paint func(nodes []treeNode, depth int)
-					paint = func(nodes []treeNode, depth int) {
-						for _, n := range nodes {
-							rowSession(c, n.item, depth, m, fg, muted, border)
-							if len(n.children) > 0 {
-								paint(n.children, depth+1)
-							}
-						}
-					}
-					paint(nodes, 0)
-					if len(scratch) > 0 {
-						ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyNoDirectory)).FontSize(11).Bold().TextColor(muted).Grow(1)
-							if m.OnNoDirectory != nil && ui.Button(c, "＋").FontSize(12).Clicked() {
-								m.OnNoDirectory()
-							}
-						})
-						paint(buildTree(scratch, m.Snapshot.PinnedSessionIDs), 0)
-					}
+					workspaceRowsView(c, m, items, fg, muted, border)
 					if len(m.Snapshot.ArchivedSessionIDs) > 0 {
 						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(11).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)

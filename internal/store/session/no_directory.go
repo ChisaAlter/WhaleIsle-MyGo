@@ -25,6 +25,7 @@ func (s *Store) signalWorkspaceLocked() {
 }
 
 func (s *Store) resetWorkspaceLocked() {
+	s.resetWorkspaceLayoutHostLocked()
 	s.invalidateWorkspaceNavigationLocked()
 	s.workspaceID = ""
 	s.workspaceOrder = nil
