@@ -36,6 +36,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	}
+	referencedCredentialsPane(c, m.ReferencedCredentials, "", fg, muted)
 	visionPane(c, a.Vision, fg, muted)
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)

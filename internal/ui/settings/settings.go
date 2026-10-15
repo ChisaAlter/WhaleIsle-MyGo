@@ -30,40 +30,41 @@ type Model struct {
 	// ConfirmReplace, when set, must return true before SaveReplaceFromDrafts runs.
 	ConfirmReplace func() bool
 
-	DesktopActive        bool
-	Desktop              *DesktopAccess
-	AccountActive        bool
-	Account              *AccountAccess
-	CredentialsActive    bool
-	Credentials          *CredentialsAccess
-	AboutActive          bool
-	About                *AboutAccess
-	AppearanceActive     bool
-	Appearance           *AppearanceAccess
-	InterfaceActive      bool
-	Interface            *InterfaceAccess
-	ModelsActive         bool
-	Models               *ModelsAccess
-	MCPActive            bool
-	MCP                  *MCPAccess
-	PluginsActive        bool
-	Plugins              *PluginsAccess
-	SkillsActive         bool
-	Skills               *SkillsAccess
-	AgentPresetsActive   bool
-	AgentPresets         *AgentPresetsAccess
-	OnSelectDesktop      func()
-	OnSelectAccount      func()
-	OnSelectCredentials  func()
-	OnSelectAbout        func()
-	OnSelectAppearance   func()
-	OnSelectInterface    func()
-	OnSelectModels       func()
-	OnSelectMCP          func()
-	OnSelectPlugins      func()
-	OnSelectSkills       func()
-	OnSelectAgentPresets func()
-	OnSelectNamespace    func(ns string)
+	DesktopActive         bool
+	Desktop               *DesktopAccess
+	AccountActive         bool
+	Account               *AccountAccess
+	CredentialsActive     bool
+	Credentials           *CredentialsAccess
+	ReferencedCredentials *ReferencedCredentialsAccess
+	AboutActive           bool
+	About                 *AboutAccess
+	AppearanceActive      bool
+	Appearance            *AppearanceAccess
+	InterfaceActive       bool
+	Interface             *InterfaceAccess
+	ModelsActive          bool
+	Models                *ModelsAccess
+	MCPActive             bool
+	MCP                   *MCPAccess
+	PluginsActive         bool
+	Plugins               *PluginsAccess
+	SkillsActive          bool
+	Skills                *SkillsAccess
+	AgentPresetsActive    bool
+	AgentPresets          *AgentPresetsAccess
+	OnSelectDesktop       func()
+	OnSelectAccount       func()
+	OnSelectCredentials   func()
+	OnSelectAbout         func()
+	OnSelectAppearance    func()
+	OnSelectInterface     func()
+	OnSelectModels        func()
+	OnSelectMCP           func()
+	OnSelectPlugins       func()
+	OnSelectSkills        func()
+	OnSelectAgentPresets  func()
+	OnSelectNamespace     func(ns string)
 	// Overlay entries (plan §3.2) that leave the settings shell for dedicated panels.
 	OnOpenMarket func()
 	OnOpenRemote func()
@@ -399,6 +400,9 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if snap.SelectedNS == settings.VisualRepliesNamespace {
 			ui.Text(c, "启用 HTML 视觉回复前会检查本机隔离渲染；失败时保持关闭并显示原因。 / Enabling HTML visual replies first checks isolated rendering; failure keeps the setting off.").FontSize(12).TextColor(muted)
+		}
+		if ns.NS == "llm-deepseek" || ns.NS == "llm-pi-ai" || ns.NS == "web-search-deepseek" {
+			referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
 		}
 		for _, f := range ns.Fields {
 			fieldRow(c, m, snap, f, fg, muted)
