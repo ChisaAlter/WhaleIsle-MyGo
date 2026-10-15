@@ -13,6 +13,7 @@ import (
 // composer owns current-session agentPresets/select independently.
 type AgentPresetsAccess struct {
 	Manager    *session.AgentPresetManager
+	Creator    *CreatorTaskAccess
 	Selected   *string
 	DocPreview string
 	OnRead     func(id string)
@@ -86,6 +87,7 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			go a.Manager.SaveDefault(context.Background(), selectedID)
 		}
 	})
+	creatorTaskPane(c, a.Creator, snap, fg, muted)
 	if a.DocPreview != "" {
 		ui.Text(c, a.DocPreview).FontSize(11).TextColor(muted)
 	}

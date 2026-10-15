@@ -127,6 +127,7 @@ type mainState struct {
 
 	sessions                      *session.Store
 	agentPresetManager            *session.AgentPresetManager
+	creatorTask                   *session.CreatorTask
 	interactions                  *interaction.Store
 	settings                      *settingsstore.Store
 	settingsOpen                  bool
@@ -2165,6 +2166,9 @@ func main() {
 		win.OnClosed(state.suspendMCPHealth)
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
+		win.OnHide(state.suspendCreatorTask)
+		win.OnMinimize(state.suspendCreatorTask)
+		win.OnClosed(state.suspendCreatorTask)
 		win.OnHide(state.settingsProviderDiscovery.Suspend)
 		win.OnMinimize(state.settingsProviderDiscovery.Suspend)
 		win.OnClosed(state.settingsProviderDiscovery.Suspend)
@@ -2750,6 +2754,8 @@ func mainView(c *ui.Context) {
 	defer func() { state.observeAssistantRoomEditor(roomEditRendered) }()
 	roomCreateRendered := false
 	defer func() { state.observeAssistantRoomCreator(roomCreateRendered) }()
+	creatorTaskRendered := false
+	defer func() { state.observeCreatorTask(creatorTaskRendered) }()
 	providerDiscoveryRendered := false
 	defer func() { state.observeProviderDiscovery(providerDiscoveryRendered) }()
 	mcpPanelRendered := false
@@ -4787,6 +4793,7 @@ func mainView(c *ui.Context) {
 				pluginsActive := state.settingsPluginsActive
 				skillsActive := state.settingsSkillsActive
 				agentPresetsActive := state.settingsAgentPresetsActive
+				creatorTaskRendered = agentPresetsActive
 				desktopErr := state.desktopSaveErr
 				desktopAction := state.desktopLastAction
 				if !state.credsDraft.seeded {
@@ -5668,6 +5675,7 @@ func mainView(c *ui.Context) {
 					},
 					AgentPresetsActive: agentPresetsActive,
 					AgentPresets: &settings.AgentPresetsAccess{
+						Creator:    state.creatorTaskAccess(sessions),
 						Manager:    state.agentPresetManager,
 						Selected:   &state.settingsAgentPresetLabel,
 						DocPreview: state.settingsAgentPresetDoc,
