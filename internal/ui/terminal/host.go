@@ -108,6 +108,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 				store.Create(v.Owner, session)
 			}
 		})
+		hostShellView(c, store, v, session, muted)
 		if !v.ClientReady || session == "" {
 			ui.Text(c, terminalLabel("请选择已连接 Host 的会话。", "Select a session on a connected Host.")).FontSize(11).TextColor(muted)
 			return

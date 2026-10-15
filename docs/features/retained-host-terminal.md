@@ -65,12 +65,11 @@ validation step. Native local-PTY behavior and its existing entry remain intact.
 ## Deliberate interaction scope
 
 Selected-title editing is added by [Host terminal rename](host-terminal-rename.md).
+Shell discovery and client-local memory are added by [Host terminal shells](host-terminal-shells.md).
 
 This is the narrow retained-Host-session path, not acceptance of all original
 terminal interactions. These original interactions remain outside this module:
 
-- Host shell discovery/selection and remembering a preferred shell. New uses the
-  Host's default shell; there is no native shell-profile picker.
 - The original multiple sidebar occurrences, saved occurrence/navigation
   bindings, and the dedicated new-Host-terminal keyboard command. The native
   view presents one active screen with a retained-identity list per Session.

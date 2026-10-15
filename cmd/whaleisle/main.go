@@ -2025,6 +2025,9 @@ func main() {
 		}
 		state.openStartupRecovery(userData, cfgStore)
 		cfg := cfgStore.Get()
+		state.hostTerminals.ConfigureShellPreference(cfg.HostTerminalShell, func(path string) error {
+			return cfgStore.Update(func(c *config.Config) { c.HostTerminalShell = path })
+		})
 		i18n.SetLocale(cfg.Locale)
 		applyAppearance(cfg.Theme)
 		state.mu.Lock()

@@ -71,6 +71,7 @@ type sessionState struct {
 	error       string
 	environment Environment
 	operation   uint64
+	shells      shellState
 }
 type terminalKey struct{ session, id string }
 type entry struct {
@@ -85,18 +86,21 @@ type entry struct {
 }
 
 type Store struct {
-	mu       sync.Mutex
-	owner    any
-	remote   Remote
-	ready    bool
-	epoch    uint64
-	ctx      context.Context
-	cancel   context.CancelFunc
-	notify   func()
-	sessions map[string]*sessionState
-	entries  map[terminalKey]*entry
-	visible  string
-	serial   uint64
+	mu                  sync.Mutex
+	owner               any
+	remote              Remote
+	ready               bool
+	epoch               uint64
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	notify              func()
+	sessions            map[string]*sessionState
+	entries             map[terminalKey]*entry
+	visible             string
+	serial              uint64
+	preferenceMu        sync.Mutex
+	shellPreference     string
+	saveShellPreference func(string) error
 }
 
 func (s *Store) bind(owner any, r Remote, ready bool, notify func()) {
@@ -129,6 +133,10 @@ func (s *Store) transport(owner any, ready bool) {
 		return
 	}
 	s.ready = ready
+	for _, st := range s.sessions {
+		s.cancelShellDiscoveryLocked(st)
+		st.shells.view.Loaded = false
+	}
 	for _, e := range s.entries {
 		s.stopHoldLocked(e)
 		if e.desired && !e.closing {
@@ -192,6 +200,7 @@ func (s *Store) Show(session string, visible bool) {
 		return
 	}
 	if old := s.sessions[s.visible]; old != nil {
+		s.cancelShellDiscoveryLocked(old)
 		if e := s.entries[terminalKey{s.visible, old.active}]; e != nil {
 			s.stopFollowLocked(e)
 		}
@@ -299,6 +308,7 @@ func (s *Store) Create(owner uint64, session string) {
 	st.error = ""
 	st.operation++
 	op := st.operation
+	launch := s.shellLaunchLocked(st)
 	id := identity()
 	r, epoch, ctx := s.remote, s.epoch, s.ctx
 	s.mu.Unlock()
@@ -313,15 +323,24 @@ func (s *Store) Create(owner uint64, session string) {
 		if err == nil {
 			err = validEnvironment(env)
 		}
+		var shellPath string
+		if err == nil {
+			shellPath, err = s.resolveLaunchShell(ctx, r, epoch, session, st, op, launch)
+		}
 		if err == nil {
 			s.mu.Lock()
-			valid := s.epoch == epoch && st.operation == op
+			valid := s.epoch == epoch && st.operation == op && s.ready && s.visible == session && ctx.Err() == nil
 			s.mu.Unlock()
 			if !valid {
-				return
+				err = context.Canceled
+			} else {
+				request := map[string]any{"id": id, "cols": min(80, env.MaxCols), "rows": min(24, env.MaxRows)}
+				if shellPath != "" {
+					request["shellPath"] = shellPath
+				}
+				attempted = true
+				err = r.Call(ctx, "terminal/create", map[string]any{"agentId": session, "request": request}, &info)
 			}
-			attempted = true
-			err = r.Call(ctx, "terminal/create", map[string]any{"agentId": session, "request": map[string]any{"id": id, "cols": min(80, env.MaxCols), "rows": min(24, env.MaxRows)}}, &info)
 		}
 		if err == nil && info.ID != id {
 			err = errors.New("Host returned a different terminal identity")

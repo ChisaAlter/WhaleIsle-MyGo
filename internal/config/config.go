@@ -118,6 +118,8 @@ type Config struct {
 	// These are Go-native keys, absent from the Electron DEFAULTS.
 	SidebarWidth   float32 `json:"goSidebarWidth"`
 	TerminalHeight float32 `json:"goTerminalHeight"`
+	// HostTerminalShell is a client-local preference, validated by Host discovery.
+	HostTerminalShell string `json:"goHostTerminalShell"`
 	// WallpaperPath is an optional local image for the main window backdrop
 	// (Go-native; Electron wallpaper lives in ui-theme host settings).
 	WallpaperPath string `json:"goWallpaperPath"`
