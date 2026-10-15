@@ -179,6 +179,7 @@ type mainState struct {
 	dshbotRoster                  *dshbotstore.Store
 	assistantTasks                dshbotstore.TaskControls
 	assistantRoutines             dshbotstore.RoutineControls
+	assistantRoutineCreator       dshbotstore.RoutineCreator
 	whaleSettings                 assiststore.WhaleSettingsEditor
 	desktopDraft                  desktopConfigDraft
 	desktopSaveErr                string
@@ -4201,8 +4202,10 @@ func mainView(c *ui.Context) {
 				}
 				taskModel := state.assistantTasksModel(ep, dshbotSelectedID)
 				routineModel := state.assistantRoutinesModel(ep, dshbotSelectedID)
+				routineCreateModel := state.assistantRoutineCreateModel(ep, dshbotSelectedID, routineModel.State, routineModel.OnRefresh)
 				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
 				assistant.View(c, assistant.Model{
+					RoutineCreate:       routineCreateModel,
 					Routines:            routineModel,
 					WhaleSettings:       whaleSettingsModel,
 					Tasks:               taskModel,
@@ -4214,7 +4217,7 @@ func mainView(c *ui.Context) {
 					WhaleVendorPresent:  whaleVendor,
 					DshbotVendorPresent: dshbotVendor,
 					HarnessReady:        true,
-					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy,
+					Busy:                asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy,
 					LastWebViewURL:      lastWebURL,
 					LastNativeAction:    lastNative,
 					LastErr:             asstSnap.LastErr,

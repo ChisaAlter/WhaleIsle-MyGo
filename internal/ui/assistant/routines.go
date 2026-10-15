@@ -67,7 +67,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				r.OnRefresh()
 			}
 		})
-		ui.Text(c, "读取所选 Bot 的真实例行任务。新增、watch 编辑和触发凭据仍可在原 Bot Web 页管理。").FontSize(11).TextColor(muted)
+		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建每日任务；watch 编辑和触发凭据仍在原 Bot Web 页管理。").FontSize(11).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, "先选择当前 Host 的 Bot / Select a Bot first").TextColor(muted)
 			return
