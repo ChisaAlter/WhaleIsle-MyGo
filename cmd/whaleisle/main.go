@@ -2946,6 +2946,9 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	if !imOpen || launcherOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
 		state.hideOfficeSettings()
+		if imStore != nil && imStore.Onboarding.Snapshot().Open {
+			imStore.Onboarding.Hide()
+		}
 	}
 	// Global native pages return before frame.View. Retire old bindings and
 	// pause debounce work here as well, without flushing hidden drafts.

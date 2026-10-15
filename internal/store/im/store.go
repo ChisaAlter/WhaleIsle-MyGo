@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/imonboard"
 	officestore "whaleisle/internal/store/office"
 )
 
@@ -83,12 +84,13 @@ type ViewState struct {
 // Store fetches im/* list/history/send when available and persists local
 // channels / drafts / history under root (userData/im).
 type Store struct {
-	Office officestore.Store
-	mu     sync.Mutex
-	root   string
-	client *dsh.Client
-	plugin *pluginrpc.Client
-	notify func()
+	Office     officestore.Store
+	Onboarding imonboard.Store
+	mu         sync.Mutex
+	root       string
+	client     *dsh.Client
+	plugin     *pluginrpc.Client
+	notify     func()
 
 	loading         bool
 	err             error
@@ -166,6 +168,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.plugin = &pluginrpc.Client{BaseURL: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTPClient: client.HTTP}
 	}
 	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
+	s.Onboarding.Bind(s.plugin, s.connectionEpoch, s.fire)
 	s.mu.Unlock()
 }
 
@@ -177,6 +180,7 @@ func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 	s.connectionNote = ""
 	s.plugin = plugin
 	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
+	s.Onboarding.Bind(s.plugin, s.connectionEpoch, s.fire)
 	s.mu.Unlock()
 }
 
@@ -189,6 +193,7 @@ func (s *Store) Detach() {
 	s.client = nil
 	s.plugin = nil
 	s.Office.Bind(nil, s.connectionEpoch, s.fire)
+	s.Onboarding.Bind(nil, s.connectionEpoch, s.fire)
 	s.loading = false
 	s.hasIMRPC = false
 	s.listMethod = ""
