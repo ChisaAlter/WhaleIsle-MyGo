@@ -73,5 +73,8 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 			p.Save()
 		}
 	})
+	if ui.Button(c, "恢复外观与行为默认 / Reset appearance and behavior").Disabled(p.Store == nil).Clicked() {
+		confirmResetPetAppearanceBehavior(p)
+	}
 	ui.Text(c, "Reads validated Codex pet.json + WebP sprites from CODEX_HOME/pets. No package scripts, downloads or uploads. Works offline without Harness. / 仅读取本地安全皮肤；无需 Harness 连通。").FontSize(11).TextColor(muted)
 }
