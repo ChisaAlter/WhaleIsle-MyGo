@@ -47,24 +47,31 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		}
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
-		ui.Text(c, "支持每日、延迟一次、固定间隔；默认暂停、次数不限，无watch或跨任务上下文。").FontSize(11).TextColor(muted)
+		ui.Text(c, "支持原版全部八种时间类型；默认暂停、次数不限，无watch或跨任务上下文。").FontSize(11).TextColor(muted)
 		frequency := d.Frequency
 		if frequency == "" {
 			frequency = "daily"
 		}
 		ui.Text(c, "类型 / Frequency: "+routineCreateFrequencyLabel(frequency)).FontSize(12).TextColor(fg)
-		ui.Row(c).Gap(8).Children(func() {
-			for _, choice := range []string{"daily", "once", "interval"} {
-				choice := choice
-				if ui.Button(c, routineCreateFrequencyLabel(choice)).Disabled(disabled || frequency == choice).Clicked() && w.OnChange != nil {
-					w.OnChange("frequency", choice)
+		for _, choices := range [][]string{{"once", "hourly", "daily"}, {"weekdays", "weekly", "monthly"}, {"interval", "advanced"}} {
+			choices := choices
+			ui.Row(c).Gap(8).Children(func() {
+				for _, choice := range choices {
+					choice := choice
+					if ui.Button(c, routineCreateFrequencyLabel(choice)).Disabled(disabled || frequency == choice).Clicked() && w.OnChange != nil {
+						w.OnChange("frequency", choice)
+					}
 				}
-			}
-		})
+			})
+		}
 		ui.Text(c, routineCreateTimingHint(frequency)).FontSize(11).TextColor(muted)
 		ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · revision %d", w.HostLabel, w.BotName, s.Scope.BotID, d.Revision)).FontSize(11).TextColor(muted).Selectable()
 		fields := []struct{ id, label, value string }{{"name", "新任务名称 / New routine name", d.Name}}
 		switch frequency {
+		case "hourly":
+			// Original hourly is exactly every 1h and has no clock-time fields.
+		case "advanced":
+			fields = append(fields, struct{ id, label, value string }{"cron", "五字段 Cron / minute hour day month weekday", d.Cron})
 		case "once":
 			fields = append(fields, struct{ id, label, value string }{"onceDelay", "延迟 / Delay (例如 30m、1h、1d)", d.OnceDelay})
 		case "interval":
@@ -80,6 +87,23 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			})
 		default:
 			fields = append(fields, struct{ id, label, value string }{"hour", "小时 / Hour (00–23)", d.Hour}, struct{ id, label, value string }{"minute", "分钟 / Minute (00–59)", d.Minute})
+		}
+		if frequency == "weekly" {
+			ui.Text(c, "星期 / Weekday: "+d.Weekday+" (0=周日 / Sunday)").FontSize(11).TextColor(muted)
+			for _, choices := range [][]struct{ id, label string }{{{"0", "周日 / Sun"}, {"1", "周一 / Mon"}, {"2", "周二 / Tue"}, {"3", "周三 / Wed"}}, {{"4", "周四 / Thu"}, {"5", "周五 / Fri"}, {"6", "周六 / Sat"}}} {
+				choices := choices
+				ui.Row(c).Gap(8).Children(func() {
+					for _, choice := range choices {
+						choice := choice
+						if ui.Button(c, choice.label).Disabled(disabled || d.Weekday == choice.id).Clicked() && w.OnChange != nil {
+							w.OnChange("weekday", choice.id)
+						}
+					}
+				})
+			}
+		}
+		if frequency == "monthly" {
+			fields = append(fields, struct{ id, label, value string }{"monthDay", "每月日期 / Day of month (1–31)", d.MonthDay})
 		}
 		fields = append(fields, struct{ id, label, value string }{"timezone", "时区 / IANA timezone (例如 Asia/Shanghai)", d.Timezone}, struct{ id, label, value string }{"maxRuns", "执行次数上限 / Max runs (0 = unlimited)", d.MaxRuns})
 		for _, f := range fields {

@@ -39,7 +39,7 @@ func TestBotRoutineDurationScheduleGrammar(t *testing.T) {
 			t.Errorf("invalid interval accepted %+v => %q", tc, got)
 		}
 	}
-	if _, err := routineCreateSchedule(RoutineCreateDraft{Frequency: "advanced", Hour: "09", Minute: "00"}); err == nil {
+	if _, err := routineCreateSchedule(RoutineCreateDraft{Frequency: "not-a-frequency", Hour: "09", Minute: "00"}); err == nil {
 		t.Fatal("unsupported type accepted")
 	}
 }
@@ -136,7 +136,7 @@ func TestBotRoutineDurationInvalidDraftRetained(t *testing.T) {
 	if c.Snapshot(k).Review == nil {
 		t.Fatal(c.Snapshot(k).Error)
 	}
-	c.Change(k, "frequency", "advanced")
+	c.Change(k, "frequency", "not-a-frequency")
 	if c.Snapshot(k).Draft.Frequency != "once" {
 		t.Fatal("unsupported editor type accepted")
 	}

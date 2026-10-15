@@ -47,6 +47,6 @@ func routineCreateSchedule(d RoutineCreateDraft) (string, error) {
 		}
 		return "every " + duration, nil
 	default:
-		return "", fmt.Errorf("请选择支持的任务类型 / Select a supported frequency")
+		return routineCreateCalendarSchedule(d)
 	}
 }

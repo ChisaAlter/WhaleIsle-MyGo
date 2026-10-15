@@ -15,6 +15,7 @@ import (
 type RoutineCreateDraft struct {
 	Name, Prompt, Hour, Minute, Timezone, MaxRuns      string
 	Frequency, OnceDelay, IntervalAmount, IntervalUnit string
+	Weekday, MonthDay, Cron                            string
 	Enabled                                            bool
 	Revision                                           int
 	SessionID, RequestID                               string
@@ -174,7 +175,7 @@ func (c *RoutineCreator) Start(k RoutineScope, zone string) {
 		e.state.Error = err.Error()
 		return
 	}
-	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Frequency: "daily", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
+	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Frequency: "daily", Weekday: "1", MonthDay: "1", Cron: "0 9 * * *", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
 	e.state.CreatedID = ""
 	e.state.Error = ""
 	e.state.Notice = ""
@@ -196,7 +197,7 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 	case "prompt":
 		d.Prompt = value
 	case "frequency":
-		if value != "daily" && value != "once" && value != "interval" {
+		if !routineCreateFrequencySupported(value) {
 			return
 		}
 		d.Frequency = value
@@ -209,6 +210,12 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 			return
 		}
 		d.IntervalUnit = value
+	case "weekday":
+		d.Weekday = value
+	case "monthDay":
+		d.MonthDay = value
+	case "cron":
+		d.Cron = value
 	case "hour":
 		d.Hour = value
 	case "minute":

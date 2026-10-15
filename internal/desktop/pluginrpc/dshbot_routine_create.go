@@ -84,7 +84,12 @@ func routineCreatePreCommitRejection(err error) bool {
 	if !strings.HasPrefix(message, "pluginrpc: ") || strings.HasPrefix(message, "pluginrpc: HTTP ") {
 		return false
 	}
-	for _, known := range []string{"Bot catalog changed. Refresh and try again.", "Bot catalog is read-only.", "Routine limit reached.", "Bot is unavailable.", "Invalid routine timezone.", "Invalid name.", "Invalid prompt.", "Invalid run limit."} {
+	// schedule.js wraps cron-parser failures before routine/save reaches scope.set.
+	// Parse the response envelope's message boundary, not arbitrary substring matches.
+	if _, hostMessage, ok := strings.Cut(strings.TrimPrefix(message, "pluginrpc: "), ": "); ok && strings.HasPrefix(hostMessage, "Invalid cron schedule: ") && len(hostMessage) > len("Invalid cron schedule: ") {
+		return true
+	}
+	for _, known := range []string{"Bot catalog changed. Refresh and try again.", "Bot catalog is read-only.", "Routine limit reached.", "Bot is unavailable.", "Invalid routine timezone.", "Invalid name.", "Invalid prompt.", "Invalid run limit.", "Invalid routine schedule.", "Routine interval is out of range.", "Advanced schedules must use a five-field cron expression."} {
 		if strings.HasSuffix(message, ": "+known) {
 			return true
 		}
