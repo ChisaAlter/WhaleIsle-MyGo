@@ -8,6 +8,11 @@ func reloadSelectedFile(m Model) {
 		return
 	}
 	rel := *m.SelectedFile
+	if tab := selectedTab(m); tab != nil {
+		tab.image = nil
+		tab.selectionText = ""
+		tab.selectionStart, tab.selectionEnd = 0, 0
+	}
 	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
 	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
 	if errMsg != "" && m.ReadRemote != nil {
@@ -28,6 +33,9 @@ func reloadSelectedFile(m Model) {
 		}
 		capture(m)
 		return
+	}
+	if isPreviewImage(rel) && m.Editing != nil {
+		*m.Editing = false
 	}
 	if m.PreviewErr != nil {
 		*m.PreviewErr = errMsg

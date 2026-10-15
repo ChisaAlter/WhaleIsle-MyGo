@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -14,10 +16,46 @@ import (
 // An unhandled path is left unchanged for the existing Host opener.
 func OpenPresentedPath(m Model, path string) (bool, error) {
 	path = strings.TrimSpace(path)
+	base, line, hasLine := presentedLineSuffix(path)
+	// Prefer an existing literal filename such as "notes:12" or "notes#L12".
+	handled, err := openPresentedPathExact(m, path, hasLine)
+	if handled || !hasLine {
+		return handled, err
+	}
+	handled, err = openPresentedPathExact(m, base, false)
+	if handled {
+		RequestLine(m, line)
+	}
+	return handled, err
+}
+
+var presentedLinePattern = regexp.MustCompile(`(?i)^(.*?)(?::([1-9][0-9]*)(?::[1-9][0-9]*)?|#L([1-9][0-9]*)(?:-L?[1-9][0-9]*)?)$`)
+
+func presentedLineSuffix(path string) (string, int, bool) {
+	if strings.Contains(path, "://") || strings.ContainsRune(path, 0) {
+		return "", 0, false
+	}
+	match := presentedLinePattern.FindStringSubmatch(path)
+	if len(match) != 4 || strings.TrimSpace(match[1]) == "" {
+		return "", 0, false
+	}
+	value := match[2]
+	if value == "" {
+		value = match[3]
+	}
+	line, err := strconv.Atoi(value)
+	if err != nil {
+		return "", 0, false
+	}
+	return match[1], line, true
+}
+
+func openPresentedPathExact(m Model, path string, numericSuffix bool) (bool, error) {
+	path = strings.TrimSpace(path)
 	if path == "" || strings.ContainsRune(path, 0) {
 		return false, errors.New("invalid file path")
 	}
-	if u, err := url.Parse(path); strings.Contains(path, "://") || (err == nil && u.Scheme != "" && len(u.Scheme) != 1) {
+	if u, err := url.Parse(path); strings.Contains(path, "://") || (!numericSuffix && err == nil && u.Scheme != "" && len(u.Scheme) != 1) {
 		return false, errors.New("file cards cannot open URLs")
 	}
 	root := strings.TrimSpace(m.WorkspaceRoot)

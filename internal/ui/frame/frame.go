@@ -1101,6 +1101,9 @@ func rightPane(c *ui.Context, m Model) {
 			OnOpenWith:   m.OnOpenWithApp,
 			OpenWithApps: m.FileOpenWithApps,
 			OnRenderPDF:  m.OnRenderOfficePDF,
+			OnAddToChat:   m.OnAddSelectionToChat,
+			CanAddToChat:  m.CanAddSelectionToChat,
+			OnOpenLink:   m.OnOpenCitationURL,
 		})
 	})
 }

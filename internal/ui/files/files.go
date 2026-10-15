@@ -17,7 +17,7 @@ import (
 )
 
 // EditViewMode is how the file editor shows draft text vs highlighted preview.
-// MyGo TextArea cannot true in-place highlight, so split / highlight-only are the options.
+// Source remains selectable in every mode; syntax colors decorate native text.
 type EditViewMode int
 
 const (
@@ -77,6 +77,9 @@ type Model struct {
 	// StatRemote is optional workspaceFiles/stat note for the selected file.
 	StatRemote func(rel string) string
 	StatNote   *string
+	OnAddToChat func(string) error
+	CanAddToChat bool
+	OnOpenLink func(string)
 }
 
 // OpenWithApp is one harness-registered application for a workspace path.
@@ -335,7 +338,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					m.OnRenderPDF(sel)
 				}
 			}
-			if !editing && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
+			if !editing && !imageMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
 				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
 					*m.Editing = true
 					if m.EditStatus != nil {
@@ -383,6 +386,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				}
 			}
 		})
+		paintSourceActions(c, m, sel, muted)
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
 		}
@@ -394,6 +398,20 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				Padding(4, 12, 8, 12)
 			return
 		}
+		if imageMode(m, sel) {
+			paintImagePreview(c, m, sel, muted)
+			return
+		}
+		if tab := selectedTab(m); tab != nil && tab.RenderedMarkdown && isMarkdown(sel) {
+			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
+				ui.Column(c).Padding(8, 12, 8, 12).FillWidth().Children(func() {
+					markdown.ViewInteractive(c, previewText(m), sourceStyle(m, fg, muted), m.OnOpenLink)
+				})
+			})
+			return
+		}
+		editing = m.Editing != nil && *m.Editing
+		mode = resolveEditViewMode(m, canHL && editing)
 		if editing && m.EditDraft != nil {
 			paintEditBody(c, m, sel, *m.EditDraft, mode, fg, muted)
 			return
@@ -406,61 +424,38 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			text = *m.EditDraft
 			ui.Text(c, label("未保存草稿（仅保留在此窗口）", "Unsaved draft (kept in this window)")).FontSize(11).TextColor(muted)
 		}
-		rel := ""
-		if m.SelectedFile != nil {
-			rel = *m.SelectedFile
-		}
-		// Prefer chroma RichText for source files; fall back to line list for huge buffers.
-		if markdown.CanSourceHighlight(rel, text) {
-			mdStyle := sourceStyle(m, fg, muted)
-			ui.Column(c).Fill().MinHeight(0).Padding(8, 12, 8, 12).Children(func() {
-				markdown.SourceView(c, rel, text, mdStyle)
-			})
-			return
-		}
-		lines := splitLines(text)
-		list := m.PreviewList
-		if list == nil {
-			list = &ui.ListState{}
-		}
-		ui.List(c, list, len(lines)).Fill().Rows(func(row ui.ListRow) {
-			ui.Text(row.Context, lines[row.Index]).FontSize(12).TextColor(fg)
-		})
+		paintSourceArea(c, m, sel, &text, true, "source", fg, muted)
 	})
 }
 
 func paintEditBody(c *ui.Context, m Model, sel, draft string, mode EditViewMode, fg, muted ui.Color) {
-	mdStyle := sourceStyle(m, fg, muted)
 	switch mode {
 	case EditViewHighlight:
 		ui.Column(c).Fill().MinHeight(0).Padding(8, 12, 8, 12).Children(func() {
-			markdown.SourceView(c, sel, draft, mdStyle)
+			paintSourceArea(c, m, sel, &draft, true, "highlight", fg, muted)
 		})
 	case EditViewSplit:
 		split := editSplitHandle(m)
 		side := preferSideBySide(paneWidthOf(m))
 		if side {
 			ui.Split(c, split, func() {
-				ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
-					Padding(8, 8, 8, 8)
+				paintSourceArea(c, m, sel, m.EditDraft, false, "editor", fg, muted)
 			}, func() {
 				ui.Column(c).Fill().MinHeight(0).MinWidth(0).Padding(8, 8, 8, 8).Children(func() {
-					markdown.SourceView(c, sel, draft, mdStyle)
+					paintSourceArea(c, m, sel, &draft, true, "highlight", fg, muted)
 				})
 			}).Fill()
 			return
 		}
 		ui.SplitVertical(c, split, func() {
-			ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
-				Padding(8, 8, 8, 8)
+			paintSourceArea(c, m, sel, m.EditDraft, false, "editor", fg, muted)
 		}, func() {
 			ui.Column(c).Fill().MinHeight(0).Padding(8, 8, 8, 8).Children(func() {
-				markdown.SourceView(c, sel, draft, mdStyle)
+				paintSourceArea(c, m, sel, &draft, true, "highlight", fg, muted)
 			})
 		}).Fill()
 	default:
-		ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
-			Padding(8, 12, 8, 12)
+		paintSourceArea(c, m, sel, m.EditDraft, false, "editor", fg, muted)
 	}
 }
 
@@ -649,6 +644,9 @@ func LoadPreview(root, rel string) (text, errMsg string) {
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
 		return "", err.Error()
+	}
+	if isPreviewImage(rel) {
+		return "", "" // Decoded separately; never offer binary image bytes for editing.
 	}
 	switch workspacefs.ClassifyDoc(rel) {
 	case workspacefs.DocPDF:

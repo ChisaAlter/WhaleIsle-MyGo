@@ -23,6 +23,12 @@ type WorkspaceTabs struct {
 type FileTab struct {
 	Path, Preview, Draft, Error, Status, Stat string
 	Editing                                   bool
+	RenderedMarkdown                          bool
+	selectionText                             string
+	selectionStart, selectionEnd              int
+	lineDraft                                 string
+	revealLine                                int
+	image                                     *imagePreview
 }
 
 func (t *FileTab) Dirty() bool { return t.Draft != t.Preview }
@@ -86,6 +92,8 @@ func capture(m Model) {
 	}
 }
 func restore(m Model, t *FileTab) {
+	t.selectionText = ""
+	t.selectionStart, t.selectionEnd = 0, 0
 	if m.SelectedFile != nil {
 		*m.SelectedFile = t.Path
 	}
@@ -118,6 +126,7 @@ func prepareTabs(m Model) {
 		m.Tabs.Root = root
 		if t := findTab(w, w.Active); t != nil {
 			restore(m, t)
+			reloadSelectedFile(m)
 		} else {
 			restore(m, &FileTab{})
 		}
