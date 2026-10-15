@@ -201,34 +201,9 @@ func ValidateDshbotCapabilityCommand(cmd DshbotCapabilityCommand) error {
 	return nil
 }
 func (c *Client) DshbotSaveCapabilities(ctx context.Context, cmd DshbotCapabilityCommand) (DshbotCapabilityReceipt, error) {
-	var out DshbotCapabilityReceipt
 	if err := ValidateDshbotCapabilityCommand(cmd); err != nil {
-		return out, err
+		return DshbotCapabilityReceipt{}, err
 	}
-	payload := CloneDshbotCapabilities(cmd.Expected).Profile
-	payload["capabilities"], _ = json.Marshal(cmd.Desired)
-	payload["revision"], _ = json.Marshal(cmd.Expected.Revision)
-	var response struct {
-		View     dshbotCapabilityView `json:"view"`
-		Warnings []string             `json:"warnings"`
-	}
-	out.Attempted = true
-	if err := c.Call(ctx, "dshbot", "bot/update", payload, &response); err != nil {
-		return out, fmt.Errorf("capability save outcome uncertain; read back before another save")
-	}
-	out.Warnings = append([]string(nil), response.Warnings...)
-	var err error
-	out.Status, err = response.View.status(cmd.Expected.Bot.ID, cmd.Expected.Catalog)
-	if err != nil {
-		return out, err
-	}
-	if out.Status.Bot.SessionID != cmd.Expected.Bot.SessionID || out.Status.Revision <= cmd.Expected.Revision || !reflect.DeepEqual(out.Status.Policies, cmd.Desired) {
-		return out, fmt.Errorf("capability receipt differs; read back")
-	}
-	for k, v := range cmd.Expected.Profile {
-		if k != "capabilities" && k != "updatedAt" && !sameCapabilityJSON(v, out.Status.Profile[k]) {
-			return out, fmt.Errorf("profile field changed in receipt; read back: %s", k)
-		}
-	}
-	return out, nil
+	value, _ := json.Marshal(cmd.Desired)
+	return c.saveDshbotProfileField(ctx, cmd.Expected, "capabilities", value)
 }
