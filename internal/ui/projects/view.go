@@ -8,6 +8,11 @@ import (
 )
 
 type Model struct {
+	MaterialCollection                                                   *projectflow.MaterialCollection
+	OnMaterialCollection                                                 func(string)
+	OnMaterialCollectionAction                                           func(string)
+	TeamQuery                                                            string
+	OnTeamQuery                                                          func(string)
 	SearchQuery                                                          string
 	History                                                              bool
 	OnSearchQuery                                                        func(string)
@@ -159,6 +164,10 @@ func View(c *ui.Context, m Model) {
 			teamView(c, m)
 			return
 		}
+		if m.MaterialCollection != nil {
+			materialCollectionView(c, m)
+			return
+		}
 		projectFilterControls(c, &m)
 		visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
 		if m.Workspace != "" {
@@ -212,6 +221,9 @@ func View(c *ui.Context, m Model) {
 								}
 							}
 						})
+						if ui.Button(c, tr("材料集合", "Materials")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnMaterialCollection != nil {
+							m.OnMaterialCollection(p.ID)
+						}
 						if ui.Button(c, tr("项目资料", "Project documents")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnDocuments != nil {
 							m.OnDocuments(p.ID)
 						}

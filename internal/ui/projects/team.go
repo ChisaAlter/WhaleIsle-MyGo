@@ -34,6 +34,7 @@ func teamView(c *ui.Context, m Model) {
 		}
 		return
 	}
+	teamSearchControls(c, &m)
 	o := m.Team
 	ui.Text(c, o.Project.Title+" · Team").FontSize(13)
 	if m.RefreshNote == "" {
@@ -59,7 +60,16 @@ func teamView(c *ui.Context, m Model) {
 			if o.Team == nil {
 				return
 			}
-			members := o.Members()
+			allMembers := o.Members()
+			members := make([]projectflow.TeamMember, 0, len(allMembers))
+			for _, member := range allMembers {
+				if teamMemberMatches(o, member, m.TeamQuery) {
+					members = append(members, member)
+				}
+			}
+			if len(members) == 0 && m.TeamQuery != "" {
+				ui.Text(c, tr("没有匹配成员", "No matching members")).FontSize(12)
+			}
 			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(12)
 			for _, member := range members {
 				member := member
@@ -91,8 +101,14 @@ func teamView(c *ui.Context, m Model) {
 					}
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(o.Team.Tasks))).FontSize(12)
+			tasks := make([]projectflow.TeamTask, 0, len(o.Team.Tasks))
 			for _, task := range o.Team.Tasks {
+				if teamTaskMatches(task, m.TeamQuery) {
+					tasks = append(tasks, task)
+				}
+			}
+			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(tasks))).FontSize(12)
+			for _, task := range tasks {
 				ui.Text(c, task.Subject+" · "+stateLabel(task.Status)).FontSize(12)
 				owner := task.OwnerName
 				if owner == "" {
@@ -112,8 +128,14 @@ func teamView(c *ui.Context, m Model) {
 					ui.Text(c, warning).FontSize(11)
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("工作流（本页 %d；当前总数 %d）", "Workstreams (%d on page; %d current total)"), len(o.Workstreams), o.WorkPage.CurrentTotal)).FontSize(12)
+			works := make([]projectflow.Workstream, 0, len(o.Workstreams))
 			for _, work := range o.Workstreams {
+				if teamWorkMatches(work, m.TeamQuery) {
+					works = append(works, work)
+				}
+			}
+			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(12)
+			for _, work := range works {
 				work := work
 				if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect(work.ID, "")

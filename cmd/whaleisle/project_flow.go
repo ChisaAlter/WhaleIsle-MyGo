@@ -14,6 +14,8 @@ import (
 )
 
 type projectFlowState struct {
+	materialCollection            *projectMaterialCollectionState
+	teamQuery                     string
 	searchQuery                   string
 	history                       bool
 	historical                    *projectHistoricalState
@@ -57,6 +59,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
 	f := &s.projectFlow
 	if f.client != s.dshClient {
+		s.closeProjectMaterialCollectionLocked()
 		s.closeProjectHistoricalLocked()
 		s.closeProjectActivityLocked()
 		s.closeProjectDeliveriesLocked()
@@ -79,6 +82,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	m.TeamQuery = f.teamQuery
 	m.SearchQuery = f.searchQuery
 	m.History = f.history
 	filterClient := f.client
@@ -98,6 +102,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
 		if !s.projectFlow.expanded {
+			s.closeProjectMaterialCollectionLocked()
 			s.closeProjectHistoricalLocked()
 			s.closeProjectActivityLocked()
 			s.closeProjectDeliveriesLocked()
@@ -143,6 +148,13 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnCancelRename = func() { s.mu.Lock(); s.projectFlow.renameID = ""; s.projectFlow.renameDraft = ""; s.mu.Unlock() }
 	m.OnRename = func(id, title string) { s.runProjectAction(win, "rename", id, title) }
+	m.OnTeamQuery = func(query string) {
+		s.mu.Lock()
+		if s.projectFlow.client == filterClient && s.dshClient == filterClient && s.projectFlow.teamID == m.TeamID {
+			s.projectFlow.teamQuery = query
+		}
+		s.mu.Unlock()
+	}
 	m.OnTeam = func(id string) { s.runProjectTeam(win, id, "inspect", "") }
 	m.OnCloseTeam = func() {
 		s.mu.Lock()
@@ -233,6 +245,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectDeliveries(win, &m)
 	s.bindProjectDocuments(win, &m)
 	s.bindProjectHistorical(win, &m)
+	s.bindProjectMaterialCollection(win, &m)
 	return m
 }
 func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
