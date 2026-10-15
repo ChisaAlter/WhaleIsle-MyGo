@@ -22,6 +22,8 @@ type marketAttempt struct {
 	requestID, spec string
 	method          string
 	target          *marketstore.InstallTarget
+	receiptID       string
+	continueBatch   bool
 	cancelPending   bool
 }
 
@@ -39,7 +41,13 @@ func (s *mainState) invalidateMarketLocked() {
 	defer s.mu.Unlock()
 	if s.marketActive != nil {
 		s.marketActive.cancel()
+		if s.marketActive.store != nil && s.marketActive.receiptID != "" {
+			if err := s.marketActive.store.FinishInstall(s.marketActive.receiptID, "interrupted", "result-unconfirmed"); err != nil {
+				s.marketInstallMsg = marketMessage("中断记录保存失败，请查看历史。", "Could not save interrupted result; check history.")
+			}
+		}
 	}
+	s.clearMarketBatchLocked()
 	s.marketActive = nil
 	s.marketInstallBusy = false
 	s.marketInstallRequestID = ""
@@ -59,6 +67,7 @@ func (s *mainState) runMarketCatalogInstall(target marketstore.InstallTarget) {
 	}
 	if err := s.market.ValidateTarget(target); err != nil {
 		s.marketInstallMsg = err.Error()
+		s.clearMarketBatchLocked()
 		s.mu.Unlock()
 		s.dshMu.Unlock()
 		return
@@ -120,6 +129,34 @@ func (s *mainState) beginMarketAttempt(spec string, allow []string, install bool
 	op.ctx, op.cancel = context.WithCancel(context.Background())
 	if install && op.client != nil {
 		op.requestID = marketInstallRequestID()
+	}
+	if install {
+		id, action := "manual-install", "install"
+		if target != nil {
+			id = target.ID
+			if target.UpdateVersion != "" {
+				action = "update"
+			}
+		}
+		op.receiptID = marketInstallRequestID()
+		if target != nil && len(s.marketBatch) > 0 && s.marketBatch[0] == *target {
+			if receipt := s.marketBatchReceipts[target.ID]; receipt != "" {
+				op.receiptID = receipt
+			}
+		}
+		if op.store == nil {
+			op.cancel()
+			s.marketInstallMsg = marketMessage("无法保存操作记录；安装未开始。", "Cannot save operation receipt; installation was not started.")
+			return nil, ""
+		}
+		if err := op.store.BeginInstall(op.receiptID, id, action); err != nil {
+			op.cancel()
+			s.marketInstallMsg = marketMessage("无法保存操作记录；安装未开始。", "Cannot save operation receipt; installation was not started.")
+			return nil, ""
+		}
+		if len(s.marketBatch) > 0 && (target == nil || s.marketBatch[0] != *target) {
+			s.clearMarketBatchLocked()
+		}
 	}
 	s.marketWorker = op
 	s.marketActive = op
@@ -219,6 +256,29 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 	s.marketInstallRequestID = ""
 	s.marketInstallMsg = r.message
 	s.marketInstallLog = r.log
+	if op.store != nil && op.receiptID != "" {
+		outcome := r.outcome
+		if len(r.pending) > 0 || len(r.incompatible) > 0 {
+			outcome = "awaiting-approval"
+		}
+		if err := op.store.FinishInstall(op.receiptID, outcome, r.historyError); err != nil {
+			s.marketInstallMsg += " " + marketMessage("结果保存失败；历史仅在本次会话可见。", "Result could not be saved; history is available only in this session.")
+		}
+	}
+	if install && len(s.marketBatch) > 0 && op.target != nil && s.marketBatch[0] == *op.target {
+		if r.accepted {
+			s.marketBatch = s.marketBatch[1:]
+			op.continueBatch = len(s.marketBatch) > 0
+			if !op.continueBatch {
+				s.marketBatchReceipts = nil
+			}
+		} else if len(r.pending) == 0 && len(r.incompatible) == 0 {
+			s.marketInstallMsg += fmt.Sprintf(marketMessage(" 批量更新已停止，剩余 %d 项未执行。", " Batch stopped; %d remaining items were not run."), len(s.marketBatch)-1)
+			s.clearMarketBatchLocked()
+		} else {
+			s.marketInstallMsg += marketMessage(" 批量更新暂停，等待此插件的授权。", " Batch paused for this plugin's approval.")
+		}
+	}
 	if r.accepted && r.outcome == "restart-required" {
 		generation := s.bootStatus.Generation
 		if s.sup != nil {
@@ -241,18 +301,11 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 	}
 	win := s.win
 	s.mu.Unlock()
-	if install && op.store != nil && r.outcome != "" {
-		id := "manual-install"
-		if op.target != nil {
-			id = op.target.ID
-		}
-		_ = op.store.RecordInstall(id, r.outcome, r.historyError)
-	}
 	// A pending update approval is tied to the displayed inventory receipt.
 	// These stages do not apply the update. Keep that receipt until approval;
 	// terminal outcomes still refresh inventory, and manual refresh expires it.
 	awaitingUpdateApproval := op.target != nil && op.target.UpdateVersion != "" && (len(r.pending) > 0 || len(r.incompatible) > 0 || (op.method == "pluginManager/setVersionExemption" && r.accepted))
-	if op.store != nil && !awaitingUpdateApproval {
+	if op.store != nil && !awaitingUpdateApproval && !op.continueBatch {
 		op.store.Refresh(context.Background())
 	}
 	if win != nil {
@@ -262,11 +315,19 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 func (s *mainState) releaseMarket(op *marketAttempt) {
 	op.cancel()
 	s.mu.Lock()
+	var next *marketstore.InstallTarget
 	if s.marketWorker == op {
 		s.marketWorker = nil
+		if op.continueBatch && len(s.marketBatch) > 0 {
+			t := s.marketBatch[0]
+			next = &t
+		}
 	}
 	win := s.win
 	s.mu.Unlock()
+	if next != nil {
+		s.runMarketCatalogInstall(*next)
+	}
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -347,6 +408,31 @@ func (s *mainState) runMarketChangeApproved(method string, args map[string]any, 
 			s.releaseMarket(op)
 			return
 		}
+	}
+	id, action := "manual-install", "exemption"
+	if op.target != nil {
+		id = op.target.ID
+	}
+	if name, ok := args["name"].(string); ok && op.store != nil {
+		id = op.store.BundleHistoryID(name)
+	}
+	if method == "pluginManager/removeBundle" {
+		action = "remove"
+	}
+	if method == "pluginManager/setBundleEnabled" {
+		action = "toggle"
+	}
+	op.receiptID = marketInstallRequestID()
+	if op.store == nil {
+		s.finishMarket(op, marketResult{message: marketMessage("无法保存操作记录；变更未开始。", "Cannot save operation receipt; change was not started.")}, false)
+		s.releaseMarket(op)
+		return
+	}
+	if err := op.store.BeginInstall(op.receiptID, id, action); err != nil {
+		op.receiptID = ""
+		s.finishMarket(op, marketResult{message: marketMessage("无法保存操作记录；变更未开始。", "Cannot save operation receipt; change was not started.")}, false)
+		s.releaseMarket(op)
+		return
 	}
 	go func() {
 		defer s.releaseMarket(op)

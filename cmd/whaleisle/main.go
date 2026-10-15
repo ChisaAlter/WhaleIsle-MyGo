@@ -229,6 +229,8 @@ type mainState struct {
 	scheduleOpen                            bool
 	scheduleHistoryText                     string
 	remoteOpen                              bool
+	marketBatchReceipts                     map[string]string
+	marketBatch                             []marketstore.InstallTarget
 	marketActive                            *marketAttempt
 	marketWorker                            *marketAttempt
 	marketApproval                          *marketAttempt
@@ -3736,6 +3738,8 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnBatchUpdate:    state.runMarketBatchUpdates,
+					OnStopBatch:      state.stopMarketBatch,
 					OnInstallCatalog: state.runMarketCatalogInstall,
 					OnInstallSpec: func(spec string, allowBuilds []string) {
 						state.runMarketInstall(spec, allowBuilds)

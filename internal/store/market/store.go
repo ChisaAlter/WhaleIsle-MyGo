@@ -51,6 +51,7 @@ type Store struct {
 	refreshID  uint64
 	discovery  discoveryState
 	updates    updateState
+	management managementState
 	personal   personalState
 	notify     func()
 

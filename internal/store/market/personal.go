@@ -12,10 +12,12 @@ import (
 // InstallHistory contains only a safe identifier and bounded outcome, never raw
 // install specs, URLs, RPC diagnostics, build output or authentication data.
 type InstallHistory struct {
-	At     time.Time `json:"at"`
-	Plugin string    `json:"plugin"`
-	Result string    `json:"result"`
-	Error  string    `json:"error,omitempty"`
+	Attempt string    `json:"attempt,omitempty"`
+	Action  string    `json:"action,omitempty"`
+	At      time.Time `json:"at"`
+	Plugin  string    `json:"plugin"`
+	Result  string    `json:"result"`
+	Error   string    `json:"error,omitempty"`
 }
 type personalData struct {
 	Favorites map[string]bool  `json:"favorites"`
@@ -47,6 +49,22 @@ func NewWithPersonalPath(path string) *Store {
 	}
 	if s.personal.data.Favorites == nil {
 		s.personal.data.Favorites = map[string]bool{}
+	}
+	// A running receipt left by a previous process is not proof of success.
+	changed := false
+	for i := range s.personal.data.History {
+		if s.personal.data.History[i].Result == "queued" {
+			s.personal.data.History[i].Result = "not-started"
+			changed = true
+		}
+		if s.personal.data.History[i].Result == "running" {
+			s.personal.data.History[i].Result = "interrupted"
+			s.personal.data.History[i].Error = "result-unconfirmed"
+			changed = true
+		}
+	}
+	if changed && s.personal.loadErr == nil {
+		_ = s.savePersonalLocked(s.personal.data) // The store exposes persistence failure in Personal.Err.
 	}
 	return s
 }

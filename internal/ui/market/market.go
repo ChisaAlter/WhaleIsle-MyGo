@@ -43,6 +43,8 @@ type Model struct {
 	OnClose            func()
 	OnRefresh          func()
 	OnInstallSpec      func(spec string, allowBuilds []string)
+	OnBatchUpdate      func(targets []marketstore.InstallTarget)
+	OnStopBatch        func()
 	OnInstallCatalog   func(target marketstore.InstallTarget)
 	OnRemoveBundle     func(name string)
 	OnSetBundleEnabled func(name string, enabled bool)
@@ -58,6 +60,7 @@ func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
+	m = withMarketConfirmations(m)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	bg, border, fg, muted, field, accent := chrome.Color(colors.BG), chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot()
@@ -93,16 +96,24 @@ func View(c *ui.Context, m Model) {
 		})
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).FillWidth().Children(func() {
+				confirmationView(c, m, fg, accent)
 				if personal.Err != "" {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
 				if d.Tab == "history" {
-					ui.Text(c, marketText("最近 200 次结果；unknown 表示未确认，不表示安装成功。", "Latest 200 outcomes; unknown means unconfirmed, never success.")).TextColor(muted)
+					ui.Text(c, marketText("最近 200 次操作；interrupted 或 unknown 表示结果未确认，重试前请刷新库存。", "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
 					if len(personal.History) == 0 {
 						ui.Text(c, marketText("暂无安装历史。", "No installation history yet.")).TextColor(muted)
 					}
+					managementFilters(c, m)
 					for _, h := range personal.History {
-						ui.Text(c, h.At.Local().Format("2006-01-02 15:04:05 MST")+" · "+h.Plugin+" · "+h.Result+" "+h.Error).TextColor(fg)
+						if m.Store.ManagementFilter() == "failed" && !failedOutcome(h.Result) {
+							continue
+						}
+						if m.Store.ManagementFilter() == "updates" && h.Action != "update" {
+							continue
+						}
+						ui.Text(c, h.At.Local().Format("2006-01-02 15:04:05 MST")+" · "+h.Plugin+" · "+h.Action+" · "+h.Result+" "+h.Error).TextColor(fg)
 					}
 				} else if d.Tab != "installed" {
 					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
@@ -116,11 +127,15 @@ func View(c *ui.Context, m Model) {
 					if !snap.ClientReady {
 						ui.Text(c, marketText("运行时未连接；目录仍可浏览。", "Runtime disconnected; the catalog remains available.")).TextColor(muted)
 					}
+					managementFilters(c, m)
 					updatesView(c, m, snap, fg, muted, accent)
 					if len(snap.Rows) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
 					for _, row := range snap.Rows {
+						if !showInstalledRow(m, row) {
+							continue
+						}
 						r := row
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
@@ -415,7 +430,14 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 		ui.Text(c, marketText("检查时间：", "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(11).TextColor(muted)
 	}
 	ui.Text(c, marketText("仅比较已确认的 npm 稳定版本；Git、本地来源及不可比较版本显示未知。检查不会自动安装。", "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(11).TextColor(muted)
+	batchSelectionView(c, m, u, muted)
 	for _, row := range u.Rows {
+		if m.Store.ManagementFilter() == "updates" && !row.Available {
+			continue
+		}
+		if m.Store.ManagementFilter() == "failed" && !failedPlugin(m, row.ID, row.Name) {
+			continue
+		}
 		r := row
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			current, latest := r.Current, r.Latest
@@ -439,6 +461,13 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 				}
 			})
 			if r.Available && !m.InstallBusy && !u.Loading && u.Err == "" && m.OnInstallCatalog != nil {
+				label := marketText("选择", "Select")
+				if m.Store.UpdateSelected(r.ID) {
+					label = marketText("取消选择", "Deselect")
+				}
+				if ui.Button(c, label).Clicked() {
+					m.Store.ToggleUpdateSelected(r.ID)
+				}
 				if target, err := m.Store.CaptureUpdateTarget(r.ID); err == nil {
 					if ui.Button(c, marketText("更新至 ", "Update to ")+r.Latest).Clicked() {
 						m.OnInstallCatalog(target)
