@@ -192,6 +192,20 @@ func resolveNode(configured string) (string, error) {
 		}
 		return configured, nil
 	}
+	// Packaged Host runs with its matching bundled Node before any unrelated
+	// PATH installation. A fresh native runtime install must work without
+	// changing the user's PATH or requiring a separate global Node install.
+	name := "node"
+	if runtime.GOOS == "windows" { name = "node.exe" }
+	bases := []string{}
+	if exe, err := os.Executable(); err == nil { bases = append(bases, filepath.Dir(exe)) }
+	if wd, err := os.Getwd(); err == nil { bases = append(bases, wd) }
+	for _, base := range bases {
+		candidate := filepath.Join(base, "runtime", "node", name)
+		if st, err := os.Stat(candidate); err == nil && st.Mode().IsRegular() {
+			return candidate, nil
+		}
+	}
 	if bin, err := lookPath("node"); err == nil {
 		if !strings.Contains(strings.ToLower(bin), "electron") {
 			return bin, nil

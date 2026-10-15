@@ -38,6 +38,10 @@ type StageOptions struct {
 	ExpectSHA256 string
 	// ExpectSize is optional Content-Length / feed size; when >0 must match bytes written.
 	ExpectSize int64
+	// MaxBytes bounds downloads; zero keeps the existing 512 MiB limit.
+	MaxBytes int64
+	// OnProgress is called during download with received and expected bytes.
+	OnProgress func(received, total int64)
 	// RequireSignature enables Authenticode verification after download (Windows).
 	// Fail closed when the probe reports a non-valid signature (or cannot run).
 	// On non-Windows, Authenticode is skipped (documented no-op success).
@@ -84,6 +88,11 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	if releaseURL == "" {
 		return ApplyResult{}, fmt.Errorf("empty release URL")
 	}
+	maxBytes := opt.MaxBytes
+	if maxBytes == 0 { maxBytes = 512 << 20 }
+	if maxBytes < 1 || maxBytes > 8 << 30 || opt.ExpectSize > maxBytes {
+		return ApplyResult{}, fmt.Errorf("installer exceeds download size limit")
+	}
 	client := opt.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Minute}
@@ -118,13 +127,17 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		return ApplyResult{}, err
 	}
 	h := sha256.New()
-	n, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, 512<<20))
+	progress := &stageProgressWriter{notify: opt.OnProgress, total: opt.ExpectSize}
+	n, err := io.Copy(io.MultiWriter(f, h, progress), io.LimitReader(resp.Body, maxBytes+1))
+	if err == nil { err = ctx.Err() }
+	if err == nil && n > maxBytes { err = fmt.Errorf("installer exceeds download size limit") }
 	if err != nil {
 		_ = f.Close()
 		_ = os.Remove(dest)
 		return ApplyResult{}, err
 	}
 	if err := f.Close(); err != nil {
+		_ = os.Remove(dest)
 		return ApplyResult{}, err
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
@@ -147,6 +160,15 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		return ApplyResult{}, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(dest)
+		return ApplyResult{}, err
+	}
+	if opt.OnProgress != nil { opt.OnProgress(n, opt.ExpectSize) }
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(dest)
+		return ApplyResult{}, err
+	}
 	out := ApplyResult{
 		Path:      dest,
 		Message:   "staged " + dest,
@@ -230,4 +252,21 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 		return StartStaged(res)
 	}
 	return res, nil
+}
+
+
+type stageProgressWriter struct {
+	notify func(int64, int64)
+	total int64
+	received int64
+	last time.Time
+}
+
+func (p *stageProgressWriter) Write(b []byte) (int, error) {
+	p.received += int64(len(b))
+	if p.notify != nil && (p.last.IsZero() || time.Since(p.last) >= 100*time.Millisecond || p.received == p.total) {
+		p.last = time.Now()
+		p.notify(p.received, p.total)
+	}
+	return len(b), nil
 }

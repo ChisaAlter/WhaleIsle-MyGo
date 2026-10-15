@@ -10,6 +10,7 @@ import (
 
 	"whaleisle/internal/desktop/components"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -84,6 +85,16 @@ type Model struct {
 	OnAddSkillImportDir     func() // add skill import directory
 	OnCopyImportJournal     func(lines []string)
 	OnCheckUpdate           func()
+	Releases []update.NativeRelease
+	ReleaseBusy bool
+	ReleaseStatus, ReleaseError, ReleaseSelectedTag, ReleaseStagedTag string
+	ReleaseReceived, ReleaseTotal int64
+	OnRefreshReleases func()
+	OnSelectRelease func(tag string)
+	OnInstallRuntime func()
+	OnInstallRelease func(tag string)
+	OnCancelRelease func()
+	OnStartStagedRelease func()
 	OnOpenSettings          func()
 	OnEnableSkipUserPlugins func()
 	OnClearPluginRecovery   func()
@@ -473,6 +484,7 @@ func homePanel(c *ui.Context, m Model) {
 	if !m.VendorReady {
 		homeInstall(c, m)
 	}
+	nativeReleaseOperation(c, m)
 	if r := strings.TrimSpace(m.PluginRecoveryReason); r != "" {
 		ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
 			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
@@ -529,8 +541,8 @@ func homeInstall(c *ui.Context, m Model) {
 				})
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Clicked() && m.OnCheckUpdate != nil {
-					m.OnCheckUpdate()
+				if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
+					m.OnInstallRuntime()
 				}
 				ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(12).TextColor(colTertiary)
 			})
@@ -795,103 +807,51 @@ func diag(c *ui.Context, m Model) {
 }
 
 func versionsPanel(c *ui.Context, m Model) {
-	verLabel := nonempty(m.Version, i18n.T(i18n.KeyLauncherVerDev))
-	if verLabel == "dev" {
-		verLabel = i18n.T(i18n.KeyLauncherVerDev)
-	}
-	if !m.VendorReady {
-		ui.Column(c).FillWidth().Background(colWarnBG).
-			Border(1, colWarnBorder).Radius(12).
-			Padding(12, 14, 12, 14).Gap(6).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerNeedInstall)).FontSize(14).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerNeedInstallDesc)).FontSize(12).TextColor(colSecondary)
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerBackHome)).Clicked() && m.OnTab != nil {
-				m.OnTab(TabHome)
+	ui.Column(c).FillWidth().Gap(12).Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyLauncherLocalVersion)+": "+nonempty(m.Version, "dev")).FontSize(16).FontWeight(600).TextColor(colPrimary)
+		if !m.VendorReady {
+			ui.Text(c, releaseText("尚未安装 Host 运行时；请选择包含运行时的 MyGo 发布。", "Host runtime is missing; choose a MyGo release that includes it.")).FontSize(12).TextColor(colSecondary)
+			if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
+				m.OnInstallRuntime()
 			}
+		}
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
+			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil { m.OnRefreshReleases() }
 		})
-		ui.Box(c).Height(12)
-	}
-	ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(12).
-		Padding(16, 16, 16, 16).Gap(10).Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyLauncherLocalVersion)).FontSize(12).TextColor(colTertiary)
-					ui.Text(c, verLabel).FontSize(18).FontWeight(600).TextColor(colPrimary)
-					if m.UpdateStatus != "" && strings.Contains(m.UpdateStatus, "v") {
-						ui.Text(c, m.UpdateStatus).FontSize(12).TextColor(colAccent)
+		ui.Text(c, releaseText("按发布标签选择原生 MyGo 安装包；下载校验后再确认安装。", "Select a native MyGo release tag; installation is confirmed after download verification.")).FontSize(12).TextColor(colTertiary)
+		for _, release := range m.Releases {
+			r := release
+			unavailable := r.UnavailableReason
+			if unavailable == "" && !m.VendorReady && !r.RuntimeIncluded {
+				unavailable = releaseText("此发布不包含 Host 运行时。", "This release does not contain the Host runtime.")
+			}
+			bg := colSidebar
+			if m.ReleaseSelectedTag == r.Tag && unavailable == "" { bg = colNavActive }
+			ui.Column(c).FillWidth().Background(bg).Border(1, colBorderL2).Radius(10).Padding(12).Gap(6).Children(func() {
+				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, r.Tag).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
+					ui.Text(c, r.Platform+"/"+r.Arch).FontSize(11).TextColor(colTertiary)
+					if r.Version == m.Version || "v"+r.Version == m.Version {
+						ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(11).TextColor(colAccent)
 					}
+					if r.Prerelease { ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(11).TextColor(colSecondary) }
+					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil { m.OnSelectRelease(r.Tag) }
 				})
-				path := nonempty(m.Workspace, "")
-				if path != "" {
-					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherVerInstallPath), path)).FontSize(12).TextColor(colTertiary)
-				}
-			})
-			ui.Row(c).Gap(8).Children(func() {
-				if primaryBtn(c, i18n.T(i18n.KeyLauncherVerUpdateTo)).Clicked() && m.OnCheckUpdate != nil {
-					m.OnCheckUpdate()
-				}
-				if ghostBtn(c, i18n.T(i18n.KeyLauncherCheckUpdate)).Clicked() && m.OnCheckUpdate != nil {
-					m.OnCheckUpdate()
-				}
-			})
-		})
-		if m.UpdateStatus != "" && !strings.Contains(m.UpdateStatus, "v") {
-			ui.Text(c, m.UpdateStatus).FontSize(12).TextColor(colSecondary)
-		}
-	})
-
-	ui.Column(c).FillWidth().Padding(20, 0, 0, 0).Gap(8).Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(13).FontWeight(600).TextColor(colPrimary).Grow(1)
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Clicked() && m.OnCheckUpdate != nil {
-				m.OnCheckUpdate()
-			}
-		})
-		// Surface installed component versions as rows until the desktop release
-		// catalog is wired (Electron lists both desktop + component artifacts).
-		rows := 0
-		for _, row := range m.Components {
-			if row.InstalledVersion == "" {
-				continue
-			}
-			rows++
-			r := row
-			ui.Row(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(10).
-				Padding(10, 12, 10, 12).AlignItems(ui.Center).Gap(10).Children(func() {
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, r.ID+"-v"+r.InstalledVersion).FontSize(13).FontWeight(600).TextColor(colPrimary)
-						ui.Row(c).Background(colNavActive).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(11).TextColor(colAccent)
-						})
-						if r.UpdateAvailable {
-							ui.Row(c).Background(colSuccessBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-								ui.Text(c, i18n.T(i18n.KeyLauncherVerLatest)).FontSize(11).TextColor(colSuccessFG)
-							})
-						}
-					})
-					ui.Text(c, i18n.T(i18n.KeyLauncherVerInstalled)).FontSize(12).TextColor(colTertiary)
-				})
-				if r.ID == "whalebridge" {
-					label := i18n.T(i18n.KeyLauncherCompCheckUpdate)
-					if r.UpdateAvailable {
-						label = fmt.Sprintf(i18n.T(i18n.KeyLauncherVerUpdateToV), r.Version)
-					}
-					if ghostSmall(c, label).Clicked() && m.OnComponentAction != nil {
-						m.OnComponentAction(r.ID, "update")
-					}
-					if r.PreviousVersion != "" && r.PreviousVersion != r.InstalledVersion {
-						if ghostSmall(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompRollback), r.PreviousVersion)).Clicked() && m.OnComponentAction != nil {
-							m.OnComponentAction(r.ID, "rollback")
-						}
-					}
+				label := releaseText("仅桌面端", "Desktop only")
+				if r.RuntimeIncluded { label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime") }
+				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(12).TextColor(colSecondary)
+				if r.Notes != "" { ui.Text(c, r.Notes).FontSize(12).TextColor(colSecondary) }
+				if unavailable != "" { ui.Text(c, unavailable).FontSize(12).TextColor(colTertiary) }
+				if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
+					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil { m.OnInstallRelease(r.Tag) }
 				}
 			})
 		}
-		if rows == 0 {
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerEmpty)).FontSize(12).TextColor(colTertiary)
+		if len(m.Releases) == 0 && !m.ReleaseBusy {
+			ui.Text(c, releaseText("暂无兼容发布目录。不会改用 Electron 安装包。", "No compatible release catalog is available.")).FontSize(12).TextColor(colTertiary)
 		}
+		nativeReleaseOperation(c, m)
 	})
 }
 

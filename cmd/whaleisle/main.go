@@ -230,6 +230,7 @@ type mainState struct {
 	launcherImportBusy          bool
 	launcherImportCancel        context.CancelFunc
 	launcherUpdate              string
+	nativeReleases              nativeReleaseState
 	launcherUpdateAvailable     bool
 	launcherUpdateSynced        bool
 	launcherNote                string
@@ -3226,7 +3227,7 @@ func mainView(c *ui.Context) {
 			// Electron「桌面端已就绪」means the desk shell window is up, not only
 			// that the harness has reached Ready (MyGo keeps desk visible while Starting).
 			deskRunning := st.State == harness.Ready || sessions != nil
-			launcher.View(c, launcher.Model{
+			launcher.View(c, state.withNativeReleases(win, launcher.Model{
 				ThemeID:         themeID,
 				SystemDark:      mygo.Theme.IsDark(),
 				Version:         buildVersion,
@@ -3593,7 +3594,7 @@ func mainView(c *ui.Context) {
 						win.Update(func() {})
 					}
 				},
-			})
+			}))
 			return
 		}
 		chrome.WallpaperBackdrop(c, wallpaperPath)

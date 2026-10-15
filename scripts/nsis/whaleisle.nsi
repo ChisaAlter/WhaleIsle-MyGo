@@ -38,14 +38,14 @@ Section "Install"
   File "${STAGE_DIR}\ghostty-vt.dll"
   File "${STAGE_DIR}\ghostty-vt.dll.LICENSE"
   File "${STAGE_DIR}\terminal-runtime.json"
-  IfFileExists "${STAGE_DIR}\resources" stage_resources skip_resources
-stage_resources:
-  CreateDirectory "$INSTDIR\resources"
-  File /r "${STAGE_DIR}\resources\*.*"
-skip_resources:
+  ; Resources are selected at compile time, not by a build-machine path at install time.
+  SetOutPath "$INSTDIR\resources"
+  File /nonfatal /r "${STAGE_DIR}\resources\*.*"
+  SetOutPath "$INSTDIR"
 !if /FileExists "${STAGE_DIR}\.runtime-staged"
-  CreateDirectory "$INSTDIR\runtime"
+  SetOutPath "$INSTDIR\runtime"
   File /r "${STAGE_DIR}\runtime\*.*"
+  SetOutPath "$INSTDIR"
 !endif
 
 !if /FileExists "${STAGE_DIR}\.pet-render-staged"
