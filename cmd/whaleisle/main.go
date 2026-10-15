@@ -6475,9 +6475,18 @@ func mainView(c *ui.Context) {
 							}
 							return sessions.ListReferenceCandidates(context.Background(), snap.SelectedID, query, quoted)
 						},
-						Terminal:              termPanel,
-						HostTerminalStore:     &state.hostTerminals,
-						HostTerminalUI:        &state.hostTerminalUI,
+						Terminal:          termPanel,
+						HostTerminalStore: &state.hostTerminals,
+						HostTerminalUI:    &state.hostTerminalUI,
+						OnOpenHostTerminal: func() {
+							state.mu.Lock()
+							state.filesPaneOpen, state.rightPaneTab = true, "host-terminal"
+							state.mu.Unlock()
+							filesPaneOpen, rightPaneTab = true, "host-terminal"
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
 						TerminalShellsNote:    termShellsNote,
 						CanAddSelectionToChat: sessions != nil && snap.SelectedID != "" && !activeDraft.Sending,
 						OnAddSelectionToChat: func(fragment string) error {

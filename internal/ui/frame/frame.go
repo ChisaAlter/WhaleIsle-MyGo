@@ -257,6 +257,7 @@ type Model struct {
 	OnOpenSettings       func()
 	OnToggleTools        func()
 	OnToggleTerminal     func()
+	OnOpenHostTerminal   func()
 	OnRestartTerminal    func()
 	OnCloseTerminal      func()
 
@@ -556,6 +557,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									FontSize(13).BorderWidth(0).Background(ui.Transparent).
 									TextColor(muted).Clicked() {
 									m.OnOpenLauncher()
+								}
+							}
+							if m.OnOpenHostTerminal != nil {
+								if ui.Button(c, termui.HostTitle()).FontSize(11).Clicked() {
+									m.OnOpenHostTerminal()
 								}
 							}
 							if m.OnToggleTerminal != nil {
@@ -1098,7 +1104,7 @@ func rightPane(c *ui.Context, m Model) {
 			m.OnHideBrowser()
 		}
 		if tab == "host-terminal" && m.Store != nil {
-			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.Snapshot().SelectedID, m.ThemeID, m.SystemDark)
+			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.Snapshot().SelectedID, m.ThemeID, m.SystemDark, hostTerminalActions(m))
 			return
 		}
 		if tab == "agents" && m.Store != nil {

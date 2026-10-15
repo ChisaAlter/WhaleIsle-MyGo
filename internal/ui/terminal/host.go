@@ -18,11 +18,12 @@ func HostTitle() string { return terminalLabel("Host 终端", "Host terminal") }
 // in the Store, independently of this view or the local PTY drawer.
 // All HostState methods run on the UI thread.
 type HostState struct {
-	terminal     *myterm.Terminal
-	attachment   *hostterminal.Attachment
-	closeTarget  string
-	confirmClose bool
-	renderError  string
+	terminal        *myterm.Terminal
+	attachment      *hostterminal.Attachment
+	closeTarget     string
+	confirmClose    bool
+	renderError     string
+	selectionNotice string
 }
 
 func (h *HostState) drop() {
@@ -32,6 +33,7 @@ func (h *HostState) drop() {
 	h.terminal = nil
 	h.attachment = nil
 	h.renderError = ""
+	h.selectionNotice = ""
 }
 func (h *HostState) Observe(store *hostterminal.Store, session string, visible bool) {
 	if store == nil {
@@ -47,7 +49,11 @@ func (h *HostState) Observe(store *hostterminal.Store, session string, visible b
 
 // HostView offers explicit list/create/connect/close actions. Merely opening the
 // tab never allocates a process, and Options.Conn prevents a local PTY fallback.
-func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, themeID string, dark bool) {
+func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, themeID string, dark bool, actionOptions ...HostActions) {
+	var actions HostActions
+	if len(actionOptions) > 0 {
+		actions = actionOptions[0]
+	}
 	if h == nil || store == nil {
 		return
 	}
@@ -190,6 +196,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 					}
 				}
 			}
+			h.selectionActions(c, store, v, session, actions)
 			myterm.View(c, h.terminal).Fill().Grow(1).MinHeight(0)
 		}
 	})
