@@ -102,6 +102,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnControl = func(action, workID string) { s.runProjectTeam(win, m.TeamID, action, workID) }
 	m.OnNextWork = func(cursor string) { s.runProjectTeam(win, m.TeamID, "next", cursor) }
+	m.OnPreviousWork = func() { s.runProjectTeam(win, m.TeamID, "previous", "") }
 	m.OnInspect = func(workID, memberID string) { s.runProjectDetail(win, m.TeamID, "detail", workID, memberID) }
 	m.OnCloseDetail = func() {
 		s.mu.Lock()

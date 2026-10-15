@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
+	"whaleisle/internal/projectflow"
 )
 
 func stateLabel(state string) string {
@@ -56,15 +57,19 @@ func teamView(c *ui.Context, m Model) {
 			if o.Team == nil {
 				return
 			}
-			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(o.Team.Members))).FontSize(12)
-			for _, member := range o.Team.Members {
+			members := o.Members()
+			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(12)
+			for _, member := range members {
 				member := member
 				name := member.Name
 				if member.Role == "lead" {
 					name = "Lead"
 				}
-				if name == "" {
-					name = member.ID
+				if name == "" || name == "member-"+strings.TrimPrefix(member.ID, "session-") {
+					name = member.Description
+					if name == "" {
+						name = member.ID
+					}
 				}
 				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(12)
 				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
@@ -75,6 +80,13 @@ func teamView(c *ui.Context, m Model) {
 				}
 				if member.Error != "" {
 					ui.Text(c, member.Error).FontSize(11)
+				}
+				for _, work := range o.Workstreams {
+					if work.WorkerSessionID == member.ID && work.Delegation.Phase == "queued" {
+						if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
+							ui.Text(c, reason).FontSize(11)
+						}
+					}
 				}
 			}
 			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(o.Team.Tasks))).FontSize(12)
@@ -105,6 +117,11 @@ func teamView(c *ui.Context, m Model) {
 					m.OnInspect(work.ID, "")
 				}
 				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(12)
+				if work.Delegation.Phase == "queued" {
+					if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
+						ui.Text(c, reason).FontSize(11)
+					}
+				}
 				if work.BlockedReason != "" {
 					ui.Text(c, work.BlockedReason).FontSize(11)
 				}
@@ -121,9 +138,36 @@ func teamView(c *ui.Context, m Model) {
 					m.OnControl("stop", work.ID)
 				}
 			}
-			if o.WorkPage.CurrentNextCursor != nil && ui.Button(c, tr("下一页当前工作", "Next current-work page")).Disabled(disabled).Clicked() && m.OnNextWork != nil {
-				m.OnNextWork(*o.WorkPage.CurrentNextCursor)
-			}
+			ui.Row(c).Gap(4).Children(func() {
+				if len(o.CurrentCursors) > 1 && ui.Button(c, tr("上一页当前工作", "Previous current-work page")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnPreviousWork != nil {
+					m.OnPreviousWork()
+				}
+				if o.WorkPage.CurrentNextCursor != nil && ui.Button(c, tr("下一页当前工作", "Next current-work page")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnNextWork != nil {
+					m.OnNextWork(*o.WorkPage.CurrentNextCursor)
+				}
+			})
 		})
 	})
+}
+
+func waitingReasonLabel(waiting *projectflow.WaitingReason) string {
+	if waiting == nil {
+		return ""
+	}
+	label := tr("排队中", "Queued")
+	switch waiting.Kind {
+	case "dependencies":
+		label = tr("等待前置工作", "Waiting for prerequisite work")
+	case "directory":
+		label = tr("等待工作目录释放", "Waiting for the work directory")
+	case "capacity":
+		label = tr("等待 Team 容量", "Waiting for Team capacity")
+	}
+	if len(waiting.WorkTitles) > 0 {
+		label += " · " + strings.Join(waiting.WorkTitles, ", ")
+	}
+	if waiting.Code != "" {
+		label += " · " + waiting.Code
+	}
+	return label
 }

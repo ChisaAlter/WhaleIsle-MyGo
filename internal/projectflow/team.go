@@ -40,6 +40,13 @@ type Worker struct {
 		ID string `json:"id"`
 	} `json:"jobs"`
 }
+// WaitingReason is the Host-provided reason a queued assignment cannot start.
+type WaitingReason struct {
+	Kind       string   `json:"kind"`
+	WorkTitles []string `json:"workTitles"`
+	Code       string   `json:"code"`
+}
+
 type Workstream struct {
 	Group                string `json:"group"`
 	ID                   string `json:"id"`
@@ -52,7 +59,8 @@ type Workstream struct {
 	PrerequisitesChanged bool   `json:"prerequisitesChanged"`
 	CurrentDelegationRef string `json:"currentDelegationRef"`
 	Delegation           struct {
-		Phase string `json:"phase"`
+		Phase         string         `json:"phase"`
+		WaitingReason *WaitingReason `json:"waitingReason"`
 	} `json:"delegation"`
 	SummaryFailure *struct {
 		DelegationRef string `json:"delegationRef"`
@@ -74,21 +82,41 @@ type Overview struct {
 	Workers     []Worker     `json:"workers"`
 	WorkPage    struct {
 		CurrentTotal      int     `json:"currentTotal"`
+		CurrentCursor     *string `json:"currentCursor"`
 		CurrentNextCursor *string `json:"currentNextCursor"`
 	} `json:"workPage"`
 	Team *TeamProjection `json:"-"`
+	// CurrentCursors is local replacement-page navigation; it is never sent to the Host.
+	CurrentCursors []string `json:"-"`
 }
 
 func (c Client) TeamOverview(ctx context.Context, id string) (Overview, error) {
+	return c.TeamOverviewPage(ctx, id, "")
+}
+
+// TeamOverviewPage lets detail resolve a retired page anchor back to page one.
+// Refreshing a page also refreshes the authoritative Project and native roster.
+func (c Client) TeamOverviewPage(ctx context.Context, id, cursor string) (Overview, error) {
 	var out Overview
 	if id == "" {
 		return out, fmt.Errorf("select a Project")
 	}
-	if err := c.call(ctx, "detail", map[string]any{"projectId": id}, &out); err != nil {
+	payload := map[string]any{"projectId": id}
+	if cursor != "" {
+		payload["currentCursor"] = cursor
+	}
+	if err := c.call(ctx, "detail", payload, &out); err != nil {
 		return out, err
 	}
 	if out.Project.ID != id || out.Project.CoordinatorSessionID == "" {
 		return out, fmt.Errorf("Project Lead session is unavailable")
+	}
+	if out.WorkPage.CurrentCursor != nil && *out.WorkPage.CurrentCursor != "" && *out.WorkPage.CurrentCursor != cursor {
+		return out, fmt.Errorf("Project current-work page identity does not match")
+	}
+	out.CurrentCursors = []string{""}
+	if out.WorkPage.CurrentCursor != nil && *out.WorkPage.CurrentCursor != "" {
+		out.CurrentCursors = append(out.CurrentCursors, *out.WorkPage.CurrentCursor)
 	}
 	var projection struct {
 		Values struct {
@@ -227,4 +255,32 @@ func (o Overview) MemberState(m TeamMember) string {
 		return "ready"
 	}
 	return "unavailable"
+}
+
+// Members includes Host workers that do not yet have a native roster row.
+// Their original Session identities remain the only targets for inspection.
+func (o Overview) Members() []TeamMember {
+	if o.Team == nil {
+		return nil
+	}
+	members := append([]TeamMember(nil), o.Team.Members...)
+	seen := make(map[string]bool, len(members))
+	for _, member := range members {
+		seen[member.ID] = true
+	}
+	for _, worker := range o.Workers {
+		if worker.SessionID == "" || seen[worker.SessionID] {
+			continue
+		}
+		member := TeamMember{ID: worker.SessionID, Role: "member", Phase: worker.Phase, Error: worker.Error}
+		for _, work := range o.Workstreams {
+			if work.WorkerSessionID == worker.SessionID {
+				member.Description = work.Title
+				break
+			}
+		}
+		members = append(members, member)
+		seen[member.ID] = true
+	}
+	return members
 }

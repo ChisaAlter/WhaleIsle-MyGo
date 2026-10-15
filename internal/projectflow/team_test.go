@@ -73,3 +73,74 @@ func TestNativeTeamAuthorityAndControls(t *testing.T) {
 		t.Fatal("missing native Team projection was hidden")
 	}
 }
+
+func TestTeamOverviewPageRetainsHostCursorAndWaitingReason(t *testing.T) {
+	reset := false
+	foreign := false
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var req struct {
+			RPCID   string
+			Payload map[string]any
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		var value any
+		switch r.URL.Path {
+		case "/dsh-project/detail":
+			if req.Payload["projectId"] != "p" || req.Payload["currentCursor"] != "anchor" {
+				t.Error("refresh must retain the selected detail page", req.Payload)
+			}
+			var cursor any = "anchor"
+			if reset {
+				cursor = nil
+			}
+			if foreign {
+				cursor = "unrequested"
+			}
+			value = map[string]any{
+				"project": map[string]any{"id": "p", "coordinatorSessionId": "lead"},
+				"workPage": map[string]any{"currentCursor": cursor, "currentTotal": 23},
+				"workstreams": []any{map[string]any{"id": "w", "workerSessionId": "member", "title": "Build",
+					"delegation": map[string]any{"phase": "queued", "waitingReason": map[string]any{"kind": "directory", "workTitles": []string{"Other work"}}}}},
+				"workers": []any{map[string]any{"sessionId": "member", "phase": "idle"}},
+			}
+		case "/api/session/projections":
+			value = map[string]any{"values": map[string]any{"agentTeam": map[string]any{"members": []any{map[string]any{"id": "lead", "role": "lead"}}, "tasks": []any{}}}}
+		default:
+			t.Errorf("unexpected route %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": value}})
+	}))
+	defer srv.Close()
+	c := Client{Origin: srv.URL}
+	overview, err := c.TeamOverviewPage(context.Background(), "p", "anchor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(overview.CurrentCursors) != 2 || overview.CurrentCursors[1] != "anchor" {
+		t.Fatal("selected page lost", overview.CurrentCursors)
+	}
+	waiting := overview.Workstreams[0].Delegation.WaitingReason
+	if waiting == nil || waiting.Kind != "directory" || len(waiting.WorkTitles) != 1 || waiting.WorkTitles[0] != "Other work" {
+		t.Fatal("Host queue reason lost", waiting)
+	}
+	members := overview.Members()
+	if len(members) != 2 || members[1].ID != "member" || members[1].Description != "Build" || overview.MemberState(members[1]) != "queued" {
+		t.Fatal("unprojected original Host worker lost", members)
+	}
+	overview.Team.Members = append(overview.Team.Members, members[1])
+	if len(overview.Members()) != 2 {
+		t.Fatal("Host worker duplicated an existing roster member")
+	}
+	reset = true
+	overview, err = c.TeamOverviewPage(context.Background(), "p", "anchor")
+	if err != nil || len(overview.CurrentCursors) != 1 || overview.CurrentCursors[0] != "" {
+		t.Fatal("retired Host anchor did not return to the first page", overview, err)
+	}
+	foreign = true
+	before := calls
+	if _, err := c.TeamOverviewPage(context.Background(), "p", "anchor"); err == nil || calls != before+1 {
+		t.Fatal("unrequested page was accepted or followed")
+	}
+}

@@ -52,6 +52,7 @@ type Model struct {
 	OnCloseTeam                                   func()
 	OnControl                                     func(string, string)
 	OnNextWork                                    func(string)
+	OnPreviousWork                                func()
 	Expanded, Busy, Loaded                        bool
 	Listing                                       projectflow.Listing
 	Error, Workspace, SelectedSession, RenameID   string

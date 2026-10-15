@@ -48,6 +48,10 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 	f.generation++
 	generation := f.generation
 	prior := f.team
+	cursors := []string{""}
+	if prior != nil && len(prior.CurrentCursors) > 0 {
+		cursors = append([]string(nil), prior.CurrentCursors...)
+	}
 	s.mu.Unlock()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -57,22 +61,22 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 		var err error
 		var note string
 		switch action {
-		case "inspect":
-			out, err = rpc.TeamOverview(ctx, id)
-		case "next":
-			if prior == nil {
-				err = fmt.Errorf("refresh Team before paging")
-				break
+		case "inspect", "next", "previous":
+			if action == "next" {
+				if prior == nil || prior.WorkPage.CurrentNextCursor == nil || arg == "" || arg != *prior.WorkPage.CurrentNextCursor {
+					err = fmt.Errorf("refresh Team before paging")
+					break
+				}
+				cursors = append(cursors, arg)
 			}
-			var page projectflow.WorkPage
-			page, err = rpc.CurrentWork(ctx, id, arg)
-			if err == nil {
-				out = *prior
-				out.Workstreams = page.Workstreams
-				out.Workers = page.Workers
-				out.WorkPage.CurrentNextCursor = page.NextCursor
-				out.WorkPage.CurrentTotal = page.Total
+			if action == "previous" {
+				if prior == nil || len(cursors) < 2 {
+					err = fmt.Errorf("no previous current-work page")
+					break
+				}
+				cursors = cursors[:len(cursors)-1]
 			}
+			out, err = rpc.TeamOverviewPage(ctx, id, cursors[len(cursors)-1])
 		case "stop", "pause", "resume":
 			if prior == nil || prior.Team == nil || prior.Team.Failure != "" || prior.Project.Lifecycle != "ready" {
 				err = fmt.Errorf("refresh a ready Project Team before controlling work")
@@ -80,7 +84,7 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 			}
 			note, err = rpc.Control(ctx, id, action, arg)
 			if err == nil {
-				out, err = rpc.TeamOverview(ctx, id)
+				out, err = rpc.TeamOverviewPage(ctx, id, cursors[len(cursors)-1])
 			}
 		default:
 			err = fmt.Errorf("unsupported Project Team action")
@@ -98,8 +102,11 @@ func (s *mainState) runProjectTeam(win *mygo.Window, id, action, arg string) {
 			}
 			if err != nil {
 				f.err = err.Error()
-				f.team = nil
+				// Keep the last readable page and its navigation on a failed refresh.
 				return
+			}
+			if out.WorkPage.CurrentCursor != nil && *out.WorkPage.CurrentCursor == cursors[len(cursors)-1] {
+				out.CurrentCursors = cursors
 			}
 			f.team = &out
 			f.teamNote = note
