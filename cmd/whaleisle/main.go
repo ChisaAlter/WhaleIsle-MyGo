@@ -103,6 +103,7 @@ type mainState struct {
 	closeToTray          bool
 	cfgStore             *config.Store
 	desktopPet           *pet.Companion
+	petPersonality       petPersonalityMirror
 	navigationFile       *navigationFileRequest
 	themeID              string
 	sup                  *harness.Supervisor
@@ -2100,6 +2101,8 @@ func main() {
 		state.desktopPet.OnOpenChat = state.openPetChat
 		state.desktopPet.OnOpenSettings = state.openPetSettings
 		state.desktopPet.OnLook = state.lookFromPet
+		state.desktopPet.OnPersonality = state.queuePetPersonality
+		win.OnClosed(state.cancelPetPersonality)
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.SetReady(true)
 		win.OnClosed(func() { state.desktopPet.Close() })

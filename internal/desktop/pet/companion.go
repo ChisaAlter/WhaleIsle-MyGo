@@ -40,6 +40,7 @@ type Companion struct {
 	motion          motionState
 	rest            restState
 	OnRefreshGrowth func()
+	OnPersonality   func(string)
 	feeding         bool
 	feedMessage     string
 	OnLook          func()
@@ -81,7 +82,7 @@ func (p *Companion) Save() {
 		}
 	}
 	p.Behavior = config.NormalizePetBehavior(p.Behavior)
-	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural, Behavior: p.Behavior, Position: previous.Position}); err != nil {
+	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural, Behavior: p.Behavior, PersonalityConfigured: true, Position: previous.Position}); err != nil {
 		p.Error = err.Error()
 		return
 	}
@@ -91,6 +92,9 @@ func (p *Companion) Save() {
 	}
 	p.sync()
 	p.applyBehavior()
+	if p.OnPersonality != nil {
+		p.OnPersonality(p.Behavior.Personality)
+	}
 }
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
 func (p *Companion) Close()              { p.ready = false; p.close() }

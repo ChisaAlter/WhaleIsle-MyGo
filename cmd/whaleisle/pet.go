@@ -10,6 +10,7 @@ import (
 // refreshPetTask uses the same current connection and session roster as chat.
 // It does not read arbitrary logs, other workspaces, or infer job completion.
 func (s *mainState) refreshPetTask() {
+	s.syncPetPersonality()
 	s.mu.Lock()
 	p, sessions := s.desktopPet, s.sessions
 	online := s.bootStatus.State == harness.Ready && s.dshMuxReady
