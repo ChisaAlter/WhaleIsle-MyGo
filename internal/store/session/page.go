@@ -8,7 +8,9 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
-const historyPageMaxMessages = 50
+// Match the original ordinary window: at least 50 messages and two turn
+// starts, capped by the Host at 500 messages. One click still reads one page.
+const historyPageMaxMessages = 500
 
 func sessionAddressJSON(sessionID string) json.RawMessage {
 	addr, _ := json.Marshal(map[string]any{
@@ -115,6 +117,7 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 		ThroughSeq:  through,
 		BeforeSeq:   &beforeSeq,
 		MaxMessages: &maxMsg,
+		TurnWindow:  &api.SessionFollowRequestTurnWindow{MinMessages: 50, MinTurns: 2},
 	}
 	var out api.SessionPage
 	err := client.Call(ctx, "session/page", map[string]any{"request": req}, &out)
