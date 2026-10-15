@@ -12,7 +12,8 @@ import (
 
 // Contract: WhaleIsle@e9f584be vendor/dshbot/lib/control-plane.js:346-430,
 // 638-695. Routines live in describe.view.value, not the generic Scheduler.
-// bot/trigger-token is deliberately excluded: its first call creates a credential.
+// bot/trigger-token lives in a separate explicitly confirmed get-or-create helper;
+// ordinary describe and routine controls never request it.
 type DshbotRoutine struct {
 	ID              string             `json:"id"`
 	BotID           string             `json:"botId"`

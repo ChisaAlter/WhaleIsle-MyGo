@@ -62,7 +62,7 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 		}()
 	}
 	snapshot := s.assistantRoutines.Snapshot(scope)
-	return assistantui.RoutineModel{
+	model := assistantui.RoutineModel{
 		State: snapshot, HostLabel: ep.Origin, OnRefresh: refresh,
 		OnSelect: func(id string) {
 			if current() {
@@ -136,4 +136,6 @@ func (s *mainState) assistantRoutinesModel(ep harness.Endpoint, botID string) as
 			}()
 		},
 	}
+	s.bindRoutineTriggerModel(&model, ep, scope, current)
+	return model
 }

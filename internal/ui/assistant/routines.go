@@ -17,6 +17,11 @@ type RoutineModel struct {
 	OnChange                                           func(field, value string)
 	OnReview                                           func(action string)
 	OnAcknowledgeWatch                                 func(bool)
+	OnPrepareTrigger, OnConfirmTrigger, OnCloseTrigger func()
+	OnAcknowledgeTrigger                               func(bool)
+	OnCopyTrigger                                      func(string)
+	TriggerMaterial                                    func() (string, string)
+	TriggerUnavailable                                 string
 }
 
 func routineActionLabel(action string, enabled bool) string {
@@ -68,7 +73,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				r.OnRefresh()
 			}
 		})
-		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建八种时间类型；已有任务可编辑上下文、静默及 watch，触发凭据仍由原 Bot Web 页管理。").FontSize(11).TextColor(muted)
+		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建八种时间类型；已有任务可编辑上下文、静默及 watch，并可独立审阅获取当前 Host 目录共享触发凭据。").FontSize(11).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, "先选择当前 Host 的 Bot / Select a Bot first").TextColor(muted)
 			return
@@ -120,6 +125,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					ui.Text(c, "上次输出 / Last output: "+row.LastOutput).FontSize(12).TextColor(fg).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("Context: %s · Silent allowed: %t\nWatch: %s", strings.Join(row.ContextFrom, ", "), row.SilentAllowed, firstTaskValue(string(row.Watch), "—"))).FontSize(11).TextColor(muted).Selectable()
+				routineTriggerBlock(c, r, blocked, fg, muted, accent)
 				ui.Row(c).Gap(6).Children(func() {
 					if r.OnEdit != nil && ui.Button(c, "编辑例行任务 / Edit routine").Disabled(blocked || !s.Loaded).Clicked() {
 						r.OnEdit()

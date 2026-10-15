@@ -44,20 +44,24 @@ type RoutineSnapshot struct {
 	Draft                          *RoutineDraft
 	Review                         *RoutineReview
 	Error, Notice                  string
+	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
-	mu             sync.Mutex
-	state          RoutineSnapshot
-	generation     uint64
-	binding        uint64
-	reviewSequence uint64
-	drafts         map[string]RoutineDraft
+	mu              sync.Mutex
+	state           RoutineSnapshot
+	generation      uint64
+	binding         uint64
+	reviewSequence  uint64
+	triggerSequence uint64
+	trigger         routineTriggerState
+	drafts          map[string]RoutineDraft
 }
 
 func (c *RoutineControls) Bind(scope RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
+		c.clearRoutineTrigger()
 		c.generation++
 		c.binding++
 		c.state = RoutineSnapshot{Scope: scope}
@@ -103,6 +107,7 @@ func (c *RoutineControls) Snapshot(scope RoutineScope) RoutineSnapshot {
 		return RoutineSnapshot{Scope: scope}
 	}
 	out := c.state
+	out.Trigger = c.trigger.meta
 	out.Routines = make([]pluginrpc.DshbotRoutine, len(c.state.Routines))
 	for i, r := range c.state.Routines {
 		out.Routines[i] = cloneRoutine(r)
@@ -130,6 +135,7 @@ func (c *RoutineControls) BeginLoad(s RoutineScope) (RoutineTicket, bool) {
 	if !c.valid(s) || c.state.Busy {
 		return RoutineTicket{}, false
 	}
+	c.clearRoutineTrigger()
 	c.generation++
 	c.state.Busy = true
 	c.state.Error = ""
@@ -218,6 +224,9 @@ func (c *RoutineControls) Select(s RoutineScope, id string) {
 		return
 	}
 	if _, ok := c.row(id); ok {
+		if id != c.state.SelectedID {
+			c.clearRoutineTrigger()
+		}
 		c.state.SelectedID = id
 		c.state.Review = nil
 		c.state.Error = ""
@@ -395,6 +404,7 @@ func (c *RoutineControls) BeginAction(s RoutineScope, expected ...*RoutineReview
 			return RoutineTicket{}, empty, false
 		}
 	}
+	c.clearRoutineTrigger()
 	c.generation++
 	c.state.Busy = true
 	c.state.Error = ""
