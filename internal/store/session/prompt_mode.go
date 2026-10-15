@@ -27,11 +27,12 @@ func (s *Store) SetPromptMode(mode PromptMode) {
 	}
 	mode = NormalizePromptMode(string(mode))
 	s.mu.Lock()
-	if s.promptMode == mode {
+	if s.promptMode == mode && s.promptModeExplicit {
 		s.mu.Unlock()
 		return
 	}
 	s.promptMode = mode
+	s.promptModeExplicit = true
 	s.mu.Unlock()
 	s.fire()
 }

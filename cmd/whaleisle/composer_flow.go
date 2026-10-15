@@ -57,11 +57,19 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 	d.Error = ""
 }
 
-func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64) {
+func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
 	if d.Sending || d.Preparing > 0 || (strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0) {
 		return
 	}
 	if win == nil || sessions == nil {
+		return
+	}
+	s.mu.Lock()
+	current := s.sessions == sessions && s.composerDrafts[id] == d
+	preferences := s.settings
+	s.mu.Unlock()
+	live := sessions.Snapshot()
+	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
 		return
 	}
 	editSeq = d.EditSeq
@@ -100,19 +108,20 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		sessions.CreateSession(context.Background())
 		return
 	}
-	if editSeq == 0 && id != "" && !strings.HasPrefix(strings.TrimSpace(text), "/") {
-		s.submitDetachedComposer(win, sessions, d, id)
-		return
-	}
-	attachments := append([]session.ComposerAttachment(nil), d.Attachments...)
+	sourceID := id
 	if d.TargetID != "" {
 		id = d.TargetID
 	}
-	owner, captureErr := sessions.CaptureComposerTarget(id)
+	owner, captureErr := sessions.CaptureComposerGestureTarget(sourceID, id, hostGeneration, accelerated, preferences.BusyEnterFor)
 	if captureErr != nil {
 		d.Error = captureErr.Error()
 		return
 	}
+	if editSeq == 0 && id != "" && sourceID != "" && !strings.HasPrefix(strings.TrimSpace(text), "/") {
+		s.submitDetachedComposer(win, d, sourceID, owner)
+		return
+	}
+	attachments := append([]session.ComposerAttachment(nil), d.Attachments...)
 	d.Sending = true
 	d.Error = ""
 	go func() {

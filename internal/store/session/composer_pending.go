@@ -183,6 +183,8 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
 	view.PlanBoard.Queue = kept
 }
 func (s *Store) resetComposerHostLocked() {
+	s.promptMode, s.promptModeExplicit = PromptModeQueue, false
+	s.composerRosterClient = nil
 	s.composerHostGeneration++
 	s.composerPending = nil
 	s.composerObserved = nil

@@ -147,15 +147,23 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			if client.marked != nil {
 				return false
 			}
-			// Shift+Enter → newline; Enter → send (chat parity with Electron).
-			if ev.Mods&ui.Shift != 0 {
+			// Only plain Enter and exactly Ctrl/Cmd+Enter submit. Other
+			// chords remain with application shortcuts, never send a draft.
+			if ev.Mods != 0 && ev.Mods != ui.Shift && ev.Mods != ui.Ctrl && ev.Mods != ui.Super {
+				return false
+			}
+			if ev.Mods == ui.Shift {
 				client.ReplaceText(nil, "\n")
 				return true
 			}
-			if m.Draft == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+			if ev.Repeat || m.Draft == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 				return true
 			}
 			if handleModelCommand(m) {
+				return true
+			}
+			if m.OnSubmitGesture != nil {
+				m.OnSubmitGesture(ev.Mods == ui.Ctrl || ev.Mods == ui.Super)
 				return true
 			}
 			if m.OnSubmit != nil {

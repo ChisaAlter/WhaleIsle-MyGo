@@ -142,27 +142,28 @@ type Model struct {
 	OnSelectSession    func(string)
 	OnCreateSession    func()
 
-	Projects              projects.Model
-	Store                 *session.Store
-	AgentPresetManager    *session.AgentPresetManager
-	Interactions          *interaction.Store
-	OnAutoAllowChanged    func(on bool)
-	Sizes                 *LayoutSizes
-	ChatList              *ui.ListState
-	ThemeID               string
-	SystemDark            bool
-	Draft                 *string
-	ComposerState         *composer.DraftState
-	OnSubmitComposer      func()
-	OnAttachComposerFiles func([]string)
-	OnPasteComposerImage  func(bool)
-	ModelPick             *string
-	PermissionPick        *string
-	AgentPresetPick       *string
-	ThinkingExpanded      *map[string]bool
-	RenameSessionID       *string
-	RenameDraft           *string
-	SessionSearch         *string
+	Projects                projects.Model
+	Store                   *session.Store
+	AgentPresetManager      *session.AgentPresetManager
+	Interactions            *interaction.Store
+	OnAutoAllowChanged      func(on bool)
+	Sizes                   *LayoutSizes
+	ChatList                *ui.ListState
+	ThemeID                 string
+	SystemDark              bool
+	Draft                   *string
+	ComposerState           *composer.DraftState
+	OnSubmitComposer        func()
+	OnSubmitComposerGesture func(accelerated bool)
+	OnAttachComposerFiles   func([]string)
+	OnPasteComposerImage    func(bool)
+	ModelPick               *string
+	PermissionPick          *string
+	AgentPresetPick         *string
+	ThinkingExpanded        *map[string]bool
+	RenameSessionID         *string
+	RenameDraft             *string
+	SessionSearch           *string
 
 	WorkspaceRoot    string
 	FileBindingID    string
@@ -631,6 +632,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						Draft:                m.Draft,
 						State:                m.ComposerState,
 						OnSubmit:             m.OnSubmitComposer,
+						OnSubmitGesture:      m.OnSubmitComposerGesture,
 						OnOpenURL:            m.OnOpenCitationURL,
 						OnAttachFiles:        m.OnAttachComposerFiles,
 						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
@@ -714,18 +716,19 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnExecuteSlash: func(ctx context.Context, line string) {
 							_ = m.Store.ExecuteCommandLine(ctx, line)
 						},
-						OnToggleSkills:      m.OnToggleComposerSkills,
-						OnPickDirectory:     m.OnPickComposerDirectory,
-						OnPickImage:         m.OnPickComposerImage,
-						OnPickSpeech:        m.OnPickComposerSpeech,
-						Voice:               m.ComposerVoice,
-						OnStartVoice:        m.OnStartComposerVoice,
-						OnStopVoice:         m.OnStopComposerVoice,
-						OnCancelVoice:       m.OnCancelComposerVoice,
-						OnInsertVoice:       m.OnInsertComposerVoice,
-						OnCycleSpeech:       m.OnCycleComposerSpeech,
-						OnPickHeroWorkspace: m.OnPickHeroWorkspace,
-						OnNoDirectory:       m.OnNoDirectory,
+						OnToggleSkills:        m.OnToggleComposerSkills,
+						OnPickDirectory:       m.OnPickComposerDirectory,
+						OnPickImage:           m.OnPickComposerImage,
+						OnPickSpeech:          m.OnPickComposerSpeech,
+						Voice:                 m.ComposerVoice,
+						OnStartVoice:          m.OnStartComposerVoice,
+						OnStopVoice:           m.OnStopComposerVoice,
+						OnCancelVoice:         m.OnCancelComposerVoice,
+						OnInsertVoice:         m.OnInsertComposerVoice,
+						OnCycleSpeech:         m.OnCycleComposerSpeech,
+						OnPickHeroWorkspace:   m.OnPickHeroWorkspace,
+						OnNoDirectory:         m.OnNoDirectory,
+						OnUseBusyEnterSetting: m.Store.UseBusyEnterSetting,
 						OnPromptModeChange: func(mode session.PromptMode) {
 							m.Store.SetPromptMode(mode)
 						},

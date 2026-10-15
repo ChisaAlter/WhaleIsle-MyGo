@@ -43,6 +43,7 @@ type ViewState struct {
 type Store struct {
 	mu                     sync.Mutex
 	client                 *dsh.Client
+	describedClient        *dsh.Client
 	notify                 func()
 	visualReplyEnableCheck func(context.Context, string) error
 
@@ -262,6 +263,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 			}
 		}
 		s.namespaces = nsList
+		s.describedClient = client
 		if s.selectedNS == "" && len(nsList) > 0 {
 			s.selectedNS = nsList[0].NS
 		}

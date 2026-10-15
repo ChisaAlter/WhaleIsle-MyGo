@@ -8,12 +8,7 @@ import (
 	"whaleisle/internal/ui/composer"
 )
 
-func (s *mainState) submitDetachedComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id string) {
-	owner, err := sessions.CaptureComposerTarget(id)
-	if err != nil {
-		d.Error = err.Error()
-		return
-	}
+func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftState, id string, owner *session.ComposerTarget) {
 	flight, ok := d.BeginDetachedSend()
 	if !ok {
 		return

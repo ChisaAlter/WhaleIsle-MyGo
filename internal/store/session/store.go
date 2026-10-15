@@ -149,7 +149,9 @@ type ViewState struct {
 	HistoryPageErr    string
 
 	// PromptMode is the session/prompt wire mode: "queue" (排队) or "steer" (插话).
-	PromptMode PromptMode
+	PromptMode             PromptMode
+	PromptModeExplicit     bool
+	ComposerHostGeneration uint64
 	// PinnedSessionIDs is workspace pin order (first = top).
 	PinnedSessionIDs []string
 	// ArchivedSessionIDs is the last workspace archive roster (for unarchive UI).
@@ -280,6 +282,8 @@ type Store struct {
 	historyPageErr                       error
 	historyThroughSeq                    float64
 	promptMode                           PromptMode
+	promptModeExplicit                   bool
+	composerRosterClient                 *dsh.Client
 	pinnedSessionIDs                     []string
 	archivedSessionIDs                   []string
 	editTurnSeq                          float64
@@ -579,6 +583,8 @@ func (s *Store) Snapshot() ViewState {
 		st.HistoryPageErr = s.historyPageErr.Error()
 	}
 	st.PromptMode = NormalizePromptMode(string(s.promptMode))
+	st.PromptModeExplicit = s.promptModeExplicit
+	st.ComposerHostGeneration = s.composerHostGeneration
 	if len(s.pinnedSessionIDs) > 0 {
 		st.PinnedSessionIDs = append([]string(nil), s.pinnedSessionIDs...)
 	}
@@ -698,6 +704,7 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 		return
 	}
 	s.items = sessionListItems(out.Items)
+	s.composerRosterClient = client
 	selectedRemoved := false
 	for _, mutation := range s.listMutations {
 		if mutation.sessionID == s.selectedID && (mutation.kind == "api-session/removed" || mutation.kind == "api-session/deleted") {

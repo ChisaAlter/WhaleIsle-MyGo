@@ -6273,8 +6273,8 @@ func mainView(c *ui.Context) {
 						SystemDark:    mygo.Theme.IsDark(),
 						Draft:         &activeDraft.Text,
 						ComposerState: activeDraft,
-						OnSubmitComposer: func() {
-							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq)
+						OnSubmitComposerGesture: func(accelerated bool) {
+							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq, accelerated, snap.ComposerHostGeneration)
 						},
 						OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
 						OnPasteComposerImage:  func(explicit bool) { state.pasteComposerImage(win, sessions, snap.SelectedID, activeDraft, explicit) },

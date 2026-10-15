@@ -26,6 +26,7 @@ type Model struct {
 	Draft                *string
 	State                *DraftState
 	OnSubmit             func()
+	OnSubmitGesture      func(accelerated bool)
 	OnOpenURL            func(string)
 	OnAttachFiles        func([]string)
 	OnWorkspaceReference func(filelink.Reference) error
@@ -85,9 +86,10 @@ type Model struct {
 	// OnCycleSpeech advances speech/configure provider from catalog.
 	OnCycleSpeech func()
 	// OnPickHeroWorkspace switches the session workspace (HeroShell chip); not @ mention.
-	OnPickHeroWorkspace func()
-	OnNoDirectory       func()
-	OnPromptModeChange  func(mode session.PromptMode)
+	OnPickHeroWorkspace   func()
+	OnNoDirectory         func()
+	OnPromptModeChange    func(mode session.PromptMode)
+	OnUseBusyEnterSetting func()
 	// OnSearchFileRefs calls fileReferences/list for @ mention query (optional).
 	OnSearchFileRefs   func(query string) []string
 	OnSearchReferences func(query string, quoted bool) []session.ReferenceCandidate
@@ -431,7 +433,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 						ui.Text(c, scope+" ▾").FontSize(13).FontWeight(500).TextColor(muted)
 					}
-					// Prompt mode segment (queue / steer) — Electron InputBar modes.
+					// Preserve explicit native mode choices as a Host-local override.
+					// The unselected/default state follows the live Host setting.
 					if m.OnPromptModeChange != nil {
 						mode := session.NormalizePromptMode(string(m.Snapshot.PromptMode))
 						seg := func(label string, active bool, next session.PromptMode) {
@@ -447,8 +450,17 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 								m.OnPromptModeChange(next)
 							}
 						}
-						seg(i18n.T(i18n.KeyComposerModeQueue), mode == session.PromptModeQueue, session.PromptModeQueue)
-						seg(i18n.T(i18n.KeyComposerModeSteer), mode == session.PromptModeSteer, session.PromptModeSteer)
+						if m.OnUseBusyEnterSetting != nil {
+							label := "按设置 / Use setting"
+							if !m.Snapshot.PromptModeExplicit {
+								label += " ✓"
+							}
+							if ui.Button(c, label).Height(btnH).FontSize(11).Clicked() {
+								m.OnUseBusyEnterSetting()
+							}
+						}
+						seg(i18n.T(i18n.KeyComposerModeQueue), m.Snapshot.PromptModeExplicit && mode == session.PromptModeQueue, session.PromptModeQueue)
+						seg(i18n.T(i18n.KeyComposerModeSteer), m.Snapshot.PromptModeExplicit && mode == session.PromptModeSteer, session.PromptModeSteer)
 					}
 					// Skills pill — Electron InputBar skill picker (popup above card).
 					if m.OnToggleSkills != nil {
@@ -503,6 +515,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 						if send.Clicked() && handleModelCommand(m) {
 							// Local entry consumes no prompt or attachment.
+						} else if send.Clicked() && m.OnSubmitGesture != nil {
+							m.OnSubmitGesture(false)
 						} else if send.Clicked() && m.OnSubmit != nil {
 							m.OnSubmit()
 						} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
