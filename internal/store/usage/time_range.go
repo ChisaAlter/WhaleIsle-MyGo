@@ -31,6 +31,8 @@ func (v StatsView) Selection() RangeSelection {
 		providers[m.Model] = m.Provider
 	}
 	models := map[string]Totals{}
+	costs := map[string]*PhaseBuckets{}
+	missingCosts := map[string]bool{}
 	for _, d := range v.Overview.Days {
 		if v.Range.Active() && (d.Date < v.Range.Start || d.Date > v.Range.End) {
 			continue
@@ -41,6 +43,16 @@ func (v StatsView) Selection() RangeSelection {
 			x := models[name]
 			addTotals(&x, t)
 			models[name] = x
+			phase := d.ModelCosts[name]
+			if phase == nil || phase.Peak == nil || phase.OffPeak == nil {
+				missingCosts[name] = true
+			} else {
+				if costs[name] == nil {
+					costs[name] = &PhaseBuckets{Peak: &Totals{}, OffPeak: &Totals{}}
+				}
+				addTotals(costs[name].Peak, *phase.Peak)
+				addTotals(costs[name].OffPeak, *phase.OffPeak)
+			}
 			out.Totals.Input += t.Input
 			out.Totals.Output += t.Output
 			out.Totals.CacheRead += t.CacheRead
@@ -48,7 +60,10 @@ func (v StatsView) Selection() RangeSelection {
 		}
 	}
 	for name, t := range models {
-		out.Models = append(out.Models, ModelUsage{Model: name, Provider: providers[name], Totals: t})
+		if missingCosts[name] {
+			costs[name] = nil
+		}
+		out.Models = append(out.Models, ModelUsage{Model: name, Provider: providers[name], Totals: t, Cost: costs[name]})
 	}
 	sort.Slice(out.Models, func(i, j int) bool {
 		if out.Models[i].Total == out.Models[j].Total {

@@ -82,6 +82,11 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 			}
 		})
 	})
+	if st.Range.Active() {
+		ui.Text(c, usageText("JSON / 每日 / 模型导出：当前选定 UTC 日期。费用为 CNY 分；未知留空，部分计价另列覆盖数。", "JSON / daily / model exports: selected UTC dates. Costs are CNY cents; unknown values are blank and partial pricing has coverage counts.")).FontSize(11).TextColor(muted)
+	} else {
+		ui.Text(c, usageText("模型导出：近30天；每日导出：热力图全部可用 UTC 日期；会话导出：全部历史 Top-N。费用为 CNY 分，计价覆盖数区分部分估算。", "Model export: recent 30 days; daily export: all available heatmap UTC dates; sessions: all-time Top-N. Costs are CNY cents with pricing coverage counts.")).FontSize(11).TextColor(muted)
+	}
 	ui.Row(c).Gap(6).Children(func() {
 		for _, kind := range []string{"json", "days", "models", "sessions"} {
 			kind := kind

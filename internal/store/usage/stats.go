@@ -30,9 +30,10 @@ type ModelUsage struct {
 	Provider string `json:"provider"`
 }
 type DayUsage struct {
-	Date   string            `json:"date"`
-	Total  float64           `json:"total"`
-	Models map[string]Totals `json:"models"`
+	Date       string                   `json:"date"`
+	Total      float64                  `json:"total"`
+	Models     map[string]Totals        `json:"models"`
+	ModelCosts map[string]*PhaseBuckets `json:"modelCosts"`
 }
 type SessionUsage struct {
 	Models     []ModelUsage `json:"models"`
@@ -172,9 +173,15 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 }
 
 // ExportStats preserves the full host payload for JSON, including billing buckets.
-// CSV exports token rows only, with no invented estimates for unpriced models.
+// CSV uses recent overview.byModel (or the selected UTC range), and reports
+// CNY cents plus priced/unpriced counts so partial estimates cannot imply a bill.
 func (s *Store) ExportStats(format string) ([]byte, error) {
 	v := s.Stats()
+	billing := s.Billing()
+	settings := billing.Settings
+	if !billing.Loaded {
+		settings = BillingSettings{PeakValleyEnabled: true}
+	}
 	if v.Range.Active() && format == "sessions" {
 		return nil, errors.New("session ranking is all-time only; clear the date selection to export sessions")
 	}
@@ -202,14 +209,34 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 	b.WriteString("\xef\xbb\xbf")
 	w := csv.NewWriter(&b)
 	w.UseCRLF = true
-	w.Write([]string{"kind", "name", "provider", "total", "input", "output", "cacheRead", "cacheWrite"})
-	write := func(kind, name, provider string, t Totals) {
+	w.Write([]string{"kind", "name", "provider", "total", "input", "output", "cacheRead", "cacheWrite", "costPeakCents", "costOffPeakCents", "costTotalCents", "currency", "pricedModels", "unpricedModels"})
+	write := func(kind, name, provider string, t Totals, models []ModelUsage) {
 		values := []string{kind, name, provider}
 		for _, n := range []float64{t.Total, t.Input, t.Output, t.CacheRead, t.CacheWrite} {
 			values = append(values, strconv.FormatFloat(n, 'f', -1, 64))
 		}
+		peak, idle, priced, unpriced := 0.0, 0.0, 0, 0
+		for _, model := range models {
+			p, i, ok := EstimateModelPhases(model, settings)
+			if !ok {
+				unpriced++
+				continue
+			}
+			peak += p
+			idle += i
+			priced++
+		}
+		costs := []string{"", "", ""}
+		if priced > 0 {
+			for i, n := range []float64{peak, idle, peak + idle} {
+				costs[i] = strconv.FormatFloat(n, 'f', 0, 64)
+			}
+		}
+		values = append(values, costs...)
+		values = append(values, "CNY", strconv.Itoa(priced), strconv.Itoa(unpriced))
 		for i, v := range values {
-			if strings.ContainsAny(strings.TrimLeft(v, " \t\r\n")[:min(1, len(strings.TrimLeft(v, " \t\r\n")))], "=+-@") {
+			trimmed := strings.TrimLeft(v, " \t\r\n")
+			if strings.ContainsAny(trimmed[:min(1, len(trimmed))], "=+-@") {
 				values[i] = "'" + v
 			}
 		}
@@ -217,27 +244,33 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 	}
 	switch format {
 	case "models":
-		models := o.AllTime.ByModel
-		if v.Range.Active() {
-			models = o.ByModel
-		}
-		for _, m := range models {
-			write("model", m.Model, m.Provider, m.Totals)
+		for _, m := range o.ByModel {
+			write("model", m.Model, m.Provider, m.Totals, []ModelUsage{m})
 		}
 	case "days":
+		providers := map[string]string{}
+		// Keep provider attribution even when filtered JSON omits all-time data.
+		for _, m := range v.Overview.AllTime.ByModel {
+			providers[m.Model] = m.Provider
+		}
 		for _, d := range o.Days {
+			if d.Total <= 0 {
+				continue
+			}
 			t := Totals{Total: d.Total}
-			for _, m := range d.Models {
+			models := make([]ModelUsage, 0, len(d.Models))
+			for name, m := range d.Models {
 				t.Input += m.Input
 				t.Output += m.Output
 				t.CacheRead += m.CacheRead
 				t.CacheWrite += m.CacheWrite
+				models = append(models, ModelUsage{Model: name, Provider: providers[name], Totals: m, Cost: d.ModelCosts[name]})
 			}
-			write("day_UTC", d.Date, "", t)
+			write("day_UTC", d.Date, "", t, models)
 		}
 	case "sessions":
 		for _, row := range o.TopSessions {
-			write("top_session", fmt.Sprintf("%s (%s)", row.Title, row.ID), "", row.Totals)
+			write("top_session", fmt.Sprintf("%s (%s)", row.Title, row.ID), "", row.Totals, row.Models)
 		}
 	default:
 		return nil, errors.New("unknown usage export format")

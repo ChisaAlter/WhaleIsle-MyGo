@@ -13,7 +13,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 )
 
-// Rates are user-configured CNY per million tokens, never live vendor prices.
+// Rates are CNY per million tokens; saved overrides or a pinned reference table, never live quotes.
 type PriceRates struct {
 	InputCacheHit  float64 `json:"inputCacheHit"`
 	InputCacheMiss float64 `json:"inputCacheMiss"`
@@ -285,12 +285,16 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 // EstimateModel follows the original panel's per-period cents rounding and cache
 // write = miss rate convention. Unknown prices or missing buckets stay unknown.
 func EstimateModel(row ModelUsage, settings BillingSettings) (float64, bool) {
-	p, ok := settings.Prices[row.Provider+"/"+row.Model]
-	if !ok {
-		p, ok = settings.Prices[row.Model]
-	}
+	peak, idle, ok := EstimateModelPhases(row, settings)
+	return peak + idle, ok
+}
+
+// EstimateModelPhases returns independently rounded CNY cents for the host's
+// Beijing billing-period buckets. UTC export dates never reclassify those buckets.
+func EstimateModelPhases(row ModelUsage, settings BillingSettings) (float64, float64, bool) {
+	p, ok := resolveModelPrice(row.Provider, row.Model, settings.Prices)
 	if !ok || row.Cost == nil || row.Cost.Peak == nil || row.Cost.OffPeak == nil {
-		return 0, false
+		return 0, 0, false
 	}
 	idle := PriceRates{p.InputCacheHit / 2, p.InputCacheMiss / 2, p.Output / 2}
 	if p.Idle != nil {
@@ -300,7 +304,7 @@ func EstimateModel(row ModelUsage, settings BillingSettings) (float64, bool) {
 		idle = p.PriceRates
 	}
 	period := func(b *Totals, r PriceRates) (float64, bool) {
-		for _, n := range []float64{b.Input, b.Output, b.CacheRead, b.CacheWrite} {
+		for _, n := range []float64{b.Input, b.Output, b.CacheRead, b.CacheWrite, r.InputCacheHit, r.InputCacheMiss, r.Output} {
 			if n < 0 || math.IsNaN(n) || math.IsInf(n, 0) {
 				return 0, false
 			}
@@ -313,7 +317,7 @@ func EstimateModel(row ModelUsage, settings BillingSettings) (float64, bool) {
 	}
 	a, ok := period(row.Cost.Peak, p.PriceRates)
 	b, ok2 := period(row.Cost.OffPeak, idle)
-	return a + b, ok && ok2
+	return a, b, ok && ok2
 }
 
 func (s *Store) SetPriceKey(key string) { s.mu.Lock(); s.billing.NewKey = key; s.mu.Unlock() }

@@ -11,7 +11,7 @@ import (
 	"whaleisle/internal/dsh"
 )
 
-const statsFixture = `{"days":[{"date":"2026-10-14","total":12,"models":{"model":{"input":7,"output":5,"total":12}}}],"totals":{"input":7,"output":5,"total":12},"sessionCount":1,"byModel":[],"allTime":{"totals":{"input":7,"output":5,"total":12},"sessionCount":1,"byModel":[{"model":"=BAD()","provider":"p","input":7,"output":5,"total":12}]},"coverage":{"mode":"projection","timezone":"UTC","sessionsTotal":2,"sessionsOk":1,"sessionsFailed":1,"failedSessionIds":["bad"]},"topSessions":[],"updatedAt":1791970000000,"billingExtra":{"preserved":true}}`
+const statsFixture = `{"days":[{"date":"2026-10-14","total":12,"models":{"model":{"input":7,"output":5,"total":12}}}],"totals":{"input":7,"output":5,"total":12},"sessionCount":1,"byModel":[{"model":"=BAD()","provider":"p","input":7,"output":5,"total":12}],"allTime":{"totals":{"input":7,"output":5,"total":12},"sessionCount":1,"byModel":[{"model":"=BAD()","provider":"p","input":7,"output":5,"total":12}]},"coverage":{"mode":"projection","timezone":"UTC","sessionsTotal":2,"sessionsOk":1,"sessionsFailed":1,"failedSessionIds":["bad"]},"topSessions":[],"updatedAt":1791970000000,"billingExtra":{"preserved":true}}`
 
 func waitStats(t *testing.T, s *Store) StatsView {
 	t.Helper()
