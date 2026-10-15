@@ -78,6 +78,7 @@ type Overview struct {
 	Stale       bool           `json:"stale"`
 }
 type statsState struct {
+	generation                       uint64
 	Range                            DateRange
 	RangeStart, RangeEnd, RangeError string
 	Raw                              json.RawMessage
@@ -140,7 +141,9 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.statsCancel = cancel
 	epoch := s.statsEpoch
 	s.resetRankingLocked()
-	s.repair.PendingID = ""
+	s.clearRepairConfirmationLocked()
+	s.stats.generation++
+	generation := s.stats.generation
 	s.stats.Loading = true
 	s.stats.Err = ""
 	ep := client.Endpoint
@@ -148,14 +151,18 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.fire()
 	go func() {
 		defer cancel()
-		rpc := &pluginrpc.Client{BaseURL: ep.Origin, Cookie: ep.Cookie, HTTPClient: &http.Client{Timeout: 60 * time.Second}}
+		httpClient := client.HTTP
+		if httpClient == nil {
+			httpClient = &http.Client{Timeout: 60 * time.Second}
+		}
+		rpc := &pluginrpc.Client{BaseURL: ep.Origin, Cookie: ep.Cookie, HTTPClient: httpClient}
 		var raw json.RawMessage
 		err := rpc.Call(ctx, "usage-stats", "overview", map[string]any{"force": force}, &raw)
 		if err == nil {
 			err = decodeOverview(raw)
 		}
 		s.mu.Lock()
-		if epoch != s.statsEpoch {
+		if epoch != s.statsEpoch || client != s.client || generation != s.stats.generation {
 			s.mu.Unlock()
 			return
 		}
@@ -167,6 +174,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 			s.stats.Raw = append(json.RawMessage(nil), raw...)
 			s.reconcileStatsRangeLocked()
 		}
+		s.finishRepairScanLocked(err)
 		s.mu.Unlock()
 		s.fire()
 	}()
