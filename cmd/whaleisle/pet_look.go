@@ -63,9 +63,9 @@ func (s *mainState) lookFromPet() {
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: attempt.Window, Type: mygo.MessageQuestion,
 		Title:   "看看屏幕 / Look at screen",
-		Message: "截取桌宠所在显示器的一张截图并发送给视觉模型？ / Capture and send one screenshot of the pet's display?",
+		Message: screenglance.ApprovalMessage(),
 		Detail: "Provider: " + provider + "\nModel: " + model + "\nHost: " + host.Endpoint.Origin +
-			"\n截图可能包含私人信息，并可能保存在鲸鱼娘会话中。本机不另存截图文件。 / The image may contain private information and may be retained in Whale chat. No separate local screenshot file is saved.",
+			"\n" + screenglance.StorageDetail(),
 		Buttons: []string{"取消 / Cancel", "截图并发送 / Capture and send"}, DefaultButton: 0, CancelButton: 0,
 	})
 	if err != nil || answer.Button != 1 {
@@ -83,7 +83,7 @@ func (s *mainState) lookFromPet() {
 		frame, err := screenglance.Capture(ctx, handle)
 		if err != nil {
 			cancel()
-			win.Update(func() { attempt.Finish("本次截图不可用 / Screenshot unavailable") })
+			win.Update(func() { attempt.Finish(screenglance.FailureMessage()) })
 			return
 		}
 		win.Update(func() {

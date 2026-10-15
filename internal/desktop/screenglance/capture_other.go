@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !darwin && !(linux && (amd64 || arm64))
 
 package screenglance
 

@@ -1,5 +1,6 @@
 // Package screenglance captures one explicitly requested monitor image.
-// It has no timers, persistence, clipboard access, or network operations.
+// It has no timers, clipboard access, or network operations. Native macOS and
+// Linux providers use temporary files as disclosed by StorageDetail.
 package screenglance
 
 import (
