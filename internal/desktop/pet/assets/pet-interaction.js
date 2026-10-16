@@ -327,6 +327,10 @@ function isolateClosedEyes() {
  poll();raf=requestAnimationFrame(animate);
  return {
   pose(target){target.set(pose);},
+  renderState(){
+   const now=performance.now();
+   return {state:snapshot.Mode==='pickup'||snapshot.Mode==='throw'?'pick-up':now<angryUntil?'angry':now<patUntil?'react-head':snapshot.Roaming?'running':'',patDirection:pat.dir,facing:snapshot.Facing===-1?-1:1};
+  },
   close(){closed=true;clearTimeout(timer);cancelAnimationFrame(raf);for(const off of listeners)off();for(const p of particles)p.node.remove();},
  };
 }};

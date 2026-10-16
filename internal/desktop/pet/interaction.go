@@ -17,6 +17,8 @@ type interactionSample struct {
 type interactionView struct {
 	CursorX, CursorY float64
 	Mode             string
+	Roaming          bool
+	Facing           int
 	VX, VY           float64
 	Landed           int64
 }
@@ -127,6 +129,7 @@ func (p *Companion) tickInteraction(now time.Time) {
 	p.assetMu.Lock()
 	s.view.CursorX, s.view.CursorY = float64(cursor.X-bounds.X), float64(cursor.Y-bounds.Y)
 	s.view.Mode, s.view.VX, s.view.VY = s.mode, s.vx, s.vy
+	s.view.Roaming, s.view.Facing = p.motion.glide != nil, p.motion.facing
 	p.assetMu.Unlock()
 }
 func (p *Companion) landInteraction(now time.Time) {

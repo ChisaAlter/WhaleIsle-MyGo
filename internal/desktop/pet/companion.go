@@ -333,6 +333,9 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if serveStatusCard(w, r) {
 		return
 	}
+	if serveRigResource(w, r) {
+		return
+	}
 	if p.serveInteraction(w, r) {
 		return
 	}
@@ -347,7 +350,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.assetMu.RLock()
 		body = renderTaskPage(body, p.activityTaskLocked())
 		body = renderLookPage(body, p.look.status)
-		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
+		body = []byte(strings.NewReplacer("{{RIG}}", fmt.Sprint(len(p.sheet) == 0), "{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		body = renderBehaviorPage(body, p.savedBehavior())
 		body = renderCarePage(body, p.careStatus())
