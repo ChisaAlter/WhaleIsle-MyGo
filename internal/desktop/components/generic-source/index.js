@@ -278,10 +278,19 @@ function createComponentsService(deps = {}) {
     }
     if (pid) {
       lifecycle.killPid(pid, { force: false }, deps);
-      const dead = await waitStopped(pid, 1500);
+      let dead = await waitStopped(pid, deps.stopSoftGraceMs ?? 1500);
       if (!dead) {
         lifecycle.killPid(pid, { force: true }, deps);
-        await waitStopped(pid, STOP_GRACE_MS);
+        dead = await waitStopped(pid, deps.stopGraceMs ?? STOP_GRACE_MS);
+      }
+      if (!dead) {
+        // Retain the exact supervised/recorded PID for a later stop retry.
+        // Dependent version switches and uninstall must not lose ownership.
+        rec.state = 'running';
+        rec.pid = pid;
+        rec.lastError = '组件进程退出尚未确认，请重试停止。';
+        writeRegistry();
+        return { ok: false, error: 'stop-unconfirmed', id, state: 'running', message: rec.lastError };
       }
     }
     procs.delete(id);
@@ -356,6 +365,15 @@ function createComponentsService(deps = {}) {
       timeoutMs: deps.stateWaitMs ?? STATE_WAIT_MS,
       isDead: () => (child.exitCode !== null && child.exitCode !== undefined) || Boolean(proc.spawnError),
     }, deps);
+    if (proc.spawnError || (child.exitCode !== null && child.exitCode !== undefined) || !lifecycle.isPidAlive(child.pid, deps)) {
+      procs.delete(id);
+      rec.state = 'error';
+      rec.pid = null;
+      rec.url = '';
+      rec.lastError = '组件进程在启动就绪等待期间退出。';
+      writeRegistry();
+      return { ok: false, error: 'early-exit', id, state: 'error', message: rec.lastError };
+    }
     rec.state = 'running';
     rec.pid = child.pid || rec.pid;
     rec.url = typeof liveState?.url === 'string' && liveState.url
@@ -465,7 +483,8 @@ function createComponentsService(deps = {}) {
       const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, deps);
       if (wasRunning) {
         emit(onProgress, { id, op: 'update', phase: 'stop', percent: 10 });
-        await stopComponent(id, onProgress, 'update');
+        const stopped = await stopComponent(id, onProgress, 'update');
+        if (!stopped.ok) return stopped;
       }
       try {
         await stagePayload(id, latest, onProgress, 'update');
@@ -520,7 +539,8 @@ function createComponentsService(deps = {}) {
       const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, deps);
       if (wasRunning) {
         emit(onProgress, { id, op: 'rollback', phase: 'stop', percent: 15 });
-        await stopComponent(id, onProgress, 'rollback');
+        const stopped = await stopComponent(id, onProgress, 'rollback');
+        if (!stopped.ok) return stopped;
       }
       emit(onProgress, { id, op: 'rollback', phase: 'switch', percent: 60 });
       // After rollback the rolled-forward version becomes the previous one —
@@ -553,10 +573,15 @@ function createComponentsService(deps = {}) {
       }
       if (rec.state === 'running' || procs.has(id)) {
         emit(onProgress, { id, op: 'uninstall', phase: 'stop', percent: 20 });
-        await stopComponent(id, onProgress, 'uninstall');
+        const stopped = await stopComponent(id, onProgress, 'uninstall');
+        if (!stopped.ok) return stopped;
       }
       emit(onProgress, { id, op: 'uninstall', phase: 'remove', percent: 60 });
-      await lifecycle.removeDir(store.versionsDir(root, id), deps);
+      if (!await lifecycle.removeDir(store.versionsDir(root, id), deps)) {
+        rec.lastError = '组件程序文件删除失败，请重试卸载。';
+        writeRegistry();
+        return { ok: false, error: 'remove-failed', id, message: rec.lastError };
+      }
       // Per feature card the data dir is the user's choice surface; v1 keeps
       // <id>/data/ (notes/state/logs) so uninstall never destroys user data.
       delete readRegistry().components[id];
@@ -586,9 +611,14 @@ function createComponentsService(deps = {}) {
       }
       if (rec.state === 'running' && rec.pid) {
         lifecycle.killPid(rec.pid, { force: true }, deps);
-        rec.state = 'stopped';
-        rec.pid = null;
-        rec.url = '';
+        if (lifecycle.isPidAlive(rec.pid, deps)) {
+          // Quit cannot await asynchronously; retain retry ownership on disk.
+          rec.lastError = '退出时组件进程终止尚未确认。';
+        } else {
+          rec.state = 'stopped';
+          rec.pid = null;
+          rec.url = '';
+        }
       }
     }
     procs.clear();

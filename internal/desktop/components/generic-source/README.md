@@ -1,6 +1,6 @@
 # Generic component service
 
-The four service modules (`index`, `registry`, `store`, `lifecycle`) are preserved
+The four service modules (`index`, `registry`, `store`, `lifecycle`) originate
 from original commit `e9f584be6d3b491ce777bb6823f30bc2bbc6f195` source `src/launcher/components`. They use
 only Node core modules. `worker.js` loads this embedded closure without extracting
 source or installing dependencies and exposes it to the Go launcher over stdio.
@@ -23,3 +23,8 @@ Prepared checks (not executed by the implementing worker):
   uses private fixture files, injected spawn/taskkill and never executes payloads.
 - Go `TestGenericCatalogAndOriginalRegistry` and
   `TestGenericManifestEntryContainment` read private fixtures only.
+
+Native review corrections retain a failed stop's PID and error until confirmed
+exit, abort dependent version/removal actions, retain registry on removal failure,
+and recheck liveness after startup state-file wait. The bounded failure fixture is
+`node --test internal/desktop/components/generic-source/failure.fixture.test.js`.
