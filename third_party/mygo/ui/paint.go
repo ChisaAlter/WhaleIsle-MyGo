@@ -56,6 +56,7 @@ func (rt *engine) paint(root *node, w, h, scale float32) {
 		rt.insp.paintHighlight(rt, p, h)
 	}
 	rt.paintDrag(p, w, h)
+	rt.paintPointerDecoration(p, w, h)
 	rt.under = p.under[:0] // kept for the next frame's
 }
 
@@ -151,6 +152,7 @@ func (p *Painter) element(e *node) {
 			p.shadow(box, e.radius, sh)
 		}
 		p.background(e, box, !borderOver)
+		p.paintMetallicButton(e, box)
 		if e.paintFn != nil {
 			e.paintFn(p, box)
 		}

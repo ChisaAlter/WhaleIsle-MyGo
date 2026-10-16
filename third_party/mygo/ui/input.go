@@ -232,6 +232,7 @@ func (rt *engine) pointerMove(x, y float32) {
 const interactive = flagClickable | flagFocusable | flagEditable | flagSelectable | flagDragWindow | flagDraggable | flagTrackPointer
 
 func (rt *engine) pointerDown(x, y float32, button int, mods Modifiers, count int) {
+	rt.decorations.pointerDown(x, y)
 	chain := rt.hitChain(x, y)
 	rt.setHover(chain)
 	if len(chain) > 0 {

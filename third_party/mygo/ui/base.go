@@ -24,6 +24,7 @@ import "fmt"
 // ButtonBase with the theme's look.
 func coreButtonBase(c *context) *node {
 	b := coreRow(c).Center().Focusable().Shrink(0)
+	b.decorativeButton = true
 	b.flags |= flagClickable | flagHover
 	return b
 }

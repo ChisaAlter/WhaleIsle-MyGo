@@ -72,21 +72,22 @@ func BackdropTerminal(c ui.Color) ui.Color {
 	}
 	return c.Alpha(float32(backgroundState.prefs.Terminal / 100))
 }
-func WallpaperBackground(c *ui.Context, path string, p wallpapers.Preferences) {
+func WallpaperBackgroundPainter(path string, p wallpapers.Preferences) func(*ui.Painter, ui.Rect) {
 	ConfigureBackdrop(path, p)
 	if path != "" {
 		bmp := backgroundBitmap(path, p)
-		if bmp != nil {
-			ui.Image(c, bmp).Absolute().Left(0).Top(0).Right(0).Bottom(0).Fit(ui.Cover)
+		return func(painter *ui.Painter, r ui.Rect) {
+			if bmp != nil {
+				painter.Image(bmp, r, ui.Cover)
+			}
 		}
-		return
 	}
 	if p.Effect != "gradient" {
-		return
+		return func(*ui.Painter, ui.Rect) {}
 	}
-	ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Draw(func(painter *ui.Painter, r ui.Rect) {
+	return func(painter *ui.Painter, r ui.Rect) {
 		colors := p.Colors
-		resolved := [7]ui.Color{c.Theme().Background, c.Theme().Surface, c.Theme().Accent, ui.Hex("#a78bfa"), ui.Hex("#38bdf8"), ui.Hex("#f472b6"), ui.Hex("#34d399")}
+		resolved := [7]ui.Color{painter.Theme().Background, painter.Theme().Surface, painter.Theme().Accent, ui.Hex("#a78bfa"), ui.Hex("#38bdf8"), ui.Hex("#f472b6"), ui.Hex("#34d399")}
 		for i := range colors {
 			if colors[i] != "" {
 				resolved[i] = Color(colors[i])
@@ -116,7 +117,7 @@ func WallpaperBackground(c *ui.Context, path string, p wallpapers.Preferences) {
 			painter.Shadow(ui.Rect{X: x - w/2, Y: y - h/2, W: w, H: h}, radius, 0, 0, 60, 0, resolved[i+2].Alpha(.38))
 		}
 		painter.AnimationFrame()
-	})
+	}
 }
 func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
 	s := &backgroundState

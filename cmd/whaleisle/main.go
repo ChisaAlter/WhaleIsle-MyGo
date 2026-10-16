@@ -2705,6 +2705,7 @@ func mainView(c *ui.Context) {
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
 	state.beginAppearanceFrame(c)
+	state.configurePointerEffects(c)
 	defer state.endAppearanceFrame()
 	defer state.observeAssistantBotRoute()
 	roomRuntimeRendered := false
@@ -3071,7 +3072,7 @@ func mainView(c *ui.Context) {
 	if !systemDark {
 		titleColors.Background = chrome.Color("#ffffff")
 	}
-	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
+	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen)).Children(func() {
 		if launcherOpen {
 			// The pinned native release catalog owns the one background lookup.
 			// Full-window launcher shell (Electron parity): no main chrome.
@@ -3505,7 +3506,6 @@ func mainView(c *ui.Context) {
 			}))
 			return
 		}
-		state.drawWallpaper(c, wallpaperPath)
 		// Exclusive panels (settings/market/…) must not keep desktop title actions.
 		desktopChromeLocked := settingsOpen || usageOpen || imOpen || marketOpen ||
 			scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen

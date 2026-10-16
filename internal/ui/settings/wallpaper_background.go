@@ -444,5 +444,5 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			g.Prefs = p
 		}
 	})
-	ui.Text(c, "指针 WebGL 水波与全局按钮金属光泽暂未移植。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	pointerEffectsPane(c, g, fg, muted)
 }

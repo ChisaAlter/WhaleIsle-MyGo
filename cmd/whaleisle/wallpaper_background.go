@@ -51,12 +51,16 @@ func (s *mainState) endWallpaperFrame() {
 		s.wallpaperControls.Prefs = s.wallpaperControls.Saved.Clone()
 	}
 }
-func (s *mainState) drawWallpaper(c *ui.Context, path string) {
+func (s *mainState) wallpaperPainter(path string, visible bool) func(*ui.Painter, ui.Rect) {
 	g := s.wallpaperEditor()
 	if g == nil {
-		return
+		return func(*ui.Painter, ui.Rect) {}
 	}
-	chrome.WallpaperBackground(c, path, g.Prefs)
+	if !visible {
+		chrome.ConfigureBackdrop("", wallpapers.Defaults())
+		return func(*ui.Painter, ui.Rect) {}
+	}
+	return chrome.WallpaperBackgroundPainter(path, g.Prefs)
 }
 
 // Existing local-dropdown selections also become durable app-owned copies on save.

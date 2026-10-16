@@ -1,6 +1,13 @@
 package wallpapers
 
 type Preferences struct {
+	CursorEnabled   bool      `json:"cursorEffectEnabled"`
+	CursorEffect    string    `json:"cursorEffect"`
+	CursorPreset    string    `json:"cursorEffectPreset"`
+	CursorColors    [6]string `json:"cursorEffectColors"`
+	CursorSpeed     float64   `json:"cursorEffectSpeed"`
+	CursorSize      float64   `json:"cursorEffectSize"`
+	MetallicButtons bool      `json:"metallicPaintEnabled"`
 	Sources         []Source  `json:"wallpaperSources"`
 	Favorites       []Item    `json:"wallpaperFavorites"`
 	Original        string    `json:"wallpaperOriginal"`
@@ -20,7 +27,7 @@ type Preferences struct {
 }
 
 func Defaults() Preferences {
-	return Preferences{Sources: Sources(), Crop: DefaultCrop(), Glass: 80, Terminal: 75, HideSidebarMask: true, Preset: "default", Effect: "none", Variant: "orbs", Speed: 190, Count: 5, Colors: [7]string{}}
+	return Preferences{CursorEffect: "trail", CursorPreset: "default", CursorSpeed: 100, CursorSize: 100, Sources: Sources(), Crop: DefaultCrop(), Glass: 80, Terminal: 75, HideSidebarMask: true, Preset: "default", Effect: "none", Variant: "orbs", Speed: 190, Count: 5, Colors: [7]string{}}
 }
 
 func (p Preferences) Clone() Preferences {
