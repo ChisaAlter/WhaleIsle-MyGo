@@ -9,8 +9,8 @@ import (
 
 // Application shortcuts are registered on every native route. PageShortcut
 // preserves existing editor/terminal/IME/modal ownership; no OS hook is used.
-func (s *mainState) registerApplicationCommands(c *ui.Context) {
-	actions := map[string]func(){
+func (s *mainState) applicationCommandActions(c *ui.Context) map[string]func() {
+	return map[string]func(){
 		"window.zoomIn":     func() { c.SetZoomFactor(c.ZoomFactor() + 0.1) },
 		"window.zoomOut":    func() { c.SetZoomFactor(c.ZoomFactor() - 0.1) },
 		"window.actualSize": func() { c.SetZoomFactor(1) },
@@ -28,6 +28,10 @@ func (s *mainState) registerApplicationCommands(c *ui.Context) {
 			c.Invalidate()
 		},
 	}
+}
+
+func (s *mainState) registerApplicationCommands(c *ui.Context) {
+	actions := s.applicationCommandActions(c)
 	bindings := shortcuts.Resolve(s.pageShortcutBindings())
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]

@@ -93,6 +93,7 @@ import (
 )
 
 type mainState struct {
+	applicationMenu *desktopApplicationMenu
 	wallpaperControls    *settings.WallpaperEditor
 	wallpaperVisible     bool
 	commandSearchFocus   bool
@@ -2725,6 +2726,7 @@ func mainView(c *ui.Context) {
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
+	state.syncApplicationMenu(c)
 	state.beginAppearanceFrame(c)
 	state.configurePointerEffects(c)
 	defer state.endAppearanceFrame()
