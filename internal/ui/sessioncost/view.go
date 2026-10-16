@@ -40,25 +40,8 @@ func preferences(v settings.ViewState) (stats, show, official bool) {
 		_ = json.Unmarshal(fields["sessionCost"], &show)
 		_ = json.Unmarshal(fields["officialPeakValley"], &official)
 	}
-	// The generic settings form owns pending edits; reflect its current switches.
-	if v.SelectedNS == "ui-conversation" {
-		for key, value := range v.Drafts {
-			switch key {
-			case "statsLine":
-				if value == "true" || value == "false" {
-					stats = value == "true"
-				}
-			case "sessionCost":
-				if value == "true" || value == "false" {
-					show = value == "true"
-				}
-			case "officialPeakValley":
-				if value == "true" || value == "false" {
-					official = value == "true"
-				}
-			}
-		}
-	}
+	// Only accepted Host values affect display; failed or cancelled drafts stay local.
+
 	return
 }
 func money(r cost.Result) string {
