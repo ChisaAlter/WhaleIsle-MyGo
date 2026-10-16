@@ -80,5 +80,14 @@ func (s *mainState) browserActionTarget() browserpreviewui.ActionTarget {
 		// No submit, upload, send, session selection or focus change here.
 		return true
 	}
+	target.AppendAnnotation = func(text, screenshotPath string) bool {
+		// This callback is invoked only by the native review button. The path
+		// was created by the bounded local capture, never supplied by the page.
+		if screenshotPath == "" || !valid() || !target.Append(text) {
+			return false
+		}
+		s.addComposerFiles(win, sessions, id, draft, []string{screenshotPath})
+		return true
+	}
 	return target
 }

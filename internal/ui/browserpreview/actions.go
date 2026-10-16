@@ -17,17 +17,22 @@ import (
 // ActionTarget is captured on the UI thread at the user's gesture. Valid and
 // Append are called only on that thread, never from a capture goroutine.
 type ActionTarget struct {
-	Valid  func() bool
-	Append func(string) bool
+	Valid            func() bool
+	Append           func(string) bool
+	AppendAnnotation func(text, screenshotPath string) bool
 }
 
 type previewOperation struct {
-	tab    *Tab
-	host   *desktop.Host
-	target ActionTarget
-	ctx    context.Context
-	cancel context.CancelFunc
-	kind   string
+	pageCurrent    func() bool
+	tab            *Tab
+	host           *desktop.Host
+	target         ActionTarget
+	ctx            context.Context
+	cancel         context.CancelFunc
+	kind           string
+	annotation     string
+	attachmentPath string
+	ready          bool
 }
 
 // SetActionTarget wires the owning session's draft without giving web pages
@@ -58,6 +63,9 @@ func (b *Controller) CancelAction() {
 	if op := b.operation; op != nil {
 		b.operation = nil
 		op.cancel()
+		if op.attachmentPath != "" {
+			_ = os.Remove(op.attachmentPath)
+		}
 		op.tab.ActionMessage = ""
 	}
 }
@@ -76,7 +84,7 @@ func (b *Controller) PruneActions() {
 func (b *Controller) actionCurrent(op *previewOperation) bool {
 	return op != nil && b.operation == op && b.current() == op.tab &&
 		op.tab.Host == op.host && op.host.Alive() && op.ctx.Err() == nil &&
-		op.target.Valid != nil && op.target.Valid()
+		op.target.Valid != nil && op.target.Valid() && (op.pageCurrent == nil || op.pageCurrent())
 }
 
 func (b *Controller) startAction(t *Tab, kind string) {
@@ -167,6 +175,20 @@ func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) 
 	ui.ScrollHorizontal(c).Height(28).FillWidth().Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			b.recordingControls(c, t, disabled)
+			if ui.Button(c, "可视批注").Disabled(disabled).Clicked() {
+				b.startAnnotation(t)
+			}
+			if op := b.operation; op != nil && op.ready {
+				if ui.Button(c, "查看批注截图").Clicked() {
+					mygo.Shell.ShowItemInFolder(op.attachmentPath)
+				}
+				if ui.Button(c, "复制批注").Clicked() {
+					mygo.Clipboard.WriteText(op.annotation)
+				}
+				if ui.Button(c, "批注和截图加入草稿").Tooltip(truncate(op.annotation, 2000)).Clicked() {
+					b.appendAnnotation(op)
+				}
+			}
 			if ui.Button(c, "选择元素").Disabled(disabled).Clicked() {
 				b.startAction(t, "pick")
 			}
