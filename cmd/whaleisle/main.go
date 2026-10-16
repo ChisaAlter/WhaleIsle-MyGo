@@ -224,6 +224,7 @@ type mainState struct {
 	analyticsEnabled                        *bool
 	credsShowSecrets                        bool
 	usage                                   *usagestore.Store
+	accountReturn                           accountReturnState
 	im                                      *imstore.Store
 	market                                  *marketstore.Store
 	schedule                                *schedstore.Store
@@ -1080,6 +1081,7 @@ func (s *mainState) showBrowserPreview(rawURL string) {
 
 func (s *mainState) openWebViewURL(browse string) {
 	s.mu.Lock()
+	s.accountReturn.embedded = ""
 	win := s.win
 	existing := s.webviewHost
 	ep := s.bootStatus.Endpoint
@@ -2085,6 +2087,9 @@ func main() {
 		win.OnClosed(state.whaleSettings.Suspend)
 		win.OnClosed(state.stopBotNotifications)
 		win.OnFocus(state.clearFocusedBotNotifications)
+		win.OnBlur(state.accountWindowBlurred)
+		win.OnFocus(state.returnFromAccountExternal)
+		win.OnClosed(state.clearAccountReturn)
 		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnMinimize(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
 		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
@@ -4648,6 +4653,7 @@ func mainView(c *ui.Context) {
 						state.assistantConversationGeneration++
 						state.assistantOpen = false
 						state.mu.Unlock()
+						state.returnFromAccountPage()
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -4767,29 +4773,10 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenUsageWeb: func() {
-						u := usageStore.Snapshot().UsageURL
-						if u == "" {
-							return
-						}
-						state.mu.Lock()
-						state.usageOpen = false
-						state.webviewOpen = true
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
-						state.mu.Unlock()
-						state.openWebViewURL(u)
-						if win != nil {
-							win.Update(func() {})
-						}
+						state.openAccountUsage(usageStore.Snapshot().UsageURL, "usage")
 					},
 					OnOpenTopUp: func() {
-						u := usageStore.Snapshot().TopUpURL
-						if u == "" {
-							return
-						}
-						if err := desktopwebview.OpenExternal(u); err != nil {
-							log.Printf("usage: open top-up: %v", err)
-						}
+						state.openAccountTopUp(usageStore.Snapshot().TopUpURL)
 					},
 					OnCopyUsageURL: func(u string) {
 						if strings.TrimSpace(u) != "" {
@@ -4984,6 +4971,12 @@ func mainView(c *ui.Context) {
 						AttemptPhase:    usageSnap.AttemptPhase,
 						SignInAttemptID: usageSnap.AttemptID,
 						AuthorizeURL:    usageSnap.AuthorizeURL,
+						BonusesLoading:  usageSnap.BonusesLoading,
+						BonusesError:    usageSnap.BonusesError,
+						BonusAckState:   usageSnap.BonusFeedback.State,
+						BonusAckError:   usageSnap.BonusFeedback.Error,
+						BonusAckAccount: usageSnap.BonusFeedback.AccountID,
+						BonusAckOrder:   usageSnap.BonusFeedback.OrderID,
 						Bonuses: func() []settings.AccountBonus {
 							out := make([]settings.AccountBonus, 0, len(usageSnap.Bonuses))
 							for _, b := range usageSnap.Bonuses {
@@ -5031,27 +5024,8 @@ func mainView(c *ui.Context) {
 								log.Printf("account: open authorization: %v", err)
 							}
 						},
-						OnOpenUsage: func(u string) {
-							if strings.TrimSpace(u) == "" {
-								return
-							}
-							state.mu.Lock()
-							state.settingsOpen = false
-							state.webviewOpen = true
-							state.mu.Unlock()
-							state.openWebViewURL(u)
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						OnOpenTopUp: func(u string) {
-							if strings.TrimSpace(u) == "" {
-								return
-							}
-							if err := desktopwebview.OpenExternal(u); err != nil {
-								log.Printf("account: open top-up: %v", err)
-							}
-						},
+						OnOpenUsage: func(u string) { state.openAccountUsage(u, "settings") },
+						OnOpenTopUp: state.openAccountTopUp,
 						OnSignIn: func() {
 							state.dshMu.Lock()
 							client := state.dshClient

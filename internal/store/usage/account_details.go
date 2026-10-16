@@ -12,6 +12,9 @@ import (
 // The Host also returns null when its account grant changes during a request.
 func (s *Store) resetAccountDetailsLocked() {
 	s.accountEpoch++
+	s.bonusFeedback = BonusFeedback{}
+	s.bonusesLoading = false
+	s.bonusesError = ""
 	s.accountRead++
 	s.details = accountdetails.Empty()
 	s.email, s.name, s.plan, s.balanceSummary = "", "", "", ""

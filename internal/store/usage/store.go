@@ -41,6 +41,9 @@ type ViewState struct {
 	BalanceSummary  string
 	HasRunningTasks bool
 	Bonuses         []Bonus
+	BonusesLoading  bool
+	BonusesError    string
+	BonusFeedback   BonusFeedback
 	Recent          []Entry
 	DayBuckets      []DayBucket
 }
@@ -53,6 +56,7 @@ type Bonus struct {
 	Amount    string
 	Currency  string
 	Message   string
+	ExpiresAt string
 }
 
 // Store fetches account stats and optional session job list from dsh RPC.
@@ -92,6 +96,9 @@ type Store struct {
 	balanceSummary  string
 	hasRunningTasks bool
 	bonuses         []Bonus
+	bonusesLoading  bool
+	bonusesError    string
+	bonusFeedback   BonusFeedback
 	recent          []Entry
 	dayBuckets      []DayBucket
 }
@@ -200,6 +207,9 @@ func (s *Store) Snapshot() ViewState {
 		ExpiryNote:      s.expiryNote,
 		BalanceSummary:  s.balanceSummary,
 		HasRunningTasks: s.hasRunningTasks,
+		BonusesLoading:  s.bonusesLoading,
+		BonusesError:    s.bonusesError,
+		BonusFeedback:   s.bonusFeedback,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()
@@ -222,6 +232,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	s.resetAccountDetailsLocked()
 	epoch := s.accountEpoch
 	s.loading = true
+	s.bonusesLoading = true
 	s.err = nil
 	s.mu.Unlock()
 	s.fire()
@@ -245,37 +256,13 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 			authorizeURL = *state.Attempt.AuthorizeUrl
 		}
 
-		_, zoneOff := time.Now().Zone()
-		clientMeta := api.AccountClientMetadata{
-			Version:               "whaleisle",
-			Locale:                "zh-CN",
-			TimezoneOffsetSeconds: float64(zoneOff),
-		}
-
 		s.refreshAccountDetails(ctx, client, epoch, status)
 
 		// account/watch + account/watchExpiry are ModeStream — see WatchAccount / WatchExpiry.
 		var hasTasks api.HasRunningAccountTasksResult
 		_ = client.Call(ctx, "account/hasRunningAccountTasks", map[string]any{}, &hasTasks)
 
-		var bonuses []Bonus
-		var bonusRaw api.GetUnnotifiedBonusesResult
-		if err := client.Call(ctx, "account/getUnnotifiedBonuses", map[string]any{"client": clientMeta}, &bonusRaw); err == nil {
-			for _, b := range bonusRaw.Bonuses {
-				msg := strings.TrimSpace(b.Message)
-				if msg == "" {
-					msg = strings.TrimSpace(b.Campaign)
-				}
-				bonuses = append(bonuses, Bonus{
-					AccountID: bonusRaw.AccountId,
-					OrderID:   b.OrderId,
-					Campaign:  b.Campaign,
-					Amount:    b.Amount,
-					Currency:  b.Currency,
-					Message:   msg,
-				})
-			}
-		}
+		bonuses, bonusErr := readAccountBonuses(ctx, client, status)
 
 		var recent []Entry
 		var buckets []DayBucket
@@ -337,6 +324,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 			client:       client, epoch: epoch,
 			hasRunningTasks: bool(hasTasks),
 			bonuses:         bonuses,
+			bonusErr:        bonusErr,
 			recent:          recent,
 			buckets:         buckets,
 		})
@@ -359,6 +347,7 @@ type accountRefresh struct {
 	balanceSummary  string
 	hasRunningTasks bool
 	bonuses         []Bonus
+	bonusErr        error
 	recent          []Entry
 	buckets         []DayBucket
 }
@@ -379,46 +368,15 @@ func (s *Store) finishRefresh(r accountRefresh) {
 	s.authorizeURL = r.authorizeURL
 	s.hasRunningTasks = r.hasRunningTasks
 	s.bonuses = r.bonuses
+	s.bonusesLoading = false
+	s.bonusesError = ""
+	if r.bonusErr != nil {
+		s.bonusesError = r.bonusErr.Error()
+	}
 	s.recent = r.recent
 	s.dayBuckets = r.buckets
 	s.mu.Unlock()
 	s.fire()
-}
-
-// AckBonusNotified calls account/ackBonusNotified then refreshes.
-func (s *Store) AckBonusNotified(ctx context.Context, accountID, orderID, sessionID string) {
-	accountID = strings.TrimSpace(accountID)
-	orderID = strings.TrimSpace(orderID)
-	s.mu.Lock()
-	client := s.client
-	s.mu.Unlock()
-	if client == nil || accountID == "" || orderID == "" {
-		return
-	}
-	go func() {
-		_, zoneOff := time.Now().Zone()
-		clientMeta := api.AccountClientMetadata{
-			Version:               "whaleisle",
-			Locale:                "zh-CN",
-			TimezoneOffsetSeconds: float64(zoneOff),
-		}
-		var out api.AckBonusNotifiedResult
-		err := client.Call(ctx, "account/ackBonusNotified", map[string]any{
-			"accountId": accountID,
-			"orderId":   orderID,
-			"client":    clientMeta,
-		}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.err = err
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		s.err = nil
-		s.mu.Unlock()
-		s.Refresh(ctx, sessionID)
-	}()
 }
 
 // KillJob calls job/kill for a running job in sessionID, then refreshes.

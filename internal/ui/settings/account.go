@@ -43,6 +43,12 @@ type AccountAccess struct {
 	OnCancelSignIn   func()
 	SignInAttemptID  string
 	Bonuses          []AccountBonus
+	BonusesLoading   bool
+	BonusesError     string
+	BonusAckState    string
+	BonusAckError    string
+	BonusAckAccount  string
+	BonusAckOrder    string
 	OnAckBonus       func(accountID, orderID string)
 	HasRunningTasks  bool
 }
@@ -105,7 +111,8 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	accountDetailsPane(c, a.Details, fg, muted)
 
 	ui.Text(c, i18n.T(i18n.KeySettingsAccountBonuses)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
-	if len(a.Bonuses) == 0 {
+	accountBonusFeedback(c, a, fg, muted)
+	if len(a.Bonuses) == 0 && !a.BonusesLoading && a.BonusesError == "" {
 		ui.Text(c, i18n.T(i18n.KeySettingsAccountBonusesEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {
 		for _, b := range a.Bonuses {
@@ -121,7 +128,8 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						mygo.Clipboard.WriteText(body)
 					}
 				}
-				if a.OnAckBonus != nil && row.OrderID != "" {
+				refused := a.BonusAckState == "refused" && a.BonusAckAccount == row.AccountID && a.BonusAckOrder == row.OrderID
+				if a.OnAckBonus != nil && row.OrderID != "" && !a.Loading && !a.BonusesLoading && a.BonusAckState != "pending" && !refused {
 					if ui.Button(c, i18n.T(i18n.KeySettingsAccountBonusAck)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 						a.OnAckBonus(row.AccountID, row.OrderID)
 					}

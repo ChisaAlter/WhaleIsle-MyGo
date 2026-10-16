@@ -154,6 +154,7 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		s.fire()
 		if client != nil {
 			s.refreshAccountDetails(ctx, client, epoch, view.Status)
+			s.refreshAccountBonuses(ctx, client, epoch, view.Status)
 		}
 	}
 }
