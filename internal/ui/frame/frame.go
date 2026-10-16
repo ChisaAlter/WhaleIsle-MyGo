@@ -656,6 +656,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				}
 				editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
 				paintComposer := func(hero bool) {
+					nextPrompt := m.Store.SyncNextPrompt(context.Background(), composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
 					if !hero {
 						// Electron TodoPanel: todos-only dock above composer (not PlanBoard).
 						chat.TodoPanelView(c, chat.TodoPanelModel{
@@ -666,6 +667,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
+						NextPrompt:           nextPrompt,
+						OnAcceptNextPrompt:   func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
+						ComposerBeam:         m.ConversationPreferences.ComposerBeam,
+						ComposerBeamStyle:    m.ConversationPreferences.ComposerBeamStyle,
+						TypingFx:             m.ConversationPreferences.TypingFx,
+						TypingFxStyle:        m.ConversationPreferences.TypingFxStyle,
 						ResizeEnabled:        m.ConversationPreferences.ComposerResize,
 						Resize:               m.ComposerResize,
 						ResizeMaxWidth:       maxf(0, m.Sizes.Center-32),

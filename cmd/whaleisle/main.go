@@ -2741,6 +2741,12 @@ func mainView(c *ui.Context) {
 	logs := append([]string(nil), state.bootLogs...)
 	sup := state.sup
 	sessions := state.sessions
+	nextPromptRendered := false
+	defer func() {
+		if !nextPromptRendered && sessions != nil {
+			sessions.SyncNextPrompt(context.Background(), false)
+		}
+	}()
 	interactions := state.interactions
 	if state.settings == nil {
 		state.settings = settingsstore.New()
@@ -6819,6 +6825,7 @@ func mainView(c *ui.Context) {
 						}
 					})
 					state.consumeNavigationFile(frameModel)
+					nextPromptRendered = true
 					frame.View(c, frameModel)
 					state.workspaceNavigationView(c, win, sessions, themeID, systemDark, func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) })
 					if state.dirPickOpen {

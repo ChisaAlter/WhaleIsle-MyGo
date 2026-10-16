@@ -170,6 +170,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	nextPrompt                nextPromptState
 	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
@@ -306,6 +307,8 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.clearNextPromptLocked()
+		s.nextPrompt.accepted = nil
 		s.clearSearchLocked()
 		s.resetComposerHostLocked()
 		s.skillCatalogVersion++
@@ -449,6 +452,8 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.clearNextPromptLocked()
+	s.nextPrompt.accepted = nil
 	s.resetComposerHostLocked()
 	s.invalidateRenameLocked()
 	s.invalidateSessionFeedbackLocked()

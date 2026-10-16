@@ -3,6 +3,7 @@ package composer
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -19,6 +20,12 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
+	NextPrompt           session.NextPromptSuggestion
+	OnAcceptNextPrompt   func() string
+	ComposerBeam         bool
+	ComposerBeamStyle    json.RawMessage
+	TypingFx             bool
+	TypingFxStyle        json.RawMessage
 	ResizeEnabled        bool
 	Resize               *ResizeState
 	ResizeMaxWidth       float32
@@ -124,6 +131,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	border := chrome.Color(colors.Border)
 	accent := chrome.Color(colors.Accent)
 	panel := chrome.Color(colors.BG)
+	beam := readBeamStyle(m.ComposerBeamStyle)
+	showBeam := m.ComposerBeam && composerRunning(m) && !c.Preferences().ReduceMotion
 
 	draft := ""
 	if m.Draft != nil {
@@ -260,7 +269,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// is painted as elevation, so it does not consume draft layout space.
 		card := ui.Column(c).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
 			Radius(28).Padding(8, 0, 0, 0).Gap(12).
-			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 28, 0.5) })
+			DrawOver(func(p *ui.Painter, r ui.Rect) {
+				p.Stroke(r, border, 28, 0.5)
+				if showBeam {
+					paintComposerBeam(p, r, beam)
+				}
+			})
 		card.Children(func() {
 			paintResizeHandles(c, m, card, muted)
 			if m.State != nil {
@@ -312,6 +326,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						ta.SetTextSelection(selectStart, selectEnd).Focus()
 					}
 					area = ta
+					paintNextPrompt(c, m, muted)
 				}
 				// Toolkit AutoFocus is a first-mount request, never a per-frame
 				// keep-focused loop. Do not override an already focused control.
@@ -324,6 +339,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if m.State != nil && m.State.EditFocus {
 					area.Focus()
 					m.State.EditFocus = false
+				}
+				if m.NextPrompt.Text != "" {
+					area.OnShortcut(0, ui.KeyTab, func() { acceptNextPrompt(m) })
 				}
 				wireFileDrop(area, m)
 				wireWorkspaceReferenceDrop(area, m)

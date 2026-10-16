@@ -17,6 +17,7 @@ const (
 // Selection and IME marked ranges use UTF-16 code units, matching MyGo native
 // text services. Call Sync after programmatic draft edits from chips or suggest.
 type DraftClient struct {
+	typing    typingEffects
 	Draft     *string
 	selection ui.TextInputSelection
 	marked    *ui.TextInputRange

@@ -10,6 +10,8 @@ import (
 func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, selectUTF16Start, selectUTF16End int) ui.Element {
 	client := m.TextInput
 	client.Sync()
+	client.configureTyping(m, c.Preferences().ReduceMotion)
+	_, _, textInk := client.typing.colors(fg, c.Theme().Accent)
 	if selectUTF16Start >= 0 {
 		client.SetSelectionUTF16(selectUTF16Start, selectUTF16End)
 	}
@@ -29,7 +31,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	height = resizeInputHeight(c, m, height)
 	client.setViewport(height)
 	box.Height(height).Clip().
-		HandleTextInput(client).
+		HandleTextInput(typingInputClient{client}).
 		HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Kind == ui.InputScroll {
 				return client.scrollBy(ev.DY)
@@ -49,19 +51,16 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			}
 		})
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if !box.Focused() {
-			return
-		}
-		caret := client.visualCaret(client.selection.Caret())
-		caret.X += r.X + draftInputLeft
-		caret.Y += r.Y + draftInputTop - client.scrollY
-		p.Clip(r, 0, func() { p.Fill(caret, c.Theme().Accent, 0) })
+		client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
 	})
 	box.Children(func() {
 		text := client.text()
 		if text == "" {
 			ui.Box(c).Label("Composer placeholder").Absolute().Left(draftInputLeft).Right(draftInputRight).
 				Top(draftInputTop).Children(func() {
+				if paintNextPrompt(c, m, placeholderInk) {
+					return
+				}
 				display := ui.Text(c, placeholder).FillWidth().Font(client.font.Family).FontSize(client.font.Size).
 					FixedLineHeight(client.lineHeight()).TextColor(placeholderInk).PassThrough()
 				if m.Hero {
@@ -74,7 +73,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		}
 		ui.Text(c, text).Absolute().Left(draftInputLeft).Right(draftInputRight).
 			Top(draftInputTop - client.scrollY).Font(client.font.Family).FontSize(client.font.Size).
-			FixedLineHeight(client.lineHeight()).TextColor(fg).PassThrough()
+			FixedLineHeight(client.lineHeight()).TextColor(textInk).PassThrough()
 	})
 
 	return box
@@ -117,6 +116,11 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			}
 		}
 		switch ev.Key {
+		case ui.KeyTab:
+			if ev.Mods == 0 && client.marked == nil {
+				return acceptNextPrompt(m)
+			}
+			return false
 		case ui.KeyEscape:
 			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
 				m.State.ModelCommand.Open = false

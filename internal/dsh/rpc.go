@@ -57,14 +57,17 @@ func (c *Client) Call(ctx context.Context, method string, args any, out any) err
 	if args == nil {
 		args = map[string]any{}
 	}
+	return c.callPayload(ctx, method, map[string]any{"args": args}, out)
+}
+
+// callPayload shares the authenticated Connection envelope across RPC dialects.
+func (c *Client) callPayload(ctx context.Context, method string, payload any, out any) error {
 	rpcID := newID()
 	body, err := json.Marshal(map[string]any{
-		"type":   "client-request",
-		"rpcId":  rpcID,
-		"method": method,
-		"payload": map[string]any{
-			"args": args,
-		},
+		"type":    "client-request",
+		"rpcId":   rpcID,
+		"method":  method,
+		"payload": payload,
 	})
 	if err != nil {
 		return err
