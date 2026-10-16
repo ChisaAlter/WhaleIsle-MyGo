@@ -94,6 +94,24 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				if s.SelectedID != task.ID {
 					return
 				}
+				ui.Row(c).Gap(6).Children(func() {
+					for _, participant := range []struct{ id, label string }{
+						{task.FromID, "打开发件人会话 / Open sender conversation"},
+						{task.ToID, "打开收件人会话 / Open recipient conversation"},
+					} {
+						participant := participant
+						if m.Contacts.State.Loaded && m.OnDshbotOpenRosterSession != nil {
+							for _, item := range m.Contacts.State.Catalog.Items {
+								if item.ID == strings.TrimSpace(participant.id) && item.Kind == "bot" && strings.TrimSpace(item.SessionID) != "" {
+									if ui.Button(c, participant.label).Disabled(blocked || m.Contacts.State.Busy).Clicked() {
+										m.OnDshbotOpenRosterSession(item.ID)
+									}
+									break
+								}
+							}
+						}
+					}
+				})
 				ui.Text(c, "任务 / Task: "+task.Task).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				if len(task.Constraints) > 0 {
 					ui.Text(c, "约束 / Constraints:\n- "+strings.Join(task.Constraints, "\n- ")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
