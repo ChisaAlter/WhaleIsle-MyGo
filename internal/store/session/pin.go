@@ -35,7 +35,7 @@ func (s *Store) PinSession(ctx context.Context, sessionID string) {
 		return
 	}
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -45,6 +45,10 @@ func (s *Store) PinSession(ctx context.Context, sessionID string) {
 		var out api.WorkspacePinValue
 		err := client.Call(ctx, "workspace/pinSession", map[string]any{"request": req}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 			s.mu.Unlock()
@@ -66,7 +70,7 @@ func (s *Store) UnpinSession(ctx context.Context, sessionID string) {
 		return
 	}
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -76,6 +80,10 @@ func (s *Store) UnpinSession(ctx context.Context, sessionID string) {
 		var out api.WorkspacePinValue
 		err := client.Call(ctx, "workspace/unpinSession", map[string]any{"request": req}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 			s.mu.Unlock()

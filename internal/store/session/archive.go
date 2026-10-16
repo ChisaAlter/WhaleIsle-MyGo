@@ -19,7 +19,7 @@ func (s *Store) UnarchiveSession(ctx context.Context, sessionID string) {
 		return
 	}
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -30,6 +30,10 @@ func (s *Store) UnarchiveSession(ctx context.Context, sessionID string) {
 			"request": map[string]any{"sessionId": sessionID},
 		}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 			s.mu.Unlock()
@@ -38,9 +42,17 @@ func (s *Store) UnarchiveSession(ctx context.Context, sessionID string) {
 		}
 		s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
 		s.lastAction = "session unarchived"
+		// Admit the refresh under the same Host lock as the acknowledgement.
+		// A repaint may synchronously attach another Host.
+		var listGeneration uint64
+		if ctx.Err() == nil {
+			_, listGeneration = s.beginListRefreshLocked()
+		}
 		s.mu.Unlock()
 		s.fire()
-		s.RefreshList(ctx)
+		if listGeneration != 0 {
+			go s.runRefreshList(ctx, client, listGeneration)
+		}
 	}()
 }
 
@@ -51,7 +63,7 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 		return
 	}
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -62,6 +74,10 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 			"request": map[string]any{"sessionId": sessionID},
 		}, &out)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 			s.mu.Unlock()
@@ -70,8 +86,16 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 		}
 		s.applyDeleteResultLocked(out)
 		s.lastAction = "session deleted"
+		// Admit the refresh under the same Host lock as the acknowledgement.
+		// A repaint may synchronously attach another Host.
+		var listGeneration uint64
+		if ctx.Err() == nil {
+			_, listGeneration = s.beginListRefreshLocked()
+		}
 		s.mu.Unlock()
 		s.fire()
-		s.RefreshList(ctx)
+		if listGeneration != 0 {
+			go s.runRefreshList(ctx, client, listGeneration)
+		}
 	}()
 }
