@@ -388,6 +388,7 @@ func View(c *ui.Context, m Model) {
 	if m.DisableDeveloperTools && m.ChatPaneTab != nil && *m.ChatPaneTab == "trajectory" {
 		*m.ChatPaneTab = "chat"
 	}
+	m.Store.LoadStopSequenceConfig()
 	snap := m.Store.Snapshot()
 	snap.AgentPresetLabels = m.Store.AgentPresetLabelsForDeveloperTools(!m.DisableDeveloperTools)
 	if m.HostTerminalUI != nil {
@@ -777,9 +778,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.Store.SendPrompt(context.Background(), text)
 							}
 						},
-						OnStop: func() {
-							m.Store.CancelRunning(context.Background())
-						},
+						StopBlocked: hasPendingStopInteraction(m.Interactions, snap.SelectedID),
+						OnStop:      func() { cancelCapturedResponse(m, snap) },
 						OnModelChange: func(label string) {
 							if choice, ok := snap.ModelChoices[label]; ok {
 								m.Store.SelectModelSelectionForSessionID(context.Background(), snap.SelectedID, choice)
@@ -888,7 +888,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					return
 				}
 				// ConversationRoot: same chatContent column for transcript + docked composer.
-				ui.Column(c).Grow(1).MinHeight(0).Padding(20, 0, 0, 0).Children(func() {
+				chatRegion := ui.Column(c).Grow(1).MinHeight(0).Padding(20, 0, 0, 0)
+				bindChatStopRegion(chatRegion, m, snap)
+				chatRegion.Children(func() {
 					paneTab := "chat"
 					if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 						paneTab = strings.TrimSpace(*m.ChatPaneTab)

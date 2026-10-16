@@ -84,9 +84,13 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
-	TurnUsage    map[float64]TurnUsage
-	TurnFiles    TurnFilesSnapshot
-	WorkflowRuns []workflowrun.Run
+	StopSequenceMS int64
+	// Stop identity is the existing live turn and selected follow binding.
+	StopTurnSeq    float64
+	StopGeneration uint64
+	TurnUsage      map[float64]TurnUsage
+	TurnFiles      TurnFilesSnapshot
+	WorkflowRuns   []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
 	PlanHistoryBinding   string
 	WorkspaceLayout      WorkspaceLayoutState
@@ -177,6 +181,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	stopSequenceConfig        stopSequenceConfig
 	quotaNotice               quotaNoticeState
 	inspector                 sessionInspectorState
 	nextPrompt                nextPromptState
@@ -321,6 +326,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.clearStopSequenceConfigLocked()
 		s.quotaNotice.current = QuotaNotice{}
 		s.quotaNotice.held = false
 		s.clearNextPromptLocked()
@@ -522,6 +528,9 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		StopTurnSeq:         s.editTurnSeq,
+		StopSequenceMS:      s.stopSequenceConfig.intervalMS,
+		StopGeneration:      s.followGeneration,
 		TurnUsage:           s.turnUsageLocked(),
 		TurnFiles:           s.turnFilesSnapshotLocked(),
 		PlanHistoryBinding:  s.planHistoryBinding,

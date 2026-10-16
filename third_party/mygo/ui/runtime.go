@@ -799,6 +799,7 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 	}
 	s.cursor, s.tip = e.cursor, e.tip
 	s.role = e.role
+	s.regionEscape = e.regionEscape
 	s.input, s.caret, s.takesText = e.inputFn, e.caret, e.takesText
 	if s.textClient != e.textClient {
 		if s.textAdapter != nil {

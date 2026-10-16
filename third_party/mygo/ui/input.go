@@ -37,6 +37,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 	case platform.PointerMove:
 		rt.pointerMove(x, y)
 	case platform.PointerDown:
+		rt.regionEscapeInput(false)
 		rt.pointerMove(x, y)
 		rt.pointerDown(x, y, ev.Button, Modifiers(ev.Mods), ev.Clicks)
 	case platform.PointerUp:
@@ -64,8 +65,10 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 			rt.deliver(h, InputEvent{Kind: InputKeyUp, Key: Key(ev.Key), Mods: Modifiers(ev.Mods)})
 		}
 	case platform.TextInput:
+		rt.regionEscapeInput(false)
 		rt.editEvent(rt.replaced(editEvent{kind: editInsert, text: ev.Text}, ev))
 	case platform.TextComposition:
+		rt.regionEscapeInput(false)
 		rt.editEvent(rt.replaced(editEvent{kind: editCompose, text: ev.Text, caret: ev.Caret}, ev))
 	case platform.SurfaceCommand:
 		rt.editEvent(editEvent{kind: editCommand, text: ev.Text})
@@ -74,6 +77,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		rt.blinkStart = time.Now()
 		rt.requestFrame()
 	case platform.SurfaceBlur:
+		rt.regionEscapeInput(false)
 		rt.windowFocused = false
 		rt.selection.dragging = false
 		// Keys let go of elsewhere never come back up here.
@@ -520,6 +524,13 @@ func (rt *engine) claimedBy(k keyEvent, window bool) bool {
 // keyDown handles a key pressed, and reports whether an element took it as
 // it came (HandleInput).
 func (rt *engine) keyDown(mods Modifiers, key Key, repeat bool) bool {
+	observedEscape := false
+	defer func() {
+		if !observedEscape {
+			rt.regionEscapeInput(false)
+		}
+	}()
+
 	if rt.inspectKey(mods, key) {
 		return true
 	}
@@ -598,6 +609,11 @@ func (rt *engine) keyDown(mods Modifiers, key Key, repeat bool) bool {
 	}
 	if !rt.claimed(k) && rt.scrollKey(mods, key) {
 		return false
+	}
+	observedEscape = true
+	if rt.regionEscapeInput(key == KeyEscape && mods == 0 && !repeat && !rt.claimed(k)) {
+		rt.requestFrame()
+		return true
 	}
 	rt.keys = append(rt.keys, k)
 	rt.requestFrame()

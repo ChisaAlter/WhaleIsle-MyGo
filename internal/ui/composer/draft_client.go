@@ -17,6 +17,9 @@ const (
 // Selection and IME marked ranges use UTF-16 code units, matching MyGo native
 // text services. Call Sync after programmatic draft edits from chips or suggest.
 type DraftClient struct {
+	regionStop  [2]stopSequence
+	suggestions SuggestionState
+	stop        stopSequence
 	// Native text input retains this adapter identity across frames so an
 	// ordinary repaint does not release an active IME composition.
 	input     typingInputClient
@@ -166,12 +169,14 @@ func (c *DraftClient) MarkedRange() (ui.TextInputRange, bool) {
 }
 
 func (c *DraftClient) ReplaceText(r *ui.TextInputRange, text string) {
+	c.stop.reset()
 	c.pushUndo()
 	c.replace(c.target(r), text)
 	c.marked = nil
 }
 
 func (c *DraftClient) SetMarkedText(r *ui.TextInputRange, text string, selected ui.TextInputRange) {
+	c.stop.reset()
 	c.pushUndo()
 	wanted := c.target(r)
 	c.replace(wanted, text)

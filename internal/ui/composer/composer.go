@@ -80,6 +80,8 @@ type Model struct {
 
 	OnSend              func(text string)
 	OnStop              func()
+	StopBlocked         bool // pending approval/question owns response input
+	stopSuggestionsOpen bool
 	OnModelChange       func(label string)
 	OnModelEffortChange func(label string)
 	OnRetryModels       func()
@@ -148,16 +150,13 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	if m.Draft != nil {
 		draft = *m.Draft
 	}
-	caret := len(draft)
-	if m.UseTextInputClient && m.TextInput != nil {
-		caret = ui.UTF16ByteOffset(draft, m.TextInput.Selection().Caret())
+	var suggestClient *DraftClient
+	if m.UseTextInputClient {
+		suggestClient = m.TextInput
 	}
-	kind, query, tok, suggestOpen := ActiveSuggestAt(draft, caret)
-	if m.Editing && kind == SuggestSlash {
-		suggestOpen = false
-	}
-	quoted := suggestOpen && kind == SuggestMention && strings.HasPrefix(draft[tok.Start:tok.End], `@"`)
+	kind, query, tok, quoted, suggestOpen := activeSuggestion(m, suggestClient)
 	items := buildSuggestItemsWithQuote(m, kind, query, quoted)
+	m.stopSuggestionsOpen = suggestOpen && len(items) > 0
 	skillsQuery := ""
 	if m.SkillsFilter != nil {
 		skillsQuery = *m.SkillsFilter
@@ -176,7 +175,13 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// Hero retains InputBar side clearance inside the HeroShell stack.
 		padBot = 0
 	}
-	ui.Column(c).Padding(padTop, padRight, padBot, padLeft).Children(func() {
+	composerRegion := ui.Column(c).Padding(padTop, padRight, padBot, padLeft)
+	regionClient := m.TextInput
+	if regionClient == nil && m.State != nil {
+		regionClient = m.State.Client
+	}
+	BindStopRegion(composerRegion, regionClient, m, false)
+	composerRegion.Children(func() {
 		if m.State != nil && m.State.FailedSendCount() > 0 {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Text(c, "未发送草稿 / Unsent drafts").FontSize(11).TextColor(muted)
@@ -350,7 +355,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					area.Focus()
 					m.State.EditFocus = false
 				}
-				if m.NextPrompt.Text != "" {
+				if m.NextPrompt.Text != "" && !(suggestOpen && len(items) > 0) && !(m.UseTextInputClient && m.TextInput != nil) {
 					area.OnShortcut(0, ui.KeyTab, func() { acceptNextPrompt(m) })
 				}
 				wireFileDrop(area, m)
@@ -936,27 +941,15 @@ func wireFileDrop(area ui.Element, m Model) {
 }
 
 func wireSuggestKeys(area ui.Element, m Model, items []suggestItem, kind SuggestKind, tok TokenRange) {
-	list := m.SuggestList
-	if list == nil || list.Selected == nil || m.Draft == nil {
+	// The native input handler owns these keys, including the IME guard.
+	if m.UseTextInputClient && m.TextInput != nil {
 		return
 	}
-	sel := list.Selected
-	area.OnShortcut(0, ui.KeyDown, func() {
-		if *sel < len(items)-1 {
-			*sel++
-		}
-	})
-	area.OnShortcut(0, ui.KeyUp, func() {
-		if *sel > 0 {
-			*sel--
-		}
-	})
-	area.OnShortcut(0, ui.KeyTab, func() {
-		if *sel >= 0 && *sel < len(items) {
-			applySuggest(m, items[*sel], tok)
-		}
-	})
-	_ = kind
+	for _, key := range []ui.Key{ui.KeyUp, ui.KeyDown, ui.KeyTab, ui.KeyEnter, ui.KeyEscape} {
+		key := key
+		area.OnShortcut(0, key, func() { handleSuggestKey(nil, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: key}) })
+	}
+	area.OnShortcut(ui.Shift, ui.KeyTab, func() { handleSuggestKey(nil, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyTab, Mods: ui.Shift}) })
 }
 
 func applySuggest(m Model, it suggestItem, tok TokenRange) {
@@ -973,6 +966,12 @@ func applySuggest(m Model, it suggestItem, tok TokenRange) {
 		m.TextInput.Sync()
 		caret := ui.UTF16Len((*m.Draft)[:tok.Start+len(it.insert)])
 		m.TextInput.SetSelectionUTF16(caret, caret)
+	}
+	// Picking closes the menu; only directory completion intentionally keeps
+	// it open to refine the path. The accepted token must not reopen on paint.
+	if it.kind != SuggestMention || !strings.HasSuffix(it.insert, "/") {
+		activeSuggestion(m, m.TextInput)
+		dismissSuggestion(m, m.TextInput)
 	}
 }
 

@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"time"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -22,6 +23,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		minH = 52
 	}
 	box := ui.Box(c).FillWidth().Role(ui.RoleTextField).Label("Composer draft")
+	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.
 	if width := box.Bounds().W; width > 0 {
@@ -33,6 +35,10 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	box.Height(height).Clip().
 		HandleTextInput(&client.input).
 		HandleInput(func(ev ui.InputEvent) bool {
+			if ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEscape && !c.EscapeSequenceAvailable() {
+				client.stop.reset()
+				return false
+			}
 			if ev.Kind == ui.InputScroll {
 				return client.scrollBy(ev.DY)
 			}
@@ -80,6 +86,12 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 }
 
 func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
+	// Key-up separates independent presses without discarding the first. All
+	// other intervening input, repeated/modifier Esc and local UI ownership reset.
+	if ev.Kind != ui.InputKeyUp && (ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEscape || ev.Mods != 0 || ev.Repeat) {
+		client.stop.reset()
+	}
+
 	switch ev.Kind {
 	case ui.InputPointerDown:
 		to, ok := client.IndexForPoint(ui.Point{X: ev.X, Y: ev.Y})
@@ -115,6 +127,10 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				return client.Redo()
 			}
 		}
+		if handleSuggestKey(client, m, ev) {
+			client.stop.reset()
+			return true
+		}
 		switch ev.Key {
 		case ui.KeyTab:
 			if ev.Mods == 0 && client.marked == nil {
@@ -122,12 +138,22 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			}
 			return false
 		case ui.KeyEscape:
+			target, eligible := composerStopTarget(m)
+			if !eligible || client.marked != nil || ev.Mods != 0 || ev.Repeat {
+				client.stop.reset()
+			}
 			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
 				m.State.ModelCommand.Open = false
 				return true
 			}
 			if m.Editing && client.marked == nil && m.OnCancelEdit != nil {
 				m.OnCancelEdit()
+				return true
+			}
+			if eligible && client.marked == nil && ev.Mods == 0 && !ev.Repeat {
+				if client.stop.press(target, time.Now(), time.Duration(m.Snapshot.StopSequenceMS)*time.Millisecond) {
+					m.OnStop()
+				}
 				return true
 			}
 			return false
