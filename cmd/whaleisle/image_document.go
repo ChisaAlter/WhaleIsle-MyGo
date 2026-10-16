@@ -7,7 +7,8 @@ import (
 )
 
 // openLocalImage follows the existing session-bound static snapshot lease.
-// It is reached only by the Files image compatibility button.
+// Files routes GIF/SVG/ICO/AVIF here automatically on supported platforms;
+// the explicit reopen action uses the same isolated snapshot path.
 func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path string) {
 	if sessions == nil || sid == "" {
 		return
@@ -63,7 +64,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 			if err := s.browserController.OpenHTML(doc); err != nil {
 				sessions.SetLastAction("当前系统的隔离图片 WebView 不可用；图片未在兼容预览中显示")
 			} else {
-				sessions.SetLastAction("隔离图片快照已打开；" + doc.Resources.Summary() + "；无脚本/网络/应用桥接。AVIF 显示取决于当前 WebView 编解码器，源文件与草稿不变")
+				sessions.SetLastAction("已打开隔离图片查看器（不代表编码解码成功）；" + doc.Resources.Summary() + "；无脚本/网络/应用桥接。AVIF 显示取决于当前 WebView 编解码器，源文件与草稿不变")
 			}
 		})
 	}()

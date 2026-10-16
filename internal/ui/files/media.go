@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -22,10 +23,11 @@ const maxImageBytes int64 = 16 << 20
 const maxImagePixels = 32_000_000
 
 type imagePreview struct {
-	bitmap *ui.Bitmap
-	vector *ui.SVG
-	note   string
-	err    error
+	isolated bool
+	bitmap   *ui.Bitmap
+	vector   *ui.SVG
+	note     string
+	err      error
 }
 
 func isPreviewImage(path string) bool {
@@ -42,21 +44,44 @@ func imageMode(m Model, path string) bool {
 	return isPreviewImage(path) && !(m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview)
 }
 
-func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
-	if imagepreview.Supports(path) && m.OnOpenDoc != nil {
-		ui.Row(c).Gap(6).Padding(4, 12, 4, 12).Children(func() {
-			if ui.Button(c, label("隔离兼容预览", "Isolated compatibility preview")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-				full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
-				if err != nil {
-					setFileStatus(m, err.Error())
-				} else {
-					m.OnOpenDoc(full, workspacefs.DocNone, true)
-				}
-			}
-		})
-		ui.Text(c, label("GIF 动画 / ICO / AVIF / SVG：先校验大小、尺寸和资源边界，再用无脚本、无网络的隔离图片页打开。", "GIF animation / ICO / AVIF / SVG: validate size, dimensions and resource bounds, then open an isolated image page with no scripts or network.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
+// routeDefaultImage makes one request per tab/reload. Keeping the marker also
+// prevents a failed decoder or rejected document from reopening on every frame.
+func routeDefaultImage(m Model, tab *FileTab, path, platform string) bool {
+	if platform != "windows" || tab == nil || m.OnOpenDoc == nil || !imagepreview.Supports(path) || !imageMode(m, path) {
+		return false
 	}
+	if tab.image != nil && tab.image.isolated {
+		return true
+	}
+	full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
+	tab.image = &imagePreview{isolated: true, err: err}
+	if err != nil {
+		setFileStatus(m, err.Error())
+		return true
+	}
+	m.OnOpenDoc(full, workspacefs.DocNone, true)
+	return true
+}
+
+func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	t := selectedTab(m)
+	if routeDefaultImage(m, t, path, runtime.GOOS) {
+		ui.Text(c, label("已请求隔离图片预览；GIF 保留动画，SVG/ICO 使用浏览器图片渲染。", "Isolated image preview requested; GIF retains animation and SVG/ICO use browser image rendering.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 4, 12)
+		if strings.EqualFold(filepath.Ext(path), ".avif") {
+			ui.Text(c, label("AVIF 是否可显示取决于已安装的 WebView 编解码器；若显示损坏图片/编码不可用，请使用外部打开。", "AVIF decoding depends on the installed WebView runtime. If the image is broken or its codec is unavailable, use Open external.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
+		}
+		if t.image.err != nil {
+			ui.Text(c, t.image.err.Error()).TextColor(muted).Padding(4, 12, 4, 12)
+		}
+		if ui.Button(c, label("重新打开图片预览", "Reopen image preview")).Clicked() {
+			t.image = nil
+			routeDefaultImage(m, t, path, runtime.GOOS)
+		}
+		return
+	}
+	if imagepreview.Supports(path) {
+		ui.Text(c, label("当前视图没有可用的隔离图片 WebView；下方为原生降级预览，GIF 仅首帧，SVG/ICO 元素可能不完整，AVIF 不可解码。", "This view has no available isolated image WebView. Native fallback below shows only the first GIF frame, may omit SVG/ICO content, and cannot decode AVIF.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
+	}
 	var preview *imagePreview
 	if t != nil {
 		preview = t.image
@@ -67,7 +92,9 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 			// Retain only the visible decoded image, not one bitmap per open tab.
 			if w := tabsFor(m); w != nil {
 				for _, other := range w.Open {
-					other.image = nil
+					if other.image == nil || !other.image.isolated {
+						other.image = nil
+					}
 				}
 			}
 			t.image = preview
