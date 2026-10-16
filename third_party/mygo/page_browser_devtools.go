@@ -15,8 +15,11 @@ func (p *Page) BrowserDevToolsAvailable() bool {
 // in response to an explicit host UI action. The inspector can inspect and modify
 // that page's site data; do not invoke automatically or expose this to web content.
 // Ordinary/plugin/isolated-preview pages are rejected. Bindings, script policy,
-// permissions and automatic DevTools entrypoints remain unchanged. The user closes
-// the native inspector window; this API does not invent a close/toggle capability.
+// permissions and automatic DevTools entrypoints remain unchanged. On Linux,
+// developer-extras is scoped to this explicit inspector session and reset by
+// native closure, Page.CloseDevTools or destruction; menu/keyboard inspector
+// entrypoints stay disabled. The user can close the native inspector window.
+// Other backends need not provide a programmatic close/toggle capability.
 func (p *Page) OpenBrowserDevTools() error {
 	err := errDestroyed
 	onMain(func() {

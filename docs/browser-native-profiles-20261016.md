@@ -45,10 +45,21 @@ and is intentionally not used.
 The explicit Browser inspector remains unavailable on macOS: WKWebView's public
 inspectable property enables Safari inspection, but cannot open an in-app
 inspector. The existing private `_inspector` path is not called by Browser APIs.
-Linux has a public WebInspector API, but the Browser-only explicit-inspector
-adapter is not part of this increment. Its developer-extras/automatic-entrypoint
-contract still needs implementation. This is unfinished work, not a claim that
-Linux WebKit cannot provide an inspector.
+Linux now implements the explicit Browser inspector through the public
+WebInspector API. It enables developer-extras only for the requested view while
+that inspector session is active, without changing PageOptions.DevTools. Native
+closure, Page.CloseDevTools, and tab destruction reset the preference. Repeated
+open requests reuse the same inspector and its one closed-signal subscription;
+reopening while a native close is pending returns a closing error. The existing
+Browser button discovers this backend capability without a separate UI path.
+
+Browser WebViews intercept inspector keyboard entrypoints (F12 and
+Ctrl+Shift+I/J/C) and remove only the stock Inspect Element context-menu item.
+Other context-menu actions and ordinary shortcuts remain unchanged. If the
+required public context-menu APIs are unavailable, the Browser inspector is
+unavailable instead of enabling uncontrolled developer entrypoints. show() has
+no native success result: returning nil means the request was dispatched, not
+that the frontend has appeared. No page reload is forced.
 
 ## Verification and remaining runtime checks
 
@@ -60,6 +71,10 @@ Passed (CGO_ENABLED=0):
   cleanup masks and manager selection, asynchronous completion, and the 2.30
   Service Worker gate. These tests use temporary fixture directories and mock
   native calls; no user browser data is read or cleared.
+- Linux Inspector mock tests cover explicit open/repeated open, close-pending
+  rejection, native closure and preference reset, closed-tab rejection, keyboard
+  selection, and retention of ordinary context-menu actions. Native GUI event
+  delivery and the inspector frontend still require desktop runtime acceptance.
 - Native backend test-binary cross-compilation: macOS arm64 and Linux arm64.
 - Windows amd64 compilation of the MyGo package.
 - Focused Browser Host/UI tests, including the initialization-error adapter.

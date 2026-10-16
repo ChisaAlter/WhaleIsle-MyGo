@@ -38,7 +38,10 @@ type window struct {
 	h    platform.WindowHandler
 	opts *platform.WindowOptions
 
-	browser *browserProfile
+	browser                                            *browserProfile
+	browserInspector                                   ptr
+	browserInspectorRequested, browserInspectorClosing bool
+
 	win     ptr // GtkWindow
 	box     ptr // GtkBox holding the menu bar and the webview
 	web     ptr // WebKitWebView
@@ -278,6 +281,10 @@ func (w *window) createWebView() {
 		webkitUserScriptUnref(script)
 	}
 
+	if o.BrowserProfile {
+		connect(w.web, "key-press-event", cbBrowserInspectorKey, data)
+		connect(w.web, "context-menu", cbBrowserInspectorMenu, data)
+	}
 	settings := webkitWebViewGetSettings(w.web)
 	webkitSettingsSetEnableDeveloperExtras(settings, o.DevTools)
 	webkitSettingsSetAllowFileAccessFromFileURLs(settings, true)
@@ -334,6 +341,7 @@ func (w *window) cleanup() {
 	if w.closed {
 		return
 	}
+	w.closeBrowserInspector()
 	w.closed = true
 	delete(w.b.windows, w.id)
 	delete(w.b.byWebView, w.web)
@@ -814,7 +822,13 @@ func (w *window) OpenDevTools() {
 	}
 }
 
-func (w *window) CloseDevTools() { webkitWebInspectorClose(webkitWebViewGetInspector(w.web)) }
+func (w *window) CloseDevTools() {
+	if w.opts.BrowserProfile {
+		w.closeBrowserInspector()
+		return
+	}
+	webkitWebInspectorClose(webkitWebViewGetInspector(w.web))
+}
 
 func (w *window) IsDevToolsOpened() bool {
 	return webkitWebInspectorGetWebView(webkitWebViewGetInspector(w.web)) != 0
@@ -993,6 +1007,7 @@ func field[T any](p ptr, offset uintptr) T {
 }
 
 func initWindowCallbacks() {
+	initBrowserDevToolsCallbacks()
 	b := func() *Backend { return theBackend }
 	cbDeleteEvent = purego.NewCallback(func(widget, event, data ptr) bool {
 		if w := b().window(data); w != nil {
