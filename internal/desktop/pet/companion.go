@@ -331,7 +331,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = assets.ReadFile("assets/pet.html")
 		body = renderNotificationPage(body)
 		p.assetMu.RLock()
-		body = renderTaskPage(body, p.task)
+		body = renderTaskPage(body, p.activityTaskLocked())
 		body = renderLookPage(body, p.look.status)
 		body = []byte(strings.NewReplacer("{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
@@ -355,7 +355,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Care          CareStatus
 			Growth        GrowthStatus
 			Rest          RestStatus
-		}{p.task, p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest})
+		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/pet-dialogue.json":

@@ -54,7 +54,7 @@ func (p *Companion) armRestClock(w *mygo.Window, generation uint64) {
 			p.assetMu.Lock()
 			// An open compact chat, modal/action, drag or active task must not have
 			// a nap inserted into it. Suppressed slots never become an overdue nap.
-			blocked := p.quickChatOpen || p.feeding || p.chat.status.Busy || p.look.status.Busy || (p.growth.status.Busy && !p.growthAutomatic) || p.task.State == "running" || p.motion.manualPending || now.Before(p.motion.contactUntil) || !w.IsVisible()
+			blocked := p.quickChatOpen || p.feeding || p.chat.status.Busy || p.look.status.Busy || (p.growth.status.Busy && !p.growthAutomatic) || p.activityTaskLocked().State == "running" || p.motion.manualPending || now.Before(p.motion.contactUntil) || !w.IsVisible()
 			p.rest.advance(now, blocked)
 			p.assetMu.Unlock()
 			p.armRestClock(w, generation)

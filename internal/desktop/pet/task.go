@@ -7,8 +7,8 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-// TaskStatus is deliberately limited to the selected session on this connection.
-// Non-running is not a claim of successful completion. No message bodies leave the store.
+// TaskStatus identifies the selected session. Global watcher activity may supply
+// a running display without pretending that the selected session is active.
 type TaskStatus struct{ State, SessionID, Title string }
 
 func TaskFromSession(online bool, s session.ViewState) TaskStatus {
@@ -93,4 +93,18 @@ func taskAction(raw string, task TaskStatus) string {
 		return "open"
 	}
 	return ""
+}
+
+// taskWithGlobalActivity combines the current selected-session card with the
+// active Host watcher. Global work has no single navigation target.
+func taskWithGlobalActivity(task TaskStatus, owner, state string) TaskStatus {
+	if owner != "" && state == "working" && task.State != "running" {
+		return TaskStatus{State: "running", Title: "其他会话正在运行 / Other conversations are working"}
+	}
+	return task
+}
+
+// The caller holds assetMu, matching access to task and notifications.
+func (p *Companion) activityTaskLocked() TaskStatus {
+	return taskWithGlobalActivity(p.task, p.notifications.owner, p.notifications.snapshot.State)
 }
