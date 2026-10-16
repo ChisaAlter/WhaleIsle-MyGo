@@ -87,7 +87,13 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		})
 		return
 	}
-	ui.Column(c).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
+	card := ui.Column(c.Key("approval-card:"+p.AgentID+":"+p.EventID)).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12)
+	var keys *approvalKeys
+	if p.Event == interaction.EventApproval {
+		keys = ui.Local(card, "approval-keys", func() approvalKeys { return approvalKeys{} })
+		card.Focusable().Label("Approval details: " + p.EventID).HandleInput(approvalHandler(keys, p, store, false))
+	}
+	card.Children(func() {
 		ui.Text(c, p.Title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
 			if p.Continued {
@@ -107,7 +113,11 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				ui.Column(c).Padding(6, 8, 6, 8).Background(accent.Alpha(0.06)).Gap(4).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, p.Args).FontSize(theme.InterfaceSize(11)).TextColor(fg).Grow(1)
-						if ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						copyButton := ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11))
+						if keys != nil {
+							copyButton.HandleInput(approvalHandler(keys, p, store, true))
+						}
+						if copyButton.Clicked() {
 							if strings.TrimSpace(p.Args) != "" {
 								mygo.Clipboard.WriteText(p.Args)
 							}
@@ -153,10 +163,16 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 					}
 				}
 			default:
-				if ui.Button(c, i18n.T(i18n.KeyInteractionAllow)).Clicked() {
+				allow := ui.Button(c, i18n.T(i18n.KeyInteractionAllow))
+				deny := ui.Button(c, i18n.T(i18n.KeyInteractionDeny))
+				if keys != nil {
+					allow.HandleInput(approvalHandler(keys, p, store, true))
+					deny.HandleInput(approvalHandler(keys, p, store, true))
+				}
+				if allow.Clicked() {
 					store.ResolveAllow(p.EventID)
 				}
-				if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
+				if deny.Clicked() {
 					store.ResolveDeny(p.EventID)
 				}
 			}
