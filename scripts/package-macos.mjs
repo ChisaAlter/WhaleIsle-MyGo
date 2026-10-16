@@ -3,11 +3,12 @@
 // Inputs are already-built native artifacts. This entry never builds source,
 // downloads dependencies, starts Host, signs/notarizes, installs, or uploads.
 // stage config: {version, arch, output, shell, terminalLibrary, vendor, nodeDir,
-//                runtimeIncluded:true, petRenderAssets, componentSamples?, icon?:"local.icns"}
+//                runtimeIncluded:true, petRenderAssets, componentSamples?, icon?:"local.icns", previewHelperBundle?}
 // archive config: {app, arch, output, hostBundle:true}
 // Use a fresh output directory for each phase. Apply the existing external
 // signing workflow between stage/archive and before publishing the catalog.
 import fs from 'node:fs';
+import {stagePreviewBundle, inspectEmbeddedPreview} from './macos-preview-bundle.mjs';
 import {stageComponentSamples} from './component-samples.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -128,9 +129,11 @@ export async function stage(config) {
     '</string><key>CFBundleURLSchemes</key><array><string>whaleisle</string></array></dict></array>\n</dict></plist>\n';
   fs.writeFileSync(path.join(app, 'Contents/Info.plist'), plist, {flag: 'wx'});
   fs.writeFileSync(path.join(app, 'Contents/PkgInfo'), 'APPL????', {flag: 'wx'});
+  const previewHelper = config.previewHelperBundle
+    ? stagePreviewBundle(input(config.previewHelperBundle, 'Already-signed preview helper .app'), app, config.arch) : null;
   writeJSON(path.join(app, macOSPackageManifest), {schemaVersion: 1, application: macOSApplication,
     bundleIdentifier: macOSBundleIdentifier, version, bundleVersion, platform: 'darwin', arch: config.arch,
-    executable: macOSExecutable, runtimeIncluded, ...runtime});
+    executable: macOSExecutable, runtimeIncluded, ...(previewHelper ? {previewHelper} : {}), ...runtime});
   await inspectMacOSApp(app, config.arch);
   return {app, version, arch: config.arch, runtimeIncluded,
     next: 'Use the existing external signing workflow, then run archive explicitly. No signing or publishing was performed.'};
@@ -140,6 +143,7 @@ export async function archive(config) {
   target(config.arch);
   const app = input(config.app, 'Staged MyGo .app');
   const info = await inspectMacOSApp(app, config.arch);
+  inspectEmbeddedPreview(app, config.arch);
   const output = fresh(config.output);
   const stem = `WhaleIsle-MyGo-${info.version}-darwin-${config.arch}`;
   const disk = path.join(output, 'disk');
