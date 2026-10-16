@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,11 +9,15 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chat"
 )
 
 // Only presentation preferences are persisted. Raw logs, selected values and
 // source bindings never enter workspace layout persistence.
 type SessionInspectorPaneState struct {
+	navigation               chat.InspectorNavigation
+	breadcrumb               []string
+	tree                     inspectorJSONTreeState
 	Mode                     string `json:"mode,omitempty"`
 	Filter                   string `json:"filter,omitempty"`
 	binding, draft, selected string
@@ -90,6 +93,9 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 	source := m.Store.InspectorSnapshot()
 	if p.binding != source.Binding {
 		p.binding = source.Binding
+		p.navigation = chat.InspectorNavigation{SessionID: source.SessionID}
+		p.breadcrumb = nil
+		p.tree = inspectorJSONTreeState{}
 		p.selected = ""
 		p.draft = p.Filter
 		p.collapsed = map[string]bool{}
@@ -98,6 +104,13 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 	if source.SessionID == "" {
 		ui.Text(c, paneLabel("选择会话以检查日志", "Select a session to inspect its log"))
 		return
+	}
+	if len(p.navigation.Nodes) > 0 {
+		source.Chat = nil
+		for _, msg := range p.navigation.Nodes {
+			raw, _ := json.Marshal(msg)
+			source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw})
+		}
 	}
 	rows := source.Records
 	if p.Mode == "chat-node" {
@@ -111,6 +124,8 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 			}
 			if ui.Button(c, label).Disabled(p.Mode == mode || (p.Mode == "" && mode == "session-log")).Clicked() {
 				p.Mode = mode
+				p.navigation = chat.InspectorNavigation{SessionID: source.SessionID}
+				p.breadcrumb = nil
 				p.Filter = ""
 				p.draft = ""
 				p.selected = ""
@@ -119,6 +134,13 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 			}
 		}
 		ui.Text(c, fmt.Sprintf("%d", len(rows)))
+		if ui.Button(c, paneLabel("拾取聊天节点", "Pick chat node")).Clicked() {
+			p.navigation.Picking = !p.navigation.Picking
+			p.navigation.Notice = ""
+		}
+		if p.navigation.Picking {
+			ui.Text(c, paneLabel("点击聊天中的选择按钮；再次点击拾取可取消", "Choose a node in chat; click Pick again to cancel"))
+		}
 	})
 	ui.Row(c).Gap(4).Padding(6).Children(func() {
 		ui.TextInput(c, &p.draft).Grow(1).Placeholder(paneLabel("事件类型筛选", "Filter event type"))
@@ -149,6 +171,10 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 	})
 	if state.HistoryPageErr != "" {
 		ui.Text(c, state.HistoryPageErr)
+	}
+	p.consumeInspectorPick(rows)
+	if p.navigation.Notice != "" {
+		ui.Text(c, p.navigation.Notice)
 	}
 	shown := inspectorVisibleRows(rows, p.Filter, p.collapsed)
 	if len(shown) == 0 {
@@ -183,26 +209,72 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 				caption = time.UnixMilli(int64(r.Time)).UTC().Format("15:04:05.000") + " · " + caption
 			}
 			if ui.Button(c, caption).Clicked() {
-				p.selected = r.Key
-				p.list.FollowEnd = false
+				p.selectInspectorRow(r)
 			}
 		})
 	}).Grow(1).MinHeight(0)
-	for _, r := range rows {
-		if r.Key != p.selected {
+	objects := inspectorObjects(source)
+	for group, members := range p.navigation.Groups {
+		key := "chat:" + group
+		o, exists := objects[key]
+		if !exists {
 			continue
 		}
+		for _, id := range members {
+			child := "chat:" + id
+			if _, ok := objects[child]; ok {
+				o.Links = append(o.Links, child)
+				node := objects[child]
+				node.Links = append(node.Links, key)
+				objects[child] = node
+			}
+		}
+		objects[key] = o
+	}
+	key := p.selected
+	if len(p.breadcrumb) > 0 {
+		key = p.breadcrumb[len(p.breadcrumb)-1]
+	}
+	object, ok := objects[key]
+	if !ok {
+		for _, row := range rows {
+			if row.Key == key {
+				object = inspectorObject{Key: key, Label: row.Type, Raw: row.Raw}
+				ok = true
+				break
+			}
+		}
+	}
+	if ok {
+		if p.Mode == "chat-node" {
+			ui.Row(c).Gap(4).Children(func() {
+				for i, path := range p.breadcrumb {
+					label := path
+					if o, exists := objects[path]; exists {
+						label = o.Label
+					}
+					if ui.Button(c, label).Clicked() {
+						p.breadcrumb = p.breadcrumb[:i+1]
+						p.tree = inspectorJSONTreeState{}
+					}
+				}
+			})
+			ui.Row(c).Gap(4).Children(func() {
+				for _, link := range object.Links {
+					if next, exists := objects[link]; exists {
+						if ui.Button(c, next.Label+" →").Clicked() {
+							p.followInspectorReference(link, rows)
+						}
+					}
+				}
+			})
+		}
 		ui.Row(c).Gap(6).Children(func() {
-			ui.Text(c, r.Type).Grow(1)
+			ui.Text(c, object.Label).Grow(1)
 			if ui.Button(c, paneLabel("复制原始 JSON", "Copy raw JSON")).Clicked() {
-				mygo.Clipboard.WriteText(string(r.Raw))
+				mygo.Clipboard.WriteText(string(object.Raw))
 			}
 		})
-		var pretty bytes.Buffer
-		if json.Indent(&pretty, r.Raw, "", "  ") != nil {
-			pretty.Write(r.Raw)
-		}
-		ui.Scroll(c.Key("inspector-details:" + p.binding + ":" + p.selected)).Height(180).FillWidth().Children(func() { ui.Text(c, pretty.String()).FontSize(11) })
-		break
+		ui.Scroll(c.Key("inspector-details:" + p.binding + ":" + key)).Height(180).FillWidth().Children(func() { inspectorJSONTree(c, &p.tree, object.Raw) })
 	}
 }

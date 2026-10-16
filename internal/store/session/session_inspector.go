@@ -133,3 +133,9 @@ func (s *Store) InspectorSnapshot() InspectorSnapshot {
 	}
 	return out
 }
+
+func (s *Store) InspectorBinding() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return fmt.Sprintf("%p/%s/%d", s.client, s.selectedID, s.followGeneration)
+}

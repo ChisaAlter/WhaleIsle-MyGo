@@ -22,6 +22,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+ Inspector *InspectorNavigation
 	DisableDeveloperTools bool
 	GroupRoom             bool
 	GroupMembers          []session.GroupMember
@@ -100,6 +101,8 @@ func View(c *ui.Context, m Model) {
 
 	cards := prepareScheduleContext(m)
 	prepareHistoryNavigation(m, msgs, list)
+ prepareSessionInspector(m,msgs,transcriptControls,list)
+ if m.Inspector != nil && m.Inspector.SessionID==m.Snapshot.SelectedID && m.Inspector.Target != nil { c.Services().Invalidate() }
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
 		ConnBannerView(c, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
 		UsageLabelView(c, FormatUsageLabel(m.UsageJobsToday, m.UsageBalance), muted, chrome.Color(colors.Field), border, m.OnOpenUsage)
@@ -130,7 +133,8 @@ func View(c *ui.Context, m Model) {
 			padT, padR, padB, padL := float32(12), float32(16), float32(8), float32(16)
 			isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
-				if control, ok := transcriptControls[msg.ID]; ok {
+				sessionInspectorChatControl(row.Context,m,msg)
+ if control, ok := transcriptControls[msg.ID]; ok {
 					transcriptControlView(row.Context, control, m, muted)
 					return
 				}

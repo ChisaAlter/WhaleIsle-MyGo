@@ -150,7 +150,7 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 		open := workflowExpanded(m.ThinkingExpanded, key, false)
 		running := !known[i] || t.end == nil
 		label := processGroupLabel(group, running, mode == "standard")
-		controls[key] = transcriptControl{key: key, label: label, open: open}
+		controls[key] = transcriptControl{key: key, label: label, open: open, members: inspectorMessageIDs(group)}
 		out = append(out, session.Message{ID: key, Seq: group[0].Seq, Kind: transcriptControlKind, Body: label})
 		if open {
 			out = append(out, group...)
