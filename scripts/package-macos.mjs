@@ -3,11 +3,12 @@
 // Inputs are already-built native artifacts. This entry never builds source,
 // downloads dependencies, starts Host, signs/notarizes, installs, or uploads.
 // stage config: {version, arch, output, shell, terminalLibrary, vendor, nodeDir,
-//                runtimeIncluded:true, petRenderAssets, icon?:"local.icns"}
+//                runtimeIncluded:true, petRenderAssets, componentSamples?, icon?:"local.icns"}
 // archive config: {app, arch, output, hostBundle:true}
 // Use a fresh output directory for each phase. Apply the existing external
 // signing workflow between stage/archive and before publishing the catalog.
 import fs from 'node:fs';
+import {stageComponentSamples} from './component-samples.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -104,6 +105,8 @@ export async function stage(config) {
     // Desktop Host resolution uses runtime/node/node; mobile keeps its own
     // exact-ABI distribution under runtime/vendor/dshd-remote/node/bin/node.
     fs.symlinkSync('bin/node', path.join(runtimeDir, 'node/node'));
+    const samples = config.componentSamples || process.env.WHALEISLE_COMPONENT_SAMPLES || path.join(path.dirname(vendor), 'components', 'samples');
+    stageComponentSamples(samples, path.join(runtimeDir, 'components', 'samples'));
     runtime = await inspectMacOSRuntime(runtimeDir, config.arch);
     fs.writeFileSync(path.join(bin, '.runtime-staged'), '1', {flag: 'wx'});
   }

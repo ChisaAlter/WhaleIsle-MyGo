@@ -13,3 +13,11 @@ The THA4 selection remains pinned to `90465b67ec16765631d54c195af19d9ff3c3a770` 
 No assets are downloaded by these changes. Required external inputs remain the target-platform Node distribution, complete verified Host/mobile vendor tree, pinned native terminal library, and the nine locally restored THA4 resources. Full packaging, target binary/ABI validation, GPU rendering, signing and installation are separate acceptance steps, not established by this wiring.
 
 Narrow offline fixture: `node scripts/package-release-inputs-fixture.mjs`. It checks the source wiring and the existing THA4 stager's empty-input failure, without building or running native/model binaries. It does not claim PowerShell or NSIS execution coverage.
+
+## Bundled generic component catalog (B31)
+
+Full Windows and macOS releases stage the selected original `components/samples/<id>/<version>` tree into `runtime/components/samples`, matching the application catalog resolver. Set `WHALEISLE_COMPONENT_SAMPLES` to that original source directory, or keep it beside the selected vendor directory at `../components/samples`. macOS JSON configuration can use `componentSamples`. An explicit missing/empty/broken input fails packaging before the runtime marker; no sample component is fabricated. Shell-only development packages do not include this runtime catalog.
+
+The offline `scripts/component-samples.mjs` stager validates every version manifest and entry, rejects symlinks, snapshots ordinary file bytes, then validates the staged catalog before publishing it. It never downloads or executes payloads. The supplied payload source must be the project's selected original revision; this validates packaging integrity and does not authenticate an arbitrary source tree. The stager prints per-file SHA256 provenance for the packaging log.
+
+Focused check: `node scripts/component-samples-fixture.mjs` exercises a synthetic clean-stage catalog, repeat packaging after cleanup, and missing/invalid inputs, and verifies both package entrypoints call the stager. Native Windows/macOS packaging remains a separate acceptance step.

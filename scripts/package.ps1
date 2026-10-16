@@ -114,6 +114,13 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     }
     & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }
+    # The catalog resolves beside vendor, never inside vendor. Rebuild it after
+    # stage cleanup; missing payloads must not produce an empty release catalog.
+    $SamplesSrc = $env:WHALEISLE_COMPONENT_SAMPLES
+    if (-not $SamplesSrc) { $SamplesSrc = Join-Path (Split-Path -Parent $VendorSrc) 'components\samples' }
+    $SamplesDst = Join-Path $Stage 'runtime\components\samples'
+    & node (Join-Path $PSScriptRoot 'component-samples.mjs') $SamplesSrc $SamplesDst
+    if ($LASTEXITCODE -ne 0) { throw 'Bundled component staging failed; set WHALEISLE_COMPONENT_SAMPLES to the selected original components/samples directory.' }
     # Both desktop Node and the separately verified phone runtime are now staged.
     $Marker = Join-Path $Stage '.runtime-staged'
     Set-Content -Path $Marker -Value '1' -NoNewline
