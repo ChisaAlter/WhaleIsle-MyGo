@@ -149,6 +149,13 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		m.Store.Refresh(context.Background(), m.SessionID)
 		snap = m.Store.Snapshot()
 	}
+	if m.DetailID != "" {
+		for _, row := range snap.Rows {
+			if row.ID == m.DetailID && row.SessionID == m.DetailSessionID && p.selected != taskKey(row) {
+				p.OpenTask(row, snap.ConnectionEpoch)
+			}
+		}
+	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -170,30 +177,45 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	}
 	ui.Column(c).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG)).Padding(12, 16, 12, 16).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, "定时任务 / Scheduled tasks").Bold().Grow(1)
+			title := "定时任务 / Scheduled tasks"
+			if m.DetailID != "" {
+				title = "任务详情 / Task details"
+			}
+			ui.Text(c, title).Bold().Grow(1)
 			if m.OnNewTask != nil && ui.Button(c, "新任务 / New task").Disabled(!snap.ClientReady).Clicked() {
 				m.OnNewTask()
 			}
 			if ui.Button(c, "刷新 / Refresh").Disabled(snap.Loading || snap.Busy).Clicked() {
 				m.Store.Refresh(context.Background(), m.SessionID)
 			}
-			if ui.Button(c, "返回 / Back").Clicked() && m.OnClose != nil {
+			if m.OnClose != nil && ui.Button(c, "返回 / Back").Clicked() {
 				m.OnClose()
 			}
 		})
-		ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		ui.Row(c).Gap(8).Children(func() {
-			ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
-			ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
-			if ui.Button(c, "清除筛选 / Clear filters").Clicked() {
-				p.query, p.statusFilter = "", "all"
-			}
-		})
-		if snap.CatalogHint != "" {
+		if m.DetailID == "" {
+			ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Row(c).Gap(8).Children(func() {
+				ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
+				ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
+				if ui.Button(c, "清除筛选 / Clear filters").Clicked() {
+					p.query, p.statusFilter = "", "all"
+				}
+			})
+		}
+		if m.DetailID == "" && snap.CatalogHint != "" {
 			ui.Text(c, snap.CatalogHint).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		visibleRows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
-		ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		if m.DetailID != "" {
+			visibleRows = nil
+			for _, row := range snap.Rows {
+				if row.ID == m.DetailID && row.SessionID == m.DetailSessionID {
+					visibleRows = append(visibleRows, row)
+				}
+			}
+		} else {
+			ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
 		for _, text := range []string{snap.Err, snap.LastAction, status} {
 			if text != "" {
 				ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(fg)
@@ -211,6 +233,9 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					text := "没有匹配的任务 / No matching tasks"
 					if len(snap.Rows) == 0 {
 						text = "暂无定时任务 / No scheduled tasks"
+					}
+					if m.DetailID != "" {
+						text = "此任务当前不可用 / This task is unavailable"
 					}
 					ui.Text(c, text).TextColor(muted)
 				}

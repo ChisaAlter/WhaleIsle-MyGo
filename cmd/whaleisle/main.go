@@ -6081,7 +6081,20 @@ func mainView(c *ui.Context) {
 						OnOpenWorkspaceFiles: func() { filesPaneOpen = true; rightPaneTab = "files" },
 						Projects:             state.projectModel(win),
 						Store:                sessions,
-						ScheduleStore:        schedStore, OnOpenScheduleTask: state.openScheduleTask,
+						ScheduleStore:        schedStore,
+						OnOpenScheduleTask: func(row schedstore.Entry) {
+							state.openScheduleTask(row)
+							state.mu.Lock()
+							filesPaneOpen, rightPaneTab = state.filesPaneOpen, state.rightPaneTab
+							layout.Workspace = state.layout.Workspace
+							state.mu.Unlock()
+						},
+						OnOpenScheduleSession: state.openScheduleSession,
+						OnScheduleInvalidate: func() {
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
 						AgentPresetManager: agentPresetManager,
 						Interactions:       interactions,
 						OnAutoAllowChanged: func(on bool) {

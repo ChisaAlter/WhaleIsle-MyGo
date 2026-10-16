@@ -21,13 +21,14 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
-	ID             string         `json:"id"`
-	Kind           string         `json:"kind,omitempty"`
-	TerminalSource string         `json:"terminalSource,omitempty"`
-	Axis           string         `json:"axis,omitempty"`
-	Ratio          float32        `json:"ratio,omitempty"`
-	First          *WorkspacePane `json:"first,omitempty"`
-	Second         *WorkspacePane `json:"second,omitempty"`
+	Schedule       *SchedulePaneState `json:"schedule,omitempty"`
+	ID             string             `json:"id"`
+	Kind           string             `json:"kind,omitempty"`
+	TerminalSource string             `json:"terminalSource,omitempty"`
+	Axis           string             `json:"axis,omitempty"`
+	Ratio          float32            `json:"ratio,omitempty"`
+	First          *WorkspacePane     `json:"first,omitempty"`
+	Second         *WorkspacePane     `json:"second,omitempty"`
 }
 
 func paneLabel(zh, en string) string {
@@ -72,6 +73,9 @@ func (n *WorkspacePane) firstLeaf() *WorkspacePane {
 }
 func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) {
 	if other := w.Root.kind(kind); kind != "host-terminal" && other != nil && other != n {
+		if kind == "schedule-task" || n.Kind == "schedule-task" {
+			other.Schedule, n.Schedule = n.Schedule, other.Schedule
+		}
 		other.Kind = n.Kind
 	}
 	n.Kind = kind
@@ -340,7 +344,13 @@ func workspacePaneControls(c *ui.Context, m Model) {
 			}
 		}
 		if ui.Button(c, paneLabel("重置布局", "Reset layout")).FontSize(theme.InterfaceSize(10)).Clicked() {
-			w.pending = func() { w.Root = w.leaf(n.Kind); w.Active = w.Root.ID; w.Fullscreen = ""; w.route = n.Kind }
+			w.pending = func() {
+				w.Root = w.leaf(n.Kind)
+				w.Root.Schedule = n.Schedule
+				w.Active = w.Root.ID
+				w.Fullscreen = ""
+				w.route = n.Kind
+			}
 		}
 	})
 }

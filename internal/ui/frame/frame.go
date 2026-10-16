@@ -135,8 +135,10 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	ScheduleStore      *schedstore.Store
-	OnOpenScheduleTask func(schedstore.Entry)
+	ScheduleStore         *schedstore.Store
+	OnOpenScheduleTask    func(schedstore.Entry)
+	OnOpenScheduleSession func(schedstore.Entry)
+	OnScheduleInvalidate  func()
 	// PageShortcutBindings contains committed native overrides; nil uses defaults.
 	PageShortcutBindings map[string]string
 	SessionSearchFocus   *bool
@@ -1077,7 +1079,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "diff", "agents", "browser", "host-terminal":
+		case "diff", "agents", "browser", "host-terminal", "schedule-task":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -1100,6 +1102,13 @@ func rightPane(c *ui.Context, m Model) {
 					*m.RightPaneTab = "agents"
 				}
 			})
+			if m.workspacePane != nil && m.workspacePane.Schedule != nil {
+				paintRightTab(c, tab == "schedule-task", schedulePaneTitle(m), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "schedule-task"
+					}
+				})
+			}
 			if m.HostTerminalStore != nil {
 				paintRightTab(c, tab == "host-terminal", termui.HostTitle(), fg, muted, accent, func() {
 					if m.RightPaneTab != nil {
@@ -1119,6 +1128,10 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if m.OnHideBrowser != nil {
 			m.OnHideBrowser()
+		}
+		if tab == "schedule-task" {
+			scheduleTaskPane(c, m)
+			return
 		}
 		if tab == "host-terminal" && m.Store != nil {
 			m = hostTerminalPaneModel(m)

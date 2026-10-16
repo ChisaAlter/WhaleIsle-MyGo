@@ -55,6 +55,12 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	sessions := m.Store
 	m.ScheduleStore = s.schedule
 	m.OnOpenScheduleTask = s.openScheduleTask
+	m.OnOpenScheduleSession = s.openScheduleSession
+	m.OnScheduleInvalidate = func() {
+		if win != nil {
+			win.Update(func() {})
+		}
+	}
 	m.Projects = s.projectModel(win)
 	projectOpen := m.Projects.OnOpen
 	m.Projects.OnOpen = func(id string) {
