@@ -171,7 +171,11 @@ func openWhalebridge(root string) error {
 	if json.Unmarshal(b, &st) != nil || !st.Ready || strings.TrimSpace(st.URL) == "" {
 		return openPath(filepath.Join(root, "data"))
 	}
-	return openURL(st.URL)
+	u, err := bridgeManagementURL(st.URL)
+	if err != nil {
+		return err
+	}
+	return openURL(u.String())
 }
 
 // OpenInFileManager reveals path in Explorer / Finder / xdg-open.

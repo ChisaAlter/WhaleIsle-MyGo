@@ -62,9 +62,9 @@ func verifyBridgeReady(ctx context.Context, st bridgeState, version string, pid 
 // Both lifecycle calls share the same exact-loopback, no-proxy, no-redirect
 // authentication boundary. Never place the management key in request URLs.
 func bridgeLocalRequest(ctx context.Context, st bridgeState, method, route string, body io.Reader, client *http.Client) (*http.Response, error) {
-	u, err := url.Parse(st.URL)
-	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
-		return nil, fmt.Errorf("鲸桥本机管理地址无效")
+	u, err := bridgeManagementURL(st.URL)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, "http://"+u.Host+"/api/whalebridge/"+route, body)
 	if err != nil {
@@ -138,4 +138,13 @@ func waitBridgeReady(ctx context.Context, path, version string, pid int, exited 
 		case <-ticker.C:
 		}
 	}
+}
+
+// bridgeManagementURL is shared by API calls and the explicit UI opener.
+func bridgeManagementURL(raw string) (*url.URL, error) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
+		return nil, fmt.Errorf("鲸桥本机管理地址无效")
+	}
+	return u, nil
 }
