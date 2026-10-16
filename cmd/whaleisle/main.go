@@ -7049,7 +7049,7 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnExport: func() {
-					path, err := harness.ExportLogsDialog(win, logs, i18n.T(i18n.KeyBootExport))
+					path, err := harness.ExportBootLogsDialog(win, buildVersion, st, logs, i18n.T(i18n.KeyBootExport))
 					if err != nil {
 						log.Println("export log:", err)
 						return
