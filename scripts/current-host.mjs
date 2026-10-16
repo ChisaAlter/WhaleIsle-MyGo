@@ -28,7 +28,7 @@ function absent(target) {
  if(fs.existsSync(target)) throw new Error(`Destination already exists; use a fresh directory: ${target}`);
 }
 function copy(source,target) {
- fs.cpSync(source,target,{recursive:true,filter:p => !['.git','node_modules'].includes(path.basename(p))});
+ fs.cpSync(source,target,{recursive:true,verbatimSymlinks:true,filter:p => !['.git','node_modules'].includes(path.basename(p))});
  // Source references can be read-only; only the isolated copy becomes writable.
  function writable(p) { const s=fs.lstatSync(p); if(s.isSymbolicLink()) return; fs.chmodSync(p,s.mode|0o200); if(s.isDirectory()) for(const n of fs.readdirSync(p)) writable(path.join(p,n)); }
  writable(target);
