@@ -682,6 +682,8 @@ func (s *mainState) saveDesktopConfig() {
 	i18n.SetLocale(cfg.Locale)
 	applyAppearance(cfg.Theme)
 	if err := mygo.App.SetOpenAtLogin(cfg.OpenAtLogin); err != nil {
+		s.desktopLastAction = ""
+		s.desktopSaveErr = fmt.Sprintf("%s: %v", resumeText("设置已保存，但开机启动未生效", "Settings saved, but startup registration failed"), err)
 		log.Println("openAtLogin:", err)
 	}
 	if s.sessions != nil {
