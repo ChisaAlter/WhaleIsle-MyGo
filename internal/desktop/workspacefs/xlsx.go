@@ -38,13 +38,16 @@ type XLSXPageRequest struct {
 	Version       string
 }
 type XLSXSheet struct{ ID, Name string }
-type XLSXCell struct{ Address, Value string }
+type XLSXCell struct {
+	Address, Value, Type, DisplayValue, NumberFormat string
+	FormatSupported                                bool
+}
 type XLSXPage struct {
-	Request                     XLSXPageRequest
-	Sheets                      []XLSXSheet
-	Cells                       []XLSXCell
-	TotalRows, TotalColumns     int
-	Text, TSV, Version, Problem string
+	Request                                XLSXPageRequest
+	Sheets                                 []XLSXSheet
+	Cells                                  []XLSXCell
+	TotalRows, TotalColumns                 int
+	Text, TSV, DisplayTSV, Version, Problem string
 }
 
 // FormatXLSXPreview keeps the original API for standalone callers. The UI uses
@@ -170,7 +173,11 @@ func readXLSXPage(ctx context.Context, reader io.ReaderAt, size int64, version s
 	if err != nil {
 		return nil, err
 	}
-	page, err := readSheetPage(ctx, zr, request, shared)
+	formats, err := readWorkbookFormats(ctx, zr, seen)
+	if err != nil {
+		return nil, err
+	}
+	page, err := readSheetPage(ctx, zr, request, shared, formats)
 	if err != nil {
 		return nil, err
 	}
@@ -179,18 +186,19 @@ func readXLSXPage(ctx context.Context, reader io.ReaderAt, size int64, version s
 	}
 	page.Sheets, page.Version = sheets, version
 	page.Request.Version = version
-	page.Text = fmt.Sprintf("%s · rows %d–%d / %d · columns %s–%s / %s\nRead-only stored values; formulas are not recalculated. Use worksheet and row/column controls for other pages.\n\n", sheetName, request.Row+1, min(request.Row+request.Rows, page.TotalRows), page.TotalRows, xlsxColumnName(request.Column+1), xlsxColumnName(min(request.Column+request.Columns, page.TotalColumns)), xlsxColumnName(page.TotalColumns))
+	page.Text = fmt.Sprintf("%s · rows %d–%d / %d · columns %s–%s / %s\nRead-only stored values with supported number formats; formulas are not recalculated. Raw and displayed values can be copied separately. Use worksheet and row/column controls for other pages.\n\n", sheetName, request.Row+1, min(request.Row+request.Rows, page.TotalRows), page.TotalRows, xlsxColumnName(request.Column+1), xlsxColumnName(min(request.Column+request.Columns, page.TotalColumns)), xlsxColumnName(page.TotalColumns))
 	var body strings.Builder
 	body.WriteString(page.Text)
 	escape := strings.NewReplacer("\\", "\\\\", "\r", "\\r", "\n", "\\n", "\t", "\\t")
 	for _, cell := range page.Cells {
-		body.WriteString(cell.Address + "\t" + escape.Replace(cell.Value) + "\n")
+		body.WriteString(cell.Address + "\t" + escape.Replace(cell.DisplayValue) + "\n")
 	}
 	if page.Problem != "" {
 		body.WriteString(page.Problem)
 	} else if len(page.Cells) == 0 {
 		body.WriteString("(No stored cells in this page.)")
 	}
+	body.WriteString(workbookFormatNotice(page.Cells))
 	page.Text = body.String()
 	return page, nil
 }
@@ -366,7 +374,7 @@ func readSharedStrings(ctx context.Context, zr *zip.Reader) ([]string, error) {
 		out = append(out, item.text())
 	}
 }
-func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest, shared []string) (*XLSXPage, error) {
+func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest, shared []string, formats workbookFormats) (*XLSXPage, error) {
 	rc, dec, err := xlsxPart(ctx, zr, request.Sheet)
 	if err != nil {
 		return nil, err
@@ -375,17 +383,27 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 	type cell struct {
 		R      string       `xml:"r,attr"`
 		T      string       `xml:"t,attr"`
+		S      *int         `xml:"s,attr"`
 		V      string       `xml:"v"`
 		Inline xlsxRichText `xml:"is"`
 	}
 	type row struct {
 		R int    `xml:"r,attr"`
+		S *int   `xml:"s,attr"`
 		C []cell `xml:"c"`
 	}
+	type columnFormat struct {
+		Min   int `xml:"min,attr"`
+		Max   int `xml:"max,attr"`
+		Style int `xml:"style,attr"`
+	}
+	var columnFormats []columnFormat
 	out := &XLSXPage{Request: request, TotalRows: 1, TotalColumns: 1}
 	grid := make([][]string, request.Rows)
+	displayGrid := make([][]string, request.Rows)
 	for i := range grid {
 		grid[i] = make([]string, request.Columns)
+		displayGrid[i] = make([]string, request.Columns)
 	}
 	lastRow, pageBytes := 0, 0
 	for {
@@ -400,7 +418,18 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 			return nil, err
 		}
 		start, ok := tok.(xml.StartElement)
-		if !ok || start.Name.Local != "row" {
+		if !ok {
+			continue
+		}
+		if start.Name.Local == "col" {
+			var column columnFormat
+			if err := dec.DecodeElement(&column, &start); err != nil {
+				return nil, err
+			}
+			columnFormats = append(columnFormats, column)
+			continue
+		}
+		if start.Name.Local != "row" {
 			continue
 		}
 		var r row
@@ -449,10 +478,34 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 				val = shared[idx]
 			}
 			address := xlsxColumnName(col+1) + strconv.Itoa(rowNum)
-			if len(val) > xlsxMaxCellBytes && out.Problem == "" {
+			kind := "number"
+			switch c.T {
+			case "inlineStr", "s", "str":
+				kind = "text"
+			case "b":
+				kind = "boolean"
+			case "e":
+				kind = "error"
+			case "d":
+				kind = "date"
+			}
+			style := 0
+			for _, column := range columnFormats {
+				if col+1 >= column.Min && col+1 <= column.Max {
+					style = column.Style
+				}
+			}
+			if r.S != nil {
+				style = *r.S
+			}
+			if c.S != nil {
+				style = *c.S
+			}
+			display := workbookCell(address, val, kind, formats.code(style), formats.date1904)
+			if max(len(val), len(display.DisplayValue)) > xlsxMaxCellBytes && out.Problem == "" {
 				out.Problem = fmt.Sprintf("Cell %s exceeds the 64 KiB readable cell limit. This page is not shown or copyable. Choose another page or Open external.", address)
 			}
-			pageBytes += len(val)
+			pageBytes += max(len(val), len(display.DisplayValue))
 			if pageBytes > xlsxMaxPageBytes && out.Problem == "" {
 				out.Problem = "Selected page exceeds the 1 MiB cell-content limit. This page is not shown or copyable. Choose another page or Open external."
 			}
@@ -460,26 +513,33 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 				continue
 			}
 			grid[rowNum-1-request.Row][col-request.Column] = val
-			out.Cells = append(out.Cells, XLSXCell{address, val})
+			displayGrid[rowNum-1-request.Row][col-request.Column] = display.DisplayValue
+			out.Cells = append(out.Cells, display)
 		}
 	}
 	if out.Problem != "" {
 		out.Cells = nil
 		return out, nil
 	}
-	var b strings.Builder
-	writer := csv.NewWriter(&b)
-	writer.Comma = '\t'
-	for _, row := range grid[:max(0, min(request.Rows, out.TotalRows-request.Row))] {
-		if err := writer.Write(row[:max(0, min(request.Columns, out.TotalColumns-request.Column))]); err != nil {
+	for index, values := range [][][]string{grid, displayGrid} {
+		var b strings.Builder
+		writer := csv.NewWriter(&b)
+		writer.Comma = '\t'
+		for _, row := range values[:max(0, min(request.Rows, out.TotalRows-request.Row))] {
+			if err := writer.Write(row[:max(0, min(request.Columns, out.TotalColumns-request.Column))]); err != nil {
+				return nil, err
+			}
+		}
+		writer.Flush()
+		if err := writer.Error(); err != nil {
 			return nil, err
 		}
+		if index == 0 {
+			out.TSV = b.String()
+		} else {
+			out.DisplayTSV = b.String()
+		}
 	}
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		return nil, err
-	}
-	out.TSV = b.String()
 	return out, nil
 }
 func xlsxColumnName(n int) string {

@@ -22,7 +22,7 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 	if tab == nil || !isTablePreviewPath(tab.Path) {
 		return
 	}
-	ui.Text(c, label("只读 XLS/XLSX；每页最多 60 行 × 16 列。文件 ≤16 MiB，XLSX XML 单片 ≤8 MiB/合计 ≤32 MiB，单元格 ≤64 KiB，每页内容 ≤1 MiB。公式显示已存储值。", "Read-only XLS/XLSX; up to 60 rows × 16 columns per page. File ≤16 MiB; XLSX XML ≤8 MiB/part and ≤32 MiB total; cell ≤64 KiB; page values ≤1 MiB. Formulas show stored values.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
+	ui.Text(c, label("只读 XLS/XLSX；每页最多 60 行 × 16 列。文件 ≤16 MiB，XLSX XML 单片 ≤8 MiB/合计 ≤32 MiB，单元格 ≤64 KiB，每页内容 ≤1 MiB。公式显示已存储值；常见日期、时间、百分比与数字格式参与显示，未支持格式保留原值。", "Read-only XLS/XLSX; up to 60 rows × 16 columns per page. File ≤16 MiB; XLSX XML ≤8 MiB/part and ≤32 MiB total; cell ≤64 KiB; page values ≤1 MiB. Formulas show stored values. Common date, time, percent and number formats are displayed; unsupported formats retain raw values.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 	page := tab.tablePage
 	if page == nil {
 		return
@@ -66,8 +66,11 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 			req.Column += req.Columns
 			requestTablePage(m, req)
 		}
-		if ui.Button(c, label("复制本页 TSV", "Copy page TSV")).Disabled(blocked || page.Problem != "").Clicked() {
+		if ui.Button(c, label("复制本页原始 TSV", "Copy raw page TSV")).Disabled(blocked || page.Problem != "").Clicked() {
 			mygo.Clipboard.WriteText(page.TSV)
+		}
+		if ui.Button(c, label("复制本页显示 TSV", "Copy displayed page TSV")).Disabled(blocked || page.Problem != "").Clicked() {
+			mygo.Clipboard.WriteText(page.DisplayTSV)
 		}
 	})
 	if len(page.Cells) > 0 {
@@ -87,6 +90,14 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 				tab.tableCell = cells[0]
 			}
 			ui.Select(c, &tab.tableCell, cells).Disabled(blocked)
+			if ui.Button(c, label("复制单元格显示值", "Copy displayed cell value")).Disabled(blocked).Clicked() {
+				for _, cell := range page.Cells {
+					if cell.Address == tab.tableCell {
+						mygo.Clipboard.WriteText(cell.DisplayValue)
+						break
+					}
+				}
+			}
 			if ui.Button(c, label("复制单元格原文", "Copy original cell value")).Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == tab.tableCell {

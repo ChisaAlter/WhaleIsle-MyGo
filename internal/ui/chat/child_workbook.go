@@ -59,8 +59,11 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 				r.Column += r.Columns
 				run(r)
 			}
-			if ui.Button(c, "复制本页 TSV / Copy page TSV").Disabled(blocked || page.Problem != "").Clicked() {
+			if ui.Button(c, "复制本页原始 TSV / Copy raw page TSV").Disabled(blocked || page.Problem != "").Clicked() {
 				c.Services().WriteClipboard(page.TSV)
+			}
+			if ui.Button(c, "复制本页显示 TSV / Copy displayed page TSV").Disabled(blocked || page.Problem != "").Clicked() {
+				c.Services().WriteClipboard(page.DisplayTSV)
 			}
 		})
 		ui.Text(c, page.Text).FontSize(12).TextColor(st.FG).Selectable()
@@ -80,6 +83,14 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 				*selectedCell = page.Cells[0].Address
 			}
 			ui.Select(c, selectedCell, options).Disabled(blocked)
+			if ui.Button(c, "复制单元格显示值 / Copy displayed cell value").Disabled(blocked).Clicked() {
+				for _, cell := range page.Cells {
+					if cell.Address == *selectedCell {
+						c.Services().WriteClipboard(cell.DisplayValue)
+						break
+					}
+				}
+			}
 			if ui.Button(c, "复制单元格原文 / Copy cell value").Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == *selectedCell {

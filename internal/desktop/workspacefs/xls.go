@@ -64,12 +64,14 @@ func readXLSPage(ctx context.Context, reader io.ReadSeeker, version string, requ
 	rows := max(0, min(request.Rows, out.TotalRows-request.Row))
 	columns := max(0, min(request.Columns, out.TotalColumns-request.Column))
 	grid := make([][]string, rows)
+	displayGrid := make([][]string, rows)
 	pageBytes := 0
 	for row := 0; row < rows; row++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		grid[row] = make([]string, columns)
+		displayGrid[row] = make([]string, columns)
 		for col := 0; col < columns; col++ {
 			cell := book.TypedCell(selected, request.Row+row, request.Column+col)
 			if !cell.Present || cell.Kind == "blank" {
@@ -77,10 +79,19 @@ func readXLSPage(ctx context.Context, reader io.ReadSeeker, version string, requ
 			}
 			value := xlsStoredValue(cell)
 			address := xlsxColumnName(request.Column+col+1) + strconv.Itoa(request.Row+row+1)
-			if len(value) > xlsxMaxCellBytes && out.Problem == "" {
+			format := book.FormatText(cell.FormatNo)
+			if format == "" {
+				format = workbookBuiltinFormat(int(cell.FormatNo))
+			}
+			kind := cell.Kind
+			if kind == "bool" {
+				kind = "boolean"
+			}
+			display := workbookCell(address, value, kind, format, book.DateMode() == 1)
+			if max(len(value), len(display.DisplayValue)) > xlsxMaxCellBytes && out.Problem == "" {
 				out.Problem = fmt.Sprintf("Cell %s exceeds the 64 KiB readable cell limit. This page is not shown or copyable. Choose another page or Open external.", address)
 			}
-			pageBytes += len(value)
+			pageBytes += max(len(value), len(display.DisplayValue))
 			if pageBytes > xlsxMaxPageBytes && out.Problem == "" {
 				out.Problem = "Selected page exceeds the 1 MiB cell-content limit. This page is not shown or copyable. Choose another page or Open external."
 			}
@@ -88,37 +99,45 @@ func readXLSPage(ctx context.Context, reader io.ReadSeeker, version string, requ
 				continue
 			}
 			grid[row][col] = value
-			out.Cells = append(out.Cells, XLSXCell{Address: address, Value: value})
+			displayGrid[row][col] = display.DisplayValue
+			out.Cells = append(out.Cells, display)
 		}
 	}
 	if out.Problem != "" {
 		out.Cells = nil
 	} else {
-		var body strings.Builder
-		writer := csv.NewWriter(&body)
-		writer.Comma = '\t'
-		for _, row := range grid {
-			if err := writer.Write(row); err != nil {
+		for index, values := range [][][]string{grid, displayGrid} {
+			var body strings.Builder
+			writer := csv.NewWriter(&body)
+			writer.Comma = '\t'
+			for _, row := range values {
+				if err := writer.Write(row); err != nil {
+					return nil, err
+				}
+			}
+			writer.Flush()
+			if err := writer.Error(); err != nil {
 				return nil, err
 			}
+			if index == 0 {
+				out.TSV = body.String()
+			} else {
+				out.DisplayTSV = body.String()
+			}
 		}
-		writer.Flush()
-		if err := writer.Error(); err != nil {
-			return nil, err
-		}
-		out.TSV = body.String()
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "%s · rows %d–%d / %d · columns %s–%s / %s\nRead-only stored values; formulas are not recalculated. Use worksheet and row/column controls for other pages.\n\n", sheetName, request.Row+1, min(request.Row+request.Rows, out.TotalRows), out.TotalRows, xlsxColumnName(request.Column+1), xlsxColumnName(min(request.Column+request.Columns, out.TotalColumns)), xlsxColumnName(out.TotalColumns))
+	fmt.Fprintf(&text, "%s · rows %d–%d / %d · columns %s–%s / %s\nRead-only stored values with supported number formats; formulas are not recalculated. Raw and displayed values can be copied separately. Use worksheet and row/column controls for other pages.\n\n", sheetName, request.Row+1, min(request.Row+request.Rows, out.TotalRows), out.TotalRows, xlsxColumnName(request.Column+1), xlsxColumnName(min(request.Column+request.Columns, out.TotalColumns)), xlsxColumnName(out.TotalColumns))
 	escape := strings.NewReplacer("\\", "\\\\", "\r", "\\r", "\n", "\\n", "\t", "\\t")
 	for _, cell := range out.Cells {
-		text.WriteString(cell.Address + "\t" + escape.Replace(cell.Value) + "\n")
+		text.WriteString(cell.Address + "\t" + escape.Replace(cell.DisplayValue) + "\n")
 	}
 	if out.Problem != "" {
 		text.WriteString(out.Problem)
 	} else if len(out.Cells) == 0 {
 		text.WriteString("(No stored cells in this page.)")
 	}
+	text.WriteString(workbookFormatNotice(out.Cells))
 	out.Text = text.String()
 	return out, nil
 }
