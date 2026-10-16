@@ -23,6 +23,9 @@ func reloadSelectedFile(m Model) {
 	}
 	rel := *m.SelectedFile
 	if tab := selectedTab(m); tab != nil {
+		if m.Tabs != nil {
+			m.Tabs.stopImageRead(false)
+		}
 		tab.image = nil
 		tab.selectionText = ""
 		tab.selectionStart, tab.selectionEnd = 0, 0

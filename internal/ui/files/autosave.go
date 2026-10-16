@@ -141,6 +141,7 @@ func disposeSave(t *FileTab) {
 // Dispose cancels queued file work on window shutdown without flushing drafts.
 // Existing recovery serialization still owns draft persistence.
 func (t *Tabs) Dispose() {
+	t.stopImageRead(true)
 	t.stopTextRead(false, true)
 	t.CancelPlanRead()
 	t.closeFloatingPreview()
@@ -163,6 +164,7 @@ func (t *Tabs) Dispose() {
 // Pause stops debounce work when the Files surface is hidden, without throwing
 // away drafts or completion receipts for writes that had already started.
 func (t *Tabs) Pause() {
+	t.stopImageRead(false)
 	t.hideDocumentSurfaces()
 	t.stopTextRead(true, false)
 	if t.Search != nil {

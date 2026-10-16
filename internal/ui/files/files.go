@@ -618,6 +618,7 @@ func selectFile(m Model, rel string) {
 	}
 	pauseSave(selectedTab(m))
 	if m.Tabs != nil {
+		m.Tabs.stopImageRead(false)
 		m.Tabs.stopTextRead(true, false)
 		if isAsyncPreviewPath(rel) {
 			restore(m, &FileTab{Path: rel})

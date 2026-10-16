@@ -17,6 +17,8 @@ import (
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
+	imageReader     *imageReadQueue
+	imageReadTab    *FileTab
 	textReader      *textReadQueue
 	readTab         *FileTab
 	readSerial      uint64
@@ -189,6 +191,7 @@ func selectTab(m Model, path string) bool {
 	capture(m)
 	if t := findTab(w, path); t != nil {
 		if path != w.Active {
+			m.Tabs.stopImageRead(false)
 			m.Tabs.stopTextRead(true, false)
 			pauseSave(findTab(w, w.Active))
 		}
@@ -236,6 +239,9 @@ func closeTab(m Model, path string, discard bool) bool {
 		pauseSave(t)
 		w.PendingClose = path
 		return false
+	}
+	if m.Tabs != nil && m.Tabs.imageReadTab == t {
+		m.Tabs.stopImageRead(false)
 	}
 	disposeSave(t)
 	t.closeDocumentSurface()
@@ -369,6 +375,7 @@ func (t *Tabs) Restore(data []byte) error {
 		w.PendingClose = ""
 	}
 	restored.Root = ""
+	t.stopImageRead(true)
 	*t = restored
 	return nil
 }
@@ -380,6 +387,7 @@ func (t *Tabs) Bind(binding, root string) {
 	if t.binding == binding && t.boundRoot == root {
 		return
 	}
+	t.stopImageRead(false)
 	t.CancelPlanRead()
 	t.stopTextRead(true, false)
 	if t.Search != nil {

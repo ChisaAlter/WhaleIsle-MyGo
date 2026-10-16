@@ -1,0 +1,26 @@
+# Native static-library build of the SAME resvg shim (../wasm/resvg.rs) used for the wasm module — for
+# the optional CGo backend (internal/resvg/resvg_cgo.go, built with -tags cgo_resvg). The shim is plain
+# C-ABI Rust, so the identical source compiles for the host as a `staticlib` (libresvg_native.a) and links
+# into the Go binary via CGo, giving native resvg speed when a deployment can carry the native lib.
+#
+#   cargo build --release --manifest-path resvg-wasm/native/Cargo.toml
+#   -> resvg-wasm/native/target/release/libresvg_native.a
+[package]
+name = "resvg-native-shim"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "resvg_native"
+crate-type = ["staticlib"]
+path = "../wasm/resvg.rs"
+
+[dependencies]
+# Identical pin to the wasm build (resvg 0.46.0) so native and wasm render bit-identically. 0.46 is the
+# fastest version in the 0.35→0.47 sweep and pixel-identical to the lineage (see ../Cargo.toml note).
+resvg = { version = "0.46.0", default-features = false, features = ["text", "raster-images"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true

@@ -2,15 +2,15 @@ package files
 
 import (
 	"bytes"
-	"encoding/binary"
+	"context"
 	"errors"
 	"fmt"
 	"image"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"time"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -23,11 +23,43 @@ const maxImageBytes int64 = 16 << 20
 const maxImagePixels = 32_000_000
 
 type imagePreview struct {
-	isolated bool
-	bitmap   *ui.Bitmap
-	vector   *ui.SVG
-	note     string
-	err      error
+	loading   bool
+	bitmap    *ui.Bitmap
+	vector    *ui.SVG
+	animation *imagepreview.Animation
+	frames    []*ui.Bitmap
+	started   time.Time
+	note      string
+	err       error
+}
+
+// advance uses a paint-driven deadline: hidden or closed tabs schedule no new
+// wakeups, and elapsed time skips missed frames without accumulating timers.
+func (p *imagePreview) advance(now time.Time) time.Duration {
+	if p.animation == nil || len(p.frames) == 0 {
+		return 0
+	}
+	if p.started.IsZero() {
+		p.started = now
+	}
+	index, wait := p.animation.FrameAt(now.Sub(p.started))
+	p.bitmap = p.frames[index]
+	return wait
+}
+
+// Release decoded pixels for inactive tabs without touching their zoom/pan state.
+func retainImagePreview(m Model, selected *FileTab, preview *imagePreview) {
+	if selected == nil {
+		return
+	}
+	if w := tabsFor(m); w != nil {
+		for _, tab := range w.Open {
+			if tab != selected {
+				tab.image = nil
+			}
+		}
+	}
+	selected.image = preview
 }
 
 func isPreviewImage(path string) bool {
@@ -44,61 +76,13 @@ func imageMode(m Model, path string) bool {
 	return isPreviewImage(path) && !(m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview)
 }
 
-// routeDefaultImage makes one request per tab/reload. Keeping the marker also
-// prevents a failed decoder or rejected document from reopening on every frame.
-func routeDefaultImage(m Model, tab *FileTab, path, platform string) bool {
-	if platform != "windows" || tab == nil || m.OnOpenDoc == nil || !imagepreview.Supports(path) || !imageMode(m, path) {
-		return false
-	}
-	if tab.image != nil && tab.image.isolated {
-		return true
-	}
-	full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
-	tab.image = &imagePreview{isolated: true, err: err}
-	if err != nil {
-		setFileStatus(m, err.Error())
-		return true
-	}
-	m.OnOpenDoc(full, workspacefs.DocNone, true)
-	return true
-}
-
 func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	t := selectedTab(m)
-	if routeDefaultImage(m, t, path, runtime.GOOS) {
-		ui.Text(c, label("已请求隔离图片预览；GIF 保留动画，SVG/ICO 使用浏览器图片渲染。", "Isolated image preview requested; GIF retains animation and SVG/ICO use browser image rendering.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 4, 12)
-		if strings.EqualFold(filepath.Ext(path), ".avif") {
-			ui.Text(c, label("AVIF 是否可显示取决于已安装的 WebView 编解码器；若显示损坏图片/编码不可用，请使用外部打开。", "AVIF decoding depends on the installed WebView runtime. If the image is broken or its codec is unavailable, use Open external.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
-		}
-		if t.image.err != nil {
-			ui.Text(c, t.image.err.Error()).TextColor(muted).Padding(4, 12, 4, 12)
-		}
-		if ui.Button(c, label("重新打开图片预览", "Reopen image preview")).Clicked() {
-			t.image = nil
-			routeDefaultImage(m, t, path, runtime.GOOS)
-		}
+	preview := readImagePreview(m, t)
+	if preview.loading {
+		ui.Text(c, label("正在加载图片…", "Loading image…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
+		c.After(50 * time.Millisecond)
 		return
-	}
-	if imagepreview.Supports(path) {
-		ui.Text(c, label("当前视图没有可用的隔离图片 WebView；下方为原生降级预览，GIF 仅首帧，SVG/ICO 元素可能不完整，AVIF 不可解码。", "This view has no available isolated image WebView. Native fallback below shows only the first GIF frame, may omit SVG/ICO content, and cannot decode AVIF.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
-	}
-	var preview *imagePreview
-	if t != nil {
-		preview = t.image
-	}
-	if preview == nil {
-		preview = loadImagePreview(m.WorkspaceRoot, path)
-		if t != nil {
-			// Retain only the visible decoded image, not one bitmap per open tab.
-			if w := tabsFor(m); w != nil {
-				for _, other := range w.Open {
-					if other.image == nil || !other.image.isolated {
-						other.image = nil
-					}
-				}
-			}
-			t.image = preview
-		}
 	}
 	if preview.err != nil {
 		ui.Text(c, preview.err.Error()).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
@@ -112,11 +96,22 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	if t != nil {
 		view = &t.imageView
 	}
+	if wait := preview.advance(time.Now()); wait > 0 {
+		c.After(wait)
+	}
 	paintImageView(c, preview, view)
 }
 
 func loadImagePreview(root, rel string) *imagePreview {
+	return loadImagePreviewContext(context.Background(), root, rel)
+}
+
+func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePreview {
 	p := &imagePreview{}
+	if err := ctx.Err(); err != nil {
+		p.err = err
+		return p
+	}
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
 		p.err = err
@@ -170,76 +165,52 @@ func loadImagePreview(root, rel string) *imagePreview {
 		p.err = errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
 		return p
 	}
-	switch ext {
-	case ".svg":
-		p.vector, p.err = ui.ParseSVG(data)
-		p.note = label("SVG 原生预览；文字、嵌入图片与滤镜等元素可能省略。", "Native SVG preview; text, embedded images and filters may be omitted.")
-		return p
-	case ".avif":
-		p.err = errors.New(label("当前原生解码器不支持 AVIF", "The native decoder does not support AVIF"))
-		return p
-	case ".ico":
-		data, err = icoPNG(data)
-		if err != nil {
-			p.err = err
-			return p
-		}
-	}
-	config, _, err := image.DecodeConfig(bytes.NewReader(data))
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		p.err = err
 		return p
 	}
-	if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxImagePixels {
-		p.err = errors.New(label("图片尺寸超过安全预览限制", "Image dimensions exceed the preview limit"))
-		return p
+	var decoded image.Image
+	switch ext {
+	case ".gif":
+		p.animation, p.err = imagepreview.DecodeAnimation(data)
+		if p.err == nil {
+			for _, frame := range p.animation.Frames {
+				if err := ctx.Err(); err != nil {
+					return &imagePreview{err: err}
+				}
+				p.frames = append(p.frames, ui.NewBitmap(frame))
+			}
+			// Keep timing metadata, but release the decoder staging canvases.
+			p.animation.Frames = nil
+			p.bitmap = p.frames[0]
+		}
+	case ".svg":
+		decoded, p.err = imagepreview.DecodeSVGContext(ctx, data)
+	case ".ico":
+		decoded, p.err = imagepreview.DecodeIcon(data)
+	case ".avif":
+		decoded, p.err = imagepreview.DecodeAVIFContext(ctx, data)
+	default:
+		config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data))
+		if decodeErr != nil {
+			p.err = decodeErr
+			return p
+		}
+		if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxImagePixels {
+			p.err = errors.New(label("图片尺寸超过安全预览限制", "Image dimensions exceed the preview limit"))
+			return p
+		}
+		p.bitmap, p.err = ui.DecodeBitmap(data)
 	}
-	p.bitmap, p.err = ui.DecodeBitmap(data)
+	if err := ctx.Err(); err != nil {
+		return &imagePreview{err: err}
+	}
+	if decoded != nil && p.err == nil {
+		p.bitmap = ui.NewBitmap(decoded)
+	}
 	if p.bitmap != nil {
 		w, h := p.bitmap.Size()
 		p.note = fmt.Sprintf("%d × %d", w, h)
-		if ext == ".gif" {
-			p.note += label(" · GIF 首帧", " · GIF first frame")
-		}
 	}
 	return p
-}
-
-// Modern ICO files contain PNG frames. Choose the largest valid embedded PNG,
-// without trusting directory offsets or starting an external decoder process.
-func icoPNG(data []byte) ([]byte, error) {
-	if len(data) < 6 || binary.LittleEndian.Uint16(data) != 0 || binary.LittleEndian.Uint16(data[2:]) != 1 {
-		return nil, errors.New("invalid ICO header")
-	}
-	count := int(binary.LittleEndian.Uint16(data[4:]))
-	if count == 0 || count > (len(data)-6)/16 {
-		return nil, errors.New("invalid ICO directory")
-	}
-	var selected []byte
-	best := 0
-	for i := 0; i < count; i++ {
-		entry := data[6+i*16 : 6+(i+1)*16]
-		size, offset := uint64(binary.LittleEndian.Uint32(entry[8:])), uint64(binary.LittleEndian.Uint32(entry[12:]))
-		if offset > uint64(len(data)) || size > uint64(len(data))-offset || size < 8 {
-			continue
-		}
-		frame := data[int(offset):int(offset+size)]
-		if !bytes.HasPrefix(frame, []byte{137, 80, 78, 71, 13, 10, 26, 10}) {
-			continue
-		}
-		w, h := int(entry[0]), int(entry[1])
-		if w == 0 {
-			w = 256
-		}
-		if h == 0 {
-			h = 256
-		}
-		if w*h > best {
-			selected, best = frame, w*h
-		}
-	}
-	if selected == nil {
-		return nil, errors.New(label("此 ICO 没有原生解码器支持的 PNG 图层", "This ICO has no PNG frame supported by the native decoder"))
-	}
-	return selected, nil
 }

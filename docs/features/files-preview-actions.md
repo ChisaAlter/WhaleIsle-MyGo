@@ -38,9 +38,16 @@ fallback behavior. URL links are not rerouted into Files.
 
 ## Image preview
 
-Local PNG/JPEG/WebP/BMP and GIF first frames use the existing native decoder.
-SVG uses MyGo's native vector renderer. ICO files with an embedded PNG frame
-show the largest such frame. No new codec or external process is installed.
+Local PNG/JPEG/WebP/BMP use the existing native decoder. GIF now uses bounded
+full-frame native animation with transparency, background/previous disposal,
+and finite/infinite loop timing. ICO selects the largest validated PNG or
+uncompressed Windows DIB image (1/4/8/24/32-bit, including alpha/AND masks).
+GIF, ICO, SVG and still AVIF share native fit-width, fixed zoom, pointer-anchored Ctrl+wheel,
+pinch synthesis and drag-pan; changing frames does not reset tab view state.
+SVG uses the pinned no-cgo resvg WASM image renderer, including text, gradients
+and masks, plus bounded embedded raster images and static filters. Still AVIF
+uses the pinned native WASM decoder; the WebView is an explicit compatibility action.
+No new dependency or external decoder process is installed for GIF/ICO.
 Image previews are not exposed as editable binary text. Pre-existing unsaved
 text drafts, including SVG drafts, remain visible and editable.
 
@@ -50,9 +57,12 @@ image is cached; reload/activation invalidates it. Inactive image bitmaps are
 released from tab state.
 
 Known limits remain explicit in the UI:
-- AVIF and legacy ICO without PNG frames need the existing external opener.
-- GIF is a still first-frame preview.
-- Native SVG omits text, embedded images, filters and other unsupported elements.
+- Native AVIF is limited to the validated still-image subset; sequences are rejected.
+- Native SVG rejects external resources, scripts, animation and nested SVG data images.
+  It accepts bounded embedded PNG/JPEG/GIF/WebP and static filters in the isolated
+  WASM renderer. Font availability can affect typography.
+- Explicit isolated WebView compatibility retains its stricter resource subset and
+  CSS zoom presets/scrollbars; native default interaction does not rely on that surface.
 - An image available only through the session's text-reader fallback cannot be
   decoded locally. Remote text-file fallback is unchanged.
 

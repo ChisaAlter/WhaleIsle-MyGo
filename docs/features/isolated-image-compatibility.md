@@ -1,7 +1,10 @@
 # Bounded isolated image compatibility preview
 
 The Files image toolbar adds an explicit compatibility-preview action for
-GIF, ICO, AVIF and SVG. Native image presentation remains available.
+GIF, ICO, AVIF and SVG. Default presentation now uses bounded native image
+decoding, preserving animated GIF content, SVG artwork and native zoom/pan.
+The explicit compatibility action remains this isolated live WebView, with
+its original stricter SVG policy unchanged.
 This increment reuses the existing static document capability and Windows
 WebView surface; it does not install codecs or open a privileged page.
 

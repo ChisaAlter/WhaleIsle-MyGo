@@ -33,3 +33,5 @@ replace github.com/egoist/mygo => ./third_party/mygo
 
 
 replace github.com/ronohara/go-xls-reader => ./third_party/go-xls-reader
+
+require github.com/tetratelabs/wazero v1.12.0
