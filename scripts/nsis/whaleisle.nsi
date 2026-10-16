@@ -44,13 +44,24 @@ Section "Install"
   SetOutPath "$INSTDIR\resources"
   File /nonfatal /r "${STAGE_DIR}\resources\*.*"
   SetOutPath "$INSTDIR"
+!ifndef SHELL_ONLY
 !if /FileExists "${STAGE_DIR}\.runtime-staged"
+!else
+  !error "Host runtime not staged. Run package.ps1; SHELL_ONLY is for explicit development packages only."
+!endif
+!if /FileExists "${STAGE_DIR}\runtime\node\node.exe"
+!else
+  !error "Required Host runtime/node/node.exe is missing."
+!endif
   SetOutPath "$INSTDIR\runtime"
   File /r "${STAGE_DIR}\runtime\*.*"
   SetOutPath "$INSTDIR"
 !endif
 
 !if /FileExists "${STAGE_DIR}\.pet-render-staged"
+!else
+  !error "THA4 resources not staged. Run package.ps1 with WHALEISLE_PET_RENDER_ASSETS."
+!endif
   ; Exact manifest selection only; do not package arbitrary sidecar files.
   SetOutPath "$INSTDIR\pet-render-assets\avatar"
   File "${STAGE_DIR}\pet-render-assets\avatar\character.png"
@@ -63,10 +74,10 @@ Section "Install"
   File "${STAGE_DIR}\pet-render-assets\ort\ort.all.min.js"
   SetOutPath "$INSTDIR\pet-render-assets"
   File "${STAGE_DIR}\pet-render-assets\LICENSE"
+  File "${STAGE_DIR}\pet-render-assets\provenance.json"
   SetOutPath "$INSTDIR\pet-render-assets\ort"
   File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
   SetOutPath "$INSTDIR"
-!endif
 
   WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayName" "${PRODUCT_NAME}"

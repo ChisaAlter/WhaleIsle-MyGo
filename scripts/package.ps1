@@ -61,7 +61,14 @@ $TerminalArch = (& go env GOARCH).Trim()
 & go run ./tools/stage-terminal -target "$TerminalOS-$TerminalArch" -out $Stage
 if ($LASTEXITCODE -ne 0) { throw 'Native terminal runtime staging failed; set WHALEISLE_TERMINAL_LIBRARY to the pinned official library.' }
 
-# Optional vendored harness + Node for NSIS (skip when absent / WHALEISLE_PACKAGE_SKIP_RUNTIME=1).
+# Every package includes the fixed THA4 assets, even shell-only development packages.
+# Keep the input outside dist/whaleisle: that directory is recreated above.
+$PetAssets = $env:WHALEISLE_PET_RENDER_ASSETS
+if (-not $PetAssets) { $PetAssets = Join-Path $ProjectRoot 'runtime\pet-render-assets' }
+& node (Join-Path $PSScriptRoot 'pet-render-assets.mjs') $PetAssets $Stage
+if ($LASTEXITCODE -ne 0) { throw 'THA4 resource staging failed; set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.' }
+
+# Host runtime is required unless explicitly producing a shell-only development package.
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
     $VendorSrc = $env:WHALEISLE_VENDOR
@@ -81,30 +88,36 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         New-Item -ItemType Directory -Force -Path (Split-Path $VendorDst) | Out-Null
         Copy-Item -Path $VendorSrc -Destination $VendorDst -Recurse -Force
     } else {
-        Write-Host "Note: runtime/vendor missing; NSIS will ship without harness runtime"
+        throw 'Required runtime/vendor is missing.'
     }
-    $NodeCandidates = @(
-        $env:WHALEISLE_NODE_DIR,
-        'C:\AI\tools\node-v24.21.0-win-x64',
-        (Join-Path $ProjectRoot '.toolchain\node')
-    ) | Where-Object { $_ -and (Test-Path $_) }
-    if ($NodeCandidates.Count -gt 0) {
-        $NodeSrc = $NodeCandidates[0]
-        $NodeDst = Join-Path $Stage 'runtime\node'
-        Write-Host "Copying Node -> $NodeDst from $NodeSrc"
-        New-Item -ItemType Directory -Force -Path (Split-Path $NodeDst) | Out-Null
-        Copy-Item -Path $NodeSrc -Destination $NodeDst -Recurse -Force
-    } else {
-        Write-Host "Note: Node directory not found; set WHALEISLE_NODE_DIR to include it in staging"
+    # An explicitly selected input must not silently fall back to another Node.
+    $NodeSrc = $env:WHALEISLE_NODE_DIR
+    if (-not $NodeSrc) {
+        $NodeSrc = @(
+            'C:\AI\tools\node-v24.21.0-win-x64',
+            (Join-Path $ProjectRoot '.toolchain\node')
+        ) | Where-Object { Test-Path (Join-Path $_ 'node.exe') -PathType Leaf } | Select-Object -First 1
+    }
+    if (-not $NodeSrc -or -not (Test-Path (Join-Path $NodeSrc 'node.exe') -PathType Leaf)) {
+        throw 'Host Node runtime missing; WHALEISLE_NODE_DIR must contain node.exe. Use WHALEISLE_PACKAGE_SKIP_RUNTIME=1 only for a shell-only development package.'
+    }
+    $NodeInput = Join-Path $NodeSrc 'node.exe'
+    if ((Get-Item $NodeInput).Length -eq 0) { throw 'Host node.exe is empty.' }
+    $NodeHash = (Get-FileHash $NodeInput -Algorithm SHA256).Hash
+    $NodeDst = Join-Path $Stage 'runtime\node'
+    Write-Host "Copying Node -> $NodeDst from $NodeSrc"
+    New-Item -ItemType Directory -Force -Path (Split-Path $NodeDst) | Out-Null
+    Copy-Item -Path $NodeSrc -Destination $NodeDst -Recurse -Force
+    $StagedNode = Join-Path $NodeDst 'node.exe'
+    if (-not (Test-Path $StagedNode -PathType Leaf) -or (Get-FileHash $StagedNode -Algorithm SHA256).Hash -ne $NodeHash) {
+        throw 'Packaged Host node.exe is missing or changed.'
     }
     & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }
-    $RuntimeRoot = Join-Path $Stage 'runtime'
-    if ((Test-Path $RuntimeRoot) -and (Get-ChildItem $RuntimeRoot -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-        $Marker = Join-Path $Stage '.runtime-staged'
-        Set-Content -Path $Marker -Value '1' -NoNewline
-        Write-Host "Wrote runtime staging marker -> $Marker"
-    }
+    # Both desktop Node and the separately verified phone runtime are now staged.
+    $Marker = Join-Path $Stage '.runtime-staged'
+    Set-Content -Path $Marker -Value '1' -NoNewline
+    Write-Host "Wrote runtime staging marker -> $Marker"
 }
 
 $Readme = Join-Path $DistRoot 'README.md'
@@ -120,7 +133,8 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
 - `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`)
-- `whaleisle/runtime/node/` - Node tree when `WHALEISLE_NODE_DIR` or a known local Node path exists
+- `whaleisle/runtime/node/node.exe` - required Host Node from `WHALEISLE_NODE_DIR` or a known local Node distribution
+- `whaleisle/pet-render-assets/` - required manifest-verified THA4 resources and provenance from `WHALEISLE_PET_RENDER_ASSETS` (default `runtime/pet-render-assets`)
 
 ## Next steps (NSIS / MyGo packager)
 
@@ -155,7 +169,9 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
     Write-Host "NSIS found: building $Setup"
     Push-Location (Join-Path $PSScriptRoot 'nsis')
     try {
-        & $MakensisPath "/DVERSION=$Version" (Split-Path -Leaf $Nsi)
+        $NsisArguments = @("/DVERSION=$Version")
+        if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') { $NsisArguments += '/DSHELL_ONLY=1' }
+        & $MakensisPath @NsisArguments (Split-Path -Leaf $Nsi)
     } finally {
         Pop-Location
     }

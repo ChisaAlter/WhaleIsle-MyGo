@@ -3,7 +3,7 @@
 // Inputs are already-built native artifacts. This entry never builds source,
 // downloads dependencies, starts Host, signs/notarizes, installs, or uploads.
 // stage config: {version, arch, output, shell, terminalLibrary, vendor, nodeDir,
-//                runtimeIncluded:true, icon?:"local.icns"}
+//                runtimeIncluded:true, petRenderAssets, icon?:"local.icns"}
 // archive config: {app, arch, output, hostBundle:true}
 // Use a fresh output directory for each phase. Apply the existing external
 // signing workflow between stage/archive and before publishing the catalog.
@@ -93,6 +93,9 @@ export async function stage(config) {
   fs.copyFileSync(path.join(projectRoot, 'internal/desktop/terminalruntime/Ghostty-LICENSE'), path.join(bin, spec.name + '.LICENSE'));
   writeJSON(path.join(bin, 'terminal-runtime.json'), {...spec, Target: 'darwin-' + config.arch, Source: librarySpec.source});
   copyTree(path.join(projectRoot, 'resources'), path.join(bin, 'resources'));
+  const petAssets = input(config.petRenderAssets || process.env.WHALEISLE_PET_RENDER_ASSETS ||
+    path.join(projectRoot, 'runtime/pet-render-assets'), 'Fixed THA4 resource directory');
+  run(process.execPath, [path.join(projectRoot, 'scripts/pet-render-assets.mjs'), petAssets, bin]);
   let runtime = {};
   if (runtimeIncluded) {
     const runtimeDir = path.join(bin, 'runtime');
