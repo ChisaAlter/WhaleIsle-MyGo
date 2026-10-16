@@ -4,6 +4,7 @@ package markdown
 import (
 	"bytes"
 	"net/url"
+	"strconv"
 	"strings"
 	"whaleisle/internal/ui/theme"
 
@@ -159,7 +160,7 @@ func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch node := child.(type) {
-		case *ast.Paragraph:
+		case *ast.Paragraph, *ast.TextBlock:
 			walkInlines(node, src, st, out)
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 		case *ast.Heading:
@@ -194,10 +195,23 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 			}
 			*out = append(*out, highlightedCodeSpans("", buf.String(), st)...)
 		case *ast.ListItem:
-			*out = append(*out, ui.Span{Text: "• ", Size: st.FontSize, Color: st.Muted})
-			for inner := node.FirstChild(); inner != nil; inner = inner.NextSibling() {
-				walkBlocks(inner, src, st, out)
+			marker := "• "
+			if list, ok := node.Parent().(*ast.List); ok && list.IsOrdered() {
+				number := list.Start
+				for sibling := node.PreviousSibling(); sibling != nil; sibling = sibling.PreviousSibling() {
+					number++
+				}
+				marker = strconv.Itoa(number) + ". "
 			}
+			depth := 0
+			for parent := node.Parent(); parent != nil; parent = parent.Parent() {
+				if _, ok := parent.(*ast.ListItem); ok {
+					depth++
+				}
+			}
+			*out = append(*out, ui.Span{Text: strings.Repeat("  ", depth) + marker, Size: st.FontSize, Color: st.Muted})
+			// Walk the item itself so its TextBlock/Paragraph children are rendered.
+			walkBlocks(node, src, st, out)
 		case *ast.Blockquote:
 			walkInlines(node, src, st, out, func(s *ui.Span) {
 				s.Italic = true
