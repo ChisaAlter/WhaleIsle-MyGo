@@ -206,7 +206,18 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 	if phase == "" {
 		phase = "?"
 	}
-	ui.Text(c, fmt.Sprintf("[%s] %s", phase, g.Objective)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	status := phase
+	if g.Activation != "" {
+		status += " / " + g.Activation
+	}
+	ui.Text(c, fmt.Sprintf("[%s] %s", status, g.Objective)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	if g.BlockedReason.Code != "" || g.BlockedReason.Message != "" {
+		reason := g.BlockedReason.Message
+		if g.BlockedReason.Code != "" {
+			reason = "[" + g.BlockedReason.Code + "] " + reason
+		}
+		ui.Text(c, reason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	}
 	if m.GoalDraft != nil && m.OnEditGoal != nil {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, m.GoalDraft).Grow(1).
@@ -221,15 +232,15 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 		})
 	}
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		paused := strings.EqualFold(phase, "paused") || strings.EqualFold(phase, "blocked")
-		if paused {
+		resume := g.Phase == "paused" || (g.Phase == "active" && g.Activation == "disarmed")
+		if resume {
 			if m.OnResumeGoal != nil {
 				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalResume)).FontSize(theme.InterfaceSize(11)).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					m.OnResumeGoal()
 				}
 			}
-		} else if m.OnPauseGoal != nil {
+		} else if g.Phase == "active" && g.Activation == "armed" && m.OnPauseGoal != nil {
 			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalPause)).FontSize(theme.InterfaceSize(11)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 				m.OnPauseGoal()

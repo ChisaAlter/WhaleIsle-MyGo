@@ -36,6 +36,7 @@ func (s *Store) runCreateGoal(ctx context.Context, client *dsh.Client, sessionID
 	if err != nil {
 		s.lastAction = err.Error()
 	} else {
+		s.planBoard.goalReadToken = nil
 		s.lastAction = "goal created"
 		s.planBoard.Goal = &PlanGoal{
 			ID:        out.Ref.Id,
@@ -122,10 +123,18 @@ func (s *Store) RefreshGoal(ctx context.Context) {
 }
 
 func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionID string, generation uint64) {
+	s.mu.Lock()
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
+		s.mu.Unlock()
+		return
+	}
+	token := new(int)
+	s.planBoard.goalReadToken = token
+	s.mu.Unlock()
 	var out api.GoalView
 	err := client.Call(ctx, "goals/get", map[string]any{"agentId": sessionID}, &out)
 	s.mu.Lock()
-	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || s.planBoard.goalReadToken != token {
 		s.mu.Unlock()
 		return
 	}
@@ -172,18 +181,14 @@ func (s *Store) runGoalAction(ctx context.Context, client *dsh.Client, sessionID
 	if err != nil {
 		s.lastAction = err.Error()
 	} else {
+		s.planBoard.goalReadToken = nil
 		s.lastAction = okAction
 		if clear {
 			s.planBoard.Goal = nil
 		} else if out.Id != "" {
 			s.applyGoalView(&out)
-		} else if g := s.planBoard.Goal; g != nil {
-			switch method {
-			case "goals/pause":
-				g.Phase = "paused"
-			case "goals/resume":
-				g.Phase = "active"
-			}
+		} else {
+			s.lastAction = "goal action returned no goal state"
 		}
 	}
 	s.mu.Unlock()
@@ -194,14 +199,15 @@ func (s *Store) applyGoalView(v *api.GoalView) {
 	if v == nil || v.Id == "" {
 		return
 	}
-	phase := v.Phase
-	if phase == "" {
-		phase = v.Activation
-	}
+	s.planBoard.goalReadToken = nil
 	s.planBoard.Goal = &PlanGoal{
-		ID:        v.Id,
-		Revision:  v.Revision,
-		Objective: v.Objective,
-		Phase:     phase,
+		ID:         v.Id,
+		Revision:   v.Revision,
+		Objective:  v.Objective,
+		Phase:      v.Phase,
+		Activation: v.Activation,
+	}
+	if v.BlockedReason != nil {
+		s.planBoard.Goal.BlockedReason = PlanGoalBlockedReason{Code: v.BlockedReason.Code, Message: v.BlockedReason.Message}
 	}
 }

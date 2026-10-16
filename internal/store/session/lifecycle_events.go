@@ -99,10 +99,23 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 	if s.listLoading && mutation.kind != "api-session/error" {
 		s.listMutations = append(s.listMutations, mutation)
 	}
+	refreshGoal := false
+	if mutation.kind == "api-session/status" && mutation.sessionID == s.selectedID {
+		for _, item := range s.items {
+			if item.SessionID == mutation.sessionID && item.Running != mutation.running {
+				refreshGoal = true
+				break
+			}
+		}
+	}
+	sessionID, generation := s.selectedID, s.followGeneration
 	changed := s.applyLifecycleMutationLocked(mutation, true)
 	s.mu.Unlock()
 	if changed {
 		s.fire()
+	}
+	if refreshGoal {
+		go s.runRefreshGoal(owner.ctx, owner.client, sessionID, generation)
 	}
 }
 

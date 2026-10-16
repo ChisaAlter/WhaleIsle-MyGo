@@ -116,9 +116,14 @@ func (s *Store) applyFollowFrameForTarget(ctx context.Context, sessionID string,
 		return false
 	}
 	changed := s.applyFollowFrameLocked(raw)
+	client := s.client
+	refreshGoal := changed && client != nil && goalRefreshFollowFrame(raw)
 	s.mu.Unlock()
 	if changed {
 		s.fire()
+	}
+	if refreshGoal {
+		go s.runRefreshGoal(ctx, client, sessionID, generation)
 	}
 	return true
 }

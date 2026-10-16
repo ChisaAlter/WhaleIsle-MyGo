@@ -106,20 +106,20 @@ func TestPlanBoardGoalActionButtons(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		PlanBoardView(c, PlanBoardModel{
 			Board: session.PlanBoard{
-				Goal: &session.PlanGoal{ID: "g1", Objective: "Ship", Phase: "active"},
+				Goal: &session.PlanGoal{ID: "g1", Objective: "Ship", Phase: "active", Activation: "armed"},
 			},
-			ThemeID:    "system",
-			SystemDark: false,
-			Open:       &open,
-			GoalDraft:  &draft,
-			OnEditGoal: func(string) {},
-			OnPauseGoal: func() {},
+			ThemeID:        "system",
+			SystemDark:     false,
+			Open:           &open,
+			GoalDraft:      &draft,
+			OnEditGoal:     func(string) {},
+			OnPauseGoal:    func() {},
 			OnCompleteGoal: func() {},
-			OnClearGoal: func() {},
+			OnClearGoal:    func() {},
 		})
 	}, 480, 280)
 	for _, label := range []string{
-		"[active] Ship",
+		"[active / armed] Ship",
 		i18n.T(i18n.KeyPlanBoardGoalEdit),
 		i18n.T(i18n.KeyPlanBoardGoalPause),
 		i18n.T(i18n.KeyPlanBoardGoalComplete),
