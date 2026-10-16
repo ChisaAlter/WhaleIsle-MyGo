@@ -3,6 +3,9 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/files"
+	"whaleisle/internal/ui/browserpreview"
+	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/planpreview"
 )
 
@@ -140,18 +143,24 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 	if m.Store != nil { state.Tabs.SyncPlanSession(m.Store.Snapshot().SelectedID) }
 	local := state.model(m)
 	local.FileShortcuts = func() bool { return w.Active == n.ID }
+	if open := local.OnOpenDoc; open != nil {
+		local.OnOpenDoc = func(path string, kind workspacefs.DocKind, inWebView bool) {
+			w.Active = n.ID
+			open(path, kind, inWebView)
+		}
+	}
+	if open := local.OnOpenAgentDocument; open != nil {
+		local.OnOpenAgentDocument = func(token uint64, address session.AgentSessionAddress, path string) {
+			w.Active = n.ID
+			open(token, address, path)
+		}
+	}
+	if open := local.OnRenderOfficePDF; open != nil {
+		local.OnRenderOfficePDF = func(path string) { w.Active = n.ID; open(path) }
+	}
 	if m.NewWorkspaceBrowser != nil {
 		local.BrowserContent = func(c *ui.Context) {
-			if n.browser == nil {
-				n.browser = m.NewWorkspaceBrowser()
-				n.browser.RestoreWorkspace(n.Browser)
-				id := n.ID
-				n.browser.SetOnFocus(func() {
-					if pane := w.Root.find(id); pane != nil {
-						w.Active, w.focusPending = pane.ID, pane.ID
-					}
-				})
-			}
+			w.browserFor(n, m.NewWorkspaceBrowser)
 			n.browser.ViewDocked(c, m.ThemeID, m.SystemDark, func() {
 				w.pending = func() { w.close(n.ID) }
 			})
@@ -236,3 +245,49 @@ func (w *WorkspacePanes) resetTo(n *WorkspacePane) {
 	w.message = ""
 }
 
+
+// browserFor is shared by the renderer and explicit document-open gestures so
+// the source occurrence is selected before any asynchronous read starts.
+func (w *WorkspacePanes) browserFor(n *WorkspacePane, create func() *browserpreview.Controller) *browserpreview.Controller {
+	if n.browser == nil {
+		n.browser = create()
+		n.browser.RestoreWorkspace(n.Browser)
+		id := n.ID
+		n.browser.SetOnFocus(func() {
+			if pane := w.Root.find(id); pane != nil {
+				w.Active, w.focusPending = pane.ID, pane.ID
+			}
+		})
+	}
+	return n.browser
+}
+
+func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, create func() *browserpreview.Controller) {
+	if w.Root == nil { w.syncRoute("files") }
+	n := w.Root.find(w.Active)
+	target := n
+	var splitSource *WorkspacePane
+	if source.AddressKind == "subagent" && n.Kind == "agents" {
+		// The existing child reader is owned by the Agents navigation view.
+		// Keep that source view mounted while displaying the document beside it.
+		target = w.Root.kind("browser")
+		if target == nil {
+			target = w.leaf("browser")
+			splitSource = n
+		}
+	}
+	w.browserFor(target, create).OpenDocumentSource(source)
+	id := target.ID
+	// Content callbacks may run while the source pane is being painted.
+	w.pending = func() {
+		if splitSource != nil {
+			old := *splitSource
+			*splitSource = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: target}
+		}
+		if pane := w.Root.find(id); pane != nil {
+			if source.AddressKind == "subagent" { w.Fullscreen = "" }
+			w.selectKind(pane, "browser")
+			w.focusPending = id
+		}
+	}
+}

@@ -1,98 +1,28 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"whaleisle/internal/desktop/htmldocument"
-	"whaleisle/internal/desktop/mediapreview"
-	"whaleisle/internal/desktop/pdfpreview"
 	"whaleisle/internal/store/session"
+	browserpreviewui "whaleisle/internal/ui/browserpreview"
 )
 
-// openAgentDocument uses the shared PDF/static-HTML browser tabs with a child
-// source lease. It never selects that child or installs a parent workspace root.
+// Admission still requires the rendered child navigation token and full address.
+// Only the descriptor survives restart; recovery reacquires the live binding
+// after the user explicitly enters this child again, without selecting it.
 func (s *mainState) openAgentDocument(sessions *session.Store, token uint64, address session.AgentSessionAddress, path string) {
-	if sessions == nil {
-		return
+	if sessions == nil { return }
+	_, valid, err := sessions.AgentMediaPreviewSource(token, address)
+	if err != nil || !valid() { return }
+	snap := sessions.Snapshot()
+	kind := browserpreviewui.DocumentHTML
+	if strings.EqualFold(filepath.Ext(path), ".pdf") { kind = browserpreviewui.DocumentPDF }
+	source := browserpreviewui.DocumentSource{
+		Authority: s.browserWorkspaceOwner().Authority,
+		SessionID: address.ChildSessionID, ViewSessionID: snap.SelectedID,
+		AddressKind: address.Kind, ParentSessionID: address.ParentSessionID, Mode: address.Mode,
+		Workspace: snap.SelectedCwd, Path: path, Kind: kind,
 	}
-	reader, sourceValid, err := sessions.AgentMediaPreviewSource(token, address)
-	if err != nil {
-		return
-	}
-	s.mu.Lock()
-	win := s.win
-	s.pdfPreviewRequest++
-	s.htmlDocumentRequest++
-	pdfRequest, htmlRequest := s.pdfPreviewRequest, s.htmlDocumentRequest
-	s.mu.Unlock()
-	if win == nil {
-		return
-	}
-	valid := func() bool {
-		s.mu.Lock()
-		current := !s.quitting && s.sessions == sessions && s.win == win
-		s.mu.Unlock()
-		return current && sourceValid()
-	}
-	pdf := strings.EqualFold(filepath.Ext(path), ".pdf")
-	sessions.SetAgentResourceStatus(token, address, path, true, nil)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		defer cancel()
-		var pdfDoc *pdfpreview.Document
-		var htmlDoc *htmldocument.Document
-		var err error
-		if pdf {
-			var data []byte
-			data, err = mediapreview.ReadSnapshot(ctx, reader, address.ChildSessionID, path, pdfpreview.MaxBytes, valid)
-			if err == nil {
-				pdfDoc, err = pdfpreview.OpenBytes(path, data, valid)
-			}
-		} else {
-			htmlDoc, err = htmldocument.OpenRemote(ctx, reader, address.ChildSessionID, path, valid)
-		}
-		closeDocument := func() {
-			if pdfDoc != nil {
-				pdfDoc.Close()
-			}
-			if htmlDoc != nil {
-				htmlDoc.Close()
-			}
-		}
-		win.Update(func() {
-			s.mu.Lock()
-			same := s.pdfPreviewRequest == pdfRequest && s.htmlDocumentRequest == htmlRequest
-			s.mu.Unlock()
-			if !valid() || !same {
-				closeDocument()
-				sessions.SetAgentResourceStatus(token, address, path, false, errors.New("document preview replaced; reopen to retry"))
-				return
-			}
-			if err != nil {
-				sessions.SetAgentResourceStatus(token, address, path, false, err)
-				return
-			}
-			s.closeWebViewHost()
-			s.mu.Lock()
-			s.browserPreviewOpen = true
-			s.webviewOpen = false
-			s.mu.Unlock()
-			if s.browserController == nil {
-				s.browserController = s.newBrowserController(win)
-			}
-			if pdf {
-				err = s.browserController.OpenPDF(pdfDoc)
-			} else {
-				err = s.browserController.OpenHTML(htmlDoc)
-			}
-			if err != nil {
-				closeDocument()
-			}
-			sessions.SetAgentResourceStatus(token, address, path, false, err)
-		})
-	}()
+	s.openWorkspaceDocumentSource(sessions, source)
 }

@@ -17,13 +17,19 @@ func (b *Controller) OpenPDF(doc *pdfpreview.Document) error {
 	t := &Tab{ID: b.next, Document: doc, Draft: doc.Name}
 	b.Tabs = append(b.Tabs, t)
 	b.Active = len(b.Tabs) - 1
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalPDFURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnClosed: doc.Close})
+	return b.openPDFTab(t, doc)
+}
+
+func (b *Controller) openPDFTab(t *Tab, doc *pdfpreview.Document) error {
+	t.Document, t.Draft = doc, doc.Name
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalPDFURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
+		if t.source != nil { t.Document = nil }
 		t.Error = err.Error()
 	} else {
 		t.Host = h
-		h.SetVisible(true)
+		if b.current() == t { b.showHost(h) }
 	}
 	b.update()
 	return err
@@ -40,6 +46,10 @@ func (b *Controller) PrunePDFDocuments() {
 			_ = t.Host.Close()
 		}
 		t.Document.Close()
+		if t.source != nil {
+			b.releaseSourceDocument(t)
+			continue
+		}
 		if t.Error == "" {
 			t.Error = "PDF 预览已关闭、过期或所属会话改变；请重新打开文件，或使用系统打开。"
 		}

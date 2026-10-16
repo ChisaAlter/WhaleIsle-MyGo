@@ -17,13 +17,19 @@ func (b *Controller) OpenHTML(doc *htmldocument.Document) error {
 	t := &Tab{ID: b.next, HTML: doc, Draft: doc.Name}
 	b.Tabs = append(b.Tabs, t)
 	b.Active = len(b.Tabs) - 1
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalHTMLURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnClosed: doc.Close})
+	return b.openHTMLTab(t, doc)
+}
+
+func (b *Controller) openHTMLTab(t *Tab, doc *htmldocument.Document) error {
+	t.HTML, t.Draft = doc, doc.Name
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalHTMLURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
+		if t.source != nil { t.HTML = nil }
 		t.Error = "HTML 预览不可用，请使用系统打开 / HTML preview unavailable; use system open"
 	} else {
 		t.Host = h
-		h.SetVisible(true)
+		if b.current() == t { b.showHost(h) }
 	}
 	b.update()
 	return err
@@ -40,6 +46,10 @@ func (b *Controller) PruneHTMLDocuments() {
 			_ = t.Host.Close()
 		}
 		t.HTML.Close()
+		if t.source != nil {
+			b.releaseSourceDocument(t)
+			continue
+		}
 		if t.Error == "" {
 			t.Error = "HTML 预览已关闭、过期或所属会话改变；请重新打开文件，或使用系统打开。"
 		}

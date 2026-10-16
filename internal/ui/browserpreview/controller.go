@@ -18,6 +18,7 @@ import (
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
 	workspaceOwner   func() WorkspaceOwner
+	documentLoader   documentLoader
 	onFocus          func()
 	profileSeen      bool
 	floatingDocument *floatingDocumentWindow
@@ -34,6 +35,9 @@ type Controller struct {
 }
 type Tab struct {
 	workspace   browserWorkspace
+	source      *DocumentSource
+	sourcePending bool
+	sourceRead  *documentRead
 	tools       browserTools
 	Document    *pdfpreview.Document
 	HTML        *htmldocument.Document
@@ -87,7 +91,7 @@ func (b *Controller) Navigate(raw string) {
 		b.update()
 		return
 	}
-	if t.Document != nil || t.HTML != nil || t.Media != nil || t.workspace.needsNewTab(workspace) {
+	if t.source != nil || t.Document != nil || t.HTML != nil || t.Media != nil || t.workspace.needsNewTab(workspace) {
 		// Existing tabs keep their cookies/history in their original partition.
 		b.NewTab("")
 		t = b.current()
@@ -122,6 +126,7 @@ func (b *Controller) Navigate(raw string) {
 	b.update()
 }
 func (b *Controller) Hide() {
+	b.pauseDocumentReads()
 	b.CancelAction()
 	b.cancelInteractivePreviews()
 	for _, t := range b.Tabs {
@@ -139,7 +144,7 @@ func (b *Controller) Select(index int) {
 	b.resumeCurrent()
 	if t := b.current(); t.Host != nil {
 		b.showHost(t.Host)
-		if t.Document == nil && t.HTML == nil && t.Media == nil {
+		if t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil {
 			t.Draft = t.Host.State().URL
 		}
 	}
@@ -179,6 +184,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.pauseDocumentReads()
 	b.stopFloatingDocument()
 	b.stopPictureInPicture()
 	b.CancelAction()
@@ -243,6 +249,8 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 								label += " " + truncate(tab.Media.Name, 12)
 							} else if tab.HTML != nil {
 								label += " " + truncate(tab.HTML.Name, 12)
+							} else if tab.source != nil {
+								label += " " + truncate(tab.source.Path, 12)
 							} else if tab.Host != nil {
 								st := tab.Host.State()
 								if st.Title != "" {
@@ -276,6 +284,10 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				}
 				if t.HTML != nil {
 					b.htmlControls(c, t, dark)
+					return
+				}
+				if t.source != nil {
+					b.documentSourceControls(c, t)
 					return
 				}
 				if ui.Button(c, "←").Disabled(!s.CanBack).Clicked() && t.Host != nil {
@@ -348,7 +360,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if t.Document == nil && t.HTML == nil && t.Media == nil {
 				status = "分区「" + t.browserWorkspaceLabel() + "」 · " + status
 			}
-			if !b.profileSeen && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
+			if !b.profileSeen && t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
 				const notice = "Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。"
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)

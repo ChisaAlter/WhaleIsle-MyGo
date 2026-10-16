@@ -2855,6 +2855,9 @@ func mainView(c *ui.Context) {
 		}
 	}
 	marketInstallReady := desktopmarket.InstallReady(nodeBin)
+	if state.layout.Workspace == nil {
+		state.layout.Workspace = &frame.WorkspacePanes{}
+	}
 	layout := state.layout
 	win := state.win
 	chatList := state.chatList
