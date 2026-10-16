@@ -67,7 +67,11 @@ func refresh(m Model) {
 	text, errMsg := LoadDiff(m.WorkspaceRoot, rel)
 	if m.Workbench != nil {
 		var err error
-		text, err = git.DiffScope(m.WorkspaceRoot, rel, m.Workbench.Staged)
+		if m.Workbench.AgainstHEAD {
+			text, err = git.DiffHEAD(m.WorkspaceRoot, rel)
+		} else {
+			text, err = git.DiffScope(m.WorkspaceRoot, rel, m.Workbench.Staged)
+		}
 		errMsg = ""
 		if err != nil {
 			errMsg = err.Error()

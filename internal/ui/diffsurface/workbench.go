@@ -23,6 +23,7 @@ type Workbench struct {
 	invalidate                                func()
 	Changes                                   []git.Change
 	Staged                                    bool
+	AgainstHEAD                               bool
 	Message, Status, ReviewToken, ReviewText  string
 	Loaded                                    bool
 	Branches                                  []git.Branch
@@ -81,6 +82,7 @@ func scopeDiff(m Model, path string, staged bool) {
 		m.Workbench.CancelComparison()
 		m.Workbench.BaseRef = ""
 		m.Workbench.Staged = staged
+		m.Workbench.AgainstHEAD = false
 	}
 	refresh(m)
 }
@@ -120,6 +122,14 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		paintComparison(c, m, fg, muted)
 		paintBranches(c, m, fg, muted)
 		ui.Row(c).Gap(6).Children(func() {
+			if ui.Button(c, word("全部修改（对比 HEAD）", "All changes vs HEAD")).Clicked() {
+				if m.PathFilter != nil {
+					*m.PathFilter = ""
+				}
+				w.CancelComparison()
+				w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
+				refresh(m)
+			}
 			if ui.Button(c, word("全部未暂存", "All unstaged")).Clicked() {
 				scopeDiff(m, "", false)
 			}

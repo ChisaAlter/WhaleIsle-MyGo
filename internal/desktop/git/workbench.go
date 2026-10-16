@@ -137,19 +137,39 @@ func CommitStaged(root, message string) (string, error) {
 	}
 	return CommitReviewed(root, message, token)
 }
+
+// DiffScope shows index-only or working-tree changes. The whole working-tree
+// view includes untracked files without adding them to the index.
 func DiffScope(root, path string, staged bool) (string, error) {
-	args := []string{"diff", "--no-ext-diff", "--no-textconv"}
-	if staged {
-		args = append(args, "--cached")
-	}
+	return diffWorkingTree(root, path, staged, false)
+}
+
+// DiffHEAD shows the net working-tree result against HEAD, combining staged and
+// unstaged changes once, plus untracked files. This is a read-only review.
+func DiffHEAD(root, path string) (string, error) {
+	return diffWorkingTree(root, path, false, true)
+}
+
+func diffWorkingTree(root, path string, staged, head bool) (string, error) {
 	if path != "" {
 		if err := literalPath(path); err != nil {
 			return "", err
 		}
-		args = append(args, "--", path)
 	}
+	args := []string{"diff", "--no-ext-diff", "--no-textconv"}
+	if staged {
+		args = append(args, "--cached")
+	}
+	if head {
+		args = append(args, "HEAD")
+	}
+	filter := path
+	if filter == "" {
+		filter = "."
+	}
+	args = append(args, "--", filter)
 	out, err := localCommand(root, "--literal-pathspecs", args...)
-	if err != nil || out != "" || staged || path == "" {
+	if err != nil || staged {
 		return out, err
 	}
 	changes, err := Changes(root)
@@ -157,27 +177,54 @@ func DiffScope(root, path string, staged bool) (string, error) {
 		return "", err
 	}
 	for _, c := range changes {
-		if c.Path == path && c.Index == '?' {
-			p := filepath.Join(root, filepath.FromSlash(path))
-			info, e := os.Lstat(p)
-			if e != nil {
-				return "", e
-			}
-			if !info.Mode().IsRegular() || info.Size() > 512*1024 {
-				return "", errors.New("untracked file is binary, a link, or too large to preview")
-			}
-			data, e := os.ReadFile(p)
-			if e != nil {
-				return "", e
-			}
-			if strings.ContainsRune(string(data), 0) {
-				return "", errors.New("binary file cannot be previewed")
-			}
-			lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
-			return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n+%s", path, path, path, len(lines), strings.Join(lines, "\n+")), nil
+		if c.Index != '?' || (path != "" && c.Path != path) {
+			continue
 		}
+		patch, e := untrackedDiff(root, c.Path)
+		if e != nil {
+			if path != "" {
+				return "", e
+			}
+			// Keep other readable changes visible and identify excluded content.
+			patch = fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\nPreview unavailable: %s\n", c.Path, c.Path, e)
+		}
+		if out != "" && !strings.HasSuffix(out, "\n") {
+			out += "\n"
+		}
+		out += patch
 	}
-	return "", nil
+	return out, nil
+}
+
+func untrackedDiff(root, path string) (string, error) {
+	if err := literalPath(path); err != nil {
+		return "", err
+	}
+	p := filepath.Join(root, filepath.FromSlash(path))
+	info, err := os.Lstat(p)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() || info.Size() > 512*1024 {
+		return "", errors.New("untracked file is a link or too large to preview")
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return "", err
+	}
+	header := fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\n", path, path)
+	if strings.ContainsRune(string(data), 0) {
+		return header + fmt.Sprintf("Binary files /dev/null and b/%s differ\n", path), nil
+	}
+	if len(data) == 0 {
+		return header, nil
+	}
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+	patch := header + fmt.Sprintf("--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n+%s\n", path, len(lines), strings.Join(lines, "\n+"))
+	if data[len(data)-1] != '\n' {
+		patch += "\\ No newline at end of file\n"
+	}
+	return patch, nil
 }
 
 // StagedSummary lists the exact repository-wide paths included by a staged commit.
