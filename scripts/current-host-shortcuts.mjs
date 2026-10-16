@@ -3,6 +3,7 @@
 // vendor/deepseek-harness/packages/client/shortcuts/src/client/index.ts
 import fs from 'node:fs';
 import {applyShortcutChords} from './current-host-shortcut-chords.mjs';
+import {applyShortcutFrames} from './current-host-shortcut-frames.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
@@ -31,15 +32,21 @@ export const patchSHA256=hash(patchSource.toString()+replacement);
 export function applyShortcutProvider(harness){
  const file=path.join(harness,relativePath),recordFile=path.join(harness,'mygo-shortcut-provider.json');
  const source=fs.readFileSync(file,'utf8');
+ const compose=record=>{
+  applyShortcutChords(harness);
+  const frames=applyShortcutFrames(harness);
+  const combined={...record,providerSourceSHA256:record.providerSourceSHA256??record.sourceSHA256,sourceSHA256:frames.indexSHA256,frames};
+  fs.writeFileSync(recordFile,JSON.stringify(combined,null,2));return combined;
+ };
  if(fs.existsSync(recordFile)){
   const r=JSON.parse(fs.readFileSync(recordFile,'utf8'));
-  if(r.id===id&&r.patchSHA256===patchSHA256&&r.sourceSHA256===hash(source)){applyShortcutChords(harness);return r;}
+  if(r.id===id&&r.patchSHA256===patchSHA256&&r.sourceSHA256===hash(source)){return compose(r);}
   throw new Error('Shortcut provider adaptation record mismatch');
  }
  const output=patchSource(source);
  const record={id,sourceCommit:'e9f584be6d3b491ce777bb6823f30bc2bbc6f195',baseSHA256,patchSHA256,sourceSHA256:hash(output)};
  applyShortcutChords(harness);
- fs.writeFileSync(file,output);fs.writeFileSync(recordFile,JSON.stringify(record,null,2));return record;
+ fs.writeFileSync(file,output);fs.writeFileSync(recordFile,JSON.stringify(record,null,2));return compose(record);
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{console.log(JSON.stringify(applyShortcutProvider(process.argv[2])))}catch(e){console.error(e.message);process.exitCode=1}

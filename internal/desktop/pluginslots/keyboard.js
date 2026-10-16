@@ -4,16 +4,25 @@ function whaleBindProductKeyboard(ctx) {
  const owner=ctx.shortcuts;
  if(!owner?.catalog?.getSnapshot||!owner.config?.getSnapshot||typeof WebSocket==='undefined')return;
  ctx.effect(()=>{
-  let stopped=false,composing=false,recording=false,serial=0,revision='',accepted=[],off=[],held=new Set(),consumed=new Set(),lastMods=-1;
+  let stopped=false,composing=false,recording=false,serial=0,revision='',accepted=[],off=[],held=new Set(),consumed=new Set(),lastMods=-1,acceptedFrame=null,focusTimer; 
   const endpoint=new URL('/__whale_keyboard',location.href);endpoint.protocol=endpoint.protocol==='https:'?'wss:':'ws:';
   const socket=new WebSocket(endpoint.href,'whaleisle.product-keyboard.v1');
   const send=value=>{if(!stopped&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(value))};
+  function focusedFrame(){
+   let target=document.activeElement;
+   while(target?.shadowRoot?.activeElement)target=target.shadowRoot.activeElement;
+   if(!window.whaleisleShortcutProvider?.guestKeyboard?.ready||!target?.isConnected
+    ||!target.matches?.('iframe[data-sidebar-browser-frame],iframe[data-html-preview]')
+    ||typeof target.name!=='string'||!target.name)return null;
+   return {element:target,name:target.name};
+  }
   function pageOwnsInput(){
    if(recording||composing||!document.hasFocus()||window!==window.top)return false;
    let target=document.activeElement;
    while(target?.shadowRoot?.activeElement)target=target.shadowRoot.activeElement;
-   if(target?.closest?.('input,textarea,select,[contenteditable],.xterm,.terminal,[data-terminal],[data-shortcut-owner],iframe,webview'))return false;
    if(document.querySelector('dialog[open],[aria-modal="true"]'))return false;
+   if(focusedFrame())return true;
+   if(target?.closest?.('input,textarea,select,[contenteditable],.xterm,.terminal,[data-terminal],[data-shortcut-owner],iframe,webview'))return false;
    return true;
   }
   function bindings(){
@@ -33,6 +42,7 @@ function whaleBindProductKeyboard(ctx) {
   }
   function publish(){
    held.clear();consumed.clear();lastMods=-1;
+   acceptedFrame=focusedFrame();
    accepted=bindings();revision=String(owner.config.getSnapshot().revision)+':'+(++serial);
    send({type:'state',revision,active:pageOwnsInput(),bindings:accepted});
   }
@@ -42,14 +52,28 @@ function whaleBindProductKeyboard(ctx) {
   const onCompositionStart=()=>{composing=true;publish()},onCompositionEnd=()=>{composing=false;publish()};
   const events=[['focusin',publish],['focusout',publish],['compositionstart',onCompositionStart],['compositionend',onCompositionEnd]];
   for(const [event,fn]of events)document.addEventListener(event,fn,true);
-  window.addEventListener('focus',publish);window.addEventListener('blur',publish);
+  const onBlur=()=>{publish();clearTimeout(focusTimer);focusTimer=setTimeout(publish,0)};
+  window.addEventListener('focus',publish);window.addEventListener('blur',onBlur);
+  window.addEventListener('whaleisle-guest-keyboard-ready',publish);
   const observer=typeof MutationObserver==='undefined'?null:new MutationObserver(publish);
-  observer?.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['role','aria-modal','contenteditable','inert']});
+  observer?.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['role','aria-modal','contenteditable','inert','name','src','data-html-preview','data-sidebar-browser-frame']});
   off.push(owner.catalog.subscribe(publish),owner.config.subscribe(publish));
   socket.addEventListener('open',publish);
   socket.addEventListener('message',event=>{
    let input;try{input=JSON.parse(event.data)}catch{return}
    if(stopped||input.type!=='key'||input.revision!==revision||!pageOwnsInput()||!accepted.some(k=>k.code===input.code&&k.mods===input.mods&&k.secondCode===input.secondCode))return;
+   const frame=focusedFrame();
+   if(acceptedFrame||frame){
+    if(!acceptedFrame||!frame||acceptedFrame.element!==frame.element||acceptedFrame.name!==frame.name)return;
+    held.clear();consumed.clear();
+    // Top-product subscription only. No postMessage, guest script or preview RPC.
+    // The original native.ts subscriber independently rechecks frame ownership.
+    window.dispatchEvent(new CustomEvent('whaleisle-native-frame-key',{detail:{kind:'iframe',
+     revision:String(owner.config.getSnapshot().revision),frameName:frame.name,code:input.code,
+     ...(input.secondCode?{secondCode:input.secondCode}:{}),control:!!(input.mods&1),alt:!!(input.mods&2),
+     shift:!!(input.mods&4),meta:!!(input.mods&8),repeat:false}}));
+    return;
+   }
    // Re-enter the original DOM dispatcher and feature-owned resolvers. This
    // synthetic event has no browser default, so native interception cannot
    // also open Print/Find/etc. Local page listeners retain preventDefault.
@@ -82,7 +106,7 @@ function whaleBindProductKeyboard(ctx) {
    held.clear();
   }
   window.addEventListener('keydown',physical,true);window.addEventListener('keyup',physical,true);
-  function dispose(){if(stopped)return;stopped=true;held.clear();consumed.clear();window.removeEventListener('keydown',physical,true);window.removeEventListener('keyup',physical,true);for(const fn of off)fn();observer?.disconnect();for(const [event,fn]of events)document.removeEventListener(event,fn,true);window.removeEventListener('focus',publish);window.removeEventListener('blur',publish);window.removeEventListener('pagehide',dispose);if(owner.recording===record)owner.recording=originalRecording;socket.close()}
+  function dispose(){if(stopped)return;stopped=true;held.clear();consumed.clear();window.removeEventListener('keydown',physical,true);window.removeEventListener('keyup',physical,true);for(const fn of off)fn();observer?.disconnect();for(const [event,fn]of events)document.removeEventListener(event,fn,true);window.removeEventListener('focus',publish);window.removeEventListener('blur',onBlur);clearTimeout(focusTimer);window.removeEventListener('whaleisle-guest-keyboard-ready',publish);window.removeEventListener('pagehide',dispose);if(owner.recording===record)owner.recording=originalRecording;socket.close()}
   socket.addEventListener('close',dispose);socket.addEventListener('error',dispose);window.addEventListener('pagehide',dispose);
   return dispose;
  });

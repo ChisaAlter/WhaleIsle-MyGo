@@ -13,6 +13,23 @@
   };
   const result=queue.then(run);queue=result.catch(()=>{});return result;
  };
+ // A top-product-only subscription, not a command invocation API. The key
+ // transport supplies physical gestures; original native.ts checks live frame
+ // identity, focus and accepted preference revision again before dispatch.
+ const guestListeners=new Set();
+ const guestKeyboard=Object.freeze({
+  subscribe(listener){guestListeners.add(listener);window.dispatchEvent(new CustomEvent('whaleisle-guest-keyboard-ready'));return ()=>{guestListeners.delete(listener);window.dispatchEvent(new CustomEvent('whaleisle-guest-keyboard-ready'))}},
+  get ready(){return guestListeners.size>0},
+ });
+ window.addEventListener('whaleisle-native-frame-key',event=>{
+  const input=event.detail;
+  if(closed||!input||input.kind!=='iframe'||typeof input.frameName!=='string'||!input.frameName||typeof input.revision!=='string'||typeof input.code!=='string')return;
+  // Never accept menu/commandId, postMessage, frame RPC, or arbitrary actions.
+  const gesture={kind:'iframe',revision:input.revision,frameName:input.frameName,code:input.code,
+   ...(typeof input.secondCode==='string'?{secondCode:input.secondCode}:{}),
+   control:input.control===true,alt:input.alt===true,shift:input.shift===true,meta:input.meta===true,repeat:false};
+  for(const listener of guestListeners)listener(gesture);
+ });
  const api=Object.freeze({
   get:definitions=>request({operation:'get',definitions}).then(publish),
   edit:(edit,revision)=>request({operation:'edit',edit,revision}).then(r=>{publish(r.snapshot);return r}),
@@ -24,6 +41,6 @@
   // Recording ownership remains with the existing accepted-registry adapter.
   recording:async active=>{window.dispatchEvent(new CustomEvent('whaleisle-shortcut-recording',{detail:!!active}))},
  });
- Object.defineProperty(window,'whaleisleShortcutProvider',{value:Object.freeze({version:1,platform:__MYGO_PLATFORM__,shortcuts:api}),writable:false,configurable:false});
- window.addEventListener('pagehide',()=>{closed=true;listeners.clear();if(timer!==null)clearInterval(timer)},{once:true});
+ Object.defineProperty(window,'whaleisleShortcutProvider',{value:Object.freeze({version:1,platform:__MYGO_PLATFORM__,shortcuts:api,guestKeyboard}),writable:false,configurable:false});
+ window.addEventListener('pagehide',()=>{closed=true;listeners.clear();guestListeners.clear();if(timer!==null)clearInterval(timer)},{once:true});
 })();
