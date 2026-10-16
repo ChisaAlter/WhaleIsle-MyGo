@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,14 +84,12 @@ func previewPublishedHTML(s *session.Store, sessionID, attachmentID string) {
 		// Never fetch an arbitrary attachment or use a previously switched session.
 		s.LoadVisualReply(ctx, sessionID, attachmentID)
 		s.PreviewVisualReply(ctx, sessionID, attachmentID, func(ctx context.Context, html string) (session.VisualReplyCapture, error) {
-			if !htmlpreview.Available() {
-				status := htmlpreview.Probe(ctx)
-				if !status.Available {
-					return session.VisualReplyCapture{}, fmt.Errorf("%s", status.Reason)
-				}
+			result, err := captureHTMLInHelper(ctx, html, 728, "dark")
+			if err != nil {
+				return session.VisualReplyCapture{}, err
 			}
-			result, err := htmlpreview.RenderSaved(ctx, html, 728, "dark")
-			return session.VisualReplyCapture{PNG: result.PNG, Width: result.Width, ContentHeight: result.ContentHeight, CapturedHeight: result.CapturedHeight}, err
+			png, err := base64.StdEncoding.DecodeString(result.PNG)
+			return session.VisualReplyCapture{PNG: png, Width: result.Width, ContentHeight: result.ContentHeight, CapturedHeight: result.CapturedHeight}, err
 		})
 	}()
 }
@@ -163,4 +162,15 @@ func interactivePublishedHTMLHandler(s *session.Store, sessionID string, dark bo
 			})
 		}()
 	}
+}
+
+// Shared by the authenticated capture endpoint and an authorized saved reply.
+// The helper receives bytes only, never Host credentials or workspace paths.
+func captureHTMLInHelper(ctx context.Context, html string, width int, appearance string) (htmlpreview.CaptureResult, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return htmlpreview.CaptureResult{}, err
+	}
+	helper := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
+	return previewprocess.CaptureExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helper}, previewprocess.Document{HTML: html, Width: width, Appearance: appearance})
 }

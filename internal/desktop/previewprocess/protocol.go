@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"whaleisle/internal/desktop/htmlpreview"
 )
 
 const (
@@ -36,6 +38,7 @@ type Document struct {
 	HTML       string
 	Width      int
 	Appearance string
+	capture    bool
 }
 
 // Session owns the entire helper job until Close, cancellation, process exit,
@@ -45,6 +48,7 @@ type Session struct {
 	once    sync.Once
 	closeFn func() error
 	err     error
+	capture *htmlpreview.CaptureResult
 }
 
 func (s *Session) Done() <-chan struct{} { return s.done }
@@ -92,6 +96,7 @@ type packet struct {
 	Bytes      int    `json:"bytes,omitempty"`
 	Width      int    `json:"width,omitempty"`
 	Appearance string `json:"appearance,omitempty"`
+	Capture    bool   `json:"capture,omitempty"`
 }
 
 func writePacket(w io.Writer, p packet) error {
@@ -163,7 +168,7 @@ func sendDocument(w io.Writer, nonce string, d Document) error {
 	if err := validateDocument(d); err != nil {
 		return err
 	}
-	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Appearance: d.Appearance}); err != nil {
+	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Appearance: d.Appearance, Capture: d.capture}); err != nil {
 		return err
 	}
 	return writeAll(w, []byte(d.HTML))
@@ -184,6 +189,6 @@ func receiveDocument(r io.Reader, nonce string) (Document, error) {
 	if _, err := io.ReadFull(r, body); err != nil {
 		return Document{}, err
 	}
-	d := Document{HTML: string(body), Width: p.Width, Appearance: p.Appearance}
+	d := Document{HTML: string(body), Width: p.Width, Appearance: p.Appearance, capture: p.Capture}
 	return d, validateDocument(d)
 }

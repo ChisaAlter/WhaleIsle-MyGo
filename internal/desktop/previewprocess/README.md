@@ -164,3 +164,18 @@ was directly retrieved and counted.
   https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2environment8
 - Google Project Zero: native process-launch/WFP executable exception analysis:
   https://projectzero.google/2021/08/understanding-network-access-windows-app.html
+
+## Bounded capture mode
+
+CaptureExperimental uses the same helper and containment handshake to return
+one PNG/width/contentHeight/capturedHeight/consoleMessages result instead of
+showing an interactive window. The capture reuses MyGo's existing CapturePage
+API and htmlpreview's measurement/crop/PNG pipeline. The parent checks the tree
+before document delivery, after loading, and after receiving the bounded result,
+then closes the job before returning. Capture has a 20-second overall deadline.
+The helper never receives workspace paths, URLs or Host credentials.
+
+The authenticated capture POST and published-reply PNG action use this path.
+The status endpoint and global Readiness still report the existing in-process
+runtime verification; no successful helper call changes them. Windows runtime
+operation and non-Windows isolation remain unverified/unsupported respectively.

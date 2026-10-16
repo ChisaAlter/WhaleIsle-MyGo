@@ -424,6 +424,16 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
 		return nil, err
 	}
+	if doc.capture {
+		result, captureErr := receiveCapture(outputRead, nonce, doc.Width)
+		if captureErr != nil {
+			return nil, captureErr
+		}
+		if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
+			return nil, err
+		}
+		s.capture = &result
+	}
 	if !startupTimer.Stop() {
 		return nil, errors.New("preview startup deadline expired")
 	}

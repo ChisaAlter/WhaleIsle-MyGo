@@ -2296,7 +2296,7 @@ func startHarness(cfg config.Config) {
 	}
 	installSrv := harness.NewInstallServer(harness.InstallServerOptions{
 		Project:     projectDispatch,
-		HTMLPreview: htmlpreview.Handler(),
+		HTMLPreview: htmlpreview.HandlerWithRenderer(captureHTMLInHelper),
 		NodeBin:     cfg.NodeBin,
 		OnRestart: func() {
 			state.mu.Lock()

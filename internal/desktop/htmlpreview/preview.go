@@ -3,6 +3,7 @@
 package htmlpreview
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -36,9 +37,17 @@ type request struct {
 // A future renderer must supply a fresh isolated context, deny network, native
 // bindings, navigation, popups, permissions and downloads before loading any
 // HTML, capture PNG in memory, and destroy that context on cancellation/20s.
-func Handler() http.Handler { return http.HandlerFunc(serve) }
+type Renderer func(context.Context, string, int, string) (CaptureResult, error)
 
-func serve(w http.ResponseWriter, r *http.Request) {
+func Handler() http.Handler { return HandlerWithRenderer(nil) }
+
+// HandlerWithRenderer preserves request validation and readiness reporting.
+// The supplied trusted callback owns its separate process isolation gate.
+func HandlerWithRenderer(render Renderer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { serveWithRenderer(w, r, render) })
+}
+
+func serveWithRenderer(w http.ResponseWriter, r *http.Request, render Renderer) {
 	if r.Context().Err() != nil {
 		return
 	}
@@ -80,7 +89,12 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	}
 	// Both entry points keep the production readiness gate closed until the
 	// Windows runtime isolation/capture checks have been verified.
-	result, err := capturePrepared(r.Context(), input)
+	var result CaptureResult
+	if render == nil {
+		result, err = capturePrepared(r.Context(), input)
+	} else {
+		result, err = render(r.Context(), input.HTML, input.Width, input.Appearance)
+	}
 	if r.Context().Err() != nil {
 		return
 	}

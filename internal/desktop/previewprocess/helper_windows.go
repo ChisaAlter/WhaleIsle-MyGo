@@ -131,6 +131,26 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil || currentPID != pid {
 		return errors.New("preview browser changed before document load")
 	}
+	if doc.capture {
+		result, err := htmlpreview.CaptureProcessDocument(startup, w, doc.HTML, doc.Width, doc.Appearance)
+		if err != nil {
+			return err
+		}
+		currentPID, err = w.Page().BrowserProcessID()
+		if err != nil || currentPID != pid {
+			return errors.New("preview browser changed during capture")
+		}
+		if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid}); err != nil {
+			return err
+		}
+		if err := sendCapture(output, nonce, result); err != nil {
+			return err
+		}
+		// Keep the browser tree alive until the parent validates and closes it.
+		var b [1]byte
+		_, _ = input.Read(b[:])
+		return nil
+	}
 	shell, err := htmlpreview.ProcessDocumentShell(doc.HTML, doc.Width, doc.Appearance)
 	if err != nil {
 		return err

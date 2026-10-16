@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-type consoleMessage struct {
+type ConsoleMessage struct {
 	Level string `json:"level"`
 	Text  string `json:"text"`
 }
-type captureResult struct {
+type CaptureResult struct {
 	PNG             string           `json:"png"`
 	Width           int              `json:"width"`
 	ContentHeight   int              `json:"contentHeight"`
@@ -26,6 +26,9 @@ type captureResult struct {
 
 // captureWindow has no filesystem, URL-opening, credential or shared-browser
 // methods. Only the isolated native adapter may construct a production value.
+type captureResult = CaptureResult
+type consoleMessage = ConsoleMessage
+
 type captureWindow interface {
 	LoadBlank(context.Context) error
 	Eval(context.Context, string) (any, error)
