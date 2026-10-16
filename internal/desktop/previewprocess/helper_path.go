@@ -8,6 +8,9 @@ import (
 // HelperPath resolves only the companion shipped beside the trusted application.
 // It never searches PATH or accepts a document-supplied location.
 func HelperPath(executable string) string {
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(filepath.Dir(executable), "..", "Helpers", "WhaleIsle Preview.app", "Contents", "MacOS", "whaleisle-preview")
+	}
 	name := "whaleisle-preview"
 	if runtime.GOOS == "windows" {
 		name += ".exe"

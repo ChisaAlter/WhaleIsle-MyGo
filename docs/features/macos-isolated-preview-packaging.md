@@ -1,62 +1,92 @@
-# macOS isolated preview: optional bundle packaging
+# macOS isolated preview: legacy compatibility helper
 
-Status: packaging integration only. Isolated HTML rendering on macOS is still
-unavailable. This change does not create a renderer, alter readiness, change
-HelperPath, or permit HTML to be sent to a macOS child process.
+Status: source implementation; Darwin/arm64 Go launcher cross-compiled. Native
+Cocoa compilation, signing and macOS runtime acceptance have not been performed.
+This backend uses the public but deprecated single-process WebKit WebView API.
+It is not WKWebView-equivalent, and modern HTML/CSS/JavaScript compatibility is
+unverified. Global rendering readiness is unchanged.
 
-## Existing packaging entry point
+## Implemented flow
 
-The `stage` operation in `scripts/package-macos.mjs` accepts an optional
-`previewHelperBundle` configuration value pointing to an explicitly supplied,
-already-signed `.app`. Omit it to preserve existing package behavior. The
-packager does not build or sign a helper, access a keychain, install credentials,
-launch an application, or notarize anything.
+`previewprocess.OpenExperimental` on macOS resolves the dedicated companion at
+`Contents/Helpers/WhaleIsle Preview.app/Contents/MacOS/whaleisle-preview` relative
+to the host executable. It rejects other paths, symlink substitution, unsigned
+or ad-hoc builds, mismatched signing teams and unexpected entitlements.
 
-A supplied helper must have:
+The parent verifies an Apple-issued signature and the exact App Sandbox-only
+entitlement dictionary. It records the signed helper CDHash, launches with a
+minimal environment and only standard IPC/diagnostic descriptors, then checks
+the live process against that CDHash through Security.framework before sending
+any document. The helper independently checks its own live signature,
+entitlements and same-team host identity. App Sandbox enforcement comes from
+macOS activation of the signed executable, not a hand-written sandbox profile
+or an ephemeral web data store. No private API is used.
 
-- CFBundleIdentifier `org.whaleisle.preview`
-- CFBundleExecutable `whaleisle-preview`
-- CFBundlePackageType `APPL`
-- A Mach-O executable matching the selected package architecture
-- A valid Apple-issued code signature, with a concrete TeamIdentifier
-- Exactly one entitlement: `com.apple.security.app-sandbox` set to boolean true
-- Regular files/directories only; no symlinks or special files
+The legacy WebView runtime class must exist. The helper receives the existing
+opaque-iframe document shell through bounded byte IPC and enables JavaScript
+only inside the separate process. It denies external/file resource requests,
+redirects, page navigation, popups, dialogs, file panels and downloads; Java and
+plugins are disabled. The helper has no network or file-selection entitlement
+and exposes no native page bridge. The renderer stays in the helper process,
+avoiding WKWebView's independently launched WebContent/Networking services.
 
-The entitlement allowlist excludes network client/server, user-selected files,
-App Sandbox inheritance, app groups, temporary exceptions and debug access.
-An independent sandboxed helper must not inherit the unsandboxed host's rights.
-The app is copied with `ditto` into
-`Contents/Helpers/WhaleIsle Preview.app` and verified again at the destination.
-Its bundle identifier and signing team are recorded in the package manifest.
+Interactive mode shows a separate native window with mouse and keyboard input.
+Theme messages update the existing document. Capture mode reads the shell's
+bounded readiness/height state, resizes to at most 4000 pixels, and returns PNG
+bytes through the existing validated capture protocol. Parent cancellation,
+startup failure, pipe closure, window closure or the thirty-minute lifetime
+limit terminates the helper. Inline embedding is not implemented in this first
+compatibility increment and fails with an explicit separate-window message.
 
-The external signing workflow must preserve this helper's restrictive
-entitlements. The `archive` operation rechecks the embedded helper and the
-host's signature, and requires both to belong to the same signing team before
-creating the archive. Do not use a blanket deep-sign operation that replaces
-nested helper entitlements with the host's. Packages without a helper do not
-acquire any new signing requirement.
+## Build and package
 
-## Remaining rendering boundary
+On a Mac with the native SDK, run:
 
-Packaging validation is not runtime sandbox attestation. There is currently no
-macOS helper implementation suitable for this contract. MyGo's native
-BrowserProcessID implementation is Windows-only. Its macOS IsolatedPreview
-window uses a nonpersistent WKWebsiteDataStore; that is storage behavior, not a
-process isolation proof. WKWebView's public interface does not provide the
-WebContent/Networking service identity and containment checks required by the
-current pre-document protocol. A process-parent walk alone is insufficient for
-XPC services. This increment adds no private selectors or private sandbox SPI.
+    sh scripts/build-preview-macos.sh arm64 /path/to/new-output
 
-Before enabling macOS document delivery, implement and validate the actual
-signed helper runtime, trustworthy launch identity, helper and WebKit service
-containment before document delivery, bounded byte-only IPC, lifecycle cleanup,
-and rendering/capture integration. If those checks cannot be established on a
-target system, preserve the static preview and fail closed. Neither a valid
-signature nor a private data store may substitute for these checks.
+Use `amd64` for an Intel target. The build produces an unsigned `.app` and a
+copy of `preview.entitlements`. The script does not launch the helper, sign it,
+access a keychain, configure credentials, install anything or notarize it.
+Use the existing external signing workflow and the host's signing team, keeping
+exactly `com.apple.security.app-sandbox=true`. Do not add network, inherited
+sandbox, user-selected-file, debugging or JIT exceptions to make a failing
+runtime start. If the target's legacy engine cannot run under these constraints,
+that target is unsupported and must retain the static fallback.
 
-## Verification performed
+The existing `stage` operation in `scripts/package-macos.mjs` accepts
+`previewHelperBundle` pointing to the already-signed `.app`. Omission preserves
+existing package behavior. The supplied helper must have identifier
+`org.whaleisle.preview`, executable `whaleisle-preview`, package type `APPL`,
+matching Mach-O architecture, an Apple-issued signature, and exactly the
+App Sandbox entitlement. Symlinks and special files are rejected.
 
-A focused Node test covers the entitlement allowlist and signing-team parser;
-`node --check scripts/package-macos.mjs` checks packaging entry syntax. Real
-macOS codesign/plutil/ditto execution, signing, archives and WebKit rendering
-were not exercised in the Linux development environment.
+The bundle is copied with `ditto` into `Contents/Helpers/WhaleIsle Preview.app`
+and verified again. Its signing identity is recorded in the package manifest.
+The archive operation rechecks the helper and same-team host signature before
+creating the archive. The external signing workflow must preserve nested helper
+entitlements; do not blanket deep-sign it using host entitlements.
+
+## Acceptance still required
+
+The Go launcher cross-compile does not validate the Objective-C helper or its
+SDK declarations. A real signed Mac must establish:
+
+- Native helper compilation and public WebView availability on supported OSes
+- Startup under App Sandbox-only entitlements, including any legacy JSC/JIT constraints
+- Real HTML/JS, iframe sandbox, forms, canvas and CSS compatibility
+- Correct high-DPI PNG pixels, dimensions, console output and input behavior
+- Network/file attempts blocked by the OS, not just navigation delegates/CSP
+- Cancellation, window close, process identity and malformed IPC behavior
+
+Missing capabilities or initialization errors preserve the static fallback.
+No Windows behavior or default in-process HTML renderer is changed.
+
+## Sources
+
+- WebKit describes legacy WebView as single-process:
+  https://webkit.org/debugging-webkit/
+- Apple marks the legacy APIs deprecated:
+  https://developer.apple.com/documentation/webkit/setting-up-a-web-view-legacy
+- Current WK service initialization has network-access prerequisites; this
+  backend deliberately does not use WKWebView:
+  https://github.com/WebKit/WebKit/blob/main/Source/WebKit/Shared/EntryPointUtilities/Cocoa/XPCService/XPCServiceEntryPoint.mm
