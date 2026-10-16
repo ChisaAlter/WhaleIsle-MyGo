@@ -448,7 +448,9 @@ func (s *Supervisor) run(gen int) {
 				}
 			}
 			s.mu.Lock()
-			s.attempt = 0
+			if s.gen == gen {
+				s.attempt = 0
+			}
 			s.mu.Unlock()
 			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
 				return
