@@ -53,7 +53,7 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 			label := releaseText("打开“已安装应用”", "Open Installed apps")
 			for _, text := range []string{
 				releaseText("卸载应用", "Uninstall application"),
-				releaseText("打开 Windows 的“已安装应用”。请核对所选应用及安装位置，再由你完成卸载；此入口不会自动卸载、清理数据或退出当前应用。", "Open Windows Installed apps. Check the selected application and install location, then complete uninstall there. This entry does not automatically uninstall, delete data or quit the app."),
+				releaseText("可检测当前原生安装并确认启动卸载器；这会停止任务并退出应用。也可打开“已安装应用”手动核对并卸载。", "Detect the current native installation and confirm starting its uninstaller; this stops tasks and quits the app. Alternatively, open Installed apps to check and uninstall manually."),
 				label,
 			} {
 				if !tt.HasText(text) {
@@ -62,6 +62,23 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 			}
 			if calls != 0 {
 				t.Fatal("render opened settings")
+			}
+			directCalls := 0
+			model.ApplicationUninstall.OnUninstallCurrent = func() { directCalls++ }
+			tt.Frame()
+			directLabel := releaseText("检测并卸载当前应用", "Detect and uninstall current app")
+			if directCalls != 0 {
+				t.Fatal("render dispatched uninstall")
+			}
+			if err := tt.Click(directLabel); err != nil {
+				t.Fatal(err)
+			}
+			if directCalls != 1 {
+				t.Fatal("explicit click did not dispatch once")
+			}
+			tt.Frame()
+			if directCalls != 1 {
+				t.Fatal("frame repeated uninstall")
 			}
 			before := tt.Texts()
 			for expected := 1; expected <= 2; expected++ {
@@ -90,6 +107,12 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 			}
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
+			}
+			if err := tt.Click(directLabel); err != nil {
+				t.Fatal(err)
+			}
+			if directCalls != 1 {
+				t.Fatal("unsupported direct action dispatched")
 			}
 			if calls != 2 {
 				t.Fatal("unsupported button called opener")
