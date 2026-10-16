@@ -10,7 +10,6 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/recovery"
 	"whaleisle/internal/ui/composer"
-	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -52,12 +51,6 @@ func (s *mainState) openResume(dir string) {
 		return
 	}
 	l := saved.Layout
-	panes, paneErr := frame.RestoreWorkspacePanes(l.WorkspacePanes)
-	if paneErr != nil {
-		s.resumeError = fmt.Sprintf("%s: %v", store.Path(), paneErr)
-		return
-	}
-	s.layout.Workspace = panes
 	// Older snapshots have no expanded preference: retain the configured width.
 	s.layout.SidebarExpanded = s.layout.Sidebar
 	if finiteSize(l.SidebarExpanded, 264, 420) {
@@ -86,6 +79,10 @@ func (s *mainState) openResume(dir string) {
 	}
 	s.planBoardOpen = l.PlanOpen
 	s.todoPanelCollapsed = l.TodoCollapsed
+	if err := s.restoreWorkspaceSessions(saved); err != nil {
+		s.resumeError = fmt.Sprintf("%s: %v", store.Path(), err)
+		return
+	}
 	// Terminal height is remembered, but a previous shell command is never replayed.
 }
 func finiteSize(v, min, max float32) bool {
@@ -153,7 +150,7 @@ func (s *mainState) saveResume() error {
 		bottom = s.layout.Bottom
 	}
 	next.Layout = recovery.Layout{Sidebar: s.layout.Sidebar, SidebarExpanded: s.layout.SidebarExpanded, Right: s.layout.Right, Bottom: bottom, RightTree: s.layout.RightTree, RightOpen: s.filesPaneOpen, RightTab: s.rightPaneTab, ChatTab: s.chatPaneTab, PlanOpen: s.planBoardOpen, TodoCollapsed: s.todoPanelCollapsed}
-	next.Layout.WorkspacePanes = s.layout.Workspace.Export()
+	next.Layout.WorkspacePanes = s.exportWorkspaceSessionsLocked()
 	next.Drafts = make(map[string]json.RawMessage, len(s.composerDrafts))
 	for key, draft := range s.composerDrafts {
 		if draft != nil {

@@ -2,28 +2,19 @@ package frame
 
 func observeHostTerminalPanes(m Model) {
 	var keys []string
-	var visit func(*WorkspacePane)
-	visit = func(n *WorkspacePane) {
-		if n == nil {
-			return
+	w := m.Sizes.Workspace
+	w.Root.eachLeaf(func(group *WorkspacePane) {
+		if m.RightPaneOpen {
+			if docked := group.dockedLeaf(); docked != nil && docked.Kind == "host-terminal" {
+				keys = append(keys, docked.ID)
+			}
 		}
-		if n.First != nil {
-			visit(n.First)
-			visit(n.Second)
-			return
+		for _, n := range group.dockTabs() {
+			if n.Kind == "host-terminal" && n.Float != nil && !n.Float.Minimized {
+				keys = append(keys, n.ID)
+			}
 		}
-		if n.Kind == "host-terminal" {
-			keys = append(keys, n.ID)
-		}
-	}
-	if m.RightPaneOpen {
-		w := m.Sizes.Workspace
-		n := w.Root
-		if w.Fullscreen != "" {
-			n = w.Root.find(w.Fullscreen)
-		}
-		visit(n)
-	}
+	})
 	m.HostTerminalUI.ReconcileOccurrences(m.HostTerminalStore, keys)
 }
 func hostTerminalPaneModel(m Model) Model {

@@ -13,8 +13,8 @@ type projectMaterialCollectionState struct {
 	cancel   context.CancelFunc
 }
 
-func (s *mainState) closeProjectMaterialCollectionLocked() {
-	f := &s.projectFlow
+func (s *projectController) closeProjectMaterialCollectionLocked() {
+	f := s.projectFlow
 	if d := f.materialCollection; d != nil {
 		if d.cancel != nil {
 			d.cancel()
@@ -23,7 +23,7 @@ func (s *mainState) closeProjectMaterialCollectionLocked() {
 		f.materialCollection = nil
 	}
 }
-func (s *mainState) bindProjectMaterialCollection(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectMaterialCollection(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
 	d := s.projectFlow.materialCollection
 	client, generation, navigation := s.projectFlow.client, s.projectFlow.generation, s.projectFlow.navigation
@@ -34,8 +34,8 @@ func (s *mainState) bindProjectMaterialCollection(win *mygo.Window, m *projects.
 	s.mu.Unlock()
 	m.OnMaterialCollection = func(id string) {
 		s.mu.Lock()
-		f := &s.projectFlow
-		if win == nil || client == nil || f.client != client || s.dshClient != client || f.generation != generation || f.navigation != navigation || f.busy || !f.expanded || !f.listing.Available {
+		f := s.projectFlow
+		if win == nil || client == nil || f.client != client || s.dshClient != client || f.generation != generation || f.navigation != navigation || f.busy || !f.visible() || !f.listing.Available {
 			s.mu.Unlock()
 			return
 		}
@@ -59,9 +59,9 @@ func (s *mainState) bindProjectMaterialCollection(win *mygo.Window, m *projects.
 	}
 	m.OnMaterialCollectionAction = func(action string) { s.runProjectMaterialCollection(win, d, action) }
 }
-func (s *mainState) runProjectMaterialCollection(win *mygo.Window, d *projectMaterialCollectionState, action string) {
+func (s *projectController) runProjectMaterialCollection(win *mygo.Window, d *projectMaterialCollectionState, action string) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if d == nil || f.materialCollection != d {
 		s.mu.Unlock()
 		return
@@ -72,7 +72,7 @@ func (s *mainState) runProjectMaterialCollection(win *mygo.Window, d *projectMat
 		return
 	}
 	client := s.dshClient
-	if win == nil || client == nil || f.client != client || f.busy || !f.expanded || !f.listing.Available {
+	if win == nil || client == nil || f.client != client || f.busy || !f.visible() || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -109,11 +109,11 @@ func (s *mainState) runProjectMaterialCollection(win *mygo.Window, d *projectMat
 		win.Update(func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if f.materialCollection != d || f.client != client || s.dshClient != client {
 				return
 			}
-			if f.generation != generation || f.navigation != navigation || !f.expanded {
+			if f.generation != generation || f.navigation != navigation || !f.visible() {
 				s.closeProjectMaterialCollectionLocked()
 				return
 			}

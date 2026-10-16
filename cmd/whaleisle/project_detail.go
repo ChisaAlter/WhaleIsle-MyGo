@@ -8,12 +8,12 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, memberID string) {
+func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workID, memberID string) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if f.busy {
 		s.mu.Unlock()
@@ -87,7 +87,7 @@ func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, membe
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if s.dshClient != client || f.client != client || f.generation != generation {
 				s.mu.Unlock()
 				return
@@ -117,7 +117,7 @@ func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, membe
 				s.mu.Unlock()
 				return
 			}
-			if !f.expanded || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
+			if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
 				f.err = resumeText("导航已改变，尚未写入重试草稿。", "Navigation changed; the retry draft was not inserted.")
 				s.mu.Unlock()
 				return

@@ -277,7 +277,7 @@ func (w *WorkspacePanes) EndContentFrame() {
 		return
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
-		if n.Inspector != nil && w.Root.dockGroup(n.ID) != n {
+		if n.Inspector != nil && (n.Float != nil && n.Float.Minimized || n.Float == nil && w.Root.dockGroup(n.ID) != n) {
 			n.Inspector.navigation.Picking = false
 			n.Inspector.navigation.Target = nil
 		}

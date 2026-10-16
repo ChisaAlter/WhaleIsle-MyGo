@@ -8,9 +8,9 @@ import (
 	"whaleisle/internal/ui/projects"
 )
 
-func (s *mainState) bindProjectMaterials(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectMaterials(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	m.Material = f.materials[f.materialKey]
 	if m.Material != nil {
 		for _, p := range f.listing.Projects {
@@ -42,9 +42,9 @@ func (s *mainState) bindProjectMaterials(win *mygo.Window, m *projects.Model) {
 	}
 	m.OnCloseMaterial = func() { s.mu.Lock(); s.projectFlow.materialKey = ""; s.mu.Unlock() }
 }
-func (s *mainState) runProjectMaterial(win *mygo.Window, id, path, action string) {
+func (s *projectController) runProjectMaterial(win *mygo.Window, id, path, action string) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if win == nil || client == nil || f.client != client || f.busy || !f.listing.Available {
 		s.mu.Unlock()
@@ -103,7 +103,7 @@ func (s *mainState) runProjectMaterial(win *mygo.Window, id, path, action string
 			material, err = rpc.ReadMaterial(ctx, id, path)
 		}
 		s.mu.Lock()
-		f := &s.projectFlow
+		f := s.projectFlow
 		if f.client != client || s.dshClient != client || f.generation != generation {
 			s.mu.Unlock()
 			return

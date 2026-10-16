@@ -13,18 +13,18 @@ type projectRefreshLoop struct {
 	client *dsh.Client
 }
 
-func (s *mainState) projectRefreshVisibleLocked() bool {
-	f := &s.projectFlow
-	return !s.quitting && !s.projectWindowHidden && !s.settingsOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen && f.expanded && s.dshClient != nil && f.client == s.dshClient
+func (s *projectController) projectRefreshVisibleLocked() bool {
+	f := s.projectFlow
+	return !s.quitting && !s.projectWindowHidden && !s.settingsOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen && f.visible() && s.dshClient != nil && f.client == s.dshClient
 }
-func (s *mainState) stopProjectRefreshLocked() {
+func (s *projectController) stopProjectRefreshLocked() {
 	if r := s.projectFlow.refreshLoop; r != nil {
 		r.cancel()
 		s.projectFlow.refreshLoop = nil
 	}
 }
-func (s *mainState) ensureProjectRefreshLocked(win *mygo.Window) {
-	f := &s.projectFlow
+func (s *projectController) ensureProjectRefreshLocked(win *mygo.Window) {
+	f := s.projectFlow
 	if win == nil || !s.projectRefreshVisibleLocked() {
 		s.stopProjectRefreshLocked()
 		return
@@ -56,9 +56,9 @@ func (s *mainState) ensureProjectRefreshLocked(win *mygo.Window) {
 // refreshProjectSnapshot reads the original list/detail/projection APIs, never a
 // control or Agent tool. It leaves explicit operations' generations and drafts
 // alone and publishes only within the captured Host/navigation/page identity.
-func (s *mainState) refreshProjectSnapshot(ctx context.Context, win *mygo.Window, r *projectRefreshLoop) bool {
+func (s *projectController) refreshProjectSnapshot(ctx context.Context, win *mygo.Window, r *projectRefreshLoop) bool {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if f.refreshLoop != r || !s.projectRefreshVisibleLocked() {
 		if f.refreshLoop == r {
 			f.refreshLoop = nil
@@ -75,7 +75,7 @@ func (s *mainState) refreshProjectSnapshot(ctx context.Context, win *mygo.Window
 	detail := f.detail
 	// Other Project overlays keep their own editable/history state. Refresh the
 	// list, but do not replace a hidden Team/detail behind one of those overlays.
-	if f.reports != nil || f.materialKey != "" || f.requestProjectID != "" || f.archiveCandidate != nil {
+	if !(f.observerOpen && f.observerSection == "team") && (f.reports != nil || f.materialKey != "" || f.requestProjectID != "") || f.archiveCandidate != nil {
 		id = ""
 		detail = nil
 	}
@@ -114,7 +114,7 @@ func (s *mainState) refreshProjectSnapshot(ctx context.Context, win *mygo.Window
 		defer close(ack)
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		f := &s.projectFlow
+		f := s.projectFlow
 		if ctx.Err() != nil || f.refreshLoop != r || s.dshClient != r.client || f.client != r.client || !s.projectRefreshVisibleLocked() || f.busy || f.generation != generation || f.navigation != navigation || f.detailGeneration != detailGeneration || f.teamID != teamIDAtStart {
 			return
 		}

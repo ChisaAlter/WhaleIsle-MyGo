@@ -8,12 +8,12 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-func (s *mainState) runProjectAsset(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string)) {
+func (s *projectController) runProjectAsset(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string)) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if f.busy {
 		s.mu.Unlock()
@@ -79,7 +79,7 @@ func (s *mainState) runProjectAsset(win *mygo.Window, id, action string, file pr
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if s.dshClient != client || f.client != client || f.generation != generation {
 				s.mu.Unlock()
 				return
@@ -100,7 +100,7 @@ func (s *mainState) runProjectAsset(win *mygo.Window, id, action string, file pr
 			case "diff":
 				f.assetDiff = &diff
 			case "file":
-				if !f.expanded || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
+				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
 					f.err = resumeText("导航已改变，未打开文件。", "Navigation changed; the file was not opened.")
 					s.mu.Unlock()
 					return

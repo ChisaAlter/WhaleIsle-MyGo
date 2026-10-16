@@ -14,6 +14,9 @@ import (
 )
 
 type projectFlowState struct {
+	observers                     map[*projects.ObserverState]*projectController
+	observerSection               string
+	observerOpen                  bool
 	materialCollection            *projectMaterialCollectionState
 	teamQuery                     string
 	searchQuery                   string
@@ -55,10 +58,15 @@ type projectFlowState struct {
 	generation                 uint64
 }
 
-func (s *mainState) projectModel(win *mygo.Window) projects.Model {
+func (f *projectFlowState) visible() bool { return f.expanded || f.observerOpen }
+
+func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if f.client != s.dshClient {
+		for _, observer := range f.observers {
+			observer.disposeLocked()
+		}
 		s.closeProjectMaterialCollectionLocked()
 		s.closeProjectHistoricalLocked()
 		s.closeProjectActivityLocked()
@@ -82,6 +90,8 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
+	// Ephemeral authenticated Host identity; no credentials enter pane persistence.
+	m.ObserverHost = fmt.Sprintf("%p", f.client)
 	m.TeamQuery = f.teamQuery
 	m.SearchQuery = f.searchQuery
 	m.History = f.history
@@ -91,6 +101,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
 		}
 	}
+	observerTeam := f.observerOpen && f.observerSection == "team"
 	m.ProcessWatching = f.processCancel != nil
 	m.RefreshNote = projectRefreshStatus(f.refreshLoop != nil, f.refreshNote)
 	sessions := s.sessions
@@ -101,7 +112,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m.OnToggle = func() {
 		s.mu.Lock()
 		s.projectFlow.expanded = !s.projectFlow.expanded
-		if !s.projectFlow.expanded {
+		if !s.projectFlow.visible() {
 			s.closeProjectMaterialCollectionLocked()
 			s.closeProjectHistoricalLocked()
 			s.closeProjectActivityLocked()
@@ -110,7 +121,9 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 			s.stopProjectRefreshLocked()
 			s.stopProjectProcessLocked()
 		}
-		s.projectFlow.navigation++
+		if !s.projectFlow.observerOpen {
+			s.projectFlow.navigation++
+		}
 		load := s.projectFlow.expanded && !s.projectFlow.loaded
 		s.mu.Unlock()
 		if load {
@@ -136,6 +149,31 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 			s.projectFlow.history = history
 		}
 		s.mu.Unlock()
+	}
+	m.OnObserverSection = func(id, section string) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.dshClient == filterClient && s.projectFlow.client == filterClient && s.projectFlow.observerOpen {
+			for _, p := range s.projectFlow.listing.Projects {
+				if p.ID == id && p.CoordinatorSessionID == m.SelectedSession {
+					s.projectFlow.observerSection = section
+					return
+				}
+			}
+		}
+	}
+	m.OnObserver = func(id string) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.dshClient != filterClient || s.projectFlow.client != filterClient {
+			return
+		}
+		for _, p := range s.projectFlow.listing.Projects {
+			if p.ID == id && p.CoordinatorSessionID == m.SelectedSession {
+				s.projectFlow.observerOpen = true
+				return
+			}
+		}
 	}
 	m.OnRefresh = func() { s.runProjectAction(win, "list", "", "") }
 	m.OnCreate = func() { s.runProjectAction(win, "create", workspace, "") }
@@ -229,7 +267,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.runProjectAsset(win, m.RequestProjectID, "file", file, "", open)
 	}
 	m.OnWorkDiff = func(workID string) {
-		if m.RequestProjectID == "" && m.TeamID != "" && m.Detail != nil {
+		if (m.RequestProjectID == "" || observerTeam) && m.TeamID != "" && m.Detail != nil {
 			s.runProjectDetail(win, m.TeamID, "diff", workID, "")
 			return
 		}
@@ -254,12 +292,12 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectMaterialCollection(win, &m)
 	return m
 }
-func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string) {
+func (s *projectController) runProjectAction(win *mygo.Window, action, arg, title string) {
 	if win == nil {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if f.busy {
 		s.mu.Unlock()
@@ -334,7 +372,7 @@ func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if s.dshClient != client || f.client != client || f.generation != generation {
 				s.mu.Unlock()
 				return
@@ -357,7 +395,7 @@ func (s *mainState) runProjectAction(win *mygo.Window, action, arg, title string
 					f.renameDraft = ""
 				}
 			}
-			stillOpen := f.expanded && f.navigation == navigation
+			stillOpen := f.visible() && f.navigation == navigation
 			s.mu.Unlock()
 			if lead != "" && stillOpen && sessions != nil && sessions.Snapshot().SelectedID == selected {
 				sessions.RefreshList(context.Background())

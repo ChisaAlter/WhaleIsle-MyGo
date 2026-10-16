@@ -451,6 +451,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	rename := m.Store.SessionRename()
 	projectModel := m.Projects
 	projectModel.OnResolvedFile = m.OnOpenDeliverable
+	projectModel.OnObserver = func(id string) { openProjectObserver(m, id) }
 	schedules := schedstore.ViewState{}
 	if m.ScheduleStore != nil {
 		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
@@ -569,6 +570,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+				projectObserverHeader(c, m)
 				if emptyHero {
 					// EmptyHero: blank header band (no Initialize Git / layout glyphs).
 					// Keep a thin drag strip for the Windows caption region only.
@@ -1145,6 +1147,15 @@ func conversationContentWidth(colW float32) float32 {
 }
 
 func rightPane(c *ui.Context, m Model) {
+	if m.workspacePane != nil && m.workspacePane.Kind == "project-observer" {
+		projectModel := m.Projects
+		if projectModel.ObserverModel != nil {
+			projectModel = projectModel.ObserverModel(m.workspacePane.ProjectObserver)
+		}
+		projectModel.OnResolvedFile = m.OnOpenDeliverable
+		projects.ObserverView(c, projectModel, m.workspacePane.ProjectObserver)
+		return
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	field := chrome.BackdropSurface(chrome.Color(colors.Sidebar))

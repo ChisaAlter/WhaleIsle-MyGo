@@ -17,8 +17,8 @@ type projectActivityState struct {
 	requestGeneration uint64
 }
 
-func (s *mainState) closeProjectActivityLocked() {
-	f := &s.projectFlow
+func (s *projectController) closeProjectActivityLocked() {
+	f := s.projectFlow
 	if a := f.activity; a != nil {
 		if a.cancel != nil {
 			a.cancel()
@@ -29,9 +29,9 @@ func (s *mainState) closeProjectActivityLocked() {
 		f.activity = nil
 	}
 }
-func (s *mainState) bindProjectActivity(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectActivity(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	a := f.activity
 	if a != nil && (f.requestGeneration != a.requestGeneration || f.requestCard != a.sourceCard) {
 		s.closeProjectActivityLocked()
@@ -53,13 +53,13 @@ func (s *mainState) bindProjectActivity(win *mygo.Window, m *projects.Model) {
 		s.runProjectActivity(win, a, view, "report", key, ref)
 	}
 }
-func (s *mainState) openProjectActivity(win *mygo.Window, expected *dsh.Client, generation, navigation, requestGeneration uint64, card *projectflow.RequestCard) {
+func (s *projectController) openProjectActivity(win *mygo.Window, expected *dsh.Client, generation, navigation, requestGeneration uint64, card *projectflow.RequestCard) {
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	f := &s.projectFlow
-	if win == nil || client == nil || client != expected || f.client != expected || f.generation != generation || f.navigation != navigation || f.requestGeneration != requestGeneration || card == nil || f.requestCard != card || f.requestProjectID != card.ProjectID || f.busy || !f.expanded || !f.listing.Available {
+	f := s.projectFlow
+	if win == nil || client == nil || client != expected || f.client != expected || f.generation != generation || f.navigation != navigation || f.requestGeneration != requestGeneration || card == nil || f.requestCard != card || f.requestProjectID != card.ProjectID || f.busy || !f.visible() || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -70,12 +70,12 @@ func (s *mainState) openProjectActivity(win *mygo.Window, expected *dsh.Client, 
 	s.mu.Unlock()
 	s.runProjectActivity(win, a, 0, "refresh", "", projectflow.DeliveryReportRef{})
 }
-func (s *mainState) runProjectActivity(win *mygo.Window, a *projectActivityState, view uint64, action, arg string, ref projectflow.DeliveryReportRef) {
+func (s *projectController) runProjectActivity(win *mygo.Window, a *projectActivityState, view uint64, action, arg string, ref projectflow.DeliveryReportRef) {
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if a == nil || f.activity != a || a.browser.View() != view {
 		s.mu.Unlock()
 		return
@@ -100,7 +100,7 @@ func (s *mainState) runProjectActivity(win *mygo.Window, a *projectActivityState
 		return
 	}
 	snapshot := a.browser.Snapshot()
-	if win == nil || client == nil || f.client != client || snapshot.Scope.Host != fmt.Sprintf("%p", client) || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || f.busy || !f.expanded || !f.listing.Available {
+	if win == nil || client == nil || f.client != client || snapshot.Scope.Host != fmt.Sprintf("%p", client) || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || f.busy || !f.visible() || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -158,11 +158,11 @@ func (s *mainState) runProjectActivity(win *mygo.Window, a *projectActivityState
 			s.dshMu.Unlock()
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if f.activity != a || f.client != client || current != client || !a.browser.Pending(req) {
 				return
 			}
-			if f.generation != generation || f.navigation != navigation || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || !f.expanded {
+			if f.generation != generation || f.navigation != navigation || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || !f.visible() {
 				s.closeProjectActivityLocked()
 				return
 			}

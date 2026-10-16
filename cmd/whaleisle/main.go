@@ -317,6 +317,7 @@ type mainState struct {
 	workspaceRenameDraft                    string
 	pendingDeeplink                         deeplink.Target
 	settingsDrafts                          []settingsDraftSlot
+	workspaceSessions                       workspaceSessionLayouts
 	layout                                  frame.LayoutSizes
 	chatList                                ui.ListState
 	draft                                   string
@@ -2116,7 +2117,7 @@ func main() {
 		win.OnClosed(state.suspendMCPHealth)
 		win.OnHide(func() { state.layout.Workspace.PauseContent() })
 		win.OnMinimize(func() { state.layout.Workspace.PauseContent() })
-		win.OnClosed(func() { state.layout.Workspace.DisposeContent() })
+		win.OnClosed(func() { state.disposeWorkspaceSessions() })
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(state.suspendCreatorTask)
@@ -2855,6 +2856,7 @@ func mainView(c *ui.Context) {
 			}
 		}
 	}
+	state.selectWorkspaceSessionLocked()
 	marketInstallReady := desktopmarket.InstallReady(nodeBin)
 	if state.layout.Workspace == nil {
 		state.layout.Workspace = &frame.WorkspacePanes{}

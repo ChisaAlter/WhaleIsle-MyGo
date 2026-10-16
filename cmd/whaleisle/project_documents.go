@@ -15,8 +15,8 @@ type projectDocumentState struct {
 	cancel  context.CancelFunc
 }
 
-func (s *mainState) closeProjectDocumentsLocked() {
-	f := &s.projectFlow
+func (s *projectController) closeProjectDocumentsLocked() {
+	f := s.projectFlow
 	if d := f.documents; d != nil {
 		if d.cancel != nil {
 			d.cancel()
@@ -27,7 +27,7 @@ func (s *mainState) closeProjectDocumentsLocked() {
 		f.documents = nil
 	}
 }
-func (s *mainState) bindProjectDocuments(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectDocuments(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
 	d := s.projectFlow.documents
 	expectedClient, expectedGeneration, expectedNavigation := s.projectFlow.client, s.projectFlow.generation, s.projectFlow.navigation
@@ -41,13 +41,13 @@ func (s *mainState) bindProjectDocuments(win *mygo.Window, m *projects.Model) {
 	}
 	m.OnDocumentAction = func(action, path string) { s.runProjectDocuments(win, d, action, path) }
 }
-func (s *mainState) openProjectDocuments(win *mygo.Window, id string, expectedClient *dsh.Client, expectedGeneration, expectedNavigation uint64) {
+func (s *projectController) openProjectDocuments(win *mygo.Window, id string, expectedClient *dsh.Client, expectedGeneration, expectedNavigation uint64) {
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	f := &s.projectFlow
-	if win == nil || client == nil || client != expectedClient || f.client != expectedClient || f.generation != expectedGeneration || f.navigation != expectedNavigation || f.busy || !f.expanded || !f.listing.Available {
+	f := s.projectFlow
+	if win == nil || client == nil || client != expectedClient || f.client != expectedClient || f.generation != expectedGeneration || f.navigation != expectedNavigation || f.busy || !f.visible() || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -72,12 +72,12 @@ func (s *mainState) openProjectDocuments(win *mygo.Window, id string, expectedCl
 	s.mu.Unlock()
 	s.runProjectDocuments(win, d, "list", "")
 }
-func (s *mainState) runProjectDocuments(win *mygo.Window, d *projectDocumentState, action, documentPath string) {
+func (s *projectController) runProjectDocuments(win *mygo.Window, d *projectDocumentState, action, documentPath string) {
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if d == nil || f.documents != d {
 		s.mu.Unlock()
 		return
@@ -97,7 +97,7 @@ func (s *mainState) runProjectDocuments(win *mygo.Window, d *projectDocumentStat
 		s.mu.Unlock()
 		return
 	}
-	if win == nil || client == nil || f.client != client || f.busy || !f.expanded || !f.listing.Available {
+	if win == nil || client == nil || f.client != client || f.busy || !f.visible() || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -143,11 +143,11 @@ func (s *mainState) runProjectDocuments(win *mygo.Window, d *projectDocumentStat
 			s.dshMu.Unlock()
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if f.documents != d || f.client != client || currentClient != client || !d.browser.Pending(request) {
 				return
 			}
-			if f.generation != generation || f.navigation != navigation || !f.expanded {
+			if f.generation != generation || f.navigation != navigation || !f.visible() {
 				s.closeProjectDocumentsLocked()
 				return
 			}

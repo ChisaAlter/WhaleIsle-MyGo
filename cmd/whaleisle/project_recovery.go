@@ -10,12 +10,12 @@ import (
 
 // The explicit recovery button revalidates saved evidence, then submits through
 // the original Lead composer so ordinary send failure/recovery remains visible.
-func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
+func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	sessions := s.sessions
 	if f.busy || client == nil || f.client != client || !f.listing.Available || sessions == nil {
@@ -71,7 +71,7 @@ func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if s.dshClient != client || f.client != client || s.sessions != sessions || f.generation != generation {
 				s.mu.Unlock()
 				return
@@ -87,7 +87,7 @@ func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 				s.mu.Unlock()
 				return
 			}
-			if !f.expanded || f.navigation != navigation || sessions.Snapshot().SelectedID != selectedSession {
+			if !f.visible() || f.navigation != navigation || sessions.Snapshot().SelectedID != selectedSession {
 				f.err = resumeText("导航已改变，尚未写入恢复草稿。", "Navigation changed; the recovery draft was not inserted.")
 				s.mu.Unlock()
 				return

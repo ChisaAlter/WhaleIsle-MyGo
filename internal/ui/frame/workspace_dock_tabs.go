@@ -68,6 +68,10 @@ func replaceWorkspaceLeaf(n, old, replacement *WorkspacePane) *WorkspacePane {
 }
 
 func (w *WorkspacePanes) activateDockTab(id string) {
+	if n := w.Root.find(id); n != nil && n.Float != nil {
+		w.raiseFloat(n)
+		return
+	}
 	group := w.Root.dockGroup(id)
 	if group == nil {
 		return
@@ -94,6 +98,11 @@ func (w *WorkspacePanes) activateDockTab(id string) {
 // Both source and destination are resource IDs, so gestures remain valid when
 // a neighboring pane becomes active during the same frame.
 func (w *WorkspacePanes) MoveWorkspaceTab(id, destination string, index int) bool {
+	for _, resourceID := range []string{id, destination} {
+		if n := w.Root.find(resourceID); n != nil && n.Kind == "project-observer" {
+			return false
+		}
+	}
 	source, target := w.Root.dockGroup(id), w.Root.dockGroup(destination)
 	if source == nil || target == nil {
 		return false
@@ -110,6 +119,7 @@ func (w *WorkspacePanes) MoveWorkspaceTab(id, destination string, index int) boo
 	if moving == nil {
 		return false
 	}
+	moving.Float = nil
 	if source == target {
 		if index > oldIndex {
 			index--
@@ -159,6 +169,8 @@ func (n *WorkspacePane) eachResource(visit func(*WorkspacePane)) {
 
 func dockTabTitle(n *WorkspacePane) string {
 	switch n.Kind {
+	case "project-observer":
+		return paneLabel("项目概览", "Project overview")
 	case "files":
 		return paneLabel("文件", "Files")
 	case "diff":
@@ -188,10 +200,14 @@ func dockTabTitle(n *WorkspacePane) string {
 
 func workspaceDockTabStrip(c *ui.Context, m Model) {
 	n, w := m.workspacePane, m.Sizes.Workspace
-	tabs := n.dockTabs()
+	group := w.Root.dockGroup(n.ID)
+	tabs := group.dockTabs()
 	ui.ScrollHorizontal(c).FillWidth().Height(34).Children(func() {
 		ui.Row(c).Gap(3).Padding(3).Children(func() {
 			for index, tab := range tabs {
+				if tab.Float != nil {
+					continue
+				}
 				index, tab := index, tab
 				label := dockTabTitle(tab)
 				if tab == n {

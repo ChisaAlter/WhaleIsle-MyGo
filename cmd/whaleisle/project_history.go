@@ -9,7 +9,7 @@ import (
 	"whaleisle/internal/ui/projects"
 )
 
-func (s *mainState) bindProjectHistory(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectHistory(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
 	m.Reports = s.projectFlow.reports
 	s.mu.Unlock()
@@ -37,9 +37,9 @@ func (s *mainState) bindProjectHistory(win *mygo.Window, m *projects.Model) {
 		}
 	}
 }
-func (s *mainState) runProjectHistory(win *mygo.Window, id, action, arg string, open func(string)) {
+func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg string, open func(string)) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if win == nil || client == nil || f.client != client || f.busy || !f.listing.Available {
 		s.mu.Unlock()
@@ -195,7 +195,7 @@ func (s *mainState) runProjectHistory(win *mygo.Window, id, action, arg string, 
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if f.client != client || s.dshClient != client || f.generation != generation {
 				s.mu.Unlock()
 				return
@@ -221,7 +221,7 @@ func (s *mainState) runProjectHistory(win *mygo.Window, id, action, arg string, 
 				return
 			}
 			if action == "file" {
-				if !f.expanded || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
+				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
 					f.err = "Navigation changed; file was not opened."
 					s.mu.Unlock()
 					return

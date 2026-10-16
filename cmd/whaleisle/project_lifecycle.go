@@ -8,12 +8,12 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-func (s *mainState) runProjectLifecycle(win *mygo.Window, id, action string) {
+func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action string) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client := s.dshClient
 	if f.busy {
 		s.mu.Unlock()
@@ -89,7 +89,7 @@ func (s *mainState) runProjectLifecycle(win *mygo.Window, id, action string) {
 		win.Update(func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if s.dshClient != client || f.client != client || f.generation != generation {
 				return
 			}

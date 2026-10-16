@@ -6,8 +6,8 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-func (s *mainState) stopProjectProcessLocked() {
-	f := &s.projectFlow
+func (s *projectController) stopProjectProcessLocked() {
+	f := s.projectFlow
 	if f.processCancel != nil {
 		f.processCancel()
 		f.processCancel = nil
@@ -20,20 +20,20 @@ func (s *mainState) stopProjectProcessLocked() {
 		f.process = &next
 	}
 }
-func (s *mainState) syncProjectProcessLocked() {
-	f := &s.projectFlow
-	if f.processCancel != nil && (f.processMux != s.dshMux || !f.expanded || f.detail == nil || f.teamID == "" || f.reports != nil || f.materialKey != "" || f.requestProjectID != "" || f.archiveCandidate != nil) {
+func (s *projectController) syncProjectProcessLocked() {
+	f := s.projectFlow
+	if f.processCancel != nil && (f.processMux != s.dshMux || !f.visible() || f.detail == nil || f.teamID == "" || !(f.observerOpen && f.observerSection == "team") && (f.reports != nil || f.materialKey != "" || f.requestProjectID != "") || f.archiveCandidate != nil) {
 		s.stopProjectProcessLocked()
 	}
 }
-func (s *mainState) watchProjectProcess(win *mygo.Window, id string) {
+func (s *projectController) watchProjectProcess(win *mygo.Window, id string) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	client, mux := s.dshClient, s.dshMux
-	if f.busy || client == nil || mux == nil || f.client != client || !f.expanded || f.teamID != id || f.team == nil || f.detail == nil {
+	if f.busy || client == nil || mux == nil || f.client != client || !f.visible() || f.teamID != id || f.team == nil || f.detail == nil {
 		s.mu.Unlock()
 		return
 	}
@@ -52,8 +52,8 @@ func (s *mainState) watchProjectProcess(win *mygo.Window, id string) {
 	f.err = ""
 	s.mu.Unlock()
 	current := func() bool {
-		f := &s.projectFlow
-		return s.dshClient == client && s.dshMux == mux && f.client == client && f.expanded && f.teamID == id && f.detailGeneration == detailGeneration && f.processWatchGeneration == watch && f.detail != nil && f.detail.Workstream.ID == d.Workstream.ID && f.detail.Workstream.WorkerSessionID == d.Workstream.WorkerSessionID && f.detail.Workstream.CurrentDelegationRef == d.Workstream.CurrentDelegationRef
+		f := s.projectFlow
+		return s.dshClient == client && s.dshMux == mux && f.client == client && f.visible() && f.teamID == id && f.detailGeneration == detailGeneration && f.processWatchGeneration == watch && f.detail != nil && f.detail.Workstream.ID == d.Workstream.ID && f.detail.Workstream.WorkerSessionID == d.Workstream.WorkerSessionID && f.detail.Workstream.CurrentDelegationRef == d.Workstream.CurrentDelegationRef
 	}
 	go func() {
 		defer cancel()
@@ -88,7 +88,7 @@ func (s *mainState) watchProjectProcess(win *mygo.Window, id string) {
 			if !current() {
 				return
 			}
-			f := &s.projectFlow
+			f := s.projectFlow
 			f.processCancel = nil
 			next := projectflow.ProcessSnapshot{}
 			if f.process != nil {

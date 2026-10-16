@@ -16,8 +16,8 @@ type projectHistoricalState struct {
 	generation, navigation uint64
 }
 
-func (s *mainState) closeProjectHistoricalLocked() {
-	f := &s.projectFlow
+func (s *projectController) closeProjectHistoricalLocked() {
+	f := s.projectFlow
 	if h := f.historical; h != nil {
 		if h.cancel != nil {
 			h.cancel()
@@ -29,9 +29,9 @@ func (s *mainState) closeProjectHistoricalLocked() {
 		f.historicalGeneration++
 	}
 }
-func (s *mainState) bindProjectHistorical(win *mygo.Window, m *projects.Model) {
+func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.Model) {
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	h := f.historical
 	if h != nil && (h.generation != f.generation || h.navigation != f.navigation || !h.sourceValid(f)) {
 		s.closeProjectHistoricalLocked()
@@ -58,8 +58,8 @@ func (s *mainState) bindProjectHistorical(win *mygo.Window, m *projects.Model) {
 		client := s.dshClient
 		s.dshMu.Unlock()
 		s.mu.Lock()
-		f := &s.projectFlow
-		if win == nil || client == nil || expected != client || f.client != client || f.generation != generation || f.navigation != navigation || f.busy || !f.expanded || !f.listing.Available || f.historical != nil || f.historicalGeneration != historicalGeneration {
+		f := s.projectFlow
+		if win == nil || client == nil || expected != client || f.client != client || f.generation != generation || f.navigation != navigation || f.busy || !f.visible() || !f.listing.Available || f.historical != nil || f.historicalGeneration != historicalGeneration {
 			s.mu.Unlock()
 			return
 		}
@@ -143,12 +143,12 @@ func (s *mainState) bindProjectHistorical(win *mygo.Window, m *projects.Model) {
 	}
 	m.OnHistoricalAction = func(action string) { s.runProjectHistorical(win, h, view, action) }
 }
-func (s *mainState) runProjectHistorical(win *mygo.Window, h *projectHistoricalState, view uint64, action string) {
+func (s *projectController) runProjectHistorical(win *mygo.Window, h *projectHistoricalState, view uint64, action string) {
 	s.dshMu.Lock()
 	client, mux := s.dshClient, s.dshMux
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	f := &s.projectFlow
+	f := s.projectFlow
 	if h == nil || f.historical != h || h.browser.View() != view {
 		s.mu.Unlock()
 		return
@@ -158,7 +158,7 @@ func (s *mainState) runProjectHistorical(win *mygo.Window, h *projectHistoricalS
 		s.mu.Unlock()
 		return
 	}
-	if client == nil || win == nil || f.client != client || h.browser.Snapshot().Host != fmt.Sprintf("%p", client) || f.generation != h.generation || f.navigation != h.navigation || !h.sourceValid(f) || !f.expanded || f.busy || !f.listing.Available {
+	if client == nil || win == nil || f.client != client || h.browser.Snapshot().Host != fmt.Sprintf("%p", client) || f.generation != h.generation || f.navigation != h.navigation || !h.sourceValid(f) || !f.visible() || f.busy || !f.listing.Available {
 		s.mu.Unlock()
 		return
 	}
@@ -199,11 +199,11 @@ func (s *mainState) runProjectHistorical(win *mygo.Window, h *projectHistoricalS
 			s.dshMu.Unlock()
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			f := &s.projectFlow
+			f := s.projectFlow
 			if f.historical != h || f.client != client || current != client || !h.browser.Pending(req) {
 				return
 			}
-			if f.generation != h.generation || f.navigation != h.navigation || !h.sourceValid(f) || !f.expanded || action == "process" && currentMux != mux {
+			if f.generation != h.generation || f.navigation != h.navigation || !h.sourceValid(f) || !f.visible() || action == "process" && currentMux != mux {
 				s.closeProjectHistoricalLocked()
 				return
 			}

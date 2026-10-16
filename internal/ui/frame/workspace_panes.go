@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -26,24 +27,26 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
-	DockTabs       []*WorkspacePane                  `json:"dockTabs,omitempty"`
-	DockIndex      int                               `json:"dockIndex,omitempty"`
-	Inspector      *SessionInspectorPaneState        `json:"inspector,omitempty"`
-	ChangesReview  *ChangesReviewState               `json:"changesReview,omitempty"`
-	SubagentChat   *SubagentChatPaneState            `json:"subagentChat,omitempty"`
-	Agents         *WorkspaceAgentState              `json:"-"`
-	Diff           *WorkspaceDiffState               `json:"diff,omitempty"`
-	Files          *WorkspaceFileState               `json:"files,omitempty"`
-	Browser        *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
-	browser        *browserpreview.Controller
-	Schedule       *SchedulePaneState `json:"schedule,omitempty"`
-	ID             string             `json:"id"`
-	Kind           string             `json:"kind,omitempty"`
-	TerminalSource string             `json:"terminalSource,omitempty"`
-	Axis           string             `json:"axis,omitempty"`
-	Ratio          float32            `json:"ratio,omitempty"`
-	First          *WorkspacePane     `json:"first,omitempty"`
-	Second         *WorkspacePane     `json:"second,omitempty"`
+	ProjectObserver *projects.ObserverState           `json:"projectObserver,omitempty"`
+	Float           *WorkspaceFloat                   `json:"float,omitempty"`
+	DockTabs        []*WorkspacePane                  `json:"dockTabs,omitempty"`
+	DockIndex       int                               `json:"dockIndex,omitempty"`
+	Inspector       *SessionInspectorPaneState        `json:"inspector,omitempty"`
+	ChangesReview   *ChangesReviewState               `json:"changesReview,omitempty"`
+	SubagentChat    *SubagentChatPaneState            `json:"subagentChat,omitempty"`
+	Agents          *WorkspaceAgentState              `json:"-"`
+	Diff            *WorkspaceDiffState               `json:"diff,omitempty"`
+	Files           *WorkspaceFileState               `json:"files,omitempty"`
+	Browser         *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
+	browser         *browserpreview.Controller
+	Schedule        *SchedulePaneState `json:"schedule,omitempty"`
+	ID              string             `json:"id"`
+	Kind            string             `json:"kind,omitempty"`
+	TerminalSource  string             `json:"terminalSource,omitempty"`
+	Axis            string             `json:"axis,omitempty"`
+	Ratio           float32            `json:"ratio,omitempty"`
+	First           *WorkspacePane     `json:"first,omitempty"`
+	Second          *WorkspacePane     `json:"second,omitempty"`
 }
 
 func paneLabel(zh, en string) string {
@@ -157,7 +160,18 @@ func (w *WorkspacePanes) visible(kind string) bool {
 	}
 	// Fullscreen expands the whole dock, not only the initiating pane. Every
 	// sibling remains visible, including native browser/terminal occurrences.
-	return w.Root.kind(kind) != nil
+	visible := false
+	w.Root.eachLeaf(func(group *WorkspacePane) {
+		if docked := group.dockedLeaf(); docked != nil && docked.Kind == kind {
+			visible = true
+		}
+		for _, tab := range group.dockTabs() {
+			if tab.Float != nil && !tab.Float.Minimized && tab.Kind == kind {
+				visible = true
+			}
+		}
+	})
+	return visible
 }
 func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	if n == nil || n.ID == id {
@@ -177,6 +191,9 @@ func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	return n
 }
 func (w *WorkspacePanes) close(id string) bool {
+	if n := w.Root.find(id); n != nil && n.Kind == "project-observer" {
+		return false
+	}
 	if n := w.Root.find(id); n != nil && n.Files.unsaved() {
 		w.closing = id
 		return false
@@ -185,6 +202,15 @@ func (w *WorkspacePanes) close(id string) bool {
 	return true
 }
 func (w *WorkspacePanes) closeNow(id string) {
+	if n := w.Root.find(id); n != nil && n.Kind == "project-observer" {
+		return
+	}
+	w.disposeWorkspaceResource(id)
+}
+
+// disposeWorkspaceResource is internal lifecycle cleanup, not a user close
+// command. Host/reset/disposal paths may remove non-closeable resource types.
+func (w *WorkspacePanes) disposeWorkspaceResource(id string) {
 	group := w.Root.dockGroup(id)
 	if group == nil {
 		return
@@ -271,6 +297,15 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 }
 func workspaceVisible(m Model, kind string) bool {
 	if !m.RightPaneOpen {
+		if m.Sizes != nil && m.Sizes.Workspace != nil {
+			visible := false
+			m.Sizes.Workspace.Root.eachResource(func(n *WorkspacePane) {
+				if n.Float != nil && !n.Float.Minimized && n.Kind == kind {
+					visible = true
+				}
+			})
+			return visible
+		}
 		return false
 	}
 	if m.Sizes != nil && m.Sizes.Workspace != nil {
@@ -309,14 +344,18 @@ func workspaceColumns(c *ui.Context, m Model, center func()) {
 			*m.RightPaneTab = w.Root.find(w.Active).Kind
 		}
 	}()
-	render := func() { workspaceNode(c, m, w.Root) }
-	if m.RightPaneOpen && w.Fullscreen != "" {
+	defer workspaceFloating(c, m)
+	render := func() { workspaceDockNode(c, m, w.Root) }
+	if m.RightPaneOpen && w.Fullscreen != "" && w.Root.dockedLeaf() != nil {
 		// SidebarRight keeps one DockLayout tree in both push and fullscreen
 		// modes. Retain every split and resource occurrence, and reuse the
 		// existing native-safe main area rather than stacking a canvas overlay
 		// above live WebView/terminal children.
 		ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(render)
 		return
+	}
+	if w.Root.dockedLeaf() == nil {
+		m.RightPaneOpen = false
 	}
 	centerRightColumns(c, m, center, render)
 }
@@ -373,6 +412,18 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		return
 	}
 	w := m.Sizes.Workspace
+	if n.Float != nil {
+		if w.closing == n.ID {
+			ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
+			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() {
+				w.closing = ""
+			}
+			if ui.Button(c, paneLabel("丢弃并关闭", "Discard and close")).Clicked() {
+				w.pending = func() { w.closeNow(n.ID) }
+			}
+		}
+		return
+	}
 	workspaceDockTabStrip(c, m)
 	kinds := []string{"files", "diff", "agents"}
 	if m.HostTerminalStore != nil {
@@ -416,6 +467,9 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		if ui.Button(c, title).FontSize(theme.InterfaceSize(10)).Clicked() {
 			w.Active = n.ID
 			w.route = n.Kind
+		}
+		if ui.Button(c, paneLabel("浮动", "Float")).FontSize(theme.InterfaceSize(10)).Clicked() {
+			w.pending = func() { w.FloatWorkspaceTab(n.ID) }
 		}
 		label := paneLabel("面板全屏", "Maximize pane")
 		if w.Fullscreen != "" {

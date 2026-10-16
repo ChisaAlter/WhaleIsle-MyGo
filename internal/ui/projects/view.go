@@ -9,6 +9,10 @@ import (
 )
 
 type Model struct {
+	ObserverModel                                                        func(*ObserverState) Model
+	ObserverHost                                                         string
+	OnObserverSection                                                    func(string, string)
+	OnObserver                                                           func(string)
 	MaterialCollection                                                   *projectflow.MaterialCollection
 	OnMaterialCollection                                                 func(string)
 	OnMaterialCollectionAction                                           func(string)
@@ -198,6 +202,9 @@ func View(c *ui.Context, m Model) {
 							}
 							if ui.Button(c, tr("要求", "Requests")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnRequests != nil {
 								m.OnRequests(p.ID)
+							}
+							if p.CoordinatorSessionID == m.SelectedSession && m.OnObserver != nil && ui.Button(c, tr("项目概览", "Project overview")).Disabled(m.Busy || !m.Listing.Available).Clicked() {
+								m.OnObserver(p.ID)
 							}
 							if ui.Button(c, "Team").Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnTeam != nil {
 								m.OnTeam(p.ID)
