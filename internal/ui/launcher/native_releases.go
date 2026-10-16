@@ -33,14 +33,17 @@ func nativeReleaseOperation(c *ui.Context, m Model) {
 			pct := float64(m.ReleaseReceived) * 100 / float64(m.ReleaseTotal)
 			ui.Text(c, fmt.Sprintf("%.1f / %.1f MiB (%.0f%%)", float64(m.ReleaseReceived)/(1<<20), float64(m.ReleaseTotal)/(1<<20), pct)).FontSize(fonttheme.InterfaceSize(12)).TextColor(colAccent)
 		}
-		if m.ReleaseBusy {
+		if m.ReleaseBusy && m.OnCancelRelease != nil {
 			if ghostSmall(c, releaseText("取消下载 / 读取", "Cancel download / lookup")).Clicked() && m.OnCancelRelease != nil {
 				m.OnCancelRelease()
 			}
-		} else if m.ReleaseStagedTag != "" {
+		} else if !m.ReleaseBusy && m.ReleaseStagedTag != "" {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, releaseText("已校验安装包：", "Verified installer: ")+m.ReleaseStagedTag).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 				action := releaseText("安装并退出", "Install and quit")
+				if m.ManagedDesktop {
+					action = releaseText("安装并等待完成", "Install and wait")
+				}
 				if runtime.GOOS == "darwin" {
 					action = releaseText("打开磁盘映像并退出", "Open disk image and quit")
 				}

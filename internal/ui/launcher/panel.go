@@ -54,6 +54,7 @@ var (
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
+	ManagedDesktop              bool // Standalone launcher remains open while installing another desktop.
 	BridgeAlerts                BridgeAlertsModel
 	ApplicationUninstall        ApplicationUninstallModel
 	StartupDiagnostics          startuprec.Diagnostics

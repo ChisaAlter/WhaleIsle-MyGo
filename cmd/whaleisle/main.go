@@ -1930,6 +1930,10 @@ func main() {
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
 	}
+	// A stale stop request must not cold-start the desktop.
+	if len(os.Args) > 1 && os.Args[1] == "--managed-launcher-stop" {
+		return
+	}
 	mygo.App.OnOpenURL(func(rawURL string) {
 		if t, ok := deeplink.Parse(rawURL); ok {
 			state.applyDeeplink(t)
@@ -1941,6 +1945,10 @@ func main() {
 		log.Println("RegisterURLScheme:", err)
 	}
 	mygo.App.OnSecondInstance(func(args []string, workingDir string) {
+		if managedLauncherStop(args) {
+			state.quitDesktopTray()
+			return
+		}
 		state.showMainWindow()
 	})
 
