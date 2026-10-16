@@ -15,7 +15,7 @@ import (
 type WorkspacePanes struct {
 	Root         *WorkspacePane `json:"root"`
 	Active       string         `json:"active"`
-	Fullscreen   string         `json:"fullscreen,omitempty"`
+	Fullscreen   string         `json:"fullscreen,omitempty"` // nonempty expands the whole resource dock; ID retains the initiating pane
 	Next         int            `json:"next"`
 	route        string
 	pending      func()
@@ -122,11 +122,9 @@ func (w *WorkspacePanes) visible(kind string) bool {
 	if w == nil || w.Root == nil {
 		return false
 	}
-	n := w.Root
-	if w.Fullscreen != "" {
-		n = w.Root.find(w.Fullscreen)
-	}
-	return n.kind(kind) != nil
+	// Fullscreen expands the whole dock, not only the initiating pane. Every
+	// sibling remains visible, including native browser/terminal occurrences.
+	return w.Root.kind(kind) != nil
 }
 func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	if n == nil || n.ID == id {
@@ -259,10 +257,12 @@ func workspaceColumns(c *ui.Context, m Model, center func()) {
 	}()
 	render := func() { workspaceNode(c, m, w.Root) }
 	if m.RightPaneOpen && w.Fullscreen != "" {
-		if n := w.Root.find(w.Fullscreen); n != nil {
-			ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(func() { workspaceNode(c, m, n) })
-			return
-		}
+		// SidebarRight keeps one DockLayout tree in both push and fullscreen
+		// modes. Retain every split and resource occurrence, and reuse the
+		// existing native-safe main area rather than stacking a canvas overlay
+		// above live WebView/terminal children.
+		ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(render)
+		return
 	}
 	centerRightColumns(c, m, center, render)
 }
@@ -363,11 +363,11 @@ func workspacePaneControls(c *ui.Context, m Model) {
 			w.route = n.Kind
 		}
 		label := paneLabel("面板全屏", "Maximize pane")
-		if w.Fullscreen == n.ID {
+		if w.Fullscreen != "" {
 			label = paneLabel("退出全屏", "Restore pane")
 		}
 		if ui.Button(c, label).FontSize(theme.InterfaceSize(10)).Clicked() {
-			if w.Fullscreen == n.ID {
+			if w.Fullscreen != "" {
 				w.Fullscreen = ""
 			} else {
 				w.Fullscreen = n.ID
