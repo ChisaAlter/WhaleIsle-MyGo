@@ -169,7 +169,7 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	}
 	active := w.Root.find(w.Active)
 	hasFiles := false
-	w.Root.eachLeaf(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
+	w.Root.eachResource(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
 	state := w.fileState(active, m)
 	if !hasFiles {
 		state.capture(m)
@@ -180,7 +180,7 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	// Existing callbacks retain all original session/Host checks. Publish at the
 	// gesture, then collect their result into that same occurrence.
 	run := func(action func()) {
-		target := w.Root.find(w.Active)
+		target := w.selectKind(w.Root.find(w.Active), "files")
 		state := w.fileState(target, m)
 		state.publish(m)
 		action()
@@ -188,7 +188,7 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 		if m.RightPaneTab != nil && *m.RightPaneTab != target.Kind {
 			w.selectKind(target, *m.RightPaneTab)
 		}
-		w.legacyFileID = target.ID
+		w.legacyFileID = w.Active
 	}
 	if open := m.OnOpenDeliverable; open != nil {
 		m.OnOpenDeliverable = func(path string) { run(func() { open(path) }) }
@@ -255,7 +255,7 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 	if w == nil {
 		return
 	}
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Agents != nil {
 			n.Agents.rendered = false
 		}
@@ -276,7 +276,11 @@ func (w *WorkspacePanes) EndContentFrame() {
 	if w == nil {
 		return
 	}
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Inspector != nil && w.Root.dockGroup(n.ID) != n {
+			n.Inspector.navigation.Picking = false
+			n.Inspector.navigation.Target = nil
+		}
 		if n.Agents != nil && !n.Agents.rendered {
 			n.releaseAgentPane()
 		}
@@ -294,7 +298,7 @@ func (w *WorkspacePanes) PauseContent() {
 	if w == nil {
 		return
 	}
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
 		n.releaseAgentPane()
 		if n.Files != nil {
 			n.Files.Tabs.CancelPlanRead()
@@ -322,12 +326,12 @@ func (n *WorkspacePane) disposeContent() {
 
 func (w *WorkspacePanes) DisposeContent() {
 	if w != nil {
-		w.Root.eachLeaf(func(n *WorkspacePane) { n.disposeContent() })
+		w.Root.eachResource(func(n *WorkspacePane) { n.disposeContent() })
 	}
 }
 
 func (w *WorkspacePanes) captureContent() {
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.browser != nil {
 			n.Browser = n.browser.WorkspaceSnapshot()
 		}
@@ -336,7 +340,7 @@ func (w *WorkspacePanes) captureContent() {
 
 func (w *WorkspacePanes) restoreContent() error {
 	var restoreErr error
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Files == nil || restoreErr != nil {
 			return
 		}
@@ -352,9 +356,17 @@ func (w *WorkspacePanes) restoreContent() error {
 }
 
 func (w *WorkspacePanes) resetTo(n *WorkspacePane) {
+	group := w.Root.dockGroup(n.ID)
+	if group == nil {
+		return
+	}
+	keep := map[string]bool{}
+	for _, tab := range group.dockTabs() {
+		keep[tab.ID] = true
+	}
 	blocked := false
-	w.Root.eachLeaf(func(other *WorkspacePane) {
-		if other != n && other.Files.unsaved() {
+	w.Root.eachResource(func(other *WorkspacePane) {
+		if !keep[other.ID] && other.Files.unsaved() {
 			blocked = true
 		}
 	})
@@ -362,12 +374,12 @@ func (w *WorkspacePanes) resetTo(n *WorkspacePane) {
 		w.message = paneLabel("其他面板仍有未保存内容，请先保存或关闭它们。", "Other panes have unsaved drafts. Save or close them first.")
 		return
 	}
-	w.Root.eachLeaf(func(other *WorkspacePane) {
-		if other != n {
+	w.Root.eachResource(func(other *WorkspacePane) {
+		if !keep[other.ID] {
 			other.disposeContent()
 		}
 	})
-	w.Root, w.Active, w.Fullscreen, w.route = n, n.ID, "", n.Kind
+	w.Root, w.Active, w.Fullscreen, w.route = group, group.ID, "", group.Kind
 	w.message = ""
 }
 
@@ -391,32 +403,26 @@ func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, crea
 	if w.Root == nil {
 		w.syncRoute("files")
 	}
-	n := w.Root.find(w.Active)
-	target := n
-	var splitSource *WorkspacePane
-	if source.AddressKind == "subagent" && n.Kind == "agents" {
-		// The existing child reader is owned by the Agents navigation view.
-		// Keep that source view mounted while displaying the document beside it.
-		target = w.Root.kind("browser")
-		if target == nil {
-			target = w.leaf("browser")
-			splitSource = n
-		}
-	}
-	w.browserFor(target, create).OpenDocumentSource(source)
-	id := target.ID
-	// Content callbacks may run while the source pane is being painted.
+	sourceID := w.Active
+	// The authenticated caller already resolved the document. Defer only the
+	// layout mutation so no tab changes ownership while its body is painted.
 	w.pending = func() {
-		if splitSource != nil {
-			old := *splitSource
-			*splitSource = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: target}
+		n := w.Root.find(sourceID)
+		if n == nil {
+			return
 		}
-		if pane := w.Root.find(id); pane != nil {
-			if source.AddressKind == "subagent" {
-				w.Fullscreen = ""
+		target := n
+		if source.AddressKind == "subagent" && n.Kind == "agents" {
+			target = w.Root.kind("browser")
+			if target == nil {
+				target = w.leaf("browser")
+				old := *n
+				*n = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: target}
 			}
-			w.selectKind(pane, "browser")
-			w.focusPending = id
+			w.Fullscreen = ""
 		}
+		target = w.selectKind(target, "browser")
+		w.browserFor(target, create).OpenDocumentSource(source)
+		w.focusPending = target.ID
 	}
 }

@@ -16,7 +16,8 @@ func (w *WorkspacePanes) showOpenedPlan(m Model, doc planpreview.Document) {
 	if n.Files.Tabs.Plans.ActiveAddress(sid) != doc.Address {
 		return
 	}
-	n.Kind, w.route = "plan", "plan"
+	target := w.selectKind(n, "plan")
+	transferDockResource(target, n, "plan")
 	if m.RightPaneTab != nil {
 		*m.RightPaneTab = "plan"
 	}

@@ -52,7 +52,7 @@ func (w *WorkspacePanes) OpenChangesReview(snapshot session.ViewState, target se
 		w.syncRoute("files")
 	}
 	var found *WorkspacePane
-	w.Root.eachLeaf(func(n *WorkspacePane) {
+	w.Root.eachResource(func(n *WorkspacePane) {
 		old := n.ChangesReview
 		if found == nil && old != nil && old.Host == r.Host && old.SessionID == r.SessionID && old.Target.Seq == target.Seq && old.Target.Turn == target.Turn {
 			found = n
@@ -66,7 +66,7 @@ func (w *WorkspacePanes) OpenChangesReview(snapshot session.ViewState, target se
 		found.ChangesReview.scope = r.scope
 		found.ChangesReview.requested = nil
 	}
-	w.selectKind(found, "changes-review")
+	found = w.selectKind(found, "changes-review")
 	w.focusPending = found.ID
 	return true
 }

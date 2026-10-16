@@ -26,6 +26,8 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
+	DockTabs       []*WorkspacePane                  `json:"dockTabs,omitempty"`
+	DockIndex      int                               `json:"dockIndex,omitempty"`
 	Inspector      *SessionInspectorPaneState        `json:"inspector,omitempty"`
 	ChangesReview  *ChangesReviewState               `json:"changesReview,omitempty"`
 	SubagentChat   *SubagentChatPaneState            `json:"subagentChat,omitempty"`
@@ -61,6 +63,11 @@ func (n *WorkspacePane) find(id string) *WorkspacePane {
 	if n.ID == id {
 		return n
 	}
+	for _, tab := range n.DockTabs {
+		if tab.ID == id {
+			return tab
+		}
+	}
 	if p := n.First.find(id); p != nil {
 		return p
 	}
@@ -84,16 +91,42 @@ func (n *WorkspacePane) firstLeaf() *WorkspacePane {
 	}
 	return n.First.firstLeaf()
 }
-func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) {
-	if other := w.Root.kind(kind); !independentPaneKind(kind) && other != nil && other != n {
-		// Singleton providers are revealed in their existing seat. Moving only a
-		// kind would detach an independent file/browser occurrence from its state.
-		w.Active, w.route = other.ID, kind
-		return
+func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) *WorkspacePane {
+	if n == nil {
+		return nil
 	}
-	n.Kind = kind
-	w.Active = n.ID
-	w.route = kind
+	group := w.Root.dockGroup(n.ID)
+	if group == nil {
+		return n
+	}
+	tabs := group.dockTabs()
+	for _, tab := range tabs {
+		if tab.Kind == kind {
+			if kind == "changes-review" {
+				transferDockResource(tab, n, kind)
+			}
+			w.activateDockTab(tab.ID)
+			return tab
+		}
+	}
+	if !independentPaneKind(kind) {
+		var existing *WorkspacePane
+		w.Root.eachResource(func(tab *WorkspacePane) {
+			if tab.Kind == kind {
+				existing = tab
+			}
+		})
+		if existing != nil {
+			w.activateDockTab(existing.ID)
+			return existing
+		}
+	}
+	added := w.leaf(kind)
+	transferDockResource(added, n, kind)
+	tabs = append(tabs, added)
+	setDockTabs(group, tabs)
+	w.activateDockTab(added.ID)
+	return added
 }
 func (w *WorkspacePanes) syncRoute(kind string) {
 	if kind == "" {
@@ -108,7 +141,7 @@ func (w *WorkspacePanes) syncRoute(kind string) {
 	}
 	if kind != w.route {
 		if existing := w.Root.kind(kind); !independentPaneKind(kind) && existing != nil {
-			w.Active = existing.ID
+			w.activateDockTab(existing.ID)
 		} else {
 			w.selectKind(w.Root.find(w.Active), kind)
 		}
@@ -152,22 +185,43 @@ func (w *WorkspacePanes) close(id string) bool {
 	return true
 }
 func (w *WorkspacePanes) closeNow(id string) {
-	if n := w.Root.find(id); n != nil {
-		n.disposeContent()
+	group := w.Root.dockGroup(id)
+	if group == nil {
+		return
+	}
+	tabs := group.dockTabs()
+	remaining := make([]*WorkspacePane, 0, len(tabs)-1)
+	for _, tab := range tabs {
+		if tab.ID == id {
+			tab.disposeContent()
+		} else {
+			remaining = append(remaining, tab)
+		}
+	}
+	group.DockTabs, group.DockIndex = nil, 0
+	if len(remaining) == 0 {
+		w.Root = w.remove(w.Root, group.ID)
+	} else {
+		selected := group
+		if group.ID == id {
+			selected = remaining[0]
+		}
+		setDockTabs(selected, remaining)
+		w.Root = replaceWorkspaceLeaf(w.Root, group, selected)
 	}
 	if w.legacyFileID == id {
 		w.legacyFileID = ""
 	}
 	w.closing = ""
-	w.Root = w.remove(w.Root, id)
 	if w.Root == nil {
 		w.Root = w.leaf("files")
 	}
 	if w.Root.find(w.Active) == nil {
 		w.Active = w.Root.firstLeaf().ID
 	}
+	w.activateDockTab(w.Active)
 	if w.Fullscreen == id {
-		w.Fullscreen = ""
+		w.Fullscreen = w.Active
 	}
 	w.route = w.Root.find(w.Active).Kind
 }
@@ -208,7 +262,7 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 			active = w.Root.firstLeaf()
 			w.Active = active.ID
 		}
-		w.route = active.Kind
+		w.activateDockTab(active.ID)
 	}
 	if err := w.restoreContent(); err != nil {
 		return nil, err
@@ -234,7 +288,7 @@ func prepareWorkspace(m Model) {
 	}
 	w := m.Sizes.Workspace
 	if pane := w.Root.find(w.focusPending); pane != nil {
-		w.Active, w.route = pane.ID, pane.Kind
+		w.activateDockTab(pane.ID)
 		if m.RightPaneTab != nil {
 			*m.RightPaneTab = pane.Kind
 		}
@@ -319,6 +373,7 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		return
 	}
 	w := m.Sizes.Workspace
+	workspaceDockTabStrip(c, m)
 	kinds := []string{"files", "diff", "agents"}
 	if m.HostTerminalStore != nil {
 		kinds = append(kinds, "host-terminal")
@@ -375,9 +430,9 @@ func workspacePaneControls(c *ui.Context, m Model) {
 				w.route = n.Kind
 			}
 		}
-		if ui.Button(c, "×").Label(paneLabel("关闭面板", "Close pane")).Clicked() {
+		if ui.Button(c, "×").Label(paneLabel("关闭标签", "Close tab")).Clicked() {
 			w.pending = func() {
-				last := w.Root.First == nil
+				last := w.Root.First == nil && len(w.Root.DockTabs) == 0
 				closed := w.close(n.ID)
 				if closed && last && m.OnToggleTools != nil {
 					m.OnToggleTools()
