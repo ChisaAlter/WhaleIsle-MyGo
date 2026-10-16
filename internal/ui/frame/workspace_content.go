@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/planpreview"
+	"whaleisle/internal/ui/diffsurface"
 )
 
 // WorkspaceFileState is one pane's editor, tab set, selection and viewport.
@@ -97,6 +98,7 @@ func (w *WorkspacePanes) fileState(n *WorkspacePane, m Model) *WorkspaceFileStat
 // The old main-state fields are an adapter for existing open-file entry points.
 // They project only the focused pane; no two rendered panes share those fields.
 func (w *WorkspacePanes) beginFileProjection(m Model) Model {
+	w.beginDiffProjection(m)
 	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil {
 		previous.Files.capture(m)
 	}
@@ -131,6 +133,7 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 }
 
 func (w *WorkspacePanes) finishFileProjection(m Model) {
+	w.finishDiffProjection(m)
 	if n := w.Root.find(w.Active); n != nil {
 		w.fileState(n, m).publish(m)
 		w.legacyFileID = n.ID
@@ -141,7 +144,10 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 	w := m.Sizes.Workspace
 	state := w.fileState(n, m)
 	if m.Store != nil { state.Tabs.SyncPlanSession(m.Store.Snapshot().SelectedID) }
-	local := state.model(m)
+	local := w.diffState(n).model(state.model(m))
+	if n.Kind == "diff" && !local.GitWorkbench.Loaded && *local.DiffPath != "" && *local.DiffText == "" {
+		*local.DiffText, *local.DiffErr = diffsurface.LoadDiff(m.WorkspaceRoot, *local.DiffPath)
+	}
 	local.FileShortcuts = func() bool { return w.Active == n.ID }
 	if open := local.OnOpenDoc; open != nil {
 		local.OnOpenDoc = func(path string, kind workspacefs.DocKind, inWebView bool) {
@@ -206,6 +212,7 @@ func (w *WorkspacePanes) PauseContent() {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	if n.Diff != nil { n.Diff.Workbench.ClosePane() }
 	if n.Files != nil { n.Files.Tabs.Dispose() }
 	if n.browser != nil { n.browser.Close(); n.browser = nil }
 }

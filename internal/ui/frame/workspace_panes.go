@@ -26,6 +26,7 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
+	Diff *WorkspaceDiffState `json:"diff,omitempty"`
 	Files          *WorkspaceFileState `json:"files,omitempty"`
 	Browser        *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
 	browser        *browserpreview.Controller
@@ -323,6 +324,7 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		old := *n
 		newPane := w.leaf(next)
 		copySchedulePaneTarget(newPane, &old)
+		copyDiffPane(newPane, &old)
 		if next == "host-terminal" && n.Kind == "host-terminal" {
 			newPane.TerminalSource = old.ID
 		}
@@ -391,7 +393,7 @@ func workspacePaneControls(c *ui.Context, m Model) {
 }
 
 func independentPaneKind(kind string) bool {
-	return kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task"
+	return kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff"
 }
 
 // SplitWorkspacePane is shared by the pane chrome and editable command registry.
@@ -420,6 +422,7 @@ func SplitWorkspacePane(m Model, vertical bool) {
 		old := *n
 		added := w.leaf(kind)
 		copySchedulePaneTarget(added, &old)
+		copyDiffPane(added, &old)
 		if kind == "host-terminal" && old.Kind == "host-terminal" {
 			added.TerminalSource = old.ID
 		}
