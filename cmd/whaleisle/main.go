@@ -5160,6 +5160,8 @@ func mainView(c *ui.Context) {
 					},
 					AboutActive: aboutActive,
 					About: &settings.AboutAccess{
+ ReadCredentialStorage: func() credentials.StorageStatus { return credentials.InspectStorage(paths.UserDataDir()) },
+ OnOpenLink: desktopwebview.OpenExternal,
 						AppName:          i18n.T(i18n.KeyAppName),
 						Version:          buildVersion,
 						Identifier:       "ai.deepseek.harness.gui",
