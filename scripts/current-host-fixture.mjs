@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
-import {artifacts,commit,finalize,verify} from './current-host.mjs';
+import {artifacts,commit,finalize,verify,prepare} from './current-host.mjs';
 import {applyReadinessGuard,toolsPath,marker} from './current-host-readiness.mjs';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'mygo-current-host-fixture-'));
 try {
@@ -19,8 +19,17 @@ try {
  fs.chmodSync(path.join(root,toolsPath),0o644);
  applyReadinessGuard(root);
  fs.writeFileSync(path.join(root,'deepseek-harness/packages/client/ui-visual-replies/lib/index.js'),marker+' /desktop/html-preview/status');
- const m=finalize(root);assert.equal(m.sourceCommit,commit);assert.deepEqual(m.capabilities,{project:false,team:false,visualReplies:false});
+ for (const sourceCommit of [commit, 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195']) {
+ const selection=JSON.parse(fs.readFileSync(path.join(root,'source-selection.json'),'utf8'));
+ selection.sourceCommit=sourceCommit;fs.writeFileSync(path.join(root,'source-selection.json'),JSON.stringify(selection));
+ const m=finalize(root);assert.equal(m.sourceCommit,sourceCommit);assert.deepEqual(m.capabilities,{project:false,team:false,visualReplies:false});
  assert.equal(verify(root).buildProfile,'official');
+ }
+ const manifestPath=path.join(root,'current-host-build.json');
+ const valid=fs.readFileSync(manifestPath,'utf8');
+ const unsupported=JSON.parse(valid);unsupported.sourceCommit='f'.repeat(40);fs.writeFileSync(manifestPath,JSON.stringify(unsupported));
+ assert.throws(()=>verify(root),/Unsupported/);fs.writeFileSync(manifestPath,valid);
+ assert.throws(()=>prepare(original,path.join(root,'unsupported-source'),'f'.repeat(40)),/Unsupported/);
  fs.writeFileSync(path.join(root,artifacts[0]),'changed');assert.throws(()=>verify(root),/missing or changed/);
- console.log('Configuration fixture OK: matching artifacts, capability defaults off, changed artifact rejected.');
+ console.log('Configuration fixture OK: 904/e9 manifests, capability defaults off, unknown provenance and changed artifact rejected.');
 } finally {fs.rmSync(root,{recursive:true,force:true});}

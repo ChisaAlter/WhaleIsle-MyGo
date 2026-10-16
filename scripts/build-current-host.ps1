@@ -2,6 +2,8 @@
 param(
     [Parameter(Mandatory=$true)][string]$SourceRoot,
     [string]$WorkRoot,
+    [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
+    [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
     [string]$VendorTarget,
     [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
@@ -9,9 +11,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $WorkRoot) { $WorkRoot = Join-Path $ProjectRoot ('runtime\build\current-host-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
-if (-not $VendorTarget) { $VendorTarget = Join-Path $ProjectRoot 'runtime\vendor-current-90465b67' }
+if (-not $VendorTarget) { $VendorTarget = Join-Path $ProjectRoot ('runtime\vendor-current-' + $SourceCommit.Substring(0, 8)) }
 $Helper = Join-Path $PSScriptRoot 'current-host.mjs'
-& node $Helper prepare $SourceRoot $WorkRoot
+& node $Helper prepare $SourceRoot $WorkRoot $SourceCommit
 if ($LASTEXITCODE -ne 0) { throw 'Current Host source preparation failed' }
 if ($UnifiedShortcuts) {
     & node (Join-Path $PSScriptRoot 'current-host-shortcuts.mjs') (Join-Path $WorkRoot 'deepseek-harness')
@@ -24,7 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Pinned pnpm bootstrap failed' }
 $Pnpm = Join-Path $Tools 'node_modules\pnpm\bin\pnpm.cjs'
 if (-not (Test-Path $Pnpm)) { $Pnpm = Join-Path $Tools 'node_modules\pnpm\bin\pnpm.mjs' }
 $PreviousCommit = $env:DSH_CLIENT_COMMIT_HASH
-$env:DSH_CLIENT_COMMIT_HASH = '90465b67ec16765631d54c195af19d9ff3c3a770'
+$env:DSH_CLIENT_COMMIT_HASH = $SourceCommit
 Push-Location (Join-Path $WorkRoot 'deepseek-harness')
 try {
     & node $Pnpm install --frozen-lockfile --registry=https://registry.npmjs.org --fetch-retries=0

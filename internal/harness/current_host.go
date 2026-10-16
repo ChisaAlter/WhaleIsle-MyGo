@@ -13,7 +13,13 @@ import (
 const CurrentHostReadinessGuardID = "mygo-visual-readiness-v1"
 const CurrentHostReadinessPatchSHA256 = "87b97484bbed6adc2d727e49922766af96579a6b4337a44da799cc993b13d3b3"
 
+// Retain the original default; selecting e9 artifacts is explicit and never upgrades an installed runtime.
 const CurrentHostSourceCommit = "90465b67ec16765631d54c195af19d9ff3c3a770"
+const CurrentHostE9SourceCommit = "e9f584be6d3b491ce777bb6823f30bc2bbc6f195"
+
+func supportedCurrentHostSource(commit string) bool {
+	return commit == CurrentHostSourceCommit || commit == CurrentHostE9SourceCommit
+}
 
 // Bridge readiness must come from the running desktop implementation, not a
 // server setting or a package's shared version number. Overlay readiness means
@@ -72,7 +78,7 @@ func ReadCurrentHostCapabilities(vendorDir string, bridges CurrentHostBridges) C
 		BuildProfile string            `json:"buildProfile"`
 		Artifacts    map[string]string `json:"artifacts"`
 	}
-	if err = json.Unmarshal(raw, &m); err != nil || m.SchemaVersion != 1 || m.SourceCommit != CurrentHostSourceCommit || m.BuildProfile != "official" {
+	if err = json.Unmarshal(raw, &m); err != nil || m.SchemaVersion != 1 || !supportedCurrentHostSource(m.SourceCommit) || m.BuildProfile != "official" {
 		return fail("Current Host build provenance is unsupported")
 	}
 	platform := runtime.GOOS
