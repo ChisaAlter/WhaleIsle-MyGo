@@ -319,6 +319,7 @@ func (w *window) cleanup() {
 		return
 	}
 	w.closed = true
+	w.releaseBrowserSeat()
 	b := w.b
 	send(w.web, "removeObserver:forKeyPath:", uintptr(w.delegate), uintptr(nsString("title")))
 	send(w.ucc, "removeScriptMessageHandlerForName:", uintptr(nsString("mygo")))
@@ -328,7 +329,7 @@ func (w *window) cleanup() {
 	send(w.web, "setUIDelegate:", 0)
 	send(w.win, "setDelegate:", 0)
 	if w.parent != nil && !w.parent.closed {
-		send(w.parent.win, "removeChildWindow:", uintptr(w.win))
+		send(w.parent.browserNativeWindow(), "removeChildWindow:", uintptr(w.win))
 	}
 	delete(b.byDelegate, w.delegate)
 	delete(b.byWebView, w.web)
@@ -358,7 +359,7 @@ func (w *window) cleanup() {
 	autorelease(w.win)
 }
 
-func (w *window) Handle() uintptr        { return uintptr(w.win) }
+func (w *window) Handle() uintptr        { return uintptr(w.browserNativeWindow()) }
 func (w *window) WebViewHandle() uintptr { return uintptr(w.web) }
 
 func (w *window) SetTitle(title string) {
@@ -373,17 +374,33 @@ func (w *window) Title() string {
 }
 
 func (w *window) SetBounds(r platform.Rect) {
+	if seat := browserSeats[w]; seat != nil {
+		seat.layout(r)
+		return
+	}
 	msgSetRectBool(w.win, sel("setFrame:display:"), rectToMac(r), true)
 }
 
-func (w *window) Bounds() platform.Rect { return rectFromMac(msgRect(w.win, sel("frame"))) }
+func (w *window) Bounds() platform.Rect {
+	if seat := browserSeats[w]; seat != nil {
+		return seat.bounds()
+	}
+	return rectFromMac(msgRect(w.win, sel("frame")))
+}
 
 func (w *window) SetContentBounds(r platform.Rect) {
+	if seat := browserSeats[w]; seat != nil {
+		seat.layout(r)
+		return
+	}
 	frame := msgRectToRect(w.win, sel("frameRectForContentRect:"), rectToMac(r))
 	msgSetRectBool(w.win, sel("setFrame:display:"), frame, true)
 }
 
 func (w *window) ContentBounds() platform.Rect {
+	if seat := browserSeats[w]; seat != nil {
+		return seat.bounds()
+	}
 	frame := msgRect(w.win, sel("frame"))
 	return rectFromMac(msgRectToRect(w.win, sel("contentRectForFrameRect:"), frame))
 }
@@ -443,43 +460,83 @@ func (w *window) SetAlwaysOnTop(v bool) {
 func (w *window) IsAlwaysOnTop() bool { return sendInt(w.win, "level") != nsNormalWindowLevel }
 
 func (w *window) Show() {
+	if seat := browserSeats[w]; seat != nil {
+		send(seat.clip, "setHidden:", 0)
+		w.Focus()
+		return
+	}
 	if w.parent != nil && w.opts.Modal && !w.sheet {
 		w.sheet = true
-		send(w.parent.win, "beginSheet:completionHandler:", uintptr(w.win), 0)
+		send(w.parent.browserNativeWindow(), "beginSheet:completionHandler:", uintptr(w.win), 0)
 		return
 	}
 	send(w.win, "makeKeyAndOrderFront:", 0)
 	if w.parent != nil && !w.parent.closed {
-		send(w.parent.win, "addChildWindow:ordered:", uintptr(w.win), 1)
+		send(w.parent.browserNativeWindow(), "addChildWindow:ordered:", uintptr(w.win), 1)
 	}
 	send(w.b.app, "activateIgnoringOtherApps:", 1)
 }
 
 func (w *window) ShowInactive() {
+	if seat := browserSeats[w]; seat != nil {
+		send(seat.clip, "setHidden:", 0)
+		return
+	}
 	send(w.win, "orderFrontRegardless")
 	if w.parent != nil && !w.parent.closed {
-		send(w.parent.win, "addChildWindow:ordered:", uintptr(w.win), 1)
+		send(w.parent.browserNativeWindow(), "addChildWindow:ordered:", uintptr(w.win), 1)
 	}
 }
 
 func (w *window) Hide() {
+	if seat := browserSeats[w]; seat != nil {
+		w.Blur()
+		send(seat.clip, "setHidden:", 1)
+		return
+	}
 	if w.sheet {
 		w.sheet = false
-		send(w.parent.win, "endSheet:", uintptr(w.win))
+		send(w.parent.browserNativeWindow(), "endSheet:", uintptr(w.win))
 		return
 	}
 	send(w.win, "orderOut:", 0)
 }
 
-func (w *window) IsVisible() bool { return sendBool(w.win, "isVisible") }
+func (w *window) IsVisible() bool {
+	if seat := browserSeats[w]; seat != nil {
+		return !sendBool(seat.clip, "isHiddenOrHasHiddenAncestor") && sendBool(w.parent.browserNativeWindow(), "isVisible")
+	}
+	return sendBool(w.win, "isVisible")
+}
 
 func (w *window) Focus() {
+	if browserSeats[w] != nil {
+		send(w.parent.browserNativeWindow(), "makeKeyAndOrderFront:", 0)
+		send(w.parent.browserNativeWindow(), "makeFirstResponder:", uintptr(w.web))
+		send(w.b.app, "activateIgnoringOtherApps:", 1)
+		syncBrowserSeatFocus(w.parent)
+		return
+	}
 	send(w.win, "makeKeyAndOrderFront:", 0)
 	send(w.b.app, "activateIgnoringOtherApps:", 1)
 }
 
-func (w *window) Blur()             { send(w.win, "orderBack:", 0) }
-func (w *window) IsFocused() bool   { return sendBool(w.win, "isKeyWindow") }
+func (w *window) Blur() {
+	if browserSeats[w] != nil {
+		if w.browserHasFocus() {
+			send(w.parent.browserNativeWindow(), "makeFirstResponder:", uintptr(w.parent.surface.view))
+		}
+		syncBrowserSeatFocus(w.parent)
+		return
+	}
+	send(w.win, "orderBack:", 0)
+}
+func (w *window) IsFocused() bool {
+	if browserSeats[w] != nil {
+		return w.browserHasFocus()
+	}
+	return sendBool(w.win, "isKeyWindow")
+}
 func (w *window) Minimize()         { send(w.win, "miniaturize:", 0) }
 func (w *window) IsMinimized() bool { return sendBool(w.win, "isMiniaturized") }
 
@@ -665,7 +722,7 @@ func (w *window) Close() {
 	}
 	if w.sheet {
 		w.sheet = false
-		send(w.parent.win, "endSheet:", uintptr(w.win))
+		send(w.parent.browserNativeWindow(), "endSheet:", uintptr(w.win))
 	}
 	send(w.win, "close")
 }
@@ -968,7 +1025,7 @@ func (w *window) PrintToPDF(o platform.PDFOptions, cb func([]byte, error)) {
 		}
 		printJobs[job] = j
 		// The app's delegate hears of the end, as the window's may be gone.
-		send(op, "runOperationModalForWindow:delegate:didRunSelector:contextInfo:", uintptr(w.win), uintptr(w.b.delegate),
+		send(op, "runOperationModalForWindow:delegate:didRunSelector:contextInfo:", uintptr(w.browserNativeWindow()), uintptr(w.b.delegate),
 			uintptr(sel("mygoPrintOperationDidRun:success:contextInfo:")), job)
 	})
 }
@@ -983,7 +1040,7 @@ func (w *window) Print() {
 		op := retain(send(w.web, "printOperationWithPrintInfo:", uintptr(info)))
 		view := send(op, "view")
 		msgSetRect(view, sel("setFrame:"), msgRect(w.web, sel("bounds")))
-		send(op, "runOperationModalForWindow:delegate:didRunSelector:contextInfo:", uintptr(w.win), 0, 0, 0)
+		send(op, "runOperationModalForWindow:delegate:didRunSelector:contextInfo:", uintptr(w.browserNativeWindow()), 0, 0, 0)
 	})
 }
 
@@ -1059,6 +1116,9 @@ func registerWindowClasses() {
 				return
 			}
 			sendSuper(self, "MyGoWindow", cmd, uintptr(ev))
+			if w := theBackend.byNSWindow[self]; w != nil {
+				syncBrowserSeatFocus(w)
+			}
 		}),
 		method("canBecomeKeyWindow", func(self id, _ objc.SEL) bool { return true }),
 		method("canBecomeMainWindow", func(self id, _ objc.SEL) bool { return true }),
@@ -1115,6 +1175,7 @@ func registerWindowClasses() {
 				if w := b().windowFor(self); w != nil {
 					w.h.Focused()
 					w.surfaceKeyChanged(true)
+					syncBrowserSeatFocus(w)
 				}
 			}),
 			method("windowDidResignKey:", func(self id, _ objc.SEL, n id) {
@@ -1122,6 +1183,7 @@ func registerWindowClasses() {
 					w.resetProductKeys()
 					w.h.Blurred()
 					w.surfaceKeyChanged(false)
+					syncBrowserSeatFocus(w)
 				}
 			}),
 			method("windowDidResize:", func(self id, _ objc.SEL, n id) {

@@ -13,6 +13,12 @@ func (w *window) resetProductKeys() {
 // Called by our public NSWindow subclass before normal responder dispatch.
 // Never calls private WKContentView selectors or injects a page bridge.
 func (w *window) productKeyEvent(ev id) bool {
+	// Embedded browser responders belong to the parent NSWindow now.
+	for child := range browserSeats {
+		if child.parent == w && child.browserHasFocus() {
+			return child.productKeyEvent(ev)
+		}
+	}
 	typ := sendInt(ev, "type")
 	if typ != 10 && typ != 11 && typ != 12 {
 		return false
@@ -26,7 +32,7 @@ func (w *window) productKeyEvent(ev id) bool {
 	if !ok {
 		return false
 	}
-	focus := send(w.win, "firstResponder")
+	focus := send(w.browserNativeWindow(), "firstResponder")
 	if focus == 0 || !respondsTo(focus, "isDescendantOf:") || (focus != w.web && !sendBool(focus, "isDescendantOf:", uintptr(w.web))) {
 		w.resetProductKeys()
 		return false

@@ -25,7 +25,7 @@ func runPanel(obj id, parent *window, sheetSel string, done func(resp int)) {
 			withPool(func() { done(resp) })
 			release(obj)
 		})
-		send(obj, sheetSel, uintptr(parent.win), uintptr(blk))
+		send(obj, sheetSel, uintptr(parent.browserNativeWindow()), uintptr(blk))
 		blk.Release()
 		return
 	}
