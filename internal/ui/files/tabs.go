@@ -34,9 +34,11 @@ type Tabs struct {
 	Search          *workspacefs.Search        `json:"-"`
 }
 type WorkspaceTabs struct {
-	Open         []*FileTab
-	Active       string
-	PendingClose string
+	// AutoRefreshDisabled is opt-out, so new workspaces watch by default.
+	AutoRefreshDisabled bool
+	Open                []*FileTab
+	Active              string
+	PendingClose        string
 }
 type FileTab struct {
 	tablePage                                 *workspacefs.XLSXPage

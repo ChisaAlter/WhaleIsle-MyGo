@@ -87,8 +87,9 @@ type Model struct {
 	// Filter narrows the tree to matching relative paths (live IndexRelPaths).
 	Filter *string
 	// ListRemote is optional workspaceFiles/list fallback when local ListDir fails.
-	ListRemote        func(rel string) ([]workspacefs.Entry, error)
-	ListRemoteContext workspacefs.RemoteDirectoryLister
+	ListRemote         func(rel string) ([]workspacefs.Entry, error)
+	ListRemoteContext  workspacefs.RemoteDirectoryLister
+	WatchRemoteContext workspacefs.RemoteDirectoryWatcher
 	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
 	ReadRemote func(rel string) (string, error)
 	// Context readers are captured from the same frame as BindingID.
@@ -153,6 +154,11 @@ func View(c *ui.Context, m Model) {
 			m.Tabs.Tree = &workspacefs.DirectoryTree{}
 		}
 		m.Tabs.Tree.Ensure(m.BindingID, m.WorkspaceRoot)
+		automatic := true
+		if w := tabsFor(m); w != nil {
+			automatic = !w.AutoRefreshDisabled
+		}
+		m.Tabs.Tree.Observe(m.WatchRemoteContext, automatic)
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -166,9 +172,18 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		ui.Row(c).Padding(12, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
+			if w := tabsFor(m); w != nil {
+				automatic := !w.AutoRefreshDisabled
+				ui.Checkbox(c, &automatic, label("自动刷新", "Auto refresh"))
+				if automatic != !w.AutoRefreshDisabled {
+					w.AutoRefreshDisabled = !automatic
+					m.Tabs.Tree.Observe(m.WatchRemoteContext, automatic)
+					c.Invalidate()
+				}
+			}
 			if ui.Button(c, label("刷新", "Refresh")).FontSize(theme.InterfaceSize(10)).Clicked() && m.Tabs != nil {
 				if m.Tabs.Tree != nil {
-					m.Tabs.Tree.Cancel()
+					m.Tabs.Tree.Refresh()
 				}
 				if m.Tabs.Search != nil {
 					m.Tabs.Search.Cancel()
@@ -270,6 +285,9 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 	if state.Error != "" {
 		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
 		return
+	}
+	if state.WatchError != "" {
+		ui.Text(c, state.WatchError).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(4, 8, 4, 8)
 	}
 	ents := state.Entries
 	for _, e := range ents {
@@ -570,6 +588,9 @@ func toggleExpanded(m Model, rel string) {
 		exp = map[string]bool{}
 	}
 	exp[rel] = !exp[rel]
+	if !exp[rel] && m.Tabs != nil && m.Tabs.Tree != nil {
+		m.Tabs.Tree.Collapse(rel)
+	}
 	*m.Expanded = exp
 }
 

@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -415,14 +414,13 @@ type mainState struct {
 	terminalVisible     bool
 	terminalSavedBottom float32
 
-	dshMu            sync.Mutex
-	dshCancel        context.CancelFunc
-	dshEndpoint      string
-	dshClient        *dsh.Client
-	dshMux           *dsh.Mux
-	dshMuxReady      bool
-	dshMuxLost       bool
-	filesWatchCancel context.CancelFunc
+	dshMu       sync.Mutex
+	dshCancel   context.CancelFunc
+	dshEndpoint string
+	dshClient   *dsh.Client
+	dshMux      *dsh.Mux
+	dshMuxReady bool
+	dshMuxLost  bool
 }
 
 var state mainState
@@ -1212,42 +1210,9 @@ func (s *mainState) ensureTerminal(workspaceRoot string, systemDark bool) {
 func (s *mainState) setFilesPaneOpen(open bool) {
 	s.mu.Lock()
 	s.filesPaneOpen = open
-	if s.filesWatchCancel != nil {
-		s.filesWatchCancel()
-		s.filesWatchCancel = nil
-	}
 	s.mu.Unlock()
-	if !open {
-		return
-	}
-	s.dshMu.Lock()
-	mux := s.dshMux
-	s.dshMu.Unlock()
-	if mux == nil {
-		return
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.mu.Lock()
-	s.filesWatchCancel = cancel
-	win := s.win
-	s.mu.Unlock()
-	go func() {
-		_ = workspacefs.WatchRemoteChanges(ctx, mux, "", func(raw json.RawMessage) {
-			if len(raw) == 0 {
-				return
-			}
-			note := "files changed"
-			if len(raw) < 120 {
-				note = "files: " + string(raw)
-			}
-			s.mu.Lock()
-			s.fileStatNote = note
-			s.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
-		})
-	}()
+	// The Files tree owns directory subscriptions, including cancellation when
+	// hidden, collapsed, or rebound. No separate unscoped status-only watch.
 }
 
 func (s *mainState) closeTerminal() {
@@ -1579,6 +1544,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 			s.mu.Unlock()
 			return
 		}
+		st = actual
 	}
 	prev := s.bootStatus.State
 	// The actual supervisor generation/state check above rejects late snapshots.
@@ -1587,7 +1553,9 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	switch st.State {
 	case harness.Starting:
 		s.launcherStartBusy = true
-		s.launcherOpen = true
+		if !st.RecoveryActive && !st.RecoveryCancelled {
+			s.launcherOpen = true
+		}
 	case harness.Ready:
 		s.launcherStartBusy = false
 		s.launcherStartFailed = false
@@ -1596,14 +1564,18 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		if s.cfgStore != nil {
 			quitLauncher = s.cfgStore.Get().QuitAfterStart
 		}
-		if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || s.startupRecovery.updateHold) {
+		if st.RecoveryCancelled {
+			// Cancellation keeps the current page, including an explicitly opened launcher.
+		} else if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || s.startupRecovery.updateHold) {
 			s.launcherOpen = false
 		} else {
 			s.launcherOpen = true
 		}
 	case harness.Failed:
 		s.launcherStartBusy = false
-		s.launcherOpen = true
+		if !st.RecoveryCancelled {
+			s.launcherOpen = true
+		}
 		if s.launcherTriedStart || prev == harness.Starting {
 			s.launcherStartFailed = true
 			if st.Err != nil {
@@ -1800,10 +1772,6 @@ func (s *mainState) stopDSHLocked() {
 	s.dshMux = nil
 	s.dshMuxReady = false
 	s.dshMuxLost = false
-	if s.filesWatchCancel != nil {
-		s.filesWatchCancel()
-		s.filesWatchCancel = nil
-	}
 	if s.sessions != nil {
 		s.sessions.Detach()
 	}
@@ -3001,6 +2969,7 @@ func mainView(c *ui.Context) {
 	}
 	state.dshMu.Lock()
 	fileClient := state.dshClient
+	fileMux := state.dshMux
 	state.dshMu.Unlock()
 	fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, fileSessionID)
 	layout.Workspace.BeginContentFrame(fileBindingID, workspaceRoot)
@@ -6026,6 +5995,19 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				// Body under the title bar must Grow into remaining height (not Fill%).
 				ui.Column(c).Grow(1).MinHeight(0).Children(func() {
+					boot.RecoveryControl(c, boot.Model{
+						Status: st, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
+						OnCancelRecovery: func() {
+							if sup != nil {
+								sup.CancelRecovery()
+							}
+						},
+						OnRetry: func() {
+							if sup != nil {
+								state.restartUnlessImport(sup)
+							}
+						},
+					})
 					state.mu.Lock()
 					connBanner := connectionBanner(st, state.dshMuxReady, state.dshMuxLost)
 					state.mu.Unlock()
@@ -6525,8 +6507,18 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
+						OnWatchWorkspaceDirectoryContext: func(ctx context.Context, rel string, changed func()) error {
+							path := strings.TrimRight(strings.ReplaceAll(workspaceRoot, `\`, "/"), "/")
+							if rel != "" {
+								path += "/" + rel
+							}
+							if path == "" {
+								path = "/"
+							}
+							return workspacefs.WatchRemoteDirectory(ctx, fileMux, fileSessionID, path, changed)
+						},
 						OnListWorkspaceFilesContext: func(ctx context.Context, rel string) ([]workspacefs.Entry, error) {
-							return workspacefs.ListRemoteDir(ctx, fileClient, rel)
+							return workspacefs.ListRemoteDirScoped(ctx, fileClient, fileSessionID, rel)
 						},
 						OnListWorkspaceFiles: func(rel string) ([]workspacefs.Entry, error) {
 							state.dshMu.Lock()
@@ -7026,6 +7018,11 @@ func mainView(c *ui.Context) {
 				return
 			}
 			boot.View(c, boot.Model{
+				OnCancelRecovery: func() {
+					if sup != nil {
+						sup.CancelRecovery()
+					}
+				},
 				OnConfigure: func() {
 					state.mu.Lock()
 					state.launcherOpen = true

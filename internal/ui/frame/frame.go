@@ -260,8 +260,9 @@ type Model struct {
 	OnInsertComposerVoice func()
 
 	// OnListWorkspaceFiles is optional workspaceFiles/list fallback for the files pane.
-	OnListWorkspaceFiles        func(rel string) ([]workspacefs.Entry, error)
-	OnListWorkspaceFilesContext workspacefs.RemoteDirectoryLister
+	OnListWorkspaceFiles             func(rel string) ([]workspacefs.Entry, error)
+	OnListWorkspaceFilesContext      workspacefs.RemoteDirectoryLister
+	OnWatchWorkspaceDirectoryContext workspacefs.RemoteDirectoryWatcher
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
 	OnReadWorkspaceFile         func(rel string) (string, error)
 	OnReadWorkspaceFileContext  func(context.Context, string) (string, error)
@@ -454,6 +455,11 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		schedules = m.ScheduleStore.Snapshot()
 	}
 	sidebar.View(c, sidebar.Model{
+		Batch:                m.Store.SessionBatch(),
+		OnBatchEdit:          m.Store.EditSessionBatch,
+		OnBatchRequest:       m.Store.RequestSessionBatch,
+		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
+		OnBatchCancel:        m.Store.CancelSessionBatch,
 		HideArchivedList:     m.HideArchivedList,
 		Schedules:            schedules,
 		Projects:             projectModel,
@@ -1342,6 +1348,7 @@ func rightPane(c *ui.Context, m Model) {
 			PaneWidth:          m.FilePaneWidth,
 			ListRemote:         m.OnListWorkspaceFiles,
 			ListRemoteContext:  m.OnListWorkspaceFilesContext,
+			WatchRemoteContext: m.OnWatchWorkspaceDirectoryContext,
 			ReadRemote:         m.OnReadWorkspaceFile,
 			ReadRemoteContext:  m.OnReadWorkspaceFileContext,
 			ReadTableContext:   m.OnReadWorkspaceTableContext,

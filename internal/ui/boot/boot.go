@@ -16,13 +16,14 @@ import (
 
 // Model is the boot page's observable state (filled by the shell).
 type Model struct {
-	Status      harness.Status
-	Logs        []string // newest last; view shows a tail
-	ThemeID     string
-	SystemDark  bool
-	OnRetry     func()
-	OnExport    func()
-	OnConfigure func()
+	Status           harness.Status
+	Logs             []string // newest last; view shows a tail
+	ThemeID          string
+	SystemDark       bool
+	OnCancelRecovery func()
+	OnRetry          func()
+	OnExport         func()
+	OnConfigure      func()
 }
 
 const logTail = 40
@@ -75,6 +76,7 @@ func View(c *ui.Context, m Model) {
 					m.OnConfigure()
 				}
 			}
+			cancelRecoveryAction(c, m)
 			if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
 				m.OnRetry()
 			}
@@ -119,6 +121,12 @@ func pluginProgressLine(st harness.Status) string {
 }
 
 func statusLine(st harness.Status) string {
+	if st.RecoveryCancelled {
+		if i18n.Locale() == "en" {
+			return "Automatic recovery cancelled. You can retry manually."
+		}
+		return "已取消自动恢复，可手动重试。"
+	}
 	switch st.State {
 	case harness.Starting:
 		return i18n.T(KeyStarting)
@@ -131,5 +139,34 @@ func statusLine(st harness.Status) string {
 		return i18n.T(KeyFailed)
 	default:
 		return i18n.T(KeyStopped)
+	}
+}
+
+// RecoveryControl exposes boot recovery in shells that keep their navigation
+// and dialogue mounted while the Host is starting or unavailable.
+func RecoveryControl(c *ui.Context, m Model) {
+	if !m.Status.RecoveryActive && !m.Status.RecoveryCancelled {
+		return
+	}
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	ui.Row(c).Padding(8, 12, 8, 12).Gap(12).Children(func() {
+		ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
+		cancelRecoveryAction(c, m)
+		if m.Status.RecoveryCancelled && m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
+			m.OnRetry()
+		}
+	})
+}
+
+func cancelRecoveryAction(c *ui.Context, m Model) {
+	if !m.Status.RecoveryActive || m.Status.RecoveryCancelled || m.OnCancelRecovery == nil {
+		return
+	}
+	label := "取消自动恢复"
+	if i18n.Locale() == "en" {
+		label = "Cancel automatic recovery"
+	}
+	if ui.Button(c, label).Clicked() {
+		m.OnCancelRecovery()
 	}
 }

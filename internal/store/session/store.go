@@ -51,6 +51,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	Retry *RetryStatus
 	TurnDelivery   *TurnDelivery
 	TrajectoryTime *TrajectoryTiming
 	Workflow       *workflowrun.Run
@@ -206,6 +207,8 @@ type Store struct {
 	permissionRisk            *permissionRiskOperation
 	permissionRiskToken       uint64
 	assistantStream           assistantStreamState
+	batch                     SessionBatch
+	batchToken                uint64
 	archive                   archiveOperation
 	archiveToken              uint64
 	commandCatalog            commandCatalog
@@ -567,6 +570,7 @@ func (s *Store) Snapshot() ViewState {
 	st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 	st.Messages = s.projectPreparingToolsLocked(st.Messages)
 	st.Messages = s.projectTrajectoryTimingLocked(st.Messages)
+	st.Messages = s.projectRetryMessagesLocked(st.Messages)
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)

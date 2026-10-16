@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -11,19 +10,13 @@ import (
 )
 
 func completedTurnStatus(msg session.Message) string {
-	var e struct {
-		Data struct {
-			Reason struct {
-				Kind string `json:"kind"`
-			} `json:"reason"`
-		} `json:"data"`
-	}
-	_ = json.Unmarshal(msg.Raw, &e)
-	switch e.Data.Reason.Kind {
+	switch readTurnReason(msg).Kind {
 	case "error", "failed":
 		return "运行失败 / Failed"
-	case "cancelled", "canceled", "interrupted", "abort":
+	case "cancelled", "canceled", "interrupted", "abort", "aborted":
 		return "已停止 / Stopped"
+	case "max-tokens":
+		return "输出已截断 / Output limit reached"
 	default:
 		return "已完成 / Completed"
 	}

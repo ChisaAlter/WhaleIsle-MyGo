@@ -108,6 +108,9 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	for _, result := range rows {
 		row := result
+		if batchRow(c, m, row.Item.SessionID, row.Item.Title, fg) {
+			continue
+		}
 		background := ui.Transparent
 		if row.Item.SessionID == m.Snapshot.SelectedID {
 			background = selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark))

@@ -16,6 +16,11 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	Batch                        session.SessionBatch
+	OnBatchEdit                  func(string, []session.SessionBatchTarget)
+	OnBatchRequest               func(string)
+	OnBatchConfirm               func(uint64)
+	OnBatchCancel                func(uint64)
 	Schedules                    schedstore.ViewState
 	OnRetryWorkspacePreferences  func()
 	OnDropWorkspaceBefore        func(uint64, string, string)
@@ -295,6 +300,7 @@ func View(c *ui.Context, m Model) {
 						*m.SearchFocus = false
 					}
 				}
+				batchToolbar(c, m, fg)
 				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					if sessionSearchResultsView(c, m, fg, muted) {
 						return
@@ -312,6 +318,9 @@ func View(c *ui.Context, m Model) {
 									label = it.Title
 									break
 								}
+							}
+							if batchRow(c, m, aid, label, muted) {
+								continue
 							}
 							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
 								ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
@@ -351,6 +360,9 @@ func View(c *ui.Context, m Model) {
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
+	if batchRow(c, m, it.SessionID, it.Title, fg) {
+		return
+	}
 	pad := float32(8 + depth*12)
 	selected := it.SessionID == m.Snapshot.SelectedID
 	renaming := m.RenameSessionID == it.SessionID && m.RenameDraft != nil

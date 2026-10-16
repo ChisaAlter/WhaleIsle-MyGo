@@ -59,6 +59,10 @@ type Status struct {
 	PluginLoad PluginProgress
 	// Recovery is true when this attempt skips the user plugin layer.
 	Recovery bool
+	// RecoveryActive includes queued retries and their startup attempt.
+	RecoveryActive bool
+	// RecoveryCancelled suppresses automatic retries until the next manual start.
+	RecoveryCancelled bool
 }
 
 // Options configure a Supervisor.
@@ -111,7 +115,11 @@ type Supervisor struct {
 	attemptRecovery  bool     // flags captured for the current attempt, not mutable next-launch settings
 	attempt          int
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
-	skippedOnce bool
+	skippedOnce       bool
+	recoveryActive    bool
+	recoveryQueued    bool
+	recoveryCancelled bool
+	restartTimer      *time.Timer
 }
 
 // New returns a stopped supervisor.
@@ -174,6 +182,7 @@ func (s *Supervisor) Start() {
 	}
 	install := s.opts.Install
 	s.attempt = 0
+	s.recoveryActive, s.recoveryQueued, s.recoveryCancelled = false, false, false
 	s.attemptRecovery = s.opts.Launch.SkipUserPlugins
 	gen := s.nextGenLocked()
 	s.mu.Unlock()
@@ -192,6 +201,26 @@ func (s *Supervisor) Restart() {
 	s.Start()
 }
 
+// CancelRecovery cancels queued automatic work without stopping a live child,
+// changing persistent restart preferences, or closing the shell. A retry already
+// claimed by run remains owned; its next failure cannot schedule more retries.
+func (s *Supervisor) CancelRecovery() Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.recoveryActive || s.recoveryCancelled {
+		return s.status
+	}
+	st := s.status
+	if s.recoveryQueued {
+		s.nextGenLocked()
+		st.State = Failed
+	}
+	s.recoveryActive, s.recoveryQueued = false, false
+	s.recoveryCancelled = true
+	s.setLocked(st)
+	return s.status
+}
+
 // Stop ends the child, waiting for it to exit.
 func (s *Supervisor) Stop() {
 	s.mu.Lock()
@@ -199,6 +228,7 @@ func (s *Supervisor) Stop() {
 	s.nextGenLocked()
 	cmd, exited := s.cmd, s.exited
 	s.cmd, s.exited = nil, nil
+	s.recoveryActive, s.recoveryQueued, s.recoveryCancelled = false, false, false
 	s.setLocked(Status{State: Stopped})
 	s.mu.Unlock()
 	if install != nil {
@@ -218,6 +248,10 @@ func (s *Supervisor) Stop() {
 
 // nextGenLocked invalidates every goroutine of earlier attempts.
 func (s *Supervisor) nextGenLocked() int {
+	if s.restartTimer != nil {
+		s.restartTimer.Stop()
+		s.restartTimer = nil
+	}
 	s.gen++
 	s.taskControlToken = ""
 	return s.gen
@@ -233,6 +267,11 @@ func (s *Supervisor) setLocked(st Status) {
 	st.Generation = s.gen
 	st.Attempt = s.attempt
 	st.Recovery = s.attemptRecovery
+	if st.State != Starting {
+		s.recoveryActive, s.recoveryQueued = false, false
+	}
+	st.RecoveryActive = s.recoveryActive
+	st.RecoveryCancelled = s.recoveryCancelled
 	s.status = st
 	if s.opts.OnChange != nil {
 		go s.opts.OnChange(st)
@@ -287,6 +326,8 @@ func (s *Supervisor) run(gen int) {
 		s.mu.Unlock()
 		return
 	}
+	s.recoveryQueued = false
+	s.restartTimer = nil
 	s.taskControlToken = token
 	s.startLogs = nil
 	launch := s.opts.Launch
@@ -496,6 +537,11 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		return
 	}
 	s.cmd, s.exited = nil, nil
+	if s.recoveryCancelled {
+		s.setLocked(Status{State: Failed, Err: err, Source: source})
+		s.mu.Unlock()
+		return
+	}
 	blob := err.Error() + "\n" + strings.Join(s.startLogs, "\n")
 	if !s.opts.Launch.SkipUserPlugins && !s.skippedOnce && looksLikePluginTreeFailure(blob) {
 		if persist := s.opts.OnPluginRecovery; persist != nil {
@@ -510,6 +556,7 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		s.attemptRecovery = true
 		s.skippedOnce = true
 		next := s.nextGenLocked()
+		s.recoveryActive, s.recoveryQueued = true, true
 		s.setLocked(Status{State: Starting, Err: err, Source: source})
 		s.mu.Unlock()
 		s.log("plugin tree failed; retrying with --skip-user-plugins", next)
@@ -525,8 +572,9 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	s.attempt++
 	attempt := s.attempt
 	next := s.nextGenLocked()
+	s.recoveryActive, s.recoveryQueued = true, true
 	s.setLocked(Status{State: Starting, Err: err, Source: source})
+	s.restartTimer = time.AfterFunc(delay, func() { s.run(next) })
 	s.mu.Unlock()
 	s.log(fmt.Sprintf("restart %d/%d in %s", attempt, policy.MaxAttempts, delay), next)
-	time.AfterFunc(delay, func() { s.run(next) })
 }

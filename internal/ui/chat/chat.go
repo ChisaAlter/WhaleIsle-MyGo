@@ -138,6 +138,10 @@ func View(c *ui.Context, m Model) {
 					transcriptControlView(row.Context, control, m, muted)
 					return
 				}
+				if msg.Retry != nil {
+					RetryStatusView(row.Context, m, msg, fg, muted)
+					return
+				}
 				if msg.Submission != nil {
 					paintPendingSubmission(row.Context, *msg.Submission, fg, muted)
 					return
@@ -158,6 +162,9 @@ func View(c *ui.Context, m Model) {
 				if msg.Role == "status" && msg.EventType == "turn/end" {
 					ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
 					TurnUsageView(row.Context, m, msg, muted)
+					if detail := terminalReasonDetail(msg); detail != "" {
+						ui.Text(row.Context, detail).FontSize(12).TextColor(fg)
+					}
 					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(row.Context, completedTurnStatus(msg)).FontSize(12).TextColor(muted)
 						if m.OnForkTurn != nil && session.CanForkTurn(m.Snapshot.Messages, msg.Seq) {

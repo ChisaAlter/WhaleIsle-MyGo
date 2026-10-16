@@ -11,12 +11,25 @@ import (
 // ListRemoteDir calls workspaceFiles/list when a dsh client is available.
 // Empty path lists the workspace root.
 func ListRemoteDir(ctx context.Context, client *dsh.Client, path string) ([]Entry, error) {
+	return listRemoteDir(ctx, client, path, "")
+}
+
+// ListRemoteDirScoped binds listings to the same Session as directory watches.
+func ListRemoteDirScoped(ctx context.Context, client *dsh.Client, sessionID, path string) ([]Entry, error) {
+	return listRemoteDir(ctx, client, path, sessionID)
+}
+
+func listRemoteDir(ctx context.Context, client *dsh.Client, path, sessionID string) ([]Entry, error) {
 	if client == nil {
 		return nil, ErrNotFile
 	}
 	path = strings.TrimSpace(path)
 	var out api.WorkspaceDirectoryListing
-	err := client.Call(ctx, "workspaceFiles/list", map[string]any{"path": path}, &out)
+	args := map[string]any{"path": path}
+	if sessionID != "" {
+		args["workspaceFileScopeId"] = sessionID
+	}
+	err := client.Call(ctx, "workspaceFiles/list", args, &out)
 	if err != nil {
 		return nil, err
 	}
