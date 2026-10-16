@@ -56,14 +56,14 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 				BorderWidth(0).Padding(0, 0, 0, 0)
 			hdr.Children(func() {
 				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "☑").FontSize(13).TextColor(muted)
-					ui.Text(c, i18n.T(i18n.KeyTodoPanelTitle)).FontSize(13).FontWeight(500).TextColor(fg)
-					ui.Text(c, todoProgressLabel(m.Todos)).FontSize(13).TextColor(muted).Grow(1)
+					ui.Text(c, "☑").FontSize(theme.InterfaceSize(13)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyTodoPanelTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
+					ui.Text(c, todoProgressLabel(m.Todos)).FontSize(theme.InterfaceSize(13)).TextColor(muted).Grow(1)
 					chev := "⌃"
 					if *collapsed {
 						chev = "⌄"
 					}
-					ui.Text(c, chev).FontSize(13).TextColor(muted)
+					ui.Text(c, chev).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 				})
 			})
 			if hdr.Clicked() {
@@ -82,8 +82,8 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 						stColor = accent
 					}
 					ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, todoStatusGlyph(todo.Status)).FontSize(12).TextColor(stColor)
-						ui.Text(c, todo.Content).FontSize(13).TextColor(fg).Grow(1)
+						ui.Text(c, todoStatusGlyph(todo.Status)).FontSize(theme.InterfaceSize(12)).TextColor(stColor)
+						ui.Text(c, todo.Content).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1)
 					})
 				}
 			})

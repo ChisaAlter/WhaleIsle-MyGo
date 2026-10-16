@@ -68,14 +68,14 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 		ui.Column(c).Background(field).Children(func() {
 			ui.Box(c).Fill().Height(1).Background(border)
 			ui.Row(c).Padding(4, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyPlanBoardTitle)).FontSize(11).Bold().TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyPlanBoardTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 				sum := planBoardSummary(m.Board)
 				if sum != "" {
-					ui.Text(c, sum).FontSize(10).TextColor(muted).Grow(1)
+					ui.Text(c, sum).FontSize(theme.InterfaceSize(10)).TextColor(muted).Grow(1)
 				} else {
 					ui.Box(c).Grow(1).MinWidth(0)
 				}
-				if ui.Button(c, i18n.T(i18n.KeyPlanBoardExpand)).FontSize(11).
+				if ui.Button(c, i18n.T(i18n.KeyPlanBoardExpand)).FontSize(theme.InterfaceSize(11)).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					*m.Open = true
 				}
@@ -88,8 +88,8 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 		ui.Box(c).Fill().Height(1).Background(border)
 		hdr := ui.Row(c).Padding(6, 12, 6, 12).Gap(8).Fill().AlignItems(ui.Center)
 		hdr.Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyPlanBoardTitle)).FontSize(11).Bold().TextColor(muted).Grow(1)
-			ui.Text(c, planBoardSummary(m.Board)).FontSize(10).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyPlanBoardTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
+			ui.Text(c, planBoardSummary(m.Board)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 			if m.Open != nil {
 				if ui.Button(c, i18n.T(i18n.KeyPlanBoardCollapse)).Clicked() {
 					*m.Open = false
@@ -99,7 +99,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 		ui.Box(c).Fill().Height(1).Background(border)
 		ui.Column(c).Padding(8, 12, 10, 12).Gap(8).Children(func() {
 			if m.Board.Empty() {
-				ui.Text(c, i18n.T(i18n.KeyPlanBoardEmpty)).FontSize(11).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyPlanBoardEmpty)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			} else {
 				paintPlanSection(c, i18n.T(i18n.KeyPlanBoardPlan), muted, fg, func() {
 					label := i18n.T(i18n.KeyPlanBoardPlanOff)
@@ -108,7 +108,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 						label = i18n.T(i18n.KeyPlanBoardPlanOn)
 						color = accent
 					}
-					ui.Text(c, label).FontSize(12).TextColor(color)
+					ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(color)
 				})
 			}
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardGoal), muted, fg, func() {
@@ -123,7 +123,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 					paintPendingSubmission(c, pending, fg, muted)
 				}
 				if len(m.Board.Queue) == 0 && len(m.Board.Pending) == 0 {
-					ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEmpty)).FontSize(12).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					return
 				}
 				for _, q := range m.Board.Queue {
@@ -135,22 +135,22 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 							paintQueueAttachments(c, m, item, fg, muted)
-							ui.Text(c, line).FontSize(12).TextColor(fg)
+							ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						})
 						if m.OnQueueEdit != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(!m.Board.QueueActions.Can(session.QueueActionEdit, item)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(!m.Board.QueueActions.Can(session.QueueActionEdit, item)).FontSize(theme.InterfaceSize(11)).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueEdit(item.ID, item.Preview)
 							}
 						}
 						if m.OnQueueSteer != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).Disabled(!m.Board.QueueActions.Can(session.QueueActionSteer, item)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueSteer)).Disabled(!m.Board.QueueActions.Can(session.QueueActionSteer, item)).FontSize(theme.InterfaceSize(11)).BorderWidth(0).
 								Background(ui.Transparent).TextColor(accent).Clicked() {
 								m.OnQueueSteer(item.ID)
 							}
 						}
 						if m.OnQueueRemove != nil && item.ID != "" {
-							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).Disabled(!m.Board.QueueActions.Can(session.QueueActionRemove, item)).FontSize(11).BorderWidth(0).
+							if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueRemove)).Disabled(!m.Board.QueueActions.Can(session.QueueActionRemove, item)).FontSize(theme.InterfaceSize(11)).BorderWidth(0).
 								Background(ui.Transparent).TextColor(muted).Clicked() {
 								m.OnQueueRemove(item.ID)
 							}
@@ -160,7 +160,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 			})
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardTodos), muted, fg, func() {
 				if len(m.Board.Todos) == 0 {
-					ui.Text(c, i18n.T(i18n.KeyPlanBoardTodosEmpty)).FontSize(12).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyPlanBoardTodosEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					return
 				}
 				for _, todo := range m.Board.Todos {
@@ -172,9 +172,9 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 						stColor = accent
 					}
 					ui.Row(c).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-						ui.Text(c, todoStatusGlyph(todo.Status)).FontSize(11).TextColor(stColor)
-						ui.Text(c, todo.Content).FontSize(12).TextColor(fg).Grow(1)
-						ui.Text(c, todo.Status).FontSize(10).TextColor(stColor)
+						ui.Text(c, todoStatusGlyph(todo.Status)).FontSize(theme.InterfaceSize(11)).TextColor(stColor)
+						ui.Text(c, todo.Content).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+						ui.Text(c, todo.Status).FontSize(theme.InterfaceSize(10)).TextColor(stColor)
 					})
 				}
 			})
@@ -184,12 +184,12 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 
 func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) {
 	if m.Board.Goal == nil {
-		ui.Text(c, i18n.T(i18n.KeyPlanBoardNoGoal)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyPlanBoardNoGoal)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		if m.GoalDraft != nil && m.OnCreateGoal != nil {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.TextInput(c, m.GoalDraft).Grow(1).
 					Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
-				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalCreate)).FontSize(11).
+				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalCreate)).FontSize(theme.InterfaceSize(11)).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					obj := strings.TrimSpace(*m.GoalDraft)
 					if obj != "" {
@@ -206,12 +206,12 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 	if phase == "" {
 		phase = "?"
 	}
-	ui.Text(c, fmt.Sprintf("[%s] %s", phase, g.Objective)).FontSize(12).TextColor(fg)
+	ui.Text(c, fmt.Sprintf("[%s] %s", phase, g.Objective)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	if m.GoalDraft != nil && m.OnEditGoal != nil {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, m.GoalDraft).Grow(1).
 				Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalEdit)).FontSize(11).
+			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalEdit)).FontSize(theme.InterfaceSize(11)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 				obj := strings.TrimSpace(*m.GoalDraft)
 				if obj != "" {
@@ -224,25 +224,25 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 		paused := strings.EqualFold(phase, "paused") || strings.EqualFold(phase, "blocked")
 		if paused {
 			if m.OnResumeGoal != nil {
-				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalResume)).FontSize(11).
+				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalResume)).FontSize(theme.InterfaceSize(11)).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					m.OnResumeGoal()
 				}
 			}
 		} else if m.OnPauseGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalPause)).FontSize(11).
+			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalPause)).FontSize(theme.InterfaceSize(11)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 				m.OnPauseGoal()
 			}
 		}
 		if m.OnCompleteGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalComplete)).FontSize(11).
+			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalComplete)).FontSize(theme.InterfaceSize(11)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 				m.OnCompleteGoal()
 			}
 		}
 		if m.OnClearGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalClear)).FontSize(11).
+			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalClear)).FontSize(theme.InterfaceSize(11)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 				m.OnClearGoal()
 			}
@@ -253,7 +253,7 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 func paintPlanSection(c *ui.Context, title string, muted, fg ui.Color, body func()) {
 	_ = fg
 	ui.Column(c).Gap(2).Fill().Children(func() {
-		ui.Text(c, title).FontSize(10).Bold().TextColor(muted)
+		ui.Text(c, title).FontSize(theme.InterfaceSize(10)).Bold().TextColor(muted)
 		body()
 	})
 }
@@ -324,7 +324,7 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 		return
 	}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(12).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		if e.Loading {
 			ui.Text(c, "…").TextColor(muted)
 		}
@@ -337,7 +337,7 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 			})
 		}
 		if e.Error != "" {
-			ui.Text(c, e.Error).FontSize(11).TextColor(fg)
+			ui.Text(c, e.Error).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if e.Ready && m.OnSaveQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Disabled(e.Saving || strings.TrimSpace(e.Text) == "").Clicked() {

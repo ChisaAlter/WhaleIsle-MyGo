@@ -102,14 +102,14 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 			ui.Box(c).Grow(1).MinWidth(0)
 			ui.Row(c).Width(160).Height(22).Background(field).Border(1, border).Radius(6).
 				Padding(0, 8, 0, 8).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, search).FillWidth().Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(12)
+				ui.TextInput(c, search).FillWidth().Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(theme.InterfaceSize(12))
 			})
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 
 		// TrajectoryTimeline — overview strip from row kinds.
 		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			if *actualDur {
 				paintRecordedTrajectoryTimeline(c, rows, selected, accent, muted, border)
 			} else {
@@ -140,7 +140,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						{i18n.T(i18n.KeyTrajColModel), 1},
 						{i18n.T(i18n.KeyTrajColTools), 1},
 					} {
-						ui.Text(c, h.label).FontSize(11).TextColor(muted).Grow(h.grow)
+						ui.Text(c, h.label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(h.grow)
 					}
 				})
 				ui.Box(c).FillWidth().Height(1).Background(border)
@@ -152,7 +152,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					}
 					ui.Row(c).FillWidth().Padding(4, 8, 4, 8).Children(func() {
 						if ui.Button(c, label).Disabled(m.Snapshot.HistoryPageBusy).
-							FontSize(12).BorderWidth(0).Background(field).FillWidth().Clicked() {
+							FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(field).FillWidth().Clicked() {
 							m.OnLoadEarlier()
 						}
 					})
@@ -165,9 +165,9 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				if len(rows) == 0 {
 					ui.Column(c).Fill().Padding(24, 16, 16, 16).Gap(6).Children(func() {
 						if m.Snapshot.HistoryPageBusy {
-							ui.Text(c, i18n.T(i18n.KeyTrajLoading)).FontSize(13).TextColor(muted)
+							ui.Text(c, i18n.T(i18n.KeyTrajLoading)).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						} else {
-							ui.Text(c, i18n.T(i18n.KeyTrajEmpty)).FontSize(13).TextColor(muted)
+							ui.Text(c, i18n.T(i18n.KeyTrajEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						}
 						ui.Box(c).Grow(1)
 					})
@@ -183,12 +183,12 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						Padding(6, 8, 6, 8).Radius(0)
 					btn.Children(func() {
 						ui.Row(lr.Context).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-							ui.Text(lr.Context, row.Input).FontSize(12).TextColor(fg).Grow(2)
-							ui.Text(lr.Context, row.Output).FontSize(12).TextColor(fg).Grow(2)
-							ui.Text(lr.Context, row.Think).FontSize(12).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Time).FontSize(11).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Model).FontSize(11).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Tools).FontSize(11).TextColor(accent).Grow(1)
+							ui.Text(lr.Context, row.Input).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(2)
+							ui.Text(lr.Context, row.Output).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(2)
+							ui.Text(lr.Context, row.Think).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
+							ui.Text(lr.Context, row.Time).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
+							ui.Text(lr.Context, row.Model).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
+							ui.Text(lr.Context, row.Tools).FontSize(theme.InterfaceSize(11)).TextColor(accent).Grow(1)
 						})
 					})
 					if btn.Clicked() {
@@ -201,11 +201,11 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 			ui.Box(c).Width(1).FillHeight().Background(border)
 			ui.Column(c).Width(240).FillHeight().Padding(8, 10, 8, 10).Gap(6).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(12).FontWeight(600).TextColor(fg).Grow(1)
+					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1)
 				})
 				detail := findTrajectoryRow(rows, *selected)
 				if detail == nil {
-					ui.Text(c, i18n.T(i18n.KeyTrajDetailHint)).FontSize(12).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyTrajDetailHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					return
 				}
 				ui.Row(c).Gap(6).Children(func() {
@@ -222,7 +222,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 							ink = accent
 							weight = 600
 						}
-						if ui.Button(c, t.label).FontSize(11).FontWeight(weight).BorderWidth(0).
+						if ui.Button(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).BorderWidth(0).
 							Background(ui.Transparent).TextColor(ink).Clicked() {
 							*detailTab = t.id
 						}
@@ -240,7 +240,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						body = detail.RawHint
 					}
 					copyBody = body
-					ui.Text(c, body).FontSize(12).TextColor(fg)
+					ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				case "result":
 					body := detail.Output
 					if body == "" {
@@ -250,32 +250,32 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						body = i18n.T(i18n.KeyTrajNoResult)
 					}
 					copyBody = body
-					ui.Text(c, body).FontSize(12).TextColor(fg)
+					ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				case "timing":
 					copyBody = trajectoryTimingDetail(*detail)
-					ui.Text(c, copyBody).FontSize(12).TextColor(fg)
+					ui.Text(c, copyBody).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				default: // overview
-					ui.Text(c, kindLabelZH(detail.Kind)).FontSize(12).FontWeight(600).TextColor(accent)
+					ui.Text(c, kindLabelZH(detail.Kind)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(accent)
 					var parts []string
 					if detail.Input != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColInput)).FontSize(11).TextColor(muted)
-						ui.Text(c, detail.Input).FontSize(12).TextColor(fg)
+						ui.Text(c, i18n.T(i18n.KeyTrajColInput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, detail.Input).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						parts = append(parts, detail.Input)
 					}
 					if detail.Output != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColOutput)).FontSize(11).TextColor(muted)
-						ui.Text(c, detail.Output).FontSize(12).TextColor(fg)
+						ui.Text(c, i18n.T(i18n.KeyTrajColOutput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, detail.Output).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						parts = append(parts, detail.Output)
 					}
 					if detail.Tools != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColTools)).FontSize(11).TextColor(muted)
-						ui.Text(c, detail.Tools).FontSize(12).TextColor(fg)
+						ui.Text(c, i18n.T(i18n.KeyTrajColTools)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, detail.Tools).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						parts = append(parts, detail.Tools)
 					}
 					copyBody = strings.Join(parts, "\n")
 				}
 				if m.OnCopyDetail != nil && strings.TrimSpace(copyBody) != "" {
-					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(11).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 						m.OnCopyDetail(copyBody)
 					}
 				}
@@ -291,7 +291,7 @@ func paintTrajToggle(c *ui.Context, label string, on bool, muted, hover, fg ui.C
 		bg = hover
 		ink = fg
 	}
-	if ui.Button(c, label).FontSize(12).BorderWidth(0).Background(bg).
+	if ui.Button(c, label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
 		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Clicked() {
 		click()
 	}
@@ -308,7 +308,7 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 		bg = hover
 		ink = fg
 	}
-	if ui.Button(c, icon+" "+label).FontSize(12).BorderWidth(0).Background(bg).
+	if ui.Button(c, icon+" "+label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
 		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Clicked() {
 		click()
 	}

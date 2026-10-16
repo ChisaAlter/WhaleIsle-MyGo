@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // Citation is one web/search source link for compact UI.
@@ -173,7 +174,7 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 		return
 	}
 	ui.Column(c).Gap(2).Padding(4, 0, 0, 0).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatCitations)).FontSize(10).Bold().TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyChatCitations)).FontSize(theme.InterfaceSize(10)).Bold().TextColor(muted)
 		for _, cite := range cites {
 			entry := cite
 			label := entry.Title
@@ -182,14 +183,14 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				if onOpen != nil {
-					if ui.Button(c, label).FontSize(10).Clicked() {
+					if ui.Button(c, label).FontSize(theme.InterfaceSize(10)).Clicked() {
 						onOpen(entry.URL)
 					}
 				} else {
-					ui.Text(c, "• "+label).FontSize(10).TextColor(accent).Grow(1)
+					ui.Text(c, "• "+label).FontSize(theme.InterfaceSize(10)).TextColor(accent).Grow(1)
 				}
 				if strings.TrimSpace(entry.URL) != "" {
-					if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(10).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(10)).Clicked() {
 						mygo.Clipboard.WriteText(entry.URL)
 					}
 				}
