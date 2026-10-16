@@ -81,10 +81,18 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 		s.taskProtectionError(win, errors.New(resumeText("导入尚未结束，请等待完成或取消后重试。", "Import is still running; wait for completion or cancel it before retrying.")))
 		return false
 	}
+	did, err := s.protectTaskAction(context.Background(), win, sup, operation, commit)
+	s.taskProtectionError(win, err)
+	return did && err == nil
+}
+
+// Imports already own the import slot. Reuse the same task inspection, drain
+// and confirmation without rejecting that owner as a competing operation.
+func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) (bool, error) {
 	var did bool
 	var err error
 	if sup != nil {
-		did, err = sup.ProtectTaskAction(context.Background(), operation, s.sessionRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
+		did, err = sup.ProtectTaskAction(ctx, operation, s.sessionRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
 	} else {
 		// No owned Host exists. Preserve the original local-session confirmation.
 		label := resumeText("退出", "Quit")
@@ -103,8 +111,7 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 			did = err == nil
 		}
 	}
-	s.taskProtectionError(win, err)
-	return did && err == nil
+	return did, err
 }
 
 func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) bool {

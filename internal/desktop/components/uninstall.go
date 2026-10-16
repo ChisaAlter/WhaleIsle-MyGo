@@ -15,16 +15,17 @@ import (
 )
 
 // BridgeUninstall pins the verified installed version and default-model impact
-// shown in the confirmation. It never authorizes deleting component/user data.
-// The caller must hold Host task admission protection around Apply.
+// shown in the confirmation. Apply retains data; explicit removal only targets
+// this component's data directory. The caller holds Host task admission protection.
 type BridgeUninstall struct {
 	root, dshHome string
 	from          installedFile
 	defaultModel  bool
 }
 
-func (p *BridgeUninstall) Version() string    { return p.from.Version }
-func (p *BridgeUninstall) DefaultModel() bool { return p.defaultModel }
+func (p *BridgeUninstall) Version() string       { return p.from.Version }
+func (p *BridgeUninstall) DefaultModel() bool    { return p.defaultModel }
+func (p *BridgeUninstall) DataDirectory() string { return filepath.Join(p.root, "data") }
 
 func WhaleBridgeManagementSupported() bool {
 	return runtime.GOOS == "windows" && runtime.GOARCH == "amd64"
@@ -91,17 +92,28 @@ func prepareBridgeUninstall(ctx context.Context, userData string, ops bridgeRemo
 
 // Apply rechecks the confirmation, preserves runtime ownership and quarantines
 // only payloads/installation metadata until the existing atomic disconnect CLI
-// succeeds. Provider data, accounts, usage and chats are never removed here.
+// succeeds. The default Apply entry keeps provider data, accounts and usage.
+// Chats and other channels are outside the optional component-data cleanup.
 // The official disconnect command changes its owned integration settings and
 // gateway credential reference, and newer versions unwind managed agents too.
 func (p *BridgeUninstall) Apply(ctx context.Context) (string, error) {
+	return p.ApplyWithDataRemoval(ctx, false)
+}
+
+// ApplyWithDataRemoval matches the original removeData choice. Pass true only
+// after the user explicitly confirms deleting this component's configuration.
+func (p *BridgeUninstall) ApplyWithDataRemoval(ctx context.Context, removeData bool) (string, error) {
 	if !WhaleBridgeManagementSupported() {
 		return "", fmt.Errorf("鲸桥组件管理仅支持 Windows x64")
 	}
-	return p.apply(ctx, bridgeRemovalRuntime())
+	return p.applyWithDataRemoval(ctx, bridgeRemovalRuntime(), removeData)
 }
 
 func (p *BridgeUninstall) apply(ctx context.Context, ops bridgeRemovalOps) (string, error) {
+	return p.applyWithDataRemoval(ctx, ops, false)
+}
+
+func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRemovalOps, removeData bool) (string, error) {
 	if !componentInstallMu.TryLock() {
 		return "", fmt.Errorf("组件安装或切换正在进行")
 	}
@@ -161,6 +173,11 @@ func (p *BridgeUninstall) apply(ctx context.Context, ops bridgeRemovalOps) (stri
 	}
 	if err := ops.remove(stage); err != nil {
 		return "鲸桥已卸载并断开；程序文件清理未完成，已保留隔离文件。供应商配置、账户、用量和聊天记录已保留。", nil
+	}
+	if removeData {
+		if err := ops.remove(p.DataDirectory()); err != nil {
+			return "鲸桥已卸载并断开，但鲸桥配置清理未完成：" + err.Error() + "。聊天记录和其他渠道未删除。", nil
+		}
 	}
 	return "", nil
 }

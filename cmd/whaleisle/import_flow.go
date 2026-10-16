@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/desktop/taskcontrol"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 )
@@ -41,13 +42,14 @@ func (s *mainState) startImport(win *mygo.Window) {
 		refresh()
 		return
 	}
-	if s.launcherStartBusy || (s.sup != nil && s.sup.Status().State != harness.Stopped) {
-		s.launcherImport = "请先在启动器停止内核，再确认导入。"
+	if s.launcherStartBusy {
+		s.launcherImport = resumeText("内核正在启动，请稍后再确认导入。", "The runtime is starting. Retry import after startup settles.")
 		s.mu.Unlock()
 		refresh()
 		return
 	}
-	// Own the slot throughout confirmation, so start/repeated import cannot race it.
+	sup := s.sup
+	// Own the slot throughout confirmation, protected stop and import.
 	s.launcherImportBusy = true
 	s.mu.Unlock()
 	release := func() { s.mu.Lock(); s.launcherImportBusy = false; s.mu.Unlock(); refresh() }
@@ -60,7 +62,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 	}
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: win, Type: mygo.MessageQuestion, Title: "确认导入数据",
-		Message: importer.Confirmation(cat, sel), Buttons: []string{"取消", "确认导入"}, DefaultButton: 0, CancelButton: 0,
+		Message: importer.Confirmation(cat, sel) + "\n\n" + resumeText("导入前会检查当前任务并停止 Host 内核；如有运行中的工作，会继续显示现有任务确认。桌面窗口保持打开，导入结束后内核保持停止，可稍后手动启动。", "Before importing, current tasks are checked and the Host runtime is stopped. Active work uses the existing task confirmation. The desktop window stays open and the runtime stays stopped after import until you start it again."), Buttons: []string{"取消", "确认并继续"}, DefaultButton: 0, CancelButton: 0,
 	})
 	if err != nil || answer.Button != 1 {
 		release()
@@ -69,7 +71,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
 	s.launcherImportCancel = cancel
-	s.launcherImport = "正在导入；可取消后续项目，已完成项目将保留。"
+	s.launcherImport = resumeText("正在检查当前任务，随后停止内核并导入；可取消后续导入。", "Checking current tasks before stopping the runtime and importing. You can cancel the remaining import.")
 	s.launcherImportJournal = nil
 	node := ""
 	if s.cfgStore != nil {
@@ -79,19 +81,61 @@ func (s *mainState) startImport(win *mygo.Window) {
 	refresh()
 	go func() {
 		defer cancel()
-		result, err := importer.ApplyCatalogWithPlugins(ctx, cat, sel, s.importPluginInstaller(win, cat.DestHome, node), func(progress importer.ApplyResult) {
+		var result importer.ApplyResult
+		var applyErr error
+		kernelStopped := false
+		did, err := s.protectTaskAction(ctx, win, sup, "stop", func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			s.mu.Lock()
-			s.launcherImport = progress.Message
-			s.launcherImportJournal = progress.Journal
+			changed := s.sup != sup || s.quitting || s.launcherStartBusy
+			s.mu.Unlock()
+			if changed {
+				return errors.New(resumeText("运行环境已改变，请重新确认导入。", "The runtime changed. Confirm the import again."))
+			}
+			if sup != nil {
+				kernelStopped = sup.Status().State != harness.Stopped
+				s.stopPhoneRuntime()
+				sup.Stop()
+			}
+			s.mu.Lock()
+			s.launcherStartBusy = false
+			s.launcherStartFailed = false
+			s.launcherStartErr = ""
+			s.launcherImport = resumeText("内核已停止，正在导入；已完成项目将保留。", "The runtime is stopped. Importing; completed items will be retained.")
 			s.mu.Unlock()
 			refresh()
+			result, applyErr = importer.ApplyCatalogWithPlugins(ctx, cat, sel, s.importPluginInstaller(win, cat.DestHome, node), func(progress importer.ApplyResult) {
+				s.mu.Lock()
+				s.launcherImport = progress.Message
+				s.launcherImportJournal = progress.Journal
+				s.mu.Unlock()
+				refresh()
+			})
+			// The protected stop committed even if a selected import item failed.
+			// Keep its import result separate from the stopped Host's admission.
+			return nil
 		})
+		if !did && err == nil {
+			err = taskcontrol.ErrCancelled
+		}
+		if err == nil {
+			err = applyErr
+		} else if errors.Is(err, context.Canceled) || errors.Is(err, taskcontrol.ErrCancelled) {
+			result.Message = resumeText("已取消导入，未写入导入数据。", "Import cancelled. No import data was written.")
+		} else {
+			result.Message = resumeText("导入未开始：", "Import did not start: ") + err.Error()
+		}
 		s.mu.Lock()
 		s.launcherImport = result.Message
 		s.launcherImportJournal = result.Journal
 		if err != nil && result.Message == "" {
 			s.launcherImport = err.Error()
 			s.launcherImportJournal = []string{err.Error()}
+		}
+		if kernelStopped {
+			s.launcherImport += resumeText(" 内核保持停止，可在导入结果确认后手动启动。", " The runtime remains stopped; start it manually after checking the import result.")
 		}
 		s.launcherImportCancel = nil
 		s.launcherImportBusy = false
