@@ -1051,9 +1051,9 @@ func importPanel(c *ui.Context, m Model) {
 					idx := i
 					it := &(*itemsPtr)[idx]
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						mark := "?"
+						mark := "□"
 						if it.Selected {
-							mark = "?"
+							mark = "✓"
 						}
 						ink := colPrimary
 						if it.Unsupported {
