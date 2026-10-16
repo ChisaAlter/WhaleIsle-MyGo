@@ -230,8 +230,14 @@ func View(c *ui.Context, m Model) {
 						Size:        12,
 					}
 					ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
+				case session.MessageKindUnknown:
+					ui.Text(row.Context, "未知内容 / Unknown content").TextColor(muted)
+					ui.Text(row.Context, string(msg.ContentBlock)).TextColor(fg)
 				default:
 					refs := session.ImageRefs(msg.Body)
+					if msg.ImageRef != "" {
+						refs = []string{msg.ImageRef}
+					}
 					body := session.BodyWithoutImagePlaceholders(msg.Body)
 					onOpenImage := func(ref string) {
 						p := DisplayImagePath(ref)
@@ -313,7 +319,7 @@ func View(c *ui.Context, m Model) {
 					})
 				}
 				if showMessageFeedback(msg) && m.FeedbackStore != nil {
-					authoritativeFeedbackRow(row.Context, m.FeedbackStore, msg.ID)
+					authoritativeFeedbackRow(row.Context, m.FeedbackStore, msg.FeedbackMessageID())
 				}
 			})
 		})

@@ -41,6 +41,8 @@ type MessageKind string
 
 const (
 	MessageKindText         MessageKind = "text"
+	MessageKindImage        MessageKind = "image"
+	MessageKindUnknown      MessageKind = "unknown"
 	MessageKindTool         MessageKind = "tool"
 	MessageKindThinking     MessageKind = "thinking"
 	MessageKindDeliverables MessageKind = "deliverables"
@@ -54,19 +56,23 @@ type Message struct {
 	Workflow       *workflowrun.Run
 	Submission     *PendingSubmission
 	// Tool is populated only by the read-only chat lifecycle projection.
-	Tool        *ToolCallView
-	Command     *CommandView
-	ID          string
-	Kind        MessageKind
-	Role        string
-	Body        string
-	Seq         float64         // persistence seq when known (editMessageSeq)
-	EventType   string          // persistence type when Kind is tool / deliverables
-	Raw         json.RawMessage // full persistence event JSON
-	TurnSeq     float64         // owning turn/start seq for edit projection
-	TurnOpening bool
-	Streaming   bool
-	Files       []string // deliverables/presented paths
+	Tool    *ToolCallView
+	Command *CommandView
+	ID      string
+	// SourceMessageID is the durable identity shared by projected assistant rows.
+	SourceMessageID string
+	ImageRef        string
+	ContentBlock    json.RawMessage
+	Kind            MessageKind
+	Role            string
+	Body            string
+	Seq             float64         // persistence seq when known (editMessageSeq)
+	EventType       string          // persistence type when Kind is tool / deliverables
+	Raw             json.RawMessage // full persistence event JSON
+	TurnSeq         float64         // owning turn/start seq for edit projection
+	TurnOpening     bool
+	Streaming       bool
+	Files           []string // deliverables/presented paths
 	// Model is the assistant source model when known (trajectory 模型 column).
 	Model string
 	// Args is tool-call arguments / structured payload for the inspector 参数 tab.

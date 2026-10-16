@@ -38,6 +38,8 @@ type assistantStreamBaseline struct {
 
 type assistantStreamBlock struct {
 	kind, text string
+	imageRef   string
+	raw        json.RawMessage
 	time       float64
 }
 
@@ -317,7 +319,7 @@ func (s *Store) projectAssistantMessagesLocked(messages []Message) []Message {
 	anchored := false
 	for _, msg := range messages {
 		if hidden[msg.ID] {
-			if !anchored && msg.Body != "" && settlement != nil {
+			if !anchored && assistantMessageVisible(msg) && settlement != nil {
 				out = append(out, projectAssistantMessage(*settlement)...)
 				anchored = true
 			}
@@ -338,7 +340,7 @@ func projectAssistantMessage(msg Message) []Message {
 		return nil
 	}
 	if msg.EventType != "assistant/message" {
-		if !msg.Streaming || msg.Body != "" {
+		if !msg.Streaming || assistantMessageVisible(msg) {
 			return []Message{msg}
 		}
 		return nil
@@ -351,10 +353,11 @@ func projectAssistantMessage(msg Message) []Message {
 	var out []Message
 	textIDUsed := false
 	for i, block := range blocks {
-		if block.text == "" {
+		if block.text == "" && block.imageRef == "" && len(block.raw) == 0 {
 			continue
 		}
 		row := assistantBlockMessage(msg, block)
+		row.SourceMessageID = msg.ID
 		if block.kind == "text" && !textIDUsed {
 			textIDUsed = true
 		} else {
@@ -367,6 +370,13 @@ func projectAssistantMessage(msg Message) []Message {
 
 func assistantBlockMessage(msg Message, block assistantStreamBlock) Message {
 	msg.Body, msg.Kind, msg.Role = block.text, MessageKindText, "assistant"
+	msg.ImageRef = block.imageRef
+	msg.ContentBlock = append(json.RawMessage(nil), block.raw...)
+	if block.kind == "image" && block.imageRef != "" {
+		msg.Kind = MessageKindImage
+	} else if len(block.raw) != 0 {
+		msg.Kind = MessageKindUnknown
+	}
 	if block.kind == "reasoning" {
 		msg.Kind, msg.Role = MessageKindThinking, "thinking"
 	}
@@ -431,18 +441,46 @@ func assistantDurableBlocks(ev assistantStreamEvent) []assistantStreamBlock {
 	return out
 }
 
+// FeedbackMessageID keeps render-row keys out of the Host feedback API.
+func (msg Message) FeedbackMessageID() string {
+	if msg.SourceMessageID != "" {
+		return msg.SourceMessageID
+	}
+	return msg.ID
+}
+
+func assistantMessageVisible(msg Message) bool {
+	return msg.Body != "" || msg.ImageRef != "" || len(msg.ContentBlock) != 0
+}
+
 func readAssistantContentBlock(raw json.RawMessage, time float64) (assistantStreamBlock, bool) {
 	var b struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type       string `json:"type"`
+		Text       string `json:"text"`
+		Attachment struct {
+			ID string `json:"attachmentId"`
+		} `json:"attachment"`
 	}
-	if json.Unmarshal(raw, &b) != nil {
+	if json.Unmarshal(raw, &b) != nil || string(raw) == "null" {
 		return assistantStreamBlock{}, false
 	}
-	if b.Type != "text" && b.Type != "reasoning" {
-		return assistantStreamBlock{}, false
+	block := assistantStreamBlock{kind: b.Type, time: time}
+	switch b.Type {
+	case "text", "reasoning":
+		block.text = b.Text
+	case "tool-call":
+		return assistantStreamBlock{}, false // Rendered by the tool lifecycle projection.
+	default:
+		block.raw = append(json.RawMessage(nil), raw...)
+		if b.Type == "image" {
+			if b.Attachment.ID != "" {
+				block.imageRef = "attachment:" + b.Attachment.ID
+			} else {
+				block.imageRef = imagePathFromBlock(raw)
+			}
+		}
 	}
-	return assistantStreamBlock{kind: b.Type, text: b.Text, time: time}, true
+	return block, true
 }
 
 func foldAssistantChunk(blocks map[int]assistantStreamBlock, raw json.RawMessage, time float64) (int, bool) {
