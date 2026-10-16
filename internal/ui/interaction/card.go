@@ -45,7 +45,12 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	// Parent frame already constrains width to composerCardW; keep vertical pad only.
-	ui.Column(c).Background(field).Padding(8, 0, 0, 0).Gap(8).Children(func() {
+	strip := ui.Column(c).Background(field).Padding(8, 0, 0, 0).Gap(8)
+	previous := ui.Local(strip, "page-approval-target", func() interaction.Pending { return interaction.Pending{} })
+	approvalPageShortcuts(c, previous, snap, func() interaction.ViewState {
+		return m.Store.SnapshotForAgent(previous.AgentID)
+	}, m.Store.ResolveAllow, m.Store.ResolveDeny)
+	strip.Children(func() {
 		ui.Box(c).Fill().Height(1).Background(border)
 		if snap.AutoAllow {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {

@@ -63,3 +63,24 @@ func (s *approvalKeys) handle(ev ui.InputEvent, pending interaction.Pending, but
 	}
 	return true
 }
+
+// Page shortcuts use the previously rendered target so a queued key cannot
+// approve a replacement request or another session during a view change.
+func approvalPageShortcuts(c *ui.Context, previous *interaction.Pending, view interaction.ViewState, snapshot func() interaction.ViewState, allow, deny func(string)) {
+	var current interaction.Pending
+	for _, pending := range view.Pending {
+		if pending.Event == interaction.EventApproval {
+			current = pending
+			break
+		}
+	}
+	if current.EventID != "" {
+		for _, key := range []ui.Key{ui.KeyEnter, ui.KeyEscape} {
+			if c.PageShortcut(0, key) && previous.EventID == current.EventID && previous.AgentID == current.AgentID {
+				var keys approvalKeys
+				keys.handle(ui.InputEvent{Kind: ui.InputKeyDown, Key: key}, *previous, false, snapshot, allow, deny)
+			}
+		}
+	}
+	*previous = current
+}

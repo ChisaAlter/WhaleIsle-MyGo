@@ -102,3 +102,60 @@ func TestApprovalKeyboard(t *testing.T) {
 		t.Fatal("modal keys reached approval")
 	}
 }
+
+func TestApprovalPageShortcutOwnership(t *testing.T) {
+	p := interaction.Pending{Event: interaction.EventApproval, EventID: "approval-A", AgentID: "session-A"}
+	live := p
+	allowed, denied, clicked := 0, 0, 0
+	var previous interaction.Pending
+	mode, text := "page", ""
+	modal := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		approvalPageShortcuts(c, &previous, interaction.ViewState{Pending: []interaction.Pending{live}}, func() interaction.ViewState {
+			return interaction.ViewState{Pending: []interaction.Pending{live}}
+		}, func(string) { allowed++ }, func(string) { denied++ })
+		switch mode {
+		case "page":
+			ui.Box(c).Size(100, 30).Focusable().Focus()
+		case "button":
+			if ui.Button(c, "Other action").Focus().Clicked() {
+				clicked++
+			}
+		case "editor":
+			ui.TextInput(c, &text).Focus()
+		case "guest":
+			ui.Box(c).Focusable().Focus().HandleInput(func(ui.InputEvent) bool { return true })
+		}
+		ui.Modal(c, &modal, func() { ui.Button(c, "Modal").Focus() })
+	}, 400, 300)
+	tt.Key(0, ui.KeyEnter)
+	tt.Key(0, ui.KeyEscape)
+	if allowed != 1 || denied != 1 {
+		t.Fatalf("page keys: %d %d", allowed, denied)
+	}
+	for _, owner := range []string{"editor", "guest"} {
+		mode = owner
+		tt.Frame()
+		tt.Key(0, ui.KeyEnter)
+		tt.Key(0, ui.KeyEscape)
+	}
+	mode = "page"
+	modal = true
+	tt.Frame()
+	tt.Key(0, ui.KeyEnter)
+	tt.Key(0, ui.KeyEscape)
+	modal = false
+	mode = "button"
+	tt.Frame()
+	tt.Key(0, ui.KeyEnter)
+	if allowed != 1 || denied != 1 || clicked != 1 {
+		t.Fatalf("ownership: %d %d %d", allowed, denied, clicked)
+	}
+	mode = "page"
+	tt.Frame()
+	live.EventID, live.AgentID = "approval-B", "session-B"
+	tt.Key(0, ui.KeyEnter)
+	if allowed != 1 {
+		t.Fatal("key for previous session approved replacement")
+	}
+}
