@@ -2726,6 +2726,9 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	composerRendered := false
+	composerSessionID := ""
+	defer func() { state.observeComposerEdit(composerRendered, composerSessionID) }()
 	defer state.syncAccountBonusNotice(c)
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
@@ -6038,6 +6041,7 @@ func mainView(c *ui.Context) {
 					snap := sessions.Snapshot()
 					state.mu.Lock()
 					activeDraft := state.composerDraftLocked(snap.SelectedID)
+					composerRendered, composerSessionID = true, snap.SelectedID
 					draft = activeDraft.Text
 					state.composerTextInput = activeDraft.Client
 					state.mu.Unlock()

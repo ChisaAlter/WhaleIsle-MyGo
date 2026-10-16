@@ -25,6 +25,19 @@ func (s *mainState) composerDraftLocked(id string) *composer.DraftState {
 	return d
 }
 
+// Match the resident editor's unmount cleanup: navigation restores the draft
+// that was borrowed for editing. An admitted send keeps its original owner
+// until its completion callback; EndEdit deliberately refuses while sending.
+func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, d := range s.composerDrafts {
+		if !rendered || id != sessionID {
+			d.EndEdit()
+		}
+	}
+}
+
 func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, id string, d *composer.DraftState, paths []string) {
 	if d.Sending {
 		return
