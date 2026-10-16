@@ -56,15 +56,28 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 	sizes.observeSidebarViewport(viewport)
 	preference := sizes.sidebarPreference()
 	open := preference > 0
-	width := SidebarCollapsed
+	width := SidebarCollapsedWidth()
 	if open {
 		width = clampSidebarWidth(preference)
 	}
 	row := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
 	drag := ui.Local(row, "sidebar-drag", func() paneDrag { return paneDrag{} })
 	row.Children(func() {
-		ui.Box(c).Key("sidebar-column").Width(width).Shrink(0).Clip().Children(sidebar)
-		div := ui.Box(c).Width(SplitterWidth).Shrink(0)
+		sizes.dragging = drag.active
+		defer func() { sizes.dragging = false }()
+		rail := ui.Box(c).Key("sidebar-column").Width(width).Shrink(0).Clip()
+		if !drag.active {
+			rail.Transition(shellTrackTransition)
+		}
+		rail.Children(sidebar)
+		dividerWidth := SplitterWidth
+		if width == 0 {
+			dividerWidth = 0
+		}
+		div := ui.Box(c).Key("sidebar-divider").Width(dividerWidth).Shrink(0)
+		if !drag.active {
+			div.Transition(shellTrackTransition)
+		}
 		if open {
 			div.Focusable().Role(ui.RoleSplitter).Label("Sidebar divider").Range(float64(SidebarMin), float64(SidebarMax), float64(width)).Step(10)
 			if div.Shortcut(0, ui.KeyLeft) {
@@ -74,7 +87,11 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 				sizes.Sidebar = clampSidebarWidth(width + 10)
 			}
 		}
-		ui.Box(c).Key("main-column").Grow(1).MinWidth(0).Clip().Children(center)
+		main := ui.Box(c).Key("main-column").Grow(1).MinWidth(0).Clip()
+		if !drag.active {
+			main.Transition(shellTrackTransition)
+		}
+		main.Children(center)
 		div.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, c.Theme().Border, 0) })
 		if !open {
 			drag.active = false
@@ -82,6 +99,9 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 		}
 		const grip = float32(6)
 		handle := ui.Box(c).Absolute().Top(0).Bottom(0).Left(width - (grip-SplitterWidth)/2).Width(grip).Cursor(ui.CursorResizeEW)
+		if !drag.active {
+			handle.Transition(shellTrackTransition)
+		}
 		dx, _, held := handle.Dragged()
 		if held {
 			div.Focus()

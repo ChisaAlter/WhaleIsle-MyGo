@@ -14,6 +14,9 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	sizes.Bottom = 0
 	st := session.New()
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Store: st, Sizes: &sizes}) }, 1200, 800)
+	// This state/command regression uses the native reduced-motion contract;
+	// shell_motion_test covers the actual transition and native bounds.
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	// Real pointer resizing, then both command and visible-button toggles.
 	tt.Press(336, 300)
 	tt.Move(360, 300)

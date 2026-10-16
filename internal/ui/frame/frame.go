@@ -38,6 +38,7 @@ import (
 
 // LayoutSizes persist split pane dimensions (DIPs) across frames.
 type LayoutSizes struct {
+	dragging        bool               // transient parent-divider gesture; child tracks must not ease behind it
 	Responsive      *SidebarResponsive // transient; never persisted as a width preference
 	Workspace       *WorkspacePanes
 	Sidebar         float32
@@ -78,7 +79,7 @@ func ComputeColumns(viewport, sidebarPref, detailsPref float32) Columns {
 func computeColumns(available, sidebarPref, detailsPref, viewport float32) Columns {
 	s := clampSidebarWidth(sidebarPref)
 	if sidebarPref <= 0 {
-		s = SidebarCollapsed
+		s = SidebarCollapsedWidth()
 	}
 	if detailsPref <= 0 {
 		return Columns{Sidebar: s, Center: maxf(0, available-s)}
@@ -119,10 +120,14 @@ func (sizes *LayoutSizes) ResolveColumns(viewport float32, rightOpen bool) Colum
 		}
 		pref = sizes.Right
 	}
-	cols := computeColumns(maxf(0, viewport-2*SplitterWidth), sidebar, pref, viewport)
+	sidebarDivider := SplitterWidth
+	if sidebar <= 0 && SidebarCollapsedWidth() == 0 {
+		sidebarDivider = 0
+	}
+	cols := computeColumns(maxf(0, viewport-sidebarDivider-SplitterWidth), sidebar, pref, viewport)
 	if cols.Details == 0 {
 		// A closed right track has no divider; only the sidebar divider remains.
-		cols = computeColumns(maxf(0, viewport-SplitterWidth), sidebar, 0, viewport)
+		cols = computeColumns(maxf(0, viewport-sidebarDivider), sidebar, 0, viewport)
 	}
 	sizes.Center = cols.Center
 	return cols

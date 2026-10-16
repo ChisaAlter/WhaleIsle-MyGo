@@ -72,10 +72,19 @@ func TitleBar(c *ui.Context, title string, colors TitleBarColors) {
 // TitleBarWithActions is TitleBar plus optional trailing controls before the
 // system caption buttons (for example a settings gear).
 func TitleBarWithActions(c *ui.Context, title string, colors TitleBarColors, git *GitBadge, trailing func()) {
+	TitleBarWithLeadingActions(c, title, colors, git, nil, trailing)
+}
+
+// TitleBarWithLeadingActions keeps primary navigation outside collapsed tracks.
+// Leading controls share the native caption safe areas with trailing controls.
+func TitleBarWithLeadingActions(c *ui.Context, title string, colors TitleBarColors, git *GitBadge, leading, trailing func()) {
 	bar := c.TitleBar()
 	h := EffectiveTitleBarHeight()
 	if h > 0 && bar.Height > 0 {
 		h = bar.Height
+	}
+	if leading != nil && h < 32 {
+		h = 32 // Keep the navigation hit target usable even without native insets.
 	}
 	// Fill() sets width and height to 100%; apply Height after Fill so the
 	// bar stays TitleBarHeight instead of swallowing the whole window.
@@ -86,6 +95,9 @@ func TitleBarWithActions(c *ui.Context, title string, colors TitleBarColors, git
 			// Leave space for traffic lights / caption buttons.
 			if bar.Left > 0 {
 				ui.Box(c).Width(bar.Left)
+			}
+			if leading != nil {
+				leading()
 			}
 			ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(colors.Foreground)
 			if git != nil && git.Branch != "" {

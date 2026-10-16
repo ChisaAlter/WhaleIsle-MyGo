@@ -3556,9 +3556,20 @@ func mainView(c *ui.Context) {
 		desktopChromeLocked := settingsOpen || usageOpen || imOpen || marketOpen ||
 			scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen
 		acceptPanelOK := st.State == harness.Ready
-		// Electron desk: rail runs under the caption; dialogue chrome owns 启动器/…
-		// in the chat header. Only paint the full-width caption strip for overlays.
+		// Keep the restore action outside the collapsed navigation track on
+		// desktop. Preserve existing page-specific title actions.
+		var captionGit *chrome.GitBadge
 		if desktopChromeLocked {
+			captionGit = gitBadge
+		}
+		if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit) {
+			// Settings and other exclusive routes bypass the navigation shell's
+			// writeback. Persist caption restores through the same layout state.
+			state.mu.Lock()
+			state.layout.Sidebar, state.layout.SidebarExpanded = layout.Sidebar, layout.SidebarExpanded
+			state.layout.Responsive = layout.Responsive
+			state.mu.Unlock()
+		} else if desktopChromeLocked {
 			chrome.TitleBarWithActions(c, "", titleColors, gitBadge, nil)
 		} else {
 			// Thin drag strip so system traffic lights keep hit targets; no chip row.

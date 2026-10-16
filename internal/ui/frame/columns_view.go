@@ -19,13 +19,38 @@ func centerRightColumns(c *ui.Context, m Model, center, right func()) {
 	row := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
 	drag := ui.Local(row, "right-drag", func() paneDrag { return paneDrag{} })
 	row.Children(func() {
-		ui.Box(c).Key("conversation-column").Width(m.Sizes.Center).Shrink(0).Clip().Children(center)
-		if details < DetailsMin {
+		parentDragging := m.Sizes.dragging
+		m.Sizes.dragging = parentDragging || drag.active
+		defer func() { m.Sizes.dragging = parentDragging }()
+		conversation := ui.Box(c).Key("conversation-column").Width(m.Sizes.Center).Shrink(0).Clip()
+		if !drag.active && !m.Sizes.dragging {
+			conversation.Transition(shellTrackTransition)
+		}
+		conversation.Children(center)
+		open := details >= DetailsMin
+		dividerWidth := SplitterWidth
+		if !open {
+			dividerWidth = 0
+		}
+		div := ui.Box(c).Key("right-divider").Width(dividerWidth).Shrink(0)
+		if !drag.active && !m.Sizes.dragging {
+			div.Transition(shellTrackTransition)
+		}
+		resource := ui.Box(c).Key("right-column").Width(details).Shrink(0).MinWidth(0).Clip()
+		if !drag.active && !m.Sizes.dragging {
+			resource.Transition(shellTrackTransition)
+		}
+		// Closed resources stop building immediately: no hidden keyboard owner
+		// or native child survives under an animated canvas/exit ghost.
+		if open {
+			resource.Children(right)
+		}
+		if !open {
 			drag.active = false
 			return
 		}
 		maxDetails := maxf(DetailsMin, viewport*DetailsMaxRatio)
-		div := ui.Box(c).Width(SplitterWidth).Shrink(0).Focusable().Role(ui.RoleSplitter).
+		div.Focusable().Role(ui.RoleSplitter).
 			Label("Right pane divider").Range(float64(DetailsMin), float64(maxDetails), float64(details)).Step(10)
 		if div.Shortcut(0, ui.KeyLeft) {
 			m.Sizes.Right = clampDetailsWidth(details+10, viewport)
@@ -33,10 +58,12 @@ func centerRightColumns(c *ui.Context, m Model, center, right func()) {
 		if div.Shortcut(0, ui.KeyRight) {
 			m.Sizes.Right = clampDetailsWidth(details-10, viewport)
 		}
-		ui.Box(c).Key("right-column").Grow(1).MinWidth(0).Clip().Children(right)
 		grip := float32(6)
 		handle := ui.Box(c).Absolute().Top(0).Bottom(0).Left(m.Sizes.Center - (grip-SplitterWidth)/2).
 			Width(grip).Cursor(ui.CursorResizeEW)
+		if !drag.active && !m.Sizes.dragging {
+			handle.Transition(shellTrackTransition)
+		}
 		dx, _, held := handle.Dragged()
 		if held {
 			div.Focus()
@@ -92,13 +119,32 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	}
 	drag := ui.Local(col, "terminal-drag", func() paneDrag { return paneDrag{} })
 	col.Children(func() {
-		ui.Box(c).Key("chat-column").Height(main).Shrink(0).Clip().Children(chat)
+		conversation := ui.Box(c).Key("chat-column").Height(main).Shrink(0).Clip()
+		if !drag.active && !m.Sizes.dragging {
+			conversation.Transition(shellTrackTransition)
+		}
+		conversation.Children(chat)
+		dividerHeight := SplitterWidth
+		if !open {
+			dividerHeight = 0
+		}
+		div := ui.Box(c).Key("terminal-divider").Height(dividerHeight).Shrink(0)
+		if !drag.active && !m.Sizes.dragging {
+			div.Transition(shellTrackTransition)
+		}
+		drawer := ui.Box(c).Key("terminal-column").Height(maxf(0, height-main-dividerHeight)).Shrink(0).MinHeight(0).Clip()
+		if !drag.active && !m.Sizes.dragging {
+			drawer.Transition(shellTrackTransition)
+		}
+		if open {
+			drawer.Children(terminal)
+		}
 		if !open {
 			drag.active = false
 			return
 		}
 		minMain := min(float32(80), maxMain)
-		div := ui.Box(c).Height(SplitterWidth).Shrink(0).Focusable().Role(ui.RoleSplitter).
+		div.Focusable().Role(ui.RoleSplitter).
 			Label("Terminal pane divider").Range(float64(minMain), float64(maxMain), float64(main)).Step(10)
 		setMain := func(value float32) {
 			if m.Terminal != nil {
@@ -112,10 +158,12 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		if div.Shortcut(0, ui.KeyDown) {
 			setMain(main + 10)
 		}
-		ui.Box(c).Key("terminal-column").Grow(1).MinHeight(0).Clip().Children(terminal)
 		grip := float32(6)
 		handle := ui.Box(c).Absolute().Left(0).Right(0).Top(main - (grip-SplitterWidth)/2).
 			Height(grip).Cursor(ui.CursorResizeNS)
+		if !drag.active && !m.Sizes.dragging {
+			handle.Transition(shellTrackTransition)
+		}
 		_, dy, held := handle.Dragged()
 		if held {
 			div.Focus()
