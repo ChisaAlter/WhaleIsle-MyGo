@@ -1,6 +1,9 @@
 package interaction
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // QuestionRowView is one question line in the interaction card.
 type QuestionRowView struct {
@@ -38,6 +41,10 @@ type answerDraft struct {
 	checks     map[string]*bool
 }
 
+// Matches QuestionComposer.parseRecommendedLabel's suffix and ECMAScript whitespace.
+// Keep the complete label in the draft and wire answer; this is not confirmation.
+var recommendedQuestionSuffix = regexp.MustCompile(`(?i)(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)[\t\n\v\f\r \x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]*$`)
+
 func newDraftSession(req userQuestionsRequest) *draftSession {
 	ds := &draftSession{
 		req:     req,
@@ -45,7 +52,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 	}
 	for _, q := range req.Questions {
 		ad := &answerDraft{checks: make(map[string]*bool)}
-		if len(q.Options) > 0 && !q.MultiSelect && planReviewOf(req.Questions) == nil {
+		if len(q.Options) > 0 && planReviewOf(req.Questions) == nil && recommendedQuestionSuffix.MatchString(q.Options[0].Label) {
 			label := q.Options[0].Label
 			ad.selected = []string{label}
 			ad.selectWire = label

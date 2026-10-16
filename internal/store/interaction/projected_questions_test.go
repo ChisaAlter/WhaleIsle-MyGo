@@ -100,6 +100,7 @@ func TestLiveWaterfallAnswerIsNotReplayedAsLateAnswer(t *testing.T) {
 	}()
 	awaitQuestionFixture(t, func() bool { return len(s.SnapshotForAgent("A").Pending) == 1 })
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
+	s.SetQuestionSingleSelect("live", "q", "A")
 	s.ResolveQuestions("live")
 	<-done
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
@@ -140,6 +141,7 @@ func TestLateQuestionAnswerRPCFailureRetryAndQueuedEcho(t *testing.T) {
 	s.AttachClient(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
 	id := s.SnapshotForAgent("A").Pending[0].EventID
+	s.SetQuestionSingleSelect(id, "q", "A")
 	s.ResolveQuestions(id)
 	s.ResolveQuestions(id)
 	awaitQuestionFixture(t, func() bool { return calls.Load() == 1 })
@@ -177,7 +179,9 @@ func TestLateQuestionAnswerResultIgnoredAfterHostReplacement(t *testing.T) {
 	s := New()
 	s.AttachClient(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	s.ResolveQuestions(s.SnapshotForAgent("A").Pending[0].EventID)
+	id := s.SnapshotForAgent("A").Pending[0].EventID
+	s.SetQuestionSingleSelect(id, "q", "A")
+	s.ResolveQuestions(id)
 	<-started
 	s.Detach()
 	s.AttachClient(&dsh.Client{}, nil)
