@@ -43,6 +43,9 @@ func (s *mainState) beginAppearanceFrame(c *ui.Context) {
 func (s *mainState) endAppearanceFrame() {
 	if !s.appearanceVisible && s.appearanceEditor != nil && s.appearanceEditor.Preview {
 		s.appearanceEditor.Cancel()
+		s.mu.Lock()
+		win := s.win
+		s.mu.Unlock()
 		if win != nil {
 			win.Update(func() {})
 		}

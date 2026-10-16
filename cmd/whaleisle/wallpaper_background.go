@@ -30,6 +30,9 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 	}, func(task func() func()) {
 		go func() {
 			done := task()
+			s.mu.Lock()
+			win := s.win
+			s.mu.Unlock()
 			if win != nil {
 				win.Update(done)
 			}
