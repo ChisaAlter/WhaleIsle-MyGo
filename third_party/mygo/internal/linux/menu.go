@@ -47,6 +47,7 @@ var editCommands = map[string]string{
 }
 
 func initMenuCallbacks() {
+	initTrayActivation()
 	cbMenuActivate = purego.NewCallback(func(item, data ptr) {
 		if settingState {
 			return
@@ -408,9 +409,10 @@ func (b *Backend) PopupMenu(m *platform.Menu, pw platform.Window, pos *platform.
 	gtkWidgetDestroy(menu)
 }
 
-// Tray icons use AppIndicator (StatusNotifierItem), which shows a menu on
-// click; click events are not available.
+// Tray icons use AppIndicator (StatusNotifierItem). Newer Ayatana builds
+// expose primary activation; older libraries and menu-only hosts keep the menu.
 type tray struct {
+	h       platform.TrayHandler
 	b       *Backend
 	id      int
 	ind     ptr
@@ -425,13 +427,14 @@ func (b *Backend) NewTray(h platform.TrayHandler) (platform.Tray, error) {
 		return nil, fmt.Errorf("mygo: tray icons need libayatana-appindicator3: %w", platform.ErrUnsupported)
 	}
 	b.nextTray++
-	t := &tray{b: b, id: b.nextTray}
+	t := &tray{b: b, id: b.nextTray, h: h}
 	name := fmt.Sprintf("mygo-%d-%d", os.Getpid(), t.id)
 	t.ind = appIndicatorNew(cs(name), cs("application-x-executable"), 0) // APPLICATION_STATUS
 	appIndicatorSetStatus(t.ind, 1)                                      // ACTIVE
 	// AppIndicator only shows up once it has a menu.
 	t.SetMenu(&platform.Menu{})
 	b.trays[t.id] = t
+	t.connectActivation()
 	return t, nil
 }
 

@@ -15,7 +15,7 @@ import (
 func (s *mainState) setupDesktopTray() {
 	// Windows and macOS use explicit right-click popup so an attached native
 	// menu cannot consume the left-click restore action. AppIndicator on Linux
-	// requires a persistent menu; its backend does not expose left-click events.
+	// requires a persistent menu; primary activation depends on indicator and panel support.
 	options := mygo.TrayOptions{Icon: trayIcon(), ToolTip: i18n.T(i18n.KeyAppName)}
 	if runtime.GOOS == "linux" {
 		options.Menu = s.desktopTrayMenu()
