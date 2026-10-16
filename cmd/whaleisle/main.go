@@ -6192,6 +6192,9 @@ func mainView(c *ui.Context) {
 						RightPaneOpen:         filesPaneOpen,
 						RightPaneTab:          &rightPaneTab,
 						AgentsPromptDraft:     &agentsPromptDraft,
+						OnOpenAgentPaneDocument: func(paneID string, owner *session.Store, token uint64, address session.AgentSessionAddress, path string) {
+							state.openAgentPaneDocument(paneID, owner, token, address, path)
+						},
 						OnOpenAgentDocument: func(token uint64, address session.AgentSessionAddress, path string) {
 							state.openAgentDocument(sessions, token, address, path)
 						},

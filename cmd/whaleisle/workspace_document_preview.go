@@ -32,7 +32,7 @@ func (s *mainState) openWorkspaceDocumentSource(sessions *session.Store, source 
 	if !s.workspaceDocumentReady(source) { return }
 	s.mu.Lock()
 	win := s.win
-	if s.sessions != sessions || win == nil { s.mu.Unlock(); return }
+	if s.sessions != sessions.AgentNavigationRootStore() || win == nil { s.mu.Unlock(); return }
 	if s.layout.Workspace == nil { s.layout.Workspace = &frame.WorkspacePanes{} }
 	panes := s.layout.Workspace
 	s.filesPaneOpen = true
@@ -55,6 +55,8 @@ func (s *mainState) workspaceDocumentReady(source browserpreviewui.DocumentSourc
 	if source.Authority == "" || source.Authority != s.browserWorkspaceOwner().Authority ||
 		viewID == "" || viewID != snap.SelectedID || source.Workspace != snap.SelectedCwd { return false }
 	if source.AddressKind == "subagent" {
+		sessions = s.workspaceDocumentStore(source)
+		if sessions == nil { return false }
 		view := sessions.AgentNavigationSnapshot()
 		_, _, err := sessions.AgentMediaPreviewSource(view.Token, workspaceDocumentAddress(source))
 		return err == nil
@@ -87,6 +89,8 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 	child := source.AddressKind == "subagent"
 	address := workspaceDocumentAddress(source)
 	if child {
+		sessions = s.workspaceDocumentStore(source)
+		if sessions == nil { result.Err = fmt.Errorf("来源代理面板已关闭，请重新打开来源"); return result }
 		view := sessions.AgentNavigationSnapshot()
 		childToken = view.Token
 		reader, sourceValid, sourceErr = sessions.AgentMediaPreviewSource(childToken, address)
@@ -99,7 +103,7 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 	valid := func() bool {
 		s.mu.Lock()
 		st := s.bootStatus
-		current := !s.quitting && s.sessions == sessions && s.win == win &&
+		current := !s.quitting && s.sessions == sessions.AgentNavigationRootStore() && s.win == win &&
 			st.Generation == host.Generation && st.State == host.State &&
 			st.Endpoint.Origin == host.Endpoint.Origin && st.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()

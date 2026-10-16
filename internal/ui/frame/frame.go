@@ -210,6 +210,8 @@ type Model struct {
 	OnOpenAgents        func()
 	AgentsPromptDraft   *string
 	OnOpenAgentDocument func(uint64, session.AgentSessionAddress, string)
+	OnOpenAgentPaneDocument func(string, *session.Store, uint64, session.AgentSessionAddress, string)
+	AgentNavigationStore *session.Store
 	DiffPath            *string
 	DiffText            *string
 	DiffErr             *string
@@ -1188,8 +1190,10 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
+			navigation := store
+			if m.AgentNavigationStore != nil { navigation = m.AgentNavigationStore }
 			agents.View(c, agents.Model{
-				Store:          store,
+				Store:          navigation,
 				Manager:        m.AgentPresetManager,
 				Snapshot:       store.Snapshot(),
 				ThemeID:        m.ThemeID,

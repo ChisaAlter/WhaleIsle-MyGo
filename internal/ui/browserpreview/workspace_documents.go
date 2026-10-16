@@ -20,6 +20,7 @@ const (
 // DocumentSource describes a resource, never a temporary server URL or lease.
 // Every restored occurrence obtains new bytes under its original source scope.
 type DocumentSource struct {
+	NavigationPaneID string `json:"navigationPaneId,omitempty"`
 	Authority       string `json:"authority"`
 	SessionID       string `json:"sessionId"`
 	ViewSessionID   string `json:"viewSessionId,omitempty"`
@@ -95,7 +96,7 @@ func (b *Controller) resumeDocument(tab *Tab) {
 	if loader.ready == nil || loader.read == nil || !loader.ready(*tab.source) {
 		tab.ActionMessage = "切回文档所属会话和工作区后，将重新读取源文件恢复预览。"
 		if tab.source.AddressKind == "subagent" {
-			tab.ActionMessage = "请在 Agents 面板重新进入文档所属子会话；已有源绑定恢复后将重新读取，无需再次选择文件。"
+			tab.ActionMessage = "请在原 Agents 面板重新进入文档所属子会话；若原面板已关闭，请从新的来源面板重新打开此文件。"
 		}
 		return
 	}

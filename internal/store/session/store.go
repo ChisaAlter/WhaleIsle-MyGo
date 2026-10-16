@@ -181,6 +181,9 @@ type Store struct {
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
 	agentNavigation           agentNavigationState
+	agentNavigationPaneID string
+	agentNavigationOwner *Store
+	agentNavigationPanes map[string]*Store
 	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64

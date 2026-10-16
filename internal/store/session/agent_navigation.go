@@ -75,7 +75,7 @@ func (s *Store) invalidateAgentNavigationLocked() {
 }
 func (s *Store) agentNavigationOwnedLocked() bool {
 	n := &s.agentNavigation
-	return n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
+	return s.agentPaneCurrentLocked() && n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
 	v.PromptImages = append([]string(nil), v.PromptImages...)
@@ -101,7 +101,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 // child history are runtime-only and never restored or prefetched at startup.
 func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 	s.mu.Lock()
-	if binding == "" || binding != s.planHistoryBinding || binding != fmt.Sprintf("%p\x00%s", s.client, s.selectedID) || s.client == nil || s.mux == nil {
+	if !s.agentPaneCurrentLocked() || binding == "" || binding != s.planHistoryBinding || binding != fmt.Sprintf("%p\x00%s", s.client, s.selectedID) || s.client == nil || s.mux == nil {
 		s.invalidateAgentNavigationLocked()
 		s.mu.Unlock()
 		return AgentNavigationView{}

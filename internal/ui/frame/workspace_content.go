@@ -172,6 +172,7 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 			})
 		}
 	}
+	if n.Kind == "agents" { local = w.agentPaneModel(local, n) }
 	return local
 }
 
@@ -179,6 +180,7 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 	if w == nil { return }
 	w.Root.eachLeaf(func(n *WorkspacePane) {
+		if n.Agents != nil { n.Agents.rendered = false }
 		if n.Files != nil {
 			n.Files.rendered = false
 			n.Files.Tabs.Bind(binding, root)
@@ -195,6 +197,7 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 func (w *WorkspacePanes) EndContentFrame() {
 	if w == nil { return }
 	w.Root.eachLeaf(func(n *WorkspacePane) {
+		if n.Agents != nil && !n.Agents.rendered { n.releaseAgentPane() }
 		if n.Files != nil && !n.Files.rendered {
 			n.Files.Tabs.CancelPlanRead()
 			n.Files.Tabs.Pause()
@@ -206,12 +209,14 @@ func (w *WorkspacePanes) EndContentFrame() {
 func (w *WorkspacePanes) PauseContent() {
 	if w == nil { return }
 	w.Root.eachLeaf(func(n *WorkspacePane) {
+		n.releaseAgentPane()
 		if n.Files != nil { n.Files.Tabs.CancelPlanRead(); n.Files.Tabs.Pause() }
 		if n.browser != nil { n.browser.Hide() }
 	})
 }
 
 func (n *WorkspacePane) disposeContent() {
+	n.releaseAgentPane()
 	if n.Diff != nil { n.Diff.Workbench.ClosePane() }
 	if n.Files != nil { n.Files.Tabs.Dispose() }
 	if n.browser != nil { n.browser.Close(); n.browser = nil }

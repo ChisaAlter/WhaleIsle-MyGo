@@ -26,6 +26,7 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
+	Agents *WorkspaceAgentState `json:"-"`
 	Diff *WorkspaceDiffState `json:"diff,omitempty"`
 	Files          *WorkspaceFileState `json:"files,omitempty"`
 	Browser        *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
@@ -393,7 +394,7 @@ func workspacePaneControls(c *ui.Context, m Model) {
 }
 
 func independentPaneKind(kind string) bool {
-	return kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff"
+	return kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff" || kind == "agents"
 }
 
 // SplitWorkspacePane is shared by the pane chrome and editable command registry.
