@@ -1,0 +1,8 @@
+{
+  "name": "whaleisle-offline-math-renderer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build-only inputs for the embedded offline MathJax SVG renderer",
+  "dependencies": { "mathjax-full": "3.2.2" },
+  "devDependencies": { "esbuild": "0.25.12" }
+}
