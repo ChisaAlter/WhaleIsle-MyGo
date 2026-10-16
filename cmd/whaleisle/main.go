@@ -1633,6 +1633,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMuxLost = false
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.replaceMCPControllerLocked()
+	s.settingsProviderProfiles.ResetHost()
 	s.dshClient = client
 	s.accountSignOut.Bind(client)
 	s.attachPluginInventory(client)
@@ -1778,6 +1779,7 @@ func (s *mainState) stopDSHLocked() {
 	}
 	s.dshEndpoint = ""
 	s.replaceMCPControllerLocked()
+	s.settingsProviderProfiles.ResetHost()
 	s.dshClient = nil
 	s.accountSignOut.Bind(nil)
 	s.attachPluginInventory(nil)

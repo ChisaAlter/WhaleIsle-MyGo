@@ -216,3 +216,48 @@ func TestConfirmationInvalidatedByRefreshAndCancel(t *testing.T) {
 		t.Fatal("wrong target accepted")
 	}
 }
+
+func TestHostResetRejectsOldConfirmationAndDelayedRefresh(t *testing.T) {
+	var c Controller
+	ctx := context.Background()
+	a, b := &fixture{}, &fixture{}
+	epoch := c.Epoch()
+	c.RefreshExpected(ctx, a, epoch)
+	id := c.Snapshot().Rows[0].ID
+	c.RequestDelete(id)
+	c.ResetHost()
+	c.RefreshExpected(ctx, b, c.Epoch())
+	c.RequestDelete(id)
+	n := len(b.calls)
+	c.DeleteAtEpoch(ctx, b, id, epoch)
+	if len(b.calls) != n {
+		t.Fatal("old confirmation reached new Host")
+	}
+	c.RefreshExpected(ctx, a, epoch)
+	if len(a.calls) != 3 {
+		t.Fatal("delayed old Host refresh ran")
+	}
+	if c.Snapshot().Pending == nil {
+		t.Fatal("stale refresh changed current confirmation")
+	}
+}
+
+func TestHostResetDiscardsInflightRemovalResult(t *testing.T) {
+	var c Controller
+	ctx := context.Background()
+	f := &fixture{}
+	c.Refresh(ctx, f)
+	id := c.Snapshot().Rows[0].ID
+	c.RequestDelete(id)
+	f.block, f.entered = make(chan struct{}), make(chan struct{})
+	done := make(chan struct{})
+	go func() { c.DeleteExpected(ctx, f, id); close(done) }()
+	<-f.entered
+	c.ResetHost()
+	close(f.block)
+	<-done
+	s := c.Snapshot()
+	if s.Ready || s.Busy || s.Pending != nil || len(s.Rows) != 0 || s.LastAction != "" {
+		t.Fatalf("stale Host result leaked: %+v", s)
+	}
+}

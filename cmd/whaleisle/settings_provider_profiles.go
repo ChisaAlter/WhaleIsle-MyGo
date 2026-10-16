@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/ui/settings"
@@ -9,10 +10,14 @@ import (
 
 type notifyingProviderCaller struct {
 	providerprofiles.Caller
-	notify func()
+	notify  func()
+	current func() bool
 }
 
 func (c notifyingProviderCaller) Call(ctx context.Context, method string, args, out any) error {
+	if !c.current() {
+		return errors.New("Host changed; refresh provider profiles before continuing")
+	}
 	c.notify()
 	return c.Caller.Call(ctx, method, args, out)
 }
@@ -22,7 +27,7 @@ func (s *mainState) runProviderProfiles(action func(context.Context, providerpro
 	s.dshMu.Unlock()
 	var caller providerprofiles.Caller
 	if client != nil {
-		caller = notifyingProviderCaller{Caller: client, notify: s.updateProviderProfilesUI}
+		caller = notifyingProviderCaller{Caller: client, notify: s.updateProviderProfilesUI, current: func() bool { s.dshMu.Lock(); defer s.dshMu.Unlock(); return s.dshClient == client }}
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -32,7 +37,10 @@ func (s *mainState) runProviderProfiles(action func(context.Context, providerpro
 	}()
 }
 func (s *mainState) refreshProviderProfiles() {
-	s.runProviderProfiles(func(ctx context.Context, c providerprofiles.Caller) { s.settingsProviderProfiles.Refresh(ctx, c) })
+	epoch := s.settingsProviderProfiles.Epoch()
+	s.runProviderProfiles(func(ctx context.Context, c providerprofiles.Caller) {
+		s.settingsProviderProfiles.RefreshExpected(ctx, c, epoch)
+	})
 }
 func (s *mainState) providerProfilesAccess() *settings.ProviderProfilesAccess {
 	snap := s.settingsProviderProfiles.Snapshot()
@@ -41,11 +49,14 @@ func (s *mainState) providerProfilesAccess() *settings.ProviderProfilesAccess {
 		id = snap.Pending.ID
 	}
 	return &settings.ProviderProfilesAccess{Snapshot: snap, OnRefresh: s.refreshProviderProfiles,
-		OnDelete: func(id string) { s.settingsProviderProfiles.RequestDelete(id); s.updateProviderProfilesUI() },
+		OnDelete: func(id string) {
+			s.settingsProviderProfiles.RequestDeleteAtEpoch(id, snap.Epoch)
+			s.updateProviderProfilesUI()
+		},
 		OnCancel: func() { s.settingsProviderProfiles.CancelDelete(); s.updateProviderProfilesUI() },
 		OnConfirm: func() {
 			s.runProviderProfiles(func(ctx context.Context, c providerprofiles.Caller) {
-				s.settingsProviderProfiles.DeleteExpected(ctx, c, id)
+				s.settingsProviderProfiles.DeleteAtEpoch(ctx, c, id, snap.Epoch)
 			})
 		},
 	}

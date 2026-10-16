@@ -22,6 +22,7 @@ type Row struct {
 	Removable                                           bool
 }
 type Snapshot struct {
+	Epoch           uint64
 	Rows            []Row
 	Busy, Ready     bool
 	Pending         *Row
@@ -30,6 +31,18 @@ type Snapshot struct {
 type Controller struct {
 	mu    sync.Mutex
 	state Snapshot
+}
+
+// ResetHost invalidates rows, confirmations, and in-flight completions from the old Host.
+func (c *Controller) ResetHost() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.state = Snapshot{Epoch: c.state.Epoch + 1}
+}
+func (c *Controller) Epoch() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.state.Epoch
 }
 
 func cloneRow(r Row) Row { r.Path = append([]string(nil), r.Path...); return r }
@@ -47,10 +60,11 @@ func (c *Controller) Snapshot() Snapshot {
 	}
 	return s
 }
-func (c *Controller) RequestDelete(id string) {
+func (c *Controller) RequestDelete(id string) { c.RequestDeleteAtEpoch(id, c.Epoch()) }
+func (c *Controller) RequestDeleteAtEpoch(id string, epoch uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.state.Busy || !c.state.Ready {
+	if c.state.Epoch != epoch || c.state.Busy || !c.state.Ready {
 		return
 	}
 	for _, r := range c.state.Rows {
@@ -71,8 +85,11 @@ func (c *Controller) CancelDelete() {
 	}
 }
 func (c *Controller) Refresh(ctx context.Context, call Caller) {
+	c.RefreshExpected(ctx, call, c.Epoch())
+}
+func (c *Controller) RefreshExpected(ctx context.Context, call Caller, epoch uint64) {
 	c.mu.Lock()
-	if c.state.Busy {
+	if c.state.Epoch != epoch || c.state.Busy {
 		c.mu.Unlock()
 		return
 	}
@@ -83,6 +100,9 @@ func (c *Controller) Refresh(ctx context.Context, call Caller) {
 	rows, err := load(ctx, call)
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.state.Epoch != epoch {
+		return
+	}
 	c.state.Busy = false
 	c.state.Ready = err == nil
 	c.state.Err = ""
@@ -93,8 +113,11 @@ func (c *Controller) Refresh(ctx context.Context, call Caller) {
 	c.state.Rows = rows
 }
 func (c *Controller) DeleteExpected(ctx context.Context, call Caller, id string) {
+	c.DeleteAtEpoch(ctx, call, id, c.Epoch())
+}
+func (c *Controller) DeleteAtEpoch(ctx context.Context, call Caller, id string, epoch uint64) {
 	c.mu.Lock()
-	if c.state.Busy || c.state.Pending == nil || id == "" || c.state.Pending.ID != id {
+	if c.state.Epoch != epoch || c.state.Busy || c.state.Pending == nil || id == "" || c.state.Pending.ID != id {
 		c.mu.Unlock()
 		return
 	}
@@ -123,6 +146,9 @@ func (c *Controller) DeleteExpected(ctx context.Context, call Caller, id string)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.state.Epoch != epoch {
+		return
+	}
 	c.state.Busy = false
 	if err != nil {
 		c.state.Ready = false
