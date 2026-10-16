@@ -24,6 +24,8 @@ type Companion struct {
 	SkinID                    string
 	Neural                    bool
 	Behavior                  config.PetBehavior
+	PositionDraft             *config.PetPosition
+	OriginalImportReport      []string
 	Error                     string
 	Skins                     []Skin
 	ready                     bool
@@ -83,6 +85,7 @@ func (p *Companion) Refresh() {
 }
 func (p *Companion) Save() {
 	previous := p.Store.DesktopPet()
+	positionImported := p.PositionDraft != nil
 	if p.SkinID != "" {
 		found := false
 		for _, s := range p.Skins {
@@ -97,11 +100,13 @@ func (p *Companion) Save() {
 		}
 	}
 	p.Behavior = config.NormalizePetBehavior(p.Behavior)
-	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural, Behavior: p.Behavior, PersonalityConfigured: true, Position: previous.Position}); err != nil {
+	if err := p.Store.SaveDesktopPet(config.DesktopPet{Enabled: p.Enabled, SkinID: p.SkinID, Neural: p.Neural, Behavior: p.Behavior, PersonalityConfigured: true, Position: p.PositionForSave(previous.Position)}); err != nil {
 		p.Error = err.Error()
 		return
 	}
 	p.Error = ""
+	p.PositionDraft = nil
+	p.OriginalImportReport = nil
 	p.cancelChangedLook(previous.Behavior, p.Behavior)
 	if !p.Behavior.ChatEnabled {
 		p.assetMu.Lock()
@@ -111,7 +116,7 @@ func (p *Companion) Save() {
 	if previous.Enabled != p.Enabled && p.OnEnabledChanged != nil {
 		p.OnEnabledChanged()
 	}
-	if previous.Enabled != p.Enabled || previous.SkinID != p.SkinID || previous.Neural != p.Neural {
+	if previous.Enabled != p.Enabled || previous.SkinID != p.SkinID || previous.Neural != p.Neural || positionImported {
 		p.close()
 	}
 	p.sync()

@@ -16,17 +16,22 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	ui.Text(c, "Refresh bowl reads this app’s actual usage. Feed Token spends local game food only, never API credit. / 刷新粮碗读取本应用真实用量；喂 Token 只消费本地游戏粮点，不扣账户余额。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Text(c, "Pat saves the original mood/bond care effect; repeat pats use its ten-minute bond cooldown. / 摸摸头保存原版心情/亲密变化，重复互动沿用十分钟亲密冷却。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Text(c, "Sleep pauses rendering for this window; Wake uses the original mood −7, with no rest reward. / 睡觉临时暂停渲染；叫醒沿用原版心情 −7，无休息收益，重新开窗恢复清醒。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Optional THA4 neural animation uses verified local assets. Missing resources or runtime errors fall back to sprites. / 可选 THA4 神经渲染；资源或运行时不可用则回退图集。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, "Optional THA4 neural animation uses verified local assets. Missing resources or runtime errors fall back to bundled layered animation, then sprites or animated fallback. / 可选 THA4 神经渲染；资源或运行时不可用时回退内置分层动画，再到图集或动态后备。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Text(c, "Look asks before each screenshot and uses the pet-specific image route selected below; replies appear on the pet. / 看看每次截图前确认，使用下方独立选择的桌宠视觉路由；回复显示在桌宠上。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
-	if p.Store != nil {
-		if original, available := p.Store.OriginalPetBehavior(); available {
-			if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Clicked() {
-				p.Behavior = original
-			}
-			ui.Text(c, "从当前配置的 live2dPet.settings 载入兼容外观、行为与视觉路由；只替换本页草稿，检查后点保存。显示开关、皮肤和位置不变。 / Loads compatible appearance, behavior and image-route settings from this configuration into the draft only. Review and Save to apply. Visibility, skin and position stay unchanged.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Disabled(p.Store == nil).Clicked() {
+		p.LoadOriginalDraft()
+	}
+	for _, line := range p.OriginalImportReport {
+		ui.Text(c, line).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+	if p.PositionDraft != nil {
+		ui.Text(c, fmt.Sprintf("待保存位置 / Pending position: (%d, %d)", p.PositionDraft.X, p.PositionDraft.Y)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if ui.Button(c, "取消位置导入 / Discard position import").Clicked() {
+			p.PositionDraft = nil
+			p.OriginalImportReport = nil
 		}
 	}
 	ui.Checkbox(c, &p.Enabled, "Show companion / 显示桌宠")
