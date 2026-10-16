@@ -213,7 +213,16 @@ func workbookFormatTokens(code string) ([]workbookFormatToken, bool) {
 			case "black", "blue", "cyan", "green", "magenta", "red", "white", "yellow":
 				// Color is not part of the copied display text.
 			default:
-				return nil, false // Conditions, locale directives, and unsupported colors.
+				if symbol, locale, ok := workbookLocaleToken(string(runes[i+1 : j])); ok {
+					if symbol != "" {
+						add("literal", symbol)
+					}
+					if locale != "" {
+						add("locale", locale)
+					}
+				} else {
+					return nil, false
+				}
 			}
 			i = j + 1
 			continue
@@ -240,6 +249,10 @@ func workbookFormatTokens(code string) ([]workbookFormatToken, bool) {
 		}
 		if strings.ContainsRune("0#?.,%Ee+-/", ch) {
 			add("pattern", string(ch))
+		} else if ch >= '1' && ch <= '9' {
+			add("digit", string(ch))
+		} else if ch == 'g' || ch == 'G' {
+			return nil, false // Era/calendar conversion is not a Gregorian literal.
 		} else {
 			add("literal", string(ch))
 		}
@@ -255,13 +268,10 @@ func workbookNumber(value float64, code string, date1904 bool) (string, bool, bo
 	if code == "" || strings.EqualFold(code, "General") || code == "@" {
 		return strconv.FormatFloat(value, 'f', -1, 64), false, true
 	}
-	sections := workbookFormatSections(code)
-	section := sections[0]
 	signed := value
-	if value < 0 && len(sections) > 1 {
-		section, value = sections[1], -value
-	} else if value == 0 && len(sections) > 2 {
-		section = sections[2]
+	section, value, ok := workbookSelectSection(value, workbookFormatSections(code))
+	if !ok {
+		return "", false, false
 	}
 	if strings.EqualFold(section, "General") || section == "@" {
 		return strconv.FormatFloat(signed, 'f', -1, 64), false, true
@@ -270,15 +280,25 @@ func workbookNumber(value float64, code string, date1904 bool) (string, bool, bo
 	if !ok {
 		return "", false, false
 	}
-	isDate := false
+	isDate, locale := false, ""
+	displayTokens := make([]workbookFormatToken, 0, len(tokens))
 	for _, token := range tokens {
-		if token.kind != "literal" && token.kind != "pattern" {
+		if token.kind == "locale" {
+			if locale != "" && locale != token.text {
+				return "", false, false
+			}
+			locale = token.text
+			continue
+		}
+		if token.kind != "literal" && token.kind != "pattern" && token.kind != "digit" {
 			isDate = true
 		}
+		displayTokens = append(displayTokens, token)
 	}
+	tokens = displayTokens
 	if isDate {
 		// Negative date serials have no portable Excel display; retain the raw value.
-		display, ok := workbookDate(signed, tokens, date1904)
+		display, ok := workbookDate(signed, tokens, date1904, locale)
 		return display, true, ok
 	}
 	display, ok := workbookDecimal(value, tokens)
@@ -288,6 +308,9 @@ func workbookNumber(value float64, code string, date1904 bool) (string, bool, bo
 var workbookDecimalPattern = regexp.MustCompile("^([#0]+(?:,[#0]+)*)(?:\\.([#0]+))?(?:[Ee]([+-])([0]+))?$")
 
 func workbookDecimal(value float64, tokens []workbookFormatToken) (string, bool) {
+	if display, fraction, ok := workbookFraction(value, tokens); fraction {
+		return display, ok
+	}
 	first, last, percentages := -1, -1, 0
 	for i, token := range tokens {
 		if token.kind == "pattern" && (token.text == "0" || token.text == "#" || token.text == "?") {
@@ -303,7 +326,7 @@ func workbookDecimal(value float64, tokens []workbookFormatToken) (string, bool)
 	if first < 0 {
 		var out strings.Builder
 		for _, token := range tokens {
-			if token.kind != "literal" && token.text != "-" && token.text != "+" {
+			if token.kind != "literal" && token.kind != "digit" && token.text != "-" && token.text != "+" {
 				return "", false
 			}
 			out.WriteString(token.text)
@@ -329,7 +352,7 @@ func workbookDecimal(value float64, tokens []workbookFormatToken) (string, bool)
 	literal := func(items []workbookFormatToken) (string, bool) {
 		var out strings.Builder
 		for _, token := range items {
-			if token.kind != "literal" && token.text != "%" && token.text != "-" && token.text != "+" {
+			if token.kind != "literal" && token.kind != "digit" && token.text != "%" && token.text != "-" && token.text != "+" {
 				return "", false
 			}
 			out.WriteString(token.text)
@@ -348,25 +371,17 @@ func workbookDecimal(value float64, tokens []workbookFormatToken) (string, bool)
 	negative := value < 0
 	value = math.Abs(value)
 	precision := len(match[2])
-	// These cover Excel's practical decimal display precision without implying
-	// support for arbitrary-width formats or engineering/fraction notation.
+	// Keep the existing decimal precision boundary for scientific mantissas too.
 	if precision > 15 || math.IsInf(value, 0) || len(match[4]) > 10 {
 		return "", false
 	}
 	number := ""
 	if match[3] != "" {
-		if match[1] != "0" {
+		var ok bool
+		number, ok = workbookScientific(value, match[1], match[2], match[3], match[4])
+		if !ok {
 			return "", false
 		}
-		parts := strings.Split(strconv.FormatFloat(value, 'E', precision, 64), "E")
-		exponent, _ := strconv.Atoi(parts[1])
-		sign := "+"
-		if exponent < 0 {
-			sign, exponent = "-", -exponent
-		} else if match[3] == "-" {
-			sign = ""
-		}
-		number = parts[0] + "E" + sign + fmt.Sprintf("%0*d", len(match[4]), exponent)
 	} else {
 		parts := strings.Split(strconv.FormatFloat(value, 'f', precision, 64), ".")
 		integer := parts[0]
@@ -403,7 +418,7 @@ func workbookDecimal(value float64, tokens []workbookFormatToken) (string, bool)
 	return prefix + number + suffix, true
 }
 
-func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (string, bool) {
+func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, locale string) (string, bool) {
 	if value < 0 || value > 2958465 {
 		return "", false
 	}
@@ -453,7 +468,10 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (s
 	if year > 9999 {
 		return "", false
 	}
-	months := []string{"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+	names := workbookDateLocales[locale]
+	if locale == "" {
+		names = workbookDateLocales["en"]
+	}
 	number := func(n, width int) string {
 		if width > 1 {
 			return fmt.Sprintf("%02d", n)
@@ -466,6 +484,8 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (s
 		width := len(token.text)
 		switch token.kind {
 		case "literal":
+			out.WriteString(token.text)
+		case "digit":
 			out.WriteString(token.text)
 		case "pattern":
 			if token.text != "/" && token.text != "-" && token.text != "." {
@@ -483,9 +503,9 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (s
 			case 1, 2:
 				out.WriteString(number(day, width))
 			case 3:
-				out.WriteString(date.Weekday().String()[:3])
+				out.WriteString(names.abbreviatedDays[int(date.Weekday())])
 			case 4:
-				out.WriteString(date.Weekday().String())
+				out.WriteString(names.days[int(date.Weekday())])
 			default:
 				return "", false
 			}
@@ -512,11 +532,11 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (s
 				case 1, 2:
 					out.WriteString(number(month, width))
 				case 3:
-					out.WriteString(months[month-1][:3])
+					out.WriteString(names.abbreviatedMonths[month-1])
 				case 4:
-					out.WriteString(months[month-1])
+					out.WriteString(names.months[month-1])
 				case 5:
-					out.WriteString(months[month-1][:1])
+					out.WriteString(names.narrowMonths[month-1])
 				default:
 					return "", false
 				}
@@ -545,6 +565,9 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool) (s
 			}
 		case "ampm":
 			parts := strings.Split(token.text, "/")
+			if locale != "" && len(token.text) == 5 {
+				parts = names.meridiem
+			}
 			if hour < 12 {
 				out.WriteString(parts[0])
 			} else {
@@ -576,5 +599,5 @@ func workbookFormatNotice(cells []XLSXCell) string {
 	if count == 0 {
 		return ""
 	}
-	return fmt.Sprintf("\n%d cell(s) use unsupported number formats and show stored values. Supported: common decimal/grouped/percent/currency/scientific and date/time formats; fractions, engineering notation, conditional and locale-specific formats are not rendered. Raw values remain copyable.\n", count)
+	return fmt.Sprintf("\n%d cell(s) use unsupported number formats and show stored values. Supported: decimal/grouped/percent/currency, fractions, scientific/engineering, conditional sections and date/time formats. Explicit en/de/fr/zh/ja Gregorian locale markers are supported; unknown system/locale/calendar directives and other unsupported codes retain raw values. Raw values remain copyable.\n", count)
 }
