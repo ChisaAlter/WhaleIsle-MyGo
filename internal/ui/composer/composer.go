@@ -20,6 +20,7 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
+	GroupMembers         []session.GroupMember
 	NextPrompt           session.NextPromptSuggestion
 	OnAcceptNextPrompt   func() string
 	ComposerBeam         bool
@@ -134,6 +135,14 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	beam := readBeamStyle(m.ComposerBeamStyle)
 	showBeam := m.ComposerBeam && composerRunning(m) && !c.Preferences().ReduceMotion
 
+	if m.State != nil && m.State.GroupReply != nil {
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Text(c, "回复线程 / Reply to thread: "+m.State.GroupReply.ThreadID).TextColor(muted)
+			if ui.Button(c, "取消回复 / Cancel reply").Disabled(m.State.Sending).Clicked() {
+				m.State.CancelGroupReply()
+			}
+		})
+	}
 	draft := ""
 	if m.Draft != nil {
 		draft = *m.Draft
@@ -582,6 +591,12 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 		return out
 	case SuggestMention:
 		var candidates []session.ReferenceCandidate
+		var roomCandidates []suggestItem
+		if !quoted && m.GroupMembers != nil {
+			for _, item := range session.GroupMentions(m.GroupMembers, query) {
+				roomCandidates = append(roomCandidates, suggestItem{label: item.Label, sub: "@" + item.Value, insert: "@" + item.Value + " ", kind: SuggestMention})
+			}
+		}
 		if m.OnSearchReferences != nil {
 			candidates = m.OnSearchReferences(query, quoted)
 		}
@@ -605,7 +620,7 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 				candidates = append(candidates, candidate)
 			}
 		}
-		out := make([]suggestItem, 0, len(candidates))
+		out := append([]suggestItem(nil), roomCandidates...)
 		for _, candidate := range candidates {
 			label, sub, insert := candidate.Label, candidate.Kind, candidate.Mention
 			if candidate.Kind == "session" {

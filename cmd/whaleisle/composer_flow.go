@@ -84,6 +84,27 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		return
 	}
 	text := d.Text
+	inputText := text
+	groupReply := false
+	if isRoom, _ := s.assistantGroupMembers(id); isRoom && editSeq == 0 {
+		thread, body, claimed, err := session.ParseGroupThreadReply(text)
+		if err != nil {
+			d.Error = err.Error()
+			return
+		}
+		if claimed {
+			if body == "" && len(d.Attachments) == 0 {
+				d.Error = "请输入回复内容 / Enter a reply or add an attachment"
+				return
+			}
+			text, err = session.EncodeGroupThreadReply(thread, body)
+			if err != nil {
+				d.Error = err.Error()
+				return
+			}
+			groupReply = true
+		}
+	}
 	if d.HandleModelCommand(sessions.Snapshot().SelectedID) {
 		return
 	}
@@ -114,6 +135,10 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		sessions.CreateSession(context.Background())
 		return
 	}
+	if groupReply && d.TargetID != "" && d.TargetID != id {
+		d.Error = "Reply target changed; reopen the room"
+		return
+	}
 	sourceID := id
 	if d.TargetID != "" {
 		id = d.TargetID
@@ -123,7 +148,10 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		d.Error = captureErr.Error()
 		return
 	}
-	if editSeq == 0 && id != "" && sourceID != "" && !strings.HasPrefix(strings.TrimSpace(text), "/") {
+	if groupReply {
+		owner = owner.GroupReplyTarget()
+	}
+	if !groupReply && editSeq == 0 && id != "" && sourceID != "" && !strings.HasPrefix(strings.TrimSpace(text), "/") {
 		s.submitDetachedComposer(win, d, sourceID, owner)
 		return
 	}
@@ -146,7 +174,11 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			}
 		}
 		if err == nil {
-			err = owner.Submit(ctx, text, attachments, editSeq, "")
+			requestID := ""
+			if groupReply {
+				requestID = owner.BeginSubmission(text, attachments)
+			}
+			err = owner.Submit(ctx, text, attachments, editSeq, requestID)
 		}
 		win.Update(func() {
 			d.Sending = false
@@ -161,8 +193,11 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 				return
 			}
 			// Typing while sending is allowed. Never erase newer edits.
-			if d.Text == text {
+			if d.Text == inputText {
 				d.Text = ""
+			}
+			if groupReply {
+				d.GroupReply = nil
 			}
 			d.Attachments = nil
 			d.Error = ""

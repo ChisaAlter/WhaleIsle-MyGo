@@ -22,6 +22,9 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	GroupRoom          bool
+	GroupMembers       []session.GroupMember
+	OnReplyGroupThread func(string)
 	Preferences        settings.ChatPreferences
 	ScheduleStore      *schedstore.Store
 	OnOpenScheduleTask func(schedstore.Entry)
@@ -74,6 +77,10 @@ type Model struct {
 
 // View paints the message list with FollowEnd for future streaming.
 func View(c *ui.Context, m Model) {
+	if m.GroupRoom {
+		groupThreadsView(c, m)
+		return
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)

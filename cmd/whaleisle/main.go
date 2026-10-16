@@ -213,6 +213,7 @@ type mainState struct {
 	assistantBotDuplicator                  dshbotstore.BotDuplicator
 	assistantRoomEditor                     dshbotstore.RoomEditor
 	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
+	assistantGroupLive                      assistantGroupLiveState
 	whaleSettings                           assiststore.WhaleSettingsEditor
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
@@ -6073,7 +6074,10 @@ func mainView(c *ui.Context) {
 					if visualReplyState.SessionID != snap.SelectedID {
 						visualReplyState = session.VisualReplyState{}
 					}
+					groupRoom, groupMembers := state.assistantGroupMembers(snap.SelectedID)
 					frameModel := frame.Model{
+						GroupRoom: groupRoom, GroupMembers: groupMembers,
+						OnReplyGroupThread: func(threadID string) { state.beginAssistantGroupReply(sessions, activeDraft, snap.SelectedID, threadID) },
 						ExternalNavigation:   sharedNavigation,
 						PageShortcutBindings: state.pageShortcutBindings(),
 						SessionSearchFocus:   &state.commandSearchFocus,

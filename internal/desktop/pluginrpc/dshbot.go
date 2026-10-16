@@ -76,6 +76,7 @@ type DshbotDescribeResult struct {
 
 // DshbotRosterRow is a UI-friendly bot or room entry from describe.
 type DshbotRosterRow struct {
+	MemberBotIDs []string
 	ID           string
 	Kind         string // "bot" or "room"
 	Name         string
@@ -173,6 +174,7 @@ func RosterRowsFromDescribe(res DshbotDescribeResult, includeHidden bool) []Dshb
 			Hidden:       item.Hidden,
 			Pinned:       item.Pinned,
 			MemberCount:  len(item.MemberBotIDs),
+			MemberBotIDs: append([]string(nil), item.MemberBotIDs...),
 			DisplayLabel: label,
 		})
 	}

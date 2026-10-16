@@ -17,16 +17,17 @@ const rosterFile = "roster.json"
 
 // Row is one cached bot or room list entry.
 type Row struct {
-	ID           string `json:"id"`
-	Kind         string `json:"kind"`
-	Name         string `json:"name"`
-	Title        string `json:"title,omitempty"`
-	SessionID    string `json:"sessionId"`
-	Hidden       bool   `json:"hidden,omitempty"`
-	Pinned       bool   `json:"pinned,omitempty"`
-	MemberCount  int    `json:"memberCount,omitempty"`
-	DisplayLabel string `json:"displayLabel"`
-	Detail       string `json:"detail,omitempty"` // activity preview or group/runtime summary
+	MemberBotIDs []string `json:"memberBotIds,omitempty"`
+	ID           string   `json:"id"`
+	Kind         string   `json:"kind"`
+	Name         string   `json:"name"`
+	Title        string   `json:"title,omitempty"`
+	SessionID    string   `json:"sessionId"`
+	Hidden       bool     `json:"hidden,omitempty"`
+	Pinned       bool     `json:"pinned,omitempty"`
+	MemberCount  int      `json:"memberCount,omitempty"`
+	DisplayLabel string   `json:"displayLabel"`
+	Detail       string   `json:"detail,omitempty"` // activity preview or group/runtime summary
 }
 
 // Snapshot is the on-disk roster cache.
@@ -68,6 +69,9 @@ func (s *Store) Snapshot() Snapshot {
 	defer s.mu.Unlock()
 	out := s.snap
 	out.Rows = append([]Row(nil), s.snap.Rows...)
+	for i := range out.Rows {
+		out.Rows[i].MemberBotIDs = append([]string(nil), out.Rows[i].MemberBotIDs...)
+	}
 	return out
 }
 
@@ -90,6 +94,7 @@ func (s *Store) SetFromDescribeForHost(res pluginrpc.DshbotDescribeResult, inclu
 			Hidden:       r.Hidden,
 			Pinned:       r.Pinned,
 			MemberCount:  r.MemberCount,
+			MemberBotIDs: append([]string(nil), r.MemberBotIDs...),
 			DisplayLabel: r.DisplayLabel,
 		})
 	}

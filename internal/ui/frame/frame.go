@@ -137,6 +137,9 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	GroupRoom               bool
+	GroupMembers            []session.GroupMember
+	OnReplyGroupThread      func(string)
 	ChatPreferences         settings.ChatPreferences
 	ConversationPreferences settings.ConversationPreferences
 	ComposerResize          *composer.ResizeState
@@ -265,7 +268,7 @@ type Model struct {
 	OnOpenWithApp        func(absPath, appID string)
 	FileOpenWithApps     []files.OpenWithApp
 	OnRenderOfficePDF    func(rel string)
-	OfficePreviewStatus func(path string) string
+	OfficePreviewStatus  func(path string) string
 	OnOpenBrowserPreview func()
 	OnOpenMarket         func()
 	OnOpenSchedule       func()
@@ -674,6 +677,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
+						GroupMembers:         m.GroupMembers,
 						NextPrompt:           nextPrompt,
 						OnAcceptNextPrompt:   func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
 						ComposerBeam:         m.ConversationPreferences.ComposerBeam,
@@ -888,6 +892,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
+										GroupRoom: m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 										Preferences:   m.ChatPreferences,
 										ScheduleStore: m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
 										Snapshot:         snap,
@@ -1231,42 +1236,46 @@ func rightPane(c *ui.Context, m Model) {
 			})
 			return
 		}
-		if m.workspacePane != nil { m.workspacePane.Files.rendered = true }
+		if m.workspacePane != nil {
+			m.workspacePane.Files.rendered = true
+		}
 		treeSplit := m.FileTreeSplit
-		if treeSplit == nil { treeSplit = &m.Sizes.RightTree }
+		if treeSplit == nil {
+			treeSplit = &m.Sizes.RightTree
+		}
 		files.View(c, files.Model{
 			AllowPageShortcuts: m.FileShortcuts,
-			PlanSnapshot:      m.Store.Snapshot(),
-			OnLoadPlanHistory: func() { m.Store.LoadEarlierHistory(context.Background()) },
-			ReadSubagentPlan:  m.Store.ReadSubagentPlan,
-			Tabs:              m.FileTabs,
-			BindingID:         m.FileBindingID,
-			SessionID:         m.Store.Snapshot().SelectedID,
-			OnReferenceFile:   func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
-			WorkspaceRoot:     m.WorkspaceRoot,
-			ThemeID:           m.ThemeID,
-			SystemDark:        m.SystemDark,
-			Expanded:          m.FileExpanded,
-			SelectedFile:      m.SelectedFile,
-			Filter:            m.FileFilter,
-			Preview:           m.FilePreview,
-			PreviewErr:        m.FilePreviewErr,
-			PreviewList:       m.FilePreviewList,
-			PreviewSplit:      treeSplit,
-			Editing:           m.FileEditing,
-			EditDraft:         m.FileEditDraft,
-			EditStatus:        m.FileEditStatus,
-			EditViewMode:      m.FileEditViewMode,
-			EditSplit:         m.FileEditSplit,
-			PaneWidth:         m.FilePaneWidth,
-			ListRemote:        m.OnListWorkspaceFiles,
-			ListRemoteContext: m.OnListWorkspaceFilesContext,
-			ReadRemote:        m.OnReadWorkspaceFile,
-			ReadRemoteContext: m.OnReadWorkspaceFileContext,
-			ReadTableContext:  m.OnReadWorkspaceTableContext,
-			StatRemoteContext: m.OnStatWorkspaceFileContext,
-			StatRemote:        m.OnStatWorkspaceFile,
-			StatNote:          m.FileStatNote,
+			PlanSnapshot:       m.Store.Snapshot(),
+			OnLoadPlanHistory:  func() { m.Store.LoadEarlierHistory(context.Background()) },
+			ReadSubagentPlan:   m.Store.ReadSubagentPlan,
+			Tabs:               m.FileTabs,
+			BindingID:          m.FileBindingID,
+			SessionID:          m.Store.Snapshot().SelectedID,
+			OnReferenceFile:    func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
+			WorkspaceRoot:      m.WorkspaceRoot,
+			ThemeID:            m.ThemeID,
+			SystemDark:         m.SystemDark,
+			Expanded:           m.FileExpanded,
+			SelectedFile:       m.SelectedFile,
+			Filter:             m.FileFilter,
+			Preview:            m.FilePreview,
+			PreviewErr:         m.FilePreviewErr,
+			PreviewList:        m.FilePreviewList,
+			PreviewSplit:       treeSplit,
+			Editing:            m.FileEditing,
+			EditDraft:          m.FileEditDraft,
+			EditStatus:         m.FileEditStatus,
+			EditViewMode:       m.FileEditViewMode,
+			EditSplit:          m.FileEditSplit,
+			PaneWidth:          m.FilePaneWidth,
+			ListRemote:         m.OnListWorkspaceFiles,
+			ListRemoteContext:  m.OnListWorkspaceFilesContext,
+			ReadRemote:         m.OnReadWorkspaceFile,
+			ReadRemoteContext:  m.OnReadWorkspaceFileContext,
+			ReadTableContext:   m.OnReadWorkspaceTableContext,
+			StatRemoteContext:  m.OnStatWorkspaceFileContext,
+			StatRemote:         m.OnStatWorkspaceFile,
+			StatNote:           m.FileStatNote,
 			OnShowDiff: func(rel string) {
 				if m.GitWorkbench != nil {
 					m.GitWorkbench.CancelComparison()
@@ -1294,16 +1303,16 @@ func rightPane(c *ui.Context, m Model) {
 				}
 				return workspacefs.WriteFileText(full, text)
 			},
-			OnOpenDoc:    m.OnOpenDoc,
-			OnOpenMedia:  m.OnOpenMedia,
-			OnReveal:     m.OnRevealFile,
-			OnOpenWith:   m.OnOpenWithApp,
-			OpenWithApps: m.FileOpenWithApps,
-			OnRenderPDF:  m.OnRenderOfficePDF,
+			OnOpenDoc:           m.OnOpenDoc,
+			OnOpenMedia:         m.OnOpenMedia,
+			OnReveal:            m.OnRevealFile,
+			OnOpenWith:          m.OnOpenWithApp,
+			OpenWithApps:        m.FileOpenWithApps,
+			OnRenderPDF:         m.OnRenderOfficePDF,
 			OfficePreviewStatus: m.OfficePreviewStatus,
-			OnAddToChat:  m.OnAddSelectionToChat,
-			CanAddToChat: m.CanAddSelectionToChat,
-			OnOpenLink:   m.OnOpenCitationURL,
+			OnAddToChat:         m.OnAddSelectionToChat,
+			CanAddToChat:        m.CanAddSelectionToChat,
+			OnOpenLink:          m.OnOpenCitationURL,
 		})
 	})
 }
