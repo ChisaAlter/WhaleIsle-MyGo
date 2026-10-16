@@ -3,7 +3,7 @@ package config
 import "encoding/json"
 
 // DesktopPet is the native sprite companion's opt-in configuration. It does
-// not migrate or overwrite Electron's pet/live2dPet state.
+// not automatically migrate or overwrite Electron's pet/live2dPet state.
 type DesktopPet struct {
 	Enabled               bool         `json:"enabled"`
 	SkinID                string       `json:"skinId"`
@@ -80,4 +80,27 @@ func (s *Store) SavedPetPersonality() (string, bool) {
 		return raw.Behavior.Personality, true
 	}
 	return "", false
+}
+
+// OriginalPetBehavior returns the compatible settings saved by Electron.
+// Loading them is a draft-only user action; visibility, renderer, skin and
+// window coordinates belong to the native companion and are not imported.
+func (s *Store) OriginalPetBehavior() (PetBehavior, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var original struct {
+		Settings map[string]json.RawMessage `json:"settings"`
+	}
+	if json.Unmarshal(s.raw["live2dPet"], &original) != nil || len(original.Settings) == 0 {
+		return PetBehavior{}, false
+	}
+	data, err := json.Marshal(original.Settings)
+	if err != nil {
+		return PetBehavior{}, false
+	}
+	var behavior PetBehavior
+	if json.Unmarshal(data, &behavior) != nil {
+		return PetBehavior{}, false
+	}
+	return behavior, true
 }

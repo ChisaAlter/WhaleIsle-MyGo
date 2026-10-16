@@ -21,6 +21,14 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
 	if p.Error != "" {
 		ui.Text(c, p.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
+	if p.Store != nil {
+		if original, available := p.Store.OriginalPetBehavior(); available {
+			if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Clicked() {
+				p.Behavior = original
+			}
+			ui.Text(c, "从当前配置的 live2dPet.settings 载入兼容外观、行为与视觉路由；只替换本页草稿，检查后点保存。显示开关、皮肤和位置不变。 / Loads compatible appearance, behavior and image-route settings from this configuration into the draft only. Review and Save to apply. Visibility, skin and position stay unchanged.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		}
+	}
 	ui.Checkbox(c, &p.Enabled, "Show companion / 显示桌宠")
 	ui.Checkbox(c, &p.Neural, "THA4 animation (optional) / THA4 动画（可选）")
 	ui.Text(c, fmt.Sprintf("大小 / Scale %.1f · 透明度 / Opacity %.0f%%", p.Behavior.Scale, p.Behavior.Opacity*100)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
