@@ -166,6 +166,13 @@ func servePrivateFrames(ctx context.Context, w *mygo.Window, input io.Reader, ou
 					return err
 				}
 			}
+		case "release":
+			releaseCtx, stop := context.WithTimeout(ctx, 2*time.Second)
+			err = exec.CommandContext(releaseCtx, "/usr/bin/xdotool", "mouseup", "1", "mouseup", "2", "mouseup", "3").Run()
+			stop()
+			if err != nil {
+				return err
+			}
 		case "theme":
 			script, e := htmlpreview.ProcessThemeTokensScript(p.Appearance, p.Variables)
 			if e != nil {

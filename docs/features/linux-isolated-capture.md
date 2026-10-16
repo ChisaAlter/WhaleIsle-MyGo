@@ -1,4 +1,4 @@
-# Linux isolated capture and interactive byte viewer
+# Linux isolated capture and interactive pixel seats
 
 The explicit Browser Preview script action can launch a separate trusted helper
 inside bubblewrap with a private packaged root filesystem, network/PID/user/IPC/
@@ -22,7 +22,7 @@ the same opaque iframe and restrictive CSP as the Windows interactive helper,
 including local form handlers but no form transmission or runtime file/network
 resource loading. Prepared inline images/fonts remain available.
 
-## Separate-window interaction
+## Separate-window and inline interaction
 
 The parent creates a native MyGo pixel viewer, never a webview containing the
 untrusted document. The contained WebKit window is visible only on Xvfb. A real
@@ -41,16 +41,38 @@ UTF-8 text (up to 1024 bytes), and a fixed navigation/edit key allowlist are sen
 through the parent-only pipe. Packaged xdotool targets the single visible helper
 window discovered by PID on the private display. There are no arbitrary shell,
 JavaScript, path, host-window-ID or clipboard commands. Modifier shortcuts,
-composition display, clipboard transfer, horizontal wheel, accessibility tree
-transport and inline card embedding are not implemented. Inline requests still
-fail closed; the GTK embedded seat is unchanged. macOS remains unsupported.
+composition display, clipboard transfer, horizontal wheel and accessibility tree
+transport are not implemented. The GTK embedded seat is unchanged. macOS remains
+a separate platform implementation.
+
+## Inline generated replies
+
+Generated-reply cards and their expanded dialog use the same private helper and
+fixed width-by-700 pixel stream. Linux inline mode creates no top-level viewer.
+The native card seat draws the latest validated bitmap using contain-fit; input
+coordinates use identical centered scaling. Letterbox presses are rejected,
+while a captured drag release outside the image is clamped so a button cannot
+remain held. Native focus belongs to the clicked seat, without autofocus stealing
+from the chat composer. Expand/collapse changes the native seat only; it does
+not reload HTML or recreate the helper. Theme tokens use the existing bounded
+parent-only channel.
+
+Only one decoded frame is retained for an inline session. A native paint lease
+expires after 300 ms without a visible seat; the transport releases private
+pointer buttons and pauses periodic frame requests until visible again. Document
+ownership/session/Host changes, close and timeout continue to tear down the
+helper through the existing generated-reply lifecycle. Windows retains its HWND
+surface path and does not use the optional pixel seat.
 
 ## Verification boundary
 
 The focused `TestInteractiveWireBounds` and
 `TestInteractiveMotionBackpressurePreservesTransitions` tests compile the Linux previewprocess
 package and checks frame roundtrip/dimensions plus input size, coordinate and
-command bounds. This is source-level implementation, not packaged-runtime GUI
+command bounds. Focused `TestInlinePixel*` cases exercise contain-fit mapping,
+letterbox rejection, outside drag release and unpainted bounds; a headless native
+UI test verifies focus/text delivery, expanded-seat coordinates and closed-session
+input rejection. This is source-level implementation, not packaged-runtime GUI
 acceptance. A real runtime test must cover initial pixels, buttons/drag release,
 scroll, text and allowed keys, cancellation/window close, malformed frames,
 renderer hang/exit, and resource/network isolation. No Ready promotion is made.

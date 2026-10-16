@@ -121,6 +121,13 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 	if resolved.Scheme == theme.SchemeDark || (resolved.Scheme == theme.SchemeSystem && dark) {
 		appearance = "dark"
 	}
+	if pixels, ok := surface.(interface {
+		RenderPixels(*ui.Context, float32, string, map[string]string) bool
+	}); ok {
+		if pixels.RenderPixels(c, height, appearance, map[string]string{"--bg": colors.BG, "--background": colors.BG, "--surface": colors.Field, "--text": colors.FG, "--text-secondary": colors.Muted, "--border": colors.Border, "--accent": colors.Accent}) {
+			return
+		}
+	}
 	ui.Box(c).FillWidth().Height(height).DrawOver(func(p *ui.Painter, r ui.Rect) {
 		clip := p.NativeSurfaceClip()
 		_ = surface.Present(int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H), appearance, map[string]string{"--bg": colors.BG, "--background": colors.BG, "--surface": colors.Field, "--text": colors.FG, "--text-secondary": colors.Muted, "--border": colors.Border, "--accent": colors.Accent})

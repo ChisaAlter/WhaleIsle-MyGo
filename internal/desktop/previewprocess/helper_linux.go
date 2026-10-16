@@ -82,8 +82,8 @@ func RunHelper(args []string, input io.Reader, output io.Writer) error {
 				if err != nil {
 					return err
 				}
-				if doc.Inline {
-					return errors.New("namespace helper does not support inline native embedding")
+				if doc.capture && doc.Inline {
+					return errors.New("inline capture is not supported")
 				}
 				if !doc.capture {
 					return servePrivateFrames(ctx, w, input, output, nonce, doc)

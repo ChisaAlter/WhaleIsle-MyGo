@@ -118,10 +118,10 @@ func publishedHTMLBitmap(page session.VisualReplyState) *ui.Bitmap {
 	return publishedHTMLImage.bitmap
 }
 
-// This callback is offered only on the platform with the existing AppContainer
-// helper. An explicit gesture mounts its child surface in the selected card.
+// An explicit gesture mounts the isolated helper in the selected card:
+// a verified HWND on Windows or a bounded native pixel seat on Linux.
 func interactivePublishedHTMLHandler(win *mygo.Window, s *session.Store, sessionID string, dark bool) func(string) {
-	if runtime.GOOS != "windows" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+	if (runtime.GOOS != "windows" && runtime.GOOS != "linux") || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
 		return nil
 	}
 	return func(attachmentID string) {

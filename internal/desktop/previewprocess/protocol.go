@@ -46,6 +46,7 @@ type Document struct {
 // Session owns the entire helper job until Close, cancellation, process exit,
 // a failed containment check, or the thirty-minute lifetime limit.
 type Session struct {
+	pixels        *pixelSurface
 	done          chan struct{}
 	once          sync.Once
 	closeFn       func() error

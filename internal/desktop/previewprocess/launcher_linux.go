@@ -58,8 +58,8 @@ func linuxSandboxArgs(helper, root, nonce, parent string) []string {
 }
 
 func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, error) {
-	if doc.Inline {
-		return nil, errors.New("Linux isolated preview inline embedding is unavailable; use the separate byte-stream viewer")
+	if doc.capture && doc.Inline {
+		return nil, errors.New("inline capture is not supported")
 	}
 	helper, err := filepath.Abs(opt.HelperPath)
 	if err != nil {

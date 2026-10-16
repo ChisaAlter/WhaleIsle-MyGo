@@ -43,9 +43,9 @@ func TestLinuxSandboxUsesOnlyPackagedRuntime(t *testing.T) {
 		}
 	}
 }
-func TestLinuxRejectsInlineEmbeddingBeforeLaunch(t *testing.T) {
-	_, err := openPlatform(context.Background(), Options{HelperPath: "/missing"}, Document{Inline: true})
-	if err == nil || !strings.Contains(err.Error(), "inline embedding") {
+func TestLinuxRejectsInlineCaptureBeforeLaunch(t *testing.T) {
+	_, err := openPlatform(context.Background(), Options{HelperPath: "/missing"}, Document{Inline: true, capture: true})
+	if err == nil || !strings.Contains(err.Error(), "inline capture") {
 		t.Fatalf("unexpected result: %v", err)
 	}
 }
