@@ -15,21 +15,47 @@ func ConfigurationFields(raw json.RawMessage, path ...string) []Field {
 	}
 	var visit func(schemaNode, []string) []Field
 	visit = func(node schemaNode, rest []string) []Field {
+		if node.Type == "union" || node.Type == "intersect" {
+			var fields []Field
+			positions := map[string]int{}
+			for _, ref := range node.List {
+				child, err := resolveRef(node, ref)
+				if err != nil {
+					continue
+				}
+				for _, field := range visit(child, rest) {
+					if index, exists := positions[field.Key]; exists {
+						for _, option := range field.EnumOptions {
+							found := false
+							for _, current := range fields[index].EnumOptions {
+								found = found || current == option
+							}
+							if !found {
+								fields[index].EnumOptions = append(fields[index].EnumOptions, option)
+							}
+						}
+						continue
+					}
+					positions[field.Key] = len(fields)
+					fields = append(fields, field)
+				}
+			}
+			return fields
+		}
 		if len(rest) == 0 {
 			var fields []Field
 			collectFields(node, "", &fields)
-			return fields
-		}
-		if node.Type == "union" || node.Type == "intersect" {
-			for _, ref := range node.List {
-				child, err := resolveRef(node, ref)
-				if err == nil {
-					if result := visit(child, rest); len(result) > 0 {
-						return result
+			for i := range fields {
+				child, err := resolveRef(node, node.Dict[fields[i].Key])
+				if err == nil && child.Type == "const" {
+					var value string
+					if json.Unmarshal(child.Value, &value) == nil {
+						fields[i].Kind = FieldEnum
+						fields[i].EnumOptions = []string{value}
 					}
 				}
 			}
-			return nil
+			return fields
 		}
 		var ref json.RawMessage
 		switch node.Type {

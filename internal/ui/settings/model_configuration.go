@@ -21,6 +21,9 @@ func configurationField(c *ui.Context, m Model, s store.ViewState, ns store.Name
 	if m.Store == nil {
 		return false
 	}
+	if configurationProviderField(c, m, s, ns, f, fg, muted) {
+		return true
+	}
 	switch {
 	case ns.NS == "llm-pi-ai" && f.Key == "providers":
 		configurationProviders(c, m, s, ns, fg, muted)
@@ -249,6 +252,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 			if configurationHas(fields, "defaultInput") {
 				configurationModalities(c, s, p, "defaultInput", save, fg)
 			}
+			configurationProviderOptions(c, m, s, ns, route, p, save, fg, muted)
 			configurationModels(c, m, s, route, configurationRows(p["models"]), models, func(rows []any) { p["models"] = rows; save() }, fg, muted)
 			if ui.Button(c, providerCopy("继承供应商模型目录", "Inherit provider model catalog")).Disabled(!s.Writable || s.Saving).Clicked() {
 				delete(p, "models")
