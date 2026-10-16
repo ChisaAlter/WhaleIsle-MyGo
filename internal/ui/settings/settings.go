@@ -394,6 +394,9 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if snap.SelectedNS == "general" && m.OnSelectNamespace != nil {
 			for _, candidate := range snap.Namespaces {
+				if candidate.NS == "permission" && ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Clicked() {
+					m.OnSelectNamespace("permission")
+				}
 				if candidate.NS == settings.CustomInstructionsNamespace && ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
 					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
 				}
@@ -406,6 +409,9 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
 		}
 		for _, f := range ns.Fields {
+			if permissionDefaultField(c, m, snap, f, fg, muted) {
+				continue
+			}
 			if configurationField(c, m, snap, *ns, f, fg, muted) {
 				continue
 			}
@@ -413,14 +419,14 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap) {
 				save = save.Disabled(true)
 			}
 			if save.Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) {
+			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap) {
 				replace = replace.Disabled(true)
 			}
 			if replace.Clicked() {

@@ -26,17 +26,18 @@ type Namespace struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
-	ClientReady bool
-	Loading     bool
-	Saving      bool
-	Writable    bool
-	Err         string
-	LastAction  string
-	Namespaces  []Namespace
-	SelectedNS  string
-	Drafts      map[string]string // field key → draft for SelectedNS
-	Resets      map[string]bool   // fields staged to inherit their base/default
-	Dirty       bool
+	ClientReady        bool
+	Loading            bool
+	Saving             bool
+	Writable           bool
+	Err                string
+	LastAction         string
+	Namespaces         []Namespace
+	SelectedNS         string
+	Drafts             map[string]string // field key → draft for SelectedNS
+	Resets             map[string]bool   // fields staged to inherit their base/default
+	Dirty              bool
+	PermissionDefaults PermissionDefaults
 }
 
 // Store tracks harness settings for the generic form renderer.
@@ -69,6 +70,7 @@ type Store struct {
 	visionRoutes        []VisionRoute
 	visionLoading       bool
 	visionErr           string
+	permissionDefaults  PermissionDefaults
 }
 
 // New returns an empty settings store.
@@ -84,6 +86,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.generation++
+	s.permissionDefaults = PermissionDefaults{}
 	s.modelRoutes = nil
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
@@ -129,6 +132,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 func (s *Store) Detach() {
 	s.mu.Lock()
 	s.generation++
+	s.permissionDefaults = PermissionDefaults{}
 	s.modelRoutes = nil
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
@@ -149,15 +153,16 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		ClientReady: s.client != nil,
-		Loading:     s.loading,
-		Saving:      s.saving,
-		Writable:    s.writable,
-		LastAction:  s.lastAction,
-		SelectedNS:  s.selectedNS,
-		Drafts:      map[string]string{},
-		Resets:      copyFlags(s.resets[s.selectedNS]),
-		Dirty:       len(s.dirty[s.selectedNS]) > 0,
+		PermissionDefaults: s.permissionDefaults.clone(),
+		ClientReady:        s.client != nil,
+		Loading:            s.loading,
+		Saving:             s.saving,
+		Writable:           s.writable,
+		LastAction:         s.lastAction,
+		SelectedNS:         s.selectedNS,
+		Drafts:             map[string]string{},
+		Resets:             copyFlags(s.resets[s.selectedNS]),
+		Dirty:              len(s.dirty[s.selectedNS]) > 0,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()
@@ -231,6 +236,10 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 	go func() {
 		var out api.SettingsDescribeValue
 		err := client.Call(ctx, "settings/describe", nil, &out)
+		defaults := PermissionDefaults{}
+		if err == nil {
+			defaults = loadPermissionDefaults(ctx, client, out)
+		}
 
 		s.mu.Lock()
 		if s.generation != generation {
@@ -245,6 +254,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 			return
 		}
 		s.writable = out.Writable
+		s.permissionDefaults = defaults
 		nsList := make([]Namespace, 0, len(out.Namespaces))
 		for _, item := range out.Namespaces {
 			fields, fErr := BuildFields(item.Schema)
