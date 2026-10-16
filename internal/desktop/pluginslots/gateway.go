@@ -119,6 +119,10 @@ func NewGateway(origin, cookie string) (*Gateway, error) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
+		if r.URL.Path == shortcutImportPath {
+			g.serveShortcutImport(w, r)
+			return
+		}
 		if r.URL.Path == shortcutPreferencesPath {
 			g.serveShortcutPreferences(w, r)
 			return

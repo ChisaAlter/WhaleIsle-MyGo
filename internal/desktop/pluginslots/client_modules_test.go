@@ -145,7 +145,7 @@ func TestClientModulesAdapterLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "client.js")
 	fixture := filepath.Join(dir, "test.cjs")
-	if err := os.WriteFile(script, clientSource, 0600); err != nil {
+	if err := os.WriteFile(script, packagedClientSource(), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(fixture, []byte(clientModulesNodeFixture), 0600); err != nil {

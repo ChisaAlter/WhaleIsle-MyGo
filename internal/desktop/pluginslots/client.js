@@ -57,6 +57,7 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       bindClientModules(ctx);
       whaleBindProductKeyboard(ctx);
+      whaleRegisterShortcutImport(ctx, React);
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');
       if (!plugin) return;
       let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', cancelPending = () => {};
