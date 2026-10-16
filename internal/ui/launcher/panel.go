@@ -116,6 +116,7 @@ type Model struct {
 	Components                                                            []components.Row
 	OnRefreshComponents                                                   func()
 	ComponentBusy                                                         bool
+	HostRuntimeState                                                      harness.State
 	OnComponentAction                                                     func(id, action string) // install|start|stop|open|update|rollback|uninstall
 	// ImportOverwrite / ImportAttachments mirror launcher.html #import-overwrite / #import-attachments.
 	ImportOverwrite   *bool
@@ -619,6 +620,10 @@ func componentsPanel(c *ui.Context, m Model) {
 }
 
 func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
+	if row.ID == components.HostComponentID {
+		hostBundleCard(c, m, row, compact)
+		return
+	}
 	if compact {
 		width, _ := c.Size()
 		padding := float32(20)

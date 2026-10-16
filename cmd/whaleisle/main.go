@@ -3180,6 +3180,7 @@ func mainView(c *ui.Context) {
 				ImportCatalog:        state.launcherImportCatalog,
 				Components:           compRows,
 				ComponentBusy:        bridgeChangeActive.Load(),
+				HostRuntimeState:     st.State,
 				OnRefreshComponents: func() {
 					state.refreshLauncherComponents()
 					state.launcherComponentsFresh = true
@@ -3189,6 +3190,10 @@ func mainView(c *ui.Context) {
 				},
 				OnComponentAction: func(id, action string) {
 					if bridgeChangeActive.Load() {
+						return
+					}
+					if id == desktopcomponents.HostComponentID {
+						state.changeHostBundle(win, action)
 						return
 					}
 					if id == "whalebridge" && (action == "update" || action == "rollback" || action == "uninstall" || action == "stop") {

@@ -130,6 +130,33 @@ Windows NSIS is the supported delta target. macOS currently uses complete DMGs.
 Opening a verified DMG does not claim installation: the user drags Whale Isle.app
 to Applications after the existing confirmed quit/handoff.
 
+## macOS offline Host component
+
+The component page accepts the actual WhaleIsle-Host-<version>-darwin-<arch>.tar.gz
+emitted by package-macos.mjs. Its top level is runtime/ plus
+WhaleIsle-Host-bundle.json. Electron deepseek-harness.tar, DMGs and desktop-only
+packages are not interchangeable with this archive.
+
+“Install offline bundle” asks for the local file and confirms its source and
+destination. It extracts into a fresh component staging directory, preserves
+relative pnpm/workspace links, and checks the native package identity, Host
+provenance/readiness artifacts, macOS Node architecture and matching Node build
+record. It installs under userData/components/whaleisle-host/versions without
+executing Node or changing the running Host.
+
+“Select installed version” uses a directory picker in that versions directory.
+After confirmation, the existing Host task inspection/drain/stop path stops Host
+and the phone connection. The atomic installed.json selection points both vendor
+and Node at this complete runtime. Previous versions and profile data remain;
+selection itself leaves Host stopped. “Start Host” uses the ordinary launcher
+start, recreating the supervisor, Project bridge and plugin install control with
+the selected paths. Subsequent app starts reuse that selection.
+
+An explicit WHALEISLE_VENDOR, dshBin or nodeBin must be cleared before selecting
+a managed Host version; this action never rewrites those overrides. Runtime
+selection does not replace the signed .app or grant macOS permissions. Local
+bundle import is not a claim of release publication or signing.
+
 ## Same-package download sources
 
 baseURL names the HTTPS directory for the package's canonical route. route is

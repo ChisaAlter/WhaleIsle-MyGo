@@ -1,3 +1,4 @@
+// 功能优先；全部功能完成前不运行测试、不做独立审查、不新增防御性扩展
 // Manual packaging only: node scripts/package-macos.mjs stage|archive config.json
 // Inputs are already-built native artifacts. This entry never builds source,
 // downloads dependencies, starts Host, signs/notarizes, installs, or uploads.
@@ -157,8 +158,8 @@ export async function archive(config) {
     const host = path.join(output, `WhaleIsle-Host-${info.version}-darwin-${config.arch}.tar.gz`);
     run('/usr/bin/tar', ['-czf', host, '-C', work, 'runtime', 'WhaleIsle-Host-bundle.json'],
       {env: {...process.env, COPYFILE_DISABLE: '1'}});
-    // This is an offline Host bundle, not an executable installer. The native
-    // updater installs Host via the complete runtimeIncluded DMG only.
+    // The native launcher component page imports this offline archive, then
+    // selects its runtime/ tree for the existing Host supervisor. It is not a DMG.
     artifacts.push({file: path.basename(host), format: 'tar.gz', role: 'offline-host-bundle',
       sha256: await sha256(host), size: fs.statSync(host).size});
   }

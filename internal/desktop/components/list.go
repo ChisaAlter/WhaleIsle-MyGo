@@ -43,6 +43,9 @@ type installedFile struct {
 func ListUserData(userData string) []Row {
 	root := filepath.Join(userData, "components")
 	var out []Row
+	if HostBundleSupported() {
+		out = append(out, hostBundleRow(userData))
+	}
 	if row, ok := whalebridgeRow(filepath.Join(root, "whalebridge")); ok {
 		out = append(out, row)
 	}
@@ -51,7 +54,7 @@ func ListUserData(userData string) []Row {
 		return out
 	}
 	for _, e := range entries {
-		if !e.IsDir() || e.Name() == "whalebridge" {
+		if !e.IsDir() || e.Name() == "whalebridge" || e.Name() == HostComponentID {
 			continue
 		}
 		if row, ok := genericRow(filepath.Join(root, e.Name()), e.Name()); ok {

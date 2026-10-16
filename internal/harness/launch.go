@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"whaleisle/internal/paths"
 )
 
 // npmPackage is the published dsh CLI (legacy npx fallback).
@@ -160,6 +162,10 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 
 func resolveHarnessRoot(o LaunchOptions) string {
 	if o.HarnessRoot != "" {
+		if selected := paths.SelectedHostRuntime(); selected != "" &&
+			filepath.Clean(o.HarnessRoot) == filepath.Join(selected, "vendor", "deepseek-harness") {
+			return o.HarnessRoot
+		}
 		if st, err := os.Stat(o.HarnessRoot); err == nil && st.IsDir() {
 			return o.HarnessRoot
 		}
@@ -191,6 +197,13 @@ func resolveNode(configured string) (string, error) {
 			return "", fmt.Errorf("configured nodeBin looks like Electron: %s", configured)
 		}
 		return configured, nil
+	}
+	if selected := paths.SelectedHostRuntime(); selected != "" {
+		node := filepath.Join(selected, "node", "node")
+		if st, err := os.Stat(node); err != nil || !st.Mode().IsRegular() {
+			return "", fmt.Errorf("selected Host runtime is missing its bundled Node: %s", node)
+		}
+		return node, nil
 	}
 	// Packaged Host runs with its matching bundled Node before any unrelated
 	// PATH installation. A fresh native runtime install must work without

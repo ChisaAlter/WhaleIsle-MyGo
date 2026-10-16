@@ -2,9 +2,8 @@
 // the user data directory it shares with the Electron shell, the dsh home
 // inside it, and the runtime directory holding the pid file.
 //
-// Every function here is pure path computation and may be called from any
-// goroutine; nothing touches the file system until one of the Ensure
-// helpers is called. Tests override the user data directory with
+// Path lookup may read a managed runtime selection or probe candidate files;
+// it never starts a runtime or changes the selection. Tests override user data with
 // WHALEISLE_USER_DATA (see UserDataDir).
 package paths
 
@@ -69,11 +68,14 @@ func PidFile() string {
 const EnvVendor = "WHALEISLE_VENDOR"
 
 // VendorDir returns the directory of vendored harness + desktop plugins
-// (runtime/vendor). Override with WHALEISLE_VENDOR; otherwise look next to
-// the executable, then under the working directory.
+// (runtime/vendor). Override with WHALEISLE_VENDOR; otherwise use a selected
+// macOS Host component, then look next to the executable and working directory.
 func VendorDir() string {
 	if override := os.Getenv(EnvVendor); override != "" {
 		return override
+	}
+	if selected := SelectedHostRuntime(); selected != "" {
+		return filepath.Join(selected, "vendor")
 	}
 	candidates := []string{}
 	if exe, err := os.Executable(); err == nil {
