@@ -11,6 +11,7 @@ type QuestionRowView struct {
 	Header             string
 	OptionLabels       []string
 	MultiSelect        bool
+	Skipped            bool
 }
 
 // QuestionCardView is parsed user-questions/request payload for UI.
@@ -30,6 +31,7 @@ type draftSession struct {
 }
 
 type answerDraft struct {
+	skipped    bool
 	selected   []string
 	custom     string
 	selectWire string
@@ -67,6 +69,9 @@ func (ds *draftSession) cardView(eventID string) QuestionCardView {
 			Detail:      q.Detail,
 			MultiSelect: q.MultiSelect,
 		}
+		if ad := ds.answers[q.ID]; ad != nil {
+			row.Skipped = ad.skipped
+		}
 		for _, o := range q.Options {
 			row.OptionLabels = append(row.OptionLabels, o.Label)
 			row.OptionDescriptions = append(row.OptionDescriptions, o.Description)
@@ -84,6 +89,10 @@ func (ds *draftSession) buildAnswer() userQuestionsAnswer {
 			continue
 		}
 		item := userQuestionsAnswerItem{ID: q.ID, Selected: []string{}}
+		if ad.skipped {
+			answers = append(answers, item)
+			continue
+		}
 		if len(q.Options) > 0 {
 			item.Selected = append([]string{}, ad.selected...)
 		}
@@ -101,6 +110,9 @@ func (ds *draftSession) answerValid() bool {
 		ad := ds.answers[q.ID]
 		if ad == nil {
 			return false
+		}
+		if ad.skipped {
+			continue
 		}
 		if len(q.Options) > 0 {
 			if len(ad.selected) == 0 && strings.TrimSpace(ad.custom) == "" {
@@ -139,4 +151,32 @@ func removeLabel(labels []string, label string) []string {
 		}
 	}
 	return out
+}
+
+// SetQuestionSkipped explicitly completes one generic question without an answer.
+// Undoing a skip leaves it unanswered; selecting or typing an answer also clears it.
+func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
+	s.mu.Lock()
+	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
+	if p == nil || p.Event != EventUserQuestions || p.Sending || ds == nil || planReviewOf(ds.req.Questions) != nil {
+		s.mu.Unlock()
+		return
+	}
+	ad := ds.answers[questionID]
+	if ad == nil {
+		s.mu.Unlock()
+		return
+	}
+	ad.skipped = skipped
+	if skipped {
+		ad.selected = nil
+		ad.custom, ad.selectWire = "", ""
+		for _, ptr := range ad.checks {
+			if ptr != nil {
+				*ptr = false
+			}
+		}
+	}
+	s.mu.Unlock()
+	s.fire()
 }

@@ -280,6 +280,7 @@ func pairQuestionHistory(agentID, id string, questions []userQuestionItem, answe
 		if a.Custom != nil {
 			row.Custom = *a.Custom
 		}
+		row.Skipped = len(a.Selected) == 0 && row.Custom == ""
 		for _, o := range q.Options {
 			row.OptionLabels = append(row.OptionLabels, o.Label)
 			row.OptionDescriptions = append(row.OptionDescriptions, o.Description)

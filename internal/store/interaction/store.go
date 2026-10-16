@@ -194,6 +194,7 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 	if ad == nil {
 		return
 	}
+	ad.skipped = false
 	ad.custom = ""
 	ad.selected = []string{label}
 	ad.selectWire = label
@@ -223,6 +224,7 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 	if ad == nil {
 		return
 	}
+	ad.skipped = false
 	if multi {
 		if ptr := ad.checks[label]; ptr != nil {
 			*ptr = on
@@ -254,6 +256,7 @@ func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 	if ad == nil {
 		return
 	}
+	ad.skipped = false
 	ad.custom = text
 	if strings.TrimSpace(text) != "" {
 		ds := s.questionDrafts[eventID]

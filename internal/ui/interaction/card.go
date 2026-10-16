@@ -177,6 +177,16 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 			if row.Detail != "" {
 				ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
+			ui.Row(c).Gap(8).Children(func() {
+				if row.Skipped {
+					ui.Text(c, "已跳过 / Skipped").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					if ui.Button(c, "撤销跳过 / Undo skip").Clicked() {
+						store.SetQuestionSkipped(eventID, row.ID, false)
+					}
+				} else if ui.Button(c, "跳过此题 / Skip question").Clicked() {
+					store.SetQuestionSkipped(eventID, row.ID, true)
+				}
+			})
 			// The protocol permits a custom answer even when choices are supplied.
 			defer func() {
 				ptr := store.QuestionCustomPtr(eventID, row.ID)
