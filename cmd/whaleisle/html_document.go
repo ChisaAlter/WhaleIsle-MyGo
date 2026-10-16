@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 	"whaleisle/internal/desktop/htmldocument"
-	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/store/session"
 )
 
@@ -42,11 +41,7 @@ func (s *mainState) openLocalHTML(sessions *session.Store, sid, root, path strin
 		if sourceErr == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			var data []byte
-			data, err = mediapreview.ReadSnapshot(ctx, reader, sid, path, htmldocument.MaxBytes, valid)
-			if err == nil {
-				doc, err = htmldocument.OpenBytes(path, data, valid)
-			}
+			doc, err = htmldocument.OpenRemote(ctx, reader, sid, path, valid)
 		} else {
 			doc, err = htmldocument.OpenWorkspace(root, path, valid)
 		}

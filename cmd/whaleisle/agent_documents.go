@@ -39,23 +39,21 @@ func (s *mainState) openAgentDocument(sessions *session.Store, token uint64, add
 		return current && sourceValid()
 	}
 	pdf := strings.EqualFold(filepath.Ext(path), ".pdf")
-	limit := htmldocument.MaxBytes
-	if pdf {
-		limit = pdfpreview.MaxBytes
-	}
 	sessions.SetAgentResourceStatus(token, address, path, true, nil)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
-		data, err := mediapreview.ReadSnapshot(ctx, reader, address.ChildSessionID, path, limit, valid)
 		var pdfDoc *pdfpreview.Document
 		var htmlDoc *htmldocument.Document
-		if err == nil {
-			if pdf {
+		var err error
+		if pdf {
+			var data []byte
+			data, err = mediapreview.ReadSnapshot(ctx, reader, address.ChildSessionID, path, pdfpreview.MaxBytes, valid)
+			if err == nil {
 				pdfDoc, err = pdfpreview.OpenBytes(path, data, valid)
-			} else {
-				htmlDoc, err = htmldocument.OpenBytes(path, data, valid)
 			}
+		} else {
+			htmlDoc, err = htmldocument.OpenRemote(ctx, reader, address.ChildSessionID, path, valid)
 		}
 		closeDocument := func() {
 			if pdfDoc != nil {

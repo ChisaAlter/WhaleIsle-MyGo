@@ -52,6 +52,7 @@ type resourceGraph struct {
 	root          *os.Root
 	canonicalRoot string
 	valid         func() bool
+	remoteRead    func(path string, limit int) ([]byte, error)
 	files         map[string]resourceFile
 	active        map[string]bool
 	references    int
@@ -80,6 +81,18 @@ func (g *resourceGraph) warn(reason string) {
 // relativeAsset interprets URL paths once, relative to the declaring file. It
 // rejects site-root URLs as the original token-prefixed preview also does.
 func relativeAsset(base, reference string) (string, error) {
+	ref, err := relativeAssetPath(reference)
+	if err != nil {
+		return "", err
+	}
+	rel := filepath.Clean(filepath.Join(filepath.Dir(base), filepath.FromSlash(ref)))
+	if outsideAssetRoot(rel) || gitPath(rel) {
+		return "", errors.New("资源越出授权工作区或位于 .git")
+	}
+	return rel, nil
+}
+
+func relativeAssetPath(reference string) (string, error) {
 	if len(reference) > 8192 || strings.ContainsAny(reference, "\\\x00\r\n") {
 		return "", errors.New("不支持的资源路径")
 	}
@@ -92,11 +105,7 @@ func relativeAsset(base, reference string) (string, error) {
 			return "", errors.New("不支持的资源路径")
 		}
 	}
-	rel := filepath.Clean(filepath.Join(filepath.Dir(base), filepath.FromSlash(u.Path)))
-	if outsideAssetRoot(rel) || gitPath(rel) {
-		return "", errors.New("资源越出授权工作区或位于 .git")
-	}
-	return rel, nil
+	return u.Path, nil
 }
 func outsideAssetRoot(rel string) bool {
 	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel)
@@ -125,6 +134,9 @@ func (g *resourceGraph) readKind(base, reference, kind string) (resourceFile, st
 	g.references++
 	if g.references > MaxReferences {
 		return resourceFile{}, "", "", errors.New("资源引用数量超过限制")
+	}
+	if g.remoteRead != nil {
+		return g.readRemote(base, reference, kind)
 	}
 	rel, err := relativeAsset(base, reference)
 	if err != nil {
@@ -177,21 +189,26 @@ func (g *resourceGraph) readKind(base, reference, kind string) (resourceFile, st
 	if err != nil || !after.ModTime().Equal(info.ModTime()) || after.Size() != info.Size() || int64(len(data)) != info.Size() || len(data) > MaxAssetBytes || len(data) > MaxGraphBytes-g.report.Bytes {
 		return resourceFile{}, "", "", errors.New("资源读取时改变或超出大小限制")
 	}
+	file, err := g.rememberResource(canonical, ext, data)
+	return file, rel, canonical, err
+}
+
+func (g *resourceGraph) rememberResource(key, ext string, data []byte) (resourceFile, error) {
 	mime, err := resourceMIME(ext, data)
 	if err != nil {
-		return resourceFile{}, "", "", err
+		return resourceFile{}, err
 	}
 	if ext == ".svg" && (bytes.Contains(bytes.ToLower(data), []byte("<style")) || bytes.Contains(bytes.ToLower(data), []byte("<image"))) {
 		g.warn("SVG 内部嵌套依赖不递归展开")
 	}
 	if !g.valid() {
-		return resourceFile{}, "", "", errors.New("预览所属会话已改变")
+		return resourceFile{}, errors.New("预览所属会话已改变")
 	}
 	file := resourceFile{data: data, mime: mime}
-	g.files[canonical] = file
+	g.files[key] = file
 	g.report.Files++
 	g.report.Bytes += len(data)
-	return file, rel, canonical, nil
+	return file, nil
 }
 func (g *resourceGraph) stylesheet(base, reference string, depth int) (string, error) {
 	if depth > MaxCSSDepth {

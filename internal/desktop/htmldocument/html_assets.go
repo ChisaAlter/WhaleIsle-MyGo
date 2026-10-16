@@ -23,6 +23,10 @@ func prepareResourceMode(root *os.Root, relative, source string, valid func() bo
 	if err != nil {
 		return "", ResourceReport{}, err
 	}
+	return prepareResourceGraph(g, relative, source, valid, interactive)
+}
+
+func prepareResourceGraph(g *resourceGraph, relative, source string, valid func() bool, interactive bool) (string, ResourceReport, error) {
 	// A base URL would change which files the HTML author meant. Rather than
 	// guess, keep that document static and explicitly decline relative assets.
 	hasBase := false
