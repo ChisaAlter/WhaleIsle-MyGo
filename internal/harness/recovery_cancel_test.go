@@ -2,12 +2,13 @@ package harness
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
 )
 
-// Fixtures use long timers and inert process handles; they never start a Host.
+// Fixtures use long timers and a sleeping test process; they never start a Host.
 func TestCancelRecoveryInvalidatesQueuedRetry(t *testing.T) {
 	s := New(Options{AutoRestart: true, MaxAttempts: 3, BaseDelay: time.Hour})
 	s.gen = 1
@@ -37,24 +38,50 @@ func TestCancelRecoveryInvalidatesQueuedRetry(t *testing.T) {
 	}
 }
 
-func TestCancelRecoveryKeepsClaimedChildOwned(t *testing.T) {
+func TestCancelRecoveryTerminatesClaimedChild(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe)
+	cmd.Env = append(os.Environ(), "FAKE_DSH=hold")
+	detach(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = terminate(cmd, true); <-exited })
 	s := New(Options{AutoRestart: true, MaxAttempts: 3, BaseDelay: time.Hour})
 	s.gen = 7
 	s.recoveryActive = true
-	s.cmd = &exec.Cmd{} // inert handle: cancellation must not call terminate/Stop
-	owned := s.cmd
-	s.exited = make(chan struct{})
+	s.cmd, s.exited = cmd, exited
 	s.taskControlToken = "fixture-token"
 	s.setLocked(Status{State: Starting})
 	st := s.CancelRecovery()
-	if st.State != Starting || !st.RecoveryCancelled || s.gen != 7 || s.cmd != owned || s.exited == nil || s.taskControlToken != "fixture-token" {
-		t.Fatal("cancellation disturbed the claimed child")
+	if st.State != Failed || !st.RecoveryCancelled || s.gen == 7 || s.cmd != nil || s.exited != nil || s.taskControlToken != "" {
+		t.Fatalf("claimed recovery remains active: %+v", st)
 	}
-	// Cancellation suppresses both normal and plugin-recovery retries.
-	s.startLogs = []string{"plugin tree failed to load"}
-	s.fail(7, errors.New("synthetic crash"), "fixture")
-	if st := s.Status(); st.State != Failed || !st.RecoveryCancelled || st.RecoveryActive || s.gen != 7 || s.opts.Launch.SkipUserPlugins {
-		t.Fatalf("cancelled recovery scheduled more work: %+v", st)
+	select {
+	case <-exited:
+	default:
+		t.Fatal("cancel returned before child exit")
+	}
+	s.fail(7, errors.New("plugin tree failed to load"), "fixture")
+	s.run(7)
+	if s.Status() != st || s.restartTimer != nil || !s.opts.AutoRestart || s.opts.Launch.SkipUserPlugins {
+		t.Fatal("cancelled attempt revived or changed persistent policy")
+	}
+}
+
+func TestCancelRecoveryInvalidatesClaimedPreparation(t *testing.T) {
+	s := New(Options{})
+	s.gen, s.recoveryActive = 7, true
+	s.setLocked(Status{State: Starting})
+	st := s.CancelRecovery()
+	s.run(7)
+	if s.current(7) || s.cmd != nil || s.Status() != st || st.State != Failed {
+		t.Fatal("claimed preparation survived cancellation")
 	}
 }
 

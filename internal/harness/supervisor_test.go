@@ -15,6 +15,9 @@ import (
 // serves the launch-token handshake on the --port it is given.
 func TestMain(m *testing.M) {
 	switch os.Getenv("FAKE_DSH") {
+	case "hold":
+		time.Sleep(time.Hour)
+		return
 	case "serve":
 		fakeDsh()
 		return

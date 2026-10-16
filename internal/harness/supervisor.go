@@ -201,24 +201,30 @@ func (s *Supervisor) Restart() {
 	s.Start()
 }
 
-// CancelRecovery cancels queued automatic work without stopping a live child,
-// changing persistent restart preferences, or closing the shell. A retry already
-// claimed by run remains owned; its next failure cannot schedule more retries.
+// CancelRecovery cancels queued and in-progress automatic attempts without
+// changing restart preferences or stopping an unrelated manual/ready Host.
 func (s *Supervisor) CancelRecovery() Status {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if !s.recoveryActive || s.recoveryCancelled {
-		return s.status
+		st := s.status
+		s.mu.Unlock()
+		return st
 	}
 	st := s.status
-	if s.recoveryQueued {
-		s.nextGenLocked()
-		st.State = Failed
+	s.nextGenLocked()
+	cmd, exited := s.cmd, s.exited
+	s.cmd, s.exited = nil, nil
+	st.State, st.Endpoint = Failed, Endpoint{}
+	if st.Err == nil {
+		st.Err = context.Canceled
 	}
 	s.recoveryActive, s.recoveryQueued = false, false
 	s.recoveryCancelled = true
 	s.setLocked(st)
-	return s.status
+	st = s.status
+	s.mu.Unlock()
+	stopChild(cmd, exited)
+	return st
 }
 
 // Stop ends the child, waiting for it to exit.
@@ -234,6 +240,11 @@ func (s *Supervisor) Stop() {
 	if install != nil {
 		install.Stop()
 	}
+	stopChild(cmd, exited)
+}
+
+// The caller retains this exact child until its wait goroutine confirms exit.
+func stopChild(cmd *exec.Cmd, exited <-chan struct{}) {
 	if cmd == nil {
 		return
 	}
@@ -383,16 +394,18 @@ func (s *Supervisor) run(gen int) {
 		return
 	}
 	cmd.Stderr = cmd.Stdout
-	if err := cmd.Start(); err != nil {
-		s.set(gen, Status{State: Failed, Err: err, Source: plan.Source})
-		return
-	}
 	exited := make(chan struct{})
 	s.mu.Lock()
+	// Starting and assigning ownership are atomic with cancellation. A cancelled
+	// preparation must never create a child after CancelRecovery has returned.
 	if s.gen != gen {
 		s.mu.Unlock()
-		_ = terminate(cmd, true)
-		go func() { cmd.Wait(); close(exited) }()
+		_ = out.Close()
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		s.mu.Unlock()
+		s.set(gen, Status{State: Failed, Err: err, Source: plan.Source})
 		return
 	}
 	s.cmd, s.exited = cmd, exited
