@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	settingsstore "whaleisle/internal/store/settings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -11,6 +12,12 @@ import (
 
 func (s *mainState) newBrowserController(win *mygo.Window) *browserpreviewui.Controller {
 	browser := browserpreviewui.NewController(win)
+	browser.SetDeveloperTools(func() bool {
+		s.mu.Lock()
+		store := s.settings
+		s.mu.Unlock()
+		return store == nil || settingsstore.DeveloperToolsEnabled(store.Snapshot())
+	})
 	browser.SetActionTarget(s.browserActionTarget)
 	browser.SetWorkspaceOwner(s.browserWorkspaceOwner)
 	browser.SetDocumentLoader(s.workspaceDocumentReady, s.readWorkspaceDocument)

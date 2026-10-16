@@ -14,6 +14,7 @@ const agentPresetNamespace = "agent-preset-registry"
 
 // ManagedAgentPreset keeps broken entries visible for diagnosis but not selectable.
 type ManagedAgentPreset struct {
+	RequiresCodingTools           bool
 	ID, Name, Description, Broken string
 	Hidden                        bool
 }
@@ -94,7 +95,7 @@ func (m *AgentPresetManager) Refresh(ctx context.Context) {
 			continue
 		}
 		seen[p.Id] = true
-		row := ManagedAgentPreset{ID: p.Id, Name: p.Id}
+		row := ManagedAgentPreset{ID: p.Id, Name: p.Id, RequiresCodingTools: p.Name == nil && (p.Id == "ptc" || p.Id == "minimal")}
 		if p.Name != nil && *p.Name != "" {
 			row.Name = *p.Name
 		}

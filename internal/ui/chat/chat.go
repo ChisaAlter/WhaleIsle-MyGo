@@ -22,20 +22,21 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
-	GroupRoom          bool
-	GroupMembers       []session.GroupMember
-	OnReplyGroupThread func(string)
-	Preferences        settings.ChatPreferences
-	ScheduleStore      *schedstore.Store
-	OnOpenScheduleTask func(schedstore.Entry)
-	HistoryStore       *session.Store
-	FeedbackStore      *session.Store
-	EditReturnSeq      *float64
-	EditingSeq         float64
-	OnCancelEdit       func()
-	Snapshot           session.ViewState
-	ThemeID            string
-	SystemDark         bool
+	DisableDeveloperTools bool
+	GroupRoom             bool
+	GroupMembers          []session.GroupMember
+	OnReplyGroupThread    func(string)
+	Preferences           settings.ChatPreferences
+	ScheduleStore         *schedstore.Store
+	OnOpenScheduleTask    func(schedstore.Entry)
+	HistoryStore          *session.Store
+	FeedbackStore         *session.Store
+	EditReturnSeq         *float64
+	EditingSeq            float64
+	OnCancelEdit          func()
+	Snapshot              session.ViewState
+	ThemeID               string
+	SystemDark            bool
 	// ContentWidth is the shared chat width axis; zero uses the original 748px fallback.
 	ContentWidth     float32
 	List             *ui.ListState

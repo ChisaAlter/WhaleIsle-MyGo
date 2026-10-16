@@ -39,6 +39,9 @@ func (b *Controller) SetActionTarget(target func() ActionTarget) {
 // BeginFrame/EndFrame bracket the owner's actual paint. A docked page must not
 // be hidden and re-shown every frame; missing/occluded/narrow panes are hidden.
 func (b *Controller) BeginFrame() {
+	if !b.developerToolsEnabled() {
+		b.cancelInteractivePreviews()
+	}
 	b.rendered = false
 	b.PruneActions()
 }

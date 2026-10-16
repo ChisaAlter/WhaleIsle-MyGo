@@ -140,6 +140,7 @@ type Model struct {
 	GroupRoom               bool
 	GroupMembers            []session.GroupMember
 	OnReplyGroupThread      func(string)
+	DisableDeveloperTools   bool
 	TitlebarPreferences     settings.TitlebarPreferences
 	HideArchivedList        bool
 	ChatPreferences         settings.ChatPreferences
@@ -365,7 +366,11 @@ func View(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
+	if m.DisableDeveloperTools && m.ChatPaneTab != nil && *m.ChatPaneTab == "trajectory" {
+		*m.ChatPaneTab = "chat"
+	}
 	snap := m.Store.Snapshot()
+	snap.AgentPresetLabels = m.Store.AgentPresetLabelsForDeveloperTools(!m.DisableDeveloperTools)
 	if m.HostTerminalUI != nil {
 		observeHostTerminalPanes(m)
 	}
@@ -652,7 +657,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								}
 								paintTab("chat", i18n.T(i18n.KeyChatPaneTabChat))
-								paintTab("trajectory", i18n.T(i18n.KeyChatPaneTabTrajectory))
+								if !m.DisableDeveloperTools {
+									paintTab("trajectory", i18n.T(i18n.KeyChatPaneTabTrajectory))
+								}
 								ui.Box(c).Grow(1).MinWidth(0)
 							})
 							ui.Box(c).FillWidth().Height(1).Background(border)
@@ -896,8 +903,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								} else {
 									chat.View(c, chat.Model{
 										GroupRoom: m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
-										Preferences:   m.ChatPreferences,
-										ScheduleStore: m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
+										DisableDeveloperTools: m.DisableDeveloperTools,
+										Preferences:           m.ChatPreferences,
+										ScheduleStore:         m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
 										Snapshot:         snap,
 										ContentWidth:     contentAxis,
 										ThemeID:          m.ThemeID,

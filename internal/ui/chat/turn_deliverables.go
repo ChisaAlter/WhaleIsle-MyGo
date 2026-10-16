@@ -14,6 +14,12 @@ import (
 // Rendering only projects memory. The existing file preview callback is used
 // only after revalidating its original presented declaration and Host scope.
 func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCardStyle) {
+	if m.DisableDeveloperTools {
+		d.Changes = nil
+		if len(d.Files) == 0 {
+			return
+		}
+	}
 	snapshot := m.Snapshot.TurnFiles
 	scope := snapshot.Scope
 	enabled := m.HistoryStore != nil && scope.Binding != "" && scope.SessionID == m.Snapshot.SelectedID

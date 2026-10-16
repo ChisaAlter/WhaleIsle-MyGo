@@ -5638,6 +5638,7 @@ func mainView(c *ui.Context) {
 					},
 					AgentPresetsActive: agentPresetsActive,
 					AgentPresets: &settings.AgentPresetsAccess{
+						DisableDeveloperTools: !settingsstore.DeveloperToolsEnabled(setStore.Snapshot()),
 						Creator:  state.creatorTaskAccess(sessions),
 						Manager:  state.agentPresetManager,
 						Selected: &state.settingsAgentPresetLabel,
@@ -6159,6 +6160,7 @@ func mainView(c *ui.Context) {
 							}
 						},
 						TitlebarPreferences: settingsstore.TitlebarPreferencesFrom(setStore.Snapshot()),
+						DisableDeveloperTools: !settingsstore.DeveloperToolsEnabled(setStore.Snapshot()),
 						HideArchivedList: cfgHideArchivedList,
 						ChatPreferences:         settingsstore.ChatPreferencesFrom(setStore.Snapshot()),
 						ConversationPreferences: settingsstore.ConversationPreferencesFrom(setStore.Snapshot()),

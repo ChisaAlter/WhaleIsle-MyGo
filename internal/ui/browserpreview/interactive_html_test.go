@@ -31,3 +31,17 @@ func TestInteractiveStateStartsOff(t *testing.T) {
 		t.Fatal("missing parent/document launched an operation")
 	}
 }
+
+func TestDeveloperPreferenceStopsInteractivePreview(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	tab := &Tab{Draft: "saved.html", interactive: &interactivePreview{ctx: ctx, cancel: cancel}}
+	b := &Controller{Tabs: []*Tab{tab}}
+	b.SetDeveloperTools(func() bool { return false })
+	b.BeginFrame()
+	if ctx.Err() == nil || tab.interactive != nil {
+		t.Fatal("disabled developer preference did not cancel script helper")
+	}
+	if len(b.Tabs) != 1 || b.Tabs[0].Draft != "saved.html" {
+		t.Fatal("static document was removed")
+	}
+}

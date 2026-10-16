@@ -13,10 +13,11 @@ import (
 // AgentPresetsAccess edits the persisted default for future sessions. The
 // composer owns current-session agentPresets/select independently.
 type AgentPresetsAccess struct {
-	Manager  *session.AgentPresetManager
-	Creator  *CreatorTaskAccess
-	Selected *string
-	Reader   *AgentPresetReaderAccess
+	DisableDeveloperTools bool
+	Manager               *session.AgentPresetManager
+	Creator               *CreatorTaskAccess
+	Selected              *string
+	Reader                *AgentPresetReaderAccess
 }
 
 func agentPresetSettingsLabel(row session.ManagedAgentPreset) string {
@@ -30,8 +31,24 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if m.AgentPresets == nil || m.AgentPresets.Manager == nil {
 		return
 	}
-	a := m.AgentPresets
+	a := *m.AgentPresets
 	snap := a.Manager.Snapshot()
+	if a.DisableDeveloperTools {
+		rows := make([]session.ManagedAgentPreset, 0, len(snap.Rows))
+		for _, row := range snap.Rows {
+			if row.RequiresCodingTools {
+				if a.Reader != nil && a.Reader.State.SelectedID == row.ID {
+					reader := *a.Reader
+					reader.State.SelectedID = ""
+					reader.State.Open = false
+					a.Reader = &reader
+				}
+				continue
+			}
+			rows = append(rows, row)
+		}
+		snap.Rows = rows
+	}
 	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if snap.Err != "" {

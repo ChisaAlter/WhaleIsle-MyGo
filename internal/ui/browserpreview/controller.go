@@ -17,6 +17,7 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	developerTools   func() bool
 	workspaceOwner   func() WorkspaceOwner
 	documentLoader   documentLoader
 	onFocus          func()

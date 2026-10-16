@@ -12,8 +12,9 @@ import (
 
 // AgentPresetOption is one row in the composer agent preset picker.
 type AgentPresetOption struct {
-	Label string
-	ID    string
+	RequiresCodingTools bool
+	Label               string
+	ID                  string
 }
 
 func flattenAgentPresetRoster(roster api.AgentPresetRoster) []AgentPresetOption {
@@ -37,7 +38,7 @@ func flattenAgentPresetRoster(roster api.AgentPresetRoster) []AgentPresetOption 
 		if p.Broken != nil && *p.Broken != "" {
 			label = label + " ⚠"
 		}
-		out = append(out, AgentPresetOption{Label: label, ID: p.Id})
+		out = append(out, AgentPresetOption{Label: label, ID: p.Id, RequiresCodingTools: p.Name == nil && (p.Id == "ptc" || p.Id == "minimal")})
 	}
 	return out
 }
@@ -181,4 +182,18 @@ func (s *Store) applyAgentPresetSelectedEvent(raw json.RawMessage) bool {
 	s.mu.Unlock()
 	s.fire()
 	return true
+}
+
+// AgentPresetLabelsForDeveloperTools projects the same roster without altering
+// the session's selected preset or the Host's default.
+func (s *Store) AgentPresetLabelsForDeveloperTools(enabled bool) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var labels []string
+	for _, row := range s.agentPresetOptions {
+		if enabled || !row.RequiresCodingTools {
+			labels = append(labels, row.Label)
+		}
+	}
+	return labels
 }

@@ -19,7 +19,18 @@ type interactivePreview struct {
 	cancel context.CancelFunc
 }
 
+// SetDeveloperTools binds the current accepted Host preference. It never grants
+// permission to run a preview: the explicit gesture and sandbox checks remain.
+func (b *Controller) SetDeveloperTools(enabled func() bool) { b.developerTools = enabled }
+func (b *Controller) developerToolsEnabled() bool {
+	return b.developerTools == nil || b.developerTools()
+}
+
 func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
+	if !b.developerToolsEnabled() {
+		b.stopInteractiveHTML(t)
+		return
+	}
 	if t.interactive != nil {
 		if ui.Button(c, "停止交互预览").Clicked() {
 			b.stopInteractiveHTML(t)
@@ -78,7 +89,7 @@ func installedPreviewHelper() (string, error) {
 // This is the only product call site enabling the helper. No startup path,
 // environment variable or persistent preference automatically selects it.
 func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
-	if b.parent == nil || t == nil || t.HTML == nil || t.interactive != nil || !t.HTML.Valid() {
+	if !b.developerToolsEnabled() || b.parent == nil || t == nil || t.HTML == nil || t.interactive != nil || !t.HTML.Valid() {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
