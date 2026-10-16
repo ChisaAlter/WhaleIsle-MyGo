@@ -109,7 +109,7 @@ func TestViewRemembersRightPreferenceAcrossResizeAndExplicitClose(t *testing.T) 
 	}
 	check(400, 518)
 	tt.SetSize(900, 800)
-	check(619, 0)
+	check(400, 442)
 	tt.SetSize(1600, 800)
 	check(778, 540)
 	open = false
@@ -162,7 +162,7 @@ func TestRightDragChangesPreferenceAndSurvivesReopen(t *testing.T) {
 		t.Fatalf("drag sizes=%+v right=%v, want right468 center450", sizes, right)
 	}
 	tt.SetSize(900, 800)
-	if sizes.Right != 468 || right != 0 {
+	if sizes.Right != 468 || right != 442 {
 		t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
 	}
 	tt.SetSize(1600, 800)

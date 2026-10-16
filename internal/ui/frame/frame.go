@@ -38,6 +38,7 @@ import (
 
 // LayoutSizes persist split pane dimensions (DIPs) across frames.
 type LayoutSizes struct {
+	Responsive      *SidebarResponsive // transient; never persisted as a width preference
 	Workspace       *WorkspacePanes
 	Sidebar         float32
 	SidebarExpanded float32 // last expanded preference; Sidebar=0 is the compact rail
@@ -105,6 +106,12 @@ func DefaultDetailsWidth(viewport float32) float32 {
 // ResolveColumns includes the real MyGo dividers in the rendered geometry.
 // Right is initialized only on first opening and survives shrink and close/open.
 func (sizes *LayoutSizes) ResolveColumns(viewport float32, rightOpen bool) Columns {
+	sizes.observeSidebarViewport(viewport)
+	if rightOpen && !sizes.Responsive.rightOpen && sizes.Responsive.narrow {
+		sizes.Responsive.expanded = false
+	}
+	sizes.Responsive.rightOpen = rightOpen
+	sidebar := sizes.sidebarPreference()
 	pref := float32(0)
 	if rightOpen {
 		if sizes.Right <= 0 {
@@ -112,10 +119,10 @@ func (sizes *LayoutSizes) ResolveColumns(viewport float32, rightOpen bool) Colum
 		}
 		pref = sizes.Right
 	}
-	cols := computeColumns(maxf(0, viewport-2*SplitterWidth), sizes.Sidebar, pref, viewport)
+	cols := computeColumns(maxf(0, viewport-2*SplitterWidth), sidebar, pref, viewport)
 	if cols.Details == 0 {
 		// A closed right track has no divider; only the sidebar divider remains.
-		cols = computeColumns(maxf(0, viewport-SplitterWidth), sizes.Sidebar, 0, viewport)
+		cols = computeColumns(maxf(0, viewport-SplitterWidth), sidebar, 0, viewport)
 	}
 	sizes.Center = cols.Center
 	return cols
@@ -364,6 +371,8 @@ func View(c *ui.Context, m Model) {
 	if !workspaceVisible(m, "agents") {
 		m.Store.CloseAgentNavigation()
 	}
+	viewport, _ := c.Size()
+	m.Sizes.observeSidebarViewport(viewport)
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -388,7 +397,6 @@ func View(c *ui.Context, m Model) {
 		fallback := DefaultLayout()
 		m.Sizes = &fallback
 	}
-	viewport, _ := c.Size()
 	cols := m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
 	if m.FilePaneWidth == nil {
 		m.FilePaneWidth = &cols.Details
@@ -444,7 +452,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		HideArchivedList:     m.HideArchivedList,
 		Schedules:            schedules,
 		Projects:             projectModel,
-		Collapsed:            m.Sizes.Sidebar <= 0,
+		Collapsed:            m.Sizes.sidebarPreference() <= 0,
 		OnToggle:             m.Sizes.ToggleSidebar,
 		Snapshot:             snap,
 		ThemeID:              m.ThemeID,
@@ -906,7 +914,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
- Inspector: sessionInspectorChatNavigation(m),
+										Inspector: sessionInspectorChatNavigation(m),
 										GroupRoom: m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 										DisableDeveloperTools: m.DisableDeveloperTools,
 										Preferences:           m.ChatPreferences,

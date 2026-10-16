@@ -51,7 +51,7 @@ func TestShellColumnGeometryPaintBounds(t *testing.T) {
 		tt := ui.NewTester(func(c *ui.Context) {
 			cols := sizes.ResolveColumns(float32(width), true)
 			right = cols.Details
-			ui.Split(c, &sizes.Sidebar, func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { got.Sidebar = r }) }, func() {
+			sidebarColumns(c, &sizes, func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { got.Sidebar = r }) }, func() {
 				centerRightColumns(c, Model{Sizes: &sizes, FilePaneWidth: &right}, func() {
 					ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { got.Center = r }).Children(func() {
 						centerTerminalColumn(c, Model{Sizes: &sizes, centerHeight: 800}, func() { ui.Box(c).Fill() }, func() {
@@ -59,17 +59,21 @@ func TestShellColumnGeometryPaintBounds(t *testing.T) {
 						})
 					})
 				}, func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { got.Right = r }) })
-			}).Fill()
+			})
 		}, width, 800)
 		_ = tt
-		wantCenter := ui.Rect{X: 281, Y: 0, W: sizes.Center, H: 800}
-		if got.Sidebar != (ui.Rect{W: 280, H: 800}) || got.Center != wantCenter {
+		rail := float32(280)
+		if width < 1024 {
+			rail = SidebarCollapsed
+		}
+		wantCenter := ui.Rect{X: rail + 1, Y: 0, W: sizes.Center, H: 800}
+		if got.Sidebar != (ui.Rect{W: rail, H: 800}) || got.Center != wantCenter {
 			t.Fatalf("width%d painted bounds=%+v", width, got)
 		}
-		if got.Terminal != (ui.Rect{X: 281, Y: 561, W: sizes.Center, H: 239}) {
+		if got.Terminal != (ui.Rect{X: rail + 1, Y: 561, W: sizes.Center, H: 239}) {
 			t.Fatalf("width%d terminal=%+v", width, got.Terminal)
 		}
-		if right > 0 && got.Right != (ui.Rect{X: 282 + sizes.Center, Y: 0, W: right, H: 800}) {
+		if right > 0 && got.Right != (ui.Rect{X: rail + 2 + sizes.Center, Y: 0, W: right, H: 800}) {
 			t.Fatalf("width%d right=%+v", width, got.Right)
 		}
 		if right == 0 && got.Right != (ui.Rect{}) {

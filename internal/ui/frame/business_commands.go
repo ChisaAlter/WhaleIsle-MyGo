@@ -21,7 +21,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 	actions["launcher.open"] = m.OnOpenLauncher
 	actions["workspace.files"] = m.OnOpenWorkspaceFiles
 	actions["session.search"] = func() {
-		if m.Sizes != nil && m.Sizes.Sidebar <= 0 {
+		if m.Sizes != nil && m.Sizes.sidebarPreference() <= 0 {
 			m.Sizes.ToggleSidebar()
 		}
 		if m.SessionSearchFocus != nil {

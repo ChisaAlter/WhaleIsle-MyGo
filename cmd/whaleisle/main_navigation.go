@@ -45,6 +45,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	s.mu.Lock()
 	win := s.win
+	m.RightPaneOpen = s.filesPaneOpen && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen
 	if m.Store == nil {
 		if s.sessions == nil {
 			s.sessions = session.New()
@@ -135,6 +136,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	defer func() {
 		s.mu.Lock()
 		s.layout.Sidebar, s.layout.SidebarExpanded = m.Sizes.Sidebar, m.Sizes.SidebarExpanded
+		s.layout.Responsive = m.Sizes.Responsive
 		s.sessionSearch = *m.SessionSearch
 		s.renameSessionID, s.renameDraft = *m.RenameSessionID, *m.RenameDraft
 		s.mu.Unlock()
