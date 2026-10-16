@@ -171,6 +171,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.messages = nil
 		s.workflowBoundaries = nil
 		s.trajectoryBoundaries = nil
+		s.systemPromptAnchors = nil
 		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0
 		s.editTurnOpening = false

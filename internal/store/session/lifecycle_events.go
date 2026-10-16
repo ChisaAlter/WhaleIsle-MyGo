@@ -277,6 +277,7 @@ func (s *Store) invalidateFollowLocked() {
 	s.resetHistoryPagingLocked()
 	s.clearHistoryOutlineLocked()
 	s.trajectoryBoundaries = nil
+	s.systemPromptAnchors = nil
 	s.planHistoryBinding = ""
 	s.invalidateJobsLocked()
 	s.invalidateWorkflowLocked()

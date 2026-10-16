@@ -75,7 +75,11 @@ func (s *Store) captureTrajectoryBoundaryLocked(raw json.RawMessage) bool {
 	switch e.Type {
 	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started":
 	default:
-		return false
+		var ok bool
+		raw, ok = sanitizedPromptBoundary(raw)
+		if !ok {
+			return false
+		}
 	}
 	if s.trajectoryBoundaries == nil {
 		s.trajectoryBoundaries = make(map[float64]json.RawMessage)

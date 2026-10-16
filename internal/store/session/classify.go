@@ -8,6 +8,14 @@ import (
 )
 
 func classifyPersistenceEvent(raw json.RawMessage) (Message, bool) {
+	// Prompt events have their own bounded disclosure projection. Never route
+	// system text or request diagnostics through the generic text fallback.
+	var promptHead struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(raw, &promptHead) == nil && (promptHead.Type == "system/message" || promptHead.Type == "request/header") {
+		return Message{}, false
+	}
 	if msg, ok := classifyGroupLateCarrier(raw); ok {
 		return msg, true
 	}

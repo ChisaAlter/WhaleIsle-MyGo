@@ -185,6 +185,7 @@ type Store struct {
 	quotaNotice               quotaNoticeState
 	inspector                 sessionInspectorState
 	nextPrompt                nextPromptState
+	systemPromptAnchors       map[float64]float64
 	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
@@ -585,6 +586,7 @@ func (s *Store) Snapshot() ViewState {
 	st.Messages = s.projectPreparingToolsLocked(st.Messages)
 	st.Messages = s.projectTrajectoryTimingLocked(st.Messages)
 	st.Messages = s.projectRetryMessagesLocked(st.Messages)
+	st.Messages = s.projectSystemPromptsLocked(st.Messages)
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)

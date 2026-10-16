@@ -85,6 +85,7 @@ func (p *workflowMemberStream) prune() {
 	for seq := range s.trajectoryBoundaries {
 		if seq < floor {
 			delete(s.trajectoryBoundaries, seq)
+			delete(s.systemPromptAnchors, seq)
 		}
 	}
 }
