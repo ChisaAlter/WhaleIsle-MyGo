@@ -14,11 +14,12 @@
 param(
     [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
+    [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
 )
 if ($SourceMode -eq 'current') {
     if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the fixed 90465b67 official source checkout.' }
-    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -BuildOnly:$BuildOnly
+    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -BuildOnly:$BuildOnly -UnifiedShortcuts:$UnifiedShortcuts
     return
 }
 if ($BuildOnly) { throw 'BuildOnly is supported by the isolated current source mode only.' }
@@ -56,6 +57,12 @@ if (-not (Test-Path (Join-Path $HarnessDir 'package.json'))) {
 # explicit source for non-Git build environments (scripts/client-build-environment.ts).
 $Pin = Get-Content $PinFile -Raw | ConvertFrom-Json
 $env:DSH_CLIENT_COMMIT_HASH = $Pin.sha
+
+# Explicit opt-in builds only; never silently adapt an existing runtime on startup.
+if ($UnifiedShortcuts) {
+    & node (Join-Path $PSScriptRoot 'current-host-shortcuts.mjs') $HarnessDir
+    if ($LASTEXITCODE -ne 0) { throw 'Pinned shortcut provider adaptation failed.' }
+}
 
 # --- pnpm bootstrap ---------------------------------------------------------
 # Install the exact pnpm version the harness pins in its package.json

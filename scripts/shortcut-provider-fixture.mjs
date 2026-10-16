@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {patchSource,applyShortcutProvider,relativePath} from './current-host-shortcuts.mjs';
+const source=fs.readFileSync(process.argv[2],'utf8');
+const patched=patchSource(source);
+assert(patched.includes('this.adapter = provider?.shortcuts ??'));
+assert(!patched.includes('window.dshDesktop ='));
+assert.throws(()=>patchSource(source+'\n'));
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'mygo-shortcuts-'));
+try{const file=path.join(tmp,relativePath);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,source);const first=applyShortcutProvider(tmp);assert.deepEqual(applyShortcutProvider(tmp),first)}finally{fs.rmSync(tmp,{recursive:true,force:true})}
+const script=fs.readFileSync(new URL('../internal/desktop/pluginslots/shortcut_provider.js',import.meta.url),'utf8').replaceAll('__MYGO_ORIGIN__',JSON.stringify('http://127.0.0.1:23')).replaceAll('__MYGO_PLATFORM__','"windows"');
+const requests=[];let polls=0;const w={addEventListener(){},dispatchEvent(){}};w.top=w;
+const context={window:w,location:{origin:'http://127.0.0.1:23'},setInterval(){polls++;return 1},clearInterval(){polls--},CustomEvent:class{},fetch:async(url,init)=>{requests.push(JSON.parse(init.body));return {ok:true,json:async()=>({revision:'r',sequence:1,document:{schemaVersion:2,profiles:{}},status:'ready',error:null,usingDefaults:true})}}};
+vm.runInNewContext(script,context);assert.equal(w.dshDesktop,undefined);assert.equal(w.whaleisleShortcutProvider.version,1);
+const api=w.whaleisleShortcutProvider.shortcuts;let received=0;const off=api.subscribe(()=>received++);await api.get([]);assert.equal(received,1);off();assert.equal(polls,0);assert.equal(requests[0].operation,'get');
+const foreign={};foreign.top=foreign;vm.runInNewContext(script,{window:foreign,location:{origin:'https://example.test'}});assert.equal(foreign.whaleisleShortcutProvider,undefined);
+console.log('shortcut provider exact-source adaptation and capability contract PASS');

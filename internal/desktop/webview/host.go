@@ -10,10 +10,12 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/pluginslots"
+	"whaleisle/internal/shortcutprefs"
 )
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	ShortcutPreferences *shortcutprefs.Store
 	// BrowserProfile selects the persistent Browser-only login/storage area.
 	// It cannot be combined with an authenticated Host session or local preview.
 	BrowserProfile bool
@@ -181,6 +183,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 		opts.Untrusted = true
 		gateway.SetClientModulesChanged(opts.OnChange)
+		gateway.SetShortcutPreferences(opts.ShortcutPreferences)
 	}
 	trusted := append([]string(nil), opts.TrustedOrigins...)
 	if !opts.Untrusted && len(trusted) == 0 {
@@ -207,6 +210,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Height:          600,
 		Page: mygo.PageOptions{
 			BrowserProfile:    opts.BrowserProfile,
+			PreloadScript:     gateway.ShortcutProviderScript(),
 			BrowserPartition:  opts.BrowserPartition,
 			LocalPDFViewerURL: opts.LocalPDFViewerURL,
 			LocalPDFURL:       opts.LocalPDFURL,

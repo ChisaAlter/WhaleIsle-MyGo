@@ -54,6 +54,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/startuprec"
 	assiststore "whaleisle/internal/store/assistant"
@@ -93,13 +94,15 @@ import (
 )
 
 type mainState struct {
-	applicationMenu *desktopApplicationMenu
+	applicationMenu      *desktopApplicationMenu
 	wallpaperControls    *settings.WallpaperEditor
 	wallpaperVisible     bool
 	commandSearchFocus   bool
 	appearanceEditor     *theme.Editor
 	appearanceVisible    bool
 	shortcutEditor       *shortcuts.Editor
+	shortcutPreferences  *shortcutprefs.Store
+	shortcutRevision     string
 	projectWindowHidden  bool
 	startupRecovery      startupRecoveryState
 	voice                *composerVoiceOperation
@@ -1139,14 +1142,15 @@ func (s *mainState) openWebViewURL(browse string) {
 	}
 	inset := chrome.TitleBarHeight + panelH
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
-		Untrusted:     true,
-		SessionOrigin: sessionOrigin,
-		SessionCookie: sessionCookie,
-		OnChange:      func() { win.Update(func() {}) },
-		Parent:        win,
-		URL:           browse,
-		Title:         hostTitle,
-		TopInset:      inset,
+		Untrusted:           true,
+		SessionOrigin:       sessionOrigin,
+		ShortcutPreferences: s.pageShortcutPreferences(),
+		SessionCookie:       sessionCookie,
+		OnChange:            func() { win.Update(func() {}) },
+		Parent:              win,
+		URL:                 browse,
+		Title:               hostTitle,
+		TopInset:            inset,
 	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -4749,7 +4753,7 @@ func mainView(c *ui.Context) {
 				}
 				usageui.View(c, usageui.Model{
 					ActionError: accountActionError,
-					Store: usageStore,
+					Store:       usageStore,
 					OnExportStats: func(format string) {
 						data, err := usageStore.ExportStats(format)
 						if err != nil {
@@ -5051,8 +5055,8 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnOpenAuthorize: state.openAccountAuthorization,
-						OnOpenUsage: func(u string) { state.openAccountUsage(u, "settings") },
-						OnOpenTopUp: state.openAccountTopUp,
+						OnOpenUsage:     func(u string) { state.openAccountUsage(u, "settings") },
+						OnOpenTopUp:     state.openAccountTopUp,
 						OnSignIn: func() {
 							state.dshMu.Lock()
 							client := state.dshClient
@@ -5160,14 +5164,14 @@ func mainView(c *ui.Context) {
 					},
 					AboutActive: aboutActive,
 					About: &settings.AboutAccess{
- ReadCredentialStorage: func() credentials.StorageStatus { return credentials.InspectStorage(paths.UserDataDir()) },
- OnOpenLink: desktopwebview.OpenExternal,
-						AppName:          i18n.T(i18n.KeyAppName),
-						Version:          buildVersion,
-						Identifier:       "ai.deepseek.harness.gui",
-						UserData:         paths.UserDataDir(),
-						VendorRoot:       paths.VendorDir(),
-						AnalyticsEnabled: state.analyticsEnabled,
+						ReadCredentialStorage: func() credentials.StorageStatus { return credentials.InspectStorage(paths.UserDataDir()) },
+						OnOpenLink:            desktopwebview.OpenExternal,
+						AppName:               i18n.T(i18n.KeyAppName),
+						Version:               buildVersion,
+						Identifier:            "ai.deepseek.harness.gui",
+						UserData:              paths.UserDataDir(),
+						VendorRoot:            paths.VendorDir(),
+						AnalyticsEnabled:      state.analyticsEnabled,
 						OnRevealUserData: func() {
 							_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
 						},
@@ -5625,10 +5629,10 @@ func mainView(c *ui.Context) {
 					AgentPresetsActive: agentPresetsActive,
 					AgentPresets: &settings.AgentPresetsAccess{
 						DisableDeveloperTools: !settingsstore.DeveloperToolsEnabled(setStore.Snapshot()),
-						Creator:  state.creatorTaskAccess(sessions),
-						Manager:  state.agentPresetManager,
-						Selected: &state.settingsAgentPresetLabel,
-						Reader:   state.agentPresetReaderAccess(sessions),
+						Creator:               state.creatorTaskAccess(sessions),
+						Manager:               state.agentPresetManager,
+						Selected:              &state.settingsAgentPresetLabel,
+						Reader:                state.agentPresetReaderAccess(sessions),
 					},
 					OnSelectDesktop: func() {
 						state.mu.Lock()
@@ -6070,7 +6074,9 @@ func mainView(c *ui.Context) {
 					groupRoom, groupMembers := state.assistantGroupMembers(snap.SelectedID)
 					frameModel := frame.Model{
 						GroupRoom: groupRoom, GroupMembers: groupMembers,
-						OnReplyGroupThread: func(threadID string) { state.beginAssistantGroupReply(sessions, activeDraft, snap.SelectedID, threadID) },
+						OnReplyGroupThread: func(threadID string) {
+							state.beginAssistantGroupReply(sessions, activeDraft, snap.SelectedID, threadID)
+						},
 						ExternalNavigation:   sharedNavigation,
 						PageShortcutBindings: state.pageShortcutBindings(),
 						SessionSearchFocus:   &state.commandSearchFocus,
@@ -6145,9 +6151,9 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						TitlebarPreferences: settingsstore.TitlebarPreferencesFrom(setStore.Snapshot()),
-						DisableDeveloperTools: !settingsstore.DeveloperToolsEnabled(setStore.Snapshot()),
-						HideArchivedList: cfgHideArchivedList,
+						TitlebarPreferences:     settingsstore.TitlebarPreferencesFrom(setStore.Snapshot()),
+						DisableDeveloperTools:   !settingsstore.DeveloperToolsEnabled(setStore.Snapshot()),
+						HideArchivedList:        cfgHideArchivedList,
 						ChatPreferences:         settingsstore.ChatPreferencesFrom(setStore.Snapshot()),
 						ConversationPreferences: settingsstore.ConversationPreferencesFrom(setStore.Snapshot()),
 						ComposerResize:          &state.composerResize,

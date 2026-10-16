@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory=$true)][string]$SourceRoot,
     [string]$WorkRoot,
     [string]$VendorTarget,
+    [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -12,6 +13,10 @@ if (-not $VendorTarget) { $VendorTarget = Join-Path $ProjectRoot 'runtime\vendor
 $Helper = Join-Path $PSScriptRoot 'current-host.mjs'
 & node $Helper prepare $SourceRoot $WorkRoot
 if ($LASTEXITCODE -ne 0) { throw 'Current Host source preparation failed' }
+if ($UnifiedShortcuts) {
+    & node (Join-Path $PSScriptRoot 'current-host-shortcuts.mjs') (Join-Path $WorkRoot 'deepseek-harness')
+    if ($LASTEXITCODE -ne 0) { throw 'Pinned shortcut provider adaptation failed.' }
+}
 # Install pinned pnpm locally, never alter the global toolchain.
 $Tools = Join-Path $WorkRoot 'build-tools'
 & npm install --cache (Join-Path $WorkRoot 'npm-cache') --prefix $Tools --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org 'pnpm@11.8.0'

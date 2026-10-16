@@ -148,7 +148,7 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 	// outside the supported grammar altogether; modified F1–F12 are supported. No OS hook is installed.
 	// The original native marketplace action owns Mod+Shift+M; plain
 	// Mod+M remains the system minimize chord.
-	if strings.Contains("ACFHMQSVWXYZ", chord.Key) && !(chord.Key == "M" && chord.Shift && !chord.Alt) {
+	if strings.Contains("ACFHMQSVWXYZ", chord.Key) && !((chord.Key == "M" || chord.Key == "A") && chord.Shift && !chord.Alt) && !(chord.Key == "F" && chord.Alt && !chord.Shift) {
 		return Chord{}, errors.New("此按键保留给系统、编辑或文件操作 / Reserved for system, editing or file actions")
 	}
 	if platform == "darwin" && ((chord.Key == "`" && !chord.Alt) || (chord.Shift && strings.Contains("3456", chord.Key)) || (chord.Alt && chord.Key == "D")) {
@@ -211,6 +211,10 @@ type Editor struct {
 	drafts                 map[string]*string
 	active                 map[string]string
 	persist                func(map[string]string) error
+	shared                 bool
+	defaults               map[string]string
+	resetDrafts            map[string]bool
+	reset                  func() error
 }
 
 func NewEditor(saved map[string]string, loadErr error, persist func(map[string]string) error) *Editor {
@@ -242,7 +246,73 @@ func (e *Editor) Active() map[string]string {
 	}
 	return out
 }
-func (e *Editor) Issues() map[string]string { return Validate(e.Values()) }
+func (e *Editor) Issues() map[string]string {
+	if !e.shared {
+		return Validate(e.Values())
+	}
+	issues := map[string]string{}
+	for id, v := range e.Values() {
+		if v != e.active[id] {
+			if _, err := Parse(v); err != nil {
+				issues[id] = err.Error()
+			}
+		}
+	}
+	return issues
+}
+
+// Shared snapshots retain dirty drafts until the caller resolves a stale save.
+func (e *Editor) Dirty() bool {
+	if len(e.resetDrafts) > 0 {
+		return true
+	}
+	for id, p := range e.drafts {
+		if *p != e.active[id] {
+			return true
+		}
+	}
+	return false
+}
+func (e *Editor) UseShared(reset func() error) {
+	e.shared = true
+	e.reset = reset
+	e.defaults = SharedDefaults()
+	e.resetDrafts = map[string]bool{}
+}
+func (e *Editor) Default(id string) string {
+	if e.shared {
+		return e.defaults[id]
+	}
+	return Defaults()[id]
+}
+func (e *Editor) ResetDraft(id string) {
+	if p := e.Draft(id); p != nil {
+		*p = e.Default(id)
+		if e.shared {
+			e.resetDrafts[id] = true
+		}
+	}
+}
+func (e *Editor) Discard() {
+	for id, p := range e.drafts {
+		*p = e.active[id]
+	}
+	clear(e.resetDrafts)
+	e.Err = ""
+	e.Recording = ""
+}
+func (e *Editor) Reconcile(values map[string]string) bool {
+	if e.Dirty() {
+		return false
+	}
+	e.active = values
+	for id, v := range values {
+		if p := e.drafts[id]; p != nil {
+			*p = v
+		}
+	}
+	return true
+}
 func (e *Editor) Search(query string) []Command {
 	query = strings.ToLower(strings.TrimSpace(query))
 	out := []Command{}
@@ -269,14 +339,27 @@ func (e *Editor) Save() bool {
 		return false
 	}
 	values := e.Values()
+	patch := map[string]string{}
 	for id, v := range values {
+		if e.shared && e.resetDrafts[id] && v == e.Default(id) {
+			patch[id] = "\x00reset"
+			continue
+		}
+		if e.shared && v == e.active[id] {
+			continue
+		}
 		chord, _ := Parse(v)
 		values[id] = chord.String()
+		patch[id] = values[id]
 	}
-	if err := e.persist(values); err != nil {
+	if !e.shared {
+		patch = values
+	}
+	if err := e.persist(patch); err != nil {
 		e.Err = "保存失败，草稿已保留 / Save failed; draft retained: " + err.Error()
 		return false
 	}
+	clear(e.resetDrafts)
 	e.active = values
 	for id, v := range values {
 		*e.drafts[id] = v
@@ -292,6 +375,18 @@ func (e *Editor) ConfirmReset() bool {
 		return false
 	}
 	e.ResetPending = false
+	if e.shared && e.reset != nil {
+		if err := e.reset(); err != nil {
+			e.Err = err.Error()
+			return false
+		}
+		for id, p := range e.drafts {
+			*p = e.active[id]
+		}
+		clear(e.resetDrafts)
+		e.Status = "已恢复默认；高级/未知条目保留 / Defaults restored; advanced and unknown entries retained"
+		return true
+	}
 	for id, v := range Defaults() {
 		*e.drafts[id] = v
 	}

@@ -58,12 +58,12 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 				if display == "" {
 					display = providerCopy("未绑定", "Unbound")
 				}
-				defaultDisplay := command.Default
+				defaultDisplay := e.Default(command.ID)
 				if defaultDisplay == "" {
 					defaultDisplay = providerCopy("未绑定", "Unbound")
 				}
 				ui.Text(c, providerCopy("已保存：", "Saved: ")+display+providerCopy("；默认：", "; default: ")+defaultDisplay).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				ui.TextInput(c, e.Draft(command.ID)).Label("shortcut-" + command.ID).FillWidth().Disabled(e.ReadError != "").Placeholder(command.Default)
+				ui.TextInput(c, e.Draft(command.ID)).Label("shortcut-" + command.ID).FillWidth().Disabled(e.ReadError != "").Placeholder(e.Default(command.ID))
 				shortcutRecorder(c, e, command.ID)
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("解绑", "Unbind")).Label("unbind-" + command.ID).Disabled(e.ReadError != "").Clicked() {
@@ -71,7 +71,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 						e.Status = ""
 					}
 					if ui.Button(c, providerCopy("使用默认值", "Use default")).Label("default-" + command.ID).Disabled(e.ReadError != "").Clicked() {
-						*e.Draft(command.ID) = command.Default
+						e.ResetDraft(command.ID)
 						e.Status = ""
 					}
 				})
@@ -81,6 +81,9 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 			})
 		}
 		ui.Row(c).Gap(8).Children(func() {
+			if ui.Button(c, providerCopy("放弃草稿并刷新", "Discard drafts and reload")).Label("reload-shortcuts").Clicked() {
+				e.Discard()
+			}
 			if ui.Button(c, providerCopy("保存快捷键", "Save shortcuts")).Label("save-shortcuts").Disabled(e.ReadError != "" || len(issues) > 0 || e.ResetPending || e.Recording != "").Clicked() {
 				e.Save()
 			}

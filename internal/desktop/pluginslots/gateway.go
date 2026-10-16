@@ -14,12 +14,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/shortcutprefs"
 )
 
 // Gateway owns one loopback listener and one already-authorized Host session.
 // Neither the Host credential nor the browser capability is persisted.
 type Gateway struct {
-	keyboard productKeyboardBridge
+	preferencesMu                                    sync.Mutex
+	preferences                                      *shortcutprefs.Store
+	keyboard                                         productKeyboardBridge
 	modules                                          clientModulesBridge
 	connectionsMu                                    sync.Mutex
 	connections                                      map[net.Conn]bool
@@ -116,6 +119,10 @@ func NewGateway(origin, cookie string) (*Gateway, error) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
+		if r.URL.Path == shortcutPreferencesPath {
+			g.serveShortcutPreferences(w, r)
+			return
+		}
 		if r.URL.Path == keyboardPath {
 			g.serveProductKeyboard(w, r)
 			return
@@ -175,6 +182,9 @@ func (g *Gateway) Matches(origin, cookie string) bool {
 func (g *Gateway) Close() {
 	if g != nil {
 		g.once.Do(func() {
+			if prefs := g.shortcutPreferences(); prefs != nil {
+				prefs.SetDefinitions("product:"+g.browserOrigin, nil)
+			}
 			g.DisconnectProductKeyboard()
 			g.disconnectClientModules(nil, true)
 			_ = g.server.Close()
