@@ -6550,7 +6550,7 @@ func mainView(c *ui.Context) {
 							return state.openDocumentViewer(fileClient, snap.SelectedID, path)
 						},
 						OnReadWorkspaceTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
-							return workspacefs.ReadRemoteTextPage(ctx, fileClient, rel, offset)
+							return workspacefs.ReadRemoteTextPage(ctx, fileClient, fileSessionID, rel, offset)
 						},
 						OnReadWorkspaceFileContext: func(ctx context.Context, rel string) (string, error) {
 							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)

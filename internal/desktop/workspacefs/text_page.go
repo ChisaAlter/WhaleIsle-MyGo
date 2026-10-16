@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -45,16 +46,19 @@ func ReadFileTextPage(path string, offset int64) (TextPage, error) {
 	return TextPage{Text: r.Text, Next: offset + int64(len(r.Text)), EOF: !r.Truncated, Version: fmt.Sprintf("%d:%d", st.Size(), st.ModTime().UnixNano())}, nil
 }
 
-func ReadRemoteTextPage(ctx context.Context, client *dsh.Client, path string, offset int64) (TextPage, error) {
+func ReadRemoteTextPage(ctx context.Context, client *dsh.Client, sessionID, path string, offset int64) (TextPage, error) {
 	if client == nil {
 		return TextPage{}, ErrNotFile
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		return TextPage{}, errors.New("Host text paging requires a session scope")
 	}
 	if offset == 0 {
 		offset = 1
 	}
 	start, limit := float64(offset), float64(2000)
 	var out api.WorkspaceFileText
-	if err := client.Call(ctx, "workspaceFiles/read", map[string]any{"path": path, "range": api.WorkspaceFileRange{Offset: &start, Limit: &limit}}, &out); err != nil {
+	if err := client.Call(ctx, "workspaceFiles/read", map[string]any{"workspaceFileScopeId": sessionID, "path": path, "range": api.WorkspaceFileRange{Offset: &start, Limit: &limit}}, &out); err != nil {
 		return TextPage{}, err
 	}
 	if out.Offset != start || (!out.Eof && out.Lines <= 0) {
