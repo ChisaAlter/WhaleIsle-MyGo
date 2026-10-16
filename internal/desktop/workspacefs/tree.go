@@ -18,6 +18,7 @@ type directoryResult struct {
 	problem, watchProblem       string
 	ctx                         context.Context
 	cancel                      context.CancelFunc
+	watchCancel                 context.CancelFunc
 	remote                      RemoteDirectoryLister
 	notify                      func()
 }
@@ -59,14 +60,26 @@ func (t *DirectoryTree) resetLocked() {
 }
 func (t *DirectoryTree) Cancel() { t.mu.Lock(); defer t.mu.Unlock(); t.resetLocked() }
 
-// Observe keeps subscriptions alive while automatic rereads are disabled. Dirty
-// directories catch up immediately when the user enables automatic refresh.
+// Observe stops subscriptions while automatic refresh is disabled. Enabling
+// refresh restarts cached directory watches and catches up changes missed while off.
 func (t *DirectoryTree) Observe(watch RemoteDirectoryWatcher, automatic bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	wasAutomatic := t.automatic
 	t.watch, t.automatic = watch, automatic
-	if automatic {
-		for rel, result := range t.directories {
+	for rel, result := range t.directories {
+		if !automatic || watch == nil {
+			if result.watchCancel != nil {
+				result.watchCancel()
+				result.watchCancel = nil
+			}
+			result.watchProblem = ""
+		}
+		if automatic {
+			t.watchLocked(rel, result)
+			if !wasAutomatic {
+				result.dirty = true
+			}
 			if result.dirty {
 				t.readLocked(rel, result)
 			}
@@ -117,17 +130,25 @@ func (t *DirectoryTree) Get(rel string, remote RemoteDirectoryLister, notify fun
 		result = &directoryResult{ctx: ctx, cancel: cancel, remote: remote, notify: notify}
 		t.directories[rel] = result
 		t.readLocked(rel, result)
-		if watch := t.watch; watch != nil {
-			go t.follow(rel, result, watch)
-		}
+		t.watchLocked(rel, result)
 	}
 	return DirectorySnapshot{Entries: append([]Entry(nil), result.entries...), Busy: result.busy && !result.loaded, Error: result.problem, WatchError: result.watchProblem}
 }
 
-func (t *DirectoryTree) follow(rel string, result *directoryResult, watch RemoteDirectoryWatcher) {
-	err := watch(result.ctx, rel, func() {
+func (t *DirectoryTree) watchLocked(rel string, result *directoryResult) {
+	if !t.automatic || t.watch == nil || result.watchCancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(result.ctx)
+	result.watchCancel = cancel
+	result.watchProblem = ""
+	go t.follow(ctx, rel, result, t.watch)
+}
+
+func (t *DirectoryTree) follow(ctx context.Context, rel string, result *directoryResult, watch RemoteDirectoryWatcher) {
+	err := watch(ctx, rel, func() {
 		t.mu.Lock()
-		if result.ctx.Err() != nil || t.directories[rel] != result {
+		if ctx.Err() != nil || t.directories[rel] != result {
 			t.mu.Unlock()
 			return
 		}
@@ -141,7 +162,7 @@ func (t *DirectoryTree) follow(rel string, result *directoryResult, watch Remote
 		t.mu.Unlock()
 	})
 	t.mu.Lock()
-	if result.ctx.Err() != nil || t.directories[rel] != result {
+	if ctx.Err() != nil || t.directories[rel] != result {
 		t.mu.Unlock()
 		return
 	}

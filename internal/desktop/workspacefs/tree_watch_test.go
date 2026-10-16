@@ -66,19 +66,30 @@ func TestDirectoryTreeWatchRefreshToggleAndCancel(t *testing.T) {
 	if !unchanged {
 		t.Fatal("disabled auto refresh performed a read")
 	}
-	if subscription.ctx.Err() != nil {
-		t.Fatal("switch disabled subscription instead of rereads")
+	if subscription.ctx.Err() == nil {
+		t.Fatal("disabled auto refresh retained subscription")
 	}
 	if got := tree.Get("", remote, notify); got.Entries[0].Name != "before.txt" {
 		t.Fatalf("disabled snapshot: %+v", got)
 	}
 	tree.Observe(watch, true)
+	restarted := awaitTreeWatch(t, opened)
 	awaitTreeWatch(t, updated)
+	subscription.changed()
+	tree.mu.Lock()
+	staleRead := tree.directories[""].busy || tree.directories[""].dirty
+	tree.mu.Unlock()
+	if staleRead {
+		t.Fatal("retired subscription triggered a read after restart")
+	}
 	if got := tree.Get("", remote, notify); got.Entries[0].Name != "after.txt" {
 		t.Fatalf("enable did not catch up: %+v", got)
 	}
 
 	tree.Observe(watch, false)
+	if restarted.ctx.Err() == nil {
+		t.Fatal("second disable retained restarted subscription")
+	}
 	mu.Lock()
 	name = "manual.txt"
 	mu.Unlock()
