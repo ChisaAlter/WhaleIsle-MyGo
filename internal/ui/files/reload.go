@@ -4,6 +4,10 @@ package files
 // reread clean tabs while preserving both the draft and its original save base
 // when an unsaved tab encounters new, missing, binary or truncated disk bytes.
 func reloadSelectedFile(m Model) {
+	if tab := selectedTab(m); tab != nil && tab.document.enabled && tab.document.surface != nil {
+		tab.document.surface.Reload()
+		return
+	}
 	if m.SelectedFile == nil || *m.SelectedFile == "" {
 		return
 	}

@@ -99,6 +99,8 @@ func PublishedVisualReply(raw json.RawMessage) (VisualReplyPublication, bool) {
 }
 
 type VisualReplyState struct {
+	Surface                                                   VisualReplySurface
+	InteractiveExpanded                                       bool
 	InteractiveLoading                                        bool
 	InteractiveActive                                         bool
 	InteractiveError                                          string

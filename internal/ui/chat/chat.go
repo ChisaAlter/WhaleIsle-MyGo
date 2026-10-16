@@ -72,6 +72,7 @@ type Model struct {
 	VisualReplyBitmap            *ui.Bitmap
 	OnPreviewVisualReply         func(attachmentID string)
 	OnInteractVisualReply        func(attachmentID string)
+	OnInlineVisualReply          func(attachmentID string) session.InlineVisualReply
 	OnStopInteractiveVisualReply func()
 	OnReadVisualReply            func(attachmentID string)
 	OnSaveVisualReply            func(attachmentID string)

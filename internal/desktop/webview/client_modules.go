@@ -34,3 +34,10 @@ func (h *Host) disconnectClientModulesForNavigation(raw string) {
 	}
 	h.gateway.DisconnectClientModules()
 }
+
+// DocumentViewerRecommended is true only while this exact live page reports a
+// matching external renderer from its original document registry.
+func (h *Host) DocumentViewerRecommended() bool {
+	state := h.ClientModules()
+	return state.Document != nil && state.Document.Extension
+}

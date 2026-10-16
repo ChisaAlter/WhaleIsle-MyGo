@@ -9,6 +9,8 @@ import (
 	"whaleisle/internal/paths"
 )
 
+var helperHTMLPreview = htmlpreview.NewRendererService(captureHTMLInHelper)
+
 // Called only from a user-initiated visual-replies.enabled=true write. The
 // settings store owns the background goroutine, disables Save while checking,
 // and shows the exact failure without sending the enabling RPC.
@@ -27,7 +29,7 @@ func (s *mainState) verifyVisualReplyEnable(ctx context.Context, origin string) 
 	if !caps.ArtifactsReady {
 		return errors.New(caps.Reason)
 	}
-	status := htmlpreview.Probe(ctx)
+	status := helperHTMLPreview.Probe(ctx)
 	if !status.Available {
 		return errors.New(status.Reason)
 	}

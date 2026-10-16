@@ -149,6 +149,7 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	OnOpenDocumentViewer    func(string) (files.DocumentSurface, error)
 	GroupRoom               bool
 	GroupMembers            []session.GroupMember
 	OnReplyGroupThread      func(string)
@@ -264,10 +265,11 @@ type Model struct {
 	OnListWorkspaceFilesContext      workspacefs.RemoteDirectoryLister
 	OnWatchWorkspaceDirectoryContext workspacefs.RemoteDirectoryWatcher
 	// OnReadWorkspaceFile is optional workspaceFiles/read fallback for preview.
-	OnReadWorkspaceFile         func(rel string) (string, error)
-	OnReadWorkspaceFileContext  func(context.Context, string) (string, error)
-	OnReadWorkspaceTableContext func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
-	OnStatWorkspaceFileContext  func(context.Context, string) string
+	OnReadWorkspaceFile            func(rel string) (string, error)
+	OnReadWorkspaceTextPageContext func(context.Context, string, int64) (workspacefs.TextPage, error)
+	OnReadWorkspaceFileContext     func(context.Context, string) (string, error)
+	OnReadWorkspaceTableContext    func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
+	OnStatWorkspaceFileContext     func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
 	OnStatWorkspaceFile  func(rel string) string
 	FileStatNote         *string
@@ -332,6 +334,7 @@ type Model struct {
 	VisualReplyBitmap            *ui.Bitmap
 	OnPreviewVisualReply         func(attachmentID string)
 	OnInteractVisualReply        func(attachmentID string)
+	OnInlineVisualReply          func(attachmentID string) session.InlineVisualReply
 	OnStopInteractiveVisualReply func()
 	OnReadVisualReply            func(attachmentID string)
 	OnSaveVisualReply            func(attachmentID string)
@@ -897,7 +900,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 						paneTab = strings.TrimSpace(*m.ChatPaneTab)
 					}
-					ui.Box(c).Grow(1).MinHeight(0).Clip().Children(func() {
+					transcript := ui.Box(c).Grow(1).MinHeight(0).Clip()
+					m.Sizes.Workspace.setConversationBounds(transcript.Bounds())
+					transcript.Children(func() {
 						ui.Row(c).Fill().Children(func() {
 							ui.Box(c).Grow(1).MinWidth(0)
 							ui.Column(c).Width(chatContentW).FillHeight().MinWidth(0).Children(func() {
@@ -1002,6 +1007,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										VisualReplyBitmap:            m.VisualReplyBitmap,
 										OnPreviewVisualReply:         m.OnPreviewVisualReply,
 										OnInteractVisualReply:        m.OnInteractVisualReply,
+										OnInlineVisualReply:          m.OnInlineVisualReply,
 										OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
 										OnReadVisualReply:            m.OnReadVisualReply,
 										OnSaveVisualReply:            m.OnSaveVisualReply,
@@ -1290,22 +1296,24 @@ func rightPane(c *ui.Context, m Model) {
 			diffsurface.View(c, diffsurface.Model{
 				OnOpenFile: func(path string) error {
 					handled, err := files.OpenPresentedPath(files.Model{
-						Tabs:              m.FileTabs,
-						BindingID:         m.FileBindingID,
-						SessionID:         m.Store.Snapshot().SelectedID,
-						WorkspaceRoot:     m.WorkspaceRoot,
-						SelectedFile:      m.SelectedFile,
-						Preview:           m.FilePreview,
-						PreviewErr:        m.FilePreviewErr,
-						Editing:           m.FileEditing,
-						EditDraft:         m.FileEditDraft,
-						EditStatus:        m.FileEditStatus,
-						StatNote:          m.FileStatNote,
-						ReadRemote:        m.OnReadWorkspaceFile,
-						ReadRemoteContext: m.OnReadWorkspaceFileContext,
-						ReadTableContext:  m.OnReadWorkspaceTableContext,
-						StatRemoteContext: m.OnStatWorkspaceFileContext,
-						StatRemote:        m.OnStatWorkspaceFile,
+						Tabs:                m.FileTabs,
+						BindingID:           m.FileBindingID,
+						SessionID:           m.Store.Snapshot().SelectedID,
+						WorkspaceRoot:       m.WorkspaceRoot,
+						SelectedFile:        m.SelectedFile,
+						Preview:             m.FilePreview,
+						PreviewErr:          m.FilePreviewErr,
+						Editing:             m.FileEditing,
+						EditDraft:           m.FileEditDraft,
+						EditStatus:          m.FileEditStatus,
+						StatNote:            m.FileStatNote,
+						ReadRemote:          m.OnReadWorkspaceFile,
+						ReadRemoteContext:   m.OnReadWorkspaceFileContext,
+						ReadTextPageContext: m.OnReadWorkspaceTextPageContext,
+						OpenDocumentViewer:  m.OnOpenDocumentViewer,
+						ReadTableContext:    m.OnReadWorkspaceTableContext,
+						StatRemoteContext:   m.OnStatWorkspaceFileContext,
+						StatRemote:          m.OnStatWorkspaceFile,
 					}, path)
 					if err != nil {
 						return err
@@ -1336,40 +1344,42 @@ func rightPane(c *ui.Context, m Model) {
 			treeSplit = &m.Sizes.RightTree
 		}
 		files.View(c, files.Model{
-			PlanOnly:           tab == "plan",
-			AllowPageShortcuts: m.FileShortcuts,
-			PlanSnapshot:       m.Store.Snapshot(),
-			OnLoadPlanHistory:  func() { m.Store.LoadEarlierHistory(context.Background()) },
-			ReadSubagentPlan:   m.Store.ReadSubagentPlan,
-			Tabs:               m.FileTabs,
-			BindingID:          m.FileBindingID,
-			SessionID:          m.Store.Snapshot().SelectedID,
-			OnReferenceFile:    func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
-			WorkspaceRoot:      m.WorkspaceRoot,
-			ThemeID:            m.ThemeID,
-			SystemDark:         m.SystemDark,
-			Expanded:           m.FileExpanded,
-			SelectedFile:       m.SelectedFile,
-			Filter:             m.FileFilter,
-			Preview:            m.FilePreview,
-			PreviewErr:         m.FilePreviewErr,
-			PreviewList:        m.FilePreviewList,
-			PreviewSplit:       treeSplit,
-			Editing:            m.FileEditing,
-			EditDraft:          m.FileEditDraft,
-			EditStatus:         m.FileEditStatus,
-			EditViewMode:       m.FileEditViewMode,
-			EditSplit:          m.FileEditSplit,
-			PaneWidth:          m.FilePaneWidth,
-			ListRemote:         m.OnListWorkspaceFiles,
-			ListRemoteContext:  m.OnListWorkspaceFilesContext,
-			WatchRemoteContext: m.OnWatchWorkspaceDirectoryContext,
-			ReadRemote:         m.OnReadWorkspaceFile,
-			ReadRemoteContext:  m.OnReadWorkspaceFileContext,
-			ReadTableContext:   m.OnReadWorkspaceTableContext,
-			StatRemoteContext:  m.OnStatWorkspaceFileContext,
-			StatRemote:         m.OnStatWorkspaceFile,
-			StatNote:           m.FileStatNote,
+			PlanOnly:            tab == "plan",
+			AllowPageShortcuts:  m.FileShortcuts,
+			PlanSnapshot:        m.Store.Snapshot(),
+			OnLoadPlanHistory:   func() { m.Store.LoadEarlierHistory(context.Background()) },
+			ReadSubagentPlan:    m.Store.ReadSubagentPlan,
+			Tabs:                m.FileTabs,
+			BindingID:           m.FileBindingID,
+			SessionID:           m.Store.Snapshot().SelectedID,
+			OnReferenceFile:     func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
+			WorkspaceRoot:       m.WorkspaceRoot,
+			ThemeID:             m.ThemeID,
+			SystemDark:          m.SystemDark,
+			Expanded:            m.FileExpanded,
+			SelectedFile:        m.SelectedFile,
+			Filter:              m.FileFilter,
+			Preview:             m.FilePreview,
+			PreviewErr:          m.FilePreviewErr,
+			PreviewList:         m.FilePreviewList,
+			PreviewSplit:        treeSplit,
+			Editing:             m.FileEditing,
+			EditDraft:           m.FileEditDraft,
+			EditStatus:          m.FileEditStatus,
+			EditViewMode:        m.FileEditViewMode,
+			EditSplit:           m.FileEditSplit,
+			PaneWidth:           m.FilePaneWidth,
+			ListRemote:          m.OnListWorkspaceFiles,
+			ListRemoteContext:   m.OnListWorkspaceFilesContext,
+			WatchRemoteContext:  m.OnWatchWorkspaceDirectoryContext,
+			ReadRemote:          m.OnReadWorkspaceFile,
+			ReadRemoteContext:   m.OnReadWorkspaceFileContext,
+			ReadTextPageContext: m.OnReadWorkspaceTextPageContext,
+			OpenDocumentViewer:  m.OnOpenDocumentViewer,
+			ReadTableContext:    m.OnReadWorkspaceTableContext,
+			StatRemoteContext:   m.OnStatWorkspaceFileContext,
+			StatRemote:          m.OnStatWorkspaceFile,
+			StatNote:            m.FileStatNote,
 			OnShowDiff: func(rel string) {
 				if m.GitWorkbench != nil {
 					m.GitWorkbench.CancelComparison()

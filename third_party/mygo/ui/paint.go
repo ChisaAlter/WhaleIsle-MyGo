@@ -13,11 +13,12 @@ import (
 // Painter draws an element's own content in Element.Draw and DrawOver
 // callbacks, in DIPs relative to the window.
 type Painter struct {
-	rt      *engine
-	s       *scene.Scene
-	scale   float32
-	opacity float32
-	clip    Rect
+	rt             *engine
+	s              *scene.Scene
+	scale          float32
+	opacity        float32
+	clip           Rect
+	surfaceBlocked bool
 	// opaque tells that the glyphs painted now land on an opaque
 	// background, which subpixel glyphs need: the root's, covering the
 	// window, or that of an element around them, as a pane beside a
@@ -220,7 +221,10 @@ func (p *Painter) element(e *node) {
 		p.border(e, box)
 	}
 	if own && e.paintAfterFn != nil {
+		savedSurfaceBlocked := p.surfaceBlocked
+		p.surfaceBlocked = p.rt.modal != 0 && e.st.scope != p.rt.modal
 		e.paintAfterFn(p, box)
+		p.surfaceBlocked = savedSurfaceBlocked
 	}
 	if e.flags&flagDebug != 0 && (e.parent == nil || e.parent.flags&flagDebug == 0) {
 		p.debug(e)
@@ -910,4 +914,16 @@ func (p *Painter) Clip(r Rect, radius float32, fn func()) {
 	fn()
 	p.popClip()
 	p.clip = saved
+}
+
+// ClipBounds is the current paint clip in window DIPs. Native child surfaces
+// use it to obey the same scroll/ancestor clipping as the painted element.
+func (p *Painter) ClipBounds() Rect { return p.clip }
+
+// NativeSurfaceClip also hides native child surfaces outside the active modal.
+func (p *Painter) NativeSurfaceClip() Rect {
+	if p.surfaceBlocked {
+		return Rect{}
+	}
+	return p.clip
 }

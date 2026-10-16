@@ -119,8 +119,8 @@ func publishedHTMLBitmap(page session.VisualReplyState) *ui.Bitmap {
 }
 
 // This callback is offered only on the platform with the existing AppContainer
-// helper. No preference, transcript replay or paint automatically starts it.
-func interactivePublishedHTMLHandler(s *session.Store, sessionID string, dark bool) func(string) {
+// helper. An explicit gesture mounts its child surface in the selected card.
+func interactivePublishedHTMLHandler(win *mygo.Window, s *session.Store, sessionID string, dark bool) func(string) {
 	if runtime.GOOS != "windows" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
 		return nil
 	}
@@ -154,11 +154,11 @@ func interactivePublishedHTMLHandler(s *session.Store, sessionID string, dark bo
 				// images were embedded by the original publication. Never resolve
 				// workspace/file/remote references or pass Host credentials here.
 				handle, err := previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helper},
-					previewprocess.Document{HTML: html, Width: 900, Appearance: appearance})
+					previewprocess.Document{HTML: html, Width: 900, Appearance: appearance, Inline: true})
 				if err != nil {
 					return nil, err
 				}
-				return handle, nil
+				return newPublishedHTMLSurface(handle, win), nil
 			})
 		}()
 	}

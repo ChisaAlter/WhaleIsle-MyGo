@@ -60,6 +60,8 @@ type Model struct {
 	StartupRepairBusy           bool
 	OnRefreshStartupDiagnostics func()
 	OnRepairStartupSuspects     func()
+	OnSetStartupPluginEnabled   func(string, bool)
+	OnRemoveStartupPlugin       func(string)
 	ThemeID                     string
 	SystemDark                  bool
 	Version                     string

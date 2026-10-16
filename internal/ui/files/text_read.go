@@ -34,7 +34,7 @@ func (t *Tabs) stopTextRead(resume, closeQueue bool) {
 	}
 	if t.readTab != nil {
 		t.readTab.readLoading = false
-		t.readTab.readResume = resume
+		t.readTab.readResume = resume && !t.readTab.textPaged
 		t.readTab = nil
 	}
 	if t.textReader != nil {
@@ -82,6 +82,7 @@ func beginTextRead(m Model) {
 		restore(m, tab)
 	}
 	remote, stat := m.ReadRemoteContext, m.StatRemoteContext
+	remotePage := m.ReadTextPageContext
 	remoteTable := m.ReadTableContext
 	// Capture immutable values and context-capable, frame-bound Host readers.
 	// Legacy callbacks may resolve a different Host at invocation time and must
@@ -107,14 +108,17 @@ func beginTextRead(m Model) {
 					out.text = out.table.Text
 				}
 			} else {
-				var local workspacefs.ReadTextResult
-				local, err = workspacefs.ReadFileTextPreview(full)
-				out.text, out.truncated = local.Text, local.Truncated
+				var page workspacefs.TextPage
+				page, err = workspacefs.ReadFileTextPage(full, 0)
+				out.text, out.truncated, out.page = page.Text, !page.EOF, &page
 			}
 		}
 		out.err = err
-		if out.err != nil && remote != nil && ctx.Err() == nil && !isTablePreviewPath(path) {
-			if body, remoteErr := remote(ctx, path); remoteErr == nil {
+		if out.err != nil && (remote != nil || remotePage != nil) && ctx.Err() == nil && !isTablePreviewPath(path) {
+			if remotePage != nil {
+				page, pageErr := remotePage(ctx, path, 0)
+				out.text, out.err, out.remote, out.truncated, out.page = page.Text, pageErr, true, !page.EOF, &page
+			} else if body, remoteErr := remote(ctx, path); remoteErr == nil {
 				out.text, out.err, out.remote, out.truncated = body, nil, true, false
 			}
 		}
@@ -168,11 +172,19 @@ func applyTextRead(m Model, result textReadResult) {
 			problem = i18n.T(i18n.KeyFilesBinary)
 		}
 	}
+	if result.appendPage {
+		applyNextTextPage(m, tab, result)
+		return
+	}
 	dirty := tab.Dirty()
 	next := reconcileTextRead(textReadState{preview: tab.Preview, draft: tab.Draft, truncated: tab.Truncated, remote: tab.Remote}, result)
 	tab.Preview, tab.Draft = next.preview, next.draft
 	tab.Truncated, tab.Remote, tab.readBlocked = next.truncated, next.remote, next.blocked
 	tab.readFullPath = result.fullPath
+	if result.err == nil && !dirty && result.page != nil {
+		tab.textPage = *result.page
+		tab.textPaged = !result.page.EOF
+	}
 	if isTablePreviewPath(tab.Path) && result.err == nil {
 		tab.tablePage = result.table
 		if result.table != nil {

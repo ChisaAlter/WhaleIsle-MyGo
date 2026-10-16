@@ -34,7 +34,26 @@ func OpenRemote(ctx context.Context, reader mediapreview.Caller, sid, path strin
 		active: map[string]bool{},
 		report: ResourceReport{Bytes: len(data)},
 	}
-	return openBytes(path, data, valid, g)
+	d, err := openBytes(path, data, valid, g)
+	if err != nil {
+		return nil, err
+	}
+	// Retain the original source and scoped Host reader, not the short-lived
+	// initial read context. Each gesture gets its own cancellation context.
+	d.source = string(data)
+	d.remoteInteractive = func(ctx context.Context) (string, ResourceReport, error) {
+		current := func() bool { return ctx.Err() == nil && d.Valid() }
+		graph := &resourceGraph{valid: current, files: map[string]resourceFile{}, active: map[string]bool{}, report: ResourceReport{Bytes: len(data)}}
+		graph.remoteRead = func(asset string, limit int) ([]byte, error) {
+			return mediapreview.ReadSnapshot(ctx, reader, sid, asset, limit, current)
+		}
+		prepared, report, err := prepareResourceGraph(graph, strings.ReplaceAll(path, `\`, "/"), string(data), current, true)
+		if err == nil && !current() {
+			err = errors.New("HTML session changed while preparing scripts")
+		}
+		return prepared, report, err
+	}
+	return d, nil
 }
 
 // OpenBytes serves bytes without a file reader. The browser receives neither

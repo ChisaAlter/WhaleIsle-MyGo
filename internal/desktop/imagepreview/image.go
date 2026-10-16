@@ -51,7 +51,5 @@ func Build(path string, data []byte) (string, error) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(data)
 	name := html.EscapeString(filepath.Base(path))
-	return `<style>html,body{margin:0;width:100%;height:100%;background:#202124;color:#ddd;font:13px sans-serif}body{display:flex;flex-direction:column}p{padding:8px 12px;margin:0;flex:none}main{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;overflow:hidden}img{display:block;max-width:100%;max-height:100%;object-fit:contain}</style><p>` +
-		name + ` · 隔离图片快照 / Isolated image snapshot. AVIF support depends on the installed WebView runtime; a broken image means that codec was not decoded.</p><main><img alt="Image codec unavailable in this WebView runtime" referrerpolicy="no-referrer" src="data:` +
-		mime + `;base64,` + encoded + `"></main>`, nil
+	return imageViewer(name, "data:"+mime+";base64,"+encoded), nil
 }

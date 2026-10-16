@@ -8,23 +8,37 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/importer"
-	"whaleisle/internal/dsh/api"
+	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/launcher"
 )
 
+func offlinePluginProfile(cfg *config.Store) startuprec.OfflinePlugins {
+	p := startuprec.OfflinePlugins{ProfileDir: paths.WebProfileDir()}
+	if cfg != nil {
+		p.LoadDisabled = func() []string { return cfg.Get().DisabledPlugins }
+		p.SaveDisabled = func(names []string) error { return cfg.Update(func(c *config.Config) { c.DisabledPlugins = names }) }
+		p.Uninstall = func(name string) error {
+			result := desktopmarket.RemovePluginContext(context.Background(), name, desktopmarket.InstallOptions{NodeBin: cfg.Get().NodeBin, DshHome: paths.DshHome()})
+			if !result.OK {
+				return errors.New(result.Error)
+			}
+			return nil
+		}
+	}
+	return p
+}
+
 func (s *mainState) startupDiagnostics() (startuprec.Diagnostics, bool) {
-	s.dshMu.Lock()
 	s.mu.Lock()
 	store, cfg, sup, st := s.startupRecovery.store, s.cfgStore, s.sup, s.bootStatus
-	market, client, busy := s.market, s.dshClient, s.marketInstallBusy || s.launcherImportBusy || s.taskRestartPending || s.quitting
+	busy := s.marketInstallBusy || s.launcherImportBusy || s.taskRestartPending || s.launcherStartBusy || s.quitting
 	s.mu.Unlock()
-	s.dshMu.Unlock()
 	var logs []string
 	reason := ""
 	if st.State == harness.Failed && sup != nil {
@@ -41,43 +55,13 @@ func (s *mainState) startupDiagnostics() (startuprec.Diagnostics, bool) {
 		logs = last.LogTail
 		reason = last.Error
 	}
-	var inventory []startuprec.Plugin
-	ready := false
-	var runtimeToken uint64
-	hostGeneration := 0
+	inventory, err := offlinePluginProfile(cfg).Inventory()
+	report := startuprec.Diagnose(logs, reason, inventory, cfg != nil && err == nil)
+	generation := 0
 	if sup != nil {
-		hostGeneration = sup.Status().Generation
+		generation = sup.Status().Generation
 	}
-	if market != nil {
-		runtimeToken = market.RuntimeToken()
-		snap := market.Snapshot()
-		ready = client != nil && snap.ClientReady && !snap.Loading && snap.Err == "" && sup != nil && sup.Status().State == harness.Ready && sup.Status().Generation == st.Generation
-		for _, row := range snap.Rows {
-			on := row.Enabled != nil && *row.Enabled
-			restriction := row.ReadOnlyReason
-			if restriction == "" && !row.IdentityKnown {
-				restriction = resumeText("尚未确认插件身份", "Plugin identity is unconfirmed")
-			}
-			inventory = append(inventory, startuprec.Plugin{Name: row.Label, Enabled: on, Mutable: row.CanToggle(), Restriction: startuprec.RedactLine(restriction)})
-		}
-	}
-	// Evidence equality is not runtime ownership. Bind every UI receipt to the
-	// exact supervised Host, authenticated client and market attachment epoch.
-	// Recheck after collecting evidence so a replacement mid-snapshot is inert.
-	s.dshMu.Lock()
-	s.mu.Lock()
-	same := s.sup == sup && s.dshClient == client && s.market == market && s.bootStatus.Generation == st.Generation
-	if market != nil {
-		same = same && market.RuntimeToken() == runtimeToken
-	}
-	if sup != nil {
-		actual := sup.Status()
-		same = same && actual.Generation == hostGeneration && actual.State == harness.Ready
-	}
-	s.mu.Unlock()
-	s.dshMu.Unlock()
-	report := startuprec.Diagnose(logs, reason, inventory, ready && same)
-	identity := fmt.Sprintf("%p\x00%d\x00%p\x00%p\x00%d\x00%s", sup, hostGeneration, client, market, runtimeToken, report.Receipt)
+	identity := fmt.Sprintf("%p\x00%d\x00%s", sup, generation, report.Receipt)
 	sum := sha256.Sum256([]byte(identity))
 	report.Receipt = hex.EncodeToString(sum[:])
 	return report, busy
@@ -87,18 +71,14 @@ func (s *mainState) withStartupDiagnostics(m launcher.Model) launcher.Model {
 	report, busy := s.startupDiagnostics()
 	m.StartupDiagnostics = report
 	m.StartupRepairBusy = busy
-	m.OnRefreshStartupDiagnostics = func() {
-		s.mu.Lock()
-		store := s.market
-		s.mu.Unlock()
-		if store != nil {
-			store.Refresh(context.Background())
-		}
+	m.OnRefreshStartupDiagnostics = func() { s.startupRepairNote("") }
+	m.OnRepairStartupSuspects = func() { s.repairStartupSuspects(report.Receipt, slices.Clone(report.RepairNames)) }
+	m.OnSetStartupPluginEnabled = func(name string, enabled bool) {
+		s.changeStartupPlugins(report.Receipt, []string{name}, enabled, false, false)
 	}
-	m.OnRepairStartupSuspects = func() { s.repairStartupSuspects(report.Receipt, append([]string(nil), report.RepairNames...)) }
+	m.OnRemoveStartupPlugin = func(name string) { s.changeStartupPlugins(report.Receipt, []string{name}, false, true, false) }
 	return m
 }
-
 func (s *mainState) startupRepairNote(message string) {
 	s.mu.Lock()
 	s.launcherNote = message
@@ -108,105 +88,118 @@ func (s *mainState) startupRepairNote(message string) {
 		win.Update(func() {})
 	}
 }
-
-// This is the real pluginManager bundle controller used by Settings, operating
-// only on freshly verified suspects and inside the existing Host task gate.
-// With no healthy controller/inventory it reports a blocker; it does not guess
-// at profile files, invent a local disable API or reinstall unrelated plugins.
 func (s *mainState) repairStartupSuspects(receipt string, names []string) {
+	s.changeStartupPlugins(receipt, names, false, false, true)
+}
+
+// Use the existing shared import/market admission flags and Host task gate.
+// Offline repair owns the same slot, including the profile write and restart.
+func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled, remove, retry bool) {
 	report, busy := s.startupDiagnostics()
-	if busy || !report.CanRepair || report.Receipt != receipt || !slices.Equal(names, report.RepairNames) {
+	if busy || !report.InventoryReady || report.Receipt != receipt || (retry && (!report.CanRepair || !slices.Equal(names, report.RepairNames))) {
 		s.startupRepairNote(resumeText("诊断或插件库存已变化，请刷新后重试。", "Diagnostics or plugin inventory changed; refresh and retry."))
 		return
 	}
-	op, _ := s.beginMarketAttempt("", nil, false)
-	if op == nil {
+	if err := importer.CheckImportReady(paths.DshHome()); err != nil {
+		s.startupRepairNote(startuprec.RedactLine(err.Error()))
 		return
 	}
-	op.method = "pluginManager/setBundleEnabled"
 	s.mu.Lock()
-	sup, win, cfg := s.sup, s.win, s.cfgStore
-	s.mu.Unlock()
-	if sup == nil || cfg == nil || op.store == nil {
-		s.finishMarket(op, marketResult{message: resumeText("恢复模式 Host 的插件控制器尚未就绪。", "The recovery-mode Host plugin controller is not ready.")}, false)
-		s.releaseMarket(op)
+	if s.marketWorker != nil || s.marketInstallBusy || s.launcherImportBusy || s.taskRestartPending || s.launcherStartBusy || s.quitting {
+		s.mu.Unlock()
 		return
 	}
+	sup, win, cfg := s.sup, s.win, s.cfgStore
+	if cfg == nil || (retry && sup == nil) {
+		s.mu.Unlock()
+		s.startupRepairNote("Startup configuration is unavailable.")
+		return
+	}
+	s.marketInstallBusy = true
+	s.taskRestartPending = true
+	s.mu.Unlock()
 	go func() {
-		defer s.releaseMarket(op)
+		defer func() {
+			s.mu.Lock()
+			s.marketInstallBusy = false
+			s.taskRestartPending = false
+			s.mu.Unlock()
+			if win != nil {
+				win.Update(func() {})
+			}
+		}()
 		var applied []string
-		var repairErr error
-		protected := s.withTaskProtection(win, sup, "restart", func() error {
-			// Bound mutations after task confirmation, not the user's reading time.
-			ctx, cancel := context.WithTimeout(op.ctx, 30*time.Second)
-			defer cancel()
+		var actionErr error
+		did := s.withTaskProtection(win, sup, "restart", func() error {
 			current, _ := s.startupDiagnostics()
-			if current.Receipt != receipt || !current.CanRepair || !slices.Equal(names, current.RepairNames) {
-				return errors.New("suspects changed; refresh diagnostics")
+			if current.Receipt != receipt || (retry && (!current.CanRepair || !slices.Equal(names, current.RepairNames))) {
+				return errors.New("suspects or plugin inventory changed; refresh diagnostics")
 			}
-			check := func() error {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
+			if err := importer.CheckImportReady(paths.DshHome()); err != nil {
+				return err
+			}
+			s.mu.Lock()
+			valid := s.sup == sup && !s.launcherImportBusy && !s.quitting
+			s.mu.Unlock()
+			if !valid {
+				return errors.New("runtime or import changed; retry from fresh diagnostics")
+			}
+			profile := offlinePluginProfile(cfg)
+			// A remove must stop the kernel before the bundled CLI changes its files.
+			// Toggle alignment also stops a live/failed generation before profile edits.
+			restart := retry || (sup != nil && sup.Status().State != harness.Stopped && !remove)
+			if sup != nil {
+				s.stopPhoneRuntime()
+				sup.Stop()
+			}
+			for _, name := range names {
 				if err := importer.CheckImportReady(paths.DshHome()); err != nil {
+					actionErr = err
 					return err
 				}
-				s.mu.Lock()
-				valid := s.marketCurrentLocked(op) && s.sup == sup && !s.launcherImportBusy && !s.quitting
-				s.mu.Unlock()
-				if !valid {
-					return errors.New("runtime or import changed; retry from fresh diagnostics")
+				if remove {
+					actionErr = profile.Remove(name)
+				} else {
+					actionErr = profile.SetEnabled(name, enabled)
 				}
-				return nil
+				if actionErr != nil {
+					return actionErr
+				}
+				applied = append(applied, name)
 			}
-			applied, repairErr = startuprec.Repair(names, startuprec.RepairActions{
-				Check: check,
-				Disable: func(name string) error {
-					if err := op.store.ValidateBundleChange(name, false); err != nil {
-						return err
-					}
-					var out *api.ChangeResult
-					err := op.client.Call(ctx, op.method, map[string]any{"name": name, "enabled": false}, &out)
-					result := marketResultFor(out, err)
-					if !result.accepted {
-						return errors.New(startuprec.RedactLine(result.message))
-					}
-					if result.outcome == "restart-required" {
-						s.mu.Lock()
-						s.marketActivation.Require(sup.Status().Generation)
-						s.mu.Unlock()
-					}
-					return nil
-				},
-				ClearRecovery: cfg.ClearPluginRecovery,
-				Restart: func() error {
-					if err := check(); err != nil {
-						return err
-					}
-					s.syncHarnessFromConfig()
-					s.mu.Lock()
-					s.launcherStartBusy = true
-					s.startupRecovery.updateHold = false
-					s.mu.Unlock()
-					s.stopPhoneRuntime()
-					sup.Restart()
-					return nil
-				},
-			})
-			return repairErr
+			if retry {
+				if actionErr = cfg.ClearPluginRecovery(); actionErr != nil {
+					return actionErr
+				}
+			}
+			if restart {
+				if actionErr = importer.CheckImportReady(paths.DshHome()); actionErr != nil {
+					return actionErr
+				}
+				s.syncHarnessFromConfig()
+				s.mu.Lock()
+				s.launcherStartBusy = true
+				s.startupRecovery.updateHold = false
+				s.mu.Unlock()
+				sup.Start()
+			}
+			return nil
 		})
-		if !protected {
-			message := resumeText("针对性修复未完成；恢复状态仍需确认。", "Targeted repair did not complete; recovery still needs review.")
+		if !did {
+			message := resumeText("插件操作未完成。", "Plugin operation did not complete.")
 			if len(applied) > 0 {
-				message += fmt.Sprintf(resumeText(" 已确认禁用：%s。其余插件未自动处理。", " Confirmed disabled: %s. Remaining plugins were not changed automatically."), strings.Join(applied, ", "))
+				message += " " + resumeText("已应用：", "Applied: ") + strings.Join(applied, ", ")
 			}
-			if repairErr != nil {
-				message += " " + startuprec.RedactLine(repairErr.Error())
+			if actionErr != nil {
+				message += " " + startuprec.RedactLine(actionErr.Error())
 			}
-			s.finishMarket(op, marketResult{message: message}, false)
 			s.startupRepairNote(message)
 			return
 		}
-		s.startupRepairNote(fmt.Sprintf(resumeText("已确认禁用：%s。正在完整重试；只有 Host 健康就绪后才算恢复完成。", "Confirmed disabled: %s. Retrying the full startup; recovery completes only after the Host is healthy."), strings.Join(applied, ", ")))
+		message := resumeText("已更新插件：", "Updated plugins: ") + strings.Join(applied, ", ")
+		if retry {
+			message += resumeText("。正在完整重试；Host 健康就绪后才算恢复完成。", ". Retrying full startup; recovery completes only after the Host is healthy.")
+		}
+		s.startupRepairNote(message)
 	}()
 }

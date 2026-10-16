@@ -22,6 +22,9 @@ func checkPreviewComplete(m Model) error {
 }
 
 func previewTruncationNotice(m Model) string {
+	if t := selectedTab(m); t != nil && t.textPaged && !t.Dirty() {
+		return label("分页资源只读；可继续读取下一页，不能保存覆盖原文件。", "Paged resource is read-only. Load the next page to continue; saving over the source is disabled.")
+	}
 	if m.Preview != nil && m.EditDraft != nil && *m.Preview != *m.EditDraft {
 		return label("磁盘文件超出 1 MiB 完整预览上限；当前显示的是保留的未保存草稿，不是完整磁盘内容。保存已停止，请复制草稿并在外部编辑器核对。", "The disk file exceeds the 1 MiB complete preview limit. Showing your retained unsaved draft, not the complete disk content. Saving is stopped; copy the draft and reconcile in an external editor.")
 	}

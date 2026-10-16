@@ -1,0 +1,10 @@
+<!doctype html><title>Inline state and theme fixture</title>
+<style>body{background:var(--background);color:var(--text)}button{background:var(--accent)}section{margin:1em}</style>
+<section><input id="draft" placeholder="This text must survive expand/collapse"><button id="counter">0</button><button id="grow">Grow height</button><output id="theme"></output></section>
+<script>
+let count=0;counter.onclick=()=>counter.textContent=++count;
+grow.onclick=()=>{const p=document.createElement('p');p.textContent='More content';document.body.append(p);report()};
+function report(){parent.postMessage({type:'whale-visual-reply-size',height:Math.max(80,document.body.scrollHeight)},'*')}
+new ResizeObserver(report).observe(document.body);
+addEventListener('message',event=>{if(event.source===parent&&event.data?.type==='whale-visual-reply-theme'){theme.textContent=event.data.appearance;for(const[k,v]of Object.entries(event.data.variables))document.documentElement.style.setProperty(k,v)}});
+</script>

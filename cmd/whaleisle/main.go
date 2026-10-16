@@ -31,7 +31,6 @@ import (
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/desktop/deeplink"
 	desktopgit "whaleisle/internal/desktop/git"
-	"whaleisle/internal/desktop/htmlpreview"
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
@@ -964,6 +963,7 @@ func (s *mainState) syncHarnessFromConfig() {
 	cfg := store.Get()
 	sup.SetSkipUserPlugins(cfg.SkipUserPlugins)
 	sup.SetPrepareOptions(harness.PrepareOptions{
+		DisabledPlugins: cfg.DisabledPlugins,
 		RemoteSet:       true,
 		Remote:          cfg.RemoteWorkspaceEnabled,
 		SkipUserPlugins: cfg.SkipUserPlugins,
@@ -2279,7 +2279,7 @@ func startHarness(cfg config.Config) {
 	}
 	installSrv := harness.NewInstallServer(harness.InstallServerOptions{
 		Project:     projectDispatch,
-		HTMLPreview: htmlpreview.HandlerWithRenderer(captureHTMLInHelper),
+		HTMLPreview: helperHTMLPreview.Handler(),
 		NodeBin:     cfg.NodeBin,
 		OnRestart: func() {
 			state.mu.Lock()
@@ -2305,6 +2305,7 @@ func startHarness(cfg config.Config) {
 			SkipUserPlugins: cfg.SkipUserPlugins,
 		},
 		Prepare: harness.PrepareOptions{
+			DisabledPlugins: cfg.DisabledPlugins,
 			RemoteSet:       true,
 			Remote:          cfg.RemoteWorkspaceEnabled,
 			SkipUserPlugins: cfg.SkipUserPlugins,
@@ -6534,6 +6535,12 @@ func mainView(c *ui.Context) {
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
 						OnReadWorkspaceTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
+						OnOpenDocumentViewer: func(path string) (files.DocumentSurface, error) {
+							return state.openDocumentViewer(fileClient, snap.SelectedID, path)
+						},
+						OnReadWorkspaceTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
+							return workspacefs.ReadRemoteTextPage(ctx, fileClient, rel, offset)
+						},
 						OnReadWorkspaceFileContext: func(ctx context.Context, rel string) (string, error) {
 							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)
 						},
@@ -6724,7 +6731,8 @@ func mainView(c *ui.Context) {
 						VisualReply:                  visualReplyState,
 						VisualReplyBitmap:            publishedHTMLBitmap(visualReplyState),
 						OnPreviewVisualReply:         func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
-						OnInteractVisualReply:        interactivePublishedHTMLHandler(sessions, snap.SelectedID, mygo.Theme.IsDark()),
+						OnInteractVisualReply:        interactivePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
+						OnInlineVisualReply:          inlinePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
 						OnStopInteractiveVisualReply: sessions.StopInteractiveVisualReply,
 						OnReadVisualReply:            func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
 						OnSaveVisualReply:            func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },

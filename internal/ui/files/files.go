@@ -40,13 +40,15 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
-	AllowPageShortcuts func() bool
-	PlanOnly           bool
-	PlanSnapshot       session.ViewState
-	OnLoadPlanHistory  func()
-	ReadSubagentPlan   func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
-	Tabs               *Tabs
-	WorkspaceRoot      string
+	OpenDocumentViewer  func(string) (DocumentSurface, error)
+	ReadTextPageContext func(context.Context, string, int64) (workspacefs.TextPage, error)
+	AllowPageShortcuts  func() bool
+	PlanOnly            bool
+	PlanSnapshot        session.ViewState
+	OnLoadPlanHistory   func()
+	ReadSubagentPlan    func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
+	Tabs                *Tabs
+	WorkspaceRoot       string
 	// BindingID identifies the current Host connection and selected session.
 	SessionID       string
 	OnReferenceFile func(filelink.Reference) error
@@ -136,6 +138,7 @@ func View(c *ui.Context, m Model) {
 	}
 	prepareTabs(m)
 	syncTextRead(m)
+	syncDocumentSurfaces(m)
 	syncSaveResults(m)
 	if t := selectedTab(m); t != nil && t.Editing {
 		_ = ensureSaveQueue(m, t)
@@ -372,6 +375,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			ui.Text(c, sel).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
 			if sel != "" {
 				paintReferenceButtons(c, m, sel)
+				paintDocumentViewerButton(c, m)
 				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(theme.InterfaceSize(11)).Disabled(m.Tabs == nil).Clicked() {
 					if mediaMode(m, sel) && m.OnOpenMedia != nil {
 						m.OnOpenMedia(sel, true)
@@ -470,6 +474,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				}
 			}
 		})
+		if paintDocumentSurface(c, m) {
+			return
+		}
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
 			ui.Row(c).Gap(8).Padding(0, 12, 4, 12).Children(func() {
 				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -482,6 +489,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if previewTruncated(m) {
 			ui.Text(c, previewTruncationNotice(m)).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
+		paintTextPageControls(c, m, muted)
 		paintTableControls(c, m, muted)
 		paintSourceActions(c, m, sel, muted)
 		if m.OfficePreviewStatus != nil {
@@ -511,7 +519,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if tab := selectedTab(m); tab != nil && tab.RenderedMarkdown && isMarkdown(sel) {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
 				ui.Column(c).Padding(8, 12, 8, 12).FillWidth().Children(func() {
-					markdown.ViewInteractive(c, previewText(m), sourceStyle(m, fg, muted), m.OnOpenLink)
+					paintMarkdownResource(c, m, fg, muted)
 				})
 			})
 			return

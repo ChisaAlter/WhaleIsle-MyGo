@@ -14,6 +14,18 @@ type VisualReplyInteractive interface {
 	Close() error
 }
 
+// VisualReplySurface exposes layout and palette only, never page evaluation.
+type VisualReplySurface interface {
+	Present(x, y, width, height, clipX, clipY, clipWidth, clipHeight int, appearance string, variables map[string]string) error
+}
+
+func (s *Store) ToggleVisualReplyExpanded() {
+	s.mu.Lock()
+	s.visualReply.InteractiveExpanded = !s.visualReply.InteractiveExpanded
+	s.mu.Unlock()
+	s.fire()
+}
+
 type visualReplyInteraction struct {
 	cancel context.CancelFunc
 }
@@ -61,9 +73,13 @@ func (s *Store) OpenInteractiveVisualReply(ctx context.Context, sessionID, attac
 	if current {
 		s.visualReply.InteractiveLoading = false
 		s.visualReply.InteractiveActive = err == nil
+		if err == nil {
+			s.visualReply.Surface, _ = handle.(VisualReplySurface)
+		}
 		if err != nil {
 			s.visualReply.InteractiveError = err.Error()
 			s.visualReply.interaction = nil
+			s.visualReply.Surface = nil
 		}
 	}
 	s.mu.Unlock()
@@ -86,6 +102,7 @@ func (s *Store) OpenInteractiveVisualReply(ctx context.Context, sessionID, attac
 	current = s.ownsInteractiveVisualReplyLocked(op, sessionID, token)
 	if current {
 		s.visualReply.interaction = nil
+		s.visualReply.Surface = nil
 		s.visualReply.InteractiveActive = false
 		s.visualReply.InteractiveLoading = false
 		if closeErr != nil {
@@ -108,6 +125,7 @@ func (s *Store) stopInteractiveVisualReplyLocked() {
 		op.cancel()
 	}
 	s.visualReply.interaction = nil
+	s.visualReply.Surface = nil
 	s.visualReply.InteractiveLoading = false
 	s.visualReply.InteractiveActive = false
 }

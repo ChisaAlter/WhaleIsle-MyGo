@@ -26,6 +26,7 @@ type ClientModuleFailure struct {
 }
 
 type ClientModulesSnapshot struct {
+	Document                     *DocumentRecommendation
 	Page                         uint64
 	Connected, Syncing, Retrying bool
 	Failures                     []ClientModuleFailure
@@ -37,12 +38,13 @@ type clientModulesPage struct {
 	id, retryID uint64
 }
 type clientModulesBridge struct {
-	mu                  sync.Mutex
-	page                *clientModulesPage
-	nextPage, nextRetry uint64
-	closed              bool
-	state               ClientModulesSnapshot
-	changed             func()
+	documentSession, documentPath string
+	mu                            sync.Mutex
+	page                          *clientModulesPage
+	nextPage, nextRetry           uint64
+	closed                        bool
+	state                         ClientModulesSnapshot
+	changed                       func()
 }
 
 func (g *Gateway) SetClientModulesChanged(changed func()) {
@@ -61,6 +63,10 @@ func (g *Gateway) ClientModules() ClientModulesSnapshot {
 	g.modules.mu.Lock()
 	defer g.modules.mu.Unlock()
 	state := g.modules.state
+	if state.Document != nil {
+		document := *state.Document
+		state.Document = &document
+	}
 	state.Failures = append([]ClientModuleFailure(nil), state.Failures...)
 	return state
 }
@@ -183,11 +189,12 @@ func (g *Gateway) serveClientModules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var message struct {
-			Type     string                 `json:"type"`
-			ID       uint64                 `json:"id"`
-			Error    string                 `json:"error"`
-			Syncing  *bool                  `json:"syncing"`
-			Failures *[]ClientModuleFailure `json:"failures"`
+			Type     string                  `json:"type"`
+			Document *DocumentRecommendation `json:"document"`
+			ID       uint64                  `json:"id"`
+			Error    string                  `json:"error"`
+			Syncing  *bool                   `json:"syncing"`
+			Failures *[]ClientModuleFailure  `json:"failures"`
 		}
 		decoder := json.NewDecoder(bytes.NewReader(data))
 		decoder.DisallowUnknownFields()
@@ -196,11 +203,15 @@ func (g *Gateway) serveClientModules(w http.ResponseWriter, r *http.Request) {
 		}
 		switch message.Type {
 		case "state":
-			if message.Syncing == nil || message.Failures == nil || message.ID != 0 || message.Error != "" || !validClientFailures(*message.Failures) {
+			if message.Document != nil || message.Syncing == nil || message.Failures == nil || message.ID != 0 || message.Error != "" || !validClientFailures(*message.Failures) {
+				return
+			}
+		case "document":
+			if message.Document == nil || message.Syncing != nil || message.Failures != nil || message.ID != 0 || message.Error != "" {
 				return
 			}
 		case "retryResult":
-			if message.ID == 0 || message.Syncing != nil || message.Failures != nil || len(message.Error) > 16*1024 {
+			if message.Document != nil || message.ID == 0 || message.Syncing != nil || message.Failures != nil || len(message.Error) > 16*1024 {
 				return
 			}
 		default:
@@ -211,7 +222,14 @@ func (g *Gateway) serveClientModules(w http.ResponseWriter, r *http.Request) {
 			b.mu.Unlock()
 			return
 		}
-		if message.Type == "state" {
+		if message.Type == "document" {
+			if !b.acceptsDocument(message.Document) {
+				b.mu.Unlock()
+				return
+			}
+			document := *message.Document
+			b.state.Document = &document
+		} else if message.Type == "state" {
 			b.state.Connected, b.state.Syncing = true, *message.Syncing
 			b.state.Failures = append([]ClientModuleFailure(nil), (*message.Failures)...)
 		} else if b.state.Retrying && message.ID == page.retryID {

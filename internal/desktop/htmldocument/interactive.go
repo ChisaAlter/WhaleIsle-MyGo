@@ -32,7 +32,11 @@ func (d *Document) InteractiveSnapshot(ctx context.Context) (string, ResourceRep
 	source, rootPath, relative := d.source, d.root, d.relative
 	rootIdentity, identity := d.rootIdentity, d.identity
 	closed := d.closed
+	remote := d.remoteInteractive
 	d.mu.RUnlock()
+	if !closed && source != "" && remote != nil {
+		return remote(ctx)
+	}
 	if closed || source == "" || rootIdentity == nil || identity == nil {
 		return "", ResourceReport{}, errors.New("HTML snapshot is closed")
 	}

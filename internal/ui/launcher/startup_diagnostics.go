@@ -41,7 +41,7 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 			ui.Text(c, e.Line).FontSize(fonttheme.InterfaceSize(11)).TextColor(colTertiary)
 		}
 		if !d.InventoryReady {
-			ui.Text(c, releaseText("精确修复需要已就绪的 Host 插件控制器。可先启用跳过插件并启动恢复模式，再刷新库存；Host 无法启动时，请使用版本页修复运行环境。", "Selective repair needs a ready Host plugin controller. Start recovery mode with user plugins skipped, then refresh inventory. If the Host cannot start, use Versions to repair the runtime.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, releaseText("无法读取本地插件配置或库存，请修复配置后刷新。", "Local plugin configuration or inventory is unavailable. Repair the configuration and refresh.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if ghostSmall(c, releaseText("刷新诊断与库存", "Refresh diagnostics and inventory")).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
@@ -69,6 +69,18 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 				label += " · " + p.Restriction
 			}
 			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Row(c).Gap(8).Children(func() {
+				toggle := releaseText("启用", "Enable")
+				if p.Enabled {
+					toggle = releaseText("禁用", "Disable")
+				}
+				if ghostSmall(c, toggle).Disabled(m.StartupRepairBusy || !p.Mutable || !d.InventoryReady).Clicked() && m.OnSetStartupPluginEnabled != nil {
+					m.OnSetStartupPluginEnabled(p.Name, !p.Enabled)
+				}
+				if ghostSmall(c, releaseText("卸载", "Remove")).Disabled(m.StartupRepairBusy || !p.Removable || !d.InventoryReady).Clicked() && m.OnRemoveStartupPlugin != nil {
+					m.OnRemoveStartupPlugin(p.Name)
+				}
+			})
 		}
 	})
 }

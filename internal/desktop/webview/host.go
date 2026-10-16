@@ -183,6 +183,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 		opts.Untrusted = true
 		gateway.SetClientModulesChanged(opts.OnChange)
+		if target, parseErr := url.Parse(raw); parseErr == nil {
+			gateway.ConfigureDocumentViewer(target.Query().Get("desktopDocumentSession"), target.Query().Get("desktopDocumentPath"))
+		}
 		gateway.SetShortcutPreferences(opts.ShortcutPreferences)
 	}
 	trusted := append([]string(nil), opts.TrustedOrigins...)

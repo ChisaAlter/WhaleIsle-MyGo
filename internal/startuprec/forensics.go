@@ -15,6 +15,7 @@ import (
 type Plugin struct {
 	Name                      string
 	Enabled, Mutable, Suspect bool
+	Removable                 bool
 	Restriction               string
 }
 type Evidence struct {

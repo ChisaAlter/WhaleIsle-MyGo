@@ -24,7 +24,7 @@ func (d *Document) CanRunScripts() bool {
 	}
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	return !d.closed && d.source != "" && d.rootIdentity != nil && d.identity != nil
+	return !d.closed && d.source != "" && (d.remoteInteractive != nil || (d.rootIdentity != nil && d.identity != nil))
 }
 
 // OpenImageWorkspace snapshots only the explicitly selected local image. The

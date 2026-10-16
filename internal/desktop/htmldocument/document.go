@@ -5,6 +5,7 @@ package htmldocument
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -35,6 +36,7 @@ type Document struct {
 	// Source bytes and directory identity belong to the original authorized read.
 	// Interactive dependencies are frozen only after a separate user gesture.
 	source, root, relative string
+	remoteInteractive      func(context.Context) (string, ResourceReport, error)
 	rootIdentity           os.FileInfo
 	done                   chan struct{}
 	origin, route          string
@@ -218,6 +220,7 @@ func (d *Document) Close() {
 	d.closed = true
 	d.data = nil
 	d.source = ""
+	d.remoteInteractive = nil
 	if d.done != nil {
 		close(d.done)
 	}

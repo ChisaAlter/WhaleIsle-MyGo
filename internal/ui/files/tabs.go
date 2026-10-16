@@ -41,6 +41,9 @@ type WorkspaceTabs struct {
 	PendingClose        string
 }
 type FileTab struct {
+	document                                  documentSurfaceState
+	textPage                                  workspacefs.TextPage
+	textPaged                                 bool
 	tablePage                                 *workspacefs.XLSXPage
 	tableRequest                              workspacefs.XLSXPageRequest
 	tableCell                                 string
@@ -60,6 +63,7 @@ type FileTab struct {
 	lineDraft                                 string
 	revealLine                                int
 	image                                     *imagePreview
+	imageView                                 imageViewState
 	save                                      *workspacefs.SaveQueue
 	saveRevision                              uint64
 	closeWhenSaved                            bool
@@ -191,7 +195,12 @@ func selectTab(m Model, path string) bool {
 		w.Active = path
 		restore(m, t)
 		applySaveResult(m, t)
-		reloadSelectedFile(m)
+		if t.document.enabled && t.document.surface != nil && t.document.surface.Alive() {
+			return true
+		}
+		if !t.textPaged || t.readBlocked || t.readResume {
+			reloadSelectedFile(m)
+		}
 		return true
 	}
 	return false
@@ -229,6 +238,7 @@ func closeTab(m Model, path string, discard bool) bool {
 		return false
 	}
 	disposeSave(t)
+	t.closeDocumentSurface()
 	if m.Tabs != nil && m.Tabs.readTab == t {
 		m.Tabs.stopTextRead(false, false)
 	}
@@ -243,7 +253,7 @@ func closeTab(m Model, path string, discard bool) bool {
 		w.Active = ""
 		if len(w.Open) > 0 {
 			next := w.Open[len(w.Open)-1]
-			next.readResume = isAsyncPreviewPath(next.Path)
+			next.readResume = isAsyncPreviewPath(next.Path) && (!next.textPaged || next.readBlocked || next.readResume)
 			w.Active = next.Path
 			restore(m, next)
 		} else {
@@ -382,6 +392,7 @@ func (t *Tabs) Bind(binding, root string) {
 		if w != nil {
 			for _, tab := range w.Open {
 				disposeSave(tab)
+				tab.closeDocumentSurface()
 				tab.pendingLine.reset()
 				tab.revealLine = 0
 				if isTablePreviewPath(tab.Path) {

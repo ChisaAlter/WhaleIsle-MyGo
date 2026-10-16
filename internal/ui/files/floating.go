@@ -125,11 +125,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 			if f.image.note != "" {
 				ui.Text(c, f.image.note).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 			}
-			if f.image.bitmap != nil {
-				ui.Image(c, f.image.bitmap).Fill().MinHeight(0).Fit(ui.Contain)
-			} else if f.image.vector != nil {
-				ui.Image(c, f.image.vector).Fill().MinHeight(0).Fit(ui.Contain)
-			}
+			paintImageView(c, f.image, &f.tab.imageView)
 		} else if f.tab.RenderedMarkdown && isMarkdown(f.snapshot.Path) {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Padding(12).Children(func() { markdown.ViewInteractive(c, f.snapshot.Text, sourceStyle(m, fg, muted), nil) })

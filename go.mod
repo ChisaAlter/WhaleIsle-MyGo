@@ -5,6 +5,7 @@ go 1.27.2
 tool github.com/egoist/mygo/cmd/mygo
 
 require (
+	gopkg.in/yaml.v3 v3.0.1
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/coder/websocket v1.8.15
 	github.com/egoist/mygo v0.3.5

@@ -424,6 +424,16 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
 		return nil, err
 	}
+	if !doc.capture {
+		s.surfaceHandle, s.surfacePID = uintptr(loaded.WindowHandle), process.ProcessId
+		if !validSurfaceWindow(s.surfaceHandle, s.surfacePID) {
+			return nil, errors.New("invalid preview surface owner")
+		}
+		s.theme = ""
+		s.sendTheme = func(appearance string, variables map[string]string) error {
+			return writePacket(inputWrite, packet{Version: protocolVersion, Kind: "theme", Nonce: nonce, Appearance: appearance, Variables: variables})
+		}
+	}
 	if doc.capture {
 		result, captureErr := receiveCapture(outputRead, nonce, doc.Width)
 		if captureErr != nil {
@@ -457,6 +467,19 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 			}
 		}
 	}()
-	go func() { _, _ = io.Copy(io.Discard, outputRead); _ = s.Close() }()
+	go func() {
+		defer s.Close()
+		if doc.capture {
+			_, _ = io.Copy(io.Discard, outputRead)
+			return
+		}
+		for {
+			p, err := readPacket(outputRead)
+			if err != nil || expect(p, "size", nonce) != nil || p.Height < 80 || p.Height > 2000 {
+				return
+			}
+			s.height.Store(int64(p.Height))
+		}
+	}()
 	return s, nil
 }

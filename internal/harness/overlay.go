@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/startuprec"
 )
 
 // DesktopPlugin describes one vendor package mounted via junction + --patch.
@@ -27,6 +28,7 @@ type DesktopPlugin struct {
 
 // PrepareOptions selects which optional desktop plugins to mount.
 type PrepareOptions struct {
+	DisabledPlugins []string
 	// VendorDir defaults to paths resolved by the caller.
 	VendorDir string
 	// ProfileDir is dsh-home/profiles/web.
@@ -136,6 +138,9 @@ func optionalPlugins(o PrepareOptions) []DesktopPlugin {
 func Prepare(o PrepareOptions) ([]string, error) {
 	if o.VendorDir == "" || o.ProfileDir == "" {
 		return nil, fmt.Errorf("harness: VendorDir and ProfileDir are required")
+	}
+	if err := (startuprec.OfflinePlugins{ProfileDir: o.ProfileDir}).ApplyDisabled(o.DisabledPlugins); err != nil {
+		return nil, fmt.Errorf("disabled plugins: %w", err)
 	}
 	plugins := append(builtinPlugins(), optionalPlugins(o)...)
 	var patches []string

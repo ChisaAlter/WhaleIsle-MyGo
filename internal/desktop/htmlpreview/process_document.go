@@ -1,6 +1,7 @@
 package htmlpreview
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"unicode/utf8"
@@ -22,4 +23,27 @@ func ProcessDocumentShell(preparedHTML string, width int, appearance string) (st
 		palette = previewPalette{Background: "#171717", Surface: "#242424", Text: "#eeeeee", Secondary: "#aaaaaa", Border: "#444444", Accent: "#60a5fa"}
 	}
 	return buildShellMode(request{HTML: preparedHTML, Width: width, Appearance: appearance}, palette, true), nil
+}
+
+// ProcessThemeScript changes the existing iframe, never replacing its document.
+func ProcessThemeScript(appearance string) (string, error) {
+	return ProcessThemeTokensScript(appearance, nil)
+}
+func ProcessThemeTokensScript(appearance string, variables map[string]string) (string, error) {
+	if appearance != "light" && appearance != "dark" {
+		return "", errors.New("invalid preview appearance")
+	}
+	palette := previewPalette{Background: "#ffffff", Surface: "#f5f5f5", Text: "#171717", Secondary: "#666666", Border: "#dddddd", Accent: "#2563eb"}
+	if appearance == "dark" {
+		palette = previewPalette{Background: "#171717", Surface: "#242424", Text: "#eeeeee", Secondary: "#aaaaaa", Border: "#444444", Accent: "#60a5fa"}
+	}
+	tokens := map[string]string{"--bg": palette.Background, "--background": palette.Background, "--surface": palette.Surface, "--text": palette.Text, "--text-secondary": palette.Secondary, "--border": palette.Border, "--accent": palette.Accent}
+	for key, value := range variables {
+		if _, ok := tokens[key]; !ok || len(value) > 128 || value == "" {
+			return "", errors.New("invalid preview theme token")
+		}
+		tokens[key] = value
+	}
+	payload, _ := json.Marshal(map[string]any{"type": "whale-visual-reply-theme", "appearance": appearance, "variables": tokens})
+	return "window.__previewTheme(" + string(payload) + ");true", nil
 }

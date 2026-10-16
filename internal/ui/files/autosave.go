@@ -154,6 +154,7 @@ func (t *Tabs) Dispose() {
 		if w != nil {
 			for _, tab := range w.Open {
 				disposeSave(tab)
+				tab.closeDocumentSurface()
 			}
 		}
 	}
@@ -162,6 +163,7 @@ func (t *Tabs) Dispose() {
 // Pause stops debounce work when the Files surface is hidden, without throwing
 // away drafts or completion receipts for writes that had already started.
 func (t *Tabs) Pause() {
+	t.hideDocumentSurfaces()
 	t.stopTextRead(true, false)
 	if t.Search != nil {
 		t.Search.Cancel()

@@ -42,3 +42,35 @@ func TestProcessDocumentShellRejectsInvalidInput(t *testing.T) {
 		t.Fatal("accepted empty HTML")
 	}
 }
+
+func TestLiveThemeUpdatesExistingOpaqueFrame(t *testing.T) {
+	shell, err := ProcessDocumentShell("<input value='preserve me'>", 728, "light")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(shell, "window.__previewTheme=data=>") {
+		t.Fatal("missing live update entry")
+	}
+	for _, appearance := range []string{"dark", "light"} {
+		script, err := ProcessThemeScript(appearance)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(script, `"appearance":"`+appearance+`"`) || strings.Contains(script, "srcdoc") || strings.Contains(script, "document.open") {
+			t.Fatalf("theme update reloads content: %s", script)
+		}
+	}
+	if _, err := ProcessThemeScript("arbitrary"); err == nil {
+		t.Fatal("accepted invalid theme")
+	}
+}
+
+func TestLiveThemeUsesCurrentApplicationTokens(t *testing.T) {
+	script, err := ProcessThemeTokensScript("light", map[string]string{"--accent": "#123abc", "--surface": "#fedcba"})
+	if err != nil || !strings.Contains(script, "#123abc") || !strings.Contains(script, "#fedcba") {
+		t.Fatalf("custom palette missing: %s %v", script, err)
+	}
+	if _, err := ProcessThemeTokensScript("light", map[string]string{"arbitrary": "x"}); err == nil {
+		t.Fatal("accepted unrelated command field")
+	}
+}

@@ -23,14 +23,20 @@ window.__ModuleLoader__.load({
         const send = value => {
           if (!stopped && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
         };
+        const publishDocument = () => {
+          const recommendation = window.__whaleDocumentRecommendation;
+          if (recommendation) send({type:"document",document:recommendation});
+        };
         const publish = () => {
           const {syncing, failures} = owner.state.getSnapshot();
           send({type:'state', syncing, failures:failures.map(({id,message}) => ({id,message}))});
+          publishDocument();
         };
         const dispose = () => {
           if (stopped) return;
           stopped = true; unsubscribe();
           window.removeEventListener('pagehide', dispose);
+          window.removeEventListener('whale-document-registry', publishDocument);
           socket.close();
         };
         socket.addEventListener('open', () => { if (!stopped) publish(); });
@@ -51,11 +57,13 @@ window.__ModuleLoader__.load({
         });
         unsubscribe = owner.state.subscribe(publish);
         window.addEventListener('pagehide', dispose);
+        window.addEventListener('whale-document-registry', publishDocument);
         return dispose;
       });
     }
     function apply(ctx) {
       bindClientModules(ctx);
+      whaleBindDocumentViewer(ctx);
       whaleBindProductKeyboard(ctx);
       whaleRegisterShortcutImport(ctx, React);
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');

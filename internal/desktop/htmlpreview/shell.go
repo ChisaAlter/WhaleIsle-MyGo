@@ -32,6 +32,13 @@ func buildShellMode(input request, palette previewPalette, interactive bool) str
 	appearance, _ := json.Marshal(input.Appearance)
 	child := `<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childCSP) + `"><style>html,body{margin:0;background:transparent}*{box-sizing:border-box}</style><script>(()=>{
 const send=data=>parent.postMessage(data,'*');
+addEventListener('message',event=>{
+ if(event.source!==parent||event.data?.type!=='whale-visual-reply-theme')return;
+ const data=event.data;if(data.appearance!=='light'&&data.appearance!=='dark')return;
+ document.documentElement.style.colorScheme=data.appearance;
+ document.documentElement.toggleAttribute('data-ds-dark-theme',data.appearance==='dark');
+ for(const [key,value] of Object.entries(data.variables||{}))if(key.startsWith('--')&&typeof value==='string')document.documentElement.style.setProperty(key,value);
+});
 for(const level of ['log','info','warn','error']){const original=console[level].bind(console);console[level]=(...args)=>{let text;try{text=args.map(x=>String(x)).join(' ')}catch{text='[unprintable console message]'}send({type:'preview-console',level:level==='warn'?'warning':level,text:text.slice(0,500)});original(...args)}}
 addEventListener('error',e=>send({type:'preview-console',level:'error',text:String(e.message).slice(0,500)}));
 addEventListener('unhandledrejection',e=>send({type:'preview-console',level:'error',text:String(e.reason).slice(0,500)}));
@@ -51,7 +58,7 @@ addEventListener('load',async()=>{try{
 	background, _ := json.Marshal(palette.Background)
 	themeBridge := ""
 	if interactive {
-		themeBridge = `frame.addEventListener('load',()=>frame.contentWindow?.postMessage({type:'whale-visual-reply-theme',appearance:` + string(appearance) + `,variables:` + string(variables) + `},'*'));`
+		themeBridge = `window.__previewTheme=data=>{document.documentElement.style.backgroundColor=data.variables['--background'];frame.contentWindow?.postMessage(data,'*')};frame.addEventListener('load',()=>frame.contentWindow?.postMessage({type:'whale-visual-reply-theme',appearance:` + string(appearance) + `,variables:` + string(variables) + `},'*'));`
 	}
 	return `<!doctype html><meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(parentCSP) + `"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0;width:100%;height:100vh}</style><script>
 window.__previewState={ready:false,height:0,error:'',consoleMessages:[],omitted:0};
@@ -61,7 +68,7 @@ addEventListener('message',event=>{
  const state=window.__previewState,data=event.data;
  if(data.type==='preview-console'&&typeof data.text==='string'){
   if(state.consoleMessages.length<20)state.consoleMessages.push({level:['log','info','warning','error'].includes(data.level)?data.level:'log',text:data.text.slice(0,500)});else state.omitted++;
- }else if(data.type==='preview-ready'){
+ }else if(data.type==='preview-ready'||data.type==='whale-visual-reply-size'){
   if(Number.isFinite(data.height)&&data.height>=1&&data.height<=Number.MAX_SAFE_INTEGER){state.height=Math.ceil(data.height);state.ready=true}else state.error='Page returned an invalid content height.';
  }else if(data.type==='preview-error'&&typeof data.error==='string')state.error=data.error.slice(0,500);
 });

@@ -197,19 +197,60 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil || currentPID != pid {
 		return errors.New("preview browser changed during document load")
 	}
-	if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid}); err != nil {
+	if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid, WindowHandle: uint64(w.NativeHandle())}); err != nil {
 		return err
 	}
-	w.Show()
-	// The protocol accepts exactly one snapshot. EOF (parent exit/cancellation)
-	// and any extra data close this window; no commands or native operations
-	// can be requested by the HTML or by a subsequent protocol packet.
-	parentGone := make(chan struct{})
-	go func() { var b [1]byte; _, _ = input.Read(b[:]); close(parentGone) }()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-parentGone:
-		return nil
+	if !doc.Inline {
+		w.Show()
+	}
+	// Observe only the bounded size state of the opaque frame. No document
+	// messages can request a native operation or choose an IPC command.
+	go func() {
+		tick := time.NewTicker(150 * time.Millisecond)
+		defer tick.Stop()
+		last := 0
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				value, err := w.Page().EvalContext(ctx, "Math.max(80,Math.min(2000,Math.ceil(window.__previewState?.height||360)))")
+				if err != nil {
+					return
+				}
+				n, ok := value.(float64)
+				if !ok {
+					continue
+				}
+				height := int(n)
+				if height != last {
+					if writePacket(output, packet{Version: protocolVersion, Kind: "size", Nonce: nonce, Height: height}) != nil {
+						return
+					}
+					last = height
+				}
+			}
+		}
+	}()
+	// Only trusted parent theme updates are accepted after the one document.
+	// This pipe is never exposed to the sandboxed page.
+	for {
+		p, err := readPacket(input)
+		if err != nil {
+			return err
+		}
+		if err = expect(p, "theme", nonce); err != nil {
+			return err
+		}
+		script, err := htmlpreview.ProcessThemeTokensScript(p.Appearance, p.Variables)
+		if err != nil {
+			return err
+		}
+		themeCtx, stop := context.WithTimeout(ctx, 5*time.Second)
+		_, err = w.Page().EvalContext(themeCtx, script)
+		stop()
+		if err != nil {
+			return err
+		}
 	}
 }

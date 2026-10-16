@@ -108,11 +108,11 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	if preview.note != "" {
 		ui.Text(c, preview.note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
 	}
-	if preview.bitmap != nil {
-		ui.Image(c, preview.bitmap).Fill().Grow(1).MinHeight(0).Fit(ui.Contain)
-	} else if preview.vector != nil {
-		ui.Image(c, preview.vector).Fill().Grow(1).MinHeight(0).Fit(ui.Contain)
+	view := &imageViewState{}
+	if t != nil {
+		view = &t.imageView
 	}
+	paintImageView(c, preview, view)
 }
 
 func loadImagePreview(root, rel string) *imagePreview {

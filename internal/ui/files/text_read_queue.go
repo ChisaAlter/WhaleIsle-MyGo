@@ -14,6 +14,8 @@ type textReadOwner struct {
 }
 
 type textReadResult struct {
+	page                 *workspacefs.TextPage
+	appendPage           bool
 	table                *workspacefs.XLSXPage
 	text, stat, fullPath string
 	err                  error
