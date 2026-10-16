@@ -22,7 +22,7 @@ export function patchFrameIndex(source){
 }
 export function patchFrameNative(source){
  if(hash(source)!==nativeBaseSHA256)throw Error('Frame input adaptation requires exact e9 native.ts');
- return source.replace('keyboard: DesktopKeyboardApi, registry:',"keyboard: Pick<DesktopKeyboardApi, 'subscribe'>, registry:");
+ return source.replace('keyboard: DesktopKeyboardApi, registry:',"keyboard: Pick<DesktopKeyboardApi, 'subscribe'> & Partial<Omit<DesktopKeyboardApi, 'subscribe'>>, registry:");
 }
 export const framePatchSHA256=hash(patchFrameIndex.toString()+patchFrameNative.toString()+subscription);
 export function applyShortcutFrames(harness){
