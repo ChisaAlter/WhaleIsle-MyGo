@@ -1,11 +1,11 @@
 package credentials
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // StorageStatus contains format metadata only. It never contains credential
@@ -18,7 +18,7 @@ type StorageStatus struct {
 }
 
 func InspectStorage(dir string) StorageStatus {
-	s := StorageStatus{Mode: "unknown", Backend: "Windows DPAPI + AES-256-GCM (safeStorage-v1)", SupportedPlatform: runtime.GOOS == "windows"}
+	s := StorageStatus{Mode: "unknown", Backend: credentialOS.backend, SupportedPlatform: credentialOS.supported}
 	data, err := os.ReadFile(filepath.Join(dir, FileName))
 	if errors.Is(err, fs.ErrNotExist) {
 		s.Mode = "missing"
@@ -36,6 +36,16 @@ func InspectStorage(dir string) StorageStatus {
 	s.Mode = "plaintext"
 	if kind == docEnvelope {
 		s.Mode = "encrypted"
+		var env envelope
+		_ = json.Unmarshal(data, &env) // Already structurally validated above.
+		if env.Version != credentialOS.version {
+			s.SupportedPlatform = false
+			if env.Version == KeychainEnvelopeVersion {
+				s.Backend = "macOS Keychain + AES-256-GCM"
+			} else {
+				s.Backend = "Windows DPAPI + AES-256-GCM (safeStorage-v1)"
+			}
+		}
 	}
 	return s
 }
