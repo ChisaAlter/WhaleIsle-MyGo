@@ -292,12 +292,13 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 	if expanded {
 		chevron = "▾"
 	}
-	row := ui.Row(c).Padding(pad, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center)
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Padding(pad, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
 	row.Children(func() {
 		if ui.Button(c, chevron).Clicked() {
 			toggleExpanded(m, rel)
 		}
 		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+		ui.MenuButton(c, "⋯", treeDirectoryMenu(m, rel)).Tooltip(label("目录操作", "Directory actions"))
 	})
 	if row.Clicked() {
 		toggleExpanded(m, rel)
