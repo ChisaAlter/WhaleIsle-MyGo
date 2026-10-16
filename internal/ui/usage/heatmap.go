@@ -2,6 +2,7 @@ package usage
 
 import (
 	"github.com/egoist/mygo/ui"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // HeatCell is one day cell in the activity heatmap.
@@ -43,7 +44,7 @@ func HeatmapView(c *ui.Context, cells []HeatCell, muted, accent, field ui.Color)
 			}
 			ui.Column(c).Gap(2).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Size(18, 18).Background(fill).Radius(3)
-				ui.Text(c, cell.Label).FontSize(9).TextColor(muted)
+				ui.Text(c, cell.Label).FontSize(fonttheme.InterfaceSize(9)).TextColor(muted)
 			})
 		}
 	})

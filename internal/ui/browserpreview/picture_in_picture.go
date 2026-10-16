@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -43,18 +44,19 @@ func (b *Controller) openPictureInPicture(t *Tab) {
 		Parent: b.parent, AlwaysOnTop: true, SkipTaskbar: true, DisableMaximize: true, DisableFullScreen: true,
 		Page: mygo.PageOptions{DevTools: mygo.DevToolsDisabled},
 		Content: ui.View(func(c *ui.Context) {
+			fonttheme.ApplyInterface(c)
 			ui.Column(c).Fill().MinHeight(0).Padding(8).Gap(6).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "网页画中画 · 最多 4 帧/秒 · 无音频").FontSize(11).Grow(1)
+					ui.Text(c, "网页画中画 · 最多 4 帧/秒 · 无音频").FontSize(fonttheme.InterfaceSize(11)).Grow(1)
 					if ui.Button(c, "关闭").Clicked() {
 						b.stopPictureInPicture()
 					}
 				})
-				ui.Text(c, truncate(p.source, 90)).FontSize(10).Tooltip(p.source)
+				ui.Text(c, truncate(p.source, 90)).FontSize(fonttheme.InterfaceSize(10)).Tooltip(p.source)
 				if p.bitmap != nil {
 					ui.Image(c, p.bitmap).Fill().Grow(1).MinHeight(0).Fit(ui.Contain)
 				} else {
-					ui.Text(c, p.status).FontSize(12)
+					ui.Text(c, p.status).FontSize(fonttheme.InterfaceSize(12))
 				}
 			})
 		}),

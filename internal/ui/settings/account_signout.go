@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func signOutText(zh, en string) string {
@@ -30,15 +31,15 @@ func signOutError(code string) string {
 func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 	s := a.SignOut
 	if s.Error != "" {
-		ui.Text(c, signOutError(s.Error)).FontSize(12).TextColor(fg)
+		ui.Text(c, signOutError(s.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if !s.Open {
 		return
 	}
 	ui.Column(c).Gap(8).Padding(12).Children(func() {
-		ui.Text(c, signOutText("确认退出账户", "Confirm account sign-out")).FontSize(14).Bold().TextColor(fg)
+		ui.Text(c, signOutText("确认退出账户", "Confirm account sign-out")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 		if s.AccountID != "" {
-			ui.Text(c, signOutText("账户：", "Account: ")+s.AccountID).FontSize(12).TextColor(muted)
+			ui.Text(c, signOutText("账户：", "Account: ")+s.AccountID).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		message := signOutText("退出登录不会丢失任何数据，你仍可以登录此账号。", "Signing out will not delete any data. You can sign in to this account again.")
 		if s.Impact == accountlogout.ImpactRunning {
@@ -47,9 +48,9 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 		if s.Impact == accountlogout.ImpactUnknown {
 			message = signOutText("暂时无法确认任务状态。退出登录可能会中断使用此账号的任务，是否继续？", "Could not check running tasks. Signing out may interrupt tasks using this account. Continue?")
 		}
-		ui.Text(c, message).FontSize(12).TextColor(fg)
+		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		if s.Busy {
-			ui.Text(c, signOutText("正在处理，请稍候…", "Working, please wait…")).FontSize(12).TextColor(muted)
+			ui.Text(c, signOutText("正在处理，请稍候…", "Working, please wait…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			cancel := signOutText("取消", "Cancel")

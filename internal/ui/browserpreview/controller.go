@@ -346,13 +346,13 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if !b.profileSeen && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
 				const notice = "Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。"
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, notice).FontSize(11).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
+					ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
 					if ui.Button(c, "知道了").Clicked() {
 						b.profileSeen = true
 					}
 				})
 			} else {
-				ui.Text(c, truncate(status, 140)).FontSize(11).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
+				ui.Text(c, truncate(status, 140)).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).Tooltip(status)
 			}
 		})
 		canvas := ui.Box(c).Key("browser-device-canvas").Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))

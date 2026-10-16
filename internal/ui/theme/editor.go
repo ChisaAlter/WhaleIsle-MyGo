@@ -19,6 +19,7 @@ func (e *Editor) ApplyPreview() {
 		return
 	}
 	SetPreferences(e.Draft)
+	RefreshWindows()
 	e.Preview = true
 	e.Status = "预览中，尚未保存 / Preview, not saved"
 }
@@ -26,6 +27,7 @@ func (e *Editor) Cancel() {
 	e.Draft = e.Saved.Clone()
 	e.Preview = false
 	SetPreferences(e.Saved)
+	RefreshWindows()
 	e.Status = "已恢复 / Restored"
 }
 func (e *Editor) Save() {
@@ -42,6 +44,7 @@ func (e *Editor) Save() {
 	}
 	e.Saved = e.Draft.Clone()
 	SetPreferences(e.Saved)
+	RefreshWindows()
 	e.Preview = false
 	e.Status = "已保存 / Saved"
 }

@@ -3,6 +3,7 @@ package remote
 import (
 	"fmt"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -167,7 +168,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 		} else if len(v.AuditLines) == 0 {
 			ui.Text(c, label("暂无审计记录。", "No audit entries."))
 		} else {
-			ui.Scroll(c).Height(180).Children(func() { ui.Text(c, strings.Join(v.AuditLines, "\n")).FontSize(11) })
+			ui.Scroll(c).Height(180).Children(func() { ui.Text(c, strings.Join(v.AuditLines, "\n")).FontSize(fonttheme.InterfaceSize(11)) })
 		}
 	}
 }

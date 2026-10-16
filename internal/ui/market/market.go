@@ -140,12 +140,12 @@ func View(c *ui.Context, m Model) {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 								ui.Text(c, r.Label).Bold().TextColor(fg)
-								ui.Text(c, r.Detail).FontSize(11).TextColor(muted)
+								ui.Text(c, r.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 								if r.ReadOnlyReason != "" {
-									ui.Text(c, r.ReadOnlyReason).FontSize(11).TextColor(muted)
+									ui.Text(c, r.ReadOnlyReason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 								}
 								if r.Error != "" {
-									ui.Text(c, r.Error).FontSize(11).TextColor(accent)
+									ui.Text(c, r.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 								}
 							})
 							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
@@ -215,7 +215,7 @@ func View(c *ui.Context, m Model) {
 					if len(lines) > 40 {
 						lines = lines[len(lines)-40:]
 					}
-					ui.Text(c, strings.Join(lines, "\n")).FontSize(11).TextColor(muted)
+					ui.Text(c, strings.Join(lines, "\n")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 			})
 		})
@@ -230,12 +230,12 @@ func marketText(zh, en string) string {
 }
 
 func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
-	ui.Text(c, marketText("目录来源：", "Catalog source: ")+d.Catalog.Source+" · "+marketText("更新日期：", "updated: ")+d.Catalog.Updated).FontSize(11).TextColor(muted)
+	ui.Text(c, marketText("目录来源：", "Catalog source: ")+d.Catalog.Source+" · "+marketText("更新日期：", "updated: ")+d.Catalog.Updated).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	if !d.Catalog.FetchedAt.IsZero() {
-		ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(11).TextColor(muted)
+		ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if d.Catalog.Warning != "" {
-		ui.Text(c, d.Catalog.Warning).FontSize(11).TextColor(accent)
+		ui.Text(c, d.Catalog.Warning).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 	}
 	if d.Err != "" {
 		ui.Text(c, d.Err).TextColor(accent)
@@ -251,8 +251,8 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		ui.Text(c, item.ID).Bold().TextColor(fg)
 		favoriteButton(c, m, item.ID)
 		ui.Text(c, item.Description).TextColor(fg)
-		ui.Text(c, item.Homepage).FontSize(12).TextColor(muted)
-		ui.Text(c, marketText("安装目标：", "Install target: ")+item.InstallSpec).FontSize(12).TextColor(fg)
+		ui.Text(c, item.Homepage).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, marketText("安装目标：", "Install target: ")+item.InstallSpec).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		if item.Deprecated {
 			ui.Text(c, marketText("已弃用；不提供安装。", "Deprecated; installation unavailable.")+" "+item.Replacement).TextColor(accent)
 		}
@@ -272,12 +272,12 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		if d.Details.Version != "" {
 			ui.Text(c, "Version: "+d.Details.Version).TextColor(fg)
 		}
-		ui.Text(c, marketText("声明的依赖要求（不代表兼容性验证）：", "Declared requirements (not a compatibility verdict):")).FontSize(12).TextColor(muted)
+		ui.Text(c, marketText("声明的依赖要求（不代表兼容性验证）：", "Declared requirements (not a compatibility verdict):")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		for _, req := range d.Details.Requirements {
-			ui.Text(c, req).FontSize(12).TextColor(fg)
+			ui.Text(c, req).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
 		ui.Text(c, marketText("仓库 README（纯文本，仅供参考）", "Repository README (plain text, reference only)")).Bold().TextColor(muted)
-		ui.Text(c, d.Details.Readme).FontSize(12).TextColor(fg)
+		ui.Text(c, d.Details.Readme).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		return
 	}
 	query := d.Query
@@ -301,17 +301,17 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			}
 		})
 	}
-	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(12).TextColor(muted)
+	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	for _, item := range d.Rows {
 		i := item
 		ui.Column(c).FillWidth().Background(field).Border(1, border).Radius(6).Padding(8, 10, 8, 10).Gap(4).Children(func() {
 			ui.Text(c, i.ID).Bold().TextColor(fg)
-			ui.Text(c, i.Description).FontSize(12).TextColor(muted)
+			ui.Text(c, i.Description).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, i.Category).FontSize(11).TextColor(muted)
+				ui.Text(c, i.Category).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				favoriteButton(c, m, i.ID)
 				if name := marketstore.InstalledName(i, inventory.Rows); name != "" {
-					ui.Text(c, marketText("已安装：", "Installed: ")+name).FontSize(11).TextColor(fg)
+					ui.Text(c, marketText("已安装：", "Installed: ")+name).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 				}
 				if ui.Button(c, marketText("详情", "Details")).Clicked() {
 					m.Store.SelectDetails(i.ID, false)
@@ -350,7 +350,7 @@ func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item 
 
 func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMarketInstallSpecLabel)).FontSize(12).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMarketInstallSpecLabel)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		spec := ""
 		if m.InstallSpec != nil {
 			ui.TextInput(c, m.InstallSpec).FillWidth().Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
@@ -368,7 +368,7 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 			m.OnInstallSpec(spec, allow)
 		}
 		if !m.InstallReady {
-			ui.Text(c, i18n.T(i18n.KeyMarketInstallNotReady)).FontSize(11).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMarketInstallNotReady)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
 	})
 }
@@ -427,9 +427,9 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 		ui.Text(c, u.Err).TextColor(accent)
 	}
 	if !u.CheckedAt.IsZero() {
-		ui.Text(c, marketText("检查时间：", "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(11).TextColor(muted)
+		ui.Text(c, marketText("检查时间：", "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
-	ui.Text(c, marketText("仅比较已确认的 npm 稳定版本；Git、本地来源及不可比较版本显示未知。检查不会自动安装。", "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(11).TextColor(muted)
+	ui.Text(c, marketText("仅比较已确认的 npm 稳定版本；Git、本地来源及不可比较版本显示未知。检查不会自动安装。", "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	batchSelectionView(c, m, u, muted)
 	for _, row := range u.Rows {
 		if m.Store.ManagementFilter() == "updates" && !row.Available {
@@ -457,7 +457,7 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				ui.Text(c, r.Name+" · "+current+" → "+latest+" · "+status).TextColor(fg)
 				if r.Reason != "" {
-					ui.Text(c, r.Reason).FontSize(11).TextColor(muted)
+					ui.Text(c, r.Reason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 			})
 			if r.Available && !m.InstallBusy && !u.Loading && u.Err == "" && m.OnInstallCatalog != nil {

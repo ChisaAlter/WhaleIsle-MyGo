@@ -53,15 +53,15 @@ func onboardingView(c *ui.Context, m Model) {
 						}
 					})
 				}
-				ui.Text(c, p.Guide).FontSize(12).TextColor(fg)
-				ui.Text(c, "当前 Host："+v.Host).FontSize(11).TextColor(muted)
+				ui.Text(c, p.Guide).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+				ui.Text(c, "当前 Host："+v.Host).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if v.Channel == "slack" {
 					ui.Link(c, "打开 Slack 创建应用页面", "https://api.slack.com/apps?new_app=1")
 					if ui.Button(c, "复制原版 Slack Manifest").Clicked() {
 						mygo.Clipboard.WriteText(slackAppManifest)
 					}
 				}
-				ui.Text(c, "这里直接调用已有 Host 平台接口。平台应用创建、管理员授权和风控验证仍需你在对应平台完成。").FontSize(11).TextColor(muted)
+				ui.Text(c, "这里直接调用已有 Host 平台接口。平台应用创建、管理员授权和风控验证仍需你在对应平台完成。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if m.OnOpenPluginWeb != nil && ui.Button(c, "打开原版平台向导 / 外部注册说明").Clicked() {
 					s.Hide()
 					m.OnOpenPluginWeb()
@@ -145,7 +145,7 @@ func onboardingView(c *ui.Context, m Model) {
 						s.Edit(v.Scope, draft)
 						s.Review(v.Scope, "bot.bind-credentials", "", "", "")
 					}
-					ui.Text(c, "仅当前页面临时保留输入；提交、返回或切换平台后清空。").FontSize(11).TextColor(muted)
+					ui.Text(c, "仅当前页面临时保留输入；提交、返回或切换平台后清空。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 				if v.Channel == "weixin" && (v.Provision.VerificationRequired || v.Provision.Status == "needs_verification") {
 					input("微信配对验证码", &draft.VerifyCode, true)

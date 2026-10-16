@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // ReferencedCredentialsAccess is separate from local desktop credentials.json.
@@ -21,23 +22,23 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("供应商 / Web Search API Key", "Provider / Web Search API key")).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("供应商 / Web Search API Key", "Provider / Web Search API key")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if !s.Connected {
-		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(12).TextColor(muted)
+		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
 	if s.Err != "" {
-		ui.Text(c, s.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if s.LastAction != "" {
-		ui.Text(c, s.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, s.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).Disabled(s.Busy || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}
 	if s.Busy {
-		ui.Text(c, providerCopy("正在检查 / 保存…", "Checking / saving…")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("正在检查 / 保存…", "Checking / saving…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if !s.Ready {
 		return
@@ -63,7 +64,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		}
 	}
 	if len(rows) == 0 {
-		ui.Text(c, providerCopy("此页没有可编辑的凭据引用。", "No editable credential references are available on this page.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("此页没有可编辑的凭据引用。", "No editable credential references are available on this page.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	if ui.Select(c, &current, options).FillWidth().Disabled(s.Busy).Changed() && a.OnSelect != nil {
@@ -78,7 +79,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		return
 	}
 	row := *selected
-	ui.Text(c, providerCopy("目标引用：", "Target reference: ")+row.Ref).FontSize(12).TextColor(fg)
+	ui.Text(c, providerCopy("目标引用：", "Target reference: ")+row.Ref).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	status := providerCopy("尚未配置", "Not configured")
 	if !row.Known {
 		status = providerCopy("状态未知，请刷新", "State unknown; refresh first")
@@ -88,17 +89,17 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 	if !row.Writable {
 		status += " · " + providerCopy("只读 / 不可写", "Read-only / unavailable")
 	}
-	ui.Text(c, status).FontSize(11).TextColor(muted)
+	ui.Text(c, status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	locked := s.Busy || !row.Known || !row.Writable
 	draft := s.Draft
 	if ui.TextInput(c, &draft).FillWidth().Password().Placeholder(providerCopy("输入新密钥，留空保留", "Enter a new key; blank keeps existing")).Disabled(locked || s.ClearPending).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, draft)
 	}
 	if row.BindReference {
-		ui.Text(c, providerCopy("首次保存只会添加此供应商的 apiKeyEnv 引用，并使用当前配置版本校验。", "The first save adds only this provider's apiKeyEnv reference, guarded by the current settings revision.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("首次保存只会添加此供应商的 apiKeyEnv 引用，并使用当前配置版本校验。", "The first save adds only this provider's apiKeyEnv reference, guarded by the current settings revision.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if s.ClearPending {
-		ui.Text(c, providerCopy("确认后将清除此引用的本地密钥；同用此引用的功能也会受影响。", "Confirming clears the local key for this reference, affecting other features that share it.")).FontSize(12).TextColor(fg)
+		ui.Text(c, providerCopy("确认后将清除此引用的本地密钥；同用此引用的功能也会受影响。", "Confirming clears the local key for this reference, affecting other features that share it.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		saveLabel := providerCopy("保存此密钥", "Save this key")

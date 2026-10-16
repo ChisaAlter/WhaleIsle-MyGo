@@ -2,24 +2,25 @@ package settings
 
 import (
 	"github.com/egoist/mygo/ui"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/ui/i18n"
 )
 
 // AboutAccess is the dedicated About settings page.
 type AboutAccess struct {
-	AppName          string
-	Version          string
-	Identifier       string
-	UserData         string
-	VendorRoot       string
-	OnRevealUserData func()
-	OnRevealLogs     func()
-	OnRevealVendor   func()
-	OnCheckUpdates   func()
-	OnCopyUserData   func()
-	OnCopyVersion    func()
-	AnalyticsEnabled *bool
+	AppName            string
+	Version            string
+	Identifier         string
+	UserData           string
+	VendorRoot         string
+	OnRevealUserData   func()
+	OnRevealLogs       func()
+	OnRevealVendor     func()
+	OnCheckUpdates     func()
+	OnCopyUserData     func()
+	OnCopyVersion      func()
+	AnalyticsEnabled   *bool
 	OnRefreshAnalytics func()
 }
 
@@ -28,8 +29,8 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.About
-	ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAboutHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsAboutHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	analytics := "—"
 	if a.AnalyticsEnabled != nil {
 		if *a.AnalyticsEnabled {
@@ -48,8 +49,8 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	for _, row := range rows {
 		ui.Row(c).Gap(12).Children(func() {
-			ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(140)
-			ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
+			ui.Text(c, row.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(140)
+			ui.Text(c, row.value).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 		})
 	}
 	ui.Row(c).Gap(8).Children(func() {
@@ -71,7 +72,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Clicked() {
 			a.OnCheckUpdates()
 		}
-		if a.OnRefreshAnalytics != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(11).Clicked() {
+		if a.OnRefreshAnalytics != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			a.OnRefreshAnalytics()
 		}
 	})

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 
@@ -52,19 +53,19 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 	}
 	s := a.Snapshot
 	v := s.View(i18n.Locale())
-	ui.Text(c, pluginsText("插件运行实例", "Plugin runtime inventory")).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, pluginsText("按 Agent 预设或全局配置查看实例；点击条目查看 Loader 标识、条件和运行状态。", "Inspect agent-preset and global entries; expand an entry for its Loader identity, condition and runtime state.")).FontSize(11).TextColor(muted)
+	ui.Text(c, pluginsText("插件运行实例", "Plugin runtime inventory")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, pluginsText("按 Agent 预设或全局配置查看实例；点击条目查看 Loader 标识、条件和运行状态。", "Inspect agent-preset and global entries; expand an entry for its Loader identity, condition and runtime state.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if !s.Connected {
-		ui.Text(c, pluginsText("运行时未连接。", "Runtime disconnected.")).FontSize(12).TextColor(muted)
+		ui.Text(c, pluginsText("运行时未连接。", "Runtime disconnected.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if s.Err != "" {
-		ui.Text(c, s.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		if s.Ready {
-			ui.Text(c, pluginsText("刷新失败，以下保留本次 Host 上次成功读取的实例。", "Refresh failed. Showing the last successful inventory from this Host.")).FontSize(11).TextColor(muted)
+			ui.Text(c, pluginsText("刷新失败，以下保留本次 Host 上次成功读取的实例。", "Refresh failed. Showing the last successful inventory from this Host.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	}
 	if s.Busy {
-		ui.Text(c, pluginsText("正在读取实例…", "Loading inventory…")).FontSize(11).TextColor(muted)
+		ui.Text(c, pluginsText("正在读取实例…", "Loading inventory…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		query := s.Query
@@ -101,12 +102,12 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 		}, fg, muted)
 	}
 	for _, p := range v.Presets {
-		ui.Text(c, fmt.Sprintf("%s (%d)", p.Label, len(p.Rows))).FontSize(12).Bold().TextColor(fg)
+		ui.Text(c, fmt.Sprintf("%s (%d)", p.Label, len(p.Rows))).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		if p.Broken != "" {
-			ui.Text(c, p.Broken).FontSize(11).TextColor(fg)
+			ui.Text(c, p.Broken).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 		if len(p.Rows) == 0 && p.Broken == "" {
-			ui.Text(c, pluginsText("此预设没有匹配条目。", "No matching entries in this preset.")).FontSize(11).TextColor(muted)
+			ui.Text(c, pluginsText("此预设没有匹配条目。", "No matching entries in this preset.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		for _, r := range p.Rows {
 			pluginInventoryRow(c, a, r, fg, muted)
@@ -126,7 +127,7 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 		}
 	}
 	if v.Empty {
-		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(11).TextColor(muted)
+		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 
@@ -137,27 +138,27 @@ func pluginInventoryRow(c *ui.Context, a *PluginInventoryAccess, r plugininvento
 		mark = "− "
 	}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, mark+r.Title).FontSize(12).Clicked() && a.OnToggleRow != nil {
+		if ui.Button(c, mark+r.Title).FontSize(fonttheme.InterfaceSize(12)).Clicked() && a.OnToggleRow != nil {
 			a.OnToggleRow(r.Key)
 		}
-		ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FontSize(11).TextColor(muted)
+		ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	})
 	if r.Description != "" {
-		ui.Text(c, r.Description).FontSize(11).TextColor(muted)
+		ui.Text(c, r.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if r.MetadataError != "" {
-		ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FontSize(11).TextColor(fg)
+		ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	if !open {
 		return
 	}
-	ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FontSize(11).TextColor(fg)
+	ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	entryID := r.EntryID
 	if entryID == "" {
 		entryID = pluginsText("未声明实例标识", "No entry ID declared")
 	}
-	ui.Text(c, "Loader: "+entryID).FontSize(11).TextColor(muted)
+	ui.Text(c, "Loader: "+entryID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if r.Condition != "" {
-		ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FontSize(11).TextColor(muted)
+		ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }

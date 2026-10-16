@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	usagestore "whaleisle/internal/store/usage"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
@@ -18,12 +19,12 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 	ui.Text(c, title).Bold().TextColor(fg)
 	limit := min(len(models), m.Store.ModelRankLimit())
 	for _, row := range models[:limit] {
-		ui.Text(c, fmt.Sprintf("%s · %s · %.0f tokens", row.Model, row.Provider, row.Total)).FontSize(12).TextColor(fg)
+		ui.Text(c, fmt.Sprintf("%s · %s · %.0f tokens", row.Model, row.Provider, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if len(models) == 0 {
 		ui.Text(c, usageText("此范围暂无模型用量。", "No model usage in this range.")).TextColor(muted)
 	} else {
-		ui.Text(c, fmt.Sprintf(usageText("已显示 %d / %d 个模型", "Showing %d / %d models"), limit, len(models))).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(usageText("已显示 %d / %d 个模型", "Showing %d / %d models"), limit, len(models))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if limit < len(models) && ui.Button(c, usageText("显示更多模型", "Show more models")).Clicked() {
 		m.Store.ShowMoreModels()
@@ -32,7 +33,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		ui.Text(c, usageText("会话排行仅支持全部历史；清除日期选择后可查看和导出。", "Session ranking is all-time only; clear the date selection to view and export it.")).TextColor(muted)
 		return
 	}
-	ui.Text(c, usageText("分页为全部历史；会话导出仍为概览 Top-N。", "Pages cover all time; session export remains the overview Top-N.")).FontSize(11).TextColor(muted)
+	ui.Text(c, usageText("分页为全部历史；会话导出仍为概览 Top-N。", "Pages cover all time; session export remains the overview Top-N.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	rank := m.Store.SessionRanking()
 	billing := m.Store.Billing()
 	ui.Row(c).Gap(6).Children(func() {
@@ -74,7 +75,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 			if cents, ok := usagestore.SessionEstimate(row, billing); ok {
 				cost = fmt.Sprintf("≈ CNY %.2f", cents/100)
 			}
-			ui.Text(c, fmt.Sprintf("%d. %s · %.0f tokens · %s", i+1, name, row.Totals.Total, cost)).FontSize(12).TextColor(fg).Grow(1)
+			ui.Text(c, fmt.Sprintf("%d. %s · %.0f tokens · %s", i+1, name, row.Totals.Total, cost)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 			if m.OnOpenSession != nil && ui.Button(c, usageText("打开", "Open")).Clicked() {
 				m.OnOpenSession(row.ID)
 			}
@@ -86,7 +87,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		if row.LastActive > 0 {
 			kind += " · " + time.UnixMilli(row.LastActive).UTC().Format("2006-01-02 15:04 UTC")
 		}
-		ui.Text(c, kind).FontSize(11).TextColor(muted)
+		ui.Text(c, kind).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if rank.Err != "" {
 		ui.Text(c, usageText("加载排行失败：", "Could not load ranking: ")+rank.Err).TextColor(accent)
@@ -99,7 +100,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		ui.Text(c, usageText("暂无会话用量。", "No session usage.")).TextColor(muted)
 	}
 	if rank.Started && !rank.HasMore && rank.Err == "" {
-		ui.Text(c, usageText("已显示统计服务返回的全部会话。", "All sessions returned by the statistics service are shown.")).FontSize(11).TextColor(muted)
+		ui.Text(c, usageText("已显示统计服务返回的全部会话。", "All sessions returned by the statistics service are shown.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	label := usageText("显示更多会话", "Show more sessions")

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/projectflow"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func stateLabel(state string) string {
@@ -30,18 +31,18 @@ func teamView(c *ui.Context, m Model) {
 	})
 	if m.Team == nil {
 		if !m.Busy {
-			ui.Text(c, tr("Team 当前不可用，请刷新重试。", "Team is unavailable; refresh to retry.")).FontSize(12)
+			ui.Text(c, tr("Team 当前不可用，请刷新重试。", "Team is unavailable; refresh to retry.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		return
 	}
 	teamSearchControls(c, &m)
 	o := m.Team
-	ui.Text(c, o.Project.Title+" · Team").FontSize(13)
+	ui.Text(c, o.Project.Title+" · Team").FontSize(fonttheme.InterfaceSize(13))
 	if m.RefreshNote == "" {
-		ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(11)
+		ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(fonttheme.InterfaceSize(11))
 	}
 	if m.TeamNote != "" {
-		ui.Text(c, m.TeamNote).FontSize(12)
+		ui.Text(c, m.TeamNote).FontSize(fonttheme.InterfaceSize(12))
 	}
 	disabled := m.Busy || !m.Listing.Available || o.Team == nil || o.Team.Failure != "" || o.Project.Lifecycle != "ready"
 	ui.Row(c).Gap(4).Children(func() {
@@ -53,7 +54,7 @@ func teamView(c *ui.Context, m Model) {
 		}
 	})
 	if o.Project.Paused {
-		ui.Text(c, tr("解除暂停后需在 Lead 对话中发新指令；不会自动重启旧任务。", "After unpausing, send a new instruction in the Lead conversation. Old work is not restarted automatically.")).FontSize(11)
+		ui.Text(c, tr("解除暂停后需在 Lead 对话中发新指令；不会自动重启旧任务。", "After unpausing, send a new instruction in the Lead conversation. Old work is not restarted automatically.")).FontSize(fonttheme.InterfaceSize(11))
 	}
 	ui.Scroll(c).Height(280).Children(func() {
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
@@ -68,9 +69,9 @@ func teamView(c *ui.Context, m Model) {
 				}
 			}
 			if len(members) == 0 && m.TeamQuery != "" {
-				ui.Text(c, tr("没有匹配成员", "No matching members")).FontSize(12)
+				ui.Text(c, tr("没有匹配成员", "No matching members")).FontSize(fonttheme.InterfaceSize(12))
 			}
-			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(12)
+			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(fonttheme.InterfaceSize(12))
 			for _, member := range members {
 				member := member
 				name := member.Name
@@ -83,20 +84,20 @@ func teamView(c *ui.Context, m Model) {
 						name = member.ID
 					}
 				}
-				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(12)
+				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(fonttheme.InterfaceSize(12))
 				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect("", member.ID)
 				}
 				if member.Description != "" {
-					ui.Text(c, member.Description).FontSize(11)
+					ui.Text(c, member.Description).FontSize(fonttheme.InterfaceSize(11))
 				}
 				if member.Error != "" {
-					ui.Text(c, member.Error).FontSize(11)
+					ui.Text(c, member.Error).FontSize(fonttheme.InterfaceSize(11))
 				}
 				for _, work := range o.Workstreams {
 					if work.WorkerSessionID == member.ID && work.Delegation.Phase == "queued" {
 						if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
-							ui.Text(c, reason).FontSize(11)
+							ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(11))
 						}
 					}
 				}
@@ -107,25 +108,25 @@ func teamView(c *ui.Context, m Model) {
 					tasks = append(tasks, task)
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(tasks))).FontSize(12)
+			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(tasks))).FontSize(fonttheme.InterfaceSize(12))
 			for _, task := range tasks {
-				ui.Text(c, task.Subject+" · "+stateLabel(task.Status)).FontSize(12)
+				ui.Text(c, task.Subject+" · "+stateLabel(task.Status)).FontSize(fonttheme.InterfaceSize(12))
 				owner := task.OwnerName
 				if owner == "" {
 					owner = tr("未分配", "Unassigned")
 				}
-				ui.Text(c, owner).FontSize(11)
+				ui.Text(c, owner).FontSize(fonttheme.InterfaceSize(11))
 				if task.Description != "" {
-					ui.Text(c, task.Description).FontSize(11)
+					ui.Text(c, task.Description).FontSize(fonttheme.InterfaceSize(11))
 				}
 				if len(task.BlockedBy) > 0 {
-					ui.Text(c, tr("依赖：", "Dependencies: ")+strings.Join(task.BlockedBy, ", ")).FontSize(11)
+					ui.Text(c, tr("依赖：", "Dependencies: ")+strings.Join(task.BlockedBy, ", ")).FontSize(fonttheme.InterfaceSize(11))
 				}
 				if len(task.WriteScopes) > 0 {
-					ui.Text(c, tr("写入范围：", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FontSize(11)
+					ui.Text(c, tr("写入范围：", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FontSize(fonttheme.InterfaceSize(11))
 				}
 				for _, warning := range task.WriteScopeWarnings {
-					ui.Text(c, warning).FontSize(11)
+					ui.Text(c, warning).FontSize(fonttheme.InterfaceSize(11))
 				}
 			}
 			works := make([]projectflow.Workstream, 0, len(o.Workstreams))
@@ -134,23 +135,23 @@ func teamView(c *ui.Context, m Model) {
 					works = append(works, work)
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(12)
+			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(fonttheme.InterfaceSize(12))
 			for _, work := range works {
 				work := work
 				if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect(work.ID, "")
 				}
-				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(12)
+				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(fonttheme.InterfaceSize(12))
 				if work.Delegation.Phase == "queued" {
 					if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
-						ui.Text(c, reason).FontSize(11)
+						ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(11))
 					}
 				}
 				if work.BlockedReason != "" {
-					ui.Text(c, work.BlockedReason).FontSize(11)
+					ui.Text(c, work.BlockedReason).FontSize(fonttheme.InterfaceSize(11))
 				}
 				if work.SummaryFailure != nil {
-					ui.Text(c, work.SummaryFailure.Error.Message).FontSize(11)
+					ui.Text(c, work.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(11))
 				}
 				live := false
 				for _, worker := range o.Workers {

@@ -148,7 +148,7 @@ func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for _, link := range links {
 			if ui.Button(c, "").Label("↗ " + link.Label).Tooltip(link.URL).
-				MaxWidthPercent(100).MinWidth(0).FontSize(st.FontSize - 1).
+				MaxWidthPercent(100).MinWidth(0).FontSize(theme.InterfaceSize(st.FontSize - 1)).
 				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent).Clicked() {
 				onLink(link.URL)
 			}

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"github.com/egoist/mygo/ui"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -40,18 +41,18 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	providerDiscoveryPane(c, a.ProviderDiscovery, fg, muted)
 	visionPane(c, a.Vision, fg, muted)
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsModelsHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsModelsTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsModelsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if a.SessionID != "" {
-		ui.Text(c, i18n.T(i18n.KeySettingsModelsSession)+": "+a.SessionID).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsModelsSession)+": "+a.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	} else {
-		ui.Text(c, i18n.T(i18n.KeySettingsModelsNoSession)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsModelsNoSession)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	desktopRow(c, i18n.T(i18n.KeySettingsModelsPicker), func() {
 		if a.Selected == nil {
@@ -59,7 +60,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		opts := a.Labels
 		if len(opts) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsModelsEmpty)).FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsModelsEmpty)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		ui.Select(c, a.Selected, opts).FillWidth()

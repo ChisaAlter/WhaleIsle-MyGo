@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
@@ -126,22 +127,22 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 				scopeDiff(m, "", true)
 			}
 		})
-		ui.Text(c, word("勾选本次提交的文件。可单独暂存；编辑器草稿须先保存。", "Check files for this commit. Individual staging is also available. Save editor drafts first.")).FontSize(10).TextColor(muted)
+		ui.Text(c, word("勾选本次提交的文件。可单独暂存；编辑器草稿须先保存。", "Check files for this commit. Individual staging is also available. Save editor drafts first.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.Scroll(c).Height(150).FillWidth().Children(func() {
 			ui.Column(c).Gap(2).Children(func() {
 				for _, change := range w.Changes {
 					ch := change
 					ui.Row(c).Gap(5).Children(func() {
 						paintCommitCheckbox(c, w, ch.Path)
-						ui.Text(c, string([]byte{ch.Index, ch.Worktree})).FontSize(11).TextColor(muted)
-						if ui.Button(c, ch.Path).FontSize(11).Clicked() {
+						ui.Text(c, string([]byte{ch.Index, ch.Worktree})).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						if ui.Button(c, ch.Path).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 							scopeDiff(m, ch.Path, !ch.Unstaged())
 						}
 						if ch.Unstaged() {
-							if ui.Button(c, word("丢弃此文件…", "Discard file…")).FontSize(10).Clicked() {
+							if ui.Button(c, word("丢弃此文件…", "Discard file…")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 								reviewDiscard(m, ch.Path)
 							}
-							if ui.Button(c, word("暂存此文件", "Stage file")).FontSize(10).Clicked() {
+							if ui.Button(c, word("暂存此文件", "Stage file")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 								paths := []string{ch.Path}
 								if ch.Original != "" {
 									paths = append(paths, ch.Original)
@@ -158,10 +159,10 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 							}
 						}
 						if ch.Staged() {
-							if ui.Button(c, word("查看已暂存", "Staged diff")).FontSize(10).Clicked() {
+							if ui.Button(c, word("查看已暂存", "Staged diff")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 								scopeDiff(m, ch.Path, true)
 							}
-							if ui.Button(c, word("取消暂存", "Unstage")).FontSize(10).Clicked() {
+							if ui.Button(c, word("取消暂存", "Unstage")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 								paths := []string{ch.Path}
 								if ch.Original != "" {
 									paths = append(paths, ch.Original)
@@ -184,7 +185,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		paintDiscard(c, m, fg, muted)
 		paintCommitSelection(c, m, fg, muted)
 		if w.Status != "" {
-			ui.Text(c, w.Status).FontSize(11).TextColor(fg)
+			ui.Text(c, w.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 	})
 }

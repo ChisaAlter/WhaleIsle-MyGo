@@ -157,8 +157,8 @@ func View(c *ui.Context, m Model) {
 	root := strings.TrimSpace(m.WorkspaceRoot)
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		ui.Row(c).Padding(12, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(14).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, label("刷新", "Refresh")).FontSize(10).Clicked() && m.Tabs != nil {
+			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
+			if ui.Button(c, label("刷新", "Refresh")).FontSize(theme.InterfaceSize(10)).Clicked() && m.Tabs != nil {
 				if m.Tabs.Tree != nil {
 					m.Tabs.Tree.Cancel()
 				}
@@ -176,7 +176,7 @@ func View(c *ui.Context, m Model) {
 		}
 		ui.Box(c).Fill().Height(1).Background(border)
 		if root == "" {
-			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(12).TextColor(muted).
+			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
 			return
 		}
@@ -197,7 +197,7 @@ func View(c *ui.Context, m Model) {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
 				ui.Column(c).Padding(4, 4, 4, 4).Gap(1).Fill().Children(func() {
 					name := filepath.Base(root)
-					ui.Text(c, name).FontSize(12).Bold().TextColor(muted).Padding(4, 8, 4, 8)
+					ui.Text(c, name).FontSize(theme.InterfaceSize(12)).Bold().TextColor(muted).Padding(4, 8, 4, 8)
 					if filter != "" {
 						paintFiltered(c, m, root, filter, fg, muted, accent)
 						return
@@ -217,11 +217,11 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 	}
 	state := m.Tabs.Search.Snapshot()
 	if state.Busy {
-		ui.Text(c, label("正在搜索全部文件…", "Searching all files…")).FontSize(11).TextColor(muted).Padding(8, 8, 8, 8)
+		ui.Text(c, label("正在搜索全部文件…", "Searching all files…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
 		return
 	}
 	if state.Error != "" {
-		ui.Text(c, state.Error).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
 		return
 	}
 	for _, path := range state.Paths {
@@ -230,7 +230,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 			row.Background(accent).Opacity(0.12)
 		}
 		row.Children(func() {
-			ui.Text(c, path).FontSize(12).TextColor(fg).Grow(1)
+			ui.Text(c, path).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 			paintReferenceButtons(c, m, path)
 		})
 		if row.Clicked() {
@@ -243,7 +243,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		}
 	}
 	if state.Total == 0 {
-		ui.Text(c, i18n.T(i18n.KeyFilesFilterEmpty)).FontSize(12).TextColor(muted).Padding(8, 8, 8, 8)
+		ui.Text(c, i18n.T(i18n.KeyFilesFilterEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8, 8, 8, 8)
 	}
 }
 
@@ -253,11 +253,11 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 	}
 	state := m.Tabs.Tree.Get(rel, m.ListRemoteContext, c.Invalidate)
 	if state.Busy {
-		ui.Text(c, label("加载中…", "Loading…")).FontSize(11).TextColor(muted).Padding(8, 8, 8, 8)
+		ui.Text(c, label("加载中…", "Loading…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
 		return
 	}
 	if state.Error != "" {
-		ui.Text(c, state.Error).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
 		return
 	}
 	ents := state.Entries
@@ -289,7 +289,7 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 		if ui.Button(c, chevron).Clicked() {
 			toggleExpanded(m, rel)
 		}
-		ui.Text(c, name).FontSize(12).TextColor(fg).Grow(1)
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 	})
 	if row.Clicked() {
 		toggleExpanded(m, rel)
@@ -305,7 +305,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 		row.Background(accent).Opacity(0.12)
 	}
 	row.Children(func() {
-		ui.Text(c, name).FontSize(12).TextColor(fg).Grow(1)
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 		paintReferenceButtons(c, m, rel)
 	})
 	if row.Clicked() {
@@ -323,7 +323,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			sel = *m.SelectedFile
 		}
 		if sel == "" {
-			ui.Text(c, i18n.T(i18n.KeyFilesPickFile)).FontSize(12).TextColor(muted).
+			ui.Text(c, i18n.T(i18n.KeyFilesPickFile)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
 			return
 		}
@@ -339,32 +339,32 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		mode := resolveEditViewMode(m, canHL && editing)
 
 		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, sel).FontSize(11).Bold().TextColor(muted).Grow(1)
+			ui.Text(c, sel).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
 			if sel != "" {
 				paintReferenceButtons(c, m, sel)
-				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(11).Disabled(m.Tabs == nil).Clicked() {
+				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(theme.InterfaceSize(11)).Disabled(m.Tabs == nil).Clicked() {
 					if mediaMode(m, sel) && m.OnOpenMedia != nil {
 						m.OnOpenMedia(sel, true)
 					} else if err := openFloatingPreview(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
 				}
-				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(11).Clicked() {
+				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(theme.InterfaceSize(11)).Clicked() {
 					path := sel
 					if fullPath != "" {
 						path = fullPath
 					}
 					mygo.Clipboard.WriteText(path)
 				}
-				if ui.Button(c, label("复制相对路径", "Copy relative path")).FontSize(11).Clicked() {
+				if ui.Button(c, label("复制相对路径", "Copy relative path")).FontSize(theme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(sel)
 				}
-				if ui.Button(c, label("重新载入", "Reload")).FontSize(11).Clicked() {
+				if ui.Button(c, label("重新载入", "Reload")).FontSize(theme.InterfaceSize(11)).Clicked() {
 					reloadSelectedFile(m)
 				}
 			}
 			if lang := languageChipLabel(sel); lang != "" {
-				ui.Text(c, lang).FontSize(10).Bold().TextColor(muted).
+				ui.Text(c, lang).FontSize(theme.InterfaceSize(10)).Bold().TextColor(muted).
 					Padding(2, 6, 2, 6)
 			}
 			if mediaMode(m, sel) && m.OnOpenMedia != nil && ui.Button(c, label("音视频预览", "Media preview")).Clicked() {
@@ -385,25 +385,25 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				}
 			}
 			if m.OnReveal != nil && fullPath != "" {
-				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(11).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					withPreviewPath(m, sel, fullPath, m.OnReveal)
 				}
 			}
 			if m.OnOpenWith != nil && fullPath != "" && len(m.OpenWithApps) > 0 {
-				ui.Text(c, i18n.T(i18n.KeyFilesOpenWith)).FontSize(10).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyFilesOpenWith)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 				for _, app := range m.OpenWithApps {
 					a := app
 					label := strings.TrimSpace(a.Name)
 					if label == "" {
 						label = a.ID
 					}
-					if ui.Button(c, label).FontSize(11).Clicked() {
+					if ui.Button(c, label).FontSize(theme.InterfaceSize(11)).Clicked() {
 						withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenWith(path, a.ID) })
 					}
 				}
 			}
 			if m.OnRenderPDF != nil && (docKind == workspacefs.DocOther || docKind == workspacefs.DocXLSX) {
-				if ui.Button(c, i18n.T(i18n.KeyFilesRenderPDF)).FontSize(11).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyFilesRenderPDF)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					m.OnRenderPDF(sel)
 				}
 			}
@@ -433,7 +433,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					}
 				}
 				if canHL {
-					ui.Text(c, editViewModeLabel(mode)).FontSize(10).TextColor(muted)
+					ui.Text(c, editViewModeLabel(mode)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 					if ui.Button(c, editViewModeCycleLabel(mode)).Clicked() {
 						setEditViewMode(m, cycleEditViewMode(mode))
 					}
@@ -442,7 +442,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		})
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
 			ui.Row(c).Gap(8).Padding(0, 12, 4, 12).Children(func() {
-				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(11).TextColor(muted)
+				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if ui.Button(c, label("取消读取", "Cancel read")).Clicked() {
 					m.Tabs.stopTextRead(false, false)
 					setFileStatus(m, label("读取已取消，草稿保留。点击重新载入可重试。", "Read cancelled; draft kept. Choose Reload to retry."))
@@ -450,23 +450,23 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			})
 		}
 		if previewTruncated(m) {
-			ui.Text(c, previewTruncationNotice(m)).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
+			ui.Text(c, previewTruncationNotice(m)).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		paintTableControls(c, m, muted)
 		paintSourceActions(c, m, sel, muted)
 		if m.EditStatus != nil && *m.EditStatus != "" {
-			ui.Text(c, *m.EditStatus).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
+			ui.Text(c, *m.EditStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		if m.StatNote != nil && *m.StatNote != "" {
-			ui.Text(c, *m.StatNote).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+			ui.Text(c, *m.StatNote).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		if m.PreviewErr != nil && *m.PreviewErr != "" {
-			ui.Text(c, *m.PreviewErr).FontSize(12).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).
+			ui.Text(c, *m.PreviewErr).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).
 				Padding(4, 12, 8, 12)
 			return
 		}
 		if mediaMode(m, sel) {
-			ui.Text(c, label("点击音视频预览或浮动预览；仅当前 Host/会话单文件，最大 32 MiB，30 分钟有效。播放取决于 WebView2 编解码支持。", "Choose Media preview or Floating preview. One current Host/session file, up to 32 MiB, valid for 30 minutes. Playback depends on WebView2 codecs.")).FontSize(12).TextColor(muted).Padding(12)
+			ui.Text(c, label("点击音视频预览或浮动预览；仅当前 Host/会话单文件，最大 32 MiB，30 分钟有效。播放取决于 WebView2 编解码支持。", "Choose Media preview or Floating preview. One current Host/session file, up to 32 MiB, valid for 30 minutes. Playback depends on WebView2 codecs.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 			return
 		}
 		if imageMode(m, sel) {
@@ -493,7 +493,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		if m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview {
 			text = *m.EditDraft
-			ui.Text(c, label("未保存草稿（仅保留在此窗口）", "Unsaved draft (kept in this window)")).FontSize(11).TextColor(muted)
+			ui.Text(c, label("未保存草稿（仅保留在此窗口）", "Unsaved draft (kept in this window)")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		paintSourceArea(c, m, sel, &text, true, "source", fg, muted)
 	})

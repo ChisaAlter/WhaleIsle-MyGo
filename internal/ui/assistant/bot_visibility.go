@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 const botVisibilityEffects = "隐藏只改变联系人列表的可见性，可在本块勾选“显示隐藏项”后恢复。不会停用 Bot 或群聊，不会停止会话、目标、例行任务、消息或任务委派，也不等于关闭通知；通知仍按 notify、权限及消费者条件处理。群聊成员、历史和资料保持原样。保存通过 catalog/items 将审阅时完整 items 数组连同 revision 发送当前 Host，只改目标 hidden 与 updatedAt；该原版路由不直接调用 bot/update 的 rename/presentation/requestSync。现有后台工作仍可继续，目录并发变化会拒绝或留下待核实结果。本入口不额外启动、停止或打开会话。"
@@ -55,7 +56,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-visibility-management")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, "隐藏与恢复 Bot / 群聊 · Visibility management").Bold().TextColor(fg)
-		ui.Text(c, "此管理块独立于普通列表；显示隐藏项仅改变本地查看，不会恢复或修改 Host 目录。").FontSize(11).TextColor(muted)
+		ui.Text(c, "此管理块独立于普通列表；显示隐藏项仅改变本地查看，不会恢复或修改 Host 目录。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
@@ -76,7 +77,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			ui.Text(c, label+"\nID: "+s.FocusID+" · canonical session: "+s.FocusSessionID).TextColor(accent).Selectable()
 		}
 		if s.Result.ID != "" {
-			ui.Text(c, "最近已确认结果 / Last confirmed result:\n"+visibilityIdentity(s.Result)).FontSize(11).TextColor(fg).Selectable()
+			ui.Text(c, "最近已确认结果 / Last confirmed result:\n"+visibilityIdentity(s.Result)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 		}
 		shown := s.ShowHidden
 		if ui.Checkbox(c, &shown, "本地显示隐藏项 / Show hidden locally").Changed() && m.OnShowHidden != nil {
@@ -88,7 +89,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 		if s.Uncertain {
 			ui.Text(c, "原写入保持未知，不能自动或手动重发；读回不等于再次保存。锁仅在本进程保留，重启不是安全重试证明。").TextColor(accent).Selectable()
 			if s.Pending != nil {
-				ui.Text(c, botVisibilityReviewText(m.HostLabel, *s.Pending)).FontSize(11).TextColor(fg).Selectable()
+				ui.Text(c, botVisibilityReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
 			if s.Candidate != nil && ui.Button(c, "采用完整匹配读回 / Adopt exact readback").Disabled(blocked).Clicked() && m.OnAdopt != nil {
 				m.OnAdopt(s.Candidate.ID, s.Candidate.SessionID)
@@ -96,7 +97,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			return
 		}
 		if !s.Loaded {
-			ui.Text(c, "先读取当前 Host 完整目录与写权限；隐藏后的目标也可在此找回。").FontSize(11).TextColor(muted)
+			ui.Text(c, "先读取当前 Host 完整目录与写权限；隐藏后的目标也可在此找回。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if !s.Writable {
@@ -108,8 +109,8 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 				if ui.Button(c, "取消 / Cancel").Disabled(blocked).Clicked() && m.OnCancel != nil {
 					m.OnCancel()
 				}
-				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(11).TextColor(fg).Selectable()
-				ui.Text(c, botVisibilityEffects).FontSize(12).TextColor(accent).Selectable()
+				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+				ui.Text(c, botVisibilityEffects).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				ack := r.Acknowledged
 				if ui.Checkbox(c, &ack, "我确认精确目标、完整变更和上述影响 / I confirm this target and effects").Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
@@ -132,7 +133,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			count++
 			v := row
 			ui.Column(c.Key("visibility-row-" + v.ID)).Gap(4).Children(func() {
-				ui.Text(c, visibilityIdentity(v)).FontSize(11).TextColor(fg).Selectable()
+				ui.Text(c, visibilityIdentity(v)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 				label := "审阅隐藏 / Review hide"
 				if v.Hidden {
 					label = "审阅恢复 / Review unhide"

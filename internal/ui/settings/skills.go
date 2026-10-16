@@ -2,6 +2,7 @@ package settings
 
 import (
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 
@@ -82,36 +83,36 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Skills
-	ui.Text(c, i18n.T(i18n.KeySettingsSkillsTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsSkillsHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsSkillsTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsSkillsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if a.SessionID != "" {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsSession)+": "+a.SessionID).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsSession)+": "+a.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	} else {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsNoSession)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsNoSession)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.Notice != "" {
-		ui.Text(c, a.Notice).FontSize(11).TextColor(muted)
+		ui.Text(c, a.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.Busy {
-		ui.Text(c, "Saving skills…").FontSize(11).TextColor(muted)
+		ui.Text(c, "Saving skills…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.DetailPreview != "" {
-		ui.Text(c, a.DetailPreview).FontSize(11).TextColor(muted)
+		ui.Text(c, a.DetailPreview).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, "取消编辑 / Cancel edit").Disabled(a.Busy).Clicked() {
 		a.OnCancelEdit()
 	}
 	if a.EditWritable && a.EditName != "" && a.EditDesc != nil && a.EditContent != nil && a.OnSaveUpdate != nil {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(12).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		ui.TextInput(c, a.EditDesc).FillWidth().Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
 		if a.EditWhenToUse != nil {
-			ui.Text(c, "使用条件（清空以移除） / When to use (empty removes it)").FontSize(11).TextColor(muted)
+			ui.Text(c, "使用条件（清空以移除） / When to use (empty removes it)").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.TextArea(c, a.EditWhenToUse).FillWidth().Lines(2, 5).Disabled(a.Busy)
 		}
 		ui.TextArea(c, a.EditContent).FillWidth().Lines(5, 16).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
@@ -121,9 +122,9 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.EditUserInvocable != nil {
 			ui.Checkbox(c, a.EditUserInvocable, "用户可调用 / User invocable").Disabled(a.Busy)
 		}
-		ui.Text(c, "仅保存会写入 Skill 文件；文本不会在此执行。 / Only Save writes the Skill file; text is not executed here.").FontSize(11).TextColor(muted)
+		ui.Text(c, "仅保存会写入 Skill 文件；文本不会在此执行。 / Only Save writes the Skill file; text is not executed here.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if a.EditGroups != nil {
-			ui.Text(c, "Groups (comma-separated; leave empty to clear)").FontSize(11).TextColor(muted)
+			ui.Text(c, "Groups (comma-separated; leave empty to clear)").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.TextInput(c, a.EditGroups).FillWidth().Disabled(a.Busy)
 			for _, group := range skillSections(a.Skills) {
 				if group.Name == "" {
@@ -139,7 +140,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if selected {
 					label = "− " + group.Name
 				}
-				if ui.Button(c, label).FontSize(11).Disabled(a.Busy).Clicked() {
+				if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
 					tags := []string{}
 					for _, tag := range strings.Split(*a.EditGroups, ",") {
 						tag = strings.TrimSpace(tag)
@@ -156,16 +157,16 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 		}
 		if !a.EditCanSave && !a.Busy {
-			ui.Text(c, "草稿已保留；目标或版本已变化，请重新查看后再保存。 / Draft retained; inspect again before saving after a target, revision, or result change.").FontSize(11).TextColor(muted)
+			ui.Text(c, "草稿已保留；目标或版本已变化，请重新查看后再保存。 / Draft retained; inspect again before saving after a target, revision, or result change.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(11).Disabled(a.Busy || !a.EditCanSave).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy || !a.EditCanSave).Clicked() {
 			a.OnSaveUpdate()
 		}
 	}
 	if a.RemovalID != 0 {
-		ui.Text(c, "删除审阅 / Review deletion").FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, a.RemovalLabel).FontSize(11).TextColor(muted)
-		ui.Text(c, a.RemovalMessage).FontSize(12).TextColor(fg)
+		ui.Text(c, "删除审阅 / Review deletion").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, a.RemovalLabel).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, a.RemovalMessage).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		if a.OnCancelRemoval != nil && ui.Button(c, "取消 / Cancel").Disabled(a.RemovalBusy).Clicked() {
 			a.OnCancelRemoval()
 		}
@@ -177,7 +178,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.TextInput(c, a.Query).FillWidth().Placeholder("搜索名称、说明或来源 / Search name, description or source")
 	}
 	if a.SourceFilter != nil {
-		ui.Text(c, "来源 / Source").FontSize(11).TextColor(muted)
+		ui.Text(c, "来源 / Source").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, "全部 / All").Clicked() {
 			*a.SourceFilter = ""
 		}
@@ -197,20 +198,20 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	visible := filterSkillRows(a.Skills, a.Query, a.SourceFilter)
 	if len(visible) == 0 {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {
 		for _, group := range skillSections(visible) {
 			label := group.Name
 			if label == "" {
 				label = "Ungrouped"
 			}
-			ui.Text(c, label).FontSize(13).Bold().TextColor(fg)
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 			if group.Writable > 0 && a.OnSetGroupInvocable != nil && !a.Busy {
 				label := "Enable group"
 				if group.AllEnabled {
 					label = "Disable group"
 				}
-				if ui.Button(c, label).FontSize(11).Clicked() {
+				if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					a.OnSetGroupInvocable(group.Name, !group.AllEnabled)
 				}
 			}
@@ -221,26 +222,26 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					flag = i18n.T(i18n.KeySettingsSkillsUserOnly)
 				}
 				desktopRow(c, emptyDash(row.Name), func() {
-					ui.Text(c, flag).FontSize(11).TextColor(muted)
-					ui.Text(c, row.Source+" · "+row.Path).FontSize(11).TextColor(muted)
+					ui.Text(c, flag).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, row.Source+" · "+row.Path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					if row.Directory != "" {
-						ui.Text(c, row.Directory).FontSize(11).TextColor(muted)
+						ui.Text(c, row.Directory).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					}
 					if a.OnOpenDirectory != nil && row.Directory != "" && ui.Button(c, "打开目录 / Open directory on Host").Disabled(a.Busy).Clicked() {
 						a.OnOpenDirectory(row.Name)
 					}
 					if !row.Writable {
-						ui.Text(c, "Read-only").FontSize(11).TextColor(muted)
+						ui.Text(c, "Read-only").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					}
 					if row.Error != "" {
-						ui.Text(c, row.Error).FontSize(11).TextColor(fg)
+						ui.Text(c, row.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 					}
 					if row.Description != "" {
-						ui.Text(c, row.Description).FontSize(11).TextColor(muted)
+						ui.Text(c, row.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					}
 					ui.Row(c).Gap(6).Children(func() {
 						if a.OnInsert != nil && row.Name != "" && row.UserInvocable {
-							if ui.Button(c, i18n.T(i18n.KeySettingsSkillsInsert)).FontSize(11).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeySettingsSkillsInsert)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 								a.OnInsert(row.Name)
 							}
 						}
@@ -251,17 +252,17 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 								label = i18n.T(i18n.KeySettingsSkillsMakeModel)
 								next = true
 							}
-							if ui.Button(c, label).FontSize(11).Clicked() {
+							if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 								a.OnSetModelInvocable(row.Name, next)
 							}
 						}
 						if a.OnInspect != nil && row.Name != "" {
-							if ui.Button(c, i18n.T(i18n.KeySettingsSkillsInspect)).FontSize(11).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeySettingsSkillsInspect)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 								a.OnInspect(row.Name)
 							}
 						}
 						if a.OnDelete != nil && row.Name != "" && row.Writable && !a.Busy && !a.RemovalBusy {
-							if ui.Button(c, i18n.T(i18n.KeyComposerSkillsDelete)).FontSize(11).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyComposerSkillsDelete)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 								a.OnDelete(row.Name)
 							}
 						}
@@ -271,7 +272,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	if a.OnSelectRoot != nil {
-		ui.Text(c, "Create / install target").FontSize(12).Bold().TextColor(fg)
+		ui.Text(c, "Create / install target").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			userLabel, projectLabel := "User skills", "Project skills"
 			if a.TargetRoot == "project-dsh" {
@@ -287,15 +288,15 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 		if a.TargetRoot == "project-dsh" && a.ProjectCwd != "" {
-			ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(11).TextColor(muted)
+			ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		} else if a.ProjectCwd == "" {
-			ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(11).TextColor(muted)
+			ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	}
 	if a.CreateName != nil && a.OnCreate != nil {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, a.CreateName).Grow(1).Placeholder(i18n.T(i18n.KeyComposerSkillsCreateName))
-			if ui.Button(c, i18n.T(i18n.KeyComposerSkillsCreate)).FontSize(11).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyComposerSkillsCreate)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				name := strings.TrimSpace(*a.CreateName)
 				if name != "" {
 					a.OnCreate(name)
@@ -309,11 +310,11 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 
 	if a.HubQuery != nil && a.OnSearchHub != nil {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubTitle)).FontSize(13).Bold().TextColor(fg).Padding(12, 0, 0, 0)
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(12, 0, 0, 0)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, a.HubQuery).Grow(1).Placeholder(i18n.T(i18n.KeySettingsSkillsHubPlaceholder))
-			if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubSearch)).FontSize(11).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubSearch)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				a.OnSearchHub(*a.HubQuery)
 			}
 		})
@@ -338,10 +339,10 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					detail += h.Status
 				}
 				if detail != "" {
-					ui.Text(c, detail).FontSize(11).TextColor(muted)
+					ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				if a.OnInstallHub != nil && h.Repo != "" && h.Path != "" && h.SkillName != "" && h.Status != "installed" && h.Status != "conflict" {
-					if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubInstall)).FontSize(11).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubInstall)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 						a.OnInstallHub(h.Repo, h.Path, h.SkillName)
 					}
 				}

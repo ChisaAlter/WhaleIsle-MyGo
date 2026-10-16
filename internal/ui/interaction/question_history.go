@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/interaction"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store *interaction.Store, fg, muted, accent ui.Color) {
@@ -41,11 +42,11 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 		if v.Queued {
 			label = "已排队回答（只读） / Queued answers (read-only)"
 		}
-		ui.Text(c, label).Bold().FontSize(12).TextColor(fg)
+		ui.Text(c, label).Bold().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		for _, r := range v.Rows {
-			ui.Text(c, r.Question).FontSize(12).Bold().TextColor(fg)
+			ui.Text(c, r.Question).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 			if r.Detail != "" {
-				ui.Text(c, r.Detail).FontSize(11).TextColor(muted)
+				ui.Text(c, r.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 			answer := append([]string(nil), r.Selected...)
 			if r.Custom != "" {
@@ -55,7 +56,7 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			if text == "" {
 				text = "未作答 / Skipped"
 			}
-			ui.Text(c, text).FontSize(12).TextColor(fg)
+			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
 		if ui.Button(c, "关闭历史 / Close history").Clicked() {
 			store.ReviewQuestionHistory(v.AgentID, "")

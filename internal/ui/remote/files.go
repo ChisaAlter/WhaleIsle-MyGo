@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // FileEditor keeps the native text input pointer stable while Files owns per-session drafts.
@@ -32,11 +33,11 @@ func viewSessionFiles(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Gap(8).Children(func() {
 		ui.Text(c, label("当前会话的远程文件", "Current session's remote files")).Bold()
 		if s.SessionID == "" {
-			ui.Text(c, label("先选择已绑定远程工作区的会话。", "Select a session bound to a remote workspace first.")).FontSize(12)
+			ui.Text(c, label("先选择已绑定远程工作区的会话。", "Select a session bound to a remote workspace first.")).FontSize(fonttheme.InterfaceSize(12))
 			return
 		}
-		ui.Text(c, s.SessionID).FontSize(11)
-		ui.Text(c, label("所有远程文件操作都绑定此会话，不使用当前机器默认目录。", "All remote file operations use this session binding, never the active machine default.")).FontSize(11)
+		ui.Text(c, s.SessionID).FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, label("所有远程文件操作都绑定此会话，不使用当前机器默认目录。", "All remote file operations use this session binding, never the active machine default.")).FontSize(fonttheme.InterfaceSize(11))
 		disabled := s.Busy || !m.HarnessReady || !m.RemoteWorkspaceEnabled
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, label("浏览 / 刷新会话目录", "Browse / refresh session directory")).Disabled(disabled || s.Dirty()).Clicked() {
@@ -47,17 +48,17 @@ func viewSessionFiles(c *ui.Context, m Model) {
 			}
 		})
 		if s.Busy {
-			ui.Text(c, label("正在处理：", "Working: ")+s.Operation).FontSize(12)
+			ui.Text(c, label("正在处理：", "Working: ")+s.Operation).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(12)
+			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(12)
+			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(12))
 		}
-		ui.Text(c, s.Path).FontSize(11)
+		ui.Text(c, s.Path).FontSize(fonttheme.InterfaceSize(11))
 		if s.Loaded && s.Bound && len(s.Items) == 0 {
-			ui.Text(c, label("此远程目录为空。", "This remote directory is empty.")).FontSize(12)
+			ui.Text(c, label("此远程目录为空。", "This remote directory is empty.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		ui.Scroll(c).Height(160).Children(func() {
 			ui.Column(c).FillWidth().Gap(3).Children(func() {
@@ -84,15 +85,15 @@ func viewSessionFiles(c *ui.Context, m Model) {
 		if !s.FileLoaded {
 			return
 		}
-		ui.Text(c, s.FilePath).FontSize(12)
-		ui.Text(c, fmt.Sprintf("%d bytes", s.File.Size)).FontSize(11)
+		ui.Text(c, s.FilePath).FontSize(fonttheme.InterfaceSize(12))
+		ui.Text(c, fmt.Sprintf("%d bytes", s.File.Size)).FontSize(fonttheme.InterfaceSize(11))
 		if s.Stale {
-			ui.Text(c, label("原连接或保存状态已变化。草稿保留；请复制草稿，明确放弃后重读远端再编辑。", "Connection or save state changed. Draft retained; copy it, explicitly discard, then re-read the remote file before editing.")).FontSize(12)
+			ui.Text(c, label("原连接或保存状态已变化。草稿保留；请复制草稿，明确放弃后重读远端再编辑。", "Connection or save state changed. Draft retained; copy it, explicitly discard, then re-read the remote file before editing.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if s.File.Binary {
-			ui.Text(c, label("二进制文件，只提供下载。", "Binary file; download is available.")).FontSize(12)
+			ui.Text(c, label("二进制文件，只提供下载。", "Binary file; download is available.")).FontSize(fonttheme.InterfaceSize(12))
 		} else if s.File.Truncated {
-			ui.Text(c, label("预览已截断，禁止保存不完整文件。", "Preview is truncated; saving incomplete contents is disabled.")).FontSize(12)
+			ui.Text(c, label("预览已截断，禁止保存不完整文件。", "Preview is truncated; saving incomplete contents is disabled.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, label("重新读取", "Reload")).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
@@ -116,14 +117,14 @@ func viewSessionFiles(c *ui.Context, m Model) {
 					m.Files.SetDraft(e.Draft)
 				}
 			} else {
-				ui.Scroll(c).Height(180).Children(func() { ui.Text(c, s.File.Content).FontSize(12) })
+				ui.Scroll(c).Height(180).Children(func() { ui.Text(c, s.File.Content).FontSize(fonttheme.InterfaceSize(12)) })
 			}
 		}
 		if ui.Button(c, label("下载到会话镜像…", "Download to session mirror…")).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
 			e.ConfirmDownload = true
 		}
 		if e.ConfirmDownload {
-			ui.Text(c, label("下载会写入此会话的本地镜像，并可能覆盖同名文件。远端未保存草稿不会被上传。", "Download writes into this session's local mirror and may overwrite the same-named file. Unsaved remote drafts are not uploaded.")).FontSize(12)
+			ui.Text(c, label("下载会写入此会话的本地镜像，并可能覆盖同名文件。远端未保存草稿不会被上传。", "Download writes into this session's local mirror and may overwrite the same-named file. Unsaved remote drafts are not uploaded.")).FontSize(fonttheme.InterfaceSize(12))
 			ui.Row(c).Gap(6).Children(func() {
 				if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
 					e.ConfirmDownload = false

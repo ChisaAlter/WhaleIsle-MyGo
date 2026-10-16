@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 
@@ -44,7 +45,7 @@ func imageMode(m Model, path string) bool {
 func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	if imagepreview.Supports(path) && m.OnOpenDoc != nil {
 		ui.Row(c).Gap(6).Padding(4, 12, 4, 12).Children(func() {
-			if ui.Button(c, label("隔离兼容预览", "Isolated compatibility preview")).FontSize(11).Clicked() {
+			if ui.Button(c, label("隔离兼容预览", "Isolated compatibility preview")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
 				if err != nil {
 					setFileStatus(m, err.Error())
@@ -53,7 +54,7 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 				}
 			}
 		})
-		ui.Text(c, label("GIF 动画 / ICO / AVIF / SVG：先校验大小、尺寸和资源边界，再用无脚本、无网络的隔离图片页打开。", "GIF animation / ICO / AVIF / SVG: validate size, dimensions and resource bounds, then open an isolated image page with no scripts or network.")).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+		ui.Text(c, label("GIF 动画 / ICO / AVIF / SVG：先校验大小、尺寸和资源边界，再用无脚本、无网络的隔离图片页打开。", "GIF animation / ICO / AVIF / SVG: validate size, dimensions and resource bounds, then open an isolated image page with no scripts or network.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 	}
 	t := selectedTab(m)
 	var preview *imagePreview
@@ -73,12 +74,12 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 		}
 	}
 	if preview.err != nil {
-		ui.Text(c, preview.err.Error()).FontSize(12).TextColor(muted).Padding(8, 12, 8, 12)
-		ui.Text(c, label("可用“外部打开”查看此图片；不会自动启动其他应用。", "Use Open external to view this image. No other app is opened automatically.")).FontSize(11).TextColor(muted).Padding(4, 12, 4, 12)
+		ui.Text(c, preview.err.Error()).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
+		ui.Text(c, label("可用“外部打开”查看此图片；不会自动启动其他应用。", "Use Open external to view this image. No other app is opened automatically.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
 		return
 	}
 	if preview.note != "" {
-		ui.Text(c, preview.note).FontSize(10).TextColor(muted).Padding(4, 12, 4, 12)
+		ui.Text(c, preview.note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
 	}
 	if preview.bitmap != nil {
 		ui.Image(c, preview.bitmap).Fill().Grow(1).MinHeight(0).Fit(ui.Contain)

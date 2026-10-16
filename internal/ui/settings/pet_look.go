@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"fmt"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pet"
@@ -14,8 +15,8 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 	if p == nil || p.Store == nil {
 		return
 	}
-	ui.Text(c, "桌宠看看模型 / Pet Look model").FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, "独立于全局视觉模型；选择后立即保存。截图和发送仍需每次确认。 / Saved separately from global vision settings. Each screenshot and send still asks for confirmation.").FontSize(11).TextColor(muted)
+	ui.Text(c, "桌宠看看模型 / Pet Look model").FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, "独立于全局视觉模型；选择后立即保存。截图和发送仍需每次确认。 / Saved separately from global vision settings. Each screenshot and send still asks for confirmation.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	catalog := petlook.Catalog{}
 	if store != nil {
 		catalog = store.ImageCatalogSnapshot()

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type ContactsModel struct {
@@ -41,7 +42,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
 		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(11).TextColor(muted).Selectable()
+			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		query := s.Filters.Query
 		ui.TextInput(c.Key("contacts-search"), &query).Label("搜索名称、标题和说明 / Search contacts").FillWidth().OnChange(func() { change("query", query) })
@@ -70,7 +71,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		})
 		sources := dshbotstore.ContactSources(s.Catalog)
 		if len(sources) > 0 {
-			ui.Text(c, "来源 / Source").FontSize(11).TextColor(muted)
+			ui.Text(c, "来源 / Source").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Column(c).Gap(4).Children(func() {
 				if ui.Button(c, "全部来源 / All sources").Disabled(s.Filters.Source == "").Clicked() {
 					change("source", "")
@@ -84,10 +85,10 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			})
 		}
 		if !s.Loaded {
-			ui.Text(c, "正在读取当前 Host 的完整联系人目录；也可点击刷新。").FontSize(11).TextColor(muted)
+			ui.Text(c, "正在读取当前 Host 的完整联系人目录；也可点击刷新。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
-		ui.Text(c, fmt.Sprintf("目录 revision %d · %d 位联系人 · %d 个分组", s.Catalog.Revision, len(s.Catalog.Items), len(s.Catalog.Sections))).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("目录 revision %d · %d 位联系人 · %d 个分组", s.Catalog.Revision, len(s.Catalog.Items), len(s.Catalog.Sections))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if !s.Writable {
 			ui.Text(c, "Host 当前只读，仍可搜索与打开会话。").TextColor(muted)
 		}
@@ -115,7 +116,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			})
 		})
 		if s.Undo != nil {
-			ui.Text(c, fmt.Sprintf("已删除分组“%s”；联系人保留并移至未分组。撤销会将仍存在的原成员移回该组。", s.Undo.Section.Name)).FontSize(11).TextColor(muted)
+			ui.Text(c, fmt.Sprintf("已删除分组“%s”；联系人保留并移至未分组。撤销会将仍存在的原成员移回该组。", s.Undo.Section.Name)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if ui.Button(c, "撤销删除分组 / Restore section").Disabled(readonly).Clicked() {
 				action(pluginrpc.DshbotContactCommand{Action: "restore", Snapshot: s.Undo})
 			}
@@ -142,7 +143,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 						}
 					})
 					if s.DeleteSection == group.ID {
-						ui.Text(c, "只删除分组，所有成员移至未分组；不删除 Bot、群聊或历史。成功后可撤销。").FontSize(11).TextColor(accent)
+						ui.Text(c, "只删除分组，所有成员移至未分组；不删除 Bot、群聊或历史。成功后可撤销。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						ui.Row(c).Gap(6).Children(func() {
 							if ui.Button(c, "确认删除分组").Disabled(readonly).Clicked() {
 								action(pluginrpc.DshbotContactCommand{Action: "delete", ID: group.ID})
@@ -173,23 +174,23 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 						}
 						ui.Text(c, kind+" · "+title).TextColor(fg).Bold()
 						if title != row.Name && row.Kind != "room" {
-							ui.Text(c, "@"+row.Name).FontSize(11).TextColor(muted)
+							ui.Text(c, "@"+row.Name).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 						if description := pluginrpc.DshbotContactText(row, "description"); description != "" {
-							ui.Text(c, description).FontSize(11).TextColor(muted).Selectable()
+							ui.Text(c, description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 						}
 						if _, label := pluginrpc.DshbotContactSource(row); label != "" {
-							ui.Text(c, "来源: "+label).FontSize(11).TextColor(muted)
+							ui.Text(c, "来源: "+label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 						if live := cm.Activity[row.ID]; live.Active {
-							ui.Text(c, "活跃 / Active").FontSize(11).TextColor(accent)
+							ui.Text(c, "活跃 / Active").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						}
 						if preview := cm.Activity[row.ID].Preview; preview != "" {
-							ui.Text(c, preview).FontSize(11).TextColor(accent)
+							ui.Text(c, preview).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						}
 						for _, cached := range m.DshbotRoster {
 							if cached.ID == row.ID && cached.Detail != "" {
-								ui.Text(c, cached.Detail).FontSize(11).TextColor(accent)
+								ui.Text(c, cached.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 								break
 							}
 						}

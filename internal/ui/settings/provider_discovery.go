@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/providerdiscovery"
@@ -23,8 +24,8 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("探测并采纳供应商模型", "Discover and adopt provider models")).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("仅点击探测后由此桌面访问所示地址；已有 Host 密钥不会读取或代用。临时密钥仅用于本次探测，随后丢弃。", "Only clicking Discover sends a request from this desktop to the address below. Stored Host keys are never read or reused. A temporary key is discarded after this probe.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("探测并采纳供应商模型", "Discover and adopt provider models")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("仅点击探测后由此桌面访问所示地址；已有 Host 密钥不会读取或代用。临时密钥仅用于本次探测，随后丢弃。", "Only clicking Discover sends a request from this desktop to the address below. Stored Host keys are never read or reused. A temporary key is discarded after this probe.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).TextColor(muted)
 		return
@@ -33,7 +34,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, s.Err).TextColor(fg)
 	}
 	if s.LastAction != "" {
-		ui.Text(c, s.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, s.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.Button(c, providerCopy("刷新供应商", "Refresh providers")).Disabled(s.Busy || s.Dirty || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
@@ -69,7 +70,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		return
 	}
 	if s.Dirty {
-		ui.Text(c, providerCopy("有未保存草稿；保存或放弃后可切换供应商。", "Unsaved draft: save or discard before changing providers.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("有未保存草稿；保存或放弃后可切换供应商。", "Unsaved draft: save or discard before changing providers.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if row.Blocked != "" {
 		ui.Text(c, row.Blocked).TextColor(fg)
@@ -78,11 +79,11 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, providerCopy("Host 设置只读，无法采纳或保存。", "Host settings are read-only; adoption and saving are disabled.")).TextColor(muted)
 	}
 	endpoint, protocol, key := s.Endpoint, s.Protocol, s.Key
-	ui.Text(c, "Endpoint").FontSize(11).TextColor(muted)
+	ui.Text(c, "Endpoint").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if ui.TextInput(c, &endpoint).FillWidth().Placeholder("https://provider.example/v1").Disabled(s.Busy).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, "endpoint", endpoint)
 	}
-	ui.Text(c, providerCopy("探测协议", "Discovery protocol")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("探测协议", "Discovery protocol")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	protocols := append([]string(nil), providerdiscovery.Protocols...)
 	found := false
 	for _, p := range protocols {
@@ -98,17 +99,17 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 	}
 	target, targetErr := providerdiscovery.ListingURL(s.Endpoint, s.Protocol)
 	if targetErr == nil {
-		ui.Text(c, "GET "+target).FontSize(11).TextColor(fg)
+		ui.Text(c, "GET "+target).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	} else {
-		ui.Text(c, targetErr.Error()).FontSize(11).TextColor(muted)
+		ui.Text(c, targetErr.Error()).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if row.CredentialKnown && row.CredentialConfigured {
-		ui.Text(c, providerCopy("Host 密钥已配置 · ••••••••，本次探测不会使用它。", "Host key configured · ••••••••; this probe does not use it.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("Host 密钥已配置 · ••••••••，本次探测不会使用它。", "Host key configured · ••••••••; this probe does not use it.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.TextInput(c, &key).FillWidth().Password().Placeholder(providerCopy("临时密钥；留空匿名探测", "Temporary key; blank probes anonymously")).Disabled(s.Busy).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, "key", key)
 	}
-	ui.Text(c, providerCopy("HTTPS 可携带临时密钥；本地 HTTP 仅允许匿名。禁止重定向。保存密钥请使用上方凭据入口。", "HTTPS may carry the temporary key; loopback HTTP is anonymous only. Redirects are blocked. Use the credential controls above to save a key.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("HTTPS 可携带临时密钥；本地 HTTP 仅允许匿名。禁止重定向。保存密钥请使用上方凭据入口。", "HTTPS may carry the temporary key; loopback HTTP is anonymous only. Redirects are blocked. Use the credential controls above to save a key.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	probeLabel := providerCopy("匿名探测此地址", "Discover anonymously at this address")
 	if strings.TrimSpace(s.Key) != "" {
 		probeLabel = providerCopy("发送临时密钥并探测此地址", "Send temporary key and discover at this address")
@@ -145,15 +146,15 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 			a.OnAdopt(s.Ticket)
 		}
 	}
-	ui.Text(c, fmt.Sprintf(providerCopy("模型草稿：%d 项", "Model draft: %d entries"), len(s.Models))).FontSize(12).TextColor(fg)
+	ui.Text(c, fmt.Sprintf(providerCopy("模型草稿：%d 项", "Model draft: %d entries"), len(s.Models))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	for _, model := range s.Models {
 		if id, ok := model["id"].(string); ok {
-			ui.Text(c, id).FontSize(11).TextColor(muted)
+			ui.Text(c, id).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	}
 	if s.Review {
 		ui.Text(c, providerCopy("确认保存此供应商的模型列表，以及已修改的 endpoint / 协议。已有模型的其他字段保留；临时密钥不保存。更改目标地址会影响今后使用此供应商及其已保存凭据的请求。", "Confirm this provider's model list and edited endpoint/protocol. Other fields on existing models are preserved; the temporary key is not saved. Changing the target affects future requests using this provider and its saved credentials.")).TextColor(fg)
-		ui.Text(c, row.Provider+" · "+s.Endpoint+" · "+s.Protocol).FontSize(11).TextColor(fg)
+		ui.Text(c, row.Provider+" · "+s.Endpoint+" · "+s.Protocol).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, providerCopy("确认保存供应商模型", "Confirm save provider models")).Disabled(s.Busy).Clicked() && a.OnSave != nil {
 				a.OnSave(s.Ticket)

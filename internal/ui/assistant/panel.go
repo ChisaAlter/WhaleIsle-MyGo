@@ -85,7 +85,7 @@ func View(c *ui.Context, m Model) {
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAssistantTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyAssistantTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAssistantBack)).Clicked() {
 				m.OnClose()
 			}
@@ -94,13 +94,13 @@ func View(c *ui.Context, m Model) {
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(12).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 
 				modeBlock(c, m, fg, muted, accent)
 				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
 				if m.Mode == assiststore.ModeDshbot && m.BotNotificationStatus != "" {
-					ui.Text(c, m.BotNotificationStatus).FontSize(11).TextColor(muted)
+					ui.Text(c, m.BotNotificationStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 				botVisibilityBlock(c, m, fg, muted, field, border, accent)
 				roomCreateBlock(c, m, fg, muted, field, border, accent)
@@ -114,7 +114,7 @@ func View(c *ui.Context, m Model) {
 				routineCreateBlock(c, m, fg, muted, field, border, accent)
 				composeBlock(c, m, fg, muted, accent)
 				pluginRPCBlock(c, m, fg, muted, accent)
-				ui.Text(c, "完整消息历史、流式回复、工具审批与停止请在主会话中查看。 / Full history, streaming replies, approvals and stop live in the main conversation.").FontSize(11).TextColor(muted)
+				ui.Text(c, "完整消息历史、流式回复、工具审批与停止请在主会话中查看。 / Full history, streaming replies, approvals and stop live in the main conversation.").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 
 				statusBlock(c, field, border, fg, muted, []kv{
 					{i18n.T(i18n.KeyAssistantModeLabel), modeLabel(m.Mode)},
@@ -136,7 +136,7 @@ func View(c *ui.Context, m Model) {
 					m.HarnessReady && m.DshbotEnabled, m.OnOpenDshbotWeb,
 					i18n.T(i18n.KeyAssistantOpenDshbotWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
 
-				ui.Text(c, i18n.T(i18n.KeyAssistantRestartNote)).FontSize(11).TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyAssistantRestartNote)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 			})
 		})
 	})
@@ -146,8 +146,8 @@ type kv struct{ label, value string }
 
 func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantModeTitle)).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyAssistantModeHint)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyAssistantModeTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantModeHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			whaleLabel := i18n.T(i18n.KeyAssistantModeWhale)
 			dshLabel := i18n.T(i18n.KeyAssistantModeDshbot)
@@ -172,16 +172,16 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			}
 		})
 		if m.Busy {
-			ui.Text(c, i18n.T(i18n.KeyAssistantBusy)).FontSize(11).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyAssistantBusy)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
 	})
 }
 
 func historyBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantHistoryTitle)).FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantHistoryTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		if len(m.History) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyAssistantHistoryEmpty)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyAssistantHistoryEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
@@ -200,23 +200,23 @@ func historyBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 						head += " · " + t.At
 					}
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, head).FontSize(11).TextColor(muted).Grow(1)
+						ui.Text(c, head).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
 						copyBody := t.Response
 						if copyBody == "" {
 							copyBody = t.Prompt
 						}
 						if strings.TrimSpace(copyBody) != "" {
-							if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 								mygo.Clipboard.WriteText(copyBody)
 							}
 						}
 					})
-					ui.Text(c, clip(t.Prompt, 160)).FontSize(12).TextColor(fg)
+					ui.Text(c, clip(t.Prompt, 160)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 					if t.Response != "" {
-						ui.Text(c, clip(t.Response, 240)).FontSize(12).TextColor(accent)
+						ui.Text(c, clip(t.Response, 240)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 					}
 					if t.Err != "" {
-						ui.Text(c, t.Err).FontSize(11).TextColor(accent)
+						ui.Text(c, t.Err).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 					}
 				})
 			}
@@ -226,12 +226,12 @@ func historyBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 
 func statusBlock(c *ui.Context, field, border, fg, muted ui.Color, rows []kv) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantStatusTitle)).FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantStatusTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
 			for _, row := range rows {
 				ui.Row(c).Gap(12).Children(func() {
-					ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(220)
-					ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
+					ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(220)
+					ui.Text(c, row.value).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 				})
 			}
 		})
@@ -252,16 +252,16 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 	busy := m.PluginRPCBusy || m.Busy
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterTitle)).FontSize(13).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
 			if m.OnDshbotRefreshRoster != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterRefresh)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 				m.OnDshbotRefreshRoster()
 			}
 		})
 		if fetched := strings.TrimSpace(m.DshbotRosterFetched); fetched != "" {
-			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterUpdated)+": "+fetched).FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterUpdated)+": "+fetched).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		if len(m.DshbotRoster) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterEmpty)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
 		limit := len(m.DshbotRoster)
@@ -289,8 +289,8 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 				}
 				ui.Column(c).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, kindLabel).FontSize(11).TextColor(muted).Width(88)
-						ui.Text(c, clip(label, 120)).FontSize(12).TextColor(fg).Grow(1)
+						ui.Text(c, kindLabel).FontSize(theme.InterfaceSize(11)).TextColor(muted).Width(88)
+						ui.Text(c, clip(label, 120)).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 						if m.OnDshbotSelect != nil && ui.Button(c, "选择 / Select").Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
 							m.OnDshbotSelect(id)
 						}
@@ -299,7 +299,7 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 						}
 					})
 					if d := strings.TrimSpace(row.Detail); d != "" {
-						ui.Text(c, clip(d, 140)).FontSize(11).TextColor(accent)
+						ui.Text(c, clip(d, 140)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 					}
 				})
 			}
@@ -312,13 +312,13 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		return
 	}
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "打开专属主会话并发送；回复、审批和停止均在主聊天中。 / Open the canonical chat to send, follow replies, approve tools and stop.").FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, "打开专属主会话并发送；回复、审批和停止均在主聊天中。 / Open the canonical chat to send, follow replies, approve tools and stop.").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		ui.TextArea(c, m.Draft).Lines(2, 4).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
 			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""
-			ui.Text(c, "先选择上方 Bot / 群聊；消息发送到该条目的专属会话。").FontSize(11).TextColor(muted)
+			ui.Text(c, "先选择上方 Bot / 群聊；消息发送到该条目的专属会话。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy || m.PluginRPCBusy || !available
 		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Disabled(empty).Clicked() {
@@ -328,10 +328,10 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			}
 		}
 		if m.LastNativeAction != "" {
-			ui.Text(c, m.LastNativeAction).FontSize(11).TextColor(accent)
+			ui.Text(c, m.LastNativeAction).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
 		if m.LastErr != "" {
-			ui.Text(c, m.LastErr).FontSize(11).TextColor(accent)
+			ui.Text(c, m.LastErr).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
 	})
 }
@@ -342,8 +342,8 @@ func pluginRPCBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	busy := m.PluginRPCBusy || m.Busy
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCTitle)).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCHint)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			if m.OnWhaleEnsure != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleEnsure)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhaleEnsure()
@@ -372,8 +372,8 @@ func pluginRPCBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		})
 		if m.PluginRPCDetail != "" {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, m.PluginRPCDetail).FontSize(11).TextColor(accent).Grow(1)
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+				ui.Text(c, m.PluginRPCDetail).FontSize(theme.InterfaceSize(11)).TextColor(accent).Grow(1)
+				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(m.PluginRPCDetail)
 				}
 			})
@@ -392,7 +392,7 @@ func section(
 	openLabel, onLabel, offLabel string,
 ) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, title).FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			if onToggle != nil {
 				label := onLabel

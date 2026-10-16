@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenPDF owns the document lease until its tab/window closes. A native viewer
@@ -45,7 +46,7 @@ func (b *Controller) PrunePDFDocuments() {
 	}
 }
 func (b *Controller) documentControls(c *ui.Context, t *Tab) {
-	ui.Text(c, t.Document.Name).FontSize(12).Grow(1)
+	ui.Text(c, t.Document.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
 	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
 		b.openFloatingDocument(t)
 	}

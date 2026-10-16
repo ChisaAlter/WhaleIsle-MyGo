@@ -47,7 +47,7 @@ func View(c *ui.Context, m Model) {
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewTitle)).FontSize(15).Bold().TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyBrowserPreviewBack)).Clicked() {
 				m.OnClose()
 			}
@@ -62,7 +62,7 @@ func View(c *ui.Context, m Model) {
 			if m.URLDraft != nil {
 				ui.TextInput(c, m.URLDraft).Placeholder(i18n.T(i18n.KeyBrowserPreviewURLPlaceholder)).Grow(1)
 			} else {
-				ui.Text(c, draft).FontSize(12).TextColor(muted).Grow(1)
+				ui.Text(c, draft).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
 			}
 			goLabel := i18n.T(i18n.KeyBrowserPreviewGo)
 			if ui.Button(c, goLabel).Clicked() && m.OnNavigate != nil {
@@ -95,13 +95,13 @@ func View(c *ui.Context, m Model) {
 		})
 
 		if m.NavigateError != "" {
-			ui.Text(c, m.NavigateError).FontSize(11).TextColor(chrome.Color("rgb(220, 38, 38)")).Padding(0, 12, 4, 12)
+			ui.Text(c, m.NavigateError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Padding(0, 12, 4, 12)
 		}
 		if m.HostError != "" {
-			ui.Text(c, m.HostError).FontSize(11).TextColor(chrome.Color("rgb(220, 38, 38)")).Padding(0, 12, 4, 12)
+			ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Padding(0, 12, 4, 12)
 		}
 		if m.HostActive && m.HostURL != "" {
-			ui.Text(c, m.HostURL).FontSize(11).TextColor(accent).Padding(0, 12, 8, 12)
+			ui.Text(c, m.HostURL).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(0, 12, 8, 12)
 		}
 
 		if m.HostActive {
@@ -109,7 +109,7 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(16, 20, 16, 20).Gap(8).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewHint)).FontSize(12).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		})
 	})
 }

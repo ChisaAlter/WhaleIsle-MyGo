@@ -3,6 +3,7 @@ package pet
 import (
 	"fmt"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -17,12 +18,13 @@ func quickChatName(name, fallback string) string {
 // This is native MyGo content, not a page with general IPC/model credentials.
 // Enter inserts a newline (including IME); only the explicit Send button sends.
 func (q *QuickChat) view(c *ui.Context) {
+	fonttheme.ApplyInterface(c)
 	direct := q.options.Direct != nil
 	active := q.win != nil && q.check()
 	theme := c.Theme()
 	ui.Column(c).Fill().Padding(14).Gap(10).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, quickChatName(q.state.Name, "鲸鱼娘")+" · 聊聊").Bold().FontSize(17).Grow(1)
+			ui.Text(c, quickChatName(q.state.Name, "鲸鱼娘")+" · 聊聊").Bold().FontSize(fonttheme.InterfaceSize(17)).Grow(1)
 			if !direct && ui.Button(c, "↗ 主会话 / Open").Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
@@ -31,12 +33,12 @@ func (q *QuickChat) view(c *ui.Context) {
 			}
 		})
 		if direct {
-			ui.Text(c, "联网临时聊天 · deepseek-chat · 使用桌面 API 设置；仅保留本窗口最近 6 轮，不写入共同会话 / Temporary online API chat").FontSize(11).TextColor(theme.Warning)
+			ui.Text(c, "联网临时聊天 · deepseek-chat · 使用桌面 API 设置；仅保留本窗口最近 6 轮，不写入共同会话 / Temporary online API chat").FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		} else {
-			ui.Text(c, "与主窗口共享模型、上下文和持久记录 / One shared conversation").FontSize(11).TextColor(theme.TextMuted)
+			ui.Text(c, "与主窗口共享模型、上下文和持久记录 / One shared conversation").FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
 		}
 		if q.state.SessionID != "" {
-			ui.Text(c, q.state.SessionID).Label("宠物会话 ID / Pet session ID").SingleLine().FontSize(10).TextColor(theme.TextMuted).Selectable()
+			ui.Text(c, q.state.SessionID).Label("宠物会话 ID / Pet session ID").SingleLine().FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).Selectable()
 		}
 		if !direct {
 			q.modelPicker(c, active)
@@ -53,7 +55,7 @@ func (q *QuickChat) view(c *ui.Context) {
 				if q.stale {
 					line = "连接不可用；草稿仍保留 / Connection unavailable"
 				}
-				ui.Text(c, line).TextColor(theme.TextMuted).FontSize(12)
+				ui.Text(c, line).TextColor(theme.TextMuted).FontSize(fonttheme.InterfaceSize(12))
 			})
 		} else {
 			historyLabel := "共同会话记录 / Shared history"
@@ -74,16 +76,16 @@ func (q *QuickChat) view(c *ui.Context) {
 					label = "会话 / Session"
 				}
 				ui.Column(row.Context).Padding(8).Gap(3).FillWidth().Children(func() {
-					ui.Text(row.Context, label).FontSize(10).TextColor(theme.TextMuted)
-					ui.Text(row.Context, message.Text).FontSize(13).TextColor(color).Selectable()
+					ui.Text(row.Context, label).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
+					ui.Text(row.Context, message.Text).Font(fonttheme.CurrentPreferences().Chat.Family).FontSize(fonttheme.CurrentPreferences().Chat.Size).TextColor(color).Selectable()
 				})
 			})
 		}
 		if q.readNote != "" {
-			ui.Text(c, q.readNote).FontSize(11).TextColor(theme.Warning)
+			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		}
-		ui.Text(c, q.status).FontSize(11).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 换行，点击发送 / Type, then click Send")
+		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.CurrentPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 换行，点击发送 / Type, then click Send")
 		if !c.Root().FocusWithin() {
 			input.AutoFocus()
 		}
@@ -107,9 +109,9 @@ func (q *QuickChat) view(c *ui.Context) {
 			}
 		})
 		if direct {
-			ui.Text(c, "取消不保证撤回 API 请求。关闭清除临时记录；Host 恢复后重新点聊聊进入共同会话。").FontSize(10).TextColor(theme.TextMuted)
+			ui.Text(c, "取消不保证撤回 API 请求。关闭清除临时记录；Host 恢复后重新点聊聊进入共同会话。").FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
 		} else {
-			ui.Text(c, "取消等待不会撤回消息。停止仅作用于此宠物会话的当前轮；排队消息请到主会话管理。").FontSize(10).TextColor(theme.TextMuted)
+			ui.Text(c, "取消等待不会撤回消息。停止仅作用于此宠物会话的当前轮；排队消息请到主会话管理。").FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
 		}
 	})
 	if c.Shortcut(0, ui.KeyEscape) {
@@ -166,6 +168,6 @@ func (q *QuickChat) modelPicker(c *ui.Context, active bool) {
 		}
 	})
 	if q.catalogNote != "" {
-		ui.Text(c, q.catalogNote).FontSize(10).TextColor(c.Theme().TextMuted)
+		ui.Text(c, q.catalogNote).FontSize(fonttheme.InterfaceSize(10)).TextColor(c.Theme().TextMuted)
 	}
 }

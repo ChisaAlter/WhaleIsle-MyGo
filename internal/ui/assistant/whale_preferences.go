@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type WhalePreferencesModel struct {
@@ -22,7 +23,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 	s := m.State
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
-		ui.Text(c, "鲸鱼娘 · 模型、IM 与技能 / Whale preferences").FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, "鲸鱼娘 · 模型、IM 与技能 / Whale preferences").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		if ui.Button(c, "读取模型、IM 与技能 / Refresh preferences").Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
@@ -40,7 +41,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		disabled := blocked || !s.Loaded
 		route := s.Route
-		ui.Text(c, "她自身会话的默认模型；保存后 Host 同步已有常驻会话。留空跟随会话默认。").FontSize(11).TextColor(muted)
+		ui.Text(c, "她自身会话的默认模型；保存后 Host 同步已有常驻会话。留空跟随会话默认。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		labels := []string{"跟随会话默认 / Follow session default"}
 		choices := map[string]pluginrpc.WhaleModelRoute{labels[0]: {ReasoningEffort: route.ReasoningEffort}}
 		selected := labels[0]
@@ -116,7 +117,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if ui.Checkbox(c.Key("whale-im-default"), &im, "IM 接入同一对话 / Share conversation with IM").Disabled(disabled).Changed() && m.OnEdit != nil {
 			m.OnEdit(s.Route, im)
 		}
-		ui.Text(c, "未指定其他预设的 IM 机器人进入她的常驻会话，与桌面共用记录。").FontSize(11).TextColor(muted)
+		ui.Text(c, "未指定其他预设的 IM 机器人进入她的常驻会话，与桌面共用记录。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, "保存 IM 默认 / Save IM default").Disabled(disabled || im == s.Server.IMDefault).Clicked() && m.OnSave != nil {
 			m.OnSave("im")
 		}
@@ -128,7 +129,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		ui.Text(c, fmt.Sprintf("她的技能 / Whale skills · %d / %d 已启用", enabled, len(s.Server.Skills))).Bold().TextColor(fg)
 		if len(s.Server.Skills) == 0 {
-			ui.Text(c, "还没有技能；在此 Host 的 Whale 目录下放入 skills/<名称>/SKILL.md 后刷新。\n"+s.Server.HomeDir).FontSize(11).TextColor(muted).Selectable()
+			ui.Text(c, "还没有技能；在此 Host 的 Whale 目录下放入 skills/<名称>/SKILL.md 后刷新。\n"+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		for _, skill := range s.Server.Skills {
 			skill := skill

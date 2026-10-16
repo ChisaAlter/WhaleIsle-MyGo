@@ -3,6 +3,7 @@ package usage
 import (
 	"fmt"
 	"math"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -39,8 +40,8 @@ func BarChartView(c *ui.Context, bars []Bar, fg, muted, accent, field ui.Color) 
 				ui.Column(c).Gap(4).AlignItems(ui.Center).Width(36).Children(func() {
 					ui.Box(c).Height(chartH - h).Width(22)
 					ui.Box(c).Height(h).Width(22).Background(accent).Radius(3)
-					ui.Text(c, b.Label).FontSize(10).TextColor(muted)
-					ui.Text(c, fmt.Sprintf("%.0f", b.Value)).FontSize(10).TextColor(fg)
+					ui.Text(c, b.Label).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+					ui.Text(c, fmt.Sprintf("%.0f", b.Value)).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
 				})
 			}
 		})

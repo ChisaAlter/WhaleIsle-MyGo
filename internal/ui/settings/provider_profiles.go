@@ -5,6 +5,7 @@ import (
 	"strings"
 	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type ProviderProfilesAccess struct {
@@ -24,8 +25,8 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("Provider 档案", "Provider profiles")).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("删除用户添加的档案及其可写的页面管理凭证；内置或基础配置档案不可删除。", "Remove user-added profiles and their writable page-managed credentials. Built-in/base profiles cannot be removed.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("Provider 档案", "Provider profiles")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("删除用户添加的档案及其可写的页面管理凭证；内置或基础配置档案不可删除。", "Remove user-added profiles and their writable page-managed credentials. Built-in/base profiles cannot be removed.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(s.Busy).Clicked() {
 		a.OnRefresh()
 	}
@@ -44,7 +45,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 	for _, r := range s.Rows {
 		r := r
 		desktopRow(c, r.DisplayName+" ("+r.Provider+")", func() {
-			ui.Text(c, r.Namespace+" / "+strings.Join(r.Path, " / ")).FontSize(11).TextColor(muted)
+			ui.Text(c, r.Namespace+" / "+strings.Join(r.Path, " / ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if r.Removable {
 				if a.OnDelete != nil && ui.Button(c, providerCopy("删除档案", "Remove profile")).Disabled(s.Busy || !s.Ready).Clicked() {
 					a.OnDelete(r.ID)

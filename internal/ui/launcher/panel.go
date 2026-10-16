@@ -265,8 +265,8 @@ func railRouteChip(c *ui.Context, m Model) {
 	btn.Children(func() {
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 			globeIcon(c, colTertiary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherRouteLabel)).FontSize(12).TextColor(colTertiary)
-			ui.Text(c, railRouteLabel(m)).FontSize(12).FontWeight(500).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherRouteLabel)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+			ui.Text(c, railRouteLabel(m)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
 			ui.Box(c).Grow(1)
 			routeChevron(c, colTertiary, false)
 		})
@@ -283,14 +283,14 @@ func railHead(c *ui.Context) {
 			ui.Box(c).Width(36).Height(36).Shrink(0).Radius(18).Background(colAccent.Alpha(0.2))
 		}
 		ui.Column(c).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, "").FontSize(18).FixedLineHeight(22).Height(22).NoWrap().AlignSelf(ui.Start).Shrink(0).Children(func() {
-				ui.Text(c, "鲸").Label("鲸").FontSize(18).FontWeight(700).LetterSpacing(-0.72).TextColor(colPrimary)
-				ui.Text(c, "屿").Label("屿").FontSize(18).FontWeight(700).LetterSpacing(-0.72).TextColor(colAccent)
+			ui.Text(c, "").FontSize(theme.InterfaceSize(18)).FixedLineHeight(22).Height(22).NoWrap().AlignSelf(ui.Start).Shrink(0).Children(func() {
+				ui.Text(c, "鲸").Label("鲸").FontSize(theme.InterfaceSize(18)).FontWeight(700).LetterSpacing(-0.72).TextColor(colPrimary)
+				ui.Text(c, "屿").Label("屿").FontSize(theme.InterfaceSize(18)).FontWeight(700).LetterSpacing(-0.72).TextColor(colAccent)
 				// An em-space at7 DIP preserves the CSS7px gap within one native text line.
-				ui.Text(c, "\u2003").FontSize(7)
-				ui.Text(c, "WHALE ISLE").Label("WHALE ISLE").FontSize(10).FontWeight(600).LetterSpacing(1.2).TextColor(colPrimary)
+				ui.Text(c, "\u2003").FontSize(theme.InterfaceSize(7))
+				ui.Text(c, "WHALE ISLE").Label("WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).LetterSpacing(1.2).TextColor(colPrimary)
 			})
-			ui.Text(c, i18n.T(i18n.KeyLauncherBrandRole)).FontSize(12).FixedLineHeight(18).
+			ui.Text(c, i18n.T(i18n.KeyLauncherBrandRole)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
 				FontWeight(500).LetterSpacing(0.72).TextColor(colTertiary).SingleLine()
 		})
 	})
@@ -312,11 +312,11 @@ func railTab(c *ui.Context, m Model, id, label, active string, badge int) {
 	btn.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			tabIcon(c, id, colPrimary)
-			ui.Text(c, label).FontSize(14).TextColor(colPrimary).Grow(1)
+			ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(colPrimary).Grow(1)
 			if badge > 0 {
 				ui.Row(c).Background(colAccent).Padding(0, 5, 0, 5).Radius(999).
 					MinWidth(18).Children(func() {
-					ui.Text(c, fmt.Sprintf("%d", badge)).FontSize(11).FontWeight(600).TextColor(colPrimaryFg)
+					ui.Text(c, fmt.Sprintf("%d", badge)).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(colPrimaryFg)
 				})
 			}
 		})
@@ -375,9 +375,9 @@ func pageHead(c *ui.Context, title, lede, action string, onAction func()) {
 	headBot := float32(16)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).Padding(0, 0, headBot, 0).Children(func() {
 		ui.Column(c).Grow(1).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(titleSize).FontWeight(600).TextColor(colPrimary)
+			ui.Text(c, title).FontSize(theme.InterfaceSize(titleSize)).FontWeight(600).TextColor(colPrimary)
 			if lede != "" {
-				ui.Text(c, lede).FontSize(12).TextColor(colTertiary)
+				ui.Text(c, lede).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			}
 		})
 		if action != "" {
@@ -404,8 +404,8 @@ func homePanel(c *ui.Context, m Model) {
 		Padding(20, 24, 20, 24).Gap(0).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Start).Gap(16).Children(func() {
 			ui.Column(c).Gap(2).Grow(1).Children(func() {
-				ui.Text(c, "WHALE ISLE").FontSize(10).FontWeight(600).TextColor(colTertiary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(16).FontWeight(600).TextColor(colPrimary)
+				ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).TextColor(colTertiary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
 			})
 			badge := strings.TrimSpace(m.Version)
 			if badge == "" {
@@ -417,11 +417,11 @@ func homePanel(c *ui.Context, m Model) {
 				badge = i18n.T(i18n.KeyLauncherBadgeMissing)
 			}
 			ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
-				ui.Text(c, badge).FontSize(12).FontWeight(500).TextColor(colSecondary)
+				ui.Text(c, badge).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
 			})
 		})
 
-		ui.Text(c, i18n.T(i18n.KeyLauncherDesktopDesc)).FontSize(14).TextColor(colSecondary).
+		ui.Text(c, i18n.T(i18n.KeyLauncherDesktopDesc)).FontSize(theme.InterfaceSize(14)).TextColor(colSecondary).
 			Padding(12, 0, 16, 0)
 
 		status := i18n.T(i18n.KeyLauncherDesktopStopped)
@@ -438,7 +438,7 @@ func homePanel(c *ui.Context, m Model) {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Grow(1).Children(func() {
 				ui.Box(c).Width(6).Height(6).Radius(3).Background(dot)
-				ui.Text(c, status).FontSize(12).TextColor(colSecondary)
+				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 			})
 			ui.Row(c).Gap(8).Children(func() {
 				if m.DesktopRunning && !m.StartBusy {
@@ -467,15 +467,15 @@ func homePanel(c *ui.Context, m Model) {
 		})
 
 		if m.DesktopRunning && !m.StartBusy {
-			ui.Text(c, i18n.T(i18n.KeyLauncherRunningNote)).FontSize(12).TextColor(colTertiary).
+			ui.Text(c, i18n.T(i18n.KeyLauncherRunningNote)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).
 				Padding(12, 0, 0, 0)
 		}
 		// launcher.html #home-update + #btn-home-update / ????.
 		if m.UpdateAvailable && m.UpdateStatus != "" {
 			ui.Column(c).FillWidth().Padding(16, 0, 0, 0).
 				BorderWidth(1, 0, 0, 0).BorderColor(colBorderL2).Gap(8).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherUpdateTitle)).FontSize(10).TextColor(colTertiary)
-				ui.Text(c, m.UpdateStatus).FontSize(14).TextColor(colPrimary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherUpdateTitle)).FontSize(theme.InterfaceSize(10)).TextColor(colTertiary)
+				ui.Text(c, m.UpdateStatus).FontSize(theme.InterfaceSize(14)).TextColor(colPrimary)
 				ui.Row(c).Gap(8).Children(func() {
 					if primaryBtn(c, i18n.T(i18n.KeyLauncherUpdateNow)).Clicked() {
 						if m.OnInstallUpdate != nil {
@@ -500,8 +500,8 @@ func homePanel(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
 			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
 				Padding(16, 20, 16, 20).Gap(10).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginFailTitle)).FontSize(16).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, r).FontSize(13).TextColor(colSecondary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherPluginFailTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
+				ui.Text(c, r).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary)
 				ui.Row(c).Gap(8).Children(func() {
 					if primaryBtn(c, i18n.T(i18n.KeyLauncherPluginFailDisable)).Clicked() && m.OnEnableSkipUserPlugins != nil {
 						m.OnEnableSkipUserPlugins()
@@ -522,8 +522,8 @@ func homeInstall(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
 		ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
 			Padding(20, 24, 20, 24).Gap(12).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopTitle)).FontSize(16).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopDesc)).FontSize(13).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopDesc)).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary)
 			if m.DownloadRoute != nil {
 				ui.Row(c).Gap(8).Children(func() {
 					for _, id := range []string{"github", "cnb"} {
@@ -540,7 +540,7 @@ func homeInstall(c *ui.Context, m Model) {
 							bg = colNavActive
 						}
 						opt := ui.Button(c, label).Height(36).Radius(10).Padding(0, 14, 0, 14).
-							Background(bg).Border(1, colBorderL2).TextColor(colPrimary).FontSize(13)
+							Background(bg).Border(1, colBorderL2).TextColor(colPrimary).FontSize(theme.InterfaceSize(13))
 						routeID := id
 						if opt.Clicked() {
 							*m.DownloadRoute = routeID
@@ -555,7 +555,7 @@ func homeInstall(c *ui.Context, m Model) {
 				if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
 					m.OnInstallRuntime()
 				}
-				ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(12).TextColor(colTertiary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			})
 		})
 	})
@@ -575,8 +575,8 @@ func homeComponents(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Gap(8).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
 			ui.Column(c).Grow(1).Gap(4).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponents)).FontSize(16).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponentsLede)).FontSize(12).TextColor(colTertiary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponents)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponentsLede)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			})
 			if ghostSmall(c, i18n.T(i18n.KeyLauncherManageComponents)).Clicked() && m.OnTab != nil {
 				m.OnTab(TabComponents)
@@ -597,10 +597,10 @@ func componentsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(12).Children(func() {
 		bridgeAlertSummary(c, m, true)
 		if m.UpdateStatus != "" {
-			ui.Text(c, m.UpdateStatus).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, m.UpdateStatus).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		if !components.WhaleBridgeManagementSupported() {
-			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		// Electron: compact ????pill, not a full-width bar.
 		ui.Row(c).AlignSelf(ui.Start).Children(func() {
@@ -609,7 +609,7 @@ func componentsPanel(c *ui.Context, m Model) {
 			}
 		})
 		if len(m.Components) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyLauncherComponentsEmpty)).FontSize(14).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherComponentsEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(colSecondary)
 			return
 		}
 		for _, row := range m.Components {
@@ -633,11 +633,11 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 				}
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, row.Name).FontSize(15).FontWeight(600).TextColor(colPrimary)
-						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(12).TextColor(colSecondary)
+						ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
+						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					})
 					if row.Description != "" {
-						ui.Text(c, row.Description).FontSize(12).TextColor(colSecondary)
+						ui.Text(c, row.Description).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					}
 				})
 			})
@@ -673,20 +673,20 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 			}
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, row.Name).FontSize(15).FontWeight(600).TextColor(colPrimary)
+					ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
 					if row.Kind != "" {
 						ui.Row(c).Background(colKindBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, kindLabel(row.Kind)).FontSize(11).TextColor(colKindFG)
+							ui.Text(c, kindLabel(row.Kind)).FontSize(theme.InterfaceSize(11)).TextColor(colKindFG)
 						})
 					}
 					if row.Source == "official" {
 						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherCompOfficial)).FontSize(11).TextColor(colAccent)
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompOfficial)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
 						})
 					}
 					if row.UpdateAvailable {
 						ui.Row(c).Background(colField).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherCompUpdatable)).FontSize(11).TextColor(colSecondary)
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompUpdatable)).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
 						})
 					}
 				})
@@ -695,22 +695,22 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					if row.InstalledVersion != "" && row.Version != "" && row.InstalledVersion != row.Version {
 						desc += " · v" + row.InstalledVersion
 					}
-					ui.Text(c, desc).FontSize(12).TextColor(colSecondary)
+					ui.Text(c, desc).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					if row.UpdateAvailable {
-						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(12).TextColor(colSecondary)
+						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					}
 				}
 			})
 			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
-					ui.Text(c, stateLabel(row.State)).FontSize(12).FontWeight(500).TextColor(colSecondary)
+					ui.Text(c, stateLabel(row.State)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
 				})
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Justify(ui.End).Gap(8).AlignItems(ui.Center).Children(func() {
 					compPrimary := func(label string) ui.Element {
 						// Electron ?? ??72�42 device-px @150% ??~48�28 DIP.
 						return ui.Button(c, label).Height(28).Padding(0, 10, 0, 10).
 							Radius(14).Background(colPrimary).BorderWidth(0).
-							TextColor(colPrimaryFg).FontSize(12)
+							TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(12))
 					}
 					if row.ID == "whalebridge" && row.InstalledVersion != "" {
 						disabled := m.ComponentBusy || !components.WhaleBridgeManagementSupported()
@@ -813,7 +813,7 @@ func diag(c *ui.Context, m Model) {
 			label = "? " + i18n.T(i18n.KeyLauncherDiagTitle)
 		}
 		sum := ui.Button(c, label).Background(ui.Transparent).BorderWidth(0).
-			BorderColor(ui.Transparent).TextColor(colSecondary).FontSize(16).FontWeight(500).
+			BorderColor(ui.Transparent).TextColor(colSecondary).FontSize(theme.InterfaceSize(16)).FontWeight(500).
 			Padding(0, 0, 0, 0).AlignSelf(ui.Start)
 		if sum.Clicked() {
 			diagOpen = !diagOpen
@@ -822,9 +822,9 @@ func diag(c *ui.Context, m Model) {
 			return
 		}
 		if m.StatusNote != "" {
-			ui.Text(c, m.StatusNote).FontSize(13).TextColor(colAccent)
+			ui.Text(c, m.StatusNote).FontSize(theme.InterfaceSize(13)).TextColor(colAccent)
 		}
-		ui.Text(c, i18n.T(i18n.KeyLauncherWorkspace)).FontSize(13).FontWeight(600).TextColor(colPrimary)
+		ui.Text(c, i18n.T(i18n.KeyLauncherWorkspace)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary)
 		if m.WorkspacePtr != nil {
 			ui.TextInput(c, m.WorkspacePtr).FillWidth().Placeholder(i18n.T(i18n.KeyLauncherWorkspaceHint))
 		}
@@ -836,20 +836,20 @@ func diag(c *ui.Context, m Model) {
 
 func versionsPanel(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyLauncherLocalVersion)+": "+nonempty(m.Version, "dev")).FontSize(16).FontWeight(600).TextColor(colPrimary)
+		ui.Text(c, i18n.T(i18n.KeyLauncherLocalVersion)+": "+nonempty(m.Version, "dev")).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
 		if !m.VendorReady {
-			ui.Text(c, releaseText("尚未安装 Host 运行时；请选择包含运行时的 MyGo 发布。", "Host runtime is missing; choose a MyGo release that includes it.")).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, releaseText("尚未安装 Host 运行时；请选择包含运行时的 MyGo 发布。", "Host runtime is missing; choose a MyGo release that includes it.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 			if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
 				m.OnInstallRuntime()
 			}
 		}
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).Grow(1)
 			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil {
 				m.OnRefreshReleases()
 			}
 		})
-		ui.Text(c, releaseText("按发布标签选择原生 MyGo 安装包；下载校验后再确认安装。", "Select a native MyGo release tag; installation is confirmed after download verification.")).FontSize(12).TextColor(colTertiary)
+		ui.Text(c, releaseText("按发布标签选择原生 MyGo 安装包；下载校验后再确认安装。", "Select a native MyGo release tag; installation is confirmed after download verification.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 		for _, release := range m.Releases {
 			r := release
 			unavailable := r.UnavailableReason
@@ -862,13 +862,13 @@ func versionsPanel(c *ui.Context, m Model) {
 			}
 			ui.Column(c).FillWidth().Background(bg).Border(1, colBorderL2).Radius(10).Padding(12).Gap(6).Children(func() {
 				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, r.Tag).FontSize(14).FontWeight(600).TextColor(colPrimary).Grow(1)
-					ui.Text(c, r.Platform+"/"+r.Arch).FontSize(11).TextColor(colTertiary)
+					ui.Text(c, r.Tag).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).Grow(1)
+					ui.Text(c, r.Platform+"/"+r.Arch).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
 					if r.Version == m.Version || "v"+r.Version == m.Version {
-						ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(11).TextColor(colAccent)
+						ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
 					}
 					if r.Prerelease {
-						ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(11).TextColor(colSecondary)
+						ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
 					}
 					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil {
 						m.OnSelectRelease(r.Tag)
@@ -878,12 +878,12 @@ func versionsPanel(c *ui.Context, m Model) {
 				if r.RuntimeIncluded {
 					label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime")
 				}
-				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(12).TextColor(colSecondary)
+				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				if r.Notes != "" {
-					ui.Text(c, r.Notes).FontSize(12).TextColor(colSecondary)
+					ui.Text(c, r.Notes).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				}
 				if unavailable != "" {
-					ui.Text(c, unavailable).FontSize(12).TextColor(colTertiary)
+					ui.Text(c, unavailable).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 				}
 				if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
 					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil {
@@ -893,7 +893,7 @@ func versionsPanel(c *ui.Context, m Model) {
 			})
 		}
 		if len(m.Releases) == 0 && !m.ReleaseBusy {
-			ui.Text(c, releaseText("暂无兼容发布目录。不会改用 Electron 安装包。", "No compatible release catalog is available.")).FontSize(12).TextColor(colTertiary)
+			ui.Text(c, releaseText("暂无兼容发布目录。不会改用 Electron 安装包。", "No compatible release catalog is available.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 		}
 		nativeReleaseOperation(c, m)
 	})
@@ -902,14 +902,14 @@ func versionsPanel(c *ui.Context, m Model) {
 func importPanel(c *ui.Context, m Model) {
 	if m.ImportBusy {
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "正在导入 · 操作结束前不能再次开始").FontSize(14).TextColor(colPrimary)
-			ui.Text(c, m.ImportSummary).FontSize(12).TextColor(colSecondary)
-			ui.Text(c, "取消会在当前项目完成后停止；已完成的数据保留，可安全重扫。 ").FontSize(12).TextColor(colSecondary)
+			ui.Text(c, "正在导入 · 操作结束前不能再次开始").FontSize(theme.InterfaceSize(14)).TextColor(colPrimary)
+			ui.Text(c, m.ImportSummary).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, "取消会在当前项目完成后停止；已完成的数据保留，可安全重扫。 ").FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 			if ghostSmall(c, "取消后续导入").Clicked() && m.OnCancelImport != nil {
 				m.OnCancelImport()
 			}
 			for _, line := range m.ImportJournal {
-				ui.Text(c, line).FontSize(11).TextColor(colTertiary)
+				ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
 			}
 		})
 		return
@@ -917,8 +917,8 @@ func importPanel(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportLede)).
 			FontSize(12).TextColor(colSecondary)
-		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(12).TextColor(colAccent)
-		ui.Text(c, importer.CopyOnlyNotice).FontSize(12).TextColor(colSecondary)
+		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(theme.InterfaceSize(12)).TextColor(colAccent)
+		ui.Text(c, importer.CopyOnlyNotice).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 
 		pathLine := i18n.T(i18n.KeyLauncherImportEmpty)
 		if m.ImportSummary != "" {
@@ -945,7 +945,7 @@ func importPanel(c *ui.Context, m Model) {
 			}
 		})
 
-		ui.Text(c, pathLine).FontSize(12).TextColor(colTertiary)
+		ui.Text(c, pathLine).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 
 		// Category chips: n/d from live catalog (fallback to probe CategoryFound).
 		cats := []struct{ id, name string }{
@@ -978,7 +978,7 @@ func importPanel(c *ui.Context, m Model) {
 				}
 				id := cat.id
 				btn := ui.Button(c, label).Background(bg).Border(1, colBorderL2).
-					Padding(4, 10, 4, 10).Radius(8).TextColor(colPrimary).FontSize(12)
+					Padding(4, 10, 4, 10).Radius(8).TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
 				if btn.Clicked() {
 					importCatActive = id
 				}
@@ -988,7 +988,7 @@ func importPanel(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).Radius(12).
 			Padding(12, 12, 12, 12).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherImportByDir)).FontSize(13).FontWeight(600).TextColor(colPrimary).Grow(1)
+				ui.Text(c, i18n.T(i18n.KeyLauncherImportByDir)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary).Grow(1)
 				if ghostSmall(c, i18n.T(i18n.KeyLauncherImportSelectAll)).Clicked() && m.ImportCatalog != nil {
 					if items := m.ImportCatalog.ItemsFor(importCatActive); items != nil {
 						for i := range *items {
@@ -1030,7 +1030,7 @@ func importPanel(c *ui.Context, m Model) {
 				case "presets":
 					empty = i18n.T(i18n.KeyLauncherImportEmptyPresets)
 				}
-				ui.Text(c, empty).FontSize(13).TextColor(colTertiary)
+				ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
 			} else {
 				for i := range *itemsPtr {
 					idx := i
@@ -1056,7 +1056,7 @@ func importPanel(c *ui.Context, m Model) {
 						if it.Unsupported {
 							label += i18n.T(i18n.KeyLauncherImportUnsupported)
 						}
-						if ui.Button(c, mark+"  "+label).FontSize(12).BorderWidth(0).
+						if ui.Button(c, mark+"  "+label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
 							Background(ui.Transparent).TextColor(ink).FillWidth().
 							Disabled(it.Unsupported).Clicked() {
 							it.Selected = !it.Selected
@@ -1097,7 +1097,7 @@ func importPanel(c *ui.Context, m Model) {
 				selLine += fmt.Sprintf(" %s %d ·", cat.name, n)
 			}
 			selLine = strings.TrimSuffix(selLine, " ·")
-			ui.Text(c, selLine).FontSize(11).TextColor(colTertiary)
+			ui.Text(c, selLine).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
 			if primaryBtn(c, i18n.T(i18n.KeyLauncherImportStart)).Clicked() {
 				if m.OnStartImport != nil {
 					m.OnStartImport()
@@ -1110,7 +1110,7 @@ func importPanel(c *ui.Context, m Model) {
 			ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).
 				Radius(12).Padding(10, 12, 10, 12).Gap(4).MaxHeight(200).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(12).FontWeight(600).TextColor(colPrimary).Grow(1)
+					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary).Grow(1)
 					if m.OnCopyImportJournal != nil {
 						if ghostSmall(c, i18n.T(i18n.KeyLauncherImportCopy)).Clicked() {
 							m.OnCopyImportJournal(append([]string(nil), m.ImportJournal...))
@@ -1118,7 +1118,7 @@ func importPanel(c *ui.Context, m Model) {
 					}
 				})
 				for _, line := range m.ImportJournal {
-					ui.Text(c, line).FontSize(11).TextColor(colTertiary)
+					ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
 				}
 			})
 		}
@@ -1131,8 +1131,8 @@ func pluginsPanel(c *ui.Context, m Model) {
 		if !m.VendorReady {
 			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(12).
 				Padding(14, 16, 14, 16).Gap(6).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntime)).FontSize(14).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(12).TextColor(colTertiary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntime)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			})
 		}
 		// Electron: compact ????pill (not a full-width bar).
@@ -1142,11 +1142,11 @@ func pluginsPanel(c *ui.Context, m Model) {
 			}
 		})
 		if len(m.DisabledPlugins) == 0 && !m.SkipUserPlugins {
-			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsEmpty)).FontSize(13).TextColor(colTertiary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
 			ui.Box(c).FillWidth().Height(1).Background(colBorderL1)
 		} else {
-			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsTitle)).FontSize(13).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, joinPlugins(m.DisabledPlugins)).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary)
+			ui.Text(c, joinPlugins(m.DisabledPlugins)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		recoveryLine := i18n.T(i18n.KeyLauncherSkipUserPluginsOff)
 		if m.SkipUserPlugins {
@@ -1176,7 +1176,7 @@ func pluginsPanel(c *ui.Context, m Model) {
 func settingsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(0).Children(func() {
 		hintBot := float32(16)
-		ui.Text(c, i18n.T(i18n.KeyLauncherSettingsOnlyHint)).FontSize(13).TextColor(colSecondary).
+		ui.Text(c, i18n.T(i18n.KeyLauncherSettingsOnlyHint)).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary).
 			Padding(0, 0, hintBot, 0)
 
 		switchRow(c, i18n.T(i18n.KeyLauncherOptRouteTitle), i18n.T(i18n.KeyLauncherOptRouteDesc), func() {
@@ -1198,7 +1198,7 @@ func settingsPanel(c *ui.Context, m Model) {
 						fg = colPrimary
 					}
 					b := ui.Button(c, label).Height(26).Padding(0, 14, 0, 14).Radius(12).
-						Background(bg).BorderWidth(0).TextColor(fg).FontSize(12)
+						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id
 						if m.OnSaveLauncherPrefs != nil {
@@ -1235,8 +1235,8 @@ func switchRow(c *ui.Context, title, desc string, trailing func()) {
 		Padding(padY, 0, padY, 0).
 		BorderWidth(0, 0, 1, 0).BorderColor(colBorderL1).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(14).FontWeight(600).TextColor(colPrimary).FillWidth()
-			ui.Text(c, desc).FontSize(12).TextColor(colTertiary).FillWidth()
+			ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).FillWidth()
+			ui.Text(c, desc).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).FillWidth()
 		})
 		if trailing != nil {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(trailing)
@@ -1281,25 +1281,25 @@ func switchCheck(c *ui.Context, title, desc string, checked *bool, onSave func()
 func primaryBtn(c *ui.Context, label string) ui.Element {
 	return ui.Button(c, label).Height(36).Padding(0, 14, 0, 14).
 		Radius(18).Background(colPrimary).BorderWidth(0).
-		TextColor(colPrimaryFg).FontSize(14)
+		TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(14))
 }
 
 func ghostBtn(c *ui.Context, label string) ui.Element {
 	return ui.Button(c, label).Height(36).Padding(0, 14, 0, 14).
 		Radius(18).Border(1, colBorderL2).Background(ui.Transparent).
-		TextColor(colPrimary).FontSize(14)
+		TextColor(colPrimary).FontSize(theme.InterfaceSize(14))
 }
 
 func ghostSmall(c *ui.Context, label string) ui.Element {
 	return ui.Button(c, label).Height(28).Padding(0, 12, 0, 12).
 		Radius(14).Border(1, colBorderL2).Background(ui.Transparent).
-		TextColor(colPrimary).FontSize(12)
+		TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
 }
 
 func kv(c *ui.Context, label, value string) {
 	ui.Row(c).Gap(12).Children(func() {
-		ui.Text(c, label).FontSize(12).TextColor(colTertiary).Width(140)
-		ui.Text(c, value).FontSize(12).TextColor(colPrimary).Grow(1)
+		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).Width(140)
+		ui.Text(c, value).FontSize(theme.InterfaceSize(12)).TextColor(colPrimary).Grow(1)
 	})
 }
 

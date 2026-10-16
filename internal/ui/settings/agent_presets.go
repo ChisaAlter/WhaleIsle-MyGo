@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 
@@ -31,13 +32,13 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.AgentPresets
 	snap := a.Manager.Snapshot()
-	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if snap.Err != "" {
-		ui.Text(c, snap.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, snap.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if snap.Status != "" {
-		ui.Text(c, snap.Status).FontSize(11).TextColor(muted)
+		ui.Text(c, snap.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	options := []string{}
 	byLabel := map[string]string{}
@@ -59,14 +60,14 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// The persisted value remains visible while an unsaved choice is staged,
 	// and on a refusal. Only the manager's confirmed response changes it.
 	if snap.Loaded {
-		ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsPicker)+": "+defaultLabel).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsPicker)+": "+defaultLabel).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	desktopRow(c, i18n.T(i18n.KeySettingsAgentPresetsPicker), func() {
 		if a.Selected == nil {
 			return
 		}
 		if len(options) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if ui.Select(c, a.Selected, options).FillWidth().Disabled(snap.Busy || !snap.Writable).Changed() && a.Reader != nil && a.Reader.OnClose != nil {

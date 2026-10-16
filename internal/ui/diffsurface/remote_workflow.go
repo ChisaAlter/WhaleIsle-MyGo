@@ -8,6 +8,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/desktop/webview"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type remoteWorkflowState struct {
@@ -56,11 +57,11 @@ func (w *Workbench) requestRemote(root, mode string) {
 	}
 }
 func paintPRReview(c *ui.Context, p git.PullRequestPlan, fg, muted ui.Color) {
-	ui.Text(c, word("草稿 PR 收件仓库：", "Draft PR recipient: ")+p.Repository).FontSize(11).TextColor(fg)
-	ui.Text(c, p.Push.Target+" → "+p.Base).FontSize(11).TextColor(fg)
-	ui.Text(c, p.Title).FontSize(11).TextColor(fg)
-	ui.Text(c, p.Body).FontSize(10).TextColor(fg)
-	ui.Text(c, word("只创建草稿；如已有匹配的开放 PR 则打开已有项。", "Creates a draft; an existing matching open PR is reused.")).FontSize(10).TextColor(muted)
+	ui.Text(c, word("草稿 PR 收件仓库：", "Draft PR recipient: ")+p.Repository).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, p.Push.Target+" → "+p.Base).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, p.Title).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, p.Body).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
+	ui.Text(c, word("只创建草稿；如已有匹配的开放 PR 则打开已有项。", "Creates a draft; an existing matching open PR is reused.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 }
 func beginRemotePreparation(c *ui.Context, m Model) {
 	w := m.Workbench
@@ -138,7 +139,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		return false
 	}
 	if s.Task != nil {
-		ui.Text(c, word("正在准备后续操作…", "Preparing next action…")).FontSize(11).TextColor(fg)
+		ui.Text(c, word("正在准备后续操作…", "Preparing next action…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	} else {
 		if s.Mode == "pr" {
 			oldTitle, oldBody := s.Title, s.Body
@@ -156,7 +157,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			}
 		} else {
 			if s.Mode == "push" {
-				ui.Text(c, pushReviewText(s.Push)).FontSize(11).TextColor(fg)
+				ui.Text(c, pushReviewText(s.Push)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 			} else if s.PR != nil {
 				paintPRReview(c, *s.PR, fg, muted)
 			}
@@ -179,7 +180,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		w.Remote = nil
 	}
 	if w.Status != "" {
-		ui.Text(c, w.Status).FontSize(11).TextColor(fg)
+		ui.Text(c, w.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	return true
 }
@@ -190,10 +191,10 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	r := *w.LastStack
 	if r.Committed {
-		ui.Text(c, word("已提交：", "Committed: ")+r.CommitSHA).FontSize(10).TextColor(muted)
+		ui.Text(c, word("已提交：", "Committed: ")+r.CommitSHA).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
 	if r.Pushed {
-		ui.Text(c, word("推送已完成", "Push completed")).FontSize(10).TextColor(muted)
+		ui.Text(c, word("推送已完成", "Push completed")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
 	switch r.NextAction() {
 	case "push":
@@ -213,7 +214,7 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	case "check_pr":
-		ui.Text(c, word("PR 创建结果尚不确定，先检查已有项，勿重复创建。", "PR outcome is unknown. Check existing PRs before creating again.")).FontSize(10).TextColor(fg)
+		ui.Text(c, word("PR 创建结果尚不确定，先检查已有项，勿重复创建。", "PR outcome is unknown. Check existing PRs before creating again.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
 		if r.PRPlan != nil && ui.Button(c, word("检查已有 PR（只读）", "Check existing PR (read-only)")).Clicked() {
 			root, plan := m.WorkspaceRoot, *r.PRPlan
 			beginGitOperation(c, w, word("正在检查已有 PR", "Checking existing PR"), func(ctx context.Context) gitOperationResult {

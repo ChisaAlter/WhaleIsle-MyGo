@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
@@ -11,9 +12,9 @@ import (
 func routePageHead(c *ui.Context, m Model, title, lede string) {
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).Padding(0, 0, 16, 0).Children(func() {
 		ui.Column(c).Grow(1).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(16).FontWeight(600).TextColor(colPrimary)
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
 			if lede != "" {
-				ui.Text(c, lede).FontSize(12).TextColor(colTertiary)
+				ui.Text(c, lede).FontSize(fonttheme.InterfaceSize(12)).TextColor(colTertiary)
 			}
 		})
 		label := i18n.T(i18n.KeyLauncherRouteCurrentPrefix) + " " + railRouteLabel(m)
@@ -21,7 +22,7 @@ func routePageHead(c *ui.Context, m Model, title, lede string) {
 		open := ui.Local(btn, "route-open", func() bool { return false })
 		btn.Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, label).FontSize(12).TextColor(colSecondary)
+				ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 				routeChevron(c, colTertiary, *open)
 			})
 		})
@@ -95,8 +96,8 @@ func routePopup(c *ui.Context, m Model, trigger ui.Element, open *bool, upward b
 				ui.Text(c, check).Width(14).Shrink(0).Padding(2, 0, 0, 0).
 					FontSize(12).FontWeight(700).TextColor(accent)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, route.title).FontSize(13).FontWeight(600).TextColor(ink).SingleLine()
-					ui.Text(c, route.detail).FontSize(12).LineHeight(1.4).TextColor(muted)
+					ui.Text(c, route.title).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(ink).SingleLine()
+					ui.Text(c, route.detail).FontSize(fonttheme.InterfaceSize(12)).LineHeight(1.4).TextColor(muted)
 				})
 			})
 			options = append(options, opt)

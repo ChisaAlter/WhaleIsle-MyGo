@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -101,8 +102,8 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	finishGitOperation(m)
 	DrawGitProgress(c, w.Progress, fg, muted, func() { w.Progress = nil })
 	if w.Operation != nil {
-		ui.Text(c, w.Operation.label+" · "+w.Operation.root).FontSize(11).TextColor(fg)
-		ui.Text(c, word("操作进行中，请勿重复提交。", "Operation in progress. Do not submit it again.")).FontSize(10).TextColor(muted)
+		ui.Text(c, w.Operation.label+" · "+w.Operation.root).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, word("操作进行中，请勿重复提交。", "Operation in progress. Do not submit it again.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		return true
 	}
 	paintGitFollowups(c, m, fg, muted)
@@ -110,7 +111,7 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		return true
 	}
 	if !w.Repository {
-		ui.Text(c, word("此目录尚未初始化 Git。初始化会创建本地 main 分支，不提交文件。", "This folder has no Git repository. Initialize creates a local main branch without committing files.")).FontSize(11).TextColor(muted)
+		ui.Text(c, word("此目录尚未初始化 Git。初始化会创建本地 main 分支，不提交文件。", "This folder has no Git repository. Initialize creates a local main branch without committing files.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, word("初始化 Git", "Initialize Git")).Disabled(strings.TrimSpace(m.WorkspaceRoot) == "").Clicked() {
 			root := m.WorkspaceRoot
 			beginGitOperation(c, w, word("正在初始化", "Initializing"), func(ctx context.Context) gitOperationResult {
@@ -119,7 +120,7 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			})
 		}
 		if w.Status != "" {
-			ui.Text(c, w.Status).FontSize(11).TextColor(fg)
+			ui.Text(c, w.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 		return true
 	}
@@ -139,7 +140,7 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 	w := m.Workbench
 	if !w.PublishReview {
-		ui.Text(c, word("填写已有 HTTPS/SSH 远端 URL，或用已登录的 gh 创建 GitHub 仓库。新仓库默认私有。", "Enter an existing HTTPS/SSH remote URL, or create a GitHub repository using your signed-in gh account. New repositories default to private.")).FontSize(10).TextColor(muted)
+		ui.Text(c, word("填写已有 HTTPS/SSH 远端 URL，或用已登录的 gh 创建 GitHub 仓库。新仓库默认私有。", "Enter an existing HTTPS/SSH remote URL, or create a GitHub repository using your signed-in gh account. New repositories default to private.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.TextInput(c, &w.PublishRemoteURL).FillWidth().Placeholder(word("已有远端 URL（可留空）", "Existing remote URL (optional)"))
 		ui.TextInput(c, &w.PublishName).FillWidth().Placeholder(word("仓库名称或 owner/name", "Repository name or owner/name"))
 		if strings.TrimSpace(w.PublishRemoteURL) == "" {
@@ -180,8 +181,8 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		target = "GitHub " + input.Name + " (" + visibility + ")"
 	}
-	ui.Text(c, word("发布目标：", "Publish destination: ")+target).FontSize(11).TextColor(fg)
-	ui.Text(c, word("将设置 origin；若已有提交，会上传当前分支及其提交历史。空仓库仅设置远端。未提交文件与编辑器草稿不会上传。", "This sets origin and uploads the current branch and its commit history when commits exist. An empty repository gets the remote only. Uncommitted files and editor drafts are excluded.")).FontSize(10).TextColor(muted)
+	ui.Text(c, word("发布目标：", "Publish destination: ")+target).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, word("将设置 origin；若已有提交，会上传当前分支及其提交历史。空仓库仅设置远端。未提交文件与编辑器草稿不会上传。", "This sets origin and uploads the current branch and its commit history when commits exist. An empty repository gets the remote only. Uncommitted files and editor drafts are excluded.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
 		if ui.Button(c, word("确认发布仓库", "Confirm publish repository")).Clicked() {
 			root := m.WorkspaceRoot

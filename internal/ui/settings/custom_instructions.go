@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
@@ -30,16 +31,16 @@ func customInstructionsRow(c *ui.Context, m Model, snap store.ViewState, fg, mut
 	}
 	draft := m.DraftPtr(store.CustomInstructionsField, snap.Drafts[store.CustomInstructionsField])
 	ui.Column(c).Gap(4).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsTitle)).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsScope)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsScope)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		area := ui.TextArea(c, draft).FillWidth().Lines(4, 10).Disabled(!snap.Writable || !snap.ClientReady)
 		if area.Changed() && m.OnDraft != nil {
 			m.OnDraft(store.CustomInstructionsField, *draft)
 		}
 		count := store.CustomInstructionsLength(*draft)
-		ui.Text(c, fmt.Sprintf("%d / %d", count, store.CustomInstructionsMaxLength)).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%d / %d", count, store.CustomInstructionsMaxLength)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if count > store.CustomInstructionsMaxLength {
-			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FontSize(11).TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 	})
 }

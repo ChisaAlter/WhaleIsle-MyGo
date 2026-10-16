@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/accountdetails"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func accountDetailsPane(c *ui.Context, state accountdetails.State, fg, muted ui.Color) {
@@ -16,9 +17,9 @@ func accountDetailsPane(c *ui.Context, state accountdetails.State, fg, muted ui.
 	}
 	row := func(label, value string) {
 		ui.Row(c).Gap(12).Children(func() {
-			ui.Text(c, label).FontSize(12).TextColor(muted).Width(140)
-			ui.Text(c, emptyDash(value)).FontSize(12).TextColor(fg).Grow(1)
-			if value != "" && ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(140)
+			ui.Text(c, emptyDash(value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
+			if value != "" && ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				mygo.Clipboard.WriteText(value)
 			}
 		})
@@ -35,7 +36,7 @@ func accountDetailsPane(c *ui.Context, state accountdetails.State, fg, muted ui.
 		default:
 			text = textFor("未知（尚未取得当前账户数据）", "Unknown (current account data unavailable)")
 		}
-		ui.Text(c, text).FontSize(12).TextColor(muted)
+		ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return false
 	}
 	value := func(p *string) string {
@@ -44,7 +45,7 @@ func accountDetailsPane(c *ui.Context, state accountdetails.State, fg, muted ui.
 		}
 		return *p
 	}
-	ui.Text(c, textFor("账户资料", "Profile")).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
+	ui.Text(c, textFor("账户资料", "Profile")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 	if status(state.Profile.Status) {
 		p := state.Profile.Value
 		row(textFor("账户 ID", "Account ID"), value(p.ID))
@@ -52,14 +53,14 @@ func accountDetailsPane(c *ui.Context, state accountdetails.State, fg, muted ui.
 		row(textFor("联系方式", "Contact"), value(p.Contact))
 		row(textFor("头像地址", "Avatar URL"), value(p.AvatarURL))
 	}
-	ui.Text(c, textFor("钱包余额", "Wallets")).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
+	ui.Text(c, textFor("钱包余额", "Wallets")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 	if !status(state.Balance.Status) {
 		return
 	}
 	wallets := func(title string, ws []accountdetails.Wallet) {
-		ui.Text(c, title).FontSize(12).Bold().TextColor(fg)
+		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		if len(ws) == 0 {
-			ui.Text(c, textFor("无钱包", "No wallets")).FontSize(12).TextColor(muted)
+			ui.Text(c, textFor("无钱包", "No wallets")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
 		for _, w := range ws {

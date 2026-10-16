@@ -2,6 +2,7 @@ package settings
 
 import (
 	"github.com/egoist/mygo/ui"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -31,16 +32,16 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	d := m.Credentials
-	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(12).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if d.Err != "" {
-		ui.Text(c, d.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, d.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if d.LastAction != "" {
-		ui.Text(c, d.LastAction).FontSize(11).TextColor(muted)
+		ui.Text(c, d.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if d.HarnessNote != "" {
-		ui.Text(c, d.HarnessNote).FontSize(11).TextColor(muted)
+		ui.Text(c, d.HarnessNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if d.ShowSecrets != nil {
 		ui.Checkbox(c, d.ShowSecrets, i18n.T(i18n.KeySettingsCredShow))
@@ -64,15 +65,15 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if save.Clicked() && d.OnSave != nil {
 			d.OnSave()
 		}
-		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(11).Clicked() {
+		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			d.OnDescribe()
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearAPIKey)).FontSize(11).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearAPIKey)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			if d.Fields.APIKey != nil {
 				*d.Fields.APIKey = ""
 			}
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearSecrets)).FontSize(11).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearSecrets)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			clearSecret := func(p *string) {
 				if p != nil {
 					*p = ""
@@ -88,7 +89,7 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 func secretRow(c *ui.Context, label string, value *string, show bool, fg ui.Color) {
 	ui.Column(c).Gap(4).Children(func() {
-		ui.Text(c, label).FontSize(12).TextColor(fg)
+		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		if value == nil {
 			return
 		}
@@ -96,7 +97,7 @@ func secretRow(c *ui.Context, label string, value *string, show bool, fg ui.Colo
 			ui.TextInput(c, value).FillWidth()
 			return
 		}
-		ui.Text(c, maskSecret(*value)).FontSize(12).TextColor(fg)
+		ui.Text(c, maskSecret(*value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	})
 }
 

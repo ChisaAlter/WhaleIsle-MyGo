@@ -3,6 +3,7 @@ package browserpreview
 import (
 	"errors"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -85,15 +86,16 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 		Title: "浮动预览 · " + opts.Title, Width: 720, Height: 520, MinWidth: 320, MinHeight: 220,
 		Parent: b.parent, AlwaysOnTop: true, SkipTaskbar: true, DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true,
 		Content: ui.View(func(c *ui.Context) {
+			fonttheme.ApplyInterface(c)
 			ui.Column(c).Fill().Children(func() {
 				ui.Row(c).Height(floatingDocumentChromeHeight).Padding(6, 10).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, truncate(opts.Title, 40)+" · 只读快照").FontSize(12).Grow(1).Tooltip(opts.Title)
+					ui.Text(c, truncate(opts.Title, 40)+" · 只读快照").FontSize(fonttheme.InterfaceSize(12)).Grow(1).Tooltip(opts.Title)
 					if ui.Button(c, "关闭").Clicked() {
 						b.stopFloatingDocument()
 					}
 				})
 				if f.status != "" {
-					ui.Text(c, f.status).FontSize(12).Padding(12)
+					ui.Text(c, f.status).FontSize(fonttheme.InterfaceSize(12)).Padding(12)
 				}
 			})
 		}),

@@ -53,7 +53,7 @@ func View(c *ui.Context, m Model) {
 				if snap.Banner != "" {
 					msg = i18n.T(i18n.KeyInteractionAutoAllowed) + ": " + snap.Banner
 				}
-				ui.Text(c, msg).FontSize(12).TextColor(muted).Grow(1)
+				ui.Text(c, msg).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
 				if ui.Button(c, i18n.T(i18n.KeyInteractionManual)).Clicked() {
 					m.Store.SetAutoAllow(false)
 					if m.OnAutoAllowChanged != nil {
@@ -64,7 +64,7 @@ func View(c *ui.Context, m Model) {
 		}
 		if snap.QuestionStatus != "" {
 			text := questionStatusText(snap.QuestionStatus)
-			ui.Text(c, text).FontSize(12).TextColor(muted)
+			ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		questionHistory(c, snap.QuestionHistory, m.Store, fg, muted, accent)
 		for _, p := range snap.Pending {
@@ -80,7 +80,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, p.Title).FontSize(12).TextColor(muted).Grow(1)
+			ui.Text(c, p.Title).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
 			if ui.Button(c, "重新打开问题 / Reopen questions").Clicked() {
 				store.ReopenQuestion(p.EventID)
 			}
@@ -88,26 +88,26 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		return
 	}
 	ui.Column(c).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
-		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
+		ui.Text(c, p.Title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
 			if p.Continued {
-				ui.Text(c, questionStatusText("continued")).FontSize(11).TextColor(muted)
+				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			if card, ok := snap.QuestionCards[p.EventID]; ok {
 				questionsBody(c, p.EventID, card, store, fg, muted)
 			}
 		} else {
 			if p.Detail != "" {
-				ui.Text(c, p.Detail).FontSize(12).TextColor(muted)
+				ui.Text(c, p.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 			if p.CallID != "" {
-				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(11).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			if p.Args != "" {
 				ui.Column(c).Padding(6, 8, 6, 8).Background(accent.Alpha(0.06)).Gap(4).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, p.Args).FontSize(11).TextColor(fg).Grow(1)
-						if ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(11).Clicked() {
+						ui.Text(c, p.Args).FontSize(theme.InterfaceSize(11)).TextColor(fg).Grow(1)
+						if ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11)).Clicked() {
 							if strings.TrimSpace(p.Args) != "" {
 								mygo.Clipboard.WriteText(p.Args)
 							}
@@ -117,7 +117,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 		}
 		if p.Error != "" {
-			ui.Text(c, p.Error).FontSize(12).TextColor(muted)
+			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if p.Sending {
@@ -172,10 +172,10 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 				label = row.Header
 			}
 			if label != "" {
-				ui.Text(c, label).FontSize(12).TextColor(fg)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 			}
 			if row.Detail != "" {
-				ui.Text(c, row.Detail).FontSize(12).TextColor(muted)
+				ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 			// The protocol permits a custom answer even when choices are supplied.
 			defer func() {
@@ -194,7 +194,7 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
 					box := ui.Checkbox(c, checked, opt)
 					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-						ui.Text(c, row.OptionDescriptions[index]).FontSize(11).TextColor(muted)
+						ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 					if box.Changed() {
 						store.SetQuestionOptionChecked(eventID, row.ID, opt, *checked)
@@ -208,7 +208,7 @@ func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardV
 					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
 					box := ui.Checkbox(c, checked, opt)
 					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-						ui.Text(c, row.OptionDescriptions[index]).FontSize(11).TextColor(muted)
+						ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 					if box.Changed() && *checked {
 						store.SetQuestionOptionChecked(eventID, row.ID, opt, true)

@@ -95,9 +95,9 @@ func View(c *ui.Context, m Model) {
 
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(14).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if m.Text != nil && strings.TrimSpace(*m.Text) != "" {
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(*m.Text)
 				}
 			}
@@ -112,13 +112,13 @@ func View(c *ui.Context, m Model) {
 			scope = strings.TrimSpace(*m.PathFilter)
 		}
 		if scope != "" {
-			ui.Text(c, scope).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
+			ui.Text(c, scope).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		ui.Box(c).Fill().Height(1).Background(border)
 
 		root := strings.TrimSpace(m.WorkspaceRoot)
 		if root == "" {
-			ui.Text(c, i18n.T(i18n.KeyDiffNoWorkspace)).FontSize(12).TextColor(muted).
+			ui.Text(c, i18n.T(i18n.KeyDiffNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
 			return
 		}
@@ -136,11 +136,11 @@ func View(c *ui.Context, m Model) {
 			errMsg = ""
 		}
 		if errMsg != "" {
-			ui.Text(c, errMsg).FontSize(12).TextColor(accent).Padding(12, 12, 12, 12)
+			ui.Text(c, errMsg).FontSize(theme.InterfaceSize(12)).TextColor(accent).Padding(12, 12, 12, 12)
 			return
 		}
 		if strings.TrimSpace(text) == "" {
-			ui.Text(c, i18n.T(i18n.KeyDiffHint)).FontSize(12).TextColor(muted).
+			ui.Text(c, i18n.T(i18n.KeyDiffHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
 			return
 		}

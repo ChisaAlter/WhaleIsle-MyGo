@@ -2,6 +2,7 @@ package diffsurface
 
 import (
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -53,7 +54,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 	if !w.BranchesOpen {
 		return
 	}
-	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(10).TextColor(muted)
+	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.TextInput(c, &w.BranchQuery).FillWidth().Placeholder(word("筛选分支", "Filter branches"))
 	needle := strings.ToLower(strings.TrimSpace(w.BranchQuery))
 	ui.Scroll(c).Height(120).FillWidth().Children(func() {
@@ -72,15 +73,15 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 					} else if b.Remote {
 						label += word("（远程）", " (remote)")
 					}
-					ui.Text(c, label).FontSize(11).TextColor(fg).Grow(1)
-					if ui.Button(c, word("切换", "Switch")).FontSize(11).Disabled(b.Current).Clicked() {
+					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Grow(1)
+					if ui.Button(c, word("切换", "Switch")).FontSize(fonttheme.InterfaceSize(11)).Disabled(b.Current).Clicked() {
 						out, err := git.SwitchBranch(m.WorkspaceRoot, b.Name)
 						branchChanged(m, out, err)
 					}
 				})
 			}
 			if matches == 0 && w.BranchStatus == "" {
-				ui.Text(c, word("没有匹配分支", "No matching branches")).FontSize(11).TextColor(muted)
+				ui.Text(c, word("没有匹配分支", "No matching branches")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 	})
@@ -92,6 +93,6 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	})
 	if w.BranchStatus != "" {
-		ui.Text(c, w.BranchStatus).FontSize(11).TextColor(fg)
+		ui.Text(c, w.BranchStatus).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 }

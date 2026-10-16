@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // Tabs owns drafts for all open workspace files for the lifetime of this window.
@@ -291,17 +292,17 @@ func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 				name = "▸ " + name
 			}
 			ui.Row(c).Gap(4).FillWidth().Children(func() {
-				if ui.Button(c, name).FontSize(11).Clicked() {
+				if ui.Button(c, name).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					selectFile(m, path)
 				}
-				if ui.Button(c, "×").FontSize(11).Clicked() {
+				if ui.Button(c, "×").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					closeTab(m, path, false)
 				}
 			})
 		}
 		if w.PendingClose != "" {
 			path := w.PendingClose
-			ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(11).TextColor(muted)
+			ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(4).Children(func() {
 				if ui.Button(c, label("保留草稿", "Keep draft")).Clicked() {
 					w.PendingClose = ""

@@ -29,7 +29,7 @@ func paintWrapToggle(c *ui.Context, m Model) {
 	if prefs.WordWrap {
 		caption = label("关闭折行", "Unwrap lines")
 	}
-	if ui.Button(c, caption).FontSize(11).Clicked() {
+	if ui.Button(c, caption).FontSize(theme.InterfaceSize(11)).Clicked() {
 		prefs.WordWrap = !prefs.WordWrap
 		if m.Tabs != nil && m.Tabs.floating != nil && m.Tabs.floating.win != nil {
 			m.Tabs.floating.win.Invalidate()

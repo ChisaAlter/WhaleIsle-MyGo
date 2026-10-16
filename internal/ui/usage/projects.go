@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	usagestore "whaleisle/internal/store/usage"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
@@ -15,7 +16,7 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 	}
 	r := m.Store.ProjectRanking()
 	b := m.Store.Billing()
-	ui.Text(c, usageText("按服务端真实工作目录聚合，不对应 Project 任务 ID；费用为已保存价格的估算。", "Host aggregation by working directory, not Project task IDs; costs estimate saved prices.")).FontSize(11).TextColor(muted)
+	ui.Text(c, usageText("按服务端真实工作目录聚合，不对应 Project 任务 ID；费用为已保存价格的估算。", "Host aggregation by working directory, not Project task IDs; costs estimate saved prices.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
 		for _, sort := range []string{"tokens", "cost"} {
 			sort := sort
@@ -47,8 +48,8 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 		if cents, ok := usagestore.ProjectEstimate(row, b); ok {
 			label = fmt.Sprintf("≈ CNY %.2f", cents/100)
 		}
-		ui.Text(c, fmt.Sprintf("%d. %s · %.0f tokens · %s", i+1, name, row.Totals.Total, label)).TextColor(fg).FontSize(12)
-		ui.Text(c, path).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%d. %s · %.0f tokens · %s", i+1, name, row.Totals.Total, label)).TextColor(fg).FontSize(fonttheme.InterfaceSize(12))
+		ui.Text(c, path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if r.Err != "" {
 		ui.Text(c, usageText("项目排行失败，保留已加载页：", "Project ranking failed; loaded pages retained: ")+r.Err).TextColor(accent)
@@ -61,7 +62,7 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 		ui.Text(c, usageText("暂无项目用量。", "No project usage.")).TextColor(muted)
 	}
 	if r.Started && !r.HasMore && r.Err == "" {
-		ui.Text(c, usageText("全部项目已显示。", "All projects shown.")).FontSize(11).TextColor(muted)
+		ui.Text(c, usageText("全部项目已显示。", "All projects shown.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	label := usageText("加载项目排行", "Load project ranking")

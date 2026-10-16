@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/htmldocument"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenHTML owns only the selected file's immutable snapshot. It does not prepare
@@ -45,7 +46,7 @@ func (b *Controller) PruneHTMLDocuments() {
 	}
 }
 func (b *Controller) htmlControls(c *ui.Context, t *Tab, dark bool) {
-	ui.Text(c, t.HTML.Name).FontSize(12).Grow(1)
+	ui.Text(c, t.HTML.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
 	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
 		b.openFloatingDocument(t)
 	}

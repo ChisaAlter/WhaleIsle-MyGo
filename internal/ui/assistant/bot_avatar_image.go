@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, fg, muted, accent ui.Color) {
@@ -11,7 +12,7 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 	if ui.Button(c, "选择本地头像图片 / Choose local avatar image").Disabled(!eligible || p.Busy || p.Ready || m.OnChooseImage == nil).Clicked() {
 		m.OnChooseImage()
 	}
-	ui.Text(c, "仅手动选择本地 JPEG/PNG，≤8 MiB、边长≤4096、≤800万像素。裁剪输出192×192 JPEG（质量82），不保留原图元数据。此处仅本地预览，确认保存才随完整资料发送当前Host。").FontSize(11).TextColor(muted)
+	ui.Text(c, "仅手动选择本地 JPEG/PNG，≤8 MiB、边长≤4096、≤800万像素。裁剪输出192×192 JPEG（质量82），不保留原图元数据。此处仅本地预览，确认保存才随完整资料发送当前Host。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).TextColor(accent)
 	}
@@ -27,7 +28,7 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 			ui.Text(c, fmt.Sprintf("%s · %s · %d bytes · %d×%d", p.Name, p.Format, p.Bytes, p.Width, p.Height)).TextColor(fg).Selectable()
 			value := pluginrpc.DshbotAvatarValues{Kind: "image", DataURL: p.Preview, Crop: p.Crop.Shape}
 			_ = botAvatarUncachedPreview(c.Key("crop-preview"), value, 192, "本地裁剪预览 / Local crop preview", fg, muted)
-			ui.Text(c, "使用缩放与X/Y位置滑条（本轮替代原版拖动）；圆形/方形仅改变显示裁剪，输出像素始终为方形。").FontSize(11).TextColor(muted)
+			ui.Text(c, "使用缩放与X/Y位置滑条（本轮替代原版拖动）；圆形/方形仅改变显示裁剪，输出像素始终为方形。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			crop := p.Crop
 			changed := false
 			ui.Text(c, fmt.Sprintf("缩放 / Zoom: %.2f", crop.Zoom)).TextColor(fg)

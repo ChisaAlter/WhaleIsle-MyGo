@@ -181,7 +181,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 				m.OnClose()
 			}
 		})
-		ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(11).TextColor(muted)
+		ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
 			ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
@@ -190,17 +190,17 @@ func (p *Panel) View(c *ui.Context, m Model) {
 			}
 		})
 		if snap.CatalogHint != "" {
-			ui.Text(c, snap.CatalogHint).FontSize(11).TextColor(muted)
+			ui.Text(c, snap.CatalogHint).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		visibleRows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
-		ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		for _, text := range []string{snap.Err, snap.LastAction, status} {
 			if text != "" {
-				ui.Text(c, text).FontSize(12).TextColor(fg)
+				ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 			}
 		}
 		if snap.Err != "" && len(snap.Rows) > 0 {
-			ui.Text(c, "刷新失败，以下保留上次成功读取的数据 / Refresh failed; showing last successful rows").FontSize(11).TextColor(muted)
+			ui.Text(c, "刷新失败，以下保留上次成功读取的数据 / Refresh failed; showing last successful rows").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		if !snap.ClientReady {
 			ui.Text(c, "Host 未连接，连接后可管理计划。").TextColor(muted)
@@ -219,9 +219,9 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					key := taskKey(row)
 					ui.Column(c).Border(1, chrome.Color(colors.Border)).Radius(6).Padding(8, 8, 8, 8).Gap(4).Children(func() {
 						ui.Text(c, row.Title).Bold().TextColor(fg)
-						ui.Text(c, row.Detail).FontSize(11).TextColor(muted)
-						ui.Text(c, schedstore.TimingLabel(row)).FontSize(11).TextColor(muted)
-						ui.Text(c, "Session: "+row.SessionID).FontSize(11).TextColor(muted)
+						ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, schedstore.TimingLabel(row)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, "Session: "+row.SessionID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						ui.Row(c).Gap(8).Children(func() {
 							sessionLabel, canOpen := m.SessionLinks[row.SessionID]
 							if sessionLabel == "" {
@@ -308,11 +308,11 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					}
 					ui.Text(c, "编辑 · "+d.row.ID+" · Session: "+d.row.SessionID).Bold().TextColor(fg)
 					input := func(label string, value *string) {
-						ui.Text(c, label).FontSize(11).TextColor(muted)
+						ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						ui.TextInput(c, value).FillWidth()
 					}
 					input("名称 / Title", &d.Title)
-					ui.Text(c, "指令 / Prompt").FontSize(11)
+					ui.Text(c, "指令 / Prompt").FontSize(theme.InterfaceSize(11))
 					ui.TextArea(c, &d.Prompt).FillWidth().Lines(3, 6)
 					ui.Select(c, &d.Kind, []string{"at", "every", "daily", "weekly", "cron"})
 					switch d.Kind {
@@ -403,7 +403,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 				}
 				if history != "" {
 					ui.Text(c, "历史 / Delivery history").Bold()
-					ui.Text(c, history).FontSize(11).TextColor(fg)
+					ui.Text(c, history).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 					if m.OnCopyHistory != nil && ui.Button(c, "复制历史 / Copy history").Clicked() {
 						m.OnCopyHistory(history)
 					}

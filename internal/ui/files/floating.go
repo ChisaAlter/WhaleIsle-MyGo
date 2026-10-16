@@ -89,13 +89,14 @@ func (t *Tabs) closeFloatingPreview() {
 	}
 }
 func (f *floatingPreview) view(c *ui.Context) {
+	theme.ApplyInterface(c)
 	dark := mygo.Theme.IsDark()
 	colors := theme.Resolve(f.themeID).Active(dark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	m := Model{Tabs: &f.tabs, WorkspaceRoot: f.snapshot.Root, SelectedFile: &f.snapshot.Path, Preview: &f.snapshot.Text, EditDraft: &f.snapshot.Text, ThemeID: f.themeID, SystemDark: dark, notify: c.Invalidate}
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
 		ui.Row(c).FillWidth().Wrap().Gap(6).Padding(8, 12).Children(func() {
-			ui.Text(c, f.snapshot.Path).FontSize(12).TextColor(fg).Grow(1)
+			ui.Text(c, f.snapshot.Path).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
 			if f.image == nil {
 				before := previewPreferences(m).WordWrap
 				paintWrapToggle(c, m)
@@ -113,16 +114,16 @@ func (f *floatingPreview) view(c *ui.Context) {
 				f.win.Close()
 			}
 		})
-		ui.Text(c, label("只读快照；再次点击文件工具栏的浮窗按钮可更新。", "Read-only snapshot. Reopen from the file toolbar to update it.")).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+		ui.Text(c, label("只读快照；再次点击文件工具栏的浮窗按钮可更新。", "Read-only snapshot. Reopen from the file toolbar to update it.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		if f.snapshot.Dirty {
-			ui.Text(c, label("包含尚未保存的草稿；不会自动保存。", "Includes an unsaved draft; opening this window does not save it.")).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+			ui.Text(c, label("包含尚未保存的草稿；不会自动保存。", "Includes an unsaved draft; opening this window does not save it.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		if f.snapshot.Problem != "" {
-			ui.Text(c, f.snapshot.Problem).FontSize(10).TextColor(muted)
+			ui.Text(c, f.snapshot.Problem).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 		}
 		if f.image != nil {
 			if f.image.note != "" {
-				ui.Text(c, f.image.note).FontSize(10).TextColor(muted)
+				ui.Text(c, f.image.note).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 			}
 			if f.image.bitmap != nil {
 				ui.Image(c, f.image.bitmap).Fill().MinHeight(0).Fit(ui.Contain)

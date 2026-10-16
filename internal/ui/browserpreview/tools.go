@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -265,7 +266,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 						unavailable = !siteDataSupported
 					}
 					notice = "分区「" + t.browserWorkspaceLabel() + "」：" + notice
-					ui.Text(c, notice).FontSize(11).Tooltip(notice)
+					ui.Text(c, notice).FontSize(fonttheme.InterfaceSize(11)).Tooltip(notice)
 					if ui.Button(c, "确认清除").Key(confirm).Disabled(disabled || unavailable).Clicked() {
 						b.startBrowserTool(t, confirm.kind, "")
 					}
@@ -275,7 +276,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					return
 				}
 				if !s.Device {
-					ui.Text(c, "设备尺寸调整真实网页视口；网页外观需 Windows WebView2。").FontSize(11)
+					ui.Text(c, "设备尺寸调整真实网页视口；网页外观需 Windows WebView2。").FontSize(fonttheme.InterfaceSize(11))
 					return
 				}
 				label := s.Preset
@@ -310,7 +311,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				if ui.Button(c, "旋转").Disabled(disabled).Clicked() {
 					b.updateBrowserDevice(t, s.Height, s.Width, s.Preset)
 				}
-				ui.Text(c, "大尺寸会缩小至面板可见范围；不模拟触摸/UA").FontSize(11)
+				ui.Text(c, "大尺寸会缩小至面板可见范围；不模拟触摸/UA").FontSize(fonttheme.InterfaceSize(11))
 			})
 		})
 	})

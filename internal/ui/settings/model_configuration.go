@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
@@ -62,7 +63,7 @@ func configurationInvalid(s store.ViewState) bool {
 }
 
 func configurationInput(c *ui.Context, m Model, s store.ViewState, key, label string, value any, number bool, change func(any), fg, muted ui.Color) {
-	ui.Text(c, label).FontSize(11).TextColor(muted)
+	ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	text := configurationText(value)
 	if m.DraftPtr != nil {
 		p := m.DraftPtr("configuration/"+key, text)
@@ -102,7 +103,7 @@ func configurationHas(fields []store.Field, key string) bool {
 }
 
 func configurationModalities(c *ui.Context, s store.ViewState, row map[string]any, key string, change func(), fg ui.Color) {
-	ui.Text(c, key).FontSize(11).TextColor(fg)
+	ui.Text(c, key).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	for _, choice := range []string{"text", "image"} {
 		values := configurationRows(row[key])
 		selected := false
@@ -208,7 +209,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 	fields := store.ConfigurationFields(ns.Schema, "providers", "route")
 	models := store.ConfigurationFields(ns.Schema, "providers", "route", "models", "0")
 	ui.Text(c, providerCopy("供应商与模型配置", "Provider and model configuration")).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("编辑后点击保存。凭据仍由凭据管理入口管理。", "Click Save after editing. Credentials remain managed through the credential controls.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("编辑后点击保存。凭据仍由凭据管理入口管理。", "Click Save after editing. Credentials remain managed through the credential controls.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	keys := make([]string, 0, len(providers))
 	for key := range providers {
 		keys = append(keys, key)
@@ -221,7 +222,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 		}
 		route := route
 		ui.Column(c).Gap(6).Padding(8, 8, 8, 8).Children(func() {
-			ui.Text(c, route).FontSize(14).Bold().TextColor(fg)
+			ui.Text(c, route).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 			save := func() { configurationWrite(m, "providers", providers) }
 			for _, key := range []string{"displayName", "baseURL", "defaultContextWindow", "defaultMaxTokens"} {
 				if !configurationHas(fields, key) {
@@ -259,7 +260,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 }
 
 func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, providers map[string]any, fields, models []store.Field, fg, muted ui.Color) {
-	ui.Text(c, providerCopy("添加自定义供应商", "Add custom provider")).FontSize(14).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("添加自定义供应商", "Add custom provider")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	const key = "@provider-create"
 	draft := configurationObject(s.Drafts[key])
 	save := func() { raw, _ := json.Marshal(draft); m.Store.SetConfigurationForm(key, string(raw)) }
@@ -285,7 +286,7 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 	endpoint := strings.TrimSpace(configurationText(draft["baseURL"]))
 	message := configurationCreateError(route, endpoint, protocol, rows, providers)
 	if message != "" {
-		ui.Text(c, message).FontSize(11).TextColor(muted)
+		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.Button(c, providerCopy("添加到草稿", "Add to draft")).Disabled(!s.Writable || s.Saving || message != "").Clicked() {
 		profile := map[string]any{"api": protocol, "baseURL": endpoint, "models": rows}
@@ -303,7 +304,7 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 
 func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted ui.Color) {
 	ui.Text(c, providerCopy("子代理可选模型集合", "Selectable subagent models")).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("启用后须至少选择一个模型；此设置影响新会话。", "When enabled, select at least one model. This setting applies to new sessions.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("启用后须至少选择一个模型；此设置影响新会话。", "When enabled, select at least one model. This setting applies to new sessions.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	routes, loading, message := m.Store.ModelConfigurationCatalog()
 	if ui.Button(c, providerCopy("刷新模型目录", "Refresh model catalog")).Disabled(loading || s.Saving).Clicked() {
 		m.Store.RefreshModelConfigurationCatalog(context.Background())

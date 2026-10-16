@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -209,23 +210,23 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		}
 		switch r.phase {
 		case "starting":
-			ui.Text(c, "准备编码器…").FontSize(11)
+			ui.Text(c, "准备编码器…").FontSize(fonttheme.InterfaceSize(11))
 		case "recording":
-			ui.Text(c, fmt.Sprintf("● 录制 %02d:%02d · %d 帧", int(r.elapsed.Seconds())/60, int(r.elapsed.Seconds())%60, r.frames)).FontSize(11)
+			ui.Text(c, fmt.Sprintf("● 录制 %02d:%02d · %d 帧", int(r.elapsed.Seconds())/60, int(r.elapsed.Seconds())%60, r.frames)).FontSize(fonttheme.InterfaceSize(11))
 			if ui.Button(c, "停止录制").Clicked() {
 				b.stopBrowserRecording(r)
 			}
 		case "stopping":
-			ui.Text(c, "完成 WebM 编码…").FontSize(11)
+			ui.Text(c, "完成 WebM 编码…").FontSize(fonttheme.InterfaceSize(11))
 		case "ready":
 			if r.limitReached {
-				ui.Text(c, "已达 2 分钟上限").FontSize(11)
+				ui.Text(c, "已达 2 分钟上限").FontSize(fonttheme.InterfaceSize(11))
 			}
 			if ui.Button(c, "导出视频…").Clicked() {
 				b.exportBrowserRecording(r)
 			}
 		case "exporting":
-			ui.Text(c, "导出视频…").FontSize(11)
+			ui.Text(c, "导出视频…").FontSize(fonttheme.InterfaceSize(11))
 		}
 		label := "取消录制"
 		if r.phase == "ready" {

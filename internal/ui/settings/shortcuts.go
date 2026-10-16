@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"runtime"
 	"whaleisle/internal/shortcuts"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
@@ -12,8 +13,8 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 		return
 	}
 	ui.Column(c).Key("native-page-shortcuts").Gap(8).Children(func() {
-		ui.Text(c, providerCopy("应用与主页快捷键", "Application and page shortcuts")).FontSize(14).Bold().TextColor(fg)
-		ui.Text(c, providerCopy("Mod 为 Windows/Linux 的 Ctrl、macOS 的 Command。业务命令在主页执行；缩放、实际大小、全屏与快捷键设置在各原生页面生效。输入区域、终端、弹窗保留按键所有权。", "Mod is Ctrl on Windows/Linux and Command on macOS. Business commands run on the main page; zoom, actual size, fullscreen and shortcut settings work across native pages. Inputs, terminals and popups retain key ownership.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("应用与主页快捷键", "Application and page shortcuts")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+		ui.Text(c, providerCopy("Mod 为 Windows/Linux 的 Ctrl、macOS 的 Command。业务命令在主页执行；缩放、实际大小、全屏与快捷键设置在各原生页面生效。输入区域、终端、弹窗保留按键所有权。", "Mod is Ctrl on Windows/Linux and Command on macOS. Business commands run on the main page; zoom, actual size, fullscreen and shortcut settings work across native pages. Inputs, terminals and popups retain key ownership.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, fmt.Sprintf(providerCopy("应用缩放：%.0f%%", "Application zoom: %.0f%%"), c.ZoomFactor()*100)).TextColor(muted)
 			if ui.Button(c, providerCopy("缩小", "Zoom out")).Clicked() {
@@ -27,9 +28,9 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 			}
 		})
 		if runtime.GOOS == "darwin" {
-			ui.Text(c, providerCopy("macOS 的 Command+` 保留给窗口切换，终端默认未绑定；可在下方设置其他组合。", "On macOS, Command+` belongs to window switching. Terminal is unbound by default; choose another combination below.")).FontSize(11).TextColor(muted)
+			ui.Text(c, providerCopy("macOS 的 Command+` 保留给窗口切换，终端默认未绑定；可在下方设置其他组合。", "On macOS, Command+` belongs to window switching. Terminal is unbound by default; choose another combination below.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Text(c, providerCopy("支持 Mod + 字母、数字、标点或 Enter，可加 Shift/Alt。编辑、文件保存与系统保留按键不可改绑。草稿仅在保存成功后生效。", "Use Mod plus a letter, digit, punctuation or Enter, optionally Shift/Alt. Editing, file-save and system-reserved keys are excluded. Drafts take effect only after a successful save.")).FontSize(11).TextColor(muted)
+		ui.Text(c, providerCopy("支持 Mod + 字母、数字、标点或 Enter，可加 Shift/Alt。编辑、文件保存与系统保留按键不可改绑。草稿仅在保存成功后生效。", "Use Mod plus a letter, digit, punctuation or Enter, optionally Shift/Alt. Editing, file-save and system-reserved keys are excluded. Drafts take effect only after a successful save.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if e.ReadError != "" {
 			ui.Text(c, e.ReadError).TextColor(fg)
 		}
@@ -61,7 +62,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 				if defaultDisplay == "" {
 					defaultDisplay = providerCopy("未绑定", "Unbound")
 				}
-				ui.Text(c, providerCopy("已保存：", "Saved: ")+display+providerCopy("；默认：", "; default: ")+defaultDisplay).FontSize(11).TextColor(muted)
+				ui.Text(c, providerCopy("已保存：", "Saved: ")+display+providerCopy("；默认：", "; default: ")+defaultDisplay).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.TextInput(c, e.Draft(command.ID)).Label("shortcut-" + command.ID).FillWidth().Disabled(e.ReadError != "").Placeholder(command.Default)
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("解绑", "Unbind")).Label("unbind-" + command.ID).Disabled(e.ReadError != "").Clicked() {
@@ -74,7 +75,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 					}
 				})
 				if issue := issues[command.ID]; issue != "" {
-					ui.Text(c, issue).FontSize(11).TextColor(fg)
+					ui.Text(c, issue).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 				}
 			})
 		}

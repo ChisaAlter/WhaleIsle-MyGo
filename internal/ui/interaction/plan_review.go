@@ -2,6 +2,7 @@ package interaction
 
 import (
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
@@ -17,7 +18,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 	}
 	ui.Column(c.Key("plan-review:" + pending.AgentID + ":" + pending.EventID)).FillWidth().Padding(8).Gap(6).Background(accent.Alpha(0.08)).Radius(12).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, planpreview.Text("计划审批", "Plan review")).Bold().FontSize(13).TextColor(fg).Grow(1)
+			ui.Text(c, planpreview.Text("计划审批", "Plan review")).Bold().FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).Grow(1)
 			if card.PlanReviewHidden {
 				if ui.Button(c, planpreview.Text("返回审批", "Return to review")).Clicked() {
 					store.ReopenPlanReview(pending.EventID)
@@ -28,17 +29,17 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 			return
 		}
 		if review.Question != "" {
-			ui.Text(c, review.Question).FontSize(12).TextColor(fg)
+			ui.Text(c, review.Question).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
 		if pending.Continued {
-			ui.Text(c, questionStatusText("continued")).FontSize(11).TextColor(muted)
+			ui.Text(c, questionStatusText("continued")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		title := strings.SplitN(strings.TrimSpace(review.Plan), "\n", 2)[0]
 		title = strings.TrimSpace(strings.TrimPrefix(title, "#"))
 		if title == "" {
 			title = planpreview.Text("提交的计划", "Submitted plan")
 		}
-		if onOpen != nil && ui.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar")).FontSize(11).Clicked() {
+		if onOpen != nil && ui.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			address := planpreview.ReviewAddress(pending.AgentID, pending.EventID)
 			if review.CallID != "" {
 				address = planpreview.PlanAddress(pending.AgentID, review.CallID)
@@ -47,10 +48,10 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 		}
 		planpreview.View(c, "review-document:"+pending.AgentID+":"+pending.EventID, title, review.Plan, true, planpreview.Style{FG: fg, Muted: muted, Accent: accent, Field: accent.Alpha(0.03), Border: accent.Alpha(0.18)})
 		if pending.Error != "" {
-			ui.Text(c, pending.Error).FontSize(12).TextColor(muted)
+			ui.Text(c, pending.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		if review.Approve.Description != "" {
-			ui.Text(c, review.Approve.Description).FontSize(11).TextColor(muted)
+			ui.Text(c, review.Approve.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, planpreview.Text("讨论修改", "Discuss changes")).Disabled(pending.Sending).Clicked() {

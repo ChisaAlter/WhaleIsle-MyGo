@@ -57,9 +57,9 @@ func View(c *ui.Context, m Model) {
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyUsageTitle)).FontSize(15).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyUsageTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
 			if snap.Loading {
-				ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(12).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 			if ui.Button(c, i18n.T(i18n.KeyUsageRefresh)).Clicked() {
 				m.Store.RefreshStats(context.Background(), true)
@@ -80,25 +80,25 @@ func View(c *ui.Context, m Model) {
 				statsView(c, m, fg, muted, accent, field)
 
 				if snap.Err != "" {
-					ui.Text(c, snap.Err).FontSize(12).TextColor(accent)
+					ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 				}
 
-				ui.Text(c, i18n.T(i18n.KeyUsageAccount)).FontSize(13).Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeyUsageAccount)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 				if snap.AccountStatus == "" && !snap.Loading {
-					ui.Text(c, i18n.T(i18n.KeyUsageNoData)).FontSize(12).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyUsageNoData)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				} else {
-					ui.Text(c, snap.AccountStatus).FontSize(12).TextColor(fg)
+					ui.Text(c, snap.AccountStatus).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				}
 				if snap.UsageURL != "" {
-					ui.Text(c, i18n.T(i18n.KeyUsageWebLink)+": "+snap.UsageURL).FontSize(11).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyUsageWebLink)+": "+snap.UsageURL).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 				if snap.ExpiryNote != "" {
-					ui.Text(c, i18n.T(i18n.KeyUsageExpiry)+": "+snap.ExpiryNote).FontSize(11).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyUsageExpiry)+": "+snap.ExpiryNote).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 
-				ui.Text(c, i18n.T(i18n.KeyUsageBalance)).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
+				ui.Text(c, i18n.T(i18n.KeyUsageBalance)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 				if snap.BalanceSummary != "" {
-					ui.Text(c, snap.BalanceSummary).FontSize(11).TextColor(fg)
+					ui.Text(c, snap.BalanceSummary).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 				}
 
 				ui.Row(c).Gap(8).Children(func() {
@@ -108,7 +108,7 @@ func View(c *ui.Context, m Model) {
 						}
 					}
 					if snap.UsageURL != "" && m.OnCopyUsageURL != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyURL)).FontSize(11).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyUsageCopyURL)).FontSize(theme.InterfaceSize(11)).Clicked() {
 							m.OnCopyUsageURL(snap.UsageURL)
 						}
 					}
@@ -118,20 +118,20 @@ func View(c *ui.Context, m Model) {
 						}
 					}
 					if snap.TopUpURL != "" && m.OnCopyTopUpURL != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyTopUp)).FontSize(11).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyUsageCopyTopUp)).FontSize(theme.InterfaceSize(11)).Clicked() {
 							m.OnCopyTopUpURL(snap.TopUpURL)
 						}
 					}
 					if snap.BalanceSummary != "" && m.OnCopyBalance != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyBalance)).FontSize(11).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyUsageCopyBalance)).FontSize(theme.InterfaceSize(11)).Clicked() {
 							m.OnCopyBalance(snap.BalanceSummary)
 						}
 					}
 				})
 
-				ui.Text(c, i18n.T(i18n.KeyUsageRecent)).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
+				ui.Text(c, i18n.T(i18n.KeyUsageRecent)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 				if len(snap.Recent) == 0 {
-					ui.Text(c, i18n.T(i18n.KeyUsageRecentEmpty)).FontSize(12).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyUsageRecentEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				} else {
 					ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
 						Padding(8, 10, 8, 10).Gap(6).Children(func() {
@@ -139,27 +139,27 @@ func View(c *ui.Context, m Model) {
 							entry := row
 							ui.Column(c).Gap(2).Children(func() {
 								ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-									ui.Text(c, entry.Label).FontSize(12).Bold().TextColor(fg).Grow(1)
+									ui.Text(c, entry.Label).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg).Grow(1)
 									body := strings.TrimSpace(entry.Detail)
 									if body == "" {
 										body = entry.Label
 									}
-									if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+									if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 										mygo.Clipboard.WriteText(body)
 									}
 									if entry.JobID != "" {
-										if ui.Button(c, i18n.T(i18n.KeyUsageFollowJob)).FontSize(11).Clicked() {
+										if ui.Button(c, i18n.T(i18n.KeyUsageFollowJob)).FontSize(theme.InterfaceSize(11)).Clicked() {
 											m.Store.FollowJob(context.Background(), m.SessionID, entry.JobID)
 										}
 									}
 									if entry.JobID != "" && jobKillable(entry.Status) {
-										if ui.Button(c, i18n.T(i18n.KeyUsageKillJob)).FontSize(11).
+										if ui.Button(c, i18n.T(i18n.KeyUsageKillJob)).FontSize(theme.InterfaceSize(11)).
 											TextColor(accent).Clicked() {
 											m.Store.KillJob(context.Background(), m.SessionID, entry.JobID)
 										}
 									}
 								})
-								ui.Text(c, entry.Detail).FontSize(11).TextColor(muted)
+								ui.Text(c, entry.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 							})
 						}
 					})

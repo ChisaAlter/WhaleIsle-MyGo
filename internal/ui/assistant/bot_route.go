@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 const botRouteAcknowledgement = "我理解模型、目录、新会话及目标可能执行的影响 / I understand model, directory, new-session and execution effects"
@@ -42,8 +43,8 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 	blocked = blocked || s.Busy
 	editable := !blocked && s.Loaded && s.Writable && s.Status.WriteError == "" && !s.Uncertain && s.Review == nil
 	ui.Column(c.Key("bot-route-editor")).Gap(7).Children(func() {
-		ui.Text(c, "模型与工作区 / Model and workspace").FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "选择当前 Host 的模型、推理强度和真实目录。完整资料无法无损保留时，请使用现有 Bot Web 编辑入口。").FontSize(11).TextColor(muted)
+		ui.Text(c, "模型与工作区 / Model and workspace").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, "选择当前 Host 的模型、推理强度和真实目录。完整资料无法无损保留时，请使用现有 Bot Web 编辑入口。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, "刷新模型与工作区 / Refresh model and workspace").Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -51,7 +52,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
 		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(11).TextColor(muted).Selectable()
+			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
@@ -67,7 +68,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 			ui.Text(c, "字段不完整，请使用 Bot Web / Incomplete profile; use Bot Web").TextColor(accent)
 			return
 		}
-		ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s · revision %d\n当前模型 / Current model: %s\n当前目录 / Current workspace: %s", m.HostLabel, s.Status.Bot.Name, s.Status.Bot.ID, s.Status.Bot.SessionID, s.Status.Revision, botRouteModelText(before.Model), botRouteWorkspaceText(before.WorkspaceID, s.Status.Options))).FontSize(12).TextColor(fg).Selectable()
+		ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s · revision %d\n当前模型 / Current model: %s\n当前目录 / Current workspace: %s", m.HostLabel, s.Status.Bot.Name, s.Status.Bot.ID, s.Status.Bot.SessionID, s.Status.Revision, botRouteModelText(before.Model), botRouteWorkspaceText(before.WorkspaceID, s.Status.Options))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		if !s.Writable {
 			ui.Text(c, "Host 写权限未核实 / Write authority unavailable").TextColor(accent)
 		}
@@ -76,7 +77,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		}
 		draft := s.Draft
 		opts := s.Status.Options
-		ui.Text(c, "模型草稿 / Model draft: "+botRouteModelText(draft.Model)).FontSize(12).TextColor(fg).Selectable()
+		ui.Text(c, "模型草稿 / Model draft: "+botRouteModelText(draft.Model)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		if !opts.ModelsKnown {
 			ui.Text(c, "模型目录不可用；保留原配置，不猜测默认模型 / Model discovery unavailable").TextColor(accent)
 		}
@@ -107,7 +108,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 				m.OnChange(draft)
 			}
 		})
-		ui.Text(c, "Host 当前默认值 / Current Host default: "+botRouteModelText(opts.Default)).FontSize(11).TextColor(muted).Selectable()
+		ui.Text(c, "Host 当前默认值 / Current Host default: "+botRouteModelText(opts.Default)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		effortLabels := []string{"模型默认推理强度 / Model default effort"}
 		effortChoices := map[string]string{effortLabels[0]: ""}
 		effortSelected := effortLabels[0]
@@ -129,7 +130,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 				m.OnChange(draft)
 			}
 		})
-		ui.Text(c, "目录草稿 / Workspace draft: "+botRouteWorkspaceText(draft.WorkspaceID, opts)).FontSize(12).TextColor(fg).Selectable()
+		ui.Text(c, "目录草稿 / Workspace draft: "+botRouteWorkspaceText(draft.WorkspaceID, opts)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		workspaceLabels := []string{}
 		workspaceChoices := map[string]string{}
 		workspaceSelected := "保留现有目录 / Preserve current: " + draft.WorkspaceID
@@ -181,13 +182,13 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		old, _ := pluginrpc.DshbotRouteValue(cmd.Expected)
 		ui.Column(c.Key("bot-route-confirmation")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
 			ui.Text(c, "确认模型与工作区 / Confirm model and workspace").Bold().TextColor(fg)
-			ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s · canonical Session: %s · revision %d\n原完整模型 / Before: %s\n新完整模型 / After: %s\n原目录 / Before workspace: %s\n新目录 / After workspace: %s\nHost default at review: %s", m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botRouteModelText(old.Model), botRouteModelText(cmd.Values.Model), botRouteWorkspaceText(old.WorkspaceID, cmd.Expected.Options), botRouteWorkspaceText(cmd.Values.WorkspaceID, cmd.Expected.Options), botRouteModelText(cmd.Expected.Options.Default))).FontSize(12).TextColor(fg).Selectable()
+			ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s · canonical Session: %s · revision %d\n原完整模型 / Before: %s\n新完整模型 / After: %s\n原目录 / Before workspace: %s\n新目录 / After workspace: %s\nHost default at review: %s", m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botRouteModelText(old.Model), botRouteModelText(cmd.Values.Model), botRouteWorkspaceText(old.WorkspaceID, cmd.Expected.Options), botRouteWorkspaceText(cmd.Values.WorkspaceID, cmd.Expected.Options), botRouteModelText(cmd.Expected.Options.Default))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			if old.WorkspaceID != cmd.Values.WorkspaceID {
-				ui.Text(c, "重要：工作区改变会由 Host 创建新的 canonical sessionId 和新会话。旧会话不迁移、不删除；旧会话展示清理可能失败并留下警告。新 ID 只在真实回执后核实；不预造或冒认。blank=true 只是前置保护，Host 的历史检查仍权威，目录 revision CAS 不原子锁定消息历史。").FontSize(12).Bold().TextColor(accent)
+				ui.Text(c, "重要：工作区改变会由 Host 创建新的 canonical sessionId 和新会话。旧会话不迁移、不删除；旧会话展示清理可能失败并留下警告。新 ID 只在真实回执后核实；不预造或冒认。blank=true 只是前置保护，Host 的历史检查仍权威，目录 revision CAS 不原子锁定消息历史。").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(accent)
 			}
-			ui.Text(c, "模型/推理强度可能改变后续模型调用、能力及费用；空模型配置沿用 Host 默认值，后续默认值变化仍会影响此 Bot。保存不会取消在途模型或工具，也不撤销已发生的操作。").FontSize(12).TextColor(accent)
-			ui.Text(c, "bot/update 会校验模型、写审计、更新会话展示并尝试重命名，还会 requestSync：live idle 会话现在或下次 idle 可能创建目标、重建已暂停目标或修改 active 目标，调用模型、执行工具、发送外部消息并产生费用。冷会话不会在此保存路径解析，之后变为 live/idle 时可能同步；同步失败可能仅记 Host 日志。").FontSize(12).TextColor(accent)
-			ui.Text(c, "仅替换 model 与 workspaceId，完整其他资料原样保留；无注册目录时额外携带审阅的 Host scratchCwd。完整回执不证明目标同步或任务完成。此页不主动 prompt/start/resume/open；保存后可刷新并从现有入口打开。关闭界面不撤回已发送请求。未知结果先读回，不自动重试。").FontSize(11).TextColor(muted)
+			ui.Text(c, "模型/推理强度可能改变后续模型调用、能力及费用；空模型配置沿用 Host 默认值，后续默认值变化仍会影响此 Bot。保存不会取消在途模型或工具，也不撤销已发生的操作。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, "bot/update 会校验模型、写审计、更新会话展示并尝试重命名，还会 requestSync：live idle 会话现在或下次 idle 可能创建目标、重建已暂停目标或修改 active 目标，调用模型、执行工具、发送外部消息并产生费用。冷会话不会在此保存路径解析，之后变为 live/idle 时可能同步；同步失败可能仅记 Host 日志。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, "仅替换 model 与 workspaceId，完整其他资料原样保留；无注册目录时额外携带审阅的 Host scratchCwd。完整回执不证明目标同步或任务完成。此页不主动 prompt/start/resume/open；保存后可刷新并从现有入口打开。关闭界面不撤回已发送请求。未知结果先读回，不自动重试。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
 			if ui.Checkbox(c, &ack, botRouteAcknowledgement).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)

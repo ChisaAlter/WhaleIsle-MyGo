@@ -109,7 +109,7 @@ func paintPlanTabs(c *ui.Context, m Model) {
 		return
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(4).Padding(6, 8).Children(func() {
-		if ui.Button(c, label("文件", "Files")).FontSize(11).Clicked() {
+		if ui.Button(c, label("文件", "Files")).FontSize(theme.InterfaceSize(11)).Clicked() {
 			m.Tabs.CancelPlanRead()
 			r.ShowFiles(sid)
 		}
@@ -121,11 +121,11 @@ func paintPlanTabs(c *ui.Context, m Model) {
 			if address == r.ActiveAddress(sid) {
 				name = "▸ " + name
 			}
-			if ui.Button(c, name).Tooltip(address).FontSize(11).Clicked() {
+			if ui.Button(c, name).Tooltip(address).FontSize(theme.InterfaceSize(11)).Clicked() {
 				r.Navigate(sid, address)
 				m.Tabs.AllowPlanRead(r.ActiveAddress(sid))
 			}
-			if ui.Button(c, "×").Tooltip(label("关闭计划", "Close plan")).FontSize(11).Clicked() {
+			if ui.Button(c, "×").Tooltip(label("关闭计划", "Close plan")).FontSize(theme.InterfaceSize(11)).Clicked() {
 				if r.ActiveAddress(sid) == address {
 					m.Tabs.CancelPlanRead()
 				}
@@ -171,7 +171,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 			}
 		})
 		if nav.Error != "" {
-			ui.Text(c, nav.Error).TextColor(muted).FontSize(12)
+			ui.Text(c, nav.Error).TextColor(muted).FontSize(theme.InterfaceSize(12))
 		}
 		doc, ok := r.Current(sid)
 		if !ok {
@@ -223,7 +223,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 				mygo.Clipboard.WriteText(doc.Markdown)
 			}
 		})
-		ui.Text(c, label("只读计划文档", "Read-only plan document")).FontSize(11).TextColor(muted).Padding(0, 8)
+		ui.Text(c, label("只读计划文档", "Read-only plan document")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 8)
 		ui.Scroll(c.Key("plan-body:" + address)).Grow(1).MinHeight(0).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(12).Children(func() {
 				markdown.View(c, doc.Markdown, markdown.Style{FontSize: 14, FG: fg, Muted: muted, Accent: accent, CodeBG: chrome.Color(colors.Field)})

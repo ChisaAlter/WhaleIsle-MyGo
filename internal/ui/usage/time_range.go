@@ -3,6 +3,7 @@ package usage
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
@@ -25,12 +26,12 @@ func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	if st.Range.Active() {
 		selected := st.Selection()
 		ui.Text(c, fmt.Sprintf("%s → %s UTC · %.0f tokens · %d days", st.Range.Start, st.Range.End, selected.Totals.Total, len(selected.Days))).TextColor(fg)
-		ui.Text(c, usageText("日统计、模型排行和导出使用相同选区；扫描覆盖情况仍适用。", "Daily statistics, model ranking and exports use this selection; scan coverage still applies.")).FontSize(11).TextColor(muted)
+		ui.Text(c, usageText("日统计、模型排行和导出使用相同选区；扫描覆盖情况仍适用。", "Daily statistics, model ranking and exports use this selection; scan coverage still applies.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if st.Overview == nil {
 		return
 	}
-	ui.Text(c, usageText("点击日期选一天；“扩展”将该日加入区间。仅可选择已返回的日期。", "Pick a day, then Extend to include another date. Only returned dates are available.")).FontSize(11).TextColor(muted)
+	ui.Text(c, usageText("点击日期选一天；“扩展”将该日加入区间。仅可选择已返回的日期。", "Pick a day, then Extend to include another date. Only returned dates are available.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	ui.Scroll(c).Height(140).Children(func() {
 		ui.Column(c).Gap(4).Children(func() {
 			days := st.Overview.Days
@@ -42,10 +43,10 @@ func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 						if st.Range.Active() && day.Date >= st.Range.Start && day.Date <= st.Range.End {
 							label = "✓ " + label
 						}
-						if ui.Button(c, label).FontSize(11).Clicked() {
+						if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 							m.Store.SelectStatsDay(day.Date, false)
 						}
-						if st.Range.Active() && ui.Button(c, usageText("扩展", "Extend")).FontSize(10).Clicked() {
+						if st.Range.Active() && ui.Button(c, usageText("扩展", "Extend")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 							m.Store.SelectStatsDay(day.Date, true)
 						}
 					}

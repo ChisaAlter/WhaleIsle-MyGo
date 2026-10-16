@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 
@@ -62,8 +63,8 @@ func phoneReadinessLabel(r phoneremote.Readiness) string {
 func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	snap := phoneSnapshot(m)
 
-	ui.Text(c, i18n.T(i18n.KeyRemotePhoneTitle)).FontSize(12).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeyRemotePhoneHowTo)).FontSize(11).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyRemotePhoneTitle)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeyRemotePhoneHowTo)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 
 	rows := []struct{ label, value string }{
 		{i18n.T(i18n.KeyRemotePhoneStatus), phoneReadinessLabel(snap.Readiness)},
@@ -89,21 +90,21 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
 		for _, row := range rows {
 			ui.Row(c).Gap(12).Children(func() {
-				ui.Text(c, row.label).FontSize(12).TextColor(muted).Width(160)
-				ui.Text(c, row.value).FontSize(12).TextColor(fg).Grow(1)
+				ui.Text(c, row.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(160)
+				ui.Text(c, row.value).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 			})
 		}
 	})
 
 	viewPhoneDevices(c, m, fg, muted, field, border, accent)
 
-	ui.Text(c, i18n.T(i18n.KeyRemotePhoneConnectURL)).FontSize(12).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeyRemotePhoneConnectURL)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 	if snap.ConnectURL != "" {
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
-			ui.Text(c, snap.ConnectURL).FontSize(12).TextColor(fg)
+			ui.Text(c, snap.ConnectURL).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
 	} else {
-		ui.Text(c, i18n.T(i18n.KeyRemotePhoneURLUnavailable)).FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyRemotePhoneURLUnavailable)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 
 	runtime := m.PhoneRuntime
@@ -114,20 +115,20 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if status == "" {
 		status = "offline"
 	}
-	ui.Text(c, "offer v2 · "+status).FontSize(12).Bold().TextColor(fg)
+	ui.Text(c, "offer v2 · "+status).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 	if runtime.Message != "" {
-		ui.Text(c, runtime.Message).FontSize(11).TextColor(accent)
+		ui.Text(c, runtime.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 	if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) {
-		ui.Text(c, "配对链接有效 / Pairing link valid · "+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(11).TextColor(fg)
+		ui.Text(c, "配对链接有效 / Pairing link valid · "+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		if runtime.PairingImage != nil {
 			ui.Image(c, ui.NewBitmap(runtime.PairingImage)).Width(320).Height(320).Fit(ui.Contain)
-			ui.Text(c, "用手机扫码配对，请勿分享二维码。 / Scan privately to pair your phone.").FontSize(11).TextColor(muted)
+			ui.Text(c, "用手机扫码配对，请勿分享二维码。 / Scan privately to pair your phone.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		} else {
-			ui.Text(c, "二维码不可用，可复制临时配对链接。 / QR unavailable; copy the temporary link privately.").FontSize(11).TextColor(muted)
+			ui.Text(c, "二维码不可用，可复制临时配对链接。 / QR unavailable; copy the temporary link privately.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	} else {
-		ui.Text(c, "没有可用配对链接。启用会自动启动已安装的原版运行时；失败时请检查运行时后刷新重试。 / No usable offer. Enabling starts the installed runtime automatically; check the runtime and refresh to retry if needed.").FontSize(11).TextColor(muted)
+		ui.Text(c, "没有可用配对链接。启用会自动启动已安装的原版运行时；失败时请检查运行时后刷新重试。 / No usable offer. Enabling starts the installed runtime automatically; check the runtime and refresh to retry if needed.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
@@ -141,13 +142,13 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		}
 	})
 	if m.PhoneActionMsg != "" {
-		ui.Text(c, m.PhoneActionMsg).FontSize(11).TextColor(accent)
+		ui.Text(c, m.PhoneActionMsg).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 
 	if len(snap.Missing) > 0 {
-		ui.Text(c, i18n.T(i18n.KeyRemotePhoneMissing)+": "+strings.Join(snap.Missing, ", ")).FontSize(12).TextColor(accent)
+		ui.Text(c, i18n.T(i18n.KeyRemotePhoneMissing)+": "+strings.Join(snap.Missing, ", ")).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
 	if snap.RemoteEnabled && !snap.HasRemoteToken {
-		ui.Text(c, i18n.T(i18n.KeyRemoteMobileNeedToken)).FontSize(12).TextColor(accent)
+		ui.Text(c, i18n.T(i18n.KeyRemoteMobileNeedToken)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
 }

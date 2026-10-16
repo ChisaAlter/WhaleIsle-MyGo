@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/wallpapers"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type WallpaperEditor struct {
@@ -217,7 +218,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		return
 	}
 	ui.Text(c, "壁纸图库与背景").Bold().TextColor(fg)
-	ui.Text(c, g.Status).FontSize(11).TextColor(muted)
+	ui.Text(c, g.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	sources := []string{"收藏"}
 	for _, s := range g.Prefs.Sources {
 		sources = append(sources, s.ID)
@@ -243,7 +244,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		ui.Select(c, &g.Year, years)
 	}
 	if g.Source == "wallhaven" {
-		ui.Text(c, "分类：100 风景 / 010 动漫 / 001 人物；仅 SFW").FontSize(11)
+		ui.Text(c, "分类：100 风景 / 010 动漫 / 001 人物；仅 SFW").FontSize(fonttheme.InterfaceSize(11))
 		ui.Select(c, &g.Category, []string{"100", "010", "001"})
 	}
 	for _, item := range g.visible() {
@@ -254,7 +255,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			}
 			ui.Column(c).Grow(1).Children(func() {
 				ui.Text(c, item.Title).TextColor(fg)
-				ui.Text(c, item.Copyright).FontSize(11).TextColor(muted)
+				ui.Text(c, item.Copyright).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
 					label := "收藏"
 					if g.Favorite(item) {
@@ -282,7 +283,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 				g.load(g.Page - 1)
 			}
 		}
-		ui.Text(c, fmt.Sprintf("第 %d 页 · %d 张", g.Page+g.LocalPage, len(g.Items))).FontSize(11)
+		ui.Text(c, fmt.Sprintf("第 %d 页 · %d 张", g.Page+g.LocalPage, len(g.Items))).FontSize(fonttheme.InterfaceSize(11))
 		if ui.Button(c, "下一页").Disabled(g.Busy || ((g.LocalPage+1)*12 >= len(g.Items) && g.NextPage == 0)).Clicked() {
 			if (g.LocalPage+1)*12 < len(g.Items) {
 				g.LocalPage++
@@ -292,13 +293,13 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			}
 		}
 	})
-	ui.Text(c, "图库来源（自定义目录仅 HTTPS JSON，items 或 Bing images 格式）").FontSize(11)
+	ui.Text(c, "图库来源（自定义目录仅 HTTPS JSON，items 或 Bing images 格式）").FontSize(fonttheme.InterfaceSize(11))
 	for sourceIndex := range g.Prefs.Sources {
 		removed := false
 		s := g.Prefs.Sources[sourceIndex]
 		ui.Row(c).Gap(8).Children(func() {
 			ui.TextInput(c, &g.Prefs.Sources[sourceIndex].Name).Label("来源名称")
-			ui.Text(c, s.ID).FontSize(11)
+			ui.Text(c, s.ID).FontSize(fonttheme.InterfaceSize(11))
 			if s.Kind == "catalog" {
 				ui.TextInput(c, &g.Prefs.Sources[sourceIndex].URL).Label("目录 URL")
 			}
@@ -386,7 +387,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			v      *float64
 			lo, hi float64
 		}{{"比例", &g.Prefs.Crop.Aspect, .25, 4}, {"缩放", &g.Prefs.Crop.Zoom, 1, 5}, {"水平位置", &g.Prefs.Crop.X, 0, 1}, {"垂直位置", &g.Prefs.Crop.Y, 0, 1}} {
-			ui.Text(c, row.label).FontSize(11)
+			ui.Text(c, row.label).FontSize(fonttheme.InterfaceSize(11))
 			if ui.Slider(c, row.v, row.lo, row.hi).Changed() {
 				changed = true
 			}
@@ -409,7 +410,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		v      *float64
 		lo, hi float64
 	}{{"壁纸模糊", &g.Prefs.Blur, 0, 100}, {"壁纸像素化", &g.Prefs.Pixelate, 0, 100}, {"玻璃不透明度", &g.Prefs.Glass, 0, 100}, {"终端不透明度", &g.Prefs.Terminal, 40, 100}, {"渐变速度", &g.Prefs.Speed, 20, 300}, {"渐变光团数量", &g.Prefs.Count, 1, 5}} {
-		ui.Text(c, fmt.Sprintf("%s %.0f", row.label, *row.v)).FontSize(11)
+		ui.Text(c, fmt.Sprintf("%s %.0f", row.label, *row.v)).FontSize(fonttheme.InterfaceSize(11))
 		ui.StepSlider(c, row.v, row.lo, row.hi, 1)
 	}
 	if ui.Checkbox(c, &g.Prefs.Transparent, "透明主题").Changed() && g.Prefs.Transparent && g.Prefs.Blur < 20 {
@@ -421,7 +422,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		g.Prefs.Colors = wallpapers.PresetColors(g.Prefs.Preset)
 	}
 	ui.Select(c, &g.Prefs.Variant, []string{"orbs", "aurora", "chaos", "rays"})
-	ui.Text(c, "渐变配色：底色 1/2 与光团 1–5（#rrggbb）；壁纸优先于动态背景").FontSize(11)
+	ui.Text(c, "渐变配色：底色 1/2 与光团 1–5（#rrggbb）；壁纸优先于动态背景").FontSize(fonttheme.InterfaceSize(11))
 	for i := range g.Prefs.Colors {
 		if ui.TextInput(c, &g.Prefs.Colors[i]).Label(fmt.Sprintf("背景颜色 %d", i+1)).Changed() {
 			g.Prefs.Preset = "custom"
@@ -443,5 +444,5 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			g.Prefs = p
 		}
 	})
-	ui.Text(c, "指针 WebGL 水波与全局按钮金属光泽暂未移植。").FontSize(11).TextColor(muted)
+	ui.Text(c, "指针 WebGL 水波与全局按钮金属光泽暂未移植。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 }

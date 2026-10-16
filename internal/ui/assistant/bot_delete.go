@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 const botDeleteConfirmLabel = "永久删除此 Bot 及所列关联数据 / Permanently delete reviewed Bot"
@@ -36,19 +37,19 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-bot-delete")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "删除选中 Bot 或群聊 / Delete selected Bot or room").FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "先读取完整影响；默认取消，读取预览不会删除。此入口不会删除其它选中目标，不额外发送 stop、prompt 或打开会话。").FontSize(11).TextColor(muted)
+		ui.Text(c, "删除选中 Bot 或群聊 / Delete selected Bot or room").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, "先读取完整影响；默认取消，读取预览不会删除。此入口不会删除其它选中目标，不额外发送 stop、prompt 或打开会话。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
 		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(12).TextColor(muted).Selectable()
+			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Selectable()
 		}
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}
 		if s.Completed {
-			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(11).TextColor(fg).Selectable()
+			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			return
 		}
 		if m.OnRefresh != nil && ui.Button(c, "只读刷新删除预览或结果 / Read deletion preview or outcome").Disabled(blocked || s.Scope == "" || m.SourceID == "").Clicked() {
@@ -57,22 +58,22 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 		if s.Uncertain {
 			ui.Text(c, "原 attempt 保持未知且不可重发；目录存在或不存在均不证明文件、任务与运行副作用的结果。仅本进程保存锁定状态。不要把重启当作安全重试证明。").TextColor(accent).Selectable()
 			if s.Pending != nil {
-				ui.Text(c, botDeleteReviewText(m.HostLabel, s.Pending.Plan)).FontSize(11).TextColor(fg).Selectable()
+				ui.Text(c, botDeleteReviewText(m.HostLabel, s.Pending.Plan)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
 			if s.Observation != "" {
-				ui.Text(c, s.Observation).FontSize(11).TextColor(fg).Selectable()
+				ui.Text(c, s.Observation).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
 			return
 		}
 		if !s.Loaded {
-			ui.Text(c, "必须读取当前完整预览和写权限 / Full current preview and authority required").FontSize(11).TextColor(muted)
+			ui.Text(c, "必须读取当前完整预览和写权限 / Full current preview and authority required").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if !s.Writable {
 			ui.Text(c, "Host 只读或写权限未核实 / Write authority unavailable").TextColor(accent)
 		}
 		if s.Review == nil {
-			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(11).TextColor(fg).Selectable()
+			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			if m.OnReview != nil && ui.Button(c, "审阅危险删除 / Review destructive deletion").Disabled(blocked || !s.Writable).Clicked() {
 				m.OnReview()
 			}
@@ -85,9 +86,9 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 			if m.OnCancel != nil && ui.Button(c, cancelLabel).Disabled(blocked).Clicked() {
 				m.OnCancel()
 			}
-			ui.Text(c, botDeleteReviewText(m.HostLabel, r.Plan)).FontSize(12).TextColor(fg).Selectable()
-			ui.Text(c, effects).FontSize(12).TextColor(accent).Selectable()
-			ui.Text(c, "notepad 按列出的 Host Home 相对文件名删除当前全部内容，无内容 revision；若其它 routine 共用相同规范化文件名，也会失去该文件。此列表不是文件内容备份。").FontSize(11).TextColor(accent)
+			ui.Text(c, botDeleteReviewText(m.HostLabel, r.Plan)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+			ui.Text(c, effects).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+			ui.Text(c, "notepad 按列出的 Host Home 相对文件名删除当前全部内容，无内容 revision；若其它 routine 共用相同规范化文件名，也会失去该文件。此列表不是文件内容备份。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 			name := r.TypedName
 			ui.TextInput(c.Key("bot-delete-exact-name"), &name).Label("输入上方精确稳定名称 / Type exact stable name").FillWidth().Disabled(blocked).OnChange(func() {
 				if m.OnIdentity != nil {

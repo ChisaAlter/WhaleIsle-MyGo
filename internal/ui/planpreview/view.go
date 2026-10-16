@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -20,19 +21,19 @@ func View(c *ui.Context, key, title, source string, initiallyOpen bool, style St
 	open := ui.Local(box, "plan-document-open", func() bool { return initiallyOpen })
 	box.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, title).FontSize(13).Bold().TextColor(style.FG).Grow(1)
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(style.FG).Grow(1)
 			label := Text("阅读计划", "Read plan")
 			if *open {
 				label = Text("收起文档", "Collapse document")
 			}
-			if ui.Button(c, label).FontSize(11).Clicked() {
+			if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				*open = !*open
 			}
-			if ui.Button(c, Text("复制文档", "Copy document")).FontSize(11).Clicked() {
+			if ui.Button(c, Text("复制文档", "Copy document")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				mygo.Clipboard.WriteText(source)
 			}
 		})
-		ui.Text(c, Text("只读计划文档", "Read-only plan document")).FontSize(11).TextColor(style.Muted)
+		ui.Text(c, Text("只读计划文档", "Read-only plan document")).FontSize(fonttheme.InterfaceSize(11)).TextColor(style.Muted)
 		if *open {
 			ui.Scroll(c.Key(key + "-reader")).FillWidth().Height(280).Children(func() {
 				ui.Column(c).FillWidth().Padding(8).Children(func() {

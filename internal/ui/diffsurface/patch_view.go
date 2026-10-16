@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/widgets/diff"
@@ -24,20 +25,20 @@ func paintDiffControls(c *ui.Context, m Model) {
 		if view.Split {
 			mode = word("切换为统一视图", "Use unified view")
 		}
-		if ui.Button(c, mode).FontSize(11).Clicked() {
+		if ui.Button(c, mode).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			view.Split = !view.Split
 		}
 		wrap := word("启用折行", "Wrap lines")
 		if view.Wrap {
 			wrap = word("取消折行", "Do not wrap")
 		}
-		if ui.Button(c, wrap).FontSize(11).Clicked() {
+		if ui.Button(c, wrap).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			view.Wrap = !view.Wrap
 		}
-		if ui.Button(c, word("全部折叠", "Collapse all")).FontSize(11).Clicked() {
+		if ui.Button(c, word("全部折叠", "Collapse all")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			view.setAll(false)
 		}
-		if ui.Button(c, word("全部展开", "Expand all")).FontSize(11).Clicked() {
+		if ui.Button(c, word("全部展开", "Expand all")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			view.setAll(true)
 		}
 	})
@@ -57,14 +58,14 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 				if view.Open[f.Path] {
 					toggle = word("折叠", "Collapse")
 				}
-				if ui.Button(c, toggle).FontSize(10).Clicked() {
+				if ui.Button(c, toggle).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
 					view.Open[f.Path] = !view.Open[f.Path]
 				}
 				title := f.Path
 				if title == "" {
 					title = word("差异内容", "Diff contents")
 				}
-				if ui.Button(c, title).FontSize(11).Grow(1).MinWidth(0).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Clicked() {
+				if ui.Button(c, title).FontSize(fonttheme.InterfaceSize(11)).Grow(1).MinWidth(0).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Clicked() {
 					if err := m.OnOpenFile(f.Path); err != nil {
 						m.Workbench.Status = err.Error()
 					}

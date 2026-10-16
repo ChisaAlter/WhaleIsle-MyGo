@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	settingsstore "whaleisle/internal/store/settings"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type VisionAccess struct {
@@ -16,7 +17,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("识图模型（全局）", "Vision model (global)")).FontSize(14).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("识图模型（全局）", "Vision model (global)")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	if a.OnRefresh != nil && ui.Button(c, providerCopy("刷新识图设置", "Refresh vision settings")).Disabled(s.Loading || s.Saving).Clicked() {
 		a.OnRefresh()
 	}
@@ -61,7 +62,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 			}
 		}
 	})
-	ui.Text(c, providerCopy("为不支持图片的主模型提供识图描述；选择后立即保存。", "Describe images for text-only main models. Changes save immediately.")).FontSize(11).TextColor(muted)
+	ui.Text(c, providerCopy("为不支持图片的主模型提供识图描述；选择后立即保存。", "Describe images for text-only main models. Changes save immediately.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if s.Saving {
 		ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)
 	} else if s.LastAction != "" {

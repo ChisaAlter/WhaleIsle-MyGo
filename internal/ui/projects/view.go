@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type Model struct {
@@ -114,19 +115,19 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		if m.RefreshNote != "" {
-			ui.Text(c, m.RefreshNote).FontSize(11)
+			ui.Text(c, m.RefreshNote).FontSize(fonttheme.InterfaceSize(11))
 		}
 		if m.Busy {
-			ui.Text(c, tr("正在处理…", "Working…")).FontSize(12)
+			ui.Text(c, tr("正在处理…", "Working…")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if m.Error != "" {
-			ui.Text(c, m.Error).FontSize(12)
+			ui.Text(c, m.Error).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if m.Loaded && !m.Listing.Available {
-			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(12)
+			ui.Text(c, tr("Project 不可用：需要支持 Project 的 Host 和桌面桥。", "Project unavailable: a compatible Host and desktop bridge are required.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if m.LifecycleNote != "" {
-			ui.Text(c, m.LifecycleNote).FontSize(11)
+			ui.Text(c, m.LifecycleNote).FontSize(fonttheme.InterfaceSize(11))
 		}
 		if m.ArchiveCandidate != nil {
 			archiveConfirmation(c, m)
@@ -171,13 +172,13 @@ func View(c *ui.Context, m Model) {
 		projectFilterControls(c, &m)
 		visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
 		if m.Workspace != "" {
-			ui.Text(c, tr("初始目录：", "Starting directory: ")+m.Workspace).FontSize(11)
+			ui.Text(c, tr("初始目录：", "Starting directory: ")+m.Workspace).FontSize(fonttheme.InterfaceSize(11))
 		}
 		if ui.Button(c, tr("选择目录并授权创建 Project", "Choose and authorize a Project directory")).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.Workspace == "").Clicked() && m.OnCreate != nil {
 			m.OnCreate()
 		}
 		if m.Loaded && m.Listing.Available && len(visible) == 0 {
-			ui.Text(c, projectEmptyLabel(m)).FontSize(12)
+			ui.Text(c, projectEmptyLabel(m)).FontSize(fonttheme.InterfaceSize(12))
 		}
 		if len(visible) == 0 {
 			return
@@ -237,7 +238,7 @@ func View(c *ui.Context, m Model) {
 						if p.Activity.State != "" {
 							status += " · " + p.Activity.State
 						}
-						ui.Text(c, status).FontSize(11)
+						ui.Text(c, status).FontSize(fonttheme.InterfaceSize(11))
 						if m.RenameID == p.ID && m.RenameDraft != nil {
 							ui.TextInput(c, m.RenameDraft).FillWidth()
 							ui.Row(c).Gap(4).Children(func() {

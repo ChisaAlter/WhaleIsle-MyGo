@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
@@ -45,38 +46,38 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
 	ui.Column(c.Key("bot-task-controls")).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Bot 任务 / Bot tasks").FontSize(13).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, "Bot 任务 / Bot tasks").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
 			if ui.Button(c, "刷新任务 / Refresh tasks").Disabled(blocked || s.Scope.BotID == "").Clicked() {
 				tasks.OnRefresh()
 			}
 		})
-		ui.Text(c, "仅显示所选 Bot 发出或收到的委派任务；刷新读取当前 Host，操作由你确认后执行。").FontSize(11).TextColor(muted)
+		ui.Text(c, "仅显示所选 Bot 发出或收到的委派任务；刷新读取当前 Host，操作由你确认后执行。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, "先选择当前 Host 的 Bot / Select a Bot first").TextColor(muted)
 			return
 		}
 		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(12).TextColor(accent).Selectable()
+			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(11).TextColor(muted).Selectable()
+			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if s.Busy {
-			ui.Text(c, "正在等待 Host… / Waiting for Host…").FontSize(11).TextColor(muted)
+			ui.Text(c, "正在等待 Host… / Waiting for Host…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if !s.Loaded {
-			ui.Text(c, "点击刷新加载任务。上次读取失败时不会开放写操作。 / Refresh before making changes.").FontSize(11).TextColor(muted)
+			ui.Text(c, "点击刷新加载任务。上次读取失败时不会开放写操作。 / Refresh before making changes.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Loaded {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, fmt.Sprintf("%s · %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(11).TextColor(muted).Grow(1)
+				ui.Text(c, fmt.Sprintf("%s · %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Grow(1)
 				if tasks.OnReview != nil && ui.Button(c, taskActionLabel("stop")).Disabled(blocked).Clicked() {
 					tasks.OnReview("stop", "")
 				}
 			})
 		}
 		if s.Loaded && len(s.Tasks) == 0 {
-			ui.Text(c, "此 Bot 暂无委派任务 / No delegation tasks for this Bot").FontSize(12).TextColor(muted)
+			ui.Text(c, "此 Bot 暂无委派任务 / No delegation tasks for this Bot").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		for _, task := range s.Tasks {
 			task := task
@@ -88,27 +89,27 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				if tasks.OnSelect != nil && ui.Button(c, title).Disabled(blocked).Clicked() {
 					tasks.OnSelect(task.ID)
 				}
-				ui.Text(c, taskParticipant(task.FromName, task.FromID)+" → "+taskParticipant(task.ToName, task.ToID)).FontSize(11).TextColor(muted)
-				ui.Text(c, clip(task.Task, 180)).FontSize(12).TextColor(fg)
+				ui.Text(c, taskParticipant(task.FromName, task.FromID)+" → "+taskParticipant(task.ToName, task.ToID)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, clip(task.Task, 180)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				if s.SelectedID != task.ID {
 					return
 				}
-				ui.Text(c, "任务 / Task: "+task.Task).FontSize(12).TextColor(fg).Selectable()
+				ui.Text(c, "任务 / Task: "+task.Task).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				if len(task.Constraints) > 0 {
-					ui.Text(c, "约束 / Constraints:\n- "+strings.Join(task.Constraints, "\n- ")).FontSize(12).TextColor(fg).Selectable()
+					ui.Text(c, "约束 / Constraints:\n- "+strings.Join(task.Constraints, "\n- ")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				if task.SuccessCriteria != "" {
-					ui.Text(c, "成功标准 / Success criteria: "+task.SuccessCriteria).FontSize(12).TextColor(fg).Selectable()
+					ui.Text(c, "成功标准 / Success criteria: "+task.SuccessCriteria).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				if task.ResultSummary != "" {
-					ui.Text(c, "结果 / Result: "+task.ResultSummary).FontSize(12).TextColor(fg).Selectable()
+					ui.Text(c, "结果 / Result: "+task.ResultSummary).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				if task.Error != "" {
-					ui.Text(c, "错误 / Error: "+task.Error).FontSize(12).TextColor(accent).Selectable()
+					ui.Text(c, "错误 / Error: "+task.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				}
-				ui.Text(c, fmt.Sprintf("Attempts: %d · %s", task.Attempts, taskTime(task.UpdatedAt))).FontSize(11).TextColor(muted)
+				ui.Text(c, fmt.Sprintf("Attempts: %d · %s", task.Attempts, taskTime(task.UpdatedAt))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if task.ParentTaskID != "" || task.RetryOf != "" {
-					ui.Text(c, "重试源 / Retry of: "+firstTaskValue(task.ParentTaskID, task.RetryOf)).FontSize(11).TextColor(muted).Selectable()
+					ui.Text(c, "重试源 / Retry of: "+firstTaskValue(task.ParentTaskID, task.RetryOf)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				}
 				ui.Row(c).Gap(6).Children(func() {
 					for _, action := range []string{"pause", "resume", "cancel", "retry"} {
@@ -119,15 +120,15 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 					}
 				})
 				for _, event := range task.Events {
-					ui.Text(c, taskTime(event.At)+" · "+event.Type+" · "+event.ActorID+"\n"+event.Detail).FontSize(11).TextColor(muted).Selectable()
+					ui.Text(c, taskTime(event.At)+" · "+event.Type+" · "+event.ActorID+"\n"+event.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				}
 			})
 		}
 		if s.Review != nil {
 			command := s.Review.Command
 			ui.Column(c.Key("bot-task-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, "确认："+taskActionLabel(command.Action)).FontSize(13).Bold().TextColor(fg)
-				ui.Text(c, fmt.Sprintf("Bot: %s (%s)\nTask: %s · revision %d", s.BotName, command.BotID, firstTaskValue(command.TaskID, "—"), command.Revision)).FontSize(12).TextColor(fg).Selectable()
+				ui.Text(c, "确认："+taskActionLabel(command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+				ui.Text(c, fmt.Sprintf("Bot: %s (%s)\nTask: %s · revision %d", s.BotName, command.BotID, firstTaskValue(command.TaskID, "—"), command.Revision)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				caveat := "仅修改任务状态；不会撤销已发生的工具、文件或外部操作。"
 				if command.Action == "retry" {
 					caveat = "会创建新的任务尝试并唤醒接收 Bot，可能再次执行工具或产生模型费用。原任务保留。"
@@ -138,9 +139,9 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				if command.Action == "stop" {
 					caveat = "会停止此 Bot 的当前会话（群组会停止成员轮次）；保留 inbox，不取消全部委派任务，也不撤销已发生的操作。"
 				}
-				ui.Text(c, caveat).FontSize(12).TextColor(accent)
+				ui.Text(c, caveat).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				if command.Action == "retry" {
-					ui.Text(c, "失败后再次确认会沿用同一请求 ID；不要重复新建任务。").FontSize(11).TextColor(muted)
+					ui.Text(c, "失败后再次确认会沿用同一请求 ID；不要重复新建任务。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				ui.Row(c).Gap(8).Children(func() {
 					if tasks.OnDismiss != nil && ui.Button(c, "返回 / Back").Disabled(s.Busy).Clicked() {

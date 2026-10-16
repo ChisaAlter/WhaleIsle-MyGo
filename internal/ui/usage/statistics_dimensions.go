@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	usagestore "whaleisle/internal/store/usage"
@@ -131,7 +132,7 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 			}
 			ui.Text(c, fmt.Sprintf("%s · %.0f tokens", key, t.Total)).TextColor(fg)
 			providerUsageBar(c, t.Total, providerMax, accent, field)
-			ui.Text(c, totalsText(t)+"\n"+usageCostText(groups[key], settings)).FontSize(11).TextColor(muted)
+			ui.Text(c, totalsText(t)+"\n"+usageCostText(groups[key], settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	} else {
 		for _, provider := range o.Providers {
@@ -147,14 +148,14 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 			}
 			ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).TextColor(fg)
 			providerUsageBar(c, provider.Totals.Total, providerMax, accent, field)
-			ui.Text(c, totalsText(provider.Totals)+"\n"+usageCostText(rows, settings)).FontSize(11).TextColor(muted)
+			ui.Text(c, totalsText(provider.Totals)+"\n"+usageCostText(rows, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	}
 	ui.Text(c, usageText("每日明细（与上方趋势范围相同）", "Daily details (same range as trend)")).Bold().TextColor(fg)
 	ui.Scroll(c).Height(220).Children(func() {
 		ui.Column(c).Gap(8).Children(func() {
 			for _, day := range days {
-				ui.Text(c, dayTip(day, providers, settings)).FontSize(11).TextColor(muted)
+				ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 	})
@@ -191,14 +192,14 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 		}
 	}
 	ui.Text(c, usageText("用量日历（UTC）", "Usage calendar (UTC)")).Bold().TextColor(fg)
-	ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(11).TextColor(muted)
-	ui.Text(c, usageText("颜色按全窗口四分位分级；悬停查看模型、分项 Token 与峰谷费用。点击选一天，已有选区时可扩展。", "Colors use whole-window quartiles. Hover for models, token buckets and peak/off-peak costs. Pick a day or extend the current range.")).FontSize(11).TextColor(muted)
+	ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, usageText("颜色按全窗口四分位分级；悬停查看模型、分项 Token 与峰谷费用。点击选一天，已有选区时可扩展。", "Colors use whole-window quartiles. Hover for models, token buckets and peak/off-peak costs. Pick a day or extend the current range.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	start, _ := time.Parse("2006-01-02", days[0].Date)
 	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
 	ui.Scroll(c).Height(220).Children(func() {
 		ui.Column(c).Gap(5).Children(func() {
-			ui.Text(c, "Mon       Tue       Wed       Thu       Fri       Sat       Sun").FontSize(11).TextColor(muted)
+			ui.Text(c, "Mon       Tue       Wed       Thu       Fri       Sat       Sun").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			month := ""
 			for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
 				label := week.Format("2006-01")
@@ -278,7 +279,7 @@ func stackedUsageView(c *ui.Context, days []usagestore.DayUsage, models []usages
 		maxTotal = math.Max(maxTotal, day.Total)
 	}
 	for _, s := range slices {
-		ui.Text(c, "■ "+s.name).FontSize(11).TextColor(s.color)
+		ui.Text(c, "■ "+s.name).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
 	}
 	ui.Scroll(c).Height(200).Children(func() {
 		ui.Column(c).Gap(8).Children(func() {
@@ -314,8 +315,8 @@ func stackedUsageView(c *ui.Context, days []usagestore.DayUsage, models []usages
 									p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, field, 0)
 								}
 							})
-							ui.Text(c, day.Date[5:]).FontSize(10).TextColor(muted)
-							ui.Text(c, fmt.Sprintf("%.0f", day.Total)).FontSize(10).TextColor(fg)
+							ui.Text(c, day.Date[5:]).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+							ui.Text(c, fmt.Sprintf("%.0f", day.Total)).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
 						})
 					}
 				})
@@ -370,7 +371,7 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 		if total > 0 {
 			percent = s.value / total * 100
 		}
-		ui.Text(c, fmt.Sprintf("■ %s · %.1f%% · %.0f tokens", s.name, percent, s.value)).FontSize(11).TextColor(s.color)
+		ui.Text(c, fmt.Sprintf("■ %s · %.1f%% · %.0f tokens", s.name, percent, s.value)).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
 	}
 	ui.Scroll(c).Height(180).Children(func() {
 		ui.Column(c).Gap(6).Children(func() {
@@ -379,8 +380,8 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 				if total > 0 {
 					percent = row.Total / total * 100
 				}
-				ui.Text(c, fmt.Sprintf("%s / %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(12).TextColor(fg)
-				ui.Text(c, totalsText(row.Totals)+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(11).TextColor(muted)
+				ui.Text(c, fmt.Sprintf("%s / %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				ui.Text(c, totalsText(row.Totals)+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 	})
@@ -393,8 +394,8 @@ func usageKPIView(c *ui.Context, t usagestore.Totals, models []usagestore.ModelU
 		rate = fmt.Sprintf("%.2f%%", t.CacheRead/input*100)
 	}
 	ui.Text(c, usageText("全部历史指标", "All-time indicators")).Bold().TextColor(fg)
-	ui.Text(c, fmt.Sprintf("Billed input %.0f · Output %.0f · Cache hit %s", input, t.Output, rate)).FontSize(12).TextColor(fg)
-	ui.Text(c, usageCostText(models, settings)).FontSize(11).TextColor(muted)
+	ui.Text(c, fmt.Sprintf("Billed input %.0f · Output %.0f · Cache hit %s", input, t.Output, rate)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	ui.Text(c, usageCostText(models, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if len(models) > 0 {
 		top := models[0]
 		for _, row := range models {
@@ -406,7 +407,7 @@ func usageKPIView(c *ui.Context, t usagestore.Totals, models []usagestore.ModelU
 		if t.Total > 0 {
 			percent = top.Total / t.Total * 100
 		}
-		ui.Text(c, fmt.Sprintf("Top model: %s / %s · %.1f%%", top.Provider, top.Model, percent)).FontSize(12).TextColor(fg)
+		ui.Text(c, fmt.Sprintf("Top model: %s / %s · %.1f%%", top.Provider, top.Model, percent)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 }
 

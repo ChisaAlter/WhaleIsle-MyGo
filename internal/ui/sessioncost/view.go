@@ -10,6 +10,7 @@ import (
 	cost "whaleisle/internal/store/sessioncost"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/store/usage"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 type State struct {
@@ -98,7 +99,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 			if r.Available {
 				text = "含子代理计费 Token / Billed tokens incl. subagents · " + tokens(r.Total)
 			}
-			ui.Text(c, text).FontSize(11).TextColor(muted)
+			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if !show {
 			return
@@ -119,29 +120,29 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 			if peak {
 				phase = "高峰 / Peak"
 			}
-			ui.Text(c, fmt.Sprintf("北京时间 %s · 距切换 / Switch in %02d:%02d:%02d", phase, seconds/3600, seconds/60%60, seconds%60)).FontSize(11).TextColor(muted)
+			ui.Text(c, fmt.Sprintf("北京时间 %s · 距切换 / Switch in %02d:%02d:%02d", phase, seconds/3600, seconds/60%60, seconds%60)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		label := "会话累计费用 / Session estimate · " + money(r)
 		if !m.Billing.Loaded && r.Available {
 			label = "会话累计费用 / Session estimate · 价格未加载 / Prices not loaded"
 		}
-		if ui.Button(c, label).FontSize(11).Clicked() {
+		if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			m.State.Open = !m.State.Open
 		}
 		if !m.Snapshot.ClientReady {
-			ui.Text(c, "离线缓存 / Offline cached usage").FontSize(11).TextColor(muted)
+			ui.Text(c, "离线缓存 / Offline cached usage").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if r.Partial {
-			ui.Text(c, "仅包含已上报用量的会话及子代理；缺失部分未计入 / Reported sessions and subagents only; missing usage excluded").FontSize(11).TextColor(muted)
+			ui.Text(c, "仅包含已上报用量的会话及子代理；缺失部分未计入 / Reported sessions and subagents only; missing usage excluded").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if !m.State.Open {
 			return
 		}
 		ui.Scroll(c).Height(180).Children(func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				ui.Text(c, "基于全局配置估算，非账单 / Estimate from global prices, not a bill").FontSize(11).TextColor(muted)
+				ui.Text(c, "基于全局配置估算，非账单 / Estimate from global prices, not a bill").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if m.Billing.Err != "" {
-					ui.Text(c, m.Billing.Err).FontSize(11).TextColor(muted)
+					ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				for _, row := range r.Rows {
 					name := row.Provider + "/" + row.Model
@@ -152,29 +153,29 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 					if row.Priced {
 						price = fmt.Sprintf("¥%.2f", row.Cents/100)
 					}
-					ui.Text(c, name+" · "+price).FontSize(11).TextColor(muted)
-					ui.Text(c, "高峰 / Peak · "+tokens(*row.Peak)).FontSize(11).TextColor(muted)
-					ui.Text(c, "空闲 / Off-peak · "+tokens(*row.OffPeak)).FontSize(11).TextColor(muted)
+					ui.Text(c, name+" · "+price).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, "高峰 / Peak · "+tokens(*row.Peak)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, "空闲 / Off-peak · "+tokens(*row.OffPeak)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					if row.Priced {
 						p, ok := m.Billing.Settings.Prices[row.Provider+"/"+row.Model]
 						if !ok {
 							p = m.Billing.Settings.Prices[row.Model]
 						}
-						ui.Text(c, fmt.Sprintf("CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.InputCacheHit, p.InputCacheMiss, p.Output)).FontSize(11).TextColor(muted)
+						ui.Text(c, fmt.Sprintf("CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.InputCacheHit, p.InputCacheMiss, p.Output)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						if !p.Flat && p.Idle != nil {
-							ui.Text(c, fmt.Sprintf("Off-peak CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output)).FontSize(11).TextColor(muted)
+							ui.Text(c, fmt.Sprintf("Off-peak CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 					}
 				}
 				if r.Children > 0 {
-					if ui.Button(c, childSummary(m, r.Children)).FontSize(11).Clicked() {
+					if ui.Button(c, childSummary(m, r.Children)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 						m.State.ChildrenOpen = !m.State.ChildrenOpen
 					}
 					if m.State.ChildrenOpen {
 						renderChildren(c, m, muted)
 					}
 				}
-				if m.OnPrices != nil && ui.Button(c, "消耗统计中的计费设置 / Global billing settings").FontSize(11).Clicked() {
+				if m.OnPrices != nil && ui.Button(c, "消耗统计中的计费设置 / Global billing settings").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					m.OnPrices()
 				}
 			})
@@ -208,10 +209,10 @@ func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 		if name == "" {
 			name = s.ID
 		}
-		ui.Text(c, name+" · "+money(own)+" · "+tokens(own.Total)).FontSize(11).TextColor(muted)
+		ui.Text(c, name+" · "+money(own)+" · "+tokens(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if count > 10 {
-		ui.Text(c, fmt.Sprintf("还有 / More: %d", count-10)).FontSize(11).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("还有 / More: %d", count-10)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 

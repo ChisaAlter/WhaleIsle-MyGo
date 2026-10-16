@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/startuprec"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func startupCauseText(d startuprec.Diagnostics) string {
@@ -29,18 +30,18 @@ func startupCauseText(d startuprec.Diagnostics) string {
 func startupDiagnosticsPanel(c *ui.Context, m Model) {
 	d := m.StartupDiagnostics
 	ui.Column(c).FillWidth().Gap(6).Padding(10, 0, 10, 0).Children(func() {
-		ui.Text(c, releaseText("启动诊断", "Startup diagnostics")).FontSize(14).FontWeight(600).TextColor(colPrimary)
-		ui.Text(c, startupCauseText(d)).FontSize(12).TextColor(colSecondary)
+		ui.Text(c, releaseText("启动诊断", "Startup diagnostics")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)
+		ui.Text(c, startupCauseText(d)).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 		for _, e := range d.Evidence {
 			label := e.Name
 			if !e.Known {
 				label += " · " + releaseText("未在当前库存确认", "not verified in inventory")
 			}
-			ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, e.Line).FontSize(11).TextColor(colTertiary)
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary)
+			ui.Text(c, e.Line).FontSize(fonttheme.InterfaceSize(11)).TextColor(colTertiary)
 		}
 		if !d.InventoryReady {
-			ui.Text(c, releaseText("精确修复需要已就绪的 Host 插件控制器。可先启用跳过插件并启动恢复模式，再刷新库存；Host 无法启动时，请使用版本页修复运行环境。", "Selective repair needs a ready Host plugin controller. Start recovery mode with user plugins skipped, then refresh inventory. If the Host cannot start, use Versions to repair the runtime.")).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, releaseText("精确修复需要已就绪的 Host 插件控制器。可先启用跳过插件并启动恢复模式，再刷新库存；Host 无法启动时，请使用版本页修复运行环境。", "Selective repair needs a ready Host plugin controller. Start recovery mode with user plugins skipped, then refresh inventory. If the Host cannot start, use Versions to repair the runtime.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if ghostSmall(c, releaseText("刷新诊断与库存", "Refresh diagnostics and inventory")).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
@@ -54,7 +55,7 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 			}
 		})
 		if len(d.RepairNames) > 0 {
-			ui.Text(c, releaseText("仅处理：", "Targets only: ")+strings.Join(d.RepairNames, ", ")).FontSize(11).TextColor(colTertiary)
+			ui.Text(c, releaseText("仅处理：", "Targets only: ")+strings.Join(d.RepairNames, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(colTertiary)
 		}
 		for _, p := range d.Plugins {
 			label := p.Name + " · " + releaseText("已禁用", "disabled")
@@ -67,7 +68,7 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 			if p.Restriction != "" {
 				label += " · " + p.Restriction
 			}
-			ui.Text(c, label).FontSize(12).TextColor(colSecondary)
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 	})
 }

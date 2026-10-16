@@ -3,6 +3,7 @@ package usage
 import (
 	"context"
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -60,5 +61,5 @@ func billingModelsView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	if v.Loaded && count == 0 {
 		ui.Text(c, usageText("没有匹配的模型，可在下方手动输入模型键。", "No matching models. You can enter a model key below.")).TextColor(muted)
 	}
-	ui.Text(c, usageText("模型目录只提供名称；价格需自行填写后保存。", "The directory supplies model names; enter and save your own prices.")).FontSize(11).TextColor(muted)
+	ui.Text(c, usageText("模型目录只提供名称；价格需自行填写后保存。", "The directory supplies model names; enter and save your own prices.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 }

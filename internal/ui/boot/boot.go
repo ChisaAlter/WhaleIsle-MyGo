@@ -52,17 +52,17 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 
 	ui.Column(c).Fill().Background(bg).Padding(24, 32, 24, 32).Gap(16).Children(func() {
-		ui.Text(c, i18n.T(KeyTitle)).FontSize(22).Bold().TextColor(fg)
-		ui.Text(c, statusLine(m.Status)).FontSize(14).TextColor(muted)
+		ui.Text(c, i18n.T(KeyTitle)).FontSize(theme.InterfaceSize(22)).Bold().TextColor(fg)
+		ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
 		if m.Status.State == harness.Failed {
 			hint := "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
 			if i18n.Locale() == "en" {
 				hint = "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
 			}
-			ui.Text(c, hint).FontSize(13).TextColor(fg)
+			ui.Text(c, hint).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 		}
 		if line := pluginProgressLine(m.Status); line != "" {
-			ui.Text(c, line).FontSize(13).TextColor(fg)
+			ui.Text(c, line).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 		}
 
 		ui.Row(c).Gap(8).Children(func() {
@@ -91,10 +91,10 @@ func View(c *ui.Context, m Model) {
 				start = n - logTail
 			}
 			for _, line := range m.Logs[start:] {
-				ui.Text(c, line).FontSize(12).TextColor(muted)
+				ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 			if len(m.Logs) == 0 {
-				ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(muted)
+				ui.Text(c, i18n.T(KeyWaiting)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 		})
 	})

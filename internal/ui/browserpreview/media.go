@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/mediapreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenMedia owns one already-authorized immutable snapshot, not a Host client
@@ -53,9 +54,9 @@ func (b *Controller) PruneMediaDocuments() {
 	}
 }
 func (b *Controller) mediaControls(c *ui.Context, t *Tab) {
-	ui.Text(c, t.Media.Name).FontSize(12).Grow(1)
+	ui.Text(c, t.Media.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
 	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
 		b.openFloatingDocument(t)
 	}
-	ui.Text(c, "≤32 MiB · 30 分钟 · 播放支持取决于 WebView2").FontSize(10)
+	ui.Text(c, "≤32 MiB · 30 分钟 · 播放支持取决于 WebView2").FontSize(fonttheme.InterfaceSize(10))
 }

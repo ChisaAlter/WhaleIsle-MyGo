@@ -2,6 +2,7 @@ package settings
 
 import (
 	"strings"
+	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -59,22 +60,22 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Account
-	ui.Text(c, i18n.T(i18n.KeySettingsAccountTitle)).FontSize(14).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAccountHint)).FontSize(12).TextColor(muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsAccountCredHint)).FontSize(11).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsAccountTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsAccountHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsAccountCredHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 
 	if !a.ClientReady {
-		ui.Text(c, i18n.T(i18n.KeySettingsAccountStub)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsAccountStub)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if a.Loading {
-		ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(12).TextColor(fg)
+		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	accountSignOutPane(c, a, fg, muted)
 	if a.HasRunningTasks {
-		ui.Text(c, i18n.T(i18n.KeySettingsAccountRunningTasks)).FontSize(12).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeySettingsAccountRunningTasks)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 
 	rows := []struct{ label, value string }{
@@ -91,10 +92,10 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	for _, row := range rows {
 		r := row
 		ui.Row(c).Gap(12).Children(func() {
-			ui.Text(c, r.label).FontSize(12).TextColor(muted).Width(140)
-			ui.Text(c, r.value).FontSize(12).TextColor(fg).Grow(1)
+			ui.Text(c, r.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(140)
+			ui.Text(c, r.value).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 			if r.value != "" && r.value != "—" && r.value != "-" {
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(r.value)
 				}
 			}
@@ -103,25 +104,25 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 	accountDetailsPane(c, a.Details, fg, muted)
 
-	ui.Text(c, i18n.T(i18n.KeySettingsAccountBonuses)).FontSize(13).Bold().TextColor(fg).Padding(8, 0, 0, 0)
+	ui.Text(c, i18n.T(i18n.KeySettingsAccountBonuses)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
 	if len(a.Bonuses) == 0 {
-		ui.Text(c, i18n.T(i18n.KeySettingsAccountBonusesEmpty)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsAccountBonusesEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {
 		for _, b := range a.Bonuses {
 			row := b
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, row.Label).FontSize(12).TextColor(fg).Grow(1)
+				ui.Text(c, row.Label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 				if row.Detail != "" {
-					ui.Text(c, row.Detail).FontSize(11).TextColor(muted)
+					ui.Text(c, row.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				body := strings.TrimSpace(row.Label + " " + row.Detail)
 				if body != "" {
-					if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 						mygo.Clipboard.WriteText(body)
 					}
 				}
 				if a.OnAckBonus != nil && row.OrderID != "" {
-					if ui.Button(c, i18n.T(i18n.KeySettingsAccountBonusAck)).FontSize(11).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeySettingsAccountBonusAck)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 						a.OnAckBonus(row.AccountID, row.OrderID)
 					}
 				}
@@ -150,12 +151,12 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 		if a.OnOpenUsage != nil && strings.TrimSpace(a.UsageURL) != "" {
-			if ui.Button(c, i18n.T(i18n.KeyUsageOpenWeb)).FontSize(11).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyUsageOpenWeb)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				a.OnOpenUsage(a.UsageURL)
 			}
 		}
 		if a.OnOpenTopUp != nil && strings.TrimSpace(a.TopUpURL) != "" {
-			if ui.Button(c, i18n.T(i18n.KeyUsageOpenTopUp)).FontSize(11).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyUsageOpenTopUp)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				a.OnOpenTopUp(a.TopUpURL)
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	marketstore "whaleisle/internal/store/market"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func failedOutcome(result string) bool {
@@ -143,5 +144,5 @@ func batchSelectionView(c *ui.Context, m Model, u marketstore.Updates, muted ui.
 			m.OnStopBatch()
 		}
 	})
-	ui.Text(c, marketText("中断记录仅供核对；不会自动重试或恢复第三方安装。", "Interrupted receipts are for reconciliation; third-party installs are never automatically replayed.")).FontSize(11).TextColor(muted)
+	ui.Text(c, marketText("中断记录仅供核对；不会自动重试或恢复第三方安装。", "Interrupted receipts are for reconciliation; third-party installs are never automatically replayed.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 }
