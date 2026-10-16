@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -22,7 +21,6 @@ type Snapshot struct {
 type Controller struct {
 	mu              sync.Mutex
 	call            Caller
-	transport       http.RoundTripper
 	hostContext     context.Context
 	cancel          context.CancelFunc
 	probeCancel     func()
@@ -87,6 +85,11 @@ func (c *Controller) Snapshot() Snapshot {
 	}
 	s.Models = cloneModels(s.Models)
 	s.Candidates = append([]Candidate(nil), s.Candidates...)
+	for i := range s.Candidates {
+		if s.Candidates[i].InputModalities != nil {
+			s.Candidates[i].InputModalities = append([]string{}, s.Candidates[i].InputModalities...)
+		}
+	}
 	return s
 }
 func (c *Controller) request(ctx context.Context, ticket uint64, call Caller) request {
@@ -146,7 +149,6 @@ func (c *Controller) Refresh(parent context.Context) {
 		c.resetDraft(row)
 	} else {
 		c.resetDraft(Row{})
-		c.state.Protocol = "openai-completions"
 	}
 }
 func (c *Controller) Select(ticket uint64, id string) {
@@ -217,10 +219,10 @@ func (c *Controller) Discover(parent context.Context, ticket uint64) {
 	c.probeCancel = done
 	c.state.Candidates = nil
 	c.state.Busy, c.state.Review = true, false
-	transport := c.transport
+	call := c.call
 	c.mu.Unlock()
 	defer done()
-	candidates, err := probe(ctx, transport, endpoint, protocol, key)
+	candidates, err := discover(c.request(ctx, ticket, call), row, endpoint, protocol, key)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Ticket != ticket || ctx.Err() != nil {
@@ -300,12 +302,7 @@ func (c *Controller) Save(parent context.Context, ticket uint64) bool {
 		c.mu.Unlock()
 		return false
 	}
-	endpoint, protocol, models := strings.TrimSpace(c.state.Endpoint), c.state.Protocol, cloneModels(c.state.Models)
-	if _, err := ListingURL(endpoint, protocol); err != nil {
-		c.state.Err = err.Error()
-		c.mu.Unlock()
-		return false
-	}
+	endpoint, protocol, models := strings.TrimSpace(c.state.Endpoint), strings.TrimSpace(c.state.Protocol), cloneModels(c.state.Models)
 	if len(models) == 0 {
 		c.state.Err = "Select at least one model before saving this discovery draft."
 		c.mu.Unlock()
@@ -332,7 +329,7 @@ func (c *Controller) Save(parent context.Context, ticket uint64) bool {
 		if endpoint != row.Endpoint {
 			ops = append(ops, map[string]any{"op": "set", "path": fieldPath(row, "baseURL"), "value": endpoint})
 		}
-		if protocol != row.Protocol || !row.ProtocolConfigured {
+		if protocol != row.Protocol {
 			ops = append(ops, map[string]any{"op": "set", "path": fieldPath(row, "api"), "value": protocol})
 		}
 		if !reflect.DeepEqual(models, row.Models) {
@@ -358,14 +355,14 @@ func (c *Controller) Save(parent context.Context, ticket uint64) bool {
 	// advance the baseline only after the Host returned the committed view.
 	encoded, _ := jsonModels(models)
 	actual, _ := jsonModels(modelsAt(profile))
-	if written.NS != row.Namespace || written.Revision <= row.Revision || encoded != actual || (endpoint != row.Endpoint && textOf(profile["baseURL"]) != endpoint) || ((protocol != row.Protocol || !row.ProtocolConfigured) && textOf(profile["api"]) != protocol) {
+	if written.NS != row.Namespace || written.Revision <= row.Revision || encoded != actual || (endpoint != row.Endpoint && textOf(profile["baseURL"]) != endpoint) || ((protocol != row.Protocol) && textOf(profile["api"]) != protocol) {
 		c.state.Ready = false
 		c.state.Dirty = false
 		c.state.Err = "The Host accepted the write, but its result could not be verified. Refresh before editing again."
 		return false
 	}
 	row.Endpoint, row.Protocol, row.Revision, row.Models = endpoint, protocol, written.Revision, modelsAt(profile)
-	row.ProtocolConfigured = true
+	row.ProtocolConfigured = protocol != ""
 	for i := range c.state.Rows {
 		if c.state.Rows[i].ID == row.ID {
 			c.state.Rows[i] = row

@@ -4,19 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 )
-
-type fakeTransport func(*http.Request) (*http.Response, error)
-
-func (f fakeTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
-func answer(status int, body string) *http.Response {
-	return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}
-}
 
 type fakeHost struct {
 	revision       float64
@@ -24,6 +15,8 @@ type fakeHost struct {
 	writes         []map[string]any
 	fail, mismatch bool
 	onCall         func(string)
+	discoveries    []map[string]any
+	discover       func(context.Context, map[string]any) (any, error)
 }
 
 func fixtureHost() *fakeHost {
@@ -48,6 +41,28 @@ func (h *fakeHost) Call(ctx context.Context, method string, args, out any) error
 		result = []any{map[string]any{"provider": "demo", "displayName": "Demo", "settingsNs": "llm-pi-ai", "settingsPath": []string{"providers", "demo"}}}
 	case "credentials/describe":
 		result = map[string]any{"DEMO_KEY": map[string]any{"configured": true}}
+	case "llm/discoverModels":
+		encoded, err := json.Marshal(args)
+		if err != nil {
+			return err
+		}
+		var a map[string]any
+		if err := json.Unmarshal(encoded, &a); err != nil {
+			return err
+		}
+		h.discoveries = append(h.discoveries, a)
+		if h.discover != nil {
+			result, err = h.discover(ctx, a)
+			if err != nil {
+				return err
+			}
+		} else {
+			result = []any{
+				map[string]any{"id": "existing", "name": "Server rewrite", "contextWindow": 1},
+				map[string]any{"id": "new", "name": "New", "contextWindow": 200000, "maxTokens": 8192, "inputModalities": []string{"text", "image"}},
+				map[string]any{"id": "new"},
+			}
+		}
 	case "settings/mutate":
 		if h.fail {
 			return errors.New("raw-secret-error")
@@ -94,9 +109,6 @@ func loaded(t *testing.T) (*Controller, *fakeHost) {
 func edit(c *Controller, field, value string) { c.Edit(c.Snapshot().Ticket, field, value) }
 func stage(t *testing.T, c *Controller) {
 	t.Helper()
-	c.transport = fakeTransport(func(r *http.Request) (*http.Response, error) {
-		return answer(200, `{"data":[{"id":"existing","name":"Server rewrite","context_window":1},{"id":"new","name":"New","context_window":200000,"max_output_tokens":8192},{"id":"new"}]}`), nil
-	})
 	c.Discover(context.Background(), c.Snapshot().Ticket)
 	s := c.Snapshot()
 	if s.Err != "" || len(s.Candidates) != 2 {
@@ -105,30 +117,37 @@ func stage(t *testing.T, c *Controller) {
 	c.Adopt(s.Ticket)
 }
 
-func TestSP23ExplicitProbeAdoptAndRevisionSave(t *testing.T) {
+func TestSP23HostAdapterDiscoveryAndRevisionSave(t *testing.T) {
 	c, h := loaded(t)
 	edit(c, "endpoint", "https://draft.example/openai/v1")
 	edit(c, "key", "temporary-fixture-key")
-	calls := 0
-	c.transport = fakeTransport(func(r *http.Request) (*http.Response, error) {
-		calls++
-		if r.URL.String() != "https://draft.example/openai/v1/models" || r.Header.Get("Authorization") != "Bearer temporary-fixture-key" || r.Header.Get("Cookie") != "" {
-			t.Fatal("wrong explicit probe target or headers")
+	h.discover = func(ctx context.Context, args map[string]any) (any, error) {
+		request := args["request"].(map[string]any)
+		if args["settingsNs"] != "llm-pi-ai" || request["provider"] != "demo" || request["baseURL"] != "https://draft.example/openai/v1" || request["api"] != "openai-completions" || request["apiKey"] != "temporary-fixture-key" || len(request) != 4 {
+			t.Fatalf("wrong Host adapter request: %#v", args)
 		}
-		return answer(200, `{"data":[{"id":"existing","name":"Server rewrite","context_window":1},{"id":"new","name":"New","context_window":200000,"max_output_tokens":8192}]}`), nil
-	})
-	if calls != 0 || len(h.writes) != 0 {
+		return []any{
+			map[string]any{"id": "existing", "name": "Server rewrite", "contextWindow": 1},
+			map[string]any{"id": "new", "name": "New", "contextWindow": 200000, "maxTokens": 8192, "inputModalities": []string{"text", "image"}},
+			map[string]any{"id": "new"},
+		}, nil
+	}
+	if len(h.discoveries) != 0 || len(h.writes) != 0 {
 		t.Fatal("edited fields triggered an action")
 	}
 	oldTicket := c.Snapshot().Ticket
 	c.Discover(context.Background(), oldTicket)
 	c.Discover(context.Background(), oldTicket)
 	s := c.Snapshot()
-	if calls != 1 || s.Key != "" || len(s.Candidates) != 2 || s.Candidates[0].Picked || !s.Candidates[1].Picked {
+	if len(h.discoveries) != 1 || s.Key != "" || len(s.Candidates) != 2 || s.Candidates[0].Picked || !s.Candidates[1].Picked {
 		t.Fatalf("bad candidates/lifecycle: %#v", s)
 	}
+	s.Candidates[1].InputModalities[0] = "changed copy"
 	c.Adopt(s.Ticket)
 	s = c.Snapshot()
+	if got := s.Models[1]["input"]; !reflect.DeepEqual(got, []any{"text", "image"}) {
+		t.Fatalf("catalog capabilities lost or aliased: %#v", got)
+	}
 	if len(h.writes) != 0 || !s.Dirty || len(s.Models) != 2 || s.Models[0]["name"] != "Tuned" || s.Models[0]["compat"] == nil {
 		t.Fatal("adoption wrote early or lost existing fields")
 	}
@@ -150,49 +169,22 @@ func TestSP23ExplicitProbeAdoptAndRevisionSave(t *testing.T) {
 
 func TestSP23SafetyAndFailureBoundaries(t *testing.T) {
 	ctx := context.Background()
-	for _, target := range []string{"http://provider.example/v1", "https://name:password@example.test", "https://example.test?api_key=secret", "file:///models"} {
-		if _, err := ListingURL(target, "openai-completions"); err == nil {
-			t.Fatalf("accepted %s", target)
-		}
-	}
-	if _, err := ListingURL("https://example.test", "azure-openai-responses"); err == nil {
-		t.Fatal("invented unsupported protocol")
-	}
-	calls := 0
-	transport := fakeTransport(func(r *http.Request) (*http.Response, error) {
-		calls++
-		response := answer(302, "")
-		response.Header.Set("Location", "https://other.example/models")
-		return response, nil
-	})
-	if _, err := probe(ctx, transport, "https://example.test/v1", "openai-completions", "fixture-key"); err == nil || calls != 1 {
-		t.Fatal("redirect not stopped")
-	}
-	if _, err := probe(ctx, transport, "http://127.0.0.1:11434/v1", "openai-completions", "fixture-key"); err == nil || calls != 1 {
-		t.Fatal("sent key over HTTP")
-	}
-	if _, err := probe(ctx, transport, "https://example.test/v1", "openai-completions", "********"); err == nil || calls != 1 {
-		t.Fatal("sent masked key")
-	}
-	anthropic := fakeTransport(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != "https://example.test/prefix/v1/models?limit=1000" || r.Header.Get("x-api-key") != "fixture" || r.Header.Get("anthropic-version") != "2023-06-01" || r.Header.Get("Authorization") != "" {
-			t.Fatal("wrong Anthropic contract")
-		}
-		return answer(200, `{"models":{"alias":{"id":"canonical","display_name":"Named","limit":{"context":1000,"output":100}}}}`), nil
-	})
-	models, err := probe(ctx, anthropic, "https://example.test/prefix/v1/", "anthropic-messages", "fixture")
-	if err != nil || len(models) != 1 || models[0].ID != "alias" || models[0].MaxTokens != 100 {
-		t.Fatal("enriched listing failed")
-	}
-	large := fakeTransport(func(*http.Request) (*http.Response, error) {
-		r := answer(200, "")
-		r.ContentLength = maxResponseBytes + 1
-		return r, nil
-	})
-	if _, err := probe(ctx, large, "https://example.test", "openai-responses", ""); err == nil {
-		t.Fatal("unbounded response")
-	}
 	c, h := loaded(t)
+	for _, key := range []string{"********", "line\nbreak", "非法"} {
+		edit(c, "key", key)
+		c.Discover(ctx, c.Snapshot().Ticket)
+		if c.Snapshot().Err == "" || len(h.discoveries) != 0 || c.Snapshot().Key != "" {
+			t.Fatal("invalid temporary key was sent or retained")
+		}
+	}
+	h.discover = func(context.Context, map[string]any) (any, error) {
+		return nil, errors.New("raw-secret-error")
+	}
+	c.Discover(ctx, c.Snapshot().Ticket)
+	if s := c.Snapshot(); s.Err == "" || strings.Contains(s.Err, "raw-secret-error") || s.Busy || len(s.Candidates) != 0 {
+		t.Fatal("Host discovery failure leaked or published candidates")
+	}
+	c, h = loaded(t)
 	stage(t, c)
 	h.revision++
 	c.Review(c.Snapshot().Ticket, true)
@@ -224,10 +216,10 @@ func TestSP23HostReplacementAndDraftIsolation(t *testing.T) {
 	c, h := loaded(t)
 	edit(c, "key", "fixture-key")
 	old := c.Snapshot().Ticket
-	c.transport = fakeTransport(func(*http.Request) (*http.Response, error) {
+	h.discover = func(context.Context, map[string]any) (any, error) {
 		c.Attach(fixtureHost())
-		return answer(200, `{"data":[{"id":"stale"}]}`), nil
-	})
+		return []any{map[string]any{"id": "stale"}}, nil
+	}
 	c.Discover(context.Background(), old)
 	if s := c.Snapshot(); s.Ready || s.Key != "" || len(s.Candidates) > 0 || s.Busy {
 		t.Fatalf("stale completion: %#v", s)
@@ -257,7 +249,7 @@ func TestSP23HostReplacementAndDraftIsolation(t *testing.T) {
 }
 
 func TestSP23HiddenPageRetiresSecretsAndPreservesDraft(t *testing.T) {
-	c, _ := loaded(t)
+	c, h := loaded(t)
 	c.ObserveVisible(true)
 	edit(c, "endpoint", "https://draft.example/v1")
 	edit(c, "key", "hidden-fixture-key")
@@ -273,18 +265,18 @@ func TestSP23HiddenPageRetiresSecretsAndPreservesDraft(t *testing.T) {
 		t.Fatal("hidden callback remained authorized")
 	}
 	c.ObserveVisible(true)
-	c.transport = fakeTransport(func(r *http.Request) (*http.Response, error) {
+	h.discover = func(ctx context.Context, _ map[string]any) (any, error) {
 		c.Suspend()
-		if r.Context().Err() == nil {
-			t.Fatal("hide did not cancel probe context")
+		if ctx.Err() == nil {
+			t.Fatal("hide did not cancel Host discovery context")
 		}
-		return answer(200, `{"data":[{"id":"late-model"}]}`), nil
-	})
+		return []any{map[string]any{"id": "late-model"}}, nil
+	}
 	c.Discover(context.Background(), c.Snapshot().Ticket)
 	if s := c.Snapshot(); s.Busy || len(s.Candidates) != 0 || !s.Dirty {
 		t.Fatal("hidden probe published or lost non-secret draft")
 	}
-	c, h := loaded(t)
+	c, h = loaded(t)
 	c.ObserveVisible(true)
 	stage(t, c)
 	c.Review(c.Snapshot().Ticket, true)
@@ -296,4 +288,71 @@ func TestSP23HiddenPageRetiresSecretsAndPreservesDraft(t *testing.T) {
 	if !c.Save(context.Background(), c.Snapshot().Ticket) || c.Snapshot().Busy || c.Snapshot().Dirty || len(h.writes) != 1 {
 		t.Fatal("hide disrupted verification of already confirmed save")
 	}
+}
+
+func TestSP23NativeCatalogAndSavedHostProfile(t *testing.T) {
+	for _, protocol := range []string{"", "google-generative-ai"} {
+		t.Run("native-"+protocol, func(t *testing.T) {
+			h := fixtureHost()
+			delete(h.profile, "baseURL")
+			delete(h.profile, "api")
+			if protocol != "" {
+				h.profile["api"] = protocol
+			}
+			c := &Controller{}
+			c.Attach(h)
+			c.Refresh(context.Background())
+			s := c.Snapshot()
+			c.Select(s.Ticket, s.Rows[0].ID)
+			h.discover = func(_ context.Context, args map[string]any) (any, error) {
+				r := args["request"].(map[string]any)
+				if args["settingsNs"] != "llm-pi-ai" || r["provider"] != "demo" || r["baseURL"] != nil || r["apiKey"] != nil {
+					t.Fatalf("native lookup invented endpoint/key: %#v", args)
+				}
+				if (protocol == "" && r["api"] != nil) || (protocol != "" && r["api"] != protocol) {
+					t.Fatalf("native protocol replaced: %#v", r)
+				}
+				return []any{map[string]any{"id": "native", "inputModalities": []string{"text", "image"}}}, nil
+			}
+			c.Discover(context.Background(), c.Snapshot().Ticket)
+			s = c.Snapshot()
+			if s.Err != "" || len(s.Candidates) != 1 || s.Candidates[0].Name != "native" {
+				t.Fatalf("native discovery: %#v", s)
+			}
+			c.Adopt(s.Ticket)
+			c.Review(c.Snapshot().Ticket, true)
+			if !c.Save(context.Background(), c.Snapshot().Ticket) {
+				t.Fatalf("native save: %s", c.Snapshot().Err)
+			}
+			ops := h.writes[0]["ops"].([]map[string]any)
+			if len(ops) != 1 || !reflect.DeepEqual(ops[0]["path"], []string{"providers", "demo", "models"}) {
+				t.Fatalf("catalog adoption overwrote native defaults: %#v", ops)
+			}
+		})
+	}
+	t.Run("saved-credential-and-headers", func(t *testing.T) {
+		c, h := loaded(t)
+		h.profile["headers"] = map[string]any{"X-Deployment": "fixture-deployment"}
+		storedKeys := map[string]string{"DEMO_KEY": "host-only-fixture-key"}
+		h.discover = func(_ context.Context, args map[string]any) (any, error) {
+			r := args["request"].(map[string]any)
+			if r["provider"] != "demo" || r["apiKey"] != nil || r["headers"] != nil {
+				t.Fatalf("wrong profile discovery: %#v", r)
+			}
+			// Only the Host fixture resolves private credentials and deployment headers.
+			if storedKeys[h.profile["apiKeyEnv"].(string)] != "host-only-fixture-key" || h.profile["headers"].(map[string]any)["X-Deployment"] != "fixture-deployment" {
+				t.Fatal("saved Host profile unavailable")
+			}
+			return []any{map[string]any{"id": "authenticated"}}, nil
+		}
+		c.Discover(context.Background(), c.Snapshot().Ticket)
+		s := c.Snapshot()
+		if s.Err != "" || len(s.Candidates) != 1 || s.Candidates[0].ID != "authenticated" {
+			t.Fatalf("saved profile not used: %#v", s)
+		}
+		encoded, _ := json.Marshal(s)
+		if strings.Contains(string(encoded), "host-only-fixture-key") || strings.Contains(string(encoded), "fixture-deployment") {
+			t.Fatal("Host secrets copied into desktop state")
+		}
+	})
 }

@@ -162,9 +162,6 @@ func load(call request) ([]Row, error) {
 				r.Name = r.Provider
 			}
 			r.ProtocolConfigured = r.Protocol != ""
-			if r.Protocol == "" {
-				r.Protocol = "openai-completions"
-			}
 			if !schemaKind(ns.Schema, fieldPath(r, "models"), "array") || !schemaKind(ns.Schema, fieldPath(r, "baseURL"), "string") || !schemaKind(ns.Schema, fieldPath(r, "api"), "string") {
 				r.Blocked = "The Host schema does not expose the supported provider model fields."
 			}
@@ -252,6 +249,9 @@ func mergeCandidates(models []map[string]any, candidates []Candidate) []map[stri
 		}
 		if candidate.MaxTokens > 0 {
 			m["maxTokens"] = candidate.MaxTokens
+		}
+		if candidate.InputModalities != nil {
+			m["input"] = append([]string{}, candidate.InputModalities...)
 		}
 		out = append(out, m)
 	}

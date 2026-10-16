@@ -25,7 +25,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 	}
 	s := a.Snapshot
 	ui.Text(c, providerCopy("探测并采纳供应商模型", "Discover and adopt provider models")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("仅点击探测后由此桌面访问所示地址；已有 Host 密钥不会读取或代用。临时密钥仅用于本次探测，随后丢弃。", "Only clicking Discover sends a request from this desktop to the address below. Stored Host keys are never read or reused. A temporary key is discarded after this probe.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, providerCopy("点击探测后由当前 Host 适配器查找模型。内置供应商可直接返回目录；访问端点时会使用该供应商已保存的密钥和 headers。临时密钥优先使用，仅用于本次探测。", "Discover asks the current Host adapter for models. Built-in providers can use their catalog; endpoint requests use the provider’s saved credentials and headers. A temporary key overrides the saved key for this request only.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).TextColor(muted)
 		return
@@ -79,12 +79,19 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, providerCopy("Host 设置只读，无法采纳或保存。", "Host settings are read-only; adoption and saving are disabled.")).TextColor(muted)
 	}
 	endpoint, protocol, key := s.Endpoint, s.Protocol, s.Key
-	ui.Text(c, "Endpoint").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, providerCopy("Endpoint（内置供应商可留空）", "Endpoint (optional for built-in providers)")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if ui.TextInput(c, &endpoint).FillWidth().Placeholder("https://provider.example/v1").Disabled(s.Busy).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, "endpoint", endpoint)
 	}
 	ui.Text(c, providerCopy("探测协议", "Discovery protocol")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	defaultProtocol := providerCopy("由 Host 选择默认协议", "Use Host default protocol")
+	if protocol == "" {
+		protocol = defaultProtocol
+	}
 	protocols := append([]string(nil), providerdiscovery.Protocols...)
+	if row.Protocol == "" {
+		protocols = append([]string{defaultProtocol}, protocols...)
+	}
 	found := false
 	for _, p := range protocols {
 		if p == protocol {
@@ -95,26 +102,24 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		protocols = append(protocols, protocol)
 	}
 	if ui.Select(c, &protocol, protocols).FillWidth().Disabled(s.Busy).Changed() && a.OnEdit != nil {
+		if protocol == defaultProtocol {
+			protocol = ""
+		}
 		a.OnEdit(s.Ticket, "protocol", protocol)
 	}
-	target, targetErr := providerdiscovery.ListingURL(s.Endpoint, s.Protocol)
-	if targetErr == nil {
-		ui.Text(c, "GET "+target).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	} else {
-		ui.Text(c, targetErr.Error()).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	ui.Text(c, "Host · "+row.Namespace+" · "+row.Provider).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	if row.CredentialKnown && row.CredentialConfigured {
-		ui.Text(c, providerCopy("Host 密钥已配置 · ••••••••，本次探测不会使用它。", "Host key configured · ••••••••; this probe does not use it.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("Host 密钥已配置 · ••••••••；不填临时密钥时由 Host 按需使用。", "Host key configured · ••••••••; the Host uses it when needed if the temporary key is blank.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if ui.TextInput(c, &key).FillWidth().Password().Placeholder(providerCopy("临时密钥；留空匿名探测", "Temporary key; blank probes anonymously")).Disabled(s.Busy).Changed() && a.OnEdit != nil {
+	if ui.TextInput(c, &key).FillWidth().Password().Placeholder(providerCopy("临时密钥；留空使用 Host 已有凭据", "Temporary key; blank uses Host credentials")).Disabled(s.Busy).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, "key", key)
 	}
-	ui.Text(c, providerCopy("HTTPS 可携带临时密钥；本地 HTTP 仅允许匿名。禁止重定向。保存密钥请使用上方凭据入口。", "HTTPS may carry the temporary key; loopback HTTP is anonymous only. Redirects are blocked. Use the credential controls above to save a key.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	probeLabel := providerCopy("匿名探测此地址", "Discover anonymously at this address")
+	ui.Text(c, providerCopy("修改 endpoint 会让 Host 向该地址发送供应商凭据和 headers，请确认目标可信。临时密钥在探测后清空；保存密钥请使用上方凭据入口。", "An edited endpoint receives the provider credentials and headers from the Host; check that you trust it. The temporary key is cleared after discovery. Use the credential controls above to save a key.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	probeLabel := providerCopy("通过 Host 探测模型", "Discover models through Host")
 	if strings.TrimSpace(s.Key) != "" {
-		probeLabel = providerCopy("发送临时密钥并探测此地址", "Send temporary key and discover at this address")
+		probeLabel = providerCopy("使用临时密钥通过 Host 探测", "Discover through Host with temporary key")
 	}
-	if ui.Button(c, probeLabel).Disabled(s.Busy || targetErr != nil || a.OnDiscover == nil).Clicked() && a.OnDiscover != nil {
+	if ui.Button(c, probeLabel).Disabled(s.Busy || a.OnDiscover == nil).Clicked() && a.OnDiscover != nil {
 		a.OnDiscover(s.Ticket)
 	}
 	if s.Busy {
