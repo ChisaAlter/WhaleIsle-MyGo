@@ -50,3 +50,24 @@ func TestActiveRowHasArchiveButNoDelete(t *testing.T) {
 		t.Fatal("active delete exposed")
 	}
 }
+
+func TestArchivedListVisibilityPreservesArchivedRows(t *testing.T) {
+	hidden := true
+	snap := session.ViewState{ArchivedSessionIDs: []string{"archived"}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{Snapshot: snap, HideArchivedList: hidden, OnUnarchive: func(string) {}})
+	}, 280, 800)
+	if _, ok := tt.Find(i18n.T(i18n.KeySidebarUnarchive)); ok {
+		t.Fatal("hidden archive section remains visible")
+	}
+	if len(snap.ArchivedSessionIDs) != 1 {
+		t.Fatal("visibility changed archive data")
+	}
+	hidden = false
+	tt = ui.NewTester(func(c *ui.Context) {
+		View(c, Model{Snapshot: snap, HideArchivedList: hidden, OnUnarchive: func(string) {}})
+	}, 280, 800)
+	if _, ok := tt.Find(i18n.T(i18n.KeySidebarUnarchive)); !ok {
+		t.Fatal("archive section not restored")
+	}
+}

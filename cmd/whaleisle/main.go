@@ -442,6 +442,7 @@ type desktopConfigDraft struct {
 	openAtLogin               bool
 	autoStartDesktop          bool
 	wallpaperPath             string
+	showArchivedList          bool
 	showViewTabs              bool // Electron viewTabs; stored inverted as HideChatViewTabs
 	autoAllowTools            bool
 	seeded                    bool
@@ -487,6 +488,7 @@ func (s *mainState) seedDesktopDraft() {
 		openAtLogin:               cfg.OpenAtLogin,
 		autoStartDesktop:          cfg.AutoStartDesktop,
 		wallpaperPath:             cfg.WallpaperPath,
+		showArchivedList:          !cfg.HideArchivedList,
 		showViewTabs:              !cfg.HideChatViewTabs,
 		autoAllowTools:            cfg.AutoAllowTools,
 		seeded:                    true,
@@ -658,6 +660,7 @@ func (s *mainState) saveDesktopConfig() {
 		c.OpenAtLogin = s.desktopDraft.openAtLogin
 		c.AutoStartDesktop = s.desktopDraft.autoStartDesktop
 		c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath)
+		c.HideArchivedList = !s.desktopDraft.showArchivedList
 		c.HideChatViewTabs = !s.desktopDraft.showViewTabs
 		c.AutoAllowTools = s.desktopDraft.autoAllowTools
 	})
@@ -2822,6 +2825,7 @@ func mainView(c *ui.Context) {
 	launcherStartBusy := state.launcherStartBusy
 	launcherStartFailed := state.launcherStartFailed
 	launcherStartErr := state.launcherStartErr
+	cfgHideArchivedList := false
 	cfgRemoteWorkspace := false
 	cfgPhoneGitEnabled := state.phoneGitSession != ""
 	cfgRemoteEnabled := false
@@ -2838,6 +2842,7 @@ func mainView(c *ui.Context) {
 	if state.cfgStore != nil {
 		cfg := state.cfgStore.Get()
 		nodeBin = cfg.NodeBin
+		cfgHideArchivedList = cfg.HideArchivedList
 		cfgRemoteWorkspace = cfg.RemoteWorkspaceEnabled
 		cfgRemoteEnabled = cfg.RemoteEnabled
 		cfgRemoteMode = cfg.RemoteMode
@@ -5257,6 +5262,7 @@ func mainView(c *ui.Context) {
 						CloseToTray:      &state.desktopDraft.closeToTray,
 						OpenAtLogin:      &state.desktopDraft.openAtLogin,
 						AutoStartDesktop: &state.desktopDraft.autoStartDesktop,
+						ShowArchivedList: &state.desktopDraft.showArchivedList,
 						ShowViewTabs:     &state.desktopDraft.showViewTabs,
 						AutoAllowTools:   &state.desktopDraft.autoAllowTools,
 						LastAction:       desktopAction,
@@ -6152,6 +6158,8 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
+						TitlebarPreferences: settingsstore.TitlebarPreferencesFrom(setStore.Snapshot()),
+						HideArchivedList: cfgHideArchivedList,
 						ChatPreferences:         settingsstore.ChatPreferencesFrom(setStore.Snapshot()),
 						ConversationPreferences: settingsstore.ConversationPreferencesFrom(setStore.Snapshot()),
 						ComposerResize:          &state.composerResize,

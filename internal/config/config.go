@@ -80,6 +80,9 @@ type Config struct {
 	// Locale is the UI language, "zh" or "en".
 	Locale string `json:"locale"`
 
+	// HideArchivedList hides only the sidebar archived section; archived data is retained.
+	HideArchivedList bool `json:"hideArchivedList"`
+
 	// Remote pairing daemon (phone/LAN remote), gated by the desktop build.
 	RemoteEnabled       bool   `json:"remoteEnabled"`
 	RemotePort          int    `json:"remotePort"`

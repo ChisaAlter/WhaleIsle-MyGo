@@ -27,24 +27,25 @@ type Model struct {
 	OnMoveWorkspaceBefore        func(string, string)
 	OnMoveWorkspaceSessionBefore func(string, string, string)
 
-	Projects        projects.Model
-	Collapsed       bool
-	OnToggle        func()
-	Snapshot        session.ViewState
-	ThemeID         string
-	SystemDark      bool
-	SearchQuery     *string
-	SearchFocus     *bool
-	WorkspaceLabel  string
-	OnSelect        func(sessionID string)
-	OnRefresh       func()
-	OnCreate        func()
-	OnNoDirectory   func()
-	OnOpenMarket    func()
-	OnOpenSchedule  func()
-	OnOpenAssistant func()
-	OnOpenLauncher  func()
-	OnOpenSettings  func()
+	Projects         projects.Model
+	HideArchivedList bool
+	Collapsed        bool
+	OnToggle         func()
+	Snapshot         session.ViewState
+	ThemeID          string
+	SystemDark       bool
+	SearchQuery      *string
+	SearchFocus      *bool
+	WorkspaceLabel   string
+	OnSelect         func(sessionID string)
+	OnRefresh        func()
+	OnCreate         func()
+	OnNoDirectory    func()
+	OnOpenMarket     func()
+	OnOpenSchedule   func()
+	OnOpenAssistant  func()
+	OnOpenLauncher   func()
+	OnOpenSettings   func()
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
 	OnBrowseWorkspace func()
 	// OnRevealWorkspace opens the current workspace in the OS file manager.
@@ -300,7 +301,7 @@ func View(c *ui.Context, m Model) {
 					}
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
 					workspaceRowsView(c, m, items, fg, muted, border)
-					if len(m.Snapshot.ArchivedSessionIDs) > 0 {
+					if !m.HideArchivedList && len(m.Snapshot.ArchivedSessionIDs) > 0 {
 						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)
 						for _, id := range m.Snapshot.ArchivedSessionIDs {

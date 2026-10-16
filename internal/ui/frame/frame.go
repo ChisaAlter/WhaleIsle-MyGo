@@ -140,6 +140,8 @@ type Model struct {
 	GroupRoom               bool
 	GroupMembers            []session.GroupMember
 	OnReplyGroupThread      func(string)
+	TitlebarPreferences     settings.TitlebarPreferences
+	HideArchivedList        bool
 	ChatPreferences         settings.ChatPreferences
 	ConversationPreferences settings.ConversationPreferences
 	ComposerResize          *composer.ResizeState
@@ -431,6 +433,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		schedules = m.ScheduleStore.Snapshot()
 	}
 	sidebar.View(c, sidebar.Model{
+		HideArchivedList:     m.HideArchivedList,
 		Schedules:            schedules,
 		Projects:             projectModel,
 		Collapsed:            m.Sizes.Sidebar <= 0,
@@ -580,7 +583,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							} else {
 								ui.Text(c, agentsCaption).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 							}
-							if m.OnToggleTools != nil {
+							if !m.TitlebarPreferences.HideSurfacesToggle && m.OnToggleTools != nil {
 								if ui.Button(c, docsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
 									Background(ui.Transparent).TextColor(muted).Clicked() {
 									m.OnToggleTools()
@@ -595,19 +598,19 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									m.OnOpenLauncher()
 								}
 							}
-							if m.OnOpenHostTerminal != nil {
+							if !m.TitlebarPreferences.HideTerminalToggle && m.OnOpenHostTerminal != nil {
 								if ui.Button(c, termui.HostTitle()).FontSize(theme.InterfaceSize(11)).Clicked() {
 									m.OnOpenHostTerminal()
 								}
 							}
-							if m.OnToggleTerminal != nil {
+							if !m.TitlebarPreferences.HideTerminalToggle && m.OnToggleTerminal != nil {
 								if ui.Button(c, "▤").Tooltip(i18n.T(i18n.KeyTerminalTitle)).
 									FontSize(13).BorderWidth(0).Background(ui.Transparent).
 									TextColor(muted).Clicked() {
 									m.OnToggleTerminal()
 								}
 							}
-							if m.OnToggleTools != nil {
+							if !m.TitlebarPreferences.HideSurfacesToggle && m.OnToggleTools != nil {
 								if ui.Button(c, "▦").Tooltip(i18n.T(i18n.KeyDesktopTools)).
 									FontSize(13).BorderWidth(0).Background(ui.Transparent).
 									TextColor(muted).Clicked() {

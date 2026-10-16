@@ -17,7 +17,8 @@ type InterfaceAccess struct {
 	// AutoStartDesktop starts harness after boot when workspace is set (launcher toggle).
 	AutoStartDesktop *bool
 	// ShowViewTabs mirrors Electron conversation settings.viewTabs (inverted HideChatViewTabs).
-	ShowViewTabs *bool
+	ShowViewTabs     *bool
+	ShowArchivedList *bool
 	// AutoAllowTools mirrors Electron tool auto-allow (interaction store).
 	AutoAllowTools *bool
 	OnSave         func()
@@ -70,6 +71,9 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Checkbox(c, a.ShowViewTabs, "")
 	}, fg, muted)
 	ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	if a.ShowArchivedList != nil {
+		desktopRow(c, providerCopy("显示归档列表", "Show archived list"), func() { ui.Checkbox(c, a.ShowArchivedList, "") }, fg, muted)
+	}
 	desktopRow(c, i18n.T(i18n.KeySettingsInterfaceAutoAllow), func() {
 		if a.AutoAllowTools == nil {
 			return
