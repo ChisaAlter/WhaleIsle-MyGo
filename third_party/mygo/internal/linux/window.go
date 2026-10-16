@@ -40,6 +40,7 @@ type window struct {
 
 	browser                                            *browserProfile
 	browserInspector                                   ptr
+	blankContext                                       ptr
 	browserInspectorRequested, browserInspectorClosing bool
 
 	win     ptr // GtkWindow
@@ -122,6 +123,9 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 			return nil, err
 		}
 	}
+	if o.IsolatedPreview && !platform.BlankPreviewOptions(o) {
+		return nil, errors.New("mygo: only the isolated blank encoder is supported on Linux")
+	}
 	b.nextID++
 	w := &window{b: b, id: b.nextID, h: h, opts: o, autoHideMenu: o.AutoHideMenu}
 	data := ptr(w.id)
@@ -136,6 +140,16 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		}
 	}
 
+	if o.IsolatedPreview {
+		if !platform.BlankPreviewOptions(o) {
+			return nil, errors.New("mygo: only the isolated blank encoder is supported on Linux")
+		}
+		var err error
+		w.blankContext, err = newBlankPreviewContext()
+		if err != nil {
+			return nil, err
+		}
+	}
 	w.win = gtkWindowNew(0)
 	gtkWindowSetTitle(w.win, cs(o.Title))
 	gtkWindowSetDefaultSize(w.win, int32(o.Width), int32(o.Height))
@@ -239,7 +253,12 @@ func (w *window) createWebView() {
 	o := w.opts
 	data := ptr(w.id)
 	w.ucm = webkitUserContentManagerNew()
-	if w.browser != nil {
+	if w.blankContext != 0 {
+		w.web = browserObjectNew(browserWebViewType(), cs("web-context"), w.blankContext, cs("user-content-manager"), w.ucm, 0)
+		if w.web == 0 {
+			return
+		}
+	} else if w.browser != nil {
 		for _, s := range o.Schemes {
 			if !w.browser.schemes[s] {
 				w.browser.schemes[s] = true
@@ -262,7 +281,11 @@ func (w *window) createWebView() {
 		webkitUserContentManagerRegisterHandler(w.ucm, cs("mygo"))
 		connect(w.ucm, "script-message-received::mygo", cbScriptMessage, data)
 	}
-	for _, s := range o.UserScripts {
+	var scripts []platform.UserScript
+	if !o.IsolatedPreview {
+		scripts = o.UserScripts
+	}
+	for _, s := range scripts {
 		frames, when := int32(1), int32(0) // top frame, document start
 		if s.AllFrames {
 			frames = 0
@@ -274,7 +297,7 @@ func (w *window) createWebView() {
 		webkitUserContentManagerAddScript(w.ucm, script)
 		webkitUserScriptUnref(script)
 	}
-	if w.controls != nil && !o.BrowserProfile {
+	if w.controls != nil && !o.BrowserProfile && !o.IsolatedPreview {
 		// After the bridge, which it tells; top frame, document start.
 		script := webkitUserScriptNew(cs(w.titleBarScript()), 1, 0, 0, 0)
 		webkitUserContentManagerAddScript(w.ucm, script)
@@ -287,8 +310,8 @@ func (w *window) createWebView() {
 	}
 	settings := webkitWebViewGetSettings(w.web)
 	webkitSettingsSetEnableDeveloperExtras(settings, o.DevTools)
-	webkitSettingsSetAllowFileAccessFromFileURLs(settings, true)
-	webkitSettingsSetJavascriptCanAccessClipboard(settings, true)
+	webkitSettingsSetAllowFileAccessFromFileURLs(settings, !o.IsolatedPreview)
+	webkitSettingsSetJavascriptCanAccessClipboard(settings, !o.IsolatedPreview)
 	if o.UserAgent != "" {
 		webkitSettingsSetUserAgent(settings, cs(o.UserAgent))
 	}
@@ -360,6 +383,10 @@ func (w *window) cleanup() {
 	}
 	w.releaseCursor()
 	w.releaseBrowserProfile()
+	if w.blankContext != 0 {
+		gObjectUnref(w.blankContext)
+		w.blankContext = 0
+	}
 }
 
 func (w *window) Handle() uintptr        { return w.win }
@@ -745,11 +772,24 @@ func (w *window) Close() {
 }
 
 func (w *window) LoadURL(url string) {
+	if w.opts.IsolatedPreview {
+		if !platform.BlankPreviewNavigation(url) {
+			w.h.LoadFailed(url, -1, "private encoder accepts only about:blank")
+			return
+		}
+		w.programmatic = true
+		webkitWebViewLoadHTML(w.web, cs(platform.BlankPreviewDocument), cs("about:blank"))
+		return
+	}
 	w.programmatic = true
 	webkitWebViewLoadURI(w.web, cs(url))
 }
 
 func (w *window) LoadHTML(html, baseURL string) {
+	if w.opts.IsolatedPreview {
+		w.h.LoadFailed("about:blank", -1, "private encoder does not accept HTML")
+		return
+	}
 	w.programmatic = true
 	webkitWebViewLoadHTML(w.web, cs(html), optCS(baseURL))
 }
@@ -855,6 +895,14 @@ func (w *window) CapturePage(cb func([]byte, error)) {
 func (w *window) decideResponse(decision ptr) bool {
 	resp := webkitResponsePolicyDecisionGetResponse(decision)
 	uri := goStr(webkitURIResponseGetURI(resp))
+	if w.opts.IsolatedPreview {
+		if platform.BlankPreviewNavigation(uri) {
+			webkitPolicyDecisionUse(decision)
+		} else {
+			webkitPolicyDecisionIgnore(decision)
+		}
+		return true
+	}
 	disposition := ""
 	if h := webkitURIResponseGetHTTPHeaders(resp); h != 0 {
 		disposition = goStr(soupMessageHeadersGetOne(h, cs("Content-Disposition")))
@@ -1266,6 +1314,10 @@ func initWindowCallbacks() {
 		if w == nil {
 			return false
 		}
+		if w.opts.IsolatedPreview && kind == 1 {
+			webkitPolicyDecisionIgnore(decision)
+			return true
+		}
 		if kind == 2 { // WEBKIT_POLICY_DECISION_TYPE_RESPONSE
 			return w.decideResponse(decision)
 		}
@@ -1288,6 +1340,10 @@ func initWindowCallbacks() {
 			w.programmatic = false
 			nav.IsReload = true
 		}
+		if w.opts.IsolatedPreview && !platform.BlankPreviewNavigation(nav.URL) {
+			webkitPolicyDecisionIgnore(decision)
+			return true
+		}
 		if w.h.WillNavigate(nav) {
 			webkitPolicyDecisionUse(decision)
 		} else {
@@ -1298,6 +1354,9 @@ func initWindowCallbacks() {
 	cbCreate = purego.NewCallback(func(web, action, data ptr) ptr {
 		w := b().window(data)
 		if w == nil {
+			return 0
+		}
+		if w.opts.IsolatedPreview {
 			return 0
 		}
 		// WebKitGTK makes a related view share the opener's user content
@@ -1330,6 +1389,10 @@ func initWindowCallbacks() {
 		w := b().window(data)
 		if w == nil {
 			return false
+		}
+		if w.opts.IsolatedPreview {
+			webkitPermissionRequestDeny(req)
+			return true
 		}
 		var kinds []string
 		switch {

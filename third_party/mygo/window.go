@@ -170,9 +170,9 @@ type WindowOptions struct {
 // ui. Create windows with NewWindow once the application is ready.
 type Window struct {
 	productKeyboard *productKeyboardState
-	webShortcuts *webShortcutState
-	id           int
-	parent       *Window
+	webShortcuts    *webShortcutState
+	id              int
+	parent          *Window
 	// pg is the window's page, which Page returns unless the window shows
 	// native UI.
 	pg *Page
@@ -393,8 +393,8 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 		opts.Page.DevTools = DevToolsDisabled
 	}
 	if opts.Page.IsolatedPreview {
-		if runtime.GOOS != "windows" {
-			panic("mygo: isolated preview is unavailable on this platform")
+		if runtime.GOOS != "windows" && (opts.Page.LocalPDFURL != "" || opts.Page.LocalPDFViewerURL != "" || opts.Page.LocalHTMLURL != "" || opts.Page.LocalMediaURL != "" || opts.Content != nil || native != 0) {
+			panic("mygo: only the isolated blank encoder is available on this platform")
 		}
 		opts.Page.DisableBindings = true
 		opts.Page.PreloadScript = ""

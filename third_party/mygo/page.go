@@ -52,11 +52,13 @@ type PageOptions struct {
 	// LocalMediaURL permits a fixed, script-free player and its one derived media
 	// resource. Mutually exclusive with PDF/HTML; Windows isolated profile only.
 	LocalMediaURL string
-	// IsolatedPreview requests a dedicated temporary WebView2 environment with
+	// IsolatedPreview requests a dedicated temporary WebView2 environment on Windows, with
 	// native bindings and resource/navigation/permission/download access denied.
 	// Experimental platform prerequisite only: it is NOT a renderer-readiness
 	// signal. Callers must still use a strict opaque sandbox and validated capture
-	// lifecycle. Unsupported platforms fail closed. Ordinary windows are unchanged.
+	// lifecycle. macOS/Linux support only a nonpersistent about:blank encoder with
+	// fixed CSP; arbitrary LoadHTML and all Local* preview URLs remain unsupported.
+	// Ordinary windows are unchanged.
 	IsolatedPreview bool
 	// WindowControlsOnly keeps DOM-ready and CSS drag regions, but rejects
 	// application calls, events, drops and all other native bridge messages.

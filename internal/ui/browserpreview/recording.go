@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -238,7 +237,7 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		}
 		return
 	}
-	if ui.Button(c, "录制 WebM").Disabled(disabled || t.tools.operation != nil || runtime.GOOS != "windows" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64")).Tooltip("仅当前网页，无音频；最多 8 帧/秒、1280×720、2 分钟、64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。需要 WebView2 WebM 编码支持。").Clicked() {
+	if ui.Button(c, "录制 WebM").Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip("仅当前网页，无音频；最多 8 帧/秒、1280×720、2 分钟、64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM 编码支持；macOS 需要 Safari/WebKit 18.4 或更新，Linux 取决于 WebKitGTK 与媒体插件。").Clicked() {
 		b.startBrowserRecording(t)
 	}
 	if t.RecordingPath != "" && ui.Button(c, "显示视频").Clicked() {

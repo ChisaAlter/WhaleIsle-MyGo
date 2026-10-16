@@ -1,4 +1,4 @@
-//go:build !windows || (!amd64 && !arm64)
+//go:build (!windows && !darwin && !linux) || (!amd64 && !arm64)
 
 package browserrecording
 
@@ -8,5 +8,5 @@ import (
 )
 
 func newEncoder(context.Context) (encoder, error) {
-	return nil, errors.New("网页视频录制需要 Windows WebView2 的 WebM MediaRecorder")
+	return nil, errors.New("当前平台不支持网页 WebM 录制")
 }

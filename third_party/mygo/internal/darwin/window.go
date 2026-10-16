@@ -50,6 +50,7 @@ type window struct {
 	win          id
 	view         id // the content view: holds the web view and a docked inspector
 	web          id
+	blankStore   id // owned nonpersistent blank encoder store
 	browserStore id // owned persistent Browser partition, never default
 	delegate     id
 	ucc          id
@@ -76,6 +77,19 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	}
 	var profileErr error
 	withPool(func() {
+		if o.IsolatedPreview {
+			if !platform.BlankPreviewOptions(o) {
+				profileErr = errors.New("mygo: only an isolated blank encoder is supported")
+				return
+			}
+			w.blankStore = retain(send(class("WKWebsiteDataStore"), "nonPersistentDataStore"))
+			if w.blankStore == 0 || sendBool(w.blankStore, "isPersistent") {
+				release(w.blankStore)
+				w.blankStore = 0
+				profileErr = errors.New("mygo: nonpersistent encoder store unavailable")
+				return
+			}
+		}
 		if o.BrowserProfile {
 			if o.Surface || o.Native != 0 {
 				profileErr = errors.New("mygo: Browser profile requires an ordinary web page")
@@ -220,14 +234,20 @@ func (w *window) createWebView(content NSRect) {
 	} else {
 		cfg = alloc("WKWebViewConfiguration")
 		for _, s := range o.Schemes {
+			if o.IsolatedPreview {
+				continue
+			}
 			send(cfg, "setURLSchemeHandler:forURLScheme:", uintptr(schemeHandler()), uintptr(nsString(s)))
 		}
 	}
 	if w.browserStore != 0 {
 		send(cfg, "setWebsiteDataStore:", uintptr(w.browserStore))
 	}
+	if w.blankStore != 0 {
+		send(cfg, "setWebsiteDataStore:", uintptr(w.blankStore))
+	}
 	prefs := send(cfg, "preferences")
-	if !o.BrowserProfile {
+	if !o.BrowserProfile && !o.IsolatedPreview {
 		send(prefs, "setValue:forKey:", uintptr(nsBool(o.DevTools)), uintptr(nsString("developerExtrasEnabled")))
 		send(prefs, "setValue:forKey:", uintptr(nsBool(true)), uintptr(nsString("allowFileAccessFromFileURLs")))
 	}
@@ -238,10 +258,13 @@ func (w *window) createWebView(content NSRect) {
 	// Every window gets its own content controller so messages, scripts and
 	// the bridge configuration never leak between windows.
 	w.ucc = alloc("WKUserContentController")
-	if !o.BrowserProfile {
+	if !o.BrowserProfile && !o.IsolatedPreview {
 		send(w.ucc, "addScriptMessageHandler:name:", uintptr(w.delegate), uintptr(nsString("mygo")))
 	}
 	for _, s := range o.UserScripts {
+		if o.IsolatedPreview {
+			continue
+		}
 		injection := uintptr(0) // WKUserScriptInjectionTimeAtDocumentStart
 		if s.AtDocumentEnd {
 			injection = 1
@@ -251,7 +274,7 @@ func (w *window) createWebView(content NSRect) {
 		send(w.ucc, "addUserScript:", uintptr(script))
 		release(script)
 	}
-	if w.hiddenTitleBar() && !o.BrowserProfile {
+	if w.hiddenTitleBar() && !o.BrowserProfile && !o.IsolatedPreview {
 		// After the bridge, which it tells: the room of the traffic lights.
 		script := send(send(class("WKUserScript"), "alloc"), "initWithSource:injectionTime:forMainFrameOnly:",
 			uintptr(nsString(bridge.TitleBarScript(w.TitleBar(), o.Zoom))), 0, 1)
@@ -265,7 +288,7 @@ func (w *window) createWebView(content NSRect) {
 	send(w.web, "setNavigationDelegate:", uintptr(w.delegate))
 	send(w.web, "setUIDelegate:", uintptr(w.delegate))
 	send(w.web, "setAutoresizingMask:", nsViewWidthHeightSizable)
-	if !o.BrowserProfile && (o.Transparent || o.BackgroundColor != nil || o.Vibrancy != "") {
+	if !o.BrowserProfile && !o.IsolatedPreview && (o.Transparent || o.BackgroundColor != nil || o.Vibrancy != "") {
 		// Let the window color show until the page paints.
 		send(w.web, "setValue:forKey:", uintptr(nsBool(false)), uintptr(nsString("drawsBackground")))
 		if o.BackgroundColor != nil && respondsTo(w.web, "setUnderPageBackgroundColor:") {
@@ -324,6 +347,8 @@ func (w *window) cleanup() {
 	}
 	release(w.effect)
 	release(w.web)
+	release(w.blankStore)
+	w.blankStore = 0
 	release(w.browserStore)
 	w.browserStore = 0
 	release(w.view)
@@ -688,6 +713,15 @@ func (b *Backend) layoutTrafficLights() {
 // Navigation.
 
 func (w *window) LoadURL(url string) {
+	if w.opts.IsolatedPreview {
+		if !platform.BlankPreviewNavigation(url) {
+			w.h.LoadFailed(url, -1, "private encoder accepts only about:blank")
+			return
+		}
+		w.programmatic = true
+		withPool(func() { send(w.web, "loadHTMLString:baseURL:", uintptr(nsString(platform.BlankPreviewDocument)), 0) })
+		return
+	}
 	w.programmatic = true
 	withPool(func() {
 		req := send(class("NSURLRequest"), "requestWithURL:", uintptr(nsURL(url)))
@@ -696,6 +730,10 @@ func (w *window) LoadURL(url string) {
 }
 
 func (w *window) LoadHTML(html, baseURL string) {
+	if w.opts.IsolatedPreview {
+		w.h.LoadFailed("about:blank", -1, "private encoder accepts only fixed blank content")
+		return
+	}
 	w.programmatic = true
 	withPool(func() {
 		var base id
@@ -707,6 +745,10 @@ func (w *window) LoadHTML(html, baseURL string) {
 }
 
 func (w *window) LoadFile(path, readAccessDir string) {
+	if w.opts.IsolatedPreview {
+		w.h.LoadFailed("about:blank", -1, "private encoder accepts only fixed blank content")
+		return
+	}
 	w.programmatic = true
 	withPool(func() {
 		send(w.web, "loadFileURL:allowingReadAccessToURL:", uintptr(fileURL(path)), uintptr(fileURL(readAccessDir)))
@@ -1044,7 +1086,7 @@ func registerWindowClasses() {
 				decision := deny
 				if w := b().windowFor(self); w != nil {
 					kinds := map[int][]string{0: {"camera"}, 1: {"microphone"}, 2: {"camera", "microphone"}}[typ]
-					if w.h.PermissionRequested(kinds, securityOrigin(origin)) {
+					if !w.opts.IsolatedPreview && w.h.PermissionRequested(kinds, securityOrigin(origin)) {
 						decision = grant
 					}
 				}
@@ -1159,6 +1201,11 @@ func registerWindowClasses() {
 
 			// WKNavigationDelegate
 			method("webView:decidePolicyForNavigationAction:decisionHandler:", func(self id, _ objc.SEL, web, action id, handler uintptr) {
+				if w := b().windowFor(self); w != nil && w.opts.IsolatedPreview {
+					target := goString(send(send(send(action, "request"), "URL"), "absoluteString"))
+					callBlock(handler, boolArg(platform.BlankPreviewNavigation(target) && send(action, "targetFrame") != 0))
+					return
+				}
 				// A link with the download attribute (macOS 11.3).
 				if respondsTo(action, "shouldPerformDownload") && sendBool(action, "shouldPerformDownload") {
 					callBlock(handler, 2) // WKNavigationActionPolicyDownload
@@ -1188,6 +1235,10 @@ func registerWindowClasses() {
 				const cancel, allow, download = 0, 1, 2 // WKNavigationResponsePolicy
 				resp := send(nav, "response")
 				url := goString(send(send(resp, "URL"), "absoluteString"))
+				if w := b().windowFor(self); w != nil && w.opts.IsolatedPreview {
+					callBlock(handler, boolArg(platform.BlankPreviewNavigation(url)))
+					return
+				}
 				disposition, custom := schemeDispositions[url]
 				if !custom && respondsTo(resp, "allHeaderFields") {
 					disposition = goString(send(send(resp, "allHeaderFields"), "objectForKey:", uintptr(nsString("Content-Disposition"))))
@@ -1282,7 +1333,7 @@ func registerWindowClasses() {
 			// WKUIDelegate
 			method("webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:", func(self id, _ objc.SEL, web, cfg, action, features id) id {
 				w := b().windowFor(self)
-				if w == nil {
+				if w == nil || w.opts.IsolatedPreview {
 					return 0
 				}
 				num := func(key string) int {
