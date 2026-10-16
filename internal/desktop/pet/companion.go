@@ -189,6 +189,7 @@ func (p *Companion) sync() {
 	// is transient and must not be saved by MyGo automatic window state.
 	w.SetSize(220, petWindowHeight(cfg.Behavior))
 	p.startMotion(w)
+	p.watchRecovery(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if e.URL == "whale-pet://localhost/index.html" {
 			p.stopGrowthClock()
