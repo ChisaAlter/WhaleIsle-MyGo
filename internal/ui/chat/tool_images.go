@@ -18,6 +18,8 @@ type ToolImageGalleryOptions struct {
 	Expanded  *map[string]bool
 	OnOpen    func(string)
 	OnOpenURL func(string)
+	// OnOpenFile reuses the session/Host-bound Files opener; never resolve locally here.
+	OnOpenFile func(string)
 }
 
 func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolImageGalleryOptions) {

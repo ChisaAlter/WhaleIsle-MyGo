@@ -227,6 +227,7 @@ func View(c *ui.Context, m Model) {
 					ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
 						ID: msg.ID, Expanded: m.ThinkingExpanded,
 						OnOpenURL: m.OnOpenCitationURL,
+						OnOpenFile: m.OnOpenDeliverable,
 						OnOpen: func(path string) {
 							if m.OnOpenImageLightbox != nil {
 								m.OnOpenImageLightbox(path)

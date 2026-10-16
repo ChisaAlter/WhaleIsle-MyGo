@@ -16,7 +16,7 @@ import (
 // projection and rendering both avoid recursion, including malformed histories.
 func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, gallery ToolImageGalleryOptions) {
 	if gallery.TextOnly {
-		gallery.OnOpen, gallery.OnOpenURL = nil, nil
+		gallery.OnOpen, gallery.OnOpenURL, gallery.OnOpenFile = nil, nil, nil
 	}
 	if msg.Tool == nil {
 		if gallery.TextOnly {
@@ -67,6 +67,9 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 				arguments = prettyToolPayload(arguments)
 			}
 			toolCardInfoView(c, info, st, childGallery)
+			if !childGallery.TextOnly {
+				toolFileView(c, call, st, childGallery)
+			}
 			toolLifecycleDetail(c, "tool-args:"+call.CallID, "参数 / Arguments", arguments, st, childGallery.Expanded, childGallery.TextOnly)
 			if call.Result != nil {
 				toolLifecycleDetail(c, "tool-result:"+call.CallID, "结果 / Result", output, st, childGallery.Expanded, childGallery.TextOnly)
