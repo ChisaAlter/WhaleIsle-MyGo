@@ -69,6 +69,9 @@ func onboardingView(c *ui.Context, m Model) {
 				if v.Notice != "" {
 					ui.Text(c, v.Notice).TextColor(fg)
 				}
+				if v.TestNotice != "" {
+					ui.Text(c, v.TestNotice).TextColor(fg)
+				}
 				if v.Error != "" {
 					ui.Text(c, v.Error).TextColor(chrome.Color(colors.Accent))
 				}
@@ -80,6 +83,9 @@ func onboardingView(c *ui.Context, m Model) {
 					ui.Text(c, "确认操作："+v.Review+" · "+p.Label+" "+v.Target).Bold().TextColor(fg)
 					if v.Review == "bot.bind-credentials" {
 						ui.Text(c, "凭据将交给当前 Host 验证并存入 Host 凭据存储；本地面板不会写入磁盘。").TextColor(muted)
+					}
+					if v.Review == "bot.reconnect-test" {
+						ui.Text(c, "将重连此飞书机器人，并由 Host 向该机器人已有的私聊测试目标发送一条测试消息；请在飞书会话中核对。若没有可用私聊目标，不会改为群发。").TextColor(muted)
 					}
 					if v.Review == "bot.delete" {
 						ui.Text(c, "删除该平台机器人连接及 Host 保存的绑定；需要重新接入才能恢复。").TextColor(muted)
@@ -178,6 +184,7 @@ func onboardingView(c *ui.Context, m Model) {
 						ui.Row(c).Gap(8).Children(func() {
 							action("重新连接（不发消息）…", "bot.reconnect")
 							if v.Channel == "feishu" {
+								action("重连并发送测试消息…", "bot.reconnect-test")
 								action("断开连接…", "bot.disconnect")
 							}
 							action("删除绑定…", "bot.delete")

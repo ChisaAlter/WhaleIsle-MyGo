@@ -74,6 +74,7 @@ type Provision struct {
 	Deadline             time.Time       `json:"-"`
 }
 type View struct {
+	TestNotice                      string
 	Open, Available, Busy           bool
 	Scope                           uint64
 	Channel, Notice, Error, Host    string
@@ -230,6 +231,12 @@ func (s *Store) Confirm() {
 		pairing = true
 	case "provision.cancel":
 		payload["attemptId"] = v.Provision.AttemptID
+	case "bot.reconnect-test":
+		if v.Channel != "feishu" {
+			return
+		}
+		method = "bot.reconnect"
+		payload = map[string]any{"botId": v.Target, "sendTest": true}
 	case "bot.reconnect":
 		payload = map[string]any{"botId": v.Target, "sendTest": false}
 	case "bot.delete":
@@ -272,6 +279,9 @@ func (s *Store) run(method string, payload map[string]any, pairing bool) {
 	s.view.Busy = true
 	s.view.Error = ""
 	s.view.Notice = "正在等待 Host…"
+	if method == "bot.reconnect" {
+		s.view.TestNotice = ""
+	}
 	if method == "bot.bind-credentials" || method == "provision.verify" {
 		s.view.Draft = Draft{}
 	}
@@ -293,6 +303,15 @@ func (s *Store) run(method string, payload map[string]any, pairing bool) {
 		if err := call(method, payload, &raw); err != nil {
 			s.finish(scope, "Host 操作失败，请检查平台配置与连接后重试", nil)
 			return
+		}
+		testNotice, testError := "", ""
+		if method == "bot.reconnect" && payload["sendTest"] == true {
+			testNotice, testError = reconnectTestResult(raw, reconnectBotID(payload))
+			s.mu.Lock()
+			if s.view.Scope == scope {
+				s.view.TestNotice = testNotice
+			}
+			s.mu.Unlock()
 		}
 		if method == "provision.cancel" {
 			var result struct {
@@ -365,6 +384,17 @@ func (s *Store) run(method string, payload map[string]any, pairing bool) {
 			}
 		}
 		s.finish(scope, "", raw)
+		if testNotice != "" || testError != "" {
+			s.mu.Lock()
+			if s.view.Scope == scope {
+				s.view.TestNotice = testNotice
+				if testError != "" {
+					s.view.Error = testError
+				}
+			}
+			s.mu.Unlock()
+			s.fire()
+		}
 		if method != "provision.cancel" && previous.AttemptID != "" {
 			s.poll(ctx, p, scope, ch, previous)
 		}
