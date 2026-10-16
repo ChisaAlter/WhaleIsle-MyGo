@@ -176,6 +176,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	inspector sessionInspectorState
 	nextPrompt                nextPromptState
 	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage

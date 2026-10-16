@@ -30,6 +30,10 @@ func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCar
 	}
 	run := func(target session.TurnFileTarget, action string) {
 		if enabled {
+			if m.OnOpenChangesReview != nil && target.Kind == "changes" && (action == "summary" || action == "diff") {
+				m.OnOpenChangesReview(scope, target)
+				return
+			}
 			go m.HistoryStore.RunTurnFileAction(context.Background(), scope, session.TurnFileRequest{Target: target, Action: action})
 		}
 	}

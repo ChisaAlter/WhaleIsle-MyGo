@@ -160,6 +160,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		if snap.Projections != nil {
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
+		s.resetInspectorLocked()
 		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
 		s.turnFilesHistoryBinding = turnFileHistoryBinding(s.client, s.selectedID)
 		s.messages = nil
@@ -232,13 +233,14 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	if json.Unmarshal(raw, &head) != nil || head.Type == "" {
 		return false
 	}
+	inspectorChanged := s.captureInspectorEventLocked(raw)
 	s.captureWorkflowBoundaryLocked(raw)
 	timingChanged := s.captureTrajectoryBoundaryLocked(raw)
 	s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
 	s.noteHistoryBaseLocked(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
-	changed = changed || timingChanged
+	changed = changed || timingChanged || inspectorChanged
 	if head.Type == events.TypeAgentPresetSelected {
 		var ev events.AgentPresetSelected
 		if json.Unmarshal(raw, &ev) == nil && ev.Data.AgentPreset != "" {

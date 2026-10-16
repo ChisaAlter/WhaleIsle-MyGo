@@ -30,14 +30,29 @@ func navigationView(c *ui.Context, m Model) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.Field)).Children(func() {
 		ui.Row(c).FillWidth().Padding(10, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAgentsTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
+			title := i18n.T(i18n.KeyAgentsTitle)
+			if m.ChatOnly {
+				title = v.Title
+			}
+			ui.Text(c, title).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			var running []session.AgentSessionAddress
+			if m.ChatOnly {
+				for _, item := range snap.Items {
+					if item.SessionID == v.Address.ChildSessionID && item.Running {
+						running = append(running, v.Address)
+					}
+				}
+			}
 			for _, row := range v.Rows {
-				if row.Running {
+				if !m.ChatOnly && row.Running {
 					running = append(running, row.Address)
 				}
 			}
-			if len(running) > 0 && ui.Button(c, i18n.T(i18n.KeyAgentsInterruptAll)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
+			interruptLabel := i18n.T(i18n.KeyAgentsInterruptAll)
+			if m.ChatOnly {
+				interruptLabel = i18n.T(i18n.KeyAgentsInterrupt)
+			}
+			if len(running) > 0 && ui.Button(c, interruptLabel).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
 				m.Store.InterruptAgentNavigation(v.Token, running)
 			}
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).FontSize(theme.InterfaceSize(11)).Clicked() {
@@ -53,7 +68,7 @@ func navigationView(c *ui.Context, m Model) {
 			return
 		}
 		ui.Row(c).FillWidth().Padding(8, 12).Gap(6).Children(func() {
-			if v.Depth > 0 && ui.Button(c, agentText("返回上一级", "Back to parent")).FontSize(theme.InterfaceSize(11)).Clicked() {
+			if !m.ChatOnly && v.Depth > 0 && ui.Button(c, agentText("返回上一级", "Back to parent")).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.Store.BackAgentNavigation(v.Token)
 			}
 			ui.Text(c, v.Title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
@@ -88,24 +103,29 @@ func navigationView(c *ui.Context, m Model) {
 		}
 		ui.Scroll(c.Key(fmt.Sprintf("agents-navigation:%s:%d", v.SessionID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(10, 12).Gap(8).Children(func() {
-				ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				ui.Text(c, agentText("点击只读跟进子代理过程。", "Click to follow child progress (read-only).")).FontSize(theme.InterfaceSize(10)).TextColor(muted)
-				if len(v.Rows) == 0 && !v.Busy {
-					ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				}
-				for _, row := range v.Rows {
-					ui.Row(c).FillWidth().Gap(6).Children(func() {
-						title := row.Label + " · " + row.Address.Mode
-						if row.Running {
-							title = "● " + title
-						}
-						if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy).Clicked() {
-							m.Store.OpenAgentNavigation(v.Token, row.Address)
-						}
-						if row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
-							m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
-						}
-					})
+				if !m.ChatOnly {
+					ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, agentText("点击只读跟进子代理过程。", "Click to follow child progress (read-only).")).FontSize(theme.InterfaceSize(10)).TextColor(muted)
+					if len(v.Rows) == 0 && !v.Busy {
+						ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					}
+					for _, row := range v.Rows {
+						ui.Row(c).FillWidth().Gap(6).Children(func() {
+							title := row.Label + " · " + row.Address.Mode
+							if row.Running {
+								title = "● " + title
+							}
+							if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy).Clicked() {
+								m.Store.OpenAgentNavigation(v.Token, row.Address)
+							}
+							if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy).Clicked() {
+								m.OnOpenChat(v.Token, row.Address)
+							}
+							if row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
+								m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
+							}
+						})
+					}
 				}
 				if v.Depth > 0 {
 					ui.Row(c).FillWidth().Gap(6).Children(func() {

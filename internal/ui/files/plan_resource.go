@@ -109,7 +109,7 @@ func paintPlanTabs(c *ui.Context, m Model) {
 		return
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(4).Padding(6, 8).Children(func() {
-		if ui.Button(c, label("文件", "Files")).FontSize(theme.InterfaceSize(11)).Clicked() {
+		if !m.PlanOnly && ui.Button(c, label("文件", "Files")).FontSize(theme.InterfaceSize(11)).Clicked() {
 			m.Tabs.CancelPlanRead()
 			r.ShowFiles(sid)
 		}

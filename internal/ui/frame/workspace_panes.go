@@ -5,30 +5,33 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/browserpreview"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
 // WorkspacePanes retains native content occurrences and their split geometry.
 // Files, browsers and terminals own independent state in every leaf.
 type WorkspacePanes struct {
-	Root       *WorkspacePane `json:"root"`
-	Active     string         `json:"active"`
-	Fullscreen string         `json:"fullscreen,omitempty"`
-	Next       int            `json:"next"`
-	route      string
-	pending    func()
+	Root         *WorkspacePane `json:"root"`
+	Active       string         `json:"active"`
+	Fullscreen   string         `json:"fullscreen,omitempty"`
+	Next         int            `json:"next"`
+	route        string
+	pending      func()
 	legacyFileID string
 	focusPending string
-	closing string
-	message string
+	closing      string
+	message      string
 }
 
 type WorkspacePane struct {
-	Agents *WorkspaceAgentState `json:"-"`
-	Diff *WorkspaceDiffState `json:"diff,omitempty"`
-	Files          *WorkspaceFileState `json:"files,omitempty"`
+	Inspector      *SessionInspectorPaneState        `json:"inspector,omitempty"`
+	ChangesReview  *ChangesReviewState               `json:"changesReview,omitempty"`
+	SubagentChat   *SubagentChatPaneState            `json:"subagentChat,omitempty"`
+	Agents         *WorkspaceAgentState              `json:"-"`
+	Diff           *WorkspaceDiffState               `json:"diff,omitempty"`
+	Files          *WorkspaceFileState               `json:"files,omitempty"`
 	Browser        *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
 	browser        *browserpreview.Controller
 	Schedule       *SchedulePaneState `json:"schedule,omitempty"`
@@ -151,8 +154,12 @@ func (w *WorkspacePanes) close(id string) bool {
 	return true
 }
 func (w *WorkspacePanes) closeNow(id string) {
-	if n := w.Root.find(id); n != nil { n.disposeContent() }
-	if w.legacyFileID == id { w.legacyFileID = "" }
+	if n := w.Root.find(id); n != nil {
+		n.disposeContent()
+	}
+	if w.legacyFileID == id {
+		w.legacyFileID = ""
+	}
 	w.closing = ""
 	w.Root = w.remove(w.Root, id)
 	if w.Root == nil {
@@ -173,8 +180,12 @@ func (w *WorkspacePanes) CloseKind(kind string) string {
 		return "files"
 	}
 	n := w.Root.find(w.Active)
-	if n == nil || n.Kind != kind { n = w.Root.kind(kind) }
-	if n != nil { w.close(n.ID) }
+	if n == nil || n.Kind != kind {
+		n = w.Root.kind(kind)
+	}
+	if n != nil {
+		w.close(n.ID)
+	}
 	return w.Root.find(w.Active).Kind
 }
 func (w *WorkspacePanes) Export() json.RawMessage {
@@ -201,7 +212,9 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 		}
 		w.route = active.Kind
 	}
-	if err := w.restoreContent(); err != nil { return nil, err }
+	if err := w.restoreContent(); err != nil {
+		return nil, err
+	}
 	return &w, nil
 }
 func workspaceVisible(m Model, kind string) bool {
@@ -224,7 +237,9 @@ func prepareWorkspace(m Model) {
 	w := m.Sizes.Workspace
 	if pane := w.Root.find(w.focusPending); pane != nil {
 		w.Active, w.route = pane.ID, pane.Kind
-		if m.RightPaneTab != nil { *m.RightPaneTab = pane.Kind }
+		if m.RightPaneTab != nil {
+			*m.RightPaneTab = pane.Kind
+		}
 	}
 	w.focusPending = ""
 	w.syncRoute(derefString(m.RightPaneTab))
@@ -326,6 +341,10 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		newPane := w.leaf(next)
 		copySchedulePaneTarget(newPane, &old)
 		copyDiffPane(newPane, &old)
+		copyPlanPane(newPane, &old)
+		copyChangesReviewPane(newPane, &old)
+		copySessionInspectorPane(newPane, &old)
+		copySubagentChatPane(newPane, &old)
 		if next == "host-terminal" && n.Kind == "host-terminal" {
 			newPane.TerminalSource = old.ID
 		}
@@ -384,17 +403,21 @@ func workspacePaneControls(c *ui.Context, m Model) {
 	if w.closing == n.ID {
 		ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
 		ui.Row(c).Gap(4).Children(func() {
-			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() { w.closing = "" }
+			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() {
+				w.closing = ""
+			}
 			if ui.Button(c, paneLabel("丢弃并关闭", "Discard and close")).Clicked() {
 				w.pending = func() { w.closeNow(n.ID) }
 			}
 		})
 	}
-	if w.message != "" { ui.Text(c, w.message) }
+	if w.message != "" {
+		ui.Text(c, w.message)
+	}
 }
 
 func independentPaneKind(kind string) bool {
-	return kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff" || kind == "agents"
+	return kind == "session-inspector-log" || kind == "changes-review" || kind == "subagentchat" || kind == "plan" || kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff" || kind == "agents"
 }
 
 // SplitWorkspacePane is shared by the pane chrome and editable command registry.
@@ -424,6 +447,10 @@ func SplitWorkspacePane(m Model, vertical bool) {
 		added := w.leaf(kind)
 		copySchedulePaneTarget(added, &old)
 		copyDiffPane(added, &old)
+		copyPlanPane(added, &old)
+		copyChangesReviewPane(added, &old)
+		copySessionInspectorPane(added, &old)
+		copySubagentChatPane(added, &old)
 		if kind == "host-terminal" && old.Kind == "host-terminal" {
 			added.TerminalSource = old.ID
 		}

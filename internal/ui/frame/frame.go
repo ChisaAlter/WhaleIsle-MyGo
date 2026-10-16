@@ -206,15 +206,15 @@ type Model struct {
 	FilePaneWidth    *float32 // resolved width for responsive file-preview layout
 	RightPaneOpen    bool     // explicit visibility; Sizes.Right remains remembered when closed
 
-	RightPaneTab        *string // "files" | "diff" | "agents"
-	OnOpenAgents        func()
-	AgentsPromptDraft   *string
-	OnOpenAgentDocument func(uint64, session.AgentSessionAddress, string)
+	RightPaneTab            *string // "files" | "diff" | "agents"
+	OnOpenAgents            func()
+	AgentsPromptDraft       *string
+	OnOpenAgentDocument     func(uint64, session.AgentSessionAddress, string)
 	OnOpenAgentPaneDocument func(string, *session.Store, uint64, session.AgentSessionAddress, string)
-	AgentNavigationStore *session.Store
-	DiffPath            *string
-	DiffText            *string
-	DiffErr             *string
+	AgentNavigationStore    *session.Store
+	DiffPath                *string
+	DiffText                *string
+	DiffErr                 *string
 
 	ComposerSuggest         *ui.ListState
 	ComposerSlash           []composer.SlashCommand
@@ -967,6 +967,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnOpenImageLightbox:          m.OnOpenImageLightbox,
 										OnCloseImageLightbox:         m.OnCloseImageLightbox,
 										OnOpenCitationURL:            m.OnOpenCitationURL,
+										OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
 										OnOpenPlanResource:           m.OnOpenPlanResource,
 										OnOpenDeliverable:            m.OnOpenDeliverable,
 										VisualReply:                  m.VisualReply,
@@ -1129,7 +1130,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "diff", "agents", "browser", "host-terminal", "schedule-task":
+		case "session-inspector-log", "changes-review", "subagentchat", "plan", "diff", "agents", "browser", "host-terminal", "schedule-task":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -1152,6 +1153,30 @@ func rightPane(c *ui.Context, m Model) {
 					*m.RightPaneTab = "agents"
 				}
 			})
+			if !m.DisableDeveloperTools {
+				sessionInspectorGuide(c, m)
+			}
+			if m.workspacePane != nil && m.workspacePane.ChangesReview != nil {
+				paintRightTab(c, tab == "changes-review", changesReviewTitle(m), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "changes-review"
+					}
+				})
+			}
+			if m.workspacePane != nil && m.workspacePane.SubagentChat != nil {
+				paintRightTab(c, tab == "subagentchat", subagentChatPaneTitle(m), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "subagentchat"
+					}
+				})
+			}
+			if m.FileTabs != nil && len(m.FileTabs.Plans.Tabs) > 0 {
+				paintRightTab(c, tab == "plan", paneLabel("计划", "Plan"), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "plan"
+					}
+				})
+			}
 			if m.workspacePane != nil && m.workspacePane.Schedule != nil {
 				paintRightTab(c, tab == "schedule-task", schedulePaneTitle(m), fg, muted, accent, func() {
 					if m.RightPaneTab != nil {
@@ -1179,6 +1204,18 @@ func rightPane(c *ui.Context, m Model) {
 		if m.OnHideBrowser != nil {
 			m.OnHideBrowser()
 		}
+		if tab == "changes-review" {
+			changesReviewPane(c, m)
+			return
+		}
+		if tab == "session-inspector-log" {
+			sessionInspectorPane(c, m)
+			return
+		}
+		if tab == "subagentchat" {
+			subagentChatPane(c, m)
+			return
+		}
 		if tab == "schedule-task" {
 			scheduleTaskPane(c, m)
 			return
@@ -1191,8 +1228,11 @@ func rightPane(c *ui.Context, m Model) {
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			navigation := store
-			if m.AgentNavigationStore != nil { navigation = m.AgentNavigationStore }
+			if m.AgentNavigationStore != nil {
+				navigation = m.AgentNavigationStore
+			}
 			agents.View(c, agents.Model{
+				OnOpenChat:     subagentChatOpener(m),
 				Store:          navigation,
 				Manager:        m.AgentPresetManager,
 				Snapshot:       store.Snapshot(),
@@ -1259,6 +1299,7 @@ func rightPane(c *ui.Context, m Model) {
 			treeSplit = &m.Sizes.RightTree
 		}
 		files.View(c, files.Model{
+			PlanOnly:           tab == "plan",
 			AllowPageShortcuts: m.FileShortcuts,
 			PlanSnapshot:       m.Store.Snapshot(),
 			OnLoadPlanHistory:  func() { m.Store.LoadEarlierHistory(context.Background()) },

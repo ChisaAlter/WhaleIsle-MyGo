@@ -15,6 +15,8 @@ import (
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
+	ChatOnly       bool
+	OnOpenChat     func(uint64, session.AgentSessionAddress)
 	Store          *session.Store
 	Manager        *session.AgentPresetManager
 	Snapshot       session.ViewState

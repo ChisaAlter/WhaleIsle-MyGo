@@ -171,7 +171,8 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 		if err != nil {
 			continue
 		}
-		s.bumpHistoryThroughSeq(rec.Event.Seq)
+		s.captureInspectorEventLocked(raw)
+	s.bumpHistoryThroughSeq(rec.Event.Seq)
 		s.noteHistoryBaseLocked(rec.Event.Seq)
 		s.captureWorkflowBoundaryLocked(raw)
 		s.captureTrajectoryBoundaryLocked(raw)

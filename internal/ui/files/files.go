@@ -41,11 +41,12 @@ const sideBySideMinWidth float32 = 520
 // Model is file panel state for one frame.
 type Model struct {
 	AllowPageShortcuts func() bool
-	PlanSnapshot      session.ViewState
-	OnLoadPlanHistory func()
-	ReadSubagentPlan  func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
-	Tabs              *Tabs
-	WorkspaceRoot     string
+	PlanOnly           bool
+	PlanSnapshot       session.ViewState
+	OnLoadPlanHistory  func()
+	ReadSubagentPlan   func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
+	Tabs               *Tabs
+	WorkspaceRoot      string
 	// BindingID identifies the current Host connection and selected session.
 	SessionID       string
 	OnReferenceFile func(filelink.Reference) error
@@ -77,7 +78,7 @@ type Model struct {
 	// OnReveal opens the selected file's folder in the OS file manager.
 	OnReveal func(absPath string)
 	// OnRenderPDF converts an Office doc via officeToPdf/render then previews PDF.
-	OnRenderPDF func(rel string)
+	OnRenderPDF         func(rel string)
 	OfficePreviewStatus func(path string) string
 	// OpenWithApps are session/workspacePathApplications rows for the selected file.
 	OpenWithApps []OpenWithApp
@@ -125,6 +126,11 @@ func View(c *ui.Context, m Model) {
 	observePlanHistory(m)
 	if paintPlanResource(c, m) {
 		m.Tabs.Pause()
+		return
+	}
+	if m.PlanOnly {
+		paintPlanTabs(c, m)
+		ui.Text(c, label("从计划卡打开文档，或选择已打开的计划。", "Open a document from a plan card, or select an open plan.")).Padding(8)
 		return
 	}
 	prepareTabs(m)

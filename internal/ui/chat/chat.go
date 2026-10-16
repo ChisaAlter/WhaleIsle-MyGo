@@ -66,6 +66,7 @@ type Model struct {
 	OnOpenPlanResource   func(planpreview.Document)
 	// OnOpenDeliverable opens a presented file path in the files dock.
 	OnOpenDeliverable            func(path string)
+	OnOpenChangesReview          func(session.TurnFileScope, session.TurnFileTarget)
 	VisualReply                  session.VisualReplyState
 	VisualReplyBitmap            *ui.Bitmap
 	OnPreviewVisualReply         func(attachmentID string)
