@@ -98,6 +98,7 @@ func (p *Companion) consumePetTokens(fresh bool) {
 	if p.growth.status.Busy || p.feeding {
 		return
 	}
+	before, _ := p.Store.PetGrowth(time.Now())
 	fed, err := p.Store.FeedPetTokens(time.Now())
 	if err != nil {
 		p.growth.status.Message = "保存失败，粮与成长均未扣改 / Save failed; unchanged"
@@ -107,6 +108,12 @@ func (p *Companion) consumePetTokens(fresh bool) {
 		p.growth.status.Message = "粮碗空了，先刷新实际用量 / No local food"
 		return
 	}
+	after, _ := p.Store.PetGrowth(time.Now())
+	level := 0
+	if after.Level > before.Level {
+		level = after.Level
+	}
+	p.careAction = newCareAnimation("token", "", level)
 	_ = p.rest.wake(nil)
 	p.growth.status.Message = fmt.Sprintf("已喂 %d 本地粮，成长 +%d / Fed", fed, fed)
 	if !fresh {

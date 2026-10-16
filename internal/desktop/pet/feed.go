@@ -11,6 +11,7 @@ import (
 )
 
 type CareStatus struct {
+	Action         careAnimation
 	Label          string
 	Busy           bool
 	Message        string
@@ -24,7 +25,7 @@ func (p *Companion) careStatus() CareStatus {
 		stats = p.Store.PetStats(time.Now())
 	}
 	p.assetMu.RLock()
-	busy, message := p.feeding, p.feedMessage
+	busy, message, action := p.feeding, p.feedMessage, p.careAction
 	p.assetMu.RUnlock()
 	if message == "" {
 		message = "不读取内容，不修改文件 / Files stay untouched"
@@ -35,7 +36,7 @@ func (p *Companion) careStatus() CareStatus {
 			level++
 		}
 	}
-	return CareStatus{Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
+	return CareStatus{Action: action, Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
 }
 func renderCarePage(page []byte, care CareStatus) []byte {
 	return []byte(strings.NewReplacer("{{CARE_LABEL}}", html.EscapeString(care.Label), "{{CARE_MESSAGE}}", html.EscapeString(care.Message)).Replace(string(page)))
@@ -84,6 +85,7 @@ func (p *Companion) feedFile() {
 	p.assetMu.Lock()
 	p.feeding = false
 	if fed {
+		p.careAction = newCareAnimation("file", "", 0)
 		_ = p.rest.wake(nil)
 	}
 	p.feedMessage = message

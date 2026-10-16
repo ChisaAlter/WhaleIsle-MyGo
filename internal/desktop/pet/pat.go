@@ -18,6 +18,7 @@ func (p *Companion) patPet() {
 		p.feedMessage = "保存失败，未计入互动 / Save failed; unchanged"
 		return
 	}
+	p.careAction = newCareAnimation("pat", "", 0)
 	_ = p.rest.wake(nil)
 	p.feedMessage = "已摸摸头：心情 +10；亲密按同类冷却计入 / Patted"
 }

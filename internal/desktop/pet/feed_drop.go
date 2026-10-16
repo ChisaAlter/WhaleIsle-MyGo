@@ -53,6 +53,7 @@ func (p *Companion) fileDropAction(raw string) bool {
 		p.feedMessage = "保存失败，未计入状态 / Save failed; not applied"
 		return true
 	}
+	p.careAction = newCareAnimation("file", name, 0)
 	_ = p.rest.wake(nil)
 	p.feedMessage = "吃掉了「" + name + "」的心意！饱食 +2，心情 +1；文件未读取或改动 / Fed"
 	return true

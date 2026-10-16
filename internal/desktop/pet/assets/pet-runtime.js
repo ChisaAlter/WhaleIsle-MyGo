@@ -57,6 +57,7 @@
     if (document.querySelector("#sprite:hover,#fallback:hover,.task:hover,#pet-bubble:hover")) motionContact();
   }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null;
+  const careController = window.WhalePetCareAnimation.create({characters: [canvas, fallback]});
   const interactionController = window.WhalePetInteraction.create({characters: [canvas, fallback], getSettings: () => settings, isSleeping: () => sleeping});
   behaviorController = window.WhalePetBehavior?.create({
     bubble: document.getElementById('pet-bubble'), getSettings: () => settings,
@@ -81,6 +82,7 @@
     stopped = true; resumeRenderer = null;
     behaviorController?.close();
     interactionController.close();
+    careController.close();
     if (clickAudio) void clickAudio.close().catch(() => {});
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer); clearInterval(contactTimer);
     if (engine) void engine.close().catch(() => {});
@@ -94,6 +96,7 @@
       const task = await response.json();
       if (stopped) return;
       currentTask = task;
+      careController.update(task);
       applySettings(task.Behavior);
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
@@ -201,6 +204,7 @@
       last=now; busy=true;
       try {
         interactionController.pose(pose);
+        careController.pose(pose);
         const pixels=await engine.frame(pose);
         if (!pixels || stopped || sleeping || document.hidden) return;
         let alphaMax=0;for(let i=3;i<pixels.length;i+=4)alphaMax=Math.max(alphaMax,pixels[i]);
