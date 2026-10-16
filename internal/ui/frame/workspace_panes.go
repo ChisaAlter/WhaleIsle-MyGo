@@ -81,10 +81,10 @@ func (n *WorkspacePane) firstLeaf() *WorkspacePane {
 }
 func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) {
 	if other := w.Root.kind(kind); !independentPaneKind(kind) && other != nil && other != n {
-		if kind == "schedule-task" || n.Kind == "schedule-task" {
-			other.Schedule, n.Schedule = n.Schedule, other.Schedule
-		}
-		other.Kind = n.Kind
+		// Singleton providers are revealed in their existing seat. Moving only a
+		// kind would detach an independent file/browser occurrence from its state.
+		w.Active, w.route = other.ID, kind
+		return
 	}
 	n.Kind = kind
 	w.Active = n.ID
