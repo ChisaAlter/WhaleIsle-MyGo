@@ -31,7 +31,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	height = resizeInputHeight(c, m, height)
 	client.setViewport(height)
 	box.Height(height).Clip().
-		HandleTextInput(typingInputClient{client}).
+		HandleTextInput(&client.input).
 		HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Kind == ui.InputScroll {
 				return client.scrollBy(ev.DY)

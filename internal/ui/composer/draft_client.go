@@ -17,6 +17,9 @@ const (
 // Selection and IME marked ranges use UTF-16 code units, matching MyGo native
 // text services. Call Sync after programmatic draft edits from chips or suggest.
 type DraftClient struct {
+	// Native text input retains this adapter identity across frames so an
+	// ordinary repaint does not release an active IME composition.
+	input     typingInputClient
 	typing    typingEffects
 	Draft     *string
 	selection ui.TextInputSelection
@@ -38,6 +41,7 @@ type DraftClient struct {
 // NewDraftClient returns a client bound to draft. The pointer must stay stable.
 func NewDraftClient(draft *string) *DraftClient {
 	c := &DraftClient{Draft: draft, font: ui.Font{Size: 14}}
+	c.input.DraftClient = c
 	if draft != nil {
 		c.lastText = *draft
 		end := ui.UTF16Len(c.lastText)
