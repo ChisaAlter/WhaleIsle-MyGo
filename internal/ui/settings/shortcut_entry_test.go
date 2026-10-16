@@ -27,11 +27,24 @@ func TestDSK10ShortcutsPaneInteractions(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Key(ui.Cmd, ui.KeyA)
+	// The old fixture chord is now the real session.fork default. Ensure
+	// conflict validation still blocks save, then use an unoccupied chord.
 	tt.Type("Mod+Shift+J")
 	if err := tt.Click("save-shortcuts"); err != nil {
 		t.Fatal(err)
 	}
-	if writes != 1 || e.Active()["settings.open"] != "Mod+Shift+J" {
+	if writes != 0 || e.Active()["settings.open"] != "Mod+," {
+		t.Fatal("conflicting draft was saved")
+	}
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type("Mod+Alt+F12")
+	if err := tt.Click("save-shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	if writes != 1 || e.Active()["settings.open"] != "Mod+Alt+F12" {
 		t.Fatalf("native edit/save: %d %v", writes, e.Active())
 	}
 	if err := tt.Click("unbind-settings.open"); err != nil {
