@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/egoist/mygo"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -89,7 +88,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 		}
 		if err == nil {
 			var h *previewprocess.Session
-			h, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: filepath.Join(filepath.Dir(exe), "whaleisle-preview.exe")}, previewprocess.Document{HTML: html, Width: 728, Appearance: appearance, Inline: true})
+			h, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: html, Width: 728, Appearance: appearance, Inline: true})
 			if err == nil {
 				surface = newPublishedHTMLSurface(h, win)
 			}

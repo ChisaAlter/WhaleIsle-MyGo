@@ -145,7 +145,7 @@ func interactivePublishedHTMLHandler(win *mygo.Window, s *session.Store, session
 				if err != nil {
 					return nil, err
 				}
-				helper := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
+				helper := previewprocess.HelperPath(executable)
 				info, err := os.Stat(helper)
 				if err != nil || !info.Mode().IsRegular() {
 					return nil, fmt.Errorf("隔离 helper 未随应用安装 / Isolated preview helper is not installed")
@@ -171,6 +171,6 @@ func captureHTMLInHelper(ctx context.Context, html string, width int, appearance
 	if err != nil {
 		return htmlpreview.CaptureResult{}, err
 	}
-	helper := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
+	helper := previewprocess.HelperPath(executable)
 	return previewprocess.CaptureExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helper}, previewprocess.Document{HTML: html, Width: width, Appearance: appearance})
 }

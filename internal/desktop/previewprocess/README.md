@@ -179,3 +179,27 @@ The authenticated capture POST and published-reply PNG action use this path.
 The status endpoint and global Readiness still report the existing in-process
 runtime verification; no successful helper call changes them. Windows runtime
 operation and non-Windows isolation remain unverified/unsupported respectively.
+
+## Linux capture increment
+
+Linux amd64/arm64 now has an explicit capture-only launcher and companion.
+`HelperPath` resolves the platform-specific companion for all product callers.
+The parent invokes fixed `/usr/bin/bwrap` with all namespaces unshared, all
+capabilities dropped, a clean environment and only a trusted, read-only
+`whaleisle-preview.runtime` filesystem plus the helper mounted. The helper
+starts Xvfb inside that sandbox; no host display, home, workspace, network or
+session bus is passed. A private D-Bus session lives in the same namespace.
+Anonymous framed pipes carry the authorized frozen HTML and validated PNG.
+
+Build/package with `scripts/package-preview-linux.sh TRUSTED_RUNTIME_ROOT OUT`.
+The runtime is an explicit deployment input, never harvested automatically from
+the user's system. It must include GTK/WebKitGTK, their dependencies and fonts,
+Xvfb, and dbus-run-session (including their subprocesses and dependencies).
+The helper uses the existing capture shell, CSP, opaque iframe and PNG bounds;
+no application bindings are registered. Parent cancellation or timeout kills the
+bubblewrap process and its lifetime-bound namespace tree.
+
+This is not interactive Linux surface support and does not implement macOS
+sandbox packaging. Missing dependencies fail closed with the static fallback.
+Real GUI acceptance has not been performed, and global readiness is unchanged.
+See `docs/features/linux-isolated-capture.md` for the boundary and remaining work.

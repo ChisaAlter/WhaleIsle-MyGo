@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -38,9 +37,9 @@ func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
 		}
 		return
 	}
-	supported := runtime.GOOS == "windows" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
+	supported := (runtime.GOOS == "windows" || runtime.GOOS == "linux") && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
 	if ui.Button(c, "运行脚本（隔离实验）").Disabled(!supported).
-		Tooltip("仅本次在独立 AppContainer 窗口运行已保存 HTML 的脚本；不开放网络或应用权限。任何失败都保留当前静态预览。").Clicked() {
+		Tooltip("仅本次在独立隔离窗口运行已保存 HTML 的脚本；不开放网络或应用权限。任何失败都保留当前静态预览。").Clicked() {
 		b.startInteractiveHTML(t, dark)
 	}
 }
@@ -78,7 +77,7 @@ func installedPreviewHelper() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(filepath.Dir(executable), "whaleisle-preview.exe")
+	path := previewprocess.HelperPath(executable)
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		return "", fmt.Errorf("隔离 helper 未随应用安装，保留静态预览")

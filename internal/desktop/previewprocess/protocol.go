@@ -95,6 +95,7 @@ func validateDocument(d Document) error {
 }
 
 type packet struct {
+	Input        *interactiveInput `json:"input,omitempty"`
 	Version      int               `json:"version"`
 	Kind         string            `json:"kind"`
 	Nonce        string            `json:"nonce"`

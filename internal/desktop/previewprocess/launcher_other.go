@@ -1,4 +1,4 @@
-//go:build !windows || (!amd64 && !arm64)
+//go:build (!windows && !linux) || (!amd64 && !arm64)
 
 package previewprocess
 
@@ -8,5 +8,5 @@ import (
 )
 
 func openPlatform(context.Context, Options, Document) (*Session, error) {
-	return nil, errors.New("interactive AppContainer preview requires Windows amd64 or arm64")
+	return nil, errors.New("isolated preview is not implemented for this operating system or architecture")
 }
