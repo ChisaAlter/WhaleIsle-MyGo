@@ -149,7 +149,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		if runtime.GOOS != "windows" {
 			return nil, errors.New("PDF WebView preview is unavailable on this platform; use system open")
 		}
-		if opts.LocalPDFURL != raw || opts.SessionOrigin != "" {
+		if opts.LocalPDFURL != strings.SplitN(raw, "#", 2)[0] || opts.SessionOrigin != "" {
 			return nil, errors.New("invalid local PDF view")
 		}
 		opts.Untrusted = true
@@ -215,7 +215,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
-	if opts.OnFocus != nil { child.OnFocus(opts.OnFocus) }
+	if opts.OnFocus != nil {
+		child.OnFocus(opts.OnFocus)
+	}
 	pg := child.Page()
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {

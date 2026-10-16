@@ -53,6 +53,7 @@ func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 		}
 		opts.Title, opts.URL = t.Document.Name, t.Document.URL()
 		opts.LocalPDFURL = opts.URL
+		opts.URL = t.pdfViewerURL(opts.URL)
 	} else if t.Media != nil {
 		if !t.Media.Valid() {
 			return opts, errors.New("媒体预览已过期；请重新打开文件")

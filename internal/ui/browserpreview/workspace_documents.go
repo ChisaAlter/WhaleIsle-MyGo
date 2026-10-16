@@ -12,44 +12,48 @@ import (
 )
 
 const (
-	DocumentPDF = "pdf"
-	DocumentHTML = "html"
+	DocumentPDF       = "pdf"
+	DocumentHTML      = "html"
 	DocumentOfficePDF = "office-pdf"
 )
 
 // DocumentSource describes a resource, never a temporary server URL or lease.
 // Every restored occurrence obtains new bytes under its original source scope.
 type DocumentSource struct {
-	Authority string `json:"authority"`
-	SessionID string `json:"sessionId"`
-	ViewSessionID string `json:"viewSessionId,omitempty"`
-	AddressKind string `json:"addressKind,omitempty"`
+	Authority       string `json:"authority"`
+	SessionID       string `json:"sessionId"`
+	ViewSessionID   string `json:"viewSessionId,omitempty"`
+	AddressKind     string `json:"addressKind,omitempty"`
 	ParentSessionID string `json:"parentSessionId,omitempty"`
-	Mode string `json:"mode,omitempty"`
-	Workspace string `json:"workspace"`
-	Path string `json:"path"`
-	Kind string `json:"kind"`
+	Mode            string `json:"mode,omitempty"`
+	Workspace       string `json:"workspace"`
+	Path            string `json:"path"`
+	Kind            string `json:"kind"`
 }
 
 type DocumentResult struct {
-	PDF *pdfpreview.Document
-	HTML *htmldocument.Document
-	Err error
-	Valid func() bool
+	PDF      *pdfpreview.Document
+	HTML     *htmldocument.Document
+	Err      error
+	Valid    func() bool
 	Complete func(error)
 	Canceled func()
 }
 
 func (r DocumentResult) close() {
-	if r.PDF != nil { r.PDF.Close() }
-	if r.HTML != nil { r.HTML.Close() }
+	if r.PDF != nil {
+		r.PDF.Close()
+	}
+	if r.HTML != nil {
+		r.HTML.Close()
+	}
 }
 
 type documentLoader struct {
 	ready func(DocumentSource) bool
-	read func(context.Context, DocumentSource) DocumentResult
+	read  func(context.Context, DocumentSource) DocumentResult
 }
-type documentRead struct { cancel context.CancelFunc }
+type documentRead struct{ cancel context.CancelFunc }
 
 func (b *Controller) SetDocumentLoader(ready func(DocumentSource) bool, read func(context.Context, DocumentSource) DocumentResult) {
 	b.documentLoader = documentLoader{ready: ready, read: read}
@@ -60,7 +64,9 @@ func (b *Controller) OpenDocumentSource(source DocumentSource) {
 	for i, tab := range b.Tabs {
 		if tab.source != nil && *tab.source == source {
 			b.Select(i)
-			if tab.Document == nil && tab.HTML == nil { b.retryDocument(tab) }
+			if tab.Document == nil && tab.HTML == nil {
+				b.retryDocument(tab)
+			}
 			return
 		}
 	}
@@ -82,7 +88,9 @@ func (b *Controller) pauseDocumentReads() {
 }
 
 func (b *Controller) resumeDocument(tab *Tab) {
-	if tab.source == nil || !tab.sourcePending || tab.sourceRead != nil { return }
+	if tab.source == nil || !tab.sourcePending || tab.sourceRead != nil {
+		return
+	}
 	loader := b.documentLoader
 	if loader.ready == nil || loader.read == nil || !loader.ready(*tab.source) {
 		tab.ActionMessage = "切回文档所属会话和工作区后，将重新读取源文件恢复预览。"
@@ -102,13 +110,17 @@ func (b *Controller) resumeDocument(tab *Tab) {
 		result := loader.read(ctx, source)
 		if ctx.Err() != nil {
 			result.close()
-			if result.Canceled != nil { result.Canceled() }
+			if result.Canceled != nil {
+				result.Canceled()
+			}
 			return
 		}
 		b.parent.Update(func() {
 			if tab.sourceRead != request || ctx.Err() != nil {
 				result.close()
-				if result.Canceled != nil { result.Canceled() }
+				if result.Canceled != nil {
+					result.Canceled()
+				}
 				return
 			}
 			tab.sourceRead = nil
@@ -133,17 +145,25 @@ func (b *Controller) resumeDocument(tab *Tab) {
 			} else {
 				result.close()
 			}
-			if err != nil { tab.Error = err.Error() }
-			if result.Complete != nil { result.Complete(err) }
+			if err != nil {
+				tab.Error = err.Error()
+			}
+			if result.Complete != nil {
+				result.Complete(err)
+			}
 		})
 	}()
 }
 
 func (b *Controller) retryDocument(tab *Tab) {
-	if tab.sourceRead != nil { return }
+	if tab.sourceRead != nil {
+		return
+	}
 	tab.Error, tab.ActionMessage = "", ""
 	tab.sourcePending = true
-	if tab == b.current() { b.resumeDocument(tab) }
+	if tab == b.current() {
+		b.resumeDocument(tab)
+	}
 	b.update()
 }
 
@@ -157,8 +177,13 @@ func (b *Controller) documentSourceControls(c *ui.Context, tab *Tab) {
 // An expired lease is discarded, but the original resource descriptor remains.
 // The loader, not an expired capability URL, decides when it can be read again.
 func (b *Controller) releaseSourceDocument(tab *Tab) {
-	if tab.source == nil { return }
-	if tab.HTML != nil { b.cancelInteractivePreviews() }
+	if tab.source == nil {
+		return
+	}
+	tab.capturePDFPosition()
+	if tab.HTML != nil {
+		b.cancelInteractivePreviews()
+	}
 	tab.Document, tab.HTML, tab.Host = nil, nil, nil
 	tab.Error, tab.ActionMessage = "", ""
 	tab.sourcePending = true

@@ -34,15 +34,17 @@ type Controller struct {
 	parent           *mygo.Window
 }
 type Tab struct {
-	workspace   browserWorkspace
-	source      *DocumentSource
+	pdfPosition   *PDFReadingPosition
+	pdfPageDraft  string
+	workspace     browserWorkspace
+	source        *DocumentSource
 	sourcePending bool
-	sourceRead  *documentRead
-	tools       browserTools
-	Document    *pdfpreview.Document
-	HTML        *htmldocument.Document
-	Media       *mediapreview.Document
-	interactive *interactivePreview
+	sourceRead    *documentRead
+	tools         browserTools
+	Document      *pdfpreview.Document
+	HTML          *htmldocument.Document
+	Media         *mediapreview.Document
+	interactive   *interactivePreview
 
 	ActionMessage string
 	ArtifactPath  string
@@ -329,6 +331,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					mygo.Clipboard.WriteText(raw)
 				}
 			})
+			b.pdfReadingControls(c, t)
 			b.actionControls(c, t, s)
 			b.toolControls(c, t, s)
 			err := t.Error
