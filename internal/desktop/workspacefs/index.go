@@ -22,7 +22,7 @@ func IndexRelPaths(root string, maxFiles int) ([]string, error) {
 // SearchRelPaths traverses the complete visible tree off the UI thread. It
 // returns files only, matching the original recursive project-file search.
 func SearchRelPaths(ctx context.Context, root, query string, remote RemoteDirectoryLister) ([]string, error) {
-	return walkRelPaths(ctx, root, strings.ToLower(strings.TrimSpace(query)), remote, false)
+	return walkRelPaths(ctx, root, normalizeFileSearch(query), remote, false)
 }
 
 func walkRelPaths(ctx context.Context, root, needle string, remote RemoteDirectoryLister, includeDirs bool) ([]string, error) {
@@ -72,7 +72,7 @@ func walkRelPaths(ctx context.Context, root, needle string, remote RemoteDirecto
 			if entry.IsDir {
 				pending = append(pending, path)
 			}
-			if (includeDirs || !entry.IsDir) && strings.Contains(strings.ToLower(path), needle) {
+			if (includeDirs || !entry.IsDir) && matchesFileSearch(path, needle) {
 				out = append(out, path)
 			}
 		}

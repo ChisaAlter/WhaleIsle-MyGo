@@ -179,7 +179,10 @@ func View(c *ui.Context, m Model) {
 		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
-				ui.TextInput(c, m.Filter).FillWidth().Placeholder(i18n.T(i18n.KeyFilesFilter))
+				input := ui.TextInput(c, m.Filter).FillWidth().Placeholder(i18n.T(i18n.KeyFilesFilter))
+				if !input.Composing() && input.Shortcut(0, ui.KeyEscape) {
+					*m.Filter = ""
+				}
 			})
 		}
 		ui.Box(c).Fill().Height(1).Background(border)
