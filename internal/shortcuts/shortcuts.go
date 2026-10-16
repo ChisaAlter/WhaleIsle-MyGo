@@ -36,6 +36,11 @@ var commands = []Command{
 	{"schedule.open", "打开日程", "Open schedules", "Mod+Shift+D"},
 	{"assistant.open", "打开助手", "Open assistant", "Mod+Shift+G"},
 	{"launcher.open", "打开启动器", "Open launcher", "Mod+Shift+L"},
+	{"harness.restart", "重启 Harness", "Restart Harness", "Mod+Alt+F5"},
+	{"window.refresh", "重新绘制界面", "Refresh native interface", "Mod+F5"},
+	{"settings.mcp", "打开 MCP 设置", "Open MCP settings", ""},
+	{"settings.skills", "打开技能设置", "Open skills settings", ""},
+	{"settings.about", "打开关于", "Open about", ""},
 	{"shortcuts.open", "打开快捷键设置", "Open shortcut settings", "Mod+/"},
 	{"window.zoomIn", "放大应用界面", "Zoom in", "Mod+="},
 	{"window.zoomOut", "缩小应用界面", "Zoom out", "Mod+-"},
@@ -129,8 +134,8 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 			}
 			chord.Alt = true
 		default:
-			if i != len(parts)-1 || (token != "ENTER" && (len(token) != 1 || !strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,\\`.;'[]-=/", token))) {
-				return Chord{}, errors.New("无效按键；支持字母、数字、标点或 Enter / Invalid key; use a letter, digit, punctuation or Enter")
+			if i != len(parts)-1 || (token != "ENTER" && !functionKey(token) && (len(token) != 1 || !strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,\\`.;'[]-=/", token))) {
+				return Chord{}, errors.New("无效按键；支持字母、数字、标点、Enter 或 F1–F12 / Invalid key; use a letter, digit, punctuation, Enter or F1–F12")
 			}
 			chord.Key = token
 		}
@@ -139,8 +144,8 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 		return Chord{}, errors.New("必须包含 Mod 和一个按键 / Use Mod plus one key")
 	}
 	// Keep editing, file-save and application/window-management keys with their
-	// existing owner. Other system keys (Super, Space, Tab, Escape, F-keys) are
-	// outside the supported grammar altogether. No OS hook is installed.
+	// existing owner. Other system keys (Super, Space, Tab, Escape) are
+	// outside the supported grammar altogether; modified F1–F12 are supported. No OS hook is installed.
 	if strings.Contains("ACFHMQSVWXYZ", chord.Key) {
 		return Chord{}, errors.New("此按键保留给系统、编辑或文件操作 / Reserved for system, editing or file actions")
 	}
@@ -200,6 +205,7 @@ type Editor struct {
 	Query                  string
 	Err, Status, ReadError string
 	ResetPending           bool
+	Recording              string
 	drafts                 map[string]*string
 	active                 map[string]string
 	persist                func(map[string]string) error

@@ -2,6 +2,7 @@ package frame
 
 import (
 	"context"
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/shortcuts"
@@ -53,6 +54,12 @@ func NativeCommandChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) {
 		}
 		if i := strings.Index("0123456789", chord.Key); i >= 0 {
 			return mods, digits[i]
+		}
+	}
+	functionKeys := []ui.Key{ui.KeyF1, ui.KeyF2, ui.KeyF3, ui.KeyF4, ui.KeyF5, ui.KeyF6, ui.KeyF7, ui.KeyF8, ui.KeyF9, ui.KeyF10, ui.KeyF11, ui.KeyF12}
+	for index, key := range functionKeys {
+		if chord.Key == fmt.Sprintf("F%d", index+1) {
+			return mods, key
 		}
 	}
 	keys := map[string]ui.Key{"ENTER": ui.KeyEnter, ",": ui.KeyComma, "\\": ui.KeyBackslash, "`": ui.KeyBackquote, ".": ui.KeyPeriod, ";": ui.KeySemicolon, "'": ui.KeyQuote, "[": ui.KeyBracketLeft, "]": ui.KeyBracketRight, "-": ui.KeyMinus, "=": ui.KeyEqual, "/": ui.KeySlash}

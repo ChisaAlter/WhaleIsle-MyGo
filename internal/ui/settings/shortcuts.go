@@ -14,7 +14,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 	}
 	ui.Column(c).Key("native-page-shortcuts").Gap(8).Children(func() {
 		ui.Text(c, providerCopy("应用与主页快捷键", "Application and page shortcuts")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-		ui.Text(c, providerCopy("Mod 为 Windows/Linux 的 Ctrl、macOS 的 Command。业务命令在主页执行；缩放、实际大小、全屏与快捷键设置在各原生页面生效。输入区域、终端、弹窗保留按键所有权。", "Mod is Ctrl on Windows/Linux and Command on macOS. Business commands run on the main page; zoom, actual size, fullscreen and shortcut settings work across native pages. Inputs, terminals and popups retain key ownership.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("Mod 为 Windows/Linux 的 Ctrl、macOS 的 Command。会话和面板命令在主页执行；工作区、应用导航、缩放与运行命令在各原生页面生效。输入区域、终端、弹窗保留按键所有权。", "Mod is Ctrl on Windows/Linux and Command on macOS. Session and pane commands run on the main page; workspace, application navigation, zoom and run commands work across native pages. Inputs, terminals and popups retain key ownership.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, fmt.Sprintf(providerCopy("应用缩放：%.0f%%", "Application zoom: %.0f%%"), c.ZoomFactor()*100)).TextColor(muted)
 			if ui.Button(c, providerCopy("缩小", "Zoom out")).Clicked() {
@@ -30,7 +30,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 		if runtime.GOOS == "darwin" {
 			ui.Text(c, providerCopy("macOS 的 Command+` 保留给窗口切换，终端默认未绑定；可在下方设置其他组合。", "On macOS, Command+` belongs to window switching. Terminal is unbound by default; choose another combination below.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Text(c, providerCopy("支持 Mod + 字母、数字、标点或 Enter，可加 Shift/Alt。编辑、文件保存与系统保留按键不可改绑。草稿仅在保存成功后生效。", "Use Mod plus a letter, digit, punctuation or Enter, optionally Shift/Alt. Editing, file-save and system-reserved keys are excluded. Drafts take effect only after a successful save.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("支持 Mod + 字母、数字、标点、Enter 或 F1–F12，可加 Shift/Alt。编辑、文件保存与系统保留按键不可改绑。草稿仅在保存成功后生效。", "Use Mod plus a letter, digit, punctuation, Enter or F1–F12, optionally Shift/Alt. Editing, file-save and system-reserved keys are excluded. Drafts take effect only after a successful save.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if e.ReadError != "" {
 			ui.Text(c, e.ReadError).TextColor(fg)
 		}
@@ -64,6 +64,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 				}
 				ui.Text(c, providerCopy("已保存：", "Saved: ")+display+providerCopy("；默认：", "; default: ")+defaultDisplay).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.TextInput(c, e.Draft(command.ID)).Label("shortcut-" + command.ID).FillWidth().Disabled(e.ReadError != "").Placeholder(command.Default)
+				shortcutRecorder(c, e, command.ID)
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("解绑", "Unbind")).Label("unbind-" + command.ID).Disabled(e.ReadError != "").Clicked() {
 						*e.Draft(command.ID) = ""
@@ -80,7 +81,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 			})
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("保存快捷键", "Save shortcuts")).Label("save-shortcuts").Disabled(e.ReadError != "" || len(issues) > 0 || e.ResetPending).Clicked() {
+			if ui.Button(c, providerCopy("保存快捷键", "Save shortcuts")).Label("save-shortcuts").Disabled(e.ReadError != "" || len(issues) > 0 || e.ResetPending || e.Recording != "").Clicked() {
 				e.Save()
 			}
 			if ui.Button(c, providerCopy("恢复全部默认值…", "Reset all shortcuts…")).Label("reset-shortcuts").Disabled(e.ReadError != "" || e.ResetPending).Clicked() {

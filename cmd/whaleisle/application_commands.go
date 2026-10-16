@@ -31,7 +31,7 @@ func (s *mainState) applicationCommandActions(c *ui.Context) map[string]func() {
 }
 
 func (s *mainState) registerApplicationCommands(c *ui.Context) {
-	actions := s.applicationCommandActions(c)
+	actions := s.applicationMenuActions(c)
 	bindings := shortcuts.Resolve(s.pageShortcutBindings())
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]
