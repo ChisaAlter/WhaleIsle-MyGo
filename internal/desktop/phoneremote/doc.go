@@ -1,9 +1,10 @@
-// Package phoneremote documents the M11 phone remote surface.
+// Package phoneremote implements the desktop-side phone remote bridge.
 //
-// This package assesses configuration only; the Go shell has not integrated
-// the offer v2 pairing runtime or relay-connected state. It validates a
-// credential-free mobile landing URL and labels credentials.remoteDevices.
-// Daemon listen endpoints must never be presented as mobile web entry points.
+// Runtime wraps the installed original DshdRemote implementation for offer v2
+// pairing, observed relay state, paired-device management, and session-scoped
+// Git forwarding. Configuration readiness remains a separate checklist and
+// never proves live Android connectivity. Daemon listen endpoints must never
+// be presented as mobile web entry points.
 //
 // # config.Config (config.json)
 //
