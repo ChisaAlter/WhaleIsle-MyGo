@@ -225,6 +225,7 @@ type mainState struct {
 	credsShowSecrets                        bool
 	usage                                   *usagestore.Store
 	accountReturn                           accountReturnState
+	accountNotice                           accountBonusNoticeState
 	im                                      *imstore.Store
 	market                                  *marketstore.Store
 	schedule                                *schedstore.Store
@@ -2708,6 +2709,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	defer state.syncAccountBonusNotice(c)
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
