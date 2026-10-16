@@ -27,8 +27,8 @@
   document.addEventListener('keydown', modifier);
   document.addEventListener('keyup', modifier);
   window.addEventListener('blur', () => {shiftHeld = false; applySettings();});
-  document.addEventListener('click', event => {
-    if (!settings.clickSound || !event.target.closest('a[href]')) return;
+  function playClickSound() {
+    if (!settings.clickSound) return;
     try {
       const Audio = window.AudioContext || window.webkitAudioContext;
       if (!Audio) return;
@@ -42,6 +42,9 @@
       oscillator.onended = () => {oscillator.disconnect(); gain.disconnect();};
       oscillator.start(time); oscillator.stop(time + .1);
     } catch {}
+  }
+  document.addEventListener('click', event => {
+    if (event.target.closest('a[href]')) playClickSound();
   });
   applySettings(settings);
   let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
@@ -58,7 +61,7 @@
   }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null, paintSleeping = null;
   const careController = window.WhalePetCareAnimation.create({characters: [canvas, fallback]});
-  const interactionController = window.WhalePetInteraction.create({characters: [canvas, fallback], getSettings: () => settings, isSleeping: () => sleeping});
+  const interactionController = window.WhalePetInteraction.create({characters: [canvas, fallback], getSettings: () => settings, isSleeping: () => sleeping, onTap: playClickSound});
   behaviorController = window.WhalePetBehavior?.create({
     bubble: document.getElementById('pet-bubble'), getSettings: () => settings,
     getStatus: () => currentTask, isSleeping: () => sleeping,

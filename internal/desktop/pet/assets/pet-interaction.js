@@ -28,7 +28,7 @@
  */
 // Pose channels adapted from WhaleIsle e9f584be pet-live2d.js.
 // Native Go owns the screen cursor, window trajectory and persisted care.
-window.WhalePetInteraction = {create({characters, getSettings, isSleeping}) {
+window.WhalePetInteraction = {create({characters, getSettings, isSleeping, onTap}) {
  const pose = new Float32Array(45);
  const rng=(a,b)=>a+Math.random()*(b-a), clamp01=v=>Math.max(0,Math.min(1,v));
  const smooth=t=>t*t*(3-2*t), actEnv=p=>Math.sin(Math.PI*clamp01(p));
@@ -259,6 +259,8 @@ function isolateClosedEyes() {
   action(cancelled?'gesture-cancel':'gesture-release');
   if(target.hasPointerCapture(pointerId))target.releasePointerCapture(pointerId);
   if(!wasMoved&&!cancelled) {
+   // Only completed taps sound; click/dblclick and capture loss must not replay them.
+   onTap?.();
    const now=performance.now();
    taps=taps.filter(t=>now-t<3000);taps.push(now);
    idle.lastInteract=now;
