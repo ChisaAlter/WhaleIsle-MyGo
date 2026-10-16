@@ -5,9 +5,11 @@ package browserrecording
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"image/png"
+	"mime"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,20 +17,18 @@ import (
 )
 
 const (
-	MaxBytes           = 64 * 1024 * 1024
-	MaxDuration        = 2 * time.Minute
-	FrameInterval      = 125 * time.Millisecond
-	MaxFrameBytes      = 8 * 1024 * 1024
+	MaxBytes      = 512 * 1024 * 1024
+	FrameInterval = 84 * time.Millisecond
+	MaxFrameBytes = 64 * 1024 * 1024
+	// Decoded pixels remain bounded even on high-DPI native displays.
+	MaxFramePixels     = MaxBytes / 4
 	TransferChunkBytes = 256 * 1024
 )
 
-var errDurationLimit = errors.New("browser recording: duration limit reached")
-
 type Progress struct {
-	Phase        string
-	Frames       int
-	Elapsed      time.Duration
-	LimitReached bool
+	Phase   string
+	Frames  int
+	Elapsed time.Duration
 }
 type Artifact struct {
 	MIME string
@@ -89,7 +89,7 @@ func run(ctx context.Context, capture func(context.Context) ([]byte, error), cur
 		return Artifact{}, err
 	}
 	if !validMIME(mime) {
-		return Artifact{}, errors.New("browser recording: WebM encoding unavailable")
+		return Artifact{}, errors.New("browser recording: video encoding unavailable")
 	}
 	started := time.Now()
 	p := Progress{Phase: "recording", Frames: 1}
@@ -103,25 +103,20 @@ func run(ctx context.Context, capture func(context.Context) ([]byte, error), cur
 	if err = report(); err != nil {
 		return Artifact{}, err
 	}
-	duration := time.NewTimer(MaxDuration)
-	defer duration.Stop()
+	// Match the original capture scheduler (ceil(1000/12) milliseconds).
+	// Capture and encode stay serial; slow consumers drop ticks rather than queue PNGs.
+	tick := time.NewTicker(FrameInterval)
+	defer tick.Stop()
 	for {
 		if err = valid(); err != nil {
 			return Artifact{}, err
 		}
-		tick := time.NewTimer(FrameInterval)
 		finish := false
 		select {
 		case <-ctx.Done():
-			tick.Stop()
 			return Artifact{}, ctx.Err()
 		case <-stop:
-			tick.Stop()
 			finish = true
-		case <-duration.C:
-			tick.Stop()
-			finish = true
-			p.LimitReached = true
 		case <-tick.C:
 		}
 		if err = valid(); err != nil {
@@ -140,10 +135,7 @@ func run(ctx context.Context, capture func(context.Context) ([]byte, error), cur
 		if err = valid(); err != nil {
 			return Artifact{}, err
 		}
-		if err = e.Frame(ctx, frame); errors.Is(err, errDurationLimit) {
-			p.LimitReached = true
-			break
-		} else if err != nil {
+		if err = e.Frame(ctx, frame); err != nil {
 			return Artifact{}, err
 		}
 		frame = nil
@@ -177,30 +169,100 @@ func run(ctx context.Context, capture func(context.Context) ([]byte, error), cur
 
 func validateFrame(data []byte) error {
 	if len(data) == 0 || len(data) > MaxFrameBytes {
-		return errors.New("browser recording: PNG frame exceeds 8 MiB")
+		return errors.New("browser recording: PNG frame exceeds 64 MiB")
 	}
 	cfg, err := png.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("browser recording: invalid PNG frame: %w", err)
 	}
-	if cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 4096 || cfg.Height > 4096 || int64(cfg.Width)*int64(cfg.Height) > 4*1024*1024 {
-		return errors.New("browser recording: frame exceeds 4 megapixels")
+	if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width)*int64(cfg.Height) > MaxFramePixels {
+		return errors.New("browser recording: frame exceeds the bounded pixel budget")
 	}
 	return nil
 }
-func validMIME(mime string) bool {
-	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(mime), " ", "")) {
-	case "video/webm", "video/webm;codecs=vp8", "video/webm;codecs=vp9":
-		return true
+func validMIME(value string) bool {
+	mediaType, params, err := mime.ParseMediaType(value)
+	if err != nil || (mediaType != "video/webm" && mediaType != "video/mp4") {
+		return false
 	}
-	return false
+	for key, value := range params {
+		if key != "codecs" {
+			return false
+		}
+		for _, codec := range strings.Split(strings.ToLower(value), ",") {
+			codec = strings.TrimSpace(codec)
+			if mediaType == "video/webm" {
+				if codec != "vp8" && codec != "vp9" {
+					return false
+				}
+			} else if codec != "avc1" && codec != "hvc1" && codec != "hev1" && codec != "av01" && codec != "vp09" && !strings.HasPrefix(codec, "avc1.") && !strings.HasPrefix(codec, "hvc1.") && !strings.HasPrefix(codec, "hev1.") && !strings.HasPrefix(codec, "av01.") && !strings.HasPrefix(codec, "vp09.") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
-// Validate checks bounded bytes, negotiated video-only MIME, EBML DocType and
-// Segment signature. It is container validation, never a playback/decoder test.
+// Extension follows the negotiated encoder container; it never relabels bytes.
+func (a Artifact) Extension() string {
+	mediaType, _, _ := mime.ParseMediaType(a.MIME)
+	if mediaType == "video/mp4" {
+		return ".mp4"
+	}
+	return ".webm"
+}
+
+// validateMP4 checks complete top-level ISO BMFF boxes, including extended sizes.
+// This detects truncated/mislabeled output; it does not claim codec playback.
+func validateMP4(data []byte) bool {
+	ftyp, moov, mdat := false, false, false
+	for len(data) > 0 {
+		if len(data) < 8 {
+			return false
+		}
+		size := uint64(binary.BigEndian.Uint32(data[:4]))
+		header := uint64(8)
+		if size == 1 {
+			if len(data) < 16 {
+				return false
+			}
+			size = binary.BigEndian.Uint64(data[8:16])
+			header = 16
+		} else if size == 0 {
+			size = uint64(len(data))
+		}
+		if size < header || size > uint64(len(data)) {
+			return false
+		}
+		switch string(data[4:8]) {
+		case "ftyp":
+			if ftyp || size < header+8 {
+				return false
+			}
+			ftyp = true
+		case "moov":
+			moov = true
+		case "mdat":
+			mdat = true
+		}
+		data = data[int(size):]
+	}
+	return ftyp && moov && mdat
+}
+
+// Validate checks bounded bytes, negotiated video-only MIME and container headers. It is container validation, never a playback/decoder test.
 func (a Artifact) Validate() error {
-	bad := errors.New("browser recording: invalid or oversized WebM output")
-	if !validMIME(a.MIME) || len(a.Data) < 64 || len(a.Data) > MaxBytes || !bytes.HasPrefix(a.Data, []byte{0x1a, 0x45, 0xdf, 0xa3}) {
+	bad := errors.New("browser recording: invalid or oversized video output")
+	if !validMIME(a.MIME) || len(a.Data) < 64 || len(a.Data) > MaxBytes {
+		return bad
+	}
+	if a.Extension() == ".mp4" {
+		if !validateMP4(a.Data) {
+			return bad
+		}
+		return nil
+	}
+	if !bytes.HasPrefix(a.Data, []byte{0x1a, 0x45, 0xdf, 0xa3}) {
 		return bad
 	}
 	size, n, ok := ebmlSize(a.Data[4:])
@@ -271,12 +333,12 @@ func (a Artifact) Export(ctx context.Context, path string) error {
 	if err := a.Validate(); err != nil {
 		return err
 	}
-	if path == "" || !strings.EqualFold(filepath.Ext(path), ".webm") {
-		return errors.New("请选择新的 .webm 文件名")
+	if path == "" || !strings.EqualFold(filepath.Ext(path), a.Extension()) {
+		return fmt.Errorf("请选择新的 %s 文件名", a.Extension())
 	}
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return fmt.Errorf("导出失败；请选择尚不存在的 .webm 文件：%w", err)
+		return fmt.Errorf("导出失败；请选择尚不存在的 %s 文件：%w", a.Extension(), err)
 	}
 	identity, err := file.Stat()
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // Synthetic protocol fixture only. These bytes assert container gating; they
@@ -18,6 +19,9 @@ func syntheticWebM() []byte {
 	return append(b, make([]byte, 80)...)
 }
 func TestSyntheticRecordingProtocol(t *testing.T) {
+	if MaxBytes != 512*1024*1024 || FrameInterval != 84*time.Millisecond {
+		t.Fatal("original recording range changed")
+	}
 	good := Artifact{MIME: "video/webm;codecs=vp8", Data: syntheticWebM()}
 	if err := good.Validate(); err != nil {
 		t.Fatal(err)
@@ -31,6 +35,16 @@ func TestSyntheticRecordingProtocol(t *testing.T) {
 	corrupt[8] = 'x'
 	if (Artifact{MIME: good.MIME, Data: corrupt}).Validate() == nil {
 		t.Fatal("accepted wrong EBML doctype")
+	}
+	mp4 := Artifact{MIME: "video/mp4;codecs=avc1.42E01E", Data: append([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 0, 0, 'i', 's', 'o', 'm', 'm', 'p', '4', '2', 0, 0, 0, 8, 'm', 'o', 'o', 'v', 0, 0, 0, 40, 'm', 'd', 'a', 't'}, make([]byte, 32)...)}
+	if err := mp4.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if mp4.Extension() != ".mp4" || good.Extension() != ".webm" {
+		t.Fatal("wrong container extension")
+	}
+	if validMIME("video/mp4;codecs=mp4a.40.2") {
+		t.Fatal("accepted audio codec")
 	}
 	var pngBuffer bytes.Buffer
 	if err := png.Encode(&pngBuffer, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
@@ -72,14 +86,13 @@ func TestSyntheticRecordingProtocol(t *testing.T) {
 	if _, err = run(context.Background(), func(context.Context) ([]byte, error) { return frame, nil }, func() bool { return current }, stop, nil, e); !errors.Is(err, context.Canceled) {
 		t.Fatalf("stale source = %v", err)
 	}
-	// An encoder-side duration deadline (while native capture was pending)
-	// finalizes once and never asks for a third frame.
+	// Encoder failures discard incomplete output, including a byte-limit error.
 	count = 0
-	limited := false
-	e = &fixtureEncoder{artifact: good, frameError: errDurationLimit}
-	got, err = run(context.Background(), func(context.Context) ([]byte, error) { count++; return frame, nil }, func() bool { return true }, make(chan struct{}), func(p Progress) error { limited = p.LimitReached; return nil }, e)
-	if err != nil || count != 2 || !limited || !e.finished || len(got.Data) == 0 {
-		t.Fatalf("encoder duration limit: %d %v %v", count, limited, err)
+	encodeErr := errors.New("encoded output exceeds 512 MiB")
+	e = &fixtureEncoder{artifact: good, frameError: encodeErr}
+	got, err = run(context.Background(), func(context.Context) ([]byte, error) { count++; return frame, nil }, func() bool { return true }, make(chan struct{}), nil, e)
+	if !errors.Is(err, encodeErr) || count != 2 || e.finished || len(got.Data) != 0 || !e.closed {
+		t.Fatalf("encoder failure: %d %v", count, err)
 	}
 	current = true
 	e = &fixtureEncoder{artifact: good}
@@ -100,6 +113,9 @@ func TestSyntheticRecordingProtocol(t *testing.T) {
 	}
 	if err = good.Export(context.Background(), path); err == nil {
 		t.Fatal("overwrote existing export")
+	}
+	if err = mp4.Export(context.Background(), filepath.Join(dir, "fixture.mp4")); err != nil {
+		t.Fatal(err)
 	}
 	gotBytes, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(gotBytes, good.Data) {

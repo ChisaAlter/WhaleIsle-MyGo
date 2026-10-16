@@ -35,32 +35,32 @@ func newEncoder(ctx context.Context) (result encoder, err error) {
 		if r := recover(); r != nil {
 			e.Close()
 			result = nil
-			err = fmt.Errorf("WebM 编码窗口不可用：%v", r)
+			err = fmt.Errorf("视频编码窗口不可用：%v", r)
 		}
 	}()
 	e.win = mygo.NewWindow(mygo.WindowOptions{
-		Title: "Browser WebM encoder", Width: 1280, Height: 720, UseContentSize: true,
+		Title: "Browser video encoder", Width: 1280, Height: 720, UseContentSize: true,
 		Hidden: true, SkipTaskbar: true, Frameless: true, DisableResize: true,
 		Page: mygo.PageOptions{IsolatedPreview: true, DisableBindings: true, DevTools: mygo.DevToolsDisabled},
 	})
 	if e.win == nil || e.win.IsDestroyed() || e.win.Page() == nil {
 		e.Close()
-		return nil, errors.New("WebM 编码窗口创建失败")
+		return nil, errors.New("视频编码窗口创建失败")
 	}
 	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if err = e.loadBlank(initCtx); err != nil {
 		e.Close()
-		return nil, fmt.Errorf("WebM 隔离编码页启动失败：%w", err)
+		return nil, fmt.Errorf("视频隔离编码页启动失败：%w", err)
 	}
 	value, err := e.call(initCtx, helperScript)
 	if err != nil {
 		e.Close()
-		return nil, fmt.Errorf("当前系统 WebView 无可用 WebM 编码器：%w", err)
+		return nil, fmt.Errorf("当前系统 WebView 无可用 视频编码器：%w", err)
 	}
 	if ready, ok := value.(bool); !ok || !ready {
 		e.Close()
-		return nil, errors.New("WebM 编码器未就绪")
+		return nil, errors.New("视频编码器未就绪")
 	}
 	return e, nil
 }
@@ -99,7 +99,7 @@ func (e *nativeEncoder) call(ctx context.Context, code string) (any, error) {
 		return nil, err
 	}
 	if e.win == nil || e.win.IsDestroyed() {
-		return nil, errors.New("WebM 编码窗口已关闭")
+		return nil, errors.New("视频编码窗口已关闭")
 	}
 	timeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -112,7 +112,7 @@ func (e *nativeEncoder) Start(ctx context.Context, frame []byte) (string, error)
 	}
 	mime, ok := value.(string)
 	if !ok || !validMIME(mime) {
-		return "", errors.New("WebM 编码器返回了无效格式")
+		return "", errors.New("视频编码器返回了无效格式")
 	}
 	return mime, nil
 }
@@ -121,11 +121,8 @@ func (e *nativeEncoder) Frame(ctx context.Context, frame []byte) error {
 	if err != nil {
 		return err
 	}
-	if status, ok := value.(string); ok && status == "limit" {
-		return errDurationLimit
-	}
 	if accepted, ok := value.(bool); !ok || !accepted {
-		return errors.New("WebM 编码器未接收帧")
+		return errors.New("视频编码器未接收帧")
 	}
 	return nil
 }
@@ -139,8 +136,8 @@ func (e *nativeEncoder) frameCall(ctx context.Context, method string, frame []by
 	return e.call(ctx, "globalThis.__whaleBrowserRecorder."+method+"("+string(encoded)+")")
 }
 func (e *nativeEncoder) Finish(ctx context.Context) (Artifact, error) {
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
+	// Each bridge request has its own bounded timeout. A fixed total transfer
+	// deadline would truncate legitimate larger artifacts before the 512 MiB cap.
 	value, err := e.call(ctx, "globalThis.__whaleBrowserRecorder.finish()")
 	if err != nil {
 		return Artifact{}, err
@@ -153,7 +150,7 @@ func (e *nativeEncoder) Finish(ctx context.Context) (Artifact, error) {
 		return Artifact{}, err
 	}
 	if !validMIME(info.MIME) || info.Bytes < 64 || info.Bytes > MaxBytes {
-		return Artifact{}, errors.New("WebM 编码长度或格式无效")
+		return Artifact{}, errors.New("视频编码长度或格式无效")
 	}
 	result := Artifact{MIME: info.MIME, Data: make([]byte, 0, info.Bytes)}
 	for len(result.Data) < info.Bytes {
@@ -172,11 +169,11 @@ func (e *nativeEncoder) Finish(ctx context.Context) (Artifact, error) {
 		}
 		expected := min(TransferChunkBytes, info.Bytes-offset)
 		if part.Offset != offset || part.Length != expected || len(part.Data) != base64.StdEncoding.EncodedLen(expected) {
-			return Artifact{}, errors.New("WebM 输出分块无效")
+			return Artifact{}, errors.New("视频输出分块无效")
 		}
 		data, err := base64.StdEncoding.DecodeString(part.Data)
 		if err != nil || len(data) != expected {
-			return Artifact{}, errors.New("WebM 输出分块无法解码")
+			return Artifact{}, errors.New("视频输出分块无法解码")
 		}
 		result.Data = append(result.Data, data...)
 	}

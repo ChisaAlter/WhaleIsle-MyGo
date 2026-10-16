@@ -19,18 +19,17 @@ import (
 // UI-thread state for one explicitly clicked Browser tab. Worker inputs are
 // immutable channels/context/Host/epoch; workers never read Controller or Tab.
 type browserRecording struct {
-	tab          *Tab
-	host         *desktop.Host
-	epoch        uint64
-	ctx          context.Context
-	cancel       context.CancelFunc
-	stop         chan struct{}
-	stopOnce     sync.Once
-	phase        string
-	frames       int
-	elapsed      time.Duration
-	limitReached bool
-	artifact     *browserrecording.Artifact
+	tab      *Tab
+	host     *desktop.Host
+	epoch    uint64
+	ctx      context.Context
+	cancel   context.CancelFunc
+	stop     chan struct{}
+	stopOnce sync.Once
+	phase    string
+	frames   int
+	elapsed  time.Duration
+	artifact *browserrecording.Artifact
 }
 
 func (b *Controller) recordingCurrent(r *browserRecording) bool {
@@ -73,18 +72,19 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 	r := &browserRecording{tab: t, host: t.Host, epoch: t.Host.BrowserPageVersion(), ctx: ctx, cancel: cancel, stop: make(chan struct{}), phase: "starting"}
 	b.recording = r
 	t.Error = ""
-	t.ActionMessage = "准备 WebM 编码器；仅录制当前网页，无音频…"
+	t.ActionMessage = "准备视频编码器；仅录制当前网页，无音频…"
 	b.update()
 	// Freeze references before leaving the UI thread. No live Host/model RPC,
 	// display capture, guest script execution or authentication material is used.
 	owner, host, epoch := b.parent, r.host, r.epoch
 	go func() {
-		workCtx, workCancel := context.WithTimeout(ctx, 3*time.Minute)
-		defer workCancel()
+		// Original recording has no duration cutoff; cancellation and per-operation
+		// deadlines still bind source capture, encoding and owner callbacks.
+		workCtx := ctx
 		current := func() bool {
 			return workCtx.Err() == nil && recordingSourceCurrent(host, epoch)
 		}
-		result, err := browserrecording.Capture(workCtx, func(ctx context.Context) ([]byte, error) { return host.CaptureBrowserFrame(ctx, epoch) }, current, r.stop, func(p browserrecording.Progress) error {
+		result, err := browserrecording.Capture(workCtx, func(ctx context.Context) ([]byte, error) { return host.CaptureBrowserRecordingFrame(ctx, epoch) }, current, r.stop, func(p browserrecording.Progress) error {
 			accepted := make(chan bool, 1)
 			owner.Update(func() {
 				if !b.recordingCurrent(r) {
@@ -95,14 +95,13 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 				if r.phase != "stopping" {
 					r.phase = p.Phase
 					if p.Phase == "recording" {
-						r.tab.ActionMessage = "正在录制当前网页（无音频）；停止后可导出 WebM"
+						r.tab.ActionMessage = "正在录制当前网页（无音频）；停止后可导出视频"
 					}
 				}
 				r.frames = p.Frames
 				r.elapsed = p.Elapsed
-				r.limitReached = p.LimitReached
 				if p.Phase == "stopping" {
-					r.tab.ActionMessage = "停止取帧，正在完成 WebM 编码…"
+					r.tab.ActionMessage = "停止取帧，正在完成视频编码…"
 				}
 				accepted <- true
 			})
@@ -138,7 +137,7 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 			}
 			r.artifact = &result
 			r.phase = "ready"
-			t.ActionMessage = fmt.Sprintf("WebM 已编码（%.1f MiB）；点击「导出视频」保存，或丢弃", float64(len(result.Data))/(1024*1024))
+			t.ActionMessage = fmt.Sprintf("视频已编码（%.1f MiB）；点击「导出视频」保存，或丢弃", float64(len(result.Data))/(1024*1024))
 		})
 	}()
 }
@@ -148,7 +147,7 @@ func (b *Controller) stopBrowserRecording(r *browserRecording) {
 	}
 	r.phase = "stopping"
 	r.stopOnce.Do(func() { close(r.stop) })
-	r.tab.ActionMessage = "停止取帧，正在完成 WebM 编码…"
+	r.tab.ActionMessage = "停止取帧，正在完成视频编码…"
 	b.update()
 }
 func (b *Controller) exportBrowserRecording(r *browserRecording) {
@@ -159,7 +158,7 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 	b.update()
 	owner, artifact := b.parent, *r.artifact
 	go func() {
-		path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: owner, Title: "导出网页视频（WebM，无音频）", DefaultPath: "browser-" + time.Now().Format("20060102-150405") + ".webm", Filters: []mygo.FileFilter{{Name: "WebM video", Extensions: []string{"webm"}}}})
+		path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: owner, Title: "导出网页视频（无音频）", DefaultPath: "browser-" + time.Now().Format("20060102-150405") + artifact.Extension(), Filters: []mygo.FileFilter{{Name: "Video", Extensions: []string{artifact.Extension()[1:]}}}})
 		owner.Update(func() {
 			if !b.recordingCurrent(r) {
 				if b.recording == r {
@@ -177,10 +176,10 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 				return
 			}
 			if filepath.Ext(path) == "" {
-				path += ".webm"
+				path += artifact.Extension()
 			}
 			r.tab.Error = ""
-			r.tab.ActionMessage = "正在导出 WebM…"
+			r.tab.ActionMessage = "正在导出视频…"
 			go func() {
 				err := artifact.Export(r.ctx, path)
 				owner.Update(func() {
@@ -216,11 +215,8 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 				b.stopBrowserRecording(r)
 			}
 		case "stopping":
-			ui.Text(c, "完成 WebM 编码…").FontSize(fonttheme.InterfaceSize(11))
+			ui.Text(c, "完成视频编码…").FontSize(fonttheme.InterfaceSize(11))
 		case "ready":
-			if r.limitReached {
-				ui.Text(c, "已达 2 分钟上限").FontSize(fonttheme.InterfaceSize(11))
-			}
 			if ui.Button(c, "导出视频…").Clicked() {
 				b.exportBrowserRecording(r)
 			}
@@ -237,7 +233,7 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		}
 		return
 	}
-	if ui.Button(c, "录制 WebM").Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip("仅当前网页，无音频；最多 8 帧/秒、1280×720、2 分钟、64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM 编码支持；macOS 需要 Safari/WebKit 18.4 或更新，Linux 取决于 WebKitGTK 与媒体插件。").Clicked() {
+	if ui.Button(c, "录制视频").Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。").Clicked() {
 		b.startBrowserRecording(t)
 	}
 	if t.RecordingPath != "" && ui.Button(c, "显示视频").Clicked() {
