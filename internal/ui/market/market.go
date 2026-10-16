@@ -51,6 +51,7 @@ type Model struct {
 	OnCancelInstall    func()
 	OnAcceptExemption  func(packageVersion, runtimeVersion string)
 	OnCopyInstallLog   func(log string)
+	OnExportHistory    func()
 	// OnOpenHarnessMarket opens the Electron ui-settings-market WebView when overlay is on.
 	OnOpenHarnessMarket func()
 }
@@ -101,6 +102,9 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
 				if d.Tab == "history" {
+					if m.OnExportHistory != nil && ui.Button(c, marketText("导出安装历史", "Export installation history")).Disabled(len(personal.History) == 0).Clicked() {
+						m.OnExportHistory()
+					}
 					ui.Text(c, marketText("最近 200 次操作；interrupted 或 unknown 表示结果未确认，重试前请刷新库存。", "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
 					if len(personal.History) == 0 {
 						ui.Text(c, marketText("暂无安装历史。", "No installation history yet.")).TextColor(muted)

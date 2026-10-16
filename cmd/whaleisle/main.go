@@ -3819,6 +3819,20 @@ func mainView(c *ui.Context) {
 					OnSetBundleEnabled: func(name string, enabled bool) {
 						state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled})
 					},
+					OnExportHistory: func() {
+						data := marketStore.ExportHistory()
+						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "导出安装历史 / Export installation history", DefaultPath: "whaleisle-marketplace.log"})
+						if err != nil {
+							mygo.Dialog.Error("Market export", err.Error())
+							return
+						}
+						if path == "" {
+							return
+						}
+						if err = os.WriteFile(path, data, 0600); err != nil {
+							mygo.Dialog.Error("Market export", err.Error())
+						}
+					},
 					OnCopyInstallLog: func(log string) {
 						if strings.TrimSpace(log) != "" {
 							mygo.Clipboard.WriteText(log)
