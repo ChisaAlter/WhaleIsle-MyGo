@@ -261,6 +261,7 @@ type Model struct {
 	OnOpenWithApp        func(absPath, appID string)
 	FileOpenWithApps     []files.OpenWithApp
 	OnRenderOfficePDF    func(rel string)
+	OfficePreviewStatus func(path string) string
 	OnOpenBrowserPreview func()
 	OnOpenMarket         func()
 	OnOpenSchedule       func()
@@ -1289,6 +1290,7 @@ func rightPane(c *ui.Context, m Model) {
 			OnOpenWith:   m.OnOpenWithApp,
 			OpenWithApps: m.FileOpenWithApps,
 			OnRenderPDF:  m.OnRenderOfficePDF,
+			OfficePreviewStatus: m.OfficePreviewStatus,
 			OnAddToChat:  m.OnAddSelectionToChat,
 			CanAddToChat: m.CanAddSelectionToChat,
 			OnOpenLink:   m.OnOpenCitationURL,

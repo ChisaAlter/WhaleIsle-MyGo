@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"strings"
 	"time"
 	"whaleisle/internal/desktop/mediapreview"
 
 	"whaleisle/internal/desktop/pdfpreview"
-	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
 )
 
@@ -44,25 +41,23 @@ func (s *mainState) startPDFPreview(sessions *session.Store, sid, root, path str
 	if !valid() {
 		return
 	}
-	sessions.SetLastAction("正在准备 PDF 只读预览…")
+	if convert {
+		s.setOfficePreviewMessage(sessions, sid, path, "正在转换 Office 文档并准备 PDF 预览…")
+	} else {
+		sessions.SetLastAction("正在准备 PDF 只读预览…")
+	}
 	go func() {
 		var doc *pdfpreview.Document
 		var err error
+		var office *session.OfficePDFDocument
 		if convert {
-			// Only this input in this Session may request conversion. The returned path
-			// grants exactly one snapshot, never its temp directory or any sibling file.
-			_, err = workspacefs.JoinRoot(root, path)
-			if err == nil && (!filepath.IsAbs(root) || strings.TrimSpace(path) == "") {
-				err = fmt.Errorf("Office PDF requires the active session workspace")
-			}
-			if err == nil {
-				var generated string
-				generated, err = sessions.RenderOfficePDFForSession(context.Background(), sid, path)
-				if err == nil && valid() {
-					doc, err = pdfpreview.OpenGenerated(generated, valid)
-				} else if err == nil {
-					err = fmt.Errorf("Office conversion session changed")
-				}
+			// The Host returns the source Office path and complete PDF bytes.
+			// Never open its source or private conversion directory locally.
+			office, err = sessions.RenderOfficePDFBytesForSession(context.Background(), sid, path)
+			if err == nil && valid() {
+				doc, err = pdfpreview.OpenBytes(officePreviewName(path), office.Data, valid)
+			} else if err == nil {
+				err = fmt.Errorf("Office conversion session changed")
 			}
 		} else {
 			if sourceErr == nil {
@@ -88,7 +83,11 @@ func (s *mainState) startPDFPreview(sessions *session.Store, sid, root, path str
 				return
 			}
 			if err != nil {
-				sessions.SetLastAction(err.Error())
+				if convert {
+					s.setOfficePreviewMessage(sessions, sid, path, officePreviewFailure(err))
+				} else {
+					sessions.SetLastAction(err.Error())
+				}
 				return
 			}
 			s.closeWebViewHost()
@@ -100,9 +99,17 @@ func (s *mainState) startPDFPreview(sessions *session.Store, sid, root, path str
 				s.browserController = s.newBrowserController(win)
 			}
 			if err := s.browserController.OpenPDF(doc); err != nil {
-				sessions.SetLastAction(err.Error())
+				if office != nil {
+					s.setOfficePreviewMessage(sessions, sid, path, "Office 已转换，但 PDF 阅读器无法打开："+err.Error())
+				} else {
+					sessions.SetLastAction(err.Error())
+				}
 			} else {
-				sessions.SetLastAction("PDF 只读预览标签已打开；原文件和编辑草稿保持不变")
+				if office != nil {
+					s.setOfficePreviewMessage(sessions, sid, path, officePreviewReady(office.MissingFonts))
+				} else {
+					sessions.SetLastAction("PDF 只读预览标签已打开；原文件和编辑草稿保持不变")
+				}
 			}
 		})
 	}()

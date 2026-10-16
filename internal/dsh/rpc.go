@@ -90,10 +90,14 @@ func (c *Client) callPayload(ctx context.Context, method string, payload any, ou
 	}
 	defer res.Body.Close()
 	// A 25 MiB UTF-8 HTML page can expand six-fold in JSON escaping.
-	// Only the authenticated published-page method gets the larger wire cap.
+	// Complete document methods have their own bounded wire caps.
 	limit := int64(8 << 20)
 	if method == "session/readVisualReply" {
 		limit = 160 << 20
+	} else if method == "officeToPdf/render" {
+		// This existing method returns a complete multipart PDF, not byte ranges.
+		// Match the 32 MiB PDF preview cap plus multipart metadata overhead.
+		limit = 33 << 20
 	}
 	raw, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
 	if err == nil && int64(len(raw)) > limit {

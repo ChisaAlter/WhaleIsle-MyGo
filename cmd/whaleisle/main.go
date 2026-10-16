@@ -257,6 +257,7 @@ type mainState struct {
 	sshProbeLine                            string
 	webviewOpen                             bool
 	browserPreviewOpen                      bool
+	officePreview                           officePreviewState
 	pdfPreviewRequest                       uint64
 	mediaPreviewRequest                     uint64
 	htmlDocumentRequest                     uint64
@@ -6787,6 +6788,9 @@ func mainView(c *ui.Context) {
 						},
 						OnRenderOfficePDF: func(rel string) {
 							state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)
+						},
+						OfficePreviewStatus: func(path string) string {
+							return state.officePreviewMessage(sessions, snap.SelectedID, path)
 						},
 					}
 					frameModel.OnOpenTerminalTarget = state.terminalTargetHandler(win, frameModel, func(tab string) {

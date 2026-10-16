@@ -77,6 +77,7 @@ type Model struct {
 	OnReveal func(absPath string)
 	// OnRenderPDF converts an Office doc via officeToPdf/render then previews PDF.
 	OnRenderPDF func(rel string)
+	OfficePreviewStatus func(path string) string
 	// OpenWithApps are session/workspacePathApplications rows for the selected file.
 	OpenWithApps []OpenWithApp
 	// OnOpenWith opens path via session/openWorkspacePath with application id.
@@ -454,6 +455,11 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		paintTableControls(c, m, muted)
 		paintSourceActions(c, m, sel, muted)
+		if m.OfficePreviewStatus != nil {
+			if status := m.OfficePreviewStatus(sel); status != "" {
+				ui.Text(c, status).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
+			}
+		}
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
