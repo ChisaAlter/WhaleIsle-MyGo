@@ -16,6 +16,10 @@ import (
 
 // PatchOptions configures ApplyBlockPatch.
 type PatchOptions struct {
+	// Zero retains the legacy 512 MiB bound. Native catalog downloads pass their
+	// existing 8 GiB installer limit through reconstruction and full fallback.
+	MaxBytes          int64
+	OnProgress        func(int64, int64)
 	OldPath           string
 	Feed              Feed
 	BlockMap          BlockMapInfo
@@ -124,7 +128,11 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 			}
 		}
 	}
-	if outSize > 512<<20 {
+	maxBytes := opt.MaxBytes
+	if maxBytes <= 0 {
+		maxBytes = 512 << 20
+	}
+	if outSize > maxBytes {
 		return ApplyResult{}, fmt.Errorf("reconstructed size %d exceeds limit", outSize)
 	}
 
@@ -151,6 +159,13 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		needSet[i] = struct{}{}
 	}
 	copied, fetched := 0, 0
+	var completed int64
+	progress := func(n int64) {
+		completed += n
+		if opt.OnProgress != nil {
+			opt.OnProgress(completed, outSize)
+		}
+	}
 	for i, b := range info.Blocks {
 		if ctx.Err() != nil {
 			return ApplyResult{}, ctx.Err()
@@ -166,6 +181,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 				return ApplyResult{}, fmt.Errorf("block %d: copy old: %w", i, err)
 			}
 			copied++
+			progress(b.Size)
 			continue
 		}
 		var data []byte
@@ -185,6 +201,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 			return ApplyResult{}, fmt.Errorf("block %d: write: %w", i, err)
 		}
 		fetched++
+		progress(b.Size)
 	}
 	if err := f.Close(); err != nil {
 		return ApplyResult{}, err
@@ -196,7 +213,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		}
 	}
 
-	sum, n, err := hashFile(dest)
+	sum, n, err := hashFileBounded(dest, maxBytes)
 	if err != nil {
 		return ApplyResult{}, err
 	}
@@ -219,6 +236,9 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		return ApplyResult{}, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return ApplyResult{}, err
+	}
 	cleanup = false
 	out := ApplyResult{
 		Path:          dest,
@@ -240,7 +260,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		out.Message += "; sha256 ok"
 	}
 	if sig.Status == SignatureValid {
-		out.Message += "; authenticode ok"
+		out.Message += "; signature ok"
 	}
 	if opt.Start && CanStartStaged(out) {
 		return StartStaged(out)
@@ -256,6 +276,8 @@ func downloadFullAndVerify(ctx context.Context, opt PatchOptions) (ApplyResult, 
 		HTTPClient:        opt.HTTPClient,
 		ExpectSHA256:      opt.Feed.SHA256,
 		ExpectSize:        opt.Feed.Size,
+		MaxBytes:          opt.MaxBytes,
+		OnProgress:        opt.OnProgress,
 		RequireSignature:  opt.RequireSignature,
 		ExpectedPublisher: opt.ExpectedPublisher,
 	})
@@ -290,16 +312,21 @@ func blockReusable(old *os.File, oldSize int64, b BlockEntry) bool {
 	return got == want
 }
 
-func hashFile(path string) (string, int64, error) {
+func hashFile(path string) (string, int64, error) { return hashFileBounded(path, 512<<20) }
+
+func hashFileBounded(path string, maxBytes int64) (string, int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", 0, err
 	}
 	defer f.Close()
 	h := sha256.New()
-	n, err := io.Copy(h, io.LimitReader(f, 512<<20))
+	n, err := io.Copy(h, io.LimitReader(f, maxBytes+1))
 	if err != nil {
 		return "", 0, err
+	}
+	if n > maxBytes {
+		return "", 0, fmt.Errorf("installer exceeds size limit")
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
 }

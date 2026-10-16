@@ -23,7 +23,7 @@ func (s *mainState) startupUpdateScopeLocked(win *mygo.Window, snapshot nativeRe
 		return empty, update.NativeRelease{}
 	}
 	for _, release := range snapshot.rows {
-		if release.Prerelease || release.Validate(runtime.GOOS, runtime.GOARCH, !vendorReady) != nil || update.CompareVersions(release.Version, buildVersion) <= 0 {
+		if release.UnavailableReason != "" || release.Prerelease || release.Validate(runtime.GOOS, runtime.GOARCH, !vendorReady) != nil || update.CompareVersions(release.Version, buildVersion) <= 0 {
 			continue
 		}
 		if snapshot.stagedTag == release.Tag {

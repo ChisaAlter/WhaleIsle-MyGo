@@ -30,6 +30,7 @@ type nativeReleaseState struct {
 	received, total     int64
 	staged              update.ApplyResult
 	stagedTag           string
+	stagedTitle         string
 }
 
 func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launcher.Model {
@@ -47,18 +48,21 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	m.ReleaseBusy = snapshot.busy || refresh
 	m.ReleaseStatus = snapshot.status
 	m.ReleaseError = snapshot.err
-	m.ReleaseSelectedTag = snapshot.selected
+	m.ReleaseSelectedPackage = snapshot.selected
 	m.ReleaseReceived, m.ReleaseTotal = snapshot.received, snapshot.total
-	m.ReleaseStagedTag = snapshot.stagedTag
+	m.ReleaseStagedTag = snapshot.stagedTitle
+	if m.ReleaseStagedTag == "" {
+		m.ReleaseStagedTag = snapshot.stagedTag
+	}
 	m.OnRefreshReleases = func() { s.refreshNativeReleases(win) }
 	m.OnCheckUpdate = m.OnRefreshReleases
 	m.OnInstallRuntime = func() { s.downloadNativeRelease(win, "", true) }
-	m.OnInstallRelease = func(tag string) { s.downloadNativeRelease(win, tag, !m.VendorReady) }
+	m.OnInstallRelease = func(packageID string) { s.downloadNativeRelease(win, packageID, !m.VendorReady) }
 	m.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", !m.VendorReady) }
-	m.OnSelectRelease = func(tag string) {
+	m.OnSelectRelease = func(packageID string) {
 		s.mu.Lock()
 		if !s.nativeReleases.busy {
-			s.nativeReleases.selected = tag
+			s.nativeReleases.selected = packageID
 		}
 		s.mu.Unlock()
 		if win != nil {
@@ -120,6 +124,9 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 	go func() {
 		defer cancel()
 		rows, err := update.ListNativeReleases(ctx, route)
+		if err == nil {
+			rows = update.PrepareNativeReleases(rows, buildVersion, update.NativeInstallerCacheDir(filepath.Join(paths.UserDataDir(), "updates")))
+		}
 		s.mu.Lock()
 		r := &s.nativeReleases
 		r.busy, r.cancel = false, nil
@@ -138,7 +145,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 			}
 			found := false
 			for _, row := range rows {
-				if row.Tag == r.selected && row.UnavailableReason == "" {
+				if row.PackageKey() == r.selected && row.UnavailableReason == "" {
 					found = true
 					break
 				}
@@ -147,7 +154,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 				r.selected = ""
 				for _, row := range rows {
 					if row.UnavailableReason == "" {
-						r.selected = row.Tag
+						r.selected = row.PackageKey()
 						break
 					}
 				}
@@ -205,24 +212,19 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 					return err
 				}
 			}
-			for _, candidate := range rows {
-				if tag != "" && candidate.Tag != tag {
-					continue
-				}
-				if tag == "" && candidate.Prerelease {
-					continue
-				}
-				if candidate.Validate(runtime.GOOS, runtime.GOARCH, requireRuntime) == nil {
-					selected = candidate
-					break
-				}
-			}
-			if selected.Tag == "" {
-				return fmt.Errorf("no compatible MyGo release for this selection; first installation requires a native package with matching Host and Node runtime")
+			cacheDir := update.NativeInstallerCacheDir(filepath.Join(paths.UserDataDir(), "updates"))
+			rows = update.PrepareNativeReleases(rows, buildVersion, cacheDir)
+			var selectErr error
+			selected, selectErr = update.SelectNativeRelease(rows, tag, runtime.GOOS, runtime.GOARCH, requireRuntime)
+			if selectErr != nil {
+				return selectErr
 			}
 			s.mu.Lock()
-			s.nativeReleases.selected = selected.Tag
-			s.nativeReleases.status = resumeText("正在下载并校验：", "Downloading and verifying: ") + selected.Tag
+			s.nativeReleases.selected = selected.PackageKey()
+			s.nativeReleases.status = resumeText("正在下载并校验完整安装包：", "Downloading and verifying full installer: ") + selected.Tag
+			if selected.IsDelta() {
+				s.nativeReleases.status = resumeText("正在复用已缓存安装包并下载变化区块：", "Reusing cached installer and downloading changed blocks: ") + selected.Tag
+			}
 			s.mu.Unlock()
 			base := filepath.Join(paths.UserDataDir(), "updates")
 			if err := os.MkdirAll(base, 0755); err != nil {
@@ -233,12 +235,12 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			if err != nil {
 				return err
 			}
-			staged, err = update.StageNativeRelease(ctx, selected, requireRuntime, staging, func(received, total int64) {
+			staged, err = update.StageNativeReleaseWithOptions(ctx, selected, update.NativeStageOptions{CurrentVersion: buildVersion, CacheDir: cacheDir, RequireRuntime: requireRuntime, DestDir: staging, OnProgress: func(received, total int64) {
 				s.mu.Lock()
 				s.nativeReleases.received, s.nativeReleases.total = received, total
 				s.mu.Unlock()
 				s.nativeReleaseNotify(win)
-			})
+			}})
 			if err != nil {
 				return err
 			}
@@ -262,7 +264,25 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 		} else {
 			r.staged, r.stagedTag = staged, selected.Tag
+			variant := resumeText("仅桌面端", "Desktop only")
+			if selected.RuntimeIncluded {
+				variant = resumeText("包含运行时", "Includes runtime")
+			}
+			kind := resumeText("完整包", "Full package")
+			if selected.IsDelta() {
+				kind = resumeText("差量重建", "Delta reconstruction")
+			}
+			r.stagedTitle = selected.Tag + " · " + kind + " · " + variant
 			r.status = resumeText("安装包已下载并校验。点击“安装并退出”继续；仅安装所选发布明确列出的内容。", "Installer downloaded and verified. Choose Install and quit to install the contents declared by the selected release.")
+			if selected.Platform == "darwin" {
+				r.status = resumeText("磁盘映像已下载并校验。点击“打开磁盘映像并退出”，再将 Whale Isle.app 拖到 Applications 完成安装。", "Disk image downloaded and verified. Choose Open disk image and quit, then drag Whale Isle.app to Applications to finish installation.")
+			}
+			if selected.IsDelta() && !staged.UsedRange && staged.CopiedBlocks == 0 {
+				r.status += resumeText(" 下载源未提供范围请求，已回退完整下载并校验。", " The source did not support ranges; the complete installer was downloaded and verified.")
+			}
+			if strings.Contains(staged.Message, "native base cache unavailable:") {
+				r.status += resumeText(" 安装包已保留，但未能缓存后续差量更新基包；后续仍可使用完整包。", " The installer is retained, but caching it for future deltas failed; full packages remain available.")
+			}
 			r.err = ""
 		}
 		s.mu.Unlock()

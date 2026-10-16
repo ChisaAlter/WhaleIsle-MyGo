@@ -76,47 +76,47 @@ type Model struct {
 	ActiveTab                   string
 	ImportSummary               string
 	// ImportJournal is the per-item apply log (Electron runImport journal).
-	ImportJournal                                                     []string
-	UpdateStatus                                                      string
-	UpdateAvailable                                                   bool // Electron syncUpdateNotice: only show #home-update when true
-	DisabledPlugins                                                   []string
-	SkipUserPlugins                                                   bool
-	PluginRecoveryReason                                              string
-	StatusNote                                                        string
-	OnTab                                                             func(tab string)
-	OnClose                                                           func()
-	OnStart                                                           func()
-	OnStop                                                            func()
-	OnScanImport                                                      func() // scan official ~/.dsh
-	OnPickImportSource                                                func() // pick custom source home
-	OnAddSkillImportDir                                               func() // add skill import directory
-	OnCopyImportJournal                                               func(lines []string)
-	OnCheckUpdate                                                     func()
-	Releases                                                          []update.NativeRelease
-	ReleaseBusy                                                       bool
-	ReleaseStatus, ReleaseError, ReleaseSelectedTag, ReleaseStagedTag string
-	ReleaseReceived, ReleaseTotal                                     int64
-	OnRefreshReleases                                                 func()
-	OnSelectRelease                                                   func(tag string)
-	OnInstallRuntime                                                  func()
-	OnInstallRelease                                                  func(tag string)
-	OnCancelRelease                                                   func()
-	OnStartStagedRelease                                              func()
-	OnOpenSettings                                                    func()
-	OnEnableSkipUserPlugins                                           func()
-	OnClearPluginRecovery                                             func()
-	OnRestartHarness                                                  func()
-	WorkspacePtr                                                      *string
-	QuitAfterStart                                                    *bool
-	CloseToTray                                                       *bool
-	AutoStartDesktop                                                  *bool
-	AskOnUpdate                                                       *bool
-	DownloadRoute                                                     *string // "", "github", "cnb"
-	OnSaveLauncherPrefs                                               func()
-	Components                                                        []components.Row
-	OnRefreshComponents                                               func()
-	ComponentBusy                                                     bool
-	OnComponentAction                                                 func(id, action string) // install|start|stop|open|update|rollback|uninstall
+	ImportJournal                                                         []string
+	UpdateStatus                                                          string
+	UpdateAvailable                                                       bool // Electron syncUpdateNotice: only show #home-update when true
+	DisabledPlugins                                                       []string
+	SkipUserPlugins                                                       bool
+	PluginRecoveryReason                                                  string
+	StatusNote                                                            string
+	OnTab                                                                 func(tab string)
+	OnClose                                                               func()
+	OnStart                                                               func()
+	OnStop                                                                func()
+	OnScanImport                                                          func() // scan official ~/.dsh
+	OnPickImportSource                                                    func() // pick custom source home
+	OnAddSkillImportDir                                                   func() // add skill import directory
+	OnCopyImportJournal                                                   func(lines []string)
+	OnCheckUpdate                                                         func()
+	Releases                                                              []update.NativeRelease
+	ReleaseBusy                                                           bool
+	ReleaseStatus, ReleaseError, ReleaseSelectedPackage, ReleaseStagedTag string
+	ReleaseReceived, ReleaseTotal                                         int64
+	OnRefreshReleases                                                     func()
+	OnSelectRelease                                                       func(packageID string)
+	OnInstallRuntime                                                      func()
+	OnInstallRelease                                                      func(packageID string)
+	OnCancelRelease                                                       func()
+	OnStartStagedRelease                                                  func()
+	OnOpenSettings                                                        func()
+	OnEnableSkipUserPlugins                                               func()
+	OnClearPluginRecovery                                                 func()
+	OnRestartHarness                                                      func()
+	WorkspacePtr                                                          *string
+	QuitAfterStart                                                        *bool
+	CloseToTray                                                           *bool
+	AutoStartDesktop                                                      *bool
+	AskOnUpdate                                                           *bool
+	DownloadRoute                                                         *string // "", "github", "cnb"
+	OnSaveLauncherPrefs                                                   func()
+	Components                                                            []components.Row
+	OnRefreshComponents                                                   func()
+	ComponentBusy                                                         bool
+	OnComponentAction                                                     func(id, action string) // install|start|stop|open|update|rollback|uninstall
 	// ImportOverwrite / ImportAttachments mirror launcher.html #import-overwrite / #import-attachments.
 	ImportOverwrite   *bool
 	ImportAttachments *bool
@@ -849,7 +849,7 @@ func versionsPanel(c *ui.Context, m Model) {
 				m.OnRefreshReleases()
 			}
 		})
-		ui.Text(c, releaseText("按发布标签选择原生 MyGo 安装包；下载校验后再确认安装。", "Select a native MyGo release tag; installation is confirmed after download verification.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+		ui.Text(c, releaseText("按版本、完整包/差量和运行时选择原生安装包；下载校验后再确认安装。", "Choose a version, full/delta package and runtime variant; confirm installation after verification.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 		for _, release := range m.Releases {
 			r := release
 			unavailable := r.UnavailableReason
@@ -857,7 +857,7 @@ func versionsPanel(c *ui.Context, m Model) {
 				unavailable = releaseText("此发布不包含 Host 运行时。", "This release does not contain the Host runtime.")
 			}
 			bg := colSidebar
-			if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
+			if m.ReleaseSelectedPackage == r.PackageKey() && unavailable == "" {
 				bg = colNavActive
 			}
 			ui.Column(c).FillWidth().Background(bg).Border(1, colBorderL2).Radius(10).Padding(12).Gap(6).Children(func() {
@@ -871,23 +871,32 @@ func versionsPanel(c *ui.Context, m Model) {
 						ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
 					}
 					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil {
-						m.OnSelectRelease(r.Tag)
+						m.OnSelectRelease(r.PackageKey())
 					}
 				})
 				label := releaseText("仅桌面端", "Desktop only")
 				if r.RuntimeIncluded {
 					label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime")
 				}
+				if r.IsDelta() && r.Delta != nil {
+					label = releaseText("差量更新", "Delta update") + " · " + label
+					ui.Text(c, fmt.Sprintf(releaseText("基于 %s · 需下载约 %.1f MiB · 重建 %.1f MiB", "From %s · approximately %.1f MiB to download · %.1f MiB reconstructed"), r.Delta.BaseVersion, float64(r.DownloadBytes())/(1<<20), float64(r.Size)/(1<<20))).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+				} else {
+					label = releaseText("完整安装包", "Full installer") + " · " + label
+				}
 				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+				if r.DownloadRoute != "" {
+					ui.Text(c, releaseText("下载源：", "Download source: ")+r.DownloadRoute).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
+				}
 				if r.Notes != "" {
 					ui.Text(c, r.Notes).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				}
 				if unavailable != "" {
 					ui.Text(c, unavailable).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 				}
-				if m.ReleaseSelectedTag == r.Tag && unavailable == "" {
+				if m.ReleaseSelectedPackage == r.PackageKey() && unavailable == "" {
 					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil {
-						m.OnInstallRelease(r.Tag)
+						m.OnInstallRelease(r.PackageKey())
 					}
 				}
 			})

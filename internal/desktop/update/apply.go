@@ -42,12 +42,12 @@ type StageOptions struct {
 	MaxBytes int64
 	// OnProgress is called during download with received and expected bytes.
 	OnProgress func(received, total int64)
-	// RequireSignature enables Authenticode verification after download (Windows).
+	// RequireSignature enables platform signature verification after download.
 	// Fail closed when the probe reports a non-valid signature (or cannot run).
-	// On non-Windows, Authenticode is skipped (documented no-op success).
+	// Windows uses Authenticode; Darwin uses codesign; other platforms skip the probe.
 	RequireSignature bool
 	// ExpectedPublisher, when non-empty, requires the signer subject to contain
-	// this substring (case-insensitive). Implies a signature probe on Windows.
+	// this substring (case-insensitive). Implies a signature probe on Windows or Darwin.
 	ExpectedPublisher string
 }
 
@@ -189,7 +189,7 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		out.Message += "; sha256 ok"
 	}
 	if sig.Status == SignatureValid {
-		out.Message += "; authenticode ok"
+		out.Message += "; signature ok"
 	}
 	if opt.Start && CanStartStaged(out) {
 		return StartStaged(out)

@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"fmt"
+	"runtime"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -39,7 +40,11 @@ func nativeReleaseOperation(c *ui.Context, m Model) {
 		} else if m.ReleaseStagedTag != "" {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, releaseText("已校验安装包：", "Verified installer: ")+m.ReleaseStagedTag).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
-				if primaryBtn(c, releaseText("安装并退出", "Install and quit")).Clicked() && m.OnStartStagedRelease != nil {
+				action := releaseText("安装并退出", "Install and quit")
+				if runtime.GOOS == "darwin" {
+					action = releaseText("打开磁盘映像并退出", "Open disk image and quit")
+				}
+				if primaryBtn(c, action).Clicked() && m.OnStartStagedRelease != nil {
 					m.OnStartStagedRelease()
 				}
 			})

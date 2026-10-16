@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// SignatureStatus is the outcome of an Authenticode probe.
+// SignatureStatus is the outcome of the platform signature probe.
 type SignatureStatus string
 
 const (
-	// SignatureValid means the file has a valid Authenticode signature.
+	// SignatureValid means the file has a valid platform signature.
 	SignatureValid SignatureStatus = "valid"
-	// SignatureSkipped means verification was not run (non-Windows, or not requested).
+	// SignatureSkipped means verification was not run (unsupported platform, or not requested).
 	SignatureSkipped SignatureStatus = "skipped"
 	// SignatureNone means the file is not signed.
 	SignatureNone SignatureStatus = "not_signed"
@@ -27,14 +27,14 @@ type SignatureInfo struct {
 	Detail    string
 }
 
-// VerifyOptions configures optional Authenticode enforcement after download.
+// VerifyOptions configures optional platform-signature enforcement after download.
 type VerifyOptions struct {
 	// RequireSignature, when true, fails closed unless the probe reports SignatureValid
-	// (on Windows). On non-Windows, Authenticode is unavailable: the probe reports
-	// SignatureSkipped and enforcement treats that as success (documented no-op).
+	// on Windows or Darwin. Other platforms report SignatureSkipped; enforcement
+	// retains the documented no-op for those unsupported targets.
 	RequireSignature bool
 	// ExpectedPublisher, when non-empty, requires the signer certificate subject to
-	// contain this substring (case-insensitive). Implies a signature probe on Windows.
+	// contain this substring (case-insensitive). Implies a signature probe on Windows or Darwin.
 	ExpectedPublisher string
 }
 
@@ -47,7 +47,7 @@ func wantsSignatureCheck(opt VerifyOptions) bool {
 }
 
 // VerifyAuthenticode probes Authenticode on path (Windows via PowerShell
-// Get-AuthenticodeSignature). On non-Windows it returns SignatureSkipped.
+// Get-AuthenticodeSignature) or codesign on Darwin. Other platforms skip.
 func VerifyAuthenticode(ctx context.Context, path string) (SignatureInfo, error) {
 	if ctx.Err() != nil {
 		return SignatureInfo{}, ctx.Err()
@@ -82,7 +82,7 @@ func CheckSignature(ctx context.Context, path string, opt VerifyOptions) (Signat
 
 func enforceSignature(info SignatureInfo, opt VerifyOptions) error {
 	if info.Status == SignatureSkipped {
-		// Non-Windows / unavailable: documented no-op success.
+		// Unsupported platform: documented no-op success.
 		return nil
 	}
 	if opt.RequireSignature || strings.TrimSpace(opt.ExpectedPublisher) != "" {
