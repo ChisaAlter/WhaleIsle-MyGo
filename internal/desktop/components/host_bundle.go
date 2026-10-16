@@ -199,7 +199,7 @@ func readHostBundle(root string) (HostBundleManifest, error) {
 	if manifest.SchemaVersion != 1 || manifest.Application != "whaleisle-mygo-host" ||
 		manifest.Platform != "darwin" || manifest.Arch != runtime.GOARCH ||
 		manifest.RuntimeDirectory != "runtime" || !hostBundleVersion.MatchString(manifest.Version) ||
-		manifest.HostSourceCommit != harness.CurrentHostSourceCommit ||
+		(manifest.HostSourceCommit != harness.CurrentHostSourceCommit && manifest.HostSourceCommit != harness.CurrentHostE9SourceCommit) ||
 		manifest.HostReadinessGuard != harness.CurrentHostReadinessGuardID {
 		return manifest, fmt.Errorf("Host 离线包与当前原生应用、架构或 Host 契约不匹配")
 	}

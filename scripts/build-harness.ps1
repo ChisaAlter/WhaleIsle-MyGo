@@ -14,12 +14,14 @@
 param(
     [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
+    [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
+    [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
     [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
 )
 if ($SourceMode -eq 'current') {
-    if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the fixed 90465b67 official source checkout.' }
-    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -BuildOnly:$BuildOnly -UnifiedShortcuts:$UnifiedShortcuts
+    if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the selected fixed official source checkout.' }
+    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -SourceCommit $SourceCommit -BuildOnly:$BuildOnly -UnifiedShortcuts:$UnifiedShortcuts
     return
 }
 if ($BuildOnly) { throw 'BuildOnly is supported by the isolated current source mode only.' }

@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {verify as verifyHost} from './current-host.mjs';
+import {verify as verifyHost, supportedCommits} from './current-host.mjs';
 import {verify as verifyMobile} from './mobile-runtime.mjs';
 
 export const macOSApplication = 'whaleisle-mygo';
@@ -64,7 +64,7 @@ export async function inspectMacOSRuntime(runtimeDir, arch) {
   const nodeArch = arch === 'amd64' ? 'x64' : arch;
   const vendor = path.join(runtimeDir, 'vendor');
   const host = verifyHost(vendor);
-  if (host.platform !== 'darwin' || host.arch !== nodeArch || host.sourceCommit !== hostSourceCommit || host.safetyPatch?.id !== hostReadinessGuard) throw Error('Host does not match the native macOS package target');
+  if (host.platform !== 'darwin' || host.arch !== nodeArch || !supportedCommits.includes(host.sourceCommit) || host.safetyPatch?.id !== hostReadinessGuard) throw Error('Host does not match the native macOS package target');
   const mobile = path.join(vendor, 'dshd-remote');
   verifyMobile(mobile);
   const build = readJSON(path.join(mobile, 'node-build.json'));

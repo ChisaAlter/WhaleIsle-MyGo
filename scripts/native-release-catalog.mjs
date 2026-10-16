@@ -4,11 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-import {verify as verifyHost} from './current-host.mjs';
+import {verify as verifyHost, supportedCommits} from './current-host.mjs';
 import {verify as verifyMobile} from './mobile-runtime.mjs';
 
 const application = 'whaleisle-mygo';
-const sourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770';
 const guard = 'mygo-visual-readiness-v1';
 const tagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const maxInstallerBytes = 8 * 2**30;
@@ -67,7 +66,7 @@ async function inspectWindows(stage, installer, arch) {
   if (fs.readFileSync(path.join(stage, '.runtime-staged'), 'utf8').trim() !== '1') throw Error('Invalid runtime staging marker');
   const vendor = path.join(stage, 'runtime/vendor');
   const host = verifyHost(vendor);
-  if (host.sourceCommit !== sourceCommit || host.safetyPatch?.id !== guard || host.platform !== 'win32' || host.arch !== (arch === 'amd64' ? 'x64' : 'arm64')) throw Error('Host is not the native MyGo-compatible runtime');
+  if (!supportedCommits.includes(host.sourceCommit) || host.safetyPatch?.id !== guard || host.platform !== 'win32' || host.arch !== (arch === 'amd64' ? 'x64' : 'arm64')) throw Error('Host is not the native MyGo-compatible runtime');
   verifyMobile(path.join(vendor, 'dshd-remote'));
   if (peMachine(path.join(stage, 'runtime/node/node.exe')) !== expectedMachine) throw Error('Bundled Node target mismatch');
   return {runtimeIncluded, hostSourceCommit: host.sourceCommit, hostReadinessGuard: host.safetyPatch.id};

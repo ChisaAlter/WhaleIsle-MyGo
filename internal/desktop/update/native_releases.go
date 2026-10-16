@@ -22,6 +22,7 @@ const NativeApplication = "whaleisle-mygo"
 
 // These must match the native Host launch contract in harness/current_host.go.
 const NativeHostSourceCommit = "90465b67ec16765631d54c195af19d9ff3c3a770"
+const NativeHostE9SourceCommit = "e9f584be6d3b491ce777bb6823f30bc2bbc6f195"
 const NativeHostReadinessGuard = "mygo-visual-readiness-v1"
 const NativeCatalogAsset = "WhaleIsle-MyGo-releases.json"
 const NativeMaxInstallerBytes int64 = 8 << 30
@@ -231,7 +232,7 @@ func (r NativeRelease) Validate(goos, arch string, requireRuntime bool) error {
 	if requireRuntime && !r.RuntimeIncluded {
 		return fmt.Errorf("selected release is shell-only and cannot install the Host runtime")
 	}
-	if r.RuntimeIncluded && (r.HostSourceCommit != NativeHostSourceCommit || r.HostReadinessGuard != NativeHostReadinessGuard) {
+	if r.RuntimeIncluded && ((r.HostSourceCommit != NativeHostSourceCommit && r.HostSourceCommit != NativeHostE9SourceCommit) || r.HostReadinessGuard != NativeHostReadinessGuard) {
 		return fmt.Errorf("bundled Host does not match this MyGo build's source and readiness guard")
 	}
 	return nil

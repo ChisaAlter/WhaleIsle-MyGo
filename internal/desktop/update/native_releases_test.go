@@ -71,3 +71,22 @@ func TestStageProgressCancellationRemovesPartial(t *testing.T) {
 		t.Fatal("cancellation must prevent staging success")
 	}
 }
+
+func TestNativeReleaseExactSourcePins(t *testing.T) {
+	for _, pin := range []string{NativeHostSourceCommit, "e9f584be6d3b491ce777bb6823f30bc2bbc6f195"} {
+		r := nativeFixture()
+		r.HostSourceCommit = pin
+		if err := r.Validate("windows", "amd64", true); err != nil {
+			t.Fatalf("pin %s: %v", pin, err)
+		}
+		r.HostReadinessGuard = ""
+		if err := r.Validate("windows", "amd64", true); err == nil {
+			t.Fatal("missing guard accepted")
+		}
+	}
+	r := nativeFixture()
+	r.HostSourceCommit = strings.Repeat("f", 40)
+	if err := r.Validate("windows", "amd64", true); err == nil {
+		t.Fatal("unknown source accepted")
+	}
+}
