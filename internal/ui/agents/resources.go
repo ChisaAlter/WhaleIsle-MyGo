@@ -20,7 +20,7 @@ func childResourceOptions(m Model, v session.AgentNavigationView) chat.ReadOnlyR
 				m.OnOpenDocument(v.Token, v.Address, ref)
 			}
 			return
-		case ".xlsx":
+		case ".xlsx", ".xls", ".csv", ".tsv":
 			go m.Store.ReadAgentWorkbook(context.Background(), v.Token, v.Address, ref, workspacefs.XLSXPageRequest{})
 			return
 		}

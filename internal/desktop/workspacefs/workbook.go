@@ -20,8 +20,19 @@ func ReadWorkbookPage(ctx context.Context, filePath string, request XLSXPageRequ
 		return ReadXLSXPage(ctx, filePath, request)
 	case ".xls":
 		return readXLSFilePage(ctx, filePath, request)
+	case ".csv", ".tsv":
+		file, err := os.Open(filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, xlsxMaxFileBytes+1))
+		if err != nil {
+			return nil, err
+		}
+		return ReadNamedWorkbookBytesPage(ctx, filePath, data, request)
 	default:
-		return nil, errors.New("Native workbook reader supports XLSX and XLS files")
+		return nil, errors.New("Native workbook reader supports XLSX, XLS, CSV and TSV files")
 	}
 }
 
@@ -81,4 +92,17 @@ func readXLSFilePage(ctx context.Context, filePath string, request XLSXPageReque
 		return nil, errors.New("Workbook changed during reading; choose Reload")
 	}
 	return page, nil
+}
+
+// ReadNamedWorkbookBytesPage dispatches text tables by extension, preserving the
+// delimiter even for a one-column or empty remote file.
+func ReadNamedWorkbookBytesPage(ctx context.Context, name string, data []byte, request XLSXPageRequest) (*XLSXPage, error) {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".csv":
+		return readDelimitedPage(ctx, data, ',', request)
+	case ".tsv":
+		return readDelimitedPage(ctx, data, '\t', request)
+	default:
+		return ReadWorkbookBytesPage(ctx, data, request)
+	}
 }

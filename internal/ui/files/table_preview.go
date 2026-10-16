@@ -11,7 +11,7 @@ import (
 // or use their rendered page as a file-save baseline.
 func isTablePreviewPath(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".xlsx", ".xls":
+	case ".xlsx", ".xls", ".csv", ".tsv":
 		return true
 	}
 	return false
