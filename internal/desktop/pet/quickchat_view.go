@@ -16,7 +16,7 @@ func quickChatName(name, fallback string) string {
 }
 
 // This is native MyGo content, not a page with general IPC/model credentials.
-// Enter inserts a newline (including IME); only the explicit Send button sends.
+// Enter sends; Shift+Enter and IME composition remain with the editor.
 func (q *QuickChat) view(c *ui.Context) {
 	fonttheme.ApplyInterface(c)
 	direct := q.options.Direct != nil
@@ -85,7 +85,16 @@ func (q *QuickChat) view(c *ui.Context) {
 			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		}
 		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Font(fonttheme.CurrentPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 换行，点击发送 / Type, then click Send")
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.CurrentPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 发送，Shift+Enter 换行 / Enter sends; Shift+Enter newline")
+		input.HandleInput(func(ev ui.InputEvent) bool {
+			if !quickChatSendKey(ev, input.Composing()) {
+				return false
+			}
+			if !ev.Repeat && active && !q.sending.busy() && !q.picking.busy() && !q.stopping.busy() && strings.TrimSpace(q.draft) != "" {
+				q.send()
+			}
+			return true
+		})
 		if !c.Root().FocusWithin() {
 			input.AutoFocus()
 		}

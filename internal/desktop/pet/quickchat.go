@@ -50,6 +50,7 @@ type QuickChat struct {
 	picking     quickChatRequest
 	stopping    quickChatRequest
 	jumping     quickChatRequest
+	offAnchor   []func()
 }
 
 // OpenQuickChat preserves the draft and focuses an already open live card.
@@ -105,6 +106,7 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 			p.setQuickChatOpen(false)
 		}
 	})
+	q.followPet()
 	w.Focus()
 	if q.stale {
 		return
@@ -170,6 +172,10 @@ func (q *QuickChat) shutdown() {
 		return
 	}
 	q.closed = true
+	for _, off := range q.offAnchor {
+		off()
+	}
+	q.offAnchor = nil
 	q.direct.Reset()
 	if q.options.Direct != nil {
 		q.state.History = nil
