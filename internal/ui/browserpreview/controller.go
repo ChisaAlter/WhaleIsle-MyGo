@@ -18,6 +18,7 @@ import (
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
 	workspaceOwner   func() WorkspaceOwner
+	onFocus          func()
 	profileSeen      bool
 	floatingDocument *floatingDocumentWindow
 	pip              *browserPictureInPicture
@@ -45,6 +46,7 @@ type Tab struct {
 	ID            int
 	Draft, Error  string
 	lastURL       string
+	resumeURL     string
 	Host          *desktop.Host
 }
 
@@ -91,6 +93,7 @@ func (b *Controller) Navigate(raw string) {
 		t = b.current()
 	}
 	t.workspace = workspace
+	t.resumeURL = ""
 	t.Draft = raw
 	normalized := NormalizeURL(raw)
 	if normalized == "" {
@@ -107,7 +110,7 @@ func (b *Controller) Navigate(raw string) {
 		b.showHost(t.Host)
 		return
 	}
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus})
 	if err != nil {
 		t.Error = err.Error()
 		b.update()
@@ -133,6 +136,7 @@ func (b *Controller) Select(index int) {
 	}
 	b.Hide()
 	b.Active = index
+	b.resumeCurrent()
 	if t := b.current(); t.Host != nil {
 		b.showHost(t.Host)
 		if t.Document == nil && t.HTML == nil && t.Media == nil {
@@ -203,6 +207,7 @@ func (b *Controller) View(c *ui.Context, themeID string, dark bool, onClose func
 func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func()) {
 	b.rendered = true
 	b.PruneActions()
+	b.resumeCurrent()
 	if b.current() == nil {
 		b.NewTab("")
 	}

@@ -40,6 +40,7 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
+	AllowPageShortcuts func() bool
 	PlanSnapshot      session.ViewState
 	OnLoadPlanHistory func()
 	ReadSubagentPlan  func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
@@ -133,7 +134,7 @@ func View(c *ui.Context, m Model) {
 		_ = ensureSaveQueue(m, t)
 	}
 	defer observeAutosave(m)
-	if m.SelectedFile != nil && *m.SelectedFile != "" && c.PageShortcut(ui.Cmd, ui.KeyS) {
+	if (m.AllowPageShortcuts == nil || m.AllowPageShortcuts()) && m.SelectedFile != nil && *m.SelectedFile != "" && c.PageShortcut(ui.Cmd, ui.KeyS) {
 		if err := requestSaveDraft(m); err != nil {
 			setFileStatus(m, err.Error())
 		}

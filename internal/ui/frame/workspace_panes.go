@@ -6,11 +6,12 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/theme"
 )
 
-// WorkspacePanes retains native content seats and their split geometry. A content
-// kind owns one seat except terminals, whose occurrences own independent follows.
+// WorkspacePanes retains native content occurrences and their split geometry.
+// Files, browsers and terminals own independent state in every leaf.
 type WorkspacePanes struct {
 	Root       *WorkspacePane `json:"root"`
 	Active     string         `json:"active"`
@@ -18,9 +19,16 @@ type WorkspacePanes struct {
 	Next       int            `json:"next"`
 	route      string
 	pending    func()
+	legacyFileID string
+	focusPending string
+	closing string
+	message string
 }
 
 type WorkspacePane struct {
+	Files          *WorkspaceFileState `json:"files,omitempty"`
+	Browser        *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
+	browser        *browserpreview.Controller
 	Schedule       *SchedulePaneState `json:"schedule,omitempty"`
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind,omitempty"`
@@ -72,7 +80,7 @@ func (n *WorkspacePane) firstLeaf() *WorkspacePane {
 	return n.First.firstLeaf()
 }
 func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) {
-	if other := w.Root.kind(kind); kind != "host-terminal" && other != nil && other != n {
+	if other := w.Root.kind(kind); !independentPaneKind(kind) && other != nil && other != n {
 		if kind == "schedule-task" || n.Kind == "schedule-task" {
 			other.Schedule, n.Schedule = n.Schedule, other.Schedule
 		}
@@ -94,7 +102,7 @@ func (w *WorkspacePanes) syncRoute(kind string) {
 		w.Active = w.Root.firstLeaf().ID
 	}
 	if kind != w.route {
-		if existing := w.Root.kind(kind); existing != nil {
+		if existing := w.Root.kind(kind); !independentPaneKind(kind) && existing != nil {
 			w.Active = existing.ID
 		} else {
 			w.selectKind(w.Root.find(w.Active), kind)
@@ -132,7 +140,18 @@ func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	}
 	return n
 }
-func (w *WorkspacePanes) close(id string) {
+func (w *WorkspacePanes) close(id string) bool {
+	if n := w.Root.find(id); n != nil && n.Files.unsaved() {
+		w.closing = id
+		return false
+	}
+	w.closeNow(id)
+	return true
+}
+func (w *WorkspacePanes) closeNow(id string) {
+	if n := w.Root.find(id); n != nil { n.disposeContent() }
+	if w.legacyFileID == id { w.legacyFileID = "" }
+	w.closing = ""
 	w.Root = w.remove(w.Root, id)
 	if w.Root == nil {
 		w.Root = w.leaf("files")
@@ -151,15 +170,16 @@ func (w *WorkspacePanes) CloseKind(kind string) string {
 	if w == nil || w.Root == nil {
 		return "files"
 	}
-	if n := w.Root.kind(kind); n != nil {
-		w.close(n.ID)
-	}
+	n := w.Root.find(w.Active)
+	if n == nil || n.Kind != kind { n = w.Root.kind(kind) }
+	if n != nil { w.close(n.ID) }
 	return w.Root.find(w.Active).Kind
 }
 func (w *WorkspacePanes) Export() json.RawMessage {
 	if w == nil {
 		return nil
 	}
+	w.captureContent()
 	raw, _ := json.Marshal(w)
 	return raw
 }
@@ -179,6 +199,7 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 		}
 		w.route = active.Kind
 	}
+	if err := w.restoreContent(); err != nil { return nil, err }
 	return &w, nil
 }
 func workspaceVisible(m Model, kind string) bool {
@@ -198,10 +219,17 @@ func prepareWorkspace(m Model) {
 	if m.Sizes.Workspace == nil {
 		m.Sizes.Workspace = &WorkspacePanes{}
 	}
-	m.Sizes.Workspace.syncRoute(derefString(m.RightPaneTab))
+	w := m.Sizes.Workspace
+	if pane := w.Root.find(w.focusPending); pane != nil {
+		w.Active, w.route = pane.ID, pane.Kind
+		if m.RightPaneTab != nil { *m.RightPaneTab = pane.Kind }
+	}
+	w.focusPending = ""
+	w.syncRoute(derefString(m.RightPaneTab))
 }
 func workspaceColumns(c *ui.Context, m Model, center func()) {
 	w := m.Sizes.Workspace
+	w.syncRoute(derefString(m.RightPaneTab))
 	defer func() {
 		if w.pending != nil {
 			action := w.pending
@@ -252,7 +280,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 			m.Sizes.Workspace.route = n.Kind
 		}
 		tab := n.Kind
-		local := m
+		local := workspaceContentModel(m, n)
 		local.RightPaneTab = &tab
 		local.workspacePane = n
 		width := box.Bounds().W
@@ -288,8 +316,8 @@ func workspacePaneControls(c *ui.Context, m Model) {
 			break
 		}
 	}
-	if n.Kind == "host-terminal" {
-		next = "host-terminal"
+	if independentPaneKind(n.Kind) {
+		next = n.Kind
 	}
 	split := func(axis string) {
 		old := *n
@@ -327,8 +355,8 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		if ui.Button(c, "×").Label(paneLabel("关闭面板", "Close pane")).Clicked() {
 			w.pending = func() {
 				last := w.Root.First == nil
-				w.close(n.ID)
-				if last && m.OnToggleTools != nil {
+				closed := w.close(n.ID)
+				if closed && last && m.OnToggleTools != nil {
 					m.OnToggleTools()
 				}
 			}
@@ -345,14 +373,24 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		}
 		if ui.Button(c, paneLabel("重置布局", "Reset layout")).FontSize(theme.InterfaceSize(10)).Clicked() {
 			w.pending = func() {
-				w.Root = w.leaf(n.Kind)
-				w.Root.Schedule = n.Schedule
-				w.Active = w.Root.ID
-				w.Fullscreen = ""
-				w.route = n.Kind
+				w.resetTo(n)
 			}
 		}
 	})
+	if w.closing == n.ID {
+		ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
+		ui.Row(c).Gap(4).Children(func() {
+			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() { w.closing = "" }
+			if ui.Button(c, paneLabel("丢弃并关闭", "Discard and close")).Clicked() {
+				w.pending = func() { w.closeNow(n.ID) }
+			}
+		})
+	}
+	if w.message != "" { ui.Text(c, w.message) }
+}
+
+func independentPaneKind(kind string) bool {
+	return kind == "files" || kind == "browser" || kind == "host-terminal"
 }
 
 // SplitWorkspacePane is shared by the pane chrome and editable command registry.
@@ -369,12 +407,12 @@ func SplitWorkspacePane(m Model, vertical bool) {
 	if m.BrowserContent != nil {
 		kinds = append(kinds, "browser")
 	}
-	duplicateTerminal := w.Root.find(w.Active).Kind == "host-terminal"
-	if duplicateTerminal {
-		kinds = []string{"host-terminal"}
+	duplicate := independentPaneKind(w.Root.find(w.Active).Kind)
+	if duplicate {
+		kinds = []string{w.Root.find(w.Active).Kind}
 	}
 	for _, kind := range kinds {
-		if w.Root.kind(kind) != nil && !duplicateTerminal {
+		if w.Root.kind(kind) != nil && !duplicate {
 			continue
 		}
 		n := w.Root.find(w.Active)

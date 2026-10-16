@@ -2122,6 +2122,9 @@ func main() {
 		win.OnHide(state.suspendMCPHealth)
 		win.OnMinimize(state.suspendMCPHealth)
 		win.OnClosed(state.suspendMCPHealth)
+		win.OnHide(func() { state.layout.Workspace.PauseContent() })
+		win.OnMinimize(func() { state.layout.Workspace.PauseContent() })
+		win.OnClosed(func() { state.layout.Workspace.DisposeContent() })
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(state.suspendCreatorTask)
@@ -2976,6 +2979,8 @@ func mainView(c *ui.Context) {
 	fileClient := state.dshClient
 	state.dshMu.Unlock()
 	fileBindingID := fmt.Sprintf("%p\x00%s", fileClient, fileSessionID)
+	layout.Workspace.BeginContentFrame(fileBindingID, workspaceRoot)
+	defer func() { layout.Workspace.EndContentFrame() }()
 	fileTabs.Bind(fileBindingID, workspaceRoot)
 	if sessions == nil || launcherOpen || settingsOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
 		state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
@@ -6551,6 +6556,7 @@ func mainView(c *ui.Context) {
 						OnAddSelectionToChat: func(fragment string) error {
 							return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment)
 						},
+						NewWorkspaceBrowser: func() *browserpreviewui.Controller { return state.newBrowserController(win) },
 						BrowserContent: func(c *ui.Context) {
 							if state.browserController == nil {
 								state.browserController = state.newBrowserController(win)

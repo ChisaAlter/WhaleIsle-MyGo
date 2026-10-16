@@ -37,6 +37,7 @@ type HostOptions struct {
 	// Untrusted disables all native bindings and app events for browsing.
 	Untrusted bool
 	OnChange  func()
+	OnFocus   func()
 	// Parent is the main Content window the host stays above.
 	Parent *mygo.Window
 	// URL is loaded on create (http/https only).
@@ -214,6 +215,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
+	if opts.OnFocus != nil { child.OnFocus(opts.OnFocus) }
 	pg := child.Page()
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {

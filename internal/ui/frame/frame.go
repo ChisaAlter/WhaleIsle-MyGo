@@ -19,6 +19,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/agents"
+	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
@@ -149,6 +150,7 @@ type Model struct {
 	SessionSearchFocus   *bool
 	OnOpenWorkspaceFiles func()
 	BrowserContent       func(*ui.Context)
+	NewWorkspaceBrowser  func() *browserpreview.Controller
 	OnHideBrowser        func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
 	ExternalNavigation bool
@@ -188,6 +190,8 @@ type Model struct {
 	FilePreview      *string
 	FilePreviewErr   *string
 	FilePreviewList  *ui.ListState
+	FileTreeSplit    *float32
+	FileShortcuts    func() bool
 	FileEditing      *bool
 	FileEditDraft    *string
 	FileEditStatus   *string
@@ -335,6 +339,8 @@ func View(c *ui.Context, m Model) {
 		m.ComposerResize.Adopt(m.FileBindingID, m.ConversationPreferences.ComposerResizeHeight, m.ConversationPreferences.ComposerResizeWidth)
 	}
 	prepareWorkspace(m)
+	m = m.Sizes.Workspace.beginFileProjection(m)
+	defer m.Sizes.Workspace.finishFileProjection(m)
 	if !workspaceVisible(m, "browser") && m.OnHideBrowser != nil {
 		m.OnHideBrowser()
 	}
@@ -1225,7 +1231,11 @@ func rightPane(c *ui.Context, m Model) {
 			})
 			return
 		}
+		if m.workspacePane != nil { m.workspacePane.Files.rendered = true }
+		treeSplit := m.FileTreeSplit
+		if treeSplit == nil { treeSplit = &m.Sizes.RightTree }
 		files.View(c, files.Model{
+			AllowPageShortcuts: m.FileShortcuts,
 			PlanSnapshot:      m.Store.Snapshot(),
 			OnLoadPlanHistory: func() { m.Store.LoadEarlierHistory(context.Background()) },
 			ReadSubagentPlan:  m.Store.ReadSubagentPlan,
@@ -1242,7 +1252,7 @@ func rightPane(c *ui.Context, m Model) {
 			Preview:           m.FilePreview,
 			PreviewErr:        m.FilePreviewErr,
 			PreviewList:       m.FilePreviewList,
-			PreviewSplit:      &m.Sizes.RightTree,
+			PreviewSplit:      treeSplit,
 			Editing:           m.FileEditing,
 			EditDraft:         m.FileEditDraft,
 			EditStatus:        m.FileEditStatus,
