@@ -9,11 +9,12 @@ import (
 )
 
 type ContactsModel struct {
-	State     dshbotstore.ContactSnapshot
-	Activity  map[string]dshbotstore.ContactActivity
-	OnRefresh func()
-	OnChange  func(field, value string)
-	OnAction  func(pluginrpc.DshbotContactCommand)
+	State      dshbotstore.ContactSnapshot
+	Activity   map[string]dshbotstore.ContactActivity
+	OnMarkRead func(id string, throughSeq int)
+	OnRefresh  func()
+	OnChange   func(field, value string)
+	OnAction   func(pluginrpc.DshbotContactCommand)
 }
 
 func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
@@ -184,6 +185,12 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 						}
 						if live := cm.Activity[row.ID]; live.Active {
 							ui.Text(c, "活跃 / Active").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+						}
+						if live := cm.Activity[row.ID]; live.Unread() {
+							ui.Text(c, "有未读完成结果 / Unread completed result").TextColor(accent)
+							if ui.Button(c, "标为已读 / Mark read").Disabled(readonly || cm.OnMarkRead == nil).Clicked() {
+								cm.OnMarkRead(row.ID, live.ActivitySeq)
+							}
 						}
 						if preview := cm.Activity[row.ID].Preview; preview != "" {
 							ui.Text(c, preview).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)

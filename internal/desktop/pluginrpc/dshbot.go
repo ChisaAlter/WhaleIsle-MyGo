@@ -48,16 +48,18 @@ type DshbotCatalogValue struct {
 
 // DshbotCatalogItem is one bot or room row in the catalog.
 type DshbotCatalogItem struct {
-	Notify       *bool    `json:"notify"` // nil is unavailable evidence, never guessed true
-	ID           string   `json:"id"`
-	Kind         string   `json:"kind"`
-	SessionID    string   `json:"sessionId"`
-	WorkspaceID  string   `json:"workspaceId"`
-	Name         string   `json:"name"`
-	Title        string   `json:"title"`
-	Hidden       bool     `json:"hidden"`
-	Pinned       bool     `json:"pinned"`
-	MemberBotIDs []string `json:"memberBotIds"`
+	ReadInitialized bool     `json:"readInitialized"`
+	LastSeenSeq     int      `json:"lastSeenSeq"`
+	Notify          *bool    `json:"notify"` // nil is unavailable evidence, never guessed true
+	ID              string   `json:"id"`
+	Kind            string   `json:"kind"`
+	SessionID       string   `json:"sessionId"`
+	WorkspaceID     string   `json:"workspaceId"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Hidden          bool     `json:"hidden"`
+	Pinned          bool     `json:"pinned"`
+	MemberBotIDs    []string `json:"memberBotIds"`
 }
 
 // DshbotSection is a roster grouping section.
@@ -108,6 +110,8 @@ type DshbotActivityResult struct {
 
 // DshbotActivityEntry summarizes session activity for one catalog item.
 type DshbotActivityEntry struct {
+	ReadInitialized        bool            `json:"readInitialized"`
+	LastSeenSeq            int             `json:"lastSeenSeq"`
 	NotificationShapeKnown bool            `json:"-"`
 	Goal                   json.RawMessage `json:"goal"`
 	LastRun                json.RawMessage `json:"lastRun"`

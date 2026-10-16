@@ -82,6 +82,44 @@ func (s *mainState) assistantContactsModel(ep harness.Endpoint) assistantui.Cont
 		}()
 	}
 	model := assistantui.ContactsModel{State: snapshot, Activity: s.assistantContactsActivity(ep, snapshot.Catalog), OnRefresh: refresh,
+		OnMarkRead: func(id string, throughSeq int) {
+			if !current() || !snapshot.Writable || throughSeq < 0 {
+				return
+			}
+			ticket, ok := controls.BeginLoad(scope)
+			if !ok {
+				return
+			}
+			s.updateAssistantTasks()
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if !current() {
+					return
+				}
+				view, err := rpc.DshbotMarkRead(ctx, []pluginrpc.DshbotReadMark{{ID: id, ThroughSeq: throughSeq}})
+				catalog := snapshot.Catalog
+				if err == nil {
+					catalog, err = rpc.DshbotContacts(ctx)
+				}
+				if current() && controls.FinishLoad(ticket, catalog, snapshot.Writable, err) {
+					if err == nil {
+						updateRoster(catalog)
+						mygo.RunOnMain(func() {
+							if current() {
+								s.mu.Lock()
+								run := s.botNotifications
+								s.mu.Unlock()
+								if run != nil && run.client == client {
+									applyBotReadView(run.contactActivity, view)
+								}
+							}
+						})
+					}
+					s.updateAssistantTasks()
+				}
+			}()
+		},
 		OnChange: func(field, value string) {
 			if current() {
 				controls.Change(scope, field, value)

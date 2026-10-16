@@ -94,6 +94,9 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 			}
 			s.revokePhoneGit()
 			sessions.Select(sid)
+			if mode == assiststore.ModeDshbot {
+				s.markOpenedBotRead(ep, client, botID, sid)
+			}
 			// Select already starts the canonical follow and control subscriptions.
 			asst.SetSessionID(sid)
 			s.mu.Lock()

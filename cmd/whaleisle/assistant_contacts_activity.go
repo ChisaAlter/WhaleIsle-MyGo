@@ -24,8 +24,8 @@ func (s *mainState) assistantContactsActivity(ep harness.Endpoint, catalog plugi
 	if run != nil && run.client == client && s.botNotificationCurrent(run) {
 		for _, activity := range run.contactActivity {
 			for _, row := range catalog.Items {
-				if row.ID == activity.ID && row.SessionID == activity.SessionID {
-					out[row.ID] = dshbotstore.ContactActivity{Active: activity.Attention, ActivityAt: activity.ActivityAt, Preview: activity.Preview}
+				if row.ID == activity.ID && row.SessionID == activity.SessionID && activity.Error == "" {
+					out[row.ID] = dshbotstore.ContactActivity{Active: activity.Attention, ActivityAt: activity.ActivityAt, Preview: activity.Preview, ReadInitialized: activity.ReadInitialized, ActivitySeq: activity.ActivitySeq, LastSeenSeq: activity.LastSeenSeq}
 					break
 				}
 			}

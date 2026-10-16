@@ -3,9 +3,11 @@ package dshbot
 import "whaleisle/internal/desktop/pluginrpc"
 
 type ContactActivity struct {
-	Active     bool
-	ActivityAt int64
-	Preview    string
+	ReadInitialized          bool
+	ActivitySeq, LastSeenSeq int
+	Active                   bool
+	ActivityAt               int64
+	Preview                  string
 }
 
 func ContactActivityAt(row pluginrpc.DshbotBotItem, live ContactActivity) int64 {
@@ -34,4 +36,9 @@ func ContactActivityMatches(row pluginrpc.DshbotBotItem, live ContactActivity, f
 		return recent
 	}
 	return !recent
+}
+
+// Unread is based on the Host filtered activity cursor (silent routine turns are excluded there).
+func (a ContactActivity) Unread() bool {
+	return !a.Active && a.ReadInitialized && a.ActivitySeq > a.LastSeenSeq
 }

@@ -49,7 +49,8 @@ func (s *mainState) botNotificationCurrent(run *botNotificationRun) bool {
 }
 
 // Called by the active Bot page lifecycle. OS hide/minimize does not retire
-// this read-only observer; page/account/Host departure and OnClosed still do.
+// this activity observer; page/account/Host departure and OnClosed still do.
+// It also persists original read cursors when settings are writable.
 func (s *mainState) observeBotNotifications(rendered bool) {
 	s.mu.Lock()
 	active := s.botNotificationPageActiveLocked()
@@ -104,7 +105,11 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 			cancel()
 			return botnotify.Snapshot{}, context.Canceled
 		}
-		return rpc.DshbotNotificationSnapshot(ctx)
+		snapshot, err := rpc.DshbotNotificationSnapshot(ctx)
+		if err == nil {
+			err = s.initializeBotReadState(ctx, run, &snapshot)
+		}
+		return snapshot, err
 	}, func(snapshot botnotify.Snapshot, err error) {
 		applied := make(chan struct{})
 		win.Update(func() {
