@@ -12,6 +12,7 @@ type localDiscovery struct {
 	cancel    context.CancelFunc
 	workspace string
 	servers   []localservers.Server
+	problem   string
 }
 
 func (b *Controller) stopLocalDiscovery() {
@@ -56,18 +57,20 @@ func (b *Controller) resumeLocalDiscovery(t *Tab) {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 		for {
-			found := localservers.Discover(ctx)
+			result := localservers.DiscoverStatus(ctx)
 			if ctx.Err() != nil {
 				return
 			}
 			applied := make(chan struct{})
 			parent.Update(func() {
 				defer close(applied)
-				if !b.applyLocalServers(ctx, request, found) {
+				if !b.applyLocalServers(ctx, request, result.Servers) {
 					cancel()
 					if b.discovery == request {
 						b.discovery = nil
 					}
+				} else {
+					request.problem = result.Error
 				}
 			})
 			select {
@@ -89,7 +92,13 @@ func (b *Controller) localServerControls(c *ui.Context, t *Tab) {
 	ui.Row(c).Height(30).Gap(6).AlignItems(ui.Center).Children(func() {
 		request := b.discovery
 		scope, err := b.browserWorkspace()
-		if request == nil || err != nil || scope.key != request.workspace || len(request.servers) == 0 {
+		if request == nil || err != nil || scope.key != request.workspace {
+			return
+		}
+		if request.problem != "" {
+			ui.Text(c, "本机服务探测异常").Tooltip(request.problem + "；每 3 秒自动重试，已发现服务仍可打开。")
+		}
+		if len(request.servers) == 0 {
 			return
 		}
 		ui.Text(c, "发现本机服务").Tooltip("每 3 秒探测本机固定开发端口；仅 TCP 连通性，不保证 HTTP 可用。不会启动服务。")

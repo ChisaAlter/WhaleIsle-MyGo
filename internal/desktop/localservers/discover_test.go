@@ -2,9 +2,11 @@ package localservers
 
 import (
 	"context"
+	"net"
 	"reflect"
 	"sort"
 	"sync"
+	"syscall"
 	"testing"
 )
 
@@ -33,5 +35,29 @@ func TestDiscoverCanceledDiscardsResults(t *testing.T) {
 	got := discover(ctx, func(context.Context, int) bool { return true })
 	if len(got) != 0 {
 		t.Fatalf("canceled discovery returned %#v", got)
+	}
+}
+
+func TestDiscoveryReportsOnlyAbnormalProbeFailures(t *testing.T) {
+	result := discoverWithStatus(context.Background(), func(_ context.Context, port int) error {
+		switch port {
+		case 3000:
+			return nil
+		case 3001:
+			return &net.OpError{Op: "dial", Err: syscall.EACCES}
+		default:
+			return &net.OpError{Op: "dial", Err: syscall.ECONNREFUSED}
+		}
+	})
+	if len(result.Servers) != 1 || result.Servers[0].Port != 3000 || result.Error == "" {
+		t.Fatalf("lost service or abnormal error: %#v", result)
+	}
+	empty := discoverWithStatus(context.Background(), func(context.Context, int) error { return syscall.ECONNREFUSED })
+	if len(empty.Servers) != 0 || empty.Error != "" {
+		t.Fatalf("closed ports must be quiet: %#v", empty)
+	}
+	timeout := discoverWithStatus(context.Background(), func(context.Context, int) error { return context.DeadlineExceeded })
+	if timeout.Error != "" {
+		t.Fatalf("ordinary timeout must be quiet: %#v", timeout)
 	}
 }
