@@ -16,6 +16,7 @@ import (
 
 // ComposerAttachment retains its staged receipt and exact session/Host owner.
 type ComposerAttachment struct {
+	PrepareError                     string // Runtime-only failure; retry keeps the local file and draft owner.
 	Path, Name, SessionID, HostScope string
 	Upload                           api.FileUploadValue
 	ImageData, MediaType             string
@@ -66,6 +67,7 @@ func (s *Store) PrepareComposerAttachment(ctx context.Context, id string, a Comp
 	return t.PrepareAttachment(ctx, a)
 }
 func (t *ComposerTarget) PrepareAttachment(ctx context.Context, a ComposerAttachment) (ComposerAttachment, error) {
+	a.PrepareError = ""
 	if err := t.check(ctx); err != nil {
 		return a, err
 	}

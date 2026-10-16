@@ -177,6 +177,7 @@ type Model struct {
 	OnSubmitComposer        func()
 	OnSubmitComposerGesture func(accelerated bool)
 	OnAttachComposerFiles   func([]string)
+	OnRetryComposerFile     func(int)
 	OnPasteComposerImage    func(bool)
 	ModelPick               *string
 	PermissionPick          *string
@@ -710,6 +711,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnSubmitGesture:      m.OnSubmitComposerGesture,
 						OnOpenURL:            m.OnOpenCitationURL,
 						OnAttachFiles:        m.OnAttachComposerFiles,
+						OnRetryAttachment:    m.OnRetryComposerFile,
 						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
 						OnPasteImage:         m.OnPasteComposerImage,
 						Editing:              editing,

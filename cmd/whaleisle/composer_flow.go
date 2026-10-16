@@ -36,23 +36,7 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 		a := session.ComposerAttachment{Path: path, Name: filepath.Base(path)}
 		index := len(d.Attachments)
 		d.Attachments = append(d.Attachments, a)
-		if id != "" && win != nil && sessions != nil {
-			d.Preparing++
-			go func() {
-				prepared, err := sessions.PrepareComposerAttachment(context.Background(), id, a)
-				win.Update(func() {
-					d.Preparing--
-					if index >= len(d.Attachments) || d.Attachments[index].Path != a.Path {
-						return
-					}
-					if err != nil {
-						d.Error = err.Error()
-						return
-					}
-					d.Attachments[index] = prepared
-				})
-			}()
-		}
+		s.prepareComposerFile(win, sessions, id, d, index, false)
 	}
 	d.Error = ""
 }

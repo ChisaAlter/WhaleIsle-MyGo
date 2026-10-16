@@ -41,6 +41,7 @@ type Model struct {
 	OnSubmitGesture      func(accelerated bool)
 	OnOpenURL            func(string)
 	OnAttachFiles        func([]string)
+	OnRetryAttachment    func(int)
 	OnWorkspaceReference func(filelink.Reference) error
 	OnPasteImage         func(bool)
 	ModelPick            *string
@@ -1060,6 +1061,12 @@ func paintDraftAttachments(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 			if d.Sending || d.Preparing > 0 {
 				label += " …"
+			}
+			if a.PrepareError != "" {
+				ui.Text(c, label+": "+a.PrepareError).FontSize(11).TextColor(muted)
+				if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(11).Disabled(d.Sending || d.Preparing > 0).Clicked() {
+					m.OnRetryAttachment(i)
+				}
 			}
 			b := ui.Button(c, label+" ×").FontSize(12).TextColor(fg).Disabled(d.Sending || d.Preparing > 0)
 			if b.Clicked() {
