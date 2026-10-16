@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -26,6 +27,7 @@ type Style struct {
 	ResolveFile func(string) string
 	OnOpenFile  func(string)
 	codeSpanAt  func(int, string)
+	blockAt     func(int, int, ast.Node)
 }
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
@@ -35,7 +37,7 @@ func Spans(source string, st Style) []ui.Span {
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New()
+	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []ui.Span
@@ -58,7 +60,22 @@ func View(c *ui.Context, source string, st Style) {
 			}
 		}
 	}
+	var blocks []richBlock
+	st.blockAt = func(start, end int, node ast.Node) {
+		blocks = append(blocks, richBlock{start: start, end: end, node: node})
+	}
 	spans := Spans(source, st)
+	if len(spans) == 0 && len(blocks) == 0 {
+		return
+	}
+	if len(blocks) > 0 {
+		viewBlocks(c, strings.TrimSpace(source), st, spans, targets, blocks)
+		return
+	}
+	viewSpans(c, st, spans, targets, 0)
+}
+
+func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string, offset int) {
 	if len(spans) == 0 {
 		return
 	}
@@ -69,7 +86,7 @@ func View(c *ui.Context, source string, st Style) {
 	ui.RichText(c).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
 		for index, span := range spans {
 			el := ui.RichText(c, span)
-			if path := targets[index]; path != "" {
+			if path := targets[offset+index]; path != "" {
 				el = el.Tooltip(path).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
 				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
 					st.OnOpenFile(path)
@@ -91,7 +108,7 @@ func Links(source string) []Link {
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New(goldmark.WithExtensions(extension.Linkify))
+	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []Link
@@ -178,6 +195,7 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 			})
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 		case *ast.FencedCodeBlock:
+			start := len(*out)
 			var buf bytes.Buffer
 			lines := node.Lines()
 			for i := 0; i < lines.Len(); i++ {
@@ -186,7 +204,11 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 			}
 			lang := string(node.Language([]byte(src)))
 			*out = append(*out, highlightedCodeSpans(lang, buf.String(), st)...)
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
 		case *ast.CodeBlock:
+			start := len(*out)
 			var buf bytes.Buffer
 			lines := node.Lines()
 			for i := 0; i < lines.Len(); i++ {
@@ -194,6 +216,23 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 				buf.Write(line.Value([]byte(src)))
 			}
 			*out = append(*out, highlightedCodeSpans("", buf.String(), st)...)
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
+		case *extast.Table:
+			start := len(*out)
+			for row := node.FirstChild(); row != nil; row = row.NextSibling() {
+				for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+					if cell.PreviousSibling() != nil {
+						*out = append(*out, ui.Span{Text: " | ", Size: st.FontSize, Color: st.Muted})
+					}
+					walkInlines(cell, src, st, out)
+				}
+				*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+			}
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
 		case *ast.ListItem:
 			marker := "• "
 			if list, ok := node.Parent().(*ast.List); ok && list.IsOrdered() {
@@ -249,6 +288,15 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 			return
 		}
 		appendMathAwareText(text, st, out, mutators...)
+	case *extast.TaskCheckBox:
+		label := "☐ "
+		if node.IsChecked {
+			label = "☑ "
+		}
+		*out = append(*out, ui.Span{Text: label, Size: st.FontSize, Color: st.FG})
+	case *extast.Strikethrough:
+		combined := append(mutators, func(s *ui.Span) { s.Strikethrough = true })
+		walkInlines(node, src, st, out, combined...)
 	case *ast.Emphasis:
 		level := node.Level
 		var extra spanMutator
@@ -271,7 +319,17 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 		if st.codeSpanAt != nil {
 			st.codeSpanAt(len(*out), buf.String())
 		}
-		*out = append(*out, codeSpan(buf.String(), st))
+		span := codeSpan(buf.String(), st)
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
+	case *ast.AutoLink:
+		span := ui.Span{Text: string(node.Label([]byte(src))), Size: st.FontSize, Color: st.Accent, Underline: true}
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
 	case *ast.Link:
 		var buf bytes.Buffer
 		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
