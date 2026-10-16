@@ -6,9 +6,15 @@ import (
 )
 
 // NoticeState contains event revisions, not bearer/expiry credential material.
-type NoticeState struct{ Expired, SignInRequired uint64 }
+type NoticeState struct{ Expired, SignInRequired, Generation uint64 }
 
-func (s *Store) Notices() NoticeState { s.mu.Lock(); defer s.mu.Unlock(); return s.notices }
+func (s *Store) Notices() NoticeState {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	notices := s.notices
+	notices.Generation = s.accountEpoch
+	return notices
+}
 
 // OnAccountNotice belongs to the existing events stream; canceled generations
 // cannot publish after account/Host replacement. It never starts sign-in.
