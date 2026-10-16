@@ -21,13 +21,13 @@ func remoteWorkbookReader(sessions *session.Store, expected *dsh.Client, sid str
 		return nil
 	}
 	return func(ctx context.Context, path string, request workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error) {
-		if strings.ToLower(filepath.Ext(path)) != ".xlsx" {
-			return nil, errors.New("Legacy XLS is not supported by the native table reader; use Host external open")
+		if ext := strings.ToLower(filepath.Ext(path)); ext != ".xlsx" && ext != ".xls" {
+			return nil, errors.New("Native workbook reader supports XLSX and XLS files")
 		}
 		data, err := mediapreview.ReadSnapshot(ctx, reader, sid, path, 16<<20, valid)
 		if err != nil {
 			return nil, err
 		}
-		return workspacefs.ReadXLSXBytesPage(ctx, data, request)
+		return workspacefs.ReadWorkbookBytesPage(ctx, data, request)
 	}
 }

@@ -63,7 +63,7 @@ func (s *Store) ReadAgentWorkbook(ctx context.Context, token uint64, address Age
 	data, err := mediapreview.ReadSnapshot(ctx, reader, address.ChildSessionID, path, 16<<20, valid)
 	var page *workspacefs.XLSXPage
 	if err == nil {
-		page, err = workspacefs.ReadXLSXBytesPage(ctx, data, request)
+		page, err = workspacefs.ReadWorkbookBytesPage(ctx, data, request)
 	}
 	if !valid() {
 		return
