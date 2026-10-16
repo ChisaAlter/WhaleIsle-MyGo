@@ -18,6 +18,7 @@ import (
 // Panel retains each task's unfinished draft when switching tasks or closing the panel.
 // Background requests publish only status/history; they never overwrite editor inputs.
 type Panel struct {
+	recentZones         []string
 	drafts              map[string]*taskDraft
 	selected            string
 	query, statusFilter string
@@ -39,13 +40,14 @@ type savedDraft struct {
 	timing string
 }
 type taskDraft struct {
+	picker                                                              timingPickerState
 	row                                                                 schedstore.Entry
 	Title, Prompt, Kind, At, Seconds, Clock, Zone, Weekdays, Expression string
 	initialTiming                                                       string
 }
 
 func newTaskDraft(row schedstore.Entry) *taskDraft {
-	d := &taskDraft{row: row, Title: row.Title, Prompt: row.Prompt, Zone: "UTC"}
+	d := &taskDraft{row: row, Title: row.Title, Prompt: row.Prompt, Zone: systemScheduleZone()}
 	var r struct {
 		Kind, ScheduledAt, Time, TimeZone, Expression string
 		EverySeconds                                  int
@@ -98,8 +100,8 @@ func (d *taskDraft) change() (json.RawMessage, error) {
 		}
 		rule := map[string]any{"time_zone": strings.TrimSpace(d.Zone)}
 		if d.Kind == "cron" {
-			if len(strings.Fields(d.Expression)) != 5 {
-				return nil, fmt.Errorf("cron needs five fields")
+			if _, err := parseTaskCron(d.Expression); err != nil {
+				return nil, err
 			}
 			rule["expression"] = strings.TrimSpace(d.Expression)
 		} else {
@@ -315,22 +317,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					input("名称 / Title", &d.Title)
 					ui.Text(c, "指令 / Prompt").FontSize(theme.InterfaceSize(11))
 					ui.TextArea(c, &d.Prompt).FillWidth().Lines(3, 6)
-					ui.Select(c, &d.Kind, []string{"at", "every", "daily", "weekly", "cron"})
-					switch d.Kind {
-					case "at":
-						input("时间 / RFC3339 (2026-12-01T09:00:00+08:00)", &d.At)
-					case "every":
-						input("间隔秒数 / Interval seconds", &d.Seconds)
-					case "daily", "weekly":
-						input("时间 / HH:mm:ss", &d.Clock)
-						input("时区 / IANA zone", &d.Zone)
-						if d.Kind == "weekly" {
-							input("星期 / Mon=1 … Sun=7, comma separated", &d.Weekdays)
-						}
-					case "cron":
-						input("Cron (minute hour day month weekday)", &d.Expression)
-						input("时区 / IANA zone", &d.Zone)
-					}
+					p.timingEditor(c, d, available && !snap.Busy && !snap.Loading && snap.ClientReady)
 					ui.Row(c).Gap(8).Children(func() {
 						if ui.Button(c, "保存全部 / Save all").Disabled(snap.Busy || snap.Loading || !snap.ClientReady || !available).Clicked() {
 							title, prompt := strings.TrimSpace(d.Title), strings.TrimSpace(d.Prompt)
