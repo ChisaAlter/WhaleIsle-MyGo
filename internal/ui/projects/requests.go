@@ -105,8 +105,8 @@ func requestDetailView(c *ui.Context, m Model) {
 			}
 			if card.HandoverError != "" {
 				ui.Text(c, tr("交付未完成：", "Delivery incomplete: ")+card.HandoverError).FontSize(fonttheme.InterfaceSize(12))
-				ui.Text(c, tr("恢复指令只读取已保存成果，不重新执行后台工作。草稿仍需你发送。", "The recovery request reads saved results without rerunning background work. You still send the draft.")).FontSize(fonttheme.InterfaceSize(11))
-				if ui.Button(c, tr("准备交付恢复草稿", "Prepare handover recovery draft")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || card.AuthorityError != "").Clicked() && m.OnHandoverRetryDraft != nil {
+				ui.Text(c, tr("点击后复核原要求，并向原 Lead 发送读取已保存成果的重新汇总请求。", "This action verifies the original request and sends the Lead a request to summarize its saved results.")).FontSize(fonttheme.InterfaceSize(11))
+				if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || card.AuthorityError != "").Clicked() && m.OnHandoverRetryDraft != nil {
 					m.OnHandoverRetryDraft()
 				}
 			}

@@ -8,8 +8,8 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-// runProjectRecoveryDraft only fills an empty original Lead composer after the
-// Host revalidates saved evidence. The user still sends the request explicitly.
+// The explicit recovery button revalidates saved evidence, then submits through
+// the original Lead composer so ordinary send failure/recovery remains visible.
 func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 	if win == nil || id == "" {
 		return
@@ -98,8 +98,7 @@ func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 				s.mu.Unlock()
 				return
 			}
-			target.Text = draft
-			notice := resumeText("已将重新汇总指令放入原 Lead 草稿，尚未发送或重新执行工作。", "Recovery request placed in the original Lead draft. It has not been sent or rerun any work.")
+			notice := resumeText("正在向原 Lead 发送重新汇总请求；发送结果见主会话。", "Sending the recovery request to the original Lead; the main conversation shows submission status.")
 			if kind == "summary" {
 				f.teamNote = notice
 			} else {
@@ -107,6 +106,14 @@ func (s *mainState) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
 			}
 			s.mu.Unlock()
 			sessions.Select(project.CoordinatorSessionID)
+			if submitErr := submitProjectRecoveryDraft(target, draft, func() {
+				snap := sessions.Snapshot()
+				s.submitComposer(win, sessions, target, project.CoordinatorSessionID, snap.ScratchCwd, 0, false, snap.ComposerHostGeneration)
+			}); submitErr != nil {
+				s.mu.Lock()
+				s.projectFlow.err = submitErr.Error()
+				s.mu.Unlock()
+			}
 		})
 	}()
 }

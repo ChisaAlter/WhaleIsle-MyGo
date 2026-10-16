@@ -34,10 +34,10 @@ func detailView(c *ui.Context, m Model) {
 		}
 	}
 	if d.Workstream.SummaryFailure != nil {
-		ui.Text(c, tr("成果已保存，Lead 汇总未完成。可准备只读取原有记录的恢复指令。", "Results are saved, but the Lead summary is incomplete. Prepare a request to read the existing records.")).FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, tr("成果已保存，Lead 汇总未完成。点击后复核原记录并向原 Lead 发送重新汇总请求。", "Results are saved. This action verifies the records and sends a summary request to the original Lead.")).FontSize(fonttheme.InterfaceSize(11))
 		ui.Text(c, d.Workstream.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(11))
 		disabled := m.Busy || !m.Listing.Available || m.Team == nil || m.Team.Project.Lifecycle != "ready" || m.Team.Project.Archiving
-		if ui.Button(c, tr("准备重新汇总草稿", "Prepare summary recovery draft")).Disabled(disabled).Clicked() && m.OnSummaryRetryDraft != nil {
+		if ui.Button(c, tr("发送重新汇总请求", "Send summary recovery request")).Disabled(disabled).Clicked() && m.OnSummaryRetryDraft != nil {
 			m.OnSummaryRetryDraft()
 		}
 	}
