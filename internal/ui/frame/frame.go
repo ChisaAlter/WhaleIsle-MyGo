@@ -345,7 +345,7 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	snap := m.Store.Snapshot()
 	if m.HostTerminalUI != nil {
-		m.HostTerminalUI.Observe(m.HostTerminalStore, snap.SelectedID, workspaceVisible(m, "host-terminal"))
+		observeHostTerminalPanes(m)
 	}
 	if m.FileTabs != nil {
 		m.FileTabs.SyncPlanSession(snap.SelectedID)
@@ -1121,6 +1121,7 @@ func rightPane(c *ui.Context, m Model) {
 			m.OnHideBrowser()
 		}
 		if tab == "host-terminal" && m.Store != nil {
+			m = hostTerminalPaneModel(m)
 			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.Snapshot().SelectedID, m.ThemeID, m.SystemDark, hostTerminalActions(m))
 			return
 		}

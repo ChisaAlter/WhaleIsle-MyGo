@@ -18,6 +18,7 @@ func HostTitle() string { return terminalLabel("Host 终端", "Host terminal") }
 // in the Store, independently of this view or the local PTY drawer.
 // All HostState methods run on the UI thread.
 type HostState struct {
+	occurrences     map[string]*HostState
 	terminal        *myterm.Terminal
 	attachment      *hostterminal.Attachment
 	closeTarget     string
@@ -41,6 +42,7 @@ func (h *HostState) Observe(store *hostterminal.Store, session string, visible b
 	}
 	store.Show(session, visible)
 	if !visible {
+		h.hideOccurrences(store, nil)
 		h.drop()
 		h.confirmClose = false
 		h.closeTarget = ""

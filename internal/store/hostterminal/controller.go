@@ -86,6 +86,7 @@ type entry struct {
 }
 
 type Store struct {
+	occurrences         map[string]*Store
 	mu                  sync.Mutex
 	owner               any
 	remote              Remote
@@ -104,6 +105,7 @@ type Store struct {
 }
 
 func (s *Store) bind(owner any, r Remote, ready bool, notify func()) {
+	defer s.bindOccurrences(owner, r, ready, notify)
 	s.mu.Lock()
 	if s.owner == owner && s.ctx != nil {
 		s.notify = notify
@@ -127,6 +129,7 @@ func (s *Store) bind(owner any, r Remote, ready bool, notify func()) {
 	s.fire()
 }
 func (s *Store) transport(owner any, ready bool) {
+	defer s.transportOccurrences(owner, ready)
 	s.mu.Lock()
 	if s.owner != owner || s.remote == nil || s.ready == ready {
 		s.mu.Unlock()

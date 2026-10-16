@@ -10,7 +10,7 @@ import (
 )
 
 // WorkspacePanes retains native content seats and their split geometry. A content
-// kind owns one seat: existing file/editor, agent and browser state is reused.
+// kind owns one seat except terminals, whose occurrences own independent follows.
 type WorkspacePanes struct {
 	Root       *WorkspacePane `json:"root"`
 	Active     string         `json:"active"`
@@ -21,12 +21,13 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
-	ID     string         `json:"id"`
-	Kind   string         `json:"kind,omitempty"`
-	Axis   string         `json:"axis,omitempty"`
-	Ratio  float32        `json:"ratio,omitempty"`
-	First  *WorkspacePane `json:"first,omitempty"`
-	Second *WorkspacePane `json:"second,omitempty"`
+	ID             string         `json:"id"`
+	Kind           string         `json:"kind,omitempty"`
+	TerminalSource string         `json:"terminalSource,omitempty"`
+	Axis           string         `json:"axis,omitempty"`
+	Ratio          float32        `json:"ratio,omitempty"`
+	First          *WorkspacePane `json:"first,omitempty"`
+	Second         *WorkspacePane `json:"second,omitempty"`
 }
 
 func paneLabel(zh, en string) string {
@@ -70,7 +71,7 @@ func (n *WorkspacePane) firstLeaf() *WorkspacePane {
 	return n.First.firstLeaf()
 }
 func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) {
-	if other := w.Root.kind(kind); other != nil && other != n {
+	if other := w.Root.kind(kind); kind != "host-terminal" && other != nil && other != n {
 		other.Kind = n.Kind
 	}
 	n.Kind = kind
@@ -283,9 +284,15 @@ func workspacePaneControls(c *ui.Context, m Model) {
 			break
 		}
 	}
+	if n.Kind == "host-terminal" {
+		next = "host-terminal"
+	}
 	split := func(axis string) {
 		old := *n
 		newPane := w.leaf(next)
+		if next == "host-terminal" && n.Kind == "host-terminal" {
+			newPane.TerminalSource = old.ID
+		}
 		*n = WorkspacePane{ID: w.leaf("").ID, Axis: axis, Ratio: 0.5, First: &old, Second: newPane}
 		w.Active = newPane.ID
 		w.Fullscreen = ""
@@ -352,13 +359,20 @@ func SplitWorkspacePane(m Model, vertical bool) {
 	if m.BrowserContent != nil {
 		kinds = append(kinds, "browser")
 	}
+	duplicateTerminal := w.Root.find(w.Active).Kind == "host-terminal"
+	if duplicateTerminal {
+		kinds = []string{"host-terminal"}
+	}
 	for _, kind := range kinds {
-		if w.Root.kind(kind) != nil {
+		if w.Root.kind(kind) != nil && !duplicateTerminal {
 			continue
 		}
 		n := w.Root.find(w.Active)
 		old := *n
 		added := w.leaf(kind)
+		if kind == "host-terminal" && old.Kind == "host-terminal" {
+			added.TerminalSource = old.ID
+		}
 		axis := "horizontal"
 		if vertical {
 			axis = "vertical"
