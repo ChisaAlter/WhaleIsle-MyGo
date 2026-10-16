@@ -11,6 +11,7 @@ import (
 
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
@@ -21,6 +22,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	Preferences        settings.ChatPreferences
 	ScheduleStore      *schedstore.Store
 	OnOpenScheduleTask func(schedstore.Entry)
 	HistoryStore       *session.Store
@@ -81,6 +83,7 @@ func View(c *ui.Context, m Model) {
 	_ = colors.BG
 
 	msgs := session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
+	msgs, transcriptControls := projectTranscript(msgs, m)
 	list := m.List
 	if list == nil {
 		list = &ui.ListState{FollowEnd: true}
@@ -118,6 +121,10 @@ func View(c *ui.Context, m Model) {
 			padT, padR, padB, padL := float32(12), float32(16), float32(8), float32(16)
 			isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 			ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill().Children(func() {
+				if control, ok := transcriptControls[msg.ID]; ok {
+					transcriptControlView(row.Context, control, m, muted)
+					return
+				}
 				if msg.Submission != nil {
 					paintPendingSubmission(row.Context, *msg.Submission, fg, muted)
 					return
@@ -137,8 +144,9 @@ func View(c *ui.Context, m Model) {
 				// Electron turn/end strip: 「已完成，用时 … ▾」.
 				if msg.Role == "status" && msg.EventType == "turn/end" {
 					ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
+					TurnUsageView(row.Context, m, msg, muted)
 					ui.Row(row.Context).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(row.Context, formatTurnStatus(msg.Body)).FontSize(12).TextColor(muted)
+						ui.Text(row.Context, completedTurnStatus(msg)).FontSize(12).TextColor(muted)
 						if m.OnForkTurn != nil && session.CanForkTurn(m.Snapshot.Messages, msg.Seq) {
 							if ui.Button(row.Context, "从这里分支 / Branch here").FontSize(11).Disabled(m.Snapshot.HistoryBranchBusy || !m.Snapshot.ClientReady).Clicked() {
 								m.OnForkTurn(msg.Seq)
@@ -214,11 +222,12 @@ func View(c *ui.Context, m Model) {
 					CompactionView(row.Context, msg, fg, muted, chrome.Color(colors.Field))
 				case session.MessageKindThinking:
 					thSt := ThinkingStyle{
-						FG:     fg,
-						Muted:  muted,
-						Border: border,
-						Field:  chrome.Color(colors.Field),
-						Size:   12,
+						HidePreview: m.Preferences.TranscriptView == "compact" && !msg.Streaming,
+						FG:          fg,
+						Muted:       muted,
+						Border:      border,
+						Field:       chrome.Color(colors.Field),
+						Size:        12,
 					}
 					ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 				default:

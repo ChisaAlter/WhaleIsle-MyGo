@@ -73,7 +73,7 @@ func (s *Store) captureTrajectoryBoundaryLocked(raw json.RawMessage) bool {
 		return false
 	}
 	switch e.Type {
-	case "step/start", "step/end", "assistant/attempt":
+	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started":
 	default:
 		return false
 	}

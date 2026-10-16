@@ -11,11 +11,12 @@ import (
 
 // ThinkingStyle colors for collapsible thinking blocks.
 type ThinkingStyle struct {
-	FG     ui.Color
-	Muted  ui.Color
-	Border ui.Color
-	Field  ui.Color
-	Size   float32
+	HidePreview bool
+	FG          ui.Color
+	Muted       ui.Color
+	Border      ui.Color
+	Field       ui.Color
+	Size        float32
 }
 
 // ThinkingBlockView renders assistant thinking in a muted, expandable panel.
@@ -36,7 +37,7 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 			if header.Clicked() {
 				toggleThinkingExpanded(expanded, msgID)
 			}
-			if !open && preview != "" {
+			if !open && !st.HidePreview && preview != "" {
 				ui.Text(c, preview).FontSize(size - 1).TextColor(st.Muted).Grow(1)
 			}
 		})

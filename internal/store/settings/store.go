@@ -591,6 +591,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 // ok is false when the field is absent (caller keeps goHideChatViewTabs).
 func (s *Store) ViewTabsEnabled() (enabled bool, ok bool) {
 	candidates := []struct{ ns, key string }{
+		{"ui-conversation", "viewTabs"},
 		{"conversation", "viewTabs"},
 		{"submissionPolicy", "viewTabs"},
 		{"ui", "viewTabs"},
@@ -623,6 +624,7 @@ func (s *Store) ViewTabsEnabled() (enabled bool, ok bool) {
 // settings when those namespaces are present. Shell still keeps goHideChatViewTabs.
 func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 	candidates := []struct{ ns, key string }{
+		{"ui-conversation", "viewTabs"},
 		{"conversation", "viewTabs"},
 		{"submissionPolicy", "viewTabs"},
 		{"ui", "viewTabs"},

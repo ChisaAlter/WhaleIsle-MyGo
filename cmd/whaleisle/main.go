@@ -381,6 +381,7 @@ type mainState struct {
 	dirPickErr         string
 	dirPickNewName     string
 
+	composerResize        composer.ResizeState
 	sessionCostState      costui.State
 	composerSuggestSel    int
 	composerSuggest       ui.ListState
@@ -6149,12 +6150,16 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						Sizes:         &layout,
-						ChatList:      &chatList,
-						ThemeID:       themeID,
-						SystemDark:    mygo.Theme.IsDark(),
-						Draft:         &activeDraft.Text,
-						ComposerState: activeDraft,
+						ChatPreferences:         settingsstore.ChatPreferencesFrom(setStore.Snapshot()),
+						ConversationPreferences: settingsstore.ConversationPreferencesFrom(setStore.Snapshot()),
+						ComposerResize:          &state.composerResize,
+						OnComposerResizeEnd:     func(axis string, value float32) { setStore.SaveComposerSize(context.Background(), axis, value) },
+						Sizes:                   &layout,
+						ChatList:                &chatList,
+						ThemeID:                 themeID,
+						SystemDark:              mygo.Theme.IsDark(),
+						Draft:                   &activeDraft.Text,
+						ComposerState:           activeDraft,
 						OnSubmitComposerGesture: func(accelerated bool) {
 							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq, accelerated, snap.ComposerHostGeneration)
 						},
@@ -6199,12 +6204,7 @@ func mainView(c *ui.Context) {
 						PlanBoardOpen:      &planBoardOpen,
 						TodoPanelCollapsed: &todoPanelCollapsed,
 						ChatPaneTab:        &chatPaneTab,
-						HideChatViewTabs: func() bool {
-							if settingsOpen && state.settingsInterfaceActive {
-								return !state.desktopDraft.showViewTabs
-							}
-							return state.cfgStore != nil && state.cfgStore.Get().HideChatViewTabs
-						}(),
+						HideChatViewTabs:   !settingsstore.ConversationPreferencesFrom(setStore.Snapshot()).ViewTabs,
 						TrajSearch:         &trajSearch,
 						TrajSelectedID:     &trajSelectedID,
 						TrajActualDuration: &trajActualDur,
@@ -6682,9 +6682,7 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnOpenCitationURL: func(u string) {
-							state.showBrowserPreview(u)
-						},
+						OnOpenCitationURL:            state.openChatLink,
 						VisualReply:                  visualReplyState,
 						VisualReplyBitmap:            publishedHTMLBitmap(visualReplyState),
 						OnPreviewVisualReply:         func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },

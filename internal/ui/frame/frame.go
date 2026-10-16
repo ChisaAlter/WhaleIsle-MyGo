@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/store/interaction"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
@@ -135,10 +136,14 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	ScheduleStore         *schedstore.Store
-	OnOpenScheduleTask    func(schedstore.Entry)
-	OnOpenScheduleSession func(schedstore.Entry)
-	OnScheduleInvalidate  func()
+	ChatPreferences         settings.ChatPreferences
+	ConversationPreferences settings.ConversationPreferences
+	ComposerResize          *composer.ResizeState
+	OnComposerResizeEnd     func(axis string, value float32)
+	ScheduleStore           *schedstore.Store
+	OnOpenScheduleTask      func(schedstore.Entry)
+	OnOpenScheduleSession   func(schedstore.Entry)
+	OnScheduleInvalidate    func()
 	// PageShortcutBindings contains committed native overrides; nil uses defaults.
 	PageShortcutBindings map[string]string
 	SessionSearchFocus   *bool
@@ -324,6 +329,9 @@ func View(c *ui.Context, m Model) {
 	if m.Sizes == nil {
 		fallback := DefaultLayout()
 		m.Sizes = &fallback
+	}
+	if m.ComposerResize != nil {
+		m.ComposerResize.Adopt(m.FileBindingID, m.ConversationPreferences.ComposerResizeHeight, m.ConversationPreferences.ComposerResizeWidth)
 	}
 	prepareWorkspace(m)
 	if !workspaceVisible(m, "browser") && m.OnHideBrowser != nil {
@@ -658,6 +666,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
+						ResizeEnabled:        m.ConversationPreferences.ComposerResize,
+						Resize:               m.ComposerResize,
+						ResizeMaxWidth:       maxf(0, m.Sizes.Center-32),
+						OnResizeEnd:          m.OnComposerResizeEnd,
 						Snapshot:             snap,
 						ThemeID:              m.ThemeID,
 						SystemDark:           m.SystemDark,
@@ -777,6 +789,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				chatContentW := min(contentAxis, maxf(0, colW-64))
 				composerOuterW := min(contentAxis+64, maxf(0, colW))
 				heroStackW := min(contentAxis+32, maxf(0, colW-48))
+				if m.ConversationPreferences.ComposerResize && m.ComposerResize != nil && m.ComposerResize.Width > 0 {
+					composerOuterW = min(m.ComposerResize.Width+32, maxf(0, colW))
+					heroStackW = min(m.ComposerResize.Width+32, maxf(0, colW-48))
+				}
 				if emptyHero {
 					// HeroShell.module.css .root: pad 0 24; .stack gap 12.
 					ui.Column(c).Grow(1).MinHeight(0).Padding(0, 24, 0, 24).Children(func() {
@@ -858,6 +874,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
+										Preferences:   m.ChatPreferences,
 										ScheduleStore: m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
 										Snapshot:         snap,
 										ContentWidth:     contentAxis,
@@ -1030,6 +1047,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						ui.Box(c).Grow(1).MinWidth(0)
 						ui.Column(c).Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).Children(func() {
 							paintComposer(false)
+							chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
 							costModel := m.SessionCost
 							costModel.Snapshot = snap
 							costui.View(c, costModel, muted)

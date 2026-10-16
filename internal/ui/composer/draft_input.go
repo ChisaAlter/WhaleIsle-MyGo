@@ -26,6 +26,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		client.setWrapWidth(max(0, width-draftInputLeft-draftInputRight))
 	}
 	height := min(draftInputMaxHeight, max(minH, client.visualHeight()+draftInputTop))
+	height = resizeInputHeight(c, m, height)
 	client.setViewport(height)
 	box.Height(height).Clip().
 		HandleTextInput(client).

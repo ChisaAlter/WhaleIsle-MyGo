@@ -94,7 +94,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 	}
 	r := cost.Calculate(m.Snapshot.SelectedID, m.Snapshot.CostSources, m.Billing.Settings)
 	ui.Column(c).FillWidth().Gap(4).Padding(4, 8, 4, 8).Children(func() {
-		if stats {
+		if stats && settings.ChatPreferencesFrom(m.Preferences).PerformanceUsage != "compact" {
 			text := "Host 未提供计费 Token / Billed tokens unavailable"
 			if r.Available {
 				text = "含子代理计费 Token / Billed tokens incl. subagents · " + tokens(r.Total)

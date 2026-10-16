@@ -19,6 +19,10 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
+	ResizeEnabled        bool
+	Resize               *ResizeState
+	ResizeMaxWidth       float32
+	OnResizeEnd          func(axis string, value float32)
 	Snapshot             session.ViewState
 	ThemeID              string
 	SystemDark           bool
@@ -254,9 +258,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		}
 		// InputBar.card: 8px top pad, 12px gap, 28px radius. The hairline
 		// is painted as elevation, so it does not consume draft layout space.
-		ui.Column(c).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
+		card := ui.Column(c).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
 			Radius(28).Padding(8, 0, 0, 0).Gap(12).
-			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 28, 0.5) }).Children(func() {
+			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 28, 0.5) })
+		card.Children(func() {
+			paintResizeHandles(c, m, card, muted)
 			if m.State != nil {
 				paintDraftAttachments(c, m, fg, muted)
 			}
@@ -298,6 +304,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					if m.Hero {
 						ta = ta.MinHeight(52)
+					}
+					if m.ResizeEnabled && m.Resize != nil && m.Resize.Height > 0 {
+						ta.Height(resizeInputHeight(c, m, 36))
 					}
 					if selectStart >= 0 {
 						ta.SetTextSelection(selectStart, selectEnd).Focus()

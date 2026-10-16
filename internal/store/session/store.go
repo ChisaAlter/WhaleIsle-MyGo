@@ -77,6 +77,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	TurnUsage    map[float64]TurnUsage
 	TurnFiles    TurnFilesSnapshot
 	WorkflowRuns []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
@@ -498,6 +499,7 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
+		TurnUsage:           s.turnUsageLocked(),
 		TurnFiles:           s.turnFilesSnapshotLocked(),
 		PlanHistoryBinding:  s.planHistoryBinding,
 		WorkspaceLayout:     s.workspaceLayoutLocked(),
