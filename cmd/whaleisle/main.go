@@ -92,6 +92,7 @@ import (
 )
 
 type mainState struct {
+	customPanels         customPanelState
 	applicationMenu      *desktopApplicationMenu
 	wallpaperControls    *settings.WallpaperEditor
 	wallpaperVisible     bool
@@ -1990,6 +1991,7 @@ func main() {
 			state.assistant = asst
 			state.mu.Unlock()
 		}
+		state.openCustomPanels(userData)
 		if roster, err := dshbotstore.Open(userData); err != nil {
 			log.Println("dshbot roster:", err)
 		} else {
@@ -6100,7 +6102,8 @@ func mainView(c *ui.Context) {
 					}
 					groupRoom, groupMembers := state.assistantGroupMembers(snap.SelectedID)
 					frameModel := frame.Model{
-						GroupRoom: groupRoom, GroupMembers: groupMembers,
+						CustomPanelContent: state.customPanelContent(snap.SelectedID, themeID),
+						GroupRoom:          groupRoom, GroupMembers: groupMembers,
 						OnReplyGroupThread: func(threadID string) {
 							state.beginAssistantGroupReply(sessions, activeDraft, snap.SelectedID, threadID)
 						},

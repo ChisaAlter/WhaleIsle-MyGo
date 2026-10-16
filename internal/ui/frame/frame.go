@@ -149,6 +149,7 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	CustomPanelContent      func(*ui.Context)
 	OnOpenDocumentViewer    func(string) (files.DocumentSurface, error)
 	GroupRoom               bool
 	GroupMembers            []session.GroupMember
@@ -1173,7 +1174,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "session-inspector-log", "changes-review", "subagentchat", "plan", "diff", "agents", "browser", "host-terminal", "schedule-task":
+		case "custom-panels", "session-inspector-log", "changes-review", "subagentchat", "plan", "diff", "agents", "browser", "host-terminal", "schedule-task":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -1196,6 +1197,13 @@ func rightPane(c *ui.Context, m Model) {
 					*m.RightPaneTab = "agents"
 				}
 			})
+			if m.CustomPanelContent != nil {
+				paintRightTab(c, tab == "custom-panels", paneLabel("面板", "Panels"), fg, muted, accent, func() {
+					if m.RightPaneTab != nil {
+						*m.RightPaneTab = "custom-panels"
+					}
+				})
+			}
 			if !m.DisableDeveloperTools {
 				sessionInspectorGuide(c, m)
 			}
@@ -1246,6 +1254,10 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if m.OnHideBrowser != nil {
 			m.OnHideBrowser()
+		}
+		if tab == "custom-panels" && m.CustomPanelContent != nil {
+			m.CustomPanelContent(c)
+			return
 		}
 		if tab == "changes-review" {
 			changesReviewPane(c, m)

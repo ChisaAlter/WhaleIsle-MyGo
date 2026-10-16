@@ -169,6 +169,8 @@ func (n *WorkspacePane) eachResource(visit func(*WorkspacePane)) {
 
 func dockTabTitle(n *WorkspacePane) string {
 	switch n.Kind {
+	case "custom-panels":
+		return paneLabel("自定义面板", "Custom Panels")
 	case "project-observer":
 		return paneLabel("项目概览", "Project overview")
 	case "files":
