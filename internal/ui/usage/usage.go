@@ -25,6 +25,7 @@ func jobKillable(status string) bool {
 
 // Model wires the usage panel to store state.
 type Model struct {
+	ActionError    string
 	Store          *usagestore.Store
 	SessionID      string
 	ThemeID        string
@@ -79,6 +80,9 @@ func View(c *ui.Context, m Model) {
 			ui.Column(c).Gap(10).Children(func() {
 				statsView(c, m, fg, muted, accent, field)
 
+				if m.ActionError != "" {
+					ui.Text(c, m.ActionError).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+				}
 				if snap.Err != "" {
 					ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 				}

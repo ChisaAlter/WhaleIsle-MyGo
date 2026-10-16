@@ -1787,6 +1787,7 @@ func (s *mainState) stopDSHLocked() {
 	s.replaceMCPControllerLocked()
 	s.settingsProviderProfiles.ResetHost()
 	s.dshClient = nil
+	s.clearAccountReturn()
 	s.accountSignOut.Bind(nil)
 	s.attachPluginInventory(nil)
 	s.settingsReferencedCredentials.Attach(nil)
@@ -2778,6 +2779,7 @@ func mainView(c *ui.Context) {
 	marketStore := state.market
 	schedStore := state.schedule
 	usageOpen := state.usageOpen
+	accountActionError := state.accountReturn.err
 	imOpen := state.imOpen
 	marketOpen := state.marketOpen
 	scheduleOpen := state.scheduleOpen
@@ -4744,6 +4746,7 @@ func mainView(c *ui.Context) {
 					sid = sessions.Snapshot().SelectedID
 				}
 				usageui.View(c, usageui.Model{
+					ActionError: accountActionError,
 					Store: usageStore,
 					OnExportStats: func(format string) {
 						data, err := usageStore.ExportStats(format)
@@ -4984,7 +4987,7 @@ func mainView(c *ui.Context) {
 						SignOut:         signOutState,
 						ClientReady:     usageSnap.ClientReady,
 						Loading:         usageSnap.Loading,
-						Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error),
+						Err:             strings.TrimSpace(usageSnap.Err + " " + loginState.Error + " " + accountActionError),
 						Status:          usageSnap.AccountStatus,
 						Email:           usageSnap.Email,
 						Name:            usageSnap.Name,
@@ -5045,11 +5048,7 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnOpenAuthorize: func(u string) {
-							if err := desktopwebview.OpenExternal(u); err != nil {
-								log.Printf("account: open authorization: %v", err)
-							}
-						},
+						OnOpenAuthorize: state.openAccountAuthorization,
 						OnOpenUsage: func(u string) { state.openAccountUsage(u, "settings") },
 						OnOpenTopUp: state.openAccountTopUp,
 						OnSignIn: func() {
@@ -5104,26 +5103,7 @@ func mainView(c *ui.Context) {
 							if client == nil {
 								return
 							}
-							go func() {
-								var out api.AccountView
-								if err := client.Call(context.Background(), "account/cancelSignIn", map[string]any{
-									"attemptId": attemptID,
-								}, &out); err != nil {
-									log.Printf("account/cancelSignIn: %v", err)
-								} else {
-									state.accountLogin.Finish()
-								}
-								if usageStore != nil {
-									sid := ""
-									if sessions != nil {
-										sid = sessions.Snapshot().SelectedID
-									}
-									usageStore.Refresh(context.Background(), sid)
-								}
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
+							state.cancelAccountSignIn(client, attemptID, usageStore, sessions)
 						},
 					},
 					CredentialsActive: credsActive,

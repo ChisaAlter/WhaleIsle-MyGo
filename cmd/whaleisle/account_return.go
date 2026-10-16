@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"strings"
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/session"
+	"whaleisle/internal/store/usage"
 
 	desktopwebview "whaleisle/internal/desktop/webview"
 )
 
 type accountReturnState struct {
+	err                string
 	external           bool
 	leftWindow         bool
 	embedded           string
@@ -32,18 +37,72 @@ func (s *mainState) refreshReturnedAccount() {
 }
 
 func (s *mainState) openAccountTopUp(url string) {
+	s.openAccountLink(url, true, desktopwebview.OpenExternal)
+}
+func (s *mainState) openAccountAuthorization(url string) {
+	s.openAccountLink(url, false, desktopwebview.OpenExternal)
+}
+func (s *mainState) reportAccountAction(err error) {
+	s.mu.Lock()
+	s.accountReturn.err = ""
+	if err != nil {
+		s.accountReturn.err = err.Error()
+	}
+	win := s.win
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
+}
+func (s *mainState) openAccountLink(url string, topUp bool, open func(string) error) {
 	if strings.TrimSpace(url) == "" {
 		return
 	}
 	s.mu.Lock()
-	s.accountReturn.external, s.accountReturn.leftWindow = true, false
-	s.mu.Unlock()
-	if err := desktopwebview.OpenExternal(url); err != nil {
-		s.mu.Lock()
-		s.accountReturn.external, s.accountReturn.leftWindow = false, false
-		s.mu.Unlock()
-		log.Printf("account: open top-up: %v", err)
+	if topUp {
+		s.accountReturn.external, s.accountReturn.leftWindow = true, false
 	}
+	s.mu.Unlock()
+	err := open(url)
+	if err != nil {
+		s.mu.Lock()
+		if topUp {
+			s.accountReturn.external, s.accountReturn.leftWindow = false, false
+		}
+		s.mu.Unlock()
+		label := resumeText("无法打开授权页面", "Could not open authorization page")
+		if topUp {
+			label = resumeText("无法打开充值页面", "Could not open top-up page")
+		}
+		err = fmt.Errorf("%s: %w", label, err)
+	}
+	s.reportAccountAction(err)
+}
+
+func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, usageStore *usage.Store, sessions *session.Store) {
+	go func() {
+		var out api.AccountView
+		err := client.Call(context.Background(), "account/cancelSignIn", map[string]any{"attemptId": attemptID}, &out)
+		s.dshMu.Lock()
+		if s.dshClient != client {
+			s.dshMu.Unlock()
+			return
+		}
+		if err != nil {
+			err = fmt.Errorf("%s: %w", resumeText("取消登录失败", "Could not cancel sign-in"), err)
+		} else {
+			s.accountLogin.Finish()
+		}
+		s.reportAccountAction(err)
+		s.dshMu.Unlock()
+		if usageStore != nil {
+			sid := ""
+			if sessions != nil {
+				sid = sessions.Snapshot().SelectedID
+			}
+			usageStore.Refresh(context.Background(), sid)
+		}
+	}()
 }
 
 func (s *mainState) accountWindowBlurred() {
