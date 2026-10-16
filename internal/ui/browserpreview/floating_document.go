@@ -51,8 +51,8 @@ func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 		if !t.Document.Valid() {
 			return opts, errors.New("PDF 预览已过期；请重新打开文件")
 		}
-		opts.Title, opts.URL = t.Document.Name, t.Document.URL()
-		opts.LocalPDFURL = opts.URL
+		opts.Title, opts.URL = t.Document.Name, t.Document.ViewerURL()
+		opts.LocalPDFViewerURL = opts.URL
 		opts.URL = t.pdfViewerURL(opts.URL)
 	} else if t.Media != nil {
 		if !t.Media.Valid() {
@@ -177,6 +177,14 @@ func (b *Controller) stopFloatingDocument() {
 	f := b.floatingDocument
 	if f == nil {
 		return
+	}
+	if f.pdf != nil && f.host != nil && f.tab != nil && f.tab.Document == f.pdf {
+		if p, ok := pdfPositionFromURL(f.pdf.ViewerURL(), f.host.State().URL); ok {
+			f.tab.pdfPosition = &p
+			if f.tab.Host != nil && f.tab.Host.Alive() {
+				_ = f.tab.Host.Navigate(f.tab.pdfViewerURL(f.pdf.ViewerURL()))
+			}
+		}
 	}
 	b.floatingDocument = nil
 	f.close()

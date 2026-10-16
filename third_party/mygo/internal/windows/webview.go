@@ -337,8 +337,8 @@ func (w *window) navigationStarting(_, args uintptr) {
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)
-		blankAllowed := w.opts.LocalHTMLURL == "" && w.opts.LocalMediaURL == "" && w.programmatic && target == "about:blank"
-		allowed := !failed(hr) && (blankAllowed || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) || platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target) || platform.LocalMediaAllowed(w.opts.LocalMediaURL, target))
+		blankAllowed := w.opts.LocalPDFViewerURL == "" && w.opts.LocalHTMLURL == "" && w.opts.LocalMediaURL == "" && w.programmatic && target == "about:blank"
+		allowed := !failed(hr) && (blankAllowed || platform.LocalPDFViewerAllowed(w.opts.LocalPDFViewerURL, target) || platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) || platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target) || platform.LocalMediaAllowed(w.opts.LocalMediaURL, target))
 		w.programmatic = false
 		if !allowed {
 			w.cancelPreviewNavigation(args)
@@ -542,6 +542,10 @@ func (w *window) acceleratorKeyPressed(_, args uintptr) {
 	}
 	var vk uint32
 	comCall(args, accelGetVirtualKey, uintptr(unsafe.Pointer(&vk)))
+	if w.reportWebApplicationKey(args, vk) {
+		comCall(args, accelPutHandled, 1)
+		return
+	}
 	cmd, ok := w.accels[accelKey{vk: vk, mods: currentModifiers()}]
 	if !ok {
 		return
@@ -561,7 +565,7 @@ func (w *window) LoadURL(raw string) {
 		}, failedLoad)
 		return
 	}
-	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
+	if w.opts.LocalPDFViewerURL != "" || w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
 		failedLoad := func(err error) { w.h.LoadFailed(raw, 0, err.Error()) }
 		w.withWebViewOr(func() {
 			w.programmatic = true

@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-var ErrBrowserSiteDataUnsupported = errors.New("mygo: site-data clearing requires WebView2 Profile2 and a ready, verified Browser workspace profile")
+var ErrBrowserSiteDataUnsupported = errors.New("mygo: site-data clearing requires a supported native data store and a ready, verified Browser workspace profile")
 
 type browserSiteDataBackend interface {
 	BrowserSiteDataToolsAvailable() bool

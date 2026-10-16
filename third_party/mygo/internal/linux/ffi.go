@@ -818,6 +818,7 @@ func loadWebKit() error {
 	}
 
 	w := libWebKit
+	loadBrowserProfileAPI(w)
 	mustBind(w, &webkitWebContextGetDefault, "webkit_web_context_get_default")
 	mustBind(w, &webkitWebContextRegisterURIScheme, "webkit_web_context_register_uri_scheme")
 	mustBind(w, &webkitWebContextGetSecurityManager, "webkit_web_context_get_security_manager")

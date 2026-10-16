@@ -53,7 +53,7 @@ func TestFloatingDocumentBorrowAndOrigin(t *testing.T) {
 			if opts.URL == "" || opts.Title != name || !opts.Untrusted || opts.SessionOrigin != "" || opts.SessionCookie != "" || len(opts.TrustedOrigins) != 0 || opts.OnClosed != nil {
 				t.Fatal("borrowed preview must not acquire Host authority or close the source lease")
 			}
-			if kind == "pdf" && (opts.LocalPDFURL != opts.URL || opts.LocalHTMLURL != "") {
+			if kind == "pdf" && (opts.LocalPDFViewerURL != opts.URL || opts.LocalHTMLURL != "") {
 				t.Fatal("PDF capability not pinned")
 			}
 			if kind == "html" && (opts.LocalHTMLURL != opts.URL || opts.LocalPDFURL != "") {

@@ -25,7 +25,7 @@ func TestPDFReadingPositionSurvivesWorkspaceAndLease(t *testing.T) {
 	if got == nil || *got != *tab.pdfPosition {
 		t.Fatalf("lost position: %s", data)
 	}
-	if restored.current().pdfViewerURL("http://127.0.0.1:99/new/document.pdf") != "http://127.0.0.1:99/new/document.pdf#page=7&zoom=150,20,300" {
+	if restored.current().pdfViewerURL("http://127.0.0.1:99/new/document.pdf") != "http://127.0.0.1:99/new/document.pdf#page=7&zoom=150,20,300&fit=0" {
 		t.Fatal("position not applied to new lease")
 	}
 	restored.current().pdfPosition.Page = 9
@@ -63,5 +63,20 @@ func TestPDFSnapshotCopiesPosition(t *testing.T) {
 	b.OpenDocumentSource(DocumentSource{Path: "second.pdf", Kind: DocumentPDF})
 	if b.current().pdfPosition != nil {
 		t.Fatal("another document inherited reading state")
+	}
+}
+
+func TestPDFRealStateRoundTrip(t *testing.T) {
+	p := PDFReadingPosition{Page: 4, Zoom: 150, Left: 20, Top: 1234, FitWidth: true, Selection: [4]int{4, 5, 5, 18}}
+	tab := &Tab{pdfPosition: &p}
+	base := "http://127.0.0.1:99/token/reader.html"
+	got, ok := pdfPositionFromURL(base, tab.pdfViewerURL(base))
+	if !ok || got != p {
+		t.Fatalf("state lost: %+v", got)
+	}
+	for _, suffix := range []string{"#page=2&zoom=100,0,1000000001", "#page=2&selection=1,2,3", "#page=2&selection=1,-1,2,0", "#page=5001"} {
+		if _, ok := pdfPositionFromURL(base, base+suffix); ok {
+			t.Fatal("invalid state accepted", suffix)
+		}
 	}
 }

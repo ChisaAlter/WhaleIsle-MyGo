@@ -97,7 +97,7 @@ func (h *Host) browserPage() (*mygo.Window, uint64, string, error) {
 	}
 	h.mu.Lock()
 	w, epoch, raw := h.win, h.navigationEpoch, h.url
-	restricted := h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "" || h.gateway != nil
+	restricted := h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "" || h.gateway != nil
 	loading := h.loading
 	h.mu.Unlock()
 	if restricted || w == nil || w.IsDestroyed() || w.Page() == nil || !w.IsVisible() {

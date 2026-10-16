@@ -1,0 +1,23 @@
+{
+  "version": "6.3.289",
+  "integrity": "sha512-ZHjSVpDa3D6izMq8/04lvkhkATUmL9px6ChPaXc1k6nU2Mrhlg1/7F0bdUqCwUjw3NsPTfPZsMDUU6ZIcRaeQw==",
+  "source": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.3.289.tgz",
+  "originalCommit": "e9f584be6d3b491ce777bb6823f30bc2bbc6f195",
+  "excluded": "PDF scripting sandbox and QuickJS are deliberately not shipped.",
+  "files": {
+    "pdf.worker.mjs": "8ab0e5e30031b4a06ecfddd5ae9562f0227f830ee7ec9ed1a968b134243d2386",
+    "standard_fonts-LICENSE_LIBERATION": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
+    "pdf.mjs": "f80490490320511e5df18c580b9edd6b5db8058dceebaf6f161992e0a964b9e2",
+    "wasm-LICENSE_OPENJPEG": "a6af136f3e15038a666b61f376612a07d9a4e48cb7c01adbf3e33b3f14ab49b6",
+    "wasm-LICENSE_PDFJS_QCMS": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
+    "wasm-LICENSE_QCMS": "36d847ae882f6574ebc72f56a4f354e4f104fde4a584373496482e97d52d31bc",
+    "pdf_viewer.mjs": "e48aa528d626b49b70705245c22646cf41b59c54f77243d8612dcffdc366b823",
+    "assets.json": "0f0540f5c60dfb6231000a5571b731210e578fe78c79815ea2324d65faf0eef8",
+    "standard_fonts-LICENSE_FOXIT": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+    "wasm-LICENSE_PDFJS_JBIG2": "aad3cce09842e00e9e11ad5e8fef8cc02fbc3a3768fe2f007443b9cee37aaee5",
+    "wasm-LICENSE_JBIG2": "9e66b7f1b934a28b37f3bc4dac97915de1674271e79a0a88182a18ed9731b4d1",
+    "wasm-LICENSE_PDFJS_OPENJPEG": "717fc62da03292dbb4dd0c8280bd4ce7bb8550dcf31d772bc93455fb50313425",
+    "pdf_viewer.css": "d26aee4b5a7eab8f1a9ad16f271c674474d69d9a1e99ae8923776252052e0f98",
+    "LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+  }
+}

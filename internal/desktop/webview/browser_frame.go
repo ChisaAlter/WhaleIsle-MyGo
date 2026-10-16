@@ -19,7 +19,7 @@ func (h *Host) CaptureBrowserFrame(ctx context.Context, epoch uint64) ([]byte, e
 	}
 	h.mu.Lock()
 	w, raw := h.win, h.url
-	restricted := h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "" || h.gateway != nil
+	restricted := h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" || h.localMediaURL != "" || h.gateway != nil
 	current := h.navigationEpoch == epoch && !h.loading && h.err == ""
 	h.mu.Unlock()
 	if restricted || !current || w == nil || w.IsDestroyed() || w.Page() == nil {

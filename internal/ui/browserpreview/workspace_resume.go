@@ -24,7 +24,7 @@ func (b *Controller) WorkspaceSnapshot() *WorkspaceSnapshot {
 	}
 	saved := &WorkspaceSnapshot{Active: b.Active}
 	for _, tab := range b.Tabs {
-		tab.capturePDFPosition()
+		b.capturePDFPosition(tab)
 		item := WorkspaceTabSnapshot{ID: tab.ID, Draft: tab.Draft, Partition: tab.workspace.key, Label: tab.workspace.label}
 		if tab.pdfPosition != nil {
 			position := *tab.pdfPosition

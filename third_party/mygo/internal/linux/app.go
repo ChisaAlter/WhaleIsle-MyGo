@@ -22,9 +22,10 @@ type Backend struct {
 	name    string
 	running bool
 
-	windows   map[int]*window
-	byWebView map[ptr]*window
-	nextID    int
+	browserProfiles map[string]*browserProfile
+	windows         map[int]*window
+	byWebView       map[ptr]*window
+	nextID          int
 
 	appMenu    *platform.Menu
 	schemes    map[string]bool

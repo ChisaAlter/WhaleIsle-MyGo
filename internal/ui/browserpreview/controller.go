@@ -344,7 +344,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				status = t.Media.Name + " · 媒体快照；只允许本文件，脚本/外网禁用；无法播放时请使用 Files 外部打开"
 			}
 			if t.Document != nil {
-				status = t.Document.Name + " · PDF 只读快照；外部导航和脚本已禁用"
+				status = t.Document.Name + " · PDF 只读快照；文档脚本与外部导航已禁用"
 			}
 			if t.HTML != nil {
 				status = t.HTML.Name + " · " + t.HTML.Resources.Summary() + "；静态预览，脚本/外网禁用"

@@ -38,6 +38,7 @@ type window struct {
 	h    platform.WindowHandler
 	opts *platform.WindowOptions
 
+	browser *browserProfile
 	win     ptr // GtkWindow
 	box     ptr // GtkBox holding the menu bar and the webview
 	web     ptr // WebKitWebView
@@ -121,6 +122,16 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	b.nextID++
 	w := &window{b: b, id: b.nextID, h: h, opts: o, autoHideMenu: o.AutoHideMenu}
 	data := ptr(w.id)
+	if o.BrowserProfile {
+		if o.Surface || o.Native != 0 {
+			return nil, errors.New("mygo: Browser profile requires an ordinary web page")
+		}
+		var err error
+		w.browser, err = b.acquireBrowserProfile(o.BrowserPartition)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	w.win = gtkWindowNew(0)
 	gtkWindowSetTitle(w.win, cs(o.Title))
@@ -173,6 +184,11 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		w.createSurface()
 	} else {
 		w.createWebView()
+		if w.web == 0 {
+			w.cleanup()
+			gtkWidgetDestroy(w.win)
+			return nil, errors.New("mygo: cannot create Browser web view")
+		}
 	}
 	if w.controls != nil {
 		gtkContainerAdd(w.controls.overlay, w.contentWidget())
@@ -220,12 +236,29 @@ func (w *window) createWebView() {
 	o := w.opts
 	data := ptr(w.id)
 	w.ucm = webkitUserContentManagerNew()
-	for _, s := range o.Schemes {
-		w.b.registerScheme(s)
+	if w.browser != nil {
+		for _, s := range o.Schemes {
+			if !w.browser.schemes[s] {
+				w.browser.schemes[s] = true
+				ctx := w.browser.context
+				webkitWebContextRegisterURIScheme(ctx, cs(s), cbScheme, 0, 0)
+				sec := webkitWebContextGetSecurityManager(ctx)
+				webkitSecurityManagerRegisterSecure(sec, cs(s))
+				webkitSecurityManagerRegisterCORS(sec, cs(s))
+			}
+		}
+		w.web = browserObjectNew(browserWebViewType(), cs("web-context"), w.browser.context, cs("user-content-manager"), w.ucm, 0)
+		if w.web == 0 {
+			return
+		}
+	} else {
+		for _, s := range o.Schemes {
+			w.b.registerScheme(s)
+		}
+		w.web = webkitWebViewNewWithUserContentManager(w.ucm)
+		webkitUserContentManagerRegisterHandler(w.ucm, cs("mygo"))
+		connect(w.ucm, "script-message-received::mygo", cbScriptMessage, data)
 	}
-	w.web = webkitWebViewNewWithUserContentManager(w.ucm)
-	webkitUserContentManagerRegisterHandler(w.ucm, cs("mygo"))
-	connect(w.ucm, "script-message-received::mygo", cbScriptMessage, data)
 	for _, s := range o.UserScripts {
 		frames, when := int32(1), int32(0) // top frame, document start
 		if s.AllFrames {
@@ -238,7 +271,7 @@ func (w *window) createWebView() {
 		webkitUserContentManagerAddScript(w.ucm, script)
 		webkitUserScriptUnref(script)
 	}
-	if w.controls != nil {
+	if w.controls != nil && !o.BrowserProfile {
 		// After the bridge, which it tells; top frame, document start.
 		script := webkitUserScriptNew(cs(w.titleBarScript()), 1, 0, 0, 0)
 		webkitUserContentManagerAddScript(w.ucm, script)
@@ -318,6 +351,7 @@ func (w *window) cleanup() {
 		w.press.event = 0
 	}
 	w.releaseCursor()
+	w.releaseBrowserProfile()
 }
 
 func (w *window) Handle() uintptr        { return w.win }

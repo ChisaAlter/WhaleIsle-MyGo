@@ -56,6 +56,7 @@ window.__ModuleLoader__.load({
     }
     function apply(ctx) {
       bindClientModules(ctx);
+      whaleBindProductKeyboard(ctx);
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');
       if (!plugin) return;
       let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', cancelPending = () => {};
@@ -206,6 +207,6 @@ window.__ModuleLoader__.load({
         return () => { stopped = true; cancelPending(); unlisten(); unmount(); listeners.clear(); };
       });
     }
-    return {inject: ['modules','slots','layout','settingsNavigation'], apply};
+    return {inject: ['modules','slots','layout','settingsNavigation','shortcuts'], apply};
   }
 });

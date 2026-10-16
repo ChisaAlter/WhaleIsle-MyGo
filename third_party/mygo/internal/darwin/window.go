@@ -44,16 +44,17 @@ var (
 )
 
 type window struct {
-	b        *Backend
-	h        platform.WindowHandler
-	opts     *platform.WindowOptions
-	win      id
-	view     id // the content view: holds the web view and a docked inspector
-	web      id
-	delegate id
-	ucc      id
-	effect   id
-	parent   *window
+	b            *Backend
+	h            platform.WindowHandler
+	opts         *platform.WindowOptions
+	win          id
+	view         id // the content view: holds the web view and a docked inspector
+	web          id
+	browserStore id // owned persistent Browser partition, never default
+	delegate     id
+	ucc          id
+	effect       id
+	parent       *window
 
 	lastMouseDown id
 	dropped       []string         // DroppedFiles
@@ -73,7 +74,23 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	if p, ok := o.Parent.(*window); ok && p != nil {
 		w.parent = p
 	}
-	withPool(w.create)
+	var profileErr error
+	withPool(func() {
+		if o.BrowserProfile {
+			if o.Surface || o.Native != 0 {
+				profileErr = errors.New("mygo: Browser profile requires an ordinary web page")
+				return
+			}
+			w.browserStore, profileErr = newBrowserStore(o.BrowserPartition)
+			if profileErr != nil {
+				return
+			}
+		}
+		w.create()
+	})
+	if profileErr != nil {
+		return nil, profileErr
+	}
 	return w, nil
 }
 
@@ -206,9 +223,14 @@ func (w *window) createWebView(content NSRect) {
 			send(cfg, "setURLSchemeHandler:forURLScheme:", uintptr(schemeHandler()), uintptr(nsString(s)))
 		}
 	}
+	if w.browserStore != 0 {
+		send(cfg, "setWebsiteDataStore:", uintptr(w.browserStore))
+	}
 	prefs := send(cfg, "preferences")
-	send(prefs, "setValue:forKey:", uintptr(nsBool(o.DevTools)), uintptr(nsString("developerExtrasEnabled")))
-	send(prefs, "setValue:forKey:", uintptr(nsBool(true)), uintptr(nsString("allowFileAccessFromFileURLs")))
+	if !o.BrowserProfile {
+		send(prefs, "setValue:forKey:", uintptr(nsBool(o.DevTools)), uintptr(nsString("developerExtrasEnabled")))
+		send(prefs, "setValue:forKey:", uintptr(nsBool(true)), uintptr(nsString("allowFileAccessFromFileURLs")))
+	}
 	if respondsTo(prefs, "setElementFullscreenEnabled:") {
 		send(prefs, "setElementFullscreenEnabled:", 1)
 	}
@@ -216,7 +238,9 @@ func (w *window) createWebView(content NSRect) {
 	// Every window gets its own content controller so messages, scripts and
 	// the bridge configuration never leak between windows.
 	w.ucc = alloc("WKUserContentController")
-	send(w.ucc, "addScriptMessageHandler:name:", uintptr(w.delegate), uintptr(nsString("mygo")))
+	if !o.BrowserProfile {
+		send(w.ucc, "addScriptMessageHandler:name:", uintptr(w.delegate), uintptr(nsString("mygo")))
+	}
 	for _, s := range o.UserScripts {
 		injection := uintptr(0) // WKUserScriptInjectionTimeAtDocumentStart
 		if s.AtDocumentEnd {
@@ -227,7 +251,7 @@ func (w *window) createWebView(content NSRect) {
 		send(w.ucc, "addUserScript:", uintptr(script))
 		release(script)
 	}
-	if w.hiddenTitleBar() {
+	if w.hiddenTitleBar() && !o.BrowserProfile {
 		// After the bridge, which it tells: the room of the traffic lights.
 		script := send(send(class("WKUserScript"), "alloc"), "initWithSource:injectionTime:forMainFrameOnly:",
 			uintptr(nsString(bridge.TitleBarScript(w.TitleBar(), o.Zoom))), 0, 1)
@@ -241,7 +265,7 @@ func (w *window) createWebView(content NSRect) {
 	send(w.web, "setNavigationDelegate:", uintptr(w.delegate))
 	send(w.web, "setUIDelegate:", uintptr(w.delegate))
 	send(w.web, "setAutoresizingMask:", nsViewWidthHeightSizable)
-	if o.Transparent || o.BackgroundColor != nil || o.Vibrancy != "" {
+	if !o.BrowserProfile && (o.Transparent || o.BackgroundColor != nil || o.Vibrancy != "") {
 		// Let the window color show until the page paints.
 		send(w.web, "setValue:forKey:", uintptr(nsBool(false)), uintptr(nsString("drawsBackground")))
 		if o.BackgroundColor != nil && respondsTo(w.web, "setUnderPageBackgroundColor:") {
@@ -300,6 +324,8 @@ func (w *window) cleanup() {
 	}
 	release(w.effect)
 	release(w.web)
+	release(w.browserStore)
+	w.browserStore = 0
 	release(w.view)
 	// AppKit is still closing the window; let the pool release it.
 	autorelease(w.delegate)

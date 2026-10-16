@@ -21,15 +21,15 @@ const (
 // Every restored occurrence obtains new bytes under its original source scope.
 type DocumentSource struct {
 	NavigationPaneID string `json:"navigationPaneId,omitempty"`
-	Authority       string `json:"authority"`
-	SessionID       string `json:"sessionId"`
-	ViewSessionID   string `json:"viewSessionId,omitempty"`
-	AddressKind     string `json:"addressKind,omitempty"`
-	ParentSessionID string `json:"parentSessionId,omitempty"`
-	Mode            string `json:"mode,omitempty"`
-	Workspace       string `json:"workspace"`
-	Path            string `json:"path"`
-	Kind            string `json:"kind"`
+	Authority        string `json:"authority"`
+	SessionID        string `json:"sessionId"`
+	ViewSessionID    string `json:"viewSessionId,omitempty"`
+	AddressKind      string `json:"addressKind,omitempty"`
+	ParentSessionID  string `json:"parentSessionId,omitempty"`
+	Mode             string `json:"mode,omitempty"`
+	Workspace        string `json:"workspace"`
+	Path             string `json:"path"`
+	Kind             string `json:"kind"`
 }
 
 type DocumentResult struct {
@@ -181,7 +181,7 @@ func (b *Controller) releaseSourceDocument(tab *Tab) {
 	if tab.source == nil {
 		return
 	}
-	tab.capturePDFPosition()
+	b.capturePDFPosition(tab)
 	if tab.HTML != nil {
 		b.cancelInteractivePreviews()
 	}

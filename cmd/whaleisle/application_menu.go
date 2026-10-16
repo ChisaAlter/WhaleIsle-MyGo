@@ -30,6 +30,7 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 	signature := string(encoded) + resumeText("zh", "en")
 	if state.signature != signature {
 		state.signature = signature
+		s.syncWebApplicationShortcuts(bindings)
 		mygo.App.SetMenu(buildApplicationMenu(bindings, runtime.GOOS, func(id string) {
 			state.pending = append(state.pending, id)
 			s.showMainWindow()

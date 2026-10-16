@@ -24,13 +24,14 @@ func (p *Page) Window() *Window { return p.w }
 
 // PageOptions configure the web page of a window.
 type PageOptions struct {
-	// BrowserProfile opts into the app's persistent Browser-only WebView2 user
-	// data folder. Pages with the same BrowserPartition share it; different
+	// BrowserProfile opts into the app's persistent Browser-only native data
+	// store. Pages with the same BrowserPartition share it; different
 	// partitions and default-profile windows remain isolated. Existing cookies
 	// and storage are not migrated or deleted, so users
 	// must sign in again on first use. Native bindings, preloads and automatic
 	// DevTools entrypoints are disabled. Only explicit host OpenBrowserDevTools
-	// may open this page's inspector. Windows only; incompatible with local/isolated previews.
+	// may open this page's inspector where supported. Requires WebView2 on Windows,
+	// macOS 14+, or WebKitGTK 2.16+ on Linux. Incompatible with local/isolated previews.
 	BrowserProfile bool
 	// BrowserPartition is a required stable, opaque lowercase SHA-256 key for
 	// BrowserProfile. It must identify the trusted Host/workspace scope, never a
@@ -39,7 +40,9 @@ type PageOptions struct {
 	// LocalPDFURL permits one exact loopback PDF capability in an otherwise
 	// isolated preview. No external resources, scripts, popups, permissions,
 	// downloads or bindings are allowed. Windows only; never accepts file:.
-	LocalPDFURL string
+	// LocalPDFViewerURL enables only the product-owned offline reader in an isolated profile.
+	LocalPDFViewerURL string
+	LocalPDFURL       string
 	// LocalHTMLURL permits one exact loopback HTML capability, mutually exclusive
 	// with LocalPDFURL. The caller must wrap content in an opaque sandbox with a
 	// restrictive CSP. Scripts, network resources, native bindings,

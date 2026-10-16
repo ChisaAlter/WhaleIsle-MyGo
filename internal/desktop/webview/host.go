@@ -21,7 +21,8 @@ type HostOptions struct {
 	BrowserPartition string
 	// LocalPDFURL is a single read-only local PDF capability. It uses the
 	// dedicated isolated WebView profile and exact-resource deny-by-default policy.
-	LocalPDFURL string
+	LocalPDFViewerURL string
+	LocalPDFURL       string
 	// LocalHTMLURL is one sandboxed local HTML capability. It is mutually
 	// exclusive with PDF and Host sessions and uses a private preview profile.
 	LocalHTMLURL string
@@ -53,11 +54,12 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
-	viewport      *mygo.Rectangle
-	localPDFURL   string
-	localHTMLURL  string
-	localMediaURL string
-	onClosed      func()
+	viewport          *mygo.Rectangle
+	localPDFViewerURL string
+	localPDFURL       string
+	localHTMLURL      string
+	localMediaURL     string
+	onClosed          func()
 
 	gateway         *pluginslots.Gateway
 	mu              sync.Mutex
@@ -79,16 +81,13 @@ type Host struct {
 // NewHost creates a hidden frameless child WebView2 window. Call
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
-	localPreview := opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != ""
+	localPreview := opts.LocalPDFViewerURL != "" || opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != ""
 	if opts.BrowserPartition != "" && !opts.BrowserProfile {
 		return nil, errors.New("Browser partition requires a dedicated Browser profile")
 	}
 	if opts.BrowserProfile {
 		if len(opts.BrowserPartition) != 64 || strings.Trim(opts.BrowserPartition, "0123456789abcdef") != "" {
 			return nil, errors.New("Browser requires a stable workspace partition")
-		}
-		if runtime.GOOS != "windows" {
-			return nil, errors.New("Browser profile is unavailable on this platform")
 		}
 		if localPreview || opts.SessionOrigin != "" || opts.SessionCookie != "" {
 			return nil, errors.New("Browser profile cannot use local previews or Host sessions")
@@ -126,6 +125,12 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	if localPreview && (opts.SessionOrigin != "" || opts.SessionCookie != "") {
 		return nil, errors.New("local document previews cannot use Host sessions or cookies")
+	}
+	if opts.LocalPDFViewerURL != "" {
+		if runtime.GOOS != "windows" || opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != "" || strings.SplitN(raw, "#", 2)[0] != opts.LocalPDFViewerURL || !validLocalPDFViewerURL(opts.LocalPDFViewerURL) {
+			return nil, errors.New("invalid PDF reader capability or unavailable WebView2 runtime")
+		}
+		opts.Untrusted = true
 	}
 	if opts.LocalMediaURL != "" {
 		if runtime.GOOS != "windows" || opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != raw || !validLocalMediaURL(raw) {
@@ -184,13 +189,13 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
 	if localPreview || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
 		initialURL = ""
 	}
-	child := mygo.NewWindow(mygo.WindowOptions{
+	child, createErr := createBrowserHostWindow(mygo.WindowOptions{
 		Title:           title,
 		URL:             initialURL,
 		Parent:          opts.Parent,
@@ -201,21 +206,30 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
-			BrowserProfile:   opts.BrowserProfile,
-			BrowserPartition: opts.BrowserPartition,
-			LocalPDFURL:      opts.LocalPDFURL,
-			LocalHTMLURL:     opts.LocalHTMLURL,
-			LocalMediaURL:    opts.LocalMediaURL,
-			TrustedOrigins:   trusted,
-			DisableBindings:  opts.Untrusted,
-			DevTools:         mygo.DevToolsDisabled,
+			BrowserProfile:    opts.BrowserProfile,
+			BrowserPartition:  opts.BrowserPartition,
+			LocalPDFViewerURL: opts.LocalPDFViewerURL,
+			LocalPDFURL:       opts.LocalPDFURL,
+			LocalHTMLURL:      opts.LocalHTMLURL,
+			LocalMediaURL:     opts.LocalMediaURL,
+			TrustedOrigins:    trusted,
+			DisableBindings:   opts.Untrusted,
+			DevTools:          mygo.DevToolsDisabled,
 		},
 	})
+	if createErr != nil {
+		gateway.Close()
+		return nil, createErr
+	}
 	if child == nil || child.IsDestroyed() {
 		gateway.Close()
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
+	h.installProductKeyboard()
+	if !localPreview && (opts.BrowserProfile || opts.SessionOrigin != "") {
+		child.Page().UseWebApplicationShortcuts(opts.Parent)
+	}
 	if opts.OnFocus != nil {
 		child.OnFocus(opts.OnFocus)
 	}
@@ -319,6 +333,9 @@ func (h *Host) Navigate(raw string) error {
 		return errors.New("webview: nil host")
 	}
 	raw = strings.TrimSpace(raw)
+	if h.localPDFViewerURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localPDFViewerURL {
+		return errors.New("PDF reader navigation outside this document is blocked")
+	}
 	if h.localPDFURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localPDFURL {
 		return errors.New("PDF navigation outside this document is blocked")
 	}
@@ -353,12 +370,12 @@ func (h *Host) Navigate(raw string) error {
 			err = errors.New("Plugin Host navigation failed")
 		}
 		h.setError(err.Error())
-		if h.localPDFURL != "" || h.localHTMLURL != "" {
+		if h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "" {
 			_ = h.Close()
 		}
 		return err
 	}
-	if (h.localPDFURL != "" || h.localHTMLURL != "") && !h.Alive() {
+	if (h.localPDFViewerURL != "" || h.localPDFURL != "" || h.localHTMLURL != "") && !h.Alive() {
 		return errors.New("webview: local document preview closed")
 	}
 	h.mu.Lock()

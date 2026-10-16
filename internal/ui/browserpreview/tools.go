@@ -186,6 +186,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	busy := t.tools.operation != nil || b.operation != nil || b.recording != nil
 	disabled := t.Host == nil || state.Loading || busy || b.current() != t
 	supported := !disabled && t.Host.BrowserToolsAvailable()
+	appearanceSupported := !disabled && t.Host.BrowserColorSchemeAvailable()
 	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()
 	siteDataSupported := !disabled && t.Host.BrowserSiteDataToolsAvailable()
 	devToolsSupported := !disabled && t.Host.BrowserDevToolsAvailable()
@@ -213,11 +214,11 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				}
 				ui.MenuButton(c, "网页外观", func(m *ui.Menu) {
 					for _, choice := range []struct{ label, value string }{{"跟随系统", "system"}, {"浅色", "light"}, {"深色", "dark"}} {
-						if m.Item(choice.label).Checked(s.Scheme == choice.value).Disabled(!supported).Chosen() {
+						if m.Item(choice.label).Checked(s.Scheme == choice.value).Disabled(!appearanceSupported).Chosen() {
 							b.startBrowserTool(t, "scheme", choice.value)
 						}
 					}
-				}).Disabled(!supported).Tooltip("覆盖当前页签的 prefers-color-scheme；不修改网页 CSS")
+				}).Disabled(!appearanceSupported).Tooltip("覆盖当前页签的 prefers-color-scheme；不修改网页 CSS")
 				if ui.Button(c, "强制刷新").Disabled(disabled).Clicked() {
 					b.CancelAction()
 					if err := t.Host.HardReloadBrowser(); err != nil {
@@ -234,7 +235,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cookies", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
-				if ui.Button(c, "清五类站点数据…").Disabled(!siteDataSupported).Tooltip("需 WebView2 Profile2。仅清当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；需确认，保留 HTTP 缓存和 CacheStorage，其他工作区/插件不受影响。").Clicked() {
+				if ui.Button(c, "清五类站点数据…").Disabled(!siteDataSupported).Tooltip("需当前平台支持精确站点数据清理。仅清当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；需确认，保留 HTTP 缓存和 CacheStorage，其他工作区/插件不受影响。").Clicked() {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "site-data", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
@@ -276,7 +277,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					return
 				}
 				if !s.Device {
-					ui.Text(c, "设备尺寸调整真实网页视口；网页外观需 Windows WebView2。").FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, "设备尺寸调整真实网页视口；网页外观需 Windows WebView2 或 macOS WKWebView；Linux 跟随系统。").FontSize(fonttheme.InterfaceSize(11))
 					return
 				}
 				label := s.Preset

@@ -32,7 +32,7 @@ var commands = []Command{
 	{"browser.open", "打开浏览器面板", "Open browser pane", "Mod+Shift+U"},
 	{"terminal.host", "打开 Host 终端面板", "Open Host terminal pane", "Mod+Alt+T"},
 	{"sessions.refresh", "刷新对话列表", "Refresh conversations", "Mod+Alt+R"},
-	{"market.open", "打开市场", "Open marketplace", "Mod+Shift+P"},
+	{"market.open", "打开市场", "Open marketplace", "Mod+Shift+M"},
 	{"schedule.open", "打开日程", "Open schedules", "Mod+Shift+D"},
 	{"assistant.open", "打开助手", "Open assistant", "Mod+Shift+G"},
 	{"launcher.open", "打开启动器", "Open launcher", "Mod+Shift+L"},
@@ -146,7 +146,9 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 	// Keep editing, file-save and application/window-management keys with their
 	// existing owner. Other system keys (Super, Space, Tab, Escape) are
 	// outside the supported grammar altogether; modified F1–F12 are supported. No OS hook is installed.
-	if strings.Contains("ACFHMQSVWXYZ", chord.Key) {
+	// The original native marketplace action owns Mod+Shift+M; plain
+	// Mod+M remains the system minimize chord.
+	if strings.Contains("ACFHMQSVWXYZ", chord.Key) && !(chord.Key == "M" && chord.Shift && !chord.Alt) {
 		return Chord{}, errors.New("此按键保留给系统、编辑或文件操作 / Reserved for system, editing or file actions")
 	}
 	if platform == "darwin" && ((chord.Key == "`" && !chord.Alt) || (chord.Shift && strings.Contains("3456", chord.Key)) || (chord.Alt && chord.Key == "D")) {

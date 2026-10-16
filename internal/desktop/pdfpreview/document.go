@@ -176,13 +176,16 @@ func (d *Document) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Preview expired", http.StatusGone)
 		return
 	}
-	if r.Host != strings.TrimPrefix(d.origin, "http://") || r.URL.Path != d.route || r.URL.RawPath != "" || r.URL.RawQuery != "" || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != d.origin) || r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+	if r.Host != strings.TrimPrefix(d.origin, "http://") || (r.URL.Path != d.route && !d.isReaderPath(r.URL.Path)) || r.URL.RawPath != "" || r.URL.RawQuery != "" || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != d.origin) || r.Header.Get("Sec-Fetch-Site") == "cross-site" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if d.serveReader(w, r) {
 		return
 	}
 	d.mu.RLock()

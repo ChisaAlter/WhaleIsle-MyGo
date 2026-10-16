@@ -23,7 +23,8 @@ type browserToolsBackend interface {
 	ClearBrowserHTTPCache(func(error))
 }
 
-// BrowserToolsAvailable reports support for the narrow native controls below.
+// BrowserToolsAvailable reports support for the native cache control below.
+// Query BrowserColorSchemeAvailable separately before offering appearance controls.
 // Backends without the optional capability fail closed without interface churn.
 func (p *Page) BrowserToolsAvailable() bool {
 	return onMainValue(func() bool {
@@ -92,4 +93,22 @@ func (p *Page) SetBrowserColorScheme(ctx context.Context, scheme BrowserColorSch
 // Cookies, local storage and profile directories are not deleted by this API.
 func (p *Page) ClearBrowserHTTPCache(ctx context.Context) error {
 	return p.browserToolCall(ctx, func(n browserToolsBackend, done func(error)) { n.ClearBrowserHTTPCache(done) })
+}
+
+// BrowserColorSchemeAvailable distinguishes per-page appearance support from
+// cache support. GTK3 has no equivalent per-page color-scheme override.
+func (p *Page) BrowserColorSchemeAvailable() bool {
+	return onMainValue(func() bool {
+		if p == nil || p.w == nil || p.w.native == nil || p.w.content != nil || !p.w.disableBindings {
+			return false
+		}
+		n, ok := p.w.native.(browserToolsBackend)
+		if !ok || !n.BrowserToolsAvailable() {
+			return false
+		}
+		if appearance, ok := p.w.native.(interface{ BrowserColorSchemeAvailable() bool }); ok {
+			return appearance.BrowserColorSchemeAvailable()
+		}
+		return true // existing WebView2/fake BrowserTools implementations support both
+	})
 }

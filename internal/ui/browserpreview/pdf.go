@@ -22,7 +22,7 @@ func (b *Controller) OpenPDF(doc *pdfpreview.Document) error {
 
 func (b *Controller) openPDFTab(t *Tab, doc *pdfpreview.Document) error {
 	t.Document, t.Draft = doc, doc.Name
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: t.pdfViewerURL(doc.URL()), LocalPDFURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: t.pdfViewerURL(doc.ViewerURL()), LocalPDFViewerURL: doc.ViewerURL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
 		if t.source != nil {
@@ -46,7 +46,7 @@ func (b *Controller) PrunePDFDocuments() {
 		if t.Document == nil || t.Document.Valid() {
 			continue
 		}
-		t.capturePDFPosition()
+		b.capturePDFPosition(t)
 		if t.Host != nil && t.Host.Alive() {
 			_ = t.Host.Close()
 		}

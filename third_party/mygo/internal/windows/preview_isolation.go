@@ -196,6 +196,23 @@ func (w *window) installPreviewPolicy() error {
 	if hr := comCall(v22, previewAddSourceFilter, uintptr(unsafe.Pointer(u16("*"))), 0, previewSourceKindsAll); failed(hr) {
 		return hresultError("isolated preview all-source resource filter", hr)
 	}
+	if w.opts.LocalPDFViewerURL != "" {
+		// ICoreWebView2::add_SourceChanged is slot 11. Same-document hash/
+		// history changes do not emit ContentLoading. No page-to-host RPC.
+		if err := add(w.webview, 11, func(_, args uintptr) {
+			var newDocument int32
+			if failed(comCall(args, 3, uintptr(unsafe.Pointer(&newDocument)))) {
+				w.destroy()
+				return
+			}
+			if newDocument == 0 {
+				w.h.NavigationCommitted(w.URL())
+				w.h.LoadFinished()
+			}
+		}); err != nil {
+			return err
+		}
+	}
 	if err := add(w.webview, wvAddNavigationStarting, w.navigationStarting); err != nil {
 		return err
 	}
@@ -206,7 +223,7 @@ func (w *window) installPreviewPolicy() error {
 		if !failed(hr) && platform.LocalPDFAllowed(w.opts.LocalPDFURL, target) {
 			return
 		}
-		if !failed(hr) && w.opts.LocalPDFURL == "" && w.opts.LocalMediaURL == "" && target == "about:srcdoc" && !w.isolated.frameStarted {
+		if !failed(hr) && w.opts.LocalPDFViewerURL == "" && w.opts.LocalPDFURL == "" && w.opts.LocalMediaURL == "" && target == "about:srcdoc" && !w.isolated.frameStarted {
 			w.isolated.frameStarted = true
 			return
 		}
@@ -236,7 +253,7 @@ func (w *window) denyPreviewResource(args uintptr) {
 	if w.closed || w.environment() == 0 {
 		return
 	}
-	if w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
+	if w.opts.LocalPDFViewerURL != "" || w.opts.LocalPDFURL != "" || w.opts.LocalHTMLURL != "" || w.opts.LocalMediaURL != "" {
 		var req uintptr
 		if !failed(comCall(args, resReqGetRequest, uintptr(unsafe.Pointer(&req)))) && req != 0 {
 			defer release(req)
@@ -248,7 +265,7 @@ func (w *window) denyPreviewResource(args uintptr) {
 			// Resource requests have no fragment allowance: HTML grants only one
 			// GET/HEAD resource, never arbitrary same-origin paths or redirects.
 			htmlAllowed := target == w.opts.LocalHTMLURL && platform.LocalHTMLAllowed(w.opts.LocalHTMLURL, target)
-			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && (pdfAllowed || htmlAllowed || platform.LocalMediaResourceAllowed(w.opts.LocalMediaURL, target)) {
+			if !failed(uriHR) && !failed(methodHR) && (verb == "GET" || verb == "HEAD") && (platform.LocalPDFViewerResourceAllowed(w.opts.LocalPDFViewerURL, target) || pdfAllowed || htmlAllowed || platform.LocalMediaResourceAllowed(w.opts.LocalMediaURL, target)) {
 				return
 			}
 		}

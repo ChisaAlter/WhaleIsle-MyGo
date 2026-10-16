@@ -169,8 +169,10 @@ type WindowOptions struct {
 // Window is a native window hosting a web page, or the Content of package
 // ui. Create windows with NewWindow once the application is ready.
 type Window struct {
-	id     int
-	parent *Window
+	productKeyboard *productKeyboardState
+	webShortcuts *webShortcutState
+	id           int
+	parent       *Window
 	// pg is the window's page, which Page returns unless the window shows
 	// native UI.
 	pg *Page
@@ -348,6 +350,12 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	id := windows.nextID
 	windows.Unlock()
 
+	if opts.Page.LocalPDFViewerURL != "" {
+		if opts.Page.LocalPDFURL != "" || opts.Page.LocalHTMLURL != "" || opts.Page.LocalMediaURL != "" || !platform.LocalPDFViewerAllowed(opts.Page.LocalPDFViewerURL, opts.Page.LocalPDFViewerURL) {
+			panic("mygo: invalid or mixed PDF reader capability")
+		}
+		opts.Page.IsolatedPreview = true
+	}
 	if opts.Page.LocalMediaURL != "" {
 		if opts.Page.LocalPDFURL != "" || opts.Page.LocalHTMLURL != "" || !platform.LocalMediaAllowed(opts.Page.LocalMediaURL, opts.Page.LocalMediaURL) {
 			panic("mygo: invalid or mixed local media capability")
@@ -376,8 +384,8 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 		if !platform.BrowserPartitionValid(opts.Page.BrowserPartition) {
 			panic("mygo: Browser profile requires a stable SHA-256 partition key")
 		}
-		if runtime.GOOS != "windows" || opts.Page.IsolatedPreview || opts.Content != nil {
-			panic("mygo: Browser profile requires an ordinary Windows web page")
+		if opts.Page.IsolatedPreview || opts.Content != nil {
+			panic("mygo: Browser profile requires an ordinary web page")
 		}
 		opts.Page.DisableBindings = true
 		opts.Page.WindowControlsOnly = false
@@ -440,44 +448,45 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
-		BrowserProfile:   po.BrowserProfile,
-		BrowserPartition: po.BrowserPartition,
-		IsolatedPreview:  po.IsolatedPreview,
-		LocalPDFURL:      po.LocalPDFURL,
-		LocalHTMLURL:     po.LocalHTMLURL,
-		LocalMediaURL:    po.LocalMediaURL,
-		Title:            o.Title,
-		X:                o.X,
-		Y:                o.Y,
-		Width:            or(o.Width, 800),
-		Height:           or(o.Height, 600),
-		Center:           o.X == 0 && o.Y == 0,
-		UseContentSize:   o.UseContentSize,
-		MinSize:          platform.Size{Width: o.MinWidth, Height: o.MinHeight},
-		MaxSize:          platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
-		Resizable:        !o.DisableResize,
-		Movable:          !o.DisableMove,
-		Minimizable:      !o.DisableMinimize,
-		Maximizable:      !o.DisableMaximize,
-		Closable:         !o.DisableClose,
-		Focusable:        true,
-		Fullscreenable:   !o.DisableFullScreen,
-		AlwaysOnTop:      o.AlwaysOnTop,
-		FullScreen:       o.FullScreen,
-		Maximized:        o.Maximized,
-		SkipTaskbar:      o.SkipTaskbar,
-		AutoHideMenu:     o.AutoHideMenuBar,
-		HasShadow:        !o.DisableShadow,
-		Frameless:        o.Frameless,
-		Transparent:      o.Transparent,
-		TitleBarStyle:    string(o.TitleBarStyle),
-		TitleBarHeight:   max(o.TitleBarHeight, 0),
-		Vibrancy:         string(o.Vibrancy),
-		Opacity:          o.Opacity,
-		Modal:            o.Modal,
-		UserAgent:        po.UserAgent,
-		Zoom:             po.ZoomFactor,
-		Schemes:          Protocol.schemes(),
+		BrowserProfile:    po.BrowserProfile,
+		BrowserPartition:  po.BrowserPartition,
+		IsolatedPreview:   po.IsolatedPreview,
+		LocalPDFViewerURL: po.LocalPDFViewerURL,
+		LocalPDFURL:       po.LocalPDFURL,
+		LocalHTMLURL:      po.LocalHTMLURL,
+		LocalMediaURL:     po.LocalMediaURL,
+		Title:             o.Title,
+		X:                 o.X,
+		Y:                 o.Y,
+		Width:             or(o.Width, 800),
+		Height:            or(o.Height, 600),
+		Center:            o.X == 0 && o.Y == 0,
+		UseContentSize:    o.UseContentSize,
+		MinSize:           platform.Size{Width: o.MinWidth, Height: o.MinHeight},
+		MaxSize:           platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
+		Resizable:         !o.DisableResize,
+		Movable:           !o.DisableMove,
+		Minimizable:       !o.DisableMinimize,
+		Maximizable:       !o.DisableMaximize,
+		Closable:          !o.DisableClose,
+		Focusable:         true,
+		Fullscreenable:    !o.DisableFullScreen,
+		AlwaysOnTop:       o.AlwaysOnTop,
+		FullScreen:        o.FullScreen,
+		Maximized:         o.Maximized,
+		SkipTaskbar:       o.SkipTaskbar,
+		AutoHideMenu:      o.AutoHideMenuBar,
+		HasShadow:         !o.DisableShadow,
+		Frameless:         o.Frameless,
+		Transparent:       o.Transparent,
+		TitleBarStyle:     string(o.TitleBarStyle),
+		TitleBarHeight:    max(o.TitleBarHeight, 0),
+		Vibrancy:          string(o.Vibrancy),
+		Opacity:           o.Opacity,
+		Modal:             o.Modal,
+		UserAgent:         po.UserAgent,
+		Zoom:              po.ZoomFactor,
+		Schemes:           Protocol.schemes(),
 	}
 	if p.Title == "" {
 		p.Title = App.Name()
@@ -1700,6 +1709,9 @@ func (h *windowHandler) SchemeRequest(req *platform.SchemeRequest) {
 // handleMessage routes a message posted by the page bridge. It runs on the
 // main thread.
 func (w *Window) handleMessage(msg string) {
+	if w.handleWebShortcutMessage(msg) {
+		return
+	}
 	msg, ok := strings.CutPrefix(msg, w.secret)
 	if !ok {
 		return // not from the bridge

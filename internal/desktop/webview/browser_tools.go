@@ -51,6 +51,10 @@ func (h *Host) BrowserToolsAvailable() bool {
 	w, _, _, err := h.browserPage()
 	return err == nil && w.Page().BrowserToolsAvailable()
 }
+func (h *Host) BrowserColorSchemeAvailable() bool {
+	w, _, _, err := h.browserPage()
+	return err == nil && w.Page().BrowserColorSchemeAvailable()
+}
 func (h *Host) HardReloadBrowser() error {
 	w, _, _, err := h.browserPage()
 	if err != nil {
