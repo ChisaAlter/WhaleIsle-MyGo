@@ -11,10 +11,10 @@ func (h *Host) installProductKeyboard() {
 		snapshot := gateway.ProductKeyboard()
 		keys := make([]mygo.ProductKeyBinding, 0, len(snapshot.Bindings))
 		for _, key := range snapshot.Bindings {
-			keys = append(keys, mygo.ProductKeyBinding{Code: key.Code, Mods: key.Mods})
+			keys = append(keys, mygo.ProductKeyBinding{Code: key.Code, Mods: key.Mods, SecondCode: key.SecondCode})
 		}
-		child.Page().SetProductKeyboard(snapshot.Revision, snapshot.Active, keys, func(revision, code string, mods uint8) {
-			go gateway.DispatchProductKey(snapshot.Page, revision, code, mods)
+		child.Page().SetProductKeyboard(snapshot.Revision, snapshot.Active, keys, func(revision, code string, mods uint8, second string) {
+			go gateway.DispatchProductKey(snapshot.Page, revision, code, mods, second)
 		})
 	}
 	gateway.SetProductKeyboardChanged(changed)

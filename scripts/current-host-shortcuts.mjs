@@ -2,6 +2,7 @@
 // Provenance: ChisaAlter/WhaleIsle e9f584be6d3b491ce777bb6823f30bc2bbc6f195
 // vendor/deepseek-harness/packages/client/shortcuts/src/client/index.ts
 import fs from 'node:fs';
+import {applyShortcutChords} from './current-host-shortcut-chords.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
@@ -32,11 +33,12 @@ export function applyShortcutProvider(harness){
  const source=fs.readFileSync(file,'utf8');
  if(fs.existsSync(recordFile)){
   const r=JSON.parse(fs.readFileSync(recordFile,'utf8'));
-  if(r.id===id&&r.patchSHA256===patchSHA256&&r.sourceSHA256===hash(source))return r;
+  if(r.id===id&&r.patchSHA256===patchSHA256&&r.sourceSHA256===hash(source)){applyShortcutChords(harness);return r;}
   throw new Error('Shortcut provider adaptation record mismatch');
  }
  const output=patchSource(source);
  const record={id,sourceCommit:'e9f584be6d3b491ce777bb6823f30bc2bbc6f195',baseSHA256,patchSHA256,sourceSHA256:hash(output)};
+ applyShortcutChords(harness);
  fs.writeFileSync(file,output);fs.writeFileSync(recordFile,JSON.stringify(record,null,2));return record;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

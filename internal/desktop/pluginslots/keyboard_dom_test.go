@@ -24,6 +24,18 @@ func TestProductKeyboardOwnerContract(t *testing.T) {
  sendKey();if(delivered.length!==1)throw Error('native input did not reach existing DOM dispatcher');
  sendKey('stale');editing=true;sendKey();editing=false;handlers.compositionstart();sendKey();handlers.compositionend();
  if(delivered.length!==1)throw Error('stale/editor/composition command ran');
+ rows=[{binding:{code:'KeyA',secondCode:'KeyB',modifiers:[]},issue:null,conflicts:[]}];subscriptions[0]();state=sent.at(-1);
+ if(state.bindings[0].secondCode!=='KeyB')throw Error('held pair dropped');
+ sock.handlers.message({data:JSON.stringify({type:'key',revision:state.revision,code:'KeyA',secondCode:'KeyB',mods:0})});
+ if(delivered.at(-1).whaleisleSecondCode!=='KeyB')throw Error('native pair lost before DOM');
+ const physical=(code,type='keydown',repeat=false)=>{const e={code,type,repeat,isTrusted:true,preventDefault(){this.prevented=true}};handlers[type](e);return e};
+ if(physical('KeyB').whaleisleSecondCode)throw Error('first key consumed');
+ if(physical('KeyA').whaleisleSecondCode!=='KeyB')throw Error('reversed held pair lost');
+ if(!physical('KeyB','keydown',true).prevented)throw Error('pair repeated');
+ physical('KeyA','keyup');physical('KeyB','keyup');physical('KeyA');physical('KeyA','keyup');
+ if(physical('KeyB').whaleisleSecondCode)throw Error('sequence became held pair');
+ subscriptions[0]();physical('KeyA');handlers.compositionstart();handlers.compositionend();
+ if(physical('KeyB').whaleisleSecondCode)throw Error('composition kept pending pair');
  rows=[];subscriptions[0]();if(sent.at(-1).bindings.length)throw Error('unregistered command retained');`
 	if out, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("product contract: %v\n%s", err, out)

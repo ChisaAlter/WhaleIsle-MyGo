@@ -17,8 +17,9 @@ const keyboardPath = "/__whale_keyboard"
 const keyboardProtocol = "whaleisle.product-keyboard.v1"
 
 type ProductKeyBinding struct {
-	Code string `json:"code"`
-	Mods uint8  `json:"mods"`
+	Code       string `json:"code"`
+	Mods       uint8  `json:"mods"`
+	SecondCode string `json:"secondCode,omitempty"`
 }
 type ProductKeyboardSnapshot struct {
 	Page     uint64
@@ -69,13 +70,17 @@ func (g *Gateway) disconnectProductKeyboard(expected *websocket.Conn) {
 
 // Only physical native key delivery calls this; the HTTP endpoint has no
 // command, file, Host-RPC, credential or arbitrary-message operation.
-func (g *Gateway) DispatchProductKey(page uint64, revision, code string, mods uint8) error {
+func (g *Gateway) DispatchProductKey(page uint64, revision, code string, mods uint8, secondCode ...string) error {
 	b := &g.keyboard
 	b.mu.Lock()
 	socket, s := b.socket, b.state
+	second := ""
+	if len(secondCode) > 0 {
+		second = secondCode[0]
+	}
 	accepted := false
 	for _, key := range s.Bindings {
-		if key.Code == code && key.Mods == mods {
+		if key.Code == code && key.Mods == mods && key.SecondCode == second {
 			accepted = true
 			break
 		}
@@ -88,17 +93,20 @@ func (g *Gateway) DispatchProductKey(page uint64, revision, code string, mods ui
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	return wsjson.Write(ctx, socket, struct {
-		Type     string `json:"type"`
-		Revision string `json:"revision"`
-		Code     string `json:"code"`
-		Mods     uint8  `json:"mods"`
-	}{"key", revision, code, mods})
+		Type       string `json:"type"`
+		Revision   string `json:"revision"`
+		Code       string `json:"code"`
+		Mods       uint8  `json:"mods"`
+		SecondCode string `json:"secondCode,omitempty"`
+	}{"key", revision, code, mods, second})
 }
 func validProductKey(b ProductKeyBinding) bool {
-	if b.Mods == 0 || b.Mods > 7 {
+	if b.Mods > 15 || (b.SecondCode != "" && (b.Code >= b.SecondCode || !validProductCode(b.SecondCode))) {
 		return false
 	}
-	c := b.Code
+	return validProductCode(b.Code)
+}
+func validProductCode(c string) bool {
 	if len(c) == 4 && strings.HasPrefix(c, "Key") && c[3] >= 'A' && c[3] <= 'Z' {
 		return true
 	}
@@ -106,7 +114,7 @@ func validProductKey(b ProductKeyBinding) bool {
 		return true
 	}
 	switch c {
-	case "Comma", "Period", "Slash", "Backslash", "Backquote", "Semicolon", "Quote", "BracketLeft", "BracketRight", "Minus", "Equal", "Enter", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12":
+	case "Escape", "Space", "Tab", "Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "Comma", "Period", "Slash", "Backslash", "Backquote", "Semicolon", "Quote", "BracketLeft", "BracketRight", "Minus", "Equal", "Enter", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12":
 		return true
 	}
 	return false
@@ -128,6 +136,11 @@ func decodeProductKeyboard(raw []byte) (ProductKeyboardSnapshot, error) {
 	for _, b := range input.Bindings {
 		if !validProductKey(b) || seen[b] {
 			return ProductKeyboardSnapshot{}, errors.New("invalid/conflicting product binding")
+		}
+		for previous := range seen {
+			if previous.Mods == b.Mods && (previous.SecondCode == "" || b.SecondCode == "") && (previous.Code == b.Code || previous.Code == b.SecondCode || (previous.SecondCode != "" && (previous.SecondCode == b.Code || previous.SecondCode == b.SecondCode))) {
+				return ProductKeyboardSnapshot{}, errors.New("overlapping product binding")
+			}
 		}
 		seen[b] = true
 	}

@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-func (w *window) reportWebApplicationKey(args uintptr, vk uint32) bool {
+func (w *window) reportWebApplicationKey(args uintptr, vk uint32, down bool) bool {
 	receiver, ok := w.h.(interface {
 		WebApplicationKey(uint32, bool, bool, bool, bool, bool)
 	})
@@ -23,15 +23,28 @@ func (w *window) reportWebApplicationKey(args uintptr, vk uint32) bool {
 	// Right Alt + Control is AltGr on Windows layouts; preserve composition.
 	rightAlt, _, _ := procGetKeyState.Call(0xA5)
 	if mods&accelerator.Ctrl != 0 && int16(rightAlt) < 0 {
+		if reset, ok := w.h.(interface{ ProductWebKeyReset() }); ok {
+			reset.ProductWebKeyReset()
+		}
 		return false
 	}
 	if priority, ok := w.h.(interface {
-		ProductWebKey(uint32, bool, bool, bool, bool, bool) bool
+		ProductWebKeyEvent(uint32, bool, bool, bool, bool, bool, bool) bool
 	}); ok {
-		if priority.ProductWebKey(vk, mods&accelerator.Ctrl != 0, mods&accelerator.Alt != 0, mods&accelerator.Shift != 0, mods&accelerator.Super != 0, uint32(lparam)&(1<<30) != 0) {
+		physical := productPhysicalVK(uint32(lparam))
+		if physical == 0 {
+			if reset, ok := w.h.(interface{ ProductWebKeyReset() }); ok {
+				reset.ProductWebKeyReset()
+			}
+		}
+		if physical != 0 && priority.ProductWebKeyEvent(physical, mods&accelerator.Ctrl != 0, mods&accelerator.Alt != 0, mods&accelerator.Shift != 0, mods&accelerator.Super != 0, uint32(lparam)&(1<<30) != 0, down) {
 			return true
 		}
+	}
+	if !down {
+		return false
 	}
 	receiver.WebApplicationKey(vk, mods&accelerator.Ctrl != 0, mods&accelerator.Alt != 0, mods&accelerator.Shift != 0, mods&accelerator.Super != 0, uint32(lparam)&(1<<30) != 0)
 	return false
 }
+

@@ -537,13 +537,16 @@ func (w *window) newWindowRequested(_, args uintptr) {
 func (w *window) acceleratorKeyPressed(_, args uintptr) {
 	var kind int32
 	comCall(args, accelGetKeyEventKind, uintptr(unsafe.Pointer(&kind)))
-	if kind != 0 && kind != 2 { // KEY_DOWN, SYSTEM_KEY_DOWN
+	if kind < 0 || kind > 3 { // KEY_DOWN/UP, SYSTEM_KEY_DOWN/UP
 		return
 	}
 	var vk uint32
 	comCall(args, accelGetVirtualKey, uintptr(unsafe.Pointer(&vk)))
-	if w.reportWebApplicationKey(args, vk) {
+	if w.reportWebApplicationKey(args, vk, kind == 0 || kind == 2) {
 		comCall(args, accelPutHandled, 1)
+		return
+	}
+	if kind == 1 || kind == 3 {
 		return
 	}
 	cmd, ok := w.accels[accelKey{vk: vk, mods: currentModifiers()}]
