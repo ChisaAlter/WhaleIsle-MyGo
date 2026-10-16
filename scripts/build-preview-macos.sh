@@ -13,7 +13,7 @@ app="$out/WhaleIsle Preview.app"
 mkdir -p "$app/Contents/MacOS"
 /usr/bin/xcrun --sdk macosx clang -arch "$arch" -mmacosx-version-min=11.0 -fobjc-arc -fblocks \
   -Wall -Wextra -Wno-deprecated-declarations -Wno-unused-parameter \
-  -framework Cocoa -framework WebKit -framework Security \
+  -framework Cocoa -framework WebKit -framework Security -framework CoreGraphics \
   "$project/native/macos-preview/main.m" -o "$app/Contents/MacOS/whaleisle-preview"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

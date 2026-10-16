@@ -30,13 +30,19 @@ plugins are disabled. The helper has no network or file-selection entitlement
 and exposes no native page bridge. The renderer stays in the helper process,
 avoiding WKWebView's independently launched WebContent/Networking services.
 
-Interactive mode shows a separate native window with mouse and keyboard input.
-Theme messages update the existing document. Capture mode reads the shell's
+Separate-window interactive mode uses native mouse and keyboard input. Inline
+mode keeps the helper window hidden and returns bounded 700px PNG frames to the
+existing native pixel seat. The parent forwards pointer, scroll, text and an
+allowlist of editing/navigation keys over IPC; AppKit input stays inside the
+helper, without system event injection or Accessibility access. Theme messages
+update the existing document. Inline/expanded cards share the same Session and
+viewport, preserving JS/form state. The paint lease suspends hidden-seat polls
+and sends button releases; a single request/frame pair provides backpressure. Capture mode reads the shell's
 bounded readiness/height state, resizes to at most 4000 pixels, and returns PNG
 bytes through the existing validated capture protocol. Parent cancellation,
 startup failure, pipe closure, window closure or the thirty-minute lifetime
-limit terminates the helper. Inline embedding is not implemented in this first
-compatibility increment and fails with an explicit separate-window message.
+limit terminates the helper. Both published-HTML entry points now expose the
+macOS native pixel-seat path; no document HTML enters the parent webview.
 
 ## Build and package
 
@@ -74,7 +80,8 @@ SDK declarations. A real signed Mac must establish:
 - Native helper compilation and public WebView availability on supported OSes
 - Startup under App Sandbox-only entitlements, including any legacy JSC/JIT constraints
 - Real HTML/JS, iframe sandbox, forms, canvas and CSS compatibility
-- Correct high-DPI PNG pixels, dimensions, console output and input behavior
+- Correct high-DPI PNG pixels, dimensions, console output and hidden-window input behavior
+- Inline/expanded state preservation, scrolling, drag release and paint-lease suspension
 - Network/file attempts blocked by the OS, not just navigation delegates/CSP
 - Cancellation, window close, process identity and malformed IPC behavior
 

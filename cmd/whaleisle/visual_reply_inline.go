@@ -28,7 +28,7 @@ var inlinePages = struct {
 }{pages: make(map[inlinePageKey]*inlinePage)}
 
 func inlinePublishedHTMLHandler(win *mygo.Window, store *session.Store, sid string, dark bool) func(string) session.InlineVisualReply {
-	if (runtime.GOOS != "windows" && runtime.GOOS != "linux") || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+	if (runtime.GOOS != "windows" && runtime.GOOS != "linux" && runtime.GOOS != "darwin") || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
 		return nil
 	}
 	return func(id string) session.InlineVisualReply {

@@ -18,8 +18,8 @@ import (
 // Legacy WebView is a deprecated single-process compatibility renderer, not a
 // WKWebView equivalent. It runs only inside its independently signed sandbox.
 func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, error) {
-	if doc.Inline {
-		return nil, errors.New("macOS legacy isolated preview currently supports a separate window, not inline embedding")
+	if doc.Inline && doc.capture {
+		return nil, errors.New("macOS capture requires a capture-only helper session")
 	}
 	setup, stop := context.WithTimeout(ctx, 20*time.Second)
 	defer stop()
@@ -80,6 +80,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 		defer writeMu.Unlock()
 		return writePacket(input, packet{Version: protocolVersion, Kind: "theme", Nonce: nonce, Appearance: appearance, Variables: vars})
 	}
+	var firstFrame []byte
 	ready := make(chan error, 1)
 	go func() {
 		p, e := readPacket(output)
@@ -116,6 +117,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 				session.capture = &result
 			}
 		}
+		if e == nil && doc.Inline {
+			firstFrame, e = receiveFrame(output, nonce, doc.Width)
+		}
 		ready <- e
 	}()
 	select {
@@ -128,6 +132,12 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 	if err != nil {
 		session.Close()
 		return nil, err
+	}
+	if doc.Inline {
+		if err = startMacPixelSeat(lifetime, session, input, output, nonce, doc, firstFrame); err != nil {
+			session.Close()
+			return nil, err
+		}
 	}
 	go func() {
 		select {

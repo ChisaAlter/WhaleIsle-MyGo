@@ -6,6 +6,8 @@
 #import <unistd.h>
 #import <signal.h>
 #import <sys/resource.h>
+#import <math.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 static NSString *nonce;
 static void fail(NSString *why) { fprintf(stderr, "macOS preview: %s\n", why.UTF8String); exit(1); }
@@ -63,11 +65,119 @@ static void verifyIdentity(void) {
 @property(strong) WebView *web;
 @property BOOL initialNavigation;
 @property BOOL capture;
+@property BOOL inlineSeat;
+@property NSUInteger pressedButtons;
+@property(strong) NSMutableDictionary<NSNumber *,NSView *> *mouseTargets;
+@property NSPoint pointer;
 @property BOOL loaded;
 @property NSInteger width;
 @property NSTimeInterval deadline;
 @end
 @implementation Preview
+- (NSData *)framePNG {
+    NSBitmapImageRep *bitmap=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:self.width pixelsHigh:700 bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+    [self.web displayIfNeeded];[self.web cacheDisplayInRect:NSMakeRect(0,0,self.width,700) toBitmapImageRep:bitmap];
+    NSData *png=[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+    if(!png || png.length>8*1024*1024) fail(@"invalid inline preview frame");
+    return png;
+}
+- (void)emitFrame {
+    NSData *png=[self framePNG];
+    packet(@"frame",@{@"bytes":@(png.length),@"width":@(self.width),@"height":@700});writeData(png);
+}
+- (void)mouseButton:(NSInteger)button down:(BOOL)down {
+    NSEventType type;
+    if(button==1) type=down?NSEventTypeLeftMouseDown:NSEventTypeLeftMouseUp;
+    else if(button==3) type=down?NSEventTypeRightMouseDown:NSEventTypeRightMouseUp;
+    else type=down?NSEventTypeOtherMouseDown:NSEventTypeOtherMouseUp;
+    NSUInteger bit=1UL<<button;if(down) self.pressedButtons|=bit;else self.pressedButtons&=~bit;
+    NSEvent *event=[NSEvent mouseEventWithType:type location:self.pointer modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:self.window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:down?1:0];
+    // Dispatch only to this helper's view. A never-key hidden window must not
+    // consume the first click for activation; drag/up retain the down target.
+    if(!self.mouseTargets) self.mouseTargets=[NSMutableDictionary dictionary];
+    NSView *target=self.mouseTargets[@(button)];
+    if(down) {
+        target=[self.web hitTest:[self.web.superview convertPoint:self.pointer fromView:nil]];
+        if(target) {self.mouseTargets[@(button)]=target;[self.window makeFirstResponder:target];}
+    }
+    if(button==1) {if(down) [target mouseDown:event];else [target mouseUp:event];}
+    else if(button==3) {if(down) [target rightMouseDown:event];else [target rightMouseUp:event];}
+    else {if(down) [target otherMouseDown:event];else [target otherMouseUp:event];}
+    if(!down) [self.mouseTargets removeObjectForKey:@(button)];
+}
+- (void)releaseInput {
+    for(NSInteger button=1;button<=3;button++) if(self.pressedButtons&(1UL<<button)) [self mouseButton:button down:NO];
+}
+- (void)input:(NSDictionary *)v {
+    if(![v isKindOfClass:NSDictionary.class]) fail(@"invalid inline input");
+    NSString *kind=v[@"kind"];
+    if([kind isEqual:@"pointer"]) {
+        NSInteger x=[v[@"x"] integerValue],y=[v[@"y"] integerValue],button=[v[@"button"] integerValue];
+        if(x<0 || x>=self.width || y<0 || y>=700 || button<0 || button>5) fail(@"invalid pointer input");
+        self.pointer=NSMakePoint(x+0.5,699.5-y);
+        if(button==4 || button==5) {
+            CGEventRef cg=CGEventCreateScrollWheelEvent(NULL,kCGScrollEventUnitPixel,1,button==4?64:-64);
+            if(!cg) fail(@"cannot construct scroll input");
+            NSPoint screen=[self.window convertPointToScreen:self.pointer];
+            NSScreen *primary=NSScreen.screens.firstObject;if(!primary) fail(@"no screen for local scroll coordinates");
+            CGEventSetLocation(cg,CGPointMake(screen.x,NSMaxY(primary.frame)-screen.y));
+            CGEventSetIntegerValueField(cg,kCGMouseEventWindowUnderMousePointer,self.window.windowNumber);
+            CGEventSetIntegerValueField(cg,kCGMouseEventWindowUnderMousePointerThatCanHandleThisEvent,self.window.windowNumber);
+            NSEvent *event=[NSEvent eventWithCGEvent:cg];CFRelease(cg);
+            NSPoint location=event.locationInWindow;
+            if(event.windowNumber!=self.window.windowNumber || fabs(location.x-self.pointer.x)>1 || fabs(location.y-self.pointer.y)>1) fail(@"native scroll event could not bind to helper window");
+            NSView *target=[self.web hitTest:[self.web.superview convertPoint:self.pointer fromView:nil]];
+            [target scrollWheel:event];return;
+        }
+        if(button) {[self mouseButton:button down:[v[@"down"] boolValue]];return;}
+        NSEventType type=NSEventTypeMouseMoved;
+        if(self.pressedButtons&(1UL<<1)) type=NSEventTypeLeftMouseDragged;
+        else if(self.pressedButtons&(1UL<<3)) type=NSEventTypeRightMouseDragged;
+        else if(self.pressedButtons&(1UL<<2)) type=NSEventTypeOtherMouseDragged;
+        NSEvent *event=[NSEvent mouseEventWithType:type location:self.pointer modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:self.window.windowNumber context:nil eventNumber:0 clickCount:0 pressure:0];
+        NSView *target;
+        if(type==NSEventTypeLeftMouseDragged) target=self.mouseTargets[@1];
+        else if(type==NSEventTypeRightMouseDragged) target=self.mouseTargets[@3];
+        else if(type==NSEventTypeOtherMouseDragged) target=self.mouseTargets[@2];
+        else target=[self.web hitTest:[self.web.superview convertPoint:self.pointer fromView:nil]];
+        if(type==NSEventTypeLeftMouseDragged) [target mouseDragged:event];
+        else if(type==NSEventTypeRightMouseDragged) [target rightMouseDragged:event];
+        else if(type==NSEventTypeOtherMouseDragged) [target otherMouseDragged:event];
+        else [target mouseMoved:event];
+        return;
+    }
+    if([kind isEqual:@"text"]) {
+        NSString *text=v[@"text"];
+        if(![text isKindOfClass:NSString.class] || text.length==0 || [text lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>1024 || [text rangeOfString:[NSString stringWithFormat:@"%C",(unichar)0]].location!=NSNotFound) fail(@"invalid text input");
+        id target=self.window.firstResponder;
+        if([target respondsToSelector:@selector(insertText:replacementRange:)]) [(id<NSTextInputClient>)target insertText:text replacementRange:NSMakeRange(NSNotFound,0)];
+        else if([target respondsToSelector:@selector(insertText:)]) [target insertText:text];
+        return;
+    }
+    if([kind isEqual:@"key"]) {
+        NSDictionary *keys=@{@"Return":@[@13,@36],@"Escape":@[@27,@53],@"BackSpace":@[@127,@51],@"Tab":@[@9,@48],@"Delete":@[@(NSDeleteFunctionKey),@117],@"Home":@[@(NSHomeFunctionKey),@115],@"End":@[@(NSEndFunctionKey),@119],@"Prior":@[@(NSPageUpFunctionKey),@116],@"Next":@[@(NSPageDownFunctionKey),@121],@"Left":@[@(NSLeftArrowFunctionKey),@123],@"Right":@[@(NSRightArrowFunctionKey),@124],@"Up":@[@(NSUpArrowFunctionKey),@126],@"Down":@[@(NSDownArrowFunctionKey),@125]};
+        NSArray *entry=keys[v[@"key"]];if(!entry) fail(@"invalid key input");
+        unichar character=[entry[0] unsignedShortValue];NSString *text=[NSString stringWithCharacters:&character length:1];
+        for(NSNumber *down in @[@YES,@NO]) {
+            NSEvent *event=[NSEvent keyEventWithType:down.boolValue?NSEventTypeKeyDown:NSEventTypeKeyUp location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:self.window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:[entry[1] unsignedShortValue]];
+            if(down.boolValue) [self.window.firstResponder keyDown:event];else [self.window.firstResponder keyUp:event];
+        }
+        return;
+    }
+    fail(@"unsupported inline input kind");
+}
+- (void)command:(NSDictionary *)p {
+    NSString *kind=p[@"kind"];
+    if([kind isEqual:@"theme"]) [self theme:p];
+    else if(self.inlineSeat && [kind isEqual:@"release"]) [self releaseInput];
+    else if(self.inlineSeat && [kind isEqual:@"poll"]) {if(p[@"input"]) [self input:p[@"input"]];}
+    else fail(@"unexpected IPC command");
+    if(self.inlineSeat) {
+        // Deliver input first, then capture on a later main-loop turn. The parent
+        // permits only one outstanding request and validates every PNG frame.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,33*NSEC_PER_MSEC),dispatch_get_main_queue(),^{[self emitFrame];});
+    }
+}
 - (void)windowWillClose:(NSNotification *)note { exit(0); }
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)action request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
     NSString *url=request.URL.absoluteString ?: @"";
@@ -106,7 +216,11 @@ static void verifyIdentity(void) {
     double measured=[state[@"height"] doubleValue];if(!isfinite(measured) || measured<1 || measured>9007199254740991.0) fail(@"invalid content height");
     self.loaded=YES;[timer invalidate];
     packet(@"loaded",@{@"browserPID":@(getpid())});
-    if(!self.capture) { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];return; }
+    if(!self.capture) {
+        if(self.inlineSeat) { [self.window makeFirstResponder:self.web];[self emitFrame]; }
+        else { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES]; }
+        return;
+    }
     NSInteger height=MIN(4000,(NSInteger)ceil(measured));
     [self.window setContentSize:NSMakeSize(self.width,height)];[self.web setFrame:NSMakeRect(0,0,self.width,height)];
     // Wait for the resized frame to be painted before reading the view's pixels.
@@ -147,24 +261,27 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     // Ready means the independently signed single-process renderer is identified;
     // no untrusted document has been read or loaded at this point.
     packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid())});
-    NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"] || [doc[@"inline"] boolValue]) fail(@"unsupported document request");
+    NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"]) fail(@"unsupported document request");
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");
     NSString *html=[[NSString alloc] initWithData:readExact(n) encoding:NSUTF8StringEncoding];if(!html) fail(@"invalid document UTF-8");
-    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.initialNavigation=YES;
+    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.inlineSeat=[doc[@"inline"] boolValue];preview.initialNavigation=YES;
+    if(preview.inlineSeat && preview.capture) fail(@"capture requires a dedicated session");
+    if(preview.inlineSeat) [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     preview.window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,width,700) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
     preview.window.title=@"Isolated HTML preview (legacy compatibility)";preview.window.delegate=preview;
     preview.web=[[legacy alloc] initWithFrame:NSMakeRect(0,0,width,700) frameName:nil groupName:NSUUID.UUID.UUIDString];
     if(!preview.web) fail(@"legacy renderer creation failed");
     WebPreferences *prefs=[[WebPreferences alloc] initWithIdentifier:NSUUID.UUID.UUIDString];prefs.autosaves=NO;prefs.javaScriptEnabled=YES;prefs.javaEnabled=NO;prefs.plugInsEnabled=NO;prefs.javaScriptCanOpenWindowsAutomatically=NO;
+    preview.web.shouldUpdateWhileOffscreen=YES;
     preview.web.preferences=prefs;preview.web.frameLoadDelegate=preview;preview.web.policyDelegate=preview;preview.web.resourceLoadDelegate=preview;preview.web.UIDelegate=preview;preview.web.downloadDelegate=preview;
     preview.web.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;preview.window.contentView=preview.web;
     preview.deadline=NSDate.timeIntervalSinceReferenceDate+15;
     [preview.web.mainFrame loadHTMLString:html baseURL:[NSURL URLWithString:@"about:blank"]];
     [NSTimer scheduledTimerWithTimeInterval:0.05 target:preview selector:@selector(poll:) userInfo:nil repeats:YES];
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{ while(YES) { @autoreleasepool {
-        NSDictionary *p=readPacket();if(![p[@"kind"] isEqual:@"theme"]) fail(@"unexpected IPC command");
-        dispatch_sync(dispatch_get_main_queue(),^{ [preview theme:p]; });
+        NSDictionary *p=readPacket();
+        dispatch_sync(dispatch_get_main_queue(),^{ [preview command:p]; });
     } } });
     [NSApp run];
 } return 0; }
