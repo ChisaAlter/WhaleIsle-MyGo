@@ -22,7 +22,7 @@ export function prepare(configFile) {
  const c=read(configFile);
  if(c.targetPlatform!=='win32'||c.targetArch!=='x64')throw Error('Only explicit win32/x64 supported');
  const hostManifest=read(path.join(c.inputs.host,'current-host-build.json'));
- if(hostManifest.sourceCommit!=='90465b67ec16765631d54c195af19d9ff3c3a770'||!hostManifest.safetyPatch)throw Error('Expected guarded fixed Host build');
+ if(!['90465b67ec16765631d54c195af19d9ff3c3a770','e9f584be6d3b491ce777bb6823f30bc2bbc6f195'].includes(hostManifest.sourceCommit)||!hostManifest.safetyPatch)throw Error('Expected guarded fixed Host build');
  for(const [file,hash] of Object.entries(hostManifest.artifacts||{}))if(sha(path.join(c.inputs.host,file))!==hash)throw Error(`Changed Host input: ${file}`);
  const mobileBuild=read(path.join(c.inputs.mobile,'node-build.json'));
  if(mobileBuild.node!=='v24.19.0'||String(mobileBuild.abi)!=='137')throw Error('This offline recipe requires the verified Node 24.19.0 / ABI137 source build');
