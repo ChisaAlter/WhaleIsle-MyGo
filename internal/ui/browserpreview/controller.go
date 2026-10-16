@@ -17,6 +17,7 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	discovery        *localDiscovery
 	developerTools   func() bool
 	workspaceOwner   func() WorkspaceOwner
 	documentLoader   documentLoader
@@ -57,7 +58,7 @@ type Tab struct {
 	Host          *desktop.Host
 }
 
-const BrowserChromeHeight = 208
+const BrowserChromeHeight = 242
 
 func NewController(parent *mygo.Window) *Controller { return &Controller{parent: parent} }
 func (b *Controller) current() *Tab {
@@ -129,6 +130,7 @@ func (b *Controller) Navigate(raw string) {
 	b.update()
 }
 func (b *Controller) Hide() {
+	b.stopLocalDiscovery()
 	b.pauseDocumentReads()
 	b.CancelAction()
 	b.cancelInteractivePreviews()
@@ -187,6 +189,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.stopLocalDiscovery()
 	b.pauseDocumentReads()
 	b.stopFloatingDocument()
 	b.stopPictureInPicture()
@@ -221,6 +224,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 		b.NewTab("")
 	}
 	t := b.current()
+	b.resumeLocalDiscovery(t)
 	colors := theme.Resolve(themeID).Active(dark)
 	s := desktop.State{}
 	if t.Host != nil {
@@ -332,6 +336,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					mygo.Clipboard.WriteText(raw)
 				}
 			})
+			b.localServerControls(c, t)
 			b.pdfReadingControls(c, t)
 			b.actionControls(c, t, s)
 			b.toolControls(c, t, s)
