@@ -202,6 +202,9 @@ func (p *Companion) sync() {
 		p.assetMu.RLock()
 		task := p.task
 		p.assetMu.RUnlock()
+		if p.fileDropAction(e.URL) {
+			return
+		}
 		if p.interactionAction(e.URL) {
 			return
 		}
@@ -320,6 +323,9 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'")
+	if serveFileDrop(w, r) {
+		return
+	}
 	if serveStatusCard(w, r) {
 		return
 	}
