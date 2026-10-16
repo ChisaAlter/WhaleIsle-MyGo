@@ -32,6 +32,7 @@ type AgentNavigationRow struct {
 	Running bool
 }
 type AgentNavigationView struct {
+	PromptImages     []string               // local image draft scoped to this navigation owner
 	catalog          agentNavigationCatalog // Host-computed whole value and its watermark
 	Resources        map[string]AgentResourceRead
 	TurnFiles        TurnFilesSnapshot
@@ -77,6 +78,7 @@ func (s *Store) agentNavigationOwnedLocked() bool {
 	return n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
+	v.PromptImages = append([]string(nil), v.PromptImages...)
 	v.Resources = cloneAgentResources(v.Resources)
 	v.TurnFiles.Results = cloneAgentTurnResults(v.TurnFiles.Results)
 	v.Rows = append([]AgentNavigationRow(nil), v.Rows...)
@@ -385,15 +387,15 @@ func (s *Store) agentNavigationActionAllowedLocked(token uint64, address AgentSe
 }
 func (s *Store) PromptAgentNavigation(token uint64, address AgentSessionAddress, text string) {
 	text = trimPrompt(text)
-	if text == "" || address.Mode != "continuable" {
+	if address.Mode != "continuable" {
 		return
 	}
-	s.agentNavigationAction(token, []AgentSessionAddress{address}, text)
+	s.agentNavigationAction(token, []AgentSessionAddress{address}, text, true)
 }
 func (s *Store) InterruptAgentNavigation(token uint64, addresses []AgentSessionAddress) {
-	s.agentNavigationAction(token, append([]AgentSessionAddress(nil), addresses...), "")
+	s.agentNavigationAction(token, append([]AgentSessionAddress(nil), addresses...), "", false)
 }
-func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string) {
+func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt bool) {
 	s.mu.Lock()
 	n := &s.agentNavigation
 	if len(addresses) == 0 || n.view.ActionBusy || n.view.Busy {
@@ -405,6 +407,11 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 			s.mu.Unlock()
 			return
 		}
+	}
+	paths := append([]string(nil), n.view.PromptImages...)
+	if prompt && (len(addresses) != 1 || addresses[0] != n.view.Address && len(paths) > 0 || text == "" && len(paths) == 0) {
+		s.mu.Unlock()
+		return
 	}
 	client, generation := n.client, n.generation
 	delivery := string(NormalizePromptMode(string(s.promptMode)))
@@ -441,8 +448,20 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				}
 				break
 			}
-			if text != "" {
-				req := api.SubagentPromptRequest{RequestId: newRequestID(), ParentSessionId: address.ParentSessionID, ChildSessionId: address.ChildSessionID, Mode: "continuable", Delivery: delivery, Content: PromptContentBlocks(text)}
+			if prompt {
+				content, contentErr := agentNavigationPromptContent(text, paths)
+				if contentErr != nil {
+					err = contentErr
+					break
+				}
+				s.mu.Lock()
+				valid = validLocked()
+				s.mu.Unlock()
+				if !valid {
+					err = fmt.Errorf("Child image target changed or request expired")
+					break
+				}
+				req := api.SubagentPromptRequest{RequestId: newRequestID(), ParentSessionId: address.ParentSessionID, ChildSessionId: address.ChildSessionID, Mode: "continuable", Delivery: delivery, Content: content}
 				var receipt api.SubagentPromptReceipt
 				err = client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &receipt)
 				if err == nil && strings.TrimSpace(receipt.MessageId) == "" {
@@ -466,7 +485,8 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		s.agentNavigation.actionCancel = nil
 		if err != nil {
 			s.agentNavigation.view.ActionStatus = err.Error()
-		} else if text != "" {
+		} else if prompt {
+			s.agentNavigation.view.PromptImages = nil
 			s.agentNavigation.view.ActionStatus = "子代理输入已提交 / Child prompt submitted"
 		} else {
 			s.agentNavigation.view.ActionStatus = "中断请求已提交 / Interrupt requested"
