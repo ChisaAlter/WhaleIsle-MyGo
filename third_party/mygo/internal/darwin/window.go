@@ -314,6 +314,7 @@ func nsColor(c platform.Color) id {
 
 // cleanup releases native resources; called from windowWillClose:.
 func (w *window) cleanup() {
+	w.resetProductKeys()
 	if w.closed {
 		return
 	}
@@ -1047,6 +1048,18 @@ func (b *Backend) windowFor(delegate id) *window {
 
 func registerWindowClasses() {
 	classDef("MyGoWindow", "NSWindow", nil, []objc.MethodDef{
+		method("performKeyEquivalent:", func(self id, cmd objc.SEL, ev id) bool {
+			if w := theBackend.byNSWindow[self]; w != nil && w.productKeyEvent(ev) {
+				return true
+			}
+			return byte(sendSuper(self, "MyGoWindow", cmd, uintptr(ev))) != 0
+		}),
+		method("sendEvent:", func(self id, cmd objc.SEL, ev id) {
+			if w := theBackend.byNSWindow[self]; w != nil && w.productKeyEvent(ev) {
+				return
+			}
+			sendSuper(self, "MyGoWindow", cmd, uintptr(ev))
+		}),
 		method("canBecomeKeyWindow", func(self id, _ objc.SEL) bool { return true }),
 		method("canBecomeMainWindow", func(self id, _ objc.SEL) bool { return true }),
 	})
@@ -1106,6 +1119,7 @@ func registerWindowClasses() {
 			}),
 			method("windowDidResignKey:", func(self id, _ objc.SEL, n id) {
 				if w := b().windowFor(self); w != nil {
+					w.resetProductKeys()
 					w.h.Blurred()
 					w.surfaceKeyChanged(false)
 				}

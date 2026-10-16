@@ -33,10 +33,13 @@ const (
 )
 
 type window struct {
-	b    *Backend
-	id   int
-	h    platform.WindowHandler
-	opts *platform.WindowOptions
+	productIM        ptr
+	productComposing bool
+	productDown      map[uint16]bool
+	b                *Backend
+	id               int
+	h                platform.WindowHandler
+	opts             *platform.WindowOptions
 
 	browser                                            *browserProfile
 	browserInspector                                   ptr
@@ -224,6 +227,8 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	connect(w.win, "focus-out-event", cbFocusOut, data)
 	connect(w.win, "configure-event", cbConfigure, data)
 	connect(w.win, "window-state-event", cbWindowState, data)
+	connect(w.win, "key-press-event", cbProductKey, data)
+	connect(w.win, "key-release-event", cbProductKey, data)
 	connect(w.win, "key-press-event", cbMenuKey, data)
 	connect(w.win, "key-release-event", cbMenuKey, data)
 
@@ -361,6 +366,7 @@ func (w *window) applyGeometry() {
 }
 
 func (w *window) cleanup() {
+	w.resetProductKeys()
 	if w.closed {
 		return
 	}
@@ -1055,6 +1061,7 @@ func field[T any](p ptr, offset uintptr) T {
 }
 
 func initWindowCallbacks() {
+	initProductKeyboardCallbacks()
 	initBrowserDevToolsCallbacks()
 	b := func() *Backend { return theBackend }
 	cbDeleteEvent = purego.NewCallback(func(widget, event, data ptr) bool {
@@ -1078,6 +1085,7 @@ func initWindowCallbacks() {
 	cbFocusOut = purego.NewCallback(func(widget, event, data ptr) bool {
 		if w := b().window(data); w != nil {
 			w.altAlone = false
+			w.resetProductKeys()
 			w.h.Blurred()
 		}
 		return false

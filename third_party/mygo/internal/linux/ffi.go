@@ -620,6 +620,7 @@ func load() error {
 	mustBind(p, &gdkPixbufSaveToBufferv, "gdk_pixbuf_save_to_bufferv")
 
 	t := libGTK
+	loadProductKeyboardGTK(t)
 	mustBind(t, &gtkInitCheck, "gtk_init_check")
 	mustBind(t, &gtkMain, "gtk_main")
 	mustBind(t, &gtkMainQuit, "gtk_main_quit")
@@ -821,6 +822,7 @@ func loadWebKit() error {
 	loadBrowserProfileAPI(w)
 	loadBrowserDevToolsAPI(w)
 	loadBlankPreviewAPI(w)
+	loadProductKeyboardWebKit(w)
 	mustBind(w, &webkitWebContextGetDefault, "webkit_web_context_get_default")
 	mustBind(w, &webkitWebContextRegisterURIScheme, "webkit_web_context_register_uri_scheme")
 	mustBind(w, &webkitWebContextGetSecurityManager, "webkit_web_context_get_security_manager")
