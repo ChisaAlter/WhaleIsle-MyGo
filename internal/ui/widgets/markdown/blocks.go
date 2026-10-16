@@ -90,6 +90,7 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 					for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 						ui.Column(c).Width(180).Padding(6).BorderWidth(1).BorderColor(st.Muted).Children(func() {
 							cellStyle := st
+							cellStyle.maths = map[int]mathFormula{}
 							targets := map[int]string{}
 							cellStyle.codeSpanAt = func(index int, value string) {
 								if st.ResolveFile != nil && st.OnOpenFile != nil {
@@ -103,7 +104,7 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 									spans[i].Weight = 700
 								}
 							}
-							viewSpans(c, st, spans, targets, 0)
+							viewSpans(c, cellStyle, spans, targets, 0)
 						})
 					}
 				})

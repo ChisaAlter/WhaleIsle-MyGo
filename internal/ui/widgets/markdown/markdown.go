@@ -9,9 +9,7 @@ import (
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 )
@@ -28,6 +26,7 @@ type Style struct {
 	OnOpenFile  func(string)
 	codeSpanAt  func(int, string)
 	blockAt     func(int, int, ast.Node)
+	maths       map[int]mathFormula
 }
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
@@ -37,7 +36,7 @@ func Spans(source string, st Style) []ui.Span {
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+	md := newMarkdown()
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []ui.Span
@@ -53,6 +52,7 @@ func Spans(source string, st Style) []ui.Span {
 func View(c *ui.Context, source string, st Style) {
 	st.FontSize = theme.CurrentPreferences().Chat.Size
 	targets := map[int]string{}
+	st.maths = map[int]mathFormula{}
 	if st.ResolveFile != nil && st.OnOpenFile != nil {
 		st.codeSpanAt = func(index int, value string) {
 			if path := st.ResolveFile(value); path != "" {
@@ -76,6 +76,10 @@ func View(c *ui.Context, source string, st Style) {
 }
 
 func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string, offset int) {
+	if hasMath(st.maths, offset, len(spans)) {
+		viewMathSpans(c, st, spans, targets, offset)
+		return
+	}
 	if len(spans) == 0 {
 		return
 	}
@@ -108,7 +112,7 @@ func Links(source string) []Link {
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+	md := newMarkdown()
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []Link
@@ -177,6 +181,13 @@ func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch node := child.(type) {
+		case *blockMath:
+			if node.closed {
+				appendFormula(node.formula, st, out)
+			} else {
+				appendPlainSpan(node.formula.Raw, st, out)
+			}
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 		case *ast.Paragraph, *ast.TextBlock:
 			walkInlines(node, src, st, out)
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
@@ -275,19 +286,21 @@ func walkInlines(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...s
 
 func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...spanMutator) {
 	switch node := n.(type) {
+	case *inlineMath:
+		appendFormula(node.formula, st, out)
 	case *ast.Text:
 		segment := node.Segment
 		text := string(segment.Value([]byte(src)))
 		if text == "" {
 			return
 		}
-		appendMathAwareText(text, st, out, mutators...)
+		appendPlainSpan(text, st, out, mutators...)
 	case *ast.String:
 		text := string(node.Value)
 		if text == "" {
 			return
 		}
-		appendMathAwareText(text, st, out, mutators...)
+		appendPlainSpan(text, st, out, mutators...)
 	case *extast.TaskCheckBox:
 		label := "☐ "
 		if node.IsChecked {
