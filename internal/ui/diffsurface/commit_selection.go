@@ -24,6 +24,7 @@ type commitSelectionState struct {
 	PushPlan                      git.PushPlan
 	Source                        string
 	WantPR                        bool
+	PRDraft                       bool
 	PRTitle, PRBody               string
 	PRPlan                        *git.PullRequestPlan
 	StackPlan                     *git.StackPlan
@@ -45,7 +46,7 @@ type commitPreparation struct {
 
 func (w *Workbench) commitState() *commitSelectionState {
 	if w.Commit == nil {
-		w.Commit = &commitSelectionState{Excluded: map[string]bool{}}
+		w.Commit = &commitSelectionState{Excluded: map[string]bool{}, PRDraft: true}
 	}
 	return w.Commit
 }
@@ -175,7 +176,7 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 	}
 	largeAcknowledged := s.LargeAcknowledged
 	root, message := m.WorkspaceRoot, w.Message
-	prTitle, prBody := s.PRTitle, s.PRBody
+	prTitle, prBody, prDraft := s.PRTitle, s.PRBody, s.PRDraft
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	task := &commitPreparation{root: root, cancel: cancel, done: make(chan commitPrepared, 1), push: push}
 	w.invalidateCommitReview()
@@ -208,7 +209,7 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 				prBody = r.plan.Summary
 			}
 			var pr git.PullRequestPlan
-			pr, r.err = git.PreparePullRequest(ctx, root, r.push, prTitle, prBody)
+			pr, r.err = git.PreparePullRequestMode(ctx, root, r.push, prTitle, prBody, prDraft)
 			r.pr = &pr
 		}
 		if r.err == nil {
@@ -310,14 +311,15 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	if beforeMessage != w.Message || beforeBranch != s.NewBranch || beforeMake != s.MakeBranch {
 		w.invalidateCommitReview()
 	}
-	beforePR, beforeTitle, beforeBody := s.WantPR, s.PRTitle, s.PRBody
-	ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建草稿 PR", "Prepare commit, push and draft PR"))
+	beforePR, beforeTitle, beforeBody, beforeDraft := s.WantPR, s.PRTitle, s.PRBody, s.PRDraft
+	ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR"))
 	if s.WantPR {
+		ui.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"))
 		ui.TextInput(c, &s.PRTitle).FillWidth().Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)"))
 		ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)"))
 		ui.Text(c, word("PR 使用手写文案；会展示收件仓库和目标分支，创建前要求仓库干净。", "PR text is editable. Review the recipient and base; PR creation requires a clean repository.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
-	if beforePR != s.WantPR || beforeTitle != s.PRTitle || beforeBody != s.PRBody {
+	if beforePR != s.WantPR || beforeTitle != s.PRTitle || beforeBody != s.PRBody || beforeDraft != s.PRDraft {
 		w.invalidateCommitReview()
 	}
 	if s.Plan == nil {
@@ -329,7 +331,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 				beginCommitPreparation(c, m, true, false)
 			}
 		})
-		if s.WantPR && ui.Button(c, word("核对提交、推送及草稿 PR…", "Review commit, push and draft PR…")).Disabled(s.MakeBranch).Clicked() {
+		if s.WantPR && ui.Button(c, word("核对提交、推送及 PR…", "Review commit, push and PR…")).Disabled(s.MakeBranch).Clicked() {
 			beginCommitPreparation(c, m, true, true)
 		}
 		return
@@ -361,7 +363,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 			caption = word("确认所选提交并推送", "Confirm selected commit and push")
 		}
 		if s.PRPlan != nil {
-			caption = word("确认提交、推送并创建草稿 PR", "Confirm commit, push and draft PR")
+			caption = word("确认提交、推送并创建", "Confirm commit, push and create ") + pullRequestModeLabel(s.PRPlan.Draft)
 		}
 		if ui.Button(c, caption).Clicked() {
 			confirmSelectedCommit(c, m)

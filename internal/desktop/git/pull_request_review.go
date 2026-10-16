@@ -15,10 +15,11 @@ import (
 	"strings"
 )
 
-// PullRequestPlan binds a draft PR's exact recipient, head/base and manual text.
+// PullRequestPlan binds a PR's exact recipient, head/base and manual text.
 // Private identity/token fields ensure edited text always requires a fresh review.
 type PullRequestPlan struct {
 	Repository, Base, Title, Body string
+	Draft                         bool
 	Push                          PushPlan
 	root, gitDir, head, token     string
 }
@@ -36,7 +37,7 @@ func githubRepository(remote string) (string, error) {
 	} else {
 		u, e := url.Parse(remote)
 		if e != nil || u.Host != "github.com" || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && u.Scheme != "ssh") {
-			return "", errors.New("draft PR requires an unambiguous github.com push URL")
+			return "", errors.New("PR requires an unambiguous github.com push URL")
 		}
 		if u.User != nil && (u.Scheme != "ssh" || u.User.String() != "git") {
 			return "", errors.New("credential-bearing GitHub URL is not supported")
@@ -74,14 +75,23 @@ func workflowIdentity(ctx context.Context, root string) (string, string, error) 
 	return absolute, dir, e
 }
 func pullRequestToken(p PullRequestPlan) string {
-	data, _ := json.Marshal([]any{p.Repository, p.Base, p.Title, p.Body, p.Push, p.root, p.gitDir, p.head})
+	data, _ := json.Marshal([]any{p.Repository, p.Base, p.Title, p.Body, p.Draft, p.Push, p.root, p.gitDir, p.head})
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
 }
 func PreparePullRequest(ctx context.Context, root string, push PushPlan, title, body string) (PullRequestPlan, error) {
 	return preparePullRequest(ctx, root, push, title, body, combinedExecRunner)
 }
-func preparePullRequest(ctx context.Context, root string, push PushPlan, title, body string, run combinedRunner) (p PullRequestPlan, err error) {
+
+// PreparePullRequestMode includes the user's selected draft/ready state in review.
+func PreparePullRequestMode(ctx context.Context, root string, push PushPlan, title, body string, draft bool) (PullRequestPlan, error) {
+	return preparePullRequestMode(ctx, root, push, title, body, draft, combinedExecRunner)
+}
+func preparePullRequest(ctx context.Context, root string, push PushPlan, title, body string, run combinedRunner) (PullRequestPlan, error) {
+	return preparePullRequestMode(ctx, root, push, title, body, true, run)
+}
+func preparePullRequestMode(ctx context.Context, root string, push PushPlan, title, body string, draft bool, run combinedRunner) (p PullRequestPlan, err error) {
+	p.Draft = draft
 	p.Push = push
 	p.Title = strings.TrimSpace(title)
 	p.Body = strings.TrimSpace(body)
@@ -225,7 +235,7 @@ func createPullRequestReviewed(ctx context.Context, root string, p PullRequestPl
 	if remote != p.Push.Remote || merge != "refs/heads/"+p.Push.Target || pushedHead != head {
 		return PullRequestResult{}, errors.New("push this exact commit to the reviewed remote branch before creating a PR")
 	}
-	// Use the original manual title/body CLI path, with explicit recipient and draft.
+	// Use the original manual title/body CLI path, with explicit recipient and reviewed draft/ready state.
 	f, e := os.CreateTemp("", "whaleisle-pr-body-*")
 	if e != nil {
 		return PullRequestResult{}, e
@@ -241,8 +251,13 @@ func createPullRequestReviewed(ctx context.Context, root string, p PullRequestPl
 	if e = validatePullRequest(ctx, root, p, head); e != nil {
 		return PullRequestResult{}, e
 	}
-	emitPhase(ctx, "Creating draft PR in "+p.Repository+"…")
-	out, e := run(ctx, root, "gh", "pr", "create", "--draft", "--repo", p.Repository, "--base", p.Base, "--head", p.Push.Target, "--title", p.Title, "--body-file", f.Name())
+	emitPhase(ctx, "Creating PR in "+p.Repository+"…")
+	args := []string{"pr", "create"}
+	if p.Draft {
+		args = append(args, "--draft")
+	}
+	args = append(args, "--repo", p.Repository, "--base", p.Base, "--head", p.Push.Target, "--title", p.Title, "--body-file", f.Name())
+	out, e := run(ctx, root, "gh", args...)
 	candidate := firstHTTPURL(strings.TrimSpace(string(out)))
 	if e == nil && ValidPullRequestURL(candidate, p.Repository) {
 		return PullRequestResult{URL: candidate, Repository: p.Repository}, nil

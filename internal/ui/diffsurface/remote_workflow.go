@@ -13,6 +13,7 @@ import (
 
 type remoteWorkflowState struct {
 	Mode, Title, Body string
+	Draft             bool
 	Plan              *git.StackPlan
 	PR                *git.PullRequestPlan
 	Push              git.PushPlan
@@ -51,17 +52,17 @@ func (w *Workbench) requestRemote(root, mode string) {
 		*w = Workbench{Operation: w.Operation}
 	}
 	w.reload(root)
-	w.Remote = &remoteWorkflowState{Mode: mode}
+	w.Remote = &remoteWorkflowState{Mode: mode, Draft: true}
 	if mode == "pr" {
 		w.Remote.Title = strings.SplitN(w.Message, "\n", 2)[0]
 	}
 }
 func paintPRReview(c *ui.Context, p git.PullRequestPlan, fg, muted ui.Color) {
-	ui.Text(c, word("草稿 PR 收件仓库：", "Draft PR recipient: ")+p.Repository).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, word("PR 收件仓库：", "PR recipient: ")+p.Repository).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, p.Push.Target+" → "+p.Base).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, p.Title).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, p.Body).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
-	ui.Text(c, word("只创建草稿；如已有匹配的开放 PR 则打开已有项。", "Creates a draft; an existing matching open PR is reused.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+	ui.Text(c, pullRequestModeLabel(p.Draft)+word("；如已有匹配的开放 PR 则打开已有项，不改变其状态。", "; an existing matching open PR is reused without changing its state.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 }
 func beginRemotePreparation(c *ui.Context, m Model) {
 	w := m.Workbench
@@ -69,7 +70,7 @@ func beginRemotePreparation(c *ui.Context, m Model) {
 	if s == nil || s.Task != nil || s.Generation != nil || w.Operation != nil {
 		return
 	}
-	root, mode, title, body := m.WorkspaceRoot, s.Mode, s.Title, s.Body
+	root, mode, title, body, draft := m.WorkspaceRoot, s.Mode, s.Title, s.Body, s.Draft
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	task := &remotePreparation{root: root, cancel: cancel, done: make(chan remotePrepared, 1)}
 	s.Task = task
@@ -85,7 +86,7 @@ func beginRemotePreparation(c *ui.Context, m Model) {
 		r.push, r.err = git.PreparePush(root)
 		if r.err == nil && mode == "pr" {
 			var p git.PullRequestPlan
-			p, r.err = git.PreparePullRequest(ctx, root, r.push, title, body)
+			p, r.err = git.PreparePullRequestMode(ctx, root, r.push, title, body, draft)
 			r.pr = &p
 		}
 		if r.err == nil {
@@ -142,10 +143,11 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("正在准备后续操作…", "Preparing next action…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	} else {
 		if s.Mode == "pr" {
-			oldTitle, oldBody := s.Title, s.Body
+			oldTitle, oldBody, oldDraft := s.Title, s.Body, s.Draft
+			ui.Checkbox(c, &s.Draft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"))
 			ui.TextInput(c, &s.Title).FillWidth().Placeholder(word("PR 标题", "PR title"))
 			ui.TextArea(c, &s.Body).FillWidth().Lines(2, 6).Placeholder(word("PR 正文", "PR body"))
-			if oldTitle != s.Title || oldBody != s.Body {
+			if oldTitle != s.Title || oldBody != s.Body || oldDraft != s.Draft {
 				s.Plan = nil
 				s.PR = nil
 			}
@@ -163,7 +165,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			}
 			caption := word("确认仅推送（不重复提交）", "Confirm push only (no new commit)")
 			if s.Mode == "pr" {
-				caption = word("确认创建草稿 PR", "Confirm draft PR")
+				caption = word("确认创建", "Confirm create ") + pullRequestModeLabel(s.Draft)
 			}
 			if ui.Button(c, caption).Clicked() {
 				root, plan := m.WorkspaceRoot, *s.Plan
@@ -202,7 +204,7 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 			w.requestRemote(m.WorkspaceRoot, "push")
 		}
 	case "create_pr":
-		if ui.Button(c, word("核对草稿 PR…", "Review draft PR…")).Clicked() {
+		if ui.Button(c, word("核对 PR…", "Review PR…")).Clicked() {
 			w.RequestPR(m.WorkspaceRoot)
 		}
 	case "open_pr":
@@ -250,4 +252,11 @@ func mergeStackHistory(previous, next *git.StackResult) *git.StackResult {
 		}
 	}
 	return &result
+}
+
+func pullRequestModeLabel(draft bool) string {
+	if draft {
+		return word("草稿 PR", "draft PR")
+	}
+	return word("普通 PR（准备审阅）", "ready-for-review PR")
 }
