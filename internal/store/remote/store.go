@@ -193,10 +193,9 @@ func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, gen
 		if mutationApplied && err != nil {
 			s.view.Directory = DirectorySnapshot{}
 		}
-		if err != nil {
-			s.view.Error = err.Error()
-			s.view.Connected = false
-		} else {
+		// Registry and connection status are separate reads. Keep the committed
+		// selection and saved fields even when status is temporarily unavailable.
+		if registryLoaded {
 			for _, old := range s.view.Machines {
 				if old.ID != s.view.CurrentID {
 					continue
@@ -212,10 +211,15 @@ func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, gen
 				s.view.Directory = DirectorySnapshot{}
 				s.view.Tools = ToolsSnapshot{}
 			}
-			s.view.Status = status
 			s.view.CurrentID = registry.CurrentID
+		}
+		if err != nil {
+			s.view.Error = err.Error()
+			s.view.Connected = false
+			s.view.Status = ConnectionStatus{}
+		} else {
+			s.view.Status = status
 			s.view.Connected = status.Connected
-
 		}
 		if mutationApplied && applied != nil {
 			applied(&s.view, err, registry.Machines, registryLoaded)
