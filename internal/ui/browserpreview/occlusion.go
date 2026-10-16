@@ -10,7 +10,21 @@ func (b *Controller) SetWorkspaceOcclusions(rects []mygo.Rectangle) {
 	}
 	for _, tab := range b.Tabs {
 		if tab != nil && tab.Host != nil {
-			tab.Host.SetOcclusions(rects)
+			holes := make([]mygo.Rectangle, 0, len(rects))
+			for _, r := range rects {
+				if p := b.mini; p != nil && p.host == tab.Host && p.rendered && r == p.bounds {
+					continue
+				}
+				holes = append(holes, r)
+			}
+			tab.Host.SetOcclusions(holes)
 		}
+	}
+}
+
+// SetMiniPlayerOcclusions applies overlay order independently of its source dock.
+func (b *Controller) SetMiniPlayerOcclusions(rects []mygo.Rectangle) {
+	if b.mini != nil && b.mini.rendered {
+		b.mini.host.SetOcclusions(rects)
 	}
 }

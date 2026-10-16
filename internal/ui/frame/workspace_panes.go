@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
@@ -14,16 +15,17 @@ import (
 // WorkspacePanes retains native content occurrences and their split geometry.
 // Files, browsers and terminals own independent state in every leaf.
 type WorkspacePanes struct {
-	Root         *WorkspacePane `json:"root"`
-	Active       string         `json:"active"`
-	Fullscreen   string         `json:"fullscreen,omitempty"` // nonempty expands the whole resource dock; ID retains the initiating pane
-	Next         int            `json:"next"`
-	route        string
-	pending      func()
-	legacyFileID string
-	focusPending string
-	closing      string
-	message      string
+	Root               *WorkspacePane `json:"root"`
+	Active             string         `json:"active"`
+	Fullscreen         string         `json:"fullscreen,omitempty"` // nonempty expands the whole resource dock; ID retains the initiating pane
+	Next               int            `json:"next"`
+	route              string
+	pending            func()
+	legacyFileID       string
+	focusPending       string
+	closing            string
+	message            string
+	conversationBounds mygo.Rectangle
 }
 
 type WorkspacePane struct {
@@ -345,6 +347,8 @@ func workspaceColumns(c *ui.Context, m Model, center func()) {
 		}
 	}()
 	defer workspaceFloating(c, m)
+	defer workspaceMiniPlayers(c, m)
+	w.conversationBounds = mygo.Rectangle{}
 	render := func() { workspaceDockNode(c, m, w.Root) }
 	if m.RightPaneOpen && w.Fullscreen != "" && w.Root.dockedLeaf() != nil {
 		// SidebarRight keeps one DockLayout tree in both push and fullscreen

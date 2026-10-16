@@ -7,6 +7,9 @@ import (
 )
 
 func (b *Controller) showHost(h *desktop.Host) {
+	if b.mini != nil && b.mini.host == h {
+		return
+	}
 	viewport := b.browserDeviceViewport(h)
 	h.SetViewport(viewport)
 	if viewport != nil && (viewport.Width < 1 || viewport.Height < 1) {

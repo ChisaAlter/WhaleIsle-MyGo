@@ -239,6 +239,23 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 	if m.NewWorkspaceBrowser != nil {
 		local.BrowserContent = func(c *ui.Context) {
 			w.browserFor(n, m.NewWorkspaceBrowser)
+			n.browser.SetMiniPlayerActions(func() {
+				w.Root.eachResource(func(other *WorkspacePane) {
+					if other != n && other.browser != nil {
+						other.browser.CloseMiniPlayer()
+					}
+				})
+			}, func() {
+				w.pending = func() {
+					if n.Float != nil {
+						w.RedockWorkspaceTab(n.ID, "")
+					}
+					w.activateDockTab(n.ID)
+					if m.OnOpenBrowserPreview != nil {
+						m.OnOpenBrowserPreview()
+					}
+				}
+			})
 			n.browser.ViewDocked(c, m.ThemeID, m.SystemDark, func() {
 				w.pending = func() { w.close(n.ID) }
 			})

@@ -148,6 +148,13 @@ func workspaceFloating(c *ui.Context, m Model) {
 				return
 			}
 			var holes []mygo.Rectangle
+			w.Root.eachResource(func(other *WorkspacePane) {
+				if n.Float == nil && other.browser != nil {
+					if r, ok := other.browser.MiniPlayerBounds(); ok {
+						holes = append(holes, r)
+					}
+				}
+			})
 			for _, above := range floats {
 				if n == above || n.Float != nil && above.Float.Order <= n.Float.Order {
 					continue
@@ -156,6 +163,9 @@ func workspaceFloating(c *ui.Context, m Model) {
 				holes = append(holes, mygo.Rectangle{X: int(f.X), Y: int(f.Y), Width: int(f.Width), Height: int(f.Height)})
 			}
 			n.browser.SetWorkspaceOcclusions(holes)
+			// Mini-players sit below resource floats, including their own source.
+			miniHoles := miniPlayerFloatOcclusions(floats, viewportWidth, viewportHeight)
+			n.browser.SetMiniPlayerOcclusions(miniHoles)
 		})
 	}()
 	for _, n := range floats {
@@ -272,4 +282,15 @@ func workspaceDockNode(c *ui.Context, m Model, n *WorkspacePane) {
 		}
 		n.Ratio = size / (total - 1)
 	})
+}
+
+// Unlike dock clipping, mini-player clipping must include the source's own
+// floating resource: all resource floats paint above the conversation overlay.
+func miniPlayerFloatOcclusions(floats []*WorkspacePane, width, height float32) []mygo.Rectangle {
+	var holes []mygo.Rectangle
+	for _, n := range floats {
+		f := boundedFloat(*n.Float, width, height)
+		holes = append(holes, mygo.Rectangle{X: int(f.X), Y: int(f.Y), Width: int(f.Width), Height: int(f.Height)})
+	}
+	return holes
 }

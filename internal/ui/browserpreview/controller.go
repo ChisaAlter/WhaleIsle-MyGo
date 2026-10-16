@@ -17,23 +17,26 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
-	discovery        *localDiscovery
-	developerTools   func() bool
-	workspaceOwner   func() WorkspaceOwner
-	documentLoader   documentLoader
-	onFocus          func()
-	profileSeen      bool
-	floatingDocument *floatingDocumentWindow
-	pip              *browserPictureInPicture
-	recording        *browserRecording
-	rendered         bool
-	actionTarget     func() ActionTarget
-	operation        *previewOperation
-	viewport         *mygo.Rectangle
-	Tabs             []*Tab
-	Active           int
-	next             int
-	parent           *mygo.Window
+	mini                      *browserMiniPlayer
+	miniGeometry              mygo.Rectangle
+	onMiniOpen, onMiniRestore func()
+	discovery                 *localDiscovery
+	developerTools            func() bool
+	workspaceOwner            func() WorkspaceOwner
+	documentLoader            documentLoader
+	onFocus                   func()
+	profileSeen               bool
+	floatingDocument          *floatingDocumentWindow
+	pip                       *browserPictureInPicture
+	recording                 *browserRecording
+	rendered                  bool
+	actionTarget              func() ActionTarget
+	operation                 *previewOperation
+	viewport                  *mygo.Rectangle
+	Tabs                      []*Tab
+	Active                    int
+	next                      int
+	parent                    *mygo.Window
 }
 type Tab struct {
 	pdfPosition   *PDFReadingPosition
@@ -160,6 +163,9 @@ func (b *Controller) CloseTab(index int) {
 		return
 	}
 	b.Hide()
+	if b.mini != nil && b.mini.tab == b.Tabs[index] {
+		b.CloseMiniPlayer()
+	}
 	if b.floatingDocument != nil && b.floatingDocument.tab == b.Tabs[index] {
 		b.stopFloatingDocument()
 	}
@@ -189,6 +195,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.CloseMiniPlayer()
 	b.stopLocalDiscovery()
 	b.pauseDocumentReads()
 	b.stopFloatingDocument()

@@ -48,11 +48,25 @@ func (b *Controller) BeginFrame() {
 		b.cancelInteractivePreviews()
 	}
 	b.rendered = false
+	if b.mini != nil {
+		b.mini.rendered = false
+	}
 	b.PruneActions()
 }
 func (b *Controller) EndFrame() {
+	if p := b.mini; p != nil && p.rendered && p.context.HasForegroundModal() {
+		p.host.SetVisible(false)
+	}
 	if !b.rendered {
-		b.Hide()
+		if b.mini != nil && b.mini.rendered {
+			for _, t := range b.Tabs {
+				if t.Host != nil && t.Host != b.mini.host {
+					t.Host.SetVisible(false)
+				}
+			}
+		} else {
+			b.Hide()
+		}
 	}
 }
 
@@ -73,6 +87,9 @@ func (b *Controller) CancelAction() {
 // PruneActions is called each owning-window frame, including session/Host
 // changes when this browser's chrome is not being painted.
 func (b *Controller) PruneActions() {
+	if b.mini != nil && !b.miniPlayerCurrent() {
+		b.CloseMiniPlayer()
+	}
 	b.prunePictureInPicture()
 	b.pruneBrowserRecording()
 	b.pruneBrowserTools()

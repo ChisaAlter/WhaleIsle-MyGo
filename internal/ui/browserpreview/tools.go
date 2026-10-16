@@ -243,6 +243,19 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				if ui.Button(c, "开发者工具").Disabled(!devToolsSupported).Tooltip("仅打开当前 Browser 页的原生开发者工具；控制台可修改本站点，请勿粘贴不明代码。插件与隔离文档预览不可用。").Clicked() {
 					b.openBrowserDevTools(t)
 				}
+				if b.onMiniRestore != nil {
+					label := "交互小浮窗"
+					if b.mini != nil {
+						label = "恢复原面板"
+					}
+					if ui.Button(c, label).Disabled(t.Host == nil).Clicked() {
+						if b.mini != nil {
+							b.restoreMiniPlayer()
+						} else {
+							b.openMiniPlayer(t)
+						}
+					}
+				}
 				if b.pip != nil {
 					if ui.Button(c, "关闭画中画").Clicked() {
 						b.stopPictureInPicture()
