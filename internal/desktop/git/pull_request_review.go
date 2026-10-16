@@ -90,7 +90,13 @@ func PreparePullRequestMode(ctx context.Context, root string, push PushPlan, tit
 func preparePullRequest(ctx context.Context, root string, push PushPlan, title, body string, run combinedRunner) (PullRequestPlan, error) {
 	return preparePullRequestMode(ctx, root, push, title, body, true, run)
 }
-func preparePullRequestMode(ctx context.Context, root string, push PushPlan, title, body string, draft bool, run combinedRunner) (p PullRequestPlan, err error) {
+func PreparePullRequestForNewBranch(ctx context.Context, root string, push PushPlan, title, body string, draft bool, newBranch string) (PullRequestPlan, error) {
+	return preparePullRequestBranch(ctx, root, push, title, body, draft, newBranch, combinedExecRunner)
+}
+func preparePullRequestMode(ctx context.Context, root string, push PushPlan, title, body string, draft bool, run combinedRunner) (PullRequestPlan, error) {
+	return preparePullRequestBranch(ctx, root, push, title, body, draft, "", run)
+}
+func preparePullRequestBranch(ctx context.Context, root string, push PushPlan, title, body string, draft bool, newBranch string, run combinedRunner) (p PullRequestPlan, err error) {
 	p.Draft = draft
 	p.Push = push
 	p.Title = strings.TrimSpace(title)
@@ -106,7 +112,7 @@ func preparePullRequestMode(ctx context.Context, root string, push PushPlan, tit
 	if err != nil {
 		return
 	}
-	current, e := PreparePush(root)
+	current, e := reviewedBranchPush(root, newBranch)
 	if e != nil {
 		return p, e
 	}
@@ -141,6 +147,9 @@ func preparePullRequestMode(ctx context.Context, root string, push PushPlan, tit
 	return
 }
 func validatePullRequest(ctx context.Context, root string, p PullRequestPlan, expectedHead string) error {
+	return validatePullRequestBeforeCommit(ctx, root, p, expectedHead, "")
+}
+func validatePullRequestBeforeCommit(ctx context.Context, root string, p PullRequestPlan, expectedHead, newBranch string) error {
 	if p.token == "" || p.token != pullRequestToken(p) {
 		return errors.New("PR recipient or text changed; review again")
 	}
@@ -151,7 +160,7 @@ func validatePullRequest(ctx context.Context, root string, p PullRequestPlan, ex
 	if abs != p.root || dir != p.gitDir {
 		return errors.New("PR repository changed; review again")
 	}
-	current, e := PreparePush(root)
+	current, e := reviewedBranchPush(root, newBranch)
 	if e != nil {
 		return e
 	}

@@ -17,6 +17,21 @@ func PreparePush(root string) (PushPlan, error) {
 	if err != nil || branch == "" {
 		return PushPlan{}, errors.New("cannot push from detached HEAD")
 	}
+	return preparePushBranch(root, branch)
+}
+
+// PreparePushForNewBranch previews an explicit destination without checking out
+// or creating the branch. The same destination is rechecked after commit.
+func PreparePushForNewBranch(root, branch string) (PushPlan, error) {
+	if err := checkBranchName(root, branch); err != nil {
+		return PushPlan{}, err
+	}
+	if _, err := localCommand(root, "show-ref", "--verify", "--quiet", "refs/heads/"+branch); err == nil {
+		return PushPlan{}, errors.New("new branch already exists; review again")
+	}
+	return preparePushBranch(root, branch)
+}
+func preparePushBranch(root, branch string) (PushPlan, error) {
 	if err := checkBranchName(root, branch); err != nil {
 		return PushPlan{}, err
 	}

@@ -106,12 +106,9 @@ func PrepareStack(ctx context.Context, root string, commit *SelectedCommitPlan, 
 		copy := *commit
 		p.commit = &copy
 		p.message = message
-		if commit.NewBranch != "" && push != nil {
-			return p, errors.New("commit on the new branch first, then review its push destination")
-		}
 	}
 	if push != nil {
-		current, e := PreparePush(root)
+		current, e := reviewedBranchPush(root, stackNewBranch(p.commit))
 		if e != nil {
 			return p, e
 		}
@@ -122,7 +119,7 @@ func PrepareStack(ctx context.Context, root string, commit *SelectedCommitPlan, 
 		p.push = &copy
 	}
 	if pr != nil {
-		if e := validatePullRequest(ctx, root, *pr, p.head); e != nil {
+		if e := validatePullRequestBeforeCommit(ctx, root, *pr, p.head, stackNewBranch(p.commit)); e != nil {
 			return p, e
 		}
 		if push != nil && *push != pr.Push {
@@ -149,7 +146,7 @@ func RunCommitStack(ctx context.Context, root string, p StackPlan) (StackResult,
 		return StackResult{}, errors.New("HEAD changed; review again")
 	}
 	if p.push != nil {
-		current, e := PreparePush(root)
+		current, e := reviewedBranchPush(root, stackNewBranch(p.commit))
 		if e != nil {
 			return StackResult{}, e
 		}
@@ -193,4 +190,17 @@ func RunCommitStack(ctx context.Context, root string, p StackPlan) (StackResult,
 		r.Output += "\nPush completed. Only the PR step remains."
 	}
 	return r, e
+}
+
+func stackNewBranch(commit *SelectedCommitPlan) string {
+	if commit != nil {
+		return commit.NewBranch
+	}
+	return ""
+}
+func reviewedBranchPush(root, newBranch string) (PushPlan, error) {
+	if newBranch != "" {
+		return PreparePushForNewBranch(root, newBranch)
+	}
+	return PreparePush(root)
 }

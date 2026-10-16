@@ -169,10 +169,6 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 			w.Status = word("请填写新分支名称", "Enter a new branch name")
 			return
 		}
-		if push {
-			w.Status = word("先在新分支提交，再单独核对推送目标。", "Commit on the new branch first, then review its push destination.")
-			return
-		}
 	}
 	largeAcknowledged := s.LargeAcknowledged
 	root, message := m.WorkspaceRoot, w.Message
@@ -199,7 +195,11 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 			r.message, r.source = generated.Text(), generated.Source
 		}
 		if r.err == nil && push {
-			r.push, r.err = git.PreparePush(root)
+			if branch != "" {
+				r.push, r.err = git.PreparePushForNewBranch(root, branch)
+			} else {
+				r.push, r.err = git.PreparePush(root)
+			}
 		}
 		if r.err == nil && createPR {
 			if strings.TrimSpace(prTitle) == "" {
@@ -209,7 +209,7 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 				prBody = r.plan.Summary
 			}
 			var pr git.PullRequestPlan
-			pr, r.err = git.PreparePullRequestMode(ctx, root, r.push, prTitle, prBody, prDraft)
+			pr, r.err = git.PreparePullRequestForNewBranch(ctx, root, r.push, prTitle, prBody, prDraft, branch)
 			r.pr = &pr
 		}
 		if r.err == nil {
@@ -327,11 +327,11 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 			if ui.Button(c, word("核对所选文件并提交…", "Review selected files to commit…")).Clicked() {
 				beginCommitPreparation(c, m, false, false)
 			}
-			if ui.Button(c, word("核对提交并推送…", "Review commit and push…")).Disabled(s.MakeBranch).Clicked() {
+			if ui.Button(c, word("核对提交并推送…", "Review commit and push…")).Clicked() {
 				beginCommitPreparation(c, m, true, false)
 			}
 		})
-		if s.WantPR && ui.Button(c, word("核对提交、推送及 PR…", "Review commit, push and PR…")).Disabled(s.MakeBranch).Clicked() {
+		if s.WantPR && ui.Button(c, word("核对提交、推送及 PR…", "Review commit, push and PR…")).Clicked() {
 			beginCommitPreparation(c, m, true, true)
 		}
 		return
