@@ -293,6 +293,7 @@ type Model struct {
 	OnOpenSchedule       func()
 	OnOpenAssistant      func()
 	OnOpenLauncher       func()
+	OnContactAccount     func()
 	OnOpenSettings       func()
 	OnToggleTools        func()
 	OnToggleTerminal     func()
@@ -486,6 +487,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnOpenAssistant:             m.OnOpenAssistant,
 		OnOpenLauncher:              m.OnOpenLauncher,
 		OnOpenSettings:              m.OnOpenSettings,
+		OnContactAccount:            m.OnContactAccount,
 		OnRetryWorkspacePreferences: m.Store.RetryWorkspacePreferences,
 		OnDropWorkspaceBefore: func(generation uint64, id, before string) {
 			m.Store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)

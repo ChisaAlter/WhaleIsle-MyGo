@@ -30,6 +30,7 @@ type AccountAccess struct {
 	BalanceSummary   string
 	AttemptPhase     string
 	AuthorizeURL     string
+	OnContact        func()
 	OnRefresh        func()
 	OnOpenAuthorize  func(url string)
 	OnOpenUsage      func(url string)
@@ -78,6 +79,9 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if a.Err != "" {
 		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	}
+	if a.OnContact != nil && ui.Button(c, "联系与反馈 / Contact us").Clicked() {
+		a.OnContact()
 	}
 	accountSignOutPane(c, a, fg, muted)
 	if a.HasRunningTasks {

@@ -31,6 +31,16 @@ func RunAction(userData, id, action string) error {
 	if id == "" || action == "" {
 		return ErrUnknownAction
 	}
+	if id != "whalebridge" {
+		if !genericID.MatchString(id) {
+			return fmt.Errorf("invalid-component-id")
+		}
+		if action == "open" || action == "manage" {
+			return fmt.Errorf("unknown-component")
+		}
+		_, err := RunGenericAction(userData, id, action)
+		return err
+	}
 	root := filepath.Join(userData, "components", id)
 	switch action {
 	case "install":

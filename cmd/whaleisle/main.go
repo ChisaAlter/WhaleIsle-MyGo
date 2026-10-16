@@ -230,6 +230,8 @@ type mainState struct {
 	usage                                   *usagestore.Store
 	accountReturn                           accountReturnState
 	accountNotice                           accountBonusNoticeState
+	accountStatusNotices                    accountStatusNoticeState
+	accountQuotaNotice                      accountQuotaNoticeState
 	im                                      *imstore.Store
 	market                                  *marketstore.Store
 	schedule                                *schedstore.Store
@@ -1386,6 +1388,9 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.mu.Lock()
 	s.quitting = true
 	s.mu.Unlock()
+	if err := desktopcomponents.ShutdownGeneric(paths.UserDataDir()); err != nil {
+		log.Println("Components shutdown:", err)
+	}
 	if s.desktopPet != nil {
 		s.desktopPet.Close()
 	}
@@ -1408,6 +1413,7 @@ func (s *mainState) shouldCloseToTray() bool {
 }
 
 func (s *mainState) refreshLauncherComponents() {
+	s.configureGenericComponents()
 	seen := map[string]struct{}{}
 	var rows []desktopcomponents.Row
 	for _, root := range []string{paths.UserDataDir(), importer.ElectronUserDataDir()} {
@@ -1804,6 +1810,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 	sessions := s.sessions
 	schedStore := s.schedule
 	setStore := s.settings
+	usageStore := s.usage
 	win := s.win
 	s.mu.Unlock()
 	refresh := func() {
@@ -1840,6 +1847,9 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 					}
 				},
 				Emit: func(emit dsh.EventsEmit) {
+					if usageStore != nil {
+						usageStore.OnAccountNotice(ctx, client, emit)
+					}
 					if schedStore != nil {
 						schedStore.OnEmit(scheduleEventsOwner, emit)
 					}
@@ -2698,6 +2708,8 @@ func mainView(c *ui.Context) {
 	composerSessionID := ""
 	defer func() { state.observeComposerEdit(composerRendered, composerSessionID) }()
 	defer state.syncAccountBonusNotice(c)
+	defer state.syncAccountStatusNotices(c)
+	defer state.syncAccountQuotaNotice(c)
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
@@ -3229,15 +3241,7 @@ func mainView(c *ui.Context) {
 						}()
 						return
 					}
-					ud := paths.UserDataDir()
-					err := desktopcomponents.RunAction(ud, id, action)
-					state.mu.Lock()
-					state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
-					state.mu.Unlock()
-					state.refreshLauncherComponents()
-					if win != nil {
-						win.Update(func() {})
-					}
+					state.runGenericComponentAction(win, id, action)
 				},
 				OnSaveLauncherPrefs: func() {
 					if cfgStore == nil {
@@ -4986,6 +4990,7 @@ func mainView(c *ui.Context) {
 					},
 					AccountActive: accountActive,
 					Account: &settings.AccountAccess{
+						OnContact:       state.contactAccountSupport,
 						SignInBusy:      loginState.Busy || signOutState.Open || signOutState.Busy,
 						SignOut:         signOutState,
 						ClientReady:     usageSnap.ClientReady,
@@ -6663,6 +6668,7 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
+						OnContactAccount: state.contactAccountSupport,
 						OnOpenSettings: func() {
 							state.mu.Lock()
 							state.settingsOpen = true

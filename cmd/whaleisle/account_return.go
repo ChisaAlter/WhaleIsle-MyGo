@@ -121,6 +121,7 @@ func (s *mainState) returnFromAccountExternal() {
 	}
 	s.mu.Unlock()
 	if returned {
+		s.dismissAccountQuotaPage()
 		s.refreshReturnedAccount()
 	}
 }
@@ -169,6 +170,7 @@ func (s *mainState) returnFromAccountPage() {
 }
 
 func (s *mainState) clearAccountReturn() {
+	s.dismissAccountQuotaPage()
 	s.mu.Lock()
 	s.accountReturn = accountReturnState{}
 	s.mu.Unlock()

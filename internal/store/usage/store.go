@@ -61,6 +61,7 @@ type Bonus struct {
 
 // Store fetches account stats and optional session job list from dsh RPC.
 type Store struct {
+	notices        NoticeState
 	details        accountdetails.State
 	accountEpoch   uint64
 	accountRead    uint64
@@ -112,6 +113,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.client = client
+	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
 	s.accountStatus, s.usageURL, s.topUpURL = "", "", ""
 	s.attemptPhase, s.attemptID, s.authorizeURL, s.expiryNote = "", "", "", ""
@@ -156,6 +158,7 @@ func (s *Store) Detach() {
 		s.expiryWatchCancel = nil
 	}
 	s.client = nil
+	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
 	s.statsEpoch++
 	if s.statsCancel != nil {

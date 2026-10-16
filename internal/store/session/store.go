@@ -51,7 +51,7 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
-	Retry *RetryStatus
+	Retry          *RetryStatus
 	TurnDelivery   *TurnDelivery
 	TrajectoryTime *TrajectoryTiming
 	Workflow       *workflowrun.Run
@@ -177,15 +177,16 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
-	inspector sessionInspectorState
+	quotaNotice               quotaNoticeState
+	inspector                 sessionInspectorState
 	nextPrompt                nextPromptState
 	trajectoryBoundaries      map[float64]json.RawMessage
 	workflowBoundaries        map[float64]json.RawMessage
 	workflowMember            workflowMemberState
 	agentNavigation           agentNavigationState
-	agentNavigationPaneID string
-	agentNavigationOwner *Store
-	agentNavigationPanes map[string]*Store
+	agentNavigationPaneID     string
+	agentNavigationOwner      *Store
+	agentNavigationPanes      map[string]*Store
 	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64
@@ -320,6 +321,8 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.quotaNotice.current = QuotaNotice{}
+		s.quotaNotice.held = false
 		s.clearNextPromptLocked()
 		s.nextPrompt.accepted = nil
 		s.clearSearchLocked()
@@ -506,6 +509,8 @@ func (s *Store) Detach() {
 	s.clearSearchLocked()
 	s.clearFeedbackLocked()
 	s.client = nil
+	s.quotaNotice.current = QuotaNotice{}
+	s.quotaNotice.held = false
 	s.mux = nil
 	s.listLoading = false
 	s.mu.Unlock()

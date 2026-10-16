@@ -128,6 +128,7 @@ func (s *Store) acceptAssistantDurableLocked(raw json.RawMessage) bool {
 		st.pending[ev.Seq] = append(json.RawMessage(nil), raw...)
 		return false
 	}
+	s.observeLiveQuotaLocked(raw)
 	changed := s.publishAssistantDurableLocked(raw, ev.Seq)
 	if retained := st.retained; retained != nil && ev.Type == "step/end" && ev.Data.Turn == retained.Turn && ev.Data.Step == retained.Step {
 		s.retireAssistantAttemptLocked(retained)

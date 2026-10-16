@@ -705,6 +705,9 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					}
 				}
+				if row.Message != "" {
+					ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+				}
 			})
 			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
@@ -717,9 +720,9 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 							Radius(14).Background(colPrimary).BorderWidth(0).
 							TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(12))
 					}
-					if row.ID == "whalebridge" && row.InstalledVersion != "" {
-						disabled := m.ComponentBusy || !components.WhaleBridgeManagementSupported()
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
+					if row.ID != components.HostComponentID && row.InstalledVersion != "" {
+						disabled := m.ComponentBusy || (row.ID == "whalebridge" && !components.WhaleBridgeManagementSupported())
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Disabled(disabled || (row.ID != "whalebridge" && !row.UpdateAvailable)).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "update")
 						}
 						if row.PreviousVersion != "" && row.PreviousVersion != row.InstalledVersion {
@@ -737,7 +740,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 							m.OnComponentAction(row.ID, "install")
 						}
 					case "running":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
 						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {

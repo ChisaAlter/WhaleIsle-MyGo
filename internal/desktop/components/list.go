@@ -11,17 +11,20 @@ import (
 
 // Row is one catalog/install entry shown in launcher 组件 / 我的组件.
 type Row struct {
-	ID               string
-	Name             string
-	Description      string
-	Version          string
-	InstalledVersion string
-	PreviousVersion  string
-	Kind             string
-	Source           string
-	State            string // available | installed | stopped | running | error
-	UpdateAvailable  bool
-	Message          string
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	Version          string `json:"version"`
+	InstalledVersion string `json:"installedVersion"`
+	PreviousVersion  string `json:"previousVersion"`
+	Kind             string `json:"kind"`
+	Source           string `json:"source"`
+	State            string `json:"state"`
+	UpdateAvailable  bool   `json:"updateAvailable"`
+	Message          string `json:"message"`
+	PID              int    `json:"pid"`
+	URL              string `json:"url"`
+	Orphan           bool   `json:"orphan"`
 }
 
 type catalogFile struct {
@@ -49,12 +52,18 @@ func ListUserData(userData string) []Row {
 	if row, ok := whalebridgeRow(filepath.Join(root, "whalebridge")); ok {
 		out = append(out, row)
 	}
+	generic := listGeneric(userData)
+	out = append(out, generic...)
+	seen := map[string]bool{}
+	for _, row := range generic {
+		seen[row.ID] = true
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return out
 	}
 	for _, e := range entries {
-		if !e.IsDir() || e.Name() == "whalebridge" || e.Name() == HostComponentID {
+		if !e.IsDir() || e.Name() == "whalebridge" || e.Name() == HostComponentID || seen[e.Name()] {
 			continue
 		}
 		if row, ok := genericRow(filepath.Join(root, e.Name()), e.Name()); ok {

@@ -50,6 +50,7 @@ type Model struct {
 	OnOpenSchedule   func()
 	OnOpenAssistant  func()
 	OnOpenLauncher   func()
+	OnContactAccount func()
 	OnOpenSettings   func()
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
 	OnBrowseWorkspace func()
@@ -346,6 +347,9 @@ func View(c *ui.Context, m Model) {
 					if btn.Clicked() {
 						m.OnOpenLauncher()
 					}
+				}
+				if m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
+					m.OnContactAccount()
 				}
 				if m.OnOpenSettings != nil {
 					btn := ui.Button(c, i18n.T(i18n.KeySettingsOpen)).FillWidth().Height(32).Radius(8).
