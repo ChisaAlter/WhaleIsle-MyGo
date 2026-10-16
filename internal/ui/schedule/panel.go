@@ -26,10 +26,11 @@ type Panel struct {
 	connectionEpoch     uint64
 	historyRequest      uint64
 	mu                  sync.Mutex
-	history, status     string
+	status              string
+	historyState        deliveryHistoryState
+	deliveryExpanded    map[string]bool
 	historyKey          string
 	historyRow          schedstore.Entry
-	historyBefore       string
 	historyLoading      bool
 	committed           map[string]savedDraft
 }
@@ -142,7 +143,8 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		p.deleting = nil
 		p.mu.Lock()
 		p.historyRequest++
-		p.historyKey, p.history, p.historyBefore = "", "", ""
+		p.historyKey = ""
+		p.historyState = deliveryHistoryState{}
 		p.historyLoading = false
 		p.committed = nil
 		p.mu.Unlock()
@@ -160,8 +162,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
 	p.mu.Lock()
-	status, history := p.status, p.history
-	historyRow, historyBefore, historyLoading := p.historyRow, p.historyBefore, p.historyLoading
+	status := p.status
 	for key, saved := range p.committed {
 		if d := p.drafts[key]; d != nil {
 			d.row = saved.row
@@ -266,32 +267,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 								p.message("")
 							}
 							if ui.Button(c, "历史 / History").Clicked() {
-								p.mu.Lock()
-								p.historyKey = key
-								p.historyRequest++
-								request := p.historyRequest
-								epoch := snap.ConnectionEpoch
-								p.history = "加载中 / Loading"
-								p.historyRow = row
-								p.historyBefore = ""
-								p.historyLoading = true
-								p.mu.Unlock()
-								go func() {
-									text, next, err := m.Store.HistoryPage(context.Background(), row, "")
-									if err != nil {
-										text = err.Error()
-									}
-									p.mu.Lock()
-									if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().ConnectionEpoch == epoch {
-										p.history = row.Title + " · " + row.SessionID + "\n" + text
-										p.historyBefore = next
-										p.historyLoading = false
-									}
-									p.mu.Unlock()
-									if m.OnInvalidate != nil {
-										m.OnInvalidate()
-									}
-								}()
+								p.loadDeliveryHistory(m, row, "", true)
 							}
 							if ui.Button(c, "删除 / Delete").Disabled(snap.Busy).Clicked() {
 								p.deleting = &row
@@ -400,39 +376,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 						}
 					})
 				}
-				if historyBefore != "" && ui.Button(c, "更早记录 / Older deliveries").Disabled(historyLoading).Clicked() {
-					p.mu.Lock()
-					p.historyLoading = true
-					key := p.historyKey
-					p.historyRequest++
-					request := p.historyRequest
-					epoch := snap.ConnectionEpoch
-					p.mu.Unlock()
-					go func() {
-						text, next, err := m.Store.HistoryPage(context.Background(), historyRow, historyBefore)
-						p.mu.Lock()
-						if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().ConnectionEpoch == epoch {
-							p.historyLoading = false
-							if err != nil {
-								p.status = err.Error()
-							} else {
-								p.history += "\n\n" + text
-								p.historyBefore = next
-							}
-						}
-						p.mu.Unlock()
-						if m.OnInvalidate != nil {
-							m.OnInvalidate()
-						}
-					}()
-				}
-				if history != "" {
-					ui.Text(c, "历史 / Delivery history").Bold()
-					ui.Text(c, history).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-					if m.OnCopyHistory != nil && ui.Button(c, "复制历史 / Copy history").Clicked() {
-						m.OnCopyHistory(history)
-					}
-				}
+				p.deliveryHistoryView(c, m, fg, muted)
 			})
 		})
 	})
