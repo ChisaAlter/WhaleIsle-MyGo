@@ -57,7 +57,6 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if snap.Status != "" {
 		ui.Text(c, snap.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	options := []string{}
 	byLabel := map[string]string{}
 	defaultLabel := snap.DefaultID
 	for _, row := range snap.Rows {
@@ -68,7 +67,6 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if row.Hidden || row.Broken != "" {
 			continue
 		}
-		options = append(options, label)
 		byLabel[label] = row.ID
 	}
 	if a.Selected != nil && *a.Selected == "" {
@@ -79,18 +77,10 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if snap.Loaded {
 		ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsPicker)+": "+defaultLabel).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	desktopRow(c, i18n.T(i18n.KeySettingsAgentPresetsPicker), func() {
-		if a.Selected == nil {
-			return
-		}
-		if len(options) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			return
-		}
-		if ui.Select(c, a.Selected, options).FillWidth().Disabled(snap.Busy || !snap.Writable).Changed() && a.Reader != nil && a.Reader.OnClose != nil {
-			a.Reader.OnClose(a.Reader.State.Ticket)
-		}
-	}, fg, muted)
+	agentPresetRosterPane(c, &a, snap, fg, muted)
+	if a.Selected != nil && *a.Selected != defaultLabel {
+		ui.Text(c, "待保存默认 / Pending default: "+*a.Selected).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
 	selectedID := ""
 	if a.Selected != nil {
 		selectedID = byLabel[*a.Selected]
@@ -105,4 +95,51 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 	creatorTaskPane(c, a.Creator, snap, fg, muted)
 	agentPresetReaderPane(c, a.Reader, snap, fg, muted)
+}
+
+func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.AgentPresetManagerState, fg, muted ui.Color) {
+	for _, builtIn := range []bool{true, false} {
+		title := "自定义 / Custom"
+		if builtIn {
+			title = "内置 / Built-in"
+		}
+		ui.Column(c.Key(title)).Gap(7).Children(func() {
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+			count := 0
+			for _, row := range roster.Rows {
+				if row.BuiltIn != builtIn || (row.Hidden && row.Broken == "") {
+					continue
+				}
+				count++
+				ui.Column(c.Key("preset-row-" + row.ID)).Gap(5).Children(func() {
+					label := agentPresetSettingsLabel(row)
+					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+					if row.Description != "" {
+						ui.Text(c, row.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+					}
+					if row.ID == roster.DefaultID {
+						ui.Text(c, "新任务默认 / New task default").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					}
+					if row.Broken != "" {
+						ui.Text(c, "加载失败 / Failed to load: "+row.Broken).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+					}
+					ui.Row(c).Gap(8).Children(func() {
+						if ui.Button(c, "选择默认 / Choose default · "+label).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "").Clicked() && a.Selected != nil {
+							*a.Selected = label
+							if a.Reader != nil && a.Reader.OnClose != nil {
+								a.Reader.OnClose(a.Reader.State.Ticket)
+							}
+						}
+						if a.Reader != nil && ui.Button(c, "选择阅读 / Select for reading · "+label).Disabled(!roster.Loaded || a.Reader.OnSelect == nil).Clicked() && a.Reader.OnSelect != nil {
+							a.Reader.OnSelect(a.Reader.State.Ticket, row.ID)
+						}
+					})
+					agentPresetGuidePane(c, row, fg, muted)
+				})
+			}
+			if count == 0 {
+				ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			}
+		})
+	}
 }

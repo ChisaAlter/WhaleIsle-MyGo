@@ -63,7 +63,7 @@ func TestAgentPresetReadingFixture(t *testing.T) {
 			content = ""
 		}
 		if captured == "large" {
-			content = strings.Repeat("界", AgentPresetContentLimit/3+3)
+			content = strings.Repeat("界", AgentPresetContentLimit*2/3+3) + "\nEND OF DECLARATION\n"
 		}
 		if captured == "wrong-id" {
 			id = "different-preset"
@@ -132,11 +132,12 @@ func TestAgentPresetReadingFixture(t *testing.T) {
 	mode.Store("large")
 	read()
 	got = reader.Snapshot()
-	if !got.Truncated || len(got.Content) > AgentPresetContentLimit || !utf8.ValidString(got.Content) || got.TotalBytes <= len(got.Content) {
-		t.Fatal("unsafe or silent truncation")
+	large := strings.Repeat("界", AgentPresetContentLimit*2/3+3) + "\nEND OF DECLARATION\n"
+	if got.Content != large || !utf8.ValidString(got.Content) || got.TotalBytes != len(large) {
+		t.Fatal("large declaration was truncated")
 	}
-	if text, ok := reader.CopyText(got.Ticket); !ok || text != got.Content {
-		t.Fatal("fragment copy differs")
+	if text, ok := reader.CopyText(got.Ticket); !ok || text != large {
+		t.Fatal("copy did not preserve the full large declaration")
 	}
 	mode.Store("large-meta")
 	read()
@@ -207,5 +208,5 @@ func TestAgentPresetReadingFixture(t *testing.T) {
 	if source.Snapshot().SelectedAgentPreset != "" || source.Snapshot().SelectedID != "" {
 		t.Fatal("reader mutated session state")
 	}
-	t.Logf("%d synthetic agentPresets/read calls; exact content/copy, metadata, empty/error/retry, truncation, mismatched identity, stale selection, close, hide, Host epoch and endpoint fences passed", calls.Load())
+	t.Logf("%d synthetic agentPresets/read calls; full content/copy including large declarations, metadata, empty/error/retry, mismatched identity, stale selection, close, hide, Host epoch and endpoint fences passed", calls.Load())
 }

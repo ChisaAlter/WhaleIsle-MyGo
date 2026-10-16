@@ -25,7 +25,7 @@ func TestAgentPresetManagerPersistDefaultFixture(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/agentPresets/list"):
-			rpcOK(w, body.RPCID, map[string]any{"presets": []map[string]any{{"id": "standard", "isDefault": true}, {"id": "coder", "name": "Coder"}, {"id": "broken", "broken": "missing config"}}})
+			rpcOK(w, body.RPCID, map[string]any{"presets": []map[string]any{{"id": "standard", "isDefault": true}, {"id": "coder", "name": "Coder"}, {"id": "broken", "broken": "missing config"}, {"id": "ptc", "name": "Custom PTC"}, {"id": "minimal", "name": ""}, {"id": "cordis"}, {"id": "unknown"}}})
 		case strings.HasSuffix(r.URL.Path, "/settings/describe"):
 			rpcOK(w, body.RPCID, map[string]any{"writable": true, "namespaces": []map[string]any{{"ns": "agent-preset-registry", "revision": 7, "value": map[string]any{"selectedDefault": "standard"}}}})
 		case strings.HasSuffix(r.URL.Path, "/settings/update"):
@@ -51,8 +51,13 @@ func TestAgentPresetManagerPersistDefaultFixture(t *testing.T) {
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	manager := NewAgentPresetManager(s)
 	manager.Refresh(context.Background())
-	if got := manager.Snapshot(); got.DefaultID != "standard" || len(got.Rows) != 3 || !got.Writable {
+	if got := manager.Snapshot(); got.DefaultID != "standard" || len(got.Rows) != 7 || !got.Writable {
 		t.Fatalf("load: %+v", got)
+	}
+	for _, row := range manager.Snapshot().Rows {
+		if row.BuiltIn != (row.ID == "standard" || row.ID == "cordis") {
+			t.Fatalf("published names and unknown IDs must remain custom: %+v", row)
+		}
 	}
 	manager.SaveDefault(context.Background(), "broken")
 	if writes.Load() != 0 || manager.Snapshot().Err == "" {

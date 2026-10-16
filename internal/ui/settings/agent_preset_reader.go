@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"unicode/utf8"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -26,27 +27,18 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		if s.Host == "" {
 			ui.Text(c, "Host 未连接，暂时无法读取 / Connect a Host to read declarations").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		labels, ids := []string{}, map[string]string{}
 		selected := ""
 		broken := ""
 		for _, row := range roster.Rows {
-			// Hidden failures are deliberately readable, as in the original roster.
-			if row.Hidden && row.Broken == "" {
-				continue
-			}
-			label := agentPresetSettingsLabel(row)
-			labels = append(labels, label)
-			ids[label] = row.ID
 			if row.ID == s.SelectedID {
-				selected = label
+				selected = agentPresetSettingsLabel(row)
 				broken = row.Broken
 			}
 		}
-		if len(labels) == 0 {
-			ui.Text(c, "暂无可读预设；请刷新列表 / No presets to read; refresh the roster").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-		if ui.Select(c.Key("preset-reading-choice"), &selected, labels).FillWidth().Disabled(!roster.Loaded || len(labels) == 0).Changed() && a.OnSelect != nil {
-			a.OnSelect(s.Ticket, ids[selected])
+		if selected == "" {
+			ui.Text(c, "从上方目录选择要阅读的预设 / Select a preset to read from the roster above").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		} else {
+			ui.Text(c, "阅读选择 / Reading choice: "+selected).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if broken != "" {
 			ui.Text(c, "预设诊断 / Preset diagnostic: "+broken).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
@@ -81,19 +73,47 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		if s.MetadataTruncated {
 			ui.Text(c, "名称或说明超过显示上限，已截断 / Name or description truncated at the display limit").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		copyLabel := "复制原文 / Copy original content"
-		if s.Truncated {
-			copyLabel = "复制已显示片段 / Copy displayed fragment"
-			ui.Text(c, fmt.Sprintf("内容已截断：显示 %d / %d 字节，显示上限 %d 字节；复制仅含已显示片段。 / Content truncated; copy includes only the displayed fragment.", len(s.Content), s.TotalBytes, session.AgentPresetContentLimit)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-		}
-		if ui.Button(c, copyLabel).Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
+		if ui.Button(c, "复制全文 / Copy full declaration").Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
 			a.OnCopy(s.Ticket)
 		}
 		if s.Content == "" {
 			ui.Text(c, "该预设声明内容为空 / This preset declaration is empty").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
-		content := s.Content
-		ui.TextArea(c.Key(fmt.Sprintf("preset-document-%d", s.Ticket)), &content).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		viewer := ui.Column(c.Key(fmt.Sprintf("preset-document-%d", s.Ticket))).Gap(6)
+		pages := ui.Local(viewer, "pages", func() presetDocumentPages { return presetDocumentPages{} })
+		viewer.Children(func() {
+			content, next := agentPresetDocumentPage(s.Content, pages.Start)
+			if len(s.Content) > session.AgentPresetContentLimit {
+				ui.Text(c, fmt.Sprintf("显示字节 / Showing bytes %d–%d / %d；可翻页阅读，复制包含全文 / Browse every page; copy includes the full declaration", pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Row(c).Gap(8).Children(func() {
+					if ui.Button(c, "上一页 / Previous page").Disabled(len(pages.Previous) == 0).Clicked() {
+						last := len(pages.Previous) - 1
+						pages.Start = pages.Previous[last]
+						pages.Previous = pages.Previous[:last]
+					}
+					if ui.Button(c, "下一页 / Next page").Disabled(next == len(s.Content)).Clicked() {
+						pages.Previous = append(pages.Previous, pages.Start)
+						pages.Start = next
+					}
+				})
+			}
+			ui.TextArea(c.Key(pages.Start), &content).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		})
 	})
+}
+
+type presetDocumentPages struct {
+	Start    int
+	Previous []int
+}
+
+func agentPresetDocumentPage(content string, start int) (string, int) {
+	end := min(start+session.AgentPresetContentLimit, len(content))
+	if end < len(content) {
+		for end > start && !utf8.RuneStart(content[end]) {
+			end--
+		}
+	}
+	return content[start:end], end
 }

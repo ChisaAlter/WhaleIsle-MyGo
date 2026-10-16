@@ -11,13 +11,13 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
-// AgentPresetContentLimit bounds native text layout, not the source declaration.
+// AgentPresetContentLimit bounds one native reader page, never the stored source.
 const AgentPresetContentLimit = 256 * 1024
 
 type AgentPresetReaderState struct {
 	Ticket                                              uint64
 	SelectedID, Host, Name, Description, Content, Error string
-	Open, Busy, Loaded, Truncated, MetadataTruncated    bool
+	Open, Busy, Loaded, MetadataTruncated               bool
 	TotalBytes                                          int
 }
 
@@ -159,7 +159,7 @@ func (r *AgentPresetReader) Load(ctx context.Context, ticket uint64) {
 	}
 	r.state.Loaded = true
 	r.state.TotalBytes = len(doc.Content)
-	r.state.Content, r.state.Truncated = presetReaderBound(doc.Content, AgentPresetContentLimit)
+	r.state.Content = doc.Content
 	r.state.Name = id
 	nameCut, descriptionCut := false, false
 	if doc.Name != nil {
@@ -171,7 +171,7 @@ func (r *AgentPresetReader) Load(ctx context.Context, ticket uint64) {
 	r.state.MetadataTruncated = nameCut || descriptionCut
 }
 
-// CopyText supplies only the currently displayed bytes, guarded against stale UI.
+// CopyText supplies the complete declaration, guarded against stale UI.
 func (r *AgentPresetReader) CopyText(ticket uint64) (string, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
