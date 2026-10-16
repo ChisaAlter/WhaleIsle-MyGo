@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 export const id='mygo-shortcut-provider-v1';
-export const baseSHA256='bdac6e2692b4775e483efd9e3d074ffbef841165fca6d1c43206e019af451666';
+export const baseSHA256='50f36616c5e4af3c4844e2737068e78152e9cc0bb61be0cef9e9d7101409a457';
 export const relativePath='packages/client/shortcuts/src/client/index.ts';
 const hash=x=>crypto.createHash('sha256').update(x).digest('hex');
 const original="    const environment = detectEnvironment(document, navigator)";

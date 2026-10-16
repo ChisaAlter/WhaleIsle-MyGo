@@ -26,7 +26,7 @@ and not silently replaced by an old native default.
 `current-host-shortcuts.mjs` adaptation on the build copy. It requires the exact
 SHA-256 of original e9f584be6d3b491ce777bb6823f30bc2bbc6f195 file
 `vendor/deepseek-harness/packages/client/shortcuts/src/client/index.ts`:
-`bdac6e2692b4775e483efd9e3d074ffbef841165fca6d1c43206e019af451666`.
+`50f36616c5e4af3c4844e2737068e78152e9cc0bb61be0cef9e9d7101409a457`.
 A source mismatch fails before patching; it does not guess a replacement.
 An idempotent patch record is written alongside the copied Harness source.
 The original source checkout is not modified. Existing runtime bundles are not
