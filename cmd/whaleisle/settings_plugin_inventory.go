@@ -44,8 +44,31 @@ func (s *mainState) refreshPluginInventory() {
 }
 func (s *mainState) pluginInventoryAccess() *settings.PluginInventoryAccess {
 	snap := s.settingsPluginInventory.Snapshot()
+	s.mu.Lock()
+	host := s.webviewHost
+	endpoint := s.bootStatus.Endpoint
+	s.mu.Unlock()
+	if host != nil && !host.MatchesSession(endpoint.Origin, endpoint.Cookie) {
+		host = nil
+	}
+	clientModules := host.ClientModules()
+	clientPage := ""
+	if clientModules.Connected {
+		clientPage = host.URL()
+	}
 	return &settings.PluginInventoryAccess{
-		Snapshot:       snap,
+		Snapshot:      snap,
+		ClientModules: clientModules,
+		ClientPage:    clientPage,
+		OnRetryClientModules: func() {
+			s.mu.Lock()
+			current, endpoint := s.webviewHost, s.bootStatus.Endpoint
+			s.mu.Unlock()
+			if current != host || host == nil || !host.MatchesSession(endpoint.Origin, endpoint.Cookie) {
+				return
+			}
+			go func() { _ = host.RetryClientModules(clientModules.Page); s.updatePluginInventoryUI() }()
+		},
 		OnRefresh:      s.refreshPluginInventory,
 		OnQuery:        func(query string) { s.settingsPluginInventory.SetQuery(snap.Host, query); s.updatePluginInventoryUI() },
 		OnSelectPreset: func(id string) { s.settingsPluginInventory.SelectPreset(snap.Host, id); s.updatePluginInventoryUI() },
@@ -55,4 +78,17 @@ func (s *mainState) pluginInventoryAccess() *settings.PluginInventoryAccess {
 		},
 		OnToggleGlobal: func() { s.settingsPluginInventory.ToggleGlobal(snap.Host); s.updatePluginInventoryUI() },
 	}
+}
+
+// Keep the existing Host page alive, but hidden, only while native Settings
+// inspects its client modules. Every other panel exit retains normal disposal.
+func (s *mainState) parkPluginViewForSettings(settingsOpen bool) {
+	s.mu.Lock()
+	host, endpoint := s.webviewHost, s.bootStatus.Endpoint
+	s.mu.Unlock()
+	if settingsOpen && host != nil && host.HasSession() && host.Alive() && host.MatchesSession(endpoint.Origin, endpoint.Cookie) {
+		host.SetVisible(false)
+		return
+	}
+	s.closeWebViewHost()
 }

@@ -19,6 +19,7 @@ import (
 // Gateway owns one loopback listener and one already-authorized Host session.
 // Neither the Host credential nor the browser capability is persisted.
 type Gateway struct {
+	modules                                          clientModulesBridge
 	connectionsMu                                    sync.Mutex
 	connections                                      map[net.Conn]bool
 	origin, cookie, browserOrigin, token, cookieName string
@@ -114,6 +115,10 @@ func NewGateway(origin, cookie string) (*Gateway, error) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
+		if r.URL.Path == clientModulesPath {
+			g.serveClientModules(w, r)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})}
 	go func() { _ = g.server.Serve(listener) }()
@@ -165,6 +170,7 @@ func (g *Gateway) Matches(origin, cookie string) bool {
 func (g *Gateway) Close() {
 	if g != nil {
 		g.once.Do(func() {
+			g.disconnectClientModules(nil, true)
 			_ = g.server.Close()
 			g.connectionsMu.Lock()
 			connections := make([]net.Conn, 0, len(g.connections))

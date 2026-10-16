@@ -3022,7 +3022,7 @@ func mainView(c *ui.Context) {
 		}
 	}()
 	if !webviewOpen && !browserPreviewOpen {
-		state.closeWebViewHost()
+		state.parkPluginViewForSettings(settingsOpen)
 	}
 	state.refreshGit(workspaceRoot)
 	if gitBranch != "" && workspaceRoot != "" {

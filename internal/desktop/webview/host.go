@@ -175,6 +175,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 			return nil, err
 		}
 		opts.Untrusted = true
+		gateway.SetClientModulesChanged(opts.OnChange)
 	}
 	trusted := append([]string(nil), opts.TrustedOrigins...)
 	if !opts.Untrusted && len(trusted) == 0 {
@@ -185,7 +186,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 
 	h := &Host{localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
-	if localPreview || opts.BrowserProfile {
+	if localPreview || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
 		initialURL = ""
 	}
@@ -225,6 +226,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 			h.setError("Navigation outside this view is blocked")
 			return
 		}
+		h.disconnectClientModulesForNavigation(e.URL)
 		h.beginLoad()
 	})
 	pg.OnDidNavigate(func(raw string) {
@@ -255,6 +257,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 					_ = h.Close()
 				}
 			} else if gateway != nil {
+				gateway.DisconnectClientModules()
 				h.setError("Plugin Host page failed to load")
 			} else {
 				h.setError(err.Error())
@@ -262,6 +265,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	})
 	pg.OnRenderProcessGone(func(reason string) {
+		gateway.DisconnectClientModules()
 		h.setError("Page process exited: " + reason)
 		if localPreview {
 			_ = h.Close()
@@ -289,11 +293,11 @@ func NewHost(opts HostOptions) (*Host, error) {
 			h.SetVisible(false)
 		}
 	})
-	if localPreview {
+	if localPreview || gateway != nil {
 		child.OnClosed(func() { _ = h.Close() })
 	}
 	h.SyncBounds()
-	if localPreview || opts.BrowserProfile {
+	if localPreview || opts.BrowserProfile || gateway != nil {
 		if err := pg.LoadURL(pageURL); err != nil {
 			_ = h.Close()
 			return nil, err
@@ -342,6 +346,7 @@ func (h *Host) Navigate(raw string) error {
 			return err
 		}
 	}
+	h.disconnectClientModulesForNavigation(raw)
 	h.beginLoad()
 	if err := pg.LoadURL(pageURL); err != nil {
 		if h.gateway != nil {

@@ -7,10 +7,14 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/plugininventory"
+	"whaleisle/internal/desktop/pluginslots"
 	"whaleisle/internal/ui/i18n"
 )
 
 type PluginInventoryAccess struct {
+	ClientModules                        pluginslots.ClientModulesSnapshot
+	ClientPage                           string
+	OnRetryClientModules                 func()
 	Snapshot                             plugininventory.Snapshot
 	OnRefresh, OnToggleGlobal            func()
 	OnQuery, OnSelectPreset, OnToggleRow func(string)
@@ -51,6 +55,7 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 	if a == nil {
 		return
 	}
+	clientModulesPane(c, a, fg, muted)
 	s := a.Snapshot
 	v := s.View(i18n.Locale())
 	ui.Text(c, pluginsText("插件运行实例", "Plugin runtime inventory")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
@@ -160,5 +165,31 @@ func pluginInventoryRow(c *ui.Context, a *PluginInventoryAccess, r plugininvento
 	ui.Text(c, "Loader: "+entryID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if r.Condition != "" {
 		ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+}
+
+// The client page owns this status and retry. Host inventory refresh remains a
+// separate read-only action and must never stand in for entries.retry().
+func clientModulesPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
+	s := a.ClientModules
+	ui.Text(c, pluginsText("客户端模块", "Client modules")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	if !s.Connected {
+		ui.Text(c, pluginsText("客户端页面未连接。打开此 Host 的插件页面后可查看模块同步状态。", "Client page disconnected. Open a plugin page for this Host to inspect module synchronization.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		return
+	}
+	ui.Text(c, pluginsText("所属页面：", "Page: ")+a.ClientPage).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if s.Syncing || s.Retrying {
+		ui.Text(c, pluginsText("正在同步客户端模块…", "Synchronizing client modules…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	} else if len(s.Failures) == 0 {
+		ui.Text(c, pluginsText("客户端模块已同步。", "Client modules synchronized.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+	for _, failure := range s.Failures {
+		ui.Text(c, failure.ID+": "+failure.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	}
+	if s.Error != "" {
+		ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	}
+	if a.OnRetryClientModules != nil && ui.Button(c, pluginsText("重试客户端模块", "Retry client modules")).Disabled(s.Syncing || s.Retrying || (len(s.Failures) == 0 && s.Error == "")).Clicked() {
+		a.OnRetryClientModules()
 	}
 }

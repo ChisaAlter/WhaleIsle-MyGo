@@ -9,7 +9,53 @@ window.__ModuleLoader__.load({
       try { return String(typeof options.label === 'function' ? options.label() : options.label || options.key || options.id || ''); }
       catch { return String(options.key || options.id || ''); }
     };
+    // Bind the actual page-local module owner even when this is an ordinary
+    // Host page with no desktopPlugin view selection. The isolated gateway
+    // authenticates this one narrow channel; native bindings remain disabled.
+    function bindClientModules(ctx) {
+      const owner = ctx.modules?.entries;
+      if (!owner?.state?.getSnapshot || !owner.state.subscribe || !owner.retry || typeof WebSocket === 'undefined') return;
+      ctx.effect(() => {
+        let stopped = false, retrying = false, unsubscribe = () => {};
+        const endpoint = new URL('/__whale_client_modules', location.href);
+        endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(endpoint.href, 'whaleisle.client-modules.v1');
+        const send = value => {
+          if (!stopped && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
+        };
+        const publish = () => {
+          const {syncing, failures} = owner.state.getSnapshot();
+          send({type:'state', syncing, failures:failures.map(({id,message}) => ({id,message}))});
+        };
+        const dispose = () => {
+          if (stopped) return;
+          stopped = true; unsubscribe();
+          window.removeEventListener('pagehide', dispose);
+          socket.close();
+        };
+        socket.addEventListener('open', () => { if (!stopped) publish(); });
+        socket.addEventListener('close', dispose);
+        socket.addEventListener('error', dispose);
+        socket.addEventListener('message', async event => {
+          let command;
+          try { command = JSON.parse(event.data); } catch { return; }
+          if (stopped || retrying || command?.type !== 'retry' || !Number.isSafeInteger(command.id) || command.id < 1) return;
+          retrying = true;
+          let error = '';
+          try { await owner.retry(); }
+          catch (reason) { error = String(reason?.message || reason); }
+          finally {
+            retrying = false;
+            if (!stopped) { publish(); send({type:'retryResult',id:command.id,error}); }
+          }
+        });
+        unsubscribe = owner.state.subscribe(publish);
+        window.addEventListener('pagehide', dispose);
+        return dispose;
+      });
+    }
     function apply(ctx) {
+      bindClientModules(ctx);
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');
       if (!plugin) return;
       let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', cancelPending = () => {};
@@ -160,6 +206,6 @@ window.__ModuleLoader__.load({
         return () => { stopped = true; cancelPending(); unlisten(); unmount(); listeners.clear(); };
       });
     }
-    return {inject: ['slots','layout','settingsNavigation'], apply};
+    return {inject: ['modules','slots','layout','settingsNavigation'], apply};
   }
 });
