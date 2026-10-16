@@ -6,7 +6,11 @@ import (
 )
 
 func assetDiffView(c *ui.Context, m Model) {
-	if ui.Button(c, tr("返回交付详情", "Back to delivery")).Clicked() && m.OnCloseDiff != nil {
+	back := tr("返回交付详情", "Back to delivery")
+	if m.RequestProjectID == "" && m.TeamID != "" && m.Detail != nil {
+		back = tr("返回工作详情", "Back to work details")
+	}
+	if ui.Button(c, back).Clicked() && m.OnCloseDiff != nil {
 		m.OnCloseDiff()
 	}
 	value := m.AssetDiff

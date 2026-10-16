@@ -51,12 +51,22 @@ func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, membe
 		defer cancel()
 		rpc := projectflow.Client{Origin: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTP: client.HTTP}
 		var detail projectflow.WorkDetail
+		var diff projectflow.WorkDiff
 		var process projectflow.ProcessSnapshot
 		var draft string
 		var err error
 		switch action {
 		case "detail":
 			detail, err = rpc.WorkDetail(ctx, id, workID, memberID)
+		case "diff":
+			detail, err = rpc.WorkDetail(ctx, id, prior.Workstream.ID, "")
+			if err == nil {
+				if detail.Worker == nil || detail.Worker.Role == "readonly" || workID != detail.Workstream.ID {
+					err = fmt.Errorf("refresh a writable original Project member before viewing its diff")
+				} else {
+					diff, err = rpc.WorkDiff(ctx, id, detail.Workstream.ID)
+				}
+			}
 		case "process":
 			detail = *prior
 			process, err = projectflow.ReadProcess(ctx, mux, p, detail)
@@ -94,7 +104,11 @@ func (s *mainState) runProjectDetail(win *mygo.Window, id, action, workID, membe
 			}
 			f.detail = &detail
 			if action == "detail" {
+				f.assetDiff = nil
 				f.process = nil
+			}
+			if action == "diff" {
+				f.assetDiff = &diff
 			}
 			if action == "process" || action == "earlier" {
 				f.process = &process

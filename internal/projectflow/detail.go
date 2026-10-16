@@ -26,6 +26,7 @@ type WorkDetail struct {
 	} `json:"workstream"`
 	Worker *struct {
 		Worker
+		Role         string `json:"role"`
 		Materialized bool   `json:"materialized"`
 		CWD          string `json:"cwd"`
 		Branch       string `json:"branch"`

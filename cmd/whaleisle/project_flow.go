@@ -162,6 +162,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.projectFlow.teamID = ""
 		s.projectFlow.team = nil
 		s.projectFlow.detail = nil
+		s.projectFlow.assetDiff = nil
 		s.projectFlow.process = nil
 		s.projectFlow.detailGeneration++
 		s.mu.Unlock()
@@ -174,6 +175,7 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		s.stopProjectProcessLocked()
 		s.projectFlow.detail = nil
+		s.projectFlow.assetDiff = nil
 		s.projectFlow.process = nil
 		s.projectFlow.detailGeneration++
 		s.mu.Unlock()
@@ -227,6 +229,10 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.runProjectAsset(win, m.RequestProjectID, "file", file, "", open)
 	}
 	m.OnWorkDiff = func(workID string) {
+		if m.RequestProjectID == "" && m.TeamID != "" && m.Detail != nil {
+			s.runProjectDetail(win, m.TeamID, "diff", workID, "")
+			return
+		}
 		s.runProjectAsset(win, m.RequestProjectID, "diff", projectflow.Artifact{}, workID, nil)
 	}
 	m.OnProjectDirectory = func() { s.runProjectAsset(win, m.RequestProjectID, "directory", projectflow.Artifact{}, "", nil) }
