@@ -301,6 +301,42 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			}
 		})
 	}
+	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, marketText("排序", "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		sortIDs := []string{"catalog", "stars", "newest"}
+		sortLabels := []string{marketText("目录顺序", "Catalog order"), marketText("星标最多", "Most stars"), marketText("最新上架", "Newest")}
+		sortLabel := sortLabels[0]
+		for n, id := range sortIDs {
+			if id == d.Sort {
+				sortLabel = sortLabels[n]
+			}
+		}
+		ui.Select(c, &sortLabel, sortLabels).Grow(1).OnChange(func() {
+			for n, label := range sortLabels {
+				if label == sortLabel {
+					m.Store.SetSort(sortIDs[n])
+					break
+				}
+			}
+		})
+		ui.Text(c, marketText("上架时间", "Listed")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		periodIDs := []string{"all", "7", "30"}
+		periodLabels := []string{marketText("全部时间", "All time"), marketText("最近 7 天", "Last 7 days"), marketText("最近 30 天", "Last 30 days")}
+		periodLabel := periodLabels[0]
+		for n, id := range periodIDs {
+			if id == d.Period {
+				periodLabel = periodLabels[n]
+			}
+		}
+		ui.Select(c, &periodLabel, periodLabels).Grow(1).OnChange(func() {
+			for n, label := range periodLabels {
+				if label == periodLabel {
+					m.Store.SetPeriod(periodIDs[n])
+					break
+				}
+			}
+		})
+	})
 	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	for _, item := range d.Rows {
 		i := item

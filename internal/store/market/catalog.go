@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	desktopmarket "whaleisle/internal/desktop/market"
 )
@@ -19,6 +20,7 @@ type discoveryState struct {
 	catalog                                                 desktopmarket.Catalog
 	loaded, loading, detailsLoading                         bool
 	err, detailsErr, query, category, tab, selected, locale string
+	sort, period                                            string
 	details                                                 desktopmarket.Details
 	revision, requestID, detailID                           uint64
 	cancel, detailCancel                                    context.CancelFunc
@@ -29,6 +31,7 @@ type Discovery struct {
 	Rows                                              []desktopmarket.CatalogItem
 	Total, Page                                       int
 	Query, Category, Tab, SelectedID, Err, DetailsErr string
+	Sort, Period                                      string
 	Loading, DetailsLoading                           bool
 	Selected                                          *desktopmarket.CatalogItem
 	Details                                           desktopmarket.Details
@@ -50,7 +53,7 @@ func newDiscoveryState() discoveryState {
 	if dir != "" {
 		path = filepath.Join(dir, "whaleisle", "marketplace-cache.json")
 	}
-	return discoveryState{service: desktopmarket.NewService(path), category: "all", tab: "discover"}
+	return discoveryState{service: desktopmarket.NewService(path), category: "all", tab: "discover", sort: "catalog", period: "all"}
 }
 func (s *Store) SetCatalogService(service CatalogService) {
 	s.mu.Lock()
@@ -118,7 +121,7 @@ func (s *Store) Discovery() Discovery {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d := &s.discovery
-	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
+	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, Sort: d.sort, Period: d.period, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
 	out.Catalog.Items = append([]desktopmarket.CatalogItem(nil), d.catalog.Items...)
 	out.Catalog.Categories = append([]desktopmarket.Category(nil), d.catalog.Categories...)
 	out.Details.Requirements = append([]string(nil), d.details.Requirements...)
@@ -139,6 +142,7 @@ func (s *Store) Discovery() Discovery {
 		}
 		out.Rows = append(out.Rows, item)
 	}
+	out.Rows = filterCatalogListings(out.Rows, d.sort, d.period, time.Now())
 	out.Total = len(out.Rows)
 	start := d.page * 60
 	if start >= len(out.Rows) {
