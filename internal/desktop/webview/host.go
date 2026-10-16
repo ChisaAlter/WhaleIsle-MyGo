@@ -233,6 +233,8 @@ func NewHost(opts HostOptions) (*Host, error) {
 		return nil, errors.New("webview: failed to create WebView2 window")
 	}
 	h.win = child
+	// Explicit opt-in; ordinary Parent/Frameless windows retain their semantics.
+	child.AttachBrowserSeat()
 	h.installProductKeyboard()
 	if !localPreview && (opts.BrowserProfile || opts.SessionOrigin != "") {
 		child.Page().UseWebApplicationShortcuts(opts.Parent)
@@ -463,7 +465,10 @@ func (h *Host) SyncBounds() {
 		return
 	}
 	cb := parent.ContentBounds()
-	win.SetBounds(viewportBounds(cb, inset, seat))
+	local := viewportBounds(mygo.Rectangle{Width: cb.Width, Height: cb.Height}, inset, seat)
+	if !win.SetBrowserSeatBounds(local) {
+		win.SetBounds(viewportBounds(cb, inset, seat))
+	}
 }
 
 // Close destroys the child window and unregisters resize sync.

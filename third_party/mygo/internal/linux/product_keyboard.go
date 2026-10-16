@@ -64,7 +64,11 @@ func (w *window) productKeyEvent(event ptr) bool {
 		w.resetProductKeys()
 		return false
 	}
-	focus := productWindowFocus(w.win)
+	top := w.win
+	if w.seat != nil {
+		top = w.seat.parent.win
+	}
+	focus := productWindowFocus(top)
 	if focus == 0 || (focus != w.web && !productWidgetAncestor(focus, w.web)) {
 		w.resetProductKeys()
 		return false

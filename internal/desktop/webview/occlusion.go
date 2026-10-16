@@ -3,10 +3,11 @@ package webview
 import "github.com/egoist/mygo"
 
 // SetOcclusions subtracts in-app overlay rectangles (parent-content DIPs) from
-// the live native browser seat on macOS, Windows and shape-capable GTK displays.
+// the live native browser seat on macOS, Windows, embedded Wayland seats and
+// shape-capable GTK displays.
 // It never hides or recreates the page. A nil list restores the full native
-// surface after redocking/closing the last float. GTK displays without
-// both visual and input shapes (including Wayland) do not yet support clipping.
+// surface after redocking/closing the last float. Separate GTK windows without
+// both visual and input shapes cannot use the toplevel clipping path.
 func (h *Host) SetOcclusions(rects []mygo.Rectangle) {
 	if h == nil {
 		return
@@ -27,5 +28,7 @@ func (h *Host) SetOcclusions(rects []mygo.Rectangle) {
 		}
 		local = append(local, r)
 	}
-	setNativeOcclusions(win, bounds.Width, bounds.Height, local)
+	if !win.SetBrowserSeatOcclusions(local) {
+		setNativeOcclusions(win, bounds.Width, bounds.Height, local)
+	}
 }

@@ -33,6 +33,9 @@ const (
 )
 
 type window struct {
+	seat             *browserSeat
+	seatOverlay      ptr
+	seats            []*window
 	productIM        ptr
 	productComposing bool
 	productDown      map[uint16]bool
@@ -388,6 +391,7 @@ func (w *window) cleanup() {
 		w.press.event = 0
 	}
 	w.releaseCursor()
+	w.destroySeat()
 	w.releaseBrowserProfile()
 	if w.blankContext != 0 {
 		gObjectUnref(w.blankContext)
@@ -402,6 +406,13 @@ func (w *window) SetTitle(title string) { gtkWindowSetTitle(w.win, cs(title)) }
 func (w *window) Title() string         { return goStr(gtkWindowGetTitle(w.win)) }
 
 func (w *window) SetBounds(r platform.Rect) {
+	if w.seat != nil {
+		p := w.seat.parent.ContentBounds()
+		r.X -= p.X
+		r.Y -= p.Y
+		w.SetBrowserSeatBounds(r)
+		return
+	}
 	width, height := w.constrain(int32(r.Width), int32(r.Height))
 	r.Width, r.Height = int(width), int(height)
 	if w.requested == nil {
@@ -445,6 +456,13 @@ func (w *window) constrain(width, height int32) (int32, int32) {
 }
 
 func (w *window) Bounds() platform.Rect {
+	if w.seat != nil {
+		r := w.seat.bounds
+		p := w.seat.parent.ContentBounds()
+		r.X += p.X
+		r.Y += p.Y
+		return r
+	}
 	if w.requested != nil {
 		return *w.requested
 	}
@@ -504,12 +522,21 @@ func (w *window) SetAlwaysOnTop(v bool) {
 func (w *window) IsAlwaysOnTop() bool { return w.keepAbove || w.state&stateAbove != 0 }
 
 func (w *window) Show() {
+	if w.seat != nil {
+		gtkWidgetShow(w.web)
+		gtkWidgetGrabFocus(w.web)
+		return
+	}
 	w.willShow()
 	gtkWidgetShow(w.win)
 	gtkWindowPresent(w.win)
 }
 
 func (w *window) ShowInactive() {
+	if w.seat != nil {
+		gtkWidgetShow(w.web)
+		return
+	}
 	w.willShow()
 	gtkWidgetShow(w.win)
 }
@@ -530,16 +557,39 @@ func (w *window) willShow() {
 	w.placing = w.b.windowManager(w.win)
 }
 
-func (w *window) Hide()           { gtkWidgetHide(w.win) }
-func (w *window) IsVisible() bool { return gtkWidgetGetVisible(w.win) }
+func (w *window) Hide() {
+	if w.seat != nil {
+		gtkWidgetHide(w.web)
+		w.resetProductKeys()
+		return
+	}
+	gtkWidgetHide(w.win)
+}
+func (w *window) IsVisible() bool {
+	if w.seat != nil {
+		return gtkWidgetGetVisible(w.web)
+	}
+	return gtkWidgetGetVisible(w.win)
+}
 
 func (w *window) Focus() {
+	if w.seat != nil {
+		gtkWidgetShow(w.web)
+		gtkWindowPresent(w.seat.parent.win)
+		gtkWidgetGrabFocus(w.web)
+		return
+	}
 	w.willShow() // presenting shows a hidden window
 	gtkWindowPresent(w.win)
 }
 
-func (w *window) Blur()             {}
-func (w *window) IsFocused() bool   { return gtkWindowIsActive(w.win) }
+func (w *window) Blur() {}
+func (w *window) IsFocused() bool {
+	if w.seat != nil {
+		return gtkWindowIsActive(w.seat.parent.win) && w.seatFocused()
+	}
+	return gtkWindowIsActive(w.win)
+}
 func (w *window) Minimize()         { gtkWindowIconify(w.win) }
 func (w *window) IsMinimized() bool { return w.state&stateIconified != 0 }
 func (w *window) Maximize()         { gtkWindowMaximize(w.win) }
@@ -662,7 +712,7 @@ var resizeEdges = [8]struct {
 // GdkEventMotion or GdkEventButton) would resize, or -1.
 func (w *window) resizeEdge(event ptr) int32 {
 	// GdkEventMotion and GdkEventButton: window 8, x 24, y 32.
-	if !w.undecorated() || w.state&(stateMaximized|stateFullscreen) != 0 ||
+	if w.seat != nil || !w.undecorated() || w.state&(stateMaximized|stateFullscreen) != 0 ||
 		field[ptr](event, 8) != w.contentWindow() || !gtkWindowGetResizable(w.win) {
 		return -1
 	}

@@ -1,0 +1,10 @@
+# Opt-in live Wayland browser seats
+Keep ordinary child windows unchanged. Expose optional embedding and seat bounds/occlusions methods on MyGo Window. On Wayland only, an explicitly attached, hidden URL child of a native UI parent moves its existing WebKit widget into a parent GtkOverlay. Preserve WebKit context, scripts, navigation policy and profile. Retain the original hidden GtkWindow as lifecycle owner. Allocate in parent-content logical coordinates, clip drawing with a Cairo region and pair pointer exclusion on the overlay event window. Forward focus and keyboard ownership, show/hide the embedded widget, destroy it with its owner. X11/macOS/Windows retain current paths. One targeted compile/test check; actual Wayland accelerated rendering/input acceptance remains pending.
+
+## Implementation and acceptance
+
+The opt-in API is `Window.AttachBrowserSeat`, with parent-relative `SetBrowserSeatBounds` and seat-local `SetBrowserSeatOcclusions`. Unsupported backends return false and retain their existing native-window paths. WhaleIsle's Host opts in before showing the window. The Linux backend retains the reparented WebKit object until logical owner cleanup, including when the parent GTK tree is destroyed first. GTK callbacks are registered once per signature.
+
+The focused no-cgo check passes the existing GTK clipping-pair test and new bounded/overflow geometry cases, compiling both Host integration and the Linux backend. Actual Wayland runtime acceptance is pending: this build workspace has no WebKitGTK runtime or Wayland compositor. Acceptance needs a live scrolling/animated browser overlapped by several native floats, pointer/scroll routing through holes, resize/redock/close restoration, keyboard/IME focus, and parent/child destruction with GPU and CPU native surfaces. No screenshot substitution, input-only fallback, or whole-browser hiding is used for occlusion.
+
+References: https://docs.gtk.org/gtk3/class.Overlay.html and https://docs.gtk.org/gtk3/drawing-model.html. GTK's overlay child GDK wrapper is the pointer-clipping target, avoiding an input-catching wrapper above an otherwise clipped WebKit widget.
