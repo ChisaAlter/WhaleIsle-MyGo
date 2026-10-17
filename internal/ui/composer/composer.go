@@ -384,21 +384,20 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
-					plusTip := i18n.T(i18n.KeyComposerPickDir)
-					if m.OnPickImage != nil {
-						plusTip = i18n.T(i18n.KeyComposerPickImage)
-					}
-					plus := ui.Button(c, "+").Tooltip(plusTip).
-						Width(btnH).Height(btnH).Radius(btnH / 2).BorderWidth(0).
-						Background(selectorFill).TextColor(fg).FontSize(18)
-					if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+					plus := ui.Button(c, "+").Label("命令列表 / Commands").Tooltip("命令列表 / Commands").Width(btnH).Height(btnH).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(fg).FontSize(18)
+					if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 						plus = plus.Disabled(true)
 					}
 					if plus.Clicked() {
-						// Prefer attach image when available (Electron + opens attach menu).
-						if m.OnPickImage != nil {
+						toggleCommandLauncher(m)
+					}
+					// Attachment intake remains a distinct action when + owns commands.
+					if m.OnPickImage != nil {
+						if ui.Button(c, "添加文件 / Add files").Height(btnH).Disabled(m.State != nil && (m.State.Sending || m.State.Preparing > 0)).Clicked() {
 							m.OnPickImage()
-						} else if m.OnPickDirectory != nil {
+						}
+					} else if m.OnPickDirectory != nil {
+						if ui.Button(c, i18n.T(i18n.KeyComposerPickDir)).Height(btnH).Clicked() {
 							m.OnPickDirectory()
 						}
 					}
@@ -584,17 +583,7 @@ func buildSuggestItems(m Model, kind SuggestKind, query string) []suggestItem {
 func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted bool) []suggestItem {
 	switch kind {
 	case SuggestSlash:
-		filtered := FilterSlashCommands(m.SlashCatalog, query, 8)
-		out := make([]suggestItem, 0, len(filtered))
-		for _, cmd := range filtered {
-			out = append(out, suggestItem{
-				label:  cmd.Line,
-				sub:    cmd.Description,
-				insert: cmd.Line + " ",
-				kind:   SuggestSlash,
-			})
-		}
-		return out
+		return slashMenuItems(m, query)
 	case SuggestMention:
 		var candidates []session.ReferenceCandidate
 		var roomCandidates []suggestItem
@@ -987,6 +976,9 @@ func handleSlashSend(m Model, text string) bool {
 		return false
 	}
 	line := NormalizeCommandLine(text)
+	if isSkillOnlyInvocation(m, line) {
+		return false
+	}
 	if act := LocalSlashAction(line, StubSlashCommands()); act != "" {
 		switch act {
 		case "clear":
@@ -1051,32 +1043,7 @@ func FromAPIList(list []api.ListResultItem2) []SlashCommand {
 }
 
 func paintDraftAttachments(c *ui.Context, m Model, fg, muted ui.Color) {
-	d := m.State
-	ui.Row(c).Wrap().Gap(6).Padding(0, 14, 0, 14).Children(func() {
-		for i, a := range d.Attachments {
-			label := a.Name
-			if label == "" {
-				label = a.Path
-			}
-			if d.Sending || d.AttachmentPreparing(i) {
-				label += " …"
-			}
-			if a.PrepareError != "" {
-				ui.Text(c, label+": "+a.PrepareError).FontSize(11).TextColor(muted)
-				if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(11).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
-					m.OnRetryAttachment(i)
-				}
-			}
-			b := ui.Button(c, label+" ×").FontSize(12).TextColor(fg).Disabled(d.Sending)
-			if b.Clicked() {
-				d.RemoveAttachment(i)
-				break
-			}
-		}
-	})
-	if d.Error != "" {
-		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14, 0, 14)
-	}
+	paintAttachmentRail(c, m, fg, muted)
 }
 
 func filepathCleanForLabel(p string) string {

@@ -16,6 +16,7 @@ type suggestIdentity struct {
 }
 
 type SuggestionState struct {
+	launcher  *commandLauncher
 	dismissed *suggestIdentity
 	active    *suggestIdentity
 }
@@ -40,6 +41,15 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 		caret = ui.UTF16ByteOffset(draft, client.Selection().Caret())
 	}
 	kind, query, tok, open := ActiveSuggestAt(draft, caret)
+	if state := suggestionState(m, client); state != nil && state.launcher != nil {
+		launch := state.launcher
+		if launch.sessionID != m.Snapshot.SelectedID || launch.draft != draft || m.Editing {
+			state.launcher = nil
+		} else {
+			kind, query, tok, open = SuggestSlash, launch.query, launch.token, true
+		}
+	}
+
 	if m.Editing && kind == SuggestSlash {
 		open = false
 	}
@@ -76,7 +86,7 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 // input calls it directly so element shortcuts cannot bypass IME arbitration.
 func handleSuggestKey(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	if ev.Kind != ui.InputKeyDown || client != nil && client.marked != nil ||
-		m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
+		m.State != nil && (m.State.ModelCommand.Visible(m.Snapshot.SelectedID) || m.State.PermissionCommand.Visible(m.Snapshot.SelectedID)) {
 		return false
 	}
 	if ev.Mods != 0 && !(ev.Key == ui.KeyTab && ev.Mods == ui.Shift) {
@@ -125,6 +135,9 @@ func handleSuggestKey(client *DraftClient, m Model, ev ui.InputEvent) bool {
 }
 
 func dismissSuggestion(m Model, client *DraftClient) {
+	if state := suggestionState(m, client); state != nil {
+		state.launcher = nil
+	}
 	if state := suggestionState(m, client); state != nil && state.active != nil {
 		id := *state.active
 		state.dismissed = &id
