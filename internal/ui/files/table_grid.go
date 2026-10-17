@@ -236,7 +236,11 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 								selected = tab.tableSelectionIndex >= firstCol && tab.tableSelectionIndex < lastCol
 							}
 							button := ui.Button(c.Key(address), "").Absolute().Left(xs[col]).Top(ys[row]).Width(xs[lastCol]-xs[col]).Height(ys[lastRow]-ys[row]).Padding(3, 6).Clip().Selected(selected).Disabled(blocked).Label("Cell " + address).Tooltip(tooltip)
-							paintTableSourceStyle(button, cell.Style, selected)
+							if merged {
+								paintTableMergedSourceStyle(button, cell.Style, selected, page, merge, cells, row, col, lastRow, lastCol)
+							} else {
+								paintTableSourceStyle(button, cell.Style, selected)
+							}
 							switch cell.Style.Vertical {
 							case "top":
 								button.AlignItems(ui.Start)
