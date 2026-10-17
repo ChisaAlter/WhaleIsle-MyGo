@@ -52,6 +52,10 @@ type Message struct {
 	Model string
 	// Args is tool-call arguments / structured payload for the inspector 参数 tab.
 	Args string
+	// Web is the typed presentation metadata carried by a web tool/result.
+	// The persistence schema keeps tool metadata opaque; this projection is
+	// populated only for the protocol-defined web search/fetch shapes.
+	Web *WebResult
 	// EventTime is harness event time (unix ms) when present.
 	EventTime float64
 }

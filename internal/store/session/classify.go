@@ -94,6 +94,7 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 			}
 		} else if ev.Type == "tool/result" {
 			msg.Args = prettyJSONOrRaw(string(ev.Data))
+			msg.Web = parseToolWebResult(ev.Data)
 		}
 		return msg, true
 	}

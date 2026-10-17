@@ -90,6 +90,27 @@ func TestClassifyToolWorkflow(t *testing.T) {
 	}
 }
 
+func TestClassifyTypedWebSearchPresentation(t *testing.T) {
+	raw := json.RawMessage(`{
+		"type": "tool/result",
+		"seq": 12,
+		"data": {
+			"message": {"source": {"kind": "tool", "callId": "c1"}, "toolCallId": "c1", "content": [{"type": "text", "text": "search output"}]},
+			"meta": {"sources": [{"url": "https://example.com/a", "title": "Example", "snippet": "excerpt", "publishedAt": "2026-10-17"}], "answer": "summary", "truncated": false}
+		}
+	}`)
+	msg, ok := classifyPersistenceEvent(raw)
+	if !ok || msg.Web == nil || msg.Web.Kind != "search" {
+		t.Fatalf("%#v ok=%v", msg, ok)
+	}
+	if len(msg.Web.Sources) != 1 || msg.Web.Sources[0].URL != "https://example.com/a" || msg.Web.Sources[0].Snippet != "excerpt" {
+		t.Fatalf("web=%#v", msg.Web)
+	}
+	if msg.Web.Answer != "summary" || msg.Web.Truncated {
+		t.Fatalf("web=%#v", msg.Web)
+	}
+}
+
 func TestClassifyAssistantMessageID(t *testing.T) {
 	raw := json.RawMessage(`{
 		"type": "assistant/message",
