@@ -161,6 +161,26 @@ func (c *Client) DshbotDescribe(ctx context.Context) (json.RawMessage, error) {
 	return out, err
 }
 
+// DshbotDescribeBot calls dshbot/describe with an optional botId. The
+// control-plane uses botId to scope capability discovery; an empty id keeps
+// the full-catalog behavior of DshbotDescribe.
+func (c *Client) DshbotDescribeBot(ctx context.Context, botID string) (json.RawMessage, error) {
+	payload := map[string]any{}
+	if id := strings.TrimSpace(botID); id != "" {
+		payload["botId"] = id
+	}
+	var out json.RawMessage
+	err := c.Call(ctx, "dshbot", "describe", payload, &out)
+	return out, err
+}
+
+// DshbotCommand sends a raw dshbot control-plane command. The endpoint set
+// belongs to the vendored dshbot control-plane; callers pass the exact
+// payload defined by that source so unknown fields are not silently dropped.
+func (c *Client) DshbotCommand(ctx context.Context, endpoint string, payload any, out any) error {
+	return c.Call(ctx, "dshbot", endpoint, payload, out)
+}
+
 // DshbotCatalog is a read alias — catalog/items is a write; use describe.
 func (c *Client) DshbotCatalog(ctx context.Context) (json.RawMessage, error) {
 	return c.DshbotDescribe(ctx)
@@ -205,6 +225,23 @@ func (c *Client) IMChannelStatus(ctx context.Context, channel string) (json.RawM
 	ch := strings.Trim(strings.TrimSpace(channel), "/")
 	var out json.RawMessage
 	err := c.Call(ctx, ch, "connection.status", map[string]any{}, &out)
+	return out, err
+}
+
+// IMBotReconnect calls the dsh-im Cordis bot.reconnect endpoint. The
+// vendored contract permits sendTest=true for a fixed connection-test message;
+// it is deliberately separate from arbitrary IM draft sending.
+func (c *Client) IMBotReconnect(ctx context.Context, channel, botID string, sendTest bool) (json.RawMessage, error) {
+	channel = strings.Trim(strings.TrimSpace(channel), "/")
+	botID = strings.TrimSpace(botID)
+	if channel == "" || botID == "" {
+		return nil, fmt.Errorf("pluginrpc: bot.reconnect missing channel/botId")
+	}
+	var out json.RawMessage
+	err := c.Call(ctx, channel, "bot.reconnect", map[string]any{
+		"botId":    botID,
+		"sendTest": sendTest,
+	}, &out)
 	return out, err
 }
 
