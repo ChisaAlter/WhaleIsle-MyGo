@@ -77,8 +77,8 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	}
 	var profileErr error
 	withPool(func() {
-		if o.IsolatedPreview {
-			if !platform.BlankPreviewOptions(o) {
+		if o.IsolatedPreview || o.TransientProfile {
+			if o.IsolatedPreview && !platform.BlankPreviewOptions(o) {
 				profileErr = errors.New("mygo: only an isolated blank encoder is supported")
 				return
 			}
@@ -247,7 +247,7 @@ func (w *window) createWebView(content NSRect) {
 		send(cfg, "setWebsiteDataStore:", uintptr(w.blankStore))
 	}
 	prefs := send(cfg, "preferences")
-	if !o.BrowserProfile && !o.IsolatedPreview {
+	if !o.BrowserProfile && !o.IsolatedPreview && !o.TransientProfile {
 		send(prefs, "setValue:forKey:", uintptr(nsBool(o.DevTools)), uintptr(nsString("developerExtrasEnabled")))
 		send(prefs, "setValue:forKey:", uintptr(nsBool(true)), uintptr(nsString("allowFileAccessFromFileURLs")))
 	}
@@ -258,7 +258,7 @@ func (w *window) createWebView(content NSRect) {
 	// Every window gets its own content controller so messages, scripts and
 	// the bridge configuration never leak between windows.
 	w.ucc = alloc("WKUserContentController")
-	if !o.BrowserProfile && !o.IsolatedPreview {
+	if !o.BrowserProfile && !o.IsolatedPreview && !o.TransientProfile {
 		send(w.ucc, "addScriptMessageHandler:name:", uintptr(w.delegate), uintptr(nsString("mygo")))
 	}
 	for _, s := range o.UserScripts {

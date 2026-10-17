@@ -1,12 +1,14 @@
 package webview
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/pluginslots"
@@ -15,6 +17,10 @@ import (
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
+	DisplayURL          string
+	TransientProfile    bool
+	PreloadScript       string
+	AllowNavigation     func(string) bool
 	ShortcutPreferences *shortcutprefs.Store
 	// BrowserProfile selects the persistent Browser-only login/storage area.
 	// It cannot be combined with an authenticated Host session or local preview.
@@ -56,6 +62,9 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	transient         bool
+	displayURL        string
+	allowNavigation   func(string) bool
 	viewport          *mygo.Rectangle
 	localPDFViewerURL string
 	localPDFURL       string
@@ -96,8 +105,14 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 		opts.Untrusted = true
 	}
+	if opts.TransientProfile && (opts.BrowserProfile || localPreview || opts.SessionOrigin != "" || opts.SessionCookie != "") {
+		return nil, errors.New("private account view cannot share another profile")
+	}
+	if opts.TransientProfile {
+		opts.Untrusted = true
+	}
 	created := false
-	if localPreview {
+	if localPreview || opts.TransientProfile {
 		// The lease is released exactly once, even if creation fails before a
 		// Host exists or native destruction follows a load/process failure.
 		callback := opts.OnClosed
@@ -195,9 +210,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
-	if localPreview || opts.BrowserProfile || gateway != nil {
+	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
 		initialURL = ""
 	}
@@ -212,8 +227,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 		Width:           800,
 		Height:          600,
 		Page: mygo.PageOptions{
+			TransientProfile:  opts.TransientProfile,
 			BrowserProfile:    opts.BrowserProfile,
-			PreloadScript:     gateway.ShortcutProviderScript(),
+			PreloadScript:     opts.PreloadScript + gateway.ShortcutProviderScript(),
 			BrowserPartition:  opts.BrowserPartition,
 			LocalPDFViewerURL: opts.LocalPDFViewerURL,
 			LocalPDFURL:       opts.LocalPDFURL,
@@ -244,7 +260,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	pg := child.Page()
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
-		if (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
+		if (opts.AllowNavigation != nil && !opts.AllowNavigation(e.URL)) || (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
 			e.PreventDefault()
 			h.setError("Navigation outside this view is blocked")
 			return
@@ -273,6 +289,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 					h.setError("PDF preview failed; use system open")
 				}
 				_ = h.Close()
+			} else if opts.TransientProfile {
+				h.setError("Private account page failed to load")
+				_ = h.Close()
 			} else if opts.BrowserProfile {
 				h.setError(err.Error())
 				if !pg.BrowserToolsAvailable() {
@@ -290,13 +309,16 @@ func NewHost(opts HostOptions) (*Host, error) {
 	pg.OnRenderProcessGone(func(reason string) {
 		gateway.DisconnectClientModules()
 		h.setError("Page process exited: " + reason)
-		if localPreview {
+		if localPreview || opts.TransientProfile {
 			_ = h.Close()
 		}
 	})
 	pg.OnPageTitleUpdated(func(e *mygo.TitleEvent) { h.mu.Lock(); h.title = e.Title; h.mu.Unlock(); h.notify() })
 	if opts.Untrusted {
 		pg.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
+			if opts.TransientProfile {
+				return nil
+			}
 			// Keep popups inside the same isolated page; never create a privileged child.
 			if err := h.Navigate(req.URL); err != nil {
 				h.setError(err.Error())
@@ -304,23 +326,28 @@ func NewHost(opts HostOptions) (*Host, error) {
 			return nil
 		})
 	}
+	if opts.TransientProfile {
+		pg.SetPermissionHandler(func(mygo.PermissionRequest) bool { return false })
+		pg.OnWillDownload(func(e *mygo.DownloadEvent) { e.PreventDefault() })
+		h.url = opts.DisplayURL
+	}
 	h.offMove = opts.Parent.OnMove(h.SyncBounds)
 	h.offResize = opts.Parent.OnResize(func() {
 		h.SyncBounds()
 	})
 	child.OnClose(func(e *mygo.CloseEvent) {
 		e.PreventDefault()
-		if gateway != nil || localPreview {
+		if gateway != nil || localPreview || opts.TransientProfile {
 			_ = h.Close()
 		} else {
 			h.SetVisible(false)
 		}
 	})
-	if localPreview || gateway != nil {
+	if localPreview || gateway != nil || opts.TransientProfile {
 		child.OnClosed(func() { _ = h.Close() })
 	}
 	h.SyncBounds()
-	if localPreview || opts.BrowserProfile || gateway != nil {
+	if localPreview || opts.BrowserProfile || gateway != nil || opts.TransientProfile {
 		if err := pg.LoadURL(pageURL); err != nil {
 			_ = h.Close()
 			return nil, err
@@ -342,6 +369,9 @@ func (h *Host) Navigate(raw string) error {
 		return errors.New("webview: nil host")
 	}
 	raw = strings.TrimSpace(raw)
+	if h.allowNavigation != nil && !h.allowNavigation(raw) {
+		return errors.New("Account navigation outside this session is blocked")
+	}
 	if h.localPDFViewerURL != "" && strings.SplitN(raw, "#", 2)[0] != h.localPDFViewerURL {
 		return errors.New("PDF reader navigation outside this document is blocked")
 	}
@@ -641,6 +671,9 @@ func (h *Host) MatchesSession(origin, cookie string) bool {
 	if h == nil {
 		return false
 	}
+	if h.transient {
+		return false
+	}
 	if h.gateway == nil {
 		return origin == ""
 	}
@@ -648,6 +681,9 @@ func (h *Host) MatchesSession(origin, cookie string) bool {
 }
 func (h *Host) HasSession() bool { return h != nil && h.gateway != nil }
 func (h *Host) logicalURL(raw string) string {
+	if h.displayURL != "" {
+		return h.displayURL
+	}
 	if h.gateway != nil {
 		return h.gateway.LogicalURL(raw)
 	}
@@ -661,4 +697,20 @@ func IsHostURL(raw, origin string) bool {
 		return false
 	}
 	return origin != "" && urlOrigin(raw) == strings.TrimRight(origin, "/")
+}
+
+// SetAccountLocale updates only the private account bridge, never general pages.
+func (h *Host) SetAccountLocale(locale string) {
+	if h == nil || !h.transient {
+		return
+	}
+	value := "en_US"
+	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+		value = "zh_CN"
+	}
+	h.pageAction(func(p *mygo.Page) {
+		ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+		defer cancel()
+		_, _ = p.EvalContext(ctx, "window.dispatchEvent(new CustomEvent('whale-platform-locale',{detail:'"+value+"'}))")
+	})
 }

@@ -137,7 +137,7 @@ func (w *window) createWebView() {
 	if w.closed {
 		return
 	}
-	if !w.opts.IsolatedPreview && !w.opts.BrowserProfile && w.b.envErr != nil {
+	if !w.opts.IsolatedPreview && !w.opts.TransientProfile && !w.opts.BrowserProfile && w.b.envErr != nil {
 		w.webViewFailed(w.b.envErr)
 		return
 	}
@@ -241,7 +241,7 @@ func (w *window) setUp(controller uintptr) {
 		comCall(w.webview, wvGetDocumentTitle, uintptr(unsafe.Pointer(&p)))
 		w.h.TitleChanged(takeWstr(p))
 	})
-	if !o.IsolatedPreview {
+	if !o.IsolatedPreview && !o.TransientProfile {
 		add(wvAddWebMessageReceived, func(_, args uintptr) {
 			var p uintptr
 			if failed(comCall(args, msgTryGetWebMessageAsString, uintptr(unsafe.Pointer(&p)))) {
@@ -429,7 +429,7 @@ func (w *window) downloadStarting(_, args uintptr) {
 // permissionRequested decides camera, microphone, location and notification
 // requests; WebView2 asks the user about the others.
 func (w *window) permissionRequested(_, args uintptr) {
-	if w.opts.IsolatedPreview {
+	if w.opts.IsolatedPreview || w.opts.TransientProfile {
 		w.previewMust(comCall(args, permPutState, 2))
 		return
 	}

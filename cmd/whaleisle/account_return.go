@@ -13,6 +13,7 @@ import (
 )
 
 type accountReturnState struct {
+	platform           *accountPlatformLease
 	err                string
 	external           bool
 	leftWindow         bool
@@ -37,7 +38,13 @@ func (s *mainState) refreshReturnedAccount() {
 }
 
 func (s *mainState) openAccountTopUp(url string) {
-	s.openAccountLink(url, true, desktopwebview.OpenExternal)
+	s.mu.Lock()
+	source := "usage"
+	if s.settingsOpen {
+		source = "settings"
+	}
+	s.mu.Unlock()
+	s.openAccountPlatform("top-up", source)
 }
 func (s *mainState) openAccountAuthorization(url string) {
 	s.openAccountLink(url, false, desktopwebview.OpenExternal)
@@ -127,30 +134,11 @@ func (s *mainState) returnFromAccountExternal() {
 }
 
 func (s *mainState) openAccountUsage(url, source string) {
-	if strings.TrimSpace(url) == "" {
-		return
-	}
-	s.mu.Lock()
-	s.settingsOpen, s.usageOpen = false, false
-	s.webviewOpen = true
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
-	s.accountReturn.embedded = ""
-	win := s.win
-	s.mu.Unlock()
-	s.openWebViewURL(url)
-	s.mu.Lock()
-	if s.webviewHost != nil && s.webviewHostErr == "" {
-		s.accountReturn.embedded = source
-		s.accountReturn.embeddedGeneration = s.bootStatus.Generation
-	}
-	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
+	s.openAccountPlatform("usage", source)
 }
 
 func (s *mainState) returnFromAccountPage() {
+	s.closeAccountPlatform()
 	s.mu.Lock()
 	source := s.accountReturn.embedded
 	if s.accountReturn.embeddedGeneration != s.bootStatus.Generation {
@@ -170,6 +158,7 @@ func (s *mainState) returnFromAccountPage() {
 }
 
 func (s *mainState) clearAccountReturn() {
+	s.closeAccountPlatform()
 	s.dismissAccountQuotaPage()
 	s.mu.Lock()
 	s.accountReturn = accountReturnState{}

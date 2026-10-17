@@ -941,6 +941,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 }
 
 func (s *mainState) closeWebViewHost() {
+	s.closeAccountPlatform()
 	s.mu.Lock()
 	host := s.webviewHost
 	if host != nil {
@@ -1096,6 +1097,7 @@ func (s *mainState) showBrowserPreview(rawURL string) {
 }
 
 func (s *mainState) openWebViewURL(browse string) {
+	s.closeAccountPlatform()
 	s.mu.Lock()
 	s.accountReturn.embedded = ""
 	win := s.win

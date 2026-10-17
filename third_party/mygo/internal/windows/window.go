@@ -166,7 +166,7 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		w.caption.layout()
 	}
 	if !o.Surface {
-		if o.IsolatedPreview {
+		if o.IsolatedPreview || o.TransientProfile {
 			w.startPreviewEnvironment()
 		} else if o.BrowserProfile {
 			b.whenEnvironment(w.startBrowserEnvironment)

@@ -377,6 +377,17 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 		}
 		opts.Page.IsolatedPreview = true
 	}
+	if opts.Page.TransientProfile {
+		if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+			panic("mygo: transient profiles require Windows or macOS")
+		}
+		if opts.Page.BrowserProfile || opts.Page.IsolatedPreview || opts.Content != nil || native != 0 {
+			panic("mygo: transient profile requires an ordinary private page")
+		}
+		opts.Page.DisableBindings = true
+		opts.Page.WindowControlsOnly = false
+		opts.Page.DevTools = DevToolsDisabled
+	}
 	if opts.Page.BrowserPartition != "" && !opts.Page.BrowserProfile {
 		panic("mygo: BrowserPartition requires BrowserProfile")
 	}
@@ -448,6 +459,7 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
+		TransientProfile:  po.TransientProfile,
 		BrowserProfile:    po.BrowserProfile,
 		BrowserPartition:  po.BrowserPartition,
 		IsolatedPreview:   po.IsolatedPreview,

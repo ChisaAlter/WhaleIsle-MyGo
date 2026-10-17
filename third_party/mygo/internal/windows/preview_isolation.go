@@ -45,7 +45,7 @@ type previewEnvironment struct {
 }
 
 func (w *window) environment() uintptr {
-	if w.opts.IsolatedPreview {
+	if w.opts.IsolatedPreview || w.opts.TransientProfile {
 		if w.isolated == nil {
 			return 0
 		}

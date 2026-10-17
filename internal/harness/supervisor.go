@@ -105,6 +105,7 @@ type Supervisor struct {
 
 	protectionMu     sync.Mutex
 	taskControlToken string
+	platformToken    string
 	mu               sync.Mutex
 	status           Status
 	cmd              *exec.Cmd
@@ -265,6 +266,7 @@ func (s *Supervisor) nextGenLocked() int {
 	}
 	s.gen++
 	s.taskControlToken = ""
+	s.platformToken = ""
 	return s.gen
 }
 
@@ -332,6 +334,11 @@ func (s *Supervisor) run(gen int) {
 		return
 	}
 	token := hex.EncodeToString(secret[:])
+	if _, err := rand.Read(secret[:]); err != nil {
+		s.set(gen, Status{State: Failed, Err: fmt.Errorf("platform token initialization failed")})
+		return
+	}
+	platformToken := hex.EncodeToString(secret[:])
 	s.mu.Lock()
 	if s.gen != gen {
 		s.mu.Unlock()
@@ -340,6 +347,7 @@ func (s *Supervisor) run(gen int) {
 	s.recoveryQueued = false
 	s.restartTimer = nil
 	s.taskControlToken = token
+	s.platformToken = platformToken
 	s.startLogs = nil
 	launch := s.opts.Launch
 	s.attemptRecovery = launch.SkipUserPlugins
@@ -347,7 +355,7 @@ func (s *Supervisor) run(gen int) {
 	if install := s.opts.Install; install != nil {
 		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
 	}
-	launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_TASK_CONTROL_TOKEN="+token)
+	launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_TASK_CONTROL_TOKEN="+token, "DSHD_PLATFORM_TOKEN="+platformToken)
 	if s.opts.Prepare.Dshbot {
 		launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_DSHBOT_ENABLED=1")
 	}

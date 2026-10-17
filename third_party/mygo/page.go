@@ -24,6 +24,9 @@ func (p *Page) Window() *Window { return p.w }
 
 // PageOptions configure the web page of a window.
 type PageOptions struct {
+	// TransientProfile uses a fresh private data store, destroyed after its window.
+	// It never shares ordinary-browser cookies. Native bindings and DevTools are disabled.
+	TransientProfile bool
 	// BrowserProfile opts into the app's persistent Browser-only native data
 	// store. Pages with the same BrowserPartition share it; different
 	// partitions and default-profile windows remain isolated. Existing cookies
