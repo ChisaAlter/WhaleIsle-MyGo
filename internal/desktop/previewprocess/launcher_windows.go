@@ -431,6 +431,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	}
 	var commandMu sync.Mutex
 	s.enableOpenUIUpdates(ready.OpenUIUpdate)
+	s.enableOpenUIAPI(ready.OpenUIAPI)
 	if !doc.capture {
 		s.surfaceHandle, s.surfacePID = uintptr(loaded.WindowHandle), process.ProcessId
 		if !validSurfaceWindow(s.surfaceHandle, s.surfacePID) {
@@ -459,6 +460,11 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = lifetime.Err(); err != nil {
 		return nil, err
 	}
+	startOpenUIAPIPump(lifetime, s, func(raw []byte) error {
+		commandMu.Lock()
+		defer commandMu.Unlock()
+		return sendOpenUIAPIResponse(inputWrite, nonce, raw)
+	})
 	startOpenUIUpdatePump(lifetime, s, func(raw []byte) error {
 		commandMu.Lock()
 		defer commandMu.Unlock()

@@ -38,6 +38,7 @@ func (s *Session) Events() <-chan json.RawMessage {
 func (s *Session) initOpenUIEvents(doc Document) {
 	if doc.OpenUI != nil {
 		s.openUIUpdates = newOpenUIUpdateQueue(*doc.OpenUI)
+		s.openUIAPI = newOpenUIAPIQueue(doc.OpenUI.InstanceID)
 		s.openUIEvents = &openUIEventQueue{values: make(chan json.RawMessage, maxOpenUIEvents), instanceID: doc.OpenUI.InstanceID}
 	}
 }

@@ -52,6 +52,7 @@ type Document struct {
 type Session struct {
 	openUIEvents  *openUIEventQueue
 	openUIUpdates *openUIUpdateQueue
+	openUIAPI     *openUIAPIQueue
 	pixels        *pixelSurface
 	done          chan struct{}
 	once          sync.Once
@@ -68,7 +69,13 @@ type Session struct {
 
 func (s *Session) Done() <-chan struct{} { return s.done }
 func (s *Session) Close() error {
-	s.once.Do(func() { s.closeOpenUIUpdates(); s.closeOpenUIEvents(); s.err = s.closeFn(); close(s.done) })
+	s.once.Do(func() {
+		s.closeOpenUIAPI()
+		s.closeOpenUIUpdates()
+		s.closeOpenUIEvents()
+		s.err = s.closeFn()
+		close(s.done)
+	})
 	return s.err
 }
 
@@ -114,6 +121,7 @@ func validateDocument(d Document) error {
 
 type packet struct {
 	OpenUI       bool              `json:"openUI,omitempty"`
+	OpenUIAPI    bool              `json:"openUIAPI,omitempty"`
 	OpenUIUpdate bool              `json:"openUIUpdate,omitempty"`
 	Input        *interactiveInput `json:"input,omitempty"`
 	Version      int               `json:"version"`

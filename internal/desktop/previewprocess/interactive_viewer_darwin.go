@@ -46,13 +46,18 @@ func startMacPixelSeat(ctx context.Context, s *Session, input io.Writer, output 
 		suspended := false
 		for {
 			var command packet
-			var render []byte
+			var render, apiResponse []byte
 			select {
 			case <-ctx.Done():
 				return
 			case <-s.Done():
 				return
 			case command = <-commands:
+			case apiResponse = <-s.openUIAPIResponses():
+				if !s.receivedOpenUIAPIResponse() {
+					return
+				}
+				command.Kind = "api-response"
 			case now := <-tick.C:
 				render = s.takeOpenUIUpdate(now)
 				command.Kind = "poll"
@@ -73,7 +78,9 @@ func startMacPixelSeat(ctx context.Context, s *Session, input io.Writer, output 
 			// Exactly one request/frame pair is in flight, including theme/release.
 			watchdog := time.AfterFunc(5*time.Second, func() { _ = s.Close() })
 			var writeErr error
-			if len(render) > 0 {
+			if len(apiResponse) > 0 {
+				writeErr = sendOpenUIAPIResponse(input, nonce, apiResponse)
+			} else if len(render) > 0 {
 				writeErr = sendOpenUIUpdate(input, nonce, render)
 			} else {
 				writeErr = writePacket(input, command)

@@ -23,16 +23,19 @@ type Render struct {
 	State      json.RawMessage `json:"state"`
 }
 type Event struct {
-	Channel    string          `json:"channel"`
-	Version    int             `json:"version"`
-	InstanceID string          `json:"instanceId"`
-	Type       string          `json:"type"`
-	State      json.RawMessage `json:"state,omitempty"`
-	Message    string          `json:"message,omitempty"`
-	FormState  json.RawMessage `json:"formState,omitempty"`
-	Context    json.RawMessage `json:"context,omitempty"`
-	Program    string          `json:"program,omitempty"`
-	Code       string          `json:"code,omitempty"`
+	RequestID  string            `json:"requestId,omitempty"`
+	Path       string            `json:"path,omitempty"`
+	Query      map[string]string `json:"query,omitempty"`
+	Channel    string            `json:"channel"`
+	Version    int               `json:"version"`
+	InstanceID string            `json:"instanceId"`
+	Type       string            `json:"type"`
+	State      json.RawMessage   `json:"state,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	FormState  json.RawMessage   `json:"formState,omitempty"`
+	Context    json.RawMessage   `json:"context,omitempty"`
+	Program    string            `json:"program,omitempty"`
+	Code       string            `json:"code,omitempty"`
 }
 
 func Identity(binding, session, message string, block int) string {
@@ -62,6 +65,10 @@ func ValidateEvent(raw json.RawMessage, instance string) (Event, error) {
 		return e, errors.New("invalid OpenUI event envelope")
 	}
 	switch e.Type {
+	case "api-request":
+		if err := validateAPIRequest(e); err != nil {
+			return e, err
+		}
 	case "state":
 		if err := ValidateState(e.State); err != nil {
 			return e, err

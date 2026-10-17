@@ -252,6 +252,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	b.loading = false
 	b.mu.Unlock()
 	invalidate()
+	resources := openui.NewResourceAPI()
 	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
 	for {
@@ -311,6 +312,31 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				return
 			}
 			switch event.Type {
+			case "api-request":
+				go func(request openui.Event) {
+					if !valid() || ctx.Err() != nil {
+						return
+					}
+					response := resources.Handle(ctx, request)
+					if !valid() || ctx.Err() != nil {
+						return
+					}
+					replier, ok := any(handle).(interface {
+						ReplyOpenUIAPI(openui.APIResponse) error
+					})
+					var replyErr error
+					if !ok {
+						replyErr = fmt.Errorf("OpenUI resource reply helper is unavailable")
+					} else {
+						replyErr = replier.ReplyOpenUIAPI(response)
+					}
+					if replyErr != nil && ctx.Err() == nil {
+						b.mu.Lock()
+						b.err = replyErr.Error()
+						b.mu.Unlock()
+						invalidate()
+					}
+				}(event)
 			case "state":
 				if e = openui.SaveState(root, id, event.State); e != nil {
 					b.mu.Lock()

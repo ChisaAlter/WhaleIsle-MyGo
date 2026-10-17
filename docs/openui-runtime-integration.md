@@ -61,9 +61,25 @@ not represent a new claim about upstream redistribution rights.
   not an assertion of immediate unmount cleanup. Queued state not delivered
   before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
-  filesystem, external navigation, clipboard or nested frames. Original
-  external wiki/image-search/routing adapters return explicit unavailable errors.
-  Map/network-dependent components therefore remain unsupported.
+  filesystem, external navigation, clipboard or nested frames. Three typed
+  resource requests run in the Go parent with a separate credential-free HTTP
+  client: Wikipedia summary/media, Wikipedia/Commons image search, and OSRM
+  driving geometry. These mirror Electron shell adapters, not Host API routes.
+  Only title/q/coords query values are accepted; addresses and request headers
+  are parent-owned. Redirects are not followed and no Host cookie/token is used.
+  Requests inherit the instance cancellation context; owner is rechecked before
+  a request and before its reply. Replies must match the pending instance/request
+  ID; duplicate or unknown replies cannot enter another viewer.
+- Resource replies use the existing 64KiB bridge envelope. Oversized results
+  explicitly return an error; no fabricated coordinates or placeholder photos.
+  The public adapter preserves the original 8s Wikipedia/Commons and 10s OSRM
+  request timeouts. Upstream JSON reads reuse the existing 12MiB resource byte
+  ceiling. Original shell response caching is not yet mirrored.
+- Returned external image URLs remain data in the response: the viewer's
+  img-src data: policy still prevents loading those remote pixels. No image
+  downloader or generic URL proxy is added. Maps still need MapLibre workers,
+  OpenFreeMap glyphs/vector tiles and Esri raster fallback; those remain blocked
+  by the unchanged iframe worker/connect policy. No map data is simulated.
 - Validated assistant actions appear in native UI with their form/context text.
   Send interaction result submits through the captured ComposerTarget in queue
   mode. It never selects a session from renderer-supplied fields. An explicit
@@ -96,10 +112,17 @@ A focused lifecycle fixture additionally checks that active contexts have no
 deadline and explicit cancellation still terminates them; the existing owner
 ticket fixture covers owner revocation.
 
-Still partial: complete original network/map/clipboard/link capabilities and
+Still partial: external image pixels, map workers/tiles, clipboard/link capabilities and
 gesture-attested immediate action sending. The default distribution lacks a
 bundled runtime. These limitations must not be reported as full CH12 completion.
 
 Count regression fixtures save and read the 257th state while retaining the first,
 and keep five independent cancellable contexts alive. Source removes the global
 renderer semaphore. This is not a five-native-window physical acceptance test.
+
+The typed resource adapter fixture uses an in-memory HTTP RoundTripper only.
+It checks all three real response schemas, fixed destinations, no authentication
+headers, malformed route rejection, cancellation and pending-instance replies.
+No public service, real account query or location is contacted by these checks.
+Native API-response command compilation is tracked separately from the earlier
+successful streaming-stage SDK runs.
