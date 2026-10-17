@@ -193,6 +193,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	}
 	heading := ui.Text(c.Key("usage-calendar"), usageText("用量日历（UTC）", "Usage calendar (UTC)")).Bold().TextColor(fg)
 	detail := ui.Local(heading, "detail-date", func() string { return "" })
+	focusDay := ui.Local(heading, "focus-date", func() string { return "" })
 	buttons := map[string]ui.Element{}
 	focusTarget := ""
 	ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -200,7 +201,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	start, _ := time.Parse("2006-01-02", days[0].Date)
 	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
-	ui.Scroll(c).Height(220).Children(func() {
+	ui.Scroll(c).Height(220).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
 		ui.Column(c).Gap(5).Children(func() {
 			ui.Text(c, "Mon       Tue       Wed       Thu       Fri       Sat       Sun").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			month := ""
@@ -236,6 +237,13 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 						ui.Column(c).Width(48).Children(func() {
 							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(48).Background(color).Tooltip(dayTip(day, providers, settings))
 							buttons[date] = button
+							if button.Focused() {
+								if *focusDay == "" && !button.Clicked() {
+									focusTarget = days[len(days)-1].Date
+								} else {
+									*focusDay = date
+								}
+							}
 							if button.Focused() || button.Hovered() {
 								*detail = date
 							}
@@ -249,10 +257,8 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 							}
 							if button.Clicked() {
 								*detail = date
-								m.Store.SelectStatsDay(date, false)
-							}
-							if st.Range.Active() && ui.Button(c, "+").Width(48).Tooltip(usageText("扩展选区", "Extend selection")).Clicked() {
-								m.Store.SelectStatsDay(date, true)
+								*focusDay = date
+								m.Store.SelectStatsDay(date, button.ClickModifiers()&ui.Shift != 0)
 							}
 						})
 					}
@@ -263,6 +269,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	if button, ok := buttons[focusTarget]; ok {
 		button.Focus()
 		*detail = focusTarget
+		*focusDay = focusTarget
 	}
 	if day, ok := lookup[*detail]; ok {
 		ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)

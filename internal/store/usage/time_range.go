@@ -151,8 +151,7 @@ func (s *Store) SelectStatsDay(day string, extend bool) {
 		end = v.Range.End
 		if day < start {
 			start = day
-		}
-		if day > end {
+		} else {
 			end = day
 		}
 	}
