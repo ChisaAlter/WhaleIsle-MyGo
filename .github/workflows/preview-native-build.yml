@@ -1,0 +1,92 @@
+name: Preview native build
+
+# Compile evidence for P01 only. No tests, signing, launch, release or deployment.
+on:
+  push:
+    branches: [dot/mygo-reconstruction-20261014]
+    paths:
+      - .github/workflows/preview-native-build.yml
+      - native/macos-preview/**
+      - scripts/build-preview-macos.sh
+      - cmd/whaleisle-preview/**
+      - internal/desktop/previewprocess/**
+      - internal/desktop/htmlpreview/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-native-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS SDK helper and desktop compile
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      # Same official action versions as third_party/mygo CI, pinned to commits.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compile unsigned preview helper with the macOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          for arch in amd64 arm64; do
+            output="$RUNNER_TEMP/preview-$arch"
+            sh scripts/build-preview-macos.sh "$arch" "$output"
+            binary="$output/WhaleIsle Preview.app/Contents/MacOS/whaleisle-preview"
+            test -s "$binary"
+            file "$binary"
+            plutil -lint "$output/WhaleIsle Preview.app/Contents/Info.plist"
+          done
+          echo 'macOS SDK compile/link passed for amd64 and arm64. No helper was signed or launched; runtime acceptance remains open.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compile macOS desktop
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+          GOOS: darwin
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          go version
+          for arch in amd64 arm64; do
+            GOARCH="$arch" go build -mod=readonly -trimpath -o "$RUNNER_TEMP/whaleisle-$arch" ./cmd/whaleisle
+          done
+          echo 'macOS desktop Go compile passed for amd64 and arm64. No application was launched or packaged.' >> "$GITHUB_STEP_SUMMARY"
+
+  windows:
+    name: Windows desktop and preview compile
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compile Windows desktop, launcher and preview
+        shell: pwsh
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: amd64
+          GOTOOLCHAIN: local
+        run: |
+          $ErrorActionPreference = 'Stop'
+          go version
+          if ($LASTEXITCODE -ne 0) { throw 'Go toolchain unavailable' }
+          $output = Join-Path $env:RUNNER_TEMP 'whaleisle-build'
+          New-Item -ItemType Directory -Path $output | Out-Null
+          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-launcher ./cmd/whaleisle-preview
+          if ($LASTEXITCODE -ne 0) { throw 'Windows compile failed' }
+          'Windows amd64 desktop, launcher and preview Go compile passed. No executable was launched or packaged.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
