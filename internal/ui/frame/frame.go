@@ -850,6 +850,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnPickSpeech:          m.OnPickComposerSpeech,
 						Voice:                 m.ComposerVoice,
 						OnStartVoice:          m.OnStartComposerVoice,
+						OnVoiceSettings:       m.OnOpenSettings,
 						OnStopVoice:           m.OnStopComposerVoice,
 						OnCancelVoice:         m.OnCancelComposerVoice,
 						OnInsertVoice:         m.OnInsertComposerVoice,

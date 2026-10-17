@@ -101,6 +101,7 @@ type Model struct {
 	OnPickSpeech                                            func()
 	Voice                                                   voiceinput.Status
 	OnStartVoice, OnStopVoice, OnCancelVoice, OnInsertVoice func()
+	OnVoiceSettings                                         func()
 	// OnCycleSpeech advances speech/configure provider from catalog.
 	OnCycleSpeech func()
 	// OnPickHeroWorkspace switches the session workspace (HeroShell chip); not @ mention.
@@ -411,13 +412,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							m.OnPickDirectory()
 						}
 					}
-					if m.OnStartVoice != nil {
+					if m.OnStartVoice != nil || m.OnVoiceSettings != nil {
 						locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
 						if !m.Voice.Busy() && m.Voice.Pending == "" {
-							if ui.Button(c, "录音 / Record").Height(btnH).Disabled(locked).
-								Tooltip("点击使用系统默认麦克风；停止或到时交当前语音提供方转写，只填草稿，不发送消息。" + m.Snapshot.SpeechSelection).Clicked() {
-								m.OnStartVoice()
-							}
+							voiceStartButton(c, m, locked, btnH)
 						}
 						if m.Voice.Phase == "recording" && m.OnStopVoice != nil {
 							if ui.Button(c, "停止并转写 / Stop").Height(btnH).Clicked() {

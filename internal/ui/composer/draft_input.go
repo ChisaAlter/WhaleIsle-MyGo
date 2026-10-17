@@ -151,6 +151,9 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				m.State.ModelCommand.Open = false
 				return true
 			}
+			if cancelVoiceOnEscape(client, m, ev) {
+				return true
+			}
 			if m.Editing && client.marked == nil && m.OnCancelEdit != nil {
 				m.OnCancelEdit()
 				return true
