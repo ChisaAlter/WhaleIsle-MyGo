@@ -44,6 +44,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
@@ -299,14 +300,14 @@ type mainState struct {
 	terminalVisible     bool
 	terminalSavedBottom float32
 
-	dshMu             sync.Mutex
-	dshCancel         context.CancelFunc
-	dshEndpoint       string
-	dshClient         *dsh.Client
-	dshMux            *dsh.Mux
-	dshMuxReady       bool
-	dshMuxLost        bool
-	filesWatchCancel  context.CancelFunc
+	dshMu            sync.Mutex
+	dshCancel        context.CancelFunc
+	dshEndpoint      string
+	dshClient        *dsh.Client
+	dshMux           *dsh.Mux
+	dshMuxReady      bool
+	dshMuxLost       bool
+	filesWatchCancel context.CancelFunc
 
 	mobileWebMu       sync.Mutex
 	mobileWebServer   *http.Server
@@ -2545,6 +2546,192 @@ func main() {
 	}
 }
 
+// desktopControlOps exposes only the desktop-control operations that have a
+// direct native Go implementation. Unsupported pet/catalog operations remain
+// explicit 501 responses from installctrl instead of pretending the webview
+// contract is available.
+func desktopControlOps() installctrl.DesktopOps {
+	return installctrl.DesktopOps{
+		State: func(context.Context) (any, error) {
+			state.mu.Lock()
+			cfgStore := state.cfgStore
+			status := state.bootStatus
+			market := state.market
+			state.mu.Unlock()
+			var cfg config.Config
+			if cfgStore != nil {
+				cfg = cfgStore.Get()
+			}
+			var plugins []string
+			if market != nil {
+				for _, row := range market.Snapshot().Rows {
+					if strings.TrimSpace(row.Label) != "" {
+						plugins = append(plugins, row.Label)
+					}
+				}
+			}
+			public := map[string]any{
+				"workspace":                 cfg.Workspace,
+				"host":                      cfg.Host,
+				"port":                      cfg.Port,
+				"theme":                     cfg.Theme,
+				"locale":                    cfg.Locale,
+				"closeToTray":               cfg.CloseToTray,
+				"openAtLogin":               cfg.OpenAtLogin,
+				"dshbotEnabled":             cfg.DshbotEnabled,
+				"whaleAssistantEnabled":     cfg.WhaleAssistantEnabled,
+				"remoteWorkspaceEnabled":    cfg.RemoteWorkspaceEnabled,
+				"harnessAutoRestart":        cfg.HarnessAutoRestart,
+				"harnessRestartMaxAttempts": cfg.HarnessRestartMaxAttempts,
+				"harnessRestartBaseDelayMs": cfg.HarnessRestartBaseDelayMs,
+			}
+			return map[string]any{
+				"ok":              true,
+				"version":         buildVersion,
+				"kernel":          status.State.String(),
+				"plugins":         plugins,
+				"disabledPlugins": append([]string(nil), cfg.DisabledPlugins...),
+				"config":          public,
+			}, nil
+		},
+		ListMarketplace: func(ctx context.Context, opt installctrl.MarketplaceOptions) (any, error) {
+			state.mu.Lock()
+			market := state.market
+			state.mu.Unlock()
+			if market == nil {
+				return map[string]any{"ok": true, "plugins": []any{}}, nil
+			}
+			if opt.Refresh {
+				market.Refresh(ctx)
+			}
+			query := strings.ToLower(strings.TrimSpace(opt.Query))
+			rows := market.Snapshot().Rows
+			plugins := make([]map[string]any, 0, len(rows))
+			for _, row := range rows {
+				if query != "" && !strings.Contains(strings.ToLower(row.Label+" "+row.Detail), query) {
+					continue
+				}
+				plugins = append(plugins, map[string]any{"id": row.Label, "name": row.Label, "summary": row.Detail})
+			}
+			return map[string]any{"ok": true, "plugins": plugins}, nil
+		},
+		ApplyConfig: func(_ context.Context, patch map[string]any) (any, error) {
+			state.mu.Lock()
+			store := state.cfgStore
+			sup := state.sup
+			state.mu.Unlock()
+			if store == nil {
+				return nil, errors.New("desktop config store unavailable")
+			}
+			for key, value := range patch {
+				switch key {
+				case "theme", "locale":
+					if _, ok := value.(string); !ok {
+						return nil, fmt.Errorf("%s must be a string", key)
+					}
+				case "closeToTray", "openAtLogin", "dshbotEnabled", "whaleAssistantEnabled", "remoteWorkspaceEnabled", "harnessAutoRestart":
+					if _, ok := value.(bool); !ok {
+						return nil, fmt.Errorf("%s must be a boolean", key)
+					}
+				case "harnessRestartMaxAttempts", "harnessRestartBaseDelayMs":
+					if _, ok := value.(float64); !ok {
+						return nil, fmt.Errorf("%s must be a number", key)
+					}
+				default:
+					return nil, fmt.Errorf("config field is not desktop-writable: %s", key)
+				}
+			}
+			restart := false
+			err := store.Update(func(c *config.Config) {
+				for key, value := range patch {
+					switch key {
+					case "theme":
+						if v, ok := value.(string); ok {
+							c.Theme = v
+						}
+					case "locale":
+						if v, ok := value.(string); ok {
+							c.Locale = v
+						}
+					case "closeToTray":
+						if v, ok := value.(bool); ok {
+							c.CloseToTray = v
+						}
+					case "openAtLogin":
+						if v, ok := value.(bool); ok {
+							c.OpenAtLogin = v
+						}
+					case "dshbotEnabled":
+						if v, ok := value.(bool); ok {
+							c.DshbotEnabled = v
+							restart = true
+						}
+					case "whaleAssistantEnabled":
+						if v, ok := value.(bool); ok {
+							c.WhaleAssistantEnabled = v
+							restart = true
+						}
+					case "remoteWorkspaceEnabled":
+						if v, ok := value.(bool); ok {
+							c.RemoteWorkspaceEnabled = v
+							restart = true
+						}
+					case "harnessAutoRestart":
+						if v, ok := value.(bool); ok {
+							c.HarnessAutoRestart = v
+						}
+					case "harnessRestartMaxAttempts":
+						if v, ok := value.(float64); ok {
+							c.HarnessRestartMaxAttempts = int(v)
+						}
+					case "harnessRestartBaseDelayMs":
+						if v, ok := value.(float64); ok {
+							c.HarnessRestartBaseDelayMs = int(v)
+						}
+					default:
+						return
+					}
+				}
+			})
+			if err != nil {
+				return nil, err
+			}
+			if restart && sup != nil {
+				sup.Restart()
+			}
+			return map[string]any{"ok": true, "restarting": restart}, nil
+		},
+		RemovePlugin: func(ctx context.Context, name string) (any, error) {
+			return callDesktopPlugin(ctx, "pluginManager/removeBundle", map[string]any{"name": strings.TrimSpace(name)})
+		},
+		DisablePlugins: func(ctx context.Context, names []string) (any, error) {
+			if len(names) == 0 {
+				return nil, errors.New("plugin name required")
+			}
+			out, err := callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": strings.TrimSpace(names[0]), "enabled": false})
+			return out, err
+		},
+		EnablePlugin: func(ctx context.Context, name string) (any, error) {
+			return callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": strings.TrimSpace(name), "enabled": true})
+		},
+	}
+}
+
+func callDesktopPlugin(ctx context.Context, method string, payload map[string]any) (any, error) {
+	state.dshMu.Lock()
+	client := state.dshClient
+	state.dshMu.Unlock()
+	if client == nil {
+		return nil, errors.New("harness client unavailable")
+	}
+	var out api.ChangeResult
+	if err := client.Call(ctx, method, payload, &out); err != nil {
+		return nil, err
+	}
+	ok := out.Error == nil
+	return map[string]any{"ok": ok, "changed": out.Changed, "target": out.Target, "enabled": out.Enabled}, nil
+}
+
 func startHarness(cfg config.Config) {
 	host := cfg.Host
 	if host == "" {
@@ -2556,6 +2743,7 @@ func startHarness(cfg config.Config) {
 	}
 	installSrv := harness.NewInstallServer(harness.InstallServerOptions{
 		NodeBin: cfg.NodeBin,
+		Desktop: desktopControlOps(),
 		OnRestart: func() {
 			state.mu.Lock()
 			s := state.sup
@@ -5262,15 +5450,15 @@ func mainView(c *ui.Context) {
 				},
 				AccountActive: accountActive,
 				Account: &settings.AccountAccess{
-					ClientReady:    usageSnap.ClientReady,
-					Loading:        usageSnap.Loading,
-					Err:            usageSnap.Err,
-					Status:         usageSnap.AccountStatus,
-					Email:          usageSnap.Email,
-					Name:           usageSnap.Name,
-					Plan:           usageSnap.Plan,
-					UsageURL:       usageSnap.UsageURL,
-					TopUpURL:       usageSnap.TopUpURL,
+					ClientReady:     usageSnap.ClientReady,
+					Loading:         usageSnap.Loading,
+					Err:             usageSnap.Err,
+					Status:          usageSnap.AccountStatus,
+					Email:           usageSnap.Email,
+					Name:            usageSnap.Name,
+					Plan:            usageSnap.Plan,
+					UsageURL:        usageSnap.UsageURL,
+					TopUpURL:        usageSnap.TopUpURL,
 					BalanceSummary:  usageSnap.BalanceSummary,
 					HasRunningTasks: usageSnap.HasRunningTasks,
 					AttemptPhase:    usageSnap.AttemptPhase,
@@ -5494,11 +5682,11 @@ func mainView(c *ui.Context) {
 				},
 				AboutActive: aboutActive,
 				About: &settings.AboutAccess{
-					AppName:    i18n.T(i18n.KeyAppName),
-					Version:    buildVersion,
-					Identifier: "ai.deepseek.harness.gui",
-					UserData:   paths.UserDataDir(),
-					VendorRoot: paths.VendorDir(),
+					AppName:          i18n.T(i18n.KeyAppName),
+					Version:          buildVersion,
+					Identifier:       "ai.deepseek.harness.gui",
+					UserData:         paths.UserDataDir(),
+					VendorRoot:       paths.VendorDir(),
 					AnalyticsEnabled: state.analyticsEnabled,
 					OnRevealUserData: func() {
 						_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
@@ -5579,8 +5767,8 @@ func mainView(c *ui.Context) {
 					AutoStartDesktop: &state.desktopDraft.autoStartDesktop,
 					ShowViewTabs:     &state.desktopDraft.showViewTabs,
 					AutoAllowTools:   &state.desktopDraft.autoAllowTools,
-					LastAction:     desktopAction,
-					Err:            desktopErr,
+					LastAction:       desktopAction,
+					Err:              desktopErr,
 					OnSave: func() {
 						state.mu.Lock()
 						showTabs := state.desktopDraft.showViewTabs
@@ -5908,9 +6096,9 @@ func mainView(c *ui.Context) {
 				},
 				SkillsActive: skillsActive,
 				Skills: &settings.SkillsAccess{
-					Skills:     skillRows,
-					SessionID:  sessSnap.SelectedID,
-					Err:        sessSnap.SkillsErr,
+					Skills:    skillRows,
+					SessionID: sessSnap.SelectedID,
+					Err:       sessSnap.SkillsErr,
 					LastAction: func() string {
 						if state.settingsSkillsLastAction != "" {
 							return state.settingsSkillsLastAction
