@@ -76,7 +76,10 @@ func (s *Server) handleDesktop(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) desktopEmpty() bool {
 	d := s.opts.Desktop
-	return d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
+	// The existing install callback is also the spec-based /desktop/plugin
+	// operation, so keep that route reachable when only legacy installation is
+	// wired. Other desktop operations still report their individual boundary.
+	return s.opts.Install == nil && d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
 		d.PetSettings == nil && d.ApplyPetSettings == nil && d.InstallCatalog == nil &&
 		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil
 }
