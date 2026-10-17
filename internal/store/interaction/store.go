@@ -25,6 +25,10 @@ type Pending struct {
 	AgentID   string
 	Title     string
 	Detail    string
+	// Keep approval-owned text intact; UI locale changes must not discard the
+	// original reason or the localized displayReason alternatives.
+	ApprovalOriginalReason string
+	ApprovalDisplayReason  string
 	// Args preserves the full original tool input for inspection and copying.
 	Args              string
 	ApprovalContext   string
@@ -551,16 +555,18 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 	}
 	s.waiters[wf.EventID] = ch
 	s.pending = append(s.pending, Pending{
-		EventID:           wf.EventID,
-		Event:             wf.Event,
-		AgentID:           wf.AgentID,
-		Title:             title,
-		Detail:            detail,
-		Args:              args,
-		ApprovalContext:   approvalRequesterContext(req),
-		approvalCallID:    req.CallID,
-		approvalRequester: req.Requester != nil,
-		CallID:            callID,
+		EventID:                wf.EventID,
+		Event:                  wf.Event,
+		AgentID:                wf.AgentID,
+		Title:                  title,
+		Detail:                 detail,
+		ApprovalOriginalReason: req.Reason,
+		ApprovalDisplayReason:  string(req.DisplayReason),
+		Args:                   args,
+		ApprovalContext:        approvalRequesterContext(req),
+		approvalCallID:         req.CallID,
+		approvalRequester:      req.Requester != nil,
+		CallID:                 callID,
 	})
 	s.mu.Unlock()
 	s.fire()

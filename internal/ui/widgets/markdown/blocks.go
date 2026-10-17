@@ -49,7 +49,7 @@ func codeBlockSource(node ast.Node, source string) (language, code string) {
 func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	language, code := codeBlockSource(node, source)
 	root := ui.Column(c).FillWidth().MinWidth(0).Background(st.CodeBG).Padding(8).Gap(4)
-	wrap := ui.Local(root, "wrap-code", func() bool { return false })
+	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
 	root.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			label := language

@@ -21,6 +21,9 @@ type Style struct {
 	Muted    ui.Color
 	CodeBG   ui.Color
 	Accent   ui.Color
+	// CodeWrapDefault opts a surface into wrapped code initially. The retained
+	// per-block toggle still wins after the user chooses wrap or unwrap.
+	CodeWrapDefault bool
 	// File mentions resolve only inline code, never ordinary prose or code blocks.
 	ResolveFile func(string) string
 	OnOpenFile  func(string)

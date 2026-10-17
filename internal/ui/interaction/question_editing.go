@@ -6,7 +6,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
-	"whaleisle/internal/ui/theme"
 )
 
 type questionEditorFlow struct {
@@ -60,21 +59,18 @@ func (k *questionEditorKeys) handle(ev ui.InputEvent, composing bool, advance fu
 }
 
 func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.QuestionRowView, rowIndex int, store *interaction.Store, flow *questionEditorFlow, fg, muted ui.Color) bool {
-	area := ui.Column(c.Key("question-answer:" + p.AgentID + ":" + p.EventID + ":" + strconv.Itoa(rowIndex))).FillWidth().Disabled(p.Sending)
+	_, height := c.Size()
+	area := ui.Scroll(c.Key("question-answer:" + p.AgentID + ":" + p.EventID + ":" + strconv.Itoa(rowIndex))).
+		Label("Question content").FillWidth().MinWidth(0).MaxHeight(min(520, height/2)).Disabled(p.Sending)
 	area.Children(func() {
 		label := row.Question
 		if label == "" {
 			label = row.Header
 		}
-		if label != "" {
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		}
-		if row.Detail != "" {
-			ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
+		questionDetail(c, row.Detail, fg, muted)
 		for index, opt := range row.OptionLabels {
 			checked := slices.Contains(row.Selected, opt)
-			choice := ui.Checkbox(c.Key("question-option:"+strconv.Itoa(index)), &checked, opt).OnChange(func() {
+			choice := ui.Checkbox(c.Key("question-option:"+strconv.Itoa(index)), &checked, "").Label(opt).FillWidth().MinWidth(0).OnChange(func() {
 				if row.MultiSelect || checked {
 					store.SetQuestionOptionChecked(p.EventID, row.ID, opt, checked)
 					if !row.MultiSelect {
@@ -83,6 +79,9 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 					flow.feedback = ""
 				}
 			})
+			// The styled checkbox's implicit label has an automatic min-content
+			// width. A shrinkable label also wraps long unbroken identifiers.
+			choice.Children(func() { ui.Text(c, opt).MinWidth(0).Grow(1).TextColor(fg) })
 			choice.HandleInput(func(ev ui.InputEvent) bool {
 				if ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEnter {
 					return false
@@ -93,7 +92,7 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 				return true
 			})
 			if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-				ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				questionText(c, row.OptionDescriptions[index], 11, muted)
 			}
 		}
 		// Frame-local binding prevents pre-Sending events from mutating the draft.

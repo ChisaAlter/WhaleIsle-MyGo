@@ -114,13 +114,17 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	card.Children(func() {
 		title := p.Title
 		if q, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && q.Index >= 0 && q.Index < len(q.Rows) {
-			if q.Rows[q.Index].Header != "" {
-				title = q.Rows[q.Index].Header
-			} else if q.Rows[q.Index].Question != "" {
-				title = q.Rows[q.Index].Question
+			row := q.Rows[q.Index]
+			if row.Header != "" && row.Question != "" {
+				questionText(c, row.Header, 11, muted)
+			}
+			if row.Question != "" {
+				title = row.Question
+			} else if row.Header != "" {
+				title = row.Header
 			}
 		}
-		ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
 			if p.Continued {
 				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -130,9 +134,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				focused = questionsBody(c, p, card, store, fg, muted)
 			}
 		} else {
-			if p.Detail != "" {
-				ui.Text(c, p.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
+			approvalReason(c, p, muted)
 			if p.CallID != "" {
 				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}

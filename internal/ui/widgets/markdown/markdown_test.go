@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestSpansBoldAndCode(t *testing.T) {
@@ -18,11 +19,12 @@ func TestSpansBoldAndCode(t *testing.T) {
 		t.Fatalf("text %q", joined)
 	}
 	var sawBold, sawCode bool
+	codeFont := theme.CurrentPreferences().Code
 	for _, s := range spans {
 		if s.Text == "world" && s.Weight >= 600 {
 			sawBold = true
 		}
-		if s.Text == "code" && s.Font == "Consolas" {
+		if s.Text == "code" && s.Font == codeFont.Family && s.Size == codeFont.Size {
 			sawCode = true
 		}
 	}
