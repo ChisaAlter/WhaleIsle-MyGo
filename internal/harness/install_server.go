@@ -13,6 +13,9 @@ type InstallServerOptions struct {
 	HTMLPreview http.Handler
 	NodeBin     string
 	OnRestart   func()
+	// Desktop wires the optional authenticated /desktop/* control callbacks.
+	// Leaving it zero-valued preserves the legacy routes.
+	Desktop installctrl.DesktopOps
 }
 
 // NewInstallServer returns a loopback install control server wired to restart
@@ -51,5 +54,6 @@ func NewInstallServer(opts InstallServerOptions) *installctrl.Server {
 		Project:     opts.Project,
 		HTMLPreview: opts.HTMLPreview,
 		Install:     install,
+		Desktop:     opts.Desktop,
 	})
 }
