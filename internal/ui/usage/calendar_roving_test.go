@@ -22,7 +22,7 @@ func TestCalendarRovingTab(t *testing.T) {
 	if !tt.Focused("2026-10-03 UTC") {
 		t.Fatal("Tab should enter at last day")
 	}
-	tt.Key(0, ui.KeyLeft)
+	tt.Key(0, ui.KeyUp)
 	if !tt.Focused("2026-10-02 UTC") {
 		t.Fatal("arrow did not move focus")
 	}

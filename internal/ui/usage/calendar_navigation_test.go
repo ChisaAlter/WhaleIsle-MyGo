@@ -13,9 +13,9 @@ func TestCalendarFocusNavigation(t *testing.T) {
 		key  ui.Key
 		want string
 	}{
-		{"2026-10-01", ui.KeyRight, "2026-10-02"}, {"2026-10-02", ui.KeyLeft, "2026-10-01"},
-		{"2026-10-01", ui.KeyDown, "2026-10-08"}, {"2026-10-09", ui.KeyUp, "2026-10-02"},
-		{"2026-10-01", ui.KeyLeft, ""}, {"2026-10-02", ui.KeyRight, ""},
+		{"2026-10-01", ui.KeyDown, "2026-10-02"}, {"2026-10-02", ui.KeyUp, "2026-10-01"},
+		{"2026-10-01", ui.KeyRight, "2026-10-08"}, {"2026-10-09", ui.KeyLeft, "2026-10-02"},
+		{"2026-10-01", ui.KeyUp, ""}, {"2026-10-02", ui.KeyDown, ""},
 		{"2026-10-08", ui.KeyHome, "2026-10-01"}, {"2026-10-02", ui.KeyEnd, "2026-10-09"},
 	} {
 		if got := calendarFocusTarget(tt.from, tt.key, days); got != tt.want {

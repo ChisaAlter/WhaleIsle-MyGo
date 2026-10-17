@@ -201,17 +201,23 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	start, _ := time.Parse("2006-01-02", days[0].Date)
 	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
-	ui.Scroll(c).Height(220).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
-		ui.Column(c).Gap(5).Children(func() {
-			ui.Text(c, "Mon       Tue       Wed       Thu       Fri       Sat       Sun").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			month := ""
-			for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
-				label := week.Format("2006-01")
-				if label != month {
-					month = label
-					ui.Text(c, label).TextColor(fg)
+	months := calendarMonthLabels(start, end, lookup)
+	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(290).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
+		ui.Row(c).Gap(5).Children(func() {
+			ui.Column(c).Width(36).Gap(3).Children(func() {
+				ui.Box(c).Height(24)
+				for _, label := range []string{"Mon", "", "Wed", "", "Fri", "", ""} {
+					ui.Text(c, label).Height(30).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
-				ui.Row(c).Gap(3).Children(func() {
+			})
+			for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
+				ui.Column(c).Width(48).Gap(3).Children(func() {
+					label := months[week.Format("2006-01-02")]
+					if label != "" {
+						ui.Text(c, label[5:]).Height(24).Tooltip(label).TextColor(fg)
+					} else {
+						ui.Box(c).Height(24)
+					}
 					for n := 0; n < 7; n++ {
 						date := week.AddDate(0, 0, n).Format("2006-01-02")
 						day, ok := lookup[date]
@@ -235,7 +241,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 							text = "✓" + text
 						}
 						ui.Column(c).Width(48).Children(func() {
-							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(48).Background(color).Tooltip(dayTip(day, providers, settings))
+							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(48).Height(30).Background(color).Tooltip(dayTip(day, providers, settings))
 							buttons[date] = button
 							if button.Focused() {
 								if *focusDay == "" && !button.Clicked() {
@@ -268,6 +274,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	})
 	if button, ok := buttons[focusTarget]; ok {
 		button.Focus()
+		button.ScrollIntoView()
 		*detail = focusTarget
 		*focusDay = focusTarget
 	}
@@ -276,7 +283,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	}
 }
 
-// The native calendar has days across and weeks down. Missing dates stay inert.
+// Weeks run across and Monday-first weekdays run down, matching the original heatmap. Missing dates stay inert.
 func calendarFocusTarget(date string, key ui.Key, days []usagestore.DayUsage) string {
 	if len(days) == 0 {
 		return ""
@@ -290,13 +297,13 @@ func calendarFocusTarget(date string, key ui.Key, days []usagestore.DayUsage) st
 	delta := 0
 	switch key {
 	case ui.KeyLeft:
-		delta = -1
-	case ui.KeyRight:
-		delta = 1
-	case ui.KeyUp:
 		delta = -7
-	case ui.KeyDown:
+	case ui.KeyRight:
 		delta = 7
+	case ui.KeyUp:
+		delta = -1
+	case ui.KeyDown:
+		delta = 1
 	default:
 		return ""
 	}
