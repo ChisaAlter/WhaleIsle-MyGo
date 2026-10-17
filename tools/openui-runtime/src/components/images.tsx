@@ -91,7 +91,16 @@ function ImageStatus({ children, error = false, inline = false }: { children: Re
 export function PublicImage({ src, alt, inline = false, ...style }: PublicImageProps) {
   const programRevision = useContext(ProgramRevisionContext);
   const identity = useMemo(() => ({ src, programRevision }), [src, programRevision]);
+  const identityKey = `${identity.src}\u0000${identity.programRevision}`;
   const input = useMemo(() => publicSource(src), [src]);
+  // The original Image component treats its alt text as a search query when
+  // the supplied source cannot be loaded. Keep that fallback parent-mediated:
+  // the iframe never receives an external URL or a direct network primitive.
+  const fallbackQuery = useMemo(() => alt.trim().replace(/\s+/g, ' '), [alt]);
+  const fallbackLength = Array.from(fallbackQuery).length;
+  const fallbackEligible = input.kind === 'external' && fallbackLength >= 3 && fallbackLength <= 200;
+  const [fallbackKey, setFallbackKey] = useState<string | null>(null);
+  const usingFallback = fallbackKey === identityKey;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<PublicImageState>(() => ({ identity, attempt: 0, status: 'loading' }));
 
@@ -104,6 +113,19 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
     update({ status: 'loading' });
     if (input.kind === 'invalid') update({ status: 'error', error: input.error });
     else if (input.kind === 'local') update({ status: 'decoding', photo: { data: input.data, source: '' } });
+    else if (usingFallback) {
+      requestResource<ImageResponse>('/api/image-search', { q: fallbackQuery }, controller.signal)
+        .then((response) => {
+          if (!live || controller.signal.aborted) return;
+          const photos = readPhotos(response);
+          if (photos.length === 0) throw new Error(`No replacement image was found for “${fallbackQuery}”.`);
+          update({ status: 'decoding', photo: photos[0] });
+        })
+        .catch((error: unknown) => {
+          if (!live || controller.signal.aborted) return;
+          update({ status: 'error', error: error instanceof Error ? error.message : 'The image search fallback failed.' });
+        });
+    }
     else {
       requestResource<unknown>('/api/image', { src: input.url }, controller.signal)
         .then((response) => {
@@ -112,11 +134,17 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
         })
         .catch((error: unknown) => {
           if (!live || controller.signal.aborted) return;
+          if (fallbackEligible) {
+            // Switching the key starts a fresh, cancellable search effect. The
+            // failed source is never retried in the same render cycle.
+            setFallbackKey(identityKey);
+            return;
+          }
           update({ status: 'error', error: error instanceof Error ? error.message : 'The image service request failed.' });
         });
     }
     return () => { live = false; controller.abort(); };
-  }, [identity, input, attempt]);
+  }, [identity, identityKey, input, attempt, fallbackEligible, fallbackQuery, usingFallback]);
 
   // Effects clean up after render: hide the previous image synchronously when
   // its source, trusted program revision, or retry attempt no longer matches.
@@ -124,7 +152,12 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
     ? state : { identity, attempt, status: 'loading' };
   const onDecode = (success: boolean) => setState((value) => {
     if (value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')) return value;
-    return success ? { ...value, status: 'ready' } : { ...value, status: 'error', error: 'This image could not be decoded by the viewer. No replacement image was substituted.' };
+    if (success) return { ...value, status: 'ready' };
+    if (fallbackEligible && !usingFallback) {
+      setFallbackKey(identityKey);
+      return { ...value, status: 'loading', photo: undefined, error: undefined };
+    }
+    return { ...value, status: 'error', error: usingFallback ? 'The replacement image could not be decoded.' : 'This image could not be decoded.' };
   });
   const failure = input.kind === 'invalid' ? input.error : current.status === 'error' ? current.error || 'The image service request failed.' : undefined;
   const Frame = inline ? 'span' : 'figure';
@@ -224,7 +257,7 @@ const buttonStyle: CSSProperties = { border: `1px solid ${border}`, background: 
 const Image = defineComponent({
   name: 'Image',
   props: z.object({ src: z.string(), alt: z.string(), aspectRatio: z.number().optional(), radius: radiusSchema.optional(), fit: fitSchema.optional() }),
-  description: 'A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback.',
+  description: 'A local bitmap or public HTTP(S) image loaded through the parent image service; failed public sources search the alt text for a replacement photo.',
   component: ({ props }) => <PublicImage {...props} />,
 });
 
