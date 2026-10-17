@@ -14,6 +14,7 @@ func TestPhoneSnapshotConnectURL(t *testing.T) {
 		RemotePort:        6767,
 		RemoteBindAddress: "10.0.0.5",
 		RemoteLanTls:      false,
+		RemoteAppBaseURL:  "http://10.0.0.5:6767",
 		HasRemoteToken:    true,
 		HarnessReady:      true,
 		MuxConnected:      true,
