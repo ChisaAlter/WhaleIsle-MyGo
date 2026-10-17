@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -189,7 +190,13 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		out.Message += "; sha256 ok"
 	}
 	if sig.Status == SignatureValid {
-		out.Message += "; signature ok"
+		label := "signature"
+		if runtime.GOOS == "windows" {
+			label = "authenticode"
+		} else if runtime.GOOS == "darwin" {
+			label = "codesign"
+		}
+		out.Message += "; " + label + " ok"
 	}
 	if opt.Start && CanStartStaged(out) {
 		return StartStaged(out)
