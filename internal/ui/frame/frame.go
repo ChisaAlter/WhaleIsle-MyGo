@@ -426,6 +426,7 @@ func View(c *ui.Context, m Model) {
 	// Grow below titlebar without percent-height double counting. Theme BG is
 	// the center's surface; the sidebar and right track own their own surfaces.
 	shell := ui.Column(c).Grow(1).MinHeight(0).Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
+	workspaceFloatDropSurface(c, m, shell)
 	_, height := c.Size()
 	// The titlebar is above this shell. Its previous-frame origin remains
 	// stable during a window resize; preserve a visible terminal below it.

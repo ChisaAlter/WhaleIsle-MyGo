@@ -374,7 +374,11 @@ func workspaceColumns(c *ui.Context, m Model, center func()) {
 	defer workspaceFloating(c, m)
 	defer workspaceMiniPlayers(c, m)
 	w.conversationBounds = mygo.Rectangle{}
-	render := func() { workspaceDockNode(c, m, w.Root) }
+	render := func() {
+		dock := ui.Box(c).Key("workspace-dock-drop-surface").Fill().MinWidth(0).MinHeight(0)
+		workspaceDockDropBarrier(dock)
+		dock.Children(func() { workspaceDockNode(c, m, w.Root) })
+	}
 	if m.RightPaneOpen && w.Fullscreen != "" && w.Root.dockedLeaf() != nil {
 		// SidebarRight keeps one DockLayout tree in both push and fullscreen
 		// modes. Retain every split and resource occurrence, and reuse the
