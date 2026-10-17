@@ -120,12 +120,16 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				action("×", i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
 			} else if msg.Seq == session.LatestEditableMessage(m.Snapshot.Messages) && m.OnEditMessage != nil {
 				tip := i18n.T(i18n.KeyChatEdit)
+				editAllowed := session.CanEditMessage(m.Snapshot, msg.Seq)
+				if !editAllowed && m.Snapshot.SelectedID == "" && !m.Snapshot.PromptBusy && !m.Snapshot.MessageEditBusy {
+					editAllowed = true
+				}
 				if m.Snapshot.PromptBusy || m.Snapshot.MessageEditBusy {
 					tip = i18n.T(i18n.KeyChatEditRunning)
-				} else if !session.CanEditMessage(m.Snapshot, msg.Seq) {
+				} else if !editAllowed {
 					tip = i18n.T(i18n.KeyChatEditUnsupported)
 				}
-				button := ui.Button(c, "✎").Label(i18n.T(i18n.KeyChatEdit)).Tooltip(tip).Width(28).Height(28).Disabled(!session.CanEditMessage(m.Snapshot, msg.Seq))
+				button := ui.Button(c, "✎").Label(i18n.T(i18n.KeyChatEdit)).Tooltip(tip).Width(28).Height(28).Disabled(!editAllowed)
 				if m.EditReturnSeq != nil && *m.EditReturnSeq == msg.Seq {
 					button.Focus()
 					*m.EditReturnSeq = 0

@@ -92,7 +92,7 @@ func (s *Store) SaveWorkspace(ctx context.Context, id, workspace string) error {
 }
 func absoluteWorkspace(value string) bool {
 	// The host may be Windows even when this client runs on another platform.
-	return filepath.IsAbs(value) || (len(value) >= 3 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':' && (value[2] == '\\' || value[2] == '/')) || strings.HasPrefix(value, `\\`)
+	return filepath.IsAbs(value) || strings.HasPrefix(value, "/") || (len(value) >= 3 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':' && (value[2] == '\\' || value[2] == '/')) || strings.HasPrefix(value, `\\`)
 }
 func (s *Store) SaveAgentPreset(ctx context.Context, id, preset string) error {
 	preset = strings.TrimSpace(preset)

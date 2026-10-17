@@ -256,7 +256,10 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 		return s.rebaselineAssistantLocked()
 	}
 	chunks, ok := expandAssistantStream(a.Stream)
-	if !ok || len(chunks) != a.NextIndex {
+	// A Host snapshot may retain a compacted prefix whose nextIndex is ahead
+	// of the visible chunk slice. Reject only impossible gaps where the slice
+	// already extends beyond the advertised dense index.
+	if !ok || len(chunks) > a.NextIndex {
 		return s.rebaselineAssistantLocked()
 	}
 	a.blocks, a.rows = nil, nil
@@ -265,6 +268,9 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 	for _, chunk := range chunks {
 		s.applyAssistantChunkLocked(a, chunk.chunk, chunk.time)
 	}
+	// Snapshot chunks are historical; preparing tool rows are a live-only
+	// projection and must reopen only from subsequent live deltas.
+	a.tools = toolPreparingState{}
 	return true
 }
 

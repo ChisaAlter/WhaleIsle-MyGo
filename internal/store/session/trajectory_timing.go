@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // TrajectoryTiming contains recorded Host timestamps, never local receipt time,
@@ -56,6 +57,18 @@ func trajectoryEventID(e trajectoryTimeEvent, raw json.RawMessage) string {
 		part, ok := readToolLifecyclePart(Message{Raw: raw})
 		if ok {
 			return "tool:" + part.id
+		}
+	case "user/message":
+		var d struct {
+			Data struct {
+				Source struct {
+					Kind         string `json:"kind"`
+					CompactionID string `json:"compactionId"`
+				} `json:"source"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(raw, &d) == nil && d.Data.Source.Kind == "compact-checkpoint" && d.Data.Source.CompactionID != "" {
+			return "compaction:" + d.Data.Source.CompactionID
 		}
 	case "compaction/start", "compaction/summary", "compaction/end":
 		if e.Data.CompactionID != "" {
@@ -150,6 +163,7 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 	}
 	sort.Float64s(seqs)
 	ops := make(map[string]*TrajectoryTiming)
+	anchors := make(map[string]json.RawMessage)
 	starts := make(map[string]bool)
 	finals := make(map[string]bool)
 	for _, seq := range seqs {
@@ -161,6 +175,9 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 		id := trajectoryEventID(e, raw)
 		if id == "" {
 			continue
+		}
+		if strings.HasPrefix(id, "compaction:") {
+			anchors[id] = append(json.RawMessage(nil), raw...)
 		}
 		t := ops[id]
 		if t == nil {
@@ -208,6 +225,7 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 		}
 	}
 	out := append([]Message(nil), messages...)
+	mapped := make(map[string]bool)
 	for i := range out {
 		m := &out[i]
 		m.TrajectoryTime = nil
@@ -217,11 +235,32 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 			if timestamp := trajectoryTimestamp(e.Time); timestamp != nil {
 				m.EventTime = *timestamp
 			}
-			m.TrajectoryTime = cloneTrajectoryTiming(ops[trajectoryEventID(e, m.Raw)])
+			id := trajectoryEventID(e, m.Raw)
+			m.TrajectoryTime = cloneTrajectoryTiming(ops[id])
+			if m.TrajectoryTime != nil {
+				mapped[id] = true
+			}
 		}
 		if t := live[m.ID]; t != nil {
 			m.TrajectoryTime = cloneTrajectoryTiming(t)
 		}
+	}
+	for id, timing := range ops {
+		if !strings.HasPrefix(id, "compaction:") || mapped[id] || timing == nil {
+			continue
+		}
+		raw := anchors[id]
+		var e trajectoryTimeEvent
+		_ = json.Unmarshal(raw, &e)
+		eventTime := float64(0)
+		if e.Time != nil {
+			eventTime = *e.Time
+		}
+		out = append(out, Message{
+			ID: id, Kind: MessageKindCompaction, Role: "system", Seq: e.Seq,
+			EventType: e.Type, Raw: raw, Body: id, EventTime: eventTime,
+			TrajectoryTime: cloneTrajectoryTiming(timing),
+		})
 	}
 	return out
 }

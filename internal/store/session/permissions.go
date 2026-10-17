@@ -33,6 +33,9 @@ func flattenPermissionCatalog(cat api.PermissionCatalog) []PermissionOption {
 			out = append(out, PermissionOption{Label: label, Value: it.Value})
 		}
 	}
+	// DefaultOptions carries the authoritative label for the default preset;
+	// the general options list may repeat the same value with a stale label.
+	appendItems(cat.DefaultOptions)
 	appendItems(cat.Options)
 	return out
 }

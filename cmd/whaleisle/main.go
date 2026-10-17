@@ -51,6 +51,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/recovery"
 	"whaleisle/internal/shortcutprefs"
@@ -431,6 +432,160 @@ type mainState struct {
 }
 
 var state mainState
+
+// desktopControlOps exposes the native operations behind the authenticated
+// install-control desktop routes. Each callback uses an existing Go store or
+// dsh RPC; unsupported operations stay explicit 501 responses in installctrl.
+func desktopControlOps() installctrl.DesktopOps {
+	return installctrl.DesktopOps{
+		State: func(context.Context) (any, error) {
+			state.mu.Lock()
+			cfgStore := state.cfgStore
+			status := state.bootStatus
+			market := state.market
+			state.mu.Unlock()
+			var cfg config.Config
+			if cfgStore != nil {
+				cfg = cfgStore.Get()
+			}
+			var plugins []string
+			if market != nil {
+				for _, row := range market.Snapshot().Rows {
+					if strings.TrimSpace(row.Label) != "" {
+						plugins = append(plugins, row.Label)
+					}
+				}
+			}
+			public := map[string]any{
+				"workspace":                 cfg.Workspace,
+				"host":                      cfg.Host,
+				"port":                      cfg.Port,
+				"theme":                     cfg.Theme,
+				"locale":                    cfg.Locale,
+				"closeToTray":               cfg.CloseToTray,
+				"openAtLogin":               cfg.OpenAtLogin,
+				"dshbotEnabled":             cfg.DshbotEnabled,
+				"whaleAssistantEnabled":     cfg.WhaleAssistantEnabled,
+				"remoteWorkspaceEnabled":    cfg.RemoteWorkspaceEnabled,
+				"harnessAutoRestart":        cfg.HarnessAutoRestart,
+				"harnessRestartMaxAttempts": cfg.HarnessRestartMaxAttempts,
+				"harnessRestartBaseDelayMs": cfg.HarnessRestartBaseDelayMs,
+			}
+			return map[string]any{
+				"ok": true, "version": buildVersion, "kernel": status.State.String(),
+				"plugins": plugins, "disabledPlugins": append([]string(nil), cfg.DisabledPlugins...),
+				"config": public,
+			}, nil
+		},
+		ListMarketplace: func(ctx context.Context, opt installctrl.MarketplaceOptions) (any, error) {
+			state.mu.Lock()
+			market := state.market
+			state.mu.Unlock()
+			if market == nil {
+				return map[string]any{"ok": true, "plugins": []any{}}, nil
+			}
+			if opt.Refresh {
+				market.Refresh(ctx)
+			}
+			query := strings.ToLower(strings.TrimSpace(opt.Query))
+			rows := market.Snapshot().Rows
+			plugins := make([]map[string]any, 0, len(rows))
+			for _, row := range rows {
+				if query != "" && !strings.Contains(strings.ToLower(row.Label+" "+row.Detail), query) {
+					continue
+				}
+				plugins = append(plugins, map[string]any{"id": row.Label, "name": row.Label, "summary": row.Detail})
+			}
+			return map[string]any{"ok": true, "plugins": plugins}, nil
+		},
+		ApplyConfig: func(_ context.Context, patch map[string]any) (any, error) {
+			state.mu.Lock()
+			store := state.cfgStore
+			sup := state.sup
+			state.mu.Unlock()
+			if store == nil {
+				return nil, errors.New("desktop config store unavailable")
+			}
+			for key, value := range patch {
+				switch key {
+				case "theme", "locale":
+					if _, ok := value.(string); !ok {
+						return nil, fmt.Errorf("%s must be a string", key)
+					}
+				case "closeToTray", "openAtLogin", "dshbotEnabled", "whaleAssistantEnabled", "remoteWorkspaceEnabled", "harnessAutoRestart":
+					if _, ok := value.(bool); !ok {
+						return nil, fmt.Errorf("%s must be a boolean", key)
+					}
+				case "harnessRestartMaxAttempts", "harnessRestartBaseDelayMs":
+					if _, ok := value.(float64); !ok {
+						return nil, fmt.Errorf("%s must be a number", key)
+					}
+				default:
+					return nil, fmt.Errorf("config field is not desktop-writable: %s", key)
+				}
+			}
+			restart := false
+			if err := store.Update(func(c *config.Config) {
+				for key, value := range patch {
+					switch key {
+					case "theme":
+						c.Theme = value.(string)
+					case "locale":
+						c.Locale = value.(string)
+					case "closeToTray":
+						c.CloseToTray = value.(bool)
+					case "openAtLogin":
+						c.OpenAtLogin = value.(bool)
+					case "dshbotEnabled":
+						c.DshbotEnabled, restart = value.(bool), true
+					case "whaleAssistantEnabled":
+						c.WhaleAssistantEnabled, restart = value.(bool), true
+					case "remoteWorkspaceEnabled":
+						c.RemoteWorkspaceEnabled, restart = value.(bool), true
+					case "harnessAutoRestart":
+						c.HarnessAutoRestart = value.(bool)
+					case "harnessRestartMaxAttempts":
+						c.HarnessRestartMaxAttempts = int(value.(float64))
+					case "harnessRestartBaseDelayMs":
+						c.HarnessRestartBaseDelayMs = int(value.(float64))
+					}
+				}
+			}); err != nil {
+				return nil, err
+			}
+			if restart && sup != nil {
+				sup.Restart()
+			}
+			return map[string]any{"ok": true, "restarting": restart}, nil
+		},
+		RemovePlugin: func(ctx context.Context, name string) (any, error) {
+			return callDesktopPlugin(ctx, "pluginManager/removeBundle", map[string]any{"name": strings.TrimSpace(name)})
+		},
+		DisablePlugins: func(ctx context.Context, names []string) (any, error) {
+			if len(names) == 0 {
+				return nil, errors.New("plugin name required")
+			}
+			return callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": strings.TrimSpace(names[0]), "enabled": false})
+		},
+		EnablePlugin: func(ctx context.Context, name string) (any, error) {
+			return callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": strings.TrimSpace(name), "enabled": true})
+		},
+	}
+}
+
+func callDesktopPlugin(ctx context.Context, method string, payload map[string]any) (any, error) {
+	state.dshMu.Lock()
+	client := state.dshClient
+	state.dshMu.Unlock()
+	if client == nil {
+		return nil, errors.New("harness client unavailable")
+	}
+	var out api.ChangeResult
+	if err := client.Call(ctx, method, payload, &out); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": out.Error == nil, "changed": out.Changed, "target": out.Target, "enabled": out.Enabled}, nil
+}
 
 type settingsDraftSlot struct {
 	ns    string
@@ -2298,6 +2453,7 @@ func startHarness(cfg config.Config) {
 		Project:     projectDispatch,
 		HTMLPreview: helperHTMLPreview.Handler(),
 		NodeBin:     cfg.NodeBin,
+		Desktop:     desktopControlOps(),
 		OnRestart: func() {
 			state.mu.Lock()
 			s := state.sup

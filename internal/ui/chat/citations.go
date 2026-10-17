@@ -226,10 +226,10 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 				}
 			})
 			if snippet := strings.TrimSpace(entry.Snippet); snippet != "" {
-				ui.Text(c, snippet).FontSize(10).TextColor(muted).Grow(1)
+				ui.Text(c, snippet).FontSize(theme.InterfaceSize(10)).TextColor(muted).Grow(1)
 			}
 			if published := strings.TrimSpace(entry.PublishedAt); published != "" {
-				ui.Text(c, published).FontSize(9).TextColor(muted).Grow(1)
+				ui.Text(c, published).FontSize(theme.InterfaceSize(9)).TextColor(muted).Grow(1)
 			}
 		}
 	})

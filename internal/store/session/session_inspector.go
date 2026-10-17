@@ -36,7 +36,7 @@ func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
 	if json.Unmarshal(raw, &h) != nil || h.Type == "" || h.Seq <= 0 {
 		return false
 	}
-	if s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
+	if s.inspector.events == nil || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		s.resetInspectorLocked()
 	}
 	if string(s.inspector.events[h.Seq]) == string(raw) {

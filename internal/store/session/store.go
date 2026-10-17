@@ -272,6 +272,7 @@ type Store struct {
 
 	listLoading                          bool
 	listGeneration                       uint64
+	listFollowGeneration                 uint64
 	eventsGeneration                     uint64
 	listMutations                        []lifecycleMutation
 	listErr                              error
@@ -536,6 +537,7 @@ func (s *Store) Detach() {
 	s.eventsGeneration++
 	s.invalidateFollowLocked()
 	s.listGeneration++
+	s.listFollowGeneration = s.followGeneration
 	s.listMutations = nil
 	if s.workspaceFollowCancel != nil {
 		s.workspaceFollowCancel()
@@ -773,6 +775,7 @@ func (s *Store) beginListRefreshLocked() (*dsh.Client, uint64) {
 		return nil, 0
 	}
 	s.listGeneration++
+	s.listFollowGeneration = s.followGeneration
 	s.listMutations = nil
 	s.listLoading = true
 	s.listErr = nil
@@ -804,7 +807,28 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 		s.fire()
 		return
 	}
+	preserveSelected := s.listFollowGeneration != s.followGeneration && s.selectedID != ""
+	var priorSelected Item
+	if preserveSelected {
+		for _, prior := range s.items {
+			if prior.SessionID == s.selectedID {
+				priorSelected = prior
+				break
+			}
+		}
+	}
 	s.items = sessionListItems(out.Items)
+	// A list response can finish after the user changed sessions and returned
+	// to the same id. Preserve that current foreground row; the follow stream
+	// owns its running/error state and the stale list must not replay it.
+	if preserveSelected && priorSelected.SessionID != "" {
+		for i := range s.items {
+			if s.items[i].SessionID == priorSelected.SessionID {
+				s.items[i] = priorSelected
+				break
+			}
+		}
+	}
 	s.reconcileSidebarStatusesLocked(s.items)
 	for _, row := range out.Items {
 		if row.Projections != nil {

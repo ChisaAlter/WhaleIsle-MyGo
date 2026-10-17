@@ -16,7 +16,11 @@ func childFileDropTarget(c *ui.Context, area ui.Element, owner *session.Store, v
 		return false
 	}
 	disabled := (v.RetainedReadOnly && !v.RetainedPromptAllowed) || v.Busy || v.ActionBusy || !v.ParentAvailabilityKnown || !v.ParentAvailable
-	state := ui.Local(area, "child-file-drop-state", func() *composer.DraftState { return composer.NewDraftState("") })
+	stateRef := ui.Local(area, "child-file-drop-state", func() *composer.DraftState { return composer.NewDraftState("") })
+	if stateRef == nil || *stateRef == nil {
+		return false
+	}
+	state := *stateRef
 	state.Sending = disabled
 	over := composer.FileDropTarget(area, composer.Model{
 		Draft: &state.Text,
