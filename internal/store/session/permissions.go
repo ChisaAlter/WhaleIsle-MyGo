@@ -50,12 +50,17 @@ func labelForPresetValue(value string, options []PermissionOption) string {
 }
 
 func permissionOptionByLabel(label string, options []PermissionOption) (PermissionOption, bool) {
+	var match PermissionOption
+	found := false
 	for _, o := range options {
 		if o.Label == label {
-			return o, true
+			if found {
+				return PermissionOption{}, false
+			}
+			match, found = o, true
 		}
 	}
-	return PermissionOption{}, false
+	return match, found
 }
 
 // RefreshPermissionCatalog reads process-level choices only. The catalog's
@@ -91,7 +96,23 @@ func (s *Store) RefreshPermissionCatalog(ctx context.Context) {
 func (s *Store) SelectPermissionPreset(ctx context.Context, label string) {
 	s.mu.Lock()
 	opt, ok := permissionOptionByLabel(label, s.permissionOptions)
+	id := s.selectedID
+	s.mu.Unlock()
+	if ok {
+		s.SelectPermissionValueForSession(ctx, id, opt.Value)
+	}
+}
+
+// SelectPermissionValueForSession accepts an opaque catalog value, never a caption.
+// The captured visible session must still own the permission projection.
+func (s *Store) SelectPermissionValueForSession(ctx context.Context, targetID, value string) {
+	s.mu.Lock()
+	opt, ok := permissionOptionByValue(value, s.permissionOptions)
 	client, sessionID, generation := s.client, s.selectedID, s.followGeneration
+	if sessionID != targetID {
+		s.mu.Unlock()
+		return
+	}
 	if !ok || client == nil || sessionID == "" || ctx.Err() != nil ||
 		!s.permissionProjectionCurrentLocked() || s.permissionProjection.Pending ||
 		opt.Value == s.permissionProjection.Value {

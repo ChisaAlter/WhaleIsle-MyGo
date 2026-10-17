@@ -56,12 +56,17 @@ func labelForAgentPresetID(id string, options []AgentPresetOption) string {
 }
 
 func agentPresetOptionByLabel(label string, options []AgentPresetOption) (AgentPresetOption, bool) {
+	var match AgentPresetOption
+	found := false
 	for _, o := range options {
 		if o.Label == label {
-			return o, true
+			if found {
+				return AgentPresetOption{}, false
+			}
+			match, found = o, true
 		}
 	}
-	return AgentPresetOption{}, false
+	return match, found
 }
 
 func defaultAgentPresetLabel(options []AgentPresetOption, roster api.AgentPresetRoster) string {
@@ -128,14 +133,23 @@ func (s *Store) ReadAgentPresetDocument(ctx context.Context, labelOrID string) (
 func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
 	s.mu.Lock()
 	opt, ok := agentPresetOptionByLabel(label, s.agentPresetOptions)
-	client := s.client
-	sessionID := s.selectedID
-	prev := s.selectedAgentPresetLabel
-	generation := s.followGeneration
+	id := s.selectedID
 	s.mu.Unlock()
-	if !ok || client == nil || sessionID == "" || label == prev {
+	if ok {
+		s.SelectAgentPresetIDForSession(ctx, id, opt.ID)
+	}
+}
+
+// SelectAgentPresetIDForSession binds the gesture to a real roster ID and session.
+func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, presetID string) {
+	s.mu.Lock()
+	opt, ok := agentPresetOptionByID(presetID, s.agentPresetOptions)
+	client, sessionID, generation := s.client, s.selectedID, s.followGeneration
+	s.mu.Unlock()
+	if !ok || client == nil || sessionID == "" || sessionID != targetID || ctx.Err() != nil {
 		return
 	}
+	label := opt.Label
 	go func() {
 		var result api.SelectResult
 		err := client.Call(ctx, "agentPresets/select", map[string]any{

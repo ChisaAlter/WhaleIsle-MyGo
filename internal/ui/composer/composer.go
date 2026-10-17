@@ -46,6 +46,8 @@ type Model struct {
 	OnWorkspaceReference func(filelink.Reference) error
 	OnPasteImage         func(bool)
 	ModelPick            *string
+	PermissionOptions    []session.PermissionOption
+	AgentPresetOptions   []session.AgentPresetOption
 	PermissionPick       *string
 	AgentPresetPick      *string
 
@@ -86,8 +88,8 @@ type Model struct {
 	OnModelChange       func(label string)
 	OnModelEffortChange func(label string)
 	OnRetryModels       func()
-	OnPermissionChange  func(label string)
-	OnAgentPresetChange func(label string)
+	OnPermissionChange  func(value string)
+	OnAgentPresetChange func(id string)
 	OnClearDraft        func()
 	OnNewSession        func()
 	OnExecuteSlash      func(ctx context.Context, line string) // remote commands/execute
@@ -264,13 +266,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				} else if len(m.Snapshot.AgentPresetLabels) > 0 {
 					presetLabel = m.Snapshot.AgentPresetLabels[0]
 				}
-				if len(m.Snapshot.AgentPresetLabels) > 0 && m.AgentPresetPick != nil {
-					sel := composerSelect(c, m.AgentPresetPick, m.Snapshot.AgentPresetLabels).
+				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil {
+					presetSelect(c, *m.AgentPresetPick, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
 						Height(28).FontSize(13).FontWeight(500).
 						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
-					if sel.Changed() && m.OnAgentPresetChange != nil {
-						m.OnAgentPresetChange(*m.AgentPresetPick)
-					}
 				} else {
 					ui.Row(c).Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
 						ui.Text(c, "⌂").FontSize(13)
@@ -462,13 +461,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					// InputBar .select: permission scope (not PromptMode queue/steer).
-					if len(m.Snapshot.PermissionLabels) > 0 && m.PermissionPick != nil {
-						sel := composerSelect(c, m.PermissionPick, m.Snapshot.PermissionLabels).
+					if len(m.PermissionOptions) > 0 && m.PermissionPick != nil {
+						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange).
 							Height(btnH).FontSize(13).FontWeight(500).
 							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-						if sel.Changed() && m.OnPermissionChange != nil {
-							m.OnPermissionChange(*m.PermissionPick)
-						}
 					} else {
 						scope := i18n.T(i18n.KeyComposerPermissionDefault)
 						if m.PermissionPick != nil && strings.TrimSpace(*m.PermissionPick) != "" {
@@ -521,13 +517,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					// Agent preset on docked InputBar (hero already paints it above the card).
-					if !m.Hero && len(m.Snapshot.AgentPresetLabels) > 0 && m.AgentPresetPick != nil {
-						sel := composerSelect(c, m.AgentPresetPick, m.Snapshot.AgentPresetLabels).
+					if !m.Hero && len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil {
+						presetSelect(c, *m.AgentPresetPick, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
 							Height(btnH).FontSize(12).FontWeight(500).
 							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-						if sel.Changed() && m.OnAgentPresetChange != nil {
-							m.OnAgentPresetChange(*m.AgentPresetPick)
-						}
 					}
 				})
 				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {

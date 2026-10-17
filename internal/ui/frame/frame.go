@@ -726,6 +726,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 				}
 				editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
+				permissionOptions, agentPresetOptions := m.Store.PresetPickerOptions(snap.SelectedID, !m.DisableDeveloperTools)
 				paintComposer := func(hero bool) {
 					nextPrompt := m.Store.SyncNextPrompt(context.Background(), composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
 					if !hero {
@@ -771,6 +772,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						},
 						Hero:                 hero,
 						ModelPick:            m.ModelPick,
+						PermissionOptions:    permissionOptions,
+						AgentPresetOptions:   agentPresetOptions,
 						PermissionPick:       m.PermissionPick,
 						AgentPresetPick:      m.AgentPresetPick,
 						SlashCatalog:         slashCatalog,
@@ -822,10 +825,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							}
 						},
 						OnPermissionChange: func(label string) {
-							m.Store.SelectPermissionPreset(context.Background(), label)
+							m.Store.SelectPermissionValueForSession(context.Background(), snap.SelectedID, label)
 						},
 						OnAgentPresetChange: func(label string) {
-							m.Store.SelectAgentPresetForSession(context.Background(), label)
+							m.Store.SelectAgentPresetIDForSession(context.Background(), snap.SelectedID, label)
 						},
 						OnClearDraft: func() {
 							if m.Draft != nil {
