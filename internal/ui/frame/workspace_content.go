@@ -328,6 +328,14 @@ func (w *WorkspacePanes) PauseContent() {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	// Generic disposal only releases presentation; process termination belongs
+	// exclusively to the explicit close request in WorkspacePanes.close.
+	if n.terminalDispose != nil {
+		n.terminalDispose()
+		n.terminalDispose = nil
+	}
+	n.terminalClose = nil
+
 	n.releaseAgentPane()
 	if n.Diff != nil {
 		n.Diff.Workbench.ClosePane()

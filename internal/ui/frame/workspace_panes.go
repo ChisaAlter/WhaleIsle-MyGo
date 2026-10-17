@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
@@ -29,26 +30,29 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
-	ProjectObserver *projects.ObserverState           `json:"projectObserver,omitempty"`
-	Float           *WorkspaceFloat                   `json:"float,omitempty"`
-	DockTabs        []*WorkspacePane                  `json:"dockTabs,omitempty"`
-	DockIndex       int                               `json:"dockIndex,omitempty"`
-	Inspector       *SessionInspectorPaneState        `json:"inspector,omitempty"`
-	ChangesReview   *ChangesReviewState               `json:"changesReview,omitempty"`
-	SubagentChat    *SubagentChatPaneState            `json:"subagentChat,omitempty"`
-	Agents          *WorkspaceAgentState              `json:"-"`
-	Diff            *WorkspaceDiffState               `json:"diff,omitempty"`
-	Files           *WorkspaceFileState               `json:"files,omitempty"`
-	Browser         *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
-	browser         *browserpreview.Controller
-	Schedule        *SchedulePaneState `json:"schedule,omitempty"`
-	ID              string             `json:"id"`
-	Kind            string             `json:"kind,omitempty"`
-	TerminalSource  string             `json:"terminalSource,omitempty"`
-	Axis            string             `json:"axis,omitempty"`
-	Ratio           float32            `json:"ratio,omitempty"`
-	First           *WorkspacePane     `json:"first,omitempty"`
-	Second          *WorkspacePane     `json:"second,omitempty"`
+	terminalClose        func() *hostterminal.OccurrenceClose
+	terminalCloseRequest *hostterminal.OccurrenceClose
+	terminalDispose      func()
+	ProjectObserver      *projects.ObserverState           `json:"projectObserver,omitempty"`
+	Float                *WorkspaceFloat                   `json:"float,omitempty"`
+	DockTabs             []*WorkspacePane                  `json:"dockTabs,omitempty"`
+	DockIndex            int                               `json:"dockIndex,omitempty"`
+	Inspector            *SessionInspectorPaneState        `json:"inspector,omitempty"`
+	ChangesReview        *ChangesReviewState               `json:"changesReview,omitempty"`
+	SubagentChat         *SubagentChatPaneState            `json:"subagentChat,omitempty"`
+	Agents               *WorkspaceAgentState              `json:"-"`
+	Diff                 *WorkspaceDiffState               `json:"diff,omitempty"`
+	Files                *WorkspaceFileState               `json:"files,omitempty"`
+	Browser              *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
+	browser              *browserpreview.Controller
+	Schedule             *SchedulePaneState `json:"schedule,omitempty"`
+	ID                   string             `json:"id"`
+	Kind                 string             `json:"kind,omitempty"`
+	TerminalSource       string             `json:"terminalSource,omitempty"`
+	Axis                 string             `json:"axis,omitempty"`
+	Ratio                float32            `json:"ratio,omitempty"`
+	First                *WorkspacePane     `json:"first,omitempty"`
+	Second               *WorkspacePane     `json:"second,omitempty"`
 }
 
 func paneLabel(zh, en string) string {
@@ -193,6 +197,23 @@ func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	return n
 }
 func (w *WorkspacePanes) close(id string) bool {
+	if n := w.Root.find(id); n != nil && n.Kind == "host-terminal" && n.terminalClose != nil {
+		if n.terminalCloseRequest == nil {
+			n.terminalCloseRequest = n.terminalClose()
+		}
+		done, err := n.terminalCloseRequest.Result()
+		if !done {
+			w.message = paneLabel("正在关闭 Host 终端…", "Closing Host terminal…")
+			return false
+		}
+		n.terminalCloseRequest = nil
+		if err != nil {
+			w.message = paneLabel("终端未确认关闭，请重试：", "Terminal close was not confirmed; retry: ") + err.Error()
+			return false
+		}
+		w.message = ""
+	}
+
 	if n := w.Root.find(id); n != nil && n.Kind == "project-observer" {
 		return false
 	}

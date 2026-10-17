@@ -31,3 +31,12 @@ func (h *HostState) ReconcileOccurrences(store *hostterminal.Store, keys []strin
 	store.Show("", false)
 	h.drop()
 }
+
+// ForgetOccurrence drops only the native renderer. It is not a process-close
+// gesture and is safe on generic layout disposal as well as successful close.
+func (h *HostState) ForgetOccurrence(key string) {
+	if child := h.occurrences[key]; child != nil {
+		child.drop()
+		delete(h.occurrences, key)
+	}
+}

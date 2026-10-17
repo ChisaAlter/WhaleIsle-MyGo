@@ -1,8 +1,23 @@
 package frame
 
+import "whaleisle/internal/store/hostterminal"
+
 func observeHostTerminalPanes(m Model) {
 	var keys []string
 	w := m.Sizes.Workspace
+	// Resolve completed close requests on the UI thread, before enumerating panes.
+	var completed []string
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.terminalCloseRequest != nil {
+			if done, _ := n.terminalCloseRequest.Result(); done {
+				completed = append(completed, n.ID)
+			}
+		}
+	})
+	for _, id := range completed {
+		w.close(id)
+	}
+
 	w.Root.eachLeaf(func(group *WorkspacePane) {
 		if m.RightPaneOpen {
 			if docked := group.dockedLeaf(); docked != nil && docked.Kind == "host-terminal" {
@@ -23,7 +38,12 @@ func hostTerminalPaneModel(m Model) Model {
 	}
 	pane := m.workspacePane
 	session := m.Store.Snapshot().SelectedID
-	m.HostTerminalStore = m.HostTerminalStore.Occurrence(pane.ID, pane.TerminalSource, session)
+	root, renderer := m.HostTerminalStore, m.HostTerminalUI
+	m.HostTerminalStore = root.Occurrence(pane.ID, pane.TerminalSource, session)
+	child := m.HostTerminalStore
+	owner := child.Snapshot(session).Owner
+	pane.terminalClose = func() *hostterminal.OccurrenceClose { return root.BeginOccurrenceClose(pane.ID, child, owner, session) }
+	pane.terminalDispose = func() { renderer.ForgetOccurrence(pane.ID) }
 	m.HostTerminalUI = m.HostTerminalUI.Occurrence(pane.ID)
 	return m
 }

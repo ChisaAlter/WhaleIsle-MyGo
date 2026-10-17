@@ -86,6 +86,7 @@ type entry struct {
 }
 
 type Store struct {
+	paneClose           *OccurrenceClose
 	occurrences         map[string]*Store
 	mu                  sync.Mutex
 	owner               any
@@ -125,6 +126,7 @@ func (s *Store) bind(owner any, r Remote, ready bool, notify func()) {
 	s.sessions = make(map[string]*sessionState)
 	s.entries = make(map[terminalKey]*entry)
 	s.visible = ""
+	s.paneClose = nil
 	s.mu.Unlock()
 	s.fire()
 }
