@@ -255,6 +255,7 @@ func (s *WhaleBridgeService) RefreshCatalog(ctx context.Context) (Row, error) {
 
 func (s *WhaleBridgeService) refreshCatalog(ctx context.Context) (*WhaleBridgeCatalog, error) {
 	var cat *WhaleBridgeCatalog
+	var err error
 	if s.devPackage != "" {
 		manifestPath := filepath.Join(s.devPackage, whaleBridgeManifest)
 		m, err := readManifest(manifestPath)
@@ -279,7 +280,7 @@ func (s *WhaleBridgeService) refreshCatalog(ctx context.Context) (*WhaleBridgeCa
 	if err := writeJSONAtomic(filepath.Join(s.root, "catalog.json"), cat); err != nil {
 		return nil, err
 	}
-	return &cat, nil
+	return cat, nil
 }
 
 func (s *WhaleBridgeService) refreshGitHub(ctx context.Context) (*WhaleBridgeCatalog, error) {
