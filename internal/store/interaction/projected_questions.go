@@ -3,6 +3,7 @@ package interaction
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -244,11 +245,18 @@ func (s *Store) resolveContinuedQuestions(eventID string, answer userQuestionsAn
 // submitQuestionAnswer is exclusive with the live waterfall and preserves failed
 // submissions for explicit retry. Success is fenced immediately until inbox echo.
 func (s *Store) submitQuestionAnswer(ctx context.Context, agentID, callID string, answer api.AskUserQuestionAnswer) {
+	s.submitQuestionAnswerBound(ctx, agentID, callID, answer, nil, nil)
+}
+
+func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID string, answer api.AskUserQuestionAnswer, boundClient *dsh.Client, valid func() bool) {
+	if valid != nil && !valid() {
+		return
+	}
 	agentID, callID = strings.TrimSpace(agentID), strings.TrimSpace(callID)
 	id := questionCardID(agentID, callID)
 	s.mu.Lock()
 	p := s.findPending(id)
-	if ctx.Err() != nil || s.client == nil || p == nil || !p.Continued || p.Sending {
+	if ctx.Err() != nil || s.client == nil || (boundClient != nil && s.client != boundClient) || p == nil || !p.Continued || p.Sending {
 		s.mu.Unlock()
 		return
 	}
@@ -274,7 +282,13 @@ func (s *Store) submitQuestionAnswer(ctx context.Context, agentID, callID string
 	s.fire()
 	go func() {
 		var accepted api.AnswerResult
-		err := client.Call(ctx, "userQuestions/answer", map[string]any{"agentId": agentID, "callId": callID, "answer": answer}, &accepted)
+		var err error
+		if valid != nil && !valid() {
+			err = fmt.Errorf("interaction authority expired")
+		}
+		if err == nil {
+			err = client.Call(ctx, "userQuestions/answer", map[string]any{"agentId": agentID, "callId": callID, "answer": answer}, &accepted)
+		}
 		s.mu.Lock()
 		if s.client != client || s.questionRecovery.epoch != epoch || s.questionRecovery.inFlight[id] != token {
 			s.mu.Unlock()

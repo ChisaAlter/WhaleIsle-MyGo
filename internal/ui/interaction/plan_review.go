@@ -11,7 +11,7 @@ import (
 
 // planReviewCard deliberately replaces generic Continue/Deny. Discussion only
 // dismisses the panel; approval is sent exclusively by the explicit decision.
-func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
+func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store CardStore, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
 	review := card.PlanReview
 	if review == nil {
 		return

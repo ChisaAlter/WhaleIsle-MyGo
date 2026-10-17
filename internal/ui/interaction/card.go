@@ -20,7 +20,7 @@ type Model struct {
 	Snapshot             interaction.ViewState
 	ThemeID              string
 	SystemDark           bool
-	Store                *interaction.Store
+	Store                CardStore
 	// OnAutoAllowChanged is optional persistence when the user toggles auto-allow.
 	OnAutoAllowChanged func(on bool)
 }
@@ -90,7 +90,7 @@ func View(c *ui.Context, m Model) {
 	})
 }
 
-func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
+func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store CardStore, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
 		planReviewCard(c, p, card, store, fg, muted, accent, onOpenPlan)
 		return false

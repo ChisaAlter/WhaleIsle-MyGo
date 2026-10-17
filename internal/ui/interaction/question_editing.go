@@ -58,7 +58,7 @@ func (k *questionEditorKeys) handle(ev ui.InputEvent, composing bool, advance fu
 	return true
 }
 
-func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.QuestionRowView, rowIndex int, store *interaction.Store, flow *questionEditorFlow, fg, muted ui.Color) bool {
+func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.QuestionRowView, rowIndex int, store CardStore, flow *questionEditorFlow, fg, muted ui.Color) bool {
 	_, height := c.Size()
 	area := ui.Scroll(c.Key("question-answer:" + p.AgentID + ":" + p.EventID + ":" + strconv.Itoa(rowIndex))).
 		Label("Question content").FillWidth().MinWidth(0).MaxHeight(min(520, height/2)).Disabled(p.Sending)

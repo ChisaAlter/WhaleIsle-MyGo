@@ -145,16 +145,17 @@ type EventsCancel struct {
 
 // EventResult is POST /api/$events/result.
 type EventResult struct {
-	ClientID string            `json:"clientId"`
-	EventID  string            `json:"eventId"`
+	ClientID string             `json:"clientId"`
+	EventID  string             `json:"eventId"`
 	Outcome  EventResultOutcome `json:"outcome"`
 }
 
 // EventResultOutcome is one of next / result / rejected.
 type EventResultOutcome struct {
-	Kind  string          `json:"kind"`
-	Value json.RawMessage `json:"value,omitempty"`
-	Error *EventRejection `json:"error,omitempty"`
+	Delivery *EventDelivery  `json:"-"`
+	Kind     string          `json:"kind"`
+	Value    json.RawMessage `json:"value,omitempty"`
+	Error    *EventRejection `json:"error,omitempty"`
 }
 
 // EventRejection is a Client listener failure.

@@ -388,6 +388,10 @@ func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 	s.mu.Lock()
 	p := s.findPending(result.EventID)
+	if result.Outcome.Delivery != nil && s.responses[result.EventID].Delivery != result.Outcome.Delivery {
+		s.mu.Unlock()
+		return false
+	}
 	retry := false
 	if p != nil {
 		if err == nil {

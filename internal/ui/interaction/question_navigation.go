@@ -10,7 +10,7 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, fg, muted ui.Color) bool {
+func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, fg, muted ui.Color) bool {
 	if len(card.Rows) == 0 {
 		return false
 	}
@@ -80,7 +80,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 
 // Optional draft recap is a navigation aid, never a mandatory submit gate.
 // Settled/queued history remains the separate read-only recorded-answer view.
-func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, flow *questionEditorFlow, muted ui.Color) {
+func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, flow *questionEditorFlow, muted ui.Color) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for index, row := range card.Rows {
 			label := row.Header

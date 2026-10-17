@@ -4,6 +4,10 @@ package interaction
 // action. Unlike the pager, it requires an answer on the current page; its final
 // page validates the full batch and focuses the first incomplete question.
 func (s *Store) ContinueQuestion(agentID, eventID, questionID string) (focusID, feedback string) {
+	return s.continueQuestion(agentID, eventID, questionID, s.ResolveQuestions)
+}
+
+func (s *Store) continueQuestion(agentID, eventID, questionID string, submit func(string)) (focusID, feedback string) {
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)
@@ -25,7 +29,7 @@ func (s *Store) ContinueQuestion(agentID, eventID, questionID string) (focusID, 
 	focusID, feedback = questionSubmitTargetLocked(ds)
 	s.mu.Unlock()
 	if feedback == "" {
-		s.ResolveQuestions(eventID)
+		submit(eventID)
 	} else {
 		s.fire()
 	}

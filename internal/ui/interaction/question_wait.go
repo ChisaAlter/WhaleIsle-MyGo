@@ -8,7 +8,7 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, muted ui.Color) {
+func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, muted ui.Color) {
 	w := card.Wait
 	if w == nil || p.Continued {
 		return

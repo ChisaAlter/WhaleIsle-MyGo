@@ -10,7 +10,7 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func approvalArguments(c *ui.Context, p interaction.Pending, store *interaction.Store, keys *approvalKeys, fg, muted, accent ui.Color) {
+func approvalArguments(c *ui.Context, p interaction.Pending, store CardStore, keys *approvalKeys, fg, muted, accent ui.Color) {
 	if p.ApprovalContext != "" {
 		ui.Text(c, p.ApprovalContext).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}

@@ -10,7 +10,7 @@ import (
 // The state and node identity belong to the request, never its list position.
 type approvalKeys struct{ composing, compositionEnded bool }
 
-func approvalHandler(keys *approvalKeys, pending interaction.Pending, store *interaction.Store, button bool) func(ui.InputEvent) bool {
+func approvalHandler(keys *approvalKeys, pending interaction.Pending, store CardStore, button bool) func(ui.InputEvent) bool {
 	return func(ev ui.InputEvent) bool {
 		return keys.handle(ev, pending, button, func() interaction.ViewState { return store.SnapshotForAgent(pending.AgentID) }, store.ResolveAllow, store.ResolveDeny)
 	}

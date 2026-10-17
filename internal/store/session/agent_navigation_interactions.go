@@ -15,6 +15,12 @@ func (s *Store) AgentInteractionTarget(token uint64, address AgentSessionAddress
 	if !s.agentPaneCurrentLocked() || !s.agentNavigationOwnedLocked() || n.view.Token != token || n.view.Address != address || !address.validChild() || address.Mode != "continuable" || n.view.Busy || !n.view.Process.Live {
 		return nil, QuestionProjectionState{}, nil, false
 	}
+	return s.agentInteractionProjectionLocked(address)
+}
+
+// Caller has already checked this exact pane and holds its lock.
+func (s *Store) agentInteractionProjectionLocked(address AgentSessionAddress) (*dsh.Client, QuestionProjectionState, []json.RawMessage, bool) {
+	n := &s.agentNavigation
 	p := s.questionProjections[address.ChildSessionID]
 	if owner := s.agentNavigationOwner; owner != nil {
 		owner.mu.Lock()

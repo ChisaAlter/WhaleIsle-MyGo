@@ -7,7 +7,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store *interaction.Store, fg, muted, accent ui.Color) {
+func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store CardStore, fg, muted, accent ui.Color) {
 	if len(records) == 0 {
 		return
 	}

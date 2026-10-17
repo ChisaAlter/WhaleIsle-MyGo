@@ -62,6 +62,10 @@ func questionSubmitTargetLocked(ds *draftSession) (focusID, feedback string) {
 // SubmitQuestionBatch is the original option-button Enter gesture. It validates
 // the whole retained batch without selecting the focused option first.
 func (s *Store) SubmitQuestionBatch(agentID, eventID string) (focusID, feedback string) {
+	return s.submitQuestionBatch(agentID, eventID, s.ResolveQuestions)
+}
+
+func (s *Store) submitQuestionBatch(agentID, eventID string, submit func(string)) (focusID, feedback string) {
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)
@@ -72,7 +76,7 @@ func (s *Store) SubmitQuestionBatch(agentID, eventID string) (focusID, feedback 
 	focusID, feedback = questionSubmitTargetLocked(ds)
 	s.mu.Unlock()
 	if feedback == "" {
-		s.ResolveQuestions(eventID)
+		submit(eventID)
 	} else {
 		s.fire()
 	}
@@ -82,6 +86,10 @@ func (s *Store) SubmitQuestionBatch(agentID, eventID string) (focusID, feedback 
 // SkipQuestionAndContinue clears exactly the visible answer, advances, and on
 // the final question directly validates/submits, without an extra review step.
 func (s *Store) SkipQuestionAndContinue(agentID, eventID, questionID string) (focusID, feedback string) {
+	return s.skipQuestionAndContinue(agentID, eventID, questionID, s.ResolveQuestions)
+}
+
+func (s *Store) skipQuestionAndContinue(agentID, eventID, questionID string, submit func(string)) (focusID, feedback string) {
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)
@@ -100,7 +108,7 @@ func (s *Store) SkipQuestionAndContinue(agentID, eventID, questionID string) (fo
 	focusID, feedback = questionSubmitTargetLocked(ds)
 	s.mu.Unlock()
 	if feedback == "" {
-		s.ResolveQuestions(eventID)
+		submit(eventID)
 	} else {
 		s.fire()
 	}

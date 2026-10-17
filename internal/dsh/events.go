@@ -249,6 +249,11 @@ func (s *EventsSession) answerWaterfall(ctx context.Context, handler EventsHandl
 
 // PostEventResult answers one Host waterfall via HTTP RPC.
 func (c *Client) PostEventResult(ctx context.Context, result EventResult) error {
+	ctx, release, err := result.Outcome.Delivery.bind(ctx, c, result.EventID)
+	if err != nil {
+		return err
+	}
+	defer release()
 	if result.ClientID == "" || result.EventID == "" || result.Outcome.Kind == "" {
 		return fmt.Errorf("dsh events: incomplete result")
 	}
