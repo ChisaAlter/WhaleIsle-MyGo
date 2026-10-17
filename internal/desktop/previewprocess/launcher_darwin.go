@@ -91,7 +91,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 		if e == nil {
 			e = requireOpenUIBridge(doc, p)
 			session.enableOpenUIUpdates(p.OpenUIUpdate)
-			session.enableOpenUIAPI(p.OpenUIAPI)
+			session.enableOpenUIAPI(p.OpenUIAPI, p.OpenUIAPIBytes)
 		}
 		if e == nil && (p.HelperPID != uint32(cmd.Process.Pid) || p.BrowserPID != p.HelperPID) {
 			e = errors.New("legacy renderer is not the launched single-process helper")

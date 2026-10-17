@@ -13,17 +13,21 @@ import (
 
 // Reuses the event transport budget. Replies are FIFO, never coalesced. This is
 // bounded backpressure, not a limit on the number of resource requests.
+// All queued reply bodies together fit the existing 25 MiB document budget.
 type openUIAPIQueue struct {
 	mu              sync.Mutex
 	instanceID      string
 	capable, closed bool
 	values          chan []byte
+	queuedBytes     int
+	maxBodyBytes    int
+	encoding        chan struct{}
 	space           chan struct{}
 	done            chan struct{}
 }
 
 func newOpenUIAPIQueue(instance string) *openUIAPIQueue {
-	return &openUIAPIQueue{instanceID: instance, values: make(chan []byte, maxOpenUIEvents), space: make(chan struct{}), done: make(chan struct{})}
+	return &openUIAPIQueue{instanceID: instance, values: make(chan []byte, maxOpenUIEvents), space: make(chan struct{}), done: make(chan struct{}), maxBodyBytes: maxOpenUIEventBytes, encoding: make(chan struct{}, 1)}
 }
 
 // ReplyOpenUIAPI admits one bounded response for this exact helper instance.
@@ -34,12 +38,32 @@ func (s *Session) ReplyOpenUIAPI(response openui.APIResponse) error {
 		return errors.New("OpenUI API response channel unavailable")
 	}
 	q := s.openUIAPI
+	// Only one waiting producer serializes a large body. Other workers retain
+	// their existing result, rather than creating additional wire copies.
+	select {
+	case q.encoding <- struct{}{}:
+	case <-q.done:
+		return errors.New("OpenUI API response channel closed")
+	}
+	defer func() { <-q.encoding }()
+	q.mu.Lock()
+	closed, capable, maxBodyBytes := q.closed, q.capable, q.maxBodyBytes
+	q.mu.Unlock()
+	if closed {
+		return errors.New("OpenUI API response channel closed")
+	}
+	if !capable {
+		return errors.New("preview helper does not support OpenUI API responses")
+	}
 	if err := openui.ValidateAPIResponse(response, q.instanceID); err != nil {
 		return err
 	}
 	raw, err := json.Marshal(response)
 	if err != nil {
 		return err
+	}
+	if len(raw) > maxBodyBytes {
+		return errors.New("preview helper API response envelope is too small")
 	}
 	for {
 		q.mu.Lock()
@@ -51,11 +75,14 @@ func (s *Session) ReplyOpenUIAPI(response openui.APIResponse) error {
 			q.mu.Unlock()
 			return errors.New("preview helper does not support OpenUI API responses")
 		}
-		select {
-		case q.values <- raw:
-			q.mu.Unlock()
-			return nil
-		default:
+		if len(raw) <= openui.MaxAPIResponseBytes-q.queuedBytes {
+			select {
+			case q.values <- raw:
+				q.queuedBytes += len(raw)
+				q.mu.Unlock()
+				return nil
+			default:
+			}
 		}
 		space := q.space
 		q.mu.Unlock()
@@ -66,10 +93,14 @@ func (s *Session) ReplyOpenUIAPI(response openui.APIResponse) error {
 		}
 	}
 }
-func (s *Session) enableOpenUIAPI(capable bool) {
+func (s *Session) enableOpenUIAPI(capable bool, limits ...int) {
 	if q := s.openUIAPI; q != nil {
 		q.mu.Lock()
 		q.capable = capable
+		q.maxBodyBytes = maxOpenUIEventBytes
+		if len(limits) > 0 && limits[0] == openui.MaxAPIResponseBytes {
+			q.maxBodyBytes = openui.MaxAPIResponseBytes
+		}
 		q.mu.Unlock()
 	}
 }
@@ -79,13 +110,16 @@ func (s *Session) openUIAPIResponses() <-chan []byte {
 	}
 	return s.openUIAPI.values
 }
-func (s *Session) receivedOpenUIAPIResponse() bool {
+func (s *Session) receivedOpenUIAPIResponse(raw []byte) bool {
 	q := s.openUIAPI
 	if q == nil {
 		return false
 	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if !q.closed {
+		q.queuedBytes -= len(raw)
+	}
 	close(q.space)
 	q.space = make(chan struct{})
 	return !q.closed
@@ -96,6 +130,7 @@ func (s *Session) closeOpenUIAPI() {
 		defer q.mu.Unlock()
 		if !q.closed {
 			q.closed = true
+			q.queuedBytes = 0
 			close(q.done)
 			for {
 				select {
@@ -121,7 +156,7 @@ func startOpenUIAPIPump(ctx context.Context, s *Session, send func([]byte) error
 			case <-s.openUIAPI.done:
 				return
 			case raw := <-s.openUIAPIResponses():
-				if !s.receivedOpenUIAPIResponse() {
+				if !s.receivedOpenUIAPIResponse(raw) {
 					return
 				}
 				watchdog := time.AfterFunc(5*time.Second, func() { _ = s.Close() })
@@ -137,7 +172,7 @@ func startOpenUIAPIPump(ctx context.Context, s *Session, send func([]byte) error
 }
 func validateOpenUIAPIResponse(raw []byte) (openui.APIResponse, error) {
 	var response openui.APIResponse
-	if len(raw) < 1 || len(raw) > maxOpenUIEventBytes {
+	if len(raw) < 1 || len(raw) > openui.MaxAPIResponseBytes {
 		return response, errors.New("invalid OpenUI API response length")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -166,7 +201,7 @@ func receiveOpenUIAPIResponse(r io.Reader, p packet, nonce string) ([]byte, erro
 	if err := expect(p, "api-response", nonce); err != nil {
 		return nil, err
 	}
-	if p.Bytes < 1 || p.Bytes > maxOpenUIEventBytes {
+	if p.Bytes < 1 || p.Bytes > openui.MaxAPIResponseBytes {
 		return nil, errors.New("invalid OpenUI API response byte count")
 	}
 	raw := make([]byte, p.Bytes)

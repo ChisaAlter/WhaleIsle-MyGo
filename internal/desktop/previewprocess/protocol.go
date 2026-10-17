@@ -120,24 +120,25 @@ func validateDocument(d Document) error {
 }
 
 type packet struct {
-	OpenUI       bool              `json:"openUI,omitempty"`
-	OpenUIAPI    bool              `json:"openUIAPI,omitempty"`
-	OpenUIUpdate bool              `json:"openUIUpdate,omitempty"`
-	Input        *interactiveInput `json:"input,omitempty"`
-	Version      int               `json:"version"`
-	Kind         string            `json:"kind"`
-	Nonce        string            `json:"nonce"`
-	SID          string            `json:"sid,omitempty"`
-	HelperPID    uint32            `json:"helperPID,omitempty"`
-	BrowserPID   uint32            `json:"browserPID,omitempty"`
-	Bytes        int               `json:"bytes,omitempty"`
-	Width        int               `json:"width,omitempty"`
-	Appearance   string            `json:"appearance,omitempty"`
-	Capture      bool              `json:"capture,omitempty"`
-	Inline       bool              `json:"inline,omitempty"`
-	Variables    map[string]string `json:"variables,omitempty"`
-	Height       int               `json:"height,omitempty"`
-	WindowHandle uint64            `json:"windowHandle,omitempty"`
+	OpenUI         bool              `json:"openUI,omitempty"`
+	OpenUIAPIBytes int               `json:"openUIAPIBytes,omitempty"`
+	OpenUIAPI      bool              `json:"openUIAPI,omitempty"`
+	OpenUIUpdate   bool              `json:"openUIUpdate,omitempty"`
+	Input          *interactiveInput `json:"input,omitempty"`
+	Version        int               `json:"version"`
+	Kind           string            `json:"kind"`
+	Nonce          string            `json:"nonce"`
+	SID            string            `json:"sid,omitempty"`
+	HelperPID      uint32            `json:"helperPID,omitempty"`
+	BrowserPID     uint32            `json:"browserPID,omitempty"`
+	Bytes          int               `json:"bytes,omitempty"`
+	Width          int               `json:"width,omitempty"`
+	Appearance     string            `json:"appearance,omitempty"`
+	Capture        bool              `json:"capture,omitempty"`
+	Inline         bool              `json:"inline,omitempty"`
+	Variables      map[string]string `json:"variables,omitempty"`
+	Height         int               `json:"height,omitempty"`
+	WindowHandle   uint64            `json:"windowHandle,omitempty"`
 }
 
 func writePacket(w io.Writer, p packet) error {

@@ -70,16 +70,24 @@ not represent a new claim about upstream redistribution rights.
   Requests inherit the instance cancellation context; owner is rechecked before
   a request and before its reply. Replies must match the pending instance/request
   ID; duplicate or unknown replies cannot enter another viewer.
-- Resource replies use the existing 64KiB bridge envelope. Oversized results
+- Resource replies use the existing helper large-body budget of 25MiB; input
+  events and state retain their existing smaller limits. Oversized results
   explicitly return an error; no fabricated coordinates or placeholder photos.
   The public adapter preserves the original 8s Wikipedia/Commons and 10s OSRM
   request timeouts. Upstream JSON reads reuse the existing 12MiB resource byte
   ceiling. Original shell response caching is not yet mirrored.
-- Returned external image URLs remain data in the response: the viewer's
-  img-src data: policy still prevents loading those remote pixels. No image
-  downloader or generic URL proxy is added. Maps still need MapLibre workers,
-  OpenFreeMap glyphs/vector tiles and Esri raster fallback; those remain blocked
-  by the unchanged iframe worker/connect policy. No map data is simulated.
+- Wiki photos and image-search display arrays now contain data URLs fetched
+  solely from the fixed HTTPS upload.wikimedia.org origin. Only those fields
+  returned by the selected public adapter are eligible; iframe-supplied URLs,
+  credentials, redirects and other origins cannot use this downloader. PNG,
+  JPEG, GIF and WebP are detected from their bytes. Unsupported or oversized
+  data returns an explicit resource error. Original URLs remain unchanged in
+  photoSources/imageSources, and any existing attribution fields are retained.
+  The original adapters provide no author/license metadata; none is invented.
+  The iframe retains img-src data: and has no direct network access.
+- Maps still need MapLibre workers, OpenFreeMap glyphs/vector tiles and Esri
+  raster fallback; those remain blocked by the unchanged iframe worker/connect
+  policy. No map data is simulated.
 - Validated assistant actions appear in native UI with their form/context text.
   Send interaction result submits through the captured ComposerTarget in queue
   mode. It never selects a session from renderer-supplied fields. An explicit
@@ -112,7 +120,7 @@ A focused lifecycle fixture additionally checks that active contexts have no
 deadline and explicit cancellation still terminates them; the existing owner
 ticket fixture covers owner revocation.
 
-Still partial: external image pixels, map workers/tiles, clipboard/link capabilities and
+Still partial: map workers/tiles, clipboard/link capabilities and
 gesture-attested immediate action sending. The default distribution lacks a
 bundled runtime. These limitations must not be reported as full CH12 completion.
 
@@ -126,3 +134,9 @@ headers, malformed route rejection, cancellation and pending-instance replies.
 No public service, real account query or location is contacted by these checks.
 Native API-response command compilation is tracked separately from the earlier
 successful streaming-stage SDK runs.
+
+The image stage uses a local one-pixel PNG fixture. It checks real data URL
+bytes, retained source/attribution data, exact Wikimedia origin restrictions,
+and API responses above 64KiB but below the existing 25MiB body budget. No real
+image server is contacted. Actual viewer display remains a runtime acceptance
+item. This stage needs its own matching native response-budget compilation.

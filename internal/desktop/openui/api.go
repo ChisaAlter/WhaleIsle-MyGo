@@ -25,7 +25,7 @@ type APIResponse struct {
 
 func ValidateAPIResponse(r APIResponse, instance string) error {
 	raw, err := json.Marshal(r)
-	if err != nil || len(raw) > MaxEventBytes || r.InstanceID != instance || r.RequestID == "" || r.Status < 200 || r.Status > 599 || !json.Valid(r.Body) {
+	if err != nil || len(raw) > MaxAPIResponseBytes || r.InstanceID != instance || r.RequestID == "" || r.Status < 200 || r.Status > 599 || !json.Valid(r.Body) {
 		return errors.New("invalid OpenUI API response")
 	}
 	return nil
@@ -81,6 +81,7 @@ func (a *ResourceAPI) Handle(ctx context.Context, e Event) APIResponse {
 	case "/api/street-route":
 		result = a.route(ctx, e)
 	}
+	result = a.inlineResourceImages(ctx, e, result)
 	if err := ValidateAPIResponse(result, e.InstanceID); err != nil {
 		return apiError(e, 502, "Resource response exceeds the OpenUI bridge envelope")
 	}

@@ -431,7 +431,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	}
 	var commandMu sync.Mutex
 	s.enableOpenUIUpdates(ready.OpenUIUpdate)
-	s.enableOpenUIAPI(ready.OpenUIAPI)
+	s.enableOpenUIAPI(ready.OpenUIAPI, ready.OpenUIAPIBytes)
 	if !doc.capture {
 		s.surfaceHandle, s.surfacePID = uintptr(loaded.WindowHandle), process.ProcessId
 		if !validSurfaceWindow(s.surfaceHandle, s.surfacePID) {

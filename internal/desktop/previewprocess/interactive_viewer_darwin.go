@@ -54,7 +54,7 @@ func startMacPixelSeat(ctx context.Context, s *Session, input io.Writer, output 
 				return
 			case command = <-commands:
 			case apiResponse = <-s.openUIAPIResponses():
-				if !s.receivedOpenUIAPIResponse() {
+				if !s.receivedOpenUIAPIResponse(apiResponse) {
 					return
 				}
 				command.Kind = "api-response"

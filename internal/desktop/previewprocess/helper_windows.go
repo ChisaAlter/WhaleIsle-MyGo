@@ -114,7 +114,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	}
 	// No document is in memory yet. This identity is sent over the inherited
 	// pipe, not a page bridge. Only the parent's OS query grants the next phase.
-	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, OpenUIUpdate: true, OpenUIAPI: true, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
+	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, OpenUIUpdate: true, OpenUIAPI: true, OpenUIAPIBytes: maxHTMLBytes, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
 		return err
 	}
 	doc, err := receiveDocument(input, nonce)

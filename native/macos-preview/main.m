@@ -204,7 +204,7 @@ static void verifyIdentity(void) {
     NSCharacterSet *nonhex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"] invertedSet];
     if(![instance isKindOfClass:NSString.class] || instance.length!=64 || [instance rangeOfCharacterFromSet:nonhex].location!=NSNotFound || ![request isKindOfClass:NSString.class] || request.length<1 || ![status isKindOfClass:NSNumber.class] || !isfinite([status doubleValue]) || floor([status doubleValue])!=[status doubleValue] || [status integerValue]<200 || [status integerValue]>599 || !response[@"body"]) fail(@"invalid OpenUI API response payload");
     NSData *raw=[NSJSONSerialization dataWithJSONObject:response options:0 error:nil];
-    if(!raw || raw.length<1 || raw.length>65536) fail(@"OpenUI API response exceeds envelope");
+    if(!raw || raw.length<1 || raw.length>25*1024*1024) fail(@"OpenUI API response exceeds envelope");
     NSString *json=[[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
     json=[json stringByReplacingOccurrencesOfString:@"\u2028" withString:@"\\u2028"];
     json=[json stringByReplacingOccurrencesOfString:@"\u2029" withString:@"\\u2029"];
@@ -310,7 +310,7 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     Preview *preview=[Preview new];
     // Ready means the independently signed single-process renderer is identified;
     // no untrusted document has been read or loaded at this point.
-    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES,@"openUIUpdate":@YES,@"openUIAPI":@YES});
+    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES,@"openUIUpdate":@YES,@"openUIAPI":@YES,@"openUIAPIBytes":@(25*1024*1024)});
     NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"]) fail(@"unsupported document request");
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");
@@ -334,7 +334,7 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
         NSDictionary *p=readPacket();
         if([p[@"kind"] isEqual:@"api-response"]) {
             NSInteger size=[p[@"bytes"] integerValue];
-            if(!preview.openUI || preview.capture || size<1 || size>65536) fail(@"invalid OpenUI API response body length");
+            if(!preview.openUI || preview.capture || size<1 || size>25*1024*1024) fail(@"invalid OpenUI API response body length");
             id body=[NSJSONSerialization JSONObjectWithData:readExact(size) options:0 error:nil];
             if(![body isKindOfClass:NSDictionary.class]) fail(@"invalid OpenUI API response JSON");
             NSMutableDictionary *withBody=[p mutableCopy];withBody[@"apiResponseBody"]=body;p=withBody;
