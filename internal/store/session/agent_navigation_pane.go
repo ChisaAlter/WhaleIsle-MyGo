@@ -59,6 +59,7 @@ func (s *Store) SyncAgentNavigationPane() {
 	defer s.mu.Unlock()
 	if s.client != client || s.mux != mux || s.selectedID != root || s.followGeneration != generation || s.planHistoryBinding != binding {
 		s.invalidateAgentNavigationLocked()
+		s.questionProjections = nil // Child projection cache never crosses Host/root ownership.
 	}
 	s.client, s.mux, s.selectedID, s.planHistoryBinding, s.followGeneration = client, mux, root, binding, generation
 	s.items, s.notify, s.promptMode = items, notify, mode

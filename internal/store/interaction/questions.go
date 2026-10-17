@@ -8,6 +8,8 @@ import (
 
 // QuestionRowView is one question line in the interaction card.
 type QuestionRowView struct {
+	Selected           []string
+	Custom             string
 	ID                 string
 	Question           string
 	Detail             string
@@ -81,6 +83,8 @@ func (ds *draftSession) cardView(eventID string) QuestionCardView {
 		}
 		if ad := ds.answers[q.ID]; ad != nil {
 			row.Skipped = ad.skipped
+			row.Selected = append([]string(nil), ad.selected...)
+			row.Custom = ad.custom
 		}
 		for _, o := range q.Options {
 			row.OptionLabels = append(row.OptionLabels, o.Label)

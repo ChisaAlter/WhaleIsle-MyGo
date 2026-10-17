@@ -49,20 +49,22 @@ type ViewState struct {
 
 // Store serializes waterfall handlers with the main-thread UI.
 type Store struct {
-	questionHistory  map[string]*questionHistoryState
-	questionRecovery questionRecovery
-	mu               sync.Mutex
-	notify           func()
-	client           *dsh.Client
-	mux              *dsh.Mux
-	autoAllow        bool
-	banner           string
-	pending          []Pending
-	waiters          map[string]chan dsh.EventResultOutcome
-	responses        map[string]dsh.EventResultOutcome
-	cancelled        map[string]bool
-	questionDrafts   map[string]*draftSession
-	waitCancels      map[string]context.CancelFunc
+	questionFocusFrame  bool
+	questionFocusScopes map[string]string
+	questionHistory     map[string]*questionHistoryState
+	questionRecovery    questionRecovery
+	mu                  sync.Mutex
+	notify              func()
+	client              *dsh.Client
+	mux                 *dsh.Mux
+	autoAllow           bool
+	banner              string
+	pending             []Pending
+	waiters             map[string]chan dsh.EventResultOutcome
+	responses           map[string]dsh.EventResultOutcome
+	cancelled           map[string]bool
+	questionDrafts      map[string]*draftSession
+	waitCancels         map[string]context.CancelFunc
 }
 
 // New returns an interaction store with manual tool approval (Electron default).
@@ -193,6 +195,9 @@ func (s *Store) ResolveQuestions(eventID string) {
 func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if p := s.findPending(eventID); p != nil && p.Sending {
+		return
+	}
 	ad := s.answerDraftLocked(eventID, questionID)
 	if ad == nil {
 		return
@@ -213,6 +218,9 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if p := s.findPending(eventID); p != nil && p.Sending {
+		return
+	}
 	ds := s.questionDrafts[eventID]
 	if ds == nil {
 		return
@@ -257,6 +265,9 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if p := s.findPending(eventID); p != nil && p.Sending {
+		return
+	}
 	ad := s.answerDraftLocked(eventID, questionID)
 	if ad == nil {
 		return

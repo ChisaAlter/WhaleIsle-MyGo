@@ -359,6 +359,10 @@ type Model struct {
 
 // View paints the main dialogue shell below the title bar.
 func View(c *ui.Context, m Model) {
+	if m.Interactions != nil {
+		m.Interactions.BeginQuestionFocusFrame()
+		defer m.Interactions.EndQuestionFocusFrame()
+	}
 	if m.Sizes == nil {
 		fallback := DefaultLayout()
 		m.Sizes = &fallback
@@ -1074,6 +1078,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
 								interui.View(c, interui.Model{
 									Snapshot:           m.Interactions.SnapshotForAgent(snap.SelectedID),
+									ScopeAgentID:       snap.SelectedID,
 									ThemeID:            m.ThemeID,
 									SystemDark:         m.SystemDark,
 									Store:              m.Interactions,
@@ -1288,15 +1293,17 @@ func rightPane(c *ui.Context, m Model) {
 				navigation = m.AgentNavigationStore
 			}
 			agents.View(c, agents.Model{
-				OnOpenChat:     subagentChatOpener(m),
-				Store:          navigation,
-				Manager:        m.AgentPresetManager,
-				Snapshot:       store.Snapshot(),
-				ThemeID:        m.ThemeID,
-				SystemDark:     m.SystemDark,
-				PromptDraft:    m.AgentsPromptDraft,
-				OnOpenURL:      m.OnOpenCitationURL,
-				OnOpenDocument: m.OnOpenAgentDocument,
+				OnOpenChat:         subagentChatOpener(m),
+				Interactions:       m.Interactions,
+				OnOpenPlanResource: m.OnOpenPlanResource,
+				Store:              navigation,
+				Manager:            m.AgentPresetManager,
+				Snapshot:           store.Snapshot(),
+				ThemeID:            m.ThemeID,
+				SystemDark:         m.SystemDark,
+				PromptDraft:        m.AgentsPromptDraft,
+				OnOpenURL:          m.OnOpenCitationURL,
+				OnOpenDocument:     m.OnOpenAgentDocument,
 				OnClose: func() {
 					if m.RightPaneTab != nil {
 						*m.RightPaneTab = "files"

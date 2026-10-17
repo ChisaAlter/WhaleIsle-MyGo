@@ -7,29 +7,33 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
 )
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
-	ChatOnly       bool
-	OnOpenChat     func(uint64, session.AgentSessionAddress)
-	Store          *session.Store
-	Manager        *session.AgentPresetManager
-	Snapshot       session.ViewState
-	ThemeID        string
-	SystemDark     bool
-	PromptDraft    *string // draft for subagents/prompt to the selected child
-	OnSelect       func(sessionID string)
-	OnStop         func(sessionID string) // session/cancel for a running child
-	OnInterrupt    func(parentID, childID string)
-	OnPrompt       func(parentID, childID, text string)
-	OnOpenURL      func(string)
-	OnOpenDocument func(uint64, session.AgentSessionAddress, string)
-	OnClose        func()
+	Interactions       *interaction.Store
+	OnOpenPlanResource func(planpreview.Document)
+	ChatOnly           bool
+	OnOpenChat         func(uint64, session.AgentSessionAddress)
+	Store              *session.Store
+	Manager            *session.AgentPresetManager
+	Snapshot           session.ViewState
+	ThemeID            string
+	SystemDark         bool
+	PromptDraft        *string // draft for subagents/prompt to the selected child
+	OnSelect           func(sessionID string)
+	OnStop             func(sessionID string) // session/cancel for a running child
+	OnInterrupt        func(parentID, childID string)
+	OnPrompt           func(parentID, childID, text string)
+	OnOpenURL          func(string)
+	OnOpenDocument     func(uint64, session.AgentSessionAddress, string)
+	OnClose            func()
 }
 
 // View paints child sessions of the selected root (ParentID tree).

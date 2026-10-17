@@ -124,6 +124,9 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 				// Original follow carries the authoritative same-cut projection baseline.
 				// Use it without blocking stream draining on another RPC or activating anything.
 				if baseline.Projections != nil {
+					if baseline.Projections.AsOfSeq != nil {
+						s.applyQuestionValuesForSessionLocked(address.ChildSessionID, baseline.Projections.Values, *baseline.Projections.AsOfSeq)
+					}
 					if catalogErr := seedAgentNavigationCatalog(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq, s.items); catalogErr != nil {
 						n.view.Error = "Agent directory: " + catalogErr.Error()
 					}
@@ -249,6 +252,9 @@ func (s *Store) loadAgentNavigationLiveCatalog(ctx context.Context, token uint64
 	}
 	n := &s.agentNavigation
 	if err == nil {
+		if projection.AsOfSeq != nil {
+			s.applyQuestionValuesForSessionLocked(address.ChildSessionID, projection.Values, *projection.AsOfSeq)
+		}
 		err = seedAgentNavigationCatalog(&n.view, projection.Values, projection.AsOfSeq, s.items)
 		s.refreshAgentNavigationRowsLocked(&n.view)
 	}

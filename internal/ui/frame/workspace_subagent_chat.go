@@ -89,6 +89,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 		return
 	}
 	agents.View(c, agents.Model{Store: navigation, Snapshot: m.Store.Snapshot(), ChatOnly: true,
+		Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 		ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: m.AgentsPromptDraft,
 		OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: m.OnOpenAgentDocument,
 		OnClose: func() { m.Sizes.Workspace.pending = func() { m.Sizes.Workspace.close(n.ID) } },
