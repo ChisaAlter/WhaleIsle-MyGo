@@ -2,9 +2,6 @@
 package interaction
 
 import (
-	"strings"
-
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/interaction"
@@ -30,6 +27,8 @@ func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
+	focusedAgent, focusedEvent := "", ""
+	defer func() { m.Store.SyncQuestionFocus(focusedAgent, focusedEvent) }()
 	snap := m.Snapshot
 	// Idle in manual mode: omit strip. Auto-allow on → banner (toggle to manual).
 	// Pending → approval / question cards.
@@ -73,15 +72,17 @@ func View(c *ui.Context, m Model) {
 		}
 		questionHistory(c, snap.QuestionHistory, m.Store, fg, muted, accent)
 		for _, p := range snap.Pending {
-			pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent, m.OnOpenPlanResource)
+			if pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent, m.OnOpenPlanResource) {
+				focusedAgent, focusedEvent = p.AgentID, p.EventID
+			}
 		}
 	})
 }
 
-func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) {
+func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store *interaction.Store, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
 		planReviewCard(c, p, card, store, fg, muted, accent, onOpenPlan)
-		return
+		return false
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
 		ui.Row(c).Gap(8).Children(func() {
@@ -90,8 +91,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				store.ReopenQuestion(p.EventID)
 			}
 		})
-		return
+		return false
 	}
+	focused := false
 	card := ui.Column(c.Key("approval-card:"+p.AgentID+":"+p.EventID)).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12)
 	var keys *approvalKeys
 	if p.Event == interaction.EventApproval {
@@ -105,7 +107,8 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			if card, ok := snap.QuestionCards[p.EventID]; ok {
-				questionsBody(c, p.EventID, card, store, fg, muted)
+				questionWaitStatus(c, p, card, store, muted)
+				focused = questionsBody(c, p.EventID, card, store, fg, muted)
 			}
 		} else {
 			if p.Detail != "" {
@@ -114,22 +117,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			if p.CallID != "" {
 				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
-			if p.Args != "" {
-				ui.Column(c).Padding(6, 8, 6, 8).Background(accent.Alpha(0.06)).Gap(4).Children(func() {
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, p.Args).FontSize(theme.InterfaceSize(11)).TextColor(fg).Grow(1)
-						copyButton := ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11))
-						if keys != nil {
-							copyButton.HandleInput(approvalHandler(keys, p, store, true))
-						}
-						if copyButton.Clicked() {
-							if strings.TrimSpace(p.Args) != "" {
-								mygo.Clipboard.WriteText(p.Args)
-							}
-						}
-					})
-				})
-			}
+			approvalArguments(c, p, store, keys, fg, muted, accent)
 		}
 		if p.Error != "" {
 			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -183,77 +171,83 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 		})
 	})
-}
 
-func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardView, store *interaction.Store, fg, muted ui.Color) {
-	for _, row := range card.Rows {
-		ui.Column(c).Gap(4).Children(func() {
-			label := row.Question
-			if label == "" {
-				label = row.Header
-			}
-			if label != "" {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-			}
-			if row.Detail != "" {
-				ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
-			ui.Row(c).Gap(8).Children(func() {
-				if row.Skipped {
-					ui.Text(c, "已跳过 / Skipped").FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					if ui.Button(c, "撤销跳过 / Undo skip").Clicked() {
-						store.SetQuestionSkipped(eventID, row.ID, false)
+	return focused
+}
+func questionsBody(c *ui.Context, eventID string, card interaction.QuestionCardView, store *interaction.Store, fg, muted ui.Color) bool {
+	area := ui.Column(c.Key("question-answer:" + eventID)).FillWidth()
+	area.Children(func() {
+		for _, row := range card.Rows {
+			ui.Column(c).Gap(4).Children(func() {
+				label := row.Question
+				if label == "" {
+					label = row.Header
+				}
+				if label != "" {
+					ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+				}
+				if row.Detail != "" {
+					ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				}
+				ui.Row(c).Gap(8).Children(func() {
+					if row.Skipped {
+						ui.Text(c, "已跳过 / Skipped").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						if ui.Button(c, "撤销跳过 / Undo skip").Clicked() {
+							store.SetQuestionSkipped(eventID, row.ID, false)
+						}
+					} else if ui.Button(c, "跳过此题 / Skip question").Clicked() {
+						store.SetQuestionSkipped(eventID, row.ID, true)
 					}
-				} else if ui.Button(c, "跳过此题 / Skip question").Clicked() {
-					store.SetQuestionSkipped(eventID, row.ID, true)
+				})
+				// The protocol permits a custom answer even when choices are supplied.
+				defer func() {
+					ptr := store.QuestionCustomPtr(eventID, row.ID)
+					inp := ui.TextInput(c, ptr).Fill()
+					if inp.Changed() {
+						store.SetQuestionCustom(eventID, row.ID, *ptr)
+					}
+				}()
+				if len(row.OptionLabels) == 0 {
+					return
+				}
+				if row.MultiSelect {
+					for index, opt := range row.OptionLabels {
+						opt := opt
+						checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
+						box := ui.Checkbox(c, checked, opt)
+						if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
+							ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						}
+						if box.Changed() {
+							store.SetQuestionOptionChecked(eventID, row.ID, opt, *checked)
+						}
+					}
+					return
+				}
+				if len(row.OptionLabels) <= 4 {
+					for index, opt := range row.OptionLabels {
+						opt := opt
+						checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
+						box := ui.Checkbox(c, checked, opt)
+						if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
+							ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						}
+						if box.Changed() && *checked {
+							store.SetQuestionOptionChecked(eventID, row.ID, opt, true)
+						}
+					}
+					return
+				}
+				ptr := store.QuestionSingleSelectPtr(eventID, row.ID)
+				sel := ui.Select(c, ptr, row.OptionLabels)
+				if sel.Changed() {
+					store.SetQuestionSingleSelect(eventID, row.ID, *ptr)
 				}
 			})
-			// The protocol permits a custom answer even when choices are supplied.
-			defer func() {
-				ptr := store.QuestionCustomPtr(eventID, row.ID)
-				inp := ui.TextInput(c, ptr).Fill()
-				if inp.Changed() {
-					store.SetQuestionCustom(eventID, row.ID, *ptr)
-				}
-			}()
-			if len(row.OptionLabels) == 0 {
-				return
-			}
-			if row.MultiSelect {
-				for index, opt := range row.OptionLabels {
-					opt := opt
-					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
-					box := ui.Checkbox(c, checked, opt)
-					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-						ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					}
-					if box.Changed() {
-						store.SetQuestionOptionChecked(eventID, row.ID, opt, *checked)
-					}
-				}
-				return
-			}
-			if len(row.OptionLabels) <= 4 {
-				for index, opt := range row.OptionLabels {
-					opt := opt
-					checked := store.QuestionOptionCheckedPtr(eventID, row.ID, opt)
-					box := ui.Checkbox(c, checked, opt)
-					if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-						ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					}
-					if box.Changed() && *checked {
-						store.SetQuestionOptionChecked(eventID, row.ID, opt, true)
-					}
-				}
-				return
-			}
-			ptr := store.QuestionSingleSelectPtr(eventID, row.ID)
-			sel := ui.Select(c, ptr, row.OptionLabels)
-			if sel.Changed() {
-				store.SetQuestionSingleSelect(eventID, row.ID, *ptr)
-			}
-		})
-	}
+		}
+
+	})
+	return area.FocusWithin()
 }
 
 func questionStatusText(status string) string {

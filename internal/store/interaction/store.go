@@ -2,7 +2,6 @@
 package interaction
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
@@ -26,8 +25,12 @@ type Pending struct {
 	AgentID   string
 	Title     string
 	Detail    string
-	// Args is a monospace preview of tool input (approval cards).
-	Args string
+	// Args preserves the full original tool input for inspection and copying.
+	Args              string
+	ApprovalContext   string
+	approvalCallID    string
+	approvalRequester bool
+	approvalResolved  bool
 	// CallID is the harness tool call id when present.
 	CallID  string
 	Sending bool
@@ -194,6 +197,7 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 	if ad == nil {
 		return
 	}
+	s.engageQuestionLocked(eventID)
 	ad.skipped = false
 	ad.custom = ""
 	ad.selected = []string{label}
@@ -224,6 +228,7 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 	if ad == nil {
 		return
 	}
+	s.engageQuestionLocked(eventID)
 	ad.skipped = false
 	if multi {
 		if ptr := ad.checks[label]; ptr != nil {
@@ -256,6 +261,7 @@ func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 	if ad == nil {
 		return
 	}
+	s.engageQuestionLocked(eventID)
 	ad.skipped = false
 	ad.custom = text
 	if strings.TrimSpace(text) != "" {
@@ -534,13 +540,16 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 	}
 	s.waiters[wf.EventID] = ch
 	s.pending = append(s.pending, Pending{
-		EventID: wf.EventID,
-		Event:   wf.Event,
-		AgentID: wf.AgentID,
-		Title:   title,
-		Detail:  detail,
-		Args:    args,
-		CallID:  callID,
+		EventID:           wf.EventID,
+		Event:             wf.Event,
+		AgentID:           wf.AgentID,
+		Title:             title,
+		Detail:            detail,
+		Args:              args,
+		ApprovalContext:   approvalRequesterContext(req),
+		approvalCallID:    req.CallID,
+		approvalRequester: req.Requester != nil,
+		CallID:            callID,
 	})
 	s.mu.Unlock()
 	s.fire()
@@ -635,44 +644,17 @@ func defaultQuestionAnswer(req userQuestionsRequest) userQuestionsAnswer {
 func strPtr(s string) *string { return &s }
 
 type approvalRequest struct {
-	ToolName      string          `json:"toolName"`
-	Reason        string          `json:"reason"`
-	DisplayReason json.RawMessage `json:"displayReason"`
-	RequestID     string          `json:"requestId"`
-	CallID        string          `json:"callId"`
-	Input         json.RawMessage `json:"input"`
-	Args          json.RawMessage `json:"args"`
-	Parameters    json.RawMessage `json:"parameters"`
-	Command       string          `json:"command"`
-	Description   string          `json:"description"`
-}
-
-func approvalArgsPreview(req approvalRequest) string {
-	for _, raw := range []json.RawMessage{req.Input, req.Args, req.Parameters} {
-		if len(raw) == 0 || string(raw) == "null" {
-			continue
-		}
-		var pretty bytes.Buffer
-		if err := json.Indent(&pretty, raw, "", "  "); err == nil && pretty.Len() > 0 {
-			s := pretty.String()
-			if len(s) > 2400 {
-				return s[:2400] + "\n…"
-			}
-			return s
-		}
-		s := string(raw)
-		if len(s) > 2400 {
-			return s[:2400] + "…"
-		}
-		return s
-	}
-	if req.Command != "" {
-		return req.Command
-	}
-	if req.Description != "" {
-		return req.Description
-	}
-	return ""
+	Requester     *approvalRequester `json:"requester"`
+	ToolName      string             `json:"toolName"`
+	Reason        string             `json:"reason"`
+	DisplayReason json.RawMessage    `json:"displayReason"`
+	RequestID     string             `json:"requestId"`
+	CallID        string             `json:"callId"`
+	Input         json.RawMessage    `json:"input"`
+	Args          json.RawMessage    `json:"args"`
+	Parameters    json.RawMessage    `json:"parameters"`
+	Command       string             `json:"command"`
+	Description   string             `json:"description"`
 }
 
 type userQuestionsRequest struct {

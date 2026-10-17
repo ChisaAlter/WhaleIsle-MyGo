@@ -13,6 +13,7 @@ func syncQuestionHistory(store *interaction.Store, snap session.ViewState) {
 			raws = append(raws, m.Raw)
 		}
 	}
+	store.SyncApprovalCalls(snap.SelectedID, raws)
 	q := snap.QuestionProjection
 	store.SyncQuestionHistory(snap.SelectedID, raws, q.Questions, q.Inbox, q.QuestionsSeq, q.InboxSeq)
 }

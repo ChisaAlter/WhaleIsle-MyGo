@@ -3,6 +3,7 @@ package interaction
 import (
 	"regexp"
 	"strings"
+	"time"
 )
 
 // QuestionRowView is one question line in the interaction card.
@@ -19,6 +20,7 @@ type QuestionRowView struct {
 
 // QuestionCardView is parsed user-questions/request payload for UI.
 type QuestionCardView struct {
+	Wait             *QuestionWaitView
 	Hidden           bool
 	PlanReview       *PlanReview
 	PlanReviewHidden bool
@@ -27,6 +29,7 @@ type QuestionCardView struct {
 }
 
 type draftSession struct {
+	wait             questionWaitState
 	hidden           bool
 	planReviewHidden bool
 	req              userQuestionsRequest
@@ -67,7 +70,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 }
 
 func (ds *draftSession) cardView(eventID string) QuestionCardView {
-	cv := QuestionCardView{Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
+	cv := QuestionCardView{Wait: ds.wait.view(time.Now()), Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
 	for _, q := range ds.req.Questions {
 		row := QuestionRowView{
 			ID:          q.ID,
@@ -174,6 +177,7 @@ func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
 		s.mu.Unlock()
 		return
 	}
+	s.engageQuestionLocked(eventID)
 	ad.skipped = skipped
 	if skipped {
 		ad.selected = nil

@@ -48,12 +48,6 @@ func (s *Store) attachQuestionWait(ctx context.Context, mux *dsh.Mux, agentID, c
 		if json.Unmarshal(raw, &wait) != nil || wait.RemainingMs < 0 || wait.RemainingMs > 2147483647 {
 			return
 		}
-		timer := time.NewTimer(time.Duration(wait.RemainingMs) * time.Millisecond)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-		case <-timer.C:
-			s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_TIMED_OUT", Message: "Question timed out"}})
-		}
+		s.runQuestionWait(ctx, agentID, callID, eventID, time.Duration(wait.RemainingMs)*time.Millisecond)
 	}()
 }
