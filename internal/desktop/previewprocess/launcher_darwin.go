@@ -11,8 +11,6 @@ import (
 	"os/exec"
 	"sync"
 	"time"
-
-	"whaleisle/internal/desktop/htmlpreview"
 )
 
 // Legacy WebView is a deprecated single-process compatibility renderer, not a
@@ -27,12 +25,14 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 	if err != nil {
 		return nil, err
 	}
-	shell, err := htmlpreview.ProcessDocumentShell(doc.HTML, doc.Width, doc.Appearance)
+	shell, err := documentShell(doc)
 	if err != nil {
 		return nil, err
 	}
 	wireDoc := doc
 	wireDoc.HTML = shell
+	wireDoc.openUIShell = doc.OpenUI != nil
+	wireDoc.OpenUI = nil
 	if err = validateDocument(wireDoc); err != nil {
 		return nil, err
 	}
@@ -66,6 +66,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 	exited := make(chan struct{})
 	go func() { _ = cmd.Wait(); close(exited) }()
 	session := &Session{done: make(chan struct{})}
+	session.initOpenUIEvents(doc)
 	session.closeFn = func() error {
 		_ = input.Close()
 		cancel()
@@ -86,6 +87,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 		p, e := readPacket(output)
 		if e == nil {
 			e = expect(p, "ready", nonce)
+		}
+		if e == nil {
+			e = requireOpenUIBridge(doc, p)
 		}
 		if e == nil && (p.HelperPID != uint32(cmd.Process.Pid) || p.BrowserPID != p.HelperPID) {
 			e = errors.New("legacy renderer is not the launched single-process helper")
@@ -138,6 +142,17 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 			session.Close()
 			return nil, err
 		}
+	}
+	if doc.OpenUI != nil && !doc.Inline {
+		go func() {
+			defer session.Close()
+			for {
+				p, e := readPacket(output)
+				if e != nil || session.receiveOpenUIEvent(output, p, nonce) != nil {
+					return
+				}
+			}
+		}()
 	}
 	go func() {
 		select {

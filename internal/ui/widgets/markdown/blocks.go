@@ -48,6 +48,9 @@ func codeBlockSource(node ast.Node, source string) (language, code string) {
 
 func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	language, code := codeBlockSource(node, source)
+	if st.RenderFence != nil && node.Lines().Len() > 0 && st.RenderFence(c, language, code, node.Lines().At(0).Start) {
+		return
+	}
 	root := ui.Column(c).FillWidth().MinWidth(0).Background(st.CodeBG).Padding(8).Gap(4)
 	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
 	root.Children(func() {

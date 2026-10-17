@@ -10,12 +10,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
 
 	"whaleisle/internal/desktop/htmlpreview"
+	"whaleisle/internal/desktop/openui"
 )
 
 const (
@@ -36,16 +38,19 @@ type Options struct {
 // Document contains an already authorized, resource-frozen snapshot. This
 // package never opens workspace paths or resolves document resource URLs.
 type Document struct {
-	HTML       string
-	Width      int
-	Appearance string
-	capture    bool
-	Inline     bool
+	OpenUI      *openui.Render
+	openUIShell bool // Trusted parent-prepared shell, never set by document JavaScript.
+	HTML        string
+	Width       int
+	Appearance  string
+	capture     bool
+	Inline      bool
 }
 
 // Session owns the entire helper job until Close, cancellation, process exit,
 // a failed containment check, or the thirty-minute lifetime limit.
 type Session struct {
+	openUIEvents  *openUIEventQueue
 	pixels        *pixelSurface
 	done          chan struct{}
 	once          sync.Once
@@ -62,7 +67,7 @@ type Session struct {
 
 func (s *Session) Done() <-chan struct{} { return s.done }
 func (s *Session) Close() error {
-	s.once.Do(func() { s.err = s.closeFn(); close(s.done) })
+	s.once.Do(func() { s.closeOpenUIEvents(); s.err = s.closeFn(); close(s.done) })
 	return s.err
 }
 
@@ -82,10 +87,21 @@ func OpenExperimental(ctx context.Context, opt Options, doc Document) (*Session,
 	if strings.TrimSpace(opt.HelperPath) == "" {
 		return nil, errors.New("missing trusted preview helper")
 	}
+	if doc.OpenUI != nil && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+		return nil, errors.New("OpenUI event bridge is unavailable on this platform")
+	}
 	return openPlatform(ctx, opt, doc)
 }
 
 func validateDocument(d Document) error {
+	if d.OpenUI != nil {
+		if err := openui.ValidateRender(*d.OpenUI); err != nil {
+			return err
+		}
+	}
+	if d.capture && (d.OpenUI != nil || d.openUIShell) {
+		return errors.New("OpenUI requires an interactive session")
+	}
 	if len(d.HTML) == 0 || len(d.HTML) > maxHTMLBytes || !utf8.ValidString(d.HTML) || strings.TrimSpace(d.HTML) == "" {
 		return errors.New("invalid prepared HTML snapshot")
 	}
@@ -96,6 +112,7 @@ func validateDocument(d Document) error {
 }
 
 type packet struct {
+	OpenUI       bool              `json:"openUI,omitempty"`
 	Input        *interactiveInput `json:"input,omitempty"`
 	Version      int               `json:"version"`
 	Kind         string            `json:"kind"`
@@ -179,10 +196,14 @@ func expect(p packet, kind, nonce string) error {
 }
 
 func sendDocument(w io.Writer, nonce string, d Document) error {
+	var err error
+	if d, err = prepareOpenUIDocument(d); err != nil {
+		return err
+	}
 	if err := validateDocument(d); err != nil {
 		return err
 	}
-	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline}); err != nil {
+	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline, OpenUI: d.openUIShell}); err != nil {
 		return err
 	}
 	return writeAll(w, []byte(d.HTML))
@@ -203,7 +224,7 @@ func receiveDocument(r io.Reader, nonce string) (Document, error) {
 	if _, err := io.ReadFull(r, body); err != nil {
 		return Document{}, err
 	}
-	d := Document{HTML: string(body), Width: p.Width, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline}
+	d := Document{HTML: string(body), Width: p.Width, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline, openUIShell: p.OpenUI}
 	return d, validateDocument(d)
 }
 

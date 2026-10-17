@@ -1,0 +1,95 @@
+// Package openui adapts a user-supplied, pinned OpenUI viewer to the isolated
+// preview helper. It contains no third-party runtime bundle or Host credentials.
+package openui
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"strings"
+	"unicode/utf8"
+)
+
+const MaxProgramBytes = 256 << 10
+const MaxEventBytes = 64 << 10
+const MaxStateBytes = 48 << 10
+const MaxViewerBytes = 12 << 20
+
+type Render struct {
+	InstanceID string          `json:"instanceId"`
+	Program    string          `json:"program"`
+	Streaming  bool            `json:"streaming"`
+	State      json.RawMessage `json:"state"`
+}
+type Event struct {
+	Channel    string          `json:"channel"`
+	Version    int             `json:"version"`
+	InstanceID string          `json:"instanceId"`
+	Type       string          `json:"type"`
+	State      json.RawMessage `json:"state,omitempty"`
+	Message    string          `json:"message,omitempty"`
+	FormState  json.RawMessage `json:"formState,omitempty"`
+	Context    json.RawMessage `json:"context,omitempty"`
+	Program    string          `json:"program,omitempty"`
+	Code       string          `json:"code,omitempty"`
+}
+
+func Identity(binding, session, message string, block int) string {
+	raw, _ := json.Marshal([]any{binding, session, message, block})
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+func ValidateState(raw json.RawMessage) error {
+	var object map[string]json.RawMessage
+	if len(raw) > MaxStateBytes || json.Unmarshal(raw, &object) != nil || object == nil {
+		return errors.New("invalid or oversized OpenUI state")
+	}
+	return nil
+}
+func ValidateRender(r Render) error {
+	if len(r.InstanceID) != 64 || len(r.Program) == 0 || len(r.Program) > MaxProgramBytes || !utf8.ValidString(r.Program) {
+		return errors.New("invalid OpenUI instance/program")
+	}
+	if _, err := hex.DecodeString(r.InstanceID); err != nil {
+		return errors.New("invalid OpenUI instance")
+	}
+	return ValidateState(r.State)
+}
+func ValidateEvent(raw json.RawMessage, instance string) (Event, error) {
+	var e Event
+	if len(raw) > MaxEventBytes || json.Unmarshal(raw, &e) != nil || e.Channel != "whale-openui" || e.Version != 1 || e.InstanceID != instance {
+		return e, errors.New("invalid OpenUI event envelope")
+	}
+	switch e.Type {
+	case "state":
+		if err := ValidateState(e.State); err != nil {
+			return e, err
+		}
+	case "assistant":
+		if strings.TrimSpace(e.Message) == "" || len(e.Message) > 16<<10 {
+			return e, errors.New("invalid OpenUI action")
+		}
+	case "error":
+		if len(e.Message) > 4096 {
+			return e, errors.New("oversized OpenUI error")
+		}
+	case "resolved":
+		if len(e.Program) > MaxEventBytes/2 {
+			return e, errors.New("oversized OpenUI resolved event")
+		}
+	default:
+		return e, errors.New("unsupported OpenUI event")
+	}
+	return e, nil
+}
+func (e Event) ActionText() string {
+	parts := []string{e.Message}
+	if len(e.FormState) > 0 {
+		parts = append(parts, "OpenUI form state:\n"+string(e.FormState))
+	}
+	if len(e.Context) > 0 {
+		parts = append(parts, "OpenUI context:\n"+string(e.Context))
+	}
+	return strings.Join(parts, "\n\n")
+}

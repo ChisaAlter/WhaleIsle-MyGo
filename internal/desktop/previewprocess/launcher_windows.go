@@ -346,6 +346,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	ownedProfile, ownedJob, ownedPipes = false, false, false
 	lifetime, cancelLifetime := context.WithTimeout(ctx, 30*time.Minute)
 	s := &Session{done: make(chan struct{})}
+	s.initOpenUIEvents(doc)
 	s.closeFn = func() error {
 		cancelLifetime()
 		inputWrite.Close()
@@ -399,6 +400,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 		return nil, fmt.Errorf("preview helper handshake: %w", err)
 	}
 	if err = expect(ready, "ready", nonce); err != nil {
+		return nil, err
+	}
+	if err = requireOpenUIBridge(doc, ready); err != nil {
 		return nil, err
 	}
 	if ready.SID != sid || ready.HelperPID != process.ProcessId {
@@ -475,7 +479,16 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 		}
 		for {
 			p, err := readPacket(outputRead)
-			if err != nil || expect(p, "size", nonce) != nil || p.Height < 80 || p.Height > 2000 {
+			if err != nil {
+				return
+			}
+			if p.Kind == "openui-event" {
+				if s.receiveOpenUIEvent(outputRead, p, nonce) != nil {
+					return
+				}
+				continue
+			}
+			if expect(p, "size", nonce) != nil || p.Height < 80 || p.Height > 2000 {
 				return
 			}
 			s.height.Store(int64(p.Height))

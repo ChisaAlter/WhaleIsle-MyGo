@@ -66,6 +66,7 @@ static void verifyIdentity(void) {
 @property BOOL initialNavigation;
 @property BOOL capture;
 @property BOOL inlineSeat;
+@property BOOL openUI;
 @property NSUInteger pressedButtons;
 @property(strong) NSMutableDictionary<NSNumber *,NSView *> *mouseTargets;
 @property NSPoint pointer;
@@ -81,6 +82,22 @@ static void verifyIdentity(void) {
     if(!png || png.length>8*1024*1024) fail(@"invalid inline preview frame");
     return png;
 }
+// Only the fixed trusted parent-shell queue is inspected. The opaque viewer
+// has no native binding, filesystem/clipboard/URL API, or direct IPC access.
+- (void)emitOpenUIEvents {
+    if(!self.openUI || !self.loaded) return;
+    NSString *json=[self.web stringByEvaluatingJavaScriptFromString:@"(()=>{if(window.__previewState&&window.__previewState.error)throw new Error('OpenUI shell failed');return JSON.stringify(window.__whaleOpenUIDrain());})()"];
+    if(!json || [json lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>16*(65536+1)+2) fail(@"invalid OpenUI event batch");
+    id batch=[NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    if(![batch isKindOfClass:NSArray.class] || [batch count]>16) fail(@"invalid OpenUI event count");
+    for(id event in batch) {
+        if(![event isKindOfClass:NSDictionary.class]) fail(@"invalid OpenUI event");
+        NSData *raw=[NSJSONSerialization dataWithJSONObject:event options:0 error:nil];
+        if(!raw || raw.length<1 || raw.length>65536) fail(@"invalid OpenUI event size");
+        packet(@"openui-event",@{@"bytes":@(raw.length)});writeData(raw);
+    }
+}
+- (void)pollOpenUI:(NSTimer *)timer { [self emitOpenUIEvents]; }
 - (void)emitFrame {
     NSData *png=[self framePNG];
     packet(@"frame",@{@"bytes":@(png.length),@"width":@(self.width),@"height":@700});writeData(png);
@@ -175,7 +192,7 @@ static void verifyIdentity(void) {
     if(self.inlineSeat) {
         // Deliver input first, then capture on a later main-loop turn. The parent
         // permits only one outstanding request and validates every PNG frame.
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,33*NSEC_PER_MSEC),dispatch_get_main_queue(),^{[self emitFrame];});
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,33*NSEC_PER_MSEC),dispatch_get_main_queue(),^{[self emitOpenUIEvents];[self emitFrame];});
     }
 }
 - (void)windowWillClose:(NSNotification *)note { exit(0); }
@@ -218,7 +235,9 @@ static void verifyIdentity(void) {
     packet(@"loaded",@{@"browserPID":@(getpid())});
     if(!self.capture) {
         if(self.inlineSeat) { [self.window makeFirstResponder:self.web];[self emitFrame]; }
-        else { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES]; }
+        else { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
+            if(self.openUI) [NSTimer scheduledTimerWithTimeInterval:0.15 target:self selector:@selector(pollOpenUI:) userInfo:nil repeats:YES];
+        }
         return;
     }
     NSInteger height=MIN(4000,(NSInteger)ceil(measured));
@@ -260,12 +279,13 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     Preview *preview=[Preview new];
     // Ready means the independently signed single-process renderer is identified;
     // no untrusted document has been read or loaded at this point.
-    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid())});
+    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES});
     NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"]) fail(@"unsupported document request");
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");
     NSString *html=[[NSString alloc] initWithData:readExact(n) encoding:NSUTF8StringEncoding];if(!html) fail(@"invalid document UTF-8");
-    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.inlineSeat=[doc[@"inline"] boolValue];preview.initialNavigation=YES;
+    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.inlineSeat=[doc[@"inline"] boolValue];preview.initialNavigation=YES;preview.openUI=[doc[@"openUI"] isEqual:@YES];
+    if(preview.openUI && preview.capture) fail(@"OpenUI requires interactive mode");
     if(preview.inlineSeat && preview.capture) fail(@"capture requires a dedicated session");
     if(preview.inlineSeat) [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     preview.window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,width,700) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];

@@ -16,11 +16,13 @@ import (
 
 // Style is the base typography for rendered message bodies.
 type Style struct {
-	FontSize float32
-	FG       ui.Color
-	Muted    ui.Color
-	CodeBG   ui.Color
-	Accent   ui.Color
+	// RenderFence is an owner-bound optional native renderer. Returning false retains code.
+	RenderFence func(*ui.Context, string, string, int) bool
+	FontSize    float32
+	FG          ui.Color
+	Muted       ui.Color
+	CodeBG      ui.Color
+	Accent      ui.Color
 	// CodeWrapDefault opts a surface into wrapped code initially. The retained
 	// per-block toggle still wins after the user chooses wrap or unwrap.
 	CodeWrapDefault bool

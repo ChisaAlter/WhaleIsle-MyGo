@@ -114,7 +114,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	}
 	// No document is in memory yet. This identity is sent over the inherited
 	// pipe, not a page bridge. Only the parent's OS query grants the next phase.
-	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
+	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
 		return err
 	}
 	doc, err := receiveDocument(input, nonce)
@@ -151,7 +151,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 		_, _ = input.Read(b[:])
 		return nil
 	}
-	shell, err := htmlpreview.ProcessDocumentShell(doc.HTML, doc.Width, doc.Appearance)
+	shell, err := documentShell(doc)
 	if err != nil {
 		return err
 	}
@@ -203,9 +203,11 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if !doc.Inline {
 		w.Show()
 	}
-	// Observe only the bounded size state of the opaque frame. No document
-	// messages can request a native operation or choose an IPC command.
+	// Observe bounded size and, only in OpenUI mode, drain the trusted shell
+	// queue. No event can choose a native operation or an IPC command.
 	go func() {
+		// Fail closed on a stalled/invalid shell. There is no page-to-native bridge.
+		defer func() { w.Destroy(); mygo.App.Quit() }()
 		tick := time.NewTicker(150 * time.Millisecond)
 		defer tick.Stop()
 		last := 0
@@ -214,7 +216,27 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 			case <-ctx.Done():
 				return
 			case <-tick.C:
-				value, err := w.Page().EvalContext(ctx, "Math.max(80,Math.min(2000,Math.ceil(window.__previewState?.height||360)))")
+				pollCtx, stopPoll := context.WithTimeout(ctx, 2*time.Second)
+				if doc.openUIShell {
+					value, e := w.Page().EvalContext(pollCtx, openUIDrainScript)
+					if e != nil {
+						stopPoll()
+						return
+					}
+					batch, e := decodeOpenUIBatch(value)
+					if e != nil {
+						stopPoll()
+						return
+					}
+					for _, event := range batch {
+						if sendOpenUIEvent(output, nonce, event) != nil {
+							stopPoll()
+							return
+						}
+					}
+				}
+				value, err := w.Page().EvalContext(pollCtx, "Math.max(80,Math.min(2000,Math.ceil(window.__previewState?.height||360)))")
+				stopPoll()
 				if err != nil {
 					return
 				}

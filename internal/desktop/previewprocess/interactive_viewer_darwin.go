@@ -71,7 +71,7 @@ func startMacPixelSeat(ctx context.Context, s *Session, input io.Writer, output 
 				watchdog.Stop()
 				return
 			}
-			frame, err := receiveFrame(output, nonce, doc.Width)
+			frame, err := s.receiveOpenUIFrame(output, nonce, doc.Width)
 			watchdog.Stop()
 			if err != nil {
 				return

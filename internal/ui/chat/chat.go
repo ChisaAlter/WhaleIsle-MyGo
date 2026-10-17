@@ -321,6 +321,9 @@ func View(c *ui.Context, m Model) {
 						}
 						md.ResolveFile = FileMentionResolver(m.Snapshot.Messages, msg)
 						md.OnOpenFile = m.OnOpenDeliverable
+						md.RenderFence = func(ctx *ui.Context, language, program string, offset int) bool {
+							return openUIFence(ctx, m, msg, language, program, offset)
+						}
 						paintMD := func() {
 							if m.OnOpenCitationURL != nil {
 								markdown.ViewInteractive(row.Context, body, md, m.OnOpenCitationURL)
