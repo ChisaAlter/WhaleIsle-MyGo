@@ -208,7 +208,7 @@ func TestNormalizeClamps(t *testing.T) {
 	if c.Port != d.Port || c.Theme != d.Theme || c.Locale != d.Locale {
 		t.Fatalf("core clamp failed: %+v", c)
 	}
-	if c.RemotePort != d.RemotePort || c.RemoteMode != "relay" || c.RemoteBindAddress != d.RemoteBindAddress {
+	if c.RemotePort != d.RemotePort || c.RemoteMode != "ssh" || c.RemoteBindAddress != d.RemoteBindAddress {
 		t.Fatalf("remote clamp failed: %+v", c)
 	}
 	if c.RemoteRelayUrl != "relay.example.com:443" || c.RemoteRelayEndpoint != "relay.example.com:443" || c.RemoteRelayUseTls {
@@ -228,6 +228,10 @@ func TestNormalizeClamps(t *testing.T) {
 	}
 	if c.SidebarWidth != d.SidebarWidth || c.TerminalHeight != d.TerminalHeight {
 		t.Fatalf("layout clamp failed: %+v", c)
+	}
+	wide := normalize(Config{SidebarWidth: 600})
+	if wide.SidebarWidth != 420 {
+		t.Fatalf("sidebar max clamp: got %v want 420", wide.SidebarWidth)
 	}
 }
 

@@ -81,7 +81,7 @@ type Config struct {
 	// Remote pairing daemon (phone/LAN remote), gated by the desktop build.
 	RemoteEnabled       bool   `json:"remoteEnabled"`
 	RemotePort          int    `json:"remotePort"`
-	RemoteMode          string `json:"remoteMode"` // "relay" or "lan"
+	RemoteMode          string `json:"remoteMode"` // "relay", "lan", or "ssh"
 	RemoteBindAddress   string `json:"remoteBindAddress"`
 	RemoteLanTls        bool   `json:"remoteLanTls"`
 	RemoteRelayUrl      string `json:"remoteRelayUrl"`
@@ -116,6 +116,13 @@ type Config struct {
 	// These are Go-native keys, absent from the Electron DEFAULTS.
 	SidebarWidth   float32 `json:"goSidebarWidth"`
 	TerminalHeight float32 `json:"goTerminalHeight"`
+	// WallpaperPath is an optional local image for the main window backdrop
+	// (Go-native; Electron wallpaper lives in ui-theme host settings).
+	WallpaperPath string `json:"goWallpaperPath"`
+	// HideChatViewTabs hides ConversationRoot「对话/轨迹」tabs (Electron viewTabs=false).
+	HideChatViewTabs bool `json:"goHideChatViewTabs"`
+	// AutoAllowTools auto-answers approval/request (Electron tool auto-allow).
+	AutoAllowTools bool `json:"goAutoAllowTools"`
 }
 
 // Defaults returns the configuration of a first run. Values mirror
@@ -149,7 +156,7 @@ func Defaults() Config {
 		DshbotEnabled:             false,
 		WhaleAssistantEnabled:     true,
 		RemoteWorkspaceEnabled:    true,
-		SidebarWidth:              260,
+		SidebarWidth:              280,
 		TerminalHeight:            240,
 	}
 }
@@ -331,7 +338,9 @@ func normalize(c Config) Config {
 	if c.RemotePort < 1024 || c.RemotePort > 65535 {
 		c.RemotePort = d.RemotePort
 	}
-	if c.RemoteMode != "lan" {
+	switch c.RemoteMode {
+	case "lan", "ssh":
+	default:
 		c.RemoteMode = "relay"
 	}
 	c.RemoteBindAddress = normalizeBindAddress(c.RemoteBindAddress)
@@ -370,8 +379,12 @@ func normalize(c Config) Config {
 	c.DisabledPlugins = normalizeDisabledPlugins(c.DisabledPlugins)
 
 	// Go-shell layout clamps (goSidebarWidth / goTerminalHeight).
-	if c.SidebarWidth < 180 {
+	// Sidebar matches ui-layout SIDEBAR_MIN/MAX (264–420 DIP).
+	if c.SidebarWidth < 264 {
 		c.SidebarWidth = d.SidebarWidth
+	}
+	if c.SidebarWidth > 420 {
+		c.SidebarWidth = 420
 	}
 	if c.TerminalHeight < 80 {
 		c.TerminalHeight = d.TerminalHeight

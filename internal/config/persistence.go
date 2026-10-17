@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // ErrConflict reports that config.json changed on disk since this Store last
@@ -28,14 +29,20 @@ type fileBaseline struct {
 }
 
 func readBaseline(path string) (fileBaseline, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return fileBaseline{}, nil
+	var data []byte
+	var err error
+	for attempt := 0; attempt < 8; attempt++ {
+		data, err = os.ReadFile(path)
+		if err == nil {
+			return fileBaseline{exists: true, data: data}, nil
+		}
+		if errors.Is(err, fs.ErrNotExist) {
+			return fileBaseline{}, nil
+		}
+		// Windows can briefly share-lock the file during a concurrent rename.
+		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
 	}
-	if err != nil {
-		return fileBaseline{}, err
-	}
-	return fileBaseline{exists: true, data: data}, nil
+	return fileBaseline{}, err
 }
 
 // matches reports whether the file on disk is still identical to the baseline.
@@ -70,5 +77,13 @@ func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) 
 	if rename == nil {
 		rename = os.Rename
 	}
-	return rename(tmp.Name(), path)
+	var errRename error
+	for attempt := 0; attempt < 8; attempt++ {
+		errRename = rename(tmp.Name(), path)
+		if errRename == nil {
+			return nil
+		}
+		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
+	}
+	return errRename
 }
