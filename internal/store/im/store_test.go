@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
 )
 
 func TestDir(t *testing.T) {
@@ -407,6 +408,16 @@ func TestRefreshInventoryBridgeHTTPtest(t *testing.T) {
 }
 
 func TestSendDraftCallsIMSendHTTPtest(t *testing.T) {
+	old, had := api.Registry["im/send"]
+	api.Registry["im/send"] = api.Endpoint{Method: "im/send"}
+	defer func() {
+		if had {
+			api.Registry["im/send"] = old
+		} else {
+			delete(api.Registry, "im/send")
+		}
+	}()
+
 	got := make(chan map[string]any, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -457,6 +468,48 @@ func TestSendDraftCallsIMSendHTTPtest(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("LastSend = %q", s.Snapshot().LastSend)
+}
+
+func TestSendDraftWithoutRegisteredIMSendStaysLocal(t *testing.T) {
+	oldSend, hadSend := api.Registry["im/send"]
+	oldSendMessage, hadSendMessage := api.Registry["im/sendMessage"]
+	delete(api.Registry, "im/send")
+	delete(api.Registry, "im/sendMessage")
+	defer func() {
+		if hadSend {
+			api.Registry["im/send"] = oldSend
+		}
+		if hadSendMessage {
+			api.Registry["im/sendMessage"] = oldSendMessage
+		}
+	}()
+
+	requests := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- struct{}{}
+		http.Error(w, "unexpected RPC", http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+	s.SendDraft(context.Background(), "general", "local queue")
+
+	snap := s.Snapshot()
+	if !strings.Contains(snap.LastSend, "saved locally") {
+		t.Fatalf("LastSend = %q, want local queue note", snap.LastSend)
+	}
+	if len(snap.Messages) != 1 || snap.Messages[0].Text != "local queue" {
+		t.Fatalf("messages = %+v", snap.Messages)
+	}
+	select {
+	case <-requests:
+		t.Fatal("SendDraft called an unregistered im RPC")
+	case <-time.After(100 * time.Millisecond):
+	}
 }
 
 func TestMergeMessagesPrefersRemoteAndSorts(t *testing.T) {

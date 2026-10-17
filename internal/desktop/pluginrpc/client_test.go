@@ -179,6 +179,45 @@ func TestWhalePetStateAndIMChannelStatus(t *testing.T) {
 	}
 }
 
+func TestIMBotReconnectOmitsUnrequestedSendTest(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var req clientRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatal(err)
+		}
+		payload, ok := req.Payload.(map[string]any)
+		if !ok {
+			t.Fatalf("payload type = %T", req.Payload)
+		}
+		if payload["botId"] != "bot-1" {
+			t.Fatalf("payload = %#v", payload)
+		}
+		if calls == 1 {
+			if _, present := payload["sendTest"]; present {
+				t.Fatalf("sendTest should be omitted when false: %#v", payload)
+			}
+		} else if value, present := payload["sendTest"]; !present || value != true {
+			t.Fatalf("sendTest should be true when requested: %#v", payload)
+		}
+		_ = json.NewEncoder(w).Encode(serverResponse{
+			Type:   "server-response",
+			RPCID:  req.RPCID,
+			Result: mustRaw(t, resultEnvelope{OK: true, Value: mustRaw(t, map[string]any{"ok": true})}),
+		})
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL}
+	if _, err := c.IMBotReconnect(context.Background(), "dingtalk", "bot-1", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.IMBotReconnect(context.Background(), "dingtalk", "bot-1", true); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWhalePetLook(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/dsh-whale/pet/look", func(w http.ResponseWriter, r *http.Request) {

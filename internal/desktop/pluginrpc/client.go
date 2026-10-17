@@ -237,11 +237,17 @@ func (c *Client) IMBotReconnect(ctx context.Context, channel, botID string, send
 	if channel == "" || botID == "" {
 		return nil, fmt.Errorf("pluginrpc: bot.reconnect missing channel/botId")
 	}
+	payload := map[string]any{
+		"botId": botID,
+	}
+	// dsh-im only accepts sendTest when the fixed connection-test ping was
+	// explicitly requested. Omitting false keeps vendor channels that reject
+	// the field from seeing an unsupported option while preserving true.
+	if sendTest {
+		payload["sendTest"] = true
+	}
 	var out json.RawMessage
-	err := c.Call(ctx, channel, "bot.reconnect", map[string]any{
-		"botId":    botID,
-		"sendTest": sendTest,
-	}, &out)
+	err := c.Call(ctx, channel, "bot.reconnect", payload, &out)
 	return out, err
 }
 
