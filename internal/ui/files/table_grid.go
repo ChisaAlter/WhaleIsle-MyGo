@@ -147,78 +147,114 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 	}
 	paintTableFormulaBar(c, tab)
 	rowEnd, colEnd := min(page.TotalRows, page.Request.Row+page.Request.Rows), min(page.TotalColumns, page.Request.Column+page.Request.Columns)
-	cols := max(0, colEnd-page.Request.Column)
-	rows := max(0, rowEnd-page.Request.Row)
+
 	cells := map[string]workspacefs.XLSXCell{}
 	for _, cell := range page.Cells {
 		cells[cell.Address] = cell
 	}
 	blocked := tab.readLoading || tab.readBlocked
+	xs, ys := map[int]float32{}, map[int]float32{}
+	width, height := float32(48), float32(0)
+	for col := page.Request.Column; col < colEnd; col++ {
+		xs[col] = width
+		width += tableColumnWidth(page, col)
+	}
+	xs[colEnd] = width
+	for row := page.Request.Row; row < rowEnd; row++ {
+		ys[row] = height
+		height += tableRowHeight(page, row)
+	}
+	ys[rowEnd] = height
 	ui.ScrollHorizontal(c).Grow(1).MinHeight(0).Children(func() {
-		ui.Column(c).Width(float32(cols)*140 + 48).FillHeight().MinHeight(0).Children(func() {
+		ui.Column(c).Width(width).FillHeight().MinHeight(0).Children(func() {
 			ui.Row(c).Height(30).Children(func() {
 				ui.Text(c, "#").Width(48)
 				for col := page.Request.Column; col < colEnd; col++ {
-					if ui.Button(c.Key(fmt.Sprintf("column-%d", col)), tableColumnName(col)).Width(140).Selected(tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col).Disabled(blocked).Clicked() {
+					if ui.Button(c.Key(fmt.Sprintf("column-%d", col)), tableColumnName(col)).Width(tableColumnWidth(page, col)).Selected(tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col).Disabled(blocked).Clicked() {
 						tab.tableSelectionKind = "column"
 						tab.tableSelectionIndex = col
 						tab.tableCell = tableAddress(page.Request.Row, col)
 					}
 				}
 			})
-			tab.tableRows.Key = func(i int) any { return page.Request.Row + i }
-			ui.List(c, &tab.tableRows, rows, func(i int) {
-				row := page.Request.Row + i
-				ui.Row(c).Height(36).Children(func() {
-					if ui.Button(c, strconv.Itoa(row+1)).Width(48).Selected(tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row).Disabled(blocked).Clicked() {
-						tab.tableSelectionKind = "row"
-						tab.tableSelectionIndex = row
-						tab.tableCell = tableAddress(row, page.Request.Column)
-					}
-					for col := page.Request.Column; col < colEnd; col++ {
-						address := tableAddress(row, col)
-						cell := cells[address]
-						button := ui.Button(c.Key(address), "").Width(140).Height(36).Padding(3, 6).Selected(tableSelected(tab, row, col)).Disabled(blocked).Label("Cell " + address).Tooltip(cell.DisplayValue)
-						switch cell.Style.Vertical {
-						case "top":
-							button.AlignItems(ui.Start)
-						case "bottom":
-							button.AlignItems(ui.End)
+			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+				ui.Box(c).Width(width).Height(height).Children(func() {
+					for row := page.Request.Row; row < rowEnd; row++ {
+						if ui.Button(c.Key(fmt.Sprintf("row-%d", row)), strconv.Itoa(row+1)).Absolute().Left(0).Top(ys[row]).Width(48).Height(tableRowHeight(page, row)).Selected(tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row).Disabled(blocked).Clicked() {
+							tab.tableSelectionKind = "row"
+							tab.tableSelectionIndex = row
+							tab.tableCell = tableAddress(row, page.Request.Column)
 						}
-						button.Children(func() {
-							text := ui.Text(c, cell.DisplayValue).FillWidth().SingleLine()
-							if cell.Style.FontName != "" {
-								text.Font(cell.Style.FontName)
+						for col := page.Request.Column; col < colEnd; col++ {
+							merge, merged := tableVisibleMerge(page, row, col)
+							firstRow, firstCol := max(merge.FirstRow, page.Request.Row), max(merge.FirstColumn, page.Request.Column)
+							if row != firstRow || col != firstCol {
+								continue
 							}
-							if cell.Style.FontSize > 0 {
-								text.FontSize(min(float32(32), max(float32(8), cell.Style.FontSize*4/3)))
-							}
-							if cell.Style.Bold {
-								text.Bold()
-							}
-							if cell.Style.Italic {
-								text.Italic()
-							}
-							switch cell.Style.Horizontal {
-							case "center", "centerContinuous":
-								text.TextAlign(ui.Center)
-							case "right":
-								text.TextAlign(ui.End)
-							case "left":
-								text.TextAlign(ui.Start)
-							default:
-								if cell.Type == "number" || cell.Type == "date" {
-									text.TextAlign(ui.End)
+							lastRow, lastCol := min(merge.LastRow+1, rowEnd), min(merge.LastColumn+1, colEnd)
+							address := tableAddress(row, col)
+							sourceAddress := tableAddress(merge.FirstRow, merge.FirstColumn)
+							cell := cells[sourceAddress]
+							tooltip := cell.DisplayValue
+							if merged {
+								tooltip = sourceAddress + ":" + tableAddress(merge.LastRow, merge.LastColumn) + " · " + tooltip
+								if !tableAddressInPage(page, sourceAddress) {
+									cell.DisplayValue = label("合并区域起点在其他页", "Merged origin on another page")
+									tooltip = cell.DisplayValue + " · " + sourceAddress
 								}
 							}
-						})
-						if button.Clicked() {
-							tab.tableCell = address
-							tab.tableSelectionKind = "cell"
+							selected := tableSelected(tab, row, col)
+							if tab.tableSelectionKind == "row" {
+								selected = tab.tableSelectionIndex >= firstRow && tab.tableSelectionIndex < lastRow
+							}
+							if tab.tableSelectionKind == "column" {
+								selected = tab.tableSelectionIndex >= firstCol && tab.tableSelectionIndex < lastCol
+							}
+							button := ui.Button(c.Key(address), "").Absolute().Left(xs[col]).Top(ys[row]).Width(xs[lastCol]-xs[col]).Height(ys[lastRow]-ys[row]).Padding(3, 6).Clip().Selected(selected).Disabled(blocked).Label("Cell " + address).Tooltip(tooltip)
+							switch cell.Style.Vertical {
+							case "top":
+								button.AlignItems(ui.Start)
+							case "bottom":
+								button.AlignItems(ui.End)
+							}
+							button.Children(func() {
+								text := ui.Text(c, cell.DisplayValue).FillWidth()
+								if !cell.Style.Wrap {
+									text.SingleLine()
+								}
+								if cell.Style.FontName != "" {
+									text.Font(cell.Style.FontName)
+								}
+								if cell.Style.FontSize > 0 {
+									text.FontSize(min(float32(32), max(float32(8), cell.Style.FontSize*4/3)))
+								}
+								if cell.Style.Bold {
+									text.Bold()
+								}
+								if cell.Style.Italic {
+									text.Italic()
+								}
+								switch cell.Style.Horizontal {
+								case "center", "centerContinuous":
+									text.TextAlign(ui.Center)
+								case "right":
+									text.TextAlign(ui.End)
+								case "left":
+									text.TextAlign(ui.Start)
+								default:
+									if cell.Type == "number" || cell.Type == "date" {
+										text.TextAlign(ui.End)
+									}
+								}
+							})
+							if button.Clicked() {
+								tab.tableCell = address
+								tab.tableSelectionKind = "cell"
+							}
 						}
 					}
 				})
-			}).Grow(1).MinHeight(0)
+			})
 		})
 	})
 	return true

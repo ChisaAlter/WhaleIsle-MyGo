@@ -131,6 +131,7 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 			ID   int    `xml:"numFmtId,attr"`
 			Code string `xml:"formatCode,attr"`
 		} `xml:"numFmts>numFmt"`
+		Bases []xlsxSourceXF   `xml:"cellStyleXfs>xf"`
 		Fonts []xlsxSourceFont `xml:"fonts>font"`
 		XFs   []xlsxSourceXF   `xml:"cellXfs>xf"`
 	}
@@ -141,7 +142,12 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 		out.codes[format.ID] = format.Code
 	}
 	for _, xf := range styles.XFs {
-		out.styles = append(out.styles, xf.Format)
+		xf = inheritedXLSXXF(xf, styles.Bases)
+		format := 0
+		if xf.Format != nil {
+			format = *xf.Format
+		}
+		out.styles = append(out.styles, format)
 		out.presentationStyles = append(out.presentationStyles, savedXLSXStyle(styles.Fonts, xf))
 	}
 	return out, nil

@@ -46,7 +46,11 @@ type XLSXCell struct {
 	Address, Value, Type, DisplayValue, NumberFormat string
 	FormatSupported                                  bool
 }
+type XLSXMerge struct{ FirstRow, FirstColumn, LastRow, LastColumn int }
 type XLSXPage struct {
+	Merges                                  []XLSXMerge
+	RowHeights, ColumnWidths                map[int]float32 // zero-based, saved points / character units
+	DefaultRowHeight, DefaultColumnWidth    float32
 	Request                                 XLSXPageRequest
 	Sheets                                  []XLSXSheet
 	Cells                                   []XLSXCell
@@ -396,17 +400,19 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 		} `xml:"f"`
 	}
 	type row struct {
-		R int    `xml:"r,attr"`
-		S *int   `xml:"s,attr"`
-		C []cell `xml:"c"`
+		R      int     `xml:"r,attr"`
+		Height float32 `xml:"ht,attr"`
+		S      *int    `xml:"s,attr"`
+		C      []cell  `xml:"c"`
 	}
 	type columnFormat struct {
-		Min   int `xml:"min,attr"`
-		Max   int `xml:"max,attr"`
-		Style int `xml:"style,attr"`
+		Min   int     `xml:"min,attr"`
+		Max   int     `xml:"max,attr"`
+		Style int     `xml:"style,attr"`
+		Width float32 `xml:"width,attr"`
 	}
 	var columnFormats []columnFormat
-	out := &XLSXPage{Request: request, TotalRows: 1, TotalColumns: 1}
+	out := &XLSXPage{Request: request, TotalRows: 1, TotalColumns: 1, RowHeights: map[int]float32{}, ColumnWidths: map[int]float32{}}
 	grid := make([][]string, request.Rows)
 	displayGrid := make([][]string, request.Rows)
 	for i := range grid {
@@ -429,12 +435,49 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 		if !ok {
 			continue
 		}
+		if start.Name.Local == "sheetFormatPr" {
+			var defaults struct {
+				Row    float32 `xml:"defaultRowHeight,attr"`
+				Column float32 `xml:"defaultColWidth,attr"`
+			}
+			if err := dec.DecodeElement(&defaults, &start); err != nil {
+				return nil, err
+			}
+			out.DefaultRowHeight, out.DefaultColumnWidth = defaults.Row, defaults.Column
+			continue
+		}
+		if start.Name.Local == "mergeCell" {
+			var merge struct {
+				Ref string `xml:"ref,attr"`
+			}
+			if err := dec.DecodeElement(&merge, &start); err != nil {
+				return nil, err
+			}
+			if region, ok := savedXLSXMerge(merge.Ref); ok {
+				out.TotalRows = max(out.TotalRows, region.LastRow+1)
+				out.TotalColumns = max(out.TotalColumns, region.LastColumn+1)
+				if region.LastRow >= request.Row && region.FirstRow < request.Row+request.Rows && region.LastColumn >= request.Column && region.FirstColumn < request.Column+request.Columns {
+					// A page cannot contain more disjoint merged regions than cells.
+					// Bound malformed/overlapping metadata as well as cell content.
+					if len(out.Merges) >= request.Rows*request.Columns {
+						return nil, errors.New("XLSX has excessive merged regions in this page")
+					}
+					out.Merges = append(out.Merges, region)
+				}
+			}
+			continue
+		}
 		if start.Name.Local == "col" {
 			var column columnFormat
 			if err := dec.DecodeElement(&column, &start); err != nil {
 				return nil, err
 			}
 			columnFormats = append(columnFormats, column)
+			if column.Width > 0 {
+				for col := max(column.Min-1, request.Column); col < min(column.Max, request.Column+request.Columns); col++ {
+					out.ColumnWidths[col] = column.Width
+				}
+			}
 			continue
 		}
 		if start.Name.Local != "row" {
@@ -452,6 +495,9 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 			return nil, errors.New("XLSX has invalid row coordinates")
 		}
 		lastRow = rowNum
+		if rowNum-1 >= request.Row && rowNum-1 < request.Row+request.Rows && r.Height > 0 {
+			out.RowHeights[rowNum-1] = r.Height
+		}
 		out.TotalRows = max(out.TotalRows, rowNum)
 		lastCol := -1
 		for _, c := range r.C {
