@@ -147,6 +147,10 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			if !eligible || client.marked != nil || ev.Mods != 0 || ev.Repeat {
 				client.stop.reset()
 			}
+			if m.State != nil && m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
+				m.State.PermissionCommand.Open = false
+				return true
+			}
 			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
 				m.State.ModelCommand.Open = false
 				return true

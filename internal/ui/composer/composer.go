@@ -88,6 +88,7 @@ type Model struct {
 	OnModelChange       func(label string)
 	OnModelEffortChange func(label string)
 	OnRetryModels       func()
+	OnRetryPermissions  func()
 	OnPermissionChange  func(value string)
 	OnAgentPresetChange func(id string)
 	OnClearDraft        func()
@@ -209,6 +210,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		}
 		if m.State != nil {
 			m.State.ModelCommand.Sync(m.Snapshot.SelectedID)
+			m.State.PermissionCommand.Sync(m.Snapshot.SelectedID)
+			if m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) {
+				paintPermissionCommand(c, m, panel, border, fg, muted)
+			}
 			if m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
 				paintModelCommand(c, m, panel, border, fg, muted)
 			}

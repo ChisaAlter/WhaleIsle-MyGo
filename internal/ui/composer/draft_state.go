@@ -13,6 +13,7 @@ type DraftState struct {
 	Suggestions        SuggestionState
 	GroupReply         *GroupReplyDraft
 	ModelCommand       ModelCommandState
+	PermissionCommand  ModelCommandState
 	flightSeq          uint64
 	flights            map[uint64]DraftFlight
 	failedSends        map[uint64]DraftFlight

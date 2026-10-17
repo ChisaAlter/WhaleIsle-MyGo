@@ -135,6 +135,7 @@ type SlashCommand struct {
 func StubSlashCommands() []SlashCommand {
 	return []SlashCommand{
 		{Line: "/model", Description: "Choose model and reasoning effort", LocalAction: "model"},
+		{Line: "/permission", Description: "Choose permission preset", LocalAction: "permission"},
 		{Line: "/clear", Description: "Clear draft", LocalAction: "clear"},
 		{Line: "/new", Description: "New session", LocalAction: "new"},
 	}

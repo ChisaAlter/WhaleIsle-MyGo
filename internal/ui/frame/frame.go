@@ -824,6 +824,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.Store.SelectModelEffortSelectionForSessionID(context.Background(), snap.SelectedID, choice)
 							}
 						},
+						OnRetryPermissions: func() {
+							m.Store.RefreshPermissionCatalog(context.Background())
+							m.Store.RefreshProjections(context.Background())
+						},
 						OnPermissionChange: func(label string) {
 							m.Store.SelectPermissionValueForSession(context.Background(), snap.SelectedID, label)
 						},

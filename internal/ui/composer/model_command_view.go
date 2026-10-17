@@ -6,7 +6,7 @@ import (
 )
 
 func handleModelCommand(m Model) bool {
-	if m.Editing || m.Draft == nil || !strings.EqualFold(strings.TrimSpace(*m.Draft), "/model") {
+	if m.Editing || m.Draft == nil || (!strings.EqualFold(strings.TrimSpace(*m.Draft), "/model") && !strings.EqualFold(strings.TrimSpace(*m.Draft), "/permission")) {
 		return false
 	}
 	// The native composer always supplies State. A stateless preview must not
