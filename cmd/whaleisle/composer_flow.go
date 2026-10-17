@@ -39,10 +39,16 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 }
 
 func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, id string, d *composer.DraftState, paths []string) {
-	if d.Sending {
+	if d == nil || d.Sending {
 		return
 	}
-	for _, path := range paths {
+	cwd, local := s.nativeComposerFileScope(sessions, id, d)
+	uploads, err := insertNativeComposerFiles(d, cwd, paths, local)
+	if err != nil {
+		d.Error = err.Error()
+		return
+	}
+	for _, path := range uploads {
 		if strings.TrimSpace(path) == "" {
 			continue
 		}
