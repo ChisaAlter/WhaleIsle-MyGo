@@ -64,16 +64,24 @@ func TestShellColumnGeometryPaintBounds(t *testing.T) {
 		_ = tt
 		rail := float32(280)
 		if width < 1024 {
-			rail = SidebarCollapsed
+			rail = SidebarCollapsedWidth()
 		}
-		wantCenter := ui.Rect{X: rail + 1, Y: 0, W: sizes.Center, H: 800}
-		if got.Sidebar != (ui.Rect{W: rail, H: 800}) || got.Center != wantCenter {
+		sidebarDivider := float32(1)
+		if rail == 0 {
+			sidebarDivider = 0
+		}
+		wantCenter := ui.Rect{X: rail + sidebarDivider, Y: 0, W: sizes.Center, H: 800}
+		wantSidebar := ui.Rect{W: rail, H: 800}
+		if rail == 0 {
+			wantSidebar = ui.Rect{}
+		}
+		if got.Sidebar != wantSidebar || got.Center != wantCenter {
 			t.Fatalf("width%d painted bounds=%+v", width, got)
 		}
-		if got.Terminal != (ui.Rect{X: rail + 1, Y: 561, W: sizes.Center, H: 239}) {
+		if got.Terminal != (ui.Rect{X: rail + sidebarDivider, Y: 561, W: sizes.Center, H: 239}) {
 			t.Fatalf("width%d terminal=%+v", width, got.Terminal)
 		}
-		if right > 0 && got.Right != (ui.Rect{X: rail + 2 + sizes.Center, Y: 0, W: right, H: 800}) {
+		if right > 0 && got.Right != (ui.Rect{X: rail + sidebarDivider + 1 + sizes.Center, Y: 0, W: right, H: 800}) {
 			t.Fatalf("width%d right=%+v", width, got.Right)
 		}
 		if right == 0 && got.Right != (ui.Rect{}) {
