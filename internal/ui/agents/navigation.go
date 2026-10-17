@@ -44,7 +44,7 @@ func navigationView(c *ui.Context, m Model) {
 				}
 			}
 			for _, row := range v.Rows {
-				if !m.ChatOnly && row.Running {
+				if !m.ChatOnly && row.CanOpen() && row.Running {
 					running = append(running, row.Address)
 				}
 			}
@@ -112,16 +112,16 @@ func navigationView(c *ui.Context, m Model) {
 					for _, row := range v.Rows {
 						ui.Row(c).FillWidth().Gap(6).Children(func() {
 							title := row.Label + " · " + row.Address.Mode
-							if row.Running {
+							if row.CanOpen() && row.Running {
 								title = "● " + title
 							}
-							if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy).Clicked() {
+							if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 								m.Store.OpenAgentNavigation(v.Token, row.Address)
 							}
-							if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy).Clicked() {
+							if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 								m.OnOpenChat(v.Token, row.Address)
 							}
-							if row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
+							if row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
 								m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
 							}
 						})

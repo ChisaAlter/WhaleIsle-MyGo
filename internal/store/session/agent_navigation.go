@@ -31,6 +31,10 @@ type AgentNavigationRow struct {
 	Label   string
 	Running bool
 }
+
+// CanOpen excludes external task metadata from addressed history/follow.
+func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
+
 type AgentNavigationView struct {
 	PromptImages     []string               // local image draft scoped to this navigation owner
 	catalog          agentNavigationCatalog // Host-computed whole value and its watermark
@@ -322,7 +326,7 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 				continue
 			}
 			mode := entry.Mode
-			if mode != "continuable" && mode != "one-shot" {
+			if mode != "continuable" && mode != "one-shot" && mode != "external" {
 				mode = "unknown"
 			}
 			label := strings.TrimSpace(entry.Label)
