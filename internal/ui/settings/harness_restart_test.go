@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/egoist/mygo/ui"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -125,7 +126,7 @@ func TestSP06DesktopRestartInputsPersistAndRetainFailedDraft(t *testing.T) {
 	if writes != 3 || s.Status().Generation != 0 {
 		t.Fatal("repeated save changed lifecycle")
 	}
-	reopened, err := config.Open(strings.TrimSuffix(store.Path(), "/"+config.FileName))
+	reopened, err := config.Open(filepath.Dir(store.Path()))
 	if err != nil {
 		t.Fatal(err)
 	}
