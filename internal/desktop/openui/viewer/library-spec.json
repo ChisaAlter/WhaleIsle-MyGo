@@ -1,0 +1,3583 @@
+{
+  "root": "Col",
+  "components": {
+    "Col": {
+      "signature": "Col(children: any, gap?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\")",
+      "description": "Vertical content layout. Spacing values use four-pixel steps."
+    },
+    "Row": {
+      "signature": "Row(children: any, gap?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\", justify?: \"start\" | \"center\" | \"end\" | \"between\", wrap?: boolean)",
+      "description": "Horizontal content layout with optional wrapping and alignment."
+    },
+    "Box": {
+      "signature": "Box(children?: any, direction?: \"row\" | \"col\", gap?: number, padding?: number, background?: string, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, border?: boolean, width?: number | string, height?: number | string, flex?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\", justify?: \"start\" | \"center\" | \"end\" | \"between\", wrap?: boolean)",
+      "description": "Configurable flex box with safe lengths, color, border, and rounded clipping."
+    },
+    "Grid": {
+      "signature": "Grid(children: any, columns?: number, minChildWidth?: number, gap?: number)",
+      "description": "Equal-width grid, optionally responsive to a minimum child width in pixels."
+    },
+    "Card": {
+      "signature": "Card(children: any, variant?: \"outline\" | \"soft\", padding?: number, gap?: number)",
+      "description": "Rounded panel with an outline or a soft filled surface."
+    },
+    "Carousel": {
+      "signature": "Carousel(children: any, itemWidth?: number, gap?: number)",
+      "description": "Keyboard-scrollable horizontal collection with snapping items."
+    },
+    "Divider": {
+      "signature": "Divider()",
+      "description": "Horizontal section separator."
+    },
+    "Spacer": {
+      "signature": "Spacer()",
+      "description": "Flexible space between layout siblings."
+    },
+    "Title": {
+      "signature": "Title(text: string, size?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"2xl\" | \"3xl\", color?: string)",
+      "description": "A semantic heading with a selectable size and safe text color."
+    },
+    "Text": {
+      "signature": "Text(text: any, size?: \"xs\" | \"sm\" | \"md\" | \"lg\", color?: string, weight?: \"normal\" | \"medium\" | \"semibold\", italic?: boolean, lineThrough?: boolean, tabularNums?: boolean, maxLines?: number)",
+      "description": "Paragraph content with inline Markdown or embedded inline components."
+    },
+    "Caption": {
+      "signature": "Caption(text: string, color?: string)",
+      "description": "Small secondary explanatory text."
+    },
+    "Label": {
+      "signature": "Label(text: string)",
+      "description": "A visible group or field label."
+    },
+    "Badge": {
+      "signature": "Badge(text: string, color?: \"neutral\" | \"info\" | \"success\" | \"warning\" | \"danger\" | \"purple\" | \"pink\", icon?: string)",
+      "description": "A small colored tag with an optional local Lucide icon."
+    },
+    "Markdown": {
+      "signature": "Markdown(text: string)",
+      "description": "Markdown prose, tables, lists, and code. Raw HTML and external media are disabled."
+    },
+    "Quote": {
+      "signature": "Quote(text: string, cite?: string)",
+      "description": "A quotation with an optional plain-text source."
+    },
+    "Code": {
+      "signature": "Code(code: string, language?: string)",
+      "description": "Plain code with a language label. Clipboard access is disabled."
+    },
+    "Math": {
+      "signature": "Math(tex: string, inline?: boolean)",
+      "description": "Local KaTeX formula rendered as native MathML with trusted commands disabled."
+    },
+    "Link": {
+      "signature": "Link(text: string, url: string)",
+      "description": "Displays a link label and an explicit navigation-disabled status."
+    },
+    "List": {
+      "signature": "List(items: any, marker?: \"bullet\" | \"number\" | \"none\", timeline?: boolean)",
+      "description": "Bulleted, numbered, or unmarked items with optional timeline connectors."
+    },
+    "ListItem": {
+      "signature": "ListItem(title: string, description?: string, marker?: string, children?: any)",
+      "description": "List content with title, description, a custom marker, and nested content."
+    },
+    "Icon": {
+      "signature": "Icon(name: string, size?: \"sm\" | \"md\" | \"lg\" | \"xl\", color?: string)",
+      "description": "A locally bundled Lucide icon; unknown names have an explicit fallback."
+    },
+    "Button": {
+      "signature": "Button(label: string, action?: ActionExpression, variant?: \"solid\" | \"outline\" | \"soft\" | \"ghost\", color?: \"primary\" | \"danger\" | \"success\", size?: \"sm\" | \"md\" | \"lg\", icon?: string, disabled?: boolean, block?: boolean)",
+      "description": "An action button. Without an action, sends its label to the assistant."
+    },
+    "IconButton": {
+      "signature": "IconButton(icon: string, action?: ActionExpression, label?: string, variant?: \"outline\" | \"ghost\" | \"solid\")",
+      "description": "A round icon action button with an accessible label."
+    },
+    "Input": {
+      "signature": "Input(value: $binding<string | number>, label?: string, type?: \"text\" | \"number\", placeholder?: string)",
+      "description": "A reactive text or number input. Numeric edits store numbers; an empty field stores an empty string."
+    },
+    "TextArea": {
+      "signature": "TextArea(value: $binding<string>, label?: string, placeholder?: string, rows?: number)",
+      "description": "A reactive multiline text field."
+    },
+    "Select": {
+      "signature": "Select(value: $binding<string>, options: (string | {value: string, label: string})[], label?: string, placeholder?: string)",
+      "description": "A reactive dropdown of string choices or value/label objects."
+    },
+    "Checkbox": {
+      "signature": "Checkbox(checked: $binding<boolean>, label: string, lineThrough?: boolean)",
+      "description": "A reactive checkbox; optionally strike the checked label through."
+    },
+    "Slider": {
+      "signature": "Slider(value: $binding<number>, min: number, max: number, step?: number, label?: string, unit?: string, marks?: {value: number, label: string}[])",
+      "description": "A reactive range input with a value label and optional marks."
+    },
+    "SegmentedControl": {
+      "signature": "SegmentedControl(value: $binding<string>, options: (string | {value: string, label: string})[], block?: boolean)",
+      "description": "Reactive short choices arranged in a row."
+    },
+    "RadioGroup": {
+      "signature": "RadioGroup(value: $binding<string>, options: (string | {value: string, label: string, description?: string})[], label?: string, variant?: \"list\" | \"pills\" | \"cards\")",
+      "description": "A reactive single choice displayed as a list, pills, or cards."
+    },
+    "DatePicker": {
+      "signature": "DatePicker(value: $binding<string>, label?: string, min?: string, max?: string)",
+      "description": "A reactive date input using YYYY-MM-DD values."
+    },
+    "Form": {
+      "signature": "Form(children: any[])",
+      "description": "Groups fields and passes their current state with assistant actions."
+    },
+    "Image": {
+      "signature": "Image(src: string, alt: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
+      "description": "A local bitmap data image. External URLs and replacement-image fallback are unsupported."
+    },
+    "SearchImage": {
+      "signature": "SearchImage(query: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
+      "description": "Searches the parent image service for real bitmap images and retains their original source URLs."
+    },
+    "Popover": {
+      "signature": "Popover(trigger: any, content: any)",
+      "description": "Local disclosure panel with Escape, outside dismissal, and focus restoration."
+    },
+    "Flashcard": {
+      "signature": "Flashcard(front: any, back: any, hint?: string)",
+      "description": "Two-sided card with mouse, touch, and keyboard flipping; respects reduced motion."
+    },
+    "Celebration": {
+      "signature": "Celebration(when: boolean)",
+      "description": "Local, time-bounded confetti on a rising condition; static feedback for reduced motion."
+    },
+    "Chart": {
+      "signature": "Chart(type: \"bar\" | \"line\" | \"area\" | \"pie\" | \"donut\" | \"scatter\", data: Record<string, string | number>[], x?: string, series?: string[], format?: \"number\" | \"currency\" | \"percent\", currency?: string, stacked?: boolean, height?: number)",
+      "description": "Data charts: bar, line, area, pie, donut, and scatter. Stacking is available for bar, line, and area. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
+    },
+    "Table": {
+      "signature": "Table(columns: string[], rows: any[][])",
+      "description": "Each row lists its cells in column order. Component cells render inline and numeric columns align right."
+    },
+    "Svg": {
+      "signature": "Svg(children: any, viewBox: string, width?: number | string, height?: number | string)",
+      "description": "Responsive native SVG drawing with evaluated shape children and a numeric viewBox."
+    },
+    "Circle": {
+      "signature": "Circle(cx: number, cy: number, r: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+      "description": "Circle in SVG user coordinates."
+    },
+    "Ellipse": {
+      "signature": "Ellipse(cx: number, cy: number, rx: number, ry: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+      "description": "Ellipse with horizontal and vertical radii."
+    },
+    "Rect": {
+      "signature": "Rect(x: number, y: number, width: number, height: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number, rx?: number)",
+      "description": "Rectangle with an optional rounded-corner radius."
+    },
+    "Line": {
+      "signature": "Line(x1: number, y1: number, x2: number, y2: number, stroke?: string, strokeWidth?: number, opacity?: number)",
+      "description": "Line segment between two points."
+    },
+    "Path": {
+      "signature": "Path(d: string, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+      "description": "Native SVG path supporting standard move, line, curve, arc, and close commands."
+    },
+    "Polyline": {
+      "signature": "Polyline(points: string, stroke?: string, strokeWidth?: number, fill?: string, opacity?: number)",
+      "description": "Connected open line segments from x,y coordinate pairs."
+    },
+    "Polygon": {
+      "signature": "Polygon(points: string, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+      "description": "Closed polygon from x,y coordinate pairs."
+    },
+    "G": {
+      "signature": "G(children: any, transform?: string, opacity?: number)",
+      "description": "SVG drawing group with a numeric SVG transform and opacity."
+    },
+    "SvgText": {
+      "signature": "SvgText(text: string, x: number, y: number, size?: number, fill?: string, anchor?: \"start\" | \"middle\" | \"end\", weight?: \"normal\" | \"medium\" | \"semibold\")",
+      "description": "Escaped SVG text with positioning, font size, color, alignment, and weight."
+    },
+    "Map": {
+      "signature": "Map(markers: MapMarker[], route?: boolean, selected?: string, height?: number)",
+      "description": "A real raster street map fitted to its markers, with optional road route and bound selection."
+    },
+    "MapMarker": {
+      "signature": "MapMarker(label: string, lat: number, lng: number, category?: string, icon?: string)",
+      "description": "A labeled map location; icon is an emoji, otherwise its position number is shown."
+    },
+    "Pressable": {
+      "signature": "Pressable(children: any[], action?: ActionExpression, selected?: boolean, padding?: number, background?: string, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number)",
+      "description": "Clickable content with optional selected styling and a local or assistant action."
+    },
+    "Timer": {
+      "signature": "Timer(seconds: $binding<number>, label?: string)",
+      "description": "A start/pause/reset countdown that updates its bound seconds and stops at zero."
+    }
+  },
+  "functions": {
+    "Append": {
+      "signature": "Append(list: any[], item: any) → any",
+      "description": "Local Append operation."
+    },
+    "Prepend": {
+      "signature": "Prepend(list: any[], item: any) → any",
+      "description": "Local Prepend operation."
+    },
+    "Concat": {
+      "signature": "Concat(list: any[], more: any[]) → any",
+      "description": "Local Concat operation."
+    },
+    "Remove": {
+      "signature": "Remove(list: any[], field: string, value: any) → any",
+      "description": "Local Remove operation."
+    },
+    "RemoveAt": {
+      "signature": "RemoveAt(list: any[], index: number) → any",
+      "description": "Local RemoveAt operation."
+    },
+    "Update": {
+      "signature": "Update(list: any[], field: string, value: any, setField: string, setValue: any) → any",
+      "description": "Local Update operation."
+    },
+    "Toggle": {
+      "signature": "Toggle(list: any[], item: any) → any",
+      "description": "Local Toggle operation."
+    },
+    "Includes": {
+      "signature": "Includes(list: any[] | string, item: any) → any",
+      "description": "Local Includes operation."
+    },
+    "Find": {
+      "signature": "Find(list: any[], field: string, value: any) → any",
+      "description": "Local Find operation."
+    },
+    "IndexOf": {
+      "signature": "IndexOf(list: any[], item: any) → any",
+      "description": "Local IndexOf operation."
+    },
+    "Take": {
+      "signature": "Take(list: any[], n: number) → any",
+      "description": "Local Take operation."
+    },
+    "Slice": {
+      "signature": "Slice(list: any[] | string, start: number, end?: number) → any",
+      "description": "Local Slice operation."
+    },
+    "Unique": {
+      "signature": "Unique(list: any[]) → any",
+      "description": "Local Unique operation."
+    },
+    "Reverse": {
+      "signature": "Reverse(list: any[]) → any",
+      "description": "Local Reverse operation."
+    },
+    "Range": {
+      "signature": "Range(start: number, end: number, step?: number) → any",
+      "description": "Local Range operation."
+    },
+    "Flatten": {
+      "signature": "Flatten(list: any[]) → any",
+      "description": "Local Flatten operation."
+    },
+    "Chunk": {
+      "signature": "Chunk(list: any[], size: number) → any",
+      "description": "Local Chunk operation."
+    },
+    "Pow": {
+      "signature": "Pow(base: number, exponent: number) → any",
+      "description": "Local Pow operation."
+    },
+    "Sqrt": {
+      "signature": "Sqrt(number: number) → any",
+      "description": "Local Sqrt operation."
+    },
+    "Clamp": {
+      "signature": "Clamp(number: number, min: number, max: number) → any",
+      "description": "Local Clamp operation."
+    },
+    "Percent": {
+      "signature": "Percent(part: number, total: number) → any",
+      "description": "Local Percent operation."
+    },
+    "Lerp": {
+      "signature": "Lerp(a: number, b: number, t: number) → any",
+      "description": "Local Lerp operation."
+    },
+    "Default": {
+      "signature": "Default(value?: any, fallback: any) → any",
+      "description": "Local Default operation."
+    },
+    "Join": {
+      "signature": "Join(list: any[], sep?: string, field?: string) → any",
+      "description": "Local Join operation."
+    },
+    "Plural": {
+      "signature": "Plural(n: number, word: string, plural?: string) → any",
+      "description": "Local Plural operation."
+    },
+    "Pad": {
+      "signature": "Pad(value: string | number, length: number, char?: string) → any",
+      "description": "Local Pad operation."
+    },
+    "Upper": {
+      "signature": "Upper(text: string) → any",
+      "description": "Local Upper operation."
+    },
+    "Lower": {
+      "signature": "Lower(text: string) → any",
+      "description": "Local Lower operation."
+    },
+    "Trim": {
+      "signature": "Trim(text: string) → any",
+      "description": "Local Trim operation."
+    },
+    "Capitalize": {
+      "signature": "Capitalize(text: string) → any",
+      "description": "Local Capitalize operation."
+    },
+    "Split": {
+      "signature": "Split(text: string, sep?: string) → any",
+      "description": "Local Split operation."
+    },
+    "Replace": {
+      "signature": "Replace(text: string, find: string, replacement: string) → any",
+      "description": "Local Replace operation."
+    },
+    "Format": {
+      "signature": "Format(value: number, kind?: \"number\" | \"currency\" | \"percent\" | \"compact\", decimals?: number, currency?: string) → any",
+      "description": "Local Format operation."
+    },
+    "Pick": {
+      "signature": "Pick(list: any[]) → any",
+      "description": "Local Pick operation."
+    },
+    "Shuffle": {
+      "signature": "Shuffle(list: any[]) → any",
+      "description": "Local Shuffle operation."
+    },
+    "Random": {
+      "signature": "Random(min: number, max: number, integer?: boolean) → any",
+      "description": "Local Random operation."
+    },
+    "Allocate": {
+      "signature": "Allocate(total: number, weights: number[], decimals?: number) → any",
+      "description": "Local Allocate operation."
+    },
+    "Payment": {
+      "signature": "Payment(principal: number, rate: number, periods: number) → any",
+      "description": "Local Payment operation."
+    },
+    "Convert": {
+      "signature": "Convert(value: number, from: string, to: string) → any",
+      "description": "Local Convert operation."
+    },
+    "Duration": {
+      "signature": "Duration(seconds: number, style?: \"short\" | \"clock\") → any",
+      "description": "Local Duration operation."
+    },
+    "MixColor": {
+      "signature": "MixColor(from: string, to: string, t: number) → any",
+      "description": "Local MixColor operation."
+    },
+    "Now": {
+      "signature": "Now() → any",
+      "description": "Local Now operation."
+    },
+    "Today": {
+      "signature": "Today() → any",
+      "description": "Local Today operation."
+    },
+    "FormatDate": {
+      "signature": "FormatDate(date: string | number, style?: \"date\" | \"short\" | \"long\" | \"weekday\" | \"month\" | \"time\" | \"datetime\" | \"iso\") → any",
+      "description": "Local FormatDate operation."
+    },
+    "AddDays": {
+      "signature": "AddDays(date: string | number, days: number) → any",
+      "description": "Local AddDays operation."
+    },
+    "AddMonths": {
+      "signature": "AddMonths(date: string | number, months: number) → any",
+      "description": "Local AddMonths operation."
+    },
+    "DaysBetween": {
+      "signature": "DaysBetween(from: string | number, to: string | number) → any",
+      "description": "Local DaysBetween operation."
+    },
+    "MonthsBetween": {
+      "signature": "MonthsBetween(from: string | number, to: string | number) → any",
+      "description": "Local MonthsBetween operation."
+    },
+    "StartOf": {
+      "signature": "StartOf(date: string | number, unit: \"week\" | \"month\" | \"year\") → any",
+      "description": "Local StartOf operation."
+    },
+    "GroupBy": {
+      "signature": "GroupBy(rows: any[], key: string, field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any",
+      "description": "Local GroupBy operation."
+    },
+    "Pivot": {
+      "signature": "Pivot(rows: any[], rowKey: string, colKey: string, field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any",
+      "description": "Local Pivot operation."
+    },
+    "Top": {
+      "signature": "Top(rows: any[], field: string, n: number, direction?: \"desc\" | \"asc\") → any",
+      "description": "Local Top operation."
+    },
+    "Between": {
+      "signature": "Between(rows: any[], field: string, min?: any, max?: any) → any",
+      "description": "Local Between operation."
+    },
+    "Bucket": {
+      "signature": "Bucket(rows: any[], dateField: string, unit: \"day\" | \"week\" | \"month\", field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any",
+      "description": "Local Bucket operation."
+    },
+    "Cumulative": {
+      "signature": "Cumulative(rows: any[], field: string) → any",
+      "description": "Local Cumulative operation."
+    },
+    "MovingAvg": {
+      "signature": "MovingAvg(rows: any[], field: string, window: number) → any",
+      "description": "Local MovingAvg operation."
+    },
+    "Change": {
+      "signature": "Change(current: number, previous: number) → any",
+      "description": "Local Change operation."
+    },
+    "Histogram": {
+      "signature": "Histogram(values: number[], bins: number, min?: number, max?: number) → any",
+      "description": "Local Histogram operation."
+    },
+    "Stats": {
+      "signature": "Stats(values: number[]) → any",
+      "description": "Local Stats operation."
+    }
+  },
+  "actions": {
+    "CopyToClipboard": {
+      "signature": "CopyToClipboard(text: string)",
+      "description": "Clipboard is unavailable in the isolated MyGo viewer."
+    }
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "Col": {
+        "$ref": "#/$defs/Col"
+      },
+      "Row": {
+        "$ref": "#/$defs/Row"
+      },
+      "Box": {
+        "$ref": "#/$defs/Box"
+      },
+      "Grid": {
+        "$ref": "#/$defs/Grid"
+      },
+      "Card": {
+        "$ref": "#/$defs/Card"
+      },
+      "Carousel": {
+        "$ref": "#/$defs/Carousel"
+      },
+      "Divider": {
+        "$ref": "#/$defs/Divider"
+      },
+      "Spacer": {
+        "$ref": "#/$defs/Spacer"
+      },
+      "Title": {
+        "$ref": "#/$defs/Title"
+      },
+      "Text": {
+        "$ref": "#/$defs/Text"
+      },
+      "Caption": {
+        "$ref": "#/$defs/Caption"
+      },
+      "Label": {
+        "$ref": "#/$defs/Label"
+      },
+      "Badge": {
+        "$ref": "#/$defs/Badge"
+      },
+      "Markdown": {
+        "$ref": "#/$defs/Markdown"
+      },
+      "Quote": {
+        "$ref": "#/$defs/Quote"
+      },
+      "Code": {
+        "$ref": "#/$defs/Code"
+      },
+      "Math": {
+        "$ref": "#/$defs/Math"
+      },
+      "Link": {
+        "$ref": "#/$defs/Link"
+      },
+      "List": {
+        "$ref": "#/$defs/List"
+      },
+      "ListItem": {
+        "$ref": "#/$defs/ListItem"
+      },
+      "Icon": {
+        "$ref": "#/$defs/Icon"
+      },
+      "Button": {
+        "$ref": "#/$defs/Button"
+      },
+      "IconButton": {
+        "$ref": "#/$defs/IconButton"
+      },
+      "Input": {
+        "$ref": "#/$defs/Input"
+      },
+      "TextArea": {
+        "$ref": "#/$defs/TextArea"
+      },
+      "Select": {
+        "$ref": "#/$defs/Select"
+      },
+      "Checkbox": {
+        "$ref": "#/$defs/Checkbox"
+      },
+      "Slider": {
+        "$ref": "#/$defs/Slider"
+      },
+      "SegmentedControl": {
+        "$ref": "#/$defs/SegmentedControl"
+      },
+      "RadioGroup": {
+        "$ref": "#/$defs/RadioGroup"
+      },
+      "DatePicker": {
+        "$ref": "#/$defs/DatePicker"
+      },
+      "Form": {
+        "$ref": "#/$defs/Form"
+      },
+      "Image": {
+        "$ref": "#/$defs/Image"
+      },
+      "SearchImage": {
+        "$ref": "#/$defs/SearchImage"
+      },
+      "Popover": {
+        "$ref": "#/$defs/Popover"
+      },
+      "Flashcard": {
+        "$ref": "#/$defs/Flashcard"
+      },
+      "Celebration": {
+        "$ref": "#/$defs/Celebration"
+      },
+      "Chart": {
+        "$ref": "#/$defs/Chart"
+      },
+      "Table": {
+        "$ref": "#/$defs/Table"
+      },
+      "Svg": {
+        "$ref": "#/$defs/Svg"
+      },
+      "Circle": {
+        "$ref": "#/$defs/Circle"
+      },
+      "Ellipse": {
+        "$ref": "#/$defs/Ellipse"
+      },
+      "Rect": {
+        "$ref": "#/$defs/Rect"
+      },
+      "Line": {
+        "$ref": "#/$defs/Line"
+      },
+      "Path": {
+        "$ref": "#/$defs/Path"
+      },
+      "Polyline": {
+        "$ref": "#/$defs/Polyline"
+      },
+      "Polygon": {
+        "$ref": "#/$defs/Polygon"
+      },
+      "G": {
+        "$ref": "#/$defs/G"
+      },
+      "SvgText": {
+        "$ref": "#/$defs/SvgText"
+      },
+      "Map": {
+        "$ref": "#/$defs/Map"
+      },
+      "MapMarker": {
+        "$ref": "#/$defs/MapMarker"
+      },
+      "Pressable": {
+        "$ref": "#/$defs/Pressable"
+      },
+      "Timer": {
+        "$ref": "#/$defs/Timer"
+      }
+    },
+    "required": [
+      "Col",
+      "Row",
+      "Box",
+      "Grid",
+      "Card",
+      "Carousel",
+      "Divider",
+      "Spacer",
+      "Title",
+      "Text",
+      "Caption",
+      "Label",
+      "Badge",
+      "Markdown",
+      "Quote",
+      "Code",
+      "Math",
+      "Link",
+      "List",
+      "ListItem",
+      "Icon",
+      "Button",
+      "IconButton",
+      "Input",
+      "TextArea",
+      "Select",
+      "Checkbox",
+      "Slider",
+      "SegmentedControl",
+      "RadioGroup",
+      "DatePicker",
+      "Form",
+      "Image",
+      "SearchImage",
+      "Popover",
+      "Flashcard",
+      "Celebration",
+      "Chart",
+      "Table",
+      "Svg",
+      "Circle",
+      "Ellipse",
+      "Rect",
+      "Line",
+      "Path",
+      "Polyline",
+      "Polygon",
+      "G",
+      "SvgText",
+      "Map",
+      "MapMarker",
+      "Pressable",
+      "Timer"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "Col": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "gap": {
+            "type": "number"
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Vertical content layout. Spacing values use four-pixel steps."
+      },
+      "Row": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "gap": {
+            "type": "number"
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          },
+          "justify": {
+            "type": "string",
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "between"
+            ]
+          },
+          "wrap": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Horizontal content layout with optional wrapping and alignment."
+      },
+      "Box": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "direction": {
+            "type": "string",
+            "enum": [
+              "row",
+              "col"
+            ]
+          },
+          "gap": {
+            "type": "number"
+          },
+          "padding": {
+            "type": "number"
+          },
+          "background": {
+            "type": "string"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sm",
+                  "md",
+                  "lg",
+                  "xl",
+                  "full"
+                ]
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "border": {
+            "type": "boolean"
+          },
+          "width": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "height": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "flex": {
+            "type": "number"
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          },
+          "justify": {
+            "type": "string",
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "between"
+            ]
+          },
+          "wrap": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Configurable flex box with safe lengths, color, border, and rounded clipping."
+      },
+      "Grid": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "columns": {
+            "type": "number"
+          },
+          "minChildWidth": {
+            "type": "number"
+          },
+          "gap": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Equal-width grid, optionally responsive to a minimum child width in pixels."
+      },
+      "Card": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "variant": {
+            "type": "string",
+            "enum": [
+              "outline",
+              "soft"
+            ]
+          },
+          "padding": {
+            "type": "number"
+          },
+          "gap": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Rounded panel with an outline or a soft filled surface."
+      },
+      "Carousel": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "itemWidth": {
+            "type": "number"
+          },
+          "gap": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Keyboard-scrollable horizontal collection with snapping items."
+      },
+      "Divider": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Horizontal section separator."
+      },
+      "Spacer": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Flexible space between layout siblings."
+      },
+      "Title": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl"
+            ]
+          },
+          "color": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "A semantic heading with a selectable size and safe text color."
+      },
+      "Text": {
+        "type": "object",
+        "properties": {
+          "text": {},
+          "size": {
+            "type": "string",
+            "enum": [
+              "xs",
+              "sm",
+              "md",
+              "lg"
+            ]
+          },
+          "color": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "medium",
+              "semibold"
+            ]
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "lineThrough": {
+            "type": "boolean"
+          },
+          "tabularNums": {
+            "type": "boolean"
+          },
+          "maxLines": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "Paragraph content with inline Markdown or embedded inline components."
+      },
+      "Caption": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "Small secondary explanatory text."
+      },
+      "Label": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "A visible group or field label."
+      },
+      "Badge": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "neutral",
+              "info",
+              "success",
+              "warning",
+              "danger",
+              "purple",
+              "pink"
+            ]
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "A small colored tag with an optional local Lucide icon."
+      },
+      "Markdown": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "Markdown prose, tables, lists, and code. Raw HTML and external media are disabled."
+      },
+      "Quote": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "cite": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "A quotation with an optional plain-text source."
+      },
+      "Code": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false,
+        "description": "Plain code with a language label. Clipboard access is disabled."
+      },
+      "Math": {
+        "type": "object",
+        "properties": {
+          "tex": {
+            "type": "string"
+          },
+          "inline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tex"
+        ],
+        "additionalProperties": false,
+        "description": "Local KaTeX formula rendered as native MathML with trusted commands disabled."
+      },
+      "Link": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "url"
+        ],
+        "additionalProperties": false,
+        "description": "Displays a link label and an explicit navigation-disabled status."
+      },
+      "List": {
+        "type": "object",
+        "properties": {
+          "items": {},
+          "marker": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "number",
+              "none"
+            ]
+          },
+          "timeline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "description": "Bulleted, numbered, or unmarked items with optional timeline connectors."
+      },
+      "ListItem": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "marker": {
+            "type": "string"
+          },
+          "children": {}
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false,
+        "description": "List content with title, description, a custom marker, and nested content."
+      },
+      "Icon": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "sm",
+              "md",
+              "lg",
+              "xl"
+            ]
+          },
+          "color": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "description": "A locally bundled Lucide icon; unknown names have an explicit fallback."
+      },
+      "Button": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/$defs/ActionExpression"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "outline",
+              "soft",
+              "ghost"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "danger",
+              "success"
+            ]
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "sm",
+              "md",
+              "lg"
+            ]
+          },
+          "icon": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "block": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "An action button. Without an action, sends its label to the assistant."
+      },
+      "ActionExpression": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "open_url"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "url"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "continue_conversation"
+              },
+              "context": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "IconButton": {
+        "type": "object",
+        "properties": {
+          "icon": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/$defs/ActionExpression"
+          },
+          "label": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "outline",
+              "ghost",
+              "solid"
+            ]
+          }
+        },
+        "required": [
+          "icon"
+        ],
+        "additionalProperties": false,
+        "description": "A round icon action button with an accessible label."
+      },
+      "Input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number"
+            ]
+          },
+          "placeholder": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive text or number input. Numeric edits store numbers; an empty field stores an empty string."
+      },
+      "TextArea": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive multiline text field."
+      },
+      "Select": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "label": {
+            "type": "string"
+          },
+          "placeholder": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "options"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive dropdown of string choices or value/label objects."
+      },
+      "Checkbox": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lineThrough": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checked",
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive checkbox; optionally strike the checked label through."
+      },
+      "Slider": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "step": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "value",
+          "min",
+          "max"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive range input with a value label and optional marks."
+      },
+      "SegmentedControl": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "block": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "options"
+        ],
+        "additionalProperties": false,
+        "description": "Reactive short choices arranged in a row."
+      },
+      "RadioGroup": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "label": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "list",
+              "pills",
+              "cards"
+            ]
+          }
+        },
+        "required": [
+          "value",
+          "options"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive single choice displayed as a list, pills, or cards."
+      },
+      "DatePicker": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "min": {
+            "type": "string"
+          },
+          "max": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "description": "A reactive date input using YYYY-MM-DD values."
+      },
+      "Form": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Groups fields and passes their current state with assistant actions."
+      },
+      "Image": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          },
+          "aspectRatio": {
+            "type": "number"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sm",
+                  "md",
+                  "lg",
+                  "xl",
+                  "full"
+                ]
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "contain"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "alt"
+        ],
+        "additionalProperties": false,
+        "description": "A local bitmap data image. External URLs and replacement-image fallback are unsupported."
+      },
+      "SearchImage": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "aspectRatio": {
+            "type": "number"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sm",
+                  "md",
+                  "lg",
+                  "xl",
+                  "full"
+                ]
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "contain"
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false,
+        "description": "Searches the parent image service for real bitmap images and retains their original source URLs."
+      },
+      "Popover": {
+        "type": "object",
+        "properties": {
+          "trigger": {},
+          "content": {}
+        },
+        "required": [
+          "trigger",
+          "content"
+        ],
+        "additionalProperties": false,
+        "description": "Local disclosure panel with Escape, outside dismissal, and focus restoration."
+      },
+      "Flashcard": {
+        "type": "object",
+        "properties": {
+          "front": {},
+          "back": {},
+          "hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "front",
+          "back"
+        ],
+        "additionalProperties": false,
+        "description": "Two-sided card with mouse, touch, and keyboard flipping; respects reduced motion."
+      },
+      "Celebration": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "when"
+        ],
+        "additionalProperties": false,
+        "description": "Local, time-bounded confetti on a rising condition; static feedback for reduced motion."
+      },
+      "Chart": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "bar",
+              "line",
+              "area",
+              "pie",
+              "donut",
+              "scatter"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              }
+            }
+          },
+          "x": {
+            "type": "string"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "number",
+              "currency",
+              "percent"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "stacked": {
+            "type": "boolean"
+          },
+          "height": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "type",
+          "data"
+        ],
+        "additionalProperties": false,
+        "description": "Data charts: bar, line, area, pie, donut, and scatter. Stacking is available for bar, line, and area. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
+      },
+      "Table": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          }
+        },
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "additionalProperties": false,
+        "description": "Each row lists its cells in column order. Component cells render inline and numeric columns align right."
+      },
+      "Svg": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "viewBox": {
+            "type": "string"
+          },
+          "width": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "height": {
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "children",
+          "viewBox"
+        ],
+        "additionalProperties": false,
+        "description": "Responsive native SVG drawing with evaluated shape children and a numeric viewBox."
+      },
+      "Circle": {
+        "type": "object",
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "r": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cx",
+          "cy",
+          "r"
+        ],
+        "additionalProperties": false,
+        "description": "Circle in SVG user coordinates."
+      },
+      "Ellipse": {
+        "type": "object",
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "rx": {
+            "type": "number"
+          },
+          "ry": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cx",
+          "cy",
+          "rx",
+          "ry"
+        ],
+        "additionalProperties": false,
+        "description": "Ellipse with horizontal and vertical radii."
+      },
+      "Rect": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          },
+          "rx": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false,
+        "description": "Rectangle with an optional rounded-corner radius."
+      },
+      "Line": {
+        "type": "object",
+        "properties": {
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          },
+          "x2": {
+            "type": "number"
+          },
+          "y2": {
+            "type": "number"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "additionalProperties": false,
+        "description": "Line segment between two points."
+      },
+      "Path": {
+        "type": "object",
+        "properties": {
+          "d": {
+            "type": "string"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "d"
+        ],
+        "additionalProperties": false,
+        "description": "Native SVG path supporting standard move, line, curve, arc, and close commands."
+      },
+      "Polyline": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "additionalProperties": false,
+        "description": "Connected open line segments from x,y coordinate pairs."
+      },
+      "Polygon": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "string"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "stroke": {
+            "type": "string"
+          },
+          "strokeWidth": {
+            "type": "number"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "additionalProperties": false,
+        "description": "Closed polygon from x,y coordinate pairs."
+      },
+      "G": {
+        "type": "object",
+        "properties": {
+          "children": {},
+          "transform": {
+            "type": "string"
+          },
+          "opacity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "SVG drawing group with a numeric SVG transform and opacity."
+      },
+      "SvgText": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "size": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "anchor": {
+            "type": "string",
+            "enum": [
+              "start",
+              "middle",
+              "end"
+            ]
+          },
+          "weight": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "medium",
+              "semibold"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false,
+        "description": "Escaped SVG text with positioning, font size, color, alignment, and weight."
+      },
+      "Map": {
+        "type": "object",
+        "properties": {
+          "markers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/MapMarker"
+            }
+          },
+          "route": {
+            "type": "boolean"
+          },
+          "selected": {
+            "type": "string"
+          },
+          "height": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "markers"
+        ],
+        "additionalProperties": false,
+        "description": "A real raster street map fitted to its markers, with optional road route and bound selection."
+      },
+      "MapMarker": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "category": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "lat",
+          "lng"
+        ],
+        "additionalProperties": false,
+        "description": "A labeled map location; icon is an emoji, otherwise its position number is shown."
+      },
+      "Pressable": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {}
+          },
+          "action": {
+            "$ref": "#/$defs/ActionExpression"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "padding": {
+            "type": "number"
+          },
+          "background": {
+            "type": "string"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sm",
+                  "md",
+                  "lg",
+                  "xl",
+                  "full"
+                ]
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Clickable content with optional selected styling and a local or assistant action."
+      },
+      "Timer": {
+        "type": "object",
+        "properties": {
+          "seconds": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "seconds"
+        ],
+        "additionalProperties": false,
+        "description": "A start/pause/reset countdown that updates its bound seconds and stops at zero."
+      }
+    },
+    "functions": {
+      "Append": {
+        "description": "Local Append operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "item": {}
+          },
+          "required": [
+            "list",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Prepend": {
+        "description": "Local Prepend operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "item": {}
+          },
+          "required": [
+            "list",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Concat": {
+        "description": "Local Concat operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "more": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list",
+            "more"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Remove": {
+        "description": "Local Remove operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "value": {}
+          },
+          "required": [
+            "list",
+            "field",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "RemoveAt": {
+        "description": "Local RemoveAt operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "index": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "list",
+            "index"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Update": {
+        "description": "Local Update operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "value": {},
+            "setField": {
+              "type": "string"
+            },
+            "setValue": {}
+          },
+          "required": [
+            "list",
+            "field",
+            "value",
+            "setField",
+            "setValue"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Toggle": {
+        "description": "Local Toggle operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "item": {}
+          },
+          "required": [
+            "list",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Includes": {
+        "description": "Local Includes operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {}
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "item": {}
+          },
+          "required": [
+            "list",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Find": {
+        "description": "Local Find operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "value": {}
+          },
+          "required": [
+            "list",
+            "field",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "IndexOf": {
+        "description": "Local IndexOf operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "item": {}
+          },
+          "required": [
+            "list",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Take": {
+        "description": "Local Take operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "n": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "list",
+            "n"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Slice": {
+        "description": "Local Slice operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {}
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "start": {
+              "type": "number"
+            },
+            "end": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "list",
+            "start"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Unique": {
+        "description": "Local Unique operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Reverse": {
+        "description": "Local Reverse operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Range": {
+        "description": "Local Range operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "number"
+            },
+            "end": {
+              "type": "number"
+            },
+            "step": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Flatten": {
+        "description": "Local Flatten operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Chunk": {
+        "description": "Local Chunk operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "size": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "list",
+            "size"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Pow": {
+        "description": "Local Pow operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "type": "number"
+            },
+            "exponent": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "base",
+            "exponent"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Sqrt": {
+        "description": "Local Sqrt operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "number"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Clamp": {
+        "description": "Local Clamp operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "number",
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Percent": {
+        "description": "Local Percent operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "part": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "part",
+            "total"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Lerp": {
+        "description": "Local Lerp operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "number"
+            },
+            "b": {
+              "type": "number"
+            },
+            "t": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "a",
+            "b",
+            "t"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Default": {
+        "description": "Local Default operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "value": {},
+            "fallback": {}
+          },
+          "required": [
+            "fallback"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Join": {
+        "description": "Local Join operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            },
+            "sep": {
+              "type": "string"
+            },
+            "field": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Plural": {
+        "description": "Local Plural operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "n": {
+              "type": "number"
+            },
+            "word": {
+              "type": "string"
+            },
+            "plural": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "n",
+            "word"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Pad": {
+        "description": "Local Pad operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "length": {
+              "type": "number"
+            },
+            "char": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value",
+            "length"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Upper": {
+        "description": "Local Upper operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Lower": {
+        "description": "Local Lower operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Trim": {
+        "description": "Local Trim operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Capitalize": {
+        "description": "Local Capitalize operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Split": {
+        "description": "Local Split operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "sep": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Replace": {
+        "description": "Local Replace operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "find": {
+              "type": "string"
+            },
+            "replacement": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text",
+            "find",
+            "replacement"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Format": {
+        "description": "Local Format operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "number",
+                "currency",
+                "percent",
+                "compact"
+              ]
+            },
+            "decimals": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Pick": {
+        "description": "Local Pick operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Shuffle": {
+        "description": "Local Shuffle operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Random": {
+        "description": "Local Random operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "integer": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Allocate": {
+        "description": "Local Allocate operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "weights": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "decimals": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "total",
+            "weights"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Payment": {
+        "description": "Local Payment operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "type": "number"
+            },
+            "rate": {
+              "type": "number"
+            },
+            "periods": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "principal",
+            "rate",
+            "periods"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Convert": {
+        "description": "Local Convert operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Duration": {
+        "description": "Local Duration operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "number"
+            },
+            "style": {
+              "type": "string",
+              "enum": [
+                "short",
+                "clock"
+              ]
+            }
+          },
+          "required": [
+            "seconds"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "MixColor": {
+        "description": "Local MixColor operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "t": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "from",
+            "to",
+            "t"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Now": {
+        "description": "Local Now operation.",
+        "params": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Today": {
+        "description": "Local Today operation.",
+        "params": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "FormatDate": {
+        "description": "Local FormatDate operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "style": {
+              "type": "string",
+              "enum": [
+                "date",
+                "short",
+                "long",
+                "weekday",
+                "month",
+                "time",
+                "datetime",
+                "iso"
+              ]
+            }
+          },
+          "required": [
+            "date"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "AddDays": {
+        "description": "Local AddDays operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "days": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "date",
+            "days"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "AddMonths": {
+        "description": "Local AddMonths operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "months": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "date",
+            "months"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "DaysBetween": {
+        "description": "Local DaysBetween operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "to": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "MonthsBetween": {
+        "description": "Local MonthsBetween operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "to": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "StartOf": {
+        "description": "Local StartOf operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "week",
+                "month",
+                "year"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "unit"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "GroupBy": {
+        "description": "Local GroupBy operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "key": {
+              "type": "string"
+            },
+            "field": {
+              "type": "string"
+            },
+            "agg": {
+              "type": "string",
+              "enum": [
+                "sum",
+                "avg",
+                "count",
+                "min",
+                "max"
+              ]
+            }
+          },
+          "required": [
+            "rows",
+            "key"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Pivot": {
+        "description": "Local Pivot operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "rowKey": {
+              "type": "string"
+            },
+            "colKey": {
+              "type": "string"
+            },
+            "field": {
+              "type": "string"
+            },
+            "agg": {
+              "type": "string",
+              "enum": [
+                "sum",
+                "avg",
+                "count",
+                "min",
+                "max"
+              ]
+            }
+          },
+          "required": [
+            "rows",
+            "rowKey",
+            "colKey"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Top": {
+        "description": "Local Top operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "n": {
+              "type": "number"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "desc",
+                "asc"
+              ]
+            }
+          },
+          "required": [
+            "rows",
+            "field",
+            "n"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Between": {
+        "description": "Local Between operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "min": {},
+            "max": {}
+          },
+          "required": [
+            "rows",
+            "field"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Bucket": {
+        "description": "Local Bucket operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "dateField": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            },
+            "field": {
+              "type": "string"
+            },
+            "agg": {
+              "type": "string",
+              "enum": [
+                "sum",
+                "avg",
+                "count",
+                "min",
+                "max"
+              ]
+            }
+          },
+          "required": [
+            "rows",
+            "dateField",
+            "unit"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Cumulative": {
+        "description": "Local Cumulative operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "rows",
+            "field"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "MovingAvg": {
+        "description": "Local MovingAvg operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "items": {}
+            },
+            "field": {
+              "type": "string"
+            },
+            "window": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "rows",
+            "field",
+            "window"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Change": {
+        "description": "Local Change operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "current": {
+              "type": "number"
+            },
+            "previous": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "current",
+            "previous"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Histogram": {
+        "description": "Local Histogram operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "bins": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "values",
+            "bins"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      },
+      "Stats": {
+        "description": "Local Stats operation.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "values"
+          ],
+          "additionalProperties": false
+        },
+        "returns": {}
+      }
+    },
+    "actions": {
+      "CopyToClipboard": {
+        "description": "Clipboard is unavailable in the isolated MyGo viewer.",
+        "params": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "id": "whaleisle-independent-col-v1"
+}

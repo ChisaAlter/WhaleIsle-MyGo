@@ -2,6 +2,7 @@ package openui
 
 import (
 	"crypto/sha256"
+	_ "embed"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -9,30 +10,22 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 )
 
 const ViewerSHA256 = "ee5470ac1f67c50e69e554f6be5d7202625eef572b1f272f2276a1e250876961"
 
-// LoadViewer reads an explicitly supplied viewer.html/app.asar, or the user's
-// existing standard desktop install. It does not download/install/execute it.
+//go:embed viewer/viewer.html
+var embeddedViewer string
+
+// LoadViewer defaults to the independently authored SDK-based viewer built from
+// tools/openui-runtime. An explicit path retains the pinned legacy import path;
+// normal startup never probes or depends on an original Whale Isle installation.
 func LoadViewer(explicit string) (string, error) {
-	paths := []string{}
-	if explicit != "" {
-		paths = append(paths, explicit)
-	} else if runtime.GOOS == "darwin" {
-		paths = append(paths, "/Applications/Whale Isle.app/Contents/Resources/app.asar")
-		if home, e := os.UserHomeDir(); e == nil {
-			paths = append(paths, filepath.Join(home, "Applications/Whale Isle.app/Contents/Resources/app.asar"))
-		}
-	} else if runtime.GOOS == "windows" {
-		for _, root := range []string{os.Getenv("LOCALAPPDATA"), os.Getenv("ProgramFiles")} {
-			if root != "" {
-				paths = append(paths, filepath.Join(root, "Programs", "Whale Isle", "resources", "app.asar"), filepath.Join(root, "Whale Isle", "resources", "app.asar"))
-			}
-		}
+	if explicit == "" {
+		return embeddedViewer, nil
 	}
+	paths := []string{explicit}
 	for _, path := range paths {
 		data, e := readViewer(path)
 		if e != nil {
@@ -47,7 +40,7 @@ func LoadViewer(explicit string) (string, error) {
 		}
 		return string(data), nil
 	}
-	return "", errors.New("OpenUI runtime is not bundled; set WHALEISLE_OPENUI_VIEWER to your supported viewer.html or existing app.asar")
+	return "", errors.New("The explicitly selected legacy OpenUI runtime could not be loaded")
 }
 
 type asarNode struct {

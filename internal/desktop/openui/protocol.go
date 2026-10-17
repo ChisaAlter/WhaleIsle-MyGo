@@ -1,5 +1,5 @@
-// Package openui adapts a user-supplied, pinned OpenUI viewer to the isolated
-// preview helper. It contains no third-party runtime bundle or Host credentials.
+// Package openui connects the embedded SDK-based OpenUI renderer to the isolated
+// preview helper. Public resources never receive Host credentials.
 package openui
 
 import (

@@ -5,30 +5,27 @@ and bounded same-instance streaming updates, with a separate-window fallback. Or
 pinned React viewer through an opaque iframe and exchanges channel/version/
 instanceId messages. MyGo now uses that real protocol inside its existing
 separately contained preview helper, with a dedicated bounded event channel.
-No runtime bundle, original installer or third-party API handler is distributed
-by this change.
+The default viewer is independently authored application code using explicitly
+licensed OpenUI SDK packages. Its maintainable sources and pinned dependency
+lock live in `tools/openui-runtime/`; production HTML and third-party notices
+live in `internal/desktop/openui/viewer/` and are embedded in the Go application.
+An original Whale Isle installation is not required or probed on default startup.
 
-## Supply an existing runtime
+## Built-in runtime and explicit legacy import
 
-Set `WHALEISLE_OPENUI_VIEWER` to an absolute path to an already-owned viewer.html
-or app.asar. With no override the application checks standard existing Whale
-Isle installations: macOS /Applications or ~/Applications; Windows LocalAppData
-Programs or ProgramFiles. It does not install, download, execute the original
-application, scan arbitrary disks or create browser permissions.
+Build the viewer using the production build instructions in
+`tools/openui-runtime/README.md`. The checked-in production artifact includes
+its dependency notices; no network is required to load its scripts, styles or
+fonts. The application uses the same opaque iframe and native preview bridge.
+Source integration is not Windows/macOS runtime acceptance.
 
-Only the audited viewer SHA256 is accepted:
+An explicit `WHALEISLE_OPENUI_VIEWER` absolute path remains a compatibility
+option for an already-owned original viewer.html or app.asar, not a default
+installation prerequisite. That legacy path accepts only SHA256
 `ee5470ac1f67c50e69e554f6be5d7202625eef572b1f272f2276a1e250876961`.
-It originates from ChisaAlter/WhaleIsle head
-a8c931da37376ce7dc7989e6f30b0db885e06d26, successful existing Actions run
-38927591701 / artifact12059037786. ASAR is read as bounded archive data only.
-Other versions fail visibly. Missing resources show a real error and leave the
-source accessible; no simulated renderer or empty success is shown.
-
-The original packaged UPSTREAM.md states that the pinned open-intelligent-ui
-source lacks a declared license; MIT notices cover its three SDK dependencies,
-not necessarily the complete bundle. This is why the runtime is not committed
-or included in the publication manifest. Using an existing local runtime does
-not represent a new claim about upstream redistribution rights.
+It reads the archive as data and does not execute the original application.
+The upstream application bundle is not redistributed; its unclear license
+status is separate from the independently authored built-in implementation.
 
 ## Behavior and ownership
 
@@ -61,11 +58,12 @@ not represent a new claim about upstream redistribution rights.
   not an assertion of immediate unmount cleanup. Queued state not delivered
   before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
-  filesystem, external navigation, clipboard or nested frames. Three typed
+  filesystem, external navigation, clipboard or nested frames. Fixed typed
   resource requests run in the Go parent with a separate credential-free HTTP
   client: Wikipedia summary/media, Wikipedia/Commons image search, and OSRM
-  driving geometry. These mirror Electron shell adapters, not Host API routes.
-  Only title/q/coords query values are accepted; addresses and request headers
+  driving geometry, plus raster map tiles for the owned Map component. The first
+  three mirror Electron shell adapters; none are Host API routes.
+  Only title/q/coords or tile z/x/y/style values are accepted; addresses and request headers
   are parent-owned. Redirects are not followed and no Host cookie/token is used.
   Requests inherit the instance cancellation context; owner is rechecked before
   a request and before its reply. Replies must match the pending instance/request
@@ -176,10 +174,10 @@ This assessment read source only. No test source was added, and no tests,
 builds, helper launches, permission changes or real map requests were performed.
 The recovered upstream MapLibre viewer remains unsupported under the present helper policy.
 
-An independently authored raster Map is being integrated at source level with
+An independently authored raster Map is integrated at source level with
 the owned SDK-based viewer. Its parent resource adapter uses the fixed
 `/api/map-tile` operation (`z`, `x`, `y`, `style=light|dark`) and returns
 bitmap data URLs from the two existing ArcGIS raster services. This path does
-not require iframe network access or a worker. Component integration, production
-asset publication and native/runtime verification are still pending; it is not
-recorded as completed parity.
+not require iframe network access or a worker. The checked-in owned viewer includes this component and its resource bridge.
+Native compilation/runtime verification is pending; source implementation and
+production asset generation do not establish completed runtime parity.

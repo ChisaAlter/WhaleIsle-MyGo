@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-17T11:33:00Z",
+  "packages": {},
+  "scope": "Browser runtime package paths contributing bytes in dist/bundle-metafile.json; generated inventory is dist/used-package-paths.json.",
+  "packageCount": 79,
+  "lockfileSHA256": "5f4175940b0141eb9d45abbdba38ddc17734428baba040e64651ae406b245ac5",
+  "fontAssetsBundled": false,
+  "notes": [
+    "Every contributing package ships a complete license file; no supplemental notice files are needed.",
+    "KaTeX is configured for MathML output. No font or KaTeX stylesheet inputs occur in the final browser bundle. Its included JavaScript remains covered by the shipped MIT LICENSE.",
+    "The complete lucide-react LICENSE contains both ISC and Feather-derived MIT notices.",
+    "If dependency versions or bundled assets change, regenerate and recheck the package and notice inventory."
+  ]
+}

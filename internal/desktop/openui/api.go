@@ -43,6 +43,13 @@ func validateAPIRequest(e Event) error {
 		key = "q"
 	case "/api/street-route":
 		key = "coords"
+	case "/api/map-tile":
+		for k := range e.Query {
+			if k != "z" && k != "x" && k != "y" && k != "style" {
+				return errors.New("unsupported OpenUI tile parameter")
+			}
+		}
+		return nil
 	default:
 		return errors.New("unsupported OpenUI API path")
 	}
@@ -55,7 +62,7 @@ func validateAPIRequest(e Event) error {
 }
 
 // ResourceAPI has its own credential-free client. Caller input can select only
-// the three public resource operations; it never supplies a server or headers.
+// the fixed public resource operations; it never supplies a server or headers.
 type ResourceAPI struct{ client *http.Client }
 
 func NewResourceAPI() *ResourceAPI {
@@ -80,6 +87,8 @@ func (a *ResourceAPI) Handle(ctx context.Context, e Event) APIResponse {
 		result = a.images(ctx, e)
 	case "/api/street-route":
 		result = a.route(ctx, e)
+	case "/api/map-tile":
+		result = a.mapTile(ctx, e)
 	}
 	result = a.inlineResourceImages(ctx, e, result)
 	if err := ValidateAPIResponse(result, e.InstanceID); err != nil {
