@@ -11,7 +11,7 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	mode := "page"
 	text := ""
 	modal := false
-	model := Model{PageShortcutBindings: map[string]string{"settings.open": "Mod+Shift+J", "tools.toggle": ""}, OnOpenSettings: func() { calls++ }}
+	model := Model{PageShortcutBindings: map[string]string{"settings.open": "Mod+Shift+T", "tools.toggle": ""}, OnOpenSettings: func() { calls++ }}
 	tt := ui.NewTester(func(c *ui.Context) {
 		registerPageCommands(c, model)
 		if c.PageShortcut(ui.Cmd, ui.KeyS) {
@@ -31,7 +31,7 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	if calls != 0 {
 		t.Fatal("old binding still active")
 	}
-	tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 	if calls != 1 {
 		t.Fatal("new binding not dispatched")
 	}
@@ -42,7 +42,7 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	for _, owner := range []string{"text", "custom"} {
 		mode = owner
 		tt.Frame()
-		tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+		tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 		if calls != 1 {
 			t.Fatalf("%s input stolen", owner)
 		}
@@ -50,7 +50,7 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	mode = "text"
 	tt.Frame()
 	tt.Compose("ni", 2)
-	tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 	tt.Type("你")
 	if calls != 1 || text != "你" {
 		t.Fatal("IME stolen")
@@ -58,19 +58,19 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	mode = "page"
 	modal = true
 	tt.Frame()
-	tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 	if calls != 1 {
 		t.Fatal("modal stolen")
 	}
 	modal = false
 	tt.Frame()
-	tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 	if calls != 2 {
 		t.Fatal("post-modal command not recovered")
 	}
 	model.PageShortcutBindings["settings.open"] = ""
 	tt.Frame()
-	tt.Key(ui.Cmd|ui.Shift, ui.KeyJ)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
 	if calls != 2 {
 		t.Fatal("unbound key still active")
 	}
