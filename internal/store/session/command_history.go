@@ -120,5 +120,5 @@ func projectCommandMessages(messages []Message) []Message {
 		}
 		out = append(out, msg)
 	}
-	return projectManualCompactionMessages(out)
+	return projectAutomaticCompactionMessages(projectManualCompactionMessages(out))
 }

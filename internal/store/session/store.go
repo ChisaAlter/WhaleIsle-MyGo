@@ -51,11 +51,12 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
-	Retry          *RetryStatus
-	TurnDelivery   *TurnDelivery
-	TrajectoryTime *TrajectoryTiming
-	Workflow       *workflowrun.Run
-	Submission     *PendingSubmission
+	AutomaticCompaction *ManualCompactionView
+	Retry               *RetryStatus
+	TurnDelivery        *TurnDelivery
+	TrajectoryTime      *TrajectoryTiming
+	Workflow            *workflowrun.Run
+	Submission          *PendingSubmission
 	// Tool is populated only by the read-only chat lifecycle projection.
 	Tool    *ToolCallView
 	Command *CommandView

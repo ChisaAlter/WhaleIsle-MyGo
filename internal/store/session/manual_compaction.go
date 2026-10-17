@@ -30,6 +30,11 @@ func validCompactionSeq(value float64) bool {
 // Parse explicit transaction identities only; never infer ownership from text,
 // temporal proximity, a command name, or a numeric sourceEventSeq alone.
 func parseManualCompactionFact(raw json.RawMessage) (manualCompactionFact, bool) {
+	fact, ok := parseCompactionFact(raw)
+	return fact, ok && strings.TrimSpace(fact.commandID) != ""
+}
+
+func parseCompactionFact(raw json.RawMessage) (manualCompactionFact, bool) {
 	var event struct {
 		Type      string  `json:"type"`
 		Seq       float64 `json:"seq"`
@@ -94,7 +99,7 @@ func parseManualCompactionFact(raw json.RawMessage) (manualCompactionFact, bool)
 	default:
 		return manualCompactionFact{}, false
 	}
-	if strings.TrimSpace(fact.commandID) == "" || strings.TrimSpace(fact.compactionID) == "" {
+	if strings.TrimSpace(fact.compactionID) == "" {
 		return manualCompactionFact{}, false
 	}
 	return fact, true

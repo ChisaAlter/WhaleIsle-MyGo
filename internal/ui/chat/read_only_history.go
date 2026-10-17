@@ -94,6 +94,10 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					ContextInjectionView(c, msg, scope, st.FG, st.Muted)
 					return
 				}
+				if msg.Kind == session.MessageKindCompaction {
+					CompactionView(c, msg, st.FG, st.Muted, st.Field)
+					return
+				}
 				if msg.Kind == session.MessageKindTool {
 					ToolMessageView(c, msg, st, ToolImageGalleryOptions{ID: msg.ID, Expanded: expanded, TextOnly: true})
 					readOnlyToolResources(c, msg, resource, st)

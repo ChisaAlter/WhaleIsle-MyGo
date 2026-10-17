@@ -98,6 +98,9 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 			return checkpoint, true
 		}
 	}
+	if msg, ok := classifyAutomaticCompactionCheckpoint(raw); ok {
+		return msg, true
+	}
 	if msg, ok := classifyContextMessage(raw); ok {
 		return msg, true
 	}
