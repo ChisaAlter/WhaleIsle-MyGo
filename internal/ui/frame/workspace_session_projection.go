@@ -46,9 +46,11 @@ func (w *WorkspacePanes) SuspendSession() {
 	if w == nil {
 		return
 	}
-	w.PauseContent()
+	w.pauseContent(true)
 	w.Root.eachResource(func(n *WorkspacePane) {
-		n.Agents = nil // a later dispose must not release another session's pane ID
+		if !n.holdsAgentReadOccurrence() {
+			n.Agents = nil
+		} // retained occurrences have unique keys and exact release
 		if n.Files != nil {
 			n.Files.Tabs.SuspendSession()
 		}

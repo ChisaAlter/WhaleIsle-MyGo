@@ -22,11 +22,18 @@ func (w *WorkspacePanes) agentPaneModel(m Model, n *WorkspacePane) Model {
 	}
 	a := n.Agents
 	binding := m.Store.Snapshot().PlanHistoryBinding
-	if a.Owner != m.Store || a.Binding != binding {
+	retained := a.Navigation != nil && a.Navigation.HasRetainedAgentRead()
+	if a.Owner != m.Store || a.Binding != binding && !retained {
 		n.releaseAgentPane()
 		*a = WorkspaceAgentState{Owner: m.Store, Binding: binding, Manager: session.NewAgentPresetManager(m.Store)}
 	}
-	a.Navigation = m.Store.AgentNavigationPane(n.ID)
+	if a.Navigation == nil {
+		if n.Kind == "subagentchat" && n.SubagentChat != nil {
+			a.Navigation = m.Store.NewRetainedAgentNavigationPane(n.ID)
+		} else {
+			a.Navigation = m.Store.AgentNavigationPane(n.ID)
+		}
+	}
 	a.Navigation.SyncAgentNavigationPane()
 	a.rendered = true
 	m.AgentNavigationStore = a.Navigation
@@ -45,7 +52,15 @@ func (w *WorkspacePanes) agentPaneModel(m Model, n *WorkspacePane) Model {
 }
 func (n *WorkspacePane) releaseAgentPane() {
 	if n.Agents != nil && n.Agents.Owner != nil {
-		n.Agents.Owner.ReleaseAgentNavigationPane(n.ID)
+		n.Agents.Owner.ReleaseAgentNavigationOccurrence(n.Agents.Navigation)
 		n.Agents.Navigation = nil
 	}
+}
+
+func (n *WorkspacePane) retainsAgentRead() bool {
+	return n != nil && n.Kind == "subagentchat" && n.SubagentChat != nil && n.Agents != nil && n.Agents.Navigation != nil && n.Agents.Navigation.RetainedAgentReadValid()
+}
+
+func (n *WorkspacePane) holdsAgentReadOccurrence() bool {
+	return n != nil && n.Kind == "subagentchat" && n.SubagentChat != nil && n.Agents != nil && n.Agents.Navigation != nil && n.Agents.Navigation.HasRetainedAgentRead()
 }

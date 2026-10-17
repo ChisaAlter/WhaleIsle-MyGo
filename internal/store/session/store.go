@@ -212,6 +212,10 @@ type Store struct {
 	agentNavigationPaneID     string
 	agentNavigationOwner      *Store
 	agentNavigationPanes      map[string]*Store
+	agentOccurrenceSequence   uint64
+	agentRetainedReads        map[string]*agentRetainedRead
+	agentRetainedRead         *agentRetainedRead
+	agentRetainEnabled        bool
 	planHistoryBinding        string
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64
@@ -348,6 +352,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.cancelRetainedAgentReadsLocked("")
 		s.resetSidebarStatusesLocked()
 		s.clearStopSequenceConfigLocked()
 		s.quotaNotice.current = QuotaNotice{}
@@ -512,6 +517,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.cancelRetainedAgentReadsLocked("")
 	s.resetSidebarStatusesLocked()
 	s.clearNextPromptLocked()
 	s.nextPrompt.accepted = nil

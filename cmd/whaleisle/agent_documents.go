@@ -16,16 +16,25 @@ func (s *mainState) openAgentDocument(sessions *session.Store, token uint64, add
 }
 
 func (s *mainState) openAgentPaneDocument(paneID string, sessions *session.Store, token uint64, address session.AgentSessionAddress, path string) {
-	if sessions == nil { return }
+	if sessions == nil {
+		return
+	}
+	if occurrence := sessions.AgentNavigationOccurrenceID(); occurrence != "" {
+		paneID = occurrence
+	}
 	_, valid, err := sessions.AgentMediaPreviewSource(token, address)
-	if err != nil || !valid() { return }
+	if err != nil || !valid() {
+		return
+	}
 	snap := sessions.Snapshot()
 	kind := browserpreviewui.DocumentHTML
-	if strings.EqualFold(filepath.Ext(path), ".pdf") { kind = browserpreviewui.DocumentPDF }
+	if strings.EqualFold(filepath.Ext(path), ".pdf") {
+		kind = browserpreviewui.DocumentPDF
+	}
 	source := browserpreviewui.DocumentSource{
 		NavigationPaneID: paneID,
-		Authority: s.browserWorkspaceOwner().Authority,
-		SessionID: address.ChildSessionID, ViewSessionID: snap.SelectedID,
+		Authority:        s.browserWorkspaceOwner().Authority,
+		SessionID:        address.ChildSessionID, ViewSessionID: snap.SelectedID,
 		AddressKind: address.Kind, ParentSessionID: address.ParentSessionID, Mode: address.Mode,
 		Workspace: snap.SelectedCwd, Path: path, Kind: kind,
 	}

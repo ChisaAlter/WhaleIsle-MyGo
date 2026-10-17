@@ -12,7 +12,7 @@ func (s *Store) AgentInteractionTarget(token uint64, address AgentSessionAddress
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n := &s.agentNavigation
-	if !s.agentNavigationOwnedLocked() || n.view.Token != token || n.view.Address != address || !address.validChild() || address.Mode != "continuable" || n.view.Busy || !n.view.Process.Live {
+	if !s.agentPaneCurrentLocked() || !s.agentNavigationOwnedLocked() || n.view.Token != token || n.view.Address != address || !address.validChild() || address.Mode != "continuable" || n.view.Busy || !n.view.Process.Live {
 		return nil, QuestionProjectionState{}, nil, false
 	}
 	p := s.questionProjections[address.ChildSessionID]

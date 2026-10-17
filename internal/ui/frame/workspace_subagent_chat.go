@@ -75,7 +75,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 	v := navigation.AgentNavigationSnapshot()
 	// A restored routing record acquires a fresh addressed reader, never an old
 	// token or prompt authority. OpenAgentChat rechecks the live owner and Host.
-	if v.Address != target.Address && m.Store.Snapshot().SelectedID == target.Root {
+	if v.Address != target.Address && !navigation.HasRetainedAgentRead() && m.Store.Snapshot().SelectedID == target.Root {
 		if navigation.OpenAgentChat(target.Root, target.Address, target.Title) {
 			v = navigation.AgentNavigationSnapshot()
 		}
@@ -95,7 +95,13 @@ func subagentChatPane(c *ui.Context, m Model) {
 		})
 		return
 	}
-	agents.View(c, agents.Model{Store: navigation, Snapshot: m.Store.Snapshot(), ChatOnly: true,
+	if v.RetainedReadOnly {
+		ui.Text(c, paneLabel("后台只读保留；返回来源会话后重新授权操作。", "Retained read-only; return to the source session and reopen to authorize actions."))
+		if m.Store.Snapshot().SelectedID == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
+			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
+		}
+	}
+	agents.View(c, agents.Model{Store: navigation, Snapshot: navigation.Snapshot(), ChatOnly: true,
 		Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 		ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: m.AgentsPromptDraft,
 		OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: m.OnOpenAgentDocument,

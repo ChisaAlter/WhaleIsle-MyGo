@@ -38,6 +38,7 @@ type AgentNavigationRow struct {
 func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
+	RetainedReadOnly                               bool
 	ImageLimits                                    *ComposerImageLimits
 	imageLimitsSeq                                 float64
 	ParentAvailabilityKnown, ParentAvailable       bool
@@ -92,7 +93,7 @@ func (s *Store) invalidateAgentNavigationLocked() {
 }
 func (s *Store) agentNavigationOwnedLocked() bool {
 	n := &s.agentNavigation
-	return s.agentPaneCurrentLocked() && n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
+	return s.agentPaneReadCurrentLocked() && n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
 	v.ImageLimits = cloneChildImageLimits(v.ImageLimits)
@@ -122,7 +123,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 // child history are runtime-only and never restored or prefetched at startup.
 func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 	s.mu.Lock()
-	if !s.agentPaneCurrentLocked() || binding == "" || binding != s.planHistoryBinding || binding != fmt.Sprintf("%p\x00%s", s.client, s.selectedID) || s.client == nil || s.mux == nil {
+	if !s.agentPaneReadCurrentLocked() || binding == "" || binding != s.planHistoryBinding || binding != fmt.Sprintf("%p\x00%s", s.client, s.selectedID) || s.client == nil || s.mux == nil {
 		s.invalidateAgentNavigationLocked()
 		s.mu.Unlock()
 		return AgentNavigationView{}
@@ -268,7 +269,7 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 		s.startAgentNavigationLiveLocked()
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(s.agentReadContextLocked(), 15*time.Second)
 	n.cancel = cancel
 	n.view.Token++
 	n.view.Busy = true
@@ -400,7 +401,7 @@ func readAgentNavigationPage(ctx context.Context, client *dsh.Client, address Ag
 // Agent actions are bound to the exact rendered navigation token and complete
 // child address. Never look up a newer Host client after admitting a click.
 func (s *Store) agentNavigationActionAllowedLocked(token uint64, address AgentSessionAddress) bool {
-	if !s.agentNavigationOwnedLocked() || s.agentNavigation.view.Token != token || !address.validChild() {
+	if !s.agentPaneCurrentLocked() || !s.agentNavigationOwnedLocked() || s.agentNavigation.view.Token != token || !address.validChild() {
 		return false
 	}
 	v := s.agentNavigation.view

@@ -26,6 +26,10 @@ func (s *Store) ReleaseAgentNavigationPane(id string) {
 	s.mu.Lock()
 	pane := s.agentNavigationPanes[id]
 	delete(s.agentNavigationPanes, id)
+	if lease := s.agentRetainedReads[id]; lease != nil {
+		lease.cancel()
+		delete(s.agentRetainedReads, id)
+	}
 	s.mu.Unlock()
 	if pane != nil {
 		pane.CloseAgentNavigation()
@@ -57,6 +61,14 @@ func (s *Store) SyncAgentNavigationPane() {
 	owner.mu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.agentRetainedRead != nil {
+		s.items, s.notify = items, notify
+		if !s.retainedAgentReadValidLocked() {
+			s.invalidateAgentNavigationLocked()
+			s.questionProjections = nil
+		}
+		return
+	}
 	if s.client != client || s.mux != mux || s.selectedID != root || s.followGeneration != generation || s.planHistoryBinding != binding {
 		s.invalidateAgentNavigationLocked()
 		s.questionProjections = nil // Child projection cache never crosses Host/root ownership.
@@ -68,6 +80,9 @@ func (s *Store) SyncAgentNavigationPane() {
 // Caller owns this pane's lock. The root never takes a pane lock while holding
 // its own lock, including release, so this ownership check has one lock order.
 func (s *Store) agentPaneCurrentLocked() bool {
+	if s.agentRetainedRead != nil && s.agentRetainedRead.ctx.Err() != nil {
+		return false
+	}
 	owner := s.agentNavigationOwner
 	if owner == nil {
 		return true

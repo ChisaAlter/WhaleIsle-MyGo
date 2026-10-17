@@ -283,7 +283,7 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 		if n.Agents != nil {
 			n.Agents.rendered = false
 			// Hidden child tabs retain their reader only within the same owner binding.
-			if n.Agents.Binding != binding || (n.SubagentChat != nil && n.SubagentChat.Root != root) {
+			if !n.holdsAgentReadOccurrence() && (n.Agents.Binding != binding || (n.SubagentChat != nil && n.SubagentChat.Root != root)) {
 				n.releaseAgentPane()
 			}
 		}
@@ -325,7 +325,8 @@ func (w *WorkspacePanes) EndContentFrame() {
 	})
 }
 
-func (w *WorkspacePanes) PauseContent() {
+func (w *WorkspacePanes) PauseContent() { w.pauseContent(false) }
+func (w *WorkspacePanes) pauseContent(retainReads bool) {
 	if w == nil {
 		return
 	}
@@ -333,7 +334,9 @@ func (w *WorkspacePanes) PauseContent() {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
-		n.releaseAgentPane()
+		if !retainReads || !n.holdsAgentReadOccurrence() {
+			n.releaseAgentPane()
+		}
 		if n.Files != nil {
 			n.Files.Tabs.CancelPlanRead()
 			n.Files.Tabs.Pause()

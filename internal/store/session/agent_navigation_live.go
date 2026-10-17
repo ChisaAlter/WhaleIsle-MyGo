@@ -40,7 +40,7 @@ func (s *Store) agentNavigationLiveCurrentLocked(ctx context.Context, token uint
 // owns this lifetime; no detached observer or automatic prompt/tool is created.
 func (s *Store) startAgentNavigationLiveLocked() {
 	n := &s.agentNavigation
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(s.agentReadContextLocked())
 	n.cancel = cancel
 	n.view.Token++
 	n.view.Busy = true

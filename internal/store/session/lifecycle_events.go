@@ -41,6 +41,7 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	if s.client != client || ctx.Err() != nil {
 		return nil
 	}
+	s.cancelRetainedAgentReadsLocked("") // Event authority is being re-established; never assume missed revocations.
 	s.eventsGeneration++
 	s.invalidateCommandsLocked()
 	s.listGeneration++
@@ -95,6 +96,9 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 	if !ok {
 		s.mu.Unlock()
 		return
+	}
+	if mutation.kind == "api-session/deleted" || mutation.kind == "api-session/removed" {
+		s.cancelRetainedAgentReadsLocked(mutation.sessionID)
 	}
 	if s.listLoading && mutation.kind != "api-session/error" {
 		s.listMutations = append(s.listMutations, mutation)

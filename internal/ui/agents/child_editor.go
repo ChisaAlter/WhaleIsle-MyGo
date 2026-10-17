@@ -35,7 +35,7 @@ func childEditor(c *ui.Context, m Model, v session.AgentNavigationView) {
 	}
 	owner.Children(func() {
 		composer.ChildEditor(c, composer.ChildEditorModel{
-			Draft: draft, Chip: chip, Images: v.PromptImages, Disabled: v.Busy || v.ActionBusy || !v.ParentAvailabilityKnown || !v.ParentAvailable,
+			Draft: draft, Chip: chip, Images: v.PromptImages, Disabled: v.RetainedReadOnly || v.Busy || v.ActionBusy || !v.ParentAvailabilityKnown || !v.ParentAvailable,
 			OnAddImages: add, OnPasteImage: paste,
 			OnRemoveImage: func(path string) { m.Store.RemoveAgentNavigationImage(v.Token, v.Address, path) },
 			OnPickImages: func() {
