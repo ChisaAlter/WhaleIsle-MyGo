@@ -15,13 +15,14 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"golang.org/x/image/draw"
+	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/store/session"
 )
 
 type attachmentDisplay struct {
 	bitmap    *ui.Bitmap
+	motion    *attachmentMotion
 	bytes     int64
 	mediaType string
 	err       error
@@ -113,9 +114,13 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 	case ".avif":
 		decoded, err = imagepreview.DecodeAVIFContext(context.Background(), data)
 	default:
-		cfg, _, e := image.DecodeConfig(bytes.NewReader(data))
+		cfg, format, e := image.DecodeConfig(bytes.NewReader(data))
 		if e != nil {
 			out.err = e
+			return out
+		}
+		if format == "gif" {
+			out.decodeAnimation(data, len(full) > 0 && full[0])
 			return out
 		}
 		if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > imagepreview.MaxPixels/int64(cfg.Height) {
@@ -128,6 +133,9 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 			return out
 		}
 		decoded, _, err = image.Decode(bytes.NewReader(data))
+		if err == nil && format == "jpeg" {
+			decoded = avatarimage.ApplyJPEGOrientation(decoded, data)
+		}
 	}
 	if err != nil {
 		out.err = err
@@ -137,17 +145,7 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 		out.err = errors.New("image unavailable")
 		return out
 	}
-	if !(len(full) > 0 && full[0]) {
-		bounds := decoded.Bounds()
-		w, h := bounds.Dx(), bounds.Dy()
-		if w > 240 || h > 160 {
-			ratio := min(float64(240)/float64(w), float64(160)/float64(h))
-			dst := image.NewRGBA(image.Rect(0, 0, max(1, int(float64(w)*ratio)), max(1, int(float64(h)*ratio))))
-			draw.ApproxBiLinear.Scale(dst, dst.Bounds(), decoded, bounds, draw.Src, nil)
-			decoded = dst
-		}
-	}
-	out.bitmap = ui.NewBitmap(decoded)
+	out.bitmap = attachmentBitmap(decoded, len(full) > 0 && full[0])
 	return out
 }
 func (v *attachmentDisplaySeat) load(a session.ComposerAttachment, full bool, notify func()) {
@@ -206,6 +204,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 				} else {
 					v := seat.result
 					if v.bitmap != nil {
+						v.animate(c)
 						preview := ui.Box(c).FillWidth().Height(48).Focusable().Label("Preview attachment " + label)
 						preview.Children(func() { ui.Image(c, v.bitmap).Fill().Fit(ui.Contain) })
 						if preview.Clicked() || preview.Shortcut(0, ui.KeyEnter) {
@@ -273,6 +272,7 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 				ui.Text(c, "原图预览不可用 / Original preview unavailable")
 				return
 			}
+			v.animate(c)
 			if seat.originalSize {
 				w, h := v.bitmap.Size()
 				ui.ScrollBoth(c).Fill().Children(func() { ui.Image(c, v.bitmap).Width(float32(w)).Height(float32(h)) })
