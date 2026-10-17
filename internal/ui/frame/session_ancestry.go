@@ -1,0 +1,88 @@
+package frame
+
+import (
+	"github.com/egoist/mygo/ui"
+	"slices"
+	"strings"
+	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/theme"
+)
+
+// sessionAncestry follows only summaries actually supplied by this Host. Missing
+// links and cycles terminate the chain; IDs are never synthesized as ancestors.
+func sessionAncestry(items []session.Item, selected string) []session.Item {
+	byID := make(map[string]session.Item, len(items))
+	for _, it := range items {
+		if it.SessionID != "" {
+			byID[it.SessionID] = it
+		}
+	}
+	seen := map[string]bool{}
+	var chain []session.Item
+	for id := selected; id != "" && !seen[id]; {
+		it, ok := byID[id]
+		if !ok {
+			break
+		}
+		seen[id] = true
+		chain = append(chain, it)
+		id = it.ParentID
+	}
+	slices.Reverse(chain)
+	return chain
+}
+
+func paintSessionAncestry(c *ui.Context, chain []session.Item, open func(string), blocked ...string) {
+	ui.Row(c).MinWidth(0).AlignItems(ui.Center).Gap(4).Children(func() {
+		for i, it := range chain {
+			if i > 0 {
+				ui.Text(c, "/").FontSize(theme.InterfaceSize(12))
+			}
+			title := strings.TrimSpace(it.Title)
+			if title == "" {
+				title = it.SessionID
+			}
+			if i == len(chain)-1 || it.Origin == "subagent" || it.ContactError != "" || slices.Contains(blocked, it.SessionID) || open == nil {
+				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600)
+			} else if ui.Button(c, title).Key("session-ancestor-" + it.SessionID).Tooltip(title).FontSize(theme.InterfaceSize(13)).BorderWidth(0).Background(ui.Transparent).Clicked() {
+				open(it.SessionID)
+			}
+		}
+	})
+}
+
+func sessionAncestryHeader(c *ui.Context, m Model, snap session.ViewState) {
+	chain := sessionAncestry(snap.Items, snap.SelectedID)
+	if len(chain) == 0 {
+		if snap.SelectedID != "" {
+			ui.Text(c, snap.SelectedID).FontSize(theme.InterfaceSize(13))
+		}
+		return
+	}
+	binding := m.Store.InspectorBinding()
+	paintSessionAncestry(c, chain, func(id string) {
+		if m.Store.InspectorBinding() != binding {
+			return
+		}
+		live := m.Store.Snapshot()
+		if live.SelectedID != snap.SelectedID || slices.Contains(live.ArchivedSessionIDs, id) {
+			return
+		}
+		ancestors := sessionAncestry(live.Items, live.SelectedID)
+		for i, it := range ancestors {
+			if i == len(ancestors)-1 || it.SessionID != id || it.Origin == "subagent" || it.ContactError != "" {
+				continue
+			}
+			if m.Sizes != nil && m.Sizes.Workspace != nil {
+				m.Sizes.Workspace.closeMainChild()
+			}
+			m.Store.MarkMainConversationViewed(id)
+			if m.OnSelectSession != nil {
+				m.OnSelectSession(id)
+			} else {
+				m.Store.Select(id)
+			}
+			return
+		}
+	}, snap.ArchivedSessionIDs...)
+}

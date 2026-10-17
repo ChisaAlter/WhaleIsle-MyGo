@@ -595,6 +595,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				}
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				projectObserverHeader(c, m)
+				if snap.SelectedID != "" {
+					ui.Row(c).FillWidth().Padding(2, 16, 2, 16).Children(func() { sessionAncestryHeader(c, m, snap) })
+				}
 				if emptyHero {
 					// EmptyHero: blank header band (no Initialize Git / layout glyphs).
 					// Keep a thin drag strip for the Windows caption region only.
