@@ -11,10 +11,12 @@ import (
 // ModelOption retains the exact route and adapter-owned reasoning metadata.
 // Labels are presentation only; requests are always built from this object.
 type ModelOption struct {
-	Label     string
-	Provider  string
-	Model     string
-	Reasoning *api.ModelCatalogGroupsItemModelsItemReasoning
+	Name         string
+	ProviderName string
+	Label        string
+	Provider     string
+	Model        string
+	Reasoning    *api.ModelCatalogGroupsItemModelsItemReasoning
 }
 
 type modelRoute struct{ provider, model string }
@@ -44,10 +46,11 @@ func flattenModelCatalog(cat api.ModelCatalog) []ModelOption {
 			if label == "" {
 				label = m.Id
 			}
+			name := label
 			if g.Name != "" && g.Name != label {
 				label = fmt.Sprintf("%s — %s", g.Name, label)
 			}
-			opt := ModelOption{Label: label, Provider: g.Id, Model: m.Id}
+			opt := ModelOption{Label: label, Name: name, ProviderName: g.Name, Provider: g.Id, Model: m.Id}
 			if m.Reasoning != nil {
 				r := *m.Reasoning
 				r.Efforts = append([]api.ModelCatalogGroupsItemModelsItemReasoningEffortsItem(nil), r.Efforts...)

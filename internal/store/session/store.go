@@ -127,6 +127,7 @@ type ViewState struct {
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
 	FeedbackBusyID      string
 	ModelChoices        map[string]api.ModelCatalogDefault
+	ModelCatalogChoices []ModelCatalogChoice
 	ModelEffortChoices  map[string]api.ModelCatalogDefault
 	ModelSelection      *api.ModelCatalogDefault
 	ModelSelectionKnown bool

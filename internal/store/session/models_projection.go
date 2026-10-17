@@ -7,6 +7,9 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
+// ModelCatalogChoice carries display metadata only; Label still resolves through ModelChoices.
+type ModelCatalogChoice struct{ Label, Name, Provider, ProviderName string }
+
 type modelProjectionState struct {
 	SessionID  string
 	Generation uint64
@@ -90,6 +93,7 @@ func (s *Store) snapshotModelsLocked(st *ViewState) {
 	st.ModelChoices = make(map[string]api.ModelCatalogDefault, len(s.modelOptions))
 	for _, o := range s.modelOptions {
 		st.ModelLabels = append(st.ModelLabels, o.Label)
+		st.ModelCatalogChoices = append(st.ModelCatalogChoices, ModelCatalogChoice{Label: o.Label, Name: o.Name, Provider: o.Provider, ProviderName: o.ProviderName})
 		choice := api.ModelCatalogDefault{Provider: o.Provider, Model: o.Model}
 		if o.Provider == selection.Provider && o.Model == selection.Model {
 			choice.ReasoningEffort = effectiveModelEffort(selection, s.modelOptions)

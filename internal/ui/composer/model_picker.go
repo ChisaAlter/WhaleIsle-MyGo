@@ -13,15 +13,7 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 	effort.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModelEffort)
 	row.Children(func() {
 		if len(m.Snapshot.ModelLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
-			sel := composerSelect(c, &model.Value, m.Snapshot.ModelLabels).
-				Height(height).FontSize(13).FontWeight(500).
-				Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-			if sel.Changed() {
-				choice := model.take()
-				if m.OnModelChange != nil {
-					m.OnModelChange(choice)
-				}
-			}
+			paintGroupedModelCatalog(c, m, muted, height)
 		} else {
 			label := m.Snapshot.SelectedModel
 			if label == "" {
