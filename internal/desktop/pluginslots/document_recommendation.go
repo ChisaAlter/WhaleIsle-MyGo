@@ -3,9 +3,10 @@ package pluginslots
 // DocumentRecommendation is presentation-only state from the exact document
 // page. It cannot request navigation, RPC, filesystem access or script execution.
 type DocumentRecommendation struct {
-	Session   string `json:"session"`
-	Path      string `json:"path"`
-	Extension bool   `json:"extension"`
+	Session     string `json:"session"`
+	Path        string `json:"path"`
+	Spreadsheet bool   `json:"spreadsheet"`
+	Extension   bool   `json:"extension"`
 }
 
 func (g *Gateway) ConfigureDocumentViewer(session, path string) {

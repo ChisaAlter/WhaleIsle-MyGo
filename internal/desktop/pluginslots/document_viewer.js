@@ -26,9 +26,16 @@ function whaleBindDocumentViewer(ctx) {
   ctx.effect(() => () => {style.remove();status.remove();});
   ctx.inject(['uiWorkspace', 'sidebarRight', 'documentPreviews'], ready => {
     ready.effect(() => {
-      let stopped = false, opened = false, opening = false;
+      let stopped = false, opened = false, opening = false, adopted = false, lastRecommendation = "";
       const recommend = () => {
-        window.__whaleDocumentRecommendation = {session,path,extension:ready.documentPreviews.candidates(path).some(definition => definition.priority !== "builtin")};
+        const candidates = ready.documentPreviews.candidates(path);
+        const value = {session,path,
+          extension:candidates.some(definition => definition.priority !== "builtin"),
+          spreadsheet:adopted && candidates.some(definition => definition.priority === "builtin" && definition.id === "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel")};
+        const serialized = JSON.stringify(value);
+        if (serialized === lastRecommendation) return;
+        lastRecommendation = serialized;
+        window.__whaleDocumentRecommendation = value;
         window.dispatchEvent(new Event("whale-document-registry"));
       };
       const offRegistry = ready.documentPreviews.subscribe(recommend);
@@ -38,6 +45,7 @@ function whaleBindDocumentViewer(ctx) {
         const mounted = ready.sidebarRight.mounted.getSnapshot();
         for (const seat of document.querySelectorAll('[data-whale-document-seat]')) seat.removeAttribute('data-whale-document-seat');
         if (mounted !== session) {
+          adopted = false; recommend();
           status.hidden = false;
           if (opened) status.textContent = '会话已变化，请返回原生预览 / Session changed; return to native preview.';
           return;
@@ -51,7 +59,7 @@ function whaleBindDocumentViewer(ctx) {
         if (!opened) return;
         const tab = ready.sidebarRight.tabsIn(session).find(tab => tab.contentId === address && tab.kind === 'text');
         const seat = [...document.querySelectorAll('[data-sidebar-right-session]')].find(node => node.dataset.sidebarRightSession === session);
-        if (!tab || !seat) return;
+        if (!tab || !seat) { adopted = false; recommend(); return; }
         // Keep only this native tab's original resource occurrence on screen.
         if (!seat.querySelector(`[data-dockkit-tab="${CSS.escape(tab.id)}"][aria-selected="true"]`)) {
           opening = true;
@@ -59,6 +67,7 @@ function whaleBindDocumentViewer(ctx) {
         }
         seat.setAttribute('data-whale-document-seat', '');
         status.hidden = true;
+        adopted = true; recommend();
       };
       const observer = new MutationObserver(sync);
       observer.observe(document.body, {childList:true,subtree:true});
@@ -70,7 +79,7 @@ function whaleBindDocumentViewer(ctx) {
       sync();
       return () => {
         stopped = true; observer.disconnect(); offMounted(); offTabs(); offRegistry();
-        window.__whaleDocumentRecommendation = {session,path,extension:false};
+        window.__whaleDocumentRecommendation = {session,path,extension:false,spreadsheet:false};
         window.dispatchEvent(new Event("whale-document-registry")); status.hidden = false; status.textContent = "资源预览器不可用 / Resource viewer unavailable";
         for (const seat of document.querySelectorAll('[data-whale-document-seat]')) seat.removeAttribute('data-whale-document-seat');
       };

@@ -21,10 +21,13 @@ func TestB25OriginalDocumentOwnerCarrier(t *testing.T) {
  const window={dispatchEvent(){}};const context={window,Event:class{},ctx,URLSearchParams,encodeURIComponent,location:{search:'?desktopDocumentSession=s%231&desktopDocumentPath=dir%2Fa%20%23.md'},document,CSS:{escape:s=>s},MutationObserver:class{constructor(f){observer=f}observe(){}disconnect(){}}};vm.createContext(context);
  vm.runInContext(` + strconv.Quote(string(documentViewerSource)) + `,context);vm.runInContext('whaleBindDocumentViewer(ctx)',context);
  assert.deepEqual(selected,['s#1']);assert.equal(window.__whaleDocumentRecommendation.extension,false);extensions=[{id:'custom'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.extension,true);extensions=[{priority:'builtin'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.extension,false);assert.equal(opened.length,0);assert.equal(seat.marked,false);
+ extensions=[{id:'@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel',priority:'builtin'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.spreadsheet,false);
  mounted='s#1';subscriptions[0]();assert.equal(opened.length,0);
  readyToAdopt=true;observer();assert.equal(opened.length,1);assert.equal(opened[0][1],'dsh-resource://file/session/s%231/dir/a%20%23.md');assert.equal(opened[0][2].kind,'text');assert.equal(seat.marked,true);
- observer();assert.equal(opened.length,1);
- mounted='other';subscriptions[0]();assert.equal(seat.marked,false);assert.equal(nodes[0].hidden,false);
+ observer();assert.equal(opened.length,1);assert.equal(window.__whaleDocumentRecommendation.spreadsheet,true);
+ extensions=[{id:'other',priority:'builtin'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.spreadsheet,false);
+ extensions=[{id:'@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel',priority:'builtin'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.spreadsheet,true);
+ mounted='other' ;subscriptions[0]();assert.equal(seat.marked,false);assert.equal(nodes[0].hidden,false);assert.equal(window.__whaleDocumentRecommendation.spreadsheet,false);
  cleanup.reverse().forEach(f=>f());assert.equal(seat.marked,false);`
 	if out, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("document carrier: %v\n%s", err, out)

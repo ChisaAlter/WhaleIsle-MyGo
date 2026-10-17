@@ -36,8 +36,15 @@ func (h *Host) disconnectClientModulesForNavigation(raw string) {
 }
 
 // DocumentViewerRecommended is true only while this exact live page reports a
-// matching external renderer from its original document registry.
+// matching external renderer or mounted builtin workbook owner from its registry.
 func (h *Host) DocumentViewerRecommended() bool {
 	state := h.ClientModules()
-	return state.Document != nil && state.Document.Extension
+	return state.Document != nil && (state.Document.Extension || state.Document.Spreadsheet)
+}
+
+// WorkbookViewerAvailable is a presentation capability of this exact resource
+// owner. It grants neither native bindings nor access to another Host/session.
+func (h *Host) WorkbookViewerAvailable() bool {
+	state := h.ClientModules()
+	return state.Document != nil && state.Document.Spreadsheet
 }

@@ -22,6 +22,7 @@ type documentSurfaceState struct {
 	enabled   bool
 	choice    int // 0 automatic, 1 native, 2 original document owner
 	attempted bool
+	workbook  bool // explicit full-workbook choice requires its live capability
 }
 
 func (t *FileTab) closeDocumentSurface() {
@@ -81,6 +82,9 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 		tab.document.surface.SetVisible(false)
 	}
 	title := label("选择预览器", "Choose viewer")
+	if isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface) {
+		title = label("完整表格预览", "Full workbook viewer")
+	}
 	if tab.document.enabled {
 		title = label("返回原生预览", "Native preview")
 	}
@@ -102,7 +106,8 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 			tab.document.surface = surface
 		}
 		tab.document.choice = 2
-		tab.document.enabled = true
+		tab.document.workbook = isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface)
+		tab.document.enabled = documentSurfaceEnabled(tab.document)
 	}
 	if tab.document.choice != 0 && ui.Button(c, label("自动选择", "Auto viewer")).Clicked() {
 		tab.document.choice = 0
@@ -134,5 +139,15 @@ func documentSurfaceEnabled(state documentSurfaceState) bool {
 	if state.surface == nil || !state.surface.Alive() {
 		return false
 	}
+	if state.choice == 2 && state.workbook && !workbookViewerAvailable(state.surface) {
+		return false
+	}
 	return state.choice == 2 || (state.choice == 0 && state.surface.DocumentViewerRecommended())
+}
+
+// Optional capability keeps generic document owners and native-only surfaces
+// compatible. A filename alone never establishes a live workbook renderer.
+func workbookViewerAvailable(surface DocumentSurface) bool {
+	available, ok := surface.(interface{ WorkbookViewerAvailable() bool })
+	return ok && surface.Alive() && available.WorkbookViewerAvailable()
 }
