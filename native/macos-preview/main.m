@@ -67,6 +67,8 @@ static void verifyIdentity(void) {
 @property BOOL capture;
 @property BOOL inlineSeat;
 @property BOOL openUI;
+@property(strong) WebFrame *openUIViewerFrame;
+@property(strong) NSHashTable<WebFrame *> *openUIHtmlFrames;
 @property NSUInteger pressedButtons;
 @property(strong) NSMutableDictionary<NSNumber *,NSView *> *mouseTargets;
 @property NSPoint pointer;
@@ -230,9 +232,23 @@ static void verifyIdentity(void) {
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)action request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
     NSString *url=request.URL.absoluteString ?: @"";
     if(self.initialNavigation && frame==self.web.mainFrame && ([url isEqual:@"about:blank"] || url.length==0)) { self.initialNavigation=NO;[listener use];return; }
-    // Only the trusted shell's opaque srcdoc child may be initialized. No page
-    // navigation, redirects, external protocols or arbitrary nested frames.
-    if(frame!=self.web.mainFrame && frame.parentFrame==self.web.mainFrame && [url isEqual:@"about:srcdoc"]) { [listener use];return; }
+    // Preserve ordinary HTML preview behavior. In OpenUI, retain the exact
+    // trusted shell child identity rather than accepting frame names or messages.
+    if(frame!=self.web.mainFrame && frame.parentFrame==self.web.mainFrame && [url isEqual:@"about:srcdoc"]) {
+        if(self.openUI) {
+            if(self.openUIViewerFrame) { [listener ignore];return; }
+            self.openUIViewerFrame=frame;
+        }
+        [listener use];return;
+    }
+    // HtmlView is exactly one additional opaque srcdoc level under that viewer.
+    // No further descendants, external URLs, redirects or new windows are granted.
+    if(self.openUI && self.openUIViewerFrame && self.openUIViewerFrame.parentFrame==self.web.mainFrame && frame.parentFrame==self.openUIViewerFrame && [url isEqual:@"about:srcdoc"]) {
+        if(!self.openUIHtmlFrames) self.openUIHtmlFrames=[NSHashTable hashTableWithOptions:NSPointerFunctionsWeakMemory|NSPointerFunctionsObjectPointerPersonality];
+        if([self.openUIHtmlFrames containsObject:frame]) { [listener ignore];return; }
+        [self.openUIHtmlFrames addObject:frame];
+        [listener use];return;
+    }
     [listener ignore];
 }
 - (void)webView:(WebView *)sender decidePolicyForNewWindowAction:(NSDictionary *)action request:(NSURLRequest *)request newFrameName:(NSString *)name decisionListener:(id<WebPolicyDecisionListener>)listener { [listener ignore]; }
@@ -251,8 +267,15 @@ static void verifyIdentity(void) {
 - (NSArray *)webView:(WebView *)sender contextMenuItemsForElement:(NSDictionary *)element defaultMenuItems:(NSArray *)items { return @[]; }
 - (BOOL)webView:(WebView *)sender shouldPerformAction:(SEL)action fromSender:(id)source { return NO; }
 - (void)downloadDidBegin:(WebDownload *)download { [download cancel]; }
-- (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error forFrame:(WebFrame *)frame { fail(@"legacy WebView load failed"); }
-- (void)webView:(WebView *)sender didFailProvisionalLoadWithError:(NSError *)error forFrame:(WebFrame *)frame { fail(@"legacy WebView provisional load failed"); }
+- (BOOL)isExpectedHtmlViewCancellation:(NSError *)error frame:(WebFrame *)frame {
+    // Weak, pointer-identity membership still recognizes an admitted frame while
+    // WebKit delivers its final detached-frame callback, without retaining every
+    // replaced page. The trusted main/viewer frames are never in this collection.
+    if(!self.openUI || ![self.openUIHtmlFrames containsObject:frame]) return NO;
+    return ([error.domain isEqual:NSURLErrorDomain] && error.code==NSURLErrorCancelled) || ([error.domain isEqual:WebKitErrorDomain] && error.code==WebKitErrorFrameLoadInterruptedByPolicyChange);
+}
+- (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error forFrame:(WebFrame *)frame { if(![self isExpectedHtmlViewCancellation:error frame:frame]) fail(@"legacy WebView load failed"); }
+- (void)webView:(WebView *)sender didFailProvisionalLoadWithError:(NSError *)error forFrame:(WebFrame *)frame { if(![self isExpectedHtmlViewCancellation:error frame:frame]) fail(@"legacy WebView provisional load failed"); }
 - (void)poll:(NSTimer *)timer {
     if(self.loaded) return;
     if(NSDate.timeIntervalSinceReferenceDate>self.deadline) fail(@"legacy WebView initialization timed out");
@@ -263,6 +286,11 @@ static void verifyIdentity(void) {
     if(![state[@"ready"] isEqual:@YES]) return;
     double measured=[state[@"height"] doubleValue];if(!isfinite(measured) || measured<1 || measured>9007199254740991.0) fail(@"invalid content height");
     self.loaded=YES;[timer invalidate];
+    if(self.openUI) {
+        if(!self.openUIViewerFrame || self.openUIViewerFrame.parentFrame!=self.web.mainFrame) fail(@"OpenUI viewer frame identity unavailable");
+        NSString *enabled=[self.web stringByEvaluatingJavaScriptFromString:@"window.__whaleOpenUIHtmlViewSupport(true)"];
+        if(![enabled isEqual:@"true"]) fail(@"OpenUI HtmlView capability rejected by shell");
+    }
     packet(@"loaded",@{@"browserPID":@(getpid())});
     if(!self.capture) {
         if(self.inlineSeat) { [self.window makeFirstResponder:self.web];[self emitFrame]; }

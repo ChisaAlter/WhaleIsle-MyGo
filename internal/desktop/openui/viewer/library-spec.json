@@ -212,6 +212,10 @@
     "Timer": {
       "signature": "Timer(seconds: $binding<number>, label?: string)",
       "description": "A start/pause/reset countdown that updates its bound seconds and stops at zero."
+    },
+    "HtmlView": {
+      "signature": "HtmlView(html: string, height?: number, title?: string)",
+      "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
     }
   },
   "functions": {
@@ -620,6 +624,9 @@
       },
       "Timer": {
         "$ref": "#/$defs/Timer"
+      },
+      "HtmlView": {
+        "$ref": "#/$defs/HtmlView"
       }
     },
     "required": [
@@ -675,7 +682,8 @@
       "Map",
       "MapMarker",
       "Pressable",
-      "Timer"
+      "Timer",
+      "HtmlView"
     ],
     "additionalProperties": false,
     "$defs": {
@@ -2223,6 +2231,25 @@
         ],
         "additionalProperties": false,
         "description": "A start/pause/reset countdown that updates its bound seconds and stops at zero."
+      },
+      "HtmlView": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          },
+          "height": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ],
+        "additionalProperties": false,
+        "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
       }
     },
     "functions": {

@@ -42,6 +42,7 @@ type previewEnvironment struct {
 	exitToken    int64
 	closed       bool
 	frameStarted bool
+	openUIFrames *previewOpenUIFrames
 }
 
 func (w *window) environment() uintptr {
@@ -217,6 +218,13 @@ func (w *window) installPreviewPolicy() error {
 		return err
 	}
 	if err := add(w.webview, previewAddFrameNavigationStarting, func(_, args uintptr) {
+		if w.isolated.openUIFrames != nil {
+			// Deny first, including unknown/deeper frames. WebView2 invokes this
+			// shared event before the specific frame's NavigationStarting event;
+			// only our tracked viewer/direct child may clear that cancellation.
+			w.cancelPreviewNavigation(args)
+			return
+		}
 		var uri uintptr
 		hr := comCall(args, navStartingGetURI, uintptr(unsafe.Pointer(&uri)))
 		target := takeWstr(uri)

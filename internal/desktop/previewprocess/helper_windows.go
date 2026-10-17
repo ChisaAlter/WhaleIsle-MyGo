@@ -160,12 +160,37 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil {
 		return err
 	}
+	if doc.openUIShell {
+		// The mode comes only from the nonce-checked parent document packet,
+		// after token/job/browser identity verification, never from HTML or JS.
+		// Keep ordinary HTML on the original single-srcdoc admission policy.
+		if err := w.Page().EnableIsolatedOpenUIFrames(); err != nil {
+			return err
+		}
+	}
 	if _, err := w.Page().EvalContext(startup, "document.open();document.write("+string(encoded)+");document.close();true"); err != nil {
 		return err
 	}
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
+	openUIFrameSupportSet := !doc.openUIShell
 	for {
+		if !openUIFrameSupportSet {
+			known, htmlView, err := w.Page().IsolatedOpenUIFrameSupport()
+			if err != nil {
+				return err
+			}
+			if known {
+				script := "(()=>{if(window.__whaleOpenUIHtmlViewSupport(false)!==true)throw new Error('OpenUI HtmlView support rejected');return true;})()"
+				if htmlView {
+					script = "(()=>{if(window.__whaleOpenUIHtmlViewSupport(true)!==true)throw new Error('OpenUI HtmlView support rejected');return true;})()"
+				}
+				if _, err := w.Page().EvalContext(startup, script); err != nil {
+					return err
+				}
+				openUIFrameSupportSet = true
+			}
+		}
 		value, err := w.Page().EvalContext(startup, "({ready:window.__previewState?.ready===true,error:window.__previewState?.error||''})")
 		if err != nil {
 			return err
@@ -184,7 +209,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 		if state.Error != "" {
 			return errors.New("interactive document failed to initialize")
 		}
-		if state.Ready {
+		if state.Ready && openUIFrameSupportSet {
 			break
 		}
 		select {

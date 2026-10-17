@@ -1,4 +1,4 @@
-WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Network and native capabilities are available only through the application's typed resource bridge. Clipboard, external navigation, arbitrary HTML/media and business Query/Mutation providers are unavailable.
+WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Network and native capabilities are available only through the application's typed resource bridge. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. Clipboard, YouTube and business Query/Mutation providers are unavailable.
 
 ## Syntax Rules
 
@@ -79,6 +79,7 @@ Map(markers: MapMarker[], route?: boolean, selected?: string, height?: number) �
 MapMarker(label: string, lat: number, lng: number, category?: string, icon?: string) — A labeled map location; icon is an emoji, otherwise its position number is shown.
 Pressable(children: any[], action?: ActionExpression, selected?: boolean, padding?: number, background?: string, radius?: "sm" | "md" | "lg" | "xl" | "full" | number) — Clickable content with optional selected styling and a local or assistant action.
 Timer(seconds: $binding<number>, label?: string) — A start/pause/reset countdown that updates its bound seconds and stops at zero.
+HtmlView(html: string, height?: number, title?: string) — An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state.
 
 ## Built-in Functions
 

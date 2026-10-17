@@ -7,7 +7,7 @@
 ## 当前交付状态
 
 - 自有 React 组件覆盖布局、内容、表单、图表、SVG、栅格地图、图片搜索与基本交互；自有函数保留 59 个公开应用函数的名称和位置参数。
-- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。注册名称不代表全功能一致：Link 不导航，CopyToClipboard 不可用，HtmlView/YouTube 未注册，未知组件仍产生错误。
+- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。注册名称不代表全功能一致：Link 不导航，CopyToClipboard 不可用，HtmlView 仅运行隔离的本地 HTML/CSS/inline JS，原版 script CDN 不可用；YouTube 未注册，未知组件仍产生错误。
 - 使用真实 SDK `Renderer`、增量解析器、状态存储和动作执行器。SDK 未被修改；自有存储适配器仅包装其公开 Store API。
 - 已生成生产资产。没有新增/运行项目测试、typecheck、浏览器 viewer、原生 helper 或原生构建，也没有访问真实图片/地图/账户/位置服务。**打包成功不是运行、视觉或跨平台验收。**
 
@@ -37,7 +37,7 @@ npm run embed
 
 `src/bridge.ts` 验证父窗口、`whale-openui` 通道、version 1 和 `window.name` 中的 64 位十六进制实例 ID。程序更新保留同一个 viewer；父层负责实例所有权、原会话和原生确认。支持 ready/render/state/assistant/height/error/resolved，以及 requestId 对应的 api-request/api-response。
 
-子 iframe 保持无网络、无 worker、无嵌套 frame、无媒体和无剪贴板。SearchImage、Map 的固定 API 请求经 `requestResource(path, query, signal)` 发到父层；仅父层访问公共资源，子层只接受校验后的 data URL/路线点。没有任意 URL 代理或原生凭据。
+viewer 保持无直接网络、无 worker、无媒体和无剪贴板。HtmlView 使用独立的第二层 opaque srcdoc，只有 inline script 执行权；其内部不能再创建第三层可运行页面。父、子 CSP 均保留 `frame-src 'none'`，native 导航策略按真实 frame 身份和层级准入 srcdoc；不是任意 frame 放行。SearchImage、Map 的固定 API 请求经 `requestResource(path, query, signal)` 发到父层；仅父层访问公共资源，子层只接受校验后的 data URL/路线点。HtmlView 没有该资源桥、OpenUI 状态/动作桥或原生凭据。宿主 OS 沙箱和 native 请求拦截仍是无网络保证的一部分，不能将任意浏览器里的 iframe/CSP 单独当作相同隔离。
 
 状态适配器一次性恢复初始快照；用户写入即使值相同也成为脏键，`@Reset` 恢复声明默认值并清除脏键。后续流式默认值不覆盖脏键。只回传脏键快照；不把每次 render 的宿主状态再次覆盖进当前交互。细节和未验收边界见兼容清单。
 

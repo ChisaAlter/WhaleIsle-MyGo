@@ -11,6 +11,7 @@ export interface RenderMessage {
   program: string;
   streaming: boolean;
   state: Record<string, unknown>;
+  htmlView: boolean;
   theme: { appearance: "light" | "dark" };
 }
 
@@ -42,6 +43,7 @@ export function connect(receive: (value: RenderMessage) => void, fail: (message:
     if (data.type !== "render") return;
     if (typeof data.program !== "string" || !data.program.trim() || byteLength(data.program) > LIMITS.program ||
         typeof data.streaming !== "boolean" || !isObject(data.state) || !isObject(data.theme) ||
+        (data.htmlView !== undefined && typeof data.htmlView !== "boolean") ||
         !["light", "dark"].includes(String(data.theme.appearance))) {
       fail("Invalid OpenUI render message.");
       return;
@@ -55,7 +57,7 @@ export function connect(receive: (value: RenderMessage) => void, fail: (message:
       fail("Invalid OpenUI saved state.");
       return;
     }
-    receive({ program: data.program, streaming: data.streaming, state: data.state,
+    receive({ program: data.program, streaming: data.streaming, state: data.state, htmlView: data.htmlView === true,
       theme: { appearance: data.theme.appearance as "light" | "dark" } });
   };
   if (!instanceId || window.parent === window) {

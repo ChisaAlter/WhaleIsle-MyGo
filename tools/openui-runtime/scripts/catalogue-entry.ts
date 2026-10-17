@@ -5,7 +5,7 @@ import { compatibleLibrary } from "../src/library";
 
 writeFileSync("dist/library-spec.json", JSON.stringify(compatibleLibrary.toSpec(), null, 2) + "\n");
 writeFileSync("dist/library-guide.txt", compatibleLibrary.prompt({
-  preamble: "WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Network and native capabilities are available only through the application's typed resource bridge. Clipboard, external navigation, arbitrary HTML/media and business Query/Mutation providers are unavailable.",
+  preamble: "WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Network and native capabilities are available only through the application's typed resource bridge. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. Clipboard, YouTube and business Query/Mutation providers are unavailable.",
   bindings: true,
   builtinFunctions: true,
   toolCalls: false,

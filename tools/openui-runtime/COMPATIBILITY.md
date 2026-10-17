@@ -74,7 +74,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Polygon | points/fill/stroke/strokeWidth/opacity | 原生SVG多边形 |
 | G | children/transform/opacity | 标准安全transform；不是Group别名 |
 | SvgText | text/x/y/size/fill/anchor/weight | 文本转义，无HTML |
-| HtmlView | 未注册 | 嵌套HTML/frame能力未实现；报缺失组件 |
+| HtmlView | html/height/title；独立opaque srcdoc内的本地HTML/CSS/inline JS、DOM事件、canvas、动画循环，自动/指定高度 | 原公开script CDN未支持；无媒体/远程资源/原生动作/持久状态，详细隔离与生命周期见下节；native运行未验收 |
 | YouTube | 未注册 | 媒体/frame能力未实现；报缺失组件 |
 
 ### Code / Markdown 本地语法高亮
@@ -140,6 +140,17 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - `/api/image-search`: q字符串；回包 images与imageSources等长数组。仅接受实际bitmap data URL，保留来源；不替换失败图片。
 - `/api/wiki` 仅在桥允许列表中；原公开55组件没有Wiki组件，因此本包没有虚构同名组件或自动请求它。
 - 请求取消和requestId去重；同时4个活跃请求以配合宿主队列，排队数量无额外产品上限。15秒活跃超时；32MiB地图缓存会淘汰并按需重载，不截断marker数量。
+
+### HtmlView 内容和生命周期
+
+- 原公开位置契约是 `HtmlView(html: string, height?: number, title?: string)`；用途包含需要循环的游戏、canvas和动画。这里运行真实inline JavaScript，不把HTML改成静态文字，也不把script CDN假装成本地功能。
+- `html` 可以含页面/片段、style和inline script；不在React主文档插入HTML。opaque iframe仅有 `sandbox="allow-scripts"`，没有same-origin、form提交、弹窗、下载、顶层导航、权限或原生对象。其内部DOM事件、输入编辑、canvas绘制和动画循环属于本地页面行为；不暴露 `$binding`、assistant或资源接口。
+- 未指定height时，组件只接收当前iframe真实contentWindow、origin=null的私有高度消息；消息只能调整本组件高度/状态，不能进入OpenUI宿主协议。自动高度按body布局/溢出测量，超出现有2,000px展示上限时保留内部滚动并提示；指定height允许1–2,000px，超额明确错误。依赖viewport高度的CSS布局宜指定height；不承诺任意CSS布局都能获得唯一自适应高度。
+- `html`改变即销毁旧iframe并创建新opaque文档；旧窗口消息不再匹配。仅height/title或无关OpenUI状态变化不重启同一HTML。streaming期间不运行部分脚本并销毁旧活动页面，结束后再创建完整文档；组件移除销毁子页面与监听器。局部JS状态不回传、不跨文档保存。
+- 宿主能力位`htmlView`默认false，只能由可信helper在真实frame准入就绪后启用。false时本组件明确显示不可用，不创建iframe；不影响其他OpenUI组件。Windows缺少所需第二层frame API、未接线平台或旧helper均不得冒充支持；能力更新沿用render消息，不重置用户状态。
+- 自有CSP前缀先于输入HTML生效，后续meta只能叠加限制。无远程script/CDN、fetch/WebSocket、worker、frame URL加载、media、object、base或form action。保留外层CSP和固定native请求拦截，不放宽它们来加载图片/字体。data图像/字体受所有继承策略交集约束，未宣称跨引擎可用。`webrtc 'block'`仅作兼容引擎的额外限制；现有OS沙箱无网络能力才是独立网络边界。
+- 仅OpenUI模式在native层准入唯一viewer的直接第二层srcdoc；普通HTML预览策略不变，第三层/其他URL继续拒绝。HtmlView自身不能通过伪造postMessage得到父组件身份。具体native接线见[HTMLVIEW-ISOLATION.md](HTMLVIEW-ISOLATION.md)。生产打包不会运行输入HTML或编译helper。
+- 任意inline JS仍能耗尽CPU/内存或卡住helper；此隔离不是脚本时间预算或资源配额。CDN与YouTube外网媒体仍属未实现，不以这次组件注册记为完整原版能力齐平。
 
 ### 地图手势细项
 

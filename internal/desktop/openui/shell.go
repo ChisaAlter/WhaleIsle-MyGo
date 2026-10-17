@@ -19,7 +19,7 @@ func Shell(viewerHTML string, r Render, width int, appearance string) (string, e
 		return "", errors.New("invalid OpenUI viewer parameters")
 	}
 	child, _ := json.Marshal(`<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childPolicy) + `">` + viewerHTML)
-	initial, _ := json.Marshal(map[string]any{"channel": "whale-openui", "version": 1, "instanceId": r.InstanceID, "type": "render", "program": r.Program, "streaming": r.Streaming, "state": r.State, "theme": map[string]any{"appearance": appearance, "variables": map[string]string{}}})
+	initial, _ := json.Marshal(map[string]any{"channel": "whale-openui", "version": 1, "instanceId": r.InstanceID, "type": "render", "program": r.Program, "streaming": r.Streaming, "state": r.State, "htmlView": false, "theme": map[string]any{"appearance": appearance, "variables": map[string]string{}}})
 	id, _ := json.Marshal(r.InstanceID)
 	return `<!doctype html><meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(parentPolicy) + `"><style>html,body{margin:0;height:100%;overflow:hidden}iframe{border:0;width:100%;height:100vh}</style><script>
 'use strict';const instance=` + string(id) + `,render=` + string(initial) + `;let queue=[];const apiPending=new Set();
@@ -27,6 +27,9 @@ window.__previewState={ready:false,height:360,error:'',consoleMessages:[],omitte
 window.__whaleOpenUIDrain=()=>queue.splice(0,16);
 const frame=document.createElement('iframe');frame.name='whale-openui:'+instance;frame.setAttribute('sandbox','allow-scripts allow-forms');frame.referrerPolicy='no-referrer';
 const post=(type,data={})=>frame.contentWindow.postMessage({channel:'whale-openui',version:1,instanceId:instance,type,...data},'*');
+// Only trusted native Eval calls this setter after actual frame guards exist.
+// No descendant message is accepted as a capability grant.
+window.__whaleOpenUIHtmlViewSupport=enabled=>{if(typeof enabled!=='boolean')throw Error('Invalid HtmlView capability');render.htmlView=enabled;post('render',render);return true};
 window.__whaleOpenUIRender=next=>{if(!next||next.instanceId!==instance||typeof next.program!=='string'||typeof next.streaming!=='boolean'||new TextEncoder().encode(next.program).length>262144)throw Error('Invalid OpenUI update');render.program=next.program;render.streaming=next.streaming;post('render',render);return true};
 window.__whaleOpenUIAPIResponse=r=>{if(!r||r.instanceId!==instance||typeof r.requestId!=='string'||!apiPending.has(r.requestId)||!Number.isInteger(r.status)||r.status<200||r.status>599)throw Error('Invalid OpenUI API response');apiPending.delete(r.requestId);post('api-response',{requestId:r.requestId,status:r.status,body:r.body});return true};
 window.__previewTheme=data=>{render.theme={appearance:data.appearance,variables:data.variables||{}};post('render',render)};

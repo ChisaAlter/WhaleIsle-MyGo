@@ -11,6 +11,7 @@ import { chartComponents } from "./components/charts";
 import { svgComponents } from "./components/svg";
 import { mapComponents } from "./components/map";
 import { extraControlComponents } from "./components/control-extras";
+import { htmlComponents } from "./components/html-view";
 
 // Register the documented action so it is understood, then reject it visibly in
 // the host action handler. No clipboard capability is claimed or requested.
@@ -20,7 +21,7 @@ export const compatibleLibrary = createLibrary({
   id: "whaleisle-independent-col-v1",
   root: "Col",
   components: [...layoutComponents, ...contentComponents, ...controlComponents, ...imageComponents,
-    ...interactiveComponents, ...chartComponents, ...svgComponents, ...mapComponents, ...extraControlComponents],
+    ...interactiveComponents, ...chartComponents, ...svgComponents, ...mapComponents, ...extraControlComponents, ...htmlComponents],
   functions: [...compatibleFunctions, ...extraFunctions],
   actions: [copyToClipboard],
 });

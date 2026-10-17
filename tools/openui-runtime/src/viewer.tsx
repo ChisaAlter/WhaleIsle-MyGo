@@ -7,6 +7,7 @@ import { configurePersistence } from "./state-adapter";
 import { closeResources, configureResourceTransport } from "./resources";
 import "./viewer.css";
 import { connect, byteLength, LIMITS, type RenderMessage } from "./bridge";
+import { HtmlViewSupportContext } from "./capabilities";
 
 const mount = document.getElementById("viewer")!;
 const fatal = document.getElementById("fatal")!;
@@ -133,9 +134,11 @@ function Viewer({ data, version }: { data: RenderMessage; version: number }) {
     {renderError && <div className="viewer-error" role="alert">{renderError}</div>}
     <div hidden={Boolean(!data.streaming && (sourceError || renderError))}>
       {!blockedTools && !parsed.error && <Boundary version={version}>
+        <HtmlViewSupportContext.Provider value={data.htmlView}>
         <Renderer response={data.program} library={compatibleLibrary} isStreaming={data.streaming}
           onAction={onAction}
           onError={onErrors} onParseResult={onParsed} publishObservability={false} />
+        </HtmlViewSupportContext.Provider>
       </Boundary>}
     </div>
   </main>;

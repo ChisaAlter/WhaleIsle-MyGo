@@ -58,7 +58,9 @@ status is separate from the independently authored built-in implementation.
   not an assertion of immediate unmount cleanup. Queued state not delivered
   before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
-  filesystem, external navigation, clipboard or nested frames. Fixed typed
+  filesystem, external navigation or clipboard. Local nested HtmlView documents
+  require explicit native capability and actual frame-identity admission; arbitrary
+  nested navigation remains unavailable. Fixed typed
   resource requests run in the Go parent with a separate credential-free HTTP
   client: Wikipedia summary/media, Wikipedia/Commons image search, and OSRM
   driving geometry, plus raster map tiles for the owned Map component. The first
@@ -195,3 +197,24 @@ current instance/request IDs; no prior owner envelope is reused. Image source
 JSON is cached before data-URL expansion, so large bitmap payloads are not
 retained in this process cache. This does not claim the browser HTTP image-cache
 semantics of the original Electron implementation or any runtime verification.
+
+## Independently authored HtmlView
+
+The built-in registry provides `HtmlView(html, height?, title?)` for local
+HTML/CSS/inline JavaScript/Canvas. The content lives in a separate opaque
+`sandbox=allow-scripts` srcdoc. Fixed height or bounded automatic content height
+is supported; changed content/streaming/removal destroys the old document.
+CDN scripts, network, workers, external media and YouTube are not enabled.
+
+The trusted helper reports a default-disabled HtmlView capability to the shell.
+macOS tracks the admitted viewer identity and its immediate srcdoc child.
+Windows uses actual Frame2/Frame7 identities and direct-child events. Missing
+Frame7 support leaves the base viewer working and reports HtmlView unavailable.
+Ordinary HTML behavior, OS AppContainer/App Sandbox settings and native
+credential/binding restrictions are unchanged.
+
+Only source integration and production asset generation are complete. Native
+compilation, frame lifecycle/event timing, inline script execution, Canvas,
+height and input behavior have not been verified by running either platform.
+See `openui-htmlview-windows-source-20261017.md` for exact API requirements and
+remaining source-level assumptions.

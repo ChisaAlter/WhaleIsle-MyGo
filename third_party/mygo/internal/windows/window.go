@@ -478,6 +478,9 @@ func (w *window) cleanup() {
 	if w.caption != nil {
 		w.caption.forget()
 	}
+	if w.isolated != nil && w.isolated.openUIFrames != nil {
+		w.isolated.openUIFrames.close()
+	}
 	if w.controller != 0 {
 		comCall(w.controller, ctlClose)
 		release(w.settings)
