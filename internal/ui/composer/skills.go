@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"sort"
 	"strings"
 
 	"whaleisle/internal/store/session"
@@ -36,21 +37,36 @@ func AppendSkillInvocation(draft *string, name string) {
 	*draft = cur + insert
 }
 
-// FilterSkills returns skills whose name matches query by prefix (case-insensitive).
+// FilterSkills uses the original rankByName semantics: ordered subsequence,
+// prefix first, alignment score second, stable catalog order for ties.
 func FilterSkills(all []session.SkillOption, query string, limit int) []session.SkillOption {
 	if limit <= 0 {
 		limit = 12
 	}
 	q := strings.ToLower(strings.TrimSpace(query))
-	out := make([]session.SkillOption, 0, limit)
+	type match struct {
+		skill  session.SkillOption
+		score  int
+		prefix bool
+	}
+	matches := make([]match, 0, len(all))
 	for _, sk := range all {
-		name := strings.ToLower(sk.Name)
-		if q == "" || strings.HasPrefix(name, q) || strings.Contains(name, q) {
-			out = append(out, sk)
-			if len(out) >= limit {
-				break
-			}
+		if score, ok := modelNameScore(sk.Name, q); ok {
+			matches = append(matches, match{sk, score, strings.HasPrefix(strings.ToLower(sk.Name), q)})
 		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool {
+		if matches[i].prefix != matches[j].prefix {
+			return matches[i].prefix
+		}
+		return matches[i].score > matches[j].score
+	})
+	out := make([]session.SkillOption, 0, min(limit, len(matches)))
+	for _, m := range matches {
+		if len(out) >= limit {
+			break
+		}
+		out = append(out, m.skill)
 	}
 	return out
 }

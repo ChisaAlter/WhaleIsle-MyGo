@@ -4,8 +4,6 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"time"
-
-	"whaleisle/internal/ui/i18n"
 )
 
 func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, selectUTF16Start, selectUTF16End int) ui.Element {
@@ -16,10 +14,9 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	if selectUTF16Start >= 0 {
 		client.SetSelectionUTF16(selectUTF16Start, selectUTF16End)
 	}
-	placeholder := i18n.T(i18n.KeyComposerPlaceholder)
+	placeholder := composerPlaceholder(m)
 	minH := float32(36)
 	if m.Hero {
-		placeholder = i18n.T(i18n.KeyComposerPlaceholderHero)
 		minH = 52
 	}
 	box := ui.Box(c).FillWidth().Role(ui.RoleTextField).Label("Composer draft")

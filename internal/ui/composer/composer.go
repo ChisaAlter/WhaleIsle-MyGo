@@ -167,7 +167,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	if m.SkillsFilter != nil {
 		skillsQuery = *m.SkillsFilter
 	}
-	skillItems := FilterSkills(m.Skills, skillsQuery, 24)
+	skillItems := FilterSkills(m.Skills, skillsQuery, len(m.Skills))
 	mentions := ParseDraftMentions(draft)
 	selectStart, selectEnd := -1, -1
 	selectIsUTF16 := m.UseTextInputClient && m.TextInput != nil
@@ -318,10 +318,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			}
 			if m.Draft != nil {
 				var area ui.Element
-				placeholder := i18n.T(i18n.KeyComposerPlaceholder)
-				if m.Hero {
-					placeholder = i18n.T(i18n.KeyComposerPlaceholderHero)
-				}
+				placeholder := composerPlaceholder(m)
 				if m.UseTextInputClient && m.TextInput != nil {
 					area = paintDraftTextInput(c, m, fg, chrome.Color(colors.Caption), selectStart, selectEnd)
 					// A clicked mention explicitly requests selection and focus.
