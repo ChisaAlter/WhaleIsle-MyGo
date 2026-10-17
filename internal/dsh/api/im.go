@@ -40,6 +40,7 @@ func IMCordisChannels() []string {
 func IMCordisEndpointCandidates(channel string) []string {
 	base := []string{
 		"connection.status",
+		"bot.bind-credentials",
 		"bot.reconnect",
 		"bot.delete",
 		"bot.workspace.set",
@@ -48,7 +49,6 @@ func IMCordisEndpointCandidates(channel string) []string {
 	switch strings.ToLower(strings.TrimSpace(channel)) {
 	case "feishu":
 		base = append(base,
-			"bot.bind-credentials",
 			"provision.begin", "provision.poll", "provision.cancel",
 			"bot.callback-repair.begin", "bot.group-message-permission.begin",
 			"bot.group-response-mode.set", "bot.disconnect",
@@ -56,29 +56,28 @@ func IMCordisEndpointCandidates(channel string) []string {
 		)
 	case "dingtalk":
 		base = append(base,
-			"bot.bind-credentials",
 			"provision.begin", "provision.poll", "provision.cancel",
 			"bot.sender.approve", "bot.sender.revoke",
 		)
 	case "weixin":
+		base = withoutCordisBindCredentials(base)
 		base = append(base,
 			"provision.begin", "provision.poll", "provision.verify", "provision.cancel",
 		)
 	case "wecom":
 		base = append(base,
-			"bot.bind-credentials",
 			"provision.begin", "provision.poll", "provision.cancel",
 		)
 	case "telegram":
-		base = append(base, "bot.bind-credentials", "bot.access-policy.set")
+		base = append(base, "bot.access-policy.set")
 	case "discord", "slack":
-		base = append(base, "bot.bind-credentials")
+		// Shared token endpoints only.
 	case "qq":
 		base = append(base,
-			"bot.bind-credentials",
 			"provision.begin", "provision.poll", "provision.cancel",
 		)
 	case "whatsapp":
+		base = withoutCordisBindCredentials(base)
 		base = append(base,
 			"provision.begin", "provision.poll", "provision.cancel",
 			"bot.access-policy.set",
@@ -89,6 +88,16 @@ func IMCordisEndpointCandidates(channel string) []string {
 		base = []string{"connection.status", "connector.configure", "connector.reconnect", "connector.test", "connector.remove"}
 	}
 	return base
+}
+
+func withoutCordisBindCredentials(endpoints []string) []string {
+	out := make([]string, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		if endpoint != "bot.bind-credentials" {
+			out = append(out, endpoint)
+		}
+	}
+	return out
 }
 
 // IMCordisBotEndpoints lists Cordis method names exposed under each channel prefix
