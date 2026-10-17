@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/xml"
+	"fmt"
 	"io"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -53,7 +56,7 @@ func savedXLSXPatternSupported(pattern string) bool {
 }
 
 func savedXLSXColor(source xlsxSourceColor, theme map[int]string, palette []xlsxSourceColor) (string, bool) {
-	if source.Auto || source.Tint != 0 {
+	if source.Auto {
 		return "", false
 	}
 	raw := source.RGB
@@ -77,6 +80,28 @@ func savedXLSXColor(source xlsxSourceColor, theme map[int]string, palette []xlsx
 	}
 	if _, err := hex.DecodeString(raw); err != nil {
 		return "", false
+	}
+	if source.Tint != 0 {
+		if math.IsNaN(source.Tint) || math.IsInf(source.Tint, 0) {
+			return "", false
+		}
+		var tinted strings.Builder
+		tinted.Grow(6)
+		for offset := 0; offset < len(raw); offset += 2 {
+			channel, err := strconv.ParseUint(raw[offset:offset+2], 16, 8)
+			if err != nil {
+				return "", false
+			}
+			value := float64(channel)
+			if source.Tint < 0 {
+				value *= 1 + source.Tint
+			} else {
+				value = value*(1-source.Tint) + 255*source.Tint
+			}
+			value = math.Max(0, math.Min(255, value))
+			tinted.WriteString(fmt.Sprintf("%02X", int(math.Round(value))))
+		}
+		raw = tinted.String()
 	}
 	return "#" + strings.ToUpper(raw), true
 }
