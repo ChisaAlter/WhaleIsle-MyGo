@@ -7,7 +7,8 @@ import { configurePersistence } from "./state-adapter";
 import { closeResources, configureResourceTransport } from "./resources";
 import "./viewer.css";
 import { connect, byteLength, LIMITS, type RenderMessage } from "./bridge";
-import { HtmlViewSupportContext } from "./capabilities";
+import { HtmlViewSupportContext, HostActionsContext } from "./capabilities";
+import { configureNativeActionTransport, updateNativeActionContext, closeNativeActions } from "./native-actions";
 
 const mount = document.getElementById("viewer")!;
 const fatal = document.getElementById("fatal")!;
@@ -135,23 +136,25 @@ function Viewer({ data, version }: { data: RenderMessage; version: number }) {
     <div hidden={Boolean(!data.streaming && (sourceError || renderError))}>
       {!blockedTools && !parsed.error && <Boundary version={version}>
         <HtmlViewSupportContext.Provider value={data.htmlView}>
+        <HostActionsContext.Provider value={data.hostActions}>
         <Renderer response={data.program} library={compatibleLibrary} isStreaming={data.streaming}
           onAction={onAction}
           onError={onErrors} onParseResult={onParsed} publishObservability={false} />
+        </HostActionsContext.Provider>
         </HtmlViewSupportContext.Provider>
       </Boundary>}
     </div>
   </main>;
 }
 
-// Stop SDK copy buttons before React handlers can falsely display "Copied".
-// The native helper does not grant clipboard or external navigation capability.
+// Unmediated browser clipboard/link behavior remains unavailable. Our owned
+// Host-action controls use typed requests and never match these browser paths.
 document.addEventListener("click", event => {
   const target = event.target instanceof Element ? event.target : null;
   if (target?.closest(".openui-code-block-copy-button, a[href]")) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    report("Clipboard and external links are unavailable in this isolated viewer.", "unsupported-capability");
+    report("Unmediated browser clipboard and in-frame links are unavailable. Use the owned Host action controls.", "unsupported-capability");
   }
 }, true);
 document.addEventListener("submit", event => event.preventDefault(), true);
@@ -165,6 +168,7 @@ transport = connect(data => {
   if (currentProgram !== data.program || currentStreaming !== data.streaming) generation += 1;
   currentProgram = data.program;
   currentStreaming = data.streaming;
+  updateNativeActionContext({ enabled: data.hostActions, streaming: data.streaming, revision: generation });
   if (!hydrated) {
     try {
       configurePersistence({ initialState: data.state, onState: state => transport.post("state", { state }), onError: message => report(message, "state-error") });
@@ -179,6 +183,7 @@ transport = connect(data => {
   root.render(<Viewer data={data} version={generation} />);
 }, message => report(message, "bridge-error"));
 configureResourceTransport(transport.post);
+configureNativeActionTransport(transport.post);
 
 let queuedHeight = false;
 let lastHeight = 0;
@@ -192,4 +197,4 @@ const observer = new ResizeObserver(() => {
   });
 });
 observer.observe(document.body);
-window.addEventListener("pagehide", () => { generation += 1; observer.disconnect(); closeResources(); transport.close(); root.unmount(); }, { once: true });
+window.addEventListener("pagehide", () => { generation += 1; observer.disconnect(); closeResources(); closeNativeActions(); transport.close(); root.unmount(); }, { once: true });

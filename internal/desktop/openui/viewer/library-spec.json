@@ -63,7 +63,7 @@
     },
     "Code": {
       "signature": "Code(code: string, language?: string)",
-      "description": "Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled."
+      "description": "Locally highlighted code with explicit plain-text fallback and user-initiated Host copy of the original source."
     },
     "Math": {
       "signature": "Math(tex: string, inline?: boolean)",
@@ -71,7 +71,7 @@
     },
     "Link": {
       "signature": "Link(text: string, url: string)",
-      "description": "Displays a link label and an explicit navigation-disabled status."
+      "description": "Requests the Host to open an absolute HTTP(S) URL after a user click; reports Host acceptance without claiming the page loaded."
     },
     "List": {
       "signature": "List(items: any, marker?: \"bullet\" | \"number\" | \"none\", timeline?: boolean)",
@@ -459,7 +459,7 @@
   "actions": {
     "CopyToClipboard": {
       "signature": "CopyToClipboard(text: string)",
-      "description": "Clipboard is unavailable in the isolated MyGo viewer."
+      "description": "Copies text through the owned Host after a real user activation and reports its actual result."
     }
   },
   "schema": {
@@ -1068,7 +1068,7 @@
           "code"
         ],
         "additionalProperties": false,
-        "description": "Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled."
+        "description": "Locally highlighted code with explicit plain-text fallback and user-initiated Host copy of the original source."
       },
       "Math": {
         "type": "object",
@@ -1101,7 +1101,7 @@
           "url"
         ],
         "additionalProperties": false,
-        "description": "Displays a link label and an explicit navigation-disabled status."
+        "description": "Requests the Host to open an absolute HTTP(S) URL after a user click; reports Host acceptance without claiming the page loaded."
       },
       "List": {
         "type": "object",
@@ -3590,7 +3590,7 @@
     },
     "actions": {
       "CopyToClipboard": {
-        "description": "Clipboard is unavailable in the isolated MyGo viewer.",
+        "description": "Copies text through the owned Host after a real user activation and reports its actual result.",
         "params": {
           "type": "object",
           "properties": {

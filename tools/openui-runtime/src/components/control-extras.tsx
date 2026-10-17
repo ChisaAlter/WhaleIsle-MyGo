@@ -47,12 +47,12 @@ const Pressable = defineComponent({
           cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1 }}
         onClick={event => {
           const interactive = (event.target as Element).closest("button,a,input,select,textarea,[role=button]");
-          if (!disabled && (!interactive || interactive === event.currentTarget)) void behavior.invoke();
+          if (!disabled && (!interactive || interactive === event.currentTarget)) void behavior.invoke(event);
         }}
         onKeyDown={event => {
-          if (disabled || event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
+          if (disabled || event.repeat || event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
           event.preventDefault();
-          void behavior.invoke();
+          void behavior.invoke(event);
         }}>
         {renderNode(props.children)}
       </div>

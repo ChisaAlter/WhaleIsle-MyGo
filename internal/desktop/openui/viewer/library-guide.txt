@@ -1,4 +1,4 @@
-WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Network and native capabilities are available only through the application's typed resource bridge. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. Clipboard, YouTube and business Query/Mutation providers are unavailable.
+WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Resources use the application's typed resource bridge. CopyToClipboard, Code copy, Link and OpenUrl use owned Host actions only after actual user activation; they require Host capability and report actual results. Only absolute HTTP(S) URLs without credentials are supported. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. YouTube and business Query/Mutation providers are unavailable.
 
 ## Syntax Rules
 
@@ -41,9 +41,9 @@ Label(text: string) — A visible group or field label.
 Badge(text: string, color?: "neutral" | "info" | "success" | "warning" | "danger" | "purple" | "pink", icon?: string) — A small colored tag with an optional local Lucide icon.
 Markdown(text: string) — Markdown prose, tables, lists, and code. Raw HTML and external media are disabled.
 Quote(text: string, cite?: string) — A quotation with an optional plain-text source.
-Code(code: string, language?: string) — Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled.
+Code(code: string, language?: string) — Locally highlighted code with explicit plain-text fallback and user-initiated Host copy of the original source.
 Math(tex: string, inline?: boolean) — Local KaTeX formula rendered as native MathML with trusted commands disabled.
-Link(text: string, url: string) — Displays a link label and an explicit navigation-disabled status.
+Link(text: string, url: string) — Requests the Host to open an absolute HTTP(S) URL after a user click; reports Host acceptance without claiming the page loaded.
 List(items: any, marker?: "bullet" | "number" | "none", timeline?: boolean) — Bulleted, numbered, or unmarked items with optional timeline connectors.
 ListItem(title: string, description?: string, marker?: string, children?: any) — List content with title, description, a custom marker, and nested content.
 Icon(name: string, size?: "sm" | "md" | "lg" | "xl", color?: string) — A locally bundled Lucide icon; unknown names have an explicit fallback.
@@ -178,7 +178,7 @@ Available steps:
 - @OpenUrl(url: string) — Navigate to a URL
 - @Set(variable: $variable, value: any) — Set a $variable to a specific value
 - @Reset(variable: $variable) — Reset $variables to their declared defaults; pass several to reset each (e.g. @Reset($title, $priority) restores $title="" and $priority="medium")
-- @CopyToClipboard(text: string) — Clipboard is unavailable in the isolated MyGo viewer.
+- @CopyToClipboard(text: string) — Copies text through the owned Host after a real user activation and reports its actual result.
 
 Example — simple nav:
 ```

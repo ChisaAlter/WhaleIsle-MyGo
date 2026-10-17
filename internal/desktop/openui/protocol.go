@@ -21,21 +21,28 @@ type Render struct {
 	Program    string          `json:"program"`
 	Streaming  bool            `json:"streaming"`
 	State      json.RawMessage `json:"state"`
+	// HostActions is a trusted Host opt-in, independently limited to the owned
+	// embedded viewer by both the shell and helper-session event admission.
+	HostActions bool `json:"hostActions,omitempty"`
 }
 type Event struct {
-	RequestID  string            `json:"requestId,omitempty"`
-	Path       string            `json:"path,omitempty"`
-	Query      map[string]string `json:"query,omitempty"`
-	Channel    string            `json:"channel"`
-	Version    int               `json:"version"`
-	InstanceID string            `json:"instanceId"`
-	Type       string            `json:"type"`
-	State      json.RawMessage   `json:"state,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	FormState  json.RawMessage   `json:"formState,omitempty"`
-	Context    json.RawMessage   `json:"context,omitempty"`
-	Program    string            `json:"program,omitempty"`
-	Code       string            `json:"code,omitempty"`
+	Sequence    uint64            `json:"sequence,omitempty"`
+	UserGesture bool              `json:"userGesture,omitempty"`
+	Text        string            `json:"text,omitempty"`
+	URL         string            `json:"url,omitempty"`
+	RequestID   string            `json:"requestId,omitempty"`
+	Path        string            `json:"path,omitempty"`
+	Query       map[string]string `json:"query,omitempty"`
+	Channel     string            `json:"channel"`
+	Version     int               `json:"version"`
+	InstanceID  string            `json:"instanceId"`
+	Type        string            `json:"type"`
+	State       json.RawMessage   `json:"state,omitempty"`
+	Message     string            `json:"message,omitempty"`
+	FormState   json.RawMessage   `json:"formState,omitempty"`
+	Context     json.RawMessage   `json:"context,omitempty"`
+	Program     string            `json:"program,omitempty"`
+	Code        string            `json:"code,omitempty"`
 }
 
 func Identity(binding, session, message string, block int) string {
@@ -61,10 +68,14 @@ func ValidateRender(r Render) error {
 }
 func ValidateEvent(raw json.RawMessage, instance string) (Event, error) {
 	var e Event
-	if len(raw) > MaxEventBytes || json.Unmarshal(raw, &e) != nil || e.Channel != "whale-openui" || e.Version != 1 || e.InstanceID != instance {
+	if len(raw) > MaxEventBytes || !utf8.Valid(raw) || json.Unmarshal(raw, &e) != nil || e.Channel != "whale-openui" || e.Version != 1 || e.InstanceID != instance {
 		return e, errors.New("invalid OpenUI event envelope")
 	}
 	switch e.Type {
+	case "clipboard", "open-url":
+		if err := ValidateNativeAction(e); err != nil {
+			return e, err
+		}
 	case "api-request":
 		if err := validateAPIRequest(e); err != nil {
 			return e, err

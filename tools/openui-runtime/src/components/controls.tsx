@@ -1,6 +1,6 @@
 // Independently authored from the published component signatures and the
 // installed OpenUI SDK's public API. No application implementation is reused.
-import React, { useId, useState, type CSSProperties, type ReactNode } from "react";
+import React, { useContext, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { icons, type LucideIcon } from "lucide-react";
 import { z } from "zod/v4";
 import {
@@ -15,6 +15,8 @@ import {
   type ActionPlan,
   type DefinedComponent,
 } from "@openuidev/react-lang";
+import { HostActionsContext } from "../capabilities";
+import { prepareNativeActions, performNativeAction, type GestureEvent, type NativeAction } from "../native-actions";
 
 const fieldStyle: CSSProperties = {
   boxSizing: "border-box",
@@ -51,50 +53,197 @@ function controlIcon(name?: string) {
     : <span style={{ fontSize: "0.75em" }} title={`Unknown Lucide icon: ${name}`}>Icon unavailable</span>;
 }
 
-type ControlAction = ActionPlan | { type?: string; params?: Record<string, unknown> } | null | undefined;
+type ControlAction = ActionPlan | { type?: string; params?: Record<string, unknown>; url?: string; context?: unknown } | null | undefined;
+type ActionSegment = { kind: "sdk"; action: ControlAction } | { kind: "native" };
+type BoundAction = { key: string; segments: ActionSegment[]; nativeActions: NativeAction[] };
 
-function blockedActionReason(candidate: ControlAction): string | undefined {
-  if (candidate == null) return undefined;
-  if ("steps" in candidate) {
-    if (!Array.isArray(candidate.steps)) return "This action has an invalid step list.";
-    for (const step of candidate.steps) {
-      const type = step.type === "custom_action" ? step.name : step.type;
-      if (type === "open_url") return "Opening links is unavailable in this isolated viewer.";
-      if (/clipboard|copytoclipboard/i.test(type)) return "Clipboard access is unavailable in this isolated viewer.";
-      if (!["set", "reset", "continue_conversation"].includes(type)) {
-        return `Action “${type}” is unavailable in this isolated viewer.`;
-      }
-    }
-    return undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+// Snapshot the data, including later local steps, before any asynchronous work.
+// Stable key order avoids cancelling a plan when the SDK recreates equal props.
+function snapshotAction(value: unknown, ancestors = new Set<object>()): unknown {
+  if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) return value;
+  if (typeof value !== "object" || ancestors.has(value)) throw new Error("Actions must contain acyclic data.");
+  const prototype = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) throw new Error("Actions must contain plain data.");
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) return Object.freeze(value.map(item => snapshotAction(item, ancestors)));
+    return Object.freeze(Object.fromEntries(Object.keys(value).sort().map(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+      if (!("value" in descriptor)) throw new Error("Actions cannot contain accessors.");
+      return [key, snapshotAction(descriptor.value, ancestors)];
+    })));
+  } finally { ancestors.delete(value); }
+}
+
+function actionKey(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `array[${value.map(actionKey).join(",")}]`;
+  if (isRecord(value)) return `object{${Object.keys(value).map(key => `${JSON.stringify(key)}:${actionKey(value[key])}`).join(",")}}`;
+  return `${typeof value}:${typeof value === "string" ? JSON.stringify(value) : String(value)}`;
+}
+
+// Validate expression structure without evaluating it: Set expressions must
+// still be evaluated by the SDK at their original place in the local sequence.
+function validExpression(node: unknown): boolean {
+  if (!isRecord(node)) return false;
+  const expressions = (value: unknown) => Array.isArray(value) && value.every(validExpression);
+  switch (node.k) {
+    case "Str": return typeof node.v === "string";
+    case "Num": return typeof node.v === "number";
+    case "Bool": return typeof node.v === "boolean";
+    case "Null": return true;
+    case "Ref": case "Ph": case "StateRef": return typeof node.n === "string";
+    case "RuntimeRef": return typeof node.n === "string" && (node.refType === "query" || node.refType === "mutation");
+    case "Arr": return expressions(node.els);
+    case "Obj": return Array.isArray(node.entries) && node.entries.every(entry => Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string" && validExpression(entry[1]));
+    case "Comp": return typeof node.name === "string" && expressions(node.args)
+      && (node.mappedProps === undefined || (isRecord(node.mappedProps) && Object.values(node.mappedProps).every(validExpression)))
+      && (node.fn === undefined || node.fn === true);
+    case "BinOp": return typeof node.op === "string" && ["+", "-", "*", "/", "%", "==", "!=", ">", "<", ">=", "<=", "&&", "||"].includes(node.op) && validExpression(node.left) && validExpression(node.right);
+    case "UnaryOp": return (node.op === "!" || node.op === "-") && validExpression(node.operand);
+    case "Ternary": return validExpression(node.cond) && validExpression(node.then) && validExpression(node.else);
+    case "Member": return validExpression(node.obj) && typeof node.field === "string";
+    case "Index": return validExpression(node.obj) && validExpression(node.index);
+    case "Assign": return typeof node.target === "string" && validExpression(node.value);
+    default: return false;
   }
-  if (candidate.type === "open_url") return "Opening links is unavailable in this isolated viewer.";
-  if (/clipboard|copytoclipboard/i.test(candidate.type ?? "")) return "Clipboard access is unavailable in this isolated viewer.";
-  if (candidate.type !== "continue_conversation") return `Action “${candidate.type ?? "unknown"}” is unavailable in this isolated viewer.`;
-  return undefined;
+}
+
+function bindControlAction(candidate: ControlAction): BoundAction {
+  const snapshot = snapshotAction(candidate);
+  const bound: BoundAction = { key: actionKey(snapshot), segments: [], nativeActions: [] };
+  const native = (action: NativeAction) => {
+    bound.nativeActions.push(Object.freeze(action));
+    bound.segments.push({ kind: "native" });
+  };
+  if (snapshot == null) {
+    bound.segments.push({ kind: "sdk", action: undefined });
+    return bound;
+  }
+  if (!isRecord(snapshot)) throw new Error("This action is invalid.");
+  if ("steps" in snapshot) {
+    if (!Array.isArray(snapshot.steps)) throw new Error("This action has an invalid step list.");
+    let local: ActionPlan["steps"] = [];
+    const flush = () => {
+      if (local.length) bound.segments.push({ kind: "sdk", action: { steps: local } });
+      local = [];
+    };
+    for (const step of snapshot.steps) {
+      if (!isRecord(step)) throw new Error("This action contains an invalid step.");
+      switch (step.type) {
+        case "set":
+          if (typeof step.target !== "string" || !step.target || !validExpression(step.valueAST)) throw new Error("This Set step has an invalid target or expression.");
+          break;
+        case "reset":
+          if (!Array.isArray(step.targets) || !step.targets.every(target => typeof target === "string" && !!target)) throw new Error("This Reset step has invalid targets.");
+          break;
+        case "continue_conversation":
+          if (typeof step.message !== "string") throw new Error("This assistant step has an invalid message.");
+          break;
+        case "open_url":
+          if (typeof step.url !== "string") throw new Error("Opening a link requires an explicit URL string.");
+          flush(); native({ type: "open-url", url: step.url }); continue;
+        case "custom_action":
+          if (step.name !== "CopyToClipboard") throw new Error(`Action “${String(step.name ?? "unknown")}” is unavailable in this viewer.`);
+          if (!isRecord(step.params) || typeof step.params.text !== "string") throw new Error("CopyToClipboard requires an explicit text string.");
+          flush(); native({ type: "clipboard", text: step.params.text }); continue;
+        default: throw new Error(`Action “${String(step.type ?? "unknown")}” is unavailable in this viewer.`);
+      }
+      local.push(step as ActionPlan["steps"][number]);
+    }
+    flush();
+    // Preserve the real SDK's whole-plan behavior, including an empty plan.
+    if (!bound.nativeActions.length) bound.segments = [{ kind: "sdk", action: snapshot as unknown as ActionPlan }];
+    return bound;
+  }
+  if (snapshot.params !== undefined && !isRecord(snapshot.params)) throw new Error("This action has invalid parameters.");
+  const params = isRecord(snapshot.params) ? snapshot.params : {};
+  switch (snapshot.type) {
+    case "continue_conversation":
+      bound.segments.push({ kind: "sdk", action: snapshot as ControlAction }); break;
+    case "open_url": {
+      // These are the SDK's two explicit legacy URL locations. Conflicting
+      // values are rejected rather than guessing which destination was meant.
+      if (snapshot.url !== undefined && params.url !== undefined && snapshot.url !== params.url) throw new Error("This action contains conflicting URLs.");
+      const url = snapshot.url ?? params.url;
+      if (typeof url !== "string") throw new Error("Opening a link requires an explicit URL string.");
+      native({ type: "open-url", url }); break;
+    }
+    case "CopyToClipboard":
+      if (typeof params.text !== "string") throw new Error("CopyToClipboard requires an explicit text string.");
+      native({ type: "clipboard", text: params.text }); break;
+    default: throw new Error(`Action “${String(snapshot.type ?? "unknown")}” is unavailable in this viewer.`);
+  }
+  return bound;
 }
 
 export function useControlAction(label: string, candidate: ControlAction) {
   const trigger = useTriggerAction();
   const formName = useFormName();
   const streaming = useIsStreaming();
-  const [pending, setPending] = useState(false);
-  const [failure, setFailure] = useState<string>();
-  const blocked = blockedActionReason(candidate);
-  async function invoke() {
-    if (streaming || pending || blocked) return;
-    setFailure(undefined);
-    setPending(true);
+  const hostActions = useContext(HostActionsContext);
+  let bound: BoundAction | undefined;
+  let blocked: string | undefined;
+  try {
+    bound = bindControlAction(candidate);
+    if (bound.nativeActions.length && !hostActions) blocked = "Native clipboard and link actions require a supported host.";
+  } catch (error) {
+    blocked = error instanceof Error ? error.message : "This action is invalid.";
+  }
+  const identity = JSON.stringify([bound?.key, blocked, label, formName, streaming, hostActions]);
+  const latestIdentity = useRef(identity);
+  latestIdentity.current = identity;
+  const mounted = useRef(false);
+  const active = useRef<symbol | undefined>(undefined);
+  const [status, setStatus] = useState<{ identity: string; pending: boolean; notice?: string }>();
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; active.current = undefined; };
+  }, []);
+  useLayoutEffect(() => {
+    // Clear cancelled status even if a previous candidate is selected again.
+    setStatus(undefined);
+    return () => { active.current = undefined; };
+  }, [identity]);
+  const pending = status?.identity === identity && status.pending;
+
+  async function invoke(event?: GestureEvent) {
+    if (!mounted.current || latestIdentity.current !== identity || streaming || active.current || blocked || !bound) return;
+    const run = Symbol("control action");
+    active.current = run;
+    const current = () => mounted.current && active.current === run && latestIdentity.current === identity;
+    setStatus({ identity, pending: true });
     try {
-      // The SDK executes local Set/Reset steps. Only its assistant event is
-      // forwarded by the parent viewer. A blocked plan never partially runs.
-      await trigger(label, formName, candidate ?? undefined);
+      // This is synchronous and precedes EVERY local write. It validates all
+      // native payloads and binds them once to this actual source gesture. A
+      // programmatic invoke() can still run local Reset, never a native action.
+      const permit = bound.nativeActions.length ? prepareNativeActions(event, bound.nativeActions) : undefined;
+      for (const segment of bound.segments) {
+        if (!current()) return;
+        if (segment.kind === "native") {
+          if (!permit) throw new Error("This action has no native gesture permit.");
+          await performNativeAction(permit);
+        } else {
+          // The SDK handles Set/Reset and assistant events. Its onAction callback
+          // is not awaited, so native steps must never be delegated to the SDK.
+          await trigger(label, formName, segment.action ?? undefined);
+        }
+      }
+      if (current()) setStatus({ identity, pending: false, notice: bound.nativeActions.length === 1 ? (bound.nativeActions[0].type === "clipboard" ? "Copied" : "Sent to browser") : bound.nativeActions.length ? "Host actions completed" : undefined });
     } catch (error) {
-      setFailure(error instanceof Error ? error.message : "The action could not be completed.");
+      // Failure stops all remaining steps. Completed local writes/native effects
+      // are NOT rolled back. Unmount or changed props cancel later steps and
+      // notices; an already-dispatched host operation cannot be retracted.
+      if (current()) setStatus({ identity, pending: false, notice: error instanceof Error ? error.message : "The action could not be completed." });
     } finally {
-      setPending(false);
+      if (active.current === run) active.current = undefined;
     }
   }
-  return { invoke, disabled: streaming || pending || !!blocked, notice: blocked ?? failure };
+  return { invoke, disabled: streaming || pending || !!blocked, notice: blocked ?? (status?.identity === identity ? status.notice : undefined) };
 }
 
 function buttonStyle(variant = "solid", color = "primary", size = "md", block = false): CSSProperties {

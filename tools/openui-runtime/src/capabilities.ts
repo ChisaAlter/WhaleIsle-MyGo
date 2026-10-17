@@ -2,3 +2,4 @@
 import { createContext } from "react";
 
 export const HtmlViewSupportContext = createContext(false);
+export const HostActionsContext = createContext(false);

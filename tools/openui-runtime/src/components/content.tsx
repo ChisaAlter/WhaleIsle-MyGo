@@ -7,6 +7,7 @@ import katex from 'katex';
 import { icons, type LucideIcon } from 'lucide-react';
 import { z } from 'zod/v4';
 import { HighlightedCodeBlock, MarkdownCodeBlock } from './highlight';
+import { HostLink } from './native-action-ui';
 
 const ink = 'var(--oui-ink, #172337)';
 const muted = 'var(--oui-muted, #526379)';
@@ -163,8 +164,8 @@ const Quote = defineComponent({
 });
 
 const Code = defineComponent({
-  name: 'Code', props: z.object({ code: z.string(), language: z.string().optional() }), description: 'Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled.',
-  component: ({ props }) => <HighlightedCodeBlock code={props.code} language={props.language} clipboardNotice />,
+  name: 'Code', props: z.object({ code: z.string(), language: z.string().optional() }), description: 'Locally highlighted code with explicit plain-text fallback and user-initiated Host copy of the original source.',
+  component: ({ props }) => <HighlightedCodeBlock code={props.code} language={props.language} copyButton />,
 });
 
 function SafeMath({ tex, inline }: { tex: string; inline?: boolean }) {
@@ -198,8 +199,8 @@ const MathComponent = defineComponent({
 });
 
 const Link = defineComponent({
-  name: 'Link', props: z.object({ text: z.string(), url: z.string() }), description: 'Displays a link label and an explicit navigation-disabled status.',
-  component: ({ props }) => <BlockedLink>{props.text}</BlockedLink>,
+  name: 'Link', props: z.object({ text: z.string(), url: z.string() }), description: 'Requests the Host to open an absolute HTTP(S) URL after a user click; reports Host acceptance without claiming the page loaded.',
+  component: ({ props }) => <HostLink text={props.text} url={props.url} />,
 });
 
 type ListContextValue = { marker: 'bullet' | 'number' | 'none'; index: number; last: boolean; timeline: boolean };

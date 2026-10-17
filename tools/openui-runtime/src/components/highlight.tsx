@@ -1,6 +1,7 @@
 // Local syntax highlighting: licensed grammar output becomes React text and spans only.
 import React, { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { common, createLowlight } from 'lowlight';
+import { CodeCopyButton } from './native-action-ui';
 
 // Deliberately fixed coverage. No language guessing or downloaded grammars.
 export const highlightLanguages: Readonly<Record<string, readonly string[]>> = Object.freeze({
@@ -116,10 +117,10 @@ const palette = `
 `;
 const preStyle: CSSProperties = { margin: 0, padding: 14, maxWidth: '100%', overflowX: 'auto', fontSize: 13, lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', whiteSpace: 'pre', overflowWrap: 'normal', wordBreak: 'normal', background: 'var(--oui-surface, #f3f6fa)', color: 'var(--oui-ink, #172337)' };
 
-export function HighlightedCodeBlock({ code, language, clipboardNotice = false }: { code: string; language?: string; clipboardNotice?: boolean }) {
+export function HighlightedCodeBlock({ code, language, copyButton = false }: { code: string; language?: string; copyButton?: boolean }) {
   const result = useMemo(() => highlight(code, language), [code, language]);
   return <><style>{palette}</style><figure className="oui-code oui-syntax" data-highlighted={result.highlighted ? 'true' : 'false'} style={{ margin: 0, minWidth: 0, border: '1px solid var(--oui-border, #d9e0e8)', borderRadius: 8, overflow: 'hidden' }}>
-    <figcaption style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '8px 12px', fontSize: 12, color: 'var(--oui-muted, #526379)', background: 'var(--oui-surface, #f3f6fa)' }}><span>{result.label}</span>{clipboardNotice ? <span>Copy unavailable in isolated viewer</span> : null}</figcaption>
+    <figcaption style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '8px 12px', fontSize: 12, color: 'var(--oui-muted, #526379)', background: 'var(--oui-surface, #f3f6fa)' }}><span>{result.label}</span>{copyButton ? <CodeCopyButton code={code} language={language} /> : null}</figcaption>
     {result.notice ? <div role="note" style={{ padding: '0 12px 8px', color: 'var(--oui-muted, #526379)', background: 'var(--oui-surface, #f3f6fa)', fontSize: 12 }}>{result.notice}</div> : null}
     <pre style={preStyle}><code>{result.tokens ? tokenNodes(result.tokens) : code}</code></pre>
   </figure></>;

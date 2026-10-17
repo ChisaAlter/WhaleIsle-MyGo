@@ -20,10 +20,13 @@ const maxOpenUIBatchBytes = maxOpenUIEvents*(maxOpenUIEventBytes+1) + 2
 const openUIDrainScript = "(()=>{if(window.__previewState&&window.__previewState.error)throw new Error('OpenUI shell failed');return JSON.stringify(window.__whaleOpenUIDrain());})()"
 
 type openUIEventQueue struct {
-	mu         sync.Mutex
-	values     chan json.RawMessage
-	instanceID string
-	closed     bool
+	mu                 sync.Mutex
+	values             chan json.RawMessage
+	instanceID         string
+	closed             bool
+	nativeActions      bool
+	lastActionSequence uint64
+	pendingActions     map[string]openUIActionKey
 }
 
 // Events carries only validated bounded renderer state/user-intent reports.
@@ -39,7 +42,11 @@ func (s *Session) initOpenUIEvents(doc Document) {
 	if doc.OpenUI != nil {
 		s.openUIUpdates = newOpenUIUpdateQueue(*doc.OpenUI)
 		s.openUIAPI = newOpenUIAPIQueue(doc.OpenUI.InstanceID)
-		s.openUIEvents = &openUIEventQueue{values: make(chan json.RawMessage, maxOpenUIEvents), instanceID: doc.OpenUI.InstanceID}
+		s.openUIEvents = &openUIEventQueue{
+			values: make(chan json.RawMessage, maxOpenUIEvents), instanceID: doc.OpenUI.InstanceID,
+			nativeActions:  doc.OpenUI.HostActions && openui.IsOwnedViewer(doc.HTML),
+			pendingActions: make(map[string]openUIActionKey),
+		}
 	}
 }
 func (s *Session) closeOpenUIEvents() {
@@ -48,6 +55,7 @@ func (s *Session) closeOpenUIEvents() {
 		defer q.mu.Unlock()
 		if !q.closed {
 			q.closed = true
+			q.pendingActions = nil
 			for len(q.values) > 0 {
 				<-q.values
 			}
@@ -60,7 +68,8 @@ func (s *Session) acceptOpenUIEvent(raw json.RawMessage) error {
 	if q == nil || len(raw) == 0 || len(raw) > maxOpenUIEventBytes {
 		return errors.New("unexpected or oversized OpenUI event")
 	}
-	if _, err := openui.ValidateEvent(raw, q.instanceID); err != nil {
+	event, err := openui.ValidateEvent(raw, q.instanceID)
+	if err != nil {
 		return err
 	}
 	q.mu.Lock()
@@ -68,9 +77,17 @@ func (s *Session) acceptOpenUIEvent(raw json.RawMessage) error {
 	if q.closed {
 		return errors.New("OpenUI event queue closed")
 	}
+	nativeAction := event.Type == "clipboard" || event.Type == "open-url"
+	if nativeAction && (!q.nativeActions || event.Sequence <= q.lastActionSequence) {
+		return errors.New("disabled or replayed OpenUI native action")
+	}
 	owned := append(json.RawMessage(nil), raw...)
 	select {
 	case q.values <- owned:
+		if nativeAction {
+			q.lastActionSequence = event.Sequence
+			q.pendingActions[event.RequestID] = nativeActionKey(event)
+		}
 		return nil
 	default:
 		return errors.New("OpenUI event queue overflow")

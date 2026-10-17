@@ -211,7 +211,8 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		}
 		b.mu.Unlock()
 	}
-	viewer, err := openui.LoadViewer(os.Getenv("WHALEISLE_OPENUI_VIEWER"))
+	explicitViewer := os.Getenv("WHALEISLE_OPENUI_VIEWER")
+	viewer, err := openui.LoadViewer(explicitViewer)
 	if err != nil {
 		finish(err)
 		return
@@ -241,7 +242,8 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		finish(fmt.Errorf("OpenUI owner changed"))
 		return
 	}
-	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Program: program, Streaming: streaming, State: state}})
+	hostActions := explicitViewer == "" && openui.IsOwnedViewer(viewer) && (runtime.GOOS == "windows" || runtime.GOOS == "darwin")
+	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Program: program, Streaming: streaming, State: state, HostActions: hostActions}})
 	if err != nil {
 		finish(err)
 		return
@@ -312,6 +314,15 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				return
 			}
 			switch event.Type {
+			case "clipboard", "open-url":
+				response := executeOpenUINativeAction(ctx, b, handle, valid, event)
+				if valid() && ctx.Err() == nil {
+					if replyErr := handle.ReplyOpenUIAPI(response); replyErr != nil {
+						b.mu.Lock()
+						b.err = replyErr.Error()
+						b.mu.Unlock()
+					}
+				}
 			case "api-request":
 				go func(request openui.Event) {
 					if !valid() || ctx.Err() != nil {
