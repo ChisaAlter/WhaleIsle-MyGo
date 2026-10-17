@@ -101,9 +101,9 @@ func (b *Controller) resumeDocument(tab *Tab) {
 	}
 	loader := b.documentLoader
 	if loader.ready == nil || loader.read == nil || !loader.ready(*tab.source) {
-		tab.ActionMessage = "切回文档所属会话和工作区后，将重新读取源文件恢复预览。"
+		tab.ActionMessage = browserChromeLabel("切回文档所属会话和工作区后，将重新读取源文件恢复预览。", "Return to the document’s session and workspace to reread its source and restore the preview.")
 		if tab.source.AddressKind == "subagent" {
-			tab.ActionMessage = "请在原 Agents 面板重新进入文档所属子会话；若原面板已关闭，请从新的来源面板重新打开此文件。"
+			tab.ActionMessage = browserChromeLabel("请在原 Agents 面板重新进入文档所属子会话；若原面板已关闭，请从新的来源面板重新打开此文件。", "Re-enter the document’s child session in its original Agents panel. If that panel is closed, reopen the file from a new source panel.")
 		}
 		return
 	}
@@ -113,7 +113,7 @@ func (b *Controller) resumeDocument(tab *Tab) {
 	tab.sourceRead = request
 	tab.sourcePending = false
 	tab.Error = ""
-	tab.ActionMessage = "正在从源文件恢复文档预览…"
+	tab.ActionMessage = browserChromeLabel("正在从源文件恢复文档预览…", "Restoring document preview from its source…")
 	go func() {
 		result := loader.read(ctx, source)
 		if ctx.Err() != nil {
@@ -136,7 +136,7 @@ func (b *Controller) resumeDocument(tab *Tab) {
 			if !loader.ready(source) || (result.Valid != nil && !result.Valid()) {
 				result.close()
 				tab.sourcePending = true
-				tab.ActionMessage = "文档所属会话已改变；切回后继续恢复。"
+				tab.ActionMessage = browserChromeLabel("文档所属会话已改变；切回后继续恢复。", "The document’s session changed; switch back to resume restoration.")
 				return
 			}
 			tab.ActionMessage = ""
@@ -164,7 +164,7 @@ func (b *Controller) resumeDocument(tab *Tab) {
 				case result.HTML != nil:
 					err = b.openHTMLTab(tab, result.HTML)
 				default:
-					err = fmt.Errorf("文档读取未返回预览内容")
+					err = fmt.Errorf("%s", browserChromeLabel("文档读取未返回预览内容", "Document read returned no preview content"))
 				}
 			} else {
 				result.close()
@@ -197,7 +197,7 @@ func (b *Controller) retryDocument(tab *Tab) {
 
 func (b *Controller) documentSourceControls(c *ui.Context, tab *Tab) {
 	ui.Text(c, filepath.Base(tab.source.Path)).FontSize(theme.InterfaceSize(12)).Grow(1).Tooltip(tab.source.Path)
-	if ui.Button(c, "重新读取").Disabled(tab.sourceRead != nil).Clicked() {
+	if ui.Button(c, browserChromeLabel("重新读取", "Reread")).Disabled(tab.sourceRead != nil).Clicked() {
 		b.retryDocument(tab)
 	}
 }

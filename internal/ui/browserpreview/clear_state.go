@@ -27,3 +27,11 @@ func takeBrowserDataConfirmation[Host comparable](slot **browserDataConfirmation
 const browserCookieClearNotice = "清除当前标签所属分区的全部 Cookie（含登录 Cookie），同分区全部页签可能退出登录；保留站点存储、Service Worker 和 HTTP 缓存，其他工作区/插件不受影响。继续？"
 
 const browserSiteDataClearNotice = "永久清除当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；同分区全部页签可能退出登录，离线数据/未同步内容可能丢失。保留 HTTP 缓存、CacheStorage、文件系统、历史记录和已存密码；其他工作区/插件不受影响。无法撤销，继续？"
+
+func browserCookieNotice() string {
+	return browserChromeLabel(browserCookieClearNotice, "Clear all cookies, including sign-in cookies, in this tab’s profile? All tabs in that profile may be signed out. Site storage, service workers and HTTP cache are retained; other workspaces/plugins are unaffected.")
+}
+
+func browserSiteDataNotice() string {
+	return browserChromeLabel(browserSiteDataClearNotice, "Permanently clear cookies, localStorage, IndexedDB, WebSQL and service workers for all sites in this profile? Tabs in that profile may be signed out, and offline or unsynced data may be lost. HTTP cache, CacheStorage, filesystem data, history and saved passwords are retained; other workspaces/plugins are unaffected. This cannot be undone. Continue?")
+}

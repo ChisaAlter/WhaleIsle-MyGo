@@ -128,7 +128,7 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 		panel := ui.Column(c).Key(p).Absolute().Left(float32(p.bounds.X)).Top(float32(p.bounds.Y)).Width(float32(r.Width)).Height(float32(r.Height)).Background(c.Theme().Background).Border(1, c.Theme().Border).Clip()
 		panel.Children(func() {
 			ui.Row(c).Height(32).FillWidth().Padding(4).Gap(4).Children(func() {
-				grip := ui.Box(c).Key("browser-mini-move").Grow(1).Height(24).Focusable().Label("移动浏览器小浮窗")
+				grip := ui.Box(c).Key("browser-mini-move").Grow(1).Height(24).Focusable().Label(browserChromeLabel("移动浏览器小浮窗", "Move browser mini-window"))
 				title := p.host.State().Title
 				if title == "" {
 					title = p.host.State().URL
@@ -141,10 +141,10 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 					p.geometry = miniPlayerGeometry(p.geometry, conversation)
 					b.update()
 				}
-				if ui.Button(c, "↙").Label("恢复原浏览器面板").Clicked() {
+				if ui.Button(c, "↙").Label(browserChromeLabel("恢复原浏览器面板", "Restore original browser panel")).Clicked() {
 					b.restoreMiniPlayer()
 				}
-				if ui.Button(c, "×").Label("关闭浏览器小浮窗").Clicked() {
+				if ui.Button(c, "×").Label(browserChromeLabel("关闭浏览器小浮窗", "Close browser mini-window")).Clicked() {
 					b.CloseMiniPlayer()
 				}
 			})
@@ -174,7 +174,7 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 						cursor = ui.CursorResizeNESW
 					}
 				}
-				rail := ui.Box(c).Key("mini-resize-" + side).Absolute().Left(float32(x)).Top(float32(y)).Width(float32(w)).Height(float32(h)).Cursor(cursor).Label("调整小浮窗大小")
+				rail := ui.Box(c).Key("mini-resize-" + side).Absolute().Left(float32(x)).Top(float32(y)).Width(float32(w)).Height(float32(h)).Cursor(cursor).Label(browserChromeLabel("调整小浮窗大小", "Resize mini-window"))
 				dx, dy, held := rail.Dragged()
 				if held {
 					p.geometry = resizeMiniPlayer(p.geometry, int(dx), int(dy), side, conversation)

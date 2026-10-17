@@ -143,7 +143,7 @@ func (b *Controller) pdfReadingControls(c *ui.Context, t *Tab) {
 		return
 	}
 	b.capturePDFPosition(t)
-	ui.Text(c, "PDF 阅读器 · 页码、缩放、滚动与文字选择随标签保存").FontSize(12)
+	ui.Text(c, browserChromeLabel("PDF 阅读器 · 页码、缩放、滚动与文字选择随标签保存", "PDF reader · Page, zoom, scroll and text selection are retained per tab")).FontSize(12)
 }
 
 func validPDFSelection(v [4]int) bool {

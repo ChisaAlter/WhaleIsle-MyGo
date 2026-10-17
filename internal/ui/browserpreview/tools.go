@@ -74,13 +74,13 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 	op := &browserToolOperation{h, epoch, ctx, cancel}
 	t.tools.operation = op
 	t.Error = ""
-	t.ActionMessage = "正在应用网页外观…"
+	t.ActionMessage = browserChromeLabel("正在应用网页外观…", "Applying webpage appearance…")
 	if kind == "cache" {
-		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的 HTTP 缓存…"
+		t.ActionMessage = browserChromeLabel("正在清除当前分区「", "Clearing current profile “") + t.browserWorkspaceLabel() + browserChromeLabel("」的 HTTP 缓存…", "” HTTP cache…")
 	} else if kind == "cookies" {
-		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的登录 Cookie…"
+		t.ActionMessage = browserChromeLabel("正在清除当前分区「", "Clearing current profile “") + t.browserWorkspaceLabel() + browserChromeLabel("」的登录 Cookie…", "” sign-in cookies…")
 	} else if kind == "site-data" {
-		t.ActionMessage = "正在清除当前分区「" + t.browserWorkspaceLabel() + "」的五类站点数据…"
+		t.ActionMessage = browserChromeLabel("正在清除当前分区「", "Clearing current profile “") + t.browserWorkspaceLabel() + browserChromeLabel("」的五类站点数据…", "” five site-data categories…")
 	}
 	b.update()
 	go func() {
@@ -108,20 +108,20 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 				if !errors.Is(err, context.Canceled) {
 					t.Error = err.Error()
 					if kind == "site-data" {
-						t.Error = "五类站点数据清理未确认完成，可能已部分生效；不会自动重试：" + err.Error()
+						t.Error = browserChromeLabel("五类站点数据清理未确认完成，可能已部分生效；不会自动重试：", "Completion of the five-category site-data clear was not confirmed; it may be partially applied and will not retry automatically: ") + err.Error()
 					}
 				}
 				return
 			}
 			if kind == "cache" {
-				t.ActionMessage = "当前分区 HTTP 缓存已清除；Cookies 和站点数据保留，其他工作区/插件不受影响"
+				t.ActionMessage = browserChromeLabel("当前分区 HTTP 缓存已清除；Cookies 和站点数据保留，其他工作区/插件不受影响", "Current profile HTTP cache cleared; cookies and site data retained. Other workspaces/plugins are unaffected.")
 			} else if kind == "cookies" {
-				t.ActionMessage = "当前分区全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，其他工作区/插件不受影响"
+				t.ActionMessage = browserChromeLabel("当前分区全部 Cookie（含登录 Cookie）已清除；站点存储、Service Worker、HTTP 缓存保留，其他工作区/插件不受影响", "All cookies in this profile, including sign-in cookies, were cleared; site storage, service workers and HTTP cache retained. Other workspaces/plugins are unaffected.")
 			} else if kind == "site-data" {
-				t.ActionMessage = "当前分区五类站点数据已清除；HTTP 缓存、CacheStorage 等其他数据保留，其他工作区/插件不受影响。活跃站点可能再次创建数据。"
+				t.ActionMessage = browserChromeLabel("当前分区五类站点数据已清除；HTTP 缓存、CacheStorage 等其他数据保留，其他工作区/插件不受影响。活跃站点可能再次创建数据。", "Five site-data categories cleared in this profile; HTTP cache, CacheStorage and other data retained. Other workspaces/plugins are unaffected. Active sites may recreate data.")
 			} else {
 				t.tools.settings.Scheme = scheme
-				t.ActionMessage = "网页 prefers-color-scheme 已更新"
+				t.ActionMessage = browserChromeLabel("网页 prefers-color-scheme 已更新", "Webpage prefers-color-scheme updated")
 			}
 		})
 	}()
@@ -199,45 +199,45 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	ui.ScrollHorizontal(c).Height(60).FillWidth().Children(func() {
 		ui.Column(c).Gap(4).Children(func() {
 			ui.Row(c).Height(28).Gap(6).AlignItems(ui.Center).Children(func() {
-				if ui.Button(c, "设备尺寸").Disabled(disabled).Clicked() {
+				if ui.Button(c, browserChromeLabel("设备尺寸", "Device size")).Disabled(disabled).Clicked() {
 					b.CancelAction()
 					s.Device = !s.Device
 					b.showHost(t.Host)
 					b.update()
 				}
-				if ui.Button(c, "−").Label("缩小网页").Disabled(disabled || zoom <= 0.25).Clicked() {
+				if ui.Button(c, "−").Label(browserChromeLabel("缩小网页", "Zoom out")).Disabled(disabled || zoom <= 0.25).Clicked() {
 					b.changeBrowserZoom(t, nextBrowserZoom(zoom, -1))
 				}
-				if ui.Button(c, fmt.Sprintf("%.0f%%", zoom*100)).Label("重置网页缩放").Disabled(disabled).Clicked() {
+				if ui.Button(c, fmt.Sprintf("%.0f%%", zoom*100)).Label(browserChromeLabel("重置网页缩放", "Reset zoom")).Disabled(disabled).Clicked() {
 					b.changeBrowserZoom(t, 1)
 				}
-				if ui.Button(c, "+").Label("放大网页").Disabled(disabled || zoom >= 5).Clicked() {
+				if ui.Button(c, "+").Label(browserChromeLabel("放大网页", "Zoom in")).Disabled(disabled || zoom >= 5).Clicked() {
 					b.changeBrowserZoom(t, nextBrowserZoom(zoom, 1))
 				}
-				ui.MenuButton(c, "网页外观", func(m *ui.Menu) {
-					for _, choice := range []struct{ label, value string }{{"跟随系统", "system"}, {"浅色", "light"}, {"深色", "dark"}} {
+				ui.MenuButton(c, browserChromeLabel("网页外观", "Page appearance"), func(m *ui.Menu) {
+					for _, choice := range []struct{ label, value string }{{browserChromeLabel("跟随系统", "System"), "system"}, {browserChromeLabel("浅色", "Light"), "light"}, {browserChromeLabel("深色", "Dark"), "dark"}} {
 						if m.Item(choice.label).Checked(s.Scheme == choice.value).Disabled(!appearanceSupported).Chosen() {
 							b.startBrowserTool(t, "scheme", choice.value)
 						}
 					}
-				}).Disabled(!appearanceSupported).Tooltip("覆盖当前页签的 prefers-color-scheme；不修改网页 CSS")
-				if ui.Button(c, "强制刷新").Disabled(disabled).Clicked() {
+				}).Disabled(!appearanceSupported).Tooltip(browserChromeLabel("覆盖当前页签的 prefers-color-scheme；不修改网页 CSS", "Override this tab’s prefers-color-scheme without modifying webpage CSS"))
+				if ui.Button(c, browserChromeLabel("强制刷新", "Force reload")).Disabled(disabled).Clicked() {
 					b.CancelAction()
 					if err := t.Host.HardReloadBrowser(); err != nil {
 						t.Error = err.Error()
 					}
 				}
-				if ui.Button(c, "清 HTTP 缓存…").Disabled(!supported).Clicked() {
+				if ui.Button(c, browserChromeLabel("清 HTTP 缓存…", "Clear HTTP cache…")).Disabled(!supported).Clicked() {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cache", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
-				if ui.Button(c, "清 Browser 登录 Cookie…").Disabled(!cookieSupported).Tooltip("仅当前标签所属分区的全部 Cookie；需确认，可能退出同分区页签登录。其他工作区/插件不受影响，保留站点存储、Service Worker 和 HTTP 缓存。").Clicked() {
+				if ui.Button(c, browserChromeLabel("清 Browser 登录 Cookie…", "Clear Browser sign-in cookies…")).Disabled(!cookieSupported).Tooltip(browserChromeLabel("仅当前标签所属分区的全部 Cookie；需确认，可能退出同分区页签登录。其他工作区/插件不受影响，保留站点存储、Service Worker 和 HTTP 缓存。", "All cookies in this tab’s profile only; confirmation required. Tabs in that profile may be signed out. Other workspaces/plugins are unaffected; site storage, service workers and HTTP cache are retained.")).Clicked() {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "cookies", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
-				if ui.Button(c, "清五类站点数据…").Disabled(!siteDataSupported).Tooltip("需当前平台支持精确站点数据清理。仅清当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；需确认，保留 HTTP 缓存和 CacheStorage，其他工作区/插件不受影响。").Clicked() {
+				if ui.Button(c, browserChromeLabel("清五类站点数据…", "Clear five site-data categories…")).Disabled(!siteDataSupported).Tooltip(browserChromeLabel("需当前平台支持精确站点数据清理。仅清当前分区所有站点的 Cookie、localStorage、IndexedDB、WebSQL 和 Service Worker；需确认，保留 HTTP 缓存和 CacheStorage，其他工作区/插件不受影响。", "Requires precise site-data clearing on this platform. Clears cookies, localStorage, IndexedDB, WebSQL and service workers for all sites in this profile, with confirmation. HTTP cache and CacheStorage are retained; other workspaces/plugins are unaffected.")).Clicked() {
 					b.CancelAction()
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "site-data", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
@@ -246,9 +246,9 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					b.openBrowserDevTools(t)
 				}
 				if b.onMiniRestore != nil {
-					label := "交互小浮窗"
+					label := browserChromeLabel("交互小浮窗", "Interactive mini-window")
 					if b.mini != nil {
-						label = "恢复原面板"
+						label = browserChromeLabel("恢复原面板", "Restore original panel")
 					}
 					if ui.Button(c, label).Disabled(t.Host == nil).Clicked() {
 						if b.mini != nil {
@@ -259,45 +259,45 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					}
 				}
 				if b.pip != nil {
-					if ui.Button(c, "关闭画中画").Clicked() {
+					if ui.Button(c, browserChromeLabel("关闭画中画", "Close picture-in-picture")).Clicked() {
 						b.stopPictureInPicture()
 					}
-				} else if ui.Button(c, "画中画").Disabled(disabled).Clicked() {
+				} else if ui.Button(c, browserChromeLabel("画中画", "Picture-in-picture")).Disabled(disabled).Clicked() {
 					b.openPictureInPicture(t)
 				}
-				if t.tools.operation != nil && ui.Button(c, "取消等待").Clicked() {
+				if t.tools.operation != nil && ui.Button(c, browserChromeLabel("取消等待", "Cancel waiting")).Clicked() {
 					b.cancelBrowserTools()
-					t.ActionMessage = "已取消等待；已提交的浏览器操作可能已生效"
+					t.ActionMessage = browserChromeLabel("已取消等待；已提交的浏览器操作可能已生效", "Stopped waiting; the submitted browser operation may already have taken effect")
 				}
 			})
 			ui.Row(c).Height(28).Gap(6).AlignItems(ui.Center).Children(func() {
 				if confirm := t.tools.confirmation; confirm != nil {
-					notice := "清除当前标签所属分区的全部 HTTP 缓存（含同分区页签）；保留 Cookies/站点数据，其他工作区/插件不受影响。继续？"
+					notice := browserChromeLabel("清除当前标签所属分区的全部 HTTP 缓存（含同分区页签）；保留 Cookies/站点数据，其他工作区/插件不受影响。继续？", "Clear all HTTP cache in this tab’s profile, including other tabs in the same profile? Cookies and site data are retained; other workspaces/plugins are unaffected.")
 					unavailable := !supported
 					if confirm.kind == "cookies" {
-						notice = browserCookieClearNotice
+						notice = browserCookieNotice()
 						unavailable = !cookieSupported
 					} else if confirm.kind == "site-data" {
-						notice = browserSiteDataClearNotice
+						notice = browserSiteDataNotice()
 						unavailable = !siteDataSupported
 					}
-					notice = "分区「" + t.browserWorkspaceLabel() + "」：" + notice
+					notice = browserChromeLabel("分区「", "Profile “") + t.browserWorkspaceLabel() + "」：" + notice
 					ui.Text(c, notice).FontSize(fonttheme.InterfaceSize(11)).Tooltip(notice)
-					if ui.Button(c, "确认清除").Key(confirm).Disabled(disabled || unavailable).Clicked() {
+					if ui.Button(c, browserChromeLabel("确认清除", "Confirm clear")).Key(confirm).Disabled(disabled || unavailable).Clicked() {
 						b.startBrowserTool(t, confirm.kind, "")
 					}
-					if ui.Button(c, "取消").Clicked() {
+					if ui.Button(c, browserChromeLabel("取消", "Cancel")).Clicked() {
 						t.tools.confirmation = nil
 					}
 					return
 				}
 				if !s.Device {
-					ui.Text(c, "设备尺寸调整真实网页视口；网页外观需 Windows WebView2 或 macOS WKWebView；Linux 跟随系统。").FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, browserChromeLabel("设备尺寸调整真实网页视口；网页外观需 Windows WebView2 或 macOS WKWebView；Linux 跟随系统。", "Device size changes the real webpage viewport. Appearance overrides require Windows WebView2 or macOS WKWebView; Linux follows the system.")).FontSize(fonttheme.InterfaceSize(11))
 					return
 				}
 				label := s.Preset
 				if label == "" {
-					label = "自定义"
+					label = browserChromeLabel("自定义", "Custom")
 				}
 				ui.MenuButton(c, label, func(m *ui.Menu) {
 					for _, preset := range browserDevicePresets {
@@ -306,10 +306,10 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 						}
 					}
 				}).Disabled(disabled)
-				submitted := ui.TextInput(c, &s.WidthDraft).Width(65).Label("视口宽度").Disabled(disabled).Submitted()
+				submitted := ui.TextInput(c, &s.WidthDraft).Width(65).Label(browserChromeLabel("视口宽度", "Viewport width")).Disabled(disabled).Submitted()
 				ui.Text(c, "×")
-				submitted = ui.TextInput(c, &s.HeightDraft).Width(65).Label("视口高度").Disabled(disabled).Submitted() || submitted
-				if ui.Button(c, "应用尺寸").Disabled(disabled).Clicked() || submitted {
+				submitted = ui.TextInput(c, &s.HeightDraft).Width(65).Label(browserChromeLabel("视口高度", "Viewport height")).Disabled(disabled).Submitted() || submitted
+				if ui.Button(c, browserChromeLabel("应用尺寸", "Apply size")).Disabled(disabled).Clicked() || submitted {
 					w, h, err := s.dimensions(s.WidthDraft, s.HeightDraft)
 					if err != nil {
 						t.Error = err.Error()
@@ -317,17 +317,17 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 						b.updateBrowserDevice(t, w, h, "")
 					}
 				}
-				lock := "锁定比例"
+				lock := browserChromeLabel("锁定比例", "Lock aspect ratio")
 				if s.AspectLocked {
-					lock = "解除比例锁"
+					lock = browserChromeLabel("解除比例锁", "Unlock aspect ratio")
 				}
 				if ui.Button(c, lock).Disabled(disabled).Clicked() {
 					s.AspectLocked = !s.AspectLocked
 				}
-				if ui.Button(c, "旋转").Disabled(disabled).Clicked() {
+				if ui.Button(c, browserChromeLabel("旋转", "Rotate")).Disabled(disabled).Clicked() {
 					b.updateBrowserDevice(t, s.Height, s.Width, s.Preset)
 				}
-				ui.Text(c, "大尺寸会缩小至面板可见范围；不模拟触摸/UA").FontSize(fonttheme.InterfaceSize(11))
+				ui.Text(c, browserChromeLabel("大尺寸会缩小至面板可见范围；不模拟触摸/UA", "Large sizes scale to fit the panel; touch and user agent are not emulated")).FontSize(fonttheme.InterfaceSize(11))
 			})
 		})
 	})

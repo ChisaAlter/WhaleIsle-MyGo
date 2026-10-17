@@ -22,13 +22,13 @@ type browserWorkspace struct{ key, label string }
 
 func makeBrowserWorkspace(owner WorkspaceOwner) (browserWorkspace, error) {
 	if strings.TrimSpace(owner.Authority) == "" || len(owner.Authority) > 8192 || len(owner.Cwd) > 32768 || strings.ContainsRune(owner.Authority+owner.Cwd, 0) {
-		return browserWorkspace{}, errors.New("Browser 无法确定可信的工作区归属")
+		return browserWorkspace{}, errors.New(browserChromeLabel("Browser 无法确定可信的工作区归属", "Browser cannot determine a trusted workspace owner"))
 	}
 	cwd := owner.Cwd
 	if strings.TrimSpace(cwd) == "" {
 		cwd = ""
 	}
-	kind, label := "shared", "共享浏览（无工作区）"
+	kind, label := "shared", browserChromeLabel("共享浏览（无工作区）", "Shared browsing (no workspace)")
 	if cwd != "" {
 		kind = "workspace"
 		label = strings.TrimSpace(owner.Title)

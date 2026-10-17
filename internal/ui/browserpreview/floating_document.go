@@ -45,24 +45,24 @@ func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 		}
 	}
 	if count != 1 {
-		return opts, errors.New("请先打开 PDF、静态 HTML 或音视频文件预览")
+		return opts, errors.New(browserChromeLabel("请先打开 PDF、静态 HTML 或音视频文件预览", "Open a PDF, static HTML or media file preview first"))
 	}
 	if t.Document != nil {
 		if !t.Document.Valid() {
-			return opts, errors.New("PDF 预览已过期；请重新打开文件")
+			return opts, errors.New(browserChromeLabel("PDF 预览已过期；请重新打开文件", "PDF preview expired; reopen the file"))
 		}
 		opts.Title, opts.URL = t.Document.Name, t.Document.ViewerURL()
 		opts.LocalPDFViewerURL = opts.URL
 		opts.URL = t.pdfViewerURL(opts.URL)
 	} else if t.Media != nil {
 		if !t.Media.Valid() {
-			return opts, errors.New("媒体预览已过期；请重新打开文件")
+			return opts, errors.New(browserChromeLabel("媒体预览已过期；请重新打开文件", "Media preview expired; reopen the file"))
 		}
 		opts.Title, opts.URL = t.Media.Name, t.Media.URL()
 		opts.LocalMediaURL = opts.URL
 	} else {
 		if !t.HTML.Valid() {
-			return opts, errors.New("HTML 预览已过期；请重新打开文件")
+			return opts, errors.New(browserChromeLabel("HTML 预览已过期；请重新打开文件", "HTML preview expired; reopen the file"))
 		}
 		opts.Title, opts.URL = t.HTML.Name, t.HTML.URL()
 		opts.LocalHTMLURL = opts.URL
@@ -84,21 +84,21 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	f := &floatingDocumentWindow{tab: t, pdf: t.Document, html: t.HTML, media: t.Media, done: make(chan struct{})}
 	b.floatingDocument = f
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title: "浮动预览 · " + opts.Title, Width: 720, Height: 520, MinWidth: 320, MinHeight: 220,
+		Title: browserChromeLabel("浮动预览 · ", "Floating preview · ") + opts.Title, Width: 720, Height: 520, MinWidth: 320, MinHeight: 220,
 		Parent: b.parent, AlwaysOnTop: true, SkipTaskbar: true, DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true,
 		Content: ui.View(func(c *ui.Context) {
 			fonttheme.ApplyInterface(c)
 			ui.Column(c).Fill().Children(func() {
 				ui.Row(c).Height(floatingDocumentChromeHeight).Padding(6, 10).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, truncate(opts.Title, 40)+" · 只读快照").FontSize(fonttheme.InterfaceSize(12)).Grow(1).Tooltip(opts.Title)
-					if t.source != nil && ui.Button(c, "刷新").Disabled(t.sourceRead != nil).Clicked() {
+					ui.Text(c, truncate(opts.Title, 40)+browserChromeLabel(" · 只读快照", " · Read-only snapshot")).FontSize(fonttheme.InterfaceSize(12)).Grow(1).Tooltip(opts.Title)
+					if t.source != nil && ui.Button(c, browserChromeLabel("刷新", "Reload")).Disabled(t.sourceRead != nil).Clicked() {
 						t.floatAfterRead = true
 						b.retryDocument(t)
 					}
 					if t.Error != "" {
 						ui.Text(c, t.Error).Tooltip(t.Error)
 					}
-					if ui.Button(c, "关闭").Clicked() {
+					if ui.Button(c, browserChromeLabel("关闭", "Close")).Clicked() {
 						t.floatAfterRead = false
 						b.stopFloatingDocument()
 					}
@@ -112,7 +112,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	f.win = w
 	if w == nil || w.IsDestroyed() {
 		b.stopFloatingDocument()
-		t.Error = "浮动预览窗口创建失败"
+		t.Error = browserChromeLabel("浮动预览窗口创建失败", "Could not create floating preview window")
 		b.update()
 		return
 	}
@@ -138,14 +138,14 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	// Host failure closes only its borrowed child, never the source document.
 	opts.OnClosed = func() {
 		if !f.closed {
-			f.status = "浮窗预览已停止；请关闭后重新打开。"
+			f.status = browserChromeLabel("浮窗预览已停止；请关闭后重新打开。", "Floating preview stopped; close and reopen it.")
 			w.Invalidate()
 		}
 	}
 	h, err := desktop.NewHost(opts)
 	if err != nil {
 		b.stopFloatingDocument()
-		t.Error = "浮动预览不可用：" + err.Error()
+		t.Error = browserChromeLabel("浮动预览不可用：", "Floating preview unavailable: ") + err.Error()
 		b.update()
 		return
 	}

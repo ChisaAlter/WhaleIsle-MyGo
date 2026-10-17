@@ -23,7 +23,7 @@ func (b *Controller) OpenMedia(doc *mediapreview.Document, floating bool) error 
 	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
-		t.Error = "音视频预览不可用：" + err.Error()
+		t.Error = browserChromeLabel("音视频预览不可用：", "Media preview unavailable: ") + err.Error()
 	} else {
 		t.Host = h
 		b.showHost(h)
@@ -49,14 +49,14 @@ func (b *Controller) PruneMediaDocuments() {
 		}
 		t.Media.Close()
 		if t.Error == "" {
-			t.Error = "媒体预览已过期、关闭或 Host/会话改变；请从 Files 重新打开。"
+			t.Error = browserChromeLabel("媒体预览已过期、关闭或 Host/会话改变；请从 Files 重新打开。", "Media preview expired, closed or changed Host/session; reopen it from Files.")
 		}
 	}
 }
 func (b *Controller) mediaControls(c *ui.Context, t *Tab) {
 	ui.Text(c, t.Media.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
-	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
+	if ui.Button(c, browserChromeLabel("浮动预览", "Floating preview")).Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
 		b.openFloatingDocument(t)
 	}
-	ui.Text(c, "≤32 MiB · 30 分钟 · 播放支持取决于 WebView2").FontSize(fonttheme.InterfaceSize(10))
+	ui.Text(c, browserChromeLabel("≤32 MiB · 30 分钟 · 播放支持取决于 WebView2", "≤32 MiB · 30 minutes · Playback support depends on WebView2")).FontSize(fonttheme.InterfaceSize(10))
 }

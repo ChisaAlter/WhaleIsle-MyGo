@@ -70,7 +70,7 @@ func (s browserToolSettings) dimensions(width, height string) (int, int, error) 
 	w, e1 := strconv.Atoi(strings.TrimSpace(width))
 	h, e2 := strconv.Atoi(strings.TrimSpace(height))
 	if e1 != nil || e2 != nil {
-		return 0, 0, errors.New("宽和高必须是整数")
+		return 0, 0, errors.New(browserChromeLabel("宽和高必须是整数", "Width and height must be integers"))
 	}
 	if s.AspectLocked && s.Width > 0 && s.Height > 0 {
 		if w != s.Width {
@@ -80,7 +80,7 @@ func (s browserToolSettings) dimensions(width, height string) (int, int, error) 
 		}
 	}
 	if !validBrowserDimensions(w, h) {
-		return 0, 0, errors.New("宽高须为 240–3840，面积不能超过 3840 × 2160")
+		return 0, 0, errors.New(browserChromeLabel("宽高须为 240–3840，面积不能超过 3840 × 2160", "Width and height must be 240–3840; area must not exceed 3840 × 2160"))
 	}
 	return w, h, nil
 }

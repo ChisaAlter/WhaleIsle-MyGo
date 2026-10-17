@@ -8,10 +8,10 @@ import "errors"
 func openBrowserAddress(draft string, open func(string) error) error {
 	raw := NormalizeURL(draft)
 	if raw == "" {
-		return errors.New("请输入有效且不含账号密码的 HTTP(S) 地址")
+		return errors.New(browserChromeLabel("请输入有效且不含账号密码的 HTTP(S) 地址", "Enter a valid HTTP(S) address without a username or password"))
 	}
 	if open == nil {
-		return errors.New("系统浏览器打开功能不可用")
+		return errors.New(browserChromeLabel("系统浏览器打开功能不可用", "System browser opening is unavailable"))
 	}
 	// URL only: no Browser profile, Cookie, auth header, file capability or
 	// workspace state is handed off. This runs only after an explicit UI click.

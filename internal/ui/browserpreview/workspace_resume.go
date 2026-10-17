@@ -64,7 +64,7 @@ func (b *Controller) RestoreWorkspace(saved *WorkspaceSnapshot) {
 			tab.source, tab.sourcePending, tab.Draft = &source, true, source.Path
 		} else if item.Document {
 			tab.Draft = ""
-			tab.ActionMessage = "文档快照已结束，请从原文件重新打开预览。"
+			tab.ActionMessage = browserChromeLabel("文档快照已结束，请从原文件重新打开预览。", "Document snapshot ended; reopen the preview from the source file.")
 		} else {
 			tab.resumeURL = NormalizeURL(item.URL)
 		}
@@ -93,7 +93,7 @@ func (b *Controller) resumeCurrent() {
 	}
 	workspace, err := b.browserWorkspace()
 	if err != nil || tab.workspace.needsNewTab(workspace) {
-		tab.ActionMessage = "此标签属于另一个工作区分区；切回原工作区后继续浏览，或点击前往新建当前分区页面。"
+		tab.ActionMessage = browserChromeLabel("此标签属于另一个工作区分区；切回原工作区后继续浏览，或点击前往新建当前分区页面。", "This tab belongs to another workspace profile. Switch back to continue browsing, or choose Go to open a page in the current profile.")
 		return
 	}
 	raw := tab.resumeURL

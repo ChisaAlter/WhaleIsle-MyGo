@@ -37,18 +37,18 @@ func (b *Controller) openPictureInPicture(t *Tab) {
 	}
 	b.stopPictureInPicture()
 	ctx, cancel := context.WithCancel(context.Background())
-	p := &browserPictureInPicture{tab: t, host: t.Host, epoch: t.Host.BrowserPageVersion(), ctx: ctx, cancel: cancel, source: t.Host.State().URL, status: "正在读取来源网页画面…"}
+	p := &browserPictureInPicture{tab: t, host: t.Host, epoch: t.Host.BrowserPageVersion(), ctx: ctx, cancel: cancel, source: t.Host.State().URL, status: browserChromeLabel("正在读取来源网页画面…", "Reading source webpage frames…")}
 	b.pip = p
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title: "Browser · 画中画", Width: 480, Height: 320, MinWidth: 240, MinHeight: 180,
+		Title: browserChromeLabel("Browser · 画中画", "Browser · Picture-in-picture"), Width: 480, Height: 320, MinWidth: 240, MinHeight: 180,
 		Parent: b.parent, AlwaysOnTop: true, SkipTaskbar: true, DisableMaximize: true, DisableFullScreen: true,
 		Page: mygo.PageOptions{DevTools: mygo.DevToolsDisabled},
 		Content: ui.View(func(c *ui.Context) {
 			fonttheme.ApplyInterface(c)
 			ui.Column(c).Fill().MinHeight(0).Padding(8).Gap(6).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "网页画中画 · 最多 4 帧/秒 · 无音频").FontSize(fonttheme.InterfaceSize(11)).Grow(1)
-					if ui.Button(c, "关闭").Clicked() {
+					ui.Text(c, browserChromeLabel("网页画中画 · 最多 4 帧/秒 · 无音频", "Webpage picture-in-picture · Up to 4 frames/second · No audio")).FontSize(fonttheme.InterfaceSize(11)).Grow(1)
+					if ui.Button(c, browserChromeLabel("关闭", "Close")).Clicked() {
 						b.stopPictureInPicture()
 					}
 				})
@@ -64,7 +64,7 @@ func (b *Controller) openPictureInPicture(t *Tab) {
 	p.win = w
 	if w == nil || w.IsDestroyed() {
 		b.stopPictureInPicture()
-		t.Error = "画中画窗口创建失败"
+		t.Error = browserChromeLabel("画中画窗口创建失败", "Could not create picture-in-picture window")
 		return
 	}
 	w.OnClosed(func() {
@@ -132,7 +132,7 @@ func (b *Controller) pictureInPictureFrames(p *browserPictureInPicture) {
 			}
 			if err != nil {
 				p.bitmap = nil
-				p.status = "画中画已停止：" + err.Error()
+				p.status = browserChromeLabel("画中画已停止：", "Picture-in-picture stopped: ") + err.Error()
 				p.cancel()
 				if errors.Is(err, context.Canceled) {
 					b.stopPictureInPicture()
@@ -169,7 +169,7 @@ func decodePictureInPictureFrame(data []byte) (*ui.Bitmap, error) {
 		return nil, err
 	}
 	if len(data) > 8*1024*1024 || config.Width < 1 || config.Height < 1 || int64(config.Width)*int64(config.Height) > 4*1024*1024 {
-		return nil, errors.New("画中画帧超过内存上限")
+		return nil, errors.New(browserChromeLabel("画中画帧超过内存上限", "Picture-in-picture frame exceeds the memory limit"))
 	}
 	source, err := png.Decode(bytes.NewReader(data))
 	if err != nil {

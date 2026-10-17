@@ -46,7 +46,7 @@ func recordingSourceCurrent(host *desktop.Host, epoch uint64) bool {
 }
 func (b *Controller) pruneBrowserRecording() {
 	if r := b.recording; r != nil && !b.recordingCurrent(r) {
-		b.cancelBrowserRecording("来源网页或窗口已变化；录制已取消，未导出")
+		b.cancelBrowserRecording(browserChromeLabel("来源网页或窗口已变化；录制已取消，未导出", "Source page or window changed; recording cancelled without export"))
 	}
 }
 func (b *Controller) cancelBrowserRecording(message string) {
@@ -72,7 +72,7 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 	r := &browserRecording{tab: t, host: t.Host, epoch: t.Host.BrowserPageVersion(), ctx: ctx, cancel: cancel, stop: make(chan struct{}), phase: "starting"}
 	b.recording = r
 	t.Error = ""
-	t.ActionMessage = "准备视频编码器；仅录制当前网页，无音频…"
+	t.ActionMessage = browserChromeLabel("准备视频编码器；仅录制当前网页，无音频…", "Preparing video encoder; recording only this webpage, without audio…")
 	b.update()
 	// Freeze references before leaving the UI thread. No live Host/model RPC,
 	// display capture, guest script execution or authentication material is used.
@@ -95,13 +95,13 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 				if r.phase != "stopping" {
 					r.phase = p.Phase
 					if p.Phase == "recording" {
-						r.tab.ActionMessage = "正在录制当前网页（无音频）；停止后可导出视频"
+						r.tab.ActionMessage = browserChromeLabel("正在录制当前网页（无音频）；停止后可导出视频", "Recording this webpage without audio; stop to export the video")
 					}
 				}
 				r.frames = p.Frames
 				r.elapsed = p.Elapsed
 				if p.Phase == "stopping" {
-					r.tab.ActionMessage = "停止取帧，正在完成视频编码…"
+					r.tab.ActionMessage = browserChromeLabel("停止取帧，正在完成视频编码…", "Stopped capturing frames; finishing video encoding…")
 				}
 				accepted <- true
 			})
@@ -111,7 +111,7 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-timer.C:
-				return errors.New("录制窗口未响应，已取消")
+				return errors.New(browserChromeLabel("录制窗口未响应，已取消", "Recording window did not respond; cancelled"))
 			case ok := <-accepted:
 				if !ok {
 					return context.Canceled
@@ -122,22 +122,22 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 		owner.Update(func() {
 			if !b.recordingCurrent(r) {
 				if b.recording == r {
-					b.cancelBrowserRecording("来源网页已变化；录制已取消，未导出")
+					b.cancelBrowserRecording(browserChromeLabel("来源网页已变化；录制已取消，未导出", "Source page changed; recording cancelled without export"))
 				}
 				return
 			}
 			if err != nil {
 				b.cancelBrowserRecording("")
 				if errors.Is(err, context.Canceled) {
-					t.ActionMessage = "录制已取消，未导出"
+					t.ActionMessage = browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported")
 				} else {
-					t.Error = "录制失败，未导出：" + err.Error()
+					t.Error = browserChromeLabel("录制失败，未导出：", "Recording failed; nothing exported: ") + err.Error()
 				}
 				return
 			}
 			r.artifact = &result
 			r.phase = "ready"
-			t.ActionMessage = fmt.Sprintf("视频已编码（%.1f MiB）；点击「导出视频」保存，或丢弃", float64(len(result.Data))/(1024*1024))
+			t.ActionMessage = fmt.Sprintf(browserChromeLabel("视频已编码（%.1f MiB）；点击「导出视频」保存，或丢弃", "Video encoded (%.1f MiB); choose Export video to save, or discard it"), float64(len(result.Data))/(1024*1024))
 		})
 	}()
 }
@@ -147,7 +147,7 @@ func (b *Controller) stopBrowserRecording(r *browserRecording) {
 	}
 	r.phase = "stopping"
 	r.stopOnce.Do(func() { close(r.stop) })
-	r.tab.ActionMessage = "停止取帧，正在完成视频编码…"
+	r.tab.ActionMessage = browserChromeLabel("停止取帧，正在完成视频编码…", "Stopped capturing frames; finishing video encoding…")
 	b.update()
 }
 func (b *Controller) exportBrowserRecording(r *browserRecording) {
@@ -158,11 +158,11 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 	b.update()
 	owner, artifact := b.parent, *r.artifact
 	go func() {
-		path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: owner, Title: "导出网页视频（无音频）", DefaultPath: "browser-" + time.Now().Format("20060102-150405") + artifact.Extension(), Filters: []mygo.FileFilter{{Name: "Video", Extensions: []string{artifact.Extension()[1:]}}}})
+		path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: owner, Title: browserChromeLabel("导出网页视频（无音频）", "Export webpage video (no audio)"), DefaultPath: "browser-" + time.Now().Format("20060102-150405") + artifact.Extension(), Filters: []mygo.FileFilter{{Name: "Video", Extensions: []string{artifact.Extension()[1:]}}}})
 		owner.Update(func() {
 			if !b.recordingCurrent(r) {
 				if b.recording == r {
-					b.cancelBrowserRecording("来源网页已变化；视频未导出")
+					b.cancelBrowserRecording(browserChromeLabel("来源网页已变化；视频未导出", "Source page changed; video was not exported"))
 				}
 				return
 			}
@@ -179,7 +179,7 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 				path += artifact.Extension()
 			}
 			r.tab.Error = ""
-			r.tab.ActionMessage = "正在导出视频…"
+			r.tab.ActionMessage = browserChromeLabel("正在导出视频…", "Exporting video…")
 			go func() {
 				err := artifact.Export(r.ctx, path)
 				owner.Update(func() {
@@ -188,14 +188,14 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 					}
 					if err != nil {
 						r.phase = "ready"
-						r.tab.Error = "视频未导出：" + err.Error()
+						r.tab.Error = browserChromeLabel("视频未导出：", "Video was not exported: ") + err.Error()
 						return
 					}
 					b.recording = nil
 					r.artifact = nil
 					r.cancel()
 					r.tab.RecordingPath = path
-					r.tab.ActionMessage = "视频已导出：" + path
+					r.tab.ActionMessage = browserChromeLabel("视频已导出：", "Video exported: ") + path
 				})
 			}()
 		})
@@ -208,39 +208,39 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		}
 		switch r.phase {
 		case "starting":
-			ui.Text(c, "准备编码器…").FontSize(fonttheme.InterfaceSize(11))
+			ui.Text(c, browserChromeLabel("准备编码器…", "Preparing encoder…")).FontSize(fonttheme.InterfaceSize(11))
 		case "recording":
-			ui.Text(c, fmt.Sprintf("● 录制 %02d:%02d · %d 帧", int(r.elapsed.Seconds())/60, int(r.elapsed.Seconds())%60, r.frames)).FontSize(fonttheme.InterfaceSize(11))
-			if ui.Button(c, "停止录制").Clicked() {
+			ui.Text(c, fmt.Sprintf(browserChromeLabel("● 录制 %02d:%02d · %d 帧", "● Recording %02d:%02d · %d frames"), int(r.elapsed.Seconds())/60, int(r.elapsed.Seconds())%60, r.frames)).FontSize(fonttheme.InterfaceSize(11))
+			if ui.Button(c, browserChromeLabel("停止录制", "Stop recording")).Clicked() {
 				b.stopBrowserRecording(r)
 			}
 		case "stopping":
-			ui.Text(c, "完成视频编码…").FontSize(fonttheme.InterfaceSize(11))
+			ui.Text(c, browserChromeLabel("完成视频编码…", "Finishing video encoding…")).FontSize(fonttheme.InterfaceSize(11))
 		case "ready":
-			if ui.Button(c, "导出视频…").Clicked() {
+			if ui.Button(c, browserChromeLabel("导出视频…", "Export video…")).Clicked() {
 				b.exportBrowserRecording(r)
 			}
 		case "exporting":
-			ui.Text(c, "导出视频…").FontSize(fonttheme.InterfaceSize(11))
+			ui.Text(c, browserChromeLabel("导出视频…", "Export video…")).FontSize(fonttheme.InterfaceSize(11))
 		}
-		label := "取消录制"
+		label := browserChromeLabel("取消录制", "Cancel recording")
 		if r.phase == "ready" {
-			label = "丢弃视频"
+			label = browserChromeLabel("丢弃视频", "Discard video")
 		}
 		if ui.Button(c, label).Clicked() {
-			b.cancelBrowserRecording("录制已取消，未导出")
+			b.cancelBrowserRecording(browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported"))
 			b.update()
 		}
 		return
 	}
-	if ui.Button(c, "录制视频").Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。").Clicked() {
+	if ui.Button(c, browserChromeLabel("录制视频", "Record video")).Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip(browserChromeLabel("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。", "This webpage only, without audio; up to about 12 frames/second, using the first frame’s resolution, with no fixed duration limit. Encoded files are limited to 512 MiB and discarded if exceeded. Maximum viewport edge: 3840; area: 3840×2160. Native HiDPI pixels are retained; each PNG frame is limited to 64 MiB. Switching tabs, navigating or closing cancels recording; export manually after stopping. WebM/MP4 encoder support is detected at startup and depends on the system WebView and media plugins; MP4 is tried if WebM is unavailable.")).Clicked() {
 		b.startBrowserRecording(t)
 	}
-	if t.RecordingPath != "" && ui.Button(c, "显示视频").Clicked() {
+	if t.RecordingPath != "" && ui.Button(c, browserChromeLabel("显示视频", "Show video")).Clicked() {
 		if info, err := os.Stat(t.RecordingPath); err == nil && info.Mode().IsRegular() {
 			mygo.Shell.ShowItemInFolder(t.RecordingPath)
 		} else {
-			t.Error = "视频文件已移除，请重新录制"
+			t.Error = browserChromeLabel("视频文件已移除，请重新录制", "Video file was removed; record again")
 		}
 	}
 }

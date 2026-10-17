@@ -96,12 +96,12 @@ func (b *Controller) localServerControls(c *ui.Context, t *Tab) {
 			return
 		}
 		if request.problem != "" {
-			ui.Text(c, "本机服务探测异常").Tooltip(request.problem + "；每 3 秒自动重试，已发现服务仍可打开。")
+			ui.Text(c, browserChromeLabel("本机服务探测异常", "Local service discovery failed")).Tooltip(request.problem + browserChromeLabel("；每 3 秒自动重试，已发现服务仍可打开。", "; retries every 3 seconds. Already discovered services can still be opened."))
 		}
 		if len(request.servers) == 0 {
 			return
 		}
-		ui.Text(c, "发现本机服务").Tooltip("每 3 秒探测本机固定开发端口；仅 TCP 连通性，不保证 HTTP 可用。不会启动服务。")
+		ui.Text(c, browserChromeLabel("发现本机服务", "Discover local services")).Tooltip(browserChromeLabel("每 3 秒探测本机固定开发端口；仅 TCP 连通性，不保证 HTTP 可用。不会启动服务。", "Probe fixed local development ports every 3 seconds. TCP connectivity only; HTTP availability is not guaranteed. No services are started."))
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
 				for _, server := range request.servers {

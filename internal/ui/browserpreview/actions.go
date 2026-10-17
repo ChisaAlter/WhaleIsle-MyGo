@@ -72,7 +72,7 @@ func (b *Controller) EndFrame() {
 
 // CancelAction is also called by Hide, navigation, tab changes and Close.
 func (b *Controller) CancelAction() {
-	b.cancelBrowserRecording("录制已取消，未导出")
+	b.cancelBrowserRecording(browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported"))
 	b.cancelBrowserTools()
 	if op := b.operation; op != nil {
 		b.operation = nil
@@ -113,20 +113,20 @@ func (b *Controller) startAction(t *Tab, kind string) {
 		target = b.actionTarget()
 	}
 	if target.Valid == nil || !target.Valid() {
-		t.Error = "当前窗口或会话已变化，请重试"
+		t.Error = browserChromeLabel("当前窗口或会话已变化，请重试", "The window or session changed; try again")
 		return
 	}
 	if kind == "pick" && target.Append == nil {
-		t.Error = "请先选择会话，再把网页元素加入该会话草稿"
+		t.Error = browserChromeLabel("请先选择会话，再把网页元素加入该会话草稿", "Select a session before adding webpage elements to its draft")
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	op := &previewOperation{tab: t, host: t.Host, target: target, ctx: ctx, cancel: cancel, kind: kind}
 	b.operation = op
 	t.Error = ""
-	t.ActionMessage = "正在截取当前网页可见区域…"
+	t.ActionMessage = browserChromeLabel("正在截取当前网页可见区域…", "Capturing the visible webpage…")
 	if kind == "pick" {
-		t.ActionMessage = "点击网页元素加入当前会话草稿；Esc 或「取消」退出"
+		t.ActionMessage = browserChromeLabel("点击网页元素加入当前会话草稿；Esc 或「取消」退出", "Click a webpage element to add it to the current draft; press Esc or Cancel to exit")
 	}
 	b.update()
 	go func() {
@@ -168,15 +168,15 @@ func (b *Controller) startAction(t *Tab, kind string) {
 			}
 			if kind == "pick" {
 				if !target.Append(annotation) {
-					t.Error = "草稿已发送、进入编辑或所属会话变化；本次选取未写入"
+					t.Error = browserChromeLabel("草稿已发送、进入编辑或所属会话变化；本次选取未写入", "The draft was sent, entered edit mode or changed session; the selection was not added")
 					return
 				}
-				t.ActionMessage = "网页元素已加入发起会话草稿，请返回工作区检查后发送"
+				t.ActionMessage = browserChromeLabel("网页元素已加入发起会话草稿，请返回工作区检查后发送", "Webpage element added to the initiating session’s draft; review it in the workspace before sending")
 				return
 			}
 			if path != "" {
 				t.ArtifactPath = path
-				t.ActionMessage = "截图已保存：" + path
+				t.ActionMessage = browserChromeLabel("截图已保存：", "Screenshot saved: ") + path
 				mygo.Shell.ShowItemInFolder(path)
 			}
 		})
@@ -192,34 +192,34 @@ func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) 
 	ui.ScrollHorizontal(c).Height(28).FillWidth().Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			b.recordingControls(c, t, disabled)
-			if ui.Button(c, "可视批注").Disabled(disabled).Clicked() {
+			if ui.Button(c, browserChromeLabel("可视批注", "Visual annotation")).Disabled(disabled).Clicked() {
 				b.startAnnotation(t)
 			}
 			if op := b.operation; op != nil && op.ready {
-				if ui.Button(c, "查看批注截图").Clicked() {
+				if ui.Button(c, browserChromeLabel("查看批注截图", "View annotated screenshot")).Clicked() {
 					mygo.Shell.ShowItemInFolder(op.attachmentPath)
 				}
-				if ui.Button(c, "复制批注").Clicked() {
+				if ui.Button(c, browserChromeLabel("复制批注", "Copy annotation")).Clicked() {
 					mygo.Clipboard.WriteText(op.annotation)
 				}
-				if ui.Button(c, "批注和截图加入草稿").Tooltip(truncate(op.annotation, 2000)).Clicked() {
+				if ui.Button(c, browserChromeLabel("批注和截图加入草稿", "Add annotation and screenshot to draft")).Tooltip(truncate(op.annotation, 2000)).Clicked() {
 					b.appendAnnotation(op)
 				}
 			}
-			if ui.Button(c, "选择元素").Disabled(disabled).Clicked() {
+			if ui.Button(c, browserChromeLabel("选择元素", "Select element")).Disabled(disabled).Clicked() {
 				b.startAction(t, "pick")
 			}
-			if ui.Button(c, "网页截图").Disabled(disabled).Clicked() {
+			if ui.Button(c, browserChromeLabel("网页截图", "Screenshot")).Disabled(disabled).Clicked() {
 				b.startAction(t, "screenshot")
 			}
-			if busy && ui.Button(c, "取消").Clicked() {
+			if busy && ui.Button(c, browserChromeLabel("取消", "Cancel")).Clicked() {
 				b.CancelAction()
 			}
-			if t.ArtifactPath != "" && ui.Button(c, "显示截图").Clicked() {
+			if t.ArtifactPath != "" && ui.Button(c, browserChromeLabel("显示截图", "Show screenshot")).Clicked() {
 				if info, err := os.Stat(t.ArtifactPath); err == nil && info.Mode().IsRegular() {
 					mygo.Shell.ShowItemInFolder(t.ArtifactPath)
 				} else {
-					t.Error = "截图文件已移除，请重新截图"
+					t.Error = browserChromeLabel("截图文件已移除，请重新截图", "Screenshot file was removed; take another screenshot")
 				}
 			}
 		})

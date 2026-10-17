@@ -31,15 +31,15 @@ func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
 		return
 	}
 	if t.interactive != nil {
-		if ui.Button(c, "停止交互预览").Clicked() {
+		if ui.Button(c, browserChromeLabel("停止交互预览", "Stop interactive preview")).Clicked() {
 			b.stopInteractiveHTML(t)
-			t.ActionMessage = "交互预览已停止；当前静态快照保留"
+			t.ActionMessage = browserChromeLabel("交互预览已停止；当前静态快照保留", "Interactive preview stopped; the static snapshot is retained")
 		}
 		return
 	}
 	supported := (runtime.GOOS == "windows" || runtime.GOOS == "linux" || runtime.GOOS == "darwin") && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
-	if ui.Button(c, "运行脚本（隔离实验）").Disabled(!supported).
-		Tooltip("仅本次在独立隔离窗口运行已保存 HTML 的脚本；不开放网络或应用权限。任何失败都保留当前静态预览。").Clicked() {
+	if ui.Button(c, browserChromeLabel("运行脚本（隔离实验）", "Run scripts (isolated experiment)")).Disabled(!supported).
+		Tooltip(browserChromeLabel("仅本次在独立隔离窗口运行已保存 HTML 的脚本；不开放网络或应用权限。任何失败都保留当前静态预览。", "Run saved HTML scripts once in a separate isolated window, without network or app permissions. Any failure retains the static preview.")).Clicked() {
 		b.startInteractiveHTML(t, dark)
 	}
 }
@@ -50,7 +50,7 @@ func (b *Controller) stopInteractiveHTML(t *Tab) {
 	}
 	op := t.interactive
 	t.interactive = nil
-	t.ActionMessage = "交互预览已停止；当前静态快照保留"
+	t.ActionMessage = browserChromeLabel("交互预览已停止；当前静态快照保留", "Interactive preview stopped; the static snapshot is retained")
 	op.cancel() // Job cleanup is asynchronous; never block the UI on process exit.
 }
 
@@ -80,7 +80,7 @@ func installedPreviewHelper() (string, error) {
 	path := previewprocess.HelperPath(executable)
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
-		return "", fmt.Errorf("隔离 helper 未随应用安装，保留静态预览")
+		return "", fmt.Errorf("%s", browserChromeLabel("隔离 helper 未随应用安装，保留静态预览", "Isolation helper is not installed; retaining the static preview"))
 	}
 	return path, nil
 }
@@ -94,7 +94,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	op := &interactivePreview{ctx: ctx, cancel: cancel}
 	t.interactive = op
-	t.ActionMessage = "正在检查隔离条件并准备独立窗口；静态快照保持打开…"
+	t.ActionMessage = browserChromeLabel("正在检查隔离条件并准备独立窗口；静态快照保持打开…", "Checking isolation and preparing a separate window; the static snapshot stays open…")
 	doc := t.HTML
 	appearance := "light"
 	if dark {
@@ -127,7 +127,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 		if err == nil && ctx.Err() == nil {
 			var report htmldocument.ResourceReport
 			prepared, report, err = doc.InteractiveSnapshot(ctx)
-			resources = strings.Replace(report.Summary(), "静态资源", "资源", 1)
+			resources = strings.Replace(report.Summary(), browserChromeLabel("静态资源", "Static resources"), browserChromeLabel("资源", "Resources"), 1)
 		}
 		var session *previewprocess.Session
 		if err == nil && ctx.Err() == nil {
@@ -146,7 +146,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 					return
 				}
 				t.interactive = nil
-				t.ActionMessage = "交互预览未启动，静态快照已保留：" + err.Error()
+				t.ActionMessage = browserChromeLabel("交互预览未启动，静态快照已保留：", "Interactive preview did not start; static snapshot retained: ") + err.Error()
 				return
 			}
 			if !b.ownsInteractiveHTML(t, op) {
@@ -155,7 +155,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 				}
 				return
 			}
-			t.ActionMessage = "交互预览已在独立隔离窗口打开；" + resources + "；网络/运行时文件依赖禁用，关闭/切换标签会停止脚本"
+			t.ActionMessage = browserChromeLabel("交互预览已在独立隔离窗口打开；", "Interactive preview opened in a separate isolated window; ") + resources + browserChromeLabel("；网络/运行时文件依赖禁用，关闭/切换标签会停止脚本", "; network and runtime file dependencies are disabled; closing or switching tabs stops scripts")
 		})
 		if session == nil {
 			return
@@ -171,7 +171,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 				return
 			}
 			t.interactive = nil
-			t.ActionMessage = "交互预览已结束；当前静态快照保留"
+			t.ActionMessage = browserChromeLabel("交互预览已结束；当前静态快照保留", "Interactive preview ended; the static snapshot is retained")
 		})
 	}()
 }

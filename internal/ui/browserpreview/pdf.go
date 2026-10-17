@@ -56,16 +56,16 @@ func (b *Controller) PrunePDFDocuments() {
 			continue
 		}
 		if t.Error == "" {
-			t.Error = "PDF 预览已关闭、过期或所属会话改变；请重新打开文件，或使用系统打开。"
+			t.Error = browserChromeLabel("PDF 预览已关闭、过期或所属会话改变；请重新打开文件，或使用系统打开。", "PDF preview closed, expired or changed session; reopen the file or use system open.")
 		}
 	}
 }
 func (b *Controller) documentControls(c *ui.Context, t *Tab) {
 	ui.Text(c, t.Document.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
-	if ui.Button(c, "浮动预览").Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
+	if ui.Button(c, browserChromeLabel("浮动预览", "Floating preview")).Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
 		b.openFloatingDocument(t)
 	}
-	if ui.Button(c, "系统打开").Clicked() {
+	if ui.Button(c, browserChromeLabel("系统打开", "Open externally")).Clicked() {
 		path, err := t.Document.ExternalPath()
 		if err == nil {
 			err = mygo.Shell.OpenPath(path)
@@ -74,7 +74,7 @@ func (b *Controller) documentControls(c *ui.Context, t *Tab) {
 			t.Error = err.Error()
 		}
 	}
-	if ui.Button(c, "复制文件路径").Clicked() {
+	if ui.Button(c, browserChromeLabel("复制文件路径", "Copy file path")).Clicked() {
 		path, err := t.Document.ExternalPath()
 		if err != nil {
 			t.Error = err.Error()

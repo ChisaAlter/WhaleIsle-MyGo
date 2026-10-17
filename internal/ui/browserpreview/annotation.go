@@ -17,14 +17,14 @@ func (b *Controller) startAnnotation(t *Tab) {
 		target = b.actionTarget()
 	}
 	if target.Valid == nil || !target.Valid() || target.AppendAnnotation == nil {
-		t.Error = "请先选择可编辑会话，再添加网页批注"
+		t.Error = browserChromeLabel("请先选择可编辑会话，再添加网页批注", "Select an editable session before adding webpage annotations")
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	op := &previewOperation{tab: t, host: t.Host, target: target, ctx: ctx, cancel: cancel, kind: "annotation"}
 	b.operation = op
 	t.Error = ""
-	t.ActionMessage = "可视批注：Shift 多选、框选、画笔、橡皮、样式与评论；Review 后在原生工具栏确认加入草稿"
+	t.ActionMessage = browserChromeLabel("可视批注：Shift 多选、框选、画笔、橡皮、样式与评论；Review 后在原生工具栏确认加入草稿", "Visual annotation: Shift multi-select, box select, pen, eraser, styles and comments. After Review, confirm adding to the draft in the native toolbar.")
 	b.update()
 	go func() {
 		annotation, data, err := op.host.AnnotateBrowser(ctx)
@@ -62,7 +62,7 @@ func (b *Controller) startAnnotation(t *Tab) {
 			op.annotation = annotation.Markdown()
 			op.attachmentPath = path
 			op.ready = true
-			t.ActionMessage = "批注已准备：请检查后点击「批注和截图加入草稿」；取消会删除本次临时截图"
+			t.ActionMessage = browserChromeLabel("批注已准备：请检查后点击「批注和截图加入草稿」；取消会删除本次临时截图", "Annotation ready: review it, then choose Add annotation and screenshot to draft. Cancelling deletes this temporary screenshot.")
 		})
 	}()
 }
@@ -72,13 +72,13 @@ func (b *Controller) appendAnnotation(op *previewOperation) {
 		return
 	}
 	if !appendPreparedAnnotation(op, b.actionCurrent) {
-		op.tab.Error = "草稿或所属会话已变化；批注未写入"
+		op.tab.Error = browserChromeLabel("草稿或所属会话已变化；批注未写入", "Draft or session changed; annotation was not added")
 		return
 	}
 	// Composer now owns the attachment through its existing preparation/upload
 	// flow. Never auto-submit, switch sessions, or remove its source underneath it.
 	op.attachmentPath = ""
-	op.tab.ActionMessage = "批注和裁剪截图已加入发起会话草稿，请检查后发送"
+	op.tab.ActionMessage = browserChromeLabel("批注和裁剪截图已加入发起会话草稿，请检查后发送", "Annotation and cropped screenshot added to the initiating session’s draft; review before sending")
 	b.operation = nil
 	op.cancel()
 	b.update()
