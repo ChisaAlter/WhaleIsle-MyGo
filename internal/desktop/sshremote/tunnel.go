@@ -145,23 +145,11 @@ func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmpFile, err := os.CreateTemp(filepath.Dir(path), ".ssh-tunnel-*.json")
-	if err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
-	tmp := tmpFile.Name()
 	defer os.Remove(tmp)
-	if err := tmpFile.Chmod(0o600); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
 	return os.Rename(tmp, path)
 }
 
