@@ -59,6 +59,7 @@ type AgentNavigationView struct {
 	Body                                           string
 }
 type agentNavigationState struct {
+	branches      map[string]*agentCatalogBranch
 	notifyPending bool // coalesce live repaint requests until the pane reads
 	actionCancel  context.CancelFunc
 	actionEpoch   uint64
@@ -73,6 +74,11 @@ type agentNavigationState struct {
 }
 
 func (s *Store) invalidateAgentNavigationLocked() {
+	for _, b := range s.agentNavigation.branches {
+		if b.cancel != nil {
+			b.cancel()
+		}
+	}
 	if s.agentNavigation.actionCancel != nil {
 		s.agentNavigation.actionCancel()
 	}
@@ -192,6 +198,7 @@ func (s *Store) BackAgentNavigation(token uint64) {
 		n.cancel()
 		n.cancel = nil
 	}
+	s.cancelAgentCatalogReadsLocked()
 	v := freezeAgentNavigationView(n.parents[len(n.parents)-1])
 	n.notifyPending = false
 	n.parents = n.parents[:len(n.parents)-1]
@@ -241,6 +248,7 @@ func agentNavigationBefore(p projectflow.ProcessSnapshot) float64 {
 }
 
 func (s *Store) startAgentNavigationReadLocked(earlier bool) {
+	s.cancelAgentCatalogReadsLocked()
 	n := &s.agentNavigation
 	if n.actionCancel != nil {
 		n.actionCancel()

@@ -116,6 +116,9 @@ func (s *Store) applyAgentNavigationControlLocked(raw json.RawMessage) {
 	}
 	n := &s.agentNavigation
 	apply(&n.view)
+	for _, b := range n.branches {
+		apply(&b.view)
+	}
 	for i := range n.parents {
 		apply(&n.parents[i])
 	}

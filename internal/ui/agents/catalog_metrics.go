@@ -103,14 +103,23 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 		ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	var buttons []ui.Element
-	var addresses []session.AgentSessionAddress
+	var paths [][]session.AgentSessionAddress
 	now := float64(time.Now().UnixMilli())
-	for index, row := range v.Rows {
+	tree := m.Store.AgentCatalogTree(v.Token)
+	for index, node := range tree {
+		row := node.Row
 		if row.ActivityKnown && row.Running && row.Metrics.Timing != nil && row.Metrics.Timing.Since != nil {
 			c.After(time.Second)
 		}
-		ui.Column(c.Key(fmt.Sprintf("catalog:%s:%d:%d", v.SessionID, v.Token, index))).FillWidth().Gap(2).Children(func() {
+		ui.Column(c.Key(fmt.Sprintf("catalog:%s:%d:%d", v.SessionID, v.Token, index))).FillWidth().Gap(2).Padding(0, 0, 0, float32(node.Depth*14)).Children(func() {
 			ui.Row(c).FillWidth().Gap(6).Children(func() {
+				toggle := "▸"
+				if node.Expanded {
+					toggle = "▾"
+				}
+				if row.CanOpen() && ui.Button(c, toggle).Label(agentText("展开/收起 ", "Expand/collapse ")+row.Label).Disabled(v.Busy).Clicked() {
+					m.Store.ToggleAgentCatalogBranch(v.Token, node.Path)
+				}
 				title := row.Label + " · " + row.Address.Mode
 				if row.CanOpen() && row.Running {
 					title = "● " + title
@@ -122,21 +131,27 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 						button.AutoFocus()
 					}
 					buttons = append(buttons, button)
-					addresses = append(addresses, row.Address)
+					paths = append(paths, node.Path)
 				}
 				if button.Clicked() {
-					m.Store.OpenAgentNavigation(v.Token, row.Address)
+					m.Store.OpenAgentCatalogPath(v.Token, node.Path)
 				}
-				if m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
+				if node.Depth == 0 && m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 					m.OnOpenConversation(v.Token, row.Address)
 				}
-				if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
+				if node.Depth == 0 && m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 					m.OnOpenChat(v.Token, row.Address)
 				}
-				if row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
+				if node.Depth == 0 && row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
 					m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
 				}
 			})
+			if node.Busy {
+				ui.Text(c, agentText("正在读取子目录…", "Loading children…")).FontSize(10).TextColor(muted)
+			}
+			if node.Error != "" {
+				ui.Text(c, node.Error).FontSize(10).TextColor(muted)
+			}
 			if label, tooltip := agentMetricLabel(row, now); label != "" {
 				ui.Text(c, label).FontSize(theme.InterfaceSize(10)).TextColor(muted).Tooltip(tooltip)
 			}
@@ -148,7 +163,7 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	if focusFirst && len(buttons) > 0 {
 		buttons[0].Focus()
 	}
-	catalogKeyboard(buttons, func(i int) { m.Store.OpenAgentNavigation(v.Token, addresses[i]) }, func() {
+	catalogKeyboard(buttons, func(i int) { m.Store.OpenAgentCatalogPath(v.Token, paths[i]) }, func() {
 		if v.Depth > 0 {
 			m.Store.BackAgentNavigation(v.Token)
 		}
