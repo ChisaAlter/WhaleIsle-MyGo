@@ -15,8 +15,10 @@ import (
 
 // Citation is one web/search source link for compact UI.
 type Citation struct {
-	Title string
-	URL   string
+	Title       string
+	URL         string
+	Snippet     string
+	PublishedAt string
 }
 
 var (
@@ -24,11 +26,14 @@ var (
 	bareURLRE = regexp.MustCompile(`https?://[^\s)\]>]+`)
 )
 
-// CitationsForMessage extracts citation-like links from persistence raw JSON
-// and message body. Persistence events do not define a dedicated citations
-// field in generated types; this is best-effort on url/title-shaped JSON.
+// CitationsForMessage prefers the typed web presentation metadata carried by
+// tool/result.meta, then keeps a raw JSON/Markdown fallback for older or
+// plugin-owned result shapes.
 func CitationsForMessage(msg session.Message) []Citation {
 	var out []Citation
+	if msg.Web != nil {
+		out = append(out, citationsFromWebResult(msg.Web)...)
+	}
 	if len(msg.Raw) > 0 {
 		out = append(out, extractCitationsFromJSON(msg.Raw)...)
 	}
@@ -36,6 +41,31 @@ func CitationsForMessage(msg session.Message) []Citation {
 		out = append(out, extractCitationsFromMarkdown(msg.Body)...)
 	}
 	return dedupeCitations(out, 8)
+}
+
+func citationsFromWebResult(result *session.WebResult) []Citation {
+	if result == nil {
+		return nil
+	}
+	if result.Kind == "fetch" {
+		if strings.TrimSpace(result.URL) == "" {
+			return nil
+		}
+		return []Citation{{Title: result.URL, URL: result.URL}}
+	}
+	if result.Kind != "search" {
+		return nil
+	}
+	out := make([]Citation, 0, len(result.Sources))
+	for _, source := range result.Sources {
+		out = append(out, Citation{
+			Title:       source.Title,
+			URL:         source.URL,
+			Snippet:     source.Snippet,
+			PublishedAt: source.PublishedAt,
+		})
+	}
+	return out
 }
 
 func extractCitationsFromMarkdown(body string) []Citation {
@@ -144,7 +174,7 @@ func dedupeCitations(in []Citation, max int) []Citation {
 		if title == "" {
 			title = shortenURL(u)
 		}
-		out = append(out, Citation{Title: title, URL: u})
+		out = append(out, Citation{Title: title, URL: u, Snippet: c.Snippet, PublishedAt: c.PublishedAt})
 		if len(out) >= max {
 			break
 		}
@@ -194,6 +224,12 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 					}
 				}
 			})
+			if snippet := strings.TrimSpace(entry.Snippet); snippet != "" {
+				ui.Text(c, snippet).FontSize(10).TextColor(muted).Grow(1)
+			}
+			if published := strings.TrimSpace(entry.PublishedAt); published != "" {
+				ui.Text(c, published).FontSize(9).TextColor(muted).Grow(1)
+			}
 		}
 	})
 }
