@@ -6026,7 +6026,20 @@ func mainView(c *ui.Context) {
 				// Body under the title bar must Grow into remaining height (not Fill%).
 				ui.Column(c).Grow(1).MinHeight(0).Children(func() {
 					boot.RecoveryControl(c, boot.Model{
-						Status: st, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
+						Status: st, Logs: logs, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
+						OnConfigure: func() {
+							state.mu.Lock()
+							state.launcherOpen = true
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						},
+						OnExport: func() {
+							if _, err := harness.ExportBootLogsDialog(win, buildVersion, st, logs, i18n.T(i18n.KeyBootExport)); err != nil {
+								log.Println("export log:", err)
+							}
+						},
 						OnCancelRecovery: func() {
 							if sup != nil {
 								sup.CancelRecovery()

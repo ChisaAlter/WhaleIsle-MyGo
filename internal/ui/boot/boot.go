@@ -145,17 +145,7 @@ func statusLine(st harness.Status) string {
 // RecoveryControl exposes boot recovery in shells that keep their navigation
 // and dialogue mounted while the Host is starting or unavailable.
 func RecoveryControl(c *ui.Context, m Model) {
-	if !m.Status.RecoveryActive && !m.Status.RecoveryCancelled {
-		return
-	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Row(c).Padding(8, 12, 8, 12).Gap(12).Children(func() {
-		ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
-		cancelRecoveryAction(c, m)
-		if m.Status.RecoveryCancelled && m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
-			m.OnRetry()
-		}
-	})
+	startupScene(c, m)
 }
 
 func cancelRecoveryAction(c *ui.Context, m Model) {
