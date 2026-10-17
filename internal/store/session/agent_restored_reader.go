@@ -10,10 +10,13 @@ import (
 // must match; legacy or nested records lacking a verified root path are refused.
 // A provisional, read-only lease owns cancellation during API revalidation.
 func (s *Store) RestoreRetainedAgentChat(scope, root string, address AgentSessionAddress, title string) bool {
+	return s.RestoreRetainedAgentLineage(scope, root, address, title, []AgentSessionAddress{address})
+}
+func (s *Store) RestoreRetainedAgentLineage(scope, root string, address AgentSessionAddress, title string, lineage []AgentSessionAddress) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	owner := s.agentNavigationOwner
-	if owner == nil || !s.agentRetainEnabled || s.agentRetainedRead != nil || scope == "" || scope == "legacy" || root == "" || !address.validChild() || address.ParentSessionID != root {
+	if owner == nil || !s.agentRetainEnabled || s.agentRetainedRead != nil || scope == "" || scope == "legacy" || root == "" || !address.validChild() || !validAgentRestoreLineage(root, address, lineage) {
 		return false
 	}
 	owner.mu.Lock()
@@ -39,7 +42,7 @@ func (s *Store) RestoreRetainedAgentChat(scope, root string, address AgentSessio
 	s.notify = owner.notify
 	// No model, permission, draft, delivery selection or old token is restored.
 	ctx, cancel := context.WithCancel(context.Background())
-	lease := &agentRetainedRead{ctx: ctx, cancel: cancel, pane: s, client: s.client, mux: s.mux, root: root, address: address, restoredReadOnly: true}
+	lease := &agentRetainedRead{ctx: ctx, cancel: cancel, pane: s, client: s.client, mux: s.mux, root: root, address: address, restoredReadOnly: true, lineage: append([]AgentSessionAddress(nil), lineage...)}
 	if owner.agentRetainedReads == nil {
 		owner.agentRetainedReads = map[string]*agentRetainedRead{}
 	}
@@ -68,15 +71,29 @@ func restoredAgentProjectionContains(root string, address AgentSessionAddress, p
 func (s *Store) verifyRestoredAgentReader(lease *agentRetainedRead) {
 	ctx, cancel := context.WithTimeout(lease.ctx, 15*time.Second)
 	defer cancel()
-	var projection agentNavigationProjection
-	err := lease.client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": lease.root}}, &projection)
+	var err error
+	for _, edge := range lease.lineage {
+		var projection agentNavigationProjection
+		err = lease.client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": edge.ParentSessionID}}, &projection)
+		if err != nil {
+			break
+		}
+		if !restoredAgentProjectionContains(edge.ParentSessionID, edge, projection) {
+			err = fmt.Errorf("unverified lineage edge")
+			break
+		}
+		if ctx.Err() != nil {
+			err = ctx.Err()
+			break
+		}
+	}
 	s.mu.Lock()
 	if s.agentRetainedRead != lease || !s.retainedAgentReadValidLocked() || ctx.Err() != nil {
 		lease.cancel()
 		s.mu.Unlock()
 		return
 	}
-	if err != nil || !restoredAgentProjectionContains(lease.root, lease.address, projection) {
+	if err != nil {
 		s.agentNavigation.view.Busy = false
 		s.agentNavigation.view.Error = "恢复目标未通过来源目录验证 / Restored target failed source catalog verification"
 		lease.cancel() // Keep a tombstone; rendering must never silently retry/rebind.

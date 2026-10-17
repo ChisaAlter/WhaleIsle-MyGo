@@ -8,6 +8,7 @@ import (
 
 type agentRetainedRead struct {
 	restoredReadOnly bool
+	lineage          []AgentSessionAddress
 	ctx              context.Context
 	cancel           context.CancelFunc
 	pane             *Store
@@ -66,7 +67,7 @@ func (s *Store) ReleaseAgentNavigationOccurrence(pane *Store) {
 }
 func (s *Store) cancelRetainedAgentReadsLocked(sessionID string) {
 	for _, lease := range s.agentRetainedReads {
-		if sessionID == "" || lease.root == sessionID || lease.address.ParentSessionID == sessionID || lease.address.ChildSessionID == sessionID {
+		if sessionID == "" || lease.root == sessionID || lease.address.ParentSessionID == sessionID || lease.address.ChildSessionID == sessionID || retainedLineageContains(lease.lineage, sessionID) {
 			lease.cancel()
 		}
 	}
@@ -152,4 +153,13 @@ func (s *Store) HasRetainedAgentRead() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.agentRetainedRead != nil
+}
+
+func retainedLineageContains(path []AgentSessionAddress, id string) bool {
+	for _, edge := range path {
+		if edge.ParentSessionID == id || edge.ChildSessionID == id {
+			return true
+		}
+	}
+	return false
 }

@@ -54,7 +54,7 @@ func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddres
 		}
 		w := m.Sizes.Workspace
 		n := w.leaf("subagentchat")
-		n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title}
+		n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title, Lineage: source.AgentChatRestoreLineage(token, address)}
 		local := w.agentPaneModel(m, n)
 		// Revalidate the exact source occurrence/token after creating the destination.
 		if _, _, valid := source.AgentChatTarget(token, address); !valid || !local.AgentNavigationStore.OpenAgentChat(root, address, title) {

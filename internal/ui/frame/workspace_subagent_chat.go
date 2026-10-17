@@ -9,14 +9,16 @@ import (
 // Persist routing facts only. Restoring/splitting never restores a live reader,
 // draft, prompt token or a child's pending approval/question capabilities.
 type SubagentChatPaneState struct {
-	Root    string                      `json:"root"`
-	Address session.AgentSessionAddress `json:"address"`
-	Title   string                      `json:"title"`
+	Lineage []session.AgentSessionAddress `json:"lineage,omitempty"`
+	Root    string                        `json:"root"`
+	Address session.AgentSessionAddress   `json:"address"`
+	Title   string                        `json:"title"`
 }
 
 func copySubagentChatPane(target, source *WorkspacePane) {
 	if source.Kind == "subagentchat" && source.SubagentChat != nil {
 		copy := *source.SubagentChat
+		copy.Lineage = append([]session.AgentSessionAddress(nil), source.SubagentChat.Lineage...)
 		target.SubagentChat = &copy
 	}
 }
@@ -41,7 +43,7 @@ func subagentChatOpener(m Model) func(uint64, session.AgentSessionAddress) {
 				return
 			}
 			n := w.leaf("subagentchat")
-			n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title}
+			n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title, Lineage: source.AgentChatRestoreLineage(token, address)}
 			if w.Root == nil {
 				w.Root = n
 			} else {
