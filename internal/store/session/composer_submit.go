@@ -16,6 +16,7 @@ import (
 
 // ComposerAttachment retains its staged receipt and exact session/Host owner.
 type ComposerAttachment struct {
+	PreparationID                    uint64 `json:"-"`
 	PrepareError                     string // Runtime-only failure; retry keeps the local file and draft owner.
 	Path, Name, SessionID, HostScope string
 	Upload                           api.FileUploadValue
@@ -67,7 +68,9 @@ func (s *Store) PrepareComposerAttachment(ctx context.Context, id string, a Comp
 	return t.PrepareAttachment(ctx, a)
 }
 func (t *ComposerTarget) PrepareAttachment(ctx context.Context, a ComposerAttachment) (ComposerAttachment, error) {
-	a.PrepareError = ""
+	if a.PrepareError != "" {
+		return a, errors.New("retry or remove the failed attachment before sending")
+	}
 	if err := t.check(ctx); err != nil {
 		return a, err
 	}
@@ -189,6 +192,9 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 	}
 	parts := make([]json.RawMessage, 0, len(attachments)+1)
 	for _, a := range attachments {
+		if a.PrepareError != "" {
+			return errors.New("retry or remove the failed attachment before sending")
+		}
 		if a.SessionID != id || a.HostScope != t.scope() {
 			return errors.New("attachment belongs to another session or Host; retry upload")
 		}

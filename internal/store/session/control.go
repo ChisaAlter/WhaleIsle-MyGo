@@ -76,6 +76,7 @@ func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *ds
 		s.applyModelControlLocked(raw)
 		s.applyContextControlLocked(raw)
 		s.applyPlanModeControlLocked(raw)
+		s.applyImageLimitControlLocked(raw)
 		s.applyHistoryOutlineControlLocked(raw)
 		s.controlNote = note
 		s.mu.Unlock()

@@ -1,38 +1,98 @@
 package composer
 
-import "whaleisle/internal/store/session"
+import (
+	"context"
+	"sync/atomic"
+	"whaleisle/internal/store/session"
+)
 
-// BeginAttachmentPreparation runs on the UI thread. Retries cannot race a send
-// or another preparation, so the attachment index stays stable while uploading.
+var attachmentAttempt atomic.Uint64
+
+func (d *DraftState) AttachmentPreparing(index int) bool {
+	if index < 0 || index >= len(d.Attachments) {
+		return false
+	}
+	_, ok := d.attachmentCancels[d.Attachments[index].PreparationID]
+	return ok
+}
 func (d *DraftState) BeginAttachmentPreparation(index int, retry bool) (session.ComposerAttachment, bool) {
-	if d.Sending || index < 0 || index >= len(d.Attachments) {
+	if d.Sending || index < 0 || index >= len(d.Attachments) || d.AttachmentPreparing(index) {
 		return session.ComposerAttachment{}, false
 	}
 	a := d.Attachments[index]
-	if retry && (d.Preparing > 0 || a.PrepareError == "") {
+	if retry && a.PrepareError == "" || !retry && a.PrepareError != "" {
 		return session.ComposerAttachment{}, false
 	}
-	if a.PrepareError != "" && d.Error == a.PrepareError {
+	if d.Error == a.PrepareError {
 		d.Error = ""
 	}
-	d.Attachments[index].PrepareError = ""
+	a.PrepareError = ""
+	a.PreparationID = attachmentAttempt.Add(1)
+	d.Attachments[index] = a
+	if d.attachmentCancels == nil {
+		d.attachmentCancels = map[uint64]context.CancelFunc{}
+	}
+	d.attachmentCancels[a.PreparationID] = nil
 	d.Preparing++
 	return a, true
 }
-
-// CompleteAttachmentPreparation only updates the originating draft and slot.
-func (d *DraftState) CompleteAttachmentPreparation(index int, original, prepared session.ComposerAttachment, err error) {
+func (d *DraftState) SetAttachmentCancel(a session.ComposerAttachment, cancel context.CancelFunc) {
+	if _, ok := d.attachmentCancels[a.PreparationID]; ok {
+		d.attachmentCancels[a.PreparationID] = cancel
+	} else {
+		cancel()
+	}
+}
+func (d *DraftState) finishAttachmentAttempt(id uint64) bool {
+	cancel, ok := d.attachmentCancels[id]
+	if !ok {
+		return false
+	}
+	delete(d.attachmentCancels, id)
+	if cancel != nil {
+		cancel()
+	}
 	if d.Preparing > 0 {
 		d.Preparing--
 	}
-	if index < 0 || index >= len(d.Attachments) || d.Attachments[index].Path != original.Path {
+	return true
+}
+func (d *DraftState) CompleteAttachmentPreparation(_ int, original, prepared session.ComposerAttachment, err error) {
+	if !d.finishAttachmentAttempt(original.PreparationID) {
 		return
 	}
-	if err != nil {
-		d.Attachments[index].PrepareError = err.Error()
-		d.Error = err.Error()
+	for i, a := range d.Attachments {
+		if a.PreparationID != original.PreparationID {
+			continue
+		}
+		if err != nil {
+			d.Attachments[i].PrepareError = err.Error()
+			d.Error = err.Error()
+			return
+		}
+		prepared.PreparationID = original.PreparationID
+		prepared.PrepareError = ""
+		d.Attachments[i] = prepared
 		return
 	}
-	prepared.PrepareError = ""
-	d.Attachments[index] = prepared
+}
+func (d *DraftState) RemoveAttachment(index int) bool {
+	if d.Sending || index < 0 || index >= len(d.Attachments) {
+		return false
+	}
+	a := d.Attachments[index]
+	d.finishAttachmentAttempt(a.PreparationID)
+	d.Attachments = append(d.Attachments[:index], d.Attachments[index+1:]...)
+	if d.Error == a.PrepareError {
+		d.Error = ""
+	}
+	return true
+}
+func (d *DraftState) FailedAttachmentError() string {
+	for _, a := range d.Attachments {
+		if a.PrepareError != "" {
+			return "Retry or remove the failed attachment before sending: " + a.PrepareError
+		}
+	}
+	return ""
 }

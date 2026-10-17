@@ -197,6 +197,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 			s.applyModelValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyContextValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyPlanModeValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
+			s.applyImageLimitValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 			s.applyHistoryOutlineValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)
 		}
 		if snap.Cursor != nil {

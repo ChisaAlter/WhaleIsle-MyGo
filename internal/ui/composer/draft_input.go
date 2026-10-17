@@ -231,6 +231,9 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				client.ReplaceText(nil, "")
 			}
 		case "paste":
+			if pasteNativeFiles(m, mygo.Clipboard.ReadFiles) {
+				return true
+			}
 			if m.OnPasteImage != nil {
 				m.OnPasteImage(false)
 			}

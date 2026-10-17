@@ -17,7 +17,7 @@ type DraftFlight struct {
 }
 
 func (d *DraftState) BeginDetachedSend() (DraftFlight, bool) {
-	if d.Sending || d.Preparing > 0 || d.EditSeq > 0 || strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
+	if d.Sending || d.Preparing > 0 || d.FailedAttachmentError() != "" || d.EditSeq > 0 || strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		return DraftFlight{}, false
 	}
 	d.flightSeq++
@@ -70,7 +70,7 @@ func orderedDraftFlights(entries map[uint64]DraftFlight) []DraftFlight {
 
 // RestoreFailedSends keeps any newly typed draft after the unsent messages.
 func (d *DraftState) RestoreFailedSends() {
-	if d.Sending || d.Preparing > 0 || d.EditSeq > 0 || len(d.failedSends) == 0 {
+	if d.Sending || d.Preparing > 0 || d.FailedAttachmentError() != "" || d.EditSeq > 0 || len(d.failedSends) == 0 {
 		return
 	}
 	text, attachments := d.Text, append([]session.ComposerAttachment(nil), d.Attachments...)

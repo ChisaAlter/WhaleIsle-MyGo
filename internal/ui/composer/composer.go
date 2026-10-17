@@ -939,11 +939,7 @@ func wireFileDrop(area ui.Element, m Model) {
 		return
 	}
 	if dropped := area.DroppedFiles(); len(dropped) > 0 {
-		if m.OnAttachFiles != nil {
-			m.OnAttachFiles(dropped)
-		} else {
-			AppendDroppedFiles(m.Draft, strings.TrimSpace(m.WorkspaceRoot), dropped)
-		}
+		intakeTransferredFiles(m, dropped)
 	}
 }
 
@@ -1065,18 +1061,18 @@ func paintDraftAttachments(c *ui.Context, m Model, fg, muted ui.Color) {
 			if label == "" {
 				label = a.Path
 			}
-			if d.Sending || d.Preparing > 0 {
+			if d.Sending || d.AttachmentPreparing(i) {
 				label += " …"
 			}
 			if a.PrepareError != "" {
 				ui.Text(c, label+": "+a.PrepareError).FontSize(11).TextColor(muted)
-				if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(11).Disabled(d.Sending || d.Preparing > 0).Clicked() {
+				if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(11).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
 					m.OnRetryAttachment(i)
 				}
 			}
-			b := ui.Button(c, label+" ×").FontSize(12).TextColor(fg).Disabled(d.Sending || d.Preparing > 0)
+			b := ui.Button(c, label+" ×").FontSize(12).TextColor(fg).Disabled(d.Sending)
 			if b.Clicked() {
-				d.Attachments = append(d.Attachments[:i], d.Attachments[i+1:]...)
+				d.RemoveAttachment(i)
 				break
 			}
 		}

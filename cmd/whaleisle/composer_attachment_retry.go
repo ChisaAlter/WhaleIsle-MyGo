@@ -21,8 +21,11 @@ func (s *mainState) prepareComposerFile(win *mygo.Window, sessions *session.Stor
 	if !ok {
 		return
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	d.SetAttachmentCancel(a, cancel)
 	go func() {
-		prepared, err := owner.PrepareAttachment(context.Background(), a)
+		defer cancel()
+		prepared, err := owner.PrepareAttachment(ctx, a)
 		win.Update(func() {
 			d.CompleteAttachmentPreparation(index, a, prepared, err)
 		})

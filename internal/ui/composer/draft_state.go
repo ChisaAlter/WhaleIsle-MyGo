@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -23,6 +24,7 @@ type DraftState struct {
 	Client             *DraftClient
 	Sending            bool
 	Preparing          int
+	attachmentCancels  map[uint64]context.CancelFunc
 	Error              string
 	TargetID           string
 	EditSeq            float64

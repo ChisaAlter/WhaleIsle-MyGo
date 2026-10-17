@@ -42,6 +42,12 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 	if d == nil || d.Sending {
 		return
 	}
+	if sessions != nil {
+		if err := validateComposerImageIntake(d.Attachments, paths, sessions.ComposerImageLimits(id)); err != nil {
+			d.Error = err.Error()
+			return
+		}
+	}
 	cwd, local := s.nativeComposerFileScope(sessions, id, d)
 	uploads, err := insertNativeComposerFiles(d, cwd, paths, local)
 	if err != nil {
@@ -61,6 +67,10 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 }
 
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
+	if failure := d.FailedAttachmentError(); failure != "" {
+		d.Error = failure
+		return
+	}
 	if d.Sending || d.Preparing > 0 {
 		return
 	}

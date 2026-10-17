@@ -188,6 +188,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	imageLimits            composerImageLimitState
 	planModeControl        planModeState
 	archiveUndo            *archiveUndoState
 	archiveUndoToken       uint64
