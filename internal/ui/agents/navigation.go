@@ -64,6 +64,9 @@ func navigationView(c *ui.Context, m Model) {
 			ui.Text(c, agentText("等待当前会话连接…", "Waiting for the current session…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
+		if !m.ChatOnly {
+			paintAgentAncestors(c, m.Store.AgentNavigationAncestors(v.Token), func(depth int) { m.Store.JumpAgentNavigation(v.Token, depth) })
+		}
 		ui.Row(c).FillWidth().Padding(8, 12).Gap(6).Children(func() {
 			if !m.ChatOnly && v.Depth > 0 && ui.Button(c, agentText("返回上一级", "Back to parent")).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.Store.BackAgentNavigation(v.Token)

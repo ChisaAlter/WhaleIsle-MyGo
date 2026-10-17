@@ -69,6 +69,11 @@ func (s *Store) AgentCatalogTree(token uint64) []AgentCatalogTreeRow {
 	if !s.agentNavigationOwnedLocked() || token != n.view.Token {
 		return nil
 	}
+	return s.agentCatalogTreeLocked()
+}
+
+func (s *Store) agentCatalogTreeLocked() []AgentCatalogTreeRow {
+	n := &s.agentNavigation
 	var out []AgentCatalogTreeRow
 	var walk func(AgentNavigationView, []AgentSessionAddress)
 	walk = func(v AgentNavigationView, prefix []AgentSessionAddress) {

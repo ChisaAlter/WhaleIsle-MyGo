@@ -7,7 +7,7 @@ import "fmt"
 func (s *Store) AgentChatTarget(token uint64, address AgentSessionAddress) (string, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.agentNavigationActionAllowedLocked(token, address) {
+	if !s.agentNavigationOwnedLocked() || s.agentNavigation.view.Token != token || !address.validChild() {
 		return "", "", false
 	}
 	v := s.agentNavigation.view
@@ -17,6 +17,15 @@ func (s *Store) AgentChatTarget(token uint64, address AgentSessionAddress) (stri
 	for _, row := range v.Rows {
 		if row.Address == address {
 			return s.selectedID, row.Label, true
+		}
+	}
+	// Only an explicitly expanded, currently valid chain may expose a nested
+	// routing address. This does not grant prompt/interrupt capability.
+	for _, node := range s.agentCatalogTreeLocked() {
+		if node.Row.Address == address && node.Row.CanOpen() {
+			if _, valid := s.agentCatalogPathLocked(node.Path); valid {
+				return s.selectedID, node.Row.Label, true
+			}
 		}
 	}
 	return "", "", false

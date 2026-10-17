@@ -136,10 +136,10 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 				if button.Clicked() {
 					m.Store.OpenAgentCatalogPath(v.Token, node.Path)
 				}
-				if node.Depth == 0 && m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
+				if m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 					m.OnOpenConversation(v.Token, row.Address)
 				}
-				if node.Depth == 0 && m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
+				if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 					m.OnOpenChat(v.Token, row.Address)
 				}
 				if node.Depth == 0 && row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
