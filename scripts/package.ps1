@@ -154,7 +154,13 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
 		$blockmap = [ordered]@{ fileSize = [int64]$setupBytes.Length; blocks = $blocks } |
 			ConvertTo-Json -Depth 4
 		[System.IO.File]::WriteAllText($blockmapPath, $blockmap + "`n")
-		$sum = (Get-FileHash -Algorithm SHA256 -LiteralPath $Setup).Hash.ToLowerInvariant()
+		$sumHash = [System.Security.Cryptography.SHA256]::Create()
+		try {
+			$sumBytes = $sumHash.ComputeHash([System.IO.File]::ReadAllBytes($Setup))
+		} finally {
+			$sumHash.Dispose()
+		}
+		$sum = ([BitConverter]::ToString($sumBytes) -replace '-', '').ToLowerInvariant()
 		$sumPath = Join-Path $DistRoot 'SHA256SUMS.txt'
 		[System.IO.File]::WriteAllText($sumPath, "$sum  $(Split-Path -Leaf $Setup)`n")
 		Write-Host "Wrote blockmap: $blockmapPath"
