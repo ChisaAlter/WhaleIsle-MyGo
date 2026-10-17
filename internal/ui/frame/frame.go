@@ -591,10 +591,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			emptyHero := len(snap.Messages) == 0 && !hasSessionInteractions(m.Interactions, snap.SelectedID)
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
-			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
+			conversationArea.Children(func() {
 				if mainSubagentConversation(c, m) {
 					return
 				}
+				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				projectObserverHeader(c, m)
 				if snap.SelectedID != "" {
