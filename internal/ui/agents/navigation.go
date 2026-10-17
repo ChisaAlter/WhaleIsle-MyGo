@@ -49,8 +49,12 @@ func navigationView(c *ui.Context, m Model) {
 			if m.ChatOnly {
 				interruptLabel = i18n.T(i18n.KeyAgentsInterrupt)
 			}
-			if len(running) > 0 && ui.Button(c, interruptLabel).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy || v.RetainedReadOnly).Clicked() {
-				m.Store.InterruptAgentNavigation(v.Token, running)
+			if len(running) > 0 && ui.Button(c, interruptLabel).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy || (v.RetainedReadOnly && !(m.ChatOnly && v.RetainedPromptAllowed))).Clicked() {
+				if m.ChatOnly && v.RetainedReadOnly {
+					m.Store.InterruptRetainedAgentExplicit(v.Token, v.Address)
+				} else {
+					m.Store.InterruptAgentNavigation(v.Token, running)
+				}
 			}
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).FontSize(theme.InterfaceSize(11)).Clicked() {
 				m.Store.CloseAgentNavigation()

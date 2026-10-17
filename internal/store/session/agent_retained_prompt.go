@@ -1,7 +1,7 @@
 package session
 
 // A user gesture may submit only to the exact conversation retained by this
-// occurrence. This does not grant catalog actions, interrupts, or approvals.
+// occurrence. This does not grant catalog actions or shared approvals.
 func (s *Store) retainedAgentPromptAllowedLocked(token uint64, address AgentSessionAddress) bool {
 	return s.retainedAgentReadValidLocked() && s.agentNavigationOwnedLocked() &&
 		s.agentNavigation.view.Token == token && s.agentNavigation.view.Address == address &&
@@ -22,4 +22,16 @@ func (s *Store) PromptAgentNavigationExplicit(token uint64, address AgentSession
 		return
 	}
 	s.agentNavigationAction(token, []AgentSessionAddress{address}, trimPrompt(text), true, true)
+}
+
+// InterruptRetainedAgentExplicit is available only for the already-open aside.
+// It cannot address sibling rows or perform a catalog-wide interruption.
+func (s *Store) InterruptRetainedAgentExplicit(token uint64, address AgentSessionAddress) {
+	s.mu.Lock()
+	allowed := s.retainedAgentPromptAllowedLocked(token, address)
+	s.mu.Unlock()
+	if !allowed {
+		return
+	}
+	s.agentNavigationAction(token, []AgentSessionAddress{address}, "", false, true)
 }
