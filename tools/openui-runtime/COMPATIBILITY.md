@@ -128,7 +128,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - bar: grouped或正负分离stacked；line/area: 普通或累计stacked，缺失值为gap；stacked行缺任一值时整行gap，不能默认为零。
 - pie/donut: 每个series分别画有标签的真实图；零总量显示空状态；负值或缺失值显式报错。scatter要求数值x。
 - stacked pie/donut/scatter 的组合语义未由公开契约定义，本实现将其作为参数边界显式拒绝，不将它们计作已证明的原版能力缺口，也不静默忽略该参数。每个图都可展开原始数据；SVG title与原始表提供可访问内容。
-- 自有数值格式化与图例/轴样式。没有额外图表动画、悬浮tooltip或拖动缩放；未声明这些为已实现。
+- 自有数值格式化与图例/轴样式。六种图表的真实数据标记均有hover/focus驱动的图下数据提示，包含系列、行、格式化值和精确原值；stacked额外显示正/负累计范围，pie/donut显示实际占比。方向键按图中标记顺序移动，Home/End跳首尾，Escape关闭详情。数据变更时按当前行/系列重新读取数值，不保留旧tooltip文本。没有额外图表动画或拖动缩放；未声明这些为已实现。
 - 分配预算：Chart最多5,000行/32系列，Table最多50,000格；超限显示错误。预算是本实现边界，不是原版契约保证。
 
 ### 地图/图片桥接口
@@ -183,4 +183,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、图表负数与缺失值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。

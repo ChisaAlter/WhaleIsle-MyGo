@@ -1,5 +1,5 @@
 // Independently authored from the public component signatures, not upstream renderers.
-import React, { type ReactNode } from 'react';
+import React, { useId, useState, type ReactNode } from 'react';
 import { defineComponent, type DefinedComponent } from '@openuidev/react-lang';
 import { z } from 'zod/v4';
 
@@ -28,6 +28,81 @@ type Prepared = {
   missing: number;
   xKey?: string;
 };
+type DatumAddress = { series: number; row: number };
+type ChartInteraction = {
+  tooltipId: string;
+  focused: DatumAddress | null;
+  active: DatumAddress | null;
+  hover: (address: DatumAddress) => void;
+  focus: (address: DatumAddress) => void;
+  blur: () => void;
+  dismiss: () => void;
+};
+
+function sameDatum(left: DatumAddress | null, right: DatumAddress): boolean {
+  return left?.series === right.series && left.row === right.row;
+}
+
+function Marker({ address, label, interaction, children }: {
+  address: DatumAddress; label: string; interaction: ChartInteraction; children: ReactNode;
+}) {
+  const focused = sameDatum(interaction.focused, address);
+  return <g data-chart-marker="true" role="img" tabIndex={-1} aria-label={label} aria-describedby={sameDatum(interaction.active, address) ? interaction.tooltipId : undefined}
+    onPointerEnter={() => interaction.hover(address)}
+    onPointerDown={event => { event.currentTarget.focus(); interaction.focus(address); }}
+    onFocus={() => interaction.focus(address)} onBlur={interaction.blur}
+    style={{ cursor: 'crosshair', outline: focused ? '2px solid currentColor' : 'none', outlineOffset: 3 }}>
+    {children}
+  </g>;
+}
+
+function navigateMarkers(event: React.KeyboardEvent<SVGSVGElement>, interaction: ChartInteraction) {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); interaction.dismiss(); return; }
+  const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+  if (!keys.includes(event.key)) return;
+  const markers = Array.from(event.currentTarget.querySelectorAll<SVGGElement>('[data-chart-marker="true"]'));
+  if (!markers.length) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const current = markers.indexOf(event.target as SVGGElement);
+  const backward = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? markers.length - 1
+    : current === -1 ? (backward ? markers.length - 1 : 0)
+    : (current + (backward ? -1 : 1) + markers.length) % markers.length;
+  markers[next].focus();
+}
+
+function Tooltip({ id, props, data, address, display }: {
+  id: string; props: ChartProps; data: Prepared; address: DatumAddress | null; display: (value: number) => string;
+}) {
+  // Store only row/series addresses in UI state. Always read values from the
+  // current data, so streamed or state-driven updates cannot show stale numbers.
+  const value = address ? data.values[address.series]?.[address.row] : undefined;
+  if (!address || value === null || value === undefined) return <div id={id} role="tooltip" hidden />;
+  let extra: ReactNode = null;
+  if (props.stacked) {
+    if (data.values.some(series => series[address.row] === null)) return <div id={id} role="tooltip" hidden />;
+    const base = data.values.slice(0, address.series).reduce((sum, series) => {
+      const previous = series[address.row];
+      return previous !== null && (previous >= 0) === (value >= 0) ? sum + previous : sum;
+    }, 0);
+    const endpoint = base + value;
+    if (!Number.isFinite(base) || !Number.isFinite(endpoint)) return <div id={id} role="tooltip" hidden />;
+    extra = <div>Stack range: {String(base)} to {String(endpoint)}</div>;
+  } else if (props.type === 'pie' || props.type === 'donut') {
+    if (value <= 0) return <div id={id} role="tooltip" hidden />;
+    const values = data.values[address.series] as number[];
+    const maximum = Math.max(...values);
+    const total = maximum === 0 ? 0 : values.reduce((sum, number) => sum + number / maximum, 0);
+    extra = total > 0 ? <div>Share: {formatValue({ ...props, format: 'percent' })(value / maximum / total * 100)}</div> : <div>No nonzero total; a percentage is undefined.</div>;
+  }
+  return <div id={id} role="tooltip" style={{ marginTop: 8, padding: '9px 12px', border: `1px solid ${border}`, borderRadius: 8, background: 'var(--oui-surface, #f3f6fa)', fontSize: 12, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>
+    <div><strong>{data.series[address.series]}</strong> · {data.xKey ?? 'Row'}: {data.labels[address.row]} · row {address.row + 1}</div>
+    <div>Value: {display(value)}</div>
+    <div style={{ color: muted }}>Exact supplied value: {String(value)}</div>
+    {extra}
+  </div>;
+}
 
 function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
   return <div role={error ? 'alert' : 'status'} style={{ padding: 12, border: `1px solid ${error ? '#b43245' : border}`, borderRadius: 8, color: error ? '#b43245' : muted }}>{children}</div>;
@@ -125,7 +200,7 @@ function SourceData({ data }: { data: Prepared }) {
   </details>;
 }
 
-function Cartesian({ props, data, display }: { props: ChartProps; data: Prepared; display: (value: number) => string }) {
+function Cartesian({ props, data, display, interaction }: { props: ChartProps; data: Prepared; display: (value: number) => string; interaction: ChartInteraction }) {
   const width = 680;
   const height = Math.max(160, props.height ?? 320);
   const left = 88, right = width - 22, top = 18, bottom = height - 55;
@@ -156,7 +231,7 @@ function Cartesian({ props, data, display }: { props: ChartProps; data: Prepared
   const zeroY = yExtent[0] <= 0 && yExtent[1] >= 0 ? y(0) : bottom;
   const labelStride = Math.max(1, Math.ceil(data.labels.length / 8));
   const title = `${props.stacked ? 'Stacked ' : ''}${props.type} chart: ${data.series.join(', ')}`;
-  return <div style={{ overflowX: 'auto' }}><svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', width: '100%', minWidth: 360, height: props.height ?? 320, overflow: 'visible' }}>
+  return <div style={{ overflowX: 'auto' }}><svg role="group" tabIndex={0} aria-label={`${title}. Use arrow keys to inspect values; Escape hides details.`} onKeyDown={event => navigateMarkers(event, interaction)} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', width: '100%', minWidth: 360, height: props.height ?? 320, overflow: 'visible' }}>
     <title>{title}</title>
     <desc>{data.labels.length} data rows. Exact values are available in the expandable data table following the chart.</desc>
     {tickValues(yExtent).map((value, index) => <g key={`y-${index}`}><line x1={left} x2={right} y1={y(value)} y2={y(value)} stroke={border} /><text x={left - 8} y={y(value)} dy="0.35em" textAnchor="end" fontSize={11} fill={muted}>{display(value)}</text></g>)}
@@ -176,10 +251,12 @@ function Cartesian({ props, data, display }: { props: ChartProps; data: Prepared
           if (point === null) return null;
           const start = x(row) - groupWidth / 2 + (props.stacked ? 0 : seriesIndex * barWidth);
           const span = Math.max(0.1, barWidth - Math.min(2, barWidth * 0.1));
-          const label = `${data.labels[row]} · ${name}: ${display(point.value)}`;
-          return point.value === 0
-            ? <line key={row} x1={start} x2={start + span} y1={y(point.bottom)} y2={y(point.bottom)} stroke={color} strokeWidth={2}><title>{label}</title></line>
-            : <rect key={row} x={start} y={Math.min(y(point.bottom), y(point.top))} width={span} height={Math.abs(y(point.bottom) - y(point.top))} fill={color}><title>{label}</title></rect>;
+          const label = `${data.labels[row]}, row ${row + 1} · ${name}: ${display(point.value)}. Exact value: ${String(point.value)}.${props.stacked ? ` Stack range: ${String(point.bottom)} to ${String(point.top)}.` : ''}`;
+          return <Marker key={row} address={{ series: seriesIndex, row }} label={label} interaction={interaction}>
+            {point.value === 0
+              ? <><line x1={start} x2={start + span} y1={y(point.bottom)} y2={y(point.bottom)} stroke={color} strokeWidth={2} /><rect x={start} y={y(point.bottom) - 5} width={span} height={10} fill="transparent" stroke="none" /></>
+              : <rect x={start} y={Math.min(y(point.bottom), y(point.top))} width={span} height={Math.abs(y(point.bottom) - y(point.top))} fill={color} />}
+          </Marker>;
         })}</g>;
       }
       const segments: { point: Exclude<Point, null>; row: number }[][] = [];
@@ -196,7 +273,10 @@ function Cartesian({ props, data, display }: { props: ChartProps; data: Prepared
           return <path key={`area-${index}`} d={`M ${upper} L ${lower} Z`} fill={color} fillOpacity={props.stacked ? 0.55 : 0.2} />;
         })}
         {props.type !== 'scatter' && segments.map((part, index) => <polyline key={`line-${index}`} points={part.map(({ point, row }) => `${x(row)},${y(point.top)}`).join(' ')} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />)}
-        {series.map((point, row) => point === null ? null : <circle key={`point-${row}`} cx={x(row)} cy={y(point.top)} r={props.type === 'scatter' ? 4 : 2.5} fill={color} stroke="var(--oui-surface, white)" strokeWidth={1}><title>{`${data.labels[row]} · ${name}: ${display(point.value)}`}</title></circle>)}
+        {series.map((point, row) => point === null ? null : <Marker key={`point-${row}`} address={{ series: seriesIndex, row }} label={`${data.labels[row]}, row ${row + 1} · ${name}: ${display(point.value)}. Exact value: ${String(point.value)}.${props.stacked ? ` Stack range: ${String(point.bottom)} to ${String(point.top)}.` : ''}`} interaction={interaction}>
+          <circle cx={x(row)} cy={y(point.top)} r={props.type === 'scatter' ? 4 : 2.5} fill={color} stroke="var(--oui-surface, white)" strokeWidth={1} />
+          <circle cx={x(row)} cy={y(point.top)} r={9} fill="transparent" stroke="none" />
+        </Marker>)}
       </g>;
     })}
   </svg></div>;
@@ -215,7 +295,7 @@ function sector(start: number, end: number, inner: number): string {
   return `M ${startOuter.join(',')} A ${outer},${outer} 0 ${big} 1 ${endOuter.join(',')} L ${endInner.join(',')} A ${inner},${inner} 0 ${big} 0 ${startInner.join(',')} Z`;
 }
 
-function Circular({ props, data, display }: { props: ChartProps; data: Prepared; display: (value: number) => string }) {
+function Circular({ props, data, display, interaction }: { props: ChartProps; data: Prepared; display: (value: number) => string; interaction: ChartInteraction }) {
   if (data.values.some(values => values.some(value => value !== null && value < 0))) throw new Error(`${props.type === 'donut' ? 'Donut' : 'Pie'} charts cannot represent negative values. Choose bar, line, area, or scatter.`);
   if (data.missing) throw new Error('Pie and donut charts require a numeric value for every row in each selected series. Missing values are not converted to zero.');
   return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>{data.series.map((name, seriesIndex) => {
@@ -226,7 +306,7 @@ function Circular({ props, data, display }: { props: ChartProps; data: Prepared;
     const positiveCount = values.filter(value => value > 0).length;
     return <div key={name} style={{ flex: '1 1 220px', minWidth: 0 }}>
       <div style={{ textAlign: 'center', fontWeight: 600 }}>{name}</div>
-      {scaledTotal === 0 ? <Notice>All values in “{name}” are zero. There are no nonzero slices to draw.</Notice> : <svg role="img" aria-label={`${props.type} chart for ${name}`} viewBox="0 0 240 220" style={{ display: 'block', width: '100%', height: props.height ?? 240 }}>
+      {scaledTotal === 0 ? <Notice>All values in “{name}” are zero. There are no nonzero slices to draw.</Notice> : <svg role="group" tabIndex={0} aria-label={`${props.type} chart for ${name}. Use arrow keys to inspect slices; Escape hides details.`} onKeyDown={event => navigateMarkers(event, interaction)} viewBox="0 0 240 220" style={{ display: 'block', width: '100%', height: props.height ?? 240 }}>
         <title>{`${props.type} chart for ${name}`}</title>
         <desc>Each slice is a supplied row. Values and percentages are listed below.</desc>
         {values.map((value, row) => {
@@ -235,11 +315,13 @@ function Circular({ props, data, display }: { props: ChartProps; data: Prepared;
           angle += share * Math.PI * 2;
           if (value === 0) return null;
           const color = palette[row % palette.length];
-          const title = `${data.labels[row]}: ${display(value)} (${(share * 100).toFixed(1)}%)`;
-          if (positiveCount === 1) return props.type === 'donut'
-            ? <circle key={row} cx={120} cy={110} r={68} fill="none" stroke={color} strokeWidth={48}><title>{title}</title></circle>
-            : <circle key={row} cx={120} cy={110} r={92} fill={color}><title>{title}</title></circle>;
-          return <path key={row} d={sector(start, angle, props.type === 'donut' ? 44 : 0)} fill={color} stroke="var(--oui-surface, white)" strokeWidth={1}><title>{title}</title></path>;
+          const label = `${name} · ${data.labels[row]}, row ${row + 1}: ${display(value)} (${(share * 100).toFixed(1)}%). Exact value: ${String(value)}.`;
+          return <Marker key={row} address={{ series: seriesIndex, row }} label={label} interaction={interaction}>
+            {positiveCount === 1 ? props.type === 'donut'
+              ? <circle cx={120} cy={110} r={68} fill="none" stroke={color} strokeWidth={48} />
+              : <circle cx={120} cy={110} r={92} fill={color} />
+              : <path d={sector(start, angle, props.type === 'donut' ? 44 : 0)} fill={color} stroke="var(--oui-surface, white)" strokeWidth={1} />}
+          </Marker>;
         })}
       </svg>}
       <ul aria-label={`${name} slices`} style={{ listStyle: 'none', padding: 0, margin: '8px 0', fontSize: 12 }}>
@@ -250,22 +332,38 @@ function Circular({ props, data, display }: { props: ChartProps; data: Prepared;
 }
 
 function ChartView({ props }: { props: ChartProps }) {
+  const tooltipId = useId();
+  const [hovered, setHovered] = useState<DatumAddress | null>(null);
+  const [focused, setFocused] = useState<DatumAddress | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const interaction: ChartInteraction = {
+    tooltipId, focused, active: dismissed ? null : hovered ?? focused,
+    hover: address => { setHovered(address); setDismissed(false); },
+    focus: address => { setFocused(address); setHovered(null); setDismissed(false); },
+    blur: () => setFocused(null),
+    dismiss: () => setDismissed(true),
+  };
   const validated = chartSchema.safeParse(props);
   if (!validated.success) return <Notice error>Invalid Chart input: {validated.error.issues.map(issue => `${issue.path.join('.') || 'Chart'}: ${issue.message}`).join('; ')}</Notice>;
   props = validated.data;
   if (!props.data.length) return <Notice>No chart data was supplied.</Notice>;
   if (props.data.length > 5000) return <Notice error>Chart supports up to 5,000 rows. Filter or aggregate the data before displaying it.</Notice>;
   if (props.height !== undefined && props.height <= 0) return <Notice error>Chart height must be a positive number.</Notice>;
-  if (props.stacked && props.type !== 'bar' && props.type !== 'line' && props.type !== 'area') return <Notice error>Stacking is supported for bar, line, and area charts. It is unsupported for {props.type} charts.</Notice>;
+  if (props.stacked && props.type !== 'bar' && props.type !== 'line' && props.type !== 'area') return <Notice error>The public Chart contract does not specify how stacked {props.type} should be drawn. This combination is not implemented in this viewer.</Notice>;
   try {
     const data = prepare(props);
     const display = formatValue(props);
     // Call the pure drawing functions here so invalid data produces a local error.
     const circular = props.type === 'pie' || props.type === 'donut';
-    const drawing = circular ? Circular({ props, data, display }) : Cartesian({ props, data, display });
-    return <figure style={{ margin: 0, width: '100%', minWidth: 0 }}>
+    const drawing = circular ? Circular({ props, data, display, interaction }) : Cartesian({ props, data, display, interaction });
+    const hasMarks = circular ? data.values.some(values => values.some(value => value !== null && value > 0))
+      : props.stacked ? data.labels.some((_, row) => data.values.every(values => values[row] !== null))
+      : data.values.some(values => values.some(value => value !== null));
+    return <figure onPointerLeave={() => setHovered(null)} onKeyDown={event => { if (event.key === 'Escape') interaction.dismiss(); }} style={{ margin: 0, width: '100%', minWidth: 0 }}>
       {drawing}
       {!circular && <Legend names={data.series} />}
+      {hasMarks && <p style={{ fontSize: 11, color: muted, margin: '6px 0' }}>Hover a mark for its values, or focus a chart and use arrow keys. Home/End jump to the first/last mark; Escape hides details.</p>}
+      <Tooltip id={tooltipId} props={props} data={data} address={interaction.active} display={display} />
       {data.missing > 0 && <p role="status" style={{ fontSize: 12, color: muted, margin: '8px 0' }}>{data.missing} missing value{data.missing === 1 ? ' is' : 's are'} shown as gaps, not zeros.{props.stacked ? ' Rows with incomplete stacks are omitted from the drawing; supplied values remain in the data table.' : ''}</p>}
       <SourceData data={data} />
     </figure>;
@@ -276,7 +374,7 @@ function ChartView({ props }: { props: ChartProps }) {
 
 const Chart = defineComponent({
   name: 'Chart', props: chartSchema,
-  description: 'Data charts: bar, line, area, pie, donut, and scatter. Stacking is available for bar, line, and area. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected.',
+  description: 'Data charts: bar, line, area, pie, donut, and scatter. Hover or focus real data marks; arrow keys inspect exact values. Stacking is available for bar, line, and area. The public contract does not specify stacked pie, donut, or scatter semantics; these combinations are not implemented. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected.',
   component: ({ props }) => <ChartView props={props} />,
 });
 

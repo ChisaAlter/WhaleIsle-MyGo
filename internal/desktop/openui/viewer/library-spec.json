@@ -151,7 +151,7 @@
     },
     "Chart": {
       "signature": "Chart(type: \"bar\" | \"line\" | \"area\" | \"pie\" | \"donut\" | \"scatter\", data: Record<string, string | number>[], x?: string, series?: string[], format?: \"number\" | \"currency\" | \"percent\", currency?: string, stacked?: boolean, height?: number)",
-      "description": "Data charts: bar, line, area, pie, donut, and scatter. Stacking is available for bar, line, and area. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
+      "description": "Data charts: bar, line, area, pie, donut, and scatter. Hover or focus real data marks; arrow keys inspect exact values. Stacking is available for bar, line, and area. The public contract does not specify stacked pie, donut, or scatter semantics; these combinations are not implemented. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
     },
     "Table": {
       "signature": "Table(columns: string[], rows: any[][])",
@@ -1781,7 +1781,7 @@
           "data"
         ],
         "additionalProperties": false,
-        "description": "Data charts: bar, line, area, pie, donut, and scatter. Stacking is available for bar, line, and area. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
+        "description": "Data charts: bar, line, area, pie, donut, and scatter. Hover or focus real data marks; arrow keys inspect exact values. Stacking is available for bar, line, and area. The public contract does not specify stacked pie, donut, or scatter semantics; these combinations are not implemented. Pie and donut render one chart per selected series. Missing values are gaps; negative pie or donut values are rejected."
       },
       "Table": {
         "type": "object",
