@@ -227,7 +227,7 @@ func IsNotExist(err error) bool {
 // The complete canonical authority check still occurs before each local access.
 func ValidateRelativePath(rel string) error {
 	rel = filepath.ToSlash(rel)
-	if filepath.IsAbs(rel) || filepath.VolumeName(rel) != "" || strings.ContainsAny(rel, "\\\x00") {
+	if filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") || filepath.VolumeName(rel) != "" || strings.ContainsAny(rel, "\\\x00") {
 		return fmt.Errorf("workspacefs: invalid relative path")
 	}
 	for _, part := range strings.Split(rel, "/") {
