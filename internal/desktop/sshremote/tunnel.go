@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -14,18 +13,25 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 
 	"whaleisle/internal/paths"
 )
 
 // TunnelConfig is the Go-only SSH session settings (userData/ssh-tunnel.json).
 type TunnelConfig struct {
+	Name         string `json:"name,omitempty"`
 	Host         string `json:"host"`
 	User         string `json:"user"`
 	Port         int    `json:"port"`
 	IdentityFile string `json:"identityFile"`
+	Password     string `json:"password,omitempty"`
+	Passphrase   string `json:"passphrase,omitempty"`
+	HostKeyMode  string `json:"hostKeyMode,omitempty"`
+	UseAgent     bool   `json:"useAgent,omitempty"`
 	// LocalForward is optional "localPort:remoteHost:remotePort".
-	LocalForward string `json:"localForward,omitempty"`
+	LocalForward   string `json:"localForward,omitempty"`
+	ReverseForward string `json:"reverseForward,omitempty"`
 }
 
 // TunnelState is the live session status.
@@ -48,13 +54,21 @@ type TunnelSession struct {
 	cancel         context.CancelFunc
 	knownHostsFile string // empty → KnownHostsPath(paths.UserDataDir())
 	tofu           bool   // Trust-On-First-Use for unknown hosts (default true)
+	hostKeyMode    HostKeyMode
+	forwards       map[string]*activeForward
+}
+
+type activeForward struct {
+	spec     ForwardSpec
+	listener net.Listener
+	cancel   context.CancelFunc
 }
 
 // NewTunnelSession returns an idle session. Unknown host keys are accepted
 // and stored under userData/ssh/known_hosts (TOFU) until UI prompting lands;
 // call SetTrustOnFirstUse(false) to receive *UnknownHostKey instead.
 func NewTunnelSession() *TunnelSession {
-	return &TunnelSession{state: TunnelIdle, tofu: true}
+	return &TunnelSession{state: TunnelIdle, tofu: true, hostKeyMode: HostKeyAcceptNew, forwards: make(map[string]*activeForward)}
 }
 
 // SetKnownHostsFile sets the OpenSSH known_hosts path used for host-key
@@ -71,6 +85,19 @@ func (t *TunnelSession) SetKnownHostsFile(path string) {
 func (t *TunnelSession) SetTrustOnFirstUse(enabled bool) {
 	t.mu.Lock()
 	t.tofu = enabled
+	if enabled {
+		t.hostKeyMode = HostKeyAcceptNew
+	} else {
+		t.hostKeyMode = HostKeyVerify
+	}
+	t.mu.Unlock()
+}
+
+// SetHostKeyMode selects accept-new, verify or off.
+func (t *TunnelSession) SetHostKeyMode(mode HostKeyMode) {
+	t.mu.Lock()
+	t.hostKeyMode = NormalizeHostKeyMode(string(mode))
+	t.tofu = t.hostKeyMode == HostKeyAcceptNew
 	t.mu.Unlock()
 }
 
@@ -96,6 +123,9 @@ func LoadTunnelConfig(userData string) (TunnelConfig, error) {
 	if cfg.Port <= 0 {
 		cfg.Port = 22
 	}
+	if cfg.HostKeyMode != "" {
+		cfg.HostKeyMode = string(NormalizeHostKeyMode(cfg.HostKeyMode))
+	}
 	return cfg, nil
 }
 
@@ -104,13 +134,32 @@ func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
 	if cfg.Port <= 0 {
 		cfg.Port = 22
 	}
+	if cfg.HostKeyMode != "" {
+		cfg.HostKeyMode = string(NormalizeHostKeyMode(cfg.HostKeyMode))
+	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
 	path := ConfigPath(userData)
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	tmpFile, err := os.CreateTemp(filepath.Dir(path), ".ssh-tunnel-*.json")
+	if err != nil {
+		return err
+	}
+	tmp := tmpFile.Name()
+	defer os.Remove(tmp)
+	if err := tmpFile.Chmod(0o600); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -132,6 +181,9 @@ func (t *TunnelSession) SetConfig(cfg TunnelConfig) {
 
 // Connect dials SSH with the public-key identity file.
 func (t *TunnelSession) Connect(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	t.mu.Lock()
 	if t.client != nil {
 		t.mu.Unlock()
@@ -150,16 +202,41 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	if strings.TrimSpace(cfg.User) == "" {
 		return t.fail(fmt.Errorf("user required"))
 	}
-	if strings.TrimSpace(cfg.IdentityFile) == "" {
-		return t.fail(fmt.Errorf("identityFile required"))
+	var auth []ssh.AuthMethod
+	var agentConn net.Conn
+	if strings.TrimSpace(cfg.IdentityFile) != "" {
+		key, err := os.ReadFile(cfg.IdentityFile)
+		if err != nil {
+			return t.fail(err)
+		}
+		var signer ssh.Signer
+		if strings.TrimSpace(cfg.Passphrase) != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(cfg.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey(key)
+		}
+		if err != nil {
+			return t.fail(fmt.Errorf("parse key: %w", err))
+		}
+		auth = append(auth, ssh.PublicKeys(signer))
 	}
-	key, err := os.ReadFile(cfg.IdentityFile)
-	if err != nil {
-		return t.fail(err)
+	if cfg.Password != "" {
+		auth = append(auth, ssh.Password(cfg.Password))
 	}
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return t.fail(fmt.Errorf("parse key: %w", err))
+	if cfg.UseAgent {
+		sock := strings.TrimSpace(os.Getenv("SSH_AUTH_SOCK"))
+		if sock == "" {
+			return t.fail(fmt.Errorf("SSH_AUTH_SOCK is not set"))
+		}
+		var err error
+		agentConn, err = net.DialTimeout("unix", sock, 2*time.Second)
+		if err != nil {
+			return t.fail(fmt.Errorf("ssh agent: %w", err))
+		}
+		auth = append(auth, ssh.PublicKeysCallback(agent.NewClient(agentConn).Signers))
+	}
+	if len(auth) == 0 {
+		return t.fail(fmt.Errorf("identityFile, password or SSH agent required"))
 	}
 	port := cfg.Port
 	if port <= 0 {
@@ -169,25 +246,38 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	if strings.TrimSpace(kh) == "" {
 		kh = KnownHostsPath(paths.UserDataDir())
 	}
-	hostKeyCB, err := NewHostKeyCallback(HostKeyOptions{
-		Path:            kh,
-		TrustOnFirstUse: tofu,
-	})
+	mode := HostKeyMode(cfg.HostKeyMode)
+	if mode == "" {
+		mode = HostKeyAcceptNew
+		if !tofu {
+			mode = HostKeyVerify
+		}
+	}
+	hostKeyCB, err := NewHostKeyCallback(HostKeyOptions{Path: kh, TrustOnFirstUse: tofu, Mode: mode})
 	if err != nil {
+		if agentConn != nil {
+			_ = agentConn.Close()
+		}
 		return t.fail(err)
 	}
 	sshCfg := &ssh.ClientConfig{
 		User:            cfg.User,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		Auth:            auth,
 		HostKeyCallback: hostKeyCB,
 		Timeout:         12 * time.Second,
 	}
 	dialer := net.Dialer{Timeout: 12 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
+		if agentConn != nil {
+			_ = agentConn.Close()
+		}
 		return t.fail(err)
 	}
 	c, chans, reqs, err := ssh.NewClientConn(conn, addr, sshCfg)
+	if agentConn != nil {
+		_ = agentConn.Close()
+	}
 	if err != nil {
 		_ = conn.Close()
 		return t.fail(err)
@@ -204,6 +294,12 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 
 	go t.watch(ctx, client)
 	if fwd := strings.TrimSpace(cfg.LocalForward); fwd != "" {
+		go t.forward(ctx, client, fwd)
+	}
+	if fwd := strings.TrimSpace(cfg.ReverseForward); fwd != "" {
+		if !strings.HasPrefix(strings.ToLower(fwd), "reverse:") {
+			fwd = "reverse:" + fwd
+		}
 		go t.forward(ctx, client, fwd)
 	}
 	return nil
@@ -250,14 +346,14 @@ func (t *TunnelSession) watch(ctx context.Context, client *ssh.Client) {
 }
 
 func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec string) {
-	// localPort:remoteHost:remotePort
-	parts := strings.Split(spec, ":")
-	if len(parts) != 3 {
+	parsed, err := ParseForwardSpec(spec)
+	if err != nil {
+		t.mu.Lock()
+		t.err = "forward spec: " + err.Error()
+		t.mu.Unlock()
 		return
 	}
-	local := "127.0.0.1:" + parts[0]
-	remote := net.JoinHostPort(parts[1], parts[2])
-	ln, err := net.Listen("tcp", local)
+	stop, err := StartForward(ctx, client, parsed)
 	if err != nil {
 		t.mu.Lock()
 		t.err = "forward listen: " + err.Error()
@@ -266,27 +362,6 @@ func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec st
 	}
 	go func() {
 		<-ctx.Done()
-		_ = ln.Close()
+		stop()
 	}()
-	for {
-		localConn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		go func(lc net.Conn) {
-			defer lc.Close()
-			rc, err := client.Dial("tcp", remote)
-			if err != nil {
-				return
-			}
-			defer rc.Close()
-			done := make(chan struct{}, 2)
-			go func() { _, _ = io.Copy(rc, lc); done <- struct{}{} }()
-			go func() { _, _ = io.Copy(lc, rc); done <- struct{}{} }()
-			select {
-			case <-done:
-			case <-ctx.Done():
-			}
-		}(localConn)
-	}
 }
