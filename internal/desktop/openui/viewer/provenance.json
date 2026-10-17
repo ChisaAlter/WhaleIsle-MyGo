@@ -2,17 +2,17 @@
   "runtime": "whaleisle-independent-col-v1",
   "packaging": "Production asset generation only; tests and browser/native acceptance not run.",
   "originalApplicationIncluded": false,
-  "lockfileSHA256": "f32b54f52141040d49b3ee973a9760e0e4933e97f439e6b1219ab44935464793",
+  "lockfileSHA256": "7d46de5a7add6713ea32aec1d67dff45c0348b3fb14286897300812d7478b048",
   "assets": [
     {
       "name": "viewer.html",
-      "bytes": 2201464,
-      "sha256": "daba4c7fa5338526e7fee460dbe48b5d2e149d29d0fc91b27b595de902d1b890"
+      "bytes": 2389916,
+      "sha256": "0999f3a016c50302d2c8c11bcae6ff6498d31228c0dba255276813a5df127f62"
     },
     {
       "name": "viewer.js",
-      "bytes": 2017758,
-      "sha256": "7995183d924085f20c2ce621742e6c3c389a12b96ad5bcef14a5e0eeef361326"
+      "bytes": 2203545,
+      "sha256": "eb3e2ba3c02fa7272e5fcabd3ca1ade3945c6444d308416feb18dbb9002083be"
     },
     {
       "name": "viewer.css",
@@ -21,18 +21,18 @@
     },
     {
       "name": "THIRD-PARTY-NOTICES.txt",
-      "bytes": 177774,
-      "sha256": "c9c6c35f45bf1120d26ad688f9db42506237d3bc192f23185dc7eec9e3ac3fcd"
+      "bytes": 180389,
+      "sha256": "97eccc0df68d2c8c176577da4a5241e3b0760fe94682cc8f693b25efd3dc1133"
     },
     {
       "name": "library-spec.json",
-      "bytes": 95760,
-      "sha256": "99197508b9775ffecccabee031767afa0ad43a42bfbb32debf64e10f54dae8c2"
+      "bytes": 95962,
+      "sha256": "5c330319c319794eb72f215147b2499dfdba560db2211fab358a139a0b0d70b8"
     },
     {
       "name": "library-guide.txt",
-      "bytes": 22893,
-      "sha256": "2595b41b1787b044365eb23e993e29148800d6cebd23330b2d0475f812724d63"
+      "bytes": 23236,
+      "sha256": "8e0507350fae48da5b1d4435623df4421c2d7ab75c7257d17f2d6392e86743e9"
     }
   ],
   "packages": [
@@ -129,6 +129,18 @@
         {
           "file": "license",
           "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "entities",
+      "version": "6.0.1",
+      "license": "BSD-2-Clause",
+      "path": "node_modules/entities",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "cb992345949ccd6e8394b2cd6c465f7b897c864f845937dbf64e8997f389e164"
         }
       ]
     },
@@ -741,6 +753,18 @@
         {
           "file": "license",
           "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
+        }
+      ]
+    },
+    {
+      "name": "parse5",
+      "version": "8.0.0",
+      "license": "MIT",
+      "path": "node_modules/parse5",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "8c535800331e1e4439835555b3f9edc7fe9dee2fab0d8bbbd5a982e8b8343d4d"
         }
       ]
     },

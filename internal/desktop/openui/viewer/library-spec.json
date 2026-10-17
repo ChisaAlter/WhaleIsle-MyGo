@@ -215,7 +215,7 @@
     },
     "HtmlView": {
       "signature": "HtmlView(html: string, height?: number, title?: string)",
-      "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
+      "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. Static classic HTTP(S) scripts use the constrained Host preparation bridge. No direct network, modules, external CSS, media, host actions or persistent state."
     },
     "YouTube": {
       "signature": "YouTube(video: string, title?: string)",
@@ -2257,7 +2257,7 @@
           "html"
         ],
         "additionalProperties": false,
-        "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
+        "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. Static classic HTTP(S) scripts use the constrained Host preparation bridge. No direct network, modules, external CSS, media, host actions or persistent state."
       },
       "YouTube": {
         "type": "object",

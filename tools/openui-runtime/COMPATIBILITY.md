@@ -74,7 +74,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Polygon | points/fill/stroke/strokeWidth/opacity | 原生SVG多边形 |
 | G | children/transform/opacity | 标准安全transform；不是Group别名 |
 | SvgText | text/x/y/size/fill/anchor/weight | 文本转义，无HTML |
-| HtmlView | html/height/title；独立opaque srcdoc内的本地HTML/CSS/inline JS、DOM事件、canvas、动画循环，自动/指定高度 | 原公开script CDN未支持；无媒体/远程资源/原生动作/持久状态，详细隔离与生命周期见下节；native运行未验收 |
+| HtmlView | html/height/title；独立opaque srcdoc内的本地HTML/CSS/inline JS、DOM事件、canvas、动画循环，自动/指定高度；可信外层预取原始静态classic script CDN并替换为Host返回的data URL | 非任意CDN库兼容；无module/import、动态远程脚本、fetch、远程CSS/图片/媒体、原生动作或持久状态；精确脚本范围见[HTMLVIEW-SCRIPTS.md](HTMLVIEW-SCRIPTS.md)，native运行未验收 |
 | YouTube | video/title；解析单一视频 ID，真实 Load YouTube video 点击后创建独立 Host 原生内嵌媒体视图；按 rect/clip/viewport 定位与隐藏 | media 能力默认关闭；临时独立 profile，无 helper iframe/外部浏览器替代、用户 cookie、native bindings、autoplay 或 URL 参数透传；原生视图回执不保证视频可用/播放，见下节 |
 
 ### Code / Markdown 本地语法高亮
@@ -161,14 +161,17 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 ### HtmlView 内容和生命周期
 
-- 原公开位置契约是 `HtmlView(html: string, height?: number, title?: string)`；用途包含需要循环的游戏、canvas和动画。这里运行真实inline JavaScript，不把HTML改成静态文字，也不把script CDN假装成本地功能。
+- 原公开位置契约是 `HtmlView(html: string, height?: number, title?: string)`；用途包含需要循环的游戏、canvas和动画。这里运行真实inline JavaScript，并由可信外层支持原始静态classic script CDN引用；不把HTML改成静态文字，不将任意CDN库记为可用。
 - `html` 可以含页面/片段、style和inline script；不在React主文档插入HTML。opaque iframe仅有 `sandbox="allow-scripts"`，没有same-origin、form提交、弹窗、下载、顶层导航、权限或原生对象。其内部DOM事件、输入编辑、canvas绘制和动画循环属于本地页面行为；不暴露 `$binding`、assistant或资源接口。
+- 纯MIT解析器parse5 8.0.0读取原始HTML的source locations；只处理原始活动HTML命名空间的classic script外部src，定点改写src并移除已处理的integrity/crossorigin属性，不重新序列化整篇HTML。`template`内或动态生成的script不触发Host请求；外部foreign namespace script明确拒绝。module/import、fetch及CDN额外CSS/资源依赖不支持。地址须为无凭据的绝对公共HTTP(S)，`crossorigin="use-credentials"`明确拒绝。
+- 可信外层通过既有`api-request`/`api-response`和`owned-N`资源请求调用`/api/html-script`，query为`{src, integrity?}`，成功body为`{dataUrl, source, integrityVerified: boolean}`。Host返回base64 JavaScript data URL和实际最终来源URL；非全空白integrity须Host验证且标记为true，不能把仅有输入SRI属性当作校验完成。完整校验、预算和限制见[HTMLVIEW-SCRIPTS.md](HTMLVIEW-SCRIPTS.md)。
+- 全部静态脚本准备完成后才创建iframe；准备失败明确报错，此前不执行任何用户HTML。原markup次序、inline内容及async/defer属性保留，由浏览器处理准备后文档的原生执行语义；预取等齐所有脚本会改变原网络到达时序，不保证async原先的运行顺序。`document.currentScript.src`变成data URL，依赖它推算相对资源或需要动态加载/unsafe-eval的库不支持。
 - 未指定height时，组件只接收当前iframe真实contentWindow、origin=null的私有高度消息；消息只能调整本组件高度/状态，不能进入OpenUI宿主协议。自动高度按body布局/溢出测量，超出现有2,000px展示上限时保留内部滚动并提示；指定height允许1–2,000px，超额明确错误。依赖viewport高度的CSS布局宜指定height；不承诺任意CSS布局都能获得唯一自适应高度。
-- `html`改变即销毁旧iframe并创建新opaque文档；旧窗口消息不再匹配。仅height/title或无关OpenUI状态变化不重启同一HTML。streaming期间不运行部分脚本并销毁旧活动页面，结束后再创建完整文档；组件移除销毁子页面与监听器。局部JS状态不回传、不跨文档保存。
+- HTML或可信程序修订改变即销毁旧iframe、取消前端准备/等待并忽略旧回包；普通SDK状态更新以及仅height/title调整保留同一HTML文档。streaming期间不发脚本资源请求、不创建iframe，并销毁旧活动页面；结束后才准备完整文档。组件移除清理等待、子页面与监听器。前端abort不等于已派发Host网络操作已停止；局部JS状态不回传、不跨文档保存。
 - 宿主能力位`htmlView`默认false，只能由可信helper在真实frame准入就绪后启用。false时本组件明确显示不可用，不创建iframe；不影响其他OpenUI组件。Windows缺少所需第二层frame API、未接线平台或旧helper均不得冒充支持；能力更新沿用render消息，不重置用户状态。
-- 自有CSP前缀先于输入HTML生效，后续meta只能叠加限制。无远程script/CDN、fetch/WebSocket、worker、frame URL加载、media、object、base或form action。保留外层CSP和固定native请求拦截，不放宽它们来加载图片/字体。data图像/字体受所有继承策略交集约束，未宣称跨引擎可用。`webrtc 'block'`仅作兼容引擎的额外限制；现有OS沙箱无网络能力才是独立网络边界。
-- 仅OpenUI模式在native层准入唯一viewer的直接第二层srcdoc；普通HTML预览策略不变，第三层/其他URL继续拒绝。HtmlView自身不能通过伪造postMessage得到父组件身份。具体native接线见[HTMLVIEW-ISOLATION.md](HTMLVIEW-ISOLATION.md)。生产打包不会运行输入HTML或编译helper。
-- 任意inline JS仍能耗尽CPU/内存或卡住helper；此隔离不是脚本时间预算或资源配额。CDN和HtmlView内的外网媒体仍未支持；独立YouTube组件使用下一节的Host媒体视图，不向HtmlView授予该能力，不以组件注册记为完整原版能力齐平。
+- 自有CSP前缀先于输入HTML生效，后续meta只能叠加限制。内层`script-src`仅在原有inline策略上加入`data:`；没有为外部script开放HTTP(S)，fetch/WebSocket、worker、frame URL加载、media、object、base和form action仍受阻。保留外层CSP和固定native请求拦截，不放宽它们来加载图片/字体。data图像/字体受所有继承策略交集约束，未宣称跨引擎可用。`webrtc 'block'`仅作兼容引擎的额外限制；现有OS沙箱无网络能力才是独立网络边界。
+- 仅OpenUI模式在native层准入唯一viewer的直接第二层srcdoc；普通HTML预览策略不变，第三层/其他URL继续拒绝。HtmlView内层不能通过伪造postMessage取得资源桥或父组件身份，消息不会转发宿主。具体native接线见[HTMLVIEW-ISOLATION.md](HTMLVIEW-ISOLATION.md)。运行时脚本错误与CSP阻止仍真实提示；预取成功不代表脚本或页面成功运行。生产打包不会运行输入HTML或编译helper。
+- 任意可执行JS仍能耗尽CPU/内存或卡住helper；此隔离不是脚本时间预算或资源配额。HtmlView内的外网媒体仍未支持；独立YouTube组件使用下一节的Host媒体视图，不向HtmlView授予该能力。没有下载/执行真实CDN脚本，不以源码实现或组件注册记为完整原版能力齐平。
 
 ### YouTube 独立原生媒体视图
 
@@ -177,7 +180,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 每个媒体seat使用全新临时profile/cookie store、`Untrusted`和`DisableBindings`；不继承SessionOrigin、Cookie、Preload、native bindings，不复制用户浏览器cookie。网站可设置自己的临时cookie；seat生命周期销毁时清理profile。不请求autoplay，视频错误、地区/年龄/登录限制及网络行为交由原生播放器/网站处理。
 - typed媒体请求使用递增`sequence`及`media-<sequence>` ID，携带组件身份、Host revision、upsert/remove和经过校验的视频/几何字段。旧revision拒绝，remove销毁并退休该组件身份，旧upsert不能复活它；失效/过时回执不更新新组件。`native-view-created`、`hidden`、`closed`只确认原生视图放置/生命周期，不代表已验证视频存在、可用、加载或播放。
 - 几何同步包含组件rect、祖先裁剪与viewport交集；离屏或被overlay遮挡时隐藏，native实际位置跟随Host缩放。标题最多512个UTF-8字节；viewport宽高1–4,096，rect宽高0–4,096，所有坐标有限且clip须位于viewport及有效rect内。没有新增seat数量产品上限。隐藏不承诺暂停播放/停止网络；完整销毁和限制见专文。
-- 没有实际媒体/网络请求、浏览器执行或native运行验收，生产打包不验证播放器。业务Query/Mutation provider、script CDN和任意媒体URL仍未支持。
+- 没有实际媒体/网络请求、浏览器执行或native运行验收，生产打包不验证播放器。业务Query/Mutation provider和任意媒体URL仍未支持；HtmlView的受限静态classic脚本预取不扩大媒体能力。
 
 ### 地图手势细项
 
@@ -240,4 +243,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、公共图片重定向/DNS/预算/格式拒绝及各WebView解码、Markdown/Text链接内图片和旧回包隔离、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、YouTube媒体seat的真实手势/裁剪/缩放/遮挡/修订/销毁和临时profile隔离、真实视频与网络失败行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、公共图片重定向/DNS/预算/格式拒绝及各WebView解码、HtmlView静态脚本解析/来源/SRI/预算拒绝/准备失败/取消/执行顺序及各WebView data脚本CSP行为、Markdown/Text链接内图片和旧回包隔离、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、YouTube媒体seat的真实手势/裁剪/缩放/遮挡/修订/销毁和临时profile隔离、真实视频与网络失败行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。

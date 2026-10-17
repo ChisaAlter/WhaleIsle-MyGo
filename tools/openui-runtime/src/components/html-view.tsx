@@ -1,15 +1,16 @@
 // Independently authored implementation of the public HtmlView parameters.
 // Generated HTML runs only in a second opaque-origin sandbox, never in React's
 // document. The native OpenUI preview's existing OS sandbox remains required.
-import React, { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { defineComponent, useIsStreaming, type DefinedComponent } from "@openuidev/react-lang";
 import { z } from "zod/v4";
 import { byteLength, LIMITS } from "../bridge";
-import { HtmlViewSupportContext } from "../capabilities";
+import { HtmlViewSupportContext, ProgramRevisionContext } from "../capabilities";
+import { prepareHtmlScripts } from "../html-scripts";
 
 const CHANNEL = "whale-htmlview-local-v1";
 const MAX_HEIGHT = 2000; // Existing native OpenUI presentation limit.
-const POLICY = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'; webrtc 'block'";
+const POLICY = "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'; webrtc 'block'";
 const DENIED_FEATURES = "camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'; display-capture 'none'; fullscreen 'none'; autoplay 'none'; payment 'none'; usb 'none'; serial 'none'; bluetooth 'none'; midi 'none'; web-share 'none'; xr-spatial-tracking 'none'; accelerometer 'none'; gyroscope 'none'; magnetometer 'none'";
 
 // This small observer is our code, not part of the caller's HTML. It conveys
@@ -93,7 +94,7 @@ function HtmlDocument({ html, height, title }: { html: string; height?: number; 
     <iframe ref={frame} srcDoc={source} title={title || "Interactive HTML content"}
       sandbox="allow-scripts" referrerPolicy="no-referrer" allow={DENIED_FEATURES}
       style={{ display: "block", width: "100%", height: height ?? measuredHeight, border: "1px solid var(--oui-border, #d9e0e8)", borderRadius: 8, background: "#fff", colorScheme: "light" }} />
-    <div role="note" style={{ fontSize: 12, color: "var(--oui-muted, #526379)" }}>Local HTML/CSS/JavaScript. External scripts, network, media, navigation and native actions are unavailable.</div>
+    <div role="note" style={{ fontSize: 12, color: "var(--oui-muted, #526379)" }}>Isolated HTML/CSS/JavaScript with prepared static classic scripts. Direct network, worker, media, navigation and native actions remain unavailable.</div>
     {!ready && <div role="status">Loading isolated HTML content…</div>}
     {height == null && clipped && <div role="status">Content exceeds the existing 2,000px preview height; scroll inside the HTML view.</div>}
     {scriptError && <div role="alert">The embedded HTML reported a JavaScript error.</div>}
@@ -101,20 +102,48 @@ function HtmlDocument({ html, height, title }: { html: string; height?: number; 
   </section>;
 }
 
+function PreparedHtmlDocument({ html, height, title }: { html: string; height?: number; title?: string }) {
+  const [prepared, setPrepared] = useState<Awaited<ReturnType<typeof prepareHtmlScripts>> | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    let live = true;
+    prepareHtmlScripts(html, controller.signal).then(result => {
+      if (live && !controller.signal.aborted) setPrepared(result);
+    }).catch((error: unknown) => {
+      if (live && !controller.signal.aborted) {
+        setFailure(error instanceof Error ? error.message : "HTML script preparation failed.");
+        controller.abort(); // Retire sibling queued/waiting preparations after a real failure.
+      }
+    });
+    return () => { live = false; controller.abort(); };
+  }, [html]);
+  if (failure) return <div role="alert">HtmlView could not prepare its scripts: {failure} No embedded HTML has been started.</div>;
+  if (!prepared) return <div role="status">Preparing isolated HTML content…</div>;
+  return <section style={{ display: "grid", gap: 6, minWidth: 0 }}>
+    <HtmlDocument html={prepared.html} height={height} title={title} />
+    {prepared.sources.length > 0 && <details style={{ fontSize: 12, color: "var(--oui-muted, #526379)", overflowWrap: "anywhere" }}>
+      <summary>Prepared script sources</summary>
+      <ul>{prepared.sources.map((item, index) => <li key={index}>{item.source} ({item.integrityVerified ? "integrity verified" : "no integrity supplied"})</li>)}</ul>
+    </details>}
+  </section>;
+}
+
 const HtmlView = defineComponent({
   name: "HtmlView",
   props: z.object({ html: z.string(), height: z.number().optional(), title: z.string().optional() }),
-  description: "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state.",
+  description: "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. Static classic HTTP(S) scripts use the constrained Host preparation bridge. No direct network, modules, external CSS, media, host actions or persistent state.",
   component: ({ props }) => {
     const streaming = useIsStreaming();
     const supported = useContext(HtmlViewSupportContext);
+    const programRevision = useContext(ProgramRevisionContext);
     if (props.height != null && (!Number.isFinite(props.height) || props.height < 1 || props.height > MAX_HEIGHT)) return <div role="alert">HtmlView height must be between 1 and 2,000 pixels, within the existing preview limit.</div>;
     if (byteLength(props.html) > LIMITS.program) return <div role="alert">HtmlView content exceeds the existing 256 KiB OpenUI program budget.</div>;
     if (streaming) return <div role="status">Waiting for the complete HTML content before running it…</div>;
     if (!supported) return <div role="alert">HtmlView is unavailable: this preview host has not enabled isolated nested HTML support. Other OpenUI components remain available.</div>;
-    // New HTML means a new opaque document and a new contentWindow. Same HTML
-    // survives unrelated React/state updates. Streaming and removal destroy it.
-    return <HtmlDocument key={props.html} html={props.html} height={props.height} title={props.title} />;
+    // Source revision or HTML changes retire preparation and the opaque window.
+    // Ordinary state/height/title updates preserve the existing document.
+    return <PreparedHtmlDocument key={`${programRevision}:${props.html}`} html={props.html} height={props.height} title={props.title} />;
   },
 });
 

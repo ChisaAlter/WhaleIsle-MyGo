@@ -6,11 +6,11 @@ This document identifies the third-party software included in the independently 
 
 - Inventory date: 2026-10-17 UTC.
 - Runtime: independently authored component library using the official OpenUI language SDK.
-- The production browser bundle contains code from **81 package paths**. All have complete published license files.
-- Package metadata labels: 78 MIT, 2 ISC and 1 BSD-3-Clause. Lucide also includes Feather-derived MIT terms, reproduced in full below.
+- The production browser bundle contains code from **83 package paths**. All have complete published license files.
+- Package metadata labels: 79 MIT, 2 ISC, 1 BSD-3-Clause and 1 BSD-2-Clause. Lucide also includes Feather-derived MIT terms, reproduced in full below.
 - Package selection comes from positive `bytesInOutput` entries in `dist/bundle-metafile.json`, cross-checked with `dist/used-package-paths.json`.
 - Exact installed versions and package tarball integrity values are recorded in `package-lock.json`.
-- `package-lock.json` SHA-256: `f32b54f52141040d49b3ee973a9760e0e4933e97f439e6b1219ab44935464793`.
+- `package-lock.json` SHA-256: `7d46de5a7add6713ea32aec1d67dff45c0348b3fb14286897300812d7478b048`.
 - Build-only tools and packages that contribute no browser runtime bytes are outside this browser inventory. The generated `dist/catalogue-tool.cjs` is a build helper and is not part of the viewer redistribution.
 - These license records are static dependency/asset evidence, not a claim of runtime or compatibility testing.
 
@@ -37,6 +37,10 @@ The Code and Markdown syntax highlighter adds the following official npm package
 
 `highlight.js@11.11.1` satisfies `lowlight@3.3.0`'s declared `~11.11.0` dependency range. The full BSD-3-Clause notice is reproduced below, including source and binary redistribution conditions, the non-endorsement condition, and the warranty/liability disclaimer. It is not an MIT-only dependency. `devlop` contributes no bytes to the final browser bundle and is not part of this runtime inventory.
 
+## Static HTML parser dependency provenance
+
+HtmlView static script preparation uses `parse5@8.0.0` (MIT) and its `entities@6.0.1` dependency (BSD-2-Clause). These exact official npm versions are recorded with tarball URLs and integrity values in the lockfile. Both installed packages contain complete published LICENSE files; their bytes and hashes are reproduced below and included in the generated runtime notices/provenance. No original application parser or component implementation is included. Official package sources: [parse5](https://github.com/inikulin/parse5), [entities](https://github.com/fb55/entities).
+
 ## Asset-specific terms
 
 - **KaTeX 0.16.47:** this viewer uses the JavaScript renderer with MathML output. No KaTeX stylesheet or font binaries occur in the production bundle inputs. Its included code uses the published MIT license reproduced below. The separate SIL OFL terms for KaTeX font binaries are therefore not part of this distribution. If a future build embeds those fonts, include their actual copyright/reserved-font-name declarations and full OFL terms.
@@ -49,6 +53,8 @@ The Code and Markdown syntax highlighter adds the following official npm package
 
 | Package | Version | Terms | Notice | Official package archive |
 | --- | --- | --- | --- | --- |
+| `parse5` | `8.0.0` | MIT | [Notice 27](#notice-27) | [npm tarball](https://registry.npmjs.org/parse5/-/parse5-8.0.0.tgz) |
+| `entities` | `6.0.1` | BSD-2-Clause | [Notice 28](#notice-28) | [npm tarball](https://registry.npmjs.org/entities/-/entities-6.0.1.tgz) |
 | `@openuidev/lang-core` | `1.0.0` | MIT | [Notice 1](#notice-1) | [npm tarball](https://registry.npmjs.org/@openuidev/lang-core/-/lang-core-1.0.0.tgz) |
 | `@openuidev/observability` | `0.0.4` | MIT | [Notice 1](#notice-1) | [npm tarball](https://registry.npmjs.org/@openuidev/observability/-/observability-0.0.4.tgz) |
 | `@openuidev/react-lang` | `1.0.0` | MIT | [Notice 1](#notice-1) | [npm tarball](https://registry.npmjs.org/@openuidev/react-lang/-/react-lang-1.0.0.tgz) |
@@ -922,4 +928,52 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### Notice 27
+
+Applies to: `parse5@8.0.0`.
+
+Original license-file SHA-256: `8c535800331e1e4439835555b3f9edc7fe9dee2fab0d8bbbd5a982e8b8343d4d`.
+
+```text
+Copyright (c) 2013-2019 Ivan Nikulin (ifaaan@gmail.com, https://github.com/inikulin)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+### Notice 28
+
+Applies to: `entities@6.0.1`.
+
+Original license-file SHA-256: `cb992345949ccd6e8394b2cd6c465f7b897c864f845937dbf64e8997f389e164`.
+
+```text
+Copyright (c) Felix Böhm
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```

@@ -37,6 +37,13 @@ func validateAPIRequest(e Event) error {
 	}
 	key := ""
 	switch e.Path {
+	case "/api/html-script":
+		for k := range e.Query {
+			if k != "src" && k != "integrity" {
+				return errors.New("unsupported OpenUI script parameter")
+			}
+		}
+		return nil
 	case "/api/image":
 		key = "src"
 	case "/api/wiki":
@@ -64,7 +71,7 @@ func validateAPIRequest(e Event) error {
 }
 
 // ResourceAPI has its own credential-free client for fixed public adapters.
-// The image operation uses a separate public-address-only transport; no caller
+// Image and classic-script operations use a public-address-only transport; no caller
 // can supply request headers, credentials, or a general response operation.
 type ResourceAPI struct {
 	client *http.Client
@@ -87,6 +94,8 @@ func (a *ResourceAPI) Handle(ctx context.Context, e Event) APIResponse {
 	}
 	var result APIResponse
 	switch e.Path {
+	case "/api/html-script":
+		result = a.htmlScript(ctx, e)
 	case "/api/image":
 		result = a.publicImage(ctx, e)
 	case "/api/wiki":
