@@ -18,7 +18,8 @@
 // same directory: base64-decode it, strip the leading "DPAPI" marker, then
 // CryptUnprotectData. Save writes that same envelope via CryptProtectData.
 // macOS writes a distinct native envelope backed by a per-profile Keychain
-// key. Electron macOS safeStorage CBC migration is not implemented. Linux
+// key. Original macOS safeStorage v10 envelopes can be read from the original
+// Whale Isle Keychain item; Load never rewrites them. Linux
 // secure storage is unsupported; Save never falls back to plaintext.
 package credentials
 
@@ -248,9 +249,9 @@ func decryptEnvelope(dir string, data []byte) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
 	}
-	var key []byte
+	var key, plaintext []byte
 	if env.Version == EnvelopeVersion {
-		key, err = loadLocalStateKey(dir)
+		plaintext, err = decryptSafeStorage(dir, blob)
 	} else if env.Version == credentialOS.version {
 		key, err = credentialOS.key(dir, false)
 	} else {
@@ -259,10 +260,13 @@ func decryptEnvelope(dir string, data []byte) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, err
 	}
-	plaintext, err := open(key, blob)
+	if env.Version != EnvelopeVersion {
+		plaintext, err = open(key, blob)
+	}
 	if err != nil {
 		return Credentials{}, err
 	}
+	defer clear(plaintext)
 	var creds Credentials
 	if err := decodeCredentialsObject(plaintext, &creds); err != nil {
 		return Credentials{}, fmt.Errorf("credentials: %s: decrypted envelope: %w", path, err)

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // StorageStatus contains format metadata only. It never contains credential
@@ -44,6 +45,10 @@ func InspectStorage(dir string) StorageStatus {
 				s.Backend = "macOS Keychain + AES-256-GCM"
 			} else {
 				s.Backend = "Windows DPAPI + AES-256-GCM (safeStorage-v1)"
+				if runtime.GOOS == "darwin" {
+					s.Backend = "Legacy macOS Keychain + AES-128-CBC (safeStorage-v1)"
+					s.SupportedPlatform = credentialOS.supported
+				}
 			}
 		}
 	}
