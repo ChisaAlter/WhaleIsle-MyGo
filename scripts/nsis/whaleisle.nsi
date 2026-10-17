@@ -58,6 +58,7 @@ Section "Install"
   SetOutPath "$INSTDIR"
 !endif
 
+!ifndef SHELL_ONLY
 !if /FileExists "${STAGE_DIR}\.pet-render-staged"
 !else
   !error "THA4 resources not staged. Run package.ps1 with WHALEISLE_PET_RENDER_ASSETS."
@@ -78,6 +79,7 @@ Section "Install"
   SetOutPath "$INSTDIR\pet-render-assets\ort"
   File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
   SetOutPath "$INSTDIR"
+!endif
 
   WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayName" "${PRODUCT_NAME}"

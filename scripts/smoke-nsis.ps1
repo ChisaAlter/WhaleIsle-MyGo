@@ -108,7 +108,9 @@ if (Test-Path $Setup) {
 Write-Host "Compiling NSIS with $Makensis (VERSION=$Version) ..."
 Push-Location (Join-Path $PSScriptRoot 'nsis')
 try {
-    & $Makensis "/DVERSION=$Version" (Split-Path -Leaf $Nsi)
+    $NsisArguments = @("/DVERSION=$Version")
+    if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') { $NsisArguments += '/DSHELL_ONLY=1' }
+    & $Makensis @NsisArguments (Split-Path -Leaf $Nsi)
     if ($LASTEXITCODE -ne 0) {
         throw "makensis failed (exit $LASTEXITCODE)"
     }
