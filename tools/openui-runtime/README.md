@@ -45,6 +45,6 @@ npm run embed
 
 ## 许可与剩余工作
 
-精确依赖版本/官方来源及 79 个浏览器贡献包的许可清单见 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md)，完整原文在生成通知中。当前不使用 `@openuidev/react-ui`，不打包 KaTeX 字体；Lucide 的完整 ISC 与 Feather MIT 通知一并保留。本目录不会为其他已有项目源码授予新许可。
+精确依赖版本/官方来源及 81 个浏览器贡献包的许可清单见 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md)，完整原文在生成通知中。当前不使用 `@openuidev/react-ui`，不打包 KaTeX 字体；Lucide 的完整 ISC 与 Feather MIT 通知一并保留。Code/Markdown代码块的本地高亮使用 lowlight 3.3.0（MIT）和 highlight.js 11.11.1（BSD-3-Clause），完整BSD通知随包。本目录不会为其他已有项目源码授予新许可。
 
 剩余工作是解除验证限制后，执行已列状态/动作/流式/资源失败场景的协议回归与真实 Windows/macOS WebView 验收，并按兼容清单补齐明确缺失的能力。当前不能宣称与原版全功能/样式一致，也不能将源级实现或生产打包计作运行验收。

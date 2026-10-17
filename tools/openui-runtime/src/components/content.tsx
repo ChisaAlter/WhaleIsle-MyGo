@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import katex from 'katex';
 import { icons, type LucideIcon } from 'lucide-react';
 import { z } from 'zod/v4';
+import { HighlightedCodeBlock, MarkdownCodeBlock } from './highlight';
 
 const ink = 'var(--oui-ink, #172337)';
 const muted = 'var(--oui-muted, #526379)';
@@ -48,7 +49,7 @@ const markdownComponents: Components = {
   h5: ({ children }) => <h5 style={{ fontSize: '1em', margin: '1em 0 0.5em' }}>{children}</h5>,
   h6: ({ children }) => <h6 style={{ fontSize: '0.95em', margin: '1em 0 0.5em' }}>{children}</h6>,
   blockquote: ({ children }) => <blockquote style={{ margin: '1em 0', paddingInlineStart: 16, borderInlineStart: `3px solid ${border}`, color: muted }}>{children}</blockquote>,
-  pre: ({ children }) => <pre style={{ margin: '0.75em 0', padding: 14, overflowX: 'auto', borderRadius: 8, background: surface, whiteSpace: 'pre', fontFamily: mono }}>{children}</pre>,
+  pre: ({ node, children }) => <MarkdownCodeBlock node={node}>{children}</MarkdownCodeBlock>,
   code: ({ children, className }) => <code className={className} style={{ fontFamily: mono, fontSize: '0.9em', backgroundColor: surface, borderRadius: 3, padding: '0.1em 0.2em' }}>{children}</code>,
   ul: ({ children }) => <ul style={{ margin: '0.7em 0', paddingInlineStart: 24 }}>{children}</ul>,
   ol: ({ children, start }) => <ol start={start} style={{ margin: '0.7em 0', paddingInlineStart: 24 }}>{children}</ol>,
@@ -162,8 +163,8 @@ const Quote = defineComponent({
 });
 
 const Code = defineComponent({
-  name: 'Code', props: z.object({ code: z.string(), language: z.string().optional() }), description: 'Plain code with a language label. Clipboard access is disabled.',
-  component: ({ props }) => <figure className="oui-code" style={{ margin: 0, minWidth: 0, border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}><figcaption style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 12px', fontSize: 12, color: muted, backgroundColor: surface }}><span>{props.language || 'Code'}</span><span role="note">Copy unavailable in isolated viewer</span></figcaption><pre style={{ margin: 0, padding: 14, maxWidth: '100%', overflowX: 'auto', fontSize: 13, lineHeight: 1.6, fontFamily: mono }}><code>{props.code}</code></pre></figure>,
+  name: 'Code', props: z.object({ code: z.string(), language: z.string().optional() }), description: 'Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled.',
+  component: ({ props }) => <HighlightedCodeBlock code={props.code} language={props.language} clipboardNotice />,
 });
 
 function SafeMath({ tex, inline }: { tex: string; inline?: boolean }) {

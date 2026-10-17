@@ -6,11 +6,11 @@ This document identifies the third-party software included in the independently 
 
 - Inventory date: 2026-10-17 UTC.
 - Runtime: independently authored component library using the official OpenUI language SDK.
-- The production browser bundle contains code from **79 package paths**. All have complete published license files.
-- Package metadata labels: 77 MIT and 2 ISC. Lucide also includes Feather-derived MIT terms, reproduced in full below.
+- The production browser bundle contains code from **81 package paths**. All have complete published license files.
+- Package metadata labels: 78 MIT, 2 ISC and 1 BSD-3-Clause. Lucide also includes Feather-derived MIT terms, reproduced in full below.
 - Package selection comes from positive `bytesInOutput` entries in `dist/bundle-metafile.json`, cross-checked with `dist/used-package-paths.json`.
 - Exact installed versions and package tarball integrity values are recorded in `package-lock.json`.
-- `package-lock.json` SHA-256: `5f4175940b0141eb9d45abbdba38ddc17734428baba040e64651ae406b245ac5`.
+- `package-lock.json` SHA-256: `f32b54f52141040d49b3ee973a9760e0e4933e97f439e6b1219ab44935464793`.
 - Build-only tools and packages that contribute no browser runtime bytes are outside this browser inventory. The generated `dist/catalogue-tool.cjs` is a build helper and is not part of the viewer redistribution.
 - These license records are static dependency/asset evidence, not a claim of runtime or compatibility testing.
 
@@ -25,6 +25,17 @@ The exact source commits below are recorded in the packages’ published npm SLS
 | `@openuidev/observability` | `0.0.4` | [`b30b1073882f289569be5805be99292203fce60d`](https://github.com/thesysdev/openui/tree/b30b1073882f289569be5805be99292203fce60d) | [MIT LICENSE](https://github.com/thesysdev/openui/blob/b30b1073882f289569be5805be99292203fce60d/LICENSE) | [npm record](https://registry.npmjs.org/-/npm/v1/attestations/@openuidev%2fobservability@0.0.4) |
 
 The SHA-256 of each of the three published SDK LICENSE files is `b6bdd2d3d161722fb3f3afc039114cfa9f3236f036e1c98e0853bc3a85f6cd9e`. The upstream root LICENSE at both recorded commits matches these installed license bytes.
+
+## Local syntax-highlighting dependency provenance
+
+The Code and Markdown syntax highlighter adds the following official npm packages. Their registry tarball URLs and integrity values were matched to the lockfile, and their installed complete license files were byte-for-byte matched to the corresponding official version-tag license files. The exact `gitHead` values below are those published in npm version metadata.
+
+| Package | Version | Terms | npm gitHead | Official version license | License-file SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| `lowlight` | `3.3.0` | MIT | `0f36148072cd096ca86753d6f1ff01589d30d78f` | [Version license](https://github.com/wooorm/lowlight/blob/3.3.0/license) | `dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb` |
+| `highlight.js` | `11.11.1` | BSD-3-Clause | `08cb242e7d4aee787114eb04cc7ab18314d82f92` | [Version license](https://github.com/highlightjs/highlight.js/blob/11.11.1/LICENSE) | `6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490` |
+
+`highlight.js@11.11.1` satisfies `lowlight@3.3.0`'s declared `~11.11.0` dependency range. The full BSD-3-Clause notice is reproduced below, including source and binary redistribution conditions, the non-endorsement condition, and the warranty/liability disclaimer. It is not an MIT-only dependency. `devlop` contributes no bytes to the final browser bundle and is not part of this runtime inventory.
 
 ## Asset-specific terms
 
@@ -51,11 +62,13 @@ The SHA-256 of each of the three published SDK LICENSE files is `b6bdd2d3d161722
 | `extend` | `3.0.2` | MIT | [Notice 8](#notice-8) | [npm tarball](https://registry.npmjs.org/extend/-/extend-3.0.2.tgz) |
 | `hast-util-to-jsx-runtime` | `2.3.6` | MIT | [Notice 5](#notice-5) | [npm tarball](https://registry.npmjs.org/hast-util-to-jsx-runtime/-/hast-util-to-jsx-runtime-2.3.6.tgz) |
 | `hast-util-whitespace` | `3.0.0` | MIT | [Notice 4](#notice-4) | [npm tarball](https://registry.npmjs.org/hast-util-whitespace/-/hast-util-whitespace-3.0.0.tgz) |
+| `highlight.js` | `11.11.1` | BSD-3-Clause | [Notice 26](#notice-26) | [npm tarball](https://registry.npmjs.org/highlight.js/-/highlight.js-11.11.1.tgz) |
 | `html-url-attributes` | `3.0.1` | MIT | [Notice 9](#notice-9) | [npm tarball](https://registry.npmjs.org/html-url-attributes/-/html-url-attributes-3.0.1.tgz) |
 | `inline-style-parser` | `0.2.7` | MIT | [Notice 10](#notice-10) | [npm tarball](https://registry.npmjs.org/inline-style-parser/-/inline-style-parser-0.2.7.tgz) |
 | `is-plain-obj` | `4.1.0` | MIT | [Notice 6](#notice-6) | [npm tarball](https://registry.npmjs.org/is-plain-obj/-/is-plain-obj-4.1.0.tgz) |
 | `katex` | `0.16.47` | MIT | [Notice 11](#notice-11) | [npm tarball](https://registry.npmjs.org/katex/-/katex-0.16.47.tgz) |
 | `longest-streak` | `3.1.0` | MIT | [Notice 12](#notice-12) | [npm tarball](https://registry.npmjs.org/longest-streak/-/longest-streak-3.1.0.tgz) |
+| `lowlight` | `3.3.0` | MIT | [Notice 5](#notice-5) | [npm tarball](https://registry.npmjs.org/lowlight/-/lowlight-3.3.0.tgz) |
 | `lucide-react` | `0.575.0` | ISC + MIT (Feather portions) | [Notice 13](#notice-13) | [npm tarball](https://registry.npmjs.org/lucide-react/-/lucide-react-0.575.0.tgz) |
 | `markdown-table` | `3.0.4` | MIT | [Notice 5](#notice-5) | [npm tarball](https://registry.npmjs.org/markdown-table/-/markdown-table-3.0.4.tgz) |
 | `mdast-util-find-and-replace` | `3.0.3` | MIT | [Notice 5](#notice-5) | [npm tarball](https://registry.npmjs.org/mdast-util-find-and-replace/-/mdast-util-find-and-replace-3.0.3.tgz) |
@@ -120,7 +133,7 @@ The SHA-256 of each of the three published SDK LICENSE files is `b6bdd2d3d161722
 
 ## Complete published license texts
 
-The following 25 distinct notice texts are copied from the installed official packages. The SHA-256 values identify the original license-file bytes. Package associations preserve every contributing package’s copyright and permission notice.
+The following 26 distinct notice texts are copied from the installed official packages. The SHA-256 values identify the original license-file bytes. Package associations preserve every contributing package’s copyright and permission notice.
 
 ### Notice 1
 
@@ -240,7 +253,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### Notice 5
 
-Applies to: `decode-named-character-reference@1.3.0`, `hast-util-to-jsx-runtime@2.3.6`, `markdown-table@3.0.4`, `mdast-util-find-and-replace@3.0.3`, `mdast-util-from-markdown@2.1.0`, `mdast-util-gfm@3.1.0`, `mdast-util-gfm-footnote@2.1.0`, `mdast-util-gfm-strikethrough@2.0.1`, `mdast-util-to-markdown@2.2.0`, `micromark@4.0.3`, `micromark-core-commonmark@2.0.4`, `micromark-extension-gfm-table@2.1.2`, `micromark-factory-destination@2.0.1`, `micromark-factory-label@2.0.1`, `micromark-factory-space@2.1.0`, `micromark-factory-title@2.0.1`, `micromark-factory-whitespace@2.0.1`, `micromark-util-character@2.1.1`, `micromark-util-chunked@2.0.1`, `micromark-util-classify-character@2.0.1`, `micromark-util-combine-extensions@2.0.1`, `micromark-util-decode-numeric-character-reference@2.0.2`, `micromark-util-decode-string@2.0.1`, `micromark-util-edit-map@1.0.0`, `micromark-util-html-tag-name@2.0.1`, `micromark-util-normalize-identifier@2.0.1`, `micromark-util-resolve-all@2.0.1`, `micromark-util-sanitize-uri@2.0.1`, `micromark-util-subtokenize@2.1.0`, `remark-gfm@4.0.1`, `remark-rehype@11.1.2`, `vfile-message@4.0.3`.
+Applies to: `decode-named-character-reference@1.3.0`, `hast-util-to-jsx-runtime@2.3.6`, `markdown-table@3.0.4`, `mdast-util-find-and-replace@3.0.3`, `mdast-util-from-markdown@2.1.0`, `mdast-util-gfm@3.1.0`, `mdast-util-gfm-footnote@2.1.0`, `mdast-util-gfm-strikethrough@2.0.1`, `mdast-util-to-markdown@2.2.0`, `micromark@4.0.3`, `micromark-core-commonmark@2.0.4`, `micromark-extension-gfm-table@2.1.2`, `micromark-factory-destination@2.0.1`, `micromark-factory-label@2.0.1`, `micromark-factory-space@2.1.0`, `micromark-factory-title@2.0.1`, `micromark-factory-whitespace@2.0.1`, `micromark-util-character@2.1.1`, `micromark-util-chunked@2.0.1`, `micromark-util-classify-character@2.0.1`, `micromark-util-combine-extensions@2.0.1`, `micromark-util-decode-numeric-character-reference@2.0.2`, `micromark-util-decode-string@2.0.1`, `micromark-util-edit-map@1.0.0`, `micromark-util-html-tag-name@2.0.1`, `micromark-util-normalize-identifier@2.0.1`, `micromark-util-resolve-all@2.0.1`, `micromark-util-sanitize-uri@2.0.1`, `micromark-util-subtokenize@2.1.0`, `remark-gfm@4.0.1`, `remark-rehype@11.1.2`, `vfile-message@4.0.3`, `lowlight@3.3.0`.
 
 Original license-file SHA-256: `dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb`.
 
@@ -871,4 +884,42 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### Notice 26
+
+Applies to: `highlight.js@11.11.1`.
+
+Original license-file SHA-256: `6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490`.
+
+```text
+BSD 3-Clause License
+
+Copyright (c) 2006, Ivan Sagalaev.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```

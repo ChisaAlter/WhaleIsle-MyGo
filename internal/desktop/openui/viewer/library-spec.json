@@ -63,7 +63,7 @@
     },
     "Code": {
       "signature": "Code(code: string, language?: string)",
-      "description": "Plain code with a language label. Clipboard access is disabled."
+      "description": "Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled."
     },
     "Math": {
       "signature": "Math(tex: string, inline?: boolean)",
@@ -1060,7 +1060,7 @@
           "code"
         ],
         "additionalProperties": false,
-        "description": "Plain code with a language label. Clipboard access is disabled."
+        "description": "Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled."
       },
       "Math": {
         "type": "object",

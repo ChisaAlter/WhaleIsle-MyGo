@@ -41,7 +41,7 @@ Label(text: string) — A visible group or field label.
 Badge(text: string, color?: "neutral" | "info" | "success" | "warning" | "danger" | "purple" | "pink", icon?: string) — A small colored tag with an optional local Lucide icon.
 Markdown(text: string) — Markdown prose, tables, lists, and code. Raw HTML and external media are disabled.
 Quote(text: string, cite?: string) — A quotation with an optional plain-text source.
-Code(code: string, language?: string) — Plain code with a language label. Clipboard access is disabled.
+Code(code: string, language?: string) — Locally highlighted code with explicit plain-text fallback. Clipboard access is disabled.
 Math(tex: string, inline?: boolean) — Local KaTeX formula rendered as native MathML with trusted commands disabled.
 Link(text: string, url: string) — Displays a link label and an explicit navigation-disabled status.
 List(items: any, marker?: "bullet" | "number" | "none", timeline?: boolean) — Bulleted, numbered, or unmarked items with optional timeline connectors.

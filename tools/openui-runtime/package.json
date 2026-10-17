@@ -11,7 +11,9 @@
   "dependencies": {
     "@openuidev/lang-core": "1.0.0",
     "@openuidev/react-lang": "1.0.0",
+    "highlight.js": "11.11.1",
     "katex": "0.16.47",
+    "lowlight": "3.3.0",
     "lucide-react": "0.575.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

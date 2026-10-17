@@ -35,9 +35,9 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Label | text | 可见标签；字段实际关联由各控件实现 |
 | Badge | neutral/info/success/warning/danger/purple/pink、Lucide icon | 未知 icon 显式提示 |
 | Icon | name、sm/md/lg/xl、color；实际本地 Lucide 图标 | 仅安装版本存在的名称 |
-| Markdown | CommonMark/GFM、表格、任务列表、代码块 | raw HTML 跳过；图片显式不可用；链接禁用；代码无语法高亮，Markdown数学扩展未接入 |
+| Markdown | CommonMark/GFM、表格、任务列表、代码块 | raw HTML 跳过；图片显式不可用；链接禁用；带语言的代码块使用下述本地高亮；Markdown数学扩展未接入 |
 | Quote | text/cite | cite 为纯文本，不导航 |
-| Code | code/language、横向滚动 | 语言标签可见；无语法高亮，复制明确不可用 |
+| Code | code/language、横向滚动 | 语言标签及本地语法高亮；未指定/未知语言和超预算保留完整原文并说明，复制明确不可用 |
 | Math | tex/inline；本地 KaTeX 到原生 MathML | trust=false；不打包字体；原生MathML效果待各WebView验收；有解析/展开预算 |
 | Link | text/url 被识别并呈现禁用链接提示 | 原版 http(s) 新窗口导航尚未实现，不能计为可点击链接 |
 | List | bullet/number/none、timeline；字符串或ListItem | 自有标记/连接线 |
@@ -77,11 +77,57 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | HtmlView | 未注册 | 嵌套HTML/frame能力未实现；报缺失组件 |
 | YouTube | 未注册 | 媒体/frame能力未实现；报缺失组件 |
 
+### Code / Markdown 本地语法高亮
+
+使用官方 lowlight 3.3.0（MIT）和 highlight.js 11.11.1（BSD-3-Clause）。固定语言名/别名映射，不调用自动检测、不下载语法。语法输出仅转为React text/span/className，逐字检查文本与输入一致；不使用innerHTML，不执行HTML、JS或其他代码。语言别名是语法着色映射，不是编译器/方言正确性验证。
+
+| 语法 | 接受的别名 |
+|---|---|
+| arduino | ino |
+| bash | sh, zsh |
+| c | h |
+| cpp | cc, c++, h++, hpp, hh, hxx, cxx |
+| csharp | cs, c# |
+| css | 无 |
+| diff | patch |
+| go | golang |
+| graphql | gql |
+| ini | toml |
+| java | jsp |
+| javascript | js, jsx, mjs, cjs |
+| json | jsonc |
+| kotlin | kt, kts |
+| less | 无 |
+| lua | pluto |
+| makefile | mk, mak, make |
+| markdown | md, mkdown, mkd |
+| objectivec | mm, objc, obj-c, obj-c++, objective-c++ |
+| perl | pl, pm |
+| php | 无 |
+| php-template | 无 |
+| plaintext | text, txt（明确纯文本） |
+| python | py, gyp, ipython |
+| python-repl | pycon |
+| r | 无 |
+| ruby | rb, gemspec, podspec, thor, irb |
+| rust | rs |
+| scss | 无 |
+| shell | console, shellsession |
+| sql | 无 |
+| swift | 无 |
+| typescript | ts, tsx, mts, cts |
+| vbnet | vb |
+| wasm | 无 |
+| xml | html, xhtml, rss, atom, xjb, xsd, xsl, plist, wsf, svg |
+| yaml | yml |
+
+语言名去首尾空白、大小写不敏感；未知名称不猜测。不带语言标记的代码显示纯文本并说明。Markdown内联code保持纯文本样式；fenced/indented code按Markdown解析结果保留空白和末尾换行。高亮前预算：20,000个UTF-16 code units、1,000行、单行4,000 code units；高亮后最多12,000个AST节点/48层。超过预算、异常或输出文本不一致时显示全部原文及原因，不截断代码。预算用于降低主线程成本，不承诺硬性时间上限；iframe仍无worker。实际高亮、流式更新与WebView显示未运行验收。
+
 ### 图表细项
 
 - bar: grouped或正负分离stacked；line/area: 普通或累计stacked，缺失值为gap；stacked行缺任一值时整行gap，不能默认为零。
 - pie/donut: 每个series分别画有标签的真实图；零总量显示空状态；负值或缺失值显式报错。scatter要求数值x。
-- stacked pie/donut/scatter 不支持且显式错误，不能将该参数静默忽略。每个图都可展开原始数据；SVG title与原始表提供可访问内容。
+- stacked pie/donut/scatter 的组合语义未由公开契约定义，本实现将其作为参数边界显式拒绝，不将它们计作已证明的原版能力缺口，也不静默忽略该参数。每个图都可展开原始数据；SVG title与原始表提供可访问内容。
 - 自有数值格式化与图例/轴样式。没有额外图表动画、悬浮tooltip或拖动缩放；未声明这些为已实现。
 - 分配预算：Chart最多5,000行/32系列，Table最多50,000格；超限显示错误。预算是本实现边界，不是原版契约保证。
 

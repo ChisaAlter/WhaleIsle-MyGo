@@ -2,17 +2,17 @@
   "runtime": "whaleisle-independent-col-v1",
   "packaging": "Production asset generation only; tests and browser/native acceptance not run.",
   "originalApplicationIncluded": false,
-  "lockfileSHA256": "5f4175940b0141eb9d45abbdba38ddc17734428baba040e64651ae406b245ac5",
+  "lockfileSHA256": "f32b54f52141040d49b3ee973a9760e0e4933e97f439e6b1219ab44935464793",
   "assets": [
     {
       "name": "viewer.html",
-      "bytes": 1972392,
-      "sha256": "2cc376a7b177771dfea270eb8025297d3e771e3a3d06c06daaecb6a906278255"
+      "bytes": 2154812,
+      "sha256": "1628952d1f6e53094a30dce6c45464b7d1b27dfe173d64974a13b9d7cbfb0b93"
     },
     {
       "name": "viewer.js",
-      "bytes": 1791620,
-      "sha256": "52c988308a50adf2f39edebb20f402ccc454b1fe8b171e52c323dc50f0420c40"
+      "bytes": 1971106,
+      "sha256": "738e80c24e050b1aac0262325efd7f86afecf8b901cc4a9eaf3f77542b757e61"
     },
     {
       "name": "viewer.css",
@@ -21,18 +21,18 @@
     },
     {
       "name": "THIRD-PARTY-NOTICES.txt",
-      "bytes": 174912,
-      "sha256": "cf1dc294e7ee777e88253e22027ef58404de595a5dcf43bce46a1ed5b1224c51"
+      "bytes": 177774,
+      "sha256": "c9c6c35f45bf1120d26ad688f9db42506237d3bc192f23185dc7eec9e3ac3fcd"
     },
     {
       "name": "library-spec.json",
-      "bytes": 93048,
-      "sha256": "ae537d328c29dfc51170b26b31280967290c77104199bb442a4153785d92b807"
+      "bytes": 93100,
+      "sha256": "09f7f4015012f06099ef80c002ee90ae9b5b8b96f37e115dd7c40ebbd6b720e7"
     },
     {
       "name": "library-guide.txt",
-      "bytes": 21275,
-      "sha256": "cbaf865bfa45a6d60c971d842a340cc7078dde37ca64e36656878c69abaf5dff"
+      "bytes": 21301,
+      "sha256": "afb6332a14506059ba5858ff39c3de09a5ee4452a4f5b3b39e07dcac132a6998"
     }
   ],
   "packages": [
@@ -193,6 +193,18 @@
       ]
     },
     {
+      "name": "highlight.js",
+      "version": "11.11.1",
+      "license": "BSD-3-Clause",
+      "path": "node_modules/highlight.js",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490"
+        }
+      ]
+    },
+    {
       "name": "html-url-attributes",
       "version": "3.0.1",
       "license": "MIT",
@@ -249,6 +261,18 @@
         {
           "file": "license",
           "sha256": "9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10"
+        }
+      ]
+    },
+    {
+      "name": "lowlight",
+      "version": "3.3.0",
+      "license": "MIT",
+      "path": "node_modules/lowlight",
+      "notices": [
+        {
+          "file": "license",
+          "sha256": "dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb"
         }
       ]
     },
