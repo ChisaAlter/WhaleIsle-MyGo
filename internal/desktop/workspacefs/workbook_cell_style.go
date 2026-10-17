@@ -8,15 +8,21 @@ import (
 // This is saved presentation metadata, not an executable formula or a workbook
 // rendering engine. Missing metadata stays absent, rather than being invented.
 type XLSXCellStyle struct {
-	FillPattern, FillColor string
-	Borders                [4]XLSXBorder
-	PaintUnsupported       bool
-	Available              bool
-	FontName               string
-	FontSize               float32
-	Bold, Italic           bool
-	Horizontal, Vertical   string
-	Wrap                   bool
+	// FillPattern is the saved OOXML pattern type. FillColor is the saved
+	// background colour for patterned fills (or the foreground colour for a
+	// solid fill); FillColor2 is the saved foreground colour for patterned
+	// fills. Keeping both colours lets the native viewer render the subset of
+	// OOXML patterns that its Stripes primitive can represent without guessing
+	// at source colours.
+	FillPattern, FillColor, FillColor2 string
+	Borders                            [4]XLSXBorder
+	PaintUnsupported                   bool
+	Available                          bool
+	FontName                           string
+	FontSize                           float32
+	Bold, Italic                       bool
+	Horizontal, Vertical               string
+	Wrap                               bool
 }
 type xlsxStyleFlag struct {
 	Value string `xml:"val,attr"`

@@ -23,6 +23,7 @@ type xlsxSourceFill struct {
 	Pattern struct {
 		Type       string          `xml:"patternType,attr"`
 		Foreground xlsxSourceColor `xml:"fgColor"`
+		Background xlsxSourceColor `xml:"bgColor"`
 	} `xml:"patternFill"`
 	Gradient *struct{} `xml:"gradientFill"`
 }
@@ -36,6 +37,19 @@ type xlsxSourceBorder struct {
 	Bottom   xlsxSourceEdge `xml:"bottom"`
 	Left     xlsxSourceEdge `xml:"left"`
 	Diagonal xlsxSourceEdge `xml:"diagonal"`
+}
+
+// savedXLSXPatternSupported is the small OOXML pattern subset represented by
+// the native table renderer's Stripes primitive. Cross-hatch and gray-density
+// patterns stay marked unsupported even when their colours are available.
+func savedXLSXPatternSupported(pattern string) bool {
+	switch pattern {
+	case "lightVertical", "lightHorizontal", "lightDown", "lightUp",
+		"darkVertical", "darkHorizontal", "darkDown", "darkUp":
+		return true
+	default:
+		return false
+	}
 }
 
 func savedXLSXColor(source xlsxSourceColor, theme map[int]string, palette []xlsxSourceColor) (string, bool) {
@@ -124,8 +138,25 @@ func savedXLSXPaint(style *XLSXCellStyle, xf xlsxSourceXF, fills []xlsxSourceFil
 			var ok bool
 			style.FillColor, ok = savedXLSXColor(fill.Pattern.Foreground, theme, palette)
 			style.PaintUnsupported = !ok
-		} else if fill.Gradient != nil || (fill.Pattern.Type != "" && fill.Pattern.Type != "none") {
+		} else if fill.Gradient != nil {
+			// The native table renderer currently has no gradient-fill
+			// primitive for workbook cells. Preserve the source metadata and
+			// disclose the unsupported paint rather than flattening it to a
+			// guessed colour.
 			style.PaintUnsupported = true
+		} else if fill.Pattern.Type != "" && fill.Pattern.Type != "none" {
+			// Preserve both saved pattern colours. table_paint.go maps only
+			// patterns with an exact native Stripes representation; other
+			// pattern kinds remain disclosed as unsupported there.
+			background, backgroundOK := savedXLSXColor(fill.Pattern.Background, theme, palette)
+			foreground, foregroundOK := savedXLSXColor(fill.Pattern.Foreground, theme, palette)
+			if backgroundOK {
+				style.FillColor = background
+			}
+			if foregroundOK {
+				style.FillColor2 = foreground
+			}
+			style.PaintUnsupported = !backgroundOK || !foregroundOK || !savedXLSXPatternSupported(fill.Pattern.Type)
 		}
 	}
 	if xf.Border != nil && *xf.Border >= 0 && *xf.Border < len(borders) {

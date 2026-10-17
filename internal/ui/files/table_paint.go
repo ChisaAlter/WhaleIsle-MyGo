@@ -47,9 +47,52 @@ func tableBorderPattern(style string) (float32, []float32, bool) {
 	}
 	return 0, nil, false
 }
+
+// tableFillPattern maps the OOXML pattern fills that have a direct native
+// Stripes equivalent. Cross-hatch and gray patterns intentionally return false:
+// pretending a single stripe direction is equivalent would hide source paint
+// differences. The widths are deterministic fallbacks for the OOXML dark/light
+// density families; the saved foreground/background colours are never guessed.
+func tableFillPattern(style workspacefs.XLSXCellStyle) (ui.Color, ui.Color, float32, float32, float32, bool) {
+	if style.FillPattern == "" || style.FillPattern == "none" || style.FillPattern == "solid" {
+		return ui.Color{}, ui.Color{}, 0, 0, 0, false
+	}
+	background, backgroundOK := tablePaintColor(style.FillColor)
+	foreground, foregroundOK := tablePaintColor(style.FillColor2)
+	if !backgroundOK || !foregroundOK {
+		return ui.Color{}, ui.Color{}, 0, 0, 0, false
+	}
+	width, gap, angle := float32(1), float32(3), float32(0)
+	switch style.FillPattern {
+	case "lightVertical":
+		angle = 0
+	case "lightHorizontal":
+		angle = 90
+	case "lightDown":
+		angle = 45
+	case "lightUp":
+		angle = 135
+	case "darkVertical":
+		width, gap, angle = 3, 2, 0
+	case "darkHorizontal":
+		width, gap, angle = 3, 2, 90
+	case "darkDown":
+		width, gap, angle = 3, 2, 45
+	case "darkUp":
+		width, gap, angle = 3, 2, 135
+	default:
+		return ui.Color{}, ui.Color{}, 0, 0, 0, false
+	}
+	return background, foreground, width, gap, angle, true
+}
 func tablePaintUnsupported(style workspacefs.XLSXCellStyle) bool {
 	if style.PaintUnsupported {
 		return true
+	}
+	if style.FillPattern != "" && style.FillPattern != "none" && style.FillPattern != "solid" {
+		if _, _, _, _, _, ok := tableFillPattern(style); !ok {
+			return true
+		}
 	}
 	for _, edge := range style.Borders {
 		if edge.Style != "" && edge.Style != "none" {
@@ -62,9 +105,13 @@ func tablePaintUnsupported(style workspacefs.XLSXCellStyle) bool {
 }
 func paintTableSourceStyle(button ui.Element, style workspacefs.XLSXCellStyle, selected bool) {
 	// Selection retains the native highlight instead of hiding it under source fill.
-	if !selected && style.FillPattern == "solid" {
-		if color, ok := tablePaintColor(style.FillColor); ok {
-			button.Background(color)
+	if !selected {
+		if style.FillPattern == "solid" {
+			if color, ok := tablePaintColor(style.FillColor); ok {
+				button.Background(color)
+			}
+		} else if background, foreground, width, gap, angle, ok := tableFillPattern(style); ok {
+			button.Background(background).Stripes(foreground, width, gap, angle)
 		}
 	}
 	button.DrawOver(func(p *ui.Painter, r ui.Rect) {
