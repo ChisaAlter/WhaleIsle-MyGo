@@ -144,10 +144,14 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if g.Kind == "workspace" && layout.OrderBy != "updated" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
 				rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
 			}
+			local := g.Kind == "flat" || g.Kind == "scratch" || g.Kind == "other"
+			if local && layout.OrderBy != "updated" && !m.Batch.Enabled && m.OnMoveLocalSessionBefore != nil {
+				rowModel.sessionDrag = &sessionDragContext{Local: true, Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
+			}
 			// A selected session in another workspace must reorder that workspace,
 			// never whichever cwd happens to be selected for the next new conversation.
 			owner := owners[r.Item.SessionID]
-			if owner != "" && layout.OrderBy != "updated" && m.OnMoveWorkspaceSessionBefore != nil {
+			if !local && owner != "" && layout.OrderBy != "updated" && m.OnMoveWorkspaceSessionBefore != nil {
 				for _, ws := range m.Snapshot.Workspaces {
 					if ws.WorkspaceID != owner {
 						continue

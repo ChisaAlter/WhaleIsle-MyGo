@@ -515,12 +515,13 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnDropWorkspaceBefore: func(generation uint64, id, before string) {
 			m.Store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)
 		},
-		OnSelectWorkspace:      m.OnSelectWorkspace,
-		OnManageWorkspace:      m.Store.BeginWorkspaceManagement,
-		OnWorkspaceGrouping:    m.Store.SetWorkspaceGrouping,
-		OnWorkspaceOrdering:    m.Store.SetWorkspaceOrdering,
-		OnToggleWorkspaceGroup: m.Store.ToggleWorkspaceGroup,
-		OnMoveWorkspaceBefore:  func(id, before string) { m.Store.InsertWorkspaceBefore(context.Background(), id, before) },
+		OnSelectWorkspace:        m.OnSelectWorkspace,
+		OnManageWorkspace:        m.Store.BeginWorkspaceManagement,
+		OnWorkspaceGrouping:      m.Store.SetWorkspaceGrouping,
+		OnWorkspaceOrdering:      m.Store.SetWorkspaceOrdering,
+		OnToggleWorkspaceGroup:   m.Store.ToggleWorkspaceGroup,
+		OnMoveWorkspaceBefore:    func(id, before string) { m.Store.InsertWorkspaceBefore(context.Background(), id, before) },
+		OnMoveLocalSessionBefore: m.Store.InsertLocalSessionBefore,
 		OnMoveWorkspaceSessionBefore: func(workspaceID, id, before string) {
 			m.Store.InsertSessionBefore(context.Background(), workspaceID, id, before)
 		},

@@ -12,6 +12,7 @@ type sessionDrag struct {
 	Pinned        bool
 }
 type sessionDragContext struct {
+	Local     bool
 	Workspace string
 	Order     []string
 	Rows      []session.WorkspaceSessionRow
@@ -69,7 +70,7 @@ func sessionDragAnchor(order []string, rows []session.WorkspaceSessionRow, sourc
 
 func sessionDragSource(e ui.Element, m Model, it session.Item) {
 	ctx := m.sessionDrag
-	if ctx == nil || it.Blank || m.Snapshot.WorkspaceLayout.Reordering {
+	if ctx == nil || it.Blank || slices.Contains(m.Snapshot.ArchivedSessionIDs, it.SessionID) || m.Snapshot.WorkspaceLayout.Reordering {
 		return
 	}
 	for _, r := range ctx.Rows {
@@ -81,7 +82,7 @@ func sessionDragSource(e ui.Element, m Model, it session.Item) {
 }
 func sessionDropTarget(e ui.Element, m Model, it session.Item, after bool, highlight ui.Color) {
 	ctx := m.sessionDrag
-	if ctx == nil || m.Snapshot.WorkspaceLayout.Reordering || m.OnMoveWorkspaceSessionBefore == nil {
+	if ctx == nil || m.Snapshot.WorkspaceLayout.Reordering || (ctx.Local && m.OnMoveLocalSessionBefore == nil) || (!ctx.Local && m.OnMoveWorkspaceSessionBefore == nil) || slices.Contains(m.Snapshot.ArchivedSessionIDs, it.SessionID) {
 		return
 	}
 	accept := func(v sessionDrag) (string, bool) {
@@ -97,7 +98,11 @@ func sessionDropTarget(e ui.Element, m Model, it session.Item, after bool, highl
 	}
 	if v, dropped := ui.Drop[sessionDrag](e); dropped {
 		if before, ok := accept(v); ok {
-			m.OnMoveWorkspaceSessionBefore(ctx.Workspace, v.ID, before)
+			if ctx.Local {
+				m.OnMoveLocalSessionBefore(v.Generation, ctx.Workspace, v.ID, before)
+			} else {
+				m.OnMoveWorkspaceSessionBefore(ctx.Workspace, v.ID, before)
+			}
 		}
 	}
 }

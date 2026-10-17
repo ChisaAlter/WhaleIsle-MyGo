@@ -77,3 +77,32 @@ func TestSessionDragUI(t *testing.T) {
 		t.Fatal("Escape committed a reorder")
 	}
 }
+
+func TestSessionDragFlatUsesLocalCallback(t *testing.T) {
+	items := []session.Item{{SessionID: "a", Title: "Alpha"}, {SessionID: "b", Title: "Beta"}}
+	var calls int
+	m := Model{Snapshot: session.ViewState{Items: items, WorkspaceLayout: session.WorkspaceLayoutState{GroupBy: "flat", HostGeneration: 9}}, OnMoveLocalSessionBefore: func(g uint64, key, id, before string) {
+		if g != 9 || key != "::flat" || id != "b" || before != "a" {
+			t.Errorf("wrong local move %d %s %s %s", g, key, id, before)
+		}
+		calls++
+	}, OnMoveWorkspaceSessionBefore: func(string, string, string) { t.Fatal("flat drag sent Host move") }}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() { workspaceRowsView(c, m, items, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6), ui.Transparent) })
+	}, 300, 400)
+	src, ok := tt.Find("Beta")
+	if !ok {
+		t.Fatal("source missing")
+	}
+	dst, ok := tt.Find("Alpha")
+	if !ok {
+		t.Fatal("target missing")
+	}
+	tt.Press(src.X+5, src.Y+5)
+	tt.Move(src.X+15, src.Y+5)
+	tt.Move(dst.X+5, dst.Y+5)
+	tt.Release(dst.X+5, dst.Y+5)
+	if calls != 1 {
+		t.Fatalf("local drops %d", calls)
+	}
+}

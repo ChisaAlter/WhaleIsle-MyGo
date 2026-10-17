@@ -9,9 +9,10 @@ import (
 const workspaceNavigationKey = "goWorkspaceNavigation"
 
 type WorkspaceNavigationPreferences struct {
-	GroupBy   string          `json:"groupBy"`
-	OrderBy   string          `json:"orderBy"`
-	Collapsed map[string]bool `json:"collapsed"`
+	SessionOrders map[string][]string `json:"sessionOrders,omitempty"`
+	GroupBy       string              `json:"groupBy"`
+	OrderBy       string              `json:"orderBy"`
+	Collapsed     map[string]bool     `json:"collapsed"`
 }
 
 func (s *Store) WorkspaceNavigationPreferences(hostKey string) (WorkspaceNavigationPreferences, error) {

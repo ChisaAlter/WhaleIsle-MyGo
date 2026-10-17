@@ -31,6 +31,7 @@ func workspacePreferenceKey(row WorkspaceRow) string {
 }
 func cloneWorkspacePreferences(in config.WorkspaceNavigationPreferences) config.WorkspaceNavigationPreferences {
 	out := in
+	out.SessionOrders = cloneSessionOrders(in.SessionOrders)
 	out.Collapsed = map[string]bool{}
 	for k, v := range in.Collapsed {
 		out.Collapsed[k] = v
@@ -64,6 +65,7 @@ func (s *Store) BindWorkspacePreferences(client *dsh.Client, authority string, s
 }
 func (s *Store) resetWorkspacePreferencesHostLocked() {
 	s.workspacePreferences.scope = ""
+	s.workspaceLayout.view.SessionOrders = nil
 	s.workspacePreferences.authority = ""
 	s.workspacePreferences.store = nil
 	s.workspacePreferences.editedBeforeBaseline = false
@@ -81,6 +83,7 @@ func (s *Store) restoreWorkspacePreferencesLocked() {
 	if newScope {
 		previousGroup, previousOrder := s.workspaceLayout.view.GroupBy, s.workspaceLayout.view.OrderBy
 		previousCollapsed := s.workspaceLayout.view.Collapsed
+		previousSessionOrders := cloneSessionOrders(s.workspaceLayout.view.SessionOrders)
 		s.workspaceLayout.view.GroupBy = ""
 		s.workspaceLayout.view.OrderBy = ""
 		s.workspaceLayout.view.PreferenceError = ""
@@ -96,6 +99,9 @@ func (s *Store) restoreWorkspacePreferencesLocked() {
 		}
 		prefs = cloneWorkspacePreferences(prefs)
 		if b.editedBeforeBaseline {
+			for k, v := range previousSessionOrders {
+				prefs.SessionOrders[k] = v
+			}
 			if previousGroup != "" {
 				prefs.GroupBy = previousGroup
 			}
@@ -119,6 +125,7 @@ func (s *Store) restoreWorkspacePreferencesLocked() {
 		b.editedBeforeBaseline = false
 	}
 	prefs := b.cache[scope]
+	s.workspaceLayout.view.SessionOrders = cloneSessionOrders(prefs.SessionOrders)
 	if prefs.GroupBy == "workspace" || prefs.GroupBy == "workspace-tree" || prefs.GroupBy == "flat" {
 		s.workspaceLayout.view.GroupBy = prefs.GroupBy
 	}
@@ -150,6 +157,7 @@ func (s *Store) workspacePreferencesChangedLocked() {
 	layout := s.workspaceLayoutLocked()
 	prefs.GroupBy = layout.GroupBy
 	prefs.OrderBy = layout.OrderBy
+	prefs.SessionOrders = cloneSessionOrders(layout.SessionOrders)
 	for _, row := range s.workspaceRowsLocked() {
 		if value, ok := layout.Collapsed[row.WorkspaceID]; ok {
 			prefs.Collapsed[workspacePreferenceKey(row)] = value

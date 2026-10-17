@@ -33,6 +33,7 @@ type Model struct {
 	OnToggleWorkspaceGroup       func(string)
 	OnMoveWorkspaceBefore        func(string, string)
 	OnMoveWorkspaceSessionBefore func(string, string, string)
+	OnMoveLocalSessionBefore     func(uint64, string, string, string)
 
 	Projects         projects.Model
 	HideArchivedList bool

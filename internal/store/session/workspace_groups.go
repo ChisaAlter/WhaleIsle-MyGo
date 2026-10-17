@@ -11,6 +11,7 @@ import (
 )
 
 type WorkspaceLayoutState struct {
+	SessionOrders   map[string][]string
 	HostGeneration  uint64
 	PreferenceError string
 	GroupBy         string
@@ -26,6 +27,7 @@ type workspaceLayoutState struct {
 
 func (s *Store) workspaceLayoutLocked() WorkspaceLayoutState {
 	out := s.workspaceLayout.view
+	out.SessionOrders = cloneSessionOrders(out.SessionOrders)
 	out.HostGeneration = s.eventsGeneration
 	if out.GroupBy == "" {
 		out.GroupBy = "workspace"
@@ -207,11 +209,11 @@ func WorkspaceSessionOwners(workspaces []WorkspaceRow, items []Item) map[string]
 	return owners
 }
 func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
+	if snap.Items == nil {
+		snap.Items = items
+	}
 	if snap.WorkspaceLayout.GroupBy == "flat" {
-		var order []string
-		for _, ws := range snap.Workspaces {
-			order = append(order, ws.SessionIDs...)
-		}
+		order := localSessionOrder(snap, "::flat")
 		return []WorkspaceGroup{{Key: "::flat", Kind: "flat", Workspace: WorkspaceRow{SessionIDs: order}, Items: append([]Item(nil), items...)}}
 	}
 	owners := WorkspaceSessionOwners(snap.Workspaces, items)
@@ -245,10 +247,10 @@ func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 	}
 	emit("", 0)
 	if len(scratch) > 0 {
-		out = append(out, WorkspaceGroup{Key: "::scratch", Kind: "scratch", Items: scratch})
+		out = append(out, WorkspaceGroup{Key: "::scratch", Kind: "scratch", Workspace: WorkspaceRow{SessionIDs: localSessionOrder(snap, "::scratch")}, Items: scratch})
 	}
 	if len(other) > 0 {
-		out = append(out, WorkspaceGroup{Key: "::other", Kind: "other", Items: other})
+		out = append(out, WorkspaceGroup{Key: "::other", Kind: "other", Workspace: WorkspaceRow{SessionIDs: localSessionOrder(snap, "::other")}, Items: other})
 	}
 	return out
 }
