@@ -145,7 +145,7 @@ func statusLine(st harness.Status) string {
 // RecoveryControl exposes boot recovery in shells that keep their navigation
 // and dialogue mounted while the Host is starting or unavailable.
 func RecoveryControl(c *ui.Context, m Model) {
-	startupScene(c, m)
+	bootOverlay(c, m)
 }
 
 func cancelRecoveryAction(c *ui.Context, m Model) {
