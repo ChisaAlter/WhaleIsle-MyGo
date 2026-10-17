@@ -56,13 +56,6 @@ func SaveState(root, id string, state json.RawMessage) error {
 	if e = os.MkdirAll(root, 0700); e != nil {
 		return e
 	}
-	entries, e := os.ReadDir(root)
-	if e != nil {
-		return e
-	}
-	if _, e = os.Stat(path); os.IsNotExist(e) && len(entries) >= 256 {
-		return errors.New("OpenUI state storage limit reached")
-	}
 	f, e := os.CreateTemp(root, ".state-")
 	if e != nil {
 		return e

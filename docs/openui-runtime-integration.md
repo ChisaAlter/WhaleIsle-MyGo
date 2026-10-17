@@ -43,8 +43,11 @@ not represent a new claim about upstream redistribution rights.
   appearance are retained. Old helpers lacking update capability fail visibly.
 - Instance identity hashes Host history binding, session, message and block
   source offset. State is JSON-object-only, max48KiB, stored under the OS user
-  config directory's WhaleIsle-MyGo/openui-state-v1 using private files. At most
-  256 state records and four live renderers are allowed.
+  config directory's WhaleIsle-MyGo/openui-state-v1 using private files. There is
+  no fixed renderer count or persisted-record count ceiling; new states do not
+  delete previous states. Per-payload limits remain: program 256KiB, state 48KiB,
+  event 64KiB, assistant message 16KiB, error text 4096 bytes and resolved program
+  32KiB. The existing event queue remains bounded to 16 entries.
 - Navigation, Host epoch/follow generation changes, message removal or program
   replacement that removes the captured program prefix revoke the owner and
   close the renderer. Streaming append retains that owner. Reopening restores
@@ -96,3 +99,7 @@ ticket fixture covers owner revocation.
 Still partial: complete original network/map/clipboard/link capabilities and
 gesture-attested immediate action sending. The default distribution lacks a
 bundled runtime. These limitations must not be reported as full CH12 completion.
+
+Count regression fixtures save and read the 257th state while retaining the first,
+and keep five independent cancellable contexts alive. Source removes the global
+renderer semaphore. This is not a five-native-window physical acceptance test.

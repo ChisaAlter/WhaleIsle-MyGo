@@ -16,8 +16,6 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-var openUISlots = make(chan struct{}, 4)
-
 type openUIBlock struct {
 	mu                           sync.Mutex
 	program                      string
@@ -212,13 +210,6 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 			b.err = err.Error()
 		}
 		b.mu.Unlock()
-	}
-	select {
-	case openUISlots <- struct{}{}:
-		defer func() { <-openUISlots }()
-	default:
-		finish(fmt.Errorf("At most four OpenUI windows may be open"))
-		return
 	}
 	viewer, err := openui.LoadViewer(os.Getenv("WHALEISLE_OPENUI_VIEWER"))
 	if err != nil {
