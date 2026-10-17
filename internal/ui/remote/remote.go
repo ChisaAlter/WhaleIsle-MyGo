@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/sshremote"
 	remotestore "whaleisle/internal/store/remote"
@@ -42,6 +43,8 @@ type Model struct {
 	PhoneActionMsg         string
 	PhoneRuntime           phoneremote.RuntimeState
 	PhoneDeviceEditor      *PhoneDeviceEditor
+	GatewayEditor          *GatewayEditor
+	OnSaveGateway          func(config.RemoteGatewayPreferences, config.RemoteGatewayPreferences) error
 	OnPhoneDeviceAction    func(operation, id, name string) error
 	HarnessRemoteOverlay   bool
 	MuxConnected           bool
@@ -161,6 +164,7 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceOff)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 				}
 
+				viewGatewayEditor(c, m, fg, muted)
 				viewPhoneSection(c, m, fg, muted, field, border, accent)
 
 				sshSnap := sshremote.Snapshot{

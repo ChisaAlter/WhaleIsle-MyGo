@@ -116,6 +116,7 @@ type mainState struct {
 	quitting             bool
 	phoneRuntime         *phoneremote.Runtime
 	phoneDeviceEditor    remoteui.PhoneDeviceEditor
+	phoneGatewayEditor   remoteui.GatewayEditor
 	phoneGitSession      string
 	phoneGitRoot         string
 	phoneOp              sync.Mutex
@@ -4000,6 +4001,8 @@ func mainView(c *ui.Context) {
 					PhoneActionMsg:       phoneActionMsg,
 					PhoneRuntime:         state.phoneRuntimeManager().Snapshot(),
 					PhoneDeviceEditor:    &state.phoneDeviceEditor,
+					GatewayEditor:        &state.phoneGatewayEditor,
+					OnSaveGateway:        state.savePhoneGateway,
 					OnPhoneDeviceAction:  state.phoneDeviceAction,
 					HarnessRemoteOverlay: cfgRemoteWorkspace,
 					MuxConnected:         muxReady,
