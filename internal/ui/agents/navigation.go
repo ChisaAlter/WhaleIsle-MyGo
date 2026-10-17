@@ -25,7 +25,9 @@ func navigationView(c *ui.Context, m Model) {
 	v := m.Store.SyncAgentNavigation(snap.PlanHistoryBinding)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.Field)).Children(func() {
+	root := ui.Column(c.Key(fmt.Sprintf("agents-navigation-root:%p:%d:%s:%s:%s", m.Store, v.Token, v.Address.ParentSessionID, v.Address.ChildSessionID, v.Address.Mode))).Fill().MinHeight(0).Background(chrome.Color(colors.Field))
+	childFileDropTarget(c, root, m.Store, v)
+	root.Children(func() {
 		ui.Row(c).FillWidth().Padding(10, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			title := i18n.T(i18n.KeyAgentsTitle)
 			if m.ChatOnly {
