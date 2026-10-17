@@ -2,6 +2,7 @@
 // The parent remains responsible for instance ownership and native actions.
 import { receiveResourceResponse } from "./resources";
 import { receiveNativeActionResponse } from "./native-actions";
+import { receiveMediaResponse } from "./media";
 export const LIMITS = { program: 262144, state: 49152, event: 65536, message: 16384, error: 4096, resolved: 32768 };
 const encoder = new TextEncoder();
 export const byteLength = (value: string) => encoder.encode(value).length;
@@ -14,6 +15,8 @@ export interface RenderMessage {
   state: Record<string, unknown>;
   htmlView: boolean;
   hostActions: boolean;
+  media: boolean;
+  revision: number;
   theme: { appearance: "light" | "dark" };
 }
 
@@ -42,12 +45,16 @@ export function connect(receive: (value: RenderMessage) => void, fail: (message:
         data.channel !== "whale-openui" || data.version !== 1 || data.instanceId !== instanceId) return;
     if (data.type === "api-response") { receiveResourceResponse(data); return; }
     if (data.type === "action-response") { receiveNativeActionResponse(data); return; }
+    if (data.type === "media-response") { receiveMediaResponse(data); return; }
     // Unknown messages cannot change state.
     if (data.type !== "render") return;
     if (typeof data.program !== "string" || !data.program.trim() || byteLength(data.program) > LIMITS.program ||
         typeof data.streaming !== "boolean" || !isObject(data.state) || !isObject(data.theme) ||
         (data.htmlView !== undefined && typeof data.htmlView !== "boolean") ||
         (data.hostActions !== undefined && typeof data.hostActions !== "boolean") ||
+        (data.media !== undefined && typeof data.media !== "boolean") ||
+        (data.revision !== undefined && (!Number.isSafeInteger(data.revision) || (data.revision as number) < 0)) ||
+        (data.media === true && !(typeof data.revision === "number" && data.revision > 0)) ||
         !["light", "dark"].includes(String(data.theme.appearance))) {
       fail("Invalid OpenUI render message.");
       return;
@@ -62,6 +69,7 @@ export function connect(receive: (value: RenderMessage) => void, fail: (message:
       return;
     }
     receive({ program: data.program, streaming: data.streaming, state: data.state, htmlView: data.htmlView === true, hostActions: data.hostActions === true,
+      media: data.media === true, revision: typeof data.revision === "number" ? data.revision : 0,
       theme: { appearance: data.theme.appearance as "light" | "dark" } });
   };
   if (!instanceId || window.parent === window) {

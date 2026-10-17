@@ -2,6 +2,7 @@ package previewprocess
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"io"
@@ -27,6 +28,9 @@ type openUIEventQueue struct {
 	nativeActions      bool
 	lastActionSequence uint64
 	pendingActions     map[string]openUIActionKey
+	media              bool
+	lastMediaSequence  uint64
+	pendingMedia       map[string][sha256.Size]byte
 }
 
 // Events carries only validated bounded renderer state/user-intent reports.
@@ -46,6 +50,8 @@ func (s *Session) initOpenUIEvents(doc Document) {
 			values: make(chan json.RawMessage, maxOpenUIEvents), instanceID: doc.OpenUI.InstanceID,
 			nativeActions:  doc.OpenUI.HostActions && openui.IsOwnedViewer(doc.HTML),
 			pendingActions: make(map[string]openUIActionKey),
+			media:          doc.Inline && doc.OpenUI.Media && openui.IsOwnedViewer(doc.HTML),
+			pendingMedia:   make(map[string][sha256.Size]byte),
 		}
 	}
 }
@@ -56,6 +62,7 @@ func (s *Session) closeOpenUIEvents() {
 		if !q.closed {
 			q.closed = true
 			q.pendingActions = nil
+			q.pendingMedia = nil
 			for len(q.values) > 0 {
 				<-q.values
 			}
@@ -81,12 +88,19 @@ func (s *Session) acceptOpenUIEvent(raw json.RawMessage) error {
 	if nativeAction && (!q.nativeActions || event.Sequence <= q.lastActionSequence) {
 		return errors.New("disabled or replayed OpenUI native action")
 	}
+	if event.Type == "media" && (!q.media || event.Sequence <= q.lastMediaSequence) {
+		return errors.New("disabled or replayed OpenUI media request")
+	}
 	owned := append(json.RawMessage(nil), raw...)
 	select {
 	case q.values <- owned:
 		if nativeAction {
 			q.lastActionSequence = event.Sequence
 			q.pendingActions[event.RequestID] = nativeActionKey(event)
+		}
+		if event.Type == "media" {
+			q.lastMediaSequence = event.Sequence
+			q.pendingMedia[event.RequestID] = mediaRequestHash(event)
 		}
 		return nil
 	default:

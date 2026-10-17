@@ -216,6 +216,10 @@
     "HtmlView": {
       "signature": "HtmlView(html: string, height?: number, title?: string)",
       "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
+    },
+    "YouTube": {
+      "signature": "YouTube(video: string, title?: string)",
+      "description": "An explicitly loaded, Host-owned native YouTube seat. The isolated viewer itself never embeds or fetches video; Host creation status does not confirm playback."
     }
   },
   "functions": {
@@ -627,6 +631,9 @@
       },
       "HtmlView": {
         "$ref": "#/$defs/HtmlView"
+      },
+      "YouTube": {
+        "$ref": "#/$defs/YouTube"
       }
     },
     "required": [
@@ -683,7 +690,8 @@
       "MapMarker",
       "Pressable",
       "Timer",
-      "HtmlView"
+      "HtmlView",
+      "YouTube"
     ],
     "additionalProperties": false,
     "$defs": {
@@ -2250,6 +2258,22 @@
         ],
         "additionalProperties": false,
         "description": "An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state."
+      },
+      "YouTube": {
+        "type": "object",
+        "properties": {
+          "video": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "video"
+        ],
+        "additionalProperties": false,
+        "description": "An explicitly loaded, Host-owned native YouTube seat. The isolated viewer itself never embeds or fetches video; Host creation status does not confirm playback."
       }
     },
     "functions": {

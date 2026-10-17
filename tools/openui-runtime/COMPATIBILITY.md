@@ -1,6 +1,6 @@
 # 源级兼容清单（2026-10-17）
 
-此表描述独立实现代码的实际行为，不是测试通过清单。完整位置参数和枚举以同一 registry 生成的 `library-spec.json` 为准。UI 样式、具体默认间距和浏览器原生控件外观为自有设计，不宣称原版像素一致。Node 子槽经 SDK `renderNode` 递归渲染；没有将未知组件转换成普通文本或同名但语义不同的标准库组件。
+此表描述独立实现代码的实际行为，不是测试通过清单。当前 registry 登记 55 个公开契约组件，完整位置参数和枚举以同一 registry 生成的 `library-spec.json` 为准。UI 样式、具体默认间距和浏览器原生控件外观为自有设计，不宣称原版像素一致。Node 子槽经 SDK `renderNode` 递归渲染；没有将未知组件转换成普通文本或同名但语义不同的标准库组件。
 
 ## 真实 SDK 对应关系
 
@@ -75,7 +75,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | G | children/transform/opacity | 标准安全transform；不是Group别名 |
 | SvgText | text/x/y/size/fill/anchor/weight | 文本转义，无HTML |
 | HtmlView | html/height/title；独立opaque srcdoc内的本地HTML/CSS/inline JS、DOM事件、canvas、动画循环，自动/指定高度 | 原公开script CDN未支持；无媒体/远程资源/原生动作/持久状态，详细隔离与生命周期见下节；native运行未验收 |
-| YouTube | 未注册 | 媒体/frame能力未实现；报缺失组件 |
+| YouTube | video/title；解析单一视频 ID，真实 Load YouTube video 点击后创建独立 Host 原生内嵌媒体视图；按 rect/clip/viewport 定位与隐藏 | media 能力默认关闭；临时独立 profile，无 helper iframe/外部浏览器替代、用户 cookie、native bindings、autoplay 或 URL 参数透传；原生视图回执不保证视频可用/播放，见下节 |
 
 ### Code / Markdown 本地语法高亮
 
@@ -157,7 +157,16 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 宿主能力位`htmlView`默认false，只能由可信helper在真实frame准入就绪后启用。false时本组件明确显示不可用，不创建iframe；不影响其他OpenUI组件。Windows缺少所需第二层frame API、未接线平台或旧helper均不得冒充支持；能力更新沿用render消息，不重置用户状态。
 - 自有CSP前缀先于输入HTML生效，后续meta只能叠加限制。无远程script/CDN、fetch/WebSocket、worker、frame URL加载、media、object、base或form action。保留外层CSP和固定native请求拦截，不放宽它们来加载图片/字体。data图像/字体受所有继承策略交集约束，未宣称跨引擎可用。`webrtc 'block'`仅作兼容引擎的额外限制；现有OS沙箱无网络能力才是独立网络边界。
 - 仅OpenUI模式在native层准入唯一viewer的直接第二层srcdoc；普通HTML预览策略不变，第三层/其他URL继续拒绝。HtmlView自身不能通过伪造postMessage得到父组件身份。具体native接线见[HTMLVIEW-ISOLATION.md](HTMLVIEW-ISOLATION.md)。生产打包不会运行输入HTML或编译helper。
-- 任意inline JS仍能耗尽CPU/内存或卡住helper；此隔离不是脚本时间预算或资源配额。CDN与YouTube外网媒体仍属未实现，不以这次组件注册记为完整原版能力齐平。
+- 任意inline JS仍能耗尽CPU/内存或卡住helper；此隔离不是脚本时间预算或资源配额。CDN和HtmlView内的外网媒体仍未支持；独立YouTube组件使用下一节的Host媒体视图，不向HtmlView授予该能力，不以组件注册记为完整原版能力齐平。
+
+### YouTube 独立原生媒体视图
+
+- 独立编写的公开位置契约为 `YouTube(video: string, title?: string)`。`video` 接受精确11位 `[A-Za-z0-9_-]` ID，或受限的绝对HTTP(S) YouTube watch/embed/shorts/live、youtu.be短链；youtube-nocookie.com仅接受embed。输入最多2,048个UTF-16 code units，拒绝空白、控制字符、反斜杠、凭据、非默认端口和未列主机；watch须恰有一个有效v参数。仅提取ID，query/fragment中的时间、列表、autoplay等选项均不转发；不验证视频是否存在。精确主机/路径和拒绝边界见[YOUTUBE-MEDIA.md](YOUTUBE-MEDIA.md)。
+- `media`默认false，只能由可信Host按owned runtime和当前所有权启用，render中的当前`revision`也由Host提供。首次真实Load YouTube video按钮激活才发送`userGesture:true`的upsert；自动render、timer、合成事件和HtmlView不能取得创建能力。播放器是Host侧单独管理的原生内嵌浏览器seat，保持原OpenUI helper/CSP/OS无网络边界，不是helper iframe或外部浏览器链接。
+- 每个媒体seat使用全新临时profile/cookie store、`Untrusted`和`DisableBindings`；不继承SessionOrigin、Cookie、Preload、native bindings，不复制用户浏览器cookie。网站可设置自己的临时cookie；seat生命周期销毁时清理profile。不请求autoplay，视频错误、地区/年龄/登录限制及网络行为交由原生播放器/网站处理。
+- typed媒体请求使用递增`sequence`及`media-<sequence>` ID，携带组件身份、Host revision、upsert/remove和经过校验的视频/几何字段。旧revision拒绝，remove销毁并退休该组件身份，旧upsert不能复活它；失效/过时回执不更新新组件。`native-view-created`、`hidden`、`closed`只确认原生视图放置/生命周期，不代表已验证视频存在、可用、加载或播放。
+- 几何同步包含组件rect、祖先裁剪与viewport交集；离屏或被overlay遮挡时隐藏，native实际位置跟随Host缩放。标题最多512个UTF-8字节；viewport宽高1–4,096，rect宽高0–4,096，所有坐标有限且clip须位于viewport及有效rect内。没有新增seat数量产品上限。隐藏不承诺暂停播放/停止网络；完整销毁和限制见专文。
+- 没有实际媒体/网络请求、浏览器执行或native运行验收，生产打包不验证播放器。业务Query/Mutation provider、script CDN和任意媒体URL仍未支持。
 
 ### 地图手势细项
 
@@ -193,7 +202,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 混合计划按原顺序分段执行，原生步骤等待真实回执。点击时已检查的计划及原生URL/文本保持固定；Set保留valueAST，由SDK在该步骤执行时读取当前store，因此后续Set可读取此前Set/Reset的写入，原生payload不会随之重新求值。普通响应式候选动作、标签或表单身份变化，包括计划自身Set/Reset引起的变化，不会取消正在执行的计划。
 - 实际源程序/streaming修订、Host能力变化或组件卸载会取消尚未执行的步骤并撤销未完成许可；不会撤销已派发的系统操作。执行失败停止后续步骤，已完成的本地写入和系统操作不回滚。
 - 同一控件执行期间保持pending并禁用，普通响应式更新不会重新开放重复提交。完成提示仅在当前控件候选仍与点击时调用匹配时显示，避免将旧payload的结果当成新内容的成功。等待Host回执15秒后只提示结果未确认，动作可能已经完成，不假称执行失败或成功；没有撤销已派发系统操作的承诺。
-- Code复制、Link和已有CopyToClipboard/OpenUrl动作使用同一Host能力；Markdown/Text内嵌HTTP(S)链接已接入同一HostLink，具体边界见上节。Markdown代码块复制未扩展，HtmlView仍没有任何该能力；YouTube/CDN/媒体仍未实现。
+- Code复制、Link和已有CopyToClipboard/OpenUrl动作使用同一Host能力；Markdown/Text内嵌HTTP(S)链接已接入同一HostLink，具体边界见上节。Markdown代码块复制未扩展，HtmlView仍没有任何该能力。独立YouTube采用另行限制的`media`能力，不能作为任意媒体/CDN或通用native动作入口。
 
 ## 59个应用函数
 
@@ -220,4 +229,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、YouTube媒体seat的真实手势/裁剪/缩放/遮挡/修订/销毁和临时profile隔离、真实视频与网络失败行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。

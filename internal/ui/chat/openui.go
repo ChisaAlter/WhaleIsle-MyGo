@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"os"
 	"path/filepath"
@@ -29,6 +30,9 @@ type openUIBlock struct {
 	cancel                       context.CancelFunc
 	target                       *session.ComposerTarget
 	valid                        func() bool
+	parent                       *mygo.Window
+	revision                     uint64
+	media                        *openUIMedia
 }
 
 func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {
@@ -44,15 +48,22 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 	}
 	id := openui.Identity(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, offset)
 	box := ui.Column(c.Key("openui:" + id)).FillWidth().Padding(8).Gap(6)
-	b := *ui.Local(box, "instance", func() *openUIBlock { return &openUIBlock{program: program} })
+	b := *ui.Local(box, "instance", func() *openUIBlock { return &openUIBlock{program: program, streaming: msg.Streaming, revision: 1} })
 	b.mu.Lock()
-	if b.program != program {
+	sourceChanged := b.program != program || b.streaming != msg.Streaming
+	if sourceChanged {
 		b.action = nil
+		b.revision++
 	}
 	b.program = program
 	b.streaming = msg.Streaming
+	b.parent = m.OpenUIWindow
+	media, revision := b.media, b.revision
 	loading, errText, action, handle, inline := b.loading, b.err, b.action, b.handle, b.inline
 	b.mu.Unlock()
+	if sourceChanged && media != nil {
+		media.Retire(revision)
+	}
 	invalidate := c.Services().Invalidate
 	appearance := "light"
 	if m.SystemDark {
@@ -118,6 +129,12 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			seat := ui.Column(c).FillWidth().Height(height)
 			seat.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				clip := p.NativeSurfaceClip()
+				b.mu.Lock()
+				media := b.media
+				b.mu.Unlock()
+				if media != nil {
+					media.Paint(r, clip, m.OpenUIMediaOcclusions)
+				}
 				if !childImageVisible(r, clip) {
 					return
 				}
@@ -206,6 +223,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		b.mu.Lock()
 		b.loading = false
 		b.handle = nil
+		b.media = nil
 		if err != nil {
 			b.err = err.Error()
 		}
@@ -237,13 +255,15 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	valid := b.valid
 	program = b.program
 	streaming, inline := b.streaming, b.inline
+	parent, revision := b.parent, b.revision
 	b.mu.Unlock()
 	if valid == nil || !valid() {
 		finish(fmt.Errorf("OpenUI owner changed"))
 		return
 	}
 	hostActions := explicitViewer == "" && openui.IsOwnedViewer(viewer) && (runtime.GOOS == "windows" || runtime.GOOS == "darwin")
-	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Program: program, Streaming: streaming, State: state, HostActions: hostActions}})
+	mediaEnabled := hostActions && inline && parent != nil
+	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Revision: revision, Program: program, Streaming: streaming, State: state, HostActions: hostActions, Media: mediaEnabled}})
 	if err != nil {
 		finish(err)
 		return
@@ -253,6 +273,14 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	b.handle = handle
 	b.loading = false
 	b.mu.Unlock()
+	var media *openUIMedia
+	if mediaEnabled {
+		media = newOpenUIMedia(ctx, b, handle, parent, valid, revision, invalidate)
+		b.mu.Lock()
+		b.media = media
+		b.mu.Unlock()
+		defer media.Close()
+	}
 	invalidate()
 	resources := openui.NewResourceAPI()
 	tick := time.NewTicker(200 * time.Millisecond)
@@ -267,8 +295,12 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 			return
 		case <-tick.C:
 			b.mu.Lock()
-			latest, live, lastPaint, currentAppearance := b.program, b.streaming, b.lastPaint, b.appearance
+			latest, live, lastPaint, currentAppearance, currentRevision := b.program, b.streaming, b.lastPaint, b.appearance, b.revision
 			b.mu.Unlock()
+			if media != nil {
+				media.Retire(currentRevision)
+				media.ExpirePaint()
+			}
 			if inline && time.Since(lastPaint) > 300*time.Millisecond && runtime.GOOS == "windows" {
 				_ = handle.PresentSurface(0, 0, 0, 0, 0, 0, 0, 0, 0)
 			}
@@ -279,17 +311,17 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				finish(nil)
 				return
 			}
-			if latest != program || live != streaming {
+			if latest != program || live != streaming || currentRevision != revision {
 				updater, ok := any(handle).(interface{ UpdateOpenUI(openui.Render) error })
 				if !ok {
 					finish(fmt.Errorf("OpenUI streaming helper is unavailable"))
 					return
 				}
-				if e := updater.UpdateOpenUI(openui.Render{InstanceID: id, Program: latest, Streaming: live, State: json.RawMessage(`{}`)}); e != nil {
+				if e := updater.UpdateOpenUI(openui.Render{InstanceID: id, Revision: currentRevision, Program: latest, Streaming: live, State: json.RawMessage(`{}`)}); e != nil {
 					finish(e)
 					return
 				}
-				program, streaming = latest, live
+				program, streaming, revision = latest, live, currentRevision
 			}
 			if e := handle.SetTheme(currentAppearance, nil); e != nil {
 				finish(e)
@@ -314,6 +346,19 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				return
 			}
 			switch event.Type {
+			case "media":
+				if media == nil {
+					finish(fmt.Errorf("OpenUI private media is unavailable for this surface"))
+					return
+				}
+				response := media.Handle(event)
+				if valid() && ctx.Err() == nil {
+					if replyErr := handle.ReplyOpenUIAPI(response); replyErr != nil {
+						b.mu.Lock()
+						b.err = replyErr.Error()
+						b.mu.Unlock()
+					}
+				}
 			case "clipboard", "open-url":
 				response := executeOpenUINativeAction(ctx, b, handle, valid, event)
 				if valid() && ctx.Err() == nil {

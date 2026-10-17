@@ -64,6 +64,10 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	// mediaSeat is opt-in for a trusted native paint-owned, clipped surface.
+	// Its geometry must never be replaced by the ordinary whole-panel sync.
+	mediaSeat         bool
+	mediaPlacement    *mediaPlacement
 	transient         bool
 	displayURL        string
 	allowNavigation   func(string) bool
@@ -487,6 +491,10 @@ func (h *Host) SyncBounds() {
 		return
 	}
 	h.mu.Lock()
+	if h.mediaSeat {
+		h.mu.Unlock()
+		return
+	}
 	parent := h.parent
 	win := h.win
 	inset := h.topInset

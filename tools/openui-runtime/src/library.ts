@@ -12,6 +12,7 @@ import { svgComponents } from "./components/svg";
 import { mapComponents } from "./components/map";
 import { extraControlComponents } from "./components/control-extras";
 import { htmlComponents } from "./components/html-view";
+import { mediaComponents } from "./components/youtube";
 
 // Native steps are intercepted by our gesture-bound controls, never forwarded
 // automatically from an SDK event or generated page to a browser API.
@@ -21,7 +22,7 @@ export const compatibleLibrary = createLibrary({
   id: "whaleisle-independent-col-v1",
   root: "Col",
   components: [...layoutComponents, ...contentComponents, ...controlComponents, ...imageComponents,
-    ...interactiveComponents, ...chartComponents, ...svgComponents, ...mapComponents, ...extraControlComponents, ...htmlComponents],
+    ...interactiveComponents, ...chartComponents, ...svgComponents, ...mapComponents, ...extraControlComponents, ...htmlComponents, ...mediaComponents],
   functions: [...compatibleFunctions, ...extraFunctions],
   actions: [copyToClipboard],
 });

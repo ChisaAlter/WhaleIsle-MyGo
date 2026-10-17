@@ -7,8 +7,9 @@ import { configurePersistence } from "./state-adapter";
 import { closeResources, configureResourceTransport } from "./resources";
 import "./viewer.css";
 import { connect, byteLength, LIMITS, type RenderMessage } from "./bridge";
-import { HtmlViewSupportContext, HostActionsContext, ProgramRevisionContext } from "./capabilities";
+import { HtmlViewSupportContext, HostActionsContext, ProgramRevisionContext, MediaContext } from "./capabilities";
 import { configureNativeActionTransport, updateNativeActionContext, closeNativeActions } from "./native-actions";
+import { configureMediaTransport, updateMediaContext, closeMedia } from "./media";
 
 const mount = document.getElementById("viewer")!;
 const fatal = document.getElementById("fatal")!;
@@ -138,9 +139,11 @@ function Viewer({ data, version }: { data: RenderMessage; version: number }) {
         <HtmlViewSupportContext.Provider value={data.htmlView}>
         <HostActionsContext.Provider value={data.hostActions}>
         <ProgramRevisionContext.Provider value={version}>
+        <MediaContext.Provider value={{ enabled: data.media, revision: data.revision }}>
         <Renderer response={data.program} library={compatibleLibrary} isStreaming={data.streaming}
           onAction={onAction}
           onError={onErrors} onParseResult={onParsed} publishObservability={false} />
+        </MediaContext.Provider>
         </ProgramRevisionContext.Provider>
         </HostActionsContext.Provider>
         </HtmlViewSupportContext.Provider>
@@ -171,6 +174,7 @@ transport = connect(data => {
   currentProgram = data.program;
   currentStreaming = data.streaming;
   updateNativeActionContext({ enabled: data.hostActions, streaming: data.streaming, revision: generation });
+  updateMediaContext({ enabled: data.media, streaming: data.streaming, revision: data.revision });
   if (!hydrated) {
     try {
       configurePersistence({ initialState: data.state, onState: state => transport.post("state", { state }), onError: message => report(message, "state-error") });
@@ -186,6 +190,7 @@ transport = connect(data => {
 }, message => report(message, "bridge-error"));
 configureResourceTransport(transport.post);
 configureNativeActionTransport(transport.post);
+configureMediaTransport(transport.post);
 
 let queuedHeight = false;
 let lastHeight = 0;
@@ -199,4 +204,4 @@ const observer = new ResizeObserver(() => {
   });
 });
 observer.observe(document.body);
-window.addEventListener("pagehide", () => { generation += 1; observer.disconnect(); closeResources(); closeNativeActions(); transport.close(); root.unmount(); }, { once: true });
+window.addEventListener("pagehide", () => { generation += 1; observer.disconnect(); closeResources(); closeNativeActions(); closeMedia(); transport.close(); root.unmount(); }, { once: true });

@@ -17,15 +17,22 @@ const MaxStateBytes = 48 << 10
 const MaxViewerBytes = 12 << 20
 
 type Render struct {
-	InstanceID string          `json:"instanceId"`
-	Program    string          `json:"program"`
-	Streaming  bool            `json:"streaming"`
-	State      json.RawMessage `json:"state"`
+	InstanceID string `json:"instanceId"`
+	// Revision is assigned by the native owner, not inferred by the renderer.
+	// Latest-only streaming delivery may skip revisions, but never go backwards.
+	Revision  uint64          `json:"revision,omitempty"`
+	Program   string          `json:"program"`
+	Streaming bool            `json:"streaming"`
+	State     json.RawMessage `json:"state"`
 	// HostActions is a trusted Host opt-in, independently limited to the owned
 	// embedded viewer by both the shell and helper-session event admission.
 	HostActions bool `json:"hostActions,omitempty"`
+	// Media enables only the owned viewer's typed, private native YouTube seat.
+	// It does not grant network access or native bindings to the helper.
+	Media bool `json:"media,omitempty"`
 }
 type Event struct {
+	Media       *MediaRequest     `json:"media,omitempty"`
 	Sequence    uint64            `json:"sequence,omitempty"`
 	UserGesture bool              `json:"userGesture,omitempty"`
 	Text        string            `json:"text,omitempty"`
@@ -58,6 +65,9 @@ func ValidateState(raw json.RawMessage) error {
 	return nil
 }
 func ValidateRender(r Render) error {
+	if r.Revision > 9007199254740991 || (r.Media && r.Revision == 0) {
+		return errors.New("invalid OpenUI source revision")
+	}
 	if len(r.InstanceID) != 64 || len(r.Program) == 0 || len(r.Program) > MaxProgramBytes || !utf8.ValidString(r.Program) {
 		return errors.New("invalid OpenUI instance/program")
 	}
@@ -72,6 +82,10 @@ func ValidateEvent(raw json.RawMessage, instance string) (Event, error) {
 		return e, errors.New("invalid OpenUI event envelope")
 	}
 	switch e.Type {
+	case "media":
+		if err := ValidateMediaRequest(e); err != nil {
+			return e, err
+		}
 	case "clipboard", "open-url":
 		if err := ValidateNativeAction(e); err != nil {
 			return e, err

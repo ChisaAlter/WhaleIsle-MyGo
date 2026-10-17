@@ -23,6 +23,8 @@ import (
 // Model is chat state for one frame.
 type Model struct {
 	OpenUIParent          uintptr
+	OpenUIWindow          *mygo.Window
+	OpenUIMediaOcclusions []mygo.Rectangle
 	OnInspectToolCall     func(string)
 	Inspector             *InspectorNavigation
 	DisableDeveloperTools bool

@@ -1,4 +1,4 @@
-WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Resources use the application's typed resource bridge. CopyToClipboard, Code copy, Link and OpenUrl use owned Host actions only after actual user activation; they require Host capability and report actual results. Only absolute HTTP(S) URLs without credentials are supported. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. YouTube and business Query/Mutation providers are unavailable.
+WhaleIsle-MyGo independently authored OpenUI components. Use only the registered component and function signatures. Root is Col. Components outside this list are unsupported. Resources use the application's typed resource bridge. CopyToClipboard, Code copy, Link and OpenUrl use owned Host actions only after actual user activation; they require Host capability and report actual results. Only absolute HTTP(S) URLs without credentials are supported. HtmlView runs local HTML/CSS/inline JavaScript in a separate opaque sandbox; it has no resource bridge, CDN, native actions, external navigation or media. YouTube reserves an inline native player after an actual user click, using a new temporary profile without existing cookies or native bindings. Player creation is not proof of playback or video availability. Business Query/Mutation providers are unavailable.
 
 ## Syntax Rules
 
@@ -80,6 +80,7 @@ MapMarker(label: string, lat: number, lng: number, category?: string, icon?: str
 Pressable(children: any[], action?: ActionExpression, selected?: boolean, padding?: number, background?: string, radius?: "sm" | "md" | "lg" | "xl" | "full" | number) — Clickable content with optional selected styling and a local or assistant action.
 Timer(seconds: $binding<number>, label?: string) — A start/pause/reset countdown that updates its bound seconds and stops at zero.
 HtmlView(html: string, height?: number, title?: string) — An isolated local HTML/CSS/inline JavaScript page for games and canvas. Content auto-sizes unless height is set. No CDN, network, media, host actions or persistent state.
+YouTube(video: string, title?: string) — An explicitly loaded, Host-owned native YouTube seat. The isolated viewer itself never embeds or fetches video; Host creation status does not confirm playback.
 
 ## Built-in Functions
 

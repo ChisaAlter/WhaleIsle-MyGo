@@ -23,6 +23,14 @@ type openUIUpdate struct {
 	Program    string `json:"program"`
 	Streaming  bool   `json:"streaming"`
 }
+
+// Keep the original update shape for callers that use its three-field value.
+// The revisioned wire embeds it so the JSON fields remain flat.
+type revisionedOpenUIUpdate struct {
+	openUIUpdate
+	Revision uint64 `json:"revision,omitempty"`
+}
+
 type openUIUpdateQueue struct {
 	mu              sync.Mutex
 	instanceID      string
@@ -30,11 +38,12 @@ type openUIUpdateQueue struct {
 	pending         []byte
 	lastHash        [sha256.Size]byte
 	lastSent        time.Time
+	revision        uint64
 }
 
 func newOpenUIUpdateQueue(r openui.Render) *openUIUpdateQueue {
-	raw, _ := json.Marshal(openUIUpdate{r.InstanceID, r.Program, r.Streaming})
-	return &openUIUpdateQueue{instanceID: r.InstanceID, lastHash: sha256.Sum256(raw)}
+	raw, _ := json.Marshal(revisionedOpenUIUpdate{openUIUpdate: openUIUpdate{r.InstanceID, r.Program, r.Streaming}, Revision: r.Revision})
+	return &openUIUpdateQueue{instanceID: r.InstanceID, lastHash: sha256.Sum256(raw), revision: r.Revision}
 }
 
 // UpdateOpenUI replaces only the pending program/streaming update for this
@@ -51,7 +60,7 @@ func (s *Session) UpdateOpenUI(r openui.Render) error {
 	if r.InstanceID != q.instanceID {
 		return errors.New("OpenUI update belongs to another instance")
 	}
-	raw, err := json.Marshal(openUIUpdate{r.InstanceID, r.Program, r.Streaming})
+	raw, err := json.Marshal(revisionedOpenUIUpdate{openUIUpdate: openUIUpdate{r.InstanceID, r.Program, r.Streaming}, Revision: r.Revision})
 	if err != nil {
 		return err
 	}
@@ -70,8 +79,12 @@ func (s *Session) UpdateOpenUI(r openui.Render) error {
 	if hash == q.lastHash {
 		return nil
 	}
+	if r.Revision < q.revision || (q.revision > 0 && r.Revision == q.revision) {
+		return errors.New("OpenUI update does not advance its source revision")
+	}
 	q.pending = raw
 	q.lastHash = hash
+	q.revision = r.Revision
 	return nil
 }
 func (s *Session) enableOpenUIUpdates(capable bool) {
@@ -133,8 +146,15 @@ func startOpenUIUpdatePump(ctx context.Context, s *Session, send func([]byte) er
 		}
 	}()
 }
+
+// validateOpenUIUpdate retains the original caller-facing value shape.
 func validateOpenUIUpdate(raw []byte) (openUIUpdate, error) {
-	var update openUIUpdate
+	update, err := validateRevisionedOpenUIUpdate(raw)
+	return update.openUIUpdate, err
+}
+
+func validateRevisionedOpenUIUpdate(raw []byte) (revisionedOpenUIUpdate, error) {
+	var update revisionedOpenUIUpdate
 	if len(raw) < 1 || len(raw) > maxOpenUIRenderBytes {
 		return update, errors.New("invalid OpenUI update length")
 	}
@@ -146,11 +166,11 @@ func validateOpenUIUpdate(raw []byte) (openUIUpdate, error) {
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return update, errors.New("trailing OpenUI update JSON")
 	}
-	err := openui.ValidateRender(openui.Render{InstanceID: update.InstanceID, Program: update.Program, Streaming: update.Streaming, State: json.RawMessage(`{}`)})
+	err := openui.ValidateRender(openui.Render{InstanceID: update.InstanceID, Revision: update.Revision, Program: update.Program, Streaming: update.Streaming, State: json.RawMessage(`{}`)})
 	return update, err
 }
 func sendOpenUIUpdate(w io.Writer, nonce string, raw []byte) error {
-	if _, err := validateOpenUIUpdate(raw); err != nil {
+	if _, err := validateRevisionedOpenUIUpdate(raw); err != nil {
 		return err
 	}
 	if err := writePacket(w, packet{Version: protocolVersion, Kind: "render", Nonce: nonce, Bytes: len(raw)}); err != nil {
@@ -169,7 +189,7 @@ func receiveOpenUIUpdate(r io.Reader, p packet, nonce string) ([]byte, error) {
 	if _, err := io.ReadFull(r, raw); err != nil {
 		return nil, err
 	}
-	update, err := validateOpenUIUpdate(raw)
+	update, err := validateRevisionedOpenUIUpdate(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +197,7 @@ func receiveOpenUIUpdate(r io.Reader, p packet, nonce string) ([]byte, error) {
 	return json.Marshal(update)
 }
 func openUIUpdateScript(raw []byte) (string, error) {
-	update, err := validateOpenUIUpdate(raw)
+	update, err := validateRevisionedOpenUIUpdate(raw)
 	if err != nil {
 		return "", err
 	}

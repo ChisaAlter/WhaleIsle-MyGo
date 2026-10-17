@@ -30,4 +30,4 @@ Markdown和Text的内嵌链接复用独立Link组件的`HostLink`和同一真实
 
 ## 剩余范围
 
-Markdown代码块复制维持原状，没有新增复制入口；独立Code组件保留已有复制原文能力。HtmlView无本模块能力，其他scheme、任意native方法、媒体/YouTube/CDN均未增加。Linux现有OpenUI桥未接入该能力。此模块不改变OS设置、token/entitlements或helper自身的网络/剪贴板权限。
+Markdown代码块复制维持原状，没有新增复制入口；独立Code组件保留已有复制原文能力。HtmlView无本模块能力，其他scheme、任意native方法、任意媒体/CDN均未增加；独立YouTube组件采用另行限制的临时native媒体seat，见YOUTUBE-MEDIA.md。Linux现有OpenUI桥未接入该能力。此模块不改变OS设置、token/entitlements或helper自身的网络/剪贴板权限。
