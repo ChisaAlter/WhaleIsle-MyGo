@@ -141,6 +141,7 @@ func View(c *ui.Context, m Model) {
 	syncTextRead(m)
 	syncDocumentSurfaces(m)
 	syncSaveResults(m)
+	observeFileResource(m)
 	if t := selectedTab(m); t != nil && t.Editing {
 		_ = ensureSaveQueue(m, t)
 	}
@@ -178,7 +179,7 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if w := tabsFor(m); w != nil {
 				automatic := !w.AutoRefreshDisabled
-				ui.Checkbox(c, &automatic, label("自动刷新", "Auto refresh"))
+				ui.Checkbox(c, &automatic, label("自动刷新文件树", "Auto-refresh tree"))
 				if automatic != !w.AutoRefreshDisabled {
 					w.AutoRefreshDisabled = !automatic
 					m.Tabs.Tree.Observe(m.WatchRemoteContext, automatic)
@@ -500,6 +501,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				ui.Text(c, status).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 			}
 		}
+		paintResourceRefreshControls(c, m)
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}

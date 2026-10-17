@@ -156,6 +156,7 @@ func syncTextRead(m Model) {
 	t.readTab = nil
 	tab.readLoading, tab.readResume = false, false
 	tab.readBlocked = result.err != nil
+	t.stopResourceObserver() // Retire probes begun before this explicit read completed.
 	applyTextRead(m, result)
 }
 
@@ -204,6 +205,9 @@ func applyTextRead(m Model, result textReadResult) {
 			tab.Status = label("文件未变化，未保存草稿已保留", "File unchanged; unsaved draft kept")
 		}
 	} else {
+		if problem == "" {
+			tab.externalChanged = false
+		}
 		tab.Error = problem
 		tab.Status = ""
 		if problem == "" {

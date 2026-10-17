@@ -17,23 +17,24 @@ import (
 // Switching tabs/workspaces never discards a draft. Runtime save queues are
 // deliberately omitted from recovery; reopening never flushes a draft.
 type Tabs struct {
-	imageReader     *imageReadQueue
-	imageReadTab    *FileTab
-	textReader      *textReadQueue
-	readTab         *FileTab
-	readSerial      uint64
-	planRead        *session.PlanResourceRead
-	planReadAddress string // runtime-only explicit user-open gate
-	planSession     string
-	Plans           planpreview.Resources
-	Preferences     *PreviewPreferences
-	floating        *floatingPreview
-	Workspaces      map[string]*WorkspaceTabs
-	Root            string
-	binding         string
-	boundRoot       string
-	Tree            *workspacefs.DirectoryTree `json:"-"`
-	Search          *workspacefs.Search        `json:"-"`
+	resourceObserver *resourceObserver
+	imageReader      *imageReadQueue
+	imageReadTab     *FileTab
+	textReader       *textReadQueue
+	readTab          *FileTab
+	readSerial       uint64
+	planRead         *session.PlanResourceRead
+	planReadAddress  string // runtime-only explicit user-open gate
+	planSession      string
+	Plans            planpreview.Resources
+	Preferences      *PreviewPreferences
+	floating         *floatingPreview
+	Workspaces       map[string]*WorkspaceTabs
+	Root             string
+	binding          string
+	boundRoot        string
+	Tree             *workspacefs.DirectoryTree `json:"-"`
+	Search           *workspacefs.Search        `json:"-"`
 }
 type WorkspaceTabs struct {
 	// AutoRefreshDisabled is opt-out, so new workspaces watch by default.
@@ -43,6 +44,8 @@ type WorkspaceTabs struct {
 	PendingClose        string
 }
 type FileTab struct {
+	AutoRefreshDisabled                       bool
+	externalChanged                           bool
 	document                                  documentSurfaceState
 	textPage                                  workspacefs.TextPage
 	textPaged                                 bool
@@ -243,6 +246,9 @@ func closeTab(m Model, path string, discard bool) bool {
 	if m.Tabs != nil && m.Tabs.imageReadTab == t {
 		m.Tabs.stopImageRead(false)
 	}
+	if m.Tabs != nil && m.Tabs.resourceObserver != nil && m.Tabs.resourceObserver.tab == t {
+		m.Tabs.stopResourceObserver()
+	}
 	disposeSave(t)
 	t.closeDocumentSurface()
 	if m.Tabs != nil && m.Tabs.readTab == t {
@@ -387,6 +393,7 @@ func (t *Tabs) Bind(binding, root string) {
 	if t.binding == binding && t.boundRoot == root {
 		return
 	}
+	t.stopResourceObserver()
 	t.stopImageRead(false)
 	t.CancelPlanRead()
 	t.stopTextRead(true, false)
