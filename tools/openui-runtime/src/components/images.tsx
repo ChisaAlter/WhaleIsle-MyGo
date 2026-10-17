@@ -185,12 +185,12 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
   </Frame>;
 }
 
-function DataPhoto({ src, alt, source, ...style }: ImageStyle & { src: string; alt: string; source?: string }) {
+function DataPhoto({ src, alt, source, onDecodeError, ...style }: ImageStyle & { src: string; alt: string; source?: string; onDecodeError?: () => void }) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   return <figure className="oui-image" style={{ margin: 0, minWidth: 0 }}>
     {failedSource === src
       ? <ImageStatus error>Image could not be decoded: {alt || 'unnamed image'}. No replacement image was substituted.</ImageStatus>
-      : <img src={src} alt={alt} style={imageStyles(style)} loading="lazy" decoding="async" draggable={false} onError={() => setFailedSource(src)} />}
+      : <img src={src} alt={alt} style={imageStyles(style)} loading="lazy" decoding="async" draggable={false} onError={() => { setFailedSource(src); onDecodeError?.(); }} />}
     {source ? <figcaption style={{ marginTop: 6, fontSize: 11, color: muted, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
       <details><summary style={{ cursor: 'pointer' }}>Image source</summary><div style={{ marginTop: 4 }}>Source: {source}</div><div>Author and license metadata were not supplied by the image service. External navigation is disabled.</div></details>
     </figcaption> : null}
@@ -251,7 +251,13 @@ function SearchPhoto({ query, ...style }: ImageStyle & { query: string }) {
   const index = Math.min(selection, state.photos.length - 1);
   const photo = state.photos[index];
   return <div className="oui-search-image" style={{ minWidth: 0 }}>
-    <DataPhoto src={photo.data} source={photo.source} alt={`Image result for ${normalizedQuery}`} {...style} />
+    <DataPhoto
+      src={photo.data}
+      source={photo.source}
+      alt={`Image result for ${normalizedQuery}`}
+      onDecodeError={() => setSelection((value) => Math.min(state.photos.length - 1, value + 1))}
+      {...style}
+    />
     {state.photos.length > 1 ? <div role="group" aria-label="Image search results" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, color: muted, fontSize: 12 }}>
       <button type="button" aria-label="Previous image" disabled={index === 0} onClick={() => setSelection((value) => Math.max(0, value - 1))} style={buttonStyle}>Previous</button>
       <span aria-live="polite">{index + 1} of {state.photos.length}</span>
