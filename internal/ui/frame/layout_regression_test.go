@@ -233,7 +233,7 @@ func TestPopulatedComposerCardKeepsSharedAxisAndFitsCenter(t *testing.T) {
 			sizes.Right = 540
 			right := float32(0)
 			draft := "hello"
-			snap := session.ViewState{Messages: []session.Message{{Kind: session.MessageKindText, Role: "user", Body: "short user fixture"}, {Kind: session.MessageKindText, Role: "assistant", Body: "assistant fixture"}}}
+			snap := session.ViewState{Messages: []session.Message{{ID: "layout-user", Kind: session.MessageKindText, Role: "user", Body: "short user fixture"}, {ID: "layout-assistant", Kind: session.MessageKindText, Role: "assistant", Body: "assistant fixture"}}}
 			tt := ui.NewTester(func(c *ui.Context) {
 				cols := sizes.ResolveColumns(float32(viewport), true)
 				right = cols.Details

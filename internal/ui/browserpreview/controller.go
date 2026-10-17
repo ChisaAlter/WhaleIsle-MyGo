@@ -39,17 +39,18 @@ type Controller struct {
 	parent                    *mygo.Window
 }
 type Tab struct {
-	pdfPosition   *PDFReadingPosition
-	pdfPageDraft  string
-	workspace     browserWorkspace
-	source        *DocumentSource
-	sourcePending bool
-	sourceRead    *documentRead
-	tools         browserTools
-	Document      *pdfpreview.Document
-	HTML          *htmldocument.Document
-	Media         *mediapreview.Document
-	interactive   *interactivePreview
+	pdfPosition    *PDFReadingPosition
+	pdfPageDraft   string
+	workspace      browserWorkspace
+	source         *DocumentSource
+	sourcePending  bool
+	floatAfterRead bool
+	sourceRead     *documentRead
+	tools          browserTools
+	Document       *pdfpreview.Document
+	HTML           *htmldocument.Document
+	Media          *mediapreview.Document
+	interactive    *interactivePreview
 
 	ActionMessage string
 	ArtifactPath  string

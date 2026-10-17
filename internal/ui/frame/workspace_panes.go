@@ -355,6 +355,9 @@ func prepareWorkspace(m Model) {
 	w.syncRoute(derefString(m.RightPaneTab))
 }
 func workspaceColumns(c *ui.Context, m Model, center func()) {
+	if m.Sizes.Workspace == nil {
+		prepareWorkspace(m)
+	}
 	w := m.Sizes.Workspace
 	w.syncRoute(derefString(m.RightPaneTab))
 	defer func() {

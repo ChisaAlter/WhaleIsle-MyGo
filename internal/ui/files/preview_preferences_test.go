@@ -32,19 +32,3 @@ func TestSourceAreaWidth(t *testing.T) {
 		}
 	}
 }
-func TestFloatingSnapshotKeepsDraftAndErrors(t *testing.T) {
-	s, err := makePreviewSnapshot("/remote/root", "a.md", "disk", "unsaved", "changed on disk", false)
-	if err != nil || s.Text != "unsaved" || !s.Dirty || s.Root != "/remote/root" {
-		t.Fatalf("draft snapshot = %+v %v", s, err)
-	}
-	if _, err = makePreviewSnapshot("/remote/root", "a.md", "", "", "not loaded", false); err == nil {
-		t.Fatal("failed preview opened")
-	}
-	s, err = makePreviewSnapshot("/remote/root", "a.svg", "disk", "unsaved", "", true)
-	if err != nil || s.Image {
-		t.Fatal("SVG draft was hidden by image mode")
-	}
-	if _, err = makePreviewSnapshot("", "a.md", "", "", "", false); err == nil {
-		t.Fatal("unowned snapshot accepted")
-	}
-}

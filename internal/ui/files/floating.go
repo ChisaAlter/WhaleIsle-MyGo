@@ -1,10 +1,13 @@
 package files
 
 import (
+	"context"
 	"errors"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"path/filepath"
+	"time"
+	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -18,49 +21,30 @@ type floatingPreview struct {
 	tab      FileTab
 	themeID  string
 	notify   func()
+	reader   textReadQueue
+	owner    textReadOwner
+	read     func(context.Context) textReadResult
+	loading  bool
 }
 
-// openFloatingPreview opens one native, read-only, always-on-top viewer. Only
-// already-loaded values cross into it; it owns no reader, writer or Host client.
+// Floating text previews read saved bytes through the captured source binding.
+// No editor draft or mutable session lookup crosses into the worker.
 func openFloatingPreview(m Model) error {
-	if m.Tabs == nil || m.SelectedFile == nil {
+	if m.Tabs == nil || m.SelectedFile == nil || m.WorkspaceRoot == "" || *m.SelectedFile == "" {
 		return errors.New("no file preview owner")
 	}
-	preview, draft, problem := "", "", ""
-	if m.Preview != nil {
-		preview = *m.Preview
+	if imageMode(m, *m.SelectedFile) {
+		return errors.New("image floating preview requires the document viewer")
 	}
-	draft = preview
-	if m.EditDraft != nil {
-		draft = *m.EditDraft
-	}
-	if m.PreviewErr != nil {
-		problem = *m.PreviewErr
-	}
-	snapshot, err := makePreviewSnapshot(m.WorkspaceRoot, *m.SelectedFile, preview, draft, problem, imageMode(m, *m.SelectedFile))
-	if err != nil {
-		return err
-	}
-	if previewTruncated(m) {
-		if snapshot.Problem != "" {
-			snapshot.Problem += "\n"
-		}
-		snapshot.Problem += previewTruncationNotice(m)
-	}
-	var image *imagePreview
-	if snapshot.Image {
-		tab := selectedTab(m)
-		if tab == nil || tab.Remote || tab.image == nil || tab.image.err != nil || (tab.image.bitmap == nil && tab.image.vector == nil) {
-			return errors.New(label("请先等待图片预览成功，再打开浮窗", "Wait for the image preview to load before opening its floating window"))
-		}
-		image = tab.image
-	}
+	snapshot := previewSnapshot{Root: m.WorkspaceRoot, Path: *m.SelectedFile}
 	f := m.Tabs.floating
 	if f == nil || f.win == nil || f.win.IsDestroyed() {
 		f = &floatingPreview{}
 		m.Tabs.floating = f
 	}
-	f.snapshot, f.image, f.themeID, f.notify = snapshot, image, m.ThemeID, m.notify
+	f.snapshot, f.image, f.themeID, f.notify = snapshot, nil, m.ThemeID, m.notify
+	f.owner = textReadOwner{binding: m.BindingID, root: snapshot.Root, session: m.SessionID, path: snapshot.Path}
+	f.read = savedFloatingReader(m, snapshot.Path)
 	f.tab = FileTab{Path: snapshot.Path, Preview: snapshot.Text, Draft: snapshot.Text}
 	f.tabs = Tabs{Preferences: previewPreferences(m), Workspaces: map[string]*WorkspaceTabs{filepath.Clean(snapshot.Root): {Open: []*FileTab{&f.tab}, Active: snapshot.Path}}}
 	title := label("浮动预览 · ", "Floating preview · ") + filepath.Base(snapshot.Path)
@@ -70,11 +54,20 @@ func openFloatingPreview(m Model) error {
 			f.image = nil
 			return errors.New(label("无法打开浮动预览", "Could not open floating preview"))
 		}
-		f.win.OnClosed(func() { f.win = nil; f.image = nil; f.snapshot = previewSnapshot{}; f.tab = FileTab{}; f.tabs = Tabs{} })
+		f.win.OnClosed(func() {
+			f.reader.stop(true)
+			f.win = nil
+			f.image = nil
+			f.snapshot = previewSnapshot{}
+			f.tab = FileTab{}
+			f.tabs = Tabs{}
+		})
 	} else {
 		f.win.SetTitle(title)
 		f.win.Invalidate()
 	}
+	f.reader.setNotify(f.win.Invalidate)
+	f.refresh()
 	f.win.ShowInactive()
 	return nil
 }
@@ -84,11 +77,31 @@ func (t *Tabs) closeFloatingPreview() {
 	}
 	f := t.floating
 	t.floating = nil
+	f.reader.stop(true)
 	if f.win != nil && !f.win.IsDestroyed() {
 		f.win.Destroy()
 	}
 }
+func (f *floatingPreview) refresh() {
+	f.loading = true
+	f.snapshot.Problem = ""
+	f.reader.request(f.owner, f.read)
+}
 func (f *floatingPreview) view(c *ui.Context) {
+	if result, ok := f.reader.take(f.owner); ok {
+		f.loading = false
+		f.snapshot.Problem = ""
+		if result.err != nil {
+			f.snapshot.Problem = result.err.Error()
+		} else {
+			f.snapshot.Text = result.text
+			f.tab.Preview, f.tab.Draft = result.text, result.text
+			if result.truncated {
+				f.snapshot.Problem = label("内容过长，仅显示第一页。", "Large file: showing the first page only.")
+			}
+		}
+	}
+
 	theme.ApplyInterface(c)
 	dark := mygo.Theme.IsDark()
 	colors := theme.Resolve(f.themeID).Active(dark)
@@ -110,14 +123,14 @@ func (f *floatingPreview) view(c *ui.Context) {
 					f.tab.RenderedMarkdown = !f.tab.RenderedMarkdown
 				}
 			}
+			if ui.Button(c, label("刷新", "Refresh")).Disabled(f.loading).Clicked() {
+				f.refresh()
+			}
 			if ui.Button(c, label("关闭", "Close")).Clicked() && f.win != nil {
 				f.win.Close()
 			}
 		})
-		ui.Text(c, label("只读快照；再次点击文件工具栏的浮窗按钮可更新。", "Read-only snapshot. Reopen from the file toolbar to update it.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
-		if f.snapshot.Dirty {
-			ui.Text(c, label("包含尚未保存的草稿；不会自动保存。", "Includes an unsaved draft; opening this window does not save it.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
-		}
+		ui.Text(c, label("已保存文件的只读预览；点击刷新读取最新内容。", "Saved-file preview. Refresh to read the latest saved content.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		if f.snapshot.Problem != "" {
 			ui.Text(c, f.snapshot.Problem).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 		}
@@ -134,4 +147,51 @@ func (f *floatingPreview) view(c *ui.Context) {
 			paintSourceArea(c, m, f.snapshot.Path, &f.snapshot.Text, true, "floating", fg, muted)
 		}
 	})
+}
+
+// Prefer authenticated source readers over local paths, even if a same-named
+// local file exists. A Host read failure must never fall back to local bytes.
+func savedFloatingReader(m Model, path string) func(context.Context) textReadResult {
+	root, remote, pageReader, tableReader := m.WorkspaceRoot, m.ReadRemoteContext, m.ReadTextPageContext, m.ReadTableContext
+	return func(ctx context.Context) textReadResult {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		out := textReadResult{}
+		if ctx.Err() != nil {
+			out.err = ctx.Err()
+			return out
+		}
+		if isTablePreviewPath(path) {
+			if tableReader != nil {
+				out.table, out.err = tableReader(ctx, path, workspacefs.XLSXPageRequest{})
+			} else if remote != nil || pageReader != nil {
+				out.err = errors.New("Host table preview reader is unavailable")
+			} else {
+				full, err := workspacefs.JoinRoot(root, path)
+				out.err = err
+				if err == nil {
+					out.table, out.err = readTablePreview(ctx, full, workspacefs.XLSXPageRequest{})
+				}
+			}
+			if out.table != nil {
+				out.text = out.table.Text
+			}
+		} else if pageReader != nil {
+			page, err := pageReader(ctx, path, 0)
+			out.text, out.err, out.truncated = page.Text, err, !page.EOF
+		} else if remote != nil {
+			out.text, out.err = remote(ctx, path)
+		} else {
+			full, err := workspacefs.JoinRoot(root, path)
+			out.err = err
+			if err == nil {
+				page, err := workspacefs.ReadFileTextPage(full, 0)
+				out.text, out.err, out.truncated = page.Text, err, !page.EOF
+			}
+		}
+		if ctx.Err() != nil {
+			out.err = ctx.Err()
+		}
+		return out
+	}
 }

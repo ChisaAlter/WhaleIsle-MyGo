@@ -424,7 +424,7 @@ func (w *WorkspacePanes) browserFor(n *WorkspacePane, create func() *browserprev
 	return n.browser
 }
 
-func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, create func() *browserpreview.Controller) {
+func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, create func() *browserpreview.Controller, floating ...bool) {
 	if w.Root == nil {
 		w.syncRoute("files")
 	}
@@ -447,7 +447,7 @@ func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, crea
 			w.Fullscreen = ""
 		}
 		target = w.selectKind(target, "browser")
-		w.browserFor(target, create).OpenDocumentSource(source)
+		w.browserFor(target, create).OpenDocumentSource(source, floating...)
 		w.focusPending = target.ID
 	}
 }

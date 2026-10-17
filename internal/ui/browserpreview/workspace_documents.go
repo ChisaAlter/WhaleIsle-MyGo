@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	DocumentImage     = "image"
 	DocumentPDF       = "pdf"
 	DocumentHTML      = "html"
 	DocumentOfficePDF = "office-pdf"
@@ -60,12 +61,18 @@ func (b *Controller) SetDocumentLoader(ready func(DocumentSource) bool, read fun
 	b.documentLoader = documentLoader{ready: ready, read: read}
 }
 
-func (b *Controller) OpenDocumentSource(source DocumentSource) {
+func (b *Controller) OpenDocumentSource(source DocumentSource, floating ...bool) {
+	float := len(floating) > 0 && floating[0]
 	// Reopening one resource focuses its occurrence in this pane only.
 	for i, tab := range b.Tabs {
 		if tab.source != nil && *tab.source == source {
 			b.Select(i)
-			if tab.Document == nil && tab.HTML == nil {
+			tab.floatAfterRead = float
+			if float && tab.sourceRead != nil {
+				tab.sourceRead.cancel()
+				tab.sourceRead = nil
+			}
+			if float || (tab.Document == nil && tab.HTML == nil) {
 				b.retryDocument(tab)
 			}
 			return
@@ -73,7 +80,7 @@ func (b *Controller) OpenDocumentSource(source DocumentSource) {
 	}
 	b.Hide()
 	b.next++
-	b.Tabs = append(b.Tabs, &Tab{ID: b.next, source: &source, sourcePending: true, Draft: source.Path})
+	b.Tabs = append(b.Tabs, &Tab{ID: b.next, source: &source, sourcePending: true, floatAfterRead: float, Draft: source.Path})
 	b.Active = len(b.Tabs) - 1
 	b.update()
 }
@@ -135,6 +142,22 @@ func (b *Controller) resumeDocument(tab *Tab) {
 			tab.ActionMessage = ""
 			err := result.Err
 			if err == nil {
+				// Retire the previous capability only after the replacement read succeeds.
+				if b.floatingDocument != nil && b.floatingDocument.tab == tab {
+					b.stopFloatingDocument()
+				}
+				if tab.Host != nil {
+					_ = tab.Host.Close()
+					tab.Host = nil
+				}
+				if tab.Document != nil {
+					tab.Document.Close()
+					tab.Document = nil
+				}
+				if tab.HTML != nil {
+					tab.HTML.Close()
+					tab.HTML = nil
+				}
 				switch {
 				case result.PDF != nil:
 					err = b.openPDFTab(tab, result.PDF)
@@ -148,6 +171,10 @@ func (b *Controller) resumeDocument(tab *Tab) {
 			}
 			if err != nil {
 				tab.Error = err.Error()
+			}
+			if err == nil && tab.floatAfterRead && b.current() == tab {
+				tab.floatAfterRead = false
+				b.openFloatingDocument(tab)
 			}
 			if result.Complete != nil {
 				result.Complete(err)

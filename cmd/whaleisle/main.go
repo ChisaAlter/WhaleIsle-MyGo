@@ -31,6 +31,7 @@ import (
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/desktop/deeplink"
 	desktopgit "whaleisle/internal/desktop/git"
+	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	desktopmarket "whaleisle/internal/desktop/market"
@@ -6834,6 +6835,15 @@ func mainView(c *ui.Context) {
 						FileOpenWithApps: fileOpenWithApps,
 						OnOpenMedia: func(path string, floating bool) {
 							state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, floating)
+						},
+						OnOpenFloatingDoc: func(path string) {
+							kind := browserpreviewui.DocumentHTML
+							if imagepreview.SupportsSnapshot(path) {
+								kind = browserpreviewui.DocumentImage
+							} else if strings.EqualFold(filepath.Ext(path), ".pdf") {
+								kind = browserpreviewui.DocumentPDF
+							}
+							state.openWorkspaceDocument(sessions, snap.SelectedID, snap.SelectedCwd, path, kind, true)
 						},
 						OnOpenDoc: func(absPath string, kind workspacefs.DocKind, inWebView bool) {
 							if inWebView && supportsImagePreview(absPath) {

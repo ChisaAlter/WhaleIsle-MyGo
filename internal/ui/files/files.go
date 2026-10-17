@@ -72,11 +72,12 @@ type Model struct {
 	// PaneWidth is the preview pane width in DIPs; used to pick side-by-side vs stack.
 	PaneWidth *float32
 	// EditSplit is the first-pane size for the edit/preview split (width or height).
-	EditSplit   *float32
-	OnShowDiff  func(rel string)
-	OnSaveEdit  func(rel, text string) error
-	OnOpenDoc   func(absPath string, kind workspacefs.DocKind, inWebView bool)
-	OnOpenMedia func(path string, floating bool)
+	EditSplit         *float32
+	OnShowDiff        func(rel string)
+	OnSaveEdit        func(rel, text string) error
+	OnOpenFloatingDoc func(string)
+	OnOpenDoc         func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	OnOpenMedia       func(path string, floating bool)
 	// OnReveal opens the selected file's folder in the OS file manager.
 	OnReveal func(absPath string)
 	// OnRenderPDF converts an Office doc via officeToPdf/render then previews PDF.
@@ -379,6 +380,8 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(theme.InterfaceSize(11)).Disabled(m.Tabs == nil).Clicked() {
 					if mediaMode(m, sel) && m.OnOpenMedia != nil {
 						m.OnOpenMedia(sel, true)
+					} else if (isPreviewImage(sel) || docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && m.OnOpenFloatingDoc != nil {
+						m.OnOpenFloatingDoc(sel)
 					} else if err := openFloatingPreview(m); err != nil {
 						setFileStatus(m, err.Error())
 					}

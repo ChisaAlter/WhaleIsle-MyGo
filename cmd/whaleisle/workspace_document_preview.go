@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/htmldocument"
+	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pdfpreview"
 	"whaleisle/internal/store/session"
@@ -15,32 +16,43 @@ import (
 
 // Explicit opens and restored tabs share the same saved-file reading pipeline.
 // The descriptor identifies the original source, not its temporary preview URL.
-func (s *mainState) openWorkspaceDocument(sessions *session.Store, sid, root, path, kind string) {
-	if sessions == nil || sid == "" { return }
+func (s *mainState) openWorkspaceDocument(sessions *session.Store, sid, root, path, kind string, floating ...bool) {
+	if sessions == nil || sid == "" {
+		return
+	}
 	s.mu.Lock()
 	win, current := s.win, s.sessions
 	s.mu.Unlock()
-	if win == nil || current != sessions { return }
+	if win == nil || current != sessions {
+		return
+	}
 	source := browserpreviewui.DocumentSource{
 		Authority: s.browserWorkspaceOwner().Authority,
 		SessionID: sid, ViewSessionID: sid, AddressKind: "session", Workspace: root, Path: path, Kind: kind,
 	}
-	s.openWorkspaceDocumentSource(sessions, source)
+	s.openWorkspaceDocumentSource(sessions, source, floating...)
 }
 
-func (s *mainState) openWorkspaceDocumentSource(sessions *session.Store, source browserpreviewui.DocumentSource) {
-	if !s.workspaceDocumentReady(source) { return }
+func (s *mainState) openWorkspaceDocumentSource(sessions *session.Store, source browserpreviewui.DocumentSource, floating ...bool) {
+	if !s.workspaceDocumentReady(source) {
+		return
+	}
 	s.mu.Lock()
 	win := s.win
-	if s.sessions != sessions.AgentNavigationRootStore() || win == nil { s.mu.Unlock(); return }
-	if s.layout.Workspace == nil { s.layout.Workspace = &frame.WorkspacePanes{} }
+	if s.sessions != sessions.AgentNavigationRootStore() || win == nil {
+		s.mu.Unlock()
+		return
+	}
+	if s.layout.Workspace == nil {
+		s.layout.Workspace = &frame.WorkspacePanes{}
+	}
 	panes := s.layout.Workspace
 	s.filesPaneOpen = true
 	s.rightPaneTab = "browser"
 	s.browserPreviewOpen, s.webviewOpen = false, false
 	s.mu.Unlock()
 	s.closeWebViewHost()
-	panes.OpenDocument(source, func() *browserpreviewui.Controller { return s.newBrowserController(win) })
+	panes.OpenDocument(source, func() *browserpreviewui.Controller { return s.newBrowserController(win) }, floating...)
 	win.Update(func() {})
 }
 
@@ -48,15 +60,23 @@ func (s *mainState) workspaceDocumentReady(source browserpreviewui.DocumentSourc
 	s.mu.Lock()
 	sessions, win, quitting := s.sessions, s.win, s.quitting
 	s.mu.Unlock()
-	if quitting || sessions == nil || win == nil { return false }
+	if quitting || sessions == nil || win == nil {
+		return false
+	}
 	snap := sessions.Snapshot()
 	viewID := source.ViewSessionID
-	if viewID == "" { viewID = source.SessionID }
+	if viewID == "" {
+		viewID = source.SessionID
+	}
 	if source.Authority == "" || source.Authority != s.browserWorkspaceOwner().Authority ||
-		viewID == "" || viewID != snap.SelectedID || source.Workspace != snap.SelectedCwd { return false }
+		viewID == "" || viewID != snap.SelectedID || source.Workspace != snap.SelectedCwd {
+		return false
+	}
 	if source.AddressKind == "subagent" {
 		sessions = s.workspaceDocumentStore(source)
-		if sessions == nil { return false }
+		if sessions == nil {
+			return false
+		}
 		view := sessions.AgentNavigationSnapshot()
 		_, _, err := sessions.AgentMediaPreviewSource(view.Token, workspaceDocumentAddress(source))
 		return err == nil
@@ -90,16 +110,24 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 	address := workspaceDocumentAddress(source)
 	if child {
 		sessions = s.workspaceDocumentStore(source)
-		if sessions == nil { result.Err = fmt.Errorf("来源代理面板已关闭，请重新打开来源"); return result }
+		if sessions == nil {
+			result.Err = fmt.Errorf("来源代理面板已关闭，请重新打开来源")
+			return result
+		}
 		view := sessions.AgentNavigationSnapshot()
 		childToken = view.Token
 		reader, sourceValid, sourceErr = sessions.AgentMediaPreviewSource(childToken, address)
-		if sourceErr != nil { result.Err = sourceErr; return result }
+		if sourceErr != nil {
+			result.Err = sourceErr
+			return result
+		}
 	} else {
 		reader, sourceValid, sourceErr = sessions.MediaPreviewSource(sid)
 	}
 	viewID := source.ViewSessionID
-	if viewID == "" { viewID = sid }
+	if viewID == "" {
+		viewID = sid
+	}
 	valid := func() bool {
 		s.mu.Lock()
 		st := s.bootStatus
@@ -113,18 +141,26 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 			source.Authority == s.browserWorkspaceOwner().Authority
 	}
 	result.Valid = valid
-	if !valid() { result.Err = fmt.Errorf("文档所属会话已改变"); return result }
+	if !valid() {
+		result.Err = fmt.Errorf("文档所属会话已改变")
+		return result
+	}
 
 	if child {
 		sessions.SetAgentResourceStatus(childToken, address, path, true, nil)
 		result.Canceled = func() {
-			if valid() { sessions.SetAgentResourceStatus(childToken, address, path, false, context.Canceled) }
+			if valid() {
+				sessions.SetAgentResourceStatus(childToken, address, path, false, context.Canceled)
+			}
 		}
 	}
 	var office *session.OfficePDFDocument
 	switch source.Kind {
 	case browserpreviewui.DocumentOfficePDF:
-		if child { result.Err = fmt.Errorf("子会话文档入口当前只提供 PDF 和 HTML"); break }
+		if child {
+			result.Err = fmt.Errorf("子会话文档入口当前只提供 PDF 和 HTML")
+			break
+		}
 		s.setOfficePreviewMessage(sessions, sid, path, "正在转换 Office 文档并准备 PDF 预览…")
 		// The Host supplies complete multipart PDF bytes. Its conversion path and
 		// the new PDF capability remain private to this live occurrence.
@@ -141,9 +177,23 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 			var data []byte
 			data, result.Err = mediapreview.ReadSnapshot(readCtx, reader, sid, path, pdfpreview.MaxBytes, valid)
 			cancel()
-			if result.Err == nil { result.PDF, result.Err = pdfpreview.OpenBytes(path, data, valid) }
+			if result.Err == nil {
+				result.PDF, result.Err = pdfpreview.OpenBytes(path, data, valid)
+			}
 		} else {
 			result.PDF, result.Err = pdfpreview.OpenWorkspace(root, path, valid)
+		}
+	case browserpreviewui.DocumentImage:
+		if sourceErr == nil {
+			readCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+			data, err := mediapreview.ReadSnapshot(readCtx, reader, sid, path, int(imagepreview.MaxBytes), valid)
+			cancel()
+			result.Err = err
+			if err == nil {
+				result.HTML, result.Err = htmldocument.OpenImageBytes(path, data, valid)
+			}
+		} else {
+			result.HTML, result.Err = htmldocument.OpenImageWorkspace(root, path, valid)
 		}
 	case browserpreviewui.DocumentHTML:
 		sessions.SetLastAction("正在打开已保存的 HTML 快照，编辑草稿保持不变…")
@@ -160,7 +210,9 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 	html := result.HTML
 	readFailed := result.Err != nil
 	result.Complete = func(err error) {
-		if !valid() { return }
+		if !valid() {
+			return
+		}
 		if child {
 			sessions.SetAgentResourceStatus(childToken, address, path, false, err)
 			return

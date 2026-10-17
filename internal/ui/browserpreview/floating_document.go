@@ -91,7 +91,15 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 			ui.Column(c).Fill().Children(func() {
 				ui.Row(c).Height(floatingDocumentChromeHeight).Padding(6, 10).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, truncate(opts.Title, 40)+" · 只读快照").FontSize(fonttheme.InterfaceSize(12)).Grow(1).Tooltip(opts.Title)
+					if t.source != nil && ui.Button(c, "刷新").Disabled(t.sourceRead != nil).Clicked() {
+						t.floatAfterRead = true
+						b.retryDocument(t)
+					}
+					if t.Error != "" {
+						ui.Text(c, t.Error).Tooltip(t.Error)
+					}
 					if ui.Button(c, "关闭").Clicked() {
+						t.floatAfterRead = false
 						b.stopFloatingDocument()
 					}
 				})
@@ -110,6 +118,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	}
 	w.OnClosed(func() {
 		if b.floatingDocument == f {
+			t.floatAfterRead = false
 			b.stopFloatingDocument()
 		} else {
 			f.close()

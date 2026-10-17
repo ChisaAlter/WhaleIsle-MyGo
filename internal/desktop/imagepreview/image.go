@@ -4,9 +4,15 @@
 package imagepreview
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/webp"
 	"html"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"path/filepath"
 	"strings"
 )
@@ -24,6 +30,19 @@ func Supports(path string) bool {
 	return false
 }
 
+// SupportsSnapshot includes native bitmap formats without changing the normal
+// Files editor's choice of native versus browser image rendering.
+func SupportsSnapshot(path string) bool {
+	if Supports(path) {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg", ".webp", ".bmp":
+		return true
+	}
+	return false
+}
+
 // Build receives one already-authorized immutable snapshot. It returns fixed
 // markup containing only a data image, never raw supplied document markup.
 // The caller must still wrap this in the static sandbox and deny network,
@@ -35,6 +54,20 @@ func Build(path string, data []byte) (string, error) {
 	var mime string
 	var err error
 	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg", ".webp", ".bmp":
+		cfg, format, decodeErr := image.DecodeConfig(bytes.NewReader(data))
+		if decodeErr != nil {
+			return "", decodeErr
+		}
+		if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width) > MaxPixels/int64(cfg.Height) {
+			return "", errors.New("image exceeds pixel budget")
+		}
+		switch format {
+		case "png", "jpeg", "webp", "bmp":
+			mime = "image/" + format
+		default:
+			return "", errors.New("unsupported bitmap format")
+		}
 	case ".gif":
 		mime, err = "image/gif", validateGIF(data)
 	case ".ico":

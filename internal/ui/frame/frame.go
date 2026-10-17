@@ -284,6 +284,7 @@ type Model struct {
 	OnMoveSessionBefore  func(sessionID, beforeSessionID string)
 	WorkspaceRenameDraft *string
 	WorkspaceMenuOpen    *bool
+	OnOpenFloatingDoc    func(string)
 	OnOpenDoc            func(absPath string, kind workspacefs.DocKind, inWebView bool)
 	OnOpenMedia          func(path string, floating bool)
 	OnRevealFile         func(absPath string)
@@ -1419,6 +1420,7 @@ func rightPane(c *ui.Context, m Model) {
 				}
 				return workspacefs.WriteFileText(full, text)
 			},
+			OnOpenFloatingDoc:   m.OnOpenFloatingDoc,
 			OnOpenDoc:           m.OnOpenDoc,
 			OnOpenMedia:         m.OnOpenMedia,
 			OnReveal:            m.OnRevealFile,

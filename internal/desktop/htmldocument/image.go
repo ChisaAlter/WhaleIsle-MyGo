@@ -34,7 +34,7 @@ func OpenImageWorkspace(root, raw string, valid func() bool) (*Document, error) 
 	if valid == nil || !valid() {
 		return nil, errors.New("image request is no longer active")
 	}
-	if !filepath.IsAbs(root) || strings.TrimSpace(raw) == "" || strings.Contains(raw, "://") || !imagepreview.Supports(raw) {
+	if !filepath.IsAbs(root) || strings.TrimSpace(raw) == "" || strings.Contains(raw, "://") || !imagepreview.SupportsSnapshot(raw) {
 		return nil, errors.New("image preview requires a supported local session file")
 	}
 	full := raw
@@ -66,6 +66,19 @@ func OpenImageWorkspace(root, raw string, valid func() bool) (*Document, error) 
 	after, err := f.Stat()
 	if err != nil || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) || int64(len(data)) != info.Size() {
 		return nil, errors.New("image changed while reading; open it again")
+	}
+	return openImageBytes(full, data, info, valid)
+}
+
+// OpenImageBytes creates an inert snapshot of authenticated Host bytes. It has
+// no local path identity and cannot enable scripts or system-open a local file.
+func OpenImageBytes(path string, data []byte, valid func() bool) (*Document, error) {
+	return openImageBytes(path, data, nil, valid)
+}
+
+func openImageBytes(full string, data []byte, info os.FileInfo, valid func() bool) (*Document, error) {
+	if valid == nil || !valid() {
+		return nil, errors.New("image request is no longer active")
 	}
 	markup, err := imagepreview.Build(full, data)
 	if err != nil {
