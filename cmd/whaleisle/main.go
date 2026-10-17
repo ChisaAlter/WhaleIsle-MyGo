@@ -3559,20 +3559,22 @@ func mainView(c *ui.Context) {
 		if desktopChromeLocked {
 			captionGit = gitBadge
 		}
-		if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit) {
-			// Settings and other exclusive routes bypass the navigation shell's
-			// writeback. Persist caption restores through the same layout state.
-			state.mu.Lock()
-			state.layout.Sidebar, state.layout.SidebarExpanded = layout.Sidebar, layout.SidebarExpanded
-			state.layout.Responsive = layout.Responsive
-			state.mu.Unlock()
-		} else if desktopChromeLocked {
-			chrome.TitleBarWithActions(c, "", titleColors, gitBadge, nil)
-		} else {
-			// Thin drag strip so system traffic lights keep hit targets; no chip row.
-			ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).
-				Background(titleColors.Background).DragWindow()
-		}
+		state.mainCaptionFileDrop(c, st.State == harness.Ready, frame.Model{Store: sessions, Sizes: &layout, WorkspaceRoot: workspaceRoot}, func() {
+			if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit) {
+				// Settings and other exclusive routes bypass the navigation shell's
+				// writeback. Persist caption restores through the same layout state.
+				state.mu.Lock()
+				state.layout.Sidebar, state.layout.SidebarExpanded = layout.Sidebar, layout.SidebarExpanded
+				state.layout.Responsive = layout.Responsive
+				state.mu.Unlock()
+			} else if desktopChromeLocked {
+				chrome.TitleBarWithActions(c, "", titleColors, gitBadge, nil)
+			} else {
+				// Thin drag strip so system traffic lights keep hit targets; no chip row.
+				ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).
+					Background(titleColors.Background).DragWindow()
+			}
+		})
 		// In-window tools menu (UIA-clickable). Replaces native Popup which automation cannot invoke reliably.
 		if toolsMenuOpen && !desktopChromeLocked && st.State == harness.Ready {
 			openTool := func(apply func()) {
