@@ -106,31 +106,7 @@ func navigationView(c *ui.Context, m Model) {
 		ui.Scroll(c.Key(fmt.Sprintf("agents-navigation:%s:%d", v.SessionID, v.Token))).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(10, 12).Gap(8).Children(func() {
 				if !m.ChatOnly {
-					ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					ui.Text(c, agentText("点击只读跟进子代理过程。", "Click to follow child progress (read-only).")).FontSize(theme.InterfaceSize(10)).TextColor(muted)
-					if len(v.Rows) == 0 && !v.Busy {
-						ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					}
-					for _, row := range v.Rows {
-						ui.Row(c).FillWidth().Gap(6).Children(func() {
-							title := row.Label + " · " + row.Address.Mode
-							if row.CanOpen() && row.Running {
-								title = "● " + title
-							}
-							if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
-								m.Store.OpenAgentNavigation(v.Token, row.Address)
-							}
-							if m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
-								m.OnOpenConversation(v.Token, row.Address)
-							}
-							if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
-								m.OnOpenChat(v.Token, row.Address)
-							}
-							if row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
-								m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
-							}
-						})
-					}
+					catalogRowsView(c, m, v, muted)
 				}
 				if v.Depth > 0 {
 					ui.Row(c).FillWidth().Gap(6).Children(func() {

@@ -120,3 +120,27 @@ func (s *Store) applyAgentNavigationControlLocked(raw json.RawMessage) {
 		apply(&n.parents[i])
 	}
 }
+
+// Counts describe the known root catalog, never an invented recursive total.
+func (s *Store) agentRootCountsLocked(v *AgentNavigationView) {
+	root := *v
+	if len(s.agentNavigation.parents) > 0 {
+		root = s.agentNavigation.parents[0]
+		s.refreshAgentNavigationRowsLocked(&root)
+	}
+	v.RootCountsKnown = root.catalog.ready
+	if !v.RootCountsKnown {
+		return
+	}
+	v.RootChildren = len(root.Rows)
+	for _, row := range root.Rows {
+		if row.Address.Mode == "external" {
+			continue
+		}
+		if !row.ActivityKnown {
+			v.RootActivityUnknown++
+		} else if row.Running {
+			v.RootRunning++
+		}
+	}
+}

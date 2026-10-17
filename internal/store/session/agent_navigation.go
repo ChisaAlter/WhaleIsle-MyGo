@@ -27,31 +27,35 @@ func (a AgentSessionAddress) validChild() bool {
 }
 
 type AgentNavigationRow struct {
-	Address AgentSessionAddress
-	Label   string
-	Running bool
+	Metrics       AgentMetrics
+	ActivityKnown bool
+	Address       AgentSessionAddress
+	Label         string
+	Running       bool
 }
 
 // CanOpen excludes external task metadata from addressed history/follow.
 func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
-	PromptImages     []string               // local image draft scoped to this navigation owner
-	catalog          agentNavigationCatalog // Host-computed whole value and its watermark
-	Resources        map[string]AgentResourceRead
-	TurnFiles        TurnFilesSnapshot
-	Messages         []Message // isolated live presentation; never main chat messages
-	ActionBusy       bool
-	ActionStatus     string
-	Token            uint64
-	SessionID, Title string
-	Address          AgentSessionAddress
-	Depth            int
-	Busy             bool
-	Error            string
-	Rows             []AgentNavigationRow
-	Process          projectflow.ProcessSnapshot
-	Body             string
+	RootCountsKnown                                bool
+	RootChildren, RootRunning, RootActivityUnknown int
+	PromptImages                                   []string               // local image draft scoped to this navigation owner
+	catalog                                        agentNavigationCatalog // Host-computed whole value and its watermark
+	Resources                                      map[string]AgentResourceRead
+	TurnFiles                                      TurnFilesSnapshot
+	Messages                                       []Message // isolated live presentation; never main chat messages
+	ActionBusy                                     bool
+	ActionStatus                                   string
+	Token                                          uint64
+	SessionID, Title                               string
+	Address                                        AgentSessionAddress
+	Depth                                          int
+	Busy                                           bool
+	Error                                          string
+	Rows                                           []AgentNavigationRow
+	Process                                        projectflow.ProcessSnapshot
+	Body                                           string
 }
 type agentNavigationState struct {
 	notifyPending bool // coalesce live repaint requests until the pane reads
@@ -98,7 +102,9 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 	}
 	s.agentNavigation.notifyPending = false
 	s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
-	return cloneAgentNavigationView(s.agentNavigation.view)
+	v := cloneAgentNavigationView(s.agentNavigation.view)
+	s.agentRootCountsLocked(&v)
+	return v
 }
 
 // SyncAgentNavigation may load only non-activating projections. The path and
@@ -114,6 +120,7 @@ func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 		s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
 		s.agentNavigation.notifyPending = false
 		v := cloneAgentNavigationView(s.agentNavigation.view)
+		s.agentRootCountsLocked(&v)
 		s.mu.Unlock()
 		return v
 	}
@@ -331,9 +338,13 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 			}
 			label := strings.TrimSpace(entry.Label)
 			running := false
+			activityKnown := false
+			metrics := AgentMetrics{}
 			for _, it := range items {
 				if it.SessionID == entry.ID {
 					running = it.Running
+					activityKnown = true
+					metrics = it.AgentMetrics
 					if label == "" {
 						label = it.Title
 					}
@@ -343,7 +354,7 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 			if label == "" {
 				label = entry.ID
 			}
-			rows = append(rows, AgentNavigationRow{Address: AgentSessionAddress{Kind: "subagent", ParentSessionID: parent, ChildSessionID: entry.ID, Mode: mode}, Label: label, Running: running})
+			rows = append(rows, AgentNavigationRow{Address: AgentSessionAddress{Kind: "subagent", ParentSessionID: parent, ChildSessionID: entry.ID, Mode: mode}, Label: label, Running: running, ActivityKnown: activityKnown, Metrics: metrics})
 		}
 		return rows, nil
 	}
@@ -353,7 +364,7 @@ func agentNavigationRows(parent string, values json.RawMessage, items []Item) ([
 			if label == "" {
 				label = it.SessionID
 			}
-			rows = append(rows, AgentNavigationRow{Address: AgentSessionAddress{Kind: "subagent", ParentSessionID: parent, ChildSessionID: it.SessionID, Mode: "unknown"}, Label: label, Running: it.Running})
+			rows = append(rows, AgentNavigationRow{Address: AgentSessionAddress{Kind: "subagent", ParentSessionID: parent, ChildSessionID: it.SessionID, Mode: "unknown"}, Label: label, Running: it.Running, ActivityKnown: true, Metrics: it.AgentMetrics})
 		}
 	}
 	return rows, nil

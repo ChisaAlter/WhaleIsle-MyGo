@@ -169,6 +169,7 @@ func itemFromListRow(it api.SessionListValueItemsItem) Item {
 		UpdatedAt:      it.UpdatedAt,
 	}
 	if it.Projections != nil {
+		row.AgentMetrics = decodeAgentMetrics(it.Projections.Values, it.Projections.AsOfSeq)
 		row.BilledUsage = sessioncost.Decode(it.Projections.Values)
 		row.BilledUsageSeq = it.Projections.AsOfSeq
 		row.BilledUsageKind = it.Projections.Kind

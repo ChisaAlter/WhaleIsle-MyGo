@@ -18,6 +18,7 @@ import (
 
 // Item is one row in the session tree.
 type Item struct {
+	AgentMetrics    AgentMetrics
 	BilledUsage     *sessioncost.Projection
 	BilledUsageSeq  float64
 	BilledUsageKind string
