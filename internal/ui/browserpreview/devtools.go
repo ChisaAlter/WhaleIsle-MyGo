@@ -3,6 +3,7 @@ package browserpreview
 import (
 	"context"
 	"errors"
+	"runtime"
 )
 
 func (b *Controller) openBrowserDevTools(t *Tab) {
@@ -23,7 +24,7 @@ func (b *Controller) openBrowserDevTools(t *Tab) {
 		}
 	} else {
 		t.Error = ""
-		t.ActionMessage = "已请求打开当前页开发者工具；只运行自己理解的控制台代码，关闭请使用工具窗口的关闭按钮"
+		_, _, t.ActionMessage = browserDevToolsCopy(runtime.GOOS)
 	}
 	b.update()
 }

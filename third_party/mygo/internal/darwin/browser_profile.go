@@ -51,12 +51,22 @@ func (w *window) BrowserToolsAvailable() bool       { return w.browserReady() }
 func (w *window) BrowserCookieToolsAvailable() bool { return w.browserReady() }
 func (w *window) BrowserColorSchemeAvailable() bool { return w.browserReady() }
 
-// The public WKWebView inspectable property (macOS 13.3+) enables Safari's
-// Develop menu. It cannot open an in-app inspector. Do not claim our explicit
-// OpenBrowserDevTools contract is supported or invoke private _inspector SPI.
-func (w *window) BrowserDevToolsAvailable() bool { return false }
+// Public WKWebView inspection is an explicit Safari opt-in, not an in-app
+// inspector. Browser creation keeps inspectable=false. Do not use _inspector
+// or developerExtrasEnabled SPI to imitate Electron's detached DevTools.
+func (w *window) BrowserDevToolsAvailable() bool {
+	return w.browserReady() && !w.opts.DevTools &&
+		respondsTo(w.web, "setInspectable:") && respondsTo(w.web, "isInspectable")
+}
 func (w *window) OpenBrowserDevTools() error {
-	return errors.New("mygo: WKWebView has no public API to open an in-app Browser inspector")
+	if !w.BrowserDevToolsAvailable() {
+		return errors.New("mygo: Safari inspection requires a verified Browser page and macOS 13.3 or later")
+	}
+	send(w.web, "setInspectable:", 1)
+	if !sendBool(w.web, "isInspectable") {
+		return errors.New("mygo: WebKit did not enable Safari inspection")
+	}
+	return nil
 }
 
 func (w *window) SetBrowserColorScheme(scheme string, done func(error)) {

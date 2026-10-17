@@ -12,6 +12,9 @@ func (p *Page) BrowserDevToolsAvailable() bool {
 }
 
 // OpenBrowserDevTools opens the current verified Browser page's native inspector
+// where supported. On macOS it only enables public Safari inspection: the user
+// must select this page from Safari's Develop menu. It does not open an in-app
+// inspector; close the Browser tab to revoke inspection. It is invoked
 // in response to an explicit host UI action. The inspector can inspect and modify
 // that page's site data; do not invoke automatically or expose this to web content.
 // Ordinary/plugin/isolated-preview pages are rejected. Bindings, script policy,

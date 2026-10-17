@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
@@ -190,6 +191,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	cookieSupported := !disabled && t.Host.BrowserCookieToolsAvailable()
 	siteDataSupported := !disabled && t.Host.BrowserSiteDataToolsAvailable()
 	devToolsSupported := !disabled && t.Host.BrowserDevToolsAvailable()
+	devToolsLabel, devToolsHint, _ := browserDevToolsCopy(runtime.GOOS)
 	zoom := 1.0
 	if t.Host != nil {
 		zoom = t.Host.BrowserZoom()
@@ -240,7 +242,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: "site-data", host: t.Host, epoch: t.Host.BrowserPageVersion()}
 					b.update()
 				}
-				if ui.Button(c, "开发者工具").Disabled(!devToolsSupported).Tooltip("仅打开当前 Browser 页的原生开发者工具；控制台可修改本站点，请勿粘贴不明代码。插件与隔离文档预览不可用。").Clicked() {
+				if ui.Button(c, devToolsLabel).Disabled(!devToolsSupported).Tooltip(devToolsHint).Clicked() {
 					b.openBrowserDevTools(t)
 				}
 				if b.onMiniRestore != nil {
