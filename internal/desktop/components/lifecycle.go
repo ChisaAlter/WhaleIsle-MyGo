@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,15 +14,16 @@ import (
 	"time"
 )
 
-// ErrUnknownAction means action is not install|start|stop|open.
+// ErrUnknownAction means action is not install|update|rollback|uninstall|start|stop|open|manage.
 var ErrUnknownAction = errors.New("components: unknown action")
 
 // ErrNotInstalled means the component has no installed version.
 var ErrNotInstalled = errors.New("components: not installed")
 
 // RunAction performs a launcher component lifecycle action against userData.
-// install is a no-op stub until release download is ported; start/stop/open
-// work for whalebridge when a versions/<ver>/WhaleBridge-win32-x64.exe exists.
+// WhaleBridge install/update/rollback/uninstall use the signed release
+// manifest pipeline in whalebridge.go; start/stop/open retain the lightweight
+// process controls used by the launcher rows.
 func RunAction(userData, id, action string) error {
 	id = strings.TrimSpace(id)
 	action = strings.TrimSpace(strings.ToLower(action))
@@ -31,7 +33,37 @@ func RunAction(userData, id, action string) error {
 	root := filepath.Join(userData, "components", id)
 	switch action {
 	case "install":
-		return fmt.Errorf("components: install not wired (use Electron release catalog)")
+		if id != "whalebridge" {
+			return fmt.Errorf("components: install unsupported for %s", id)
+		}
+		svc := NewWhaleBridgeService(ServiceOptions{Root: root, DshHome: filepath.Join(userData, "dsh-home"),
+			DevPackage: strings.TrimSpace(os.Getenv("WHALEISLE_WHALEBRIDGE_PACKAGE")),
+			Route:      strings.TrimSpace(os.Getenv("WHALEISLE_DOWNLOAD_ROUTE"))})
+		_, err := svc.Install(context.Background(), nil)
+		return err
+	case "update":
+		if id != "whalebridge" {
+			return fmt.Errorf("components: update unsupported for %s", id)
+		}
+		svc := NewWhaleBridgeService(ServiceOptions{Root: root, DshHome: filepath.Join(userData, "dsh-home"),
+			DevPackage: strings.TrimSpace(os.Getenv("WHALEISLE_WHALEBRIDGE_PACKAGE")),
+			Route:      strings.TrimSpace(os.Getenv("WHALEISLE_DOWNLOAD_ROUTE"))})
+		_, err := svc.Update(context.Background(), nil)
+		return err
+	case "rollback":
+		if id != "whalebridge" {
+			return fmt.Errorf("components: rollback unsupported for %s", id)
+		}
+		svc := NewWhaleBridgeService(ServiceOptions{Root: root, DshHome: filepath.Join(userData, "dsh-home")})
+		_, err := svc.Rollback(context.Background(), nil)
+		return err
+	case "uninstall":
+		if id != "whalebridge" {
+			return fmt.Errorf("components: uninstall unsupported for %s", id)
+		}
+		svc := NewWhaleBridgeService(ServiceOptions{Root: root, DshHome: filepath.Join(userData, "dsh-home")})
+		_, err := svc.Uninstall(context.Background(), false, nil)
+		return err
 	case "start":
 		if id == "whalebridge" {
 			return startWhalebridge(root, filepath.Join(userData, "dsh-home"))

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ApplySelection mirrors Electron runImport checkbox payload (copy-only subset).
@@ -64,7 +65,12 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 			note("跳过会话 " + rel)
 			continue
 		}
-		dst := filepath.Join(cat.DestHome, "sessions", filepath.FromSlash(rel))
+		dst, err := safeImportTarget(filepath.Join(cat.DestHome, "sessions"), rel)
+		if err != nil || !safeSourceUnder(it.Abs, filepath.Join(cat.SourceHome, "sessions")) {
+			skipped++
+			note("session rejected path " + rel)
+			continue
+		}
 		if it.Conflict && !sel.Overwrite {
 			skipped++
 			note("跳过会话（冲突） " + rel)
@@ -89,7 +95,12 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 			note("跳过技能 " + id)
 			continue
 		}
-		dst := filepath.Join(cat.DestHome, "skills", it.Label)
+		dst, err := safeImportTarget(filepath.Join(cat.DestHome, "skills"), it.Label)
+		if err != nil || !safeSourcePath(it.Abs) {
+			skipped++
+			note("skill rejected path " + id)
+			continue
+		}
 		if it.Conflict && !sel.Overwrite {
 			skipped++
 			note("跳过技能（冲突） " + it.Label)
@@ -101,40 +112,46 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 		copied++
 		note("复制技能 " + it.Label)
 	}
-
-	// MCP — copy whole file when any id selected (merge-lite).
+	// MCP selection merges selected server records when the source uses the
+	// standard `servers:` list. For alternate layouts, retain the existing
+	// per-directory copy behavior.
 	if len(sel.SelectedMcpIDs) > 0 {
 		src := filepath.Join(cat.SourceHome, "mcp-servers.yaml")
 		dst := filepath.Join(cat.DestHome, "mcp-servers.yaml")
 		if entryExists(src, false) {
-			if entryExists(dst, false) && !sel.Overwrite {
-				skipped++
-				note("跳过 MCP（冲突） mcp-servers.yaml")
-			} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
-				return ApplyResult{}, err
-			} else {
+			changed, skippedMCP, mergeErr := mergeMCPFile(src, dst, sel.SelectedMcpIDs, sel.Overwrite)
+			skipped += skippedMCP
+			if mergeErr != nil {
+				return ApplyResult{}, mergeErr
+			}
+			if changed {
 				copied++
-				note("复制 MCP mcp-servers.yaml")
+				note("copied selected MCP servers")
 			}
 		} else {
 			for _, it := range cat.MCP {
 				if !contains(sel.SelectedMcpIDs, it.ID) || it.Abs == "" {
 					continue
 				}
-				dstDir := filepath.Join(cat.DestHome, it.ID)
+				dstDir, targetErr := safeImportTarget(cat.DestHome, it.ID)
+				if targetErr != nil || !safeSourcePath(it.Abs) {
+					skipped++
+					note("MCP rejected path " + it.ID)
+					continue
+				}
 				if err := copyDir(it.Abs, dstDir, sel.Overwrite); err != nil {
 					return ApplyResult{}, err
 				}
 				copied++
-				note("复制 MCP " + it.ID)
+				note("copied MCP " + it.ID)
 			}
 		}
 	}
 
-	// Settings whitelist sections: copy settings.yaml wholesale when selected;
-	// AGENTS.md copied by id.
+	// Settings whitelist sections are merged one top-level block at a time;
+	// AGENTS.md remains a separate pseudo-row.
 	if len(sel.SelectedSettingIDs) > 0 {
-		wantYAML := false
+		var yamlIDs []string
 		for _, id := range sel.SelectedSettingIDs {
 			if id == "agents-md" {
 				src := filepath.Join(cat.SourceHome, "AGENTS.md")
@@ -142,31 +159,34 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 				if entryExists(src, false) {
 					if entryExists(dst, false) && !sel.Overwrite {
 						skipped++
-						note("跳过设置（冲突） AGENTS.md")
+						note("skipped AGENTS.md conflict")
 					} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
 						return ApplyResult{}, err
 					} else {
 						copied++
-						note("复制设置 AGENTS.md")
+						note("copied AGENTS.md")
 					}
 				}
 				continue
 			}
-			wantYAML = true
+			yamlIDs = append(yamlIDs, id)
 		}
-		if wantYAML {
+		if len(yamlIDs) > 0 {
 			src := filepath.Join(cat.SourceHome, "settings.yaml")
 			dst := filepath.Join(cat.DestHome, "settings.yaml")
 			if entryExists(src, false) {
-				if entryExists(dst, false) && !sel.Overwrite {
-					skipped++
-					note("跳过设置（冲突） settings.yaml")
-				} else if err := copyFile(src, dst, sel.Overwrite); err != nil {
-					return ApplyResult{}, err
-				} else {
-					copied++
-					note("复制设置 settings.yaml")
+				changed, skippedSettings, mergeErr := mergeSettingsFile(src, dst, yamlIDs, sel.Overwrite)
+				skipped += skippedSettings
+				if mergeErr != nil {
+					return ApplyResult{}, mergeErr
 				}
+				if changed {
+					copied++
+					note("copied selected settings")
+				}
+			} else {
+				skipped += len(yamlIDs)
+				note("settings source missing")
 			}
 		}
 	}
@@ -183,7 +203,12 @@ func ApplyCatalog(cat Catalog, sel ApplySelection) (ApplyResult, error) {
 			note("跳过预设 " + id)
 			continue
 		}
-		dst := filepath.Join(cat.DestHome, ".agent-presets", id)
+		dst, err := safeImportTarget(filepath.Join(cat.DestHome, ".agent-presets"), id)
+		if err != nil || !safeSourcePath(it.Abs) {
+			skipped++
+			note("preset rejected path " + id)
+			continue
+		}
 		if it.Conflict && !sel.Overwrite {
 			skipped++
 			note("跳过预设（冲突） " + id)
@@ -258,10 +283,228 @@ func contains(ss []string, v string) bool {
 	return false
 }
 
+func safeImportTarget(root, rel string) (string, error) {
+	root = filepath.Clean(root)
+	rel = strings.TrimSpace(rel)
+	if rel == "" || filepath.IsAbs(rel) || filepath.VolumeName(rel) != "" {
+		return "", errors.New("invalid import path")
+	}
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", errors.New("invalid import path")
+	}
+	target := filepath.Join(root, clean)
+	check, err := filepath.Rel(root, target)
+	if err != nil || check == ".." || strings.HasPrefix(check, ".."+string(filepath.Separator)) || filepath.IsAbs(check) {
+		return "", errors.New("invalid import path")
+	}
+	return target, nil
+}
+
+func safeSourcePath(path string) bool {
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	info, err := os.Lstat(path)
+	return err == nil && info.IsDir() && info.Mode()&os.ModeSymlink == 0
+}
+
+func safeSourceUnder(path, root string) bool {
+	if !safeSourcePath(path) || !safeSourcePath(root) {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+// splitYAMLSections preserves top-level YAML blocks verbatim. Import only
+// selects the documented settings whitelist, leaving desktop-owned sections
+// untouched.
+func splitYAMLSections(raw string) (preamble []string, order []string, blocks map[string][]string) {
+	blocks = map[string][]string{}
+	var current string
+	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' && !strings.HasPrefix(line, "#") {
+			if idx := strings.IndexByte(line, ':'); idx > 0 {
+				key := strings.TrimSpace(line[:idx])
+				if key != "" {
+					current = key
+					if _, ok := blocks[key]; !ok {
+						order = append(order, key)
+					}
+				}
+			}
+		}
+		if current == "" {
+			preamble = append(preamble, line)
+		} else {
+			blocks[current] = append(blocks[current], line)
+		}
+	}
+	return preamble, order, blocks
+}
+
+func renderYAMLSections(preamble, order []string, blocks map[string][]string) string {
+	lines := append([]string{}, preamble...)
+	for _, key := range order {
+		lines = append(lines, blocks[key]...)
+	}
+	text := strings.TrimRight(strings.Join(lines, "\n"), "\n")
+	if text == "" {
+		return ""
+	}
+	return text + "\n"
+}
+
+func mergeSettingsFile(src, dst string, ids []string, overwrite bool) (bool, int, error) {
+	if unsafeDestination(dst) {
+		return false, 0, errors.New("unsafe settings destination")
+	}
+	srcRaw, err := os.ReadFile(src)
+	if err != nil {
+		return false, 0, err
+	}
+	dstRaw, err := os.ReadFile(dst)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, 0, err
+	}
+	_, _, sb := splitYAMLSections(string(srcRaw))
+	dp, order, db := splitYAMLSections(string(dstRaw))
+	changed := false
+	skipped := 0
+	whitelist := map[string]bool{"llm-deepseek": true, "llm-pi-ai": true, "agent-default-model": true, "vision-fallback": true, "ui-theme": true}
+	for _, id := range ids {
+		if id == "agents-md" || !whitelist[id] {
+			continue
+		}
+		block, ok := sb[id]
+		if !ok {
+			skipped++
+			continue
+		}
+		if _, exists := db[id]; exists && !overwrite {
+			skipped++
+			continue
+		}
+		if _, exists := db[id]; !exists {
+			order = append(order, id)
+		}
+		db[id] = append([]string{}, block...)
+		changed = true
+	}
+	if !changed {
+		return false, skipped, nil
+	}
+	text := renderYAMLSections(dp, order, db)
+	if err := writeAtomicText(dst, text); err != nil {
+		return false, skipped, err
+	}
+	return true, skipped, nil
+}
+
+type yamlMCPDoc struct {
+	prefix []string
+	order  []string
+	blocks map[string][]string
+}
+
+func parseMCPDoc(raw string) yamlMCPDoc {
+	doc := yamlMCPDoc{blocks: map[string][]string{}}
+	var current string
+	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "- id:") {
+			value := strings.TrimSpace(strings.TrimPrefix(trim, "- id:"))
+			value = strings.Trim(value, "\"'")
+			if value != "" {
+				current = value
+				doc.order = append(doc.order, value)
+			}
+		}
+		if current == "" {
+			doc.prefix = append(doc.prefix, line)
+		} else {
+			doc.blocks[current] = append(doc.blocks[current], line)
+		}
+	}
+	return doc
+}
+
+func renderMCPDoc(doc yamlMCPDoc) string {
+	lines := append([]string{}, doc.prefix...)
+	for _, id := range doc.order {
+		lines = append(lines, doc.blocks[id]...)
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+}
+
+func mergeMCPFile(src, dst string, ids []string, overwrite bool) (bool, int, error) {
+	if unsafeDestination(dst) {
+		return false, 0, errors.New("unsafe MCP destination")
+	}
+	srcRaw, err := os.ReadFile(src)
+	if err != nil {
+		return false, 0, err
+	}
+	dstRaw, err := os.ReadFile(dst)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, 0, err
+	}
+	source, target := parseMCPDoc(string(srcRaw)), parseMCPDoc(string(dstRaw))
+	changed, skipped := false, 0
+	for _, id := range ids {
+		block, ok := source.blocks[id]
+		if !ok {
+			skipped++
+			continue
+		}
+		if _, exists := target.blocks[id]; exists && !overwrite {
+			skipped++
+			continue
+		}
+		if _, exists := target.blocks[id]; !exists {
+			target.order = append(target.order, id)
+		}
+		target.blocks[id] = append([]string{}, block...)
+		changed = true
+	}
+	if !changed {
+		return false, skipped, nil
+	}
+	if len(target.prefix) == 0 {
+		target.prefix = []string{"servers:"}
+	}
+	if err := writeAtomicText(dst, renderMCPDoc(target)); err != nil {
+		return false, skipped, err
+	}
+	return true, skipped, nil
+}
+
+func writeAtomicText(path, text string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp := path + fmt.Sprintf(".%d.tmp", os.Getpid())
+	if err := os.WriteFile(tmp, []byte(text), 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
 func copyDir(src, dst string, overwrite bool) error {
+	if !safeSourcePath(src) {
+		return errors.New("source directory is not a regular directory")
+	}
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if d == nil || d.Type()&os.ModeSymlink != 0 {
+			return errors.New("symbolic links are not importable")
 		}
 		rel, err := filepath.Rel(src, path)
 		if err != nil {
@@ -269,6 +512,9 @@ func copyDir(src, dst string, overwrite bool) error {
 		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
+			if unsafeDestination(target) {
+				return errors.New("unsafe destination directory")
+			}
 			return os.MkdirAll(target, 0o755)
 		}
 		if entryExists(target, false) && !overwrite {
@@ -279,6 +525,9 @@ func copyDir(src, dst string, overwrite bool) error {
 }
 
 func copyFile(src, dst string, overwrite bool) error {
+	if !safeSourceFile(src) || unsafeDestination(dst) {
+		return errors.New("unsafe import file")
+	}
 	if entryExists(dst, false) && !overwrite {
 		return nil
 	}
@@ -304,4 +553,25 @@ func copyFile(src, dst string, overwrite bool) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func safeSourceFile(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0
+}
+
+func unsafeDestination(path string) bool {
+	for cursor := filepath.Clean(filepath.Dir(path)); ; cursor = filepath.Dir(cursor) {
+		if info, err := os.Lstat(cursor); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return true
+		}
+		parent := filepath.Dir(cursor)
+		if parent == cursor {
+			break
+		}
+	}
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return true
+	}
+	return false
 }

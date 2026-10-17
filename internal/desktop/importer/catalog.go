@@ -497,10 +497,17 @@ func scanMCP(src, dst string) []CatalogItem {
 	if err != nil {
 		return nil
 	}
-	ids := yamlTopLevelIDs(string(raw))
+	ids := yamlListItemIDs(string(raw))
+	if len(ids) == 0 {
+		ids = yamlTopLevelIDs(string(raw))
+	}
 	destIDs := map[string]bool{}
 	if destRaw, err := os.ReadFile(filepath.Join(dst, "mcp-servers.yaml")); err == nil {
-		for _, id := range yamlTopLevelIDs(string(destRaw)) {
+		destList := yamlListItemIDs(string(destRaw))
+		if len(destList) == 0 {
+			destList = yamlTopLevelIDs(string(destRaw))
+		}
+		for _, id := range destList {
 			destIDs[id] = true
 		}
 	}
@@ -511,6 +518,25 @@ func scanMCP(src, dst string) []CatalogItem {
 		})
 	}
 	return out
+}
+
+// yamlListItemIDs extracts the public `servers: - id:` entries without
+// decoding values such as authorization headers. The importer only needs the
+// stable ids for selection and leaves the original YAML blocks intact.
+func yamlListItemIDs(raw string) []string {
+	var ids []string
+	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
+		trim := strings.TrimSpace(line)
+		if !strings.HasPrefix(trim, "- id:") {
+			continue
+		}
+		id := strings.TrimSpace(strings.TrimPrefix(trim, "- id:"))
+		id = strings.Trim(id, "\"'")
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func scanSettings(src, dst string) []CatalogItem {
