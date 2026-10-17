@@ -73,6 +73,13 @@ func subagentChatPane(c *ui.Context, m Model) {
 	target := n.SubagentChat
 	navigation := m.AgentNavigationStore
 	v := navigation.AgentNavigationSnapshot()
+	// A restored routing record acquires a fresh addressed reader, never an old
+	// token or prompt authority. OpenAgentChat rechecks the live owner and Host.
+	if v.Address != target.Address && m.Store.Snapshot().SelectedID == target.Root {
+		if navigation.OpenAgentChat(target.Root, target.Address, target.Title) {
+			v = navigation.AgentNavigationSnapshot()
+		}
+	}
 	if v.Address != target.Address {
 		ui.Column(c).Fill().Padding(12).Gap(8).Children(func() {
 			ui.Text(c, subagentChatPaneTitle(m))

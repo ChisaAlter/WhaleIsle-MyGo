@@ -282,6 +282,10 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Agents != nil {
 			n.Agents.rendered = false
+			// Hidden child tabs retain their reader only within the same owner binding.
+			if n.Agents.Binding != binding || (n.SubagentChat != nil && n.SubagentChat.Root != root) {
+				n.releaseAgentPane()
+			}
 		}
 		if n.Files != nil {
 			n.Files.rendered = false
@@ -308,7 +312,7 @@ func (w *WorkspacePanes) EndContentFrame() {
 			n.Inspector.navigation.Picking = false
 			n.Inspector.navigation.Target = nil
 		}
-		if n.Agents != nil && !n.Agents.rendered {
+		if n.Agents != nil && !n.Agents.rendered && (n.Kind != "subagentchat" || n.SubagentChat == nil) {
 			n.releaseAgentPane()
 		}
 		if n.Files != nil && !n.Files.rendered {
