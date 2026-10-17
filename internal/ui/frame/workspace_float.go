@@ -201,6 +201,7 @@ func workspaceFloating(c *ui.Context, m Model) {
 							w.MoveWorkspaceFloat(n.ID, x, y)
 						}
 					}
+					ui.Button(c, "⠿").Key("float-dock-drag").Label(paneLabel("拖到停靠落点", "Drag to dock target")).Drag(workspaceTabDrag{ID: n.ID})
 					label := "−"
 					if f.Minimized {
 						label = "+"

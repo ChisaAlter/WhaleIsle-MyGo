@@ -201,6 +201,7 @@ func dockTabTitle(n *WorkspacePane) string {
 }
 
 func workspaceDockTabStrip(c *ui.Context, m Model) {
+	defer workspaceDockDropTargets(c, m)
 	n, w := m.workspacePane, m.Sizes.Workspace
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
