@@ -90,6 +90,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
 	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
+	timeRange.setSequence(!*actualDur)
 	rangeMatches := timeRange.matches(rows)
 	if timeRange.active && *selected != *revealed && !rangeMatches[*selected] {
 		timeRange.clear()
@@ -128,18 +129,8 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		// TrajectoryTimeline — overview strip from row kinds.
 		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			if *actualDur {
-				paintRecordedTrajectoryTimeline(c, rows, selected, accent, muted, border)
-				paintTrajectoryRange(c, rows, timeRange, m.List, accent, muted, border)
-			} else {
-				ui.Row(c).FillWidth().Height(18).Gap(2).AlignItems(ui.Center).Children(func() {
-					for _, row := range rows {
-						if ui.Button(c, "").Grow(1).Height(10).Background(trajKindColor(row.Kind, accent, muted, border)).BorderWidth(0).Radius(2).Clicked() {
-							*selected = row.ID
-						}
-					}
-				})
-			}
+			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(rows)), selected, accent, muted, border, timeRange.sequence)
+			paintTrajectoryRange(c, rows, timeRange, m.List, accent, muted, border)
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 

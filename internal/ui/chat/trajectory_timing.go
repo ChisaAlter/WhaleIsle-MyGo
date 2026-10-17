@@ -72,6 +72,9 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 	var model trajectoryTimeline
 	seen := make(map[string]bool)
 	for _, row := range rows {
+		if row.Kind == "trajectory-request" {
+			continue
+		}
 		t := row.Timing
 		if t == nil {
 			if row.Role == "assistant" || row.Kind == session.MessageKindTool || row.Kind == session.MessageKindThinking || row.Kind == session.MessageKindCompaction {
@@ -117,17 +120,23 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 }
 
 func paintRecordedTrajectoryTimeline(c *ui.Context, rows []trajRow, selected *string, accent, muted, border ui.Color) {
-	model := buildRecordedTrajectoryTimeline(rows)
+	paintTrajectoryOverview(c, buildRecordedTrajectoryTimeline(rows), selected, accent, muted, border, false)
+}
+
+func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *string, accent, muted, border ui.Color, sequence bool) {
 	if len(model.Spans) == 0 {
 		ui.Text(c, trajectoryText("暂无已记录的起止时间；耗时未知", "No recorded start/end times; durations unknown")).FontSize(11).TextColor(muted)
 		return
 	}
 	ui.Box(c).FillWidth().Height(38).Children(func() {
 		for _, span := range model.Spans {
+			if span.End < model.Start || span.Start > model.End {
+				continue
+			}
 			left, width := float32(0), float32(0)
 			if model.End > model.Start {
-				left = float32((span.Start - model.Start) / (model.End - model.Start) * 100)
-				width = float32((span.End - span.Start) / (model.End - model.Start) * 100)
+				left = float32((math.Max(span.Start, model.Start) - model.Start) / (model.End - model.Start) * 100)
+				width = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
 			}
 			row := span.Row
 			b := ui.Button(c, "").Absolute().LeftPercent(left).Top(float32(span.Lane * 12)).WidthPercent(width).Height(9).
@@ -142,6 +151,9 @@ func paintRecordedTrajectoryTimeline(c *ui.Context, rows []trajRow, selected *st
 		}
 	})
 	label := fmt.Sprintf(trajectoryText("已记录时间范围 %.0f ms", "Recorded time range %.0f ms"), model.End-model.Start)
+	if sequence {
+		label = fmt.Sprintf(trajectoryText("记录范围 %.1f–%.1f", "Record range %.1f–%.1f"), model.Start, model.End)
+	}
 	if model.Unknown > 0 {
 		label += fmt.Sprintf(trajectoryText(" · %d 项耗时未知", " · %d durations unknown"), model.Unknown)
 	}
