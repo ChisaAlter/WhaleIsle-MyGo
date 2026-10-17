@@ -271,6 +271,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 	s.invalidateFollowLocked()
 	s.invalidateCommandsLocked()
 	s.selectedID = sessionID
+	s.invalidateSkillOptionsLocked()
 	s.messages = nil
 	s.turnStartMs = 0
 	s.editTurnSeq, s.editTurnOpening = 0, false

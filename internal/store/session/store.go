@@ -286,6 +286,8 @@ type Store struct {
 	skillRemoval                         SkillRemovalReview
 	skillRemovalSequence                 uint64
 	skillCatalogSession, skillCatalogCwd string
+	skillOptionsEpoch                    uint64
+	skillOptionsOwner                    skillOptionsScope
 	skillOptions                         []SkillOption
 	skillsErr                            error
 	skillHubHits                         []SkillHubHit
@@ -348,6 +350,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.nextPrompt.accepted = nil
 		s.clearSearchLocked()
 		s.resetComposerHostLocked()
+		s.invalidateSkillOptionsLocked()
 		s.skillCatalogVersion++
 		s.skillCatalog = SkillCatalog{}
 		s.skillCatalogClient = nil
@@ -623,7 +626,7 @@ func (s *Store) Snapshot() ViewState {
 	if s.skillCatalogClient != s.client || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
 		st.SkillCatalog = SkillCatalog{}
 	}
-	st.SkillOptions = append([]SkillOption(nil), s.skillOptions...)
+	st.SkillOptions = s.currentSkillOptionsLocked()
 	st.SkillHubHits = append([]SkillHubHit(nil), s.skillHubHits...)
 	st.SearchLoading = s.searchLoading
 	st.SearchUseLocal = s.searchUseLocal

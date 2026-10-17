@@ -44,7 +44,8 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 	s.mu.Lock()
 	client := s.client
 	sessionID := s.selectedID
-	cached := append([]SkillOption(nil), s.skillOptions...)
+	owner := s.captureSkillOptionsScopeLocked()
+	cached := s.currentSkillOptionsLocked()
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		return cached
@@ -53,6 +54,12 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 	err := client.Call(ctx, "skills/list", map[string]any{
 		"request": map[string]any{"sessionId": sessionID},
 	}, &out)
+	s.mu.Lock()
+	current := s.skillOptionsScopeCurrentLocked(owner)
+	s.mu.Unlock()
+	if !current || ctx.Err() != nil {
+		return nil
+	}
 	if err != nil {
 		return cached
 	}
@@ -67,6 +74,8 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 	client := s.client
 	sessionID := s.selectedID
 	cwd := s.cwd
+	s.skillOptionsEpoch++
+	owner := s.captureSkillOptionsScopeLocked()
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -99,7 +108,7 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.client != client || s.selectedID != sessionID || s.cwd != cwd {
+		if !s.skillOptionsScopeCurrentLocked(owner) || ctx.Err() != nil {
 			s.mu.Unlock()
 			return
 		}
@@ -111,6 +120,7 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 		}
 		s.skillsErr = nil
 		s.skillOptions = opts
+		s.skillOptionsOwner = owner
 		s.mu.Unlock()
 		s.fire()
 	}()

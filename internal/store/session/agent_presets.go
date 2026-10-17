@@ -174,6 +174,8 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		}
 		s.lastAction = "agent preset selected"
 		s.invalidateCommandsLocked()
+		s.invalidateSkillOptionsLocked()
+		go s.RefreshSkills(context.Background())
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -192,6 +194,8 @@ func (s *Store) applyAgentPresetSelectedEvent(raw json.RawMessage) bool {
 	if lbl := labelForAgentPresetID(id, s.agentPresetOptions); lbl != "" {
 		s.selectedAgentPresetLabel = lbl
 		s.invalidateCommandsLocked()
+		s.invalidateSkillOptionsLocked()
+		go s.RefreshSkills(context.Background())
 	}
 	s.mu.Unlock()
 	s.fire()

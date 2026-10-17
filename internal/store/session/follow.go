@@ -253,6 +253,8 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 		if json.Unmarshal(raw, &ev) == nil && ev.Data.AgentPreset != "" {
 			s.selectedAgentPresetLabel = labelForAgentPresetID(ev.Data.AgentPreset, s.agentPresetOptions)
 			s.invalidateCommandsLocked()
+			s.invalidateSkillOptionsLocked()
+			go s.RefreshSkills(context.Background())
 		}
 		return true
 	}
