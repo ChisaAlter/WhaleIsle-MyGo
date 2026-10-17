@@ -75,3 +75,10 @@ final serialization, missing earlier answers, foreign-session rejection,
 one-shot submission, native IME and commit-Enter protection, repeated keys,
 stale-frame pointer isolation, and disabled choices/skip. Existing interaction
 and CH50 tests also passed in this run. No original code or tests were executed.
+
+Before publication, the stale-frame fixture was strengthened to refocus the text
+field immediately before submission (rather than leaving an option focused).
+The precise regression was rerun successfully on the frozen production code:
+`go test ./internal/ui/interaction -run '^TestQuestionEditorSendingHasNoLivePointerBindings$' -count=1`
+reported PASS in 0.372s. Only the test and this verification note changed after
+the package-wide result above.

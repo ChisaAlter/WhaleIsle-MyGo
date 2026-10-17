@@ -132,6 +132,9 @@ func TestQuestionEditorSendingHasNoLivePointerBindings(t *testing.T) {
 	if err := tt.Click("A"); err != nil {
 		t.Fatal(err)
 	}
+	if err := tt.Click("Question answer: Question"); err != nil {
+		t.Fatal(err)
+	}
 	store.ResolveQuestions("e")
 	// The UI still has its pre-Sending frame here: an input handler must not
 	// mutate a pointer inside the retained draft before the next redraw.
