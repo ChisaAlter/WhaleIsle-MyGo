@@ -28,7 +28,7 @@ func (s *mainState) selectMainPanel(panel string) {
 }
 
 // withMainNavigation is the stable parent of both chat and the three native
-// global panels. Settings and guest/PDF views deliberately bypass this shell.
+// global panels. Settings overlay this stable shell; guest/PDF views bypass it.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
 	m.PageShortcutBindings = s.pageShortcutBindings()
 	m.SessionSearchFocus = &s.commandSearchFocus
@@ -84,7 +84,6 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 	}
 	m.OnOpenSettings = func() {
-		s.selectMainPanel("")
 		s.mu.Lock()
 		s.settingsOpen = true
 		s.settingsDesktopActive = true
