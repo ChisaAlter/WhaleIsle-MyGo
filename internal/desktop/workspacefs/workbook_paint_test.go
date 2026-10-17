@@ -31,7 +31,7 @@ func TestWorkbookSavedFillBorderInheritance(t *testing.T) {
 	if _, ok := savedXLSXColor(xlsxSourceColor{RGB: "not hex"}, nil, nil); ok {
 		t.Fatal("invented invalid color")
 	}
-	if _, ok := savedXLSXColor(xlsxSourceColor{RGB: "FF112233", Tint: .4}, nil, nil); ok {
-		t.Fatal("silently ignored unsupported tint")
+	if tinted, ok := savedXLSXColor(xlsxSourceColor{RGB: "FF112233", Tint: .4}, nil, nil); !ok || tinted != "#707A85" {
+		t.Fatalf("tint = %q, supported = %v", tinted, ok)
 	}
 }
