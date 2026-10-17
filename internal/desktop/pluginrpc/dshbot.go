@@ -30,11 +30,11 @@ import (
 
 // DshbotSettingsView is the `view` field of describe (settings namespace dsh-bot).
 type DshbotSettingsView struct {
-	NS       string              `json:"ns"`
-	Revision int                 `json:"revision"`
-	Value    DshbotCatalogValue  `json:"value"`
-	Schema   json.RawMessage     `json:"schema,omitempty"`
-	Applies  string              `json:"applies,omitempty"`
+	NS       string             `json:"ns"`
+	Revision int                `json:"revision"`
+	Value    DshbotCatalogValue `json:"value"`
+	Schema   json.RawMessage    `json:"schema,omitempty"`
+	Applies  string             `json:"applies,omitempty"`
 }
 
 // DshbotCatalogValue is the catalog document embedded in describe.view.value.
@@ -83,8 +83,8 @@ type DshbotRosterRow struct {
 
 // DshbotGroupRuntimeResult is the value of dshbot/group/runtime.
 type DshbotGroupRuntimeResult struct {
-	RoomID    string                   `json:"roomId"`
-	SessionID string                   `json:"sessionId"`
+	RoomID    string                     `json:"roomId"`
+	SessionID string                     `json:"sessionId"`
 	Members   []DshbotGroupRuntimeMember `json:"members"`
 }
 
@@ -114,11 +114,7 @@ type DshbotActivityEntry struct {
 
 // DshbotDescribeTyped calls describe and decodes the catalog view.
 func (c *Client) DshbotDescribeTyped(ctx context.Context, botID string) (DshbotDescribeResult, error) {
-	payload := map[string]any{}
-	if id := strings.TrimSpace(botID); id != "" {
-		payload["botId"] = id
-	}
-	raw, err := c.DshbotDescribe(ctx)
+	raw, err := c.DshbotDescribeBot(ctx, botID)
 	if err != nil {
 		return DshbotDescribeResult{}, err
 	}

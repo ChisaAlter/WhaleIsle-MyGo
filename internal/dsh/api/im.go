@@ -26,8 +26,69 @@ const (
 )
 
 // IMCordisChannels are dsh-im host prefixes for POST /{channel}/connection.status.
+// Keep this list in sync with plugin-src/host/channels/* in the vendored
+// package. These are Cordis channel RPC prefixes, not Typert namespaces.
 func IMCordisChannels() []string {
-	return []string{"feishu", "telegram", "discord", "slack", "dingtalk", "wecom", "qq", "weixin"}
+	return []string{"feishu", "telegram", "discord", "slack", "dingtalk", "wecom", "qq", "weixin", "whatsapp"}
+}
+
+// IMCordisEndpointCandidates returns the endpoint names exported by the
+// vendored dsh-im host RPC for one channel. The shared token endpoints are
+// present on token channels; the channel-specific entries mirror the source
+// rpc.mjs files. This inventory is used for diagnostics and explicit command
+// dispatch; it does not imply that any of these are im/* Typert RPCs.
+func IMCordisEndpointCandidates(channel string) []string {
+	base := []string{
+		"connection.status",
+		"bot.reconnect",
+		"bot.delete",
+		"bot.workspace.set",
+		"bot.preset.set",
+	}
+	switch strings.ToLower(strings.TrimSpace(channel)) {
+	case "feishu":
+		base = append(base,
+			"bot.bind-credentials",
+			"provision.begin", "provision.poll", "provision.cancel",
+			"bot.callback-repair.begin", "bot.group-message-permission.begin",
+			"bot.group-response-mode.set", "bot.disconnect",
+			"connection.test", "connection.disconnect",
+		)
+	case "dingtalk":
+		base = append(base,
+			"bot.bind-credentials",
+			"provision.begin", "provision.poll", "provision.cancel",
+			"bot.sender.approve", "bot.sender.revoke",
+		)
+	case "weixin":
+		base = append(base,
+			"provision.begin", "provision.poll", "provision.verify", "provision.cancel",
+		)
+	case "wecom":
+		base = append(base,
+			"bot.bind-credentials",
+			"provision.begin", "provision.poll", "provision.cancel",
+		)
+	case "telegram":
+		base = append(base, "bot.bind-credentials", "bot.access-policy.set")
+	case "discord", "slack":
+		base = append(base, "bot.bind-credentials")
+	case "qq":
+		base = append(base,
+			"bot.bind-credentials",
+			"provision.begin", "provision.poll", "provision.cancel",
+		)
+	case "whatsapp":
+		base = append(base,
+			"provision.begin", "provision.poll", "provision.cancel",
+			"bot.access-policy.set",
+		)
+	case "office":
+		// The office connector shares the /office/connection.status route but
+		// is not a bot channel and is therefore omitted from IMCordisChannels.
+		base = []string{"connection.status", "connector.configure", "connector.reconnect", "connector.test", "connector.remove"}
+	}
+	return base
 }
 
 // IMCordisBotEndpoints lists Cordis method names exposed under each channel prefix
@@ -41,19 +102,28 @@ func IMCordisChannels() []string {
 // Per-channel extras include provision.begin|poll|cancel, bot.sender.approve|revoke
 // (dingtalk), bot.access-policy.set (telegram/whatsapp), bot.callback-repair.begin,
 // bot.group-message-permission.begin, bot.group-response-mode.set, connection.test
-// (feishu legacy), provision.verify (weixin), /office connector.* endpoints.
+// (feishu legacy), provision.verify (weixin), and /office connector.*
+// endpoints (the office connector is not an IM bot channel).
 func IMCordisBotEndpoints() []string {
-	return []string{
-		"connection.status",
-		"bot.bind-credentials",
-		"bot.reconnect",
-		"bot.delete",
-		"bot.workspace.set",
-		"bot.preset.set",
-		"provision.begin",
-		"provision.poll",
-		"provision.cancel",
+	seen := map[string]bool{}
+	var out []string
+	for _, channel := range IMCordisChannels() {
+		for _, endpoint := range IMCordisEndpointCandidates(channel) {
+			if seen[endpoint] {
+				continue
+			}
+			seen[endpoint] = true
+			out = append(out, endpoint)
+		}
 	}
+	for _, endpoint := range IMCordisEndpointCandidates("office") {
+		if seen[endpoint] {
+			continue
+		}
+		seen[endpoint] = true
+		out = append(out, endpoint)
+	}
+	return out
 }
 
 // IMListMethodCandidates are Typert-style list RPCs to probe with Client.Call.
