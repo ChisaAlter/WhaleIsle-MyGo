@@ -16,6 +16,7 @@ type Row struct {
 	Description      string
 	Version          string
 	InstalledVersion string
+	PreviousVersion  string
 	Kind             string
 	Source           string
 	State            string // available | installed | stopped | running | error
@@ -95,6 +96,7 @@ func whalebridgeRow(dir string) (Row, bool) {
 		Description:      desc,
 		Version:          ver,
 		InstalledVersion: inst.Version,
+		PreviousVersion:  inst.Previous,
 		Kind:             "service",
 		Source:           "official",
 		State:            state,

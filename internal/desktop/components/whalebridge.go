@@ -254,7 +254,7 @@ func (s *WhaleBridgeService) RefreshCatalog(ctx context.Context) (Row, error) {
 }
 
 func (s *WhaleBridgeService) refreshCatalog(ctx context.Context) (*WhaleBridgeCatalog, error) {
-	var cat WhaleBridgeCatalog
+	var cat *WhaleBridgeCatalog
 	if s.devPackage != "" {
 		manifestPath := filepath.Join(s.devPackage, whaleBridgeManifest)
 		m, err := readManifest(manifestPath)
@@ -264,7 +264,7 @@ func (s *WhaleBridgeService) refreshCatalog(ctx context.Context) (*WhaleBridgeCa
 		if err := ValidateWhaleBridgeManifest(m); err != nil {
 			return nil, err
 		}
-		cat = WhaleBridgeCatalog{Manifest: m, Local: s.devPackage, Route: "development"}
+		cat = &WhaleBridgeCatalog{Manifest: m, Local: s.devPackage, Route: "development"}
 	} else if s.route == "cnb" {
 		cat, err = s.refreshCNB(ctx)
 		if err != nil {
