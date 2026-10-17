@@ -40,6 +40,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 	rows, limited := readOnlyHistoryMessages(messages)
 	limited = limited || (len(rows) == 0 && len(fallback) > readOnlyMessageByteLimit)
 	box := ui.Column(c.Key("readonly-history:" + scope)).FillWidth().Gap(8)
+	imageRequests := ui.Local(box, "image-requests", func() childImageRequests { return childImageRequests{} })
 	expanded := ui.Local(box, "disclosures", func() map[string]bool { return map[string]bool{} })
 	// Do not retain disclosure keys for events evicted from the bounded window.
 	allowed := map[string]bool{}
@@ -80,6 +81,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 		for index, msg := range rows {
 			row := ui.Column(c.Key(fmt.Sprintf("message:%d:%s", index, msg.ID))).FillWidth().Gap(4)
 			row.Children(func() {
+				childAutoImages(c, msg, resource, *imageRequests, st)
 				label := msg.Role
 				if label == "" {
 					label = string(msg.Kind)
