@@ -46,9 +46,14 @@ type InstallFunc func(spec string, opts InstallOpts) Result
 
 // Options configure the loopback server.
 type Options struct {
-	Install       InstallFunc
-	OnRestart     func()
-	RestartDelay  time.Duration
+	Install      InstallFunc
+	OnRestart    func()
+	RestartDelay time.Duration
+	// Desktop exposes the authenticated /desktop/* control plane used by the
+	// whale assistant. A nil value keeps the legacy /install-only server and
+	// returns an auditable "desktop control not configured" response for those
+	// routes.
+	Desktop DesktopOps
 }
 
 // Server is a loopback HTTP install control plane.
@@ -151,7 +156,7 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/install" {
+	if r.URL.Path != "/install" && !strings.HasPrefix(r.URL.Path, "/desktop/") {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
@@ -162,11 +167,15 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthorized"})
 		return
 	}
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+	if r.URL.Path == "/install" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+			return
+		}
+		s.handleInstall(w, r)
 		return
 	}
-	s.handleInstall(w, r)
+	s.handleDesktop(w, r)
 }
 
 type installRequest struct {
