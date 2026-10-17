@@ -56,7 +56,7 @@ func subagentChatOpener(m Model) func(uint64, session.AgentSessionAddress) {
 			}
 			w.Active, w.route, w.Fullscreen = n.ID, n.Kind, ""
 			local := w.agentPaneModel(m, n)
-			local.AgentNavigationStore.OpenAgentChat(root, address, title)
+			local.AgentNavigationStore.OpenAgentChatFromCatalog(source, token, root, address, title)
 		}
 	}
 }
@@ -76,8 +76,11 @@ func subagentChatPane(c *ui.Context, m Model) {
 	navigation := m.AgentNavigationStore
 	v := navigation.AgentNavigationSnapshot()
 	// A restored routing record acquires a fresh addressed reader, never an old
-	// token or prompt authority. OpenAgentChat rechecks the live owner and Host.
-	if v.Address != target.Address && !navigation.HasRetainedAgentRead() && m.Store.Snapshot().SelectedID == target.Root {
+	// token or prompt authority. Direct-root records may be reopened from this
+	// pane. Nested legacy records have no saved ancestry proof and must be
+	// opened from a currently expanded source catalog instead.
+	directRoot := target.Address.ParentSessionID == target.Root
+	if v.Address != target.Address && directRoot && !navigation.HasRetainedAgentRead() && m.Store.Snapshot().SelectedID == target.Root {
 		if navigation.OpenAgentChat(target.Root, target.Address, target.Title) {
 			v = navigation.AgentNavigationSnapshot()
 		}
@@ -91,7 +94,10 @@ func subagentChatPane(c *ui.Context, m Model) {
 			if !sameRoot {
 				ui.Text(c, paneLabel("请先切回来源主会话：", "Return to the source session first: ")+target.Root)
 			}
-			if ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Disabled(!sameRoot).Clicked() {
+			if !directRoot {
+				ui.Text(c, paneLabel("请从来源会话当前展开的子代理目录打开此聊天。", "Open this chat from the currently expanded child catalog in the source session."))
+			}
+			if directRoot && ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Disabled(!sameRoot).Clicked() {
 				navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 			}
 		})
@@ -99,7 +105,10 @@ func subagentChatPane(c *ui.Context, m Model) {
 	}
 	if v.RetainedReadOnly {
 		ui.Text(c, paneLabel("已保留来源会话；明确发送、停止或回复时会重新验证原目标。", "Source session retained; sending, stopping, or replying revalidates the original target."))
-		if m.Store.Snapshot().SelectedID == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
+		if !directRoot {
+			ui.Text(c, paneLabel("嵌套聊天的重新授权必须从来源会话当前展开的子代理目录发起。", "Reauthorize a nested chat from the currently expanded child catalog in the source session."))
+		}
+		if directRoot && m.Store.Snapshot().SelectedID == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
 			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 		}
 	}

@@ -31,10 +31,36 @@ func (s *Store) AgentChatTarget(token uint64, address AgentSessionAddress) (stri
 	return "", "", false
 }
 
-// OpenAgentChat is an explicit user open/reconnect action. The caller owns an
-// independent navigation pane. Host validates the direct-parent address; this
-// never selects/promotes a child as an ordinary session or grants tool replies.
+// OpenAgentChat is an explicit user open/reconnect action for a child directly
+// owned by root. A persisted nested address has no authority to infer its
+// ancestry, so nested addresses must use OpenAgentChatFromCatalog below.
+// The caller owns an independent navigation pane. Host validates the
+// direct-parent address; this never selects/promotes a child as an ordinary
+// session or grants tool replies.
 func (s *Store) OpenAgentChat(root string, address AgentSessionAddress, title string) bool {
+	return s.openAgentChat(root, address, title, false)
+}
+
+// OpenAgentChatFromCatalog opens an explicitly selected nested child. The
+// source occurrence must still expose the exact address under its current
+// token, which proves every expanded parent edge before the destination pane
+// acquires a read lease. This is the only path that may open a nested address;
+// saved/legacy routing values alone are never treated as ancestry proof.
+func (s *Store) OpenAgentChatFromCatalog(source *Store, token uint64, root string, address AgentSessionAddress, title string) bool {
+	if source == nil || source == s || s.AgentNavigationRootStore() != source.AgentNavigationRootStore() {
+		return false
+	}
+	owner, _, ok := source.AgentChatTarget(token, address)
+	if !ok || owner != root {
+		return false
+	}
+	return s.openAgentChat(root, address, title, true)
+}
+
+func (s *Store) openAgentChat(root string, address AgentSessionAddress, title string, allowNested bool) bool {
+	if !allowNested && address.ParentSessionID != root {
+		return false
+	}
 	if !s.prepareAgentReadReopen(root) {
 		return false
 	}

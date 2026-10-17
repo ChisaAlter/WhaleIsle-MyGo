@@ -57,7 +57,7 @@ func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddres
 		n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title, Lineage: source.AgentChatRestoreLineage(token, address)}
 		local := w.agentPaneModel(m, n)
 		// Revalidate the exact source occurrence/token after creating the destination.
-		if _, _, valid := source.AgentChatTarget(token, address); !valid || !local.AgentNavigationStore.OpenAgentChat(root, address, title) {
+		if _, _, valid := source.AgentChatTarget(token, address); !valid || !local.AgentNavigationStore.OpenAgentChatFromCatalog(source, token, root, address, title) {
 			n.releaseAgentPane()
 			return
 		}
@@ -99,7 +99,11 @@ func mainSubagentConversation(c *ui.Context, m Model) bool {
 		v := navigation.AgentNavigationSnapshot()
 		if v.Address != target.Address {
 			ui.Text(c, paneLabel("子会话已暂停，重新打开后继续。", "Child conversation paused. Reopen to continue."))
-			if ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Clicked() {
+			directRoot := target.Address.ParentSessionID == target.Root
+			if !directRoot {
+				ui.Text(c, paneLabel("请从来源会话当前展开的子代理目录打开此聊天。", "Open this chat from the currently expanded child catalog in the source session."))
+			}
+			if directRoot && ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Clicked() {
 				navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 			}
 			return
