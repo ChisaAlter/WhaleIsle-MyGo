@@ -76,7 +76,7 @@ func TestB17RendererCompletionOnlyStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), `ui.Button(c, "批注和截图加入草稿")`) || !strings.Contains(string(data), "b.appendAnnotation(op)") {
+	if !strings.Contains(string(data), "Add annotation and screenshot to draft") || !strings.Contains(string(data), "b.appendAnnotation(op)") {
 		t.Fatal("missing native confirmation button")
 	}
 }
