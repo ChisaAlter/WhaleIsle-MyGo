@@ -27,8 +27,9 @@ type TunnelConfig struct {
 	IdentityFile string `json:"identityFile"`
 	Password     string `json:"password,omitempty"`
 	Passphrase   string `json:"passphrase,omitempty"`
-	HostKeyMode  string `json:"hostKeyMode,omitempty"`
-	UseAgent     bool   `json:"useAgent,omitempty"`
+	HostKeyMode         string `json:"hostKeyMode,omitempty"`
+	UseAgent            bool   `json:"useAgent,omitempty"`
+	KeyboardInteractive bool   `json:"keyboardInteractive,omitempty"`
 	// LocalForward is optional "localPort:remoteHost:remotePort".
 	LocalForward   string `json:"localForward,omitempty"`
 	ReverseForward string `json:"reverseForward,omitempty"`
