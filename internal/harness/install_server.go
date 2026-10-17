@@ -9,6 +9,9 @@ import (
 type InstallServerOptions struct {
 	NodeBin   string
 	OnRestart func()
+	// Desktop wires the optional authenticated /desktop/* control callbacks.
+	// Leaving it zero-valued preserves the legacy /install-only behavior.
+	Desktop installctrl.DesktopOps
 }
 
 // NewInstallServer returns a loopback install control server wired to restart
@@ -45,5 +48,6 @@ func NewInstallServer(opts InstallServerOptions) *installctrl.Server {
 	return installctrl.New(installctrl.Options{
 		OnRestart: opts.OnRestart,
 		Install:   install,
+		Desktop:   opts.Desktop,
 	})
 }
