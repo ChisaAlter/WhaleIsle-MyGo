@@ -48,6 +48,8 @@ type XLSXCell struct {
 }
 type XLSXMerge struct{ FirstRow, FirstColumn, LastRow, LastColumn int }
 type XLSXPage struct {
+	HiddenRows, HiddenColumns               map[int]bool // zero-based saved visibility, scoped to this page
+	DefaultRowsHidden                       bool
 	Merges                                  []XLSXMerge
 	RowHeights, ColumnWidths                map[int]float32 // zero-based, saved points / character units
 	DefaultRowHeight, DefaultColumnWidth    float32
@@ -402,17 +404,19 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 	type row struct {
 		R      int     `xml:"r,attr"`
 		Height float32 `xml:"ht,attr"`
+		Hidden *bool   `xml:"hidden,attr"`
 		S      *int    `xml:"s,attr"`
 		C      []cell  `xml:"c"`
 	}
 	type columnFormat struct {
-		Min   int     `xml:"min,attr"`
-		Max   int     `xml:"max,attr"`
-		Style int     `xml:"style,attr"`
-		Width float32 `xml:"width,attr"`
+		Min    int     `xml:"min,attr"`
+		Max    int     `xml:"max,attr"`
+		Style  int     `xml:"style,attr"`
+		Width  float32 `xml:"width,attr"`
+		Hidden bool    `xml:"hidden,attr"`
 	}
 	var columnFormats []columnFormat
-	out := &XLSXPage{Request: request, TotalRows: 1, TotalColumns: 1, RowHeights: map[int]float32{}, ColumnWidths: map[int]float32{}}
+	out := &XLSXPage{Request: request, TotalRows: 1, TotalColumns: 1, RowHeights: map[int]float32{}, ColumnWidths: map[int]float32{}, HiddenRows: map[int]bool{}, HiddenColumns: map[int]bool{}}
 	grid := make([][]string, request.Rows)
 	displayGrid := make([][]string, request.Rows)
 	for i := range grid {
@@ -438,12 +442,14 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 		if start.Name.Local == "sheetFormatPr" {
 			var defaults struct {
 				Row    float32 `xml:"defaultRowHeight,attr"`
+				Hidden bool    `xml:"zeroHeight,attr"`
 				Column float32 `xml:"defaultColWidth,attr"`
 			}
 			if err := dec.DecodeElement(&defaults, &start); err != nil {
 				return nil, err
 			}
 			out.DefaultRowHeight, out.DefaultColumnWidth = defaults.Row, defaults.Column
+			out.DefaultRowsHidden = defaults.Hidden
 			continue
 		}
 		if start.Name.Local == "mergeCell" {
@@ -473,6 +479,9 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 				return nil, err
 			}
 			columnFormats = append(columnFormats, column)
+			for col := max(column.Min-1, request.Column); col < min(column.Max, request.Column+request.Columns); col++ {
+				out.HiddenColumns[col] = column.Hidden
+			}
 			if column.Width > 0 {
 				for col := max(column.Min-1, request.Column); col < min(column.Max, request.Column+request.Columns); col++ {
 					out.ColumnWidths[col] = column.Width
@@ -495,6 +504,13 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 			return nil, errors.New("XLSX has invalid row coordinates")
 		}
 		lastRow = rowNum
+		if rowNum-1 >= request.Row && rowNum-1 < request.Row+request.Rows {
+			hidden := out.DefaultRowsHidden
+			if r.Hidden != nil {
+				hidden = *r.Hidden
+			}
+			out.HiddenRows[rowNum-1] = hidden
+		}
 		if rowNum-1 >= request.Row && rowNum-1 < request.Row+request.Rows && r.Height > 0 {
 			out.RowHeights[rowNum-1] = r.Height
 		}

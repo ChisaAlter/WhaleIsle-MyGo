@@ -153,6 +153,16 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 		cells[cell.Address] = cell
 	}
 	blocked := tab.readLoading || tab.readBlocked
+	hidden := page.DefaultRowsHidden
+	for _, value := range page.HiddenRows {
+		hidden = hidden || value
+	}
+	for _, value := range page.HiddenColumns {
+		hidden = hidden || value
+	}
+	if hidden {
+		ui.Text(c, label("源文件隐藏的行列未显示；本页原始复制仍保留其数据。", "Source-hidden rows and columns are not displayed; raw page copies retain their data.")).FontSize(10)
+	}
 	xs, ys := map[int]float32{}, map[int]float32{}
 	width, height := float32(48), float32(0)
 	for col := page.Request.Column; col < colEnd; col++ {
@@ -170,6 +180,9 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 			ui.Row(c).Height(30).Children(func() {
 				ui.Text(c, "#").Width(48)
 				for col := page.Request.Column; col < colEnd; col++ {
+					if tableColumnWidth(page, col) == 0 {
+						continue
+					}
 					if ui.Button(c.Key(fmt.Sprintf("column-%d", col)), tableColumnName(col)).Width(tableColumnWidth(page, col)).Selected(tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col).Disabled(blocked).Clicked() {
 						tab.tableSelectionKind = "column"
 						tab.tableSelectionIndex = col
@@ -180,14 +193,20 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 				ui.Box(c).Width(width).Height(height).Children(func() {
 					for row := page.Request.Row; row < rowEnd; row++ {
+						if tableRowHeight(page, row) == 0 {
+							continue
+						}
 						if ui.Button(c.Key(fmt.Sprintf("row-%d", row)), strconv.Itoa(row+1)).Absolute().Left(0).Top(ys[row]).Width(48).Height(tableRowHeight(page, row)).Selected(tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row).Disabled(blocked).Clicked() {
 							tab.tableSelectionKind = "row"
 							tab.tableSelectionIndex = row
 							tab.tableCell = tableAddress(row, page.Request.Column)
 						}
 						for col := page.Request.Column; col < colEnd; col++ {
+							if tableColumnWidth(page, col) == 0 {
+								continue
+							}
 							merge, merged := tableVisibleMerge(page, row, col)
-							firstRow, firstCol := max(merge.FirstRow, page.Request.Row), max(merge.FirstColumn, page.Request.Column)
+							firstRow, firstCol := tableFirstVisibleMergeCell(page, merge)
 							if row != firstRow || col != firstCol {
 								continue
 							}
@@ -204,6 +223,9 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 								}
 							}
 							selected := tableSelected(tab, row, col)
+							if merged && tab.tableSelectionKind == "cell" {
+								selected = tab.tableCell == sourceAddress
+							}
 							if tab.tableSelectionKind == "row" {
 								selected = tab.tableSelectionIndex >= firstRow && tab.tableSelectionIndex < lastRow
 							}
@@ -249,6 +271,9 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 							})
 							if button.Clicked() {
 								tab.tableCell = address
+								if merged && tableAddressInPage(page, sourceAddress) {
+									tab.tableCell = sourceAddress
+								}
 								tab.tableSelectionKind = "cell"
 							}
 						}
