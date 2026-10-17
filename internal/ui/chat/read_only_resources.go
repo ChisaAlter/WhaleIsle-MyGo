@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/json"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 )
 
 type ReadOnlyResourceOptions struct {
+	Scope       string
 	OnReadTable func(string, workspacefs.XLSXPageRequest)
 	OnOpenFile  func(string)
 	OnOpenURL   func(string)
@@ -104,6 +106,8 @@ func readOnlyToolResources(c *ui.Context, msg session.Message, opts ReadOnlyReso
 
 // ReadOnlyResourceResultsView exposes reads started by inline references and delivery cards.
 func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st ToolCardStyle) {
+	galleryRoot := ui.Box(c.Key("child-image-gallery:" + opts.Scope))
+	gallery := ui.Local(galleryRoot, "viewer", func() childGalleryState { return childGalleryState{} })
 	refs := make([]string, 0, len(opts.Reads))
 	for ref := range opts.Reads {
 		refs = append(refs, ref)
@@ -122,7 +126,15 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 			}
 		}
 		if read.Path != "" {
-			ImageInlineView(c, read.Path, st.FG, st.Muted, nil)
+			if opts.Scope != "" && filepath.IsAbs(read.Path) && loadChatBitmap(read.Path) != nil {
+				open := func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false }
+				ImageInlineView(c, read.Path, st.FG, st.Muted, open)
+				if ui.Button(c, "放大 / Enlarge: "+ref).Clicked() {
+					open(read.Path)
+				}
+			} else {
+				ImageInlineView(c, read.Path, st.FG, st.Muted, nil)
+			}
 		}
 		if read.Table != nil {
 			childWorkbookView(c, ref, read, opts, st)
@@ -133,5 +145,8 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		if !read.Busy && !read.EOF && read.Error == "" && ui.Button(c, "继续读取 / Read more: "+ref).FontSize(10).Clicked() {
 			opts.OnRead(ref, true)
 		}
+	}
+	if opts.Scope != "" {
+		childImageGallery(c, gallery, opts.Reads)
 	}
 }
