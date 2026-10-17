@@ -13,9 +13,7 @@
 
 ## 2. 现状
 
-实现进度不再在此处维护，见 `docs/status.md`（随开发更新）。当前要点：工具链与 harness 运行时构建（M0 核心）已完成；`internal/config`、`internal/credentials`、`internal/paths`、应用骨架与接口生成器已完成并有测试；dsh 客户端与全部界面尚未开始。
-| 工具链 | Go 1.27.2 在 `.toolchain`，用 `scripts/env.ps1` 设置环境。 |
-| 主程序、界面 | 没有。 |
+实现进度不再在此处维护，见 `docs/status.md`（随开发更新）。当前要点：工具链与 harness 运行时构建（M0 核心）已完成；`internal/config`、`internal/credentials`（独立包）、`internal/paths`、应用骨架与接口生成器已完成并有测试；dsh 客户端与全部界面尚未开始。
 
 ## 3. 调研结论
 
@@ -90,7 +88,8 @@ node.exe vendor/deepseek-harness/apps/cli/lib/bin.js web  (dsh web)
 | --- | --- |
 | `cmd/whaleisle` | `main`：组装各模块 |
 | `internal/paths` | userData、dsh-home、运行时目录 |
-| `internal/config` | `config.json`（补全全部字段）、`credentials.json`（含 DPAPI 解密） |
+| `internal/config` | `config.json`（补全全部字段、快照隔离、冲突拒绝） |
+| `internal/credentials` | `credentials.json`（DPAPI + AES-GCM 信封、分类加载） |
 | `internal/harness` | 定位 vendored harness、Node、覆盖文件、junction、启动、监管、换 cookie |
 | `internal/dsh` | RPC 客户端、WebSocket 多路复用、`$events` 与 waterfall 应答、重连 |
 | `internal/dsh/api` | 由 `typert.remote-client.js` 生成的 Go 类型与方法 |
