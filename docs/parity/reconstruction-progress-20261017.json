@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-17T11:58:21.886295+00:00",
+  "as_of": "2026-10-17T12:38:25.964368+00:00",
   "title": "WhaleIsle-MyGo recorded reconstruction progress",
   "baseline_original_commit": "a8c931da37376ce7dc7989e6f30b0db885e06d26",
   "scope": [
@@ -1049,7 +1049,7 @@
       "id": "CH12",
       "title": "Assistant OpenUI code-fence interactive runtime",
       "status": "partial",
-      "publication_commit": "407ffc53dfec71c55bca9de25c1102817791ad8e",
+      "publication_commit": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
       "runtime_status": "runtime-unverified",
       "evidence": [
         "audit-20261017-chat/main-entrypoints-supplement.json#CH12",
@@ -1070,7 +1070,10 @@
         "audit-20261017-chat/ch12-native-api-images/manifest.json",
         "ch12-map-boundary-manifest.json",
         "current/source/docs/openui-runtime-license-status-20261017.md",
-        "tools/openui-runtime/COMPATIBILITY.md"
+        "tools/openui-runtime/COMPATIBILITY.md",
+        "docs/openui-native-actions-host-20261017.md",
+        "docs/openui-htmlview-windows-source-20261017.md",
+        "tools/openui-runtime/NATIVE-ACTIONS.md"
       ],
       "implemented": [
         "Genuine original OpenUI runtime bundle located; no arbitrary replacement bundle used.",
@@ -1085,10 +1088,14 @@
         "Code and Markdown fenced code use local AST syntax highlighting with explicit grammar aliases and full-source fallback; no code execution or clipboard added.",
         "Six chart variants expose real hover/focus data details and Arrow/Home/End/Escape navigation, including original values, series, stacked ranges or proportions.",
         "Public adapter successful JSON responses are reused across viewers with original-scope insertion-order caches: wiki 500, normalized image queries 500, normalized route sets 200; each hit receives current instance/request IDs and failures are not cached.",
-        "Owned raster Map implements continuous anchored zoom and pan for mouse and touch gestures, preserving actual projected coordinates and tile-source selection."
+        "Owned raster Map implements continuous anchored zoom and pan for mouse and touch gestures, preserving actual projected coordinates and tile-source selection.",
+        "Independently authored HtmlView(html,height?,title?) source and production assets are integrated with Windows/macOS identity-scoped nested-srcdoc capability. Local HTML/CSS/inline JS/Canvas, fixed/automatic height and document replacement lifecycle are present. Missing Windows Frame7 leaves HtmlView unavailable without disabling the basic viewer; native runtime acceptance remains unverified.",
+        "Owned runtime Code copying, Link and button clipboard/HTTP(S) actions use typed requests and real UI-thread Clipboard.Write/OpenExternal results; explicit legacy overrides are disabled.",
+        "Markdown/Text HTTP(S) links preserve formatted children and use the same native action result channel, without browser auto-navigation.",
+        "Local Set/Reset changes no longer cancel their own remaining authorized plan. Host payloads stay captured at click; true source revision, unmount and capability changes cancel remaining work."
       ],
       "remaining": [
-        "HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.",
+        "YouTube/remote media, external CDN scripts and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied. These are not filled by placeholder content or external-browser-only substitutes.",
         "Other component variants, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registry counts are not full parity. Undefined stacked pie/donut/scatter combinations are parameter boundaries, not proven original-only missing features.",
         "Public JSON process caching and owned raster tile caching are implemented. Original browser HTTP bitmap-cache behavior is not claimed; the optional legacy MapLibre bundle remains unshipped/unsupported.",
         "Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified."
@@ -1186,7 +1193,8 @@
         "Inline/streaming stage CI39023879575 succeeded on Windows/macOS at commit 551649d8afe62ff3964dc94e1e0f610faacea2d8. Stage 1 CI39023193323 also succeeded. Neither run covers the later API/image native increments.",
         "The API/image native increments have not undergone the new SDK compilation. Physical rendering, input, scrolling, images, actual service responses and lifecycle acceptance remain unknown.",
         "Owned embedded viewer and map resource increment received production asset generation only; no new native compilation, tests, browser execution or real service requests.",
-        "Code/chart/cache/map increments are source-published; production viewer assets generated where applicable. No tests, new native build, browser execution or real-service acceptance were performed."
+        "Code/chart/cache/map increments are source-published; production viewer assets generated where applicable. No tests, new native build, browser execution or real-service acceptance were performed.",
+        "HtmlView and clipboard/link native increments, including real event/gesture timing and actual system results, have not been compiled or executed in this phase. Production bundle generation and formatting/hash checks are not runtime acceptance."
       ],
       "publication_commits": [
         {
@@ -1249,6 +1257,26 @@
           "sha": "407ffc53dfec71c55bca9de25c1102817791ad8e",
           "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/407ffc53dfec71c55bca9de25c1102817791ad8e",
           "evidence_source": "verified GitHub branch publication"
+        },
+        {
+          "sha": "5f1d0f054bd1d2278e75501dfdef188f6df4deba",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/5f1d0f054bd1d2278e75501dfdef188f6df4deba",
+          "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "316be242c1ed2d17d00bf86273938ffb199c44e3",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/316be242c1ed2d17d00bf86273938ffb199c44e3",
+          "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "454ff54c514f048d017e12ea5c72e24cbf568d1d",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/454ff54c514f048d017e12ea5c72e24cbf568d1d",
+          "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+          "evidence_source": "verified GitHub development branch publication"
         }
       ],
       "publication_status": "verified-pushed",
@@ -1442,6 +1470,39 @@
           "publication_status": "verified-pushed",
           "publication_commits": [
             "407ffc53dfec71c55bca9de25c1102817791ad8e"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "owned-htmlview-platform-source",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "5f1d0f054bd1d2278e75501dfdef188f6df4deba"
+          ],
+          "runtime_status": "runtime-unverified",
+          "native_compile": "not-run"
+        },
+        {
+          "stage": "owned-native-actions",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "316be242c1ed2d17d00bf86273938ffb199c44e3"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "markdown-text-native-links",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "454ff54c514f048d017e12ea5c72e24cbf568d1d"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "action-plan-reactive-lifecycle",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55"
           ],
           "runtime_status": "runtime-unverified"
         }
@@ -16019,11 +16080,29 @@
     "verified_commit_source_sha256": "2790b422c0fc376835ffada1c1602733b648521bd2ad0fe4acf9baf2ce84098a",
     "historical_records_preserved": true,
     "no_new_tests_or_source_audit": true,
-    "revision": "final-v6",
-    "last_parent_update": "2026-10-17T11:03:00Z",
-    "verified_head": "407ffc53dfec71c55bca9de25c1102817791ad8e",
-    "publication_commit_count": 102,
-    "commit_count_is_not_feature_completion_count": true
+    "revision": "openui-owned-runtime-increments",
+    "last_parent_update": "2026-10-17T12:38:25.964368+00:00",
+    "verified_head": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+    "publication_commit_count": 114,
+    "commit_count_is_not_feature_completion_count": true,
+    "commit_count_basis": {
+      "baseline_verified_head": "0e70ae5a3f4fad583a939666a45455a17100cd04",
+      "baseline_commit_count": 102,
+      "subsequent_verified_publications": [
+        "d2dbd401f711fc23a6725c3855a4ef8b6928356a",
+        "86104c1f965d5b326d5a8dd01f75364940fe073e",
+        "93444a7ce026368c99aab15d9b07fab40c3568f5",
+        "04684a6a3983da3771134e7eb0fc21cf078d16ea",
+        "a6d384a515a52e10bc7643e9654f55161ff77d06",
+        "93555b5a91686df4edd489e311bc99b261d24757",
+        "407ffc53dfec71c55bca9de25c1102817791ad8e",
+        "42fcf109e230c5febef2e7c792aed0ed20e56be8",
+        "5f1d0f054bd1d2278e75501dfdef188f6df4deba",
+        "316be242c1ed2d17d00bf86273938ffb199c44e3",
+        "454ff54c514f048d017e12ea5c72e24cbf568d1d",
+        "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55"
+      ]
+    }
   },
   "publication_reconciliation_required": {
     "script": "apply_publication_receipts.py",

@@ -60,7 +60,11 @@
 - 已有源码：Six chart variants expose real hover/focus data details and Arrow/Home/End/Escape navigation, including original values, series, stacked ranges or proportions.
 - 已有源码：Public adapter successful JSON responses are reused across viewers with original-scope insertion-order caches: wiki 500, normalized image queries 500, normalized route sets 200; each hit receives current instance/request IDs and failures are not cached.
 - 已有源码：Owned raster Map implements continuous anchored zoom and pan for mouse and touch gestures, preserving actual projected coordinates and tile-source selection.
-- 当前剩余：HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.
+- 已有源码：Independently authored HtmlView(html,height?,title?) source and production assets are integrated with Windows/macOS identity-scoped nested-srcdoc capability. Local HTML/CSS/inline JS/Canvas, fixed/automatic height and document replacement lifecycle are present. Missing Windows Frame7 leaves HtmlView unavailable without disabling the basic viewer; native runtime acceptance remains unverified.
+- 已有源码：Owned runtime Code copying, Link and button clipboard/HTTP(S) actions use typed requests and real UI-thread Clipboard.Write/OpenExternal results; explicit legacy overrides are disabled.
+- 已有源码：Markdown/Text HTTP(S) links preserve formatted children and use the same native action result channel, without browser auto-navigation.
+- 已有源码：Local Set/Reset changes no longer cancel their own remaining authorized plan. Host payloads stay captured at click; true source revision, unmount and capability changes cancel remaining work.
+- 当前剩余：YouTube/remote media, external CDN scripts and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied. These are not filled by placeholder content or external-browser-only substitutes.
 - 当前剩余：Other component variants, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registry counts are not full parity. Undefined stacked pie/donut/scatter combinations are parameter boundaries, not proven original-only missing features.
 - 当前剩余：Public JSON process caching and owned raster tile caching are implemented. Original browser HTTP bitmap-cache behavior is not claimed; the optional legacy MapLibre bundle remains unshipped/unsupported.
 - 当前剩余：Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified.
@@ -75,6 +79,10 @@
 - 阶段 chart-tooltip-keyboard：verified-pushed；a6d384a515a52e10bc7643e9654f55161ff77d06
 - 阶段 public-adapter-process-cache：verified-pushed；93555b5a91686df4edd489e311bc99b261d24757
 - 阶段 map-wheel-pinch：verified-pushed；407ffc53dfec71c55bca9de25c1102817791ad8e
+- 阶段 owned-htmlview-platform-source：verified-pushed；5f1d0f054bd1d2278e75501dfdef188f6df4deba
+- 阶段 owned-native-actions：verified-pushed；316be242c1ed2d17d00bf86273938ffb199c44e3
+- 阶段 markdown-text-native-links：verified-pushed；454ff54c514f048d017e12ea5c72e24cbf568d1d
+- 阶段 action-plan-reactive-lifecycle：verified-pushed；82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55
 
 ### PR07 · source-implemented
 
@@ -153,7 +161,7 @@
 | CH10 | Advanced trajectory schema/request/range inspection | 有实现证据 | [fb1b0a62](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/fb1b0a62c21a8334d319e7e2ab2a5658f37c7b7b) |
 | CH10.inspect-call | Inspect a tool call directly in trajectory | 有实现证据 | [facab7db](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/facab7db9840986fbe0911e7128cc9ff8ca5d0a3) |
 | CH11 | Background completion unread indicator | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
-| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [407ffc53](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/407ffc53dfec71c55bca9de25c1102817791ad8e) |
+| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [82c35b05](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55) |
 | CH13 | Sidebar attention state for approval/question/plan review | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
 | CH14 | Undo archive from completion notification | 有实现证据 | [d11d1bd8](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d11d1bd8d4802a13aae0f65c9e697fc94a74d26a) |
 | CH15 | Main session ancestry breadcrumb navigation | 有实现证据 | [5b0a5f2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/5b0a5f2d60943efeab77b319dd23d3ca8f1d1837) |
@@ -239,7 +247,7 @@
 
 ## 本轮发布与验证边界
 
-- 已核实开发分支头：`407ffc53dfec71c55bca9de25c1102817791ad8e`；提交条数仅为发布记录数。
+- 已核实开发分支头：`82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55`；提交条数仅为发布记录数。
 - 所有真实平台验收仍单列为 unknown，不由源码、冻结或 CI 结果推定。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_test.go`。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_images_test.go`。

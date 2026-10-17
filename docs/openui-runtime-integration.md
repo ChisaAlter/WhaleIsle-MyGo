@@ -58,7 +58,10 @@ status is separate from the independently authored built-in implementation.
   not an assertion of immediate unmount cleanup. Queued state not delivered
   before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
-  filesystem, external navigation or clipboard. Local nested HtmlView documents
+  filesystem, direct external navigation or direct clipboard APIs. The owned
+  runtime may request typed clipboard/HTTP(S) link actions through the current
+  Host after a real UI gesture; legacy runtime overrides do not receive this
+  capability. Local nested HtmlView documents
   require explicit native capability and actual frame-identity admission; arbitrary
   nested navigation remains unavailable. Fixed typed
   resource requests run in the Go parent with a separate credential-free HTTP
@@ -120,9 +123,12 @@ A focused lifecycle fixture additionally checks that active contexts have no
 deadline and explicit cancellation still terminates them; the existing owner
 ticket fixture covers owner revocation.
 
-Still partial: map workers/tiles, clipboard/link capabilities and
-gesture-attested immediate action sending. The default distribution lacks a
-bundled runtime. These limitations must not be reported as full CH12 completion.
+Current remaining scope: YouTube/remote media, external CDN scripts, external
+Image/Markdown image URLs and gesture-attested immediate assistant sending.
+The default distribution now includes the independently authored runtime,
+owned raster map tiles and typed clipboard/link actions. This does not establish
+full component-variant, platform-runtime or visual parity. Prior stage compile
+results above do not cover the newly embedded runtime, HtmlView or Host actions.
 
 Count regression fixtures save and read the 257th state while retaining the first,
 and keep five independent cancellable contexts alive. Source removes the global
@@ -218,3 +224,19 @@ compilation, frame lifecycle/event timing, inline script execution, Canvas,
 height and input behavior have not been verified by running either platform.
 See `openui-htmlview-windows-source-20261017.md` for exact API requirements and
 remaining source-level assumptions.
+
+## Typed clipboard and link actions
+
+Only the default owned embedded viewer can receive `hostActions`; an explicit
+legacy runtime override remains disabled. Code copying, Link, Markdown/Text
+HTTP(S) links and button action plans use the existing bounded event/response
+transport. They cannot claim success before Clipboard.Write/OpenExternal
+returns from the MyGo UI-thread operation. A successful URL reply means the OS
+browser handoff returned successfully, not that a remote page loaded.
+
+The request is bound to its current instance/session/owner and one captured
+payload. Source replacement, component removal or lost capability cancels
+remaining work; actual completed system effects cannot be undone by removing
+the component. No clipboard contents or URLs were executed during development.
+See `tools/openui-runtime/NATIVE-ACTIONS.md` and
+`openui-native-actions-host-20261017.md` for source behavior and limits.
