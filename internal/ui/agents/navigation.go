@@ -2,9 +2,6 @@ package agents
 
 import (
 	"fmt"
-	"github.com/egoist/mygo"
-	"path/filepath"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -133,24 +130,7 @@ func navigationView(c *ui.Context, m Model) {
 						ui.Text(c, reason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 					if v.Address.Mode == "continuable" && m.PromptDraft != nil {
-						parentReady := v.ParentAvailabilityKnown && v.ParentAvailable
-						ui.Text(c, agentText("向此子代理发送（专用入口）", "Send to this child (dedicated route)")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						if ui.Button(c, agentText("添加图片", "Add images")).Disabled(v.Busy || v.ActionBusy || !parentReady).Clicked() {
-							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: agentText("向子代理添加图片", "Add images for child"), Multiple: true, Filters: []mygo.FileFilter{{Name: "Images", Extensions: []string{"png", "jpg", "jpeg", "gif", "webp"}}}})
-							m.Store.AddAgentNavigationImages(v.Token, v.Address, paths, err)
-						}
-						for _, path := range v.PromptImages {
-							ui.Row(c).Gap(6).Children(func() {
-								ui.Text(c, filepath.Base(path)).TextColor(muted)
-								if ui.Button(c, agentText("移除", "Remove")).Disabled(v.ActionBusy).Clicked() {
-									m.Store.RemoveAgentNavigationImage(v.Token, v.Address, path)
-								}
-							})
-						}
-						ui.TextInput(c, m.PromptDraft).FillWidth().Disabled(v.Busy || v.ActionBusy || !parentReady).Placeholder(i18n.T(i18n.KeyAgentsPromptPlaceholder))
-						if ui.Button(c, i18n.T(i18n.KeyAgentsPromptSend)).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || v.ActionBusy || !parentReady || (strings.TrimSpace(*m.PromptDraft) == "" && len(v.PromptImages) == 0)).Clicked() {
-							m.Store.PromptAgentNavigation(v.Token, v.Address, strings.TrimSpace(*m.PromptDraft))
-						}
+						childEditor(c, m, v)
 					}
 				}
 			})
