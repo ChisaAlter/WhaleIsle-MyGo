@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-17T11:33:00Z",
+  "checkedAt": "2026-10-17T11:53:00Z",
   "packages": {},
   "scope": "Browser runtime package paths contributing bytes in dist/bundle-metafile.json; generated inventory is dist/used-package-paths.json.",
-  "packageCount": 79,
-  "lockfileSHA256": "5f4175940b0141eb9d45abbdba38ddc17734428baba040e64651ae406b245ac5",
+  "packageCount": 81,
+  "lockfileSHA256": "f32b54f52141040d49b3ee973a9760e0e4933e97f439e6b1219ab44935464793",
   "fontAssetsBundled": false,
   "notes": [
     "Every contributing package ships a complete license file; no supplemental notice files are needed.",

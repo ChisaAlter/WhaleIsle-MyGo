@@ -16,7 +16,8 @@ let tileCacheBytes = 0;
 type View = { x: number; y: number; zoom: number };
 type Size = { width: number; height: number };
 type Point = { x: number; y: number };
-type Tile = { key: string; x: number; y: number; zoom: number; left: number; top: number };
+type Tile = { key: string; x: number; y: number; zoom: number; left: number; top: number; size: number };
+type Gesture = { ids: number[]; anchor: Point; center: Point; zoom: number; distance: number | null };
 type TileData = { dataUrl: string; attribution: string; source: string };
 type TileState = { data?: TileData; error?: string };
 type RouteState = { key: string; points?: [number, number][]; error?: string; loading?: boolean };
@@ -76,20 +77,25 @@ function fitMarkers(markers: LocatedMarker[], size: Size): View {
   const zoom = clamp(Math.floor(Math.min(14, horizontalZoom, verticalZoom)), MIN_ZOOM, MAX_ZOOM);
   return { x: wrap((minX + maxX) / 2), y: clamp((minY + maxY) / 2, 0, 1), zoom };
 }
-function visibleTiles(view: View, size: Size, appearance: string): Tile[] {
-  const count = 2 ** view.zoom;
-  const world = TILE_SIZE * count;
+function visibleTiles(view: View, size: Size, appearance: string, rasterZoom?: number | null): Tile[] {
+  // Fractional view zoom scales authentic tiles; z/x/y sent to the parent stay
+  // integers. Reuse the gesture's raster level while zooming in; step down while
+  // zooming out so a wide view never enumerates millions of tiny high-z tiles.
+  const zoom = clamp(Math.min(Math.floor(rasterZoom ?? view.zoom), Math.floor(view.zoom)), MIN_ZOOM, MAX_ZOOM);
+  const count = 2 ** zoom;
+  const displaySize = TILE_SIZE * 2 ** (view.zoom - zoom);
+  const world = displaySize * count;
   const originX = view.x * world - size.width / 2;
   const originY = view.y * world - size.height / 2;
   const tiles: Tile[] = [];
-  const minX = Math.floor(originX / TILE_SIZE);
-  const maxX = Math.ceil((originX + size.width) / TILE_SIZE) - 1;
-  const minY = Math.max(0, Math.floor(originY / TILE_SIZE));
-  const maxY = Math.min(count - 1, Math.ceil((originY + size.height) / TILE_SIZE) - 1);
+  const minX = Math.floor(originX / displaySize);
+  const maxX = Math.ceil((originX + size.width) / displaySize) - 1;
+  const minY = Math.max(0, Math.floor(originY / displaySize));
+  const maxY = Math.min(count - 1, Math.ceil((originY + size.height) / displaySize) - 1);
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
       const wrappedX = ((x % count) + count) % count;
-      tiles.push({ key: `${appearance}/${view.zoom}/${wrappedX}/${y}`, x: wrappedX, y, zoom: view.zoom, left: x * TILE_SIZE - originX, top: y * TILE_SIZE - originY });
+      tiles.push({ key: `${appearance}/${zoom}/${wrappedX}/${y}`, x: wrappedX, y, zoom, left: x * displaySize - originX, top: y * displaySize - originY, size: displaySize });
     }
   }
   return tiles;
@@ -193,8 +199,15 @@ const MapComponent = defineComponent({
     const [size, setSize] = useState<Size>({ width: 0, height: 0 });
     const [view, setView] = useState<View | null>(null);
     const [dragging, setDragging] = useState(false);
+    const [wheeling, setWheeling] = useState(false);
+    const [rasterZoom, setRasterZoom] = useState<number | null>(null);
     const [retry, setRetry] = useState(0);
-    const drag = useRef<{ pointerId: number; x: number; y: number; view: View } | null>(null);
+    const pointers = useRef(new Map<number, Point>());
+    const gesture = useRef<Gesture | null>(null);
+    const gestureMoved = useRef(false);
+    const suppressClickUntil = useRef(0);
+    const wheelActive = useRef(false);
+    const wheelTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const routeRequest = useRef<AbortController | null>(null);
     const [routeState, setRouteState] = useState<RouteState>({ key: "" });
     const height = typeof props.height === "number" && Number.isFinite(props.height) && props.height > 0 ? props.height : 360;
@@ -209,9 +222,13 @@ const MapComponent = defineComponent({
     const routeKey = props.route ? coords : "";
     const fitted = useMemo(() => fitMarkers(markers, size), [markerKey, size.width, size.height]);
     const currentView = view ?? fitted;
+    const viewRef = useRef(currentView);
+    viewRef.current = currentView;
+    const interaction = useRef({ size, streaming, hasMarkers: markers.length > 0, fitted });
+    interaction.current = { size, streaming, hasMarkers: markers.length > 0, fitted };
     const world = TILE_SIZE * 2 ** currentView.zoom;
-    const tiles = size.width > 0 && size.height > 0 && markers.length > 0 ? visibleTiles(currentView, size, appearance) : [];
-    const { states: tileStates, failImage } = useTiles(tiles, appearance, dragging, retry);
+    const tiles = size.width > 0 && size.height > 0 && markers.length > 0 ? visibleTiles(currentView, size, appearance, rasterZoom) : [];
+    const { states: tileStates, failImage } = useTiles(tiles, appearance, dragging || wheeling, retry);
     const uniqueTiles = Array.from(new Set(tiles.map(tile => tile.key)));
     const failures = uniqueTiles.filter(key => tileStates[key]?.error);
     const loaded = uniqueTiles.filter(key => tileStates[key]?.data);
@@ -232,7 +249,55 @@ const MapComponent = defineComponent({
       observer.observe(element);
       return () => observer.disconnect();
     }, []);
-    useEffect(() => { setView(null); }, [markerKey]);
+    useEffect(() => {
+      cancelInteractions();
+      viewRef.current = interaction.current.fitted;
+      setView(null);
+    }, [markerKey]);
+    useEffect(() => { if (streaming) cancelInteractions(); }, [streaming]);
+    useEffect(() => { if (pointers.current.size) rebaseGesture(); }, [size.width, size.height]);
+    useEffect(() => {
+      const element = container.current;
+      if (!element) return;
+      const wheel = (event: WheelEvent) => {
+        const context = interaction.current;
+        // Ordinary scrolling belongs to the page. Modified scrolling (including
+        // browser trackpad pinch events exposed as Ctrl+wheel) belongs to the map.
+        if ((!event.ctrlKey && !event.metaKey) || context.streaming || !context.hasMarkers || !event.cancelable) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (pointers.current.size || !Number.isFinite(event.deltaY) || event.deltaY === 0) return;
+        const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? context.size.height : 1;
+        const delta = clamp(event.deltaY * multiplier, -240, 240);
+        const current = viewRef.current;
+        const zoom = clamp(current.zoom - delta / 300, MIN_ZOOM, MAX_ZOOM);
+        if (zoom === current.zoom) return;
+        if (!wheelActive.current) {
+          wheelActive.current = true;
+          setWheeling(true);
+          setRasterZoom(Math.floor(current.zoom));
+        }
+        const position = localPoint({ x: event.clientX, y: event.clientY });
+        applyView(anchoredView(worldPoint(current, position), position, zoom));
+        clearTimeout(wheelTimer.current);
+        wheelTimer.current = setTimeout(() => {
+          wheelActive.current = false;
+          setWheeling(false);
+          if (!pointers.current.size) setRasterZoom(null);
+        }, 180);
+      };
+      const blur = () => cancelInteractions();
+      const visibility = () => { if (document.hidden) cancelInteractions(); };
+      element.addEventListener("wheel", wheel, { passive: false });
+      window.addEventListener("blur", blur);
+      document.addEventListener("visibilitychange", visibility);
+      return () => {
+        element.removeEventListener("wheel", wheel);
+        window.removeEventListener("blur", blur);
+        document.removeEventListener("visibilitychange", visibility);
+        cancelInteractions(false);
+      };
+    }, []);
     useEffect(() => {
       routeRequest.current?.abort();
       if (!props.route || routeUnavailable || streaming || !routeKey) {
@@ -265,48 +330,150 @@ const MapComponent = defineComponent({
     const copies = Math.ceil(size.width / world) + 1;
     const copyOffsets = Array.from({ length: copies * 2 + 1 }, (_, index) => (index - copies) * world);
 
+    function applyView(next: View) {
+      // Event bursts can precede React's next render. Keep the next event anchored
+      // to the view just applied, rather than to the previous rendered frame.
+      viewRef.current = next;
+      setView(next);
+    }
+    function localPoint(client: Point): Point {
+      const element = container.current;
+      if (!element) return { x: 0, y: 0 };
+      const bounds = element.getBoundingClientRect();
+      return { x: client.x - bounds.left - element.clientLeft, y: client.y - bounds.top - element.clientTop };
+    }
+    function worldPoint(current: View, position: Point): Point {
+      const viewport = interaction.current.size;
+      const scale = TILE_SIZE * 2 ** current.zoom;
+      return { x: current.x + (position.x - viewport.width / 2) / scale, y: current.y + (position.y - viewport.height / 2) / scale };
+    }
+    function anchoredView(anchor: Point, position: Point, zoom: number): View {
+      const viewport = interaction.current.size;
+      const scale = TILE_SIZE * 2 ** zoom;
+      return { x: wrap(anchor.x - (position.x - viewport.width / 2) / scale), y: clamp(anchor.y - (position.y - viewport.height / 2) / scale, 0, 1), zoom };
+    }
+    function gesturePosition(ids: number[]) {
+      const first = localPoint(pointers.current.get(ids[0])!);
+      if (ids.length === 1) return { center: first, distance: null };
+      const second = localPoint(pointers.current.get(ids[1])!);
+      return { center: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }, distance: Math.hypot(second.x - first.x, second.y - first.y) };
+    }
+    function rebaseGesture() {
+      const ids = [...pointers.current.keys()].slice(0, 2);
+      if (!ids.length) { gesture.current = null; return; }
+      const position = gesturePosition(ids);
+      const current = viewRef.current;
+      gesture.current = { ids, anchor: worldPoint(current, position.center), center: position.center, zoom: current.zoom, distance: position.distance };
+    }
+    function releasePointer(pointerId: number) {
+      const element = container.current;
+      try { if (element?.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId); }
+      catch { /* The browser may already have released a cancelled pointer. */ }
+    }
+    function cancelInteractions(updateState = true) {
+      const ids = [...pointers.current.keys()];
+      // Remove pointers before release; lostpointercapture can fire synchronously.
+      pointers.current.clear();
+      gesture.current = null;
+      if (gestureMoved.current) suppressClickUntil.current = Date.now() + 400;
+      gestureMoved.current = false;
+      for (const pointerId of ids) releasePointer(pointerId);
+      clearTimeout(wheelTimer.current);
+      wheelActive.current = false;
+      if (updateState) { setDragging(false); setWheeling(false); setRasterZoom(null); }
+    }
+    function finishPointer(pointerId: number) {
+      if (!pointers.current.has(pointerId)) return;
+      pointers.current.delete(pointerId);
+      releasePointer(pointerId);
+      if (pointers.current.size) {
+        // A remaining finger starts from the current view, so releasing the
+        // other finger cannot snap back to the pre-pinch pan origin.
+        rebaseGesture();
+      } else {
+        gesture.current = null;
+        if (gestureMoved.current) suppressClickUntil.current = Date.now() + 400;
+        gestureMoved.current = false;
+        setDragging(false);
+        if (!wheelActive.current) setRasterZoom(null);
+      }
+    }
     function zoomBy(delta: number) {
-      setView(previous => { const current = previous ?? fitted; return { ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) }; });
+      cancelInteractions();
+      const current = viewRef.current;
+      applyView({ ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) });
     }
     function moveBy(x: number, y: number) {
-      setView(previous => {
-        const current = previous ?? fitted;
-        const scale = TILE_SIZE * 2 ** current.zoom;
-        return { ...current, x: wrap(current.x + x / scale), y: clamp(current.y + y / scale, 0, 1) };
-      });
+      cancelInteractions();
+      const current = viewRef.current;
+      const scale = TILE_SIZE * 2 ** current.zoom;
+      applyView({ ...current, x: wrap(current.x + x / scale), y: clamp(current.y + y / scale, 0, 1) });
     }
-    function finishDrag(pointerId: number) {
-      if (drag.current?.pointerId !== pointerId) return;
-      if (container.current?.hasPointerCapture(pointerId)) container.current.releasePointerCapture(pointerId);
-      drag.current = null;
-      setDragging(false);
+    function fitLocations() {
+      cancelInteractions();
+      applyView(interaction.current.fitted);
     }
 
     return <div style={{ display: "grid", gap: 7, minWidth: 0 }}>
       {invalidMarkers > 0 && <div role="status">{invalidMarkers} map {invalidMarkers === 1 ? "marker has" : "markers have"} invalid coordinates or a latitude outside the supported Web Mercator range (±85.0511°).</div>}
-      <div ref={container} role="region" aria-label="Interactive street map. Drag or use arrow keys to move. Use plus and minus to zoom. Home fits all markers."
+      <div ref={container} role="region" aria-label="Interactive street map. Drag or use arrow keys to move. Pinch or hold Control or Command while scrolling to zoom. Use plus and minus to zoom. Home fits all markers."
         tabIndex={0}
         style={{ position: "relative", width: "100%", height, minHeight: 120, overflow: "hidden", borderRadius: 9, border: "1px solid #9ca3af", background: appearance === "dark" ? "#20242a" : "#f1f3f5", color: appearance === "dark" ? "#f3f4f6" : "#1f2937", touchAction: "none", cursor: dragging ? "grabbing" : "grab", userSelect: "none" }}
         onPointerDown={event => {
-          if (streaming || !markers.length || drag.current || event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
-          event.preventDefault();
-          event.currentTarget.focus({ preventScroll: true });
-          event.currentTarget.setPointerCapture(event.pointerId);
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, view: currentView };
+          if (!pointers.current.size) { suppressClickUntil.current = 0; gestureMoved.current = false; }
+          if (streaming || !markers.length || event.button !== 0) return;
+          const button = (event.target as HTMLElement).closest("button");
+          const markerTouch = event.pointerType === "touch" && button?.hasAttribute("data-map-marker");
+          if (button && !markerTouch) return;
+          // A stationary one-finger marker tap keeps its native button click.
+          // Capture transfers to the viewport only once it moves or joins a pinch.
+          if (!markerTouch) {
+            event.preventDefault();
+            event.currentTarget.focus({ preventScroll: true });
+          }
+          if (!pointers.current.size) {
+            clearTimeout(wheelTimer.current);
+            wheelActive.current = false;
+            setWheeling(false);
+            setRasterZoom(Math.floor(viewRef.current.zoom));
+          }
+          pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          if (pointers.current.size > 1) { gestureMoved.current = true; suppressClickUntil.current = Infinity; }
+          if (!markerTouch || pointers.current.size > 1) {
+            try { for (const pointerId of pointers.current.keys()) event.currentTarget.setPointerCapture(pointerId); }
+            catch { cancelInteractions(); return; }
+          }
+          rebaseGesture();
           setDragging(true);
         }}
         onPointerMove={event => {
-          const active = drag.current;
-          if (!active || active.pointerId !== event.pointerId) return;
-          const scale = TILE_SIZE * 2 ** active.view.zoom;
-          setView({ ...active.view, x: wrap(active.view.x - (event.clientX - active.x) / scale), y: clamp(active.view.y - (event.clientY - active.y) / scale, 0, 1) });
+          if (!pointers.current.has(event.pointerId)) return;
+          pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          const active = gesture.current;
+          if (!active || !active.ids.includes(event.pointerId)) return;
+          const position = gesturePosition(active.ids);
+          if (!gestureMoved.current && Math.hypot(position.center.x - active.center.x, position.center.y - active.center.y) < 4) return;
+          gestureMoved.current = true;
+          suppressClickUntil.current = Infinity;
+          event.preventDefault();
+          try { for (const pointerId of pointers.current.keys()) if (!event.currentTarget.hasPointerCapture(pointerId)) event.currentTarget.setPointerCapture(pointerId); }
+          catch { cancelInteractions(); return; }
+          if (active.distance != null && (active.distance === 0 || position.distance === 0)) { rebaseGesture(); return; }
+          const zoom = active.distance != null && position.distance != null
+            ? clamp(active.zoom + Math.log2(position.distance / active.distance), MIN_ZOOM, MAX_ZOOM)
+            : active.zoom;
+          applyView(anchoredView(active.anchor, position.center, zoom));
         }}
-        onPointerUp={event => finishDrag(event.pointerId)} onPointerCancel={event => finishDrag(event.pointerId)} onLostPointerCapture={event => finishDrag(event.pointerId)}
+        onPointerUp={event => finishPointer(event.pointerId)} onPointerCancel={event => finishPointer(event.pointerId)}
+        onLostPointerCapture={event => { if (event.target === event.currentTarget) finishPointer(event.pointerId); }}
+        onClickCapture={event => {
+          if (Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); }
+        }}
         onKeyDown={event => {
           if (streaming || event.target !== event.currentTarget || !markers.length) return;
           if (event.key === "+" || event.key === "=") zoomBy(1);
           else if (event.key === "-") zoomBy(-1);
-          else if (event.key === "Home") setView(fitted);
+          else if (event.key === "Home") fitLocations();
           else if (event.key === "ArrowLeft") moveBy(-80, 0);
           else if (event.key === "ArrowRight") moveBy(80, 0);
           else if (event.key === "ArrowUp") moveBy(0, -80);
@@ -316,7 +483,7 @@ const MapComponent = defineComponent({
         }}>
         {tiles.map(tile => {
           const state = tileStates[tile.key];
-          const position: CSSProperties = { position: "absolute", left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE, maxWidth: "none", pointerEvents: "none" };
+          const position: CSSProperties = { position: "absolute", left: tile.left, top: tile.top, width: tile.size, height: tile.size, maxWidth: "none", pointerEvents: "none" };
           return state?.data ? <img key={`${tile.key}/${tile.left}/${tile.top}`} src={state.data.dataUrl} alt="" draggable={false} style={position} onError={() => failImage(tile.key)} />
             : state?.error ? <div key={`${tile.key}/${tile.left}/${tile.top}`} style={{ ...position, display: "grid", placeItems: "center", fontSize: 12, border: "1px dashed #9ca3af", boxSizing: "border-box" }}>Map tile unavailable</div> : null;
         })}
@@ -328,7 +495,7 @@ const MapComponent = defineComponent({
           const x = nearestDelta(point.x - currentView.x) * world + size.width / 2;
           const y = (point.y - currentView.y) * world + size.height / 2;
           return copyOffsets.filter(offset => x + offset >= -24 && x + offset <= size.width + 24 && y >= -24 && y <= size.height + 24).map(offset =>
-            <button key={`${marker.index}/${offset}`} type="button" disabled={streaming}
+            <button key={`${marker.index}/${offset}`} type="button" data-map-marker="true" disabled={streaming}
               aria-label={`${marker.index + 1}. ${marker.label}${marker.category ? `, ${marker.category}` : ""}`} aria-pressed={selected.value === marker.label}
               title={marker.label} onClick={() => selected.setValue(marker.label)}
               style={{ position: "absolute", left: x + offset, top: y, transform: "translate(-50%, -50%)", width: 32, height: 32, borderRadius: "50%", border: selected.value === marker.label ? "3px solid #111827" : "2px solid #fff", boxShadow: "0 1px 5px #0008", background: selected.value === marker.label ? "#fbbf24" : "#2563eb", color: selected.value === marker.label ? "#111827" : "#fff", font: "inherit", fontSize: 14, fontWeight: 700, padding: 0, cursor: "pointer" }}>
@@ -339,13 +506,14 @@ const MapComponent = defineComponent({
         {markers.length > 0 && <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4 }}>
           <button type="button" style={controlStyle} aria-label="Zoom in" disabled={streaming || currentView.zoom >= MAX_ZOOM} onClick={() => zoomBy(1)}>+</button>
           <button type="button" style={controlStyle} aria-label="Zoom out" disabled={streaming || currentView.zoom <= MIN_ZOOM} onClick={() => zoomBy(-1)}>−</button>
-          <button type="button" style={controlStyle} disabled={streaming} onClick={() => setView(fitted)}>Fit locations</button>
+          <button type="button" style={controlStyle} disabled={streaming} onClick={fitLocations}>Fit locations</button>
         </div>}
         {loading && <span role="status" style={{ position: "absolute", top: 47, left: 8, padding: "3px 7px", fontSize: 12, background: "#fffe", color: "#111827", borderRadius: 4 }}>Loading street-map tiles…</span>}
         {credits.length > 0 && <div style={{ position: "absolute", right: 0, bottom: 0, left: 0, padding: "3px 7px", fontSize: 10, background: "#fffe", color: "#111827", cursor: "default", userSelect: "text" }}>
           {credits.join(" · ")}<span style={{ display: "block" }}>{sources.join(" · ")}</span>
         </div>}
       </div>
+      {markers.length > 0 && <span style={{ fontSize: "0.75em", opacity: 0.8 }}>Drag to move; pinch or hold Ctrl/⌘ while scrolling to zoom. Ordinary scrolling moves the page.</span>}
       {failures.length > 0 && <div role="status" style={{ fontSize: "0.85em" }}>
         {failures.length} visible map {failures.length === 1 ? "tile is" : "tiles are"} unavailable. {tileStates[failures[0]]?.error}{" "}
         <button type="button" style={controlStyle} onClick={() => setRetry(value => value + 1)}>Retry map resources</button>
@@ -360,7 +528,7 @@ const MapComponent = defineComponent({
       {markers.length > 0 && <div role="group" aria-label="Map locations" style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
         {markers.map(marker => <button key={marker.index} type="button" aria-pressed={selected.value === marker.label} disabled={streaming}
           style={{ ...controlStyle, fontSize: 12, background: selected.value === marker.label ? "#dbeafe" : "#fff" }}
-          onClick={() => { selected.setValue(marker.label); const point = project(marker.lat, marker.lng); setView({ ...currentView, ...point }); }}>
+          onClick={() => { cancelInteractions(); selected.setValue(marker.label); const point = project(marker.lat, marker.lng); applyView({ ...viewRef.current, ...point }); }}>
           {marker.index + 1}. {marker.label}
         </button>)}
       </div>}

@@ -35,7 +35,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Label | text | 可见标签；字段实际关联由各控件实现 |
 | Badge | neutral/info/success/warning/danger/purple/pink、Lucide icon | 未知 icon 显式提示 |
 | Icon | name、sm/md/lg/xl、color；实际本地 Lucide 图标 | 仅安装版本存在的名称 |
-| Markdown | CommonMark/GFM、表格、任务列表、代码块 | raw HTML 跳过；图片显式不可用；链接禁用；带语言的代码块使用下述本地高亮；Markdown数学扩展未接入 |
+| Markdown | CommonMark/GFM、表格、任务列表、代码块 | raw HTML 跳过；图片显式不可用；链接禁用；带语言的代码块使用下述本地高亮；公开Markdown契约未声明美元数学语法，需要公式时用独立Math组件 |
 | Quote | text/cite | cite 为纯文本，不导航 |
 | Code | code/language、横向滚动 | 语言标签及本地语法高亮；未指定/未知语言和超预算保留完整原文并说明，复制明确不可用 |
 | Math | tex/inline；本地 KaTeX 到原生 MathML | trust=false；不打包字体；原生MathML效果待各WebView验收；有解析/展开预算 |
@@ -62,7 +62,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | SearchImage | query/aspectRatio/radius/fit；真实父层搜索、重试/切换、来源文本 | q须2–200字符；API最多4图；来源未提供作者/许可时明确显示缺失，不声称所有搜索图片可再分发 |
 | Chart | bar/line/area/pie/donut/scatter，x/series，number/currency/percent，height | 下方图表细项，不含原版未定义的Sparkline |
 | Table | columns、rows；真实表格、Node单元格 | 无排序/分页API；超额显式错误 |
-| Map | markers/route/selected/height；自动fit、拖动、按键/按钮缩放，label绑定选择、真实road route | 自有栅格，不是MapLibre；无wheel/pinch/旋转/倾斜；只支持WebMercator纬度范围 |
+| Map | markers/route/selected/height；自动fit、拖动、按键/按钮、Ctrl/⌘+wheel、双指缩放/平移，label绑定选择、真实road route | 自有栅格，不是MapLibre；普通wheel滚动页面；无旋转/倾斜，仅WebMercator纬度范围 |
 | MapMarker | label/lat/lng/category/icon | icon按公开emoji语义展示；Map外显式提示；不伪造点坐标 |
 | Svg | children/viewBox/width/height | 只允许下面的绘图节点；无脚本、URL paint、href、foreignObject或任意样式 |
 | Circle | cx/cy/r/fill/stroke/strokeWidth/opacity | 校验有限几何和安全paint |
@@ -141,6 +141,14 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - `/api/wiki` 仅在桥允许列表中；原公开55组件没有Wiki组件，因此本包没有虚构同名组件或自动请求它。
 - 请求取消和requestId去重；同时4个活跃请求以配合宿主队列，排队数量无额外产品上限。15秒活跃超时；32MiB地图缓存会淘汰并按需重载，不截断marker数量。
 
+### 地图手势细项
+
+- Ctrl/⌘+wheel 在鼠标位置锚定缩放；普通wheel保留页面滚动。使用原生non-passive监听，只在有效地图且非streaming时拦截已声明的地图缩放手势；提示文字可见。浏览器把触控板pinch作为Ctrl+wheel发送时沿用同一路径。
+- 触屏单指平移、双指中心锚定pinch与平移；视图可为小数zoom，固定公共tile请求仍是合法整数z/x/y。zoom保持0–19，世界坐标水平环绕、纬度保持WebMercator边界，边界处会约束中心。
+- 单双指切换从当前真实视图重新定锚，pointer capture丢失/取消、window blur、隐藏和卸载清理手势。正常marker轻点保持原label选择；移动/双指手势抑制收尾误点击。
+- 放大可临时缩放已加载的较粗栅格；缩小时实际raster级别不高于当前view zoom的整数部分，避免枚举巨量微小tile。手势结束后再请求最终视图所需真实瓦片，不截断marker/可见tile数量、不伪造或替换tile。
+- 坐标、路由、固定来源、来源署名和selected绑定没有新接口。zoom/pan是当前viewer的本地视图状态；没有新增跨窗口同步或后台定位。实际触屏、触控板、坐标锚定和WebView行为仍未运行验收。
+
 ## 动作与状态语义
 
 | 契约 | 源级实现 | 未实现/待验收 |
@@ -183,4 +191,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
