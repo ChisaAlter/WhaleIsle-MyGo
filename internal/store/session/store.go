@@ -18,10 +18,11 @@ import (
 
 // Item is one row in the session tree.
 type Item struct {
-	AgentMetrics    AgentMetrics
-	BilledUsage     *sessioncost.Projection
-	BilledUsageSeq  float64
-	BilledUsageKind string
+	CompletionUnread bool
+	AgentMetrics     AgentMetrics
+	BilledUsage      *sessioncost.Projection
+	BilledUsageSeq   float64
+	BilledUsageKind  string
 
 	SessionID    string
 	ParentID     string
@@ -186,7 +187,10 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
-	contextProjection contextProjectionState
+	completionUnread       map[string]bool
+	sidebarRunning         map[string]bool
+	mainConversationReadID string
+	contextProjection      contextProjectionState
 
 	stopSequenceConfig        stopSequenceConfig
 	quotaNotice               quotaNoticeState
@@ -334,6 +338,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.resetSidebarStatusesLocked()
 		s.clearStopSequenceConfigLocked()
 		s.quotaNotice.current = QuotaNotice{}
 		s.quotaNotice.held = false
@@ -482,6 +487,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetSidebarStatusesLocked()
 	s.clearNextPromptLocked()
 	s.nextPrompt.accepted = nil
 	s.resetComposerHostLocked()
@@ -583,6 +589,9 @@ func (s *Store) Snapshot() ViewState {
 		st.SkillsErr = s.skillsErr.Error()
 	}
 	st.Items = append([]Item(nil), s.items...)
+	for i := range st.Items {
+		st.Items[i].CompletionUnread = s.completionUnread[st.Items[i].SessionID]
+	}
 	for _, it := range s.items {
 		if it.SessionID == s.selectedID {
 			st.SelectedCwd = it.Cwd
@@ -758,6 +767,12 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 		return
 	}
 	s.items = sessionListItems(out.Items)
+	s.reconcileSidebarStatusesLocked(s.items)
+	for _, row := range out.Items {
+		if row.Projections != nil {
+			s.applyQuestionValuesForSessionLocked(row.SessionId, row.Projections.Values, row.Projections.AsOfSeq)
+		}
+	}
 	s.composerRosterClient = client
 	selectedRemoved := false
 	for _, mutation := range s.listMutations {

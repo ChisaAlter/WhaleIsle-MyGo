@@ -455,6 +455,14 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	if selectSession == nil {
 		selectSession = m.Store.Select
 	}
+	selectRoot := selectSession
+	selectSession = func(id string) {
+		if m.Sizes != nil && m.Sizes.Workspace != nil {
+			m.Sizes.Workspace.closeMainChild()
+		}
+		m.Store.MarkMainConversationViewed(id)
+		selectRoot(id)
+	}
 	createSession := m.OnCreateSession
 	if createSession == nil {
 		createSession = func() { m.Store.CreateSession(context.Background()) }
@@ -469,6 +477,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		schedules = m.ScheduleStore.Snapshot()
 	}
 	sidebar.View(c, sidebar.Model{
+		PendingStatuses:      sidebarPendingStatuses(m),
 		Batch:                m.Store.SessionBatch(),
 		OnBatchEdit:          m.Store.EditSessionBatch,
 		OnBatchRequest:       m.Store.RequestSessionBatch,
@@ -584,6 +593,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				if mainSubagentConversation(c, m) {
 					return
 				}
+				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				projectObserverHeader(c, m)
 				if emptyHero {
 					// EmptyHero: blank header band (no Initialize Git / layout glyphs).

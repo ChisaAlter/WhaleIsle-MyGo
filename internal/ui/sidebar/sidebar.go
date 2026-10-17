@@ -16,6 +16,7 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	PendingStatuses              map[string]string
 	sessionDrag                  *sessionDragContext
 	Batch                        session.SessionBatch
 	OnBatchEdit                  func(string, []session.SessionBatchTarget)
@@ -386,8 +387,9 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if it.Pinned && !renaming {
 		label = i18n.T(i18n.KeySidebarPinnedPrefix) + label
 	}
-	if it.Running && !renaming {
-		label = "● " + label
+	status := sessionStatus(m, it)
+	if !renaming {
+		label = statusPrefix(status) + label
 	}
 	taskHint := ""
 	for _, task := range schedstore.ActiveForSession(m.Schedules, it.SessionID) {
@@ -422,7 +424,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		return
 	}
 	if !selected {
-		row := ui.Button(c, "").Tooltip(taskHint).FillWidth().Height(32).Radius(8).
+		row := ui.Button(c, "").Tooltip(statusLabel(status)+"\n"+taskHint).FillWidth().Height(32).Radius(8).
 			Background(bg).BorderWidth(0).
 			Padding(0, 8, 0, pad).AlignItems(ui.Center)
 		row.Children(func() {
@@ -442,7 +444,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		return
 	}
 	// Selected: title + optional cwd + action strip (overflow menu proxy).
-	cell := ui.Column(c).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
+	cell := ui.Column(c).Tooltip(statusLabel(status)).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
 	cell.Children(func() {
 		title := ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor)
 		sessionDragSource(title, m, it)

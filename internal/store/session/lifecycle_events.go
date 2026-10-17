@@ -175,6 +175,12 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 }
 
 func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) bool {
+	if m.kind == "api-session/status" {
+		s.observeSidebarRunningLocked(m.sessionID, m.running, live && s.listLoading)
+	}
+	if m.kind == "api-session/added" {
+		s.observeSidebarRunningLocked(m.sessionID, m.item.Running, false)
+	}
 	index := -1
 	for i := range s.items {
 		if s.items[i].SessionID == m.sessionID {
@@ -256,6 +262,8 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 // selectSessionLocked invalidates all work belonging to the old transcript,
 // including an Open or page request that completes after a selection change.
 func (s *Store) selectSessionLocked(sessionID string) {
+	s.mainConversationReadID = ""
+	delete(s.completionUnread, sessionID)
 	if s.selectedID == sessionID {
 		return
 	}

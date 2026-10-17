@@ -19,6 +19,7 @@ func (w *WorkspacePanes) closeMainChild() {
 	if w == nil || w.conversation == nil {
 		return
 	}
+	w.conversation.Owner.EndMainConversationChildView()
 	w.conversation.Pane.releaseAgentPane()
 	w.conversation = nil
 }
@@ -62,6 +63,7 @@ func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddres
 		}
 		w.closeMainChild()
 		w.conversation = &mainChildConversation{Pane: n, Owner: m.Store, Binding: m.Store.Snapshot().PlanHistoryBinding}
+		m.Store.MarkMainConversationViewed(address.ChildSessionID)
 	}
 }
 

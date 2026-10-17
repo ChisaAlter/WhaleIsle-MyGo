@@ -128,7 +128,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		button := ui.Button(c.Key(struct {
 			Host uint64
 			ID   string
-		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).Disabled(row.Archived).FillWidth().BorderWidth(0).Background(background).Padding(6, 8, 6, 8)
+		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).Tooltip(statusLabel(sessionStatus(m, row.Item))).Disabled(row.Archived).FillWidth().BorderWidth(0).Background(background).Padding(6, 8, 6, 8)
 		button.Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				title := strings.TrimSpace(row.Item.Title)
@@ -138,9 +138,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				if row.Archived {
 					title = workspaceText("已归档 · ", "Archived · ") + title
 				}
-				if row.Item.Running {
-					title = "● " + title
-				}
+				title = statusPrefix(sessionStatus(m, row.Item)) + title
 				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 				label := row.Workspace
 				if label == "" {
