@@ -65,8 +65,9 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 	row.Children(func() {
 		sizes.dragging = drag.active
 		defer func() { sizes.dragging = false }()
+		animate := !c.Preferences().ReduceMotion && !drag.active
 		rail := ui.Box(c).Key("sidebar-column").Width(width).Shrink(0).Clip()
-		if !drag.active {
+		if animate {
 			rail.Transition(shellTrackTransition)
 		}
 		rail.Children(sidebar)
@@ -75,7 +76,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			dividerWidth = 0
 		}
 		div := ui.Box(c).Key("sidebar-divider").Width(dividerWidth).Shrink(0)
-		if !drag.active {
+		if animate {
 			div.Transition(shellTrackTransition)
 		}
 		if open {
@@ -88,7 +89,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			}
 		}
 		main := ui.Box(c).Key("main-column").Grow(1).MinWidth(0).Clip()
-		if !drag.active {
+		if animate {
 			main.Transition(shellTrackTransition)
 		}
 		main.Children(center)
@@ -99,7 +100,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 		}
 		const grip = float32(6)
 		handle := ui.Box(c).Absolute().Top(0).Bottom(0).Left(width - (grip-SplitterWidth)/2).Width(grip).Cursor(ui.CursorResizeEW)
-		if !drag.active {
+		if animate {
 			handle.Transition(shellTrackTransition)
 		}
 		dx, _, held := handle.Dragged()

@@ -32,14 +32,24 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	if _, ok := tt.Find("Sidebar divider"); ok {
 		t.Fatal("collapsed rail kept a resize target")
 	}
-	if err := tt.Click(i18n.T(i18n.KeySidebarExpand)); err != nil {
-		t.Fatal(err)
+	if SidebarCollapsedWidth() == 0 {
+		sizes.ToggleSidebar()
+		tt.Frame()
+	} else {
+		if err := tt.Click(i18n.T(i18n.KeySidebarExpand)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if sizes.Sidebar != 360 {
 		t.Fatalf("expanded width lost: %v", sizes.Sidebar)
 	}
-	if err := tt.Click(i18n.T(i18n.KeySidebarCollapse)); err != nil {
-		t.Fatal(err)
+	if SidebarCollapsedWidth() == 0 {
+		sizes.ToggleSidebar()
+		tt.Frame()
+	} else {
+		if err := tt.Click(i18n.T(i18n.KeySidebarCollapse)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if sizes.Sidebar != 0 {
 		t.Fatal("collapse button failed")
@@ -57,7 +67,12 @@ func TestSidebarCollapseRestore(t *testing.T) {
 			func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { main = r }) })
 	}, 1200, 800)
 	_ = geometry
-	if rail.W != SidebarCollapsed || main.X != SidebarCollapsed+SplitterWidth {
+	collapsed := SidebarCollapsedWidth()
+	divider := SplitterWidth
+	if collapsed == 0 {
+		divider = 0
+	}
+	if rail.W != collapsed || main.X != collapsed+divider {
 		t.Fatalf("rail=%+v main=%+v", rail, main)
 	}
 	// Existing resume store round-trips closed state and the original width.

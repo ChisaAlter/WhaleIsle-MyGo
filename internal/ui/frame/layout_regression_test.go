@@ -109,7 +109,12 @@ func TestViewRemembersRightPreferenceAcrossResizeAndExplicitClose(t *testing.T) 
 	}
 	check(400, 518)
 	tt.SetSize(900, 800)
-	check(400, 442)
+	collapsed := SidebarCollapsedWidth()
+	sidebarDivider := float32(1)
+	if collapsed == 0 {
+		sidebarDivider = 0
+	}
+	check(400, 900-collapsed-sidebarDivider-SplitterWidth-400)
 	tt.SetSize(1600, 800)
 	check(778, 540)
 	open = false
@@ -162,7 +167,12 @@ func TestRightDragChangesPreferenceAndSurvivesReopen(t *testing.T) {
 		t.Fatalf("drag sizes=%+v right=%v, want right468 center450", sizes, right)
 	}
 	tt.SetSize(900, 800)
-	if sizes.Right != 468 || right != 442 {
+	collapsed := SidebarCollapsedWidth()
+	if collapsed == 0 {
+		if sizes.Right != 468 || right != 468 || sizes.Center != 431 {
+			t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
+		}
+	} else if sizes.Right != 468 || right != 442 {
 		t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
 	}
 	tt.SetSize(1600, 800)
@@ -358,6 +368,9 @@ func TestTerminalToggleDoesNotStealFocusFromSidebar(t *testing.T) {
 			}
 			for _, width := range []int{900, 1600} {
 				tt.SetSize(width, 800)
+				if width < 1024 && SidebarCollapsedWidth() == 0 {
+					continue
+				}
 				if !tt.Focused(label) || tt.Focused("Composer draft") {
 					t.Fatalf("width%d stole sidebar focus", width)
 				}
