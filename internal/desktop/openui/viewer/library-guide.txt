@@ -58,7 +58,7 @@ SegmentedControl(value: $binding<string>, options: (string | {value: string, lab
 RadioGroup(value: $binding<string>, options: (string | {value: string, label: string, description?: string})[], label?: string, variant?: "list" | "pills" | "cards") — A reactive single choice displayed as a list, pills, or cards.
 DatePicker(value: $binding<string>, label?: string, min?: string, max?: string) — A reactive date input using YYYY-MM-DD values.
 Form(children: any[]) — Groups fields and passes their current state with assistant actions.
-Image(src: string, alt: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback.
+Image(src: string, alt: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — A local bitmap or public HTTP(S) image loaded through the parent image service; failed public sources search the alt text for a replacement photo.
 SearchImage(query: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — Searches the parent image service for real bitmap images and retains their original source URLs.
 Popover(trigger: any, content: any) — Local disclosure panel with Escape, outside dismissal, and focus restoration.
 Flashcard(front: any, back: any, hint?: string) — Two-sided card with mouse, touch, and keyboard flipping; respects reduced motion.

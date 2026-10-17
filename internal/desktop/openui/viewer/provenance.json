@@ -6,13 +6,13 @@
   "assets": [
     {
       "name": "viewer.html",
-      "bytes": 2391629,
-      "sha256": "bd357ec613c1af8ce589942adabfeca743d802b32a283cbf99092523370cd2b7"
+      "bytes": 2392720,
+      "sha256": "38c8c7a896a6541b2b3a241253dd032d13401f63cc4e6ecaebb04684685a3582"
     },
     {
       "name": "viewer.js",
-      "bytes": 2205258,
-      "sha256": "4dc12b4832701cbbdae8159e0b2e338f4a18a09a5738d7f9647cd32b1199f5b2"
+      "bytes": 2206349,
+      "sha256": "544507c55beeb7988a5453459f15b285d388f1ec1b01c2ad2121b7738a15097d"
     },
     {
       "name": "viewer.css",
@@ -26,13 +26,13 @@
     },
     {
       "name": "library-spec.json",
-      "bytes": 95976,
-      "sha256": "b79b5dfcf63c70f8084619082e43abf91f2d72267c7ab1e69b8ec38ea49a50b8"
+      "bytes": 95956,
+      "sha256": "4f132bce2daf98b79dd9a9c6373b5d9bbb12897eed6aaa1a0fb551f38e98288a"
     },
     {
       "name": "library-guide.txt",
-      "bytes": 23243,
-      "sha256": "c7a07e5238044df62b3a9d35f3ee6108a595c66d889784c1ee2188b09b446efd"
+      "bytes": 23233,
+      "sha256": "725fa97279501c18cd5b06c9c27d532b2666789d8fb770628bc20bc984126c11"
     }
   ],
   "packages": [

@@ -131,7 +131,7 @@
     },
     "Image": {
       "signature": "Image(src: string, alt: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
-      "description": "A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback."
+      "description": "A local bitmap or public HTTP(S) image loaded through the parent image service; failed public sources search the alt text for a replacement photo."
     },
     "SearchImage": {
       "signature": "SearchImage(query: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
@@ -1652,7 +1652,7 @@
           "alt"
         ],
         "additionalProperties": false,
-        "description": "A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback."
+        "description": "A local bitmap or public HTTP(S) image loaded through the parent image service; failed public sources search the alt text for a replacement photo."
       },
       "SearchImage": {
         "type": "object",
