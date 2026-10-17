@@ -10,6 +10,7 @@ import (
 // SkillOption is one row in the composer skills picker.
 type SkillOption struct {
 	Name        string
+	Path        string // source-owned preview path; empty when the catalog cannot open it
 	Description string
 	UserOnly    bool // modelInvocable false (disable-model-invocation skills)
 }
@@ -24,7 +25,12 @@ func flattenSkillList(list api.SkillListValue) []SkillOption {
 		if sk.WhenToUse != nil && *sk.WhenToUse != "" && desc == "" {
 			desc = *sk.WhenToUse
 		}
+		path := ""
+		if sk.Path != nil {
+			path = *sk.Path
+		}
 		out = append(out, SkillOption{
+			Path:        path,
 			Name:        sk.Name,
 			Description: desc,
 			UserOnly:    !sk.ModelInvocable,
@@ -116,7 +122,12 @@ func flattenSkillInventory(inv api.SkillInventorySnapshot) []SkillOption {
 		if sk.Name == "" || !sk.UserInvocable {
 			continue
 		}
+		path := ""
+		if sk.Path != nil {
+			path = *sk.Path
+		}
 		out = append(out, SkillOption{
+			Path:        path,
 			Name:        sk.Name,
 			Description: sk.Description,
 			UserOnly:    !sk.ModelInvocable,

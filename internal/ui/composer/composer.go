@@ -40,6 +40,7 @@ type Model struct {
 	OnSubmit             func()
 	OnSubmitGesture      func(accelerated bool)
 	OnOpenURL            func(string)
+	OnOpenReference      func(path string) // existing session-owned file preview route
 	OnAttachFiles        func([]string)
 	OnRetryAttachment    func(int)
 	OnWorkspaceReference func(filelink.Reference) error
@@ -829,9 +830,13 @@ func paintMentionChips(c *ui.Context, m Model, mentions []DraftMention, muted, a
 				if ok && selectStart != nil && selectEnd != nil {
 					*selectStart, *selectEnd = start, end
 				}
-			} else if chip.Clicked() {
-				*m.Draft = RemoveDraftMention(*m.Draft, ment)
-				closeChipEdit(m)
+			} else if chip.Clicked() && chip.Clicks() == 1 {
+				activateDraftReference(m, ment)
+			}
+			if ui.Button(c, "×").Label("Remove reference " + ment.Text).
+				Tooltip("移除引用 / Remove reference").TextColor(muted).
+				Disabled(m.State != nil && m.State.Sending).Clicked() {
+				removeDraftReference(m, ment)
 			}
 		}
 	})

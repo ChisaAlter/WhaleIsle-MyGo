@@ -758,6 +758,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnSubmit:             m.OnSubmitComposer,
 						OnSubmitGesture:      m.OnSubmitComposerGesture,
 						OnOpenURL:            m.OnOpenCitationURL,
+						OnOpenReference:      m.OnOpenDeliverable,
 						OnAttachFiles:        m.OnAttachComposerFiles,
 						OnRetryAttachment:    m.OnRetryComposerFile,
 						OnWorkspaceReference: func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
