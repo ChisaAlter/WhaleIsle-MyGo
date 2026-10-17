@@ -23,7 +23,7 @@
     },
     "Carousel": {
       "signature": "Carousel(children: any, itemWidth?: number, gap?: number)",
-      "description": "Keyboard-scrollable horizontal collection with snapping items."
+      "description": "Horizontal collection with snapping items and previous/next controls."
     },
     "Divider": {
       "signature": "Divider()",
@@ -892,7 +892,7 @@
           "children"
         ],
         "additionalProperties": false,
-        "description": "Keyboard-scrollable horizontal collection with snapping items."
+        "description": "Horizontal collection with snapping items and previous/next controls."
       },
       "Divider": {
         "type": "object",

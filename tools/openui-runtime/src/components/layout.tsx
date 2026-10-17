@@ -1,6 +1,7 @@
 // Independently authored compatibility renderers; only the public DSL contract is reused.
-import React, { type CSSProperties } from 'react';
+import React, { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { defineComponent, type DefinedComponent } from '@openuidev/react-lang';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { z } from 'zod/v4';
 
 const alignment = z.enum(['start', 'center', 'end', 'stretch']);
@@ -156,17 +157,51 @@ const Card = defineComponent({
 const Carousel = defineComponent({
   name: 'Carousel',
   props: z.object({ children: z.any(), itemWidth: z.number().optional(), gap: z.number().optional() }),
-  description: 'Keyboard-scrollable horizontal collection with snapping items.',
+  description: 'Horizontal collection with snapping items and previous/next controls.',
   component: ({ props, renderNode }) => {
     const children = Array.isArray(props.children) ? props.children : props.children == null ? [] : [props.children];
     const itemWidth = Math.max(1, bounded(props.itemWidth, 240));
+    const trackRef = useRef<HTMLDivElement>(null);
+    const [edges, setEdges] = useState({ start: true, end: true });
+    useLayoutEffect(() => {
+      const track = trackRef.current;
+      if (!track) return;
+      const readEdges = () => {
+        const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+        setEdges({
+          start: track.scrollLeft <= 4,
+          end: maxScroll <= 4 || track.scrollLeft >= maxScroll - 4,
+        });
+      };
+      readEdges();
+      track.addEventListener('scroll', readEdges, { passive: true });
+      const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(readEdges);
+      observer?.observe(track);
+      return () => {
+        track.removeEventListener('scroll', readEdges);
+        observer?.disconnect();
+      };
+    }, [children.length, itemWidth, props.gap]);
+    const page = (direction: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      track.scrollBy({ left: direction * track.clientWidth * 0.85, behavior: 'smooth' });
+    };
     return (
-      <div className="oui-carousel" role="region" aria-label="Scrollable items" tabIndex={0} style={{ display: 'flex', minWidth: 0, maxWidth: '100%', overflowX: 'auto', gap: spacing(props.gap, 3), paddingBottom: 8, scrollSnapType: 'x proximity', overscrollBehaviorX: 'contain' }}>
-        {children.map((child, index) => (
-          <div key={index} style={{ flex: `0 0 ${itemWidth}px`, maxWidth: '100%', minWidth: 0, scrollSnapAlign: 'start' }}>
-            {renderNode(child)}
-          </div>
-        ))}
+      <div className="oui-carousel" role="region" aria-label="Scrollable items" style={{ position: 'relative', minWidth: 0, maxWidth: '100%' }}>
+        <div ref={trackRef} tabIndex={0} style={{ display: 'flex', minWidth: 0, maxWidth: '100%', overflowX: 'auto', gap: spacing(props.gap, 3), paddingBottom: 8, scrollSnapType: 'x proximity', overscrollBehaviorX: 'contain' }}>
+          {children.map((child, index) => (
+            <div key={index} style={{ flex: `0 0 ${itemWidth}px`, maxWidth: '100%', minWidth: 0, scrollSnapAlign: 'start' }}>
+              {renderNode(child)}
+            </div>
+          ))}
+        </div>
+        <button type="button" aria-label="Previous" disabled={edges.start} onClick={() => page(-1)} style={{ position: 'absolute', zIndex: 1, left: 4, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, borderRadius: 999, border: `1px solid ${borderColor}`, background: 'var(--oui-panel, #fff)', color: 'var(--oui-ink, #172337)', display: 'grid', placeItems: 'center', padding: 0, cursor: edges.start ? 'default' : 'pointer', opacity: edges.start ? 0.45 : 0.95 }}>
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+        <button type="button" aria-label="Next" disabled={edges.end} onClick={() => page(1)} style={{ position: 'absolute', zIndex: 1, right: 4, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, borderRadius: 999, border: `1px solid ${borderColor}`, background: 'var(--oui-panel, #fff)', color: 'var(--oui-ink, #172337)', display: 'grid', placeItems: 'center', padding: 0, cursor: edges.end ? 'default' : 'pointer', opacity: edges.end ? 0.45 : 0.95 }}>
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
       </div>
     );
   },

@@ -31,7 +31,7 @@ Row(children: any, gap?: number, align?: "start" | "center" | "end" | "stretch",
 Box(children?: any, direction?: "row" | "col", gap?: number, padding?: number, background?: string, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, border?: boolean, width?: number | string, height?: number | string, flex?: number, align?: "start" | "center" | "end" | "stretch", justify?: "start" | "center" | "end" | "between", wrap?: boolean) — Configurable flex box with safe lengths, color, border, and rounded clipping.
 Grid(children: any, columns?: number, minChildWidth?: number, gap?: number) — Equal-width grid, optionally responsive to a minimum child width in pixels.
 Card(children: any, variant?: "outline" | "soft", padding?: number, gap?: number) — Rounded panel with an outline or a soft filled surface.
-Carousel(children: any, itemWidth?: number, gap?: number) — Keyboard-scrollable horizontal collection with snapping items.
+Carousel(children: any, itemWidth?: number, gap?: number) — Horizontal collection with snapping items and previous/next controls.
 Divider() — Horizontal section separator.
 Spacer() — Flexible space between layout siblings.
 Title(text: string, size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl", color?: string) — A semantic heading with a selectable size and safe text color.

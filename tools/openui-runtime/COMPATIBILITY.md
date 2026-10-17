@@ -26,7 +26,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Box | row/col、gap/padding、background/radius/border、width/height/flex、align/justify/wrap | 仅安全颜色及简单 CSS 长度；无任意 CSS 表达式/URL |
 | Grid | 固定 columns 或 minChildWidth 响应式、gap | 1–24列；极端尺寸被约束 |
 | Card | outline/soft、padding/gap | 自有面板外观 |
-| Carousel | itemWidth/gap、水平滚动和 snap、键盘聚焦 | 无自动轮播；浏览器滚动表现待验收 |
+| Carousel | itemWidth/gap、水平滚动和 snap、键盘聚焦；前后 Chevron 按钮按真实滚动边界启用/禁用，点击按视口 0.85 页平滑滚动 | 无自动轮播；浏览器滚动表现待验收 |
 | Divider | 水平分隔 | 自有颜色 |
 | Spacer | flex 填空 | 用于 flex 父容器 |
 | Title | sm/md/lg/xl/2xl/3xl、color | 自有字号/heading映射 |
