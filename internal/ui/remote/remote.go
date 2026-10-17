@@ -1,4 +1,4 @@
-// Package remote is the M9 remote workspace status stub panel.
+// Package remote is the native remote workspace status and connection panel.
 package remote
 
 import (
@@ -15,7 +15,7 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-// Model carries config-derived remote workspace status (no dsh-remote RPC yet).
+// Model carries config-derived remote workspace status plus phone/SSH actions.
 type Model struct {
 	ThemeID    string
 	SystemDark bool
@@ -62,7 +62,7 @@ type Model struct {
 	OnTogglePairing   func(enabled bool)
 }
 
-// View paints the remote workspace stub panel.
+// View paints the remote workspace panel.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)

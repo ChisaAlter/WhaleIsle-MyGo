@@ -40,6 +40,10 @@ type Snapshot struct {
 	ConnectURL          string
 }
 
+// DefaultRelayAppBaseURL is the public mobile SPA fallback used by the
+// reference dshd remote daemon when no custom remoteAppBaseUrl is configured.
+const DefaultRelayAppBaseURL = "https://ayase.cn/dshd"
+
 // FromConfig builds a snapshot from normalized config and runtime flags.
 func FromConfig(cfg config.Config, hasRemoteToken, hasRemoteRelayToken, muxReady bool, deviceCount int) Snapshot {
 	s := Snapshot{
@@ -103,6 +107,11 @@ func ConnectURL(s Snapshot) string {
 	if base := strings.TrimSpace(s.RemoteAppBaseURL); base != "" {
 		return strings.TrimRight(base, "/")
 	}
+	if normalizeMode(s.RemoteMode) == "relay" {
+		// The daemon's built-in relay always advertises the public SPA origin;
+		// the relay endpoint itself is a control socket and is not a browser URL.
+		return DefaultRelayAppBaseURL
+	}
 	if normalizeMode(s.RemoteMode) != "lan" {
 		return ""
 	}
@@ -122,6 +131,12 @@ func ConnectURL(s Snapshot) string {
 		host = "[" + bind + "]"
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, host, s.RemotePort)
+}
+
+// NormalizeMode exposes the same relay/lan/ssh normalization used by the
+// readiness and URL helpers.
+func NormalizeMode(mode string) string {
+	return normalizeMode(mode)
 }
 
 func normalizeMode(mode string) string {

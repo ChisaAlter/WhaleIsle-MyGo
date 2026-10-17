@@ -14,7 +14,7 @@ import (
 func phoneSnapshot(m Model) phoneremote.Snapshot {
 	names := append([]string(nil), m.RemoteDeviceNames...)
 	count := m.RemoteDeviceCount
-	if count == 0 && len(names) > 0 {
+	if m.RemoteDeviceNames != nil {
 		count = len(names)
 	}
 	s := phoneremote.Snapshot{

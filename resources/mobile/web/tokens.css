@@ -1,0 +1,193 @@
+/* Official dsh web semantic tokens for shells that cannot import ui-theme.
+   Values match packages/client/ui-theme/src/styles/design-platform.css. */
+
+:root {
+  color-scheme: light;
+  --dsw-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ds-font-family-code: 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas,
+    'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei';
+  --ds-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-transition-duration: 0.2s;
+  --ds-transition-duration-fast: 0.1s;
+  --ds-transition-duration-slow: 0.3s;
+  --ds-motion-duration-overlay: 0.2s;
+  --ds-motion-duration-overlay-out: 0.1s;
+  --ds-motion-distance-overlay: 8px;
+  --ds-motion-scale-overlay: 0.96;
+  --dsw-shadow-lv2: 0 4px 12px 0 rgba(0, 0, 0, 0.02), 0 2px 8px 0 rgba(0, 0, 0, 0.04);
+  --dsw-shadow-lv3:
+    0 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 4px 0 rgba(0, 0, 0, 0.02), 0 12px 32px 0 rgba(0, 0, 0, 0.08);
+  --dsw-mask-blur: blur(2px);
+  --dsw-alias-glass-opacity: 80%;
+  --dsw-alias-bg-base: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-1: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-2: rgb(255, 255, 255);
+  --dsw-alias-toast-bg: rgb(53, 54, 56);
+  --dsw-alias-toast-label: rgb(255, 255, 255);
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.24);
+  --dsw-alias-bg-module-platform: rgb(245, 246, 247);
+  --dsw-alias-border-l1: rgba(0, 0, 0, 0.04);
+  --dsw-alias-border-l2: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-l2-darkmode-thin: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-inverted: rgba(0, 0, 0, 0);
+  --dsw-alias-brand-primary: rgb(15, 17, 21);
+  --dsw-alias-button-primary-fill: rgb(15, 17, 21);
+  --dsw-alias-button-primary-hover: rgb(67, 69, 74);
+  --dsw-alias-button-info-fill: rgb(65, 118, 230);
+  --dsw-alias-button-info-hover: rgb(103, 158, 254);
+  --dsw-alias-button-elevated-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-hover: rgb(241, 243, 245);
+  --dsw-alias-interactive-bg-hover: rgba(38, 49, 72, 0.06);
+  --dsw-alias-interactive-bg-active: rgba(38, 49, 72, 0.1);
+  --dsw-alias-label-primary: rgb(15, 17, 21);
+  --dsw-alias-label-primary-foreground: rgb(255, 255, 255);
+  --dsw-alias-label-secondary: rgb(97, 102, 107);
+  --dsw-alias-label-tertiary: rgb(129, 133, 140);
+  --dsw-alias-label-caption: rgb(173, 178, 184);
+  --dsw-alias-label-dimmed: rgb(225, 229, 238);
+  --dsw-alias-state-business-primary: rgb(65, 118, 230);
+  --dsw-alias-state-error-primary: rgb(236, 19, 19);
+  --dsw-alias-state-success-primary: rgb(34, 197, 94);
+  --dsw-alias-state-warn-primary: rgb(245, 158, 11);
+  --dsw-alias-state-warn-secondary: rgb(247, 173, 49);
+  --dsw-alias-state-warn-tertiary: rgb(254, 245, 231);
+  --dsw-static-amber-400: rgb(247, 173, 49);
+  --dsw-static-deepseek-400: rgb(122, 170, 255);
+  --dsw-static-green-400: rgb(78, 209, 126);
+  --dsw-static-red-400: rgb(242, 90, 90);
+  --dsw-static-neutral-bluish-00: rgb(255, 255, 255);
+  --dsw-specific-bubble: rgb(237, 243, 254);
+  /* rgba fallbacks: WebViews without color-mix() drop the declaration and the
+     composer / menus would otherwise render with no background at all. */
+  --dsw-specific-input-major: rgba(255, 255, 255, 0.8);
+  --dsw-specific-menu: rgba(255, 255, 255, 0.8);
+  --dsw-specific-sidebar-fill: rgb(249, 250, 251);
+  --dsw-specific-sidebar-nav-item-active: rgb(235, 238, 242);
+  --dsw-specific-sidebar-nav-item-active-accent: rgb(228, 237, 253);
+  --dsw-specific-sidebar-nav-item-hover: rgb(241, 243, 245);
+  /* Pre-connection sea-horizon semantics. These are calibrated from the
+     Whale Isle boot canvas but stay owned by the mobile runtime. */
+  --mobile-connect-ink: rgb(24, 42, 54);
+  --mobile-connect-muted: rgb(82, 108, 121);
+  --mobile-connect-mark: rgb(24, 58, 74);
+  --mobile-connect-mark-cutout: rgb(229, 239, 243);
+  --mobile-connect-hairline: rgba(30, 60, 76, 0.3);
+  --mobile-connect-panel: rgba(248, 251, 253, 0.84);
+  --mobile-connect-panel-border: rgba(30, 60, 76, 0.16);
+  --mobile-connect-panel-shadow: 0 20px 54px rgba(29, 71, 91, 0.16);
+  --mobile-connect-status-surface: rgba(127, 156, 171, 0.11);
+  --mobile-connect-row-surface: rgba(127, 156, 171, 0.08);
+  --mobile-connect-primary: rgb(24, 42, 54);
+  --mobile-connect-primary-ink: rgb(244, 249, 251);
+  --mobile-connect-camera-surface: rgb(15, 17, 21);
+  --mobile-connect-camera-ink: rgb(249, 250, 251);
+  --mobile-connect-camera-muted: rgb(173, 178, 184);
+  --mobile-connect-camera-scrim: rgba(0, 0, 0, 0.32);
+  --mobile-connect-torch-surface: rgba(15, 17, 21, 0.8);
+  --mobile-connect-torch-tint: rgba(255, 255, 220, 0.16);
+  --mobile-connect-scene: linear-gradient(180deg,
+    rgb(241, 246, 248) 0%, rgb(229, 239, 243) 55%, rgb(204, 227, 235) 62%,
+    rgb(151, 188, 206) 75%, rgb(80, 126, 151) 100%);
+  --mobile-connect-haze:
+    radial-gradient(80% 46% at 16% 18%, rgba(255, 241, 214, 0.7), transparent 70%),
+    radial-gradient(68% 40% at 86% 20%, rgba(184, 215, 230, 0.66), transparent 72%);
+  --mobile-connect-stars: none;
+  --mobile-connect-sea-light: radial-gradient(100% 70% at 50% 0%, rgba(255, 255, 255, 0.32), transparent 68%);
+  --mobile-connect-grain:
+    radial-gradient(1px 1px at 18% 34%, rgba(51, 96, 119, 0.28) 50%, transparent 60%),
+    radial-gradient(1px 1px at 72% 58%, rgba(51, 96, 119, 0.24) 50%, transparent 60%),
+    radial-gradient(1px 1px at 42% 76%, rgba(51, 96, 119, 0.22) 50%, transparent 60%);
+}
+
+html[data-ds-dark-theme],
+body[data-ds-dark-theme] {
+  color-scheme: dark;
+  --dsw-alias-bg-base: rgb(21, 21, 23);
+  --dsw-alias-bg-layer-1: rgb(35, 35, 36);
+  --dsw-alias-bg-layer-2: rgb(44, 44, 46);
+  --dsw-alias-toast-bg: rgb(67, 69, 74);
+  --dsw-alias-toast-label: rgb(255, 255, 255);
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.5);
+  --dsw-alias-bg-module-platform: rgb(53, 54, 56);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.12);
+  --dsw-alias-border-l2-darkmode-thin: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-inverted: rgba(255, 255, 255, 0.06);
+  --dsw-alias-brand-primary: rgb(249, 250, 251);
+  --dsw-alias-button-primary-fill: rgb(249, 250, 251);
+  --dsw-alias-button-primary-hover: rgb(235, 238, 242);
+  --dsw-alias-button-info-fill: rgb(103, 158, 254);
+  --dsw-alias-button-info-hover: rgb(65, 118, 230);
+  --dsw-alias-button-elevated-fill: rgb(67, 69, 74);
+  --dsw-alias-button-floating-fill: rgb(44, 44, 46);
+  --dsw-alias-button-floating-hover: rgb(53, 54, 56);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+  --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.14);
+  --dsw-alias-label-primary: rgb(249, 250, 251);
+  --dsw-alias-label-primary-foreground: rgb(15, 17, 21);
+  --dsw-alias-label-secondary: rgb(207, 211, 214);
+  --dsw-alias-label-tertiary: rgb(173, 178, 184);
+  --dsw-alias-label-caption: rgb(129, 133, 140);
+  --dsw-alias-label-dimmed: rgb(67, 69, 74);
+  --dsw-alias-state-business-primary: rgb(103, 158, 254);
+  --dsw-alias-state-error-primary: rgb(242, 90, 90);
+  --dsw-alias-state-warn-primary: rgb(245, 158, 11);
+  --dsw-alias-state-warn-secondary: rgb(247, 173, 49);
+  --dsw-alias-state-warn-tertiary: rgb(39, 36, 31);
+  --dsw-specific-bubble: rgb(44, 44, 46);
+  --dsw-specific-input-major: rgba(44, 44, 46, 0.8);
+  --dsw-specific-menu: rgba(53, 54, 56, 0.8);
+  --dsw-specific-sidebar-fill: rgb(27, 27, 28);
+  --dsw-specific-sidebar-nav-item-active: rgb(67, 69, 74);
+  --dsw-specific-sidebar-nav-item-active-accent: rgb(53, 54, 56);
+  --dsw-specific-sidebar-nav-item-hover: rgb(44, 44, 46);
+  --mobile-connect-ink: rgb(234, 240, 244);
+  --mobile-connect-muted: rgb(151, 170, 182);
+  --mobile-connect-mark: rgb(186, 221, 236);
+  --mobile-connect-mark-cutout: rgb(7, 16, 26);
+  --mobile-connect-hairline: rgba(190, 224, 240, 0.32);
+  --mobile-connect-panel: rgba(8, 16, 26, 0.82);
+  --mobile-connect-panel-border: rgba(190, 224, 240, 0.16);
+  --mobile-connect-panel-shadow: 0 24px 60px rgba(0, 0, 0, 0.44);
+  --mobile-connect-status-surface: rgba(127, 156, 171, 0.11);
+  --mobile-connect-row-surface: rgba(127, 156, 171, 0.08);
+  --mobile-connect-primary: rgb(224, 237, 244);
+  --mobile-connect-primary-ink: rgb(6, 14, 22);
+  --mobile-connect-camera-surface: rgb(15, 17, 21);
+  --mobile-connect-camera-ink: rgb(249, 250, 251);
+  --mobile-connect-camera-muted: rgb(173, 178, 184);
+  --mobile-connect-camera-scrim: rgba(0, 0, 0, 0.32);
+  --mobile-connect-torch-surface: rgba(15, 17, 21, 0.8);
+  --mobile-connect-torch-tint: rgba(255, 255, 220, 0.16);
+  --mobile-connect-scene: linear-gradient(180deg,
+    rgb(2, 4, 9) 0%, rgb(4, 9, 17) 40%, rgb(8, 18, 30) 55%,
+    rgb(12, 34, 48) 62%, rgb(8, 24, 38) 78%, rgb(4, 13, 23) 100%);
+  --mobile-connect-haze:
+    radial-gradient(72% 42% at 12% 22%, rgba(64, 115, 156, 0.24), transparent 72%),
+    radial-gradient(64% 40% at 88% 18%, rgba(78, 130, 151, 0.16), transparent 76%);
+  --mobile-connect-stars:
+    radial-gradient(1.2px 1.2px at 9% 18%, rgba(236, 246, 252, 0.9) 50%, transparent 62%),
+    radial-gradient(1px 1px at 22% 38%, rgba(210, 232, 244, 0.72) 50%, transparent 62%),
+    radial-gradient(1.3px 1.3px at 37% 12%, rgba(236, 246, 252, 0.84) 50%, transparent 62%),
+    radial-gradient(1px 1px at 51% 31%, rgba(210, 232, 244, 0.74) 50%, transparent 62%),
+    radial-gradient(1.3px 1.3px at 69% 16%, rgba(236, 246, 252, 0.82) 50%, transparent 62%),
+    radial-gradient(1px 1px at 84% 36%, rgba(210, 232, 244, 0.7) 50%, transparent 62%),
+    radial-gradient(1.2px 1.2px at 94% 10%, rgba(236, 246, 252, 0.86) 50%, transparent 62%);
+  --mobile-connect-sea-light: radial-gradient(100% 70% at 50% 0%, rgba(96, 170, 200, 0.16), transparent 68%);
+  --mobile-connect-grain:
+    radial-gradient(1px 1px at 15% 38%, rgba(175, 212, 230, 0.48) 50%, transparent 60%),
+    radial-gradient(1px 1px at 68% 56%, rgba(175, 212, 230, 0.4) 50%, transparent 60%),
+    radial-gradient(1px 1px at 42% 82%, rgba(175, 212, 230, 0.32) 50%, transparent 60%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-transition-duration: 0s;
+    --ds-transition-duration-fast: 0s;
+    --ds-transition-duration-slow: 0s;
+    --ds-motion-duration-overlay: 0s;
+    --ds-motion-duration-overlay-out: 0s;
+  }
+}
