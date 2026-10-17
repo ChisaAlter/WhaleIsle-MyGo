@@ -117,6 +117,7 @@ export async function stage(config) {
     CFBundleShortVersionString: bundleVersion, CFBundleVersion: bundleVersion,
     CFBundlePackageType: 'APPL', CFBundleInfoDictionaryVersion: '6.0',
     NSPrincipalClass: 'NSApplication', LSMinimumSystemVersion: '11.0',
+    NSMicrophoneUsageDescription: 'Record audio only when you choose Record, then transcribe it into your draft.',
   };
   if (config.icon) {
     fs.copyFileSync(input(config.icon, 'ICNS icon'), path.join(resources, 'AppIcon.icns'));

@@ -1,5 +1,13 @@
 {
   "name": "Whale Isle",
   "identifier": "ai.deepseek.harness.gui",
-  "urlSchemes": ["whaleisle"]
+  "urlSchemes": [
+    "whaleisle"
+  ],
+  "macos": {
+    "infoPlist": {
+      "NSMicrophoneUsageDescription": "Record audio only when you choose Record, then transcribe it into your draft."
+    },
+    "entitlements": "native/macos-audio.entitlements.plist"
+  }
 }

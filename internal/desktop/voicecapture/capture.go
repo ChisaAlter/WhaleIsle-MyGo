@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	ErrUnsupported = errors.New("microphone recording is supported only on Windows")
+	ErrUnsupported = errors.New("microphone recording requires Windows or a macOS build with native audio support")
 	ErrCanceled    = errors.New("microphone recording was canceled")
 	ErrStopped     = errors.New("microphone recording has already been consumed")
 	ErrNoAudio     = errors.New("no microphone audio was recorded")

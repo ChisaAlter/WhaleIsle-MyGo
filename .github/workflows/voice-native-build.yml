@@ -1,0 +1,43 @@
+name: Voice macOS native compile
+
+# Compile and link only. Never execute the test binary or access a microphone.
+on:
+  push:
+    branches: [dot/mygo-reconstruction-20261014]
+    paths:
+      - .github/workflows/voice-native-build.yml
+      - internal/desktop/voicecapture/**
+
+permissions:
+  contents: read
+concurrency:
+  group: voice-native-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos-voice:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compile and link voicecapture with macOS SDK
+        shell: bash
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          xcrun --sdk macosx --show-sdk-version
+          export CC="$(xcrun --sdk macosx --find clang)"
+          for arch in amd64 arm64; do
+            GOARCH="$arch" go test -c -mod=readonly -o "$RUNNER_TEMP/voicecapture-$arch.test" ./internal/desktop/voicecapture
+            test -s "$RUNNER_TEMP/voicecapture-$arch.test"
+            file "$RUNNER_TEMP/voicecapture-$arch.test"
+          done
+          echo 'darwin+cgo voicecapture compile/link passed for amd64 and arm64; binaries were NOT executed. Microphone permission and recording remain runtime-unverified.' >> "$GITHUB_STEP_SUMMARY"
