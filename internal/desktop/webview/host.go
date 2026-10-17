@@ -69,6 +69,8 @@ type Host struct {
 	mediaSeat         bool
 	mediaPlacement    *mediaPlacement
 	transient         bool
+	initialHTML       string // fixed product-owned document; never renderer-supplied
+	initialBaseURL    string // immutable identity base, separate from the display URL
 	displayURL        string
 	allowNavigation   func(string) bool
 	viewport          *mygo.Rectangle
@@ -98,6 +100,12 @@ type Host struct {
 // NewHost creates a hidden frameless child WebView2 window. Call
 // SyncBounds then SetVisible(true) after the parent has a real size.
 func NewHost(opts HostOptions) (*Host, error) {
+	return newHost(opts, "")
+}
+
+// initialHTML is used only by the fixed private YouTube constructor. It is not
+// an option exposed to the renderer or an arbitrary remote document transport.
+func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	localPreview := opts.LocalPDFViewerURL != "" || opts.LocalPDFURL != "" || opts.LocalHTMLURL != "" || opts.LocalMediaURL != ""
 	if opts.BrowserPartition != "" && !opts.BrowserProfile {
 		return nil, errors.New("Browser partition requires a dedicated Browser profile")
@@ -216,7 +224,7 @@ func NewHost(opts HostOptions) (*Host, error) {
 		}
 	}
 
-	h := &Host{transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
 	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
@@ -357,7 +365,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 	}
 	h.SyncBounds()
 	if localPreview || opts.BrowserProfile || gateway != nil || opts.TransientProfile {
-		if err := pg.LoadURL(pageURL); err != nil {
+		if initialHTML != "" {
+			pg.LoadHTML(initialHTML, pageURL)
+		} else if err := pg.LoadURL(pageURL); err != nil {
 			_ = h.Close()
 			return nil, err
 		}
@@ -656,7 +666,16 @@ func (h *Host) pageAction(fn func(*mygo.Page)) {
 }
 func (h *Host) Back()    { h.pageAction(func(p *mygo.Page) { p.GoBack() }) }
 func (h *Host) Forward() { h.pageAction(func(p *mygo.Page) { p.GoForward() }) }
-func (h *Host) Reload()  { h.setError(""); h.pageAction(func(p *mygo.Page) { p.Reload() }) }
+func (h *Host) Reload() {
+	h.setError("")
+	h.pageAction(func(p *mygo.Page) {
+		if h.initialHTML != "" {
+			p.LoadHTML(h.initialHTML, h.initialBaseURL)
+		} else {
+			p.Reload()
+		}
+	})
+}
 func (h *Host) Stop() {
 	if h == nil {
 		return

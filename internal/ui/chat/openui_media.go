@@ -249,18 +249,13 @@ func (m *openUIMedia) present(seat *openUIMediaSeat) (string, error) {
 		}
 	}
 	if seat.host == nil {
-		// This fixed player has its own fresh profile, no Host gateway, session,
-		// preload or application bindings. No page-selected URL is accepted.
-		raw := "https://www.youtube-nocookie.com/embed/" + seat.request.VideoID + "?autoplay=0&playsinline=1&rel=0&fs=0"
+		// The fixed player wrapper supplies the installed application's identity
+		// as its HTTPS base/referrer, in its own fresh, binding-free profile.
 		title := strings.TrimSpace(seat.request.Title)
 		if title == "" {
 			title = "YouTube"
 		}
-		host, err := webview.NewHost(webview.HostOptions{
-			Parent: m.parent, URL: raw, Title: title, TransientProfile: true, Untrusted: true,
-			AllowNavigation: func(next string) bool { return next == raw },
-			OnChange:        m.invalidate, OnClosed: m.invalidate,
-		})
+		host, err := webview.NewYouTubeHost(m.parent, seat.request.VideoID, title, m.invalidate, m.invalidate)
 		if err != nil {
 			seat.failed = err.Error()
 			return "", err
