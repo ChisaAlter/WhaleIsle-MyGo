@@ -9,17 +9,18 @@ import (
 const MessageKindSystemPrompt MessageKind = "system-prompt"
 
 // Only the original model-facing system/message text is disclosed. Request
-// configuration, authentication, diagnostics and tool schemas are not retained
-// by this projection. Header reason is enough to identify presentation series.
+// authentication and diagnostics are not retained. Typed request configuration
+// and valid tool declarations feed only the separate trajectory inspector, never prompt text.
 type systemPromptEvent struct {
 	Type      string          `json:"type"`
 	Seq       float64         `json:"seq"`
 	SurfaceOp json.RawMessage `json:"surfaceOp,omitempty"`
 	Data      struct {
-		Turn         *float64 `json:"turn,omitempty"`
-		Step         *float64 `json:"step,omitempty"`
-		Reason       string   `json:"reason,omitempty"`
-		StartsSeries bool     `json:"startsSeries,omitempty"`
+		Header       *RequestInspectionHeader `json:"header,omitempty"`
+		Turn         *float64                 `json:"turn,omitempty"`
+		Step         *float64                 `json:"step,omitempty"`
+		Reason       string                   `json:"reason,omitempty"`
+		StartsSeries bool                     `json:"startsSeries,omitempty"`
 		Message      *struct {
 			Content []struct {
 				Type string `json:"type"`
@@ -51,6 +52,11 @@ func sanitizedPromptBoundary(raw json.RawMessage) (json.RawMessage, bool) {
 	_, replace := promptReplace(e.SurfaceOp)
 	if e.Type != "system/message" && e.Type != "request/header" && !replace && e.Data.Turn == nil {
 		return nil, false
+	}
+	if e.Type == "request/header" {
+		e.Data.Header = sanitizeRequestInspectionHeader(e.Data.Header)
+	} else {
+		e.Data.Header = nil
 	}
 	if e.Type != "system/message" {
 		e.Data.Message = nil

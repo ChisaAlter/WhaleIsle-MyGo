@@ -235,6 +235,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				}
 				fullDetail := trajectoryDetailRow(*detail)
 				detail = &fullDetail
+				schemaPayload, headerPayload := trajectoryRequestPayloads(m.Snapshot, detail.ID)
 				ui.Row(c).Gap(6).Children(func() {
 					for _, tab := range []struct{ id, label string }{
 						{"overview", i18n.T(i18n.KeyTrajTabOverview)},
@@ -255,10 +256,21 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						}
 					}
 				})
+				paintTrajectoryRequestTabs(c, detailTab, schemaPayload, headerPayload, accent, muted)
 				ui.Box(c).FillWidth().Height(1).Background(border)
 				copyBody := ""
 				ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
 					switch *detailTab {
+					case "schema", "request-header":
+						copyBody = schemaPayload
+						if *detailTab == "request-header" {
+							copyBody = headerPayload
+						}
+						if copyBody == "" {
+							ui.Text(c, trajectoryText("历史记录未提供此数据", "Not available in loaded history")).TextColor(muted)
+						} else {
+							trajectoryPayloadView(c, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID+":"+detail.ID+":"+*detailTab, copyBody, fg, muted)
+						}
 					case "args":
 						body := detail.Input
 						if body == "" {
