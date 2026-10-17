@@ -55,7 +55,7 @@
     },
     "Markdown": {
       "signature": "Markdown(text: string)",
-      "description": "Markdown prose, tables, lists, and code. Raw HTML and external media are disabled."
+      "description": "Markdown prose, tables, lists, code, Host-mediated HTTP(S) links and validated public images. Raw HTML and direct browser networking are disabled."
     },
     "Quote": {
       "signature": "Quote(text: string, cite?: string)",
@@ -131,7 +131,7 @@
     },
     "Image": {
       "signature": "Image(src: string, alt: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
-      "description": "A local bitmap data image. External URLs and replacement-image fallback are unsupported."
+      "description": "A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback."
     },
     "SearchImage": {
       "signature": "SearchImage(query: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
@@ -1044,7 +1044,7 @@
           "text"
         ],
         "additionalProperties": false,
-        "description": "Markdown prose, tables, lists, and code. Raw HTML and external media are disabled."
+        "description": "Markdown prose, tables, lists, code, Host-mediated HTTP(S) links and validated public images. Raw HTML and direct browser networking are disabled."
       },
       "Quote": {
         "type": "object",
@@ -1652,7 +1652,7 @@
           "alt"
         ],
         "additionalProperties": false,
-        "description": "A local bitmap data image. External URLs and replacement-image fallback are unsupported."
+        "description": "A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback."
       },
       "SearchImage": {
         "type": "object",

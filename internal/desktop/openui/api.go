@@ -37,6 +37,8 @@ func validateAPIRequest(e Event) error {
 	}
 	key := ""
 	switch e.Path {
+	case "/api/image":
+		key = "src"
 	case "/api/wiki":
 		key = "title"
 	case "/api/image-search":
@@ -61,8 +63,9 @@ func validateAPIRequest(e Event) error {
 	return nil
 }
 
-// ResourceAPI has its own credential-free client. Caller input can select only
-// the fixed public resource operations; it never supplies a server or headers.
+// ResourceAPI has its own credential-free client for fixed public adapters.
+// The image operation uses a separate public-address-only transport; no caller
+// can supply request headers, credentials, or a general response operation.
 type ResourceAPI struct {
 	client *http.Client
 	caches *resourceCaches
@@ -84,6 +87,8 @@ func (a *ResourceAPI) Handle(ctx context.Context, e Event) APIResponse {
 	}
 	var result APIResponse
 	switch e.Path {
+	case "/api/image":
+		result = a.publicImage(ctx, e)
 	case "/api/wiki":
 		result = a.wiki(ctx, e)
 	case "/api/image-search":

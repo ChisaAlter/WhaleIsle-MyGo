@@ -8,6 +8,7 @@ import { icons, type LucideIcon } from 'lucide-react';
 import { z } from 'zod/v4';
 import { HighlightedCodeBlock, MarkdownCodeBlock } from './highlight';
 import { HostLink } from './native-action-ui';
+import { PublicImage } from './images';
 
 const ink = 'var(--oui-ink, #172337)';
 const muted = 'var(--oui-muted, #526379)';
@@ -53,7 +54,7 @@ function MarkdownLink({ href, children }: { href?: string; children: ReactNode }
 
 const markdownComponents: Components = {
   a: ({ href, children }) => <MarkdownLink href={href}>{children}</MarkdownLink>,
-  img: ({ alt }) => <span role="note" style={{ color: muted }}>[Image unavailable: {alt || 'external image'}]</span>,
+  img: ({ src, alt }) => <PublicImage src={typeof src === 'string' ? src : ''} alt={alt || ''} inline />,
   p: ({ children }) => <p style={{ margin: '0 0 0.85em', overflowWrap: 'anywhere' }}>{children}</p>,
   h1: ({ children }) => <h1 style={{ fontSize: '1.8em', lineHeight: 1.25, margin: '1em 0 0.5em' }}>{children}</h1>,
   h2: ({ children }) => <h2 style={{ fontSize: '1.5em', lineHeight: 1.3, margin: '1em 0 0.5em' }}>{children}</h2>,
@@ -88,8 +89,9 @@ function SafeMarkdown({ text, inline = false }: { text: string; inline?: boolean
     remarkPlugins={[remarkGfm]}
     skipHtml
     // The custom a renderer validates this value and never emits a DOM href.
-    // Image src and every other URL-bearing property remain disabled.
-    urlTransform={(url, key, node) => key === 'href' && node.tagName === 'a' ? url : ''}
+    // Image URLs reach only PublicImage's typed Host request. The actual img
+    // receives Host-validated image data, never the external URL or raw markup.
+    urlTransform={(url, key, node) => (key === 'href' && node.tagName === 'a') || (key === 'src' && node.tagName === 'img') ? url : ''}
     components={inline ? inlineMarkdownComponents : markdownComponents}
     allowedElements={inline ? ['p', 'strong', 'em', 'code', 'del', 'a', 'img', 'br'] : undefined}
     unwrapDisallowed={inline}
@@ -168,7 +170,7 @@ const Icon = defineComponent({
 });
 
 const Markdown = defineComponent({
-  name: 'Markdown', props: z.object({ text: z.string() }), description: 'Markdown prose, tables, lists, and code. Raw HTML and external media are disabled.',
+  name: 'Markdown', props: z.object({ text: z.string() }), description: 'Markdown prose, tables, lists, code, Host-mediated HTTP(S) links and validated public images. Raw HTML and direct browser networking are disabled.',
   component: ({ props }) => <div className="oui-markdown" style={{ color: ink, minWidth: 0, fontSize: 16, lineHeight: 1.6, overflowWrap: 'anywhere' }}><SafeMarkdown text={props.text} /></div>,
 });
 

@@ -48,6 +48,16 @@ func SupportsSnapshot(path string) bool {
 // The caller must still wrap this in the static sandbox and deny network,
 // scripts, bindings, popups, downloads, permissions and non-capability URLs.
 func Build(path string, data []byte) (string, error) {
+	source, err := imageDataURL(path, data)
+	if err != nil {
+		return "", err
+	}
+	return imageViewer(html.EscapeString(filepath.Base(path)), source), nil
+}
+
+// imageDataURL is shared by the local fixed viewer and the public-image adapter.
+// Both paths keep exactly the same byte, dimension and container validation.
+func imageDataURL(path string, data []byte) (string, error) {
 	if len(data) == 0 || int64(len(data)) > MaxBytes {
 		return "", errors.New("image snapshot exceeds the 16 MiB byte budget")
 	}
@@ -83,6 +93,5 @@ func Build(path string, data []byte) (string, error) {
 		return "", err
 	}
 	encoded := base64.StdEncoding.EncodeToString(data)
-	name := html.EscapeString(filepath.Base(path))
-	return imageViewer(name, "data:"+mime+";base64,"+encoded), nil
+	return "data:" + mime + ";base64," + encoded, nil
 }

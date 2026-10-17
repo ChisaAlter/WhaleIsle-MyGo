@@ -7,7 +7,7 @@
 ## 当前交付状态
 
 - 自有 React registry 已登记 55 个公开契约组件，覆盖布局、内容、表单、图表、SVG、栅格地图、图片搜索、基本交互与独立 YouTube 媒体入口；自有函数保留 59 个公开应用函数的名称和位置参数。组件登记不等于所有原版行为均已实现或验收。
-- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。Code复制、CopyToClipboard、Link、Markdown/Text内嵌HTTP(S)链接和OpenUrl仅在真实用户手势后请求owned Host，收到实际结果才提示成功；不是iframe直接复制或导航。HtmlView仅运行隔离的本地 HTML/CSS/inline JS，原版script CDN不可用。独立编写的 `YouTube(video: string, title?: string)` 在用户点击 Load YouTube video 后，请求 Host 创建独立原生内嵌浏览器视图；具体媒体隔离和未验收边界见 [YOUTUBE-MEDIA.md](YOUTUBE-MEDIA.md)。未知组件仍产生错误。
+- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。Code复制、CopyToClipboard、Link、Markdown/Text内嵌HTTP(S)链接和OpenUrl仅在真实用户手势后请求owned Host，收到实际结果才提示成功；不是iframe直接复制或导航。Image及Markdown/Text图片经父层固定 `/api/image` 加载公共HTTP(S)图片，viewer只渲染返回的位图data URL，或带真实Host验证标记的严格静态SVG data URL；直接用户data SVG仍拒绝。格式、安全预算及未验收边界见 [PUBLIC-IMAGES.md](PUBLIC-IMAGES.md)。HtmlView仅运行隔离的本地 HTML/CSS/inline JS，原版script CDN不可用。独立编写的 `YouTube(video: string, title?: string)` 在用户点击 Load YouTube video 后，请求 Host 创建独立原生内嵌浏览器视图；具体媒体隔离和未验收边界见 [YOUTUBE-MEDIA.md](YOUTUBE-MEDIA.md)。未知组件仍产生错误。
 - 使用真实 SDK `Renderer`、增量解析器、状态存储和动作执行器。SDK 未被修改；自有存储适配器仅包装其公开 Store API。
 - 已生成生产资产。没有新增/运行项目测试、typecheck、浏览器 viewer、原生 helper 或原生构建，也没有访问真实图片/地图/媒体/账户/位置服务。**打包成功不是运行、视觉、视频播放或跨平台验收。**
 
@@ -37,13 +37,13 @@ npm run embed
 
 `src/bridge.ts` 验证父窗口、`whale-openui` 通道、version 1 和 `window.name` 中的 64 位十六进制实例 ID。程序更新保留同一个 viewer；父层负责实例所有权、原会话和原生确认。支持 ready/render/state/assistant/height/error/resolved，以及 requestId 对应的 api-request/api-response。
 
-OpenUI viewer/helper 保持无直接网络、无 worker、无媒体和无浏览器剪贴板权限。HtmlView 使用独立的第二层 opaque srcdoc，只有 inline script 执行权；其内部不能再创建第三层可运行页面。父、子 CSP 均保留 `frame-src 'none'`，native 导航策略按真实 frame 身份和层级准入 srcdoc；不是任意 frame 放行。SearchImage、Map 的固定 API 请求经 `requestResource(path, query, signal)` 发到父层；仅父层访问公共资源，子层只接受校验后的 data URL/路线点。HtmlView 没有该资源桥、OpenUI 状态/动作桥、媒体能力或原生凭据。宿主 OS 沙箱和 native 请求拦截仍是 helper 无网络保证的一部分，不能将任意浏览器里的 iframe/CSP 单独当作相同隔离。
+OpenUI viewer/helper 保持无直接网络、无 worker、无媒体和无浏览器剪贴板权限。HtmlView 使用独立的第二层 opaque srcdoc，只有 inline script 执行权；其内部不能再创建第三层可运行页面。父、子 CSP 均保留 `frame-src 'none'`，native 导航策略按真实 frame 身份和层级准入 srcdoc；不是任意 frame 放行。Image、Markdown/Text图片、SearchImage、Map 的固定 API 请求经 `requestResource(path, query, signal)` 发到父层；仅父层访问公共资源，子层只接受校验后的 data URL/路线点。公共图片沿用 `api-request`、`owned-N` requestId及 `api-response`，`/api/image` 的query为 `{src}`，成功body为 `{dataUrl, source, validatedSvg?: true}`；只有既有Host严格静态SVG validator通过且返回SVG data URL时附`validatedSvg: true`，位图省略该字段。source是去除fragment的实际最终重定向URL。HtmlView 没有该资源桥、OpenUI 状态/动作桥、媒体能力或原生凭据，HtmlView内部图片也不因本次接线获得远程加载能力。宿主 OS 沙箱和 native 请求拦截仍是 helper 无网络保证的一部分，不能将任意浏览器里的 iframe/CSP 单独当作相同隔离。
 
 YouTube 的联网播放器位于 Host 单独管理的原生内嵌媒体视图（media seat），不在上述无网络 helper 中创建 iframe，也不改用外部浏览器链接。`media` 能力默认 false，仅可信 Host 可对 owned runtime 启用并提供当前 `revision`。首个 upsert 必须源自真实 Load YouTube video 点击；固定 `media-<sequence>` 请求只传经过校验的视频 ID、标题及矩形/裁剪/viewport，不转发输入 URL 的 query 或 fragment，也不请求 autoplay。媒体视图采用全新临时 profile/cookie store，设置 `Untrusted` 和 `DisableBindings`，不继承 SessionOrigin、Cookie、Preload、native bindings 或用户 cookie；网站仍可在其临时 store 设置自己的 cookie，生命周期销毁时清理 profile。视图随 native Host 缩放和组件裁剪定位，移出可见区域或被 overlay 遮挡时隐藏。回执 `native-view-created`、`hidden`、`closed` 仅确认原生视图状态，不保证视频可用或正在播放。详见 [YOUTUBE-MEDIA.md](YOUTUBE-MEDIA.md)。
 
 `hostActions`默认false，Host按实际内嵌viewer字节、非legacy路径及当前会话所有权启用。自有按钮同步验证真实click/键盘事件，把固定clipboard/open-url请求送入现有隔离shell；Host再按递增sequence、一次claim和当前owner校验，并在UI线程执行已有系统接口。结果复用原API回包，不新增通用native binding。HtmlView、timer、合成事件或自动render均不能取得动作许可。详见[NATIVE-ACTIONS.md](NATIVE-ACTIONS.md)。
 
-Markdown/Text内嵌链接复用同一`HostLink`，仅接受无凭据、无控制字符的绝对HTTP(S)地址；不创建导航`href`、不在viewer内打开地址，也不加载远程图片。链接的粗体、斜体、内联代码等React子内容保持原样；动作身份由URL payload决定，不序列化React节点。缺少目标地址时显示普通内容，非法地址或非HTTP(S)地址明确显示禁用提示。此接线不改变Go桥协议；Markdown代码块复制维持原状，独立Code组件已有复制原文能力。
+Markdown/Text内嵌链接复用同一`HostLink`，仅接受无凭据、无控制字符的绝对HTTP(S)地址；不创建导航`href`、不在viewer内打开地址。链接的粗体、斜体、内联代码和图片等React子内容保持原样；动作身份由URL payload决定，不序列化React节点。缺少目标地址时显示普通内容，非法地址或非HTTP(S)地址明确显示禁用提示。图片使用同一`PublicImage`公共图片路径，以内联span/img保留alt和真实错误/来源；链接内图片不嵌套重试按钮，独立Image提供显式重试。原有Image的PNG/JPEG/GIF/WebP base64 data输入及alt/aspectRatio/fit/radius契约保持不变。此接线不改变Go桥消息形状；Markdown代码块复制维持原状，独立Code组件已有复制原文能力。
 
 状态适配器一次性恢复初始快照；用户写入即使值相同也成为脏键，`@Reset` 恢复声明默认值并清除脏键。后续流式默认值不覆盖脏键。只回传脏键快照；不把每次 render 的宿主状态再次覆盖进当前交互。细节和未验收边界见兼容清单。
 

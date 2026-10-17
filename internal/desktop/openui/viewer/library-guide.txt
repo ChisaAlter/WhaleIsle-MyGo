@@ -39,7 +39,7 @@ Text(text: any, size?: "xs" | "sm" | "md" | "lg", color?: string, weight?: "norm
 Caption(text: string, color?: string) — Small secondary explanatory text.
 Label(text: string) — A visible group or field label.
 Badge(text: string, color?: "neutral" | "info" | "success" | "warning" | "danger" | "purple" | "pink", icon?: string) — A small colored tag with an optional local Lucide icon.
-Markdown(text: string) — Markdown prose, tables, lists, and code. Raw HTML and external media are disabled.
+Markdown(text: string) — Markdown prose, tables, lists, code, Host-mediated HTTP(S) links and validated public images. Raw HTML and direct browser networking are disabled.
 Quote(text: string, cite?: string) — A quotation with an optional plain-text source.
 Code(code: string, language?: string) — Locally highlighted code with explicit plain-text fallback and user-initiated Host copy of the original source.
 Math(tex: string, inline?: boolean) — Local KaTeX formula rendered as native MathML with trusted commands disabled.
@@ -58,7 +58,7 @@ SegmentedControl(value: $binding<string>, options: (string | {value: string, lab
 RadioGroup(value: $binding<string>, options: (string | {value: string, label: string, description?: string})[], label?: string, variant?: "list" | "pills" | "cards") — A reactive single choice displayed as a list, pills, or cards.
 DatePicker(value: $binding<string>, label?: string, min?: string, max?: string) — A reactive date input using YYYY-MM-DD values.
 Form(children: any[]) — Groups fields and passes their current state with assistant actions.
-Image(src: string, alt: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — A local bitmap data image. External URLs and replacement-image fallback are unsupported.
+Image(src: string, alt: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback.
 SearchImage(query: string, aspectRatio?: number, radius?: "sm" | "md" | "lg" | "xl" | "full" | number, fit?: "cover" | "contain") — Searches the parent image service for real bitmap images and retains their original source URLs.
 Popover(trigger: any, content: any) — Local disclosure panel with Escape, outside dismissal, and focus restoration.
 Flashcard(front: any, back: any, hint?: string) — Two-sided card with mouse, touch, and keyboard flipping; respects reduced motion.
@@ -212,4 +212,4 @@ Before finishing, walk your output and verify:
 
 - Preserve $binding names when continuing an existing interactive answer.
 - Use local @Set and @Reset for local changes. @ToAssistant sends through the native host's existing confirmation and session flow.
-- Resource failures must be shown; do not invent images, map tiles, route coordinates or live business data.
+- Image and Markdown/Text images use the fixed public Host image bridge for absolute HTTP(S) sources. Remote SVG is restricted to the Host-validated static subset; direct data SVG and credentialed/private-network images are unsupported. Resource failures must be shown; do not invent images, map tiles, route coordinates or live business data.

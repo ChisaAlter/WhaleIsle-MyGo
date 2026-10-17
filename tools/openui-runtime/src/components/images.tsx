@@ -1,8 +1,9 @@
 // Independently authored resource-backed images. All requests use the parent bridge.
-import React, { useEffect, useState, type CSSProperties } from 'react';
+import React, { useContext, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { defineComponent, type DefinedComponent } from '@openuidev/react-lang';
 import { z } from 'zod/v4';
 import { requestResource } from '../resources';
+import { ProgramRevisionContext } from '../capabilities';
 
 const radiusSchema = z.union([z.enum(['sm', 'md', 'lg', 'xl', 'full']), z.number()]);
 const fitSchema = z.enum(['cover', 'contain']);
@@ -15,13 +16,57 @@ type ImageStyle = { aspectRatio?: number; radius?: string | number; fit?: 'cover
 type Photo = { data: string; source: string };
 type ImageResponse = { images?: unknown; imageSources?: unknown };
 type SearchState = { query: string; status: 'loading' | 'ready' | 'error'; photos: Photo[]; error?: string };
+export type PublicImageProps = ImageStyle & { src: string; alt: string; inline?: boolean };
+type PublicSource = { kind: 'local'; data: string } | { kind: 'external'; url: string } | { kind: 'invalid'; error: string };
+type PublicImageIdentity = { src: string; programRevision: number };
+type PublicImageState = { identity: PublicImageIdentity; attempt: number; status: 'loading' | 'decoding' | 'ready' | 'error'; photo?: Photo; error?: string };
 
-function isBitmapData(value: unknown): value is string {
+function isEncodedBitmap(value: unknown, mediaType: RegExp): value is string {
   if (typeof value !== 'string' || value.length > maxDataLength) return false;
-  const prefix = /^data:image\/(?:png|jpeg|gif|webp);base64,/i.exec(value);
+  const prefix = mediaType.exec(value);
   if (!prefix) return false;
   const payload = value.slice(prefix[0].length);
   return payload.length > 0 && payload.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(payload);
+}
+
+function isBitmapData(value: unknown): value is string {
+  return isEncodedBitmap(value, /^data:image\/(?:png|jpeg|gif|webp);base64,/i);
+}
+
+function isHostBitmapData(value: unknown): value is string {
+  // The host validates the actual bytes and image budgets for these formats.
+  return isEncodedBitmap(value, /^data:image\/(?:png|jpeg|gif|webp|bmp|x-icon|avif);base64,/i);
+}
+
+function publicImageURL(value: string): string | null {
+  if (/[\u0000-\u001f\u007f-\u009f\\]/.test(value)) return null;
+  const candidate = value.trim();
+  const authority = /^https?:\/\/([^/?#]*)/i.exec(candidate);
+  if (!authority || authority[1].includes('@')) return null;
+  try {
+    const url = new URL(candidate);
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !url.hostname || url.username || url.password) return null;
+    url.hash = '';
+    return url.href;
+  } catch { return null; }
+}
+
+function publicSource(src: string): PublicSource {
+  if (isBitmapData(src)) return { kind: 'local', data: src };
+  if (/^data:/i.test(src)) return { kind: 'invalid', error: 'Unsupported image data. Only bounded PNG, JPEG, GIF, and WebP base64 bitmaps can be displayed locally.' };
+  const url = publicImageURL(src);
+  return url ? { kind: 'external', url } : { kind: 'invalid', error: 'Image URLs must be absolute HTTP or HTTPS URLs without credentials or control characters.' };
+}
+
+function readPublicPhoto(response: unknown): Photo {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('The image service returned an invalid image/source response.');
+  const { dataUrl, source, validatedSvg } = response as { dataUrl?: unknown; source?: unknown; validatedSvg?: unknown };
+  // SVG is accepted only from the trusted resource response with an explicit
+  // host validation marker. User-provided data URLs never take this path.
+  const hostValidatedSvg = validatedSvg === true && isEncodedBitmap(dataUrl, /^data:image\/svg\+xml;base64,/i);
+  if (!isHostBitmapData(dataUrl) && !hostValidatedSvg) throw new Error('The image service returned an unsupported or oversized image.');
+  if (typeof source !== 'string' || !publicImageURL(source)) throw new Error('The image service omitted a valid final HTTP or HTTPS image source.');
+  return { data: dataUrl as string, source };
 }
 
 function imageStyles(props: ImageStyle): CSSProperties {
@@ -36,8 +81,67 @@ function imageStyles(props: ImageStyle): CSSProperties {
   return { display: 'block', width: '100%', maxWidth: '100%', height: 'auto', aspectRatio, objectFit: props.fit || 'cover', borderRadius: radius, backgroundColor: surface };
 }
 
-function ImageStatus({ children, error = false }: { children: React.ReactNode; error?: boolean }) {
-  return <div className="oui-image-status" role="status" style={{ minWidth: 0, padding: 16, border: `1px solid ${border}`, borderRadius: 8, backgroundColor: surface, color: error ? 'var(--oui-danger, #b43245)' : muted, fontSize: 13, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{children}</div>;
+function ImageStatus({ children, error = false, inline = false }: { children: React.ReactNode; error?: boolean; inline?: boolean }) {
+  const Status = inline ? 'span' : 'div';
+  return <Status className="oui-image-status" role="status" style={{ display: inline ? 'inline-block' : undefined, minWidth: 0, padding: 16, border: `1px solid ${border}`, borderRadius: 8, backgroundColor: surface, color: error ? 'var(--oui-danger, #b43245)' : muted, fontSize: 13, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{children}</Status>;
+}
+
+// Shared by Image and Markdown/Text. Inline output stays phrasing-only and has
+// no interactive descendants, including when nested inside a HostLink button.
+export function PublicImage({ src, alt, inline = false, ...style }: PublicImageProps) {
+  const programRevision = useContext(ProgramRevisionContext);
+  const identity = useMemo(() => ({ src, programRevision }), [src, programRevision]);
+  const input = useMemo(() => publicSource(src), [src]);
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<PublicImageState>(() => ({ identity, attempt: 0, status: 'loading' }));
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let live = true;
+    const update = (next: Pick<PublicImageState, 'status' | 'photo' | 'error'>) => {
+      if (live && !controller.signal.aborted) setState({ identity, attempt, ...next });
+    };
+    update({ status: 'loading' });
+    if (input.kind === 'invalid') update({ status: 'error', error: input.error });
+    else if (input.kind === 'local') update({ status: 'decoding', photo: { data: input.data, source: '' } });
+    else {
+      requestResource<unknown>('/api/image', { src: input.url }, controller.signal)
+        .then((response) => {
+          if (!live || controller.signal.aborted) return;
+          update({ status: 'decoding', photo: readPublicPhoto(response) });
+        })
+        .catch((error: unknown) => {
+          if (!live || controller.signal.aborted) return;
+          update({ status: 'error', error: error instanceof Error ? error.message : 'The image service request failed.' });
+        });
+    }
+    return () => { live = false; controller.abort(); };
+  }, [identity, input, attempt]);
+
+  // Effects clean up after render: hide the previous image synchronously when
+  // its source, trusted program revision, or retry attempt no longer matches.
+  const current: PublicImageState = state.identity === identity && state.attempt === attempt
+    ? state : { identity, attempt, status: 'loading' };
+  const onDecode = (success: boolean) => setState((value) => {
+    if (value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')) return value;
+    return success ? { ...value, status: 'ready' } : { ...value, status: 'error', error: 'This image could not be decoded by the viewer. No replacement image was substituted.' };
+  });
+  const failure = input.kind === 'invalid' ? input.error : current.status === 'error' ? current.error || 'The image service request failed.' : undefined;
+  const Frame = inline ? 'span' : 'figure';
+  const Caption = inline ? 'span' : 'figcaption';
+  return <Frame className="oui-image" style={{ display: inline ? 'inline-block' : undefined, verticalAlign: inline ? 'middle' : undefined, margin: 0, minWidth: 0, maxWidth: '100%' }}>
+    {failure ? <ImageStatus error inline={inline}>
+      <span>{failure}{alt ? ` Image description: ${alt}` : ''}</span>
+      {!inline && input.kind !== 'invalid' ? <button type="button" onClick={() => setAttempt((value) => value + 1)} style={{ ...buttonStyle, display: 'block' }}>Retry image</button> : null}
+    </ImageStatus> : <>
+      {current.status === 'loading' || current.status === 'decoding' ? <ImageStatus inline={inline}>{current.status === 'decoding' ? 'Decoding image' : 'Loading image'}{alt ? `: ${alt}` : ''}…</ImageStatus> : null}
+      {(current.status === 'decoding' || current.status === 'ready') && current.photo ? <img
+        src={current.photo.data} alt={alt} style={{ ...imageStyles(style), display: inline ? 'inline-block' : 'block', verticalAlign: inline ? 'middle' : undefined }}
+        loading="lazy" decoding="async" draggable={false} onLoad={() => onDecode(true)} onError={() => onDecode(false)}
+      /> : null}
+    </>}
+    {current.photo?.source ? <Caption style={{ display: 'block', marginTop: 6, fontSize: 11, color: muted, lineHeight: 1.5, overflowWrap: 'anywhere' }}>Image source: {current.photo.source}</Caption> : null}
+  </Frame>;
 }
 
 function DataPhoto({ src, alt, source, ...style }: ImageStyle & { src: string; alt: string; source?: string }) {
@@ -120,11 +224,8 @@ const buttonStyle: CSSProperties = { border: `1px solid ${border}`, background: 
 const Image = defineComponent({
   name: 'Image',
   props: z.object({ src: z.string(), alt: z.string(), aspectRatio: z.number().optional(), radius: radiusSchema.optional(), fit: fitSchema.optional() }),
-  description: 'A local bitmap data image. External URLs and replacement-image fallback are unsupported.',
-  component: ({ props }) => {
-    if (!isBitmapData(props.src)) return <ImageStatus error>{props.src.startsWith('data:') ? 'Unsupported image data. Only bounded PNG, JPEG, GIF, and WebP base64 bitmaps can be displayed.' : 'External image URLs cannot be opened in this isolated viewer. Use SearchImage for the parent image service.'}{props.alt ? <div>Image description: {props.alt}</div> : null}</ImageStatus>;
-    return <DataPhoto {...props} />;
-  },
+  description: 'A local bitmap or public HTTP(S) image loaded through the parent image service, with visible source and loading/error states. No replacement-image fallback.',
+  component: ({ props }) => <PublicImage {...props} />,
 });
 
 const SearchImage = defineComponent({

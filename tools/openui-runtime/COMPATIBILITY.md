@@ -30,12 +30,12 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Divider | 水平分隔 | 自有颜色 |
 | Spacer | flex 填空 | 用于 flex 父容器 |
 | Title | sm/md/lg/xl/2xl/3xl、color | 自有字号/heading映射 |
-| Text | 内联 Markdown/混合Node、xs/sm/md/lg、color/weight/italic/lineThrough/tabularNums/maxLines；有效HTTP(S)内嵌链接经真实手势交Host | 无目标为普通内容，非法/非HTTP(S)链接显式禁用；保留链接React子内容；图片不加载；不支持内联任意 HTML |
+| Text | 内联 Markdown/混合Node、xs/sm/md/lg、color/weight/italic/lineThrough/tabularNums/maxLines；有效HTTP(S)内嵌链接经真实手势交Host；公共HTTP(S)图片经PublicImage交父层加载 | 无目标为普通内容，非法/非HTTP(S)链接显式禁用；保留链接React子内容及图片alt；图片采用内联span/img，无嵌套重试按钮；不支持内联任意 HTML |
 | Caption | text/color | 纯文本副说明 |
 | Label | text | 可见标签；字段实际关联由各控件实现 |
 | Badge | neutral/info/success/warning/danger/purple/pink、Lucide icon | 未知 icon 显式提示 |
 | Icon | name、sm/md/lg/xl、color；实际本地 Lucide 图标 | 仅安装版本存在的名称 |
-| Markdown | CommonMark/GFM、表格、任务列表、代码块；有效HTTP(S)内嵌链接经真实手势交Host | raw HTML 跳过；图片显式不可用；无目标为普通内容，非法/非HTTP(S)链接显式禁用；带语言的代码块使用下述本地高亮，代码块复制未扩展；公开Markdown契约未声明美元数学语法，需要公式时用独立Math组件 |
+| Markdown | CommonMark/GFM、表格、任务列表、代码块；有效HTTP(S)内嵌链接经真实手势交Host；公共HTTP(S)图片经PublicImage交父层加载 | raw HTML 跳过；图片采用内联span/img并保留alt、真实错误和来源，无嵌套重试按钮；无目标为普通内容，非法/非HTTP(S)链接显式禁用；带语言的代码块使用下述本地高亮，代码块复制未扩展；公开Markdown契约未声明美元数学语法，需要公式时用独立Math组件 |
 | Quote | text/cite | cite 为纯文本，不导航 |
 | Code | code/language、横向滚动，本地高亮与真实点击复制原文 | 未指定/未知语言和超高亮预算仍保留原文；复制受Host能力、事件预算与完整文本校验约束，收到真实成功才提示Copied |
 | Math | tex/inline；本地 KaTeX 到原生 MathML | trust=false；不打包字体；原生MathML效果待各WebView验收；有解析/展开预算 |
@@ -58,7 +58,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Popover | 字符串或Node trigger/content、点击/键盘、portal定位、Escape/外部焦点关闭 | 无远程内容；嵌套/焦点行为未运行验收 |
 | Flashcard | front/back/hint；翻面、键盘、前后面可访问性 | reduced-motion采用静态翻面 |
 | Celebration | when从false→true触发本地confetti | reduced-motion使用静态反馈；无音频 |
-| Image | src/alt/aspectRatio/radius/fit；PNG/JPEG/GIF/WebP base64 | 外部URL明确不可用；无SVG data URL、加载失败无替代图片 |
+| Image | src/alt/aspectRatio/radius/fit；原有PNG/JPEG/GIF/WebP base64；公共HTTP(S)图片经父层/api/image加载、显示真实来源和显式重试 | Host校验PNG/JPEG/GIF/WebP/BMP/ICO/静态AVIF；严格静态SVG仅接受真实Host已验证并标记的回包，直接用户data SVG仍拒绝；WebView解码失败明确报错且无替代图片；预算与生命周期见下节 |
 | SearchImage | query/aspectRatio/radius/fit；真实父层搜索、重试/切换、来源文本 | q须2–200字符；API最多4图；来源未提供作者/许可时明确显示缺失，不声称所有搜索图片可再分发 |
 | Chart | bar/line/area/pie/donut/scatter，x/series，number/currency/percent，height | 下方图表细项，不含原版未定义的Sparkline |
 | Table | columns、rows；真实表格、Node单元格 | 无排序/分页API；超额显式错误 |
@@ -128,7 +128,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 内嵌链接和独立Link组件使用同一`HostLink`。仅无userinfo凭据、无控制字符且hostname非空的绝对HTTP(S)地址可形成Host动作；仍须满足`hostActions`能力、非streaming状态、真实click/键盘事件和既有payload/事件预算检查。
 - 粗体、斜体、内联代码等React子内容保留原样，不转换成纯字符串。动作身份由URL payload决定；React节点不序列化为动作身份或Host消息。
 - 缺少目标地址时显示普通内容；非法地址、相对地址或非HTTP(S)地址明确显示禁用提示。链接不添加导航`href`，不直接打开窗口或导航iframe；Host回执成功只表示系统接受请求。
-- 远程图片仍不加载，raw HTML规则不变。Markdown代码块复制维持原状；独立Code组件继续通过既有Host能力复制原文。此接线未修改Go桥协议，也不代表实际WebView交互已验收。
+- 公共HTTP(S)图片使用与独立Image相同的`PublicImage`和父层`/api/image`；raw HTML规则不变。Markdown/Text图片仅渲染内联span/img，保留alt、真实错误和来源，不插入figure/div/details或重试按钮，避免链接内嵌套交互控件；独立Image有显式重试。Markdown代码块复制维持原状；独立Code组件继续通过既有Host能力复制原文。此接线沿用Go桥消息形状，也不代表实际WebView交互已验收。
 
 ### 图表细项
 
@@ -145,8 +145,19 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - `/api/map-tile`: z/x/y/style字符串；z=0..19、style=light/dark。回包 `{dataUrl, attribution, source, z,x,y,style}`。只用固定ArcGIS街道/深色灰底源，显示实际返回的来源署名；外部署名链接导航未实现。
 - `/api/street-route`: coords为分号分隔lng,lat；回包 `{points:[[lat,lng],...]}`。父层只接受2–25个地点。失败保留错误，不以直线冒充道路。
 - `/api/image-search`: q字符串；回包 images与imageSources等长数组。仅接受实际bitmap data URL，保留来源；不替换失败图片。
+- `/api/image`: src字符串；沿用`type: "api-request"`、`requestId: "owned-N"`和固定path/query消息。status 200的body为`{dataUrl, source, validatedSvg?: true}`，source是去除fragment的实际最终重定向URL；失败返回真实错误，不拿输入URL冒充最终来源。仅Host访问公共HTTP(S)图片，viewer的img.src只接受返回并验证的位图data URL，或真实Host通过既有严格静态SVG validator后返回并附`validatedSvg: true`的SVG data URL；位图回包省略该标记。
 - `/api/wiki` 仅在桥允许列表中；原公开55组件没有Wiki组件，因此本包没有虚构同名组件或自动请求它。
-- 请求取消和requestId去重；同时4个活跃请求以配合宿主队列，排队数量无额外产品上限。15秒活跃超时；32MiB地图缓存会淘汰并按需重载，不截断marker数量。
+- 请求取消和requestId去重；同时4个活跃请求以配合宿主队列，排队数量无额外产品上限，也不新增图片总数上限。15秒前端活跃等待超时；32MiB地图缓存会淘汰并按需重载，不截断marker数量。abort取消前端等待/排队任务并忽略迟到回包，不保证已经派发的Host网络请求立即停止。
+
+### 公共HTTP(S)图片范围
+
+- 独立Image保留alt/aspectRatio/fit/radius；原有本地PNG/JPEG/GIF/WebP base64输入校验不扩大到新增远程格式。Image及Markdown/Text远程图片共用`PublicImage`；HtmlView不获得图片或资源桥权限。
+- Host验证PNG、JPEG、GIF、WebP、BMP、ICO（返回`image/x-icon`）和静态AVIF，才返回位图data URL。远程SVG复用imagepreview既有`validateSVG`严格静态子集，只有通过后返回`data:image/svg+xml;base64`且附`validatedSvg: true`才可展示；直接用户data SVG、未标记SVG、HTML和任意资源不透传。底层WebView仍可能无法解码已准入格式，此时显示真实解码错误，不伪造或替换图片。
+- SVG validator范围不扩大：最多1MiB、32M像素、单边32,768、10,000节点、40,000 tokens和64层；仅既有静态vector/text/gradient/local clip-mask及无环local reference。script、动画、filter、嵌套image、foreign content、external resource和CSS escapes均拒绝。
+- 源URL必须是无凭据的绝对HTTP(S)公共地址；Host校验DNS及连接地址，并在重定向时重新校验目标公共地址。不访问私有/本地地址，不携带用户Cookie、Authorization或原生凭据；该接口不是通用代理。
+- Host保留16MiB原始响应、32M像素、GIF/ICO至多256帧及既有累计像素预算；DNS、重定向和响应体读取共享8秒总获取预算。25MiB API回包预算与4个活跃请求/排队机制保持不变；超额或格式不支持均明确报错，不靠裁掉程序中的图片数量规避。
+- src、源程序/实例或组件生命周期变化会使旧请求失效，使用abort与live/身份检查防止旧图片或错误覆盖当前内容；显式重试建立新请求。前端取消不是已派发Host网络操作停止的回执。真实来源和错误保留；来源URL不等于作者、许可或再分发授权。
+- 协议、格式、安全边界和后续验收项详见[PUBLIC-IMAGES.md](PUBLIC-IMAGES.md)。当前未运行真实图片获取、浏览器解码或native验收，生产打包不能证明这些行为。
 
 ### HtmlView 内容和生命周期
 
@@ -229,4 +240,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、YouTube媒体seat的真实手势/裁剪/缩放/遮挡/修订/销毁和临时profile隔离、真实视频与网络失败行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、公共图片重定向/DNS/预算/格式拒绝及各WebView解码、Markdown/Text链接内图片和旧回包隔离、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、YouTube媒体seat的真实手势/裁剪/缩放/遮挡/修订/销毁和临时profile隔离、真实视频与网络失败行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。

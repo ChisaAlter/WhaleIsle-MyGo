@@ -164,7 +164,7 @@ document.addEventListener("click", event => {
 }, true);
 document.addEventListener("submit", event => event.preventDefault(), true);
 document.addEventListener("securitypolicyviolation", event => {
-  if (event.effectiveDirective === "img-src") report("External images are blocked. This viewer can display embedded data images only.", "image-unavailable");
+  if (event.effectiveDirective === "img-src") report("Direct external image requests are blocked. Public images must use the typed Host image bridge.", "image-unavailable");
 });
 window.addEventListener("error", event => report(event.message, "browser-error"));
 window.addEventListener("unhandledrejection", event => report(event.reason instanceof Error ? event.reason.message : String(event.reason), "unhandled-error"));

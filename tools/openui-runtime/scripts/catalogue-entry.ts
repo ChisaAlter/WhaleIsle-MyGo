@@ -9,5 +9,5 @@ writeFileSync("dist/library-guide.txt", compatibleLibrary.prompt({
   bindings: true,
   builtinFunctions: true,
   toolCalls: false,
-  additionalRules: ["Preserve $binding names when continuing an existing interactive answer.", "Use local @Set and @Reset for local changes. @ToAssistant sends through the native host's existing confirmation and session flow.", "Resource failures must be shown; do not invent images, map tiles, route coordinates or live business data."],
+  additionalRules: ["Preserve $binding names when continuing an existing interactive answer.", "Use local @Set and @Reset for local changes. @ToAssistant sends through the native host's existing confirmation and session flow.", "Image and Markdown/Text images use the fixed public Host image bridge for absolute HTTP(S) sources. Remote SVG is restricted to the Host-validated static subset; direct data SVG and credentialed/private-network images are unsupported. Resource failures must be shown; do not invent images, map tiles, route coordinates or live business data."],
 }) + "\n");

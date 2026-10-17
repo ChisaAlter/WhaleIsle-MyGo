@@ -1,5 +1,5 @@
 // Typed resource transport: all network activity remains in the Go parent.
-export type ResourcePath = "/api/wiki" | "/api/image-search" | "/api/street-route" | "/api/map-tile";
+export type ResourcePath = "/api/wiki" | "/api/image-search" | "/api/image" | "/api/street-route" | "/api/map-tile";
 type Sender = (type: string, fields: Record<string, unknown>) => boolean;
 type Job = { requestId: string; path: ResourcePath; query: Record<string, string>; resolve: (value: unknown) => void; reject: (error: Error) => void; signal?: AbortSignal; abort: () => void; timer?: ReturnType<typeof setTimeout>; active: boolean; settled: boolean };
 const queue: Job[] = [];
