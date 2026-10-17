@@ -186,6 +186,41 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
         Write-Warning "makensis failed (exit $LASTEXITCODE); staging artifacts kept"
     } elseif (Test-Path $Setup) {
         Write-Host "Installer: $Setup"
+		# Emit the same offset/size/SHA256 blockmap consumed by the MyGo
+		# incremental updater. The setup remains the signed release artifact;
+		# this sidecar is metadata only and is safe to regenerate after signing.
+		$blockSize = 65536
+		$setupBytes = [System.IO.File]::ReadAllBytes($Setup)
+		$blocks = @()
+		for ($offset = 0; $offset -lt $setupBytes.Length; $offset += $blockSize) {
+			$size = [Math]::Min($blockSize, $setupBytes.Length - $offset)
+			$hash = [System.Security.Cryptography.SHA256]::Create()
+			try {
+				$digest = $hash.ComputeHash($setupBytes, $offset, $size)
+			} finally {
+				$hash.Dispose()
+			}
+			$blocks += [ordered]@{
+				offset = [int64]$offset
+				size = [int64]$size
+				sha256 = ([BitConverter]::ToString($digest) -replace '-', '').ToLowerInvariant()
+			}
+		}
+		$blockmapPath = "${Setup}.blockmap.json"
+		$blockmap = [ordered]@{ fileSize = [int64]$setupBytes.Length; blocks = $blocks } |
+			ConvertTo-Json -Depth 4
+		[System.IO.File]::WriteAllText($blockmapPath, $blockmap + "`n")
+		$sumHash = [System.Security.Cryptography.SHA256]::Create()
+		try {
+			$sumBytes = $sumHash.ComputeHash([System.IO.File]::ReadAllBytes($Setup))
+		} finally {
+			$sumHash.Dispose()
+		}
+		$sum = ([BitConverter]::ToString($sumBytes) -replace '-', '').ToLowerInvariant()
+		$sumPath = Join-Path $DistRoot 'SHA256SUMS.txt'
+		[System.IO.File]::WriteAllText($sumPath, "$sum  $(Split-Path -Leaf $Setup)`n")
+		Write-Host "Wrote blockmap: $blockmapPath"
+		Write-Host "Wrote SHA256 manifest: $sumPath"
     }
 } else {
     Write-Host "Note: makensis not on PATH; NSIS script at scripts/nsis/whaleisle.nsi (run after staging)"
