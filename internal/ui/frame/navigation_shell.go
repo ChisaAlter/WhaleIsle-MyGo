@@ -14,6 +14,6 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
 	registerPageCommands(c, m)
 	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Children(func() {
-		sidebarColumns(c, m.Sizes, func() { navigationView(c, m, m.Store.Snapshot()) }, content)
+		sidebarColumns(c, m.Sizes, func() { navigationFileDropRail(c, m, func() { navigationView(c, m, m.Store.Snapshot()) }) }, content)
 	})
 }

@@ -141,7 +141,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 		sessions.UpdateSessionSearch(context.Background(), *m.SessionSearch)
 	}()
-	frame.NavigationShell(c, m, content)
+	frame.NavigationShell(c, s.navigationFileDropModel(m), content)
 }
 
 // A Project reference selected from the persistent rail is delivered to the
