@@ -6,3 +6,7 @@
 
 # Preserve vendored mobile Git source bytes and recorded provenance hashes.
 internal/desktop/phoneremote/git-source/** -text
+
+# The offline MathJax bundle is embedded byte-for-byte; keep its recorded LF
+# bytes intact even when the host checkout has autocrlf enabled.
+internal/mathrender/renderer.cjs text eol=lf
