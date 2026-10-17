@@ -243,7 +243,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 							body = detail.RawHint
 						}
 						copyBody = body
-						ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+						trajectoryPayloadView(c, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID+":"+detail.ID+":"+*detailTab, body, fg, muted)
 					case "result":
 						body := detail.Output
 						if body == "" {
@@ -253,7 +253,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 							body = i18n.T(i18n.KeyTrajNoResult)
 						}
 						copyBody = body
-						ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+						trajectoryPayloadView(c, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID+":"+detail.ID+":"+*detailTab, body, fg, muted)
 					case "timing":
 						copyBody = trajectoryTimingDetail(*detail)
 						ui.Text(c, copyBody).FontSize(theme.InterfaceSize(12)).TextColor(fg)
