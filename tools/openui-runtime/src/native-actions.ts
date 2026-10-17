@@ -20,6 +20,10 @@ let closed = false;
 
 export function configureNativeActionTransport(post: Sender) { sender = post; }
 
+// Read synchronously before a continuation, including before React commits a
+// newly received program. This revision never changes for local SDK state writes.
+export function getActionProgramRevision() { return revision; }
+
 function finish(job: Pending, error?: Error) {
   if (pending.get(job.requestId) !== job) return;
   pending.delete(job.requestId);

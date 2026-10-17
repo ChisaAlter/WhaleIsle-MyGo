@@ -7,7 +7,7 @@ import { configurePersistence } from "./state-adapter";
 import { closeResources, configureResourceTransport } from "./resources";
 import "./viewer.css";
 import { connect, byteLength, LIMITS, type RenderMessage } from "./bridge";
-import { HtmlViewSupportContext, HostActionsContext } from "./capabilities";
+import { HtmlViewSupportContext, HostActionsContext, ProgramRevisionContext } from "./capabilities";
 import { configureNativeActionTransport, updateNativeActionContext, closeNativeActions } from "./native-actions";
 
 const mount = document.getElementById("viewer")!;
@@ -137,9 +137,11 @@ function Viewer({ data, version }: { data: RenderMessage; version: number }) {
       {!blockedTools && !parsed.error && <Boundary version={version}>
         <HtmlViewSupportContext.Provider value={data.htmlView}>
         <HostActionsContext.Provider value={data.hostActions}>
+        <ProgramRevisionContext.Provider value={version}>
         <Renderer response={data.program} library={compatibleLibrary} isStreaming={data.streaming}
           onAction={onAction}
           onError={onErrors} onParseResult={onParsed} publishObservability={false} />
+        </ProgramRevisionContext.Provider>
         </HostActionsContext.Provider>
         </HtmlViewSupportContext.Provider>
       </Boundary>}

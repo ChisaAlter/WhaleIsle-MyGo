@@ -15,8 +15,8 @@ import {
   type ActionPlan,
   type DefinedComponent,
 } from "@openuidev/react-lang";
-import { HostActionsContext } from "../capabilities";
-import { prepareNativeActions, performNativeAction, type GestureEvent, type NativeAction } from "../native-actions";
+import { HostActionsContext, ProgramRevisionContext } from "../capabilities";
+import { getActionProgramRevision, prepareNativeActions, performNativeAction, type GestureEvent, type NativeAction } from "../native-actions";
 
 const fieldStyle: CSSProperties = {
   boxSizing: "border-box",
@@ -62,7 +62,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // Snapshot the data, including later local steps, before any asynchronous work.
-// Stable key order avoids cancelling a plan when the SDK recreates equal props.
+// Stable key order associates feedback with equal SDK props without serializing React nodes.
 function snapshotAction(value: unknown, ancestors = new Set<object>()): unknown {
   if (value == null || ["string", "number", "boolean", "undefined"].includes(typeof value)) return value;
   if (typeof value !== "object" || ancestors.has(value)) throw new Error("Actions must contain acyclic data.");
@@ -186,6 +186,7 @@ export function useControlAction(label: string, candidate: ControlAction) {
   const formName = useFormName();
   const streaming = useIsStreaming();
   const hostActions = useContext(HostActionsContext);
+  const programRevision = useContext(ProgramRevisionContext);
   let bound: BoundAction | undefined;
   let blocked: string | undefined;
   try {
@@ -197,26 +198,30 @@ export function useControlAction(label: string, candidate: ControlAction) {
   const identity = JSON.stringify([bound?.key, blocked, label, formName, streaming, hostActions]);
   const latestIdentity = useRef(identity);
   latestIdentity.current = identity;
+  const scope = `${programRevision}:${streaming}:${hostActions}`;
+  const latestScope = useRef(scope);
+  latestScope.current = scope;
   const mounted = useRef(false);
   const active = useRef<symbol | undefined>(undefined);
-  const [status, setStatus] = useState<{ identity: string; pending: boolean; notice?: string }>();
+  const [status, setStatus] = useState<{ scope: string; identity: string; pending: boolean; notice?: string }>();
   useLayoutEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; active.current = undefined; };
   }, []);
   useLayoutEffect(() => {
-    // Clear cancelled status even if a previous candidate is selected again.
+    // Only a real source/capability transition retires this component's run.
+    // Set/Reset can change the reactive candidate or label without changing scope.
     setStatus(undefined);
     return () => { active.current = undefined; };
-  }, [identity]);
-  const pending = status?.identity === identity && status.pending;
+  }, [scope]);
+  const pending = status?.scope === scope && status.pending;
 
   async function invoke(event?: GestureEvent) {
-    if (!mounted.current || latestIdentity.current !== identity || streaming || active.current || blocked || !bound) return;
+    if (!mounted.current || latestIdentity.current !== identity || getActionProgramRevision() !== programRevision || streaming || active.current || blocked || !bound) return;
     const run = Symbol("control action");
     active.current = run;
-    const current = () => mounted.current && active.current === run && latestIdentity.current === identity;
-    setStatus({ identity, pending: true });
+    const current = () => mounted.current && active.current === run && latestScope.current === scope && getActionProgramRevision() === programRevision;
+    setStatus({ scope, identity, pending: true });
     try {
       // This is synchronous and precedes EVERY local write. It validates all
       // native payloads and binds them once to this actual source gesture. A
@@ -233,17 +238,18 @@ export function useControlAction(label: string, candidate: ControlAction) {
           await trigger(label, formName, segment.action ?? undefined);
         }
       }
-      if (current()) setStatus({ identity, pending: false, notice: bound.nativeActions.length === 1 ? (bound.nativeActions[0].type === "clipboard" ? "Copied" : "Sent to browser") : bound.nativeActions.length ? "Host actions completed" : undefined });
+      if (current()) setStatus({ scope, identity, pending: false, notice: bound.nativeActions.length === 1 ? (bound.nativeActions[0].type === "clipboard" ? "Copied" : "Sent to browser") : bound.nativeActions.length ? "Host actions completed" : undefined });
     } catch (error) {
       // Failure stops all remaining steps. Completed local writes/native effects
-      // are NOT rolled back. Unmount or changed props cancel later steps and
-      // notices; an already-dispatched host operation cannot be retracted.
-      if (current()) setStatus({ identity, pending: false, notice: error instanceof Error ? error.message : "The action could not be completed." });
+      // are NOT rolled back. Unmount or source replacement cancels later steps;
+      // reactive props never replace the invocation's immutable native payloads.
+      // An already-dispatched host operation cannot be retracted.
+      if (current()) setStatus({ scope, identity, pending: false, notice: error instanceof Error ? error.message : "The action could not be completed." });
     } finally {
       if (active.current === run) active.current = undefined;
     }
   }
-  return { invoke, disabled: streaming || pending || !!blocked, notice: blocked ?? (status?.identity === identity ? status.notice : undefined) };
+  return { invoke, disabled: streaming || pending || !!blocked, notice: blocked ?? (status?.scope === scope && status.identity === identity ? status.notice : undefined) };
 }
 
 function buttonStyle(variant = "solid", color = "primary", size = "md", block = false): CSSProperties {

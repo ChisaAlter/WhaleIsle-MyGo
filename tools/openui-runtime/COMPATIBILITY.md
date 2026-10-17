@@ -174,7 +174,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | @Set | SDK本地计算并写绑定；同值写入也记录为dirty | 多步骤不是数据库事务；无跨窗口同步 |
 | @Reset | SDK恢复当前声明默认值；pristine写清dirty | 流式重声明、同值写、重置后重开仅静态审查，未跑回归 |
 | @ToAssistant / 无动作按钮 | humanFriendlyMessage + formState/context交宿主 | 保留原生确认/原会话发送；不能直接绕过确认 |
-| 动作序列 | 先检查全计划/原生payload/真实手势；本地步骤仍由SDK执行，clipboard/open_url等待Host实际回执后继续 | 未知动作整计划拒绝；执行中失败不继续后续步骤，但已完成的本地写入不回滚；不是数据库事务 |
+| 动作序列 | 先检查全计划/原生payload/真实手势；原生URL/文本固定为点击时快照，Set的valueAST仍由SDK按步骤读取当前store；clipboard/open_url等待Host实际回执后继续 | 未知动作整计划拒绝；执行中失败不继续后续步骤，但已完成的本地写入或系统操作不回滚；生命周期取消边界见下文；不是数据库事务 |
 | open_url | 真实点击或键盘激活后的typed HTTP(S) Host请求 | 无自动调用、其他scheme或嵌入凭据；浏览器派发成功不等于网页加载成功 |
 | @CopyToClipboard | 真实手势后复制指定完整文本；Host成功才显示成功 | 无浏览器clipboard fallback；NUL/不成对Unicode代理项或超事件预算明确拒绝，不截断 |
 | 其他custom action | 拒绝 | 无业务动作provider |
@@ -190,8 +190,9 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 实际可信click或Enter/Space键盘事件同步建立一次许可，绑定本次计划已检查的payload；支持UserActivation的引擎另要求active。没有UserActivation的旧引擎仍要求当前真实`Event.isTrusted`处理栈，不用定时授权窗、不接受合成事件、timer、跨源HtmlView或自动render。
 - sequence从1递增，requestId固定`native-action-<sequence>`；资源请求禁止该前缀。shell精确viewer来源/instance检查、Host当前owner及一次payload claim相互独立。没有新增通用native接口或放宽iframe/OS权限。
 - 超过既有64KiB完整事件预算则不发送，原文不截断；文本NUL会在Windows文本剪贴板截断，因此跨平台统一拒绝；不成对Unicode代理项无法原样通过JSON/UTF8传输，也明确拒绝。
-- pending控件阻止重复提交；payload变化/组件卸载不显示旧结果，程序/streaming/能力变化会撤销未完成许可。等待Host回执15秒后只提示结果未确认，动作可能已经完成，不假称执行失败或成功。已发出的系统操作没有撤销/回滚承诺。
-- 混合计划按原顺序分段执行，原生步骤等待真实回执；后续控件参数/标签/表单身份改变会取消剩余步骤，包括Set引发响应式动作参数变化的情况。已完成步骤不回滚，这个边界不宣称完整等价。
+- 混合计划按原顺序分段执行，原生步骤等待真实回执。点击时已检查的计划及原生URL/文本保持固定；Set保留valueAST，由SDK在该步骤执行时读取当前store，因此后续Set可读取此前Set/Reset的写入，原生payload不会随之重新求值。普通响应式候选动作、标签或表单身份变化，包括计划自身Set/Reset引起的变化，不会取消正在执行的计划。
+- 实际源程序/streaming修订、Host能力变化或组件卸载会取消尚未执行的步骤并撤销未完成许可；不会撤销已派发的系统操作。执行失败停止后续步骤，已完成的本地写入和系统操作不回滚。
+- 同一控件执行期间保持pending并禁用，普通响应式更新不会重新开放重复提交。完成提示仅在当前控件候选仍与点击时调用匹配时显示，避免将旧payload的结果当成新内容的成功。等待Host回执15秒后只提示结果未确认，动作可能已经完成，不假称执行失败或成功；没有撤销已派发系统操作的承诺。
 - Code复制、Link和已有CopyToClipboard/OpenUrl动作使用同一Host能力；Markdown/Text内嵌HTTP(S)链接已接入同一HostLink，具体边界见上节。Markdown代码块复制未扩展，HtmlView仍没有任何该能力；YouTube/CDN/媒体仍未实现。
 
 ## 59个应用函数
@@ -219,4 +220,4 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 沿用宿主预算：程序256KiB，状态48KiB，事件64KiB，assistant文本16KiB，错误4KiB，resolved程序32KiB；高度80–2000px。超过32KiB的合法程序可渲染，但不能发送超额resolved清错消息。API回包最多25MiB，HTML最多12MiB。Math公式20,000字符、最大展开1,000等安全预算也属于本实现边界。
 
-必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。
+必须在允许验证后补：真实流式增量与不完整错误恢复、错误去重/清错、脏键和Reset重新打开、混合Action的点击时payload与Set/Reset顺序求值、生命周期取消及pending/旧回执提示、表单动作原生确认、尺寸回传、异步资源失败/取消和署名、地图wheel/pinch锚点及单双指切换、图表负数与缺失值、hover/focus/键盘数据提示及更新后取值、SVG变换、popover焦点、Timer后台行为、Windows/macOS WebView的ES2022/MathML/CSS支持。当前只有源级核对和生产资产生成，不能宣称CH12全量验收或原版全功能一致。

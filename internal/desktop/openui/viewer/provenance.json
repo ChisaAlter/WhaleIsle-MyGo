@@ -6,13 +6,13 @@
   "assets": [
     {
       "name": "viewer.html",
-      "bytes": 2181698,
-      "sha256": "e71fcaeb32305716c3bd08d0f73c086589095c0b9236202fd6091b084021da2d"
+      "bytes": 2181928,
+      "sha256": "dff658fa505cead4bcd25b844a3170d4eb6dd7eff6ba758dd345e00d3843a39f"
     },
     {
       "name": "viewer.js",
-      "bytes": 1997992,
-      "sha256": "c809b386dde412eb4e329afb369c8c33b5c1fd83891c2b1841021c6c65f22858"
+      "bytes": 1998222,
+      "sha256": "67497bc1f01e87768fa511417f150635b80b4625f3d8a9f877010c5c87416c3e"
     },
     {
       "name": "viewer.css",
