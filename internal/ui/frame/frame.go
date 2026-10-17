@@ -987,8 +987,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
-										Inspector: sessionInspectorChatNavigation(m),
-										GroupRoom: m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
+										OnInspectToolCall: inspectToolCallNavigation(m, snap),
+										Inspector:         sessionInspectorChatNavigation(m),
+										GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 										DisableDeveloperTools: m.DisableDeveloperTools,
 										Preferences:           m.ChatPreferences,
 										ScheduleStore:         m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,

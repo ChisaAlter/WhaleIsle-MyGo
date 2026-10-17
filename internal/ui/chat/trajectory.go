@@ -87,7 +87,19 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 
 	rows := buildTrajectoryRows(m.Snapshot.Messages, *search, *turnsFold, *callsFold)
 
-	ui.Column(c).Fill().MinHeight(0).Children(func() {
+	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
+	revealed := ui.Local(root, "revealed-row", func() string { return "" })
+	if m.List != nil && *selected != "" && *revealed != *selected {
+		for index, row := range rows {
+			if row.ID == *selected {
+				m.List.FollowEnd = false
+				m.List.ScrollTo(index, ui.Center)
+				*revealed = *selected
+				break
+			}
+		}
+	}
+	root.Children(func() {
 		// TrajectoryToolbar — sticky 32px strip.
 		ui.Row(c).FillWidth().Height(32).Padding(0, 6, 0, 6).Gap(8).AlignItems(ui.Center).Children(func() {
 			paintTrajToggle(c, i18n.T(i18n.KeyTrajDuration), *actualDur, muted, hover, fg, func() {
@@ -179,7 +191,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					if *selected == row.ID {
 						bg = hover
 					}
-					btn := ui.Button(lr.Context, "").FillWidth().Background(bg).BorderWidth(0).
+					btn := ui.Button(lr.Context, "").Label("Trajectory row "+row.ID).FillWidth().Background(bg).BorderWidth(0).
 						Padding(6, 8, 6, 8).Radius(0)
 					btn.Children(func() {
 						ui.Row(lr.Context).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {

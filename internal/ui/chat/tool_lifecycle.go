@@ -67,6 +67,11 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 				arguments = prettyToolPayload(arguments)
 			}
 			toolCardInfoView(c, info, st, childGallery)
+			if !childGallery.TextOnly && call.CallID != "" && childGallery.OnInspectCall != nil {
+				if ui.Button(c, "检查此调用 / Inspect this call").Clicked() {
+					childGallery.OnInspectCall(call.CallID)
+				}
+			}
 			if !childGallery.TextOnly {
 				toolFileView(c, call, st, childGallery)
 			}

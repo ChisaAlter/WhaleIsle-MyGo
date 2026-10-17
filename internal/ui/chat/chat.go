@@ -22,6 +22,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	OnInspectToolCall     func(string)
 	Inspector             *InspectorNavigation
 	DisableDeveloperTools bool
 	GroupRoom             bool
@@ -241,8 +242,9 @@ func View(c *ui.Context, m Model) {
 					tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 					ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
 						ID: msg.ID, Expanded: m.ThinkingExpanded,
-						OnOpenURL:  m.OnOpenCitationURL,
-						OnOpenFile: m.OnOpenDeliverable,
+						OnOpenURL:     m.OnOpenCitationURL,
+						OnOpenFile:    m.OnOpenDeliverable,
+						OnInspectCall: m.OnInspectToolCall,
 						OnOpen: func(path string) {
 							if m.OnOpenImageLightbox != nil {
 								m.OnOpenImageLightbox(path)
