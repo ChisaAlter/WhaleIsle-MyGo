@@ -48,7 +48,7 @@ func TestOpenUIAPIReplyAdmissionOwnershipAndBounds(t *testing.T) {
 	}
 	r.Body[0] = 'x'
 	raw := <-s.openUIAPIResponses()
-	s.receivedOpenUIAPIResponse()
+	s.receivedOpenUIAPIResponse(raw)
 	var got openui.APIResponse
 	if json.Unmarshal(raw, &got) != nil || !bytes.Equal(got.Body, original) {
 		t.Fatal("response body alias retained")
@@ -76,7 +76,7 @@ func TestOpenUIAPIReplyFIFOBackpressureAndUnlimitedLifetime(t *testing.T) {
 	}
 	for i := 0; i < maxOpenUIEvents; i++ {
 		raw := <-s.openUIAPIResponses()
-		s.receivedOpenUIAPIResponse()
+		s.receivedOpenUIAPIResponse(raw)
 		var got openui.APIResponse
 		_ = json.Unmarshal(raw, &got)
 		if got.RequestID != fmt.Sprint(i) {
@@ -91,14 +91,14 @@ func TestOpenUIAPIReplyFIFOBackpressureAndUnlimitedLifetime(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("queue space did not wake producer")
 	}
-	<-s.openUIAPIResponses()
-	s.receivedOpenUIAPIResponse()
+	raw := <-s.openUIAPIResponses()
+	s.receivedOpenUIAPIResponse(raw)
 	for i := 0; i < 100; i++ {
 		if err := s.ReplyOpenUIAPI(openUIAPIResponseFixture(fmt.Sprint(i))); err != nil {
 			t.Fatal("lifetime request cap", err)
 		}
-		<-s.openUIAPIResponses()
-		s.receivedOpenUIAPIResponse()
+		raw := <-s.openUIAPIResponses()
+		s.receivedOpenUIAPIResponse(raw)
 	}
 	for i := 0; i < maxOpenUIEvents; i++ {
 		_ = s.ReplyOpenUIAPI(openUIAPIResponseFixture(fmt.Sprint(i)))

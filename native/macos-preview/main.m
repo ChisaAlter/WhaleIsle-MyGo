@@ -95,7 +95,8 @@ static void verifyIdentity(void) {
     for(id event in batch) {
         if(![event isKindOfClass:NSDictionary.class]) fail(@"invalid OpenUI event");
         NSData *raw=[NSJSONSerialization dataWithJSONObject:event options:0 error:nil];
-        if(!raw || raw.length<1 || raw.length>65536) fail(@"invalid OpenUI event size");
+        NSUInteger size=raw.length;
+        if(!raw || size<1 || size>65536) fail(@"invalid OpenUI event size");
         packet(@"openui-event",@{@"bytes":@(raw.length)});writeData(raw);
     }
 }
