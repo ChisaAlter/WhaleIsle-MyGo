@@ -85,7 +85,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		detailTab = m.DetailTab
 	}
 
-	rows := buildTrajectoryRows(m.Snapshot.Messages, *search, *turnsFold, *callsFold)
+	rows := buildTrajectoryRows(trajectoryMessages(m.Snapshot), *search, *turnsFold, *callsFold)
 
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
@@ -236,6 +236,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				fullDetail := trajectoryDetailRow(*detail)
 				detail = &fullDetail
 				schemaPayload, headerPayload := trajectoryRequestPayloads(m.Snapshot, detail.ID)
+				requestPayload, requestEvents := trajectoryRequestBodies(m.Snapshot, detail.ID)
 				ui.Row(c).Gap(6).Children(func() {
 					for _, tab := range []struct{ id, label string }{
 						{"overview", i18n.T(i18n.KeyTrajTabOverview)},
@@ -257,10 +258,17 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					}
 				})
 				paintTrajectoryRequestTabs(c, detailTab, schemaPayload, headerPayload, accent, muted)
+				paintTrajectoryLifecycleTabs(c, detailTab, requestPayload != "", accent, muted)
 				ui.Box(c).FillWidth().Height(1).Background(border)
 				copyBody := ""
 				ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
 					switch *detailTab {
+					case "request", "request-events":
+						copyBody = requestPayload
+						if *detailTab == "request-events" {
+							copyBody = requestEvents
+						}
+						trajectoryPayloadView(c, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID+":"+detail.ID+":"+*detailTab, copyBody, fg, muted)
 					case "schema", "request-header":
 						copyBody = schemaPayload
 						if *detailTab == "request-header" {
@@ -424,6 +432,10 @@ func messageToTrajRow(msg session.Message) trajRow {
 		EventTime: msg.EventTime,
 	}
 	switch msg.Kind {
+	case trajectoryRequestKind:
+		row.Input = body
+		row.Output = msg.Args
+		row.RawHint = msg.Args
 	case session.MessageKindTool:
 		row.Tools = body
 		if body == "" {

@@ -87,6 +87,7 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	TrajectoryRequests       []TrajectoryRequest
 	TrajectoryRequestHeaders []TrajectoryRequestHeader
 	ContextOccupancy         *ContextOccupancy
 
@@ -628,6 +629,7 @@ func (s *Store) Snapshot() ViewState {
 	st.Messages = s.projectRetryMessagesLocked(st.Messages)
 	st.Messages = s.projectSystemPromptsLocked(st.Messages)
 	st.TrajectoryRequestHeaders = s.trajectoryRequestHeadersLocked()
+	st.TrajectoryRequests = s.trajectoryRequestsLocked()
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	s.snapshotModelsLocked(&st)

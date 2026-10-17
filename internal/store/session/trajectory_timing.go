@@ -73,7 +73,7 @@ func (s *Store) captureTrajectoryBoundaryLocked(raw json.RawMessage) bool {
 		return false
 	}
 	switch e.Type {
-	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started":
+	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started", "compaction/start", "compaction/summary", "compaction/end", "session/end":
 	default:
 		var ok bool
 		raw, ok = sanitizedPromptBoundary(raw)
