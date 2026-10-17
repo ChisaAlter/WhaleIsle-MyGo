@@ -40,6 +40,7 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 		s.applyPermissionValuesLocked(out.Values, out.AsOfSeq)
 		s.applyModelValuesLocked(out.Values, out.AsOfSeq)
 		s.applyContextValuesLocked(out.Values, out.AsOfSeq)
+		s.applyPlanModeValuesLocked(out.Values, out.AsOfSeq)
 		s.applyHistoryOutlineValuesLocked(out.Values, out.AsOfSeq)
 		for i := range s.items {
 			if s.items[i].SessionID == sessionID {

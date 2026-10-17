@@ -89,6 +89,7 @@ type Model struct {
 	OnModelEffortChange func(label string)
 	OnRetryModels       func()
 	OnRetryPermissions  func()
+	OnExitPlanMode      func()
 	OnPermissionChange  func(value string)
 	OnAgentPresetChange func(id string)
 	OnClearDraft        func()
@@ -463,6 +464,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							}
 						}
 					}
+					paintPlanModeControl(c, m, muted, btnH)
 					// InputBar .select: permission scope (not PromptMode queue/steer).
 					if len(m.PermissionOptions) > 0 && m.PermissionPick != nil {
 						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange).

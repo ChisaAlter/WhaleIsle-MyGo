@@ -824,6 +824,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.Store.SelectModelEffortSelectionForSessionID(context.Background(), snap.SelectedID, choice)
 							}
 						},
+						OnExitPlanMode: func() { m.Store.ExitPlanMode(context.Background(), snap.SelectedID) },
 						OnRetryPermissions: func() {
 							m.Store.RefreshPermissionCatalog(context.Background())
 							m.Store.RefreshProjections(context.Background())

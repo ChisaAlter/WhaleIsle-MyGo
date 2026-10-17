@@ -142,6 +142,7 @@ type ViewState struct {
 	PermissionLabels    []string
 	SelectedPermission  string
 	PermissionsErr      string
+	PlanModeControl     PlanModeControl
 	AgentPresetLabels   []string
 	SelectedAgentPreset string
 	AgentPresetsErr     string
@@ -187,6 +188,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	planModeControl        planModeState
 	archiveUndo            *archiveUndoState
 	archiveUndoToken       uint64
 	completionUnread       map[string]bool
@@ -613,6 +615,7 @@ func (s *Store) Snapshot() ViewState {
 	s.snapshotModelsLocked(&st)
 	st.HistoryNavigation = s.historyNavigationSnapshotLocked()
 	st.SelectedPermission = s.permissionLabelLocked()
+	st.PlanModeControl = s.planModeControlLocked()
 	if s.permissionProjectionCurrentLocked() {
 		for _, o := range s.permissionOptions {
 			st.PermissionLabels = append(st.PermissionLabels, o.Label)
