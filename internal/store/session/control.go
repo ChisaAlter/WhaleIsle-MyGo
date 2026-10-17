@@ -73,6 +73,7 @@ func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *ds
 		s.applyQuestionControlLocked(raw)
 		s.applyPermissionControlLocked(raw)
 		s.applyModelControlLocked(raw)
+		s.applyContextControlLocked(raw)
 		s.applyHistoryOutlineControlLocked(raw)
 		s.controlNote = note
 		s.mu.Unlock()

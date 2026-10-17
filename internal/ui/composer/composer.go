@@ -532,6 +532,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
 					if m.State == nil || !m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
 						paintModelPicker(c, m, muted, btnH)
+						paintContextMeter(c, m.Snapshot, muted, btnH)
 					}
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {

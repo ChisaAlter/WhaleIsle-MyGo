@@ -85,6 +85,8 @@ type Message struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
+	ContextOccupancy *ContextOccupancy
+
 	StopSequenceMS int64
 	// Stop identity is the existing live turn and selected follow binding.
 	StopTurnSeq    float64
@@ -182,6 +184,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	contextProjection contextProjectionState
+
 	stopSequenceConfig        stopSequenceConfig
 	quotaNotice               quotaNoticeState
 	inspector                 sessionInspectorState
@@ -631,6 +635,7 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.PromptMode = NormalizePromptMode(string(s.promptMode))
 	st.PromptModeExplicit = s.promptModeExplicit
+	st.ContextOccupancy = s.contextOccupancyLocked()
 	st.ComposerHostGeneration = s.composerHostGeneration
 	if len(s.pinnedSessionIDs) > 0 {
 		st.PinnedSessionIDs = append([]string(nil), s.pinnedSessionIDs...)
