@@ -33,12 +33,14 @@ type DraftClient struct {
 	font      ui.Font
 	// Display geometry is a fixed24px projection of the toolkit's retained
 	// shaping. The native text owner, UTF16 offsets, and edit history stay here.
-	visualLines    []draftVisualLine
-	scrollY        float32
-	viewportHeight float32
-	revealCaret    bool
-	undo           []draftSnapshot
-	redo           []draftSnapshot
+	visualLines      []draftVisualLine
+	scrollY          float32
+	viewportHeight   float32
+	revealCaret      bool
+	navigationX      float32
+	navigationXValid bool
+	undo             []draftSnapshot
+	redo             []draftSnapshot
 }
 
 // NewDraftClient returns a client bound to draft. The pointer must stay stable.
@@ -108,6 +110,7 @@ func (c *DraftClient) clampSelection() {
 }
 
 func (c *DraftClient) shape() {
+	c.navigationXValid = false
 	c.layout = ui.ShapeText(c.lastText, c.font, c.wrapWidth)
 	c.buildVisualLines()
 	c.revealCaret = true
@@ -213,6 +216,7 @@ func (c *DraftClient) IndexForPoint(p ui.Point) (int, bool) {
 }
 
 func (c *DraftClient) move(to int, extend bool) {
+	c.navigationXValid = false
 	c.ensure()
 	n := ui.UTF16Len(c.text())
 	to = max(0, min(to, n))

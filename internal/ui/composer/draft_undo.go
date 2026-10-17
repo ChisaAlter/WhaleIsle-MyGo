@@ -67,3 +67,15 @@ func (c *DraftClient) Redo() bool {
 	c.restore(s)
 	return true
 }
+
+// ClearHistory creates a committed document boundary without changing text.
+// It belongs to this draft only; ordinary Sync must retain editing history.
+func (c *DraftClient) ClearHistory() {
+	if c == nil {
+		return
+	}
+	c.Sync()
+	c.undo, c.redo = nil, nil
+	c.marked = nil
+	c.navigationXValid = false
+}

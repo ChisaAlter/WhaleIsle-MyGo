@@ -199,7 +199,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			d.Attachments = nil
 			d.Error = ""
 			d.TargetID = ""
-			d.Client.Sync()
+			d.Client.ClearHistory()
 			if id == "" && sessions.Snapshot().SelectedID == "" {
 				s.mu.Lock()
 				s.composerDrafts[target] = d

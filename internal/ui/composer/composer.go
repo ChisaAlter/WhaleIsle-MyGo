@@ -570,6 +570,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 								*m.Draft = ""
 								m.OnSend(text)
 							}
+							if m.TextInput != nil {
+								m.TextInput.ClearHistory()
+							}
 						}
 					}
 				})

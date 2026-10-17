@@ -116,7 +116,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			client.selection = ui.TextInputSelection{Range: ui.TextInputRange{End: ui.UTF16Len(client.text())}}
 			return true
 		}
-		if ev.Mods == ui.Cmd {
+		if client.marked == nil && (ev.Mods == ui.Cmd || ev.Mods == ui.Cmd|ui.Shift) {
 			switch ev.Key {
 			case ui.KeyZ:
 				if ev.Mods&ui.Shift != 0 {
@@ -124,11 +124,16 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				}
 				return client.Undo()
 			case ui.KeyY:
-				return client.Redo()
+				if ev.Mods == ui.Cmd {
+					return client.Redo()
+				}
 			}
 		}
 		if handleSuggestKey(client, m, ev) {
 			client.stop.reset()
+			return true
+		}
+		if client.navigate(ev) {
 			return true
 		}
 		switch ev.Key {
@@ -157,12 +162,6 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				return true
 			}
 			return false
-		case ui.KeyHome:
-			client.move(0, ev.Mods&ui.Shift != 0)
-			return true
-		case ui.KeyEnd:
-			client.move(ui.UTF16Len(client.text()), ev.Mods&ui.Shift != 0)
-			return true
 		case ui.KeyBackspace, ui.KeyDelete:
 			r := client.selection.Range
 			if r.Start == r.End && client.layout != nil {
@@ -204,12 +203,12 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			text := *m.Draft
 			if handleSlashSend(m, text) {
 				*m.Draft = ""
-				client.Sync()
+				client.ClearHistory()
 				return true
 			}
 			if m.OnSend != nil {
 				*m.Draft = ""
-				client.Sync()
+				client.ClearHistory()
 				m.OnSend(text)
 			}
 			return true

@@ -31,7 +31,7 @@ func (d *DraftState) BeginDetachedSend() (DraftFlight, bool) {
 	d.flights[f.ID] = f
 	d.Text, d.Attachments, d.Error = "", nil, ""
 	d.failedRestored = nil
-	d.Client.Sync()
+	d.Client.ClearHistory()
 	return f, true
 }
 func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.ComposerAttachment, err error) {
@@ -90,7 +90,7 @@ func (d *DraftState) RestoreFailedSends() {
 	}
 	files = append(files, attachments...)
 	d.Text, d.Attachments = strings.Join(texts, "\n\n"), files
-	d.Client.Sync()
+	d.Client.ClearHistory()
 	d.failedRestored = &DraftFlight{Text: d.Text, Attachments: append([]session.ComposerAttachment(nil), d.Attachments...)}
 }
 
