@@ -30,16 +30,16 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 | Divider | 水平分隔 | 自有颜色 |
 | Spacer | flex 填空 | 用于 flex 父容器 |
 | Title | sm/md/lg/xl/2xl/3xl、color | 自有字号/heading映射 |
-| Text | 内联 Markdown/混合Node、xs/sm/md/lg、color/weight/italic/lineThrough/tabularNums/maxLines | 链接显式禁用；图片不加载；不支持内联任意 HTML |
+| Text | 内联 Markdown/混合Node、xs/sm/md/lg、color/weight/italic/lineThrough/tabularNums/maxLines；有效HTTP(S)内嵌链接经真实手势交Host | 无目标为普通内容，非法/非HTTP(S)链接显式禁用；保留链接React子内容；图片不加载；不支持内联任意 HTML |
 | Caption | text/color | 纯文本副说明 |
 | Label | text | 可见标签；字段实际关联由各控件实现 |
 | Badge | neutral/info/success/warning/danger/purple/pink、Lucide icon | 未知 icon 显式提示 |
 | Icon | name、sm/md/lg/xl、color；实际本地 Lucide 图标 | 仅安装版本存在的名称 |
-| Markdown | CommonMark/GFM、表格、任务列表、代码块 | raw HTML 跳过；图片显式不可用；链接禁用；带语言的代码块使用下述本地高亮；公开Markdown契约未声明美元数学语法，需要公式时用独立Math组件 |
+| Markdown | CommonMark/GFM、表格、任务列表、代码块；有效HTTP(S)内嵌链接经真实手势交Host | raw HTML 跳过；图片显式不可用；无目标为普通内容，非法/非HTTP(S)链接显式禁用；带语言的代码块使用下述本地高亮，代码块复制未扩展；公开Markdown契约未声明美元数学语法，需要公式时用独立Math组件 |
 | Quote | text/cite | cite 为纯文本，不导航 |
 | Code | code/language、横向滚动，本地高亮与真实点击复制原文 | 未指定/未知语言和超高亮预算仍保留原文；复制受Host能力、事件预算与完整文本校验约束，收到真实成功才提示Copied |
 | Math | tex/inline；本地 KaTeX 到原生 MathML | trust=false；不打包字体；原生MathML效果待各WebView验收；有解析/展开预算 |
-| Link | text/url；真实点击后交Host打开绝对HTTP(S)地址 | 无userinfo凭据；不自动导航、不在iframe内打开；Sent to browser只表示系统接受，不保证页面加载；Markdown链接仍禁用 |
+| Link | text/url；真实点击后交Host打开绝对HTTP(S)地址；Markdown/Text内嵌链接复用同一HostLink | 无userinfo凭据或控制字符；不自动导航、不在iframe内打开；Sent to browser只表示系统接受，不保证页面加载 |
 | List | bullet/number/none、timeline；字符串或ListItem | 自有标记/连接线 |
 | ListItem | title/description/marker/children | title/description 内联 Markdown仍受上述限制 |
 | Button | solid/outline/soft/ghost，primary/danger/success，sm/md/lg，icon/disabled/block | 动作边界见下表；无动作发送标签给assistant |
@@ -123,6 +123,13 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 
 语言名去首尾空白、大小写不敏感；未知名称不猜测。不带语言标记的代码显示纯文本并说明。Markdown内联code保持纯文本样式；fenced/indented code按Markdown解析结果保留空白和末尾换行。高亮前预算：20,000个UTF-16 code units、1,000行、单行4,000 code units；高亮后最多12,000个AST节点/48层。超过预算、异常或输出文本不一致时显示全部原文及原因，不截断代码。预算用于降低主线程成本，不承诺硬性时间上限；iframe仍无worker。实际高亮、流式更新与WebView显示未运行验收。
 
+### Markdown/Text 内嵌链接
+
+- 内嵌链接和独立Link组件使用同一`HostLink`。仅无userinfo凭据、无控制字符且hostname非空的绝对HTTP(S)地址可形成Host动作；仍须满足`hostActions`能力、非streaming状态、真实click/键盘事件和既有payload/事件预算检查。
+- 粗体、斜体、内联代码等React子内容保留原样，不转换成纯字符串。动作身份由URL payload决定；React节点不序列化为动作身份或Host消息。
+- 缺少目标地址时显示普通内容；非法地址、相对地址或非HTTP(S)地址明确显示禁用提示。链接不添加导航`href`，不直接打开窗口或导航iframe；Host回执成功只表示系统接受请求。
+- 远程图片仍不加载，raw HTML规则不变。Markdown代码块复制维持原状；独立Code组件继续通过既有Host能力复制原文。此接线未修改Go桥协议，也不代表实际WebView交互已验收。
+
 ### 图表细项
 
 - bar: grouped或正负分离stacked；line/area: 普通或累计stacked，缺失值为gap；stacked行缺任一值时整行gap，不能默认为零。
@@ -185,7 +192,7 @@ SDK 官方来源为 thesysdev/openui 的 `f7109dd01b7bdfb14c8c9006eaca5a8b3cfc3a
 - 超过既有64KiB完整事件预算则不发送，原文不截断；文本NUL会在Windows文本剪贴板截断，因此跨平台统一拒绝；不成对Unicode代理项无法原样通过JSON/UTF8传输，也明确拒绝。
 - pending控件阻止重复提交；payload变化/组件卸载不显示旧结果，程序/streaming/能力变化会撤销未完成许可。等待Host回执15秒后只提示结果未确认，动作可能已经完成，不假称执行失败或成功。已发出的系统操作没有撤销/回滚承诺。
 - 混合计划按原顺序分段执行，原生步骤等待真实回执；后续控件参数/标签/表单身份改变会取消剩余步骤，包括Set引发响应式动作参数变化的情况。已完成步骤不回滚，这个边界不宣称完整等价。
-- 本次只补Code复制、Link和已有CopyToClipboard/OpenUrl动作。Markdown内嵌链接与代码块复制未扩展，HtmlView仍没有任何该能力；YouTube/CDN/媒体仍未实现。
+- Code复制、Link和已有CopyToClipboard/OpenUrl动作使用同一Host能力；Markdown/Text内嵌HTTP(S)链接已接入同一HostLink，具体边界见上节。Markdown代码块复制未扩展，HtmlView仍没有任何该能力；YouTube/CDN/媒体仍未实现。
 
 ## 59个应用函数
 

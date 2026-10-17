@@ -20,6 +20,12 @@ Host校验单调序列、请求ID、typed payload、会话能力和一次claim�
 
 同一真实事件只建立一次许可，内容/程序/streaming/能力变化或组件移除后旧结果不能伪装新控件成功。15秒未收到结果只表示无法确认，不能证明系统没有执行。不存在自动重试复制/外链动作。
 
+## Markdown/Text内嵌链接
+
+Markdown和Text的内嵌链接复用独立Link组件的`HostLink`和同一真实click/键盘手势许可。目标必须为绝对HTTP(S)地址、非空hostname，且无userinfo凭据或控制字符；有效目标也必须满足既有Host能力、streaming、payload和事件预算限制，收到真实Host回执才显示结果。没有目标地址时保留普通内容；非法地址或非HTTP(S)地址显示禁用提示。
+
+链接标签保留原有React子内容，包括粗体、斜体和内联代码。动作身份绑定URL payload，不把React节点序列化为动作身份或Host消息。没有新增导航`href`、iframe导航、远程图片加载或Go桥协议；Host仍只接收既有typed `open-url`请求。
+
 ## 剩余范围
 
-Markdown内嵌链接/代码块复制维持原状；HtmlView无本模块能力，其他scheme、任意native方法、媒体/YouTube/CDN均未增加。Linux现有OpenUI桥未接入该能力。此模块不改变OS设置、token/entitlements或helper自身的网络/剪贴板权限。
+Markdown代码块复制维持原状，没有新增复制入口；独立Code组件保留已有复制原文能力。HtmlView无本模块能力，其他scheme、任意native方法、媒体/YouTube/CDN均未增加。Linux现有OpenUI桥未接入该能力。此模块不改变OS设置、token/entitlements或helper自身的网络/剪贴板权限。

@@ -7,7 +7,7 @@
 ## 当前交付状态
 
 - 自有 React 组件覆盖布局、内容、表单、图表、SVG、栅格地图、图片搜索与基本交互；自有函数保留 59 个公开应用函数的名称和位置参数。
-- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。Code复制、CopyToClipboard、Link和OpenUrl仅在真实用户手势后请求owned Host，收到实际结果才提示成功；不是iframe直接复制或导航。HtmlView仅运行隔离的本地 HTML/CSS/inline JS，原版script CDN不可用；YouTube未注册，未知组件仍产生错误。
+- 支持范围按行为逐项列在 [COMPATIBILITY.md](COMPATIBILITY.md)。Code复制、CopyToClipboard、Link、Markdown/Text内嵌HTTP(S)链接和OpenUrl仅在真实用户手势后请求owned Host，收到实际结果才提示成功；不是iframe直接复制或导航。HtmlView仅运行隔离的本地 HTML/CSS/inline JS，原版script CDN不可用；YouTube未注册，未知组件仍产生错误。
 - 使用真实 SDK `Renderer`、增量解析器、状态存储和动作执行器。SDK 未被修改；自有存储适配器仅包装其公开 Store API。
 - 已生成生产资产。没有新增/运行项目测试、typecheck、浏览器 viewer、原生 helper 或原生构建，也没有访问真实图片/地图/账户/位置服务。**打包成功不是运行、视觉或跨平台验收。**
 
@@ -40,6 +40,8 @@ npm run embed
 viewer 保持无直接网络、无 worker、无媒体和无浏览器剪贴板权限。HtmlView 使用独立的第二层 opaque srcdoc，只有 inline script 执行权；其内部不能再创建第三层可运行页面。父、子 CSP 均保留 `frame-src 'none'`，native 导航策略按真实 frame 身份和层级准入 srcdoc；不是任意 frame 放行。SearchImage、Map 的固定 API 请求经 `requestResource(path, query, signal)` 发到父层；仅父层访问公共资源，子层只接受校验后的 data URL/路线点。HtmlView 没有该资源桥、OpenUI 状态/动作桥或原生凭据。宿主 OS 沙箱和 native 请求拦截仍是无网络保证的一部分，不能将任意浏览器里的 iframe/CSP 单独当作相同隔离。
 
 `hostActions`默认false，Host按实际内嵌viewer字节、非legacy路径及当前会话所有权启用。自有按钮同步验证真实click/键盘事件，把固定clipboard/open-url请求送入现有隔离shell；Host再按递增sequence、一次claim和当前owner校验，并在UI线程执行已有系统接口。结果复用原API回包，不新增通用native binding。HtmlView、timer、合成事件或自动render均不能取得动作许可。详见[NATIVE-ACTIONS.md](NATIVE-ACTIONS.md)。
+
+Markdown/Text内嵌链接复用同一`HostLink`，仅接受无凭据、无控制字符的绝对HTTP(S)地址；不创建导航`href`、不在viewer内打开地址，也不加载远程图片。链接的粗体、斜体、内联代码等React子内容保持原样；动作身份由URL payload决定，不序列化React节点。缺少目标地址时显示普通内容，非法地址或非HTTP(S)地址明确显示禁用提示。此接线不改变Go桥协议；Markdown代码块复制维持原状，独立Code组件已有复制原文能力。
 
 状态适配器一次性恢复初始快照；用户写入即使值相同也成为脏键，`@Reset` 恢复声明默认值并清除脏键。后续流式默认值不覆盖脏键。只回传脏键快照；不把每次 render 的宿主状态再次覆盖进当前交互。细节和未验收边界见兼容清单。
 

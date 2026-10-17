@@ -33,14 +33,26 @@ function safeColor(value: unknown, fallback = ink): string {
 
 function BlockedLink({ children }: { children: ReactNode }) {
   return (
-    <span role="link" aria-disabled="true" title="Opening links is unavailable in this isolated viewer." style={{ color: '#245fba', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+    <span role="link" aria-disabled="true" title="Only absolute HTTP(S) links without credentials or control characters are supported." style={{ color: '#245fba', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
       {children}<small style={{ textDecoration: 'none', marginInlineStart: 4, color: muted }}>(link disabled)</small>
     </span>
   );
 }
 
+function MarkdownLink({ href, children }: { href?: string; children: ReactNode }) {
+  if (!href) return <>{children}</>;
+  let target: URL | undefined;
+  if (!/[\u0000-\u0020\u007f-\u009f]/.test(href)) {
+    try { target = new URL(href); } catch { /* Relative and malformed links stay disabled. */ }
+  }
+  if (!target || !['http:', 'https:'].includes(target.protocol) || !target.hostname || target.username || target.password) {
+    return <BlockedLink>{children}</BlockedLink>;
+  }
+  return <HostLink url={target.href}>{children}</HostLink>;
+}
+
 const markdownComponents: Components = {
-  a: ({ children }) => <BlockedLink>{children}</BlockedLink>,
+  a: ({ href, children }) => <MarkdownLink href={href}>{children}</MarkdownLink>,
   img: ({ alt }) => <span role="note" style={{ color: muted }}>[Image unavailable: {alt || 'external image'}]</span>,
   p: ({ children }) => <p style={{ margin: '0 0 0.85em', overflowWrap: 'anywhere' }}>{children}</p>,
   h1: ({ children }) => <h1 style={{ fontSize: '1.8em', lineHeight: 1.25, margin: '1em 0 0.5em' }}>{children}</h1>,
@@ -75,7 +87,9 @@ function SafeMarkdown({ text, inline = false }: { text: string; inline?: boolean
   return <>{leading}<ReactMarkdown
     remarkPlugins={[remarkGfm]}
     skipHtml
-    urlTransform={() => ''}
+    // The custom a renderer validates this value and never emits a DOM href.
+    // Image src and every other URL-bearing property remain disabled.
+    urlTransform={(url, key, node) => key === 'href' && node.tagName === 'a' ? url : ''}
     components={inline ? inlineMarkdownComponents : markdownComponents}
     allowedElements={inline ? ['p', 'strong', 'em', 'code', 'del', 'a', 'img', 'br'] : undefined}
     unwrapDisallowed={inline}
