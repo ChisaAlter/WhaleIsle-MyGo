@@ -50,7 +50,7 @@ func (s *Store) AgentChatRestoreLineage(token uint64, target AgentSessionAddress
 	return append([]AgentSessionAddress(nil), path...)
 }
 func validAgentRestoreLineage(root string, target AgentSessionAddress, path []AgentSessionAddress) bool {
-	if root == "" || len(path) == 0 || len(path) > 64 || path[len(path)-1] != target {
+	if root == "" || len(path) == 0 || path[len(path)-1] != target {
 		return false
 	}
 	parent := root
