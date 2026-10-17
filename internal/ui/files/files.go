@@ -373,8 +373,8 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		mode := resolveEditViewMode(m, canHL && editing)
 
-		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, sel).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
+		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Wrap().FillWidth().AlignItems(ui.Center).Children(func() {
+			paintToolbarPath(c, m, sel, muted)
 			if sel != "" {
 				paintReferenceButtons(c, m, sel)
 				paintDocumentViewerButton(c, m)
@@ -388,11 +388,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					}
 				}
 				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(theme.InterfaceSize(11)).Clicked() {
-					path := sel
-					if fullPath != "" {
-						path = fullPath
-					}
-					mygo.Clipboard.WriteText(path)
+					mygo.Clipboard.WriteText(toolbarAbsolutePath(m, sel))
 				}
 				if ui.Button(c, label("复制相对路径", "Copy relative path")).FontSize(theme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(sel)
@@ -422,12 +418,12 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 					}
 				}
 			}
-			if m.OnReveal != nil && fullPath != "" {
+			if m.OnReveal != nil && (fullPath != "" || m.ReadRemoteContext != nil || m.ListRemoteContext != nil) {
 				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(theme.InterfaceSize(11)).Clicked() {
-					withPreviewPath(m, sel, fullPath, m.OnReveal)
+					revealToolbarPath(m, sel, fullPath)
 				}
 			}
-			if m.OnOpenWith != nil && fullPath != "" && len(m.OpenWithApps) > 0 {
+			if m.OnOpenWith != nil && (fullPath != "" || m.ReadRemoteContext != nil || m.ListRemoteContext != nil) && len(m.OpenWithApps) > 0 {
 				ui.Text(c, i18n.T(i18n.KeyFilesOpenWith)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 				for _, app := range m.OpenWithApps {
 					a := app
@@ -436,7 +432,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 						label = a.ID
 					}
 					if ui.Button(c, label).FontSize(theme.InterfaceSize(11)).Clicked() {
-						withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenWith(path, a.ID) })
+						withToolbarPath(m, sel, fullPath, func(path string) { m.OnOpenWith(path, a.ID) })
 					}
 				}
 			}

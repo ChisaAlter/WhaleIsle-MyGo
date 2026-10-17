@@ -109,7 +109,7 @@ func (b *Controller) Navigate(raw string) {
 	t.Draft = raw
 	normalized := NormalizeURL(raw)
 	if normalized == "" {
-		t.Error = "请输入有效的 HTTP(S) 地址"
+		t.Error = browserChromeLabel("请输入有效的 HTTP(S) 地址", "Enter a valid HTTP(S) address")
 		b.update()
 		return
 	}
@@ -247,7 +247,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
 		ui.Column(c).Height(BrowserChromeHeight).Padding(6, 12, 6, 12).Gap(4).Children(func() {
 			ui.Row(c).Height(30).Gap(6).AlignItems(ui.Center).Children(func() {
-				if ui.Button(c, "返回工作区").Clicked() {
+				if ui.Button(c, browserChromeLabel("返回工作区", "Back to workspace")).Clicked() {
 					b.Hide()
 					if onClose != nil {
 						onClose()
@@ -275,16 +275,16 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 							if i == b.Active {
 								label = "● " + label
 							}
-							if ui.Button(c, label).Tooltip("Browser 分区：" + tab.browserWorkspaceLabel()).Clicked() {
+							if ui.Button(c, label).Tooltip(browserChromeLabel("Browser 分区：", "Browser profile: ") + tab.browserWorkspaceLabel()).Clicked() {
 								b.Select(i)
 							}
 						}
 					})
 				})
-				if ui.Button(c, "+ 新标签").Clicked() {
+				if ui.Button(c, browserChromeLabel("+ 新标签", "+ New tab")).Clicked() {
 					b.NewTab("")
 				}
-				if ui.Button(c, "关闭标签").Clicked() {
+				if ui.Button(c, browserChromeLabel("关闭标签", "Close tab")).Clicked() {
 					b.CloseTab(b.Active)
 				}
 			})
@@ -314,29 +314,29 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 					t.Host.Forward()
 				}
 				if s.Loading {
-					if ui.Button(c, "停止").Clicked() {
+					if ui.Button(c, browserChromeLabel("停止", "Stop")).Clicked() {
 						b.CancelAction()
 						t.Host.Stop()
 					}
-				} else if ui.Button(c, "刷新").Disabled(t.Host == nil).Clicked() {
+				} else if ui.Button(c, browserChromeLabel("刷新", "Reload")).Disabled(t.Host == nil).Clicked() {
 					b.CancelAction()
 					t.Host.Reload()
 				}
 				if ui.TextInput(c, &t.Draft).Placeholder("https://example.com").Grow(1).Submitted() {
 					b.Navigate(t.Draft)
 				}
-				if ui.Button(c, "前往").Clicked() {
+				if ui.Button(c, browserChromeLabel("前往", "Go")).Clicked() {
 					b.Navigate(t.Draft)
 				}
-				if ui.Button(c, "系统浏览器打开").Disabled(b.current() != t || NormalizeURL(t.Draft) == "").Tooltip("打开地址栏中的 HTTP(S) 地址；使用系统浏览器自己的登录状态，不传递 Browser 分区 Cookie。").Clicked() && b.current() == t {
+				if ui.Button(c, browserChromeLabel("系统浏览器打开", "Open in system browser")).Disabled(b.current() != t || NormalizeURL(t.Draft) == "").Tooltip(browserChromeLabel("打开地址栏中的 HTTP(S) 地址；使用系统浏览器自己的登录状态，不传递 Browser 分区 Cookie。", "Open the address bar HTTP(S) URL using the system browser’s own sign-in state. Browser profile cookies are not transferred.")).Clicked() && b.current() == t {
 					if err := openBrowserAddress(t.Draft, desktop.OpenExternal); err != nil {
 						t.Error = err.Error()
 					} else {
 						t.Error = ""
-						t.ActionMessage = "已提交到系统浏览器；当前 Browser 页签和分区保持不变"
+						t.ActionMessage = browserChromeLabel("已提交到系统浏览器；当前 Browser 页签和分区保持不变", "Sent to the system browser; this tab and its profile are unchanged")
 					}
 				}
-				if ui.Button(c, "复制链接").Clicked() {
+				if ui.Button(c, browserChromeLabel("复制链接", "Copy URL")).Clicked() {
 					raw := s.URL
 					if raw == "" {
 						raw = t.Draft
@@ -354,19 +354,19 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			}
 			status := s.URL
 			if t.Media != nil {
-				status = t.Media.Name + " · 媒体快照；只允许本文件，脚本/外网禁用；无法播放时请使用 Files 外部打开"
+				status = t.Media.Name + browserChromeLabel(" · 媒体快照；只允许本文件，脚本/外网禁用；无法播放时请使用 Files 外部打开", " · Media snapshot; only this file is allowed, scripts/network disabled. Use Files → Open external if playback fails.")
 			}
 			if t.Document != nil {
-				status = t.Document.Name + " · PDF 只读快照；文档脚本与外部导航已禁用"
+				status = t.Document.Name + browserChromeLabel(" · PDF 只读快照；文档脚本与外部导航已禁用", " · Read-only PDF snapshot; document scripts and external navigation disabled")
 			}
 			if t.HTML != nil {
-				status = t.HTML.Name + " · " + t.HTML.Resources.Summary() + "；静态预览，脚本/外网禁用"
+				status = t.HTML.Name + " · " + t.HTML.Resources.Summary() + browserChromeLabel("；静态预览，脚本/外网禁用", "; static preview, scripts/network disabled")
 			}
 			if status == "" {
-				status = "每个标签保留独立页面和历史；网页无法调用应用权限。"
+				status = browserChromeLabel("每个标签保留独立页面和历史；网页无法调用应用权限。", "Each tab retains its own page and history; webpages cannot invoke app permissions.")
 			}
 			if s.Loading {
-				status = "加载中 · " + status
+				status = browserChromeLabel("加载中 · ", "Loading · ") + status
 			}
 			if t.ActionMessage != "" {
 				status = t.ActionMessage
@@ -375,13 +375,13 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				status = err
 			}
 			if t.Document == nil && t.HTML == nil && t.Media == nil {
-				status = "分区「" + t.browserWorkspaceLabel() + "」 · " + status
+				status = browserChromeLabel("分区「", "Profile “") + t.browserWorkspaceLabel() + browserChromeLabel("」 · ", "” · ") + status
 			}
 			if !b.profileSeen && t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
-				const notice = "Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。"
+				notice := browserChromeLabel("Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。", "Browser profiles are separated by workspace. After upgrading, sign in once in each profile; the old profile was not migrated or deleted. Without a workspace, a fixed shared browsing profile is used.")
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
-					if ui.Button(c, "知道了").Clicked() {
+					if ui.Button(c, browserChromeLabel("知道了", "Got it")).Clicked() {
 						b.profileSeen = true
 					}
 				})
