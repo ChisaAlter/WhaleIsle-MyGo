@@ -32,6 +32,10 @@ func autosaveModel(t *testing.T) (Model, chan struct{}) {
 	tabs.Bind(m.BindingID, root)
 	prepareTabs(m)
 	selectFile(m, "a.txt")
+	// Text files use the production async reader. Complete that initial read
+	// before exercising save-queue behavior so the fixture is not testing the
+	// read-blocked guard itself.
+	awaitFileTextRead(t, m, done)
 	*m.Editing = true
 	observeAutosave(m)
 	t.Cleanup(tabs.Dispose)
@@ -43,6 +47,18 @@ func awaitAutosave(t *testing.T, done <-chan struct{}) {
 	case <-done:
 	case <-time.After(3 * time.Second):
 		t.Fatal("save timeout")
+	}
+}
+
+func awaitFileTextRead(t *testing.T, m Model, done <-chan struct{}) {
+	t.Helper()
+	for selectedTab(m) != nil && selectedTab(m).readBlocked {
+		select {
+		case <-done:
+			syncTextRead(m)
+		case <-time.After(3 * time.Second):
+			t.Fatal("text read timeout")
+		}
 	}
 }
 
@@ -62,6 +78,7 @@ func TestAutosaveKeepsNewerDraftAndFileIdentity(t *testing.T) {
 	*m.EditDraft = "newer-keystrokes"
 	observeAutosave(m)
 	selectFile(m, "b.txt")
+	awaitFileTextRead(t, m, done)
 	close(release)
 	awaitAutosave(t, done)
 	syncSaveResults(m)
@@ -69,6 +86,7 @@ func TestAutosaveKeepsNewerDraftAndFileIdentity(t *testing.T) {
 		t.Fatal("late save changed the new file")
 	}
 	selectFile(m, "a.txt")
+	awaitFileTextRead(t, m, done)
 	if *m.Preview != "first-write" || *m.EditDraft != "newer-keystrokes" {
 		t.Fatalf("newer draft lost: preview=%q draft=%q", *m.Preview, *m.EditDraft)
 	}
@@ -93,6 +111,12 @@ func TestAutosaveConflictRecoveryAndBindingChange(t *testing.T) {
 	m.BindingID = "different-host/session"
 	if err := os.WriteFile(filepath.Join(m.WorkspaceRoot, "a.txt"), []byte("external"), 0600); err != nil {
 		t.Fatal(err)
+	}
+	// The conflict case exercises SaveTextChecked against the external edit;
+	// mark the already captured tab as readable without starting a second
+	// asynchronous reload that would replace the test's explicit baseline.
+	if tab := selectedTab(m); tab != nil {
+		tab.readBlocked, tab.readLoading, tab.readResume = false, false, false
 	}
 	if err := requestSaveDraft(m); err != nil {
 		t.Fatal(err)
