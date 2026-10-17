@@ -86,6 +86,11 @@ func (s *mainState) openAccountPlatform(page, source string) {
 			host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
 				Parent: win, URL: entry, DisplayURL: session.Origin + path, Title: "Platform", TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
 				TransientProfile: true, Untrusted: true, PreloadScript: gateway.Preload(i18n.Locale()), AllowNavigation: gateway.Allows,
+				OnExternalWindow: func(raw string) {
+					if target, ok := gateway.ExternalURL(raw); ok {
+						_ = desktopwebview.OpenExternal(target)
+					}
+				},
 				OnClosed: func() { cancel(); gateway.Close() }, OnChange: func() { win.Update(func() {}) },
 			})
 			if err != nil {

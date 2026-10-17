@@ -17,10 +17,12 @@ import (
 
 // HostOptions configure a borderless WebView2 child window.
 type HostOptions struct {
-	DisplayURL          string
-	TransientProfile    bool
-	PreloadScript       string
-	AllowNavigation     func(string) bool
+	DisplayURL       string
+	TransientProfile bool
+	PreloadScript    string
+	AllowNavigation  func(string) bool
+	// OnExternalWindow is an opt-in popup handoff; it never creates a child WebView.
+	OnExternalWindow    func(string)
 	ShortcutPreferences *shortcutprefs.Store
 	// BrowserProfile selects the persistent Browser-only login/storage area.
 	// It cannot be combined with an authenticated Host session or local preview.
@@ -317,6 +319,9 @@ func NewHost(opts HostOptions) (*Host, error) {
 	if opts.Untrusted {
 		pg.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
 			if opts.TransientProfile {
+				if opts.OnExternalWindow != nil && !localPreview {
+					opts.OnExternalWindow(req.URL)
+				}
 				return nil
 			}
 			// Keep popups inside the same isolated page; never create a privileged child.

@@ -85,9 +85,8 @@ func New(session Session, metadata ClientMetadata) (*Gateway, error) {
 		r.Header.Del("Access-Control-Allow-Credentials")
 		r.Header.Set("Cache-Control", "no-store")
 		r.Header.Set("Referrer-Policy", "no-referrer")
-		// This additional policy never relaxes upstream CSP. Network and nested
-		// browsing stay in this pinned lease; a third-party resource cannot see auth.
-		r.Header.Add("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+		// Preserve the trusted account deployment's CSP, including its CDN/payment
+		// resource policy. Never add a second self-only policy that disables it.
 		if raw := r.Header.Get("Location"); raw != "" {
 			u, e := target.Parse(raw)
 			if e != nil || u.User != nil || u.Scheme != target.Scheme || u.Host != target.Host {
@@ -163,11 +162,14 @@ func (g *Gateway) Preload(locale string) string {
 	} else {
 		locale = "en_US"
 	}
-	payload, _ := json.Marshal(map[string]string{"browserOrigin": g.origin, "origin": g.session.Origin, "token": g.session.Token, "locale": locale})
+	payload, _ := json.Marshal(map[string]any{"browserOrigin": g.origin, "origin": g.session.Origin, "token": g.session.Token, "locale": locale, "privateHeaders": g.privateHeaders()})
 	return `(()=>{'use strict';const s=` + string(payload) + `;if(window!==window.top||location.origin!==s.browserOrigin)return;
  const rewrite=value=>{const u=new URL(value,location.href);if(u.origin===s.origin){return s.browserOrigin+u.pathname+u.search+u.hash;}return u.href;};
- const nativeFetch=window.fetch.bind(window);window.fetch=(input,init)=>{if(input instanceof Request){const mapped=rewrite(input.url);return nativeFetch(mapped===input.url?input:new Request(mapped,input),init);}return nativeFetch(rewrite(String(input)),init);};
- const open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url,...args){return open.call(this,method,rewrite(String(url)),...args);};
+ const privateHeaders=new Set(s.privateHeaders);const external=value=>new URL(value,location.href).origin!==s.browserOrigin;
+ const scrub=headers=>{const h=new Headers(headers);for(const name of privateHeaders)h.delete(name);return h;};
+ const nativeFetch=window.fetch.bind(window);window.fetch=(input,init)=>{const mapped=rewrite(input instanceof Request?input.url:String(input));let request=input instanceof Request?new Request(mapped,input):new Request(mapped);if(init)request=new Request(request,init);if(external(mapped))request=new Request(request,{headers:scrub(request.headers),credentials:'omit',referrerPolicy:'no-referrer'});return nativeFetch(request);};
+ const destinations=new WeakMap();const open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url,...args){const mapped=rewrite(String(url));destinations.set(this,external(mapped));return open.call(this,method,mapped,...args);};
+ const setHeader=XMLHttpRequest.prototype.setRequestHeader;XMLHttpRequest.prototype.setRequestHeader=function(name,value){if(destinations.get(this)&&privateHeaders.has(String(name).toLowerCase()))return;return setHeader.call(this,name,value);};
  let locale=s.locale;const listeners=new Set();Object.defineProperty(window,'dsh',{configurable:false,writable:false,value:Object.freeze({protocolVersion:1,displayMode:'embedded',getAuthToken:()=>s.token,getLocale:()=>locale,onLocaleChange:fn=>{listeners.add(fn);return()=>listeners.delete(fn);}})});
  // Native locale updates contain no credential and cannot replace the bridge.
  window.addEventListener('whale-platform-locale',e=>{if(e.detail!=='zh_CN'&&e.detail!=='en_US')return;locale=e.detail;for(const fn of listeners){try{fn(locale)}catch{}}});
