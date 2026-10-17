@@ -53,7 +53,8 @@ not represent a new claim about upstream redistribution rights.
 - An inline renderer that has not painted for 300ms hides its Windows surface.
   After 30 seconds offscreen it closes and becomes eligible to restart when
   visible. Explicit Close cancels without automatic restart; Retry is available.
-  Each instance has a 30-minute context deadline. These checks are timer-driven,
+  Active instances have no arbitrary lifetime deadline. Owner revocation,
+  explicit Close and offscreen reclamation still cancel them. These checks are timer-driven,
   not an assertion of immediate unmount cleanup. Queued state not delivered
   before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
@@ -84,8 +85,13 @@ executed by these checks.
 Source and synthetic fixtures cover streaming/state preservation and bounded
 transport. Automatic visible loading, offscreen timeout, clipping, user input,
 scrolling and close/reopen behavior still require real Windows/macOS runtime
-acceptance. No screenshot or pixel acceptance is claimed. Stage two also needs
-its own native SDK compile after publication.
+acceptance. No screenshot or pixel acceptance is claimed. Stage two native SDK
+compilation passed in Actions run 39023879575 at commit
+551649d8afe62ff3964dc94e1e0f610faacea2d8; stage one run 39023193323 also passed.
+These compile results do not establish signed-build or real UI acceptance.
+A focused lifecycle fixture additionally checks that active contexts have no
+deadline and explicit cancellation still terminates them; the existing owner
+ticket fixture covers owner revocation.
 
 Still partial: complete original network/map/clipboard/link capabilities and
 gesture-attested immediate action sending. The default distribution lacks a

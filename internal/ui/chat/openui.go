@@ -79,7 +79,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			invalidate()
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := newOpenUIContext()
 		b.mu.Lock()
 		b.loading = true
 		b.err = ""
@@ -187,6 +187,12 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		c.After(100 * time.Millisecond)
 	}
 	return true
+}
+
+// A visible form remains alive until its owner, explicit close or offscreen
+// reclamation cancels it. Elapsed wall time alone does not revoke its owner.
+func newOpenUIContext() (context.Context, context.CancelFunc) {
+	return context.WithCancel(context.Background())
 }
 
 func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance string, invalidate func()) {
