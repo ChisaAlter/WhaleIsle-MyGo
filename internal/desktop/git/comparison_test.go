@@ -32,6 +32,7 @@ func diffFixture(t *testing.T) (string, func(...string) string, func(string, str
 	run("config", "user.name", "Diff Fixture")
 	run("config", "user.email", "fixture@example.invalid")
 	run("config", "commit.gpgsign", "false")
+	run("config", "core.autocrlf", "false")
 	write("a.txt", "initial\n")
 	write("b.txt", "initial\n")
 	run("add", ".")
