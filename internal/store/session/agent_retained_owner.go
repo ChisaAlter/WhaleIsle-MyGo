@@ -7,13 +7,14 @@ import (
 )
 
 type agentRetainedRead struct {
-	ctx     context.Context
-	cancel  context.CancelFunc
-	pane    *Store
-	client  *dsh.Client
-	mux     *dsh.Mux
-	root    string
-	address AgentSessionAddress
+	restoredReadOnly bool
+	ctx              context.Context
+	cancel           context.CancelFunc
+	pane             *Store
+	client           *dsh.Client
+	mux              *dsh.Mux
+	root             string
+	address          AgentSessionAddress
 }
 
 // NewRetainedAgentNavigationPane creates a fresh resource occurrence, not a

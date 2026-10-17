@@ -16,12 +16,14 @@ func workspaceSessionKey(scope, workspace, session string) string {
 }
 
 type workspaceSessionLayout struct {
-	Panes *frame.WorkspacePanes `json:"-"`
-	Saved json.RawMessage       `json:"panes"`
-	Open  bool                  `json:"open"`
-	Tab   string                `json:"tab"`
-	Right float32               `json:"right"`
-	Tree  float32               `json:"tree"`
+	restoreReadScope string
+	restoreReadRoot  string
+	Panes            *frame.WorkspacePanes `json:"-"`
+	Saved            json.RawMessage       `json:"panes"`
+	Open             bool                  `json:"open"`
+	Tab              string                `json:"tab"`
+	Right            float32               `json:"right"`
+	Tree             float32               `json:"tree"`
 }
 
 type workspaceSessionLayouts struct {
@@ -66,6 +68,7 @@ func (s *mainState) selectWorkspaceSessionLocked() {
 		session = s.sessions.Snapshot().SelectedID
 		scope = s.sessions.WorkspaceLayoutScope()
 	}
+	s.restoreSavedAgentReadersLocked(scope, workspace)
 	s.switchWorkspaceSessionLocked(scope, workspace, session)
 }
 
@@ -142,6 +145,10 @@ func (s *mainState) restoreWorkspaceSessions(saved recovery.State) error {
 				panes = &frame.WorkspacePanes{}
 			}
 			entry.Panes = panes
+			var route [3]string
+			if json.Unmarshal([]byte(key), &route) == nil && route[0] != "" && route[0] != "legacy" {
+				entry.restoreReadScope, entry.restoreReadRoot = route[0], route[2]
+			}
 			if !finiteSize(entry.Right, 300, 3000) {
 				entry.Right = s.layout.Right
 			}
@@ -188,5 +195,23 @@ func (s *mainState) disposeWorkspaceSessions() {
 	}
 	for _, entry := range s.workspaceSessions.BySession {
 		entry.Panes.DisposeContent()
+	}
+}
+
+// Only records that arrived with a durable Host scope are eligible. Legacy
+// layout migration cannot retroactively prove the saved child belonged here.
+func (s *mainState) restoreSavedAgentReadersLocked(scope, workspace string) {
+	if s.sessions == nil || scope == "" {
+		return
+	}
+	for key, entry := range s.workspaceSessions.BySession {
+		if entry == nil || entry.restoreReadScope != scope || entry.restoreReadRoot == "" {
+			continue
+		}
+		var route [3]string
+		if json.Unmarshal([]byte(key), &route) != nil || route[0] != scope || route[1] != workspace || route[2] != entry.restoreReadRoot {
+			continue
+		}
+		entry.Panes.RestoreRetainedAgentReaders(s.sessions, scope, entry.restoreReadRoot)
 	}
 }

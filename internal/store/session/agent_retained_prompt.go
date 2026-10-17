@@ -3,7 +3,7 @@ package session
 // A user gesture may submit only to the exact conversation retained by this
 // occurrence. This does not grant catalog actions or shared approvals.
 func (s *Store) retainedAgentPromptAllowedLocked(token uint64, address AgentSessionAddress) bool {
-	return s.retainedAgentReadValidLocked() && s.agentNavigationOwnedLocked() &&
+	return s.retainedAgentReadValidLocked() && !s.agentRetainedRead.restoredReadOnly && s.agentNavigationOwnedLocked() &&
 		s.agentNavigation.view.Token == token && s.agentNavigation.view.Address == address &&
 		address == s.agentRetainedRead.address && address.Mode == "continuable" &&
 		s.agentNavigation.view.Process.Live && s.agentParentCanPromptLocked(address)

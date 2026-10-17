@@ -80,7 +80,7 @@ func (s *Store) SyncAgentNavigationPane() {
 // Caller owns this pane's lock. The root never takes a pane lock while holding
 // its own lock, including release, so this ownership check has one lock order.
 func (s *Store) agentPaneCurrentLocked() bool {
-	if s.agentRetainedRead != nil && s.agentRetainedRead.ctx.Err() != nil {
+	if s.agentRetainedRead != nil && (s.agentRetainedRead.ctx.Err() != nil || s.agentRetainedRead.restoredReadOnly) {
 		return false
 	}
 	owner := s.agentNavigationOwner
