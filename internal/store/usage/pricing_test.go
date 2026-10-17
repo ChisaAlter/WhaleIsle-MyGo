@@ -35,6 +35,8 @@ func TestPricingFixture(t *testing.T) {
 			t.Error("cookie missing")
 		}
 		switch r.URL.Path {
+		case "/usage-stats/billing.models":
+			writeRPC(w, req.RPCID, json.RawMessage(`{"options":[{"provider":"p","providerName":"Fixture","models":["m"]}]}`))
 		case "/usage-stats/billing.get":
 			writeRPC(w, req.RPCID, json.RawMessage(`{"prices":{"p/m":{"inputCacheHit":1,"inputCacheMiss":2,"output":4}},"peakValleyEnabled":true}`))
 		case "/usage-stats/billing.set":
