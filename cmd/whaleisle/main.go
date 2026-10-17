@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -305,6 +307,10 @@ type mainState struct {
 	dshMuxReady       bool
 	dshMuxLost        bool
 	filesWatchCancel  context.CancelFunc
+
+	mobileWebMu       sync.Mutex
+	mobileWebServer   *http.Server
+	mobileWebListener net.Listener
 }
 
 var state mainState
@@ -1740,6 +1746,7 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.quitting = true
 	s.mu.Unlock()
 	s.closeWebViewHost()
+	s.closeMobileWeb()
 	s.stopDSH()
 	s.closeTerminal()
 	if sup != nil {
@@ -1923,8 +1930,97 @@ func (s *mainState) refreshBoot(st harness.Status) {
 	win := s.win
 	s.mu.Unlock()
 	s.syncDialogue(st)
+	s.syncMobileWeb(st)
 	if win != nil {
 		win.Update(func() {})
+	}
+}
+
+// syncMobileWeb keeps the fixed-port pairing SPA aligned with the harness and
+// remote pairing lifecycle. The SPA is useful only while the target is ready
+// and remote pairing is enabled; all listener ownership stays on mainState so
+// repeated readiness callbacks cannot leak or duplicate listeners.
+func (s *mainState) syncMobileWeb(st harness.Status) {
+	s.mobileWebMu.Lock()
+	defer s.mobileWebMu.Unlock()
+
+	s.mu.Lock()
+	enabled := false
+	bindAddress := ""
+	quitting := s.quitting
+	if s.cfgStore != nil {
+		cfg := s.cfgStore.Get()
+		enabled = cfg.RemoteEnabled
+		bindAddress = cfg.RemoteBindAddress
+	}
+	s.mu.Unlock()
+
+	if st.State != harness.Ready || !enabled || quitting {
+		s.closeMobileWebLocked()
+		return
+	}
+	if s.mobileWebServer != nil && s.mobileWebListener != nil {
+		return
+	}
+	// A partially initialized pair can only be left by an interrupted start;
+	// clear it before binding again so a retry never retains a stale listener.
+	s.closeMobileWebLocked()
+
+	server := phoneremote.CreateMobileWebServer(phoneremote.MobileWebServerOptions{
+		Root:        phoneremote.ResolveMobileWebRoot(),
+		BindAddress: bindAddress,
+		Port:        phoneremote.MobileWebPort,
+	})
+	listener, err := phoneremote.ListenMobileWebServer(server, bindAddress, phoneremote.MobileWebPort)
+	if err != nil {
+		_ = phoneremote.CloseMobileWebServer(server)
+		log.Printf("mobile web server: listen %s:%d: %v", bindAddress, phoneremote.MobileWebPort, err)
+		return
+	}
+
+	// Config or target state may have changed while the synchronous bind ran.
+	// Re-check before publishing ownership so a just-disabled pairing cannot
+	// leave the fixed port occupied.
+	s.mu.Lock()
+	stillEnabled := false
+	if s.cfgStore != nil {
+		stillEnabled = s.cfgStore.Get().RemoteEnabled
+	}
+	stillReady := s.bootStatus.State == harness.Ready
+	quitting = s.quitting
+	s.mu.Unlock()
+	if !stillEnabled || !stillReady || quitting {
+		_ = phoneremote.CloseMobileWebServer(server)
+		_ = listener.Close()
+		return
+	}
+	s.mobileWebServer = server
+	s.mobileWebListener = listener
+}
+
+func (s *mainState) syncMobileWebCurrent() {
+	s.mu.Lock()
+	st := s.bootStatus
+	s.mu.Unlock()
+	s.syncMobileWeb(st)
+}
+
+func (s *mainState) closeMobileWeb() {
+	s.mobileWebMu.Lock()
+	defer s.mobileWebMu.Unlock()
+	s.closeMobileWebLocked()
+}
+
+func (s *mainState) closeMobileWebLocked() {
+	server := s.mobileWebServer
+	listener := s.mobileWebListener
+	s.mobileWebServer = nil
+	s.mobileWebListener = nil
+	if server != nil {
+		_ = phoneremote.CloseMobileWebServer(server)
+	}
+	if listener != nil {
+		_ = listener.Close()
 	}
 }
 
@@ -2041,8 +2137,9 @@ func (s *mainState) syncDialogue(st harness.Status) {
 
 func (s *mainState) stopDSH() {
 	s.dshMu.Lock()
-	defer s.dshMu.Unlock()
 	s.stopDSHLocked()
+	s.dshMu.Unlock()
+	s.closeMobileWeb()
 }
 
 func (s *mainState) stopDSHLocked() {
@@ -4315,6 +4412,7 @@ func mainView(c *ui.Context) {
 					_ = state.cfgStore.Update(func(c *config.Config) {
 						c.RemoteEnabled = enabled
 					})
+					state.syncMobileWebCurrent()
 					if win != nil {
 						win.Update(func() {})
 					}
