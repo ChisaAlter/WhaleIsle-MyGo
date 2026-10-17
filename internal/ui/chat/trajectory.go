@@ -89,6 +89,12 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
+	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
+	rangeMatches := timeRange.matches(rows)
+	if timeRange.active && *selected != *revealed && !rangeMatches[*selected] {
+		timeRange.clear()
+		rangeMatches = nil
+	}
 	if m.List != nil && *selected != "" && *revealed != *selected {
 		for index, row := range rows {
 			if row.ID == *selected {
@@ -124,6 +130,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			if *actualDur {
 				paintRecordedTrajectoryTimeline(c, rows, selected, accent, muted, border)
+				paintTrajectoryRange(c, rows, timeRange, m.List, accent, muted, border)
 			} else {
 				ui.Row(c).FillWidth().Height(18).Gap(2).AlignItems(ui.Center).Children(func() {
 					for _, row := range rows {
@@ -188,6 +195,9 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				ui.List(c, list, len(rows)).Fill().MinHeight(0).Rows(func(lr ui.ListRow) {
 					row := rows[lr.Index]
 					bg := ui.Transparent
+					if rangeMatches != nil && rangeMatches[row.ID] {
+						bg = field
+					}
 					if *selected == row.ID {
 						bg = hover
 					}
@@ -204,6 +214,9 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 						})
 					})
 					if btn.Clicked() {
+						if timeRange.active && !rangeMatches[row.ID] {
+							timeRange.clear()
+						}
 						*selected = row.ID
 					}
 				})
