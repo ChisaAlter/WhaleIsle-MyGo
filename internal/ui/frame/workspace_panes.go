@@ -16,6 +16,7 @@ import (
 // WorkspacePanes retains native content occurrences and their split geometry.
 // Files, browsers and terminals own independent state in every leaf.
 type WorkspacePanes struct {
+	conversation       *mainChildConversation
 	Root               *WorkspacePane `json:"root"`
 	Active             string         `json:"active"`
 	Fullscreen         string         `json:"fullscreen,omitempty"` // nonempty expands the whole resource dock; ID retains the initiating pane

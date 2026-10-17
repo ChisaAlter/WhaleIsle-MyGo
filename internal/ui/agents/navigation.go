@@ -83,7 +83,9 @@ func navigationView(c *ui.Context, m Model) {
 		ui.Text(c, v.SessionID).FontSize(theme.InterfaceSize(10)).TextColor(muted).Selectable()
 		if v.Depth > 0 {
 			ui.Text(c, v.Address.ParentSessionID+" → "+v.Address.ChildSessionID+" · "+v.Address.Mode).FontSize(theme.InterfaceSize(10)).TextColor(muted).Selectable()
-			ui.Text(c, agentText("子会话历史；主聊天仍保留原会话。", "Child history; the main chat retains its original session.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			if !m.MainConversation {
+				ui.Text(c, agentText("子会话历史；主聊天仍保留原会话。", "Child history; the main chat retains its original session.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			}
 		}
 		if v.Error != "" {
 			ui.Text(c, v.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).Selectable()
@@ -117,6 +119,9 @@ func navigationView(c *ui.Context, m Model) {
 							}
 							if ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 								m.Store.OpenAgentNavigation(v.Token, row.Address)
+							}
+							if m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
+								m.OnOpenConversation(v.Token, row.Address)
 							}
 							if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
 								m.OnOpenChat(v.Token, row.Address)

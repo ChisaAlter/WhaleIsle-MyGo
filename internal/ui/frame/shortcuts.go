@@ -25,6 +25,7 @@ func registerPageCommands(c *ui.Context, m Model) {
 		"tools.toggle.alternate": m.OnToggleTools, "terminal.toggle": m.OnToggleTerminal,
 	}
 	addBusinessCommands(c, m, actions)
+	guardMainChildCommands(m, actions)
 	bindings := shortcuts.Resolve(m.PageShortcutBindings)
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]

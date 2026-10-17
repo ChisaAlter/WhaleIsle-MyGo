@@ -272,6 +272,13 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 	if w == nil {
 		return
 	}
+	if route := w.conversation; route != nil {
+		if w.currentMainChild(Model{Store: route.Owner}) == nil {
+			w.closeMainChild()
+		} else if route.Pane.Agents != nil {
+			route.Pane.Agents.rendered = false
+		}
+	}
 	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Agents != nil {
 			n.Agents.rendered = false
@@ -292,6 +299,9 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 func (w *WorkspacePanes) EndContentFrame() {
 	if w == nil {
 		return
+	}
+	if route := w.conversation; route != nil && route.Pane.Agents != nil && !route.Pane.Agents.rendered {
+		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Inspector != nil && (n.Float != nil && n.Float.Minimized || n.Float == nil && w.Root.dockGroup(n.ID) != n) {
@@ -314,6 +324,9 @@ func (w *WorkspacePanes) EndContentFrame() {
 func (w *WorkspacePanes) PauseContent() {
 	if w == nil {
 		return
+	}
+	if route := w.conversation; route != nil {
+		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
 		n.releaseAgentPane()

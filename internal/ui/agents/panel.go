@@ -17,6 +17,8 @@ import (
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
+	MainConversation   bool
+	OnOpenConversation func(uint64, session.AgentSessionAddress)
 	Interactions       *interaction.Store
 	OnOpenPlanResource func(planpreview.Document)
 	ChatOnly           bool

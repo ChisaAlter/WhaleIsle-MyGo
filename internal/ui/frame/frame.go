@@ -581,6 +581,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+				if mainSubagentConversation(c, m) {
+					return
+				}
 				projectObserverHeader(c, m)
 				if emptyHero {
 					// EmptyHero: blank header band (no Initialize Git / layout glyphs).
@@ -1303,6 +1306,7 @@ func rightPane(c *ui.Context, m Model) {
 			}
 			agents.View(c, agents.Model{
 				OnOpenChat:         subagentChatOpener(m),
+				OnOpenConversation: subagentConversationOpener(m),
 				Interactions:       m.Interactions,
 				OnOpenPlanResource: m.OnOpenPlanResource,
 				Store:              navigation,
