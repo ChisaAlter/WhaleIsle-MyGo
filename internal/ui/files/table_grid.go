@@ -123,6 +123,9 @@ func paintTableFormulaBar(c *ui.Context, tab *FileTab) {
 		} else {
 			note += label(" · 字体/对齐未提供", " · font/alignment not provided")
 		}
+		if tablePaintUnsupported(cell.Style) {
+			note += label(" · 部分源填充/边框无法显示，请用完整表格预览", " · Some source fill/border details are unsupported; use the full workbook viewer")
+		}
 		if !cell.FormatSupported && cell.Value != "" {
 			note += label(" · 数字格式回退为原值", " · number format falls back to raw value")
 		}
@@ -233,6 +236,7 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 								selected = tab.tableSelectionIndex >= firstCol && tab.tableSelectionIndex < lastCol
 							}
 							button := ui.Button(c.Key(address), "").Absolute().Left(xs[col]).Top(ys[row]).Width(xs[lastCol]-xs[col]).Height(ys[lastRow]-ys[row]).Padding(3, 6).Clip().Selected(selected).Disabled(blocked).Label("Cell " + address).Tooltip(tooltip)
+							paintTableSourceStyle(button, cell.Style, selected)
 							switch cell.Style.Vertical {
 							case "top":
 								button.AlignItems(ui.Start)

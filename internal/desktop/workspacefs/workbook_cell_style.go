@@ -8,12 +8,15 @@ import (
 // This is saved presentation metadata, not an executable formula or a workbook
 // rendering engine. Missing metadata stays absent, rather than being invented.
 type XLSXCellStyle struct {
-	Available            bool
-	FontName             string
-	FontSize             float32
-	Bold, Italic         bool
-	Horizontal, Vertical string
-	Wrap                 bool
+	FillPattern, FillColor string
+	Borders                [4]XLSXBorder
+	PaintUnsupported       bool
+	Available              bool
+	FontName               string
+	FontSize               float32
+	Bold, Italic           bool
+	Horizontal, Vertical   string
+	Wrap                   bool
 }
 type xlsxStyleFlag struct {
 	Value string `xml:"val,attr"`
@@ -39,6 +42,10 @@ type xlsxSourceAlignment struct {
 	Wrap       string `xml:"wrapText,attr"`
 }
 type xlsxSourceXF struct {
+	Fill           *int                 `xml:"fillId,attr"`
+	Border         *int                 `xml:"borderId,attr"`
+	ApplyFill      string               `xml:"applyFill,attr"`
+	ApplyBorder    string               `xml:"applyBorder,attr"`
 	Base           *int                 `xml:"xfId,attr"`
 	ApplyFont      string               `xml:"applyFont,attr"`
 	ApplyFormat    string               `xml:"applyNumberFormat,attr"`
@@ -81,6 +88,12 @@ func inheritedXLSXXF(xf xlsxSourceXF, bases []xlsxSourceXF) xlsxSourceXF {
 		return xf
 	}
 	base := bases[*xf.Base]
+	if xf.Fill == nil || xf.ApplyFill == "0" || xf.ApplyFill == "false" {
+		xf.Fill = base.Fill
+	}
+	if xf.Border == nil || xf.ApplyBorder == "0" || xf.ApplyBorder == "false" {
+		xf.Border = base.Border
+	}
 	if xf.Font == nil || xf.ApplyFont == "0" || xf.ApplyFont == "false" {
 		xf.Font = base.Font
 	}

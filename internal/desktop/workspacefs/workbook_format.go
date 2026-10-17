@@ -131,15 +131,22 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 			ID   int    `xml:"numFmtId,attr"`
 			Code string `xml:"formatCode,attr"`
 		} `xml:"numFmts>numFmt"`
-		Bases []xlsxSourceXF   `xml:"cellStyleXfs>xf"`
-		Fonts []xlsxSourceFont `xml:"fonts>font"`
-		XFs   []xlsxSourceXF   `xml:"cellXfs>xf"`
+		Fills   []xlsxSourceFill   `xml:"fills>fill"`
+		Borders []xlsxSourceBorder `xml:"borders>border"`
+		Palette []xlsxSourceColor  `xml:"colors>indexedColors>rgbColor"`
+		Bases   []xlsxSourceXF     `xml:"cellStyleXfs>xf"`
+		Fonts   []xlsxSourceFont   `xml:"fonts>font"`
+		XFs     []xlsxSourceXF     `xml:"cellXfs>xf"`
 	}
 	if err := dec.Decode(&styles); err != nil {
 		return out, err
 	}
 	for _, format := range styles.Formats {
 		out.codes[format.ID] = format.Code
+	}
+	theme, err := readXLSXTheme(ctx, zr, seen)
+	if err != nil {
+		return out, err
 	}
 	for _, xf := range styles.XFs {
 		xf = inheritedXLSXXF(xf, styles.Bases)
@@ -148,7 +155,9 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 			format = *xf.Format
 		}
 		out.styles = append(out.styles, format)
-		out.presentationStyles = append(out.presentationStyles, savedXLSXStyle(styles.Fonts, xf))
+		presentation := savedXLSXStyle(styles.Fonts, xf)
+		savedXLSXPaint(&presentation, xf, styles.Fills, styles.Borders, theme, styles.Palette)
+		out.presentationStyles = append(out.presentationStyles, presentation)
 	}
 	return out, nil
 }
