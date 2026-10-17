@@ -166,7 +166,8 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			if m.HarnessReady && m.OnOpenModeWeb != nil && ui.Button(c, i18n.T(i18n.KeyAssistantOpenModeWeb)).Clicked() {
 				m.OnOpenModeWeb()
 			}
-			canOpenSess := m.HarnessReady && !m.Busy && !m.PluginRPCBusy && m.OnOpenSession != nil && ((m.Mode == assiststore.ModeWhale && m.WhaleEnabled) || (m.Mode == assiststore.ModeDshbot && m.DshbotEnabled && m.DshbotSelectedID != ""))
+			mode := assiststore.NormalizeMode(m.Mode)
+			canOpenSess := m.HarnessReady && !m.Busy && !m.PluginRPCBusy && m.OnOpenSession != nil && ((mode == assiststore.ModeWhale && m.WhaleEnabled) || (mode == assiststore.ModeDshbot && m.DshbotEnabled && m.DshbotSelectedID != ""))
 			if canOpenSess && ui.Button(c, i18n.T(i18n.KeyAssistantOpenSession)).Clicked() {
 				m.OnOpenSession(m.SessionID)
 			}
@@ -325,6 +326,9 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			text := strings.TrimSpace(*m.Draft)
 			if text != "" && m.OnNativePrompt != nil {
 				m.OnNativePrompt(text)
+				// The submitted prompt is now owned by the canonical session. Clear
+				// the local draft so a second click cannot resend it accidentally.
+				*m.Draft = ""
 			}
 		}
 		if m.LastNativeAction != "" {

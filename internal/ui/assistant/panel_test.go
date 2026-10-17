@@ -48,15 +48,13 @@ func TestViewAssistantLabels(t *testing.T) {
 		i18n.T(i18n.KeyAssistantComposeTitle),
 		i18n.T(i18n.KeyAssistantSend),
 		i18n.T(i18n.KeyAssistantModeTitle),
-		i18n.T(i18n.KeyAssistantHistoryTitle),
 		i18n.T(i18n.KeyAssistantOpenSession),
 		i18n.T(i18n.KeyAssistantPluginRPCTitle),
 		i18n.T(i18n.KeyAssistantLastWebURL),
 		i18n.T(i18n.KeyAssistantLastAction),
 		"http://127.0.0.1:3080/?desktopPlugin=dsh-whale",
 		"sent",
-		"hi",
-		"hello back",
+		i18n.T(i18n.KeyAssistantStubNote),
 	}
 	for _, s := range want {
 		if !tt.HasText(s) {
@@ -97,8 +95,10 @@ func TestOpenSession(t *testing.T) {
 	var got string
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{
-			ThemeID:    "deepseek",
-			SessionID:  "sess-42",
+			ThemeID:      "deepseek",
+			HarnessReady: true,
+			WhaleEnabled: true,
+			SessionID:    "sess-42",
 			OnOpenSession: func(id string) {
 				got = id
 			},
@@ -148,15 +148,15 @@ func TestDshbotRosterBlock(t *testing.T) {
 
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{
-			ThemeID:      "deepseek",
-			Mode:         assiststore.ModeDshbot,
+			ThemeID:       "deepseek",
+			Mode:          assiststore.ModeDshbot,
 			DshbotEnabled: true,
-			HarnessReady: true,
+			HarnessReady:  true,
 			DshbotRoster: []dshbotstore.Row{{
 				Kind: "bot", Name: "Alpha", DisplayLabel: "Alpha · helper", SessionID: "s1",
 			}},
-			DshbotRosterFetched: "2026-01-01T00:00:00Z",
-			OnDshbotRefreshRoster: func() {},
+			DshbotRosterFetched:       "2026-01-01T00:00:00Z",
+			OnDshbotRefreshRoster:     func() {},
 			OnDshbotOpenRosterSession: func(string) {},
 		})
 	}, 720, 900)
