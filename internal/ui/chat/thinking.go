@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets/markdown"
 )
 
 // ThinkingStyle colors for collapsible thinking blocks.
@@ -37,12 +38,15 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 			if header.Clicked() {
 				toggleThinkingExpanded(expanded, msgID)
 			}
+			if strings.TrimSpace(body) != "" && ui.Button(c, i18n.T(i18n.KeyChatCopy)).Label("Copy reasoning "+msgID).Clicked() {
+				c.WriteClipboard(body)
+			}
 			if !open && !st.HidePreview && preview != "" {
 				ui.Text(c, preview).FontSize(size - 1).TextColor(st.Muted).Grow(1)
 			}
 		})
 		if open && strings.TrimSpace(body) != "" {
-			ui.Text(c, body).FontSize(size).TextColor(st.Muted)
+			markdown.View(c, body, markdown.Style{FontSize: size, FG: st.Muted, Muted: st.Muted, CodeBG: st.Field, Accent: st.FG})
 		}
 	})
 }
