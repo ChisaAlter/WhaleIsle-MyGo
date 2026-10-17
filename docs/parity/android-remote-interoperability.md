@@ -43,39 +43,46 @@ client sends `dshd.host.rpc.request` with `method`/`payload`, and
 installed daemon for these wire protocols. The desktop Git dispatch routes
 `git-create-change-request` to `gitCreateChangeRequest(cwd, body.input || body)`.
 
-## Confirmed native PR creation gap
+## Native PR compatibility in MyGo (AX202)
 
-`NativeRemoteScreen.kt:166` builds only `message`, `filePaths` and
-`options.featureBranch`. Lines 191/193 include `git-create-change-request` in
-stacked actions. `DshViewModel.kt:435-452` forwards the same payload for every
-step and retains the remaining steps on failure.
+The unchanged Android client sends only `message`, `filePaths` and
+`options.featureBranch`; it has no native PR title/body editor. MyGo now handles
+that missing-reviewed-payload case with a parented **desktop PR review** window.
+The phone request stays pending while the desktop user enters title/body or
+explicitly applies generated candidate copy, prepares an exact repository/base/
+head review, and confirms creation. The existing Go reviewed GitHub executor
+rechecks the repository, branch, pushed commit and reviewed payload before creating.
+Existing Web requests with `preserveProvided` and a title keep their original path.
+A commit message is never treated as PR review approval.
 
-MyGo's `git-gate.cjs` correctly requires `preserveProvided: true` and a nonempty
-`title` for creation, except for `generateOnly: true` draft requests. Android's
-current payload supplies neither. Consequently commit/push can complete before
-the PR step is rejected, and retrying that same payload cannot resolve it.
-The Web-only draft extension does not add native Compose controls.
+The desktop handler has a 105-second context budget; the private bridge expires
+at 110 seconds, before the unchanged Android client's 120-second Git timeout.
+Cancel, expiry, runtime replacement, device unbind/listener stop and loss of the
+current desktop session's Git grant cancel review. Only one review is active per
+runtime. Phone errors retain its already completed commit/push steps and remaining
+PR step. Existing PR lookup is performed by the reviewed executor; uncertain
+creation outcomes are shown as uncertain rather than automatically retried.
 
-Do not remove the desktop review guard or silently supply a title to make this
-pass. The complete fix needs an Android draft review/edit/confirm flow that
-sends the existing reviewed payload contract and preserves completed-step retry
-semantics. That client lives in the original repository. A separate two-file native patch
-against the verified commit has been prepared for review: it pauses before the
-PR step, supports generated candidates with explicit Apply, and sends reviewed
-title/body only on confirmation. Connection/session/workspace checks protect
-review and retry ownership. It has not been applied to or published in the
-original repository; no Android artifact has been built.
+This compatibility path uses the existing reviewed **github.com PR** executor.
+GitLab/other MR destinations fail explicitly and remain a separate compatibility
+gap. A desktop must be available for confirmation; this is not a new native
+Android editor and does not provide phone-only title/body review.
+
+Only WhaleIsle-MyGo is changed. A previously published original-Android development
+patch is outside this target and is not counted as implementation or acceptance.
+Original main and native Android source remain read-only references here.
 
 ## Verification and remaining boundary
 
-One focused in-memory Node check called the current MyGo Git gate with the
-exact native payload shape. It confirmed rejection with the review-required
-error and confirmed that the backend creation method was never called. The
-check used a fake backend and authorizer; no Git command, credentials, daemon,
-relay, network connection or pairing was involved.
+One focused check on 2026-10-17 passed the in-memory Node gate fixture and
+`go test ./internal/desktop/phoneremote ./cmd/whaleisle -run '^TestGitReview' -count=1`.
+It covers missing-handler fail-closed behavior, native review delegation, unchanged
+Web reviewed/draft paths, revocation, bounded contexts and runtime cancellation.
+The command package compiled with no matching tests. No Git command, real PR,
+credentials, daemon, relay or pairing was used by these fixtures.
 
-A separate focused static source-contract check for the prepared Kotlin patch
-passed. Kotlin/Gradle compilation is unavailable in this environment and has
-not been claimed. No broad test run, Android build or live pairing was performed. A real Android
-connection to matching Windows/macOS packaged runtimes remains separate device
-acceptance; server build success and synthetic fixtures cannot replace it.
+No original code execution, broad test run, Android build or live pairing was
+performed. Real unchanged Android to matching Windows/macOS packaged runtimes,
+including review-window timing, cancellation and unknown-outcome handling, remains
+separate device acceptance. Server build success and synthetic fixtures cannot
+replace it.

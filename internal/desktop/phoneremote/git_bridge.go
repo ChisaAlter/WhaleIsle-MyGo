@@ -50,6 +50,9 @@ func (r *Runtime) SetGitAuthorizer(authorize func(string, string) bool) {
 }
 func (r *Runtime) RevokeGit() {
 	r.mu.Lock()
+	if r.reviewCancel != nil {
+		r.reviewCancel()
+	}
 	child := r.child
 	r.mu.Unlock()
 	if child != nil {

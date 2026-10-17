@@ -3,6 +3,7 @@ package phoneremote
 import (
 	"bufio"
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -49,6 +50,8 @@ type Runtime struct {
 	op               sync.Mutex
 	writeMu          sync.Mutex
 	authorizeGit     func(string, string) bool
+	reviewGit        GitReviewer
+	reviewCancel     context.CancelFunc
 	mu               sync.Mutex
 	state            RuntimeState
 	child            Child
@@ -228,6 +231,10 @@ func (r *Runtime) consume(child Child, b []byte) {
 		DevicesLoaded  bool     `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
+		return
+	}
+	if event.Kind == "git-review-request" {
+		go r.reviewGitRequest(child, append([]byte(nil), b...))
 		return
 	}
 	if event.Kind == "git-generate-draft" {

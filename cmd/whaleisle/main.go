@@ -572,6 +572,7 @@ func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
 	if s.phoneRuntime == nil {
 		s.phoneRuntime = phoneremote.NewRuntime()
 		s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
+		s.phoneRuntime.SetGitReviewer(s.reviewPhonePullRequest)
 	}
 	return s.phoneRuntime
 }
