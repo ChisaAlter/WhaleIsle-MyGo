@@ -51,6 +51,9 @@ func (s *mainState) openResume(dir string) {
 		return
 	}
 	l := saved.Layout
+	if finiteSize(l.TranscriptWidth, 1, 100000) {
+		s.layout.TranscriptWidth = l.TranscriptWidth
+	}
 	// Older snapshots have no expanded preference: retain the configured width.
 	s.layout.SidebarExpanded = s.layout.Sidebar
 	if finiteSize(l.SidebarExpanded, 264, 420) {
@@ -149,7 +152,7 @@ func (s *mainState) saveResume() error {
 	if s.terminalVisible && s.layout.Bottom > 80 {
 		bottom = s.layout.Bottom
 	}
-	next.Layout = recovery.Layout{Sidebar: s.layout.Sidebar, SidebarExpanded: s.layout.SidebarExpanded, Right: s.layout.Right, Bottom: bottom, RightTree: s.layout.RightTree, RightOpen: s.filesPaneOpen, RightTab: s.rightPaneTab, ChatTab: s.chatPaneTab, PlanOpen: s.planBoardOpen, TodoCollapsed: s.todoPanelCollapsed}
+	next.Layout = recovery.Layout{TranscriptWidth: s.layout.TranscriptWidth, Sidebar: s.layout.Sidebar, SidebarExpanded: s.layout.SidebarExpanded, Right: s.layout.Right, Bottom: bottom, RightTree: s.layout.RightTree, RightOpen: s.filesPaneOpen, RightTab: s.rightPaneTab, ChatTab: s.chatPaneTab, PlanOpen: s.planBoardOpen, TodoCollapsed: s.todoPanelCollapsed}
 	next.Layout.WorkspacePanes = s.exportWorkspaceSessionsLocked()
 	next.Drafts = make(map[string]json.RawMessage, len(s.composerDrafts))
 	for key, draft := range s.composerDrafts {

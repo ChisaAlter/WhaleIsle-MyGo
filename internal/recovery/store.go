@@ -21,6 +21,7 @@ var ErrBusy = errors.New("resume data is being saved by another instance; retry 
 
 // Layout stores preferences, never viewport-constrained measurements.
 type Layout struct {
+	TranscriptWidth float32         `json:"transcriptWidth,omitempty"`
 	WorkspacePanes  json.RawMessage `json:"workspacePanes,omitempty"`
 	Sidebar         float32         `json:"sidebar"`
 	SidebarExpanded float32         `json:"sidebarExpanded,omitempty"`

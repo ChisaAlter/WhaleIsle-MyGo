@@ -38,16 +38,18 @@ import (
 
 // LayoutSizes persist split pane dimensions (DIPs) across frames.
 type LayoutSizes struct {
-	dragging        bool               // transient parent-divider gesture; child tracks must not ease behind it
-	Responsive      *SidebarResponsive // transient; never persisted as a width preference
-	Workspace       *WorkspacePanes
-	Sidebar         float32
-	SidebarExpanded float32 // last expanded preference; Sidebar=0 is the compact rail
-	Center          float32 // resolved chat width; not a saved right-pane preference
-	Right           float32 // remembered right width, 0 = first-open viewport default
-	Main            float32 // height of the dialogue column when the terminal is open
-	Bottom          float32 // >40 shows the terminal (saved height preference when hidden)
-	RightTree       float32 // height of file tree above preview in the right pane
+	TranscriptWidth   float32 // local message-body preference; independent of pane and composer widths
+	transcriptGesture conversationWidthGesture
+	dragging          bool               // transient parent-divider gesture; child tracks must not ease behind it
+	Responsive        *SidebarResponsive // transient; never persisted as a width preference
+	Workspace         *WorkspacePanes
+	Sidebar           float32
+	SidebarExpanded   float32 // last expanded preference; Sidebar=0 is the compact rail
+	Center            float32 // resolved chat width; not a saved right-pane preference
+	Right             float32 // remembered right width, 0 = first-open viewport default
+	Main              float32 // height of the dialogue column when the terminal is open
+	Bottom            float32 // >40 shows the terminal (saved height preference when hidden)
+	RightTree         float32 // height of file tree above preview in the right pane
 }
 
 // Desktop ui-layout columns.ts contract (anywhere-labs harness-desktop).
@@ -848,6 +850,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					colW = m.Sizes.Center
 				}
 				contentAxis := conversationContentWidth(colW)
+				if m.Sizes != nil {
+					if emptyHero || m.Sizes.transcriptGesture.binding != m.FileBindingID {
+						m.Sizes.transcriptGesture.side = ""
+					}
+					contentAxis = m.Sizes.conversationWidth(colW)
+				}
 				// Transcript clears32 per side. InputBar owns its16 side pads,
 				// so its outer envelope must be content+64 to produce a card W+32.
 				chatContentW := min(contentAxis, maxf(0, colW-64))
@@ -1023,6 +1031,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							})
 							ui.Box(c).Grow(1).MinWidth(0)
 						})
+						paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory")
 					})
 					if paneTab != "trajectory" {
 						// Goal/todo/takeover cards share the transcript content axis.
