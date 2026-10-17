@@ -8,6 +8,8 @@ import (
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/startuprec"
+	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/launcher"
 )
 
 // The caller holds s.mu. Query the live supervisor as well as the catalog epoch:
@@ -221,8 +223,8 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		s.clearStartupUpdateNotice()
 		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageInfo,
 			Title:   resumeText("MyGo 更新可用", "MyGo update available"),
-			Message: fmt.Sprintf(resumeText("发现 %s。现在下载并校验该版本？安装仍需单独确认，可稍后重试。", "%s is available. Download and verify this version now? Installation needs a separate confirmation; you can retry later."), release.Version),
-			Buttons: []string{resumeText("稍后", "Later"), resumeText("下载更新", "Download update")}, DefaultButton: 0, CancelButton: 0})
+			Message: update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
+			Buttons: []string{resumeText("稍后", "Later"), resumeText("查看版本与下载方式", "Review versions and downloads")}, DefaultButton: 0, CancelButton: 0})
 		visible = !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized()
 		s.mu.Lock()
 		r = &s.startupRecovery
@@ -239,7 +241,12 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		}
 		s.mu.Unlock()
 		if allowed {
-			s.downloadNativeRelease(win, release.Tag, !vendorReady, ticket.Scope)
+			s.mu.Lock()
+			s.launcherTab = launcher.TabVersions
+			s.nativeReleases.selected = release.PackageKey()
+			s.startupRecovery.updateHold = true
+			s.mu.Unlock()
+			win.Update(func() {})
 		}
 	})
 }

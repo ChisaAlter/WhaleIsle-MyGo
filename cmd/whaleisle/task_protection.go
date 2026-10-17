@@ -178,6 +178,12 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 // installStagedUpdate hands off only verified bytes and uses the already-held
 // lifecycle lock for final cleanup, without reentering quitProtected.
 func (s *mainState) installStagedUpdate(win *mygo.Window, staged desktopupdate.ApplyResult) bool {
+	return s.installStagedUpdateWithConsent(win, staged, false)
+}
+
+// confirmedByInstallButton is used only by the explicit, verified Versions
+// install action. Task interruption and resume-save protections still apply.
+func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desktopupdate.ApplyResult, confirmedByInstallButton bool) bool {
 	s.mu.Lock()
 	if s.taskRestartPending || s.quitting || s.launcherImportBusy {
 		s.mu.Unlock()
@@ -187,15 +193,20 @@ func (s *mainState) installStagedUpdate(win *mygo.Window, staged desktopupdate.A
 	sup := s.sup
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
-	choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-		Title:   resumeText("安装更新", "Install update"),
-		Message: resumeText("更新已下载并校验。继续会启动安装器，停止 Host 并退出桌面应用。", "The update has been downloaded and verified. Continuing starts the installer, stops the Host and quits the desktop application."),
-		Buttons: []string{resumeText("稍后", "Later"), resumeText("安装并退出", "Install and quit")}, DefaultButton: 0, CancelButton: 0})
-	if err != nil {
-		s.taskProtectionError(win, err)
-		return false
+	if !confirmedByInstallButton {
+		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
+			Title:   resumeText("安装更新", "Install update"),
+			Message: resumeText("更新已下载并校验。继续会启动安装器，停止 Host 并退出桌面应用。", "The update has been downloaded and verified. Continuing starts the installer, stops the Host and quits the desktop application."),
+			Buttons: []string{resumeText("稍后", "Later"), resumeText("安装并退出", "Install and quit")}, DefaultButton: 0, CancelButton: 0})
+		if err != nil {
+			s.taskProtectionError(win, err)
+			return false
+		}
+		if choice.Button != 1 {
+			return false
+		}
 	}
-	if choice.Button != 1 || !s.saveResumeBeforeClose(win) {
+	if !s.saveResumeBeforeClose(win) {
 		return false
 	}
 	did := s.withTaskProtection(win, sup, "update", func() error {

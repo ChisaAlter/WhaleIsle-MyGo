@@ -38,6 +38,9 @@ func nativeReleaseOperation(c *ui.Context, m Model) {
 				m.OnCancelRelease()
 			}
 		} else if !m.ReleaseBusy && m.ReleaseStagedTag != "" {
+			if !m.ManagedDesktop {
+				ui.Text(c, releaseText("点击安装即确认：启动已校验安装器、停止 Host 并退出桌面应用；运行中任务仍会单独提示。", "Clicking Install confirms: launch the verified installer, stop the Host and quit the desktop app. Active tasks still receive a separate warning.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, releaseText("已校验安装包：", "Verified installer: ")+m.ReleaseStagedTag).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 				action := releaseText("安装并退出", "Install and quit")
