@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-17T11:39:06.561994+00:00",
+  "as_of": "2026-10-17T11:58:21.886295+00:00",
   "title": "WhaleIsle-MyGo recorded reconstruction progress",
   "baseline_original_commit": "a8c931da37376ce7dc7989e6f30b0db885e06d26",
   "scope": [
@@ -1049,7 +1049,7 @@
       "id": "CH12",
       "title": "Assistant OpenUI code-fence interactive runtime",
       "status": "partial",
-      "publication_commit": "86104c1f965d5b326d5a8dd01f75364940fe073e",
+      "publication_commit": "407ffc53dfec71c55bca9de25c1102817791ad8e",
       "runtime_status": "runtime-unverified",
       "evidence": [
         "audit-20261017-chat/main-entrypoints-supplement.json#CH12",
@@ -1069,7 +1069,8 @@
         "ch12-resource-images-manifest.json",
         "audit-20261017-chat/ch12-native-api-images/manifest.json",
         "ch12-map-boundary-manifest.json",
-        "current/source/docs/openui-runtime-license-status-20261017.md"
+        "current/source/docs/openui-runtime-license-status-20261017.md",
+        "tools/openui-runtime/COMPATIBILITY.md"
       ],
       "implemented": [
         "Genuine original OpenUI runtime bundle located; no arbitrary replacement bundle used.",
@@ -1080,12 +1081,16 @@
         "Typed public resource adapters and exact-owner API request/response routing are published. Only fixed supported services and typed parameters are accepted; arbitrary URLs and general iframe networking remain unavailable.",
         "Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits.",
         "Independently authored OpenUI SDK-based runtime is embedded by default from maintainable tools/openui-runtime source; original installation or user-supplied viewer is no longer required. 53 registered original-contract components and 59 application functions are present, with exact variant limitations documented rather than claiming complete behavioral parity.",
-        "Owned raster Map uses fixed ArcGIS tile data URLs and the existing typed OSRM route adapter; parent /api/map-tile route is implemented without granting iframe network or worker access. Source, lockfile, production asset, provenance and complete notices for 79 browser dependencies are committed together."
+        "Owned raster Map uses fixed ArcGIS tile data URLs and the existing typed OSRM route adapter; parent /api/map-tile route is implemented without granting iframe network or worker access. Source, lockfile, production asset, provenance and complete notices for 79 browser dependencies are committed together.",
+        "Code and Markdown fenced code use local AST syntax highlighting with explicit grammar aliases and full-source fallback; no code execution or clipboard added.",
+        "Six chart variants expose real hover/focus data details and Arrow/Home/End/Escape navigation, including original values, series, stacked ranges or proportions.",
+        "Public adapter successful JSON responses are reused across viewers with original-scope insertion-order caches: wiki 500, normalized image queries 500, normalized route sets 200; each hit receives current instance/request IDs and failures are not cached.",
+        "Owned raster Map implements continuous anchored zoom and pan for mouse and touch gestures, preserving actual projected coordinates and tile-source selection."
       ],
       "remaining": [
         "HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.",
-        "Component variants, chart combinations, Code highlighting, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registered component/function counts are not a full parity measure.",
-        "Original public-response caching is not fully mirrored; owned map tile caching is a separate implemented scope. The legacy recovered MapLibre bundle remains unshipped and unsupported, while the independently authored raster Map is source-implemented.",
+        "Other component variants, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registry counts are not full parity. Undefined stacked pie/donut/scatter combinations are parameter boundaries, not proven original-only missing features.",
+        "Public JSON process caching and owned raster tile caching are implemented. Original browser HTTP bitmap-cache behavior is not claimed; the optional legacy MapLibre bundle remains unshipped/unsupported.",
         "Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified."
       ],
       "audit_states": [
@@ -1180,7 +1185,8 @@
       "runtime_notes": [
         "Inline/streaming stage CI39023879575 succeeded on Windows/macOS at commit 551649d8afe62ff3964dc94e1e0f610faacea2d8. Stage 1 CI39023193323 also succeeded. Neither run covers the later API/image native increments.",
         "The API/image native increments have not undergone the new SDK compilation. Physical rendering, input, scrolling, images, actual service responses and lifecycle acceptance remain unknown.",
-        "Owned embedded viewer and map resource increment received production asset generation only; no new native compilation, tests, browser execution or real service requests."
+        "Owned embedded viewer and map resource increment received production asset generation only; no new native compilation, tests, browser execution or real service requests.",
+        "Code/chart/cache/map increments are source-published; production viewer assets generated where applicable. No tests, new native build, browser execution or real-service acceptance were performed."
       ],
       "publication_commits": [
         {
@@ -1223,6 +1229,26 @@
           "sha": "86104c1f965d5b326d5a8dd01f75364940fe073e",
           "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/86104c1f965d5b326d5a8dd01f75364940fe073e",
           "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "04684a6a3983da3771134e7eb0fc21cf078d16ea",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/04684a6a3983da3771134e7eb0fc21cf078d16ea",
+          "evidence_source": "verified GitHub branch publication"
+        },
+        {
+          "sha": "a6d384a515a52e10bc7643e9654f55161ff77d06",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/a6d384a515a52e10bc7643e9654f55161ff77d06",
+          "evidence_source": "verified GitHub branch publication"
+        },
+        {
+          "sha": "93555b5a91686df4edd489e311bc99b261d24757",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/93555b5a91686df4edd489e311bc99b261d24757",
+          "evidence_source": "verified GitHub branch publication"
+        },
+        {
+          "sha": "407ffc53dfec71c55bca9de25c1102817791ad8e",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/407ffc53dfec71c55bca9de25c1102817791ad8e",
+          "evidence_source": "verified GitHub branch publication"
         }
       ],
       "publication_status": "verified-pushed",
@@ -1386,6 +1412,38 @@
           "component_count": 53,
           "application_function_count": 59,
           "count_warning": "Registry counts, not complete functional equivalence."
+        },
+        {
+          "stage": "code-markdown-highlighting",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "04684a6a3983da3771134e7eb0fc21cf078d16ea"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "chart-tooltip-keyboard",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "a6d384a515a52e10bc7643e9654f55161ff77d06"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "public-adapter-process-cache",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "93555b5a91686df4edd489e311bc99b261d24757"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "map-wheel-pinch",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "407ffc53dfec71c55bca9de25c1102817791ad8e"
+          ],
+          "runtime_status": "runtime-unverified"
         }
       ],
       "native_ci": {
@@ -1425,7 +1483,10 @@
         "api_and_image_native_sdk_compile": "not-run",
         "existing_go_cross_compile_and_focused_results": "Historical manifest results only; not equivalent to native SDK compilation or physical acceptance.",
         "runtime": "unknown"
-      }
+      },
+      "scope_corrections": [
+        "Markdown math extension is not established by the original public Markdown contract and is not counted as a missing reconstruction feature; the existing Math component supplies formulas."
+      ]
     },
     {
       "id": "CH13",
@@ -15960,7 +16021,7 @@
     "no_new_tests_or_source_audit": true,
     "revision": "final-v6",
     "last_parent_update": "2026-10-17T11:03:00Z",
-    "verified_head": "86104c1f965d5b326d5a8dd01f75364940fe073e",
+    "verified_head": "407ffc53dfec71c55bca9de25c1102817791ad8e",
     "publication_commit_count": 102,
     "commit_count_is_not_feature_completion_count": true
   },

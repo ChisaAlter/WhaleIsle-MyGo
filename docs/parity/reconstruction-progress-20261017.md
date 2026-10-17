@@ -56,9 +56,13 @@
 - 已有源码：Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits.
 - 已有源码：Independently authored OpenUI SDK-based runtime is embedded by default from maintainable tools/openui-runtime source; original installation or user-supplied viewer is no longer required. 53 registered original-contract components and 59 application functions are present, with exact variant limitations documented rather than claiming complete behavioral parity.
 - 已有源码：Owned raster Map uses fixed ArcGIS tile data URLs and the existing typed OSRM route adapter; parent /api/map-tile route is implemented without granting iframe network or worker access. Source, lockfile, production asset, provenance and complete notices for 79 browser dependencies are committed together.
+- 已有源码：Code and Markdown fenced code use local AST syntax highlighting with explicit grammar aliases and full-source fallback; no code execution or clipboard added.
+- 已有源码：Six chart variants expose real hover/focus data details and Arrow/Home/End/Escape navigation, including original values, series, stacked ranges or proportions.
+- 已有源码：Public adapter successful JSON responses are reused across viewers with original-scope insertion-order caches: wiki 500, normalized image queries 500, normalized route sets 200; each hit receives current instance/request IDs and failures are not cached.
+- 已有源码：Owned raster Map implements continuous anchored zoom and pan for mouse and touch gestures, preserving actual projected coordinates and tile-source selection.
 - 当前剩余：HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.
-- 当前剩余：Component variants, chart combinations, Code highlighting, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registered component/function counts are not a full parity measure.
-- 当前剩余：Original public-response caching is not fully mirrored; owned map tile caching is a separate implemented scope. The legacy recovered MapLibre bundle remains unshipped and unsupported, while the independently authored raster Map is source-implemented.
+- 当前剩余：Other component variants, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registry counts are not full parity. Undefined stacked pie/donut/scatter combinations are parameter boundaries, not proven original-only missing features.
+- 当前剩余：Public JSON process caching and owned raster tile caching are implemented. Original browser HTTP bitmap-cache behavior is not claimed; the optional legacy MapLibre bundle remains unshipped/unsupported.
 - 当前剩余：Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified.
 - 阶段 stage-1-runtime-and-native-bridge：verified-pushed；abf32a3a15c31e007b19210298ade8c42a78e3e0
 - 阶段 inline-and-streaming：verified-pushed；551649d8afe62ff3964dc94e1e0f610faacea2d8
@@ -67,6 +71,10 @@
 - 阶段 typed-public-resource-api：verified-pushed；ea4e4782dac48f6a3669688b8c4e36f12e042d7f
 - 阶段 fixed-source-display-images：production-pushed-tests-unpublished；a0b0a6bc9b87a0fa4fc64c3a723736385685a398
 - 阶段 independently-authored-embedded-runtime：verified-pushed；86104c1f965d5b326d5a8dd01f75364940fe073e
+- 阶段 code-markdown-highlighting：verified-pushed；04684a6a3983da3771134e7eb0fc21cf078d16ea
+- 阶段 chart-tooltip-keyboard：verified-pushed；a6d384a515a52e10bc7643e9654f55161ff77d06
+- 阶段 public-adapter-process-cache：verified-pushed；93555b5a91686df4edd489e311bc99b261d24757
+- 阶段 map-wheel-pinch：verified-pushed；407ffc53dfec71c55bca9de25c1102817791ad8e
 
 ### PR07 · source-implemented
 
@@ -145,7 +153,7 @@
 | CH10 | Advanced trajectory schema/request/range inspection | 有实现证据 | [fb1b0a62](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/fb1b0a62c21a8334d319e7e2ab2a5658f37c7b7b) |
 | CH10.inspect-call | Inspect a tool call directly in trajectory | 有实现证据 | [facab7db](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/facab7db9840986fbe0911e7128cc9ff8ca5d0a3) |
 | CH11 | Background completion unread indicator | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
-| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [86104c1f](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/86104c1f965d5b326d5a8dd01f75364940fe073e) |
+| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [407ffc53](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/407ffc53dfec71c55bca9de25c1102817791ad8e) |
 | CH13 | Sidebar attention state for approval/question/plan review | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
 | CH14 | Undo archive from completion notification | 有实现证据 | [d11d1bd8](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d11d1bd8d4802a13aae0f65c9e697fc94a74d26a) |
 | CH15 | Main session ancestry breadcrumb navigation | 有实现证据 | [5b0a5f2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/5b0a5f2d60943efeab77b319dd23d3ca8f1d1837) |
@@ -231,7 +239,7 @@
 
 ## 本轮发布与验证边界
 
-- 已核实开发分支头：`86104c1f965d5b326d5a8dd01f75364940fe073e`；提交条数仅为发布记录数。
+- 已核实开发分支头：`407ffc53dfec71c55bca9de25c1102817791ad8e`；提交条数仅为发布记录数。
 - 所有真实平台验收仍单列为 unknown，不由源码、冻结或 CI 结果推定。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_test.go`。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_images_test.go`。
