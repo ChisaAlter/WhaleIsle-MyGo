@@ -38,6 +38,8 @@ type AgentNavigationRow struct {
 func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
+	ImageLimits                                    *ComposerImageLimits
+	imageLimitsSeq                                 float64
 	ParentAvailabilityKnown, ParentAvailable       bool
 	RootCountsKnown                                bool
 	RootChildren, RootRunning, RootActivityUnknown int
@@ -93,6 +95,7 @@ func (s *Store) agentNavigationOwnedLocked() bool {
 	return s.agentPaneCurrentLocked() && n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
+	v.ImageLimits = cloneChildImageLimits(v.ImageLimits)
 	v.PromptImages = append([]string(nil), v.PromptImages...)
 	v.Resources = cloneAgentResources(v.Resources)
 	v.TurnFiles.Results = cloneAgentTurnResults(v.TurnFiles.Results)
@@ -435,6 +438,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		}
 	}
 	paths := append([]string(nil), n.view.PromptImages...)
+	imageLimits := cloneChildImageLimits(n.view.ImageLimits)
 	if prompt && (len(addresses) != 1 || addresses[0] != n.view.Address && len(paths) > 0 || text == "" && len(paths) == 0) {
 		s.mu.Unlock()
 		return
@@ -475,7 +479,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				break
 			}
 			if prompt {
-				content, contentErr := agentNavigationPromptContent(text, paths)
+				content, contentErr := agentNavigationPromptContentWithLimits(text, paths, imageLimits)
 				if contentErr != nil {
 					err = contentErr
 					break

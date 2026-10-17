@@ -124,6 +124,7 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 				// Original follow carries the authoritative same-cut projection baseline.
 				// Use it without blocking stream draining on another RPC or activating anything.
 				if baseline.Projections != nil {
+					seedChildImageLimits(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq)
 					if baseline.Projections.AsOfSeq != nil {
 						s.applyQuestionValuesForSessionLocked(address.ChildSessionID, baseline.Projections.Values, *baseline.Projections.AsOfSeq)
 					}
@@ -252,6 +253,7 @@ func (s *Store) loadAgentNavigationLiveCatalog(ctx context.Context, token uint64
 	}
 	n := &s.agentNavigation
 	if err == nil {
+		seedChildImageLimits(&n.view, projection.Values, projection.AsOfSeq)
 		if projection.AsOfSeq != nil {
 			s.applyQuestionValuesForSessionLocked(address.ChildSessionID, projection.Values, *projection.AsOfSeq)
 		}

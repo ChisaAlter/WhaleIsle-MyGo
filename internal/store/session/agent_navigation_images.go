@@ -7,11 +7,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // Child continuation accepts image data directly; files must never be staged
 // through fileUploads or sent through the ordinary session prompt route.
 func agentNavigationPromptContent(text string, paths []string) ([]json.RawMessage, error) {
+	return agentNavigationPromptContentWithLimits(text, paths, nil)
+}
+func agentNavigationPromptContentWithLimits(text string, paths []string, limits *ComposerImageLimits) ([]json.RawMessage, error) {
+	if err := validateChildImages(paths, limits); err != nil {
+		return nil, err
+	}
 	parts := PromptContentBlocks(text)
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
@@ -39,6 +46,18 @@ func (s *Store) AddAgentNavigationImages(token uint64, address AgentSessionAddre
 	if pickErr != nil {
 		s.agentNavigation.view.ActionStatus = pickErr.Error()
 	} else {
+		combined := append([]string(nil), s.agentNavigation.view.PromptImages...)
+		for _, path := range paths {
+			if path != "" && !slices.Contains(combined, path) {
+				combined = append(combined, path)
+			}
+		}
+		if err := validateChildImages(combined, s.agentNavigation.view.ImageLimits); err != nil {
+			s.agentNavigation.view.ActionStatus = err.Error()
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
 		for _, path := range paths {
 			if path == "" {
 				continue

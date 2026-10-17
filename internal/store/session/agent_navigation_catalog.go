@@ -88,10 +88,10 @@ func (s *Store) applyAgentNavigationControlLocked(raw json.RawMessage) {
 	blocks := map[string]agentNavigationProjection{}
 	switch frame.Type {
 	case "projection":
-		if frame.Key != "subagentCatalog" || frame.SessionID == "" || frame.Seq == nil {
+		if (frame.Key != "subagentCatalog" && frame.Key != "imageLimits") || frame.SessionID == "" || frame.Seq == nil {
 			return
 		}
-		values, err := json.Marshal(map[string]json.RawMessage{"subagentCatalog": frame.Value})
+		values, err := json.Marshal(map[string]json.RawMessage{frame.Key: frame.Value})
 		if err != nil {
 			return
 		}
@@ -112,7 +112,12 @@ func (s *Store) applyAgentNavigationControlLocked(raw json.RawMessage) {
 		if !ok || projection.AsOfSeq == nil {
 			return
 		}
-		_ = seedAgentNavigationCatalog(v, projection.Values, projection.AsOfSeq, s.items)
+		if frame.Type == "baseline" || frame.Key == "imageLimits" {
+			seedChildImageLimits(v, projection.Values, projection.AsOfSeq)
+		}
+		if frame.Type == "baseline" || frame.Key == "subagentCatalog" {
+			_ = seedAgentNavigationCatalog(v, projection.Values, projection.AsOfSeq, s.items)
+		}
 	}
 	n := &s.agentNavigation
 	apply(&n.view)
