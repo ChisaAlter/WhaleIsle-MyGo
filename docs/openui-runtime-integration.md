@@ -123,8 +123,10 @@ A focused lifecycle fixture additionally checks that active contexts have no
 deadline and explicit cancellation still terminates them; the existing owner
 ticket fixture covers owner revocation.
 
-Current remaining scope: external CDN scripts, external
-Image/Markdown image URLs and gesture-attested immediate assistant sending.
+Current remaining scope: dynamic module imports, external CSS dependencies, external
+Image/Markdown image URLs and gesture-attested immediate assistant sending. Static
+classic CDN scripts with UTF-8/MIME and optional SRI are source-integrated through
+the bounded parent adapter; this does not make arbitrary CDN libraries compatible.
 The default distribution now includes the independently authored runtime,
 owned raster map tiles and typed clipboard/link actions. This does not establish
 full component-variant, platform-runtime or visual parity. Prior stage compile
