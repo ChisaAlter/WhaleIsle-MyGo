@@ -124,6 +124,7 @@ type Model struct {
 }
 
 type suggestItem struct {
+	drill  string
 	label  string
 	sub    string
 	insert string
@@ -188,6 +189,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		regionClient = m.State.Client
 	}
 	BindStopRegion(composerRegion, regionClient, m, false)
+	if suggestOpen && composerRegion.PressedOutside() {
+		dismissSuggestion(m, suggestClient)
+		suggestOpen = false
+	}
 	composerRegion.Children(func() {
 		if m.State != nil && m.State.FailedSendCount() > 0 {
 			ui.Row(c).Gap(8).Children(func() {
@@ -223,7 +228,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if m.SkillsOpen {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}
-		if suggestOpen && len(items) > 0 {
+		paintLeadingClaimHint(c, m, muted)
+		if suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0) {
 			paintSuggestPopup(c, m, items, kind, tok, panel, border, fg, muted)
 		}
 		if m.Hero {
@@ -626,6 +632,7 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 		out := append([]suggestItem(nil), roomCandidates...)
 		for _, candidate := range candidates {
 			label, sub, insert := candidate.Label, candidate.Kind, candidate.Mention
+			drill := ""
 			if candidate.Kind == "session" {
 				if quoted || insert == "" {
 					continue
@@ -648,12 +655,17 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 					label = candidate.Path
 				}
 				if candidate.Kind == "directory" {
-					sub = "directory · enter"
+					sub = "directory · Tab to browse"
+					drill = insert
+					if strings.HasPrefix(insert, `@"`) {
+						insert += `"`
+					}
+					insert += " "
 				} else {
 					insert += " "
 				}
 			}
-			out = append(out, suggestItem{label: label, sub: sub, insert: insert, kind: SuggestMention})
+			out = append(out, suggestItem{label: label, sub: sub, insert: insert, drill: drill, kind: SuggestMention})
 		}
 		return out
 	default:
@@ -905,6 +917,8 @@ func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind Suggest
 	}
 	ui.Column(c).Gap(1).Padding(0, 0, 4, 0).Children(func() {
 		ui.Column(c).Background(panel).Border(1, border).Radius(6).Padding(2, 2, 2, 2).MaxHeight(180).Children(func() {
+			paintReferenceBreadcrumbs(c, m, tok)
+			drilled := false
 			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
 				it := items[row.Index]
 				bg := panel
@@ -912,13 +926,19 @@ func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind Suggest
 					bg = muted
 				}
 				ui.Column(row.Context).Padding(6, 8, 6, 8).Background(bg).Children(func() {
-					ui.Text(row.Context, it.label).FontSize(12).Bold().TextColor(fg)
+					ui.Row(row.Context).Children(func() {
+						ui.Text(row.Context, it.label).Grow(1).FontSize(12).Bold().TextColor(fg)
+						if it.drill != "" && ui.Button(row.Context, "›").Tooltip("浏览目录 / Browse directory").Clicked() {
+							drilled = true
+							applySuggestDrill(m, it, tok)
+						}
+					})
 					if it.sub != "" {
 						ui.Text(row.Context, it.sub).FontSize(11).TextColor(muted)
 					}
 				})
 			})
-			if l.Submitted() || l.Changed() {
+			if !drilled && (l.Submitted() || l.Changed()) {
 				if list.Selected != nil && *list.Selected >= 0 && *list.Selected < len(items) {
 					applySuggest(m, items[*list.Selected], tok)
 				}
@@ -964,12 +984,8 @@ func applySuggest(m Model, it suggestItem, tok TokenRange) {
 		caret := ui.UTF16Len((*m.Draft)[:tok.Start+len(it.insert)])
 		m.TextInput.SetSelectionUTF16(caret, caret)
 	}
-	// Picking closes the menu; only directory completion intentionally keeps
-	// it open to refine the path. The accepted token must not reopen on paint.
-	if it.kind != SuggestMention || !strings.HasSuffix(it.insert, "/") {
-		activeSuggestion(m, m.TextInput)
-		dismissSuggestion(m, m.TextInput)
-	}
+	activeSuggestion(m, m.TextInput)
+	dismissSuggestion(m, m.TextInput)
 }
 
 func handleSlashSend(m Model, text string) bool {

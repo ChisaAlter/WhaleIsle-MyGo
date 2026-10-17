@@ -126,6 +126,9 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				}
 			}
 		}
+		if claimLeadingSpace(client, m, ev) {
+			return true
+		}
 		if handleSuggestKey(client, m, ev) {
 			client.stop.reset()
 			return true

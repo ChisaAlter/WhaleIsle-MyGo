@@ -16,7 +16,9 @@ type suggestIdentity struct {
 }
 
 type SuggestionState struct {
+	claim     *leadingInputClaim
 	launcher  *commandLauncher
+	drilled   *suggestIdentity
 	dismissed *suggestIdentity
 	active    *suggestIdentity
 }
@@ -69,6 +71,9 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 					*m.SuggestList.Selected = 0
 				}
 			}
+			if state.drilled != nil && *state.drilled != id {
+				state.drilled = nil
+			}
 			state.active = &id
 			if state.dismissed != nil {
 				if *state.dismissed == id {
@@ -116,7 +121,11 @@ func handleSuggestKey(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		if ev.Mods == ui.Shift {
 			dismissSuggestion(m, client)
 		} else if !ev.Repeat {
-			applySuggest(m, items[*sel], tok)
+			if items[*sel].drill != "" {
+				applySuggestDrill(m, items[*sel], tok)
+			} else {
+				applySuggest(m, items[*sel], tok)
+			}
 		}
 	case ui.KeyEnter:
 		if !ev.Repeat {
