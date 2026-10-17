@@ -98,6 +98,9 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 			return checkpoint, true
 		}
 	}
+	if msg, ok := classifyContextMessage(raw); ok {
+		return msg, true
+	}
 	if ev.Type == "turn/end" {
 		return Message{Kind: MessageKindText, Role: "status", Seq: ev.Seq, EventType: ev.Type, Raw: append(json.RawMessage(nil), raw...), Body: "0"}, true
 	}
