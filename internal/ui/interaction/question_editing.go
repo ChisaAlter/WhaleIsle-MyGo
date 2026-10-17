@@ -6,11 +6,13 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
-	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-type questionEditorFlow struct{ focusID, feedback string }
+type questionEditorFlow struct {
+	focusID, feedback  string
+	minimized, summary bool
+}
 type questionEditorKeys struct{ composing, compositionEnded bool }
 
 // Native TextArea routes marked-text events directly to its text adapter, not
@@ -57,81 +59,56 @@ func (k *questionEditorKeys) handle(ev ui.InputEvent, composing bool, advance fu
 	return true
 }
 
-func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store *interaction.Store, fg, muted ui.Color) bool {
-	area := ui.Column(c.Key("question-answer:" + p.AgentID + ":" + p.EventID)).FillWidth().Disabled(p.Sending)
-	flow := ui.Local(area, "question-editor-flow", func() questionEditorFlow { return questionEditorFlow{} })
+func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.QuestionRowView, rowIndex int, store *interaction.Store, flow *questionEditorFlow, fg, muted ui.Color) bool {
+	area := ui.Column(c.Key("question-answer:" + p.AgentID + ":" + p.EventID + ":" + strconv.Itoa(rowIndex))).FillWidth().Disabled(p.Sending)
 	area.Children(func() {
-		for rowIndex, row := range card.Rows {
-			ui.Column(c.Key("question-row:" + strconv.Itoa(rowIndex) + ":" + row.ID)).FillWidth().Gap(4).Children(func() {
-				label := row.Question
-				if label == "" {
-					label = row.Header
-				}
-				if label != "" {
-					ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-				}
-				if row.Detail != "" {
-					ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				}
-				ui.Row(c).Gap(8).Children(func() {
-					if row.Skipped {
-						ui.Text(c, "已跳过 / Skipped").FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						if ui.Button(c, "撤销跳过 / Undo skip").Clicked() {
-							store.SetQuestionSkipped(p.EventID, row.ID, false)
-						}
-					} else if ui.Button(c, "跳过此题 / Skip question").Clicked() {
-						store.SetQuestionSkipped(p.EventID, row.ID, true)
+		label := row.Question
+		if label == "" {
+			label = row.Header
+		}
+		if label != "" {
+			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+		}
+		if row.Detail != "" {
+			ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		}
+		for index, opt := range row.OptionLabels {
+			checked := slices.Contains(row.Selected, opt)
+			choice := ui.Checkbox(c.Key("question-option:"+strconv.Itoa(index)), &checked, opt).OnChange(func() {
+				if row.MultiSelect || checked {
+					store.SetQuestionOptionChecked(p.EventID, row.ID, opt, checked)
+					if !row.MultiSelect {
+						store.AdvanceQuestionChoice(p.AgentID, p.EventID, row.ID)
 					}
-				})
-				if row.MultiSelect || len(row.OptionLabels) <= 4 {
-					for index, opt := range row.OptionLabels {
-						checked := slices.Contains(row.Selected, opt)
-						ui.Checkbox(c.Key("question-option:"+strconv.Itoa(index)+":"+opt), &checked, opt).OnChange(func() {
-							if row.MultiSelect || checked {
-								store.SetQuestionOptionChecked(p.EventID, row.ID, opt, checked)
-								flow.feedback = ""
-							}
-						})
-						if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-							ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						}
-					}
-				} else {
-					selected := ""
-					if len(row.Selected) > 0 {
-						selected = row.Selected[0]
-					}
-					ui.Select(c.Key("question-select"), &selected, row.OptionLabels).OnChange(func() { store.SetQuestionSingleSelect(p.EventID, row.ID, selected); flow.feedback = "" })
-				}
-				// Bind a frame-local copy, never a pointer into the store. Even a queued
-				// input from before Sending flips cannot mutate the retained response.
-				custom := row.Custom
-				input := ui.TextArea(c.Key("question-custom"), &custom).FillWidth().Lines(2, 5).Label("Question answer: " + label)
-				keys := ui.Local(input, "question-enter", func() questionEditorKeys { return questionEditorKeys{} })
-				input.OnChange(func() { store.SetQuestionCustom(p.EventID, row.ID, custom); flow.feedback = "" })
-				composing := input.Composing()
-				keys.observeComposition(composing)
-				input.HandleInput(func(ev ui.InputEvent) bool {
-					return keys.handle(ev, composing, func() { flow.focusID, flow.feedback = store.ContinueQuestion(p.AgentID, p.EventID, row.ID) })
-				})
-				if flow.focusID == row.ID && !p.Sending {
-					input.Focus()
-					flow.focusID = ""
+					flow.feedback = ""
 				}
 			})
-		}
-		if flow.feedback != "" {
-			message := "Answer this question before continuing."
-			if flow.feedback == "incomplete" {
-				message = "Complete or skip the remaining questions before submitting."
-			}
-			if i18n.Locale() == i18n.LocaleZH {
-				message = "请先回答此题再继续。"
-				if flow.feedback == "incomplete" {
-					message = "请回答或跳过其余问题后提交。"
+			choice.HandleInput(func(ev ui.InputEvent) bool {
+				if ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEnter {
+					return false
 				}
+				if !ev.Repeat {
+					flow.focusID, flow.feedback = store.SubmitQuestionBatch(p.AgentID, p.EventID)
+				}
+				return true
+			})
+			if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
+				ui.Text(c, row.OptionDescriptions[index]).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
-			ui.Text(c, message).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
+		// Frame-local binding prevents pre-Sending events from mutating the draft.
+		custom := row.Custom
+		input := ui.TextArea(c.Key("question-custom"), &custom).FillWidth().Lines(2, 5).Label("Question answer: " + label)
+		keys := ui.Local(input, "question-enter", func() questionEditorKeys { return questionEditorKeys{} })
+		input.OnChange(func() { store.SetQuestionCustom(p.EventID, row.ID, custom); flow.feedback = "" })
+		composing := input.Composing()
+		keys.observeComposition(composing)
+		input.HandleInput(func(ev ui.InputEvent) bool {
+			return keys.handle(ev, composing, func() { flow.focusID, flow.feedback = store.ContinueQuestion(p.AgentID, p.EventID, row.ID) })
+		})
+		if flow.focusID == row.ID && !p.Sending {
+			input.Focus()
+			flow.focusID = ""
 		}
 	})
 	return area.FocusWithin()

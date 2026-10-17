@@ -22,6 +22,7 @@ type QuestionRowView struct {
 
 // QuestionCardView is parsed user-questions/request payload for UI.
 type QuestionCardView struct {
+	Index            int
 	Wait             *QuestionWaitView
 	Hidden           bool
 	PlanReview       *PlanReview
@@ -31,6 +32,7 @@ type QuestionCardView struct {
 }
 
 type draftSession struct {
+	index            int
 	wait             questionWaitState
 	hidden           bool
 	planReviewHidden bool
@@ -72,7 +74,7 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 }
 
 func (ds *draftSession) cardView(eventID string) QuestionCardView {
-	cv := QuestionCardView{Wait: ds.wait.view(time.Now()), Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
+	cv := QuestionCardView{Index: min(max(ds.index, 0), max(0, len(ds.req.Questions)-1)), Wait: ds.wait.view(time.Now()), Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
 	for _, q := range ds.req.Questions {
 		row := QuestionRowView{
 			ID:          q.ID,
@@ -181,6 +183,12 @@ func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
 		s.mu.Unlock()
 		return
 	}
+	s.setQuestionSkippedDraftLocked(eventID, ad, skipped)
+	s.mu.Unlock()
+	s.fire()
+}
+
+func (s *Store) setQuestionSkippedDraftLocked(eventID string, ad *answerDraft, skipped bool) {
 	s.engageQuestionLocked(eventID)
 	ad.skipped = skipped
 	if skipped {
@@ -192,6 +200,4 @@ func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
 			}
 		}
 	}
-	s.mu.Unlock()
-	s.fire()
 }

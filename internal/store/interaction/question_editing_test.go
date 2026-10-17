@@ -60,6 +60,7 @@ func TestQuestionContinueValidatesCurrentAndWholeRequest(t *testing.T) {
 		t.Fatalf("missing earlier answer not found: %q %q", next, status)
 	}
 	s.SetQuestionSkipped("e", "first", true)
+	s.NavigateQuestion("A", "e", 1) // Resume the final page after missing-answer redirection.
 	if next, _ := s.ContinueQuestion("B", "e", "last"); next != "" || len(s.waiters["e"]) != 0 {
 		t.Fatal("foreign session submitted")
 	}

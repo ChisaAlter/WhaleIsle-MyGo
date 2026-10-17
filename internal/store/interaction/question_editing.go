@@ -1,47 +1,33 @@
 package interaction
 
-import "strings"
-
-// ContinueQuestion implements the free-text Enter gesture. The current answer
-// must be nonempty; intermediate questions move focus, and the final one either
-// points to the first incomplete answer or submits the existing request route.
-// Returned feedback is editor feedback, never a transport retry error.
+// ContinueQuestion implements free-text Enter and the primary Next/Submit
+// action. Unlike the pager, it requires an answer on the current page; its final
+// page validates the full batch and focuses the first incomplete question.
 func (s *Store) ContinueQuestion(agentID, eventID, questionID string) (focusID, feedback string) {
 	s.mu.Lock()
-	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
-	if p == nil || p.AgentID != agentID || p.Event != EventUserQuestions || p.Sending || p.Error != "" || ds == nil || ds.hidden || planReviewOf(ds.req.Questions) != nil {
+	ds := s.questionWizardLocked(agentID, eventID)
+	p := s.findPending(eventID)
+	if ds == nil || p.Error != "" || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID {
 		s.mu.Unlock()
 		return "", ""
 	}
-	index := -1
-	for i, q := range ds.req.Questions {
-		if q.ID == questionID {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		s.mu.Unlock()
-		return "", ""
-	}
-	answer := ds.answers[questionID]
-	if answer == nil || (len(answer.selected) == 0 && strings.TrimSpace(answer.custom) == "") {
+	if !questionAnswered(ds.answers[questionID]) {
 		s.mu.Unlock()
 		return questionID, "unanswered"
 	}
-	if index+1 < len(ds.req.Questions) {
-		next := ds.req.Questions[index+1].ID
+	if ds.index+1 < len(ds.req.Questions) {
+		ds.index++
+		focusID = ds.req.Questions[ds.index].ID
 		s.mu.Unlock()
-		return next, ""
+		s.fire()
+		return
 	}
-	for _, q := range ds.req.Questions {
-		a := ds.answers[q.ID]
-		if a == nil || (!a.skipped && len(a.selected) == 0 && strings.TrimSpace(a.custom) == "") {
-			s.mu.Unlock()
-			return q.ID, "incomplete"
-		}
-	}
+	focusID, feedback = questionSubmitTargetLocked(ds)
 	s.mu.Unlock()
-	s.ResolveQuestions(eventID)
-	return "", ""
+	if feedback == "" {
+		s.ResolveQuestions(eventID)
+	} else {
+		s.fire()
+	}
+	return
 }

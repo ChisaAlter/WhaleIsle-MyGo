@@ -112,7 +112,15 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		card.Focusable().Label("Approval details: " + p.EventID).HandleInput(approvalHandler(keys, p, store, false))
 	}
 	card.Children(func() {
-		ui.Text(c, p.Title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		title := p.Title
+		if q, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && q.Index >= 0 && q.Index < len(q.Rows) {
+			if q.Rows[q.Index].Header != "" {
+				title = q.Rows[q.Index].Header
+			} else if q.Rows[q.Index].Question != "" {
+				title = q.Rows[q.Index].Question
+			}
+		}
+		ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
 			if p.Continued {
 				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -149,18 +157,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				if ui.Button(c, "暂时隐藏 / Hide for now").Clicked() {
 					store.HideQuestion(p.EventID)
 				}
-				canSubmit := store.QuestionsCanSubmit(p.EventID)
-				label := i18n.T(i18n.KeyInteractionContinue)
-				if p.Continued {
-					label = questionStatusText("submit")
-				}
-				btn := ui.Button(c, label)
-				if !canSubmit {
-					btn = btn.Disabled(true)
-				}
-				if btn.Clicked() && canSubmit {
-					store.ResolveQuestions(p.EventID)
-				}
+
 				if !p.Continued {
 					if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
 						store.ResolveDeny(p.EventID)

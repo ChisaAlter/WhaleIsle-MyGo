@@ -39,8 +39,9 @@ func questionEditorFixture(t *testing.T, questions string) (*interaction.Store, 
 
 func TestQuestionCustomShiftEnterPreservesNewline(t *testing.T) {
 	store, tt, outcome := questionEditorFixture(t, `[{"id":"q","question":"Question"}]`)
-	tt.Key(0, ui.KeyTab) // Skip
-	tt.Key(0, ui.KeyTab) // Custom answer
+	if err := tt.Click("Question answer: Question"); err != nil {
+		t.Fatal(err)
+	}
 	tt.Type("one")
 	tt.Key(ui.Shift, ui.KeyEnter)
 	tt.Type("two")
