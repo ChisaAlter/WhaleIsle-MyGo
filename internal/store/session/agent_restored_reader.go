@@ -101,6 +101,7 @@ func (s *Store) verifyRestoredAgentReader(lease *agentRetainedRead) {
 		s.fire()
 		return
 	}
+	lease.restoreVerified = true
 	s.startAgentNavigationReadLocked(false)
 	s.mu.Unlock()
 	s.fire()

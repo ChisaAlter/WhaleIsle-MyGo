@@ -10,7 +10,7 @@ func (s *Store) retainedAgentPromptAllowedLocked(token uint64, address AgentSess
 }
 func (s *Store) agentPromptActionAdmissionLocked(token uint64, address AgentSessionAddress, explicit bool) bool {
 	if explicit && s.agentRetainedRead != nil {
-		return s.retainedAgentPromptAllowedLocked(token, address)
+		return s.retainedAgentExplicitGestureAllowedLocked(token, address)
 	}
 	return s.agentNavigationActionAllowedLocked(token, address)
 }
@@ -28,7 +28,7 @@ func (s *Store) PromptAgentNavigationExplicit(token uint64, address AgentSession
 // It cannot address sibling rows or perform a catalog-wide interruption.
 func (s *Store) InterruptRetainedAgentExplicit(token uint64, address AgentSessionAddress) {
 	s.mu.Lock()
-	allowed := s.retainedAgentPromptAllowedLocked(token, address)
+	allowed := s.retainedAgentExplicitGestureAllowedLocked(token, address)
 	s.mu.Unlock()
 	if !allowed {
 		return

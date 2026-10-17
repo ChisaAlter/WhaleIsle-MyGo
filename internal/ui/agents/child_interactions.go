@@ -14,7 +14,7 @@ func childInteractionsView(c *ui.Context, m Model, v session.AgentNavigationView
 	client, q, records, ok := m.Store.AgentInteractionTarget(v.Token, v.Address)
 	var cardStore interui.CardStore = m.Interactions
 	if m.Store.HasRetainedAgentRead() {
-		scope, scopedQuestions, scopedRecords, valid := m.Store.RetainedAgentInteractionScope(v.Token, v.Address)
+		scope, scopedQuestions, scopedRecords, valid := m.Store.RetainedAgentInteractionViewScope(v.Token, v.Address)
 		if !valid {
 			return
 		}

@@ -20,7 +20,8 @@ type SubmissionScope interface {
 // submission authority. All methods which can send are overridden below.
 type ScopedStore struct {
 	*Store
-	scope SubmissionScope
+	scope   SubmissionScope
+	gesture bool
 }
 
 func NewScopedStore(s *Store, scope SubmissionScope) *ScopedStore {
@@ -73,6 +74,10 @@ func (s *ScopedStore) resolveScoped(id string, out dsh.EventResultOutcome) {
 	s.fire()
 }
 func (s *ScopedStore) ResolveAllow(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -86,6 +91,10 @@ func (s *ScopedStore) ResolveAllow(id string) {
 }
 func (s *ScopedStore) ResolveAllowAlways(id string) { s.ResolveAllow(id) }
 func (s *ScopedStore) ResolveDeny(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -125,6 +134,10 @@ func (s *ScopedStore) sendAnswer(id string, answer userQuestionsAnswer) {
 	}
 }
 func (s *ScopedStore) ResolveQuestions(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -139,6 +152,10 @@ func (s *ScopedStore) ResolveQuestions(id string) {
 	s.sendAnswer(id, answer)
 }
 func (s *ScopedStore) ApprovePlanReview(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -155,6 +172,10 @@ func (s *ScopedStore) ApprovePlanReview(id string) {
 	}
 }
 func (s *ScopedStore) DismissPlanReview(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -174,6 +195,10 @@ func (s *ScopedStore) DismissPlanReview(id string) {
 	s.resolveScoped(id, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "the user cancelled ask_user_question"}})
 }
 func (s *ScopedStore) Retry(id string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return
+	}
 	if !s.allows(id) {
 		return
 	}
@@ -201,18 +226,30 @@ func (s *ScopedStore) Retry(id string) {
 	}
 }
 func (s *ScopedStore) ContinueQuestion(agent, id, question string) (string, string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return "", ""
+	}
 	if agent != s.scope.AgentID() || !s.allows(id) {
 		return "", ""
 	}
 	return s.continueQuestion(agent, id, question, s.ResolveQuestions)
 }
 func (s *ScopedStore) SubmitQuestionBatch(agent, id string) (string, string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return "", ""
+	}
 	if agent != s.scope.AgentID() || !s.allows(id) {
 		return "", ""
 	}
 	return s.submitQuestionBatch(agent, id, s.ResolveQuestions)
 }
 func (s *ScopedStore) SkipQuestionAndContinue(agent, id, question string) (string, string) {
+	s = s.forExplicitGesture()
+	if s == nil {
+		return "", ""
+	}
 	if agent != s.scope.AgentID() || !s.allows(id) {
 		return "", ""
 	}
@@ -221,3 +258,38 @@ func (s *ScopedStore) SkipQuestionAndContinue(agent, id, question string) (strin
 
 // A retained surface cannot turn an explicit decision into global auto-allow.
 func (*ScopedStore) SetAutoAllow(bool) {}
+
+type explicitSubmissionValidity interface{ ExplicitSubmissionValidity() (func() bool, bool) }
+type gestureSubmissionScope struct {
+	SubmissionScope
+	valid func() bool
+}
+
+func (s gestureSubmissionScope) Valid() bool { return s.valid != nil && s.valid() }
+
+// Only exported UI gesture methods call this; rendering and queued delivery
+// validation never manufacture a new action context.
+func (s *ScopedStore) forExplicitGesture() *ScopedStore {
+	if s == nil || s.scope == nil {
+		return nil
+	}
+	if s.gesture {
+		if s.valid() {
+			return s
+		}
+		return nil
+	}
+	scope := s.scope
+	if source, ok := scope.(explicitSubmissionValidity); ok {
+		valid, allowed := source.ExplicitSubmissionValidity()
+		if !allowed {
+			return nil
+		}
+		scope = gestureSubmissionScope{SubmissionScope: scope, valid: valid}
+	}
+	copy := &ScopedStore{Store: s.Store, scope: scope, gesture: true}
+	if !copy.valid() {
+		return nil
+	}
+	return copy
+}

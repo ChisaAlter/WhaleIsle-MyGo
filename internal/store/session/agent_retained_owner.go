@@ -8,6 +8,7 @@ import (
 
 type agentRetainedRead struct {
 	restoredReadOnly bool
+	restoreVerified  bool
 	lineage          []AgentSessionAddress
 	ctx              context.Context
 	cancel           context.CancelFunc
