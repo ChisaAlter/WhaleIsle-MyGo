@@ -128,7 +128,19 @@ func startWhalebridge(root, dshHome string) error {
 
 	cmd := exec.Command(exe, "whalebridge")
 	cmd.Dir = filepath.Dir(exe)
-	cmd.Env = append(os.Environ(),
+	env := make([]string, 0, len(os.Environ())+4)
+	for _, item := range os.Environ() {
+		key := item
+		if idx := strings.IndexByte(item, '='); idx >= 0 {
+			key = item[:idx]
+		}
+		switch key {
+		case "ELECTRON_RUN_AS_NODE", "MAGPIE_WEB_KEY", "MAGPIE_WEB_RUNKEY":
+			continue
+		}
+		env = append(env, item)
+	}
+	cmd.Env = append(env,
 		"LAUNCHER_COMPONENT_ID=whalebridge",
 		"LAUNCHER_COMPONENT_DATA_DIR="+dataDir,
 		"WHALEBRIDGE_DSH_HOME="+dshHome,

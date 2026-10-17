@@ -160,8 +160,8 @@ func NewWhaleBridgeService(opts ServiceOptions) *WhaleBridgeService {
 	}
 	s.disconnect = opts.Disconnect
 	if s.disconnect == nil {
-		s.disconnect = func(_ context.Context, root, version string) error {
-			return disconnectWhalebridge(root, version)
+		s.disconnect = func(ctx context.Context, root, version string) error {
+			return disconnectWhalebridge(ctx, root, version)
 		}
 	}
 	return s
@@ -425,6 +425,16 @@ func writeJSONAtomic(path string, value any) error {
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
+		// os.Rename cannot replace an existing file on Windows. Remove only
+		// the destination we just attempted to replace, then retry the rename;
+		// callers still get the original error when the replacement fails.
+		if runtime.GOOS == "windows" {
+			if removeErr := os.Remove(path); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
+				if retryErr := os.Rename(tmp, path); retryErr == nil {
+					return nil
+				}
+			}
+		}
 		_ = os.Remove(tmp)
 		return err
 	}
@@ -788,7 +798,7 @@ func readLogTail(path string) string {
 	return text
 }
 
-func disconnectWhalebridge(root, version string) error {
+func disconnectWhalebridge(ctx context.Context, root, version string) error {
 	if version == "" {
 		return nil
 	}
@@ -811,7 +821,10 @@ func disconnectWhalebridge(root, version string) error {
 		componentRoot = filepath.Dir(root)
 	}
 	dshHome := filepath.Join(filepath.Dir(filepath.Dir(componentRoot)), "dsh-home")
-	cmd := exec.Command(exe, "whalebridge-disconnect")
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, exe, "whalebridge-disconnect")
 	cmd.Dir = filepath.Dir(exe)
 	cmd.Env = append(os.Environ(),
 		"LAUNCHER_COMPONENT_ID="+whaleBridgeID,
