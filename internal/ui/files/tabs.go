@@ -52,6 +52,9 @@ type FileTab struct {
 	tablePage                                 *workspacefs.XLSXPage
 	tableRequest                              workspacefs.XLSXPageRequest
 	tableCell                                 string
+	tableSelectionKind                        string
+	tableSelectionIndex                       int
+	tableRows                                 ui.ListState
 	readID                                    uint64
 	readFullPath                              string
 	pendingLine                               textReadLine

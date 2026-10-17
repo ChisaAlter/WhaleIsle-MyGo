@@ -82,9 +82,10 @@ func workbookBuiltinFormat(id int) string {
 }
 
 type workbookFormats struct {
-	codes    map[int]string
-	styles   []int
-	date1904 bool
+	presentationStyles []XLSXCellStyle
+	codes              map[int]string
+	styles             []int
+	date1904           bool
 }
 
 func (f workbookFormats) code(style int) string {
@@ -130,9 +131,8 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 			ID   int    `xml:"numFmtId,attr"`
 			Code string `xml:"formatCode,attr"`
 		} `xml:"numFmts>numFmt"`
-		XFs []struct {
-			Format int `xml:"numFmtId,attr"`
-		} `xml:"cellXfs>xf"`
+		Fonts []xlsxSourceFont `xml:"fonts>font"`
+		XFs   []xlsxSourceXF   `xml:"cellXfs>xf"`
 	}
 	if err := dec.Decode(&styles); err != nil {
 		return out, err
@@ -142,6 +142,7 @@ func readWorkbookFormats(ctx context.Context, zr *zip.Reader, seen map[string]bo
 	}
 	for _, xf := range styles.XFs {
 		out.styles = append(out.styles, xf.Format)
+		out.presentationStyles = append(out.presentationStyles, savedXLSXStyle(styles.Fonts, xf))
 	}
 	return out, nil
 }
@@ -431,7 +432,7 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, lo
 			ampm = true
 		}
 		if token.kind == "s" && i+2 < len(tokens) && tokens[i+1].text == "." {
-			for j := i+2; j < len(tokens) && tokens[j].kind == "pattern" && tokens[j].text == "0"; j++ {
+			for j := i + 2; j < len(tokens) && tokens[j].kind == "pattern" && tokens[j].text == "0"; j++ {
 				precision++
 			}
 		}
@@ -442,7 +443,7 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, lo
 	// Round within a day so large serials do not lose fractional-second precision.
 	days := int(math.Floor(value))
 	factor := math.Pow10(precision)
-	seconds := math.Floor((value-float64(days))*86400)
+	seconds := math.Floor((value - float64(days)) * 86400)
 	if hasSeconds {
 		seconds = math.Round((value-float64(days))*86400*factor) / factor
 	}
@@ -511,14 +512,14 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, lo
 			}
 		case "m":
 			minutes := false
-			for j := i-1; j >= 0; j-- {
+			for j := i - 1; j >= 0; j-- {
 				if tokens[j].kind == "literal" || tokens[j].kind == "pattern" {
 					continue
 				}
 				minutes = tokens[j].kind == "h" || tokens[j].kind == "elapsed" && strings.HasPrefix(tokens[j].text, "h")
 				break
 			}
-			for j := i+1; j < len(tokens); j++ {
+			for j := i + 1; j < len(tokens); j++ {
 				if tokens[j].kind == "literal" || tokens[j].kind == "pattern" {
 					continue
 				}
@@ -547,7 +548,7 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, lo
 			}
 			h := hour
 			if ampm {
-				h = hour%12
+				h = hour % 12
 				if h == 0 {
 					h = 12
 				}
@@ -559,9 +560,9 @@ func workbookDate(value float64, tokens []workbookFormatToken, date1904 bool, lo
 			}
 			out.WriteString(number(second, width))
 			if precision > 0 && i+2 < len(tokens) && tokens[i+1].text == "." && tokens[i+2].text == "0" {
-				fraction := int(math.Round((seconds-float64(whole))*factor))
+				fraction := int(math.Round((seconds - float64(whole)) * factor))
 				out.WriteString(fmt.Sprintf(".%0*d", precision, fraction))
-				i += precision+1
+				i += precision + 1
 			}
 		case "ampm":
 			parts := strings.Split(token.text, "/")

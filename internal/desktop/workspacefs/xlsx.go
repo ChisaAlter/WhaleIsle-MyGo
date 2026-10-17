@@ -39,13 +39,17 @@ type XLSXPageRequest struct {
 }
 type XLSXSheet struct{ ID, Name string }
 type XLSXCell struct {
+	Formula                                          string
+	HasFormula                                       bool
+	FormulaKind                                      string
+	Style                                            XLSXCellStyle
 	Address, Value, Type, DisplayValue, NumberFormat string
-	FormatSupported                                bool
+	FormatSupported                                  bool
 }
 type XLSXPage struct {
-	Request                                XLSXPageRequest
-	Sheets                                 []XLSXSheet
-	Cells                                  []XLSXCell
+	Request                                 XLSXPageRequest
+	Sheets                                  []XLSXSheet
+	Cells                                   []XLSXCell
 	TotalRows, TotalColumns                 int
 	Text, TSV, DisplayTSV, Version, Problem string
 }
@@ -381,11 +385,15 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 	}
 	defer rc.Close()
 	type cell struct {
-		R      string       `xml:"r,attr"`
-		T      string       `xml:"t,attr"`
-		S      *int         `xml:"s,attr"`
-		V      string       `xml:"v"`
-		Inline xlsxRichText `xml:"is"`
+		R       string       `xml:"r,attr"`
+		T       string       `xml:"t,attr"`
+		S       *int         `xml:"s,attr"`
+		V       string       `xml:"v"`
+		Inline  xlsxRichText `xml:"is"`
+		Formula *struct {
+			Text string `xml:",chardata"`
+			Kind string `xml:"t,attr"`
+		} `xml:"f"`
 	}
 	type row struct {
 		R int    `xml:"r,attr"`
@@ -502,10 +510,16 @@ func readSheetPage(ctx context.Context, zr *zip.Reader, request XLSXPageRequest,
 				style = *c.S
 			}
 			display := workbookCell(address, val, kind, formats.code(style), formats.date1904)
-			if max(len(val), len(display.DisplayValue)) > xlsxMaxCellBytes && out.Problem == "" {
+			display.Style = formats.presentation(style)
+			if c.Formula != nil {
+				display.HasFormula = true
+				display.Formula = c.Formula.Text
+				display.FormulaKind = c.Formula.Kind
+			}
+			if max(len(val), len(display.DisplayValue), len(display.Formula)) > xlsxMaxCellBytes && out.Problem == "" {
 				out.Problem = fmt.Sprintf("Cell %s exceeds the 64 KiB readable cell limit. This page is not shown or copyable. Choose another page or Open external.", address)
 			}
-			pageBytes += max(len(val), len(display.DisplayValue))
+			pageBytes += max(len(val), len(display.DisplayValue), len(display.Formula))
 			if pageBytes > xlsxMaxPageBytes && out.Problem == "" {
 				out.Problem = "Selected page exceeds the 1 MiB cell-content limit. This page is not shown or copyable. Choose another page or Open external."
 			}

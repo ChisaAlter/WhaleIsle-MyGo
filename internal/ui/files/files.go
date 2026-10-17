@@ -513,6 +513,9 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 				Padding(4, 12, 8, 12)
 			return
 		}
+		if paintTableGrid(c, m) {
+			return
+		}
 		if mediaMode(m, sel) {
 			ui.Text(c, label("点击音视频预览或浮动预览；仅当前 Host/会话单文件，最大 32 MiB，30 分钟有效。播放取决于 WebView2 编解码支持。", "Choose Media preview or Floating preview. One current Host/session file, up to 32 MiB, valid for 30 minutes. Playback depends on WebView2 codecs.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 			return
