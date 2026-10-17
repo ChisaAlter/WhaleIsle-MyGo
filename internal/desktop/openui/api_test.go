@@ -1,7 +1,9 @@
 package openui
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -21,7 +23,10 @@ func TestOpenUIResourceAdapters(t *testing.T) {
 		}
 		calls = append(calls, r.URL.String())
 		body := ""
+		var rawBody []byte
 		switch {
+		case r.URL.Host == "upload.wikimedia.org":
+			rawBody, _ = base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
 		case r.URL.Host == "en.wikipedia.org" && strings.Contains(r.URL.Path, "summary/"):
 			body = `{"thumbnail":{"source":"https://upload.wikimedia.org/photo.jpg"},"coordinates":{"lat":35,"lon":139}}`
 		case r.URL.Host == "en.wikipedia.org" && strings.Contains(r.URL.Path, "media-list/"):
@@ -35,7 +40,10 @@ func TestOpenUIResourceAdapters(t *testing.T) {
 		default:
 			t.Fatalf("unexpected destination %s", r.URL)
 		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+		if rawBody == nil {
+			rawBody = []byte(body)
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(rawBody)), Header: make(http.Header)}, nil
 	})}
 	api := &ResourceAPI{client: client}
 	id := Identity("h", "s", "m", 0)
