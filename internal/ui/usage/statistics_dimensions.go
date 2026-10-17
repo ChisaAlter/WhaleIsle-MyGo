@@ -191,9 +191,12 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 			active++
 		}
 	}
-	ui.Text(c, usageText("用量日历（UTC）", "Usage calendar (UTC)")).Bold().TextColor(fg)
+	heading := ui.Text(c.Key("usage-calendar"), usageText("用量日历（UTC）", "Usage calendar (UTC)")).Bold().TextColor(fg)
+	detail := ui.Local(heading, "detail-date", func() string { return "" })
+	buttons := map[string]ui.Element{}
+	focusTarget := ""
 	ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, usageText("颜色按全窗口四分位分级；悬停查看模型、分项 Token 与峰谷费用。点击选一天，已有选区时可扩展。", "Colors use whole-window quartiles. Hover for models, token buckets and peak/off-peak costs. Pick a day or extend the current range.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, usageText("颜色按全窗口四分位分级；聚焦或悬停查看日期详情；方向键按日/周移动，Home/End 到首尾；Enter 选择，Shift+Enter 扩展。", "Colors use whole-window quartiles. Focus or hover for day details. Arrow keys move by day/week; Home/End reach bounds. Enter selects; Shift+Enter extends.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	start, _ := time.Parse("2006-01-02", days[0].Date)
 	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
@@ -231,7 +234,21 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 							text = "✓" + text
 						}
 						ui.Column(c).Width(48).Children(func() {
-							if ui.Button(c, text).Width(48).Background(color).Tooltip(dayTip(day, providers, settings)).Clicked() {
+							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(48).Background(color).Tooltip(dayTip(day, providers, settings))
+							buttons[date] = button
+							if button.Focused() || button.Hovered() {
+								*detail = date
+							}
+							for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
+								if button.Shortcut(0, key) {
+									focusTarget = calendarFocusTarget(date, key, days)
+								}
+							}
+							if button.Shortcut(ui.Shift, ui.KeyEnter) || button.Shortcut(ui.Shift, ui.KeySpace) {
+								m.Store.SelectStatsDay(date, true)
+							}
+							if button.Clicked() {
+								*detail = date
 								m.Store.SelectStatsDay(date, false)
 							}
 							if st.Range.Active() && ui.Button(c, "+").Width(48).Tooltip(usageText("扩展选区", "Extend selection")).Clicked() {
@@ -243,6 +260,50 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 			}
 		})
 	})
+	if button, ok := buttons[focusTarget]; ok {
+		button.Focus()
+		*detail = focusTarget
+	}
+	if day, ok := lookup[*detail]; ok {
+		ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+}
+
+// The native calendar has days across and weeks down. Missing dates stay inert.
+func calendarFocusTarget(date string, key ui.Key, days []usagestore.DayUsage) string {
+	if len(days) == 0 {
+		return ""
+	}
+	if key == ui.KeyHome {
+		return days[0].Date
+	}
+	if key == ui.KeyEnd {
+		return days[len(days)-1].Date
+	}
+	delta := 0
+	switch key {
+	case ui.KeyLeft:
+		delta = -1
+	case ui.KeyRight:
+		delta = 1
+	case ui.KeyUp:
+		delta = -7
+	case ui.KeyDown:
+		delta = 7
+	default:
+		return ""
+	}
+	d, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return ""
+	}
+	target := d.AddDate(0, 0, delta).Format("2006-01-02")
+	for _, day := range days {
+		if day.Date == target {
+			return target
+		}
+	}
+	return ""
 }
 
 type usageSlice struct {

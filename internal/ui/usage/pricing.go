@@ -11,6 +11,28 @@ import (
 )
 
 func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	trigger := ui.Button(c.Key("usage-pricing"), usageText("价格详情与设置", "Price details and settings"))
+	open := ui.Local(trigger, "open", func() bool { return false })
+	if trigger.Clicked() {
+		*open = true
+	}
+	pricingDialog(c, open, func() { pricingContent(c, m, fg, muted, accent) })
+}
+
+func pricingDialog(c *ui.Context, open *bool, content func()) {
+	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, .4))
+		w, h := c.Size()
+		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Background(c.Theme().Background).Padding(16).Children(func() {
+			if ui.Button(c, usageText("关闭价格详情", "Close price details")).Clicked() {
+				*open = false
+			}
+			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() { ui.Column(c).Gap(8).Children(content) })
+		})
+	})
+}
+
+func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	v := m.Store.Billing()
 	ui.Text(c, usageText("价格配置与费用估算", "Price settings and cost estimates")).Bold().TextColor(fg)
 	ui.Text(c, usageText("单位：CNY / 百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
