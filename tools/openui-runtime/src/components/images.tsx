@@ -150,15 +150,23 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
   // its source, trusted program revision, or retry attempt no longer matches.
   const current: PublicImageState = state.identity === identity && state.attempt === attempt
     ? state : { identity, attempt, status: 'loading' };
-  const onDecode = (success: boolean) => setState((value) => {
-    if (value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')) return value;
-    if (success) return { ...value, status: 'ready' };
-    if (fallbackEligible && !usingFallback) {
-      setFallbackKey(identityKey);
-      return { ...value, status: 'loading', photo: undefined, error: undefined };
+  const onDecode = (success: boolean) => {
+    if (success) {
+      setState((value) => value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')
+        ? value : { ...value, status: 'ready' });
+      return;
     }
-    return { ...value, status: 'error', error: usingFallback ? 'The replacement image could not be decoded.' : 'This image could not be decoded.' };
-  });
+    if (fallbackEligible && !usingFallback) {
+      // Keep the updater pure: the key change below restarts the effect with
+      // a new request, while this update hides the failed source immediately.
+      setFallbackKey(identityKey);
+      setState((value) => value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')
+        ? value : { ...value, status: 'loading', photo: undefined, error: undefined });
+      return;
+    }
+    setState((value) => value.identity !== identity || value.attempt !== attempt || (value.status !== 'decoding' && value.status !== 'ready')
+      ? value : { ...value, status: 'error', error: usingFallback ? 'The replacement image could not be decoded.' : 'This image could not be decoded.' });
+  };
   const failure = input.kind === 'invalid' ? input.error : current.status === 'error' ? current.error || 'The image service request failed.' : undefined;
   const Frame = inline ? 'span' : 'figure';
   const Caption = inline ? 'span' : 'figcaption';
