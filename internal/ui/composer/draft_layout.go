@@ -64,16 +64,8 @@ func (c *DraftClient) setViewport(height float32) {
 	c.viewportHeight = height
 	limit := max(0, c.visualHeight()+draftInputTop-height)
 	c.scrollY = min(limit, max(0, c.scrollY))
-	if c.revealCaret && c.layout != nil {
-		caret := c.visualCaret(c.selection.Caret())
-		top, bottom := caret.Y+draftInputTop, caret.Y+draftInputTop+caret.H
-		if top < c.scrollY {
-			c.scrollY = max(0, top-draftInputTop)
-		}
-		if bottom > c.scrollY+height {
-			c.scrollY = min(limit, bottom-height)
-		}
-		c.revealCaret = false
+	if c.revealCaret {
+		c.revealCaretInViewport()
 	}
 }
 func (c *DraftClient) scrollBy(dy float32) bool {

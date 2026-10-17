@@ -19,6 +19,9 @@ func suggestionFixture(text string) (*DraftState, Model, *int) {
 func TestSuggestionEnterAcceptsHighlightWithoutSending(t *testing.T) {
 	for _, text := range []string{"/", "@r"} {
 		d, m, sent := suggestionFixture(text)
+		if text == "/" {
+			m.SlashCatalog = []SlashCommand{{Line: "/remote", Description: "Remote command"}}
+		}
 		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyDown}) {
 			t.Fatal("down not consumed")
 		}

@@ -73,6 +73,7 @@ func (c *DraftClient) SetSelectionUTF16(start, end int) {
 	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: start, End: end}}
 	c.marked = nil
 	c.revealCaret = true
+	c.revealCaretInViewport()
 }
 
 func (c *DraftClient) text() string {
@@ -233,4 +234,24 @@ func (c *DraftClient) move(to int, extend bool) {
 		Range:    ui.TextInputRange{Start: min(anchor, to), End: max(anchor, to)},
 		Reversed: to < anchor,
 	}
+	c.revealCaretInViewport()
+}
+
+// revealCaretInViewport keeps keyboard navigation immediately visible. The UI
+// layout pass also calls setViewport, but native key events can be observed by
+// callers before the next frame is painted.
+func (c *DraftClient) revealCaretInViewport() {
+	if c.layout == nil || c.viewportHeight <= 0 {
+		return
+	}
+	limit := max(0, c.visualHeight()+draftInputTop-c.viewportHeight)
+	caret := c.visualCaret(c.selection.Caret())
+	top, bottom := caret.Y+draftInputTop, caret.Y+draftInputTop+caret.H
+	if top < c.scrollY {
+		c.scrollY = max(0, top-draftInputTop)
+	}
+	if bottom > c.scrollY+c.viewportHeight {
+		c.scrollY = min(limit, bottom-c.viewportHeight)
+	}
+	c.revealCaret = false
 }

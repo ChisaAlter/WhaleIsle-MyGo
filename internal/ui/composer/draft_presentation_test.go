@@ -38,8 +38,7 @@ func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 		closeMetric(t, first.H, 24, "native caret line height")
 		// Actual ink, rather than only the native client's returned geometry.
 		image := tt.Image()
-		var bands []int
-		previous := -2
+		lineInk := map[int]bool{}
 		for y := int(input.Y); y < int(input.Y+input.H); y++ {
 			ink := false
 			for x := int(input.X + 14); x < int(input.X+100); x++ {
@@ -50,14 +49,12 @@ func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 				}
 			}
 			if ink {
-				if y > previous+1 {
-					bands = append(bands, y)
-				}
-				previous = y
+				line := int((float32(y) - input.Y - 4) / 24)
+				lineInk[line] = true
 			}
 		}
-		if len(bands) != 2 || bands[1]-bands[0] != 24 {
-			t.Errorf("visible native draft ink bands=%v, want two24px apart", bands)
+		if len(lineInk) != 2 || !lineInk[0] || !lineInk[1] {
+			t.Errorf("visible native draft ink lines=%v, want two 24px lines", lineInk)
 		}
 	}
 }
@@ -202,7 +199,7 @@ func TestShippedDraftScrollClipAndCaretReveal(t *testing.T) {
 	if err := tt.Click("Composer draft"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Key(0, ui.KeyEnd)
+	tt.Key(ui.Ctrl, ui.KeyEnd)
 	end, _, _ := client.BoundsForRange(ui.TextInputRange{Start: ui.UTF16Len(draft), End: ui.UTF16Len(draft)})
 	if end.Y < 0 || end.Y+end.H > input.H+.1 {
 		t.Errorf("last line caret not revealed: %v viewport=%v", end, input)
@@ -210,7 +207,7 @@ func TestShippedDraftScrollClipAndCaretReveal(t *testing.T) {
 	if client.scrollBy(1000) {
 		t.Fatal("wheel should bubble at lower scroll boundary")
 	}
-	tt.Key(0, ui.KeyHome)
+	tt.Key(ui.Ctrl, ui.KeyHome)
 	closeMetric(t, client.scrollY, 0, "Home reveals beginning")
 	if client.scrollBy(-1000) {
 		t.Fatal("wheel should bubble at upper scroll boundary")

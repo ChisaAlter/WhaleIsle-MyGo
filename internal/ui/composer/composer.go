@@ -452,7 +452,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					if m.OnPickSpeech != nil {
-						speechBtn := ui.Button(c, "音频文件 / Audio file").Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
+						speechBtn := ui.Button(c, i18n.T(i18n.KeyComposerSpeech)).Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
 							Padding(0, 8, 0, 8).Background(selectorFill).BorderWidth(0).
 							TextColor(fg).FontSize(12)
 						if sel := strings.TrimSpace(m.Snapshot.SpeechSelection); sel != "" {
@@ -549,7 +549,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							running = true
 						}
 					}
-					if (running && strings.TrimSpace(draft) == "" && (m.State == nil || len(m.State.Attachments) == 0)) && m.OnStop != nil {
+					if running && m.OnStop != nil {
 						stop := ui.Button(c, "■").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).

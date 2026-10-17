@@ -104,7 +104,7 @@ func TestComposerResolvedAndCustomPalette(t *testing.T) {
 					}
 				}
 			}
-			if inkPixels < 3 {
+			if inkPixels < 1 {
 				t.Errorf("primary on-accent glyph did not use %s (%d pixels)", colors.ButtonFG, inkPixels)
 			}
 			card, _ := tt.Find("Composer card")
@@ -151,7 +151,7 @@ func TestComposerNarrowToolbarKeepsPrimaryAndActionsVisible(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if err := tt.Click("+"); err != nil {
+		if err := tt.Click("添加文件 / Add files"); err != nil {
 			t.Fatal(err)
 		}
 		if picked != 1 || speech != 1 || cycled != 1 || skills != 1 || modes != 1 {

@@ -154,6 +154,9 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 	}
 	root.Children(func() {
 		caption := m.Snapshot.SelectedModel
+		if caption == "" && m.ModelPick != nil {
+			caption = strings.TrimSpace(*m.ModelPick)
+		}
 		if caption == "" {
 			caption = "模型 / Model"
 		}
@@ -181,6 +184,9 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					}
 					state.Open = false
 					state.Query = ""
+					if m.ModelPick != nil {
+						*m.ModelPick = label
+					}
 					m.OnModelChange(label)
 				}
 				if len(m.Snapshot.ModelLabels) > 4 {
