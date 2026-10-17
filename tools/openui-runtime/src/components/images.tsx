@@ -14,7 +14,7 @@ const maxDataLength = 25 * 1024 * 1024;
 
 type ImageStyle = { aspectRatio?: number; radius?: string | number; fit?: 'cover' | 'contain' };
 type Photo = { data: string; source: string };
-type ImageResponse = { images?: unknown; imageSources?: unknown };
+type ImageResponse = { images?: unknown; imageSources?: unknown; photos?: unknown; photoSources?: unknown };
 type SearchState = { query: string; status: 'loading' | 'ready' | 'error'; photos: Photo[]; error?: string };
 export type PublicImageProps = ImageStyle & { src: string; alt: string; inline?: boolean };
 type PublicSource = { kind: 'local'; data: string } | { kind: 'external'; url: string } | { kind: 'invalid'; error: string };
@@ -114,10 +114,23 @@ export function PublicImage({ src, alt, inline = false, ...style }: PublicImageP
     if (input.kind === 'invalid') update({ status: 'error', error: input.error });
     else if (input.kind === 'local') update({ status: 'decoding', photo: { data: input.data, source: '' } });
     else if (usingFallback) {
-      requestResource<ImageResponse>('/api/image-search', { q: fallbackQuery }, controller.signal)
-        .then((response) => {
+      // Match the original Photo fallback order: an exact Wikipedia title is
+      // preferred, then the broader Wikimedia/Commons search fills in.
+      Promise.allSettled([
+        requestResource<ImageResponse>('/api/wiki', { title: fallbackQuery }, controller.signal),
+        requestResource<ImageResponse>('/api/image-search', { q: fallbackQuery }, controller.signal),
+      ]).then((results) => {
           if (!live || controller.signal.aborted) return;
-          const photos = readPhotos(response);
+          const photos: Photo[] = [];
+          for (const [index, result] of results.entries()) {
+            if (result.status !== 'fulfilled') continue;
+            try {
+              photos.push(...(index === 0 ? readWikiPhotos(result.value) : readPhotos(result.value)));
+            } catch {
+              // One public adapter may fail while the other still supplies a
+              // real, Host-validated replacement image.
+            }
+          }
           if (photos.length === 0) throw new Error(`No replacement image was found for “${fallbackQuery}”.`);
           update({ status: 'decoding', photo: photos[0] });
         })
@@ -197,21 +210,29 @@ function DataPhoto({ src, alt, source, onDecodeError, ...style }: ImageStyle & {
   </figure>;
 }
 
-function readPhotos(response: ImageResponse): Photo[] {
-  if (!response || typeof response !== 'object' || !Array.isArray(response.images) || !Array.isArray(response.imageSources)) {
+function readPhotoList(response: ImageResponse, imageKey: 'images' | 'photos', sourceKey: 'imageSources' | 'photoSources'): Photo[] {
+  if (!response || typeof response !== 'object' || !Array.isArray(response[imageKey]) || !Array.isArray(response[sourceKey])) {
     throw new Error('The image service returned an invalid image/source response.');
   }
-  if (response.images.length !== response.imageSources.length || response.images.length > 4) {
+  const images = response[imageKey] as unknown[];
+  const sources = response[sourceKey] as unknown[];
+  if (images.length !== sources.length || images.length > 4) {
     throw new Error('The image service returned mismatched images and source metadata.');
   }
-  const images = response.images;
-  const sources = response.imageSources;
   return images.map((value, index) => {
     const source = sources[index];
     if (!isBitmapData(value)) throw new Error('The image service returned an unsupported or oversized bitmap.');
     if (typeof source !== 'string' || source.trim() === '') throw new Error('The image service omitted the original image source.');
     return { data: value, source };
   });
+}
+
+function readPhotos(response: ImageResponse): Photo[] {
+  return readPhotoList(response, 'images', 'imageSources');
+}
+
+function readWikiPhotos(response: ImageResponse): Photo[] {
+  return readPhotoList(response, 'photos', 'photoSources');
 }
 
 function SearchPhoto({ query, ...style }: ImageStyle & { query: string }) {
