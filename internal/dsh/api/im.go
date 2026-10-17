@@ -10,9 +10,10 @@ import (
 // connection.rpc on per-channel paths (/feishu, /telegram, …) with endpoints
 // such as connection.status / bot.bind-credentials, not Typert Remote im/*.
 //
-// Preferred* helpers below document the Typert-style names WhaleIsle will
-// probe via dsh.Client.Call when (a) they appear in Registry after a future
-// upstream codegen, or (b) a harness build starts serving them. Until then
+// Preferred* helpers below document the Typert-style names WhaleIsle may use
+// when they appear in Registry after a future upstream codegen. List/history
+// still have explicit candidate probes for a harness build that serves them;
+// send requires a registered endpoint before store/im calls it. Until then
 // store/im falls back to pluginInventory/list diagnostics for @xmanrui/dsh-im.
 
 const (
@@ -236,16 +237,12 @@ func ResolveIMHistoryMethod() string {
 	return cands[0]
 }
 
-// ResolveIMSendMethod prefers a registry hit, else the first send candidate.
+// ResolveIMSendMethod returns a send-style method only when the generated
+// Registry confirms that the endpoint exists. Unlike list/history probing,
+// SendDraft must not issue a speculative im/send request to vendors that have
+// no im/* contract (such as the current dsh-im package).
 func ResolveIMSendMethod() string {
-	if m := PreferredIMSendMethod(); m != "" {
-		return m
-	}
-	cands := IMSendMethodCandidates()
-	if len(cands) == 0 {
-		return ""
-	}
-	return cands[0]
+	return PreferredIMSendMethod()
 }
 
 func firstRegistered(prefs []string, fallbackSubstrings ...string) string {

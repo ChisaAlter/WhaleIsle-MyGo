@@ -25,7 +25,7 @@ func TestIMMethodCandidatesDocumented(t *testing.T) {
 	if got := ResolveIMHistoryMethod(); got != "im/history" {
 		t.Fatalf("ResolveIMHistoryMethod = %q", got)
 	}
-	if got := ResolveIMSendMethod(); got != "im/send" {
+	if got := ResolveIMSendMethod(); got != "" {
 		t.Fatalf("ResolveIMSendMethod = %q", got)
 	}
 	if len(IMListMethodCandidates()) == 0 || len(IMHistoryMethodCandidates()) == 0 || len(IMSendMethodCandidates()) == 0 {
@@ -33,6 +33,22 @@ func TestIMMethodCandidatesDocumented(t *testing.T) {
 	}
 	if len(IMCordisChannels()) == 0 {
 		t.Fatal("expected Cordis channel prefixes")
+	}
+}
+
+func TestResolveIMSendMethodUsesRegisteredEndpoint(t *testing.T) {
+	old, had := Registry["im/send"]
+	Registry["im/send"] = Endpoint{Method: "im/send"}
+	defer func() {
+		if had {
+			Registry["im/send"] = old
+		} else {
+			delete(Registry, "im/send")
+		}
+	}()
+
+	if got := ResolveIMSendMethod(); got != "im/send" {
+		t.Fatalf("ResolveIMSendMethod = %q, want registered method", got)
 	}
 }
 

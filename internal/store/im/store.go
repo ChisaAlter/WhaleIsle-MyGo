@@ -359,19 +359,8 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 }
 
 func (s *Store) pickSendMethodLocked() string {
-	if m := api.PreferredIMSendMethod(); m != "" {
-		return m
-	}
-	set := map[string]bool{}
-	for _, m := range s.methods {
-		set[m] = true
-	}
-	for _, p := range api.IMSendMethodCandidates() {
-		if set[p] {
-			return p
-		}
-	}
-	// Probe primary candidate even when not in registry (live Call).
+	// An empty result means the current vendor has no registered im/send RPC;
+	// SendDraft then remains in the auditable local queue/history path.
 	return api.ResolveIMSendMethod()
 }
 
