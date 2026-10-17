@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/dsh/events"
@@ -12,6 +13,7 @@ import (
 
 // AgentPresetOption is one row in the composer agent preset picker.
 type AgentPresetOption struct {
+	Description, Broken string
 	RequiresCodingTools bool
 	Label               string
 	ID                  string
@@ -38,7 +40,7 @@ func flattenAgentPresetRoster(roster api.AgentPresetRoster) []AgentPresetOption 
 		if p.Broken != nil && *p.Broken != "" {
 			label = label + " ⚠"
 		}
-		out = append(out, AgentPresetOption{Label: label, ID: p.Id, RequiresCodingTools: p.Name == nil && (p.Id == "ptc" || p.Id == "minimal")})
+		out = append(out, AgentPresetOption{Description: derefString(p.Description), Broken: derefString(p.Broken), Label: label, ID: p.Id, RequiresCodingTools: p.Name == nil && (p.Id == "ptc" || p.Id == "minimal")})
 	}
 	return out
 }
@@ -145,23 +147,66 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 	s.mu.Lock()
 	opt, ok := agentPresetOptionByID(presetID, s.agentPresetOptions)
 	client, sessionID, generation := s.client, s.selectedID, s.followGeneration
-	s.mu.Unlock()
-	if !ok || client == nil || sessionID == "" || sessionID != targetID || ctx.Err() != nil {
+	cwd := s.cwd
+	p := s.presetStateLocked()
+	if !ok || client == nil || sessionID != targetID || ctx.Err() != nil {
+		s.mu.Unlock()
 		return
 	}
+	if p.busy && p.session == sessionID && p.generation == generation {
+		s.mu.Unlock()
+		return
+	}
+	p.session, p.generation = sessionID, generation
+	p.error = ""
+	if !s.blankPresetTargetLocked(sessionID) || opt.Broken != "" {
+		p.error = opt.Label + ": presets can only be applied to a blank session"
+		if opt.Broken != "" {
+			p.error = opt.Label + ": " + opt.Broken
+		}
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	if sessionID == "" {
+		p.staged[filepathClean(s.cwd)] = opt.ID
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	p.busy = true
+	s.mu.Unlock()
+	s.fire()
 	label := opt.Label
 	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		s.mu.Lock()
+		current := s.client == client && s.selectedID == sessionID && s.followGeneration == generation && s.blankPresetTargetLocked(sessionID)
+		if !current {
+			if s.client == client && s.presetDraft.session == sessionID && s.presetDraft.generation == generation {
+				s.presetDraft.busy = false
+				s.presetDraft.error = label + ": session changed; select again"
+			}
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
+		s.mu.Unlock()
 		var result api.SelectResult
 		err := client.Call(ctx, "agentPresets/select", map[string]any{
 			"agentId":     sessionID,
 			"agentPreset": opt.ID,
 		}, &result)
 		s.mu.Lock()
-		if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
+		if s.client != client || s.selectedID != sessionID || s.followGeneration != generation {
 			s.mu.Unlock()
 			return
 		}
+		p := s.presetStateLocked()
+		p.busy = false
 		if err != nil {
+			p.error = label + ": " + err.Error()
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()
@@ -171,6 +216,9 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 			s.selectedAgentPresetLabel = lbl
 		} else {
 			s.selectedAgentPresetLabel = label
+		}
+		if s.stagedPresetLocked(cwd) == opt.ID {
+			delete(s.presetDraft.staged, filepathClean(cwd))
 		}
 		s.lastAction = "agent preset selected"
 		s.invalidateCommandsLocked()

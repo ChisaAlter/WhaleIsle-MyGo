@@ -26,11 +26,12 @@ type ComposerAttachment struct {
 // ComposerTarget pins every step of one admission to one Host and mode. A
 // navigation may change the selected session, but never retarget this request.
 type ComposerTarget struct {
-	SessionID               string
-	store                   *Store
-	client                  *dsh.Client
-	epoch, followGeneration uint64
-	mode                    PromptMode
+	draftPresetID, draftPresetCwd string
+	SessionID                     string
+	store                         *Store
+	client                        *dsh.Client
+	epoch, followGeneration       uint64
+	mode                          PromptMode
 }
 
 func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {
@@ -39,7 +40,7 @@ func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {
 	if s.client == nil {
 		return nil, ErrNoClient
 	}
-	return &ComposerTarget{SessionID: id, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: NormalizePromptMode(string(s.promptMode))}, nil
+	return &ComposerTarget{SessionID: id, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: NormalizePromptMode(string(s.promptMode)), draftPresetID: s.stagedPresetLocked(s.cwd), draftPresetCwd: filepathClean(s.cwd)}, nil
 }
 func (t *ComposerTarget) currentLocked() bool {
 	return t.store.client == t.client && t.store.composerHostGeneration == t.epoch
@@ -152,8 +153,12 @@ func (t *ComposerTarget) CreateSession(ctx context.Context, cwd string) (string,
 	if strings.TrimSpace(cwd) == "" {
 		return "", errors.New("choose a workspace before sending")
 	}
+	request := api.SessionCreateRequest{Cwd: &cwd}
+	if t.draftPresetCwd == filepathClean(cwd) && t.draftPresetID != "" {
+		request.AgentPreset = &t.draftPresetID
+	}
 	var out api.SessionCreateValue
-	if err := t.client.Call(ctx, "session/create", map[string]any{"request": api.SessionCreateRequest{Cwd: &cwd}}, &out); err != nil {
+	if err := t.client.Call(ctx, "session/create", map[string]any{"request": request}, &out); err != nil {
 		return "", err
 	}
 	if err := t.check(ctx); err != nil {
@@ -162,6 +167,11 @@ func (t *ComposerTarget) CreateSession(ctx context.Context, cwd string) (string,
 	if out.SessionId == "" {
 		return "", errors.New("session/create returned no session")
 	}
+	t.store.mu.Lock()
+	if request.AgentPreset != nil && t.store.stagedPresetLocked(cwd) == t.draftPresetID {
+		delete(t.store.presetDraft.staged, filepathClean(cwd))
+	}
+	t.store.mu.Unlock()
 	t.SessionID = out.SessionId
 	return out.SessionId, nil
 }

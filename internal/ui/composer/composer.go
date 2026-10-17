@@ -48,6 +48,7 @@ type Model struct {
 	ModelPick            *string
 	PermissionOptions    []session.PermissionOption
 	AgentPresetOptions   []session.AgentPresetOption
+	AgentPresetSelection session.AgentPresetSelectionView
 	PermissionPick       *string
 	AgentPresetPick      *string
 
@@ -266,6 +267,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						m.OnNoDirectory()
 					}
 				}
+				if m.AgentPresetSelection.Busy {
+					ui.Text(c, "Applying preset…").FontSize(12)
+				}
+				if m.AgentPresetSelection.Error != "" {
+					ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
+				}
 				// Agent preset chip (Electron default label when roster empty).
 				presetLabel := i18n.T(i18n.KeyComposerPresetDefault)
 				if m.AgentPresetPick != nil && strings.TrimSpace(*m.AgentPresetPick) != "" {
@@ -273,8 +280,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				} else if len(m.Snapshot.AgentPresetLabels) > 0 {
 					presetLabel = m.Snapshot.AgentPresetLabels[0]
 				}
-				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil {
-					presetSelect(c, *m.AgentPresetPick, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
+				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
+					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
 						Height(28).FontSize(13).FontWeight(500).
 						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
 				} else {
@@ -517,11 +524,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							m.OnToggleSkills(!m.SkillsOpen)
 						}
 					}
-					// Agent preset on docked InputBar (hero already paints it above the card).
-					if !m.Hero && len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil {
-						presetSelect(c, *m.AgentPresetPick, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
-							Height(btnH).FontSize(12).FontWeight(500).
-							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
+					// Started conversations show context, never a preset mutation chip.
+					if !m.Hero && m.AgentPresetPick != nil {
+						ui.Text(c, *m.AgentPresetPick).FontSize(12).TextColor(muted)
+					}
+					if !m.Hero && m.AgentPresetSelection.Error != "" {
+						ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
 					}
 				})
 				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {

@@ -730,6 +730,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				}
 				editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
 				permissionOptions, agentPresetOptions := m.Store.PresetPickerOptions(snap.SelectedID, !m.DisableDeveloperTools)
+				presetSelection := m.Store.AgentPresetSelection()
+				presetPick := m.AgentPresetPick
+				if presetSelection.Label != "" {
+					label := presetSelection.Label
+					presetPick = &label
+				}
 				paintComposer := func(hero bool) {
 					nextPrompt := m.Store.SyncNextPrompt(context.Background(), composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
 					if !hero {
@@ -778,7 +784,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						PermissionOptions:    permissionOptions,
 						AgentPresetOptions:   agentPresetOptions,
 						PermissionPick:       m.PermissionPick,
-						AgentPresetPick:      m.AgentPresetPick,
+						AgentPresetPick:      presetPick,
+						AgentPresetSelection: presetSelection,
 						SlashCatalog:         slashCatalog,
 						OnRetrySlashCommands: func() { m.Store.RefreshSlashCommands(context.Background()) },
 						FilePaths:            filePaths,

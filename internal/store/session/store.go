@@ -188,6 +188,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	presetDraft            agentPresetDraftState
 	imageLimits            composerImageLimitState
 	planModeControl        planModeState
 	archiveUndo            *archiveUndoState
@@ -419,6 +420,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
 	cwd := s.cwd
+	stagedPreset := s.stagedPresetLocked(cwd)
 	var blankIDs []string
 	for _, it := range s.items {
 		if !it.Blank {
@@ -449,6 +451,9 @@ func (s *Store) CreateSession(ctx context.Context) {
 		}, &out)
 		if err == nil && out.Reusable {
 			s.Select(id)
+			if stagedPreset != "" {
+				s.SelectAgentPresetIDForSession(ctx, id, stagedPreset)
+			}
 			s.mu.Lock()
 			s.lastAction = "blank session reused"
 			s.mu.Unlock()
@@ -469,6 +474,9 @@ func (s *Store) CreateSession(ctx context.Context) {
 		if cwd != "" {
 			req.Cwd = &cwd
 		}
+		if stagedPreset != "" {
+			req.AgentPreset = &stagedPreset
+		}
 		var out api.SessionCreateValue
 		err := client.Call(ctx, "session/create", map[string]any{"request": req}, &out)
 		s.mu.Lock()
@@ -477,6 +485,13 @@ func (s *Store) CreateSession(ctx context.Context) {
 			s.mu.Unlock()
 			s.fire()
 			return
+		}
+		if s.client != client {
+			s.mu.Unlock()
+			return
+		}
+		if stagedPreset != "" && s.stagedPresetLocked(cwd) == stagedPreset {
+			delete(s.presetDraft.staged, filepathClean(cwd))
 		}
 		s.selectSessionLocked(out.SessionId)
 		s.lastAction = "session created"

@@ -5,7 +5,7 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-type presetChoice struct{ ID, Label string }
+type presetChoice struct{ ID, Label, Description, Broken string }
 
 // The toolkit's selection value is the opaque ID. Captions are display-only,
 // including when multiple catalog rows share exactly the same name.
@@ -19,7 +19,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 	parts.Popup(func(panel ui.Element) {
 		panel.Padding(t.Space(1)).Radius(t.Radius+2).Background(t.Background).Border(1, t.Border)
 		for _, o := range options {
-			row := parts.Item(o.ID).Label(o.Label).Tooltip(o.Label+" · "+o.ID).Padding(t.Space(1.5), t.Space(2.5))
+			row := parts.Item(o.ID).Label(o.Label).Tooltip(o.Label+" · "+o.ID+"\n"+o.Description+"\n"+o.Broken).Padding(t.Space(1.5), t.Space(2.5))
 			if row.Highlighted() {
 				row = row.Background(t.Accent).TextColor(t.AccentText)
 			}
@@ -45,7 +45,7 @@ func permissionChoices(options []session.PermissionOption) []presetChoice {
 func agentPresetChoices(options []session.AgentPresetOption) []presetChoice {
 	out := make([]presetChoice, 0, len(options))
 	for _, o := range options {
-		out = append(out, presetChoice{ID: o.ID, Label: o.Label})
+		out = append(out, presetChoice{ID: o.ID, Label: o.Label, Description: o.Description, Broken: o.Broken})
 	}
 	return out
 }

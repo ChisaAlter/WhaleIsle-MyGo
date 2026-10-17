@@ -40,6 +40,10 @@ func (s *Store) CaptureComposerGestureTarget(sourceID, targetID string, hostGene
 	if s.selectedID != sourceID {
 		return nil, errors.New("composer session changed; draft retained")
 	}
+	preset := s.presetStateLocked()
+	if preset.busy && preset.session == targetID && preset.generation == s.followGeneration {
+		return nil, errors.New("agent preset is still applying; retry when selection finishes")
+	}
 	preferred := "queue"
 	if preference != nil {
 		preferred = preference(s.client)
@@ -61,7 +65,7 @@ func (s *Store) CaptureComposerGestureTarget(sourceID, targetID string, hostGene
 	// This composer addresses the normal session/prompt transport, which
 	// supports steer. Delegated one-shot subagent input uses a separate path.
 	mode := ResolveBusyEnterMode(preferred, running, accelerated, targetID != "")
-	return &ComposerTarget{SessionID: targetID, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: mode}, nil
+	return &ComposerTarget{SessionID: targetID, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: mode, draftPresetID: s.stagedPresetLocked(s.cwd), draftPresetCwd: filepathClean(s.cwd)}, nil
 }
 
 // UseBusyEnterSetting removes only the Host-local manual override. It neither
