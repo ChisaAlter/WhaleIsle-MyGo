@@ -96,7 +96,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 		return
 	}
 	if v.RetainedReadOnly {
-		ui.Text(c, paneLabel("后台只读保留；返回来源会话后重新授权操作。", "Retained read-only; return to the source session and reopen to authorize actions."))
+		ui.Text(c, paneLabel("已保留来源会话；可向原目标发送，审批和其他操作需返回来源重新授权。", "Source session retained; prompts use the original target. Return and reopen for approvals and other actions."))
 		if m.Store.Snapshot().SelectedID == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
 			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 		}

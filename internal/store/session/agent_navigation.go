@@ -39,6 +39,7 @@ func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
 	RetainedReadOnly                               bool
+	RetainedPromptAllowed                          bool
 	ImageLimits                                    *ComposerImageLimits
 	imageLimitsSeq                                 float64
 	ParentAvailabilityKnown, ParentAvailable       bool
@@ -420,12 +421,12 @@ func (s *Store) PromptAgentNavigation(token uint64, address AgentSessionAddress,
 	if address.Mode != "continuable" {
 		return
 	}
-	s.agentNavigationAction(token, []AgentSessionAddress{address}, text, true)
+	s.agentNavigationAction(token, []AgentSessionAddress{address}, text, true, false)
 }
 func (s *Store) InterruptAgentNavigation(token uint64, addresses []AgentSessionAddress) {
-	s.agentNavigationAction(token, append([]AgentSessionAddress(nil), addresses...), "", false)
+	s.agentNavigationAction(token, append([]AgentSessionAddress(nil), addresses...), "", false, false)
 }
-func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt bool) {
+func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt, retainedPrompt bool) {
 	s.mu.Lock()
 	n := &s.agentNavigation
 	if len(addresses) == 0 || n.view.ActionBusy || n.view.Busy {
@@ -433,7 +434,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		return
 	}
 	for _, address := range addresses {
-		if !s.agentNavigationActionAllowedLocked(token, address) || (prompt && !s.agentParentCanPromptLocked(address)) {
+		if !s.agentPromptActionAdmissionLocked(token, address, retainedPrompt) || (prompt && !s.agentParentCanPromptLocked(address)) {
 			s.mu.Unlock()
 			return
 		}
@@ -448,7 +449,11 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 	delivery := string(NormalizePromptMode(string(s.promptMode)))
 	n.actionEpoch++
 	epoch := n.actionEpoch
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	actionContext := context.Background()
+	if retainedPrompt {
+		actionContext = s.agentReadContextLocked()
+	}
+	ctx, cancel := context.WithTimeout(actionContext, 15*time.Second)
 	n.actionCancel = cancel
 	n.view.ActionBusy = true
 	n.view.ActionStatus = ""
@@ -461,7 +466,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				return false
 			}
 			for _, address := range addresses {
-				if !s.agentNavigationActionAllowedLocked(token, address) || (prompt && !s.agentParentCanPromptLocked(address)) {
+				if !s.agentPromptActionAdmissionLocked(token, address, retainedPrompt) || (prompt && !s.agentParentCanPromptLocked(address)) {
 					return false
 				}
 			}

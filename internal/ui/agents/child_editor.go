@@ -35,14 +35,14 @@ func childEditor(c *ui.Context, m Model, v session.AgentNavigationView) {
 	}
 	owner.Children(func() {
 		composer.ChildEditor(c, composer.ChildEditorModel{
-			Draft: draft, Chip: chip, Images: v.PromptImages, Disabled: v.RetainedReadOnly || v.Busy || v.ActionBusy || !v.ParentAvailabilityKnown || !v.ParentAvailable,
+			Draft: draft, Chip: chip, Images: v.PromptImages, Disabled: (v.RetainedReadOnly && !v.RetainedPromptAllowed) || v.Busy || v.ActionBusy || !v.ParentAvailabilityKnown || !v.ParentAvailable,
 			OnAddImages: add, OnPasteImage: paste,
 			OnRemoveImage: func(path string) { m.Store.RemoveAgentNavigationImage(v.Token, v.Address, path) },
 			OnPickImages: func() {
 				selected, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: agentText("向子代理添加图片", "Add images for child"), Multiple: true, Filters: []mygo.FileFilter{{Name: "Images", Extensions: []string{"png", "jpg", "jpeg", "gif", "webp"}}}})
 				m.Store.AddAgentNavigationImages(v.Token, v.Address, selected, err)
 			},
-			OnSend: func(text string) { m.Store.PromptAgentNavigation(v.Token, v.Address, text) },
+			OnSend: func(text string) { m.Store.PromptAgentNavigationExplicit(v.Token, v.Address, text) },
 			OnOpenReference: func(path string) {
 				if m.OnOpenDocument != nil {
 					m.OnOpenDocument(v.Token, v.Address, path)

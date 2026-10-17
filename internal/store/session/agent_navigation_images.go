@@ -39,7 +39,7 @@ func agentNavigationPromptContentWithLimits(text string, paths []string, limits 
 
 func (s *Store) AddAgentNavigationImages(token uint64, address AgentSessionAddress, paths []string, pickErr error) {
 	s.mu.Lock()
-	if !s.agentNavigationActionAllowedLocked(token, address) || s.agentNavigation.view.Address != address || !s.agentParentCanPromptLocked(address) || s.agentNavigation.view.ActionBusy {
+	if !s.agentPromptActionAdmissionLocked(token, address, true) || s.agentNavigation.view.Address != address || !s.agentParentCanPromptLocked(address) || s.agentNavigation.view.ActionBusy {
 		s.mu.Unlock()
 		return
 	}
@@ -80,7 +80,7 @@ func (s *Store) AddAgentNavigationImages(token uint64, address AgentSessionAddre
 
 func (s *Store) RemoveAgentNavigationImage(token uint64, address AgentSessionAddress, path string) {
 	s.mu.Lock()
-	if !s.agentNavigationActionAllowedLocked(token, address) || s.agentNavigation.view.Address != address || s.agentNavigation.view.ActionBusy {
+	if !s.agentPromptActionAdmissionLocked(token, address, true) || s.agentNavigation.view.Address != address || s.agentNavigation.view.ActionBusy {
 		s.mu.Unlock()
 		return
 	}
