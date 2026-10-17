@@ -51,6 +51,10 @@ type Options struct {
 	Install      InstallFunc
 	OnRestart    func()
 	RestartDelay time.Duration
+	// Desktop exposes the authenticated /desktop/* control plane used by the
+	// whale assistant. A nil value keeps the legacy routes available and
+	// reports unconfigured desktop operations explicitly.
+	Desktop DesktopOps
 }
 
 // Server is a loopback HTTP install control plane.
@@ -153,7 +157,7 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/install" && r.URL.Path != "/desktop/project" && r.URL.Path != "/desktop/html-preview" && r.URL.Path != "/desktop/html-preview/status" {
+	if r.URL.Path != "/install" && strings.HasPrefix(r.URL.Path, "/desktop/") == false {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
@@ -178,11 +182,11 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		s.opts.HTMLPreview.ServeHTTP(w, r)
 		return
 	}
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
-		return
-	}
 	if r.URL.Path == "/desktop/html-preview" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
+			return
+		}
 		if s.opts.HTMLPreview == nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "available": false, "error": "isolated HTML preview unavailable"})
 			return
@@ -191,7 +195,19 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/desktop/project" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
+			return
+		}
 		s.handleProject(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/desktop/") {
+		s.handleDesktop(w, r)
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
 	s.handleInstall(w, r)
