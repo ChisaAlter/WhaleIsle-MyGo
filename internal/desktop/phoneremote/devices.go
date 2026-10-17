@@ -21,16 +21,41 @@ func DeviceName(device map[string]any) string {
 	return ""
 }
 
-// DeviceNames returns one label per credentials.remoteDevices entry.
-// Unnamed entries fall back to "#N" so the slice length matches DeviceCount.
+// DeviceNames returns one label per active credentials.remoteDevices entry.
+// Revoked records are omitted; unnamed entries fall back to "#N" so the
+// returned slice length matches the active-device count.
 func DeviceNames(devices []credentials.RemoteDevice) []string {
-	out := make([]string, len(devices))
-	for i, d := range devices {
-		if n := DeviceName(map[string]any(d)); n != "" {
-			out[i] = n
+	out := make([]string, 0, len(devices))
+	for _, d := range devices {
+		if DeviceRevoked(d) {
 			continue
 		}
-		out[i] = fmt.Sprintf("#%d", i+1)
+		if n := DeviceName(map[string]any(d)); n != "" {
+			out = append(out, n)
+			continue
+		}
+		out = append(out, fmt.Sprintf("#%d", len(out)+1))
+	}
+	return out
+}
+
+// DeviceRevoked mirrors dsh-remote's public device projection: any non-empty
+// revokedAt marker removes a device from the active phone list.
+func DeviceRevoked(device credentials.RemoteDevice) bool {
+	value, ok := device["revokedAt"]
+	if !ok || value == nil {
+		return false
+	}
+	return strings.TrimSpace(fmt.Sprint(value)) != ""
+}
+
+// ActiveDevices filters revoked records while preserving the opaque payload.
+func ActiveDevices(devices []credentials.RemoteDevice) []credentials.RemoteDevice {
+	out := make([]credentials.RemoteDevice, 0, len(devices))
+	for _, device := range devices {
+		if !DeviceRevoked(device) {
+			out = append(out, device)
+		}
 	}
 	return out
 }
