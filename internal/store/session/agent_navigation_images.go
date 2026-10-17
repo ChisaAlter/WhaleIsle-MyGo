@@ -32,7 +32,7 @@ func agentNavigationPromptContent(text string, paths []string) ([]json.RawMessag
 
 func (s *Store) AddAgentNavigationImages(token uint64, address AgentSessionAddress, paths []string, pickErr error) {
 	s.mu.Lock()
-	if !s.agentNavigationActionAllowedLocked(token, address) || s.agentNavigation.view.Address != address || address.Mode != "continuable" || s.agentNavigation.view.ActionBusy {
+	if !s.agentNavigationActionAllowedLocked(token, address) || s.agentNavigation.view.Address != address || !s.agentParentCanPromptLocked(address) || s.agentNavigation.view.ActionBusy {
 		s.mu.Unlock()
 		return
 	}

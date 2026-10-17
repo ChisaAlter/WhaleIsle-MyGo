@@ -38,6 +38,7 @@ type AgentNavigationRow struct {
 func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
+	ParentAvailabilityKnown, ParentAvailable       bool
 	RootCountsKnown                                bool
 	RootChildren, RootRunning, RootActivityUnknown int
 	PromptImages                                   []string               // local image draft scoped to this navigation owner
@@ -104,6 +105,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 	s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
 	v := cloneAgentNavigationView(s.agentNavigation.view)
 	s.agentRootCountsLocked(&v)
+	s.agentParentViewLocked(&v)
 	return v
 }
 
@@ -121,6 +123,7 @@ func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 		s.agentNavigation.notifyPending = false
 		v := cloneAgentNavigationView(s.agentNavigation.view)
 		s.agentRootCountsLocked(&v)
+		s.agentParentViewLocked(&v)
 		s.mu.Unlock()
 		return v
 	}
@@ -418,7 +421,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		return
 	}
 	for _, address := range addresses {
-		if !s.agentNavigationActionAllowedLocked(token, address) {
+		if !s.agentNavigationActionAllowedLocked(token, address) || (prompt && !s.agentParentCanPromptLocked(address)) {
 			s.mu.Unlock()
 			return
 		}
@@ -445,7 +448,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				return false
 			}
 			for _, address := range addresses {
-				if !s.agentNavigationActionAllowedLocked(token, address) {
+				if !s.agentNavigationActionAllowedLocked(token, address) || (prompt && !s.agentParentCanPromptLocked(address)) {
 					return false
 				}
 			}

@@ -53,6 +53,7 @@ func TestNativeAgentActionScopeFixture(t *testing.T) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.selectedID = "root"
+		s.items = []Item{{SessionID: "root", AgentAvailable: true}}
 		s.planHistoryBinding = fmt.Sprintf("%p\x00root", client)
 		s.agentNavigation = agentNavigationState{client: client, mux: s.mux, generation: s.followGeneration, binding: s.planHistoryBinding, root: "root", view: AgentNavigationView{Token: token, SessionID: "child", Address: address, ActionStatus: "current marker"}}
 	}

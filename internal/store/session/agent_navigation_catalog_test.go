@@ -19,6 +19,7 @@ func TestAgentLiveCatalogFixture(t *testing.T) {
 	client := &dsh.Client{}
 	mux := &dsh.Mux{}
 	s.client, s.mux, s.selectedID = client, mux, "root"
+	s.items = []Item{{SessionID: "root", AgentAvailable: true}}
 	s.planHistoryBinding = fmt.Sprintf("%p\x00%s", client, "root")
 	s.agentNavigation = agentNavigationState{binding: s.planHistoryBinding, root: "root", client: client, mux: mux, generation: s.followGeneration, view: AgentNavigationView{Token: 7, SessionID: "root", Address: AgentSessionAddress{Kind: "session", SessionID: "root"}}}
 	s.items = []Item{{SessionID: "child", ParentID: "root", Title: "Child title", Running: false}, {SessionID: "leaf", ParentID: "child", Title: "Leaf", Running: false}}
@@ -131,6 +132,7 @@ func TestAgentCatalogStaleActionFixture(t *testing.T) {
 		client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://catalog-fixture.invalid"}, HTTP: &http.Client{Transport: agentCatalogNoTransport{calls: &requests}}}
 		mux := &dsh.Mux{}
 		s.client, s.mux, s.selectedID = client, mux, "root"
+		s.items = []Item{{SessionID: "root", AgentAvailable: true}}
 		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", client, "root")
 		address := AgentSessionAddress{Kind: "subagent", ParentSessionID: "root", ChildSessionID: "child", Mode: "continuable"}
 		s.agentNavigation = agentNavigationState{binding: s.planHistoryBinding, root: "root", client: client, mux: mux, generation: s.followGeneration, view: AgentNavigationView{Token: 7, SessionID: "root", Address: AgentSessionAddress{Kind: "session", SessionID: "root"}, Rows: []AgentNavigationRow{{Address: address}}}}

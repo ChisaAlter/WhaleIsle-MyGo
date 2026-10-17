@@ -47,6 +47,7 @@ func TestAgentNavigationImagesWireFixture(t *testing.T) {
 	target := AgentSessionAddress{Kind: "subagent", ParentSessionID: "parent/exact", ChildSessionID: "child/exact", Mode: "continuable"}
 	s.mu.Lock()
 	s.selectedID = target.ParentSessionID
+	s.items = []Item{{SessionID: target.ParentSessionID, AgentAvailable: true}}
 	s.planHistoryBinding = fmt.Sprintf("%p\x00%s", client, s.selectedID)
 	s.agentNavigation = agentNavigationState{client: client, mux: s.mux, generation: s.followGeneration, binding: s.planHistoryBinding, root: s.selectedID, view: AgentNavigationView{Token: 12, SessionID: target.ChildSessionID, Address: target}}
 	s.mu.Unlock()

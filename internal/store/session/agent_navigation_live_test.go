@@ -137,6 +137,7 @@ func TestNativeAgentLiveNavigationFixture(t *testing.T) {
 	s.AttachMux(mux)
 	s.mu.Lock()
 	s.selectedID = "root"
+	s.items = []Item{{SessionID: "root", AgentAvailable: true}}
 	s.planHistoryBinding = fmt.Sprintf("%p\x00root", client)
 	binding := s.planHistoryBinding
 	s.messages = []Message{{ID: "parent", Body: "unchanged"}}
