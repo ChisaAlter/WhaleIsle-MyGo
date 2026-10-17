@@ -22,6 +22,7 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	OpenUIParent          uintptr
 	OnInspectToolCall     func(string)
 	Inspector             *InspectorNavigation
 	DisableDeveloperTools bool

@@ -1,7 +1,7 @@
-# CH12 OpenUI: isolated-window integration stage
+# CH12 OpenUI: inline and streaming integration
 
-This stage implements a usable `openui` / `openui-lang` assistant fence entry,
-not full original inline/streaming parity. Original OpenUiFrame.tsx receives a
+This stage implements visible inline `openui` / `openui-lang` assistant fences
+and bounded same-instance streaming updates, with a separate-window fallback. Original OpenUiFrame.tsx receives a
 pinned React viewer through an opaque iframe and exchanges channel/version/
 instanceId messages. MyGo now uses that real protocol inside its existing
 separately contained preview helper, with a dedicated bounded event channel.
@@ -32,16 +32,30 @@ not represent a new claim about upstream redistribution rights.
 
 ## Behavior and ownership
 
-- Completed assistant fences expose Open interactive UI and Source controls.
-  Streaming blocks wait until completion. Windows/macOS use a real standalone
-  isolated helper window. Linux is explicitly unavailable.
+- Visible assistant fences automatically start a real isolated inline renderer
+  when the main native parent handle is available. Windows uses the existing
+  clipped child surface; macOS uses the existing pixels/height/input bridge.
+  Completed fences may also be opened in a separate window after closing the
+  inline instance. Retry and Source remain available. Linux is unavailable.
+- Streaming program and completion changes update the same iframe/instance.
+  The chat polls changes every 200ms; helper transmission is latest-value-only
+  and capped at 10Hz. Only program/streaming change: current form state and
+  appearance are retained. Old helpers lacking update capability fail visibly.
 - Instance identity hashes Host history binding, session, message and block
   source offset. State is JSON-object-only, max48KiB, stored under the OS user
   config directory's WhaleIsle-MyGo/openui-state-v1 using private files. At most
-  256 state records and four live windows are allowed.
+  256 state records and four live renderers are allowed.
 - Navigation, Host epoch/follow generation changes, message removal or program
-  replacement revoke the captured owner and close the old renderer. Reopening
-  the same completed block restores its state.
+  replacement that removes the captured program prefix revoke the owner and
+  close the renderer. Streaming append retains that owner. Reopening restores
+  the last successfully received and persisted state. Pending actions are
+  cleared when the displayed program changes.
+- An inline renderer that has not painted for 300ms hides its Windows surface.
+  After 30 seconds offscreen it closes and becomes eligible to restart when
+  visible. Explicit Close cancels without automatic restart; Retry is available.
+  Each instance has a 30-minute context deadline. These checks are timer-driven,
+  not an assertion of immediate unmount cleanup. Queued state not delivered
+  before close is not guaranteed to persist.
 - The iframe cannot access Host credentials, native bindings, network, workers,
   filesystem, external navigation, clipboard or nested frames. Original
   external wiki/image-search/routing adapters return explicit unavailable errors.
@@ -58,13 +72,21 @@ not represent a new claim about upstream redistribution rights.
 
 ## Validation and remaining work
 
-One focused Go invocation passed protocol/boundary/resource/state fixtures,
-owner revocation/queue-target fixtures and native fence-stage UI checks. Tests
-used synthetic source/ASAR/JSON only and did not execute the original viewer.
-The helper transport has its own targeted checks and platform compile report.
-True SDK builds and real Windows/macOS renderer acceptance are distinct evidence.
+Stage one passed synthetic protocol/resource/state/owner/UI fixtures and actual
+Windows/macOS SDK compilation in Actions run 39023193323. Stage two adds a Node
+fake-DOM fixture executing only our parent-shell script: same iframe identity,
+new program/streaming, retained typed state, and foreign-instance rejection.
+Native fence/source checks and the affected frame/main packages compile in the
+focused Go check. Native helper transport/update tests and platform cross-builds
+are reported separately. No original viewer, real account or microphone is
+executed by these checks.
 
-Still partial: automatic inline rendering, same-instance streaming updates,
-complete original network/map/clipboard/link capabilities, and gesture-attested
-immediate action sending. The default distribution lacks a bundled runtime.
-These limitations must not be reported as full CH12 completion.
+Source and synthetic fixtures cover streaming/state preservation and bounded
+transport. Automatic visible loading, offscreen timeout, clipping, user input,
+scrolling and close/reopen behavior still require real Windows/macOS runtime
+acceptance. No screenshot or pixel acceptance is claimed. Stage two also needs
+its own native SDK compile after publication.
+
+Still partial: complete original network/map/clipboard/link capabilities and
+gesture-attested immediate action sending. The default distribution lacks a
+bundled runtime. These limitations must not be reported as full CH12 completion.

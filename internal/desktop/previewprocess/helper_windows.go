@@ -114,7 +114,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	}
 	// No document is in memory yet. This identity is sent over the inherited
 	// pipe, not a page bridge. Only the parent's OS query grants the next phase.
-	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
+	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, OpenUIUpdate: true, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
 		return err
 	}
 	doc, err := receiveDocument(input, nonce)
@@ -260,6 +260,26 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 		p, err := readPacket(input)
 		if err != nil {
 			return err
+		}
+		if p.Kind == "render" {
+			if !doc.openUIShell {
+				return errors.New("ordinary HTML cannot receive OpenUI updates")
+			}
+			raw, e := receiveOpenUIUpdate(input, p, nonce)
+			if e != nil {
+				return e
+			}
+			script, e := openUIUpdateScript(raw)
+			if e != nil {
+				return e
+			}
+			renderCtx, stop := context.WithTimeout(ctx, 5*time.Second)
+			_, e = w.Page().EvalContext(renderCtx, script)
+			stop()
+			if e != nil {
+				return e
+			}
+			continue
 		}
 		if err = expect(p, "theme", nonce); err != nil {
 			return err

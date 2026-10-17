@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf16"
 	"unsafe"
@@ -428,6 +429,8 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
 		return nil, err
 	}
+	var commandMu sync.Mutex
+	s.enableOpenUIUpdates(ready.OpenUIUpdate)
 	if !doc.capture {
 		s.surfaceHandle, s.surfacePID = uintptr(loaded.WindowHandle), process.ProcessId
 		if !validSurfaceWindow(s.surfaceHandle, s.surfacePID) {
@@ -435,6 +438,8 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 		}
 		s.theme = ""
 		s.sendTheme = func(appearance string, variables map[string]string) error {
+			commandMu.Lock()
+			defer commandMu.Unlock()
 			return writePacket(inputWrite, packet{Version: protocolVersion, Kind: "theme", Nonce: nonce, Appearance: appearance, Variables: variables})
 		}
 	}
@@ -454,6 +459,11 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = lifetime.Err(); err != nil {
 		return nil, err
 	}
+	startOpenUIUpdatePump(lifetime, s, func(raw []byte) error {
+		commandMu.Lock()
+		defer commandMu.Unlock()
+		return sendOpenUIUpdate(inputWrite, nonce, raw)
+	})
 	// A heartbeat is a drift detector, not the network security boundary.
 	// AppContainer token inheritance and the non-breakaway job are the boundary.
 	go func() {

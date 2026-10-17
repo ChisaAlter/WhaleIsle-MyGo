@@ -6769,6 +6769,7 @@ func mainView(c *ui.Context) {
 						OnPreviewVisualReply:         func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
 						OnInteractVisualReply:        interactivePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
 						OnInlineVisualReply:          inlinePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
+						OpenUIParent:                 win.NativeHandle(),
 						OnStopInteractiveVisualReply: sessions.StopInteractiveVisualReply,
 						OnReadVisualReply:            func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
 						OnSaveVisualReply:            func(id string) { savePublishedHTML(win, sessions, snap.SelectedID, id) },

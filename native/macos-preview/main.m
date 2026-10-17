@@ -183,9 +183,23 @@ static void verifyIdentity(void) {
     }
     fail(@"unsupported inline input kind");
 }
+// Program updates are typed data for one fixed shell function. They cannot
+// change the iframe, theme/state, native operation, or any external resource.
+- (void)renderOpenUI:(NSDictionary *)next {
+    if(!self.openUI || self.capture || ![next isKindOfClass:NSDictionary.class] || next.count!=3) fail(@"invalid OpenUI render mode");
+    NSString *instance=next[@"instanceId"],*program=next[@"program"];id streaming=next[@"streaming"];
+    NSCharacterSet *nonhex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"] invertedSet];
+    if(![instance isKindOfClass:NSString.class] || instance.length!=64 || [instance rangeOfCharacterFromSet:nonhex].location!=NSNotFound || ![program isKindOfClass:NSString.class] || program.length<1 || [program lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>262144 || (streaming!=(__bridge id)kCFBooleanTrue && streaming!=(__bridge id)kCFBooleanFalse)) fail(@"invalid OpenUI render payload");
+    NSData *raw=[NSJSONSerialization dataWithJSONObject:next options:0 error:nil];
+    if(!raw || raw.length>2*1024*1024) fail(@"OpenUI render exceeds limit");
+    NSString *script=[NSString stringWithFormat:@"window.__whaleOpenUIRender(%@);true",[[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding]];
+    NSString *result=[self.web stringByEvaluatingJavaScriptFromString:script];
+    if(![result isEqual:@"true"]) fail(@"OpenUI render rejected by shell");
+}
 - (void)command:(NSDictionary *)p {
     NSString *kind=p[@"kind"];
-    if([kind isEqual:@"theme"]) [self theme:p];
+    if([kind isEqual:@"render"]) [self renderOpenUI:p[@"renderBody"]];
+    else if([kind isEqual:@"theme"]) [self theme:p];
     else if(self.inlineSeat && [kind isEqual:@"release"]) [self releaseInput];
     else if(self.inlineSeat && [kind isEqual:@"poll"]) {if(p[@"input"]) [self input:p[@"input"]];}
     else fail(@"unexpected IPC command");
@@ -279,7 +293,7 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     Preview *preview=[Preview new];
     // Ready means the independently signed single-process renderer is identified;
     // no untrusted document has been read or loaded at this point.
-    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES});
+    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES,@"openUIUpdate":@YES});
     NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"]) fail(@"unsupported document request");
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");
@@ -301,6 +315,13 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     [NSTimer scheduledTimerWithTimeInterval:0.05 target:preview selector:@selector(poll:) userInfo:nil repeats:YES];
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{ while(YES) { @autoreleasepool {
         NSDictionary *p=readPacket();
+        if([p[@"kind"] isEqual:@"render"]) {
+            NSInteger size=[p[@"bytes"] integerValue];
+            if(!preview.openUI || preview.capture || size<1 || size>2*1024*1024) fail(@"invalid OpenUI render body length");
+            id body=[NSJSONSerialization JSONObjectWithData:readExact(size) options:0 error:nil];
+            if(![body isKindOfClass:NSDictionary.class]) fail(@"invalid OpenUI render JSON");
+            NSMutableDictionary *withBody=[p mutableCopy];withBody[@"renderBody"]=body;p=withBody;
+        }
         dispatch_sync(dispatch_get_main_queue(),^{ [preview command:p]; });
     } } });
     [NSApp run];

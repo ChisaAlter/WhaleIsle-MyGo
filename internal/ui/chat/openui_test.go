@@ -14,9 +14,9 @@ func TestOpenUIFenceStageUI(t *testing.T) {
 		if !openUIFence(c, m, msg, "openui", "main=Text(\"real program\")", 20) {
 			t.Error("fence not recognized")
 		}
-	}, 800, 400)
-	if !tt.HasText("生成完成后可打开交互窗口 / Available when generation completes") {
-		t.Fatal("streaming limitation hidden")
+	}, 800, 1000)
+	if !tt.HasText("OpenUI · 隔离交互 / Isolated interaction") {
+		t.Fatal("streaming inline block missing")
 	}
 	if err := tt.Click("源码 / Source"); err != nil {
 		t.Fatal(err)

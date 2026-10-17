@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/openui"
@@ -17,15 +19,18 @@ import (
 var openUISlots = make(chan struct{}, 4)
 
 type openUIBlock struct {
-	mu      sync.Mutex
-	program string
-	loading bool
-	err     string
-	action  *openui.Event
-	handle  *previewprocess.Session
-	cancel  context.CancelFunc
-	target  *session.ComposerTarget
-	valid   func() bool
+	mu                           sync.Mutex
+	program                      string
+	appearance                   string
+	streaming, inline, attempted bool
+	lastPaint                    time.Time
+	loading                      bool
+	err                          string
+	action                       *openui.Event
+	handle                       *previewprocess.Session
+	cancel                       context.CancelFunc
+	target                       *session.ComposerTarget
+	valid                        func() bool
 }
 
 func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {
@@ -41,49 +46,60 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 	}
 	id := openui.Identity(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, offset)
 	box := ui.Column(c.Key("openui:" + id)).FillWidth().Padding(8).Gap(6)
-	block := ui.Local(box, "instance", func() *openUIBlock { return &openUIBlock{program: program} })
-	b := *block
+	b := *ui.Local(box, "instance", func() *openUIBlock { return &openUIBlock{program: program} })
 	b.mu.Lock()
-	changed := b.program != program
-	if changed && b.cancel != nil {
-		b.cancel()
+	if b.program != program {
+		b.action = nil
 	}
+	b.program = program
+	b.streaming = msg.Streaming
+	loading, errText, action, handle, inline := b.loading, b.err, b.action, b.handle, b.inline
 	b.mu.Unlock()
-	if changed {
-		b = &openUIBlock{program: program}
-		*block = b
+	invalidate := c.Services().Invalidate
+	appearance := "light"
+	if m.SystemDark {
+		appearance = "dark"
 	}
 	b.mu.Lock()
-	loading, errText, action, opened := b.loading, b.err, b.action, b.handle != nil
+	b.appearance = appearance
 	b.mu.Unlock()
+	start := func(inline bool) {
+		b.mu.Lock()
+		if b.loading || b.handle != nil {
+			b.mu.Unlock()
+			return
+		}
+		b.attempted = true
+		b.mu.Unlock()
+		target, valid, err := m.FeedbackStore.CaptureOpenUI(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, program)
+		if err != nil {
+			b.mu.Lock()
+			b.err = err.Error()
+			b.mu.Unlock()
+			invalidate()
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		b.mu.Lock()
+		b.loading = true
+		b.err = ""
+		b.cancel = cancel
+		b.target = target
+		b.valid = valid
+		b.inline = inline
+		b.lastPaint = time.Now()
+		b.mu.Unlock()
+		go runOpenUI(ctx, b, id, program, appearance, invalidate)
+	}
 	box.Children(func() {
-		ui.Text(c, "OpenUI · 隔离交互窗口 / Isolated interactive window").FontSize(12)
-		if msg.Streaming {
-			ui.Text(c, "生成完成后可打开交互窗口 / Available when generation completes").FontSize(11)
+		ui.Text(c, "OpenUI · 隔离交互 / Isolated interaction").FontSize(12)
+		if ui.Button(c, "重试内联 UI / Retry inline UI").Disabled(loading || handle != nil).Clicked() {
+			start(true)
 		}
-		if ui.Button(c, "打开交互 UI / Open interactive UI").Disabled(msg.Streaming || loading || opened).Clicked() {
-			target, valid, err := m.FeedbackStore.CaptureOpenUI(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, program)
-			if err != nil {
-				b.mu.Lock()
-				b.err = err.Error()
-				b.mu.Unlock()
-			} else {
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-				b.mu.Lock()
-				b.loading = true
-				b.err = ""
-				b.cancel = cancel
-				b.target = target
-				b.valid = valid
-				b.mu.Unlock()
-				appearance := "light"
-				if m.SystemDark {
-					appearance = "dark"
-				}
-				go runOpenUI(ctx, b, id, program, appearance, c.Services().Invalidate)
-			}
+		if ui.Button(c, "打开独立窗口 / Open separate window").Disabled(msg.Streaming || loading || handle != nil).Clicked() {
+			start(false)
 		}
-		if opened && ui.Button(c, "关闭交互 UI / Close interactive UI").Clicked() {
+		if handle != nil && ui.Button(c, "关闭交互 UI / Close interactive UI").Clicked() {
 			b.mu.Lock()
 			if b.cancel != nil {
 				b.cancel()
@@ -95,6 +111,42 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		}
 		if errText != "" {
 			ui.Text(c, errText).Selectable().FontSize(11)
+		}
+		height := float32(360)
+		if handle != nil {
+			height = float32(max(80, min(700, handle.ContentHeight())))
+		}
+		if handle == nil || inline {
+			seat := ui.Column(c).FillWidth().Height(height)
+			seat.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				clip := p.NativeSurfaceClip()
+				if !childImageVisible(r, clip) {
+					return
+				}
+				b.mu.Lock()
+				b.lastPaint = time.Now()
+				attempted := b.attempted
+				b.mu.Unlock()
+				if !attempted && strings.TrimSpace(program) != "" && m.OpenUIParent != 0 {
+					start(true)
+				}
+			})
+			seat.Children(func() {
+				if handle != nil {
+					if !handle.RenderPixels(c, height, appearance, nil) {
+						ui.Box(c).FillWidth().Height(height).DrawOver(func(p *ui.Painter, r ui.Rect) {
+							clip := p.NativeSurfaceClip()
+							if err := handle.PresentSurface(m.OpenUIParent, int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H)); err != nil {
+								b.mu.Lock()
+								b.err = err.Error()
+								b.mu.Unlock()
+							}
+						})
+					}
+				} else {
+					ui.Text(c, "当前可见时加载真实运行资源 / Loads the real runtime when visible").FontSize(11)
+				}
+			})
 		}
 		if action != nil {
 			ui.Text(c, "交互请求尚未发送：渲染消息不含可信用户手势证明 / Confirm this action: renderer messages do not attest a user gesture.").FontSize(11)
@@ -113,7 +165,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 							b.err = err.Error()
 							b.mu.Unlock()
 						}
-						c.Services().Invalidate()
+						invalidate()
 					}()
 				}
 			}
@@ -131,6 +183,9 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			ui.Text(c, program).Selectable().FontSize(12)
 		}
 	})
+	if handle != nil || loading {
+		c.After(100 * time.Millisecond)
+	}
 	return true
 }
 
@@ -182,12 +237,14 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	}
 	b.mu.Lock()
 	valid := b.valid
+	program = b.program
+	streaming, inline := b.streaming, b.inline
 	b.mu.Unlock()
 	if valid == nil || !valid() {
 		finish(fmt.Errorf("OpenUI owner changed"))
 		return
 	}
-	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, OpenUI: &openui.Render{InstanceID: id, Program: program, State: state}})
+	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Program: program, Streaming: streaming, State: state}})
 	if err != nil {
 		finish(err)
 		return
@@ -209,6 +266,35 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 			finish(nil)
 			return
 		case <-tick.C:
+			b.mu.Lock()
+			latest, live, lastPaint, currentAppearance := b.program, b.streaming, b.lastPaint, b.appearance
+			b.mu.Unlock()
+			if inline && time.Since(lastPaint) > 300*time.Millisecond && runtime.GOOS == "windows" {
+				_ = handle.PresentSurface(0, 0, 0, 0, 0, 0, 0, 0, 0)
+			}
+			if inline && time.Since(lastPaint) > 30*time.Second {
+				b.mu.Lock()
+				b.attempted = false
+				b.mu.Unlock()
+				finish(nil)
+				return
+			}
+			if latest != program || live != streaming {
+				updater, ok := any(handle).(interface{ UpdateOpenUI(openui.Render) error })
+				if !ok {
+					finish(fmt.Errorf("OpenUI streaming helper is unavailable"))
+					return
+				}
+				if e := updater.UpdateOpenUI(openui.Render{InstanceID: id, Program: latest, Streaming: live, State: json.RawMessage(`{}`)}); e != nil {
+					finish(e)
+					return
+				}
+				program, streaming = latest, live
+			}
+			if e := handle.SetTheme(currentAppearance, nil); e != nil {
+				finish(e)
+				return
+			}
 			if !valid() {
 				finish(fmt.Errorf("OpenUI owner changed; renderer closed"))
 				return
@@ -244,7 +330,9 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				b.mu.Unlock()
 			case "resolved":
 				b.mu.Lock()
-				b.err = ""
+				if event.Program == b.program {
+					b.err = ""
+				}
 				b.mu.Unlock()
 			}
 			invalidate()

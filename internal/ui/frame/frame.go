@@ -151,6 +151,7 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	OpenUIParent            uintptr
 	CustomPanelContent      func(*ui.Context)
 	OnOpenDocumentViewer    func(string) (files.DocumentSurface, error)
 	GroupRoom               bool
@@ -1061,6 +1062,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnPreviewVisualReply:         m.OnPreviewVisualReply,
 										OnInteractVisualReply:        m.OnInteractVisualReply,
 										OnInlineVisualReply:          m.OnInlineVisualReply,
+										OpenUIParent:                 m.OpenUIParent,
 										OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
 										OnReadVisualReply:            m.OnReadVisualReply,
 										OnSaveVisualReply:            m.OnSaveVisualReply,

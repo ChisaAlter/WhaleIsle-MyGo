@@ -27,6 +27,7 @@ window.__previewState={ready:false,height:360,error:'',consoleMessages:[],omitte
 window.__whaleOpenUIDrain=()=>queue.splice(0,16);
 const frame=document.createElement('iframe');frame.name='whale-openui:'+instance;frame.setAttribute('sandbox','allow-scripts allow-forms');frame.referrerPolicy='no-referrer';
 const post=(type,data={})=>frame.contentWindow.postMessage({channel:'whale-openui',version:1,instanceId:instance,type,...data},'*');
+window.__whaleOpenUIRender=next=>{if(!next||next.instanceId!==instance||typeof next.program!=='string'||typeof next.streaming!=='boolean'||new TextEncoder().encode(next.program).length>262144)throw Error('Invalid OpenUI update');render.program=next.program;render.streaming=next.streaming;post('render',render);return true};
 window.__previewTheme=data=>{render.theme={appearance:data.appearance,variables:data.variables||{}};post('render',render)};
 addEventListener('message',event=>{const d=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||!d||d.channel!=='whale-openui'||d.version!==1||d.instanceId!==instance)return;
  if(d.type==='ready'){window.__previewState.ready=true;post('render',render);return;}

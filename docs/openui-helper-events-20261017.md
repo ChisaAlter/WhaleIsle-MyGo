@@ -34,8 +34,9 @@ bounded event batch before each requested frame; the parent permits only one
 request/frame pair in flight. macOS external windows poll every 150 ms on the
 main run loop. Neither mode adds a general page binding.
 
-This increment does not add `Session.UpdateOpenUI`: program changes require an
-explicit rebuild with validated state retained by the owner. OpenUI capture mode
+The first event-bridge increment did not add `Session.UpdateOpenUI`. The follow-up
+in `openui-helper-streaming-20261017.md` adds bounded same-instance updates; it
+supersedes that first increment's explicit-rebuild limitation. OpenUI capture mode
 is rejected. Linux OpenUI is explicitly unavailable in this increment rather
 than silently using an incompatible ordinary HTML shell.
 
