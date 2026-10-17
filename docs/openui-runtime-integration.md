@@ -181,3 +181,17 @@ bitmap data URLs from the two existing ArcGIS raster services. This path does
 not require iframe network access or a worker. The checked-in owned viewer includes this component and its resource bridge.
 Native compilation/runtime verification is pending; source implementation and
 production asset generation do not establish completed runtime parity.
+
+## Public adapter process cache
+
+The parent independently implements successful-response reuse matching the
+original adapters' observable cache scope: 500 Wikipedia titles, 500 normalized
+image queries, and 200 normalized route coordinate sets. Entries live for the
+application process lifetime and evict oldest insertion first. Reads do not
+change eviction order. Failures are not cached.
+
+Cache entries contain only public response JSON. A cache hit receives the
+current instance/request IDs; no prior owner envelope is reused. Image source
+JSON is cached before data-URL expansion, so large bitmap payloads are not
+retained in this process cache. This does not claim the browser HTTP image-cache
+semantics of the original Electron implementation or any runtime verification.

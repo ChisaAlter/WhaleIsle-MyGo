@@ -63,10 +63,13 @@ func validateAPIRequest(e Event) error {
 
 // ResourceAPI has its own credential-free client. Caller input can select only
 // the fixed public resource operations; it never supplies a server or headers.
-type ResourceAPI struct{ client *http.Client }
+type ResourceAPI struct {
+	client *http.Client
+	caches *resourceCaches
+}
 
 func NewResourceAPI() *ResourceAPI {
-	return &ResourceAPI{client: &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone(), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &ResourceAPI{caches: &processResourceCaches, client: &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone(), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func apiResult(e Event, status int, body any) APIResponse {
 	raw, _ := json.Marshal(body)
@@ -121,6 +124,10 @@ func (a *ResourceAPI) wiki(ctx context.Context, e Event) APIResponse {
 	title := strings.TrimSpace(e.Query["title"])
 	if title == "" || len([]rune(title)) > 200 {
 		return apiError(e, 400, "title is required")
+	}
+	cache := a.cacheFor("/api/wiki")
+	if result, ok := cache.read(title, e); ok {
+		return result
 	}
 	t := url.PathEscape(strings.ReplaceAll(title, " ", "_"))
 	var summary struct {
@@ -178,7 +185,7 @@ func (a *ResourceAPI) wiki(ctx context.Context, e Event) APIResponse {
 	if summary.Coordinates.Lon != nil {
 		body["lng"] = *summary.Coordinates.Lon
 	}
-	return apiResult(e, 200, body)
+	return cache.retain(title, apiResult(e, 200, body))
 }
 func photoKey(s string) string {
 	s = strings.SplitN(s, "?", 2)[0]
@@ -254,6 +261,10 @@ func (a *ResourceAPI) images(ctx context.Context, e Event) APIResponse {
 	if len([]rune(q)) < 2 || len([]rune(q)) > 200 {
 		return apiError(e, 400, "q must be 2 to 200 characters")
 	}
+	cache := a.cacheFor("/api/image-search")
+	if result, ok := cache.read(q, e); ok {
+		return result
+	}
 	images := []string{}
 	add := func(u string) {
 		if !strings.HasPrefix(u, "https://") || skipPhoto(u, true) {
@@ -310,7 +321,7 @@ func (a *ResourceAPI) images(ctx context.Context, e Event) APIResponse {
 			}
 		}
 	}
-	return apiResult(e, 200, map[string]any{"images": images[:min(4, len(images))]})
+	return cache.retain(q, apiResult(e, 200, map[string]any{"images": images[:min(4, len(images))]}))
 }
 func (a *ResourceAPI) route(ctx context.Context, e Event) APIResponse {
 	pairs := strings.Split(e.Query["coords"], ";")
@@ -333,6 +344,11 @@ func (a *ResourceAPI) route(ctx context.Context, e Event) APIResponse {
 		}
 		normalized = append(normalized, strconv.FormatFloat(nums[0], 'f', -1, 64)+","+strconv.FormatFloat(nums[1], 'f', -1, 64))
 	}
+	key := strings.Join(normalized, ";")
+	cache := a.cacheFor("/api/street-route")
+	if result, ok := cache.read(key, e); ok {
+		return result
+	}
 	var body struct {
 		Code   string `json:"code"`
 		Routes []struct {
@@ -341,12 +357,12 @@ func (a *ResourceAPI) route(ctx context.Context, e Event) APIResponse {
 			} `json:"geometry"`
 		} `json:"routes"`
 	}
-	if a.get(ctx, "https://router.project-osrm.org/route/v1/driving/"+strings.Join(normalized, ";")+"?overview=full&geometries=geojson&steps=false", 10*time.Second, &body, false) != nil || body.Code != "Ok" || len(body.Routes) == 0 || len(body.Routes[0].Geometry.Coordinates) < 2 {
+	if a.get(ctx, "https://router.project-osrm.org/route/v1/driving/"+key+"?overview=full&geometries=geojson&steps=false", 10*time.Second, &body, false) != nil || body.Code != "Ok" || len(body.Routes) == 0 || len(body.Routes[0].Geometry.Coordinates) < 2 {
 		return apiError(e, 502, "Street routing unavailable")
 	}
 	coords := body.Routes[0].Geometry.Coordinates
 	for i := range coords {
 		coords[i][0], coords[i][1] = coords[i][1], coords[i][0]
 	}
-	return apiResult(e, 200, map[string]any{"points": coords})
+	return cache.retain(key, apiResult(e, 200, map[string]any{"points": coords}))
 }
