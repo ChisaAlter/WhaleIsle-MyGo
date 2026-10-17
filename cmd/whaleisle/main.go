@@ -120,6 +120,7 @@ type mainState struct {
 	phoneGatewayEditor   remoteui.GatewayEditor
 	phoneGitSession      string
 	phoneGitRoot         string
+	phoneGitWorkspaces   phoneGitWorkspaceScope
 	phoneOp              sync.Mutex
 	closeToTray          bool
 	desktopTray          *mygo.Tray
@@ -608,9 +609,9 @@ func (s *mainState) refreshPhoneRemote() (msg string) {
 		manager.Stop()
 		return "disabled"
 	}
-	gitEnabled, gitRoot := s.phoneGitGrant()
+	gitRoots := s.phoneGitRoots()
 	runtimeConfig := map[string]any{
-		"remoteGitEnabled": gitEnabled, "remoteGitRoot": gitRoot,
+		"remoteGitEnabled": len(gitRoots) > 0, "remoteGitRoots": gitRoots,
 		"remoteEnabled": cfg.RemoteEnabled, "remoteMode": cfg.RemoteMode,
 		"remotePort": cfg.RemotePort, "remoteBindAddress": cfg.RemoteBindAddress,
 		"remoteLanTls": cfg.RemoteLanTls, "remoteAppBaseUrl": cfg.RemoteAppBaseUrl,
@@ -5138,6 +5139,14 @@ func mainView(c *ui.Context) {
 					RemoteWorkspaceEnabled: cfgRemoteWorkspace,
 					RemoteEnabled:          cfgRemoteEnabled,
 					PhoneGitEnabled:        cfgPhoneGitEnabled,
+					PhoneGitWorkspaces:     state.phoneGitWorkspaceRows(),
+					OnTogglePhoneGitWorkspace: func(id string, enabled bool) {
+						state.setPhoneGitWorkspace(id, enabled)
+						go state.refreshPhoneRemote()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
 					OnTogglePhoneGit: func(enabled bool) {
 						state.setPhoneGit(enabled)
 						go state.refreshPhoneRemote()

@@ -27,31 +27,33 @@ type Model struct {
 	ThemeID       string
 	SystemDark    bool
 
-	RemoteWorkspaceEnabled bool
-	RemoteEnabled          bool
-	PhoneGitEnabled        bool
-	OnTogglePhoneGit       func(bool)
-	RemoteMode             string
-	RemotePort             int
-	RemoteBindAddress      string
-	RemoteLanTls           bool
-	RemoteAppBaseURL       string
-	RemoteRelayEndpoint    string
-	RemoteRelayUseTLS      bool
-	RemoteDeviceCount      int
-	RemoteDeviceNames      []string
-	PhoneActionMsg         string
-	PhoneRuntime           phoneremote.RuntimeState
-	PhoneDeviceEditor      *PhoneDeviceEditor
-	GatewayEditor          *GatewayEditor
-	OnSaveGateway          func(config.RemoteGatewayPreferences, config.RemoteGatewayPreferences) error
-	OnPhoneDeviceAction    func(operation, id, name string) error
-	HarnessRemoteOverlay   bool
-	MuxConnected           bool
-	HarnessReady           bool
-	HasRemoteToken         bool
-	HasRemoteRelayToken    bool
-	SSHProbeLine           string
+	RemoteWorkspaceEnabled    bool
+	RemoteEnabled             bool
+	PhoneGitEnabled           bool
+	OnTogglePhoneGit          func(bool)
+	PhoneGitWorkspaces        []PhoneGitWorkspace
+	OnTogglePhoneGitWorkspace func(string, bool)
+	RemoteMode                string
+	RemotePort                int
+	RemoteBindAddress         string
+	RemoteLanTls              bool
+	RemoteAppBaseURL          string
+	RemoteRelayEndpoint       string
+	RemoteRelayUseTLS         bool
+	RemoteDeviceCount         int
+	RemoteDeviceNames         []string
+	PhoneActionMsg            string
+	PhoneRuntime              phoneremote.RuntimeState
+	PhoneDeviceEditor         *PhoneDeviceEditor
+	GatewayEditor             *GatewayEditor
+	OnSaveGateway             func(config.RemoteGatewayPreferences, config.RemoteGatewayPreferences) error
+	OnPhoneDeviceAction       func(operation, id, name string) error
+	HarnessRemoteOverlay      bool
+	MuxConnected              bool
+	HarnessReady              bool
+	HasRemoteToken            bool
+	HasRemoteRelayToken       bool
+	SSHProbeLine              string
 
 	SSHHost        *string
 	SSHUser        *string
@@ -147,6 +149,7 @@ func View(c *ui.Context, m Model) {
 							}
 						}
 					})
+					phoneGitWorkspaces(c, m)
 					for _, row := range []struct{ label, value string }{
 						{i18n.T(i18n.KeyRemoteMode), emptyDash(m.RemoteMode)},
 						{i18n.T(i18n.KeyRemotePort), strconv.Itoa(m.RemotePort)},

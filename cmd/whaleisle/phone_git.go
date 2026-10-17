@@ -9,6 +9,7 @@ func (s *mainState) revokePhoneGit() {
 	s.mu.Lock()
 	s.phoneGitSession = ""
 	s.phoneGitRoot = ""
+	s.phoneGitWorkspaces = phoneGitWorkspaceScope{}
 	r := s.phoneRuntime
 	s.mu.Unlock()
 	if r != nil {
@@ -56,14 +57,28 @@ func (s *mainState) phoneGitGrant() (bool, string) {
 		current, err = filepath.Abs(current)
 	}
 	if s.cfgStore == nil || !s.cfgStore.Get().RemoteEnabled || snap.SelectedID != id || err != nil || current != root {
-		s.revokePhoneGit()
+		// Expiration of the default current-session grant does not remove
+		// separately selected registered roots in the same Host run.
+		s.mu.Lock()
+		s.phoneGitSession, s.phoneGitRoot = "", ""
+		r := s.phoneRuntime
+		s.mu.Unlock()
+		if r != nil {
+			r.RevokeGit()
+		}
 		return false, ""
 	}
 	return true, root
 }
 func (s *mainState) authorizePhoneGit(root, action string) bool {
-	allowed, expected := s.phoneGitGrant()
-	if !allowed || root != expected {
+	allowed := false
+	for _, expected := range s.phoneGitRoots() {
+		if root == expected {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
 		return false
 	}
 	switch action {
