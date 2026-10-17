@@ -66,10 +66,10 @@ func (d *taskDraft) pickWallClock(date, clock, zone string) error {
 }
 
 // Prefer the OS's IANA identity; never infer a zone from language or UTC offset.
-// Some systems expose only a localized/Windows display name. UTC remains an
-// explicit safe fallback there, and the searchable selector offers every IANA id.
+// Windows uses the stable system key and the CLDR global IANA mapping.
+// Unrecognized/custom systems retain UTC fallback and the explicit zone selector.
 func systemScheduleZone() string {
-	candidates := []string{time.Local.String(), strings.TrimPrefix(os.Getenv("TZ"), ":")}
+	candidates := []string{strings.TrimPrefix(os.Getenv("TZ"), ":"), platformScheduleZone(), time.Local.String()}
 	if link, err := os.Readlink("/etc/localtime"); err == nil {
 		if at := strings.LastIndex(link, "zoneinfo/"); at >= 0 {
 			candidates = append(candidates, link[at+len("zoneinfo/"):])
