@@ -16,6 +16,7 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	sessionDrag                  *sessionDragContext
 	Batch                        session.SessionBatch
 	OnBatchEdit                  func(string, []session.SessionBatchTarget)
 	OnBatchRequest               func(string)
@@ -427,6 +428,12 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		row.Children(func() {
 			ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor).Grow(1)
 		})
+		sessionDragSource(row, m, it)
+		sessionDropTarget(row, m, it, false, fg)
+		if m.sessionDrag != nil {
+			after := ui.Box(c.Key(sessionRowKey{m.Snapshot.WorkspaceLayout.HostGeneration, m.sessionDrag.Workspace, "after/" + it.SessionID})).FillWidth().Height(5)
+			sessionDropTarget(after, m, it, true, fg)
+		}
 		if m.OnSelect != nil && row.Clicked() {
 			m.OnSelect(it.SessionID)
 		}
@@ -437,7 +444,8 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	// Selected: title + optional cwd + action strip (overflow menu proxy).
 	cell := ui.Column(c).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
 	cell.Children(func() {
-		ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor)
+		title := ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor)
+		sessionDragSource(title, m, it)
 		if taskHint != "" {
 			ui.Text(c, strings.TrimSpace(taskHint)).FontSize(theme.InterfaceSize(11)).TextColor(metaColor)
 		}
@@ -469,6 +477,11 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			}
 		})
 	})
+	sessionDropTarget(cell, m, it, false, fg)
+	if m.sessionDrag != nil {
+		after := ui.Box(c.Key(sessionRowKey{m.Snapshot.WorkspaceLayout.HostGeneration, m.sessionDrag.Workspace, "after/" + it.SessionID})).FillWidth().Height(5)
+		sessionDropTarget(after, m, it, true, fg)
+	}
 	if m.OnSelect != nil && cell.Clicked() {
 		m.OnSelect(it.SessionID)
 	}

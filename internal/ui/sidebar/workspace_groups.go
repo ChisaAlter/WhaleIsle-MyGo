@@ -131,11 +131,19 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			hiddenParents[g.Key] = true
 			continue
 		}
-		rows := session.OrderedWorkspaceSessionRows(g.Items, g.Workspace.SessionIDs, m.Snapshot.PinnedSessionIDs, layout.OrderBy, g.Kind == "flat")
+		pins := m.Snapshot.PinnedSessionIDs
+		if layout.OrderBy != "updated" {
+			pins = sessionManualPins(g.Workspace.SessionIDs, pins)
+		}
+		rows := session.OrderedWorkspaceSessionRows(g.Items, g.Workspace.SessionIDs, pins, layout.OrderBy, g.Kind == "flat")
 		for _, row := range rows {
 			r := row
 			rowModel := m
 			rowModel.OnMoveSessionBefore = nil
+			rowModel.sessionDrag = nil
+			if g.Kind == "workspace" && layout.OrderBy != "updated" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
+				rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
+			}
 			// A selected session in another workspace must reorder that workspace,
 			// never whichever cwd happens to be selected for the next new conversation.
 			owner := owners[r.Item.SessionID]
@@ -156,7 +164,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if g.Kind != "flat" {
 				depth += g.Depth + 1
 			}
-			rowSession(c.Key("workspace-session-"+r.Item.SessionID), r.Item, depth, rowModel, fg, muted, border)
+			rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
 		}
 	}
 }
