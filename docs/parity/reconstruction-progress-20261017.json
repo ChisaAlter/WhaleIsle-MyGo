@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-17T12:38:25.964368+00:00",
+  "as_of": "2026-10-17T13:04:56.970398+00:00",
   "title": "WhaleIsle-MyGo recorded reconstruction progress",
   "baseline_original_commit": "a8c931da37376ce7dc7989e6f30b0db885e06d26",
   "scope": [
@@ -1049,7 +1049,7 @@
       "id": "CH12",
       "title": "Assistant OpenUI code-fence interactive runtime",
       "status": "partial",
-      "publication_commit": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+      "publication_commit": "76101a5150a14376ca49edb7440449af24a72613",
       "runtime_status": "runtime-unverified",
       "evidence": [
         "audit-20261017-chat/main-entrypoints-supplement.json#CH12",
@@ -1073,7 +1073,9 @@
         "tools/openui-runtime/COMPATIBILITY.md",
         "docs/openui-native-actions-host-20261017.md",
         "docs/openui-htmlview-windows-source-20261017.md",
-        "tools/openui-runtime/NATIVE-ACTIONS.md"
+        "tools/openui-runtime/NATIVE-ACTIONS.md",
+        "tools/openui-runtime/YOUTUBE-MEDIA.md",
+        "internal/desktop/webview/youtube.go"
       ],
       "implemented": [
         "Genuine original OpenUI runtime bundle located; no arbitrary replacement bundle used.",
@@ -1092,10 +1094,12 @@
         "Independently authored HtmlView(html,height?,title?) source and production assets are integrated with Windows/macOS identity-scoped nested-srcdoc capability. Local HTML/CSS/inline JS/Canvas, fixed/automatic height and document replacement lifecycle are present. Missing Windows Frame7 leaves HtmlView unavailable without disabling the basic viewer; native runtime acceptance remains unverified.",
         "Owned runtime Code copying, Link and button clipboard/HTTP(S) actions use typed requests and real UI-thread Clipboard.Write/OpenExternal results; explicit legacy overrides are disabled.",
         "Markdown/Text HTTP(S) links preserve formatted children and use the same native action result channel, without browser auto-navigation.",
-        "Local Set/Reset changes no longer cancel their own remaining authorized plan. Host payloads stay captured at click; true source revision, unmount and capability changes cancel remaining work."
+        "Local Set/Reset changes no longer cancel their own remaining authorized plan. Host payloads stay captured at click; true source revision, unmount and capability changes cancel remaining work.",
+        "The original-contract YouTube(video,title?) name is independently implemented with typed geometry, Host-assigned source revision and Windows/macOS private native media seats outside the no-network OpenUI helper. Initial real activation, clipping, removal and owner lifecycle are wired; native-view-created is not proof of playback.",
+        "The private YouTube host uses the existing shipped ai.deepseek.harness.gui app identity and a fixed local iframe wrapper through LoadHTML/baseURL to supply app origin, instead of direct unidentified embed navigation. No renderer-supplied headers/HTML, existing cookies, Host credentials or native bindings are granted."
       ],
       "remaining": [
-        "YouTube/remote media, external CDN scripts and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied. These are not filled by placeholder content or external-browser-only substitutes.",
+        "External CDN scripts in HtmlView and external Image/Markdown image URLs remain unsupported under the current isolated renderer resource policy. YouTube now has source integration, but actual service playback, generated Referer, native clipping/input, codec/network/embed restrictions and desktop/remote acceptance remain unverified.",
         "Other component variants, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registry counts are not full parity. Undefined stacked pie/donut/scatter combinations are parameter boundaries, not proven original-only missing features.",
         "Public JSON process caching and owned raster tile caching are implemented. Original browser HTTP bitmap-cache behavior is not claimed; the optional legacy MapLibre bundle remains unshipped/unsupported.",
         "Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified."
@@ -1194,7 +1198,8 @@
         "The API/image native increments have not undergone the new SDK compilation. Physical rendering, input, scrolling, images, actual service responses and lifecycle acceptance remain unknown.",
         "Owned embedded viewer and map resource increment received production asset generation only; no new native compilation, tests, browser execution or real service requests.",
         "Code/chart/cache/map increments are source-published; production viewer assets generated where applicable. No tests, new native build, browser execution or real-service acceptance were performed.",
-        "HtmlView and clipboard/link native increments, including real event/gesture timing and actual system results, have not been compiled or executed in this phase. Production bundle generation and formatting/hash checks are not runtime acceptance."
+        "HtmlView and clipboard/link native increments, including real event/gesture timing and actual system results, have not been compiled or executed in this phase. Production bundle generation and formatting/hash checks are not runtime acceptance.",
+        "The YouTube original test fixture edit was withdrawn and restored to its original bytes; only production files were published. All new YouTube source/identity paths remain uncompiled and unexecuted in this phase."
       ],
       "publication_commits": [
         {
@@ -1276,6 +1281,16 @@
         {
           "sha": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
           "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+          "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "62db1413179a718c36fc9f88376a889ede0d6eea",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/62db1413179a718c36fc9f88376a889ede0d6eea",
+          "evidence_source": "verified GitHub development branch publication"
+        },
+        {
+          "sha": "76101a5150a14376ca49edb7440449af24a72613",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/76101a5150a14376ca49edb7440449af24a72613",
           "evidence_source": "verified GitHub development branch publication"
         }
       ],
@@ -1505,6 +1520,22 @@
             "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55"
           ],
           "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "owned-youtube-native-inline",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "62db1413179a718c36fc9f88376a889ede0d6eea"
+          ],
+          "runtime_status": "runtime-unverified"
+        },
+        {
+          "stage": "youtube-shipped-app-identity",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "76101a5150a14376ca49edb7440449af24a72613"
+          ],
+          "runtime_status": "runtime-unverified"
         }
       ],
       "native_ci": {
@@ -1547,7 +1578,12 @@
       },
       "scope_corrections": [
         "Markdown math extension is not established by the original public Markdown contract and is not counted as a missing reconstruction feature; the existing Math component supplies formulas."
-      ]
+      ],
+      "integration_boundaries": [
+        "Query/Mutation has no application business providers in this owned renderer; this is an integration boundary, not counted as a proven original-only missing capability without original implementation evidence."
+      ],
+      "registered_component_names": 55,
+      "component_count_warning": "Registered names are not proof of all parameter behavior, layout equivalence, or runtime acceptance."
     },
     {
       "id": "CH13",
@@ -16081,9 +16117,9 @@
     "historical_records_preserved": true,
     "no_new_tests_or_source_audit": true,
     "revision": "openui-owned-runtime-increments",
-    "last_parent_update": "2026-10-17T12:38:25.964368+00:00",
-    "verified_head": "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
-    "publication_commit_count": 114,
+    "last_parent_update": "2026-10-17T13:04:56.970398+00:00",
+    "verified_head": "76101a5150a14376ca49edb7440449af24a72613",
+    "publication_commit_count": 117,
     "commit_count_is_not_feature_completion_count": true,
     "commit_count_basis": {
       "baseline_verified_head": "0e70ae5a3f4fad583a939666a45455a17100cd04",
@@ -16100,7 +16136,10 @@
         "5f1d0f054bd1d2278e75501dfdef188f6df4deba",
         "316be242c1ed2d17d00bf86273938ffb199c44e3",
         "454ff54c514f048d017e12ea5c72e24cbf568d1d",
-        "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55"
+        "82c35b05cb9d63c2d11f63f7ddec16e9fa7bee55",
+        "9bf41281adbc9fc902f3f89c32c5fc84b8aa7b67",
+        "62db1413179a718c36fc9f88376a889ede0d6eea",
+        "76101a5150a14376ca49edb7440449af24a72613"
       ]
     }
   },

@@ -123,7 +123,7 @@ A focused lifecycle fixture additionally checks that active contexts have no
 deadline and explicit cancellation still terminates them; the existing owner
 ticket fixture covers owner revocation.
 
-Current remaining scope: YouTube/remote media, external CDN scripts, external
+Current remaining scope: external CDN scripts, external
 Image/Markdown image URLs and gesture-attested immediate assistant sending.
 The default distribution now includes the independently authored runtime,
 owned raster map tiles and typed clipboard/link actions. This does not establish
@@ -210,7 +210,8 @@ The built-in registry provides `HtmlView(html, height?, title?)` for local
 HTML/CSS/inline JavaScript/Canvas. The content lives in a separate opaque
 `sandbox=allow-scripts` srcdoc. Fixed height or bounded automatic content height
 is supported; changed content/streaming/removal destroys the old document.
-CDN scripts, network, workers, external media and YouTube are not enabled.
+CDN scripts, network and workers remain disabled inside HtmlView. The separate
+YouTube component uses the private native media route described below.
 
 The trusted helper reports a default-disabled HtmlView capability to the shell.
 macOS tracks the admitted viewer identity and its immediate srcdoc child.
@@ -240,3 +241,30 @@ remaining work; actual completed system effects cannot be undone by removing
 the component. No clipboard contents or URLs were executed during development.
 See `tools/openui-runtime/NATIVE-ACTIONS.md` and
 `openui-native-actions-host-20261017.md` for source behavior and limits.
+
+## YouTube private native media route
+
+`YouTube(video, title?)` now has source integration with a native browser seat
+separate from the isolated OpenUI helper. Only a fixed parsed video ID crosses
+the typed media bridge; no arbitrary URL, HTML, headers or app cookies are
+accepted from the renderer. The first actual activation creates a fresh
+TransientProfile/Untrusted/DisableBindings host. Existing browser/application
+cookies are not shared; YouTube may set its own cookies in that temporary store.
+
+Host-assigned source revision and paint-owned viewport/clip bind the seat to
+the current component. Old queued revisions cannot recreate removed seats.
+Hidden, removed or expired seats are destroyed; returning creates a new paused
+player and does not preserve playback position or temporary cookies. There is
+no arbitrary concurrent-player count cap.
+
+The identified player uses a fixed, script-free local iframe wrapper with the
+current shipped `ai.deepseek.harness.gui` HTTPS baseURL, via existing LoadHTML.
+This follows the desktop application identity path in the
+[YouTube embedded-player requirements](https://developers.google.com/youtube/terms/required-minimum-functionality#api-client-identity-and-credentials).
+The ordinary browser constructor is unchanged. Host-triggered reload reinstalls
+the identity document; engine-internal refresh behavior remains unverified.
+
+`native-view-created` acknowledges a native seat, not playback. No video request,
+native build or playback test was performed. Actual Referer delivery, service
+acceptance, codec/input/clip behavior and remote-client presentation remain
+unverified. See `tools/openui-runtime/YOUTUBE-MEDIA.md` for the wire contract.
