@@ -27,6 +27,8 @@ type TrajectoryModel struct {
 	SelectedID *string
 	// ActualDuration toggles timeline equal-width vs proportional blocks.
 	ActualDuration *bool
+	// ActualTime retains idle gaps; nil matches the original hidden switch default (false).
+	ActualTime *bool
 	// TurnsCollapsed folds assistant/tool detail under each user turn.
 	TurnsCollapsed *bool
 	// CallsCollapsed folds tool-call bodies.
@@ -90,7 +92,8 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
 	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
-	timeRange.setSequence(!*actualDur)
+	actualTime := m.ActualTime != nil && *m.ActualTime
+	timeRange.setProjection(!*actualDur && !actualTime, *actualDur && !actualTime, !*actualDur && actualTime)
 	rangeMatches := timeRange.matches(rows)
 	if timeRange.active && *selected != *revealed && !rangeMatches[*selected] {
 		timeRange.clear()

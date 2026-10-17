@@ -64,6 +64,7 @@ type trajectoryTimeline struct {
 	Spans      []trajectorySpan
 	Start, End float64
 	Unknown    int
+	Compressed bool
 }
 
 // One span per recorded operation; parallel calls share wall-clock coordinates.
@@ -156,6 +157,9 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 	label := fmt.Sprintf(trajectoryText("已记录时间范围 %.0f ms", "Recorded time range %.0f ms"), model.End-model.Start)
 	if sequence {
 		label = fmt.Sprintf(trajectoryText("记录范围 %.1f–%.1f", "Record range %.1f–%.1f"), model.Start, model.End)
+	}
+	if model.Compressed {
+		label += trajectoryText(" · 空闲已压缩", " · idle gaps compressed")
 	}
 	if model.Unknown > 0 {
 		label += fmt.Sprintf(trajectoryText(" · %d 项耗时未知", " · %d durations unknown"), model.Unknown)

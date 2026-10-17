@@ -10,6 +10,7 @@ type trajectoryRangeState struct {
 	handle                          ui.Handle
 	viewport                        trajectoryViewport
 	sequence, panning               bool
+	compressed, points              bool
 	panX, anchorX                   float32
 	focusID                         string
 	panStart                        float64
@@ -18,8 +19,8 @@ type trajectoryRangeState struct {
 }
 
 func (s *trajectoryRangeState) clear() {
-	h, v, q := s.handle, s.viewport, s.sequence
-	*s = trajectoryRangeState{handle: h, viewport: v, sequence: q}
+	h, v, q, compressed, points := s.handle, s.viewport, s.sequence, s.compressed, s.points
+	*s = trajectoryRangeState{handle: h, viewport: v, sequence: q, compressed: compressed, points: points}
 }
 func (s *trajectoryRangeState) selectRange(start, end float64) {
 	if math.IsNaN(start) || math.IsNaN(end) || math.IsInf(start, 0) || math.IsInf(end, 0) {
@@ -39,18 +40,16 @@ func (s *trajectoryRangeState) matches(rows []trajRow) map[string]bool {
 		return nil
 	}
 	matched := map[string]bool{}
-	if s.sequence {
-		for _, span := range model.Spans {
-			if span.End > s.start && span.Start < s.end || s.start == s.end && span.Start <= s.start && span.End > s.start {
-				matched[span.Row.ID] = true
-			}
+	for _, span := range model.Spans {
+		if span.Start > s.end || span.End < s.start {
+			continue
 		}
-		return matched
-	}
-	for _, row := range rows {
-		for _, span := range buildRecordedTrajectoryTimeline([]trajRow{row}).Spans {
-			if span.End >= s.start && span.Start <= s.end {
-				matched[row.ID] = true
+		matched[span.Row.ID] = true
+		if !s.sequence && span.Row.Timing != nil {
+			for _, row := range rows {
+				if row.Kind != "trajectory-request" && row.Timing != nil && row.Timing.OperationID == span.Row.Timing.OperationID {
+					matched[row.ID] = true
+				}
 			}
 		}
 	}

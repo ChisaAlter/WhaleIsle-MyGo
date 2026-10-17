@@ -67,12 +67,6 @@ func (s *trajectoryRangeState) model(rows []trajRow) trajectoryTimeline {
 	if s.sequence {
 		return buildSequenceTrajectoryTimeline(rows)
 	}
-	return buildRecordedTrajectoryTimeline(rows)
+	return projectTrajectoryTimeline(buildRecordedTrajectoryTimeline(rows), s.compressed, s.points)
 }
-func (s *trajectoryRangeState) setSequence(sequence bool) {
-	if s.sequence != sequence {
-		s.clear()
-		s.viewport = trajectoryViewport{}
-		s.sequence = sequence
-	}
-}
+func (s *trajectoryRangeState) setSequence(sequence bool) { s.setProjection(sequence, false, false) }
