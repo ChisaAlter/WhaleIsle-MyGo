@@ -322,6 +322,9 @@ func safeSourceUnder(path, root string) bool {
 // untouched.
 func splitYAMLSections(raw string) (preamble []string, order []string, blocks map[string][]string) {
 	blocks = map[string][]string{}
+	if raw == "" {
+		return nil, nil, blocks
+	}
 	var current string
 	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
 		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' && !strings.HasPrefix(line, "#") {
