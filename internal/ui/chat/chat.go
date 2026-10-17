@@ -141,6 +141,10 @@ func View(c *ui.Context, m Model) {
 					transcriptControlView(row.Context, control, m, muted)
 					return
 				}
+				if msg.Kind == session.MessageKindQuestionReply {
+					QuestionReplyView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
+					return
+				}
 				if msg.Kind == session.MessageKindContext {
 					ContextInjectionView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
 					return

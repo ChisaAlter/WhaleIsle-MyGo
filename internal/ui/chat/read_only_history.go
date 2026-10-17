@@ -90,6 +90,10 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					label += fmt.Sprintf(" #%.0f", msg.Seq)
 				}
 				ui.Text(c, label).FontSize(10).TextColor(st.Muted)
+				if msg.Kind == session.MessageKindQuestionReply {
+					QuestionReplyView(c, msg, scope, st.FG, st.Muted)
+					return
+				}
 				if msg.Kind == session.MessageKindContext {
 					ContextInjectionView(c, msg, scope, st.FG, st.Muted)
 					return

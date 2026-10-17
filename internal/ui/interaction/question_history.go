@@ -44,9 +44,26 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 		}
 		ui.Text(c, label).Bold().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		for _, r := range v.Rows {
+			if r.Header != "" && r.Header != r.Question {
+				ui.Text(c, r.Header).FontSize(fonttheme.InterfaceSize(11)).Bold().TextColor(muted)
+			}
+
 			ui.Text(c, r.Question).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 			if r.Detail != "" {
 				ui.Text(c, r.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			}
+			for i, option := range r.OptionLabels {
+				marker := "○ "
+				for _, selected := range r.Selected {
+					if selected == option {
+						marker = "✓ "
+						break
+					}
+				}
+				ui.Text(c, marker+option).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				if i < len(r.OptionDescriptions) && r.OptionDescriptions[i] != "" {
+					ui.Text(c, r.OptionDescriptions[i]).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				}
 			}
 			answer := append([]string(nil), r.Selected...)
 			if r.Custom != "" {
