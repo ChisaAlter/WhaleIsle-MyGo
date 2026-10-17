@@ -40,18 +40,20 @@ type Model struct {
 	ThemeID          string
 	SystemDark       bool
 	SearchQuery      *string
-	SearchFocus      *bool
-	WorkspaceLabel   string
-	OnSelect         func(sessionID string)
-	OnRefresh        func()
-	OnCreate         func()
-	OnNoDirectory    func()
-	OnOpenMarket     func()
-	OnOpenSchedule   func()
-	OnOpenAssistant  func()
-	OnOpenLauncher   func()
-	OnContactAccount func()
-	OnOpenSettings   func()
+	// SearchArchivedFilter is a search-local visibility choice: default, show, only.
+	SearchArchivedFilter *string
+	SearchFocus          *bool
+	WorkspaceLabel       string
+	OnSelect             func(sessionID string)
+	OnRefresh            func()
+	OnCreate             func()
+	OnNoDirectory        func()
+	OnOpenMarket         func()
+	OnOpenSchedule       func()
+	OnOpenAssistant      func()
+	OnOpenLauncher       func()
+	OnContactAccount     func()
+	OnOpenSettings       func()
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
 	OnBrowseWorkspace func()
 	// OnRevealWorkspace opens the current workspace in the OS file manager.
@@ -108,8 +110,14 @@ func View(c *ui.Context, m Model) {
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
-	ui.Column(c).Fill().MinWidth(0).Padding(6, 12, 6, 12).
-		Background(bg).
+	root := ui.Column(c).Fill().MinWidth(0).Padding(6, 12, 6, 12)
+	if m.SearchArchivedFilter == nil {
+		m.SearchArchivedFilter = ui.Local(root, struct {
+			Key  string
+			Host uint64
+		}{"search-archive-filter", m.Snapshot.WorkspaceLayout.HostGeneration}, func() string { return "default" })
+	}
+	root.Background(bg).
 		Children(func() {
 			// SidebarRoot.module.css .logoRow height: 60px.
 			ui.Row(c).FillWidth().Height(60).Gap(8).AlignItems(ui.Center).Children(func() {

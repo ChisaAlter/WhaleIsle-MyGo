@@ -6,20 +6,26 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
 type sessionSearchRow struct {
+	Archived           bool
 	Item               session.Item
 	Workspace, Snippet string
 }
 
 // deriveSessionSearchResults is a flat, bounded projection. Ordinary browsing
 // order, pin order and parent/child expansion must not reorder content matches.
-func deriveSessionSearchResults(snap session.ViewState, query string) ([]sessionSearchRow, bool) {
+func deriveSessionSearchResults(snap session.ViewState, query string, filters ...string) ([]sessionSearchRow, bool) {
 	query = strings.TrimSpace(query)
 	if query == "" || !snap.WorkspaceReady {
 		return nil, false
+	}
+	filter := "default"
+	if len(filters) > 0 {
+		filter = filters[0]
 	}
 	q := strings.ToLower(query)
 	workspaces := map[string]string{}
@@ -38,7 +44,10 @@ func deriveSessionSearchResults(snap session.ViewState, query string) ([]session
 	var local []session.Item
 	for _, it := range snap.Items {
 		_, member := workspaces[it.SessionID]
-		if it.SessionID == "" || it.Blank || it.Origin == "subagent" || archived[it.SessionID] || (!member && !snap.IsNoDirectory(it)) {
+		if it.SessionID == "" || it.Blank || it.Origin == "subagent" || (!member && !snap.IsNoDirectory(it)) {
+			continue
+		}
+		if !searchArchiveVisible(archived[it.SessionID], filter) {
 			continue
 		}
 		if _, seen := byID[it.SessionID]; seen {
@@ -71,7 +80,7 @@ func deriveSessionSearchResults(snap session.ViewState, query string) ([]session
 			return
 		}
 		seen[it.SessionID] = true
-		rows = append(rows, sessionSearchRow{Item: it, Workspace: workspaces[it.SessionID], Snippet: snippets[it.SessionID]})
+		rows = append(rows, sessionSearchRow{Archived: archived[it.SessionID], Item: it, Workspace: workspaces[it.SessionID], Snippet: snippets[it.SessionID]})
 	}
 	for _, it := range local {
 		include(it)
@@ -96,7 +105,8 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	if m.SearchQuery == nil || strings.TrimSpace(*m.SearchQuery) == "" {
 		return false
 	}
-	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery)
+	searchArchiveControls(c, m)
+	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
 	if m.Snapshot.SearchLoading {
 		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
@@ -118,12 +128,15 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		button := ui.Button(c.Key(struct {
 			Host uint64
 			ID   string
-		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).FillWidth().BorderWidth(0).Background(background).Padding(6, 8, 6, 8)
+		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).Disabled(row.Archived).FillWidth().BorderWidth(0).Background(background).Padding(6, 8, 6, 8)
 		button.Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				title := strings.TrimSpace(row.Item.Title)
 				if title == "" {
 					title = workspaceText("未命名会话", "Untitled session")
+				}
+				if row.Archived {
+					title = workspaceText("已归档 · ", "Archived · ") + title
 				}
 				if row.Item.Running {
 					title = "● " + title
@@ -139,10 +152,21 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				}
 			})
 		})
-		if button.Clicked() && m.OnSelect != nil {
+		if button.Clicked() && !row.Archived && m.OnSelect != nil {
 			revealSessionSearchResult(m, row.Item.SessionID)
 			*m.SearchQuery = ""
 			m.OnSelect(row.Item.SessionID)
+		}
+		if row.Archived {
+			ui.Row(c.Key("search-archive-actions-" + row.Item.SessionID)).Gap(6).Children(func() {
+				if m.OnUnarchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).Label("Restore search result "+row.Item.SessionID).Clicked() {
+					m.OnUnarchive(row.Item.SessionID)
+				}
+				// Reuse the frame's existing confirmation callback; never call delete RPC here.
+				if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).Label("Delete search result "+row.Item.SessionID).Clicked() {
+					m.OnDelete(row.Item.SessionID)
+				}
+			})
 		}
 	}
 	if more {
@@ -185,4 +209,40 @@ func revealSessionSearchResult(m Model, id string) {
 			m.OnToggleWorkspaceGroup(chain[i])
 		}
 	}
+}
+
+func searchArchiveFilter(m Model) string {
+	if m.SearchArchivedFilter != nil {
+		switch *m.SearchArchivedFilter {
+		case "show", "only":
+			return *m.SearchArchivedFilter
+		}
+	}
+	return "default"
+}
+func searchArchiveVisible(archived bool, filter string) bool {
+	switch filter {
+	case "show":
+		return true
+	case "only":
+		return archived
+	default:
+		return !archived
+	}
+}
+func searchArchiveControls(c *ui.Context, m Model) {
+	if m.SearchArchivedFilter == nil {
+		return
+	}
+	ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
+		for _, choice := range []struct{ value, zh, en string }{
+			{"default", "隐藏归档结果", "Hide archived results"},
+			{"show", "显示归档结果", "Show archived results"},
+			{"only", "仅归档结果", "Only archived results"},
+		} {
+			if ui.Button(c, workspaceText(choice.zh, choice.en)).Disabled(searchArchiveFilter(m) == choice.value).FontSize(theme.InterfaceSize(11)).Clicked() {
+				*m.SearchArchivedFilter = choice.value
+			}
+		}
+	})
 }

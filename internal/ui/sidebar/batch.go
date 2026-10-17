@@ -21,7 +21,7 @@ func VisibleBatchTargets(m Model) []session.SessionBatchTarget {
 		}
 	}
 	if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
-		rows, _ := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery)
+		rows, _ := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
 		for _, row := range rows {
 			add(row.Item.SessionID, row.Item.Title)
 		}
