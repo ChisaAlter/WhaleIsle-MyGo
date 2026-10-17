@@ -10,7 +10,8 @@ type trajectoryRangeState struct {
 	handle                          ui.Handle
 	viewport                        trajectoryViewport
 	sequence, panning               bool
-	panX                            float32
+	panX, anchorX                   float32
+	focusID                         string
 	panStart                        float64
 	start, end, anchor              float64
 	active, dragging, pendingScroll bool
@@ -111,6 +112,8 @@ func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState
 				}
 				s.handle.Focus(c)
 				s.anchor = at
+				s.anchorX = ev.X
+				s.focusID = ""
 				s.dragging = true
 				s.selectRange(at, at)
 				return true
@@ -129,13 +132,15 @@ func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState
 			case ui.InputPointerUp:
 				if s.panning {
 					s.panning = false
+					if math.Abs(float64(ev.X-s.panX)) < 3 {
+						s.clear()
+					}
 					return true
 				}
 				if !s.dragging {
 					return false
 				}
-				s.selectRange(s.anchor, at)
-				s.dragging = false
+				s.commitRange(full, model, at, math.Abs(float64(ev.X-s.anchorX)) < 3)
 				return true
 			case ui.InputKeyDown:
 				if ev.Key == ui.KeyEscape && s.active {
@@ -157,12 +162,13 @@ func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState
 	if s.pendingScroll && !s.dragging && list != nil {
 		matches := s.matches(rows)
 		for index, row := range rows {
-			if matches[row.ID] {
+			if (s.focusID != "" && row.ID == s.focusID) || (s.focusID == "" && matches[row.ID]) {
 				list.FollowEnd = false
 				list.ScrollTo(index, ui.Start)
 				break
 			}
 		}
 		s.pendingScroll = false
+		s.focusID = ""
 	}
 }

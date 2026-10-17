@@ -123,7 +123,7 @@ func paintRecordedTrajectoryTimeline(c *ui.Context, rows []trajRow, selected *st
 	paintTrajectoryOverview(c, buildRecordedTrajectoryTimeline(rows), selected, accent, muted, border, false)
 }
 
-func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *string, accent, muted, border ui.Color, sequence bool) {
+func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *string, accent, muted, border ui.Color, sequence bool, ranges ...*trajectoryRangeState) {
 	if len(model.Spans) == 0 {
 		ui.Text(c, trajectoryText("暂无已记录的起止时间；耗时未知", "No recorded start/end times; durations unknown")).FontSize(11).TextColor(muted)
 		return
@@ -139,7 +139,7 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 				width = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
 			}
 			row := span.Row
-			b := ui.Button(c, "").Absolute().LeftPercent(left).Top(float32(span.Lane * 12)).WidthPercent(width).Height(9).
+			b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(span.Lane * 12)).WidthPercent(width).Height(9).
 				Padding(0).BorderWidth(0).Radius(2).Background(trajKindColor(row.Kind, accent, muted, border)).
 				Tooltip(trajectoryTimingDetail(row))
 			if width == 0 {
@@ -147,6 +147,9 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 			} // Marker only; the label still explicitly says unknown/0 ms.
 			if b.Clicked() {
 				*selected = row.ID
+				if len(ranges) > 0 && ranges[0] != nil {
+					ranges[0].clear()
+				}
 			}
 		}
 	})

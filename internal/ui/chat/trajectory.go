@@ -129,7 +129,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		// TrajectoryTimeline — overview strip from row kinds.
 		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(rows)), selected, accent, muted, border, timeRange.sequence)
+			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(rows)), selected, accent, muted, border, timeRange.sequence, timeRange)
 			paintTrajectoryRange(c, rows, timeRange, m.List, accent, muted, border)
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
