@@ -1,0 +1,663 @@
+// Package files is the M7 workspace file tree and text preview in the right pane.
+package files
+
+import (
+	"errors"
+	"path/filepath"
+	"strings"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets/markdown"
+)
+
+// EditViewMode is how the file editor shows draft text vs highlighted preview.
+// MyGo TextArea cannot true in-place highlight, so split / highlight-only are the options.
+type EditViewMode int
+
+const (
+	// EditViewSplit shows TextArea + SourceView sharing the draft (preferred).
+	EditViewSplit EditViewMode = iota
+	// EditViewEdit shows TextArea only.
+	EditViewEdit
+	// EditViewHighlight shows SourceView only (read-only preview of the draft).
+	EditViewHighlight
+)
+
+// sideBySideMinWidth is the preview-pane width (DIPs) at which split uses
+// TextArea | SourceView instead of stacked editor-over-preview.
+const sideBySideMinWidth float32 = 520
+
+// Model is file panel state for one frame.
+type Model struct {
+	WorkspaceRoot string
+	ThemeID       string
+	SystemDark    bool
+
+	Expanded     *map[string]bool // rel dir path → expanded; missing means collapsed
+	SelectedFile *string          // rel file path
+	Preview      *string
+	PreviewErr   *string
+	PreviewList  *ui.ListState
+	PreviewSplit *float32 // height of tree pane (first child of vertical split)
+
+	Editing    *bool
+	EditDraft  *string
+	EditStatus *string
+	// EditViewMode remembers Split / Edit / Highlight across frames (and edits).
+	// Nil falls back to package-local state (frame wiring optional).
+	EditViewMode *EditViewMode
+	// PaneWidth is the preview pane width in DIPs; used to pick side-by-side vs stack.
+	PaneWidth *float32
+	// EditSplit is the first-pane size for the edit/preview split (width or height).
+	EditSplit  *float32
+	OnShowDiff func(rel string)
+	OnSaveEdit func(rel, text string) error
+	OnOpenDoc  func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	// OnReveal opens the selected file's folder in the OS file manager.
+	OnReveal func(absPath string)
+	// OnRenderPDF converts an Office doc via officeToPdf/render then previews PDF.
+	OnRenderPDF func(rel string)
+	// OpenWithApps are session/workspacePathApplications rows for the selected file.
+	OpenWithApps []OpenWithApp
+	// OnOpenWith opens path via session/openWorkspacePath with application id.
+	OnOpenWith func(absPath, appID string)
+	// Filter narrows the tree to matching relative paths (live IndexRelPaths).
+	Filter *string
+	// ListRemote is optional workspaceFiles/list fallback when local ListDir fails.
+	ListRemote func(rel string) ([]workspacefs.Entry, error)
+	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
+	ReadRemote func(rel string) (string, error)
+	// StatRemote is optional workspaceFiles/stat note for the selected file.
+	StatRemote func(rel string) string
+	StatNote   *string
+}
+
+// OpenWithApp is one harness-registered application for a workspace path.
+type OpenWithApp struct {
+	ID   string
+	Name string
+}
+
+// editViewModeFallback persists the view mode when Model.EditViewMode is nil.
+var editViewModeFallback = EditViewSplit
+
+// editSplitFallback is the first-pane size when Model.EditSplit is nil.
+var editSplitFallback float32 = 200
+
+// View paints the file tree and plain-text preview.
+func View(c *ui.Context, m Model) {
+	th := theme.Resolve(m.ThemeID)
+	colors := th.Active(m.SystemDark)
+	fg := chrome.Color(colors.FG)
+	muted := chrome.Color(colors.Muted)
+	field := chrome.Color(colors.Field)
+	border := chrome.Color(colors.Border)
+	accent := chrome.Color(colors.Accent)
+
+	root := strings.TrimSpace(m.WorkspaceRoot)
+	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
+		ui.Row(c).Padding(12, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(14).Bold().TextColor(fg).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyFilesRefreshHint)).FontSize(10).TextColor(muted)
+		})
+		if m.Filter != nil && root != "" {
+			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
+				ui.TextInput(c, m.Filter).FillWidth().Placeholder(i18n.T(i18n.KeyFilesFilter))
+			})
+		}
+		ui.Box(c).Fill().Height(1).Background(border)
+		if root == "" {
+			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(12).TextColor(muted).
+				Padding(12, 12, 12, 12)
+			return
+		}
+		split := m.PreviewSplit
+		if split == nil {
+			// Match DefaultLayout.RightTree (file tree above preview).
+			def := float32(280)
+			split = &def
+		}
+		filter := ""
+		if m.Filter != nil {
+			filter = strings.TrimSpace(*m.Filter)
+		}
+		ui.SplitVertical(c, split, func() {
+			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
+				ui.Column(c).Padding(4, 4, 4, 4).Gap(1).Fill().Children(func() {
+					name := filepath.Base(root)
+					ui.Text(c, name).FontSize(12).Bold().TextColor(muted).Padding(4, 8, 4, 8)
+					if filter != "" {
+						paintFiltered(c, m, root, filter, fg, muted, accent)
+						return
+					}
+					paintDir(c, m, root, "", 0, fg, muted, accent)
+				})
+			})
+		}, func() {
+			previewPane(c, m, fg, muted, border, field)
+		}).Fill()
+	})
+}
+
+func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accent ui.Color) {
+	paths, err := workspacefs.IndexRelPaths(root, 2000)
+	if err != nil {
+		ui.Text(c, err.Error()).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		return
+	}
+	needle := strings.ToLower(filter)
+	n := 0
+	for _, rel := range paths {
+		if !strings.Contains(strings.ToLower(rel), needle) {
+			continue
+		}
+		n++
+		path := rel
+		row := ui.Row(c).Padding(4, 8, 4, 8).FillWidth()
+		if m.SelectedFile != nil && *m.SelectedFile == path {
+			row.Background(accent).Opacity(0.12)
+		}
+		row.Children(func() {
+			ui.Text(c, path).FontSize(12).TextColor(fg)
+		})
+		if row.Clicked() {
+			selectFile(m, path)
+		}
+		if n >= 200 {
+			ui.Text(c, "…").FontSize(11).TextColor(muted).Padding(4, 8, 4, 8)
+			break
+		}
+	}
+	if n == 0 {
+		ui.Text(c, i18n.T(i18n.KeyFilesFilterEmpty)).FontSize(12).TextColor(muted).Padding(8, 8, 8, 8)
+	}
+}
+
+func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, accent ui.Color) {
+	var ents []workspacefs.Entry
+	var err error
+	if root != "" {
+		dirPath, jerr := workspacefs.JoinRoot(root, rel)
+		if jerr == nil {
+			ents, err = workspacefs.ListDir(dirPath)
+		} else {
+			err = jerr
+		}
+	} else {
+		err = errors.New("no workspace root")
+	}
+	if err != nil && m.ListRemote != nil {
+		if remote, rerr := m.ListRemote(rel); rerr == nil {
+			ents, err = remote, nil
+		} else if err == nil {
+			err = rerr
+		}
+	}
+	if err != nil {
+		ui.Text(c, err.Error()).FontSize(11).TextColor(accent).Padding(8, 8, 8, 8)
+		return
+	}
+	for _, e := range ents {
+		childRel := e.Name
+		if rel != "" {
+			childRel = rel + "/" + e.Name
+		}
+		if e.IsDir {
+			rowDir(c, m, childRel, e.Name, depth, fg, muted, accent)
+			if isExpanded(m, childRel) {
+				paintDir(c, m, root, childRel, depth+1, fg, muted, accent)
+			}
+		} else {
+			rowFile(c, m, childRel, e.Name, depth, fg, muted, accent)
+		}
+	}
+}
+
+func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
+	pad := float32(4 + depth*14)
+	expanded := isExpanded(m, rel)
+	chevron := "▸"
+	if expanded {
+		chevron = "▾"
+	}
+	row := ui.Row(c).Padding(pad, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center)
+	row.Children(func() {
+		if ui.Button(c, chevron).Clicked() {
+			toggleExpanded(m, rel)
+		}
+		ui.Text(c, name).FontSize(12).TextColor(fg).Grow(1)
+	})
+	if row.Clicked() {
+		toggleExpanded(m, rel)
+	}
+	_ = accent
+}
+
+func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
+	pad := float32(4 + depth*14)
+	selected := m.SelectedFile != nil && *m.SelectedFile == rel
+	row := ui.Row(c).Padding(pad+16, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center)
+	if selected {
+		row.Background(accent).Opacity(0.12)
+	}
+	row.Children(func() {
+		ui.Text(c, name).FontSize(12).TextColor(fg).Grow(1)
+	})
+	if row.Clicked() {
+		selectFile(m, rel)
+	}
+	_ = muted
+}
+
+func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
+	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
+		ui.Box(c).Fill().Height(1).Background(border)
+		sel := ""
+		if m.SelectedFile != nil {
+			sel = *m.SelectedFile
+		}
+		if sel == "" {
+			ui.Text(c, i18n.T(i18n.KeyFilesPickFile)).FontSize(12).TextColor(muted).
+				Padding(12, 12, 12, 12)
+			return
+		}
+		editing := m.Editing != nil && *m.Editing
+		fullPath, _ := workspacefs.JoinRoot(m.WorkspaceRoot, sel)
+		docKind := workspacefs.ClassifyDoc(sel)
+		canHL := false
+		if m.EditDraft != nil {
+			canHL = markdown.CanSourceHighlight(sel, *m.EditDraft)
+		} else if m.Preview != nil {
+			canHL = markdown.CanSourceHighlight(sel, *m.Preview)
+		}
+		mode := resolveEditViewMode(m, canHL && editing)
+
+		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, sel).FontSize(11).Bold().TextColor(muted).Grow(1)
+			if sel != "" {
+				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+					path := sel
+					if fullPath != "" {
+						path = fullPath
+					}
+					mygo.Clipboard.WriteText(path)
+				}
+			}
+			if lang := languageChipLabel(sel); lang != "" {
+				ui.Text(c, lang).FontSize(10).Bold().TextColor(muted).
+					Padding(2, 6, 2, 6)
+			}
+			if m.OnOpenDoc != nil && fullPath != "" {
+				if docKind == workspacefs.DocPDF && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
+					m.OnOpenDoc(fullPath, docKind, true)
+				}
+				// Electron preview toolbar: open with system default for any file.
+				if ui.Button(c, i18n.T(i18n.KeyFilesOpenExternal)).Clicked() {
+					m.OnOpenDoc(fullPath, docKind, false)
+				}
+			}
+			if m.OnReveal != nil && fullPath != "" {
+				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(11).Clicked() {
+					m.OnReveal(fullPath)
+				}
+			}
+			if m.OnOpenWith != nil && fullPath != "" && len(m.OpenWithApps) > 0 {
+				ui.Text(c, i18n.T(i18n.KeyFilesOpenWith)).FontSize(10).TextColor(muted)
+				for _, app := range m.OpenWithApps {
+					a := app
+					label := strings.TrimSpace(a.Name)
+					if label == "" {
+						label = a.ID
+					}
+					if ui.Button(c, label).FontSize(11).Clicked() {
+						m.OnOpenWith(fullPath, a.ID)
+					}
+				}
+			}
+			if m.OnRenderPDF != nil && (docKind == workspacefs.DocOther || docKind == workspacefs.DocXLSX) {
+				if ui.Button(c, i18n.T(i18n.KeyFilesRenderPDF)).FontSize(11).Clicked() {
+					m.OnRenderPDF(sel)
+				}
+			}
+			if !editing && docKind == workspacefs.DocNone {
+				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
+					*m.Editing = true
+					if m.Preview != nil {
+						*m.EditDraft = *m.Preview
+					}
+					if m.EditStatus != nil {
+						*m.EditStatus = ""
+					}
+				}
+				if m.OnShowDiff != nil && ui.Button(c, i18n.T(i18n.KeyFilesShowDiff)).Clicked() {
+					m.OnShowDiff(sel)
+				}
+			} else if editing {
+				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Clicked() {
+					if err := m.OnSaveEdit(sel, *m.EditDraft); err != nil {
+						if m.EditStatus != nil {
+							*m.EditStatus = err.Error()
+						}
+					} else {
+						if m.Preview != nil {
+							*m.Preview = *m.EditDraft
+						}
+						if m.Editing != nil {
+							*m.Editing = false
+						}
+						if m.EditStatus != nil {
+							*m.EditStatus = i18n.T(i18n.KeyFilesSaved)
+						}
+						if m.PreviewErr != nil {
+							*m.PreviewErr = ""
+						}
+					}
+				}
+				if m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesCancelEdit)).Clicked() {
+					*m.Editing = false
+					if m.EditStatus != nil {
+						*m.EditStatus = ""
+					}
+				}
+				if canHL {
+					ui.Text(c, editViewModeLabel(mode)).FontSize(10).TextColor(muted)
+					if ui.Button(c, editViewModeCycleLabel(mode)).Clicked() {
+						setEditViewMode(m, cycleEditViewMode(mode))
+					}
+				}
+			}
+		})
+		if m.EditStatus != nil && *m.EditStatus != "" {
+			ui.Text(c, *m.EditStatus).FontSize(11).TextColor(muted).Padding(0, 12, 4, 12)
+		}
+		if m.StatNote != nil && *m.StatNote != "" {
+			ui.Text(c, *m.StatNote).FontSize(10).TextColor(muted).Padding(0, 12, 4, 12)
+		}
+		if m.PreviewErr != nil && *m.PreviewErr != "" {
+			ui.Text(c, *m.PreviewErr).FontSize(12).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).
+				Padding(4, 12, 8, 12)
+			return
+		}
+		if editing && m.EditDraft != nil {
+			paintEditBody(c, m, sel, *m.EditDraft, mode, fg, muted)
+			return
+		}
+		text := ""
+		if m.Preview != nil {
+			text = *m.Preview
+		}
+		rel := ""
+		if m.SelectedFile != nil {
+			rel = *m.SelectedFile
+		}
+		// Prefer chroma RichText for source files; fall back to line list for huge buffers.
+		if markdown.CanSourceHighlight(rel, text) {
+			mdStyle := sourceStyle(m, fg, muted)
+			ui.Column(c).Fill().MinHeight(0).Padding(8, 12, 8, 12).Children(func() {
+				markdown.SourceView(c, rel, text, mdStyle)
+			})
+			return
+		}
+		lines := splitLines(text)
+		list := m.PreviewList
+		if list == nil {
+			list = &ui.ListState{}
+		}
+		ui.List(c, list, len(lines)).Fill().Rows(func(row ui.ListRow) {
+			ui.Text(row.Context, lines[row.Index]).FontSize(12).TextColor(fg)
+		})
+	})
+}
+
+func paintEditBody(c *ui.Context, m Model, sel, draft string, mode EditViewMode, fg, muted ui.Color) {
+	mdStyle := sourceStyle(m, fg, muted)
+	switch mode {
+	case EditViewHighlight:
+		ui.Column(c).Fill().MinHeight(0).Padding(8, 12, 8, 12).Children(func() {
+			markdown.SourceView(c, sel, draft, mdStyle)
+		})
+	case EditViewSplit:
+		split := editSplitHandle(m)
+		side := preferSideBySide(paneWidthOf(m))
+		if side {
+			ui.Split(c, split, func() {
+				ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
+					Padding(8, 8, 8, 8)
+			}, func() {
+				ui.Column(c).Fill().MinHeight(0).MinWidth(0).Padding(8, 8, 8, 8).Children(func() {
+					markdown.SourceView(c, sel, draft, mdStyle)
+				})
+			}).Fill()
+			return
+		}
+		ui.SplitVertical(c, split, func() {
+			ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
+				Padding(8, 8, 8, 8)
+		}, func() {
+			ui.Column(c).Fill().MinHeight(0).Padding(8, 8, 8, 8).Children(func() {
+				markdown.SourceView(c, sel, draft, mdStyle)
+			})
+		}).Fill()
+	default:
+		ui.TextArea(c, m.EditDraft).Fill().MinHeight(0).FontSize(12).TextColor(fg).
+			Padding(8, 12, 8, 12)
+	}
+}
+
+func splitLines(s string) []string {
+	if s == "" {
+		return []string{""}
+	}
+	return strings.Split(s, "\n")
+}
+
+func isExpanded(m Model, rel string) bool {
+	if m.Expanded == nil {
+		return false
+	}
+	return (*m.Expanded)[rel]
+}
+
+func toggleExpanded(m Model, rel string) {
+	if m.Expanded == nil {
+		return
+	}
+	exp := *m.Expanded
+	if exp == nil {
+		exp = map[string]bool{}
+	}
+	exp[rel] = !exp[rel]
+	*m.Expanded = exp
+}
+
+func selectFile(m Model, rel string) {
+	if m.SelectedFile != nil {
+		*m.SelectedFile = rel
+	}
+	if m.Editing != nil {
+		*m.Editing = false
+	}
+	if m.EditStatus != nil {
+		*m.EditStatus = ""
+	}
+	text, errMsg := LoadPreview(m.WorkspaceRoot, rel)
+	if errMsg != "" && m.ReadRemote != nil {
+		if remote, rerr := LoadPreviewRemote(m.ReadRemote, rel); rerr == "" {
+			text, errMsg = remote, ""
+		}
+	}
+	if m.Preview != nil {
+		*m.Preview = text
+	}
+	if m.PreviewErr != nil {
+		*m.PreviewErr = errMsg
+	}
+	if m.EditDraft != nil {
+		*m.EditDraft = text
+	}
+	if m.StatNote != nil {
+		*m.StatNote = ""
+		if m.StatRemote != nil {
+			*m.StatNote = m.StatRemote(rel)
+		}
+	}
+}
+
+func sourceStyle(m Model, fg, muted ui.Color) markdown.Style {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	return markdown.Style{
+		FontSize: 12,
+		FG:       fg,
+		Muted:    muted,
+		CodeBG:   chrome.Color(colors.Field),
+		Accent:   chrome.Color(colors.Accent),
+	}
+}
+
+func editViewModeOf(m Model) EditViewMode {
+	if m.EditViewMode != nil {
+		return *m.EditViewMode
+	}
+	return editViewModeFallback
+}
+
+func setEditViewMode(m Model, mode EditViewMode) {
+	if m.EditViewMode != nil {
+		*m.EditViewMode = mode
+		return
+	}
+	editViewModeFallback = mode
+}
+
+// resolveEditViewMode returns the effective mode while editing.
+// Non-highlightable drafts always use EditViewEdit.
+// Unknown / unset modes prefer Split.
+func resolveEditViewMode(m Model, canHighlight bool) EditViewMode {
+	if !canHighlight {
+		return EditViewEdit
+	}
+	switch mode := editViewModeOf(m); mode {
+	case EditViewSplit, EditViewEdit, EditViewHighlight:
+		return mode
+	default:
+		return EditViewSplit
+	}
+}
+
+// cycleEditViewMode advances Split → Edit → Highlight → Split.
+func cycleEditViewMode(mode EditViewMode) EditViewMode {
+	switch mode {
+	case EditViewSplit:
+		return EditViewEdit
+	case EditViewEdit:
+		return EditViewHighlight
+	default:
+		return EditViewSplit
+	}
+}
+
+// preferSideBySide reports whether the preview pane is wide enough for
+// TextArea | SourceView instead of stacked preview under the editor.
+func preferSideBySide(paneWidth float32) bool {
+	return paneWidth >= sideBySideMinWidth
+}
+
+func paneWidthOf(m Model) float32 {
+	if m.PaneWidth != nil {
+		return *m.PaneWidth
+	}
+	return 0
+}
+
+func editSplitHandle(m Model) *float32 {
+	if m.EditSplit != nil {
+		return m.EditSplit
+	}
+	return &editSplitFallback
+}
+
+// languageChipLabel is the auto-detected chroma language for the path.
+func languageChipLabel(path string) string {
+	lang := markdown.LanguageFromPath(path)
+	if lang == "" {
+		return "text"
+	}
+	return lang
+}
+
+func editViewModeLabel(mode EditViewMode) string {
+	switch mode {
+	case EditViewSplit:
+		return i18n.T(i18n.KeyFilesModeSplit)
+	case EditViewHighlight:
+		return i18n.T(i18n.KeyFilesModeHighlight)
+	default:
+		return i18n.T(i18n.KeyFilesModeEdit)
+	}
+}
+
+// editViewModeCycleLabel is the toolbar action that switches to the next mode.
+func editViewModeCycleLabel(current EditViewMode) string {
+	return i18n.T(i18n.KeyFilesModeNext) + ": " + editViewModeLabel(cycleEditViewMode(current))
+}
+
+// LoadPreviewRemote reads via workspaceFiles/read when local preview fails.
+func LoadPreviewRemote(readRemote func(rel string) (string, error), rel string) (text, errMsg string) {
+	if readRemote == nil {
+		return "", "no remote reader"
+	}
+	body, err := readRemote(rel)
+	if err != nil {
+		return "", err.Error()
+	}
+	return body, ""
+}
+
+// LoadPreview reads the selected file for display.
+func LoadPreview(root, rel string) (text, errMsg string) {
+	full, err := workspacefs.JoinRoot(root, rel)
+	if err != nil {
+		return "", err.Error()
+	}
+	switch workspacefs.ClassifyDoc(rel) {
+	case workspacefs.DocPDF:
+		return "", i18n.T(i18n.KeyFilesPDFHint)
+	case workspacefs.DocXLSX:
+		table, xerr := workspacefs.FormatXLSXPreview(full, 60, 16)
+		if xerr == nil && table != "" {
+			return table, ""
+		}
+		hint := i18n.T(i18n.KeyFilesXLSXHint)
+		if xerr != nil {
+			hint = hint + " (" + xerr.Error() + ")"
+		}
+		return "", hint
+	case workspacefs.DocOther:
+		return "", i18n.T(i18n.KeyFilesOfficeHint)
+	}
+	res, err := workspacefs.ReadFileText(full, workspacefs.DefaultMaxReadBytes)
+	if err != nil {
+		switch {
+		case errors.Is(err, workspacefs.ErrTooLarge):
+			return "", i18n.T(i18n.KeyFilesTooLarge)
+		case errors.Is(err, workspacefs.ErrBinary):
+			return "", i18n.T(i18n.KeyFilesBinary)
+		case errors.Is(err, workspacefs.ErrNotFile):
+			return "", err.Error()
+		default:
+			return "", err.Error()
+		}
+	}
+	if workspacefs.IsCSVPath(full) {
+		if table, ok := workspacefs.FormatCSVTable(res.Text, 80, 16); ok {
+			return table, ""
+		}
+	}
+	return res.Text, ""
+}

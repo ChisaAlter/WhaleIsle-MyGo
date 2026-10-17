@@ -1,0 +1,178 @@
+package session
+
+import (
+	"context"
+	"strings"
+
+	"whaleisle/internal/dsh/api"
+)
+
+// CreateGoal calls goals/create for the selected session.
+func (s *Store) CreateGoal(ctx context.Context, objective string) {
+	objective = strings.TrimSpace(objective)
+	s.mu.Lock()
+	client := s.client
+	sessionID := s.selectedID
+	s.mu.Unlock()
+	if client == nil || sessionID == "" || objective == "" {
+		return
+	}
+	go func() {
+		var out api.CreateGoalResult
+		err := client.Call(ctx, "goals/create", map[string]any{
+			"agentId": sessionID,
+			"request": api.CreateGoalRequest{Objective: objective},
+		}, &out)
+		s.mu.Lock()
+		if err != nil {
+			s.lastAction = err.Error()
+		} else {
+			s.lastAction = "goal created"
+			s.planBoard.Goal = &PlanGoal{
+				ID:        out.Ref.Id,
+				Revision:  out.Ref.Revision,
+				Objective: objective,
+				Phase:     "active",
+			}
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+// EditGoal calls goals/edit for the current board goal.
+func (s *Store) EditGoal(ctx context.Context, objective string) {
+	objective = strings.TrimSpace(objective)
+	s.mu.Lock()
+	client := s.client
+	sessionID := s.selectedID
+	var ref *api.GoalRef
+	if s.planBoard.Goal != nil && s.planBoard.Goal.ID != "" {
+		ref = &api.GoalRef{Id: s.planBoard.Goal.ID, Revision: s.planBoard.Goal.Revision}
+	}
+	s.mu.Unlock()
+	if client == nil || sessionID == "" || ref == nil || objective == "" {
+		return
+	}
+	go func() {
+		var out api.GoalView
+		err := client.Call(ctx, "goals/edit", map[string]any{
+			"agentId": sessionID,
+			"ref":     *ref,
+			"request": api.EditGoalRequest{Objective: &objective},
+		}, &out)
+		s.mu.Lock()
+		if err != nil {
+			s.lastAction = err.Error()
+		} else {
+			s.lastAction = "goal edited"
+			s.applyGoalView(&out)
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+// CompleteGoal calls goals/complete for the current board goal.
+func (s *Store) CompleteGoal(ctx context.Context) {
+	s.goalAction(ctx, "goals/complete", "goal completed", true)
+}
+
+// ClearGoal calls goals/clear for the current board goal.
+func (s *Store) ClearGoal(ctx context.Context) {
+	s.goalAction(ctx, "goals/clear", "goal cleared", true)
+}
+
+// PauseGoal calls goals/pause for the current board goal.
+func (s *Store) PauseGoal(ctx context.Context) {
+	s.goalAction(ctx, "goals/pause", "goal paused", false)
+}
+
+// ResumeGoal calls goals/resume for the current board goal.
+func (s *Store) ResumeGoal(ctx context.Context) {
+	s.goalAction(ctx, "goals/resume", "goal resumed", false)
+}
+
+// RefreshGoal calls goals/get and folds the view into the plan board.
+func (s *Store) RefreshGoal(ctx context.Context) {
+	s.mu.Lock()
+	client := s.client
+	sessionID := s.selectedID
+	s.mu.Unlock()
+	if client == nil || sessionID == "" {
+		return
+	}
+	go func() {
+		var out api.GoalView
+		err := client.Call(ctx, "goals/get", map[string]any{"agentId": sessionID}, &out)
+		s.mu.Lock()
+		if err != nil {
+			s.lastAction = err.Error()
+		} else if out.Id != "" {
+			s.applyGoalView(&out)
+			s.lastAction = "goal refreshed"
+		} else {
+			s.planBoard.Goal = nil
+			s.lastAction = "goal absent"
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+func (s *Store) goalAction(ctx context.Context, method, okAction string, clear bool) {
+	s.mu.Lock()
+	client := s.client
+	sessionID := s.selectedID
+	var ref *api.GoalRef
+	if s.planBoard.Goal != nil && s.planBoard.Goal.ID != "" {
+		ref = &api.GoalRef{Id: s.planBoard.Goal.ID, Revision: s.planBoard.Goal.Revision}
+	}
+	s.mu.Unlock()
+	if client == nil || sessionID == "" || ref == nil {
+		return
+	}
+	go func() {
+		var out api.GoalView
+		err := client.Call(ctx, method, map[string]any{
+			"agentId": sessionID,
+			"ref":     *ref,
+		}, &out)
+		s.mu.Lock()
+		if err != nil {
+			s.lastAction = err.Error()
+		} else {
+			s.lastAction = okAction
+			if clear {
+				s.planBoard.Goal = nil
+			} else if out.Id != "" {
+				s.applyGoalView(&out)
+			} else if g := s.planBoard.Goal; g != nil {
+				switch method {
+				case "goals/pause":
+					g.Phase = "paused"
+				case "goals/resume":
+					g.Phase = "active"
+				}
+			}
+		}
+		s.mu.Unlock()
+		s.fire()
+	}()
+}
+
+func (s *Store) applyGoalView(v *api.GoalView) {
+	if v == nil || v.Id == "" {
+		return
+	}
+	phase := v.Phase
+	if phase == "" {
+		phase = v.Activation
+	}
+	s.planBoard.Goal = &PlanGoal{
+		ID:        v.Id,
+		Revision:  v.Revision,
+		Objective: v.Objective,
+		Phase:     phase,
+	}
+}

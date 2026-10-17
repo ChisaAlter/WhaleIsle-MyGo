@@ -1,0 +1,56 @@
+package chrome
+
+import (
+	"os"
+	"sync"
+
+	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/theme"
+)
+
+var wallpaperCache struct {
+	mu   sync.Mutex
+	path string
+	bmp  *ui.Bitmap
+}
+
+// WallpaperBackdrop draws a full-window cover image when path is a readable
+// raster file. mygo has no WindowOptions.BackgroundImage yet; this is the
+// content-layer stub until native backdrop support exists.
+func WallpaperBackdrop(c *ui.Context, path string) {
+	path = theme.NormalizeWallpaperPath(path)
+	if path == "" {
+		return
+	}
+	bmp := loadWallpaperBitmap(path)
+	if bmp == nil {
+		return
+	}
+	ui.Overlay(c, func() {
+		ui.Image(c, bmp).Absolute().Left(0).Top(0).Right(0).Bottom(0).Fit(ui.Cover)
+	})
+}
+
+func loadWallpaperBitmap(path string) *ui.Bitmap {
+	wallpaperCache.mu.Lock()
+	defer wallpaperCache.mu.Unlock()
+	if wallpaperCache.path == path && wallpaperCache.bmp != nil {
+		return wallpaperCache.bmp
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		wallpaperCache.path = path
+		wallpaperCache.bmp = nil
+		return nil
+	}
+	bmp, err := ui.DecodeBitmap(data)
+	if err != nil {
+		wallpaperCache.path = path
+		wallpaperCache.bmp = nil
+		return nil
+	}
+	wallpaperCache.path = path
+	wallpaperCache.bmp = bmp
+	return bmp
+}

@@ -1,0 +1,233 @@
+package usage
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
+)
+
+// AttachMux binds the shared remote.mux used for job/follow and account/watch.
+func (s *Store) AttachMux(mux *dsh.Mux) {
+	s.mu.Lock()
+	s.mux = mux
+	s.mu.Unlock()
+	s.WatchAccount(context.Background())
+	s.WatchExpiry(context.Background())
+}
+
+// WatchExpiry opens account/watchExpiry and stores the latest expiry token string.
+func (s *Store) WatchExpiry(ctx context.Context) {
+	s.mu.Lock()
+	mux := s.mux
+	if s.expiryWatchCancel != nil {
+		s.expiryWatchCancel()
+		s.expiryWatchCancel = nil
+	}
+	if mux == nil {
+		s.mu.Unlock()
+		return
+	}
+	fctx, cancel := context.WithCancel(ctx)
+	s.expiryWatchCancel = cancel
+	s.mu.Unlock()
+	go s.runExpiryWatch(fctx, mux)
+}
+
+func (s *Store) runExpiryWatch(ctx context.Context, mux *dsh.Mux) {
+	if err := mux.Dial(ctx); err != nil {
+		return
+	}
+	stream, err := mux.Open(ctx, "account/watchExpiry", map[string]any{"args": map[string]any{}})
+	if err != nil {
+		return
+	}
+	defer stream.Cancel()
+
+	for {
+		raw, err := stream.Recv(ctx)
+		if err != nil {
+			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
+				strings.Contains(err.Error(), "context canceled") {
+				return
+			}
+			return
+		}
+		line := strings.TrimSpace(string(raw))
+		if strings.HasPrefix(line, "\"") {
+			var s string
+			if json.Unmarshal(raw, &s) == nil {
+				line = s
+			}
+		}
+		if line == "" {
+			continue
+		}
+		s.mu.Lock()
+		s.expiryNote = truncateJSON(line, 120)
+		s.mu.Unlock()
+		s.fire()
+	}
+}
+
+// WatchAccount opens account/watch and applies AccountView frames to the snapshot.
+func (s *Store) WatchAccount(ctx context.Context) {
+	s.mu.Lock()
+	mux := s.mux
+	if s.accountWatchCancel != nil {
+		s.accountWatchCancel()
+		s.accountWatchCancel = nil
+	}
+	if mux == nil {
+		s.mu.Unlock()
+		return
+	}
+	fctx, cancel := context.WithCancel(ctx)
+	s.accountWatchCancel = cancel
+	s.mu.Unlock()
+	go s.runAccountWatch(fctx, mux)
+}
+
+func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
+	if err := mux.Dial(ctx); err != nil {
+		return
+	}
+	stream, err := mux.Open(ctx, "account/watch", map[string]any{"args": map[string]any{}})
+	if err != nil {
+		return
+	}
+	defer stream.Cancel()
+
+	for {
+		raw, err := stream.Recv(ctx)
+		if err != nil {
+			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
+				strings.Contains(err.Error(), "context canceled") {
+				return
+			}
+			return
+		}
+		var view api.AccountView
+		if json.Unmarshal(raw, &view) != nil {
+			continue
+		}
+		s.mu.Lock()
+		if view.Status != "" {
+			s.accountStatus = view.Status
+		}
+		if view.Links.UsageUrl != "" {
+			s.usageURL = view.Links.UsageUrl
+		}
+		if view.Links.TopUpUrl != "" {
+			s.topUpURL = view.Links.TopUpUrl
+		}
+		if view.Attempt.Phase != "" {
+			s.attemptPhase = view.Attempt.Phase
+		}
+		if view.Attempt.Id != "" {
+			s.attemptID = view.Attempt.Id
+		}
+		if view.Attempt.AuthorizeUrl != nil {
+			s.authorizeURL = *view.Attempt.AuthorizeUrl
+		}
+		s.mu.Unlock()
+		s.fire()
+	}
+}
+
+// FollowJob opens job/follow for a few frames and appends a preview into Recent.
+func (s *Store) FollowJob(ctx context.Context, sessionID, jobID string) {
+	sessionID = strings.TrimSpace(sessionID)
+	jobID = strings.TrimSpace(jobID)
+	s.mu.Lock()
+	mux := s.mux
+	if s.jobFollowCancel != nil {
+		s.jobFollowCancel()
+		s.jobFollowCancel = nil
+	}
+	if mux == nil || sessionID == "" || jobID == "" {
+		s.mu.Unlock()
+		return
+	}
+	fctx, cancel := context.WithCancel(ctx)
+	s.jobFollowCancel = cancel
+	s.mu.Unlock()
+
+	go s.runJobFollow(fctx, mux, sessionID, jobID)
+}
+
+func (s *Store) runJobFollow(ctx context.Context, mux *dsh.Mux, sessionID, jobID string) {
+	if err := mux.Dial(ctx); err != nil {
+		s.mu.Lock()
+		s.err = err
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	payload := map[string]any{
+		"args": map[string]any{
+			"request": map[string]any{
+				"sessionId": sessionID,
+				"jobId":     jobID,
+			},
+		},
+	}
+	stream, err := mux.Open(ctx, "job/follow", payload)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled") {
+			return
+		}
+		s.mu.Lock()
+		s.err = err
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	defer stream.Cancel()
+
+	previews := make([]string, 0, 8)
+	for len(previews) < 8 {
+		raw, err := stream.Recv(ctx)
+		if err != nil {
+			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
+				strings.Contains(err.Error(), "context canceled") {
+				break
+			}
+			s.mu.Lock()
+			s.err = err
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
+		line := truncateJSON(string(raw), 160)
+		if line != "" {
+			previews = append(previews, line)
+		}
+	}
+
+	s.mu.Lock()
+	if len(previews) > 0 {
+		detail := strings.Join(previews, "\n")
+		found := false
+		for i := range s.recent {
+			if s.recent[i].JobID == jobID {
+				s.recent[i].Detail = detail
+				found = true
+				break
+			}
+		}
+		if !found {
+			s.recent = append(s.recent, Entry{
+				Label:  "job/follow " + jobID,
+				Detail: detail,
+				JobID:  jobID,
+			})
+		}
+		s.err = nil
+	}
+	s.mu.Unlock()
+	s.fire()
+}
