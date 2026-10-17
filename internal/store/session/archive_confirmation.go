@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -143,6 +145,7 @@ func (s *Store) runArchive(ctx context.Context, client *dsh.Client, token uint64
 		s.fire()
 		return
 	}
+	title := s.archive.confirmation.Title
 	s.invalidateArchiveLocked()
 	// Do not clear a newer selection because the original row was selected.
 	if s.selectedID == sessionID {
@@ -150,6 +153,9 @@ func (s *Store) runArchive(ctx context.Context, client *dsh.Client, token uint64
 	}
 	s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
 	s.lastAction = "session archived"
+	if slices.Contains(out.ArchivedSessionIds, sessionID) {
+		s.offerArchiveUndoLocked(client, sessionID, title, time.Now())
+	}
 	s.mu.Unlock()
 	s.fire()
 	// The operation context has ended; refresh on a fresh context.

@@ -187,6 +187,8 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	archiveUndo            *archiveUndoState
+	archiveUndoToken       uint64
 	completionUnread       map[string]bool
 	sidebarRunning         map[string]bool
 	mainConversationReadID string

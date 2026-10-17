@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -24,36 +25,42 @@ func (s *Store) UnarchiveSession(ctx context.Context, sessionID string) {
 	if client == nil {
 		return
 	}
-	go func() {
-		var out api.WorkspaceArchiveValue
-		err := client.Call(ctx, "workspace/unarchiveSession", map[string]any{
-			"request": map[string]any{"sessionId": sessionID},
-		}, &out)
-		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != generation {
-			s.mu.Unlock()
-			return
-		}
-		if err != nil {
-			s.lastAction = err.Error()
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
-		s.lastAction = "session unarchived"
-		// Admit the refresh under the same Host lock as the acknowledgement.
-		// A repaint may synchronously attach another Host.
-		var listGeneration uint64
-		if ctx.Err() == nil {
-			_, listGeneration = s.beginListRefreshLocked()
-		}
+	go s.runUnarchiveSession(ctx, client, generation, sessionID)
+}
+
+// Share the real restore RPC while retaining the Host captured at admission.
+func (s *Store) runUnarchiveSession(ctx context.Context, client *dsh.Client, generation uint64, sessionID string) {
+	var out api.WorkspaceArchiveValue
+	err := client.Call(ctx, "workspace/unarchiveSession", map[string]any{
+		"request": map[string]any{"sessionId": sessionID},
+	}, &out)
+	s.mu.Lock()
+	if s.client != client || s.eventsGeneration != generation {
+		s.mu.Unlock()
+		return
+	}
+	if err != nil {
+		s.lastAction = err.Error()
 		s.mu.Unlock()
 		s.fire()
-		if listGeneration != 0 {
-			go s.runRefreshList(ctx, client, listGeneration)
-		}
-	}()
+		return
+	}
+	s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
+	s.lastAction = "session unarchived"
+	if s.archiveUndo != nil && s.archiveUndo.notice.SessionID == sessionID {
+		s.archiveUndo = nil
+	}
+	// Admit the refresh under the same Host lock as the acknowledgement.
+	// A repaint may synchronously attach another Host.
+	var listGeneration uint64
+	if ctx.Err() == nil {
+		_, listGeneration = s.beginListRefreshLocked()
+	}
+	s.mu.Unlock()
+	s.fire()
+	if listGeneration != 0 {
+		s.runRefreshList(ctx, client, listGeneration)
+	}
 }
 
 // DeleteSession calls session/delete for a session id and refreshes the list.
