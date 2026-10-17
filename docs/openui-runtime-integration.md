@@ -140,3 +140,46 @@ bytes, retained source/attribution data, exact Wikimedia origin restrictions,
 and API responses above 64KiB but below the existing 25MiB body budget. No real
 image server is contacted. Actual viewer display remains a runtime acceptance
 item. This stage needs its own matching native response-budget compilation.
+
+## Map resource boundary (source-only assessment)
+
+The verified viewer embeds its MapLibre module worker as a `data:` URL
+(original src/openui-viewer/index.tsx:15–18). Its README explicitly explains
+that an opaque iframe cannot load Chromium `blob:null` module workers. Required
+public map resources are OpenFreeMap at https://tiles.openfreemap.org (planet,
+fonts and the TileJSON's same-origin tiles), plus the two ArcGIS raster fallback
+prefixes under https://server.arcgisonline.com/ArcGIS/rest/services/:
+World_Street_Map/MapServer/tile/ and
+Canvas/World_Dark_Gray_Base/MapServer/tile/. No remote script is necessary for
+the already bundled worker.
+
+Merely changing this shell's CSP cannot enable these resources today:
+
+- Windows creates a zero-capability AppContainer in
+  previewprocess/launcher_windows.go. token_windows.go rejects capabilities in
+  the helper/browser process tree, while MyGo's Windows preview_isolation.go
+  separately denies all external resource requests, including worker traffic.
+- macOS preview.entitlements grants only App Sandbox. identity_darwin.go and
+  native/macos-preview/main.m require exactly that entitlement set, and the
+  native resource delegate also rejects external traffic. A signed entitlement
+  cannot change with a document flag.
+
+A future working path needs a distinct verified-OpenUI Windows process policy
+with fixed-resource filtering, and a separately signed macOS OpenUI helper
+bundle/identity with matching entitlement validation and fixed-resource
+filtering. A mere OpenUI boolean must not grant these permissions to arbitrary
+HTML: both sides must verify the pinned runtime. Ordinary HTML must retain its
+existing zero-network/zero-worker policy. No such new mode, entitlement or CSP
+permission was added in this assessment.
+
+This assessment read source only. No test source was added, and no tests,
+builds, helper launches, permission changes or real map requests were performed.
+The recovered upstream MapLibre viewer remains unsupported under the present helper policy.
+
+An independently authored raster Map is being integrated at source level with
+the owned SDK-based viewer. Its parent resource adapter uses the fixed
+`/api/map-tile` operation (`z`, `x`, `y`, `style=light|dark`) and returns
+bitmap data URLs from the two existing ArcGIS raster services. This path does
+not require iframe network access or a worker. Component integration, production
+asset publication and native/runtime verification are still pending; it is not
+recorded as completed parity.
