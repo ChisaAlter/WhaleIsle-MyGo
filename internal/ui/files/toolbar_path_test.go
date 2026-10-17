@@ -39,7 +39,7 @@ func TestToolbarNarrowActionsRemainVisible(t *testing.T) {
 	m, tab := resourceModel()
 	tab.Path = "folder/a.txt"
 	*m.SelectedFile = tab.Path
-	m.Tabs.Workspaces["/remote"].Active = tab.Path
+	tabsFor(m).Active = tab.Path
 	m.OnReveal = func(string) {}
 	m.ReadRemoteContext = func(context.Context, string) (string, error) { return "", nil }
 	tt := ui.NewTester(func(c *ui.Context) {

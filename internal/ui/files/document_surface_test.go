@@ -1,6 +1,8 @@
 package files
 
 import (
+	"path/filepath"
+
 	"github.com/egoist/mygo"
 	"testing"
 )
@@ -18,9 +20,10 @@ func TestB25DocumentSurfaceTabLifetime(t *testing.T) {
 	first, second := &fixtureDocumentSurface{visible: true}, &fixtureDocumentSurface{visible: true}
 	a := &FileTab{Path: "a.md", document: documentSurfaceState{surface: first, enabled: true}}
 	b := &FileTab{Path: "b.md", document: documentSurfaceState{surface: second, enabled: true}}
-	tabs := &Tabs{binding: "host/session", boundRoot: "/work", Workspaces: map[string]*WorkspaceTabs{"/work": {Open: []*FileTab{a, b}, Active: "a.md"}}}
+	root := filepath.Clean(filepath.FromSlash("/work"))
+	tabs := &Tabs{binding: "host/session", boundRoot: root, Workspaces: map[string]*WorkspaceTabs{root: {Open: []*FileTab{a, b}, Active: "a.md"}}}
 	selected := "a.md"
-	syncDocumentSurfaces(Model{Tabs: tabs, WorkspaceRoot: "/work", SelectedFile: &selected})
+	syncDocumentSurfaces(Model{Tabs: tabs, WorkspaceRoot: root, SelectedFile: &selected})
 	if !first.visible || second.visible || second.closed {
 		t.Fatal("switch did not retain hidden tab")
 	}
@@ -28,7 +31,7 @@ func TestB25DocumentSurfaceTabLifetime(t *testing.T) {
 	if first.visible || first.closed {
 		t.Fatal("pause did not retain hidden surface")
 	}
-	tabs.Bind("replacement/session", "/work")
+	tabs.Bind("replacement/session", root)
 	if !first.closed || !second.closed || a.document.enabled {
 		t.Fatal("Host rebind retained old page authority")
 	}

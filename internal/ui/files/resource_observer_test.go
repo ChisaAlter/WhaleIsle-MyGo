@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,9 +12,10 @@ import (
 
 func resourceModel() (Model, *FileTab) {
 	path, preview, draft, problem, status := "a.txt", "saved", "saved", "", ""
+	root := filepath.Clean(filepath.FromSlash("/remote"))
 	tab := &FileTab{Path: path, Preview: preview, Draft: draft, readID: 1}
-	tabs := &Tabs{binding: "host", boundRoot: "/remote", Workspaces: map[string]*WorkspaceTabs{"/remote": {Open: []*FileTab{tab}, Active: path}}}
-	return Model{BindingID: "host", WorkspaceRoot: "/remote", SessionID: "s", Tabs: tabs, SelectedFile: &path, Preview: &preview, EditDraft: &draft, PreviewErr: &problem, EditStatus: &status}, tab
+	tabs := &Tabs{binding: "host", boundRoot: root, Workspaces: map[string]*WorkspaceTabs{root: {Open: []*FileTab{tab}, Active: path}}}
+	return Model{BindingID: "host", WorkspaceRoot: root, SessionID: "s", Tabs: tabs, SelectedFile: &path, Preview: &preview, EditDraft: &draft, PreviewErr: &problem, EditStatus: &status}, tab
 }
 func TestResourceObservationRefreshesOnlyChangedCleanContent(t *testing.T) {
 	m, tab := resourceModel()
@@ -158,7 +160,7 @@ func TestResourceAutoRefreshPreferencePersistsWithoutWatcher(t *testing.T) {
 	if err = restored.Restore(data); err != nil {
 		t.Fatal(err)
 	}
-	got := restored.Workspaces["/remote"].Open[0]
+	got := restored.Workspaces[filepath.Clean(m.WorkspaceRoot)].Open[0]
 	if !got.AutoRefreshDisabled || got.externalChanged || restored.resourceObserver != nil {
 		t.Fatal("lost preference or persisted observation authority")
 	}

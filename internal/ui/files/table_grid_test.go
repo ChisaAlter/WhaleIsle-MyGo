@@ -11,7 +11,7 @@ func tableGridFixture() (Model, *FileTab) {
 	m, tab := resourceModel()
 	tab.Path = "a.xlsx"
 	*m.SelectedFile = tab.Path
-	m.Tabs.Workspaces["/remote"].Active = tab.Path
+	tabsFor(m).Active = tab.Path
 	tab.tablePage = &workspacefs.XLSXPage{Request: workspacefs.XLSXPageRequest{Rows: 2, Columns: 2}, TotalRows: 2, TotalColumns: 2, Cells: []workspacefs.XLSXCell{{Address: "A1", Value: "0.25", DisplayValue: "25%", HasFormula: true, Formula: "B1/100", NumberFormat: "0%"}, {Address: "B1", Value: "25", DisplayValue: "25"}, {Address: "A2", Value: "text", DisplayValue: "text"}}}
 	return m, tab
 }

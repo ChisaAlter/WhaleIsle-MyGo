@@ -2,6 +2,7 @@ package files
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 	"whaleisle/internal/desktop/workspacefs"
 )
@@ -27,8 +28,9 @@ func TestB26ClosingTabResumesReboundPagedResource(t *testing.T) {
 	selected, preview, draft := "other.txt", "other", "other"
 	paged := &FileTab{Path: "large.txt", Preview: "prefix", Draft: "prefix", textPaged: true, readBlocked: true, readResume: true}
 	other := &FileTab{Path: selected, Preview: preview, Draft: draft}
-	tabs := &Tabs{Workspaces: map[string]*WorkspaceTabs{"/work": {Open: []*FileTab{paged, other}, Active: selected}}}
-	model := Model{Tabs: tabs, WorkspaceRoot: "/work", SelectedFile: &selected, Preview: &preview, EditDraft: &draft}
+	root := filepath.Clean(filepath.FromSlash("/work"))
+	tabs := &Tabs{Workspaces: map[string]*WorkspaceTabs{root: {Open: []*FileTab{paged, other}, Active: selected}}}
+	model := Model{Tabs: tabs, WorkspaceRoot: root, SelectedFile: &selected, Preview: &preview, EditDraft: &draft}
 	if !closeTab(model, "other.txt", false) || selected != "large.txt" || !paged.readResume {
 		t.Fatal("paged Host rebind was stranded behind readBlocked")
 	}

@@ -15,14 +15,22 @@ func TestPresentedFileClickUsesSessionCwdAndDraftTabs(t *testing.T) {
 	}
 	var selected, preview, draft, problem, status string
 	editing := false
+	done := make(chan struct{}, 16)
 	tabs := Tabs{}
-	m := Model{WorkspaceRoot: root, Tabs: &tabs, SelectedFile: &selected, Preview: &preview, EditDraft: &draft, PreviewErr: &problem, EditStatus: &status, Editing: &editing}
+	m := Model{BindingID: "host/session", WorkspaceRoot: root, Tabs: &tabs, SelectedFile: &selected, Preview: &preview, EditDraft: &draft, PreviewErr: &problem, EditStatus: &status, Editing: &editing, notify: func() {
+		select {
+		case done <- struct{}{}:
+		default:
+		}
+	}}
+	tabs.Bind(m.BindingID, root)
 	open := func(path string) {
 		t.Helper()
 		handled, err := OpenPresentedPath(m, path)
 		if !handled || err != nil {
 			t.Fatalf("open %q: %v, %v", path, handled, err)
 		}
+		awaitFileTextRead(t, m, done)
 	}
 	open("first.md")
 	draft, editing = "unsaved first", true

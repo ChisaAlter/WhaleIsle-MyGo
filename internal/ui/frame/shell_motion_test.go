@@ -47,20 +47,23 @@ func TestShellTrackMotionUsesLayoutAndPreservesPreferences(t *testing.T) {
 	}
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	tt.Frame()
-	if drawn.W != SidebarCollapsedWidth() {
-		t.Fatal("reduced motion did not settle actual layout", drawn)
+	tt.Frame() // The headless tester exposes layout bounds one build behind paint.
+	if observed.W != SidebarCollapsedWidth() {
+		t.Fatal("reduced motion did not settle actual layout", observed)
 	}
 	sizes.ToggleSidebar()
 	tt.Frame()
-	if drawn.W != initial {
-		t.Fatal("reduced-motion expand was not immediate", drawn)
+	tt.Frame()
+	if observed.W != initial {
+		t.Fatal("reduced-motion expand was not immediate", observed)
 	}
 	tt.SetPreferences(ui.Preferences{TextScale: 1})
 	sizes.ToggleSidebar()
 	tt.Frame()
 	tt.SetSize(1300, 800)
-	if drawn.W != SidebarCollapsedWidth() {
-		t.Fatal("window resize did not bypass easing", drawn)
+	tt.Frame()
+	if observed.W != SidebarCollapsedWidth() {
+		t.Fatal("window resize did not bypass easing", observed)
 	}
 
 	// Closing resource/native content stops its callback immediately, even

@@ -16,14 +16,24 @@ func TestDraftTabsSaveAndConflict(t *testing.T) {
 	}
 	var selected, preview, draft, problem, status string
 	editing := false
+	done := make(chan struct{}, 16)
 	tabs := Tabs{}
-	m := Model{WorkspaceRoot: root, Tabs: &tabs, SelectedFile: &selected, Preview: &preview, PreviewErr: &problem, EditDraft: &draft, EditStatus: &status, Editing: &editing, OnSaveEdit: func(rel, text string) error { return workspacefs.WriteFileText(filepath.Join(root, rel), text) }}
+	m := Model{BindingID: "host/session", WorkspaceRoot: root, Tabs: &tabs, SelectedFile: &selected, Preview: &preview, PreviewErr: &problem, EditDraft: &draft, EditStatus: &status, Editing: &editing, notify: func() {
+		select {
+		case done <- struct{}{}:
+		default:
+		}
+	}, OnSaveEdit: func(rel, text string) error { return workspacefs.WriteFileText(filepath.Join(root, rel), text) }}
+	tabs.Bind(m.BindingID, root)
 	prepareTabs(m)
 	selectFile(m, "a.go")
+	awaitFileTextRead(t, m, done)
 	draft = "draft"
 	editing = true
 	selectFile(m, "b.go")
+	awaitFileTextRead(t, m, done)
 	selectFile(m, "a.go")
+	awaitFileTextRead(t, m, done)
 	if draft != "draft" || !editing {
 		t.Fatal("switch lost draft")
 	}
