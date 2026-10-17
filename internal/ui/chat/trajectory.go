@@ -208,6 +208,8 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					ui.Text(c, i18n.T(i18n.KeyTrajDetailHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					return
 				}
+				fullDetail := trajectoryDetailRow(*detail)
+				detail = &fullDetail
 				ui.Row(c).Gap(6).Children(func() {
 					for _, tab := range []struct{ id, label string }{
 						{"overview", i18n.T(i18n.KeyTrajTabOverview)},
@@ -230,50 +232,57 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				})
 				ui.Box(c).FillWidth().Height(1).Background(border)
 				copyBody := ""
-				switch *detailTab {
-				case "args":
-					body := detail.Input
-					if body == "" {
-						body = i18n.T(i18n.KeyTrajNoArgs)
+				ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
+					switch *detailTab {
+					case "args":
+						body := detail.Input
+						if body == "" {
+							body = i18n.T(i18n.KeyTrajNoArgs)
+						}
+						if detail.RawHint != "" {
+							body = detail.RawHint
+						}
+						copyBody = body
+						ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+					case "result":
+						body := detail.Output
+						if body == "" {
+							body = detail.Tools
+						}
+						if body == "" {
+							body = i18n.T(i18n.KeyTrajNoResult)
+						}
+						copyBody = body
+						ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+					case "timing":
+						copyBody = trajectoryTimingDetail(*detail)
+						ui.Text(c, copyBody).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+					default: // overview
+						ui.Text(c, kindLabelZH(detail.Kind)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(accent)
+						var parts []string
+						if detail.Input != "" {
+							ui.Text(c, i18n.T(i18n.KeyTrajColInput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, detail.Input).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+							parts = append(parts, detail.Input)
+						}
+						if detail.Output != "" {
+							ui.Text(c, i18n.T(i18n.KeyTrajColOutput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, detail.Output).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+							parts = append(parts, detail.Output)
+						}
+						if detail.Think != "" {
+							ui.Text(c, i18n.T(i18n.KeyTrajColThink)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, detail.Think).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+							parts = append(parts, detail.Think)
+						}
+						if detail.Tools != "" {
+							ui.Text(c, i18n.T(i18n.KeyTrajColTools)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, detail.Tools).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+							parts = append(parts, detail.Tools)
+						}
+						copyBody = strings.Join(parts, "\n")
 					}
-					if detail.RawHint != "" {
-						body = detail.RawHint
-					}
-					copyBody = body
-					ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-				case "result":
-					body := detail.Output
-					if body == "" {
-						body = detail.Tools
-					}
-					if body == "" {
-						body = i18n.T(i18n.KeyTrajNoResult)
-					}
-					copyBody = body
-					ui.Text(c, body).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-				case "timing":
-					copyBody = trajectoryTimingDetail(*detail)
-					ui.Text(c, copyBody).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-				default: // overview
-					ui.Text(c, kindLabelZH(detail.Kind)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(accent)
-					var parts []string
-					if detail.Input != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColInput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Text(c, detail.Input).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-						parts = append(parts, detail.Input)
-					}
-					if detail.Output != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColOutput)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Text(c, detail.Output).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-						parts = append(parts, detail.Output)
-					}
-					if detail.Tools != "" {
-						ui.Text(c, i18n.T(i18n.KeyTrajColTools)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Text(c, detail.Tools).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-						parts = append(parts, detail.Tools)
-					}
-					copyBody = strings.Join(parts, "\n")
-				}
+				})
 				if m.OnCopyDetail != nil && strings.TrimSpace(copyBody) != "" {
 					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 						m.OnCopyDetail(copyBody)
@@ -314,7 +323,13 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 	}
 }
 
+type trajectoryContent struct {
+	Input, Output, Think, Tools string
+	Raw                         string
+}
+
 type trajRow struct {
+	Full      trajectoryContent
 	Timing    *session.TrajectoryTiming
 	EventTime float64
 	ID        string
@@ -347,7 +362,7 @@ func buildTrajectoryRows(msgs []session.Message, query string, turnsFold, callsF
 			row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), turn)
 		}
 		if q != "" {
-			hay := strings.ToLower(row.Input + " " + row.Output + " " + row.Think + " " + row.Tools + " " + row.Model)
+			hay := strings.ToLower(row.Full.Input + " " + row.Full.Output + " " + row.Full.Think + " " + row.Full.Tools + " " + row.Model + " " + row.RawHint + " " + row.Full.Raw)
 			if !strings.Contains(hay, q) {
 				continue
 			}
@@ -362,7 +377,7 @@ func messageToTrajRow(msg session.Message) trajRow {
 	if id == "" {
 		id = fmt.Sprintf("seq-%.0f", msg.Seq)
 	}
-	body := clipRunes(strings.TrimSpace(msg.Body), 80)
+	body := msg.Body
 	row := trajRow{
 		ID:        id,
 		Kind:      msg.Kind,
@@ -382,14 +397,14 @@ func messageToTrajRow(msg session.Message) trajRow {
 			row.Output = body
 			if msg.Args != "" {
 				row.RawHint = msg.Args
-				row.Output = clipRunes(strings.ReplaceAll(msg.Args, "\n", " "), 80)
+				row.Output = msg.Args
 			}
 			row.Input = i18n.T(i18n.KeyTrajToolResult)
 		default:
 			row.Input = i18n.T(i18n.KeyTrajToolCallOnly)
 			if msg.Args != "" {
 				row.RawHint = msg.Args
-				row.Input = clipRunes(strings.ReplaceAll(msg.Args, "\n", " "), 80)
+				row.Input = msg.Args
 			}
 		}
 	case session.MessageKindThinking:
@@ -401,7 +416,7 @@ func messageToTrajRow(msg session.Message) trajRow {
 	case session.MessageKindDeliverables:
 		row.Output = body
 		if len(msg.Files) > 0 {
-			row.Output = clipRunes(strings.Join(msg.Files, ", "), 80)
+			row.Output = strings.Join(msg.Files, ", ")
 		}
 		row.Input = i18n.T(i18n.KeyTrajDeliverables)
 	default:
@@ -425,8 +440,25 @@ func messageToTrajRow(msg session.Message) trajRow {
 		row.RawHint = msg.Args
 	}
 	if row.RawHint == "" && len(msg.Raw) > 0 {
-		row.RawHint = clipRunes(string(msg.Raw), 400)
+		row.RawHint = string(msg.Raw)
 	}
+	row.Full = trajectoryContent{Input: row.Input, Output: row.Output, Think: row.Think, Tools: row.Tools, Raw: string(msg.Raw)}
+	row.Input = trajectoryPreview(row.Input)
+	row.Output = trajectoryPreview(row.Output)
+	row.Think = trajectoryPreview(row.Think)
+	row.Tools = trajectoryPreview(row.Tools)
+	return row
+}
+
+func trajectoryPreview(text string) string {
+	return clipRunes(strings.ReplaceAll(strings.TrimSpace(text), "\n", " "), 80)
+}
+
+// Only ledger cells are abbreviated. The inspector and clipboard share the
+// complete projection, while RawHint retains the complete args/event fallback.
+func trajectoryDetailRow(row trajRow) trajRow {
+	row.Input, row.Output = row.Full.Input, row.Full.Output
+	row.Think, row.Tools = row.Full.Think, row.Full.Tools
 	return row
 }
 
