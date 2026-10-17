@@ -24,13 +24,13 @@ func TestInspectToolCallRejectsStaleSessionAndUnavailableTabs(t *testing.T) {
 	store := session.New()
 	tab, selected := "chat", "old"
 	m := Model{Store: store, ChatPaneTab: &tab, TrajSelectedID: &selected}
-	callback := inspectToolCallNavigation(m, session.ViewState{SelectedID: "stale"})
+	callback := inspectToolCallNavigation(m, session.ViewState{SelectedID: "stale"}, &pendingToolCall{})
 	callback("c")
 	if tab != "chat" || selected != "old" {
 		t.Fatal("stale session navigated")
 	}
 	m.HideChatViewTabs = true
-	if inspectToolCallNavigation(m, session.ViewState{}) != nil {
+	if inspectToolCallNavigation(m, session.ViewState{}, &pendingToolCall{}) != nil {
 		t.Fatal("hidden trajectory exposed")
 	}
 }

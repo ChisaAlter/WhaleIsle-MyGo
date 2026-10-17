@@ -577,6 +577,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 }
 
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
+	inspectToolCall := toolCallNavigationFrame(c, m, snap)
 	withNavigation := func(body func()) {
 		if m.ExternalNavigation {
 			body()
@@ -987,7 +988,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								} else {
 									chat.View(c, chat.Model{
-										OnInspectToolCall: inspectToolCallNavigation(m, snap),
+										OnInspectToolCall: inspectToolCall,
 										Inspector:         sessionInspectorChatNavigation(m),
 										GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 										DisableDeveloperTools: m.DisableDeveloperTools,

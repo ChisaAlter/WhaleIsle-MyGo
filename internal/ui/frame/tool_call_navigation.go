@@ -6,8 +6,8 @@ import (
 	"whaleisle/internal/ui/chat"
 )
 
-func inspectToolCallNavigation(m Model, captured session.ViewState) func(string) {
-	if m.Store == nil || m.HideChatViewTabs || m.ChatPaneTab == nil || m.TrajSelectedID == nil {
+func inspectToolCallNavigation(m Model, captured session.ViewState, pending *pendingToolCall) func(string) {
+	if m.Store == nil || m.DisableDeveloperTools || m.HideChatViewTabs || m.ChatPaneTab == nil || m.TrajSelectedID == nil {
 		return nil
 	}
 	return func(callID string) {
@@ -15,7 +15,9 @@ func inspectToolCallNavigation(m Model, captured session.ViewState) func(string)
 		if live.SelectedID != captured.SelectedID || live.ComposerHostGeneration != captured.ComposerHostGeneration {
 			return
 		}
-		focusToolCallTrajectory(m, live, callID)
+		if pending != nil {
+			pending.request(m, live, callID)
+		}
 	}
 }
 
