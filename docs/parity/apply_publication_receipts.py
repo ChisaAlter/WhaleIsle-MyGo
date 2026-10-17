@@ -49,7 +49,7 @@ def render(d):
         b=i.get('verification_boundary',{})
         for path in b.get('unpublished_test_files',[]): lines.append('- '+i['id']+' 尚未发布的测试文件：`'+path+'`。')
         if b.get('api_and_image_native_sdk_compile')=='not-run': lines.append('- '+i['id']+' API/图片增量尚未做原生 SDK 编译；此前 inline/streaming 成功 CI 不覆盖该增量。')
-    lines += ['- OpenUI 完整运行包许可仍未明确，见 [许可证据](../openui-runtime-license-status-20261017.md)；地图仅有架构边界核实，尚无能力实现。', '']
+    lines += ['- OpenUI 已默认内嵌已许可SDK加自有源码的运行时及栅格地图；原版应用包未再分发。组件变体与剩余行为见 [兼容清单](../../tools/openui-runtime/COMPATIBILITY.md)，真实运行仍待验证。', '']
     return '\n'.join(lines)
 
 def apply(d,r):

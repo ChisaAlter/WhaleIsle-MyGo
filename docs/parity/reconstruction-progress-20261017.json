@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-17T11:07:17Z",
+  "as_of": "2026-10-17T11:39:06.561994+00:00",
   "title": "WhaleIsle-MyGo recorded reconstruction progress",
   "baseline_original_commit": "a8c931da37376ce7dc7989e6f30b0db885e06d26",
   "scope": [
@@ -1049,7 +1049,7 @@
       "id": "CH12",
       "title": "Assistant OpenUI code-fence interactive runtime",
       "status": "partial",
-      "publication_commit": "a0b0a6bc9b87a0fa4fc64c3a723736385685a398",
+      "publication_commit": "86104c1f965d5b326d5a8dd01f75364940fe073e",
       "runtime_status": "runtime-unverified",
       "evidence": [
         "audit-20261017-chat/main-entrypoints-supplement.json#CH12",
@@ -1078,13 +1078,15 @@
         "Native stage 2 Windows/Darwin Go cross-compiles and targeted protocol/shell/UI checks are recorded; this does not certify physical inline input/clipping/lifecycle.",
         "Active forms use their owner lifetime instead of an arbitrary deadline; arbitrary global renderer and persistent-state count ceilings were removed, with per-message resource bounds retained.",
         "Typed public resource adapters and exact-owner API request/response routing are published. Only fixed supported services and typed parameters are accepted; arbitrary URLs and general iframe networking remain unavailable.",
-        "Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits."
+        "Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits.",
+        "Independently authored OpenUI SDK-based runtime is embedded by default from maintainable tools/openui-runtime source; original installation or user-supplied viewer is no longer required. 53 registered original-contract components and 59 application functions are present, with exact variant limitations documented rather than claiming complete behavioral parity.",
+        "Owned raster Map uses fixed ArcGIS tile data URLs and the existing typed OSRM route adapter; parent /api/map-tile route is implemented without granting iframe network or worker access. Source, lockfile, production asset, provenance and complete notices for 79 browser dependencies are committed together."
       ],
       "remaining": [
-        "The complete recovered OpenUI viewer is not redistributed: authoritative upstream license evidence is still insufficient for the application and full derived bundle. MIT SDK licenses alone do not cover that bundle.",
-        "Maps remain unavailable. Only architecture boundaries were assessed; no map capability or network policy was widened. Windows needs a dedicated verified-viewer resource policy and macOS a distinct signed helper identity/entitlements before this can be implemented.",
-        "Original public-response caching is not mirrored. Arbitrary networking, workers, clipboard and external-link behavior remain unavailable; explicit native action confirmation remains where real user gesture provenance is not attested.",
-        "Only latest received state is persisted; undelivered queued state can be lost on close."
+        "HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.",
+        "Component variants, chart combinations, Code highlighting, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registered component/function counts are not a full parity measure.",
+        "Original public-response caching is not fully mirrored; owned map tile caching is a separate implemented scope. The legacy recovered MapLibre bundle remains unshipped and unsupported, while the independently authored raster Map is source-implemented.",
+        "Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified."
       ],
       "audit_states": [
         "missing"
@@ -1156,11 +1158,29 @@
             "Original public-response caching is not mirrored. Arbitrary networking, workers, clipboard and external-link behavior remain unavailable; explicit native action confirmation remains where real user gesture provenance is not attested.",
             "Only latest received state is persisted; undelivered queued state can be lost on close."
           ]
+        },
+        {
+          "implemented": [
+            "Genuine original OpenUI runtime bundle located; no arbitrary replacement bundle used.",
+            "Stage 1 source integration and companion native helper event bridge published per parent confirmation: isolated protocol/resource/state handling, exact session owner, code-fence entry and native event bridge.",
+            "Stage 2 inline embedding and same-instance program/streaming updates are published: retains live shell state/theme, deduplicates identical updates, latest-only queue bounded to one pending value and at most 10 Hz.",
+            "Native stage 2 Windows/Darwin Go cross-compiles and targeted protocol/shell/UI checks are recorded; this does not certify physical inline input/clipping/lifecycle.",
+            "Active forms use their owner lifetime instead of an arbitrary deadline; arbitrary global renderer and persistent-state count ceilings were removed, with per-message resource bounds retained.",
+            "Typed public resource adapters and exact-owner API request/response routing are published. Only fixed supported services and typed parameters are accepted; arbitrary URLs and general iframe networking remain unavailable.",
+            "Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits."
+          ],
+          "remaining": [
+            "The complete recovered OpenUI viewer is not redistributed: authoritative upstream license evidence is still insufficient for the application and full derived bundle. MIT SDK licenses alone do not cover that bundle.",
+            "Maps remain unavailable. Only architecture boundaries were assessed; no map capability or network policy was widened. Windows needs a dedicated verified-viewer resource policy and macOS a distinct signed helper identity/entitlements before this can be implemented.",
+            "Original public-response caching is not mirrored. Arbitrary networking, workers, clipboard and external-link behavior remain unavailable; explicit native action confirmation remains where real user gesture provenance is not attested.",
+            "Only latest received state is persisted; undelivered queued state can be lost on close."
+          ]
         }
       ],
       "runtime_notes": [
         "Inline/streaming stage CI39023879575 succeeded on Windows/macOS at commit 551649d8afe62ff3964dc94e1e0f610faacea2d8. Stage 1 CI39023193323 also succeeded. Neither run covers the later API/image native increments.",
-        "The API/image native increments have not undergone the new SDK compilation. Physical rendering, input, scrolling, images, actual service responses and lifecycle acceptance remain unknown."
+        "The API/image native increments have not undergone the new SDK compilation. Physical rendering, input, scrolling, images, actual service responses and lifecycle acceptance remain unknown.",
+        "Owned embedded viewer and map resource increment received production asset generation only; no new native compilation, tests, browser execution or real service requests."
       ],
       "publication_commits": [
         {
@@ -1198,6 +1218,11 @@
           "message": "feat(openui): integrate scoped runtime and native event bridge (CH12)",
           "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/abf32a3a15c31e007b19210298ade8c42a78e3e0",
           "date": "2026-10-17T09:59:35Z"
+        },
+        {
+          "sha": "86104c1f965d5b326d5a8dd01f75364940fe073e",
+          "url": "https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/86104c1f965d5b326d5a8dd01f75364940fe073e",
+          "evidence_source": "verified GitHub development branch publication"
         }
       ],
       "publication_status": "verified-pushed",
@@ -1350,6 +1375,17 @@
             "internal/desktop/openui/api_images_test.go",
             "internal/desktop/previewprocess/openui_api_test.go"
           ]
+        },
+        {
+          "stage": "independently-authored-embedded-runtime",
+          "publication_status": "verified-pushed",
+          "publication_commits": [
+            "86104c1f965d5b326d5a8dd01f75364940fe073e"
+          ],
+          "runtime_status": "runtime-unverified",
+          "component_count": 53,
+          "application_function_count": 59,
+          "count_warning": "Registry counts, not complete functional equivalence."
         }
       ],
       "native_ci": {
@@ -15924,7 +15960,7 @@
     "no_new_tests_or_source_audit": true,
     "revision": "final-v6",
     "last_parent_update": "2026-10-17T11:03:00Z",
-    "verified_head": "0e70ae5a3f4fad583a939666a45455a17100cd04",
+    "verified_head": "86104c1f965d5b326d5a8dd01f75364940fe073e",
     "publication_commit_count": 102,
     "commit_count_is_not_feature_completion_count": true
   },

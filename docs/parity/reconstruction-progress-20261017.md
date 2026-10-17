@@ -54,16 +54,19 @@
 - 已有源码：Active forms use their owner lifetime instead of an arbitrary deadline; arbitrary global renderer and persistent-state count ceilings were removed, with per-message resource bounds retained.
 - 已有源码：Typed public resource adapters and exact-owner API request/response routing are published. Only fixed supported services and typed parameters are accepted; arbitrary URLs and general iframe networking remain unavailable.
 - 已有源码：Image production code resolves supported Wikimedia HTTPS image results to validated image data URLs while retaining source/attribution. API response transport advertises its actual larger budget independently of unchanged event/state limits.
-- 当前剩余：The complete recovered OpenUI viewer is not redistributed: authoritative upstream license evidence is still insufficient for the application and full derived bundle. MIT SDK licenses alone do not cover that bundle.
-- 当前剩余：Maps remain unavailable. Only architecture boundaries were assessed; no map capability or network policy was widened. Windows needs a dedicated verified-viewer resource policy and macOS a distinct signed helper identity/entitlements before this can be implemented.
-- 当前剩余：Original public-response caching is not mirrored. Arbitrary networking, workers, clipboard and external-link behavior remain unavailable; explicit native action confirmation remains where real user gesture provenance is not attested.
-- 当前剩余：Only latest received state is persisted; undelivered queued state can be lost on close.
+- 已有源码：Independently authored OpenUI SDK-based runtime is embedded by default from maintainable tools/openui-runtime source; original installation or user-supplied viewer is no longer required. 53 registered original-contract components and 59 application functions are present, with exact variant limitations documented rather than claiming complete behavioral parity.
+- 已有源码：Owned raster Map uses fixed ArcGIS tile data URLs and the existing typed OSRM route adapter; parent /api/map-tile route is implemented without granting iframe network or worker access. Source, lockfile, production asset, provenance and complete notices for 79 browser dependencies are committed together.
+- 当前剩余：HtmlView and YouTube remain absent. Clipboard/external-link actions and external Image/Markdown image URLs remain unsupported. Query/Mutation business providers are not supplied.
+- 当前剩余：Component variants, chart combinations, Code highlighting, state/function edge semantics and action confirmation differences are detailed in tools/openui-runtime/COMPATIBILITY.md; registered component/function counts are not a full parity measure.
+- 当前剩余：Original public-response caching is not fully mirrored; owned map tile caching is a separate implemented scope. The legacy recovered MapLibre bundle remains unshipped and unsupported, while the independently authored raster Map is source-implemented.
+- 当前剩余：Only latest received state is persisted; undelivered queued state can be lost on close. Native compilation and actual renderer/resource/state/action acceptance for the newly embedded runtime remain unverified.
 - 阶段 stage-1-runtime-and-native-bridge：verified-pushed；abf32a3a15c31e007b19210298ade8c42a78e3e0
 - 阶段 inline-and-streaming：verified-pushed；551649d8afe62ff3964dc94e1e0f610faacea2d8
 - 阶段 owner-lifetime：verified-pushed；b30c5c4b3c5265c54be262f63cfeea58e89e27f7
 - 阶段 remove-count-ceilings：verified-pushed；1edab767c7d759d5804d432fb3bbd9b686a41bed
 - 阶段 typed-public-resource-api：verified-pushed；ea4e4782dac48f6a3669688b8c4e36f12e042d7f
 - 阶段 fixed-source-display-images：production-pushed-tests-unpublished；a0b0a6bc9b87a0fa4fc64c3a723736385685a398
+- 阶段 independently-authored-embedded-runtime：verified-pushed；86104c1f965d5b326d5a8dd01f75364940fe073e
 
 ### PR07 · source-implemented
 
@@ -142,7 +145,7 @@
 | CH10 | Advanced trajectory schema/request/range inspection | 有实现证据 | [fb1b0a62](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/fb1b0a62c21a8334d319e7e2ab2a5658f37c7b7b) |
 | CH10.inspect-call | Inspect a tool call directly in trajectory | 有实现证据 | [facab7db](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/facab7db9840986fbe0911e7128cc9ff8ca5d0a3) |
 | CH11 | Background completion unread indicator | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
-| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [a0b0a6bc](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/a0b0a6bc9b87a0fa4fc64c3a723736385685a398) |
+| CH12 | Assistant OpenUI code-fence interactive runtime | 部分实现 | [86104c1f](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/86104c1f965d5b326d5a8dd01f75364940fe073e) |
 | CH13 | Sidebar attention state for approval/question/plan review | 有实现证据 | [871fcd2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/871fcd2d029074ddd5f497ec66b00caed547bcf4) |
 | CH14 | Undo archive from completion notification | 有实现证据 | [d11d1bd8](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/d11d1bd8d4802a13aae0f65c9e697fc94a74d26a) |
 | CH15 | Main session ancestry breadcrumb navigation | 有实现证据 | [5b0a5f2d](https://github.com/ChisaAlter/WhaleIsle-MyGo/commit/5b0a5f2d60943efeab77b319dd23d3ca8f1d1837) |
@@ -228,7 +231,7 @@
 
 ## 本轮发布与验证边界
 
-- 已核实开发分支头：`0e70ae5a3f4fad583a939666a45455a17100cd04`；提交条数仅为发布记录数。
+- 已核实开发分支头：`86104c1f965d5b326d5a8dd01f75364940fe073e`；提交条数仅为发布记录数。
 - 所有真实平台验收仍单列为 unknown，不由源码、冻结或 CI 结果推定。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_test.go`。
 - CH12 尚未发布的测试文件：`internal/desktop/openui/api_images_test.go`。
@@ -236,4 +239,4 @@
 - CH12 API/图片增量尚未做原生 SDK 编译；此前 inline/streaming 成功 CI 不覆盖该增量。
 - CH68 尚未发布的测试文件：`internal/store/session/agent_restored_gesture_test.go`。
 - CH68 尚未发布的测试文件：`internal/store/interaction/scoped_gesture_test.go`。
-- OpenUI 完整运行包许可仍未明确，见 [许可证据](../openui-runtime-license-status-20261017.md)；地图仅有架构边界核实，尚无能力实现。
+- OpenUI 已默认内嵌已许可SDK加自有源码的运行时及栅格地图；原版应用包未再分发。组件变体与剩余行为见 [兼容清单](../../tools/openui-runtime/COMPATIBILITY.md)，真实运行仍待验证。
