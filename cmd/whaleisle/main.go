@@ -670,6 +670,20 @@ func (s *mainState) showMainWindow() {
 func (s *mainState) applyDeeplink(t deeplink.Target) {
 	s.mu.Lock()
 	s.pendingDeeplink = t
+	// Deep links address one top-level surface. Clear any surface left open by
+	// the previous route before selecting the requested one below, matching the
+	// exclusive-panel behavior of the in-window navigation callbacks.
+	s.launcherOpen = false
+	s.settingsOpen = false
+	s.usageOpen = false
+	s.imOpen = false
+	s.marketOpen = false
+	s.scheduleOpen = false
+	s.remoteOpen = false
+	s.webviewOpen = false
+	s.browserPreviewOpen = false
+	s.assistantOpen = false
+	s.toolsMenuOpen = false
 	switch t.Action {
 	case deeplink.ActionLauncher:
 		s.launcherOpen = true
@@ -785,9 +799,6 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.settingsAgentPresetsActive = false
 		s.settingsAboutActive = false
 	case deeplink.ActionSession:
-		if s.sessions != nil && t.SessionID != "" {
-			s.sessions.Select(t.SessionID)
-		}
 		s.launcherOpen = false
 		s.settingsOpen = false
 		s.usageOpen = false
@@ -807,10 +818,114 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		}
 		usage.Refresh(context.Background(), sid)
 	}
+	s.flushPendingDeeplink()
 	if win != nil {
 		win.Update(func() {})
 	}
 	log.Printf("deeplink: action=%s session=%s section=%s", t.Action, t.SessionID, t.Section)
+}
+
+// flushPendingDeeplink applies the side effect associated with a route after
+// the corresponding store has been attached to a ready harness. mygo delivers
+// launch URLs after WhenReady, but the dsh stores are created later, so merely
+// changing the panel flags in applyDeeplink is not sufficient for startup
+// links (especially session/<id> and settings).
+func (s *mainState) flushPendingDeeplink() {
+	s.mu.Lock()
+	t := s.pendingDeeplink
+	sessions := s.sessions
+	setStore := s.settings
+	usage := s.usage
+	market := s.market
+	schedule := s.schedule
+	win := s.win
+	s.mu.Unlock()
+	if t.Action == deeplink.ActionNone {
+		return
+	}
+
+	// Session links must wait until the list contains the requested id. The
+	// session store notifies the window after RefreshList, so mainView will
+	// retry this once the list arrives.
+	if t.Action == deeplink.ActionSession {
+		if sessions == nil || strings.TrimSpace(t.SessionID) == "" {
+			return
+		}
+		snap := sessions.Snapshot()
+		if !snap.ClientReady {
+			return
+		}
+		found := false
+		for _, item := range snap.Items {
+			if item.SessionID == t.SessionID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return
+		}
+		sessions.Select(t.SessionID)
+	} else {
+		switch t.Action {
+		case deeplink.ActionSettings:
+			if setStore == nil || !setStore.Snapshot().ClientReady {
+				return
+			}
+			setStore.OpenSettingsDocument(context.Background())
+		case deeplink.ActionUsage:
+			if usage == nil || !usage.Snapshot().ClientReady {
+				return
+			}
+			sid := ""
+			if sessions != nil {
+				sid = sessions.Snapshot().SelectedID
+			}
+			usage.Refresh(context.Background(), sid)
+		case deeplink.ActionAuth:
+			if usage == nil || !usage.Snapshot().ClientReady {
+				return
+			}
+			sid := ""
+			if sessions != nil {
+				sid = sessions.Snapshot().SelectedID
+			}
+			usage.Refresh(context.Background(), sid)
+		case deeplink.ActionMarket:
+			if market == nil || !market.Snapshot().ClientReady {
+				return
+			}
+			market.Refresh(context.Background())
+		case deeplink.ActionSchedule:
+			if schedule == nil || !schedule.Snapshot().ClientReady {
+				return
+			}
+			sid := ""
+			if sessions != nil {
+				sid = sessions.Snapshot().SelectedID
+			}
+			schedule.Refresh(context.Background(), sid)
+		case deeplink.ActionAgents:
+			s.dshMu.Lock()
+			muxReady := s.dshMux != nil
+			s.dshMu.Unlock()
+			if !muxReady {
+				return
+			}
+			s.setFilesPaneOpen(true)
+		}
+	}
+
+	s.mu.Lock()
+	// A newer URL may have arrived while a store call was in flight. Do not
+	// consume that newer route as part of this flush.
+	if s.pendingDeeplink == t {
+		s.pendingDeeplink = deeplink.Target{}
+	}
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
 }
 
 func (s *mainState) closeWebViewHost() {
@@ -1921,6 +2036,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	sessions.RefreshPermissionCatalog(context.Background())
 	sessions.RefreshAgentPresets(context.Background())
 	sessions.RefreshSkills(context.Background())
+	s.flushPendingDeeplink()
 }
 
 func (s *mainState) stopDSH() {
@@ -2052,7 +2168,13 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		s.mu.Lock()
 		s.dshMuxReady = ready
 		s.dshMuxLost = lost
+		filesOpen := s.filesPaneOpen
 		s.mu.Unlock()
+		if ready && filesOpen {
+			// A files/agents route can open while the mux is still connecting.
+			// Re-arm the remote change watcher once the stream is available.
+			s.setFilesPaneOpen(true)
+		}
 		refresh()
 	}
 	_ = dsh.MaintainMux(ctx, mux, dsh.Backoff{}, func(ctx context.Context) error {
@@ -3704,15 +3826,15 @@ func mainView(c *ui.Context) {
 				}
 				toolBtn(i18n.T(i18n.KeyFilesTitle), func() {
 					openTool(func() {
-						state.filesPaneOpen = true
 						state.rightPaneTab = "files"
 					})
+					state.setFilesPaneOpen(true)
 				})
 				toolBtn(i18n.T(i18n.KeyAgentsTitle), func() {
 					openTool(func() {
-						state.filesPaneOpen = true
 						state.rightPaneTab = "agents"
 					})
+					state.setFilesPaneOpen(true)
 				})
 			})
 		}
@@ -6367,6 +6489,7 @@ func mainView(c *ui.Context) {
 					}
 				}
 				snap := sessions.Snapshot()
+				state.flushPendingDeeplink()
 				if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
 					modelPick = snap.SelectedModel
 				}
@@ -6677,9 +6800,9 @@ func mainView(c *ui.Context) {
 					WorkspaceMenuOpen: &state.workspaceMenuOpen,
 					OnOpenAgents: func() {
 						state.mu.Lock()
-						state.filesPaneOpen = true
 						state.rightPaneTab = "agents"
 						state.mu.Unlock()
+						state.setFilesPaneOpen(true)
 						rightPaneTab = "agents"
 						if win != nil {
 							win.Update(func() {})
@@ -6887,6 +7010,9 @@ func mainView(c *ui.Context) {
 						state.settingsOpen = false
 						state.launcherOpen = false
 						state.mu.Unlock()
+						if marketStore != nil {
+							marketStore.Refresh(context.Background())
+						}
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -6899,6 +7025,13 @@ func mainView(c *ui.Context) {
 						state.settingsOpen = false
 						state.launcherOpen = false
 						state.mu.Unlock()
+						if schedStore != nil {
+							sid := ""
+							if sessions != nil {
+								sid = sessions.Snapshot().SelectedID
+							}
+							schedStore.Refresh(context.Background(), sid)
+						}
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -6999,12 +7132,12 @@ func mainView(c *ui.Context) {
 							}
 						}
 						state.mu.Lock()
-						state.filesPaneOpen = true
 						state.rightPaneTab = "files"
 						state.selectedFile = rel
 						state.filePreview = text
 						state.filePreviewErr = errMsg
 						state.mu.Unlock()
+						state.setFilesPaneOpen(true)
 						selectedFile = rel
 						filePreview = text
 						filePreviewErr = errMsg
