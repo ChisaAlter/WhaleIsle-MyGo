@@ -15,7 +15,7 @@ func TestReferenceCanonicalIdentity(t *testing.T) {
 		}
 	}}
 	got := buildSuggestItems(m, SuggestMention, "")
-	if len(got) != 4 || got[0].insert != one+" " || got[1].insert != two+" " || got[0].sub == got[1].sub || got[2].insert != `@"my file.txt" ` || got[3].insert != `@"my folder/` {
+	if len(got) != 4 || got[0].insert != one+" " || got[1].insert != two+" " || got[0].sub == got[1].sub || got[2].insert != `@"my file.txt" ` || got[3].insert != `@"my folder/" ` || got[3].drill != `@"my folder/` {
 		t.Fatalf("%+v", got)
 	}
 	tags := ParseDraftMentions("read " + one + ` and @"my file.txt" now`)
