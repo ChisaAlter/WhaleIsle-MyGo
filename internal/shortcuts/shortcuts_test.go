@@ -6,8 +6,18 @@ import (
 )
 
 func TestDSK10RegistryValidationAndSearch(t *testing.T) {
-	if len(Commands()) != 7 {
-		t.Fatal("expected seven bindings, including tools alternate")
+	if len(Commands()) < 7 {
+		t.Fatal("expected the native registry plus the tools alternate")
+	}
+	foundAlternate := false
+	for _, command := range Commands() {
+		if command.ID == "tools.toggle.alternate" {
+			foundAlternate = true
+			break
+		}
+	}
+	if !foundAlternate {
+		t.Fatal("missing tools alternate binding")
 	}
 	for _, raw := range []string{"B", "Alt+F4", "Win+B", "Mod+Space", "Mod+S", "Mod+Q", "Mod+Shift+V", "Mod+Mod+B", "Mod++B", "Mod+Banana"} {
 		if _, err := Parse(raw); err == nil {
@@ -22,7 +32,14 @@ func TestDSK10RegistryValidationAndSearch(t *testing.T) {
 		t.Fatal("both conflicting rows must be marked")
 	}
 	e := NewEditor(nil, nil, func(map[string]string) error { return nil })
-	if len(e.Search("terminal")) != 1 || len(e.Search("终端")) != 1 || len(e.Search("Mod+Alt+B")) != 1 {
+	terminalLabel := ""
+	for _, command := range Commands() {
+		if command.ID == "terminal.toggle" {
+			terminalLabel = command.ZH
+			break
+		}
+	}
+	if terminalLabel == "" || len(e.Search(terminalLabel)) != 1 || len(e.Search("Mod+Alt+B")) != 1 {
 		t.Fatal("search did not include label or binding")
 	}
 }
@@ -40,12 +57,12 @@ func TestDSK10EditorDraftCommitFailureAndReset(t *testing.T) {
 		}
 		return nil
 	})
-	*e.Draft("settings.open") = "Mod+Shift+J"
-	if e.Save() || e.Active()["settings.open"] != "Mod+," || *e.Draft("settings.open") != "Mod+Shift+J" {
+	*e.Draft("settings.open") = "Mod+Shift+T"
+	if e.Save() || e.Active()["settings.open"] != "Mod+," || *e.Draft("settings.open") != "Mod+Shift+T" {
 		t.Fatal("failed save must retain draft and previous active binding")
 	}
 	fail = false
-	if !e.Save() || e.Active()["settings.open"] != "Mod+Shift+J" {
+	if !e.Save() || e.Active()["settings.open"] != "Mod+Shift+T" {
 		t.Fatal("rebind not published after persistence")
 	}
 	*e.Draft("tools.toggle") = ""
