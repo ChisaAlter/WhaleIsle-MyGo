@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 // Acceptcap captures a HWND (or finds by PID / title substring) via PrintWindow.
 // Usage:
 //
