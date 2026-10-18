@@ -35,7 +35,7 @@ func TestBotVisibilityCatalogProtocolReceipts(t *testing.T) {
 			base.Items[idx].Profile["hidden"], _ = json.Marshal(before)
 			cmd := DshbotVisibilityCommand{Expected: base, ID: base.Items[idx].ID, SessionID: base.Items[idx].SessionID, Hidden: !before, UpdatedAt: 100}
 			calls := 0
-			client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: visibilityTransport(func(req *http.Request) (*http.Response, error) {
+			client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: visibilityTransport(func(req *http.Request) (*http.Response, error) {
 				calls++
 				if req.URL.Path != "/dshbot/catalog/items" {
 					t.Fatal(req.URL.Path)
@@ -110,7 +110,7 @@ func TestBotVisibilityCatalogProtocolReceipts(t *testing.T) {
 		})
 	}
 	calls := 0
-	client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: visibilityTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
+	client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: visibilityTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
 	for _, mode := range []string{"missing", "room-session", "kind", "null", "string", "duplicate", "unchanged", "stamp"} {
 		base := visibilityFixture(t)
 		cmd := DshbotVisibilityCommand{Expected: base, ID: "bot-a", SessionID: "s-a", Hidden: true, UpdatedAt: 100}
