@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { runGit, asCwd, safeRefName } = require('./git-exec');
+const { runGit, asCwd, safeRefName, resolveInsideWorkspace } = require('./git-exec');
 
 const MAX_UNTRACKED_BYTES = 256 * 1024;
 
@@ -118,9 +118,12 @@ function parseUnifiedDiff(text) {
 }
 
 function untrackedAsDiff(root, rel) {
-  const target = path.join(root, rel);
+  const target = resolveInsideWorkspace(root, rel);
+  if (!target) return null;
   let stat;
   try {
+    const link = fs.lstatSync(target);
+    if (link.isSymbolicLink() || !link.isFile()) return null;
     stat = fs.statSync(target);
   } catch {
     return null;
