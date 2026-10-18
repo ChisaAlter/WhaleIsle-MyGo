@@ -1043,8 +1043,14 @@ async function gitCreateChangeRequest(cwd, input, onProgress) {
   if (!targetRepository) return fail('Could not resolve the pull request target repository.');
 
   emit({ kind: 'phase', title: `Creating ${terms.singular}...` });
-  const bodyFile = path.join(os.tmpdir(), `dshd-pr-body-${process.pid}-${Date.now()}.md`);
-  fs.writeFileSync(bodyFile, body);
+  const bodyTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'dshd-pr-body-'));
+  const bodyFile = path.join(bodyTemp, 'body.md');
+  const bodyHandle = fs.openSync(bodyFile, 'wx', 0o600);
+  try {
+    fs.writeFileSync(bodyHandle, body);
+  } finally {
+    fs.closeSync(bodyHandle);
+  }
   let created;
   try {
     const headSelector = headContext.preferredHeadSelector;
@@ -1056,7 +1062,7 @@ async function gitCreateChangeRequest(cwd, input, onProgress) {
     });
   } finally {
     try {
-      fs.unlinkSync(bodyFile);
+      fs.rmSync(bodyTemp, { recursive: true, force: true });
     } catch {
       // Temp PR body is best-effort cleanup after gh exits.
     }
