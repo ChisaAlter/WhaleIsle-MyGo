@@ -20,13 +20,13 @@ import (
 
 // TunnelConfig is the Go-only SSH session settings (userData/ssh-tunnel.json).
 type TunnelConfig struct {
-	Name         string `json:"name,omitempty"`
-	Host         string `json:"host"`
-	User         string `json:"user"`
-	Port         int    `json:"port"`
-	IdentityFile string `json:"identityFile"`
-	Password     string `json:"password,omitempty"`
-	Passphrase   string `json:"passphrase,omitempty"`
+	Name                string `json:"name,omitempty"`
+	Host                string `json:"host"`
+	User                string `json:"user"`
+	Port                int    `json:"port"`
+	IdentityFile        string `json:"identityFile"`
+	Password            string `json:"password,omitempty"`
+	Passphrase          string `json:"passphrase,omitempty"`
 	HostKeyMode         string `json:"hostKeyMode,omitempty"`
 	UseAgent            bool   `json:"useAgent,omitempty"`
 	KeyboardInteractive bool   `json:"keyboardInteractive,omitempty"`

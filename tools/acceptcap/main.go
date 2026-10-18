@@ -95,7 +95,7 @@ func main() {
 	procShowWindow.Call(hwnd, 9)
 	// HWND_TOPMOST then HWND_NOTOPMOST keeps us above overlapping terminals
 	// without leaving the acceptance window permanently topmost.
-	const hwndTopmost = ^uintptr(0) // -1
+	const hwndTopmost = ^uintptr(0)   // -1
 	const hwndNotopmost = ^uintptr(1) // -2
 	const swpNoMoveNoSize = 0x0001 | 0x0002
 	procSetWindowPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, swpNoMoveNoSize)
