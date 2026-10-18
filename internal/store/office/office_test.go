@@ -58,7 +58,7 @@ func setup(t *testing.T) (*Store, *fixtureTransport) {
 	t.Helper()
 	f := &fixtureTransport{status: configured, response: map[string]string{}}
 	s := &Store{}
-	s.Bind(&pluginrpc.Client{BaseURL: "http://host.invalid", Cookie: "synthetic-account", HTTPClient: &http.Client{Transport: f}}, 1, nil)
+	s.Bind(&pluginrpc.Client{BaseURL: "http://127.0.0.1", Cookie: "synthetic-account", HTTPClient: &http.Client{Transport: f}}, 1, nil)
 	s.Show(context.Background())
 	wait(t, s)
 	return s, f

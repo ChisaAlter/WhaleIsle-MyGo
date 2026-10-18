@@ -19,7 +19,7 @@ func TestNativeProjectDocumentFixtures(t *testing.T) {
 	calls := 0
 	bodyPath, body := "docs/work-a/evidence.md", "# Full evidence\nSecond paragraph\n[untrusted](https://example.invalid)\n"
 	fail, wrongPath := false, false
-	c := Client{Origin: "https://synthetic.invalid", Cookie: "fixture-only", HTTP: &http.Client{Transport: documentFixtureTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{Origin: "http://127.0.0.1", Cookie: "fixture-only", HTTP: &http.Client{Transport: documentFixtureTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var q struct {
 			Method, RPCID string
@@ -28,7 +28,7 @@ func TestNativeProjectDocumentFixtures(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
 			return nil, err
 		}
-		if r.Method != "POST" || r.URL.Host != "synthetic.invalid" || r.URL.Path != "/dsh-project/"+q.Method || q.Payload["projectId"] != "project-a" || r.Header.Get("Cookie") != "fixture-only" {
+		if r.Method != "POST" || r.URL.Host != "127.0.0.1" || r.URL.Path != "/dsh-project/"+q.Method || q.Payload["projectId"] != "project-a" || r.Header.Get("Cookie") != "fixture-only" {
 			t.Fatalf("source identity changed: %s %#v", r.URL, q)
 		}
 		var value any
@@ -160,7 +160,7 @@ func TestNativeProjectDocumentFixtures(t *testing.T) {
 // Missing text must not be confused with a valid, explicitly empty document.
 func TestNativeProjectDocumentMissingBodyFixture(t *testing.T) {
 	for _, wire := range []string{`{"path":"docs/empty.txt"}`, `{"path":"docs/empty.txt","text":null}`, `{"path":"docs/empty.txt","text":""}`} {
-		c := Client{Origin: "https://synthetic.invalid", HTTP: &http.Client{Transport: documentFixtureTransport(func(r *http.Request) (*http.Response, error) {
+		c := Client{Origin: "http://127.0.0.1", HTTP: &http.Client{Transport: documentFixtureTransport(func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"result":{"ok":true,"value":` + wire + `}}`)), Header: make(http.Header)}, nil
 		})}}
 		value, err := c.ReadDocument(context.Background(), "project-a", DocumentEntry{Path: "docs/empty.txt"})

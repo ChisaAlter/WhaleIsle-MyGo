@@ -34,7 +34,7 @@ func TestOfficeNativeEntry(t *testing.T) {
 func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	s := imstore.New()
 	f := &officeUITransport{}
-	s.AttachPlugin(&pluginrpc.Client{BaseURL: "http://fixture.invalid", HTTPClient: &http.Client{Transport: f}})
+	s.AttachPlugin(&pluginrpc.Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: f}})
 	s.Office.Show(context.Background())
 	deadline := time.Now().Add(2 * time.Second)
 	for s.Office.Snapshot().Busy && time.Now().Before(deadline) {

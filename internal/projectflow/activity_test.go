@@ -19,7 +19,7 @@ func TestNativeRequestActivityFixture(t *testing.T) {
 	card := RequestActivityCard{ID: "request-a", ProjectID: "project-a", Revision: 2, Title: "Request A", Versions: []ActivityVersion{{Revision: 1, Title: "Original", Goal: fullGoal, At: activityTime(100)}, {Revision: 2, Title: "Revised", Goal: "Complete revised body", At: activityTime(200)}}, Work: []ActivityWork{{WorkstreamID: "work-a", DelegationRef: "assignment-a", RunID: "run-a", Title: "Work A", MemberName: "Member A", WorkerSessionID: "child-a", Status: "completed", Phase: "settled", AssignmentAt: activityTime(300), ReportAt: activityTime(400), TerminalAt: activityTime(500), ReportID: "report-a", Summary: "Complete work report body", TerminalStopReason: "completed"}}, Delivery: &ActivityDelivery{ID: "delivery-a", Summary: "Complete delivery body", Outcome: "completed", Applicable: true, At: activityTime(600), Evidence: []string{"first", "second", "third"}, ReportRefs: []DeliveryReportRef{{WorkstreamID: "work-a", DelegationRef: "assignment-a", ReportID: "report-a"}}}}
 	mode := "ok"
 	calls := 0
-	c := Client{Origin: "https://synthetic.invalid", HTTP: &http.Client{Transport: activityFixtureTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{Origin: "http://127.0.0.1", HTTP: &http.Client{Transport: activityFixtureTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var q struct {
 			Method, RPCID string

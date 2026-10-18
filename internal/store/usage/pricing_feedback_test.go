@@ -16,7 +16,7 @@ type pricingFeedbackTransport func(*http.Request) (*http.Response, error)
 func (f pricingFeedbackTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestUpstreamDeltaPricingFeedback(t *testing.T) {
 	var fail atomic.Bool
-	c := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://fixture.invalid"}}
+	c := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}}
 	c.HTTP = &http.Client{Transport: pricingFeedbackTransport(func(r *http.Request) (*http.Response, error) {
 		var req struct {
 			RPCID   string          `json:"rpcId"`

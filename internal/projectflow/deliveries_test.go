@@ -20,7 +20,7 @@ func TestNativeDeliveryHistoryFixture(t *testing.T) {
 	calls := 0
 	mode := "ok"
 	lastCursor := ""
-	c := Client{Origin: "https://synthetic.invalid", Cookie: "fixture-only", HTTP: &http.Client{Transport: deliveryFixtureTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{Origin: "http://127.0.0.1", Cookie: "fixture-only", HTTP: &http.Client{Transport: deliveryFixtureTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var q struct {
 			Method, RPCID string
@@ -29,7 +29,7 @@ func TestNativeDeliveryHistoryFixture(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
 			return nil, err
 		}
-		if r.URL.Host != "synthetic.invalid" || r.URL.Path != "/dsh-project/"+q.Method || q.Payload["projectId"] != "project-a" || r.Header.Get("Cookie") != "fixture-only" {
+		if r.URL.Host != "127.0.0.1" || r.URL.Path != "/dsh-project/"+q.Method || q.Payload["projectId"] != "project-a" || r.Header.Get("Cookie") != "fixture-only" {
 			t.Fatalf("source scope changed: %s %#v", r.URL, q)
 		}
 		var value any

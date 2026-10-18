@@ -63,7 +63,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 					t.Error(err)
 				}
-				if r.URL.Host != "usage-fixture.invalid" {
+				if r.URL.Host != "127.0.0.1" {
 					t.Error("unexpected target", r.URL)
 				}
 				method := strings.TrimPrefix(r.URL.Path, "/usage-stats/")
@@ -114,7 +114,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 				}
 			})
 			s := New()
-			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://usage-fixture.invalid"}, HTTP: &http.Client{Transport: transport}}
+			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}, HTTP: &http.Client{Transport: transport}}
 			s.Attach(client, nil)
 			initial := parityRepairOverview("bad1", "bad2", "bad3", "bad1", "")
 			s.stats.Raw = initial
@@ -161,7 +161,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 					}
 				} else {
 					s.Detach()
-					replacement := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://replacement.invalid"}}
+					replacement := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}}
 					s.Attach(replacement, nil)
 					s.mu.Lock()
 					s.stats.Raw = parityRepairOverview("new-host-only")
@@ -225,7 +225,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 	t.Run("refresh-invalidates-confirmation", func(t *testing.T) {
 		writes := 0
 		s := New()
-		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://usage-fixture.invalid"}, HTTP: &http.Client{Transport: parityRepairTransport(func(r *http.Request) (*http.Response, error) {
+		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}, HTTP: &http.Client{Transport: parityRepairTransport(func(r *http.Request) (*http.Response, error) {
 			if strings.HasSuffix(r.URL.Path, "repair.session") {
 				writes++
 			}

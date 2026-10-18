@@ -26,7 +26,7 @@ func TestNativeHistoricalAssignmentFixture(t *testing.T) {
 	calls := 0
 	report := Report{DelegationRef: "old-ref", CallID: "report-1", Summary: strings.Repeat("complete original report\n", 100), Request: json.RawMessage(`{"id":"request-1","revision":1}`)}
 	target := HistoricalTarget{ProjectID: "project-1", WorkstreamID: "work-1", DelegationRef: "old-ref", ReportID: "report-1", RunID: "old-run", WorkerSessionID: "child-1", Report: report}
-	c := Client{Origin: "https://synthetic.invalid", HTTP: &http.Client{Transport: historicalFixtureTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{Origin: "http://127.0.0.1", HTTP: &http.Client{Transport: historicalFixtureTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var q struct {
 			Method, RPCID string
