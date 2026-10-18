@@ -256,3 +256,16 @@ func mustRaw(t *testing.T, v any) json.RawMessage {
 	}
 	return b
 }
+
+func TestCallRejectsNonLoopbackBaseURL(t *testing.T) {
+	for _, base := range []string{
+		"https://example.com",
+		"http://user:pass@127.0.0.1:8787",
+		"file:///tmp/plugin",
+	} {
+		c := &Client{BaseURL: base, Cookie: "dsh-auth=secret"}
+		if err := c.Call(context.Background(), "dsh-whale", "assistant/ensure", map[string]any{}, nil); err == nil {
+			t.Fatalf("expected base URL rejection for %q", base)
+		}
+	}
+}
