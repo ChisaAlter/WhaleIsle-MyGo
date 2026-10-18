@@ -31,11 +31,10 @@ function parseTrace2Line(line) {
  */
 function createTrace2Monitor(onHook) {
   const emit = typeof onHook === 'function' ? onHook : () => {};
-  const traceFilePath = path.join(
-    os.tmpdir(),
-    `dshd-git-trace2-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`,
-  );
-  fs.writeFileSync(traceFilePath, '');
+  const traceTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dshd-git-trace2-'));
+  const traceFilePath = path.join(traceTempDir, 'events.json');
+  const traceHandle = fs.openSync(traceFilePath, 'wx', 0o600);
+  fs.closeSync(traceHandle);
   let processedChars = 0;
   let remainder = '';
   const hookStartByChildKey = new Map();
@@ -95,9 +94,9 @@ function createTrace2Monitor(onHook) {
       clearInterval(timer);
       flush();
       try {
-        fs.unlinkSync(traceFilePath);
+        fs.rmSync(traceTempDir, { recursive: true, force: true });
       } catch {
-        // The temp trace file is best-effort cleanup after the git child exits.
+        // The temp trace directory is best-effort cleanup after the git child exits.
       }
     },
   };
