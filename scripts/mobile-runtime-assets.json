@@ -1,0 +1,14 @@
+{
+  "sileroVad": {
+    "repository": "https://github.com/ChisaAlter/ChisaCode",
+    "commit": "943c042f09dbf4a2f8752ccb11d54fcc68d9cf5b",
+    "repositoryPackageVersion": "1.0.3",
+    "path": "packages/server/src/server/speech/providers/local/sherpa/assets/silero_vad.onnx",
+    "url": "https://raw.githubusercontent.com/ChisaAlter/ChisaCode/943c042f09dbf4a2f8752ccb11d54fcc68d9cf5b/packages/server/src/server/speech/providers/local/sherpa/assets/silero_vad.onnx",
+    "bytes": 643854,
+    "gitBlob": "d1b57f7bb9e6fca4f05ed0272a4d6c0f1dec3f74",
+    "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+    "provenanceScope": "This asset only. The supplied snapshot's silero-vad-provider.ts, silero-vad-session.ts and sherpa/model-catalog.ts match this commit; the whole vendor snapshot is not claimed to match.",
+    "licenseStatus": "Repository declares AGPL-3.0-or-later; an asset-specific model license has not been independently established. No binary is committed or automatically downloaded."
+  }
+}

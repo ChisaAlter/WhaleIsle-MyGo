@@ -1,0 +1,32 @@
+pptx-glimpse-go
+Copyright (c) 2026 Victor Chen
+Licensed under the MIT License (see LICENSE).
+
+------------------------------------------------------------------------------
+Upstream
+------------------------------------------------------------------------------
+This is a Go port of pptx-glimpse:
+
+    pptx-glimpse  —  https://github.com/hirokisakabe/pptx-glimpse
+    Copyright (c) 2026 hirokisakabe
+    MIT License.
+    Ported from upstream commit f18e8404126cfa3c3d334666c061a83c274ff6d4
+    (2026-06-23, monorepo v1.1.1).
+
+The architecture, module boundaries, behavior, naming, and test suite mirror
+upstream; this port reimplements them in idiomatic Go. Sincere thanks to
+hirokisakabe and the pptx-glimpse contributors — this project would not exist
+without their work.
+
+Test fixtures under `glimpse/testdata/shared-fixtures/` are taken from upstream
+pptx-glimpse (MIT).
+
+------------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------------
+resvg  —  https://github.com/linebender/resvg  (SVG → PNG rasterizer, pinned at
+resvg 0.46). resvg and its dependency tree are under permissive licenses
+(MIT / Apache-2.0 / BSD-3 / Zlib). The compiled resvg module is embedded
+(`internal/resvg/wasm/resvg.wasm.gz`) for the default wazero backend and linked
+as a static library for the optional native backend; see `resvg-wasm/` for the
+build and the third-party license notices.

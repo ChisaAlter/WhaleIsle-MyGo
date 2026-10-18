@@ -1,0 +1,92 @@
+{
+  "commit": "90465b67ec16765631d54c195af19d9ff3c3a770",
+  "repository": "ChisaAlter/WhaleIsle",
+  "release": "v0.3.7",
+  "licenseNotes": "Root MIT; ORT v1.22.0 Microsoft MIT; Anime4K MIT. No separate avatar model card/license or third-party training/art rights chain verified. No explicit prohibition encountered. Binary model not executed.",
+  "selectionNotes": "Fixed SD THA4 runtime only. No runtime downloads or scanning.",
+  "files": [
+    {
+      "path": "avatar/character.png",
+      "sourcePath": "src/renderer/pet-live2d/avatar/character.png",
+      "size": 48686,
+      "gitBlobSha1": "9c3fcdcb2cb0742707a3378e0d68ffbb097f330f",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/avatar/character.png",
+      "sha256": "1a3353a9bd9450c5a7e7f4246fffb2e14c7db54959645713f1b0e9e185599cd8",
+      "verified": true
+    },
+    {
+      "path": "avatar/model.onnx",
+      "sourcePath": "src/renderer/pet-live2d/avatar/model.onnx",
+      "size": 4614932,
+      "gitBlobSha1": "a4a8fa1e32309e3ca5b500055ae2a9e57dae9745",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/avatar/model.onnx",
+      "sha256": "f564dd957590e22b5b8760b0c9c10d3490dc6cff2fa727f0bd3bb17941512cb9",
+      "verified": true
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.jsep.mjs",
+      "sourcePath": "src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "size": 44677,
+      "gitBlobSha1": "255a394217f74b24e6b97a637c363ac4178a6699",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "1cbcba8f2c769c1eecbab66a1b1e55ef11704515bf4306373e3db3c37cf6dcd8",
+      "verified": true
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.jsep.wasm",
+      "sourcePath": "src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "size": 21872216,
+      "gitBlobSha1": "10bf0f7d82189a555a4807b916fc58b0eb7be9a4",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "sha256": "b45970d0632383a057c27ca5b660b216f8e00c17cf8db9f6207b5e4abc839368",
+      "verified": true
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.mjs",
+      "sourcePath": "src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.mjs",
+      "size": 20856,
+      "gitBlobSha1": "a0cd7c723952a71485176efb70f162671cd12e3e",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.mjs",
+      "sha256": "30dd851d9c00622940500f71ddd2ff8820c5cb65270816080175b958705385a8",
+      "verified": true
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.wasm",
+      "sourcePath": "src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.wasm",
+      "size": 11210254,
+      "gitBlobSha1": "9ffca1a8b35463a2d85d82e1a4cdacae6a9da445",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/ort/ort-wasm-simd-threaded.wasm",
+      "sha256": "71aef04959c5c1b6de461b6538e2058e306610034a85aad2742d0c7fd4533fe4",
+      "verified": true
+    },
+    {
+      "path": "ort/ort.all.min.js",
+      "sourcePath": "src/renderer/pet-live2d/ort/ort.all.min.js",
+      "size": 791904,
+      "gitBlobSha1": "455291fe4cbc8ee5ebc7e707def6a5a8446717ec",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/src/renderer/pet-live2d/ort/ort.all.min.js",
+      "sha256": "d8e996f0e44b999b5ba68752df67fada1b11e51a591d3b1e8ec7c5dfbda9ee69",
+      "verified": true
+    },
+    {
+      "path": "LICENSE",
+      "sourcePath": "LICENSE",
+      "size": 1062,
+      "gitBlobSha1": "aab16e641cf2b3673aca280c5491f6fda3cbf2b5",
+      "url": "https://raw.githubusercontent.com/ChisaAlter/WhaleIsle/90465b67ec16765631d54c195af19d9ff3c3a770/LICENSE",
+      "sha256": "86a8f9677a0e45ccabe2a605131c820840f44e2510dfeac5da67a4054ffc1fd6",
+      "verified": true
+    },
+    {
+      "path": "ort/LICENSE",
+      "sourcePath": "LICENSE",
+      "gitBlobSha1": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.22.0/LICENSE",
+      "size": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+      "verified": true
+    }
+  ],
+  "totalBytes": 38605660,
+  "runtimeTested": false
+}

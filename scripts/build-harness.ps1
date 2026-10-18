@@ -11,12 +11,40 @@
 # Re-running is safe: every step is idempotent (package managers converge,
 # build scripts overwrite their own outputs).
 
+param(
+    [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
+    [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
+    [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
+    [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
+    [switch]$UnifiedShortcuts,
+    [switch]$BuildOnly
+)
+if ($SourceMode -eq 'current') {
+    if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the selected fixed official source checkout.' }
+    & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -SourceCommit $SourceCommit -BuildOnly:$BuildOnly -UnifiedShortcuts:$UnifiedShortcuts
+    return
+}
+if ($BuildOnly) { throw 'BuildOnly is supported by the isolated current source mode only.' }
+
 $ErrorActionPreference = 'Stop'
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $VendorDir  = Join-Path $ProjectRoot 'runtime\vendor'
 $HarnessDir = Join-Path $VendorDir 'deepseek-harness'
-$PinFile    = Join-Path $ProjectRoot 'reference\electron\vendor\harness-upstream.json'
+$SourceRoot = $env:WHALEISLE_ELECTRON_SOURCE
+if (-not $SourceRoot) { $SourceRoot = Join-Path $ProjectRoot 'reference\electron' }
+$PinFile = Join-Path $SourceRoot 'vendor\harness-upstream.json'
+# Populate only missing source directories from the explicitly selected snapshot.
+# Existing work trees remain build inputs; remove runtime/vendor to switch snapshots.
+foreach ($name in @('deepseek-harness', 'dsh-usage-panel', 'dsh-im', 'dshbot', 'dsh-whale', 'dsh-remote', 'dsh-task-control', 'dsh-platform-session')) {
+    $target = Join-Path $VendorDir $name
+    if (-not (Test-Path $target)) {
+        $source = Join-Path $SourceRoot "vendor\$name"
+        if (-not (Test-Path (Join-Path $source 'package.json'))) { throw "Source package missing: $source" }
+        New-Item -ItemType Directory -Force -Path $VendorDir | Out-Null
+        Copy-Item $source $target -Recurse -Force
+    }
+}
 # Node.js 24 toolchain location (add to PATH if not already present).
 $NodeDir = 'C:\AI\tools\node-v24.21.0-win-x64'
 if (Test-Path $NodeDir) { $env:PATH = "$NodeDir;$env:PATH" }
@@ -31,6 +59,12 @@ if (-not (Test-Path (Join-Path $HarnessDir 'package.json'))) {
 # explicit source for non-Git build environments (scripts/client-build-environment.ts).
 $Pin = Get-Content $PinFile -Raw | ConvertFrom-Json
 $env:DSH_CLIENT_COMMIT_HASH = $Pin.sha
+
+# Explicit opt-in builds only; never silently adapt an existing runtime on startup.
+if ($UnifiedShortcuts) {
+    & node (Join-Path $PSScriptRoot 'current-host-shortcuts.mjs') $HarnessDir
+    if ($LASTEXITCODE -ne 0) { throw 'Pinned shortcut provider adaptation failed.' }
+}
 
 # --- pnpm bootstrap ---------------------------------------------------------
 # Install the exact pnpm version the harness pins in its package.json
@@ -130,3 +164,6 @@ Write-Host "  upstream pin : $($Pin.ref) @ $($Pin.sha)"
 Write-Host "  CLI entry    : $HarnessDir\apps\cli\lib\bin.js"
 Write-Host "  Web dist     : $HarnessDir\apps\web\dist\index.html"
 Write-Host "  Ghostty      : $($GhosttyAssets.Count) assets present"
+
+# The phone bridge uses original ChisaCode sources and its own plain-Node ABI.
+& (Join-Path $PSScriptRoot 'build-mobile-runtime.ps1')

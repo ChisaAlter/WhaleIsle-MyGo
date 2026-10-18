@@ -1,0 +1,96 @@
+{
+  "formatVersion": 2,
+  "roots": [
+    {
+      "key": "SessionHeader",
+      "kind": "header",
+      "digest": "abc",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              { "name": "id", "type": 1, "optional": false },
+              { "name": "createdAt", "type": 2, "optional": false },
+              { "name": "cwd", "type": 1, "optional": true }
+            ],
+            "indices": []
+          },
+          { "kind": "primitive", "type": "string" },
+          { "kind": "primitive", "type": "number" }
+        ]
+      }
+    },
+    {
+      "key": "event:turn/start",
+      "kind": "event",
+      "event": "turn/start",
+      "surface": false,
+      "digest": "def",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              { "name": "data", "type": 1, "optional": false },
+              { "name": "seq", "type": 2, "optional": false },
+              { "name": "time", "type": 2, "optional": false },
+              { "name": "type", "type": 3, "optional": false }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              { "name": "turn", "type": 2, "optional": false }
+            ],
+            "indices": []
+          },
+          { "kind": "primitive", "type": "number" },
+          { "kind": "literal", "value": "turn/start" }
+        ]
+      }
+    },
+    {
+      "key": "event:tool/call",
+      "kind": "event",
+      "event": "tool/call",
+      "surface": false,
+      "digest": "ghi",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              { "name": "data", "type": 1, "optional": false },
+              { "name": "ignorable", "type": 4, "optional": true },
+              { "name": "seq", "type": 3, "optional": false },
+              { "name": "time", "type": 3, "optional": false },
+              { "name": "type", "type": 5, "optional": false }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              { "name": "arguments", "type": 2, "optional": false },
+              { "name": "callId", "type": 2, "optional": false },
+              { "name": "name", "type": 2, "optional": false },
+              { "name": "step", "type": 3, "optional": false },
+              { "name": "turn", "type": 3, "optional": false }
+            ],
+            "indices": []
+          },
+          { "kind": "primitive", "type": "string" },
+          { "kind": "primitive", "type": "number" },
+          { "kind": "literal", "value": true },
+          { "kind": "literal", "value": "tool/call" }
+        ]
+      }
+    }
+  ],
+  "types": []
+}

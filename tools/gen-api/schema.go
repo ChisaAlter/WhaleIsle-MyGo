@@ -90,21 +90,13 @@ func parseTypertFile(src string) (*parsedFile, error) {
 			p.peekAt(2).kind == tkPunct && p.peekAt(2).val == "=" {
 			name := p.peekAt(1).val
 			p.pos += 3
-			if pk := p.peek(); pk.kind == tkIdent && pk.val == "z" &&
-				p.peekAt(1).kind == tkPunct && p.peekAt(1).val == "." {
-				s, err := p.parseSchemaExpr()
+			if s, ok, err := p.tryParseSchemaConst(); ok {
 				if err != nil {
 					return nil, fmt.Errorf("const %s: %w", name, err)
 				}
 				pf.schemas[name] = s
-			} else {
-				v, err := p.parseValue()
-				if err != nil {
-					return nil, fmt.Errorf("const %s: %w", name, err)
-				}
-				if name == "TYPERT_REMOTE" {
-					root = v
-				}
+			} else if err := p.skipOrParseConstValue(name, &root); err != nil {
+				return nil, fmt.Errorf("const %s: %w", name, err)
 			}
 			continue
 		}
@@ -132,11 +124,111 @@ func parseTypertFile(src string) (*parsedFile, error) {
 }
 
 func schemaRefOf(codec *jsNode) string {
-	v := codec.get("schema")
-	if v == nil || v.kind != 'i' {
-		return ""
+	// Older typert builds used codec.schema; current builds use codec.create
+	// (a zero-arg factory that returns the zod schema).
+	for _, key := range []string{"schema", "create"} {
+		v := codec.get(key)
+		if v != nil && v.kind == 'i' {
+			return v.str
+		}
 	}
-	return v.str
+	return ""
+}
+
+// skipOrParseConstValue handles non-schema const initializers: TYPERT_REMOTE
+// object literals, and arrow-function helpers (binary result codecs) that
+// current harness builds emit alongside the schema factories.
+func (p *jsParser) skipOrParseConstValue(name string, root **jsNode) error {
+	// Arrow helpers: (args...) => { ... }
+	if p.peek().kind == tkPunct && p.peek().val == "(" {
+		line := p.peek().line
+		if err := p.skipParenArgs(line); err != nil {
+			return err
+		}
+		if !(p.peek().kind == tkPunct && p.peek().val == "=>") {
+			return fmt.Errorf("line %d: expected => after helper params", p.peek().line)
+		}
+		p.pos++
+		if !(p.peek().kind == tkPunct && p.peek().val == "{") {
+			return fmt.Errorf("line %d: expected { after => in helper", p.peek().line)
+		}
+		return p.skipBalancedBrace()
+	}
+	v, err := p.parseValue()
+	if err != nil {
+		return err
+	}
+	if name == "TYPERT_REMOTE" {
+		*root = v
+	}
+	return nil
+}
+
+// skipBalancedBrace consumes a `{...}` token span, nesting-aware.
+func (p *jsParser) skipBalancedBrace() error {
+	t := p.next()
+	if !(t.kind == tkPunct && t.val == "{") {
+		return fmt.Errorf("line %d: expected {", t.line)
+	}
+	depth := 1
+	for depth > 0 {
+		t := p.next()
+		if t.kind == tkEOF {
+			return fmt.Errorf("unbalanced {")
+		}
+		if t.kind == tkPunct && t.val == "{" {
+			depth++
+		} else if t.kind == tkPunct && t.val == "}" {
+			depth--
+		}
+	}
+	return nil
+}
+
+// tryParseSchemaConst recognizes the two const-initializer shapes used by
+// typert.remote-client.js:
+//
+//	const Foo$schema = z....
+//	const Foo$schema = () => (Foo$schema$value ??= z....)
+//
+// ok is false when the initializer is neither form (e.g. TYPERT_REMOTE).
+func (p *jsParser) tryParseSchemaConst() (s *Schema, ok bool, err error) {
+	// Direct: z.<ctor>(...)
+	if pk := p.peek(); pk.kind == tkIdent && pk.val == "z" &&
+		p.peekAt(1).kind == tkPunct && p.peekAt(1).val == "." {
+		s, err = p.parseSchemaExpr()
+		return s, true, err
+	}
+	// Lazy factory: () => (cacheIdent ??= z.<ctor>(...))
+	if !(p.peek().kind == tkPunct && p.peek().val == "(" &&
+		p.peekAt(1).kind == tkPunct && p.peekAt(1).val == ")" &&
+		p.peekAt(2).kind == tkPunct && p.peekAt(2).val == "=>") {
+		return nil, false, nil
+	}
+	p.pos += 3 // () =>
+	if !(p.peek().kind == tkPunct && p.peek().val == "(") {
+		return nil, true, fmt.Errorf("line %d: expected ( after => in lazy schema", p.peek().line)
+	}
+	p.pos++ // (
+	if p.peek().kind != tkIdent {
+		return nil, true, fmt.Errorf("line %d: expected cache ident in lazy schema", p.peek().line)
+	}
+	p.pos++ // cache ident
+	if !(p.peek().kind == tkPunct && p.peek().val == "?" &&
+		p.peekAt(1).kind == tkPunct && p.peekAt(1).val == "?" &&
+		p.peekAt(2).kind == tkPunct && p.peekAt(2).val == "=") {
+		return nil, true, fmt.Errorf("line %d: expected ??= in lazy schema", p.peek().line)
+	}
+	p.pos += 3 // ??=
+	s, err = p.parseSchemaExpr()
+	if err != nil {
+		return nil, true, err
+	}
+	if !(p.peek().kind == tkPunct && p.peek().val == ")") {
+		return nil, true, fmt.Errorf("line %d: expected ) to close lazy schema", p.peek().line)
+	}
+	p.pos++ // )
+	return s, true, nil
 }
 
 func walkEndpoint(n *jsNode) (*endpointDesc, error) {
@@ -368,6 +460,12 @@ func (p *jsParser) parseZodCtor() (*Schema, error) {
 		id := p.next() // referenced constant
 		if t1.val != "(" || t2.val != ")" || t3.val != "=>" || id.kind != tkIdent {
 			return nil, fmt.Errorf("line %d: malformed z.lazy expression", t1.line)
+		}
+		// Current builds invoke schema factories: z.lazy(() => Foo$schema())
+		// Older builds reference the schema const directly: z.lazy(() => Foo$schema)
+		if p.peek().kind == tkPunct && p.peek().val == "(" &&
+			p.peekAt(1).kind == tkPunct && p.peekAt(1).val == ")" {
+			p.pos += 2
 		}
 		return p.closeCall(m.line, &Schema{Kind: "lazy", Str: id.val})
 	default:

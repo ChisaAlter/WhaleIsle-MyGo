@@ -131,7 +131,7 @@ func (p *jsParser) parseObject() (*jsNode, error) {
 		}
 		if c := p.peek(); c.kind == tkPunct && c.val == ":" {
 			p.pos++
-			v, err := p.parseValue()
+			v, err := p.parsePropertyValue()
 			if err != nil {
 				return nil, err
 			}
@@ -182,6 +182,88 @@ func (p *jsParser) parseArray() (*jsNode, error) {
 			return n, nil
 		}
 		return nil, fmt.Errorf("line %d: expected , or ] in array literal", t.line)
+	}
+}
+
+// parsePropertyValue parses an object property value, including arrow-function
+// helpers (decode/encode) that current typert builds attach to result codecs.
+func (p *jsParser) parsePropertyValue() (*jsNode, error) {
+	// (args) => body
+	if p.peek().kind == tkPunct && p.peek().val == "(" {
+		saved := p.pos
+		line := p.peek().line
+		if err := p.skipParenArgs(line); err != nil {
+			return nil, err
+		}
+		if p.peek().kind == tkPunct && p.peek().val == "=>" {
+			p.pos++
+			if err := p.skipArrowBody(); err != nil {
+				return nil, err
+			}
+			return &jsNode{kind: 'i', str: ""}, nil
+		}
+		p.pos = saved
+	}
+	// bareParam => body
+	if p.peek().kind == tkIdent &&
+		p.peekAt(1).kind == tkPunct && p.peekAt(1).val == "=>" {
+		p.pos += 2
+		if err := p.skipArrowBody(); err != nil {
+			return nil, err
+		}
+		return &jsNode{kind: 'i', str: ""}, nil
+	}
+	return p.parseValue()
+}
+
+// skipArrowBody consumes an arrow function body (block or expression).
+func (p *jsParser) skipArrowBody() error {
+	if p.peek().kind == tkPunct && p.peek().val == "{" {
+		return p.skipBalancedBrace()
+	}
+	return p.skipExpressionUntilCommaOrBrace()
+}
+
+// skipExpressionUntilCommaOrBrace advances past an expression that ends at a
+// sibling "," or "}" (neither is consumed).
+func (p *jsParser) skipExpressionUntilCommaOrBrace() error {
+	depthParen, depthBracket, depthBrace := 0, 0, 0
+	started := false
+	for {
+		t := p.peek()
+		if t.kind == tkEOF {
+			return fmt.Errorf("unexpected EOF in arrow expression")
+		}
+		if t.kind == tkPunct {
+			switch t.val {
+			case "(":
+				depthParen++
+			case ")":
+				if depthParen > 0 {
+					depthParen--
+				}
+			case "[":
+				depthBracket++
+			case "]":
+				if depthBracket > 0 {
+					depthBracket--
+				}
+			case "{":
+				depthBrace++
+			case "}":
+				if depthBrace > 0 {
+					depthBrace--
+				} else if depthParen == 0 && depthBracket == 0 {
+					return nil
+				}
+			case ",":
+				if started && depthParen == 0 && depthBracket == 0 && depthBrace == 0 {
+					return nil
+				}
+			}
+		}
+		p.pos++
+		started = true
 	}
 }
 

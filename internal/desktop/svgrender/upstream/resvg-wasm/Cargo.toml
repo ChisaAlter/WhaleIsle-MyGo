@@ -1,0 +1,44 @@
+[package]
+name = "resvg-shim"
+version = "0.1.0"
+edition = "2021"
+
+# Permissive, clean-room build of resvg -> wasm32-wasip1 WITH raster-image rendering, for the
+# pure-Go wazero runtime. This REPLACES the GPL-3.0 github.com/kanrichan/resvg-go: wasm/resvg.rs is
+# our own shim authored from resvg's official MPL-2.0 API (not kanrichan's GPL shim), and the Go
+# wrapper in ../internal/resvg is likewise our own. resvg itself is MPL-2.0; nothing here is GPL.
+#
+# `raster-images` is enabled so resvg decodes/renders embedded <image> elements natively, which is
+# why the renderer needs no separate image compositor. resvg is PINNED here + locked in Cargo.lock.
+# The JS reference (@resvg/resvg-wasm 2.6.2) is built from the zimond/resvg fork @ 3495d870
+# (= resvg 0.34.1); we use the official crates.io resvg (cleaner provenance), and the shim API is
+# identical to the fork, so switching to the fork for exact JS parity is a one-line change if a
+# parity gap ever shows up. Bumping resvg = edit this version + rebuild + update the Go drift test.
+
+[lib]
+# Keep the output artifact named resvg.wasm (the Dockerfile + Go embed expect it) even though the
+# package is resvg-shim (so the package name doesn't collide with the resvg dependency).
+name = "resvg"
+crate-type = ["cdylib"]
+path = "wasm/resvg.rs"
+
+[dependencies]
+# resvg 0.46.0. The shim's API epoch (Options.fontdb, Tree::from_data, resvg::render free fn) spans
+# 0.42–0.47, so 0.46 uses the identical shim. We pin 0.46 (NOT 0.47) deliberately: a version sweep
+# across 0.35→0.47 (a representative deck corpus on the target hardware, identical build profile)
+# showed 0.46 is the fastest of all (it adds a glyph-outline cache, #957) while rendering
+# PIXEL-IDENTICAL to the whole 0.35–0.47 lineage; 0.47 alone regressed ~20–29% (its only systemic
+# change is the tiny-skia 0.11→0.12 bump) for no pixel difference (0.47 just re-encodes the PNG ~24%
+# smaller). 0.46 also pins tiny-skia 0.11 (wasm-simd; gated on +simd128). default-features=false keeps
+# the wasm free of system-font (fontconfig/fs) features — fonts are supplied explicitly via
+# renderer_load_font.
+resvg = { version = "0.46.0", default-features = false, features = ["text", "raster-images"] }
+
+# opt-level = 3 (optimise for SPEED, not size): the embedded module is a compute-heavy rasteriser
+# (tiny-skia) run on wazero, so "z" (size) made every render ~2-4x slower than necessary. We trade a
+# larger .wasm for a much faster raster — the right call for a render hot path. lto keeps it tight.
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+panic = "abort"

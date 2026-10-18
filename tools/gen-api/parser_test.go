@@ -197,6 +197,71 @@ export default TYPERT_REMOTE
 	}
 }
 
+func TestParseLazyFactorySchemaAndCreateRef(t *testing.T) {
+	// Current harness builds wrap each schema in a zero-arg factory with
+	// nullish-coalescing cache assignment, and point codecs at `create`.
+	src := `import { z } from 'zod'
+let _p0$schema$value
+const _p0$schema = () => (_p0$schema$value ??= z.intersection(z.string(), z.unknown()))
+let _res$schema$value
+const _res$schema = () => (_res$schema$value ??= z.object({
+  'ok': z.boolean().readonly(),
+}))
+
+export const TYPERT_REMOTE = {
+  package: '@test/lazy-pkg',
+  descriptors: [
+    {
+      id: '@test/lazy-pkg#thing/ping',
+      service: 'thing',
+      namespace: 'thing',
+      method: 'ping',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'id',
+          wire: 'id',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: '@test/types#Id',
+            create: _p0$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: '@test/lazy-pkg#thing/ping:result',
+        create: _res$schema,
+      },
+    },
+  ],
+}
+`
+	pf := mustParse(t, src)
+	if len(pf.file.Descriptors) != 1 {
+		t.Fatalf("descriptors = %d, want 1", len(pf.file.Descriptors))
+	}
+	e := pf.file.Descriptors[0]
+	if e.Params[0].SchemaRef != "_p0$schema" {
+		t.Fatalf("param schema ref = %q", e.Params[0].SchemaRef)
+	}
+	s0 := pf.schemas["_p0$schema"]
+	if s0 == nil || s0.Kind != "intersection" || len(s0.Members) != 2 {
+		t.Fatalf("param schema = %+v", s0)
+	}
+	if e.ResultSchemaRef != "_res$schema" {
+		t.Fatalf("result schema ref = %q", e.ResultSchemaRef)
+	}
+	res := pf.schemas["_res$schema"]
+	if res == nil || res.Kind != "object" || len(res.Fields) != 1 || res.Fields[0].Name != "ok" {
+		t.Fatalf("result schema = %+v", res)
+	}
+	if !res.Fields[0].Schema.Readonly {
+		t.Fatalf("result field not readonly: %+v", res.Fields[0])
+	}
+}
+
 func TestParseNestedAndRecursiveValueSchemas(t *testing.T) {
 	// Exercises nested objects, records with recursive lazy references and
 	// self-referential JsonValue-style unions.
@@ -224,5 +289,26 @@ export const TYPERT_REMOTE = {
 	jv := pf.schemas["JsonValue$schema"]
 	if jv == nil || jv.Kind != "union" || len(jv.Members) != 5 {
 		t.Fatalf("jsonvalue schema = %+v", jv)
+	}
+}
+
+func TestParseLazyFactoryCallInsideZodLazy(t *testing.T) {
+	src := `import { z } from 'zod'
+let JsonValueRemoteCodec$schema$value
+const JsonValueRemoteCodec$schema = () => (JsonValueRemoteCodec$schema$value ??= z.union([z.literal(null), z.string(), z.number(), z.literal(false), z.literal(true), z.array(z.lazy(() => JsonValueRemoteCodec$schema())), z.record(z.string(), z.lazy(() => JsonValueRemoteCodec$schema()))]))
+
+export const TYPERT_REMOTE = {
+  package: '@test/json-value',
+  descriptors: [],
+}
+`
+	pf := mustParse(t, src)
+	jv := pf.schemas["JsonValueRemoteCodec$schema"]
+	if jv == nil || jv.Kind != "union" || len(jv.Members) != 7 {
+		t.Fatalf("jsonvalue schema = %+v", jv)
+	}
+	arr := jv.Members[5]
+	if arr == nil || arr.Kind != "array" || arr.Elem == nil || arr.Elem.Kind != "lazy" || arr.Elem.Str != "JsonValueRemoteCodec$schema" {
+		t.Fatalf("array lazy member = %+v", arr)
 	}
 }

@@ -1,0 +1,100 @@
+package composer
+
+import (
+	"github.com/egoist/mygo/ui"
+	"testing"
+	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/session"
+)
+
+func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
+	snap := session.ViewState{SelectedID: "s", SelectedModel: "custom — alpha", ModelLabels: []string{"custom — alpha", "account — beta", "official — gamma", "custom — delta", "official — deepseek-chat"}, ModelChoices: map[string]api.ModelCatalogDefault{
+		"custom — alpha": {Provider: "custom", Model: "alpha"}, "account — beta": {Provider: "deepseek-account", Model: "beta"}, "official — gamma": {Provider: "deepseek-official", Model: "gamma"}, "custom — delta": {Provider: "custom", Model: "delta"}, "official — deepseek-chat": {Provider: "deepseek-official", Model: "deepseek-chat"},
+	}}
+	chosen := ""
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
+	}, 800, 600)
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal("grouped catalog trigger absent:", err)
+	}
+	if !tt.HasText("deepseek-account") || !tt.HasText("deepseek-official") {
+		t.Fatal("provider groups absent")
+	}
+	if err := tt.Click("Search models"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("dsc")
+	if _, ok := tt.Find("Choose model custom — alpha"); ok {
+		t.Fatal("ordered subsequence search lost result")
+	}
+	if err := tt.Click("Choose model official — deepseek-chat"); err != nil {
+		t.Fatal(err)
+	}
+	if chosen != "official — deepseek-chat" || snap.SelectedModel != "custom — alpha" {
+		t.Fatal("callback changed or optimistic selection invented")
+	}
+}
+
+func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
+	labels := []string{"z", "official", "account", "a", "b", "c"}
+	snap := session.ViewState{ModelLabels: labels, ModelChoices: map[string]api.ModelCatalogDefault{
+		"z": {Provider: "custom"}, "official": {Provider: "deepseek-official"}, "account": {Provider: "deepseek-account"}, "a": {Provider: "custom"}, "b": {Provider: "custom"}, "c": {Provider: "custom"},
+	}, ModelCatalogChoices: []session.ModelCatalogChoice{
+		{Label: "z", Name: "deepseek-chat", Provider: "custom"}, {Label: "a", Name: "dsc-prefixed", Provider: "custom"}, {Label: "b", Name: "deepseek-chat", Provider: "custom"}, {Label: "c", Name: "unrelated", Provider: "custom"},
+	}}
+	groups := groupedModelChoices(snap, "")
+	if len(groups) != 3 || groups[0].Provider != "deepseek-account" || groups[1].Provider != "deepseek-official" {
+		t.Fatal("provider order changed")
+	}
+	groups = groupedModelChoices(snap, "DsC")
+	if len(groups) != 1 || len(groups[0].Choices) != 3 || groups[0].Choices[0].Label != "a" || groups[0].Choices[1].Label != "z" || groups[0].Choices[2].Label != "b" {
+		t.Fatalf("prefix/subsequence/stable ranking: %+v", groups)
+	}
+	snap.ModelLabels = labels[:3]
+	if len(groupedModelChoices(snap, "not-found")) != 3 {
+		t.Fatal("small catalog retained hidden query")
+	}
+}
+
+func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
+	snap := session.ViewState{SelectedID: "s", ModelLabels: []string{"one", "two"}}
+	chosen := ""
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
+	}, 800, 600)
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	snap.SelectedID = "other"
+	tt.Frame()
+	if _, ok := tt.Find("Choose model one"); ok {
+		t.Fatal("menu crossed session")
+	}
+	snap.ModelSelectionBusy = true
+	tt.Frame()
+	if _, ok := tt.Find("Model catalog"); ok {
+		t.Fatal("busy selection still interactive")
+	}
+	if chosen != "" {
+		t.Fatal("navigation submitted a choice")
+	}
+}
+
+func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
+	snap := session.ViewState{SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
+	chosen := ""
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
+	}, 800, 600)
+	tt.Click("Model catalog")
+	tt.Click("Search models")
+	tt.Type("e")
+	tt.Key(0, ui.KeyEnter)
+	if chosen != "e" || snap.SelectedModel != "a" {
+		t.Fatalf("keyboard selection %q", chosen)
+	}
+	if _, ok := tt.Find("Search models"); ok {
+		t.Fatal("menu not closed after selection")
+	}
+}

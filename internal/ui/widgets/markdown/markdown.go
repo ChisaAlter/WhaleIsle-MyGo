@@ -1,0 +1,393 @@
+// Package markdown turns a small subset of Markdown into MyGo RichText spans.
+package markdown
+
+import (
+	"bytes"
+	"net/url"
+	"strconv"
+	"strings"
+	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
+	"github.com/yuin/goldmark/ast"
+	extast "github.com/yuin/goldmark/extension/ast"
+	"github.com/yuin/goldmark/text"
+)
+
+// Style is the base typography for rendered message bodies.
+type Style struct {
+	// RenderFence is an owner-bound optional native renderer. Returning false retains code.
+	RenderFence func(*ui.Context, string, string, int) bool
+	FontSize    float32
+	FG          ui.Color
+	Muted       ui.Color
+	CodeBG      ui.Color
+	Accent      ui.Color
+	// CodeWrapDefault opts a surface into wrapped code initially. The retained
+	// per-block toggle still wins after the user chooses wrap or unwrap.
+	CodeWrapDefault bool
+	// File mentions resolve only inline code, never ordinary prose or code blocks.
+	ResolveFile func(string) string
+	OnOpenFile  func(string)
+	codeSpanAt  func(int, string)
+	blockAt     func(int, int, ast.Node)
+	maths       map[int]mathFormula
+}
+
+// Spans parses markdown source into RichText spans (plain text if parsing fails).
+func Spans(source string, st Style) []ui.Span {
+	st.FontSize = theme.CurrentPreferences().Chat.Size
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return nil
+	}
+	md := newMarkdown()
+	reader := text.NewReader([]byte(source))
+	doc := md.Parser().Parse(reader)
+	var out []ui.Span
+	walkBlocks(doc, source, st, &out)
+	if len(out) == 0 {
+		return []ui.Span{{Text: source, Size: st.FontSize, Color: st.FG}}
+	}
+	trimTrailingNewline(&out)
+	return out
+}
+
+// View renders markdown in a RichText element.
+func View(c *ui.Context, source string, st Style) {
+	st.FontSize = theme.CurrentPreferences().Chat.Size
+	targets := map[int]string{}
+	st.maths = map[int]mathFormula{}
+	if st.ResolveFile != nil && st.OnOpenFile != nil {
+		st.codeSpanAt = func(index int, value string) {
+			if path := st.ResolveFile(value); path != "" {
+				targets[index] = path
+			}
+		}
+	}
+	var blocks []richBlock
+	st.blockAt = func(start, end int, node ast.Node) {
+		blocks = append(blocks, richBlock{start: start, end: end, node: node})
+	}
+	spans := Spans(source, st)
+	if len(spans) == 0 && len(blocks) == 0 {
+		return
+	}
+	if len(blocks) > 0 {
+		viewBlocks(c, strings.TrimSpace(source), st, spans, targets, blocks)
+		return
+	}
+	viewSpans(c, st, spans, targets, 0)
+}
+
+func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string, offset int) {
+	if hasMath(st.maths, offset, len(spans)) {
+		viewMathSpans(c, st, spans, targets, offset)
+		return
+	}
+	if len(spans) == 0 {
+		return
+	}
+	if len(targets) == 0 {
+		ui.RichText(c, spans...).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
+		return
+	}
+	ui.RichText(c).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
+		for index, span := range spans {
+			el := ui.RichText(c, span)
+			if path := targets[offset+index]; path != "" {
+				el = el.Tooltip(path).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
+				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+					st.OnOpenFile(path)
+				}
+			}
+		}
+	})
+}
+
+// Link is one markdown hyperlink extracted for interactive rendering.
+type Link struct {
+	Label string
+	URL   string
+}
+
+// Links returns http(s) destinations found in source (order of appearance).
+func Links(source string) []Link {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return nil
+	}
+	md := newMarkdown()
+	reader := text.NewReader([]byte(source))
+	doc := md.Parser().Parse(reader)
+	var out []Link
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		var destination, label string
+		switch link := n.(type) {
+		case *ast.Link:
+			destination = string(link.Destination)
+			var buf bytes.Buffer
+			for c := link.FirstChild(); c != nil; c = c.NextSibling() {
+				if t, ok := c.(*ast.Text); ok {
+					buf.Write(t.Segment.Value([]byte(source)))
+				}
+			}
+			label = strings.TrimSpace(buf.String())
+		case *ast.AutoLink:
+			destination = string(link.URL([]byte(source)))
+			label = string(link.Label([]byte(source)))
+		default:
+			return ast.WalkContinue, nil
+		}
+		destination = strings.TrimSpace(destination)
+		parsed, err := url.Parse(destination)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil {
+			return ast.WalkContinue, nil
+		}
+		for _, existing := range out {
+			if existing.URL == destination {
+				return ast.WalkContinue, nil
+			}
+		}
+		if label == "" {
+			label = destination
+		}
+		out = append(out, Link{Label: label, URL: destination})
+		return ast.WalkContinue, nil
+	})
+	return out
+}
+
+// ViewInteractive renders markdown RichText plus clickable http(s) link chips.
+func ViewInteractive(c *ui.Context, source string, st Style, onLink func(url string)) {
+	View(c, source, st)
+	LinkActions(c, Links(source), st, onLink)
+}
+
+// LinkActions only invokes navigation after an explicit user click.
+func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
+	if len(links) == 0 || onLink == nil {
+		return
+	}
+	ui.Column(c).FillWidth().Gap(4).Children(func() {
+		for _, link := range links {
+			if ui.Button(c, "").Label("↗ " + link.Label).Tooltip(link.URL).
+				MaxWidthPercent(100).MinWidth(0).FontSize(theme.InterfaceSize(st.FontSize - 1)).
+				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent).Clicked() {
+				onLink(link.URL)
+			}
+		}
+	})
+}
+
+func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		switch node := child.(type) {
+		case *blockMath:
+			if node.closed {
+				appendFormula(node.formula, st, out)
+			} else {
+				appendPlainSpan(node.formula.Raw, st, out)
+			}
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *ast.Paragraph, *ast.TextBlock:
+			walkInlines(node, src, st, out)
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *ast.Heading:
+			level := node.Level
+			if level < 1 {
+				level = 1
+			}
+			size := st.FontSize + float32(7-level*2)
+			if size < st.FontSize {
+				size = st.FontSize
+			}
+			walkInlines(node, src, st, out, func(s *ui.Span) {
+				s.Size = size
+				s.Weight = 700
+			})
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *ast.FencedCodeBlock:
+			start := len(*out)
+			var buf bytes.Buffer
+			lines := node.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				line := lines.At(i)
+				buf.Write(line.Value([]byte(src)))
+			}
+			lang := string(node.Language([]byte(src)))
+			*out = append(*out, highlightedCodeSpans(lang, buf.String(), st)...)
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
+		case *ast.CodeBlock:
+			start := len(*out)
+			var buf bytes.Buffer
+			lines := node.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				line := lines.At(i)
+				buf.Write(line.Value([]byte(src)))
+			}
+			*out = append(*out, highlightedCodeSpans("", buf.String(), st)...)
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
+		case *extast.Table:
+			start := len(*out)
+			for row := node.FirstChild(); row != nil; row = row.NextSibling() {
+				for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+					if cell.PreviousSibling() != nil {
+						*out = append(*out, ui.Span{Text: " | ", Size: st.FontSize, Color: st.Muted})
+					}
+					walkInlines(cell, src, st, out)
+				}
+				*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+			}
+			if st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
+		case *ast.ListItem:
+			marker := "• "
+			if list, ok := node.Parent().(*ast.List); ok && list.IsOrdered() {
+				number := list.Start
+				for sibling := node.PreviousSibling(); sibling != nil; sibling = sibling.PreviousSibling() {
+					number++
+				}
+				marker = strconv.Itoa(number) + ". "
+			}
+			depth := 0
+			for parent := node.Parent(); parent != nil; parent = parent.Parent() {
+				if _, ok := parent.(*ast.ListItem); ok {
+					depth++
+				}
+			}
+			*out = append(*out, ui.Span{Text: strings.Repeat("  ", depth) + marker, Size: st.FontSize, Color: st.Muted})
+			// Walk the item itself so its TextBlock/Paragraph children are rendered.
+			walkBlocks(node, src, st, out)
+		case *ast.Blockquote:
+			walkInlines(node, src, st, out, func(s *ui.Span) {
+				s.Italic = true
+				s.Color = st.Muted
+			})
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		default:
+			if n, ok := child.(ast.Node); ok {
+				walkBlocks(n, src, st, out)
+			}
+		}
+	}
+}
+
+type spanMutator func(*ui.Span)
+
+func walkInlines(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...spanMutator) {
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		appendInline(child, src, st, out, mutators...)
+	}
+}
+
+func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...spanMutator) {
+	switch node := n.(type) {
+	case *inlineMath:
+		appendFormula(node.formula, st, out)
+	case *ast.Text:
+		segment := node.Segment
+		text := string(segment.Value([]byte(src)))
+		if text == "" {
+			return
+		}
+		appendPlainSpan(text, st, out, mutators...)
+	case *ast.String:
+		text := string(node.Value)
+		if text == "" {
+			return
+		}
+		appendPlainSpan(text, st, out, mutators...)
+	case *extast.TaskCheckBox:
+		label := "☐ "
+		if node.IsChecked {
+			label = "☑ "
+		}
+		*out = append(*out, ui.Span{Text: label, Size: st.FontSize, Color: st.FG})
+	case *extast.Strikethrough:
+		combined := append(mutators, func(s *ui.Span) { s.Strikethrough = true })
+		walkInlines(node, src, st, out, combined...)
+	case *ast.Emphasis:
+		level := node.Level
+		var extra spanMutator
+		if level >= 2 {
+			extra = func(s *ui.Span) { s.Weight = 700 }
+		} else {
+			extra = func(s *ui.Span) { s.Italic = true }
+		}
+		combined := append(mutators, extra)
+		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
+			appendInline(c, src, st, out, combined...)
+		}
+	case *ast.CodeSpan:
+		var buf bytes.Buffer
+		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
+			if t, ok := c.(*ast.Text); ok {
+				buf.Write(t.Segment.Value([]byte(src)))
+			}
+		}
+		if st.codeSpanAt != nil {
+			st.codeSpanAt(len(*out), buf.String())
+		}
+		span := codeSpan(buf.String(), st)
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
+	case *ast.AutoLink:
+		span := ui.Span{Text: string(node.Label([]byte(src))), Size: st.FontSize, Color: st.Accent, Underline: true}
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
+	case *ast.Link:
+		var buf bytes.Buffer
+		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
+			if t, ok := c.(*ast.Text); ok {
+				buf.Write(t.Segment.Value([]byte(src)))
+			}
+		}
+		label := buf.String()
+		if label == "" {
+			label = string(node.Destination)
+		}
+		span := ui.Span{
+			Text:      label,
+			Size:      st.FontSize,
+			Color:     st.Accent,
+			Underline: true,
+		}
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
+	default:
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			appendInline(c, src, st, out, mutators...)
+		}
+	}
+}
+
+func codeSpan(text string, st Style) ui.Span {
+	return ui.Span{
+		Text:       text,
+		Size:       theme.CurrentPreferences().Code.Size,
+		Color:      st.FG,
+		Background: st.CodeBG,
+		Font:       theme.CurrentPreferences().Code.Family,
+	}
+}
+
+func trimTrailingNewline(spans *[]ui.Span) {
+	for len(*spans) > 0 && (*spans)[len(*spans)-1].Text == "\n" {
+		*spans = (*spans)[:len(*spans)-1]
+	}
+}

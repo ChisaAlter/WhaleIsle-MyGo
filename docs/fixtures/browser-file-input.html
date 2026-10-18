@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'">
+<title>E01 ordinary browser file-input fixture</title>
+<style>body{font:16px system-ui;max-width:48rem;margin:2rem auto}label{display:block;margin:1rem 0}pre{white-space:pre-wrap}</style>
+<h1>E01: ordinary browser file input</h1>
+<p>Serve this fixture on an authorized local HTTP origin and open it in the ordinary browser panel, not an isolated document preview. Select synthetic non-sensitive files only. This page sends no network requests and never reads full filesystem paths.</p>
+<p>Check single selection, multiple selection, cancelling an empty picker, cancelling after a selection, reselecting the same file, and keyboard activation. Record Windows and WebView2 versions. This fixture checks file delivery and multipart serialization, not a real server upload.</p>
+<form id="form">
+<label>Single file <input id="single" name="single" type="file"></label>
+<label>Multiple text files <input id="multiple" name="multiple" type="file" multiple accept=".txt,text/plain"></label>
+<button type="button" id="serialize">Check multipart body locally</button>
+<button type="reset">Reset selections</button>
+</form>
+<pre id="log" aria-live="polite"></pre>
+<script>
+const log = document.getElementById('log');
+const write = value => { log.textContent += JSON.stringify(value) + '\n'; };
+for (const input of document.querySelectorAll('input')) {
+ input.addEventListener('cancel', () => write({event:'cancel', input:input.id, retainedCount:input.files.length}));
+ input.addEventListener('change', async () => {
+  for (const file of input.files) {
+   try {
+    if (file.size > 1048576) { write({event:'too-large-for-fixture', name:file.name}); continue; }
+    const bytes = await file.arrayBuffer();
+    write({event:'file-delivered', input:input.id, name:file.name, size:file.size, bytesRead:bytes.byteLength, type:file.type});
+   } catch(error) { write({event:'read-error', message:String(error)}); }
+  }
+ });
+}
+document.getElementById('serialize').addEventListener('click', async () => {
+ const files = Array.from(document.querySelectorAll('input')).flatMap(input => Array.from(input.files));
+ if (!files.length || files.some(file => file.size > 1048576)) { write({event:'select-small-synthetic-files-first'}); return; }
+ const response = new Response(new FormData(document.getElementById('form')));
+ write({event:'multipart-serialized', contentType:response.headers.get('content-type'), bodyBytes:(await response.arrayBuffer()).byteLength});
+});
+</script>

@@ -1,0 +1,5 @@
+# Transient build outputs. The durable, committed artifact is the MPL-2.0-derived build at
+# internal/resvg/wasm/resvg.wasm.gz; only out/ and target/ here are transient. Never commit raw
+# build output.
+out/
+target/

@@ -1,0 +1,203 @@
+package session
+
+import (
+	"encoding/json"
+	"errors"
+	"sort"
+)
+
+const MessageKindSubmission MessageKind = "submission"
+
+type PendingSubmission struct {
+	RequestID, SessionID, Text, Placement string
+	Attachments                           []ComposerAttachment
+	Accepted                              bool
+	Order                                 uint64
+}
+type composerPending struct {
+	PendingSubmission
+	target *ComposerTarget
+}
+type composerObserved struct {
+	target    *ComposerTarget
+	seq       float64
+	placement string
+}
+
+func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAttachment) string {
+	s := t.store
+	s.mu.Lock()
+	if !t.currentLocked() || t.SessionID == "" {
+		s.mu.Unlock()
+		return ""
+	}
+	id := newRequestID()
+	s.composerOrder++
+	placement := "transcript"
+	running := false
+	for _, item := range s.items {
+		if item.SessionID == t.SessionID && item.Running {
+			running = true
+		}
+	}
+	if s.selectedID == t.SessionID && s.turnStartMs > 0 {
+		running = true
+	}
+	if running {
+		placement = "queued"
+		if t.mode == PromptModeSteer {
+			placement = "steering"
+		}
+	}
+	if s.composerPending == nil {
+		s.composerPending = make(map[string]*composerPending)
+	}
+	s.composerPending[id] = &composerPending{PendingSubmission: PendingSubmission{RequestID: id, SessionID: t.SessionID, Text: text, Placement: placement, Attachments: append([]ComposerAttachment(nil), attachments...), Order: s.composerOrder}, target: t}
+	s.mu.Unlock()
+	s.fire()
+	return id
+}
+func (t *ComposerTarget) UpdateSubmissionAttachments(id string, attachments []ComposerAttachment) {
+	s := t.store
+	s.mu.Lock()
+	if p := s.composerPending[id]; p != nil && p.target == t && t.currentLocked() {
+		p.Attachments = append([]ComposerAttachment(nil), attachments...)
+	}
+	s.mu.Unlock()
+	s.fire()
+}
+func (t *ComposerTarget) AbandonSubmission(id string, err error) error {
+	return t.finishSubmission(id, err)
+}
+func (t *ComposerTarget) finishSubmission(id string, err error) error {
+	s := t.store
+	s.mu.Lock()
+	if s.composerAdmissions[id] == t {
+		delete(s.composerAdmissions, id)
+	}
+	if !t.currentLocked() {
+		err = errors.New("Host changed; draft retained, retry on the current Host")
+	}
+	observed, seen := s.composerObserved[id]
+	if seen && observed.target == t && t.currentLocked() {
+		err = nil
+	}
+	if p := s.composerPending[id]; p != nil && p.target == t {
+		if err != nil {
+			delete(s.composerPending, id)
+		} else {
+			p.Accepted = true
+		}
+	}
+	if t.currentLocked() && s.selectedID == t.SessionID && s.followGeneration == t.followGeneration {
+		if err != nil {
+			s.lastAction = err.Error()
+		} else {
+			s.lastAction = "prompt accepted"
+		}
+	}
+	s.mu.Unlock()
+	s.fire()
+	return err
+}
+func (s *Store) composerPromptBusyLocked() bool {
+	for _, t := range s.composerAdmissions {
+		if t.SessionID == s.selectedID && t.currentLocked() {
+			return true
+		}
+	}
+	return false
+}
+func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool) {
+	p := s.composerPending[id]
+	if p == nil || p.SessionID != s.selectedID || !p.target.currentLocked() || inbox && p.Placement != "queued" {
+		return
+	}
+	if s.composerObserved == nil {
+		s.composerObserved = make(map[string]composerObserved)
+	}
+	s.composerObserved[id] = composerObserved{target: p.target, seq: seq, placement: p.Placement}
+	delete(s.composerPending, id)
+	if !inbox && p.Placement != "queued" {
+		kept := s.planBoard.Queue[:0]
+		for _, q := range s.planBoard.Queue {
+			if q.RequestID != id {
+				kept = append(kept, q)
+			}
+		}
+		s.planBoard.Queue = kept
+	}
+}
+func (s *Store) observeComposerEventLocked(raw json.RawMessage) {
+	var e struct {
+		Type string  `json:"type"`
+		Seq  float64 `json:"seq"`
+		Data struct {
+			Source struct {
+				Kind  string `json:"kind"`
+				RPCID string `json:"rpcId"`
+			} `json:"source"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(raw, &e) == nil && e.Type == "user/message" && e.Data.Source.Kind == "user" && e.Data.Source.RPCID != "" {
+		s.observeComposerRequestLocked(e.Data.Source.RPCID, e.Seq, false)
+	}
+}
+func (s *Store) hideComposerQueueLocked(id string) bool {
+	if id == "" {
+		return false
+	}
+	if p := s.composerPending[id]; p != nil && p.SessionID == s.selectedID && p.target.currentLocked() && p.Placement != "queued" {
+		return true
+	}
+	if o, ok := s.composerObserved[id]; ok && o.target.SessionID == s.selectedID && o.target.currentLocked() && o.placement != "queued" {
+		return true
+	}
+	return false
+}
+func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
+	var pending []PendingSubmission
+	for _, p := range s.composerPending {
+		if p.SessionID != s.selectedID || !p.target.currentLocked() {
+			continue
+		}
+		copy := p.PendingSubmission
+		copy.Attachments = append([]ComposerAttachment(nil), p.Attachments...)
+		pending = append(pending, copy)
+	}
+	sort.Slice(pending, func(i, j int) bool { return pending[i].Order < pending[j].Order })
+	for _, p := range pending {
+		if p.Placement == "queued" {
+			view.PlanBoard.Pending = append(view.PlanBoard.Pending, p)
+		} else {
+			copy := p
+			view.Messages = append(view.Messages, Message{ID: "pending:" + p.RequestID, Kind: MessageKindSubmission, Role: "user", Body: p.Text, Submission: &copy})
+		}
+	}
+	kept := view.PlanBoard.Queue[:0]
+	for _, q := range view.PlanBoard.Queue {
+		if !s.hideComposerQueueLocked(q.RequestID) {
+			kept = append(kept, q)
+		}
+	}
+	view.PlanBoard.Queue = kept
+}
+func (s *Store) resetComposerHostLocked() {
+	s.promptMode, s.promptModeExplicit = PromptModeQueue, false
+	s.composerRosterClient = nil
+	s.composerHostGeneration++
+	s.composerPending = nil
+	s.composerObserved = nil
+	s.composerAdmissions = nil
+}
+
+// An accepted-but-unobserved admission is still a barrier to editing the older
+// turn, even after its RPC has settled. Normal new messages remain admissible.
+func (s *Store) composerPendingForSelectedLocked() bool {
+	for _, p := range s.composerPending {
+		if p.SessionID == s.selectedID && p.target.currentLocked() {
+			return true
+		}
+	}
+	return false
+}

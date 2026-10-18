@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const asset=n=>readFileSync(new URL('../internal/desktop/pet/assets/'+n,import.meta.url),'utf8');
+async function fixture({neural=false,rigFails=false,neuralFails=false,sheet=false,lateClose=false,neuralRunFails=false,sleeping=false}={}) {
+ const trace=[], raf=new Map(),timers=new Map(),events=new Map(),nodes=new Map();let id=0;
+ const ctx=new Proxy({createImageData:()=>({data:new Uint8ClampedArray(512*512*4)}),getImageData:()=>({data:new Uint8ClampedArray(512*512*4)})},{get:(t,k)=>k in t?t[k]:(...a)=>trace.push([k,...a])});
+ const node=n=>{if(!nodes.has(n))nodes.set(n,{style:{setProperty(){}},addEventListener(){},removeAttribute(){},setAttribute(){},replaceChildren(){},getContext:()=>ctx});return nodes.get(n);};
+ const window={addEventListener:(n,f)=>events.set(n,f)};
+ const scope={window,Float32Array,Uint8ClampedArray,Set,Map,Math,Error,Number,Object,URL,Promise,Date,performance:{now:()=>1000},location:{href:'https://pet.local/index.html'},requestAnimationFrame:f=>{raf.set(++id,f);return id;},cancelAnimationFrame:i=>raf.delete(i),setTimeout:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearTimeout:i=>timers.delete(i),setInterval:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearInterval:i=>timers.delete(i)};
+ scope.document={hidden:false,body:{dataset:{behavior:'{}',neural:String(neural),rig:'true',sleeping:String(sleeping)}},documentElement:node('html'),getElementById:node,querySelector:q=>q==='.task'?node('task'):null,addEventListener(){},createElement:t=>({...node('new-'+t),remove(){}}),head:{appendChild(tag){trace.push(['script',tag.src]);queueMicrotask(()=>{if(['pet-rig.js','tha4.js'].includes(tag.src))vm.runInContext(asset(tag.src),context);tag.onload?.();});}}};
+ scope.fetch=async url=>{trace.push(['fetch',url]);if(lateClose)events.get('pagehide')?.();return {ok:!rigFails,json:async()=>JSON.parse(asset('rig/manifest.json'))};};
+ scope.Image=class{set src(src){this.name=src;this.naturalWidth=src.includes('character')?512:src==='sprite.webp'?1536:502;this.naturalHeight=src.includes('character')?512:src==='sprite.webp'?208:695;trace.push(['image',src]);queueMicrotask(()=>src==='sprite.webp'&&!sheet?this.onerror?.():this.onload?.());}};
+ window.WhalePetCareAnimation={create:()=>({update(){},pose(){},close(){}})};
+ window.WhalePetInteraction={create:()=>({pose(p){p.fill(0);},renderState:()=>({state:'eat'}),close(){}})};
+ window.WhalePetBehavior={create:()=>({powerSaving:()=>false,close(){}})};
+ const pixels=new Float32Array(512*512*4);pixels.fill(255,512*512*3);
+ scope.ort={env:{wasm:{}},Tensor:class{constructor(type,data,dims){Object.assign(this,{type,data,dims});}dispose(){}},InferenceSession:{create:async(_,o)=>{trace.push(['provider',o.executionProviders[0]]);if(neuralFails)throw Error('no provider');return {run:async()=>{if(neuralRunFails)throw Error('frame failure');return {rgba_f:{dims:[1,4,512,512],data:pixels,dispose(){}}};},release:async()=>trace.push(['release'])};}}};
+ const context=vm.createContext(scope);await vm.runInContext(asset('pet-runtime.js'),context);
+ for(let i=0;i<10;i++)await Promise.resolve();
+ return {scope,trace,raf,timers,events};
+}
+let f=await fixture({neural:true,neuralFails:true});assert.equal(f.scope.document.body.dataset.renderer,'rig');assert.deepEqual(f.trace.filter(x=>x[0]==='provider').map(x=>x[1]),['webnn','webgpu','wasm']);assert.ok(f.trace.findIndex(x=>x[0]==='provider')<f.trace.findIndex(x=>x[1]==='pet-rig.js'));assert.equal(f.trace.filter(x=>x[0]==='drawImage').length,2);f.events.get('pagehide')();assert.equal(f.raf.size,0);assert.equal(f.timers.size,0);
+f=await fixture({neural:true});assert.equal(f.scope.document.body.dataset.renderer,'neural');assert.ok(!f.trace.some(x=>x[1]==='pet-rig.js'));f.events.get('pagehide')();
+f=await fixture({rigFails:true,sheet:true});assert.equal(f.scope.document.body.dataset.renderer,'sprite');f.events.get('pagehide')();
+f=await fixture({rigFails:true});assert.equal(f.scope.document.body.dataset.renderer,'dynamic-fallback');const before=f.trace.length;[...f.timers.values()].find(t=>t.ms===120).f();assert.ok(f.trace.length>before);f.events.get('pagehide')();
+f=await fixture({lateClose:true});assert.equal(f.raf.size,0);assert.equal(f.timers.size,0);assert.equal(f.trace.filter(x=>x[0]==='drawImage').length,0);
+f=await fixture({neural:true,neuralRunFails:true});const [frameID,frame]=[...f.raf][0];f.raf.delete(frameID);await frame(1000);for(let i=0;i<80;i++)await Promise.resolve();assert.equal(f.scope.document.body.dataset.renderer,'rig');assert.equal(f.trace.filter(x=>x[0]==='release').length,1);f.events.get('pagehide')();
+f=await fixture({sleeping:true});assert.equal(f.scope.document.body.dataset.renderer,'rig');assert.equal(f.raf.size,0);assert.ok(f.trace.some(x=>x[0]==='rotate'&&x[1]===-1),'sleep settles fully before pausing');f.events.get('pagehide')();
+console.log('PET09/10 neural → rig → sprite/dynamic fallback, close and late-load fixture passed');

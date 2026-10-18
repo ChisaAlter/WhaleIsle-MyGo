@@ -1,0 +1,10 @@
+html, body { margin: 0; padding: 0; background: transparent; }
+:root { --oui-ink: #172337; --oui-muted: #526379; --oui-faint: #7b899b; --oui-surface: #f3f6fa; --oui-border: #d9e0e8; }
+:root[data-appearance="dark"] { --oui-ink: #edf2f7; --oui-muted: #b5c0cf; --oui-faint: #8d9aad; --oui-surface: #202b3a; --oui-border: #465466; }
+body { box-sizing: border-box; padding: 12px; color: var(--oui-ink); font-family: system-ui, sans-serif; overflow-wrap: anywhere; }
+#viewer { min-width: 0; }
+.runtime-label { margin-bottom: 10px; font-size: 11px; opacity: .7; }
+.viewer-error, #fatal { white-space: pre-wrap; border: 1px solid #b45309; background: color-mix(in srgb, #f59e0b 12%, transparent); border-radius: 8px; padding: 10px; margin: 0 0 10px; font-size: 13px; }
+[hidden] { display: none !important; }
+pre { overflow-x: auto; }
+img { max-width: 100%; }
