@@ -60,18 +60,28 @@ function withTruncationMarker(text, truncated) {
  * @returns {NodeJS.ProcessEnv}
  */
 function gitChildEnv() {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (/^npm_config_electron/i.test(key)) delete env[key];
+  // Do not inherit the desktop's full environment: Git hooks, credential
+  // helpers, and remote helpers can read every inherited variable. Keep only
+  // the platform/runtime values needed to locate Git and its config; auth is
+  // handled by the user's Git credential manager, not ambient tokens.
+  const env = {};
+  for (const key of [
+    'PATH', 'Path', 'PATHEXT', 'SystemRoot', 'ComSpec', 'WINDIR',
+    'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
+    'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP', 'TMPDIR',
+    'LANG', 'LC_ALL', 'TERM',
+  ]) {
+    if (typeof process.env[key] === 'string' && process.env[key] !== '') {
+      env[key] = process.env[key];
+    }
   }
-  // Electron / IDE parents may set a ceiling that hides the workspace repo.
-  delete env.GIT_CEILING_DIRECTORIES;
   env.GIT_TERMINAL_PROMPT = '0';
   env.GIT_ASKPASS = '';
   env.GCM_INTERACTIVE = 'never';
   env.SSH_ASKPASS = '';
   env.SSH_ASKPASS_REQUIRE = 'never';
   env.LC_ALL = 'C';
+  env.GIT_CONFIG_NOSYSTEM = '1';
   return env;
 }
 
@@ -98,267 +108,3 @@ function killProcessTree(child, { platform = process.platform, spawnKiller = spa
       // SIGTERM the direct child so the git process itself never survives a
       // timeout. Killing an already-dead child is a no-op.
       killer.on('exit', (code) => {
-        if (code !== 0) child.kill();
-      });
-      killer.unref();
-      return;
-    } catch {
-      // Synchronous spawn failure (EPERM and kin); fall through to plain kill.
-    }
-  }
-  child.kill();
-}
-
-function run(command, args, cwd, limits = {}) {
-  const timeoutMs = limits.timeoutMs ?? GIT_TIMEOUT_MS;
-  const maxBytes = limits.maxBytes ?? GIT_MAX_OUTPUT_BYTES;
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(result);
-    };
-    const child = spawn(command, args, {
-      cwd,
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...gitChildEnv(), ...(limits.env || {}) },
-    });
-    const stdoutChunks = [];
-    const stderrChunks = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    let truncated = false;
-    /** Decode once at a settle point so multibyte sequences split across
-     *  chunk boundaries never produce replacement characters. */
-    const decode = () => ({
-      stdout: Buffer.concat(stdoutChunks).toString('utf8'),
-      stderr: Buffer.concat(stderrChunks).toString('utf8'),
-    });
-    const timer = setTimeout(() => {
-      killProcessTree(child);
-      finish({
-        code: -1,
-        stdout: decode().stdout,
-        stderr: 'git command timed out',
-        missing: false,
-        timedOut: true,
-        truncated,
-      });
-    }, timeoutMs);
-    const onLine = typeof limits.onLine === 'function' ? limits.onLine : null;
-    let lineBuf = '';
-    const pushLines = (chunk) => {
-      if (!onLine) return;
-      lineBuf += chunk.toString('utf8');
-      const parts = lineBuf.split(/\r?\n/);
-      lineBuf = parts.pop() ?? '';
-      for (const line of parts) {
-        const clean = sanitizeProgressText(line);
-        if (clean) onLine(clean);
-      }
-    };
-    child.stdout.on('data', (chunk) => {
-      const next = stdoutBytes + chunk.length;
-      if (next > maxBytes) {
-        const remain = Math.max(0, maxBytes - stdoutBytes);
-        if (remain > 0) stdoutChunks.push(chunk.subarray(0, remain));
-        stdoutBytes = maxBytes;
-        truncated = true;
-        killProcessTree(child);
-        return;
-      }
-      stdoutBytes = next;
-      stdoutChunks.push(chunk);
-      pushLines(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      // Bound stderr the same way as stdout.
-      const next = stderrBytes + chunk.length;
-      if (next > maxBytes) {
-        const remain = Math.max(0, maxBytes - stderrBytes);
-        if (remain > 0) stderrChunks.push(chunk.subarray(0, remain));
-        stderrBytes = maxBytes;
-        truncated = true;
-        killProcessTree(child);
-        return;
-      }
-      stderrBytes = next;
-      stderrChunks.push(chunk);
-      pushLines(chunk);
-    });
-    child.on('error', (error) => {
-      const decoded = decode();
-      finish({
-        code: -1,
-        stdout: decoded.stdout,
-        stderr: error.message,
-        missing: error.code === 'ENOENT',
-        timedOut: false,
-        truncated,
-      });
-    });
-    child.on('close', (code) => {
-      if (onLine && lineBuf) {
-        const clean = sanitizeProgressText(lineBuf);
-        if (clean) onLine(clean);
-        lineBuf = '';
-      }
-      const decoded = decode();
-      finish({
-        code: code ?? 1,
-        stdout: decoded.stdout,
-        stderr: decoded.stderr,
-        missing: false,
-        timedOut: false,
-        truncated,
-      });
-    });
-  });
-}
-
-/**
- * The single git spawn primitive.
- *
- * Read memoization is deliberately *explicit*: `git.js` threads a read
- * context's `run` seam through the helpers of one refresh. Because no helper
- * resolves a cache implicitly, a write can never be answered from memory and a
- * stale context cannot leak into an unrelated call chain.
- */
-/**
- * Well-known Git for Windows install dirs probed when PATH resolution fails.
- * A long-lived parent (Explorer, terminal) keeps the PATH snapshot it started
- * with, so Git installed mid-session stays invisible to spawned children even
- * though it exists on disk.
- */
-function gitProbeCandidates() {
-  const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)']]
-    .filter(Boolean)
-    .map((dir) => [dir]);
-  if (process.env.LOCALAPPDATA) roots.push([process.env.LOCALAPPDATA, 'Programs']);
-  return roots.map((parts) => path.join(...parts, 'Git', 'cmd', 'git.exe'));
-}
-
-/** Absolute git path confirmed by a fallback probe; null until one hits. */
-let probedGitExe = null;
-
-/**
- * Probe the well-known Git install dirs after PATH spawn failed. Returns the
- * cached/absolute path on success, null when none exist.
- */
-function probeGitExecutable() {
-  if (probedGitExe) return probedGitExe;
-  for (const candidate of gitProbeCandidates()) {
-    if (fs.existsSync(candidate)) {
-      probedGitExe = candidate;
-      return candidate;
-    }
-  }
-  return null;
-}
-
-/** Test seam: drop the cached fallback path so spawn counting stays clean. */
-function resetGitExecutableProbe() {
-  probedGitExe = null;
-}
-
-async function runGitUncached(cwd, args, limits) {
-  const result = await run(probedGitExe || 'git', args, cwd, limits);
-  if (!result.missing) return result;
-  probedGitExe = null; // PATH spawn failed or a cached fallback path vanished
-  const fallback = probeGitExecutable();
-  return fallback ? run(fallback, args, cwd, limits) : result;
-}
-
-function runGit(cwd, args, limits) {
-  return runGitUncached(cwd, args, limits);
-}
-
-function isCrlfAdviceLine(line) {
-  return /LF will be replaced by CRLF|CRLF will be replaced by LF|warning: in the working copy of /i.test(line);
-}
-
-function isGitAdviceLine(line) {
-  return isCrlfAdviceLine(line) || /^hint:/i.test(line);
-}
-
-/**
- * Build the IPC failure dump from a git child.
- * Drops autocrlf warnings. Keeps `hint:` and every other retained line so the
- * titlebar error card can headline one line and expand the rest.
- * @param {{ stderr?: string, stdout?: string }} result
- * @param {string} fallback
- * @returns {string}
- */
-function gitFailureMessage(result, fallback) {
-  const lines = `${result.stderr || ''}\n${result.stdout || ''}`
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .filter((line) => !isCrlfAdviceLine(line));
-  return lines.length > 0 ? lines.join('\n') : fallback;
-}
-
-function sanitizeProgressText(line) {
-  const clean = String(line || '').replace(/\u001B\[[0-9;]*[A-Za-z]/g, '').trim();
-  if (!clean || isGitAdviceLine(clean)) return '';
-  return clean.length > 500 ? `${clean.slice(0, 499)}…` : clean;
-}
-
-function inferHookName(line) {
-  if (/pre-push/i.test(line)) return 'pre-push';
-  if (/pre-commit|lefthook|husky/i.test(line)) return 'pre-commit';
-  return null;
-}
-
-function fail(message) {
-  return { ok: false, message };
-}
-
-function ok(extra = {}) {
-  return { ok: true, ...extra };
-}
-
-/** Ref names git accepts on the command line; blocks option-like and traversal-ish values. */
-const REF_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-
-function safeRefName(ref) {
-  const name = String(ref || '').trim();
-  if (!name || !REF_NAME_PATTERN.test(name)) return null;
-  if (name.includes('..') || name.endsWith('.lock') || name.endsWith('/')) return null;
-  return name;
-}
-
-module.exports = {
-  killProcessTree,
-  setWorkspaceAuthority,
-  resolveAuthorizedCwd,
-  asCwd,
-  resolveInsideWorkspace,
-  isPathInside,
-  GIT_TIMEOUT_MS,
-  COMMIT_TIMEOUT_MS,
-  FETCH_TIMEOUT_MS,
-  GH_TIMEOUT_MS,
-  GIT_MAX_OUTPUT_BYTES,
-  PREPARED_COMMIT_PATCH_MAX_OUTPUT_BYTES,
-  RANGE_DIFF_PATCH_MAX_OUTPUT_BYTES,
-  OUTPUT_TRUNCATED_MARKER,
-  withTruncationMarker,
-  gitChildEnv,
-  probeGitExecutable,
-  resetGitExecutableProbe,
-  run,
-  runGit,
-  runGitUncached,
-  isGitAdviceLine,
-  gitFailureMessage,
-  sanitizeProgressText,
-  inferHookName,
-  fail,
-  ok,
-  REF_NAME_PATTERN,
-  safeRefName,
-};
