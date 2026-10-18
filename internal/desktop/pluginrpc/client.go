@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -57,11 +58,14 @@ func (c *Client) Call(ctx context.Context, prefix, method string, payload any, o
 	if c == nil {
 		return fmt.Errorf("pluginrpc: nil client")
 	}
-	base := strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
+	base, err := validateBaseURL(c.BaseURL)
+	if err != nil {
+		return err
+	}
 	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
 	method = strings.Trim(strings.TrimSpace(method), "/")
-	if base == "" || prefix == "" || method == "" {
-		return fmt.Errorf("pluginrpc: empty base/prefix/method")
+	if prefix == "" || method == "" {
+		return fmt.Errorf("pluginrpc: empty prefix/method")
 	}
 	u, err := url.JoinPath(base, prefix, method)
 	if err != nil {
@@ -116,6 +120,22 @@ func (c *Client) Call(ctx context.Context, prefix, method string, payload any, o
 		return nil
 	}
 	return json.Unmarshal(re.Value, out)
+}
+
+func validateBaseURL(raw string) (string, error) {
+	base := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if base == "" {
+		return "", fmt.Errorf("pluginrpc: base URL required")
+	}
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme != "http" && u.Scheme != "https" || u.User != nil || u.Hostname() == "" {
+		return "", fmt.Errorf("pluginrpc: base URL must be http(s) without userinfo")
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host != "localhost" && net.ParseIP(host) == nil || (net.ParseIP(host) != nil && !net.ParseIP(host).IsLoopback()) {
+		return "", fmt.Errorf("pluginrpc: base URL must target loopback")
+	}
+	return base, nil
 }
 
 func truncate(s string, n int) string {
