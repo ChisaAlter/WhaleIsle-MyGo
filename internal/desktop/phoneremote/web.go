@@ -257,3 +257,25 @@ func requestPath(r *http.Request) string {
 		return raw
 	}
 	return r.URL.Path
+}
+
+func mobileWebHeaders(contentType string) map[string]string {
+	cache := "no-cache"
+	if strings.Contains(contentType, "html") {
+		cache = "no-store"
+	}
+	return map[string]string{
+		"content-type":           contentType,
+		"cache-control":          cache,
+		"x-content-type-options": "nosniff",
+		"referrer-policy":        "no-referrer",
+		"x-frame-options":        "DENY",
+	}
+}
+
+func writeMobileError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
+	w.Header().Set("x-content-type-options", "nosniff")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(message))
+}
