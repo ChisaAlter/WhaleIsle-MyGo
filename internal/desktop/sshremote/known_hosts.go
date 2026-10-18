@@ -93,6 +93,9 @@ func EnsureKnownHostsFile(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("known_hosts path must not be a symlink")
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0o600)
 	if err != nil {
 		return err
@@ -152,6 +155,9 @@ func ForgetHostKey(path, address string) error {
 	}
 	knownHostsMu.Lock()
 	defer knownHostsMu.Unlock()
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("known_hosts path must not be a symlink")
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
