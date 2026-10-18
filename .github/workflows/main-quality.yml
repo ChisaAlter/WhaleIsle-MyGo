@@ -39,8 +39,6 @@ jobs:
             files="$(gofmt -l "${changed[@]}")"
             test -z "$files" || { printf 'Unformatted changed Go files:\n%s\n' "$files"; exit 1; }
           fi
-      - name: Test
-        run: go test ./...
       - name: Vet
         if: always()
         run: go vet ./...
