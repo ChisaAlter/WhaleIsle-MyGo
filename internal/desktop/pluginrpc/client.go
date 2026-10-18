@@ -90,7 +90,14 @@ func (c *Client) Call(ctx context.Context, prefix, method string, payload any, o
 	if ck := strings.TrimSpace(c.Cookie); ck != "" {
 		req.Header.Set("Cookie", ck)
 	}
-	resp, err := c.http().Do(req)
+	client := *c.http()
+	client.CheckRedirect = func(next *http.Request, _ []*http.Request) error {
+		if next.URL.Scheme != req.URL.Scheme || next.URL.Host != req.URL.Host {
+			return http.ErrUseLastResponse
+		}
+		return http.ErrUseLastResponse
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
