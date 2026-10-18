@@ -42,8 +42,10 @@ jobs:
       - name: Test
         run: go test ./...
       - name: Vet
+        if: always()
         run: go vet ./...
       - name: Build
+        if: always()
         run: go build ./...
 
   cross-build:
