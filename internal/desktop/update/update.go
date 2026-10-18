@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -128,9 +130,18 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 			Message: "MyGo updater feed not configured (set " + EnvFeedURL + ")",
 		}, nil
 	}
+	if err := validateUpdateURL(feed); err != nil {
+		return Result{Status: StatusError, Message: err.Error()}, err
+	}
 	client := opt.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: 12 * time.Second}
+	} else {
+		clone := *client
+		client = &clone
+	}
+	client.CheckRedirect = func(next *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feed, nil)
 	if err != nil {
@@ -195,6 +206,21 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 		IncrementalPossible: inc,
 		Feed:                payload,
 	}, nil
+}
+
+func validateUpdateURL(raw string) error {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.User != nil || u.Hostname() == "" {
+		return fmt.Errorf("update feed URL must be an HTTPS URL without userinfo")
+	}
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+	if u.Scheme == "https" {
+		return nil
+	}
+	if u.Scheme == "http" && (host == "localhost" || (net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())) {
+		return nil
+	}
+	return fmt.Errorf("update feed URL must use HTTPS (HTTP is allowed only for loopback tests)")
 }
 
 // CompareVersions returns -1 if a<b, 0 if equal, 1 if a>b for dotted numeric
