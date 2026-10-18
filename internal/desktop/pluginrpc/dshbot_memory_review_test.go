@@ -29,7 +29,7 @@ func TestBotMemoryReviewSharedProfileWriterExactFields(t *testing.T) {
 		t.Run(field, func(t *testing.T) {
 			base := memoryReviewFixture()
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				var req clientRequest
 				json.NewDecoder(r.Body).Decode(&req)
@@ -81,7 +81,7 @@ func TestBotMemoryReviewRejectMissingUnchangedAndForeignFields(t *testing.T) {
 	if err := ValidateDshbotMemoryReviewCommand(DshbotMemoryReviewCommand{Expected: missing, Enabled: true}); err == nil {
 		t.Fatal("missing flag defaulted")
 	}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unexpected mutation"); return nil, nil })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unexpected mutation"); return nil, nil })}}
 	if _, err := c.saveDshbotProfileField(context.Background(), base, "hidden", json.RawMessage(`true`)); err == nil {
 		t.Fatal("invented editor field")
 	}
@@ -94,7 +94,7 @@ func TestBotMemoryReviewRejectMissingUnchangedAndForeignFields(t *testing.T) {
 func TestBotMemoryReviewUnknownOutcomeDoesNotRetry(t *testing.T) {
 	base := memoryReviewFixture()
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(*http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: memoryReviewTransport(func(*http.Request) (*http.Response, error) {
 		calls++
 		return nil, errors.New("synthetic missing receipt")
 	})}}

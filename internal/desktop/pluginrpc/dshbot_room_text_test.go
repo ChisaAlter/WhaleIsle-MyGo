@@ -78,7 +78,7 @@ func TestRoomTextExactCASReceiptAndWarnings(t *testing.T) {
 	cmd := DshbotRoomEditCommand{Expected: s, Values: DshbotRoomEditValues{MemberBotIDs: s.Item.MemberBotIDs, MaxRounds: s.Item.MaxRounds, MaxSpeaks: s.Item.MaxSpeaks, Text: &DshbotRoomTextValues{Name: "New group", Description: "Full multiline\ndescription without truncation"}}}
 	calls := 0
 	mode := "ok"
-	client := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: roomTextTransport(func(r *http.Request) (*http.Response, error) {
+	client := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: roomTextTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req struct {
 			RPCID, Method string

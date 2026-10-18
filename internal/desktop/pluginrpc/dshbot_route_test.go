@@ -41,7 +41,7 @@ func TestBotRouteExactProfileSessionReceiptAndUnknown(t *testing.T) {
 			}
 			cmd := DshbotRouteCommand{Expected: s, Values: v}
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: routeTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: routeTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				if r.URL.Path != "/dshbot/bot/update" {
 					t.Fatal(r.URL.Path)
@@ -148,7 +148,7 @@ func TestBotRouteDiscoveryAndWriteGuards(t *testing.T) {
 	if opts.SessionKnown || !opts.WorkspaceLocked {
 		t.Fatal("unknown blank unlocked")
 	}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: routeTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unsupported patch sent"); return nil, nil })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: routeTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unsupported patch sent"); return nil, nil })}}
 	_, err := c.saveDshbotProfileFields(context.Background(), s.DshbotCapabilityStatus, map[string]json.RawMessage{"model": json.RawMessage(`{}`), "workspaceId": json.RawMessage(`"w"`)})
 	if err == nil {
 		t.Fatal("unreviewed route accepted")
@@ -162,7 +162,7 @@ func TestBotRouteForeignWriterArgumentsRejected(t *testing.T) {
 	v, _ := DshbotRouteValue(s)
 	v.WorkspaceID = "w2"
 	cmd := DshbotRouteCommand{Expected: s, Values: v}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: routeTransport(func(*http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: routeTransport(func(*http.Request) (*http.Response, error) {
 		t.Fatal("foreign route arguments reached transport")
 		return nil, nil
 	})}}

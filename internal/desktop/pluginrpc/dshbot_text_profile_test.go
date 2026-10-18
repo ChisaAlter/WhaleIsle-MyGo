@@ -58,7 +58,7 @@ func TestBotTextProfileNormalizationAndNarrowFields(t *testing.T) {
 			t.Fatal("lossy profile accepted")
 		}
 	}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: textProfileTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unsupported fields sent"); return nil, nil })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: textProfileTransport(func(*http.Request) (*http.Response, error) { t.Fatal("unsupported fields sent"); return nil, nil })}}
 	for _, fields := range []map[string]json.RawMessage{{"title": json.RawMessage(`"x"`)}, {"name": json.RawMessage(`"x"`), "title": json.RawMessage(`""`)}, {"name": json.RawMessage(`"x"`), "title": json.RawMessage(`""`), "description": json.RawMessage(`""`), "notify": json.RawMessage(`true`)}} {
 		out, err := c.saveDshbotProfileFields(context.Background(), s, fields)
 		if err == nil || out.Attempted {
@@ -72,7 +72,7 @@ func TestBotTextProfileExactSaveAndUncertainReceipts(t *testing.T) {
 			s := textProfileFixture()
 			cmd := DshbotTextProfileCommand{Expected: s, Values: DshbotTextProfileValues{Name: "new-address", Title: "Visible title", Description: "Complete persona\nSecond line"}}
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: textProfileTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: textProfileTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				if r.URL.Path != "/dshbot/bot/update" {
 					t.Fatal(r.URL.Path)

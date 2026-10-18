@@ -22,7 +22,7 @@ func TestBotTaskRPCContract(t *testing.T) {
 	for _, action := range []string{"describe", "pause", "resume", "cancel", "retry", "stop"} {
 		t.Run(action, func(t *testing.T) {
 			count := 0
-			c := &Client{BaseURL: "https://fixture.invalid", Cookie: "synthetic-account", HTTPClient: &http.Client{Transport: botTaskTransport(func(r *http.Request) (*http.Response, error) {
+			c := &Client{BaseURL: "http://127.0.0.1", Cookie: "synthetic-account", HTTPClient: &http.Client{Transport: botTaskTransport(func(r *http.Request) (*http.Response, error) {
 				count++
 				var req struct {
 					Type, RPCID, Method string
@@ -88,7 +88,7 @@ func TestBotTaskRPCContract(t *testing.T) {
 }
 func TestBotTaskRejectsInvalidAndMismatchedReceipts(t *testing.T) {
 	calls := 0
-	c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botTaskTransport(func(*http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botTaskTransport(func(*http.Request) (*http.Response, error) {
 		calls++
 		v := botTaskFixture()
 		v.Value.Tasks[0].ToID = "other"

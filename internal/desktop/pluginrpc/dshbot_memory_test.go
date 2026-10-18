@@ -14,7 +14,7 @@ type memoryTransport func(*http.Request) (*http.Response, error)
 func (f memoryTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestBotMemoryWireAndReceipt(t *testing.T) {
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: memoryTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: memoryTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req clientRequest
 		json.NewDecoder(r.Body).Decode(&req)

@@ -35,7 +35,7 @@ func TestBotDuplicateContractWarningsAndUnknownCandidates(t *testing.T) {
 	calls := 0
 	lost := false
 	badReceipt := false
-	client := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botDuplicateTransport(func(r *http.Request) (*http.Response, error) {
+	client := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botDuplicateTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req struct {
 			RPCID, Method string

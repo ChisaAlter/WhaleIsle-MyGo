@@ -83,7 +83,7 @@ func TestBotAvatarSchemaReceiptAcrossConsumers(t *testing.T) {
 				s.PeerIDs = []string{"peer"}
 				peer := map[string]string{"id": "peer", "kind": "bot", "sessionId": "peer-session", "name": "Peer"}
 				calls := 0
-				c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
+				c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
 					calls++
 					if r.URL.Path != "/dshbot/bot/update" {
 						t.Fatal(r.URL.Path)
@@ -143,7 +143,7 @@ func TestBotAvatarSchemaReceiptAcrossConsumers(t *testing.T) {
 				sourceItem, _ := decodeDshbotBotItem(schemaReceiptRaw(source.Profile))
 				duplicate := DshbotBotDuplicateCommand{SourceID: sourceItem.ID, Name: "New copy", Expected: DshbotBotCatalog{Revision: 8, Items: []DshbotBotItem{sourceItem}}}
 				calls := 0
-				c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
+				c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
 					calls++
 					var p map[string]json.RawMessage
 					if consumer == "create" {
@@ -220,7 +220,7 @@ func TestBotAvatarSchemaReceiptAcrossConsumers(t *testing.T) {
 	t.Run("rooms-unaffected-real-calls", func(t *testing.T) {
 		create := schemaReceiptRoomCreateCommand()
 		calls := 0
-		c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
+		c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: schemaReceiptTransport(func(r *http.Request) (*http.Response, error) {
 			calls++
 			p := map[string]json.RawMessage{}
 			json.Unmarshal(schemaReceiptRaw(schemaReceiptRoomCreateCreated(create)), &p)

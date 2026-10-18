@@ -23,7 +23,7 @@ func routineFixtureView() *DshbotRoutineView {
 func TestBotRoutineWireContract(t *testing.T) {
 	calls := 0
 	view := routineFixtureView()
-	c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: routineTransport(func(r *http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: routineTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req clientRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -55,7 +55,7 @@ func TestBotRoutineWireContract(t *testing.T) {
 }
 func TestBotRoutineReadAndNoRetry(t *testing.T) {
 	calls := 0
-	c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: routineTransport(func(r *http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: routineTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req clientRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)

@@ -32,7 +32,7 @@ func TestBotAvatarVocabularyAndNarrowField(t *testing.T) {
 			}
 		}
 	}
-	for _, raw := range []string{`{"kind":"blob","shape":"circle","color":"blue","future":1}`, `{"kind":"blob","shape":"unknown","color":"blue"}`, `{"kind":"blob","shape":"circle","color":"blue","dataUrl":"no"}`, `{"kind":"image","dataUrl":"https://fixture.invalid/p.png","crop":"circle"}`, `{"kind":"blob","shape":"circle","color":null}`} {
+	for _, raw := range []string{`{"kind":"blob","shape":"circle","color":"blue","future":1}`, `{"kind":"blob","shape":"unknown","color":"blue"}`, `{"kind":"blob","shape":"circle","color":"blue","dataUrl":"no"}`, `{"kind":"image","dataUrl":"http://127.0.0.1/p.png","crop":"circle"}`, `{"kind":"blob","shape":"circle","color":null}`} {
 		if _, err := DshbotAvatarValue(DshbotCapabilityStatus{Profile: map[string]json.RawMessage{"avatar": json.RawMessage(raw)}}); err == nil {
 			t.Fatal("invalid record accepted", raw)
 		}
@@ -61,7 +61,7 @@ func TestBotAvatarVocabularyAndNarrowField(t *testing.T) {
 		t.Fatal("unknown data lost")
 	}
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: avatarTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: avatarTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
 	value, _ := json.Marshal(chosen)
 	for _, fields := range []map[string]json.RawMessage{{"avatar": value, "notify": json.RawMessage(`true`)}, {"shape": json.RawMessage(`"drop"`)}} {
 		out, err := c.saveDshbotProfileFields(context.Background(), s, fields)
@@ -81,7 +81,7 @@ func TestBotAvatarExactCASAndReceipt(t *testing.T) {
 			v := DshbotAvatarValues{Kind: "blob", Shape: "triangle", Color: "orange"}
 			cmd := DshbotAvatarCommand{Expected: s, Values: v}
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: avatarTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: avatarTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				if r.URL.Path != "/dshbot/bot/update" {
 					t.Fatal(r.URL.Path)

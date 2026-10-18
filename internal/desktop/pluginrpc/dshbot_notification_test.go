@@ -17,7 +17,7 @@ type botNotifyTransport func(*http.Request) (*http.Response, error)
 func (f botNotifyTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestBotNotifyReadOnlyExactBatch(t *testing.T) {
 	var methods []string
-	c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
 		var req struct {
 			Method  string                     `json:"method"`
 			Payload map[string]json.RawMessage `json:"payload"`
@@ -57,7 +57,7 @@ func TestBotNotifyRejectsUnavailableOrChangedEvidence(t *testing.T) {
 		{"duplicate", `{"id":"b","sessionId":"s","notify":true}`, `[{"botId":"b","sessionId":"s","goal":null,"lastRun":null},{"botId":"b","sessionId":"s","goal":null,"lastRun":null}]`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
+			c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
 				value := `{"view":{"ns":"dsh-bot","revision":1,"value":{"items":[` + tc.profile + `]}}}`
 				if strings.HasSuffix(r.URL.Path, "bot/activity") {
 					value = `{"entries":` + tc.activity + `}`
@@ -74,7 +74,7 @@ func TestBotNotifyRejectsUnavailableOrChangedEvidence(t *testing.T) {
 func TestBotNotifyCatalogScopeAndBounds(t *testing.T) {
 	for _, count := range []int{0, 201} {
 		calls := 0
-		c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
+		c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
 			calls++
 			if !strings.HasSuffix(r.URL.Path, "describe") {
 				t.Fatal("empty or oversized catalog sent an activity request")
@@ -94,7 +94,7 @@ func TestBotNotifyCatalogScopeAndBounds(t *testing.T) {
 }
 
 func TestBotNotifyPartialActivityFailure(t *testing.T) {
-	c := &Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: botNotifyTransport(func(r *http.Request) (*http.Response, error) {
 		value := `{"view":{"ns":"dsh-bot","revision":4,"value":{"items":[{"id":"good","sessionId":"sg","notify":true,"title":" Display title "},{"id":"cold","sessionId":"sc","notify":true}]}}}`
 		if strings.HasSuffix(r.URL.Path, "bot/activity") {
 			value = `{"entries":[{"botId":"good","sessionId":"sg","attention":true,"activitySeq":2,"goal":null,"lastRun":null},{"botId":"cold","sessionId":"sc","error":"fixture inspection unavailable"}]}`

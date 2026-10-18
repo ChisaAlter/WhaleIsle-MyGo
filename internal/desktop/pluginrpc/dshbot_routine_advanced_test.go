@@ -33,7 +33,7 @@ func TestBotRoutineAdvancedExactPresence(t *testing.T) {
 			calls := 0
 			r := advancedBaseRow()
 			cmd := DshbotRoutineCommand{Action: "save", ID: "r", BotID: "b", Revision: 9, EnabledBefore: true, Edit: DshbotRoutineEdit{Name: r.Name, Prompt: r.Prompt, Schedule: r.Schedule, Timezone: r.Timezone, Enabled: r.Enabled}, Advanced: tc.patch}
-			client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: advancedTransport(func(req *http.Request) (*http.Response, error) {
+			client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: advancedTransport(func(req *http.Request) (*http.Response, error) {
 				calls++
 				var request clientRequest
 				if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
@@ -116,14 +116,14 @@ func TestBotRoutineAdvancedValidationAndClone(t *testing.T) {
 			t.Fatal("invalid patch accepted", p)
 		}
 	}
-	p := DshbotRoutineAdvancedPatch{ContextSet: true, ContextFrom: []string{"self"}, WatchSet: true, Watch: &DshbotRoutineWatch{Kind: "url", Value: "https://fixture.invalid", TimeoutMS: 300000}}
+	p := DshbotRoutineAdvancedPatch{ContextSet: true, ContextFrom: []string{"self"}, WatchSet: true, Watch: &DshbotRoutineWatch{Kind: "url", Value: "http://127.0.0.1", TimeoutMS: 300000}}
 	if err := ValidateDshbotRoutineAdvanced(p); err != nil {
 		t.Fatal(err)
 	}
 	clone := CloneDshbotRoutineAdvanced(p)
 	clone.ContextFrom[0] = "foreign"
 	clone.Watch.Value = "changed"
-	if p.ContextFrom[0] != "self" || p.Watch.Value != "https://fixture.invalid" {
+	if p.ContextFrom[0] != "self" || p.Watch.Value != "http://127.0.0.1" {
 		t.Fatal("patch aliased")
 	}
 	if validateRoutineAdvancedReceipt(p, advancedBaseRow()) == nil {

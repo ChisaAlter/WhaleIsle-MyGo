@@ -22,7 +22,7 @@ func TestBotMarkReadOriginalProtocol(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: notifyTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: notifyTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				if r.URL.Path != "/dshbot/bot/mark-read" {
 					t.Fatalf("unexpected route %s", r.URL.Path)

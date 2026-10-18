@@ -14,7 +14,7 @@ type triggerTransport func(*http.Request) (*http.Response, error)
 func (f triggerTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestBotRoutineTriggerExplicitWireOnly(t *testing.T) {
 	calls := 0
-	client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: triggerTransport(func(r *http.Request) (*http.Response, error) {
+	client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: triggerTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req clientRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -43,7 +43,7 @@ func TestBotRoutineTriggerErrorsDoNotLeakOrRetry(t *testing.T) {
 		if body == "synthetic-secret-in-http-error" {
 			status = 500
 		}
-		client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: triggerTransport(func(*http.Request) (*http.Response, error) {
+		client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: triggerTransport(func(*http.Request) (*http.Response, error) {
 			calls++
 			return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(body))}, nil
 		})}}
@@ -58,7 +58,7 @@ func TestBotRoutineTriggerAddressAuthority(t *testing.T) {
 	if err != nil || got != "http://127.0.0.1:8787/dshbot-hook/routine/r-1" {
 		t.Fatal(got, err)
 	}
-	for _, tc := range []struct{ origin, id string }{{"file:///tmp", "r"}, {"https://user:secret@fixture.invalid", "r"}, {"https://fixture.invalid/path", "r"}, {"https://fixture.invalid?secret=x", "r"}, {"https://fixture.invalid", "../x"}, {"https://fixture.invalid", "r#x"}} {
+	for _, tc := range []struct{ origin, id string }{{"file:///tmp", "r"}, {"https://user:secret@fixture.invalid", "r"}, {"http://127.0.0.1/path", "r"}, {"http://127.0.0.1?secret=x", "r"}, {"http://127.0.0.1", "../x"}, {"http://127.0.0.1", "r#x"}} {
 		if _, err := DshbotRoutineTriggerURL(tc.origin, tc.id); err == nil {
 			t.Fatal("unsafe address accepted")
 		}

@@ -43,7 +43,7 @@ func TestBotRoutineCalendarHostScheduleReceipt(t *testing.T) {
 		t.Run(map[bool]string{false: "authority", true: "rejected"}[reject], func(t *testing.T) {
 			calls := 0
 			cmd := DshbotRoutineCreateCommand{BotID: "b", SessionID: "s", RequestID: "local-fixture", Revision: 7, Edit: DshbotRoutineEdit{Name: "Month end", Prompt: "Fixture prompt", Schedule: "30 2 31 * *", Timezone: "America/New_York"}}
-			client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: calendarTransport(func(r *http.Request) (*http.Response, error) {
+			client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: calendarTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				var request clientRequest
 				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {

@@ -37,7 +37,7 @@ func TestBotAvatarImageFullProfileCASReceipts(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			expected := imageProfileFixture()
 			calls := 0
-			client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: imageTransport(func(req *http.Request) (*http.Response, error) {
+			client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: imageTransport(func(req *http.Request) (*http.Response, error) {
 				calls++
 				if req.URL.Path != "/dshbot/bot/update" {
 					t.Fatal("unexpected call")
@@ -112,7 +112,7 @@ func TestBotAvatarImageFullProfileCASReceipts(t *testing.T) {
 		t.Fatal("unbaked image")
 	}
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: imageTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: imageTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
 	raw, _ := json.Marshal(value)
 	out, err := c.saveDshbotProfileFields(context.Background(), imageProfileFixture(), map[string]json.RawMessage{"avatar": raw, "notify": json.RawMessage(`true`)})
 	if err == nil || out.Attempted || calls != 0 {

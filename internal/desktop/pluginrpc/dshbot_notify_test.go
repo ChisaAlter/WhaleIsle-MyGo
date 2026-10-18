@@ -44,7 +44,7 @@ func TestBotNotifyExactBooleanAndCASReceipts(t *testing.T) {
 			}
 			cmd := DshbotNotifyCommand{Expected: before, Enabled: desired}
 			calls := 0
-			client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: notifyTransport(func(req *http.Request) (*http.Response, error) {
+			client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: notifyTransport(func(req *http.Request) (*http.Response, error) {
 				calls++
 				if req.URL.Path != "/dshbot/bot/update" {
 					t.Fatal("unexpected request")
@@ -108,7 +108,7 @@ func TestBotNotifyExactBooleanAndCASReceipts(t *testing.T) {
 		})
 	}
 	calls := 0
-	client := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: notifyTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
+	client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: notifyTransport(func(*http.Request) (*http.Response, error) { calls++; return nil, errors.New("must not send") })}}
 	for _, fields := range []map[string]json.RawMessage{{"notify": json.RawMessage(`null`)}, {"notify": json.RawMessage(`"true"`)}, {"notify": json.RawMessage(`true`), "hidden": json.RawMessage(`true`)}, {"hidden": json.RawMessage(`true`)}} {
 		out, err := client.saveDshbotProfileFields(context.Background(), expected, fields)
 		if err == nil || out.Attempted {

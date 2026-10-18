@@ -21,7 +21,7 @@ func objectiveViewJSON(objective string) string {
 }
 func TestBotObjectiveReadAndExactActionWire(t *testing.T) {
 	calls := []string{}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: objectiveTransport(func(r *http.Request) (*http.Response, error) {
 		var req clientRequest
 		json.NewDecoder(r.Body).Decode(&req)
 		p := req.Payload.(map[string]any)
@@ -87,7 +87,7 @@ func TestBotObjectivePreflightAndInvalidRequests(t *testing.T) {
 			t.Fatal("changed target passed preflight")
 		}
 	}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveTransport(func(*http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: objectiveTransport(func(*http.Request) (*http.Response, error) {
 		t.Fatal("invalid action reached transport")
 		return nil, nil
 	})}}

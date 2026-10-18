@@ -27,7 +27,7 @@ func senderProfileFixture() DshbotCapabilityStatus {
 func TestBotSenderPolicyWriterAcceptance(t *testing.T) {
 	s := senderProfileFixture()
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		if r.URL.Path != "/dshbot/bot/update" {
 			t.Fatal(r.URL.Path)
@@ -109,7 +109,7 @@ func TestBotSenderPolicyFullReceiptUncertaintyAndReadOnlyDiscovery(t *testing.T)
 			s := senderStatusFixture()
 			cmd := DshbotSenderPolicyCommand{Expected: s, Values: DshbotSenderPolicyValues{Selected: true, IDs: []string{"peer-b"}}}
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				if r.URL.Path != "/dshbot/bot/update" {
 					t.Fatal(r.URL.Path)
@@ -168,7 +168,7 @@ func TestBotSenderPolicyFullReceiptUncertaintyAndReadOnlyDiscovery(t *testing.T)
 	}
 	s := senderStatusFixture()
 	reads := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: senderTransport(func(r *http.Request) (*http.Response, error) {
 		reads++
 		if r.URL.Path != "/dshbot/describe" {
 			t.Fatal("discovery changed state", r.URL.Path)

@@ -30,7 +30,7 @@ func TestBotObjectiveConfigExactPairAndPreservation(t *testing.T) {
 			base := objectiveConfigFixture()
 			base.Profile["objective"], _ = json.Marshal(initial)
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(r *http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(r *http.Request) (*http.Response, error) {
 				calls++
 				var req clientRequest
 				json.NewDecoder(r.Body).Decode(&req)
@@ -93,7 +93,7 @@ func TestBotObjectiveConfigLimitsAndLosslessBoundary(t *testing.T) {
 	if ValidateDshbotObjectiveConfigCommand(DshbotObjectiveConfigCommand{Expected: copy, Desired: desired}) == nil {
 		t.Fatal("unknown nested dropped")
 	}
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(*http.Request) (*http.Response, error) { t.Fatal("invalid patch sent"); return nil, nil })}}
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(*http.Request) (*http.Response, error) { t.Fatal("invalid patch sent"); return nil, nil })}}
 	for _, fields := range []map[string]json.RawMessage{{"objective": json.RawMessage(`"x"`)}, {"objective": json.RawMessage(`"x"`), "objectiveMaxRounds": json.RawMessage(`16`), "notify": json.RawMessage(`true`)}, {"hidden": json.RawMessage(`true`)}} {
 		if out, err := c.saveDshbotProfileFields(context.Background(), base, fields); err == nil || out.Attempted {
 			t.Fatal("unsupported patch")
@@ -109,7 +109,7 @@ func TestBotObjectiveConfigUnknownAndMismatchedReceipt(t *testing.T) {
 				base.PeerIDs = []string{"peer"}
 			}
 			calls := 0
-			c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(*http.Request) (*http.Response, error) {
+			c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: objectiveConfigTransport(func(*http.Request) (*http.Response, error) {
 				calls++
 				if mode == "transport" {
 					return nil, errors.New("synthetic uncertain")

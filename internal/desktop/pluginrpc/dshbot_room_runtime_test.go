@@ -23,7 +23,7 @@ func TestRoomRuntimeReadIdentityAndFullStatusFixture(t *testing.T) {
 	catalog := roomRuntimeFixtureCatalog()
 	calls := []string{}
 	failRuntime := false
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: roomRuntimeTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: roomRuntimeTransport(func(r *http.Request) (*http.Response, error) {
 		var req struct {
 			RPCID   string                     `json:"rpcId"`
 			Method  string                     `json:"method"`

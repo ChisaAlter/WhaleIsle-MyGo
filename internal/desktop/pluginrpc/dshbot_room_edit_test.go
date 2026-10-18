@@ -36,7 +36,7 @@ func TestRoomEditExactWirePreservationAndUnknown(t *testing.T) {
 	status := roomEditFixtureStatus(t)
 	cmd := DshbotRoomEditCommand{Expected: status, Values: DshbotRoomEditValues{MemberBotIDs: []string{"b", "c"}, MaxRounds: 2, MaxSpeaks: 4}}
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: roomEditTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: roomEditTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req struct {
 			RPCID   string                     `json:"rpcId"`

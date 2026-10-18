@@ -35,7 +35,7 @@ func capabilityView(p map[string]json.RawMessage, revision int) string {
 func TestBotCapabilitiesWirePreservesFullProfile(t *testing.T) {
 	base := capabilityFixture()
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: capabilityTransport(func(r *http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: capabilityTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		var req clientRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -138,7 +138,7 @@ func TestBotCapabilitiesCASIdentityAndUnknownNoRetry(t *testing.T) {
 	desired := CloneDshbotCapabilityPolicies(base.Policies)
 	desired["tools"] = DshbotCapabilityPolicy{Mode: "selected", Names: []string{}}
 	calls := 0
-	c := Client{BaseURL: "https://fixture.invalid", HTTPClient: &http.Client{Transport: capabilityTransport(func(*http.Request) (*http.Response, error) {
+	c := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: capabilityTransport(func(*http.Request) (*http.Response, error) {
 		calls++
 		return nil, errors.New("synthetic uncertain receipt")
 	})}}
