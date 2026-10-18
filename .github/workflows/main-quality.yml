@@ -37,10 +37,7 @@ jobs:
           mapfile -t changed < <(git diff --name-only HEAD^1 HEAD -- '*.go')
           if (( ${#changed[@]} > 0 )); then
             files="$(gofmt -l "${changed[@]}")"
-            if [[ -n "$files" ]]; then
-              printf 'Unformatted changed Go files:\n%s\n' "$files"
-              gofmt -d ${files}
-            fi
+            test -z "$files" || { printf 'Unformatted changed Go files:\n%s\n' "$files"; exit 1; }
           fi
       - name: Test
         run: go test ./...
