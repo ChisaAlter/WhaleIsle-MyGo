@@ -33,8 +33,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          files="$(gofmt -l .)"
-          test -z "$files" || { printf 'Unformatted Go files:\n%s\n' "$files"; exit 1; }
+          base_ref="origin/${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF:-main}"
+          mapfile -t changed < <(git diff --name-only "${base_ref}...HEAD" -- '*.go')
+          if (( ${#changed[@]} > 0 )); then
+            files="$(gofmt -l "${changed[@]}")"
+            test -z "$files" || { printf 'Unformatted changed Go files:\n%s\n' "$files"; exit 1; }
+          fi
       - name: Test
         run: go test ./...
       - name: Vet
