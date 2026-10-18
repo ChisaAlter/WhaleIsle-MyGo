@@ -15,7 +15,7 @@ func (f whaleSettingsTransport) RoundTrip(r *http.Request) (*http.Response, erro
 func TestWhaleSettingsRPCExactContractAndNoRetry(t *testing.T) {
 	methods := []string{}
 	fail := false
-	c := &Client{BaseURL: "https://fixture.invalid", Cookie: "synthetic", HTTPClient: &http.Client{Transport: whaleSettingsTransport(func(r *http.Request) (*http.Response, error) {
+	c := &Client{BaseURL: "http://127.0.0.1", Cookie: "synthetic", HTTPClient: &http.Client{Transport: whaleSettingsTransport(func(r *http.Request) (*http.Response, error) {
 		var req clientRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatal(err)
