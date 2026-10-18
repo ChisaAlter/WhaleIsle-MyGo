@@ -1,0 +1,81 @@
+name: Main quality
+
+on:
+  push:
+    branches:
+      - main
+      - audit/security-ci-fixes
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-quality:
+    name: Go quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(gofmt -l .)"
+          test -z "$files" || { printf 'Unformatted Go files:\n%s\n' "$files"; exit 1; }
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+
+  cross-build:
+    name: Cross-build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: linux
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Compile desktop targets
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"
+          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}" ./cmd/whaleisle
+          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out/whaleisle-launcher-${GOOS}-${GOARCH}" ./cmd/whaleisle-launcher
+          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out/whaleisle-preview-${GOOS}-${GOARCH}" ./cmd/whaleisle-preview
