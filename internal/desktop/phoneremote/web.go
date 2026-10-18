@@ -110,6 +110,13 @@ func ResolveSPAAsset(root, requestPath string) (MobileWebAsset, bool, error) {
 	if err != nil {
 		return MobileWebAsset{}, false, err
 	}
+	rootReal, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return MobileWebAsset{}, false, nil
+		}
+		return MobileWebAsset{}, false, err
+	}
 	rel := strings.TrimLeft(decoded, `/\\`)
 	candidate := filepath.Clean(filepath.Join(rootAbs, filepath.FromSlash(rel)))
 	inside, err := filepath.Rel(rootAbs, candidate)
@@ -122,7 +129,18 @@ func ResolveSPAAsset(root, requestPath string) (MobileWebAsset, bool, error) {
 	if filepath.Ext(filepath.Base(decoded)) == "" {
 		candidate = filepath.Join(rootAbs, "index.html")
 	}
-	info, err := os.Stat(candidate)
+	candidateReal, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return MobileWebAsset{}, false, nil
+		}
+		return MobileWebAsset{}, false, err
+	}
+	insideReal, err := filepath.Rel(rootReal, candidateReal)
+	if err != nil || insideReal == ".." || strings.HasPrefix(insideReal, ".."+string(filepath.Separator)) || filepath.IsAbs(insideReal) {
+		return MobileWebAsset{}, false, nil
+	}
+	info, err := os.Stat(candidateReal)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return MobileWebAsset{}, false, nil
@@ -132,6 +150,7 @@ func ResolveSPAAsset(root, requestPath string) (MobileWebAsset, bool, error) {
 	if !info.Mode().IsRegular() {
 		return MobileWebAsset{}, false, nil
 	}
+	candidate = candidateReal
 	typ := mobileWebMIME[strings.ToLower(filepath.Ext(candidate))]
 	if typ == "" {
 		typ = "application/octet-stream"
@@ -238,25 +257,3 @@ func requestPath(r *http.Request) string {
 		return raw
 	}
 	return r.URL.Path
-}
-
-func mobileWebHeaders(contentType string) map[string]string {
-	cache := "no-cache"
-	if strings.Contains(contentType, "html") {
-		cache = "no-store"
-	}
-	return map[string]string{
-		"content-type":           contentType,
-		"cache-control":          cache,
-		"x-content-type-options": "nosniff",
-		"referrer-policy":        "no-referrer",
-		"x-frame-options":        "DENY",
-	}
-}
-
-func writeMobileError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("content-type", "text/plain; charset=utf-8")
-	w.Header().Set("x-content-type-options", "nosniff")
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(message))
-}
