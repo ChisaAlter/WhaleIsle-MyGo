@@ -38,15 +38,22 @@ func sameDshbotCreatedItemReceipt(item, view DshbotBotItem) bool {
 	if item.ID != view.ID || item.SessionID != view.SessionID || item.Kind != view.Kind {
 		return false
 	}
-	// New normalizeBotDraft items omit holds; ItemSchema supplies exactly {}.
+	// normalizeBotDraft omits these room-runtime fields on new items, while
+	// ItemSchema materializes their exact empty defaults in the catalog view.
 	// This one-way exception is exclusive to create/duplicate item receipts.
-	if _, present := item.Profile["holds"]; !present {
-		if value, viewHas := view.Profile["holds"]; viewHas {
-			if !sameCapabilityJSON(value, json.RawMessage(`{}`)) {
+	for key, empty := range map[string]json.RawMessage{
+		"holds":          json.RawMessage(`{}`),
+		"holdCheckpoint": json.RawMessage(`{"version":1,"holds":{},"processedEventIds":[],"processedThroughSeq":-1}`),
+	} {
+		if _, present := item.Profile[key]; present {
+			continue
+		}
+		if value, viewHas := view.Profile[key]; viewHas {
+			if !sameCapabilityJSON(value, empty) {
 				return false
 			}
 			item = CloneDshbotBotItem(item)
-			item.Profile["holds"] = json.RawMessage(`{}`)
+			item.Profile[key] = empty
 		}
 	}
 	raw, err := json.Marshal(item.Profile)
