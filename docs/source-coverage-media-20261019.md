@@ -16,7 +16,7 @@ Original paths below are relative to
 
 | Surface/contract | Original source evidence | Current Go source and status |
 | --- | --- | --- |
-| Files formats and complete image bytes | `ui-sidebar-documentpreview/src/client/image/ImageBody.tsx:14` registers PNG/JPEG/GIF/WebP/BMP/ICO/SVG; `:76` creates an image Blob; `:121` mounts browser `<img>` inside the shared zoom viewport | `internal/ui/files/media.go:isPreviewImage`, `loadImagePreviewContext`, `paintImagePreview`; root-scoped bounded reads, bitmap/SVG/ICO/AVIF decode and native zoom/pan remain. GIF timeline already existed before this audit. Animated WebP routing is added in this batch. |
+| Desktop Files formats and complete image bytes | `ui-files/src/client/desktop-files.ts:63-74,123-133` takes supported session-relative workspace files before the generic document preview; `workspacePreview.ts:4-13` includes `.avif`; `FilePreview.tsx:241,324-342,689-692` reads image media and mounts `data:${media.mime};base64,...` in `<img>`. Original `src/main/workspace-fs.js:15-24,257-293` authorizes local bytes and assigns AVIF MIME. The separate fallback `ui-sidebar-documentpreview` format list does not govern this desktop route. | `internal/ui/files/media.go:isPreviewImage`, `loadImagePreviewContext`, `paintImagePreview`; root-scoped bounded reads, bitmap/SVG/ICO/AVIF decode and native zoom/pan remain. GIF timeline already existed before this audit. Animated WebP routing was added earlier; `3d61894` adds the existing AVIF sequence decoder to the actual desktop `.avif` route. |
 | Composer thumbnail and original image | `ui-attachment/src/client/ComposerAttachments.tsx:83` mounts `<img>`; `:100` mounts `ImageLightbox`; `ui-primitives/src/ImageLightbox.tsx:69` mounts original `<img>` | `internal/ui/composer/attachment_display.go:readAttachmentDisplay`, `paintAttachmentRail`, `paintAttachmentOriginal`; `attachment_image.go` already animated GIF in both thumbnail and original seats. Animated WebP now uses exactly that timeline/bitmap path. |
 | Market README image semantics | `ui-settings-market/src/client/MarketExtras.tsx:104` mounts `MarkdownText`; `ui-primitives/src/markdown/render.tsx:imageSource` allows explicit HTTP(S), retaining authored alt for unsupported sources; `MarkdownText.tsx:181` documents direct absolute HTTP(S) images | `internal/ui/market/readme_images.go`, `readme_media.go` keep existing HTTP(S) cache, natural size/aspect ratio, max width and authored-alt fallback. Before this batch, `ui.DecodeBitmap` meant first-frame GIF and failure for animated WebP. Both now use the shared native animation decoder. No new URL scheme, guessed base URL or resource access is admitted. |
 | Static SVG | Original Files/README use browser image elements, including browser-supported static SVG content | Files/composer already use `internal/desktop/imagepreview/svg_native.go:DecodeSVGContext` and `svg_native_bounds.go`. Market previously used `ui.ParseSVG` plus a gate that rejected even text/filter/image documents. Market now retains that existing narrow fast vector path and uses the same bounded isolated rasterizer for additional accepted static SVG. It is not full SVG support. |
@@ -64,7 +64,7 @@ so this does not guess a filename or change network/cache policy.
 | ICO / bounded still AVIF | Existing shared decoder | Existing shared decoder | Added shared decoder |
 | SVG shapes, text, gradients, local references, supported static filters/patterns/markers and bounded embedded raster | Existing isolated rasterizer | Existing isolated rasterizer | Added same rasterizer for documents beyond the existing vector subset |
 | SVG scripts, SMIL/CSS animation, foreignObject, external images/use/paint, nested embedded SVG, unsupported stylesheet constructs | Rejected by existing bounded native gate | Same | Rejected/retains authored alt; no external-resource exception added |
-| Animated AVIF | Existing still-only AVIF route retained; no new sequence route | Added bounded AV1 sequence timeline | Added same sequence timeline |
+| Animated AVIF | Added existing bounded AV1 sequence timeline for `.avif`; `.avifs` remains unregistered | Added bounded AV1 sequence timeline | Added same sequence timeline |
 
 SVG is still a bounded static subset. Its validator rejects CSS at-rules,
 variables and unsupported resource functions; it bounds XML structure, geometry
@@ -80,12 +80,19 @@ native visible playback remain unverified in this pass.
 The initial audit classified AVIF animation as unsupported. A follow-up source
 inspection found the existing bundled ABI already implements `decode_all` and
 writes every frame plus float64 seconds. No new codec dependency or WASM rebuild
-was necessary. The still decoder and Files source remain unchanged. Original
-Files actually lists AVIF in
-`ui-sidebar-documentpreview/src/client/document/unviewable.ts:27`, while original
-composer and Market use browser image elements. The sequence integration is
-therefore restricted to those composer/Market image owners, including their
-existing shared Market image loader. No `.avifs` Files registration was added.
+was necessary. The still decoder remains unchanged. The first sequence wiring
+was restricted to composer/Market based on an incorrect reading of the generic
+`ui-sidebar-documentpreview/src/client/document/unviewable.ts:27` list. The
+actual original desktop Files extension takes the supported workspace image
+route first: `ui-files/src/client/workspacePreview.ts:4-13` includes `.avif`,
+and `FilePreview.tsx` receives AVIF MIME/bytes from the desktop workspace reader
+and mounts an image element. That fallback exclusion therefore cannot be used
+to exclude desktop Files AVIF sequences. Source correction `3d61894` routes
+`.avif` sequence bytes through the existing `DecodeAVIFAnimationContext` and
+the same Files GIF/WebP frame/bitmap/timing path. Static `.avif` keeps its
+existing decoder; `.avifs` remains unregistered and mislabeled `.gif` does not
+gain an AVIF entry. No codec, dependency, resource permission or configuration
+was added by this route correction.
 
 `avif_animation_bounds.go` validates bounded BMFF track/sample tables, dimensions,
 byte extents inside mdat, self-contained data references, per-frame timing and
@@ -124,9 +131,16 @@ track durations. A tiny transparent/half-alpha finite sequence is constructed
 inside the test using the already-bundled encoder ABI, so it requires no added
 dependency, pre-generated binary or external tool. Its execution is still pending.
 `attachment_avif_test.go` and `readme_avif_test.go` prepare native surface paint,
-advance, size, dismiss/hide and staging-release checks. A Files negative regression
-keeps `.avifs` unregistered and prevents `.avif`/mislabeled `.gif` from gaining
-sequence behavior. Existing GIF/WebP and static AVIF regressions remain in place.
+advance, size, dismiss/hide and staging-release checks. The earlier Files
+negative `.avif` assertion was incorrect for the actual desktop route and has
+been replaced by a prepared positive `.avif` playback fixture. It uses the
+existing pinned 17-frame sequence and actual `paintImagePreview` seat to check
+canvas dimensions, bitmap/staging ownership, 80 ms timing, visible frame
+variation, hidden-seat inactivity and inactive-tab release, plus corrupt later
+frame and cancellation rejection. A separate boundary fixture retains the
+unregistered `.avifs` and mislabeled `.gif` rejection. Existing GIF/WebP and
+static AVIF regressions remain in place. All of these new/updated fixtures
+remain unexecuted; no native playback acceptance is claimed.
 
 GPU fluid/Beam depth stays paused. Source still explicitly describes native
 fluid short-edge resolution 64 in
