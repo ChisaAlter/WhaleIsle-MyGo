@@ -12,6 +12,7 @@ type presetIntroduction struct {
 	Started  time.Time
 	Finished bool
 	Glyphs   []ui.Glyph
+	Font     ui.Font
 }
 
 // Creator's staged choice announces itself once. Glyphs retain their full
@@ -19,11 +20,16 @@ type presetIntroduction struct {
 func paintPresetIntroduction(c *ui.Context, m Model, caption string, fg ui.Color) {
 	root := ui.Row(c.Key("preset-introduction")).Gap(4).Grow(1).MinWidth(0).AlignItems(ui.Center)
 	state := ui.Local(root, "timeline", func() presetIntroduction { return presetIntroduction{} })
-	font := ui.Font{Size: 13, Weight: 500}
+	font := ui.Font{Family: c.Theme().Font, Size: 13, Weight: 500}
 	sequence := m.AgentPresetSelection.Introduction
 	binding := fmt.Sprintf("%d:%s:%d:%s", m.Snapshot.ComposerHostGeneration, m.Snapshot.SelectedID, sequence, caption)
 	if state.Binding != binding {
-		*state = presetIntroduction{Binding: binding, Started: c.Now(), Glyphs: ui.Shape(caption, font)}
+		*state = presetIntroduction{Binding: binding, Started: c.Now()}
+	}
+	// Font preferences may change during this cue. Refresh only the shaped
+	// ink, preserving its elapsed time and single acknowledgment identity.
+	if state.Glyphs == nil || state.Font != font {
+		state.Font, state.Glyphs = font, ui.Shape(caption, font)
 	}
 	count := len([]rune(caption))
 	stagger := time.Duration(0)
@@ -43,15 +49,15 @@ func paintPresetIntroduction(c *ui.Context, m Model, caption string, fg ui.Color
 		c.AnimationFrame()
 	}
 	root.Children(func() {
-		icon := ui.Text(c, "⌂").Size(16, 16).FontSize(13).TextColor(fg)
+		iconProgress := float32(1)
 		if animating {
-			progress := cssBezier(float64(elapsed)/float64(150*time.Millisecond), .16, 1, .3, 1)
-			icon.TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
-				size := float32(.5+.5*progress) * 13
-				p.Text(r.X+(r.W-size)/2, r.Y+(r.H-size)/2, "⌂", size, fg.Alpha(float32(progress)))
-			})
+			iconProgress = float32(cssBezier(float64(elapsed)/float64(150*time.Millisecond), .16, 1, .3, 1))
 		}
-		label := ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().FontSize(13).FontWeight(500).TextColor(fg)
+		ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+			size := (0.5 + 0.5*iconProgress) * 16
+			p.Icon(presetAgentIcon, ui.Rect{X: r.X + (r.W-size)/2, Y: r.Y + (r.H-size)/2, W: size, H: size}, fg.Alpha(iconProgress))
+		})
+		label := ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().Font(font.Family).FontSize(font.Size).FontWeight(font.Weight).TextColor(fg)
 		if animating {
 			label.TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
 				metrics := font.Metrics()

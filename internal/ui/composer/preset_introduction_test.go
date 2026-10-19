@@ -15,8 +15,12 @@ func TestPresetIntroductionReducedMotionAcknowledgesExactCueOnce(t *testing.T) {
 	}
 	var got []receipt
 	show := false
+	family := "monospace"
 	m := Model{Snapshot: session.ViewState{ComposerHostGeneration: 4, SelectedID: "creator-a"}, AgentPresetSelection: session.AgentPresetSelectionView{Introduction: 9}, OnAgentPresetIntroduced: func(host uint64, id string, cue uint64) { got = append(got, receipt{host, id, cue}) }}
 	tt := ui.NewTester(func(c *ui.Context) {
+		activeTheme := *c.Theme()
+		activeTheme.Font = family
+		c.SetTheme(&activeTheme)
 		if show {
 			paintPresetIntroduction(c, m, "创造模式", c.Theme().Text)
 		}
@@ -30,9 +34,10 @@ func TestPresetIntroductionReducedMotionAcknowledgesExactCueOnce(t *testing.T) {
 	if !tt.HasText("创造模式") {
 		t.Fatal("motion reduction hid the preset caption")
 	}
+	family = "serif"
 	tt.Frame()
-	if len(got) != 1 {
-		t.Fatal("settled cue acknowledged repeatedly")
+	if len(got) != 1 || !tt.HasText("创造模式") {
+		t.Fatal("font change replayed a settled cue or hid its caption")
 	}
 	m.Snapshot.SelectedID = "creator-b"
 	m.AgentPresetSelection.Introduction = 10

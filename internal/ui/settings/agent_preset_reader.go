@@ -99,7 +99,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 					}
 				})
 			}
-			ui.TextArea(c.Key(pages.Start), &content).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			ui.TextArea(c.Key(pages.Start), &content).Label("预设配置只读内容 / Preset configuration source").FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
 	})
 	if !open && a.OnClose != nil {

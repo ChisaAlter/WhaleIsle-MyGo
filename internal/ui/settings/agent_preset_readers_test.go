@@ -167,14 +167,33 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 	state.Content = "- id: broken\n  prompt: do not execute\n"
 	state.TotalBytes = len(state.Content)
 	tt.Frame()
-	if !tt.HasText("do not execute") {
-		t.Fatal("read-only source not visible")
+	const sourceLabel = "预设配置只读内容 / Preset configuration source"
+	if err := tt.Click(sourceLabel); err != nil {
+		t.Fatal("read-only source control not visible:", err)
+	}
+	// TextArea's buffer is not in Tester.Texts/HasText. Exercise its real
+	// selection/copy path, then prove that input cannot mutate the buffer.
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Key(ui.Cmd, ui.KeyC)
+	if got := tt.Clipboard(); got != state.Content {
+		t.Fatalf("read-only source lost bytes: %q", got)
+	}
+	if _, active := tt.TextCaret(); active {
+		t.Fatal("read-only source enabled IME editing")
+	}
+	tt.Type("SHOULD NOT REPLACE SOURCE")
+	tt.Key(0, ui.KeyBackspace)
+	tt.Command("paste")
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Key(ui.Cmd, ui.KeyC)
+	if got := tt.Clipboard(); got != state.Content {
+		t.Fatalf("read-only editor accepted an edit: %q", got)
 	}
 	tt.Key(0, ui.KeyEscape)
 	if state.Open || closed != 1 || !tt.Focused("查看配置 / View configuration · broken") {
 		t.Fatal("modal close failed to retire and return to its original card")
 	}
-	if tt.HasText("do not execute") || reads != 1 {
+	if _, present := tt.Find(sourceLabel); present || reads != 1 {
 		t.Fatal("closing reader reopened content or repeated the read")
 	}
 }

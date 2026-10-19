@@ -316,7 +316,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
 				} else {
 					ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
-						ui.Text(c, "⌂").FontSize(13)
+						ui.Icon(c, presetAgentIcon).Size(16, 16).TextColor(fg)
 						ui.Text(c, presetLabel).FontSize(13).FontWeight(500).TextColor(fg)
 						ui.Text(c, "▾").FontSize(11).TextColor(muted)
 					})
