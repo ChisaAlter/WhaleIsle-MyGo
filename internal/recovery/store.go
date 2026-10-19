@@ -92,6 +92,7 @@ func Open(dir string) (*Store, error) {
 }
 
 func clone(s State) State {
+	s.Layout.WorkspacePanes = append(json.RawMessage(nil), s.Layout.WorkspacePanes...)
 	if s.Drafts != nil {
 		drafts := make(map[string]json.RawMessage, len(s.Drafts))
 		for k, v := range s.Drafts {

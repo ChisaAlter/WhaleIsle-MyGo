@@ -1145,6 +1145,11 @@ func composerInteraction(snap interaction.ViewState) (interaction.ViewState, boo
 		if pending.Continued {
 			continue
 		}
+		// QuestionCards.hide unpublishes the question from the original
+		// composer chain while retaining its row's reopen action.
+		if pending.Event == interaction.EventUserQuestions && snap.QuestionCards[pending.EventID].Hidden {
+			continue
+		}
 		if selected < 0 || pending.Event == interaction.EventApproval {
 			selected = index
 		}

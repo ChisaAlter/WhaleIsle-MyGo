@@ -310,6 +310,7 @@ type Store struct {
 	agentPresetOptions                   []AgentPresetOption
 	selectedAgentPresetLabel             string
 	agentPresetsErr                      error
+	agentPresetsRequest                  uint64
 	skillCatalogClient                   *dsh.Client
 	skillCatalogLoading                  bool
 	skillCatalog                         SkillCatalog
@@ -428,28 +429,23 @@ func (s *Store) CreateSession(ctx context.Context) {
 	snap := s.Snapshot()
 	for _, it := range snap.Items {
 		if it.SessionID == snap.SelectedID && snap.IsNoDirectory(it) {
-			go func() {
-				// Generic new-session actions cannot inspect UI-owned unsent drafts.
-				// Never reuse another identity without that knowledge.
-				ids := make([]string, 0, len(snap.Items))
-				for _, candidate := range snap.Items {
-					ids = append(ids, candidate.SessionID)
-				}
-				id, err := s.CreateNoDirectorySession(ctx, ids...)
-				if err != nil {
-					s.SetLastAction("no workspace folder: " + err.Error())
-					return
-				}
-				if s.Snapshot().SelectedID == snap.SelectedID {
-					s.Select(id)
-				}
-			}()
+			// Generic new-session actions cannot inspect UI-owned unsent drafts.
+			// Never reuse another identity without that knowledge.
+			ids := make([]string, 0, len(snap.Items))
+			for _, candidate := range snap.Items {
+				ids = append(ids, candidate.SessionID)
+			}
+			s.mu.Lock()
+			client, hostGeneration := s.client, s.eventsGeneration
+			s.mu.Unlock()
+			go s.runCreateNoDirectorySession(ctx, client, hostGeneration, snap.SelectedID, ids)
 			return
 		}
 	}
 	s.mu.Lock()
 	client := s.client
 	cwd := s.cwd
+	hostGeneration := s.eventsGeneration
 	stagedPreset := s.stagedPresetLocked(cwd)
 	var blankIDs []string
 	for _, it := range s.items {
@@ -479,58 +475,38 @@ func (s *Store) CreateSession(ctx context.Context) {
 		err := client.Call(ctx, "session/blankReuse", map[string]any{
 			"request": map[string]any{"sessionId": id},
 		}, &out)
+		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != hostGeneration {
+			s.mu.Unlock()
+			return
+		}
 		if err == nil && out.Reusable {
-			s.Select(id)
+			changed := s.selectedID != id
+			if changed {
+				s.selectSessionLocked(id)
+			}
+			s.lastAction = "blank session reused"
+			s.mu.Unlock()
+			if changed {
+				s.fire()
+				s.refreshSelectedViews()
+			}
 			if stagedPreset != "" {
 				s.SelectAgentPresetIDForSession(ctx, id, stagedPreset)
 			}
-			s.mu.Lock()
-			s.lastAction = "blank session reused"
-			s.mu.Unlock()
 			s.fire()
 			return
 		}
 		if err != nil {
 			// A failed authoritative check is not permission to reuse an identity.
-			s.mu.Lock()
 			s.lastAction = "blank session check: " + err.Error()
 			s.mu.Unlock()
 			s.fire()
 			return
 		}
-	}
-	go func() {
-		req := api.SessionCreateRequest{}
-		if cwd != "" {
-			req.Cwd = &cwd
-		}
-		if stagedPreset != "" {
-			req.AgentPreset = &stagedPreset
-		}
-		var out api.SessionCreateValue
-		err := client.Call(ctx, "session/create", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = err.Error()
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		if s.client != client {
-			s.mu.Unlock()
-			return
-		}
-		if stagedPreset != "" && s.stagedPresetLocked(cwd) == stagedPreset {
-			delete(s.presetDraft.staged, filepathClean(cwd))
-		}
-		s.selectSessionLocked(out.SessionId)
-		s.lastAction = "session created"
 		s.mu.Unlock()
-		s.fire()
-		s.RefreshList(ctx)
-		s.FollowSelected(ctx)
-		s.InitializeDefaultModel(ctx)
-	}()
+	}
+	go s.runCreateSession(ctx, client, hostGeneration, cwd, stagedPreset)
 }
 
 func filepathClean(p string) string {
@@ -770,6 +746,10 @@ func (s *Store) Select(sessionID string) {
 	s.selectSessionLocked(sessionID)
 	s.mu.Unlock()
 	s.fire()
+	s.refreshSelectedViews()
+}
+
+func (s *Store) refreshSelectedViews() {
 	s.FollowSelected(context.Background())
 	s.WatchBand(context.Background())
 	s.WatchControl(context.Background())
@@ -1069,33 +1049,12 @@ func (s *Store) ListWorkspacePathApplications(ctx context.Context, path string) 
 func (s *Store) ForkSession(ctx context.Context, sessionID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	s.mu.Lock()
-	client := s.client
+	client, hostGeneration := s.client, s.eventsGeneration
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		return
 	}
-	go func() {
-		req := api.SessionForkRequest{SessionId: sessionID}
-		var out struct {
-			SessionId string `json:"sessionId"`
-		}
-		err := client.Call(ctx, "session/fork", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if err != nil {
-			s.lastAction = err.Error()
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		if out.SessionId != "" {
-			s.selectSessionLocked(out.SessionId)
-		}
-		s.lastAction = "session forked"
-		s.mu.Unlock()
-		s.fire()
-		s.RefreshList(ctx)
-		s.FollowSelected(ctx)
-	}()
+	go s.runForkSession(ctx, client, hostGeneration, sessionID)
 }
 
 // CancelRunning calls session/cancel for the selected session.

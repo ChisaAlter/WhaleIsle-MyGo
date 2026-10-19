@@ -35,6 +35,16 @@ func TestComposerInteractionSelectsApprovalBeforeQuestion(t *testing.T) {
 	if takeover || len(got.Pending) != 1 || !got.AutoAllow {
 		t.Fatal("continued history replaced the composer")
 	}
+	snapshot.Pending = []interaction.Pending{{EventID: "earlier", Event: interaction.EventUserQuestions}, {EventID: "latest", Event: interaction.EventUserQuestions}}
+	snapshot.QuestionCards = map[string]interaction.QuestionCardView{"latest": {Hidden: true}}
+	got, takeover = composerInteraction(snapshot)
+	if !takeover || len(got.Pending) != 1 || got.Pending[0].EventID != "earlier" {
+		t.Fatal("minimizing the latest question did not reveal the earlier composer contribution")
+	}
+	snapshot.QuestionCards["earlier"] = interaction.QuestionCardView{Hidden: true}
+	if _, takeover = composerInteraction(snapshot); takeover {
+		t.Fatal("hidden questions kept the ordinary composer covered")
+	}
 }
 
 func TestConversationApprovalAndQuestionTakeComposerSeatThenRestoreDraft(t *testing.T) {
@@ -93,6 +103,30 @@ func TestConversationApprovalAndQuestionTakeComposerSeatThenRestoreDraft(t *test
 				t.Fatal("ordinary composer remained visible during takeover")
 			}
 			saveConversationEvidence(t, tt, "composer-takeover-"+strings.ReplaceAll(event, "/", "-"))
+			if event == interaction.EventUserQuestions {
+				store.HideQuestion("pending")
+				tt.Frame()
+				if _, ok := tt.Find("Composer card"); !ok {
+					t.Fatal("minimized question kept the ordinary draft hidden")
+				}
+				if err := tt.Click("Composer draft"); err != nil {
+					t.Fatal(err)
+				}
+				if !tt.Focused("Composer draft") {
+					t.Fatal("minimized question left draft inaccessible")
+				}
+				if err := tt.Click("重新打开问题 / Reopen questions"); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if _, ok := tt.Find("Composer card"); ok {
+					t.Fatal("reopened question did not retake the composer seat")
+				}
+				if draft != "keep my draft" {
+					t.Fatal("minimize/reopen discarded the draft")
+				}
+				client.SetSelectionUTF16(2, 6)
+			}
 			store.OnCancel(dsh.EventsCancel{EventID: "pending"})
 			select {
 			case <-done:
