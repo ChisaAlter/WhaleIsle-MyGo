@@ -20,15 +20,15 @@ import (
 )
 
 type projectVisualOwner struct {
-	client                                    *dsh.Client
-	generation, navigation, requestGeneration uint64
-	card                                      *projectflow.RequestCard
-	delivery                                  *projectDeliveryState
-	deliveryView                              uint64
-	activity                                  *projectActivityState
-	activityView                              uint64
-	source                                    string
-	page                                      projectflow.DeliveryPageReference
+	client                 *dsh.Client
+	generation, navigation uint64
+	projectID              string
+	delivery               *projectDeliveryState
+	deliveryView           uint64
+	activity               *projectActivityState
+	activityView           uint64
+	source                 string
+	page                   projectflow.DeliveryPageReference
 }
 
 type projectVisualPage struct {
@@ -50,6 +50,7 @@ type projectVisualResultsState struct {
 }
 
 func (s *projectController) closeProjectVisualResultsLocked() {
+	s.projectFlow.requestCards = nil
 	if v := s.projectFlow.visualResults; v != nil {
 		for _, page := range v.pages {
 			if page.cancel != nil {
@@ -61,22 +62,39 @@ func (s *projectController) closeProjectVisualResultsLocked() {
 }
 
 // Project data already carries published attachment identities. Resolve only
-// an exact page in the controller's current authoritative result snapshot;
+// an exact page in the controller's authoritative result snapshots;
 // an observer's UI cache or the currently selected chat cannot grant a read.
 func (s *projectController) projectVisualOwnerLocked(source string, page projectflow.DeliveryPageReference) (projectVisualOwner, bool) {
 	f := s.projectFlow
-	o := projectVisualOwner{client: f.client, generation: f.generation, navigation: f.navigation, requestGeneration: f.requestGeneration, card: f.requestCard, source: source, page: page}
+	o := projectVisualOwner{client: f.client, navigation: f.navigation, source: source, page: page}
 	if f.client == nil || !f.visible() || !f.listing.Available {
 		return o, false
 	}
 	var pages []projectflow.DeliveryPageReference
 	switch {
 	case strings.HasPrefix(source, "request:"):
-		if f.requestCard == nil || source != "request:"+f.requestCard.ID || f.requestProjectID != f.requestCard.ProjectID || f.requestCard.Delivery == nil {
+		requestID := strings.TrimPrefix(source, "request:")
+		card, found := f.requestCards[projectRequestCardKey(f.requestProjectID, requestID)]
+		if !found || card.ID != requestID || card.ProjectID != f.requestProjectID || card.Delivery == nil {
 			return o, false
 		}
-		pages = f.requestCard.Delivery.Pages
+		projectFound := false
+		for _, project := range f.listing.Projects {
+			if project.ID == card.ProjectID {
+				projectFound = true
+				break
+			}
+		}
+		if !projectFound {
+			return o, false
+		}
+		// Reading card B increments the request/global operation generations,
+		// but does not revoke card A's immutable publication. Only an actual
+		// owner/navigation or recorded page identity change retires its seat.
+		o.projectID = card.ProjectID
+		pages = card.Delivery.Pages
 	case strings.HasPrefix(source, "delivery:"):
+		o.generation = f.generation
 		if f.deliveries == nil {
 			return o, false
 		}
@@ -87,6 +105,7 @@ func (s *projectController) projectVisualOwnerLocked(source string, page project
 		o.delivery, o.deliveryView = f.deliveries, f.deliveries.browser.NavigationToken()
 		pages = d.Selected.Pages
 	case strings.HasPrefix(source, "activity:"):
+		o.generation = f.generation
 		if f.activity == nil {
 			return o, false
 		}
@@ -143,7 +162,7 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 		s.dshMu.Unlock()
 		s.mu.Lock()
 		f := s.projectFlow
-		if win == nil || current != client || f.client != client || f.generation != generation || f.navigation != navigation {
+		if win == nil || current != client || f.client != client || f.navigation != navigation || (!strings.HasPrefix(source, "request:") && f.generation != generation) {
 			s.mu.Unlock()
 			return projects.VisualPagePreview{}
 		}
