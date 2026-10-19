@@ -246,7 +246,8 @@ func (s *Files) ToggleDirectory(path string) {
 		v.Expanded = map[string]bool{}
 	}
 	v.Expanded[path] = !v.Expanded[path]
-	load := v.Expanded[path] && !v.Tree[path].Loaded
+	// Reopening an expanded level refreshes its retained entries, as the original tree does.
+	load := v.Expanded[path]
 	n := s.notify
 	s.mu.Unlock()
 	if load {

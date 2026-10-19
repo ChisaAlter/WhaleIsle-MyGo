@@ -243,10 +243,22 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 		bind := current.BindAddress
-		if ui.Select(c, &bind, options).Label("Gateway bind address").FillWidth().Disabled(busy).Changed() {
-			next := current
-			next.BindAddress = bind
-			save(next)
+		if bind == "" {
+			bind = "0.0.0.0"
+		}
+		selected := gatewayBindLabel(bind, m.PhoneRuntime.BindAddresses)
+		labels := make([]string, len(options))
+		values := make(map[string]string, len(options))
+		for i, address := range options {
+			labels[i] = gatewayBindLabel(address, m.PhoneRuntime.BindAddresses)
+			values[labels[i]] = address
+		}
+		if ui.Select(c, &selected, labels).Label("Gateway bind address").FillWidth().Disabled(busy).Changed() {
+			if address, ok := values[selected]; ok && address != bind {
+				next := current
+				next.BindAddress = address
+				save(next)
+			}
 		}
 	})
 	gatewayReadRow(c, label("局域网传输", "LAN transport"), label("局域网连接使用 TLS 加密。", "LAN connections use TLS encryption."), fg, muted)
@@ -259,4 +271,24 @@ func gatewaySettingRow(c *ui.Context, title, hint string, fg, muted ui.Color, co
 		})
 		ui.Column(c).Grow(1).MinWidth(180).Gap(8).Children(control)
 	})
+}
+
+// A detected empty list differs from an unknown scan. Saved per-NIC choices
+// remain selectable, with the same stale-address feedback as the original UI.
+func gatewayBindLabel(address string, detected []string) string {
+	switch address {
+	case "0.0.0.0":
+		return label("整个局域网", "Whole LAN")
+	case "127.0.0.1":
+		return label("仅本机", "This machine only")
+	}
+	if detected != nil {
+		for _, current := range detected {
+			if current == address {
+				return address
+			}
+		}
+		return address + " · " + label("已失效", "unavailable")
+	}
+	return address
 }

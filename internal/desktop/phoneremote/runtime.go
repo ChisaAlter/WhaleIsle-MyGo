@@ -207,7 +207,9 @@ func (r *Runtime) Snapshot() RuntimeState {
 	}
 	r.state = s
 	s.Devices = append([]Device(nil), s.Devices...)
-	s.BindAddresses = append([]string(nil), s.BindAddresses...)
+	if s.BindAddresses != nil {
+		s.BindAddresses = append([]string{}, s.BindAddresses...)
+	}
 	s.DeviceAction = r.deviceAction
 	if s.DeviceAction.Busy && s.DeviceAction.Operation != "rename" {
 		s.PairingURL = ""
