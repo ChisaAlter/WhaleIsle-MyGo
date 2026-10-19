@@ -14,6 +14,10 @@ const groupReplyPrefix = "[DSHBOT_THREAD_REPLY:"
 var groupThreadID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 var groupPass = regexp.MustCompile(`(?i)^\(?\s*pass\s*\)?\.?$`)
 
+// Match the original JavaScript /timeout|timed.?out/: dot excludes line
+// terminators and matches one UTF-16 code unit (the source has no u flag).
+var groupTimeout = regexp.MustCompile(`timeout|timed[^\r\n\x{2028}\x{2029}\x{10000}-\x{10FFFF}]?out`)
+
 type GroupMember struct {
 	ID, Name, Title             string
 	RuntimeStatus, RuntimeError string
@@ -150,10 +154,16 @@ func groupErrorContent(v any) bool {
 }
 func groupResultState(d groupObject, content any) string {
 	status := strings.ToLower(strings.Join([]string{groupStr(d["status"]), groupStr(d["state"]), groupStr(groupObj(d["result"])["status"]), groupStr(groupObj(d["message"])["status"]), groupStr(groupObj(d["error"])["code"]), groupStr(groupObj(d["error"])["kind"])}, " "))
+	if strings.Contains(status, "capped") || strings.Contains(status, "limit") || strings.Contains(status, "maximum") {
+		return "capped"
+	}
+	if groupTimeout.MatchString(status) {
+		return "timeout"
+	}
 	for _, rule := range []struct {
 		state string
 		words []string
-	}{{"capped", []string{"capped", "limit", "maximum"}}, {"timeout", []string{"timeout", "timed out", "timed-out"}}, {"held", []string{"held", "paused", "deferred"}}, {"stopped", []string{"stopped", "cancelled", "canceled", "aborted"}}, {"pending", []string{"pending", "waiting", "approval", "question"}}, {"running", []string{"running", "started"}}, {"failed", []string{"failed", "error"}}} {
+	}{{"held", []string{"held", "paused", "deferred"}}, {"stopped", []string{"stopped", "cancelled", "canceled", "aborted"}}, {"pending", []string{"pending", "waiting", "approval", "question"}}, {"running", []string{"running", "started"}}, {"failed", []string{"failed", "error"}}} {
 		for _, word := range rule.words {
 			if strings.Contains(status, word) {
 				return rule.state
