@@ -10,6 +10,8 @@ func (w *Workbench) CopyPanePresentation() Workbench {
 	return copy
 }
 func (w *Workbench) ClosePane() {
+	w.cancelBranchList()
+	w.cancelRepositoryStatus()
 	w.CancelComparison()
 	w.cancelCommitPreparation()
 	w.cancelRemotePreparation()

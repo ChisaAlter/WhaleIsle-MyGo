@@ -1,7 +1,8 @@
 package files
 
-// Reconcile only complete owned read results. An editor's dirty baseline is
-// never replaced by a reread, even when the disk changed or became truncated.
+// Explicit activation/Refresh adopts a complete local disk baseline while
+// retaining the dirty draft, as FilePreview does. Failed/incomplete reads and
+// Host-owned resources do not replace a dirty local editor's baseline.
 type textReadState struct {
 	preview, draft             string
 	truncated, remote, blocked bool
@@ -17,7 +18,9 @@ func reconcileTextRead(before textReadState, result textReadResult) textReadStat
 		}
 	}
 	if before.preview != before.draft {
-		if result.err == nil && result.text != before.preview {
+		if result.err == nil && !result.truncated && !result.remote && !before.remote {
+			out.preview = result.text
+		} else if result.err == nil && result.text != before.preview {
 			out.blocked = true
 		}
 		return out

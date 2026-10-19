@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	myterm "github.com/egoist/mygo/plugins/terminal"
@@ -55,7 +56,7 @@ func openNativeTerminal(root string, dark bool) (*myterm.Terminal, error) {
 		return nil, err
 	}
 	light, darkTheme := myterm.LightTheme(), myterm.DarkTheme()
-	opts := myterm.Options{Dir: root, Theme: light, DarkTheme: darkTheme, Transparent: true}
+	opts := myterm.Options{Dir: root, Theme: light, DarkTheme: darkTheme, Transparent: true, PTYResizeDelay: 150 * time.Millisecond}
 	if dark {
 		opts.Theme = darkTheme
 	}
@@ -172,6 +173,17 @@ func View(c *ui.Context, m Model) {
 	field := chrome.BackdropTerminal(chrome.Color(colors.Field))
 	border := chrome.Color(colors.Border)
 	p := m.Panel
+	if p != nil {
+		for _, pane := range append([]*terminalPane(nil), p.panes...) {
+			if pane.term != nil {
+				select {
+				case <-pane.term.Done():
+					p.closePane(pane.id)
+				default:
+				}
+			}
+		}
+	}
 	// FocusBind writes pointer/keyboard focus back without replacing active state
 	// when a toolbar control temporarily takes focus.
 	if p != nil && p.focused != 0 && p.focused != p.active {
@@ -186,62 +198,22 @@ func View(c *ui.Context, m Model) {
 
 	selectionKey := captureSelectionKey(m, selection)
 
-	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
-		ui.Row(c).Padding(4, 8, 4, 8).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyTerminalTitle)).FontSize(12).Bold().TextColor(fg).Grow(1)
-			if p != nil {
-				if ui.Button(c, i18n.T(i18n.KeyTerminalCopyCwd)).FontSize(11).Disabled(p.cwd == "").Clicked() {
-					mygo.Clipboard.WriteText(p.currentDirectory())
-				}
-				maximizeLabel := terminalLabel("最大化", "Maximize")
-				if p.Maximized {
-					maximizeLabel = terminalLabel("还原", "Restore")
-				}
-				if ui.Button(c, maximizeLabel).FontSize(11).Clicked() {
-					p.Maximized = !p.Maximized
-				}
-				if ui.Button(c, terminalLabel("新终端", "New terminal")).FontSize(11).Disabled(p.cwd == "").Clicked() {
-					_ = p.createPane(m.SystemDark, false, false)
-				}
-				group := p.activeGroup()
-				canSplit := group != nil && len(group.panes) < maxPanesPerGroup
-				if ui.Button(c, terminalLabel("左右分栏", "Split horizontal")).FontSize(11).Disabled(!canSplit).Clicked() {
-					_ = p.createPane(m.SystemDark, true, false)
-				}
-				if ui.Button(c, terminalLabel("上下分栏", "Split vertical")).FontSize(11).Disabled(!canSplit).Clicked() {
-					_ = p.createPane(m.SystemDark, true, true)
-				}
-				if ui.Button(c, terminalLabel("关闭当前", "Close current")).FontSize(11).Clicked() {
-					closePaneFromView(m, p.active)
-				}
-			}
-			if m.OnRestart != nil && ui.Button(c, i18n.T(i18n.KeyTerminalRestart)).FontSize(11).Clicked() {
-				m.OnRestart()
-			}
-		})
-		ui.Text(c, terminalLabel("切换或隐藏保留进程；关闭和重启只影响当前终端。每组最多四栏。", "Switching or hiding keeps processes running. Close and restart affect only the active terminal. Up to four panes per group.")).FontSize(10).TextColor(muted).Padding(0, 8, 2, 8)
-		ui.Box(c).Fill().Height(1).Background(border)
+	root := ui.Column(c).Fill().MinHeight(0).MinWidth(0).Background(field)
+	root.ContextMenu(func(menu *ui.Menu) {
+		if p != nil && menu.Item(i18n.T(i18n.KeyTerminalCopyCwd)).Disabled(p.cwd == "").Chosen() {
+			mygo.Clipboard.WriteText(p.currentDirectory())
+		}
+		if m.OnRestart != nil && menu.Item(i18n.T(i18n.KeyTerminalRestart)).Chosen() {
+			m.OnRestart()
+		}
+	})
+	root.Children(func() {
 		if note := strings.TrimSpace(m.ShellsNote); note != "" {
 			ui.Text(c, note).FontSize(11).TextColor(muted).Padding(4, 12, 4, 12)
 		}
 		if p == nil {
 			ui.Text(c, i18n.T(i18n.KeyTerminalUnavailable)).FontSize(12).TextColor(muted).Padding(8, 12, 8, 12)
 			return
-		}
-		if fragment := FormatSelection(selection); fragment != "" {
-			ui.Row(c).Gap(6).Padding(4, 8, 4, 8).Children(func() {
-				paintSelectionTarget(c, m, selectionKey)
-				if ui.Button(c, terminalLabel("复制所选文本", "Copy selection")).FontSize(11).Clicked() {
-					mygo.Clipboard.WriteText(selection)
-				}
-				if ui.Button(c, terminalLabel("添加到对话", "Add to chat")).FontSize(11).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
-					if err := m.OnAddToChat(fragment); err != nil {
-						p.notice = err.Error()
-					} else {
-						p.notice = terminalLabel("已添加到对话草稿", "Added to the chat draft")
-					}
-				}
-			})
 		}
 		if p.notice != "" && len(p.panes) > 0 {
 			ui.Row(c).Gap(6).Children(func() {
@@ -259,27 +231,6 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, message).FontSize(12).TextColor(muted).Padding(8, 12, 8, 12)
 			return
 		}
-		if len(p.panes) > 1 {
-			ui.Scroll(c).Height(62).FillWidth().Children(func() {
-				ui.Column(c).Gap(2).Children(func() {
-					for _, pane := range append([]*terminalPane(nil), p.panes...) {
-						shell := pane
-						ui.Row(c).Key(shell.id).Gap(4).Children(func() {
-							name := terminalTitle(shell)
-							if shell.id == p.active {
-								name = "▸ " + name
-							}
-							if ui.Button(c, name).FontSize(11).Clicked() {
-								p.activate(shell.id)
-							}
-							if ui.Button(c, "×").FontSize(11).Clicked() {
-								closePaneFromView(m, shell.id)
-							}
-						})
-					}
-				})
-			})
-		}
 		group := p.activeGroup()
 		if group == nil {
 			return
@@ -291,11 +242,6 @@ func View(c *ui.Context, m Model) {
 					continue
 				}
 				ui.Column(c).Key(shell.id).Fill().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-					if len(group.panes) > 1 {
-						if ui.Button(c, terminalTitle(shell)).FontSize(10).Clicked() {
-							p.activate(shell.id)
-						}
-					}
 					if shell.err != nil {
 						ui.Text(c, shell.err.Error()).FontSize(12).TextColor(muted)
 						return
@@ -326,14 +272,45 @@ func View(c *ui.Context, m Model) {
 						shell.term.SetTheme(native, native)
 						shell.appearanceColors = colors
 					}
-					myterm.View(c, shell.term).Fill().Grow(1).FocusBind(&p.focused, shell.id)
+					surface := myterm.View(c, shell.term).Fill().Grow(1).FocusBind(&p.focused, shell.id)
+					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
+						bounds := surface.Bounds()
+						ui.Overlay(c, func() {
+							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(4).Background(c.Theme().Surface).Children(func() {
+								if ui.Button(c, terminalLabel("复制", "Copy")).FontSize(12).Clicked() {
+									mygo.Clipboard.WriteText(selection)
+								}
+								if ui.Button(c, terminalLabel("添加到对话", "Add to chat")).FontSize(12).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+									if err := m.OnAddToChat(fragment); err != nil {
+										p.notice = err.Error()
+									} else {
+										p.notice = terminalLabel("已添加到对话草稿", "Added to the chat draft")
+										shell.term.ClearSelection()
+									}
+								}
+								paintSelectionTarget(c, m, selectionKey)
+							})
+						})
+					}
 				})
 			}
 		}
-		if group.vertical {
-			ui.Column(c).Key(group.id).Fill().Grow(1).MinHeight(0).Gap(4).Children(paint)
-		} else {
-			ui.Row(c).Key(group.id).Fill().Grow(1).MinHeight(0).MinWidth(0).Gap(4).Children(paint)
-		}
+		ui.Row(c).Fill().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			if group.vertical {
+				ui.Column(c).Key(group.id).Fill().Grow(1).MinHeight(0).Gap(0.5).Children(paint)
+			} else {
+				ui.Row(c).Key(group.id).Fill().Grow(1).MinHeight(0).MinWidth(0).Gap(0.5).Children(paint)
+			}
+			if len(p.panes) > 1 {
+				ui.Box(c).Width(0.5).FillHeight().Background(border)
+				terminalSidebar(c, m, fg, muted)
+			}
+		})
 	})
+	if p != nil && len(p.panes) <= 1 {
+		bounds := root.Bounds()
+		ui.Overlay(c, func() {
+			ui.Row(c).Absolute().Left(max(bounds.X, bounds.X+bounds.W-148)).Top(bounds.Y + 8).Height(28).Children(func() { terminalActionBar(c, m, false) })
+		})
+	}
 }

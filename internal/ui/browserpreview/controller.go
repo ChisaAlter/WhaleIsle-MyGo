@@ -115,7 +115,11 @@ func (b *Controller) Navigate(raw string) {
 	t.Draft = normalized
 	t.Error = ""
 	if t.Host != nil && t.Host.Alive() {
-		if err := t.Host.Navigate(normalized); err != nil {
+		if state := t.Host.State(); state.URL == normalized && !state.Loading && state.Error == "" {
+			// ElectronWebViewImpl.loadUrl reloads an already observed address;
+			// submitting it again must not append a duplicate history entry.
+			t.Host.Reload()
+		} else if err := t.Host.Navigate(normalized); err != nil {
 			t.Error = err.Error()
 		}
 		b.showHost(t.Host)

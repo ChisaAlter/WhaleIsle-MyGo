@@ -49,8 +49,9 @@ func (h *HostState) Observe(store *hostterminal.Store, session string, visible b
 	}
 }
 
-// HostView offers explicit list/create/connect/close actions. Merely opening the
-// tab never allocates a process, and Options.Conn prevents a local PTY fallback.
+// HostView offers list/create/connect/close actions. Only StartFresh, carried
+// from an explicit new-tab action, creates on mount; ordinary recovery does not.
+// Options.Conn prevents a local PTY fallback.
 func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, themeID string, dark bool, actionOptions ...HostActions) {
 	var actions HostActions
 	if len(actionOptions) > 0 {
@@ -61,6 +62,10 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 	}
 	h.Observe(store, session, true)
 	v := store.Snapshot(session)
+	if actions.StartFresh != nil && *actions.StartFresh && store.StartFresh(v.Owner, session) {
+		*actions.StartFresh = false
+		v = store.Snapshot(session)
+	}
 	colors := theme.Resolve(themeID).Active(dark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	target := fmt.Sprintf("%d:%s:%s", v.Owner, session, v.ActiveID)

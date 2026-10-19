@@ -27,9 +27,13 @@ type Workbench struct {
 	Message, Status, ReviewToken, ReviewText  string
 	Loaded                                    bool
 	Branches                                  []git.Branch
+	branchesRequest                           *branchListRequest
 	BranchesOpen                              bool
 	BranchQuery, BranchName, BranchStatus     string
 	Repository                                bool
+	RepositoryStatus                          *git.RepositoryStatus
+	RepositoryStatusError                     string
+	repositoryStatusRequest                   *repositoryStatusRequest
 	Operation                                 *gitOperation
 	PublishOpen, PublishReview, PublishPublic bool
 	PublishName, PublishRemoteURL             string
@@ -47,6 +51,7 @@ func word(zh, en string) string {
 func (w *Workbench) reload(root string) {
 	w.Root = root
 	w.Loaded = true
+	w.reloadRepositoryStatus()
 	w.Repository = git.IsRepository(root)
 	changes, err := git.Changes(root)
 	if err != nil {
@@ -63,9 +68,11 @@ func refreshWorkbench(m Model) {
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
 		if w.Loaded && w.Root != m.WorkspaceRoot {
+			w.cancelBranchList()
+			w.cancelRepositoryStatus()
 			w.CancelComparison()
 			operation := w.Operation
-			*w = Workbench{Operation: operation}
+			*w = Workbench{Operation: operation, invalidate: w.invalidate, AgainstHEAD: true}
 			if m.PathFilter != nil {
 				*m.PathFilter = ""
 			}
@@ -91,7 +98,10 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 	if w == nil {
 		return
 	}
+	w.invalidate = c.Services().Invalidate
 	if !w.Loaded || w.Root != m.WorkspaceRoot {
+		w.cancelBranchList()
+		w.cancelRepositoryStatus()
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
 		w.CancelComparison()
@@ -107,10 +117,10 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 		operation := w.Operation
-		*w = Workbench{Operation: operation}
+		*w = Workbench{Operation: operation, invalidate: c.Services().Invalidate, AgainstHEAD: true}
 		w.reload(m.WorkspaceRoot)
 	}
-	w.invalidate = c.Services().Invalidate
+	w.finishRepositoryStatus()
 	finishComparison(m)
 	ui.Column(c).Gap(4).Padding(4, 12, 8, 12).Children(func() {
 		if paintRepositoryActions(c, m, fg, muted) {

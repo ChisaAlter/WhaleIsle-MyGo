@@ -59,6 +59,10 @@ type Options struct {
 	// is typed is written to it. Command, Dir and Env are then ignored. A
 	// Conn with a method Resize(cols, rows int) error is told the size.
 	Conn io.ReadWriteCloser
+	// PTYResizeDelay debounces geometry sent to a local program while the
+	// emulator reflows immediately. Zero keeps immediate resizing. Conn is
+	// unaffected; a pending local resize is flushed before Close.
+	PTYResizeDelay time.Duration
 	// ReadOnly blocks all outgoing input while retaining local selection/copy.
 	ReadOnly bool
 	// CanCopy optionally validates selection ownership at every copy action.
@@ -125,10 +129,12 @@ type Terminal struct {
 	clipOut []string // what programs copied, for the view to write
 	// src is the program's pseudo-terminal, or Conn: nil until the
 	// program starts, from launch, its options.
-	src    io.ReadWriteCloser
-	proc   *pty.PTY
-	launch *pty.Options
-	timer  *time.Timer // starts the program when no view does
+	src              io.ReadWriteCloser
+	proc             *pty.PTY
+	launch           *pty.Options
+	timer            *time.Timer // starts the program when no view does
+	ptyResizeTimer   *time.Timer // mu guards pending local program geometry
+	ptyResizeVersion uint64
 
 	srcOnce sync.Once
 	srcErr  error
@@ -507,6 +513,16 @@ func (t *Terminal) Text() string {
 	return t.term.Text()
 }
 
+// ClearSelection dismisses the current selection without sending program input.
+func (t *Terminal) ClearSelection() {
+	t.mu.Lock()
+	if t.term != nil {
+		t.term.SetSelection(nil)
+	}
+	t.mu.Unlock()
+	t.redraw()
+}
+
 // Resize sets the size of the screen in cells, for a terminal no view
 // shows, as one a server keeps for a session while no window does: a view
 // sets the size of the terminal it shows.
@@ -566,6 +582,7 @@ func (t *Terminal) Close() error {
 		t.mu.Unlock()
 		return nil
 	}
+	t.flushPTYResizeLocked()
 	t.closed = true
 	src, proc, waiting := t.src, t.proc, t.launch != nil
 	t.launch = nil
@@ -670,9 +687,45 @@ func (t *Terminal) resize(s gridSize) {
 	}
 	switch src := t.src.(type) {
 	case *pty.PTY:
-		src.Resize(s.cols, s.rows, s.cols*s.cellW, s.rows*s.cellH)
+		if t.opts.PTYResizeDelay <= 0 {
+			src.Resize(s.cols, s.rows, s.cols*s.cellW, s.rows*s.cellH)
+		} else {
+			if t.ptyResizeTimer != nil {
+				t.ptyResizeTimer.Stop()
+			}
+			t.ptyResizeVersion++
+			version := t.ptyResizeVersion
+			t.ptyResizeTimer = time.AfterFunc(t.opts.PTYResizeDelay, func() {
+				t.mu.Lock()
+				defer t.mu.Unlock()
+				if !t.closed && version == t.ptyResizeVersion {
+					t.flushPTYResizeLocked()
+				}
+			})
+		}
 	case interface{ Resize(cols, rows int) error }:
 		t.resizeConn(src, s)
+	}
+}
+
+// FlushPTYResize sends the final local program size before hiding a view.
+// It neither changes the grid nor sends a remote Conn resize.
+func (t *Terminal) FlushPTYResize() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.flushPTYResizeLocked()
+}
+
+func (t *Terminal) flushPTYResizeLocked() {
+	if t.ptyResizeTimer == nil {
+		return
+	}
+	t.ptyResizeTimer.Stop()
+	t.ptyResizeTimer = nil
+	t.ptyResizeVersion++
+	if src, ok := t.src.(*pty.PTY); ok && !t.closed && !t.ReadOnly() {
+		s := t.size
+		src.Resize(s.cols, s.rows, s.cols*s.cellW, s.rows*s.cellH)
 	}
 }
 

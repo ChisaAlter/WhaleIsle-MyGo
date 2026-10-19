@@ -157,11 +157,19 @@ func diffWorkingTree(root, path string, staged, head bool) (string, error) {
 		}
 	}
 	args := []string{"diff", "--no-ext-diff", "--no-textconv"}
+	unborn := false
 	if staged {
 		args = append(args, "--cached")
 	}
 	if head {
-		args = append(args, "HEAD")
+		if _, err := localCommand(root, "rev-parse", "--verify", "--quiet", "HEAD"); err == nil {
+			args = append(args, "HEAD")
+		} else {
+			// Original gitDiff includes both index and subsequent working edits
+			// when no HEAD exists yet.
+			unborn = true
+			args = append(args, "--cached")
+		}
 	}
 	filter := path
 	if filter == "" {
@@ -169,6 +177,14 @@ func diffWorkingTree(root, path string, staged, head bool) (string, error) {
 	}
 	args = append(args, "--", filter)
 	out, err := localCommand(root, "--literal-pathspecs", args...)
+	if unborn {
+		unstaged, unstagedErr := localCommand(root, "--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--", filter)
+		if err != nil && unstagedErr != nil {
+			return out, err
+		}
+		out += unstaged
+		err = nil
+	}
 	if err != nil || staged {
 		return out, err
 	}
@@ -205,14 +221,17 @@ func untrackedDiff(root, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !info.Mode().IsRegular() || info.Size() > 512*1024 {
-		return "", errors.New("untracked file is a link or too large to preview")
+	if !info.Mode().IsRegular() {
+		return "", errors.New("untracked file is a link or not a regular file")
+	}
+	header := fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\n", path, path)
+	if info.Size() > 256*1024 {
+		return header, nil
 	}
 	data, err := os.ReadFile(p)
 	if err != nil {
 		return "", err
 	}
-	header := fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 100644\n", path, path)
 	if strings.ContainsRune(string(data), 0) {
 		return header + fmt.Sprintf("Binary files /dev/null and b/%s differ\n", path), nil
 	}

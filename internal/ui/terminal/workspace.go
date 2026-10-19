@@ -46,8 +46,38 @@ func (p *Panel) activeGroup() *terminalGroup {
 
 func (p *Panel) activate(id uint64) {
 	if pane := p.pane(id); pane != nil {
+		if old, next := p.activeGroup(), p.groupFor(id); old != nil && old != next {
+			for _, member := range old.panes {
+				if hidden := p.pane(member); hidden != nil && hidden.term != nil {
+					hidden.term.FlushPTYResize()
+				}
+			}
+		}
 		p.active, p.focused = id, id
 		p.Term, p.Err = pane.term, pane.err
+	}
+}
+
+func (p *Panel) groupFor(id uint64) *terminalGroup {
+	for _, group := range p.groups {
+		for _, member := range group.panes {
+			if member == id {
+				return group
+			}
+		}
+	}
+	return nil
+}
+
+// FlushResize preserves final PTY dimensions when the drawer is hidden.
+func (p *Panel) FlushResize() {
+	if p == nil {
+		return
+	}
+	for _, pane := range p.panes {
+		if pane.term != nil {
+			pane.term.FlushPTYResize()
+		}
 	}
 }
 
@@ -115,9 +145,7 @@ func (p *Panel) closePane(id uint64) {
 				continue
 			}
 			group.panes = append(group.panes[:j], group.panes[j+1:]...)
-			if len(group.panes) > 0 {
-				next = group.panes[len(group.panes)-1]
-			} else {
+			if len(group.panes) == 0 {
 				p.groups = append(p.groups[:i], p.groups[i+1:]...)
 			}
 			break
@@ -126,6 +154,9 @@ func (p *Panel) closePane(id uint64) {
 	for i, member := range p.panes {
 		if member.id == id {
 			p.panes = append(p.panes[:i], p.panes[i+1:]...)
+			if len(p.panes) > 0 {
+				next = p.panes[min(i, len(p.panes)-1)].id
+			}
 			break
 		}
 	}

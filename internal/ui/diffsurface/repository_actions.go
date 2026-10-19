@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -106,6 +107,12 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("操作进行中，请勿重复提交。", "Operation in progress. Do not submit it again.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		return true
 	}
+	if w.RepositoryStatus != nil {
+		status := *w.RepositoryStatus
+		ui.Text(c, fmt.Sprintf("%s  ↑%d  ↓%d", status.Branch, status.Ahead, status.Behind)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	} else if w.RepositoryStatusError != "" {
+		ui.Text(c, w.RepositoryStatusError).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
 	paintGitFollowups(c, m, fg, muted)
 	if paintRemoteWorkflow(c, m, fg, muted) {
 		return true
@@ -127,9 +134,12 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	if ui.Button(c, word("核对草稿 PR…", "Review draft PR…")).Clicked() {
 		w.RequestPR(m.WorkspaceRoot)
 	}
-	if ui.Button(c, word("发布仓库…", "Publish repository…")).Clicked() {
+	if ui.Button(c, word("发布仓库…", "Publish repository…")).Disabled(w.RepositoryStatus == nil || w.RepositoryStatus.HasOrigin).Clicked() {
 		w.PublishOpen = !w.PublishOpen
 		w.PublishReview = false
+		if w.PublishName == "" {
+			w.PublishName = filepath.Base(m.WorkspaceRoot)
+		}
 	}
 	if w.PublishOpen {
 		paintPublish(c, m, fg, muted)
@@ -169,6 +179,9 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 				w.PublishReview = true
 				w.Status = ""
 			}
+		}
+		if ui.Button(c, word("取消发布", "Cancel publish")).Clicked() {
+			w.PublishOpen, w.PublishReview = false, false
 		}
 		return
 	}

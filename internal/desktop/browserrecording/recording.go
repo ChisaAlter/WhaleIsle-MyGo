@@ -5,6 +5,7 @@ package browserrecording
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -34,6 +35,30 @@ type Artifact struct {
 	MIME string
 	Data []byte
 }
+
+// Save creates the original stop-recording artifact in application-owned
+// storage. A generated exclusive name never replaces a user's existing file.
+func (a Artifact) Save(ctx context.Context, directory string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if err := a.Validate(); err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		return "", err
+	}
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return "", err
+	}
+	path := filepath.Join(directory, fmt.Sprintf("browser-recording-%x%s", id, a.Extension()))
+	if err := a.Export(ctx, path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 type encoder interface {
 	Start(context.Context, []byte) (string, error)
 	Frame(context.Context, []byte) error
@@ -323,7 +348,8 @@ func ebmlSize(data []byte) (uint64, int, bool) {
 	return value, n, value != (uint64(1)<<uint(7*n))-1
 }
 
-// Export writes only after a native save dialog and explicit Export gesture.
+// Export writes a Stop-authorized application recording or an explicitly chosen
+// export target. It does not choose a destination by itself.
 // Existing files (including symlinks) are never replaced. Cancel removes only
 // the new file this call created; a failed export keeps in-memory bytes for retry.
 func (a Artifact) Export(ctx context.Context, path string) error {

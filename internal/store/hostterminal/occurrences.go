@@ -18,10 +18,13 @@ func (s *Store) Occurrence(key, source, session string) *Store {
 	preference, save := s.shellPreference, s.saveShellPreference
 	origin := s.occurrences[source]
 	s.mu.Unlock()
-	if origin == nil {
-		origin = s
+	// Only an explicit duplicate/source pane may inherit a live identity.
+	// Fresh tabs and saved descriptors must not adopt another pane's process
+	// merely because the shared transport currently has an active terminal.
+	var seed View
+	if origin != nil {
+		seed = origin.Snapshot(session)
 	}
-	seed := origin.Snapshot(session)
 	child.bind(owner, remote, ready, notify)
 	child.ConfigureShellPreference(preference, save)
 	child.Show(session, true)

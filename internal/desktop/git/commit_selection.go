@@ -39,7 +39,7 @@ type SelectedCommitResult struct {
 func selectedCommand(ctx context.Context, root, index string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = root
-	for _, e := range os.Environ() {
+	for _, e := range gitChildEnv() {
 		key := strings.SplitN(e, "=", 2)[0]
 		if strings.HasPrefix(key, "GIT_") && (key == "GIT_INDEX_FILE" || key == "GIT_DIR" || key == "GIT_WORK_TREE" || key == "GIT_COMMON_DIR" || key == "GIT_OPTIONAL_LOCKS") {
 			continue

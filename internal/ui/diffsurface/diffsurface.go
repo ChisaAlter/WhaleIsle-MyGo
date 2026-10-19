@@ -39,7 +39,7 @@ func LoadDiff(root, relPath string) (text, errMsg string) {
 		paths = []string{relPath}
 	}
 	_ = paths
-	out, err := git.DiffScope(root, relPath, false)
+	out, err := git.DiffHEAD(root, relPath)
 	if err != nil {
 		if errors.Is(err, git.ErrNotRepo) {
 			return "", i18n.T(i18n.KeyDiffNotRepo)
@@ -64,7 +64,7 @@ func refresh(m Model) {
 	if m.Workbench != nil {
 		m.Workbench.CancelComparison()
 	}
-	text, errMsg := LoadDiff(m.WorkspaceRoot, rel)
+	var text, errMsg string
 	if m.Workbench != nil {
 		var err error
 		if m.Workbench.AgainstHEAD {
@@ -78,6 +78,8 @@ func refresh(m Model) {
 		} else if text == "" {
 			errMsg = i18n.T(i18n.KeyDiffEmpty)
 		}
+	} else {
+		text, errMsg = LoadDiff(m.WorkspaceRoot, rel)
 	}
 	if m.Text != nil {
 		*m.Text = text

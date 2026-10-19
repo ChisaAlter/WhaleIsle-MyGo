@@ -49,7 +49,9 @@ func (w *Workbench) requestRemote(root, mode string) {
 	w.cancelCommitPreparation()
 	w.cancelRemotePreparation()
 	if w.Root != root {
-		*w = Workbench{Operation: w.Operation}
+		w.cancelBranchList()
+		w.cancelRepositoryStatus()
+		*w = Workbench{Operation: w.Operation, invalidate: w.invalidate, AgainstHEAD: true}
 	}
 	w.reload(root)
 	w.Remote = &remoteWorkflowState{Mode: mode, Draft: true}

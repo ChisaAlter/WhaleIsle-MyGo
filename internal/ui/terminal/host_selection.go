@@ -5,6 +5,9 @@ import "errors"
 // HostActions use the initiating session's existing composer and navigation.
 // Selection never becomes terminal input and never automatically sends a chat.
 type HostActions struct {
+	// StartFresh is a runtime marker set only by explicit new-pane creation;
+	// layout recovery and clone/reattach must leave it nil/false.
+	StartFresh   *bool
 	CanAddToChat bool
 	AddToChat    func(string) error
 	OpenTarget   func(selection, cwd string) error

@@ -64,7 +64,7 @@ func applySaveResult(m Model, t *FileTab) {
 	if s.Running || s.Pending {
 		t.Status = label("正在保存…", "Saving…")
 	}
-	if m.SelectedFile != nil && *m.SelectedFile == t.Path {
+	if m.SelectedFile != nil && selectedTab(m) == t {
 		if m.Preview != nil {
 			*m.Preview = t.Preview
 		}

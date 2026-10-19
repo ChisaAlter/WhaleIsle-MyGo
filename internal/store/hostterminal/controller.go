@@ -66,14 +66,15 @@ type View struct {
 	Render                             *Render
 }
 type sessionState struct {
-	items       []Info
-	active      string
-	busy        bool
-	error       string
-	environment Environment
-	operation   uint64
-	shells      shellState
-	recoveredID string
+	items        []Info
+	active       string
+	busy         bool
+	error        string
+	environment  Environment
+	operation    uint64
+	shells       shellState
+	recoveredID  string
+	freshStarted bool
 }
 type terminalKey struct{ session, id string }
 type entry struct {
@@ -306,20 +307,37 @@ func (s *Store) Refresh(owner uint64, session string) {
 	}()
 }
 
-// Create is called only by the explicit New Host terminal button. A failed or
+// Create is called only by an explicit New Host terminal action. A failed or
 // lost response leaves its generated identity visible for refresh/explicit close;
 // retries never implicitly allocate a replacement process.
 func (s *Store) Create(owner uint64, session string) {
+	s.create(owner, session, false)
+}
+
+// StartFresh mounts one explicitly opened fresh occurrence, matching the
+// original TerminalView's createWhenMissing=true. Restored descriptors and
+// ordinary display/refresh never call it. A handled attempt is consumed once,
+// including a failed or uncertain allocation; no repaint retries it.
+func (s *Store) StartFresh(owner uint64, session string) bool {
+	return s.create(owner, session, true)
+}
+
+func (s *Store) create(owner uint64, session string, fresh bool) bool {
 	s.mu.Lock()
 	if s.epoch != owner || s.remote == nil || !s.ready || session == "" || s.visible != session {
 		s.mu.Unlock()
-		return
+		return false
 	}
 	st := s.sessionLocked(session)
+	if fresh && (st.freshStarted || st.recoveredID != "") {
+		s.mu.Unlock()
+		return true
+	}
 	if st.busy {
 		s.mu.Unlock()
-		return
+		return false
 	}
+	st.freshStarted = st.freshStarted || fresh
 	st.busy = true
 	st.error = ""
 	st.operation++
@@ -401,6 +419,7 @@ func (s *Store) Create(owner uint64, session string) {
 		s.mu.Unlock()
 		s.fire()
 	}()
+	return true
 }
 func validEnvironment(v Environment) error {
 	if v.MaxInputBytes < 1 || v.MaxInputBytes > 4<<20 || v.MaxCols < 2 || v.MaxCols > 4096 || v.MaxRows < 1 || v.MaxRows > 4096 || v.Scrollback < 0 {

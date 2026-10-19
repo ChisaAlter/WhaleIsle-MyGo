@@ -1,44 +1,70 @@
 package diffsurface
 
 import (
+	"context"
 	"strings"
+	"time"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
 )
 
-func (w *Workbench) reloadBranches() {
-	branches, err := git.Branches(w.Root)
-	if err != nil {
-		w.Branches = nil
-		w.BranchStatus = word("分支列表读取失败：", "Failed to load branches: ") + err.Error()
-		return
-	}
-	w.Branches = branches
-	w.BranchStatus = ""
+type branchListResult struct {
+	branches []git.Branch
+	err      error
 }
 
-func branchChanged(m Model, out string, err error) {
-	w := m.Workbench
-	w.ReviewToken = ""
-	w.ReviewText = ""
-	if err != nil {
-		w.BranchStatus = err.Error()
-		// A failed checkout may still have changed index/HEAD. Refresh the
-		// repository and diff before showing the failure, as the original does.
-		w.reload(m.WorkspaceRoot)
-		w.reloadBranches()
-		w.BranchStatus = err.Error()
-		scopeDiff(m, "", false)
+type branchListRequest struct {
+	root   string
+	cancel context.CancelFunc
+	done   chan branchListResult
+}
+
+func (w *Workbench) cancelBranchList() {
+	if w.branchesRequest != nil {
+		w.branchesRequest.cancel()
+		w.branchesRequest = nil
+	}
+}
+
+func (w *Workbench) reloadBranches() {
+	w.cancelBranchList()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	request := &branchListRequest{root: w.Root, cancel: cancel, done: make(chan branchListResult, 1)}
+	w.branchesRequest = request
+	root, invalidate := w.Root, w.invalidate
+	w.Branches = nil
+	w.BranchStatus = ""
+	go func() {
+		defer cancel()
+		branches, err := git.BranchesContext(ctx, root)
+		request.done <- branchListResult{branches: branches, err: err}
+		if invalidate != nil {
+			invalidate()
+		}
+	}()
+}
+
+func (w *Workbench) finishBranchList() {
+	request := w.branchesRequest
+	if request == nil {
 		return
 	}
-	w.BranchName = ""
-	w.BranchQuery = ""
-	w.reload(m.WorkspaceRoot)
-	w.reloadBranches()
-	w.Status = out
-	scopeDiff(m, "", false)
+	if request.root != w.Root || !w.BranchesOpen {
+		w.cancelBranchList()
+		return
+	}
+	select {
+	case result := <-request.done:
+		w.branchesRequest = nil
+		if result.err != nil {
+			w.BranchStatus = word("分支列表读取失败：", "Failed to load branches: ") + result.err.Error()
+		} else {
+			w.Branches = result.branches
+		}
+	default:
+	}
 }
 
 func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -46,11 +72,14 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 	if w == nil {
 		return
 	}
+	w.finishBranchList()
 	ui.Row(c).Gap(6).Children(func() {
 		if ui.Button(c, word("分支…", "Branches…")).Clicked() {
 			w.BranchesOpen = !w.BranchesOpen
 			if w.BranchesOpen {
 				w.reloadBranches()
+			} else {
+				w.cancelBranchList()
 			}
 		}
 		if w.BranchesOpen && ui.Button(c, word("刷新分支", "Refresh branches")).Clicked() {
@@ -59,6 +88,9 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 	if !w.BranchesOpen {
 		return
+	}
+	if w.branchesRequest != nil {
+		ui.Text(c, word("正在读取分支…", "Loading branches…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.TextInput(c, &w.BranchQuery).FillWidth().Placeholder(word("筛选分支", "Filter branches"))
@@ -85,12 +117,15 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 						hint = word("此分支名称包含桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
 					}
 					if ui.Button(c, word("切换", "Switch")).FontSize(fonttheme.InterfaceSize(11)).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
-						out, err := git.SwitchBranch(m.WorkspaceRoot, b.Name)
-						branchChanged(m, out, err)
+						root, name := m.WorkspaceRoot, b.Name
+						beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
+							out, err := git.SwitchBranchContext(ctx, root, name)
+							return gitOperationResult{text: out, err: err}
+						})
 					}
 				})
 			}
-			if matches == 0 && w.BranchStatus == "" {
+			if matches == 0 && w.BranchStatus == "" && w.branchesRequest == nil {
 				ui.Text(c, word("没有匹配分支", "No matching branches")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
@@ -105,8 +140,11 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 		if ui.Button(c, word("创建并切换", "Create and switch")).Disabled(strings.TrimSpace(w.BranchName) == "" || taken).Clicked() {
-			out, err := git.CreateBranch(m.WorkspaceRoot, strings.TrimSpace(w.BranchName))
-			branchChanged(m, out, err)
+			root, name := m.WorkspaceRoot, strings.TrimSpace(w.BranchName)
+			beginGitOperation(c, w, word("正在创建分支…", "Creating branch…"), func(ctx context.Context) gitOperationResult {
+				out, err := git.CreateBranchContext(ctx, root, name)
+				return gitOperationResult{text: out, err: err}
+			})
 		}
 	})
 	if w.BranchStatus != "" {

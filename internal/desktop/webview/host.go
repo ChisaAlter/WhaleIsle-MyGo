@@ -69,6 +69,7 @@ type Host struct {
 	mediaSeat         bool
 	mediaPlacement    *mediaPlacement
 	transient         bool
+	browserProfile    bool
 	initialHTML       string // fixed product-owned document; never renderer-supplied
 	initialBaseURL    string // immutable identity base, separate from the display URL
 	displayURL        string
@@ -225,6 +226,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	}
 
 	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h.browserProfile = opts.BrowserProfile
 	initialURL := pageURL
 	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
@@ -280,9 +282,17 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 			return
 		}
 		h.disconnectClientModulesForNavigation(e.URL)
+		if opts.BrowserProfile {
+			h.mu.Lock()
+			h.url = e.URL
+			h.mu.Unlock()
+		}
 		h.beginLoad()
 	})
 	pg.OnDidNavigate(func(raw string) {
+		if opts.BrowserProfile && validateHTTPURL(raw) != nil {
+			return // Keep the requested address through an internal error document.
+		}
 		h.mu.Lock()
 		h.navigationEpoch++
 		h.url = h.logicalURL(raw)
@@ -423,6 +433,11 @@ func (h *Host) Navigate(raw string) error {
 	}
 	h.disconnectClientModulesForNavigation(raw)
 	h.beginLoad()
+	if h.browserProfile {
+		h.mu.Lock()
+		h.url = raw
+		h.mu.Unlock()
+	}
 	if err := pg.LoadURL(pageURL); err != nil {
 		if h.gateway != nil {
 			err = errors.New("Plugin Host navigation failed")
@@ -438,7 +453,6 @@ func (h *Host) Navigate(raw string) error {
 	}
 	h.mu.Lock()
 	h.url = h.logicalURL(raw)
-	h.err = ""
 	h.mu.Unlock()
 	h.notify()
 	return nil
@@ -632,8 +646,11 @@ func (h *Host) State() State {
 		s.Loading = s.Loading || (!stopped && p.IsLoading())
 		s.CanBack = p.CanGoBack()
 		s.CanForward = p.CanGoForward()
-		if u := p.URL(); u != "" {
+		if u := p.URL(); u != "" && (!h.browserProfile || (!s.Loading && s.Error == "" && validateHTTPURL(u) == nil)) {
 			s.URL = h.logicalURL(u)
+		}
+		if h.browserProfile && s.Error != "" {
+			s.Loading = false
 		}
 	}
 	return s

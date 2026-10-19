@@ -14,6 +14,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/browserrecording"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/paths"
 )
 
 // UI-thread state for one explicitly clicked Browser tab. Worker inputs are
@@ -58,6 +59,9 @@ func (b *Controller) cancelBrowserRecording(message string) {
 	r.cancel()
 	r.artifact = nil
 	if message != "" {
+		if r.phase == "saving" {
+			message = browserChromeLabel("录制已结束；已完成保存的文件会保留。", "Recording ended; any completed saved file is retained.")
+		}
 		r.tab.ActionMessage = message
 	}
 }
@@ -95,13 +99,14 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 				if r.phase != "stopping" {
 					r.phase = p.Phase
 					if p.Phase == "recording" {
-						r.tab.ActionMessage = browserChromeLabel("正在录制当前网页（无音频）；停止后可导出视频", "Recording this webpage without audio; stop to export the video")
+						r.tab.ActionMessage = browserChromeLabel("正在录制当前网页（无音频）；停止后自动保存视频", "Recording this webpage without audio; stop to save the video")
 					}
 				}
 				r.frames = p.Frames
 				r.elapsed = p.Elapsed
 				if p.Phase == "stopping" {
-					r.tab.ActionMessage = browserChromeLabel("停止取帧，正在完成视频编码…", "Stopped capturing frames; finishing video encoding…")
+					r.phase = "saving"
+					r.tab.ActionMessage = browserChromeLabel("停止取帧，正在编码并保存视频…", "Stopped capturing frames; encoding and saving video…")
 				}
 				accepted <- true
 			})
@@ -119,6 +124,11 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 				return nil
 			}
 		})
+		var savedPath string
+		var saveErr error
+		if err == nil && current() {
+			savedPath, saveErr = result.Save(workCtx, filepath.Join(paths.UserDataDir(), "preview-recordings"))
+		}
 		owner.Update(func() {
 			if !b.recordingCurrent(r) {
 				if b.recording == r {
@@ -137,7 +147,16 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 			}
 			r.artifact = &result
 			r.phase = "ready"
-			t.ActionMessage = fmt.Sprintf(browserChromeLabel("视频已编码（%.1f MiB）；点击「导出视频」保存，或丢弃", "Video encoded (%.1f MiB); choose Export video to save, or discard it"), float64(len(result.Data))/(1024*1024))
+			if saveErr != nil {
+				t.Error = browserChromeLabel("视频保存失败：", "Recording could not be saved: ") + saveErr.Error()
+				t.ActionMessage = fmt.Sprintf(browserChromeLabel("视频已编码（%.1f MiB），可导出到其他位置。", "Video encoded (%.1f MiB); export it to another location."), float64(len(result.Data))/(1024*1024))
+				return
+			}
+			b.recording = nil
+			r.artifact = nil
+			r.cancel()
+			t.RecordingPath = savedPath
+			t.ActionMessage = browserChromeLabel("视频已保存：", "Recording saved: ") + savedPath
 		})
 	}()
 }
@@ -214,7 +233,7 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 			if ui.Button(c, browserChromeLabel("停止录制", "Stop recording")).Clicked() {
 				b.stopBrowserRecording(r)
 			}
-		case "stopping":
+		case "stopping", "saving":
 			ui.Text(c, browserChromeLabel("完成视频编码…", "Finishing video encoding…")).FontSize(fonttheme.InterfaceSize(11))
 		case "ready":
 			if ui.Button(c, browserChromeLabel("导出视频…", "Export video…")).Clicked() {
@@ -233,7 +252,7 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		}
 		return
 	}
-	if ui.Button(c, browserChromeLabel("录制视频", "Record video")).Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip(browserChromeLabel("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后需手动导出。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。", "This webpage only, without audio; up to about 12 frames/second, using the first frame’s resolution, with no fixed duration limit. Encoded files are limited to 512 MiB and discarded if exceeded. Maximum viewport edge: 3840; area: 3840×2160. Native HiDPI pixels are retained; each PNG frame is limited to 64 MiB. Switching tabs, navigating or closing cancels recording; export manually after stopping. WebM/MP4 encoder support is detected at startup and depends on the system WebView and media plugins; MP4 is tried if WebM is unavailable.")).Clicked() {
+	if ui.Button(c, browserChromeLabel("录制视频", "Record video")).Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip(browserChromeLabel("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后自动保存到应用录制目录。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。", "This webpage only, without audio; up to about 12 frames/second, using the first frame’s resolution, with no fixed duration limit. Encoded files are limited to 512 MiB and discarded if exceeded. Maximum viewport edge: 3840; area: 3840×2160. Native HiDPI pixels are retained; each PNG frame is limited to 64 MiB. Switching tabs, navigating or closing cancels recording; Stop saves to the application recordings folder. WebM/MP4 encoder support is detected at startup and depends on the system WebView and media plugins; MP4 is tried if WebM is unavailable.")).Clicked() {
 		b.startBrowserRecording(t)
 	}
 	if t.RecordingPath != "" && ui.Button(c, browserChromeLabel("显示视频", "Show video")).Clicked() {

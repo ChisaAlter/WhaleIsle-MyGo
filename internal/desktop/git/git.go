@@ -25,6 +25,7 @@ const DefaultCommandTimeout = 2 * time.Minute
 type Snapshot struct {
 	Branch string
 	Dirty  bool
+	Status *RepositoryStatus
 }
 
 type runner func(dir string, name string, args ...string) ([]byte, error)
@@ -34,12 +35,14 @@ type combinedRunner func(ctx context.Context, dir, name string, args ...string) 
 func execRunner(dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
+	cmd.Env = gitChildEnv()
 	return cmd.Output()
 }
 
 func combinedExecRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	cmd.Env = gitChildEnv()
 	return observedCombinedOutput(ctx, cmd)
 }
 
@@ -51,9 +54,20 @@ func cleanWorkspaceRoot(workspaceRoot string) string {
 	return filepath.Clean(root)
 }
 
-// WorkspaceSnapshot runs `git branch --show-current` and `git status -sb` in workspaceRoot.
+// WorkspaceSnapshot reads local branch, dirtiness and divergence for the
+// selected repository. It does not fetch or consult an account.
 func WorkspaceSnapshot(workspaceRoot string) (Snapshot, error) {
-	return workspaceSnapshot(workspaceRoot, execRunner)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	status, err := ReadRepositoryStatus(ctx, workspaceRoot)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	branch := status.Branch
+	if branch == "" {
+		branch = "HEAD"
+	}
+	return Snapshot{Branch: branch, Dirty: status.Dirty, Status: &status}, nil
 }
 
 func workspaceSnapshot(workspaceRoot string, run runner) (Snapshot, error) {

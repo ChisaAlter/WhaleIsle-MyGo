@@ -1,10 +1,12 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Branch is an existing local or remote-tracking ref, never an arbitrary revision.
@@ -21,7 +23,16 @@ func supportedBranchName(name string) bool {
 }
 
 func Branches(root string) ([]Branch, error) {
-	out, err := localCommand(root, "for-each-ref", "--format=%(refname)%09%(HEAD)%09%(symref)%09.", "refs/heads", "refs/remotes")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return BranchesContext(ctx, root)
+}
+
+func BranchesContext(ctx context.Context, root string) ([]Branch, error) {
+	if cleanWorkspaceRoot(root) == "" {
+		return nil, ErrNotRepo
+	}
+	out, err := selectedText(ctx, root, "", "for-each-ref", "--format=%(refname)%09%(HEAD)%09%(symref)%09.", "refs/heads", "refs/remotes")
 	if err != nil {
 		return nil, err
 	}
@@ -80,13 +91,22 @@ func parseBranches(out string) []Branch {
 }
 
 func checkBranchName(root, name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return checkBranchNameContext(ctx, root, name)
+}
+
+func checkBranchNameContext(ctx context.Context, root, name string) error {
+	if cleanWorkspaceRoot(root) == "" {
+		return ErrNotRepo
+	}
 	if !supportedBranchName(name) {
 		return errors.New("Branch name contains characters the desktop cannot pass to git safely.")
 	}
 	if name == "" || strings.TrimSpace(name) != name || strings.HasPrefix(name, "-") || strings.ContainsAny(name, "\x00\r\n\t") {
 		return errors.New("enter a valid branch name")
 	}
-	checked, err := localCommand(root, "check-ref-format", "--branch", name)
+	checked, err := selectedText(ctx, root, "", "check-ref-format", "--branch", name)
 	if err != nil {
 		return err
 	}
@@ -100,10 +120,16 @@ func checkBranchName(root, name string) error {
 // tree protections remain enabled. Like the original picker, switching this
 // folder may reuse a branch already checked out in another worktree.
 func SwitchBranch(root, name string) (string, error) {
-	if err := checkBranchName(root, name); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return SwitchBranchContext(ctx, root, name)
+}
+
+func SwitchBranchContext(ctx context.Context, root, name string) (string, error) {
+	if err := checkBranchNameContext(ctx, root, name); err != nil {
 		return "", err
 	}
-	branches, err := Branches(root)
+	branches, err := BranchesContext(ctx, root)
 	if err != nil {
 		return "", err
 	}
@@ -115,20 +141,26 @@ func SwitchBranch(root, name string) (string, error) {
 			return name, nil
 		}
 		if branch.Remote {
-			if err := checkBranchName(root, branch.LocalName); err != nil {
+			if err := checkBranchNameContext(ctx, root, branch.LocalName); err != nil {
 				return "", err
 			}
-			return localCommand(root, "switch", "--ignore-other-worktrees", "--track", "-c", branch.LocalName, name)
+			return selectedText(ctx, root, "", "switch", "--ignore-other-worktrees", "--track", "-c", branch.LocalName, name)
 		}
-		return localCommand(root, "switch", "--ignore-other-worktrees", "--no-guess", name)
+		return selectedText(ctx, root, "", "switch", "--ignore-other-worktrees", "--no-guess", name)
 	}
 	return "", errors.New("branch is no longer available; refresh the branch list")
 }
 
 // CreateBranch creates and checks out a new local branch without replacing any ref.
 func CreateBranch(root, name string) (string, error) {
-	if err := checkBranchName(root, name); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return CreateBranchContext(ctx, root, name)
+}
+
+func CreateBranchContext(ctx context.Context, root, name string) (string, error) {
+	if err := checkBranchNameContext(ctx, root, name); err != nil {
 		return "", err
 	}
-	return localCommand(root, "switch", "-c", name)
+	return selectedText(ctx, root, "", "switch", "-c", name)
 }
