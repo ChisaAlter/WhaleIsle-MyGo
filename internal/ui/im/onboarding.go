@@ -88,6 +88,9 @@ func onboardingView(c *ui.Context, m Model) {
 				if v.Error != "" {
 					ui.Text(c, v.Error).TextColor(chrome.Color(colors.Accent))
 				}
+				if v.StatusError != "" {
+					ui.Text(c, v.StatusError).TextColor(chrome.Color(colors.Accent))
+				}
 				if !v.Available {
 					ui.Text(c, "请先启动并连接 Host。").TextColor(muted)
 				}

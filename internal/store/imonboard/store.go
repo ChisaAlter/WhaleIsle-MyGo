@@ -91,6 +91,7 @@ type Provision struct {
 }
 type View struct {
 	TestNotice                      string
+	StatusError                     string
 	Open, Available, Busy           bool
 	Scope                           uint64
 	Channel, Notice, Error, Host    string
@@ -101,11 +102,14 @@ type View struct {
 	PolicyDrafts                    map[string]string
 }
 type Store struct {
-	mu     sync.Mutex
-	client *pluginrpc.Client
-	notify func()
-	view   View
-	cancel context.CancelFunc
+	mu               sync.Mutex
+	client           *pluginrpc.Client
+	notify           func()
+	view             View
+	cancel           context.CancelFunc
+	statusCancel     context.CancelFunc
+	statusGeneration uint64
+	statusReady      bool
 }
 
 func (s *Store) fire() {
@@ -118,6 +122,12 @@ func (s *Store) fire() {
 }
 func (s *Store) Bind(client *pluginrpc.Client, epoch uint64, notify func()) {
 	s.mu.Lock()
+	if s.statusCancel != nil {
+		s.statusCancel()
+		s.statusCancel = nil
+	}
+	s.statusReady = false
+	s.statusGeneration++
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
@@ -167,11 +177,25 @@ func (s *Store) Show(ch string) {
 	s.mu.Lock()
 	s.view.Open = true
 	s.view.Channel = ch
+	var statusContext context.Context
+	if s.client != nil {
+		statusContext, s.statusCancel = context.WithCancel(context.Background())
+	}
+	client, scope := s.client, s.view.Scope
 	s.mu.Unlock()
 	s.Refresh()
+	if statusContext != nil {
+		go s.pollConnectionStatus(statusContext, client, scope, ch)
+	}
 }
 func (s *Store) Hide() {
 	s.mu.Lock()
+	if s.statusCancel != nil {
+		s.statusCancel()
+		s.statusCancel = nil
+	}
+	s.statusReady = false
+	s.statusGeneration++
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
@@ -299,6 +323,7 @@ func (s *Store) run(method string, payload map[string]any, pairing bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	p, scope, ch, previous := s.client, s.view.Scope, s.view.Channel, s.view.Provision
+	s.statusGeneration++
 	s.view.Busy = true
 	s.view.Error = ""
 	s.view.Notice = "正在等待 Host…"
@@ -438,18 +463,75 @@ func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
 				Bots []Bot `json:"bots"`
 			} `json:"snapshot"`
 		}
-		if json.Unmarshal(raw, &result) != nil {
+		if json.Unmarshal(raw, &result) != nil || result.Snapshot == nil && result.Bots == nil || result.Snapshot != nil && result.Snapshot.Bots == nil {
 			s.view.Error = "Host 状态格式不可用"
 		} else {
 			s.view.Bots = result.Bots
 			if result.Snapshot != nil {
 				s.view.Bots = result.Snapshot.Bots
 			}
+			s.statusReady = true
+			s.view.StatusError = ""
 			s.view.Notice = "已刷新 Host 连接状态"
 		}
 	}
 	s.mu.Unlock()
 	s.fire()
+}
+
+// Match the original channel card's ready-state 15s status observation. This
+// reads only the captured Host/channel; actions and provisioning own their RPCs.
+func (s *Store) pollConnectionStatus(ctx context.Context, client *pluginrpc.Client, scope uint64, channel string) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		s.mu.Lock()
+		if ctx.Err() != nil || s.client != client || s.view.Scope != scope || !s.view.Open || s.view.Channel != channel {
+			s.mu.Unlock()
+			return
+		}
+		if !s.statusReady || s.view.Busy || s.view.Review != "" || s.view.Provision.AttemptID != "" {
+			s.mu.Unlock()
+			continue
+		}
+		generation := s.statusGeneration
+		s.mu.Unlock()
+		callContext, cancel := context.WithTimeout(ctx, 30*time.Second)
+		var raw json.RawMessage
+		err := client.Call(callContext, channel, "connection.status", map[string]any{}, &raw)
+		cancel()
+		var result struct {
+			Bots     []Bot `json:"bots"`
+			Snapshot *struct {
+				Bots []Bot `json:"bots"`
+			} `json:"snapshot"`
+		}
+		message := ""
+		if err != nil {
+			message = "连接状态刷新失败，可手动刷新重试 / Connection status refresh failed; refresh to retry"
+		} else if json.Unmarshal(raw, &result) != nil || result.Snapshot == nil && result.Bots == nil || result.Snapshot != nil && result.Snapshot.Bots == nil {
+			message = "Host 状态格式不完整 / Incomplete Host connection status"
+		}
+		s.mu.Lock()
+		if ctx.Err() != nil || s.client != client || s.view.Scope != scope || s.statusGeneration != generation || !s.view.Open || s.view.Channel != channel || s.view.Busy || s.view.Review != "" || s.view.Provision.AttemptID != "" {
+			s.mu.Unlock()
+			continue
+		}
+		s.view.StatusError = message
+		if message == "" {
+			s.view.Bots = result.Bots
+			if result.Snapshot != nil {
+				s.view.Bots = result.Snapshot.Bots
+			}
+		}
+		s.mu.Unlock()
+		s.fire()
+	}
 }
 func decodeProvision(raw json.RawMessage, previous Provision) Provision {
 	var wrap struct {
