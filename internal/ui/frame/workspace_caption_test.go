@@ -103,6 +103,18 @@ func TestGlobalPanelKeepsTerminalDrawerAndItsGeometry(t *testing.T) {
 	if _, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable)); !ok {
 		t.Fatal("global page lost its terminal drawer")
 	}
+	tt.SetSize(1200, 400)
+	if content.Y != 52 || content.H != 267 || sizes.Main != 400 {
+		t.Fatalf("global resize did not concede without rewriting split: content=%+v Main=%v", content, sizes.Main)
+	}
+	status, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
+	if !ok || status.Y+status.H > 400 {
+		t.Fatalf("global terminal escaped resized viewport: %+v", status)
+	}
+	tt.SetSize(1200, 800)
+	if content.Y != 52 || content.H != 400 || sizes.Main != 400 {
+		t.Fatalf("global window growth retained a stale concession: content=%+v Main=%v", content, sizes.Main)
+	}
 	sizes.Bottom = 0
 	tt.Frame()
 	if content.Y != 52 || content.H != 748 {
