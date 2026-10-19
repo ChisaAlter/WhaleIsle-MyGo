@@ -30,6 +30,8 @@ type Mux struct {
 	DialTimeout time.Duration
 	// OnCarrierLost is invoked once when the physical socket dies (optional).
 	OnCarrierLost func(error)
+	maintainMu    sync.Mutex
+	maintainer    *muxMaintainer
 
 	mu      sync.Mutex
 	conn    *websocket.Conn
@@ -47,6 +49,8 @@ type logicalStream struct {
 // Stream is one open logical Remote stream on a Mux.
 type Stream struct {
 	mux      *Mux
+	conn     *websocket.Conn
+	done     <-chan struct{}
 	id       string
 	inbox    <-chan ServerFrame
 	cancel   context.CancelFunc
@@ -92,7 +96,7 @@ func (m *Mux) Dial(ctx context.Context) error {
 	m.streams = make(map[string]*logicalStream)
 	m.done = make(chan struct{})
 	m.readErr = nil
-	go m.readLoop()
+	go m.readLoop(conn, m.done)
 	return nil
 }
 
@@ -109,6 +113,10 @@ func (m *Mux) Reset() {
 
 // Close tears down the physical socket and fails every open stream.
 func (m *Mux) Close() error {
+	return m.closeCarrier(false)
+}
+
+func (m *Mux) closeCarrier(immediate bool) error {
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
@@ -121,7 +129,11 @@ func (m *Mux) Close() error {
 	done := m.done
 	m.mu.Unlock()
 	if conn != nil {
-		_ = conn.Close(websocket.StatusNormalClosure, "closed")
+		if immediate {
+			_ = conn.CloseNow()
+		} else {
+			_ = conn.Close(websocket.StatusNormalClosure, "closed")
+		}
 	}
 	if done != nil {
 		<-done
@@ -164,6 +176,8 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 	streamCtx, cancel := context.WithCancel(ctx)
 	s := &Stream{
 		mux:    m,
+		conn:   conn,
+		done:   done,
 		id:     id,
 		inbox:  ls.inbox,
 		cancel: cancel,
@@ -181,10 +195,15 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 
 // Recv returns the next downlink value, ErrStreamEnd, or a stream/carrier error.
 func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
-	s.mux.mu.Lock()
-	done := s.mux.done
-	s.mux.mu.Unlock()
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		select {
+		case <-s.done:
+			return nil, s.carrierFailure()
+		default:
+		}
 		select {
 		case frame := <-s.inbox:
 			return s.handleFrame(frame)
@@ -195,22 +214,24 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 			return nil, ctx.Err()
 		case frame := <-s.inbox:
 			return s.handleFrame(frame)
-		case <-done:
-			select {
-			case frame := <-s.inbox:
-				return s.handleFrame(frame)
-			default:
-				s.terminal = true
-				s.mux.mu.Lock()
-				err := s.mux.readErr
-				s.mux.mu.Unlock()
-				if err != nil {
-					return nil, fmt.Errorf("%w: %v", ErrCarrierLost, err)
-				}
-				return nil, ErrCarrierLost
-			}
+		case <-s.done:
+			return nil, s.carrierFailure()
 		}
 	}
+}
+
+func (s *Stream) carrierFailure() error {
+	s.terminal = true
+	s.mux.mu.Lock()
+	var err error
+	if s.mux.done == s.done {
+		err = s.mux.readErr
+	}
+	s.mux.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCarrierLost, err)
+	}
+	return ErrCarrierLost
 }
 
 func (s *Stream) handleFrame(frame ServerFrame) (json.RawMessage, error) {
@@ -239,12 +260,12 @@ func (s *Stream) SendItem(ctx context.Context, value any) error {
 	if err != nil {
 		return err
 	}
-	return s.mux.sendTo(ctx, ClientFrame{Type: FrameItem, StreamID: s.id, Value: raw})
+	return s.send(ctx, ClientFrame{Type: FrameItem, StreamID: s.id, Value: raw})
 }
 
 // End half-closes the uplink.
 func (s *Stream) End(ctx context.Context) error {
-	return s.mux.sendTo(ctx, ClientFrame{Type: FrameEnd, StreamID: s.id})
+	return s.send(ctx, ClientFrame{Type: FrameEnd, StreamID: s.id})
 }
 
 // Cancel aborts the logical stream on the Host.
@@ -258,8 +279,18 @@ func (s *Stream) sendCancel() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_ = s.mux.sendTo(ctx, ClientFrame{Type: FrameCancel, StreamID: s.id})
+	_ = s.send(ctx, ClientFrame{Type: FrameCancel, StreamID: s.id})
 	s.mux.removeStream(s.id)
+}
+
+func (s *Stream) send(ctx context.Context, frame ClientFrame) error {
+	s.mux.mu.Lock()
+	current := !s.mux.closed && s.mux.conn == s.conn && s.mux.done == s.done
+	s.mux.mu.Unlock()
+	if !current {
+		return ErrCarrierLost
+	}
+	return s.mux.send(ctx, s.conn, frame)
 }
 
 func (m *Mux) http() *http.Client {
@@ -269,11 +300,7 @@ func (m *Mux) http() *http.Client {
 	return http.DefaultClient
 }
 
-func (m *Mux) readLoop() {
-	m.mu.Lock()
-	conn := m.conn
-	done := m.done
-	m.mu.Unlock()
+func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}) {
 	if done != nil {
 		defer close(done)
 	}
@@ -284,34 +311,19 @@ func (m *Mux) readLoop() {
 		var frame ServerFrame
 		err := wsjson.Read(context.Background(), conn, &frame)
 		if err != nil {
-			m.mu.Lock()
-			if !m.closed {
-				m.readErr = err
-				m.conn = nil
-				m.streams = make(map[string]*logicalStream)
-				cb := m.OnCarrierLost
-				m.mu.Unlock()
-				if cb != nil {
-					cb(err)
-				}
-			} else {
-				m.mu.Unlock()
-			}
+			m.carrierLost(conn, done, err)
 			return
 		}
 		if err := frame.Validate(); err != nil {
-			m.mu.Lock()
-			m.readErr = err
-			c := m.conn
-			m.conn = nil
-			m.streams = make(map[string]*logicalStream)
-			m.mu.Unlock()
-			if c != nil {
-				_ = c.Close(websocket.StatusPolicyViolation, "invalid frame")
-			}
+			m.carrierLost(conn, done, err)
+			_ = conn.CloseNow()
 			return
 		}
 		m.mu.Lock()
+		if m.closed || m.conn != conn || m.done != done {
+			m.mu.Unlock()
+			return
+		}
 		ls := m.streams[frame.StreamID]
 		m.mu.Unlock()
 		if ls == nil {
@@ -321,17 +333,28 @@ func (m *Mux) readLoop() {
 		case ls.inbox <- frame:
 		default:
 			// Inbox full: treat as carrier failure for this connection.
-			m.mu.Lock()
-			m.readErr = fmt.Errorf("dsh mux: stream %s inbox full", frame.StreamID)
-			c := m.conn
-			m.conn = nil
-			m.streams = make(map[string]*logicalStream)
-			m.mu.Unlock()
-			if c != nil {
-				_ = c.Close(websocket.StatusPolicyViolation, "inbox full")
-			}
+			m.carrierLost(conn, done, fmt.Errorf("dsh mux: stream %s inbox full", frame.StreamID))
+			_ = conn.CloseNow()
 			return
 		}
+	}
+}
+
+// Only the socket owning this read loop may retire its carrier or notify the
+// maintainer. A late failure from an old loop cannot change a newer Dial.
+func (m *Mux) carrierLost(conn *websocket.Conn, done chan struct{}, err error) {
+	m.mu.Lock()
+	if m.closed || m.conn != conn || m.done != done {
+		m.mu.Unlock()
+		return
+	}
+	m.readErr = err
+	m.conn = nil
+	m.streams = make(map[string]*logicalStream)
+	cb := m.OnCarrierLost
+	m.mu.Unlock()
+	if cb != nil {
+		cb(err)
 	}
 }
 
