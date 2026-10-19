@@ -67,10 +67,6 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 }
 
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
-	if failure := d.FailedAttachmentError(); failure != "" {
-		d.Error = failure
-		return
-	}
 	if d.Sending || d.Preparing > 0 {
 		return
 	}
@@ -83,6 +79,21 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	s.mu.Unlock()
 	live := sessions.Snapshot()
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
+		return
+	}
+	// Local contributions own their bare invocation before workspace/prompt
+	// admission. File and feedback actions retain existing attachment state.
+	if strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
+		sessions.EnsureSlashCommands(context.Background())
+		live = sessions.Snapshot()
+	}
+	if d.HandleNativeCommand(live, func(owner composer.NativeCommandOwner, name string) bool {
+		return s.nativeComposerCommandAction(win, sessions, d, id, cwd, owner, name)
+	}) {
+		return
+	}
+	if failure := d.FailedAttachmentError(); failure != "" {
+		d.Error = failure
 		return
 	}
 	hero := len(live.Messages) == 0 && !live.PromptAttempted && !live.PromptBusy
@@ -129,36 +140,6 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			}
 			groupReply = true
 		}
-	}
-	if d.HandleModelCommand(sessions.Snapshot().SelectedID) {
-		return
-	}
-	// Bare feedback is local; text-bearing feedback stays on the Host command path.
-	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/feedback" {
-		feedbackID := id
-		if d.TargetID != "" {
-			feedbackID = d.TargetID
-		}
-		// The dialog belongs to the visibly selected session. A failed home
-		// draft may hold a created target without selecting it; keep that draft.
-		if feedbackID != "" && sessions.Snapshot().SelectedID == feedbackID && sessions.OpenSessionFeedback(feedbackID) {
-			d.Text = ""
-			d.Error = ""
-			d.Client.Sync()
-		} else {
-			d.Error = "Select a session before opening feedback"
-		}
-		return
-	}
-	// Local commands never consume attachments or dispatch to the Host.
-	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/clear" {
-		d.Text = ""
-		d.Client.Sync()
-		return
-	}
-	if editSeq == 0 && len(d.Attachments) == 0 && strings.TrimSpace(text) == "/new" {
-		sessions.CreateSession(context.Background())
-		return
 	}
 	if groupReply && d.TargetID != "" && d.TargetID != id {
 		d.Error = "Reply target changed; reopen the room"

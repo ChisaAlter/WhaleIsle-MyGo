@@ -116,6 +116,7 @@ func (s *Store) snapshotCommandsLocked(st *ViewState) {
 		return
 	}
 	st.SlashCommands = cloneCommandDescriptors(catalog.items)
+	st.SlashCommandsKnown = catalog.loaded && catalog.err == nil
 	st.SlashCommandsLoading = catalog.loading
 	if catalog.err != nil {
 		st.SlashCommandsErr = catalog.err.Error()

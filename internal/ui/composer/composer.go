@@ -104,9 +104,14 @@ type Model struct {
 	OnExecuteSlash          func(ctx context.Context, line string) // remote commands/execute
 	// OnPickCommand captures the rendered Host epoch and Session before a
 	// detached, attachment-free menu execution leaves the editor.
-	OnPickCommand   func(hostGeneration uint64, sessionID, line string)
-	OnToggleSkills  func(open bool)
-	OnPickDirectory func()
+	OnPickCommand                   func(hostGeneration uint64, sessionID, line string)
+	OnNativeCommandAction           func(owner NativeCommandOwner, name string) bool
+	OnLoadNativeCommandOptions      func(context.Context, NativeCommandOwner, string) ([]NativeCommandOption, error)
+	OnSelectNativeCommandModel      func(context.Context, NativeCommandOwner, api.ModelCatalogDefault) error
+	OnSelectNativeCommandPermission func(context.Context, NativeCommandOwner, string, bool) error
+	OnNativeCommandChanged          func()
+	OnToggleSkills                  func(open bool)
+	OnPickDirectory                 func()
 	// OnPickImage attaches a local image path into the draft (Electron InputBar + menu).
 	OnPickImage func()
 	// OnPickSpeech picks an audio file and appends speech/transcribe text to the draft.
@@ -234,15 +239,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 			}
+			if m.Snapshot.NativeContributions.Error != "" {
+				ui.Text(c, m.Snapshot.NativeContributions.Error).FontSize(12).TextColor(muted).Padding(4, 8)
+			}
 		}
 		if m.State != nil {
 			m.State.ModelCommand.Sync(m.Snapshot.SelectedID)
 			m.State.PermissionCommand.Sync(m.Snapshot.SelectedID)
-			if !m.Inert && m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) {
-				paintPermissionCommand(c, m, panel, border, fg, muted)
-			}
-			if !m.Inert && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
-				paintModelCommand(c, m, panel, border, fg, muted)
+			if !m.Inert {
+				paintNativeCommandPopup(c, m, panel, border, fg, muted)
 			}
 		}
 		if m.SkillsOpen {
@@ -443,16 +448,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					paintVoiceControls(c, m, fg, muted, selectorFill, btnH)
 					paintPlanModeControl(c, m, muted, btnH)
 					// InputBar .select: permission scope (not PromptMode queue/steer).
-					if len(m.PermissionOptions) > 0 && m.PermissionPick != nil {
+					if m.Snapshot.NativeContributions.Known && m.Snapshot.NativeContributions.PermissionCommand && len(m.PermissionOptions) > 0 && m.PermissionPick != nil && m.Snapshot.SelectedPermission != "" && m.Snapshot.PermissionsErr == "" {
 						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange).
 							Height(btnH).FontSize(13).FontWeight(500).
 							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-					} else {
-						scope := i18n.T(i18n.KeyComposerPermissionDefault)
-						if m.PermissionPick != nil && strings.TrimSpace(*m.PermissionPick) != "" {
-							scope = strings.TrimSpace(*m.PermissionPick)
-						}
-						ui.Text(c, scope+" ▾").FontSize(13).FontWeight(500).TextColor(muted)
 					}
 				})
 				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {

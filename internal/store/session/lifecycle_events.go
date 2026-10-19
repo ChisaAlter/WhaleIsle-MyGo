@@ -44,6 +44,9 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	}
 	s.cancelRetainedAgentReadsLocked("") // Event authority is being re-established; never assume missed revocations.
 	s.eventsGeneration++
+	s.resetNativeContributionsLocked()
+	s.permissionCatalogRevision++
+	s.permissionOptions, s.permissionsErr = nil, nil
 	s.invalidateCommandsLocked()
 	s.listGeneration++
 	s.listLoading = false
@@ -80,6 +83,10 @@ func (s *Store) OnEventsReady(owner *EventsOwner) {
 // Unknown/malformed events and superseded/canceled owners are safely ignored.
 func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 	if s == nil || emit.Type != dsh.EventEmit {
+		return
+	}
+	if emit.Event == "permission-presets/catalog-changed" && len(emit.Args) == 0 {
+		s.RefreshPermissionCatalogForEvents(owner)
 		return
 	}
 	mutation, ok := parseLifecycleEmit(emit)

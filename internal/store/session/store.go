@@ -111,17 +111,20 @@ type ViewState struct {
 	TurnFiles      TurnFilesSnapshot
 	WorkflowRuns   []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
-	PlanHistoryBinding   string
-	WorkspaceLayout      WorkspaceLayoutState
-	Workspaces           []WorkspaceRow
-	WorkspaceReady       bool
-	WorkspaceNavigation  *WorkspaceNavigationState
-	QuestionProjection   QuestionProjectionState
-	ArchiveConfirmation  *ArchiveConfirmation
-	SlashCommands        []api.ListResultItem2
-	SlashCommandsLoading bool
-	SlashCommandsErr     string
-	QueueEditor          QueueEditorState
+	PlanHistoryBinding        string
+	WorkspaceLayout           WorkspaceLayoutState
+	Workspaces                []WorkspaceRow
+	WorkspaceReady            bool
+	WorkspaceNavigation       *WorkspaceNavigationState
+	QuestionProjection        QuestionProjectionState
+	ArchiveConfirmation       *ArchiveConfirmation
+	SlashCommands             []api.ListResultItem2
+	SlashCommandsLoading      bool
+	SlashCommandsKnown        bool
+	SlashCommandsErr          string
+	NativeContributions       dsh.NativeContributions
+	PermissionCatalogRevision uint64
+	QueueEditor               QueueEditorState
 
 	CostSources      []sessioncost.Source
 	SelectedProvider string
@@ -195,9 +198,10 @@ type ViewState struct {
 	HistoryPageErr    string
 
 	// PromptMode is the session/prompt wire mode: "queue" (排队) or "steer" (插话).
-	PromptMode             PromptMode
-	PromptModeExplicit     bool
-	ComposerHostGeneration uint64
+	PromptMode                PromptMode
+	PromptModeExplicit        bool
+	ComposerHostGeneration    uint64
+	ComposerSessionGeneration uint64
 	// PinnedSessionIDs is workspace pin order (first = top).
 	PinnedSessionIDs []string
 	// ArchivedSessionIDs is the last workspace archive roster (for unarchive UI).
@@ -269,6 +273,7 @@ type Store struct {
 	archive                   archiveOperation
 	archiveToken              uint64
 	commandCatalog            commandCatalog
+	nativeContributions       nativeContributionState
 	feedback                  feedbackState
 	visualReply               visualReplyRead
 	visualReplyToken          uint64
@@ -315,6 +320,7 @@ type Store struct {
 	modelState                           modelSelectionState
 	modelsErr                            error
 	permissionOptions                    []PermissionOption
+	permissionCatalogRevision            uint64
 	permissionProjection                 permissionProjectionState
 	permissionsErr                       error
 	agentPresetOptions                   []AgentPresetOption
@@ -388,6 +394,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.resetNativeContributionsLocked()
 		s.resetSessionPresentationsLocked()
 		s.resetSessionSubagentIdentitiesLocked()
 		s.goalReadError = goalReadErrorState{}
@@ -535,6 +542,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetNativeContributionsLocked()
 	s.resetSessionPresentationsLocked()
 	s.resetSessionSubagentIdentitiesLocked()
 	s.cancelRetainedAgentReadsLocked("")
@@ -670,6 +678,9 @@ func (s *Store) Snapshot() ViewState {
 	st.TrajectoryRequests = s.trajectoryRequestsLocked()
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
+	st.NativeContributions = s.nativeContributions.snapshot
+	st.PermissionCatalogRevision = s.permissionCatalogRevision
+	st.ComposerSessionGeneration = s.followGeneration
 	s.snapshotModelsLocked(&st)
 	st.HistoryNavigation = s.historyNavigationSnapshotLocked()
 	st.SelectedPermission = s.permissionLabelLocked()

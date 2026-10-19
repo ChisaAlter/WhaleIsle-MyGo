@@ -1777,7 +1777,6 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	sessions.RefreshList(context.Background())
 	sessions.InitializeDefaultModel(context.Background())
 	sessions.RefreshModelCatalog(context.Background())
-	sessions.RefreshPermissionCatalog(context.Background())
 	sessions.RefreshAgentPresets(context.Background())
 	sessions.RefreshSkills(context.Background())
 }
@@ -1915,6 +1914,8 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 						if sessions != nil {
 							sessions.OnEventsReady(eventsOwner)
 							sessions.WatchSpeechCatalogForEvents(eventsOwner)
+							sessions.WatchNativeContributionsForEvents(eventsOwner)
+							sessions.RefreshPermissionCatalogForEvents(eventsOwner)
 						}
 					})
 				},
@@ -6441,6 +6442,14 @@ func mainView(c *ui.Context) {
 						ComposerState:           activeDraft,
 						OnSubmitComposerGesture: func(accelerated bool) {
 							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq, accelerated, snap.ComposerHostGeneration)
+						},
+						OnNativeCommandAction: func(owner composer.NativeCommandOwner, name string) bool {
+							return state.nativeComposerCommandAction(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, owner, name)
+						},
+						OnNativeCommandChanged: func() {
+							if win != nil {
+								win.Update(func() {})
+							}
 						},
 						OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
 						OnRetryComposerFile:   func(index int) { state.prepareComposerFile(win, sessions, snap.SelectedID, activeDraft, index, true) },

@@ -201,6 +201,8 @@ type Model struct {
 	ComposerState           *composer.DraftState
 	OnSubmitComposer        func()
 	OnSubmitComposerGesture func(accelerated bool)
+	OnNativeCommandAction   func(composer.NativeCommandOwner, string) bool
+	OnNativeCommandChanged  func()
 	OnAttachComposerFiles   func([]string)
 	OnRetryComposerFile     func(int)
 	OnPasteComposerImage    func(bool)
@@ -795,22 +797,27 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnExecuteSlash: func(ctx context.Context, line string) {
 							_ = m.Store.ExecuteCommandLine(ctx, line)
 						},
-						OnPickCommand:         m.Store.PickComposerCommand,
-						OnToggleSkills:        m.OnToggleComposerSkills,
-						OnPickDirectory:       m.OnPickComposerDirectory,
-						OnPickImage:           m.OnPickComposerImage,
-						OnPickSpeech:          m.OnPickComposerSpeech,
-						Voice:                 m.ComposerVoice,
-						OnStartVoice:          m.OnStartComposerVoice,
-						OnVoiceSettings:       m.OnVoiceSettings,
-						OnStopVoice:           m.OnStopComposerVoice,
-						OnCancelVoice:         m.OnCancelComposerVoice,
-						OnInsertVoice:         m.OnInsertComposerVoice,
-						OnCycleSpeech:         m.OnCycleComposerSpeech,
-						OnPickHeroWorkspace:   m.OnPickHeroWorkspace,
-						WorkspacePickerAnchor: m.WorkspacePickerAnchor,
-						OnNoDirectory:         m.OnNoDirectory,
-						OnUseBusyEnterSetting: m.Store.UseBusyEnterSetting,
+						OnPickCommand:                   m.Store.PickComposerCommand,
+						OnNativeCommandAction:           m.OnNativeCommandAction,
+						OnLoadNativeCommandOptions:      m.Store.LoadNativeCommandOptions,
+						OnSelectNativeCommandModel:      m.Store.SelectNativeCommandModel,
+						OnSelectNativeCommandPermission: m.Store.SelectNativeCommandPermission,
+						OnNativeCommandChanged:          m.OnNativeCommandChanged,
+						OnToggleSkills:                  m.OnToggleComposerSkills,
+						OnPickDirectory:                 m.OnPickComposerDirectory,
+						OnPickImage:                     m.OnPickComposerImage,
+						OnPickSpeech:                    m.OnPickComposerSpeech,
+						Voice:                           m.ComposerVoice,
+						OnStartVoice:                    m.OnStartComposerVoice,
+						OnVoiceSettings:                 m.OnVoiceSettings,
+						OnStopVoice:                     m.OnStopComposerVoice,
+						OnCancelVoice:                   m.OnCancelComposerVoice,
+						OnInsertVoice:                   m.OnInsertComposerVoice,
+						OnCycleSpeech:                   m.OnCycleComposerSpeech,
+						OnPickHeroWorkspace:             m.OnPickHeroWorkspace,
+						WorkspacePickerAnchor:           m.WorkspacePickerAnchor,
+						OnNoDirectory:                   m.OnNoDirectory,
+						OnUseBusyEnterSetting:           m.Store.UseBusyEnterSetting,
 						OnPromptModeChange: func(mode session.PromptMode) {
 							m.Store.SetPromptMode(mode)
 						},
