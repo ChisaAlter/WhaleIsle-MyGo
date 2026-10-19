@@ -8,7 +8,26 @@ Run01 at `3b37750` exited 1. Its log is `../evidence/source-parity-unified-20261
 
 Additional source comparison found implementable gaps, so source work resumed before a second unified run. Native Market screenshot catalog/gallery, GIF/WebP README animation, broader bounded static SVG, compact child composer and original Workflow row rendering are committed. `8e1694c` now preserves actual subagent descriptor identity and permits both original workflow navigation modes; `c6854e8` restores desktop applyConfig’s public config response. These are source changes, not new regression or desktop acceptance claims.
 
-Parallel source work remains active for bounded AVIF sequences on composer/Market; Schedule/Jobs details and receipt lifecycles; pet transparent-region click-through; persistent pending-question drafts; automatic turn-file summaries; mounted visual reply lifetime; and transactional installer/uninstaller behavior. Actual failures and additional gaps remain recorded instead of being reclassified as screenshot blockers.
+The identified follow-up product fixes are now committed; focused regression preparation and the final exact source reviews are finishing before unified run02. The current source ledger records 52 rows with bounded behavior comparisons and 39 with entry-point sampling. These 91 labels are not an exhaustive original-feature/state review: each linked report retains unread states, dynamic contributions and platform-specific limits.
+
+| Follow-up source behavior | Concrete implementation commits |
+|---|---|
+| Jobs ambient state/hover counts, Schedule visibility/edit/delete/receipt ownership | `4c5318f`, `6336ea7`, `291b23e`, `f38841b`, `b6e33e5`, `e63a1c6` |
+| Question profile-owned drafts, Host continuation/queue-discard facts across coalesced control frames | `2c21cc0`, `531a15d`, `6c8a569`, `d9a1372` |
+| Automatic delivery reads, recorded native application choices, history references and local retry repaint | `2c21cc0`, `0f4e9ea`, `e160cb7`, `8281fd9`, `9b72ad6` |
+| Mounted visual reply lifetime, typed permanent errors and declared initial height | `2c21cc0`, `9cf03fc`, `e6e842c` |
+| Recovery checkpoint debounce/max-wait/retry and hide/minimize capture; terminal drawer restore without replay | `59c3582`, `02c6bd3`, `6755c17`, `3a3064f` |
+| Files committed native input before paint, plus selected-range IME capture without persisting preedit | `bca41bb`, `99f732e`, `e11ebc0` |
+| Original desktop Files local source restored after withdrawing an over-broad Host-only inference | `5e918af`, `be7a34e`; [exact original route and correction](source-review-native-file-references-20261019.md) |
+| CSV/TSV default desktop edit/save and source-consistent observation; XLS/XLSX remain table previews | `8b25c42` |
+| Desktop Files AVIF sequence route uses the already bounded shared decoder; composer/Market route retained | `ce67a12`, `3d61894`; [format limits](source-coverage-media-20261019.md) |
+| Pet transparent-region input gating and Room timeout aliases | `af11d25`, `4f08402` |
+| Narrow shortcut source reload without rebasing unrelated stale desktop drafts | `9cf5e01`, `1ba34d5` |
+| Transactional installer/rollback/partial-uninstall registration and legacy uninstaller retirement | `b62ec7f`, `472ea92`, `863ce35` |
+
+The local-file correction is material: the original `desktop-file` extension-priority resource type takes over session-relative non-Office files before the generic Host document viewer. It uses desktop file/media/write IPC, includes AVIF, and deliberately keeps CSV/TSV editable. Earlier blanket Host-only and fallback-only format conclusions were withdrawn and their mistaken fixtures removed before execution. A session resource address does not alone establish the bytes source.
+
+Native Windows/original screenshots and physical input remain blocked by unavailable supported native capture/input. NSIS compilation is separately blocked by compiler acquisition: all three official archive/mirror retrievals returned HTML and failed the published SHA-256; no bytes were extracted or run. `../evidence/nsis-toolchain-preparation-20261019.json` records that tool-acquisition failure. This is not a product regression round. No remote CI has been triggered; the two earlier failed local validation rounds are recorded separately.
 
 The existing delivered folder and user instances have not been replaced. No new package, release, remote push, main merge or installer execution has occurred. Source implementation, ordinary regression, real Host operation and Windows/original same-state visual acceptance remain separate evidence levels.
 
