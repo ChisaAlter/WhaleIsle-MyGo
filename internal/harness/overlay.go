@@ -156,7 +156,13 @@ func Prepare(o PrepareOptions) ([]string, error) {
 		if _, err := EnsureDirectoryLink(source, link); err != nil {
 			return nil, fmt.Errorf("junction %s: %w", p.VendorName, err)
 		}
-		overlayPath, err := writeInsertOverlay(o.ProfileDir, p)
+		var overlayPath string
+		var err error
+		if p.VendorName == "dshbot" {
+			overlayPath, err = writeDshbotRoomOverlay(o, p)
+		} else {
+			overlayPath, err = writeInsertOverlay(o.ProfileDir, p)
+		}
 		if err != nil {
 			return nil, err
 		}
