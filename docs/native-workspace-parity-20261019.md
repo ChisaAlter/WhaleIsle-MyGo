@@ -58,6 +58,15 @@ Standards与Spec独立只读审查覆盖完整 `aeb77c5..d7d07fc`。曾提出的
 
 另核实同一持久回答“文本＋图片”被Snapshot拆行为同SourceMessageID/Seq的块后，UI分支条件错误读取末尾图片空Body，而Store的原始事件允许分支。已仅在UI条件判断中还原该同一事件，再调用既有CanForkTurn；独立后续图片、工具和错误边界保持禁用。实际分支仍由Store复核。定向回归通过2.309s，包含实际按钮回调与真实endSeq。
 
+## 本地检查候选
+
+- 产品提交：`d7d07fc`（主工作区还原）、`ce4efcb`（同生命周期混合内容分支修正）。后者两个chat文件的Standards与Spec复查均无发现。
+- 最终EXE：`..\evidence\whaleisle-native-parity-ce4efcb.exe`。Windows/amd64，Go1.27.2；嵌入 `vcs.revision=ce4efcba6d190ec772553e4e6c8f78c1d591702f`、`vcs.modified=false`。
+- SHA256：`A8447152F95CF7F499A29A53A733DFCD5F952C34A8978D88EA5E2F24A66E6217`。
+- 该原生EXE已构建，未启动为用户工作实例，也未作安装包验收。实际窗口证据来自同分支独立离线fixture；最终新增修正只影响混合内容分支的可用性，未改变上述Hero/普通文本/反馈窗口画面。
+- `go.mod`、`go.sum`、`.github`无修改；最终构建前工作区干净。现用Go PID24668和原版主PID32964经只读CIM复核仍使用原路径/原启动时间。
+- 本轮需求实现与自动/隔离操作验证有证据；同状态原版实机视觉验收仍未完成。该候选供主工作区检查，不标记完整产品还原或可合并。
+
 ## 明确保留的缺口
 
 - 未获得原版与最终Go版的同窗口/同DPI/同字体/同页面数据实机对照，未签署像素或视觉验收。当前会话缺少computer-use所需node_repl，CUA原生API禁用；未绕过这些限制。原版只读源码仍用于推进实现，未把缺截图当作实施前提。
