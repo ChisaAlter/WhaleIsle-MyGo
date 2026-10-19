@@ -54,3 +54,11 @@ Combined writer 仅拥有 Workspace、SelectedSession、Layout、Drafts、Files�
 ## 当前结论
 
 四项的选定来源和具体差异已读；checkpoint、TerminalOpen 的新源码及回归准备不等于实机通过。仍不支持所有 runtime 都兼容、所有原版模块逐源比完、全部恢复功能可用等结论。统一验证应在主线程确认全源码稳定后进行；历史 receipts 只说明其明确版本与当时执行范围。
+
+## Native Files capture boundary (source only)
+
+The follow-up source review found that the native string TextArea publishes its Model value only on a later build. bca41bb gives each editable FileTab a public TextBuffer, synchronizes capture/save/dirty-close, and marshals committed native data for both primary Tabs.Export and nested pane JSON. Preview remains the disk baseline; read-only/paged sources keep their existing string control. Runtime buffers are not serialized and never retain a current-Model pointer.
+
+99f732e adds the narrow capture-only TextBuffer.CommittedSnapshot API: native preedit can temporarily remove a nonempty selection from the ordinary Snapshot, so excluding only the marked characters is insufficient. The committed capture retains the real transaction origin, including earlier committed native edits, across frames. e11ebc0 also preserves that origin across explicit-range candidate updates inside the same unfinished native transaction. Ordinary Snapshot/String/native publishing/undo semantics stay unchanged. Real ReplaceText/Unmark, external Set/Restore/Replace, and owner-scoped loadBuffer clear the capture override. The SDK has no separate public cancel callback; this record does not claim a new cancellation behavior.
+
+Prepared regressions use the guarded native input adapter (headless getter only), rather than writing Draft or TextBuffer directly. They cover no-paint ReplaceText, nonempty-selection preedit, explicit candidate replacement, cross-frame IME, commit/Unmark, external replacement, stale editor ownership, undo/wrap, dirty close, read-only source, and nested pane export. The application fixture prepares the public Files surface -> native input -> no further Frame -> visibility capture helper -> existing debounced/CAS writer -> reopen the actual private recovery file, while checking the workspace file is unchanged. These regression sources have not been executed. No new runtime, real-window, or model-request acceptance is claimed.
