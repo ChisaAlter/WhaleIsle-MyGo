@@ -253,9 +253,11 @@ func TestScheduleDraftRetainedAndEndedRuleReadable(t *testing.T) {
 	if err := tt.Click("Open task: Morning check"); err != nil {
 		t.Fatal(err)
 	}
-	if p.drafts[p.selected].Prompt != "My retained instruction" {
-		t.Fatal("switching discarded retained draft")
+	if p.drafts[p.selected].Prompt != "Review the morning items" {
+		t.Fatal("task switch restored a draft belonging to the previous detail mount")
 	}
+	p.drafts[p.selected].Prompt = "Cancel this later edit"
+	tt.Frame()
 	if err := tt.Click("Cancel task changes"); err != nil {
 		t.Fatal(err)
 	}
@@ -307,8 +309,8 @@ func TestCatalogSearchAndStatusSurviveSelectionAndNarrowClose(t *testing.T) {
 	if err := tt.Click("Open task: Morning check"); err != nil {
 		t.Fatal(err)
 	}
-	if p.drafts[p.selected] != draft || draft.Prompt != "Retained filtered task draft" || draft.row.SessionID != "owner-first" {
-		t.Fatal("catalog selection replaced captured-owner draft")
+	if p.drafts[p.selected] == draft || p.drafts[p.selected].Prompt != "Review the morning items" || p.drafts[p.selected].row.SessionID != "owner-first" {
+		t.Fatal("reopening did not seed the current owner's committed rule")
 	}
 	if err := tt.Click("Close details"); err != nil {
 		t.Fatal(err)
@@ -374,7 +376,8 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	if err := tt.Click("Confirm deletion"); err != nil {
 		t.Fatal(err)
 	}
-	f.wait(t, func() bool { p.mu.Lock(); defer p.mu.Unlock(); return len(p.deleted) > 0 })
+	f.wait(t, func() bool { p.mu.Lock(); defer p.mu.Unlock(); return p.deleteAck != nil })
+	f.wait(t, func() bool { snap := f.store.Snapshot(); return snap.CatalogReady && len(snap.Rows) == 1 })
 	tt.Frame()
 	f.mu.Lock()
 	defer f.mu.Unlock()
