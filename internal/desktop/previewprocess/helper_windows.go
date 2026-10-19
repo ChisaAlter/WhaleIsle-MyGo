@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -44,6 +46,9 @@ func RunHelper(args []string, input io.Reader, output io.Writer) error {
 	if flags&windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE == 0 || flags&(windows.JOB_OBJECT_LIMIT_BREAKAWAY_OK|windows.JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK) != 0 {
 		return errors.New("helper is not in a non-breakaway lifetime-bound job")
 	}
+	if err := prepareHelperTemp(); err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	result := make(chan error, 1)
@@ -72,6 +77,26 @@ func RunHelper(args []string, input io.Reader, output io.Writer) error {
 	default:
 		return nil // Parent observes process exit and destroys the whole job.
 	}
+}
+
+// GetTempPath2 may append the package's AC\Temp path to LOCALAPPDATA inside an
+// AppContainer instead of using the parent's explicit TEMP/TMP. The SDK creates
+// each isolated WebView UDF under os.TempDir; create that actual directory only
+// after containment checks, and only inside this run's staged helper directory.
+func prepareHelperTemp() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	temp := os.TempDir()
+	relative, err := filepath.Rel(filepath.Dir(exe), temp)
+	if err != nil || !filepath.IsAbs(temp) || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return errors.New("preview helper temporary directory is outside its owned staging directory")
+	}
+	if err := os.MkdirAll(temp, 0700); err != nil {
+		return fmt.Errorf("prepare contained helper temporary directory: %w", err)
+	}
+	return nil
 }
 
 func loadHelperBlank(ctx context.Context, w *mygo.Window) error {
