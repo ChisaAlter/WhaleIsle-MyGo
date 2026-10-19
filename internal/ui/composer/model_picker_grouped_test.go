@@ -3,12 +3,13 @@ package composer
 import (
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 )
 
 func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
-	snap := session.ViewState{SelectedID: "s", SelectedModel: "custom — alpha", ModelLabels: []string{"custom — alpha", "account — beta", "official — gamma", "custom — delta", "official — deepseek-chat"}, ModelChoices: map[string]api.ModelCatalogDefault{
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "custom — alpha", ModelLabels: []string{"custom — alpha", "account — beta", "official — gamma", "custom — delta", "official — deepseek-chat"}, ModelChoices: map[string]api.ModelCatalogDefault{
 		"custom — alpha": {Provider: "custom", Model: "alpha"}, "account — beta": {Provider: "deepseek-account", Model: "beta"}, "official — gamma": {Provider: "deepseek-official", Model: "gamma"}, "custom — delta": {Provider: "custom", Model: "delta"}, "official — deepseek-chat": {Provider: "deepseek-official", Model: "deepseek-chat"},
 	}}
 	chosen := ""
@@ -44,7 +45,7 @@ func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
 
 func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
 	labels := []string{"z", "official", "account", "a", "b", "c"}
-	snap := session.ViewState{ModelLabels: labels, ModelChoices: map[string]api.ModelCatalogDefault{
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, ModelLabels: labels, ModelChoices: map[string]api.ModelCatalogDefault{
 		"z": {Provider: "custom"}, "official": {Provider: "deepseek-official"}, "account": {Provider: "deepseek-account"}, "a": {Provider: "custom"}, "b": {Provider: "custom"}, "c": {Provider: "custom"},
 	}, ModelCatalogChoices: []session.ModelCatalogChoice{
 		{Label: "z", Name: "deepseek-chat", Provider: "custom"}, {Label: "a", Name: "dsc-prefixed", Provider: "custom"}, {Label: "b", Name: "deepseek-chat", Provider: "custom"}, {Label: "c", Name: "unrelated", Provider: "custom"},
@@ -64,7 +65,7 @@ func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
 }
 
 func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
-	snap := session.ViewState{SelectedID: "s", SelectedModel: "one", ModelLabels: []string{"one", "two"}}
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "one", ModelLabels: []string{"one", "two"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
@@ -101,7 +102,7 @@ func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
 }
 
 func TestGroupedModelPickerWithoutCatalogSelectionOpensModelPaneDirectly(t *testing.T) {
-	snap := session.ViewState{SelectedID: "s", SelectedModel: "retired-model", ModelLabels: []string{"one", "two"}}
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "retired-model", ModelLabels: []string{"one", "two"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, ui.RGB(80, 80, 80), 24)
@@ -123,7 +124,7 @@ func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
 		value ui.Key
 	}{{"Enter", ui.KeyEnter}, {"Tab", ui.KeyTab}} {
 		t.Run(key.name, func(t *testing.T) {
-			snap := session.ViewState{SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
+			snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
 			chosen := ""
 			tt := ui.NewTester(func(c *ui.Context) {
 				paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
@@ -153,7 +154,7 @@ func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
 }
 
 func TestGroupedModelPickerEscapeReturnsFocusWithoutSelecting(t *testing.T) {
-	snap := session.ViewState{SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, ui.RGB(80, 80, 80), 24)

@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -185,7 +186,7 @@ func TestComposerLongModelLabelsKeepPrimaryVisible(t *testing.T) {
 			permission := strings.Repeat("Workspace write ", 3)
 			preset := strings.Repeat("Coding Agent ", 3)
 			tt := ui.NewTester(func(c *ui.Context) {
-				View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, PermissionPick: &permission, AgentPresetPick: &preset, Snapshot: session.ViewState{ModelLabels: []string{model, "small"}, PermissionLabels: []string{permission, "read"}, AgentPresetLabels: []string{preset, "default"}, PromptBusy: busy}, OnStop: func() {}, OnPickImage: func() {}, OnPickDirectory: func() {}, OnPickSpeech: func() {}, OnCycleSpeech: func() {}, OnPromptModeChange: func(session.PromptMode) {}, OnToggleSkills: func(bool) {}})
+				View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, PermissionPick: &permission, AgentPresetPick: &preset, Snapshot: session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true, PermissionCommand: true}, ModelLabels: []string{model, "small"}, PermissionLabels: []string{permission, "read"}, AgentPresetLabels: []string{preset, "default"}, PromptBusy: busy}, OnStop: func() {}, OnPickImage: func() {}, OnPickDirectory: func() {}, OnPickSpeech: func() {}, OnCycleSpeech: func() {}, OnPromptModeChange: func(session.PromptMode) {}, OnToggleSkills: func(bool) {}})
 			}, width, 1000)
 			label := i18n.T(i18n.KeyComposerSend)
 			if busy {
@@ -218,7 +219,7 @@ func TestReviewOrdinaryModelStatusKeepsPrimary(t *testing.T) {
 		for _, errorMode := range []bool{false, true} {
 			draft := "x"
 			model := label
-			ss := session.ViewState{ModelLabels: []string{label}}
+			ss := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true, PermissionCommand: true}, ModelLabels: []string{label}}
 			if errorMode {
 				ss.ModelLabels = nil
 				ss.ModelsErr = label
@@ -241,7 +242,7 @@ func TestComposerTruncatedModelKeepsRealValueAndSelection(t *testing.T) {
 	model := original
 	changed := ""
 	changes := 0
-	snap := session.ViewState{SelectedID: "s", SelectedModel: original, ModelLabels: []string{original, "small"}}
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: original, ModelLabels: []string{original, "small"}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, Snapshot: snap, OnModelChange: func(s string) { changed = s; changes++ }})
 	}, 320, 500)
