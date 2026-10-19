@@ -48,6 +48,9 @@ func (w *WorkspacePanes) SuspendSession() {
 	}
 	w.pauseContent(true)
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.RemoteFiles != nil {
+			n.RemoteFiles.Suspend()
+		}
 		if !n.holdsAgentReadOccurrence() {
 			n.Agents = nil
 		} // retained occurrences have unique keys and exact release
@@ -57,4 +60,5 @@ func (w *WorkspacePanes) SuspendSession() {
 	})
 	w.pending = nil
 	w.closing = ""
+	w.closeSaving, w.closeError = "", ""
 }

@@ -80,7 +80,13 @@ func openImageBytes(full string, data []byte, info os.FileInfo, valid func() boo
 	if valid == nil || !valid() {
 		return nil, errors.New("image request is no longer active")
 	}
-	markup, err := imagepreview.Build(full, data)
+	var markup string
+	var err error
+	if strings.EqualFold(filepath.Ext(full), ".svg") {
+		markup, err = imagepreview.BuildSVGImage(full, data)
+	} else {
+		markup, err = imagepreview.Build(full, data)
+	}
 	if err != nil {
 		return nil, err
 	}

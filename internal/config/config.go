@@ -57,7 +57,16 @@ var (
 
 // Config holds the fields the Go shell reads. JSON names and defaults
 // mirror DEFAULTS and the normalize* helpers in config.js.
+type PluginInstallRegistry struct {
+	Kind     string  `json:"kind"`
+	Registry *string `json:"registry"`
+	URL      string  `json:"url,omitempty"`
+}
+
 type Config struct {
+	GoPluginInstallRegistry *PluginInstallRegistry `json:"goPluginInstallRegistry,omitempty"`
+	GoVoiceMicrophoneID     string                 `json:"goVoiceMicrophoneId,omitempty"`
+	GoVoiceMicrophoneLabel  string                 `json:"goVoiceMicrophoneLabel,omitempty"`
 	// Workspace is the last folder a new session started in.
 	Workspace string `json:"workspace"`
 	// Host and Port are where dsh web listens; Port is the first port tried.
@@ -552,14 +561,13 @@ func octets(address string) (first, second int, ok bool) {
 }
 
 // normalizeDisabledPlugins trims, drops empties and dedupes, mirroring the
-// head of normalizeDisabledPlugins in config.js (without the desktop
-// alias-removal pass).
+// original desktop config, including its built-in Market alias removal.
 func normalizeDisabledPlugins(list []string) []string {
 	seen := make(map[string]struct{}, len(list))
 	out := make([]string, 0, len(list))
 	for _, name := range list {
 		name = strings.TrimSpace(name)
-		if name == "" {
+		if name == "" || name == "dshmarket" {
 			continue
 		}
 		if _, dup := seen[name]; dup {

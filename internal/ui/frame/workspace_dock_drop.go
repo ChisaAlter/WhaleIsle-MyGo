@@ -27,13 +27,14 @@ func (w *WorkspacePanes) DropWorkspaceTab(id, destination, edge string) bool {
 	axis := "horizontal"
 	switch edge {
 	case "left", "right":
-	case "top", "bottom":
-		axis = "vertical"
 	default:
 		return false
 	}
 	source := w.Root.dockGroup(id)
 	if source == nil {
+		return false
+	}
+	if !w.canSplit(w.Root.dockGroup(destination)) {
 		return false
 	}
 	tabs := source.dockTabs()
@@ -87,11 +88,12 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 		}{
 			{"left", "左侧", "Left", 0, 0, width * .4, height},
 			{"right", "右侧", "Right", width * .6, 0, width * .4, height},
-			{"top", "上方", "Above", width * .4, 0, width * .2, height * .4},
-			{"bottom", "下方", "Below", width * .4, height * .6, width * .2, height * .4},
-			{"tabs", "标签组", "Tabs", width * .4, height * .4, width * .2, height * .2},
+			{"tabs", "标签组", "Tabs", width * .4, 0, width * .2, height},
 		} {
 			item := item
+			if item.edge != "tabs" && !w.canSplit(n) {
+				continue
+			}
 			zone := ui.Box(c.Key("dock-drop:" + item.edge)).Absolute().Left(item.x).Top(item.y).
 				Width(item.w).Height(item.h).Padding(8).Label("Dock drop " + item.edge)
 			_, over := ui.DragOver[workspaceTabDrag](zone)

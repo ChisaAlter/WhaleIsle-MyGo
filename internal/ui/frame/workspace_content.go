@@ -294,6 +294,7 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 			n.Files.rendered = false
 			n.Files.Tabs.Bind(binding, root)
 		}
+		n.remoteFilesRendered = false
 		if n.browser != nil {
 			n.browser.PrunePDFDocuments()
 			n.browser.PruneMediaDocuments()
@@ -311,6 +312,9 @@ func (w *WorkspacePanes) EndContentFrame() {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.RemoteFiles != nil && !n.remoteFilesRendered {
+			n.RemoteFiles.Suspend()
+		}
 		if n.Schedule != nil && !n.Schedule.rendered {
 			n.Schedule.deactivate()
 		}
@@ -345,6 +349,9 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 			// PauseContent(false), which keeps the mounted task's draft.
 			n.Schedule.deactivate()
 		}
+		if n.RemoteFiles != nil {
+			n.RemoteFiles.Suspend()
+		}
 		if !retainReads || !n.holdsAgentReadOccurrence() {
 			n.releaseAgentPane()
 		}
@@ -359,6 +366,9 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	if n.RemoteFiles != nil {
+		n.RemoteFiles.Suspend()
+	}
 	n.Schedule.deactivate()
 	// Generic disposal only releases presentation; process termination belongs
 	// exclusively to the explicit close request in WorkspacePanes.close.

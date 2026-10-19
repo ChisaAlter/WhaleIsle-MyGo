@@ -24,9 +24,7 @@ func (s *mainState) browserWorkspaceOwner() browserpreviewui.WorkspaceOwner {
 	}
 	owner := browserpreviewui.WorkspaceOwner{Authority: "supervised-dsh-home:" + home}
 	if sessions != nil {
-		owner.Cwd, owner.Title = sessions.BrowserWorkspaceScope()
-	} else {
-		owner.Cwd = cfg.Get().Workspace
+		owner.Cwd, owner.Title, owner.SessionID, owner.Ready, owner.Err = sessions.BrowserWorkspaceScope()
 	}
 	return owner
 }

@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -94,6 +95,9 @@ import (
 )
 
 type mainState struct {
+	voiceDevices         *composerVoiceDevices
+	svgImages            *nativeSVGImages
+	svgImagesPaused      bool
 	nativePlugins        nativePluginManagerState
 	customPanels         customPanelState
 	applicationMenu      *desktopApplicationMenu
@@ -137,6 +141,11 @@ type mainState struct {
 	petPersonality       petPersonalityMirror
 	navigationFile       *navigationFileRequest
 	themeID              string
+	hostAppearance *settings.HostThemeBinding
+	hostAppearanceOwner string
+	hostAppearanceAccepted bool
+	hostWallpaperImage string
+	desktopOnboarding *settingsstore.DesktopOnboarding
 	sup                  *harness.Supervisor
 	bootStatus           harness.Status
 	bootLogs             []string
@@ -144,6 +153,7 @@ type mainState struct {
 	sessions                                *session.Store
 	agentPresetManager                      *session.AgentPresetManager
 	creatorTask                             *session.CreatorTask
+	pluginCreatorTask                       *session.CreatorTask
 	interactions                            *interaction.Store
 	settings                                *settingsstore.Store
 	settingsOpen                            bool
@@ -360,6 +370,7 @@ type mainState struct {
 
 	gitBranch      string
 	gitDirty       bool
+	gitRepositoryStatus *desktopgit.RepositoryStatus
 	gitMsg         string
 	gitBusy        bool
 	gitProgress    *desktopgit.Progress
@@ -775,12 +786,12 @@ func (s *mainState) saveDesktopConfig() {
 		restartPolicy.Apply(c)
 		c.Workspace = strings.TrimSpace(s.desktopDraft.workspace)
 		c.Port = port
-		c.Theme = s.desktopDraft.theme
+		if !s.hostAppearanceAccepted { c.Theme = s.desktopDraft.theme }
 		c.Locale = s.desktopDraft.locale
 		c.CloseToTray = s.desktopDraft.closeToTray
 		c.OpenAtLogin = s.desktopDraft.openAtLogin
 		c.AutoStartDesktop = s.desktopDraft.autoStartDesktop
-		c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath)
+		if !s.hostAppearanceAccepted { c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath) }
 		c.HideArchivedList = !s.desktopDraft.showArchivedList
 		c.HideChatViewTabs = !s.desktopDraft.showViewTabs
 		c.AutoAllowTools = s.desktopDraft.autoAllowTools
@@ -799,9 +810,9 @@ func (s *mainState) saveDesktopConfig() {
 	s.desktopSaveErr = ""
 	s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
 	s.closeToTray = cfg.CloseToTray
-	s.themeID = cfg.Theme
+	if !s.hostAppearanceAccepted { s.themeID = cfg.Theme }
 	i18n.SetLocale(cfg.Locale)
-	applyAppearance(cfg.Theme)
+	if !s.hostAppearanceAccepted { applyAppearance(cfg.Theme) }
 	if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 		s.desktopLastAction = ""
 		s.desktopSaveErr = fmt.Sprintf("%s: %v", resumeText("设置已保存，但开机启动未生效", "Settings saved, but startup registration failed"), err)
@@ -1094,8 +1105,15 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 		}
 	}); err != nil {
 		log.Printf("assistant: config update: %v", err)
+		s.mu.Lock()
+		s.desktopSaveErr = err.Error()
+		s.mu.Unlock()
+		if win != nil { win.Update(func(){}) }
 		return
 	}
+	s.mu.Lock()
+	s.desktopSaveErr = ""
+	s.mu.Unlock()
 	if sup != nil {
 		s.syncHarnessFromConfig()
 		state.restartUnlessImport(sup)
@@ -1285,6 +1303,7 @@ func (s *mainState) toggleTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
 	s.terminalResumePending = false
 	if s.terminalVisible {
+		s.flushTerminalResizeLocked()
 		s.terminalSavedBottom = s.layout.Bottom
 		if s.terminalSavedBottom <= terminalMinBottom {
 			s.terminalSavedBottom = frame.DefaultLayout().Bottom
@@ -1308,11 +1327,13 @@ func (s *mainState) ensureTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.terminalVisible || s.layout.Bottom <= terminalMinBottom || s.terminalResumePending {
+		s.flushTerminalResizeLocked()
 		return
 	}
 	if s.terminalPanel != nil && s.terminalPanel.Workspace() == root {
 		return
 	}
+	s.flushTerminalResizeLocked()
 	s.terminalPanel = s.terminalSessions.Get(root, systemDark)
 }
 
@@ -1851,11 +1872,13 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
 					pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
+					pluginEvent(dsh.EventsEmit{Event: "plugin-market/changed"})
 					if schedStore != nil {
 						schedStore.OnEventsReady(scheduleEventsOwner)
 					}
 					if sessions != nil {
 						sessions.OnEventsReady(eventsOwner)
+						sessions.WatchSpeechCatalog(ctx)
 					}
 				},
 				Emit: func(emit dsh.EventsEmit) {
@@ -1969,6 +1992,9 @@ func main() {
 			state.quitDesktopTray()
 			return
 		}
+		if slices.Contains(args, "--background") {
+			return
+		}
 		state.showMainWindow()
 	})
 
@@ -2073,16 +2099,22 @@ func main() {
 		}
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
+		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		winOpts := mygo.WindowOptions{
 			Title:           i18n.T(i18n.KeyAppName),
-			Width:           1200,
-			Height:          800,
+			Width:           1440,
+			Height:          920,
+			MinWidth:        960,
+			MinHeight:       640,
 			StateKey:        "main",
-			Hidden:          hidden,
+			Hidden:          hidden || background,
 			TitleBarStyle:   mygo.TitleBarHidden,
 			TitleBarHeight:  int(chrome.EffectiveTitleBarHeight()),
+			WindowsCaptionButtons: &mygo.WindowsCaptionButtonOptions{Width:32, Height:32, Top:8, Right:8, CornerRadius:8, GlyphSize:12},
+			WindowsFrameCornerRadius: 20,
+			Transparent: true,
 			BackgroundColor: bgColor,
 			Content:         ui.View(mainView),
 		}
@@ -2110,6 +2142,14 @@ func main() {
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
+		win.OnHide(state.pauseVoiceDevices)
+		win.OnMinimize(state.pauseVoiceDevices)
+		win.OnClosed(state.pauseVoiceDevices)
+		win.OnHide(state.pauseSVGImages)
+		win.OnMinimize(state.pauseSVGImages)
+		win.OnClosed(state.pauseSVGImages)
+		win.OnShow(state.resumeSVGImages)
+		win.OnRestore(state.resumeSVGImages)
 		win.OnClosed(state.whaleSettings.Suspend)
 		win.OnClosed(state.stopBotNotifications)
 		win.OnFocus(state.clearFocusedBotNotifications)
@@ -2150,11 +2190,17 @@ func main() {
 		win.OnMinimize(state.checkpointResumeOnVisibilityChange)
 		win.OnHide(func() { state.layout.Workspace.PauseContent() })
 		win.OnMinimize(func() { state.layout.Workspace.PauseContent() })
+		flushTerminalResize := func() { state.mu.Lock(); state.flushTerminalResizeLocked(); state.mu.Unlock() }
+		win.OnHide(flushTerminalResize)
+		win.OnMinimize(flushTerminalResize)
 		win.OnClosed(func() { state.disposeWorkspaceSessions() })
 		win.OnClosed(state.closeResumeCheckpoint)
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(state.suspendCreatorTask)
+		win.OnHide(state.suspendPluginCreator)
+		win.OnMinimize(state.suspendPluginCreator)
+		win.OnClosed(state.suspendPluginCreator)
 		win.OnMinimize(state.suspendCreatorTask)
 		win.OnClosed(state.suspendCreatorTask)
 		win.OnHide(state.suspendAgentPresetReader)
@@ -2243,6 +2289,9 @@ func main() {
 		state.trajActualDur = true
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
+		if background && !hidden {
+			win.ShowInactive()
+		}
 
 		state.openResume(userData)
 		state.mu.Lock()
@@ -2477,9 +2526,11 @@ func (s *mainState) refreshGit(workspaceRoot string) {
 		return
 	}
 	branch, dirty := "", false
+	var repositoryStatus *desktopgit.RepositoryStatus
 	if root != "" {
 		if snap, err := desktopgit.WorkspaceSnapshot(root); err == nil {
 			branch, dirty = snap.Branch, snap.Dirty
+			repositoryStatus = snap.Status
 		}
 	}
 	s.mu.Lock()
@@ -2487,6 +2538,7 @@ func (s *mainState) refreshGit(workspaceRoot string) {
 	s.gitCheckedAt = time.Now()
 	s.gitBranch = branch
 	s.gitDirty = dirty
+	s.gitRepositoryStatus = repositoryStatus
 	s.mu.Unlock()
 }
 
@@ -2805,6 +2857,9 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.syncHostAppearance()
+	defer state.observePluginCreator()
+	defer state.finishVoiceDeviceSettingsFrame()
 	defer state.syncResumeCheckpoint(c)
 	standaloneScheduleRendered := false
 	defer func() {
@@ -2948,7 +3003,6 @@ func mainView(c *ui.Context) {
 	cfgRemoteRelayUseTLS := false
 	wallpaperPath := ""
 	imPluginDisabled := false
-	marketPluginDisabled := false
 	if state.cfgStore != nil {
 		cfg := state.cfgStore.Get()
 		nodeBin = cfg.NodeBin
@@ -2966,9 +3020,6 @@ func mainView(c *ui.Context) {
 		for _, p := range cfg.DisabledPlugins {
 			if p == "dsh-im" {
 				imPluginDisabled = true
-			}
-			if p == "ui-settings-market" || p == "dsh-client-ui-settings-market" {
-				marketPluginDisabled = true
 			}
 		}
 	}
@@ -3002,6 +3053,7 @@ func mainView(c *ui.Context) {
 	sessionSearch := state.sessionSearch
 	gitBranch := state.gitBranch
 	gitDirty := state.gitDirty
+	gitRepositoryStatus := state.gitRepositoryStatus
 	gitMsg := state.gitMsg
 	gitProgress := state.gitProgress
 	gitBusy := state.gitBusy
@@ -3149,6 +3201,7 @@ func mainView(c *ui.Context) {
 	state.mu.Lock()
 	gitBranch = state.gitBranch
 	gitDirty = state.gitDirty
+	gitRepositoryStatus = state.gitRepositoryStatus
 	gitMsg = state.gitMsg
 	gitPROpen = state.gitPROpen
 	gitPRReport = state.gitPRReport
@@ -3156,6 +3209,8 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	th := theme.Resolve(themeID)
 	systemDark := mygo.Theme.IsDark()
+	svgImages := state.svgImageOwner(win, sessions)
+	defer state.renderDesktopOnboarding(c, themeID, systemDark)
 	colors := th.Active(systemDark)
 	var gitBadge *chrome.GitBadge
 	if gitBranch != "" {
@@ -3168,6 +3223,7 @@ func mainView(c *ui.Context) {
 			CommitLabel: i18n.T(i18n.KeyGitCommit),
 			StatusText:  gitMsg,
 		}
+		if gitRepositoryStatus != nil { gitBadge.Ahead,gitBadge.Behind=gitRepositoryStatus.Ahead,gitRepositoryStatus.Behind }
 		gitBadge.PRSummary = gitPRSummary(gitPRReport)
 		gitBadge.PRPanelLabel = i18n.T(i18n.KeyGitPRPanel)
 		gitBadge.PRViewLabel = i18n.T(i18n.KeyGitPRView)
@@ -3176,7 +3232,7 @@ func mainView(c *ui.Context) {
 			root := workspaceRoot
 			gitBadge.OnFetch = func() { state.runGitFetch(root) }
 			gitBadge.OnPull = func() { state.runGitPull(root) }
-			gitBadge.OnPush = func() { state.runGitPush(root) }
+			if gitRepositoryStatus != nil && gitRepositoryStatus.CanPush() { gitBadge.OnPush = func() { state.runGitPush(root) } }
 			gitBadge.OnCommit = func() {
 				state.mu.Lock()
 				state.gitCommitOpen = false
@@ -3219,6 +3275,7 @@ func mainView(c *ui.Context) {
 					win.Invalidate()
 				}
 			}
+			if gitRepositoryStatus == nil || !gitRepositoryStatus.CanCreatePR() { gitBadge.OnPRCreate = nil }
 		}
 	}
 	titleColors := chrome.TitleBarColorsFrom(colors)
@@ -4942,6 +4999,7 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				marketOwner := state.captureMarketOwner(marketStore)
 				marketui.View(c, marketui.Model{
+					SVGImages: svgImages,
 					OnOpenURL: func(rawURL string) {
 						if err := mygo.Shell.OpenExternal(rawURL); err != nil {
 							log.Println("market README link:", err)
@@ -4953,8 +5011,8 @@ func mainView(c *ui.Context) {
 					SystemDark:           mygo.Theme.IsDark(),
 					HarnessReady:         st.State == harness.Ready,
 					MuxConnected:         muxReadyMarket,
-					HarnessMarketOverlay: !marketPluginDisabled,
-					PluginDisabled:       marketPluginDisabled,
+					HarnessMarketOverlay: true,
+					PluginDisabled:       false,
 					InstallReady:         marketInstallReady,
 					InstallSpec:          marketInstallSpecPtr,
 					InstallBusy:          marketInstallBusy,
@@ -6249,6 +6307,7 @@ func mainView(c *ui.Context) {
 						finish(nil)
 					}
 					frameModel := frame.Model{
+						SVGImages: svgImages,
 						CustomPanelContent: state.customPanelContent(snap.SelectedID, themeID),
 						GroupRoom:          groupRoom, GroupMembers: groupMembers,
 						OnReplyGroupThread: func(threadID string) {
@@ -6766,6 +6825,10 @@ func mainView(c *ui.Context) {
 							return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment)
 						},
 						NewWorkspaceBrowser: func() *browserpreviewui.Controller { return state.newBrowserController(win) },
+						OnVoiceSettings: state.openVoiceSettings,
+						RemoteFilesContent: func(c *ui.Context, paneSessions *session.Store, owner *remoteui.FileWorkspaceState) bool {
+							return remoteui.FileWorkspace(c, state.remoteFileWorkspaceModel(win, paneSessions, themeID, systemDark, st.State == harness.Ready, cfgRemoteWorkspace, owner))
+						},
 						BrowserContent: func(c *ui.Context) {
 							if state.browserController == nil {
 								state.browserController = state.newBrowserController(win)

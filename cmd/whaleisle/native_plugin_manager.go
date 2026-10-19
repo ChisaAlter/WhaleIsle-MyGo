@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"strings"
+	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
@@ -21,11 +23,35 @@ type nativePluginManagerState struct {
 
 func (s *mainState) nativePluginController() *manager.Controller {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	created := s.nativePlugins.controller == nil
 	if s.nativePlugins.controller == nil {
 		s.nativePlugins.controller = manager.New()
 	}
-	return s.nativePlugins.controller
+	c, cfg := s.nativePlugins.controller, s.cfgStore
+	s.mu.Unlock()
+	if created {
+		c.SetRegistryPersistence(func() (*manager.RegistryChoice, error) {
+			if cfg == nil {
+				return nil, nil
+			}
+			p := cfg.Get().GoPluginInstallRegistry
+			if p == nil {
+				return nil, nil
+			}
+			return &manager.RegistryChoice{Kind: p.Kind, Registry: p.Registry, URL: p.URL}, nil
+		}, func(choice *manager.RegistryChoice) error {
+			if cfg == nil {
+				return fmt.Errorf("local plugin preferences are unavailable")
+			}
+			return cfg.Update(func(value *config.Config) {
+				value.GoPluginInstallRegistry = nil
+				if choice != nil {
+					value.GoPluginInstallRegistry = &config.PluginInstallRegistry{Kind: choice.Kind, Registry: choice.Registry, URL: choice.URL}
+				}
+			})
+		})
+	}
+	return c
 }
 
 func (s *mainState) bindNativePluginManager(client *dsh.Client) {
@@ -94,6 +120,7 @@ func (s *mainState) nativePluginEventHandler(client *dsh.Client) func(dsh.Events
 }
 
 func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
+	creatorReady, creatorDescription, createPlugin := s.pluginCreatorAccess()
 	s.mu.Lock()
 	store := s.settings
 	s.mu.Unlock()
@@ -118,6 +145,9 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 				title = zh
 			}
 			contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Order: order, Render: func(c *ui.Context, _ manager.Subject) {
+				if settings.ServedPluginBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()}, key) {
+					return
+				}
 				for _, ns := range active {
 					settings.NamespaceBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()}, ns)
 				}
@@ -136,8 +166,14 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	}
 	managerui.View(c, managerui.Model{
 		Controller: s.nativePluginController(), ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
-		Contributions: contributions,
-		OnClose:       func() { s.selectMainPanel("") },
-		OnOpenURL:     func(raw string) { _ = mygo.Shell.OpenExternal(raw) },
+		Contributions:  contributions,
+		OnCreatePlugin: createPlugin, CreatePluginReady: creatorReady, CreatePluginDescription: creatorDescription,
+		OnOpenAddMenu: s.refreshPluginCreatorRoster,
+		CreatorNotice: s.renderPluginCreatorNotice,
+		RenderConfiguration: func(c *ui.Context, subject manager.Subject) bool {
+			return subject.Kind == "bundle" && s.renderVoiceDeviceSettings(c, subject.Name)
+		},
+		OnClose:   func() { s.selectMainPanel("") },
+		OnOpenURL: func(raw string) { _ = mygo.Shell.OpenExternal(raw) },
 	})
 }

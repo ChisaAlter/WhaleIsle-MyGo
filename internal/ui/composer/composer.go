@@ -319,15 +319,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				}
 			})
 		}
-		// InputBar.card: 8px top pad, 12px gap, 28px radius. The hairline
+		// InputBar.card: 8px top pad, 12px gap, 22px radius. The hairline
 		// is painted as elevation, so it does not consume draft layout space.
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
-			Radius(28).Padding(8, 0, 0, 0).Gap(12)
+			Radius(22).Padding(8, 0, 0, 0).Gap(12)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
-		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Stroke(r, border, 28, 0.5)
+		card.Draw(func(p *ui.Painter, r ui.Rect) {
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 		})
+		card.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 22, 0.5) })
 		card.Children(func() {
 			if !m.Inert {
 				paintResizeHandles(c, m, card, muted)

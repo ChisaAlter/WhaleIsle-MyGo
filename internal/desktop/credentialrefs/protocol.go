@@ -94,8 +94,8 @@ func rowsFrom(view settingsView, directory []provider) []Row {
 		rows = append(rows, Row{ID: id, Name: name, Provider: p.Provider, Namespace: ns.NS, Ref: ref, Path: append([]string(nil), p.Path...), Revision: ns.Revision, BindReference: bind, SettingsWritable: view.Writable})
 	}
 	for _, ns := range view.Namespaces {
-		if ns.NS == "web-search-deepseek" {
-			add(ns, provider{Provider: "web-search-deepseek", DisplayName: "Web Search", Namespace: ns.NS}, "DEEPSEEK_API_KEY")
+		if ns.NS == "web-search-deepseek" || ns.NS == "web-deepseek-api" {
+			add(ns, provider{Provider: ns.NS, DisplayName: "Web Search", Namespace: ns.NS}, "DEEPSEEK_API_KEY")
 			continue
 		}
 		if ns.NS != "llm-deepseek" && ns.NS != "llm-pi-ai" {

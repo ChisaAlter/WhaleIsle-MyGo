@@ -13,6 +13,10 @@ import (
 // View keeps navigation in the sidebar while reader/editor routes occupy their
 // own modal layer. Collapsing the section never withdraws an open route.
 func View(c *ui.Context, m Model) {
+	if !m.Listing.Available && len(m.Listing.Projects) == 0 {
+		projectModals(c, m)
+		return
+	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
@@ -52,21 +56,10 @@ func View(c *ui.Context, m Model) {
 						m.OnToggle()
 					}
 				}
-				if menu.Item(tr("刷新", "Refresh")).Disabled(m.Busy).Chosen() && m.OnRefresh != nil {
-					m.OnRefresh()
-				}
 			})
 		})
 		if !m.Expanded {
 			return
-		}
-		// Keep the existing literal-title search contract, in a compact field.
-		query := m.SearchQuery
-		if ui.TextInput(c.Key("project-search"), &query).FillWidth().MinWidth(0).Height(28).FontSize(theme.InterfaceSize(12)).Label(tr("搜索项目标题", "Search Project titles")).Placeholder(tr("搜索项目标题", "Search Project titles")).Changed() && m.OnSearchQuery != nil {
-			m.OnSearchQuery(query)
-		}
-		if query != "" && ui.Button(c, tr("清除搜索", "Clear search")).FontSize(theme.InterfaceSize(11)).BorderWidth(0).Background(ui.Transparent).Clicked() && m.OnSearchQuery != nil {
-			m.OnSearchQuery("")
 		}
 		if m.Error != "" {
 			ui.Text(c, m.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg)
@@ -81,7 +74,13 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, tr("项目当前不可用，请刷新重试。", "Projects are unavailable; refresh to retry.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if m.Loaded && m.Listing.Available && !m.Busy && len(visible) == 0 {
-			ui.Text(c, projectEmptyLabel(m)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
+			if !m.History && m.SearchQuery == "" {
+				if ui.Button(c, tr("添加项目…", "Add Project…")+"\n"+projectEmptyLabel(m)).FillWidth().MinWidth(0).Padding(8).Clicked() && m.OnCreate != nil {
+					m.OnCreate()
+				}
+			} else {
+				ui.Text(c, projectEmptyLabel(m)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
+			}
 		}
 		for _, p := range visible {
 			projectSidebarRow(c.Key(m.ObserverHost+"/"+p.ID), m, p, projectDirectoryLabel(p, visible), colors)
@@ -109,7 +108,11 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 		open := ui.Button(c, "").Label(p.Title).Tooltip(p.Title+"\n"+p.CanonicalWorkingDirectory).Grow(1).MinWidth(0).MinHeight(36).Padding(6, 0).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy || !m.Listing.Available)
 		open.Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-				projectIcon(c, "folder", 16, muted, false)
+				folderInk := muted
+				if selected {
+					folderInk = fg
+				}
+				projectIcon(c, "folder", 16, folderInk, false)
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 					title := ui.Text(c, p.Title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).FillWidth().SingleLine()
 					if selected {
@@ -167,18 +170,6 @@ func projectRowMenu(menu *ui.Menu, m Model, p projectflow.Project) {
 		markOrigin()
 		m.OnArchiveProject(p.ID)
 	}
-	menu.Separator()
-	menu.Submenu(tr("项目视图", "Project views"), func(pages *ui.Menu) {
-		for _, entry := range []struct {
-			label string
-			open  func(string)
-		}{{tr("项目概览", "Project overview"), m.OnObserver}, {tr("要求", "Requests"), m.OnRequests}, {tr("成员", "Team"), m.OnTeam}, {tr("项目材料", "Materials"), m.OnMaterialCollection}, {tr("项目文档", "Project documents"), m.OnDocuments}, {tr("历次交付", "Delivery history"), m.OnDeliveries}, {tr("成员报告", "Recorded reports"), m.OnReports}} {
-			if pages.Item(entry.label).Disabled(blocked || entry.open == nil).Chosen() && entry.open != nil {
-				markOrigin()
-				entry.open(p.ID)
-			}
-		}
-	})
 }
 
 func projectSidebarStatus(p projectflow.Project) string {

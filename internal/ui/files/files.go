@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -39,6 +40,7 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
+	SVGImages           *svgimage.Owner
 	OpenDocumentViewer  func(string) (DocumentSurface, error)
 	ReadTextPageContext func(context.Context, string, int64) (workspacefs.TextPage, error)
 	AllowPageShortcuts  func() bool

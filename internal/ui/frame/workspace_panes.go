@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
+	remoteui "whaleisle/internal/ui/remote"
 )
 
 // WorkspacePanes retains native content occurrences and their split geometry.
@@ -25,35 +26,46 @@ type WorkspacePanes struct {
 	legacyFileID       string
 	focusPending       string
 	closing            string
+	closeSaving        string
+	closeError         string
 	message            string
 	conversationBounds mygo.Rectangle
 }
 
 type WorkspacePane struct {
-	tabDragging          bool
-	terminalClose        func() *hostterminal.OccurrenceClose
-	terminalCloseRequest *hostterminal.OccurrenceClose
-	terminalDispose      func()
-	ProjectObserver      *projects.ObserverState           `json:"projectObserver,omitempty"`
-	Float                *WorkspaceFloat                   `json:"float,omitempty"`
-	DockTabs             []*WorkspacePane                  `json:"dockTabs,omitempty"`
-	DockIndex            int                               `json:"dockIndex,omitempty"`
-	Inspector            *SessionInspectorPaneState        `json:"inspector,omitempty"`
-	ChangesReview        *ChangesReviewState               `json:"changesReview,omitempty"`
-	SubagentChat         *SubagentChatPaneState            `json:"subagentChat,omitempty"`
-	Agents               *WorkspaceAgentState              `json:"-"`
-	Diff                 *WorkspaceDiffState               `json:"diff,omitempty"`
-	Files                *WorkspaceFileState               `json:"files,omitempty"`
-	Browser              *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
-	browser              *browserpreview.Controller
-	Schedule             *SchedulePaneState `json:"schedule,omitempty"`
-	ID                   string             `json:"id"`
-	Kind                 string             `json:"kind,omitempty"`
-	TerminalSource       string             `json:"terminalSource,omitempty"`
-	Axis                 string             `json:"axis,omitempty"`
-	Ratio                float32            `json:"ratio,omitempty"`
-	First                *WorkspacePane     `json:"first,omitempty"`
-	Second               *WorkspacePane     `json:"second,omitempty"`
+	terminalFresh                      bool
+	terminalFreshBound                 bool
+	terminalFreshGeneration            uint64
+	terminalFreshSession               string
+	remoteFilesRendered                bool
+	paneWidth, stripWidth, tabRunWidth float32
+	tabDragging                        bool
+	terminalClose                      func() *hostterminal.OccurrenceClose
+	terminalCloseRequest               *hostterminal.OccurrenceClose
+	terminalDispose                    func()
+	terminalRecovery                   func() *hostterminal.RecoveryTarget
+	ProjectObserver                    *projects.ObserverState           `json:"projectObserver,omitempty"`
+	Float                              *WorkspaceFloat                   `json:"float,omitempty"`
+	DockTabs                           []*WorkspacePane                  `json:"dockTabs,omitempty"`
+	DockIndex                          int                               `json:"dockIndex,omitempty"`
+	Inspector                          *SessionInspectorPaneState        `json:"inspector,omitempty"`
+	ChangesReview                      *ChangesReviewState               `json:"changesReview,omitempty"`
+	SubagentChat                       *SubagentChatPaneState            `json:"subagentChat,omitempty"`
+	Agents                             *WorkspaceAgentState              `json:"-"`
+	Diff                               *WorkspaceDiffState               `json:"diff,omitempty"`
+	Files                              *WorkspaceFileState               `json:"files,omitempty"`
+	RemoteFiles                        *remoteui.FileWorkspaceState      `json:"-"`
+	Browser                            *browserpreview.WorkspaceSnapshot `json:"browser,omitempty"`
+	browser                            *browserpreview.Controller
+	Schedule                           *SchedulePaneState           `json:"schedule,omitempty"`
+	ID                                 string                       `json:"id"`
+	Kind                               string                       `json:"kind,omitempty"`
+	TerminalSource                     string                       `json:"terminalSource,omitempty"`
+	TerminalRecovery                   *hostterminal.RecoveryTarget `json:"terminalRecovery,omitempty"`
+	Axis                               string                       `json:"axis,omitempty"`
+	Ratio                              float32                      `json:"ratio,omitempty"`
+	First                              *WorkspacePane               `json:"first,omitempty"`
+	Second                             *WorkspacePane               `json:"second,omitempty"`
 }
 
 func paneLabel(zh, en string) string {
@@ -64,7 +76,7 @@ func paneLabel(zh, en string) string {
 }
 func (w *WorkspacePanes) leaf(kind string) *WorkspacePane {
 	w.Next++
-	return &WorkspacePane{ID: fmt.Sprintf("workspace-pane-%d", w.Next), Kind: kind}
+	return &WorkspacePane{ID: fmt.Sprintf("workspace-pane-%d", w.Next), Kind: kind, terminalFresh: kind == "host-terminal"}
 }
 func (n *WorkspacePane) find(id string) *WorkspacePane {
 	if n == nil {
@@ -218,7 +230,7 @@ func (w *WorkspacePanes) close(id string) bool {
 	if n := w.Root.find(id); n != nil && n.Kind == "project-observer" {
 		return false
 	}
-	if n := w.Root.find(id); n != nil && n.Files.unsaved() {
+	if n := w.Root.find(id); n != nil && (n.Files.unsaved() || n.RemoteFiles != nil && n.RemoteFiles.Dirty()) {
 		w.closing = id
 		return false
 	}
@@ -295,6 +307,13 @@ func (w *WorkspacePanes) Export() json.RawMessage {
 		return nil
 	}
 	w.captureContent()
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.terminalRecovery != nil {
+			if saved := n.terminalRecovery(); saved != nil {
+				n.TerminalRecovery = saved
+			}
+		}
+	})
 	raw, _ := json.Marshal(w)
 	return raw
 }
@@ -304,6 +323,9 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 	}
 	var w WorkspacePanes
 	if err := json.Unmarshal(raw, &w); err != nil {
+		return nil, err
+	}
+	if err := validateWorkspaceRestore(&w); err != nil {
 		return nil, err
 	}
 	if w.Root != nil {
@@ -407,6 +429,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 			if n.Ratio == 0 {
 				n.Ratio = 0.5
 			}
+			n.Ratio = min(float32(.8), max(float32(.2), n.Ratio))
 			size := (total - 1) * n.Ratio
 			first := func() { workspaceNode(c, m, n.First) }
 			second := func() { workspaceNode(c, m, n.Second) }
@@ -415,7 +438,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 			} else {
 				ui.Split(c, &size, first, second).Fill()
 			}
-			n.Ratio = size / (total - 1)
+			n.Ratio = min(float32(.8), max(float32(.2), size/(total-1)))
 			return
 		}
 		if box.FocusWithin() {
@@ -427,6 +450,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 		local.RightPaneTab = &tab
 		local.workspacePane = n
 		width := box.Bounds().W
+		n.paneWidth = width
 		local.FilePaneWidth = &width
 		local.OnHideBrowser = nil // Visibility belongs to the whole layout, not each seat.
 		local.OnOpenBrowserPreview = func() { tab = "browser" }
@@ -450,27 +474,13 @@ func workspacePaneControls(c *ui.Context, m Model) {
 	w := m.Sizes.Workspace
 	if n.Float != nil {
 		if w.closing == n.ID {
-			ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
-			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() {
-				w.closing = ""
-			}
-			if ui.Button(c, paneLabel("丢弃并关闭", "Discard and close")).Clicked() {
-				w.pending = func() { w.closeNow(n.ID) }
-			}
+			workspacePaneClosePrompt(c, m)
 		}
 		return
 	}
 	workspaceDockTabStrip(c, m)
 	if w.closing == n.ID {
-		ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
-		ui.Row(c).Gap(4).Children(func() {
-			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() {
-				w.closing = ""
-			}
-			if ui.Button(c, paneLabel("放弃并关闭", "Discard and close")).Clicked() {
-				w.pending = func() { w.closeNow(n.ID) }
-			}
-		})
+		workspacePaneClosePrompt(c, m)
 	}
 	if w.message != "" {
 		ui.Text(c, w.message)
@@ -521,12 +531,12 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 			workspacePaneClose(m, n)
 		}
 		menu.Separator()
-		for _, vertical := range []bool{false, true} {
+		for _, vertical := range []bool{false} {
 			label := paneLabel("向右拆分", "Split right")
 			if vertical {
 				label = paneLabel("向下拆分", "Split down")
 			}
-			if menu.Item(label).Chosen() {
+			if menu.Item(label).Disabled(!w.canSplit(n)).Chosen() {
 				w.pending = func() {
 					w.activateDockTab(n.ID)
 					local := m
@@ -547,11 +557,14 @@ func independentPaneKind(kind string) bool {
 
 // SplitWorkspacePane is shared by the pane chrome and editable command registry.
 func SplitWorkspacePane(m Model, vertical bool) {
-	if !m.RightPaneOpen || m.Sizes == nil {
+	if vertical || !m.RightPaneOpen || m.Sizes == nil {
 		return
 	}
 	prepareWorkspace(m)
 	w := m.Sizes.Workspace
+	if !w.canSplit(w.Root.find(w.Active)) {
+		return
+	}
 	kinds := []string{"files", "diff", "agents"}
 	if m.HostTerminalStore != nil {
 		kinds = append(kinds, "host-terminal")
@@ -578,6 +591,7 @@ func SplitWorkspacePane(m Model, vertical bool) {
 		copySubagentChatPane(added, &old)
 		if kind == "host-terminal" && old.Kind == "host-terminal" {
 			added.TerminalSource = old.ID
+			added.terminalFresh = false
 		}
 		axis := "horizontal"
 		if vertical {

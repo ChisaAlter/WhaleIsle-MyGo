@@ -34,7 +34,9 @@ func conversationPhase(snap session.ViewState, interactions bool) conversationLa
 		return conversationActive
 	}
 	for _, item := range snap.Items {
-		if item.SessionID == snap.SelectedID && item.Running {
+		if item.SessionID == snap.SelectedID && (item.Running || item.Presentation != nil) {
+			// A Host presentation owns this surface even when its history is
+			// empty. It must not flash the ordinary Hero while opening.
 			return conversationActive
 		}
 	}

@@ -11,7 +11,24 @@ func (s *mainState) setAppearanceTheme(id string) error {
 	s.mu.Lock()
 	cfg := s.cfgStore
 	win := s.win
+	host, hostAccepted := s.hostAppearance, s.hostAppearanceAccepted
 	s.mu.Unlock()
+	if hostAccepted {
+		if host == nil {
+			return fmt.Errorf("Host appearance is unavailable")
+		}
+		if err := host.SaveScheme(id); err != nil {
+			return err
+		}
+		s.mu.Lock()
+		s.themeID, s.desktopDraft.theme = id, id
+		s.mu.Unlock()
+		applyAppearance(id)
+		if win != nil {
+			win.Invalidate()
+		}
+		return nil
+	}
 	if cfg == nil {
 		return fmt.Errorf("config store is not ready")
 	}

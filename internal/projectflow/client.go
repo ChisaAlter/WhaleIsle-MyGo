@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"unicode/utf8"
+	"unicode/utf16"
 	"whaleisle/internal/desktop/pluginrpc"
 )
 
@@ -67,7 +67,7 @@ func (c Client) Create(ctx context.Context, path string, authorized []string, re
 }
 func (c Client) Rename(ctx context.Context, id, title string) (Project, error) {
 	title = strings.TrimSpace(title)
-	if id == "" || title == "" || utf8.RuneCountInString(title) > 240 {
+	if id == "" || title == "" || len(utf16.Encode([]rune(title))) > 240 {
 		return Project{}, fmt.Errorf("project title must contain 1–240 characters")
 	}
 	var out struct {

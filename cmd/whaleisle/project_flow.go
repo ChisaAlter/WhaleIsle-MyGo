@@ -376,9 +376,12 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 		var err error
 		var lead string
 		var changed bool
+		var acceptedList bool
+		var receipt projectflow.Project
 		switch action {
 		case "list":
 			listing, err = rpc.List(ctx)
+			acceptedList = err == nil
 		case "create":
 			var token [16]byte
 			_, err = rand.Read(token[:])
@@ -387,11 +390,12 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 				p, err = rpc.Create(ctx, arg, []string{workspace}, hex.EncodeToString(token[:]))
 				if err == nil {
 					changed = true
+					receipt = p
 					lead, err = rpc.Open(ctx, p.ID)
 				}
 			}
 		case "rename":
-			_, err = rpc.Rename(ctx, arg, title)
+			receipt, err = rpc.Rename(ctx, arg, title)
 			changed = err == nil
 		case "open":
 			lead, err = rpc.Open(ctx, arg)
@@ -403,6 +407,7 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 		if changed {
 			var refreshErr error
 			listing, refreshErr = rpc.List(ctx)
+			acceptedList = refreshErr == nil
 			if err == nil {
 				err = refreshErr
 			}
@@ -415,22 +420,30 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 				return
 			}
 			f.busy = false
-			if action == "list" || changed {
+			if acceptedList {
 				f.loaded = true
 				f.listing = listing
+			} else if changed && receipt.ID != "" {
+				// Keep the accepted mutation even if its subsequent read fails.
+				found := false
+				for i := range f.listing.Projects {
+					if f.listing.Projects[i].ID == receipt.ID {
+						f.listing.Projects[i] = receipt
+						found = true
+						break
+					}
+				}
+				if !found {
+					f.listing.Projects = append(f.listing.Projects, receipt)
+				}
 			}
 			if err != nil {
 				f.err = err.Error()
-				if action == "list" {
-					f.listing.Available = false
-					f.listing.Projects = nil
-				}
 			} else {
 				f.err = listing.Error
-				if action == "rename" {
-					f.renameID = ""
-					f.renameDraft = ""
-				}
+			}
+			if action == "rename" && changed {
+				f.renameID, f.renameDraft = "", ""
 			}
 			stillOpen := f.visible() && f.navigation == navigation
 			s.mu.Unlock()

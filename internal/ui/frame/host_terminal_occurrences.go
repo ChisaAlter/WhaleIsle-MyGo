@@ -38,10 +38,24 @@ func hostTerminalPaneModel(m Model) Model {
 	}
 	pane := m.workspacePane
 	session := m.Store.Snapshot().SelectedID
+	if pane.terminalFresh {
+		generation := m.Store.ComposerHostGeneration()
+		if !pane.terminalFreshBound {
+			pane.terminalFreshBound, pane.terminalFreshGeneration, pane.terminalFreshSession = true, generation, session
+		} else if pane.terminalFreshGeneration != generation || pane.terminalFreshSession != session {
+			pane.terminalFresh = false
+		}
+	}
 	root, renderer := m.HostTerminalStore, m.HostTerminalUI
 	m.HostTerminalStore = root.Occurrence(pane.ID, pane.TerminalSource, session)
 	child := m.HostTerminalStore
 	owner := child.Snapshot(session).Owner
+	authority := m.Store.WorkspaceLayoutScope()
+	child.AdoptRecovery(owner, authority, session, pane.TerminalRecovery)
+	pane.terminalRecovery = func() *hostterminal.RecoveryTarget { return child.RecoverySnapshot(authority, session) }
+	if saved := pane.terminalRecovery(); saved != nil {
+		pane.TerminalRecovery = saved
+	}
 	pane.terminalClose = func() *hostterminal.OccurrenceClose { return root.BeginOccurrenceClose(pane.ID, child, owner, session) }
 	pane.terminalDispose = func() { renderer.ForgetOccurrence(pane.ID) }
 	m.HostTerminalUI = m.HostTerminalUI.Occurrence(pane.ID)

@@ -60,7 +60,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	}
 	if m.About != nil {
 		m.About.HomePath = paths.DshHome()
-		m.About.OnRevealHome = func() { _ = desktopcomponents.OpenInFileManager(paths.DshHome()) }
+		m.About.OnRevealHome = func() error { return desktopcomponents.OpenInFileManager(paths.DshHome()) }
 		s.mu.Lock()
 		releases := s.nativeReleases
 		checking := s.updateCheckPending
@@ -83,8 +83,10 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	}
 	s.mu.Lock()
 	ep, ready := s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
+	petSaveErr := s.desktopSaveErr
 	s.mu.Unlock()
 	m.PetSettings = &settings.PetSettingsAccess{
+		Err: petSaveErr,
 		Store: m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil,
 		OnSetAssistant: func(v bool) { s.setAssistantFlag(&v, nil) },
 		RenderAssistant: func(c *ui.Context) {

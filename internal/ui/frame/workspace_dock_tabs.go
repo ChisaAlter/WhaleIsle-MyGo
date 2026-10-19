@@ -207,9 +207,13 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
 	n.tabDragging = false
-	ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(38).
-		Padding(10, 6, 0, 10).Gap(4).AlignItems(ui.Center).Children(func() {
-		ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(28).Children(func() {
+	header := ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(38).
+		Padding(10, 6, 0, 10).Gap(4).AlignItems(ui.Center)
+	n.stripWidth = header.Bounds().W
+	header.Children(func() {
+		tabRun := ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(28)
+		n.tabRunWidth = tabRun.Bounds().W
+		tabRun.Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
 				for index, tab := range tabs {
 					if tab.Float != nil {

@@ -3,6 +3,7 @@
 package chrome
 
 import (
+	"fmt"
 	"strings"
 	"whaleisle/internal/ui/theme"
 
@@ -44,6 +45,7 @@ func EffectiveTitleBarHeight() float32 {
 type GitBadge struct {
 	Branch        string
 	Dirty         bool
+	Ahead, Behind int
 	FetchLabel    string
 	PullLabel     string
 	PushLabel     string
@@ -104,6 +106,12 @@ func TitleBarWithLeadingActions(c *ui.Context, title string, colors TitleBarColo
 				label := git.Branch
 				if git.Dirty {
 					label += " •"
+				}
+				if git.Behind > 0 {
+					label += fmt.Sprintf(" ↓%d", git.Behind)
+				}
+				if git.Ahead > 0 {
+					label += fmt.Sprintf(" ↑%d", git.Ahead)
 				}
 				muted := colors.Muted
 				if muted.A == 0 && muted.R == 0 && muted.G == 0 && muted.B == 0 {

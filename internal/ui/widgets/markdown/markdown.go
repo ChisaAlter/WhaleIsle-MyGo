@@ -55,7 +55,9 @@ type Style struct {
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
 func Spans(source string, st Style) []ui.Span {
-	st.FontSize = theme.CurrentPreferences().Chat.Size
+	if st.FontSize <= 0 {
+		st.FontSize = theme.CurrentPreferences().Chat.Size
+	}
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return nil
@@ -74,7 +76,9 @@ func Spans(source string, st Style) []ui.Span {
 
 // View renders markdown in a RichText element.
 func View(c *ui.Context, source string, st Style) {
-	st.FontSize = theme.CurrentPreferences().Chat.Size
+	if st.FontSize <= 0 {
+		st.FontSize = theme.CurrentPreferences().Chat.Size
+	}
 	if st.DocumentLayout {
 		viewDocument(c, source, st)
 		return

@@ -30,8 +30,10 @@ import (
 	interui "whaleisle/internal/ui/interaction"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/projects"
+	remoteui "whaleisle/internal/ui/remote"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/sidebar"
+	"whaleisle/internal/ui/svgimage"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -151,6 +153,7 @@ func DefaultLayout() LayoutSizes {
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
+	SVGImages               *svgimage.Owner
 	OpenUIParent            uintptr
 	OpenUIWindow            *mygo.Window
 	CustomPanelContent      func(*ui.Context)
@@ -174,6 +177,7 @@ type Model struct {
 	SessionSearchFocus   *bool
 	OnOpenWorkspaceFiles func()
 	BrowserContent       func(*ui.Context)
+	RemoteFilesContent   func(*ui.Context, *session.Store, *remoteui.FileWorkspaceState) bool
 	NewWorkspaceBrowser  func() *browserpreview.Controller
 	OnHideBrowser        func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
@@ -305,6 +309,7 @@ type Model struct {
 	OnOpenLauncher        func()
 	OnContactAccount      func()
 	OnOpenSettings        func()
+	OnVoiceSettings       func()
 	OnToggleTools         func()
 	OnToggleTerminal      func()
 	OnOpenHostTerminal    func()
@@ -480,6 +485,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	}
 	rename := m.Store.SessionRename()
 	projectModel := m.Projects
+	projectModel.SearchQuery = derefString(m.SessionSearch)
 	projectModel.OnResolvedFile = m.OnOpenDeliverable
 	projectModel.OnObserver = func(id string) { openProjectObserver(m, id) }
 	schedules := schedstore.ViewState{}
@@ -692,6 +698,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
+						SVGImages:             m.SVGImages,
 						GroupMembers:         m.GroupMembers,
 						NextPrompt:           nextPrompt,
 						OnAcceptNextPrompt:   func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
@@ -805,13 +812,14 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnExecuteSlash: func(ctx context.Context, line string) {
 							_ = m.Store.ExecuteCommandLine(ctx, line)
 						},
+						OnPickCommand:         m.Store.PickComposerCommand,
 						OnToggleSkills:        m.OnToggleComposerSkills,
 						OnPickDirectory:       m.OnPickComposerDirectory,
 						OnPickImage:           m.OnPickComposerImage,
 						OnPickSpeech:          m.OnPickComposerSpeech,
 						Voice:                 m.ComposerVoice,
 						OnStartVoice:          m.OnStartComposerVoice,
-						OnVoiceSettings:       m.OnOpenSettings,
+						OnVoiceSettings:       m.OnVoiceSettings,
 						OnStopVoice:           m.OnStopComposerVoice,
 						OnCancelVoice:         m.OnCancelComposerVoice,
 						OnInsertVoice:         m.OnInsertComposerVoice,
@@ -1318,6 +1326,11 @@ func rightPane(c *ui.Context, m Model) {
 			return
 		}
 		if m.workspacePane != nil {
+			if tab == "files" && m.RemoteFilesContent != nil {
+				m.workspacePane.remoteFilesRendered = true
+				if m.workspacePane.RemoteFiles == nil { m.workspacePane.RemoteFiles = remoteui.NewFileWorkspaceState() }
+				if m.RemoteFilesContent(c, m.Store, m.workspacePane.RemoteFiles) { return }
+			}
 			m.workspacePane.Files.rendered = true
 		}
 		treeSplit := m.FileTreeSplit
@@ -1325,6 +1338,7 @@ func rightPane(c *ui.Context, m Model) {
 			treeSplit = &m.Sizes.RightTree
 		}
 		files.View(c, files.Model{
+			SVGImages:           m.SVGImages,
 			PlanOnly:            tab == "plan",
 			AllowPageShortcuts:  m.FileShortcuts,
 			PlanSnapshot:        m.Store.Snapshot(),
