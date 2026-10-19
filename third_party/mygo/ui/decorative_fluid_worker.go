@@ -8,10 +8,8 @@ import (
 	"time"
 )
 
-// The native CPU profile keeps the existing short-edge64 paint budget. The
-// source128/1440 profile is supported by splashSolver, but is not silently
-// enabled on the UI thread. Both resolution and half-float/GPU parity remain
-// explicit limitations; the numerical passes and input rules are shared.
+// Non-Windows retains the existing CPU profile. Windows uses persistent
+// half-float D3D11 textures at source 128/1440 resolution, on this worker.
 const nativeSplashSimResolution = 64
 const nativeSplashDyeResolution = 64
 const splashFrameInterval = time.Second / 60
@@ -20,7 +18,7 @@ const nativeSplashMemoryBudget = 4 << 20
 
 // Include numerical fields and both worker/UI pixel buffers. An extreme
 // aspect must not allocate unbounded memory or silently reduce resolution.
-func nativeSplashFits(width, height int) bool {
+func cpuSplashFits(width, height int) bool {
 	if width <= 0 || height <= 0 {
 		return false
 	}
@@ -32,17 +30,32 @@ func nativeSplashFits(width, height int) bool {
 
 // Target at most24% of one core while active, with at most60 jobs per second.
 // This native processing budget does not claim source frame/pixel parity.
-func splashPacing(work time.Duration) time.Duration {
+func cpuSplashPacing(work time.Duration) time.Duration {
 	return max(splashFrameInterval, work*100/24)
 }
 
 type splashRequest struct {
+	presses        []splashPress
 	now            time.Time
 	width, height  int
 	config         DecorativeEffects
 	x, y, dx, dy   float32
 	moved, press   bool
 	pressX, pressY float32
+}
+
+type splashPress struct {
+	x, y   float32
+	config DecorativeEffects
+}
+
+type splashBackend interface {
+	Resize(int, int) error
+	Splat(float32, float32, float32, float32, [3]float32, float32)
+	Step(float32, float32)
+	ImageSize() (int, int)
+	Render(*image.RGBA) error
+	Close()
 }
 
 // The owner submits one job only after taking the previous result. Output is
@@ -56,6 +69,7 @@ type splashWorker struct {
 	closeOnce sync.Once
 	// Published with the result, read before the owner submits another job.
 	lastWork time.Duration
+	err      error
 }
 
 func newSplashWorker(seed uint64) *splashWorker {
@@ -71,7 +85,12 @@ func (w *splashWorker) close() {
 func (w *splashWorker) run(seed uint64) {
 	defer close(w.done)
 	random := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
-	var solver *splashSolver
+	var solver splashBackend
+	defer func() {
+		if solver != nil {
+			solver.Close()
+		}
+	}()
 	var output *image.RGBA
 	var last time.Time
 	var color [3]float32
@@ -90,10 +109,17 @@ func (w *splashWorker) run(seed uint64) {
 		}
 		started := time.Now()
 		if solver == nil {
-			solver = newSplashSolver(job.width, job.height, nativeSplashSimResolution, nativeSplashDyeResolution)
+			var err error
+			solver, err = newSplashBackend()
+			if err != nil {
+				w.fail(err)
+				return
+			}
 			color = splashColor(random, job.config)
-		} else {
-			solver.Resize(job.width, job.height)
+		}
+		if err := solver.Resize(job.width, job.height); err != nil {
+			w.fail(err)
+			return
 		}
 		dt := float32(job.now.Sub(last).Seconds())
 		if last.IsZero() {
@@ -106,29 +132,44 @@ func (w *splashWorker) run(seed uint64) {
 			colorClock -= float32(int(colorClock))
 			color = splashColor(random, job.config)
 		}
-		if job.moved {
-			force := 6000 * job.config.Speed / 100
-			solver.Splat(job.x, job.y, job.dx*force, job.dy*force, color, job.config.Size)
+		presses := job.presses
+		if len(presses) == 0 && job.press {
+			presses = []splashPress{{job.pressX, job.pressY, job.config}}
 		}
-		if job.press {
-			bright := splashColor(random, job.config)
+		for _, press := range presses {
+			bright := splashColor(random, press.config)
 			for i := range bright {
 				bright[i] *= 10
 			}
-			solver.Splat(job.pressX, job.pressY, 10*(random.Float32()-.5), 30*(random.Float32()-.5), bright, job.config.Size)
+			solver.Splat(press.x, press.y, 10*(random.Float32()-.5), 30*(random.Float32()-.5), bright, press.config.Size)
+		}
+		if job.moved {
+			force := 6000 * job.config.Speed / 100
+			solver.Splat(job.x, job.y, job.dx*force, job.dy*force, color, job.config.Size)
 		}
 		solver.Step(dt, job.config.Speed)
 		width, height := solver.ImageSize()
 		if output == nil || output.Rect.Dx() != width || output.Rect.Dy() != height {
 			output = image.NewRGBA(image.Rect(0, 0, width, height))
 		}
-		solver.Render(output, true)
+		if err := solver.Render(output); err != nil {
+			w.fail(err)
+			return
+		}
 		w.lastWork = time.Since(started)
 		select {
 		case <-w.stop:
 			return
 		case w.results <- output: // At most one result; the UI never waits.
 		}
+	}
+}
+
+func (w *splashWorker) fail(err error) {
+	w.err = err
+	select {
+	case <-w.stop:
+	case w.results <- nil:
 	}
 }
 
@@ -177,6 +218,9 @@ func (s *decorationState) queueSplash(x, y, dx, dy float32, now time.Time) {
 }
 
 func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
+	if s.fluidError != nil {
+		return
+	} // source failed GPU mount is inert until remounted
 	width, height := max(1, int(w*p.scale)), max(1, int(h*p.scale))
 	if !nativeSplashFits(width, height) {
 		s.clearPointer() // Pause/release this decoration, preserving preferences.
@@ -204,6 +248,12 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 	}
 	select {
 	case result := <-s.fluidWorker.results:
+		if result == nil {
+			s.fluidError = s.fluidWorker.err
+			s.fluidBitmap = nil
+			s.fluidBusy = false
+			return
+		}
 		if s.fluidBitmap == nil || s.fluidBitmap.w != result.Rect.Dx() || s.fluidBitmap.h != result.Rect.Dy() {
 			s.fluidBitmap = NewBitmap(image.NewRGBA(result.Rect))
 		}
@@ -230,6 +280,7 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 		s.fluidBusy = true
 		s.fluidSubmitted = now
 		s.fluidInput.moved, s.fluidInput.press = false, false
+		s.fluidInput.presses = nil // worker owns the submitted event slice
 		s.fluidNext = now.Add(splashFrameInterval)
 	}
 	// Keep the engine's paint-only route: invalidating from the worker would

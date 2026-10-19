@@ -142,6 +142,9 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 	t := m.Tabs
 	owner := imageOwner(m, tab)
 	if tab.image != nil && tab.image.owner != owner {
+		if tab.image.svg != nil {
+			tab.image.svg.Close()
+		}
 		t.stopImageRead(false)
 		tab.image = nil
 	}

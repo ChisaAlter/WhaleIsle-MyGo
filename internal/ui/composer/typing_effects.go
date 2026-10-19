@@ -40,9 +40,7 @@ type typingEffects struct {
 }
 
 func (client *DraftClient) configureTyping(m Model, reduced bool) {
-	style := typingStyle{Effect: "drop", Cursor: "native", CursorBlink: true, Speed: 100}
-	style.Colors.Kind = "theme"
-	_ = json.Unmarshal(m.TypingFxStyle, &style)
+	style := readTypingStyle(m.TypingFxStyle)
 	if !m.TypingFx || reduced || client.typing.style.CursorBlink != style.CursorBlink || (client.typing.style.Cursor == "native") != (style.Cursor == "native") {
 		client.typing.caretBorn = time.Time{}
 	}
@@ -50,6 +48,27 @@ func (client *DraftClient) configureTyping(m Model, reduced bool) {
 		client.typing.echoes = nil
 	}
 	client.typing.enabled, client.typing.reduced, client.typing.style = m.TypingFx, reduced, style
+}
+
+func readTypingStyle(raw json.RawMessage) typingStyle {
+	style := typingStyle{Effect: "drop", Cursor: "native", CursorBlink: true, Speed: 100}
+	style.Colors.Kind = "theme"
+	_ = json.Unmarshal(raw, &style)
+	if style.Effect != "drop" && style.Effect != "rise" && style.Effect != "flash" {
+		style.Effect = "drop"
+	}
+	if style.Cursor != "native" && style.Cursor != "block" && style.Cursor != "underline" {
+		style.Cursor = "native"
+	}
+	style.Speed = min(240, max(40, style.Speed))
+	valid := style.Colors.Kind == "theme" || style.Colors.Kind == "preset" && typingPalettes[style.Colors.ID] != ([3]string{}) || style.Colors.Kind == "custom" && effectHexColor(style.Colors.Echo) && effectHexColor(style.Colors.Caret) && effectHexColor(style.Colors.Text)
+	if !valid {
+		style.Colors.Kind = "theme"
+	}
+	style.Colors.Echo = strings.ToLower(style.Colors.Echo)
+	style.Colors.Caret = strings.ToLower(style.Colors.Caret)
+	style.Colors.Text = strings.ToLower(style.Colors.Text)
+	return style
 }
 
 // Only the native text-service adapter emits keystrokes. Clipboard, suggestions,
@@ -102,7 +121,9 @@ func (client *DraftClient) captureTyping(before, after string) {
 	if strings.TrimSpace(inserted) == "" || ui.UTF16Len(inserted) > 16 {
 		return
 	}
-	fx.echoes = append(fx.echoes, typingEcho{text: inserted, caret: client.visualCaret(client.selection.Caret()), born: time.Now()})
+	caret := client.visualCaret(client.selection.Caret())
+	caret.Y -= client.scrollY // source absolute echo keeps its spawn-time host coordinates
+	fx.echoes = append(fx.echoes, typingEcho{text: inserted, caret: caret, born: time.Now()})
 	if len(fx.echoes) > 24 {
 		fx.echoes = fx.echoes[len(fx.echoes)-24:]
 	}
@@ -116,6 +137,8 @@ var typingPalettes = map[string][3]string{
 	"violet": {"#c4b5fd", "#8b5cf6", "#7c3aed"},
 	"ember":  {"#fcd34d", "#f59e0b", "#d97706"},
 }
+
+func TypingColorScheme(id string) [3]string { return typingPalettes[id] }
 
 func (fx typingEffects) colors(text, caret ui.Color) (ui.Color, ui.Color, ui.Color) {
 	if !fx.enabled || fx.style.Colors.Kind == "theme" {
@@ -143,13 +166,15 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 			p.AnimationFrame()
 			alpha, offsetEm, scale := typingKeyframe(fx.style.Effect, progress)
 			offset := offsetEm * client.font.Size
-			// Font scaling remains a glyph-raster approximation, not the CSS
-			// centered transform; retain one ShapeText call per live echo.
+			// The outer echo is right-aligned at the caret before the inner
+			// glyph scales about its center. Keep that unscaled anchor stable.
+			baseLayout := ui.ShapeText(echo.text, client.font, 0)
+			baseWidth, baseHeight := baseLayout.Size()
 			font := client.font
 			font.Size *= scale
 			layout := ui.ShapeText(echo.text, font, 0)
-			width, _ := layout.Size()
-			p.TextLayout(layout, r.X+draftInputLeft+echo.caret.X-width, r.Y+draftInputTop+echo.caret.Y-client.scrollY+offset, echoInk.Alpha(alpha))
+			width, height := layout.Size()
+			p.TextLayout(layout, r.X+draftInputLeft+echo.caret.X-baseWidth+(baseWidth-width)/2, r.Y+draftInputTop+echo.caret.Y+offset+(baseHeight-height)/2, echoInk.Alpha(alpha))
 		}
 		fx.echoes = alive
 		if !focused {
@@ -180,6 +205,10 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 				caret.H = 2
 			}
 		}
-		p.Fill(caret, caretInk, 1)
+		radius := float32(1)
+		if fx.enabled && fx.style.Cursor == "underline" {
+			radius = 0
+		}
+		p.Fill(caret, caretInk, radius)
 	})
 }

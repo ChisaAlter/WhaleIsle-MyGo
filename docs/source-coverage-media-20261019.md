@@ -216,3 +216,178 @@ static SVG breadth already existed in Files/composer. The specific unimplemented
 gaps found here were animated WebP and Market's narrower media integration;
 this batch supplies their source implementation. Other modules remain under
 their own audits and acceptance records.
+
+## Continued SET-06 / fluid / Beam / SVG source pass
+
+The continued 2026-10-19 request explicitly resumed the fluid/Beam/SVG work.
+The earlier “paused” and static-only descriptions above are historical and are
+superseded by this section for the changed paths. The source baseline remains
+original `e353e8e`; this pass started on native `ffe7ab6`. Other owners' local
+commits were preserved. This section records implementation, **not** compiled
+shader, automated regression, helper containment runtime or native visual
+acceptance. No test/fixture work, shader compilation, build or app launch was
+performed during this source phase.
+
+Because the original checkout contains unrelated dirty files, the exact Beam,
+typing, submission-settings, effects-modal, cursor-fluid/cursor-fx, theme-token,
+locale and cited image-element source paths were explicitly compared with
+`git diff e353e8e --name-only -- <exact paths>`; it returned no differing path.
+The source decisions in this section do not adopt an uncommitted original-tree
+behavior as the fixed baseline.
+
+### SET-06 actual settings and typing call chains
+
+Original `ui-conversation/src/submission-settings.ts:267-348,485-496` normalizes
+the active style at renderer adoption, independently of JSON-import validation.
+`ComposerBeam.tsx:92-167` maps percentages to three independently rounded layer
+opacities and samples local night time on mount/activation and a 60-second
+interval. `TypingFxLayer.tsx:96-201` and `input/editor/typing-fx.ts:17-122` own
+the 16 UTF-16-unit insertion/24-echo limits, IME-start snapshot and commit diff,
+history/paste/programmatic exclusions, collapsed selection and listener
+retirement. Native `beam.go:readBeamStyle` and
+`typing_effects.go:readTypingStyle` now also clamp/adopt enums, palette/color
+rules and numeric ranges at render adoption. Existing typing event exclusions,
+IME commit handling, echo count and reduced-motion gates remain; echo scaling
+now preserves the source's unscaled right-hand anchor and centered transform,
+and its host-space spawn position no longer moves when the input scrolls.
+Underline caret corners are square as in the source.
+
+Original `settings/BeamSettingsModal.tsx:270-388,424-545` and
+`TypingFxModal.tsx:139-187,190-284,364-443` were read through actual callbacks:
+Save/Cancel use isolated style/preset drafts; JSON has core/version/byte/type
+validation; at most five presets have 32 UTF-16-unit names; selecting a mode
+changes only its specified fields; other Beam edits mark mode custom; typing's
+custom color chip remembers an independent triplet. Native
+`internal/ui/settings/effect_preferences.go` retains save acknowledgement/error
+ownership and now adds the missing custom-mode marking, palette-derived seed,
+typing custom-triplet memory, native-caret blink disablement, preset-name
+truncation/name clearing and reset selection clearing. The existing source
+field ranges, presets, JSON contract and Save/Cancel scope were present.
+
+The source modal's typing preview actually types `输入特效` / `Typing effects`
+every 150ms; the old native preview was an empty editable input.
+`composer/settings_preview.go:36` now paints the automatic sample with the
+shared keyframes, theme/preset/custom text/echo/caret colors, blink and reduced
+motion. Beam preview uses the source status text and shared Beam painter.
+Actual native layout, font rasterization and settings interaction remain for
+the coordinated acceptance phase.
+
+### Beam: independent source layers rather than widened path strokes
+
+Original `ComposerBeam.module.css:17-254` has a frame at -4px/26px radius,
+children at +4px/22px radius, fixed-position radial inner washes and inset
+shadows, two additive conic inner masks, a separately masked track with a
+white travelling highlight, and an independently colored 1.5px bloom ring.
+Its remaining rules define spin direction, hue/breathing combinations, easing,
+420ms opacity transitions and reduced-motion hiding. The original tokens are
+`ui-theme/src/styles/base.css:38-39` (22/26, not 28).
+
+`composer/beam_raster.go:48,145,214` replaces the old 160-segment broad-stroke
+approximation with those independent premultiplied layers, separate masks,
+palette closure/stops, fixed radial geometry, track inset, highlighted edge and
+blurred bloom. It rebuilds geometry on actual size/DPI/track/palette changes;
+`ui.DecorativeRaster` retains one texture rather than allocating a new scene
+bitmap every frame. Zero blur still paints the independent bloom ring.
+`effect_timing.go` retains independent opacity transition reversal, spin/hue/
+breathing clocks, minute sampling and cancellation behavior. Main-card paint
+order/radius is a root-owned integration hunk, not overwritten by this owner.
+
+The blur uses three running-sum box passes approximating a Gaussian; inset
+shadow falloff uses the Gaussian edge integral. Corner convolution, coverage,
+gradient quantization and native glyph scaling are not claimed pixel-identical
+to Chromium. This is an actual three-layer implementation, not a changed stroke
+width or an assertion of browser visual equivalence.
+
+### Windows fluid: actual persistent GPU texture passes
+
+Original `ui-theme/src/cursor-fluid.ts:17-43,302-545,687-779,781-1024` was read
+through shader programs, texture creation/format probing, all numerical passes,
+resize, input, live retuning, visibility, idle and dispose. It uses short-edge
+128 velocity and 1440 dye half-float targets scaled by aspect; R16F/RG16F may
+expand to RGBA16F, never a lower-resolution dye grid. Curl/confinement,
+reflecting-edge divergence, 0.1 pressure decay, 20 Jacobi steps, gradient
+subtraction, velocity and dye advection precede shaded premultiplied display.
+Motion keeps the most recent event delta; each press splats immediately before
+the following animation step. Four seconds after input it parks, retaining its
+last frame; hidden documents stop rAF; dispose releases the context.
+
+`third_party/mygo/internal/gpu/d3d11/fluid_windows.go:32,105,187,248,262,288`
+and `fluid.hlsl` implement those actual half-float ping-pong GPU passes on the
+SDK's existing pure-Go D3D11 device/COM/compiler infrastructure. They create no
+window or swap chain. Texture-format probing follows the source's channel
+fallback order; pressure/curl/divergence restart on drawing-buffer changes,
+while velocity/dye are linearly resampled. Only the final drawing-buffer-sized
+RGBA display is read back to the existing native bitmap bridge. It does not
+run the CPU solver at larger constants or claim CPU work is GPU work.
+
+`ui/decorative_fluid_windows.go` selects that GPU backend; the worker keeps one
+in-flight job/result and owns all device state, texture mutation and disposal.
+Press splats now retain FIFO events and update the source pointer coordinate
+baseline before subsequent motion. Speed/size/palette remain live updates;
+hidden/4-second idle scheduling and effect/reduced-motion disposal remain in
+the existing owner. GPU initialization/shader/texture/map/device-removal
+failures return an error and retire the worker, exposing no fake CPU success
+or repeated recreation attempts. Windows pacing is one 60Hz job opportunity,
+without the older CPU 24%-core cap.
+
+Non-Windows deliberately retains its existing 64/64 float32 CPU profile and
+24%-core pacing in `decorative_fluid_other.go`; cross-platform GPU equivalence
+is **not** implemented. Windows has bounded texture extents and a 256MiB
+retained-resource gate, and requires hardware D3D11 rather than claiming WARP
+as hardware. Those resource/renderer boundaries and final-frame readback latency
+remain differences from the original WebGL presentation. Hardware shader
+compilation, visible motion/performance, occlusion and release are unverified.
+
+### SVG: preserve the actual image context, including inline animation
+
+Original Files `FilePreview.tsx:689-692`, composer
+`ComposerAttachments.tsx:83,100` / `ImageLightbox.tsx:69`, and README
+`MarkdownText.tsx` render image elements; they do not grant a navigated SVG
+document's script/network authority. The [SVG processing-mode specification](https://www.w3.org/TR/SVG2/conform.html#secure-animated-mode) defines this as
+secure animated image use: declarative SMIL/CSS animations are allowed, including
+foreignObject content under equivalent restrictions; scripts, interaction and
+external resource loads are disabled. Data resources are distinct from external
+references. This is why supporting original SVG does not require URL fetching,
+running author scripts or inventing an SMIL interpreter.
+
+`imagepreview/svg_image.go:22,36,76,113,121` adds a separate bounded image-only
+entry. It keeps the SVG solely in a base64 data-URL `img`, with an additional
+script-src-none CSP for the prepared image document. Native resvg still handles
+its existing static subset; SMIL/CSS/foreign content/unsupported static content
+and embedded GIF/animated WebP resources select the existing isolated inline
+helper. The public OpenUI `ResourceDataURL` gate is unchanged. Native static
+text's absent initial family/size now matches browser serif/16px rather than
+forcing the bundled Go sans font, while explicit authors' choices remain.
+
+`internal/ui/svgimage/seat.go:17,52,177,227` binds each image to immutable bytes,
+its own generation and visible paint lease, plus the root's window/Host/session
+`Owner` context and thread-safe validity callback. Helper startup is asynchronous;
+owner/seat revocation cancels it during startup and closes late results. The
+existing `previewprocess.OpenExperimental(Inline:true)` retains its original OS
+containment and one-document IPC. New `inert_image_surface*.go` reuses its
+single-in-flight pixel stream and verified Windows child, without new focus or
+input handlers; disabling image-child input keeps native click/zoom/pan control.
+Windows image-only regions also intersect the trusted native rounded seat and
+subtract the visible remove/retry button shapes, so the child no longer covers
+those native overlays. That geometry is generated by the parent, never SVG or
+the helper protocol; pixel-stream platforms keep ordinary canvas overlay order.
+No per-frame browser-capture loop or new browser shell was introduced.
+
+Actual inline callers are Files `media.go` / `image_view.go` (including saved
+zoom/pan), composer `attachment_display.go` thumbnail and original seats, and
+Market `readme_media.go` / `readme_images.go` / gallery's shared image decoder.
+They preserve existing GIF/WebP/AVIF/static SVG paths. Removing/dismissing/replacing
+an image closes its own surface; inactive local seats expire after 400ms, while
+root owner cancellation covers Host/session/window changes, hiding/minimization
+and close. Surface errors remain explicit image errors, never a static image
+mislabelled as live animation. The root owns model/window-provider and separate
+`htmldocument` SVG entry wiring.
+
+Remaining bounds are the existing 1MiB XML, 40,000 tokens, 10,000 nodes, depth64,
+64KiB attribute and bounded dimension/geometry policy. Width/height sizing still
+uses the existing px/viewBox contract; SVG physical/font-relative sizing beyond
+that contract is not implemented. Declarative frame rendering on a real helper,
+containment/readiness, theme/transparent background, native child clipping,
+parent input delivery, thumbnail/lightbox transitions and process release all
+remain unverified until the coordinated runtime phase. Source wiring alone is
+not evidence those native operations passed.

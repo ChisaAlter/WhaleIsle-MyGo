@@ -99,6 +99,7 @@ func typingCaretBlink(elapsed time.Duration) (visible bool, next time.Duration) 
 }
 
 type beamTimeline struct {
+	raster         beamRaster
 	palette        []ui.Color
 	active         bool
 	started        time.Time

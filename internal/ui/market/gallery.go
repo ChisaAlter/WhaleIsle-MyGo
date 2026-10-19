@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imgcache"
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -49,7 +50,7 @@ func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogI
 	}
 	image := images[state.index]
 	root.Children(func() {
-		marketScreenshot(c, image, state, field, muted)
+		marketScreenshot(c, image, state, field, muted, m.SVGImages)
 		ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 			if ui.Button(c, "‹").Label(marketText("上一张截图", "Previous image")).Disabled(state.index == 0).Clicked() {
 				state.index--
@@ -65,7 +66,7 @@ func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogI
 	})
 }
 
-func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, field, muted ui.Color) {
+func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, field, muted ui.Color, owners ...*svgimage.Owner) {
 	root := ui.Box(c.Key("market-screenshot:" + source)).Label(marketText("插件截图", "Plugin screenshot") + fmt.Sprintf(" %d", state.index+1)).FillWidth().MinWidth(0).AspectRatio(1.6).Radius(6).Clip().Background(field)
 	decoded := ui.Local(root, "decoded-image", func() readmeDecodedImage { return readmeDecodedImage{} })
 	readmeRemoteImages.RLock()
@@ -80,10 +81,20 @@ func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryStat
 			state.failed[source] = true
 		case imgcache.StatusReady:
 			if decoded.path != path {
+				if decoded.svgSeat != nil {
+					decoded.svgSeat.Close()
+				}
 				*decoded = readmeDecodedImage{path: path}
 				decoded.load(path, c.Services().Invalidate)
 			}
 			decoded.poll(path)
+			if decoded.svgSeat != nil {
+				var owner *svgimage.Owner
+				if len(owners) > 0 {
+					owner = owners[0]
+				}
+				decoded.svgSeat.Prepare(c, owner)
+			}
 			if decoded.pending == nil && (decoded.width <= 0 || decoded.height <= 0) {
 				state.failed[source] = true
 			}
@@ -95,6 +106,8 @@ func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryStat
 	root.Children(func() {
 		if state.failed[source] || cache == nil {
 			ui.Text(c, marketText("截图加载失败", "Image could not be loaded.")).Fill().Padding(16).TextColor(muted)
+		} else if decoded.svgSeat != nil {
+			ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) { decoded.svgSeat.PaintClipped(p, r, ui.Contain, 6, nil, field) })
 		} else if decoded.bitmap != nil {
 			ui.Image(c, decoded.bitmap).Fill().Fit(ui.Contain)
 		} else if decoded.svg != nil {

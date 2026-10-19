@@ -26,6 +26,7 @@ type decorationState struct {
 	config                       DecorativeEffects
 	cells                        map[decorationPoint]decorationCell
 	fluidWorker                  *splashWorker
+	fluidError                   error
 	fluidBitmap                  *Bitmap
 	fluidInput                   splashRequest
 	fluidBusy                    bool
@@ -73,6 +74,7 @@ func (s *decorationState) clearPointer() {
 		s.fluidWorker.close()
 	}
 	s.fluidWorker, s.fluidBitmap = nil, nil
+	s.fluidError = nil
 	s.fluidInput = splashRequest{}
 	s.fluidBusy = false
 	s.fluidLastInput, s.fluidNext = time.Time{}, time.Time{}
@@ -84,6 +86,13 @@ func (s *decorationState) clearPointer() {
 }
 func (s *decorationState) pointerDown(x, y float32) {
 	if s.config.PointerEnabled {
+		if s.config.PointerEffect == "splash" && s.width > 0 && s.height > 0 {
+			// Original pointerDown updates the pointer's last texture coordinate;
+			// the following motion must not inject a delta from before the click.
+			s.fluidPointerX, s.fluidPointerY = x/s.width, 1-y/s.height
+			s.fluidInput.x, s.fluidInput.y = s.fluidPointerX, s.fluidPointerY
+			s.fluidInput.presses = append(s.fluidInput.presses, splashPress{s.fluidPointerX, s.fluidPointerY, s.config})
+		}
 		s.pendingPress = true
 		s.pressX = x
 		s.pressY = y

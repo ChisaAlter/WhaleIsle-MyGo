@@ -17,12 +17,14 @@ import (
 
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/svgimage"
 )
 
 const maxImageBytes int64 = 16 << 20
 const maxImagePixels = 32_000_000
 
 type imagePreview struct {
+	svg       *svgimage.Seat
 	owner     imageReadOwner
 	loading   bool
 	bitmap    *ui.Bitmap
@@ -56,6 +58,9 @@ func retainImagePreview(m Model, selected *FileTab, preview *imagePreview) {
 	if w := tabsFor(m); w != nil {
 		for _, tab := range w.Open {
 			if tab != selected {
+				if tab.image != nil && tab.image.svg != nil {
+					tab.image.svg.Close()
+				}
 				tab.image = nil
 			}
 		}
@@ -92,6 +97,12 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	}
 	if preview.note != "" {
 		ui.Text(c, preview.note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
+	}
+	if preview.svg != nil {
+		preview.svg.Prepare(c, m.SVGImages)
+		if err := preview.svg.Error(); err != nil {
+			ui.Text(c, err.Error()).FontSize(12).TextColor(muted).FillWidth()
+		}
 	}
 	view := &imageViewState{}
 	if t != nil {
@@ -202,6 +213,14 @@ func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *i
 			p.bitmap = p.frames[0]
 		}
 	case ext == ".svg":
+		if imagepreview.NeedsBrowserSVG(data) {
+			p.svg, p.err = svgimage.NewSeat(data)
+			if p.svg != nil {
+				w, h := p.svg.Size()
+				p.note = fmt.Sprintf("%.0f × %.0f", w, h)
+			}
+			return p
+		}
 		decoded, p.err = imagepreview.DecodeSVGContext(ctx, data)
 	case ext == ".ico":
 		decoded, p.err = imagepreview.DecodeIcon(data)

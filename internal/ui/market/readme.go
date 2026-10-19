@@ -26,7 +26,7 @@ func marketReadme(c *ui.Context, m Model, source string, fg, muted, codeBG, acce
 			FontSize: theme.CurrentPreferences().Chat.Size,
 			FG:       fg, Muted: muted, CodeBG: codeBG, Accent: accent,
 			OnOpenURL: m.OnOpenURL, LiteralHTML: true,
-			RenderImage:          renderReadmeImage,
+			RenderImage:          func(c *ui.Context, src, alt string) bool { return renderReadmeImage(c, src, alt, m.SVGImages) },
 			DocumentLayout:       true,
 			DocumentH3FontSize:   14,
 			DocumentH3LineHeight: 22,

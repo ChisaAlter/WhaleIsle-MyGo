@@ -22,10 +22,25 @@ type effectNumber struct {
 	lo, hi, step float64
 }
 type effectDraft struct {
+	CustomTyping        [3]string
 	Style               map[string]any
 	Presets             map[string]map[string]any
 	Name, Selected, Err string
 	Pending             map[string]string
+}
+
+func typingCustomSeed(style map[string]any) [3]string {
+	colors := [3]string{"#e2e8f0", "#60a5fa", "#64748b"}
+	switch effectValue(style, "colors.kind") {
+	case "preset":
+		id, _ := effectValue(style, "colors.id").(string)
+		colors = composer.TypingColorScheme(id)
+	case "custom":
+		for i, key := range []string{"echo", "caret", "text"} {
+			colors[i], _ = effectValue(style, "colors."+key).(string)
+		}
+	}
+	return colors
 }
 
 var beamChoices = []effectChoice{
@@ -241,7 +256,7 @@ func parseEffectEnvelope(text string, typing bool) (effectDraft, error) {
 	for name, value := range payload.Presets {
 		presets[name], _ = normalizeEffect(value, typing)
 	}
-	return effectDraft{Style: style, Presets: presets}, nil
+	return effectDraft{Style: style, Presets: presets, CustomTyping: typingCustomSeed(style)}, nil
 }
 
 func effectJSONEqual(left, right string) bool {
@@ -302,7 +317,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					if presets == nil {
 						presets = map[string]map[string]any{}
 					}
-					*draft = effectDraft{Style: normalized, Presets: presets}
+					*draft = effectDraft{Style: normalized, Presets: presets, CustomTyping: typingCustomSeed(normalized)}
 					if normalizeErr != nil {
 						draft.Err = normalizeErr.Error()
 					}
@@ -361,6 +376,10 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 						if ui.Button(c, providerCopy("保存为预设", "Save preset")).Label("effect-save-preset").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0 || !presetsFound || a.OnPatch == nil).Clicked() {
 							name := strings.TrimSpace(draft.Name)
+							units := utf16.Encode([]rune(name))
+							if len(units) > 32 {
+								name = string(utf16.Decode(units[:32]))
+							}
 							if !effectPresetName(name) {
 								draft.Err = providerCopy("预设名称需为 1–32 字符。", "Preset names must contain 1–32 characters.")
 							} else if _, exists := draft.Presets[name]; !exists && len(draft.Presets) >= 5 {
@@ -370,6 +389,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 							} else {
 								draft.Presets[name] = normalized
 								draft.Selected = name
+								draft.Name = ""
 								draft.Err = ""
 							}
 						}
@@ -396,6 +416,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						}
 						if ui.Button(c, providerCopy("恢复默认", "Reset to defaults")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 							draft.Style = effectDefaults(typing)
+							draft.Selected = ""
 							draft.Err = ""
 						}
 					})
@@ -411,7 +432,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					})
 				}
 				ui.Row(c).FillWidth().Padding(12, 24).Wrap().Gap(8).Children(func() {
-					if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
+					if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(len(draft.Pending) > 0).Clicked() {
 						*open = false
 					}
 					if ui.Button(c, providerCopy("保存并应用", "Save and apply")).Label("save-" + enabledKey + "-configuration").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
@@ -491,19 +512,32 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		}
 		bodyPreferenceRow(c, "effect-choice-"+choice.path, providerCopy(choice.zh, choice.en), "", fg, muted, func() {
 			if ui.Select(c, &value, choice.choices).FillWidth().Label("effect-" + choice.path).Disabled(blocked).Changed() {
+				var palette []string
+				if choice.path == "palette.kind" && value == "custom" {
+					raw, _ := json.Marshal(d.Style)
+					palette = composer.BeamPaletteColors(raw)
+				}
 				effectSet(d.Style, choice.path, value)
+				if !typing && choice.path != "mode" {
+					d.Style["mode"] = "custom"
+				}
 				d.Err = ""
 				if !typing && choice.path == "mode" {
 					applyBeamMode(d.Style, value)
 				}
-				if choice.path == "palette.kind" && value == "custom" && effectValue(d.Style, "palette.colors") == nil {
-					effectSet(d.Style, "palette.colors", []any{"#ff3264", "#288cff"})
+				if choice.path == "palette.kind" && value == "custom" {
+					colors := make([]any, 0, min(6, len(palette)))
+					for _, color := range palette[:min(6, len(palette))] {
+						colors = append(colors, color)
+					}
+					effectSet(d.Style, "palette.colors", colors)
 				}
 				if choice.path == "colors.kind" && value == "custom" {
-					for key, seed := range map[string]string{"echo": "#e2e8f0", "caret": "#60a5fa", "text": "#64748b"} {
-						if effectValue(d.Style, "colors."+key) == nil {
-							effectSet(d.Style, "colors."+key, seed)
-						}
+					if d.CustomTyping == ([3]string{}) {
+						d.CustomTyping = typingCustomSeed(d.Style)
+					}
+					for i, key := range []string{"echo", "caret", "text"} {
+						effectSet(d.Style, "colors."+key, d.CustomTyping[i])
 					}
 				}
 				if choice.path == "colors.kind" && value == "preset" && effectValue(d.Style, "colors.id") == nil {
@@ -517,7 +551,12 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 			continue
 		}
 		checked, _ := effectValue(d.Style, toggle.path).(bool)
-		bodyLocalToggle(c, "effect-toggle-"+toggle.path, providerCopy(toggle.zh, toggle.en), "", &checked, blocked, fg, muted, func(value bool) { effectSet(d.Style, toggle.path, value) })
+		bodyLocalToggle(c, "effect-toggle-"+toggle.path, providerCopy(toggle.zh, toggle.en), "", &checked, blocked || typing && effectValue(d.Style, "cursor") == "native", fg, muted, func(value bool) {
+			effectSet(d.Style, toggle.path, value)
+			if !typing {
+				d.Style["mode"] = "custom"
+			}
+		})
 	}
 	if !typing {
 		numbers = append(append([]effectNumber(nil), numbers...), effectNumber{"night.fromMinute", "夜间开始", "Night starts", 0, 1439, 1}, effectNumber{"night.toMinute", "夜间结束", "Night ends", 0, 1439, 1})
@@ -533,6 +572,9 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			if ui.StepSlider(c, &value, number.lo, number.hi, number.step).FillWidth().Label("effect-" + number.path).Disabled(blocked || disabled).Changed() {
 				effectSet(d.Style, number.path, value)
+				if !typing {
+					d.Style["mode"] = "custom"
+				}
 				d.Err = ""
 			}
 		})
@@ -543,6 +585,11 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 			bodyPreferenceRow(c, "typing-color-"+color.key, providerCopy(color.zh, color.en), "#RRGGBB", fg, muted, func() {
 				if ui.TextInput(c, &value).FillWidth().Label("effect-color-" + color.key).Disabled(blocked).Changed() {
 					effectSet(d.Style, "colors."+color.key, value)
+					for i, key := range []string{"echo", "caret", "text"} {
+						if key == color.key {
+							d.CustomTyping[i] = value
+						}
+					}
 					d.Err = ""
 				}
 			})
@@ -556,15 +603,18 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 				if ui.TextInput(c, &value).FillWidth().Label(fmt.Sprintf("effect-color-%d", index)).Disabled(blocked).Changed() {
 					colors[index] = value
 					effectSet(d.Style, "palette.colors", colors)
+					d.Style["mode"] = "custom"
 					d.Err = ""
 				}
 				if ui.Button(c, providerCopy("移除颜色", "Remove color")).Disabled(blocked || len(colors) <= 2).Clicked() {
 					effectSet(d.Style, "palette.colors", append(colors[:index], colors[index+1:]...))
+					d.Style["mode"] = "custom"
 				}
 			})
 		}
 		if ui.Button(c, providerCopy("添加颜色", "Add color")).Disabled(blocked || len(colors) >= 6).Clicked() {
-			effectSet(d.Style, "palette.colors", append(colors, "#4176e6"))
+			effectSet(d.Style, "palette.colors", append(colors, "#ffffff"))
+			d.Style["mode"] = "custom"
 		}
 	}
 }

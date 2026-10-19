@@ -59,7 +59,9 @@ func (v *imageViewState) wheel(ev ui.InputEvent, intrinsicWidth float32) bool {
 
 func paintImageView(c *ui.Context, preview *imagePreview, v *imageViewState) {
 	var width, height float32
-	if preview.bitmap != nil {
+	if preview.svg != nil {
+		width, height = preview.svg.Size()
+	} else if preview.bitmap != nil {
 		w, h := preview.bitmap.Size()
 		width, height = float32(w), float32(h)
 	} else if preview.vector != nil {
@@ -111,7 +113,9 @@ func paintImageView(c *ui.Context, preview *imagePreview, v *imageViewState) {
 	}
 	scroll.Children(func() {
 		surface := ui.Box(c).Key(v).Width(width*scale + 24).Height(height*scale + 24).Padding(12).Children(func() {
-			if preview.bitmap != nil {
+			if preview.svg != nil {
+				ui.Box(c).Width(width * scale).Height(height * scale).DrawOver(func(p *ui.Painter, r ui.Rect) { preview.svg.Paint(p, r, ui.Contain) })
+			} else if preview.bitmap != nil {
 				ui.Image(c, preview.bitmap).Width(width * scale).Height(height * scale).Fit(ui.Contain)
 			} else {
 				ui.Image(c, preview.vector).Width(width * scale).Height(height * scale).Fit(ui.Contain)

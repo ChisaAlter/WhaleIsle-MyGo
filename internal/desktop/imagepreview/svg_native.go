@@ -7,6 +7,7 @@ import (
 	"errors"
 	"image"
 	"image/png"
+	"runtime"
 	"strings"
 	"time"
 
@@ -45,8 +46,8 @@ func DecodeSVGContext(ctx context.Context, data []byte) (image.Image, error) {
 	return png.Decode(bytes.NewReader(rendered))
 }
 
-// Supply a bundled default family without rewriting child styles or family
-// choices. An explicit root family or inline family remains authoritative.
+// Supply the browser's initial serif family and 16px size without rewriting
+// child styles or family choices. Root attributes/inline CSS stay authoritative.
 func svgDefaultFont(data []byte) []byte {
 	d := xml.NewDecoder(bytes.NewReader(data))
 	for {
@@ -58,10 +59,13 @@ func svgDefaultFont(data []byte) []byte {
 		if !ok {
 			continue
 		}
+		family, size := false, false
 		for _, a := range root.Attr {
-			if a.Name.Local == "font-family" || (a.Name.Local == "style" && strings.Contains(strings.ToLower(a.Value), "font-family")) {
-				return data
-			}
+			family = family || a.Name.Local == "font-family" || a.Name.Local == "style" && strings.Contains(strings.ToLower(a.Value), "font-family")
+			size = size || a.Name.Local == "font-size" || a.Name.Local == "style" && strings.Contains(strings.ToLower(a.Value), "font-size")
+		}
+		if family && size {
+			return data
 		}
 		end := int(d.InputOffset()) - 1
 		if end < 0 || end >= len(data) {
@@ -72,7 +76,21 @@ func svgDefaultFont(data []byte) []byte {
 		}
 		result := make([]byte, 0, len(data)+18)
 		result = append(result, data[:end]...)
-		result = append(result, []byte(` font-family="Go"`)...)
+		if !family {
+			// Original <img> SVG inherits the browser's initial serif family,
+			// rather than the application's sans font or the bundled Go font.
+			name := "DejaVu Serif"
+			switch runtime.GOOS {
+			case "windows":
+				name = "Times New Roman"
+			case "darwin":
+				name = "Times"
+			}
+			result = append(result, []byte(` font-family="`+name+`"`)...)
+		}
+		if !size {
+			result = append(result, []byte(` font-size="16"`)...)
+		}
 		result = append(result, data[end:]...)
 		return result
 	}

@@ -18,9 +18,13 @@ import (
 	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/svgimage"
+	"whaleisle/internal/ui/theme"
 )
 
 type attachmentDisplay struct {
+	svg       *svgimage.Seat
 	bitmap    *ui.Bitmap
 	motion    *attachmentMotion
 	bytes     int64
@@ -112,6 +116,10 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 	var decoded image.Image
 	switch strings.ToLower(filepath.Ext(a.Path)) {
 	case ".svg":
+		if imagepreview.NeedsBrowserSVG(data) {
+			out.svg, out.err = svgimage.NewSeat(data)
+			return out
+		}
 		decoded, err = imagepreview.DecodeSVGContext(context.Background(), data)
 	case ".ico":
 		decoded, err = imagepreview.DecodeIcon(data)
@@ -225,7 +233,20 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					if imageFile {
 						preview := ui.Box(c).Fill().Radius(20).Clip().Focusable().Label("Preview attachment " + label).Tooltip(label)
 						preview.Children(func() {
-							if v != nil && v.bitmap != nil {
+							if v != nil && v.svg != nil {
+								v.svg.Prepare(c, m.SVGImages)
+								showClose := card.Hovered() || card.FocusWithin() || a.PrepareError != ""
+								ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) {
+									var holes []svgimage.Exclusion
+									if showClose {
+										holes = append(holes, svgimage.Exclusion{Bounds: ui.Rect{X: r.X + r.W - 22, Y: r.Y + 4, W: 18, H: 18}, Radius: 9})
+									}
+									if a.PrepareError != "" && m.OnRetryAttachment != nil {
+										holes = append(holes, svgimage.Exclusion{Bounds: ui.Rect{X: r.X + 4, Y: r.Y + r.H - 22, W: 18, H: 18}, Radius: p.Theme().Radius})
+									}
+									v.svg.PaintClipped(p, r, ui.Cover, 20, holes, chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).InputMajor))
+								})
+							} else if v != nil && v.bitmap != nil {
 								v.animate(c)
 								ui.Image(c, v.bitmap).Fill().Fit(ui.Cover)
 							} else {
@@ -235,7 +256,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 						if v != nil && v.err != nil {
 							preview.Tooltip(v.err.Error())
 						}
-						if v != nil && v.bitmap != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
+						if v != nil && (v.bitmap != nil || v.svg != nil) && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
 							seat.open = true
 						}
 					} else {
@@ -276,10 +297,16 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					remove = close.Clicked()
 				})
 				if remove {
+					if seat.result != nil && seat.result.svg != nil {
+						seat.result.svg.Close()
+					}
+					if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
+						seat.full.result.svg.Close()
+					}
 					d.RemoveAttachment(i)
 					break
 				}
-				paintAttachmentOriginal(c, seat, a, label)
+				paintAttachmentOriginal(c, seat, a, label, m.SVGImages)
 			}
 		})
 	}
@@ -287,8 +314,11 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14)
 	}
 }
-func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string) {
+func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string, owners ...*svgimage.Owner) {
 	if !seat.open {
+		if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
+			seat.full.result.svg.Close()
+		}
 		seat.full = nil
 		return
 	}
@@ -313,6 +343,23 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 				return
 			}
 			v := seat.full.result
+			if v.svg != nil {
+				var owner *svgimage.Owner
+				if len(owners) > 0 {
+					owner = owners[0]
+				}
+				v.svg.Prepare(c, owner)
+				paint := func() { ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) { v.svg.Paint(p, r, ui.Contain) }) }
+				if seat.originalSize {
+					w, h := v.svg.Size()
+					ui.ScrollBoth(c).Fill().Children(func() {
+						ui.Box(c).Width(w).Height(h).DrawOver(func(p *ui.Painter, r ui.Rect) { v.svg.Paint(p, r, ui.Contain) })
+					})
+				} else {
+					paint()
+				}
+				return
+			}
 			if v.bitmap == nil {
 				ui.Text(c, "原图预览不可用 / Original preview unavailable")
 				return
@@ -327,6 +374,9 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 		})
 	})
 	if !seat.open {
+		if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
+			seat.full.result.svg.Close()
+		}
 		seat.full = nil
 	}
 }

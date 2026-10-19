@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/ui/svgimage"
 )
 
 var readmeDecodeSlots = make(chan struct{}, 2)
@@ -49,6 +50,13 @@ func (d *readmeDecodedImage) load(path string, notify func()) {
 	}
 	data, err := io.ReadAll(io.LimitReader(file, imagepreview.MaxBytes+1))
 	if err != nil || int64(len(data)) > imagepreview.MaxBytes {
+		return
+	}
+	if imagepreview.NeedsBrowserSVG(data) {
+		d.svgSeat, _ = svgimage.NewSeat(data)
+		if d.svgSeat != nil {
+			d.width, d.height = d.svgSeat.Size()
+		}
 		return
 	}
 	cfg, format, bitmapErr := image.DecodeConfig(bytes.NewReader(data))

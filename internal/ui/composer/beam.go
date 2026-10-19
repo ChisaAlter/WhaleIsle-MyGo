@@ -3,6 +3,7 @@ package composer
 import (
 	"encoding/json"
 	"math"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
@@ -47,7 +48,59 @@ func readBeamStyle(raw json.RawMessage) beamStyle {
 	style.HueCycle.Enabled, style.HueCycle.Range, style.HueCycle.Period = true, 30, 12
 	style.Night.FromMinute, style.Night.ToMinute, style.Night.Dim = 1320, 360, 40
 	_ = json.Unmarshal(raw, &style)
+	style.Period = min(60, max(.8, style.Period))
+	style.Intensity = min(140, max(40, style.Intensity))
+	style.Bloom = min(160, max(0, style.Bloom))
+	style.Hue = min(180, max(-180, style.Hue))
+	style.TrackWidth = min(4, max(.5, style.TrackWidth))
+	style.GlowBlur = min(12, max(0, style.GlowBlur))
+	style.Breathing.Amplitude = min(.8, max(0, style.Breathing.Amplitude))
+	style.Breathing.Period = min(20, max(1, style.Breathing.Period))
+	style.HueCycle.Range = min(360, max(0, style.HueCycle.Range))
+	style.HueCycle.Period = min(60, max(1, style.HueCycle.Period))
+	style.Night.Dim = min(100, max(0, style.Night.Dim))
+	var values struct {
+		Night map[string]any `json:"night"`
+	}
+	_ = json.Unmarshal(raw, &values)
+	for key, out := range map[string]*int{"fromMinute": &style.Night.FromMinute, "toMinute": &style.Night.ToMinute} {
+		if value, ok := values.Night[key].(float64); ok {
+			*out = int(math.Round(min(1439, max(0, value))))
+		}
+	}
+	if style.Direction != "clockwise" && style.Direction != "counterclockwise" && style.Direction != "pingPong" {
+		style.Direction = "clockwise"
+	}
+	if style.Easing != "linear" && style.Easing != "ease" && style.Easing != "ease-in-out" && style.Easing != "cubic-bezier" {
+		style.Easing = "linear"
+	}
+	valid := style.Palette.Kind == "preset" && len(beamPalettes[style.Palette.ID]) > 0
+	if style.Palette.Kind == "custom" {
+		colors := style.Palette.Colors[:0]
+		for _, color := range style.Palette.Colors {
+			if effectHexColor(color) {
+				colors = append(colors, strings.ToLower(color))
+			}
+		}
+		style.Palette.Colors = colors
+		valid = len(colors) >= 2 && len(colors) <= 6
+	}
+	if !valid {
+		style.Palette.Kind, style.Palette.ID, style.Palette.Colors = "preset", "legacy", nil
+	}
 	return style
+}
+
+func effectHexColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, r := range value[1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", r) {
+			return false
+		}
+	}
+	return true
 }
 
 var beamPalettes = map[string][]string{
@@ -59,6 +112,16 @@ var beamPalettes = map[string][]string{
 	"cyber":   {"#00f0ff", "#00ff8f", "#b6ff00", "#ffed00", "#00f0ff"},
 	"sunset":  {"#ff5f6d", "#ffc371", "#ff9a8b", "#ff6a88", "#ff5f6d"},
 	"cyan":    {"#31d7ff", "#1eb9aa", "#64a8ff", "#31d7ff"},
+}
+
+// BeamPaletteColors returns the configured stops for the settings color editor.
+func BeamPaletteColors(raw json.RawMessage) []string {
+	style := readBeamStyle(raw)
+	colors := beamPalettes[style.Palette.ID]
+	if style.Palette.Kind == "custom" {
+		colors = style.Palette.Colors
+	}
+	return append([]string(nil), colors...)
 }
 
 func composerRunning(m Model) bool {
@@ -92,7 +155,6 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beam
 		phase = beamPhase(frame.seconds, style)
 		hue = beamHue(frame.hueSeconds, style)
 	}
-	hueMatrix := beamHueMatrix(hue)
 	colors := beamPalettes[style.Palette.ID]
 	if style.Palette.Kind == "custom" {
 		colors = style.Palette.Colors
@@ -120,42 +182,10 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beam
 	if colors[0] == colors[len(colors)-1] {
 		intervals--
 	}
-	const segments = 160
-	for i := 0; i < segments; i++ {
-		at := float64(i) / segments
-		x, y := beamPoint(r, at)
-		x2, y2 := beamPoint(r, float64(i+1)/segments)
-		angle := math.Atan2(float64(x-r.X-r.W/2), -float64(y-r.Y-r.H/2)) / (2 * math.Pi)
-		position := math.Mod(angle-phase+2, 1)
-		mask := beamMask(position)
-		if mask == 0 {
-			continue
-		}
-		colorAt := position * float64(intervals)
-		index := int(colorAt)
-		a, b := inks[index], inks[(index+1)%len(colors)]
-		mix := float32(colorAt - math.Floor(colorAt))
-		color := ui.RGB(uint8(float32(a.R)*(1-mix)+float32(b.R)*mix), uint8(float32(a.G)*(1-mix)+float32(b.G)*mix), uint8(float32(a.B)*(1-mix)+float32(b.B)*mix))
-		if active && style.HueCycle.Enabled {
-			color = filterBeamColor(color, hueMatrix)
-		}
-		path := new(ui.Path).MoveTo(x, y).LineTo(x2, y2)
-		alpha := float32(mask)
-		// Broad translucent strokes provide the inner wash and bloom before
-		// the narrow travelling edge, without a webview or shader dependency.
-		// Keep their existing local coverage, multiplied by each element's
-		// independent CSS opacity instead of a shared fade/dynamic factor.
-		p.Clip(r, 28, func() { p.StrokePath(path, 14, color.Alpha((.08/.42)*alpha*float32(frame.opacity.inner))) })
-		if frame.opacity.bloom > 0 && style.GlowBlur > 0 {
-			p.StrokePath(path, style.TrackWidth+style.GlowBlur, color.Alpha((.07/.36)*alpha*float32(frame.opacity.bloom)))
-			p.StrokePath(path, style.TrackWidth+style.GlowBlur/2, color.Alpha((.12/.36)*alpha*float32(frame.opacity.bloom)))
-		}
-		p.StrokePath(path, style.TrackWidth, color.Alpha(alpha*float32(frame.opacity.stroke)))
-	}
+	timeline.raster.paint(p, r, style, inks[:len(colors)], intervals, phase, hue, active && style.HueCycle.Enabled, frame.opacity)
 }
 
-// CSS applies hue-rotate, brightness(1.3), then saturate(1.2). The existing
-// broad-stroke layers still approximate the source gradients and blur.
+// CSS applies hue-rotate, brightness(1.3), then saturate(1.2).
 func filterBeamColor(color ui.Color, matrix [9]float64) ui.Color {
 	color = applyBeamHue(color, matrix)
 	r, g, b := min(255, float64(color.R)*1.3), min(255, float64(color.G)*1.3), min(255, float64(color.B)*1.3)
