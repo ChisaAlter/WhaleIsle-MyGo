@@ -92,6 +92,12 @@ func resourceReader(m Model, tab *FileTab) func(context.Context) textReadResult 
 		until = tab.textPage.Next
 	}
 	pageReader, remote, tableReader := m.ReadTextPageContext, m.ReadRemoteContext, m.ReadTableContext
+	// Context callbacks are available to both desktop and Host previews. Keep
+	// the source selected by the completed read: a watch is only invalidation,
+	// and cannot replace a local editor's baseline with Host text or errors.
+	if !isTablePreviewPath(name) && !tab.Remote {
+		pageReader, remote = nil, nil
+	}
 	request := tab.tableRequest
 	request.Version = ""
 	return func(ctx context.Context) textReadResult {

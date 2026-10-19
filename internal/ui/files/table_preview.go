@@ -7,11 +7,11 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 )
 
-// Workbook previews are always read-only. They never enter a UTF-8 Host reader
-// or use their rendered page as a file-save baseline.
+// Binary workbook previews are always read-only. CSV/TSV stay in the desktop
+// source editor, whose complete text is the original file-save baseline.
 func isTablePreviewPath(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".xlsx", ".xls", ".csv", ".tsv":
+	case ".xlsx", ".xls":
 		return true
 	}
 	return false
