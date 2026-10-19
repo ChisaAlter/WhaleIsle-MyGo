@@ -162,13 +162,21 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	}
 	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"timed","agentId":"A","request":{"wait":{"callId":"timed-call","timed":true},"questions":[{"id":"q","question":"Timed"}]}}`
 	wait(func() bool { mu.Lock(); defer mu.Unlock(); return posts[len(posts)-1].EventID == "timed" })
-	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
 	mu.Lock()
 	last = posts[len(posts)-1]
 	mu.Unlock()
 	if last.Outcome.Error == nil || last.Outcome.Error.Code != "ASK_TIMED_OUT" {
 		t.Fatalf("timeout %#v", last)
 	}
+	if pending := s.SnapshotForAgent("A").Pending; len(pending) != 1 || pending[0].EventID != "timed" || pending[0].CallID != "timed-call" || !pending[0].Sending || pending[0].Continued {
+		t.Fatal("timeout HTTP receipt replaced Host question ownership")
+	}
+	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[{"callId":"timed-call","state":"continued","questions":[{"id":"q","question":"Timed"}]}],"settled":[]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
+	if pending := s.SnapshotForAgent("A").Pending; len(pending) != 1 || !pending[0].Continued || pending[0].Sending || pending[0].CallID != "timed-call" {
+		t.Fatal("Host continuation did not retain the timed-out question")
+	}
+	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"timed-call"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
+	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
 	cancel()
 	select {
 	case <-done:
