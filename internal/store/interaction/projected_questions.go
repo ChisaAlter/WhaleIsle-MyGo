@@ -20,6 +20,10 @@ type submittedQuestion struct {
 	queuedSeen bool
 	asOfSeq    float64
 }
+type questionAnswerAttempt struct {
+	token      uint64
+	queuedSeen bool
+}
 type questionAgentProjection struct {
 	active                     []projectedQuestion
 	settled                    map[string]bool
@@ -35,7 +39,7 @@ type questionRecovery struct {
 	agents    map[string]*questionAgentProjection
 	epoch     uint64
 	nextToken uint64
-	inFlight  map[string]uint64
+	inFlight  map[string]questionAnswerAttempt
 }
 
 func questionCardID(agentID, callID string) string {
@@ -134,6 +138,11 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 		}
 		active[row.CallID] = true
 		states[row.CallID] = row.State
+		id := questionCardID(agentID, row.CallID)
+		if attempt, sending := s.questionRecovery.inFlight[id]; sending && p.queued[row.CallID] {
+			attempt.queuedSeen = true
+			s.questionRecovery.inFlight[id] = attempt
+		}
 		if submission, ok := p.submitted[row.CallID]; ok {
 			if p.queued[row.CallID] {
 				submission.queuedSeen = true
@@ -211,7 +220,8 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 			p.drafts[row.CallID] = draft
 		}
 		s.questionDrafts[id] = draft
-		s.pending = append(s.pending, Pending{EventID: id, Event: EventUserQuestions, AgentID: agentID, CallID: row.CallID, Title: questionCardTitle(req), Continued: true})
+		_, sending := s.questionRecovery.inFlight[id]
+		s.pending = append(s.pending, Pending{EventID: id, Event: EventUserQuestions, AgentID: agentID, CallID: row.CallID, Title: questionCardTitle(req), Continued: true, Sending: sending})
 	}
 }
 
@@ -296,13 +306,17 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		s.mu.Unlock()
 		return
 	}
+	if _, sending := s.questionRecovery.inFlight[id]; sending {
+		s.mu.Unlock()
+		return
+	}
 	s.questionRecovery.nextToken++
 	token, epoch, client := s.questionRecovery.nextToken, s.questionRecovery.epoch, s.client
 	asOfSeq := max(projection.questionsSeq, projection.inboxSeq)
 	if s.questionRecovery.inFlight == nil {
-		s.questionRecovery.inFlight = make(map[string]uint64)
+		s.questionRecovery.inFlight = make(map[string]questionAnswerAttempt)
 	}
-	s.questionRecovery.inFlight[id] = token
+	s.questionRecovery.inFlight[id] = questionAnswerAttempt{token: token}
 	p.Sending, p.Error = true, ""
 	projection.status = ""
 	s.mu.Unlock()
@@ -317,7 +331,8 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			err = client.Call(ctx, "userQuestions/answer", map[string]any{"agentId": agentID, "callId": callID, "answer": answer}, &accepted)
 		}
 		s.mu.Lock()
-		if s.client != client || s.questionRecovery.epoch != epoch || s.questionRecovery.inFlight[id] != token {
+		attempt := s.questionRecovery.inFlight[id]
+		if s.client != client || s.questionRecovery.epoch != epoch || attempt.token != token {
 			s.mu.Unlock()
 			return
 		}
@@ -335,7 +350,10 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 				p.Sending, p.Error = false, "This question is no longer answerable"
 			}
 		} else {
-			projection.submitted[callID] = submittedQuestion{queuedSeen: projection.queued[callID], asOfSeq: asOfSeq}
+			// A queued echo can already have been discarded before this RPC
+			// response arrives. Preserve the attempt's observed queue history,
+			// so the late receipt cannot suppress the now-answerable call.
+			projection.submitted[callID] = submittedQuestion{queuedSeen: attempt.queuedSeen || projection.queued[callID], asOfSeq: asOfSeq}
 			projection.status = "submitted"
 			s.dropPending(id)
 			s.reconcileProjectedQuestionsLocked(agentID)
