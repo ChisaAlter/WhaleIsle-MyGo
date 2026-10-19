@@ -131,6 +131,9 @@ func (ed *editor) deleteRange(a, b int) {
 }
 
 func (ed *editor) commitCompose() {
+	if ed.document != nil {
+		ed.document.endPreedit(ed)
+	}
 	if ed.compose != "" {
 		s := ed.compose
 		ed.compose = ""

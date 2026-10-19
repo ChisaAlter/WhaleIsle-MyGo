@@ -37,7 +37,7 @@ func (w *widgetTextInput) publish() {
 			if !ed.bufferDirty {
 				ed.nativeBufferBefore = ed.published
 			}
-			snapshot, ok := ed.document.compareRestore(ed.published, ed.buf.root)
+			snapshot, ok := ed.document.compareRestoreInput(ed, ed.published, ed.buf.root)
 			if !ok {
 				ed.loadBuffer(snapshot)
 			} else {
@@ -180,6 +180,9 @@ func (w *widgetTextInput) ReplaceText(r *TextInputRange, s string) {
 	if ed.readOnly {
 		return
 	}
+	if ed.document != nil {
+		ed.document.endPreedit(ed)
+	}
 	if r == nil || ed.password {
 		if ed.compose != "" {
 			ed.compose = ""
@@ -225,6 +228,9 @@ func (w *widgetTextInput) SetMarkedText(r *TextInputRange, s string, selected Te
 			ed.record(false)
 		}
 		ed.compositionActive = true
+		if ed.document != nil {
+			ed.document.beginPreedit(ed, ed.published)
+		}
 		if r == nil && len(ranges) > 1 {
 			for i := len(ranges) - 1; i >= 0; i-- {
 				ed.replace(ranges[i].Start, ranges[i].End, "")

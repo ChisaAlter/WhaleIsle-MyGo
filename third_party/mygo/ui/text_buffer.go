@@ -18,6 +18,12 @@ type TextBuffer struct {
 	mu      sync.RWMutex
 	root    *textNode
 	version uint64
+	// Native preedit may temporarily remove the selected committed text from
+	// root. Recovery can read its transaction origin without changing normal
+	// editor snapshots or the native document's virtual composition behavior.
+	preeditOwner   *editor
+	preeditBefore  TextSnapshot
+	preeditVersion uint64
 }
 
 // TextSnapshot is an immutable, inexpensive view of a buffer. It shares
@@ -35,6 +41,39 @@ func (b *TextBuffer) Snapshot() TextSnapshot {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return TextSnapshot{root: b.root, version: b.version}
+}
+
+// CommittedSnapshot is Snapshot with an unfinished native IME replacement
+// excluded, including the committed selection that preedit temporarily removes.
+// It retains the transaction origin across widget frames. A real commit,
+// UnmarkText or programmatic replacement ends that capture-only override.
+func (b *TextBuffer) CommittedSnapshot() TextSnapshot {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.preeditOwner != nil && b.preeditVersion == b.version {
+		return b.preeditBefore
+	}
+	return TextSnapshot{root: b.root, version: b.version}
+}
+
+func (b *TextBuffer) clearPreeditLocked() {
+	b.preeditOwner, b.preeditBefore, b.preeditVersion = nil, TextSnapshot{}, 0
+}
+
+func (b *TextBuffer) beginPreedit(owner *editor, before TextSnapshot) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.root == before.root && b.version == before.version {
+		b.preeditOwner, b.preeditBefore, b.preeditVersion = owner, before, before.version
+	}
+}
+
+func (b *TextBuffer) endPreedit(owner *editor) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.preeditOwner == owner {
+		b.clearPreeditLocked()
+	}
 }
 
 func (b *TextBuffer) Len() int        { return b.Snapshot().Len() }
@@ -61,6 +100,7 @@ func (b *TextBuffer) Set(s string) { b.Restore(TextSnapshot{root: textTree(s)}) 
 func (b *TextBuffer) Restore(s TextSnapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.clearPreeditLocked()
 	b.root = s.root
 	b.version++
 }
@@ -69,6 +109,7 @@ func (b *TextBuffer) Restore(s TextSnapshot) {
 func (b *TextBuffer) Replace(start, end int, s string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.clearPreeditLocked()
 	b.root = textReplace(b.root, start, end, s)
 	b.version++
 }
@@ -78,6 +119,7 @@ func (b *TextBuffer) Replace(start, end int, s string) {
 func (b *TextBuffer) ReplaceUTF16(r TextInputRange, s string) TextInputRange {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.clearPreeditLocked()
 	view := TextSnapshot{root: b.root}
 	a, z := view.RuneOffset(min(r.Start, r.End)), view.RuneOffset(max(r.Start, r.End))
 	actual := TextInputRange{Start: view.UTF16Offset(a), End: view.UTF16Offset(z)}
@@ -88,6 +130,10 @@ func (b *TextBuffer) ReplaceUTF16(r TextInputRange, s string) TextInputRange {
 
 // compareRestore prevents a widget from overwriting a concurrent program edit.
 func (b *TextBuffer) compareRestore(before TextSnapshot, root *textNode) (TextSnapshot, bool) {
+	return b.compareRestoreInput(nil, before, root)
+}
+
+func (b *TextBuffer) compareRestoreInput(owner *editor, before TextSnapshot, root *textNode) (TextSnapshot, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.root != before.root || b.version != before.version {
@@ -95,6 +141,11 @@ func (b *TextBuffer) compareRestore(before TextSnapshot, root *textNode) (TextSn
 	}
 	b.root = root
 	b.version++
+	if owner != nil && b.preeditOwner == owner && b.preeditVersion == before.version {
+		b.preeditVersion = b.version
+	} else {
+		b.clearPreeditLocked()
+	}
 	return TextSnapshot{root: root, version: b.version}, true
 }
 

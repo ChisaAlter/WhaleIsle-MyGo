@@ -34,7 +34,7 @@ func (t *FileTab) syncNativeDraft() {
 		t.editBufferVersion = t.editBuffer.Version()
 		return
 	}
-	snapshot := t.editBuffer.Snapshot()
+	snapshot := t.editBuffer.CommittedSnapshot()
 	if snapshot.Version() != t.editBufferVersion {
 		t.Draft = snapshot.String()
 		t.editBufferText, t.editBufferVersion = t.Draft, snapshot.Version()
