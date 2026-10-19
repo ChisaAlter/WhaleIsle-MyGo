@@ -9,6 +9,14 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// RequestRevertState is scoped to one controller-admitted card revision, so
+// another expanded card cannot replace its authorization or conflict result.
+type RequestRevertState struct {
+	Known, Allowed bool
+	Error          string
+	Confirm, Ask   func()
+}
+
 func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestCard) {
 	if card.Delivery == nil || card.Status != "completed" && card.Delivery.Outcome != "partial" {
 		return
@@ -19,6 +27,10 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 		Revision int
 	}
 	ask := ui.Local(box, "revert-confirmation", func() confirmation { return confirmation{} })
+	revert := RequestRevertState{}
+	if m.RequestRevert != nil {
+		revert = m.RequestRevert(card.ID, card.Revision)
+	}
 	if card.Changes != nil && card.Changes.RevertedAt != nil {
 		ask.Open = false
 	}
@@ -43,7 +55,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 				}
 			}
 			if card.Changes != nil && card.Changes.Revertible && card.Changes.RevertedAt == nil && m.RequestMutable {
-				if ui.Button(c, tr("撤销改动", "Revert changes")).Height(28).Disabled(m.Busy || !taskCardCurrent(m, card) || m.OnRevertRequest == nil).Clicked() {
+				if ui.Button(c, tr("撤销改动", "Revert changes")).Height(28).Disabled(m.Busy || !revert.Allowed || revert.Confirm == nil).Clicked() {
 					ask.Open, ask.Revision = true, card.Revision
 				}
 			}
@@ -51,6 +63,11 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 	})
 	if !ask.Open {
 		return
+	}
+	// Keep the revision the user actually confirmed, even if a later card read
+	// changes the displayed detail while this dialog is open.
+	if m.RequestRevert != nil {
+		revert = m.RequestRevert(card.ID, ask.Revision)
 	}
 	resolved := theme.Resolve(m.ThemeID)
 	colors := resolved.Active(m.SystemDark)
@@ -65,7 +82,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 		elevationStroke = ui.RGBA(255, 255, 255, .2)
 		primary, primaryHover, primaryText = ui.RGB(249, 250, 251), ui.RGB(235, 238, 242), ui.RGB(15, 17, 21)
 	}
-	conflict := strings.Contains(m.RequestRevertError, "pluginrpc: revert_conflict:")
+	conflict := strings.Contains(revert.Error, "pluginrpc: revert_conflict:")
 	close := func() {
 		if !m.Busy {
 			ask.Open = false
@@ -105,18 +122,18 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 					// The original passes a bare p, not Modal.description: inherited
 					// body size/normal line height, with the browser's 1em p margins.
 					ui.Text(c, body).FillWidth().FontSize(16).LineHeight(0).Margin(16, 0).TextColor(chrome.Color(colors.FG))
-					if m.RequestRevertError != "" {
+					if revert.Error != "" {
 						ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(160).Padding(8, 12).Radius(8).Background(chrome.Color(colors.Hover)).Children(func() {
-							ui.Text(c, m.RequestRevertError).FillWidth().MinWidth(0).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).TextColor(secondary).Selectable()
+							ui.Text(c, revert.Error).FillWidth().MinWidth(0).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).TextColor(secondary).Selectable()
 						})
 					}
-					stale := ask.Revision != card.Revision || !taskCardCurrent(m, card)
+					stale := ask.Revision != card.Revision || !revert.Known
 					if stale {
 						ui.Text(c, tr("要求已变化，请刷新后重新确认。", "The requirement changed; refresh and confirm again.")).FontSize(12).FixedLineHeight(18)
 					}
 				})
 			})
-			stale := ask.Revision != card.Revision || !taskCardCurrent(m, card)
+			stale := ask.Revision != card.Revision || !revert.Known
 			styleAction := func(button ui.Element, filled, disabled bool) ui.Element {
 				button.Height(36).Padding(0, 14).Radius(12).FontSize(14).FixedLineHeight(22).Disabled(disabled)
 				if disabled {
@@ -142,12 +159,12 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 						close()
 					}
 					if conflict {
-						if styleAction(ui.PrimaryButton(c, tr("交给协调者处理", "Ask the coordinator")), true, m.Busy || stale || !m.RequestMutable || m.OnRevertAskDraft == nil).Clicked() {
+						if styleAction(ui.PrimaryButton(c, tr("交给协调者处理", "Ask the coordinator")), true, m.Busy || stale || !revert.Allowed || revert.Ask == nil).Clicked() {
 							ask.Open = false
-							m.OnRevertAskDraft()
+							revert.Ask()
 						}
-					} else if styleAction(ui.PrimaryButton(c, tr("撤销改动", "Revert changes")), true, m.Busy || stale || !m.RequestMutable || m.OnRevertRequest == nil).Clicked() {
-						m.OnRevertRequest(card.ID, ask.Revision)
+					} else if styleAction(ui.PrimaryButton(c, tr("撤销改动", "Revert changes")), true, m.Busy || stale || !revert.Allowed || revert.Confirm == nil).Clicked() {
+						revert.Confirm()
 					}
 				})
 			})

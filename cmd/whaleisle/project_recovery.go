@@ -11,7 +11,7 @@ import (
 
 // The explicit recovery button revalidates saved evidence, then submits through
 // the original Lead composer so ordinary send failure/recovery remains visible.
-func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string) {
+func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string, revertCards ...projectflow.RequestCard) {
 	if win == nil || id == "" {
 		return
 	}
@@ -36,6 +36,8 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 		return
 	}
 	selectedWork, selectedCard := f.detail, f.requestCard
+	var revertState *projectRequestRevertState
+	var revertKey projectRequestRevision
 	switch kind {
 	case "summary":
 		if f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || selectedWork == nil || selectedWork.Workstream.SummaryFailure == nil {
@@ -48,10 +50,26 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 			return
 		}
 	case "revert":
-		if f.requestProjectID != id || selectedCard == nil || selectedCard.ProjectID != id || !strings.Contains(f.requestRevertError, "pluginrpc: revert_conflict:") {
+		if len(revertCards) > 1 {
 			s.mu.Unlock()
 			return
 		}
+		if len(revertCards) == 1 {
+			card := revertCards[0]
+			selectedCard = &card
+		}
+		revertState = s.requestRevertStateLocked()
+		if selectedCard == nil || selectedCard.ProjectID != id || revertState == nil {
+			s.mu.Unlock()
+			return
+		}
+		revertKey = projectRequestRevision{selectedCard.ID, selectedCard.Revision}
+		cached, known := s.requestRevertCardLocked(revertState, revertKey)
+		if !known || !s.requestRevertAllowedLocked(cached) || !strings.Contains(revertState.errors[revertKey], "pluginrpc: revert_conflict:") {
+			s.mu.Unlock()
+			return
+		}
+		selectedCard = &cached
 	default:
 		s.mu.Unlock()
 		return
@@ -86,9 +104,15 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 			}
 			f.busy = false
 			if kind == "summary" && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration) ||
-				(kind == "handover" || kind == "revert") && (f.requestProjectID != id || f.requestCard != selectedCard || f.requestGeneration != requestGeneration) {
+				kind == "handover" && (f.requestProjectID != id || f.requestCard != selectedCard || f.requestGeneration != requestGeneration) {
 				s.mu.Unlock()
 				return
+			}
+			if kind == "revert" {
+				if _, known := s.requestRevertCardLocked(revertState, revertKey); !known {
+					s.mu.Unlock()
+					return
+				}
 			}
 			if err != nil {
 				f.err = err.Error()

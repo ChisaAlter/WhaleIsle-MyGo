@@ -15,6 +15,14 @@ func (s *projectController) rememberProjectRequestCardLocked(card *projectflow.R
 		return
 	}
 	copy := *card
+	if card.Changes != nil {
+		changes := *card.Changes
+		if changes.RevertedAt != nil {
+			revertedAt := *changes.RevertedAt
+			changes.RevertedAt = &revertedAt
+		}
+		copy.Changes = &changes
+	}
 	if card.Delivery != nil {
 		delivery := *card.Delivery
 		// Page references are values; freeze the slice and delivery container
@@ -24,6 +32,7 @@ func (s *projectController) rememberProjectRequestCardLocked(card *projectflow.R
 	}
 	if f.requestCards == nil {
 		f.requestCards = make(map[string]projectflow.RequestCard)
+		f.requestReverts = nil
 	}
 	f.requestCards[projectRequestCardKey(card.ProjectID, card.ID)] = copy
 }
