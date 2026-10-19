@@ -32,9 +32,12 @@ func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.Bot
 	modelSessions := s.sessions
 	s.mu.Unlock()
 	var modelOptions []session.ModelOption
+	var workspaceOptions []session.WorkspaceRow
 	modelsKnown := false
+	workspacesKnown := false
 	if modelSessions != nil {
 		modelOptions, modelsKnown = modelSessions.CachedModelCatalog(client)
+		workspaceOptions, workspacesKnown = modelSessions.CachedWorkspaceChoices(client)
 	}
 	current := func() bool {
 		s.mu.Lock()
@@ -100,7 +103,7 @@ func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.Bot
 		}
 		s.openAssistantCreatedBot(ep, client, current, item, cwd, sessions, target)
 	}
-	return assistantui.BotCreateModel{State: snapshot, HostLabel: ep.Origin, ModelOptions: modelOptions, ModelsKnown: modelsKnown, OnRefresh: refresh,
+	return assistantui.BotCreateModel{State: snapshot, HostLabel: ep.Origin, ModelOptions: modelOptions, ModelsKnown: modelsKnown, Workspaces: workspaceOptions, WorkspacesKnown: workspacesKnown, OnRefresh: refresh,
 		OnSelectModel: func(v pluginrpc.DshbotRouteModel) {
 			if current() {
 				controls.ChangeModel(scope, v)

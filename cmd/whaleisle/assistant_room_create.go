@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/store/session"
 	assistantui "whaleisle/internal/ui/assistant"
 )
 
@@ -40,6 +41,14 @@ func (s *mainState) assistantRoomCreateModel(ep harness.Endpoint) assistantui.Ro
 	controls := &s.assistantRoomCreator
 	controls.Bind(scope, binding)
 	snapshot := controls.Snapshot(scope)
+	s.mu.Lock()
+	workspaceSessions := s.sessions
+	s.mu.Unlock()
+	var workspaceOptions []session.WorkspaceRow
+	workspacesKnown := false
+	if workspaceSessions != nil {
+		workspaceOptions, workspacesKnown = workspaceSessions.CachedWorkspaceChoices(client)
+	}
 	current := func() bool {
 		return client != nil && s.assistantRoomClient(ep) == client && controls.ViewCurrent(scope, snapshot.Generation)
 	}
@@ -81,7 +90,7 @@ func (s *mainState) assistantRoomCreateModel(ep harness.Endpoint) assistantui.Ro
 		}
 		s.openAssistantCreatedRoom(ep, client, current, item, cwd)
 	}
-	return assistantui.RoomCreateModel{State: snapshot, HostLabel: ep.Origin, OnRefresh: refresh,
+	return assistantui.RoomCreateModel{State: snapshot, HostLabel: ep.Origin, Workspaces: workspaceOptions, WorkspacesKnown: workspacesKnown, OnRefresh: refresh,
 		OnStart: func() {
 			if current() {
 				s.mu.Lock()

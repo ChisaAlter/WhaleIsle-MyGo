@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/store/session"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -16,6 +17,8 @@ const roomCreateConfirmLabel = "确认创建并打开群聊 / Confirm create and
 type RoomCreateModel struct {
 	State                                                                 dshbotstore.RoomCreateSnapshot
 	HostLabel                                                             string
+	Workspaces                                                            []session.WorkspaceRow
+	WorkspacesKnown                                                       bool
 	OnRefresh, OnStart, OnReview, OnConfirm, OnDismiss, OnDiscard, OnOpen func()
 	OnChange                                                              func(field, value string)
 	OnMember                                                              func(id string)
@@ -80,15 +83,16 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
 		ui.Text(c, fmt.Sprintf("Host: %s · revision %d\n已选成员 / Selected members: %d (2–6)", m.HostLabel, s.Catalog.Revision, len(d.MemberBotIDs))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		for _, f := range []struct{ id, label, value string }{{"name", "群聊名称 / Group name (≤120)", d.Name}, {"workspaceId", "工作区 ID / Workspace ID (空=临时目录)", d.WorkspaceID}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}, {"maxRounds", "轮数 / Rounds (1–3)", d.MaxRounds}, {"maxSpeaks", "成员发言上限 / Speaks (1–10)", d.MaxSpeaks}} {
+		for _, f := range []struct{ id, label, value string }{{"name", "群聊名称 / Group name (≤120)", d.Name}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}, {"maxRounds", "轮数 / Rounds (1–3)", d.MaxRounds}, {"maxSpeaks", "成员发言上限 / Speaks (1–10)", d.MaxSpeaks}} {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("room-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
+			ui.TextInput(c.Key("room-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, value)
 				}
 			})
 		}
+		createWorkspacePicker(c.Key("new-room-workspace"), d.WorkspaceID, m.Workspaces, m.WorkspacesKnown, disabled, m.OnChange, muted)
 		description := d.Description
 		ui.TextArea(c.Key("room-description"), &description).Label("群聊说明 / Description (≤12000)").Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {

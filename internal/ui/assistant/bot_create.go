@@ -19,6 +19,8 @@ type BotCreateModel struct {
 	HostLabel                                                             string
 	ModelOptions                                                          []session.ModelOption
 	ModelsKnown                                                           bool
+	Workspaces                                                            []session.WorkspaceRow
+	WorkspacesKnown                                                       bool
 	OnSelectModel                                                         func(pluginrpc.DshbotRouteModel)
 	OnRefresh, OnStart, OnReview, OnConfirm, OnDismiss, OnDiscard, OnOpen func()
 	OnChange                                                              func(field, value string)
@@ -76,15 +78,16 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
 		ui.Text(c, fmt.Sprintf("Host: %s · revision %d", m.HostLabel, s.Catalog.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		for _, f := range []struct{ id, label, value string }{{"name", "稳定名称 / Stable Bot name (≤120)", d.Name}, {"title", "显示标题 / Display title (≤120)", d.Title}, {"workspaceId", "工作区 ID / Workspace ID (空=临时目录)", d.WorkspaceID}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}} {
+		for _, f := range []struct{ id, label, value string }{{"name", "稳定名称 / Stable Bot name (≤120)", d.Name}, {"title", "显示标题 / Display title (≤120)", d.Title}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}} {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("new-bot-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
+			ui.TextInput(c.Key("new-bot-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, value)
 				}
 			})
 		}
+		createWorkspacePicker(c.Key("new-bot-workspace"), d.WorkspaceID, m.Workspaces, m.WorkspacesKnown, disabled, m.OnChange, muted)
 		botCreateModelPicker(c, m, d, disabled, muted)
 		description := d.Description
 		ui.TextArea(c.Key("new-bot-description"), &description).Label("Bot 说明 / Description (≤12000)").Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
@@ -141,6 +144,38 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 			})
 		}
 	})
+}
+
+func createWorkspacePicker(c *ui.Context, workspaceID string, rows []session.WorkspaceRow, known, disabled bool, change func(string, string), muted ui.Color) {
+	scratch := "临时目录 / Scratch directory"
+	labels := []string{scratch}
+	choices := map[string]string{scratch: ""}
+	selected := scratch
+	for i, row := range rows {
+		name := row.Title
+		if name == "" {
+			name = row.Path
+		}
+		label := fmt.Sprintf("%d · %s · %s", i+1, name, row.Path)
+		labels = append(labels, label)
+		choices[label] = row.WorkspaceID
+		if row.WorkspaceID == workspaceID {
+			selected = label
+		}
+	}
+	if workspaceID != "" && selected == scratch {
+		selected = "保留当前工作区 / Preserve: " + workspaceID
+		labels = append(labels, selected)
+	}
+	ui.Text(c, "工作区 / Workspace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Select(c.Key("workspace-choice"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
+		if id, ok := choices[selected]; ok && change != nil {
+			change("workspaceId", id)
+		}
+	})
+	if !known {
+		ui.Text(c, "工作区目录尚未加载，可保留当前选择或使用临时目录。 / Registry not loaded; keep the current workspace or use a scratch directory.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
 }
 
 // Choices reuse the current authenticated Host's already loaded picker metadata.
