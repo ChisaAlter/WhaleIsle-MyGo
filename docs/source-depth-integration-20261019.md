@@ -301,3 +301,22 @@ the status reader. No fetch/account lookup or Git mutation is added. New tests
 hold the reader to prove admission returns, then inspect the actual completion;
 separate receipt cases reject retired and mutation-racing owners. These changes
 have only been formatted/diff-checked at this point, not declared passing.
+
+## Second coordinated expanded-batch run
+
+Source `fb5da091b572e72465c722840773e8aedaa5aa6e`, tree
+`9289da1f3ac9a7d9127bc643e6478d10b89af502`, rechecked only the fifteen
+previously failed/build-blocked or directly changed consumer packages. Receipt:
+`../evidence/source-depth-recheck-20261019T2000Z/recheck/receipt.json`.
+The process exited1: ten package passes, five failures/build blocks. Its JSON,
+stderr and extracted failures remain beside the receipt. This brings the known
+retained failed local rounds to eight; remote CI remains zero.
+
+The frame terminal occurrence code referenced a nonexistent method instead of
+the existing atomic `Snapshot().ComposerHostGeneration` field, blocking frame
+and main. `bcfc353f` reads session and generation from the same snapshot.
+The composer keyboard path captured a frame-local Element in a later input
+callback; it requires a stable focus owner. The project search/context-menu
+fixtures and shortcut clear/default fixture still described removed UI paths.
+Their owners are tracing/fixing those exact cases before the next coordinated
+execution. No broad SDK rerun is admitted: its tested tree remains unchanged.
