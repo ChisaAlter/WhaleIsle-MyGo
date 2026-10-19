@@ -19,39 +19,44 @@ import (
 // Browser-backed SVGs require the native window's existing image owner; only
 // visible PaintClipped calls renew the shared seat's lease.
 func PluginImage(c *ui.Context, source string, width, height float32, owners ...*svgimage.Owner) bool {
+	ready, _ := pluginImage(c, source, width, height, owners...)
+	return ready
+}
+
+func pluginImage(c *ui.Context, source string, width, height float32, owners ...*svgimage.Owner) (bool, *readmeDecodedImage) {
 	if source == "" {
-		return false
+		return false, nil
 	}
 	path := ""
 	var data []byte
 	if strings.HasPrefix(source, "data:image/") {
 		head, encoded, ok := strings.Cut(source, ",")
 		if !ok || !strings.HasSuffix(head, ";base64") || len(encoded) > int(imagepreview.MaxBytes*4/3+4) {
-			return false
+			return false, nil
 		}
 		var err error
 		data, err = base64.StdEncoding.DecodeString(encoded)
 		if err != nil || int64(len(data)) > imagepreview.MaxBytes {
-			return false
+			return false, nil
 		}
 		path = source
 	} else {
 		if !imgcache.IsHTTPURL(source) {
-			return false
+			return false, nil
 		}
 		readmeRemoteImages.RLock()
 		cache := readmeRemoteImages.cache
 		readmeRemoteImages.RUnlock()
 		if cache == nil {
-			return false
+			return false, nil
 		}
 		status, cached, _ := cache.State(source)
 		if status == imgcache.StatusMissing {
 			cache.Ensure(source, c.Services().Invalidate)
-			return false
+			return false, nil
 		}
 		if status != imgcache.StatusReady {
-			return false
+			return false, nil
 		}
 		path = cached
 	}
@@ -70,7 +75,7 @@ func PluginImage(c *ui.Context, source string, width, height float32, owners ...
 	}
 	decoded.poll(path)
 	if decoded.width <= 0 || decoded.height <= 0 {
-		return false
+		return false, decoded
 	}
 	if decoded.svgSeat != nil {
 		var owner *svgimage.Owner
@@ -79,15 +84,15 @@ func PluginImage(c *ui.Context, source string, width, height float32, owners ...
 		}
 		if owner == nil {
 			decoded.svgSeat.Close()
-			return false
+			return false, decoded
 		}
 		decoded.svgSeat.Prepare(c, owner)
 		decoded.width, decoded.height = decoded.svgSeat.Size()
 		if decoded.svgSeat.Error() != nil {
-			return false
+			return false, decoded
 		}
 	} else if decoded.bitmap == nil && decoded.svg == nil {
-		return false
+		return false, decoded
 	}
 	if wait := decoded.advance(time.Now()); wait > 0 {
 		c.After(wait)
@@ -108,7 +113,7 @@ func PluginImage(c *ui.Context, source string, width, height float32, owners ...
 			ui.Image(c, decoded.svg).Fill().Fit(ui.Contain)
 		}
 	})
-	return true
+	return true, decoded
 }
 func loadPluginImageData(decoded *readmeDecodedImage, data []byte, notify func()) {
 	if imagepreview.NeedsBrowserSVG(data) {

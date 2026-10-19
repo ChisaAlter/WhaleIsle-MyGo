@@ -13,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/ui/svgimage"
 )
 
@@ -73,9 +74,12 @@ func runSVGNativeAcceptance(helper string) error {
 			// Go must begin with 300x150 and then accept 80x160 from this helper.
 			data := []byte(`<svg xmlns="http://www.w3.org/2000/svg" style="width:80px;height:160px"><rect width="80" height="160" fill="red"><animate attributeName="fill" values="red;blue;red" dur="1s" repeatCount="indefinite"/></rect></svg>`)
 			source := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(data)
+			w, h, sizeErr := imagepreview.SVGImageSize(data)
+			fmt.Printf("SVG diagnostic: browser=%v hint=%gx%g size-error=%v\n", imagepreview.NeedsBrowserSVG(data), w, h, sizeErr)
 			ready := false
+			var decoded *readmeDecodedImage
 			tt := ui.NewTester(func(c *ui.Context) {
-				ui.Column(c).Label("owned SVG artwork").Width(640).Children(func() { ready = PluginImage(c, source, 640, 0, owner) })
+				ui.Column(c).Label("owned SVG artwork").Width(640).Children(func() { ready, decoded = pluginImage(c, source, 640, 0, owner) })
 			}, 800, 1400)
 			deadline := time.NewTimer(35 * time.Second)
 			defer deadline.Stop()
@@ -89,7 +93,15 @@ func runSVGNativeAcceptance(helper string) error {
 				}
 				select {
 				case <-deadline.C:
-					completed <- fmt.Errorf("real helper never replaced plugin 300x150 hint with 80x160 intrinsic ratio (last=%+v,ready=%v)", r, ready)
+					stage := "no decoded state"
+					if decoded != nil {
+						stage = fmt.Sprintf("decoded=%gx%g seat=%v bitmap=%v static-svg=%v pending=%v", decoded.width, decoded.height, decoded.svgSeat != nil, decoded.bitmap != nil, decoded.svg != nil, decoded.pending != nil)
+						if decoded.svgSeat != nil {
+							sw, sh := decoded.svgSeat.Size()
+							stage += fmt.Sprintf(" seat-size=%gx%g seat-error=%v", sw, sh, decoded.svgSeat.Error())
+						}
+					}
+					completed <- fmt.Errorf("real helper never replaced plugin 300x150 hint with 80x160 intrinsic ratio (last=%+v,ready=%v; %s)", r, ready, stage)
 					return
 				case <-ctx.Done():
 					completed <- ctx.Err()
