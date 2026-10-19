@@ -206,9 +206,9 @@ func TestTerminalHeightConcessionDoesNotRewritePreference(t *testing.T) {
 	}
 	tt.SetSize(1200, 800)
 	r, _ = tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
-	// Outer36 + shared hero caption52 + saved chat560 + divider1 + body pad8.
-	if r.Y != 657 {
-		t.Fatalf("restored terminal status=%+v, want y657 below both caption rows", r)
+	// Label bounds include their padding: outer36 + caption52 + chat560 + divider1.
+	if r.Y != 649 {
+		t.Fatalf("restored terminal status=%+v, want y649 below both caption rows", r)
 	}
 }
 
