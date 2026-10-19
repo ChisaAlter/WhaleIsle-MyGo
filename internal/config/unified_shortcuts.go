@@ -1,8 +1,28 @@
 package config
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"path/filepath"
+)
 
 const unifiedShortcutsKey = "goUnifiedShortcuts"
+
+// ReloadShortcutDocument is only for the explicit discard-and-reload gesture.
+// It accepts the current persisted snapshot without writing or applying settings.
+// Rebase raw, typed values and the CAS baseline together so a later narrow save
+// cannot resurrect unrelated values from before the external edit.
+func (s *Store) ReloadShortcutDocument() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	commitMu.Lock()
+	defer commitMu.Unlock()
+	fresh, err := Open(filepath.Dir(s.path))
+	if err != nil {
+		return nil, err
+	}
+	s.raw, s.cfg, s.baseline = fresh.raw, fresh.cfg, fresh.baseline
+	return append([]byte(nil), s.raw[unifiedShortcutsKey]...), nil
+}
 
 // ShortcutDocument is a single MyGo authority, not the independent Electron
 // keybindings file. Legacy native preferences remain an untouched migration source.

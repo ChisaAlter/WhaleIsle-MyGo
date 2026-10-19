@@ -82,7 +82,7 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, providerCopy("放弃草稿并刷新", "Discard drafts and reload")).Label("reload-shortcuts").Clicked() {
-				e.Discard()
+				e.Reload()
 			}
 			if ui.Button(c, providerCopy("保存快捷键", "Save shortcuts")).Label("save-shortcuts").Disabled(e.ReadError != "" || len(issues) > 0 || e.ResetPending || e.Recording != "").Clicked() {
 				e.Save()

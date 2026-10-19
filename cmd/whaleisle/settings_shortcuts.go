@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"whaleisle/internal/config"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
 )
@@ -14,6 +15,30 @@ func shortcutPlatform() string {
 		return "macos"
 	}
 	return runtime.GOOS
+}
+
+func initializeNativeShortcutDocument(cfg *config.Store, profile string) error {
+	raw, err := cfg.ShortcutDocument()
+	if err != nil || len(raw) != 0 {
+		return err
+	}
+	saved, err := cfg.PageShortcuts(shortcuts.IDs())
+	if err != nil {
+		return err
+	}
+	doc := shortcutprefs.Document{SchemaVersion: 2, Profiles: map[string]map[string]*shortcutprefs.Binding{profile: {}}}
+	for id, value := range saved {
+		binding, err := shortcuts.SharedBinding(value)
+		if err != nil {
+			return err
+		}
+		doc.Profiles[profile][shortcuts.CanonicalID(id)] = binding
+	}
+	data, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	return cfg.InitializeShortcutDocument(data)
 }
 func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 	s.mu.Lock()
@@ -26,29 +51,7 @@ func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 		return shortcutprefs.New("desktop:"+shortcutPlatform(), nil, nil)
 	}
 	profile := "desktop:" + shortcutPlatform()
-	raw, initErr := cfg.ShortcutDocument()
-	if initErr == nil && len(raw) == 0 {
-		saved, err := cfg.PageShortcuts(shortcuts.IDs())
-		initErr = err
-		doc := shortcutprefs.Document{SchemaVersion: 2, Profiles: map[string]map[string]*shortcutprefs.Binding{profile: {}}}
-		if initErr == nil {
-			for id, value := range saved {
-				b, e := shortcuts.SharedBinding(value)
-				if e != nil {
-					initErr = e
-					break
-				}
-				doc.Profiles[profile][shortcuts.CanonicalID(id)] = b
-			}
-		}
-		if initErr == nil {
-			data, e := json.Marshal(doc)
-			initErr = e
-			if e == nil {
-				initErr = cfg.InitializeShortcutDocument(data)
-			}
-		}
-	}
+	initErr := initializeNativeShortcutDocument(cfg, profile)
 	read := cfg.ShortcutDocument
 	if initErr != nil {
 		read = func() ([]byte, error) { return nil, initErr }
@@ -78,6 +81,7 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 	prefs := s.pageShortcutPreferences()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	cfg := s.cfgStore
 	snapshot := prefs.Get()
 	if s.shortcutEditor == nil {
 		var loadErr error
@@ -122,6 +126,25 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 			}
 			s.shortcutRevision = result.Snapshot.Revision
 			return nil
+		})
+		s.shortcutEditor.SetReload(func() (map[string]string, error) {
+			if cfg == nil {
+				return nil, errors.New("shortcut persistence unavailable")
+			}
+			if _, err := cfg.ReloadShortcutDocument(); err != nil {
+				return nil, err
+			}
+			if err := initializeNativeShortcutDocument(cfg, "desktop:"+shortcutPlatform()); err != nil {
+				return nil, err
+			}
+			snapshot := prefs.ReloadSource(cfg.ShortcutDocument)
+			if snapshot.Status != "ready" {
+				return nil, errors.New("shared shortcut preferences unavailable")
+			}
+			s.mu.Lock()
+			s.shortcutRevision = snapshot.Revision
+			s.mu.Unlock()
+			return sharedNativeValues(prefs), nil
 		})
 	}
 	if s.shortcutEditor.Reconcile(sharedNativeValues(prefs)) {

@@ -74,6 +74,21 @@ func (s *Store) Get() Snapshot {
 	return out
 }
 
+// ReloadSource replaces a failed initialization reader only after its owner
+// explicitly reloads persistence. Registered catalogs and write ownership stay
+// on this store, so existing native and plugin consumers keep one authority.
+func (s *Store) ReloadSource(read func() ([]byte, error)) Snapshot {
+	s.mu.Lock()
+	before := s.snapshot.Sequence
+	s.read = read
+	s.readLocked()
+	out := cloneSnapshot(s.snapshot)
+	listeners := s.listenersLocked(before)
+	s.mu.Unlock()
+	publish(listeners, out)
+	return out
+}
+
 // SetDefinitions installs or revokes one trusted client's catalog. Invalid
 // catalogs disable writes with an invalid diagnostic; saved preferences remain.
 // Empty definitions revoke only that owner's catalog, never its overrides.

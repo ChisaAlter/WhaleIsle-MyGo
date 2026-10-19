@@ -215,6 +215,7 @@ type Editor struct {
 	defaults               map[string]string
 	resetDrafts            map[string]bool
 	reset                  func() error
+	reload                 func() (map[string]string, error)
 }
 
 func NewEditor(saved map[string]string, loadErr error, persist func(map[string]string) error) *Editor {
@@ -300,6 +301,28 @@ func (e *Editor) Discard() {
 	clear(e.resetDrafts)
 	e.Err = ""
 	e.Recording = ""
+}
+
+func (e *Editor) SetReload(reload func() (map[string]string, error)) { e.reload = reload }
+
+// Reload is the explicit discard gesture. A failed read retains the accepted
+// bindings; a repaired source clears the previous read error.
+func (e *Editor) Reload() bool {
+	e.Discard()
+	e.ResetPending = false
+	e.Status = ""
+	if e.reload == nil {
+		return true
+	}
+	values, err := e.reload()
+	if err != nil {
+		e.ReadError = "Cannot reload shortcut settings: " + err.Error()
+		e.Err = e.ReadError
+		return false
+	}
+	e.ReadError, e.Err = "", ""
+	e.Reconcile(values)
+	return true
 }
 func (e *Editor) Reconcile(values map[string]string) bool {
 	if e.Dirty() {
