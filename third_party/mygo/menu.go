@@ -75,8 +75,12 @@ type MenuItem struct {
 	Role MenuRole
 	// Accelerator is a keyboard shortcut such as "CmdOrCtrl+Shift+N".
 	Accelerator string
-	Disabled    bool
-	Hidden      bool
+	// SuppressAccelerator keeps this item menu-only, including when Role has
+	// a default accelerator. It also excludes Accelerator from native menus;
+	// applications managing their own shortcuts may show a keycap in Label.
+	SuppressAccelerator bool
+	Disabled            bool
+	Hidden              bool
 	// Checked is the state of checkbox and radio items. It is toggled
 	// before Click is called.
 	Checked bool
@@ -319,7 +323,7 @@ func prepareItem(it *MenuItem, parent *Menu) *MenuItem {
 		if it.Label == "" {
 			it.Label = label
 		}
-		if it.Accelerator == "" {
+		if it.Accelerator == "" && !it.SuppressAccelerator {
 			it.Accelerator = accel
 		}
 		if it.Submenu == nil {
@@ -395,6 +399,9 @@ func (it *MenuItem) snapshotLocked() *platform.MenuItem {
 		Visible:     !it.Hidden,
 		Checked:     it.Checked,
 		ToolTip:     it.ToolTip,
+	}
+	if it.SuppressAccelerator {
+		p.Accelerator = ""
 	}
 	switch it.Type {
 	case MenuItemSeparator:

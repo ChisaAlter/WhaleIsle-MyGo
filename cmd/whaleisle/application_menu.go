@@ -144,7 +144,7 @@ func buildApplicationMenu(bindings map[string]shortcuts.Chord, platform string, 
 		group("file", "文件", "File", item("workspace.add", "打开工作区…", "Open workspace…"), item("launcher.open", "打开启动器", "Open launcher"), item("workspace.openLocal", "在文件管理器打开工作区", "Reveal workspace"), mygo.Separator(), item("settings.open", "设置…", "Settings…"), item("market.open", "插件市场…", "Marketplace…"), item("settings.mcp", "MCP…", "MCP…"), item("settings.skills", "技能…", "Skills…"), mygo.Separator(), last),
 		&mygo.MenuItem{ID: "edit", Role: mygo.RoleEditMenu},
 		group("run", "运行", "Run", item("harness.restart", "重启 Harness", "Restart Harness"), item("window.refresh", "重新绘制界面", "Refresh interface")),
-		group("view", "视图", "View", item("window.actualSize", "实际大小", "Actual size"), item("window.zoomIn", "放大", "Zoom in"), item("window.zoomOut", "缩小", "Zoom out"), mygo.Separator(), item("window.fullscreen", "全屏", "Fullscreen"), &mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools}, item("shortcuts.open", "快捷键…", "Keyboard shortcuts…")),
+		group("view", "视图", "View", item("window.actualSize", "实际大小", "Actual size"), item("window.zoomIn", "放大", "Zoom in"), item("window.zoomOut", "缩小", "Zoom out"), mygo.Separator(), item("window.fullscreen", "全屏", "Fullscreen"), &mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}, item("shortcuts.open", "快捷键…", "Keyboard shortcuts…")),
 		group("help", "帮助", "Help", item("help.web", "Web UI 指南", "Web UI guide"), item("help.sdk", "Python SDK", "Python SDK"), mygo.Separator(), item("settings.about", "关于", "About")),
 	)
 	return mygo.NewMenu(menu)
