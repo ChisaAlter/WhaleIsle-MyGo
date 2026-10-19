@@ -16,13 +16,15 @@ import (
 var fluidSource string
 
 // Fluid owns a persistent half-float simulation device on its worker. It needs
-// no HWND, swap chain, browser or main-thread work. Close must run on its owner.
+// no HWND, swap chain or browser. GPU frame leases cross to the UI renderer;
+// this solver and its immediate context never do. Close runs on its worker.
 type Fluid struct {
 	device, ctx, vs, constants, linear, nearest, raster uintptr
 	shaders                                             map[string]uintptr
 	velocity, dye, pressure                             [2]texture
 	curl, divergence, output                            texture
 	staging                                             uintptr
+	outputMutex, outputShared                           uintptr
 	width, height                                       int
 	velocityFormat, dyeFormat, scalarFormat             uint32
 }
@@ -120,7 +122,7 @@ func fluidResolution(width, height, resolution int) (int, int) {
 	return resolution, int(math.Round(float64(resolution) * float64(height) / float64(width)))
 }
 
-// FluidFits bounds actual texture extents and retained GPU/readback memory.
+// FluidFits bounds texture extents and retained GPU/presentation memory.
 // The short edges remain 128/1440; an excessive aspect fails instead of degrading.
 func FluidFits(width, height int) bool {
 	if width <= 0 || height <= 0 || width > 16384 || height > 16384 {
@@ -131,9 +133,12 @@ func FluidFits(width, height int) bool {
 	return sw <= 16384 && sh <= 16384 && dw <= 16384 && dh <= 16384 && int64(sw)*int64(sh)*48+int64(dw)*int64(dh)*16+int64(width)*int64(height)*16 <= 256<<20
 }
 
-func (f *Fluid) target(width, height int, format uint32) (t texture, err error) {
+func (f *Fluid) target(width, height int, format uint32, misc ...uint32) (t texture, err error) {
 	t.w, t.h = width, height
 	desc := texture2DDesc{Width: uint32(width), Height: uint32(height), MipLevels: 1, ArraySize: 1, Format: format, SampleCount: 1, BindFlags: bindShaderResource | bindRenderTarget}
+	if len(misc) != 0 {
+		desc.MiscFlags = misc[0]
+	}
 	defer func() {
 		if err != nil {
 			free(&t.srv)
@@ -150,8 +155,10 @@ func (f *Fluid) target(width, height int, format uint32) (t texture, err error) 
 	if hr := call(f.device, devCreateRenderTargetView, t.tex, 0, uintptr(unsafe.Pointer(&t.rtv))); failed(hr) {
 		return t, fmt.Errorf("fluid: target view: %#x", uint32(hr))
 	}
-	zero := [4]float32{}
-	call(f.ctx, ctxClearRenderTargetView, t.rtv, uintptr(unsafe.Pointer(&zero[0])))
+	if desc.MiscFlags == 0 {
+		zero := [4]float32{}
+		call(f.ctx, ctxClearRenderTargetView, t.rtv, uintptr(unsafe.Pointer(&zero[0])))
+	}
 	return t, nil
 }
 
@@ -205,7 +212,8 @@ func (f *Fluid) Resize(width, height int) error {
 	if err := f.resizePair(&f.pressure, sw, sh, f.scalarFormat, false); err != nil {
 		return err
 	} // R16_FLOAT
-	for _, t := range []*texture{&f.curl, &f.divergence, &f.output} {
+	f.releaseOutput()
+	for _, t := range []*texture{&f.curl, &f.divergence} {
 		releaseFluidTexture(t)
 	}
 	var err error
@@ -215,13 +223,8 @@ func (f *Fluid) Resize(width, height int) error {
 	if f.divergence, err = f.target(sw, sh, f.scalarFormat); err != nil {
 		return err
 	}
-	if f.output, err = f.target(width, height, formatR8G8B8A8Unorm); err != nil {
+	if err = f.createOutput(width, height); err != nil {
 		return err
-	}
-	free(&f.staging)
-	desc := texture2DDesc{Width: uint32(width), Height: uint32(height), MipLevels: 1, ArraySize: 1, Format: formatR8G8B8A8Unorm, SampleCount: 1, Usage: 3, CPUAccessFlags: 0x20000}
-	if hr := call(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.staging))); failed(hr) {
-		return fmt.Errorf("fluid: staging: %#x", uint32(hr))
 	}
 	f.width, f.height = width, height
 	return nil
@@ -283,9 +286,22 @@ func (f *Fluid) Step(dt, speed float32) {
 
 func (f *Fluid) ImageSize() (int, int) { return f.width, f.height }
 
-// Render is the existing native bitmap bridge. The simulation stays on GPU at
-// source resolution; only the final drawing-buffer-sized RGBA frame is read.
+// Render is an explicit diagnostic readback. The native UI uses RenderFrame
+// and ImportFluidFrame, never this CPU bridge. Staging is allocated only here.
 func (f *Fluid) Render(dst *image.RGBA) error {
+	if f.outputMutex == 0 || dst == nil || dst.Rect.Dx() != f.width || dst.Rect.Dy() != f.height || dst.Stride < f.width*4 {
+		return fmt.Errorf("fluid: invalid readback destination")
+	}
+	if hr := call(f.outputMutex, fluidAcquireSync, 0, 0); hr != 0 {
+		return fmt.Errorf("fluid: readback output is unavailable: %#x", uint32(hr))
+	}
+	defer call(f.outputMutex, fluidReleaseSync, 0)
+	if f.staging == 0 {
+		desc := texture2DDesc{Width: uint32(f.width), Height: uint32(f.height), MipLevels: 1, ArraySize: 1, Format: formatR8G8B8A8Unorm, SampleCount: 1, Usage: 3, CPUAccessFlags: 0x20000}
+		if hr := call(f.device, devCreateTexture2D, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&f.staging))); failed(hr) {
+			return fmt.Errorf("fluid: diagnostic staging: %#x", uint32(hr))
+		}
+	}
 	params := [3][4]float32{{1 / float32(f.width), 1 / float32(f.height), 0, 0}}
 	f.pass("displayPS", &f.output, f.dye[0].srv, 0, params)
 	call(f.ctx, 47, f.staging, f.output.tex) // CopyResource
@@ -312,10 +328,10 @@ func (f *Fluid) Close() {
 			releaseFluidTexture(&pair[i])
 		}
 	}
-	for _, t := range []*texture{&f.curl, &f.divergence, &f.output} {
+	for _, t := range []*texture{&f.curl, &f.divergence} {
 		releaseFluidTexture(t)
 	}
-	free(&f.staging)
+	f.releaseOutput()
 	for name, shader := range f.shaders {
 		free(&shader)
 		delete(f.shaders, name)

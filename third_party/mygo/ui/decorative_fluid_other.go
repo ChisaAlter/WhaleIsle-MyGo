@@ -3,9 +3,14 @@
 package ui
 
 import (
+	"fmt"
 	"image"
 	"time"
 )
+
+func newNativeSplashPresenter(*Painter) (splashNativePresenter, error) {
+	return nil, fmt.Errorf("fluid: native GPU frame is unsupported on this platform")
+}
 
 type cpuSplashBackend struct{ solver *splashSolver }
 

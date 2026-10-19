@@ -58,9 +58,27 @@ type splashBackend interface {
 	Close()
 }
 
+// Native frames contain an owned GPU lease, never mutable scene pixels.
+// The optional backend is used by Windows; the CPU profile keeps its bitmap
+// handoff. A nil frame with no error means the GPU handoff is not ready yet.
+type splashNativeFrame interface {
+	ImageSize() (int, int)
+	Close()
+}
+
+type splashNativeBackend interface {
+	RenderNative() (splashNativeFrame, error)
+}
+
+type splashNativePresenter interface {
+	paint(*Painter, splashNativeFrame, float32, float32) (bool, error)
+	close()
+}
+
 // The owner submits one job only after taking the previous result. Output is
-// worker-owned until take; it is copied into one retained scene bitmap before
-// the next submission. No simulation buffer or mutable scene crosses threads.
+// worker-owned until take. The UI copies CPU output into its retained bitmap,
+// or imports a native GPU lease before the next submission. No simulation
+// buffer, immediate context or mutable scene crosses threads.
 type splashWorker struct {
 	jobs      chan splashRequest
 	results   chan *image.RGBA
@@ -68,22 +86,47 @@ type splashWorker struct {
 	done      chan struct{}
 	closeOnce sync.Once
 	// Published with the result, read before the owner submits another job.
-	lastWork time.Duration
-	err      error
+	lastWork      time.Duration
+	err           error
+	nativeResults chan splashNativeFrame
+	// Only the UI owner touches pending/presenter. The worker owns results
+	// until received, and drains abandoned leases when it stops.
+	nativePending splashNativeFrame
+	presenter     splashNativePresenter
 }
 
 func newSplashWorker(seed uint64) *splashWorker {
-	w := &splashWorker{jobs: make(chan splashRequest, 1), results: make(chan *image.RGBA, 1), stop: make(chan struct{}), done: make(chan struct{})}
+	w := &splashWorker{jobs: make(chan splashRequest, 1), results: make(chan *image.RGBA, 1), nativeResults: make(chan splashNativeFrame, 1), stop: make(chan struct{}), done: make(chan struct{})}
 	go w.run(seed)
 	return w
 }
 
 func (w *splashWorker) close() {
-	w.closeOnce.Do(func() { close(w.stop) })
+	w.closeOnce.Do(func() {
+		close(w.stop)
+		if w.nativePending != nil {
+			w.nativePending.Close()
+			w.nativePending = nil
+		}
+		if w.presenter != nil {
+			w.presenter.close()
+			w.presenter = nil
+		}
+	})
 }
 
 func (w *splashWorker) run(seed uint64) {
 	defer close(w.done)
+	defer func() {
+		for {
+			select {
+			case frame := <-w.nativeResults:
+				frame.Close()
+			default:
+				return
+			}
+		}
+	}()
 	random := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	var solver splashBackend
 	defer func() {
@@ -148,6 +191,37 @@ func (w *splashWorker) run(seed uint64) {
 			solver.Splat(job.x, job.y, job.dx*force, job.dy*force, color, job.config.Size)
 		}
 		solver.Step(dt, job.config.Speed)
+		if native, ok := solver.(splashNativeBackend); ok {
+			var frame splashNativeFrame
+			for frame == nil {
+				var err error
+				frame, err = native.RenderNative()
+				if err != nil {
+					w.fail(err)
+					return
+				}
+				if frame == nil {
+					// Zero-timeout mutex acquisition never stalls the UI or a
+					// context. Wait cancelably for another display opportunity;
+					// no input or simulation step is repeated by this poll.
+					timer := time.NewTimer(splashFrameInterval)
+					select {
+					case <-w.stop:
+						timer.Stop()
+						return
+					case <-timer.C:
+					}
+				}
+			}
+			w.lastWork = time.Since(started)
+			select {
+			case <-w.stop:
+				frame.Close()
+				return
+			case w.nativeResults <- frame:
+			}
+			continue
+		}
 		width, height := solver.ImageSize()
 		if output == nil || output.Rect.Dx() != width || output.Rect.Dy() != height {
 			output = image.NewRGBA(image.Rect(0, 0, width, height))
@@ -252,6 +326,8 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 			s.fluidError = s.fluidWorker.err
 			s.fluidBitmap = nil
 			s.fluidBusy = false
+			s.fluidWorker.close()
+			s.fluidWorker = nil
 			return
 		}
 		if s.fluidBitmap == nil || s.fluidBitmap.w != result.Rect.Dx() || s.fluidBitmap.h != result.Rect.Dy() {
@@ -264,6 +340,34 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 			s.fluidNext = paced
 		}
 	default:
+	}
+	worker := s.fluidWorker
+	if worker.nativePending == nil {
+		select {
+		case worker.nativePending = <-worker.nativeResults:
+		default:
+		}
+	}
+	if worker.nativePending != nil || worker.presenter != nil {
+		var err error
+		if worker.presenter == nil {
+			worker.presenter, err = newNativeSplashPresenter(p)
+		}
+		var ready bool
+		if err == nil && worker.presenter != nil {
+			ready, err = worker.presenter.paint(p, worker.nativePending, w, h)
+		}
+		if err != nil {
+			s.fluidError, s.fluidBusy = err, false
+			worker.close()
+			s.fluidWorker, s.fluidBitmap = nil, nil
+			return
+		}
+		if ready && worker.nativePending != nil {
+			worker.nativePending.Close()
+			worker.nativePending = nil
+			s.fluidBusy = false
+		}
 	}
 	if s.fluidBitmap != nil {
 		p.Image(s.fluidBitmap, Rect{W: w, H: h}, FillBox)
