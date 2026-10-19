@@ -41,6 +41,7 @@ type Model struct {
 	OnCreatePlugin, OnOpenAddMenu               func()
 	CreatePluginReady                           bool
 	CreatePluginDescription                     string
+	CreatorNotice                               func(*ui.Context)
 }
 
 func copyText(zh, en string) string {
@@ -86,6 +87,9 @@ func View(c *ui.Context, m Model) {
 					}
 				})
 			}
+			if m.CreatorNotice != nil {
+				m.CreatorNotice(c)
+			}
 			if s.Tab == "discover" {
 				discoverView(c, m, s, a, fg, muted, border)
 				return
@@ -125,6 +129,16 @@ func View(c *ui.Context, m Model) {
 		installDialog(c, m, s, a)
 	} else if s.Discover.SourcesOpen {
 		sourcesDialog(c, m, s, a)
+	}
+	if s.PreferenceError != "" {
+		ui.Overlay(c.Key("plugin-registry-preference-error"), func() {
+			ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(640).Padding(12).Gap(10).Role(ui.RoleStatus).Background(bg).Border(.5, border).Radius(8).Children(func() {
+				ui.Text(c, s.PreferenceError).Grow(1).MinWidth(0).TextColor(c.Theme().Danger)
+				if ui.Button(c, copyText("关闭", "Close")).Clicked() {
+					a.DismissPreferenceError()
+				}
+			})
+		})
 	}
 }
 

@@ -44,11 +44,19 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	pending := i.Phase == "starting" || i.Phase == "running" || i.Phase == "applying" || i.Phase == "cancelling" || i.Phase == "unconfirmed" || i.Phase == "unknown"
+	_, githubRecovery := manager.GitHubRecoveryRegistry(i)
 	ui.DialogBase(c.Key("plugin-manager-install"), &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
 		panel.Label(copyText("添加插件", "Add plugin")).Width(max(0, min(float32(640), w-32))).Height(max(0, min(float32(720), h-48))).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Clip().Children(func() {
 			ui.Row(c).FillWidth().Padding(20, 20, 12, 20).Gap(8).Children(func() {
-				ui.Text(c, copyText("添加插件", "Add plugin")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(fg)
+				title := copyText("添加插件", "Add plugin")
+				if githubRecovery {
+					title = copyText("无法访问 GitHub", "Cannot access GitHub")
+					if i.Result.PackageResult.Kind == "timeout" {
+						title = copyText("连接 GitHub 超时", "GitHub connection timed out")
+					}
+				}
+				ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(fg)
 				closeLabel := copyText("关闭", "Close")
 				if i.Phase == "starting" || i.Phase == "running" || i.Phase == "unconfirmed" {
 					closeLabel = copyText("取消安装并关闭", "Cancel install and close")
@@ -59,75 +67,55 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 			})
 			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Padding(0, 20, 20, 20).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
+					if githubRecovery {
+						ui.Text(c, copyText("请尝试其他安装来源。", "Try another installation source.")).FillWidth().TextColor(muted)
+						var resolved *string
+						if i.RegistryInfo != nil {
+							resolved = i.RegistryInfo.Resolved
+						}
+						already := manager.RegistryKey(manager.RegistryValue(i.RegistrySelection), resolved) == manager.NPMMirrorRegistry
+						label := copyText("改用国内镜像", "Use mainland China mirror")
+						if already {
+							label = copyText("试试其他方式", "Try another way")
+						}
+						if ui.PrimaryButton(c, label).Clicked() {
+							a.UseGitHubMirror()
+						}
+						return
+					}
 					if i.Confirmed {
 						title := i.ConfirmedTitle.Resolve(i18n.Locale())
 						if title == "" {
 							title = i.Title
 						}
 						ui.Text(c, title+" · "+i.Version).FillWidth().TextColor(fg)
-					} else {
-						ui.Text(c, copyText("输入完整的 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
+						ui.Text(c, i.Spec).FillWidth().Selectable().TextColor(muted)
+					} else if i.Phase == "idle" || i.Phase == "checking" {
+						if !i.MirrorRecovery {
+							ui.Text(c, copyText("输入完整 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
+						}
 						spec := i.Spec
-						if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
+						if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名称或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
 							a.EditInstall(spec, i.Registry)
 						}
-						ui.Text(c, copyText("安装源", "Installation registry")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-						registry := i.Registry
-						if i.RegistryInfo != nil {
-							labels := []string{copyText("配置的默认安装源", "Configured default registry")}
-							ids := []string{""}
-							if i.RegistryInfo.Registry != nil {
-								labels = append(labels, *i.RegistryInfo.Registry)
-								ids = append(ids, *i.RegistryInfo.Registry)
-							}
-							for _, url := range i.RegistryInfo.FallbackRegistries {
-								found := false
-								for _, existing := range ids {
-									if existing == url {
-										found = true
-									}
-								}
-								if !found {
-									labels = append(labels, url)
-									ids = append(ids, url)
-								}
-							}
-							selected := labels[0]
-							for n, id := range ids {
-								if id == registry {
-									selected = labels[n]
-								}
-							}
-							if ui.Select(c, &selected, labels).FillWidth().Disabled(pending || s.Busy || i.Phase == "checking").Changed() {
-								for n, label := range labels {
-									if selected == label {
-										a.EditInstall(i.Spec, ids[n])
-									}
-								}
-							}
-						}
-						if ui.TextInput(c, &registry).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://registry.npmjs.org/").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
-							a.EditInstall(i.Spec, registry)
-						}
+						installGuide(c, i, a)
+						installRegistryOptions(c, i, a, s.Busy || i.Phase == "checking")
 						ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
+					if i.Inspection != nil && i.Inspection.Status == "accepted" && i.Phase != "idle" && i.Phase != "checking" {
+						ui.Text(c, strings.TrimSpace(i.Inspection.Name+" "+i.Inspection.Version)).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+						ui.Text(c, i.Inspection.Description).FillWidth().TextColor(muted)
+					}
+					if i.Error != "" {
+						ui.Text(c, i.Error).FillWidth().Role(ui.RoleAlert).TextColor(c.Theme().Danger)
+					}
 					if i.Phase == "checking" {
-						ui.Text(c, copyText("正在检查…", "Checking…")).TextColor(muted)
+						ui.Text(c, copyText("正在检查…", "Checking…")).Role(ui.RoleStatus).TextColor(muted)
 						if ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
 							a.CancelInstall()
 						}
-					}
-					if i.Error != "" {
-						ui.Text(c, i.Error).FillWidth().TextColor(c.Theme().Danger)
-					}
-					if i.Inspection != nil && i.Inspection.Status == "accepted" && (i.Inspection.Bundle == nil || *i.Inspection.Bundle) {
-						ui.Text(c, strings.TrimSpace(i.Inspection.Name+" "+i.Inspection.Version)).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
-						ui.Text(c, i.Inspection.Description).FillWidth().TextColor(muted)
-						if !pending && i.Result == nil && ui.PrimaryButton(c, copyText("安装", "Install")).Disabled(s.Busy).Clicked() {
-							a.RequestInstall()
-						}
-					} else if !pending && ui.PrimaryButton(c, copyText("检查插件", "Check plugin")).Disabled(s.Busy || i.Phase == "checking" || strings.TrimSpace(i.Spec) == "").Clicked() {
-						a.Inspect()
+					} else if i.Phase == "idle" && ui.PrimaryButton(c, copyText("安装", "Install")).Disabled(s.Busy || strings.TrimSpace(i.Spec) == "").Clicked() {
+						a.RetryInstall()
 					}
 					if pending {
 						ui.Text(c, copyText("安装阶段：", "Installation phase: ")+i.Phase).Role(ui.RoleStatus).FillWidth().TextColor(muted)
@@ -142,13 +130,12 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							a.CancelInstall()
 						}
 					}
-					if i.Result != nil {
-						result := i.Result
+					if result := i.Result; result != nil {
 						ui.Text(c, result.Application).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
 						if result.Application == "restart-required" {
-							ui.Text(c, copyText("已保存。重启运行时后生效：", "Saved. Restart the runtime to apply: ")+result.RestartReason).FillWidth().TextColor(muted)
+							ui.Text(c, copyText("已保存。重启运行时以生效：", "Saved. Restart the runtime to apply: ")+result.RestartReason).FillWidth().TextColor(muted)
 						}
-						if i.Phase == "done" && i.Enabled == nil && ui.PrimaryButton(c, copyText("启用插件", "Enable plugin")).Disabled(i.Enabling).Clicked() {
+						if i.Phase == "done" && i.Enabled == nil && result.Bundle != "" && ui.PrimaryButton(c, copyText("启用插件", "Enable plugin")).Disabled(i.Enabling).Clicked() {
 							a.EnableInstalled()
 						}
 						if result.Error != nil {
@@ -161,52 +148,58 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 								}
 							}
 						}
-						if len(result.PendingBuilds) > 0 {
+						if i.Phase == "failed" && len(result.PendingBuilds) > 0 {
 							ui.Text(c, copyText("以下包的构建脚本需要明确授权：", "These packages need explicit build-script approval: ")+strings.Join(result.PendingBuilds, ", ")).FillWidth().TextColor(c.Theme().Warning)
-							if ui.Button(c, copyText("批准列出的构建脚本", "Approve listed build scripts")).Disabled(s.Busy).Clicked() {
+							if ui.Button(c, copyText("批准列出的构建脚本并重试", "Approve listed build scripts and retry")).Disabled(s.Busy).Clicked() {
 								a.ApproveBuilds()
 							}
-						}
-						if result.PackageResult != nil {
-							ui.Text(c, result.PackageResult.Output).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							if result.PackageResult.Truncated {
-								ui.Text(c, copyText("输出已截断。日志路径：", "Output truncated. Log path: ")+result.PackageResult.LogPath).FillWidth().TextColor(muted)
+						} else if i.Phase == "failed" {
+							if result.FailedAt == "registry" && !i.Confirmed && ui.Button(c, copyText("更换安装源", "Change registry")).Clicked() {
+								a.ChangeRegistry()
 							}
-							if result.PackageResult.ExitCode != nil {
-								ui.Text(c, fmt.Sprintf("Exit: %d", *result.PackageResult.ExitCode)).TextColor(muted)
+							if ui.PrimaryButton(c, copyText("重试安装", "Retry installation")).Disabled(s.Busy).Clicked() {
+								a.RetryInstall()
 							}
 						}
 					}
-					for _, run := range i.Runs {
-						ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(10).Border(.5, chrome.Color(colors.Border)).Radius(6).Children(func() {
-							ui.Text(c, run.Command).FillWidth().MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(fg)
-							ui.Text(c, run.CWD).FillWidth().MinWidth(0).Selectable().FontSize(theme.InterfaceSize(11)).TextColor(muted)
-							for _, chunk := range run.Chunks {
-								color := muted
-								if chunk.Stream == "stderr" {
-									color = c.Theme().Warning
+					if i.Phase != "idle" && i.Phase != "checking" && !githubRecovery {
+						label := copyText("显示安装详情", "Show installation details")
+						if i.DetailsOpen {
+							label = copyText("收起安装详情", "Hide installation details")
+						}
+						if ui.Button(c, label).Clicked() {
+							a.ToggleInstallDetails()
+						}
+						if i.DetailsOpen {
+							for n, run := range i.Runs {
+								if n < len(i.Attempts) {
+									ui.Text(c, fmt.Sprintf(copyText("第 %d 次尝试：%s", "Attempt %d: %s"), n+1, registryName(i.Attempts[n].Registry, nil))).FillWidth().TextColor(muted)
 								}
-								ui.Text(c, "["+chunk.Stream+"] "+chunk.Text).FillWidth().MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).TextColor(color)
+								installTerminal(c.Key("install-run-"+run.JobID), run)
 							}
-							if run.Truncated {
-								ui.Text(c, copyText("输出已截断", "Output truncated")).TextColor(muted)
-							}
-							if run.Settled {
-								status := copyText("已结束，未提供退出代码", "Ended without an exit code")
-								if run.ExitCode != nil {
-									status = fmt.Sprintf("Exit: %d", *run.ExitCode)
+							if len(i.Runs) == 0 {
+								output := i.Log
+								if i.Result != nil && i.Result.PackageResult != nil {
+									output = i.Result.PackageResult.Output
 								}
-								ui.Text(c, status).TextColor(muted)
+								if output != "" {
+									installTerminal(c.Key("install-result-output"), manager.InstallRun{Output: output, Settled: !pending})
+								} else {
+									ui.Text(c, copyText("暂无输出", "No output")).TextColor(muted)
+								}
 							}
-						})
-					}
-					if len(i.Runs) == 0 && i.Log != "" {
-						ui.Text(c, i.Log).FillWidth().MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+							if i.Result != nil && i.Result.PackageResult != nil && i.Result.PackageResult.Truncated {
+								ui.Text(c, copyText("输出已截断。日志路径：", "Output truncated. Log path: ")+i.Result.PackageResult.LogPath).FillWidth().Selectable().TextColor(muted)
+							}
+						}
 					}
 					if i.Phase == "unknown" {
-						ui.Text(c, copyText("请先刷新清单核对结果，再决定是否重新安装。", "Refresh inventory and reconcile the outcome before deciding whether to install again.")).FillWidth().TextColor(c.Theme().Warning)
+						ui.Text(c, copyText("运行时未保留安装结果。可刷新清单查看当前状态，或返回输入。", "The runtime retained no installation result. Refresh inventory to inspect the current state, or return to input.")).FillWidth().TextColor(c.Theme().Warning)
 						if ui.Button(c, copyText("刷新清单", "Refresh inventory")).Disabled(s.Loading).Clicked() {
 							m.Controller.Refresh(context.Background())
+						}
+						if ui.Button(c, copyText("返回输入", "Back to input")).Clicked() {
+							a.CancelInstall()
 						}
 					}
 					if !pending && i.Result != nil && ui.Button(c, copyText("返回编辑", "Back to editing")).Disabled(s.Busy).Clicked() {
@@ -220,7 +213,6 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		a.CloseInstall()
 	}
 }
-
 func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	open := true
 	w, h := c.Size()

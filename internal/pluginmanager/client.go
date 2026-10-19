@@ -50,15 +50,20 @@ func (c Client) Registries(ctx context.Context) (RegistryInfo, error) {
 	e := c.Caller.Call(ctx, "pluginManager/registries", nil, &v)
 	return v, e
 }
+func (c Client) FastestRegistry(ctx context.Context) (*string, error) {
+	var value *string
+	err := c.Caller.Call(ctx, "pluginRegistryProbe/fastest", nil, &value)
+	return value, err
+}
 func (c Client) Inspect(ctx context.Context, spec string, registry *string) (Inspection, error) {
 	var v Inspection
 	e := c.Caller.Call(ctx, "pluginManager/inspect", struct {
 		Spec    string `json:"spec"`
 		Options struct {
-			Registry *string `json:"registry,omitempty"`
+			Registry *string `json:"registry"`
 		} `json:"options"`
 	}{spec, struct {
-		Registry *string `json:"registry,omitempty"`
+		Registry *string `json:"registry"`
 	}{registry}}, &v)
 	return v, e
 }

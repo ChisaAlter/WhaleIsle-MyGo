@@ -156,6 +156,11 @@ type RegistryInfo struct {
 	FallbackRegistries []string `json:"fallbackRegistries"`
 	Resolved           *string  `json:"resolved"`
 }
+type RegistryChoice struct {
+	Kind     string  `json:"kind"`
+	Registry *string `json:"registry"`
+	URL      string  `json:"url,omitempty"`
+}
 type Inspection struct {
 	Status      string    `json:"status"`
 	Kind        string    `json:"kind,omitempty"`
@@ -199,7 +204,7 @@ type InstallOptions struct {
 	SaveExact      bool     `json:"saveExact,omitempty"`
 	RequestID      string   `json:"requestId,omitempty"`
 	ApprovedBuilds []string `json:"approvedBuilds,omitempty"`
-	Registry       *string  `json:"registry,omitempty"`
+	Registry       *string  `json:"registry"`
 }
 type InstallLog struct {
 	RequestID   string   `json:"requestId,omitempty"`
@@ -366,6 +371,9 @@ type InstallState struct {
 	ConfirmedTitle                                       Text
 	RegistryReadDone, StartAfterRegistry                 bool
 	Enabling                                             bool
+	RegistrySelection                                    RegistryChoice
+	TransientRegistry, RegistryOpen, RegistryError       bool
+	WaitingForRegistry, DetailsOpen, MirrorRecovery      bool
 }
 type DiscoverState struct {
 	Status, Error, Selected, SelectedEntry, Draft string
@@ -418,6 +426,7 @@ type State struct {
 	BusyKeys                   map[string]bool
 	Highlight                  string
 	HighlightUntil             int64
+	PreferenceError            string
 }
 
 func (s State) ManagementReady() bool {

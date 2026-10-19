@@ -74,35 +74,25 @@ func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *b
 		c.inspectCancel()
 		c.inspectCancel = nil
 	}
-	c.state.Install = InstallState{Open: true, Spec: spec, Registry: registry, Enabled: enabled, SaveExact: exact, Phase: "idle"}
+	choice := RegistryChoice{Kind: "offered"}
+	if c.registryMemory != nil {
+		choice = *cloneRegistryChoice(c.registryMemory)
+	}
+	transient := registry != ""
+	if transient {
+		value := registry
+		choice = RegistryChoice{Kind: "custom", URL: value}
+	}
+	c.state.Install = InstallState{Open: true, Spec: spec, Enabled: enabled, SaveExact: exact, Phase: "idle", TransientRegistry: transient}
+	setRegistrySelection(&c.state.Install, choice)
 	c.installRead++
 	c.registryRead++
-	read := c.registryRead
+	c.choiceRead++
+	read, selection := c.registryRead, c.choiceRead
 	client, ctx := Client{c.client}, c.life
 	c.mu.Unlock()
 	c.fire()
-	go func() {
-		registries, err := client.Registries(ctx)
-		start := false
-		c.patch(owner, func(s *State) {
-			if c.registryRead != read {
-				return
-			}
-			s.Install.RegistryReadDone = true
-			start = s.Install.StartAfterRegistry
-			if err != nil {
-				s.Install.Error = err.Error()
-				return
-			}
-			s.Install.RegistryInfo = &registries
-			if s.Install.Registry == "" && registries.Registry != nil {
-				s.Install.Registry = *registries.Registry
-			}
-		})
-		if start {
-			c.Actions(owner).startConfirmedInstall()
-		}
-	}()
+	go c.readInstallRegistries(ctx, client, owner, read, selection)
 	return true
 }
 func (c *Controller) openCatalogInstall(owner uint64, p Package, enabled bool) {
@@ -124,16 +114,26 @@ func (c *Controller) openCatalogInstall(owner uint64, p Package, enabled bool) {
 func (a Actions) startConfirmedInstall() {
 	c := a.c
 	c.mu.Lock()
-	if c.state.Owner != a.owner || !c.state.Install.Confirmed {
+	if c.state.Owner != a.owner {
 		c.mu.Unlock()
 		return
 	}
 	if !c.state.Install.RegistryReadDone {
 		c.state.Install.StartAfterRegistry = true
+		c.state.Install.WaitingForRegistry = true
+		c.state.Install.Phase = "checking"
 		c.mu.Unlock()
+		c.fire()
 		return
 	}
 	c.state.Install.StartAfterRegistry = false
+	if c.state.Install.WaitingForRegistry {
+		c.state.Install.WaitingForRegistry = false
+		c.state.Install.Phase = "idle"
+	} else if c.state.Install.Phase == "checking" {
+		c.mu.Unlock()
+		return
+	}
 	prepared := c.state.Install.Inspection != nil
 	c.mu.Unlock()
 	if prepared {
@@ -152,7 +152,7 @@ func (a Actions) CloseInstall() {
 	pending := installPending(c.state.Install.Phase)
 	request := c.state.Install.RequestID
 	c.state.Install.Open = false
-	if !pending && c.state.Install.Phase != "unknown" {
+	if !pending {
 		if c.inspectCancel != nil {
 			c.inspectCancel()
 			c.inspectCancel = nil
@@ -173,8 +173,16 @@ func (a Actions) EditInstall(spec, registry string) {
 			return
 		}
 		a.c.installRead++
+		if s.Install.Phase != "idle" {
+			reopenInstallInput(&s.Install)
+		}
 		if s.Install.Spec != spec || s.Install.Registry != registry {
 			s.Install.ApprovedBuilds = nil
+		}
+		if s.Install.Registry != registry {
+			a.c.choiceRead++
+			setRegistrySelection(&s.Install, RegistryChoice{Kind: "custom", URL: registry})
+			s.Install.TransientRegistry = false
 		}
 		s.Install.Spec = spec
 		s.Install.Registry = registry
@@ -197,6 +205,40 @@ func (a Actions) Inspect() {
 		c.mu.Unlock()
 		return
 	}
+	if !c.state.Install.RegistryReadDone {
+		c.state.Install.StartAfterRegistry = true
+		c.state.Install.WaitingForRegistry = true
+		c.state.Install.Phase = "checking"
+		c.mu.Unlock()
+		c.fire()
+		return
+	}
+	choice := c.state.Install.RegistrySelection
+	if choice.Kind == "custom" {
+		raw := strings.TrimSpace(choice.URL)
+		if !registryInputValid(raw) {
+			c.state.Install.RegistryError = true
+			c.state.Install.RegistryOpen = true
+			c.mu.Unlock()
+			c.fire()
+			return
+		}
+		choice.URL = raw
+		setRegistrySelection(&c.state.Install, choice)
+		registry = raw
+	}
+	for _, pkg := range c.state.Packages {
+		if pkg.Name == spec && pkg.Availability != "missing" && c.state.Install.Enabled == nil {
+			c.state.Install.Error = "Plugin is already installed: " + spec
+			if pkg.Availability == "installation" {
+				c.state.Install.Error = "This plugin is supplied by the runtime: " + spec
+			}
+			c.mu.Unlock()
+			c.fire()
+			return
+		}
+	}
+	remember := !c.state.Install.TransientRegistry
 	c.state.Install.Spec = spec
 	client := Client{c.client}
 	ctx, cancel := context.WithCancel(c.life)
@@ -205,8 +247,19 @@ func (a Actions) Inspect() {
 	read := c.installRead
 	c.state.Install.Phase = "checking"
 	c.state.Install.Error = ""
+	c.state.Install.Result = nil
+	c.state.Install.RequestID = ""
+	c.state.Install.ApprovedBuilds = nil
+	c.state.Install.Attempts = nil
+	c.state.Install.Runs = nil
+	c.state.Install.Log = ""
+	c.state.Install.DetailsOpen = false
+	c.state.Install.RegistryOpen = false
 	c.mu.Unlock()
 	c.fire()
+	if remember {
+		c.rememberRegistry(a.owner, choice)
+	}
 	go func() {
 		defer cancel()
 		var selected *string
@@ -232,7 +285,7 @@ func (a Actions) Inspect() {
 			if inspection.Status != "accepted" {
 				s.Install.Error = inspection.Problem + ": " + inspection.Reason
 			}
-			automatic = s.Install.Confirmed && s.Install.Error == ""
+			automatic = s.Install.Error == ""
 		})
 		if automatic {
 			a.RequestInstall()
@@ -249,34 +302,55 @@ func (a Actions) RequestInstall() {
 		return
 	}
 	id := requestID()
-	options := InstallOptions{Enabled: i.Enabled, SaveExact: i.SaveExact, RequestID: id, ApprovedBuilds: append([]string{}, i.ApprovedBuilds...)}
-	if i.Registry != "" {
+	enabled := i.Enabled
+	if enabled == nil {
+		disabled := false
+		enabled = &disabled
+	}
+	options := InstallOptions{Enabled: enabled, SaveExact: i.SaveExact, RequestID: id, ApprovedBuilds: append([]string{}, i.ApprovedBuilds...), Registry: i.Inspection.Registry}
+	if i.Enabled != nil && i.Registry != "" {
 		registry := i.Registry
 		options.Registry = &registry
 	}
-	c.pending = &action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
-	s.Confirmation = &Confirmation{Kind: "install", Target: i.Spec, Description: "Install " + i.Spec + "? Plugins run with the profile's permissions."}
+	remember := i.Enabled != nil && !i.TransientRegistry
+	choice := i.RegistrySelection
+	op := action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
 	i.RequestID = id
-	if i.Confirmed {
-		op := *c.pending
-		c.pending = nil
-		s.Confirmation = nil
-		c.mu.Unlock()
-		c.run(op)
+	i.Phase = "checking"
+	i.DetailsOpen = false
+	i.RegistryOpen = false
+	i.ApprovedBuilds = nil
+	c.mu.Unlock()
+	if remember {
+		c.rememberRegistry(a.owner, choice)
+	}
+	c.run(op)
+}
+func (a Actions) RetryInstall() {
+	s := a.c.Snapshot()
+	if s.Owner != a.owner {
 		return
 	}
-	c.mu.Unlock()
-	go c.fire()
+	if s.Install.Enabled != nil && s.Install.Inspection != nil {
+		a.RequestInstall()
+	} else {
+		a.Inspect()
+	}
 }
 func (a Actions) ApproveBuilds() {
+	approved := false
 	a.edit(func(s *State) {
-		if s.Install.Result == nil || len(s.Install.Result.PendingBuilds) == 0 {
+		if s.Install.Phase != "failed" || s.Install.Result == nil || len(s.Install.Result.PendingBuilds) == 0 {
 			return
 		}
 		s.Install.ApprovedBuilds = append([]string{}, s.Install.Result.PendingBuilds...)
 		s.Install.Phase = "idle"
 		s.Install.Result = nil
+		approved = true
 	})
+	if approved {
+		a.RequestInstall()
+	}
 }
 func (a Actions) EnableInstalled() {
 	c := a.c
@@ -287,8 +361,9 @@ func (a Actions) EnableInstalled() {
 		return
 	}
 	name := i.Result.Bundle
-	if name == "" && i.Inspection != nil {
-		name = i.Inspection.Name
+	if name == "" {
+		c.mu.Unlock()
+		return
 	}
 	i.Enabling = true
 	client, ctx := Client{c.client}, c.life
@@ -348,14 +423,14 @@ func (a Actions) cancelInstall(expectedID string) {
 		c.mu.Unlock()
 		return
 	}
-	if c.state.Owner == a.owner && i.Phase == "checking" {
+	if c.state.Owner == a.owner && (i.Phase == "checking" || i.Phase == "failed" || i.Phase == "unknown") {
 		if c.inspectCancel != nil {
 			c.inspectCancel()
 			c.inspectCancel = nil
 		}
 		c.installRead++
-		i.Phase, i.Error = "idle", ""
-		i.Inspection, i.Result = nil, nil
+		reopenInstallInput(i)
+		c.state.Busy = false
 		c.mu.Unlock()
 		c.fire()
 		return
@@ -375,6 +450,7 @@ func (a Actions) cancelInstall(expectedID string) {
 		status, err := client.CancelInstall(ctx, id)
 		retry := false
 		reconcile := false
+		cancelled := false
 		c.patch(a.owner, func(s *State) {
 			if s.Install.RequestID != id || !installPending(s.Install.Phase) {
 				return
@@ -392,7 +468,10 @@ func (a Actions) cancelInstall(expectedID string) {
 			}
 			switch status {
 			case "cancelled":
-				s.Install.Phase = "cancelled"
+				reopenInstallInput(&s.Install)
+				s.Busy = false
+				s.Notice = "Installation cancelled."
+				cancelled = true
 			case "too-late":
 				s.Install.Phase = "applying"
 				s.Install.Acknowledged = true
@@ -416,6 +495,9 @@ func (a Actions) cancelInstall(expectedID string) {
 		}
 		if reconcile {
 			c.reconcileInstall(a.owner, id)
+		}
+		if cancelled {
+			_ = c.Load(ctx)
 		}
 	}()
 }
@@ -453,15 +535,12 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 			}
 			if result == nil {
 				s.Install.Phase = "unknown"
-				s.Install.Error = "The Host has no retained installation result. Refresh inventory before any new install."
+				s.Install.Error = "The Host has no retained installation result."
+				s.Busy = false
+				settleInstallRuns(&s.Install, nil)
 				return
 			}
-			s.Install.Result = result
-			s.Install.Phase = "done"
-			if result.Application == "failed" || result.Application == "cancelled" {
-				s.Install.Phase = result.Application
-			}
-			s.Install.Error = ""
+			settleInstallState(s, *result)
 			s.Notice = changeMessage(*result)
 			settled = true
 		})
@@ -469,6 +548,49 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 			_ = c.Load(ctx)
 		}
 	}()
+}
+
+func settleInstallRuns(i *InstallState, exitCode *int) {
+	for n := range i.Runs {
+		if !i.Runs[n].Settled {
+			i.Runs[n].Settled = true
+			i.Runs[n].ExitCode = exitCode
+		}
+	}
+}
+func settleInstallState(s *State, result Change) {
+	i := &s.Install
+	s.Busy = false
+	if result.Application == "cancelled" {
+		reopenInstallInput(i)
+		s.Notice = "Installation cancelled."
+		return
+	}
+	i.Recovering = false
+	i.Result = &result
+	i.Phase = "done"
+	i.Error = ""
+	exitCode := 0
+	if result.Application == "failed" {
+		i.Phase = "failed"
+		var code *int
+		if result.PackageResult != nil {
+			code = result.PackageResult.ExitCode
+		}
+		settleInstallRuns(i, code)
+	} else {
+		settleInstallRuns(i, &exitCode)
+	}
+	if result.Registries != nil {
+		i.Attempts = nil
+		for n, registry := range result.Registries {
+			i.Attempts = append(i.Attempts, InstallAttempt{Registry: registry, Index: n + 1, Total: len(result.Registries)})
+		}
+	}
+	if i.Phase == "done" && i.Enabled != nil && result.Bundle != "" {
+		s.Highlight = result.Bundle
+		s.HighlightUntil = time.Now().Add(2400 * time.Millisecond).UnixNano()
+	}
 }
 
 // Events are accepted only for the captured Host owner and installation id.

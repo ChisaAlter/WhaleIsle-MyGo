@@ -24,6 +24,9 @@ type Controller struct {
 	failedDiscover                                                    *discoverRead
 	discoverTextTimer                                                 *time.Timer
 	textRead                                                          uint64
+	choiceRead                                                        uint64
+	registryMemory                                                    *RegistryChoice
+	registrySave                                                      func(*RegistryChoice) error
 }
 type action struct {
 	kind, target, spec, runtime string
@@ -55,7 +58,9 @@ func (c *Controller) Attach(call Caller, notify func()) {
 	c.life, c.cancel = context.WithCancel(context.Background())
 	c.client = call
 	c.notify = notify
+	preferenceError := c.state.PreferenceError
 	c.state = initial(c.state.Owner+1, call != nil)
+	c.state.PreferenceError = preferenceError
 	c.read++
 	c.listingRead++
 	c.revision++
@@ -136,10 +141,6 @@ func (c *Controller) Load(ctx context.Context) error {
 	}
 	c.read++
 	read := c.read
-	unknownRequest := ""
-	if c.state.Install.Phase == "unknown" {
-		unknownRequest = c.state.Install.RequestID
-	}
 	c.state.Loading = true
 	c.state.Error = ""
 	c.mu.Unlock()
@@ -174,11 +175,6 @@ func (c *Controller) Load(ctx context.Context) error {
 		c.state.Status = "ready"
 		c.state.Packages = packages
 		c.revision++
-		if unknownRequest != "" && c.state.Install.Phase == "unknown" && c.state.Install.RequestID == unknownRequest {
-			c.state.Install.Phase = "reviewed"
-			c.state.Install.Inspection = nil
-			c.state.Install.Error = "Inventory refreshed. Review the installed plugins before starting a new installation."
-		}
 		if c.state.View.Kind == "package" || c.state.View.Kind == "row" {
 			if !hasPackage(packages, c.state.View.Name) {
 				c.state.View = Subject{Kind: "list"}
@@ -406,7 +402,7 @@ func (a Actions) Confirm() {
 }
 func (c *Controller) run(op action) {
 	c.mu.Lock()
-	if c.state.Owner != op.owner || c.client == nil || op.kind == "install" && c.state.Busy || op.kind != "install" && c.state.ActionBusy(op.target) {
+	if c.state.Owner != op.owner || c.client == nil || op.kind == "install" && (c.state.Busy || c.state.Install.RequestID != op.options.RequestID) || op.kind != "install" && c.state.ActionBusy(op.target) {
 		c.mu.Unlock()
 		return
 	}
@@ -450,13 +446,13 @@ func (c *Controller) run(op action) {
 			result, err = client.Exempt(ctx, op.target, op.runtime)
 		}
 		if !c.patch(op.owner, func(s *State) {
+			if op.kind == "install" && (s.Install.RequestID != op.options.RequestID || !installPending(s.Install.Phase)) {
+				return
+			}
 			if op.kind == "install" {
 				s.Busy = false
 			} else {
 				delete(s.BusyKeys, op.target)
-			}
-			if op.kind == "install" && (s.Install.RequestID != op.options.RequestID || !installPending(s.Install.Phase)) {
-				return
 			}
 			if err != nil {
 				s.Notice = err.Error()
@@ -470,13 +466,7 @@ func (c *Controller) run(op action) {
 			}
 			s.Notice = changeMessage(result)
 			if op.kind == "install" {
-				s.Install.Recovering = false
-				s.Install.Result = &result
-				s.Install.Phase = "done"
-				if result.Application == "failed" || result.Application == "cancelled" {
-					s.Install.Phase = result.Application
-				}
-				s.Install.Error = ""
+				settleInstallState(s, result)
 			}
 		}) {
 			return
