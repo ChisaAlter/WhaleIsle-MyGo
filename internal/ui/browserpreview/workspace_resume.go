@@ -48,7 +48,8 @@ func (b *Controller) WorkspaceSnapshot() *WorkspaceSnapshot {
 }
 
 // RestoreWorkspace does not create a native guest or navigate during recovery.
-// The owning pane lazily reopens the selected resource when it is displayed.
+// Document resources resume in their owning pane; saved browser addresses
+// remain a checkpoint until the user explicitly chooses Restore or Go.
 func (b *Controller) RestoreWorkspace(saved *WorkspaceSnapshot) {
 	if saved == nil || len(b.Tabs) != 0 {
 		return
@@ -67,6 +68,9 @@ func (b *Controller) RestoreWorkspace(saved *WorkspaceSnapshot) {
 			tab.ActionMessage = browserChromeLabel("文档快照已结束，请从原文件重新打开预览。", "Document snapshot ended; reopen the preview from the source file.")
 		} else {
 			tab.resumeURL = NormalizeURL(item.URL)
+			if tab.Draft == "" {
+				tab.Draft = tab.resumeURL
+			}
 		}
 		b.Tabs = append(b.Tabs, tab)
 		if tab.ID > b.next {
@@ -88,7 +92,11 @@ func (b *Controller) resumeCurrent() {
 		b.resumeDocument(tab)
 		return
 	}
-	if tab.resumeURL == "" {
+	// Merely displaying a recovered Browser tab must not navigate.
+}
+
+func (b *Controller) restoreBrowserAddress(tab *Tab) {
+	if tab == nil || b.current() != tab || tab.resumeURL == "" {
 		return
 	}
 	workspace, err := b.browserWorkspace()
@@ -97,7 +105,6 @@ func (b *Controller) resumeCurrent() {
 		return
 	}
 	raw := tab.resumeURL
-	tab.resumeURL = ""
 	b.Navigate(raw)
 }
 

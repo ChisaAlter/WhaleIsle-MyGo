@@ -105,7 +105,6 @@ func (b *Controller) Navigate(raw string) {
 		t = b.current()
 	}
 	t.workspace = workspace
-	t.resumeURL = ""
 	t.Draft = raw
 	normalized := NormalizeURL(raw)
 	if normalized == "" {
@@ -129,6 +128,7 @@ func (b *Controller) Navigate(raw string) {
 		return
 	}
 	t.Host = h
+	t.resumeURL = ""
 	t.tools.settings.Scheme = "system"
 	b.showHost(h)
 	b.update()
@@ -318,9 +318,13 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 						b.CancelAction()
 						t.Host.Stop()
 					}
-				} else if ui.Button(c, browserChromeLabel("刷新", "Reload")).Disabled(t.Host == nil).Clicked() {
+				} else if ui.Button(c, browserChromeLabel("刷新", "Reload")).Disabled(t.Host == nil && t.resumeURL == "").Clicked() {
 					b.CancelAction()
-					t.Host.Reload()
+					if t.resumeURL != "" {
+						b.restoreBrowserAddress(t)
+					} else {
+						t.Host.Reload()
+					}
 				}
 				if ui.TextInput(c, &t.Draft).Placeholder("https://example.com").Grow(1).Submitted() {
 					b.Navigate(t.Draft)
@@ -378,7 +382,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				status = browserChromeLabel("分区「", "Profile “") + t.browserWorkspaceLabel() + browserChromeLabel("」 · ", "” · ") + status
 			}
 			if !b.profileSeen && t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil && err == "" {
-				notice := browserChromeLabel("Browser 已按工作区分区；升级后各分区首次需重新登录，旧登录区未迁移或删除。无工作区使用固定共享浏览分区。", "Browser profiles are separated by workspace. After upgrading, sign in once in each profile; the old profile was not migrated or deleted. Without a workspace, a fixed shared browsing profile is used.")
+				notice := browserChromeLabel("Browser 按工作区分区；未归属工作区的会话使用各自独立分区。已有登录区保留；新分区首次需登录。", "Browser profiles are separated by workspace. Sessions outside a workspace have independent profiles. Existing profiles are retained; sign in once in each new profile.")
 				ui.Row(c).Height(22).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).Grow(1).Tooltip(notice)
 					if ui.Button(c, browserChromeLabel("知道了", "Got it")).Clicked() {
@@ -390,7 +394,18 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			}
 		})
 		canvas := ui.Box(c).Key("browser-device-canvas").Fill().Grow(1).MinHeight(0).Background(chrome.Color(colors.Field))
-		canvas.Children(func() { b.deviceResizeRails(c, t, canvas, chrome.Color(colors.Border)) })
+		canvas.Children(func() {
+			if t.resumeURL != "" && t.Host == nil {
+				ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Gap(10).Padding(20).Children(func() {
+					ui.Text(c, browserChromeLabel("恢复上次浏览的页面", "Restore the previous page")).FontSize(theme.InterfaceSize(14))
+					ui.Text(c, t.resumeURL).FontSize(theme.InterfaceSize(12)).Tooltip(t.resumeURL)
+					if ui.Button(c, browserChromeLabel("恢复页面", "Restore page")).Clicked() {
+						b.restoreBrowserAddress(t)
+					}
+				})
+			}
+			b.deviceResizeRails(c, t, canvas, chrome.Color(colors.Border))
+		})
 	})
 }
 func truncate(s string, n int) string {

@@ -9,16 +9,23 @@ import (
 )
 
 func ensureSaveQueue(m Model, t *FileTab) error {
+	return prepareSaveQueue(m, t, false)
+}
+
+// Explicit Save retains the desktop editor's write action for an existing
+// dirty local buffer after a failed or incomplete reread. Automatic observation
+// never grants that authority and never retries a failed queue.
+func prepareSaveQueue(m Model, t *FileTab, explicit bool) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
 	if isTablePreviewPath(t.Path) {
 		return errors.New(label("表格分页是只读视图，不能保存为原文件。", "Workbook pages are read-only and cannot be saved over the original file."))
 	}
-	if t.readBlocked {
+	if t.readLoading || t.readResume || (t.readBlocked && !(explicit && t.Dirty())) {
 		return errors.New(label("读取尚未成功完成，草稿保留；请等待或重新载入后保存。", "Read has not completed successfully. Draft kept; wait or reload before saving."))
 	}
-	if t.Truncated {
+	if t.Truncated && !(explicit && t.Dirty()) {
 		return errors.New(label("不完整文件预览不能保存；草稿保留，请在外部编辑器核对。", "Cannot save an incomplete file preview. Draft kept; reconcile in an external editor."))
 	}
 	if t.Remote {
@@ -47,6 +54,9 @@ func applySaveResult(m Model, t *FileTab) {
 		t.saveRevision = s.Revision
 		t.Error = ""
 		t.Status = i18n.T(i18n.KeyFilesSaved)
+		if s.Error == "" {
+			t.Truncated, t.readBlocked, t.externalChanged = false, false, false
+		}
 	}
 	if s.Error != "" {
 		t.Status = s.Error
@@ -89,6 +99,9 @@ func syncSaveResults(m Model) {
 
 func observeAutosave(m Model) {
 	capture(m)
+	if m.Tabs != nil && m.Tabs.closeSaving {
+		return // Do not cancel a close-save queued behind an in-flight write.
+	}
 	t := selectedTab(m)
 	if t == nil {
 		return
@@ -116,7 +129,7 @@ func requestSaveDraft(m Model) error {
 	if t == nil {
 		return saveDraft(m)
 	}
-	if err := ensureSaveQueue(m, t); err != nil {
+	if err := prepareSaveQueue(m, t, true); err != nil {
 		return err
 	}
 	t.save.Flush(t.Draft)

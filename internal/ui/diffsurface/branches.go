@@ -25,6 +25,12 @@ func branchChanged(m Model, out string, err error) {
 	w.ReviewText = ""
 	if err != nil {
 		w.BranchStatus = err.Error()
+		// A failed checkout may still have changed index/HEAD. Refresh the
+		// repository and diff before showing the failure, as the original does.
+		w.reload(m.WorkspaceRoot)
+		w.reloadBranches()
+		w.BranchStatus = err.Error()
+		scopeDiff(m, "", false)
 		return
 	}
 	w.BranchName = ""
@@ -74,7 +80,11 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 						label += word("（远程）", " (remote)")
 					}
 					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Grow(1)
-					if ui.Button(c, word("切换", "Switch")).FontSize(fonttheme.InterfaceSize(11)).Disabled(b.Current).Clicked() {
+					hint := ""
+					if b.Unsupported {
+						hint = word("此分支名称包含桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
+					}
+					if ui.Button(c, word("切换", "Switch")).FontSize(fonttheme.InterfaceSize(11)).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
 						out, err := git.SwitchBranch(m.WorkspaceRoot, b.Name)
 						branchChanged(m, out, err)
 					}
@@ -87,7 +97,14 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 	ui.Row(c).Gap(6).Children(func() {
 		ui.TextInput(c, &w.BranchName).Grow(1).Placeholder(word("新分支名称", "New branch name"))
-		if ui.Button(c, word("创建并切换", "Create and switch")).Disabled(strings.TrimSpace(w.BranchName) == "").Clicked() {
+		taken := false
+		for _, branch := range w.Branches {
+			if !branch.Remote && branch.Name == strings.TrimSpace(w.BranchName) {
+				taken = true
+				break
+			}
+		}
+		if ui.Button(c, word("创建并切换", "Create and switch")).Disabled(strings.TrimSpace(w.BranchName) == "" || taken).Clicked() {
 			out, err := git.CreateBranch(m.WorkspaceRoot, strings.TrimSpace(w.BranchName))
 			branchChanged(m, out, err)
 		}

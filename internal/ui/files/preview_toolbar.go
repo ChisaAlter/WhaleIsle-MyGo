@@ -40,6 +40,16 @@ func previewDirty(m Model) bool {
 	return m.Preview != nil && m.EditDraft != nil && *m.Preview != *m.EditDraft
 }
 
+func explicitSaveDisabled(m Model) bool {
+	if m.OnSaveEdit == nil || m.WorkspaceRoot == "" || !previewDirty(m) {
+		return true
+	}
+	if tab := selectedTab(m); tab != nil {
+		return tab.Remote || isTablePreviewPath(tab.Path) || tab.readLoading || tab.readResume
+	}
+	return previewTruncated(m) || textReadBlocked(m)
+}
+
 type previewToolbarOwner struct {
 	read textReadOwner
 	tab  *FileTab
@@ -167,7 +177,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			paintPreviewSelectionActions(c, m, path)
 			if previewEditable(m, path) || previewDirty(m) {
 				if previewTextTool(c, i18n.T(i18n.KeyFilesSave)).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
-					Disabled(m.OnSaveEdit == nil || !previewDirty(m) || previewTruncated(m) || textReadBlocked(m)).Clicked() {
+					Disabled(explicitSaveDisabled(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
@@ -348,7 +358,7 @@ func previewContextActions(menu *ui.Menu, m Model, path string) {
 	if editing && m.EditDraft != nil && menu.Item(label("复制草稿", "Copy draft")).Chosen() {
 		mygo.Clipboard.WriteText(*m.EditDraft)
 	}
-	if !desktopFileToolbar(m, path) && editing && m.OnSaveEdit != nil && m.EditDraft != nil && menu.Item(i18n.T(i18n.KeyFilesSave)).Disabled(previewTruncated(m) || textReadBlocked(m)).Chosen() {
+	if !desktopFileToolbar(m, path) && editing && m.OnSaveEdit != nil && m.EditDraft != nil && menu.Item(i18n.T(i18n.KeyFilesSave)).Disabled(explicitSaveDisabled(m)).Chosen() {
 		if err := requestSaveDraft(m); err != nil {
 			setFileStatus(m, err.Error())
 		}

@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -10,6 +11,13 @@ import (
 type Branch struct {
 	Name, LocalName string
 	Remote, Current bool
+	Unsupported     bool
+}
+
+var desktopBranchName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
+
+func supportedBranchName(name string) bool {
+	return desktopBranchName.MatchString(name) && !strings.Contains(name, "..") && !strings.HasSuffix(name, ".lock") && !strings.HasSuffix(name, "/")
 }
 
 func Branches(root string) ([]Branch, error) {
@@ -47,6 +55,7 @@ func parseBranches(out string) []Branch {
 			continue
 		}
 		if branch.Name != "" {
+			branch.Unsupported = !supportedBranchName(branch.Name)
 			branches = append(branches, branch)
 		}
 	}
@@ -71,6 +80,9 @@ func parseBranches(out string) []Branch {
 }
 
 func checkBranchName(root, name string) error {
+	if !supportedBranchName(name) {
+		return errors.New("Branch name contains characters the desktop cannot pass to git safely.")
+	}
 	if name == "" || strings.TrimSpace(name) != name || strings.HasPrefix(name, "-") || strings.ContainsAny(name, "\x00\r\n\t") {
 		return errors.New("enter a valid branch name")
 	}
@@ -85,7 +97,8 @@ func checkBranchName(root, name string) error {
 }
 
 // SwitchBranch resolves a listed ref again before switching. Git's normal dirty
-// tree and other-worktree protections remain enabled; there is no force/reset.
+// tree protections remain enabled. Like the original picker, switching this
+// folder may reuse a branch already checked out in another worktree.
 func SwitchBranch(root, name string) (string, error) {
 	if err := checkBranchName(root, name); err != nil {
 		return "", err
@@ -105,9 +118,9 @@ func SwitchBranch(root, name string) (string, error) {
 			if err := checkBranchName(root, branch.LocalName); err != nil {
 				return "", err
 			}
-			return localCommand(root, "switch", "--track", "-c", branch.LocalName, name)
+			return localCommand(root, "switch", "--ignore-other-worktrees", "--track", "-c", branch.LocalName, name)
 		}
-		return localCommand(root, "switch", "--no-guess", name)
+		return localCommand(root, "switch", "--ignore-other-worktrees", "--no-guess", name)
 	}
 	return "", errors.New("branch is no longer available; refresh the branch list")
 }

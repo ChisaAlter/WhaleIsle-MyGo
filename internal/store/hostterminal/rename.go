@@ -130,6 +130,7 @@ func (s *Store) SaveRename(owner uint64, session, id string) {
 			e.rename.view.Error = "Rename was not confirmed; the name draft is preserved. " + err.Error()
 		} else {
 			e.info.Title = title
+			e.metadataRevision++
 			e.rename.view = RenameView{}
 			if st := s.sessions[session]; st != nil {
 				for i := range st.items {

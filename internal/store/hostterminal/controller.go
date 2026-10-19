@@ -73,6 +73,7 @@ type sessionState struct {
 	environment Environment
 	operation   uint64
 	shells      shellState
+	recoveredID string
 }
 type terminalKey struct{ session, id string }
 type entry struct {
@@ -84,6 +85,7 @@ type entry struct {
 	holdSerial             uint64
 	attachment             *Attachment
 	rename                 renameState
+	metadataRevision       uint64
 }
 
 type Store struct {
@@ -266,6 +268,12 @@ func (s *Store) Refresh(owner uint64, session string) {
 	st.error = ""
 	st.operation++
 	op := st.operation
+	revisions := make(map[string]uint64)
+	for key, entry := range s.entries {
+		if key.session == session {
+			revisions[key.id] = entry.metadataRevision
+		}
+	}
 	r, epoch, ctx := s.remote, s.epoch, s.ctx
 	s.mu.Unlock()
 	s.fire()
@@ -283,13 +291,15 @@ func (s *Store) Refresh(owner uint64, session string) {
 		if err != nil {
 			st.error = err.Error()
 		} else {
-			st.items = items
-			for _, info := range items {
+			for i, info := range items {
 				e := s.entryLocked(terminalKey{session, info.ID})
-				if e.attachment == nil {
+				if e.attachment != nil || e.metadataRevision != revisions[info.ID] {
+					items[i] = e.info
+				} else {
 					e.info = info
 				}
 			}
+			st.items = items
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -336,10 +346,19 @@ func (s *Store) Create(owner uint64, session string) {
 		if err == nil {
 			s.mu.Lock()
 			valid := s.epoch == epoch && st.operation == op && s.ready && s.visible == session && ctx.Err() == nil
+			if valid {
+				// Save the identity before allocation starts. A checkpoint during
+				// creation can later recover this exact process after a lost reply.
+				e := s.entryLocked(terminalKey{session, id})
+				e.phase = "creating"
+				s.selectLocked(st, e)
+				st.items = append(st.items, e.info)
+			}
 			s.mu.Unlock()
 			if !valid {
 				err = context.Canceled
 			} else {
+				s.fire()
 				request := map[string]any{"id": id, "cols": min(80, env.MaxCols), "rows": min(24, env.MaxRows)}
 				if shellPath != "" {
 					request["shellPath"] = shellPath
@@ -364,12 +383,15 @@ func (s *Store) Create(owner uint64, session string) {
 				e.phase = "failed"
 				e.error = "Creation outcome uncertain; refresh the list or explicitly close this identity. " + err.Error()
 				st.active = id
-				st.items = append(st.items, e.info)
 			}
 
 		} else {
 			st.environment = env
-			st.items = append(st.items, info)
+			for i := range st.items {
+				if st.items[i].ID == id {
+					st.items[i] = info
+				}
+			}
 			e := s.entryLocked(terminalKey{session, id})
 			e.info = info
 			s.selectLocked(st, e)
@@ -715,7 +737,18 @@ func (a *Attachment) follow() {
 		raw, err := stream.Recv(a.ctx)
 		if err != nil {
 			if a.ctx.Err() == nil {
-				a.fail(err)
+				a.store.mu.Lock()
+				exited := a.store.currentLocked(a) && a.entry.info.State == "exited"
+				if exited {
+					a.entry.phase, a.entry.error = "closed", ""
+				}
+				a.store.mu.Unlock()
+				if exited {
+					a.cancel()
+					a.store.fire()
+				} else {
+					a.fail(err)
+				}
 			}
 			return
 		}
@@ -751,6 +784,7 @@ func (a *Attachment) follow() {
 				return
 			}
 			a.entry.info = *f.Info
+			a.entry.metadataRevision++
 			a.writable = *f.Writable
 			if first {
 				a.inputWindow = f.InputWindow

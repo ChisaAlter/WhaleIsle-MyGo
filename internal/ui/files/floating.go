@@ -149,10 +149,13 @@ func (f *floatingPreview) view(c *ui.Context) {
 	})
 }
 
-// Prefer authenticated source readers over local paths, even if a same-named
-// local file exists. A Host read failure must never fall back to local bytes.
+// The desktop floating action uses the same local saved file as FilePreview.
+// Separate Host-owned fallback resources retain their captured readers.
 func savedFloatingReader(m Model, path string) func(context.Context) textReadResult {
 	root, remote, pageReader, tableReader := m.WorkspaceRoot, m.ReadRemoteContext, m.ReadTextPageContext, m.ReadTableContext
+	if desktopFileToolbar(m, path) {
+		remote, pageReader = nil, nil
+	}
 	return func(ctx context.Context) textReadResult {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()

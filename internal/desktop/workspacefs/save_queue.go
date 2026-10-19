@@ -125,6 +125,13 @@ func (q *SaveQueue) startLocked() {
 		}
 		q.running = false
 		if err != nil {
+			var conflict *SaveConflictError
+			if errors.As(err, &conflict) {
+				// A complete reread becomes the baseline, but never confirms the
+				// draft. The failed write stays blocked until an explicit Flush.
+				q.confirmed = conflict.Current
+				q.revision++
+			}
 			q.problem = err.Error()
 			q.blocked = true
 			q.stopPendingLocked()
@@ -157,9 +164,18 @@ func (q *SaveQueue) Dispose() {
 	q.cancel()
 }
 
-// SaveTextChecked preserves the exact read baseline and refuses unreadable,
-// binary, truncated, externally changed or out-of-workspace targets. A remote
-// preview is never authority to create or overwrite a local mirror file.
+// SaveConflictError acknowledges the complete disk text without writing the
+// draft. Retrying explicitly rereads against this new baseline.
+type SaveConflictError struct{ Current string }
+
+func (e *SaveConflictError) Error() string {
+	return "File changed on disk. Draft kept. Save again to write the draft over the current file."
+}
+
+// SaveTextChecked rereads a desktop editor's target before writing. Like the
+// original FilePreview, only a complete text read can establish a conflict;
+// a retained dirty draft can still be saved after failed/binary/truncated reads.
+// The caller must own a local editor draft; Host previews have no write authority.
 // One gate also serializes a newly bound queue with an older write that had
 // already entered the OS before cancellation. Waiting remains cancellable.
 var checkedSaveGate = make(chan struct{}, 1)
@@ -179,14 +195,11 @@ func SaveTextChecked(ctx context.Context, root, rel, baseline, text string, writ
 		return err
 	}
 	current, err := ReadFileText(full, TextPreviewLimit)
-	if err != nil {
-		return err
-	}
-	if current.Text == text {
+	if err == nil && current.Text == text {
 		return nil
 	}
-	if current.Text != baseline {
-		return errors.New("File changed on disk. Draft kept. Copy your draft before reopening to reconcile.")
+	if err == nil && current.Text != baseline {
+		return &SaveConflictError{Current: current.Text}
 	}
 	if err := ctx.Err(); err != nil {
 		return err

@@ -33,6 +33,7 @@ type Tabs struct {
 	Root             string
 	binding          string
 	boundRoot        string
+	closeSaving      bool
 	Tree             *workspacefs.DirectoryTree `json:"-"`
 	Search           *workspacefs.Search        `json:"-"`
 }
@@ -338,12 +339,17 @@ func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		if w.PendingClose != "" {
 			path := w.PendingClose
+			busy := false
+			if tab := findTab(w, path); tab != nil && tab.save != nil {
+				save := tab.save.Snapshot()
+				busy = save.Running || (tab.closeWhenSaved && save.Pending)
+			}
 			ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, label("保留草稿", "Keep draft")).Clicked() {
+				if ui.Button(c, label("保留草稿", "Keep draft")).Disabled(busy).Clicked() {
 					w.PendingClose = ""
 				}
-				if ui.Button(c, label("保存并关闭", "Save and close")).Clicked() {
+				if ui.Button(c, label("保存并关闭", "Save and close")).Disabled(busy).Clicked() {
 					selectFile(m, path)
 					if err := requestSaveDraft(m); err != nil {
 						if m.EditStatus != nil {
@@ -357,7 +363,7 @@ func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 						}
 					}
 				}
-				if ui.Button(c, label("丢弃并关闭", "Discard and close")).Clicked() {
+				if ui.Button(c, label("丢弃并关闭", "Discard and close")).Disabled(busy).Clicked() {
 					closeTab(m, path, true)
 				}
 			})
@@ -393,7 +399,7 @@ func (t *Tabs) Restore(data []byte) error {
 		w.PendingClose = ""
 	}
 	restored.Root = ""
-	t.stopImageRead(true)
+	t.Dispose()
 	*t = restored
 	return nil
 }
