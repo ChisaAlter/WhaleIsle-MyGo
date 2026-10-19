@@ -199,7 +199,7 @@ func TestObserverTaskCardWideNarrowStateMatrix(t *testing.T) {
 	}
 }
 
-func TestObserverFullCardsFenceNoArgumentActionsAndSerializeReads(t *testing.T) {
+func TestObserverFullCardsKeepIndependentActionsAndSerializeReads(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	m, o := observerTaskFixture(t)
@@ -211,54 +211,45 @@ func TestObserverFullCardsFenceNoArgumentActionsAndSerializeReads(t *testing.T) 
 		t.Fatalf("concurrent restored reads=%v", reads)
 	}
 	first := m.RequestPage.Items[0]
-	m.RequestCard = &first
-	m.Busy = false
+	m.RequestCard, m.Busy = &first, false
 	tt.Frame()
 	if len(reads) != 2 || reads[1] != "waiting" {
 		t.Fatalf("next restored card not read after first settlement: %v", reads)
 	}
 	second := m.RequestPage.Items[1]
-	m.RequestCard = &second
-	m.Busy = false
-	tt.Frame()
-	activity := 0
-	m.OnRequestActivity = func() { activity++ }
+	m.RequestCard, m.Busy = &second, false
+	var activity []string
+	m.OnRequestActivity = func() { t.Fatal("A invoked the legacy current-B activity callback") }
+	m.RequestCardActions = func(id string, revision int) RequestCardActions {
+		known := id == first.ID && revision == first.Revision || id == second.ID && revision == second.Revision
+		return RequestCardActions{Known: known, Activity: func() { activity = append(activity, id) }}
+	}
 	tt.Frame()
 	if err := tt.Click("Activity timeline"); err != nil {
 		t.Fatal(err)
 	}
-	if activity != 0 {
-		t.Fatal("stale full card invoked current-card callback")
-	}
-	m.OnRequestGet = func(id string) {
-		if id != "active" {
-			t.Fatalf("refresh changed identity: %s", id)
-		}
-		copy := m.RequestPage.Items[0]
-		m.RequestCard = &copy
-	}
-	if err := tt.Click("Refresh task details"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click("Activity timeline"); err != nil {
-		t.Fatal(err)
-	}
-	if activity != 1 {
-		t.Fatal("fresh pinned card did not enable existing typed callback")
+	if len(activity) != 1 || activity[0] != first.ID || len(reads) != 2 {
+		t.Fatalf("B displaced A's independent action: activity=%v reads=%v", activity, reads)
 	}
 }
 
-func TestObserverCardAssetsAndWorkRequireMatchingControllerContext(t *testing.T) {
+func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	m, _ := observerTaskFixture(t)
 	active, delivered := m.RequestPage.Items[0], m.RequestPage.Items[2]
-	opened, inspected, diffs := 0, 0, 0
+	admitted := map[string]bool{}
+	var opened, inspected, diffs []string
 	m.OnResolvedFile = func(string) {}
-	m.OnArtifact = func(file projectflow.Artifact, _ func(string)) {
-		opened++
-		if file.DelegationRef != "old-assignment" {
-			t.Fatal("artifact identity changed")
+	m.OnArtifact = func(projectflow.Artifact, func(string)) { t.Fatal("file fell through to last-read card callback") }
+	m.OnWorkDiff = func(string) { t.Fatal("diff fell through to last-read card callback") }
+	m.OnRequestWorkDetail = func(string, string) { t.Fatal("inspector fell through to last-read card callback") }
+	m.RequestCardActions = func(id string, revision int) RequestCardActions {
+		known := admitted[id] && (id == active.ID && revision == active.Revision || id == delivered.ID && revision == delivered.Revision)
+		return RequestCardActions{Known: known,
+			OpenFile:   func(file projectflow.Artifact, _ func(string)) { opened = append(opened, id+"/"+file.DelegationRef) },
+			WorkDetail: func(work string) { inspected = append(inspected, id+"/"+work) },
+			WorkDiff:   func(work string) { diffs = append(diffs, id+"/"+work) },
 		}
 	}
 	m.RequestCard = &active
@@ -268,66 +259,37 @@ func TestObserverCardAssetsAndWorkRequireMatchingControllerContext(t *testing.T)
 	if err := tt.Click("Open file: Survey report"); err != nil {
 		t.Fatal(err)
 	}
-	if opened != 0 {
-		t.Fatal("stale cached card opened a current-card artifact")
+	if len(opened) != 0 {
+		t.Fatal("unadmitted card opened a file")
 	}
-	m.RequestCard = &delivered
+	admitted[delivered.ID] = true
 	tt.Frame()
 	if err := tt.Click("Open file: Survey report"); err != nil {
 		t.Fatal(err)
 	}
-	if opened != 1 {
-		t.Fatal("matching artifact callback unavailable")
+	if len(opened) != 1 || opened[0] != "delivered/old-assignment" {
+		t.Fatalf("file lost its card/report identity: %v", opened)
 	}
-	m.OnInspect = func(work, member string) {
-		inspected++
-		if work != "survey" || member != "" {
-			t.Fatal("work identity changed")
-		}
-	}
-	m.OnWorkDiff = func(string) { diffs++ }
-	m.OnTeam = func(id string) {
-		m.TeamID = id
-		m.Team = &projectflow.Overview{Project: m.Listing.Projects[0], Team: &projectflow.TeamProjection{}}
-	}
+	m.RequestCard = &delivered
 	tt = ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { taskCardDetail(c, m, active, "team") }) }, 700, 900)
 	if err := tt.Click("View work details"); err != nil {
 		t.Fatal(err)
 	}
-	if inspected != 0 {
-		t.Fatal("unloaded team rendered an executable work detail action")
-	}
 	if err := tt.Click("View current workspace diff"); err != nil {
 		t.Fatal(err)
 	}
-	if diffs != 0 {
-		t.Fatal("stale request rendered executable workspace diff")
+	if len(inspected) != 0 || len(diffs) != 0 {
+		t.Fatal("unadmitted revision reached a work action")
 	}
-	m.OnRequestWorkDetail = func(request, work string) {
-		inspected++
-		if request != "active" || work != "survey" {
-			t.Fatal("pinned request/work identity changed")
-		}
-	}
+	admitted[active.ID] = true
 	tt.Frame()
 	if err := tt.Click("View work details"); err != nil {
 		t.Fatal(err)
 	}
-	if inspected != 0 {
-		t.Fatal("cached request invoked the current-card work detail adapter")
-	}
-	m.RequestCard = &active
-	tt.Frame()
-	if err := tt.Click("View work details"); err != nil {
-		t.Fatal(err)
-	}
-	if inspected != 1 {
-		t.Fatal("pinned work detail adapter did not enable one-click work detail")
-	}
 	if err := tt.Click("View current workspace diff"); err != nil {
 		t.Fatal(err)
 	}
-	if diffs != 1 {
-		t.Fatal("matching request context did not enable workspace diff")
+	if len(inspected) != 1 || inspected[0] != "active/survey" || len(diffs) != 1 || diffs[0] != "active/survey" {
+		t.Fatalf("last-read delivered card displaced active work: inspector=%v diff=%v", inspected, diffs)
 	}
 }
