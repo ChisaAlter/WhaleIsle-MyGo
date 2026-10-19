@@ -145,16 +145,50 @@ func TestWorkspaceSearchIsInlineAndEscapeClears(t *testing.T) {
 }
 
 func TestAuthoritativeWorkspacesDoNotDuplicateCurrentFolder(t *testing.T) {
-	for _, authoritative := range []bool{false, true} {
-		snapshot := session.ViewState{}
-		if authoritative {
-			snapshot.Workspaces = []session.WorkspaceRow{{WorkspaceID: "ws", Title: "Host workspace"}}
-		}
-		tt := ui.NewTester(func(c *ui.Context) { View(c, Model{WorkspaceLabel: "Legacy folder", Snapshot: snapshot}) }, 280, 800)
-		_, legacy := tt.Find("Legacy folder")
-		if legacy == authoritative {
-			t.Fatalf("authoritative=%v legacy folder visible=%v", authoritative, legacy)
-		}
+	for _, tc := range []struct {
+		name     string
+		snapshot session.ViewState
+		feedback string
+		rows     int
+	}{
+		{"disconnected", session.ViewState{}, workspaceText("连接后显示会话", "Connect to load sessions"), 0},
+		{"ready-empty", session.ViewState{WorkspaceReady: true}, workspaceText("暂无会话", "No sessions yet"), 0},
+		{"authoritative", session.ViewState{WorkspaceReady: true, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", Title: "Host workspace"}}}, "Host workspace", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			selected, calls := "", 0
+			menuOpen := false
+			m := Model{WorkspaceLabel: "Legacy folder", Snapshot: tc.snapshot, WorkspaceMenuOpen: &menuOpen,
+				OnSelectWorkspace: func(id string) { selected, calls = id, calls+1 }}
+			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 800)
+			// The original WorkspaceBrowser renders its registry or empty state;
+			// neither the disconnected nor ready-empty list synthesizes cwd.
+			if _, legacy := tt.Find("Legacy folder"); legacy {
+				t.Fatal("configured folder duplicated the workspace list")
+			}
+			if _, found := tt.Find(tc.feedback); !found {
+				t.Fatalf("missing workspace state %q: %v", tc.feedback, tt.Texts())
+			}
+			rows := 0
+			for _, text := range tt.Texts() {
+				if text == workspaceText("折叠工作区 ", "Toggle workspace ")+"ws" {
+					rows++
+				}
+			}
+			if rows != tc.rows {
+				t.Fatalf("Host workspace rows=%d, want %d", rows, tc.rows)
+			}
+			if tc.rows == 1 {
+				if err := tt.Click("Host workspace"); err != nil {
+					t.Fatal(err)
+				}
+				if selected != "ws" || calls != 1 {
+					t.Fatalf("workspace click selected=%q calls=%d", selected, calls)
+				}
+			} else if _, found := tt.Find("Host workspace"); found {
+				t.Fatal("non-authoritative state synthesized a Host workspace")
+			}
+		})
 	}
 }
 
