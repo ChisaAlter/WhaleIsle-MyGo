@@ -116,9 +116,12 @@ type Model struct {
 	AskOnUpdate                                                           *bool
 	DownloadRoute                                                         *string // "", "github", "cnb"
 	OnSaveLauncherPrefs                                                   func()
+	LauncherPrefsError                                                    string
 	Components                                                            []components.Row
 	OnRefreshComponents                                                   func()
 	ComponentBusy                                                         bool
+	ComponentPending                                                      map[string]string // component id -> in-flight action
+	ComponentStatus                                                       string
 	HostRuntimeState                                                      harness.State
 	OnComponentAction                                                     func(id, action string) // install|start|stop|open|update|rollback|uninstall
 	// ImportOverwrite / ImportAttachments mirror launcher.html #import-overwrite / #import-attachments.
@@ -222,7 +225,7 @@ func rail(c *ui.Context, m Model, tab string) {
 		BorderWidth(0, 1, 0, 0).BorderColor(colBorderL1).
 		Padding(railPadTop, 12, 16, 12).Gap(18).Children(func() {
 		railHead(c)
-		ui.Column(c).Gap(4).Grow(1).Children(func() {
+		ui.Column(c).Gap(4).Grow(1).Role(ui.RoleTabList).FocusGroup(ui.Vertical).Children(func() {
 			railTab(c, m, TabHome, i18n.T(i18n.KeyLauncherTabHome), tab, 0)
 			compBadge := 0
 			for _, row := range m.Components {
@@ -307,7 +310,7 @@ func railTab(c *ui.Context, m Model, id, label, active string, badge int) {
 		bg = colNavActive
 	}
 	// launcher.css .tab.is-active: wash only (no left accent bar).
-	btn := ui.Button(c, "").FillWidth().Height(40).Radius(12).Background(bg).
+	btn := ui.Button(c, "").Role(ui.RoleTab).Checked(on).Label(label).FillWidth().Height(40).Radius(12).Background(bg).
 		BorderWidth(0).BorderColor(ui.Transparent).
 		Padding(9, 16, 9, 12).AlignItems(ui.Center)
 	if btn.Hovered() && !on {
@@ -600,8 +603,8 @@ func homeComponents(c *ui.Context, m Model) {
 func componentsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(12).Children(func() {
 		bridgeAlertSummary(c, m, true)
-		if m.UpdateStatus != "" {
-			ui.Text(c, m.UpdateStatus).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+		if m.ComponentStatus != "" {
+			ui.Text(c, m.ComponentStatus).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		}
 		if !components.WhaleBridgeManagementSupported() {
 			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
@@ -623,6 +626,12 @@ func componentsPanel(c *ui.Context, m Model) {
 }
 
 func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
+	pendingAction := m.ComponentPending[row.ID]
+	componentBusy := m.ComponentBusy || pendingAction != ""
+	statusText := stateLabel(row.State)
+	if pendingAction != "" {
+		statusText = componentPendingLabel(pendingAction)
+	}
 	if row.ID == components.HostComponentID {
 		hostBundleCard(c, m, row, compact)
 		return
@@ -633,24 +642,39 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 		if width <= 760 {
 			padding = 16
 		}
-		ui.Column(c).MinWidth(0).Background(colSidebar).Border(1, colBorderL2).Radius(12).
+		ui.Column(c.Key("home-component-"+row.ID)).MinWidth(0).Background(colSidebar).Border(1, colBorderL2).Radius(12).
 			Padding(padding).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Children(func() {
-				if bmp := brandAvatar(); bmp != nil {
-					ui.Image(c, bmp).Width(36).Height(36).Fit(ui.Contain)
-				}
+				componentAvatar(c, row, 36)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
 						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+						ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
+							ui.Text(c, statusText).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+						})
 					})
 					if row.Description != "" {
 						ui.Text(c, row.Description).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					}
 				})
 			})
-			// Electron: stopped ?????{?}?? running ??no CTA on home card.
-			if row.State != "running" {
+			if row.Message != "" {
+				ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			}
+			// launcher-components.js renderHomeRows keeps stop and settings
+			// reachable from the home card while an installed component runs.
+			if row.State == "running" {
+				ui.Row(c).Wrap().Gap(8).Children(func() {
+					label := fmt.Sprintf(releaseText("关闭%s", "Close %s"), row.Name)
+					if ghostBtn(c, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						m.OnComponentAction(row.ID, "stop")
+					}
+					if row.ID == "whalebridge" && ghostBtn(c, i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						m.OnComponentAction(row.ID, "open")
+					}
+				})
+			} else if row.State != "unsupported" {
 				label := fmt.Sprintf(i18n.T(i18n.KeyLauncherCompStartNamed), row.Name)
 				if row.State == "error" {
 					label = i18n.T(i18n.KeyLauncherCompRetry)
@@ -659,7 +683,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					label = i18n.T(i18n.KeyLauncherCompInstall)
 				}
 				ui.Row(c).Children(func() {
-					if primaryBtn(c, label).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+					if primaryBtn(c, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 						action := "start"
 						if row.State == "available" {
 							action = "install"
@@ -673,12 +697,10 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 	}
 
 	// Electron L-COMP: divider row ??avatar | copy+tags | trailing column (status + ??/??).
-	ui.Column(c).FillWidth().Padding(12, 0, 14, 0).
+	ui.Column(c.Key("component-"+row.ID)).FillWidth().Padding(12, 0, 14, 0).
 		BorderWidth(0, 0, 1, 0).BorderColor(colBorderL1).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
-			if bmp := brandAvatar(); bmp != nil {
-				ui.Image(c, bmp).Width(40).Height(40).Fit(ui.Contain)
-			}
+			componentAvatar(c, row, 40)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
@@ -691,6 +713,15 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
 							ui.Text(c, i18n.T(i18n.KeyLauncherCompOfficial)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
 						})
+					} else if row.Source == "bundled" {
+						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, releaseText("示例", "Sample")).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
+						})
+					}
+					if row.Orphan {
+						ui.Row(c).Background(colWarnBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, releaseText("目录外组件", "Outside catalog")).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
+						})
 					}
 					if row.UpdateAvailable {
 						ui.Row(c).Background(colField).Padding(1, 6, 1, 6).Radius(6).Children(func() {
@@ -698,15 +729,21 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						})
 					}
 				})
+				var meta []string
 				if row.Description != "" {
-					desc := row.Description + " · v" + nonempty(row.Version, row.InstalledVersion)
-					if row.InstalledVersion != "" && row.Version != "" && row.InstalledVersion != row.Version {
-						desc += " · v" + row.InstalledVersion
-					}
-					ui.Text(c, desc).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-					if row.UpdateAvailable {
-						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-					}
+					meta = append(meta, row.Description)
+				}
+				if row.State != "unsupported" {
+					meta = append(meta, "v"+nonempty(row.Version, "?"))
+				}
+				if row.InstalledVersion != "" && row.InstalledVersion != row.Version {
+					meta = append(meta, releaseText("\u5b89\u88c5", "Installed")+" v"+row.InstalledVersion)
+				}
+				if len(meta) > 0 {
+					ui.Text(c, strings.Join(meta, " \u00b7 ")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+				}
+				if row.UpdateAvailable {
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				}
 				if row.Message != "" {
 					ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
@@ -714,39 +751,28 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 			})
 			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
-					ui.Text(c, stateLabel(row.State)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
+					ui.Text(c, statusText).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
 				})
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Justify(ui.End).Gap(8).AlignItems(ui.Center).Children(func() {
+					if row.State == "unsupported" {
+						return
+					}
 					compPrimary := func(label string) ui.Element {
 						// Electron ?? ??72�42 device-px @150% ??~48�28 DIP.
 						return ui.Button(c, label).Height(28).Padding(0, 10, 0, 10).
 							Radius(14).Background(colPrimary).BorderWidth(0).
 							TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(12))
 					}
-					if row.ID != components.HostComponentID && row.InstalledVersion != "" {
-						disabled := m.ComponentBusy || (row.ID == "whalebridge" && !components.WhaleBridgeManagementSupported())
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompCheckUpdate)).Disabled(disabled || (row.ID != "whalebridge" && !row.UpdateAvailable)).Clicked() && m.OnComponentAction != nil {
-							m.OnComponentAction(row.ID, "update")
-						}
-						if row.PreviousVersion != "" && row.PreviousVersion != row.InstalledVersion {
-							if ghostSmall(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompRollback), row.PreviousVersion)).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
-								m.OnComponentAction(row.ID, "rollback")
-							}
-						}
-						if ghostSmall(c, releaseText("卸载", "Uninstall")).Disabled(disabled).Clicked() && m.OnComponentAction != nil {
-							m.OnComponentAction(row.ID, "uninstall")
-						}
-					}
 					switch row.State {
 					case "available":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "install")
 						}
 					case "running":
-						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "stop")
 						}
 					default:
@@ -754,16 +780,65 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						if row.State == "error" {
 							label = i18n.T(i18n.KeyLauncherCompRetry)
 						}
-						if compPrimary(label).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "start")
 						}
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompManage)).Disabled(m.ComponentBusy).Clicked() && m.OnComponentAction != nil {
-							m.OnComponentAction(row.ID, "open")
-						}
+					}
+					if row.InstalledVersion != "" {
+						componentManagement(c, m, row, componentBusy)
 					}
 				})
 			})
 		})
+	})
+}
+
+func componentAvatar(c *ui.Context, row components.Row, size float32) {
+	if row.ID == "whalebridge" {
+		if bmp := brandAvatar(); bmp != nil {
+			ui.Image(c, bmp).Width(size).Height(size).Fit(ui.Contain)
+			return
+		}
+	}
+	name := []rune(strings.TrimSpace(nonempty(row.Name, row.ID)))
+	glyph := "?"
+	if len(name) > 0 {
+		glyph = strings.ToUpper(string(name[0]))
+	}
+	ui.Box(c).Width(size).Height(size).Radius(8).Background(colField).Center().Children(func() {
+		ui.Text(c, glyph).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colSecondary)
+	})
+}
+
+func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) {
+	busy = busy || (row.ID == "whalebridge" && !components.WhaleBridgeManagementSupported())
+	trigger := ghostSmall(c, i18n.T(i18n.KeyLauncherCompManage)).Disabled(busy)
+	open := ui.Local(trigger, "component-manage-open", func() bool { return false })
+	if trigger.Clicked() {
+		*open = !*open
+	}
+	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
+		panel.MinWidth(220).Background(colBase).Border(1, colBorderL2).Radius(10).Padding(6).
+			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0)
+		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
+			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
+		action := func(id, label string) {
+			if ghostSmall(c, label).FillWidth().Justify(ui.Start).Disabled(busy).Clicked() {
+				*open = false
+				if m.OnComponentAction != nil {
+					m.OnComponentAction(row.ID, id)
+				}
+			}
+		}
+		if row.UpdateAvailable {
+			action("update", fmt.Sprintf(releaseText("更新至 v%s", "Update to v%s"), row.Version))
+		} else if row.ID == "whalebridge" && components.WhaleBridgeManagementSupported() {
+			action("update", i18n.T(i18n.KeyLauncherCompCheckUpdate))
+		}
+		if row.PreviousVersion != "" && row.PreviousVersion != row.InstalledVersion {
+			action("rollback", fmt.Sprintf(i18n.T(i18n.KeyLauncherCompRollback), row.PreviousVersion))
+		}
+		action("uninstall", releaseText("卸载", "Uninstall"))
 	})
 }
 
@@ -778,12 +853,37 @@ func kindLabel(kind string) string {
 	}
 }
 
+func componentPendingLabel(action string) string {
+	switch action {
+	case "install":
+		return releaseText("正在安装…", "Installing…")
+	case "start":
+		return releaseText("正在启动…", "Starting…")
+	case "stop":
+		return releaseText("正在停止…", "Stopping…")
+	case "update":
+		return releaseText("正在更新…", "Updating…")
+	case "rollback":
+		return releaseText("正在回滚…", "Rolling back…")
+	case "uninstall":
+		return releaseText("正在卸载…", "Uninstalling…")
+	case "open":
+		return releaseText("正在打开…", "Opening…")
+	default:
+		return action
+	}
+}
+
 func stateLabel(state string) string {
 	switch state {
 	case "running":
 		return i18n.T(i18n.KeyLauncherCompStateRunning)
 	case "stopped":
 		return i18n.T(i18n.KeyLauncherCompStateStopped)
+	case "installed":
+		return releaseText("已安装", "Installed")
+	case "unsupported":
+		return releaseText("暂不支持", "Unsupported")
 	case "available":
 		return i18n.T(i18n.KeyLauncherCompStateAvailable)
 	case "error":
@@ -981,7 +1081,7 @@ func importPanel(c *ui.Context, m Model) {
 		if m.ImportCatalog != nil {
 			counts = m.ImportCatalog.CategoryCounts()
 		}
-		ui.Row(c).Gap(6).Children(func() {
+		ui.Row(c).Gap(6).Role(ui.RoleTabList).FocusGroup(ui.Horizontal).Children(func() {
 			for _, cat := range cats {
 				n, d := 0, 0
 				if pair, ok := counts[cat.id]; ok {
@@ -998,10 +1098,11 @@ func importPanel(c *ui.Context, m Model) {
 					bg = colNavActive
 				}
 				id := cat.id
-				btn := ui.Button(c, label).Background(bg).Border(1, colBorderL2).
+				btn := ui.Button(c, label).Role(ui.RoleTab).Checked(importCatActive == id).Background(bg).Border(1, colBorderL2).
 					Padding(4, 10, 4, 10).Radius(8).TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
 				if btn.Clicked() {
 					importCatActive = id
+					c.Invalidate()
 				}
 			}
 		})
@@ -1018,6 +1119,7 @@ func importPanel(c *ui.Context, m Model) {
 							}
 						}
 					}
+					c.Invalidate()
 				}
 				if ghostSmall(c, i18n.T(i18n.KeyLauncherImportSelectNone)).Clicked() && m.ImportCatalog != nil {
 					if items := m.ImportCatalog.ItemsFor(importCatActive); items != nil {
@@ -1025,6 +1127,7 @@ func importPanel(c *ui.Context, m Model) {
 							(*items)[i].Selected = false
 						}
 					}
+					c.Invalidate()
 				}
 			})
 			itemsPtr := (*[]importer.CatalogItem)(nil)
@@ -1052,6 +1155,8 @@ func importPanel(c *ui.Context, m Model) {
 					empty = i18n.T(i18n.KeyLauncherImportEmptyPresets)
 				}
 				ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
+			} else if importCatActive == "sessions" {
+				importSessionGroups(c, *itemsPtr)
 			} else {
 				for i := range *itemsPtr {
 					idx := i
@@ -1081,6 +1186,7 @@ func importPanel(c *ui.Context, m Model) {
 							Background(ui.Transparent).TextColor(ink).FillWidth().
 							Disabled(it.Unsupported).Clicked() {
 							it.Selected = !it.Selected
+							c.Invalidate()
 						}
 					})
 				}
@@ -1097,9 +1203,12 @@ func importPanel(c *ui.Context, m Model) {
 		}
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
 			ui.Column(c).Gap(8).Grow(1).Children(func() {
-				switchCheck(c, i18n.T(i18n.KeyLauncherImportOverwrite), i18n.T(i18n.KeyLauncherImportOverwriteDesc), overwrite, m.OnSaveLauncherPrefs)
-				switchCheck(c, i18n.T(i18n.KeyLauncherImportAttachments), i18n.T(i18n.KeyLauncherImportAttachmentsDesc), attachments, m.OnSaveLauncherPrefs)
+				switchCheck(c, i18n.T(i18n.KeyLauncherImportOverwrite), i18n.T(i18n.KeyLauncherImportOverwriteDesc), overwrite, nil)
+				switchCheck(c, i18n.T(i18n.KeyLauncherImportAttachments), i18n.T(i18n.KeyLauncherImportAttachmentsDesc), attachments, nil)
 			})
+			if m.ImportCatalog != nil {
+				counts = m.ImportCatalog.CategoryCounts()
+			}
 			selLine := i18n.T(i18n.KeyLauncherImportSelected)
 			for _, cat := range []struct{ id, name string }{
 				{"sessions", i18n.T(i18n.KeyLauncherImportCatSessions)},
@@ -1127,6 +1236,21 @@ func importPanel(c *ui.Context, m Model) {
 				}
 			}
 		})
+		scope := releaseText("保留目标中的同名项及本地凭据，不重装已经安装的插件。", "Keep existing items and local credentials; keep installed plugins.")
+		if *overwrite {
+			scope = releaseText("覆盖所选中的同名会话、技能、MCP、预设和设置，包括全局指令；保留目标本地凭据，重新安装已勾选插件。", "Replace selected sessions, skills, MCP, presets and settings, including global instructions; retain destination local credentials and reinstall selected plugins.")
+		}
+		if *attachments {
+			scope += releaseText(" 复制整个 attachments/ 目录，也包含未勾选会话的附件。", " Copy the entire attachments/ directory, including attachments of unselected sessions.")
+			if *overwrite {
+				scope += releaseText(" 同路径附件将被覆盖。", " Replace attachments with the same path.")
+			} else {
+				scope += releaseText(" 保留同路径已有附件。", " Keep existing attachments with the same path.")
+			}
+		} else {
+			scope += releaseText(" 不导入附件。", " Do not import attachments.")
+		}
+		ui.Text(c, scope).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		if len(m.ImportJournal) > 0 {
 			ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).
 				Radius(12).Padding(10, 12, 10, 12).Gap(4).MaxHeight(200).Children(func() {
@@ -1158,8 +1282,8 @@ func pluginsPanel(c *ui.Context, m Model) {
 		}
 		// Electron: compact ????pill (not a full-width bar).
 		ui.Row(c).AlignSelf(ui.Start).Children(func() {
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Clicked() && m.OnRefreshComponents != nil {
-				m.OnRefreshComponents()
+			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
+				m.OnRefreshStartupDiagnostics()
 			}
 		})
 		if len(m.DisabledPlugins) == 0 && !m.SkipUserPlugins {
@@ -1179,14 +1303,20 @@ func pluginsPanel(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Background(colField).Border(1, colBorderL2).Radius(12).
 			Padding(14, 14, 14, 14).Gap(8).Children(func() {
 			kv(c, i18n.T(i18n.KeyLauncherSkipUserPlugins), recoveryLine)
+			canRestore := m.SkipUserPlugins
+			canSkip := !canRestore && m.StartupDiagnostics.CanRepair && len(m.StartupDiagnostics.RepairNames) > 0
+			if !canRestore && !canSkip {
+				return
+			}
+			busy := m.StartBusy || m.ImportBusy || m.StartupRepairBusy
 			ui.Row(c).Gap(8).Children(func() {
-				if ghostSmall(c, i18n.T(i18n.KeyLauncherEnableSkipUserPlugins)).Clicked() && m.OnEnableSkipUserPlugins != nil {
+				if canSkip && ghostSmall(c, i18n.T(i18n.KeyLauncherEnableSkipUserPlugins)).Disabled(busy).Clicked() && m.OnEnableSkipUserPlugins != nil {
 					m.OnEnableSkipUserPlugins()
 				}
-				if ghostSmall(c, i18n.T(i18n.KeyLauncherClearPluginRecovery)).Clicked() && m.OnClearPluginRecovery != nil {
+				if canRestore && ghostSmall(c, i18n.T(i18n.KeyLauncherClearPluginRecovery)).Disabled(busy).Clicked() && m.OnClearPluginRecovery != nil {
 					m.OnClearPluginRecovery()
 				}
-				if ghostSmall(c, i18n.T(i18n.KeyLauncherRestartHarness)).Clicked() && m.OnRestartHarness != nil {
+				if canRestore && ghostSmall(c, i18n.T(i18n.KeyLauncherRestartHarness)).Disabled(busy).Clicked() && m.OnRestartHarness != nil {
 					m.OnRestartHarness()
 				}
 			})
@@ -1199,6 +1329,9 @@ func settingsPanel(c *ui.Context, m Model) {
 		hintBot := float32(16)
 		ui.Text(c, i18n.T(i18n.KeyLauncherSettingsOnlyHint)).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary).
 			Padding(0, 0, hintBot, 0)
+		if m.LauncherPrefsError != "" {
+			ui.Text(c, m.LauncherPrefsError).FontSize(theme.InterfaceSize(12)).TextColor(colPrimary).Padding(0, 0, 12, 0)
+		}
 
 		switchRow(c, i18n.T(i18n.KeyLauncherOptRouteTitle), i18n.T(i18n.KeyLauncherOptRouteDesc), func() {
 			route := ""

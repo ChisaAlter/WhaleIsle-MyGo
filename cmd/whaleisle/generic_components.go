@@ -12,6 +12,23 @@ import (
 
 var genericComponentPending sync.Map
 
+type launcherComponentActivity struct {
+	Pending map[string]string
+	Status  string
+}
+
+func (s *mainState) launcherComponentActivitySnapshot() launcherComponentActivity {
+	activity := launcherComponentActivity{Pending: map[string]string{}}
+	genericComponentPending.Range(func(key, value any) bool {
+		activity.Pending[key.(string)] = value.(string)
+		return true
+	})
+	s.mu.Lock()
+	activity.Status = s.launcherComponentStatus
+	s.mu.Unlock()
+	return activity
+}
+
 func (s *mainState) configureGenericComponents() {
 	s.mu.Lock()
 	store := s.cfgStore
@@ -30,6 +47,7 @@ func (s *mainState) configureGenericComponents() {
 		OnProgress: func(id, action string, p desktopcomponents.GenericProgress) {
 			s.mu.Lock()
 			s.launcherUpdate = fmt.Sprintf("%s · %s · %s %d%% %s", id, action, p.Phase, p.Percent, p.Message)
+			s.launcherComponentStatus = s.launcherUpdate
 			if p.Op == "supervise" {
 				s.launcherComponentsFresh = false
 			}
@@ -43,11 +61,22 @@ func (s *mainState) configureGenericComponents() {
 }
 
 func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action string) {
-	if _, loaded := genericComponentPending.LoadOrStore(id, true); loaded {
+	if _, loaded := genericComponentPending.LoadOrStore(id, action); loaded {
 		return
 	}
+	s.mu.Lock()
+	s.launcherComponentStatus = ""
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
 	go func() {
-		defer genericComponentPending.Delete(id)
+		defer func() {
+			genericComponentPending.Delete(id)
+			if win != nil {
+				win.Update(func() {})
+			}
+		}()
 		s.mu.Lock()
 		quitting := s.quitting
 		var row desktopcomponents.Row
@@ -87,6 +116,7 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 		_, err := desktopcomponents.RunGenericAction(paths.UserDataDir(), id, action)
 		s.mu.Lock()
 		s.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
+		s.launcherComponentStatus = s.launcherUpdate
 		s.mu.Unlock()
 		s.refreshLauncherComponents()
 		if win != nil {
