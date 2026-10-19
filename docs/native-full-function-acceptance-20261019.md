@@ -1,18 +1,22 @@
 # 原版全量功能验收矩阵（2026-10-19）
 
-> Current source-first checkpoint: the expanded batch after `ffe7ab6` has closed
-> its confirmed six-domain/source integration changes. New regressions are next;
-> no new-phase test/build/native visual success is claimed. Older receipts below
-> apply only to their recorded revisions. See the current
+> Current Windows checkpoint: product/test revision `f1fd8837` has passing
+> changed-path ordinary receipts and final Windows main/helper builds. The full
+> ordinary run remains failed, followed by affected-package rechecks; no fresh
+> full-suite pass is claimed. The current native SVG check FAILED with unknown
+> cause; current real-Host and original/native visual/input acceptance remain
+> unverified. Linux verification is canceled and excluded from acceptance.
+> Existing delivered folders were not replaced. Older receipts below apply only
+> to their recorded revisions. See the current
 > [integration record](source-depth-integration-20261019.md) and
 > [non-exhaustive source index](source-coverage-index-20261019.md).
 
-> Source coverage is not complete: see [all registered module IDs and explicit reading levels](source-coverage-index-20261019.md). New code closure, ordinary regression, real Host evidence and Windows/original-window acceptance are separate. The current unified run01 failed; new source gaps are still being implemented.
+> Source coverage is not complete: see [all registered module IDs and explicit reading levels](source-coverage-index-20261019.md). The former39 samples now have selected deep-read subpaths, not exhaustive whole-module coverage. Source closure, ordinary regression, real Host evidence and Windows/original-window acceptance are separate. Known renderer fidelity limits and unresolved native SVG failure are listed in the current integration record.
 
-> Source-first implementation update: new packaging, startup acceptance and mock-service runs are paused until the concentrated original-source parity changes finish. Source995cbe0 fixes exact FixedLineHeight. Source9da81d3 fixes only the base update-check binding: the final native launcher overrides that callback with an already asynchronous release refresh, so it is not a demonstrated fix for the actual launcher button. Broad click/text complaints and original-window parity remain unresolved. The previously delivered complete folder remains source97e0427.
+> Historical source-first update: new packaging, startup acceptance and mock-service runs were paused during the concentrated original-source implementation. Source995cbe0 fixes exact FixedLineHeight. Source9da81d3 fixes only the base update-check binding: the final native launcher overrides that callback with an already asynchronous release refresh, so it is not a demonstrated fix for the actual launcher button. Original-window parity remains unverified. The previously delivered complete folder remains source97e0427; the new binaries below did not replace it.
 
 
-> Integration update, Windows full-function pass: this ledger now distinguishes actual owned Host/filesystem/native evidence from fixtures, live model/device/account prerequisites and unavailable original-window pixel comparison. The branch includes terminal duplex, browser callback, PDF navigation, session generation/recovery, rich-history parsers, SSH ownership, compact preview and attachment fixes. A complete isolated local folder passed ordinary production startup and is refreshed at integration checkpoints; package BUILD.json identifies its exact binary source and does not certify all91 rows. E/ means the task evidence directory beside this repository.
+> Historical partial Windows evidence: this ledger distinguishes owned Host/filesystem/native operations from fixtures, live model/device/account prerequisites and unavailable original-window comparison. Earlier complete-folder startup receipts remain bound to their own package BUILD.json and do not validate the expanded revision or all91 rows. E/ means the task evidence directory beside this repository.
 
 本表承接 [原版还原记录与既有 65 条组件映射](native-workspace-parity-20261019.md#windows-follow-up-component-acceptance-ledger)，为“全部功能正常用”登记实际验收范围。源码存在、单测通过、页面截图和编译通过都不能单独认证产品功能可用；不能由同组一个成功动作推定整组通过。本表不是新增功能需求，不重复派发已有修复任务。
 

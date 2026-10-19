@@ -1,7 +1,104 @@
 # Native source integration, 2026-10-19
 
-This records the source-first continuation after `ffe7ab6`. It is not a new test,
-build, screenshot, device, or full-product acceptance receipt.
+This records the source-first continuation after `ffe7ab6`. The current Windows
+checkpoint below distinguishes source, ordinary regression, real Host and native
+acceptance. Historical source-only milestones and failed receipts remain below.
+
+## Current Windows checkpoint
+
+Validated product/test revision: `f1fd883760697bacc2a5aa90dbace7a864268dca`.
+The final ledger commit changes documentation only. **This is not a complete
+original-product or full-function acceptance.** User instruction is Windows-only;
+Linux validation is canceled. Earlier non-Windows build steps remain historical
+facts in their immutable receipts and are not project acceptance evidence.
+No further non-Windows check was executed after that clarification.
+
+The former39 entrypoint samples now have these concrete deep-read subpaths:
+
+| Scope | Former sampled IDs | Deep-read behavior and integrated corrections |
+|---|---|---|
+| Conversation | CHAT-03/04/05/08/09/11/12/16/17 | history/resume/follow/reconnect ownership, loading versus empty, IME/undo, completion, model/preset/permission menus, voice setup, message/tool/workflow/child identity paths |
+| Workspace | WORK-04/07/08/09/10/11/12, SAVE-04 | local/remote dirty editor save and close, browser membership/recording, horizontal max-two resource dock, Git review, local and Host terminal identity/resize/recovery |
+| Settings | SET-01/03/04/05/14/17/18, SAVE-03 | onboarding, registered navigation/served forms, Host-owned themes/fonts and write receipts, usage/About, same-transport reconnect and Windows availability notifications |
+| Remote/pet | SET-12/15/16, REMOTE-01/02/03 | IM/pet narrow save ownership, remote file drafts, observed phone authority and SSH identity/trust/tunnel lifecycle |
+| Extensions | SET-10, PLUG-01/02 | physical shortcut recording/dispatch scope, Market/plugin-manager loading/detail/install/image owners |
+| Effects/media | SET-06 | Windows fluid passes, layered Beam, animated raster/SVG and actual intrinsic-size metadata continuation |
+| Root | PROJ-01, DESK-03/04/05 | Project row/observer/modal origin, shared caption/right-dock row contract, compact rail, native caption geometry and connection/menu integration |
+
+Each row means its recorded selected branches were followed into their producer,
+controller and state/lifetime contracts. It does not certify every state or
+third-party factory in the entire module. The six domain records preserve unread
+branches, including first-send transitions, arbitrary command/model factories,
+all preset creator/guide paths, compression triggers, transitive remote/SSH
+implementations and full pet-renderer behavior.
+
+Known implementation fidelity limits remain: Beam uses native Gaussian/coverage
+approximations; Windows fluid retains a final-frame GPU readback and bounded
+hardware/resource profile rather than the original WebGL presentation. Pixel
+equivalence, visible motion and performance are not certified. The native SVG
+failure below is unresolved; it is not classified as missing implementation or
+an external prerequisite without evidence.
+
+| Evidence class | Current result |
+|---|---|
+| Complete ordinary regression | The expanded-batch `go test ./...` at589143f6 failed:102 package passes,13 failures/build blocks. That complete run remains FAIL. Later affected-package runs resolved its observed failures; they are not a new full-suite pass. |
+| Changed-path ordinary checks | Main atf1fd8837 and corrected software frames exited0 in [post-review receipt](../../evidence/source-depth-review-fix-20261019T2033Z/reviewfix/receipt.json). Full frame package at25fb8fda exited0 in [frame receipt](../../evidence/source-depth-final-frame-20261019T2025Z/finalframe/receipt.json). Its later change is only the separately rerun snapshot fixture. Projects/composer/sidebar passed at8d7190cc; settings passed at0c43cea7. Other valid receipts apply only to their unchanged source/dependency trees. |
+| Windows SDK | SDK tree `50ac5830db86f9274c1033eb5ecf8e62c70937ed` unchanged. Native UI, actual Windows shader compilation, surface-free rounded-clip ABI, caption and inert terminal resize tests exited0. Windows amd64/arm64 SDK builds exited0; these are build evidence, not full-product or GPU-pixel acceptance. |
+| Final Windows artifacts | Main and preview helper atf1fd8837 exited0, Go1.27.2/windows-amd64/CGO0/offline. [Build receipt and hashes](../../evidence/source-depth-final-windows-20261019T2035Z/receipt.json), version `0.0.0-local.f1fd8837`. Fresh evidence output only; not an installer or refreshed delivery folder. Main was not launched. |
+| Real Host | Earlier matrix rows retain their exact historical real-Host receipts. No new actual-Host acceptance bound to this expanded revision was executed; old successes are not inherited. No model/account/device/IM/SSH operations were added for verification. |
+| Current native SVG | **FAIL**, [receipt](../../evidence/source-depth-native-svg-20261019T2036Z/nativesvg/receipt.json). The actual built helper was supplied to an owned hidden-parent test. After35s the wrapper rectangle was0 andready=false; expected80×160 intrinsic metadata and subsequent owner-revocation assertion were not reached. Cause remains unknown. Read-only diagnosis found no Hidden-parent admission guard; the fixture omits Seat.Error and helper stderr is discarded, so startup/handshake/metadata/paint stages cannot be distinguished. No retry or safeguard bypass. |
+| Original/native Windows visual/input | **Unverified**: supported native capture/input APIs are disabled. Same window/DPI/font/data-state original-versus-Go screenshots, actual native control hit testing, GPU motion and physical input remain absent. Software frames cannot substitute. |
+| Installer | **Unverified**: NSIS tool preparation retained three failed fixed-hash retrievals. No fourth attempt, hash bypass, installation or packaging claim. |
+
+Root inspected the latest f1fd8837 software frames at900/1200/1600 DIP, including
+light/dark, compact rail, populated long message and open terminal/right pane.
+The title, Git controls and checkbox labels are readable after the fixture uses
+the actual production native palette. The input card and terminal remain in the
+center track; the footer stays pinned. Native OS caption controls are absent
+from software painting, and the original matching screen is unavailable, so this
+observation is only fixture evidence. Files are in
+`../../evidence/source-depth-review-fix-20261019T2033Z/reviewfix/software-frames/`.
+
+The retained failed local round count is12: six earlier rounds, five expanded
+ordinary failures and this native SVG failure. Later passes do not reset it.
+Remote CI remains0; no push, PR, merge, release or current-directory replacement.
+Four pre-existing untracked acceptance/tool paths remain untouched.
+
+## Standards
+
+Independent read-only review `ffe7ab66...25fb8fda`, followed only by review of
+`25fb8fda..f1fd8837`: no confirmed documented hard-standard breach. Review
+covered MyGo thread forwarding, native callback initialization, ownership,
+asynchronous Git reads and settings write receipts against global AGENTS/workflow
+and MyGo AGENTS/architecture.
+
+Two nonblocking, explicitly heuristic findings remain:
+
+- Possible Primitive Obsession: `third_party/mygo/ui/physical_shortcut.go`
+  overloads `identity ...string`, using `identity[1] == "terminal"` as scope.
+  A named option/type could make this contract clearer in future work.
+- Possible Duplicated Code: settings `host_theme.go` and `instructions_write.go`
+  share mutation/owner/namespace receipt-settlement shapes. Their queue rules
+  differ; no unrelated extraction was made during parity work.
+
+## Spec
+
+Independent read-only review found one concrete mismatch with “以原版作为产品验收
+标准…区域尺寸、位置…菜单…行为”: normal titlebar Commit/Publish changed the right
+dock, while original `GitActionsControl.tsx:502` only opens its dialog.
+`75cfdc0b` uses the existing owned modal for both normal/global pages and preserves
+the selected dock and PR state. `f1fd8837` exercises actual binder/buttons across
+both page types and four dock states; opening/closing does not prepare or execute
+Git/model actions. The reviewer rechecked and marked this code finding resolved;
+the corresponding main run exited0.
+
+The two acknowledged remaining Spec gaps are “同窗口尺寸、DPI、字体和相同页面数据
+状态” native comparison, and “全部功能正常用” exhaustive functional acceptance.
+No additional substantiated scope creep was found in reviewed paths. Both axes
+are code conclusions and do not replace native visual/function acceptance.
+
+Review totals: Standards0 hard breaches plus2 maintenance heuristics; Spec1
+concrete mismatch corrected, with2 acceptance/scope gaps still open.
 
 - Checkout: `C:\Users\48818\Documents\Codex\2026-10-19\task-2\WhaleIsle-MyGo`.
 - Branch: `codex/session-runtime-compat-20261019`; no merge, push, release, or CI.

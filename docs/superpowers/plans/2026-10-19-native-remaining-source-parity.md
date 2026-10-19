@@ -15,6 +15,7 @@
 - Work only in this isolated checkout on `codex/session-runtime-compat-20261019`, starting at `ffe7ab6`.
 - Original `C:/AI/Deepseek-Harness-Desktop` at `e353e8e` is read-only. Never modify original, `C:/AI/whale-code`, dirty user checkout, user instances, credentials or existing delivery directories.
 - No model/paid/account/device/IM requests, destructive session actions, publishing, pushing, merging or CI. Do not retry NSIS retrieval or bypass capture/input restrictions.
+- Current verification scope is Windows only. Linux validation was canceled by the user; earlier non-Windows build steps are historical and excluded from project acceptance.
 - No source implementation may be declared complete merely because a symbol/entry point exists. Follow producers, controller action, transport/config contract, UI layout and state/error/cancellation/lifetime behavior.
 - Each owner records exact original and Go paths/lines, state decisions, already-present behavior and confirmed fixes. Runtime and native visual acceptance remain separate from static source evidence.
 - Agents may edit only their assigned exclusive files. `cmd/whaleisle/main.go`, `main_navigation.go`, `internal/ui/frame/frame.go`, shared models/contracts, and the master index are root-only. Request narrow integration patches; never rewrite a shared file wholesale.
@@ -34,10 +35,10 @@
 
 Each row follows the same source-first actions:
 
-- [ ] Trace every assigned registered feature into concrete original implementations and state branches, including layout and disabled/loading/error/retirement behavior.
-- [ ] Match each branch to the actual native path. Record already implemented behavior; implement only a confirmed discrepancy in owned files, preserving existing user work and earlier corrections.
-- [ ] Report shared integration requirements with exact existing function/type/callback names; root resolves overlapping contracts before edits.
-- [ ] Save the product changes with exact-file local commits; no test work or execution yet.
+- [x] Trace the selected assigned subpaths into concrete original implementations and state branches; unread whole-module branches remain explicit in the coverage index.
+- [x] Match those subpaths to native paths and implement confirmed discrepancies in owned files, preserving existing work.
+- [x] Report shared contracts and let root resolve overlapping integration before edits.
+- [x] Save exact-file local source commits before regression preparation and execution.
 
 ## Review focus and final phase
 
@@ -48,6 +49,6 @@ Each row follows the same source-first actions:
 - Settings and restoration must preserve actual scope, untouched fields and the source's save/restore timing.
 
 - [x] Root reconciles the 39 selected source records and confirmed integration gaps without converting unread states into completed labels.
-- [ ] After source closure, prepare meaningful changed-path regressions and run one unified offline/isolated root regression plus any changed nested SDK packages.
-- [ ] Correct actual failures, review Standards and Spec independently, and build final Windows targets once after relevant checks pass.
-- [ ] Record exact revision, receipts, native/Host acceptance limits and remaining implementation gaps; local commits only.
+- [x] After source closure, prepare regressions and run the coordinated offline/isolated root and affected Windows SDK checks. Full root run failed; later affected-package rechecks passed. This is not a fresh full-suite pass.
+- [x] Correct observed ordinary failures, independently review Standards/Spec, fix the verified normal-caption dock mutation and build final Windows targets atf1fd8837.
+- [x] Record exact revision and limits in the current integration checkpoint. Native SVG acceptance FAILED with unknown cause; current real Host and original/native visual/input acceptance remain open. Known renderer approximations remain. This plan's execution checkpoint does not certify whole-product completion.

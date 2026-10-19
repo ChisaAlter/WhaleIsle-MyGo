@@ -2,13 +2,15 @@
 
 **全部原版模块是否已经逐功能、逐状态对照：否。** 下表覆盖当前验收清单登记的全部 ID；这证明范围登记完整，不证明原版每条动态插件贡献都已穷尽，也不把本轮分配项收尾写成全功能完成。
 
+**最新 Windows 收尾点：`f1fd8837`。** 前阶段39项入口抽查现已按六域及根集成深入到所列调用链/状态，具体39项、仍未穷尽的子路径和实际实现差异见[当前 Windows 清单](source-depth-integration-20261019.md#current-windows-checkpoint)。完整普通回归的首轮仍为失败；后续相关分包已复验通过，不能改称新一轮全量通过。最终 Windows main/helper 构建通过；当前原生 SVG 尺寸/回收检查失败且根因未定，当前真实 Host 和原版同 DPI 实机验收未完成。Linux 验证已取消，不列入本项目验收依据。以下旧版本与首轮记录须结合该最新清单读取。
+
 原版源码只读位置为 `C:/AI/Deepseek-Harness-Desktop`。下表沿用验收表缩写：D=`src/`，V=`vendor/`，P=`vendor/deepseek-harness/packages/client/`。Go 路径以本仓库为根。
 
 等级只描述实际源码阅读：`behavior-compared` 是该行已列子路径的行为对照，不是整行穷尽；`entrypoint-sampled` 是入口或局部状态抽查；`not-reviewed` 是尚无足够阅读证据。各专用记录保留精确的已审子路径和未审边界。缺真实运行证据不能改写为缺实现。
 
 必须分开保存四种结论：源码实现与覆盖、普通回归、真实 Host 操作、Windows 实机与原版同态视觉验收。历史 Host/截图 receipts 只适用于各自记录的版本；不能继承到当前候选。
 
-当前源码差异状态：
+前阶段源码与验证记录（不能继承为本轮全部通过）：
 
 - 已关闭的本轮差异及本地提交见 [实现批次记录](source-parity-implementation-batch-20261019.md)，包括生命周期、逐卡动作、附件退休、Next Prompt、Skills Hub、Bot/Room/IM 等具体路径。
 - Market 图库、README GIF/WebP、限定 AVIF 序列及静态 SVG 扩展已提交源码；后续 Schedule/Jobs、question 收据与草稿、恢复 checkpoint、桌宠穿透、安装事务已有具体源码与普通回归记录。源码、回归和实际验收保持分开，安装事务目前仅静态检查。
