@@ -30,6 +30,7 @@ type decorationState struct {
 	fluidInput                   splashRequest
 	fluidBusy                    bool
 	fluidLastInput, fluidNext    time.Time
+	fluidSubmitted               time.Time
 	fluidPointerX, fluidPointerY float32
 	random                       *rand.Rand
 	width, height                float32
@@ -75,6 +76,7 @@ func (s *decorationState) clearPointer() {
 	s.fluidInput = splashRequest{}
 	s.fluidBusy = false
 	s.fluidLastInput, s.fluidNext = time.Time{}, time.Time{}
+	s.fluidSubmitted = time.Time{}
 	s.fluidPointerX, s.fluidPointerY = 0, 0
 	s.hasPointer = false
 	s.pendingPress = false

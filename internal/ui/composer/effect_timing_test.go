@@ -85,37 +85,39 @@ func TestEffectTimingCaretScheduling(t *testing.T) {
 func TestEffectTimingBeamActivationAndReducedMotion(t *testing.T) {
 	origin := time.Date(2026, 10, 19, 12, 34, 56, 370_000_000, time.UTC)
 	var timeline beamTimeline
-	a, elapsed, animate := timeline.update(origin, false, false)
-	if a != 0 || elapsed != 0 || animate {
-		t.Fatal(a, elapsed, animate)
+	style := readBeamStyle(nil)
+	frame := timeline.frame(origin, style, false, false)
+	if frame.opacity != (beamOpacities{}) || frame.seconds != 0 || frame.animate {
+		t.Fatal(frame)
 	}
-	a, elapsed, animate = timeline.update(origin, true, false)
-	if a != 0 || elapsed != 0 || !animate {
-		t.Fatal(a, elapsed, animate)
+	frame = timeline.frame(origin, style, true, false)
+	if frame.opacity != (beamOpacities{}) || frame.seconds != 0 || !frame.animate {
+		t.Fatal(frame)
 	}
-	a, elapsed, _ = timeline.update(origin.Add(210*time.Millisecond), true, false)
-	effectNear(t, a, .802403387584857)
-	effectNear(t, elapsed, .21)
-	a, _, _ = timeline.update(origin.Add(420*time.Millisecond), true, false)
-	effectNear(t, a, 1)
-	a, elapsed, animate = timeline.update(origin.Add(time.Second), false, false)
-	if a != 1 || elapsed != 0 || !animate {
-		t.Fatal(a, elapsed, animate)
+	frame = timeline.frame(origin.Add(210*time.Millisecond), style, true, false)
+	effectOpacityNear(t, frame.opacity, beamOpacities{.6 * .802403387584857, .42 * .802403387584857, .36 * .802403387584857})
+	effectNear(t, frame.seconds, .21)
+	frame = timeline.frame(origin.Add(420*time.Millisecond), style, true, false)
+	effectOpacityNear(t, frame.opacity, beamOpacities{.6, .42, .36})
+	frame = timeline.frame(origin.Add(time.Second), style, false, false)
+	if frame.seconds != 0 || !frame.animate {
+		t.Fatal(frame)
 	}
-	a, _, animate = timeline.update(origin.Add(1420*time.Millisecond), false, false)
-	if a != 0 || animate {
-		t.Fatal(a, animate)
+	effectOpacityNear(t, frame.opacity, beamOpacities{.6, .42, .36})
+	frame = timeline.frame(origin.Add(1420*time.Millisecond), style, false, false)
+	if frame.opacity != (beamOpacities{}) || frame.animate {
+		t.Fatal(frame)
 	}
-	_, elapsed, _ = timeline.update(origin.Add(2*time.Second), true, false)
-	if elapsed != 0 {
+	frame = timeline.frame(origin.Add(2*time.Second), style, true, false)
+	if frame.seconds != 0 {
 		t.Fatal("reactivation retained old animation phase")
 	}
-	a, elapsed, animate = timeline.update(origin.Add(2100*time.Millisecond), true, true)
-	if a != 0 || elapsed != 0 || animate || timeline.active {
+	frame = timeline.frame(origin.Add(2100*time.Millisecond), style, true, true)
+	if frame.opacity != (beamOpacities{}) || frame.seconds != 0 || frame.animate || timeline.active {
 		t.Fatal("reduced motion retained beam")
 	}
-	_, elapsed, _ = timeline.update(origin.Add(3*time.Second), true, false)
-	if elapsed != 0 {
+	frame = timeline.frame(origin.Add(3*time.Second), style, true, false)
+	if frame.seconds != 0 {
 		t.Fatal("reduced-motion release retained old animation phase")
 	}
 }
@@ -123,16 +125,19 @@ func TestEffectTimingBeamActivationAndReducedMotion(t *testing.T) {
 func TestEffectTimingBeamTransitionReversal(t *testing.T) {
 	origin := time.Unix(100, 0)
 	var timeline beamTimeline
-	timeline.update(origin, true, false)
-	before := timeline.opacity(origin.Add(210 * time.Millisecond))
-	a, _, _ := timeline.update(origin.Add(210*time.Millisecond), false, false)
-	effectNear(t, a, before)
-	if timeline.duration >= beamOpacityDuration || timeline.duration <= 0 {
-		t.Fatal("CSS reverse did not shorten transition", timeline.duration)
+	style := readBeamStyle(nil)
+	timeline.frame(origin, style, true, false)
+	before := beamOpacities{timeline.stroke.value(origin.Add(210 * time.Millisecond)), timeline.inner.value(origin.Add(210 * time.Millisecond)), timeline.bloom.value(origin.Add(210 * time.Millisecond))}
+	frame := timeline.frame(origin.Add(210*time.Millisecond), style, false, false)
+	effectOpacityNear(t, frame.opacity, before)
+	for _, layer := range []beamOpacityTransition{timeline.stroke, timeline.inner, timeline.bloom} {
+		if layer.duration >= beamOpacityDuration || layer.duration <= 0 {
+			t.Fatal("CSS reverse did not shorten transition", layer.duration)
+		}
 	}
-	a, _, animate := timeline.update(origin.Add(210*time.Millisecond+timeline.duration), false, false)
-	if a != 0 || animate {
-		t.Fatal("fade did not retire", a, animate)
+	frame = timeline.frame(origin.Add(210*time.Millisecond+timeline.stroke.duration), style, false, false)
+	if frame.opacity != (beamOpacities{}) || frame.animate {
+		t.Fatal("fade did not retire", frame)
 	}
 }
 
@@ -141,7 +146,7 @@ func TestEffectTimingBeamChildActivation(t *testing.T) {
 	var timeline beamTimeline
 	style := readBeamStyle(nil)
 	style.HueCycle.Enabled = false
-	timeline.update(origin, true, false)
+	timeline.frame(origin, style, true, false)
 	timeline.effectTimes(origin, style)
 	style.HueCycle.Enabled = true
 	b, h := timeline.effectTimes(origin.Add(2*time.Second), style)
@@ -160,7 +165,7 @@ func TestEffectTimingBeamChildActivation(t *testing.T) {
 	if b != 2 || h != 0 {
 		t.Fatal("hue reactivation retained phase or restarted breathing", b, h)
 	}
-	timeline.update(origin.Add(6*time.Second), false, false)
+	timeline.frame(origin.Add(6*time.Second), style, false, false)
 	b, h = timeline.effectTimes(origin.Add(6*time.Second), style)
 	if b != 0 || h != 0 || !timeline.hueStarted.IsZero() || !timeline.breatheStarted.IsZero() {
 		t.Fatal("inactive class retained child animations")

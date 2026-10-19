@@ -104,10 +104,100 @@ type beamTimeline struct {
 	started        time.Time
 	hueStarted     time.Time
 	breatheStarted time.Time
-	changed        time.Time
-	from, target   float64
-	duration       time.Duration
-	reversing      float64
+	stroke         beamOpacityTransition
+	inner          beamOpacityTransition
+	bloom          beamOpacityTransition
+	nightAt        time.Time
+	nightNext      time.Time
+	nightSampling  bool
+}
+
+type beamOpacities struct{ stroke, inner, bloom float64 }
+
+type beamFrame struct {
+	opacity             beamOpacities
+	seconds, hueSeconds float64
+	animate             bool
+}
+
+// Each CSS element owns a transition. A bloom-only change must not restart
+// stroke/inner, and a new target starts at the current interpolated opacity.
+type beamOpacityTransition struct {
+	changed                    time.Time
+	from, target, reverseStart float64
+	duration                   time.Duration
+	reversing                  float64
+}
+
+func (s *beamOpacityTransition) value(now time.Time) float64 {
+	if s.duration == 0 {
+		return s.target
+	}
+	progress := float64(now.Sub(s.changed)) / float64(s.duration)
+	return s.from + (s.target-s.from)*beamEase(progress, "ease")
+}
+
+func (s *beamOpacityTransition) running(now time.Time) bool {
+	return s.duration > 0 && now.Sub(s.changed) < s.duration
+}
+
+func (s *beamOpacityTransition) retarget(now time.Time, target float64) (value float64, running bool) {
+	value = s.value(now)
+	if target != s.target {
+		if value == target {
+			*s = beamOpacityTransition{target: target}
+			return value, false
+		}
+		duration, reversing, reverseStart := beamOpacityDuration, 1.0, value
+		if s.running(now) && target == s.reverseStart {
+			progress := float64(now.Sub(s.changed)) / float64(s.duration)
+			reversing = min(1, math.Abs(beamEase(progress, "ease")*s.reversing+1-s.reversing))
+			duration = time.Duration(float64(beamOpacityDuration) * reversing)
+			reverseStart = s.target
+		}
+		*s = beamOpacityTransition{changed: now, from: value, target: target, reverseStart: reverseStart, duration: duration, reversing: reversing}
+	}
+	return s.value(now), s.running(now)
+}
+
+func beamNightFactor(style beamStyle, now time.Time) float64 {
+	if !style.Night.Enabled {
+		return 1
+	}
+	local := now.Local()
+	minute := local.Hour()*60 + local.Minute()
+	from, to := style.Night.FromMinute, style.Night.ToMinute
+	inside := from == to || from < to && minute >= from && minute < to || from > to && (minute >= from || minute < to)
+	if inside {
+		return 1 - style.Night.Dim/100
+	}
+	return 1
+}
+
+func beamOpacityTargets(style beamStyle, active bool, night, breathing float64) beamOpacities {
+	if !active {
+		return beamOpacities{}
+	}
+	// ComposerBeam.tsx rounds the CSS variables before CSS multiplies them.
+	round := func(value float64) float64 { return math.Round(value*10000) / 10000 }
+	intensity := style.Intensity / 100
+	factor := round(night) * breathing
+	opacity := func(base float64) float64 { return min(1, max(0, round(base)*factor)) }
+	return beamOpacities{stroke: opacity(.6 * intensity), inner: opacity(.42 * intensity), bloom: opacity(.36 * intensity * style.Bloom / 100)}
+}
+
+// The source samples Date.now at mount, when active/night become enabled,
+// and on their 60s interval. An unrelated frame must not advance that clock.
+func (s *beamTimeline) sampleNight(now time.Time, style beamStyle) float64 {
+	sampling := s.active && style.Night.Enabled
+	if s.nightAt.IsZero() || sampling && !s.nightSampling {
+		s.nightAt, s.nightNext = now, now.Add(time.Minute)
+	} else if sampling && !now.Before(s.nightNext) {
+		s.nightAt = now
+		s.nightNext = s.nightNext.Add((now.Sub(s.nightNext)/time.Minute + 1) * time.Minute)
+	}
+	s.nightSampling = sampling
+	return beamNightFactor(style, s.nightAt)
 }
 
 // Each named child animation has its own activation time. Toggling hue or
@@ -136,39 +226,30 @@ func (s *beamTimeline) effectTimes(now time.Time, style beamStyle) (breathe, hue
 	return
 }
 
-func (s *beamTimeline) opacity(now time.Time) float64 {
-	if s.duration == 0 {
-		return s.target
-	}
-	p := float64(now.Sub(s.changed)) / float64(s.duration)
-	return s.from + (s.target-s.from)*beamEase(p, "ease")
-}
-
-func (s *beamTimeline) update(now time.Time, active, reduced bool) (opacity, elapsed float64, animate bool) {
+func (s *beamTimeline) frame(now time.Time, style beamStyle, active, reduced bool) (frame beamFrame) {
 	if reduced {
 		*s = beamTimeline{}
 		return
 	}
 	if active != s.active {
-		current := s.opacity(now)
-		reversing := 1.0
-		if s.duration > 0 && now.Sub(s.changed) < s.duration {
-			p := float64(now.Sub(s.changed)) / float64(s.duration)
-			// CSS reversing-adjusted start value shortens interrupted reversals.
-			reversing = math.Abs(beamEase(p, "ease")*s.reversing + 1 - s.reversing)
-		}
-		s.active, s.from, s.changed, s.reversing = active, current, now, reversing
-		s.duration = time.Duration(float64(beamOpacityDuration) * reversing)
-		s.target = 0
+		s.active = active
 		if active {
-			s.target, s.started = 1, now
+			s.started = now
 		}
 	}
-	opacity = s.opacity(now)
+	breatheSeconds, hueSeconds := s.effectTimes(now, style)
+	breathing := 1.0
 	if active {
-		elapsed = now.Sub(s.started).Seconds()
+		frame.seconds = now.Sub(s.started).Seconds()
+		breathing = beamBreathing(breatheSeconds, style)
 	}
-	animate = active || now.Sub(s.changed) < s.duration
+	frame.hueSeconds = hueSeconds
+	target := beamOpacityTargets(style, active, s.sampleNight(now, style), breathing)
+	var stroke, inner, bloom bool
+	frame.opacity.stroke, stroke = s.stroke.retarget(now, target.stroke)
+	frame.opacity.inner, inner = s.inner.retarget(now, target.inner)
+	frame.opacity.bloom, bloom = s.bloom.retarget(now, target.bloom)
+	frame.animate = active || stroke || inner || bloom
 	return
 }
 

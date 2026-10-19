@@ -57,9 +57,11 @@ func renderReadmeImage(c *ui.Context, source, alt string) bool {
 				decoded.bitmap = bitmap
 				width, height := bitmap.Size()
 				decoded.width, decoded.height = float32(width), float32(height)
-			} else if svg, err := ui.ParseSVG(data); err == nil {
-				decoded.svg = svg
-				decoded.width, decoded.height = svg.Size()
+			} else if supportedReadmeSVG(data) {
+				if svg, err := ui.ParseSVG(data); err == nil {
+					decoded.svg = svg
+					decoded.width, decoded.height = svg.Size()
+				}
 			}
 		}
 	}

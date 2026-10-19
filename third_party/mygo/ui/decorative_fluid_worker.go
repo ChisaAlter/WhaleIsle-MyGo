@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"math"
 	"math/rand/v2"
 	"sync"
 	"time"
@@ -15,6 +16,25 @@ const nativeSplashSimResolution = 64
 const nativeSplashDyeResolution = 64
 const splashFrameInterval = time.Second / 60
 const splashIdleTail = 4 * time.Second
+const nativeSplashMemoryBudget = 4 << 20
+
+// Include numerical fields and both worker/UI pixel buffers. An extreme
+// aspect must not allocate unbounded memory or silently reduce resolution.
+func nativeSplashFits(width, height int) bool {
+	if width <= 0 || height <= 0 {
+		return false
+	}
+	aspect := max(float64(width)/float64(height), float64(height)/float64(width))
+	simCells := float64(nativeSplashSimResolution) * math.Round(float64(nativeSplashSimResolution)*aspect)
+	dyeCells := float64(nativeSplashDyeResolution) * math.Round(float64(nativeSplashDyeResolution)*aspect)
+	return 32*simCells+32*dyeCells <= nativeSplashMemoryBudget
+}
+
+// Target at most24% of one core while active, with at most60 jobs per second.
+// This native processing budget does not claim source frame/pixel parity.
+func splashPacing(work time.Duration) time.Duration {
+	return max(splashFrameInterval, work*100/24)
+}
 
 type splashRequest struct {
 	now            time.Time
@@ -34,6 +54,8 @@ type splashWorker struct {
 	stop      chan struct{}
 	done      chan struct{}
 	closeOnce sync.Once
+	// Published with the result, read before the owner submits another job.
+	lastWork time.Duration
 }
 
 func newSplashWorker(seed uint64) *splashWorker {
@@ -66,6 +88,7 @@ func (w *splashWorker) run(seed uint64) {
 			return
 		default:
 		}
+		started := time.Now()
 		if solver == nil {
 			solver = newSplashSolver(job.width, job.height, nativeSplashSimResolution, nativeSplashDyeResolution)
 			color = splashColor(random, job.config)
@@ -100,6 +123,7 @@ func (w *splashWorker) run(seed uint64) {
 			output = image.NewRGBA(image.Rect(0, 0, width, height))
 		}
 		solver.Render(output, true)
+		w.lastWork = time.Since(started)
 		select {
 		case <-w.stop:
 			return
@@ -153,6 +177,11 @@ func (s *decorationState) queueSplash(x, y, dx, dy float32, now time.Time) {
 }
 
 func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
+	width, height := max(1, int(w*p.scale)), max(1, int(h*p.scale))
+	if !nativeSplashFits(width, height) {
+		s.clearPointer() // Pause/release this decoration, preserving preferences.
+		return
+	}
 	if p.rt.host.occluded() {
 		if !s.fluidLastInput.IsZero() && now.Sub(s.fluidLastInput) <= splashIdleTail {
 			// Let next() mark the animation held, without requesting a hidden
@@ -181,6 +210,9 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 		copy(s.fluidBitmap.img.Pix, result.Pix)
 		s.fluidBitmap.img.Changed()
 		s.fluidBusy = false
+		if paced := s.fluidSubmitted.Add(splashPacing(s.fluidWorker.lastWork)); paced.After(s.fluidNext) {
+			s.fluidNext = paced
+		}
 	default:
 	}
 	if s.fluidBitmap != nil {
@@ -193,13 +225,18 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 		job := s.fluidInput
 		// Source display shading samples drawing-buffer texels, not CSS/DIP
 		// texels. Input normalization stays in DIPs; only this size uses DPI.
-		job.now, job.width, job.height, job.config = now, max(1, int(w*p.scale)), max(1, int(h*p.scale)), s.config
+		job.now, job.width, job.height, job.config = now, width, height, s.config
 		s.fluidWorker.jobs <- job
 		s.fluidBusy = true
+		s.fluidSubmitted = now
 		s.fluidInput.moved, s.fluidInput.press = false, false
 		s.fluidNext = now.Add(splashFrameInterval)
 	}
 	// Keep the engine's paint-only route: invalidating from the worker would
 	// rebuild the entire view every frame. Native next() parks this while hidden.
-	p.AnimationFrame()
+	if !s.fluidBusy && s.fluidNext.Sub(now) > splashFrameInterval {
+		p.After(s.fluidNext.Sub(now))
+	} else {
+		p.AnimationFrame()
+	}
 }

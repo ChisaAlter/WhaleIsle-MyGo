@@ -77,33 +77,22 @@ func composerRunning(m Model) bool {
 // composer's native text, toolbar and drag-resize event ownership.
 func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beamTimeline, active, reduced bool) {
 	now := p.Now()
-	opacity, seconds, animate := timeline.update(now, active, reduced)
-	breatheSeconds, hueSeconds := timeline.effectTimes(now, style)
-	if animate {
+	frame := timeline.frame(now, style, active, reduced)
+	if frame.animate {
 		p.AnimationFrame()
 	}
-	if opacity == 0 {
+	if frame.opacity == (beamOpacities{}) {
 		return
 	}
 	phase := 0.0
-	breathing, hue := 1.0, 0.0
+	hue := 0.0
 	// Removing .cardBeam cancels spin/hue/breathe immediately. Its registered
 	// angle falls back to 0deg while the child opacity transition fades out.
 	if active {
-		phase = beamPhase(seconds, style)
-		breathing, hue = beamBreathing(breatheSeconds, style), beamHue(hueSeconds, style)
+		phase = beamPhase(frame.seconds, style)
+		hue = beamHue(frame.hueSeconds, style)
 	}
 	hueMatrix := beamHueMatrix(hue)
-	intensity := style.Intensity / 100 * opacity * breathing
-	if style.Night.Enabled {
-		local := now.Local()
-		minute := local.Hour()*60 + local.Minute()
-		from, to := style.Night.FromMinute, style.Night.ToMinute
-		inside := from == to || from < to && minute >= from && minute < to || from > to && (minute >= from || minute < to)
-		if inside {
-			intensity *= 1 - style.Night.Dim/100
-		}
-	}
 	colors := beamPalettes[style.Palette.ID]
 	if style.Palette.Kind == "custom" {
 		colors = style.Palette.Colors
@@ -151,15 +140,17 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beam
 			color = filterBeamColor(color, hueMatrix)
 		}
 		path := new(ui.Path).MoveTo(x, y).LineTo(x2, y2)
-		alpha := float32(mask * intensity)
+		alpha := float32(mask)
 		// Broad translucent strokes provide the inner wash and bloom before
 		// the narrow travelling edge, without a webview or shader dependency.
-		p.Clip(r, 28, func() { p.StrokePath(path, 14, color.Alpha(.08*alpha)) })
-		if style.Bloom > 0 && style.GlowBlur > 0 {
-			p.StrokePath(path, style.TrackWidth+style.GlowBlur, color.Alpha(.07*alpha*float32(style.Bloom/100)))
-			p.StrokePath(path, style.TrackWidth+style.GlowBlur/2, color.Alpha(.12*alpha*float32(style.Bloom/100)))
+		// Keep their existing local coverage, multiplied by each element's
+		// independent CSS opacity instead of a shared fade/dynamic factor.
+		p.Clip(r, 28, func() { p.StrokePath(path, 14, color.Alpha((.08/.42)*alpha*float32(frame.opacity.inner))) })
+		if frame.opacity.bloom > 0 && style.GlowBlur > 0 {
+			p.StrokePath(path, style.TrackWidth+style.GlowBlur, color.Alpha((.07/.36)*alpha*float32(frame.opacity.bloom)))
+			p.StrokePath(path, style.TrackWidth+style.GlowBlur/2, color.Alpha((.12/.36)*alpha*float32(frame.opacity.bloom)))
 		}
-		p.StrokePath(path, style.TrackWidth, color.Alpha(.6*alpha))
+		p.StrokePath(path, style.TrackWidth, color.Alpha(alpha*float32(frame.opacity.stroke)))
 	}
 }
 
