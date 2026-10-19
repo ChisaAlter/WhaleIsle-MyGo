@@ -165,12 +165,14 @@ func bridgeForwardConnections(ctx context.Context, listener net.Listener, target
 		}
 		go func(local net.Conn) {
 			defer local.Close()
+			stopLocal := context.AfterFunc(ctx, func() { _ = local.Close() })
+			defer stopLocal()
 			var remote net.Conn
 			var dialErr error
 			if len(clients) > 0 {
-				remote, dialErr = clients[0].Dial("tcp", net.JoinHostPort(targetHost, strconv.Itoa(targetPort)))
+				remote, dialErr = clients[0].DialContext(ctx, "tcp", net.JoinHostPort(targetHost, strconv.Itoa(targetPort)))
 			} else {
-				remote, dialErr = net.Dial("tcp", net.JoinHostPort(targetHost, strconv.Itoa(targetPort)))
+				remote, dialErr = (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(targetHost, strconv.Itoa(targetPort)))
 			}
 			if dialErr != nil {
 				return

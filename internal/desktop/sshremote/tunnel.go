@@ -53,6 +53,7 @@ type TunnelSession struct {
 	err            string
 	client         *ssh.Client
 	cancel         context.CancelFunc
+	generation     uint64
 	knownHostsFile string // empty → KnownHostsPath(paths.UserDataDir())
 	tofu           bool   // Trust-On-First-Use for unknown hosts (default true)
 	hostKeyMode    HostKeyMode
@@ -186,29 +187,44 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	t.mu.Lock()
-	if t.client != nil {
+	if t.client != nil || t.state == TunnelConnecting {
 		t.mu.Unlock()
-		return fmt.Errorf("already connected")
+		return fmt.Errorf("already connected or connecting")
 	}
+	ctx, cancelAttempt := context.WithCancel(ctx)
+	defer cancelAttempt()
+	t.generation++
+	generation := t.generation
+	t.cancel = cancelAttempt
 	cfg := t.cfg
 	kh := t.knownHostsFile
 	tofu := t.tofu
 	t.state = TunnelConnecting
 	t.err = ""
 	t.mu.Unlock()
+	fail := func(err error) error {
+		t.mu.Lock()
+		if t.generation == generation {
+			t.state = TunnelError
+			t.err = err.Error()
+			t.cancel = nil
+		}
+		t.mu.Unlock()
+		return err
+	}
 
 	if strings.TrimSpace(cfg.Host) == "" {
-		return t.fail(fmt.Errorf("host required"))
+		return fail(fmt.Errorf("host required"))
 	}
 	if strings.TrimSpace(cfg.User) == "" {
-		return t.fail(fmt.Errorf("user required"))
+		return fail(fmt.Errorf("user required"))
 	}
 	var auth []ssh.AuthMethod
 	var agentConn net.Conn
 	if strings.TrimSpace(cfg.IdentityFile) != "" {
 		key, err := os.ReadFile(cfg.IdentityFile)
 		if err != nil {
-			return t.fail(err)
+			return fail(err)
 		}
 		var signer ssh.Signer
 		if strings.TrimSpace(cfg.Passphrase) != "" {
@@ -217,7 +233,7 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 			signer, err = ssh.ParsePrivateKey(key)
 		}
 		if err != nil {
-			return t.fail(fmt.Errorf("parse key: %w", err))
+			return fail(fmt.Errorf("parse key: %w", err))
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
@@ -227,17 +243,17 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	if cfg.UseAgent {
 		sock := strings.TrimSpace(os.Getenv("SSH_AUTH_SOCK"))
 		if sock == "" {
-			return t.fail(fmt.Errorf("SSH_AUTH_SOCK is not set"))
+			return fail(fmt.Errorf("SSH_AUTH_SOCK is not set"))
 		}
 		var err error
 		agentConn, err = net.DialTimeout("unix", sock, 2*time.Second)
 		if err != nil {
-			return t.fail(fmt.Errorf("ssh agent: %w", err))
+			return fail(fmt.Errorf("ssh agent: %w", err))
 		}
 		auth = append(auth, ssh.PublicKeysCallback(agent.NewClient(agentConn).Signers))
 	}
 	if len(auth) == 0 {
-		return t.fail(fmt.Errorf("identityFile, password or SSH agent required"))
+		return fail(fmt.Errorf("identityFile, password or SSH agent required"))
 	}
 	port := cfg.Port
 	if port <= 0 {
@@ -259,7 +275,7 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 		if agentConn != nil {
 			_ = agentConn.Close()
 		}
-		return t.fail(err)
+		return fail(err)
 	}
 	sshCfg := &ssh.ClientConfig{
 		User:            cfg.User,
@@ -273,35 +289,50 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 		if agentConn != nil {
 			_ = agentConn.Close()
 		}
-		return t.fail(err)
+		return fail(err)
 	}
+	// ClientConfig.Timeout only covers ssh.Dial's TCP dial, not NewClientConn.
+	// Bound the handshake itself and close the socket on cancellation.
+	_ = conn.SetDeadline(time.Now().Add(12 * time.Second))
+	stopHandshakeCancel := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	c, chans, reqs, err := ssh.NewClientConn(conn, addr, sshCfg)
+	stopHandshakeCancel()
 	if agentConn != nil {
 		_ = agentConn.Close()
 	}
 	if err != nil {
 		_ = conn.Close()
-		return t.fail(err)
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		return fail(err)
 	}
+	_ = conn.SetDeadline(time.Time{})
 	client := ssh.NewClient(c, chans, reqs)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	lifetime, cancel := context.WithCancel(context.Background())
 	t.mu.Lock()
+	if t.generation != generation || ctx.Err() != nil {
+		t.mu.Unlock()
+		cancel()
+		_ = client.Close()
+		return fail(context.Canceled)
+	}
 	t.client = client
 	t.cancel = cancel
 	t.state = TunnelConnected
 	t.err = ""
 	t.mu.Unlock()
 
-	go t.watch(ctx, client)
+	go t.watch(lifetime, cancel, client)
 	if fwd := strings.TrimSpace(cfg.LocalForward); fwd != "" {
-		go t.forward(ctx, client, fwd)
+		go t.forward(lifetime, client, fwd)
 	}
 	if fwd := strings.TrimSpace(cfg.ReverseForward); fwd != "" {
 		if !strings.HasPrefix(strings.ToLower(fwd), "reverse:") {
 			fwd = "reverse:" + fwd
 		}
-		go t.forward(ctx, client, fwd)
+		go t.forward(lifetime, client, fwd)
 	}
 	return nil
 }
@@ -309,6 +340,7 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 // Disconnect closes the SSH client.
 func (t *TunnelSession) Disconnect() {
 	t.mu.Lock()
+	t.generation++
 	cancel := t.cancel
 	client := t.client
 	t.cancel = nil
@@ -324,23 +356,22 @@ func (t *TunnelSession) Disconnect() {
 	}
 }
 
-func (t *TunnelSession) fail(err error) error {
-	t.mu.Lock()
-	t.state = TunnelError
-	t.err = err.Error()
-	t.mu.Unlock()
-	return err
-}
-
-func (t *TunnelSession) watch(ctx context.Context, client *ssh.Client) {
-	<-ctx.Done()
-	_ = client.Close()
+func (t *TunnelSession) watch(ctx context.Context, cancel context.CancelFunc, client *ssh.Client) {
+	stop := context.AfterFunc(ctx, func() { _ = client.Close() })
+	err := client.Wait()
+	stop()
+	canceled := ctx.Err() != nil
+	cancel() // Close forward listeners/channels on peer exit too.
 	t.mu.Lock()
 	if t.client == client {
 		t.client = nil
 		t.cancel = nil
 		if t.state == TunnelConnected {
 			t.state = TunnelIdle
+			if err != nil && !canceled {
+				t.state = TunnelError
+				t.err = err.Error()
+			}
 		}
 	}
 	t.mu.Unlock()
@@ -350,14 +381,18 @@ func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec st
 	parsed, err := ParseForwardSpec(spec)
 	if err != nil {
 		t.mu.Lock()
-		t.err = "forward spec: " + err.Error()
+		if t.client == client {
+			t.err = "forward spec: " + err.Error()
+		}
 		t.mu.Unlock()
 		return
 	}
 	stop, err := StartForward(ctx, client, parsed)
 	if err != nil {
 		t.mu.Lock()
-		t.err = "forward listen: " + err.Error()
+		if t.client == client {
+			t.err = "forward listen: " + err.Error()
+		}
 		t.mu.Unlock()
 		return
 	}
