@@ -27,6 +27,26 @@ type marketAttempt struct {
 	cancelPending   bool
 }
 
+// A rendered action belongs to the Host that supplied its inventory. Keeping
+// this separate from a build approval also protects ordinary confirmation UI.
+type marketOwner struct {
+	client     *dsh.Client
+	store      *marketstore.Store
+	generation uint64
+}
+
+func (s *mainState) captureMarketOwner(store *marketstore.Store) marketOwner {
+	s.dshMu.Lock()
+	defer s.dshMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	owner := marketOwner{client: s.dshClient, store: store}
+	if store != nil {
+		owner.generation = store.RuntimeToken()
+	}
+	return owner
+}
+
 func marketMessage(zh, en string) string {
 	if strings.HasPrefix(i18n.Locale(), "zh") {
 		return zh
@@ -74,15 +94,23 @@ func (s *mainState) runMarketCatalogInstall(target marketstore.InstallTarget) {
 	}
 	s.marketCatalogTarget = &target
 	s.marketInstallSpec = target.Spec
+	owner := marketOwner{client: s.dshClient, store: s.market, generation: s.market.RuntimeToken()}
 	s.mu.Unlock()
 	s.dshMu.Unlock()
-	s.runMarketInstall(target.Spec, nil)
+	s.runMarketInstallForOwner(target.Spec, nil, &owner)
 }
 func (s *mainState) beginMarketAttempt(spec string, allow []string, install bool, approval ...*marketAttempt) (*marketAttempt, string) {
+	return s.beginMarketAttemptForOwner(spec, allow, install, nil, approval...)
+}
+
+func (s *mainState) beginMarketAttemptForOwner(spec string, allow []string, install bool, expected *marketOwner, approval ...*marketAttempt) (*marketAttempt, string) {
 	s.dshMu.Lock()
 	defer s.dshMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if expected != nil && (s.dshClient != expected.client || s.market != expected.store || (expected.store != nil && expected.store.RuntimeToken() != expected.generation)) {
+		return nil, ""
+	}
 	if s.marketWorker != nil || s.marketInstallBusy || s.launcherImportBusy {
 		return nil, ""
 	}
@@ -333,12 +361,16 @@ func (s *mainState) releaseMarket(op *marketAttempt) {
 	}
 }
 func (s *mainState) runMarketInstall(spec string, allowBuilds []string) {
+	s.runMarketInstallForOwner(spec, allowBuilds, nil)
+}
+
+func (s *mainState) runMarketInstallForOwner(spec string, allowBuilds []string, expected *marketOwner) {
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
 		return
 	}
 	allowBuilds = append([]string(nil), allowBuilds...)
-	op, node := s.beginMarketAttempt(spec, allowBuilds, true)
+	op, node := s.beginMarketAttemptForOwner(spec, allowBuilds, true, expected)
 	if op == nil {
 		return
 	}
@@ -391,7 +423,11 @@ func (s *mainState) runMarketChange(method string, args map[string]any) {
 	s.runMarketChangeApproved(method, args)
 }
 func (s *mainState) runMarketChangeApproved(method string, args map[string]any, approval ...*marketAttempt) {
-	op, _ := s.beginMarketAttempt("", nil, false, approval...)
+	s.runMarketChangeForOwner(method, args, nil, approval...)
+}
+
+func (s *mainState) runMarketChangeForOwner(method string, args map[string]any, expected *marketOwner, approval ...*marketAttempt) {
+	op, _ := s.beginMarketAttemptForOwner("", nil, false, expected, approval...)
 	if op == nil {
 		return
 	}

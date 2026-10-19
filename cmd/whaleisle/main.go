@@ -3736,8 +3736,15 @@ func mainView(c *ui.Context) {
 		if desktopChromeLocked {
 			captionGit = gitBadge
 		}
+		var captionNewSession func()
+		if st.State == harness.Ready && sessions != nil {
+			captionNewSession = func() {
+				state.revealMainConversation()
+				sessions.CreateSession(context.Background())
+			}
+		}
 		state.mainCaptionFileDrop(c, st.State == harness.Ready, frame.Model{Store: sessions, Sizes: &layout, WorkspaceRoot: workspaceRoot}, func() {
-			if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit) {
+			if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit, captionNewSession) {
 				// Settings and other exclusive routes bypass the navigation shell's
 				// writeback. Persist caption restores through the same layout state.
 				state.mu.Lock()
@@ -5119,6 +5126,7 @@ func mainView(c *ui.Context) {
 				state.mu.Lock()
 				muxReadyMarket := state.dshMuxReady
 				state.mu.Unlock()
+				marketOwner := state.captureMarketOwner(marketStore)
 				marketui.View(c, marketui.Model{
 					OnOpenURL: func(rawURL string) {
 						if err := mygo.Shell.OpenExternal(rawURL); err != nil {
@@ -5164,15 +5172,17 @@ func mainView(c *ui.Context) {
 					OnStopBatch:      state.stopMarketBatch,
 					OnInstallCatalog: state.runMarketCatalogInstall,
 					OnInstallSpec: func(spec string, allowBuilds []string) {
-						state.runMarketInstall(spec, allowBuilds)
+						state.runMarketInstallForOwner(spec, allowBuilds, &marketOwner)
 					},
 					OnCancelInstall: func() {
 						state.cancelMarketInstall()
 					},
 					OnAcceptExemption: state.acceptMarketExemption,
-					OnRemoveBundle:    func(name string) { state.runMarketChange("pluginManager/removeBundle", map[string]any{"name": name}) },
+					OnRemoveBundle: func(name string) {
+						state.runMarketChangeForOwner("pluginManager/removeBundle", map[string]any{"name": name}, &marketOwner)
+					},
 					OnSetBundleEnabled: func(name string, enabled bool) {
-						state.runMarketChange("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled})
+						state.runMarketChangeForOwner("pluginManager/setBundleEnabled", map[string]any{"name": name, "enabled": enabled}, &marketOwner)
 					},
 					OnExportHistory: func() {
 						data := marketStore.ExportHistory()

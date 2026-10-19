@@ -21,11 +21,11 @@ func sidebarCollapsedWidth(platform string) float32 {
 
 // SidebarRestoreCaption is called above all main-page routes, including those
 // that bypass NavigationShell. It returns whether it painted the caption.
-func SidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.TitleBarColors, git *chrome.GitBadge) bool {
-	return drawSidebarRestoreCaption(c, sizes, colors, git, runtime.GOOS)
+func SidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.TitleBarColors, git *chrome.GitBadge, onNewSession ...func()) bool {
+	return drawSidebarRestoreCaption(c, sizes, colors, git, runtime.GOOS, onNewSession...)
 }
 
-func drawSidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.TitleBarColors, git *chrome.GitBadge, platform string) bool {
+func drawSidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.TitleBarColors, git *chrome.GitBadge, platform string, onNewSession ...func()) bool {
 	if sizes == nil || sidebarCollapsedWidth(platform) != 0 {
 		return false
 	}
@@ -39,6 +39,13 @@ func drawSidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.
 		if ui.Button(c, "☰").Label(label).Tooltip(label).Width(28).Height(28).
 			Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(colors.Foreground).Clicked() {
 			sizes.ToggleSidebar()
+		}
+		if len(onNewSession) > 0 && onNewSession[0] != nil {
+			label := i18n.T(i18n.KeySidebarNewSessionFallback)
+			if ui.Button(c, "+").Label(label).Tooltip(label).Width(28).Height(28).
+				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(colors.Foreground).Clicked() {
+				onNewSession[0]()
+			}
 		}
 	}, nil)
 	return true

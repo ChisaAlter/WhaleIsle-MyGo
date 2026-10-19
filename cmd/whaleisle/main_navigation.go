@@ -32,6 +32,30 @@ func (s *mainState) selectMainPanel(panel string) {
 	}
 }
 
+// Global session actions reveal the conversation even from exclusive pages.
+// Only route flags change: drafts and each page's live stores remain resident.
+func (s *mainState) revealMainConversation() {
+	s.mu.Lock()
+	s.launcherOpen = false
+	s.settingsOpen = false
+	s.settingsEmbeddedSection = ""
+	s.usageOpen = false
+	s.imOpen = false
+	s.remoteOpen = false
+	s.webviewOpen = false
+	s.browserPreviewOpen = false
+	s.marketOpen = false
+	s.scheduleOpen = false
+	s.assistantOpen = false
+	s.assistantConversationGeneration++
+	s.toolsMenuOpen = false
+	win := s.win
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
+}
+
 // withMainNavigation is the stable parent of both chat and the three native
 // global panels. Settings overlay this stable shell; guest/PDF views bypass it.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {

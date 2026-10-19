@@ -45,6 +45,28 @@ func TestSidebarCollapsedPlatformContract(t *testing.T) {
 	}
 }
 
+func TestCollapsedCaptionCanCreateSessionWithoutExpanding(t *testing.T) {
+	for _, platform := range []string{"windows", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			sizes := DefaultLayout()
+			sizes.Sidebar, sizes.SidebarExpanded = 0, 336
+			created := 0
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Column(c).Fill().Children(func() {
+					drawSidebarRestoreCaption(c, &sizes, chrome.DefaultTitleBarColors(), nil, platform, func() { created++ })
+				})
+			}, 1200, 800)
+			tt.SetTitleBar(ui.TitleBar{Height: 32, Left: 72, Right: 138})
+			if err := tt.Click(i18n.T(i18n.KeySidebarNewSessionFallback)); err != nil {
+				t.Fatal(err)
+			}
+			if created != 1 || sizes.sidebarPreference() != 0 {
+				t.Fatal("new-session action must remain available without expanding navigation")
+			}
+		})
+	}
+}
+
 func TestCaptionRestorePreservesNarrowPreference(t *testing.T) {
 	sizes := DefaultLayout()
 	sizes.Sidebar = 336
