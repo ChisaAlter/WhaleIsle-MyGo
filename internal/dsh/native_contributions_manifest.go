@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 )
 
@@ -239,21 +240,38 @@ func (g *nativeContributionGraph) snapshot() NativeContributions {
 		renderer   = "@deepseek-ai/dsh-client-ui-renderer"
 		remotes    = "@deepseek-ai/dsh-api-remotes"
 	)
-	conversation := g.available(nativeConversation, connection, sessionAPI, "@deepseek-ai/dsh-client-file-upload", locale, "@deepseek-ai/dsh-client-ui-layout", renderer, "@deepseek-ai/dsh-client-ui-session", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-ui-workspace")
-	commands := conversation && g.available(nativeCommands, remotes, locale, "@deepseek-ai/dsh-client-ui-input-trigger", nativeConversation)
-	model := commands && g.available(nativeModelSelection, sessionAPI, locale, nativeCommands, remotes)
-	// A content identity includes the graph revision, topology and every row's
-	// current artifact revision. A rebuilt frame updates exactly its row, so
-	// duplicate notices are stable while a real rebuild fences native popups.
+	conversationBase := []string{nativeConversation, connection, sessionAPI, "@deepseek-ai/dsh-client-file-upload", locale, "@deepseek-ai/dsh-client-ui-layout", renderer, "@deepseek-ai/dsh-client-ui-session", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-ui-workspace"}
+	commandBase := append([]string{nativeCommands, remotes, locale, "@deepseek-ai/dsh-client-ui-input-trigger"}, conversationBase...)
+	modelBase := append([]string{nativeModelSelection, sessionAPI, locale, remotes}, commandBase...)
+	permissionBase := append([]string{nativePermissions}, commandBase...)
+	feedbackBase := append([]string{nativeFeedback, renderer}, commandBase...)
+	conversation := g.available(conversationBase[0], conversationBase[1:]...)
+	commands := conversation && g.available(commandBase[0], commandBase[1:]...)
+	model := commands && g.available(modelBase[0], modelBase[1:]...)
+	// Retain the whole graph identity for diagnostics. Popup ownership instead
+	// uses the port identities below: ClientEntries.reconcile keeps unchanged
+	// entry fibers when an unrelated plugin or delivery batch changes.
 	canonical, _ := json.Marshal(g)
 	digest := sha256.Sum256(canonical)
 	snapshot := NativeContributions{
 		Known: true, Revision: hex.EncodeToString(digest[:]),
 		FileCommand:       commands,
 		ModelCommand:      model,
-		PermissionCommand: commands && g.available(nativePermissions, sessionAPI, connection, locale, nativeCommands, nativeConversation, remotes, "@deepseek-ai/dsh-client-ui-settings"),
-		FeedbackCommand:   commands && g.available(nativeFeedback, remotes, locale, nativeConversation, renderer, nativeCommands),
+		PermissionCommand: commands && g.available(permissionBase[0], permissionBase[1:]...),
+		FeedbackCommand:   commands && g.available(feedbackBase[0], feedbackBase[1:]...),
 		ModelLabel1017:    conversation && model && g.available(nativeLabel1017, nativeModelSelection, renderer, locale),
+	}
+	if snapshot.FileCommand {
+		snapshot.fileRevision = g.commandRevision(commandBase)
+	}
+	if snapshot.ModelCommand {
+		snapshot.modelRevision = g.commandRevision(modelBase)
+	}
+	if snapshot.PermissionCommand {
+		snapshot.permissionRevision = g.commandRevision(permissionBase)
+	}
+	if snapshot.FeedbackCommand {
+		snapshot.feedbackRevision = g.commandRevision(feedbackBase)
 	}
 	if g.Release != nil {
 		snapshot.ReleaseVersion = g.Release.Version
@@ -262,4 +280,34 @@ func (g *nativeContributionGraph) snapshot() NativeContributions {
 		}
 	}
 	return snapshot
+}
+
+// Only graph rows are revisioned code. External requests may instead name
+// shell-supplied static modules; they are not invented as entries or fetched.
+// A visited set bounds cycles to the already validated graph's row count.
+func (g *nativeContributionGraph) commandRevision(roots []string) string {
+	type target struct{ ID, Rev string }
+	seen := make(map[string]bool)
+	pending := append([]string(nil), roots...)
+	targets := make([]target, 0, len(roots))
+	for len(pending) > 0 {
+		id := strings.TrimSuffix(pending[len(pending)-1], "/client")
+		pending = pending[:len(pending)-1]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		index, exists := g.index[id]
+		if !exists {
+			continue
+		}
+		row := g.Entries[index]
+		targets = append(targets, target{row.ID, row.Rev})
+		pending = append(pending, row.Inject...)
+		pending = append(pending, row.External...)
+	}
+	sort.Slice(targets, func(i, j int) bool { return targets[i].ID < targets[j].ID })
+	canonical, _ := json.Marshal(targets)
+	digest := sha256.Sum256(canonical)
+	return hex.EncodeToString(digest[:])
 }

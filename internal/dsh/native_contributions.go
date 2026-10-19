@@ -23,6 +23,35 @@ type NativeContributions struct {
 	Revision, ReleaseVersion, ReleaseCommit                                       string
 	FileCommand, ModelCommand, PermissionCommand, FeedbackCommand, ModelLabel1017 bool
 	Error                                                                         string
+	fileRevision, modelRevision, permissionRevision, feedbackRevision             string
+}
+
+// CommandRevision identifies the fixed command owner's code and dependencies,
+// rather than unrelated changes to the Host graph. An unavailable or unknown
+// port has no identity. Release and connection ownership remain caller scopes.
+func (n NativeContributions) CommandRevision(name string) string {
+	if !n.Known {
+		return ""
+	}
+	switch name {
+	case "file":
+		if n.FileCommand {
+			return n.fileRevision
+		}
+	case "model":
+		if n.ModelCommand {
+			return n.modelRevision
+		}
+	case "permission":
+		if n.PermissionCommand {
+			return n.permissionRevision
+		}
+	case "feedback":
+		if n.FeedbackCommand {
+			return n.feedbackRevision
+		}
+	}
+	return ""
 }
 
 const nativeContributionLimit = 4 << 20
