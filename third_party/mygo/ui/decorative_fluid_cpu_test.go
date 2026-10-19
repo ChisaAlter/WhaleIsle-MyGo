@@ -1,0 +1,245 @@
+//go:build !windows
+
+// These numerical and duty-budget fixtures exercise the existing non-Windows
+// 64/64 CPU backend. They do not certify Windows GPU rendering.
+package ui
+
+import (
+	"bytes"
+	"image"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/egoist/mygo/internal/platform"
+)
+
+func awaitSplash(t *testing.T, worker *splashWorker) *image.RGBA {
+	t.Helper()
+	select {
+	case image := <-worker.results:
+		return image
+	case <-time.After(3 * time.Second):
+		t.Fatal("background splash did not complete")
+		return nil
+	}
+}
+
+func TestSplashNativePaintSchedulingRetuneAndDisposal(t *testing.T) {
+	config := splashTestConfig()
+	tt := newRepaintTester(func(c *context) {
+		SetDecorativeEffects(makeContext(c), config)
+		coreBox(c).Fill()
+	})
+	t.Cleanup(tt.rt.close)
+	s := &tt.rt.decorations
+	if s.fluidWorker != nil {
+		t.Fatal("enabled but unused effect allocated a worker")
+	}
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.PointerMove, X: 90, Y: 40})
+	tt.frame(17 * time.Millisecond)
+	worker := s.fluidWorker
+	if worker == nil || !s.fluidBusy || cap(worker.jobs) != 1 || cap(worker.results) != 1 {
+		t.Fatal("first movement did not create one bounded background job")
+	}
+	result := awaitSplash(t, worker)
+	worker.results <- result
+	if built, more := tt.frame(max(17*time.Millisecond, splashPacing(worker.lastWork))); built || !more || s.fluidBitmap == nil {
+		t.Fatalf("completion rebuilt the view or stopped active repaint: built=%v more=%v", built, more)
+	}
+	bitmap := s.fluidBitmap
+	result = awaitSplash(t, worker)
+	worker.results <- result
+	config.Size, config.Speed = 160, 150
+	tt.rt.changed()
+	tt.frame(max(17*time.Millisecond, splashPacing(worker.lastWork)))
+	if s.fluidWorker != worker || s.fluidBitmap != bitmap {
+		t.Fatal("live retuning cleared fields or replaced the retained scene bitmap")
+	}
+	result = awaitSplash(t, worker)
+	worker.results <- result
+	tt.h.w, tt.h.h = 100, 200
+	tt.frame(max(17*time.Millisecond, splashPacing(worker.lastWork)))
+	if s.fluidWorker != worker {
+		t.Fatal("resize discarded the solver owner instead of resampling")
+	}
+	result = awaitSplash(t, worker)
+	worker.results <- result
+	if built, more := tt.frame(max(17*time.Millisecond, splashPacing(worker.lastWork))); built || !more || s.fluidBitmap.w >= s.fluidBitmap.h {
+		t.Fatalf("portrait result not consumed without rebuilding: built=%v more=%v image=%dx%d", built, more, s.fluidBitmap.w, s.fluidBitmap.h)
+	}
+	config.PointerEnabled = false
+	tt.rt.changed()
+	tt.frame(17 * time.Millisecond)
+	if s.fluidWorker != nil || s.fluidBitmap != nil || s.fluidBusy || tt.rt.repainting {
+		t.Fatal("disable retained or continued scheduling the effect")
+	}
+	select {
+	case <-worker.done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("disable failed to release worker")
+	}
+}
+
+func TestSplashIdleHiddenAndCloseDoNotSchedule(t *testing.T) {
+	config := splashTestConfig()
+	tt := newRepaintTester(func(c *context) { SetDecorativeEffects(makeContext(c), config) })
+	t.Cleanup(tt.rt.close)
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.PointerMove, X: 80, Y: 30})
+	tt.frame(17 * time.Millisecond)
+	s, worker := &tt.rt.decorations, tt.rt.decorations.fluidWorker
+	result := awaitSplash(t, worker)
+	worker.results <- result
+	if _, more := tt.frame(splashIdleTail + time.Millisecond); more || tt.rt.repainting || s.fluidBusy || len(worker.jobs) != 0 || len(worker.results) != 0 {
+		t.Fatal("idle tail did not park all frame and job scheduling")
+	}
+	tt.h.hidden = true
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.PointerMove, X: 90, Y: 30})
+	tt.frame(17 * time.Millisecond)
+	if len(worker.jobs) != 0 || s.fluidBusy || !tt.rt.held || tt.h.requested.Load() {
+		t.Fatal("hidden native host submitted background simulation")
+	}
+	tt.h.hidden = false
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.SurfaceShown})
+	if !tt.h.requested.Load() {
+		t.Fatal("visibility restoration failed to resume held idle-tail animation")
+	}
+	tt.frame(17 * time.Millisecond)
+	if !s.fluidBusy {
+		t.Fatal("visible native host failed to resume one bounded job")
+	}
+	tt.rt.close()
+	worker.close() // Closing an already closed owner is harmless.
+	select {
+	case <-worker.done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("window destruction retained idle worker")
+	}
+	if s.fluidWorker != nil || s.fluidBitmap != nil || len(worker.jobs) != 0 {
+		t.Fatal("closed engine retained splash resources")
+	}
+}
+
+func TestSplashWorkerSeededInputsAndBoundedCoalescing(t *testing.T) {
+	a, b := newSplashWorker(2026), newSplashWorker(2026)
+	t.Cleanup(a.close)
+	t.Cleanup(b.close)
+	job := splashRequest{now: time.Unix(1000, 0), width: 160, height: 100, config: splashTestConfig(), x: .5, y: .5, dx: .02, dy: -.03, moved: true, press: true, pressX: .4, pressY: .6}
+	for frame := range 12 {
+		job.now = job.now.Add(17 * time.Millisecond)
+		job.x += .005
+		job.press = frame == 0
+		a.jobs <- job
+		b.jobs <- job
+		if !bytes.Equal(awaitSplash(t, a).Pix, awaitSplash(t, b).Pix) {
+			t.Fatal("same seed and input sequence changed numerical output")
+		}
+	}
+	s := decorationState{config: splashTestConfig(), width: 200, height: 100}
+	for i := 0; i < 10000; i++ {
+		s.queueSplash(float32(i%200), 25, 2, 3, job.now)
+	}
+	if s.fluidInput.x != float32(199)/200 || s.fluidInput.dx != .01 || s.fluidInput.dy != -.015 || !s.fluidInput.moved || s.fluidWorker != nil {
+		t.Fatalf("coalesced normalized input is incorrect: %+v", s.fluidInput)
+	}
+	s.noteSplashPointer(100, 50, job.now)
+	s.noteSplashPointer(104, 48, job.now)
+	if diff := s.fluidInput.dx - .02; diff < -.000001 || diff > .000001 {
+		t.Fatalf("native input accumulated frame distance instead of latest event delta: %+v", s.fluidInput)
+	}
+}
+
+func TestSplashNativeMemoryBudgetChecksBeforeAllocation(t *testing.T) {
+	for _, tc := range []struct {
+		w, h int
+		fits bool
+	}{
+		{1440, 900, true}, {4096, 256, true}, {4352, 256, false},
+		{1, 1_000_000, false}, {0, 100, false},
+	} {
+		if got := nativeSplashFits(tc.w, tc.h); got != tc.fits {
+			t.Fatalf("budget preflight %dx%d: got%v want%v", tc.w, tc.h, got, tc.fits)
+		}
+		if tc.fits {
+			solver := newSplashSolver(tc.w, tc.h, nativeSplashSimResolution, nativeSplashDyeResolution)
+			w, h := solver.ImageSize()
+			if actual := solver.MemoryBytes() + 2*w*h*4; actual > nativeSplashMemoryBudget {
+				t.Fatalf("preflight accepted%d retained field/two-image bytes", actual)
+			}
+		}
+	}
+	tt := NewTester(func(c *Context) {}, 200, 100)
+	defer tt.rt.close()
+	s := &tt.rt.decorations
+	s.config = splashTestConfig()
+	s.fluidWorker = newSplashWorker(2026)
+	worker := s.fluidWorker
+	s.fluidLastInput = time.Now()
+	s.paintSplash(&tt.rt.painter, 1_000_000, 1, time.Now())
+	if s.fluidWorker != nil || s.fluidBitmap != nil || !s.config.PointerEnabled {
+		t.Fatal("extreme aspect allocated a new field or reset the user's preference")
+	}
+	select {
+	case <-worker.done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("budget suspension retained background owner")
+	}
+}
+
+func TestSplashNativeSlowWorkPacingAndStableUpload(t *testing.T) {
+	tt := NewTester(func(c *Context) {}, 200, 100)
+	defer tt.rt.close()
+	s := &tt.rt.decorations
+	s.config, s.width, s.height = splashTestConfig(), 200, 100
+	start := time.Unix(1000, 0)
+	now := start.Add(33 * time.Millisecond)
+	s.fluidSubmitted, s.fluidLastInput, s.fluidNext = start, start, start.Add(splashFrameInterval)
+	s.fluidWorker = &splashWorker{jobs: make(chan splashRequest, 1), results: make(chan *image.RGBA, 1), stop: make(chan struct{}), lastWork: 30 * time.Millisecond}
+	s.fluidWorker.results <- image.NewRGBA(image.Rect(0, 0, 128, 64))
+	s.fluidBusy = true
+	s.fluidInput.moved = true
+	tt.rt.c.now = now
+	s.paintSplash(&tt.rt.painter, 200, 100, now)
+	want := start.Add(125 * time.Millisecond) //30ms work / .24 target duty.
+	if s.fluidNext != want || s.fluidBusy || len(s.fluidWorker.jobs) != 0 || tt.rt.repainting || tt.rt.repaintAt != want || !s.fluidInput.moved {
+		t.Fatalf("slow work was queued early or lost pending input: next%v repaint%v busy%v", s.fluidNext, tt.rt.repaintAt, s.fluidBusy)
+	}
+	version := s.fluidBitmap.img.Version()
+	now = now.Add(10 * time.Millisecond)
+	tt.rt.c.now = now
+	s.paintSplash(&tt.rt.painter, 200, 100, now)
+	if s.fluidBitmap.img.Version() != version || len(s.fluidWorker.jobs) != 0 {
+		t.Fatal("paced waiting re-uploaded unchanged pixels or queued another task")
+	}
+	tt.rt.c.now = want
+	s.paintSplash(&tt.rt.painter, 200, 100, want)
+	if !s.fluidBusy || len(s.fluidWorker.jobs) != 1 {
+		t.Fatal("deadline did not resume exactly one pending task")
+	}
+	if splashPacing(2*time.Millisecond) != splashFrameInterval || splashPacing(30*time.Millisecond) != 125*time.Millisecond {
+		t.Fatal("native pacing broke either the60Hz cap or slow-work duty budget")
+	}
+}
+
+func BenchmarkSplashWorkerFrameDistribution(b *testing.B) {
+	worker := newSplashWorker(2026)
+	defer worker.close()
+	job := splashRequest{now: time.Unix(1000, 0), width: 1440, height: 900, config: splashTestConfig(), x: .5, y: .5, dx: .02, dy: -.03, moved: true}
+	worker.jobs <- job
+	<-worker.results // Allocate and warm all retained numerical/output buffers.
+	samples := make([]time.Duration, b.N)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := range b.N {
+		job.now = job.now.Add(splashFrameInterval)
+		start := time.Now()
+		worker.jobs <- job
+		<-worker.results
+		samples[i] = time.Since(start)
+	}
+	b.StopTimer()
+	slices.Sort(samples)
+	b.ReportMetric(float64(samples[(len(samples)-1)*50/100].Nanoseconds()), "p50-ns")
+	b.ReportMetric(float64(samples[(len(samples)-1)*95/100].Nanoseconds()), "p95-ns")
+	b.ReportMetric(float64(samples[len(samples)-1].Nanoseconds()), "max-ns")
+}

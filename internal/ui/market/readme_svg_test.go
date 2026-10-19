@@ -27,7 +27,9 @@ func TestMarketReadmeSVGCapabilityRetainsSupportedStaticDocuments(t *testing.T) 
 
 func TestMarketReadmeSVGUnconditionalSwitchRendersItsFirstChild(t *testing.T) {
 	cache := readmeImageCache(t)
-	const source = `<svg viewBox='0 0 40 20'><switch><rect width='40' height='20' fill='red'/></switch></svg>`
+	// Explicit intrinsic dimensions keep this fixture on the static path.
+	// A viewBox alone now correctly needs browser natural-size metadata.
+	const source = `<svg width='40' height='20' viewBox='0 0 40 20'><switch><rect width='40' height='20' fill='red'/></switch></svg>`
 	const url = "https://example.invalid/unconditional-switch.svg"
 	if err := os.WriteFile(cache.FilePath(url), []byte(source), 0600); err != nil {
 		t.Fatal(err)

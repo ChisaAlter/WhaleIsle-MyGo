@@ -131,7 +131,7 @@ func TestMarketReadmeCachedImagesKeepNaturalSizeAndAspectRatio(t *testing.T) {
 		w, h float32
 	}{
 		{"wide.png", readmeImagePNG(t), 800, 400},
-		{"small.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><rect width="40" height="20" fill="#4176e6"/></svg>`), 40, 20},
+		{"small.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" viewBox="0 0 40 20"><rect width="40" height="20" fill="#4176e6"/></svg>`), 40, 20},
 	} {
 		url := "http://example.invalid/" + tc.name
 		if err := os.WriteFile(cache.FilePath(url), tc.body, 0600); err != nil {
