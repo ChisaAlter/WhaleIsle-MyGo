@@ -110,6 +110,7 @@ type mainState struct {
 	voice                *composerVoiceOperation
 	projectFlow          projectFlowState
 	resumeStore          *recovery.Store
+	resumeCheckpoint     *resumeCheckpoint
 	resumeError          string
 	resumePendingSession string
 	resumeWorkspace      string
@@ -441,13 +442,14 @@ type mainState struct {
 	composerTextInput     *composer.DraftClient
 	composerDrafts        map[string]*composer.DraftState
 
-	terminalPanel       *termui.Panel
-	terminalSessions    termui.Sessions
-	hostTerminals       hostterminal.Store
-	hostTerminalUI      termui.HostState
-	terminalShellsNote  string
-	terminalVisible     bool
-	terminalSavedBottom float32
+	terminalPanel         *termui.Panel
+	terminalSessions      termui.Sessions
+	hostTerminals         hostterminal.Store
+	hostTerminalUI        termui.HostState
+	terminalShellsNote    string
+	terminalVisible       bool
+	terminalSavedBottom   float32
+	terminalResumePending bool
 
 	dshMu       sync.Mutex
 	dshCancel   context.CancelFunc
@@ -1281,6 +1283,7 @@ func (s *mainState) terminalShown() bool {
 
 func (s *mainState) toggleTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
+	s.terminalResumePending = false
 	if s.terminalVisible {
 		s.terminalSavedBottom = s.layout.Bottom
 		if s.terminalSavedBottom <= terminalMinBottom {
@@ -1304,7 +1307,7 @@ func (s *mainState) ensureTerminal(workspaceRoot string, systemDark bool) {
 	root := strings.TrimSpace(workspaceRoot)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.terminalVisible || s.layout.Bottom <= terminalMinBottom {
+	if !s.terminalVisible || s.layout.Bottom <= terminalMinBottom || s.terminalResumePending {
 		return
 	}
 	if s.terminalPanel != nil && s.terminalPanel.Workspace() == root {
@@ -1331,6 +1334,7 @@ func (s *mainState) closeTerminal() {
 
 func (s *mainState) restartTerminal(workspaceRoot string, systemDark bool) {
 	s.mu.Lock()
+	s.terminalResumePending = false
 	s.terminalPanel = s.terminalSessions.Restart(workspaceRoot, systemDark)
 	s.terminalShellsNote = ""
 	s.terminalVisible = true
@@ -1503,6 +1507,7 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	case "desktop", "d-main":
 		// all overlays already cleared
 	case "term", "terminal":
+		s.terminalResumePending = false
 		s.terminalVisible = true
 		if s.layout.Bottom <= terminalMinBottom {
 			if s.terminalSavedBottom > terminalMinBottom {
@@ -2144,6 +2149,7 @@ func main() {
 		win.OnHide(func() { state.layout.Workspace.PauseContent() })
 		win.OnMinimize(func() { state.layout.Workspace.PauseContent() })
 		win.OnClosed(func() { state.disposeWorkspaceSessions() })
+		win.OnClosed(state.closeResumeCheckpoint)
 		win.OnHide(state.hideOfficeSettings)
 		win.OnClosed(state.hideOfficeSettings)
 		win.OnHide(state.suspendCreatorTask)
@@ -2797,6 +2803,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	defer state.syncResumeCheckpoint(c)
 	standaloneScheduleRendered := false
 	defer func() {
 		if state.schedulePanelRendered && !standaloneScheduleRendered {
@@ -2814,6 +2821,7 @@ func mainView(c *ui.Context) {
 	defer state.syncAccountBonusNotice(c)
 	defer state.syncAccountStatusNotices(c)
 	defer state.syncAccountQuotaNotice(c)
+	defer state.syncScheduleDeleteNotice(c)
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)

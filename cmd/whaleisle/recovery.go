@@ -70,6 +70,11 @@ func (s *mainState) openResume(dir string) {
 	if finiteSize(l.Bottom, 80, 1600) {
 		s.terminalSavedBottom = l.Bottom
 	}
+	if l.TerminalOpen {
+		s.terminalVisible = true
+		s.layout.Bottom = s.terminalSavedBottom
+		s.terminalResumePending = true
+	}
 	if finiteSize(l.RightTree, 60, 2000) {
 		s.layout.RightTree = l.RightTree
 	}
@@ -132,7 +137,13 @@ func (s *mainState) restoreResumeSelection() {
 func (s *mainState) saveResume() error {
 	s.mu.Lock()
 	interactions := s.interactions
+	checkpoint := s.resumeCheckpoint
+	win := s.win
 	s.mu.Unlock()
+	if checkpoint != nil {
+		checkpoint.pause()
+		defer checkpoint.resume()
+	}
 	// Flush outside mainState.mu: the draft writer owns a separate serial lock
 	// and its resume callback must finish before the final combined snapshot.
 	if interactions != nil {
@@ -140,18 +151,42 @@ func (s *mainState) saveResume() error {
 			return err
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var next recovery.State
+	var store *recovery.Store
+	var err error
+	capture := func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		store = s.resumeStore
+		next, err = s.captureResumeOwnedLocked()
+	}
+	// Protected quit can originate on a worker. Mutable native editor/pane
+	// state is always captured on its UI owner, never by that worker.
+	if win != nil {
+		mygo.RunOnMain(capture)
+	} else {
+		capture() // Non-UI callers own their isolated state directly.
+	}
+	if err != nil {
+		return err
+	}
+	err = store.Update(func(v *recovery.State) { applyResumeOwned(v, next) })
+	if err == nil && checkpoint != nil {
+		checkpoint.acceptFinal(next)
+	}
+	return err
+}
+
+// Called only on the native UI thread (or an isolated non-UI owner), with mu
+// held. Each serialized payload is detached before a disk worker receives it.
+func (s *mainState) captureResumeOwnedLocked() (recovery.State, error) {
 	if s.resumeError != "" {
-		return fmt.Errorf("%s", s.resumeError)
+		return recovery.State{}, fmt.Errorf("%s", s.resumeError)
 	}
 	if s.resumeStore == nil {
-		return fmt.Errorf("resume storage is not available")
+		return recovery.State{}, fmt.Errorf("resume storage is not available")
 	}
-	next := s.resumeStore.Snapshot()
-	if interactions != nil {
-		next.QuestionDrafts = interactions.ExportQuestionDrafts(questionDraftProfileOwner())
-	}
+	next := recovery.State{Version: 1}
 	if s.cfgStore != nil {
 		next.Workspace = s.cfgStore.Get().Workspace
 	}
@@ -165,7 +200,7 @@ func (s *mainState) saveResume() error {
 	if s.terminalVisible && s.layout.Bottom > 80 {
 		bottom = s.layout.Bottom
 	}
-	next.Layout = recovery.Layout{TranscriptWidth: s.layout.TranscriptWidth, Sidebar: s.layout.Sidebar, SidebarExpanded: s.layout.SidebarExpanded, Right: s.layout.Right, Bottom: bottom, RightTree: s.layout.RightTree, RightOpen: s.filesPaneOpen, RightTab: s.rightPaneTab, ChatTab: s.chatPaneTab, PlanOpen: s.planBoardOpen, TodoCollapsed: s.todoPanelCollapsed}
+	next.Layout = recovery.Layout{TranscriptWidth: s.layout.TranscriptWidth, Sidebar: s.layout.Sidebar, SidebarExpanded: s.layout.SidebarExpanded, Right: s.layout.Right, Bottom: bottom, TerminalOpen: s.terminalVisible, RightTree: s.layout.RightTree, RightOpen: s.filesPaneOpen, RightTab: s.rightPaneTab, ChatTab: s.chatPaneTab, PlanOpen: s.planBoardOpen, TodoCollapsed: s.todoPanelCollapsed}
 	next.Layout.WorkspacePanes = s.exportWorkspaceSessionsLocked()
 	next.Drafts = make(map[string]json.RawMessage, len(s.composerDrafts))
 	for key, draft := range s.composerDrafts {
@@ -175,10 +210,16 @@ func (s *mainState) saveResume() error {
 	}
 	files, err := s.fileTabs.Export()
 	if err != nil {
-		return err
+		return recovery.State{}, err
 	}
 	next.Files = files
-	return s.resumeStore.Update(func(v *recovery.State) { *v = next })
+	return next, nil
+}
+
+// Question drafts have their own serialized writer. A combined UI checkpoint
+// may never overwrite a newer question write with an earlier captured field.
+func applyResumeOwned(v *recovery.State, next recovery.State) {
+	v.Workspace, v.SelectedSession, v.Layout, v.Drafts, v.Files = next.Workspace, next.SelectedSession, next.Layout, next.Drafts, next.Files
 }
 
 // A normal quit must not silently discard an unsaved editor/composer. Default

@@ -27,6 +27,7 @@ type Layout struct {
 	SidebarExpanded float32         `json:"sidebarExpanded,omitempty"`
 	Right           float32         `json:"right"`
 	Bottom          float32         `json:"bottom"`
+	TerminalOpen    bool            `json:"terminalOpen,omitempty"`
 	RightTree       float32         `json:"rightTree"`
 	RightOpen       bool            `json:"rightOpen"`
 	RightTab        string          `json:"rightTab"`
