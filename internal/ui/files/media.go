@@ -170,8 +170,8 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 		return p
 	}
 	var decoded image.Image
-	switch ext {
-	case ".gif":
+	switch {
+	case ext == ".gif" || imagepreview.IsAnimatedWebP(data):
 		p.animation, p.err = imagepreview.DecodeAnimation(data)
 		if p.err == nil {
 			for _, frame := range p.animation.Frames {
@@ -184,11 +184,11 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 			p.animation.Frames = nil
 			p.bitmap = p.frames[0]
 		}
-	case ".svg":
+	case ext == ".svg":
 		decoded, p.err = imagepreview.DecodeSVGContext(ctx, data)
-	case ".ico":
+	case ext == ".ico":
 		decoded, p.err = imagepreview.DecodeIcon(data)
-	case ".avif":
+	case ext == ".avif":
 		decoded, p.err = imagepreview.DecodeAVIFContext(ctx, data)
 	default:
 		config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data))

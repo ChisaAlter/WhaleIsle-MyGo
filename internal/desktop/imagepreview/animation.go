@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Animation contains every composited frame of a prevalidated bounded GIF.
+// Animation contains every composited frame of a prevalidated bounded GIF/WebP.
 // It is independent of files, scripts, WebViews and external decoder processes.
 // Total retained canvas pixels cannot exceed MaxPixels.
 type Animation struct {
@@ -20,6 +20,9 @@ type Animation struct {
 }
 
 func DecodeAnimation(data []byte) (*Animation, error) {
+	if IsAnimatedWebP(data) {
+		return decodeWebPAnimation(data)
+	}
 	// Validate all compressed frames and cumulative canvas allocation before
 	// image/gif can allocate its frame list.
 	if err := validateGIF(data); err != nil {

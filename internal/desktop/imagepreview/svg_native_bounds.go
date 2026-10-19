@@ -17,6 +17,10 @@ import (
 
 var nativeSVGProperties = regexp.MustCompile(`(?i)(^|[;{])\s*(filter|marker-start|marker-mid|marker-end)\s*:`)
 
+// ValidateNativeSVG exposes the same resource and geometry gate used by the
+// isolated static rasterizer, without rendering or acquiring resources.
+func ValidateNativeSVG(data []byte) error { return validateNativeSVG(data) }
+
 // The native rasterizer has no resource authority and a bounded WASM heap.
 // Admit its static filters/embedded raster images without changing the stricter
 // browser-document validator. A resource-free projection reuses all existing

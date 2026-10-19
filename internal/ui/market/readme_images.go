@@ -1,10 +1,11 @@
 package market
 
 import (
-	"os"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/imgcache"
 )
 
@@ -22,11 +23,15 @@ func SetRemoteImageCache(cache *imgcache.Cache) {
 }
 
 type readmeDecodedImage struct {
-	path   string
-	bitmap *ui.Bitmap
-	svg    *ui.SVG
-	width  float32
-	height float32
+	path      string
+	bitmap    *ui.Bitmap
+	svg       *ui.SVG
+	width     float32
+	height    float32
+	animation *imagepreview.Animation
+	frames    []*ui.Bitmap
+	started   time.Time
+	pending   chan readmeDecodedImage
 }
 
 func renderReadmeImage(c *ui.Context, source, alt string) bool {
@@ -52,21 +57,14 @@ func renderReadmeImage(c *ui.Context, source, alt string) bool {
 	decoded := ui.Local(root, "decoded-image", func() readmeDecodedImage { return readmeDecodedImage{} })
 	if decoded.path != path {
 		*decoded = readmeDecodedImage{path: path}
-		if data, err := os.ReadFile(path); err == nil {
-			if bitmap, err := ui.DecodeBitmap(data); err == nil {
-				decoded.bitmap = bitmap
-				width, height := bitmap.Size()
-				decoded.width, decoded.height = float32(width), float32(height)
-			} else if supportedReadmeSVG(data) {
-				if svg, err := ui.ParseSVG(data); err == nil {
-					decoded.svg = svg
-					decoded.width, decoded.height = svg.Size()
-				}
-			}
-		}
+		decoded.load(path, c.Services().Invalidate)
 	}
+	decoded.poll(path)
 	if decoded.width <= 0 || decoded.height <= 0 {
 		return false
+	}
+	if wait := decoded.advance(time.Now()); wait > 0 {
+		c.After(wait)
 	}
 	// Original .readme img: max-width100%, height:auto. Keep the source's
 	// natural width and ratio; no chat-thumbnail cap, caption or extra action.

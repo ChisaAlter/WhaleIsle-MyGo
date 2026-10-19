@@ -6,15 +6,21 @@ import (
 	"io"
 	"strings"
 
+	"whaleisle/internal/desktop/imagepreview"
+
 	"github.com/tdewolff/parse/v2"
 	"github.com/tdewolff/parse/v2/css"
 )
 
-// MyGo's SVG parser accepts elements and properties its renderer does not
-// implement. A successful parse alone must not turn a partly drawn README
-// diagram into a successful image. Keep the supported static subset explicit;
-// unsupported documents take the same authored-alt path as a failed image.
+// README artwork has the same bounded static capability as Files/composer.
+// Active, foreign and external-resource documents retain their authored alt.
 func supportedReadmeSVG(data []byte) bool {
+	return len(data) <= imagepreview.MaxSVGBytes && (fastReadmeSVG(data) || imagepreview.ValidateNativeSVG(data) == nil)
+}
+
+// The inexpensive vector path is retained only for artwork the native parser
+// actually renders. Other accepted static SVGs use the shared WASM rasterizer.
+func fastReadmeSVG(data []byte) bool {
 	d := xml.NewDecoder(bytes.NewReader(data))
 	var style strings.Builder
 	var inStyle, root bool

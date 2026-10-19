@@ -119,7 +119,7 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 			out.err = e
 			return out
 		}
-		if format == "gif" {
+		if format == "gif" || imagepreview.IsAnimatedWebP(data) {
 			out.decodeAnimation(data, len(full) > 0 && full[0])
 			return out
 		}
