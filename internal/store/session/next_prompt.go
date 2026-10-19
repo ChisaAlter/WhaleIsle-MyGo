@@ -16,6 +16,7 @@ type nextPromptRequest struct {
 	client       *dsh.Client
 	sessionID    string
 	completedSeq float64
+	generation   uint64
 	cancel       context.CancelFunc
 	result       NextPromptSuggestion
 }
@@ -37,7 +38,7 @@ func (s *Store) clearNextPromptLocked() {
 func (s *Store) SyncNextPrompt(ctx context.Context, eligible bool) NextPromptSuggestion {
 	s.mu.Lock()
 	client, id := s.client, s.selectedID
-	if !eligible || client == nil || id == "" {
+	if !eligible || ctx.Err() != nil || client == nil || !s.nextPromptSessionEligibleLocked() {
 		s.clearNextPromptLocked()
 		s.mu.Unlock()
 		return NextPromptSuggestion{}
@@ -49,20 +50,20 @@ func (s *Store) SyncNextPrompt(ctx context.Context, eligible bool) NextPromptSug
 		}
 	}
 	current := s.nextPrompt.request
-	if current != nil && current.client == client && current.sessionID == id && current.completedSeq == completedSeq {
+	if current != nil && current.client == client && current.sessionID == id && current.generation == s.followGeneration && current.completedSeq == completedSeq {
 		result := current.result
 		s.mu.Unlock()
 		return result
 	}
 	s.clearNextPromptLocked()
 	requestCtx, cancel := context.WithCancel(ctx)
-	request := &nextPromptRequest{client: client, sessionID: id, completedSeq: completedSeq, cancel: cancel}
+	request := &nextPromptRequest{client: client, sessionID: id, generation: s.followGeneration, completedSeq: completedSeq, cancel: cancel}
 	s.nextPrompt.request = request
 	s.mu.Unlock()
 	go func() {
 		result, err := client.NextPrompt(requestCtx, id)
 		s.mu.Lock()
-		if s.nextPrompt.request != request || s.client != client || s.selectedID != id {
+		if requestCtx.Err() != nil || s.nextPrompt.request != request || s.client != client || s.selectedID != id || s.followGeneration != request.generation || !s.nextPromptSessionEligibleLocked() {
 			s.mu.Unlock()
 			return
 		}
@@ -83,7 +84,7 @@ func (s *Store) AcceptNextPrompt(suggestion NextPromptSuggestion) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	request := s.nextPrompt.request
-	if request == nil || request.client != s.client || request.sessionID != s.selectedID || request.result != suggestion {
+	if request == nil || request.client != s.client || request.sessionID != s.selectedID || request.generation != s.followGeneration || request.result != suggestion || !s.nextPromptSessionEligibleLocked() {
 		return ""
 	}
 	if s.nextPrompt.accepted == nil {
@@ -92,4 +93,20 @@ func (s *Store) AcceptNextPrompt(suggestion NextPromptSuggestion) string {
 	s.nextPrompt.accepted[s.selectedID] = suggestion.Seq
 	request.result = NextPromptSuggestion{}
 	return suggestion.Text
+}
+
+// The native frame owns draft/popup and interaction gates; the Store checks the
+// current Session again at asynchronous completion and acceptance, like the
+// original aborted effect and keyboard.snapshot checks. A retained suggestion
+// must not cross a reopen of the same ID or a managed-presentation transition.
+func (s *Store) nextPromptSessionEligibleLocked() bool {
+	if s.selectedID == "" || !s.historyReady || s.historyLoading || s.historyError != "" || s.promptBusy || s.composerPromptBusyLocked() || s.composerPendingForSelectedLocked() || s.historyBranchBusy || s.turnStartMs > 0 {
+		return false
+	}
+	for _, item := range s.items {
+		if item.SessionID == s.selectedID {
+			return !item.Running && !item.Blank && item.Origin != "subagent" && (item.Presentation == nil || item.Presentation.Composer != "managed")
+		}
+	}
+	return false
 }

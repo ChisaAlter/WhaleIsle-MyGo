@@ -205,6 +205,7 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 				m.item.Title = s.items[index].Title
 			}
 			m.item.AgentMetrics = mergeAgentMetrics(m.item.AgentMetrics, s.items[index].AgentMetrics)
+			mergeSessionPresentation(&m.item, s.items[index])
 			if m.item.BilledUsage == nil {
 				m.item.BilledUsage = s.items[index].BilledUsage
 				m.item.BilledUsageSeq = s.items[index].BilledUsageSeq

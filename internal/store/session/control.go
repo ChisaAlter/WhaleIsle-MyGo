@@ -68,6 +68,7 @@ func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *ds
 			return
 		}
 		s.applyAgentNavigationControlLocked(raw)
+		s.applySessionPresentationControlLocked(raw)
 		s.applyCostControlLocked(raw)
 		s.applyAgentMetricsControlLocked(raw)
 		s.applyQueueControlLocked(raw)

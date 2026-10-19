@@ -679,7 +679,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					presetPick = &label
 				}
 				paintComposer := func(hero bool) {
-					nextPrompt := m.Store.SyncNextPrompt(context.Background(), composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
+					nextPrompt := m.Store.SyncNextPrompt(context.Background(), !hasPendingStopInteraction(m.Interactions, snap.SelectedID) && composer.NextPromptEligible(snap, m.ComposerState, m.ConversationPreferences.NextPrompt, hero))
 					if !hero {
 						// Electron TodoPanel: todos-only dock above composer (not PlanBoard).
 						chat.TodoPanelView(c, chat.TodoPanelModel{

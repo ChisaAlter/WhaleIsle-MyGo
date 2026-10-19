@@ -184,6 +184,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.historyReady = true
 		s.clearHistoryErrorLocked()
 		if snap.Projections != nil {
+			s.applySessionPresentationValuesLocked(s.selectedID, "sequenced", snap.Projections.AsOfSeq, snap.Projections.Values)
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.resetInspectorLocked()
@@ -282,6 +283,15 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 		return true
 	}
 	switch head.Type {
+	case "session/presentation":
+		var event struct {
+			Data *SessionPresentation `json:"data"`
+		}
+		if json.Unmarshal(raw, &event) == nil {
+			s.applySessionPresentationLocked(s.selectedID, "sequenced", head.Seq, event.Data)
+			return true
+		}
+		return changed
 	case events.TypeModelSelection:
 		return s.applyModelSelectionEventLocked(raw)
 	case "turn/start":

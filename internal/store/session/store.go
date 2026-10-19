@@ -18,11 +18,15 @@ import (
 
 // Item is one row in the session tree.
 type Item struct {
-	CompletionUnread bool
-	AgentMetrics     AgentMetrics
-	BilledUsage      *sessioncost.Projection
-	BilledUsageSeq   float64
-	BilledUsageKind  string
+	Presentation      *SessionPresentation
+	presentationKnown bool
+	presentationKind  string
+	presentationSeq   float64
+	CompletionUnread  bool
+	AgentMetrics      AgentMetrics
+	BilledUsage       *sessioncost.Projection
+	BilledUsageSeq    float64
+	BilledUsageKind   string
 
 	SessionID    string
 	ParentID     string
@@ -375,6 +379,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.resetSessionPresentationsLocked()
 		s.goalReadError = goalReadErrorState{}
 		s.cancelRetainedAgentReadsLocked("")
 		s.resetSidebarStatusesLocked()
@@ -519,6 +524,7 @@ func filepathClean(p string) string {
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.resetSessionPresentationsLocked()
 	s.cancelRetainedAgentReadsLocked("")
 	s.resetSidebarStatusesLocked()
 	s.clearNextPromptLocked()
@@ -827,7 +833,17 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 			}
 		}
 	}
+	priorItems := s.items
 	s.items = sessionListItems(out.Items)
+	priorPresentations := make(map[string]Item, len(priorItems))
+	for _, prior := range priorItems {
+		priorPresentations[prior.SessionID] = prior
+	}
+	for i := range s.items {
+		if prior, ok := priorPresentations[s.items[i].SessionID]; ok {
+			mergeSessionPresentation(&s.items[i], prior)
+		}
+	}
 	// A list response can finish after the user changed sessions and returned
 	// to the same id. Preserve that current foreground row; the follow stream
 	// owns its running/error state and the stale list must not replay it.
