@@ -62,6 +62,10 @@ func previewTool(c *ui.Context, key, caption string, icon *ui.SVG, ink ui.Color)
 	glyph := float32(15)
 	if icon == previewFloatingIcon {
 		glyph = 14
+	} else if icon == previewOpenIcon {
+		glyph = 13
+	} else if icon == previewChevronIcon {
+		glyph = 10
 	}
 	b.Children(func() { ui.Icon(c, icon).Size(glyph, glyph).PassThrough() })
 	return b
@@ -205,12 +209,12 @@ func paintPreviewOpenTarget(c *ui.Context, m Model, path string, muted ui.Color)
 	if m.OnOpenDoc == nil && m.OnReveal == nil && m.OnOpenWith == nil {
 		return
 	}
-	ui.Row(c).Gap(0).Shrink(0).Children(func() {
+	ui.Row(c).Gap(0).Shrink(0).Height(24).Radius(6).BorderWidth(0.5).BorderColor(c.Theme().Border).Clip().Children(func() {
 		caption := i18n.T(i18n.KeyFilesOpenExternal)
 		if m.OnOpenDoc == nil {
 			caption = i18n.T(i18n.KeyFilesReveal)
 		}
-		if previewTool(c, "preview-open", caption, previewOpenIcon, muted).Width(24).Height(24).Clicked() {
+		if previewTool(c, "preview-open", caption, previewOpenIcon, muted).Width(23).Height(23).Radius(0).Clicked() {
 			if m.OnOpenDoc != nil {
 				withToolbarPath(m, path, textPreviewPath(m, path), func(full string) { m.OnOpenDoc(full, workspacefs.ClassifyDoc(path), false) })
 			} else {
@@ -218,7 +222,8 @@ func paintPreviewOpenTarget(c *ui.Context, m Model, path string, muted ui.Color)
 			}
 		}
 		if m.OnReveal != nil || (m.OnOpenWith != nil && len(m.OpenWithApps) > 0) {
-			previewTool(c, "preview-open-menu", label("更多打开方式", "More open options"), previewChevronIcon, muted).Width(18).Height(24).
+			previewTool(c, "preview-open-menu", label("更多打开方式", "More open options"), previewChevronIcon, muted).Width(17).Height(23).Radius(0).
+				DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y, W: 0.5, H: r.H}, c.Theme().Border, 0) }).
 				Menu(func(menu *ui.Menu) { previewOpenMenu(menu, m, path) })
 		}
 	})
