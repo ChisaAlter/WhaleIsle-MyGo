@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"github.com/egoist/mygo/ui"
+	"slices"
 	"testing"
 	"whaleisle/internal/ui/i18n"
 )
@@ -46,9 +47,15 @@ func TestToolbarNarrowActionsRemainVisible(t *testing.T) {
 		previewPane(c, m, c.Theme().Text, c.Theme().Text, c.Theme().Border, c.Theme().Background)
 	}, 360, 600)
 	for _, text := range []string{"Copy absolute path", "Copy relative path", "Reload", i18n.T(i18n.KeyFilesReveal)} {
-		rect, ok := tt.Find(text)
-		if !ok || rect.X < 0 || rect.X+rect.W > 361 {
-			t.Fatalf("inaccessible %s: %+v %v", text, rect, ok)
+		if err := tt.RightClick("File preview toolbar"); err != nil {
+			t.Fatal(err)
 		}
+		if !slices.Contains(tt.Menu(), text) {
+			t.Fatalf("inaccessible context action %s: %v", text, tt.Menu())
+		}
+		tt.CloseMenu()
+	}
+	if rect, ok := tt.Find("Preview in separate window"); !ok || rect.X < 0 || rect.X+rect.W > 361 {
+		t.Fatalf("floating action displaced: %+v", rect)
 	}
 }

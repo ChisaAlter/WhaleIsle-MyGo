@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/mediapreview"
@@ -256,7 +255,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Key(workspaceReference(m, path)).Label("File result "+path).Focusable().Height(28).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
+		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
 		if m.SelectedFile != nil && *m.SelectedFile == path {
 			row.Background(accent.Alpha(0.12))
 		}
@@ -335,7 +334,7 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
 	pad := float32(8 + depth*12)
 	selected := m.SelectedFile != nil && *m.SelectedFile == rel
-	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
+	row := ui.Row(c).Key(treeFileRowKey(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
 	if selected {
 		row.Background(accent.Alpha(0.12))
 	} else if row.Hovered() || row.FocusWithin() {
@@ -367,8 +366,6 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			return
 		}
 		editing := m.Editing != nil && *m.Editing
-		fullPath := textPreviewPath(m, sel)
-		docKind := workspacefs.ClassifyDoc(sel)
 		canHL := false
 		if m.EditDraft != nil {
 			canHL = markdown.CanSourceHighlight(sel, *m.EditDraft)
@@ -377,107 +374,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		mode := resolveEditViewMode(m, canHL && editing)
 
-		ui.Row(c).Padding(8, 12, 4, 12).Gap(8).Wrap().FillWidth().AlignItems(ui.Center).Children(func() {
-			paintToolbarPath(c, m, sel, muted)
-			if sel != "" {
-				paintReferenceButtons(c, m, sel)
-				paintDocumentViewerButton(c, m)
-				if ui.Button(c, label("浮动预览", "Floating preview")).FontSize(theme.InterfaceSize(11)).Disabled(m.Tabs == nil).Clicked() {
-					if mediaMode(m, sel) && m.OnOpenMedia != nil {
-						m.OnOpenMedia(sel, true)
-					} else if (isPreviewImage(sel) || docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && m.OnOpenFloatingDoc != nil {
-						m.OnOpenFloatingDoc(sel)
-					} else if err := openFloatingPreview(m); err != nil {
-						setFileStatus(m, err.Error())
-					}
-				}
-				if ui.Button(c, label("复制绝对路径", "Copy absolute path")).FontSize(theme.InterfaceSize(11)).Clicked() {
-					mygo.Clipboard.WriteText(toolbarAbsolutePath(m, sel))
-				}
-				if ui.Button(c, label("复制相对路径", "Copy relative path")).FontSize(theme.InterfaceSize(11)).Clicked() {
-					mygo.Clipboard.WriteText(sel)
-				}
-				if ui.Button(c, label("重新载入", "Reload")).FontSize(theme.InterfaceSize(11)).Clicked() {
-					reloadSelectedFile(m)
-				}
-			}
-			if lang := languageChipLabel(sel); lang != "" {
-				ui.Text(c, lang).FontSize(theme.InterfaceSize(10)).Bold().TextColor(muted).
-					Padding(2, 6, 2, 6)
-			}
-			if mediaMode(m, sel) && m.OnOpenMedia != nil && ui.Button(c, label("音视频预览", "Media preview")).Clicked() {
-				m.OnOpenMedia(sel, false)
-			}
-			if m.OnOpenDoc != nil && (docKind == workspacefs.DocPDF || docKind == workspacefs.DocHTML) && ui.Button(c, i18n.T(i18n.KeyFilesOpenWebView)).Clicked() {
-				// A selected Host path does not need a matching file on this computer.
-				m.OnOpenDoc(sel, docKind, true)
-			}
-			if m.OnOpenDoc != nil && (fullPath != "" || m.ReadRemoteContext != nil) {
-				// Electron preview toolbar: open with system default for any file.
-				if ui.Button(c, i18n.T(i18n.KeyFilesOpenExternal)).Clicked() {
-					if fullPath == "" {
-						m.OnOpenDoc(sel, docKind, false)
-					} else {
-						withPreviewPath(m, sel, fullPath, func(path string) { m.OnOpenDoc(path, docKind, false) })
-					}
-				}
-			}
-			if m.OnReveal != nil && (fullPath != "" || m.ReadRemoteContext != nil || m.ListRemoteContext != nil) {
-				if ui.Button(c, i18n.T(i18n.KeyFilesReveal)).FontSize(theme.InterfaceSize(11)).Clicked() {
-					revealToolbarPath(m, sel, fullPath)
-				}
-			}
-			if m.OnOpenWith != nil && (fullPath != "" || m.ReadRemoteContext != nil || m.ListRemoteContext != nil) && len(m.OpenWithApps) > 0 {
-				ui.Text(c, i18n.T(i18n.KeyFilesOpenWith)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
-				for _, app := range m.OpenWithApps {
-					a := app
-					label := strings.TrimSpace(a.Name)
-					if label == "" {
-						label = a.ID
-					}
-					if ui.Button(c, label).FontSize(theme.InterfaceSize(11)).Clicked() {
-						withToolbarPath(m, sel, fullPath, func(path string) { m.OnOpenWith(path, a.ID) })
-					}
-				}
-			}
-			if m.OnRenderPDF != nil && (docKind == workspacefs.DocOther || docKind == workspacefs.DocXLSX) {
-				if ui.Button(c, i18n.T(i18n.KeyFilesRenderPDF)).FontSize(theme.InterfaceSize(11)).Clicked() {
-					m.OnRenderPDF(sel)
-				}
-			}
-			if !editing && !textReadBlocked(m) && !previewTruncated(m) && !imageMode(m, sel) && !mediaMode(m, sel) && (docKind == workspacefs.DocNone || docKind == workspacefs.DocHTML) && (m.PreviewErr == nil || *m.PreviewErr == "") {
-				if m.EditDraft != nil && m.Editing != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).Clicked() {
-					*m.Editing = true
-					if m.EditStatus != nil {
-						*m.EditStatus = ""
-					}
-				}
-				if m.OnShowDiff != nil && ui.Button(c, i18n.T(i18n.KeyFilesShowDiff)).Clicked() {
-					m.OnShowDiff(sel)
-				}
-			} else if editing {
-				if m.EditDraft != nil && ui.Button(c, label("复制草稿", "Copy draft")).Clicked() {
-					mygo.Clipboard.WriteText(*m.EditDraft)
-				}
-				if m.OnSaveEdit != nil && m.EditDraft != nil && ui.Button(c, i18n.T(i18n.KeyFilesSave)).Disabled(previewTruncated(m) || textReadBlocked(m)).Clicked() {
-					if err := requestSaveDraft(m); err != nil {
-						setFileStatus(m, err.Error())
-					}
-				}
-				if m.Editing != nil && ui.Button(c, label("保留草稿并预览", "Keep draft and preview")).Clicked() {
-					*m.Editing = false
-					if m.EditStatus != nil {
-						*m.EditStatus = ""
-					}
-				}
-				if canHL {
-					ui.Text(c, editViewModeLabel(mode)).FontSize(theme.InterfaceSize(10)).TextColor(muted)
-					if ui.Button(c, editViewModeCycleLabel(mode)).Clicked() {
-						setEditViewMode(m, cycleEditViewMode(mode))
-					}
-				}
-			}
-		})
+		paintPreviewToolbar(c, m, sel, muted, border)
 		if paintDocumentSurface(c, m) {
 			return
 		}
@@ -495,7 +392,6 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		paintTextPageControls(c, m, muted)
 		paintTableControls(c, m, muted)
-		paintSourceActions(c, m, sel, muted)
 		if m.OfficePreviewStatus != nil {
 			if status := m.OfficePreviewStatus(sel); status != "" {
 				ui.Text(c, status).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
@@ -504,9 +400,6 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		paintResourceRefreshControls(c, m)
 		if m.EditStatus != nil && *m.EditStatus != "" {
 			ui.Text(c, *m.EditStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
-		}
-		if m.StatNote != nil && *m.StatNote != "" {
-			ui.Text(c, *m.StatNote).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
 		if m.PreviewErr != nil && *m.PreviewErr != "" {
 			ui.Text(c, *m.PreviewErr).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).

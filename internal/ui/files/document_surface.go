@@ -66,6 +66,17 @@ func syncDocumentSurfaces(m Model) {
 }
 
 func paintDocumentViewerButton(c *ui.Context, m Model) {
+	prepareDocumentViewer(m)
+	tab := selectedTab(m)
+	if tab == nil || m.OpenDocumentViewer == nil {
+		return
+	}
+	paintDocumentViewerChoices(c, m, tab)
+}
+
+// Preparing the selected viewer is independent of whether its chooser is shown.
+// Compact headers must retain the original lazy surface ownership/lifetime.
+func prepareDocumentViewer(m Model) {
 	tab := selectedTab(m)
 	if tab == nil || m.OpenDocumentViewer == nil {
 		return
@@ -81,6 +92,9 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 	if !tab.document.enabled && tab.document.surface != nil {
 		tab.document.surface.SetVisible(false)
 	}
+}
+
+func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 	title := label("选择预览器", "Choose viewer")
 	if isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface) {
 		title = label("完整表格预览", "Full workbook viewer")

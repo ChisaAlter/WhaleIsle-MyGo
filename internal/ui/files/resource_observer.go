@@ -210,19 +210,10 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 }
 func paintResourceRefreshControls(c *ui.Context, m Model) {
 	tab := selectedTab(m)
-	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled {
+	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled || !tab.externalChanged {
 		return
 	}
 	ui.Row(c).Gap(6).Padding(0, 12, 4, 12).Wrap().Children(func() {
-		automatic := !tab.AutoRefreshDisabled
-		ui.Checkbox(c, &automatic, label("自动刷新此文件", "Auto-refresh this file"))
-		if automatic != !tab.AutoRefreshDisabled {
-			tab.AutoRefreshDisabled = !automatic
-			if automatic && m.Tabs.resourceObserver != nil {
-				o := m.Tabs.resourceObserver
-				o.queue.request(o.owner, o.read)
-			}
-		}
 		if tab.externalChanged {
 			ui.Text(c, label("外部内容已变化；未保存草稿不会被覆盖。", "External content changed; unsaved draft will not be overwritten.")).FontSize(11)
 			if ui.Button(c, label("重新读取源文件", "Refresh source file")).Clicked() {

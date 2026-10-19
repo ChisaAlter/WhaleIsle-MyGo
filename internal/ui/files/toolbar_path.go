@@ -43,10 +43,18 @@ func paintToolbarPath(c *ui.Context, m Model, path string, muted ui.Color) {
 	if split >= 0 {
 		directory, name = full[:split+1], full[split+1:]
 	}
-	ui.Row(c).Grow(1).MinWidth(100).Gap(0).Tooltip(full).Children(func() {
+	ui.Row(c).Grow(1).MinWidth(0).Gap(0).Tooltip(previewPathTooltip(m, path)).Children(func() {
 		if directory != "" {
 			ui.Text(c, directory).FontSize(11).TextColor(muted).SingleLine().Grow(1).MinWidth(0)
 		}
 		ui.Text(c, name).FontSize(11).Bold().SingleLine().Shrink(1).MinWidth(0).Tooltip(full)
 	})
+}
+
+func previewPathTooltip(m Model, path string) string {
+	text := toolbarAbsolutePath(m, path)
+	if m.StatNote != nil && *m.StatNote != "" {
+		text += "\n" + *m.StatNote
+	}
+	return text
 }

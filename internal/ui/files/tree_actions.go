@@ -12,6 +12,21 @@ import (
 
 type treeCopies struct{ relative, absolute, reference string }
 
+// Match deferred native menu choices to the same active resource generation.
+// The reference already scopes the row to its Host/session/workspace path.
+type treeFileKey struct {
+	reference filelink.Reference
+	active    previewToolbarOwner
+}
+
+func treeFileRowKey(m Model, path string) treeFileKey {
+	var active previewToolbarOwner
+	if m.SelectedFile != nil && *m.SelectedFile == path {
+		active = previewToolbarOwnerFor(m, path)
+	}
+	return treeFileKey{workspaceReference(m, path), active}
+}
+
 // Copying a path is lexical, like FilesPanel.absoluteOf, and works for Host
 // workspaces whose filesystem is not mounted on the native client's computer.
 func treePathCopies(m Model, path string) (treeCopies, bool) {
@@ -72,6 +87,7 @@ func treeFileMenu(m Model, path string) func(*ui.Menu) {
 		if m.OnOpenDoc != nil && menu.Item(i18n.T(i18n.KeyFilesOpenExternal)).Chosen() {
 			withToolbarPath(m, path, textPreviewPath(m, path), func(full string) { m.OnOpenDoc(full, workspacefs.ClassifyDoc(path), false) })
 		}
+		previewContextActions(menu, m, path)
 	}
 }
 
