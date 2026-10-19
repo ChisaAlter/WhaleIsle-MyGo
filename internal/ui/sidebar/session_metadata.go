@@ -47,19 +47,13 @@ func sessionRelativeTime(at, now float64) string {
 
 func sessionPinIndicator(c *ui.Context, id string, ink ui.Color) {
 	ui.Box(c.Key("session-pin")).Label("Session pinned "+id).Tooltip(workspaceText("已置顶", "Pinned")).
-		Width(16).Height(20).Margin(0, 0, 0, 6).Draw(func(p *ui.Painter, r ui.Rect) {
-		path := &ui.Path{}
-		path.MoveTo(r.X+6, r.Y+3)
-		path.LineTo(r.X+12, r.Y+3)
-		path.LineTo(r.X+11, r.Y+8)
-		path.LineTo(r.X+13, r.Y+11)
-		path.LineTo(r.X+5, r.Y+11)
-		path.LineTo(r.X+7, r.Y+8)
-		path.Close()
-		p.FillPath(path, ink)
-		needle := &ui.Path{}
-		needle.MoveTo(r.X+9, r.Y+11)
-		needle.LineTo(r.X+9, r.Y+17)
-		p.StrokePath(needle, 1.2, ink)
+		Width(16).Height(20).Margin(0, 0, 0, 6).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+		ui.Icon(c, sessionPinArtwork).Width(14).Height(14).TextColor(ink)
 	})
 }
+
+// Exact IconPinFillRegular paths from the original ui-primitives/icons/index.tsx.
+var sessionPinArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1">
+<path d="M9.96976 1.70572L13.1554 3.93629L10.9019 8.12317L11.5158 11.605L10.7192 12.7427L2.52767 7.00693L3.3243 5.86922L6.80612 5.25528L9.96976 1.70572Z" fill="currentColor" stroke="currentColor" stroke-linejoin="round"/>
+<path d="M6.05285 9.47511C6.27284 9.16094 6.70586 9.08458 7.02003 9.30457C7.3342 9.52455 7.41055 9.95757 7.19057 10.2717L3.98587 14.4708L3.21223 13.9291L6.05285 9.47511Z" fill="currentColor"/>
+</svg>`))
