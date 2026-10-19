@@ -30,11 +30,17 @@ type requestDiffDocument struct {
 // renderRequestChangeScope presents one recorded requirement interval. It does
 // not read the current repository or offer actions against the displayed files.
 func renderRequestChangeScope(c *ui.Context, m Model, scope projectflow.RequestChangeScope) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	st := diff.Style{FontSize: theme.CurrentPreferences().Code.Size, FG: chrome.Color(colors.FG),
-		Muted: chrome.Color(colors.Muted), Hunk: chrome.Color(colors.Accent),
-		Add: ui.RGB(61, 153, 112), Del: ui.RGB(224, 102, 102)}
-	box := ui.Column(c.Key("request-diff-scope/" + scope.WorkingDirectory)).FillWidth().MinWidth(0).Gap(8)
+	th := theme.Resolve(m.ThemeID)
+	colors := th.Active(m.SystemDark)
+	dark := th.Scheme == theme.SchemeDark || th.Scheme == theme.SchemeSystem && m.SystemDark
+	panel, borderL1, removed := ui.RGB(255, 255, 255), ui.RGBA(0, 0, 0, .04), ui.RGB(236, 19, 19)
+	if dark {
+		panel, borderL1, removed = ui.RGB(44, 44, 46), ui.RGBA(255, 255, 255, .06), ui.RGB(242, 90, 90)
+	}
+	st := diff.Style{FontSize: 12, FG: chrome.Color(colors.FG),
+		Muted: chrome.Color(colors.Muted), Hunk: chrome.Color(colors.Muted), File: chrome.Color(colors.Accent),
+		Add: ui.RGB(34, 197, 94), Del: removed}
+	box := ui.Column(c.Key("request-diff-scope/" + scope.WorkingDirectory)).FillWidth().MinWidth(0).Gap(12)
 	cache := ui.Local(box, "patch-document", func() requestDiffDocument { return requestDiffDocument{} })
 	if cache.source != scope.Diff {
 		cache.source, cache.files = scope.Diff, diffsurface.ParseRecordedPatch(scope.Diff)
@@ -42,26 +48,26 @@ func renderRequestChangeScope(c *ui.Context, m Model, scope projectflow.RequestC
 	files := requestChangeFiles(scope, cache.files)
 	box.Children(func() {
 		if scope.WorkingDirectory != "" {
-			ui.Text(c, scope.WorkingDirectory).FontSize(theme.InterfaceSize(12)).TextColor(st.Muted).Selectable()
+			ui.Text(c, scope.WorkingDirectory).FontSize(12).FixedLineHeight(18).TextColor(st.Muted).Selectable()
 		}
 		if len(files) == 0 {
-			ui.Text(c, tr("没有改动。", "No changes.")).FontSize(theme.InterfaceSize(13)).TextColor(st.Muted)
+			ui.Text(c, tr("没有改动。", "No changes.")).FontSize(13).FixedLineHeight(20).TextColor(st.Muted)
 		} else {
 			added, removed := 0, 0
 			for _, file := range files {
 				added += file.added
 				removed += file.removed
 			}
-			ui.Row(c).Gap(10).Children(func() {
-				ui.Text(c, fmt.Sprintf(tr("%d 个文件", "%d files"), len(files))).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(st.FG)
-				requestDiffCounts(c, added, removed, st)
+			ui.Row(c).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, fmt.Sprintf(tr("%d 个文件", "%d files"), len(files))).FontSize(13).FixedLineHeight(20).FontWeight(600).TextColor(st.FG)
+				requestDiffCounts(c, added, removed, 20, st)
 			})
 			for i, file := range files {
-				renderRequestDiffFile(c, file, i < 3, st, chrome.Color(colors.Field), chrome.Color(colors.Border))
+				renderRequestDiffFile(c, file, i < 3, st, panel, chrome.Color(colors.Border), borderL1, chrome.Color(colors.Hover))
 			}
 		}
 		if scope.Truncated {
-			ui.Text(c, tr("差异已截断；请在工作目录中查看完整内容。", "Diff is truncated; inspect the working directory for complete contents.")).FontSize(theme.InterfaceSize(12)).TextColor(st.Muted)
+			requestDiffNote(c, tr("差异已截断；请在工作目录中查看完整内容。", "Diff is truncated; inspect the working directory for complete contents."), st)
 		}
 	})
 }
@@ -126,8 +132,8 @@ func requestDiffStatusKind(status string) string {
 	}
 }
 
-func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bool, st diff.Style, field, border ui.Color) {
-	box := ui.Column(c.Key("request-diff-file/"+file.Path)).FillWidth().MinWidth(0).Gap(4).Border(1, border).Radius(8)
+func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bool, st diff.Style, panel, border, borderL1, hover ui.Color) {
+	box := ui.Column(c.Key("request-diff-file/"+file.Path)).FillWidth().MinWidth(0).Gap(0).Border(1, border).Radius(12).Background(panel).Clip()
 	open := ui.Local(box, "open", func() bool { return initiallyOpen })
 	box.Children(func() {
 		label, ink := tr("已修改", "Modified"), st.Muted
@@ -137,26 +143,36 @@ func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bo
 		case "deleted":
 			label, ink = tr("删除", "Deleted"), st.Del
 		case "renamed":
-			label, ink = tr("重命名", "Renamed"), st.Hunk
+			label, ink = tr("重命名", "Renamed"), st.File
 		case "untracked":
 			label = tr("未跟踪", "Untracked")
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(8).Background(field).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(ink)
+		header := ui.Button(c, "").FillWidth().MinWidth(0).Gap(8).Padding(8, 12).Radius(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FontSize(12).FixedLineHeight(18).Label(file.Path).Expanded(*open)
+		if header.Hovered() {
+			header.Background(hover)
+		}
+		if *open {
+			header.BorderWidth(0, 0, 1, 0).BorderColor(borderL1)
+		}
+		if header.Clicked() {
+			*open = !*open
+			c.Invalidate()
+		}
+		header.Children(func() {
+			ui.Text(c, label).FontSize(12).FixedLineHeight(18).TextColor(ink)
 			path := file.Path
 			if path == "" {
 				path = tr("差异内容", "Diff contents")
 			}
-			mark := "▸ "
-			if *open {
-				mark = "▾ "
+			var name []ui.Span
+			font := theme.RenderPreferences().Code.Family
+			if slash := strings.LastIndex(path, "/"); slash >= 0 {
+				name = append(name, ui.Span{Text: path[:slash+1], Font: font, Size: 12, Color: st.Muted})
+				path = path[slash+1:]
 			}
-			trigger := ui.Button(c, mark+path).Label(path).Grow(1).MinWidth(0).Justify(ui.Start).Background(ui.Transparent).BorderWidth(0).TextColor(st.FG).FontSize(theme.InterfaceSize(12)).Expanded(*open)
-			if trigger.Clicked() {
-				*open = !*open
-				c.Invalidate()
-			}
-			requestDiffCounts(c, file.added, file.removed, st)
+			name = append(name, ui.Span{Text: path, Font: font, Size: 12, Color: st.FG})
+			ui.RichText(c, name...).Font(font).FontSize(12).FixedLineHeight(18).Grow(1).MinWidth(0).SingleLine()
+			requestDiffCounts(c, file.added, file.removed, 18, st)
 		})
 		if !*open {
 			return
@@ -177,46 +193,69 @@ func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bo
 			note = tr("没有可显示的文本差异。", "No text diff is available.")
 		}
 		if note != "" {
-			ui.Text(c, note).FontSize(theme.InterfaceSize(12)).TextColor(st.Muted).Padding(8)
+			requestDiffNote(c, note, st)
 			return
 		}
 		// The original DiffFile is unified: preserve source order and signs,
 		// including the original line ranges in each @@ hunk header.
-		ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-			ui.Column(c).MinWidth(0).Padding(8).Children(func() {
-				spans := diff.Spans(strings.Join(lines, "\n"), st)
-				for i, line := range lines {
-					if i >= len(spans) {
-						spans = append(spans, ui.Span{Font: theme.RenderPreferences().Code.Family, Size: st.FontSize, Color: st.FG})
-					}
-					// Spans also accepts complete patches and trims their outer
-					// whitespace. Here every source line is already hunk content.
-					spans[i].Text = line + "\n"
+		ui.ScrollBoth(c).FillWidth().MinWidth(0).MaxHeight(360).Children(func() {
+			ui.Column(c).FillWidth().Padding(4, 0).Gap(0).Children(func() {
+				for _, line := range lines {
+					ink, bg := st.FG, ui.Transparent
 					switch {
 					case strings.HasPrefix(line, "+"):
-						spans[i].Color = st.Add
+						bg = ui.RGBA(st.Add.R, st.Add.G, st.Add.B, .1)
 					case strings.HasPrefix(line, "-"):
-						spans[i].Color = st.Del
+						bg = ui.RGBA(st.Del.R, st.Del.G, st.Del.B, .1)
+					case strings.HasPrefix(line, "@@"):
+						ink, bg = st.Muted, hover
 					case strings.HasPrefix(line, "\\"):
-						spans[i].Color = st.Muted
+						ink = st.Muted
 					}
+					if line == "" {
+						line = " "
+					}
+					ui.Text(c, requestDiffExpandTabs(line)).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).NoWrap().Padding(0, 12).Background(bg).TextColor(ink).Selectable()
 				}
-				ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(st.FontSize).NoWrap().Selectable()
 			})
 		})
 		if capped {
-			ui.Text(c, fmt.Sprintf(tr("每个文件仅显示前 %d 行。", "Only the first %d lines of each file are shown."), requestDiffLineLimit)).FontSize(theme.InterfaceSize(12)).TextColor(st.Muted).Padding(8)
+			requestDiffNote(c, fmt.Sprintf(tr("每个文件仅显示前 %d 行。", "Only the first %d lines of each file are shown."), requestDiffLineLimit), st)
 		}
 	})
 }
 
-func requestDiffCounts(c *ui.Context, added, removed int, st diff.Style) {
+func requestDiffCounts(c *ui.Context, added, removed int, lineHeight float32, st diff.Style) {
 	if added > 0 {
-		ui.Text(c, "+"+strconv.Itoa(added)).FontSize(theme.InterfaceSize(12)).TextColor(st.Add)
+		ui.Text(c, "+"+strconv.Itoa(added)).FontSize(12).FixedLineHeight(lineHeight).TextColor(st.Add)
 	}
 	if removed > 0 {
-		ui.Text(c, "−"+strconv.Itoa(removed)).FontSize(theme.InterfaceSize(12)).TextColor(st.Del)
+		ui.Text(c, "−"+strconv.Itoa(removed)).FontSize(12).FixedLineHeight(lineHeight).TextColor(st.Del)
 	}
+}
+
+func requestDiffNote(c *ui.Context, text string, st diff.Style) {
+	ui.Text(c, text).FontSize(12).FixedLineHeight(18).TextColor(st.Muted).Padding(8, 12)
+}
+
+// Native text has no tab-size option; expand at the original two-column stops.
+func requestDiffExpandTabs(line string) string {
+	if !strings.ContainsRune(line, '\t') {
+		return line
+	}
+	var expanded strings.Builder
+	column := 0
+	for _, r := range line {
+		if r == '\t' {
+			spaces := 2 - column%2
+			expanded.WriteString(strings.Repeat(" ", spaces))
+			column += spaces
+		} else {
+			expanded.WriteRune(r)
+			column++
+		}
+	}
+	return expanded.String()
 }
 
 func requestDiffLines(source string) []string {
