@@ -117,8 +117,15 @@ func TestCreatorTaskEntryFixture(t *testing.T) {
 			ok := c.Create(context.Background(), before.Ticket)
 			after := c.Snapshot()
 			c.Create(context.Background(), before.Ticket) // Replayed rendered confirmation cannot create twice.
-			if s.Snapshot().SelectedID != "old-session" || s.Snapshot().SelectedAgentPreset != "Standard" {
-				t.Fatal("asynchronous admission changed the active conversation")
+			wantPreset := "Standard"
+			if mode == "host-switch" {
+				// Attach correctly clears the previous Host's preset selection.
+				// Creator admission must preserve that new Host state as well.
+				wantPreset = ""
+			}
+			active := s.Snapshot()
+			if active.SelectedID != "old-session" || active.SelectedAgentPreset != wantPreset {
+				t.Fatalf("asynchronous admission changed the active conversation: id=%q preset=%q, want old-session/%q", active.SelectedID, active.SelectedAgentPreset, wantPreset)
 			}
 			switch mode {
 			case "success":

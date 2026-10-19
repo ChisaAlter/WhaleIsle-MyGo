@@ -20,6 +20,9 @@ func (d *DraftState) BeginDetachedSend() (DraftFlight, bool) {
 	if d.Sending || d.Preparing > 0 || d.FailedAttachmentError() != "" || d.EditSeq > 0 || strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		return DraftFlight{}, false
 	}
+	// Assigning a missing occurrence ID is normalization, not a user edit of
+	// the recovered payload. Compare with that payload before allocating IDs.
+	restoredUnchanged := d.failedRestoredMatches()
 	// Restored or programmatically attached files may not have gone through
 	// preparation yet. Give each occurrence an identity before detaching it.
 	for i := range d.Attachments {
@@ -29,7 +32,7 @@ func (d *DraftState) BeginDetachedSend() (DraftFlight, bool) {
 	}
 	d.flightSeq++
 	f := DraftFlight{ID: d.flightSeq, Text: d.Text, Attachments: append([]session.ComposerAttachment(nil), d.Attachments...)}
-	if d.failedRestoredMatches() {
+	if restoredUnchanged {
 		d.failedSends = nil
 	}
 	if d.flights == nil {

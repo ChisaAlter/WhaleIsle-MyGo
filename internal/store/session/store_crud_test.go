@@ -154,8 +154,40 @@ func TestCancelSessionAccepted(t *testing.T) {
 			}
 		}
 	})
+	st.mu.Lock()
+	st.selectSessionLocked("child-1")
+	st.mu.Unlock()
 	st.CancelSession(context.Background(), "child-1")
 	wait(t, done)
+}
+
+func TestCancelSessionOtherOwnerKeepsCurrentNotice(t *testing.T) {
+	responded := make(chan struct{})
+	unexpectedNotice := make(chan struct{}, 1)
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://cancel.invalid"}, HTTP: &http.Client{Transport: composerRegressionTransport(func(r *http.Request) (*http.Response, error) {
+		defer close(responded)
+		return composerRegressionReply(r, map[string]bool{"accepted": true})
+	})}}
+	st := New()
+	st.Attach(client, func() { unexpectedNotice <- struct{}{} })
+	st.mu.Lock()
+	st.selectSessionLocked("active")
+	st.lastAction = "current conversation notice"
+	st.mu.Unlock()
+	st.CancelSession(context.Background(), "other")
+	wait(t, responded)
+	// This route intentionally has no success publication for another owner.
+	// Give the in-memory RPC completion a bounded window to catch an illicit
+	// notification, without requiring a running Host or assuming a fake sleep
+	// inside the product's cancellation implementation.
+	select {
+	case <-unexpectedNotice:
+		t.Fatal("another Session's Stop receipt published into the current view")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if got := st.Snapshot(); got.SelectedID != "active" || got.LastAction != "current conversation notice" {
+		t.Fatalf("another Session's Stop receipt replaced the current notice: %+v", got)
+	}
 }
 
 func TestOpenWorkspacePathAccepted(t *testing.T) {
