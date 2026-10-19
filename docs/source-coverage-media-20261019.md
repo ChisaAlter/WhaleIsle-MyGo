@@ -115,6 +115,19 @@ layer selection, ICC profiles and unsupported sample descriptions fail explicitl
 Exact libavif-versus-Chromium/crabbyavif pixels, HDR/color management and actual
 native visible AVIF playback remain unverified. GPU fluid/Beam remains paused.
 
+After AVIF source commit `ce67a12`, focused regressions were prepared, not run:
+`avif_animation_test.go` uses the pinned 17-frame sequence to check full pixel
+output, frame variation, 80 ms timing, unknown/infinite loops, frame ownership,
+metadata limits, external sample references, corrupt final-frame completion and
+cancellation. Edit-list fixtures cover explicit once/finite/infinite and rounded
+track durations. A tiny transparent/half-alpha finite sequence is constructed
+inside the test using the already-bundled encoder ABI, so it requires no added
+dependency, pre-generated binary or external tool. Its execution is still pending.
+`attachment_avif_test.go` and `readme_avif_test.go` prepare native surface paint,
+advance, size, dismiss/hide and staging-release checks. A Files negative regression
+keeps `.avifs` unregistered and prevents `.avif`/mislabeled `.gif` from gaining
+sequence behavior. Existing GIF/WebP and static AVIF regressions remain in place.
+
 GPU fluid/Beam depth stays paused. Source still explicitly describes native
 fluid short-edge resolution 64 in
 `third_party/mygo/ui/decorative_fluid_worker.go`, versus the source's deeper
