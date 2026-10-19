@@ -15,6 +15,7 @@ type SkillRow struct {
 	Name                    string
 	Source, Path, Directory string
 	Description             string
+	WhenToUse               string
 	ModelInvocable          bool
 	Groups                  []string
 	Writable                bool
@@ -34,11 +35,13 @@ type SkillHubHit struct {
 
 // SkillsAccess is the dedicated Skills settings page (session skills/list snapshot).
 type SkillsAccess struct {
-	Skills     []SkillRow
-	SessionID  string
-	Err        string
-	LastAction string
-	OnRefresh  func()
+	Create       *SkillCreateAccess
+	OnOpenCreate func()
+	Skills       []SkillRow
+	SessionID    string
+	Err          string
+	LastAction   string
+	OnRefresh    func()
 	// OnInsert inserts `/name ` into the composer (Electron ui-skill slash invoke).
 	OnInsert func(name string)
 	// OnSetModelInvocable toggles skillInventory/setInvocation modelInvocable.
@@ -96,8 +99,12 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.HubQuery != nil && a.OnSearchHub != nil && ui.Button(c, providerCopy("搜索技能", "Find skills")).Height(30).Clicked() {
 				*hubOpen = true
 			}
-			if a.OnCreate != nil && bodyIconAction(c, providerCopy("添加技能", "Add skill"), "plus", a.Busy) {
-				*createOpen = true
+			if (a.OnCreate != nil || a.OnOpenCreate != nil) && bodyIconAction(c, providerCopy("添加技能", "Add skill"), "plus", a.Busy) {
+				if a.OnOpenCreate != nil {
+					a.OnOpenCreate()
+				} else {
+					*createOpen = true
+				}
 			}
 			if bodyIconAction(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
 				a.OnRefresh()
@@ -199,25 +206,37 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.TextInput(c, a.Query).Grow(1).MinWidth(180).Height(36).Placeholder(providerCopy("搜索技能", "Search skills"))
 		}
 		if a.SourceFilter != nil {
-			all := providerCopy("全部来源", "All sources")
-			options := []string{all}
-			seen := map[string]bool{}
-			current := *a.SourceFilter
-			if current == "" {
-				current = all
+			choices := []struct{ value, label string }{
+				{"", providerCopy("全部来源", "All sources")},
+				{"user", providerCopy("用户", "User")},
+				{"project", providerCopy("项目", "Project")},
+				{"bundled", providerCopy("内置", "Bundled")},
+				{"other", providerCopy("其他", "Other")},
 			}
-			for _, row := range a.Skills {
-				if row.Source != "" && !seen[row.Source] {
-					seen[row.Source] = true
-					options = append(options, row.Source)
+			options := make([]string, 0, len(choices))
+			current := choices[0].label
+			for _, choice := range choices {
+				options = append(options, choice.label)
+				if *a.SourceFilter == choice.value {
+					current = choice.label
 				}
 			}
 			if ui.Select(c, &current, options).Label("Skill source filter").Width(130).Changed() {
-				if current == all {
-					*a.SourceFilter = ""
-				} else {
-					*a.SourceFilter = current
+				for _, choice := range choices {
+					if current == choice.label {
+						*a.SourceFilter = choice.value
+						break
+					}
 				}
+			}
+		}
+		hasFilters := a.Query != nil && strings.TrimSpace(*a.Query) != "" || a.SourceFilter != nil && *a.SourceFilter != "" && *a.SourceFilter != "all"
+		if hasFilters && ui.Button(c, providerCopy("清除筛选", "Clear filters")).Height(36).Clicked() {
+			if a.Query != nil {
+				*a.Query = ""
+			}
+			if a.SourceFilter != nil {
+				*a.SourceFilter = ""
 			}
 		}
 	})
@@ -268,7 +287,8 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 		}
 	}
-	if *createOpen {
+	skillCreateDialog(c, a, fg, muted)
+	if *createOpen && a.Create == nil {
 		bodyDialog(c, createOpen, providerCopy("添加技能", "Add skill"), func() {
 			if a.OnSelectRoot != nil {
 				ui.Text(c, "Create / install target").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
@@ -418,7 +438,7 @@ func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.
 				a.OnInspect(row.Name)
 			}
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, row.Source).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Tooltip(row.Directory)
+				ui.Text(c, skillSourceLabel(row.Source)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Tooltip(row.Directory)
 				if row.Directory != "" && a.OnOpenDirectory != nil && bodyIconAction(c, "Open directory · "+row.Name, "folder", a.Busy) {
 					a.OnOpenDirectory(row.Name)
 				}

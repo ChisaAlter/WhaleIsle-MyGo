@@ -9,6 +9,7 @@ import (
 type DisplayRow struct {
 	Row
 	Title, Description string
+	ProvidedBy         []string
 }
 type DisplayPreset struct {
 	ID, Label, Broken string
@@ -70,8 +71,12 @@ func displayRows(rows []Row, locale, query string, failuresFirst bool) []Display
 	out := make([]DisplayRow, 0, len(rows))
 	for _, r := range rows {
 		d := DisplayRow{Row: r, Title: localized(r.Title, locale), Description: localized(r.Description, locale)}
+		var literal string
+		if json.Unmarshal(r.Title, &literal) == nil {
+			d.Title = moduleShortName(literal)
+		}
 		if d.Title == "" {
-			d.Title = r.Module
+			d.Title = moduleShortName(r.Module)
 		}
 		if query != "" && !strings.Contains(strings.ToLower(strings.Join([]string{r.Module, r.EntryID, d.Title, d.Description, r.MetadataError}, "\n")), query) {
 			continue
@@ -84,12 +89,49 @@ func displayRows(rows []Row, locale, query string, failuresFirst bool) []Display
 	return out
 }
 
+func moduleShortName(name string) string {
+	if strings.HasPrefix(name, "@") {
+		name = name[strings.Index(name, "/")+1:]
+	}
+	name = strings.TrimPrefix(name, "cordis:")
+	name = strings.TrimPrefix(name, "cordis-plugin-")
+	if strings.HasPrefix(name, "dsh-") {
+		name = strings.TrimPrefix(name, "dsh-")
+		if strings.HasPrefix(name, "host-") {
+			name = strings.TrimPrefix(name, "host-")
+		} else {
+			name = strings.TrimPrefix(name, "client-")
+		}
+	}
+	return name
+}
+
 // View filters all planes without collapsing repeated module identities. A
 // search also exposes matches in non-selected presets, as the original does.
 func (s Snapshot) View(locale string) View {
 	query := strings.ToLower(strings.TrimSpace(s.Query))
 	v := View{SelectedID: selectedPreset(s.Presets, s.SelectedID), Searching: query != ""}
 	v.Global = displayRows(s.Global, locale, query, true)
+	// Global disablement is preserved. Agent presets may still provide the same
+	// module per session, so expose those enabling presets as separate provenance.
+	for i := range v.Global {
+		row := &v.Global[i]
+		if row.Enabled != "disabled" || row.Phase == "failed" {
+			continue
+		}
+		for _, preset := range s.Presets {
+			for _, entry := range preset.Rows {
+				if entry.Module == row.Module && entry.Enabled == "enabled" {
+					label := preset.Name
+					if label == "" {
+						label = preset.ID
+					}
+					row.ProvidedBy = append(row.ProvidedBy, label)
+					break
+				}
+			}
+		}
+	}
 	count := len(v.Global)
 	var others []DisplayPreset
 	for _, p := range s.Presets {

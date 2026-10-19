@@ -272,6 +272,50 @@ func (s *Store) CreateSkillInventory(ctx context.Context, name, description, con
 	}()
 }
 
+// CreateSkillInventoryFields sends the complete Skills editor draft to the
+// existing create endpoint and returns its acknowledgement to the dialog owner.
+func (s *Store) CreateSkillInventoryFields(ctx context.Context, target SkillTarget, name string, fields SkillEditorFields) error {
+	s.mu.Lock()
+	current := target.client != nil && s.client == target.client && s.selectedID == target.SessionID && strings.TrimSpace(s.cwd) == target.Cwd
+	s.mu.Unlock()
+	if !current {
+		return fmt.Errorf("Skill target changed; reopen Add skill before saving")
+	}
+	resolved, err := resolveSkillTarget(target.Root, target.Cwd, target.SessionID)
+	if err != nil {
+		return err
+	}
+	req := api.SkillInventoryCreateRequest{
+		Name: name, Description: strings.TrimSpace(fields.Description), Content: fields.Content,
+		Root: resolved.Root, Groups: NormalizeSkillGroups(fields.Groups),
+		ModelInvocable: fields.ModelInvocable, UserInvocable: fields.UserInvocable,
+	}
+	if when := strings.TrimSpace(fields.WhenToUse); when != "" {
+		req.WhenToUse = &when
+	}
+	if target.SessionID != "" {
+		req.SessionId = &target.SessionID
+	}
+	if target.Cwd != "" {
+		req.Cwd = &target.Cwd
+	}
+	var out api.CreateResult
+	if err = target.client.Call(ctx, "skillInventory/create", map[string]any{"request": req}, &out); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	current = s.client == target.client && s.selectedID == target.SessionID && strings.TrimSpace(s.cwd) == target.Cwd
+	if current {
+		s.lastAction = "skill created " + name
+	}
+	s.mu.Unlock()
+	s.fire()
+	if !current {
+		return fmt.Errorf("Skill created on its original Host; the current target changed. Refresh before creating again")
+	}
+	return nil
+}
+
 // SetSkillInvocation calls skillInventory/setInvocation.
 func (s *Store) SetSkillInvocation(ctx context.Context, name string, modelInvocable, userInvocable bool) {
 	name = strings.TrimSpace(name)

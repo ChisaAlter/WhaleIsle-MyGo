@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -184,6 +185,16 @@ func inventoryPhaseColor(c *ui.Context, phase string, muted ui.Color) ui.Color {
 	}
 }
 
+func inventoryRowState(r plugininventory.DisplayRow) string {
+	if r.Phase == "failed" {
+		return inventoryPhase(r.Phase)
+	}
+	if len(r.ProvidedBy) > 0 {
+		return pluginsText("由预设提供", "Provided by presets")
+	}
+	return inventoryEnablement(r.Enabled)
+}
+
 func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, width float32, fg, muted ui.Color) {
 	open := a.Snapshot.Expanded == r.Key
 	stroke := c.Theme().Border
@@ -197,7 +208,7 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 		card.FillWidth()
 	}
 	card.Children(func() {
-		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryEnablement(r.Enabled)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
+		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
 		if button.Hovered() || open {
 			button.Background(c.Theme().SurfaceHover)
 		}
@@ -207,6 +218,7 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
 					ink := inventoryPhaseColor(c, r.Phase, muted)
 					ui.Box(c).Width(8).Height(8).Radius(4).Background(ink).Label(inventoryPhase(r.Phase))
+					ui.Text(c, inventoryRowState(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					inventoryChevron(c, open, muted)
 				})
 				if r.Description != "" {
@@ -215,8 +227,9 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 						text.MaxLines(2)
 					}
 				}
-				if r.EntryID != "" {
-					ui.Text(c, r.EntryID).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
+				subtitle := strings.TrimPrefix(r.EntryID, "include:")
+				if subtitle != "" && subtitle != r.Title {
+					ui.Text(c, subtitle).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
 				}
 			})
 		})
@@ -234,7 +247,12 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 					entryID = pluginsText("未声明条目标识", "No entry ID declared")
 				}
 				ui.Text(c, "Loader: "+entryID).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-				ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				if len(r.ProvidedBy) > 0 {
+					ui.Text(c, pluginsText("全局已禁用；Agent 预设在各会话中提供此模块。", "Disabled globally; agent presets provide it per session.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					ui.Text(c, pluginsText("启用预设：", "Enabled in: ")+strings.Join(r.ProvidedBy, " · ")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				} else {
+					ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
 				if r.Condition != "" {
 					ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				}

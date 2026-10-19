@@ -78,7 +78,7 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 			health = r.Connection.Health
 			lastError = r.Connection.LastError
 		}
-		rows = append(rows, settings.MCPServerRow{ServerName: mcpconfig.ServerName(r), ID: r.Id, Origin: r.Origin, Enabled: r.Enabled, Writable: r.Writable, Status: settings.FormatMCPStatus(r.FiberPhase, health, lastError)})
+		rows = append(rows, settings.MCPServerRow{ServerName: mcpconfig.ServerName(r), ID: r.Id, Origin: r.Origin, Enabled: r.Enabled, Writable: r.Writable, Status: settings.FormatMCPStatus(r.FiberPhase, health, lastError), Summary: settings.FormatMCPSummary(r.Spec)})
 	}
 	rowAction := func(id, action string) {
 		s.runMCPSettings(controller, func(ctx context.Context, client mcpconfig.Caller) {
@@ -121,7 +121,7 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		DraftSpec: &snap.Draft, EditingID: snap.EditingID, DeletingID: snap.DeletingID,
 		OnDraftChanged: controller.SetDraft,
 		OnRefresh: func() {
-			s.runMCPSettings(controller, func(ctx context.Context, caller mcpconfig.Caller) { controller.Refresh(ctx, caller) })
+			s.runMCPSettings(controller, func(ctx context.Context, caller mcpconfig.Caller) { controller.RefreshConnections(ctx, caller) })
 		},
 		OnEdit:       func(id string) { controller.Edit(id); s.updateMCPSettingsUI() },
 		OnCancelEdit: func() { controller.CancelEdit(); s.updateMCPSettingsUI() },

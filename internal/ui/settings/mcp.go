@@ -20,6 +20,7 @@ type MCPServerRow struct {
 	Enabled    bool
 	Writable   bool
 	Status     string
+	Summary    string
 }
 
 // MCPAccess is the dedicated MCP settings page (mcpServers/list when present).
@@ -66,7 +67,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.HealthRefreshFailed {
-		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Use Refresh to retry the read.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Refresh reconnects failed managed servers and reloads the list.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	mcpCatalogControls(c, a.Catalog, fg, muted)
 	if len(a.Servers) == 0 && a.Busy {
@@ -162,6 +163,42 @@ func FormatMCPServerCount(n int) string {
 	return fmt.Sprintf("%d", n)
 }
 
+// FormatMCPSummary mirrors the original server row's transport and endpoint.
+func FormatMCPSummary(raw json.RawMessage) string {
+	var spec struct {
+		Transport string   `json:"transport"`
+		Command   string   `json:"command"`
+		Args      []string `json:"args"`
+		Cwd       string   `json:"cwd"`
+		URL       string   `json:"url"`
+	}
+	if json.Unmarshal(raw, &spec) != nil {
+		return ""
+	}
+	if spec.Transport == "streamable-http" {
+		return "HTTP · " + spec.URL
+	}
+	command := spec.Command
+	if len(spec.Args) > 0 {
+		command += " " + strings.Join(spec.Args, " ")
+	}
+	line := "stdio · " + command
+	if spec.Cwd != "" {
+		line += " · " + spec.Cwd
+	}
+	return line
+}
+
+func mcpTestToolSummary(names []string) string {
+	if len(names) == 0 {
+		return providerCopy("没有工具", "no tools")
+	}
+	if len(names) <= 3 {
+		return strings.Join(names, ", ")
+	}
+	return fmt.Sprintf(providerCopy("%s，另外 %d 个", "%s, %d more"), strings.Join(names[:3], ", "), len(names)-3)
+}
+
 var mcpAuthFailure = regexp.MustCompile(`(?i)\b(?:HTTP\s+)?(?:401|403)\b|\b(?:unauthorized|forbidden|invalid_token|invalid_grant|insufficient_scope)\b|missing bearer token`)
 
 func mcpNeedsSignIn(a *MCPAccess, r MCPServerRow) bool {
@@ -192,6 +229,9 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 					ui.Text(c, r.Origin).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				})
 				ui.Text(c, r.Status).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Status)
+				if r.Summary != "" {
+					ui.Text(c, r.Summary).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Summary)
+				}
 			})
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Disabled(a.Busy).Clicked() {
@@ -243,7 +283,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			if diagnostic, ok := snap.Tests[r.ID]; ok {
 				message := diagnostic.Err
 				if message == "" {
-					message = fmt.Sprintf(providerCopy("测试成功：%d 个工具", "Test succeeded: %d tools"), int(diagnostic.Result.ToolCount))
+					message = fmt.Sprintf(providerCopy("测试成功：%d 个工具（%s）", "Test succeeded: %d tools (%s)"), int(diagnostic.Result.ToolCount), mcpTestToolSummary(diagnostic.Result.ToolNames))
 				}
 				ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
