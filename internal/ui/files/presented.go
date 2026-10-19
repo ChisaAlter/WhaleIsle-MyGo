@@ -74,11 +74,8 @@ func openPresentedPathExact(m Model, path string, numericSuffix bool) (bool, err
 	if err != nil || outsideRoot(rel) {
 		return false, nil
 	}
-	if hasPresentedHostReader(m) {
-		return selectPresentedPath(m, rel), nil
-	}
-	// Without a captured Host reader this is a local Files surface. Only claim
-	// files it can resolve, without crossing the workspace's symlink authority.
+	// Only claim files this local Files surface can resolve. This also prevents a
+	// symlink within cwd from exposing a file outside the workspace authority.
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return false, nil
@@ -95,14 +92,6 @@ func openPresentedPathExact(m Model, path string, numericSuffix bool) (bool, err
 	if err != nil || (!info.Mode().IsRegular() && !(info.IsDir() && rel == ".")) {
 		return false, nil
 	}
-	return selectPresentedPath(m, rel), nil
-}
-
-func hasPresentedHostReader(m Model) bool {
-	return m.ReadTextPageContext != nil || m.ReadRemoteContext != nil || m.ReadImageContext != nil || m.ReadTableContext != nil
-}
-
-func selectPresentedPath(m Model, rel string) bool {
 	prepareTabs(m)
 	if rel == "." {
 		capture(m)
@@ -110,10 +99,10 @@ func selectPresentedPath(m Model, rel string) bool {
 			w.Active = ""
 		}
 		restore(m, &FileTab{})
-		return true
+		return true, nil
 	}
 	selectFile(m, filepath.ToSlash(rel))
-	return true
+	return true, nil
 }
 
 func outsideRoot(rel string) bool {
