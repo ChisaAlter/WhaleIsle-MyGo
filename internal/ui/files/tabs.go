@@ -65,6 +65,9 @@ type FileTab struct {
 	sourceWidthText                           string
 	sourceWidth                               float32
 	sourceWidthValid                          bool
+	editBuffer                                *ui.TextBuffer
+	editBufferVersion                         uint64
+	editBufferText, editModelText             string
 	RenderedMarkdown                          bool
 	selectionText                             string
 	selectionStart, selectionEnd              int
@@ -79,7 +82,10 @@ type FileTab struct {
 	Truncated                                 bool // incomplete local prefix; persisted with tab recovery
 }
 
-func (t *FileTab) Dirty() bool { return t.Draft != t.Preview }
+func (t *FileTab) Dirty() bool {
+	t.syncNativeDraft()
+	return t.Draft != t.Preview
+}
 func label(zh, en string) string {
 	if i18n.Locale() == "en" {
 		return en
@@ -124,7 +130,7 @@ func capture(m Model) {
 		t.Preview = *m.Preview
 	}
 	if m.EditDraft != nil {
-		t.Draft = *m.EditDraft
+		t.syncDraftModel(m.EditDraft)
 	}
 	if m.PreviewErr != nil {
 		t.Error = *m.PreviewErr
@@ -140,6 +146,7 @@ func capture(m Model) {
 	}
 }
 func restore(m Model, t *FileTab) {
+	t.syncNativeDraft()
 	t.selectionText = ""
 	t.selectionStart, t.selectionEnd = 0, 0
 	if m.SelectedFile != nil {
@@ -150,6 +157,7 @@ func restore(m Model, t *FileTab) {
 	}
 	if m.EditDraft != nil {
 		*m.EditDraft = t.Draft
+		t.editModelText = t.Draft
 	}
 	if m.PreviewErr != nil {
 		*m.PreviewErr = t.Error
@@ -278,6 +286,7 @@ func closeTab(m Model, path string, discard bool) bool {
 	return true
 }
 func saveDraft(m Model) error {
+	capture(m)
 	if err := checkPreviewComplete(m); err != nil {
 		return err
 	}

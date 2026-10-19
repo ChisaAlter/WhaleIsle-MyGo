@@ -221,6 +221,29 @@ func (t *Tester) SetPreferences(p Preferences) {
 // Frame renders another frame, as when the view's state changed.
 func (t *Tester) Frame() { t.h.requested.Store(true); t.settle() }
 
+// NativeTextInputClient returns the currently active native input adapter, or
+// nil when no editable input owns focus. Unlike Type/Compose, calls through
+// this adapter request but do not settle frames. This permits tests to inspect
+// committed storage before a subsequent paint. Geometry uses window DIPs.
+// A retained adapter keeps the normal native focus/disposal guards.
+func (t *Tester) NativeTextInputClient() TextInputClient {
+	if !t.h.ime.Active || t.h.ime.Client == nil {
+		return nil
+	}
+	return &testerTextInputClient{t.h.ime.Client}
+}
+
+type testerTextInputClient struct{ platform.TextInputClient }
+
+func (c *testerTextInputClient) BoundsForRange(r TextInputRange) (Rect, TextInputRange, bool) {
+	b, actual, ok := c.TextInputClient.BoundsForRange(r)
+	return Rect{X: float32(b.X), Y: float32(b.Y), W: float32(b.W), H: float32(b.H)}, actual, ok
+}
+
+func (c *testerTextInputClient) IndexForPoint(p Point) (int, bool) {
+	return c.TextInputClient.IndexForPoint(float64(p.X), float64(p.Y))
+}
+
 // Image returns the last frame.
 func (t *Tester) Image() *image.RGBA { return t.h.image() }
 

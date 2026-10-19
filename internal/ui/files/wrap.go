@@ -69,6 +69,14 @@ func sourceMeasuredWidth(m Model, text string) float32 {
 // fully selectable inside a real horizontal scroll container of measured width.
 // The editor keeps the same parent/key when wrap changes, retaining native edits.
 func sourceTextArea(c *ui.Context, m Model, text *string, readOnly bool, key string, fg ui.Color) ui.Element {
+	var tab *FileTab
+	var buffer *ui.TextBuffer
+	if !readOnly && text == m.EditDraft {
+		tab = selectedTab(m)
+		if tab != nil {
+			buffer = tab.editableBuffer(text)
+		}
+	}
 	view := sourceView(m, key)
 	wrap := previewPreferences(m).WordWrap
 	if wrap {
@@ -87,11 +95,21 @@ func sourceTextArea(c *ui.Context, m Model, text *string, readOnly bool, key str
 	}
 	var editor ui.Element
 	scroll.Children(func() {
-		editor = ui.TextArea(c, text).Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.RenderPreferences().Code.Size).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly)
+		if buffer != nil {
+			editor = ui.TextAreaBuffer(c, buffer)
+		} else {
+			editor = ui.TextArea(c, text)
+		}
+		editor.Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.RenderPreferences().Code.Size).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly)
 		if !wrap {
 			editor.NoWrap()
 		}
 	})
+	if tab != nil {
+		// Changed processes queued keyboard input with the final control flags.
+		editor.Changed()
+		tab.syncDraftModel(text)
+	}
 	return editor
 }
 func revealSourceCaret(c *ui.Context, m Model, editor ui.Element, text, key string) {
