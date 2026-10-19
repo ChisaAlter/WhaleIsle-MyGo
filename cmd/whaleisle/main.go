@@ -6171,7 +6171,6 @@ func mainView(c *ui.Context) {
 							return workspacePreviewStat(ctx, fileClient, rel)
 						},
 						ReadTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
-						ReadImageContext: remoteImageReader(sessions, fileClient, snap.SelectedID),
 						ImageGeneration:  snap.StopGeneration,
 					}
 					openDelivered := func(path string, complete func(error)) {
@@ -6696,7 +6695,6 @@ func mainView(c *ui.Context) {
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
 						OnReadWorkspaceTableContext: fileNavigation.ReadTableContext,
-						OnReadWorkspaceImageContext: fileNavigation.ReadImageContext,
 						FileImageGeneration:         fileNavigation.ImageGeneration,
 						OnOpenDocumentViewer: func(path string) (files.DocumentSurface, error) {
 							return state.openDocumentViewer(fileClient, snap.SelectedID, path)

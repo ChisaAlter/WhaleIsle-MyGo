@@ -168,8 +168,8 @@ func imageByteLimit(path string) int64 {
 	return maxImageBytes
 }
 
-// Shared by authenticated Host snapshots and the existing local-only reader.
-// Both paths retain the same decoder, byte/pixel limits and animation timeline.
+// Decode the Files snapshot with the existing byte/pixel limits and animation
+// timeline. The independent Host document route owns its own scoped snapshots.
 func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *imagePreview {
 	p := &imagePreview{}
 	if int64(len(data)) > imageByteLimit(path) {

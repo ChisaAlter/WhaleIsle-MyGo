@@ -154,11 +154,7 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 		t.imageReader.setNotify(m.notify)
 		t.imageReadTab = tab
 		root, path := owner.root, owner.path
-		read := m.ReadImageContext
 		t.imageReader.request(owner, func(ctx context.Context) *imagePreview {
-			if read != nil {
-				return loadHostImagePreview(ctx, path, read)
-			}
 			return loadImagePreviewContext(ctx, root, path)
 		})
 	}
