@@ -16,6 +16,10 @@ func (s *Supervisor) ProtectTaskAction(ctx context.Context, operation string, lo
 	defer s.protectionMu.Unlock()
 	s.mu.Lock()
 	gen, st, token := s.gen, s.status, s.taskControlToken
+	// Ordinary launch failures happen before a child starts, or after its exit
+	// has been awaited. A cancelled recovery publishes Failed before stopChild
+	// finishes, so it must retain the normal Host/unknown protection path.
+	hostAbsent := st.State == Stopped || st.State == Failed && !st.RecoveryCancelled && s.cmd == nil && s.exited == nil
 	s.mu.Unlock()
 	checkedCommit := func() error {
 		if !s.current(gen) {
@@ -23,7 +27,7 @@ func (s *Supervisor) ProtectTaskAction(ctx context.Context, operation string, lo
 		}
 		return commit()
 	}
-	if st.State == Stopped {
+	if hostAbsent {
 		local := 0
 		if localRunning != nil {
 			local = localRunning()
