@@ -25,7 +25,7 @@ import (
 type EditViewMode int
 
 const (
-	// EditViewSplit shows TextArea + SourceView sharing the draft (preferred).
+	// EditViewSplit shows TextArea + SourceView sharing the draft when selected.
 	EditViewSplit EditViewMode = iota
 	// EditViewEdit shows TextArea only.
 	EditViewEdit
@@ -114,7 +114,7 @@ type OpenWithApp struct {
 }
 
 // editViewModeFallback persists the view mode when Model.EditViewMode is nil.
-var editViewModeFallback = EditViewSplit
+var editViewModeFallback = EditViewEdit
 
 // editSplitFallback is the first-pane size when Model.EditSplit is nil.
 var editSplitFallback float32 = 200
@@ -603,7 +603,7 @@ func setEditViewMode(m Model, mode EditViewMode) {
 
 // resolveEditViewMode returns the effective mode while editing.
 // Non-highlightable drafts always use EditViewEdit.
-// Unknown / unset modes prefer Split.
+// Unknown modes use the source editor alone, like desktop-file's textarea.
 func resolveEditViewMode(m Model, canHighlight bool) EditViewMode {
 	if !canHighlight {
 		return EditViewEdit
@@ -612,7 +612,7 @@ func resolveEditViewMode(m Model, canHighlight bool) EditViewMode {
 	case EditViewSplit, EditViewEdit, EditViewHighlight:
 		return mode
 	default:
-		return EditViewSplit
+		return EditViewEdit
 	}
 }
 

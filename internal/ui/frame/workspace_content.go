@@ -152,7 +152,7 @@ func (n *WorkspacePane) eachLeaf(visit func(*WorkspacePane)) {
 
 func (w *WorkspacePanes) fileState(n *WorkspacePane, m Model) *WorkspaceFileState {
 	if n.Files == nil {
-		n.Files = &WorkspaceFileState{Expanded: map[string]bool{}, Split: 200, TreeSplit: m.Sizes.RightTree}
+		n.Files = &WorkspaceFileState{Expanded: map[string]bool{}, Mode: files.EditViewEdit, Split: 200, TreeSplit: m.Sizes.RightTree}
 		if m.FileTabs != nil {
 			n.Files.Tabs.Preferences = m.FileTabs.Preferences
 		}

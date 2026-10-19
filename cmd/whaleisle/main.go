@@ -445,7 +445,7 @@ type mainState struct {
 	dshMuxLost  bool
 }
 
-var state mainState
+var state = mainState{fileEditViewMode: files.EditViewEdit}
 
 // desktopControlOps exposes the native operations behind the authenticated
 // install-control desktop routes. Each callback uses an existing Go store or
