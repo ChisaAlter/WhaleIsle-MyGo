@@ -6,7 +6,7 @@ import (
 )
 
 func TestWorkspaceDockDropIdentity(t *testing.T) {
-	for _, edge := range []string{"left", "right", "top", "bottom"} {
+	for _, edge := range []string{"left", "right"} {
 		t.Run(edge, func(t *testing.T) {
 			w := &WorkspacePanes{}
 			w.syncRoute("files")
@@ -18,10 +18,10 @@ func TestWorkspaceDockDropIdentity(t *testing.T) {
 			if !w.DropWorkspaceTab(moving.ID, target.ID, edge) {
 				t.Fatal("drop rejected")
 			}
-			if w.Root.First == nil || w.Root.find(moving.ID) != moving || moving.TerminalSource != "retained" || disposed {
+			if w.Root.First == nil || w.Root.Axis != "horizontal" || w.Root.find(moving.ID) != moving || moving.TerminalSource != "retained" || disposed {
 				t.Fatal("ownership lost")
 			}
-			if edge == "left" || edge == "top" {
+			if edge == "left" {
 				if w.Root.First != moving {
 					t.Fatal("wrong side")
 				}
@@ -48,6 +48,27 @@ func TestWorkspaceDockDropRejectsInvalid(t *testing.T) {
 	}
 	if string(w.Export()) != before {
 		t.Fatal("invalid drop mutated layout")
+	}
+}
+
+func TestWorkspaceDockDropRejectsVerticalWithoutMovingResource(t *testing.T) {
+	for _, edge := range []string{"top", "bottom"} {
+		t.Run(edge, func(t *testing.T) {
+			w := &WorkspacePanes{}
+			w.syncRoute("files")
+			target := w.Root
+			moving := w.selectKind(target, "host-terminal")
+			disposed := false
+			moving.terminalDispose = func() { disposed = true }
+			moving.TerminalSource = "retained"
+			before := string(w.Export())
+			if w.DropWorkspaceTab(moving.ID, target.ID, edge) {
+				t.Fatal("vertical dock accepted")
+			}
+			if string(w.Export()) != before || w.Root != target || w.Root.find(moving.ID) != moving || moving.TerminalSource != "retained" || disposed {
+				t.Fatal("rejected vertical dock changed resource ownership")
+			}
+		})
 	}
 }
 

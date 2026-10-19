@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -15,6 +16,19 @@ type projectPresentation struct {
 	Origin, LastRoute               string
 	PendingProject, PendingMaterial string
 	PendingClose, Saving            bool
+	ChildOrigin                     *projectChildOrigin
+}
+
+// Child origins are runtime handles owned by the current observer and request
+// revision, like the connected activeElement captured by the source overlay.
+type projectChildOrigin struct {
+	route, host, session string
+	request              projectflow.RequestCard
+	handle               *ui.Handle
+}
+
+func (origin *projectChildOrigin) current(m Model) bool {
+	return origin != nil && origin.host == m.ObserverHost && origin.session == m.SelectedSession && taskCardCurrent(m, origin.request)
 }
 
 func newProjectPresentation() projectPresentation {
@@ -118,6 +132,9 @@ func currentProjectRoute(m Model) (r projectRoute) {
 }
 
 func projectModals(c *ui.Context, m Model) {
+	if m.presentation != nil && m.presentation.ChildOrigin != nil && !m.presentation.ChildOrigin.current(m) {
+		m.presentation.ChildOrigin = nil
+	}
 	route := currentProjectRoute(m)
 	if route.body != nil {
 		materialRoute := m.Material != nil && strings.HasPrefix(route.key, "material/")
@@ -134,6 +151,17 @@ func projectModals(c *ui.Context, m Model) {
 			}
 			if route.close != nil {
 				route.close()
+			}
+			if origin := memory.ChildOrigin; origin != nil && origin.route == route.key {
+				memory.ChildOrigin = nil
+				if origin.current(m) && origin.handle != nil {
+					// Bounds queries the committed source control, including if a
+					// close callback is delivered between frame builds.
+					if bounds := origin.handle.Bounds(c); bounds.W > 0 && bounds.H > 0 {
+						origin.handle.RequestFocus(c)
+					}
+				}
+				return
 			}
 			if origin := memory.Rows[memory.Origin]; origin != nil {
 				origin.Focus(c)

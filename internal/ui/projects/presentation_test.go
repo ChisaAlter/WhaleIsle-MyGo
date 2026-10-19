@@ -443,6 +443,44 @@ func TestProjectNestedRouteReturnsToScrollAndOriginFocus(t *testing.T) {
 	}
 }
 
+func TestProjectChildOriginRejectsReplacementOwnerAndRevision(t *testing.T) {
+	card := projectflow.RequestCard{ID: "request", ProjectID: "project", Revision: 7}
+	origin := &projectChildOrigin{host: "host", session: "coordinator", request: card}
+	m := Model{ObserverHost: "host", SelectedSession: "coordinator", RequestCard: &card}
+	if !origin.current(m) {
+		t.Fatal("current child origin rejected")
+	}
+	for _, replacement := range []struct {
+		name  string
+		apply func(*Model, *projectflow.RequestCard)
+	}{
+		{"host", func(m *Model, _ *projectflow.RequestCard) { m.ObserverHost = "replacement" }},
+		{"session", func(m *Model, _ *projectflow.RequestCard) { m.SelectedSession = "replacement" }},
+		{"project", func(_ *Model, card *projectflow.RequestCard) { card.ProjectID = "replacement" }},
+		{"request", func(_ *Model, card *projectflow.RequestCard) { card.ID = "replacement" }},
+		{"revision", func(_ *Model, card *projectflow.RequestCard) { card.Revision++ }},
+	} {
+		t.Run(replacement.name, func(t *testing.T) {
+			next, nextCard := m, card
+			next.RequestCard = &nextCard
+			replacement.apply(&next, &nextCard)
+			if origin.current(next) {
+				t.Fatal("replaced child owner retained focus authority")
+			}
+		})
+	}
+	m.RequestCardActions = func(id string, revision int) RequestCardActions {
+		return RequestCardActions{Known: id == card.ID && revision == card.Revision}
+	}
+	if !origin.current(m) {
+		t.Fatal("authoritative current revision rejected")
+	}
+	m.RequestCardActions = func(string, int) RequestCardActions { return RequestCardActions{} }
+	if origin.current(m) {
+		t.Fatal("retired request revision retained focus authority")
+	}
+}
+
 func TestProjectRowLifecycleCancelReturnsToOriginFocus(t *testing.T) {
 	locale := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)

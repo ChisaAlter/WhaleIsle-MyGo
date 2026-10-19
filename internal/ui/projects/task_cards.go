@@ -593,7 +593,18 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			}
 		}
 	case "activity":
-		if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || actions.Activity == nil).Clicked() && actions.Activity != nil {
+		button := ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || actions.Activity == nil)
+		origin := ui.Local(button, "activity-origin", func() ui.Handle { return ui.Handle{} })
+		button.Bind(origin)
+		if button.Clicked() && actions.Activity != nil {
+			if m.presentation != nil {
+				m.presentation.ChildOrigin = &projectChildOrigin{
+					route: "activity/" + card.ProjectID + "/" + card.ID,
+					host:  m.ObserverHost, session: m.SelectedSession,
+					request: projectflow.RequestCard{ID: card.ID, ProjectID: card.ProjectID, Revision: card.Revision},
+					handle:  origin,
+				}
+			}
 			actions.Activity()
 		}
 		for _, version := range card.Versions {

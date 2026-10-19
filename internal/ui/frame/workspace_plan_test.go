@@ -20,10 +20,22 @@ func TestPlanPaneIndependentSplit(t *testing.T) {
 		}
 		tabs.Plans.Observe(planpreview.Document{Address: address, Title: "Original", Markdown: "body"})
 		m := Model{RightPaneOpen: true, RightPaneTab: &kind, Sizes: &LayoutSizes{Workspace: w}}
+		original, before := w.Root, string(w.Export())
 		SplitWorkspacePane(m, vertical)
+		if vertical {
+			if w.Root != original || string(w.Export()) != before || w.Root.Files.Draft != "private file edit" || w.Root.Files.Tabs.Plans.Documents[address].Title != "Original" {
+				t.Fatal("rejected vertical split changed retained plan or draft")
+			}
+			continue
+		}
 		a, b := w.Root.First, w.Root.Second
-		if a == nil || b == nil || b.Kind != "plan" || a.Files == b.Files {
+		if a == nil || b == nil || w.Root.Axis != "horizontal" || b.Kind != "plan" || a.Files == b.Files {
 			t.Fatal("plan did not split independently")
+		}
+		before = string(w.Export())
+		SplitWorkspacePane(m, false)
+		if w.Root.First != a || w.Root.Second != b || string(w.Export()) != before {
+			t.Fatal("third dock split changed retained plan owners")
 		}
 		if b.Files.Draft != "" || b.Files.Tabs.Plans.ActiveAddress("parent") != address {
 			t.Fatal("copied file draft or lost plan address")
