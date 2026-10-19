@@ -250,6 +250,7 @@ func View(c *ui.Context, m Model) {
 				batchToolbar(c, m, fg)
 				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					if sessionSearchResultsView(c, m, fg, muted) {
+						projects.View(c, m.Projects)
 						return
 					}
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
