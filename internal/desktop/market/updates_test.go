@@ -12,7 +12,7 @@ type updateTransport func(*http.Request) (*http.Response, error)
 
 func (f updateTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestLatestVersionUsesOnlyVerifiedRegistryMetadata(t *testing.T) {
-	item := CatalogItem{ID: "owner/demo", PackageName: "demo", InstallSpec: "demo"}
+	item := CatalogItem{ID: "owner/demo", PackageName: "demo", InstallSpec: "demo", Screenshots: []string{"https://example.invalid/one.png"}}
 	calls := 0
 	svc := NewServiceWithClient("", &http.Client{Transport: updateTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
@@ -22,10 +22,17 @@ func TestLatestVersionUsesOnlyVerifiedRegistryMetadata(t *testing.T) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"name":"demo","version":"1.2.3"}`)), Header: make(http.Header)}, nil
 	})})
 	svc.known[item.ID] = item
-	v, err := svc.LatestVersion(context.Background(), item)
+	reviewed := item
+	reviewed.Screenshots = append([]string(nil), item.Screenshots...)
+	v, err := svc.LatestVersion(context.Background(), reviewed)
 	if err != nil || v != "1.2.3" || calls != 1 {
 		t.Fatalf("%q %v calls=%d", v, err, calls)
 	}
+	item.Screenshots = []string{"https://example.invalid/replaced.png"}
+	if _, err = svc.LatestVersion(context.Background(), item); err == nil || calls != 1 {
+		t.Fatal("changed reviewed screenshot metadata fetched")
+	}
+	item.Screenshots = reviewed.Screenshots
 	item.InstallSpec = "github:owner/demo"
 	if _, err = svc.LatestVersion(context.Background(), item); err == nil || calls != 1 {
 		t.Fatal("unverified target fetched")
