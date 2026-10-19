@@ -80,6 +80,7 @@ func TestListReplayDoesNotRepeatForegroundEffects(t *testing.T) {
 
 func TestBufferedCanceledEventsCannotMutateReplacementClient(t *testing.T) {
 	firstNotify, releaseNotify, lost := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	serverStop := make(chan struct{})
 	var notifyOnce, lostOnce sync.Once
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := websocket.Accept(w, r, nil)
@@ -96,8 +97,18 @@ func TestBufferedCanceledEventsCannotMutateReplacementClient(t *testing.T) {
 				return
 			}
 		}
+		// Establish the blocked first callback before dropping the carrier.
+		// Recv intentionally rejects all queued frames after carrier loss; an
+		// immediate close can therefore retire both frames before either emits.
+		select {
+		case <-firstNotify:
+		case <-serverStop:
+		}
 	}))
-	defer srv.Close()
+	defer func() {
+		close(serverStop)
+		srv.Close()
+	}()
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
 	mux := &dsh.Mux{Endpoint: client.Endpoint, OnCarrierLost: func(error) { lostOnce.Do(func() { close(lost) }) }}
 	defer mux.Close()
