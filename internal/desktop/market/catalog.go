@@ -23,6 +23,7 @@ const catalogLimit = 8 * 1024 * 1024
 var catalogSnapshot []byte
 
 type CatalogItem struct {
+	Screenshots                                                                                    []string
 	ID, Owner, Repo, Description, PackageName, Homepage, InstallSpec, Category, Added, Replacement string
 	Stars                                                                                          float64
 	Deprecated                                                                                     bool
@@ -43,6 +44,7 @@ type registry struct {
 	Plugins    []json.RawMessage            `json:"plugins"`
 }
 type registryRow struct {
+	Screenshots                                json.RawMessage
 	Owner, Name, URL, Category, Added, Install string
 	Description                                map[string]string
 	NPM                                        *string
@@ -141,6 +143,17 @@ func decodeCatalog(raw []byte, locale string) (Catalog, error) {
 		}
 		seen[id] = true
 		i := CatalogItem{ID: id, Owner: r.Owner, Repo: r.Name, Homepage: r.URL, Category: r.Category, Added: r.Added, Description: localized(r.Description, locale), Deprecated: r.Deprecated}
+		var screenshots []any
+		if json.Unmarshal(r.Screenshots, &screenshots) == nil {
+			for _, value := range screenshots {
+				if image, ok := value.(string); ok {
+					i.Screenshots = append(i.Screenshots, image)
+					if len(i.Screenshots) == 12 {
+						break
+					}
+				}
+			}
+		}
 		if r.NPM != nil {
 			i.PackageName = *r.NPM
 		}

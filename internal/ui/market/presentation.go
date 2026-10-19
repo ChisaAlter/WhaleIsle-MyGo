@@ -287,6 +287,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 							ui.Text(c, requirement).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						}
 					}
+					marketScreenshotGallery(c, m, item, fg, muted, field)
 					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
 			})

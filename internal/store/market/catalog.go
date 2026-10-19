@@ -123,12 +123,15 @@ func (s *Store) Discovery() Discovery {
 	d := &s.discovery
 	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, Sort: d.sort, Period: d.period, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
 	out.Catalog.Items = append([]desktopmarket.CatalogItem(nil), d.catalog.Items...)
+	for i := range out.Catalog.Items {
+		out.Catalog.Items[i] = copyCatalogItem(out.Catalog.Items[i])
+	}
 	out.Catalog.Categories = append([]desktopmarket.Category(nil), d.catalog.Categories...)
 	out.Details.Requirements = append([]string(nil), d.details.Requirements...)
 	q := strings.ToLower(strings.TrimSpace(d.query))
 	for _, item := range d.catalog.Items {
 		if item.ID == d.selected {
-			x := item
+			x := copyCatalogItem(item)
 			out.Selected = &x
 		}
 		if d.tab == "favorites" && !s.personal.data.Favorites[item.ID] {
@@ -140,7 +143,7 @@ func (s *Store) Discovery() Discovery {
 		if q != "" && !strings.Contains(strings.ToLower(item.ID+" "+item.Description+" "+item.PackageName), q) {
 			continue
 		}
-		out.Rows = append(out.Rows, item)
+		out.Rows = append(out.Rows, copyCatalogItem(item))
 	}
 	out.Rows = filterCatalogListings(out.Rows, d.sort, d.period, time.Now())
 	out.Total = len(out.Rows)
@@ -155,6 +158,11 @@ func (s *Store) Discovery() Discovery {
 	}
 	out.Rows = out.Rows[start:end]
 	return out
+}
+
+func copyCatalogItem(item desktopmarket.CatalogItem) desktopmarket.CatalogItem {
+	item.Screenshots = append([]string(nil), item.Screenshots...)
+	return item
 }
 func (s *Store) SetQuery(q string) {
 	s.mu.Lock()
