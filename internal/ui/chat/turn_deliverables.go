@@ -184,7 +184,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 								}
 							}
 						}
-						turnFileNativeActions(c, selected, snapshot, nativeAvailable && enabled, run, st)
+						TurnFileNativeActions(c, selected, snapshot, nativeAvailable && enabled, run, st)
 					})
 				}
 			}
@@ -204,7 +204,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 				if ui.Button(c, "预览 / Preview").FontSize(10).Disabled(!enabled || preview == nil).Clicked() {
 					preview(f.Target)
 				}
-				turnFileNativeActions(c, f.Target, snapshot, nativeAvailable && enabled, run, st)
+				TurnFileNativeActions(c, f.Target, snapshot, nativeAvailable && enabled, run, st)
 			})
 		}
 		hasMore := len(d.Files) > 4
@@ -224,8 +224,18 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 		}
 	})
 }
-func turnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapshot session.TurnFilesSnapshot, enabled bool, run func(session.TurnFileTarget, string), st ToolCardStyle) {
+
+// TurnFileNativeActions shares the Files preview's default-open/application-menu
+// interaction, while retaining recorded session/sequence/index route authority.
+func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapshot session.TurnFilesSnapshot, enabled bool, run func(session.TurnFileTarget, string), st ToolCardStyle) {
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
+	apps, exists := snapshot.Results[session.TurnFileRequest{Target: target, Action: "applications"}]
+	seat := ui.Box(c.Key(fmt.Sprintf("native-apps:%s:%d:%v", snapshot.Scope.Binding, snapshot.Scope.Generation, target))).Width(0).Height(0)
+	requested := ui.Local(seat, "requested", func() bool { return false })
+	if enabled && run != nil && !exists && !*requested {
+		*requested = true
+		run(target, "applications")
+	}
 	ui.Row(c).Gap(6).Children(func() {
 		for _, action := range []string{"open", "reveal"} {
 			label := "在 Host 打开 / Open on Host"
@@ -239,7 +249,30 @@ func turnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 				run(target, action)
 			}
 		}
+		ui.Button(c, "Open with…").FontSize(10).Disabled(!enabled || state.Busy || apps.Busy).Menu(func(menu *ui.Menu) {
+			for _, app := range apps.Applications {
+				caption := strings.TrimSpace(app.Name)
+				if caption == "" {
+					caption = app.ID
+				}
+				if app.Default {
+					caption += " (default)"
+				}
+				if menu.Item(caption).Chosen() {
+					run(target, session.TurnFileApplicationAction(app.ID))
+				}
+			}
+			if menu.Item("Refresh applications").Chosen() {
+				run(target, "applications")
+			}
+		})
 	})
+	if apps.Busy {
+		ui.Text(c, "Loading applications…").FontSize(10).TextColor(st.Muted)
+	}
+	if apps.Error != "" {
+		ui.Text(c, apps.Error).FontSize(10).TextColor(st.Muted)
+	}
 	if state.Busy {
 		ui.Text(c, state.Action+"…").FontSize(10).TextColor(st.Muted)
 	}

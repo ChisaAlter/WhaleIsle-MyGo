@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/theme"
@@ -193,26 +194,9 @@ func changesReviewPane(c *ui.Context, m Model) {
 				m.OnOpenDeliverable(path)
 			}
 		}
-		native := snapshot.TurnFiles.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
-		for _, action := range []string{"open", "reveal"} {
-			label := paneLabel("在 Host 打开", "Open on Host")
-			if action == "reveal" {
-				label = paneLabel("在 Host 定位", "Reveal on Host")
-			}
-			if ui.Button(c, label).Disabled(host.Host == nil || !host.Host.Available || native.Busy).Clicked() {
-				run(target, action)
-			}
-		}
-		if native.Busy {
-			ui.Text(c, native.Action+"…")
-		}
-		if native.Error != "" {
-			ui.Text(c, native.Error)
-		}
-		if native.Ready {
-			ui.Text(c, paneLabel("Host 已接受文件动作", "Host accepted file action"))
-		}
+
 	})
+	chat.TurnFileNativeActions(c, target, snapshot.TurnFiles, host.Host != nil && host.Host.Available, run, chat.ToolCardStyle{FG: st.FG, Muted: st.Muted})
 	if host.Error != "" {
 		ui.Text(c, host.Error)
 		if ui.Button(c, paneLabel("重试 Host 信息", "Retry Host info")).Clicked() {

@@ -29,6 +29,7 @@ func cloneAgentResources(in map[string]AgentResourceRead) map[string]AgentResour
 func cloneAgentTurnResults(in map[TurnFileRequest]TurnFileResult) map[TurnFileRequest]TurnFileResult {
 	out := make(map[TurnFileRequest]TurnFileResult, len(in))
 	for k, v := range in {
+		v.Applications = append([]TurnFileApplication(nil), v.Applications...)
 		out[k] = v
 	}
 	return out
@@ -134,6 +135,7 @@ func (s *Store) AgentTurnPreviewPath(token uint64, address AgentSessionAddress, 
 
 // RunAgentTurnFileAction reuses the main delivery protocol with child coordinates.
 func (s *Store) RunAgentTurnFileAction(ctx context.Context, token uint64, address AgentSessionAddress, request TurnFileRequest) {
+	request = normalizeTurnFileRequest(request)
 	s.mu.Lock()
 	path, ok := s.agentTurnTargetLocked(request.Target)
 	if !ok || !s.agentResourceCurrentLocked(token, address) {
@@ -158,9 +160,11 @@ func (s *Store) RunAgentTurnFileAction(ctx context.Context, token uint64, addres
 		if request.Target.Kind == "changes" && request.Target.Index >= 0 {
 			route = "changes.diff"
 		}
-	case "open", "reveal":
+	case "open", "reveal", "applications":
 		if request.Target.Index >= 0 {
-			method = http.MethodPost
+			if request.Action != "applications" {
+				method = http.MethodPost
+			}
 			if request.Target.Kind == "presented" {
 				route = "present.open"
 			} else if request.Target.Kind == "changes" {

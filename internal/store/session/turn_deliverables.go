@@ -39,13 +39,27 @@ type TurnFileScope struct {
 	Generation         uint64
 }
 type TurnFileRequest struct {
-	Target TurnFileTarget
-	Action string
+	Target      TurnFileTarget
+	Action      string
+	Application string
+}
+
+// TurnFileApplicationAction carries an opaque Host application ID through the
+// existing addressed UI action callback. It is never a path or shell command.
+func TurnFileApplicationAction(id string) string { return "application:" + id }
+
+func normalizeTurnFileRequest(r TurnFileRequest) TurnFileRequest {
+	if id, ok := strings.CutPrefix(r.Action, "application:"); ok && id != "" {
+		r.Action, r.Application = "open", id
+	}
+	return r
 }
 
 func (r TurnFileRequest) StateKey() TurnFileRequest {
+	r = normalizeTurnFileRequest(r)
 	if r.Action == "open" || r.Action == "reveal" {
 		r.Action = "native"
+		r.Application = ""
 	}
 	return r
 }
@@ -228,6 +242,14 @@ type TurnFileResult struct {
 	Summary                  *TurnChangesSummary
 	Diff                     *TurnFileDiff
 	Host                     *TurnPresentedHost
+	Applications             []TurnFileApplication
+}
+
+type TurnFileApplication struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Default bool    `json:"default"`
+	Icon    *string `json:"icon"`
 }
 type TurnFilesSnapshot struct {
 	Scope     TurnFileScope
@@ -271,6 +293,7 @@ func (s *Store) turnFilesSnapshotLocked() TurnFilesSnapshot {
 		out.HostLabel = s.client.Endpoint.Origin
 	}
 	for key, r := range s.turnFiles.results {
+		r.Applications = append([]TurnFileApplication(nil), r.Applications...)
 		if r.Summary != nil {
 			v := *r.Summary
 			v.Files = append([]TurnChangedFile(nil), v.Files...)
@@ -337,6 +360,7 @@ func (s *Store) TurnFilePreviewPath(scope TurnFileScope, target TurnFileTarget) 
 // prompt, tool execution, question answer, approval or document action exists.
 // Caller runs this off the UI thread. Both native buttons share one busy key.
 func (s *Store) RunTurnFileAction(ctx context.Context, scope TurnFileScope, request TurnFileRequest) {
+	request = normalizeTurnFileRequest(request)
 	s.mu.Lock()
 	_ = s.turnFilesSnapshotLocked()
 	expectedPath, valid := s.turnFileTargetLocked(scope, request.Target)
@@ -356,9 +380,11 @@ func (s *Store) RunTurnFileAction(ctx context.Context, scope TurnFileScope, requ
 		}
 	case "host":
 		route = "present.host"
-	case "open", "reveal":
+	case "open", "reveal", "applications":
 		if request.Target.Index >= 0 {
-			method = http.MethodPost
+			if request.Action != "applications" {
+				method = http.MethodPost
+			}
 			if request.Target.Kind == "presented" {
 				route = "present.open"
 			} else if request.Target.Kind == "changes" {
@@ -425,6 +451,9 @@ func runTurnFileHTTP(ctx context.Context, client *dsh.Client, scope TurnFileScop
 		if request.Action == "reveal" {
 			q.Set("action", "reveal")
 		}
+		if request.Action == "open" && request.Application != "" {
+			q.Set("application", request.Application)
+		}
 		u.RawQuery = q.Encode()
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
@@ -467,6 +496,23 @@ func runTurnFileHTTP(ctx context.Context, client *dsh.Client, scope TurnFileScop
 		return fail(fmt.Errorf("turn file response exceeds 8 MiB"))
 	}
 	switch request.Action {
+	case "applications":
+		var apps []TurnFileApplication
+		var rows []json.RawMessage
+		if json.Unmarshal(raw, &apps) != nil || apps == nil || json.Unmarshal(raw, &rows) != nil {
+			return fail(fmt.Errorf("invalid native application list"))
+		}
+		for i, app := range apps {
+			if !turnFileRequiredFields(rows[i], "id", "name", "default") || app.ID == "" {
+				return fail(fmt.Errorf("invalid native application entry"))
+			}
+			var fields map[string]json.RawMessage
+			_ = json.Unmarshal(rows[i], &fields)
+			if fields["icon"] == nil || app.Icon != nil && !validTurnFileApplicationIcon(*app.Icon) {
+				return fail(fmt.Errorf("invalid native application icon"))
+			}
+		}
+		result.Applications = apps
 	case "summary":
 		var v TurnChangesSummary
 		if !turnFileRequiredFields(raw, "turn", "files", "total", "added", "deleted") || json.Unmarshal(raw, &v) != nil || v.Turn != request.Target.Turn || v.Files == nil || v.Total < len(v.Files) || v.Added < 0 || v.Deleted < 0 {
@@ -527,6 +573,23 @@ func runTurnFileHTTP(ctx context.Context, client *dsh.Client, scope TurnFileScop
 	}
 	result.Ready = true
 	return result
+}
+
+func validTurnFileApplicationIcon(value string) bool {
+	data, ok := strings.CutPrefix(value, "data:image/png;base64,")
+	if !ok {
+		data, ok = strings.CutPrefix(value, "data:image/svg+xml;base64,")
+	}
+	if !ok || data == "" {
+		return false
+	}
+	for _, c := range data {
+		if c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '/' || c == '=' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func turnFileRequiredFields(raw json.RawMessage, names ...string) bool {
