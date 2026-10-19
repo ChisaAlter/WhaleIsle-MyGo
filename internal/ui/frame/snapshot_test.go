@@ -85,8 +85,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 				}
 				right := float32(0)
 				tt := ui.NewTester(func(c *ui.Context) {
-					theme.ApplyInterface(c)
-					originalScrollbarTheme(c)
+					softwareFrameTheme(c, dark)
 					View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, SystemDark: dark, OnOpenSettings: func() {}, WorkspaceTrailing: trailing(terminal)})
 				}, width, 800)
 				save(fmt.Sprintf("shell-%d-dark-%v-terminal-%v", width, dark, terminal), tt, &sizes, right, width, 800)
@@ -102,8 +101,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 			draft := "A composer fixture"
 			snap := session.ViewState{SelectedID: "current", HistoryReady: true, Items: []session.Item{{SessionID: "current", Title: "Current conversation"}}, Messages: []session.Message{{ID: "snapshot-user", Seq: 1, Kind: session.MessageKindText, Role: "user", Body: strings.Repeat("A literal user message with a deliberately long line. ", 18)}, {ID: "snapshot-assistant", Seq: 2, Kind: session.MessageKindText, Role: "assistant", Body: "Assistant fixture with a short response."}}}
 			tt := ui.NewTester(func(c *ui.Context) {
-				theme.ApplyInterface(c)
-				originalScrollbarTheme(c)
+				softwareFrameTheme(c, dark)
 				cols := sizes.ResolveColumns(float32(width), true)
 				right = cols.Details
 				colors := theme.Resolve("system").Active(dark)
@@ -118,8 +116,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	right := float32(0)
 	open := true
 	tt := ui.NewTester(func(c *ui.Context) {
-		theme.ApplyInterface(c)
-		originalScrollbarTheme(c)
+		softwareFrameTheme(c, false)
 		View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: open, FilePaneWidth: &right, OnOpenSettings: func() {}, WorkspaceTrailing: trailing(true)})
 	}, 1600, 800)
 	save("first-open-1600", tt, &sizes, right, 1600, 800)
@@ -142,6 +139,21 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(dir, "rendered-bounds.json"), data, 0644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Match cmd/whaleisle.applyAppearanceTheme's actual native palette. A dark
+// frame model alone does not change the toolkit colors inherited by controls.
+func softwareFrameTheme(c *ui.Context, dark bool) {
+	theme.ApplyInterface(c)
+	colors := theme.Resolve("system").Active(dark)
+	t := *c.Theme()
+	t.Background, t.Text, t.TextMuted = chrome.Color(colors.BG), chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	t.Surface, t.SurfaceHover, t.SurfacePressed = chrome.Color(colors.Field), chrome.Color(colors.Hover), chrome.Color(colors.Pressed)
+	t.Border, t.Accent = chrome.Color(colors.Border), chrome.Color(colors.Accent)
+	t.AccentHover, t.AccentPressed, t.AccentText = chrome.Color(colors.ButtonInfoHover), chrome.Color(colors.ButtonInfoHover), chrome.Color(colors.ButtonFG)
+	t.Focus, t.Selection = t.Accent, t.Accent.Alpha(.3)
+	t.ScrollbarWidth = conversationScrollbarWidth
+	c.SetTheme(&t)
 }
 
 // Match the verified ui-theme scrollbar.css fixture; toolkit defaults to six.
