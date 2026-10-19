@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -11,6 +12,8 @@ import (
 type RoutineCreateModel struct {
 	State                                                                   dshbotstore.RoutineCreateSnapshot
 	HostLabel, BotName                                                      string
+	Routines                                                                []pluginrpc.DshbotRoutine
+	OnAcknowledgeWatch                                                      func(bool)
 	OnStart, OnReview, OnConfirm, OnDismiss, OnDiscard, OnRebase, OnRefresh func()
 	OnChange                                                                func(field, value string)
 	OnAdopt                                                                 func(id string)
@@ -48,7 +51,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		}
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
-		ui.Text(c, "支持原版全部八种时间类型；默认暂停、次数不限，无watch或跨任务上下文。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, "创建时一次保存调度、上下文、静默回复及 watch 配置。 / Save schedule, context, silent replies and watch together.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		frequency := d.Frequency
 		if frequency == "" {
 			frequency = "daily"
@@ -130,6 +133,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if w.OnChange != nil && ui.Button(c, label).Disabled(disabled).Clicked() {
 			w.OnChange("enabled", fmt.Sprint(!d.Enabled))
 		}
+		routineAdvancedFields(c.Key("create-advanced"), d.Advanced, s.Scope.BotID, "", w.Routines, w.OnChange, disabled, fg, muted, accent)
 		if s.Uncertain {
 			ui.Text(c, "同一创建请求已锁定。刷新只查询目录，不会重复提交；核对新记录后可采用它。 / This creation is locked until its outcome is checked.").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			if w.OnRefresh != nil && ui.Button(c, "核对创建结果 / Check creation outcome").Disabled(blocked).Clicked() {
@@ -167,12 +171,12 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s\nName: %s · revision %d\nPrompt: %s\nSchedule: %s · %s\nEnabled: %t · Max runs: %s", w.HostLabel, w.BotName, cmd.BotID, cmd.SessionID, cmd.Edit.Name, cmd.Revision, cmd.Edit.Prompt, cmd.Edit.Schedule, cmd.Edit.Timezone, cmd.Edit.Enabled, routineLimit(cmd.Edit.MaxRuns))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, "类型 / Frequency: "+routineCreateFrequencyLabel(frequency)+"\n"+routineCreateTimingHint(frequency)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				ui.Text(c, routineCreateImpact(cmd.Edit.Enabled)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-				ui.Text(c, "无watch、无跨任务上下文，允许静默；Host保存后生成任务ID。 / No watch or cross-routine context; silent responses allowed.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				routineAdvancedReview(c, RoutineModel{State: dshbotstore.RoutineSnapshot{Routines: w.Routines, Busy: s.Busy}, OnAcknowledgeWatch: w.OnAcknowledgeWatch}, dshbotstore.RoutineReview{Command: pluginrpc.DshbotRoutineCommand{Action: "save", Edit: cmd.Edit, Advanced: cmd.Advanced}, Advanced: s.Review.Advanced, WorkspaceID: s.Review.WorkspaceID, WatchAcknowledged: s.Review.WatchAcknowledged}, fg, muted, accent)
 				ui.Row(c).Gap(8).Children(func() {
 					if w.OnDismiss != nil && ui.Button(c, "返回修改 / Back to draft").Disabled(s.Busy).Clicked() {
 						w.OnDismiss()
 					}
-					if w.OnConfirm != nil && ui.Button(c, "确认保存新例行任务 / Confirm new routine").Disabled(blocked || !s.Loaded).Clicked() {
+					if w.OnConfirm != nil && ui.Button(c, "确认保存新例行任务 / Confirm new routine").Disabled(blocked || !s.Loaded || dshbotstore.RoutineCreateNeedsWatchAcknowledgement(*s.Review) && !s.Review.WatchAcknowledged).Clicked() {
 						w.OnConfirm()
 					}
 				})

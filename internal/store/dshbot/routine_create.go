@@ -17,13 +17,17 @@ type RoutineCreateDraft struct {
 	Frequency, OnceDelay, IntervalAmount, IntervalUnit string
 	Weekday, MonthDay, Cron                            string
 	Enabled                                            bool
+	Advanced                                           RoutineAdvancedDraft
 	Revision                                           int
 	SessionID, RequestID                               string
 	Version                                            uint64
 }
 type RoutineCreateReview struct {
-	Command pluginrpc.DshbotRoutineCreateCommand
-	Version uint64
+	Command           pluginrpc.DshbotRoutineCreateCommand
+	Version           uint64
+	Advanced          RoutineAdvancedDraft
+	WorkspaceID       string
+	WatchAcknowledged bool
 }
 type RoutineCreateSnapshot struct {
 	Scope                                  RoutineScope
@@ -118,6 +122,7 @@ func (c *RoutineCreator) Sync(k RoutineScope, binding uint64, source RoutineSnap
 }
 func cloneCreateCommand(cmd pluginrpc.DshbotRoutineCreateCommand) pluginrpc.DshbotRoutineCreateCommand {
 	cmd.BeforeIDs = append([]string(nil), cmd.BeforeIDs...)
+	cmd.Advanced = pluginrpc.CloneDshbotRoutineAdvanced(cmd.Advanced)
 	return cmd
 }
 func (c *RoutineCreator) Snapshot(k RoutineScope) RoutineCreateSnapshot {
@@ -130,10 +135,12 @@ func (c *RoutineCreator) Snapshot(k RoutineScope) RoutineCreateSnapshot {
 	out := e.state
 	if out.Draft != nil {
 		d := *out.Draft
+		d.Advanced = cloneRoutineAdvanced(d.Advanced)
 		out.Draft = &d
 	}
 	if out.Review != nil {
 		r := *out.Review
+		r.Advanced = cloneRoutineAdvanced(r.Advanced)
 		r.Command = cloneCreateCommand(r.Command)
 		out.Review = &r
 	}
@@ -176,6 +183,7 @@ func (c *RoutineCreator) Start(k RoutineScope, zone string) {
 		return
 	}
 	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Frequency: "daily", Weekday: "1", MonthDay: "1", Cron: "0 9 * * *", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
+	e.state.Draft.Advanced = RoutineAdvancedDraft{SilentAllowed: true, WatchTimeout: "15000"}
 	e.state.CreatedID = ""
 	e.state.Error = ""
 	e.state.Notice = ""
@@ -227,7 +235,14 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 	case "enabled":
 		d.Enabled = value == "true"
 	default:
-		return
+		changed, err := editRoutineAdvanced(&d.Advanced, field, value, k.BotID, "", c.source.Routines)
+		if err != nil {
+			e.state.Error = err.Error()
+			return
+		}
+		if !changed {
+			return
+		}
 	}
 	d.Version++
 	e.state.Review = nil
@@ -327,11 +342,18 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 		e.state.Error = err.Error()
 		return
 	}
-	cmd := pluginrpc.DshbotRoutineCreateCommand{BotID: k.BotID, SessionID: d.SessionID, RequestID: d.RequestID, Revision: d.Revision, Edit: edit}
+	advancedDraft := cloneRoutineAdvanced(d.Advanced)
+	advancedDraft.ContextChanged, advancedDraft.SilentChanged, advancedDraft.WatchChanged = true, true, true
+	advanced, err := prepareRoutineAdvanced(advancedDraft, k.BotID, "", c.source.Routines)
+	if err != nil {
+		e.state.Error = err.Error()
+		return
+	}
+	cmd := pluginrpc.DshbotRoutineCreateCommand{BotID: k.BotID, SessionID: d.SessionID, RequestID: d.RequestID, Revision: d.Revision, Edit: edit, Advanced: advanced}
 	for _, r := range c.source.Routines {
 		cmd.BeforeIDs = append(cmd.BeforeIDs, r.ID)
 	}
-	e.state.Review = &RoutineCreateReview{Command: cmd, Version: d.Version}
+	e.state.Review = &RoutineCreateReview{Command: cmd, Version: d.Version, Advanced: routineAdvancedReviewValue(advancedDraft, advanced), WorkspaceID: c.source.WorkspaceID}
 	e.state.Error = ""
 }
 func (c *RoutineCreator) Begin(k RoutineScope, expected *RoutineCreateReview) (RoutineCreateTicket, pluginrpc.DshbotRoutineCreateCommand, bool) {
@@ -343,6 +365,9 @@ func (c *RoutineCreator) Begin(k RoutineScope, expected *RoutineCreateReview) (R
 	}
 	e := c.entry(k)
 	r := e.state.Review
+	if r != nil && RoutineCreateNeedsWatchAcknowledgement(*r) && !r.WatchAcknowledged {
+		return RoutineCreateTicket{}, empty, false
+	}
 	if r == nil || expected == nil || expected.Command.RequestID != r.Command.RequestID || expected.Version != r.Version || expected.Command.Revision != r.Command.Revision || e.state.Draft == nil || e.state.Busy || e.attempt != nil || r.Version != e.state.Draft.Version || r.Command.Revision != c.source.Revision || r.Command.SessionID != c.source.SessionID {
 		return RoutineCreateTicket{}, empty, false
 	}
@@ -353,6 +378,21 @@ func (c *RoutineCreator) Begin(k RoutineScope, expected *RoutineCreateReview) (R
 	e.state.Review = nil
 	e.state.Error = ""
 	return RoutineCreateTicket{Scope: k, SourceScope: c.source.Scope, Binding: c.binding, Sequence: c.sequence}, cmd, true
+}
+
+func RoutineCreateNeedsWatchAcknowledgement(r RoutineCreateReview) bool {
+	return r.Command.Edit.Enabled && r.Command.Advanced.Watch != nil && r.Command.Advanced.Watch.Kind == "command"
+}
+func (c *RoutineCreator) AcknowledgeWatch(k RoutineScope, expected *RoutineCreateReview, ack bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.valid(k) || expected == nil {
+		return
+	}
+	e := c.entry(k)
+	if !e.state.Busy && e.state.Review != nil && e.state.Review.Command.RequestID == expected.Command.RequestID && e.state.Review.Version == expected.Version {
+		e.state.Review.WatchAcknowledged = ack
+	}
 }
 func (c *RoutineCreator) current(t RoutineCreateTicket) bool {
 	e := c.entries[t.Scope]

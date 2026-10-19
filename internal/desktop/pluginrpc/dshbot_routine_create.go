@@ -12,6 +12,7 @@ type DshbotRoutineCreateCommand struct {
 	BotID, SessionID, RequestID string
 	Revision                    int
 	Edit                        DshbotRoutineEdit
+	Advanced                    DshbotRoutineAdvancedPatch
 	BeforeIDs                   []string
 }
 type DshbotRoutineCreateResult struct {
@@ -30,7 +31,13 @@ func (c *Client) DshbotCreateRoutine(ctx context.Context, cmd DshbotRoutineCreat
 		out.Rejected = true
 		return out, err
 	}
+	advanced := routineCreateAdvanced(cmd.Advanced)
+	if err := ValidateDshbotRoutineAdvanced(advanced); err != nil {
+		out.Rejected = true
+		return out, err
+	}
 	payload := map[string]any{"botId": cmd.BotID, "revision": cmd.Revision, "name": strings.TrimSpace(cmd.Edit.Name), "prompt": strings.TrimSpace(cmd.Edit.Prompt), "schedule": strings.TrimSpace(cmd.Edit.Schedule), "timezone": strings.TrimSpace(cmd.Edit.Timezone), "maxRuns": cmd.Edit.MaxRuns, "enabled": cmd.Edit.Enabled, "contextFrom": []string{}, "silentAllowed": true, "watch": nil}
+	applyRoutineAdvancedPayload(payload, advanced)
 	var receipt struct {
 		View *DshbotRoutineView `json:"view"`
 	}
@@ -59,7 +66,7 @@ func DshbotRoutineCreatedID(cmd DshbotRoutineCreateCommand, v *DshbotRoutineView
 			continue
 		}
 		e := cmd.Edit
-		if r.Name != strings.TrimSpace(e.Name) || r.Prompt != strings.TrimSpace(e.Prompt) || r.Schedule != normalizedRoutineSchedule(e.Schedule) || r.Timezone != strings.TrimSpace(e.Timezone) || r.MaxRuns != e.MaxRuns || r.Enabled != e.Enabled || !r.SilentAllowed || len(r.ContextFrom) > 0 || (len(r.Watch) > 0 && strings.TrimSpace(string(r.Watch)) != "null") {
+		if r.Name != strings.TrimSpace(e.Name) || r.Prompt != strings.TrimSpace(e.Prompt) || r.Schedule != normalizedRoutineSchedule(e.Schedule) || r.Timezone != strings.TrimSpace(e.Timezone) || r.MaxRuns != e.MaxRuns || r.Enabled != e.Enabled || validateRoutineAdvancedReceipt(routineCreateAdvanced(cmd.Advanced), r) != nil {
 			continue
 		}
 		if found != "" {
@@ -71,6 +78,22 @@ func DshbotRoutineCreatedID(cmd DshbotRoutineCreateCommand, v *DshbotRoutineView
 		return "", fmt.Errorf("no unique new routine in the receipt; refresh before another action")
 	}
 	return found, nil
+}
+
+// A new record always submits complete advanced values. Older callers retain
+// the original create defaults while editor callers can explicitly replace all.
+func routineCreateAdvanced(p DshbotRoutineAdvancedPatch) DshbotRoutineAdvancedPatch {
+	if !p.ContextSet {
+		p.ContextFrom = []string{}
+	}
+	if !p.SilentSet {
+		p.SilentAllowed = true
+	}
+	if !p.WatchSet {
+		p.Watch = nil
+	}
+	p.ContextSet, p.SilentSet, p.WatchSet = true, true, true
+	return p
 }
 
 // These exact messages are emitted before any write by checkRevision, bot(),

@@ -26,7 +26,13 @@ func (s *mainState) assistantRoutineCreateModel(ep harness.Endpoint, botID strin
 		return client != nil && s.assistantRoutineClient(ep, botID) == client && s.assistantRoutines.Bound(source.Scope, binding)
 	}
 	return assistantui.RoutineCreateModel{
-		State: snapshot, HostLabel: ep.Origin, BotName: source.BotName,
+		State: snapshot, HostLabel: ep.Origin, BotName: source.BotName, Routines: source.Routines,
+		OnAcknowledgeWatch: func(ack bool) {
+			if current() {
+				s.assistantRoutineCreator.AcknowledgeWatch(scope, snapshot.Review, ack)
+				s.updateAssistantTasks()
+			}
+		},
 		OnStart: func() {
 			if current() {
 				s.assistantRoutineCreator.Start(scope, time.Now().Location().String())

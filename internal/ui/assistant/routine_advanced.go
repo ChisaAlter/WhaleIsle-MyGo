@@ -24,13 +24,15 @@ func routineContextName(id string, rows []pluginrpc.DshbotRoutine) string {
 	return "来源已不可用；保存前须明确移除 / Unavailable source; remove explicitly before saving: " + id
 }
 func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, muted, accent ui.Color) {
-	d := m.State.Draft.Advanced
+	routineAdvancedFields(c, m.State.Draft.Advanced, m.State.Scope.BotID, m.State.SelectedID, m.State.Routines, m.OnChange, disabled, fg, muted, accent)
+}
+func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, botID, currentID string, rows []pluginrpc.DshbotRoutine, onChange func(string, string), disabled bool, fg, muted, accent ui.Color) {
 	ui.Column(c.Key("routine-advanced")).Gap(6).Children(func() {
 		ui.Text(c, "高级配置 / Advanced settings").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		ui.Text(c, "仅提交明确修改的高级字段；未改字段由 Host 保留。不会探测 URL、试运行命令或读取触发凭据。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		choices := []string{"self"}
-		for _, r := range m.State.Routines {
-			if r.BotID == m.State.Scope.BotID && r.ID != m.State.SelectedID {
+		for _, r := range rows {
+			if r.BotID == botID && r.ID != currentID {
 				choices = append(choices, r.ID)
 			}
 		}
@@ -43,13 +45,13 @@ func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, mut
 		for _, id := range choices {
 			id := id
 			checked := slices.Contains(d.ContextFrom, id)
-			if ui.Checkbox(c.Key("routine-context-"+id), &checked, routineContextName(id, m.State.Routines)).Disabled(disabled || !checked && len(d.ContextFrom) >= 3).Changed() && m.OnChange != nil {
-				m.OnChange("contextToggle", id)
+			if ui.Checkbox(c.Key("routine-context-"+id), &checked, routineContextName(id, rows)).Disabled(disabled || !checked && len(d.ContextFrom) >= 3).Changed() && onChange != nil {
+				onChange("contextToggle", id)
 			}
 		}
 		silent := d.SilentAllowed
-		if ui.Checkbox(c, &silent, "允许静默完成 / Allow silent response").Disabled(disabled).Changed() && m.OnChange != nil {
-			m.OnChange("silentAllowed", fmt.Sprint(silent))
+		if ui.Checkbox(c, &silent, "允许静默完成 / Allow silent response").Disabled(disabled).Changed() && onChange != nil {
+			onChange("silentAllowed", fmt.Sprint(silent))
 		}
 		ui.Text(c, "静默只影响正常输出方式，不表示任务不会执行或没有外部影响。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if d.WatchUnknown {
@@ -58,8 +60,8 @@ func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, mut
 		ui.Row(c).Gap(8).Children(func() {
 			for _, choice := range []struct{ id, label string }{{"", "不检查 / No watch"}, {"url", "读取 URL / URL watch"}, {"command", "执行命令 / Command watch"}} {
 				choice := choice
-				if ui.Button(c, choice.label).Disabled(disabled || !d.WatchUnknown && d.WatchKind == choice.id).Clicked() && m.OnChange != nil {
-					m.OnChange("watchKind", choice.id)
+				if ui.Button(c, choice.label).Disabled(disabled || !d.WatchUnknown && d.WatchKind == choice.id).Clicked() && onChange != nil {
+					onChange("watchKind", choice.id)
 				}
 			}
 		})
@@ -70,13 +72,13 @@ func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, mut
 				label = "完整 Host shell 命令 / Full Host shell command"
 			}
 			ui.TextArea(c.Key("routine-watch-value"), &value).Label(label).Lines(2, 6).FillWidth().Disabled(disabled).OnChange(func() {
-				if m.OnChange != nil {
-					m.OnChange("watchValue", value)
+				if onChange != nil {
+					onChange("watchValue", value)
 				}
 			})
 			ui.TextInput(c.Key("routine-watch-timeout"), &timeout).Label("超时毫秒 / Timeout ms (1–300000)").FillWidth().Disabled(disabled).OnChange(func() {
-				if m.OnChange != nil {
-					m.OnChange("watchTimeout", timeout)
+				if onChange != nil {
+					onChange("watchTimeout", timeout)
 				}
 			})
 			ui.Text(c, "检查结果未变化时可跳过调度；检查失败仍可能排队执行 Bot。保存本身不执行检查。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
