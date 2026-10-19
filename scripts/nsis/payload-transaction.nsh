@@ -531,7 +531,17 @@ Function wiBeginStage
   StrCpy $2 0
   ClearErrors
   FindFirst $0 $1 "$wiFinalFS\*.*"
-  ${IfNot} ${Errors}
+  ${If} ${Errors}
+    System::Call 'kernel32::GetFileAttributesW(w "$wiFinalFS") i.r10'
+    ${If} $R0 != -1
+      Abort "Cannot inspect the previous installation directory. No existing files were moved or removed."
+    ${EndIf}
+    System::Call 'kernel32::GetLastError() i.r10'
+    ${If} $R0 != 2
+    ${AndIf} $R0 != 3
+      Abort "Cannot inspect the installation path. No existing files were moved or removed."
+    ${EndIf}
+  ${Else}
     wi_existing_next:
       ${If} $1 != ""
         ${If} $1 != "."
@@ -776,6 +786,7 @@ Function un.wiRemovePayload
   ${EndIf}
   ClearErrors
 FunctionEnd
+
 
 
 
