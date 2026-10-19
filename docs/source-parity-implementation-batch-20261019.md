@@ -28,3 +28,20 @@ The identified source implementation batch is closed: responsive inline Project 
 After the identified batch was saved at 0bdb900, the parent reiterated that the target is every function, not only primary paths. Parallel source audits now cover lifecycle/import/components, Project/settings, conversation, Bot/Room/IM and MCP/Skills/plugins. Implementation and acceptance remain separate; no new packaging or service launch has occurred.
 
 A single build was admitted after 0bdb900 supplied materially new evidence that the identified batch was closed. It failed at internal/ui/settings/skill_create.go:103: ui.Local received a Context instead of an Element. The validation state now belongs to the stable Name label element. No executable or passing compile is claimed, and compilation has not been repeated. The earlier rejected attempt remains unexecuted. Further verification is paused while the broadened source audit and confirmed fixes continue.
+
+### Confirmed source gaps addressed by the full-function follow-up
+
+| Gap found by original-source audit | Source implementation | Local commit / integration |
+|---|---|---|
+| Windows retained session store hid Start after Stop/import; lifecycle actions could overlap | Runtime availability excludes stopped/failed stores; pending lifecycle blocks conflicting Start/Stop | `336b3e1` |
+| Desktop config API restarted with old overlay flags and without protected cleanup; saved shell settings did not apply | Dedicated patch module, original import maintenance slot, narrow UI effects and existing protected restart; concurrent save/effect ordering retained | `336b3e1` plus follow-up ordering fix |
+| WhaleBridge settings action used the generic runner that rejects this builtin ID | Existing builtin `RunAction(open/manage)` path | `336b3e1` |
+| Diagnostics changed the runtime while retaining local PTYs | Existing approved `closeTaskProtectedResources` cleanup before Stop | `336b3e1` |
+| Skill Hub had no independent installation scope and skipped the original review/busy lifecycle | User/project roots, source/path/scope review, owned requests and installation result projection | `657696a`, shared wiring `336b3e1` |
+| Expanded card A lost Undo when card B was read | Authoritative per-card revision action, per-card conflict and coordinator draft | `38b7565`, shared wiring `336b3e1` |
+| Bot task/routine lists lacked original search, task status selection and source sorting; missed-run notice was not dismissible | Existing local snapshots filtered/sorted; dismissal scoped to the canonical session | `95bdfa9` |
+| Non-Feishu channel connection test was unreachable | Original supported-platform reconnect-test review/action wired without executing it | `fe3c43a` |
+| Attachment send was forgotten at RPC acceptance before canceled/unadmitted retirement | Attachment-only retirement wait restores the captured failed draft; durable observation succeeds, no automatic resend | `f5c3f6d` |
+| Workflow disclosure did not follow later run/phase facts or defer clean collapse around focus | Original disclosure state progression and stable content focus ownership | `f5c3f6d` |
+
+Still implementing after this audit: independent retained-card file/diff/detail/activity/recovery actions; complete Next Prompt readiness/interaction/managed rules; original Room runtime polling ownership. These are implementation tasks, not missing screenshots. No additional build, tests, mock services, packaging or runtime acceptance have been started after the single recorded compile failure.

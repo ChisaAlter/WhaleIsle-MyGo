@@ -74,11 +74,14 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 			}
 		}
 	})
-	release()
 	if err != nil {
+		release()
 		return nil, err
 	}
-	if err := s.applyDesktopConfigEffects(store.Get(), patch, win); err != nil {
+	// Preserve write/effect ordering across concurrent desktop requests.
+	err = s.applyDesktopConfigEffects(store.Get(), patch, win)
+	release()
+	if err != nil {
 		return nil, fmt.Errorf("settings saved but could not be fully applied: %w", err)
 	}
 	restartRequested := false
