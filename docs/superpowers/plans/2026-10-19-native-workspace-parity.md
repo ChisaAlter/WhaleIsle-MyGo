@@ -64,3 +64,5 @@ Ownership and shared contracts:
 - Root: all cmd/main/frame/composer integration, combined fixtures, review, build and evidence. Shared files have one editor; workers add regressions only after their product changes.
 
 Validation: isolated page fixtures and layout/interaction regressions, then the complete existing main-workspace gate for this batch. Independent Standards and Spec review precedes commits. Build a new Windows EXE from a clean commit; do not replace or restart either user's existing instance. Original native screenshot absence is recorded, not a prerequisite for source-based implementation.
+
+Batch checkpoint: implemented and reviewed in `e565dcd`; all twelve page/workspace test packages passed, followed by the affected external-navigation regressions. Twenty software PNGs and one inspected hidden Windows native settings capture are retained. The separate e565dcd EXE embeds a clean source revision; the ce4efcb binary hash is unchanged. Remaining settings bodies, independent Plugins manager, Jobs, Projects and full directory browser features remain explicitly listed in the status inventory.

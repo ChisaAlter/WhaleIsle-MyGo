@@ -141,3 +141,12 @@ Standards与Spec独立只读审查覆盖完整 `aeb77c5..d7d07fc`。曾提出的
 `..\evidence\secondary` 保存20张PNG，已检查设置市场正常/窄窗、任务目录/详情/窄窗/记录/删除、目录短窗、工作区长列表/重命名、插件清单窄列及详情窄窗。未见本批关键操作越界或互相覆盖；截图均为隔离数据。`..\evidence\frame-phase2` 保存主工作区防退化渲染。部分次级正文仍保留原Go控件样式/文案，不能由本批结构恢复推定为完整视觉对齐。
 
 目录测试只用模拟HTTP，市场目录为内存夹具；没有创建真实任务/目录、安装插件、访问真实Host或发送模型请求。`go.mod`、`go.sum`和`.github`未变；没有CI、推送或用户实例操作。
+
+### 第二阶段本地候选与原生画面
+
+- 产品提交 `e565dcdcc9a8bf44a0037cd3b7f36cfb90860172`；候选 `..\evidence\whaleisle-native-pages-e565dcd.exe`。Windows/amd64、Go1.27.2，嵌入该SHA、`vcs.modified=false`。
+- 候选SHA256：`F440CB97C7CB542B30099A2AE8C8D2A81E918FF192A2A8FBE3233AFFD96FC0DD`。
+- 之前 `whaleisle-native-parity-ce4efcb.exe` 的SHA256仍为 `A8447152F95CF7F499A29A53A733DFCD5F952C34A8978D88EA5E2F24A66E6217`，未覆盖。
+- 独立原生截图进程PID33432退出0，stderr为空；`..\evidence\native-pages-e565dcd\native-settings-market.png`，客户区1200×800DIP、图像1800×1200px、scale1.5。已实际查看设置外壳、15项模拟能力注册导航和市场正文；使用原生窗口/字体栅格，Hidden=true，无真实Host、用户配置、账号凭据或模型。夹具源码 `.toolchain/secondary-parity/main.go` 为任务内忽略文件。
+- Library原生截图：`file_00000000887881fdba723cc24f992cd5` / `libfile_a942226cdd8c81919b383c9d3313d8ea`；文件名 `WhaleIsle-MyGo-isolated-native-settings-market-e565dcd-150pct.png`。这是隔离实例，不是现用程序或原版对照。
+- 本轮候选未替换、启动为用户工作实例，也未进行安装包验收。原版同状态视觉对照、实际Windows IME及本节列明的后续页面仍未完成；无审批等待阻塞。
