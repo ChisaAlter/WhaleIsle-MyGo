@@ -511,5 +511,18 @@ func (c *Controller) ConfirmKill(g uint64, id string) {
 		}
 		c.mu.Unlock()
 		c.changed()
+		if err != nil {
+			time.AfterFunc(4*time.Second, func() {
+				c.mu.Lock()
+				changed := ownerContext.Err() == nil && c.view.Mounted && c.killEpoch == e && c.view.Kill.JobID == id && c.view.Kill.Phase == "failed"
+				if changed {
+					c.view.Kill = KillState{}
+				}
+				c.mu.Unlock()
+				if changed {
+					c.changed()
+				}
+			})
+		}
 	}()
 }

@@ -190,7 +190,10 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 					if !live {
 						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Field)).TextColor(muted).Shrink(0)
 						ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
-						detail := job.Detail
+						detail := job.Progress
+						if detail == "" {
+							detail = job.Detail
+						}
 						if detail == "" {
 							detail = jobStatus(job.Status)
 						}
