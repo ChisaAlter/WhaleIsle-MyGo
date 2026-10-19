@@ -88,7 +88,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.ConnectionReady = s.bootStatus.State == harness.Ready && s.dshMuxReady
 	m.ConnectionError = connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
 	m.ConnectionConnecting = s.bootStatus.State == harness.Starting || s.bootStatus.State == harness.Ready && !s.dshMuxReady && s.dshBootstrapError == "" && (!s.dshNetworkOffline || !s.dshMuxLost)
-	m.ConnectionEpoch = s.bootStatus.Generation
+	m.ConnectionEpoch = uint64(s.bootStatus.Generation)
 	m.DesktopUpdateInstalling = s.nativeReleases.installing
 	m.DesktopUpdatePhase, m.DesktopUpdateDetail = s.nativeReleases.phase, strings.TrimSpace(s.nativeReleases.status+" "+s.nativeReleases.err)
 	if m.OnReconnect == nil {
