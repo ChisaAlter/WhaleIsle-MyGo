@@ -23,18 +23,25 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	if !m.Embedded {
 		ui.Text(c, usageText("Token 用量统计", "Token usage statistics")).Bold().TextColor(fg)
 	}
-	if st.Loading {
+	if st.Loading && (!m.Embedded || st.Overview != nil) {
 		ui.Text(c, usageText("正在读取用量…", "Loading usage…")).TextColor(muted)
 	}
-	if st.Err != "" {
+	if st.Err != "" && (!m.Embedded || st.Overview != nil) {
 		ui.Text(c, st.Err).TextColor(accent)
 	}
 	o := st.Overview
 	if o == nil && (st.Loading || st.Err != "") {
+		if m.Embedded {
+			if st.Err != "" {
+				usageEmpty(c, "", st.Err, fg, muted)
+			} else {
+				usageEmpty(c, usageText("正在读取用量…", "Loading usage…"), usageText("正在读取会话用量统计。", "Reading session usage statistics."), fg, muted)
+			}
+		}
 		return
 	}
 	if o == nil {
-		ui.Text(c, usageText("尚无用量数据。刷新以读取内置统计服务。", "No usage data. Refresh to read the built-in statistics service.")).TextColor(muted)
+		usageEmpty(c, "", usageText("暂无用量数据。刷新以读取内置统计服务。", "No usage data. Refresh to read the built-in statistics service."), fg, muted)
 		return
 	}
 	if !m.Embedded {
@@ -53,8 +60,7 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		ui.Text(c, usageText("正在显示上次结果，可能已过期。", "Showing previous results; they may be stale.")).TextColor(accent)
 	}
 	if m.Embedded && o.AllTime.Totals.Total == 0 && o.AllTime.SessionCount == 0 && o.Totals.Total == 0 && o.SessionCount == 0 {
-		ui.Text(c, usageText("尚无用量记录", "No usage recorded yet")).Bold().TextColor(fg)
-		ui.Text(c, usageText("开始使用模型后，统计会显示在这里。", "Usage appears here after you use a model.")).TextColor(muted)
+		usageEmpty(c, usageText("尚无用量记录", "No usage recorded yet"), usageText("开始使用模型后统计会显示在这里。", "Usage appears here after you use a model."), fg, muted)
 		return
 	}
 	if m.Embedded {

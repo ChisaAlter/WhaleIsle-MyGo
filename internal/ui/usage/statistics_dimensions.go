@@ -85,8 +85,9 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 	} else if len(days) > st.Days {
 		days = days[len(days)-st.Days:]
 	}
-	ui.Text(c, title).Bold().TextColor(fg)
-	stackedUsageView(c, days, models, providers, settings, fg, muted, field)
+	usageCard(c, "usage-daily-models", title, fg, func() {
+		stackedUsageView(c, days, models, providers, settings, fg, muted, field)
+	})
 	shareModels := o.AllTime.ByModel
 	shareTotal := o.AllTime.Totals.Total
 	title = usageText("模型占比（全部历史）", "Model share (all time)")
@@ -96,8 +97,9 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 		shareTotal = selected.Totals.Total
 		title = usageText("模型占比（选定日期）", "Model share (selected dates)")
 	}
-	ui.Text(c, title).Bold().TextColor(fg)
-	modelShareView(c, shareModels, shareTotal, settings, fg, muted, field)
+	usageCard(c, "usage-model-share", title, fg, func() {
+		modelShareView(c, shareModels, shareTotal, settings, fg, muted, field)
+	})
 	ui.Text(c, usageText("服务商分项用量", "Provider token breakdown")).Bold().TextColor(fg)
 	providerMax := 1.0
 	if st.Range.Active() {
@@ -171,118 +173,136 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	if len(days) == 0 {
 		return
 	}
-	positives := []float64{}
-	lookup := map[string]usagestore.DayUsage{}
-	for _, d := range days {
-		lookup[d.Date] = d
-		if d.Total > 0 {
-			positives = append(positives, d.Total)
+	usageCard(c, "usage-calendar-card", "", fg, func() {
+		surface, _, secondary := usageCardPalette(c)
+		positives := []float64{}
+		lookup := map[string]usagestore.DayUsage{}
+		for _, d := range days {
+			lookup[d.Date] = d
+			if d.Total > 0 {
+				positives = append(positives, d.Total)
+			}
 		}
-	}
-	sort.Float64s(positives)
-	levels := []float64{0, 0, 0}
-	if len(positives) > 0 {
-		for i := range levels {
-			levels[i] = positives[(len(positives)-1)*(i+1)/4]
+		sort.Float64s(positives)
+		levels := []float64{0, 0, 0}
+		if len(positives) > 0 {
+			for i := range levels {
+				levels[i] = positives[(len(positives)-1)*(i+1)/4]
+			}
 		}
-	}
-	selected := st.Selection()
-	active := 0
-	for _, d := range selected.Days {
-		if d.Total > 0 {
-			active++
+		selected := st.Selection()
+		active := 0
+		for _, d := range selected.Days {
+			if d.Total > 0 {
+				active++
+			}
 		}
-	}
-	heading := ui.Text(c.Key("usage-calendar"), usageText("用量日历（UTC）", "Usage calendar (UTC)")).Bold().TextColor(fg)
-	detail := ui.Local(heading, "detail-date", func() string { return "" })
-	focusDay := ui.Local(heading, "focus-date", func() string { return "" })
-	buttons := map[string]ui.Element{}
-	focusTarget := ""
-	ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, usageText("颜色按全窗口四分位分级；聚焦或悬停查看日期详情；方向键按日/周移动，Home/End 到首尾；Enter 选择，Shift+Enter 扩展。", "Colors use whole-window quartiles. Focus or hover for day details. Arrow keys move by day/week; Home/End reach bounds. Enter selects; Shift+Enter extends.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	start, _ := time.Parse("2006-01-02", days[0].Date)
-	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
-	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
-	months := calendarMonthLabels(start, end, lookup)
-	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(166).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
-		ui.Row(c).Gap(5).Children(func() {
-			ui.Column(c).Width(36).Gap(3).Children(func() {
-				ui.Box(c).Height(24)
-				for _, label := range []string{"Mon", "", "Wed", "", "Fri", "", ""} {
-					ui.Text(c, label).Height(14).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				}
-			})
-			for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
+		heading := ui.Text(c.Key("usage-calendar"), usageText("用量日历（UTC）", "Usage calendar (UTC)")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).FontWeight(600).TextColor(fg)
+		detail := ui.Local(heading, "detail-date", func() string { return "" })
+		focusDay := ui.Local(heading, "focus-date", func() string { return "" })
+		buttons := map[string]ui.Element{}
+		focusTarget := ""
+		ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, usageText("颜色按全窗口四分位分级；聚焦或悬停查看日期详情；方向键按日/周移动，Home/End 到首尾；Enter 选择，Shift+Enter 扩展。", "Colors use whole-window quartiles. Focus or hover for day details. Arrow keys move by day/week; Home/End reach bounds. Enter selects; Shift+Enter extends.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		start, _ := time.Parse("2006-01-02", days[0].Date)
+		end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
+		start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
+		months := calendarMonthLabels(start, end, lookup)
+		ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(124).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
+			ui.Row(c).Gap(6).Children(func() {
 				ui.Column(c).Width(20).Gap(3).Children(func() {
-					label := months[week.Format("2006-01-02")]
-					if label != "" {
-						ui.Text(c, label[5:]).Height(24).Tooltip(label).TextColor(fg)
-					} else {
-						ui.Box(c).Height(24)
+					ui.Box(c).Height(17)
+					for _, label := range []string{usageText("一", "Mon"), "", usageText("三", "Wed"), "", usageText("五", "Fri"), "", ""} {
+						ui.Text(c, label).Height(12).FixedLineHeight(12).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).NoWrap()
 					}
-					for n := 0; n < 7; n++ {
-						date := week.AddDate(0, 0, n).Format("2006-01-02")
-						day, ok := lookup[date]
-						if !ok {
-							ui.Box(c).Width(20).Height(14)
-							continue
-						}
-						color := field
-						if day.Total > 0 {
-							level := 1
-							for _, q := range levels {
-								if day.Total > q {
-									level++
+				})
+				ui.Row(c).Gap(3).Children(func() {
+					for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
+						ui.Column(c).Width(12).Gap(3).Children(func() {
+							label := months[week.Format("2006-01-02")]
+							if label != "" {
+								month, _ := time.Parse("2006-01", label)
+								ui.Text(c, usageText(fmt.Sprintf("%d月", month.Month()), month.Format("Jan"))).Height(17).FixedLineHeight(16).NoWrap().Tooltip(label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							} else {
+								ui.Box(c).Height(17)
+							}
+							for n := 0; n < 7; n++ {
+								date := week.AddDate(0, 0, n).Format("2006-01-02")
+								day, ok := lookup[date]
+								if !ok {
+									ui.Box(c).Size(12, 12)
+									continue
 								}
-							}
-							color = accent
-							color.A = uint8(75 + level*45)
-						}
-						text := ""
-						if st.Range.Active() && date >= st.Range.Start && date <= st.Range.End {
-							text = "•"
-						}
-						ui.Column(c).Width(20).Children(func() {
-							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(20).Height(14).Padding(0).Background(color).Tooltip(dayTip(day, providers, settings))
-							buttons[date] = button
-							if button.Focused() {
-								if *focusDay == "" && !button.Clicked() {
-									focusTarget = days[len(days)-1].Date
-								} else {
-									*focusDay = date
+								level := 0
+								if day.Total > 0 {
+									level = 1
+									for _, q := range levels {
+										if day.Total > q {
+											level++
+										}
+									}
 								}
-							}
-							if button.Focused() || button.Hovered() {
-								*detail = date
-							}
-							for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
-								if button.Shortcut(0, key) {
-									focusTarget = calendarFocusTarget(date, key, days)
-								}
-							}
-							if button.Shortcut(ui.Shift, ui.KeyEnter) || button.Shortcut(ui.Shift, ui.KeySpace) {
-								m.Store.SelectStatsDay(date, true)
-							}
-							if button.Clicked() {
-								*detail = date
-								*focusDay = date
-								m.Store.SelectStatsDay(date, button.ClickModifiers()&ui.Shift != 0)
+								color := usageHeatColor(level, surface, secondary)
+								selectedDay := st.Range.Active() && date >= st.Range.Start && date <= st.Range.End
+								ui.Column(c).Width(12).Children(func() {
+									button := ui.Button(c.Key("day-"+date), "").Label(date+" UTC").Size(12, 12).Padding(0).BorderWidth(0).Radius(3).Background(color).FocusRing(false).Tooltip(dayTip(day, providers, settings))
+									if st.Range.Active() && !selectedDay {
+										button.Opacity(.3)
+									}
+									if selectedDay && st.Range.Start == st.Range.End || button.Hovered() || button.Focused() {
+										button.Opacity(1).DrawOver(func(p *ui.Painter, r ui.Rect) {
+											p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, accent, 5, 2)
+										})
+									}
+									buttons[date] = button
+									if button.Focused() {
+										if *focusDay == "" && !button.Clicked() {
+											focusTarget = days[len(days)-1].Date
+										} else {
+											*focusDay = date
+										}
+									}
+									if button.Focused() || button.Hovered() {
+										*detail = date
+									}
+									for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
+										if button.Shortcut(0, key) {
+											focusTarget = calendarFocusTarget(date, key, days)
+										}
+									}
+									if button.Shortcut(ui.Shift, ui.KeyEnter) || button.Shortcut(ui.Shift, ui.KeySpace) {
+										m.Store.SelectStatsDay(date, true)
+									}
+									if button.Clicked() {
+										*detail = date
+										*focusDay = date
+										m.Store.SelectStatsDay(date, button.ClickModifiers()&ui.Shift != 0)
+									}
+								})
 							}
 						})
 					}
 				})
+			})
+		})
+		if button, ok := buttons[focusTarget]; ok {
+			button.Focus()
+			button.ScrollIntoView()
+			*detail = focusTarget
+			*focusDay = focusTarget
+		}
+		if day, ok := lookup[*detail]; ok {
+			ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		}
+		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Margin(14, 0, 0).Children(func() {
+			ui.Spacer(c)
+			ui.Text(c, usageText("少", "Less")).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+			for level := 0; level <= 4; level++ {
+				ui.Box(c).Size(12, 12).Radius(3).Background(usageHeatColor(level, surface, secondary))
 			}
+			ui.Text(c, usageText("多", "More")).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		})
 	})
-	if button, ok := buttons[focusTarget]; ok {
-		button.Focus()
-		button.ScrollIntoView()
-		*detail = focusTarget
-		*focusDay = focusTarget
-	}
-	if day, ok := lookup[*detail]; ok {
-		ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
 }
 
 // Weeks run across and Monday-first weekdays run down, matching the original heatmap. Missing dates stay inert.
@@ -503,21 +523,39 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 		{usageText("最常用模型", "Top model"), topName, topDetail},
 		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf("Cache read %.0f", t.CacheRead)},
 	}
-	for _, bounds := range [][2]int{{0, 2}, {2, 5}} {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Wrap().Children(func() {
-			for _, metric := range metrics[bounds[0]:bounds[1]] {
-				ui.Column(c).Grow(1).MinWidth(160).Gap(8).Padding(14).Radius(8).Border(1, muted).Children(func() {
-					ui.Text(c, metric.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-					size := float32(20)
-					if metric.label == usageText("最常用模型", "Top model") {
-						size = 14
-					}
-					ui.Text(c, metric.value).FontSize(fonttheme.InterfaceSize(size)).Bold().TextColor(fg)
-					ui.Text(c, metric.detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				})
-			}
-		})
+	surface, border, secondary := usageCardPalette(c)
+	grid := ui.Grid(c.Key("usage-kpis")).FillWidth().MinWidth(0).Gap(12)
+	width := grid.Bounds().W
+	columns := 6
+	if width <= 320 {
+		columns = 1
+	} else if width <= 460 {
+		columns = 2
 	}
+	grid.Columns(columns).Draw(func(_ *ui.Painter, r ui.Rect) {
+		if r.W != width {
+			c.Invalidate()
+		}
+	}).Children(func() {
+		for index, metric := range metrics {
+			span := 1
+			if columns == 6 {
+				span = 2
+				if index < 2 {
+					span = 3
+				}
+			}
+			ui.Column(c).ColumnSpan(span).MinWidth(0).Gap(0).Padding(12, 16).Radius(8).Background(surface).Border(1, border).Children(func() {
+				ui.Text(c, metric.label).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(secondary)
+				size, height := float32(16), float32(24)
+				if index == 1 || index >= 3 {
+					size, height = 14, 22
+				}
+				ui.Text(c, metric.value).FillWidth().Margin(8, 0, 0).FontSize(fonttheme.InterfaceSize(size)).FixedLineHeight(fonttheme.InterfaceSize(height)).FontWeight(700).FontFeatures("tnum").TextColor(fg)
+				ui.Text(c, metric.detail).FillWidth().Margin(4, 0, 0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(secondary)
+			})
+		}
+	})
 }
 func providerUsageBar(c *ui.Context, value, maximum float64, accent, field ui.Color) {
 	ui.Box(c).Width(280).Height(8).Background(field).Draw(func(p *ui.Painter, r ui.Rect) {

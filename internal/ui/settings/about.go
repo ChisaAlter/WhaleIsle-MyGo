@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/credentials"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/ui/i18n"
@@ -35,6 +36,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.About
+	accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
 	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(12)
 	storage := ui.Local(anchor, "metadata", func() credentials.StorageStatus {
 		if a.ReadCredentialStorage != nil {
@@ -45,18 +47,18 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	linkError := ui.Local(anchor, "error", func() string { return "" })
 	anchor.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FontWeight(600).TextColor(fg)
-		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and the official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and the official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
 		if a.Loading {
 			ui.Text(c, providerCopy("正在读取应用信息…", "Loading application information…")).FillWidth().TextColor(muted)
 		}
 		if a.Err != "" {
 			ui.Text(c, a.Err).FillWidth().TextColor(fg)
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-			ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).Bold().TextColor(fg)
-			ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().SingleLine().Tooltip(a.Version).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			ui.Text(c, "Based on DeepSeek Harness").FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(4).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).Children(func() {
+			ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
+			ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().Tooltip(a.Version).TextColor(muted)
+			ui.Text(c, "Based on DeepSeek Harness").FillWidth().TextColor(muted)
+			ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).Children(func() {
 				if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Disabled(a.UpdateBusy).Clicked() {
 					a.OnCheckUpdates()
 				}
@@ -78,14 +80,17 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				ui.Text(c, storage.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 			}
 			if a.HomePath != "" {
-				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().SingleLine().Tooltip(a.HomePath).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().Tooltip(a.HomePath).TextColor(muted)
 			}
 			if a.OnRevealHome != nil && ui.Button(c, providerCopy("打开运行目录", "Open runtime directory")).Disabled(a.HomeBusy).Clicked() {
 				a.OnRevealHome()
 			}
 		})
 		for _, link := range aboutLinks() {
-			button := ui.Button(c, link.Label).FillWidth().MinWidth(0).Height(32).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(link.URL).Disabled(a.OnOpenLink == nil)
+			button := ui.Button(c, link.Label).AlignSelf(ui.Start).MinWidth(0).Height(fonttheme.InterfaceSize(21)).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(21)).TextColor(accent).Tooltip(link.URL).Disabled(a.OnOpenLink == nil)
+			if button.Hovered() {
+				button.Underline()
+			}
 			if button.Clicked() {
 				*linkError = ""
 				if err := a.OnOpenLink(link.URL); err != nil {

@@ -81,7 +81,9 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	bodyHostPreference(c, d.Host, "ui-chat", "performanceUsage", providerCopy("性能与用量", "Performance and usage"), "", fg, muted)
 	bodyHostPreference(c, d.Host, "session-log-deepseek", "enabled", providerCopy("会话日志上传", "Upload session logs"), "", fg, muted)
 	if d.Version != "" {
-		bodyPreferenceRow(c, "general-version", providerCopy("当前版本", "Current version"), "", fg, muted, func() { ui.Text(c, d.Version).FillWidth().SingleLine().Tooltip(d.Version).TextColor(muted) })
+		// CurrentVersionRow is one full-width line, not a Setting-Cell's
+		// fixed-width selector column: long build versions must remain readable.
+		ui.Text(c.Key("general-version"), providerCopy("Harness 版本：", "Harness version: ")+d.Version).FillWidth().MinWidth(0).Padding(16, 0).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).Tooltip(d.Version).TextColor(fg)
 	}
 	bodyDisclosure(c, "general-local-runtime", providerCopy("本地运行与诊断", "Local runtime and diagnostics"), func() {
 		bodyHeading(c, i18n.T(i18n.KeySettingsDesktopTitle), i18n.T(i18n.KeySettingsDesktopHint), fg, muted)
