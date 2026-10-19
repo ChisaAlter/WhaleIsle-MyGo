@@ -49,6 +49,10 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(bg)
 		panel.WidthPercent(100).HeightPercent(100).MinWidth(0).Padding(40).Gap(20).Radius(0).Background(bg).Children(func() {
+			if s.Loading {
+				ui.Column(c).Fill().Center().Children(func() { ui.Text(c, providerCopy("正在加载设置…", "Loading settings…")).TextColor(muted) })
+				return
+			}
 			anchor := ui.Column(c.Key("desktop-onboarding/" + s.Progress.Step)).FillWidth().MinWidth(0).Gap(20)
 			dialog := ui.Local(anchor, "confirm", func() string { return "" })
 			busy := s.Saving || s.Loading

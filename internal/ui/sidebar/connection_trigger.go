@@ -73,6 +73,8 @@ func (s *connectionTriggerState) project(now time.Time, epoch uint64, phase stri
 
 var connectionRefresh = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
 var connectionCheck = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></svg>`))
+var updateLoading = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M12.596 12.596C11.687 13.5049 10.5288 14.1239 9.26798 14.3747C8.00716 14.6255 6.70028 14.4968 5.51261 14.0048C4.32494 13.5129 3.30981 12.6798 2.59557 11.611C1.88134 10.5421 1.50008 9.2855 1.5 7.99998C1.50008 6.71446 1.88134 5.45783 2.59557 4.38898C3.30981 3.32013 4.32494 2.48707 5.51261 1.99513C6.70028 1.50319 8.00716 1.37447 9.26798 1.62524C10.5288 1.87602 11.687 2.49502 12.596 3.40398"/></svg>`))
+var updateDownload = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M8 1.95317V10.0469M4.25 6.29688L8 10.0469L11.75 6.29688M1.5 10.0469V13.158C1.5 13.3937 1.60536 13.6198 1.79289 13.7865C1.98043 13.9532 2.23478 14.0469 2.5 14.0469H13.5C13.7652 14.0469 14.0196 13.9532 14.2071 13.7865C14.3946 13.6198 14.5 13.3937 14.5 13.158V10.0469"/></svg>`))
 var settingsGear = ui.MustParseSVG([]byte(`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="m8 2-.5 2-2 .9-1.8-.5L2 7.4l1.5 1.5v2.2L2 12.6l1.7 3 1.8-.5 2 .9.5 2h4l.5-2 2-.9 1.8.5 1.7-3-1.5-1.5V8.9L18 7.4l-1.7-3-1.8.5-2-.9-.5-2z"/><circle cx="10" cy="10" r="3"/></svg>`))
 
 // SettingsRoot's expanded trigger and compact rail share the exact physical
@@ -91,8 +93,10 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		phase = "connecting"
 	}
 	status, opacity := state.project(c.Now(), m.ConnectionEpoch, phase)
-	if m.DesktopUpdateInstalling {
+	if m.DesktopUpdateInstalling || m.DesktopUpdatePhase == "installing" {
 		status, opacity = "installing", 1
+	} else if status == "" && m.DesktopUpdatePhase != "" && m.DesktopUpdatePhase != "idle" {
+		status, opacity = "update:"+m.DesktopUpdatePhase, 1
 	}
 	reduced := c.Preferences().ReduceMotion
 	if reduced {
@@ -135,22 +139,21 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		if compact {
 			seat.Top(0)
 		}
-		seat.Children(func() { connectionStatusSeat(c, m, status, colors, reduced) })
+		seat.Children(func() {
+			if status == "installing" || len(status) > 7 && status[:7] == "update:" {
+				phase := m.DesktopUpdatePhase
+				if status == "installing" {
+					phase = "installing"
+				}
+				desktopUpdateSeat(c, m, phase, colors, reduced)
+			} else {
+				connectionStatusSeat(c, m, status, colors, reduced)
+			}
+		})
 	})
 }
 
 func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Colors, reduced bool) {
-	if status == "installing" {
-		ink := chrome.Color(colors.Accent)
-		ui.Box(c).Size(36, 36).Radius(8).Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("正在准备重启…", "Preparing to restart…")).Tooltip(sidebarConnectionCopy("正在准备重启…", "Preparing to restart…")).Center().Children(func() {
-			angle := float32(0)
-			if !reduced {
-				angle = float32(c.Now().UnixNano()%int64(time.Second)) / float32(time.Second) * 360
-			}
-			ui.Icon(c, connectionRefresh).Size(14, 14).Rotate(angle).TextColor(ink)
-		})
-		return
-	}
 	dark := theme.ResolveWithSystem(m.ThemeID, m.SystemDark).Scheme == theme.SchemeDark
 	ink, fill := ui.RGB(221, 134, 41), ui.RGB(254, 245, 231)
 	if dark {
@@ -209,6 +212,45 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 	})
 	if button.Clicked() && m.OnReconnect != nil {
 		m.OnReconnect()
+	}
+}
+
+// Phase and detail come from the existing native updater's actual progress;
+// opening an actionable status reuses its existing launcher management page.
+func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors, reduced bool) {
+	labels := map[string]string{"checking": sidebarConnectionCopy("正在检查更新…", "Checking for updates…"), "available": sidebarConnectionCopy("有可用更新", "Update available"), "downloading": sidebarConnectionCopy("正在下载更新…", "Downloading update…"), "verifying": sidebarConnectionCopy("正在校验更新…", "Verifying update…"), "installing": sidebarConnectionCopy("正在准备重启…", "Preparing to restart…"), "ready": sidebarConnectionCopy("安装并重启", "Install and Restart"), "error": sidebarConnectionCopy("重试更新", "Retry update")}
+	label := labels[phase]
+	if label == "" {
+		return
+	}
+	detail := m.DesktopUpdateDetail
+	if detail == "" {
+		detail = label
+	}
+	busy := phase == "checking" || phase == "downloading" || phase == "verifying" || phase == "installing"
+	ink := chrome.Color(colors.Accent)
+	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).TextColor(ink).Label(label).Tooltip(detail)
+	if busy {
+		button.Disabled(true)
+	} else if button.Hovered() {
+		button.Background(ink.Alpha(.14))
+	}
+	button.Children(func() {
+		if phase == "error" {
+			ui.Box(c).Size(6, 6).Radius(3).Background(ink)
+		} else if busy {
+			angle := float32(0)
+			if !reduced {
+				angle = float32(c.Now().UnixNano()%int64(time.Second)) / float32(time.Second) * 360
+				c.After(16 * time.Millisecond)
+			}
+			ui.Icon(c, updateLoading).Size(14, 14).Rotate(angle).TextColor(ink)
+		} else {
+			ui.Icon(c, updateDownload).Size(14, 14).TextColor(ink)
+		}
+	})
+	if !busy && button.Clicked() && m.OnOpenDesktopUpdate != nil {
+		m.OnOpenDesktopUpdate()
 	}
 }
 

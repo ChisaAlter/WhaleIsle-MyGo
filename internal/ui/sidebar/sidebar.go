@@ -18,6 +18,9 @@ import (
 type Model struct {
 	ConnectionReady              bool
 	DesktopUpdateInstalling      bool
+	DesktopUpdatePhase           string
+	DesktopUpdateDetail          string
+	OnOpenDesktopUpdate          func()
 	ConnectionConnecting         bool
 	ConnectionEpoch              uint64
 	OnReconnect                  func()
