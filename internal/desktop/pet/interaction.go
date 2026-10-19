@@ -15,6 +15,7 @@ type interactionSample struct {
 	x, y float64
 }
 type interactionView struct {
+	Epoch            uint64
 	CursorX, CursorY float64
 	Mode             string
 	Roaming          bool
@@ -32,6 +33,7 @@ type interactionState struct {
 	last                   time.Time
 	vx, vy                 float64
 	view                   interactionView
+	hit                    petHitState
 }
 
 func (p *Companion) startInteraction() {
@@ -46,8 +48,9 @@ func (p *Companion) stopInteraction() {
 	}
 	generation := s.generation + 1
 	p.assetMu.Lock()
-	*s = interactionState{generation: generation}
+	*s = interactionState{generation: generation, view: interactionView{Epoch: generation}}
 	p.assetMu.Unlock()
+	p.resetHitRegions()
 }
 func (p *Companion) armInteraction() {
 	w, generation := p.win, p.interaction.generation
@@ -131,6 +134,7 @@ func (p *Companion) tickInteraction(now time.Time) {
 	s.view.Mode, s.view.VX, s.view.VY = s.mode, s.vx, s.vy
 	s.view.Roaming, s.view.Facing = p.motion.glide != nil, p.motion.facing
 	p.assetMu.Unlock()
+	p.updateHitRegions(cursor)
 }
 func (p *Companion) landInteraction(now time.Time) {
 	s := &p.interaction
@@ -146,6 +150,9 @@ func (p *Companion) landInteraction(now time.Time) {
 	p.assetMu.Unlock()
 }
 func (p *Companion) interactionAction(raw string) bool {
+	if p.hitRegionAction(raw) {
+		return true
+	}
 	action := ""
 	for _, candidate := range []string{"gesture-press", "gesture-pickup", "gesture-release", "gesture-cancel"} {
 		if raw == "whale-pet://localhost/"+candidate {
@@ -194,6 +201,7 @@ func (p *Companion) interactionAction(raw string) bool {
 		}
 		s.trail = nil
 	}
+	p.updateHitRegions(mygo.Screen.CursorScreenPoint())
 	return true
 }
 func interactionRelease(trail []interactionSample, now time.Time) (float64, float64) {

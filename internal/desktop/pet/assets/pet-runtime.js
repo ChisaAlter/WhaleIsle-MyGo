@@ -48,6 +48,35 @@
   });
   applySettings(settings);
   let stopped = false, engine = null, raf = 0, spriteTimer = 0, taskTimer = 0;
+  // Report only visible islands in this page, never desktop coordinates.
+  // Native cursor sampling can restore interaction even while this window is
+  // ignoring mouse events. A short periodic report also restores a shown page.
+  const hitElements = [canvas, fallback, document.getElementById('pet-status-toggle'),
+    document.getElementById('pet-status-card'), document.getElementById('pet-bubble'), notice];
+  let hitReportFrame = 0;
+  function reportHitRegions() {
+    if (stopped || document.hidden || !currentTask.HitEpoch) return;
+    const regions = hitElements
+      .flatMap(element => {
+        if (!element || element.hidden || getComputedStyle(element).display === 'none') return [];
+        const r = element.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 ? [{X:r.x, Y:r.y, Width:r.width, Height:r.height}] : [];
+      });
+    const data = JSON.stringify({Width:innerWidth, Height:innerHeight, Regions:regions, Epoch:currentTask.HitEpoch});
+    location.href = 'whale-pet://localhost/interactive-regions?data=' + encodeURIComponent(data);
+  }
+  function scheduleHitRegions() {
+    if (!stopped && !hitReportFrame) hitReportFrame = requestAnimationFrame(() => {
+      hitReportFrame = 0; reportHitRegions();
+    });
+  }
+  const hitResizeObserver = new ResizeObserver(scheduleHitRegions);
+  for (const element of hitElements) if (element) hitResizeObserver.observe(element);
+  const hitVisibilityObserver = new MutationObserver(scheduleHitRegions);
+  hitVisibilityObserver.observe(document.body, {subtree:true, attributes:true, attributeFilter:['hidden']});
+  const hitRegionTimer = setInterval(reportHitRegions, 250);
+  document.addEventListener('visibilitychange', scheduleHitRegions);
+  scheduleHitRegions();
   let contactTimer = 0, lastNativeContact = -Infinity;
   function motionContact() {
     const now = performance.now();
@@ -89,6 +118,10 @@
     careController.close();
     if (clickAudio) void clickAudio.close().catch(() => {});
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer); clearInterval(contactTimer);
+    clearInterval(hitRegionTimer);
+    cancelAnimationFrame(hitReportFrame);
+    hitResizeObserver.disconnect(); hitVisibilityObserver.disconnect();
+    document.removeEventListener('visibilitychange', scheduleHitRegions);
     if (engine) void Promise.resolve(engine.close()).catch(() => {});
   };
   window.addEventListener('pagehide', stop, { once: true });

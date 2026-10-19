@@ -191,6 +191,7 @@ func (p *Companion) sync() {
 		return
 	}
 	p.win = w
+	p.resetHitRegions()
 	// Apply the footprint before restoring the deliberate drag anchor. Roaming
 	// is transient and must not be saved by MyGo automatic window state.
 	w.SetSize(220, petWindowHeight(cfg.Behavior))
@@ -377,7 +378,8 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Care          CareStatus
 			Growth        GrowthStatus
 			Rest          RestStatus
-		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest})
+			HitEpoch      uint64
+		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest, p.interaction.view.Epoch})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/pet-dialogue.json":
