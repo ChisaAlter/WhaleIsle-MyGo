@@ -19,7 +19,7 @@
 | WORK-03 | `C/ui-files/src/client/FileTree.tsx`、`apply.ts` | `internal/ui/files/files.go`、`tree_actions.go`、`preview_toolbar.go` | behavior-compared | 比较原版 FileTree 的只读展开/打开、引用、复制路径、打开方式入口，与 Go 树行/context menu/拖拽引用回调。原版没有应用内创建、改名、隐藏项开关，不能据此推定缺口。未贯通完整异步树刷新、外部编辑器识别与系统调用结果。 |
 | WORK-04 | `C/ui-files/src/client/apply.ts`、`fileSaveCoordinator.ts`、`FileClosePrompt.tsx` | `internal/ui/files/autosave.go`、`reload.go`、`tabs.go`；`internal/ui/frame/frame.go` 的 `OnSaveEdit` | entrypoint-sampled | 阅读原版注册保存和关闭守卫入口；Go 阅读保存队列、外部修改时保留脏基线、错误/截断阻止保存及本地写回调。原版协调器/关闭提示主体、全部关闭与恢复链未对照。Go 远程预览保存明确转交 Remote 文件编辑器；未贯通原版同场景，不认定为缺失。 |
 | WORK-05 | `C/ui-sidebar-documentpreview/src/client/{text,code,markdown}/index.ts` 及各 `*Body.tsx`、`TextPreview.tsx:130-203`；`C/ui-files/src/client/FilePreview.tsx:200-344,480-564` | `internal/ui/files/{source_actions,text_read,text_read_state,text_read_line,text_pages,text_preview,markdown_metadata,preview_toolbar}.go`、`internal/desktop/workspacefs/text_page.go` | behavior-compared | 追加阅读正文 renderer、分页/版本/只读、行定位、源码选择/引用、换行/保存入口及 Markdown frontmatter。确认原版自动继续分页到目标行而 Go 夹到已载入末行；由另一 owner 源码修复 `a00c313`，专有记录 `source-coverage-files-line-navigation-20261019.md` 与准备回归 `8239234`，本代理读到提交差异，未执行。原语级全部语法高亮/Markdown 扩展/搜索实现与每种格式视觉仍未逐一对照，不能借本行认定渲染完全一致。 |
-| WORK-06 | `C/ui-sidebar-documentpreview/src/client/{html,image,pdf,office,excel}/index.ts` | `internal/ui/files/{media,image_read,image_view,table_preview,document_surface}.go`；`internal/desktop/{pdfpreview,mediapreview,webview}/` | not-reviewed | 主要为格式分派路径定位，未审阅各格式解码/导航/转换主体。不能以文件名或历史格式验收推定还原。GPU/GIF 深度项目为父线程已有暂停项，本次未核实或扩展。 |
+| WORK-06 | `C/ui-sidebar-documentpreview/src/client/{index.ts,TextPreview.tsx}`、`document/{registry,unviewable}.ts`、`{html,image,pdf,office,excel}/index.ts` 及下文各主体 | `internal/ui/files/{media,image_read,image_source,document_surface,table_preview,table_view,text_read,reload}.go`；`cmd/whaleisle/{document_viewer,workspace_document_preview,remote_image,remote_workbook,office_document}.go`；下文具体 helper | behavior-compared | 已贯通注册/分派、会话读取、Native/Document/Auto、HTML静态/交互入口、图片/PDF错误与重试、Office→PDF、只读表格及外部打开。实际默认图片误读本地来源 gap 以 `84fd323` 修复，保留 MyGo 图片 renderer。原版 Office 有条件支持 Word/PowerPoint，AVIF 明确 unsupported。未逐行对照解码库算法/全部资源 pack，未验证每个格式样本；GPU/GIF 深度仍是父线程暂停项。 |
 | WORK-07 | 矩阵所列 `ui-sidebar-right`、`ui-dockkit`；`C/ui-files/src/client/floating-preview.ts` | `internal/ui/files/{tabs,floating}.go`、`internal/ui/frame/workspace_panes.go` | entrypoint-sampled | 只抽样标签关闭符号、保存后关闭及浮动预览分派；停靠、尺寸、拖拽、浮动生命周期、恢复序列与原版 dock 契约未完整阅读。 |
 | WORK-08 | `C/ui-sidebar-browser/src/client/browser/{BrowserController,BrowserNavigation,BrowserPersistence}.ts`、`electron/workspace.ts` | `internal/ui/browserpreview/{actions,recording,workspace_scope}.go`、`cmd/whaleisle/browser_workspace.go` | entrypoint-sampled | 阅读 Go 截图/元素/录制取消、资源归属检查、导出状态和可信 workspace owner；原版浏览器文件仅定位。导航、标题/历史、分区存储、失败与恢复的双方状态链未完整对照。 |
 | WORK-09 | `C/ui-git/src/client/{apply.ts,BranchMenu.tsx,CreateBranchDialog.tsx}` | `internal/desktop/git/`、`internal/ui/diffsurface/repository_actions.go` | entrypoint-sampled | 只定位状态/diff/分支模块与动作函数；没有阅读完整 Git 命令和原版 UI 状态链，不作该模块无缺口的结论。 |
@@ -38,7 +38,7 @@
 
 - **已关闭（仅源码修复）**：父线程确认 Session/Agents deep link 需要回到 conversation workspace；旧工具页会在该工作区之前返回，导致会话/Agents 目标不可达。`e322792aa4e94394d9ffa132c1d28abe1a63eae7` 在 `applyDeeplink` 中仅针对 `ActionSession`/`ActionAgents` 清理 IM、Remote、Market、WebView、Browser、Assistant 和工具菜单路由，并推进 Assistant conversation generation。本次用 `git show e322792 -- cmd/whaleisle/main.go` 阅读了实际九行修改；没有执行验证。`ActionOpen` 保持显示当前页。
 - **排除，非 bug**：先前提出 Settings/Launcher 未清旧路由 flag 的候选不成立。父线程实际追踪后确认 Settings Modal 最后无条件绘制，Launcher 在前置分支 early return，不能仅由残留 flag 推断被遮蔽。本记录不将该候选列为待修缺口；该绘制顺序核实来自父线程，非本代理独立复核。
-- 本代理没有另外确认可直接分配修复的 WORK/DESK 阻断。未确认缺口不等于没有缺口；特别是 `entrypoint-sampled` 和 `not-reviewed` 的原版行为仍然是明确的源码覆盖欠账。
+- 除下文已记录的源码修复，本代理没有另外确认可直接分配修复的 WORK/DESK 阻断。未确认缺口不等于没有缺口；`entrypoint-sampled` 及各行明确列出的未读行为仍然是源码覆盖欠账。
 
 ## 使用边界
 
@@ -46,7 +46,7 @@
 
 ## 追加精读与源码修复（本轮后续）
 
-父线程要求继续读取 WORK-01/02/05、DESK-06/07 的原版和 Go 核心功能实现，以上五行已更新为 **behavior-compared**，含义仍是明确列出的行为已作源码对照，而非整行所有辅助模块逐行看完。当前登记数为：8 行 behavior-compared、10 行 entrypoint-sampled、1 行 not-reviewed（WORK-06）；不能把这一登记统计写成“19 行全部已完成还原”。WORK-06 有其他 owner 的独立审阅时，应合并其真实记录，不据此表代填。
+父线程要求继续读取 WORK-01/02/05、DESK-06/07，后追加 WORK-06 的原版和 Go 核心实现，对应行已更新为 **behavior-compared**，含义仍是明确列出的行为已作源码对照，而非整行所有辅助模块逐行看完。当前登记数为：9 行 behavior-compared、10 行 entrypoint-sampled、0 行 not-reviewed；不能把这一登记统计写成“19 行全部已完成还原”，未贯通范围仍逐行保留。
 
 ### 工作区移除与跨页行定位
 
@@ -68,3 +68,21 @@
 `transaction_source_test.go` 仅准备了静态包装契约回归源码（顺序、manifest/no-follow、失败管理保留、旧身份与 legacy 入口退休）。这些测试不代替 Windows 安装/卸载和故障注入。本轮只执行过源文件读写、Git 和 gofmt，**没有运行 tests、build、makensis、安装器、应用、服务或账户/系统动作**。独立 reviewer 已只读复核已报旧入口问题的修复；这仍然不是编译或运行证据。
 
 剩余范围必须保留原样：原版所有辅助实现仍未逐行对照，编译/真实安装回滚/卸载失败验证待用户要求的统一验证阶段；当前没有工具阻断，但不能将“按要求未执行”写成验证通过，也不能反推为某功能缺失。
+
+### WORK-06 追加格式对照（产品源码 `84fd323`）
+
+原版共同入口：`ui-sidebar-documentpreview/index.ts:124-131` 注册 renderer；`TextPreview.tsx:69-80,118-125` 根据 live registry、后缀/扩展优先级和 binary 声明选择实现，再分派 text-pages / bytes-complete / renderer。没有匹配实现的已知二进制显示 unsupported 和 Host-open contribution（`:206-225`）；`unviewable.ts` 的 Office 后缀仅在没有 renderer 时生效，不能误读成 Office 一律不可预览。`ui-open-in-app/index.ts:139-157` 实际注册文档 action/empty action，后者 `OpenPathEmptyAction.tsx:19-20` 复用打开菜单。
+
+Go Files 的 `document_surface.go` 提供 Native/Document/Auto。`cmd/whaleisle/document_viewer.go:11-29` 验证 Host client/endpoint/session 后建页；`pluginslots/document_viewer.js:27-85` 保留原版 TextPreview 为 renderer/读取/订阅 owner，按该文档 session+path 采纳原 seat。`webview/client_modules.go:38-49` 仅将 live 扩展 renderer 或已挂载内建表格推荐为自动 viewer。这是实际原组件载体，不以目录存在当成实现证明。
+
+| 格式 | 已读原版契约 | 已读 Go 对应链与边界 |
+| --- | --- | --- |
+| HTML | `html/index.ts` 注册 html/htm；`HtmlBody.tsx:35-102` 默认 basic sandbox iframe，developerTools 启用后 pack 相对资源到 opaque script iframe；内容/模式变化撤销旧 Blob，UTF-8/pack 失败显示错误。 | `workspace_document_preview.go:198-206` scoped Host snapshot；`htmldocument/{document,remote}.go` 资源快照/lease，remote:30-55 为相对资源保留同一 Host/session reader；`browserpreview/{html,interactive_html}.go` 静态结果、显式交互手势、helper 缺失/失败提示和 tab/owner 取消。未逐行比较全部 CSS/module pack 或 helper 内核。 |
+| 图片 | `image/index.ts` 注册 png/jpg/jpeg/gif/webp/bmp/ico/svg；`ImageBody.tsx:68-130` 完整 bytes→Blob/img、加载/失败、tab zoom、卸载释放；SVG 为静态 img。AVIF 未注册，并在 `document/unviewable.ts:27` 明确列为未支持。 | `files/media.go` 原有格式/字节/像素限制与 GIF/WebP timeline，`image_read.go` 单 worker/最新 generation/cancel，`reload.go` 清旧像素后重读。发现 native 默认仅本地读取；`84fd323` 新 `ReadImageContext` / `remoteImageReader`，所有当前 Host（包括 local Host）权威 `ReadSnapshot`，失败绝不回退本机同名文件，复用既有解码器和动画。缓存/请求均绑定 client/session/follow generation/root/path/tab occurrence；未扩 AVIF 契约或恢复暂停的 GPU/GIF 深度任务。 |
+| PDF | `pdf/index.ts` bytes-complete；`pdf.tsx:45-102,105-205` load、lazy page/text canvas、fit-width/zoom、tab page/scroll、load/page failure retry 与 dispose。 | `workspace_document_preview.go:173-185` scoped bytes；`pdfpreview/document.go:119-147` 验证快照/建 lease，`reader.go` 仅产品自有 assets；已读非 minified `reader.js` 的 page/zoom/selection/可见页 render/worker error/retry/dispose。`browserpreview/{pdf,workspace_documents}.go` 负责 expiry、owner、Reread、替换成功才释放旧能力与 source 恢复。未审 PDF.js 算法或验证像素。 |
+| Office | `office/index.ts:70-117` remote.officeToPdf/workspaceFiles 条件注入，read授权+stat版本校验、generation cache/reset/dispose；注册 doc/docx/ppt/pptx，provider 缺失返回 unavailable；`OfficeBody.tsx:44-77` 共享 PDF、失败 reload；index:121-130 分类错误。 | `session/office_pdf.go:43-95` captured selected client/session→generation/render→完整 multipart PDF bytes/缺失字体；`office_document.go:42-88` 映射 size/invalid/timeout/unavailable/busy/source-changed 等；`workspace_document_preview.go:159-172,220-228` shared PDF 和完成前 owner 复核。原文档 viewer 仍可选。不把外部 Office 编辑器/账号当成原版预览契约；未调用真实转换。 |
+| Excel | 独立 `excel/index.ts` 注册 xlsx/xls/csv/tsv；`LazyExcelBody.tsx` 按扩展分格式；`parse.ts:14-59` worker/大小/超时/取消；`excel.tsx:21-65` parse failure retry、unsupported notice、sheet tabs/formula bar/copy，allowEdit=false/forceCalculation=false。 | 自动推荐原版 live spreadsheet owner；native fallback 走 `remote_workbook.go` scoped snapshot→`workspacefs/workbook.go` 格式分派→`files/{text_read,table_preview,table_view}.go` 只读分页/sheet/selection/copy/error/reload。均不计算公式；未逐行对照全量 XLS/XLSX/style parser，也未对任意工作簿证明视觉一致。 |
+
+实际 gap 的源码证据：修复前 `files/image_read.go:151-154` 无条件调用本地 `loadImagePreviewContext(root,path)`，后者使用 os/EvalSymlinks；不会走原版按当前会话 `workspaceFiles.readBytes` 的来源。内建图片不满足自动 document recommendation，故默认 remote 图片失败或读取本地同名文件。`84fd323` 通过 main→frame→Files 接线有界字节 reader；`mediapreview/reader.go:80-121` 复用现有 scope/stat/range/version/final-stat 校验，无 reader 也提供明确 error closure，不能误判为 local fallback。SVG 1 MiB、其余图片 16 MiB 和像素限制保持原规则。原本不传 callback 的纯 local fixture 入口仍可读本地。
+
+回归/OS 分层：新增专有 `internal/ui/files/image_source_test.go`、`cmd/whaleisle/remote_image_test.go` 仅准备 fake-reader 正向解码、同名本机不读取、错误/超限/取消、Host/session变化与同 client/session 新 generation 清缓存等源码。既有测试文件不算执行证据。本轮只读写源码、格式化和读取 Git 差异，未执行 tests/build、真实文件预览、Host/网络调用、预览服务、Office 转换、系统打开或账号操作。当前没有工具阻塞；OS/renderer/转换验证仍待统一验证阶段。
