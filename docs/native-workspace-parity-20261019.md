@@ -187,3 +187,10 @@ The valid hidden native captures are Account and the fresh-process Plugins setti
 Library retained the inspected fresh image as file_00000000f95481fd87c52b1153f803e6 / libfile_9d6e6dd3f8c08191a04e1e30ae7260ac. Its returned version xattr was written to the local file; evidence/library-artifact-phase3.json records the upload.
 
 Remaining acceptance limits: original same-state native screenshot comparison is unavailable because this execution surface cannot capture native user windows. No restart or replacement of user instances occurred. Windows IME, installed-candidate behavior, real Host plugin installation and actual project/remote mutations remain unverified. The nominated executable-adjacent Go runtime lacks original plugin-market/dsh-project sources; selected runtime availability cannot be inferred without an actual running Go instance. Missing capabilities are reported rather than simulated. Original repositories, whale-code, user configuration, main, PR#2, network/security settings and remote branches remain untouched.
+### Third-batch clean local candidate
+
+- Product/source commit: `bc95dd10d8501c4f5fc5314fc426b4cb10fe1b20` on `codex/native-workspace-parity-20261019`; clean tree at build time.
+- Build: `go build -trimpath -o ..\evidence\whaleisle-native-complete-bc95dd1.exe ./cmd/whaleisle` succeeded. Embedded Go1.27.2/windows/amd64/CGO0 metadata reports that exact revision and `vcs.modified=false`.
+- Candidate SHA256: `CC651CF18A9E531063ABD88210EEEB8A5E45307A00A68431B0E8AD82E22C3448`. Build metadata/manifest are alongside the EXE.
+- Rechecked both earlier EXEs: e565dcd remains `F440CB97C7CB542B30099A2AE8C8D2A81E918FF192A2A8FBE3233AFFD96FC0DD`; ce4efcb remains `A8447152F95CF7F499A29A53A733DFCD5F952C34A8978D88EA5E2F24A66E6217`.
+- This candidate was neither installed nor launched against user data. It is a local EXE build, not an installer or a certified complete runtime bundle. No remote publication, push, release, main merge, PR#2 merge or CI occurred.
