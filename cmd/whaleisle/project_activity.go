@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"github.com/egoist/mygo"
 	"time"
-	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/projects"
 )
 
 type projectActivityState struct {
-	browser           *projectflow.ActivityBrowser
-	cancel            context.CancelFunc
-	sourceCard        *projectflow.RequestCard
-	requestGeneration uint64
+	browser *projectflow.ActivityBrowser
+	cancel  context.CancelFunc
+	owner   *projectRequestRevertState
+	request projectRequestRevision
 }
 
 func (s *projectController) closeProjectActivityLocked() {
@@ -33,9 +32,11 @@ func (s *projectController) bindProjectActivity(win *mygo.Window, m *projects.Mo
 	s.mu.Lock()
 	f := s.projectFlow
 	a := f.activity
-	if a != nil && (f.requestGeneration != a.requestGeneration || f.requestCard != a.sourceCard) {
-		s.closeProjectActivityLocked()
-		a = nil
+	if a != nil {
+		if _, known := s.requestRevertCardLocked(a.owner, a.request); !known {
+			s.closeProjectActivityLocked()
+			a = nil
+		}
 	}
 	var view uint64
 	if a != nil {
@@ -43,9 +44,13 @@ func (s *projectController) bindProjectActivity(win *mygo.Window, m *projects.Mo
 		m.Activity = &snapshot
 		view = snapshot.View
 	}
-	client, generation, navigation, requestGeneration, card := f.client, f.generation, f.navigation, f.requestGeneration, f.requestCard
+	state, card := s.requestRevertStateLocked(), f.requestCard
 	s.mu.Unlock()
-	m.OnRequestActivity = func() { s.openProjectActivity(win, client, generation, navigation, requestGeneration, card) }
+	m.OnRequestActivity = func() {
+		if card != nil {
+			s.openProjectRequestActivity(win, state, projectRequestRevision{card.ID, card.Revision})
+		}
+	}
 	m.OnActivityAction = func(action, arg string) {
 		s.runProjectActivity(win, a, view, action, arg, projectflow.DeliveryReportRef{})
 	}
@@ -53,19 +58,20 @@ func (s *projectController) bindProjectActivity(win *mygo.Window, m *projects.Mo
 		s.runProjectActivity(win, a, view, "report", key, ref)
 	}
 }
-func (s *projectController) openProjectActivity(win *mygo.Window, expected *dsh.Client, generation, navigation, requestGeneration uint64, card *projectflow.RequestCard) {
+func (s *projectController) openProjectRequestActivity(win *mygo.Window, state *projectRequestRevertState, key projectRequestRevision) {
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
 	f := s.projectFlow
-	if win == nil || client == nil || client != expected || f.client != expected || f.generation != generation || f.navigation != navigation || f.requestGeneration != requestGeneration || card == nil || f.requestCard != card || f.requestProjectID != card.ProjectID || f.busy || !f.visible() || !f.listing.Available {
+	card, known := s.requestRevertCardLocked(state, key)
+	if win == nil || !known || client != state.client || f.busy {
 		s.mu.Unlock()
 		return
 	}
 	s.closeProjectActivityLocked()
 	s.stopProjectProcessLocked()
-	a := &projectActivityState{browser: projectflow.NewActivityBrowser(projectflow.ActivityScope{Host: fmt.Sprintf("%p", client), ProjectID: card.ProjectID, RequestID: card.ID, Generation: generation}), sourceCard: card, requestGeneration: requestGeneration}
+	a := &projectActivityState{browser: projectflow.NewActivityBrowser(projectflow.ActivityScope{Host: fmt.Sprintf("%p", client), ProjectID: card.ProjectID, RequestID: card.ID, Generation: f.generation}), owner: state, request: key}
 	f.activity = a
 	s.mu.Unlock()
 	s.runProjectActivity(win, a, 0, "refresh", "", projectflow.DeliveryReportRef{})
@@ -100,7 +106,8 @@ func (s *projectController) runProjectActivity(win *mygo.Window, a *projectActiv
 		return
 	}
 	snapshot := a.browser.Snapshot()
-	if win == nil || client == nil || f.client != client || snapshot.Scope.Host != fmt.Sprintf("%p", client) || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || f.busy || !f.visible() || !f.listing.Available {
+	_, known := s.requestRevertCardLocked(a.owner, a.request)
+	if win == nil || !known || snapshot.Scope.Host != fmt.Sprintf("%p", client) || f.busy {
 		s.mu.Unlock()
 		return
 	}
@@ -139,7 +146,7 @@ func (s *projectController) runProjectActivity(win *mygo.Window, a *projectActiv
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	a.cancel = cancel
 	f.busy = true
-	generation, navigation := f.generation, f.navigation
+	navigation := f.navigation
 	s.mu.Unlock()
 	go func() {
 		defer cancel()
@@ -162,7 +169,7 @@ func (s *projectController) runProjectActivity(win *mygo.Window, a *projectActiv
 			if f.activity != a || f.client != client || current != client || !a.browser.Pending(req) {
 				return
 			}
-			if f.generation != generation || f.navigation != navigation || f.requestCard != a.sourceCard || f.requestGeneration != a.requestGeneration || !f.visible() {
+			if _, known := s.requestRevertCardLocked(a.owner, a.request); !known || f.navigation != navigation {
 				s.closeProjectActivityLocked()
 				return
 			}

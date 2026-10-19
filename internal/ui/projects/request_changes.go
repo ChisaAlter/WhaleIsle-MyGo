@@ -18,6 +18,7 @@ type RequestRevertState struct {
 }
 
 func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestCard) {
+	actions := requestCardActions(m, card)
 	if card.Delivery == nil || card.Status != "completed" && card.Delivery.Outcome != "partial" {
 		return
 	}
@@ -47,8 +48,8 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 			} else {
 				for _, work := range card.Work {
 					if work.MemberRole != "" && work.MemberRole != "readonly" {
-						if ui.Button(c, tr("查看改动", "View changes")).Height(28).Disabled(m.Busy || !taskCardCurrent(m, card) || m.OnWorkDiff == nil).Clicked() {
-							m.OnWorkDiff(work.WorkstreamID)
+						if ui.Button(c, tr("查看改动", "View changes")).Height(28).Disabled(m.Busy || !actions.Known || actions.WorkDiff == nil).Clicked() {
+							actions.WorkDiff(work.WorkstreamID)
 						}
 						break
 					}

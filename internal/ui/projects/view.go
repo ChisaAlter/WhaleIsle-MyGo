@@ -7,6 +7,7 @@ import (
 )
 
 type Model struct {
+	RequestCardActions                                                   func(string, int) RequestCardActions
 	RequestRevert                                                        func(string, int) RequestRevertState
 	VisualPage                                                           func(string, projectflow.DeliveryPageReference, int) VisualPagePreview
 	modalBody                                                            bool

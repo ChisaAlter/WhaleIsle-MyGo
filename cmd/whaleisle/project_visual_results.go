@@ -105,8 +105,10 @@ func (s *projectController) projectVisualOwnerLocked(source string, page project
 		o.delivery, o.deliveryView = f.deliveries, f.deliveries.browser.NavigationToken()
 		pages = d.Selected.Pages
 	case strings.HasPrefix(source, "activity:"):
-		o.generation = f.generation
 		if f.activity == nil {
+			return o, false
+		}
+		if _, known := s.requestRevertCardLocked(f.activity.owner, f.activity.request); !known {
 			return o, false
 		}
 		a := f.activity.browser.Snapshot()
@@ -162,7 +164,7 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 		s.dshMu.Unlock()
 		s.mu.Lock()
 		f := s.projectFlow
-		if win == nil || current != client || f.client != client || f.navigation != navigation || (!strings.HasPrefix(source, "request:") && f.generation != generation) {
+		if win == nil || current != client || f.client != client || f.navigation != navigation || (strings.HasPrefix(source, "delivery:") && f.generation != generation) {
 			s.mu.Unlock()
 			return projects.VisualPagePreview{}
 		}

@@ -12,17 +12,41 @@ import (
 // Read the existing Team projection as part of that one click, with the request
 // and transport owner retained throughout. This never runs or retries work.
 func (s *projectController) runProjectRequestWorkDetail(win *mygo.Window, projectID, requestID, workID string, owner projectQueueSubmission) {
+	s.mu.Lock()
+	state := s.requestRevertStateLocked()
+	card, known := s.projectFlow.requestCards[projectRequestCardKey(projectID, requestID)]
+	valid := known && state != nil && owner.Client == state.client && owner.Navigation == state.navigation && state.projectID == projectID
+	s.mu.Unlock()
+	if valid {
+		s.runProjectRequestWorkDetailOwned(win, state, projectRequestRevision{requestID, card.Revision}, workID)
+	}
+}
+
+func (s *projectController) runProjectRequestWorkDetailOwned(win *mygo.Window, state *projectRequestRevertState, key projectRequestRevision, workID string) {
+	if state == nil {
+		return
+	}
+	projectID, requestID := state.projectID, key.id
 	if win == nil || projectID == "" || requestID == "" || workID == "" {
 		return
 	}
 	s.mu.Lock()
 	f := s.projectFlow
 	client := s.dshClient
-	if !owner.matches(f, client) || f.busy || !f.visible() || !f.listing.Available || f.requestProjectID != projectID || f.requestCard == nil || f.requestCard.ID != requestID {
+	card, known := s.requestRevertCardLocked(state, key)
+	if !known || f.busy {
 		s.mu.Unlock()
 		return
 	}
-	revision := f.requestCard.Revision
+	linked := false
+	for _, work := range card.Work {
+		linked = linked || work.WorkstreamID == workID
+	}
+	if !linked {
+		s.mu.Unlock()
+		return
+	}
+	revision := key.revision
 	s.stopProjectProcessLocked()
 	f.busy = true
 	f.err = ""
@@ -44,7 +68,7 @@ func (s *projectController) runProjectRequestWorkDetail(win *mygo.Window, projec
 				return
 			}
 			f.busy = false
-			if f.navigation != owner.Navigation || f.requestGeneration != owner.RequestGeneration || f.detailGeneration != detailGeneration || f.requestProjectID != projectID || f.requestCard == nil || f.requestCard.ID != requestID || f.requestCard.Revision != revision {
+			if _, current := s.requestRevertCardLocked(state, key); !current || f.detailGeneration != detailGeneration {
 				return
 			}
 			if err != nil {

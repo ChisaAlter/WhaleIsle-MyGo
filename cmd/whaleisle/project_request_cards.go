@@ -15,6 +15,8 @@ func (s *projectController) rememberProjectRequestCardLocked(card *projectflow.R
 		return
 	}
 	copy := *card
+	copy.Work = append([]projectflow.RequestWork(nil), card.Work...)
+	copy.WorkPreview = append([]projectflow.RequestWork(nil), card.WorkPreview...)
 	if card.Changes != nil {
 		changes := *card.Changes
 		if changes.RevertedAt != nil {
@@ -25,6 +27,7 @@ func (s *projectController) rememberProjectRequestCardLocked(card *projectflow.R
 	}
 	if card.Delivery != nil {
 		delivery := *card.Delivery
+		delivery.Artifacts = append([]projectflow.Artifact(nil), delivery.Artifacts...)
 		// Page references are values; freeze the slice and delivery container
 		// so another card read or a retained UI snapshot cannot change grants.
 		delivery.Pages = append([]projectflow.DeliveryPageReference(nil), delivery.Pages...)

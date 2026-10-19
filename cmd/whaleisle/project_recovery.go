@@ -11,7 +11,7 @@ import (
 
 // The explicit recovery button revalidates saved evidence, then submits through
 // the original Lead composer so ordinary send failure/recovery remains visible.
-func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string, revertCards ...projectflow.RequestCard) {
+func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string, requestCards ...projectflow.RequestCard) {
 	if win == nil || id == "" {
 		return
 	}
@@ -45,17 +45,29 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 			return
 		}
 	case "handover":
-		if f.requestProjectID != id || selectedCard == nil || selectedCard.ProjectID != id || selectedCard.HandoverError == "" {
+		if len(requestCards) == 1 {
+			card := requestCards[0]
+			selectedCard = &card
+		}
+		revertState = s.requestRevertStateLocked()
+		if selectedCard == nil || selectedCard.ProjectID != id || selectedCard.HandoverError == "" || selectedCard.AuthorityError != "" || revertState == nil {
 			s.mu.Unlock()
 			return
 		}
+		revertKey = projectRequestRevision{selectedCard.ID, selectedCard.Revision}
+		cached, known := s.requestRevertCardLocked(revertState, revertKey)
+		if !known || cached.HandoverError != selectedCard.HandoverError || cached.AuthorityError != "" {
+			s.mu.Unlock()
+			return
+		}
+		selectedCard = &cached
 	case "revert":
-		if len(revertCards) > 1 {
+		if len(requestCards) > 1 {
 			s.mu.Unlock()
 			return
 		}
-		if len(revertCards) == 1 {
-			card := revertCards[0]
+		if len(requestCards) == 1 {
+			card := requestCards[0]
 			selectedCard = &card
 		}
 		revertState = s.requestRevertStateLocked()
@@ -79,7 +91,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 	f.generation++
 	generation := f.generation
 	navigation := f.navigation
-	detailGeneration, requestGeneration := f.detailGeneration, f.requestGeneration
+	detailGeneration := f.detailGeneration
 	s.mu.Unlock()
 	selectedSession := sessions.Snapshot().SelectedID
 	go func() {
@@ -103,12 +115,11 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 				return
 			}
 			f.busy = false
-			if kind == "summary" && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration) ||
-				kind == "handover" && (f.requestProjectID != id || f.requestCard != selectedCard || f.requestGeneration != requestGeneration) {
+			if kind == "summary" && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration) {
 				s.mu.Unlock()
 				return
 			}
-			if kind == "revert" {
+			if kind == "revert" || kind == "handover" {
 				if _, known := s.requestRevertCardLocked(revertState, revertKey); !known {
 					s.mu.Unlock()
 					return

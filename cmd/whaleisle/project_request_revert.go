@@ -103,7 +103,8 @@ func (s *projectController) runProjectRequestChanges(win *mygo.Window, projectID
 		s.mu.Unlock()
 		return
 	}
-	known := f.requestCard != nil && f.requestCard.ID == requestID && f.requestCard.ProjectID == projectID
+	_, known := f.requestCards[projectRequestCardKey(projectID, requestID)]
+	known = known || f.requestCard != nil && f.requestCard.ID == requestID && f.requestCard.ProjectID == projectID
 	for _, card := range f.requestPage.Items {
 		known = known || card.ID == requestID && card.ProjectID == projectID
 	}

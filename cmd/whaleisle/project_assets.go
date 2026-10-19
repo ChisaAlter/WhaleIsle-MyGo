@@ -6,9 +6,55 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/projects"
 )
 
+type projectRequestAssetOwner struct {
+	state *projectRequestRevertState
+	key   projectRequestRevision
+}
+
+func (s *projectController) bindProjectRequestCardActions(win *mygo.Window, m *projects.Model) {
+	s.mu.Lock()
+	state := s.requestRevertStateLocked()
+	s.mu.Unlock()
+	m.RequestCardActions = func(id string, revision int) projects.RequestCardActions {
+		key := projectRequestRevision{id, revision}
+		s.mu.Lock()
+		card, known := s.requestRevertCardLocked(state, key)
+		s.mu.Unlock()
+		actions := projects.RequestCardActions{Known: known}
+		if !known || win == nil {
+			return actions
+		}
+		owner := &projectRequestAssetOwner{state: state, key: key}
+		actions.OpenFile = func(file projectflow.Artifact, open func(string)) {
+			s.runProjectAssetForCard(win, card.ProjectID, "file", file, "", open, owner, nil)
+		}
+		actions.WorkDiff = func(workID string) {
+			s.runProjectAssetForCard(win, card.ProjectID, "diff", projectflow.Artifact{}, workID, nil, owner, nil)
+		}
+		actions.WorkDetail = func(workID string) { s.runProjectRequestWorkDetailOwned(win, state, key, workID) }
+		actions.Activity = func() { s.openProjectRequestActivity(win, state, key) }
+		if card.HandoverError != "" && card.AuthorityError == "" {
+			actions.HandoverRetry = func() {
+				s.mu.Lock()
+				current, valid := s.requestRevertCardLocked(state, key)
+				s.mu.Unlock()
+				if valid && current.HandoverError == card.HandoverError {
+					s.runProjectRecoveryDraft(win, card.ProjectID, "handover", card)
+				}
+			}
+		}
+		return actions
+	}
+}
+
 func (s *projectController) runProjectAsset(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string), owners ...projectQueueSubmission) {
+	s.runProjectAssetForCard(win, id, action, file, workID, open, nil, owners)
+}
+
+func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string), cardOwner *projectRequestAssetOwner, owners []projectQueueSubmission) {
 	if win == nil || id == "" {
 		return
 	}
@@ -28,7 +74,18 @@ func (s *projectController) runProjectAsset(win *mygo.Window, id, action string,
 		s.mu.Unlock()
 		return
 	}
-	requestID, admissionErr := projectAssetReference(f, id, action, file, workID, open != nil)
+	var requestID string
+	var admissionErr error
+	if cardOwner != nil {
+		card, known := s.requestRevertCardLocked(cardOwner.state, cardOwner.key)
+		if !known || card.ProjectID != id {
+			s.mu.Unlock()
+			return
+		}
+		requestID, admissionErr = projectAssetCardReference(card, action, file, workID, open != nil)
+	} else {
+		requestID, admissionErr = projectAssetReference(f, id, action, file, workID, open != nil)
+	}
 	if admissionErr != nil {
 		f.err = admissionErr.Error()
 		s.mu.Unlock()
@@ -72,7 +129,13 @@ func (s *projectController) runProjectAsset(win *mygo.Window, id, action string,
 				return
 			}
 			f.busy = false
-			if action != "directory" && (f.requestProjectID != id || f.requestGeneration != requestGeneration || f.requestCard == nil || f.requestCard.ID != requestID) {
+			if cardOwner != nil {
+				card, known := s.requestRevertCardLocked(cardOwner.state, cardOwner.key)
+				if _, referenceErr := projectAssetCardReference(card, action, file, workID, open != nil); !known || referenceErr != nil {
+					s.mu.Unlock()
+					return
+				}
+			} else if action != "directory" && (f.requestProjectID != id || f.requestGeneration != requestGeneration || f.requestCard == nil || f.requestCard.ID != requestID) {
 				s.mu.Unlock()
 				return
 			}
@@ -118,17 +181,21 @@ func projectAssetReference(f *projectFlowState, id, action string, file projectf
 	if f.requestProjectID != id || f.requestCard == nil {
 		return "", fmt.Errorf("Refresh the delivery details first")
 	}
-	if action == "file" && canOpen && f.requestCard.Delivery != nil {
-		for _, candidate := range f.requestCard.Delivery.Artifacts {
+	return projectAssetCardReference(*f.requestCard, action, file, workID, canOpen)
+}
+
+func projectAssetCardReference(card projectflow.RequestCard, action string, file projectflow.Artifact, workID string, canOpen bool) (string, error) {
+	if action == "file" && canOpen && card.Delivery != nil {
+		for _, candidate := range card.Delivery.Artifacts {
 			if candidate.Path == file.Path && candidate.WorkstreamID == file.WorkstreamID && candidate.DelegationRef == file.DelegationRef {
-				return f.requestCard.ID, nil
+				return card.ID, nil
 			}
 		}
 	}
 	if action == "diff" {
-		for _, work := range f.requestCard.Work {
+		for _, work := range card.Work {
 			if work.WorkstreamID == workID {
-				return f.requestCard.ID, nil
+				return card.ID, nil
 			}
 		}
 	}

@@ -11,6 +11,22 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// RequestCardActions keeps every card operation on the exact Host-admitted
+// request revision, independently of other expanded cards.
+type RequestCardActions struct {
+	Known                   bool
+	OpenFile                func(projectflow.Artifact, func(string))
+	WorkDiff, WorkDetail    func(string)
+	HandoverRetry, Activity func()
+}
+
+func requestCardActions(m Model, card projectflow.RequestCard) RequestCardActions {
+	if m.RequestCardActions != nil {
+		return m.RequestCardActions(card.ID, card.Revision)
+	}
+	return RequestCardActions{}
+}
+
 // Mode belongs to the observer/request identity, not its position in a page.
 // Completion changes reset it just as the source observer's completed-bit guard.
 func (o *ObserverState) requestMode(card projectflow.RequestCard, initial string) RequestMode {
@@ -510,6 +526,7 @@ func taskCardMenu(c *ui.Context, m Model, p projectflow.Project, card projectflo
 }
 
 func taskDeliveryFiles(c *ui.Context, m Model, card projectflow.RequestCard, limit int) {
+	actions := requestCardActions(m, card)
 	if card.Delivery == nil || (card.Status != "completed" && card.Delivery.Outcome != "partial") {
 		return
 	}
@@ -523,20 +540,20 @@ func taskDeliveryFiles(c *ui.Context, m Model, card projectflow.RequestCard, lim
 		if label == "" {
 			label = path.Base(strings.ReplaceAll(file.Path, "\\", "/"))
 		}
-		if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().MinWidth(0).Height(32).Disabled(m.Busy || !m.Listing.Available || !taskCardCurrent(m, card) || m.OnArtifact == nil || m.OnResolvedFile == nil).Clicked() && m.OnArtifact != nil {
-			m.OnArtifact(file, m.OnResolvedFile)
+		if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().MinWidth(0).Height(32).Disabled(m.Busy || !m.Listing.Available || !actions.Known || actions.OpenFile == nil || m.OnResolvedFile == nil).Clicked() && actions.OpenFile != nil {
+			actions.OpenFile(file, m.OnResolvedFile)
 		}
 	}
 }
 
 func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab string) {
+	actions := requestCardActions(m, card)
 	current := taskCardCurrent(m, card)
 	if !current && m.OnRequestGet != nil && ui.Button(c, tr("刷新任务详情", "Refresh task details")).Disabled(m.Busy).Clicked() {
 		m.OnRequestGet(card.ID)
 	}
 	switch tab {
 	case "team":
-		teamReady := m.TeamID == card.ProjectID && m.Team != nil && m.Team.Project.ID == card.ProjectID
 		if len(card.Work) == 0 {
 			ui.Text(c, tr("尚无关联成员工作。", "No associated member work."))
 		}
@@ -549,15 +566,11 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			if work.BlockedReason != "" {
 				ui.Text(c, work.BlockedReason)
 			}
-			if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnRequestWorkDetail == nil && (!teamReady || m.OnInspect == nil)).Clicked() {
-				if m.OnRequestWorkDetail != nil {
-					m.OnRequestWorkDetail(card.ID, work.WorkstreamID)
-				} else if m.OnInspect != nil {
-					m.OnInspect(work.WorkstreamID, "")
-				}
+			if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy || !m.Listing.Available || !current || actions.WorkDetail == nil).Clicked() && actions.WorkDetail != nil {
+				actions.WorkDetail(work.WorkstreamID)
 			}
-			if ui.Button(c, tr("查看当前工作区变更", "View current workspace diff")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnWorkDiff == nil).Clicked() && m.OnWorkDiff != nil {
-				m.OnWorkDiff(work.WorkstreamID)
+			if ui.Button(c, tr("查看当前工作区变更", "View current workspace diff")).Disabled(m.Busy || !m.Listing.Available || !current || actions.WorkDiff == nil).Clicked() && actions.WorkDiff != nil {
+				actions.WorkDiff(work.WorkstreamID)
 			}
 		}
 	case "results":
@@ -580,8 +593,8 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			}
 		}
 	case "activity":
-		if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnRequestActivity == nil).Clicked() && m.OnRequestActivity != nil {
-			m.OnRequestActivity()
+		if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || actions.Activity == nil).Clicked() && actions.Activity != nil {
+			actions.Activity()
 		}
 		for _, version := range card.Versions {
 			ui.Text(c, fmt.Sprintf("%s %d · %s", tr("要求版本", "Requirement version"), version.Revision, version.Title)).FontSize(theme.InterfaceSize(13))
@@ -610,8 +623,8 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 		}
 		if card.HandoverError != "" {
 			ui.Text(c, card.HandoverError).FontSize(theme.InterfaceSize(13))
-			if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || !current || card.AuthorityError != "" || m.OnHandoverRetryDraft == nil).Clicked() && m.OnHandoverRetryDraft != nil {
-				m.OnHandoverRetryDraft()
+			if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || !current || card.AuthorityError != "" || actions.HandoverRetry == nil).Clicked() && actions.HandoverRetry != nil {
+				actions.HandoverRetry()
 			}
 		}
 	}
@@ -619,5 +632,8 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 }
 
 func taskCardCurrent(m Model, card projectflow.RequestCard) bool {
+	if m.RequestCardActions != nil {
+		return requestCardActions(m, card).Known
+	}
 	return m.RequestCard != nil && m.RequestCard.ID == card.ID && m.RequestCard.ProjectID == card.ProjectID && m.RequestCard.Revision == card.Revision
 }
