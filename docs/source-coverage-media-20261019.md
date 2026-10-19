@@ -6,7 +6,7 @@ and Market README. Original source was read only at
 Native changes belong to `codex/session-runtime-compat-20261019`, inspected from
 `363c6504be35987d1c628bc2ec96df60a9206571`. This is a source implementation
 record, not runtime/visual acceptance or a claim that all original modules were
-reviewed. No tests, build, app launch, service, paid/model/account/device action,
+reviewed. No tests were executed; no build, app launch, service, paid/model/account/device action,
 push, CI or release was performed by this delegated pass.
 
 ## Actual source comparison
@@ -84,15 +84,22 @@ environment blockers.
 
 ## Verification handoff
 
-Implementation was formatted with gofmt only. Parent owns unified compilation,
+Implementation and prepared regression files were formatted with gofmt only. Parent owns unified compilation,
 targeted decode/surface checks, and actual native verification after parallel
 source implementations finish. Relevant boundaries include malformed RIFF,
 frame/byte/canvas budgets, alpha/blend/dispose rectangles, finite/infinite loops,
 hidden/closed seats, Market async readiness and broader SVG visible content.
-Existing Market tests that classify text/static filter/pattern/marker/complex
-static CSS as unsupported must be reconciled with the actual shared decoder;
-still-rejected active/external documents must continue retaining authored alt.
-No test was deleted, weakened, prepared or executed in this delegated pass.
+After the source commit, the parent requested focused regression preparation.
+`webp_animation_test.go` and the 260-byte `testdata/animated-native.webp` cover
+actual composited pixels, alpha, offsets, replace/over, disposal, loops/duration,
+container/frame/canvas rejection, still VP8/VP8L and lossy ALPH.
+`image_webp_test.go`, `attachment_webp_test.go`, `readme_media_test.go` cover
+native surface playback, pixel rendering, staging cleanup, finite stopping,
+inactive/dismissed/hidden seats and async one-result notification. Static SVG
+tests now assert visible text/filter/embedded-image/pattern/marker/CSS content;
+the older negative table retains malformed embedded, SMIL, foreignObject,
+external-resource and unsupported stylesheet failures. These tests are prepared
+but **not run** here. They do not replace actual Windows playback/occlusion QA.
 
 The older `docs/native-workspace-parity-20261019.md` statement “GIF remains first
 frame” and its broad “full SVG unsupported” boundary describe an earlier source

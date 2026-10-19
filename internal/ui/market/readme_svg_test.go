@@ -55,17 +55,12 @@ func TestMarketReadmeSVGUnconditionalSwitchRendersItsFirstChild(t *testing.T) {
 func TestMarketReadmeUnsupportedSVGKeepsAuthoredAltInsteadOfPartialImage(t *testing.T) {
 	cache := readmeImageCache(t)
 	for name, content := range map[string]string{
-		"text":            `<text x="10" y="10">Required diagram label</text>`,
 		"embedded-image":  `<image href="data:image/png;base64,AAAA" width="40" height="20"/>`,
-		"filter":          `<defs><filter id="blur"><feGaussianBlur stdDeviation="4"/></filter></defs>`,
-		"pattern":         `<defs><pattern id="tiles" width="4" height="4"><rect width="4" height="4"/></pattern></defs>`,
-		"marker":          `<defs><marker id="arrow"><path d="M0 0L4 2L0 4"/></marker></defs>`,
 		"animation":       `<animate attributeName="opacity" from="0" to="1" dur="1s" repeatCount="indefinite"/>`,
 		"foreign-object":  `<foreignObject width="40" height="20"><div xmlns="http://www.w3.org/1999/xhtml">Label</div></foreignObject>`,
 		"css-filter":      `<style>rect {filter:blur(4px)}</style>`,
 		"inline-filter":   `<g style="filter:blur(4px)"><circle r="4"/></g>`,
 		"marker-property": `<path d="M0 0L40 20" marker-end="url(#arrow)"/>`,
-		"complex-css":     `<style>svg > rect { fill: red }</style>`,
 		"media-css":       `<style>@media (prefers-color-scheme:dark) {rect {fill:red}}</style>`,
 		"css-variable":    `<rect width="40" height="20" fill="var(--diagram-color,red)"/>`,
 		"external-use":    `<use href="https://example.invalid/shapes.svg#shape"/>`,
