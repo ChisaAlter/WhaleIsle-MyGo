@@ -621,3 +621,8 @@ Actual final ordinary entry booted with no userdata/vendor/Node/QA overrides, fr
 Final production native restore passed, content1185x792DIP / PNG1778x1188 at1.5 scale. The image was viewed: short two-column trajectory starts directly below the timeline, unselected inspector is absent, compact composer retains the owned draft and file card, and the right pane has one source editor with an unsaved buffer. Saved session-pane binding, attachment, draft, layout and source mode1 were verified; workspace disk bytes stayed unchanged and model requests were0. This capture uses the own-window public MyGo API, not an original/Go desktop pixel comparison.
 
 Evidence: E/checkpoint-final-summary.json, E/checkpoint-final-build.json, E/native-workspace-checkpoint-final.json/.png and E/portable-ordinary-start-checkpoint-final.json. Build source remains the SHA above if a later commit only records these acceptance results. Protected quit, original-window comparison and other stated91-row limits remain open; no CI/push/merge/release or user-instance replacement was performed.
+
+
+## UI usability follow-up after the delivered source97e0427 folder
+
+Source995cbe0 fixes exact fixed line boxes; source9da81d3 removes configured update-feed HTTP from the launcher input thread. Separate clean Windows binaries, real native queue progress under gated loopback HTTP,90s owned-window stability, four-scale event/layout observations and their remaining OS-input/pixel limits are recorded in native-full-function-acceptance-20261019.md under UI input and text follow-up. The previously delivered complete directory and its user data remain untouched. Broad reported click/text faults are not marked fully resolved.
