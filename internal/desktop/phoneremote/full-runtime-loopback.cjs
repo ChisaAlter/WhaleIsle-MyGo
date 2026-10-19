@@ -9,16 +9,20 @@ const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const inside=(base,file)=>{const r=path.relative(base,file);return r===''||(!r.startsWith('..'+path.sep)&&r!=='..'&&!path.isAbsolute(r));};
 const spawned=[];
 const originalSpawn=cp.spawn;
-cp.spawn=function(...args){const child=originalSpawn.apply(this,args);spawned.push({child,file:path.resolve(String(args[0])),pid:child.pid});return child;};
-let mf,channel,socket,ownedEndpoint,closing=false;
-async function cleanup(){
- if(closing)return;closing=true;
+cp.spawn=function(...args){const child=originalSpawn.apply(this,args);const record={child,file:path.resolve(String(args[0])),pid:child.pid};spawned.push(record);emit({kind:'spawn',file:record.file,pid:record.pid});return child;};
+let mf,esbuild,channel,socket,ownedEndpoint,cleanupPromise;
+function cleanup(){
+ if(cleanupPromise)return cleanupPromise;
+ cleanupPromise=(async()=>{
  if(channel)channel.close(1000,'owned acceptance complete');
  if(socket)socket.terminate();
- if(mf)await mf.dispose();
+ let disposalError=null;
+ if(mf)await mf.dispose().catch(error=>{disposalError=error.message;});
+ if(esbuild)esbuild.stop();
  for(const {child} of spawned){if(child.exitCode===null&&child.signalCode===null)child.kill();}
  await Promise.all(spawned.map(({child})=>child.exitCode!==null||child.signalCode!==null?null:new Promise(resolve=>{child.once('exit',resolve);setTimeout(resolve,2000).unref();})));
- emit({kind:'closed',children:spawned.map(({child,file,pid})=>({file,pid,exitCode:child.exitCode,signalCode:child.signalCode,exited:child.exitCode!==null||child.signalCode!==null}))});
+ emit({kind:'closed',disposalError,children:spawned.map(({child,file,pid})=>({file,pid,exitCode:child.exitCode,signalCode:child.signalCode,exited:child.exitCode!==null||child.signalCode!==null}))});
+ })();return cleanupPromise;
 }
 function copyGraph(source,target,label){
  const base=fs.realpathSync(source),pending=[],inventory=[];
@@ -83,11 +87,11 @@ async function start(){
 }
 async function serve(manifest,component){
  const entry=path.join(component,'vendor/chisacode-remote/node_modules/@chisacode/relay/dist/cloudflare-adapter.js');
- const esbuild=require(path.join(toolRoot,'node_modules/wrangler/node_modules/esbuild'));
+ esbuild=require(path.join(toolRoot,'node_modules/wrangler/node_modules/esbuild'));
  const worker=path.join(root,'relay-worker.mjs');
  await esbuild.build({entryPoints:[entry],outfile:worker,bundle:true,format:'esm',platform:'browser',target:'es2022',logLevel:'silent'});
  const {Miniflare,Log,LogLevel}=require(path.join(toolRoot,'node_modules/miniflare'));
- mf=new Miniflare({scriptPath:worker,modules:true,compatibilityDate:'2024-12-01',host:'127.0.0.1',port:0,durableObjects:{RELAY:{className:'RelayDurableObject',useSQLite:true}},durableObjectsPersist:path.join(process.env.HOME,'relay-db'),log:new Log(LogLevel.NONE)});
+ mf=new Miniflare({rootPath:root,modulesRoot:root,scriptPath:worker,modules:true,compatibilityDate:'2024-12-01',host:'127.0.0.1',port:0,durableObjects:{RELAY:{className:'RelayDurableObject',useSQLite:true}},durableObjectsPersist:path.join(process.env.HOME,'relay-db'),log:new Log(LogLevel.NONE)});
  const url=await mf.ready;
  ownedEndpoint=url.host;
  emit({kind:'ready',endpoint:url.host,vendor:path.join(root,'vendor'),component,manifest,workerSHA256:hash(fs.readFileSync(worker)),children:spawned.map(({file,pid})=>({file,pid}))});

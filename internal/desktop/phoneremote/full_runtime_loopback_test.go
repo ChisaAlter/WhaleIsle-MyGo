@@ -40,6 +40,13 @@ func TestFunctionalFullOwnedPhoneRuntime(t *testing.T) {
 		t.Setenv(key, profile)
 	}
 	processLog := filepath.Join(profile, "owned-processes.jsonl")
+	defer func() {
+		for _, file := range []string{"owned-processes.jsonl", "local-runtime-stderr.log"} {
+			if data, err := os.ReadFile(filepath.Join(profile, file)); err == nil {
+				_ = os.WriteFile(filepath.Join(root, file), data, 0600)
+			}
+		}
+	}()
 	preload := filepath.Join(profile, "owned-processes.cjs")
 	if err = os.WriteFile(preload, []byte(ownedPhoneProcessPreload), 0600); err != nil {
 		t.Fatal(err)
@@ -69,12 +76,22 @@ func TestFunctionalFullOwnedPhoneRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	helperPID := cmd.Process.Pid
+	eventLog, err := os.Create(filepath.Join(root, "runtime-events.jsonl"))
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		t.Fatal(err)
+	}
+	defer eventLog.Close()
 	events := make(chan map[string]json.RawMessage, 32)
+	eventsDone := make(chan struct{})
 	go func() {
+		defer close(eventsDone)
 		defer close(events)
 		scanner := bufio.NewScanner(out)
 		scanner.Buffer(make([]byte, 4096), 2<<20)
 		for scanner.Scan() {
+			_, _ = eventLog.Write(append(append([]byte(nil), scanner.Bytes()...), '\n'))
 			var v map[string]json.RawMessage
 			if json.Unmarshal(scanner.Bytes(), &v) == nil {
 				events <- v
@@ -87,6 +104,11 @@ func TestFunctionalFullOwnedPhoneRuntime(t *testing.T) {
 			_, _ = io.WriteString(in, "{\"action\":\"stop\"}\n")
 			in.Close()
 			_ = cmd.Wait()
+		}
+		<-eventsDone
+		if cmd.ProcessState != nil {
+			data, _ := json.Marshal(map[string]any{"pid": helperPID, "exitCode": cmd.ProcessState.ExitCode(), "exited": cmd.ProcessState.Exited()})
+			_ = os.WriteFile(filepath.Join(root, "helper-exit.json"), data, 0600)
 		}
 	}()
 	wait := func(kind string) map[string]json.RawMessage {
