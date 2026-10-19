@@ -39,6 +39,7 @@ type DesktopAccess struct {
 	OnSave            func()
 	OnDetectElectron  func()
 	OnCheckUpdates    func()
+	UpdateBusy        bool
 	OnBrowseWorkspace func()
 	LastAction        string
 	Err               string
@@ -94,7 +95,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			}
 			if d.OnCheckUpdates != nil {
-				if ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Disabled(d.UpdateBusy).Clicked() {
 					d.OnCheckUpdates()
 				}
 			}
