@@ -52,7 +52,10 @@ func TestAttachmentDisplayRailRemovalAndPreview(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentRail(c, Model{State: d}, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 600, 500)
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		if _, ok := tt.Find("Preview attachment photo.png"); ok {
+		// The thumbnail label exists while decoding is pending. Only an open
+		// original-image dialog proves the preview has become actionable.
+		tt.Click("Preview attachment photo.png")
+		if _, ok := tt.Find("1:1 / Fit"); ok {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -61,7 +64,6 @@ func TestAttachmentDisplayRailRemovalAndPreview(t *testing.T) {
 		time.Sleep(time.Millisecond * 5)
 		tt.Move(0, 0)
 	}
-	tt.Click("Preview attachment photo.png")
 	if _, ok := tt.Find("关闭预览 / Close preview"); !ok {
 		t.Fatal("preview missing")
 	}
