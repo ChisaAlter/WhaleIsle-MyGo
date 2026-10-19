@@ -352,11 +352,23 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 	}
 	op := &s.workspaceNavigation
 	client, id := s.client, op.view.TargetID
-	if _, ok := s.workspaceMemberships[id]; !ok {
+	workspace, registered := s.workspaceMemberships[id]
+	if !registered {
 		s.invalidateWorkspaceNavigationLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
+	}
+	// Match ui-workspace.deleteWorkspace: removing this registration closes
+	// its current conversation only after both the receipt and list echo land.
+	// Capture membership before the authoritative remove frame discards it.
+	selected := s.selectedID
+	closeSelected := false
+	for _, member := range workspace.SessionIDs {
+		if member == selected && selected != "" {
+			closeSelected = true
+			break
+		}
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	op.cancel = cancel
@@ -390,6 +402,9 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 			if _, exists := s.workspaceMemberships[id]; !exists {
 				if s.workspaceID == id {
 					s.workspaceID = ""
+				}
+				if closeSelected && s.selectedID == selected {
+					s.selectSessionLocked("")
 				}
 				s.invalidateWorkspaceNavigationLocked()
 				s.lastAction = "Workspace registration removed; files are unchanged"
