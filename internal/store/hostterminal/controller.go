@@ -1,6 +1,6 @@
 // Package hostterminal owns retained Host terminals. It never launches a local
-// process. RPC writes are one-shot and every output attachment has its own input
-// capability, so queued input cannot cross a reconnect or session change.
+// process. Duplex commands are one-shot and every output attachment has its own
+// input capability, so queued input cannot cross a reconnect or session change.
 package hostterminal
 
 import (
@@ -21,26 +21,27 @@ type Shell struct {
 	Name string   `json:"name"`
 }
 type Info struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Shell        Shell  `json:"shell"`
-	Cwd          string `json:"cwd"`
-	Cols         int    `json:"cols"`
-	Rows         int    `json:"rows"`
-	State        string `json:"state"`
-	ExitCode     *int   `json:"exitCode"`
-	Error        string `json:"error,omitempty"`
-	ControllerID string `json:"controllerId,omitempty"`
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Shell    Shell  `json:"shell"`
+	Cwd      string `json:"cwd"`
+	Cols     int    `json:"cols"`
+	Rows     int    `json:"rows"`
+	State    string `json:"state"`
+	ExitCode *int   `json:"exitCode"`
+	Error    string `json:"error,omitempty"`
 }
 type Environment struct {
-	Cwd           string `json:"cwd"`
-	MaxInputBytes int    `json:"maxInputBytes"`
-	MaxCols       int    `json:"maxCols"`
-	MaxRows       int    `json:"maxRows"`
-	Scrollback    int    `json:"scrollback"`
+	Cwd              string `json:"cwd"`
+	MaxInputBytes    int    `json:"maxInputBytes"`
+	MaxBufferedBytes int    `json:"maxBufferedBytes"`
+	MaxCols          int    `json:"maxCols"`
+	MaxRows          int    `json:"maxRows"`
+	Scrollback       int    `json:"scrollback"`
 }
 type Stream interface {
 	Recv(context.Context) (json.RawMessage, error)
+	SendItem(context.Context, any) error
 	Cancel()
 }
 type Remote interface {
@@ -501,7 +502,10 @@ func (s *Store) startHoldLocked(e *entry) {
 			}
 		}
 		s.mu.Lock()
-		if s.epoch == epoch && e.holdSerial == serial && ctx.Err() == nil {
+		// Explicit close ends the Host's retention stream before its cleanup
+		// RPC can return. That expected end must not overwrite closing/closed
+		// with a spurious disconnected error while process teardown completes.
+		if s.epoch == epoch && e.holdSerial == serial && ctx.Err() == nil && !e.closing {
 			s.stopFollowLocked(e)
 			e.held = false
 			e.holdCancel = nil
@@ -531,7 +535,7 @@ func (s *Store) currentLocked(a *Attachment) bool {
 	return s.epoch == a.epoch && a.ctx.Err() == nil && a.entry.attachment == a && !a.entry.closing
 }
 func (s *Store) writableLocked(a *Attachment) bool {
-	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running" && a.entry.info.ControllerID == a.ID
+	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running" && a.writable
 }
 
 // Acknowledge is called after native Ghostty has parsed the entire frame. No
@@ -628,6 +632,11 @@ type Attachment struct {
 	render         *Render // Store.mu
 	ack            chan uint64
 	sequence       int64
+	stream         Stream           // Store.mu; scoped to this physical duplex attachment
+	writable       bool             // Store.mu; advertised separately for each attachment
+	inputWindow    *inputWindow     // Store.mu
+	inputSequence  int64            // Store.mu; one outstanding command, serialized by ioMu
+	pending        *inputAcceptance // Store.mu
 }
 
 func (a *Attachment) Read(p []byte) (int, error) { <-a.ctx.Done(); return 0, io.EOF }
@@ -650,7 +659,7 @@ func (a *Attachment) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-	err := a.call("terminal/write", map[string]any{"data": string(p)})
+	err := a.command(map[string]any{"type": "write", "data": string(p)})
 	if err != nil {
 		a.fail(fmt.Errorf("Input outcome uncertain; it will not be replayed: %w", err))
 		return 0, err
@@ -673,24 +682,11 @@ func (a *Attachment) Resize(cols, rows int) error {
 	if cols < 2 || rows < 1 || same {
 		return nil
 	}
-	err := a.call("terminal/resize", map[string]any{"cols": cols, "rows": rows})
+	err := a.command(map[string]any{"type": "resize", "cols": cols, "rows": rows})
 	if err != nil {
 		a.fail(err)
 	}
 	return err
-}
-func (a *Attachment) call(method string, args map[string]any) error {
-	s := a.store
-	s.mu.Lock()
-	valid := s.writableLocked(a)
-	s.mu.Unlock()
-	if !valid {
-		return errors.New("Host terminal attachment changed")
-	}
-	args["agentId"], args["id"], args["attachmentId"] = a.entry.key.session, a.entry.key.id, a.ID
-	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
-	defer cancel()
-	return a.remote.Call(ctx, method, args, nil)
 }
 func (a *Attachment) fail(err error) {
 	s := a.store
@@ -701,15 +697,19 @@ func (a *Attachment) fail(err error) {
 		a.entry.phase = "failed"
 	}
 	s.mu.Unlock()
+	a.cancel()
 	s.fire()
 }
 func (a *Attachment) follow() {
-	stream, err := a.remote.Open(a.ctx, "terminal/follow", map[string]any{"agentId": a.entry.key.session, "id": a.entry.key.id, "attachmentId": a.ID})
+	stream, err := a.remote.Open(a.ctx, "terminal/attach", map[string]any{"agentId": a.entry.key.session, "id": a.entry.key.id})
 	if err != nil {
 		a.fail(err)
 		return
 	}
 	defer stream.Cancel()
+	a.store.mu.Lock()
+	a.stream = stream
+	a.store.mu.Unlock()
 	first := true
 	for {
 		raw, err := stream.Recv(a.ctx)
@@ -734,6 +734,15 @@ func (a *Attachment) follow() {
 			s.mu.Unlock()
 			return
 		}
+		if f.Type == "ack" {
+			if err := a.acceptLocked(f); err != nil {
+				s.mu.Unlock()
+				a.fail(err)
+				return
+			}
+			s.mu.Unlock()
+			continue
+		}
 		if f.Type != "output" {
 			env := s.sessionLocked(a.entry.key.session).environment
 			if f.Info.Cols > env.MaxCols || f.Info.Rows > env.MaxRows {
@@ -742,6 +751,10 @@ func (a *Attachment) follow() {
 				return
 			}
 			a.entry.info = *f.Info
+			a.writable = *f.Writable
+			if first {
+				a.inputWindow = f.InputWindow
+			}
 			a.entry.phase = "connected"
 		}
 		if f.Type == "snapshot" || f.Type == "output" {
@@ -768,18 +781,21 @@ func (a *Attachment) follow() {
 }
 
 type wireFrame struct {
-	Type     string `json:"type"`
-	Sequence *int64 `json:"sequence"`
-	Screen   string `json:"screen"`
-	Data     string `json:"data"`
-	Info     *Info  `json:"info"`
+	Type        string       `json:"type"`
+	Sequence    *int64       `json:"sequence"`
+	Screen      string       `json:"screen"`
+	Data        string       `json:"data"`
+	Info        *Info        `json:"info"`
+	Writable    *bool        `json:"writable"`
+	InputWindow *inputWindow `json:"inputWindow"`
+	Refusal     string       `json:"refusal"`
 }
 
 func validateFrame(f wireFrame, first bool, sequence int64, id string) error {
 	if first && f.Type != "snapshot" {
 		return errors.New("Host terminal stream must begin with a screen snapshot")
 	}
-	if f.Type != "snapshot" && f.Type != "output" && f.Type != "state" {
+	if f.Type != "snapshot" && f.Type != "output" && f.Type != "state" && f.Type != "ack" {
 		return errors.New("invalid Host terminal frame")
 	}
 	if !first && f.Type == "snapshot" {
@@ -791,8 +807,17 @@ func validateFrame(f wireFrame, first bool, sequence int64, id string) error {
 	if f.Type == "output" && *f.Sequence != sequence+1 {
 		return errors.New("Host terminal output sequence gap")
 	}
-	if f.Type != "output" && (f.Info == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed")) {
+	if f.Type == "ack" {
+		if *f.Sequence < 1 || (f.Refusal != "" && f.Refusal != "read-only" && f.Refusal != "not-running") {
+			return errors.New("invalid Host terminal input acknowledgement")
+		}
+		return nil
+	}
+	if f.Type != "output" && (f.Writable == nil || f.Info == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed")) {
 		return errors.New("invalid Host terminal identity or state")
+	}
+	if f.InputWindow != nil && (f.InputWindow.MaxBytes < 1 || f.InputWindow.FrameOverheadBytes < 0) {
+		return errors.New("invalid Host terminal carrier input window")
 	}
 	return nil
 }

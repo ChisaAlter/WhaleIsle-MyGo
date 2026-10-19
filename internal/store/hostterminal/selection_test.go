@@ -8,7 +8,7 @@ func TestHostTerminalSelectionRequiresCurrentDisplayedIdentity(t *testing.T) {
 	a := attach(t, s, r, 1)
 	o := s.Snapshot("session").Owner
 	s.mu.Lock()
-	a.entry.info.ControllerID = "other-view"
+	a.writable = false
 	s.mu.Unlock()
 	if s.Snapshot("session").Writable || !s.CanCopySelection(o, "session", "term", a) {
 		t.Fatal("read-only selection rejected")
