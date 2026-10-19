@@ -1,12 +1,16 @@
-// Read-only audit of this task's stopped, synthetic assistant profile. Imports
+// Read-only audit of this task's stopped, explicitly owned QA profile. Imports
 // only format validators; never starts Host, resolves providers or reads bodies
 // into output. The frame scanner is extracted from the actual pinned backend.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {zstdDecompressSync} from 'node:zlib';
-const [stage,ownedRoot]=process.argv.slice(2);
-if(!stage||!ownedRoot||!path.basename(ownedRoot).startsWith('assistant-functional-check-'))throw Error('Explicit owned assistant run required');
+const [stage,ownedRoot,countArgument,prefixArgument]=process.argv.slice(2);
+if((countArgument===undefined)!==(prefixArgument===undefined))throw Error('A new owned scope requires both expected count and root prefix');
+const expectedSessionCount=countArgument===undefined?5:Number(countArgument);
+const ownedRootPrefix=prefixArgument??'assistant-functional-check-';
+if(!Number.isSafeInteger(expectedSessionCount)||expectedSessionCount<1||!(/^[a-z0-9]+(?:-[a-z0-9]+)*-$/).test(ownedRootPrefix))throw Error('Invalid explicit owned audit scope');
+if(!stage||!ownedRoot||!path.isAbsolute(stage)||!path.isAbsolute(ownedRoot)||!path.basename(ownedRoot).startsWith(ownedRootPrefix))throw Error('Explicit matching owned run required');
 const harness=path.join(stage,'vendor/deepseek-harness');
 const backend=await fs.readFile(path.join(harness,'packages/session/session-persistence-jsonl/lib/index.js'),'utf8');
 const begin=backend.indexOf('function scanZstdFrames('),end=backend.indexOf('\n}',begin)+2;
@@ -34,8 +38,8 @@ for(const filename of files){
 // unknown event names cannot silently evade the no-execution assertion.
 const metadataTypes=new Set(['permission/preset','sandbox/mode','approval/policy','session/presentation','session/end-seed']);
 const executionTypes=Object.fromEntries(Object.entries(types).filter(([type])=>!metadataTypes.has(type)));
-const result={schemaVersion:1,scope:'all five stopped owned synthetic Session snapshots, complete zstd frames + actual strict current-format decoder',sessions:files.length,frames:frameCount,events:eventCount,eventTypes:types,executionTypes,
+const result={schemaVersion:1,scope:`all ${expectedSessionCount} stopped owned Session snapshots in ${ownedRootPrefix} scope, complete zstd frames + actual strict current-format decoder`,expectedSessionCount,ownedRootPrefix,sessions:files.length,frames:frameCount,events:eventCount,eventTypes:types,executionTypes,
  noPersistedPromptTurnToolOrModelRequestEvidence:Object.keys(executionTypes).length===0,
  networkPacketCapture:false,note:'RPC calls were loopback-only; this audit does not claim capture of all process-level network traffic.'};
-if(files.length!==5||eventCount===0||Object.keys(executionTypes).length)throw Error('Owned Session execution audit did not meet the no-execution condition');
+if(files.length!==expectedSessionCount||eventCount===0||Object.keys(executionTypes).length)throw Error('Owned Session execution audit did not meet the no-execution condition');
 console.log(JSON.stringify(result,null,2));

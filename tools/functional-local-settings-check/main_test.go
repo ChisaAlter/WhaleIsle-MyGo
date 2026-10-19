@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,9 +26,33 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-// This check never selects/activates a Session. A declarative preset with an
-// empty plugin list is an owned input fixture, not an invented Remote service.
-func TestFunctionalLocalSettingsComposer(t *testing.T) {
+// The settings check uses no Session; the second variant creates only an owned
+// idle handle. Both use original providers and never send an execution request.
+func TestFunctionalLocalSettingsComposer(t *testing.T) { runLocalSettingsComposer(t, false) }
+func TestFunctionalDefaultSessionSkills(t *testing.T)  { runLocalSettingsComposer(t, true) }
+
+type localCallAudit struct {
+	mu        sync.Mutex
+	forbidden int
+	paths     map[string]int
+}
+
+func (a *localCallAudit) RoundTrip(r *http.Request) (*http.Response, error) {
+	path := r.URL.Path
+	a.mu.Lock()
+	a.paths[path]++
+	blocked := strings.Contains(path, "/session/prompt") || strings.Contains(path, "/session/modelCatalog") || strings.Contains(path, "/session/initializeDefaultModel") || strings.Contains(path, "/commands/execute") || strings.Contains(path, "/credentials/") || strings.Contains(path, "/account/") || strings.Contains(path, "/llm/")
+	if blocked {
+		a.forbidden++
+	}
+	a.mu.Unlock()
+	if blocked {
+		return nil, errors.New("execution/auth/discovery method excluded from owned skill-only check")
+	}
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+func runLocalSettingsComposer(t *testing.T, defaultSession bool) {
 	stage, base, output := os.Getenv("WHALEISLE_FUNCTIONAL_RUNTIME"), os.Getenv("WHALEISLE_FUNCTIONAL_ROOT"), os.Getenv("WHALEISLE_FUNCTIONAL_OUTPUT")
 	for _, p := range []string{stage, base, output} {
 		if !filepath.IsAbs(p) {
@@ -36,6 +61,9 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 	}
 	root := os.Getenv("WHALEISLE_FUNCTIONAL_RESUME")
 	resuming := root != ""
+	if defaultSession && resuming {
+		t.Fatal("default selected-session check requires own fresh profile")
+	}
 	var e error
 	if resuming {
 		rel, err := filepath.Rel(base, root)
@@ -53,13 +81,20 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 	}
 	type check struct{ Name, Status, Detail string }
 	report := struct {
-		Root           string  `json:"ownedRoot"`
-		Runtime        string  `json:"runtime"`
-		Scope          string  `json:"scope"`
-		Checks         []check `json:"checks"`
-		HostStopped    bool    `json:"ownedHostStopped"`
-		ListenerClosed bool    `json:"ownedListenerClosed"`
+		Root                  string         `json:"ownedRoot"`
+		Runtime               string         `json:"runtime"`
+		Scope                 string         `json:"scope"`
+		Checks                []check        `json:"checks"`
+		HostStopped           bool           `json:"ownedHostStopped"`
+		ListenerClosed        bool           `json:"ownedListenerClosed"`
+		AgentCreated          bool           `json:"agentCreated"`
+		BlockedExecutionCalls int            `json:"blockedExecutionCalls"`
+		ObservedRPCs          map[string]int `json:"observedRPCs,omitempty"`
 	}{Root: root, Runtime: stage, Scope: "Explicit QA deployment-level original skill-filesystem provider enabled only in fresh owned profile. Default web-app intentionally disables global filesystem discovery; this does not certify default Agent-scoped CHAT08. Actual Host+production Store controllers, no Session selection/create/activation/prompt, account/keys/discovery/models/user GUI/IME; all home and skill roots owned."}
+	if defaultSession {
+		report.Scope = "Default web-app skill provider configuration, actual owned idle standard-preset Session/Agent handle, original session-addressed skills/list and inventory plus production Store controllers. No prompt/turn/tool/model execution/auth/discovery; all home/skill/workspace roots owned. User GUI/IME not exercised."
+	}
+	audit := &localCallAudit{paths: map[string]int{}}
 	write := func() {
 		raw, _ := json.MarshalIndent(report, "", "  ")
 		if err := os.WriteFile(output, append(raw, '\n'), 0600); err != nil {
@@ -108,7 +143,11 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 	}
 	presetID, presetRow, skillName := "functional-local-preset", "functional-local-preset-row", "functional-local-skill"
 	patchPath := filepath.Join(profile, "cordis.patch.yml")
-	patch, _ := yaml.Marshal([]map[string]any{{"insert": []map[string]any{{"id": presetRow, "name": "@deepseek-ai/dsh-agent-preset", "config": map[string]any{"id": presetID, "name": "Owned local preset", "description": "Inert empty composition fixture", "plugins": []any{}}}}}, {"id": "skill-filesystem", "disabled": false}})
+	patches := []map[string]any{{"insert": []map[string]any{{"id": presetRow, "name": "@deepseek-ai/dsh-agent-preset", "config": map[string]any{"id": presetID, "name": "Owned local preset", "description": "Inert empty composition fixture", "plugins": []any{}}}}}}
+	if !defaultSession {
+		patches = append(patches, map[string]any{"id": "skill-filesystem", "disabled": false})
+	}
+	patch, _ := yaml.Marshal(patches)
 	if !resuming {
 		if e = os.WriteFile(patchPath, patch, 0600); e != nil {
 			t.Fatal(e)
@@ -128,7 +167,22 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 			}
 		}
 	}
-	defer func() { stop(); write() }()
+	defer func() {
+		stop()
+		if defaultSession {
+			audit.mu.Lock()
+			report.BlockedExecutionCalls = audit.forbidden
+			report.ObservedRPCs = map[string]int{}
+			for k, v := range audit.paths {
+				report.ObservedRPCs[k] = v
+			}
+			audit.mu.Unlock()
+			if report.BlockedExecutionCalls != 0 {
+				t.Errorf("excluded method attempted")
+			}
+		}
+		write()
+	}()
 	start := func() *dsh.Client {
 		sup.Start()
 		until := time.Now().Add(195 * time.Second)
@@ -136,7 +190,11 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 			st := sup.Status()
 			if st.State == harness.Ready {
 				endpoint = st.Endpoint
-				return &dsh.Client{Endpoint: dsh.Endpoint{Origin: endpoint.Origin, Cookie: endpoint.Cookie}, HTTP: &http.Client{Timeout: 45 * time.Second}}
+				httpClient := &http.Client{Timeout: 45 * time.Second}
+				if defaultSession {
+					httpClient.Transport = audit
+				}
+				return &dsh.Client{Endpoint: dsh.Endpoint{Origin: endpoint.Origin, Cookie: endpoint.Cookie}, HTTP: httpClient}
 			}
 			if st.State == harness.Failed {
 				add("owned Host", "blocked", failure(st.Err))
@@ -158,6 +216,16 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 	s.Attach(client, nil)
 	defer s.Attach(nil, nil)
 	s.SetWorkspaceCwd(workspace)
+	if defaultSession {
+		var created api.SessionCreateValue
+		if e = client.Call(ctx, "session/create", map[string]any{"request": map[string]any{"cwd": workspace, "agentPreset": "standard"}}, &created); e != nil || created.SessionId == "" {
+			add("CHAT owned idle session", "blocked", failure(e))
+			return
+		}
+		report.AgentCreated = true
+		s.Select(created.SessionId)
+		add("CHAT owned idle session", "pass", "original session/create returned own standard-preset idle handle; no prompt or model method called")
+	}
 	wait := func(label string, pred func() bool) bool {
 		until := time.Now().Add(12 * time.Second)
 		for time.Now().Before(until) {
@@ -171,7 +239,7 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 	}
 	var providers api.ListProvidersResult
 	var directory api.ListConfigurableProvidersResult
-	if os.Getenv("WHALEISLE_FUNCTIONAL_SKIP_STATIC") != "1" {
+	if !defaultSession && os.Getenv("WHALEISLE_FUNCTIONAL_SKIP_STATIC") != "1" {
 		if e = client.Call(ctx, "llm/listProviders", nil, &providers); e != nil {
 			add("SET static providers", "blocked", failure(e))
 		} else {
@@ -270,6 +338,41 @@ func TestFunctionalLocalSettingsComposer(t *testing.T) {
 		return
 	}
 	add("CHAT skill picker policy", "pass", "real user-invocable/model-disabled skill retained as UserOnly; no invocation")
+	if defaultSession {
+		options := s.ListSkills(ctx)
+		found := false
+		for _, o := range options {
+			if o.Name == skillName && o.UserOnly {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("session-addressed skills/list omitted owned UserOnly skill")
+		}
+		add("CHAT-08 default selected scope", "pass", "default standard preset scoped provider served production RefreshSkills/ListSkills; no global provider override")
+		var global api.SkillInventorySnapshot
+		if e = client.Call(ctx, "skillInventory/list", map[string]any{"request": map[string]any{"cwd": workspace}}, &global); e != nil {
+			t.Fatal(failure(e))
+		}
+		if len(global.Skills) != 0 {
+			t.Fatal("default global registry unexpectedly gained fixture provider")
+		}
+		add("CHAT default global distinction", "pass", "default global inventory stayed empty while selected-session catalog contained owned skill")
+		if !wait("CHAT removal target", func() bool { _, err := s.CaptureCatalogSkillEdit(skillName); return err == nil }) {
+			return
+		}
+		s.ReviewSkillRemoval(ctx, skillName)
+		review := s.SkillRemovalReview()
+		if !review.Ready {
+			t.Fatal("own scoped removal review not ready")
+		}
+		s.ConfirmSkillRemoval(ctx, review.ID)
+		if _, e = os.Stat(*doc.Path); !os.IsNotExist(e) {
+			t.Fatal("own scoped skill not removed")
+		}
+		add("CHAT scoped skill cleanup", "pass", "production captured review removed only owned user-dsh directory; idle Agent resources released by Host Stop")
+		return
+	}
 	s.RefreshAgentPresets(ctx)
 	if !wait("CHAT preset picker", func() bool {
 		for _, label := range s.Snapshot().AgentPresetLabels {
