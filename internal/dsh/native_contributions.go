@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -60,6 +61,16 @@ func (c *Client) WatchNativeContributions(ctx context.Context, publish func(Nati
 	origin, err := url.Parse(endpoint.Origin)
 	if err != nil || origin.Hostname() == "" || origin.User != nil || origin.Opaque != "" || (origin.Scheme != "http" && origin.Scheme != "https") || (origin.Path != "" && origin.Path != "/") || origin.RawQuery != "" || origin.Fragment != "" {
 		err = errors.New("native contributions require a valid Host origin")
+		w.unavailable(err.Error())
+		return err
+	}
+	// The original HMR client opens EventSource only for a loopback page when
+	// no shell transport exists. Native ports have no shell transport either;
+	// an authenticated remote RPC endpoint must not gain an HMR connection.
+	hostname := origin.Hostname()
+	ip := net.ParseIP(hostname)
+	if !strings.EqualFold(hostname, "localhost") && (ip == nil || !ip.IsLoopback()) {
+		err = errors.New("native contributions require a loopback Host origin")
 		w.unavailable(err.Error())
 		return err
 	}
