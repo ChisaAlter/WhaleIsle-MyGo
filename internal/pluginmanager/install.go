@@ -87,7 +87,7 @@ func (a Actions) CloseInstall() {
 }
 func (a Actions) EditInstall(spec, registry string) {
 	a.edit(func(s *State) {
-		if s.Busy || s.Install.Phase == "checking" || s.Install.Phase == "unconfirmed" || s.Install.Phase == "unknown" {
+		if s.Busy || s.Install.Phase == "checking" || installPending(s.Install.Phase) || s.Install.Phase == "unknown" {
 			return
 		}
 		a.c.installRead++
@@ -105,7 +105,7 @@ func (a Actions) EditInstall(spec, registry string) {
 func (a Actions) Inspect() {
 	c := a.c
 	c.mu.Lock()
-	if c.state.Owner != a.owner || c.client == nil || c.state.Busy || c.state.Install.Phase == "checking" || c.state.Install.Phase == "unconfirmed" || c.state.Install.Phase == "unknown" {
+	if c.state.Owner != a.owner || c.client == nil || c.state.Busy || c.state.Install.Phase == "checking" || installPending(c.state.Install.Phase) || c.state.Install.Phase == "unknown" {
 		c.mu.Unlock()
 		return
 	}
@@ -158,7 +158,7 @@ func (a Actions) RequestInstall() {
 	defer c.mu.Unlock()
 	s := &c.state
 	i := &s.Install
-	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || (i.Inspection.Bundle != nil && !*i.Inspection.Bundle) || i.Phase == "unconfirmed" || i.Phase == "unknown" {
+	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || (i.Inspection.Bundle != nil && !*i.Inspection.Bundle) || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
 		return
 	}
 	id := requestID()
@@ -293,16 +293,23 @@ func (a Actions) ReconcileInstall() {
 }
 func (c *Controller) reconcileInstall(owner uint64, id string) {
 	c.mu.Lock()
-	if c.state.Owner != owner || c.client == nil || id == "" || c.state.Install.RequestID != id {
+	if c.state.Owner != owner || c.client == nil || id == "" || c.state.Install.RequestID != id || c.state.Install.Recovering || !installPending(c.state.Install.Phase) {
 		c.mu.Unlock()
 		return
 	}
 	client, ctx := Client{c.client}, c.life
+	c.state.Install.Recovering = true
 	c.mu.Unlock()
+	c.fire()
 	go func() {
 		result, err := client.WaitInstall(ctx, id)
+		settled := false
 		c.patch(owner, func(s *State) {
 			if s.Install.RequestID != id {
+				return
+			}
+			s.Install.Recovering = false
+			if !installPending(s.Install.Phase) {
 				return
 			}
 			if err != nil {
@@ -320,7 +327,12 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 				s.Install.Phase = result.Application
 			}
 			s.Install.Error = ""
+			s.Notice = changeMessage(*result)
+			settled = true
 		})
+		if settled {
+			_ = c.Load(ctx)
+		}
 	}()
 }
 

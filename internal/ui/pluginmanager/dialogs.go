@@ -123,7 +123,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					if pending {
 						ui.Text(c, copyText("安装阶段：", "Installation phase: ")+i.Phase).Role(ui.RoleStatus).FillWidth().TextColor(muted)
 						if i.Phase == "unconfirmed" {
-							if ui.Button(c, copyText("核对安装结果", "Reconcile installation")).Clicked() {
+							if ui.Button(c, copyText("核对安装结果", "Reconcile installation")).Disabled(i.Recovering).Clicked() {
 								a.ReconcileInstall()
 							}
 							if (!i.CancellationRequested || i.WaitingForStart) && ui.Button(c, copyText("重试取消", "Retry cancellation")).Clicked() {

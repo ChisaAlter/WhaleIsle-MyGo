@@ -370,6 +370,8 @@ func (c *Controller) run(op action) {
 	c.state.Notice = ""
 	if op.kind == "install" {
 		c.state.Install.Phase = "starting"
+		c.state.Install.Result = nil
+		c.state.Install.Recovering = false
 		c.state.Install.Acknowledged = false
 		c.state.Install.CancellationRequested = false
 		c.state.Install.WaitingForStart = false
@@ -397,6 +399,9 @@ func (c *Controller) run(op action) {
 		}
 		if !c.patch(op.owner, func(s *State) {
 			s.Busy = false
+			if op.kind == "install" && (s.Install.RequestID != op.options.RequestID || !installPending(s.Install.Phase)) {
+				return
+			}
 			if err != nil {
 				s.Notice = err.Error()
 				if op.kind == "install" {
@@ -409,6 +414,7 @@ func (c *Controller) run(op action) {
 			}
 			s.Notice = changeMessage(result)
 			if op.kind == "install" {
+				s.Install.Recovering = false
 				s.Install.Result = &result
 				s.Install.Phase = "done"
 				if result.Application == "failed" || result.Application == "cancelled" {
@@ -421,6 +427,8 @@ func (c *Controller) run(op action) {
 		}
 		if err == nil {
 			_ = c.Load(ctx)
+		} else if op.kind == "install" {
+			c.reconcileInstall(op.owner, op.options.RequestID)
 		}
 	}()
 }

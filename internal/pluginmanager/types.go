@@ -349,6 +349,7 @@ type InstallState struct {
 	Enabled                                              *bool
 	ApprovedBuilds                                       []string
 	Acknowledged, CancellationRequested, WaitingForStart bool
+	Recovering                                           bool
 	Runs                                                 []InstallRun
 	Attempts                                             []InstallAttempt
 }
