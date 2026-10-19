@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/egoist/mygo"
+	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -16,9 +17,11 @@ type projectController struct {
 func (s *mainState) primaryProjectController() *projectController {
 	return &projectController{mainState: s, projectFlow: &s.projectFlow}
 }
-func (s *mainState) projectModel(win *mygo.Window) projects.Model {
-	m := s.primaryProjectController().projectModel(win)
-	m.ThemeID, m.SystemDark = s.themeID, mygo.Theme.IsDark()
+func (s *mainState) bindProjectModel(win *mygo.Window, parent *frame.Model) {
+	controller := s.primaryProjectController()
+	m := controller.projectModel(win)
+	m.ThemeID, m.SystemDark = parent.ThemeID, parent.SystemDark
+	controller.bindProjectVisualResults(win, &m)
 	// Opening an observer does not make the sidebar own its controller lifetime.
 	m.OnObserver = nil
 	m.OnObserverSection = nil
@@ -27,10 +30,11 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		controller := s.observerControllerLocked(o)
 		s.mu.Unlock()
 		observer := controller.projectModel(win)
-		observer.ThemeID, observer.SystemDark = s.themeID, mygo.Theme.IsDark()
+		observer.ThemeID, observer.SystemDark = m.ThemeID, m.SystemDark
+		controller.bindProjectVisualResults(win, &observer)
 		return observer
 	}
-	return m
+	parent.Projects = m
 }
 func (s *mainState) observerControllerLocked(o *projects.ObserverState) *projectController {
 	f := &s.projectFlow

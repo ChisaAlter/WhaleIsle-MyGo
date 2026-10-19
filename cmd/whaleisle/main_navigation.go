@@ -91,7 +91,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 			win.Update(func() {})
 		}
 	}
-	m.Projects = s.projectModel(win)
+	s.bindProjectModel(win, &m)
 	projectOpen := m.Projects.OnOpen
 	m.Projects.OnOpen = func(id string) {
 		s.selectMainPanel("")

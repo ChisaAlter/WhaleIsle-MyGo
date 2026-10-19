@@ -325,7 +325,6 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectDocuments(win, &m)
 	s.bindProjectHistorical(win, &m)
 	s.bindProjectMaterialCollection(win, &m)
-	s.bindProjectVisualResults(win, &m)
 	s.bindProjectRequestReverts(win, &m)
 	s.bindProjectRequestCardActions(win, &m)
 	return m

@@ -6258,7 +6258,6 @@ func mainView(c *ui.Context) {
 						PageShortcutBindings: state.pageShortcutBindings(),
 						SessionSearchFocus:   &state.commandSearchFocus,
 						OnOpenWorkspaceFiles: func() { filesPaneOpen = true; rightPaneTab = "files" },
-						Projects:             state.projectModel(win),
 						Store:                sessions,
 						ScheduleStore:        schedStore,
 						OnOpenScheduleTask: func(row schedstore.Entry) {
@@ -6338,7 +6337,7 @@ func mainView(c *ui.Context) {
 						Sizes:                   &layout,
 						ChatList:                &chatList,
 						ThemeID:                 themeID,
-						SystemDark:              mygo.Theme.IsDark(),
+						SystemDark:              systemDark,
 						Draft:                   &activeDraft.Text,
 						ComposerState:           activeDraft,
 						OnSubmitComposerGesture: func(accelerated bool) {
@@ -6972,6 +6971,7 @@ func mainView(c *ui.Context) {
 							return state.officePreviewMessage(sessions, snap.SelectedID, path)
 						},
 					}
+					state.bindProjectModel(win, &frameModel)
 					frameModel.OnOpenTerminalTarget = state.terminalTargetHandler(win, frameModel, func(tab string) {
 						state.mu.Lock()
 						state.filesPaneOpen, state.rightPaneTab = true, tab

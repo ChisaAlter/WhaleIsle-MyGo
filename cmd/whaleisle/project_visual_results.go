@@ -157,7 +157,7 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 		}
 	}
 	s.mu.Unlock()
-	dark := mygo.Theme.IsDark()
+	dark := m.SystemDark
 	m.VisualPage = func(source string, reference projectflow.DeliveryPageReference, width int) projects.VisualPagePreview {
 		s.dshMu.Lock()
 		current := s.dshClient
