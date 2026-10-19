@@ -117,7 +117,32 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				ui.Text(c, "此 Bot 暂无例行任务 / No routines for this Bot").TextColor(muted)
 			}
 		}
-		for _, row := range s.Routines {
+		// Original dismissals last for this canonical session, without changing
+		// the Host's missed-run records or any scheduling configuration.
+		dismissed := ui.Local(c, "routine-missed:"+s.Scope.HostKey+":"+s.SessionID, func() map[string]bool { return map[string]bool{} })
+		missed := []string{}
+		if s.MissedKnown {
+			for _, id := range s.MissedIDs {
+				if !(*dismissed)[id] {
+					missed = append(missed, id)
+				}
+			}
+		}
+		if len(missed) > 0 {
+			ui.Text(c, fmt.Sprintf("%d 个定时任务错过运行 / Missed scheduled runs", len(missed))).TextColor(accent)
+			if ui.Button(c, "知道了 / Dismiss missed-run notice").Clicked() {
+				for _, id := range missed {
+					(*dismissed)[id] = true
+				}
+			}
+		}
+		query := ui.Local(c, "routine-query:"+s.Scope.HostKey+":"+s.Scope.BotID, func() string { return "" })
+		ui.TextInput(c.Key("routine-search"), query).Label("搜索定时任务、机器人或错误 / Search routines, bots, or errors").FillWidth()
+		visible := visibleBotRoutines(s.Routines, s.BotName, *query)
+		if s.Loaded && len(s.Routines) > 0 && len(visible) == 0 {
+			ui.Text(c, "没有匹配的定时任务 / No matching routines").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		}
+		for _, row := range visible {
 			row := row
 			ui.Column(c.Key("bot-routine-"+row.ID)).Background(field).Border(1, border).Radius(8).Padding(10).Gap(6).Children(func() {
 				status := "暂停 / Paused"
@@ -130,7 +155,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				}
 				ui.Text(c, fmt.Sprintf("%s · %s · %s", row.ID, row.Schedule, row.Timezone)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				for _, id := range s.MissedIDs {
-					if id == row.ID && s.MissedKnown {
+					if id == row.ID && s.MissedKnown && !(*dismissed)[id] {
 						ui.Text(c, "Host 标记为错过执行 / Missed scheduled run").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 					}
 				}

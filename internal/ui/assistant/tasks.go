@@ -79,7 +79,16 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if s.Loaded && len(s.Tasks) == 0 {
 			ui.Text(c, "此 Bot 暂无委派任务 / No delegation tasks for this Bot").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
-		for _, task := range s.Tasks {
+		filterKey := s.Scope.HostKey + ":" + s.Scope.BotID
+		query := ui.Local(c, "task-query:"+filterKey, func() string { return "" })
+		status := ui.Local(c, "task-status:"+filterKey, func() string { return "all" })
+		ui.TextInput(c.Key("task-search"), query).Label("搜索任务、参与者或错误 / Search tasks, participants, or errors").FillWidth()
+		ui.Select(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}).Label("任务状态 / Task status").FillWidth()
+		visible := visibleBotTasks(s.Tasks, *query, *status)
+		if s.Loaded && len(s.Tasks) > 0 && len(visible) == 0 {
+			ui.Text(c, "没有匹配的任务 / No matching tasks").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		}
+		for _, task := range visible {
 			task := task
 			ui.Column(c.Key("bot-task-"+task.ID)).Background(field).Border(1, border).Radius(8).Padding(10).Gap(5).Children(func() {
 				title := task.ID + " · " + task.Status
