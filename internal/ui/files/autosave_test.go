@@ -123,14 +123,15 @@ func TestAutosaveConflictRecoveryAndBindingChange(t *testing.T) {
 	}
 	awaitAutosave(t, done)
 	syncSaveResults(m)
-	if *m.Preview != "original-a" || *m.EditDraft != "draft" || !strings.Contains(*m.EditStatus, "changed") {
+	if *m.Preview != "external" || *m.EditDraft != "draft" || !strings.Contains(*m.EditStatus, "changed") {
 		t.Fatalf("conflict corrupted baseline/draft: %q %q %q", *m.Preview, *m.EditDraft, *m.EditStatus)
 	}
 	if closeTab(m, "a.txt", false) {
 		t.Fatal("dirty close bypassed")
 	}
 	reloadSelectedFile(m)
-	if *m.Preview != "original-a" || *m.EditDraft != "draft" {
+	awaitFileTextRead(t, m, done)
+	if *m.Preview != "external" || *m.EditDraft != "draft" {
 		t.Fatal("reload overwrote conflict draft")
 	}
 	data, err := m.Tabs.Export()

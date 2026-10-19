@@ -25,3 +25,23 @@ func TestBrowserRecordingCancellationDropsArtifact(t *testing.T) {
 		t.Fatal("cancelled result remained exportable")
 	}
 }
+
+func TestRetiredRecordingCannotEraseCompletedExportOrKeepEncodedBytes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	tab := &Tab{RecordingPath: "owned-completed-recording.webm"}
+	r := &browserRecording{tab: tab, ctx: ctx, cancel: cancel, phase: "saving", artifact: &browserrecording.Artifact{Data: []byte("encoded result")}}
+	b := &Controller{Tabs: []*Tab{tab}, recording: r}
+	// A nil/non-live source makes the production prune retire the operation.
+	b.pruneBrowserRecording()
+	if b.recording != nil || r.artifact != nil || ctx.Err() != context.Canceled {
+		t.Fatal("retired recording remained exportable")
+	}
+	if tab.RecordingPath != "owned-completed-recording.webm" || tab.ActionMessage == "" {
+		t.Fatal("retirement removed a completed export/disclosure")
+	}
+	// A late worker cannot recover ownership by selecting that same tab again.
+	b.Select(0)
+	if b.recordingCurrent(r) {
+		t.Fatal("late recording callback regained ownership")
+	}
+}

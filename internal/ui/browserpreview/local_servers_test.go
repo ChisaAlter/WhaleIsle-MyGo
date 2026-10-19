@@ -7,7 +7,7 @@ import (
 )
 
 func TestDiscoveryRejectsReplacedWorkspaceAndKeepsDraft(t *testing.T) {
-	owner := WorkspaceOwner{Authority: "desktop", Cwd: "/one"}
+	owner := WorkspaceOwner{Authority: "desktop", Cwd: "/one", SessionID: "session", Ready: true}
 	b := NewController(nil)
 	b.SetWorkspaceOwner(func() WorkspaceOwner { return owner })
 	scope, _ := b.browserWorkspace()

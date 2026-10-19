@@ -1,6 +1,12 @@
 package browserpreview
 
-import "testing"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"testing"
+)
 
 func TestBrowserWorkspacePartitions(t *testing.T) {
 	makeScope := func(owner WorkspaceOwner) browserWorkspace {
@@ -11,43 +17,65 @@ func TestBrowserWorkspacePartitions(t *testing.T) {
 		}
 		return s
 	}
-	first := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Cwd: "/host/project", Title: "One"})
-	reopened := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Cwd: "/host/project", Title: "Renamed"})
-	if first.key != reopened.key {
-		t.Fatal("restart or rename must keep the same persistent partition")
+	owner := WorkspaceOwner{Authority: "supervised-dsh-home:fixture", SessionID: "session-a", Ready: true, Cwd: "/host/project", Title: "One"}
+	first := makeScope(owner)
+	owner.Title, owner.SessionID = "Renamed", "session-b"
+	if reopened := makeScope(owner); first.key != reopened.key || first.needsNewTab(reopened) {
+		t.Fatal("authoritative cwd partition changed after rename/session switch")
 	}
-	other := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Cwd: "/host/other"})
-	otherHost := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:other", Cwd: "/host/project"})
-	if first.key == other.key || first.key == otherHost.key {
-		t.Fatal("workspace and Host namespaces must isolate cookies")
+	// Existing cwd cookie directories retain their exact pre-session-fallback key.
+	encoded, _ := json.Marshal([]string{"browser-workspace-v1", owner.Authority, "workspace", owner.Cwd})
+	sum := sha256.Sum256(encoded)
+	if first.key != hex.EncodeToString(sum[:]) {
+		t.Fatal("existing workspace cookie partition was migrated")
 	}
-	shared := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture"})
-	sharedAgain := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Title: "No directory session"})
-	namedShared := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Cwd: "shared"})
-	if shared.key != sharedAgain.key || shared.key == namedShared.key || shared.key == first.key {
-		t.Fatal("shared sentinel must be stable and disjoint from workspace names")
+	owner.Cwd = "/host/other"
+	other := makeScope(owner)
+	owner.Cwd, owner.Authority = "/host/project", "supervised-dsh-home:other"
+	otherHost := makeScope(owner)
+	if first.key == other.key || first.key == otherHost.key || !first.needsNewTab(other) {
+		t.Fatal("workspace/Host partition was reused")
 	}
-	win := makeScope(WorkspaceOwner{Authority: "fixture", Cwd: `C:\Work\Project\`})
-	winAgain := makeScope(WorkspaceOwner{Authority: "fixture", Cwd: "c:/work/project"})
-	if win.key == winAgain.key {
-		t.Fatal("opaque Host cwd must not infer case or separator aliases")
+	owner.Authority, owner.Cwd, owner.SessionID = "supervised-dsh-home:fixture", "", "session-a"
+	sessionA := makeScope(owner)
+	owner.Title = "No directory session"
+	if sessionA.key != makeScope(owner).key {
+		t.Fatal("session title changed partition")
 	}
-	caseSensitive := makeScope(WorkspaceOwner{Authority: "supervised-dsh-home:fixture", Cwd: "/host/Project"})
-	if caseSensitive.key == first.key {
-		t.Fatal("distinct Host cwd spellings must remain isolated")
+	owner.SessionID = "session-b"
+	if sessionA.key == makeScope(owner).key {
+		t.Fatal("directoryless sessions shared cookies")
 	}
-	if _, err := makeBrowserWorkspace(WorkspaceOwner{Cwd: "/unowned"}); err == nil {
-		t.Fatal("missing trusted app/Host namespace must fail closed")
+	owner.Cwd, owner.SessionID = "shared", "session-a"
+	if sessionA.key == makeScope(owner).key || sessionA.key == first.key {
+		t.Fatal("session fallback collided with cwd identity")
 	}
-	if !first.needsNewTab(other) || first.needsNewTab(reopened) {
-		t.Fatal("navigation must not repurpose an old Tab for another partition")
+	owner.Cwd = `C:\Work\Project\`
+	win := makeScope(owner)
+	owner.Cwd = "c:/work/project"
+	if win.key == makeScope(owner).key {
+		t.Fatal("opaque Host cwd inferred desktop case/separator aliases")
+	}
+	owner.Cwd = "/host/Project"
+	if first.key == makeScope(owner).key {
+		t.Fatal("distinct Host cwd spellings were merged")
+	}
+	if len(first.key) != 64 || first.key == "" || sessionA.label == "" {
+		t.Fatal("partition identity/disclosure missing")
+	}
+	for _, invalid := range []WorkspaceOwner{
+		{Authority: "desktop", SessionID: "s", Cwd: "/project"},
+		{Authority: "desktop", Ready: true, Cwd: "/project"},
+		{SessionID: "s", Ready: true, Cwd: "/project"},
+		{Authority: "desktop", SessionID: "s", Ready: true, Err: errors.New("membership failed")},
+	} {
+		if _, err := makeBrowserWorkspace(invalid); err == nil {
+			t.Fatalf("untrusted/not-ready owner accepted: %+v", invalid)
+		}
 	}
 	oldKey := first.key
 	_ = first.needsNewTab(other)
 	if first.key != oldKey {
-		t.Fatal("old Tab ownership must be immutable")
-	}
-	if len(first.key) != 64 || shared.label != "共享浏览（无工作区）" {
-		t.Fatal("invalid partition identity or shared disclosure")
+		t.Fatal("tab ownership mutated during comparison")
 	}
 }

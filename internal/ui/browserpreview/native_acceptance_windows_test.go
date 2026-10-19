@@ -158,7 +158,7 @@ func runNativeBrowserAcceptance(output string) error {
 	mygo.App.OnReady(func() {
 		parent := mygo.NewWindow(mygo.WindowOptions{Title: "Owned Browser acceptance", Width: 1000, Height: 720, Hidden: true, Content: ui.View(func(c *ui.Context) { ui.Text(c, "Owned Browser backend acceptance") })})
 		browser := NewController(parent)
-		owner := WorkspaceOwner{Authority: "owned-qa:" + root, Cwd: "workspace-A"}
+		owner := WorkspaceOwner{Authority: "owned-qa:" + root, Cwd: "workspace-A", SessionID: "session", Ready: true}
 		browser.SetWorkspaceOwner(func() WorkspaceOwner { return owner })
 		// A zero-area seat exercises real browser navigation without showing the
 		// URL child or relying on OS/browser UI automation.
