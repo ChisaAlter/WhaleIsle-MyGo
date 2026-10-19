@@ -127,9 +127,7 @@ func (s *mainState) quitDesktopTray() {
 	}
 	// Parent confirmation must be visible, including when invoked from the tray.
 	s.showMainWindow()
-	if s.quitProtected(win, sup) {
-		mygo.App.Quit()
-	}
+	s.requestQuitProtected(win, sup)
 }
 
 func (s *mainState) setDesktopTrayPet(enabled bool) {
@@ -158,8 +156,8 @@ func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor)
 			Title:   resumeText("托盘不可用", "Tray unavailable"),
 			Message: resumeText("系统托盘未能创建，已保留窗口和后台任务。可以保留窗口，或明确退出应用。", "The system tray could not be created. The window and background work were kept open. Keep the window, or explicitly quit the application."),
 			Buttons: []string{resumeText("保留窗口", "Keep window"), resumeText("退出应用", "Quit application")}, DefaultButton: 0, CancelButton: 0})
-		if err == nil && result.Button == 1 && s.quitProtected(win, sup) {
-			mygo.App.Quit()
+		if err == nil && result.Button == 1 {
+			s.requestQuitProtected(win, sup)
 		}
 		return
 	}

@@ -307,10 +307,26 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 	}
 	// Existing task admission, saved-session protection and last-moment hash
 	// verification remain the only route that can launch the staged installer.
-	if !s.installStagedUpdateWithConsent(win, staged, true) {
-		s.mu.Lock()
-		s.nativeReleases.status = resumeText("已保留校验后的安装包，可稍后重试安装；当前窗口未关闭。", "Verified installer retained for retry; the current window remains open.")
+	s.mu.Lock()
+	if s.nativeReleases.busy || s.taskRestartPending || s.quitting || s.launcherImportBusy {
 		s.mu.Unlock()
-		s.nativeReleaseNotify(win)
+		return
 	}
+	s.nativeReleases.busy = true
+	s.mu.Unlock()
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			s.nativeReleases.busy = false
+			s.mu.Unlock()
+			s.nativeReleaseNotify(win)
+		}()
+		if !s.installStagedUpdateWithConsent(win, staged, true) {
+			s.mu.Lock()
+			s.nativeReleases.status = resumeText("已保留校验后的安装包，可稍后重试安装；当前窗口未关闭。", "Verified installer retained for retry; the current window remains open.")
+			s.mu.Unlock()
+			s.nativeReleaseNotify(win)
+		}
+	}()
+	s.nativeReleaseNotify(win)
 }

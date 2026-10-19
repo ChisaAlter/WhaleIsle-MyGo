@@ -274,7 +274,7 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 		return nil
 	})
 	if did {
-		mygo.App.Quit()
+		s.quitAfterCleanup()
 	}
 	return did
 }
