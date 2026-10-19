@@ -182,9 +182,14 @@ func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *i
 	}
 	var decoded image.Image
 	ext := strings.ToLower(filepath.Ext(path))
+	animatedAVIF := ext == ".avif" && imagepreview.IsAnimatedAVIF(data)
 	switch {
-	case ext == ".gif" || imagepreview.IsAnimatedWebP(data):
-		p.animation, p.err = imagepreview.DecodeAnimation(data)
+	case ext == ".gif" || imagepreview.IsAnimatedWebP(data) || animatedAVIF:
+		if animatedAVIF {
+			p.animation, p.err = imagepreview.DecodeAVIFAnimationContext(ctx, data)
+		} else {
+			p.animation, p.err = imagepreview.DecodeAnimation(data)
+		}
 		if p.err == nil {
 			for _, frame := range p.animation.Frames {
 				if err := ctx.Err(); err != nil {
