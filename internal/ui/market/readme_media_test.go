@@ -31,50 +31,66 @@ func TestMarketReadmeNativeAnimatedMediaPaintAndHide(t *testing.T) {
 	if err := gif.EncodeAll(&gifBytes, &gif.GIF{Image: []*image.Paletted{first, last}, Delay: []int{5, 5}, LoopCount: -1}); err != nil {
 		t.Fatal(err)
 	}
-	// Both rendering bubbles use this viewport. Keep the global raster team's
-	// lifetime outside them; the assertions still paint the actual README seat.
-	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 160, 100)
 	for name, data := range map[string][]byte{"moving.webp": webp, "moving.gif": gifBytes.Bytes()} {
 		t.Run(name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				cache := readmeImageCache(t)
-				url := "https://example.invalid/" + name
-				if err := os.WriteFile(cache.FilePath(url), data, 0600); err != nil {
-					t.Fatal(err)
+			cache := readmeImageCache(t)
+			url := "https://example.invalid/" + name
+			if err := os.WriteFile(cache.FilePath(url), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			visible := true
+			tt := ui.NewTester(func(c *ui.Context) {
+				if visible {
+					marketReadme(c, Model{}, "![Motion]("+url+")", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 				}
-				visible := true
-				tt := ui.NewTester(func(c *ui.Context) {
-					if visible {
-						marketReadme(c, Model{}, "![Motion]("+url+")", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
-					}
-				}, 160, 100)
-				synctest.Wait()
+			}, 160, 100)
+			ready := false
+			for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
 				tt.Frame()
-				sample := func(x float32) color.RGBA {
-					t.Helper()
-					r, ok := tt.Find("README image " + url)
-					if !ok || r.W != 4 || r.H != 1 {
-						t.Fatalf("native natural size lost: %+v", r)
-					}
-					return tt.Image().RGBAAt(int(r.X+x), int(r.Y))
+				if r, ok := tt.Find("README image " + url); ok && r.W > 0 && r.H > 0 && !tt.HasText("Motion") {
+					ready = true
+					break
 				}
-				if p := sample(2); p.R < 240 || p.G > 20 {
-					t.Fatal("initial image not red", p)
+				time.Sleep(5 * time.Millisecond)
+			}
+			if !ready {
+				t.Fatal("native animated README image did not become ready")
+			}
+			sample := func(x float32) color.RGBA {
+				t.Helper()
+				r, ok := tt.Find("README image " + url)
+				if !ok || r.W != 4 || r.H != 1 {
+					t.Fatalf("native natural size lost: %+v", r)
 				}
-				time.Sleep(110 * time.Millisecond)
+				return tt.Image().RGBAAt(int(r.X+x), int(r.Y))
+			}
+			if p := sample(2); p.R < 240 || p.G > 20 {
+				t.Fatal("initial image not red", p)
+			}
+			green := false
+			for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
+				time.Sleep(5 * time.Millisecond)
 				tt.Frame()
-				if p := sample(2); p.G < 240 || p.R > 20 || p.B > 20 {
-					t.Fatal("README image stayed first frame", p)
+				if p := sample(2); p.G >= 240 && p.R <= 20 && p.B <= 20 {
+					green = true
+					break
 				}
-				visible = false
-				tt.Frame()
-				time.Sleep(time.Second)
-				synctest.Wait()
+			}
+			if !green {
+				t.Fatal("README image stayed first frame")
+			}
+			visible = false
+			tt.Frame()
+			if _, ok := tt.Find("README image " + url); ok {
+				t.Fatal("hidden README retained image seat")
+			}
+			time.Sleep(time.Second)
+			for i := 0; i < 3; i++ {
 				tt.Frame()
 				if _, ok := tt.Find("README image " + url); ok {
-					t.Fatal("hidden README retained image seat")
+					t.Fatal("hidden README recreated image seat")
 				}
-			})
+			}
 		})
 	}
 }
@@ -99,6 +115,9 @@ func TestMarketReadmeAsyncDecodeNotifiesOnceAndFinitePlaybackStops(t *testing.T)
 		}
 		start := time.Now()
 		d.advance(start)
+		if wait := d.advance(start.Add(110 * time.Millisecond)); wait != 90*time.Millisecond || d.bitmap != d.frames[2] {
+			t.Fatal("README WebP frame timing", wait)
+		}
 		if wait := d.advance(start.Add(time.Second)); wait != 0 || d.bitmap != d.frames[3] {
 			t.Fatal("finite README animation did not stop")
 		}

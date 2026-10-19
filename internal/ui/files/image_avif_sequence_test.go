@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -32,10 +31,15 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 	if w, h := preview.bitmap.Size(); w != 500 || h != 360 {
 		t.Fatalf("AVIF canvas=%dx%d", w, h)
 	}
-	// Full-viewport raster helpers outlive an individual animation fixture;
-	// create the required process-global team before entering its bubble.
-	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 700, 500)
-	synctest.Test(t, func(t *testing.T) {
+	start := time.Unix(100, 0)
+	preview.advance(start)
+	if wait := preview.advance(start.Add(90 * time.Millisecond)); wait != 70*time.Millisecond || preview.bitmap != preview.frames[1] {
+		t.Fatalf("AVIF timing=%v", wait)
+	}
+	preview.started = time.Time{}
+	// Raster workers are process-global: all native seat drawing uses the
+	// ordinary test lifetime. Exact frame timing is checked with advance above.
+	{
 		selected := path
 		tab := &FileTab{Path: path, image: preview}
 		m := Model{WorkspaceRoot: root, BindingID: "fixture-host", SessionID: "fixture-session", SelectedFile: &selected, Tabs: &Tabs{}}
@@ -50,14 +54,18 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 				}
 			})
 		}, 700, 500)
-		before := append([]byte(nil), tt.Image().Pix...)
-		time.Sleep(90 * time.Millisecond)
-		tt.Frame()
-		if preview.bitmap != preview.frames[1] || bytes.Equal(before, tt.Image().Pix) {
-			t.Fatal("actual Files image seat did not paint the next AVIF frame")
+		before, first := append([]byte(nil), tt.Image().Pix...), preview.bitmap
+		changed := false
+		for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
+			time.Sleep(5 * time.Millisecond)
+			tt.Frame()
+			if preview.bitmap != first && !bytes.Equal(before, tt.Image().Pix) {
+				changed = true
+				break
+			}
 		}
-		if wait := preview.advance(preview.started.Add(90 * time.Millisecond)); wait != 70*time.Millisecond {
-			t.Fatalf("AVIF timing=%v", wait)
+		if !changed {
+			t.Fatal("actual Files image seat did not paint the next AVIF frame")
 		}
 		visible = false
 		tt.Frame()
@@ -73,7 +81,7 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 		if tab.image != nil {
 			t.Fatal("inactive Files tab retained AVIF frames")
 		}
-	})
+	}
 	// The shared decoder must still fail the entire sequence if a later frame
 	// cannot finish, and the Files entry must honor cancellation before decode.
 	bad := append([]byte(nil), data...)

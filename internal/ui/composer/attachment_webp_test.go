@@ -3,7 +3,6 @@ package composer
 import (
 	"os"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -29,18 +28,18 @@ func TestAttachmentNativeWebPThumbnailAndOriginal(t *testing.T) {
 			t.Fatal("finite WebP did not stop")
 		}
 	}
-	// Global raster helpers must belong to the process, not the timed bubble.
-	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 600, 400)
-	synctest.Test(t, func(t *testing.T) {
-		v := readAttachmentDisplay(a, true)
-		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
-		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
-		time.Sleep(110 * time.Millisecond)
+	// Keep real raster work outside synctest. The pure timeline checks above
+	// retain exact delays/finite completion; this seat must actually paint green.
+	v := readAttachmentDisplay(a, true)
+	seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
+	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
+	green := false
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
 		tt.Frame()
 		if v.bitmap != v.motion.frames[2] {
-			t.Fatal("original surface did not advance")
+			continue
 		}
-		green := false
 		img := tt.Image()
 		for y := 0; y < img.Bounds().Dy(); y++ {
 			for x := 0; x < img.Bounds().Dx(); x++ {
@@ -50,13 +49,20 @@ func TestAttachmentNativeWebPThumbnailAndOriginal(t *testing.T) {
 				}
 			}
 		}
-		if !green {
-			t.Fatal("original surface did not paint current WebP pixels")
+		if green {
+			break
 		}
-		tt.Key(0, ui.KeyEscape)
+	}
+	if !green {
+		t.Fatal("original surface did not paint current WebP pixels")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	current := v.bitmap
+	for i := 0; i < 3; i++ {
 		tt.Frame()
-		if seat.open || seat.full != nil {
-			t.Fatal("dismissed original retains WebP motion")
-		}
-	})
+	}
+	if seat.open || seat.full != nil || v.bitmap != current {
+		t.Fatal("dismissed original retains or advances WebP motion")
+	}
 }

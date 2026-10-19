@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -41,22 +40,35 @@ func TestAttachmentAVIFSequenceThumbnailOriginalAndDismissal(t *testing.T) {
 	if w, h := v.bitmap.Size(); w != 500 || h != 360 {
 		t.Fatal("original dimensions", w, h)
 	}
-	// The raster helpers are process-global and intentionally stay alive. Hire
-	// the ordinary drawing team outside this bubble at its largest viewport.
-	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 700, 500)
-	synctest.Test(t, func(t *testing.T) {
-		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
-		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 700, 500)
-		before := append([]byte(nil), tt.Image().Pix...)
-		time.Sleep(90 * time.Millisecond)
+	v.advance(start)
+	if wait := v.advance(start.Add(90 * time.Millisecond)); wait != 70*time.Millisecond || v.bitmap != v.motion.frames[1] {
+		t.Fatal("original frame timing", wait)
+	}
+	v.motion.started = time.Time{}
+	// Native rendering and its process-global raster workers stay outside
+	// synctest. Exact timing is checked above; observe a real subsequent frame.
+	seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
+	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 700, 500)
+	before, first := append([]byte(nil), tt.Image().Pix...), v.bitmap
+	changed := false
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
 		tt.Frame()
-		if v.bitmap != v.motion.frames[1] || bytes.Equal(before, tt.Image().Pix) {
-			t.Fatal("native AVIF original did not visibly advance")
+		if v.bitmap != first && !bytes.Equal(before, tt.Image().Pix) {
+			changed = true
+			break
 		}
-		tt.Key(0, ui.KeyEscape)
+	}
+	if !changed {
+		t.Fatal("native AVIF original did not visibly advance")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	current := v.bitmap
+	for i := 0; i < 3; i++ {
 		tt.Frame()
-		if seat.open || seat.full != nil {
-			t.Fatal("dismissed original retains AVIF animation")
-		}
-	})
+	}
+	if seat.open || seat.full != nil || v.bitmap != current {
+		t.Fatal("dismissed original retains or advances AVIF animation")
+	}
 }
