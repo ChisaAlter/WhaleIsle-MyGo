@@ -14,11 +14,11 @@
 
 | ID | 原版入口 | Go 入口 | 覆盖等级 | 本次实际覆盖、遗漏与未知 |
 | --- | --- | --- | --- | --- |
-| WORK-01 | `C/ui-workspace/src/client/WorkspacePicker.tsx` | `internal/ui/workspacepicker/picker.go`、工作区导航 | not-reviewed | 只定位入口；添加、切换、重命名、移除、无目录及持久化失败链均未审阅，不借用历史验收结果。 |
-| WORK-02 | 矩阵所列 `ui-directory-picker-browse`；本次未解析具体实现文件 | `internal/ui/dirpick/panel.go`、`cmd/whaleisle/directory_picker.go` | not-reviewed | 只定位入口；Miller 浏览、隐藏项、新建目录、路径输入、失败重试及焦点行为未审阅。 |
+| WORK-01 | `C/ui-workspace/src/client/WorkspacePicker.tsx`、`rows/WorkspaceBrowser.tsx:1427-1504`、`navigation.ts:437-476,553-584,629-634` | `internal/ui/workspacepicker/picker.go`、`cmd/whaleisle/{workspace_navigation,no_directory}.go`、`internal/store/session/{workspace_navigation,workspace_follow,no_directory}.go` | behavior-compared | 追加精读添加/选择、改名校验、删除回执与列表回声、无目录 scratch baseline/blank reuse、旧导航取消与失败保留。确认并修复移除当前 Workspace 后原会话视图未清理：源码 `3a7a94d`；只在回执+权威列表都确认、成员与 selection/Host 归属仍相符时清空视图，不删会话。专有回归准备 `7aa7e62`，未执行。任意 feature directoryActions 插件及全部 sidebar 动画/排序辅助实现未逐一对照。 |
+| WORK-02 | `C/ui-directory-picker-browse/src/client/{DirectoryBrowser.tsx,flow.ts,index.ts}` | `cmd/whaleisle/directory_picker.go`、`internal/ui/dirpick/{panel,state}.go` | behavior-compared | 追加精读原版 DirectoryBrowser:448-694 与 Go 完整扫描/两腿 landing/选择/路径 debounce/取消/原名创建/刷新/失败重试/Host generation 链；核对隐藏与点前缀、路径 Enter/Escape、双列和创建 UI。未发现此已读核心链的确定阻断。Remote 子 flow 的 SSH/machine 实现不在本次目录浏览对照范围，CSS/所有焦点布局细节未逐行对照。 |
 | WORK-03 | `C/ui-files/src/client/FileTree.tsx`、`apply.ts` | `internal/ui/files/files.go`、`tree_actions.go`、`preview_toolbar.go` | behavior-compared | 比较原版 FileTree 的只读展开/打开、引用、复制路径、打开方式入口，与 Go 树行/context menu/拖拽引用回调。原版没有应用内创建、改名、隐藏项开关，不能据此推定缺口。未贯通完整异步树刷新、外部编辑器识别与系统调用结果。 |
 | WORK-04 | `C/ui-files/src/client/apply.ts`、`fileSaveCoordinator.ts`、`FileClosePrompt.tsx` | `internal/ui/files/autosave.go`、`reload.go`、`tabs.go`；`internal/ui/frame/frame.go` 的 `OnSaveEdit` | entrypoint-sampled | 阅读原版注册保存和关闭守卫入口；Go 阅读保存队列、外部修改时保留脏基线、错误/截断阻止保存及本地写回调。原版协调器/关闭提示主体、全部关闭与恢复链未对照。Go 远程预览保存明确转交 Remote 文件编辑器；未贯通原版同场景，不认定为缺失。 |
-| WORK-05 | `C/ui-sidebar-documentpreview/src/client/{text,code,markdown}/index.ts` | `internal/ui/files/source_actions.go`、`text_read.go`、`text_read_state.go`、`preview_toolbar.go` | entrypoint-sampled | 阅读 Go 行定位、Markdown 源码/渲染入口、换行、异步读取和脏草稿基线保护。原版注册模块仅定位；搜索、选择、完整 Markdown 渲染与只读边界未完成双方行为对照。 |
+| WORK-05 | `C/ui-sidebar-documentpreview/src/client/{text,code,markdown}/index.ts` 及各 `*Body.tsx`、`TextPreview.tsx:130-203`；`C/ui-files/src/client/FilePreview.tsx:200-344,480-564` | `internal/ui/files/{source_actions,text_read,text_read_state,text_read_line,text_pages,text_preview,markdown_metadata,preview_toolbar}.go`、`internal/desktop/workspacefs/text_page.go` | behavior-compared | 追加阅读正文 renderer、分页/版本/只读、行定位、源码选择/引用、换行/保存入口及 Markdown frontmatter。确认原版自动继续分页到目标行而 Go 夹到已载入末行；由另一 owner 源码修复 `a00c313`，专有记录 `source-coverage-files-line-navigation-20261019.md` 与准备回归 `8239234`，本代理读到提交差异，未执行。原语级全部语法高亮/Markdown 扩展/搜索实现与每种格式视觉仍未逐一对照，不能借本行认定渲染完全一致。 |
 | WORK-06 | `C/ui-sidebar-documentpreview/src/client/{html,image,pdf,office,excel}/index.ts` | `internal/ui/files/{media,image_read,image_view,table_preview,document_surface}.go`；`internal/desktop/{pdfpreview,mediapreview,webview}/` | not-reviewed | 主要为格式分派路径定位，未审阅各格式解码/导航/转换主体。不能以文件名或历史格式验收推定还原。GPU/GIF 深度项目为父线程已有暂停项，本次未核实或扩展。 |
 | WORK-07 | 矩阵所列 `ui-sidebar-right`、`ui-dockkit`；`C/ui-files/src/client/floating-preview.ts` | `internal/ui/files/{tabs,floating}.go`、`internal/ui/frame/workspace_panes.go` | entrypoint-sampled | 只抽样标签关闭符号、保存后关闭及浮动预览分派；停靠、尺寸、拖拽、浮动生命周期、恢复序列与原版 dock 契约未完整阅读。 |
 | WORK-08 | `C/ui-sidebar-browser/src/client/browser/{BrowserController,BrowserNavigation,BrowserPersistence}.ts`、`electron/workspace.ts` | `internal/ui/browserpreview/{actions,recording,workspace_scope}.go`、`cmd/whaleisle/browser_workspace.go` | entrypoint-sampled | 阅读 Go 截图/元素/录制取消、资源归属检查、导出状态和可信 workspace owner；原版浏览器文件仅定位。导航、标题/历史、分区存储、失败与恢复的双方状态链未完整对照。 |
@@ -31,8 +31,8 @@
 | DESK-03 | `src/main/{window,close-behavior,native-window-motion}.js` | `internal/ui/chrome/`、`internal/desktop/taskguard/`、`cmd/whaleisle/main.go` | entrypoint-sampled | Go 仅抽样窗口关闭菜单、show/restore/focus 与 hide-to-tray 路径；原版窗口实现仅定位。caption、drag/resize/snap、任务退出与多窗口焦点整体未审阅。 |
 | DESK-04 | `src/main/shortcuts.js`、矩阵所列 `ui-shortcuts` | `cmd/whaleisle/application_menu.go`、`web_application_shortcuts.go`、`internal/{shortcuts,shortcutprefs}/` | entrypoint-sampled | 阅读菜单 bindings resolve、keycap、pending command dispatch 与原版 commandItem。全局快捷键注册、编辑器/IME/modal/focus 优先级、配置冲突和命令参考未贯通。 |
 | DESK-05 | `src/main/index.js`、原版 main/preload 系统集成入口 | `internal/desktop/deeplink/parse.go`、`cmd/whaleisle/main.go` 的 `applyDeeplink`/单实例/URL scheme 注册 | entrypoint-sampled | 阅读 Go URL 解析和各 Action 路由、定位单实例与注册回调。原版接收/转发、开机启动、外部打开和 OS 注册主体未审阅。Session/Agents 路由已由父线程修复，见下节；不是本行全功能关闭。 |
-| DESK-06 | `src/main/update*.js`、`update-dialog.js` | `internal/desktop/update/`、`cmd/whaleisle/update_attention.go`、`internal/startuprec/` | not-reviewed | 仅定位矩阵/文件；检查、下载、取消、签名、安装、回滚和恢复均未在本次审阅。 |
-| DESK-07 | `build/installer.nsh`、原版 packaging resources | `scripts/nsis/whaleisle.nsi`、`scripts/nsis/branding/` | not-reviewed | 仅定位文件；语言、许可、欢迎/结束、升级及卸载行为均未审阅。 |
+| DESK-06 | `src/main/update.js:254-355,600-833`、`update-updater.js:284-388`、`update-dialog.js`；`build/installer.nsh`、原版 `installer-directories.nsh` | `cmd/whaleisle/{native_releases,update_check_lifecycle,update_attention,task_protection}.go`、`internal/desktop/update/{update,apply,start_staged,native_releases}.go`、本仓库 NSIS 事务 helper | behavior-compared | 追加精读 check single-flight、版本固定、full/delta 下载入口、取消、校验与缓存、下载后确认/任务保护/启动前重验，以及 Go 真实 native release UI 回调、选择旧版本与 staging 状态。发现安装目录覆盖/回滚缺口并在 NSIS 源码补齐，见下节。原版 `downloadFile` 内部所有续传/重试分支、CNB 镜像适配、完整启动通知与发布端接口仍未全量逐行对照。源码进度不等于下载/签名/安装通过。 |
+| DESK-07 | `build/installer.nsh` 全文及 `remove-directory.nsh`；`vendor/deepseek-harness/apps/desktop/scripts/installer-directories.nsh`；`scripts/windows-directory-installer.cjs`；原版 pinned `app-builder-lib/templates/nsis/uninstaller.nsh` | `scripts/nsis/whaleisle.nsi`、新增 `payload-transaction.nsh`、准备的 `transaction_source_test.go` | behavior-compared | 追加精读原版目录 stage/promote/rollback/commit、逐失败卸载和不跟链接清理，比较品牌/中英语言/许可/目录/结束页及真实 native Install/Uninstall sections。补齐自有 manifest 限定的目录事务与可重试失败管理，commit `b62ec7f`、`472ea92`、`863ce35`。原版完整多用户/elevation/坏记录 hygiene 支线和全部 electron-builder 生成模板未全面移植或逐行认证；未知/非 registered 旧管理入口不猜动。未 makensis 或安装/卸载。 |
 
 ## 已关闭项与排除项
 
@@ -43,3 +43,28 @@
 ## 使用边界
 
 本表覆盖了所列矩阵 ID 的登记，不覆盖全部原版实现。下一轮应针对未贯通的具体行为链阅读原版实现与 Go 实现，再决定修改；不能把本轮入口抽样、其他代理模块收尾、已有测试文件或历史验收记录改写为“全部原版模块源码已覆盖”。本次不准备或执行 QA；用户要求先完成全部源码修改，再统一验证。
+
+## 追加精读与源码修复（本轮后续）
+
+父线程要求继续读取 WORK-01/02/05、DESK-06/07 的原版和 Go 核心功能实现，以上五行已更新为 **behavior-compared**，含义仍是明确列出的行为已作源码对照，而非整行所有辅助模块逐行看完。当前登记数为：8 行 behavior-compared、10 行 entrypoint-sampled、1 行 not-reviewed（WORK-06）；不能把这一登记统计写成“19 行全部已完成还原”。WORK-06 有其他 owner 的独立审阅时，应合并其真实记录，不据此表代填。
+
+### 工作区移除与跨页行定位
+
+- 原版 `ui-workspace/navigation.ts:629-634` 在删除 Workspace 成功后，仅当当前 main 仍是该 Workspace 原有成员时 `clearMain`。Go 原来的 `ConfirmWorkspaceRemoval` 与 remove echo 只清 Workspace ID，不清所选会话。`3a7a94d` 捕获删除前成员与 selected，继续保留既有 client/generation/token 校验，并等待成功回执与权威列表不含该 ID 后走 `selectSessionLocked("")`。新导航、Host 更换、其他 Workspace 的所选会话及失败回执均不清；会话本体和配置目录保留。
+- `7aa7e62` 准备六种回归情形，并把已有 fixture 中“成功删除仍保留该会话视图”的旧断言改为原版行为，额外断言会话条目仍存在。没有执行这些测试。
+- 原版 `TextPreview.tsx:136-158` 在行目标超出已加载页面时继续加载到目标或 EOF；原 Go `requestLineNow` 会直接夹到当前末行。该缺口交由父线程分配其他 owner，产品提交 `a00c31309b8d1fede7511b94b9f74fac03b852be`，准备回归与独立附录提交 `8239234a4bcd021e05532612065e4d607c923210`；本代理实际阅读了前者的目标状态与调用差异，没有代其声称测试通过。
+
+### NSIS 安装、回滚和卸载失败语义
+
+实际原版依据：`installer-directories.nsh:95-132` 先生成新 stage，`:170-215` 才 backup/promote，失败走 `:148-168` restore；宿主 `scripts/windows-directory-installer.cjs:27-49` 强化恢复失败保留 backup，且仅在新安装 commit 后将旧目录 retirement 失败降为明确警告。`build/installer.nsh:117-176` 的卸载清理失败用非零状态和 Abort 保留管理；原 pinned `uninstaller.nsh:160` 起先执行清理，再删除安装注册。
+
+本次确认的真实缺口是原 native `.nsi` 向现有 `$INSTDIR` 逐文件覆盖、卸载直接 `RMDir /r` 并删除管理记录，没有上述目录事务和失败语义。父线程随后明确授权本代理修改 `.nsi` 与专用 helper，源码变更为：
+
+- `b62ec7f`：程序载荷先写唯一同级 `.new-{GUID}`，从该 fresh stage 生成 UTF-16 自有文件 manifest；生成失败中止。随后 backup 原目录、promote 新目录，提取/promote/注册/快捷方式失败走恢复；恢复本身失败保留 backup 并报告实际路径。只从 manifest 白名单根删除自有文件与空目录，逐级拒绝 reparse，不递归清理现有未知目录；normal/extended Windows 与 UNC 路径分别处理。
+- `472ea92`：现有目标目录无法枚举时停止，不能把读取失败推断为空目录。旧无 manifest 的 backup 保留并明确提示，不推定其内容均可删除。
+- 独立 fresh source review 发现：保留下来的旧卸载程序可能改指或删除新安装的同 App ID 注册/快捷方式。`863ce35` 添加 stage GUID 的 manifest identity 与注册 `NativeInstallID`；任何卸载重指/删除全局管理前检查自身捕获的 source path、identity 与当前两处 InstallLocation。对**当前已注册且 exact quoted UninstallString 归属该旧根**的 pre-ID 旧入口，在 backup 后、promote 前改为非可执行 `.retired-uninstaller`；失败中止，rollback 先恢复该入口再恢复目录。未知/非 registered 旧文件不猜测改名或删除。有匹配 manifest identity 的未来受控旧卸载器由 identity guard 限制。
+- 卸载 payload 清理失败保留注册和快捷方式；仅在它们仍属于本次源安装时重指实际 `.uninstall-{GUID}` 的重试入口。错误文本承认部分自有文件可能已删除，不能假称完整恢复；成功清理后才允许注销本次源安装。已 commit 的新安装不因旧文件 retirement 警告而回滚。
+
+`transaction_source_test.go` 仅准备了静态包装契约回归源码（顺序、manifest/no-follow、失败管理保留、旧身份与 legacy 入口退休）。这些测试不代替 Windows 安装/卸载和故障注入。本轮只执行过源文件读写、Git 和 gofmt，**没有运行 tests、build、makensis、安装器、应用、服务或账户/系统动作**。独立 reviewer 已只读复核已报旧入口问题的修复；这仍然不是编译或运行证据。
+
+剩余范围必须保留原样：原版所有辅助实现仍未逐行对照，编译/真实安装回滚/卸载失败验证待用户要求的统一验证阶段；当前没有工具阻断，但不能将“按要求未执行”写成验证通过，也不能反推为某功能缺失。
