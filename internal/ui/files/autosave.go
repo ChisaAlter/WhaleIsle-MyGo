@@ -15,7 +15,7 @@ func ensureSaveQueue(m Model, t *FileTab) error {
 // Explicit Save retains the desktop editor's write action for an existing
 // dirty local buffer after a failed or incomplete reread. Automatic observation
 // never grants that authority and never retries a failed queue.
-func prepareSaveQueue(m Model, t *FileTab, explicit bool) error {
+func checkSavePermission(m Model, t *FileTab, explicit bool) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
@@ -30,6 +30,13 @@ func prepareSaveQueue(m Model, t *FileTab, explicit bool) error {
 	}
 	if t.Remote {
 		return errors.New(label("远程预览草稿已保留，请使用会话远程文件保存。", "Remote preview draft kept. Save through the session's remote file editor."))
+	}
+	return nil
+}
+
+func prepareSaveQueue(m Model, t *FileTab, explicit bool) error {
+	if err := checkSavePermission(m, t, explicit); err != nil {
+		return err
 	}
 	if t.save != nil {
 		return nil

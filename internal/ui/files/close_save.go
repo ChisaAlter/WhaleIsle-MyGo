@@ -5,12 +5,11 @@ import (
 	"path/filepath"
 )
 
-// SaveDirtyForClose is an explicit Save-and-close gesture. Preflight every
-// retained dirty buffer before queuing a write; the supplied writer belongs to
-// this root only. Call CheckDirtyForClose on later frames, never Flush again.
-func SaveDirtyForClose(m Model) (pending bool, err error) {
+// dirtyTabsForClose validates the same captured draft and root ownership for
+// the read-only preflight and the subsequent explicit save gesture.
+func dirtyTabsForClose(m Model) ([]*FileTab, error) {
 	if m.Tabs == nil {
-		return false, errors.New("file pane is unavailable")
+		return nil, errors.New("file pane is unavailable")
 	}
 	capture(m)
 	root := filepath.Clean(m.WorkspaceRoot)
@@ -25,10 +24,33 @@ func SaveDirtyForClose(m Model) (pending bool, err error) {
 				continue
 			}
 			if m.WorkspaceRoot == "" || filepath.Clean(workspaceRoot) != root {
-				return false, errors.New(label("其他工作区仍有草稿，请切回其工作区保存后关闭。", "A different workspace has a draft. Return to that workspace and save it before closing."))
+				return nil, errors.New(label("其他工作区仍有草稿，请切回其工作区保存后关闭。", "A different workspace has a draft. Return to that workspace and save it before closing."))
 			}
 			dirty = append(dirty, tab)
 		}
+	}
+	for _, tab := range dirty {
+		if err := checkSavePermission(m, tab, true); err != nil {
+			return nil, errors.New(tab.Path + ": " + err.Error())
+		}
+	}
+	return dirty, nil
+}
+
+// PreflightDirtyForClose captures committed input and checks every local draft
+// without creating queues or scheduling writes. Mixed panes call all preflights
+// before starting either local or remote saves.
+func PreflightDirtyForClose(m Model) error {
+	_, err := dirtyTabsForClose(m)
+	return err
+}
+
+// SaveDirtyForClose queues one explicit save after all draft permissions pass.
+// Poll CheckDirtyForClose on later frames; never repeat Flush while waiting.
+func SaveDirtyForClose(m Model) (pending bool, err error) {
+	dirty, err := dirtyTabsForClose(m)
+	if err != nil {
+		return false, err
 	}
 	for _, tab := range dirty {
 		if err := prepareSaveQueue(m, tab, true); err != nil {

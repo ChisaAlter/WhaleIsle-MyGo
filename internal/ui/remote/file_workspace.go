@@ -22,6 +22,12 @@ func NewFileWorkspaceState() *FileWorkspaceState {
 	return &FileWorkspaceState{Files: remotestore.NewFiles()}
 }
 func (s *FileWorkspaceState) Dirty() bool { return s != nil && s.Files != nil && s.Files.HasDirty() }
+func (s *FileWorkspaceState) PreflightDirtyForClose() error {
+	if s == nil || s.Files == nil {
+		return nil
+	}
+	return s.Files.PreflightDirtyForClose()
+}
 func (s *FileWorkspaceState) SaveDirtyForClose() error {
 	if s == nil || s.Files == nil {
 		return nil

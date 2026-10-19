@@ -14,14 +14,12 @@ type fileCloseSave struct {
 	index      int
 }
 
-// SaveDirtyForClose begins an explicit pane-close save. Cached drafts whose
-// session is no longer selected cannot borrow the active session's authority.
-func (s *Files) SaveDirtyForClose() error {
-	s.mu.Lock()
+// preflightCloseSaveLocked captures the current draft metadata and validates
+// every owner without selecting a resource, queuing a write or changing closeSave.
+func (s *Files) preflightCloseSaveLocked() (*fileCloseSave, error) {
 	v := s.states[s.key]
 	if s.closeSave != nil {
-		s.mu.Unlock()
-		return fmt.Errorf("Remote close save is already pending")
+		return nil, fmt.Errorf("Remote close save is already pending")
 	}
 	if v != nil {
 		stashResource(v)
@@ -31,19 +29,16 @@ func (s *Files) SaveDirtyForClose() error {
 			continue
 		}
 		if state.Dirty() {
-			s.mu.Unlock()
-			return fmt.Errorf("Return to session %s to save its retained remote draft before closing", state.SessionID)
+			return nil, fmt.Errorf("Return to session %s to save its retained remote draft before closing", state.SessionID)
 		}
 		for _, r := range state.Tabs {
 			if r.Dirty() {
-				s.mu.Unlock()
-				return fmt.Errorf("Return to session %s to save its retained remote draft before closing", state.SessionID)
+				return nil, fmt.Errorf("Return to session %s to save its retained remote draft before closing", state.SessionID)
 			}
 		}
 	}
 	if v == nil {
-		s.mu.Unlock()
-		return nil
+		return nil, nil
 	}
 	var resources []FileResource
 	for _, r := range v.Tabs {
@@ -52,21 +47,39 @@ func (s *Files) SaveDirtyForClose() error {
 		}
 	}
 	if len(resources) == 0 {
-		s.mu.Unlock()
-		return nil
+		return nil, nil
 	}
 	if s.client == nil || !v.Bound || v.Busy || v.Resolving || s.current != nil && !s.current() {
-		s.mu.Unlock()
-		return fmt.Errorf("Remote session is not ready; drafts retained")
+		return nil, fmt.Errorf("Remote session is not ready; drafts retained")
 	}
 	for _, r := range resources {
 		if !r.Loaded || r.Stale || r.File.Binary || r.File.Truncated || r.File.Mtime == nil || len([]byte(r.Draft)) > filePreviewLimit {
-			s.mu.Unlock()
-			return fmt.Errorf("Remote file %s needs reconciliation before closing; draft retained", r.Path)
+			return nil, fmt.Errorf("Remote file %s needs reconciliation before closing; draft retained", r.Path)
 		}
 	}
-	s.closeSave = &fileCloseSave{key: s.key, client: s.client, generation: s.generation, current: s.current, resources: resources}
-	restoreResource(v, resources[0])
+	return &fileCloseSave{key: s.key, client: s.client, generation: s.generation, current: s.current, resources: resources}, nil
+}
+
+// PreflightDirtyForClose checks all retained drafts without scheduling writes.
+// Mixed native panes call both local and remote preflights before saving either.
+func (s *Files) PreflightDirtyForClose() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.preflightCloseSaveLocked()
+	return err
+}
+
+// SaveDirtyForClose begins an explicit pane-close save. Cached drafts whose
+// session is no longer selected cannot borrow the active session's authority.
+func (s *Files) SaveDirtyForClose() error {
+	s.mu.Lock()
+	plan, err := s.preflightCloseSaveLocked()
+	if err != nil || plan == nil {
+		s.mu.Unlock()
+		return err
+	}
+	s.closeSave = plan
+	restoreResource(s.states[plan.key], plan.resources[0])
 	s.mu.Unlock()
 	s.Save()
 	return nil
