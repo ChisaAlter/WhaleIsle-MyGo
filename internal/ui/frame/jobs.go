@@ -182,11 +182,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(4, 7).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(!job.Observable())
 			button.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-					if live {
-						ui.Spinner(c).Size(10, 10).TextColor(muted)
-					} else {
-						ui.Box(c).Size(6, 6).Radius(3).Background(muted)
-					}
+					jobStateIndicator(c, job.Status)
 					if !live {
 						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Field)).TextColor(muted).Shrink(0)
 						ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
@@ -271,6 +267,23 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 		if s.SelectedID == job.ID {
 			jobOutputView(c, controller, s, job, colors)
 		}
+	})
+}
+
+func jobStateIndicator(c *ui.Context, status string) {
+	if status == "running" {
+		ui.Spinner(c).Label("Job state: running").Size(10, 10).TextColor(c.Theme().TextMuted)
+		return
+	}
+	ink := c.Theme().Success
+	switch status {
+	case "stopping", "killed":
+		ink = c.Theme().Warning
+	case "failed":
+		ink = c.Theme().Danger
+	}
+	ui.Box(c).Label("Job state: "+status).Size(10, 10).Shrink(0).Center().Children(func() {
+		ui.Box(c).Size(6, 6).Radius(3).Background(ink)
 	})
 }
 
