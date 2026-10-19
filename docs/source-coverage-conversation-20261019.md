@@ -147,3 +147,15 @@
 已确认两条可达缺陷：旧FollowEvents synthetic OnCancel永久写`cancelled[eventId]`，新replay被误作cancelled；忽略旧Cancel又会让新旧handler争读旧waiter。另普通approval没有Scoped EventDelivery时，旧HTTP回执仅按eventId处理，会删除/报错到新replay卡。
 
 新增 `interaction/events_delivery.go` 的 BeginEventsDelivery / HandleWaterfallForDelivery / OnResultForDelivery / OnCancelForDelivery / RetireEventsDelivery。Begin同锁退役旧owner，取消其HTTP权限、释放其live waiter/claim、记住callId draft；不写Host取消tombstone、不清continued RPC卡。新replay建fresh waiter；结果同锁核owner、waiter与本次response authority指针。每次返回的outcome合并原Scoped authority与attempt context，carrier退休在HTTP开始前/进行中均可撤权。真实Host Cancel保留原语义。`dsh.EventsFuncs.Retire func()` 与可选OnRetire合同把generation退出和Host取消分开；具备Retire合同的FollowEvents在退役后join本次handler任务。旧调用接口仍兼容。main captured-owner接线由root/settings组集成；本批仅产品源、gofmt、diffcheck，未tests/build/连接Host。
+
+### 工作区 header 的 open-in-app 原生收口
+
+依据为固定 e353e8e，不采用原版 dirty 测试改动。完整读取 `P/ui-open-in-app/src/client/{index.ts,controller.ts,OpenInAppAction.tsx,OpenTargetButton.tsx,OpenTargetButton.module.css,applications.ts,locales.ts,open-failure-toast.tsx}` 和 `host/open-in-app/src/{index.ts,shared.ts}`；本组生产源相对固定点无 dirty 差异。header utilities 注册在 index.ts:131-133，id open-in-app/order -10；同文件:92 注册 workspace.openLocal，作用域为 main conversation 且无 active panel。文件 association/reveal 是另一套 OpenPathAction 路径，不能拿来冒充目录打开。
+
+controller.ts:24-106 的子状态包括初始 apps=null、每 controller 只读一次、失败变空并隐藏、过滤未知应用、存储 dsh.open-in-app.choice、记忆项失效回退第一个、所有控件共用忙态、POST 成功/失败。OpenInAppAction.tsx:43-57 表明 key=absolutePath 负责局部 feedback 生命周期，只有菜单显式选应用且打开成功才 choose，主按钮不改选择。OpenTargetButton.tsx:92-151 包括 pending/global busy、单应用无菜单、多应用右对齐菜单/键盘首项/默认标记/应用图标失败回退、忙态 spinner 与禁止动作。CSS:57 目录 pill 高27/圆角14，:85 disabled opacity=1。错误 toast 保留到用户关闭，离开该绝对路径或控制卸载则退休。
+
+真实 Host 证明：shared.ts 定义 GET /open-in-app/apps 返回 {apps:string[]}、GET /open-in-app/icon/<id> 返回图标、POST /open-in-app/open body {app,path}；index.ts:186 校验已有 connection requestRejection，:193/206/241 分别注册三路由，:274 起校验已安装应用及绝对目录再启动。新 `internal/store/session/open_in_app.go:29` 复用 captured Client.HTTP、Endpoint 和 Cookie，禁止重定向；Applications/Icon 使用这些真实路由。CaptureOpen 在同步手势锁内核 Host epoch/client/selected Session/准确 Cwd，返回冻结 POST 闭包；worker 不改读下一 Session，不重试不确定 POST。
+
+新 `internal/ui/frame/conversation_open_in_app.go` 的 WorkspaceOpenInAppState 持有 once-per-Host 应用/图标缓存和客户端选择；ObserveHost 在页面不挂载时仍退休旧 Host，普通 Session/页面切换不清缓存。载入/图标/打开晚回执在 captured source/context 下发布；Close 只用于窗口最终关闭。launch 全局串行；菜单成功后更新 choice 并通过 root 的 save 回调持久化，保存失败明确回执“应用已打开，但无法记住选择”。FinishFrame 只清已卸载控件的 toast，路径变更也撤销其旧反馈，绝不清应用缓存。OpenCurrent 与 split button 复用同一默认应用/busy/capture，给既有 workspace.openLocal 路由使用。主 header utilities、Model/mainState/config 生命周期与命令资格门控由 root 窄接线；本文件不修改共享 main/frame/header。
+
+此项本轮仅源码实现、API 对照、gofmt 与精确 diffcheck。未连接 Host、未调用打开接口、未读写用户配置，未运行 tests/build/应用；菜单实际 popup 焦点/窄窗/长应用列表滚动、busy 的 toolkit 视觉 seat 和全部 Host 平台应用启动仍待统一验证。不能据此声称产品/视觉验收通过。
