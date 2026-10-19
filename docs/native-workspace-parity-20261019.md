@@ -586,7 +586,7 @@ Matching original-window/DPI/state capture and hover/menu operation remain unacc
 
 The full-function matrix retains live model/paid agent actions, accounts/credentials, real remote devices, system integrations/installers and unexercised page lifecycles as unverified or partial. No such action was silently authorized or simulated as a pass. Current user processes/configuration/session files are unchanged, all verified source work is in local branch commits, no push/release/CI/main merge or PR#2 merge occurred, and GPU/GIF work remains paused. This is a concrete core-workspace recovery milestone, not completion of the entire original desktop acceptance.
 
-## Final local native recovery milestone (2026-10-19)
+## Earlier complete-folder native recovery checkpoint (2026-10-19, source9232f52)
 
 The complete local directory is `../WhaleIsle-MyGo-local-9232f52/`; its only user entry is `WhaleIsle.exe`. Desktop and preview were built from clean source `9232f52c7f371b6312911b14c2caf6d6e3756b6c` (Go VCS modified=false), with the verified rc.2 runtime, Node24.21, private pnpm12.4.1, Ghostty DLL/license, pet assets, preview helper and component samples. This is a fixed-path local folder with internally relocated junctions; it is not an installer or an archive for relocation to another machine.
 
@@ -601,3 +601,12 @@ Product review: E/independent-compact-native-review-20261019.json found no confi
 Checkpoint follow-up: restored full-width native trajectory event/content rows and selected-only inspector; the layout/copy regression and nested tab checks passed with independent review. Settings13 actual native states, usage strict persisted-corpus/exports/cache, directory hidden/path/newfolder/retry, application shortcut ownership and source font/reduced-motion fixes are now documented in the full-function matrix. Directory Retry was additionally verified for Tab/Enter/Escape; its portal focus scope is explicit, rather than a pointer-only focus exception. The final EXE is refreshed only after these changes are committed and the source is clean.
 
 Phone resources were also completed in the local folder:25569 entries,3143 relocated links, closure SHA256 3a24c27571c2bef7d95baac64d0cf234d8ab1aa0c615cb17bba1a6c409cd008c; no test data or Miniflare tools copied. The final resource resolver gate passed without starting a service. Actual original daemon/local Worker/E2EE proof is separate from that packaging gate, and neither certifies a real phone, public relay or voice assets. E/phone-final-component-receipt/acceptance-receipt.json is the packaging receipt.
+
+
+## Final checkpoint follow-up and remaining shutdown boundary
+
+The complete folder keeps its historical9232f52 name; BUILD.json and portable-package.json identify the current binaries. Source033d61c corrects the short trajectory ledger that the actual d7df1ff capture showed centered vertically. The full-height application column now anchors rows below the timeline; geometry/copy/nested-tab regressions passed2.898s.
+
+The d7df1ff ordinary entry booted a private Host and its managed stop request reached resume save, but protected quit did not complete. The exact inspection/confirmation branch remains uncollected: task-control can require native consent or block on unavailable coverage, and the startup marker does not imply admission readiness. Do not carry the old9232f52 graceful-exit result forward. The native computer-use capability remains unavailable, so no OS confirmation was submitted and no guard was weakened. Both owned paths/start times were checked before isolated forced cleanup; their listener closed and test data was archived. E/portable-ordinary-start-d7df1ff.json retains this partial result and the initial time-comparison guard rejection before signaling.
+
+Final integration uses E/checkpoint-final-build.json, E/native-workspace-checkpoint-final.json/.png and E/portable-ordinary-start-checkpoint-final.json. Original pixel parity, protected OS confirmation and the full91-row feature scope remain subject to their specific gates.
