@@ -70,7 +70,13 @@ func TestResumeVisibilityCapturesNativeFilesInputWithoutAnotherPaint(t *testing.
 					t.Fatal("fixture has no native marked text")
 				}
 				if mode == "selection-marked-only" || mode == "selection-marked-commit" {
-					client.SetMarkedText(&r, "候选", ui.TextInputRange{Start: 2, End: 2})
+					// Native ranges address the current virtual document. The old
+					// two-unit selection is now a three-unit marked candidate.
+					markedRange, marked := client.MarkedRange()
+					if !marked {
+						t.Fatal("native candidate disappeared before its explicit-range update")
+					}
+					client.SetMarkedText(&markedRange, "候选", ui.TextInputRange{Start: 2, End: 2})
 				}
 				want = oldDraft
 				if mode == "marked-commit" || mode == "selection-marked-commit" {
@@ -82,8 +88,19 @@ func TestResumeVisibilityCapturesNativeFilesInputWithoutAnotherPaint(t *testing.
 					}
 				}
 			}
+			if mode == "replace" || mode == "marked-commit" || mode == "selection-marked-commit" {
+				// Query the same guarded native client before recovery: a wrong
+				// replacement range is an input-fixture failure, not lost storage.
+				text, actual := client.TextForRange(ui.TextInputRange{End: 1 << 20})
+				if text != want || actual != (ui.TextInputRange{End: ui.UTF16Len(want)}) {
+					t.Fatalf("native committed text=%q range=%+v, want %q range0..%d", text, actual, want, ui.UTF16Len(want))
+				}
+				if markedRange, marked := client.MarkedRange(); marked {
+					t.Fatalf("native commit retained marked range %+v", markedRange)
+				}
+			}
 			if frames != before || draft != oldDraft {
-				t.Fatal("fixture built the pending native text into its string Model")
+				t.Fatalf("native fixture advanced frames %d->%d or Model draft %q->%q", before, frames, oldDraft, draft)
 			}
 			if q.due(clock.now(), func() {}) {
 				t.Fatal("last edit was not throttled")
@@ -102,11 +119,17 @@ func TestResumeVisibilityCapturesNativeFilesInputWithoutAnotherPaint(t *testing.
 				t.Fatal(err)
 			}
 			workspace := saved.Workspaces[root]
-			if workspace == nil || len(workspace.Open) != 1 || workspace.Open[0].Draft != want || workspace.Open[0].Preview != "disk baseline" || frames != before {
-				t.Fatal("visibility checkpoint missed committed native storage or persisted virtual preedit")
+			if workspace == nil {
+				t.Fatalf("visibility checkpoint omitted workspace %q", root)
+			}
+			if len(workspace.Open) != 1 {
+				t.Fatalf("visibility checkpoint open tabs=%d, want1", len(workspace.Open))
+			}
+			if workspace.Open[0].Draft != want || workspace.Open[0].Preview != "disk baseline" || frames != before {
+				t.Fatalf("visibility checkpoint draft=%q want=%q preview=%q want disk baseline; frames=%d want%d", workspace.Open[0].Draft, want, workspace.Open[0].Preview, frames, before)
 			}
 			if bytes, err := os.ReadFile(filename); err != nil || string(bytes) != "disk baseline" {
-				t.Fatal("recovery checkpoint wrote to the workspace file")
+				t.Fatalf("workspace disk=%q err=%v, want unchanged disk baseline", bytes, err)
 			}
 		})
 	}
