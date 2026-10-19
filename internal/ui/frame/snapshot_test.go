@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	desktopgit "whaleisle/internal/desktop/git"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -28,6 +29,20 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	}
 	i18n.SetLocale("en")
 	defer i18n.SetLocale(i18n.DefaultLocale)
+	preferences := theme.CurrentPreferences()
+	theme.SetPreferences(theme.Defaults())
+	defer theme.SetPreferences(preferences)
+	trailing := func(terminal bool) func(*ui.Context, string) {
+		return func(c *ui.Context, density string) {
+			chrome.WorkspaceTrailing(c, chrome.WorkspaceTrailingModel{
+				Status:        &desktopgit.RepositoryStatus{IsRepo: true, Branch: "main", HasOrigin: true, HasUpstream: true, IsDefault: true},
+				WorkspaceRoot: "C:/isolated-fixture", Density: density, GitLoaded: true,
+				ShowTerminal: true, TerminalAvailable: true, TerminalOpen: terminal, ShowSurfaces: true, SurfacesOpen: true,
+				OnToggleTerminal: func() {}, OnToggleSurfaces: func() {}, OnGitAction: func(string) {},
+				RenderBranches: func(*ui.Context, ui.Element, *bool) {},
+			})
+		}
+	}
 	type record struct {
 		Name                                        string `json:"name"`
 		Width, Height                               int
@@ -66,8 +81,9 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 				}
 				right := float32(0)
 				tt := ui.NewTester(func(c *ui.Context) {
+					theme.ApplyInterface(c)
 					originalScrollbarTheme(c)
-					View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, SystemDark: dark, OnOpenSettings: func() {}})
+					View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, SystemDark: dark, OnOpenSettings: func() {}, WorkspaceTrailing: trailing(terminal)})
 				}, width, 800)
 				save(fmt.Sprintf("shell-%d-dark-%v-terminal-%v", width, dark, terminal), tt, &sizes, right, width, 800)
 			}
@@ -80,13 +96,14 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 			sizes.Bottom = 0
 			right := float32(0)
 			draft := "A composer fixture"
-			snap := session.ViewState{Messages: []session.Message{{ID: "snapshot-user", Seq: 1, Kind: session.MessageKindText, Role: "user", Body: strings.Repeat("A literal user message with a deliberately long line. ", 18)}, {ID: "snapshot-assistant", Seq: 2, Kind: session.MessageKindText, Role: "assistant", Body: "Assistant fixture with a short response."}}}
+			snap := session.ViewState{SelectedID: "current", HistoryReady: true, Items: []session.Item{{SessionID: "current", Title: "Current conversation"}}, Messages: []session.Message{{ID: "snapshot-user", Seq: 1, Kind: session.MessageKindText, Role: "user", Body: strings.Repeat("A literal user message with a deliberately long line. ", 18)}, {ID: "snapshot-assistant", Seq: 2, Kind: session.MessageKindText, Role: "assistant", Body: "Assistant fixture with a short response."}}}
 			tt := ui.NewTester(func(c *ui.Context) {
+				theme.ApplyInterface(c)
 				originalScrollbarTheme(c)
 				cols := sizes.ResolveColumns(float32(width), true)
 				right = cols.Details
 				colors := theme.Resolve("system").Active(dark)
-				m := Model{Store: session.New(), Sizes: &sizes, FilePaneWidth: &right, RightPaneOpen: true, Draft: &draft, SystemDark: dark, OnOpenSettings: func() {}}
+				m := Model{Store: session.New(), Sizes: &sizes, FilePaneWidth: &right, RightPaneOpen: true, Draft: &draft, SystemDark: dark, OnOpenSettings: func() {}, WorkspaceTrailing: trailing(false)}
 				ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Children(func() { mainRow(c, m, snap, colors, chrome.Color(colors.Border), chrome.Color(colors.Muted)) })
 			}, width, 800)
 			save(fmt.Sprintf("populated-%d-dark-%v", width, dark), tt, &sizes, right, width, 800)
@@ -97,8 +114,9 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	right := float32(0)
 	open := true
 	tt := ui.NewTester(func(c *ui.Context) {
+		theme.ApplyInterface(c)
 		originalScrollbarTheme(c)
-		View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: open, FilePaneWidth: &right, OnOpenSettings: func() {}})
+		View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: open, FilePaneWidth: &right, OnOpenSettings: func() {}, WorkspaceTrailing: trailing(true)})
 	}, 1600, 800)
 	save("first-open-1600", tt, &sizes, right, 1600, 800)
 	tt.SetSize(900, 800)
