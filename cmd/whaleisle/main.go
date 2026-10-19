@@ -6155,6 +6155,85 @@ func mainView(c *ui.Context) {
 						visualReplyState = session.VisualReplyState{}
 					}
 					groupRoom, groupMembers := state.assistantGroupMembers(snap.SelectedID)
+					openDelivered := func(path string, complete func(error)) {
+						current := func() bool {
+							if sessions == nil {
+								return false
+							}
+							latest := sessions.Snapshot()
+							if latest.SelectedID != snap.SelectedID || complete != nil && latest.TurnFiles.Scope != snap.TurnFiles.Scope {
+								return false
+							}
+							state.dshMu.Lock()
+							client := state.dshClient
+							state.dshMu.Unlock()
+							return fmt.Sprintf("%p\x00%s", client, snap.SelectedID) == fileBindingID
+						}
+						finish := func(err error) {
+							if !current() {
+								return
+							}
+							if complete != nil {
+								complete(err)
+							} else if err != nil {
+								sessions.SetLastAction(err.Error())
+							}
+						}
+						if !current() {
+							return
+						}
+						fileTabs.Plans.ShowFiles(snap.SelectedID)
+						if mediapreview.Supports(path) {
+							state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, false)
+							finish(nil)
+							return
+						}
+						handled, err := files.OpenPresentedPath(files.Model{
+							BindingID: fileBindingID, SessionID: snap.SelectedID,
+							WorkspaceRoot: snap.SelectedCwd,
+							Tabs:          &fileTabs, SelectedFile: &selectedFile,
+							Preview: &filePreview, PreviewErr: &filePreviewErr,
+							Editing: &fileEditing, EditDraft: &fileEditDraft,
+							EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
+						}, path)
+						if err != nil {
+							finish(err)
+							return
+						}
+						if !handled {
+							if st.State != harness.Ready {
+								finish(fmt.Errorf("workspace path open unavailable"))
+							} else if complete == nil {
+								sessions.OpenWorkspacePath(context.Background(), path, "", "")
+							} else {
+								go func() {
+									ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+									defer cancel()
+									err := sessions.OpenHistoryReferenceOnHost(ctx, snap.TurnFiles.Scope, path)
+									mygo.RunOnMain(func() { finish(err) })
+								}()
+							}
+							return
+						}
+						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocHTML {
+							state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+							finish(nil)
+							return
+						}
+						if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
+							state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
+							finish(nil)
+							return
+						}
+						state.mu.Lock()
+						state.filesPaneOpen, state.rightPaneTab = true, "files"
+						state.mu.Unlock()
+						filesPaneOpen, rightPaneTab = true, "files"
+						if win != nil {
+							win.Update(func() {})
+						}
+						finish(nil)
+					}
 					frameModel := frame.Model{
 						CustomPanelContent: state.customPanelContent(snap.SelectedID, themeID),
 						GroupRoom:          groupRoom, GroupMembers: groupMembers,
@@ -6831,62 +6910,9 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnOpenDeliverable: func(path string) {
-							if sessions == nil || sessions.Snapshot().SelectedID != snap.SelectedID {
-								return
-							}
-							state.dshMu.Lock()
-							currentClient := state.dshClient
-							state.dshMu.Unlock()
-							if fmt.Sprintf("%p\x00%s", currentClient, snap.SelectedID) != fileBindingID {
-								return
-							}
-							fileTabs.Plans.ShowFiles(snap.SelectedID)
-							if mediapreview.Supports(path) {
-								state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, false)
-								return
-							}
-							handled, err := files.OpenPresentedPath(files.Model{
-								BindingID: fileBindingID, SessionID: snap.SelectedID,
-								WorkspaceRoot: snap.SelectedCwd,
-								Tabs:          &fileTabs, SelectedFile: &selectedFile,
-								Preview: &filePreview, PreviewErr: &filePreviewErr,
-								Editing: &fileEditing, EditDraft: &fileEditDraft,
-								EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
-							}, path)
-							if err != nil {
-								sessions.SetLastAction(err.Error())
-								return
-							}
-							if !handled {
-								// Keep remote, missing-cwd and outside-cwd paths intact.
-								// Only the explicit card click invokes the existing Host opener.
-								if st.State == harness.Ready {
-									sessions.OpenWorkspacePath(context.Background(), path, "", "")
-								} else {
-									sessions.SetLastAction("workspace path open unavailable")
-								}
-								return
-							}
-							if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocHTML {
-								state.openLocalHTML(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
-								return
-							}
-							if workspacefs.ClassifyDoc(selectedFile) == workspacefs.DocPDF {
-								state.openLocalPDF(sessions, snap.SelectedID, snap.SelectedCwd, selectedFile)
-								return
-							}
-							state.mu.Lock()
-							state.filesPaneOpen = true
-							state.rightPaneTab = "files"
-							state.mu.Unlock()
-							filesPaneOpen = true
-							rightPaneTab = "files"
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						FileOpenWithApps: fileOpenWithApps,
+						OnOpenDeliverable:      func(path string) { openDelivered(path, nil) },
+						OnOpenHistoryReference: openDelivered,
+						FileOpenWithApps:       fileOpenWithApps,
 						OnOpenMedia: func(path string, floating bool) {
 							state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, floating)
 						},

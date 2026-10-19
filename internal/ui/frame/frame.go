@@ -339,6 +339,7 @@ type Model struct {
 	OnOpenCitationURL            func(url string)
 	OnOpenPlanResource           func(planpreview.Document)
 	OnOpenDeliverable            func(path string)
+	OnOpenHistoryReference       func(path string, complete func(error))
 	VisualReply                  session.VisualReplyState
 	VisualReplyBitmap            *ui.Bitmap
 	OnPreviewVisualReply         func(attachmentID string)
@@ -980,6 +981,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
 											OnOpenPlanResource:           m.OnOpenPlanResource,
 											OnOpenDeliverable:            m.OnOpenDeliverable,
+											OnOpenHistoryReference:       m.OnOpenHistoryReference,
 											VisualReply:                  m.VisualReply,
 											VisualReplyBitmap:            m.VisualReplyBitmap,
 											OnPreviewVisualReply:         m.OnPreviewVisualReply,
