@@ -3,19 +3,20 @@ package dsh
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/rand/v2"
 	"time"
 )
 
-// Backoff controls reconnect delays after a carrier loss.
+// Backoff controls reconnect delay caps after a carrier loss.
 type Backoff struct {
-	Initial time.Duration
-	Max     time.Duration
-	Factor  float64
+	Initial, Max time.Duration
+	Factor       float64
 }
 
 func (b Backoff) normalized() Backoff {
 	if b.Initial <= 0 {
-		b.Initial = 200 * time.Millisecond
+		b.Initial = 500 * time.Millisecond
 	}
 	if b.Max <= 0 {
 		b.Max = 10 * time.Second
@@ -28,15 +29,25 @@ func (b Backoff) normalized() Backoff {
 
 var ErrReconnectRequested = errors.New("dsh mux: manual reconnect requested")
 
+type muxAttempt struct {
+	ctx        context.Context
+	cancel     context.CancelCauseFunc
+	ready      chan struct{}
+	readySet   bool // guarded by Mux.maintainMu
+	generation <-chan struct{}
+	watchDone  chan struct{}
+	started    time.Time
+	deadline   time.Time
+}
 type muxMaintainer struct {
-	ctx           context.Context
-	requests      chan struct{}
-	cancelAttempt context.CancelFunc // guarded by Mux.maintainMu
-	stopping      bool
+	ctx      context.Context
+	requests chan struct{}
+	attempt  *muxAttempt // guarded by Mux.maintainMu
+	stopping bool
 }
 
-// RequestReconnect interrupts the current attempt or retry delay. It keeps the
-// same Mux and returns false when no active MaintainMux owns it.
+// RequestReconnect interrupts the current attempt or retry delay, retaining
+// the same Mux. It returns false without an active MaintainMux owner.
 func (m *Mux) RequestReconnect() bool {
 	m.maintainMu.Lock()
 	defer m.maintainMu.Unlock()
@@ -44,8 +55,8 @@ func (m *Mux) RequestReconnect() bool {
 	if o == nil || o.stopping || o.ctx.Err() != nil {
 		return false
 	}
-	if o.cancelAttempt != nil {
-		o.cancelAttempt()
+	if o.attempt != nil {
+		o.attempt.cancel(ErrReconnectRequested)
 	}
 	select {
 	case o.requests <- struct{}{}:
@@ -54,10 +65,51 @@ func (m *Mux) RequestReconnect() bool {
 	return true
 }
 
-// MaintainMux keeps a mux connected until ctx ends. Each onReady receives an
-// attempt context canceled before its streams are retired. Manual retries skip
-// backoff; onLost also receives ErrReconnectRequested for those retries.
+// BindGeneration registers the existing events pump's completion. A rejected
+// caller must not start that pump. Retirement waits for its Retire/join cleanup.
+func (m *Mux) BindGeneration(ctx context.Context, done <-chan struct{}) bool {
+	m.maintainMu.Lock()
+	defer m.maintainMu.Unlock()
+	o := m.maintainer
+	if o == nil || o.stopping || o.attempt == nil || o.attempt.ctx != ctx || ctx.Err() != nil || done == nil || o.attempt.generation != nil {
+		return false
+	}
+	o.attempt.generation = done
+	return true
+}
+
+// MarkReady accepts the current generation's first $events Ready only.
+func (m *Mux) MarkReady(ctx context.Context) bool {
+	m.maintainMu.Lock()
+	defer m.maintainMu.Unlock()
+	o := m.maintainer
+	if o == nil || o.stopping || o.attempt == nil || o.attempt.ctx != ctx || ctx.Err() != nil || o.attempt.readySet {
+		return false
+	}
+	if !o.attempt.deadline.IsZero() && !time.Now().Before(o.attempt.deadline) {
+		return false
+	}
+	o.attempt.readySet = true
+	close(o.attempt.ready)
+	return true
+}
+
+// MaintainMux preserves the socket-ready callback contract for existing users.
+// Native $events owners use MaintainMuxWithRecovery for generation readiness.
 func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(context.Context) error, onLost func(error)) error {
+	return maintainMux(ctx, mux, backoff.normalized(), RecoveryConfig{}, false, onReady, onLost, nil)
+}
+
+// MaintainMuxWithRecovery includes Dial and $events readiness in the Host's
+// readiness deadline. Warning receipts are logs, not another UI state source.
+func MaintainMuxWithRecovery(ctx context.Context, mux *Mux, config RecoveryConfig, onReady func(context.Context) error, onLost func(error), onWarning func(error)) error {
+	if err := config.validate(); err != nil {
+		return err
+	}
+	return maintainMux(ctx, mux, config.backoff(), config, true, onReady, onLost, onWarning)
+}
+
+func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig, requireReady bool, onReady func(context.Context) error, onLost func(error), onWarning func(error)) error {
 	o := &muxMaintainer{ctx: ctx, requests: make(chan struct{}, 1)}
 	mux.maintainMu.Lock()
 	if mux.maintainer != nil {
@@ -69,6 +121,10 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 	lost := make(chan error, 1)
 	mux.mu.Lock()
 	prev := mux.OnCarrierLost
+	previousDialTimeout := mux.DialTimeout
+	if requireReady && mux.DialTimeout <= 0 {
+		mux.DialTimeout = time.Duration(config.GenerationReadyTimeoutMS) * time.Millisecond
+	}
 	mux.OnCarrierLost = func(err error) {
 		if prev != nil {
 			prev(err)
@@ -82,13 +138,11 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 	defer func() {
 		mux.maintainMu.Lock()
 		o.stopping = true
-		if o.cancelAttempt != nil {
-			o.cancelAttempt()
-		}
 		mux.maintainMu.Unlock()
 		_ = mux.closeCarrier(true)
 		mux.mu.Lock()
 		mux.OnCarrierLost = prev
+		mux.DialTimeout = previousDialTimeout
 		mux.mu.Unlock()
 		mux.maintainMu.Lock()
 		mux.maintainer = nil
@@ -99,7 +153,7 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 			onLost(err)
 		}
 	}
-	manualPending := func() bool {
+	pending := func() bool {
 		select {
 		case <-o.requests:
 			return true
@@ -107,15 +161,21 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 			return false
 		}
 	}
-	retire := func(cancel context.CancelFunc) {
-		cancel()
+	retire := func(a *muxAttempt) {
+		a.cancel(context.Canceled)
 		mux.maintainMu.Lock()
-		o.cancelAttempt = nil
+		done := a.generation
+		if o.attempt == a {
+			o.attempt = nil
+		}
 		mux.maintainMu.Unlock()
 		_ = mux.closeCarrier(true)
+		if done != nil {
+			<-done
+		}
+		<-a.watchDone
 		mux.Reset()
 	}
-	b := backoff.normalized()
 	delay := b.Initial
 	for {
 		if err := ctx.Err(); err != nil {
@@ -125,75 +185,42 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 		case <-lost:
 		default:
 		}
-		attempt, cancel := context.WithCancel(ctx)
+		attempt, cancel := context.WithCancelCause(ctx)
+		a := &muxAttempt{ctx: attempt, cancel: cancel, ready: make(chan struct{}), watchDone: make(chan struct{}), started: time.Now()}
+		if requireReady {
+			a.deadline = a.started.Add(time.Duration(config.GenerationReadyTimeoutMS) * time.Millisecond)
+		}
 		mux.maintainMu.Lock()
-		o.cancelAttempt = cancel
+		o.attempt = a
 		mux.maintainMu.Unlock()
-		if manualPending() {
-			retire(cancel)
-			delay = b.Initial
-			notify(ErrReconnectRequested)
-			continue
+		if requireReady {
+			go mux.watchReadiness(o, a, config, onWarning)
+		} else {
+			close(a.watchDone)
 		}
-		err := mux.Dial(attempt)
+		err, manual, fatal := runMuxAttempt(ctx, mux, a, o.requests, lost, pending, requireReady, onReady)
+		if errors.Is(err, ErrReconnectRequested) {
+			manual = true
+			pending()
+		}
+		select {
+		case <-a.ready:
+			delay = b.Initial
+		default:
+		}
+		retire(a)
 		if ctx.Err() != nil {
-			cancel()
 			return ctx.Err()
 		}
-		if manualPending() {
-			retire(cancel)
-			delay = b.Initial
-			notify(ErrReconnectRequested)
-			continue
-		}
-		if err != nil {
-			retire(cancel)
-			notify(err)
-			manual, waitErr := waitMuxRetry(ctx, o.requests, delay)
-			if waitErr != nil {
-				return waitErr
-			}
-			if manual {
-				delay = b.Initial
-				notify(ErrReconnectRequested)
-			} else {
-				delay = nextDelay(delay, b)
-			}
-			continue
-		}
-		delay = b.Initial
-		if onReady != nil {
-			err = onReady(attempt)
-		}
-		if ctx.Err() != nil {
-			cancel()
-			return ctx.Err()
-		}
-		if manualPending() {
-			retire(cancel)
-			notify(ErrReconnectRequested)
-			continue
-		}
-		if err != nil {
-			cancel()
+		if fatal {
 			return err
 		}
-		manual := false
-		select {
-		case <-ctx.Done():
-			cancel()
-			return ctx.Err()
-		case <-o.requests:
-			manual = true
-			err = ErrReconnectRequested
-		case err = <-lost:
-		}
-		retire(cancel)
 		notify(err)
 		if manual {
+			delay = b.Initial
 			continue
 		}
-		manual, err = waitMuxRetry(ctx, o.requests, delay)
+		manual, err = waitMuxRetry(ctx, o.requests, jitterDelay(delay))
 		if err != nil {
 			return err
 		}
@@ -206,31 +233,119 @@ func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(co
 	}
 }
 
+func runMuxAttempt(host context.Context, mux *Mux, a *muxAttempt, requests <-chan struct{}, lost <-chan error, pending func() bool, requireReady bool, onReady func(context.Context) error) (err error, manual, fatal bool) {
+	if pending() {
+		return ErrReconnectRequested, true, false
+	}
+	err = mux.Dial(a.ctx)
+	if host.Err() != nil {
+		return host.Err(), false, false
+	}
+	if pending() {
+		return ErrReconnectRequested, true, false
+	}
+	if a.ctx.Err() != nil {
+		return context.Cause(a.ctx), false, false
+	}
+	if err != nil {
+		return err, false, false
+	}
+	if onReady != nil {
+		err = onReady(a.ctx)
+	}
+	if host.Err() != nil {
+		return host.Err(), false, false
+	}
+	if pending() {
+		return ErrReconnectRequested, true, false
+	}
+	if a.ctx.Err() != nil {
+		return context.Cause(a.ctx), false, false
+	}
+	if err != nil {
+		return err, false, !requireReady
+	}
+	if !requireReady {
+		mux.MarkReady(a.ctx)
+	}
+	select {
+	case <-host.Done():
+		return host.Err(), false, false
+	case <-requests:
+		return ErrReconnectRequested, true, false
+	case <-a.ctx.Done():
+		return context.Cause(a.ctx), false, false
+	case err = <-lost:
+		return err, false, false
+	}
+}
+
+func (m *Mux) watchReadiness(o *muxMaintainer, a *muxAttempt, config RecoveryConfig, onWarning func(error)) {
+	defer close(a.watchDone)
+	timeout := time.NewTimer(time.Until(a.deadline))
+	defer timeout.Stop()
+	if config.GenerationReadyWarnMS <= config.GenerationReadyTimeoutMS {
+		warning := time.NewTimer(time.Until(a.started.Add(time.Duration(config.GenerationReadyWarnMS) * time.Millisecond)))
+		defer warning.Stop()
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-a.ready:
+			return
+		case <-warning.C:
+		}
+		m.maintainMu.Lock()
+		active := m.maintainer == o && o.attempt == a && !a.readySet && a.ctx.Err() == nil
+		m.maintainMu.Unlock()
+		if active && onWarning != nil {
+			onWarning(fmt.Errorf("connection generation is still not ready after %dms", config.GenerationReadyWarnMS))
+		}
+	}
+	select {
+	case <-a.ctx.Done():
+		return
+	case <-a.ready:
+		return
+	case <-timeout.C:
+	}
+	failure := fmt.Errorf("connection generation was not ready within %dms", config.GenerationReadyTimeoutMS)
+	m.maintainMu.Lock()
+	active := m.maintainer == o && o.attempt == a && !a.readySet && a.ctx.Err() == nil
+	if active {
+		a.cancel(failure)
+	}
+	m.maintainMu.Unlock()
+	if active && onWarning != nil {
+		onWarning(failure)
+	}
+}
+
+func jitterDelay(cap time.Duration) time.Duration {
+	return time.Duration(float64(cap) * (0.5 + rand.Float64()*0.5))
+}
 func sleepBackoff(ctx context.Context, d time.Duration) error {
 	_, err := waitMuxRetry(ctx, nil, d)
 	return err
 }
-
 func waitMuxRetry(ctx context.Context, requests <-chan struct{}, d time.Duration) (bool, error) {
-	t := time.NewTimer(d)
-	defer t.Stop()
+	timer := time.NewTimer(d)
+	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		return false, ctx.Err()
 	case <-requests:
 		return true, nil
-	case <-t.C:
+	case <-timer.C:
 		return false, nil
 	}
 }
-
 func nextDelay(cur time.Duration, b Backoff) time.Duration {
-	next := time.Duration(float64(cur) * b.Factor)
-	if next > b.Max {
+	next := float64(cur) * b.Factor
+	if next >= float64(b.Max) {
 		return b.Max
 	}
-	if next < b.Initial {
+	if next < float64(b.Initial) {
 		return b.Initial
 	}
-	return next
+	return time.Duration(next)
 }

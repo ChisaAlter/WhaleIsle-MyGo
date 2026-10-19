@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
-	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -18,46 +16,9 @@ const MaximumStopSequenceMS int64 = 2147483646
 // ReadStopSequenceInterval reads the existing authenticated Host boot document.
 // It interprets only the shortcuts plugin's JSON assignment, never JavaScript.
 func (c *Client) ReadStopSequenceInterval(ctx context.Context) (int64, error) {
-	origin, err := url.Parse(c.Endpoint.Origin)
-	if err != nil || origin.Host == "" || origin.User != nil || (origin.Scheme != "http" && origin.Scheme != "https") {
-		return 0, errors.New("invalid Host origin")
-	}
-	endpoint := *origin
-	endpoint.Path, endpoint.RawPath, endpoint.RawQuery, endpoint.Fragment = "/", "", "", ""
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	body, err := c.readBootDocument(ctx)
 	if err != nil {
 		return 0, err
-	}
-	req.Header.Set("Accept", "text/html")
-	if c.Endpoint.Cookie != "" {
-		req.Header.Set("Cookie", c.Endpoint.Cookie)
-	}
-	client := *c.http()
-	previousRedirect := client.CheckRedirect
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if req.URL.Scheme != origin.Scheme || req.URL.Host != origin.Host {
-			return errors.New("Host bootstrap cross-origin redirect refused")
-		}
-		if previousRedirect != nil {
-			return previousRedirect(req, via)
-		}
-		if len(via) >= 10 {
-			return errors.New("too many Host bootstrap redirects")
-		}
-		return nil
-	}
-	response, err := client.Do(req)
-	if err != nil {
-		return 0, errors.New("Host shortcut configuration could not be loaded")
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return 0, errors.New("Host shortcut configuration unavailable")
-	}
-	const limit = 4 << 20
-	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
-	if err != nil || len(body) > limit {
-		return 0, errors.New("invalid Host boot document")
 	}
 	return parseStopSequenceInterval(string(body))
 }

@@ -87,7 +87,7 @@ func (a *connectionAttemptState) withCurrent(ctx context.Context, fn func()) boo
 
 func (a *connectionAttemptState) ready(ctx context.Context, hydrate func()) {
 	a.withCurrent(ctx, func() {
-		if a.publish(true, false) {
+		if a.mux.MarkReady(ctx) && a.publish(true, false) {
 			hydrate()
 		}
 	})
