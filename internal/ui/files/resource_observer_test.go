@@ -54,6 +54,7 @@ func TestResourceObservationDisabledRetainsLoadedContent(t *testing.T) {
 }
 func TestResourceWatchUsesOwnedReaderAndCancelsOnPause(t *testing.T) {
 	m, tab := resourceModel()
+	tab.Remote = true // The completed read selected the Host, not a local editor.
 	signal := make(chan func(), 1)
 	stopped := make(chan struct{})
 	notified := make(chan struct{}, 16)
@@ -167,6 +168,7 @@ func TestResourceAutoRefreshPreferencePersistsWithoutWatcher(t *testing.T) {
 }
 func TestResourceReaderHostFailureNeverFallsBackLocal(t *testing.T) {
 	m, tab := resourceModel()
+	tab.Remote = true
 	wanted := errors.New("Host read failed")
 	m.ReadRemoteContext = func(context.Context, string) (string, error) { return "", wanted }
 	got := resourceReader(m, tab)(context.Background())

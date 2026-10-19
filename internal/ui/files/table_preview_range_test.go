@@ -100,7 +100,7 @@ func TestTablePreviewRangeFixture(t *testing.T) {
 	if _, e := readTablePreview(context.Background(), filepath.Join(dir, "not-read.xls"), workspacefs.XLSXPageRequest{}); !errors.Is(e, os.ErrNotExist) {
 		t.Fatal("missing XLS file did not report not-exist")
 	}
-	if !isTablePreviewPath("a.XLSX") || !isTablePreviewPath("data.xls") || !isTablePreviewPath("data.csv") || !isTablePreviewPath("data.tsv") {
+	if !isTablePreviewPath("a.XLSX") || !isTablePreviewPath("data.xls") || isTablePreviewPath("data.csv") || isTablePreviewPath("data.tsv") {
 		t.Fatal("supported workbook route missing")
 	}
 	big := filepath.Join(dir, "oversize.xlsx")

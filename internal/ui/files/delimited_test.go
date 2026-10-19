@@ -2,13 +2,15 @@ package files
 
 import "testing"
 
-func TestDelimitedPathsUseReadOnlyTablePreview(t *testing.T) {
-	for _, path := range []string{"data.csv", "data.TSV", "book.xls", "book.xlsx"} {
+func TestDelimitedPathsKeepDesktopTextAndBinaryWorkbookRoutes(t *testing.T) {
+	for _, path := range []string{"book.xls", "book.XLSX"} {
 		if !isTablePreviewPath(path) {
 			t.Fatalf("%s bypassed table reader", path)
 		}
 	}
-	if isTablePreviewPath("notes.txt") {
-		t.Fatal("text incorrectly routed to table")
+	for _, path := range []string{"data.csv", "data.TSV", "notes.txt"} {
+		if isTablePreviewPath(path) || !isAsyncTextPath(path) {
+			t.Fatalf("%s left the desktop source editor", path)
+		}
 	}
 }
