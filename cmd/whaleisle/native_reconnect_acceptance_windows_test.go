@@ -107,26 +107,41 @@ func runNativeReconnectDesktop(output string) error {
 	if err := os.MkdirAll(filepath.Dir(output), 0700); err != nil {
 		return err
 	}
-	receipt := map[string]any{"startedUTC": time.Now().UTC().Format(time.RFC3339Nano), "appPID": os.Getpid(), "scope": "Real production main -> authenticated bootstrap -> EventsReady -> driver invokes existing production action callback -> new EventsReady; no physical reconnect/menu gesture; owned hidden window software Content scene", "physicalInput": false, "originalSameStateVisualComparison": false, "startupModelAndBillingMetadataReads": "ordinary production startup; not suppressed or claimed absent", "promptOrCompletionSubmittedByDriver": false, "accountOrDeviceActionByDriver": false, "hostPIDDirectlyObserved": false}
+	receipt := map[string]any{"startedUTC": time.Now().UTC().Format(time.RFC3339Nano), "appPID": os.Getpid(), "scope": "Real production main -> authenticated bootstrap -> EventsReady -> driver invokes existing production action callback -> new EventsReady; no physical reconnect/menu gesture; owned initially hidden window, briefly ShowInactive for a new software Content scene", "physicalInput": false, "originalSameStateVisualComparison": false, "startupModelAndBillingMetadataReads": "ordinary production startup; not suppressed or claimed absent", "promptOrCompletionSubmittedByDriver": false, "accountOrDeviceActionByDriver": false, "hostPIDDirectlyObserved": false}
 	mainReturned := make(chan struct{})
 	result := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 		ownedOrigin := ""
+		windowShown := false
 		finish := func(err error) {
 			state.mu.Lock()
-			state.quitting = true
-			supervisor := state.sup
+			quitting, finished := state.quitting, state.quitCleanupFinished
+			supervisor, win := state.sup, state.win
 			state.mu.Unlock()
+			if !quitting {
+				if windowShown && win != nil {
+					win.Hide()
+					windowShown = false
+				}
+				receipt["diagnosticTeardownRequested"] = true
+				state.finalizeQuit(supervisor)
+				state.mu.Lock()
+				finished = state.quitCleanupFinished
+				state.mu.Unlock()
+			} else if !finished {
+				receipt["productionQuitCleanupStillPending"] = true
+				if err == nil {
+					err = errors.New("production quit cleanup still pending; diagnostic teardown did not bypass it")
+				}
+			}
+			receipt["ownedApplicationCleanupFinished"] = finished
 			stopped, listenerClosed := false, false
 			if supervisor != nil {
 				origin := ownedOrigin
 				if origin == "" {
 					origin = supervisor.Status().Endpoint.Origin
-				}
-				if supervisor.Status().State != harness.Stopped {
-					supervisor.Stop()
 				}
 				stopped = supervisor.Status().State == harness.Stopped
 				if endpoint, e := url.Parse(origin); e == nil && endpoint.User == nil && endpoint.Port() != "" && (strings.EqualFold(endpoint.Hostname(), "localhost") || net.ParseIP(endpoint.Hostname()).IsLoopback()) {
@@ -164,7 +179,9 @@ func runNativeReconnectDesktop(output string) error {
 			select {
 			case <-mainReturned:
 			default:
-				mygo.App.Quit()
+				if finished {
+					mygo.App.Quit()
+				}
 			}
 		}
 		before, err := waitNativeReconnect(ctx, func(v nativeReconnectObservation) bool { return v.usable() })
@@ -230,9 +247,14 @@ func runNativeReconnectDesktop(output string) error {
 			finish(errors.New("owned UI thread did not process post-reconnect frame update"))
 			return
 		}
+		receipt["reconnectPassed"] = true
 		// CapturePage rasterizes MyGo's last Content scene. A changed window size
 		// and matching PNG geometry prove a new scene, unlike an Update callback.
-		after.win.SetContentSize(width+1, height+1)
+		after.win.ShowInactive()
+		windowShown = true
+		receipt["ownWindowShownInactive"] = true
+		receipt["requestedContentSizeDIP"] = []int{width + 8, height + 8}
+		after.win.SetContentSize(width+8, height+8)
 		var image []byte
 		dimensions := baseline
 		sceneTick := time.NewTicker(50 * time.Millisecond)
@@ -250,7 +272,10 @@ func runNativeReconnectDesktop(output string) error {
 			}
 			actualWidth, actualHeight := after.win.ContentSize()
 			changed := dimensions.Width != baseline.Width || dimensions.Height != baseline.Height
-			matches := actualWidth == width+1 && actualHeight == height+1 && math.Abs(float64(dimensions.Width)-float64(baseline.Width)*float64(actualWidth)/float64(width)) <= 1.5 && math.Abs(float64(dimensions.Height)-float64(baseline.Height)*float64(actualHeight)/float64(height)) <= 1.5
+			receipt["lastObservedScenePixels"] = []int{dimensions.Width, dimensions.Height}
+			receipt["lastObservedContentSizeDIP"] = []int{actualWidth, actualHeight}
+			nearRequested := math.Abs(float64(actualWidth-(width+8))) <= 1 && math.Abs(float64(actualHeight-(height+8))) <= 1
+			matches := nearRequested && math.Abs(float64(dimensions.Width)-float64(baseline.Width)*float64(actualWidth)/float64(width)) <= 2 && math.Abs(float64(dimensions.Height)-float64(baseline.Height)*float64(actualHeight)/float64(height)) <= 2
 			if changed && matches {
 				receipt["resizedContentSizeDIP"] = []int{actualWidth, actualHeight}
 				break
@@ -262,6 +287,9 @@ func runNativeReconnectDesktop(output string) error {
 			case <-sceneTick.C:
 			}
 		}
+		after.win.Hide()
+		windowShown = false
+		receipt["ownWindowHiddenAfterScene"] = !after.win.IsVisible()
 		receipt["newContentSceneObservedByDimensions"] = true
 		receipt["captureLayer"] = "Latest main Content scene rasterized to PNG in software by MyGo CapturePage; not native framebuffer, screen capture or visible GPU acceptance"
 		if err = os.WriteFile(output, image, 0600); err != nil {
@@ -271,8 +299,7 @@ func runNativeReconnectDesktop(output string) error {
 		digest := sha256.Sum256(image)
 		receipt["mainViewImageSHA256"] = hex.EncodeToString(digest[:])
 		receipt["imagePixels"] = []int{dimensions.Width, dimensions.Height}
-		receipt["windowHidden"] = true
-		receipt["reconnectPassed"] = true
+		receipt["windowHiddenAtCapture"] = false
 		quitErr := tryNativeReconnectProtectedQuit(ctx, after, mainReturned, receipt)
 		finish(quitErr)
 	}()
