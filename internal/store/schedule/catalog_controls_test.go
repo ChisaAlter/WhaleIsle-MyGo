@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -23,6 +24,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	oldRecord := `{"id":"job","title":"Morning","prompt":"Check updates","kind":"daily","time":"09:00:00.000","timeZone":"Asia/Shanghai","scheduledAt":"2026-10-16T01:00:00Z","sessionId":"owner","status":"active"}`
 	newRecord := strings.Replace(oldRecord, "2026-10-16", "2026-10-17", 1)
 	var count atomic.Int32
+	var catalogs, lists atomic.Int32
 	var fallback atomic.Bool
 	var failAll atomic.Bool
 	var blockNext atomic.Bool
@@ -45,6 +47,11 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 			t.Error(err)
 		}
 		count.Add(1)
+		if body.Method == "schedule/catalog" {
+			catalogs.Add(1)
+		} else if body.Method == "schedule/list" {
+			lists.Add(1)
+		}
 		result := map[string]any{"ok": true, "value": []json.RawMessage{json.RawMessage(newRecord)}}
 		if blockNext.CompareAndSwap(true, false) {
 			close(blocked)
@@ -68,18 +75,19 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 		raw, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": body.RPCID, "result": result})
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(string(raw)))}, nil
 	})}
-	s := New()
-	s.Attach(client, func() {
+	notify := func() {
 		select {
 		case notified <- struct{}{}:
 		default:
 		}
-	})
-	wait := func() ViewState {
+	}
+	s := New()
+	s.Attach(client, notify)
+	wait := func(store *Store) ViewState {
 		t.Helper()
 		deadline := time.After(2 * time.Second)
 		for {
-			snap := s.Snapshot()
+			snap := store.Snapshot()
 			if !snap.Loading {
 				return snap
 			}
@@ -96,7 +104,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 		t.Fatal("unopened catalog fetched in background")
 	}
 	s.Refresh(context.Background(), "selected")
-	snap := wait()
+	snap := wait(s)
 	if len(snap.Rows) != 1 || snap.Rows[0].SessionID != "owner" || snap.Rows[0].Status != "active" {
 		t.Fatalf("catalog: %+v", snap)
 	}
@@ -114,7 +122,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	}
 	nextOwner := s.BeginEvents(context.Background(), client)
 	s.OnEventsReady(nextOwner)
-	snap = wait()
+	snap = wait(s)
 	if !strings.Contains(snap.Rows[0].ScheduledAt, "2026-10-17") {
 		t.Fatalf("newest catalog missing: %+v", snap)
 	}
@@ -131,24 +139,68 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	if count.Load() != before {
 		t.Fatal("canceled stream dispatched refresh")
 	}
+	// A settled global source retains its complete answer and scope on failure;
+	// it must not replace that answer with a partial selected-Session fallback.
+	global := snap
+	if global.Err != "" || !global.CatalogReady || !global.CatalogSettled || global.CatalogRevision == 0 ||
+		!strings.Contains(global.CatalogHint, "All sessions") || len(global.Rows) != 1 ||
+		global.Rows[0].SessionID != "owner" || global.Rows[0].Status != "active" ||
+		global.Rows[0].Origin != client.Endpoint.Origin || global.Rows[0].ID != "job" ||
+		global.Rows[0].Title != "Morning" || string(global.Rows[0].Raw) != newRecord || lists.Load() != 0 {
+		t.Fatalf("global source did not settle authoritative fixture facts: %+v", global)
+	}
+	beforeCatalog, beforeList := catalogs.Load(), lists.Load()
 	fallback.Store(true)
 	s.Refresh(context.Background(), "selected")
-	snap = wait()
-	if !strings.Contains(snap.CatalogHint, "Current session only") || snap.Rows[0].SessionID != "selected" || snap.Rows[0].Status != "active" {
-		t.Fatalf("unlabeled or inactive fallback: %+v", snap)
+	snap = wait(s)
+	if !strings.Contains(snap.Err, "unsupported") || !strings.Contains(snap.Err, "catalog unavailable") ||
+		snap.CatalogReady || !snap.CatalogSettled || !reflect.DeepEqual(snap.Rows, global.Rows) ||
+		snap.CatalogHint != global.CatalogHint || !strings.Contains(snap.CatalogHint, "All sessions") ||
+		strings.Contains(snap.CatalogHint, "Current session only") || snap.CatalogRevision != global.CatalogRevision ||
+		snap.CatalogRequest != global.CatalogRequest+1 || catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList {
+		t.Fatalf("failed catalog replaced settled global scope/facts or queried a partial list: %+v catalog=%d list=%d", snap, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
 	}
-	previousHint := snap.CatalogHint
+	beforeCatalog, beforeList = catalogs.Load(), lists.Load()
 	failAll.Store(true)
 	s.Refresh(context.Background(), "another-session")
-	snap = wait()
-	if snap.Err == "" || snap.CatalogHint != previousHint || len(snap.Rows) != 1 || snap.Rows[0].SessionID != "selected" {
-		t.Fatalf("failed read relabeled retained data: %+v", snap)
+	snap = wait(s)
+	if !strings.Contains(snap.Err, "offline") || snap.CatalogReady || !snap.CatalogSettled ||
+		!reflect.DeepEqual(snap.Rows, global.Rows) || snap.CatalogHint != global.CatalogHint ||
+		snap.CatalogRevision != global.CatalogRevision || snap.CatalogRequest != global.CatalogRequest+2 ||
+		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList {
+		t.Fatalf("failed read under another Session relabeled global data: %+v catalog=%d list=%d", snap, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
 	}
 	other := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://other.invalid"}, HTTP: client.HTTP}
 	s.Attach(other, nil)
 	s.OnEmit(nextOwner, dsh.EventsEmit{Type: dsh.EventEmit, Event: "schedule/changed"})
-	if len(s.Snapshot().Rows) != 0 || s.Snapshot().Loading {
+	if len(s.Snapshot().Rows) != 0 || s.Snapshot().Loading || s.Snapshot().CatalogSettled {
 		t.Fatal("old Host repopulated catalog")
+	}
+	// Compatibility fallback is a separate first-read case, before this source
+	// has ever settled a global catalog. Its rows must stay labeled as partial.
+	fresh := New()
+	fresh.Attach(other, notify)
+	failAll.Store(false)
+	beforeCatalog, beforeList = catalogs.Load(), lists.Load()
+	fresh.Refresh(context.Background(), "selected")
+	partial := wait(fresh)
+	if partial.Err != "" || partial.CatalogReady || partial.CatalogSettled || partial.CatalogRevision != 0 ||
+		partial.CatalogRequest != 1 || !strings.Contains(partial.CatalogHint, "Current session only: selected") ||
+		strings.Contains(partial.CatalogHint, "All sessions") || len(partial.Rows) != 1 ||
+		partial.Rows[0].SessionID != "selected" || partial.Rows[0].Status != "active" ||
+		partial.Rows[0].Origin != other.Endpoint.Origin || partial.Rows[0].ID != "job" || partial.Rows[0].Title != "Morning" ||
+		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList+1 {
+		t.Fatalf("first-read fallback lost its partial owner/status or request route: %+v catalog=%d list=%d", partial, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
+	}
+	beforeCatalog, beforeList = catalogs.Load(), lists.Load()
+	failAll.Store(true)
+	fresh.Refresh(context.Background(), "another-session")
+	failedPartial := wait(fresh)
+	if !strings.Contains(failedPartial.Err, "offline") || failedPartial.CatalogReady || failedPartial.CatalogSettled ||
+		failedPartial.CatalogRevision != 0 || failedPartial.CatalogRequest != partial.CatalogRequest+1 ||
+		!reflect.DeepEqual(failedPartial.Rows, partial.Rows) || failedPartial.CatalogHint != partial.CatalogHint ||
+		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList+1 {
+		t.Fatalf("failed fallback relabeled retained selected-Session data: %+v catalog=%d list=%d", failedPartial, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
 	}
 	rows := parseScheduleList(api.ListResult4{json.RawMessage(newRecord), json.RawMessage(strings.ReplaceAll(strings.ReplaceAll(oldRecord, `"active"`, `"inactive"`), `"job"`, `"ended"`))})
 	if got := FilterEntries(rows, "check UPDATES", "active"); len(got) != 1 || got[0].ID != "job" {
