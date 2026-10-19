@@ -490,3 +490,10 @@ ordinary browser img intrinsic behavior. No source dimension-unit omission
 remains in this browser route. Actual physical/font-relative/default-size
 rendering, helper handshake, font availability, owner transitions and the three
 platform renderers remain unverified until the coordinated validation phase.
+
+The source-only root-integration review also found and closed the same size
+refresh in Market's generic `plugin_artwork.go` consumer: it now copies the
+current seat dimensions after Prepare before computing an auto-height aspect
+ratio. Plugin-manager `packagePreview` uses this path at width640/height:auto;
+it must not keep a2:1 placeholder after the browser resolves another ratio.
+This is a source correction, not a claim of rendered-image validation.

@@ -82,6 +82,7 @@ func PluginImage(c *ui.Context, source string, width, height float32, owners ...
 			return false
 		}
 		decoded.svgSeat.Prepare(c, owner)
+		decoded.width, decoded.height = decoded.svgSeat.Size()
 		if decoded.svgSeat.Error() != nil {
 			return false
 		}
