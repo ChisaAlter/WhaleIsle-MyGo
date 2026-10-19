@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,13 +40,24 @@ func CompareStableVersions(current, latest string) (int, bool) {
 	return result, true
 }
 
+// Match the reviewed catalog value by content, including copied screenshots.
+// CatalogItem now contains a slice and cannot use Go's struct comparison.
+func sameCatalogItem(a, b CatalogItem) bool {
+	return a.ID == b.ID && a.Owner == b.Owner && a.Repo == b.Repo &&
+		a.Description == b.Description && a.PackageName == b.PackageName &&
+		a.Homepage == b.Homepage && a.InstallSpec == b.InstallSpec &&
+		a.Category == b.Category && a.Added == b.Added &&
+		a.Replacement == b.Replacement && a.Stars == b.Stars &&
+		a.Deprecated == b.Deprecated && slices.Equal(a.Screenshots, b.Screenshots)
+}
+
 // LatestVersion is a read-only registry metadata request. README contents and
 // Git repository tags are never treated as executable or authoritative versions.
 func (s *Service) LatestVersion(ctx context.Context, item CatalogItem) (string, error) {
 	s.mu.Lock()
 	known, ok := s.known[item.ID]
 	s.mu.Unlock()
-	if !ok || known != item || !ValidInstallItem(known) || known.InstallSpec != known.PackageName || !validNPM(known.PackageName) {
+	if !ok || !sameCatalogItem(known, item) || !ValidInstallItem(known) || known.InstallSpec != known.PackageName || !validNPM(known.PackageName) {
 		return "", errors.New("No verified npm update source")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
