@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"os"
-	"reflect"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
@@ -81,15 +80,7 @@ func (s *mainState) syncHostAppearance() {
 		if !h.Writable {
 			e.OnSave = nil
 		}
-		clean := reflect.DeepEqual(e.Draft, e.Saved)
-		e.Saved = h.Preferences.Clone()
-		if ownerChanged || clean {
-			e.Draft = h.Preferences.Clone()
-			e.Preview = false
-		}
-		if h.Error != "" {
-			e.Status = h.Error
-		}
+		e.AcceptHost(h.Preferences, ownerChanged, h.Error)
 	}
 	if e == nil || !e.Preview {
 		theme.SetPreferences(h.Preferences)

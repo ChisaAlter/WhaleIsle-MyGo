@@ -46,7 +46,9 @@ func (e *Editor) CommitGeneralFontEdit(role string) bool {
 		e.generalFontAttempted = e.generalFontRevision
 		return false
 	}
-	delete(e.generalFontEdits, role)
+	if e.Pending == nil || !e.Pending() {
+		delete(e.generalFontEdits, role)
+	}
 	return true
 }
 
@@ -80,7 +82,7 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 		e.Status = fmt.Sprintf("Font size must be an integer from %.0f to %.0f", lo, hi)
 		return false
 	}
-	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	next, draft := e.writeBaseline(), e.Draft.Clone()
 	switch role {
 	case "text":
 		next.Chat.Size, draft.Chat.Size = size, size
@@ -104,7 +106,7 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 // original FontFamilyRow does. Reading settings never rewrites raw families.
 func (e *Editor) SaveFontFamily(role, family string) bool {
 	family = normalizeFontFamily(family)
-	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	next, draft := e.writeBaseline(), e.Draft.Clone()
 	switch role {
 	case "text":
 		next.Interface.Family, next.Chat.Family = family, family
@@ -137,11 +139,18 @@ func (e *Editor) saveFontField(next, draft Preferences) bool {
 		e.Status = err.Error()
 		return false
 	}
-	e.Saved, e.Draft, e.Preview = next, draft, false
+	pending := e.Pending != nil && e.Pending()
+	if pending {
+		submitted := next.Clone()
+		e.pendingSave = &submitted
+	} else {
+		e.Saved = next
+	}
+	e.Draft, e.Preview = draft, false
 	SetPreferences(next)
 	RefreshWindows()
 	e.Status = "已保存 / Saved"
-	if e.Pending != nil && e.Pending() {
+	if pending {
 		e.Status = "正在保存… / Saving…"
 	}
 	return true
@@ -150,7 +159,7 @@ func (e *Editor) saveFontField(next, draft Preferences) bool {
 // Appearance's typography controls commit their own source-defined role only;
 // a custom-theme draft stays with its editor until its separate Save.
 func (e *Editor) SaveAppearanceFont(role string, value FontPreference) bool {
-	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	next, draft := e.writeBaseline(), e.Draft.Clone()
 	switch role {
 	case "interface":
 		next.Interface = value

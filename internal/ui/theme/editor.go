@@ -1,5 +1,7 @@
 package theme
 
+import "reflect"
+
 type Editor struct {
 	Draft       Preferences
 	Saved       Preferences
@@ -10,6 +12,7 @@ type Editor struct {
 	OnImport    func() (string, error)
 	Pending     func() bool
 	FlushWrites func()
+	pendingSave *Preferences
 	// Only General's explicitly edited family inputs enter this pending set.
 	generalFontEdits     map[string]string
 	generalFontRevision  uint64
@@ -49,14 +52,65 @@ func (e *Editor) Save() {
 		e.Status = err.Error()
 		return
 	}
-	e.Saved = e.Draft.Clone()
-	SetPreferences(e.Saved)
+	pending := e.Pending != nil && e.Pending()
+	if !pending {
+		e.Saved = e.Draft.Clone()
+	} else {
+		next := e.Draft.Clone()
+		e.pendingSave = &next
+	}
+	SetPreferences(e.Draft)
 	RefreshWindows()
 	e.Preview = false
 	e.Status = "已保存 / Saved"
-	if e.Pending != nil && e.Pending() {
+	if pending {
 		e.Status = "正在保存… / Saving…"
 	}
+}
+
+// AcceptHost settles an asynchronous writer with the accepted namespace value.
+// A failed write retains its draft; a later edit is never acknowledged by an
+// older submission. Owner replacement deliberately discards that owner's draft.
+func (e *Editor) AcceptHost(p Preferences, ownerChanged bool, failure string) {
+	clean := reflect.DeepEqual(e.Draft, e.Saved)
+	submitted := e.pendingSave != nil && reflect.DeepEqual(e.Draft, *e.pendingSave)
+	e.Saved = p.Clone()
+	if ownerChanged || clean || failure == "" && submitted {
+		e.Draft = p.Clone()
+		e.Preview = false
+	}
+	if failure != "" {
+		e.Status = failure
+	} else if e.pendingSave != nil {
+		e.Status = "已保存 / Saved"
+	}
+	if ownerChanged {
+		e.generalFontEdits = nil
+		e.generalFontRevision, e.generalFontAttempted = 0, 0
+	} else if failure == "" && e.pendingSave != nil {
+		for role, value := range e.generalFontEdits {
+			accepted := ""
+			switch role {
+			case "text":
+				accepted = p.Interface.Family
+			case "code":
+				accepted = p.Code.Family
+			case "terminal":
+				accepted = p.Terminal.Family
+			}
+			if normalizeFontFamily(value) == accepted {
+				delete(e.generalFontEdits, role)
+			}
+		}
+	}
+	e.pendingSave = nil
+}
+
+func (e *Editor) writeBaseline() Preferences {
+	if e.pendingSave != nil {
+		return e.pendingSave.Clone()
+	}
+	return e.Saved.Clone()
 }
 func (e *Editor) DeleteSelected() {
 	for i, f := range e.Draft.Custom {

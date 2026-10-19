@@ -19,6 +19,17 @@ type ThemeBinding struct {
 	timer           *time.Timer
 	ready, inFlight bool
 	queueRevision   uint64
+	writeError      string
+}
+
+func (t *ThemeBinding) Snapshot() ViewState {
+	view := t.NamespaceBinding.Snapshot()
+	t.store.mu.Lock()
+	defer t.store.mu.Unlock()
+	if t.currentLocked() && t.writeError != "" {
+		view.Err = t.writeError
+	}
+	return view
 }
 
 func (s *Store) BindTheme() *ThemeBinding {
@@ -144,6 +155,7 @@ func (s *Store) flushQueuedTheme() {
 	t.ready = false
 	t.inFlight = true
 	t.inFlightFields = fields
+	t.writeError = ""
 	s.saving, s.err = true, nil
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
@@ -185,6 +197,7 @@ func (s *Store) flushQueuedTheme() {
 			}
 		}
 		if err != nil {
+			t.writeError = err.Error()
 			s.err, s.lastAction = err, err.Error()
 		} else {
 			s.err, s.lastAction = nil, "appearance saved"

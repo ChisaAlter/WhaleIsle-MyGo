@@ -154,13 +154,13 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 	group := ui.Column(c.Key("general-font-settings")).FillWidth().MinWidth(0).Gap(0)
 	open := ui.Local(group, "expanded", func() bool { return false })
 	group.Children(func() {
-		generalFontSizeRow(c, e, "text", providerCopy("字号大小", "Font size"), providerCopy("只影响会话内容的字号", "Only affects conversation content"), e.Saved.Chat.Size, 10, 22, open, fg, muted)
+		generalFontSizeRow(c, e, "text", providerCopy("字号大小", "Font size"), providerCopy("只影响会话内容的字号", "Only affects conversation content"), e.Draft.Chat.Size, 10, 22, open, fg, muted)
 		if *open {
 			generalFontFamilyRow(c, e, "text", providerCopy("文本字体", "Text font"), providerCopy("用于界面与会话正文。多个字体用逗号分隔，留空使用默认", "Used for the interface and conversation text. Separate fonts with commas; leave empty for the default"), e.Saved.Interface.Family, fg, muted)
 			generalFontFamilyRow(c, e, "code", providerCopy("代码字体", "Code font"), providerCopy("用于代码块、行内代码与工具输出。多个字体用逗号分隔，留空使用默认", "Used for code blocks, inline code, and tool output. Separate fonts with commas; leave empty for the default"), e.Saved.Code.Family, fg, muted)
-			generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code font size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Saved.Code.Size, 10, 20, nil, fg, muted)
+			generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code font size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Draft.Code.Size, 10, 20, nil, fg, muted)
 			generalFontFamilyRow(c, e, "terminal", providerCopy("终端字体", "Terminal font"), providerCopy("用于侧栏终端。多个字体用逗号分隔，留空使用默认", "Used for the sidebar terminal. Separate fonts with commas; leave empty for the default"), e.Saved.Terminal.Family, fg, muted)
-			generalFontSizeRow(c, e, "terminal", providerCopy("终端字号", "Terminal font size"), providerCopy("用于侧栏终端", "Used for the sidebar terminal"), e.Saved.Terminal.Size, 10, 20, nil, fg, muted)
+			generalFontSizeRow(c, e, "terminal", providerCopy("终端字号", "Terminal font size"), providerCopy("用于侧栏终端", "Used for the sidebar terminal"), e.Draft.Terminal.Size, 10, 20, nil, fg, muted)
 		}
 		if e.Status != "" {
 			ui.Text(c, e.Status).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
