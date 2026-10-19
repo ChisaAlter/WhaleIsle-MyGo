@@ -67,6 +67,7 @@ func main() {
 	base := flag.String("root", "", "existing workspace directory for a fresh isolated run")
 	out := flag.String("out", "", "JSON report destination")
 	resumeRun := flag.String("resume-run", "", "owned isolated run to continue after fixture-only repair")
+	contributionsOnly := flag.Bool("native-contributions-only", false, "read only the actual fixed native contribution graph in a fresh owned Host")
 	flag.Parse()
 	if *stage == "" || *base == "" || *out == "" {
 		fmt.Fprintln(os.Stderr, "-stage, -root and -out are required")
@@ -74,7 +75,7 @@ func main() {
 	}
 	started := time.Now()
 	r := report{Started: started.UTC().Format(time.RFC3339)}
-	err := run(*stage, *base, *resumeRun, &r)
+	err := run(*stage, *base, *resumeRun, *contributionsOnly, &r)
 	if err != nil {
 		class, hash := failure(err)
 		r.Checks = append(r.Checks, check{Name: "run", FailureClass: class, FailureSHA256: hash})
@@ -91,7 +92,10 @@ func main() {
 	}
 }
 
-func run(stage, base, resumeRun string, r *report) error {
+func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error {
+	if contributionsOnly && resumeRun != "" {
+		return errors.New("native contribution check requires a fresh owned profile")
+	}
 	root, err := resumeRun, error(nil)
 	if root == "" {
 		root, err = os.MkdirTemp(base, "core-host-check-")
@@ -193,6 +197,9 @@ func run(stage, base, resumeRun string, r *report) error {
 		}
 		r.Checks = append(r.Checks, check{Name: "blank-host-ready-full-prepare", Pass: true})
 		fmt.Println(`{"checkpoint":"blank-host-ready"}`)
+		if contributionsOnly {
+			return checkNativeContributions(endpoint, r)
+		}
 		store, mux, _ := attach(endpoint)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		store.RefreshList(ctx)

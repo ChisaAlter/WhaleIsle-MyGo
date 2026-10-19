@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -46,7 +48,8 @@ func TestShippedDraftSoftwareSnapshots(t *testing.T) {
 						}
 						colors := theme.Default().Active(dark)
 						ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Padding(16, 0, 0, 0).Children(func() {
-							View(c, Model{Draft: &draft, TextInput: client, UseTextInputClient: true, Hero: hero, SystemDark: dark, WorkspaceRoot: "fixture", ModelPick: &model})
+							View(c, Model{Draft: &draft, TextInput: client, UseTextInputClient: true, Hero: hero, SystemDark: dark, WorkspaceRoot: "fixture", ModelPick: &model,
+								Snapshot: session.ViewState{SelectedModel: model, NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}}})
 						})
 					}, width, 650)
 					if variant == "selected" {
