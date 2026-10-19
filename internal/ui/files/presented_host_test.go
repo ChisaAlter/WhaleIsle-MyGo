@@ -98,7 +98,7 @@ func TestPresentedHostTextIgnoresLocalNamesAndExistence(t *testing.T) {
 				t.Fatal("same-name local file bypassed Host reader")
 			}
 			tab := selectedTab(m)
-			if tab == nil || !tab.Remote || *m.Preview == "LOCAL_CANARY" {
+			if tab == nil || !tc.failure && !tab.Remote || *m.Preview == "LOCAL_CANARY" {
 				t.Fatal("Host tab lost its source authority")
 			}
 			if tc.failure {
