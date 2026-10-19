@@ -18,7 +18,7 @@ func composerText(zh, en string) string {
 // The existing + launcher owns occasional intake and composition actions. They
 // share its keyboard navigation and never replace or submit the current draft.
 func composerToolItems(m Model, query string) []suggestItem {
-	if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+	if m.Inert || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 		return nil
 	}
 	var items []suggestItem
@@ -94,7 +94,7 @@ func voiceNeedsSetup(m Model) bool {
 }
 
 func composerSendDisabled(m Model) bool {
-	if m.StopBlocked {
+	if m.Inert || m.StopBlocked {
 		return true
 	}
 	if m.State != nil {

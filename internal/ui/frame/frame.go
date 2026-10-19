@@ -599,6 +599,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 		paintChat := func() {
 			phase := conversationPhase(snap, hasSessionInteractions(m.Interactions, snap.SelectedID))
 			emptyHero := phase == conversationHero
+			interactionSnapshot := interaction.ViewState{}
+			if m.Interactions != nil {
+				interactionSnapshot = m.Interactions.SnapshotForAgent(snap.SelectedID)
+			}
+			interactionSnapshot, takeover := composerInteraction(interactionSnapshot)
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
@@ -700,6 +705,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						ThemeID:              m.ThemeID,
 						SystemDark:           m.SystemDark,
 						WorkspaceRoot:        m.WorkspaceRoot,
+						Inert:                composer.RequiresWorkspace(snap, hero),
+						OnRequestWorkspace:   m.OnPickHeroWorkspace,
 						Draft:                m.Draft,
 						State:                m.ComposerState,
 						OnSubmit:             m.OnSubmitComposer,
@@ -1034,23 +1041,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Box(c).Grow(1).MinWidth(0)
 							})
 						}
-						if m.Interactions != nil {
-							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
-								ui.Box(c).Grow(1).MinWidth(0)
-								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
-									interui.View(c, interui.Model{
-										Snapshot:           m.Interactions.SnapshotForAgent(snap.SelectedID),
-										ScopeAgentID:       snap.SelectedID,
-										ThemeID:            m.ThemeID,
-										SystemDark:         m.SystemDark,
-										Store:              m.Interactions,
-										OnAutoAllowChanged: m.OnAutoAllowChanged,
-										OnOpenPlanResource: m.OnOpenPlanResource,
-									})
-								})
-								ui.Box(c).Grow(1).MinWidth(0)
-							})
-						}
 						if len(snap.BandActions) > 0 {
 							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
 								ui.Box(c).Grow(1).MinWidth(0)
@@ -1090,13 +1080,38 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							if emptyHero {
 								conversationHeroHeadline(c, m, colors)
 							}
-							ui.Box(c).Key("conversation-composer-input").FillWidth().Children(func() { paintComposer(emptyHero) })
-							if !emptyHero {
-								chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
-								costModel := m.SessionCost
-								costModel.Snapshot = snap
-								costui.View(c, costModel, muted)
+							if m.Interactions != nil {
+								region := ui.Box(c.Key("conversation-interaction")).FillWidth().MinWidth(0)
+								region.Children(func() {
+									paint := func() {
+										interui.View(c, interui.Model{Snapshot: interactionSnapshot, ScopeAgentID: snap.SelectedID,
+											ThemeID: m.ThemeID, SystemDark: m.SystemDark, Store: m.Interactions,
+											OnAutoAllowChanged: m.OnAutoAllowChanged, OnOpenPlanResource: m.OnOpenPlanResource})
+									}
+									if takeover {
+										// ConversationRoot caps takeover text at the same 336 DIP
+										// as the draft. Long questions must leave the transcript visible.
+										ui.Scroll(c.Key("conversation-takeover-scroll")).FillWidth().MinWidth(0).MaxHeight(336).Children(paint)
+									} else {
+										paint()
+									}
+								})
 							}
+							ordinary := ui.Box(c).Key("conversation-composer-input").FillWidth()
+							if takeover {
+								// Keep the resident draft identity without painting, focus,
+								// or a second occupied footer while approval/questions own it.
+								ordinary.Absolute().Top(0).Left(0).Right(0).Invisible()
+							}
+							ordinary.Children(func() {
+								paintComposer(emptyHero)
+								if !emptyHero {
+									chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
+									costModel := m.SessionCost
+									costModel.Snapshot = snap
+									costui.View(c, costModel, muted)
+								}
+							})
 						})
 						ui.Box(c).Grow(1).MinWidth(0)
 					})
@@ -1118,6 +1133,30 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 		}
 		workspaceColumns(c, m, paintCenter)
 	})
+}
+
+// Approval has the original composer's priority 1; a question is the default
+// takeover. Continued late-answer cards are history and do not hide the draft.
+func composerInteraction(snap interaction.ViewState) (interaction.ViewState, bool) {
+	selected := -1
+	for index, pending := range snap.Pending {
+		if pending.Continued {
+			continue
+		}
+		if selected < 0 || pending.Event == interaction.EventApproval {
+			selected = index
+		}
+		if pending.Event == interaction.EventApproval {
+			break
+		}
+	}
+	if selected < 0 {
+		return snap, false
+	}
+	snap.Pending = []interaction.Pending{snap.Pending[selected]}
+	snap.QuestionHistory, snap.QuestionStatus = nil, ""
+	snap.AutoAllow, snap.Banner = false, ""
+	return snap, true
 }
 
 func derefString(p *string) string {

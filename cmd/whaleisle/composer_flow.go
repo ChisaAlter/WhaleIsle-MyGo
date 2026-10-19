@@ -85,6 +85,18 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
 		return
 	}
+	hero := len(live.Messages) == 0 && !live.PromptAttempted && !live.PromptBusy
+	for _, item := range live.Items {
+		if item.SessionID == id && item.Running {
+			hero = false
+		}
+	}
+	if composer.RequiresWorkspace(live, hero) {
+		// Match the Hero card's keyboard/click route even for a retained
+		// submit callback: choosing a workspace precedes creating a Session.
+		s.pickAndApplyWorkspace(win, sessions, cwd)
+		return
+	}
 	if strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		if d.CanSteerPendingQueue(id, accelerated) {
 			sessions.SteerComposerQueue(context.Background(), id, hostGeneration)

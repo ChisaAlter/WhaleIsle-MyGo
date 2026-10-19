@@ -19,7 +19,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	if m.Hero {
 		minH = 52
 	}
-	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft")
+	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(m.Inert)
 	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.
@@ -29,9 +29,11 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	height := min(draftInputMaxHeight, max(minH, client.visualHeight()+draftInputTop))
 	height = resizeInputHeight(c, m, height)
 	client.setViewport(height)
-	box.Height(height).Clip().
-		HandleTextInput(&client.input).
-		HandleInput(func(ev ui.InputEvent) bool {
+	box.Height(height).Clip()
+	if m.Inert {
+		box.PassThrough()
+	} else {
+		box.HandleTextInput(&client.input).HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEscape && !c.EscapeSequenceAvailable() {
 				client.stop.reset()
 				return false
@@ -40,11 +42,16 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 				return client.scrollBy(ev.DY)
 			}
 			return draftInputEvent(client, m, ev)
-		}).Draw(func(p *ui.Painter, r ui.Rect) {
+		})
+	}
+	box.Draw(func(p *ui.Painter, r ui.Rect) {
 		width := max(0, r.W-draftInputLeft-draftInputRight)
 		if width != client.wrapWidth {
 			client.setWrapWidth(width)
 			c.Services().Invalidate()
+		}
+		if m.Inert {
+			return
 		}
 		p.Clip(r, 0, func() {
 			for _, b := range client.visualSelectionRects(client.selection.Range) {
@@ -54,7 +61,9 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			}
 		})
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
-		client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
+		if !m.Inert {
+			client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
+		}
 	})
 	box.Children(func() {
 		text := client.text()
@@ -83,6 +92,9 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 }
 
 func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
+	if m.Inert {
+		return false
+	}
 	// Key-up separates independent presses without discarding the first. All
 	// other intervening input, repeated/modifier Esc and local UI ownership reset.
 	if ev.Kind != ui.InputKeyUp && (ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEscape || ev.Mods != 0 || ev.Repeat) {

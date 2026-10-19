@@ -57,7 +57,7 @@ func TestConversationHeroFirstMessageKeepsCardAndDraftIdentity(t *testing.T) {
 				draft := "ABCDE"
 				client := composer.NewDraftClient(&draft)
 				state := composer.DraftState{}
-				snap := session.ViewState{SelectedID: "current", HistoryReady: true}
+				snap := session.ViewState{SelectedID: "current", SelectedCwd: "C:/work", HistoryReady: true}
 				st := session.New()
 				tt := ui.NewTester(func(c *ui.Context) {
 					originalScrollbarTheme(c)

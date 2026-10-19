@@ -8,6 +8,9 @@ import (
 // Both editor implementations read the same live projection; no mode cache is
 // inferred from durable plan events or optimistic command acknowledgments.
 func composerPlaceholder(m Model) string {
+	if m.Inert {
+		return i18n.T(i18n.KeyChatHeroChooseWorkspace)
+	}
 	if m.Hero {
 		return i18n.T(i18n.KeyComposerPlaceholderHero)
 	}

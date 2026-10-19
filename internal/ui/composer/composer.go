@@ -36,6 +36,8 @@ type Model struct {
 	SystemDark            bool
 	WorkspaceRoot         string
 	WorkspacePickerAnchor *ui.Handle
+	Inert                 bool // no Session or no owning workspace: the card opens the workspace picker
+	OnRequestWorkspace    func()
 	Draft                 *string
 	State                 *DraftState
 	OnSubmit              func()
@@ -149,7 +151,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	reducedMotion := c.Preferences().ReduceMotion
 	showBeam := m.ComposerBeam && composerRunning(m) && !reducedMotion
 
-	if m.State != nil && m.State.GroupReply != nil {
+	if !m.Inert && m.State != nil && m.State.GroupReply != nil {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, "回复线程 / Reply to thread: "+m.State.GroupReply.ThreadID).TextColor(muted)
 			if ui.Button(c, "取消回复 / Cancel reply").Disabled(m.State.Sending).Clicked() {
@@ -166,6 +168,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		suggestClient = m.TextInput
 	}
 	kind, query, tok, quoted, suggestOpen := activeSuggestion(m, suggestClient)
+	if m.Inert {
+		suggestOpen = false
+		m.SkillsOpen = false
+	}
 	items := buildSuggestItemsWithQuote(m, kind, query, quoted)
 	m.stopSuggestionsOpen = suggestOpen && len(items) > 0
 	skillsQuery := ""
@@ -176,6 +182,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	mentions := ParseDraftMentions(draft)
 	selectStart, selectEnd := -1, -1
 	selectIsUTF16 := m.UseTextInputClient && m.TextInput != nil
+	requestWorkspaceFocus := false
 
 	// InputBar uses its semantic translucent surface over the shell canvas.
 	_ = panel
@@ -206,7 +213,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			})
 		}
 		markdown.LinkActions(c, markdown.Links(draft), markdown.Style{FontSize: 12, Accent: accent}, m.OnOpenURL)
-		if kind == SuggestSlash && !m.Editing {
+		if !m.Inert && kind == SuggestSlash && !m.Editing {
 			if m.Snapshot.SlashCommandsLoading {
 				ui.Text(c, i18n.T(i18n.KeyCommandCatalogLoading)).FontSize(12).TextColor(muted).Padding(4, 8)
 			} else if m.Snapshot.SlashCommandsErr != "" {
@@ -221,10 +228,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if m.State != nil {
 			m.State.ModelCommand.Sync(m.Snapshot.SelectedID)
 			m.State.PermissionCommand.Sync(m.Snapshot.SelectedID)
-			if m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) {
+			if !m.Inert && m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) {
 				paintPermissionCommand(c, m, panel, border, fg, muted)
 			}
-			if m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
+			if !m.Inert && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
 				paintModelCommand(c, m, panel, border, fg, muted)
 			}
 		}
@@ -240,13 +247,13 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// with 4px above its 28px controls and an 8px gap below.
 			wsLabel := strings.TrimSpace(m.WorkspaceRoot)
 			folderIcon := "📂"
-			if wsLabel == "" {
+			if m.Inert || wsLabel == "" {
 				wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
 				folderIcon = "📁"
 			} else if i := strings.LastIndexAny(wsLabel, `/\`); i >= 0 && i+1 < len(wsLabel) {
 				wsLabel = wsLabel[i+1:]
 			}
-			if m.Snapshot.ScratchCwd != "" && filepathCleanForLabel(m.WorkspaceRoot) == filepathCleanForLabel(m.Snapshot.ScratchCwd) {
+			if !m.Inert && m.Snapshot.ScratchCwd != "" && filepathCleanForLabel(m.WorkspaceRoot) == filepathCleanForLabel(m.Snapshot.ScratchCwd) {
 				wsLabel = i18n.T(i18n.KeyNoDirectory)
 				folderIcon = ""
 			}
@@ -316,9 +323,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 		})
 		card.Children(func() {
-			paintResizeHandles(c, m, card, muted)
-			if m.State != nil {
-				paintDraftAttachments(c, m, fg, muted)
+			if !m.Inert {
+				paintResizeHandles(c, m, card, muted)
+			}
+			if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
+				ui.Box(c).FillWidth().Disabled(m.Inert).Children(func() { paintDraftAttachments(c, m, fg, muted) })
 			}
 			if m.Editing {
 				// InputBar.editRow floats above the card and never moves its draft.
@@ -336,7 +345,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			if len(mentions) > 0 && m.Draft != nil {
 				paintMentionChips(c, m, mentions, muted, accent, selectIsUTF16, &selectStart, &selectEnd)
 			}
-			if m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
+			if !m.Inert && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
 				paintChipEditPopup(c, m, panel, border, muted)
 			}
 			if m.Draft != nil {
@@ -358,6 +367,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
 						Font(theme.CurrentPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
+					ta.Disabled(m.Inert)
 					if m.Hero {
 						ta = ta.MinHeight(52)
 					}
@@ -370,23 +380,26 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					area = ta
 					paintNextPrompt(c, m, muted)
 				}
+				requestWorkspaceFocus = m.Inert && area.Focused()
 				// Toolkit AutoFocus is a first-mount request, never a per-frame
 				// keep-focused loop. Do not override an already focused control.
-				if !c.Root().FocusWithin() {
+				if !m.Inert && !c.Root().FocusWithin() {
 					area.AutoFocus()
 				}
 				if suggestOpen && len(items) > 0 {
 					wireSuggestKeys(area, m, items, kind, tok)
 				}
-				if m.State != nil && m.State.EditFocus {
+				if !m.Inert && m.State != nil && m.State.EditFocus {
 					area.Focus()
 					m.State.EditFocus = false
 				}
-				if m.NextPrompt.Text != "" && !(suggestOpen && len(items) > 0) && !(m.UseTextInputClient && m.TextInput != nil) {
+				if !m.Inert && m.NextPrompt.Text != "" && !(suggestOpen && len(items) > 0) && !(m.UseTextInputClient && m.TextInput != nil) {
 					area.OnShortcut(0, ui.KeyTab, func() { acceptNextPrompt(m) })
 				}
-				wireFileDrop(area, m)
-				wireWorkspaceReferenceDrop(area, m)
+				if !m.Inert {
+					wireFileDrop(area, m)
+					wireWorkspaceReferenceDrop(area, m)
+				}
 				if _, over := ui.DragOver[filelink.Reference](area); over {
 					ui.Text(c, "添加文件引用 / Add file reference").FontSize(11).TextColor(muted)
 				}
@@ -404,7 +417,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			selectorFill := chrome.Color(colors.SelectorFill)
 			infoFill := chrome.Color(colors.ButtonInfoFill)
 			onAccent := chrome.Color(colors.ButtonFG)
-			ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Children(func() {
+			ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert).Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
 					plus := ui.Button(c, "+").Label("命令列表 / Commands").Tooltip("命令列表 / Commands").Width(btnH).Height(btnH).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(fg).FontSize(18)
@@ -485,6 +498,19 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 			})
+			if m.Inert && m.OnRequestWorkspace != nil {
+				// One transparent hit target covers disabled child controls as
+				// well as the editor. No native text/IME owner is registered.
+				trigger := ui.Box(c.Key("composer-workspace-trigger")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
+					Focusable().Role(ui.RoleButton).Description(i18n.T(i18n.KeyChatHeroChooseWorkspace)).
+					OnClick(m.OnRequestWorkspace).
+					OnShortcut(0, ui.KeyEnter, m.OnRequestWorkspace).
+					OnShortcut(0, ui.KeySpace, m.OnRequestWorkspace).
+					OnShortcut(0, ui.KeyDown, m.OnRequestWorkspace)
+				if requestWorkspaceFocus {
+					trigger.Focus()
+				}
+			}
 		})
 	})
 }
@@ -700,7 +726,7 @@ type chipDrag struct {
 }
 
 func paintMentionChips(c *ui.Context, m Model, mentions []DraftMention, muted, accent ui.Color, selectUTF16 bool, selectStart, selectEnd *int) {
-	ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(4).AlignItems(ui.Center).Disabled(m.Inert).Children(func() {
 		for i, ment := range mentions {
 			i, ment := i, ment
 			label := ChipLabel(ment)
