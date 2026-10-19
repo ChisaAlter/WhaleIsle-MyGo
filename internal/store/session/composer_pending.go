@@ -47,6 +47,12 @@ func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAtta
 		return ""
 	}
 	id := newRequestID()
+	if len(attachments) > 0 {
+		if t.retirements == nil {
+			t.retirements = make(map[string]*composerRetirement)
+		}
+		t.retirements[id] = &composerRetirement{done: make(chan struct{})}
+	}
 	s.composerOrder++
 	placement := "transcript"
 	running := false
@@ -97,6 +103,7 @@ func (t *ComposerTarget) retireCommandSubmission(id string) {
 	s := t.store
 	s.mu.Lock()
 	if p := s.composerPending[id]; p != nil && p.target == t {
+		t.settleRetirementLocked(id, nil)
 		delete(s.composerPending, id)
 	}
 	s.mu.Unlock()
@@ -118,6 +125,7 @@ func (t *ComposerTarget) finishSubmission(id string, err error) error {
 	}
 	if p := s.composerPending[id]; p != nil && p.target == t {
 		if err != nil {
+			t.settleRetirementLocked(id, err)
 			delete(s.composerPending, id)
 		} else {
 			p.Accepted = true
@@ -151,6 +159,7 @@ func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool)
 		s.composerObserved = make(map[string]composerObserved)
 	}
 	s.composerObserved[id] = composerObserved{target: p.target, seq: seq, placement: p.Placement}
+	p.target.settleRetirementLocked(id, nil)
 	delete(s.composerPending, id)
 	if !inbox && p.Placement != "queued" {
 		kept := s.planBoard.Queue[:0]
@@ -193,6 +202,7 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 			}
 			removed := r.index >= e.Data.Start && r.index < e.Data.Start+e.Data.RemovedCount
 			if removed && e.Data.Outcome == "canceled" {
+				p.target.settleRetirementLocked(id, errors.New("message canceled before admission; draft and attachments retained"))
 				delete(s.composerPending, id)
 				changed = true
 				continue
@@ -213,6 +223,7 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 			if p.SessionID == s.selectedID && p.target.currentLocked() && r != nil && r.index < 0 && r.seq < e.Seq {
 				// Admitted messages already retired through user/message above.
 				// Only a consumed, unadmitted occurrence can fail this handoff.
+				p.target.settleRetirementLocked(id, errors.New("message was not admitted; draft and attachments retained"))
 				delete(s.composerPending, id)
 				changed = true
 			}
@@ -273,6 +284,9 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
 	view.PlanBoard.Queue = kept
 }
 func (s *Store) resetComposerHostLocked() {
+	for id, p := range s.composerPending {
+		p.target.settleRetirementLocked(id, errors.New("Host changed; send outcome unconfirmed, check the conversation before retrying"))
+	}
 	s.promptMode, s.promptModeExplicit = PromptModeQueue, false
 	s.composerRosterClient = nil
 	s.composerHostGeneration++

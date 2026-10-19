@@ -32,6 +32,7 @@ type ComposerTarget struct {
 	client                        *dsh.Client
 	epoch, followGeneration       uint64
 	mode                          PromptMode
+	retirements                   map[string]*composerRetirement
 }
 
 func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {

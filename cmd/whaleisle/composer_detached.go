@@ -31,6 +31,9 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 		if err == nil {
 			owner.UpdateSubmissionAttachments(requestID, attachments)
 			err = owner.Submit(ctx, flight.Text, attachments, 0, requestID)
+			if err == nil && len(attachments) > 0 {
+				err = owner.AwaitSubmissionRetirement(ctx, requestID)
+			}
 		} else {
 			err = owner.AbandonSubmission(requestID, err)
 		}
