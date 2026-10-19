@@ -223,12 +223,12 @@ func (w *widgetTextInput) SetMarkedText(r *TextInputRange, s string, selected Te
 			a, z = w.virtualRune(wanted.Start), w.virtualRune(wanted.End)
 		}
 		transaction := ed.compositionActive && ed.compose != ""
-		ed.commitCompose()
+		ed.commitComposeCapture(transaction)
 		if !transaction {
 			ed.record(false)
 		}
 		ed.compositionActive = true
-		if ed.document != nil {
+		if ed.document != nil && !transaction {
 			ed.document.beginPreedit(ed, ed.published)
 		}
 		if r == nil && len(ranges) > 1 {

@@ -131,7 +131,14 @@ func (ed *editor) deleteRange(a, b int) {
 }
 
 func (ed *editor) commitCompose() {
-	if ed.document != nil {
+	ed.commitComposeCapture(false)
+}
+
+// SetMarkedText can stage the previous candidate to apply an explicit native
+// replacement range while keeping one unfinished composition transaction.
+// Preserve only its capture origin; text publishing/undo remain unchanged.
+func (ed *editor) commitComposeCapture(preservePreedit bool) {
+	if ed.document != nil && !preservePreedit {
 		ed.document.endPreedit(ed)
 	}
 	if ed.compose != "" {
