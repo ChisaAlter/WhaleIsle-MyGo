@@ -87,18 +87,28 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 			return Plan{}, fmt.Errorf("configured dshBin %s: %w", o.DshBin, err)
 		}
 		if isScript(o.DshBin) {
+			var sourceRoot string
 			// A configured path to the same source CLI must not bypass current-host
 			// safety validation merely because it precedes vendor resolution.
 			clean := filepath.Clean(o.DshBin)
 			if strings.HasSuffix(strings.ToLower(clean), strings.ToLower(filepath.Join("apps", "cli", "lib", "bin.js"))) {
 				root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(clean))))
+				sourceRoot = root
 				if err := ValidateCurrentHostForLaunch(root); err != nil {
+					return Plan{}, err
+				}
+				if err := ValidateSessionRuntimeForLaunch(root); err != nil {
 					return Plan{}, err
 				}
 			}
 			node, err := resolveNode(o.NodeBin)
 			if err != nil {
 				return Plan{}, err
+			}
+			if sourceRoot != "" {
+				if err := validateSessionRuntimeNode(filepath.Dir(sourceRoot), node); err != nil {
+					return Plan{}, err
+				}
 			}
 			plan.Command, plan.Args = node, append([]string{o.DshBin}, web...)
 		} else {
@@ -113,6 +123,9 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 		if err := ValidateCurrentHostForLaunch(root); err != nil {
 			return Plan{}, err
 		}
+		if err := ValidateSessionRuntimeForLaunch(root); err != nil {
+			return Plan{}, err
+		}
 		binJS := filepath.Join(root, "apps", "cli", "lib", "bin.js")
 		if _, err := os.Stat(binJS); err != nil {
 			return Plan{}, fmt.Errorf("vendored harness missing bin.js at %s: %w", binJS, err)
@@ -123,6 +136,9 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 		}
 		node, err := resolveNode(o.NodeBin)
 		if err != nil {
+			return Plan{}, err
+		}
+		if err := validateSessionRuntimeNode(filepath.Dir(root), node); err != nil {
 			return Plan{}, err
 		}
 		plan.Command, plan.Args = node, append([]string{binJS}, web...)

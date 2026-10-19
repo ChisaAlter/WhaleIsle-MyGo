@@ -1,9 +1,9 @@
 # build-harness.ps1 - Build the vendored DeepSeek Harness runtime for WhaleIsle MyGo.
 #
-# Upstream pin: reference/electron/vendor/harness-upstream.json
-#   repo https://github.com/deepseek-ai/deepseek-harness.git
-#   ref  dsh-v0.2.1-alpha.1
-#   sha  5badb15009ae1756c3afe0ae0cef1faafc290ccc
+# The shared desktop home contains rc.2 required events. The historical
+# alpha.1 reference cannot read them, despite also claiming session format v4.
+# Stage an explicit complete installed rc.2 runtime with -RuntimeSourceResources;
+# never merge a newer snapshot into an existing older dependency graph.
 #
 # The sources in runtime/vendor/deepseek-harness are a verbatim copy of the
 # pinned snapshot; this script NEVER modifies them. It only runs package
@@ -12,6 +12,8 @@
 # build scripts overwrite their own outputs).
 
 param(
+    [string]$RuntimeSourceResources,
+    [string]$RuntimeDestination,
     [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
     [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
@@ -19,6 +21,16 @@ param(
     [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
 )
+$ErrorActionPreference = 'Stop'
+if ($RuntimeSourceResources) {
+    if ($SourceMode -ne 'custom') { throw 'RuntimeSourceResources and current source build are separate inputs.' }
+    if (-not $RuntimeDestination) { $RuntimeDestination = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime' }
+    $StageNode = Join-Path $RuntimeSourceResources 'runtime\primary-runtime\dependencies\node\bin\node.exe'
+    if (-not (Test-Path -LiteralPath $StageNode -PathType Leaf)) { throw 'The selected original resources directory has no bundled Node runtime.' }
+    & $StageNode (Join-Path $PSScriptRoot 'session-runtime.mjs') stage $RuntimeSourceResources $RuntimeDestination
+    if ($LASTEXITCODE -ne 0) { throw 'Compatible Host staging failed; the original runtime and session files were not changed.' }
+    return
+}
 if ($SourceMode -eq 'current') {
     if (-not $CurrentSourceRoot) { throw 'CurrentSourceRoot must point to the selected fixed official source checkout.' }
     & (Join-Path $PSScriptRoot 'build-current-host.ps1') -SourceRoot $CurrentSourceRoot -SourceCommit $SourceCommit -BuildOnly:$BuildOnly -UnifiedShortcuts:$UnifiedShortcuts
@@ -26,14 +38,21 @@ if ($SourceMode -eq 'current') {
 }
 if ($BuildOnly) { throw 'BuildOnly is supported by the isolated current source mode only.' }
 
-$ErrorActionPreference = 'Stop'
-
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $VendorDir  = Join-Path $ProjectRoot 'runtime\vendor'
 $HarnessDir = Join-Path $VendorDir 'deepseek-harness'
 $SourceRoot = $env:WHALEISLE_ELECTRON_SOURCE
 if (-not $SourceRoot) { $SourceRoot = Join-Path $ProjectRoot 'reference\electron' }
 $PinFile = Join-Path $SourceRoot 'vendor\harness-upstream.json'
+$Pin = Get-Content -LiteralPath $PinFile -Raw | ConvertFrom-Json
+if ($Pin.npm -ne '0.2.1-rc.2' -or $Pin.sha -ne '687f282e8625c6b8d11ff58211a90524be2e4317') {
+    throw 'This source snapshot predates the shared desktop session schema. Select the original rc.2 resources with -RuntimeSourceResources and a fresh -RuntimeDestination; do not reuse the alpha.1 runtime.'
+}
+$ExistingCLI = Join-Path $HarnessDir 'apps\cli\package.json'
+if (Test-Path -LiteralPath $ExistingCLI) {
+    $ExistingVersion = (Get-Content -LiteralPath $ExistingCLI -Raw | ConvertFrom-Json).version
+    if ($ExistingVersion -ne $Pin.npm) { throw 'Existing runtime differs from the selected source. Use a fresh runtime destination instead of merging dependency graphs.' }
+}
 # Populate only missing source directories from the explicitly selected snapshot.
 # Existing work trees remain build inputs; remove runtime/vendor to switch snapshots.
 foreach ($name in @('deepseek-harness', 'dsh-usage-panel', 'dsh-im', 'dshbot', 'dsh-whale', 'dsh-remote', 'dsh-task-control', 'dsh-platform-session')) {
@@ -57,7 +76,6 @@ if (-not (Test-Path (Join-Path $HarnessDir 'package.json'))) {
 # `git rev-parse HEAD`. The vendored copy is not a git checkout, so we pass
 # the pinned upstream sha through DSH_CLIENT_COMMIT_HASH - the documented
 # explicit source for non-Git build environments (scripts/client-build-environment.ts).
-$Pin = Get-Content $PinFile -Raw | ConvertFrom-Json
 $env:DSH_CLIENT_COMMIT_HASH = $Pin.sha
 
 # Explicit opt-in builds only; never silently adapt an existing runtime on startup.

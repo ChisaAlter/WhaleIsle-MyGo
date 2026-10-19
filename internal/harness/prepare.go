@@ -37,6 +37,11 @@ func PlanStart(o LaunchOptions, prep PrepareOptions, port int) (StartPlan, error
 		prep.HarnessRoot = o.HarnessRoot
 	}
 	prep.SkipUserPlugins = prep.SkipUserPlugins || o.SkipUserPlugins
+	// Reject a stale or mixed reader before preparing anything in the shared
+	// desktop profile. Resolving is read-only; patches are added after Prepare.
+	if _, err := Resolve(o, port); err != nil {
+		return StartPlan{}, err
+	}
 	if err := paths.EnsureDshHome(); err != nil {
 		return StartPlan{}, fmt.Errorf("dsh-home: %w", err)
 	}

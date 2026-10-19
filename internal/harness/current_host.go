@@ -122,6 +122,11 @@ func ValidateCurrentHostForLaunch(harnessRoot string) error {
 	vendorDir := filepath.Dir(harnessRoot)
 	_, manifestErr := os.Stat(filepath.Join(vendorDir, "current-host-build.json"))
 	_, visualErr := os.Stat(filepath.Join(harnessRoot, "packages", "client", "ui-visual-replies", "package.json"))
+	if os.IsNotExist(manifestErr) {
+		if _, err := os.Stat(filepath.Join(vendorDir, sessionRuntimeManifestName)); err == nil {
+			return validateStagedSessionRuntime(vendorDir)
+		}
+	}
 	if os.IsNotExist(manifestErr) && os.IsNotExist(visualErr) {
 		return nil
 	}

@@ -83,6 +83,15 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & node (Join-Path $PSScriptRoot 'current-host.mjs') verify $VendorSrc
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host artifacts failed verification' }
     }
+    # An executable rebuild does not update the adjacent Host. Require the
+    # actual built reader's rc.2 event vocabulary and preserved readiness gate.
+    if (-not (Test-Path (Join-Path $VendorSrc 'current-host-build.json'))) {
+        & node (Join-Path $PSScriptRoot 'session-runtime.mjs') verify $VendorSrc
+        if ($LASTEXITCODE -ne 0) { throw 'Host session runtime is stale, mixed or unverified. Stage a complete rc.2 runtime before packaging.' }
+    } else {
+        & node (Join-Path $PSScriptRoot 'session-runtime.mjs') inspect (Join-Path $VendorSrc 'deepseek-harness')
+        if ($LASTEXITCODE -ne 0) { throw 'Selected current Host cannot read the shared desktop session schema.' }
+    }
     $MobileRoot = Join-Path $VendorSrc 'dshd-remote'
     $MobileNode = Join-Path $MobileRoot 'node\node.exe'
     if (-not (Test-Path $MobileNode)) { throw 'Mobile runtime missing. Run scripts/build-harness.ps1 first, or explicitly set WHALEISLE_PACKAGE_SKIP_RUNTIME=1 for a shell-only package.' }
@@ -98,6 +107,12 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     }
     # An explicitly selected input must not silently fall back to another Node.
     $NodeSrc = $env:WHALEISLE_NODE_DIR
+    $SessionManifestPath = Join-Path $VendorSrc 'host-session-runtime.json'
+    $SessionManifest = $null
+    if (Test-Path -LiteralPath $SessionManifestPath -PathType Leaf) {
+        $SessionManifest = Get-Content -LiteralPath $SessionManifestPath -Raw | ConvertFrom-Json
+        if (-not $NodeSrc) { $NodeSrc = Join-Path (Split-Path -Parent $VendorSrc) 'node' }
+    }
     if (-not $NodeSrc) {
         $NodeSrc = @(
             'C:\AI\tools\node-v24.21.0-win-x64',
@@ -110,6 +125,9 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $NodeInput = Join-Path $NodeSrc 'node.exe'
     if ((Get-Item $NodeInput).Length -eq 0) { throw 'Host node.exe is empty.' }
     $NodeHash = (Get-FileHash $NodeInput -Algorithm SHA256).Hash
+    if ($SessionManifest -and $NodeHash.ToLowerInvariant() -ne $SessionManifest.node.sha256) {
+        throw 'Selected Node differs from the verified Host session runtime; use the matching bundled Node.'
+    }
     $NodeDst = Join-Path $Stage 'runtime\node'
     Write-Host "Copying Node -> $NodeDst from $NodeSrc"
     New-Item -ItemType Directory -Force -Path (Split-Path $NodeDst) | Out-Null
@@ -117,6 +135,10 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $StagedNode = Join-Path $NodeDst 'node.exe'
     if (-not (Test-Path $StagedNode -PathType Leaf) -or (Get-FileHash $StagedNode -Algorithm SHA256).Hash -ne $NodeHash) {
         throw 'Packaged Host node.exe is missing or changed.'
+    }
+    if ($SessionManifest) {
+        & $StagedNode (Join-Path $PSScriptRoot 'session-runtime.mjs') verify $VendorDst
+        if ($LASTEXITCODE -ne 0) { throw 'Packaged Host session runtime failed final verification.' }
     }
     & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }

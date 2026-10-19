@@ -10,6 +10,7 @@ import (
 func TestResolvePrefersVendoredHarness(t *testing.T) {
 	vendor := t.TempDir()
 	root := filepath.Join(vendor, "deepseek-harness")
+	writeSessionRuntimeRegistry(t, root, desktopSessionEventTypes)
 	bin := filepath.Join(root, "apps", "cli", "lib", "bin.js")
 	web := filepath.Join(root, "apps", "web", "dist", "index.html")
 	for _, p := range []string{bin, web} {
