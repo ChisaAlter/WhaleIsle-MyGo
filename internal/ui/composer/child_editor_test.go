@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestChildEditorDedicatedSend(t *testing.T) {
@@ -22,7 +23,7 @@ func TestChildEditorDedicatedSend(t *testing.T) {
 	sent = ""
 	disabled = true
 	tt.Frame()
-	_ = tt.Click("发送 / Send")
+	_ = tt.Click(i18n.T(i18n.KeyComposerSend))
 	if sent != "" {
 		t.Fatal("disabled child sent")
 	}

@@ -24,17 +24,17 @@ func TestWorkflowDisclosureCompletionWaitsForContentFocus(t *testing.T) {
 					ui.Button(c, "Outside workflow")
 				})
 			}, 900, 600)
-			if err := tt.Click("查看过程 / View process"); err != nil {
+			if err := tt.Click(workflowText("打开 ", "Open ") + "focused live member"); err != nil {
 				t.Fatal(err)
 			}
-			if !tt.Focused("查看过程 / View process") {
+			if !tt.Focused("focused live member") {
 				t.Fatal("member action did not hold native focus")
 			}
 			run.Status, run.Phases[0].Members[0].Status = "completed", "completed"
 			model.Snapshot.Items[0].Running = false
 			for frame := 0; frame < 3; frame++ {
 				tt.Frame()
-				if !tt.HasText("focused live member") || !tt.Focused("查看过程 / View process") {
+				if !tt.HasText("focused live member") || !tt.Focused("focused live member") {
 					t.Fatal("clean transition unmounted or disabled the focused member before blur")
 				}
 			}
