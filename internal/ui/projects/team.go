@@ -74,11 +74,11 @@ func teamView(c *ui.Context, m Model) {
 			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(fonttheme.InterfaceSize(13))
 			for _, member := range members {
 				member := member
-				name := member.Name
+				name := strings.TrimSpace(member.Name)
 				if member.Role == "lead" {
 					name = "Lead"
 				}
-				if name == "" || name == "member-"+strings.TrimPrefix(member.ID, "session-") {
+				if generatedProjectMemberName(name, member.ID) {
 					name = member.Description
 					if name == "" {
 						name = member.ID

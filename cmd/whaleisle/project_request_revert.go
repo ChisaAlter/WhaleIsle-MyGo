@@ -62,6 +62,7 @@ func (s *projectController) runProjectRequestChanges(win *mygo.Window, projectID
 				return
 			}
 			f.requestCard = &card
+			s.rememberProjectRequestCardLocked(f.requestCard)
 			f.assetDiff = &projectflow.WorkDiff{Requirement: &changes}
 			f.assetNote = ""
 		})
@@ -126,6 +127,7 @@ func (s *projectController) revertProjectRequest(win *mygo.Window, projectID, re
 				return
 			}
 			f.requestCard = &fresh
+			s.rememberProjectRequestCardLocked(f.requestCard)
 			for i := range f.requestPage.Items {
 				if f.requestPage.Items[i].ID == requestID {
 					f.requestPage.Items[i] = fresh

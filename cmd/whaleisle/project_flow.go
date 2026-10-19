@@ -43,6 +43,7 @@ type projectFlowState struct {
 	requestProjectID, requestKind string
 	requestPage                   projectflow.RequestPage
 	requestCard                   *projectflow.RequestCard
+	requestCards                  map[string]projectflow.RequestCard
 	requestCursors                []string
 	requestLoaded                 bool
 	requestGeneration             uint64
@@ -277,6 +278,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnCloseRequests = func() {
 		s.mu.Lock()
+		s.closeProjectVisualResultsLocked()
 		s.projectFlow.requestProjectID = ""
 		s.projectFlow.requestCard = nil
 		s.projectFlow.assetDiff = nil

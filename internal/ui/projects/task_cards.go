@@ -282,8 +282,25 @@ func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []p
 	}
 	for i := range steps {
 		s := &steps[i]
-		if s.MemberName == "" || strings.HasPrefix(s.MemberName, "member-") {
+		s.MemberName = strings.TrimSpace(s.MemberName)
+		if generatedProjectMemberName(s.MemberName, s.WorkerSessionID) || s.MemberName == s.Title {
 			s.MemberName = tr("团队成员", "Team member")
+		}
+		role := ""
+		switch s.MemberRole {
+		case "development":
+			role = tr("开发", "Development")
+		case "readonly":
+			role = tr("评审", "Review")
+		case "docs":
+			role = tr("文档", "Docs")
+		}
+		if role != "" {
+			if s.MemberName == tr("团队成员", "Team member") {
+				s.MemberName = role
+			} else {
+				s.MemberName = role + " · " + s.MemberName
+			}
 		}
 		if card.Status == "completed" || card.Queue != nil && card.Queue.Released || s.Current != nil && !*s.Current || team == nil || team.Team == nil {
 			continue

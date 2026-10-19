@@ -46,6 +46,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 		return
 	}
 	if f.requestProjectID != id {
+		s.closeProjectVisualResultsLocked()
 		f.requestPage = projectflow.RequestPage{}
 		f.requestCard = nil
 		f.requestLoaded = false
@@ -88,6 +89,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 	}
 	f.busy = true
 	f.err = ""
+	f.requestRevertError = ""
 	f.generation++
 	generation := f.generation
 	f.requestGeneration++
@@ -157,11 +159,13 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 			f.assetNote = ""
 			if action == "get" {
 				f.requestCard = &card
+				s.rememberProjectRequestCardLocked(f.requestCard)
 				return
 			}
 			f.requestCard = nil
 			if action == "queue" && selectedCard != nil {
 				f.requestCard = &card
+				s.rememberProjectRequestCardLocked(f.requestCard)
 			}
 			f.requestKind = kind
 			f.requestPage = page
