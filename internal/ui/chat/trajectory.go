@@ -16,7 +16,10 @@ import (
 
 // TrajectoryModel drives the ConversationRoot「轨迹」tab (Electron ui-trajectory).
 type TrajectoryModel struct {
-	Snapshot      session.ViewState
+	Snapshot session.ViewState
+	// PaneWidth is the host layout width before the first frame. Standalone
+	// callers may omit it when the view fills Context.Size.
+	PaneWidth     float32
 	ThemeID       string
 	SystemDark    bool
 	List          *ui.ListState
@@ -140,24 +143,6 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		// Ledger + event details split.
 		ui.Row(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-				// Column headers (Electron: 输入 / 输出 / 思考 / 时间 / 模型 / 工具).
-				ui.Row(c).FillWidth().Padding(4, 8, 4, 8).Gap(8).Children(func() {
-					for _, h := range []struct {
-						label string
-						grow  float32
-					}{
-						{i18n.T(i18n.KeyTrajColInput), 2},
-						{i18n.T(i18n.KeyTrajColOutput), 2},
-						{i18n.T(i18n.KeyTrajColThink), 1},
-						{i18n.T(i18n.KeyTrajColTime), 1},
-						{i18n.T(i18n.KeyTrajColModel), 1},
-						{i18n.T(i18n.KeyTrajColTools), 1},
-					} {
-						ui.Text(c, h.label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(h.grow)
-					}
-				})
-				ui.Box(c).FillWidth().Height(1).Background(border)
-
 				if m.Snapshot.HistoryHasMore && m.OnLoadEarlier != nil {
 					label := i18n.T(i18n.KeyTrajLoadEarlier)
 					if m.Snapshot.HistoryPageBusy {
@@ -195,17 +180,10 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					if *selected == row.ID {
 						bg = hover
 					}
-					btn := ui.Button(lr.Context, "").Label("Trajectory row "+row.ID).FillWidth().Background(bg).BorderWidth(0).
-						Padding(6, 8, 6, 8).Radius(0)
+					btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
+						Padding(0).Radius(0)
 					btn.Children(func() {
-						ui.Row(lr.Context).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-							ui.Text(lr.Context, row.Input).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(2)
-							ui.Text(lr.Context, row.Output).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(2)
-							ui.Text(lr.Context, row.Think).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Time).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Model).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
-							ui.Text(lr.Context, row.Tools).FontSize(theme.InterfaceSize(11)).TextColor(accent).Grow(1)
-						})
+						paintTrajectoryRecord(lr.Context, row, fg, muted, accent)
 					})
 					if btn.Clicked() {
 						if timeRange.active && !rangeMatches[row.ID] {
@@ -216,43 +194,64 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				})
 			})
 
-			// Event details inspector (Electron complementary pane).
+			// The original local inspector exists only for a selected record.
+			detail := findTrajectoryRow(rows, *selected)
+			if detail == nil {
+				return
+			}
 			ui.Box(c).Width(1).FillHeight().Background(border)
-			ui.Column(c).Width(240).FillHeight().Padding(8, 10, 8, 10).Gap(6).Children(func() {
+			paneWidth := m.PaneWidth
+			if paneWidth <= 0 {
+				paneWidth, _ = c.Size()
+			}
+			inspector := ui.Column(c).Key("trajectory-inspector").Label("Trajectory event inspector").Width(trajectoryInspectorWidth(paneWidth)).FillHeight().MinWidth(0).Background(chrome.Color(colors.BG)).Padding(8, 10, 8, 10).Gap(6)
+			viewportWidth, _ := c.Size()
+			if viewportWidth <= 760 {
+				inspector.Absolute().Right(0).Top(0).Bottom(0).Width(min(paneWidth*.92, 420))
+			}
+			inspector.Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1)
+					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+					if ui.Button(c, "×").Label("Close trajectory details").Width(24).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent).Clicked() {
+						*selected = ""
+					}
 				})
-				detail := findTrajectoryRow(rows, *selected)
-				if detail == nil {
-					ui.Text(c, i18n.T(i18n.KeyTrajDetailHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					return
-				}
 				fullDetail := trajectoryDetailRow(*detail)
 				detail = &fullDetail
 				schemaPayload, headerPayload := trajectoryRequestPayloads(m.Snapshot, detail.ID)
 				requestPayload, requestEvents := trajectoryRequestBodies(m.Snapshot, detail.ID)
-				ui.Row(c).Gap(6).Children(func() {
-					for _, tab := range []struct{ id, label string }{
-						{"overview", i18n.T(i18n.KeyTrajTabOverview)},
-						{"args", i18n.T(i18n.KeyTrajTabArgs)},
-						{"result", i18n.T(i18n.KeyTrajTabResult)},
-						{"timing", i18n.T(i18n.KeyTrajTabTiming)},
-					} {
-						t := tab
-						ink := muted
-						weight := 400
-						if *detailTab == t.id {
-							ink = accent
-							weight = 600
+				ui.ScrollHorizontal(c).FillWidth().Height(28).Children(func() {
+					ui.Row(c).Gap(6).Children(func() {
+						for _, tab := range []struct{ id, label string }{
+							{"overview", i18n.T(i18n.KeyTrajTabOverview)},
+							{"args", i18n.T(i18n.KeyTrajTabArgs)},
+							{"result", i18n.T(i18n.KeyTrajTabResult)},
+							{"timing", i18n.T(i18n.KeyTrajTabTiming)},
+						} {
+							t := tab
+							ink := muted
+							weight := 400
+							if *detailTab == t.id {
+								ink = accent
+								weight = 600
+							}
+							if ui.Button(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).BorderWidth(0).
+								Background(ui.Transparent).TextColor(ink).Clicked() {
+								*detailTab = t.id
+							}
 						}
-						if ui.Button(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).BorderWidth(0).
-							Background(ui.Transparent).TextColor(ink).Clicked() {
-							*detailTab = t.id
-						}
-					}
+					})
 				})
-				paintTrajectoryRequestTabs(c, detailTab, schemaPayload, headerPayload, accent, muted)
-				paintTrajectoryLifecycleTabs(c, detailTab, requestPayload != "", accent, muted)
+				if schemaPayload != "" || headerPayload != "" {
+					ui.ScrollHorizontal(c).Label("Trajectory request tabs").FillWidth().Height(28).Children(func() {
+						paintTrajectoryRequestTabs(c, detailTab, schemaPayload, headerPayload, accent, muted)
+					})
+				}
+				if requestPayload != "" {
+					ui.ScrollHorizontal(c).Label("Trajectory lifecycle tabs").FillWidth().Height(28).Children(func() {
+						paintTrajectoryLifecycleTabs(c, detailTab, true, accent, muted)
+					})
+				}
 				ui.Box(c).FillWidth().Height(1).Background(border)
 				copyBody := ""
 				ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Children(func() {

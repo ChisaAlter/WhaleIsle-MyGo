@@ -866,7 +866,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						m.Sizes.Workspace.setConversationBounds(transcript.Bounds())
 						transcript.Children(func() {
 							transcriptWidth, sideGrow := chatContentW, float32(1)
-							if paneTab != "trajectory" {
+							if paneTab == "trajectory" {
+								// The original trajectory ledger fills ConversationRoot.
+								transcriptWidth, sideGrow = colW, 0
+							} else {
 								// Native List fills scrollBody; its rows reserve the stable
 								// five-DIP bar before centering W. The viewport clears two.
 								transcriptWidth, sideGrow = maxf(0, colW-conversationScrollMargin), 0
@@ -883,6 +886,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										}
 										// Electron ui-trajectory: toolbar + timeline + ledger (not PlanBoard).
 										chat.TrajectoryView(c, chat.TrajectoryModel{
+											PaneWidth:      transcriptWidth,
 											Snapshot:       snap,
 											ThemeID:        m.ThemeID,
 											SystemDark:     m.SystemDark,
