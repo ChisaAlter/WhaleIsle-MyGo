@@ -10,6 +10,18 @@ import (
 	"testing"
 )
 
+func TestNativeSVGUnconditionalSwitchKeepsOnlyFirstChild(t *testing.T) {
+	data := []byte(`<svg width="40" height="20"><switch><rect width="40" height="20" fill="red"/><rect width="40" height="20" fill="blue"/></switch></svg>`)
+	decoded, err := DecodeSVG(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, g, b, a := decoded.At(20, 10).RGBA()
+	if r != 65535 || g != 0 || b != 0 || a != 65535 {
+		t.Fatalf("switch was dropped or flattened into both children: %v %v %v %v", r, g, b, a)
+	}
+}
+
 func TestNativeSVGEmbeddedRasterAndFilter(t *testing.T) {
 	raster := image.NewNRGBA(image.Rect(0, 0, 2, 2))
 	for y := 0; y < 2; y++ {

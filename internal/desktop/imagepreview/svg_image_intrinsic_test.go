@@ -81,3 +81,27 @@ func TestSVGImageBrowserGateRetainsBudgets(t *testing.T) {
 		t.Fatal("accepted a non-SVG file")
 	}
 }
+
+func TestSVGImageRoutesSupportedStaticCSSAndUnconditionalSwitch(t *testing.T) {
+	for _, content := range []string{
+		`<style>svg > g > rect {fill:blue}</style><g><rect width="8" height="8"/></g>`,
+		`<switch><rect width="8" height="8" fill="red"/><rect width="8" height="8" fill="blue"/></switch>`,
+	} {
+		data := []byte(`<svg width="64" height="32">` + content + `</svg>`)
+		if err := ValidateNativeSVG(data); err != nil {
+			t.Fatal(err)
+		}
+		if NeedsBrowserSVG(data) {
+			t.Fatal("supported static artwork displaced by browser-only route", content)
+		}
+	}
+	for _, source := range []string{
+		`<svg width="64" height="32"><style>svg{width:80px;height:160px}</style><rect width="8" height="8"/></svg>`,
+		`<svg width="10em" height="5em"><style>svg{font-size:32px}</style></svg>`,
+		`<svg width="64" height="32"><switch><rect systemLanguage="en" width="8" height="8"/></switch></svg>`,
+	} {
+		if !NeedsBrowserSVG([]byte(source)) {
+			t.Fatal("browser-dependent geometry/conditions lost image route", source)
+		}
+	}
+}

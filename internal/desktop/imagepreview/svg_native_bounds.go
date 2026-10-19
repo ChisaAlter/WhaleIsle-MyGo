@@ -55,6 +55,10 @@ func validateNativeSVG(data []byte) error {
 			original := strings.ToLower(t.Name.Local)
 			name := original
 			switch original {
+			case "switch":
+				// Only a validation projection: the original first-child switch
+				// is drawn by the native renderer, never flattened into a group.
+				name = "g"
 			case "filter", "fegaussianblur", "feoffset", "fecolormatrix", "feblend", "fecomposite", "femerge", "femergenode", "feflood", "fecomponenttransfer", "fefuncr", "fefuncg", "fefuncb", "fefunca", "femorphology", "feturbulence", "fedisplacementmap", "feconvolvematrix", "fediffuselighting", "fespecularlighting", "fedistantlight", "fepointlight", "fespotlight", "fedropshadow", "pattern", "marker":
 				name = "g"
 			case "image", "feimage":
@@ -68,6 +72,9 @@ func validateNativeSVG(data []byte) error {
 			var attrs []xml.Attr
 			for _, a := range t.Attr {
 				key := strings.ToLower(a.Name.Local)
+				if key == "requiredfeatures" || key == "requiredextensions" || key == "systemlanguage" {
+					return errors.New("SVG conditional rendering requires the image browser")
+				}
 				if a.Name.Space == "xmlns" || key == "xmlns" {
 					if a.Value != svgNS && a.Value != xlinkNS {
 						return errors.New("SVG namespace is unsupported")

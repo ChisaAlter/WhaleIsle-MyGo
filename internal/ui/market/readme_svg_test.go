@@ -1,13 +1,16 @@
 package market
 
 import (
+	"context"
 	"fmt"
 	"image/color"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/svgimage"
 )
 
 func TestMarketReadmeSVGCapabilityRetainsSupportedStaticDocuments(t *testing.T) {
@@ -29,7 +32,7 @@ func TestMarketReadmeSVGUnconditionalSwitchRendersItsFirstChild(t *testing.T) {
 	cache := readmeImageCache(t)
 	// Explicit intrinsic dimensions keep this fixture on the static path.
 	// A viewBox alone now correctly needs browser natural-size metadata.
-	const source = `<svg width='40' height='20' viewBox='0 0 40 20'><switch><rect width='40' height='20' fill='red'/></switch></svg>`
+	const source = `<svg width='40' height='20' viewBox='0 0 40 20'><switch><rect width='40' height='20' fill='red'/><rect width='40' height='20' fill='blue'/></switch></svg>`
 	const url = "https://example.invalid/unconditional-switch.svg"
 	if err := os.WriteFile(cache.FilePath(url), []byte(source), 0600); err != nil {
 		t.Fatal(err)
@@ -51,6 +54,25 @@ func TestMarketReadmeSVGUnconditionalSwitchRendersItsFirstChild(t *testing.T) {
 		if supportedReadmeSVG([]byte(conditional)) {
 			t.Errorf("switch condition %s bypassed the attribute capability gate", attr)
 		}
+	}
+}
+
+func TestMarketReadmeBrowserSVGRevokedOwnerRetainsAltAndParagraph(t *testing.T) {
+	cache := readmeImageCache(t)
+	const source = `<svg width="800" height="400"><animate attributeName="opacity" values="0;1" dur="1s"/></svg>`
+	const url = "https://example.invalid/revoked-owner.svg"
+	if err := os.WriteFile(cache.FilePath(url), []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	owner := &svgimage.Owner{ID: "revoked", Window: &mygo.Window{}, Context: context.Background(), Valid: func() bool { return false }}
+	tt := ui.NewTester(func(c *ui.Context) {
+		marketReadme(c, Model{SVGImages: owner}, "![Authored diagram]("+url+")\n\nFollowing paragraph", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+	}, 420, 600)
+	if !tt.HasText("Authored diagram") || !tt.HasText("Following paragraph") {
+		t.Fatal("failed image authority swallowed authored fallback or following prose")
+	}
+	if r, _ := tt.Find("README image " + url); r.W != 0 || r.H != 0 {
+		t.Fatalf("revoked image retained a phantom canvas: %+v", r)
 	}
 }
 

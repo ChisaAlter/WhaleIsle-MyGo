@@ -70,8 +70,15 @@ func renderReadmeImage(c *ui.Context, source, alt string, owners ...*svgimage.Ow
 		if len(owners) > 0 {
 			owner = owners[0]
 		}
+		if owner == nil {
+			decoded.svgSeat.Close()
+			return false
+		}
 		decoded.svgSeat.Prepare(c, owner)
 		decoded.width, decoded.height = decoded.svgSeat.Size()
+		if decoded.svgSeat.Error() != nil {
+			return false
+		}
 	}
 	if decoded.width <= 0 || decoded.height <= 0 {
 		return false

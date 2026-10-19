@@ -55,11 +55,10 @@ func NeedsBrowserSVG(data []byte) bool {
 		if !ok {
 			continue
 		}
-		if strings.EqualFold(element.Name.Local, "style") {
-			// A stylesheet may change the root's used geometry, including
-			// font-dependent intrinsic dimensions. Keep that cascade in img.
-			return true
-		}
+		// A stylesheet that passed validateNativeSVG contains only the
+		// static renderer's supported properties, never width/height/layout.
+		// Unknown geometry or font-relative root dimensions already selected
+		// the browser above. Do not displace supported static CSS artwork.
 		for _, a := range element.Attr {
 			if a.Name.Local != "href" {
 				continue
