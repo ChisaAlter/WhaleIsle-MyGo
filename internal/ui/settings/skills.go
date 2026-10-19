@@ -36,6 +36,7 @@ type SkillHubHit struct {
 // SkillsAccess is the dedicated Skills settings page (session skills/list snapshot).
 type SkillsAccess struct {
 	Create       *SkillCreateAccess
+	Hub          *SkillHubAccess
 	OnOpenCreate func()
 	Skills       []SkillRow
 	SessionID    string
@@ -97,7 +98,11 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			if a.HubQuery != nil && a.OnSearchHub != nil && ui.Button(c, providerCopy("搜索技能", "Find skills")).Height(30).Clicked() {
-				*hubOpen = true
+				if a.Hub != nil && a.Hub.OnOpen != nil {
+					a.Hub.OnOpen()
+				} else {
+					*hubOpen = true
+				}
 			}
 			if (a.OnCreate != nil || a.OnOpenCreate != nil) && bodyIconAction(c, providerCopy("添加技能", "Add skill"), "plus", a.Busy) {
 				if a.OnOpenCreate != nil {
@@ -288,6 +293,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	skillCreateDialog(c, a, fg, muted)
+	skillHubDialog(c, a, fg, muted)
 	if *createOpen && a.Create == nil {
 		bodyDialog(c, createOpen, providerCopy("添加技能", "Add skill"), func() {
 			if a.OnSelectRoot != nil {
@@ -326,7 +332,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 	}
-	if *hubOpen && a.HubQuery != nil && a.OnSearchHub != nil {
+	if *hubOpen && a.Hub == nil && a.HubQuery != nil && a.OnSearchHub != nil {
 		bodyDialog(c, hubOpen, providerCopy("搜索技能", "Find skills"), func() {
 			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(12, 0, 0, 0)
 			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
