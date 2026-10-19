@@ -327,6 +327,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectMaterialCollection(win, &m)
 	s.bindProjectVisualResults(win, &m)
 	s.bindProjectRequestReverts(win, &m)
+	s.bindProjectRequestCardActions(win, &m)
 	return m
 }
 func (s *projectController) runProjectAction(win *mygo.Window, action, arg, title string) {
