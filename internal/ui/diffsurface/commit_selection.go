@@ -12,6 +12,7 @@ import (
 )
 
 type commitSelectionState struct {
+	CaptionAction                 string
 	Excluded                      map[string]bool
 	NewBranch                     string
 	MakeBranch, LargeAcknowledged bool
@@ -101,6 +102,7 @@ func (w *Workbench) RequestCommit(root, message string) {
 		*w = Workbench{Operation: w.Operation}
 	}
 	w.reload(root)
+	w.commitState().CaptionAction = ""
 	w.Message = message
 	w.Status = word("选择本次提交的文件并核对实际 diff。", "Select the files for this commit, then review the exact diff.")
 }
@@ -323,6 +325,20 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.invalidateCommitReview()
 	}
 	if s.Plan == nil {
+		if s.CaptionAction != "" {
+			push := s.CaptionAction != "commit" || s.WantPR
+			caption := word("核对所选文件并提交…", "Review selected files to commit…")
+			if push {
+				caption = word("核对提交并推送…", "Review commit and push…")
+			}
+			if s.WantPR {
+				caption = word("核对提交、推送及 PR…", "Review commit, push and PR…")
+			}
+			if ui.PrimaryButton(c, caption).Clicked() {
+				beginCommitPreparation(c, m, push, s.WantPR)
+			}
+			return
+		}
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, word("核对所选文件并提交…", "Review selected files to commit…")).Clicked() {
 				beginCommitPreparation(c, m, false, false)
