@@ -109,6 +109,11 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 		}
 		s.scratchCwd = strings.TrimSpace(frame.Value.ScratchCwd)
 		s.workspaceReady = true
+		// A fresh authoritative baseline retires only this reader's prior error.
+		// Keep later user-action feedback while removing stale reconnect noise.
+		if s.workspaceErr != nil && s.lastAction == "workspace follow: "+s.workspaceErr.Error() {
+			s.lastAction = ""
+		}
 		s.workspaceErr = nil
 		s.workspaceMemberships = map[string]workspaceMembership{}
 		s.workspaceOrder = nil

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,9 +61,10 @@ func runNativeCoreRecoveryDesktop() error {
 	result := make(chan error, 1)
 	go func() {
 		deadline := time.Now().Add(100 * time.Second)
+		revealed := false
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
-			win, status := state.win, state.bootStatus
+			win, status, sessions, muxReady := state.win, state.bootStatus, state.sessions, state.dshMuxReady
 			state.mu.Unlock()
 			if status.State == harness.Failed {
 				result <- fmt.Errorf("isolated desktop Host failed: %v", status.Err)
@@ -71,14 +73,36 @@ func runNativeCoreRecoveryDesktop() error {
 			}
 			if win != nil && status.State == harness.Ready {
 				// Same route change as closing the launcher after its Host is ready.
-				state.revealMainConversation()
+				if !revealed {
+					state.revealMainConversation()
+					revealed = true
+				}
+				if sessions == nil {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				snap := sessions.Snapshot()
+				if !muxReady || !snap.ClientReady || snap.ListLoading || !snap.WorkspaceReady {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				if snap.ListErr != "" {
+					result <- fmt.Errorf("isolated session list failed: %s", snap.ListErr)
+					stopNativeAcceptance()
+					return
+				}
 				time.Sleep(700 * time.Millisecond)
+				if strings.HasPrefix(sessions.Snapshot().LastAction, "workspace follow:") {
+					result <- fmt.Errorf("workspace follow error remains in the ready desktop")
+					stopNativeAcceptance()
+					return
+				}
 				png, err := win.CapturePage()
 				if err == nil {
 					err = os.WriteFile(out, png, 0o600)
 				}
 				if err == nil {
-					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "windowHidden": true, "view": "production mainView", "data": "fresh isolated profile", "modelRequests": 0}, "", "  ")
+					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "mux": "ready", "sessionList": "ready", "workspace": "ready", "windowHidden": true, "view": "production mainView", "data": "isolated profile", "modelRequests": 0}, "", "  ")
 					err = os.WriteFile(out+".json", meta, 0o600)
 				}
 				result <- err
