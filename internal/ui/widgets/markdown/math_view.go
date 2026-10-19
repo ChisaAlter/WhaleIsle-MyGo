@@ -93,10 +93,14 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 	if previous := root.Bounds().W; previous > 0 {
 		width = previous
 	}
-	key := fmt.Sprint(spans, st.FontSize, theme.CurrentPreferences().Chat.Family, offset, targets)
+	key := fmt.Sprint(spans, st.FontSize, st.lineHeight, theme.CurrentPreferences().Chat.Family, offset, targets, st.urlTargets)
 	if state.lastKey != key || state.lastWidth != width || state.lastRevision != revision {
 		atoms := mathAtoms(spans, st, targets, offset, images, width)
-		state.layout = layoutMathAtoms(atoms, width, st.FontSize*1.25)
+		lineHeight := st.FontSize * 1.25
+		if st.lineHeight > 0 {
+			lineHeight = st.lineHeight
+		}
+		state.layout = layoutMathAtoms(atoms, width, lineHeight)
 		state.lastKey, state.lastWidth, state.lastRevision = key, width, revision
 	}
 	layout := state.layout
@@ -120,7 +124,7 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 		}
 	}).Children(func() {
 		for _, item := range layout.items {
-			if item.atom.target == "" && item.atom.label == "" {
+			if item.atom.target == "" && item.atom.url == "" && item.atom.label == "" {
 				continue
 			}
 			r := item.rect
@@ -129,6 +133,11 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 				el = el.Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink).Label(item.atom.target)
 				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
 					st.OnOpenFile(item.atom.target)
+				}
+			} else if item.atom.url != "" && st.OnOpenURL != nil {
+				el = el.Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink).Label(item.atom.label).Tooltip(item.atom.url)
+				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+					st.OnOpenURL(item.atom.url)
 				}
 			}
 		}
@@ -140,9 +149,10 @@ func mathAtoms(spans []ui.Span, st Style, targets map[int]string, offset int, im
 	for index, span := range spans {
 		formula, isMath := st.maths[offset+index]
 		if isMath {
+			href := st.urlTargets[offset+index]
 			image := images[formula]
 			if image.ready && image.err == nil && image.svg != nil {
-				atoms = append(atoms, mathAtom{svg: image.svg, width: image.width * st.FontSize, ascent: (image.height - image.depth) * st.FontSize, descent: image.depth * st.FontSize, color: st.FG, label: formula.Raw, display: formula.Display})
+				atoms = append(atoms, mathAtom{svg: image.svg, width: image.width * st.FontSize, ascent: (image.height - image.depth) * st.FontSize, descent: image.depth * st.FontSize, color: st.FG, label: formula.Raw, url: href, display: formula.Display})
 				continue
 			}
 			label := "Rendering equation offline…"
@@ -153,10 +163,18 @@ func mathAtoms(spans []ui.Span, st Style, targets map[int]string, offset int, im
 			atoms = appendTextAtoms(atoms, span, st, "", width)
 			for i := start; i < len(atoms); i++ {
 				atoms[i].label = label
+				atoms[i].url = href
 			}
 			continue
 		}
+		start := len(atoms)
 		atoms = appendTextAtoms(atoms, span, st, targets[offset+index], width)
+		if href := st.urlTargets[offset+index]; href != "" {
+			for i := start; i < len(atoms); i++ {
+				atoms[i].url = href
+				atoms[i].label = span.Text
+			}
+		}
 	}
 	return atoms
 }

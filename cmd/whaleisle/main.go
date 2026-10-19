@@ -2128,7 +2128,9 @@ func main() {
 		if err := os.MkdirAll(imgDir, 0o755); err != nil {
 			log.Println("imgcache:", err)
 		} else {
-			chat.SetRemoteImageCache(imgcache.New(imgDir))
+			cache := imgcache.New(imgDir)
+			chat.SetRemoteImageCache(cache)
+			marketui.SetRemoteImageCache(cache)
 			attDir := filepath.Join(userData, "cache", "attachments")
 			session.SetAttachmentCacheDir(attDir)
 		}
@@ -5117,6 +5119,11 @@ func mainView(c *ui.Context) {
 				muxReadyMarket := state.dshMuxReady
 				state.mu.Unlock()
 				marketui.View(c, marketui.Model{
+					OnOpenURL: func(rawURL string) {
+						if err := mygo.Shell.OpenExternal(rawURL); err != nil {
+							log.Println("market README link:", err)
+						}
+					},
 					Embedded:             embeddedSection == settings.SectionMarket,
 					Store:                marketStore,
 					ThemeID:              themeID,

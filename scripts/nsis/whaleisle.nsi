@@ -26,10 +26,40 @@ RequestExecutionLevel user
 Unicode true
 SetCompressor /SOLID lzma
 
-Page directory
-Page instfiles
-UninstPage uninstConfirm
-UninstPage instfiles
+; Same MUI2 page and resource contract as the original assisted installer.
+; Resource provenance is recorded beside these byte-for-byte source assets.
+!include "MUI2.nsh"
+!define MUI_ICON "branding\icon.ico"
+!define MUI_UNICON "branding\icon.ico"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_HEADERIMAGE_BITMAP "branding\installerHeader.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "branding\installerSidebar.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "branding\uninstallerSidebar.bmp"
+BrandingText "${PRODUCT_NAME} ${VERSION}"
+
+!define MUI_WELCOMEPAGE_TITLE_3LINES
+!insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE "branding\LICENSE"
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!define MUI_FINISHPAGE_TITLE_3LINES
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${EXE_NAME}"
+!define MUI_FINISHPAGE_LINK "github.com/ChisaAlter/Deepseek-Harness-Desktop"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/ChisaAlter/Deepseek-Harness-Desktop"
+!insertmacro MUI_PAGE_FINISH
+
+; MUI clears welcome settings after page insertion; set this again for the
+; original uninstall title's third line, not just the install welcome title.
+!define MUI_WELCOMEPAGE_TITLE_3LINES
+!insertmacro MUI_UNPAGE_WELCOME
+!insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_UNPAGE_FINISH
+
+; Original installerLanguages order is zh_CN, en_US. NSIS selects the OS
+; language automatically; the original does not request a language dialog.
+!insertmacro MUI_LANGUAGE "SimpChinese"
+!insertmacro MUI_LANGUAGE "English"
 
 Section "Install"
   SetOutPath "$INSTDIR"

@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/ChisaAlter/WhaleIsle",
+  "sourceRoot": "C:\\AI\\Deepseek-Harness-Desktop",
+  "rules": [
+    "package.json build.nsis",
+    "build/installer.nsh customWelcomePage/customUnWelcomePage/customHeader",
+    "node_modules/app-builder-lib/templates/nsis/assistedInstaller.nsh",
+    "node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js"
+  ],
+  "preservation": "Copied without modification from the local read-only original reference. File hashes identify the observed bytes; source Git metadata access was denied, so this manifest does not claim a verified source commit.",
+  "files": [
+    {
+      "file": "installerHeader.bmp",
+      "originalPath": "build/installerHeader.bmp",
+      "size": 25818,
+      "sha256": "7f99cf589286cc2133228c258c7d7e059809e90cd976e97f8b5976b3680440be"
+    },
+    {
+      "file": "installerSidebar.bmp",
+      "originalPath": "build/installerSidebar.bmp",
+      "size": 154542,
+      "sha256": "6d2340712deadcab0536f459f46d5963bf3b3b5b672a464c14219a9fca48a5a8"
+    },
+    {
+      "file": "uninstallerSidebar.bmp",
+      "originalPath": "build/uninstallerSidebar.bmp",
+      "size": 154542,
+      "sha256": "a3c60b683bdd903198717c6e04167c7e8f62a0d1bc0dba34cdaa1673f7ac0eec"
+    },
+    {
+      "file": "icon.ico",
+      "originalPath": "assets/icon.ico",
+      "size": 98203,
+      "sha256": "cdb489157bc0e50250a8ef6160f80f99418d348cc21e92f4a672c04f3b82ab4b"
+    },
+    {
+      "file": "LICENSE",
+      "originalPath": "LICENSE",
+      "size": 1083,
+      "sha256": "cacdd4929e0847a37d38685e1cc4b7e1e7c74ec1d4d889f6074ef94f8533f7dd"
+    }
+  ]
+}

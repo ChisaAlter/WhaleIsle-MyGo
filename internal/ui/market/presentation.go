@@ -287,8 +287,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 							ui.Text(c, requirement).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						}
 					}
-					ui.Text(c, marketText("仓库 README（纯文本）", "Repository README (plain text)")).Bold().TextColor(muted)
-					ui.Text(c, d.Details.Readme).FillWidth().MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
 			})
 		})

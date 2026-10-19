@@ -53,6 +53,8 @@ type Model struct {
 	OnAcceptExemption  func(packageVersion, runtimeVersion string)
 	OnCopyInstallLog   func(log string)
 	OnExportHistory    func()
+	// OnOpenURL activates an authored documentation link after an explicit click.
+	OnOpenURL func(string)
 	// OnOpenHarnessMarket opens the Electron ui-settings-market WebView when overlay is on.
 	OnOpenHarnessMarket func()
 }

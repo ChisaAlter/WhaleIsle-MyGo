@@ -18,11 +18,22 @@ import (
 type Style struct {
 	// RenderFence is an owner-bound optional native renderer. Returning false retains code.
 	RenderFence func(*ui.Context, string, string, int) bool
-	FontSize    float32
-	FG          ui.Color
-	Muted       ui.Color
-	CodeBG      ui.Color
-	Accent      ui.Color
+	// RenderImage optionally renders an image in document order. False keeps alt text.
+	RenderImage func(*ui.Context, string, string) bool
+	// OnOpenURL opts a document into inline external links; rendering never navigates.
+	OnOpenURL func(string)
+	// LiteralHTML displays raw markup as text instead of interpreting or dropping it.
+	LiteralHTML bool
+	// DocumentLayout uses the original MarkdownText block typography and margins.
+	// Existing conversation renderers retain their current layout unless opted in.
+	DocumentLayout bool
+	QuoteBorder    ui.Color
+	RuleBorder     ui.Color
+	FontSize       float32
+	FG             ui.Color
+	Muted          ui.Color
+	CodeBG         ui.Color
+	Accent         ui.Color
 	// CodeWrapDefault opts a surface into wrapped code initially. The retained
 	// per-block toggle still wins after the user chooses wrap or unwrap.
 	CodeWrapDefault bool
@@ -32,6 +43,10 @@ type Style struct {
 	codeSpanAt  func(int, string)
 	blockAt     func(int, int, ast.Node)
 	maths       map[int]mathFormula
+	urlSpanAt   func(int, string)
+	urlTargets  map[int]string
+	lineHeight  float32
+	textWeight  int
 }
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
@@ -56,8 +71,13 @@ func Spans(source string, st Style) []ui.Span {
 // View renders markdown in a RichText element.
 func View(c *ui.Context, source string, st Style) {
 	st.FontSize = theme.CurrentPreferences().Chat.Size
+	if st.DocumentLayout {
+		viewDocument(c, source, st)
+		return
+	}
 	targets := map[int]string{}
 	st.maths = map[int]mathFormula{}
+	collectURLTargets(&st)
 	if st.ResolveFile != nil && st.OnOpenFile != nil {
 		st.codeSpanAt = func(index int, value string) {
 			if path := st.ResolveFile(value); path != "" {
@@ -88,11 +108,11 @@ func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string,
 	if len(spans) == 0 {
 		return
 	}
-	if len(targets) == 0 {
-		ui.RichText(c, spans...).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
+	if len(targets) == 0 && len(st.urlTargets) == 0 {
+		styledRichText(c, spans, st)
 		return
 	}
-	ui.RichText(c).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG).Children(func() {
+	styledRichText(c, nil, st).Children(func() {
 		for index, span := range spans {
 			el := ui.RichText(c, span)
 			if path := targets[offset+index]; path != "" {
@@ -100,9 +120,56 @@ func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string,
 				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
 					st.OnOpenFile(path)
 				}
+			} else if href := st.urlTargets[offset+index]; href != "" && st.OnOpenURL != nil {
+				el = el.Label(span.Text).Tooltip(href).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
+				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+					st.OnOpenURL(href)
+				}
 			}
 		}
 	})
+}
+
+func styledRichText(c *ui.Context, spans []ui.Span, st Style) ui.Element {
+	el := ui.RichText(c, spans...).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
+	if st.lineHeight > 0 {
+		el = el.FixedLineHeight(st.lineHeight)
+	}
+	if st.textWeight > 0 {
+		el = el.FontWeight(st.textWeight)
+	}
+	return el
+}
+
+func collectURLTargets(st *Style) {
+	st.urlTargets = map[int]string{}
+	if st.OnOpenURL == nil {
+		return
+	}
+	st.urlSpanAt = func(index int, raw string) {
+		if href := documentURL(raw); href != "" {
+			st.urlTargets[index] = href
+		}
+	}
+}
+
+func documentURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		if u.Hostname() != "" && u.User == nil {
+			return raw
+		}
+	case "mailto":
+		if u.Opaque != "" {
+			return raw
+		}
+	}
+	return ""
 }
 
 // Link is one markdown hyperlink extracted for interactive rendering.
@@ -242,7 +309,9 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 					if cell.PreviousSibling() != nil {
 						*out = append(*out, ui.Span{Text: " | ", Size: st.FontSize, Color: st.Muted})
 					}
-					walkInlines(cell, src, st, out)
+					cellStyle := st
+					cellStyle.blockAt = nil // The table renderer owns images inside its cells.
+					walkInlines(cell, src, cellStyle, out)
 				}
 				*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 			}
@@ -273,6 +342,10 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 				s.Color = st.Muted
 			})
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *ast.HTMLBlock:
+			if st.LiteralHTML {
+				appendPlainSpan(string(node.Text([]byte(src))), st, out)
+			}
 		default:
 			if n, ok := child.(ast.Node); ok {
 				walkBlocks(n, src, st, out)
@@ -320,6 +393,9 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 		var extra spanMutator
 		if level >= 2 {
 			extra = func(s *ui.Span) { s.Weight = 700 }
+			if st.DocumentLayout {
+				extra = func(s *ui.Span) { s.Weight = 600 }
+			}
 		} else {
 			extra = func(s *ui.Span) { s.Italic = true }
 		}
@@ -347,8 +423,26 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 		for _, m := range mutators {
 			m(&span)
 		}
+		if st.urlSpanAt != nil {
+			st.urlSpanAt(len(*out), string(node.URL([]byte(src))))
+		}
 		*out = append(*out, span)
 	case *ast.Link:
+		if st.OnOpenURL != nil {
+			start := len(*out)
+			href := documentURL(string(node.Destination))
+			linkMutators := mutators
+			if href != "" {
+				linkMutators = append(append([]spanMutator(nil), mutators...), func(s *ui.Span) { s.Color = st.Accent; s.Underline = true })
+			}
+			walkInlines(node, src, st, out, linkMutators...)
+			for index := start; index < len(*out); index++ {
+				if st.urlSpanAt != nil {
+					st.urlSpanAt(index, href)
+				}
+			}
+			return
+		}
 		var buf bytes.Buffer
 		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
 			if t, ok := c.(*ast.Text); ok {
@@ -369,6 +463,16 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 			m(&span)
 		}
 		*out = append(*out, span)
+	case *ast.Image:
+		start := len(*out)
+		walkInlines(node, src, st, out, mutators...)
+		if st.RenderImage != nil && st.blockAt != nil {
+			st.blockAt(start, len(*out), node)
+		}
+	case *ast.RawHTML:
+		if st.LiteralHTML {
+			appendPlainSpan(string(node.Text([]byte(src))), st, out, mutators...)
+		}
 	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			appendInline(c, src, st, out, mutators...)

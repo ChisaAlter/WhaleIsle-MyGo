@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"strconv"
 	"strings"
 	"whaleisle/internal/ui/theme"
 
@@ -19,12 +20,47 @@ type richBlock struct {
 func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets map[int]string, blocks []richBlock) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		at := 0
-		for _, block := range blocks {
+		for blockIndex, block := range blocks {
 			start, end := min(block.start, len(spans)), min(block.end, len(spans))
 			viewSpans(c, st, spans[at:start], targets, at)
 			switch node := block.node.(type) {
 			case *extast.Table:
 				viewTable(c, node, source, st)
+			case *ast.Image:
+				// The URL may repeat, and an empty alt has no span position. Each
+				// source occurrence owns a parent scope independent of URL/alt.
+				ui.Column(c.Key("markdown-image-" + strconv.Itoa(blockIndex))).FillWidth().MinWidth(0).Children(func() {
+					var alt strings.Builder
+					for _, span := range spans[start:end] {
+						alt.WriteString(span.Text)
+					}
+					render := func(style Style, files map[int]string) {
+						if st.RenderImage == nil || !st.RenderImage(c, string(node.Destination), alt.String()) {
+							fallback := spans[start:end]
+							if st.DocumentLayout {
+								fallback = []ui.Span{{Text: alt.String(), Size: st.FontSize, Color: st.Muted, Italic: true}}
+							}
+							viewSpans(c, style, fallback, files, start)
+						}
+					}
+					if href := enclosingImageURL(node); href != "" && st.OnOpenURL != nil {
+						label := alt.String()
+						if label == "" {
+							label = href
+						}
+						link := ui.Box(c).FillWidth().MinWidth(0).Role(ui.RoleLink).Focusable().Label(label).Tooltip(href).Cursor(ui.CursorPointer)
+						link.Children(func() {
+							fallback := st
+							fallback.urlTargets = nil // The enclosing image link owns this activation.
+							render(fallback, nil)
+						})
+						if link.Clicked() || link.Shortcut(0, ui.KeyEnter) || link.Shortcut(0, ui.KeySpace) {
+							st.OnOpenURL(href)
+						}
+					} else {
+						render(st, targets)
+					}
+				})
 			default:
 				viewCodeBlock(c, node, source, st)
 			}
@@ -32,6 +68,18 @@ func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets
 		}
 		viewSpans(c, st, spans[at:], targets, at)
 	})
+}
+
+func enclosingImageURL(image *ast.Image) string {
+	for parent := image.Parent(); parent != nil; parent = parent.Parent() {
+		if link, ok := parent.(*ast.Link); ok {
+			return documentURL(string(link.Destination))
+		}
+		if parent.Type() == ast.TypeBlock {
+			break
+		}
+	}
+	return ""
 }
 
 func codeBlockSource(node ast.Node, source string) (language, code string) {
@@ -94,6 +142,11 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 						ui.Column(c).Width(180).Padding(6).BorderWidth(1).BorderColor(st.Muted).Children(func() {
 							cellStyle := st
 							cellStyle.maths = map[int]mathFormula{}
+							collectURLTargets(&cellStyle)
+							var blocks []richBlock
+							cellStyle.blockAt = func(start, end int, node ast.Node) {
+								blocks = append(blocks, richBlock{start: start, end: end, node: node})
+							}
 							targets := map[int]string{}
 							cellStyle.codeSpanAt = func(index int, value string) {
 								if st.ResolveFile != nil && st.OnOpenFile != nil {
@@ -107,7 +160,11 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 									spans[i].Weight = 700
 								}
 							}
-							viewSpans(c, cellStyle, spans, targets, 0)
+							if len(blocks) > 0 {
+								viewBlocks(c, source, cellStyle, spans, targets, blocks)
+							} else {
+								viewSpans(c, cellStyle, spans, targets, 0)
+							}
 						})
 					}
 				})

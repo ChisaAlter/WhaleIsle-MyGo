@@ -7,7 +7,7 @@ type mathAtom struct {
 	text                   *ui.TextLayout
 	svg                    *ui.SVG
 	color                  ui.Color
-	label, target          string
+	label, target, url     string
 	newline, display       bool
 }
 
