@@ -103,15 +103,18 @@ were not weakened or removed.
 Run02's two AVIF UI timeouts identified `raster.help` workers created by
 `raster.hire` inside a synctest bubble. Those global workers intentionally live
 for the process lifetime; this was a fixture initialization/lifetime problem,
-not evidence of an animation loop. The fixtures now render a simple full-size
-background outside the bubble before drawing the actual surface inside it:
-composer AVIF 700x500, composer WebP 600x400, Files AVIF 700x500, Market AVIF
-300x300, and Market GIF/WebP 160x100. The separate Market async-decoder fixture
-does not render and requires no raster initialization. The existing production
-pool, processor settings, renderer paths and timeouts were not changed. Actual
-canvas/pixel/time/hide/dismiss assertions remain intact; this harness correction
-and the new constraints cases have not yet been executed. Parent owns the
-next coordinated affected verification after all run02 failures are fixed.
+not evidence of an animation loop. The first attempted warm-up still caused a
+cross-bubble WaitGroup failure in run03 and was replaced by `c5be241`: full UI
+rendering now runs entirely outside synctest. Bounded frame polling observes
+the actual frame bitmap and changed canvas pixels; exact frame timing and
+finite-loop completion remain deterministic decoder/advance checks. The
+separate Market async-decoder fixture does not render. The production pool,
+processor settings and renderer paths were not changed. Canvas, green WebP
+frame, hide and Escape/dismiss assertions remain intact. Composer and Market
+passed at `c5be241` in `../evidence/source-parity-recheck-20261019T164454Z/`;
+Files, including its image sequence fixtures, passed at `92d0327` in
+`../evidence/source-parity-targeted-20261019T165904Z/`. These are software
+render/regression observations, not original/Go Windows visual acceptance.
 
 ### AVIF sequence follow-up
 

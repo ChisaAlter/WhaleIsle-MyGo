@@ -1,14 +1,23 @@
 # Original-source parity implementation batch
 
-# Current source follow-up (2026-10-19, after unified run01)
+# Current source follow-up (2026-10-19, concentrated regression corrections)
 
 Earlier “batch closed” statements below describe their recorded source snapshots. They do not close the complete original application. The registered 91-ID inventory still contains sampled or unread states; see [the coverage index](source-coverage-index-20261019.md).
 
-Run01 at `3b37750` exited 1; its fixes were subsequently committed. Run02 at `221dba0` also exited 1; complete output and receipts are in `../evidence/source-parity-unified-20261019T161408Z/`. The affected nested UI SDK full package passed (exit 0). Root failures include the screenshot-slice catalog equality compile error, missing valid AVIF `ccst`, stale Schedule/question lifecycle fixtures, fenced literal reference rewriting, two synctest/global-raster-pool fixture timeouts, terminal-toggle focus and the sidebar fallback assertion. Each failure is being attributed and corrected before any further execution. No candidate has been built from this snapshot. There have been three failed local validation rounds including the earlier compile attempt; remote CI remains untriggered (zero attempts). An earlier pre-source-closure compile request was denied before execution.
+Run01 at `3b37750` and run02 at `221dba0` exited 1. Run03 at `6fec511` passed every root package except the main package (cached Activity field migration compile error), composer/Files (cross-synctest raster fixture failure) and Market (float geometry equality). The corrected composer and Market packages passed at `c5be241`; Files passed at `92d0327`. The main package's duplicate native theme query was removed in `63aeeb7`, and its theme/owner tests now pass; its completed latest run still failed one IME checkpoint fixture. Source attribution found that fixture reused the original selection instead of the current marked range; `66c84f1` corrects the input sequence and adds native-text assertions without changing the SDK or checkpoint product. Its single-main-package recheck is pending. No current Windows binary has yet been built.
+
+| Evidence snapshot | Actual outcome / reuse boundary |
+|---|---|
+| `../evidence/source-parity-unified-20261019T161408Z/` | Run02 root exit 1; nested UI SDK `go test ./ui` exit 0, tree `79a93d817ed8f2c9a7c72a202cb07093037e2ce8` unchanged through `92d0327` |
+| `../evidence/source-parity-unified-20261019T163227Z/` | Run03 root exit 1; all packages except the four listed above passed |
+| `../evidence/source-parity-recheck-20261019T164454Z/` | Four affected packages at `c5be241`: composer and Market pass; main theme-query timeout and Files fixture alias fail |
+| `../evidence/source-parity-targeted-20261019T165904Z/` | Main/Files at `92d0327`: Files pass; main finishes in 4.730s, only selection-marked-commit visibility checkpoint fails |
+
+There have been six failed local validation rounds including the earlier admitted compile attempt. These are local results, not CI attempts: remote CI remains untriggered (zero attempts). The earlier pre-source-closure compile request was denied before execution and generated no result. Passed component receipts are retained only while their source/dependency trees are unchanged; this table does not claim a single all-green repository invocation or actual desktop acceptance.
 
 Additional source comparison found implementable gaps, so source work resumed before a second unified run. Native Market screenshot catalog/gallery, GIF/WebP README animation, broader bounded static SVG, compact child composer and original Workflow row rendering are committed. `8e1694c` now preserves actual subagent descriptor identity and permits both original workflow navigation modes; `c6854e8` restores desktop applyConfig’s public config response. These are source changes, not new regression or desktop acceptance claims.
 
-The identified source follow-up was frozen for run02, and corrective source work is now active for its actual failures. A new verification is deferred until those fixes and necessary regression preparation are all saved; the earlier source milestone is not a passing result. The current source ledger records 52 rows with bounded behavior comparisons and 39 with entry-point sampling. These 91 labels are not an exhaustive original-feature/state review: each linked report retains unread states, dynamic contributions and platform-specific limits.
+The identified source follow-up was frozen for run02; corrective source work and the two-axis review now address its observed failures and newly exposed paths. Verification is deferred while those source corrections and necessary fixtures are being prepared. The current source ledger records 52 rows with bounded behavior comparisons and 39 with entry-point sampling. These 91 labels are not an exhaustive original-feature/state review: each linked report retains unread states, dynamic contributions and platform-specific limits.
 
 | Follow-up source behavior | Concrete implementation commits |
 |---|---|
@@ -27,7 +36,7 @@ The identified source follow-up was frozen for run02, and corrective source work
 
 The local-file correction is material: the original `desktop-file` extension-priority resource type takes over session-relative non-Office files before the generic Host document viewer. It uses desktop file/media/write IPC, includes AVIF, and deliberately keeps CSV/TSV editable. Earlier blanket Host-only and fallback-only format conclusions were withdrawn and their mistaken fixtures removed before execution. A session resource address does not alone establish the bytes source.
 
-Native Windows/original screenshots and physical input remain blocked by unavailable supported native capture/input. NSIS compilation is separately blocked by compiler acquisition: all three official archive/mirror retrievals returned HTML and failed the published SHA-256; no bytes were extracted or run. `../evidence/nsis-toolchain-preparation-20261019.json` records that tool-acquisition failure. This is not a product regression round. No remote CI has been triggered; the two earlier failed local validation rounds are recorded separately.
+Native Windows/original screenshots and physical input remain blocked by unavailable supported native capture/input. NSIS compilation is separately blocked by compiler acquisition: all three official archive/mirror retrievals returned HTML and failed the published SHA-256; no bytes were extracted or run. `../evidence/nsis-toolchain-preparation-20261019.json` records that tool-acquisition failure. This is not a product regression round. Local checks and CI counts remain separate as recorded above.
 
 The existing delivered folder and user instances have not been replaced. No new package, release, remote push, main merge or installer execution has occurred. Source implementation, ordinary regression, real Host operation and Windows/original same-state visual acceptance remain separate evidence levels.
 
