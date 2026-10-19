@@ -28,12 +28,14 @@ type Snapshot struct {
 	Draft, EditingID, DeletingID, Err, LastAction string
 }
 type Controller struct {
-	healthLoop     *healthRefreshLoop
-	healthRead     *healthRefreshRead
-	importSequence uint64
-	mu             sync.Mutex
-	state          Snapshot
-	revision       uint64
+	operationContext context.Context
+	operationCancel  context.CancelFunc
+	healthLoop       *healthRefreshLoop
+	healthRead       *healthRefreshRead
+	importSequence   uint64
+	mu               sync.Mutex
+	state            Snapshot
+	revision         uint64
 }
 
 func (c *Controller) Snapshot() Snapshot {

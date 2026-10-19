@@ -35,6 +35,7 @@ func (s *mainState) suspendMCPHealth() {
 // before publishing the replacement; the old loop keeps its captured caller.
 func (s *mainState) replaceMCPControllerLocked() {
 	if controller := s.settingsMCPController; controller != nil {
+		controller.CancelOperations()
 		controller.StopHealthRefresh()
 	}
 	s.settingsMCPController = &mcpconfig.Controller{}

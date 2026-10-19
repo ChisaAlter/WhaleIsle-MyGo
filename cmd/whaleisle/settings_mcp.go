@@ -26,6 +26,14 @@ func (s *mainState) updateMCPSettingsUI() {
 	}
 }
 func (s *mainState) runMCPSettings(controller *mcpconfig.Controller, action func(context.Context, mcpconfig.Caller)) {
+	s.runMCPSettingsTimeout(controller, 45*time.Second, action)
+}
+
+// The original Host allows three minutes for its OAuth callback; discovery,
+// exchange and remount retain the ordinary 45-second foreground I/O allowance.
+const mcpAuthorizationTimeout = 3*time.Minute + 45*time.Second
+
+func (s *mainState) runMCPSettingsTimeout(controller *mcpconfig.Controller, timeout time.Duration, action func(context.Context, mcpconfig.Caller)) {
 	s.dshMu.Lock()
 	if s.settingsMCPController != controller {
 		s.dshMu.Unlock()
@@ -45,7 +53,7 @@ func (s *mainState) runMCPSettings(controller *mcpconfig.Controller, action func
 		if !current {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		ctx, cancel := context.WithTimeout(controller.OperationContext(), timeout)
 		defer cancel()
 		action(ctx, caller)
 		s.updateMCPSettingsUI()
@@ -81,7 +89,11 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		rows = append(rows, settings.MCPServerRow{ServerName: mcpconfig.ServerName(r), ID: r.Id, Origin: r.Origin, Enabled: r.Enabled, Writable: r.Writable, Status: settings.FormatMCPStatus(r.FiberPhase, health, lastError), Summary: settings.FormatMCPSummary(r.Spec)})
 	}
 	rowAction := func(id, action string) {
-		s.runMCPSettings(controller, func(ctx context.Context, client mcpconfig.Caller) {
+		timeout := 45 * time.Second
+		if action == "authorize" {
+			timeout = mcpAuthorizationTimeout
+		}
+		s.runMCPSettingsTimeout(controller, timeout, func(ctx context.Context, client mcpconfig.Caller) {
 			controller.RowAction(ctx, client, id, action)
 		})
 	}
