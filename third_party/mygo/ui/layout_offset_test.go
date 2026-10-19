@@ -34,6 +34,13 @@ func TestLayoutOffsetCurrentFrameMeasurementFlowAndHit(t *testing.T) {
 	if err := tt.Click("Moved control"); err != nil {
 		t.Fatal(err)
 	}
+	// The later sibling occupies x0..100/y50..80 and covers the moved
+	// button's center. Preserve ordinary paint-order hit occlusion, then
+	// press its exposed right edge (x120), which only the moved control owns.
+	if clicked != 0 {
+		t.Fatal("displacement bypassed the later sibling's hit occlusion")
+	}
+	tt.ClickAt(moved.X+moved.W-5, moved.Y+moved.H/2)
 	if clicked != 1 {
 		t.Fatalf("displaced hit target did not follow paint: %d", clicked)
 	}
