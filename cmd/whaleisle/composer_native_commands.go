@@ -6,6 +6,14 @@ import (
 	"whaleisle/internal/ui/composer"
 )
 
+func (s *mainState) retireNativeComposerCommands() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, draft := range s.composerDrafts {
+		draft.RetireNativeCommands()
+	}
+}
+
 // Both command actions reuse their existing owner: the draft's ordinary file
 // intake, or the selected session's feedback controller. No Host command or
 // model prompt is sent by a bare local action.
@@ -19,6 +27,9 @@ func (s *mainState) nativeComposerCommandAction(win *mygo.Window, sessions *sess
 	current := s.sessions == sessions && s.composerDrafts[sourceID] == draft
 	s.mu.Unlock()
 	if !current {
+		return false
+	}
+	if isRoom, _ := s.assistantGroupMembers(sourceID); isRoom {
 		return false
 	}
 	switch name {

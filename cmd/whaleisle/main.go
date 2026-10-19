@@ -2193,6 +2193,8 @@ func main() {
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
 		win.OnClosed(state.cancelComposerVoice)
+		win.OnHide(state.retireNativeComposerCommands)
+		win.OnClosed(state.retireNativeComposerCommands)
 		win.OnHide(state.pauseVoiceDevices)
 		win.OnMinimize(state.pauseVoiceDevices)
 		win.OnClosed(state.pauseVoiceDevices)

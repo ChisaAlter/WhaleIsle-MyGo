@@ -246,9 +246,6 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if m.State != nil {
 			m.State.ModelCommand.Sync(m.Snapshot.SelectedID)
 			m.State.PermissionCommand.Sync(m.Snapshot.SelectedID)
-			if !m.Inert {
-				paintNativeCommandPopup(c, m, panel, border, fg, muted)
-			}
 		}
 		if m.SkillsOpen {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
@@ -455,10 +452,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					if m.State == nil || !m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
-						paintContextMeter(c, m.Snapshot, muted, btnH)
-						paintModelPicker(c, m, muted, btnH)
-					}
+					paintContextMeter(c, m.Snapshot, muted, btnH)
+					paintModelPicker(c, m, muted, btnH)
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {
 						if item.SessionID == m.Snapshot.SelectedID && item.Running {
@@ -523,6 +518,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					trigger.Focus()
 				}
 			}
+			paintNativeCommandPopup(c, m, card, panel, border, fg, muted)
 		})
 	})
 }

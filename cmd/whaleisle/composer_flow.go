@@ -34,6 +34,7 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 	for id, d := range s.composerDrafts {
 		if !rendered || id != sessionID {
 			d.EndEdit()
+			d.RetireNativeCommands()
 		}
 	}
 }
@@ -83,11 +84,12 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	}
 	// Local contributions own their bare invocation before workspace/prompt
 	// admission. File and feedback actions retain existing attachment state.
-	if strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
+	isRoom, _ := s.assistantGroupMembers(id)
+	if !isRoom && strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
 		sessions.EnsureSlashCommands(context.Background())
 		live = sessions.Snapshot()
 	}
-	if d.HandleNativeCommand(live, func(owner composer.NativeCommandOwner, name string) bool {
+	if !isRoom && d.HandleNativeCommand(live, func(owner composer.NativeCommandOwner, name string) bool {
 		return s.nativeComposerCommandAction(win, sessions, d, id, cwd, owner, name)
 	}) {
 		return
@@ -122,7 +124,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	text := d.Text
 	inputText := text
 	groupReply := false
-	if isRoom, _ := s.assistantGroupMembers(id); isRoom && editSeq == 0 {
+	if isRoom && editSeq == 0 {
 		thread, body, claimed, err := session.ParseGroupThreadReply(text)
 		if err != nil {
 			d.Error = err.Error()
