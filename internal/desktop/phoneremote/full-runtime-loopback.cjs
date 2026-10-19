@@ -10,7 +10,7 @@ const inside=(base,file)=>{const r=path.relative(base,file);return r===''||(!r.s
 const spawned=[];
 const originalSpawn=cp.spawn;
 cp.spawn=function(...args){const child=originalSpawn.apply(this,args);spawned.push({child,file:path.resolve(String(args[0])),pid:child.pid});return child;};
-let mf,channel,socket,closing=false;
+let mf,channel,socket,ownedEndpoint,closing=false;
 async function cleanup(){
  if(closing)return;closing=true;
  if(channel)channel.close(1000,'owned acceptance complete');
@@ -89,11 +89,12 @@ async function serve(manifest,component){
  const {Miniflare,Log,LogLevel}=require(path.join(toolRoot,'node_modules/miniflare'));
  mf=new Miniflare({scriptPath:worker,modules:true,compatibilityDate:'2024-12-01',host:'127.0.0.1',port:0,durableObjects:{RELAY:{className:'RelayDurableObject',useSQLite:true}},durableObjectsPersist:path.join(process.env.HOME,'relay-db'),log:new Log(LogLevel.NONE)});
  const url=await mf.ready;
+ ownedEndpoint=url.host;
  emit({kind:'ready',endpoint:url.host,vendor:path.join(root,'vendor'),component,manifest,workerSHA256:hash(fs.readFileSync(worker)),children:spawned.map(({file,pid})=>({file,pid}))});
 }
 async function handshake(offerURL){
  const offer=JSON.parse(Buffer.from(new URL(offerURL).hash.slice(7),'base64url').toString('utf8'));
- if(!offer.relay.endpoint.startsWith('127.0.0.1:'))throw Error('offer endpoint is not own loopback');
+ if(offer.relay.endpoint!==ownedEndpoint||offer.relay.useTls!==false)throw Error('offer endpoint is not the exact owned loopback relay');
  const {createRequire}=require('node:module');const localRequire=createRequire(path.join(root,'vendor/dshd-remote/vendor/chisacode-remote/node_modules/@chisacode/relay/package.json'));
  const {WebSocket}=localRequire('ws');
  const relayPath=localRequire.resolve('@chisacode/relay/e2ee');
