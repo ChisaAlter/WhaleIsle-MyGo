@@ -114,6 +114,15 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatal("failed delivery discarded draft")
 	}
 	s.Retry("q")
+	wait(func() bool {
+		mu.Lock()
+		count := len(posts)
+		mu.Unlock()
+		p := s.SnapshotForAgent("A").Pending
+		return count == 2 && len(p) == 1 && p[0].Sending && p[0].Error == ""
+	})
+	// HTTP receipt alone cannot prove that the Host admitted the answer.
+	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-q"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
 	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
 	mu.Lock()
 	got := append([]dsh.EventResult(nil), posts...)

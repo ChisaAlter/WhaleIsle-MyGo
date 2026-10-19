@@ -2,6 +2,7 @@ package chat
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -29,6 +30,43 @@ func TestPTCInlineFileLocationsCanonicalAliasesAndAmbiguity(t *testing.T) {
 		if got := resolve(token); got != want {
 			t.Fatalf("%s => %s, want %s", token, got, want)
 		}
+	}
+}
+
+func TestHistoricalFileFailureCompletionBelongsToExactReferenceRequest(t *testing.T) {
+	state := &userFileReferenceState{}
+	var complete func(error)
+	current := true
+	start := func(_ string, done func(error)) { complete = done }
+	state.open("a.txt", start, func() bool { return current })
+	complete(errors.New("fixture denied"))
+	if !state.failed {
+		t.Fatal("navigation failure was not local")
+	}
+	state.open("a.txt", start, func() bool { return current })
+	late := complete
+	state.dismiss()
+	late(errors.New("late denial"))
+	if state.failed {
+		t.Fatal("dismissed modal reopened on stale completion")
+	}
+	state.open("a.txt", start, func() bool { return current })
+	current = false
+	complete(errors.New("other owner"))
+	if state.failed {
+		t.Fatal("retired history owner received a modal")
+	}
+	current = true
+	state.open("a.txt", start, func() bool { return current })
+	first := complete
+	state.open("b.txt", start, func() bool { return current })
+	first(errors.New("older request"))
+	if state.failed {
+		t.Fatal("older reference response replaced the latest request")
+	}
+	complete(nil)
+	if state.failed {
+		t.Fatal("successful navigation retained a failure")
 	}
 }
 
