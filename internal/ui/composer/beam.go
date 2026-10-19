@@ -75,23 +75,26 @@ func composerRunning(m Model) bool {
 
 // Native painter paths keep all beam layers pointer-inert and preserve the
 // composer's native text, toolbar and drag-resize event ownership.
-func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle) {
-	p.AnimationFrame()
+func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beamTimeline, active, reduced bool) {
 	now := p.Now()
-	seconds := float64(now.UnixMilli()) / 1000
-	phase := math.Mod(seconds/style.Period, 1)
-	if style.Direction == "counterclockwise" {
-		phase = 1 - phase
-	} else if style.Direction == "pingPong" && int64(seconds/style.Period)%2 != 0 {
-		phase = 1 - phase
+	opacity, seconds, animate := timeline.update(now, active, reduced)
+	breatheSeconds, hueSeconds := timeline.effectTimes(now, style)
+	if animate {
+		p.AnimationFrame()
 	}
-	if style.Easing != "linear" {
-		phase = float64(ui.EaseInOut(float32(phase)))
+	if opacity == 0 {
+		return
 	}
-	intensity := style.Intensity / 100
-	if style.Breathing.Enabled {
-		intensity *= 1 + style.Breathing.Amplitude*(1-math.Cos(seconds/style.Breathing.Period*2*math.Pi))/2
+	phase := 0.0
+	breathing, hue := 1.0, 0.0
+	// Removing .cardBeam cancels spin/hue/breathe immediately. Its registered
+	// angle falls back to 0deg while the child opacity transition fades out.
+	if active {
+		phase = beamPhase(seconds, style)
+		breathing, hue = beamBreathing(breatheSeconds, style), beamHue(hueSeconds, style)
 	}
+	hueMatrix := beamHueMatrix(hue)
+	intensity := style.Intensity / 100 * opacity * breathing
 	if style.Night.Enabled {
 		local := now.Local()
 		minute := local.Hour()*60 + local.Minute()
@@ -101,10 +104,6 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle) {
 			intensity *= 1 - style.Night.Dim/100
 		}
 	}
-	hue := style.Hue
-	if style.HueCycle.Enabled {
-		hue -= math.Cos(seconds/style.HueCycle.Period*2*math.Pi) * style.HueCycle.Range
-	}
 	colors := beamPalettes[style.Palette.ID]
 	if style.Palette.Kind == "custom" {
 		colors = style.Palette.Colors
@@ -112,9 +111,25 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle) {
 	if len(colors) == 0 {
 		colors = beamPalettes["legacy"]
 	}
-	palette := make([]ui.Color, len(colors))
+	// Normalized custom palettes contain 2..6 colors; presets at most seven.
+	// Keep the common paint path on the stack and retain larger raw palettes
+	// without allocating a fresh color slice on every animation frame.
+	var palette [7]ui.Color
+	inks := palette[:]
+	if len(colors) > len(palette) {
+		if cap(timeline.palette) < len(colors) {
+			timeline.palette = make([]ui.Color, len(colors))
+		}
+		inks = timeline.palette[:len(colors)]
+	}
 	for i, value := range colors {
-		palette[i] = rotateBeamHue(chrome.Color(value), hue)
+		inks[i] = chrome.Color(value)
+	}
+	// Source closes only open palettes. Already closed presets use n-1
+	// intervals; an extra repeated first color would shift every stop.
+	intervals := len(colors)
+	if colors[0] == colors[len(colors)-1] {
+		intervals--
 	}
 	const segments = 160
 	for i := 0; i < segments; i++ {
@@ -127,11 +142,14 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle) {
 		if mask == 0 {
 			continue
 		}
-		colorAt := position * float64(len(palette))
-		index := int(colorAt) % len(palette)
-		a, b := palette[index], palette[(index+1)%len(palette)]
+		colorAt := position * float64(intervals)
+		index := int(colorAt)
+		a, b := inks[index], inks[(index+1)%len(colors)]
 		mix := float32(colorAt - math.Floor(colorAt))
 		color := ui.RGB(uint8(float32(a.R)*(1-mix)+float32(b.R)*mix), uint8(float32(a.G)*(1-mix)+float32(b.G)*mix), uint8(float32(a.B)*(1-mix)+float32(b.B)*mix))
+		if active && style.HueCycle.Enabled {
+			color = filterBeamColor(color, hueMatrix)
+		}
 		path := new(ui.Path).MoveTo(x, y).LineTo(x2, y2)
 		alpha := float32(mask * intensity)
 		// Broad translucent strokes provide the inner wash and bloom before
@@ -143,6 +161,16 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle) {
 		}
 		p.StrokePath(path, style.TrackWidth, color.Alpha(.6*alpha))
 	}
+}
+
+// CSS applies hue-rotate, brightness(1.3), then saturate(1.2). The existing
+// broad-stroke layers still approximate the source gradients and blur.
+func filterBeamColor(color ui.Color, matrix [9]float64) ui.Color {
+	color = applyBeamHue(color, matrix)
+	r, g, b := min(255, float64(color.R)*1.3), min(255, float64(color.G)*1.3), min(255, float64(color.B)*1.3)
+	luma := .213*r + .715*g + .072*b
+	channel := func(value float64) uint8 { return uint8(min(255, max(0, luma+(value-luma)*1.2))) }
+	return ui.RGB(channel(r), channel(g), channel(b))
 }
 
 func beamMask(t float64) float64 {
@@ -188,12 +216,24 @@ func beamPoint(r ui.Rect, progress float64) (float32, float32) {
 }
 
 func rotateBeamHue(color ui.Color, degrees float64) ui.Color {
+	return applyBeamHue(color, beamHueMatrix(degrees))
+}
+
+func beamHueMatrix(degrees float64) [9]float64 {
 	cosine, sine := math.Cos(degrees*math.Pi/180), math.Sin(degrees*math.Pi/180)
+	return [9]float64{
+		.213 + .787*cosine - .213*sine, .715 - .715*cosine - .715*sine, .072 - .072*cosine + .928*sine,
+		.213 - .213*cosine + .143*sine, .715 + .285*cosine + .140*sine, .072 - .072*cosine - .283*sine,
+		.213 - .213*cosine - .787*sine, .715 - .715*cosine + .715*sine, .072 + .928*cosine + .072*sine,
+	}
+}
+
+func applyBeamHue(color ui.Color, matrix [9]float64) ui.Color {
 	r, g, b := float64(color.R), float64(color.G), float64(color.B)
 	channel := func(value float64) uint8 { return uint8(min(255, max(0, value))) }
 	return ui.RGB(
-		channel((.213+.787*cosine-.213*sine)*r+(.715-.715*cosine-.715*sine)*g+(.072-.072*cosine+.928*sine)*b),
-		channel((.213-.213*cosine+.143*sine)*r+(.715+.285*cosine+.140*sine)*g+(.072-.072*cosine-.283*sine)*b),
-		channel((.213-.213*cosine-.787*sine)*r+(.715-.715*cosine+.715*sine)*g+(.072+.928*cosine+.072*sine)*b),
+		channel(matrix[0]*r+matrix[1]*g+matrix[2]*b),
+		channel(matrix[3]*r+matrix[4]*g+matrix[5]*b),
+		channel(matrix[6]*r+matrix[7]*g+matrix[8]*b),
 	)
 }

@@ -173,6 +173,9 @@ func (rt *engine) setHover(chain []uint64) bool {
 }
 
 func (rt *engine) pointerMove(x, y float32) {
+	if x != rt.pointerX || y != rt.pointerY || !rt.pointerIn {
+		rt.decorations.noteSplashPointer(x, y, rt.now())
+	}
 	if d := &rt.scrollDrag; d.st != nil {
 		s := d.st
 		g := d.bars(rt.c.theme.scrollbarWidth())

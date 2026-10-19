@@ -17,17 +17,21 @@ func marketReadme(c *ui.Context, m Model, source string, fg, muted, codeBG, acce
 		return
 	}
 	ui.Column(c.Key("market-readme")).Label("Repository README").FillWidth().MinWidth(0).Gap(8).Children(func() {
-		// MarketSection.module.css overrides this section heading to14/22;
-		// Markdown body keeps the original shared content-font preference.
+		// The shell loads MarkdownText CSS statically; Market's plugin factory
+		// appends MarketSection CSS later. Its equally specific .readme h3
+		// fixes every descendant h3 at14/22 while preserving Markdown's weight
+		// and margins. Other Markdown typography follows the content preference.
 		ui.Text(c, marketText("仓库 README", "Repository README")).FontSize(14).FixedLineHeight(22).Bold().TextColor(fg)
 		markdown.View(c, source, markdown.Style{
 			FontSize: theme.CurrentPreferences().Chat.Size,
 			FG:       fg, Muted: muted, CodeBG: codeBG, Accent: accent,
 			OnOpenURL: m.OnOpenURL, LiteralHTML: true,
-			RenderImage:    renderReadmeImage,
-			DocumentLayout: true,
-			QuoteBorder:    chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Caption),
-			RuleBorder:     chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Border),
+			RenderImage:          renderReadmeImage,
+			DocumentLayout:       true,
+			DocumentH3FontSize:   14,
+			DocumentH3LineHeight: 22,
+			QuoteBorder:          chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Caption),
+			RuleBorder:           chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Border),
 		})
 	})
 }

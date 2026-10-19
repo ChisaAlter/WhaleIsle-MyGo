@@ -159,6 +159,70 @@ func TestMarketReadmeSourceListAndRuleGeometry(t *testing.T) {
 	}
 }
 
+func TestMarketReadmeH3CascadeKeepsAbsoluteMetricsAndSharedMargins(t *testing.T) {
+	previous := theme.CurrentPreferences()
+	t.Cleanup(func() { theme.SetPreferences(previous) })
+	for _, size := range []float32{14, 18} {
+		prefs := previous
+		prefs.Chat.Size = size
+		theme.SetPreferences(prefs)
+		tt := ui.NewTester(func(c *ui.Context) {
+			ui.Column(c).Fill().Children(func() {
+				marketReadme(c, Model{}, "# Level one\n\n## Level two\n\n### Level three\n\nBody after heading\n\n#### Level four\n\n> ### Nested three\n>\n> Quoted body", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+			})
+		}, 360, 900)
+		find := func(want string) ui.Rect {
+			t.Helper()
+			for _, text := range tt.Texts() {
+				if strings.TrimSpace(text) == want {
+					if r, ok := tt.Find(text); ok {
+						return r
+					}
+				}
+			}
+			t.Fatalf("missing native text %q", want)
+			return ui.Rect{}
+		}
+		one, two, three := find("Level one"), find("Level two"), find("Level three")
+		body, four := find("Body after heading"), find("Level four")
+		nested, quoted := find("Nested three"), find("Quoted body")
+		delta := size - 14
+		if one.H != 30+delta || two.H != 28+delta || three.H != 22 || nested.H != 22 || four.H != 24+delta || body.H != 24+delta ||
+			three.Y-two.Y-two.H != 32 || body.Y-three.Y-three.H != 16 || quoted.Y-nested.Y-nested.H != 16 || nested.X-body.X != 16 {
+			t.Fatalf("Market h3 cascade at content size%v: h1=%+v h2=%+v h3=%+v body=%+v h4=%+v nested=%+v quoted=%+v", size, one, two, three, body, four, nested, quoted)
+		}
+	}
+}
+
+func TestMarketReadmeH3CascadeWrapsAtFourteenPixels(t *testing.T) {
+	previous := theme.CurrentPreferences()
+	t.Cleanup(func() { theme.SetPreferences(previous) })
+	const heading = "Review repository documentation before changing project configuration"
+	for _, size := range []float32{14, 18} {
+		prefs := previous
+		prefs.Chat.Size = size
+		theme.SetPreferences(prefs)
+		for _, width := range []int{150, 360} {
+			reference := ui.NewTester(func(c *ui.Context) {
+				ui.RichText(c, ui.Span{Text: heading}).Font(prefs.Chat.Family).FontSize(14).FontWeight(700).FixedLineHeight(22)
+			}, width, 500)
+			want, ok := reference.Find(heading)
+			if !ok {
+				t.Fatal("missing reference heading")
+			}
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Column(c).Fill().Children(func() {
+					marketReadme(c, Model{}, "### "+heading, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+				})
+			}, width, 500)
+			got, ok := tt.Find(heading)
+			if !ok || got.W != want.W || got.H != want.H || (width == 150 && got.H <= 22) {
+				t.Fatalf("Market h3 wrap at size%v width%d: got=%+v want=%+v", size, width, got, want)
+			}
+		}
+	}
+}
+
 func TestMarketRichReadmeDetailsWideAndNarrow(t *testing.T) {
 	store := marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "market.json"))
 	item := desktopmarket.CatalogItem{ID: "fixture/native-tools", Repo: "Native tools", Owner: "fixture", Description: "Offline native README fixture", Homepage: "https://example.invalid/fixture/native-tools", InstallSpec: "fixture-native-tools"}

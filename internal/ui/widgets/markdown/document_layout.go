@@ -94,6 +94,14 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 			st.FontSize = []float32{21, 19, 18}[node.Level-1] + delta
 			st.lineHeight = []float32{30, 28, 26}[node.Level-1] + delta
 			st.textWeight = 700
+			if node.Level == 3 {
+				if st.DocumentH3FontSize > 0 {
+					st.FontSize = st.DocumentH3FontSize
+				}
+				if st.DocumentH3LineHeight > 0 {
+					st.lineHeight = st.DocumentH3LineHeight
+				}
+			}
 		} else {
 			st.textWeight = 600
 		}

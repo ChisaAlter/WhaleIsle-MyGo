@@ -27,13 +27,17 @@ type Style struct {
 	// DocumentLayout uses the original MarkdownText block typography and margins.
 	// Existing conversation renderers retain their current layout unless opted in.
 	DocumentLayout bool
-	QuoteBorder    ui.Color
-	RuleBorder     ui.Color
-	FontSize       float32
-	FG             ui.Color
-	Muted          ui.Color
-	CodeBG         ui.Color
-	Accent         ui.Color
+	// Market's later-loaded .readme h3 rule overrides only these two metrics.
+	// Zero keeps the shared Markdown heading; explicit values are absolute DIPs.
+	DocumentH3FontSize   float32
+	DocumentH3LineHeight float32
+	QuoteBorder          ui.Color
+	RuleBorder           ui.Color
+	FontSize             float32
+	FG                   ui.Color
+	Muted                ui.Color
+	CodeBG               ui.Color
+	Accent               ui.Color
 	// CodeWrapDefault opts a surface into wrapped code initially. The retained
 	// per-block toggle still wins after the user chooses wrap or unwrap.
 	CodeWrapDefault bool

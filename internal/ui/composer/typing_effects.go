@@ -36,16 +36,20 @@ type typingEffects struct {
 	echoes          []typingEcho
 	compositionBase string
 	composing       bool
+	caretBorn       time.Time
 }
 
 func (client *DraftClient) configureTyping(m Model, reduced bool) {
 	style := typingStyle{Effect: "drop", Cursor: "native", CursorBlink: true, Speed: 100}
 	style.Colors.Kind = "theme"
 	_ = json.Unmarshal(m.TypingFxStyle, &style)
-	client.typing.enabled, client.typing.reduced, client.typing.style = m.TypingFx, reduced, style
-	if !m.TypingFx || reduced {
+	if !m.TypingFx || reduced || client.typing.style.CursorBlink != style.CursorBlink || (client.typing.style.Cursor == "native") != (style.Cursor == "native") {
+		client.typing.caretBorn = time.Time{}
+	}
+	if !m.TypingFx || reduced || client.typing.style.Effect != style.Effect {
 		client.typing.echoes = nil
 	}
+	client.typing.enabled, client.typing.reduced, client.typing.style = m.TypingFx, reduced, style
 }
 
 // Only the native text-service adapter emits keystrokes. Clipboard, suggestions,
@@ -131,24 +135,16 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 	p.Clip(r, 0, func() {
 		alive := fx.echoes[:0]
 		for _, echo := range fx.echoes {
-			progress := float32(now.Sub(echo.born).Seconds() / (0.4 * 100 / fx.style.Speed))
+			progress := float64(now.Sub(echo.born)) / float64(typingDuration(fx.style.Speed))
 			if progress >= 1 {
 				continue
 			}
 			alive = append(alive, echo)
 			p.AnimationFrame()
-			alpha, offset, scale := float32(1-progress), float32(0), float32(1)
-			switch fx.style.Effect {
-			case "rise":
-				alpha, offset = .9*(1-progress), -.7*client.font.Size*progress
-			case "flash":
-				alpha = min(1, progress/.2) * (1 - progress)
-				scale = 1 + .35*(1-progress)
-			default:
-				alpha = min(1, progress/.35) * (1 - progress)
-				travel := max(0, 1-progress/.55)
-				offset, scale = -.55*client.font.Size*travel, 1+.18*travel
-			}
+			alpha, offsetEm, scale := typingKeyframe(fx.style.Effect, progress)
+			offset := offsetEm * client.font.Size
+			// Font scaling remains a glyph-raster approximation, not the CSS
+			// centered transform; retain one ShapeText call per live echo.
 			font := client.font
 			font.Size *= scale
 			layout := ui.ShapeText(echo.text, font, 0)
@@ -157,6 +153,7 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 		}
 		fx.echoes = alive
 		if !focused {
+			fx.caretBorn = time.Time{}
 			return
 		}
 		caret := client.visualCaret(client.selection.Caret())
@@ -164,11 +161,16 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 		caret.Y += r.Y + draftInputTop - client.scrollY
 		if fx.enabled && fx.style.Cursor != "native" {
 			if client.selection.Range.Start != client.selection.Range.End {
+				fx.caretBorn = time.Time{}
 				return
 			}
 			if fx.style.CursorBlink && !fx.reduced {
-				p.After(450 * time.Millisecond)
-				if now.UnixMilli()%1000 >= 450 {
+				if fx.caretBorn.IsZero() {
+					fx.caretBorn = now
+				}
+				visible, next := typingCaretBlink(now.Sub(fx.caretBorn))
+				p.After(next)
+				if !visible {
 					return
 				}
 			}

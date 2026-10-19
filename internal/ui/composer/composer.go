@@ -146,7 +146,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	accent := chrome.Color(colors.Accent)
 	panel := chrome.Color(colors.BG)
 	beam := readBeamStyle(m.ComposerBeamStyle)
-	showBeam := m.ComposerBeam && composerRunning(m) && !c.Preferences().ReduceMotion
+	reducedMotion := c.Preferences().ReduceMotion
+	showBeam := m.ComposerBeam && composerRunning(m) && !reducedMotion
 
 	if m.State != nil && m.State.GroupReply != nil {
 		ui.Row(c).Gap(8).Children(func() {
@@ -308,13 +309,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// InputBar.card: 8px top pad, 12px gap, 28px radius. The hairline
 		// is painted as elevation, so it does not consume draft layout space.
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
-			Radius(28).Padding(8, 0, 0, 0).Gap(12).
-			DrawOver(func(p *ui.Painter, r ui.Rect) {
-				p.Stroke(r, border, 28, 0.5)
-				if showBeam {
-					paintComposerBeam(p, r, beam)
-				}
-			})
+			Radius(28).Padding(8, 0, 0, 0).Gap(12)
+		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
+		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Stroke(r, border, 28, 0.5)
+			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
+		})
 		card.Children(func() {
 			paintResizeHandles(c, m, card, muted)
 			if m.State != nil {

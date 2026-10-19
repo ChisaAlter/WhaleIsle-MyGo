@@ -711,6 +711,7 @@ func (rt *engine) armTimer() {
 
 func (rt *engine) close() {
 	rt.closed = true
+	rt.decorations.clearPointer()
 	clear(rt.focusFields)
 	rt.focusFields = nil
 	for _, r := range rt.refs {

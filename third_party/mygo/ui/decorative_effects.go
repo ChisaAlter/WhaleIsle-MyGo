@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"image"
 	"math"
+	"math/rand/v2"
 	"time"
 )
 
@@ -21,18 +21,23 @@ type decorationCell struct {
 	color Color
 }
 type decorationPoint struct{ x, y int }
-type dyeCell struct{ r, g, b, a, vx, vy float32 }
+
 type decorationState struct {
-	config         DecorativeEffects
-	cells          map[decorationPoint]decorationCell
-	fluid, scratch []dyeCell
-	width, height  float32
-	lastX, lastY   float32
-	hasPointer     bool
-	pendingPress   bool
-	pressX, pressY float32
-	lastTime       time.Time
-	serial         int
+	config                       DecorativeEffects
+	cells                        map[decorationPoint]decorationCell
+	fluidWorker                  *splashWorker
+	fluidBitmap                  *Bitmap
+	fluidInput                   splashRequest
+	fluidBusy                    bool
+	fluidLastInput, fluidNext    time.Time
+	fluidPointerX, fluidPointerY float32
+	random                       *rand.Rand
+	width, height                float32
+	lastX, lastY                 float32
+	hasPointer                   bool
+	pendingPress                 bool
+	pressX, pressY               float32
+	lastTime                     time.Time
 }
 
 // SetDecorativeEffects updates the native renderer; desktop Reduce Motion
@@ -49,14 +54,11 @@ func SetDecorativeEffects(c *Context, config DecorativeEffects) {
 	if config.Size <= 0 {
 		config.Size = 100
 	}
-	if config.ColorCount == 0 {
-		config.Colors[0] = raw.theme.Accent
-		config.ColorCount = 1
-	}
+
 	if raw.rt.preferences().ReduceMotion {
 		config.PointerEnabled = false
 	}
-	if s.config.PointerEnabled != config.PointerEnabled || s.config.PointerEffect != config.PointerEffect || s.config.Size != config.Size {
+	if s.config.PointerEnabled != config.PointerEnabled || s.config.PointerEffect != config.PointerEffect {
 		s.clearPointer()
 	}
 	s.config = config
@@ -66,8 +68,14 @@ func SetDecorativeEffects(c *Context, config DecorativeEffects) {
 }
 func (s *decorationState) clearPointer() {
 	s.cells = nil
-	s.fluid = nil
-	s.scratch = nil
+	if s.fluidWorker != nil {
+		s.fluidWorker.close()
+	}
+	s.fluidWorker, s.fluidBitmap = nil, nil
+	s.fluidInput = splashRequest{}
+	s.fluidBusy = false
+	s.fluidLastInput, s.fluidNext = time.Time{}, time.Time{}
+	s.fluidPointerX, s.fluidPointerY = 0, 0
 	s.hasPointer = false
 	s.pendingPress = false
 	s.lastTime = time.Time{}
@@ -80,8 +88,14 @@ func (s *decorationState) pointerDown(x, y float32) {
 	}
 }
 func (s *decorationState) color() Color {
-	s.serial++
-	return s.config.Colors[s.serial%s.config.ColorCount]
+	if s.config.ColorCount == 0 {
+		return RGB(136, 136, 136)
+	}
+	if s.random == nil {
+		seed := uint64(time.Now().UnixNano())
+		s.random = rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
+	}
+	return s.config.Colors[s.random.IntN(s.config.ColorCount)]
 }
 func (s *decorationState) stampTrail(x, y float32, now time.Time) {
 	cell := float32(math.Max(6, math.Round(float64(24*s.config.Size/100))))
@@ -104,10 +118,10 @@ func (s *decorationState) stampTrail(x, y float32, now time.Time) {
 }
 func (s *decorationState) feed(x, y, dx, dy float32, now time.Time) {
 	if s.config.PointerEffect == "splash" {
-		s.splat(x, y, dx, dy)
+		s.queueSplash(x, y, dx, dy, now)
 		return
 	}
-	cell := max(float32(6), 24*s.config.Size/100)
+	cell := float32(math.Max(6, math.Round(float64(24*s.config.Size/100))))
 	steps := max(1, int(math.Hypot(float64(dx), float64(dy))/float64(cell*.75)))
 	for i := 1; i <= steps; i++ {
 		fraction := float32(i) / float32(steps)
@@ -122,10 +136,12 @@ func (rt *engine) paintPointerDecoration(p *Painter, w, h float32) {
 	}
 	now := p.Now()
 	if s.width != w || s.height != h {
-		s.clearPointer()
+		if s.config.PointerEffect != "splash" {
+			s.cells, s.hasPointer = nil, false
+		}
 		s.width, s.height = w, h
 	}
-	if rt.pointerIn {
+	if rt.pointerIn && s.config.PointerEffect != "splash" {
 		x, y := rt.pointerX, rt.pointerY
 		if !s.hasPointer {
 			s.feed(x, y, 0, 0, now)
@@ -133,15 +149,15 @@ func (rt *engine) paintPointerDecoration(p *Painter, w, h float32) {
 			s.feed(x, y, x-s.lastX, y-s.lastY, now)
 		}
 		s.lastX, s.lastY, s.hasPointer = x, y, true
-	} else {
+	} else if s.config.PointerEffect != "splash" {
 		s.hasPointer = false
 	}
-	if s.pendingPress {
+	if s.pendingPress && s.config.PointerEffect != "splash" {
 		s.feed(s.pressX, s.pressY, 0, 0, now)
 		s.pendingPress = false
 	}
 	if s.config.PointerEffect == "splash" {
-		s.paintFluid(p, w, h, now)
+		s.paintSplash(p, w, h, now)
 	} else {
 		cell := float32(math.Max(6, math.Round(float64(24*s.config.Size/100))))
 		gap := max(float32(1), float32(math.Round(float64(cell*.12))))
@@ -159,98 +175,6 @@ func (rt *engine) paintPointerDecoration(p *Painter, w, h float32) {
 		}
 	}
 	s.lastTime = now
-}
-
-// Native splash uses CPU dye advection, directional momentum, diffusion and
-// dissipation. This is not the original WebGL Navier-Stokes pressure solver.
-const dyeWidth, dyeHeight = 96, 64
-
-func (s *decorationState) splat(x, y, dx, dy float32) {
-	if s.width <= 0 || s.height <= 0 {
-		return
-	}
-	if len(s.fluid) == 0 {
-		s.fluid = make([]dyeCell, dyeWidth*dyeHeight)
-		s.scratch = make([]dyeCell, len(s.fluid))
-	}
-	cx, cy := x/s.width*dyeWidth, y/s.height*dyeHeight
-	radius := max(float32(1.1), 2.8*s.config.Size/100)
-	color := s.color()
-	for yy := max(0, int(cy-radius*3)); yy < min(dyeHeight, int(cy+radius*3)+1); yy++ {
-		for xx := max(0, int(cx-radius*3)); xx < min(dyeWidth, int(cx+radius*3)+1); xx++ {
-			ox, oy := float32(xx)-cx, float32(yy)-cy
-			weight := float32(math.Exp(-float64((ox*ox+oy*oy)/(radius*radius)))) * .8
-			d := &s.fluid[yy*dyeWidth+xx]
-			keep := 1 - weight
-			d.r = d.r*keep + float32(color.R)/255*weight
-			d.g = d.g*keep + float32(color.G)/255*weight
-			d.b = d.b*keep + float32(color.B)/255*weight
-			d.a = min(float32(.85), d.a+weight)
-			d.vx += dx/s.width*dyeWidth*weight*6 - oy*weight*.8
-			d.vy += dy/s.height*dyeHeight*weight*6 + ox*weight*.8
-		}
-	}
-}
-func (s *decorationState) sample(x, y float32) dyeCell {
-	x = max(0, min(dyeWidth-1, x))
-	y = max(0, min(dyeHeight-1, y))
-	ix, iy := int(x), int(y)
-	fx, fy := x-float32(ix), y-float32(iy)
-	a, b := s.fluid[iy*dyeWidth+ix], s.fluid[iy*dyeWidth+min(ix+1, dyeWidth-1)]
-	c, d := s.fluid[min(iy+1, dyeHeight-1)*dyeWidth+ix], s.fluid[min(iy+1, dyeHeight-1)*dyeWidth+min(ix+1, dyeWidth-1)]
-	mix := func(a, b, c, d float32) float32 { return (a+(b-a)*fx)*(1-fy) + (c+(d-c)*fx)*fy }
-	return dyeCell{mix(a.r, b.r, c.r, d.r), mix(a.g, b.g, c.g, d.g), mix(a.b, b.b, c.b, d.b), mix(a.a, b.a, c.a, d.a), mix(a.vx, b.vx, c.vx, d.vx), mix(a.vy, b.vy, c.vy, d.vy)}
-}
-func (s *decorationState) paintFluid(p *Painter, w, h float32, now time.Time) {
-	if len(s.fluid) == 0 {
-		return
-	}
-	dt := float32(now.Sub(s.lastTime).Seconds())
-	if s.lastTime.IsZero() {
-		dt = 1.0 / 60
-	}
-	dt = min(dt, .05)
-	speed := s.config.Speed / 100
-	fade := float32(math.Exp(-float64(dt * speed * 1.8)))
-	drag := float32(math.Exp(-float64(dt * 2.2)))
-	active := false
-	img := image.NewRGBA(image.Rect(0, 0, dyeWidth, dyeHeight))
-	for y := 0; y < dyeHeight; y++ {
-		for x := 0; x < dyeWidth; x++ {
-			i := y*dyeWidth + x
-			old := s.fluid[i]
-			d := s.sample(float32(x)-old.vx*dt, float32(y)-old.vy*dt)
-			neighbors := [4]dyeCell{s.fluid[y*dyeWidth+max(0, x-1)], s.fluid[y*dyeWidth+min(dyeWidth-1, x+1)], s.fluid[max(0, y-1)*dyeWidth+x], s.fluid[min(dyeHeight-1, y+1)*dyeWidth+x]}
-			spread := min(float32(.2), dt*2)
-			for _, n := range neighbors {
-				d.r += (n.r - d.r) * spread
-				d.g += (n.g - d.g) * spread
-				d.b += (n.b - d.b) * spread
-				d.a += (n.a - d.a) * spread
-			}
-			d.a *= fade
-			d.vx *= drag
-			d.vy *= drag
-			s.scratch[i] = d
-			if d.a > .003 {
-				active = true
-				alpha := min(float32(.75), d.a)
-				idx := img.PixOffset(x, y)
-				img.Pix[idx] = byte(d.r * alpha * 255)
-				img.Pix[idx+1] = byte(d.g * alpha * 255)
-				img.Pix[idx+2] = byte(d.b * alpha * 255)
-				img.Pix[idx+3] = byte(alpha * 255)
-			}
-		}
-	}
-	s.fluid, s.scratch = s.scratch, s.fluid
-	if active {
-		p.Image(NewBitmap(img), Rect{W: w, H: h}, FillBox)
-		p.AnimationFrame()
-	} else {
-		s.fluid = nil
-		s.scratch = nil
-	}
 }
 
 // Sheen is clipped to the button's own corners and painted after its hover
