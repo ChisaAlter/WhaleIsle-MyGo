@@ -3,7 +3,7 @@
 // read-only inputs. This never creates a replacement relay protocol or disables auth.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),readline=require('node:readline'),cp=require('node:child_process');
 const {pathToFileURL}=require('node:url');
-const [root,resources,toolRoot,coreRoot,mode]=process.argv.slice(2);
+const [root,resources,toolRoot,coreRoot,mode,cloneTarget]=process.argv.slice(2);
 const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const inside=(base,file)=>{const r=path.relative(base,file);return r===''||(!r.startsWith('..'+path.sep)&&r!=='..'&&!path.isAbsolute(r));};
@@ -50,15 +50,33 @@ function verifyGraph(base,expected){
  function visit(file){const st=fs.lstatSync(file),rel=path.relative(base,file);if(st.isSymbolicLink()){const target=fs.realpathSync(file);if(!inside(base,target))throw Error('staged dependency link escape');inventory.push({path:rel,link:path.relative(base,target)});}else if(st.isDirectory()){for(const name of fs.readdirSync(file))visit(path.join(file,name));}else{inventory.push({path:rel,sha256:hash(fs.readFileSync(file))});}}
  visit(base);if(hash(JSON.stringify(inventory.sort((a,b)=>a.path.localeCompare(b.path))))!==expected.manifestSHA256)throw Error('staged complete dependency graph changed: '+expected.label);
 }
+function verifyComponent(component,manifest){
+ if(manifest.archiveSHA256!=='b1a6783d00c9db943a52bfdb6d698d346105badc868c22c034538da3f3901b45')throw Error('unknown staged desktop');
+ for(const {file,sha256} of manifest.assets)if(hash(fs.readFileSync(path.join(component,file)))!==sha256)throw Error('staged source changed');
+ if(hash(fs.readFileSync(path.join(component,'node.exe')))!==manifest.nodeSHA256)throw Error('staged Node changed');
+ verifyGraph(path.join(component,'vendor/chisacode-remote'),manifest.dependencies);
+ verifyGraph(path.join(component,'vendor/deepseek-harness'),manifest.harness);
+}
 async function start(){
+ if(mode==='clone-component'){
+  const source=fs.realpathSync(resources),manifestFile=path.resolve(source,'../../stage-manifest.json');
+  if(!path.isAbsolute(root)||fs.existsSync(root)||inside(source,root)||inside(root,source))throw Error('fresh non-overlapping clone root required');
+  const target=cloneTarget||path.join(root,'vendor/dshd-remote');
+  if(!path.isAbsolute(target)||fs.existsSync(target)||inside(source,target)||inside(target,source))throw Error('fresh non-overlapping component target required');
+  const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));verifyComponent(source,manifest);
+  emit({kind:'stage',section:'verified-clone-source'});
+  const cloned=copyGraph(source,target,'verified-phone-component');
+  verifyComponent(target,manifest);
+  fs.mkdirSync(root,{recursive:true});
+  fs.copyFileSync(manifestFile,path.join(root,'stage-manifest.json'));
+  const record={source,target,verified:true,cloned,manifestSHA256:hash(fs.readFileSync(manifestFile)),dataCopied:false,relayToolsCopied:false};
+  fs.writeFileSync(path.join(root,'clone-record.json'),JSON.stringify(record,null,2)+'\n');
+  emit({kind:'cloned',...record});process.exit(0);
+ }
  if(mode==='serve'){
   const manifest=JSON.parse(fs.readFileSync(path.join(root,'stage-manifest.json'),'utf8'));
-  if(manifest.archiveSHA256!=='b1a6783d00c9db943a52bfdb6d698d346105badc868c22c034538da3f3901b45')throw Error('unknown staged desktop');
   const component=path.join(root,'vendor/dshd-remote');
-  for(const {file,sha256} of manifest.assets)if(hash(fs.readFileSync(path.join(component,file)))!==sha256)throw Error('staged source changed');
-  if(hash(fs.readFileSync(path.join(component,'node.exe')))!==manifest.nodeSHA256)throw Error('staged Node changed');
-  verifyGraph(path.join(component,'vendor/chisacode-remote'),manifest.dependencies);
-  verifyGraph(path.join(component,'vendor/deepseek-harness'),manifest.harness);
+  verifyComponent(component,manifest);
   await serve(manifest,component);return;
  }
  if(mode!=='stage-only')throw Error('explicit stage-only or serve required');

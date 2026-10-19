@@ -275,6 +275,23 @@ func TestFunctionalFullOwnedPhoneRuntime(t *testing.T) {
 	t.Log("real Go bridge + original daemon health/control to own original relay; signed server auth and E2EE bound challenge; no application hello; owned processes/listeners closed")
 }
 
+func TestFunctionalClonedPhoneResourcesGate(t *testing.T) {
+	vendor := os.Getenv("WHALEISLE_PHONE_CLONED_VENDOR")
+	if vendor == "" {
+		t.Skip("requires independently hash-verified cloned phone component")
+	}
+	profile := t.TempDir()
+	resolved, err := ResolveResources(profile, vendor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Module != filepath.Join(vendor, "dshd-remote", "src", "main", "dshd-remote.js") ||
+		resolved.Node != filepath.Join(vendor, "dshd-remote", "node.exe") || resolved.Home != filepath.Join(profile, "dsh-home") {
+		t.Fatal("production resolver did not select the copied private component")
+	}
+	t.Log("production ResolveResources accepts relocated full component with fresh private data; no daemon/relay/process launch")
+}
+
 func bytesLines(b []byte) [][]byte {
 	var lines [][]byte
 	start := 0
