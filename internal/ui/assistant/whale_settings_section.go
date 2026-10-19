@@ -57,7 +57,8 @@ func whaleSectionRow(c *ui.Context, key, title, hint string, fg, muted, border u
 
 // WhaleSettingsSection renders the original settings.pet.item contribution.
 // It reuses the application-owned Host editor and does not create sessions or
-// request models merely by mounting the section.
+// invoke a model merely by mounting the section. Only settings/catalog reads
+// are made automatically, as in the original contribution.
 func WhaleSettingsSection(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
@@ -65,6 +66,14 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 	s := w.State
 	p := w.Preferences
 	ps := p.State
+	if m.HarnessReady && m.WhaleEnabled && s.HostKey != "" {
+		if !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" && w.OnRefresh != nil {
+			w.OnRefresh()
+		}
+		if !ps.Loaded && !ps.Busy && ps.Error == "" && ps.Notice == "" && p.OnRefresh != nil {
+			p.OnRefresh()
+		}
+	}
 	anchor := ui.Column(c.Key("pet-whale-feature-" + s.HostKey)).FillWidth().MinWidth(0).Gap(4)
 	dialog := ui.Local(anchor, "dialog", func() string { return "" })
 	blocked := !m.HarnessReady || !m.WhaleEnabled || m.Busy || m.PluginRPCBusy || s.Busy || s.HostKey == ""
@@ -92,19 +101,32 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		}
 		whaleSectionRow(c, "pet-whale-identity", whaleSectionCopy("名字与称呼", "Name and title"), whaleSectionCopy("名字和称呼各限 64 字符。", "Name and title are limited to 64 characters each."), fg, muted, border, func() {
 			name, title := s.Name, s.UserTitle
-			ui.TextInput(c, &name).FillWidth().Label("Whale name").Disabled(disabled).OnChange(func() {
+			nameInput := ui.TextInput(c.Key("whale-name"), &name).FillWidth().Label("Whale name").Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("name", name)
 				}
 			})
-			ui.TextInput(c, &title).FillWidth().Label("Whale user title").Disabled(disabled).OnChange(func() {
+			whaleIdentityCommit(nameInput, s.HostKey, !disabled && name != s.Server.Name && pluginrpc.WhaleTextLength(name) <= 64, func() {
+				if w.OnEdit != nil {
+					w.OnEdit("name", name)
+				}
+				if w.OnSave != nil {
+					w.OnSave("name")
+				}
+			})
+			titleInput := ui.TextInput(c.Key("whale-title"), &title).FillWidth().Label("Whale user title").Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("title", title)
 				}
 			})
-			if ui.Button(c, whaleSectionCopy("保存名字与称呼", "Save name and title")).Disabled(disabled || w.OnSave == nil || pluginrpc.WhaleTextLength(name) > 64 || pluginrpc.WhaleTextLength(title) > 64).Clicked() {
-				w.OnSave("identity")
-			}
+			whaleIdentityCommit(titleInput, s.HostKey, !disabled && title != s.Server.UserTitle && pluginrpc.WhaleTextLength(title) <= 64, func() {
+				if w.OnEdit != nil {
+					w.OnEdit("title", title)
+				}
+				if w.OnSave != nil {
+					w.OnSave("title")
+				}
+			})
 		})
 		whaleSectionRow(c, "pet-whale-model", whaleSectionCopy("模型与推理档", "Model and reasoning effort"), whaleSectionCopy("她自身会话的默认模型；留空跟随会话默认。", "The default model for her conversation; leave blank to follow the session default."), fg, muted, border, func() {
 			route := ps.Route
@@ -112,7 +134,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 			choices := map[string]pluginrpc.WhaleModelRoute{labels[0]: {ReasoningEffort: route.ReasoningEffort}}
 			selected := labels[0]
 			found := route.Provider == "" && route.Model == ""
-			efforts := []string{""}
+			efforts := []string{"", "low", "medium", "high"}
 			for _, group := range ps.Catalog.Groups {
 				for _, model := range group.Models {
 					label := fmt.Sprintf("%d · %s / %s", len(labels), group.Id, model.Id)
@@ -123,7 +145,16 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 						found = true
 						if model.Reasoning != nil {
 							for _, effort := range model.Reasoning.Efforts {
-								efforts = append(efforts, effort.Id)
+								present := false
+								for _, option := range efforts {
+									if option == effort.Id {
+										present = true
+										break
+									}
+								}
+								if !present {
+									efforts = append(efforts, effort.Id)
+								}
 							}
 						}
 					}
@@ -136,6 +167,9 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 			ui.Select(c, &selected, labels).FillWidth().Label("Whale model").Disabled(prefDisabled || ps.ModelsError != "").OnChange(func() {
 				if v, ok := choices[selected]; ok && p.OnEdit != nil {
 					p.OnEdit(v, ps.IMDefault)
+					if p.OnSave != nil {
+						p.OnSave("model")
+					}
 				}
 			})
 			present := false
@@ -152,19 +186,19 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				route.ReasoningEffort = effort
 				if p.OnEdit != nil {
 					p.OnEdit(route, ps.IMDefault)
+					if p.OnSave != nil {
+						p.OnSave("model")
+					}
 				}
 			})
-			if ui.Button(c, whaleSectionCopy("保存助理模型", "Save assistant model")).Disabled(prefDisabled || p.OnSave == nil || ps.Route == ps.Server.Route()).Clicked() {
-				p.OnSave("model")
-			}
 		})
 		whaleSectionRow(c, "pet-whale-im", whaleSectionCopy("IM 默认对话", "Default IM conversation"), whaleSectionCopy("未指定其他预设的 IM 机器人进入她的常驻会话。", "IM bots without another preset join her resident conversation."), fg, muted, border, func() {
 			im := ps.IMDefault
 			if ui.Switch(c, &im).Label("Whale default IM").Disabled(prefDisabled).Changed() && p.OnEdit != nil {
 				p.OnEdit(ps.Route, im)
-			}
-			if ui.Button(c, whaleSectionCopy("保存 IM 默认", "Save IM default")).Disabled(prefDisabled || p.OnSave == nil || ps.IMDefault == ps.Server.IMDefault).Clicked() {
-				p.OnSave("im")
+				if p.OnSave != nil {
+					p.OnSave("im")
+				}
 			}
 		})
 		for _, item := range []struct{ id, title, hint string }{{"persona", whaleSectionCopy("额外人设", "Extra persona"), s.PersonaText}, {"memory", whaleSectionCopy("长期记忆", "Long-term memory"), whaleSectionCopy("随她的常驻会话注入。", "Injected into her resident conversation.")}, {"skills", whaleSectionCopy("技能", "Skills"), fmt.Sprintf(whaleSectionCopy("当前 Host 的 %d 个技能", "%d skills on this Host"), len(ps.Server.Skills))}} {

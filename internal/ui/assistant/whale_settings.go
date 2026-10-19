@@ -24,6 +24,9 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	}
 	w := m.WhaleSettings
 	s := w.State
+	if s.HostKey != "" && !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" && m.HarnessReady && m.WhaleEnabled {
+		w.OnRefresh()
+	}
 	blocked := s.Busy || m.PluginRPCBusy || m.Busy || !m.HarnessReady || !m.WhaleEnabled || s.HostKey == ""
 	ui.Column(c.Key("whale-settings")).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -110,28 +113,60 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Text(c, "名字与称呼 / Name and title").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 			name, title := s.Name, s.UserTitle
 			ui.Text(c, "名字 / Name").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.TextInput(c.Key("whale-name"), &name).Label("Whale name").FillWidth().Disabled(blocked).OnChange(func() {
+			nameInput := ui.TextInput(c.Key("whale-name"), &name).Label("Whale name").FillWidth().Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("name", name)
 				}
 			})
+			whaleIdentityCommit(nameInput, s.HostKey, !disabled && name != s.Server.Name && pluginrpc.WhaleTextLength(name) <= 64, func() {
+				if w.OnEdit != nil {
+					w.OnEdit("name", name)
+				}
+				if w.OnSave != nil {
+					w.OnSave("name")
+				}
+			})
 			ui.Text(c, "对你的称呼 / How she calls you").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.TextInput(c.Key("whale-user-title"), &title).Label("Whale user title").FillWidth().Disabled(blocked).OnChange(func() {
+			titleInput := ui.TextInput(c.Key("whale-user-title"), &title).Label("Whale user title").FillWidth().Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("title", title)
 				}
 			})
-			ui.Text(c, "名字和称呼各限 64 UTF-16 字符；空名字由 Host 恢复为「鲸鱼娘」。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Row(c).Gap(8).Children(func() {
-				if w.OnSave != nil && ui.Button(c, "保存名字与称呼 / Save name and title").Disabled(disabled || pluginrpc.WhaleTextLength(name) > 64 || pluginrpc.WhaleTextLength(title) > 64).Clicked() {
-					w.OnSave("identity")
+			whaleIdentityCommit(titleInput, s.HostKey, !disabled && title != s.Server.UserTitle && pluginrpc.WhaleTextLength(title) <= 64, func() {
+				if w.OnEdit != nil {
+					w.OnEdit("title", title)
 				}
+				if w.OnSave != nil {
+					w.OnSave("title")
+				}
+			})
+			ui.Text(c, "失去焦点或按 Enter 保存当前字段。名字和称呼各限 64 UTF-16 字符；空名字由 Host 恢复为「鲸鱼娘」。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Row(c).Gap(8).Children(func() {
 				if w.OnRestore != nil && ui.Button(c, "还原名字草稿 / Restore name draft").Disabled(disabled).Clicked() {
 					w.OnRestore("identity")
 				}
 			})
 		})
 	})
+}
+
+// Native inputs report submission and focus per frame. Capture the Host with
+// the focus so replacing the editor never commits another Host's old draft.
+func whaleIdentityCommit(input ui.Element, host string, dirty bool, save func()) {
+	state := ui.Local(input, "commit-focus", func() struct {
+		Host    string
+		Focused bool
+	} {
+		return struct {
+			Host    string
+			Focused bool
+		}{}
+	})
+	focused := input.Focused()
+	if state.Host == host && dirty && !input.Composing() && (input.Submitted() || state.Focused && !focused) {
+		save()
+	}
+	state.Host, state.Focused = host, focused
 }
 func whaleDraftLabel(dirty bool) string {
 	if dirty {

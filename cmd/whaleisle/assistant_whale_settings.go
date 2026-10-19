@@ -90,6 +90,10 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 					err = cli.WhaleClearMemory(ctx)
 				case "identity":
 					_, err = cli.WhaleUpdateSettings(ctx, pluginrpc.WhaleSettingsPatch{Name: &command.Value.Name, UserTitle: &command.Value.UserTitle})
+				case "name":
+					_, err = cli.WhaleUpdateSettings(ctx, pluginrpc.WhaleSettingsPatch{Name: &command.Value.Name})
+				case "title":
+					_, err = cli.WhaleUpdateSettings(ctx, pluginrpc.WhaleSettingsPatch{UserTitle: &command.Value.UserTitle})
 				case "persona":
 					_, err = cli.WhaleUpdateSettings(ctx, pluginrpc.WhaleSettingsPatch{PersonaText: &command.Value.PersonaText})
 				}
@@ -111,7 +115,7 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 				return
 			}
 			if s.whaleSettings.FinishWrite(ticket, command, actual, accepted, err) {
-				if accepted && err == nil && command.Action == "identity" {
+				if accepted && err == nil && (command.Action == "identity" || command.Action == "name") {
 					s.mu.Lock()
 					sessions := s.sessions
 					s.mu.Unlock()

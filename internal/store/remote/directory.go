@@ -19,6 +19,15 @@ type DirectoryEntry struct {
 
 func (e DirectoryEntry) IsDirectory() bool { return e.Type == "dir" || e.Drive }
 
+func sortDirectoryEntries(items []DirectoryEntry) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].IsDirectory() != items[j].IsDirectory() {
+			return items[i].IsDirectory()
+		}
+		return items[i].Name < items[j].Name
+	})
+}
+
 type DirectorySnapshot struct {
 	InputPath, NewName string
 	MkdirOpen          bool
@@ -34,7 +43,7 @@ type DirectorySnapshot struct {
 }
 
 func (d DirectorySnapshot) CanChoose() bool {
-	return d.Loaded && !d.Missing && d.Error == "" && strings.TrimSpace(d.Path) != "" && d.Path != "/"
+	return d.Loaded && !d.Missing && d.Error == "" && strings.TrimSpace(d.Path) != ""
 }
 
 // ParentDirectory uses remote path syntax, never the local host OS's separator.
@@ -99,13 +108,7 @@ func (s *Store) directoryRequest(path string, choosing bool) {
 			if err == nil && listing.Missing {
 				err = fmt.Errorf("Remote directory is missing")
 			}
-			sort.SliceStable(listing.Items, func(i, j int) bool {
-				a, b := listing.Items[i], listing.Items[j]
-				if a.IsDirectory() != b.IsDirectory() {
-					return a.IsDirectory()
-				}
-				return a.Name < b.Name
-			})
+			sortDirectoryEntries(listing.Items)
 		}
 		s.mu.Lock()
 		if s.generation != g {

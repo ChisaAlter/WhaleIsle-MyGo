@@ -26,14 +26,15 @@ func remoteChild(parent, name string) (string, error) {
 	return strings.TrimRight(parent, "/\\") + sep + name, nil
 }
 
-func (s *Files) Mkdir(name string) error        { return s.mutate("mkdir", "", name) }
-func (s *Files) Rename(path, name string) error { return s.mutate("rename", path, name) }
-func (s *Files) Remove(path string) error       { return s.mutate("remove", path, "") }
+func (s *Files) Mkdir(name string) error         { return s.mutate("mkdir", "", name) }
+func (s *Files) MkdirAt(path, name string) error { return s.mutate("mkdir", path, name) }
+func (s *Files) Rename(path, name string) error  { return s.mutate("rename", path, name) }
+func (s *Files) Remove(path string) error        { return s.mutate("remove", path, "") }
 
 func (s *Files) mutate(operation, path, name string) error {
 	s.mu.Lock()
 	v := s.states[s.key]
-	if v == nil || s.client == nil || v.Busy || !v.Bound || !v.Loaded {
+	if v == nil || s.client == nil || v.Busy || !v.Bound || !v.Loaded || s.current != nil && !s.current() {
 		s.mu.Unlock()
 		return fmt.Errorf("Refresh this session's verified remote directory before changing files")
 	}
@@ -44,7 +45,15 @@ func (s *Files) mutate(operation, path, name string) error {
 	target, dest := path, ""
 	var err error
 	if operation == "mkdir" {
-		target, err = remoteChild(v.Path, name)
+		parent := path
+		if parent == "" {
+			parent = v.Path
+		}
+		if parent != v.Path && !knownTreeDirectory(v, parent) {
+			err = fmt.Errorf("Choose a directory from this session's tree")
+		} else {
+			target, err = remoteChild(parent, name)
+		}
 	} else {
 		known := false
 		for _, entry := range v.Items {
@@ -52,6 +61,9 @@ func (s *Files) mutate(operation, path, name string) error {
 				known = true
 				break
 			}
+		}
+		if !known {
+			known = knownTreeEntry(v, path, true) && path != v.RootPath
 		}
 		if !known {
 			err = fmt.Errorf("Choose a file or folder from the current session listing")
@@ -80,7 +92,13 @@ func (s *Files) mutate(operation, path, name string) error {
 		return err
 	}
 	c, key, g, n := s.client, s.key, s.generation, s.notify
+	owner := s.current
 	captured := *v
+	if operation == "mkdir" {
+		captured.Path = ParentDirectory(target)
+	} else {
+		captured.Path = ParentDirectory(path)
+	}
 	v.Busy, v.MutationApplied = true, false
 	v.Operation, v.Error, v.Notice = operation, "", ""
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -109,6 +127,11 @@ func (s *Files) mutate(operation, path, name string) error {
 		}
 		applied, attempted := false, false
 		if err == nil {
+			if owner != nil && !owner() {
+				err = context.Canceled
+			}
+		}
+		if err == nil {
 			body := map[string]any{"sessionId": captured.SessionID, "op": operation, "path": target}
 			if operation == "rename" {
 				body["dest"] = dest
@@ -130,7 +153,7 @@ func (s *Files) mutate(operation, path, name string) error {
 			}
 		}
 		s.mu.Lock()
-		if s.generation != g || s.key != key || s.client != c {
+		if s.generation != g || s.key != key || s.client != c || owner != nil && !owner() {
 			s.mu.Unlock()
 			return
 		}
@@ -138,22 +161,35 @@ func (s *Files) mutate(operation, path, name string) error {
 		v.Busy, v.Operation, v.MutationApplied = false, "", applied
 		s.cancel = nil
 		if applied {
+			stashResource(v)
 			v.Notice = operation + " completed: " + target
 			if operation == "rename" {
 				v.Notice += " → " + dest
 			}
-			normalized, normalizedTarget := strings.ReplaceAll(v.FilePath, "\\", "/"), strings.ReplaceAll(target, "\\", "/")
-			affected := normalized == normalizedTarget || strings.HasPrefix(normalized, strings.TrimRight(normalizedTarget, "/")+"/")
-			if affected && (operation == "remove" || operation == "rename") {
-				// Do not retain an editor bound to a deleted/renamed resource.
-				v.FilePath, v.Draft, v.Downloaded = "", "", ""
-				v.File, v.FileLoaded, v.Stale = RemoteFile{}, false, false
-				v.Revision++
+			if operation == "remove" || operation == "rename" {
+				for i := len(v.Tabs) - 1; i >= 0; i-- {
+					if !pathAffected(v.Tabs[i].Path, target) {
+						continue
+					}
+					if v.Tabs[i].Dirty() {
+						v.Tabs[i].Stale = true
+						v.Tabs[i].Error = "Remote resource was renamed or deleted; draft retained."
+					} else {
+						closeResource(v, v.Tabs[i].Path)
+					}
+				}
+				for dir := range v.Tree {
+					if pathAffected(dir, target) {
+						delete(v.Tree, dir)
+						delete(v.Expanded, dir)
+					}
+				}
 			}
 		}
 		if err != nil {
 			v.Loaded, v.Bound = false, false
 			v.Error = err.Error()
+			v.TreeError = err.Error()
 			if attempted && !applied {
 				v.Error += "; outcome may be uncertain. Refresh before retrying."
 			}
@@ -161,7 +197,12 @@ func (s *Files) mutate(operation, path, name string) error {
 				v.Error += "; the operation succeeded but the listing refresh failed."
 			}
 		} else {
+			sortDirectoryEntries(listing.Items)
 			v.Path, v.Items = listing.Path, listing.Items
+			if v.Tree == nil {
+				v.Tree = map[string]FileLevel{}
+			}
+			v.Tree[listing.Path] = FileLevel{Loaded: true, Items: append([]DirectoryEntry(nil), listing.Items...)}
 			v.Loaded, v.Bound = true, true
 		}
 		s.mu.Unlock()

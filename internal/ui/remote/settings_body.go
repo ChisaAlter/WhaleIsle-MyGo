@@ -33,7 +33,7 @@ func settingsView(c *ui.Context, m Model) {
 			}
 			ui.Text(c, label("远程", "Remote")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 			ui.Text(c, label("管理远程连接网关与消息渠道。", "Manage your remote gateway and messaging channels.")).FontSize(theme.InterfaceSize(14)).TextColor(muted)
-			tabs := ui.Row(c.Key("remote-tabs")).FillWidth().Gap(8)
+			tabs := ui.Row(c.Key("remote-tabs")).FillWidth().Gap(8).Role(ui.RoleTabList)
 			active := m.ActiveTab
 			if active == nil {
 				active = ui.Local(tabs, "active", func() string { return "gateway" })
@@ -42,11 +42,19 @@ func settingsView(c *ui.Context, m Model) {
 				*active = "gateway"
 			}
 			tabs.Children(func() {
-				for _, tab := range []struct{ id, title string }{{"gateway", label("网关", "Gateway")}, {"channels", label("消息渠道", "Channels")}} {
-					if tab.id == "channels" && m.ChannelsContent == nil {
-						continue
-					}
-					b := ui.Button(c, tab.title).Height(34).BorderWidth(0)
+				entries := []struct{ id, title string }{{"gateway", label("网关", "Gateway")}}
+				if m.ChannelsContent != nil {
+					entries = append(entries, struct{ id, title string }{"channels", label("消息渠道", "Channels")})
+				}
+				buttons := make([]ui.Element, len(entries))
+				choose := func(index int) { *active = entries[index].id; buttons[index].Focus() }
+				for index, tab := range entries {
+					b := ui.Button(c.Key(tab.id), tab.title).Height(34).BorderWidth(0).Role(ui.RoleTab).Selected(*active == tab.id)
+					buttons[index] = b
+					b.OnShortcut(0, ui.KeyRight, func() { choose((index + 1) % len(entries)) })
+					b.OnShortcut(0, ui.KeyLeft, func() { choose((index + len(entries) - 1) % len(entries)) })
+					b.OnShortcut(0, ui.KeyHome, func() { choose(0) })
+					b.OnShortcut(0, ui.KeyEnd, func() { choose(len(entries) - 1) })
 					if *active == tab.id {
 						b = b.Background(chrome.Color(colors.Field)).TextColor(fg)
 					} else {
@@ -164,47 +172,84 @@ func gatewayReadRow(c *ui.Context, title, value string, fg, muted ui.Color) {
 
 func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 	e := m.GatewayEditor
+	current := config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
 	if !e.Open {
-		e.Expected = config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
-		e.Draft = e.Expected
+		e.Expected, e.Draft = current, current
 	}
 	busy := m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy
+	// Original settings commits one row at a time. An unrelated text draft
+	// must never hitchhike on a mode/bind change or a different row's Save.
+	save := func(next config.RemoteGatewayPreferences) {
+		if err := m.OnSaveGateway(current, next); err != nil {
+			e.Error = err.Error()
+			return
+		}
+		e.Error = ""
+		if next.RelayEndpoint != current.RelayEndpoint {
+			e.Draft.RelayEndpoint = next.RelayEndpoint
+		}
+		if next.Port != current.Port {
+			e.Draft.Port = next.Port
+		}
+		e.Open = e.Draft.RelayEndpoint != next.RelayEndpoint || e.Draft.Port != next.Port
+	}
 	gatewaySettingRow(c, label("中继地址", "Relay endpoint"), label("使用中继 host[:port]；留空使用默认地址。", "Relay host[:port]; leave blank to use the default."), fg, muted, func() {
 		if ui.TextInput(c, &e.Draft.RelayEndpoint).Label("Gateway relay endpoint").FillWidth().Disabled(busy).Changed() {
 			e.Open = true
 		}
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			if ui.Button(c, label("保存", "Save")).Disabled(busy).Clicked() {
+				next := current
+				next.RelayEndpoint = e.Draft.RelayEndpoint
+				save(next)
+			}
+			if ui.Button(c, label("使用默认地址", "Use default relay")).Disabled(busy).Clicked() {
+				next := current
+				next.RelayEndpoint = ""
+				save(next)
+			}
+		})
 	})
 	gatewaySettingRow(c, label("连接模式", "Connection mode"), label("选择局域网或中继连接。", "Choose a LAN or relay connection."), fg, muted, func() {
-		if ui.Select(c, &e.Draft.Mode, []string{"lan", "relay"}).Label("Gateway connection mode").FillWidth().Disabled(busy).Changed() {
-			e.Open = true
+		mode := current.Mode
+		if ui.Select(c, &mode, []string{"lan", "relay"}).Label("Gateway connection mode").FillWidth().Disabled(busy).Changed() {
+			next := current
+			next.Mode = mode
+			save(next)
 		}
 	})
 	gatewaySettingRow(c, label("端口", "Port"), label("网关监听端口，范围 1024–65535。", "Gateway listen port, from 1024 to 65535."), fg, muted, func() {
 		if ui.TextInput(c, &e.Draft.Port).Label("Gateway port").FillWidth().Disabled(busy).Changed() {
 			e.Open = true
 		}
+		if ui.Button(c, label("保存", "Save")).Disabled(busy).Clicked() {
+			next := current
+			next.Port = e.Draft.Port
+			save(next)
+		}
 	})
 	gatewaySettingRow(c, label("监听范围", "Bind scope"), label("127.0.0.1、0.0.0.0 或本机 IPv4 地址。", "127.0.0.1, 0.0.0.0, or a local IPv4 address."), fg, muted, func() {
-		if ui.TextInput(c, &e.Draft.BindAddress).Label("Gateway bind address").FillWidth().Disabled(busy).Changed() {
-			e.Open = true
+		options := []string{"0.0.0.0", "127.0.0.1"}
+		for _, address := range append(append([]string(nil), m.PhoneRuntime.BindAddresses...), current.BindAddress) {
+			present := false
+			for _, option := range options {
+				if option == address {
+					present = true
+					break
+				}
+			}
+			if !present && address != "" {
+				options = append(options, address)
+			}
+		}
+		bind := current.BindAddress
+		if ui.Select(c, &bind, options).Label("Gateway bind address").FillWidth().Disabled(busy).Changed() {
+			next := current
+			next.BindAddress = bind
+			save(next)
 		}
 	})
 	gatewayReadRow(c, label("局域网传输", "LAN transport"), label("局域网连接使用 TLS 加密。", "LAN connections use TLS encryption."), fg, muted)
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		if ui.Button(c, label("保存并重新连接", "Save and reconnect")).Disabled(!e.Open || busy).Clicked() {
-			if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
-				e.Error = err.Error()
-			} else {
-				e.Open = false
-				e.Error = ""
-			}
-		}
-		if e.Open && ui.Button(c, label("取消", "Cancel")).Disabled(busy).Clicked() {
-			e.Draft = e.Expected
-			e.Open = false
-			e.Error = ""
-		}
-	})
 }
 func gatewaySettingRow(c *ui.Context, title, hint string, fg, muted ui.Color, control func()) {
 	ui.Row(c).FillWidth().MinWidth(0).Gap(24).Wrap().Padding(8, 0).Children(func() {

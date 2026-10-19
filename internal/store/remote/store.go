@@ -17,14 +17,17 @@ import (
 )
 
 type Machine struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Host           string `json:"host"`
-	Port           int    `json:"port"`
-	Username       string `json:"username"`
-	PrivateKeyPath string `json:"privateKeyPath"`
-	Workspace      string `json:"workspace"`
-	raw            map[string]json.RawMessage
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Host            string  `json:"host"`
+	Port            int     `json:"port"`
+	Username        string  `json:"username"`
+	PrivateKeyPath  string  `json:"privateKeyPath"`
+	Workspace       string  `json:"workspace"`
+	PasswordSet     bool    `json:"passwordSet"`
+	LatencyMS       float64 `json:"latencyMs"`
+	LastConnectedAt string  `json:"lastConnectedAt"`
+	raw             map[string]json.RawMessage
 }
 
 func (m *Machine) UnmarshalJSON(b []byte) error {
@@ -286,8 +289,12 @@ func (s *Store) payload(d Draft) (map[string]any, error) {
 	if port < 1 || port > 65535 {
 		return nil, fmt.Errorf("Port must be 1–65535")
 	}
-	if strings.TrimSpace(d.Host) == "" || strings.TrimSpace(d.Username) == "" {
-		return nil, fmt.Errorf("Host and username are required")
+	if strings.TrimSpace(d.Host) == "" {
+		return nil, fmt.Errorf("Host is required")
+	}
+	username := strings.TrimSpace(d.Username)
+	if username == "" {
+		username = "root"
 	}
 	body := map[string]any{"action": "add"}
 	if d.ID != "" {
@@ -312,7 +319,7 @@ func (s *Store) payload(d Draft) (map[string]any, error) {
 	body["name"] = strings.TrimSpace(d.Name)
 	body["host"] = strings.TrimSpace(d.Host)
 	body["port"] = port
-	body["username"] = strings.TrimSpace(d.Username)
+	body["username"] = username
 	body["privateKeyPath"] = strings.TrimSpace(d.PrivateKeyPath)
 	body["workspace"] = strings.TrimSpace(d.Workspace)
 	if d.Options != nil {

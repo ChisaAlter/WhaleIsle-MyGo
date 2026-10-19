@@ -68,10 +68,19 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 			disabled = true
 			ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)
 		}
+		save := func() {
+			p.Behavior = config.NormalizePetBehavior(p.Behavior)
+			if a != nil && a.OnSave != nil {
+				a.OnSave()
+			} else if p.Store != nil {
+				p.Save()
+			}
+		}
+		commit := func(field string) { savePetSetting(p, a, field) }
 		bodyHeading(c, providerCopy("外观", "Appearance"), "", fg, muted)
-		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on the desktop"), providerCopy("关闭后隐藏桌面形象，随时可以再开。", "Hide the desktop character; you can show her again at any time."), &p.Enabled, disabled, fg, muted, nil)
+		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on the desktop"), providerCopy("关闭后隐藏桌面形象，随时可以再开。", "Hide the desktop character; you can show her again at any time."), &p.Enabled, disabled, fg, muted, func(bool) { commit("enabled") })
 		bodyPreferenceRow(c, "pet-scale-opacity", providerCopy("体型与不透明度", "Scale and opacity"), "", fg, muted, func() {
-			percentage := func(label string, value *float64, choices []string) {
+			percentage := func(label, field string, value *float64, choices []string) {
 				selected := fmt.Sprintf("%.0f%%", *value*100)
 				found := false
 				for _, choice := range choices {
@@ -85,26 +94,35 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 				if ui.Select(c, &selected, choices).FillWidth().Label(label).Disabled(disabled).Changed() {
 					number, _ := strconv.ParseFloat(strings.TrimSuffix(selected, "%"), 64)
 					*value = number / 100
+					commit(field)
 				}
 			}
-			percentage(providerCopy("体型", "Scale"), &p.Behavior.Scale, []string{"60%", "80%", "100%", "120%", "140%", "160%"})
-			percentage(providerCopy("不透明度", "Opacity"), &p.Behavior.Opacity, []string{"30%", "50%", "70%", "85%", "100%"})
+			percentage(providerCopy("体型", "Scale"), "scale", &p.Behavior.Scale, []string{"60%", "80%", "100%", "120%", "140%", "160%"})
+			percentage(providerCopy("不透明度", "Opacity"), "opacity", &p.Behavior.Opacity, []string{"30%", "50%", "70%", "85%", "100%"})
 		})
 		bodyPreferenceRow(c, "pet-personality", providerCopy("性格", "Personality"), providerCopy("影响台词与「聊聊」语气，助理人格跟随同一设置。", "Affects dialogue and quick-chat tone; the assistant uses the same personality."), fg, muted, func() {
-			ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth().Label(providerCopy("性格", "Personality")).Disabled(disabled)
+			if ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth().Label(providerCopy("性格", "Personality")).Disabled(disabled).Changed() {
+				commit("personality")
+			}
 		})
 		bodyHeading(c, providerCopy("行为", "Behavior"), "", fg, muted)
 		bodyPreferenceRow(c, "pet-activity", providerCopy("活跃频率", "Activity"), providerCopy("驱动自言自语与乱逛的间隔。", "Controls the interval between self-talk and wandering."), fg, muted, func() {
-			ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth().Label(providerCopy("活跃频率", "Activity")).Disabled(disabled)
+			if ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth().Label(providerCopy("活跃频率", "Activity")).Disabled(disabled).Changed() {
+				commit("activity")
+			}
 		})
 		bodyPreferenceRow(c, "pet-autonomy", providerCopy("自主行为", "Autonomous behavior"), providerCopy("她自己开口说话、到处乱逛。", "Let her talk to herself and wander around."), fg, muted, func() {
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 				ui.Text(c, providerCopy("自言自语", "Self-talk")).Grow(1).MinWidth(0)
-				ui.Switch(c, &p.Behavior.SelfTalk).Label(providerCopy("自言自语", "Self-talk")).Disabled(disabled)
+				if ui.Switch(c, &p.Behavior.SelfTalk).Label(providerCopy("自言自语", "Self-talk")).Disabled(disabled).Changed() {
+					commit("selfTalk")
+				}
 			})
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 				ui.Text(c, providerCopy("自主乱逛", "Wandering")).Grow(1).MinWidth(0)
-				ui.Switch(c, &p.Behavior.Wander).Label(providerCopy("自主乱逛", "Wandering")).Disabled(disabled)
+				if ui.Switch(c, &p.Behavior.Wander).Label(providerCopy("自主乱逛", "Wandering")).Disabled(disabled).Changed() {
+					commit("wander")
+				}
 			})
 		})
 		bodyPreferenceRow(c, "pet-drag-mode", providerCopy("拖拽方式", "Dragging"), providerCopy("自由拖动、按住 Shift，或锁定位置。", "Drag freely, hold Shift to drag, or lock the position."), fg, muted, func() {
@@ -117,29 +135,25 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 			if ui.Select(c, &selected, []string{"free", "shift", "locked"}).FillWidth().Label(providerCopy("拖拽方式", "Dragging")).Disabled(disabled).Changed() {
 				p.Behavior.LockPosition = selected == "locked"
 				p.Behavior.ShiftToDrag = selected == "shift"
+				commit("drag")
 			}
 		})
-		bodyLocalToggle(c, "pet-power", providerCopy("省电模式", "Power saving"), providerCopy("无交互约五分钟后降低帧率。", "Reduce the frame rate after about five idle minutes."), &p.Behavior.PowerSave, disabled, fg, muted, nil)
-		bodyLocalToggle(c, "pet-sound", providerCopy("点击音效", "Click sound"), "", &p.Behavior.ClickSound, disabled, fg, muted, nil)
+		bodyLocalToggle(c, "pet-power", providerCopy("省电模式", "Power saving"), providerCopy("无交互约五分钟后降低帧率。", "Reduce the frame rate after about five idle minutes."), &p.Behavior.PowerSave, disabled, fg, muted, func(bool) { commit("powerSave") })
+		bodyLocalToggle(c, "pet-sound", providerCopy("点击音效", "Click sound"), "", &p.Behavior.ClickSound, disabled, fg, muted, func(bool) { commit("clickSound") })
 		bodyHeading(c, providerCopy("联动", "Integration"), "", fg, muted)
-		bodyLocalToggle(c, "pet-chat", providerCopy("快捷对话", "Quick chat"), providerCopy("右键面板中的「聊聊」对话卡。", "The quick-chat card in the context menu."), &p.Behavior.ChatEnabled, disabled, fg, muted, nil)
+		bodyLocalToggle(c, "pet-chat", providerCopy("快捷对话", "Quick chat"), providerCopy("右键面板中的「聊聊」对话卡。", "The quick-chat card in the context menu."), &p.Behavior.ChatEnabled, disabled, fg, muted, func(bool) { commit("chatEnabled") })
 		if a != nil {
-			petLookPane(c, p, a.Store, fg, muted)
+			petLookPane(c, p, a.Store, fg, muted, disabled)
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("保存外观与行为", "Save appearance and behavior")).Disabled(disabled).Clicked() {
-				p.Behavior = config.NormalizePetBehavior(p.Behavior)
-				if a != nil && a.OnSave != nil {
-					a.OnSave()
-				} else {
-					p.Save()
-				}
-			}
 			if ui.Button(c, "恢复外观与行为默认 / Reset appearance and behavior").Disabled(p.Store == nil || disabled).Clicked() {
 				confirmResetPetAppearanceBehavior(p)
 			}
 		})
 		bodyDisclosure(c, "pet-local-skins", providerCopy("本地皮肤与动画", "Local skins and animation"), func() {
+			if ui.Button(c, providerCopy("保存本地皮肤与导入草稿", "Save local skin and imported draft")).Disabled(disabled).Clicked() {
+				save()
+			}
 			bodyLocalToggle(c, "pet-neural", providerCopy("THA4 动画", "THA4 animation"), providerCopy("使用已验证的本地资源；不可用时使用内置动画。", "Uses verified local resources, with bundled animation when unavailable."), &p.Neural, disabled, fg, muted, nil)
 			options := []string{""}
 			found := p.SkinID == ""

@@ -6,11 +6,17 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
 )
 
 type FileActions struct {
 	Key, Operation, Path, Name, Error string
 	Directory, Submitted              bool
+}
+
+func remoteFileActionKey(s remotestore.FileSnapshot) string {
+	return s.BindingID + "\x00" + s.RemoteIdentity
 }
 
 func fileRowActions(c *ui.Context, m Model, item remotestore.DirectoryEntry, s remotestore.FileSnapshot, disabled bool) {
@@ -30,16 +36,16 @@ func fileRowActions(c *ui.Context, m Model, item remotestore.DirectoryEntry, s r
 	}
 	blocked := disabled || s.Dirty() || !s.Bound || !s.Loaded || item.Drive
 	if ui.Button(c, label("重命名", "Rename")).Disabled(blocked).Clicked() {
-		*a = FileActions{Key: s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + s.Path, Operation: "rename", Path: item.Path, Name: item.Name, Directory: item.IsDirectory()}
+		*a = FileActions{Key: remoteFileActionKey(s), Operation: "rename", Path: item.Path, Name: item.Name, Directory: item.IsDirectory()}
 	}
 	if ui.Button(c, label("删除", "Delete")).Disabled(blocked).Clicked() {
-		*a = FileActions{Key: s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + s.Path, Operation: "remove", Path: item.Path, Directory: item.IsDirectory()}
+		*a = FileActions{Key: remoteFileActionKey(s), Operation: "remove", Path: item.Path, Directory: item.IsDirectory()}
 	}
 }
 
 func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, disabled bool) {
 	a := &m.FileEditor.Actions
-	key := s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + s.Path
+	key := remoteFileActionKey(s)
 	if a.Key != "" && a.Key != key {
 		*a = FileActions{}
 	}
@@ -47,63 +53,82 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 		a.Submitted = false
 		if s.MutationApplied {
 			*a = FileActions{}
+		} else if s.Error != "" {
+			a.Error = s.Error
 		}
 	}
-	if ui.Button(c, label("新建远程文件夹", "New remote folder")).Disabled(disabled || s.Dirty() || !s.Bound || !s.Loaded).Clicked() {
-		*a = FileActions{Key: key, Operation: "mkdir", Path: s.Path}
+	if ui.Button(c, label("新建远程文件夹", "New remote folder")).Disabled(disabled || !s.Bound || !s.Loaded).Clicked() {
+		*a = FileActions{Key: key, Operation: "mkdir", Path: s.RootPath}
 	}
 	if a.Operation == "" {
 		return
 	}
-	title := label("新建文件夹于：", "Create folder in: ")
-	if a.Operation == "rename" {
-		title = label("重命名：", "Rename: ")
+	confirm := func() {
+		if disabled || !s.Bound || !s.Loaded || a.Operation != "remove" && strings.TrimSpace(a.Name) == "" {
+			return
+		}
+		var err error
+		switch a.Operation {
+		case "mkdir":
+			err = m.Files.MkdirAt(a.Path, a.Name)
+		case "rename":
+			err = m.Files.Rename(a.Path, a.Name)
+		case "remove":
+			err = m.Files.Remove(a.Path)
+		}
+		if err != nil {
+			a.Error = err.Error()
+		} else {
+			a.Error, a.Submitted = "", true
+		}
 	}
-	if a.Operation == "remove" {
-		title = label("永久删除：", "Permanently delete: ")
-	}
-	ui.Text(c, title+a.Path).Bold()
-	if a.Operation == "remove" {
-		warning := label("此操作直接删除远程文件，无法从应用恢复。", "This deletes the remote file directly; the app cannot restore it.")
-		if a.Directory {
-			warning = label("此操作会递归删除远程文件夹及所有内容，无法从应用恢复。", "This recursively deletes the remote folder and its contents; the app cannot restore them.")
-		}
-		ui.Text(c, warning)
-	} else {
-		ui.TextInput(c, &a.Name).FillWidth().Disabled(disabled).Placeholder(label("名称", "Name"))
-		if a.Operation == "rename" {
-			ui.Text(c, label("将改为同目录下的新名称。若远端同时创建同名文件，SSH 重命名可能覆盖它。", "Renames within the same directory. A same-named file created concurrently on the remote may be overwritten by SSH rename."))
-		}
-	}
-	if a.Error != "" {
-		ui.Text(c, a.Error)
-	}
-	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
-			*a = FileActions{}
-		}
-		title := label("确认创建", "Confirm create")
-		if a.Operation == "rename" {
-			title = label("确认重命名", "Confirm rename")
-		}
-		if a.Operation == "remove" {
-			title = label("确认永久删除", "Confirm permanent deletion")
-		}
-		if ui.Button(c, title).Disabled(disabled || s.Dirty() || !s.Bound || !s.Loaded).Clicked() {
-			var err error
-			switch a.Operation {
-			case "mkdir":
-				err = m.Files.Mkdir(a.Name)
-			case "rename":
-				err = m.Files.Rename(a.Path, a.Name)
-			case "remove":
-				err = m.Files.Remove(a.Path)
+	open := true
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, .24))
+		width, _ := c.Size()
+		panel.Width(min(float32(480), max(float32(0), width-32))).Radius(12).Padding(20).Gap(10).Background(chrome.Color(colors.BG)).Children(func() {
+			title := label("新建文件夹于：", "Create folder in: ")
+			if a.Operation == "rename" {
+				title = label("重命名：", "Rename: ")
 			}
-			if err != nil {
-				a.Error = err.Error()
+			if a.Operation == "remove" {
+				title = label("永久删除：", "Permanently delete: ")
+			}
+			ui.Text(c, title+a.Path).FillWidth().Bold()
+			if a.Operation == "remove" {
+				warning := label("此操作直接删除远程文件，无法从应用恢复。", "This deletes the remote file directly; the app cannot restore it.")
+				if a.Directory {
+					warning = label("此操作会递归删除远程文件夹及所有内容，无法从应用恢复。", "This recursively deletes the remote folder and its contents; the app cannot restore them.")
+				}
+				ui.Text(c, warning).FillWidth()
 			} else {
-				a.Error, a.Submitted = "", true
+				ui.TextInput(c, &a.Name).FillWidth().Disabled(disabled).Placeholder(label("名称", "Name")).AutoFocus().OnSubmit(confirm)
 			}
-		}
+			if a.Error != "" {
+				ui.Text(c, a.Error).FillWidth()
+			}
+			if a.Submitted && s.Error != "" {
+				ui.Text(c, s.Error).FillWidth()
+			}
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+					*a = FileActions{}
+				}
+				title := label("确认创建", "Confirm create")
+				if a.Operation == "rename" {
+					title = label("确认重命名", "Confirm rename")
+				}
+				if a.Operation == "remove" {
+					title = label("确认永久删除", "Confirm permanent deletion")
+				}
+				if ui.Button(c, title).Disabled(disabled || !s.Bound || !s.Loaded || a.Operation != "remove" && strings.TrimSpace(a.Name) == "").Clicked() {
+					confirm()
+				}
+			})
+		})
 	})
+	if !open && !disabled {
+		*a = FileActions{}
+	}
 }

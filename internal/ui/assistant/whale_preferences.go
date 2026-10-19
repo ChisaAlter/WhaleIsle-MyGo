@@ -21,6 +21,9 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		return
 	}
 	s := m.State
+	if !blocked && s.Host != "" && !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" {
+		m.OnRefresh()
+	}
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
 		ui.Text(c, "鲸鱼娘 · 模型、IM 与技能 / Whale preferences").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
@@ -82,6 +85,9 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Disabled(disabled || s.ModelsError != "").OnChange(func() {
 			if v, ok := choices[selected]; ok && m.OnEdit != nil {
 				m.OnEdit(v, s.IMDefault)
+				if m.OnSave != nil {
+					m.OnSave("model")
+				}
 			}
 		})
 		effortLabels := []string{"默认推理档 / Default effort"}
@@ -108,19 +114,19 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			route.ReasoningEffort = effortValues[effortSelected]
 			if m.OnEdit != nil {
 				m.OnEdit(route, s.IMDefault)
+				if m.OnSave != nil {
+					m.OnSave("model")
+				}
 			}
 		})
-		if ui.Button(c, "保存 Whale 模型与推理档 / Save Whale model").Disabled(disabled || route == s.Server.Route()).Clicked() && m.OnSave != nil {
-			m.OnSave("model")
-		}
 		im := s.IMDefault
 		if ui.Checkbox(c.Key("whale-im-default"), &im, "IM 接入同一对话 / Share conversation with IM").Disabled(disabled).Changed() && m.OnEdit != nil {
 			m.OnEdit(s.Route, im)
+			if m.OnSave != nil {
+				m.OnSave("im")
+			}
 		}
 		ui.Text(c, "未指定其他预设的 IM 机器人进入她的常驻会话，与桌面共用记录。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, "保存 IM 默认 / Save IM default").Disabled(disabled || im == s.Server.IMDefault).Clicked() && m.OnSave != nil {
-			m.OnSave("im")
-		}
 		enabled := 0
 		for _, skill := range s.Server.Skills {
 			if skill.Enabled {

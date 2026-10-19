@@ -30,6 +30,7 @@ type RuntimeState struct {
 	ExpiresAt                 time.Time
 	Message                   string
 	Devices                   []Device
+	BindAddresses             []string
 	DevicesLoaded             bool
 	DeviceAction              DeviceActionState
 }
@@ -206,6 +207,7 @@ func (r *Runtime) Snapshot() RuntimeState {
 	}
 	r.state = s
 	s.Devices = append([]Device(nil), s.Devices...)
+	s.BindAddresses = append([]string(nil), s.BindAddresses...)
 	s.DeviceAction = r.deviceAction
 	if s.DeviceAction.Busy && s.DeviceAction.Operation != "rename" {
 		s.PairingURL = ""
@@ -228,6 +230,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 		Operation      string   `json:"operation"`
 		Applied        bool     `json:"applied"`
 		Devices        []Device `json:"devices"`
+		Addresses      []string `json:"addresses"`
 		DevicesLoaded  bool     `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
@@ -276,7 +279,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 		return
 	}
 	s := RuntimeState{Status: "offline", Listening: event.Listening, RelayConnected: event.RelayConnected,
-		Devices: event.Devices, DevicesLoaded: event.DevicesLoaded}
+		Devices: event.Devices, DevicesLoaded: event.DevicesLoaded, BindAddresses: event.Addresses}
 	if s.Listening {
 		s.Status = "relay-offline"
 	}

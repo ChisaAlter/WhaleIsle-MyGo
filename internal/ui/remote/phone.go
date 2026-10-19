@@ -42,6 +42,17 @@ func phoneSnapshot(m Model) phoneremote.Snapshot {
 		DeviceNames:         names,
 	}
 	s.Readiness, s.Missing = phoneremote.Assess(s)
+	if m.GatewayProtocol == "chisacode-v2" {
+		// V2 uses the daemon's device store and short-lived offers. Legacy
+		// desktop tokens and the main-window mux are not pairing prerequisites.
+		s.Missing = nil
+		s.Readiness = phoneremote.ReadinessIncomplete
+		if !s.RemoteEnabled {
+			s.Readiness = phoneremote.ReadinessDisabled
+		} else if m.PhoneRuntime.Status == "ready" && m.PhoneRuntime.Listening && m.PhoneRuntime.RelayConnected {
+			s.Readiness = phoneremote.ReadinessReady
+		}
+	}
 	s.ConnectURL = phoneremote.ConnectURL(s)
 	return s
 }
@@ -70,9 +81,18 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		{i18n.T(i18n.KeyRemotePhoneStatus), phoneReadinessLabel(snap.Readiness)},
 		{i18n.T(i18n.KeyRemotePairingEnabled), onOff(snap.RemoteEnabled)},
 		{i18n.T(i18n.KeyRemoteMode), emptyDash(snap.RemoteMode)},
-		{i18n.T(i18n.KeyRemoteCredentials), credLabel(snap.HasRemoteToken)},
-		{i18n.T(i18n.KeyRemotePhoneRelayToken), credLabel(snap.HasRemoteRelayToken)},
-		{i18n.T(i18n.KeyRemoteMux), muxLabel(m.HarnessReady, m.MuxConnected)},
+	}
+	if m.GatewayProtocol != "chisacode-v2" {
+		rows = append(rows,
+			struct{ label, value string }{i18n.T(i18n.KeyRemoteCredentials), credLabel(snap.HasRemoteToken)},
+			struct{ label, value string }{i18n.T(i18n.KeyRemotePhoneRelayToken), credLabel(snap.HasRemoteRelayToken)},
+			struct{ label, value string }{i18n.T(i18n.KeyRemoteMux), muxLabel(m.HarnessReady, m.MuxConnected)},
+		)
+	} else {
+		rows = append(rows,
+			struct{ label, value string }{label("网关监听", "Gateway listening"), onOff(m.PhoneRuntime.Listening)},
+			struct{ label, value string }{label("中继连接", "Relay connection"), onOff(m.PhoneRuntime.RelayConnected)},
+		)
 	}
 	mode := strings.ToLower(strings.TrimSpace(snap.RemoteMode))
 	if mode == "lan" || strings.Contains(mode, "lan") {
@@ -148,7 +168,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if len(snap.Missing) > 0 {
 		ui.Text(c, i18n.T(i18n.KeyRemotePhoneMissing)+": "+strings.Join(snap.Missing, ", ")).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
-	if snap.RemoteEnabled && !snap.HasRemoteToken {
+	if m.GatewayProtocol != "chisacode-v2" && snap.RemoteEnabled && !snap.HasRemoteToken {
 		ui.Text(c, i18n.T(i18n.KeyRemoteMobileNeedToken)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
 }

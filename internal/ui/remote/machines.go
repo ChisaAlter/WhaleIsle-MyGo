@@ -1,7 +1,9 @@
 package remote
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
@@ -93,6 +95,24 @@ func viewMachines(c *ui.Context, m Model) {
 			}
 			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(8, 0).Children(func() {
 				ui.Text(c, title+" · "+machine.Username+"@"+machine.Host+":"+strconv.Itoa(machine.Port)).FillWidth().MinWidth(0)
+				ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
+					if machine.PasswordSet {
+						ui.Text(c, label("已保存密码", "Password saved"))
+					}
+					if machine.Workspace != "" {
+						ui.Text(c, machine.Workspace).MinWidth(0)
+					}
+					if machine.LatencyMS > 0 {
+						ui.Text(c, fmt.Sprintf("%.0f ms", machine.LatencyMS))
+					}
+					if machine.LastConnectedAt != "" {
+						stamp := strings.ReplaceAll(machine.LastConnectedAt, "T", " ")
+						if len(stamp) > 16 {
+							stamp = stamp[:16]
+						}
+						ui.Text(c, label("最近连接：", "Last connected: ")+stamp)
+					}
+				})
 				ui.Row(c).Gap(8).Wrap().Children(func() {
 					if ui.Button(c, label("选择", "Select")).Disabled(s.Busy).Clicked() {
 						m.Machines.Select(machine.ID)
@@ -137,14 +157,14 @@ func viewMachines(c *ui.Context, m Model) {
 				ui.Text(c, e.Error)
 			}
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, label("测试表单", "Test draft")).Disabled(s.Busy).Clicked() {
+				if ui.Button(c, label("测试表单", "Test draft")).Disabled(s.Busy || strings.TrimSpace(e.Draft.Host) == "").Clicked() {
 					if err := m.Machines.TestDraft(e.Draft); err != nil {
 						e.Error = err.Error()
 					} else {
 						e.Error = ""
 					}
 				}
-				if ui.Button(c, label("保存", "Save")).Disabled(s.Busy).Clicked() {
+				if ui.Button(c, label("保存", "Save")).Disabled(s.Busy || strings.TrimSpace(e.Draft.Host) == "").Clicked() {
 					if err := m.Machines.Save(e.Draft); err != nil {
 						e.Error = err.Error()
 					} else {

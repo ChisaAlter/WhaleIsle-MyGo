@@ -217,6 +217,10 @@ func (s *WhaleSettingsEditor) BeginWrite(host, action string) (WhaleSettingsTick
 		}
 	case "identity":
 		err = pluginrpc.ValidateWhaleSettingsPatch(pluginrpc.WhaleSettingsPatch{Name: &cmd.Value.Name, UserTitle: &cmd.Value.UserTitle})
+	case "name":
+		err = pluginrpc.ValidateWhaleSettingsPatch(pluginrpc.WhaleSettingsPatch{Name: &cmd.Value.Name})
+	case "title":
+		err = pluginrpc.ValidateWhaleSettingsPatch(pluginrpc.WhaleSettingsPatch{UserTitle: &cmd.Value.UserTitle})
 	case "persona":
 		err = pluginrpc.ValidateWhaleSettingsPatch(pluginrpc.WhaleSettingsPatch{PersonaText: &cmd.Value.PersonaText})
 	default:
@@ -241,6 +245,10 @@ func (cmd WhaleSettingsCommand) Check(current pluginrpc.WhaleSettings) error {
 		same = cmd.Base.Memory == current.Memory
 	case "identity":
 		same = cmd.Base.Name == current.Name && cmd.Base.UserTitle == current.UserTitle
+	case "name":
+		same = cmd.Base.Name == current.Name
+	case "title":
+		same = cmd.Base.UserTitle == current.UserTitle
 	case "persona":
 		same = cmd.Base.PersonaText == current.PersonaText
 	}
@@ -281,12 +289,12 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 		matches = actual.Memory == cmd.Value.Memory
 	case "persona":
 		matches = actual.PersonaText == cmd.Value.PersonaText
-	case "identity":
+	case "identity", "name", "title":
 		name := strings.TrimSpace(cmd.Value.Name)
 		if name == "" {
 			name = "鲸鱼娘"
 		}
-		matches = actual.Name == name && actual.UserTitle == strings.TrimSpace(cmd.Value.UserTitle)
+		matches = (cmd.Action == "title" || actual.Name == name) && (cmd.Action == "name" || actual.UserTitle == strings.TrimSpace(cmd.Value.UserTitle))
 	}
 	if !matches {
 		s.mergeWriteRead(*actual, cmd.Action, true)
@@ -299,6 +307,10 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 			s.draft.Memory = actual.Memory
 		case "identity":
 			s.draft.Name = actual.Name
+			s.draft.UserTitle = actual.UserTitle
+		case "name":
+			s.draft.Name = actual.Name
+		case "title":
 			s.draft.UserTitle = actual.UserTitle
 		case "persona":
 			s.draft.PersonaText = actual.PersonaText
@@ -335,6 +347,10 @@ func (s *WhaleSettingsEditor) mergeWriteRead(actual pluginrpc.WhaleSettings, act
 		s.draft.PersonaText = draft.PersonaText
 	case "identity":
 		s.draft.Name = draft.Name
+		s.draft.UserTitle = draft.UserTitle
+	case "name":
+		s.draft.Name = draft.Name
+	case "title":
 		s.draft.UserTitle = draft.UserTitle
 	}
 }

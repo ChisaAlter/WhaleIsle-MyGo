@@ -80,7 +80,8 @@ function snapshot() {
     }
   }
   emit({kind:'snapshot', listening:!!s.listening, relayConnected:!!s.relayConnected,
-    url, qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices)});
+    url, qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices),
+    addresses:Array.isArray(s.addresses) ? s.addresses.filter(value => typeof value === 'string') : []});
 }
 async function deviceAction(command) {
   if (typeof command.id !== 'string' || !/^[0-9]{1,20}$/.test(command.id)) return;

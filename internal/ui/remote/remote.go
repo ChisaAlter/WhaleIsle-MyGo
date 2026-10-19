@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/desktop/sshremote"
+	"whaleisle/internal/dsh"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -20,8 +21,13 @@ import (
 
 // Model carries remote plugin and desktop connection state.
 type Model struct {
-	GatewayProtocol     string
-	LegacyRelayTokenSet bool
+	FileWorkspace          *FileWorkspaceState
+	FileClient             *dsh.Client
+	FileSessionID, FileCwd string
+	FileCurrent            func() bool
+	OnInvalidate           func()
+	GatewayProtocol        string
+	LegacyRelayTokenSet    bool
 	// Embedded renders only the feature-owned settings body in the shared shell.
 	Embedded        bool
 	SettingsPage    string
