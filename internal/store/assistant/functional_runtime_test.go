@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,6 +21,40 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 )
+
+// Run separately after the owned Host has stopped. This audit validates every
+// complete frame with the real current-format codec, then outputs counts only.
+func TestFunctionalAssistantStoredEvents(t *testing.T) {
+	stage, root, output := os.Getenv("WHALEISLE_ASSISTANT_TEST_STAGE"), os.Getenv("WHALEISLE_ASSISTANT_AUDIT_OWNED"), os.Getenv("WHALEISLE_ASSISTANT_AUDIT_REPORT")
+	if stage == "" || root == "" || output == "" {
+		t.Skip("opt-in: provide explicit stopped owned assistant corpus and audit report")
+	}
+	script, err := filepath.Abs("functional_runtime_audit.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	raw, err := exec.CommandContext(ctx, filepath.Join(stage, "node", "node.exe"), script, stage, root).Output()
+	if err != nil {
+		t.Fatalf("owned Session event audit: %v", err)
+	}
+	var audit struct {
+		Sessions, Events     int
+		NoExecution          bool `json:"noPersistedPromptTurnToolOrModelRequestEvidence"`
+		NetworkPacketCapture bool `json:"networkPacketCapture"`
+	}
+	if err = json.Unmarshal(raw, &audit); err != nil {
+		t.Fatal(err)
+	}
+	if audit.Sessions != 5 || audit.Events == 0 || !audit.NoExecution || audit.NetworkPacketCapture {
+		t.Fatal("incomplete or unexpected execution audit")
+	}
+	if err = os.WriteFile(output, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("strictly decoded %d owned Sessions / %d events; no prompt/turn/tool/model-request events", audit.Sessions, audit.Events)
+}
 
 func TestFunctionalAssistantRuntime(t *testing.T) {
 	stage, base, output := os.Getenv("WHALEISLE_ASSISTANT_TEST_STAGE"), os.Getenv("WHALEISLE_ASSISTANT_TEST_ROOT"), os.Getenv("WHALEISLE_ASSISTANT_TEST_REPORT")
