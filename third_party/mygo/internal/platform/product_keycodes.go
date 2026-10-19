@@ -1,5 +1,21 @@
 package platform
 
+import "strconv"
+
+// ProductPhysicalCode is the inverse of the shared native product VK mapping.
+func ProductPhysicalCode(vk uint32) string {
+	if vk >= 'A' && vk <= 'Z' {
+		return "Key" + string(rune(vk))
+	}
+	if vk >= '0' && vk <= '9' {
+		return "Digit" + string(rune(vk))
+	}
+	if vk >= 112 && vk <= 135 {
+		return "F" + strconv.Itoa(int(vk-111))
+	}
+	return map[uint32]string{13: "Enter", 27: "Escape", 32: "Space", 9: "Tab", 8: "Backspace", 46: "Delete", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown", 188: "Comma", 190: "Period", 191: "Slash", 186: "Semicolon", 222: "Quote", 219: "BracketLeft", 221: "BracketRight", 220: "Backslash", 192: "Backquote", 189: "Minus", 187: "Equal"}[vk]
+}
+
 // ProductMacVirtualKey translates NSEvent's physical keyCode to the existing
 // product registry's VK-shaped code. Unknown/IME/keypad keys deliberately pass
 // through. The result describes position, not the text produced by a layout.

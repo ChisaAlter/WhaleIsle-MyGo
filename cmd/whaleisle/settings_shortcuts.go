@@ -28,7 +28,7 @@ func initializeNativeShortcutDocument(cfg *config.Store, profile string) error {
 	}
 	doc := shortcutprefs.Document{SchemaVersion: 2, Profiles: map[string]map[string]*shortcutprefs.Binding{profile: {}}}
 	for id, value := range saved {
-		binding, err := shortcuts.SharedBinding(value)
+		binding, err := shortcuts.LegacySharedBinding(value)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 		s.shortcutEditor.UseShared(func() error {
 			var edits []shortcutprefs.Edit
 			for _, row := range prefs.Effective("native") {
-				// Native reset does not erase advanced bindings that this editor cannot represent.
+				// Native reset only touches this owner's representable catalog rows.
 				if row.Binding != nil {
 					if _, err := shortcuts.Parse(shortcuts.SharedDisplay(row.Binding, shortcutPlatform())); err != nil {
 						continue
@@ -126,6 +126,20 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 			}
 			s.shortcutRevision = result.Snapshot.Revision
 			return nil
+		})
+		s.shortcutEditor.SetDescribe(func(id, raw string) string {
+			binding, err := shortcuts.SharedBinding(raw)
+			if err != nil {
+				return err.Error()
+			}
+			issue, conflicts := prefs.Describe("native", shortcuts.CanonicalID(id), binding)
+			if issue != "" {
+				return issue
+			}
+			if len(conflicts) > 0 {
+				return fmt.Sprintf("Conflicts with %v", conflicts)
+			}
+			return ""
 		})
 		s.shortcutEditor.SetReload(func() (map[string]string, error) {
 			if cfg == nil {

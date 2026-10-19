@@ -2,6 +2,7 @@ package frame
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
@@ -27,17 +28,43 @@ func registerPageCommands(c *ui.Context, m Model) {
 	addBusinessCommands(c, m, actions)
 	guardMainChildCommands(m, actions)
 	bindings := shortcuts.Resolve(m.PageShortcutBindings)
+	accepted, _ := json.Marshal(m.PageShortcutBindings)
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]
 		chord, ok := bindings[command.ID]
 		if !ok || run == nil {
 			continue
 		}
-		mods, key := NativeCommandChord(chord)
-		if key != ui.KeyUnknown && c.PageShortcut(mods, key) {
+		region := ""
+		if command.ID == "terminal.toggle" {
+			region = "terminal"
+		}
+		if NativeCommandPressed(c, chord, command.ID+string(accepted), region) {
 			run()
 		}
 	}
+}
+func NativeCommandPressed(c *ui.Context, chord shortcuts.Chord, identity ...string) bool {
+	b := chord.PhysicalBinding()
+	if b == nil {
+		return false
+	}
+	mods := ui.Modifiers(0)
+	for _, m := range b.Modifiers {
+		switch m {
+		case "primary":
+			mods |= ui.Cmd
+		case "control":
+			mods |= ui.Ctrl
+		case "alt":
+			mods |= ui.Alt
+		case "shift":
+			mods |= ui.Shift
+		case "meta":
+			mods |= ui.Super
+		}
+	}
+	return c.PhysicalShortcut(mods, b.Code, b.SecondCode, identity...)
 }
 func NativeCommandChord(chord shortcuts.Chord) (ui.Modifiers, ui.Key) {
 	mods := ui.Cmd

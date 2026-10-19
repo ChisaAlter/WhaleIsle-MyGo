@@ -126,6 +126,7 @@ type engine struct {
 	regs      []shortcutReg
 	nextRegs  []shortcutReg
 	delivered []shortcutReg
+	physical  physicalShortcutState
 
 	// trans are the transitions of the elements given one, by ID
 	// (transition.go): exitsBuilt tells that the last frame built elements
@@ -382,6 +383,8 @@ func (rt *engine) runFrame() {
 		rt.pass = pass
 		rt.consumed = false
 		rt.nextRegs = rt.nextRegs[:0]
+		rt.physical.next = rt.physical.next[:0]
+		rt.physical.nextTerminals = nil
 		clear(rt.kept)
 		rt.c.reset(now, appW, h)
 		rt.view(&rt.c)
@@ -448,6 +451,7 @@ func (rt *engine) runFrame() {
 	rt.prunePictures()
 	rt.text.EndFrame()
 	rt.regs, rt.nextRegs = rt.nextRegs, rt.regs
+	rt.acceptPhysicalShortcuts()
 	rt.updateTextInput()
 	rt.updateCursor()
 	if rt.access {

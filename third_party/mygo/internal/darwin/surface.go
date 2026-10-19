@@ -727,7 +727,7 @@ func registerSurfaceClass() {
 			// giving the composition up, as GTK's and IMM32's filtering
 			// keeps them on Linux and Windows.
 			if !ime || !s.hasMarkedText() {
-				s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: eventKey(ev), Mods: mods, Repeat: sendBool(ev, "isARepeat")})
+				s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: eventKey(ev), Code: platform.ProductPhysicalCode(platform.ProductMacVirtualKey(uint16(send(ev, "keyCode")))), ShortcutBlocked: s.hasMarkedText() || mods&platform.ModAlt != 0 && mods&(platform.ModSuper|platform.ModCtrl) == 0, Mods: mods, Repeat: sendBool(ev, "isARepeat")})
 			}
 			// Input methods see the key while a text input has the focus;
 			// they answer with insertText: or setMarkedText:.
@@ -739,7 +739,7 @@ func registerSurfaceClass() {
 		}),
 		method("keyUp:", func(self id, _ objc.SEL, ev id) {
 			if s := b().surfaceOf(self); s != nil {
-				s.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Key: eventKey(ev), Mods: eventMods(ev)})
+				s.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Key: eventKey(ev), Code: platform.ProductPhysicalCode(platform.ProductMacVirtualKey(uint16(send(ev, "keyCode")))), Mods: eventMods(ev)})
 			}
 		}),
 		method("flagsChanged:", func(self id, _ objc.SEL, ev id) {

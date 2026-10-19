@@ -1,12 +1,27 @@
 package webview
 
-import "github.com/egoist/mygo"
+import (
+	"github.com/egoist/mygo"
+	"whaleisle/internal/desktop/pluginslots"
+)
 
 func (h *Host) installProductKeyboard() {
 	if h.gateway == nil || h.win == nil {
 		return
 	}
 	gateway, child := h.gateway, h.win
+	parent, closeWindow := h.parent, h.onShortcutCloseWindow
+	gateway.SetProductCloseWindow(func(snapshot pluginslots.ProductKeyboardSnapshot) {
+		current := func() bool {
+			h.mu.Lock()
+			owned := !h.stopped && h.gateway == gateway && h.win == child && h.parent == parent
+			h.mu.Unlock()
+			return owned && parent != nil && gateway.OwnsProductKeyboard(snapshot) && !child.IsDestroyed() && child.IsVisible() && child.IsFocused() && child.ShortcutInputEnabled() && !parent.IsDestroyed() && parent.IsVisible() && parent.ShortcutInputEnabled()
+		}
+		if closeWindow != nil && current() {
+			closeWindow(parent, current)
+		}
+	})
 	changed := func() {
 		snapshot := gateway.ProductKeyboard()
 		keys := make([]mygo.ProductKeyBinding, 0, len(snapshot.Bindings))

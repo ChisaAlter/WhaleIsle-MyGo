@@ -47,6 +47,9 @@ function whaleBindProductKeyboard(ctx) {
    send({type:'state',revision,active:pageOwnsInput(),bindings:accepted});
   }
   const originalRecording=owner.recording;
+	const originalCloseWindow=owner.closeWindow;
+	const closeWindow=async function(){if(pageOwnsInput()&&revision)send({type:'close-window',revision})};
+	if(typeof originalCloseWindow==='function')owner.closeWindow=closeWindow;
   const record=async function(active){recording=!!active;publish();try{return await originalRecording.call(owner,active)}finally{publish()}};
   if(typeof originalRecording==='function')owner.recording=record;
   const onCompositionStart=()=>{composing=true;publish()},onCompositionEnd=()=>{composing=false;publish()};
@@ -106,7 +109,7 @@ function whaleBindProductKeyboard(ctx) {
    held.clear();
   }
   window.addEventListener('keydown',physical,true);window.addEventListener('keyup',physical,true);
-  function dispose(){if(stopped)return;stopped=true;held.clear();consumed.clear();window.removeEventListener('keydown',physical,true);window.removeEventListener('keyup',physical,true);for(const fn of off)fn();observer?.disconnect();for(const [event,fn]of events)document.removeEventListener(event,fn,true);window.removeEventListener('focus',publish);window.removeEventListener('blur',onBlur);clearTimeout(focusTimer);window.removeEventListener('whaleisle-guest-keyboard-ready',publish);window.removeEventListener('pagehide',dispose);if(owner.recording===record)owner.recording=originalRecording;socket.close()}
+  function dispose(){if(stopped)return;stopped=true;held.clear();consumed.clear();window.removeEventListener('keydown',physical,true);window.removeEventListener('keyup',physical,true);for(const fn of off)fn();observer?.disconnect();for(const [event,fn]of events)document.removeEventListener(event,fn,true);window.removeEventListener('focus',publish);window.removeEventListener('blur',onBlur);clearTimeout(focusTimer);window.removeEventListener('whaleisle-guest-keyboard-ready',publish);window.removeEventListener('pagehide',dispose);if(owner.recording===record)owner.recording=originalRecording;if(owner.closeWindow===closeWindow)owner.closeWindow=originalCloseWindow;socket.close()}
   socket.addEventListener('close',dispose);socket.addEventListener('error',dispose);window.addEventListener('pagehide',dispose);
   return dispose;
  });

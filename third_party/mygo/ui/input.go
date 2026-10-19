@@ -56,18 +56,27 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		rt.scroll(float32(ev.DX), float32(ev.DY), Modifiers(ev.Mods), ev.Precise)
 	case platform.KeyPressed:
 		rt.modsChanged(Modifiers(ev.Mods))
-		taken = rt.keyDown(Modifiers(ev.Mods), Key(ev.Key), ev.Repeat)
+		taken = rt.physicalKeyEvent(ev)
+		if !taken {
+			taken = rt.keyDown(Modifiers(ev.Mods), Key(ev.Key), ev.Repeat)
+		}
 	case platform.ModifiersChanged:
 		rt.modsChanged(Modifiers(ev.Mods))
+		rt.physical.held = nil
+		if h := rt.focusHandler(); h != nil {
+			rt.deliver(h, InputEvent{Kind: InputModifiers, Mods: Modifiers(ev.Mods)})
+		}
 	case platform.KeyReleased:
 		rt.modsChanged(Modifiers(ev.Mods))
-		if h := rt.focusHandler(); h != nil {
-			rt.deliver(h, InputEvent{Kind: InputKeyUp, Key: Key(ev.Key), Mods: Modifiers(ev.Mods)})
+		taken = rt.physicalKeyEvent(ev)
+		if h := rt.focusHandler(); h != nil && !taken {
+			rt.deliver(h, InputEvent{Kind: InputKeyUp, Key: Key(ev.Key), Mods: Modifiers(ev.Mods), Code: ev.Code, ShortcutBlocked: ev.ShortcutBlocked})
 		}
 	case platform.TextInput:
 		rt.regionEscapeInput(false)
 		rt.editEvent(rt.replaced(editEvent{kind: editInsert, text: ev.Text}, ev))
 	case platform.TextComposition:
+		rt.resetPhysicalKeys()
 		rt.regionEscapeInput(false)
 		rt.editEvent(rt.replaced(editEvent{kind: editCompose, text: ev.Text, caret: ev.Caret}, ev))
 	case platform.SurfaceCommand:
@@ -77,6 +86,10 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		rt.blinkStart = time.Now()
 		rt.requestFrame()
 	case platform.SurfaceBlur:
+		if h := rt.focusHandler(); h != nil {
+			rt.deliver(h, InputEvent{Kind: InputBlur})
+		}
+		rt.resetPhysicalKeys()
 		rt.regionEscapeInput(false)
 		rt.windowFocused = false
 		rt.selection.dragging = false
@@ -550,7 +563,7 @@ func (rt *engine) keyDown(mods Modifiers, key Key, repeat bool) bool {
 	if key == KeyEscape && mods == 0 && rt.dragCancel() {
 		return true
 	}
-	if h := rt.focusHandler(); h != nil && !rt.claimed(k) && rt.deliver(h, InputEvent{Kind: InputKeyDown, Key: key, Mods: mods, Repeat: repeat}) {
+	if h := rt.focusHandler(); h != nil && !rt.claimed(k) && rt.deliver(h, InputEvent{Kind: InputKeyDown, Key: key, Mods: mods, Repeat: repeat, Code: rt.physical.code, ShortcutBlocked: rt.physical.blocked}) {
 		rt.blinkStart = time.Now()
 		return true
 	}

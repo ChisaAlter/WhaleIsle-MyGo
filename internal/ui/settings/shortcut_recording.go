@@ -3,20 +3,56 @@ package settings
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"runtime"
+	"sort"
 	"whaleisle/internal/shortcuts"
 )
 
 func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string) {
+	desktopChords := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 	if e.Recording != id {
-		if ui.Button(c, providerCopy("录制按键…", "Record shortcut…")).Label("record-" + id).Disabled(e.ReadError != "").Clicked() {
+		if ui.Button(c, providerCopy("录制按键…", "Record shortcut…")).Label("record-" + id).Disabled(e.ReadError != "" || e.ResetPending).Clicked() {
 			e.BeginRecording(id)
 		}
 		return
 	}
-	// A focused custom-input element makes PageShortcut yield. It does not
-	// attach a text client, so IME text/composition can never become a binding.
-	ui.Text(c, providerCopy("请按组合键，Escape 取消", "Press a chord; Escape cancels")).Key("capture-" + id).Label("capture-" + id).Padding(8).Focusable().AutoFocus().HandleInput(func(ev ui.InputEvent) bool {
-		if ev.Kind == ui.InputText || ev.Kind == ui.InputCompose || ev.Kind == ui.InputCommand {
+	anchor := ui.Text(c, providerCopy("按住一至两个键，释放后保存", "Hold one or two keys; release to save")).Key("capture-" + id).Label("capture-" + id).Padding(8).Focusable().AutoFocus()
+	state := ui.Local(anchor, "physical-recording", func() physicalRecording { return physicalRecording{} })
+	reset := func() { state.held = nil; state.pending = nil; state.blocked = false }
+	capture := func() {
+		if state.pending == nil {
+			return
+		}
+		binding := *state.pending
+		state.pending = nil
+		state.blocked = true
+		e.RecordAndSave(binding.String())
+	}
+	anchor.HandleInput(func(ev ui.InputEvent) bool {
+		if ev.Kind == ui.InputBlur || ev.Kind == ui.InputCompose || ev.ShortcutBlocked {
+			reset()
+			return true
+		}
+		if ev.Kind == ui.InputText || ev.Kind == ui.InputCommand {
+			return true
+		}
+		if ev.Kind == ui.InputModifiers {
+			if state.pending != nil && ev.Mods&state.mods != state.mods {
+				capture()
+			} else {
+				reset()
+			}
+			state.mods = ev.Mods
+			return true
+		}
+		if ev.Kind == ui.InputKeyUp {
+			delete(state.held, ev.Code)
+			if state.pending != nil && (shortcuts.PhysicalCode(state.pending.Key) == ev.Code || shortcuts.PhysicalCode(state.pending.SecondKey) == ev.Code) {
+				capture()
+			}
+			if len(state.held) == 0 {
+				state.blocked = false
+			}
 			return true
 		}
 		if ev.Kind != ui.InputKeyDown {
@@ -25,21 +61,75 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string) {
 		if ev.Repeat {
 			return true
 		}
-		if ev.Key == ui.KeyEscape {
-			e.CancelRecording()
+		if ev.Code == "" {
+			reset()
+			e.Err = providerCopy("此按键没有可用的物理键码", "Physical key code unavailable")
 			return true
 		}
-		raw, ok := recordedShortcutChord(ev)
-		if !ok {
-			e.Err = providerCopy("请包含 Mod（Ctrl/Command）和支持的按键", "Use Mod (Ctrl/Command) and a supported key")
+		if state.held == nil {
+			state.held = map[string]bool{}
+		}
+		state.held[ev.Code] = true
+		if state.blocked {
 			return true
 		}
-		e.Record(raw)
+		if len(state.held) > 2 {
+			state.pending = nil
+			state.blocked = true
+			e.Err = providerCopy("最多同时按住两个键", "Hold at most two keys")
+			return true
+		}
+		mods := []string{}
+		for _, m := range []struct {
+			bit  ui.Modifiers
+			name string
+		}{{ui.Ctrl, "Control"}, {ui.Alt, "Alt"}, {ui.Shift, "Shift"}, {ui.Super, "Meta"}} {
+			if ev.Mods&m.bit != 0 {
+				mods = append(mods, m.name)
+			}
+		}
+		keys := []string{}
+		for code := range state.held {
+			keys = append(keys, code)
+		}
+		sort.Strings(keys)
+		if !desktopChords {
+			keys = []string{ev.Code}
+		}
+		chord := shortcuts.Chord{Key: shortcuts.PhysicalKey(keys[0]), Modifiers: mods}
+		if len(keys) == 2 {
+			chord.SecondKey = shortcuts.PhysicalKey(keys[1])
+		}
+		state.pending = &chord
+		state.mods = ev.Mods
+		e.Err = ""
 		return true
 	})
+	if !anchor.Focused() {
+		reset()
+	}
+	if e.Err != "" {
+		ui.Row(c).Gap(8).Children(func() {
+			if ui.Button(c, providerCopy("审阅当前配置，保留录制", "Review current settings; keep recording")).Clicked() {
+				reset()
+				e.Review()
+			}
+			if ui.Button(c, providerCopy("重试保存当前录制", "Retry saving the retained recording")).Clicked() {
+				e.SaveRow(id, false)
+			}
+		})
+	}
 	if ui.Button(c, providerCopy("取消录制", "Cancel recording")).Clicked() {
+		reset()
 		e.CancelRecording()
 	}
+}
+
+type physicalRecording struct {
+	held    map[string]bool
+	pending *shortcuts.Chord
+	mods    ui.Modifiers
+	blocked bool
 }
 
 func recordedShortcutChord(ev ui.InputEvent) (string, bool) {

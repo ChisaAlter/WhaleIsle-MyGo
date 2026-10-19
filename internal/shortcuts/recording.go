@@ -9,7 +9,7 @@ func functionKey(key string) bool {
 }
 
 func (e *Editor) BeginRecording(id string) {
-	if e.ReadError != "" || e.drafts[id] == nil {
+	if e.ReadError != "" || e.ResetPending || e.drafts[id] == nil {
 		return
 	}
 	e.Recording = id
@@ -17,6 +17,54 @@ func (e *Editor) BeginRecording(id string) {
 	e.Status = ""
 }
 func (e *Editor) CancelRecording() { e.Recording = "" }
+
+// SaveRow follows the original inline editor: a released recording, clear or
+// reset submits only that command against the revision the editor reviewed.
+// Other native text drafts remain uncommitted and survive a failed write.
+func (e *Editor) SaveRow(id string, reset bool) bool {
+	if e.drafts[id] == nil || e.ReadError != "" || e.persist == nil {
+		return false
+	}
+	value := *e.drafts[id]
+	if !reset && e.describe != nil {
+		if issue := e.describe(id, value); issue != "" {
+			e.Err = issue
+			return false
+		}
+	}
+	chord, err := Parse(value)
+	if err != nil {
+		e.Err = err.Error()
+		return false
+	}
+	value = chord.String()
+	patch := value
+	if reset && e.shared {
+		patch = "\x00reset"
+	}
+	if err = e.persist(map[string]string{id: patch}); err != nil {
+		e.Err = "Save failed; draft retained: " + err.Error()
+		return false
+	}
+	e.active[id], *e.drafts[id] = value, value
+	delete(e.resetDrafts, id)
+	e.Recording, e.Err = "", ""
+	e.Status = "Saved"
+	return true
+}
+func (e *Editor) RecordAndSave(raw string) bool {
+	id := e.Recording
+	if id == "" || e.drafts[id] == nil {
+		return false
+	}
+	chord, err := Parse(raw)
+	if err != nil || chord.Key == "" {
+		e.Err = "Unsupported physical shortcut"
+		return false
+	}
+	*e.drafts[id] = chord.String()
+	return e.SaveRow(id, false)
+}
 func (e *Editor) Record(raw string) bool {
 	if e.Recording == "" || e.drafts[e.Recording] == nil {
 		return false

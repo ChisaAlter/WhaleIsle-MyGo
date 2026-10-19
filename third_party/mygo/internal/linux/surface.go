@@ -753,10 +753,13 @@ func initSurfaceCallbacks() {
 			return false
 		}
 		k := keyvalKey(field[uint32](event, 28))
-		if k == platform.KeyUnknown {
+		code := platform.ProductPhysicalCode(platform.ProductGDKVirtualKey(field[uint16](event, 48)))
+		if k == platform.KeyUnknown && code == "" {
 			return false
 		}
-		s.send(platform.SurfaceEvent{Kind: kind, Key: k, Mods: gdkMods(field[uint32](event, 24))})
+		state, keyval := field[uint32](event, 24), field[uint32](event, 28)
+		blocked := field[uint8](event, 50) != 0 || state&(1<<5|1<<7) != 0 || keyval == 0xff20 || keyval >= 0xfe50 && keyval <= 0xfe93 || keyval == 0xfe03 || keyval == 0xfe11
+		s.send(platform.SurfaceEvent{Kind: kind, Key: k, Code: code, ShortcutBlocked: blocked, Mods: gdkMods(state)})
 		return true
 	})
 	cbSurfaceFocusIn = purego.NewCallback(func(widget, event, data ptr) bool {

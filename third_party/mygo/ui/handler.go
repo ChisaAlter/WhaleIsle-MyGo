@@ -34,14 +34,19 @@ const (
 	// InputScroll scrolls by DX, DY DIPs at X, Y; Precise marks
 	// touchpads, which scroll by pixels rather than by lines.
 	InputScroll
+	// InputModifiers and InputBlur let a physical recorder retire held keys.
+	InputModifiers
+	InputBlur
 )
 
 // InputEvent is input an element takes as it comes (HandleInput).
 type InputEvent struct {
-	Kind   InputKind
-	Key    Key
-	Mods   Modifiers
-	Repeat bool
+	Kind            InputKind
+	Key             Key
+	Mods            Modifiers
+	Repeat          bool
+	Code            string
+	ShortcutBlocked bool
 	// Text of InputText, InputCompose and InputCommand, and Caret the
 	// rune of an InputCompose's caret.
 	Text  string

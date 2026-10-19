@@ -28,11 +28,49 @@ type ProductKeyboardSnapshot struct {
 	Bindings []ProductKeyBinding
 }
 type productKeyboardBridge struct {
-	mu      sync.Mutex
-	socket  *websocket.Conn
-	next    uint64
-	state   ProductKeyboardSnapshot
-	changed func()
+	mu          sync.Mutex
+	socket      *websocket.Conn
+	next        uint64
+	state       ProductKeyboardSnapshot
+	changed     func()
+	closeWindow func(ProductKeyboardSnapshot)
+}
+
+func (g *Gateway) SetProductCloseWindow(fn func(ProductKeyboardSnapshot)) {
+	g.keyboard.mu.Lock()
+	g.keyboard.closeWindow = fn
+	g.keyboard.mu.Unlock()
+}
+
+// OwnsProductKeyboard rechecks the exact socket lease and serial revision at
+// the eventual native close decision, after the HTTP goroutine has returned.
+func (g *Gateway) OwnsProductKeyboard(expected ProductKeyboardSnapshot) bool {
+	g.keyboard.mu.Lock()
+	s := g.keyboard.state
+	owned := g.keyboard.socket != nil && s.Active && s.Page == expected.Page && s.Revision == expected.Revision
+	g.keyboard.mu.Unlock()
+	if !owned {
+		return false
+	}
+	prefs := g.shortcutPreferences()
+	if prefs == nil {
+		return false
+	}
+	accepted := prefs.Get()
+	last := strings.LastIndex(expected.Revision, ":")
+	return accepted.Status == "ready" && last > 0 && expected.Revision[:last] == accepted.Revision
+}
+func (g *Gateway) requestProductClose(socket *websocket.Conn, page uint64, revision string) {
+	b := &g.keyboard
+	b.mu.Lock()
+	s := b.state
+	fn := b.closeWindow
+	allowed := b.socket == socket && s.Active && s.Page == page && s.Revision == revision
+	s.Bindings = append([]ProductKeyBinding{}, s.Bindings...)
+	b.mu.Unlock()
+	if allowed && fn != nil {
+		fn(s)
+	}
 }
 
 func (g *Gateway) SetProductKeyboardChanged(fn func()) {
@@ -176,6 +214,24 @@ func (g *Gateway) serveProductKeyboard(w http.ResponseWriter, r *http.Request) {
 		_, raw, err := socket.Read(r.Context())
 		if err != nil {
 			return
+		}
+		var kind struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(raw, &kind) != nil {
+			return
+		}
+		if kind.Type == "close-window" {
+			var message map[string]json.RawMessage
+			if json.Unmarshal(raw, &message) != nil || len(message) != 2 {
+				return
+			}
+			var revision string
+			if json.Unmarshal(message["revision"], &revision) != nil || revision == "" || len(revision) > 256 {
+				return
+			}
+			g.requestProductClose(socket, page, revision)
+			continue
 		}
 		state, err := decodeProductKeyboard(raw)
 		if err != nil {

@@ -36,6 +36,13 @@ func SharedDefaults() map[string]string {
 var physicalCodes = map[string]string{",": "Comma", ".": "Period", "/": "Slash", "\\": "Backslash", "`": "Backquote", ";": "Semicolon", "'": "Quote", "[": "BracketLeft", "]": "BracketRight", "-": "Minus", "=": "Equal", "ENTER": "Enter"}
 
 func SharedBinding(raw string) (*shortcutprefs.Binding, error) {
+	chord, err := parseDesktopChord(raw)
+	if err != nil {
+		return nil, err
+	}
+	return chord.PhysicalBinding(), nil
+}
+func LegacySharedBinding(raw string) (*shortcutprefs.Binding, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, nil
 	}
@@ -110,7 +117,7 @@ func SharedDisplay(b *shortcutprefs.Binding, platform string) string {
 		}
 	}
 	if b.SecondCode != "" {
-		key += " & " + b.SecondCode
+		key += " & " + PhysicalKey(b.SecondCode)
 	}
 	return strings.Join(append(mods, key), "+")
 }

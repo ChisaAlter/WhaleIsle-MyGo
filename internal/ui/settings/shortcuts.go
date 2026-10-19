@@ -27,15 +27,17 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 				c.SetZoomFactor(c.ZoomFactor() + 0.1)
 			}
 		})
-		if runtime.GOOS == "darwin" {
-			ui.Text(c, providerCopy("macOS 的 Command+` 保留给窗口切换，终端默认未绑定；可在下方设置其他组合。", "On macOS, Command+` belongs to window switching. Terminal is unbound by default; choose another combination below.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+			ui.Text(c, providerCopy("按物理位置录制一至两个同时按住的键，释放后保存当前命令。可用 Mod、Control、Alt、Shift、Meta；双键文本写作 K & J。其它命令草稿保持未保存。", "Record one or two simultaneously held physical keys; release to save that command. Use Mod, Control, Alt, Shift or Meta; write paired keys as K & J. Other command drafts remain unsaved.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Text(c, providerCopy("支持 Mod + 字母、数字、标点、Enter 或 F1–F12，可加 Shift/Alt。编辑、文件保存与系统保留按键不可改绑。草稿仅在保存成功后生效。", "Use Mod plus a letter, digit, punctuation, Enter or F1–F12, optionally Shift/Alt. Editing, file-save and system-reserved keys are excluded. Drafts take effect only after a successful save.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if e.ReadError != "" {
 			ui.Text(c, e.ReadError).TextColor(fg)
 		}
 		if e.Err != "" {
 			ui.Text(c, e.Err).TextColor(fg)
+			if ui.Button(c, providerCopy("审阅当前配置并保留草稿", "Review current settings and keep drafts")).Clicked() {
+				e.Review()
+			}
 		}
 		if e.Status != "" {
 			ui.Text(c, e.Status).TextColor(muted)
@@ -68,11 +70,11 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("解绑", "Unbind")).Label("unbind-" + command.ID).Disabled(e.ReadError != "").Clicked() {
 						*e.Draft(command.ID) = ""
-						e.Status = ""
+						e.SaveRow(command.ID, false)
 					}
 					if ui.Button(c, providerCopy("使用默认值", "Use default")).Label("default-" + command.ID).Disabled(e.ReadError != "").Clicked() {
 						e.ResetDraft(command.ID)
-						e.Status = ""
+						e.SaveRow(command.ID, true)
 					}
 				})
 				if issue := issues[command.ID]; issue != "" {
@@ -92,15 +94,25 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 			}
 		})
 		if e.ResetPending {
-			ui.Text(c, providerCopy("确认恢复全部应用和主页绑定并立即保存？将替换自定义绑定与未保存草稿。", "Restore and immediately save all application and page defaults? This replaces custom bindings and unsaved drafts.")).TextColor(fg)
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("确认恢复并保存", "Restore and save")).Label("confirm-reset-shortcuts").Clicked() {
-					e.ConfirmReset()
-				}
-				if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").Clicked() {
-					e.CancelReset()
-				}
+			open := true
+			ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+				backdrop.Background(ui.RGBA(0, 0, 0, .24))
+				width, _ := c.Size()
+				panel.Width(min(float32(480), max(float32(0), width-32))).Background(c.Theme().Background).Radius(12).Padding(20).Gap(12).Children(func() {
+					ui.Text(c, providerCopy("确认恢复全部应用和主页绑定并立即保存？将替换已知命令的自定义绑定与未保存草稿，未知命令保留。", "Restore and save all application and page defaults? This replaces known commands' bindings and drafts; unknown commands remain.")).TextColor(fg)
+					ui.Row(c).Gap(8).Children(func() {
+						if ui.Button(c, providerCopy("确认恢复并保存", "Restore and save")).Label("confirm-reset-shortcuts").Clicked() {
+							e.ConfirmReset()
+						}
+						if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").Clicked() {
+							e.CancelReset()
+						}
+					})
+				})
 			})
+			if !open {
+				e.CancelReset()
+			}
 		}
 	})
 }

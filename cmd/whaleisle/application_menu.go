@@ -14,8 +14,9 @@ import (
 
 type desktopApplicationMenu struct {
 	signature string
-	pending   []string
+	pending   []desktopMenuGesture
 }
+type desktopMenuGesture struct{ id, revision string }
 
 // Menu gestures execute in the next native frame, using the same live actions
 // as page shortcuts. Labels show accepted bindings; no second accelerator
@@ -27,13 +28,13 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 	state := s.applicationMenu
 	bindings := shortcuts.Resolve(s.pageShortcutBindings())
 	encoded, _ := json.Marshal(bindings)
-	signature := string(encoded) + resumeText("zh", "en")
+	revision := s.pageShortcutPreferences().Get().Revision
+	signature := string(encoded) + resumeText("zh", "en") + revision
 	if state.signature != signature {
 		state.signature = signature
 		s.syncWebApplicationShortcuts(bindings)
 		mygo.App.SetMenu(buildApplicationMenu(bindings, runtime.GOOS, func(id string) {
-			state.pending = append(state.pending, id)
-			s.showMainWindow()
+			state.pending = append(state.pending, desktopMenuGesture{id, revision})
 			s.mu.Lock()
 			w := s.win
 			s.mu.Unlock()
@@ -42,11 +43,24 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 			}
 		}))
 	}
+}
+
+// Process after the frame has built its overlays, so a newly opened modal
+// retires a menu gesture before any application action can run.
+func (s *mainState) processApplicationMenu(c *ui.Context) {
+	state := s.applicationMenu
+	if state == nil {
+		return
+	}
+	revision := s.pageShortcutPreferences().Get().Revision
 	pending := state.pending
 	state.pending = nil
 	actions := s.applicationMenuActions(c)
-	for _, id := range pending {
-		if run := actions[id]; run != nil {
+	for _, gesture := range pending {
+		if gesture.revision != revision || !c.MenuCommandsAllowed() || s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending) {
+			continue
+		}
+		if run := actions[gesture.id]; run != nil {
 			run()
 		}
 	}

@@ -153,6 +153,37 @@ func (s *Store) Effective(owner string) []EffectiveShortcut {
 	return out
 }
 
+// Describe previews a candidate against every current owner, including fixed
+// reservations, without publishing a revision or writing preferences.
+func (s *Store) Describe(owner, id string, binding *Binding) (string, []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	owned := false
+	for _, definition := range s.definitions[owner] {
+		if definition.ID == id && definition.Fixed == nil {
+			owned = true
+		}
+	}
+	if !owned {
+		return "not-ready", nil
+	}
+	doc := cloneDocument(s.snapshot.Document)
+	if doc.Profiles[s.profile] == nil {
+		doc.Profiles[s.profile] = map[string]*Binding{}
+	}
+	doc.Profiles[s.profile][id] = cloneBinding(binding)
+	for _, row := range Effective(s.catalogLocked(), doc, s.profile) {
+		if row.ID == id {
+			issue := ""
+			if row.Issue != nil {
+				issue = *row.Issue
+			}
+			return issue, append([]string{}, row.Conflicts...)
+		}
+	}
+	return "not-ready", nil
+}
+
 // Apply commits an atomic batch against the reviewed revision. Callers cannot
 // write unknown IDs, another owner's commands, or that owner's fixed bindings.
 // Reset-all removes only current editable catalog entries, preserving dormant IDs.

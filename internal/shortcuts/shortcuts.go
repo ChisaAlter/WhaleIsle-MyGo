@@ -92,11 +92,22 @@ func effective(overrides map[string]string) map[string]string {
 type Chord struct {
 	Key        string
 	Shift, Alt bool
+	SecondKey  string
+	// Nil retains the legacy portable Mod spelling. A non-nil slice is an
+	// exact physical modifier set, including an explicitly unmodified key.
+	Modifiers []string
 }
 
 func (c Chord) String() string {
 	if c.Key == "" {
 		return ""
+	}
+	if c.Modifiers != nil {
+		keys := c.Key
+		if c.SecondKey != "" {
+			keys += " & " + c.SecondKey
+		}
+		return strings.Join(append(append([]string{}, c.Modifiers...), keys), "+")
 	}
 	s := "Mod"
 	if c.Shift {
@@ -105,10 +116,16 @@ func (c Chord) String() string {
 	if c.Alt {
 		s += "+Alt"
 	}
+	if c.SecondKey != "" {
+		return s + "+" + c.Key + " & " + c.SecondKey
+	}
 	return s + "+" + c.Key
 }
 func Parse(raw string) (Chord, error) { return parseForPlatform(raw, runtime.GOOS) }
 func parseForPlatform(raw, platform string) (Chord, error) {
+	if platform == "windows" || platform == "darwin" {
+		return parseDesktopChord(raw)
+	}
 	var chord Chord
 	if strings.TrimSpace(raw) == "" {
 		return chord, nil
@@ -162,7 +179,11 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 func Validate(values map[string]string) map[string]string {
 	values = effective(values)
 	issues := map[string]string{}
-	seen := map[string]string{}
+	type acceptedChord struct {
+		id    string
+		chord Chord
+	}
+	seen := []acceptedChord{}
 	for _, c := range Commands() {
 		chord, err := Parse(values[c.ID])
 		if err != nil {
@@ -172,13 +193,13 @@ func Validate(values map[string]string) map[string]string {
 		if chord.Key == "" {
 			continue
 		}
-		canonical := chord.String()
-		if previous, ok := seen[canonical]; ok {
-			issues[c.ID] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", previous)
-			issues[previous] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", c.ID)
-		} else {
-			seen[canonical] = c.ID
+		for _, previous := range seen {
+			if overlappingChords(previous.chord, chord) {
+				issues[c.ID] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", previous.id)
+				issues[previous.id] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", c.ID)
+			}
 		}
+		seen = append(seen, acceptedChord{c.ID, chord})
 	}
 	return issues
 }
@@ -216,6 +237,7 @@ type Editor struct {
 	resetDrafts            map[string]bool
 	reset                  func() error
 	reload                 func() (map[string]string, error)
+	describe               func(string, string) string
 }
 
 func NewEditor(saved map[string]string, loadErr error, persist func(map[string]string) error) *Editor {
@@ -256,6 +278,10 @@ func (e *Editor) Issues() map[string]string {
 		if v != e.active[id] {
 			if _, err := Parse(v); err != nil {
 				issues[id] = err.Error()
+			} else if e.describe != nil {
+				if issue := e.describe(id, v); issue != "" {
+					issues[id] = issue
+				}
 			}
 		}
 	}
@@ -264,6 +290,9 @@ func (e *Editor) Issues() map[string]string {
 
 // Shared snapshots retain dirty drafts until the caller resolves a stale save.
 func (e *Editor) Dirty() bool {
+	if e.Recording != "" || e.ResetPending {
+		return true
+	}
 	if len(e.resetDrafts) > 0 {
 		return true
 	}
@@ -304,6 +333,7 @@ func (e *Editor) Discard() {
 }
 
 func (e *Editor) SetReload(reload func() (map[string]string, error)) { e.reload = reload }
+func (e *Editor) SetDescribe(describe func(string, string) string)   { e.describe = describe }
 
 // Reload is the explicit discard gesture. A failed read retains the accepted
 // bindings; a repaired source clears the previous read error.
@@ -322,6 +352,23 @@ func (e *Editor) Reload() bool {
 	}
 	e.ReadError, e.Err = "", ""
 	e.Reconcile(values)
+	return true
+}
+
+// Review adopts a newly read revision while retaining the candidate. A later
+// retry is a separate explicit save, matching the original stale editor flow.
+func (e *Editor) Review() bool {
+	if e.reload == nil {
+		return false
+	}
+	values, err := e.reload()
+	if err != nil {
+		e.Err = "Cannot review shortcut settings: " + err.Error()
+		return false
+	}
+	e.active = values
+	e.ReadError, e.Err = "", ""
+	e.Status = "Reviewed current shortcuts; retry to save the retained candidate"
 	return true
 }
 func (e *Editor) Reconcile(values map[string]string) bool {
@@ -391,7 +438,7 @@ func (e *Editor) Save() bool {
 	e.ResetPending = false
 	return true
 }
-func (e *Editor) RequestReset() { e.ResetPending = true }
+func (e *Editor) RequestReset() { e.CancelRecording(); e.ResetPending = true }
 func (e *Editor) CancelReset()  { e.ResetPending = false }
 func (e *Editor) ConfirmReset() bool {
 	if !e.ResetPending {
@@ -407,7 +454,7 @@ func (e *Editor) ConfirmReset() bool {
 			*p = e.active[id]
 		}
 		clear(e.resetDrafts)
-		e.Status = "已恢复默认；高级/未知条目保留 / Defaults restored; advanced and unknown entries retained"
+		e.Status = "已恢复已知命令默认值；未知条目保留 / Known command defaults restored; unknown entries retained"
 		return true
 	}
 	for id, v := range Defaults() {

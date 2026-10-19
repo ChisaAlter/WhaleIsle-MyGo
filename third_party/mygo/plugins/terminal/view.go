@@ -26,6 +26,7 @@ func View(c *ui.Context, t *Terminal) ui.Element {
 	e := ui.Box(c).Focusable().FocusRing(false).Cursor(ui.CursorText).Clip().Label("Terminal")
 	v.build(c, e)
 	e.HandleInput(v.input)
+	ui.TerminalShortcutScope(e)
 	e.TextCaret(v.caret())
 	e.Draw(v.paint)
 	e.ContextMenu(v.menu)

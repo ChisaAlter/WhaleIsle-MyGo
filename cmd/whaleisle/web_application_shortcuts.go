@@ -12,7 +12,22 @@ func webApplicationFallbacks(bindings map[string]shortcuts.Chord, dispatch func(
 	var out []mygo.WebApplicationShortcut
 	for _, id := range ids {
 		chord, ok := bindings[id]
-		if !ok || browserOwnsChord(chord) {
+		b := chord.PhysicalBinding()
+		if !ok || b == nil || chord.SecondKey != "" || len(b.Modifiers) == 0 || browserOwnsChord(chord) {
+			continue
+		}
+		primary := false
+		unsupported := false
+		for _, mod := range b.Modifiers {
+			switch mod {
+			case "primary", "control":
+				primary = true
+			case "shift", "alt":
+			default:
+				unsupported = true
+			}
+		}
+		if !primary || unsupported {
 			continue
 		}
 		command := id
@@ -41,6 +56,7 @@ func browserOwnsChord(c shortcuts.Chord) bool {
 	return false
 }
 func (s *mainState) syncWebApplicationShortcuts(bindings map[string]shortcuts.Chord) {
+	revision := s.pageShortcutPreferences().Get().Revision
 	s.mu.Lock()
 	win := s.win
 	s.mu.Unlock()
@@ -51,8 +67,7 @@ func (s *mainState) syncWebApplicationShortcuts(bindings map[string]shortcuts.Ch
 		if s.applicationMenu == nil {
 			return
 		}
-		s.applicationMenu.pending = append(s.applicationMenu.pending, id)
-		s.showMainWindow()
+		s.applicationMenu.pending = append(s.applicationMenu.pending, desktopMenuGesture{id, revision})
 		win.Update(func() {})
 	}))
 }
