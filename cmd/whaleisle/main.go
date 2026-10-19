@@ -6602,6 +6602,8 @@ func mainView(c *ui.Context) {
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
 						OnReadWorkspaceTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
+						OnReadWorkspaceImageContext: remoteImageReader(sessions, fileClient, snap.SelectedID),
+						FileImageGeneration:         snap.StopGeneration,
 						OnOpenDocumentViewer: func(path string) (files.DocumentSurface, error) {
 							return state.openDocumentViewer(fileClient, snap.SelectedID, path)
 						},

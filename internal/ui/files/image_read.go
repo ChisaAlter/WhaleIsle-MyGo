@@ -8,8 +8,9 @@ import (
 
 // Owner pointers are identity tokens only. Workers never dereference UI state.
 type imageReadOwner struct {
-	tab                 *FileTab
-	binding, root, path string
+	tab                          *FileTab
+	binding, session, root, path string
+	epoch                        uint64
 }
 
 type imageReadJob struct {
@@ -129,7 +130,7 @@ func (t *Tabs) stopImageRead(closeQueue bool) {
 }
 
 func imageOwner(m Model, tab *FileTab) imageReadOwner {
-	return imageReadOwner{tab: tab, binding: m.BindingID, root: m.WorkspaceRoot, path: tab.Path}
+	return imageReadOwner{tab: tab, binding: m.BindingID, session: m.SessionID, root: m.WorkspaceRoot, path: tab.Path, epoch: m.ImageGeneration}
 }
 
 // Painting only starts/takes work. All file reads, validation, WASM compilation
@@ -140,21 +141,30 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 	}
 	t := m.Tabs
 	owner := imageOwner(m, tab)
+	if tab.image != nil && tab.image.owner != owner {
+		t.stopImageRead(false)
+		tab.image = nil
+	}
 	if tab.image == nil {
 		t.stopImageRead(false)
-		retainImagePreview(m, tab, &imagePreview{loading: true})
+		retainImagePreview(m, tab, &imagePreview{loading: true, owner: owner})
 		if t.imageReader == nil {
 			t.imageReader = &imageReadQueue{}
 		}
 		t.imageReader.setNotify(m.notify)
 		t.imageReadTab = tab
 		root, path := owner.root, owner.path
+		read := m.ReadImageContext
 		t.imageReader.request(owner, func(ctx context.Context) *imagePreview {
+			if read != nil {
+				return loadHostImagePreview(ctx, path, read)
+			}
 			return loadImagePreviewContext(ctx, root, path)
 		})
 	}
 	if tab.image.loading && t.imageReader != nil {
 		if result, ok := t.imageReader.take(owner); ok {
+			result.owner = owner
 			tab.image = result
 			t.imageReadTab = nil
 		}

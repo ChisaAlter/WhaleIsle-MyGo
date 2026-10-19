@@ -274,6 +274,8 @@ type Model struct {
 	OnReadWorkspaceTextPageContext func(context.Context, string, int64) (workspacefs.TextPage, error)
 	OnReadWorkspaceFileContext     func(context.Context, string) (string, error)
 	OnReadWorkspaceTableContext    func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
+	OnReadWorkspaceImageContext    func(context.Context, string, int64) ([]byte, error)
+	FileImageGeneration            uint64
 	OnStatWorkspaceFileContext     func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
 	OnStatWorkspaceFile   func(rel string) string
@@ -1289,6 +1291,8 @@ func rightPane(c *ui.Context, m Model) {
 						ReadTextPageContext: m.OnReadWorkspaceTextPageContext,
 						OpenDocumentViewer:  m.OnOpenDocumentViewer,
 						ReadTableContext:    m.OnReadWorkspaceTableContext,
+						ReadImageContext:    m.OnReadWorkspaceImageContext,
+						ImageGeneration:     m.FileImageGeneration,
 						StatRemoteContext:   m.OnStatWorkspaceFileContext,
 						StatRemote:          m.OnStatWorkspaceFile,
 					}, path)
@@ -1354,6 +1358,8 @@ func rightPane(c *ui.Context, m Model) {
 			ReadTextPageContext: m.OnReadWorkspaceTextPageContext,
 			OpenDocumentViewer:  m.OnOpenDocumentViewer,
 			ReadTableContext:    m.OnReadWorkspaceTableContext,
+			ReadImageContext:    m.OnReadWorkspaceImageContext,
+			ImageGeneration:     m.FileImageGeneration,
 			StatRemoteContext:   m.OnStatWorkspaceFileContext,
 			StatRemote:          m.OnStatWorkspaceFile,
 			StatNote:            m.FileStatNote,

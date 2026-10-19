@@ -96,6 +96,10 @@ type Model struct {
 	ReadRemote func(rel string) (string, error)
 	// Context readers are captured from the same frame as BindingID.
 	ReadRemoteContext func(context.Context, string) (string, error)
+	// ReadImageContext is authoritative when present; image reads never fall back
+	// to a same-named local path after a Host read fails.
+	ReadImageContext  func(context.Context, string, int64) ([]byte, error)
+	ImageGeneration   uint64
 	ReadTableContext  func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
 	StatRemoteContext func(context.Context, string) string
 	// StatRemote is optional workspaceFiles/stat note for the selected file.

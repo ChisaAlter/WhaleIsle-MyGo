@@ -23,6 +23,7 @@ const maxImageBytes int64 = 16 << 20
 const maxImagePixels = 32_000_000
 
 type imagePreview struct {
+	owner     imageReadOwner
 	loading   bool
 	bitmap    *ui.Bitmap
 	vector    *ui.SVG
@@ -147,11 +148,7 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 		p.err = errors.New(label("图片路径不是普通文件", "Image path is not a regular file"))
 		return p
 	}
-	limit := maxImageBytes
-	ext := strings.ToLower(filepath.Ext(rel))
-	if ext == ".svg" {
-		limit = 1 << 20
-	}
+	limit := imageByteLimit(rel)
 	if info.Size() > limit {
 		p.err = errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
 		return p
@@ -161,7 +158,21 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 		p.err = err
 		return p
 	}
-	if int64(len(data)) > limit {
+	return decodeImagePreviewContext(ctx, rel, data)
+}
+
+func imageByteLimit(path string) int64 {
+	if strings.EqualFold(filepath.Ext(path), ".svg") {
+		return 1 << 20
+	}
+	return maxImageBytes
+}
+
+// Shared by authenticated Host snapshots and the existing local-only reader.
+// Both paths retain the same decoder, byte/pixel limits and animation timeline.
+func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *imagePreview {
+	p := &imagePreview{}
+	if int64(len(data)) > imageByteLimit(path) {
 		p.err = errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
 		return p
 	}
@@ -170,6 +181,7 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 		return p
 	}
 	var decoded image.Image
+	ext := strings.ToLower(filepath.Ext(path))
 	switch {
 	case ext == ".gif" || imagepreview.IsAnimatedWebP(data):
 		p.animation, p.err = imagepreview.DecodeAnimation(data)
