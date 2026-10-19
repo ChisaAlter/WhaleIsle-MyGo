@@ -26,6 +26,8 @@ type Model struct {
 	OnEditPath, OnSubmitPath                    func(string)
 }
 
+type browseRecoveryFocus struct{ path, action ui.Handle }
+
 // Header and footer never scroll; the Miller panes split evenly above 256 DIP.
 func View(c *ui.Context, m Model) {
 	if m.State == nil {
@@ -38,6 +40,7 @@ func View(c *ui.Context, m Model) {
 	requestedPathFocus := false
 	pathFocused := false
 	root := ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.Field)).Radius(28)
+	recoveryFocus := ui.Local(root, "browse-recovery-focus", func() browseRecoveryFocus { return browseRecoveryFocus{} })
 	if s.PathDraft != nil && s.FolderDraft == nil && m.OnCancelPath != nil {
 		root.OnShortcut(0, ui.KeyEscape, m.OnCancelPath)
 	}
@@ -59,7 +62,7 @@ func View(c *ui.Context, m Model) {
 			}
 			bar.Children(func() {
 				if s.PathDraft != nil {
-					input := ui.TextInputBase(c.Key("directory-path-input"), s.PathDraft).Label(dirText("编辑路径", "Edit path")).FillWidth().Height(22).FontSize(theme.InterfaceSize(13)).TextColor(fg).Disabled(inert).AutoFocus()
+					input := ui.TextInputBase(c.Key("directory-path-input"), s.PathDraft).Label(dirText("编辑路径", "Edit path")).FillWidth().Height(22).FontSize(theme.InterfaceSize(13)).TextColor(fg).Disabled(inert).AutoFocus().Bind(&recoveryFocus.path)
 					if s.FocusPath {
 						input.Focus()
 						s.FocusPath = false
@@ -183,7 +186,7 @@ func View(c *ui.Context, m Model) {
 	if s.PathDraft != nil && s.FolderDraft == nil {
 		// A newly mounted input can own native focus before this frame's
 		// ancestor chain is committed. It is still inside this card.
-		if root.FocusWithin() || pathFocused {
+		if root.FocusWithin() || pathFocused || recoveryFocus.action.Focused(c) {
 			s.PathHadFocus = true
 		} else if s.PathHadFocus && !requestedPathFocus && m.OnCancelPath != nil {
 			m.OnCancelPath()
@@ -193,7 +196,24 @@ func View(c *ui.Context, m Model) {
 	}
 	createDialog(c, m)
 	if m.Err != "" && s.FolderDraft == nil && s.FailureToast != m.Err {
-		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), ActionKeepFocus: true, OnAction: m.OnRetry, OnClose: m.OnDismissError})
+		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), ActionHandle: &recoveryFocus.action,
+			ActionOnEscape: func() {
+				if c.Resolve(recoveryFocus.path).Valid() && m.OnCancelPath != nil {
+					m.OnCancelPath()
+				} else {
+					c.CloseToast("directory-browse-error")
+				}
+			},
+			OnAction: func() {
+				// Resolve the current input, not the cloned state from when the
+				// notice appeared; it may have been replaced or unmounted.
+				if c.Resolve(recoveryFocus.path).Valid() {
+					recoveryFocus.path.Focus(c)
+				}
+				if m.OnRetry != nil {
+					m.OnRetry()
+				}
+			}, OnClose: m.OnDismissError})
 		s.FailureToast = m.Err
 	} else if m.Err == "" && s.FailureToast != "" {
 		c.CloseToast("directory-browse-error")

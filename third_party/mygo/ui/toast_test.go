@@ -8,30 +8,35 @@ import (
 	"github.com/egoist/mygo/internal/platform"
 )
 
-func TestToastActionKeepFocusOptIn(t *testing.T) {
-	for _, keep := range []bool{false, true} {
+func TestToastActionHandleOptIn(t *testing.T) {
+	for _, bound := range []bool{false, true} {
 		name := "default"
-		if keep {
-			name = "editor recovery"
+		if bound {
+			name = "bound action"
 		}
 		t.Run(name, func(t *testing.T) {
 			text, added := "unsent path", false
 			var tt *Tester
-			calls, editorFocused := 0, false
+			var action Handle
+			var handle *Handle
+			if bound {
+				handle = &action
+			}
+			calls, editorFocused, actionFocused := 0, false, false
 			tt = NewTester(func(c *Context) {
 				TextInput(c, &text).Label("Editor").AutoFocus()
 				if !added {
 					added = true
-					c.AddToast(Toast{ID: "retry", Title: "Read failed", Action: "Retry", ActionKeepFocus: keep,
-						OnAction: func() { calls++; editorFocused = tt.Focused("Editor") },
+					c.AddToast(Toast{ID: "retry", Title: "Read failed", Action: "Retry", ActionHandle: handle,
+						OnAction: func() { calls++; editorFocused = tt.Focused("Editor"); actionFocused = action.Focused(c) },
 					})
 				}
 			}, 500, 300)
 			if err := tt.Click("Retry"); err != nil {
 				t.Fatal(err)
 			}
-			if calls != 1 || editorFocused != keep || text != "unsent path" {
-				t.Fatalf("pointer focus policy: calls=%d focused=%v keep=%v text=%q", calls, editorFocused, keep, text)
+			if calls != 1 || editorFocused || actionFocused != bound || text != "unsent path" {
+				t.Fatalf("action identity/default focus: calls=%d editor=%v action=%v bound=%v text=%q", calls, editorFocused, actionFocused, bound, text)
 			}
 		})
 	}

@@ -38,10 +38,13 @@ type Toast struct {
 	// and closes the toast.
 	Action   string
 	OnAction func()
-	// ActionKeepFocus keeps the current control focused when the action is
-	// pressed with the pointer, as a recovery action belonging to an editor.
-	// Keyboard Tab traversal is unchanged. The default action takes focus.
-	ActionKeepFocus bool
+	// ActionHandle optionally identifies the action in its owning view. A
+	// portaled recovery action can then belong to that view's focus scope.
+	// It does not change the action's pointer or keyboard focus behavior.
+	ActionHandle *Handle
+	// ActionOnEscape optionally lets the owner cancel the editing scope while
+	// this action holds focus. Otherwise Escape only dismisses the toast.
+	ActionOnEscape func()
 	// OnClose runs as the toast closes: its time is over, or the user, its
 	// action or CloseToast closed it.
 	OnClose func()
@@ -313,8 +316,12 @@ func (p toastParts) Left() time.Duration { return p.left }
 // toast's Action.
 func (p toastParts) ActionButton() *node {
 	b := coreButtonBase(p.c)
-	if i := p.c.rt.toastIndex(p.id); i >= 0 && p.c.rt.toasts[i].ActionKeepFocus {
-		b.flags |= flagKeepFocus
+	if i := p.c.rt.toastIndex(p.id); i >= 0 {
+		t := p.c.rt.toasts[i].Toast
+		wrapElement(b).Bind(t.ActionHandle)
+		if t.ActionOnEscape != nil {
+			wrapElement(b).OnShortcut(0, KeyEscape, t.ActionOnEscape)
+		}
 	}
 	if b.Clicked() {
 		if i := p.c.rt.toastIndex(p.id); i >= 0 {

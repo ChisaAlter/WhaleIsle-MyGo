@@ -271,31 +271,56 @@ func TestPathEditorFocusLeavingCardCancelsDraft(t *testing.T) {
 func TestFailedPathRetryRetainsFocusButOutsideAndEscapeCancel(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(i18n.DefaultLocale)
-	for _, action := range []string{"Retry", "Outside card", "Escape"} {
+	for _, action := range []string{"Retry", "Tab Retry", "New error Tab Retry", "Tab Retry Escape", "Tab Retry outside", "Outside card", "Escape"} {
 		t.Run(action, func(t *testing.T) {
 			s := fixtureBrowser()
 			draft := "/home/project/missing"
 			s.PathDraft, s.FocusPath = &draft, true
 			retried, canceled := 0, 0
+			retriedOwner := ""
 			errText := "Directory is not available"
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Children(func() {
 					ui.Button(c, "Outside card").Height(32)
 					ui.Box(c).Height(420).FillWidth().Children(func() {
+						owner := errText
 						View(c, Model{State: &s, Err: errText,
-							OnRetry:      func() { retried++ },
+							OnRetry:      func() { retried++; retriedOwner = owner },
 							OnCancelPath: func() { canceled++; s.PathDraft = nil; errText = "" },
 						})
 					})
 				})
 			}, 680, 500)
-			if action == "Escape" {
+			if action == "New error Tab Retry" {
+				// A replacement dialog error must replace the old action owner.
+				s = fixtureBrowser()
+				draft, errText = "/home/project/new-missing", "Replacement directory failure"
+				s.PathDraft, s.FocusPath = &draft, true
+				tt.Frame()
+			}
+			if action == "Tab Retry" || action == "New error Tab Retry" || action == "Tab Retry Escape" || action == "Tab Retry outside" {
+				for n := 0; n < 128 && !tt.Focused("Retry") && s.PathDraft != nil; n++ {
+					tt.Key(0, ui.KeyTab)
+				}
+				if !tt.Focused("Retry") {
+					t.Fatalf("Tab could not reach owned retry: canceled=%d draft=%v", canceled, s.PathDraft)
+				}
+				if action == "Tab Retry Escape" {
+					tt.Key(0, ui.KeyEscape)
+				} else if action == "Tab Retry outside" {
+					if err := tt.Click("Outside card"); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					tt.Key(0, ui.KeyEnter)
+				}
+			} else if action == "Escape" {
 				tt.Key(0, ui.KeyEscape)
 			} else if err := tt.Click(action); err != nil {
 				t.Fatal(err)
 			}
-			if action == "Retry" {
-				if retried != 1 || canceled != 0 || s.PathDraft == nil || *s.PathDraft != draft {
+			if action == "Retry" || action == "Tab Retry" || action == "New error Tab Retry" {
+				if retried != 1 || retriedOwner != errText || canceled != 0 || s.PathDraft == nil || *s.PathDraft != draft || !tt.Focused("Edit path") {
 					t.Fatalf("recovery pointer canceled draft: retry=%d cancel=%d draft=%v", retried, canceled, s.PathDraft)
 				}
 			} else if canceled != 1 || retried != 0 || s.PathDraft != nil {
