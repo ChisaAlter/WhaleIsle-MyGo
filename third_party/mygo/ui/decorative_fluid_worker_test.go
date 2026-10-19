@@ -150,6 +150,23 @@ func TestSplashWorkerSeededInputsAndBoundedCoalescing(t *testing.T) {
 	}
 }
 
+func TestSplashNativeDPIUsesPhysicalDisplayTexels(t *testing.T) {
+	tt := NewTester(func(c *Context) {}, 1440, 900)
+	defer tt.rt.close()
+	now := time.Unix(1000, 0)
+	s := &tt.rt.decorations
+	s.config, s.width, s.height = splashTestConfig(), 1440, 900
+	s.fluidWorker = &splashWorker{jobs: make(chan splashRequest, 1), results: make(chan *image.RGBA, 1), stop: make(chan struct{})}
+	s.fluidLastInput = now
+	p := &tt.rt.painter
+	p.scale = 2
+	s.paintSplash(p, 1440, 900, now)
+	job := <-s.fluidWorker.jobs
+	if job.width != 2880 || job.height != 1800 || s.width != 1440 || s.height != 900 {
+		t.Fatalf("display texels did not apply DPI independently of input: job=%dx%d input=%vx%v", job.width, job.height, s.width, s.height)
+	}
+}
+
 func TestPointerTrailRetuneRandomPaletteAndRoundedSpacing(t *testing.T) {
 	config := splashTestConfig()
 	config.PointerEffect, config.Size = "pixel", 103

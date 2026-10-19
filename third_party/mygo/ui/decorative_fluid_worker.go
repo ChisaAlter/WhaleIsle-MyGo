@@ -191,7 +191,9 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 	}
 	if !s.fluidBusy && !now.Before(s.fluidNext) {
 		job := s.fluidInput
-		job.now, job.width, job.height, job.config = now, max(1, int(w)), max(1, int(h)), s.config
+		// Source display shading samples drawing-buffer texels, not CSS/DIP
+		// texels. Input normalization stays in DIPs; only this size uses DPI.
+		job.now, job.width, job.height, job.config = now, max(1, int(w*p.scale)), max(1, int(h*p.scale)), s.config
 		s.fluidWorker.jobs <- job
 		s.fluidBusy = true
 		s.fluidInput.moved, s.fluidInput.press = false, false
