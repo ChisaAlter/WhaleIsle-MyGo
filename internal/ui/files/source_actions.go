@@ -46,15 +46,42 @@ func RequestLine(m Model, line int) {
 	if t == nil {
 		return
 	}
-	if t.readLoading || t.readResume {
+	if t.readLoading || t.readResume || t.readBlocked || t.textPaged {
 		t.pendingLine.begin()
 	}
 	if t.pendingLine.deferRequest(line) {
+		if t.textPaged && !t.readResume && !t.readBlocked {
+			t.pendingLine.version = t.textPage.Version
+		}
 		t.revealLine = 0 // The painter must not consume a target against stale text.
 		t.lineDraft = strconv.Itoa(max(1, line))
+		t.RenderedMarkdown = false
+		if !t.readLoading && !t.readResume && !t.readBlocked {
+			continueTextLine(m)
+		}
 		return
 	}
 	requestLineNow(m, line)
+}
+
+// Successful pages advance the captured target one page at a time. Failures
+// never enter this path and retain the target for explicit retry.
+func continueTextLine(m Model) {
+	t := selectedTab(m)
+	if t == nil || t.readLoading || t.readResume || t.readBlocked {
+		return
+	}
+	if !t.pendingLine.acceptVersion(t.textPage.Version) {
+		return
+	}
+	line := t.pendingLine.line
+	if line > len(sourceLines([]rune(previewText(m)))) && t.textPaged && !t.textPage.EOF && !t.Dirty() {
+		beginNextTextPage(m)
+		return
+	}
+	if line = t.pendingLine.complete(true); line > 0 {
+		requestLineNow(m, line)
+	}
 }
 
 func requestLineNow(m Model, line int) {

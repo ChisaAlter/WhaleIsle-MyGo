@@ -33,6 +33,9 @@ func (t *Tabs) stopTextRead(resume, closeQueue bool) {
 		return
 	}
 	if t.readTab != nil {
+		if resume && t.readTab.textPaged && t.readTab.pendingLine.line > 0 {
+			t.readTab.pendingLine.resume = true
+		}
 		t.readTab.readLoading = false
 		t.readTab.readResume = resume && !t.readTab.textPaged
 		t.readTab = nil
@@ -144,6 +147,10 @@ func syncTextRead(m Model) {
 	if tab.readResume {
 		beginTextRead(m)
 	}
+	if tab.pendingLine.resume && !tab.readLoading {
+		tab.pendingLine.resume = false
+		continueTextLine(m)
+	}
 	t := m.Tabs
 	if t.textReader == nil || t.readTab != tab || t.binding != m.BindingID || t.boundRoot != m.WorkspaceRoot {
 		return
@@ -218,8 +225,8 @@ func applyTextRead(m Model, result textReadResult) {
 	}
 	tab.Stat = result.stat
 	restore(m, tab)
-	if line := tab.pendingLine.complete(problem == ""); line > 0 {
-		requestLineNow(m, line) // Body/draft is now installed; only now clamp its line.
+	if problem == "" {
+		continueTextLine(m)
 	}
 }
 
