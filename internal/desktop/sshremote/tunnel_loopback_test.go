@@ -449,3 +449,43 @@ func TestTunnelPreCanceledRetryPreservesDisconnectedState(t *testing.T) {
 		t.Fatal("canceled retry touched known_hosts")
 	}
 }
+
+func TestFunctionalOwnedSSHSessionHostKeyPolicy(t *testing.T) {
+	identity, key := loopbackProfile(t)
+	server := newLoopbackSSH(t, "", key)
+	s := NewTunnelSession()
+	defer s.Disconnect()
+	kh := filepath.Join(filepath.Dir(identity), "policy-known_hosts")
+	s.SetKnownHostsFile(kh)
+	cfg := TunnelConfig{Host: "127.0.0.1", Port: server.listener.Addr().(*net.TCPAddr).Port, User: "owned", IdentityFile: identity}
+	s.SetConfig(cfg)
+	s.SetHostKeyMode(HostKeyVerify)
+	var unknown *UnknownHostKey
+	if err := s.Connect(context.Background()); !errors.As(err, &unknown) {
+		t.Fatalf("verify must reject unknown own key: %v", err)
+	}
+	// This is an explicitly selected policy only for the owned synthetic server.
+	s.SetHostKeyMode(HostKeyOff)
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal("explicit session policy not honored", err)
+	}
+	s.Disconnect()
+	if b, err := os.ReadFile(kh); err != nil || len(b) != 0 {
+		t.Fatal("off policy changed trust store", err)
+	}
+	cfg.HostKeyMode = string(HostKeyVerify)
+	s.SetConfig(cfg)
+	if err := s.Connect(context.Background()); !errors.As(err, &unknown) {
+		t.Fatalf("explicit config must override session policy: %v", err)
+	}
+	cfg.HostKeyMode = ""
+	s.SetConfig(cfg)
+	s.SetHostKeyMode(HostKeyAcceptNew)
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(kh); err != nil || len(b) == 0 {
+		t.Fatal("accept-new did not pin own key", err)
+	}
+	t.Log("explicit own-session verify/off/accept-new policies honored; config override wins; default policy unchanged")
+}

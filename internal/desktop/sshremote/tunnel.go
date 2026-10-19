@@ -205,6 +205,7 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	cfg := t.cfg
 	kh := t.knownHostsFile
 	tofu := t.tofu
+	mode := t.hostKeyMode
 	t.state = TunnelConnecting
 	t.err = ""
 	t.mu.Unlock()
@@ -269,7 +270,9 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	if strings.TrimSpace(kh) == "" {
 		kh = KnownHostsPath(paths.UserDataDir())
 	}
-	mode := HostKeyMode(cfg.HostKeyMode)
+	if cfg.HostKeyMode != "" {
+		mode = HostKeyMode(cfg.HostKeyMode)
+	}
 	if mode == "" {
 		mode = HostKeyAcceptNew
 		if !tofu {
