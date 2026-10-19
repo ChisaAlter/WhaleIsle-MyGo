@@ -18,6 +18,10 @@ func TestTrajectoryRecordLayoutAndOptionalInspector(t *testing.T) {
 			if !ok || before.H != 30 || before.W < width-2 {
 				t.Fatalf("record did not occupy one full 30DIP row: %+v", before)
 			}
+			ledgerBounds, ok := tt.Find("Trajectory ledger")
+			if !ok || before.Y != ledgerBounds.Y || ledgerBounds.H < 300 {
+				t.Fatalf("short ledger did not start at the viewport top: ledger=%+v row=%+v", ledgerBounds, before)
+			}
 			if _, ok := tt.Find("Close trajectory details"); ok {
 				t.Fatal("empty inspector consumed ledger space")
 			}

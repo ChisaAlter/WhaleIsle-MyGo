@@ -142,7 +142,7 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 
 		// Ledger + event details split.
 		ui.Row(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			ui.Column(c).Label("Trajectory ledger").Grow(1).FillHeight().MinWidth(0).MinHeight(0).Children(func() {
 				if m.Snapshot.HistoryHasMore && m.OnLoadEarlier != nil {
 					label := i18n.T(i18n.KeyTrajLoadEarlier)
 					if m.Snapshot.HistoryPageBusy {
