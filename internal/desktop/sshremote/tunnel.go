@@ -187,6 +187,12 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	t.mu.Lock()
+	// A canceled UI operation may reach Connect after a queued prompt retry.
+	// It must not replace a newer idle/error state or open authentication files.
+	if err := ctx.Err(); err != nil {
+		t.mu.Unlock()
+		return err
+	}
 	if t.client != nil || t.state == TunnelConnecting {
 		t.mu.Unlock()
 		return fmt.Errorf("already connected or connecting")

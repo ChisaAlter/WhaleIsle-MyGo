@@ -429,3 +429,23 @@ func TestFunctionalOwnedSSHHandshakeCancellation(t *testing.T) {
 		})
 	}
 }
+
+func TestTunnelPreCanceledRetryPreservesDisconnectedState(t *testing.T) {
+	root := t.TempDir()
+	s := NewTunnelSession()
+	s.SetKnownHostsFile(filepath.Join(root, "known_hosts"))
+	s.SetConfig(TunnelConfig{Host: "127.0.0.1", User: "owned", IdentityFile: filepath.Join(root, "not-created-key")})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	s.Disconnect()
+	if err := s.Connect(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled retry returned %v", err)
+	}
+	_, state, message := s.Snapshot()
+	if state != TunnelIdle || message != "" {
+		t.Fatalf("canceled retry overwrote disconnect: %s %q", state, message)
+	}
+	if _, err := os.Stat(filepath.Join(root, "known_hosts")); !os.IsNotExist(err) {
+		t.Fatal("canceled retry touched known_hosts")
+	}
+}
