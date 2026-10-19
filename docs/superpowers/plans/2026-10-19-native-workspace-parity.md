@@ -134,7 +134,7 @@ GPU/GIF planning is preserved separately in codex/gpu-gif-plan-20261019@16fde68;
 - [x] Independently fix optional goals/get state and scoped background read errors. Local product7e54fa4, no-socket cases passed.
 - [x] Independently fix view preference persistence with fresh three-way field/key merge, pending same-field conflicts and retained CAS. Local product85bde0d; temporary configuration/rebind/default-value regression passed.
 - [x] Bounded two-axis review; both confirmed P2 findings (Node provenance/default-value merge) fixed and closed. Keep real smoke matrix in the single canonical report.
-- [ ] Build a new distinct Windows EXE from clean committed source, without launching or installing it.
+- [x] Build a new distinct Windows EXE from clean committed7075a15; embedded revision/clean-state metadata and hash verified, no launch/install/push.
 - [ ] Real fresh runtime link relocation and actual isolated UI/Host matrix: BLOCKED by current junction execution surface and missing authenticated isolated Host; do not restart user instances or fetch credentials to force acceptance.
 
 No push/CI/system install/security change or denied-operation retry. Source code completion, compile evidence, actual existing-reader evidence and full UI acceptance are explicitly separate in docs/native-workspace-parity-20261019.md.
