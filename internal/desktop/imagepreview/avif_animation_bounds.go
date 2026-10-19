@@ -572,6 +572,13 @@ func avifSequenceDescription(box avifBox, width, height int, alpha bool, budget 
 				return 0, errors.New("unsupported AVIF codec configuration")
 			}
 			config = true
+		case "ccst":
+			// libavif writes this coding-constraint FullBox for both color and
+			// alpha sequences. Its six constraint bits introduce no resources;
+			// version/flags and the remaining 26 reserved bits must be zero.
+			if len(p.data) != 8 || binary.BigEndian.Uint32(p.data[:4]) != 0 || binary.BigEndian.Uint32(p.data[4:])&0x03ffffff != 0 {
+				return 0, errors.New("invalid AVIF coding constraints")
+			}
 		case "colr":
 			if len(p.data) != 11 || string(p.data[:4]) != "nclx" || p.data[10]&0x7f != 0 {
 				return 0, errors.New("unsupported AVIF color property")
