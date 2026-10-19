@@ -17,13 +17,19 @@ type projectedQuestion struct {
 	Questions []userQuestionItem `json:"questions"`
 }
 type submittedQuestion struct {
-	queuedSeen bool
-	asOfSeq    float64
+	queuedSeen    bool
+	asOfSeq       float64
+	queueBaseline uint64
 }
 type questionAnswerAttempt struct {
-	token      uint64
-	queuedSeen bool
+	token         uint64
+	queuedSeen    bool
+	queueBaseline uint64
 }
+
+// The producer reader returns its actual client, current inbox, and bounded
+// per-call queued observations. It is never invoked while Store.mu is held.
+type QuestionQueueReader func(string) (*dsh.Client, json.RawMessage, float64, map[string]uint64)
 type questionAgentProjection struct {
 	active                     []projectedQuestion
 	settled                    map[string]bool
@@ -34,6 +40,8 @@ type questionAgentProjection struct {
 	questionsReady, inboxReady bool
 	questionsSeq, inboxSeq     float64
 	status                     string
+	queueObserved              map[string]uint64
+	queueReader                QuestionQueueReader
 }
 type questionRecovery struct {
 	agents    map[string]*questionAgentProjection
@@ -61,12 +69,24 @@ func (s *Store) questionAgentLocked(agentID string) *questionAgentProjection {
 // not fire another frame. Only the Host's continued projection creates RPC cards;
 // a local timeout by itself never guesses that the Host accepted continuation.
 func (s *Store) SyncProjectedQuestions(agentID string, questions, inbox json.RawMessage, sequences ...float64) {
+	s.syncProjectedQuestions(agentID, questions, inbox, nil, nil, sequences...)
+}
+
+func (s *Store) SyncProjectedQuestionSnapshot(agentID string, questions, inbox json.RawMessage, questionsSeq, inboxSeq float64, observed map[string]uint64, reader QuestionQueueReader) {
+	s.syncProjectedQuestions(agentID, questions, inbox, observed, reader, questionsSeq, inboxSeq)
+}
+
+func (s *Store) syncProjectedQuestions(agentID string, questions, inbox json.RawMessage, observed map[string]uint64, reader QuestionQueueReader, sequences ...float64) {
 	if strings.TrimSpace(agentID) == "" {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.questionAgentLocked(agentID)
+	if reader != nil {
+		p.queueReader = reader
+		p.queueObserved = cloneQuestionQueueObservations(observed)
+	}
 	hasSeq := len(sequences) == 2
 	if len(questions) != 0 && (!hasSeq || !p.questionsReady || sequences[0] >= p.questionsSeq) {
 		var face struct {
@@ -86,7 +106,24 @@ func (s *Store) SyncProjectedQuestions(agentID string, questions, inbox json.Raw
 			}
 		}
 	}
-	if len(inbox) != 0 && (!hasSeq || !p.inboxReady || sequences[1] >= p.inboxSeq) {
+	inboxSeq := float64(0)
+	if hasSeq {
+		inboxSeq = sequences[1]
+	}
+	applyProjectedQuestionInbox(p, inbox, inboxSeq, hasSeq)
+	s.reconcileProjectedQuestionsLocked(agentID)
+}
+
+func cloneQuestionQueueObservations(in map[string]uint64) map[string]uint64 {
+	out := make(map[string]uint64, len(in))
+	for id, ordinal := range in {
+		out[id] = ordinal
+	}
+	return out
+}
+
+func applyProjectedQuestionInbox(p *questionAgentProjection, inbox json.RawMessage, seq float64, hasSeq bool) {
+	if len(inbox) != 0 && (!hasSeq || !p.inboxReady || seq >= p.inboxSeq) {
 		var lanes map[string]json.RawMessage
 		if json.Unmarshal(inbox, &lanes) == nil {
 			queued := make(map[string]bool)
@@ -116,12 +153,11 @@ func (s *Store) SyncProjectedQuestions(agentID string, questions, inbox json.Raw
 			if valid && found {
 				p.queued, p.inboxReady = queued, true
 				if hasSeq {
-					p.inboxSeq = sequences[1]
+					p.inboxSeq = seq
 				}
 			}
 		}
 	}
-	s.reconcileProjectedQuestionsLocked(agentID)
 }
 
 func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
@@ -139,11 +175,12 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 		active[row.CallID] = true
 		states[row.CallID] = row.State
 		id := questionCardID(agentID, row.CallID)
-		if attempt, sending := s.questionRecovery.inFlight[id]; sending && p.queued[row.CallID] {
+		if attempt, sending := s.questionRecovery.inFlight[id]; sending && (p.queued[row.CallID] || p.queueObserved[row.CallID] > attempt.queueBaseline) {
 			attempt.queuedSeen = true
 			s.questionRecovery.inFlight[id] = attempt
 		}
 		if submission, ok := p.submitted[row.CallID]; ok {
+			submission.queuedSeen = submission.queuedSeen || p.queueObserved[row.CallID] > submission.queueBaseline
 			if p.queued[row.CallID] {
 				submission.queuedSeen = true
 				p.submitted[row.CallID] = submission
@@ -292,12 +329,31 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 	agentID, callID = strings.TrimSpace(agentID), strings.TrimSpace(callID)
 	id := questionCardID(agentID, callID)
 	s.mu.Lock()
+	reader := s.questionAgentLocked(agentID).queueReader
+	readerClient, readerEpoch := s.client, s.questionRecovery.epoch
+	s.mu.Unlock()
+	var queueClient *dsh.Client
+	var queueInbox json.RawMessage
+	var queueSeq float64
+	var queueObserved map[string]uint64
+	if reader != nil {
+		queueClient, queueInbox, queueSeq, queueObserved = reader(agentID)
+	}
+	s.mu.Lock()
+	if reader != nil && (readerClient != s.client || readerEpoch != s.questionRecovery.epoch || queueClient != s.client) {
+		s.mu.Unlock()
+		return
+	}
 	p := s.findPending(id)
 	if ctx.Err() != nil || s.client == nil || (boundClient != nil && s.client != boundClient) || p == nil || !p.Continued || p.Sending {
 		s.mu.Unlock()
 		return
 	}
 	projection := s.questionAgentLocked(agentID)
+	if reader != nil {
+		applyProjectedQuestionInbox(projection, queueInbox, queueSeq, true)
+		projection.queueObserved = cloneQuestionQueueObservations(queueObserved)
+	}
 	if projection.queued[callID] || projection.settled[callID] || projection.answered[callID] {
 		s.mu.Unlock()
 		return
@@ -316,7 +372,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 	if s.questionRecovery.inFlight == nil {
 		s.questionRecovery.inFlight = make(map[string]questionAnswerAttempt)
 	}
-	s.questionRecovery.inFlight[id] = questionAnswerAttempt{token: token}
+	s.questionRecovery.inFlight[id] = questionAnswerAttempt{token: token, queueBaseline: projection.queueObserved[callID]}
 	p.Sending, p.Error = true, ""
 	projection.status = ""
 	s.mu.Unlock()
@@ -330,6 +386,12 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		if err == nil {
 			err = client.Call(ctx, "userQuestions/answer", map[string]any{"agentId": agentID, "callId": callID, "answer": answer}, &accepted)
 		}
+		// A queue/discard pair may never have been painted. Read the current
+		// producer inbox as well as its observations before interpreting this
+		// receipt, so a still-queued answer is not mistaken for a discard.
+		if reader != nil {
+			queueClient, queueInbox, queueSeq, queueObserved = reader(agentID)
+		}
 		s.mu.Lock()
 		attempt := s.questionRecovery.inFlight[id]
 		if s.client != client || s.questionRecovery.epoch != epoch || attempt.token != token {
@@ -339,6 +401,15 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		delete(s.questionRecovery.inFlight, id)
 		p = s.findPending(id)
 		projection = s.questionAgentLocked(agentID)
+		if reader != nil {
+			if queueClient != client {
+				err = fmt.Errorf("question projection owner expired")
+			} else {
+				applyProjectedQuestionInbox(projection, queueInbox, queueSeq, true)
+				projection.queueObserved = cloneQuestionQueueObservations(queueObserved)
+				attempt.queuedSeen = attempt.queuedSeen || queueObserved[callID] > attempt.queueBaseline
+			}
+		}
 		if err != nil {
 			if p != nil {
 				p.Sending, p.Error = false, err.Error()
@@ -353,7 +424,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			// A queued echo can already have been discarded before this RPC
 			// response arrives. Preserve the attempt's observed queue history,
 			// so the late receipt cannot suppress the now-answerable call.
-			projection.submitted[callID] = submittedQuestion{queuedSeen: attempt.queuedSeen || projection.queued[callID], asOfSeq: asOfSeq}
+			projection.submitted[callID] = submittedQuestion{queuedSeen: attempt.queuedSeen || projection.queued[callID], asOfSeq: asOfSeq, queueBaseline: attempt.queueBaseline}
 			projection.status = "submitted"
 			s.dropPending(id)
 			s.reconcileProjectedQuestionsLocked(agentID)

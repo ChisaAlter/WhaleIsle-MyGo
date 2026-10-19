@@ -418,7 +418,7 @@ func View(c *ui.Context, m Model) {
 		m.FileTabs.SyncPlanSession(snap.SelectedID)
 	}
 	if m.Interactions != nil {
-		m.Interactions.SyncProjectedQuestions(snap.SelectedID, snap.QuestionProjection.Questions, snap.QuestionProjection.Inbox, snap.QuestionProjection.QuestionsSeq, snap.QuestionProjection.InboxSeq)
+		m.Interactions.SyncProjectedQuestionSnapshot(snap.SelectedID, snap.QuestionProjection.Questions, snap.QuestionProjection.Inbox, snap.QuestionProjection.QuestionsSeq, snap.QuestionProjection.InboxSeq, snap.QuestionProjection.QueueSeen, m.Store.QuestionQueueObservation)
 		syncQuestionHistory(m.Interactions, snap)
 	}
 	if m.Sizes == nil {

@@ -63,6 +63,7 @@ func (s *Store) SidebarQuestionProjections() map[string]QuestionProjectionState 
 	defer s.mu.Unlock()
 	out := make(map[string]QuestionProjectionState, len(s.questionProjections))
 	for id, p := range s.questionProjections {
+		p.QueueSeen = cloneQuestionQueueSeen(p.QueueSeen)
 		p.Questions = append([]byte(nil), p.Questions...)
 		p.Inbox = append([]byte(nil), p.Inbox...)
 		out[id] = p

@@ -25,6 +25,7 @@ func (s *Store) agentInteractionProjectionLocked(address AgentSessionAddress) (*
 	if owner := s.agentNavigationOwner; owner != nil {
 		owner.mu.Lock()
 		other := owner.questionProjections[address.ChildSessionID]
+		p.QueueSeen = mergeQuestionQueueSeen(p.QueueSeen, other.QueueSeen)
 		if other.Questions != nil && (p.Questions == nil || other.QuestionsSeq >= p.QuestionsSeq) {
 			p.Questions, p.QuestionsSeq = other.Questions, other.QuestionsSeq
 		}
@@ -35,6 +36,7 @@ func (s *Store) agentInteractionProjectionLocked(address AgentSessionAddress) (*
 		p.Inbox = append(json.RawMessage(nil), p.Inbox...)
 		owner.mu.Unlock()
 	} else {
+		p.QueueSeen = cloneQuestionQueueSeen(p.QueueSeen)
 		p.Questions = append(json.RawMessage(nil), p.Questions...)
 		p.Inbox = append(json.RawMessage(nil), p.Inbox...)
 	}

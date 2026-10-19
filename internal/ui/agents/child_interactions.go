@@ -25,7 +25,7 @@ func childInteractionsView(c *ui.Context, m Model, v session.AgentNavigationView
 		return
 	}
 	id := v.Address.ChildSessionID
-	m.Interactions.SyncProjectedQuestions(id, q.Questions, q.Inbox, q.QuestionsSeq, q.InboxSeq)
+	m.Interactions.SyncProjectedQuestionSnapshot(id, q.Questions, q.Inbox, q.QuestionsSeq, q.InboxSeq, q.QueueSeen, m.Store.QuestionQueueObservation)
 	m.Interactions.SyncApprovalCalls(id, records)
 	m.Interactions.SyncQuestionHistory(id, records, q.Questions, q.Inbox, q.QuestionsSeq, q.InboxSeq)
 	snap := m.Interactions.SnapshotForAgent(id)
