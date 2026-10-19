@@ -36,8 +36,13 @@ func buildShellMode(input request, palette previewPalette, interactive bool) str
 		imageState = `if(data.type==='preview-ready'){if(!Number.isFinite(data.imageWidth)||!Number.isFinite(data.imageHeight)||data.imageWidth<=0||data.imageHeight<=0||data.imageWidth>32768||data.imageHeight>32768||data.imageWidth*data.imageHeight>32000000){state.error='Invalid image intrinsic dimensions.';return;}state.imageWidth=data.imageWidth;state.imageHeight=data.imageHeight;}`
 	}
 	readyMessage := `send({type:'preview-ready',height});`
+	settleFrames := `await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));`
 	if input.inertImage {
 		readyMessage = `send({type:'preview-ready',height,...intrinsic});`
+		// Inline image helpers remain hidden until this readiness receipt.
+		// Their decode/natural-size metadata needs no presented frame, and a
+		// hidden WebView may suspend requestAnimationFrame indefinitely.
+		settleFrames = ""
 	}
 	child := `<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childCSP) + `"><style>html,body{margin:0;background:transparent}*{box-sizing:border-box}</style><script>(()=>{
 const send=data=>parent.postMessage(data,'*');
@@ -57,7 +62,7 @@ addEventListener('load',async()=>{try{
  for(const [key,value] of Object.entries(` + string(variables) + `))document.documentElement.style.setProperty(key,value);
  await document.fonts.ready;
  await Promise.all([...document.images].map(image=>image.decode().catch(()=>{})));
- await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+ ` + settleFrames + `
  for(const tag of new Set([...document.querySelectorAll('svg *')].filter(el=>el.constructor===SVGElement).map(el=>el.localName)))send({type:'preview-console',level:'warning',text:('HTML preview: Chromium does not recognize SVG tag <'+tag+'>.').slice(0,500)});
  const height=window.__whaleVisualReplyHeight?window.__whaleVisualReplyHeight():Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
  ` + imageReady + readyMessage + `
