@@ -214,7 +214,7 @@ func TestWorkspaceNavigationFixture(t *testing.T) {
 		}
 		s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"remove","workspaceId":"one"}`))
 		wait(func() bool { return s.Snapshot().WorkspaceNavigation == nil })
-		if calls.Load() != n+1 || len(s.Snapshot().Workspaces) != 1 || s.Snapshot().Workspaces[0].WorkspaceID != "two" || s.WorkspaceCwd() != "/host/one" || s.Snapshot().SelectedID != "s" {
+		if calls.Load() != n+1 || len(s.Snapshot().Workspaces) != 1 || s.Snapshot().Workspaces[0].WorkspaceID != "two" || s.WorkspaceCwd() != "/host/one" || s.Snapshot().SelectedID != "" || len(s.Snapshot().Items) != 1 {
 			t.Fatal("remove projection/selection/duplicate invariant")
 		}
 	})
