@@ -14,6 +14,7 @@ type Controller struct {
 	client                                                            Caller
 	life                                                              context.Context
 	cancel                                                            context.CancelFunc
+	inspectCancel                                                     context.CancelFunc
 	notify                                                            func()
 	state                                                             State
 	read, listingRead, indexRead, installRead, registryRead, revision uint64
@@ -40,6 +41,7 @@ func (c *Controller) Attach(call Caller, notify func()) {
 	if c.cancel != nil {
 		c.cancel()
 	}
+	c.inspectCancel = nil
 	c.life, c.cancel = context.WithCancel(context.Background())
 	c.client = call
 	c.notify = notify

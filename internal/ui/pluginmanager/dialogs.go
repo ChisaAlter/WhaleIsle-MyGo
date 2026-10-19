@@ -48,7 +48,11 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		panel.Label(copyText("添加插件", "Add plugin")).Width(max(0, min(float32(640), w-32))).Height(max(0, min(float32(720), h-48))).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Clip().Children(func() {
 			ui.Row(c).FillWidth().Padding(20, 20, 12, 20).Gap(8).Children(func() {
 				ui.Text(c, copyText("添加插件", "Add plugin")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(fg)
-				if ui.Button(c, copyText("关闭", "Close")).Clicked() {
+				closeLabel := copyText("关闭", "Close")
+				if i.Phase == "starting" || i.Phase == "running" || i.Phase == "unconfirmed" {
+					closeLabel = copyText("取消安装并关闭", "Cancel install and close")
+				}
+				if ui.Button(c, closeLabel).Clicked() {
 					open = false
 				}
 			})
@@ -56,7 +60,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 					ui.Text(c, copyText("输入完整的 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
 					spec := i.Spec
-					if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(pending || s.Busy).Changed() {
+					if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
 						a.EditInstall(spec, i.Registry)
 					}
 					ui.Text(c, copyText("安装源", "Installation registry")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
@@ -86,7 +90,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 								selected = labels[n]
 							}
 						}
-						if ui.Select(c, &selected, labels).FillWidth().Disabled(pending || s.Busy).Changed() {
+						if ui.Select(c, &selected, labels).FillWidth().Disabled(pending || s.Busy || i.Phase == "checking").Changed() {
 							for n, label := range labels {
 								if selected == label {
 									a.EditInstall(i.Spec, ids[n])
@@ -94,12 +98,15 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							}
 						}
 					}
-					if ui.TextInput(c, &registry).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://registry.npmjs.org/").ReadOnly(pending || s.Busy).Changed() {
+					if ui.TextInput(c, &registry).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://registry.npmjs.org/").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
 						a.EditInstall(i.Spec, registry)
 					}
 					ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					if i.Phase == "checking" {
 						ui.Text(c, copyText("正在检查…", "Checking…")).TextColor(muted)
+						if ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
+							a.CancelInstall()
+						}
 					}
 					if i.Error != "" {
 						ui.Text(c, i.Error).FillWidth().TextColor(c.Theme().Danger)
@@ -118,6 +125,9 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 						if i.Phase == "unconfirmed" {
 							if ui.Button(c, copyText("核对安装结果", "Reconcile installation")).Clicked() {
 								a.ReconcileInstall()
+							}
+							if (!i.CancellationRequested || i.WaitingForStart) && ui.Button(c, copyText("重试取消", "Retry cancellation")).Clicked() {
+								a.CancelInstall()
 							}
 						} else if i.Phase != "unknown" && i.Phase != "applying" && i.Phase != "cancelling" && ui.Button(c, copyText("取消安装", "Cancel installation")).Clicked() {
 							a.CancelInstall()
