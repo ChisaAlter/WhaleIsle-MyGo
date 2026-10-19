@@ -90,6 +90,7 @@ func (q *resumeCheckpoint) stage(next recovery.State, captureErr error, now time
 		// An older valid payload is not the current UI state. Preserve the UI
 		// and original file, and require an explicit fresh capture on Retry.
 		q.pending = nil
+		q.hasDigest = false
 		q.stopWriteLocked()
 		q.setErrorLocked(captureErr)
 		return
