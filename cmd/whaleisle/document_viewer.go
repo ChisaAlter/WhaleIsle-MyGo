@@ -25,6 +25,8 @@ func (s *mainState) openDocumentViewer(client *dsh.Client, sessionID, path strin
 	return desktopwebview.NewHost(desktopwebview.HostOptions{
 		Parent: win, URL: target, Title: path, Untrusted: true,
 		SessionOrigin: client.Endpoint.Origin, SessionCookie: client.Endpoint.Cookie,
-		OnChange: func() { win.Update(func() {}) },
+		ShortcutPreferences:   s.pageShortcutPreferences(),
+		OnShortcutCloseWindow: s.queueProductShortcutClose,
+		OnChange:              func() { win.Update(func() {}) },
 	})
 }

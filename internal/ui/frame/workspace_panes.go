@@ -330,7 +330,7 @@ func RestoreWorkspacePanes(raw json.RawMessage) (*WorkspacePanes, error) {
 	}
 	if w.Root != nil {
 		active := w.Root.find(w.Active)
-		if active == nil {
+		if active == nil || active.First != nil {
 			active = w.Root.firstLeaf()
 			w.Active = active.ID
 		}
@@ -418,27 +418,16 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
 	box.Children(func() {
 		if n.First != nil {
-			bounds := box.Bounds()
-			total := bounds.W
-			if n.Axis == "vertical" {
-				total = bounds.H
-			}
-			if total <= 1 {
-				total = 400
-			}
 			if n.Ratio == 0 {
 				n.Ratio = 0.5
 			}
-			n.Ratio = min(float32(.8), max(float32(.2), n.Ratio))
-			size := (total - 1) * n.Ratio
 			first := func() { workspaceNode(c, m, n.First) }
 			second := func() { workspaceNode(c, m, n.Second) }
 			if n.Axis == "vertical" {
-				ui.SplitVertical(c, &size, first, second).Fill()
+				ui.SplitVerticalFraction(c, &n.Ratio, .2, first, second).Fill()
 			} else {
-				ui.Split(c, &size, first, second).Fill()
+				ui.SplitFraction(c, &n.Ratio, .2, first, second).Fill()
 			}
-			n.Ratio = min(float32(.8), max(float32(.2), size/(total-1)))
 			return
 		}
 		if box.FocusWithin() {

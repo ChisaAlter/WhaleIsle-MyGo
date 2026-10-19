@@ -324,17 +324,23 @@ type Model struct {
 	OnOpenTerminalTarget  func(string) error
 	CanAddSelectionToChat bool
 
-	ConnectionBanner     string
-	OnReconnect          func()
-	UsageJobsToday       *int
-	UsageBalance         string
-	SessionCost          costui.Model
-	OnOpenUsage          func()
-	EditMessageSeq       *float64
-	FeedbackCommentMsgID *string
-	FeedbackCommentDraft *string
-	PlanBoardOpen        *bool
-	GoalDraft            *string
+	ConnectionBanner                        string
+	ConnectionReady                         bool
+	ConnectionConnecting                    bool
+	ConnectionEpoch                         uint64
+	DesktopUpdateInstalling                 bool
+	DesktopUpdatePhase, DesktopUpdateDetail string
+	OnOpenDesktopUpdate                     func()
+	OnReconnect                             func()
+	UsageJobsToday                          *int
+	UsageBalance                            string
+	SessionCost                             costui.Model
+	OnOpenUsage                             func()
+	EditMessageSeq                          *float64
+	FeedbackCommentMsgID                    *string
+	FeedbackCommentDraft                    *string
+	PlanBoardOpen                           *bool
+	GoalDraft                               *string
 	// TodoPanelCollapsed mirrors Electron TodoPanel header chevron (composer dock).
 	TodoPanelCollapsed           *bool
 	ImageLightboxPath            *string
@@ -520,12 +526,16 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
-		OnCreate:                    createSession,
-		OnOpenMarket:                m.OnOpenMarket,
-		OnOpenSchedule:              m.OnOpenSchedule,
-		OnOpenAssistant:             m.OnOpenAssistant,
-		OnOpenLauncher:              m.OnOpenLauncher,
-		OnOpenSettings:              m.OnOpenSettings,
+		OnCreate:        createSession,
+		OnOpenMarket:    m.OnOpenMarket,
+		OnOpenSchedule:  m.OnOpenSchedule,
+		OnOpenAssistant: m.OnOpenAssistant,
+		OnOpenLauncher:  m.OnOpenLauncher,
+		OnOpenSettings:  m.OnOpenSettings,
+		ConnectionReady: m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
+		OnReconnect:             m.OnReconnect,
+		DesktopUpdateInstalling: m.DesktopUpdateInstalling,
+		DesktopUpdatePhase:      m.DesktopUpdatePhase, DesktopUpdateDetail: m.DesktopUpdateDetail, OnOpenDesktopUpdate: m.OnOpenDesktopUpdate,
 		OnContactAccount:            m.OnContactAccount,
 		OnRetryWorkspacePreferences: m.Store.RetryWorkspacePreferences,
 		OnDropWorkspaceBefore: func(generation uint64, id, before string) {
@@ -698,7 +708,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
-						SVGImages:             m.SVGImages,
+						SVGImages:            m.SVGImages,
 						GroupMembers:         m.GroupMembers,
 						NextPrompt:           nextPrompt,
 						OnAcceptNextPrompt:   func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
@@ -1328,8 +1338,12 @@ func rightPane(c *ui.Context, m Model) {
 		if m.workspacePane != nil {
 			if tab == "files" && m.RemoteFilesContent != nil {
 				m.workspacePane.remoteFilesRendered = true
-				if m.workspacePane.RemoteFiles == nil { m.workspacePane.RemoteFiles = remoteui.NewFileWorkspaceState() }
-				if m.RemoteFilesContent(c, m.Store, m.workspacePane.RemoteFiles) { return }
+				if m.workspacePane.RemoteFiles == nil {
+					m.workspacePane.RemoteFiles = remoteui.NewFileWorkspaceState()
+				}
+				if m.RemoteFilesContent(c, m.Store, m.workspacePane.RemoteFiles) {
+					return
+				}
 			}
 			m.workspacePane.Files.rendered = true
 		}

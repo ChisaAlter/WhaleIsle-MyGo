@@ -1,12 +1,49 @@
 package frame
 
 import (
+	"errors"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/files"
 )
+
+// Drain both domains even when one has failed. A remote close attempt retains
+// its receipt cursor until checked; abandoning it would block the next save.
+func workspacePaneCloseSaveStatus(n *WorkspacePane, m files.Model) (pending bool, err error) {
+	if n.Files != nil {
+		pending, err = files.CheckDirtyForClose(m)
+	}
+	if n.RemoteFiles != nil {
+		done, remoteErr := n.RemoteFiles.CheckDirtyForClose()
+		pending = pending || !done && remoteErr == nil
+		err = errors.Join(err, remoteErr)
+	}
+	return pending, err
+}
+
+func startWorkspacePaneCloseSave(n *WorkspacePane, m files.Model) (pending bool, err error) {
+	if n.Files != nil {
+		err = files.PreflightDirtyForClose(m)
+	}
+	if err == nil && n.RemoteFiles != nil {
+		err = n.RemoteFiles.PreflightDirtyForClose()
+	}
+	if err != nil {
+		return false, err
+	}
+	if n.RemoteFiles != nil {
+		if err = n.RemoteFiles.SaveDirtyForClose(); err != nil {
+			return false, err
+		}
+	}
+	if n.Files != nil {
+		_, err = files.SaveDirtyForClose(m)
+	}
+	pending, receiptErr := workspacePaneCloseSaveStatus(n, m)
+	return pending, errors.Join(err, receiptErr)
+}
 
 func workspaceCloseFilesModel(m Model) files.Model {
 	if m.workspacePane.Files != nil {
@@ -40,24 +77,16 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 	}
 	if pending {
 		var err error
-		pending = false
-		if n.Files != nil {
-			pending, err = files.CheckDirtyForClose(fileModel)
-		}
-		if err == nil && n.RemoteFiles != nil {
-			done, remoteErr := n.RemoteFiles.CheckDirtyForClose()
-			pending, err = pending || !done, remoteErr
-		}
-		if err != nil {
-			pending = false
+		pending, err = workspacePaneCloseSaveStatus(n, fileModel)
+		if err != nil && w.closeError == "" {
+			w.closeError = err.Error()
 		}
 		if !pending {
 			w.closeSaving = ""
-			if err == nil {
+			if w.closeError == "" {
 				finish()
 				return
 			}
-			w.closeError = err.Error()
 		}
 	}
 	ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
@@ -73,31 +102,14 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 		}
 		if ui.PrimaryButton(c, paneLabel("保存并关闭", "Save and close")).Disabled(pending).Clicked() {
 			var err error
-			if n.Files != nil {
-				err = files.PreflightDirtyForClose(fileModel)
-			}
-			if err == nil && n.RemoteFiles != nil {
-				err = n.RemoteFiles.PreflightDirtyForClose()
-			}
-			if err == nil && n.RemoteFiles != nil {
-				err = n.RemoteFiles.SaveDirtyForClose()
-			}
-			if err == nil {
-				if n.Files != nil {
-					pending, err = files.SaveDirtyForClose(fileModel)
-				}
-				if err == nil && n.RemoteFiles != nil {
-					done, remoteErr := n.RemoteFiles.CheckDirtyForClose()
-					pending, err = pending || !done, remoteErr
-				}
-			}
+			pending, err = startWorkspacePaneCloseSave(n, fileModel)
 			w.closeError = ""
 			if err != nil {
-				pending = false
 				w.closeError = err.Error()
-			} else if pending {
+			}
+			if pending {
 				w.closeSaving = n.ID
-			} else {
+			} else if err == nil {
 				finish()
 			}
 		}

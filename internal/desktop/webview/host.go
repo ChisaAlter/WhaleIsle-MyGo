@@ -24,6 +24,8 @@ type HostOptions struct {
 	// OnExternalWindow is an opt-in popup handoff; it never creates a child WebView.
 	OnExternalWindow    func(string)
 	ShortcutPreferences *shortcutprefs.Store
+	// Exact product shortcut owner; the caller must recheck current before Close.
+	OnShortcutCloseWindow func(owner *mygo.Window, current func() bool)
 	// BrowserProfile selects the persistent Browser-only login/storage area.
 	// It cannot be combined with an authenticated Host session or local preview.
 	BrowserProfile bool
@@ -66,20 +68,21 @@ type HostOptions struct {
 type Host struct {
 	// mediaSeat is opt-in for a trusted native paint-owned, clipped surface.
 	// Its geometry must never be replaced by the ordinary whole-panel sync.
-	mediaSeat         bool
-	mediaPlacement    *mediaPlacement
-	transient         bool
-	browserProfile    bool
-	initialHTML       string // fixed product-owned document; never renderer-supplied
-	initialBaseURL    string // immutable identity base, separate from the display URL
-	displayURL        string
-	allowNavigation   func(string) bool
-	viewport          *mygo.Rectangle
-	localPDFViewerURL string
-	localPDFURL       string
-	localHTMLURL      string
-	localMediaURL     string
-	onClosed          func()
+	mediaSeat             bool
+	mediaPlacement        *mediaPlacement
+	transient             bool
+	browserProfile        bool
+	initialHTML           string // fixed product-owned document; never renderer-supplied
+	initialBaseURL        string // immutable identity base, separate from the display URL
+	displayURL            string
+	allowNavigation       func(string) bool
+	viewport              *mygo.Rectangle
+	localPDFViewerURL     string
+	localPDFURL           string
+	localHTMLURL          string
+	localMediaURL         string
+	onClosed              func()
+	onShortcutCloseWindow func(*mygo.Window, func() bool)
 
 	gateway         *pluginslots.Gateway
 	mu              sync.Mutex
@@ -227,6 +230,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 
 	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	h.browserProfile = opts.BrowserProfile
+	h.onShortcutCloseWindow = opts.OnShortcutCloseWindow
 	initialURL := pageURL
 	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.

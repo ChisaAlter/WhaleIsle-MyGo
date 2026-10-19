@@ -433,7 +433,7 @@ func (w *WorkspacePanes) resetTo(n *WorkspacePane) {
 	}
 	blocked := false
 	w.Root.eachResource(func(other *WorkspacePane) {
-		if !keep[other.ID] && other.Files.unsaved() {
+		if !keep[other.ID] && (other.Files.unsaved() || other.RemoteFiles != nil && other.RemoteFiles.Dirty()) {
 			blocked = true
 		}
 	})
@@ -483,8 +483,7 @@ func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, crea
 			target = w.Root.kind("browser")
 			if target == nil {
 				target = w.leaf("browser")
-				old := *n
-				*n = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: target}
+				w.placeDockResource(target, n, true)
 			}
 			w.Fullscreen = ""
 		}

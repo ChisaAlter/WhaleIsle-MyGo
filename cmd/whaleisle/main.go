@@ -95,65 +95,66 @@ import (
 )
 
 type mainState struct {
-	voiceDevices         *composerVoiceDevices
-	svgImages            *nativeSVGImages
-	svgImagesPaused      bool
-	nativePlugins        nativePluginManagerState
-	customPanels         customPanelState
-	applicationMenu      *desktopApplicationMenu
-	wallpaperControls    *settings.WallpaperEditor
-	wallpaperVisible     bool
-	commandSearchFocus   bool
-	appearanceEditor     *theme.Editor
-	appearanceVisible    bool
-	shortcutEditor       *shortcuts.Editor
-	shortcutPreferences  *shortcutprefs.Store
-	shortcutRevision     string
-	projectWindowHidden  bool
-	startupRecovery      startupRecoveryState
-	voice                *composerVoiceOperation
-	projectFlow          projectFlowState
-	resumeStore          *recovery.Store
-	resumeCheckpoint     *resumeCheckpoint
-	resumeError          string
-	resumePendingSession string
-	resumeWorkspace      string
-	mu                   sync.Mutex
-	win                  *mygo.Window
-	taskRestartPending   bool
-	quitting             bool
-	phoneRuntime         *phoneremote.Runtime
-	phoneDeviceEditor    remoteui.PhoneDeviceEditor
-	phoneGatewayEditor   remoteui.GatewayEditor
-	phoneGitSession      string
-	phoneGitRoot         string
-	phoneGitWorkspaces   phoneGitWorkspaceScope
-	phoneOp              sync.Mutex
-	closeToTray          bool
-	desktopTray          *mygo.Tray
-	trayHideNotice       trayHideNotice
-	trayHideNotification *mygo.Notification
-	bridgeAlerts         *bridgeAlertUI
-	cfgStore             *config.Store
-	viewPreferences      *workspaceViewPreferences
-	desktopPet           *pet.Companion
-	petEvents            petEventController
-	petPersonality       petPersonalityMirror
-	navigationFile       *navigationFileRequest
-	themeID              string
-	hostAppearance *settings.HostThemeBinding
-	hostAppearanceOwner string
+	voiceDevices           *composerVoiceDevices
+	svgImages              *nativeSVGImages
+	svgImagesPaused        bool
+	nativePlugins          nativePluginManagerState
+	customPanels           customPanelState
+	applicationMenu        *desktopApplicationMenu
+	wallpaperControls      *settings.WallpaperEditor
+	wallpaperVisible       bool
+	commandSearchFocus     bool
+	appearanceEditor       *theme.Editor
+	appearanceVisible      bool
+	shortcutEditor         *shortcuts.Editor
+	shortcutPreferences    *shortcutprefs.Store
+	shortcutRevision       string
+	projectWindowHidden    bool
+	startupRecovery        startupRecoveryState
+	voice                  *composerVoiceOperation
+	projectFlow            projectFlowState
+	resumeStore            *recovery.Store
+	resumeCheckpoint       *resumeCheckpoint
+	resumeError            string
+	resumePendingSession   string
+	resumeWorkspace        string
+	mu                     sync.Mutex
+	win                    *mygo.Window
+	taskRestartPending     bool
+	quitting               bool
+	phoneRuntime           *phoneremote.Runtime
+	phoneDeviceEditor      remoteui.PhoneDeviceEditor
+	phoneGatewayEditor     remoteui.GatewayEditor
+	phoneGitSession        string
+	phoneGitRoot           string
+	phoneGitWorkspaces     phoneGitWorkspaceScope
+	phoneOp                sync.Mutex
+	closeToTray            bool
+	desktopTray            *mygo.Tray
+	trayHideNotice         trayHideNotice
+	trayHideNotification   *mygo.Notification
+	bridgeAlerts           *bridgeAlertUI
+	cfgStore               *config.Store
+	viewPreferences        *workspaceViewPreferences
+	desktopPet             *pet.Companion
+	petEvents              petEventController
+	petPersonality         petPersonalityMirror
+	navigationFile         *navigationFileRequest
+	themeID                string
+	hostAppearance         *settings.HostThemeBinding
+	hostAppearanceOwner    string
 	hostAppearanceAccepted bool
-	hostWallpaperImage string
-	desktopOnboarding *settingsstore.DesktopOnboarding
-	sup                  *harness.Supervisor
-	bootStatus           harness.Status
-	bootLogs             []string
+	hostWallpaperImage     string
+	desktopOnboarding      *settingsstore.DesktopOnboarding
+	sup                    *harness.Supervisor
+	bootStatus             harness.Status
+	bootLogs               []string
 
 	sessions                                *session.Store
 	agentPresetManager                      *session.AgentPresetManager
 	creatorTask                             *session.CreatorTask
 	pluginCreatorTask                       *session.CreatorTask
+	productShortcutCloses                   []productShortcutClose
 	interactions                            *interaction.Store
 	settings                                *settingsstore.Store
 	settingsOpen                            bool
@@ -368,21 +369,21 @@ type mainState struct {
 	renameDraft                             string
 	sessionSearch                           string
 
-	gitBranch      string
-	gitDirty       bool
+	gitBranch           string
+	gitDirty            bool
 	gitRepositoryStatus *desktopgit.RepositoryStatus
-	gitMsg         string
-	gitBusy        bool
-	gitProgress    *desktopgit.Progress
-	gitCommitOpen  bool
-	gitCommitDraft string
-	gitCheckedRoot string
-	gitCheckedAt   time.Time
-	gitPROpen      bool
-	gitPRBusy      bool
-	gitPRReport    desktopgit.PRReport
-	gitPRRoot      string
-	gitPRAt        time.Time
+	gitMsg              string
+	gitBusy             bool
+	gitProgress         *desktopgit.Progress
+	gitCommitOpen       bool
+	gitCommitDraft      string
+	gitCheckedRoot      string
+	gitCheckedAt        time.Time
+	gitPROpen           bool
+	gitPRBusy           bool
+	gitPRReport         desktopgit.PRReport
+	gitPRRoot           string
+	gitPRAt             time.Time
 
 	fileTabs         files.Tabs
 	gitWorkbench     diffsurface.Workbench
@@ -786,12 +787,16 @@ func (s *mainState) saveDesktopConfig() {
 		restartPolicy.Apply(c)
 		c.Workspace = strings.TrimSpace(s.desktopDraft.workspace)
 		c.Port = port
-		if !s.hostAppearanceAccepted { c.Theme = s.desktopDraft.theme }
+		if !s.hostAppearanceAccepted {
+			c.Theme = s.desktopDraft.theme
+		}
 		c.Locale = s.desktopDraft.locale
 		c.CloseToTray = s.desktopDraft.closeToTray
 		c.OpenAtLogin = s.desktopDraft.openAtLogin
 		c.AutoStartDesktop = s.desktopDraft.autoStartDesktop
-		if !s.hostAppearanceAccepted { c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath) }
+		if !s.hostAppearanceAccepted {
+			c.WallpaperPath = strings.TrimSpace(s.desktopDraft.wallpaperPath)
+		}
 		c.HideArchivedList = !s.desktopDraft.showArchivedList
 		c.HideChatViewTabs = !s.desktopDraft.showViewTabs
 		c.AutoAllowTools = s.desktopDraft.autoAllowTools
@@ -810,9 +815,13 @@ func (s *mainState) saveDesktopConfig() {
 	s.desktopSaveErr = ""
 	s.desktopLastAction = i18n.T(i18n.KeySettingsDesktopSaved)
 	s.closeToTray = cfg.CloseToTray
-	if !s.hostAppearanceAccepted { s.themeID = cfg.Theme }
+	if !s.hostAppearanceAccepted {
+		s.themeID = cfg.Theme
+	}
 	i18n.SetLocale(cfg.Locale)
-	if !s.hostAppearanceAccepted { applyAppearance(cfg.Theme) }
+	if !s.hostAppearanceAccepted {
+		applyAppearance(cfg.Theme)
+	}
 	if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 		s.desktopLastAction = ""
 		s.desktopSaveErr = fmt.Sprintf("%s: %v", resumeText("设置已保存，但开机启动未生效", "Settings saved, but startup registration failed"), err)
@@ -1108,7 +1117,9 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 		s.mu.Lock()
 		s.desktopSaveErr = err.Error()
 		s.mu.Unlock()
-		if win != nil { win.Update(func(){}) }
+		if win != nil {
+			win.Update(func() {})
+		}
 		return
 	}
 	s.mu.Lock()
@@ -1266,15 +1277,16 @@ func (s *mainState) openWebViewURL(browse string) {
 	}
 	inset := chrome.TitleBarHeight + panelH
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
-		Untrusted:           true,
-		SessionOrigin:       sessionOrigin,
-		ShortcutPreferences: s.pageShortcutPreferences(),
-		SessionCookie:       sessionCookie,
-		OnChange:            func() { win.Update(func() {}) },
-		Parent:              win,
-		URL:                 browse,
-		Title:               hostTitle,
-		TopInset:            inset,
+		Untrusted:             true,
+		SessionOrigin:         sessionOrigin,
+		ShortcutPreferences:   s.pageShortcutPreferences(),
+		OnShortcutCloseWindow: s.queueProductShortcutClose,
+		SessionCookie:         sessionCookie,
+		OnChange:              func() { win.Update(func() {}) },
+		Parent:                win,
+		URL:                   browse,
+		Title:                 hostTitle,
+		TopInset:              inset,
 	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1850,16 +1862,11 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 			win.Update(s.refreshPetTask)
 		}
 	}
-	setMuxState := func(ready, lost bool) {
-		s.mu.Lock()
-		s.dshMuxReady = ready
-		s.dshMuxLost = lost
-		s.mu.Unlock()
-		s.hostTerminals.Transport(client, ready)
-		refresh()
-	}
+	connection := s.newConnectionAttemptState(ctx, client, mux, refresh)
 	_ = dsh.MaintainMux(ctx, mux, dsh.Backoff{}, func(ctx context.Context) error {
-		setMuxState(true, false)
+		if !connection.begin(ctx) {
+			return context.Canceled
+		}
 		var scheduleEventsOwner *schedstore.EventsOwner
 		if schedStore != nil {
 			scheduleEventsOwner = schedStore.BeginEvents(ctx, client)
@@ -1868,54 +1875,67 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		if sessions != nil {
 			eventsOwner = sessions.BeginEvents(ctx, client)
 		}
+		var delivery *interaction.EventsDeliveryOwner
+		if inter != nil {
+			delivery = inter.BeginEventsDelivery(ctx, client, mux)
+		}
 		go func() {
-			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
+			_ = client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
-					pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
-					pluginEvent(dsh.EventsEmit{Event: "plugin-market/changed"})
-					if schedStore != nil {
-						schedStore.OnEventsReady(scheduleEventsOwner)
-					}
-					if sessions != nil {
-						sessions.OnEventsReady(eventsOwner)
-						sessions.WatchSpeechCatalog(ctx)
-					}
+					connection.ready(ctx, func() {
+						pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
+						pluginEvent(dsh.EventsEmit{Event: "plugin-market/changed"})
+						if schedStore != nil {
+							schedStore.OnEventsReady(scheduleEventsOwner)
+						}
+						if sessions != nil {
+							sessions.OnEventsReady(eventsOwner)
+							sessions.WatchSpeechCatalogForEvents(eventsOwner)
+						}
+					})
 				},
 				Emit: func(emit dsh.EventsEmit) {
-					pluginEvent(emit)
-					if usageStore != nil {
-						usageStore.OnAccountNotice(ctx, client, emit)
-					}
-					if schedStore != nil {
-						schedStore.OnEmit(scheduleEventsOwner, emit)
-					}
-					if setStore != nil {
-						setStore.OnEmitMaybeRefresh(ctx, emit)
-					}
-					if sessions != nil {
-						sessions.OnEmit(eventsOwner, emit)
-					}
+					connection.withCurrent(ctx, func() {
+						pluginEvent(emit)
+						if usageStore != nil {
+							usageStore.OnAccountNotice(ctx, client, emit)
+						}
+						if schedStore != nil {
+							schedStore.OnEmit(scheduleEventsOwner, emit)
+						}
+						if setStore != nil {
+							setStore.OnEmitMaybeRefresh(ctx, emit)
+						}
+						if sessions != nil {
+							sessions.OnEmit(eventsOwner, emit)
+						}
+					})
 				},
 				Waterfall: func(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
 					if inter == nil {
 						return nil, nil
 					}
-					return inter.HandleWaterfall(wf)
+					return inter.HandleWaterfallForDelivery(delivery, wf)
 				},
 				Result: func(result dsh.EventResult, err error) bool {
 					if inter != nil {
-						return inter.OnResult(result, err)
+						return inter.OnResultForDelivery(delivery, result, err)
 					}
 					return false
 				},
 				Cancel: func(c dsh.EventsCancel) {
 					if inter != nil {
-						inter.OnCancel(c)
+						inter.OnCancelForDelivery(delivery, c)
+					}
+				},
+				Retire: func() {
+					if inter != nil {
+						inter.RetireEventsDelivery(delivery)
 					}
 				},
 			})
-			if err != nil && ctx.Err() == nil {
-				setMuxState(false, true)
+			if ctx.Err() == nil {
+				connection.retry(ctx)
 			}
 		}()
 		if sessions != nil {
@@ -1925,14 +1945,16 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 			sessions.RefreshProjections(ctx)
 		}
 		go settingsstore.WatchAnalyticsPolicy(ctx, mux, func(on bool) {
-			s.mu.Lock()
-			s.analyticsEnabled = &on
-			s.mu.Unlock()
-			refresh()
+			connection.withCurrent(ctx, func() {
+				s.mu.Lock()
+				s.analyticsEnabled = &on
+				s.mu.Unlock()
+				refresh()
+			})
 		})
 		return nil
 	}, func(error) {
-		setMuxState(false, true)
+		connection.lost()
 	})
 }
 
@@ -1982,7 +2004,7 @@ func main() {
 			state.applyDeeplink(t)
 			return
 		}
-		log.Printf("deeplink: ignored %s", rawURL)
+		log.Print("deeplink: ignored unsupported route")
 	})
 	if err := desktopSystemIntegration(func() error { return mygo.App.RegisterURLScheme(deeplink.Scheme) }); err != nil {
 		log.Println("RegisterURLScheme:", err)
@@ -2103,23 +2125,23 @@ func main() {
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		winOpts := mygo.WindowOptions{
-			Title:           i18n.T(i18n.KeyAppName),
-			Width:           1440,
-			Height:          920,
-			MinWidth:        960,
-			MinHeight:       640,
-			StateKey:        "main",
-			Hidden:          hidden || background,
-			TitleBarStyle:   mygo.TitleBarHidden,
-			TitleBarHeight:  int(chrome.EffectiveTitleBarHeight()),
-			WindowsCaptionButtons: &mygo.WindowsCaptionButtonOptions{Width:32, Height:32, Top:8, Right:8, CornerRadius:8, GlyphSize:12},
+			Title:                    i18n.T(i18n.KeyAppName),
+			Width:                    1440,
+			Height:                   920,
+			MinWidth:                 960,
+			MinHeight:                640,
+			StateKey:                 "main",
+			Hidden:                   hidden || background,
+			TitleBarStyle:            mygo.TitleBarHidden,
+			TitleBarHeight:           int(chrome.EffectiveTitleBarHeight()),
+			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 8, Right: 8, CornerRadius: 8, GlyphSize: 12},
 			WindowsFrameCornerRadius: 20,
-			Transparent: true,
-			BackgroundColor: bgColor,
-			Content:         ui.View(mainView),
+			Transparent:              true,
+			BackgroundColor:          bgColor,
+			Content:                  ui.View(mainView),
 		}
-		// Wallpaper: config goWallpaperPath -> mainView chrome.WallpaperBackdrop
-		// (WindowOptions has BackgroundColor only in mygo v0.3.5).
+		// Native content paints the accepted appearance; DirectComposition keeps
+		// the outer silhouette transparent without adding a caption content row.
 		win := mygo.NewWindow(winOpts)
 		state.accountSignOut.SetNotify(win.Invalidate)
 		win.OnClosed(func() { state.accountSignOut.Bind(nil) })
@@ -2882,7 +2904,9 @@ func mainView(c *ui.Context) {
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
+	defer state.processProductShortcutClose(c)
 	state.syncApplicationMenu(c)
+	defer state.processApplicationMenu(c)
 	state.beginAppearanceFrame(c)
 	state.configurePointerEffects(c)
 	defer state.endAppearanceFrame()
@@ -3223,7 +3247,9 @@ func mainView(c *ui.Context) {
 			CommitLabel: i18n.T(i18n.KeyGitCommit),
 			StatusText:  gitMsg,
 		}
-		if gitRepositoryStatus != nil { gitBadge.Ahead,gitBadge.Behind=gitRepositoryStatus.Ahead,gitRepositoryStatus.Behind }
+		if gitRepositoryStatus != nil {
+			gitBadge.Ahead, gitBadge.Behind = gitRepositoryStatus.Ahead, gitRepositoryStatus.Behind
+		}
 		gitBadge.PRSummary = gitPRSummary(gitPRReport)
 		gitBadge.PRPanelLabel = i18n.T(i18n.KeyGitPRPanel)
 		gitBadge.PRViewLabel = i18n.T(i18n.KeyGitPRView)
@@ -3232,7 +3258,9 @@ func mainView(c *ui.Context) {
 			root := workspaceRoot
 			gitBadge.OnFetch = func() { state.runGitFetch(root) }
 			gitBadge.OnPull = func() { state.runGitPull(root) }
-			if gitRepositoryStatus != nil && gitRepositoryStatus.CanPush() { gitBadge.OnPush = func() { state.runGitPush(root) } }
+			if gitRepositoryStatus != nil && gitRepositoryStatus.CanPush() {
+				gitBadge.OnPush = func() { state.runGitPush(root) }
+			}
 			gitBadge.OnCommit = func() {
 				state.mu.Lock()
 				state.gitCommitOpen = false
@@ -3275,7 +3303,9 @@ func mainView(c *ui.Context) {
 					win.Invalidate()
 				}
 			}
-			if gitRepositoryStatus == nil || !gitRepositoryStatus.CanCreatePR() { gitBadge.OnPRCreate = nil }
+			if gitRepositoryStatus == nil || !gitRepositoryStatus.CanCreatePR() {
+				gitBadge.OnPRCreate = nil
+			}
 		}
 	}
 	titleColors := chrome.TitleBarColorsFrom(colors)
@@ -3284,7 +3314,7 @@ func mainView(c *ui.Context) {
 	if !systemDark {
 		titleColors.Background = chrome.Color("#ffffff")
 	}
-	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).Children(func() {
+	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {
 			// The pinned native release catalog owns the one background lookup.
 			// Full-window launcher shell (Electron parity): no main chrome.
@@ -6307,7 +6337,7 @@ func mainView(c *ui.Context) {
 						finish(nil)
 					}
 					frameModel := frame.Model{
-						SVGImages: svgImages,
+						SVGImages:          svgImages,
 						CustomPanelContent: state.customPanelContent(snap.SelectedID, themeID),
 						GroupRoom:          groupRoom, GroupMembers: groupMembers,
 						OnReplyGroupThread: func(threadID string) {
@@ -6345,14 +6375,7 @@ func mainView(c *ui.Context) {
 							state.mu.Unlock()
 						},
 						ConnectionBanner: connBanner,
-						OnReconnect: func() {
-							state.mu.Lock()
-							sup := state.sup
-							state.mu.Unlock()
-							if sup != nil {
-								state.restartUnlessImport(sup)
-							}
-						},
+						OnReconnect:      state.requestConnectionReconnect,
 						SessionCost: costui.Model{Billing: func() usagestore.BillingView {
 							if usageStore != nil {
 								return usageStore.Billing()
@@ -6825,7 +6848,7 @@ func mainView(c *ui.Context) {
 							return appendSelectionToComposer(sessions, snap.SelectedID, activeDraft, fragment)
 						},
 						NewWorkspaceBrowser: func() *browserpreviewui.Controller { return state.newBrowserController(win) },
-						OnVoiceSettings: state.openVoiceSettings,
+						OnVoiceSettings:     state.openVoiceSettings,
 						RemoteFilesContent: func(c *ui.Context, paneSessions *session.Store, owner *remoteui.FileWorkspaceState) bool {
 							return remoteui.FileWorkspace(c, state.remoteFileWorkspaceModel(win, paneSessions, themeID, systemDark, st.State == harness.Ready, cfgRemoteWorkspace, owner))
 						},

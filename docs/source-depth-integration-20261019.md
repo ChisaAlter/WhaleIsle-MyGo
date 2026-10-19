@@ -26,6 +26,8 @@ regressions and coordinated validation, as the user explicitly requested.
   manager. The manager renders the provider/language/preparation/microphone page;
   hiding the page or window relinquishes device preview ownership.
 - Speech catalog watching reconnects with the real event transport ready path.
+  It is fenced by the current Store/Client/event owner and canceled-attempt
+  context; late Ready from the old attempt cannot replace the new catalog.
 - The composer card uses the reference 22 DIP radius. Beam draws below children,
   with the hairline above; its inner wash cannot cover text.
 - SVG owners carry window, selected session and Host epoch into actual Composer,
@@ -46,6 +48,9 @@ regressions and coordinated validation, as the user explicitly requested.
 - Closing a resource pane checks local and remote drafts. Save-and-close first
   preflights both domains, queues explicit writes once and waits for their
   receipts. Errors, changed owners and newer drafts keep the pane present.
+  If one domain fails after the other has started, both receipt lifecycles
+  continue to drain, retaining the error and disabling repeated close actions.
+  An error cannot strand the remote close cursor or local autosave suppression.
 - Host terminal descriptors persist identity only. Restoring adopts a matching
   existing terminal; explicit new terminal tabs carry a separate runtime fresh
   marker. Clones/restored descriptors never allocate a shell implicitly.
@@ -54,6 +59,9 @@ regressions and coordinated validation, as the user explicitly requested.
 - Dock splits are horizontal, at most two docked seats, with .2 minimum fraction
   and a measured 100 DIP chip-fit condition. Center/tab moves do not consume a
   new split. Malformed IDs/trees are rejected before content restoration.
+  Document/subagent resource openers use the same admission. The new SDK
+  `SplitFraction` updates the persistent fraction itself during dragging and
+  keyboard resizing, rather than a discarded per-frame temporary width.
 - Valid older Go vertical or larger layouts migrate without dropping resources:
   splits become horizontal and surplus seats fold into retained tab groups.
   Drafts and floating resource identities remain attached to those resources.
@@ -80,10 +88,17 @@ instance with `--background` does not foreground the active instance; initial
 background startup shows inactive when not configured to remain hidden. The
 reference 32x32 caption buttons with top/right 8 DIP are an independent overlay,
 not another 48 DIP row in the content layout. SDK caption/rounded-frame source
-work remains separately recorded by the effects owner.
+is committed in `915edb4`: app-scoped caption options and a 20 DIP native
+DirectComposition clip, including CPU/GPU and ARM64 COM paths. The root's inside
+one-physical-pixel frame ring adds no content padding. Snap/resize remain native.
 
 `DESK-04/05` deeper physical chord recording, stale application menu callbacks and
-fixed-reference desktop integration are assigned to the shortcuts source owner.
+fixed-reference desktop integration are recorded in
+[the physical shortcut source record](source-depth-desktop-shortcuts-20261019.md)
+and committed in `2ba3b072`. Root wires the actual three Host factories and
+defers both native application-menu dispatch and product-close dispatch until
+the current frame has built its modal ownership. Product close targets the
+captured owning window and respects its existing OnClose draft protection.
 No new deeplink routes are inferred: the fixed original has no desktop custom
 URI registration matching the existing Go extension.
 
@@ -110,11 +125,43 @@ URI registration matching the existing Go extension.
   ahead/behind and uses source `CanPush`/`CanCreatePR` gates. No extra fetch,
   account lookup or PR creation is performed by status rendering.
 - Assistant configuration failures reach the Pet settings error receipt.
+- Desktop update feedback comes from actual staging phases, not byte-count
+  inference: checking, downloading, verifying, ready and installing. Source
+  producers in `708e442b` cover full and delta/fallback pipelines. The seat's
+  available gate excludes prereleases like the existing launcher notice.
+- SVG gallery, README, attachment and actual plugin-icon callers share the
+  inert image owner. `009c57bf` admits absolute units and lets the existing
+  helper report real intrinsic sizes for relative/missing dimensions. The app
+  and preview helper must be built together; an older helper's missing metadata
+  is an explicit failure, not an assumed SVG success.
+
+### Transport recovery and retained interactions
+
+The reference reconnect action retires the current transport, not the Host
+process. Root has replaced both restart callbacks with `requestConnectionReconnect`
+and applied the reviewed, attempt-fenced `runDSH` wiring from `32acf481`.
+It keeps the same Mux, Client and Stores, publishes ready only after the current
+`$events` Ready, and ignores old event/analytics projections. Stream handles
+capture their carrier; an old cancel/read failure cannot mutate the replacement.
+
+`1f565763` adds an explicit interaction delivery owner and Retire hook. Transport
+retirement releases that attempt's waiter and HTTP authority, retains callId
+drafts, and creates no permanent Host-cancel tombstone. A same-eventId replay gets
+a new waiter. Old answers, cancellation callbacks and late HTTP results cannot
+consume or remove its replacement. Actual Host Cancel remains separate.
+
+Source implementation is still open for the reference's configurable automatic
+recovery timings, jitter, total Ready deadline and old-generation join. These
+were found by following the actual registered connection producer and bootstrap
+global, not by reading user configuration. No regression preparation begins
+until that owned source and its final main wiring are closed.
 
 ## Evidence status
 
 Source-owner commits include `67a6924`, `590e30f`, `b103ae7`, `b2d7273`,
-`bcf3d5f`, `5c2e6fc`, `4bfd992`, `ff6ac28` and `91e7916`. Domain records retain
+`bcf3d5f`, `5c2e6fc`, `4bfd992`, `ff6ac28`, `91e7916`, `e760f50`, `d93e409`,
+`915edb4`, `2ba3b072`, `b8228820`, `009c57bf`, `32acf481` and `1f565763`.
+Domain records retain
 the exact branch/state evidence and explicit unreviewed branches.
 
 Root has formatted its exclusive source modules and checked their whitespace.

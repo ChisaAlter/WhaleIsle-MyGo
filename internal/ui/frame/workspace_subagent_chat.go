@@ -44,16 +44,7 @@ func subagentChatOpener(m Model) func(uint64, session.AgentSessionAddress) {
 			}
 			n := w.leaf("subagentchat")
 			n.SubagentChat = &SubagentChatPaneState{Root: root, Address: address, Title: title, Lineage: source.AgentChatRestoreLineage(token, address)}
-			if w.Root == nil {
-				w.Root = n
-			} else {
-				current := w.Root.find(w.Active)
-				if current == nil {
-					current = w.Root.firstLeaf()
-				}
-				old := *current
-				*current = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: n}
-			}
+			w.placeDockResource(n, w.Root.find(w.Active), true)
 			w.Active, w.route, w.Fullscreen = n.ID, n.Kind, ""
 			local := w.agentPaneModel(m, n)
 			local.AgentNavigationStore.OpenAgentChatFromCatalog(source, token, root, address, title)

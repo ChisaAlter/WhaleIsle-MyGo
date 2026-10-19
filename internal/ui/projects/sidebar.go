@@ -24,11 +24,11 @@ func View(c *ui.Context, m Model) {
 	m.presentation = ui.Local(section, "project-presentation", newProjectPresentation)
 	section.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
-			category := ui.Button(c, "").Label(tr("项目", "Projects")).Height(36).Grow(1).MinWidth(0).Padding(0, 4).BorderWidth(0).Background(ui.Transparent)
+			category := ui.Button(c, "").Label("Project").Height(36).Grow(1).MinWidth(0).Padding(0, 4).BorderWidth(0).Background(ui.Transparent)
 			category.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
 					projectIcon(c, "chevron", 14, muted, m.Expanded)
-					label := tr("项目", "Projects")
+					label := "Project"
 					if m.History {
 						label += " · " + tr("已归档", "Archived")
 					}
@@ -75,7 +75,17 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Loaded && m.Listing.Available && !m.Busy && len(visible) == 0 {
 			if !m.History && m.SearchQuery == "" {
-				if ui.Button(c, tr("添加项目…", "Add Project…")+"\n"+projectEmptyLabel(m)).FillWidth().MinWidth(0).Padding(8).Clicked() && m.OnCreate != nil {
+				add := ui.Button(c, "").Label(tr("添加 Project…", "Add Project…")).FillWidth().MinWidth(0).Padding(12).Margin(4, 0).Radius(12).Border(1, chrome.Color(colors.Border)).Background(ui.Transparent)
+				add.Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
+						ui.Box(c).Size(28, 28).Radius(8).Background(chrome.Color(colors.Pressed)).AlignItems(ui.Center).Justify(ui.Center).Children(func() { projectIcon(c, "add", 16, fg, false) })
+						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+							ui.Text(c, tr("添加 Project…", "Add Project…")).FontSize(theme.InterfaceSize(14)).FontWeight(500).FixedLineHeight(20)
+							ui.Text(c, tr("添加项目目录，开始持续对话。", "Add a project directory to start a continuing conversation.")).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted)
+						})
+					})
+				})
+				if add.Clicked() && m.OnCreate != nil {
 					m.OnCreate()
 				}
 			} else {
@@ -130,7 +140,19 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 		status := projectSidebarStatus(p)
 		showMenu := row.Hovered() || row.FocusWithin()
 		if status != "" && !showMenu {
-			ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(muted).MaxWidth(96).MinWidth(0).SingleLine().Tooltip(status)
+			ink := muted
+			if p.Lifecycle != "archived" {
+				switch p.Activity.State {
+				case "running", "arranging", "active", "queued":
+					ink = chrome.Color(colors.Accent)
+				case "blocked", "paused", "summaryFailed", "pendingSummary", "needsReview":
+					ink = ui.RGB(221, 134, 41)
+				}
+			}
+			ui.Row(c).Gap(4).MaxWidth(96).MinWidth(0).AlignItems(ui.Center).Tooltip(fmt.Sprintf("%s · %d %s · %d %s", stateLabel(p.Activity.State), p.Activity.Running, tr("进行中", "running"), p.Activity.Queued, tr("排队中", "queued"))).Children(func() {
+				ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(ink)
+				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(ink).MinWidth(0).SingleLine()
+			})
 		}
 		more := projectIconButton(c, "project-row-menu", tr("更多：", "More: ")+p.Title, "more", muted).Disabled(m.Busy)
 		if m.presentation != nil {

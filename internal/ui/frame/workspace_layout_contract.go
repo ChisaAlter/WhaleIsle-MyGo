@@ -10,7 +10,7 @@ import (
 // SidebarRight configures DockKit with two horizontal seats and a .2 minimum
 // fraction. A chip needs 100 DIP after the measured, non-shrinking chrome.
 func (w *WorkspacePanes) canSplit(n *WorkspacePane) bool {
-	if w == nil || n == nil || n.Float != nil || w.Fullscreen != "" {
+	if w == nil || n == nil || n.Float != nil {
 		return false
 	}
 	count := 0
@@ -109,8 +109,35 @@ func validateWorkspaceRestore(w *WorkspacePanes) error {
 			w.Root = &WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: .5, First: keep[0], Second: keep[1]}
 		}
 	}
-	if w.Fullscreen != "" && !seen[w.Fullscreen] {
+	if current := w.Root.find(w.Fullscreen); w.Fullscreen != "" && (current == nil || current.First != nil) {
 		w.Fullscreen = ""
 	}
 	return nil
+}
+
+// placeDockResource follows SidebarRight.place: prefer a new seat only when
+// the mounted dock has room; otherwise retain the new resource as a tab.
+func (w *WorkspacePanes) placeDockResource(added, preferred *WorkspacePane, preferNew bool) {
+	if w.Root == nil {
+		w.Root = added
+		w.Active = added.ID
+		return
+	}
+	if preferred == nil {
+		preferred = w.Root.find(w.Active)
+	}
+	if preferred == nil || preferred.Float != nil {
+		preferred = w.Root.dockedLeaf()
+	}
+	if preferred == nil {
+		preferred = w.Root.firstLeaf()
+	}
+	group := w.Root.dockGroup(preferred.ID)
+	if preferNew && w.canSplit(group) {
+		old := *group
+		*group = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: .5, First: &old, Second: added}
+	} else {
+		setDockTabs(group, append(group.dockTabs(), added))
+		w.activateDockTab(added.ID)
+	}
 }

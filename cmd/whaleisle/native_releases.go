@@ -24,6 +24,8 @@ type nativeReleaseState struct {
 	rows                []update.NativeRelease
 	selected            string
 	busy                bool
+	installing          bool
+	phase               string
 	cancel              context.CancelFunc
 	status              string
 	err                 string
@@ -118,6 +120,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 	s.nativeReleases.route = route
 	s.nativeReleases.busy, s.nativeReleases.cancel = true, cancel
 	s.nativeReleases.status = resumeText("正在读取 MyGo 发布目录…", "Loading MyGo release catalog…")
+	s.nativeReleases.phase = "checking"
 	s.nativeReleases.err = ""
 	s.nativeReleases.received, s.nativeReleases.total = 0, 0
 	s.mu.Unlock()
@@ -160,6 +163,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 				}
 			}
 		}
+		r.phase = settledNativeReleasePhase(*r)
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
 	}()
@@ -184,6 +188,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 	}
 	if requireRuntime && strings.TrimSpace(os.Getenv(paths.EnvVendor)) != "" {
 		r.err = resumeText("当前设置了 WHALEISLE_VENDOR；原生安装器不会覆盖自定义运行时目录。请修复该目录或取消此覆盖后重试。", "WHALEISLE_VENDOR overrides the runtime path. The native installer cannot replace that custom directory; repair it or remove the override before retrying.")
+		r.phase = "error"
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
 		return
@@ -197,6 +202,10 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 	s.startupRecovery.updateAttention.DismissCurrent()
 	r.initialized, r.route, r.busy, r.cancel = true, route, true, cancel
 	r.status, r.err = resumeText("正在选择并校验 MyGo 安装包…", "Selecting and verifying a MyGo installer…"), ""
+	r.phase = ""
+	if len(rows) == 0 {
+		r.phase = "checking"
+	}
 	r.received, r.total = 0, 0
 	s.mu.Unlock()
 	go func() {
@@ -235,7 +244,12 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			if err != nil {
 				return err
 			}
-			staged, err = update.StageNativeReleaseWithOptions(ctx, selected, update.NativeStageOptions{CurrentVersion: buildVersion, CacheDir: cacheDir, RequireRuntime: requireRuntime, DestDir: staging, OnProgress: func(received, total int64) {
+			staged, err = update.StageNativeReleaseWithOptions(ctx, selected, update.NativeStageOptions{CurrentVersion: buildVersion, CacheDir: cacheDir, RequireRuntime: requireRuntime, DestDir: staging, OnPhase: func(phase update.StagePhase) {
+				s.mu.Lock()
+				s.nativeReleases.phase = string(phase)
+				s.mu.Unlock()
+				s.nativeReleaseNotify(win)
+			}, OnProgress: func(received, total int64) {
 				s.mu.Lock()
 				s.nativeReleases.received, s.nativeReleases.total = received, total
 				s.mu.Unlock()
@@ -285,6 +299,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 			r.err = ""
 		}
+		r.phase = settledNativeReleasePhase(*r)
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
 	}()
@@ -300,6 +315,7 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 	}
 	if !update.CanStartStaged(staged) {
 		s.mu.Lock()
+		s.nativeReleases.phase = "error"
 		s.nativeReleases.err = resumeText("当前平台无法启动此安装器。", "This platform cannot start the installer.")
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
@@ -313,11 +329,15 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 		return
 	}
 	s.nativeReleases.busy = true
+	s.nativeReleases.installing = true
+	s.nativeReleases.phase = "installing"
 	s.mu.Unlock()
 	go func() {
 		defer func() {
 			s.mu.Lock()
 			s.nativeReleases.busy = false
+			s.nativeReleases.installing = false
+			s.nativeReleases.phase = settledNativeReleasePhase(s.nativeReleases)
 			s.mu.Unlock()
 			s.nativeReleaseNotify(win)
 		}()
@@ -329,4 +349,19 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 		}
 	}()
 	s.nativeReleaseNotify(win)
+}
+
+func settledNativeReleasePhase(r nativeReleaseState) string {
+	if r.err != "" {
+		return "error"
+	}
+	if r.staged.Path != "" {
+		return "ready"
+	}
+	for _, row := range r.rows {
+		if row.UnavailableReason == "" && !row.Prerelease && update.CompareVersions(row.Version, buildVersion) > 0 {
+			return "available"
+		}
+	}
+	return ""
 }

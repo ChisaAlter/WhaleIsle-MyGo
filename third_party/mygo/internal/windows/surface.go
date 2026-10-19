@@ -33,6 +33,7 @@ var (
 	procImmSetCandidateWindow = imm32.NewProc("ImmSetCandidateWindow")
 	procImmAssociateContextEx = imm32.NewProc("ImmAssociateContextEx")
 	procImmNotifyIME          = imm32.NewProc("ImmNotifyIME")
+	procSurfaceMapVirtualKey  = user32.NewProc("MapVirtualKeyW")
 	surfaceClassRegistered    bool
 	surfaceCursors            = map[platform.Cursor]uintptr{}
 	surfaceWheelLines         = 0
@@ -185,7 +186,7 @@ func (s *surface) toDIP(v int32) float64 { return float64(v) * 96 / float64(s.dp
 // window from then on, and the frames drawn in memory let go of it.
 func (s *surface) Native() platform.SurfaceNative {
 	s.freeComp()
-	return platform.SurfaceNative{HWND: s.hwnd, Composed: s.w.noRedirect}
+	return platform.SurfaceNative{HWND: s.hwnd, Composed: s.w.noRedirect, FrameCornerRadius: s.w.frameRadius()}
 }
 
 // ShowsMaterial reports whether the window shows its material behind the
@@ -383,6 +384,9 @@ func (s *surface) pointer(kind platform.SurfaceEventKind, lp uintptr, button int
 }
 
 func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool) {
+	if result, handled := s.roundedSurfaceMessage(m, wp, lp); handled {
+		return result, true
+	}
 	switch m {
 	case wmPaint:
 		var ps paintStruct
@@ -508,17 +512,22 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		if modifierKey(wp) {
 			s.send(platform.SurfaceEvent{Kind: platform.ModifiersChanged, Mods: mods()})
 		}
-		if k := vkKey(wp); k != platform.KeyUnknown {
-			s.keyTaken = s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: k, Mods: mods(), Repeat: lp&(1<<30) != 0})
+		code := platform.ProductPhysicalCode(productPhysicalVK(uint32(lp)))
+		if k := vkKey(wp); k != platform.KeyUnknown || code != "" || wp == 0xE5 {
+			dead, _, _ := procSurfaceMapVirtualKey.Call(wp, 2)
+			rightAlt, _, _ := procGetKeyState.Call(0xA5)
+			blocked := dead&0x80000000 != 0 || mods()&platform.ModCtrl != 0 && int16(rightAlt) < 0 || wp == 0xE5
+			s.keyTaken = s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: k, Code: code, ShortcutBlocked: blocked, ShortcutDead: dead&0x80000000 != 0, Mods: mods(), Repeat: lp&(1<<30) != 0})
 		}
 		// Alt+F4, Alt+Space and F10 keep working.
-		return 0, m == wmKeyDown
+		return 0, m == wmKeyDown || s.keyTaken && !s.input.Active
 	case wmKeyUp, wmSysKeyUp:
 		if modifierKey(wp) {
 			s.send(platform.SurfaceEvent{Kind: platform.ModifiersChanged, Mods: mods()})
 		}
-		if k := vkKey(wp); k != platform.KeyUnknown {
-			s.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Key: k, Mods: mods()})
+		code := platform.ProductPhysicalCode(productPhysicalVK(uint32(lp)))
+		if k := vkKey(wp); k != platform.KeyUnknown || code != "" {
+			s.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Key: k, Code: code, Mods: mods()})
 		}
 		return 0, m == wmKeyUp
 	case wmSysChar:

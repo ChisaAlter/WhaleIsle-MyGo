@@ -2,7 +2,7 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
-	"path/filepath"
+	"strings"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -76,7 +76,14 @@ func projectObserverHeader(c *ui.Context, m Model) {
 			continue
 		}
 		ui.Row(c).FillWidth().Gap(4).Children(func() {
-			if ui.Button(c, filepath.Base(p.CanonicalWorkingDirectory)).Tooltip(p.CanonicalWorkingDirectory).MaxWidth(280).MinWidth(0).Clicked() && m.Projects.OnProjectDirectoryFor != nil {
+			directory := strings.TrimRight(strings.ReplaceAll(p.CanonicalWorkingDirectory, "\\", "/"), "/")
+			if at := strings.LastIndex(directory, "/"); at >= 0 {
+				directory = directory[at+1:]
+			}
+			if directory == "" {
+				directory = p.CanonicalWorkingDirectory
+			}
+			if ui.Button(c, directory).Tooltip(p.CanonicalWorkingDirectory).MaxWidth(280).MinWidth(0).Clicked() && m.Projects.OnProjectDirectoryFor != nil {
 				m.Projects.OnProjectDirectoryFor(p.ID)
 			}
 			if ui.Button(c, paneLabel("项目概览", "Project overview")).Clicked() {

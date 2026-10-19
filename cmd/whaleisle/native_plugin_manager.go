@@ -123,6 +123,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	creatorReady, creatorDescription, createPlugin := s.pluginCreatorAccess()
 	s.mu.Lock()
 	store := s.settings
+	sessions, win := s.sessions, s.win
 	s.mu.Unlock()
 	contributions := []managerui.Contribution{}
 	if store != nil {
@@ -165,6 +166,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		}
 	}
 	managerui.View(c, managerui.Model{
+		SVGImages:  s.svgImageOwner(win, sessions),
 		Controller: s.nativePluginController(), ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 		Contributions:  contributions,
 		OnCreatePlugin: createPlugin, CreatePluginReady: creatorReady, CreatePluginDescription: creatorDescription,

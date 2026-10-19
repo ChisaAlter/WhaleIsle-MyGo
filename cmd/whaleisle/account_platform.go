@@ -84,7 +84,9 @@ func (s *mainState) openAccountPlatform(page, source string) {
 				path = "/top_up"
 			}
 			host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
-				Parent: win, URL: entry, DisplayURL: session.Origin + path, Title: "Platform", TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
+				ShortcutPreferences:   s.pageShortcutPreferences(),
+				OnShortcutCloseWindow: s.queueProductShortcutClose,
+				Parent:                win, URL: entry, DisplayURL: session.Origin + path, Title: "Platform", TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
 				TransientProfile: true, Untrusted: true, PreloadScript: gateway.Preload(i18n.Locale()), AllowNavigation: gateway.Allows,
 				OnExternalWindow: func(raw string) {
 					if target, ok := gateway.ExternalURL(raw); ok {

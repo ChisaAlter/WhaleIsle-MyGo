@@ -114,6 +114,9 @@ type SurfaceNative struct {
 	// DirectComposition, with the frames' alpha, which the material shows
 	// through.
 	Composed bool
+	// FrameCornerRadius is the outer transparent native-window silhouette in
+	// DIPs (Windows). The renderer removes it while maximized/full-screen.
+	FrameCornerRadius int
 	// View is the surface's NSView and Layer its layer (macOS).
 	View, Layer uintptr
 	// Widget is the surface's GtkGLArea or GtkDrawingArea, and GLArea the
@@ -202,8 +205,13 @@ type SurfaceEvent struct {
 	Key     Key
 	Mods    Modifiers
 	Repeat  bool
-	Text    string
-	Caret   int
+	// Code is a physical DOM code from the native scan code. Empty means
+	// unavailable; callers must not infer position from layout-dependent Key.
+	Code            string
+	ShortcutBlocked bool
+	ShortcutDead    bool
+	Text            string
+	Caret           int
 	// Replace makes TextInput replace, and TextComposition compose over,
 	// the runes From to To of the last TextInputState.Text, instead of the
 	// selection.

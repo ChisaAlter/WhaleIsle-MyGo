@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	desktopcomponents "whaleisle/internal/desktop/components"
+	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/launcher"
@@ -74,6 +75,14 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	s.mu.Lock()
 	win := s.win
+	m.ConnectionReady = s.bootStatus.State == harness.Ready && s.dshMuxReady
+	m.ConnectionConnecting = s.bootStatus.State == harness.Starting || s.bootStatus.State == harness.Ready && !s.dshMuxReady
+	m.ConnectionEpoch = s.bootStatus.Generation
+	m.DesktopUpdateInstalling = s.nativeReleases.installing
+	m.DesktopUpdatePhase, m.DesktopUpdateDetail = s.nativeReleases.phase, strings.TrimSpace(s.nativeReleases.status+" "+s.nativeReleases.err)
+	if m.OnReconnect == nil {
+		m.OnReconnect = s.requestConnectionReconnect
+	}
 	m.RightPaneOpen = s.filesPaneOpen && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen
 	if m.Store == nil {
 		if s.sessions == nil {
@@ -112,6 +121,8 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.launcherTab = launcher.TabHome
 		s.mu.Unlock()
 	}
+	openLauncher := m.OnOpenLauncher
+	m.OnOpenDesktopUpdate = func() { openLauncher(); s.mu.Lock(); s.launcherTab = launcher.TabVersions; s.mu.Unlock() }
 	m.OnOpenSettings = func() {
 		s.mu.Lock()
 		s.settingsEmbeddedSection = ""
