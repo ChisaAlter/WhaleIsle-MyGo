@@ -61,19 +61,32 @@ BrandingText "${PRODUCT_NAME} ${VERSION}"
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
 
+!include "payload-transaction.nsh"
+
 Section "Install"
+  Call wiRememberRegistration
+  Call wiBeginStage
   SetOutPath "$INSTDIR"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\${EXE_NAME}"
+  !insertmacro WI_CheckExtract
   ; Required companion, built from the same source. Never launched by NSIS.
   File "${STAGE_DIR}\whaleisle-preview.exe"
+  !insertmacro WI_CheckExtract
   ; Required native terminal ABI: staged and hashed by tools/stage-terminal.
   File "${STAGE_DIR}\ghostty-vt.dll"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\ghostty-vt.dll.LICENSE"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\terminal-runtime.json"
+  !insertmacro WI_CheckExtract
   ; Resources are selected at compile time, not by a build-machine path at install time.
   SetOutPath "$INSTDIR\resources"
+  !insertmacro WI_CheckExtract
   File /nonfatal /r "${STAGE_DIR}\resources\*.*"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR"
+  !insertmacro WI_CheckExtract
 !ifndef SHELL_ONLY
 !if /FileExists "${STAGE_DIR}\.runtime-staged"
 !else
@@ -84,8 +97,11 @@ Section "Install"
   !error "Required Host runtime/node/node.exe is missing."
 !endif
   SetOutPath "$INSTDIR\runtime"
+  !insertmacro WI_CheckExtract
   File /r "${STAGE_DIR}\runtime\*.*"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR"
+  !insertmacro WI_CheckExtract
 !endif
 
 !ifndef SHELL_ONLY
@@ -95,48 +111,76 @@ Section "Install"
 !endif
   ; Exact manifest selection only; do not package arbitrary sidecar files.
   SetOutPath "$INSTDIR\pet-render-assets\avatar"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\avatar\character.png"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\avatar\model.onnx"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR\pet-render-assets\ort"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.mjs"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.wasm"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.mjs"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.wasm"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort.all.min.js"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR\pet-render-assets"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\LICENSE"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\provenance.json"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR\pet-render-assets\ort"
+  !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
+  !insertmacro WI_CheckExtract
   SetOutPath "$INSTDIR"
+  !insertmacro WI_CheckExtract
 !endif
 
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  !insertmacro WI_CheckExtract
+  Call wiCreateManifest
+  ${If} $wiError != 0
+    SetErrorLevel 2
+    Abort "Cannot create the application ownership manifest. The previous installation was retained."
+  ${EndIf}
+  Call wiPromote
+  ClearErrors
+  StrCpy $wiRegistryTouched "1"
   WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$INSTDIR"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayName" "${PRODUCT_NAME}"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayVersion" "${VERSION}"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher" "DeepSeek"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "InstallLocation" "$INSTDIR"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  !insertmacro WI_CheckExtract
   ; Distinguish this native product from the legacy Electron app sharing APP_ID.
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime" "WhaleIsle-MyGo"
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  !insertmacro WI_CheckExtract
 
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
+  !insertmacro WI_CheckExtract
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\${EXE_NAME}"
+  !insertmacro WI_CheckExtract
   CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${EXE_NAME}"
+  !insertmacro WI_CheckExtract
+  Call wiCommitInstallation
 SectionEnd
 
 Section "Uninstall"
-  Delete "$INSTDIR\${EXE_NAME}"
-  Delete "$INSTDIR\whaleisle-preview.exe"
-  Delete "$INSTDIR\ghostty-vt.dll"
-  Delete "$INSTDIR\ghostty-vt.dll.LICENSE"
-  Delete "$INSTDIR\terminal-runtime.json"
-  RMDir /r "$INSTDIR\resources"
-  RMDir /r "$INSTDIR\runtime"
-  RMDir /r "$INSTDIR\pet-render-assets"
-  Delete "$INSTDIR\Uninstall.exe"
-  RMDir "$INSTDIR"
+  ; Do not remove registration or shortcuts unless owned-payload cleanup
+  ; succeeds. Failed cleanup retargets the retained record to its retry path.
+  Call un.wiRemovePayload
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"
   RMDir "$SMPROGRAMS\${PRODUCT_NAME}"
   Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
