@@ -45,6 +45,9 @@ func TestComposerCurrentCardGeometry(t *testing.T) {
 func TestComposerSendAndStopUseInfoFill(t *testing.T) {
 	for _, busy := range []bool{false, true} {
 		draft := "hello"
+		if busy {
+			draft = ""
+		}
 		sent, stopped := "", false
 		tt := ui.NewTester(func(c *ui.Context) {
 			View(c, Model{Draft: &draft, Snapshot: session.ViewState{PromptBusy: busy}, OnSend: func(s string) { sent = s }, OnStop: func() { stopped = true }})
@@ -77,6 +80,9 @@ func TestComposerResolvedAndCustomPalette(t *testing.T) {
 	for _, colors := range []theme.Colors{theme.Resolve("light").Active(false), theme.Resolve("dark").Active(false), {FG: "#202020", Muted: "#606060", Border: "#888888", InputMajor: "#d7dbdf", SelectorFill: "#adbdbb", ButtonInfoFill: "#ffffff", ButtonFG: "#111111", Accent: "#606060", BG: "#cccccc"}} {
 		for _, busy := range []bool{false, true} {
 			draft := "hello"
+			if busy {
+				draft = ""
+			}
 			tt := ui.NewTester(func(c *ui.Context) {
 				viewWithColors(c, Model{Draft: &draft, WorkspaceRoot: "fixture", Snapshot: session.ViewState{PromptBusy: busy}, OnStop: func() {}}, colors)
 			}, 800, 200)
@@ -124,46 +130,57 @@ func absByte(a, b uint8) int { return int(math.Abs(float64(a) - float64(b))) }
 
 func TestComposerNarrowToolbarKeepsPrimaryAndActionsVisible(t *testing.T) {
 	for _, width := range []int{320, 400, 598} {
-		draft := "hello"
+		d := NewDraftState("hello")
+		selected := 0
 		picked, speech, cycled, skills, modes := 0, 0, 0, 0, 0
-		tt := ui.NewTester(func(c *ui.Context) {
-			View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", OnPickImage: func() { picked++ }, OnPickDirectory: func() {}, OnPickSpeech: func() { speech++ }, OnCycleSpeech: func() { cycled++ }, OnPromptModeChange: func(session.PromptMode) { modes++ }, OnToggleSkills: func(bool) { skills++ }})
-		}, width, 500)
+		model := Model{State: d, Draft: &d.Text, TextInput: d.Client, UseTextInputClient: true, SuggestList: &ui.ListState{Selected: &selected}, WorkspaceRoot: "fixture", OnPickImage: func() { picked++ }, OnPickDirectory: func() {}, OnPickSpeech: func() { speech++ }, OnCycleSpeech: func() { cycled++ }, OnPromptModeChange: func(session.PromptMode) { modes++ }, OnToggleSkills: func(bool) { skills++ }}
+		tt := ui.NewTester(func(c *ui.Context) { View(c, model) }, width, 700)
 		card, _ := tt.Find("Composer card")
 		send, ok := tt.Find(i18n.T(i18n.KeyComposerSend))
 		if !ok {
-			t.Errorf("width %d lost primary", width)
-			continue
+			t.Fatalf("width %d lost primary", width)
 		}
 		closeMetric(t, send.W, 34, "narrow primary width")
 		closeMetric(t, send.H, 34, "narrow primary height")
 		closeMetric(t, card.X+card.W-(send.X+send.W), 8, "narrow primary right inset")
-		for _, label := range []string{i18n.T(i18n.KeyComposerSpeech), i18n.T(i18n.KeyComposerSpeechCycle), i18n.T(i18n.KeyComposerModeQueue), i18n.T(i18n.KeyComposerSkills)} {
-			r, ok := tt.Find(label)
-			if !ok {
-				t.Errorf("width %d lost %q", width, label)
-				continue
+		if card.H > 120 {
+			t.Fatalf("idle tools expanded card at width %d: %v", width, card)
+		}
+		for _, label := range []string{composerText("添加文件", "Add files"), composerText("转写语音文件", "Transcribe audio file"), composerText("切换语音服务", "Change speech provider"), composerText("忙碌时排队", "Queue while busy"), composerText("技能", "Skills")} {
+			if tt.HasText(label) {
+				t.Fatalf("idle tool %q is permanently visible", label)
 			}
-			if r.X < card.X || r.X+r.W > card.X+card.W {
-				t.Errorf("width %d action %q escaped card: %v", width, label, r)
-			}
-			if err := tt.Click(label); err != nil {
+			if err := tt.Click("+"); err != nil {
 				t.Fatal(err)
 			}
-		}
-		if err := tt.Click("添加文件 / Add files"); err != nil {
-			t.Fatal(err)
+			if !tt.HasText(label) {
+				t.Fatalf("width %d tool %q missing from +", width, label)
+			}
+			// Select through the same list and Enter path as the native keyboard.
+			items := buildSuggestItems(model, SuggestSlash, "")
+			for i, item := range items {
+				if item.label == label {
+					selected = i
+					break
+				}
+			}
+			tt.Key(0, ui.KeyEnter)
+			if d.Text != "hello" {
+				t.Fatalf("tool %q replaced draft: %q", label, d.Text)
+			}
 		}
 		if picked != 1 || speech != 1 || cycled != 1 || skills != 1 || modes != 1 {
-			t.Errorf("width %d callbacks pick=%d speech=%d cycle=%d skills=%d modes=%d", width, picked, speech, cycled, skills, modes)
+			t.Fatalf("width %d callbacks pick=%d speech=%d cycle=%d skills=%d modes=%d", width, picked, speech, cycled, skills, modes)
 		}
 	}
 }
-
 func TestComposerLongModelLabelsKeepPrimaryVisible(t *testing.T) {
 	for _, width := range []int{320, 400, 598, 800, 1200} {
 		for _, busy := range []bool{false, true} {
 			draft := "hello"
+			if busy {
+				draft = ""
+			}
 			model := strings.Repeat("DeepSeek-Reasoner-Extended-", 3)
 			permission := strings.Repeat("Workspace write ", 3)
 			preset := strings.Repeat("Coding Agent ", 3)

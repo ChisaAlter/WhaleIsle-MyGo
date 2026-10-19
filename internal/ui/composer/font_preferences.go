@@ -1,3 +1,5 @@
 package composer
 
-func (c *DraftClient) lineHeight() float32 { return draftInputLineHeight * c.font.Size / 14 }
+func composerLineHeight(size float32) float32 { return size + 10 }
+
+func (c *DraftClient) lineHeight() float32 { return composerLineHeight(c.font.Size) }

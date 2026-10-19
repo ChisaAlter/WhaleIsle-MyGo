@@ -90,6 +90,9 @@ func TestShellColumnGeometryPaintBounds(t *testing.T) {
 		evidence = append(evidence, got)
 	}
 	if dir := os.Getenv("SHELL_SNAPSHOT_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
 		data, err := json.MarshalIndent(evidence, "", "  ")
 		if err != nil {
 			t.Fatal(err)

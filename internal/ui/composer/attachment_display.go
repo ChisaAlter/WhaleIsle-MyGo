@@ -186,58 +186,60 @@ func attachmentDisplayStatus(d *DraftState, i int) string {
 }
 func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 	d := m.State
-	ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(210).Padding(0, 14).Children(func() {
-		for i, a := range d.Attachments {
-			i, a := i, a
-			label := a.Name
-			if label == "" {
-				label = filepath.Base(a.Path)
-			}
-			card := ui.Column(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Width(200).Height(196).Gap(3).Padding(5).Border(1, c.Theme().Border)
-			seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
-			seat.load(a, false, c.Services().Invalidate)
-			remove := false
-			card.Children(func() {
-				ui.Text(c, label).FontSize(12).TextColor(fg).MaxLines(1)
-				if seat.result == nil {
-					ui.Text(c, "读取信息 / Reading…").FontSize(10)
-				} else {
-					v := seat.result
-					if v.bitmap != nil {
-						v.animate(c)
-						preview := ui.Box(c).FillWidth().Height(48).Focusable().Label("Preview attachment " + label)
-						preview.Children(func() { ui.Image(c, v.bitmap).Fill().Fit(ui.Contain) })
-						if preview.Clicked() || preview.Shortcut(0, ui.KeyEnter) {
-							seat.open = true
+	if len(d.Attachments) > 0 {
+		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(210).Padding(0, 14).Children(func() {
+			for i, a := range d.Attachments {
+				i, a := i, a
+				label := a.Name
+				if label == "" {
+					label = filepath.Base(a.Path)
+				}
+				card := ui.Column(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Width(200).Height(196).Gap(3).Padding(5).Border(1, c.Theme().Border)
+				seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
+				seat.load(a, false, c.Services().Invalidate)
+				remove := false
+				card.Children(func() {
+					ui.Text(c, label).FontSize(12).TextColor(fg).MaxLines(1)
+					if seat.result == nil {
+						ui.Text(c, "读取信息 / Reading…").FontSize(10)
+					} else {
+						v := seat.result
+						if v.bitmap != nil {
+							v.animate(c)
+							preview := ui.Box(c).FillWidth().Height(48).Focusable().Label("Preview attachment " + label)
+							preview.Children(func() { ui.Image(c, v.bitmap).Fill().Fit(ui.Contain) })
+							if preview.Clicked() || preview.Shortcut(0, ui.KeyEnter) {
+								seat.open = true
+							}
+						}
+						typ := v.mediaType
+						if typ == "" {
+							typ = "file"
+						}
+						ui.Text(c, fmt.Sprintf("%s · %d bytes", typ, v.bytes)).FontSize(10).TextColor(muted).MaxLines(1)
+						if v.err != nil {
+							ui.Text(c, "预览不可用 / Preview unavailable").FontSize(10).TextColor(muted)
 						}
 					}
-					typ := v.mediaType
-					if typ == "" {
-						typ = "file"
+					ui.Text(c, attachmentDisplayStatus(d, i)).FontSize(11).TextColor(muted)
+					if a.PrepareError != "" {
+						ui.Text(c, a.PrepareError).FontSize(10).MaxLines(1)
+						if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(10).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
+							m.OnRetryAttachment(i)
+						}
 					}
-					ui.Text(c, fmt.Sprintf("%s · %d bytes", typ, v.bytes)).FontSize(10).TextColor(muted).MaxLines(1)
-					if v.err != nil {
-						ui.Text(c, "预览不可用 / Preview unavailable").FontSize(10).TextColor(muted)
+					if ui.Button(c, label+" ×").Label("Remove attachment " + label).FontSize(10).Disabled(d.Sending).Clicked() {
+						remove = true
 					}
+				})
+				if remove {
+					d.RemoveAttachment(i)
+					break
 				}
-				ui.Text(c, attachmentDisplayStatus(d, i)).FontSize(11).TextColor(muted)
-				if a.PrepareError != "" {
-					ui.Text(c, a.PrepareError).FontSize(10).MaxLines(1)
-					if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(10).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
-						m.OnRetryAttachment(i)
-					}
-				}
-				if ui.Button(c, label+" ×").Label("Remove attachment " + label).FontSize(10).Disabled(d.Sending).Clicked() {
-					remove = true
-				}
-			})
-			if remove {
-				d.RemoveAttachment(i)
-				break
+				paintAttachmentOriginal(c, seat, a, label)
 			}
-			paintAttachmentOriginal(c, seat, a, label)
-		}
-	})
+		})
+	}
 	if d.Error != "" {
 		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14)
 	}

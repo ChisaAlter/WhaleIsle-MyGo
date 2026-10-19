@@ -67,27 +67,53 @@ func (w *WorkspacePanes) DropWorkspaceTab(id, destination, edge string) bool {
 	return true
 }
 
-// The labeled landing strip remains stable during the gesture, including in
-// narrow docks. No mutation occurs on hover; ui's value drag cancels on Escape.
-func workspaceDockDropTargets(c *ui.Context, m Model) {
+// PaneDropHints lives above the body only during a tab gesture. The pane's
+// own typed destination discovers an incoming drag; the saved flag keeps its
+// hints mounted while the pointer is over one of those child destinations.
+func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 	w, n := m.Sizes.Workspace, m.workspacePane
-	ui.ScrollHorizontal(c).FillWidth().Height(29).Children(func() {
-		ui.Row(c).Gap(3).Padding(2).Children(func() {
-			for _, item := range []struct{ edge, zh, en string }{
-				{"left", "← 左侧", "← Left"}, {"right", "右侧 →", "Right →"},
-				{"top", "↑ 上方", "↑ Above"}, {"bottom", "↓ 下方", "↓ Below"},
-				{"tabs", "标签组", "Tabs"}, {"float", "↗ 浮窗", "↗ Float"},
-			} {
-				item := item
-				zone := ui.Box(c).Key("dock-drop:"+item.edge).Height(24).Padding(3).Border(1, c.Theme().Border).Label("Dock drop " + item.edge)
-				zone.Children(func() { ui.Text(c, paneLabel(item.zh, item.en)).FontSize(theme.InterfaceSize(10)) })
-				if _, over := ui.DragOver[workspaceTabDrag](zone); over {
-					zone.Border(2, c.Theme().Accent).Background(c.Theme().Background)
-				}
-				if payload, ok := ui.Drop[workspaceTabDrag](zone); ok {
-					w.pending = func() { w.DropWorkspaceTab(payload.ID, n.ID, item.edge) }
-				}
+	_, overPane := ui.DragOver[workspaceTabDrag](surface)
+	visible := ui.Local(surface, "workspace-dock-hints", func() bool { return false })
+	show := overPane || n.tabDragging || *visible
+	if !show {
+		return
+	}
+	childOver := false
+	width, height := surface.Bounds().W, max(float32(0), surface.Bounds().H-38)
+	ui.Box(c.Key("workspace-dock-hints")).Absolute().Left(0).Right(0).Top(38).Bottom(0).PassThrough().Children(func() {
+		for _, item := range []struct {
+			edge, zh, en string
+			x, y, w, h   float32
+		}{
+			{"left", "左侧", "Left", 0, 0, width * .4, height},
+			{"right", "右侧", "Right", width * .6, 0, width * .4, height},
+			{"top", "上方", "Above", width * .4, 0, width * .2, height * .4},
+			{"bottom", "下方", "Below", width * .4, height * .6, width * .2, height * .4},
+			{"tabs", "标签组", "Tabs", width * .4, height * .4, width * .2, height * .2},
+		} {
+			item := item
+			zone := ui.Box(c.Key("dock-drop:" + item.edge)).Absolute().Left(item.x).Top(item.y).
+				Width(item.w).Height(item.h).Padding(8).Label("Dock drop " + item.edge)
+			_, over := ui.DragOver[workspaceTabDrag](zone)
+			if over {
+				childOver = true
 			}
-		})
+			// Original dockHint reserves a 40% side or the whole center;
+			// feedback paints only the active destination over the body.
+			if over {
+				zone.Children(func() {
+					ui.Box(c).Fill().Radius(12).Background(c.Theme().Surface).Border(1.5, c.Theme().Accent).
+						AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Text(c, paneLabel(item.zh, item.en)).FontSize(theme.InterfaceSize(13)).FontWeight(500) })
+				})
+			}
+			if payload, ok := ui.Drop[workspaceTabDrag](zone); ok {
+				w.pending = func() { w.DropWorkspaceTab(payload.ID, n.ID, item.edge) }
+			}
+		}
 	})
+	keep := overPane || n.tabDragging || childOver
+	if *visible != keep {
+		*visible = keep
+		c.Invalidate()
+	}
 }

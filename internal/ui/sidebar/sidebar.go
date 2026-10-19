@@ -236,80 +236,19 @@ func View(c *ui.Context, m Model) {
 			projects.View(c, m.Projects)
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
-				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeySidebarWorkspaceSection)).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(muted).Grow(1)
-					if m.OnRefresh != nil {
-						if ui.Button(c, "⌕").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-							TextColor(muted).Clicked() {
-							m.OnRefresh()
-						}
-					} else {
-						ui.Text(c, "⌕").FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					}
-					if ui.Button(c, "☰").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-						TextColor(muted).Clicked() {
-						*menuOpen = !*menuOpen
-					}
-					if m.OnCreate != nil {
-						if ui.Button(c, "＋").FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-							TextColor(muted).Clicked() {
-							m.OnCreate()
-						}
-					} else {
-						ui.Text(c, "＋").FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					}
-				})
-				if *menuOpen {
-					menuBG := chrome.Color(colors.Field)
-					ui.Column(c).FillWidth().Background(menuBG).Border(1, border).
-						Radius(10).Padding(6, 8, 6, 8).Gap(2).Children(func() {
-						workspaceViewOptions(c, m)
-						if ui.Button(c, i18n.T(i18n.KeySidebarBrowseWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-							TextColor(fg).FillWidth().Clicked() {
-							*menuOpen = false
-							if m.OnBrowseWorkspace != nil {
-								m.OnBrowseWorkspace()
-							}
-						}
-						if ui.Button(c, i18n.T(i18n.KeySidebarRevealWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-							TextColor(fg).FillWidth().Clicked() {
-							*menuOpen = false
-							if m.OnRevealWorkspace != nil {
-								m.OnRevealWorkspace()
-							}
-						}
-						if m.OnRenameWorkspace != nil {
-							if ui.Button(c, i18n.T(i18n.KeySidebarRenameWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).TextColor(fg).FillWidth().Clicked() {
-								*menuOpen = false
-								m.OnRenameWorkspace("")
-							}
-						}
-						if m.OnDeleteWorkspace != nil {
-							if ui.Button(c, i18n.T(i18n.KeySidebarDeleteWorkspace)).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-								TextColor(fg).FillWidth().Clicked() {
-								*menuOpen = false
-								m.OnDeleteWorkspace()
-							}
-						}
+				workspaceHeading(c, m, menuOpen, fg, muted)
+				if len(m.Snapshot.Workspaces) == 0 {
+					// Rows.module.css .projectRow height 34.
+					folder := ui.Button(c, "").FillWidth().Height(34).BorderWidth(0).Background(ui.Transparent).
+						Padding(0, 0, 0, 0).Radius(8)
+					folder.Children(func() {
+						ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, "📁").FontSize(theme.InterfaceSize(13))
+							ui.Text(c, base).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+						})
 					})
-				}
-				// Rows.module.css .projectRow height 34.
-				folder := ui.Button(c, "").FillWidth().Height(34).BorderWidth(0).Background(ui.Transparent).
-					Padding(0, 0, 0, 0).Radius(8)
-				folder.Children(func() {
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "📁").FontSize(theme.InterfaceSize(13))
-						ui.Text(c, base).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-					})
-				})
-				if folder.Clicked() && m.OnBrowseWorkspace != nil {
-					m.OnBrowseWorkspace()
-				}
-				if m.SearchQuery != nil {
-					searchInput := ui.TextInput(c, m.SearchQuery).FillWidth().Placeholder(i18n.T(i18n.KeySidebarSearch))
-					if m.SearchFocus != nil && *m.SearchFocus {
-						searchInput.Focus()
-						*m.SearchFocus = false
+					if folder.Clicked() && m.OnBrowseWorkspace != nil {
+						m.OnBrowseWorkspace()
 					}
 				}
 				batchToolbar(c, m, fg)
@@ -334,17 +273,7 @@ func View(c *ui.Context, m Model) {
 							if batchRow(c, m, aid, label, muted) {
 								continue
 							}
-							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
-								ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
-								if m.OnUnarchive != nil {
-									if ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).FontSize(theme.InterfaceSize(11)).Clicked() {
-										m.OnUnarchive(aid)
-									}
-								}
-								if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).FontSize(theme.InterfaceSize(11)).Clicked() {
-									m.OnDelete(aid)
-								}
-							})
+							rowArchivedSession(c, aid, label, m, muted)
 						}
 					}
 				})
@@ -378,115 +307,88 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if batchRow(c, m, it.SessionID, it.Title, fg) {
 		return
 	}
-	pad := float32(8 + depth*12)
 	selected := it.SessionID == m.Snapshot.SelectedID
 	renaming := m.RenameSessionID == it.SessionID && m.RenameDraft != nil
-	label := it.Title
-	if depth > 0 && !renaming {
-		label = "↳ " + label
-	}
-	if it.Pinned && !renaming {
-		label = i18n.T(i18n.KeySidebarPinnedPrefix) + label
-	}
 	status := sessionStatus(m, it)
-	if !renaming {
-		label = statusPrefix(status) + label
+	label := it.Title
+	if it.Blank {
+		label = i18n.T(i18n.KeySidebarNewSessionFallback)
 	}
-	taskHint := ""
+	if strings.TrimSpace(label) == "" {
+		label = workspaceText("未命名会话", "Untitled session")
+	}
+	hint := label
+	if it.Cwd != "" {
+		hint += "\n" + it.Cwd
+	}
+	if text := statusLabel(status); text != "" {
+		hint += "\n" + text
+	}
 	for _, task := range schedstore.ActiveForSession(m.Schedules, it.SessionID) {
-		taskHint += task.Title + " · " + schedstore.TimingLabel(task) + "\n"
+		hint += "\n" + task.Title + " · " + schedstore.TimingLabel(task)
 	}
-	if taskHint != "" && !it.Running && !renaming {
-		label = "◷ " + label
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	row := ui.Button(c, "").Label(label).Tooltip(hint).FillWidth().Height(32).Radius(8).
+		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).AlignItems(ui.Center)
+	if selected || row.Hovered() || row.FocusWithin() {
+		row.Background(selectedBackground(colors))
 	}
-	titleColor := fg
-	metaColor := muted
-	bg := ui.Transparent
-	if selected {
-		bg = selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark))
+	menu := sessionRowMenu(m, it)
+	if !it.Blank && !renaming {
+		row.ContextMenu(menu)
 	}
-	// WorkspaceBrowser Rows.module.css: .sessionRow height 32; selected uses hover fill.
-	if renaming {
-		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Padding(4, 8, 4, 8).Children(func() {
-			inp := ui.TextInput(c, m.RenameDraft).Grow(1).Disabled(m.RenameBusy)
-			if inp.Changed() && m.OnRenameDraftChanged != nil {
-				m.OnRenameDraftChanged(*m.RenameDraft)
-			}
-			if inp.Submitted() && !m.RenameBusy && m.OnCommitRename != nil {
-				m.OnCommitRename(it.SessionID, *m.RenameDraft)
-			}
-			if ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).Disabled(m.RenameBusy).Clicked() && m.OnCancelRename != nil {
-				m.OnCancelRename()
-			}
-		})
-		if m.RenameError != "" {
-			ui.Text(c, m.RenameError).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		return
-	}
-	if !selected {
-		row := ui.Button(c, "").Tooltip(statusLabel(status)+"\n"+taskHint).FillWidth().Height(32).Radius(8).
-			Background(bg).BorderWidth(0).
-			Padding(0, 8, 0, pad).AlignItems(ui.Center)
-		row.Children(func() {
-			ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor).Grow(1)
-		})
-		sessionDragSource(row, m, it)
-		sessionDropTarget(row, m, it, false, fg)
-		if m.sessionDrag != nil {
-			after := ui.Box(c.Key(sessionRowKey{m.Snapshot.WorkspaceLayout.HostGeneration, m.sessionDrag.Workspace, "after/" + it.SessionID})).FillWidth().Height(5)
-			sessionDropTarget(after, m, it, true, fg)
-		}
-		if m.OnSelect != nil && row.Clicked() {
-			m.OnSelect(it.SessionID)
-		}
-		_ = metaColor
-		_ = border
-		return
-	}
-	// Selected: title + optional cwd + action strip (overflow menu proxy).
-	cell := ui.Column(c).Tooltip(statusLabel(status)).FillWidth().Padding(6, 8, 6, pad).Gap(4).Background(bg).Radius(8)
-	cell.Children(func() {
-		title := ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(titleColor)
-		sessionDragSource(title, m, it)
-		if taskHint != "" {
-			ui.Text(c, strings.TrimSpace(taskHint)).FontSize(theme.InterfaceSize(11)).TextColor(metaColor)
-		}
-		if it.Cwd != "" {
-			ui.Text(c, it.Cwd).FontSize(theme.InterfaceSize(11)).TextColor(metaColor)
-		}
-		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-			if it.Pinned {
-				if m.OnUnpin != nil && ui.Button(c, i18n.T(i18n.KeySidebarUnpin)).Tooltip(i18n.T(i18n.KeySidebarUnpin)).FontSize(theme.InterfaceSize(11)).Clicked() {
-					m.OnUnpin(it.SessionID)
+	row.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(0).Children(func() {
+			sessionStatusSlot(c, status, muted)
+			if renaming {
+				input := ui.TextInput(c.Key("session-rename"), m.RenameDraft).MinWidth(0).Grow(1).Height(24).
+					FontSize(theme.InterfaceSize(14)).Disabled(m.RenameBusy)
+				first := ui.Local(input, "rename-focus", func() bool { return true })
+				if *first {
+					input.Focus()
+					*first = false
 				}
-			} else if m.OnPin != nil && ui.Button(c, i18n.T(i18n.KeySidebarPin)).Tooltip(i18n.T(i18n.KeySidebarPin)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnPin(it.SessionID)
+				if input.Changed() && m.OnRenameDraftChanged != nil {
+					m.OnRenameDraftChanged(*m.RenameDraft)
+				}
+				if input.Submitted() && !m.RenameBusy && m.OnCommitRename != nil {
+					m.OnCommitRename(it.SessionID, *m.RenameDraft)
+				}
+				if input.Shortcut(0, ui.KeyEscape) && !m.RenameBusy && m.OnCancelRename != nil {
+					m.OnCancelRename()
+				}
+				if ui.Button(c, "×").Label(i18n.T(i18n.KeySidebarRenameCancel)).Width(16).Height(20).Padding(0).
+					BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(m.RenameBusy).Clicked() && m.OnCancelRename != nil {
+					m.OnCancelRename()
+				}
+				return
 			}
-			if m.OnMoveSessionBefore != nil && ui.Button(c, i18n.T(i18n.KeySidebarMoveUp)).Tooltip(i18n.T(i18n.KeySidebarMoveUp)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnMoveSessionBefore(it.SessionID, "")
-			}
-			if m.OnBeginRename != nil && ui.Button(c, i18n.T(i18n.KeySidebarRename)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnBeginRename(it.SessionID, it.Title)
-			}
-			if m.OnArchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarArchive)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnArchive(it.SessionID)
-			}
-			if m.OnCopySessionID != nil && ui.Button(c, i18n.T(i18n.KeySidebarCopyID)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnCopySessionID(it.SessionID)
-			}
-			if m.OnFork != nil && ui.Button(c, i18n.T(i18n.KeySidebarFork)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				m.OnFork(it.SessionID)
+			ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).
+				Padding(0, 6, 0, 4).SingleLine()
+			if !it.Blank {
+				more := ui.Button(c.Key("session-menu"), "…").Label(sessionActionsLabel(it.SessionID)).
+					Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(20).Padding(0).
+					BorderWidth(0).Background(ui.Transparent).TextColor(muted).Menu(menu)
+				// Keep the trigger in the tab order; focus reveals the same glyph as hover.
+				if !row.Hovered() && !row.FocusWithin() && !more.Focused() {
+					more.Opacity(0)
+				}
 			}
 		})
 	})
-	sessionDropTarget(cell, m, it, false, fg)
+	if !renaming {
+		sessionDragSource(row, m, it)
+		sessionDropTarget(row, m, it, false, fg)
+		if row.Clicked() && m.OnSelect != nil {
+			m.OnSelect(it.SessionID)
+		}
+	}
 	if m.sessionDrag != nil {
 		after := ui.Box(c.Key(sessionRowKey{m.Snapshot.WorkspaceLayout.HostGeneration, m.sessionDrag.Workspace, "after/" + it.SessionID})).FillWidth().Height(5)
 		sessionDropTarget(after, m, it, true, fg)
 	}
-	if m.OnSelect != nil && cell.Clicked() {
-		m.OnSelect(it.SessionID)
+	if renaming && m.RenameError != "" {
+		ui.Text(c, m.RenameError).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	_ = border
 }

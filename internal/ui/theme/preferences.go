@@ -12,6 +12,11 @@ type FontPreference struct {
 	Family string  `json:"family"`
 	Size   float32 `json:"size"`
 }
+
+// DefaultTextFamily mirrors ui-theme/src/styles/base.css. MyGo resolves the
+// comma-separated families in order, including CJK fallbacks after Segoe UI.
+const DefaultTextFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+
 type Seed struct {
 	Background string `json:"background"`
 	Foreground string `json:"foreground"`
@@ -35,7 +40,7 @@ type Preferences struct {
 }
 
 func Defaults() Preferences {
-	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Size: 14}, Chat: FontPreference{Size: 14}, Code: FontPreference{Family: "monospace", Size: 13}, Composer: FontPreference{Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
+	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Family: DefaultTextFamily, Size: 14}, Chat: FontPreference{Family: DefaultTextFamily, Size: 14}, Code: FontPreference{Family: "monospace", Size: 13}, Composer: FontPreference{Family: DefaultTextFamily, Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
 }
 func (p Preferences) Clone() Preferences { p.Custom = append([]Family(nil), p.Custom...); return p }
 func (p Preferences) Normalized() Preferences {
@@ -153,10 +158,21 @@ func palette(s Seed, dark bool) Colors {
 	c.Titlebar = c.Sidebar
 	c.Border = mix(c.BG, c.FG, .12)
 	c.Hover = mix(c.BG, c.FG, .08)
+	c.Pressed = deepseekLight.Pressed
+	if dark {
+		c.Pressed = deepseekDark.Pressed
+	}
 	c.Bubble = mix(c.BG, c.Accent, .12)
 	c.InputMajor = c.Field
 	c.SelectorFill = c.Field
 	c.ButtonInfoFill = c.Accent
+	// Custom families use the original derive.ts info-hover tint. The original
+	// info button has no separate active rule, so native pressed uses this too.
+	tint := "#000000"
+	if dark {
+		tint = "#ffffff"
+	}
+	c.ButtonInfoHover = mix(c.Accent, tint, .18)
 	c.ButtonFG = c.BG
 	return c
 }

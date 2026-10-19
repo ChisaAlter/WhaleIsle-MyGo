@@ -591,7 +591,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 		// Electron desktop defaults to 2-column (rail | chat). Files/diff mounts
 		// only when FilePaneWidth > 0 (tools toggle); otherwise chat fills.
 		paintChat := func() {
-			emptyHero := len(snap.Messages) == 0 && !hasSessionInteractions(m.Interactions, snap.SelectedID)
+			phase := conversationPhase(snap, hasSessionInteractions(m.Interactions, snap.SelectedID))
+			emptyHero := phase == conversationHero
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
@@ -602,9 +603,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				projectObserverHeader(c, m)
-				if snap.SelectedID != "" {
-					ui.Row(c).FillWidth().Padding(2, 16, 2, 16).Children(func() { sessionAncestryHeader(c, m, snap) })
-				}
 				if emptyHero {
 					// EmptyHero: blank header band (no Initialize Git / layout glyphs).
 					// Keep a thin drag strip for the Windows caption region only.
@@ -615,84 +613,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				} else {
 					// Electron: caption row (workspace + actions) then 对话/轨迹 tabs.
 					ui.Column(c).FillWidth().Children(func() {
-						ui.Row(c).FillWidth().Padding(2, 16, 0, 16).AlignItems(ui.Center).Gap(10).DragWindow().Children(func() {
-							title := m.WorkspaceRoot
-							if title == "" {
-								title = i18n.T(i18n.KeyAppName)
-							} else if i := strings.LastIndexAny(title, `/\`); i >= 0 && i+1 < len(title) {
-								title = title[i+1:]
-							}
-							ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(chrome.Color(colors.FG))
-							if m.OnOpenLauncher != nil {
-								if ui.Button(c, "···").Tooltip(i18n.T(i18n.KeyLauncherOpen)).
-									FontSize(14).BorderWidth(0).Background(ui.Transparent).
-									TextColor(muted).Clicked() {
-									m.OnOpenLauncher()
-								}
-							} else {
-								ui.Text(c, "···").FontSize(theme.InterfaceSize(14)).TextColor(muted)
-							}
-							ui.Box(c).Grow(1).MinWidth(0)
-							jobsHeader(c, m)
-							agentsCaption := i18n.T(i18n.KeyFrameCaptionAgents)
-							docsCaption := i18n.T(i18n.KeyFrameCaptionProjectDocs)
-							if m.OnOpenAgents != nil {
-								if ui.Button(c, agentsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
-									Background(ui.Transparent).TextColor(muted).Clicked() {
-									m.OnOpenAgents()
-								}
-							} else if m.OnOpenAssistant != nil {
-								if ui.Button(c, agentsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
-									Background(ui.Transparent).TextColor(muted).Clicked() {
-									m.OnOpenAssistant()
-								}
-							} else {
-								ui.Text(c, agentsCaption).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							}
-							if !m.TitlebarPreferences.HideSurfacesToggle && m.OnToggleTools != nil {
-								if ui.Button(c, docsCaption).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
-									Background(ui.Transparent).TextColor(muted).Clicked() {
-									m.OnToggleTools()
-								}
-							} else {
-								ui.Text(c, docsCaption).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							}
-							if m.OnOpenLauncher != nil {
-								if ui.Button(c, "⌂").Tooltip(i18n.T(i18n.KeyLauncherOpen)).
-									FontSize(13).BorderWidth(0).Background(ui.Transparent).
-									TextColor(muted).Clicked() {
-									m.OnOpenLauncher()
-								}
-							}
-							if !m.TitlebarPreferences.HideTerminalToggle && m.OnOpenHostTerminal != nil {
-								if ui.Button(c, termui.HostTitle()).FontSize(theme.InterfaceSize(11)).Clicked() {
-									m.OnOpenHostTerminal()
-								}
-							}
-							if !m.TitlebarPreferences.HideTerminalToggle && m.OnToggleTerminal != nil {
-								if ui.Button(c, "▤").Tooltip(i18n.T(i18n.KeyTerminalTitle)).
-									FontSize(13).BorderWidth(0).Background(ui.Transparent).
-									TextColor(muted).Clicked() {
-									m.OnToggleTerminal()
-								}
-							}
-							if !m.TitlebarPreferences.HideSurfacesToggle && m.OnToggleTools != nil {
-								if ui.Button(c, "▦").Tooltip(i18n.T(i18n.KeyDesktopTools)).
-									FontSize(13).BorderWidth(0).Background(ui.Transparent).
-									TextColor(muted).Clicked() {
-									m.OnToggleTools()
-								}
-							}
-							if m.OnOpenSettings != nil {
-								if ui.Button(c, "⚙").Tooltip(i18n.T(i18n.KeySettingsOpen)).
-									FontSize(13).BorderWidth(0).Background(ui.Transparent).
-									TextColor(muted).Clicked() {
-									m.OnOpenSettings()
-								}
-							}
-						})
-						if !m.HideChatViewTabs {
-							ui.Row(c).FillWidth().Padding(1, 16, 0, 16).AlignItems(ui.End).Gap(20).Children(func() {
+						conversationHeaderTitleRow(c, m, snap, colors)
+						if !m.HideChatViewTabs && !m.DisableDeveloperTools {
+							ui.Row(c).FillWidth().Padding(4, 28, 0, 28).AlignItems(ui.End).Gap(36).Children(func() {
 								tab := "chat"
 								if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 									tab = strings.TrimSpace(*m.ChatPaneTab)
@@ -700,20 +623,21 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								paintTab := func(id, label string) {
 									active := tab == id
 									ink := muted
-									weight := 400
+									weight := 500
 									if active {
 										ink = chrome.Color(colors.Accent)
-										weight = 700
 									}
-									ui.Column(c).Gap(3).Children(func() {
-										b := ui.Button(c, label).FontSize(theme.InterfaceSize(14)).FontWeight(weight).
+									ui.Column(c).Children(func() {
+										b := ui.Button(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16)).FontWeight(weight).
 											BorderWidth(0).Background(ui.Transparent).TextColor(ink).
-											Padding(0, 0, 6, 0)
+											Padding(0, 0, 9, 0)
 										if b.Clicked() && m.ChatPaneTab != nil {
 											*m.ChatPaneTab = id
 										}
 										if active {
-											ui.Box(c).Width(38).Height(2).Background(chrome.Color(colors.Accent))
+											ui.Box(c).FillWidth().Height(2).Background(chrome.Color(colors.Accent)).Radius(2)
+										} else {
+											ui.Box(c).FillWidth().Height(2)
 										}
 									})
 								}
@@ -723,7 +647,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								}
 								ui.Box(c).Grow(1).MinWidth(0)
 							})
-							ui.Box(c).FillWidth().Height(1).Background(border)
+							ui.Box(c).FillWidth().Height(0.5).Background(border)
 						}
 					})
 				}
@@ -764,7 +688,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						TypingFxStyle:        m.ConversationPreferences.TypingFxStyle,
 						ResizeEnabled:        m.ConversationPreferences.ComposerResize,
 						Resize:               m.ComposerResize,
-						ResizeMaxWidth:       maxf(0, m.Sizes.Center-32),
+						ResizeMaxWidth:       maxf(0, m.Sizes.Center-conversationScrollGutter-32),
 						OnResizeEnd:          m.OnComposerResizeEnd,
 						Snapshot:             snap,
 						ThemeID:              m.ThemeID,
@@ -896,291 +820,282 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 					contentAxis = m.Sizes.conversationWidth(colW)
 				}
-				// Transcript clears32 per side. InputBar owns its16 side pads,
-				// so its outer envelope must be content+64 to produce a card W+32.
-				chatContentW := min(contentAxis, maxf(0, colW-64))
-				composerOuterW := min(contentAxis+64, maxf(0, colW))
-				heroStackW := min(contentAxis+32, maxf(0, colW-48))
+				// ConversationRoot owns W. InputBar alone owns the 16 DIP side
+				// clearances, so both phases receive the same W+64 seat.
+				contentViewportW := maxf(0, colW-conversationScrollGutter)
+				chatContentW := min(contentAxis, maxf(0, contentViewportW-64))
+				composerOuterW := min(contentAxis+64, contentViewportW)
 				if m.ConversationPreferences.ComposerResize && m.ComposerResize != nil && m.ComposerResize.Width > 0 {
-					composerOuterW = min(m.ComposerResize.Width+32, maxf(0, colW))
-					heroStackW = min(m.ComposerResize.Width+32, maxf(0, colW-48))
+					composerOuterW = min(m.ComposerResize.Width+32, contentViewportW)
 				}
-				if emptyHero {
-					// HeroShell.module.css .root: pad 0 24; .stack gap 12.
-					ui.Column(c).Grow(1).MinHeight(0).Padding(0, 24, 0, 24).Children(func() {
-						ui.Box(c).Grow(1).MinHeight(0)
-						ui.Row(c).FillWidth().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(heroStackW).MaxWidthPercent(100).MinWidth(0).Gap(12).Children(func() {
-								ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-									ui.Box(c).Grow(1).MinWidth(0)
-									if bmp := chrome.FishLogo(); bmp != nil {
-										ui.Image(c, bmp).Width(34).Height(25).Fit(ui.Contain)
-									}
-									ui.Row(c).Gap(7).AlignItems(ui.Center).Children(func() {
-										ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FontWeight(500).
-											TextColor(chrome.Color(colors.FG))
-										previewFG := chrome.Color("rgb(70, 110, 160)")
-										previewBG := chrome.Color("rgba(120, 160, 210, 0.18)")
-										previewBD := chrome.Color("rgba(120, 160, 210, 0.35)")
-										heroTh := theme.Resolve(m.ThemeID)
-										if heroTh.Scheme == theme.SchemeDark || (heroTh.Scheme == theme.SchemeSystem && m.SystemDark) {
-											previewFG = chrome.Color(colors.Accent)
-											previewBG = chrome.Color("rgba(103, 158, 254, 0.16)")
-											previewBD = chrome.Color("rgba(103, 158, 254, 0.35)")
-										}
-										ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(theme.InterfaceSize(12)).FontWeight(500).
-											TextColor(previewFG).
-											Padding(1, 7, 0, 7).
-											Background(previewBG).
-											Border(1, previewBD).
-											Radius(999)
-									})
-									ui.Box(c).Grow(1).MinWidth(0)
-								})
-								paintComposer(true)
-							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
-						ui.Box(c).Grow(1).MinHeight(0)
-					})
-					return
-				}
+				chat.StatusView(c, chat.Model{
+					Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
+					ConnectionBanner: m.ConnectionBanner, OnReconnect: m.OnReconnect,
+					UsageJobsToday: m.UsageJobsToday, UsageBalance: m.UsageBalance, OnOpenUsage: m.OnOpenUsage,
+				})
+				conversationHistoryStatus(c, m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
-				chatRegion := ui.Column(c).Grow(1).MinHeight(0).Padding(20, 0, 0, 0)
+				chatRegion := ui.Column(c).Key("conversation-body").Grow(1).MinHeight(0)
+				if emptyHero {
+					chatRegion.Padding(0, 0, 32, 0)
+				}
 				bindChatStopRegion(chatRegion, m, snap)
 				chatRegion.Children(func() {
 					paneTab := "chat"
 					if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 						paneTab = strings.TrimSpace(*m.ChatPaneTab)
 					}
-					transcript := ui.Box(c).Grow(1).MinHeight(0).Clip()
-					m.Sizes.Workspace.setConversationBounds(transcript.Bounds())
-					transcript.Children(func() {
-						ui.Row(c).Fill().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(chatContentW).FillHeight().MinWidth(0).Children(func() {
-								if paneTab == "trajectory" {
-									if snap.HistoryNavigation.Busy || snap.HistoryNavigation.Ready {
-										m.Store.CancelHistoryTurnJump(snap.SelectedID, snap.HistoryNavigation.Request)
+					if phase == conversationHero || phase == conversationSettling || (snap.HistoryError != "" && len(snap.Messages) == 0) {
+						ui.Box(c).Key("conversation-phase-space").Grow(1).MinHeight(0)
+					} else {
+						transcript := ui.Box(c).Grow(1).MinHeight(0).Clip()
+						m.Sizes.Workspace.setConversationBounds(transcript.Bounds())
+						transcript.Children(func() {
+							transcriptWidth, sideGrow := chatContentW, float32(1)
+							if paneTab != "trajectory" {
+								// Native List fills scrollBody; its rows reserve the stable
+								// five-DIP bar before centering W. The viewport clears two.
+								transcriptWidth, sideGrow = maxf(0, colW-conversationScrollMargin), 0
+							}
+							ui.Row(c).Fill().Children(func() {
+								ui.Box(c).Grow(sideGrow).MinWidth(0)
+								ui.Column(c).Width(transcriptWidth).FillHeight().MinWidth(0).Children(func() {
+									if paneTab == "trajectory" {
+										if snap.HistoryNavigation.Busy || snap.HistoryNavigation.Ready {
+											m.Store.CancelHistoryTurnJump(snap.SelectedID, snap.HistoryNavigation.Request)
+										}
+										if m.ChatList != nil {
+											m.ChatList.Key = nil
+										}
+										// Electron ui-trajectory: toolbar + timeline + ledger (not PlanBoard).
+										chat.TrajectoryView(c, chat.TrajectoryModel{
+											Snapshot:       snap,
+											ThemeID:        m.ThemeID,
+											SystemDark:     m.SystemDark,
+											List:           m.ChatList,
+											SearchQuery:    m.TrajSearch,
+											SelectedID:     m.TrajSelectedID,
+											ActualDuration: m.TrajActualDuration,
+											TurnsCollapsed: m.TrajTurnsCollapsed,
+											CallsCollapsed: m.TrajCallsCollapsed,
+											DetailTab:      m.TrajDetailTab,
+											OnLoadEarlier: func() {
+												m.Store.LoadEarlierHistory(context.Background())
+											},
+											OnCopyDetail: func(text string) {
+												if strings.TrimSpace(text) != "" {
+													mygo.Clipboard.WriteText(text)
+												}
+											},
+										})
+									} else {
+										chat.View(c, chat.Model{
+											OnInspectToolCall: inspectToolCall,
+											Inspector:         sessionInspectorChatNavigation(m),
+											GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
+											DisableDeveloperTools: m.DisableDeveloperTools,
+											Preferences:           m.ChatPreferences,
+											ScheduleStore:         m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
+											Snapshot:           snap,
+											ContentWidth:       contentAxis,
+											ThemeID:            m.ThemeID,
+											SystemDark:         m.SystemDark,
+											List:               m.ChatList,
+											ThinkingExpanded:   m.ThinkingExpanded,
+											SuppressStatus:     true,
+											FullColumnViewport: true,
+											ConnectionBanner:   m.ConnectionBanner,
+											OnReconnect:        m.OnReconnect,
+											UsageJobsToday:     m.UsageJobsToday,
+											UsageBalance:       m.UsageBalance,
+											OnOpenUsage:        m.OnOpenUsage,
+											FeedbackStore:      m.Store,
+											HistoryStore:       m.Store,
+											OnMessageFeedback: func(messageID, rating, note string) {
+												m.Store.RateMessage(context.Background(), messageID, rating, note)
+											},
+											OnClearMessageFeedback: func(messageID string) {
+												m.Store.ClearMessageFeedback(context.Background(), messageID)
+											},
+											FeedbackCommentMsgID: m.FeedbackCommentMsgID,
+											FeedbackCommentDraft: m.FeedbackCommentDraft,
+											OnForkTurn:           func(seq float64) { m.Store.ForkTurn(context.Background(), snap.SelectedID, seq) },
+											EditingSeq: func() float64 {
+												if m.ComposerState != nil {
+													return m.ComposerState.EditSeq
+												}
+												return 0
+											}(),
+											EditReturnSeq: func() *float64 {
+												if m.ComposerState != nil {
+													return &m.ComposerState.EditReturnSeq
+												}
+												return nil
+											}(),
+											OnCancelEdit: func() {
+												if m.ComposerState != nil {
+													snapLastEditSeq := m.ComposerState.EditSeq
+													m.ComposerState.EndEdit()
+													if !m.ComposerState.Sending {
+														m.ComposerState.EditFocus = false
+														m.ComposerState.EditReturnSeq = snapLastEditSeq
+													}
+												}
+											},
+											OnEditMessage: func(seq float64, body string) {
+												if m.ComposerState != nil && session.CanEditMessage(snap, seq) {
+													m.ComposerState.BeginEdit(snap.SelectedID, seq, body)
+												}
+											},
+											OnQuoteMessage: func(body string) {
+												chat.QuoteIntoDraft(m.Draft, body)
+											},
+											OnLoadEarlier: func() {
+												m.Store.LoadEarlierHistory(context.Background())
+											},
+											ImageLightboxPath:            m.ImageLightboxPath,
+											OnOpenImageLightbox:          m.OnOpenImageLightbox,
+											OnCloseImageLightbox:         m.OnCloseImageLightbox,
+											OnOpenCitationURL:            m.OnOpenCitationURL,
+											OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
+											OnOpenPlanResource:           m.OnOpenPlanResource,
+											OnOpenDeliverable:            m.OnOpenDeliverable,
+											VisualReply:                  m.VisualReply,
+											VisualReplyBitmap:            m.VisualReplyBitmap,
+											OnPreviewVisualReply:         m.OnPreviewVisualReply,
+											OnInteractVisualReply:        m.OnInteractVisualReply,
+											OnInlineVisualReply:          m.OnInlineVisualReply,
+											OpenUIParent:                 m.OpenUIParent,
+											OpenUIWindow:                 m.OpenUIWindow,
+											OpenUIMediaOcclusions:        openUIMediaOcclusions(m),
+											OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
+											OnReadVisualReply:            m.OnReadVisualReply,
+											OnSaveVisualReply:            m.OnSaveVisualReply,
+											OnCloseVisualReply:           m.OnCloseVisualReply,
+										})
 									}
-									if m.ChatList != nil {
-										m.ChatList.Key = nil
-									}
-									// Electron ui-trajectory: toolbar + timeline + ledger (not PlanBoard).
-									chat.TrajectoryView(c, chat.TrajectoryModel{
-										Snapshot:       snap,
+								})
+								ui.Box(c).Grow(sideGrow).MinWidth(0)
+							})
+							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory")
+						})
+						if paneTab != "trajectory" && (!snap.PlanBoard.Empty() || snap.QueueEditor.ItemID != "") {
+							// Goal/todo/takeover cards share the transcript content axis.
+							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
+								ui.Box(c).Grow(1).MinWidth(0)
+								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
+									chat.PlanBoardView(c, chat.PlanBoardModel{
+										Board:          snap.PlanBoard,
+										LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
 										ThemeID:        m.ThemeID,
 										SystemDark:     m.SystemDark,
-										List:           m.ChatList,
-										SearchQuery:    m.TrajSearch,
-										SelectedID:     m.TrajSelectedID,
-										ActualDuration: m.TrajActualDuration,
-										TurnsCollapsed: m.TrajTurnsCollapsed,
-										CallsCollapsed: m.TrajCallsCollapsed,
-										DetailTab:      m.TrajDetailTab,
-										OnLoadEarlier: func() {
-											m.Store.LoadEarlierHistory(context.Background())
+										Open:           m.PlanBoardOpen,
+										GoalDraft:      m.GoalDraft,
+										OnCreateGoal: func(objective string) {
+											m.Store.CreateGoal(context.Background(), objective)
 										},
-										OnCopyDetail: func(text string) {
-											if strings.TrimSpace(text) != "" {
-												mygo.Clipboard.WriteText(text)
-											}
+										OnEditGoal: func(objective string) {
+											m.Store.EditGoal(context.Background(), objective)
 										},
+										OnCompleteGoal: func() {
+											m.Store.CompleteGoal(context.Background())
+										},
+										OnClearGoal: func() {
+											m.Store.ClearGoal(context.Background())
+										},
+										OnPauseGoal: func() {
+											m.Store.PauseGoal(context.Background())
+										},
+										OnResumeGoal: func() {
+											m.Store.ResumeGoal(context.Background())
+										},
+										OnQueueRemove: func(itemID string) {
+											m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionRemove)
+										},
+										OnQueueSteer: func(itemID string) {
+											m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionSteer)
+										},
+										QueueEditor: snap.QueueEditor,
+										OnQueueEdit: func(itemID, _ string) {
+											m.Store.BeginQueueEditForSession(context.Background(), snap.SelectedID, itemID)
+										},
+										OnChangeQueueEdit: m.Store.ChangeQueueEdit,
+										OnCancelQueueEdit: m.Store.CancelQueueEdit,
+										OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },
 									})
-								} else {
-									chat.View(c, chat.Model{
-										OnInspectToolCall: inspectToolCall,
-										Inspector:         sessionInspectorChatNavigation(m),
-										GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
-										DisableDeveloperTools: m.DisableDeveloperTools,
-										Preferences:           m.ChatPreferences,
-										ScheduleStore:         m.ScheduleStore, OnOpenScheduleTask: m.OnOpenScheduleTask,
-										Snapshot:         snap,
-										ContentWidth:     contentAxis,
-										ThemeID:          m.ThemeID,
-										SystemDark:       m.SystemDark,
-										List:             m.ChatList,
-										ThinkingExpanded: m.ThinkingExpanded,
-										ConnectionBanner: m.ConnectionBanner,
-										OnReconnect:      m.OnReconnect,
-										UsageJobsToday:   m.UsageJobsToday,
-										UsageBalance:     m.UsageBalance,
-										OnOpenUsage:      m.OnOpenUsage,
-										FeedbackStore:    m.Store,
-										HistoryStore:     m.Store,
-										OnMessageFeedback: func(messageID, rating, note string) {
-											m.Store.RateMessage(context.Background(), messageID, rating, note)
-										},
-										OnClearMessageFeedback: func(messageID string) {
-											m.Store.ClearMessageFeedback(context.Background(), messageID)
-										},
-										FeedbackCommentMsgID: m.FeedbackCommentMsgID,
-										FeedbackCommentDraft: m.FeedbackCommentDraft,
-										OnForkTurn:           func(seq float64) { m.Store.ForkTurn(context.Background(), snap.SelectedID, seq) },
-										EditingSeq: func() float64 {
-											if m.ComposerState != nil {
-												return m.ComposerState.EditSeq
-											}
-											return 0
-										}(),
-										EditReturnSeq: func() *float64 {
-											if m.ComposerState != nil {
-												return &m.ComposerState.EditReturnSeq
-											}
-											return nil
-										}(),
-										OnCancelEdit: func() {
-											if m.ComposerState != nil {
-												snapLastEditSeq := m.ComposerState.EditSeq
-												m.ComposerState.EndEdit()
-												if !m.ComposerState.Sending {
-													m.ComposerState.EditFocus = false
-													m.ComposerState.EditReturnSeq = snapLastEditSeq
-												}
-											}
-										},
-										OnEditMessage: func(seq float64, body string) {
-											if m.ComposerState != nil && session.CanEditMessage(snap, seq) {
-												m.ComposerState.BeginEdit(snap.SelectedID, seq, body)
-											}
-										},
-										OnQuoteMessage: func(body string) {
-											chat.QuoteIntoDraft(m.Draft, body)
-										},
-										OnLoadEarlier: func() {
-											m.Store.LoadEarlierHistory(context.Background())
-										},
-										ImageLightboxPath:            m.ImageLightboxPath,
-										OnOpenImageLightbox:          m.OnOpenImageLightbox,
-										OnCloseImageLightbox:         m.OnCloseImageLightbox,
-										OnOpenCitationURL:            m.OnOpenCitationURL,
-										OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
-										OnOpenPlanResource:           m.OnOpenPlanResource,
-										OnOpenDeliverable:            m.OnOpenDeliverable,
-										VisualReply:                  m.VisualReply,
-										VisualReplyBitmap:            m.VisualReplyBitmap,
-										OnPreviewVisualReply:         m.OnPreviewVisualReply,
-										OnInteractVisualReply:        m.OnInteractVisualReply,
-										OnInlineVisualReply:          m.OnInlineVisualReply,
-										OpenUIParent:                 m.OpenUIParent,
-										OpenUIWindow:                 m.OpenUIWindow,
-										OpenUIMediaOcclusions:        openUIMediaOcclusions(m),
-										OnStopInteractiveVisualReply: m.OnStopInteractiveVisualReply,
-										OnReadVisualReply:            m.OnReadVisualReply,
-										OnSaveVisualReply:            m.OnSaveVisualReply,
-										OnCloseVisualReply:           m.OnCloseVisualReply,
+								})
+								ui.Box(c).Grow(1).MinWidth(0)
+							})
+						}
+						if m.Interactions != nil {
+							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
+								ui.Box(c).Grow(1).MinWidth(0)
+								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
+									interui.View(c, interui.Model{
+										Snapshot:           m.Interactions.SnapshotForAgent(snap.SelectedID),
+										ScopeAgentID:       snap.SelectedID,
+										ThemeID:            m.ThemeID,
+										SystemDark:         m.SystemDark,
+										Store:              m.Interactions,
+										OnAutoAllowChanged: m.OnAutoAllowChanged,
+										OnOpenPlanResource: m.OnOpenPlanResource,
 									})
-								}
-							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
-						paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory")
-					})
-					if paneTab != "trajectory" {
-						// Goal/todo/takeover cards share the transcript content axis.
-						ui.Row(c).FillWidth().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
-								chat.PlanBoardView(c, chat.PlanBoardModel{
-									Board:          snap.PlanBoard,
-									LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
-									ThemeID:        m.ThemeID,
-									SystemDark:     m.SystemDark,
-									Open:           m.PlanBoardOpen,
-									GoalDraft:      m.GoalDraft,
-									OnCreateGoal: func(objective string) {
-										m.Store.CreateGoal(context.Background(), objective)
-									},
-									OnEditGoal: func(objective string) {
-										m.Store.EditGoal(context.Background(), objective)
-									},
-									OnCompleteGoal: func() {
-										m.Store.CompleteGoal(context.Background())
-									},
-									OnClearGoal: func() {
-										m.Store.ClearGoal(context.Background())
-									},
-									OnPauseGoal: func() {
-										m.Store.PauseGoal(context.Background())
-									},
-									OnResumeGoal: func() {
-										m.Store.ResumeGoal(context.Background())
-									},
-									OnQueueRemove: func(itemID string) {
-										m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionRemove)
-									},
-									OnQueueSteer: func(itemID string) {
-										m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionSteer)
-									},
-									QueueEditor: snap.QueueEditor,
-									OnQueueEdit: func(itemID, _ string) {
-										m.Store.BeginQueueEditForSession(context.Background(), snap.SelectedID, itemID)
-									},
-									OnChangeQueueEdit: m.Store.ChangeQueueEdit,
-									OnCancelQueueEdit: m.Store.CancelQueueEdit,
-									OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },
 								})
+								ui.Box(c).Grow(1).MinWidth(0)
 							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
-					}
-					if m.Interactions != nil {
-						ui.Row(c).FillWidth().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Children(func() {
-								interui.View(c, interui.Model{
-									Snapshot:           m.Interactions.SnapshotForAgent(snap.SelectedID),
-									ScopeAgentID:       snap.SelectedID,
-									ThemeID:            m.ThemeID,
-									SystemDark:         m.SystemDark,
-									Store:              m.Interactions,
-									OnAutoAllowChanged: m.OnAutoAllowChanged,
-									OnOpenPlanResource: m.OnOpenPlanResource,
-								})
-							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
-					}
-					if len(snap.BandActions) > 0 {
-						ui.Row(c).FillWidth().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Gap(6).Padding(0, 0, 6, 0).Children(func() {
-								ui.Text(c, i18n.T(i18n.KeyChatBandTitle)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-								ui.Row(c).FillWidth().Gap(6).Children(func() {
-									for _, a := range snap.BandActions {
-										act := a
-										if ui.Button(c, act.Label).FontSize(theme.InterfaceSize(11)).Clicked() {
-											m.Store.PressBand(context.Background(), act.ID)
+						}
+						if len(snap.BandActions) > 0 {
+							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
+								ui.Box(c).Grow(1).MinWidth(0)
+								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Gap(6).Padding(0, 0, 6, 0).Children(func() {
+									ui.Text(c, i18n.T(i18n.KeyChatBandTitle)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+									ui.Row(c).FillWidth().Gap(6).Children(func() {
+										for _, a := range snap.BandActions {
+											act := a
+											if ui.Button(c, act.Label).FontSize(theme.InterfaceSize(11)).Clicked() {
+												m.Store.PressBand(context.Background(), act.ID)
+											}
 										}
-									}
+									})
 								})
+								ui.Box(c).Grow(1).MinWidth(0)
 							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
-					}
-					if note := strings.TrimSpace(snap.ControlNote); note != "" {
-						ui.Row(c).FillWidth().Children(func() {
-							ui.Box(c).Grow(1).MinWidth(0)
-							ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Padding(0, 0, 4, 0).Children(func() {
-								ui.Text(c, i18n.T(i18n.KeyChatControlNote)+": "+note).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						}
+						if note := strings.TrimSpace(snap.ControlNote); note != "" {
+							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
+								ui.Box(c).Grow(1).MinWidth(0)
+								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Padding(0, 0, 4, 0).Children(func() {
+									ui.Text(c, i18n.T(i18n.KeyChatControlNote)+": "+note).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+								})
+								ui.Box(c).Grow(1).MinWidth(0)
 							})
-							ui.Box(c).Grow(1).MinWidth(0)
-						})
+						}
 					}
 					// Electron keeps the composer seat mounted on the trajectory tab
 					// (data-conversation-composer-overlay); do not hide it.
-					ui.Row(c).FillWidth().Children(func() {
+					seat := ui.Row(c).Key("conversation-composer-seat").FillWidth().Padding(0, conversationScrollGutter, 0, 0)
+					if phase == conversationSettling {
+						seat.Invisible()
+					}
+					seat.Children(func() {
 						ui.Box(c).Grow(1).MinWidth(0)
-						ui.Column(c).Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).Children(func() {
-							paintComposer(false)
-							chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
-							costModel := m.SessionCost
-							costModel.Snapshot = snap
-							costui.View(c, costModel, muted)
+						ui.Column(c).Key("conversation-composer-stack").Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).Children(func() {
+							if emptyHero {
+								conversationHeroHeadline(c, m, colors)
+							}
+							ui.Box(c).Key("conversation-composer-input").FillWidth().Children(func() { paintComposer(emptyHero) })
+							if !emptyHero {
+								chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
+								costModel := m.SessionCost
+								costModel.Snapshot = snap
+								costui.View(c, costModel, muted)
+							}
 						})
 						ui.Box(c).Grow(1).MinWidth(0)
 					})
+					if emptyHero {
+						ui.Box(c).Key("conversation-hero-bottom-space").Grow(1).MinHeight(0)
+					}
 				})
 			})
 		}
@@ -1226,9 +1141,6 @@ func rightPane(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	field := chrome.BackdropSurface(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
-	muted := chrome.Color(colors.Muted)
-	fg := chrome.Color(colors.FG)
-	accent := chrome.Color(colors.Accent)
 
 	tab := "files"
 	if m.RightPaneTab != nil {
@@ -1240,72 +1152,6 @@ func rightPane(c *ui.Context, m Model) {
 
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		workspacePaneControls(c, m)
-		ui.Row(c).Padding(8, 8, 0, 8).Gap(4).FillWidth().Children(func() {
-			paintRightTab(c, tab == "files", i18n.T(i18n.KeyRightPaneFiles), fg, muted, accent, func() {
-				if m.RightPaneTab != nil {
-					*m.RightPaneTab = "files"
-				}
-			})
-			paintRightTab(c, tab == "diff", i18n.T(i18n.KeyRightPaneDiff), fg, muted, accent, func() {
-				if m.RightPaneTab != nil {
-					*m.RightPaneTab = "diff"
-				}
-			})
-			paintRightTab(c, tab == "agents", i18n.T(i18n.KeyRightPaneAgents), fg, muted, accent, func() {
-				if m.RightPaneTab != nil {
-					*m.RightPaneTab = "agents"
-				}
-			})
-			if m.CustomPanelContent != nil {
-				paintRightTab(c, tab == "custom-panels", paneLabel("面板", "Panels"), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "custom-panels"
-					}
-				})
-			}
-			if !m.DisableDeveloperTools {
-				sessionInspectorGuide(c, m)
-			}
-			if m.workspacePane != nil && m.workspacePane.ChangesReview != nil {
-				paintRightTab(c, tab == "changes-review", changesReviewTitle(m), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "changes-review"
-					}
-				})
-			}
-			if m.workspacePane != nil && m.workspacePane.SubagentChat != nil {
-				paintRightTab(c, tab == "subagentchat", subagentChatPaneTitle(m), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "subagentchat"
-					}
-				})
-			}
-			if m.FileTabs != nil && len(m.FileTabs.Plans.Tabs) > 0 {
-				paintRightTab(c, tab == "plan", paneLabel("计划", "Plan"), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "plan"
-					}
-				})
-			}
-			if m.workspacePane != nil && m.workspacePane.Schedule != nil {
-				paintRightTab(c, tab == "schedule-task", schedulePaneTitle(m), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "schedule-task"
-					}
-				})
-			}
-			if m.HostTerminalStore != nil {
-				paintRightTab(c, tab == "host-terminal", termui.HostTitle(), fg, muted, accent, func() {
-					if m.RightPaneTab != nil {
-						*m.RightPaneTab = "host-terminal"
-					}
-				})
-			}
-			if m.OnOpenBrowserPreview != nil {
-				ui.Box(c).Grow(1)
-				paintRightTab(c, tab == "browser", i18n.T(i18n.KeyBrowserPreviewTitle), fg, muted, accent, m.OnOpenBrowserPreview)
-			}
-		})
 		ui.Box(c).Fill().Height(1).Background(border)
 		if tab == "browser" && m.BrowserContent != nil {
 			m.BrowserContent(c)

@@ -64,19 +64,44 @@ func batchRow(c *ui.Context, m Model, id, title string, fg ui.Color) bool {
 	}
 	return true
 }
+func batchToggle(c *ui.Context, m Model, fg ui.Color) {
+	if m.OnBatchEdit == nil {
+		return
+	}
+	b := m.Batch
+	label := workspaceText("选择会话", "Select sessions")
+	if b.Enabled {
+		label = workspaceText("退出多选", "Exit selection")
+	}
+	button := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).Padding(0).
+		BorderWidth(0).Background(ui.Transparent).Disabled(b.Busy || b.Confirming)
+	button.Draw(func(p *ui.Painter, r ui.Rect) {
+		path := &ui.Path{}
+		path.MoveTo(r.X+8, r.Y+7)
+		path.LineTo(r.X+20, r.Y+7)
+		path.LineTo(r.X+20, r.Y+20)
+		path.LineTo(r.X+8, r.Y+20)
+		path.Close()
+		p.StrokePath(path, 1.2, fg)
+		if b.Enabled {
+			path = &ui.Path{}
+			path.MoveTo(r.X+10, r.Y+13)
+			path.LineTo(r.X+13, r.Y+16)
+			path.LineTo(r.X+18, r.Y+10)
+			p.StrokePath(path, 1.2, fg)
+		}
+	})
+	if button.Clicked() {
+		m.OnBatchEdit("toggle", nil)
+	}
+}
+
 func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if m.OnBatchEdit == nil {
 		return
 	}
 	b := m.Batch
 	locked := b.Busy || b.Confirming
-	label := workspaceText("选择会话", "Select sessions")
-	if b.Enabled {
-		label = workspaceText("退出多选", "Exit selection")
-	}
-	if ui.Button(c, label).Disabled(locked).Clicked() {
-		m.OnBatchEdit("toggle", nil)
-	}
 	if !b.Enabled {
 		return
 	}

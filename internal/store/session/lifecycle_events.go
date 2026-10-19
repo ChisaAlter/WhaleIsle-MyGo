@@ -179,6 +179,9 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 }
 
 func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) bool {
+	if m.kind == "api-session/removed" || m.kind == "api-session/deleted" {
+		delete(s.promptAttempted, m.sessionID)
+	}
 	if m.kind == "api-session/status" {
 		s.observeSidebarRunningLocked(m.sessionID, m.running, live && s.listLoading)
 	}
@@ -275,6 +278,8 @@ func (s *Store) selectSessionLocked(sessionID string) {
 	s.invalidateFollowLocked()
 	s.invalidateCommandsLocked()
 	s.selectedID = sessionID
+	s.historyReady = false
+	s.historyLoading = sessionID != ""
 	s.invalidateSkillOptionsLocked()
 	s.messages = nil
 	s.turnStartMs = 0
@@ -286,6 +291,8 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.historyLoading = false
+	s.clearHistoryErrorLocked()
 	s.resetTurnFilesLocked()
 	s.turnFilesHistoryBinding = ""
 	s.resetHistoryPagingLocked()

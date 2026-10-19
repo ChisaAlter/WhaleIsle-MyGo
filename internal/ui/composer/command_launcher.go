@@ -57,24 +57,30 @@ func slashMenuItems(m Model, query string) []suggestItem {
 		seen[strings.ToLower(strings.TrimPrefix(cmd.Line, "/"))] = true
 		out = append(out, suggestItem{label: cmd.Line, sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash})
 	}
+	child := false
 	for _, item := range m.Snapshot.Items {
 		if item.SessionID == m.Snapshot.SelectedID && item.Origin == "subagent" {
-			return out
+			child = true
 		}
 	}
-	for _, sk := range FilterSkills(m.Skills, query, len(m.Skills)) {
-		if seen[strings.ToLower(sk.Name)] {
-			continue
-		}
-		seen[strings.ToLower(sk.Name)] = true
-		sub := sk.Description
-		if sk.UserOnly {
-			if sub != "" {
-				sub = " · " + sub
+	if !child {
+		for _, sk := range FilterSkills(m.Skills, query, len(m.Skills)) {
+			if seen[strings.ToLower(sk.Name)] {
+				continue
 			}
-			sub = i18n.T(i18n.KeyComposerSkillUserOnly) + sub
+			seen[strings.ToLower(sk.Name)] = true
+			sub := sk.Description
+			if sk.UserOnly {
+				if sub != "" {
+					sub = " · " + sub
+				}
+				sub = i18n.T(i18n.KeyComposerSkillUserOnly) + sub
+			}
+			out = append(out, suggestItem{label: "/" + sk.Name, sub: sub, insert: SkillInsert(sk.Name), kind: SuggestSlash})
 		}
-		out = append(out, suggestItem{label: "/" + sk.Name, sub: sub, insert: SkillInsert(sk.Name), kind: SuggestSlash})
+	}
+	if state := suggestionState(m, m.TextInput); state != nil && state.launcher != nil {
+		out = append(out, composerToolItems(m, query)...)
 	}
 	return out
 }

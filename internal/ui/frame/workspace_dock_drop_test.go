@@ -64,9 +64,10 @@ func TestWorkspaceDockDropGestureAndEscape(t *testing.T) {
 			w.pending = nil
 			f()
 		}
-		ui.Column(c).Fill().Children(func() {
+		surface := ui.Column(c).Fill()
+		surface.Children(func() {
 			ui.Button(c, "Drag resource").Drag(workspaceTabDrag{ID: moving.ID})
-			workspaceDockDropTargets(c, Model{Sizes: &s, workspacePane: target})
+			workspaceDockDropTargets(c, Model{Sizes: &s, workspacePane: target}, surface)
 		})
 	}, 800, 300)
 	drag := func(edge string, cancel bool) {
@@ -74,13 +75,14 @@ func TestWorkspaceDockDropGestureAndEscape(t *testing.T) {
 		if !ok {
 			t.Fatal("missing source")
 		}
+		x, y := src.X+src.W/2, src.Y+src.H/2
+		tt.Press(x, y)
+		tt.Move(400, 220)
 		dst, ok := tt.Find("Dock drop " + edge)
 		if !ok {
 			t.Fatal("missing landing target")
 		}
-		x, y := src.X+src.W/2, src.Y+src.H/2
 		tx, ty := dst.X+dst.W/2, dst.Y+dst.H/2
-		tt.Press(x, y)
 		tt.Move(tx, ty)
 		if cancel {
 			tt.Key(0, ui.KeyEscape)
@@ -98,7 +100,9 @@ func TestWorkspaceDockDropGestureAndEscape(t *testing.T) {
 	if w.Root.First != moving || w.Root.Second != target {
 		t.Fatal("drop did not split at target")
 	}
-	drag("float", false)
+	if !w.FloatWorkspaceTab(moving.ID) {
+		t.Fatal("could not float retained resource")
+	}
 	if moving.Float == nil || w.Root.find(moving.ID) != moving {
 		t.Fatal("float drop lost resource")
 	}

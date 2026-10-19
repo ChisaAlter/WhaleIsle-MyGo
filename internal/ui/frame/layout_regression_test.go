@@ -229,9 +229,9 @@ func TestHeroComposerCardFitsCenterWithOriginalClearance(t *testing.T) {
 	if !ok {
 		t.Fatal("composer card missing")
 	}
-	// Center400: HeroShell24 + InputBar16 on each side leaves actual card320.
-	if card.X != 321 || card.W != 320 {
-		t.Fatalf("hero card=%+v, want x321 width320", card)
+	// Both seats clear16 per side inside the stable2+5 DIP scroll viewport.
+	if card.X != 297 || card.W != 361 {
+		t.Fatalf("hero card=%+v, want x297 width361", card)
 	}
 }
 
@@ -243,7 +243,7 @@ func TestPopulatedComposerCardKeepsSharedAxisAndFitsCenter(t *testing.T) {
 			sizes.Right = 540
 			right := float32(0)
 			draft := "hello"
-			snap := session.ViewState{Messages: []session.Message{{ID: "layout-user", Kind: session.MessageKindText, Role: "user", Body: "short user fixture"}, {ID: "layout-assistant", Kind: session.MessageKindText, Role: "assistant", Body: "assistant fixture"}}}
+			snap := session.ViewState{Messages: []session.Message{{ID: "layout-user", Seq: 1, Kind: session.MessageKindText, Role: "user", Body: "short user fixture"}, {ID: "layout-assistant", Seq: 2, Kind: session.MessageKindText, Role: "assistant", Body: "assistant fixture"}}}
 			tt := ui.NewTester(func(c *ui.Context) {
 				cols := sizes.ResolveColumns(float32(viewport), true)
 				right = cols.Details
@@ -255,11 +255,11 @@ func TestPopulatedComposerCardKeepsSharedAxisAndFitsCenter(t *testing.T) {
 			if !ok {
 				t.Fatal("composer missing")
 			}
-			want := min(conversationContentWidth(sizes.Center)+32, sizes.Center-32)
+			want := min(conversationContentWidth(sizes.Center)+32, sizes.Center-conversationScrollGutter-32)
 			if math.Abs(float64(card.W-want)) > 0.01 {
 				t.Fatalf("card=%+v want width%v for center%v", card, want, sizes.Center)
 			}
-			if card.X < 281+16 || card.X+card.W > 281+sizes.Center-16 {
+			if card.X < 281+16 || card.X+card.W > 281+sizes.Center-conversationScrollGutter-16 {
 				t.Fatalf("card=%+v exceeds center%v clearance", card, sizes.Center)
 			}
 		})

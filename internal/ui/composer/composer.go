@@ -124,6 +124,7 @@ type Model struct {
 }
 
 type suggestItem struct {
+	action func()
 	drill  string
 	label  string
 	sub    string
@@ -183,7 +184,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// Hero retains InputBar side clearance inside the HeroShell stack.
 		padBot = 0
 	}
-	composerRegion := ui.Column(c).Padding(padTop, padRight, padBot, padLeft)
+	composerRegion := ui.Column(c.Key("composer-region")).Padding(padTop, padRight, padBot, padLeft)
 	regionClient := m.TextInput
 	if regionClient == nil && m.State != nil {
 		regionClient = m.State.Client
@@ -233,8 +234,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			paintSuggestPopup(c, m, items, kind, tok, panel, border, fg, muted)
 		}
 		if m.Hero {
-			// HeroShell.workspace: transparent at rest; folder+label+chevron gap 4;
-			// pad 0 8; min-height 28; body gap 12 above the InputBar card.
+			// ConversationRoot.heroWorkspaceRow is inset from the actual card,
+			// with 4px above its 28px controls and an 8px gap below.
 			wsLabel := strings.TrimSpace(m.WorkspaceRoot)
 			folderIcon := "📂"
 			if wsLabel == "" {
@@ -247,9 +248,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				wsLabel = i18n.T(i18n.KeyNoDirectory)
 				folderIcon = ""
 			}
-			// HeroShell.workspaceRow: pad-left 8 above card; chips min-h 28 pad 0 8.
-			ui.Row(c).FillWidth().Gap(2).AlignItems(ui.Center).Padding(0, 0, 0, 8).Children(func() {
-				wsBtn := ui.Button(c, "").Height(28).Radius(8).Padding(0, 8, 0, 8).
+			ui.Row(c.Key("composer-hero-workspace")).Label("Composer workspace row").FillWidth().MinWidth(0).Gap(2).AlignItems(ui.Center).
+				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
+				wsBtn := ui.Button(c, "").Label("Composer workspace").Height(28).Radius(8).Padding(0, 8, 0, 8).
 					Background(ui.Transparent).BorderWidth(0)
 				if (m.OnPickHeroWorkspace == nil && m.OnPickDirectory == nil) || (m.State != nil && (m.State.Sending || m.State.Preparing > 0)) {
 					wsBtn = wsBtn.Disabled(true)
@@ -279,7 +280,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if m.AgentPresetSelection.Error != "" {
 					ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
 				}
-				// Agent preset chip (Electron default label when roster empty).
+				ui.Box(c).Grow(1).MinWidth(0)
+				// Hero options follow margin-left:auto after the workspace control.
 				presetLabel := i18n.T(i18n.KeyComposerPresetDefault)
 				if m.AgentPresetPick != nil && strings.TrimSpace(*m.AgentPresetPick) != "" {
 					presetLabel = strings.TrimSpace(*m.AgentPresetPick)
@@ -291,18 +293,17 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						Height(28).FontSize(13).FontWeight(500).
 						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
 				} else {
-					ui.Row(c).Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
+					ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
 						ui.Text(c, "⌂").FontSize(13)
 						ui.Text(c, presetLabel).FontSize(13).FontWeight(500).TextColor(fg)
 						ui.Text(c, "▾").FontSize(11).TextColor(muted)
 					})
 				}
-				ui.Box(c).Grow(1).MinWidth(0)
 			})
 		}
 		// InputBar.card: 8px top pad, 12px gap, 28px radius. The hairline
 		// is painted as elevation, so it does not consume draft layout space.
-		card := ui.Column(c).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
+		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
 			Radius(28).Padding(8, 0, 0, 0).Gap(12).
 			DrawOver(func(p *ui.Painter, r ui.Rect) {
 				p.Stroke(r, border, 28, 0.5)
@@ -345,8 +346,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					if m.Hero {
 						minLines, maxLines = 2, 10
 					}
-					ta := ui.TextArea(c, m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
-						Font(theme.CurrentPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(theme.CurrentPreferences().Composer.Size*24/14).Padding(4, 8, 0, 14).
+					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
+						Font(theme.CurrentPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					if m.Hero {
 						ta = ta.MinHeight(52)
@@ -404,75 +405,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					if plus.Clicked() {
 						toggleCommandLauncher(m)
 					}
-					// Attachment intake remains a distinct action when + owns commands.
-					if m.OnPickImage != nil {
-						if ui.Button(c, "添加文件 / Add files").Height(btnH).Disabled(m.State != nil && (m.State.Sending || m.State.Preparing > 0)).Clicked() {
-							m.OnPickImage()
-						}
-					} else if m.OnPickDirectory != nil {
-						if ui.Button(c, i18n.T(i18n.KeyComposerPickDir)).Height(btnH).Clicked() {
-							m.OnPickDirectory()
-						}
-					}
-					if m.OnPasteImage != nil {
-						disabled := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
-						if ui.Button(c, "粘贴图片 / Paste image").Height(btnH).Disabled(disabled).Clicked() {
-							m.OnPasteImage(true)
-						}
-					}
-					if m.OnPickDirectory != nil && m.OnPickImage != nil {
-						if ui.Button(c, i18n.T(i18n.KeyComposerPickDirShort)).Height(btnH).Radius(8).
-							Padding(0, 8, 0, 8).Background(selectorFill).BorderWidth(0).
-							TextColor(fg).FontSize(12).Clicked() {
-							m.OnPickDirectory()
-						}
-					}
-					if m.OnStartVoice != nil || m.OnVoiceSettings != nil {
-						locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
-						if !m.Voice.Busy() && m.Voice.Pending == "" {
-							voiceStartButton(c, m, locked, btnH)
-						}
-						if m.Voice.Phase == "recording" && m.OnStopVoice != nil {
-							if ui.Button(c, "停止并转写 / Stop").Height(btnH).Clicked() {
-								m.OnStopVoice()
-							}
-						}
-						if m.Voice.Pending != "" && m.OnInsertVoice != nil {
-							if ui.Button(c, "插入文字 / Insert").Height(btnH).Disabled(locked).Clicked() {
-								m.OnInsertVoice()
-							}
-						}
-						if m.Voice.Phase != "" && m.OnCancelVoice != nil {
-							if ui.Button(c, "取消录音 / Discard").Height(btnH).Clicked() {
-								m.OnCancelVoice()
-							}
-						}
-						if m.Voice.Message != "" {
-							ui.Text(c, m.Voice.Message).FontSize(11).TextColor(muted).Tooltip(m.Voice.Pending)
-						}
-					}
-					if m.OnPickSpeech != nil {
-						speechBtn := ui.Button(c, i18n.T(i18n.KeyComposerSpeech)).Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
-							Padding(0, 8, 0, 8).Background(selectorFill).BorderWidth(0).
-							TextColor(fg).FontSize(12)
-						if sel := strings.TrimSpace(m.Snapshot.SpeechSelection); sel != "" {
-							speechBtn = speechBtn.Tooltip(sel)
-						}
-						if speechBtn.Clicked() {
-							m.OnPickSpeech()
-						}
-						if m.OnCycleSpeech != nil {
-							cycle := ui.Button(c, i18n.T(i18n.KeyComposerSpeechCycle)).Height(btnH).Radius(8).Disabled(m.Voice.Busy()).
-								Padding(0, 6, 0, 6).Background(selectorFill).BorderWidth(0).
-								TextColor(muted).FontSize(11)
-							if sel := strings.TrimSpace(m.Snapshot.SpeechSelection); sel != "" {
-								cycle = cycle.Tooltip(sel)
-							}
-							if cycle.Clicked() {
-								m.OnCycleSpeech()
-							}
-						}
-					}
+					paintVoiceControls(c, m, fg, muted, selectorFill, btnH)
 					paintPlanModeControl(c, m, muted, btnH)
 					// InputBar .select: permission scope (not PromptMode queue/steer).
 					if len(m.PermissionOptions) > 0 && m.PermissionPick != nil {
@@ -486,62 +419,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 						ui.Text(c, scope+" ▾").FontSize(13).FontWeight(500).TextColor(muted)
 					}
-					// Preserve explicit native mode choices as a Host-local override.
-					// The unselected/default state follows the live Host setting.
-					if m.OnPromptModeChange != nil {
-						mode := session.NormalizePromptMode(string(m.Snapshot.PromptMode))
-						seg := func(label string, active bool, next session.PromptMode) {
-							bg := ui.Transparent
-							ink := muted
-							if active {
-								bg = selectorFill
-								ink = fg
-							}
-							b := ui.Button(c, label).Height(btnH).Radius(8).Padding(0, 8, 0, 8).
-								Background(bg).BorderWidth(0).TextColor(ink).FontSize(12).FontWeight(500)
-							if b.Clicked() {
-								m.OnPromptModeChange(next)
-							}
-						}
-						if m.OnUseBusyEnterSetting != nil {
-							label := "按设置 / Use setting"
-							if !m.Snapshot.PromptModeExplicit {
-								label += " ✓"
-							}
-							if ui.Button(c, label).Height(btnH).FontSize(11).Clicked() {
-								m.OnUseBusyEnterSetting()
-							}
-						}
-						seg(i18n.T(i18n.KeyComposerModeQueue), m.Snapshot.PromptModeExplicit && mode == session.PromptModeQueue, session.PromptModeQueue)
-						seg(i18n.T(i18n.KeyComposerModeSteer), m.Snapshot.PromptModeExplicit && mode == session.PromptModeSteer, session.PromptModeSteer)
-					}
-					// Skills pill — Electron InputBar skill picker (popup above card).
-					if m.OnToggleSkills != nil {
-						skBG := ui.Transparent
-						skInk := muted
-						if m.SkillsOpen {
-							skBG = selectorFill
-							skInk = fg
-						}
-						sk := ui.Button(c, i18n.T(i18n.KeyComposerSkills)).Height(btnH).Radius(8).
-							Padding(0, 8, 0, 8).Background(skBG).BorderWidth(0).
-							TextColor(skInk).FontSize(12).FontWeight(500)
-						if sk.Clicked() {
-							m.OnToggleSkills(!m.SkillsOpen)
-						}
-					}
-					// Started conversations show context, never a preset mutation chip.
-					if !m.Hero && m.AgentPresetPick != nil {
-						ui.Text(c, *m.AgentPresetPick).FontSize(12).TextColor(muted)
-					}
-					if !m.Hero && m.AgentPresetSelection.Error != "" {
-						ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
-					}
 				})
-				ui.Row(c).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
+				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
 					if m.State == nil || !m.State.ModelCommand.Visible(m.Snapshot.SelectedID) {
-						paintModelPicker(c, m, muted, btnH)
 						paintContextMeter(c, m.Snapshot, muted, btnH)
+						paintModelPicker(c, m, muted, btnH)
 					}
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {
@@ -549,20 +431,28 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 							running = true
 						}
 					}
-					if running && m.OnStop != nil {
+					child := false
+					for _, item := range m.Snapshot.Items {
+						if item.SessionID == m.Snapshot.SelectedID && item.Origin == "subagent" {
+							child = true
+						}
+					}
+					primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
+					if primaryStops || running && child && m.OnStop != nil {
 						stop := ui.Button(c, "■").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
-							TextColor(onAccent).FontSize(12)
-						if stop.Clicked() {
+							TextColor(onAccent).FontSize(12).Disabled(m.OnStop == nil)
+						if stop.Clicked() && m.OnStop != nil {
 							m.OnStop()
 						}
-					} else {
+					}
+					if !primaryStops {
 						send := ui.Button(c, "↑").Label(i18n.T(i18n.KeyComposerSend)).Tooltip(i18n.T(i18n.KeyComposerSend)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
 							TextColor(onAccent).FontSize(16)
-						if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+						if composerSendDisabled(m) {
 							send = send.Disabled(true)
 						}
 						if send.Clicked() && handleModelCommand(m) {
@@ -919,13 +809,15 @@ func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind Suggest
 		ui.Column(c).Background(panel).Border(1, border).Radius(6).Padding(2, 2, 2, 2).MaxHeight(180).Children(func() {
 			paintReferenceBreadcrumbs(c, m, tok)
 			drilled := false
+			clicked := -1
 			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
 				it := items[row.Index]
 				bg := panel
 				if row.Index == sel {
 					bg = muted
 				}
-				ui.Column(row.Context).Padding(6, 8, 6, 8).Background(bg).Children(func() {
+				itemRow := ui.Column(row.Context).Padding(6, 8, 6, 8).Background(bg)
+				itemRow.Children(func() {
 					ui.Row(row.Context).Children(func() {
 						ui.Text(row.Context, it.label).Grow(1).FontSize(12).Bold().TextColor(fg)
 						if it.drill != "" && ui.Button(row.Context, "›").Tooltip("浏览目录 / Browse directory").Clicked() {
@@ -937,8 +829,13 @@ func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind Suggest
 						ui.Text(row.Context, it.sub).FontSize(11).TextColor(muted)
 					}
 				})
+				if itemRow.Clicked() {
+					clicked = row.Index
+				}
 			})
-			if !drilled && (l.Submitted() || l.Changed()) {
+			if !drilled && clicked >= 0 {
+				applySuggest(m, items[clicked], tok)
+			} else if !drilled && (l.Submitted() || l.Changed()) {
 				if list.Selected != nil && *list.Selected >= 0 && *list.Selected < len(items) {
 					applySuggest(m, items[*list.Selected], tok)
 				}
@@ -970,6 +867,11 @@ func wireSuggestKeys(area ui.Element, m Model, items []suggestItem, kind Suggest
 }
 
 func applySuggest(m Model, it suggestItem, tok TokenRange) {
+	if it.action != nil {
+		dismissSuggestion(m, m.TextInput)
+		it.action()
+		return
+	}
 	if m.Draft == nil {
 		return
 	}

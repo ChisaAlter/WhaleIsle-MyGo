@@ -4,70 +4,86 @@ import (
 	"context"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
-func authoritativeFeedbackRow(c *ui.Context, store *session.Store, id string) {
+type feedbackActionState struct {
+	seeded  bool
+	pending string
+}
+
+// MessageFeedbackActions seeds on first hover/focus. Feedback stays in the
+// assistant's IconActions row; loading is not a separate product action.
+func authoritativeFeedbackActions(c *ui.Context, store *session.Store, id string, muted ui.Color) {
+	root := ui.Row(c.Key("feedback-actions-" + id)).Gap(8).AlignItems(ui.Center)
+	state := ui.Local(root, "seed", func() feedbackActionState { return feedbackActionState{} })
 	v := store.Feedback()
-	if !v.Ready {
-		if v.Loading {
-			ui.Text(c, "正在读取反馈 / Loading feedback").FontSize(11)
-			return
+	choose := func(rating string) {
+		if v.Items[id].Rating == rating {
+			store.ClearMessageFeedback(context.Background(), id)
+		} else {
+			store.BeginFeedback(id, rating)
 		}
-		if v.Error != "" {
-			ui.Text(c, v.Error).FontSize(11)
-		}
-		if ui.Button(c, "读取反馈 / Load feedback").Clicked() {
-			store.RefreshFeedback(context.Background())
-		}
-		return
 	}
-	busy := v.BusyID != "" || v.Loading
+	if state.pending != "" && v.Ready && !v.Loading {
+		rating := state.pending
+		state.pending = ""
+		choose(rating)
+		v = store.Feedback()
+	} else if state.pending != "" && !v.Loading && v.Error != "" {
+		state.pending = ""
+	}
+	busy := v.BusyID != "" || v.Loading || state.pending != ""
 	item := v.Items[id]
-	ui.Row(c).Gap(5).Children(func() {
+	if item.Version != "" {
+		root.ContextMenu(func(menu *ui.Menu) {
+			if menu.Item("编辑反馈 / Edit feedback").Disabled(busy).Chosen() {
+				store.BeginFeedback(id, item.Rating)
+			}
+		})
+	}
+	root.Children(func() {
 		for _, rating := range []string{session.MessageFeedbackUp, session.MessageFeedbackDown} {
 			rating := rating
-			if ui.Button(c, FeedbackButtonLabel(rating, item.Rating)).Disabled(busy).Clicked() {
-				if item.Rating == rating {
-					store.ClearMessageFeedback(context.Background(), id)
+			icon := messageIconLikeOutline
+			if rating == session.MessageFeedbackDown {
+				icon = messageIconDislikeOutline
+			}
+			if rating == item.Rating {
+				if rating == session.MessageFeedbackDown {
+					icon = messageIconDislikeFill
 				} else {
-					store.BeginFeedback(id, rating)
+					icon = messageIconLikeFill
+				}
+			}
+			b := messageAction(c, icon, FeedbackButtonLabel(rating, item.Rating), true, muted, "feedback-"+rating).Checked(rating == item.Rating).Disabled(busy)
+			if !state.seeded && (b.Hovered() || b.Focused()) {
+				state.seeded = true
+				if !v.Ready && !v.Loading {
+					store.RefreshFeedback(context.Background())
+				}
+			}
+			if b.Clicked() && !busy {
+				if v.Ready {
+					choose(rating)
+				} else {
+					state.pending = rating
+					store.RefreshFeedback(context.Background())
 				}
 			}
 		}
-		if item.Version != "" && ui.Button(c, "编辑反馈 / Edit feedback").Disabled(busy).Clicked() {
-			store.BeginFeedback(id, item.Rating)
-		}
 	})
-	if v.Error != "" {
-		ui.Text(c, v.Error).FontSize(11)
+}
+
+func authoritativeFeedbackStatus(c *ui.Context, store *session.Store, muted ui.Color) {
+	v := store.Feedback()
+	busy := v.BusyID != "" || v.Loading
+	if v.Error != "" && v.EditorID == "" {
+		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, v.Error).FontSize(11).TextColor(muted).Grow(1)
+			if messageAction(c, messageIconRefreshOutline, i18n.T(i18n.KeyCommandCatalogRetry), true, muted).Disabled(busy).Clicked() {
+				store.RefreshFeedback(context.Background())
+			}
+		})
 	}
-	if v.EditorID != id {
-		return
-	}
-	ui.Text(c, "此条消息 / This message: "+id+" · "+v.Rating).FontSize(11)
-	note := v.Note
-	ui.TextArea(c, &note).FillWidth().Height(80).Disabled(busy).OnChange(func() { store.EditFeedback(note, v.Category) })
-	ui.Row(c).Wrap().Gap(4).Children(func() {
-		for _, category := range []string{"", "task-result", "instruction-following", "product-interaction", "service-stability", "resource-cost", "security-privacy-permission", "other"} {
-			category := category
-			label := category
-			if label == "" {
-				label = "无分类 / None"
-			}
-			if category == v.Category {
-				label = "● " + label
-			}
-			if ui.Button(c, label).Disabled(busy).Clicked() {
-				store.EditFeedback(note, category)
-			}
-		}
-	})
-	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, "提交这条反馈 / Submit feedback").Disabled(busy).Clicked() {
-			store.SubmitFeedback(context.Background())
-		}
-		if ui.Button(c, "取消 / Cancel").Disabled(busy).Clicked() {
-			store.CancelFeedback()
-		}
-	})
 }

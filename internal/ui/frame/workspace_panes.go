@@ -10,7 +10,6 @@ import (
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
-	"whaleisle/internal/ui/theme"
 )
 
 // WorkspacePanes retains native content occurrences and their split geometry.
@@ -31,6 +30,7 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
+	tabDragging          bool
 	terminalClose        func() *hostterminal.OccurrenceClose
 	terminalCloseRequest *hostterminal.OccurrenceClose
 	terminalDispose      func()
@@ -431,6 +431,9 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 		local.OnHideBrowser = nil // Visibility belongs to the whole layout, not each seat.
 		local.OnOpenBrowserPreview = func() { tab = "browser" }
 		rightPane(c, local)
+		if n.Float == nil {
+			workspaceDockDropTargets(c, local, box)
+		}
 		if tab != n.Kind {
 			m.Sizes.Workspace.selectKind(n, tab)
 		}
@@ -458,97 +461,13 @@ func workspacePaneControls(c *ui.Context, m Model) {
 		return
 	}
 	workspaceDockTabStrip(c, m)
-	kinds := []string{"files", "diff", "agents"}
-	if m.HostTerminalStore != nil {
-		kinds = append(kinds, "host-terminal")
-	}
-	if m.BrowserContent != nil {
-		kinds = append(kinds, "browser")
-	}
-	next := ""
-	for _, kind := range kinds {
-		if w.Root.kind(kind) == nil {
-			next = kind
-			break
-		}
-	}
-	if independentPaneKind(n.Kind) {
-		next = n.Kind
-	}
-	split := func(axis string) {
-		old := *n
-		newPane := w.leaf(next)
-		copySchedulePaneTarget(newPane, &old)
-		copyDiffPane(newPane, &old)
-		copyPlanPane(newPane, &old)
-		copyChangesReviewPane(newPane, &old)
-		copySessionInspectorPane(newPane, &old)
-		copySubagentChatPane(newPane, &old)
-		if next == "host-terminal" && n.Kind == "host-terminal" {
-			newPane.TerminalSource = old.ID
-		}
-		*n = WorkspacePane{ID: w.leaf("").ID, Axis: axis, Ratio: 0.5, First: &old, Second: newPane}
-		w.Active = newPane.ID
-		w.Fullscreen = ""
-		w.route = newPane.Kind
-	}
-	ui.Row(c).FillWidth().Gap(3).Padding(4).Children(func() {
-		title := paneLabel("选择面板", "Focus pane")
-		if w.Active == n.ID {
-			title = paneLabel("当前面板", "Active pane")
-		}
-		if ui.Button(c, title).FontSize(theme.InterfaceSize(10)).Clicked() {
-			w.Active = n.ID
-			w.route = n.Kind
-		}
-		if ui.Button(c, paneLabel("浮动", "Float")).FontSize(theme.InterfaceSize(10)).Clicked() {
-			w.pending = func() { w.FloatWorkspaceTab(n.ID) }
-		}
-		label := paneLabel("面板全屏", "Maximize pane")
-		if w.Fullscreen != "" {
-			label = paneLabel("退出全屏", "Restore pane")
-		}
-		if ui.Button(c, label).FontSize(theme.InterfaceSize(10)).Clicked() {
-			if w.Fullscreen != "" {
-				w.Fullscreen = ""
-			} else {
-				w.Fullscreen = n.ID
-				w.Active = n.ID
-				w.route = n.Kind
-			}
-		}
-		if ui.Button(c, "×").Label(paneLabel("关闭标签", "Close tab")).Clicked() {
-			w.pending = func() {
-				last := w.Root.First == nil && len(w.Root.DockTabs) == 0
-				closed := w.close(n.ID)
-				if closed && last && m.OnToggleTools != nil {
-					m.OnToggleTools()
-				}
-			}
-		}
-	})
-	ui.Row(c).FillWidth().Gap(3).Padding(4).Children(func() {
-		if next != "" {
-			if ui.Button(c, paneLabel("左右 +", "Right +")).FontSize(theme.InterfaceSize(10)).Clicked() {
-				w.pending = func() { split("horizontal") }
-			}
-			if ui.Button(c, paneLabel("上下 +", "Down +")).FontSize(theme.InterfaceSize(10)).Clicked() {
-				w.pending = func() { split("vertical") }
-			}
-		}
-		if ui.Button(c, paneLabel("重置布局", "Reset layout")).FontSize(theme.InterfaceSize(10)).Clicked() {
-			w.pending = func() {
-				w.resetTo(n)
-			}
-		}
-	})
 	if w.closing == n.ID {
 		ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
 		ui.Row(c).Gap(4).Children(func() {
 			if ui.Button(c, paneLabel("保留面板", "Keep pane")).Clicked() {
 				w.closing = ""
 			}
-			if ui.Button(c, paneLabel("丢弃并关闭", "Discard and close")).Clicked() {
+			if ui.Button(c, paneLabel("放弃并关闭", "Discard and close")).Clicked() {
 				w.pending = func() { w.closeNow(n.ID) }
 			}
 		})
@@ -558,6 +477,70 @@ func workspacePaneControls(c *ui.Context, m Model) {
 	}
 }
 
+func workspacePaneClose(m Model, n *WorkspacePane) {
+	w := m.Sizes.Workspace
+	w.pending = func() {
+		last := w.Root.First == nil && len(w.Root.DockTabs) == 0
+		closed := w.close(n.ID)
+		if closed && last && m.OnToggleTools != nil {
+			m.OnToggleTools()
+		}
+	}
+}
+
+func workspacePaneMaximize(m Model, n *WorkspacePane) {
+	w := m.Sizes.Workspace
+	if w.Fullscreen != "" {
+		w.Fullscreen = ""
+	} else {
+		w.Fullscreen, w.Active, w.route = n.ID, n.ID, n.Kind
+	}
+}
+
+// DockKit TabMenu hosts secondary operations above clipping ancestors.
+// Native menus preserve keyboard navigation, dismissal and tab identity.
+func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
+	w := m.Sizes.Workspace
+	return func(menu *ui.Menu) {
+		workspaceResourceMenu(menu, m)
+		menu.Separator()
+		if menu.Item(paneLabel("选中面板", "Focus pane")).Chosen() {
+			w.pending = func() { w.activateDockTab(n.ID) }
+		}
+		if menu.Item(paneLabel("浮动", "Float")).Disabled(n.Kind == "project-observer").Chosen() {
+			w.pending = func() { w.FloatWorkspaceTab(n.ID) }
+		}
+		label := paneLabel("面板全屏", "Maximize pane")
+		if w.Fullscreen != "" {
+			label = paneLabel("退出全屏", "Restore pane")
+		}
+		if menu.Item(label).Chosen() {
+			workspacePaneMaximize(m, n)
+		}
+		if menu.Item(paneLabel("关闭标签", "Close tab")).Disabled(n.Kind == "project-observer").Chosen() {
+			workspacePaneClose(m, n)
+		}
+		menu.Separator()
+		for _, vertical := range []bool{false, true} {
+			label := paneLabel("向右拆分", "Split right")
+			if vertical {
+				label = paneLabel("向下拆分", "Split down")
+			}
+			if menu.Item(label).Chosen() {
+				w.pending = func() {
+					w.activateDockTab(n.ID)
+					local := m
+					tab := n.Kind
+					local.RightPaneTab = &tab
+					SplitWorkspacePane(local, vertical)
+				}
+			}
+		}
+		if menu.Item(paneLabel("重置布局", "Reset layout")).Chosen() {
+			w.pending = func() { w.resetTo(n) }
+		}
+	}
+}
 func independentPaneKind(kind string) bool {
 	return kind == "session-inspector-log" || kind == "changes-review" || kind == "subagentchat" || kind == "plan" || kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff" || kind == "agents"
 }

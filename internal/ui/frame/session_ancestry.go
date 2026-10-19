@@ -33,18 +33,18 @@ func sessionAncestry(items []session.Item, selected string) []session.Item {
 }
 
 func paintSessionAncestry(c *ui.Context, chain []session.Item, open func(string), blocked ...string) {
-	ui.Row(c).MinWidth(0).AlignItems(ui.Center).Gap(4).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).MaxWidth(280).Clip().AlignItems(ui.Center).Gap(4).Children(func() {
 		for i, it := range chain {
 			if i > 0 {
-				ui.Text(c, "/").FontSize(theme.InterfaceSize(12))
+				ui.Text(c, "/").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).Shrink(0)
 			}
 			title := strings.TrimSpace(it.Title)
 			if title == "" {
 				title = it.SessionID
 			}
 			if i == len(chain)-1 || it.Origin == "subagent" || it.ContactError != "" || slices.Contains(blocked, it.SessionID) || open == nil {
-				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600)
-			} else if ui.Button(c, title).Key("session-ancestor-" + it.SessionID).Tooltip(title).FontSize(theme.InterfaceSize(13)).BorderWidth(0).Background(ui.Transparent).Clicked() {
+				ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…").Padding(4, 8)
+			} else if ui.Button(c, title).Key("session-ancestor-"+it.SessionID).Tooltip(title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(400).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…").Padding(4, 8).BorderWidth(0).Background(ui.Transparent).Clicked() {
 				open(it.SessionID)
 			}
 		}

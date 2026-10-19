@@ -39,8 +39,8 @@ func TestSidebarStatusNormalAndSearchRows(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { rowSession(c, item, 0, m, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6), ui.Transparent) })
 	}, 400, 300)
-	if _, ok := tt.Find(want); !ok {
-		t.Fatal("normal row omitted waiting-answer label")
+	if _, ok := tt.Find(statusLabel("question")); !ok {
+		t.Fatal("normal row omitted waiting-answer status slot")
 	}
 	search := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { sessionSearchResultsView(c, m, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6)) })

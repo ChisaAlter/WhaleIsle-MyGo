@@ -28,16 +28,16 @@ func TestWorkspaceFullscreenRetainsWholeDock(t *testing.T) {
 	if w.Root != root || root.First != first || root.Second != second || root.Ratio != ratio {
 		t.Fatal("fullscreen replaced the dock or its split geometry")
 	}
-	// Both panes must expose the global restore action, not leave the sibling
-	// offering a second fullscreen action that hides the first resource.
-	restores := 0
-	for _, text := range tt.Texts() {
-		if text == paneLabel("退出全屏", "Restore pane") {
-			restores++
+	// Both panes keep an accessible restore glyph in their compact tab strip.
+	for _, pane := range []*WorkspacePane{first, second} {
+		local := m
+		local.workspacePane = pane
+		chrome := ui.NewTester(func(c *ui.Context) { workspacePaneControls(c, local) }, 400, 300)
+		_, restore := chrome.Find(paneLabel("退出全屏", "Restore pane"))
+		_, maximize := chrome.Find(paneLabel("面板全屏", "Maximize pane"))
+		if !restore || maximize {
+			t.Fatal("fullscreen sibling does not offer the shared restore action")
 		}
-	}
-	if restores != 2 {
-		t.Fatalf("restore controls=%d, want both resource panes", restores)
 	}
 	ToggleWorkspacePaneFullscreen(m)
 	tt.Frame()

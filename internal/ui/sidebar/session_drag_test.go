@@ -53,11 +53,11 @@ func TestSessionDragUI(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { workspaceRowsView(c, m, items, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6), ui.Transparent) })
 	}, 300, 400)
-	src, ok := tt.Find("↳ Gamma")
+	src, ok := tt.Find("Gamma")
 	if !ok {
 		t.Fatal("source missing")
 	}
-	dst, ok := tt.Find("↳ Alpha")
+	dst, ok := tt.Find("Alpha")
 	if !ok {
 		t.Fatal("target missing")
 	}

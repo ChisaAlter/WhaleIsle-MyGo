@@ -61,7 +61,8 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 	if axis <= 0 {
 		axis = 748
 	}
-	ui.Column(c).FillWidth().Gap(6).AlignItems(ui.End).Children(func() {
+	owner := ui.Column(c).FillWidth().Gap(6).AlignItems(ui.End)
+	owner.Children(func() {
 		ui.Column(c).FillWidth().MaxWidthPercent(82).MinWidth(0).AlignItems(ui.End).Children(func() {
 			ui.Column(c).FillWidth().MaxWidth(axis * .702).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				for _, ref := range refs {
@@ -75,10 +76,10 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 					ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
 						Background(chrome.Color(colors.Bubble)).Radius(20).Padding(10, 16, 10, 16).Children(func() {
 						ink := fg
-						if msg.Seq == m.EditingSeq {
+						if m.EditingSeq > 0 && msg.Seq == m.EditingSeq {
 							ink = muted
 						}
-						ui.Text(c, body).Font(theme.CurrentPreferences().Chat.Family).FontSize(theme.CurrentPreferences().Chat.Size).FixedLineHeight(theme.CurrentPreferences().Chat.Size * 22 / 14).TextColor(ink).Selectable()
+						ui.Text(c, body).Font(theme.CurrentPreferences().Chat.Family).FontSize(theme.CurrentPreferences().Chat.Size).FixedLineHeight(theme.CurrentPreferences().Chat.Size + 8).TextColor(ink).Selectable()
 					})
 				}
 				// Preserve the existing URL-opening action alongside literal user text.
@@ -100,24 +101,26 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				}
 			})
 		})
-		ui.Row(c).Label("User message actions").Gap(8).Height(28).AlignItems(ui.Center).Children(func() {
+		actions := ui.Row(c).Label("User message actions").Gap(8).Height(28 + theme.CurrentPreferences().Chat.Size - 14).AlignItems(ui.Center)
+		messageQuoteMenu(actions, m, msg)
+		if !latestUserMessage(m.Snapshot.Messages, msg) && !owner.Hovered() && !owner.FocusWithin() {
+			actions.Opacity(0)
+		}
+		actions.Children(func() {
 			if msg.EventTime > 0 {
 				ui.Text(c, formatEventTime(msg.EventTime)).FontSize(13).FixedLineHeight(24).Padding(0, 12, 0, 0).TextColor(muted)
 			}
-			action := func(glyph, label string, run func()) {
-				if ui.Button(c, glyph).Label(label).Tooltip(label).Width(28).Height(28).Padding(6).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(15).Clicked() {
+			action := func(icon *ui.SVG, label string, run func()) {
+				if messageAction(c, icon, label, false, muted).Clicked() {
 					run()
 				}
 			}
 			if showMessageCopy(msg) {
-				action("⎘", i18n.T(i18n.KeyChatCopy), func() { c.Services().WriteClipboard(msg.Body) })
+				messageCopyAction(c, msg, false, muted)
 			}
-			if showMessageCopy(msg) && m.OnQuoteMessage != nil {
-				action("↗", i18n.T(i18n.KeyChatQuote), func() { m.OnQuoteMessage(msg.Body) })
-			}
-			if msg.Seq == m.EditingSeq && m.OnCancelEdit != nil {
+			if m.EditingSeq > 0 && msg.Seq == m.EditingSeq && m.OnCancelEdit != nil {
 				ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
-				action("×", i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
+				action(messageIconCloseOutline, i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
 			} else if msg.Seq == session.LatestEditableMessage(m.Snapshot.Messages) && m.OnEditMessage != nil {
 				tip := i18n.T(i18n.KeyChatEdit)
 				editAllowed := session.CanEditMessage(m.Snapshot, msg.Seq)
@@ -129,15 +132,27 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				} else if !editAllowed {
 					tip = i18n.T(i18n.KeyChatEditUnsupported)
 				}
-				button := ui.Button(c, "✎").Label(i18n.T(i18n.KeyChatEdit)).Tooltip(tip).Width(28).Height(28).Disabled(!editAllowed)
-				if m.EditReturnSeq != nil && *m.EditReturnSeq == msg.Seq {
+				button := messageAction(c, messageIconEditOutline, i18n.T(i18n.KeyChatEdit), false, muted).Tooltip(tip)
+				if !editAllowed {
+					button.Opacity(.4)
+				}
+				if m.EditReturnSeq != nil && *m.EditReturnSeq > 0 && *m.EditReturnSeq == msg.Seq {
 					button.Focus()
 					*m.EditReturnSeq = 0
 				}
-				if button.Clicked() {
+				if editAllowed && button.Clicked() {
 					m.OnEditMessage(msg.Seq, msg.Body)
 				}
 			}
 		})
 	})
+}
+
+func latestUserMessage(messages []session.Message, msg session.Message) bool {
+	for index := len(messages) - 1; index >= 0; index-- {
+		if messages[index].Role == "user" {
+			return messages[index].ID == msg.ID && messages[index].Seq == msg.Seq
+		}
+	}
+	return true
 }

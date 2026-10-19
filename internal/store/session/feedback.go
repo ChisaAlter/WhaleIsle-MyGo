@@ -25,10 +25,13 @@ type FeedbackView struct {
 	BusyID, Error                    string
 	Items                            map[string]FeedbackItem
 	EditorID, Rating, Note, Category string
+	// Acknowledgement counts committed actions, independently of draft dismissal.
+	Acknowledgement uint64
 }
 type feedbackState struct {
 	FeedbackView
-	epoch uint64
+	epoch           uint64
+	draftGeneration uint64
 }
 
 func (s *Store) Feedback() FeedbackView {
@@ -48,19 +51,16 @@ func (s *Store) clearFeedbackLocked() {
 }
 func (s *Store) BeginFeedback(id, rating string) {
 	s.mu.Lock()
-	if !s.feedback.Ready || s.feedback.Loading || s.feedback.BusyID != "" || id == "" || (rating != MessageFeedbackUp && rating != MessageFeedbackDown) {
+	if !s.feedback.Ready || s.feedback.Loading || id == "" || (rating != MessageFeedbackUp && rating != MessageFeedbackDown) {
 		s.mu.Unlock()
 		return
 	}
 	f := &s.feedback
-	if f.EditorID != id {
-		f.Note = ""
-		f.Category = ""
-		if item, ok := f.Items[id]; ok {
-			f.Note = item.Note
-			f.Category = item.Category
-		}
-	}
+	// Original dialog.ts open() replaces the draft independently of any
+	// in-flight action; that action still owns BusyID until it settles.
+	f.draftGeneration++
+	f.Note = ""
+	f.Category = ""
 	f.EditorID = id
 	f.Rating = rating
 	f.Error = ""
@@ -77,11 +77,12 @@ func (s *Store) EditFeedback(note, category string) {
 }
 func (s *Store) CancelFeedback() {
 	s.mu.Lock()
-	if s.feedback.BusyID == "" {
-		s.feedback.EditorID = ""
-		s.feedback.Note = ""
-		s.feedback.Category = ""
-	}
+	s.feedback.draftGeneration++
+	s.feedback.EditorID = ""
+	s.feedback.Rating = ""
+	s.feedback.Note = ""
+	s.feedback.Category = ""
+	s.feedback.Error = ""
 	s.mu.Unlock()
 	s.fire()
 }
@@ -186,7 +187,7 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 		s.mu.Unlock()
 		return
 	}
-	client, sid, epoch := s.client, s.selectedID, f.epoch
+	client, sid, epoch, draftGeneration := s.client, s.selectedID, f.epoch, f.draftGeneration
 	item, exists := f.Items[id]
 	if remove && !exists {
 		s.mu.Unlock()
@@ -249,11 +250,14 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 			return
 		}
 		f := &s.feedback
+		currentDraft := f.draftGeneration == draftGeneration
 		f.BusyID = ""
 		s.feedbackBusyID = ""
 		if err != nil {
-			f.Error = err.Error()
-			s.lastAction = "feedback: " + err.Error()
+			if currentDraft {
+				f.Error = err.Error()
+				s.lastAction = "feedback: " + err.Error()
+			}
 			if r.Error.Code == "version-conflict" {
 				if r.Error.Current == nil {
 					delete(f.Items, id)
@@ -264,6 +268,7 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 				}
 			}
 		} else {
+			f.Acknowledgement++
 			if f.Items == nil {
 				f.Items = map[string]FeedbackItem{}
 			}
@@ -277,9 +282,12 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 				f.Items[id] = saved
 				s.messageRatings[id] = saved.Rating
 			}
-			f.EditorID = ""
-			f.Note = ""
-			f.Category = ""
+			if currentDraft && f.EditorID == id {
+				f.EditorID = ""
+				f.Rating = ""
+				f.Note = ""
+				f.Category = ""
+			}
 			s.lastAction = "feedback saved"
 		}
 		s.mu.Unlock()

@@ -19,7 +19,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	if m.Hero {
 		minH = 52
 	}
-	box := ui.Box(c).FillWidth().Role(ui.RoleTextField).Label("Composer draft")
+	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft")
 	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.

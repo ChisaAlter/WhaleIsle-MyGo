@@ -17,7 +17,7 @@ func TestResolveDefaultDeepseek(t *testing.T) {
 		if got.Light.BG != "#ffffff" || got.Dark.BG != "#151517" {
 			t.Fatalf("Resolve(%q) palette drift: light=%q dark=%q", id, got.Light.BG, got.Dark.BG)
 		}
-		if got.Light.Accent != "#4176e6" || got.Dark.Accent != "#679efe" {
+		if got.Light.Accent != "#4176e6" || got.Dark.Accent != "#7aaaff" {
 			t.Fatalf("Resolve(%q) accent drift: light=%q dark=%q", id, got.Light.Accent, got.Dark.Accent)
 		}
 	}

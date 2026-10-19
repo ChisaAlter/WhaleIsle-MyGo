@@ -32,7 +32,7 @@ func TestSelectedSessionPreservesProvidedThemeLabelColors(t *testing.T) {
 	for _, tc := range []struct {
 		label string
 		color ui.Color
-	}{{"CUSTOM TITLE", fg}, {"CUSTOM CWD", muted}} {
+	}{{"CUSTOM TITLE", fg}} {
 		r, ok := tt.Find(tc.label)
 		if !ok {
 			t.Fatalf("missing %q", tc.label)
@@ -49,5 +49,8 @@ func TestSelectedSessionPreservesProvidedThemeLabelColors(t *testing.T) {
 		if !found {
 			t.Fatalf("selected %q did not retain provided theme color %+v", tc.label, tc.color)
 		}
+	}
+	if _, found := tt.Find("CUSTOM CWD"); found {
+		t.Fatal("selected row expanded with the path instead of keeping it in the tooltip")
 	}
 }

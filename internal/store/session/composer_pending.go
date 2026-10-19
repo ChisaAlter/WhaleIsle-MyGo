@@ -53,6 +53,7 @@ func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAtta
 		s.composerPending = make(map[string]*composerPending)
 	}
 	s.composerPending[id] = &composerPending{PendingSubmission: PendingSubmission{RequestID: id, SessionID: t.SessionID, Text: text, Placement: placement, Attachments: append([]ComposerAttachment(nil), attachments...), Order: s.composerOrder}, target: t}
+	s.markPromptAttemptedLocked(t.SessionID)
 	s.mu.Unlock()
 	s.fire()
 	return id
@@ -189,6 +190,16 @@ func (s *Store) resetComposerHostLocked() {
 	s.composerPending = nil
 	s.composerObserved = nil
 	s.composerAdmissions = nil
+	s.promptAttempted = nil
+}
+
+// Original sessions/session.ts marks the engaging edge at beginSubmission and
+// prompt, retaining it for that resident Session after its failed echo retires.
+func (s *Store) markPromptAttemptedLocked(sessionID string) {
+	if s.promptAttempted == nil {
+		s.promptAttempted = make(map[string]bool)
+	}
+	s.promptAttempted[sessionID] = true
 }
 
 // An accepted-but-unobserved admission is still a barrier to editing the older

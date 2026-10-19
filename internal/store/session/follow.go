@@ -31,15 +31,24 @@ func (s *Store) FollowSelected(ctx context.Context) {
 		return
 	}
 	s.invalidateFollowLocked()
+	s.historyLoading = true
 	generation := s.followGeneration
 	fctx, cancel := context.WithCancel(ctx)
 	s.followCancel = cancel
 	s.mu.Unlock()
+	s.fire()
 	go s.runFollow(fctx, mux, sessionID, generation)
 }
 
 func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, generation uint64) bool {
 	return ctx.Err() == nil && s.selectedID == sessionID && s.followGeneration == generation
+}
+
+func (s *Store) clearHistoryErrorLocked() {
+	if s.historyError != "" && s.lastAction == s.historyError {
+		s.lastAction = ""
+	}
+	s.historyError = ""
 }
 
 func (s *Store) reportFollowError(ctx context.Context, sessionID string, generation uint64, prefix string, err error) {
@@ -52,6 +61,8 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 		return
 	}
 	s.lastAction = prefix + err.Error()
+	s.historyLoading = false
+	s.historyError = s.lastAction
 	s.mu.Unlock()
 	s.fire()
 }
@@ -92,6 +103,13 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 		if err != nil {
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
+			} else {
+				s.mu.Lock()
+				awaitingSnapshot := s.followCurrentLocked(ctx, sessionID, generation) && s.historyLoading
+				s.mu.Unlock()
+				if awaitingSnapshot {
+					s.reportFollowError(ctx, sessionID, generation, "follow: ", errors.New("history stream ended before snapshot"))
+				}
 			}
 			return false
 		}
@@ -162,6 +180,9 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		if json.Unmarshal(raw, &snap) != nil || snap.Records == nil {
 			return false
 		}
+		s.historyLoading = false
+		s.historyReady = true
+		s.clearHistoryErrorLocked()
 		if snap.Projections != nil {
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}

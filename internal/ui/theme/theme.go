@@ -36,21 +36,23 @@ const (
 // Field names mirror the Electron chrome tokens (bg/fg/accent/…) plus
 // shell chrome surfaces (sidebar, titlebar).
 type Colors struct {
-	BG             string // --dsw-alias-bg-base
-	FG             string // --dsw-alias-label-primary
-	Muted          string // --dsw-alias-label-tertiary
-	Caption        string // --dsw-alias-label-caption / composer placeholder
-	Accent         string // --dsw-alias-state-business-primary / deepseek-500
-	Border         string // --dsw-alias-border-l2
-	Field          string // --dsw-alias-bg-layer-1 / module-platform
-	Sidebar        string // --dsw-specific-sidebar-fill
-	Titlebar       string // titlebar / chrome strip
-	Hover          string // --dsw-alias-interactive-bg-hover
-	ButtonFG       string // --dsw-alias-label-primary-foreground / on-accent text
-	Bubble         string // --dsw-specific-bubble
-	InputMajor     string // --dsw-specific-input-major (glass-opacity 80%)
-	ButtonInfoFill string // --dsw-alias-button-info-fill
-	SelectorFill   string // --dsw-specific-selector
+	BG              string // --dsw-alias-bg-base
+	FG              string // --dsw-alias-label-primary
+	Muted           string // --dsw-alias-label-tertiary
+	Caption         string // --dsw-alias-label-caption / composer placeholder
+	Accent          string // --dsw-alias-state-business-primary / deepseek-500
+	Border          string // --dsw-alias-border-l2
+	Field           string // --dsw-alias-bg-layer-1 / module-platform
+	Sidebar         string // --dsw-specific-sidebar-fill
+	Titlebar        string // titlebar / chrome strip
+	Hover           string // --dsw-alias-interactive-bg-hover
+	Pressed         string // --dsw-alias-interactive-bg-active
+	ButtonFG        string // --dsw-alias-label-primary-foreground / on-accent text
+	Bubble          string // --dsw-specific-bubble
+	InputMajor      string // --dsw-specific-input-major (glass-opacity 80%)
+	ButtonInfoFill  string // --dsw-alias-button-info-fill
+	ButtonInfoHover string // --dsw-alias-button-info-hover (also active)
+	SelectorFill    string // --dsw-specific-selector
 }
 
 // Theme is a resolved family with both palettes and a scheme preference.
@@ -64,40 +66,44 @@ type Theme struct {
 
 // deepseekLight mirrors official dsh web light tokens (dsh-webui-tokens.css).
 var deepseekLight = Colors{
-	BG:             "#ffffff",
-	FG:             "#0f1115",
-	Muted:          "#81858c",
-	Caption:        "#adb2b8",
-	Accent:         "#4176e6",
-	Border:         "rgba(0, 0, 0, 0.10)",
-	Field:          "#f5f6f7",
-	Sidebar:        "#f9fafb",
-	Titlebar:       "#f9fafb",
-	Hover:          "rgba(38, 49, 72, 0.06)",
-	ButtonFG:       "#ffffff",
-	Bubble:         "rgb(237, 243, 254)",
-	InputMajor:     "rgba(255, 255, 255, 0.8)",
-	ButtonInfoFill: "rgb(65, 118, 230)",
-	SelectorFill:   "rgb(245, 246, 247)",
+	BG:              "#ffffff",
+	FG:              "#0f1115",
+	Muted:           "#81858c",
+	Caption:         "#adb2b8",
+	Accent:          "#4176e6",
+	Border:          "rgba(0, 0, 0, 0.10)",
+	Field:           "#f5f6f7",
+	Sidebar:         "#f9fafb",
+	Titlebar:        "#f9fafb",
+	Hover:           "rgba(38, 49, 72, 0.06)",
+	Pressed:         "rgba(38, 49, 72, 0.1)",
+	ButtonFG:        "#ffffff",
+	Bubble:          "rgb(237, 243, 254)",
+	InputMajor:      "rgba(255, 255, 255, 0.8)",
+	ButtonInfoFill:  "rgb(65, 118, 230)",
+	ButtonInfoHover: "rgb(122, 170, 255)",
+	SelectorFill:    "rgb(245, 246, 247)",
 }
 
 // deepseekDark mirrors official dsh web dark tokens.
 var deepseekDark = Colors{
-	BG:             "#151517",
-	FG:             "#f9fafb",
-	Muted:          "#adb2b8",
-	Caption:        "#81858c",
-	Accent:         "#679efe",
-	Border:         "rgba(255, 255, 255, 0.12)",
-	Field:          "#232324",
-	Sidebar:        "#1b1b1c",
-	Titlebar:       "#232324",
-	Hover:          "rgba(255, 255, 255, 0.08)",
-	ButtonFG:       "#0f1115",
-	Bubble:         "rgb(44, 44, 46)",
-	InputMajor:     "rgba(44, 44, 46, 0.8)",
-	ButtonInfoFill: "rgb(103, 158, 254)",
-	SelectorFill:   "rgb(53, 54, 56)",
+	BG:              "#151517",
+	FG:              "#f9fafb",
+	Muted:           "#adb2b8",
+	Caption:         "#81858c",
+	Accent:          "#7aaaff",
+	Border:          "rgba(255, 255, 255, 0.12)",
+	Field:           "#232324",
+	Sidebar:         "#1b1b1c",
+	Titlebar:        "#232324",
+	Hover:           "rgba(255, 255, 255, 0.08)",
+	Pressed:         "rgba(255, 255, 255, 0.14)",
+	ButtonFG:        "#0f1115",
+	Bubble:          "rgb(44, 44, 46)",
+	InputMajor:      "rgba(44, 44, 46, 0.8)",
+	ButtonInfoFill:  "rgb(122, 170, 255)",
+	ButtonInfoHover: "rgb(65, 118, 230)",
+	SelectorFill:    "rgb(53, 54, 56)",
 }
 
 // Default returns the deepseek family with system scheme (light-dark window bg).

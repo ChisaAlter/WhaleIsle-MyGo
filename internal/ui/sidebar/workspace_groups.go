@@ -90,15 +90,22 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if g.Kind == "other" {
 				title = workspaceText("其他会话", "Other sessions")
 			}
-			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Gap(4).AlignItems(ui.Center).Padding(4, 0, 4, float32(g.Depth*12)).Children(func() {
+			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
+			if header.Hovered() || header.FocusWithin() {
+				header.Background(selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark)))
+			}
+			header.Children(func() {
 				fold := "▾"
 				if collapsed {
 					fold = "▸"
 				}
-				if ui.Button(c, fold).Width(20).BorderWidth(0).Background(ui.Transparent).Clicked() && m.OnToggleWorkspaceGroup != nil {
+				if ui.Button(c, fold).Label(workspaceText("折叠工作区 ", "Toggle workspace ")+g.Key).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() && m.OnToggleWorkspaceGroup != nil {
 					m.OnToggleWorkspaceGroup(g.Key)
 				}
-				titleButton := ui.Button(c, title).Grow(1).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
+				titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
+				titleButton.Children(func() {
+					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
+				})
 				if g.Kind == "workspace" && !layout.Reordering {
 					titleButton.Drag(workspaceDrag{HostGeneration: layout.HostGeneration, ID: g.Key})
 				}
@@ -108,16 +115,24 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				if g.Kind == "workspace" {
 					beforeUp, up := session.WorkspaceMoveAnchor(groups, g.Key, -1)
 					beforeDown, down := session.WorkspaceMoveAnchor(groups, g.Key, 1)
-					if ui.Button(c, "↑").FontSize(theme.InterfaceSize(10)).Disabled(!up || layout.Reordering).Tooltip(workspaceText("上移工作区", "Move workspace up")).Clicked() && m.OnMoveWorkspaceBefore != nil {
-						m.OnMoveWorkspaceBefore(g.Key, beforeUp)
+					more := ui.Button(c, "…").Label(workspaceText("工作区操作 ", "Workspace actions ") + g.Key).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+					more.Menu(func(menu *ui.Menu) {
+						if m.OnManageWorkspace != nil && menu.Item(workspaceText("管理工作区", "Manage workspace")).Chosen() {
+							m.OnManageWorkspace(g.Key)
+						}
+						if m.OnMoveWorkspaceBefore != nil {
+							if menu.Item(workspaceText("上移工作区", "Move workspace up")).Disabled(!up || layout.Reordering).Chosen() {
+								m.OnMoveWorkspaceBefore(g.Key, beforeUp)
+							}
+							if menu.Item(workspaceText("下移工作区", "Move workspace down")).Disabled(!down || layout.Reordering).Chosen() {
+								m.OnMoveWorkspaceBefore(g.Key, beforeDown)
+							}
+						}
+					})
+					if !header.Hovered() && !header.FocusWithin() && !more.Focused() {
+						more.Opacity(0)
 					}
-					if ui.Button(c, "↓").FontSize(theme.InterfaceSize(10)).Disabled(!down || layout.Reordering).Tooltip(workspaceText("下移工作区", "Move workspace down")).Clicked() && m.OnMoveWorkspaceBefore != nil {
-						m.OnMoveWorkspaceBefore(g.Key, beforeDown)
-					}
-					if ui.Button(c, "⋯").FontSize(theme.InterfaceSize(11)).Tooltip(workspaceText("管理工作区", "Manage workspace")).Clicked() && m.OnManageWorkspace != nil {
-						m.OnManageWorkspace(g.Key)
-					}
-				} else if g.Kind == "scratch" && m.OnNoDirectory != nil && ui.Button(c, "＋").FontSize(theme.InterfaceSize(11)).Clicked() {
+				} else if g.Kind == "scratch" && m.OnNoDirectory != nil && ui.Button(c, "+").Label(workspaceText("无目录会话", "No directory session")).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 					m.OnNoDirectory()
 				}
 			})

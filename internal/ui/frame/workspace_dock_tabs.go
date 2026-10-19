@@ -200,45 +200,73 @@ func dockTabTitle(n *WorkspacePane) string {
 	return n.Kind
 }
 
+// DockKit .tabStrip: 10 DIP top inset over a 28 DIP content band. Only the
+// tab run shrinks; pane chrome remains reachable at the trailing edge.
 func workspaceDockTabStrip(c *ui.Context, m Model) {
-	defer workspaceDockDropTargets(c, m)
 	n, w := m.workspacePane, m.Sizes.Workspace
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
-	ui.ScrollHorizontal(c).FillWidth().Height(34).Children(func() {
-		ui.Row(c).Gap(3).Padding(3).Children(func() {
-			for index, tab := range tabs {
-				if tab.Float != nil {
-					continue
+	n.tabDragging = false
+	ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(38).
+		Padding(10, 6, 0, 10).Gap(4).AlignItems(ui.Center).Children(func() {
+		ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(28).Children(func() {
+			ui.Row(c).Gap(4).Children(func() {
+				for index, tab := range tabs {
+					if tab.Float != nil {
+						continue
+					}
+					index, tab := index, tab
+					chip := ui.Button(c.Key("resource-tab:"+tab.ID), "").Label(dockTabTitle(tab)).Tooltip(dockTabTitle(tab)).
+						Height(28).MinWidth(80).MaxWidth(170).Padding(0, 10).Radius(6).BorderWidth(0).
+						Background(ui.Transparent).Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
+					if tab == n {
+						chip.Background(c.Theme().Surface)
+					}
+					chip.Children(func() {
+						ui.Text(c, dockTabTitle(tab)).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(13))
+					})
+					if _, over := ui.DragOver[workspaceTabDrag](chip); over {
+						chip.Border(2, c.Theme().Accent)
+					}
+					if dropped, ok := ui.Drop[workspaceTabDrag](chip); ok {
+						w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, index) }
+					}
+					if chip.Clicked() {
+						w.pending = func() { w.activateDockTab(tab.ID) }
+					}
+					if chip.Dragging() {
+						n.tabDragging = true
+						chip.Opacity(0.5)
+					}
 				}
-				index, tab := index, tab
-				label := dockTabTitle(tab)
-				if tab == n {
-					label = "▸ " + label
+				end := ui.Box(c.Key("resource-tab-end")).Width(10).Height(28)
+				if _, over := ui.DragOver[workspaceTabDrag](end); over {
+					end.Background(c.Theme().Accent)
 				}
-				chip := ui.Button(c, label).Key("resource-tab:" + tab.ID).FontSize(theme.InterfaceSize(11)).Drag(workspaceTabDrag{ID: tab.ID})
-				if _, over := ui.DragOver[workspaceTabDrag](chip); over {
-					chip.Border(2, c.Theme().Accent)
+				if dropped, ok := ui.Drop[workspaceTabDrag](end); ok {
+					w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, len(tabs)) }
 				}
-				if dropped, ok := ui.Drop[workspaceTabDrag](chip); ok {
-					w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, index) }
-				}
-				if chip.Clicked() {
-					w.pending = func() { w.activateDockTab(tab.ID) }
-				}
-				if chip.Dragging() {
-					chip.Opacity(0.5)
-				}
-			}
-			end := ui.Box(c).Key("resource-tab-end").Width(34).Height(26).Border(1, c.Theme().Border)
-			end.Children(func() { ui.Text(c, "⇥").FontSize(theme.InterfaceSize(11)) })
-			if _, over := ui.DragOver[workspaceTabDrag](end); over {
-				end.Border(2, c.Theme().Accent)
-			}
-			if dropped, ok := ui.Drop[workspaceTabDrag](end); ok {
-				w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, len(tabs)) }
-			}
+			})
 		})
+		control := func(key string, icon *ui.SVG, label string) ui.Element {
+			button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Width(28).Height(28).
+				Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
+			button.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(c.Theme().TextMuted) })
+			return button
+		}
+		control("workspace-pane-menu", conversationHeaderIcons["EllipsisOutline"], paneLabel("面板操作", "Pane actions")).Menu(workspacePaneMenu(m, n))
+		label := paneLabel("面板全屏", "Maximize pane")
+		icon := workspacePaneFullscreenIcon
+		if w.Fullscreen != "" {
+			label = paneLabel("退出全屏", "Restore pane")
+			icon = workspacePaneRestoreIcon
+		}
+		if control("workspace-pane-maximize", icon, label).Clicked() {
+			workspacePaneMaximize(m, n)
+		}
+		if n.Kind != "project-observer" && control("workspace-pane-close", workspacePaneCloseIcon, paneLabel("关闭标签", "Close tab")).Clicked() {
+			workspacePaneClose(m, n)
+		}
 	})
 }
 

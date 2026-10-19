@@ -66,6 +66,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 				}
 				right := float32(0)
 				tt := ui.NewTester(func(c *ui.Context) {
+					originalScrollbarTheme(c)
 					View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, SystemDark: dark, OnOpenSettings: func() {}})
 				}, width, 800)
 				save(fmt.Sprintf("shell-%d-dark-%v-terminal-%v", width, dark, terminal), tt, &sizes, right, width, 800)
@@ -79,8 +80,9 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 			sizes.Bottom = 0
 			right := float32(0)
 			draft := "A composer fixture"
-			snap := session.ViewState{Messages: []session.Message{{Kind: session.MessageKindText, Role: "user", Body: strings.Repeat("A literal user message with a deliberately long line. ", 18)}, {Kind: session.MessageKindText, Role: "assistant", Body: "Assistant fixture with a short response."}}}
+			snap := session.ViewState{Messages: []session.Message{{ID: "snapshot-user", Seq: 1, Kind: session.MessageKindText, Role: "user", Body: strings.Repeat("A literal user message with a deliberately long line. ", 18)}, {ID: "snapshot-assistant", Seq: 2, Kind: session.MessageKindText, Role: "assistant", Body: "Assistant fixture with a short response."}}}
 			tt := ui.NewTester(func(c *ui.Context) {
+				originalScrollbarTheme(c)
 				cols := sizes.ResolveColumns(float32(width), true)
 				right = cols.Details
 				colors := theme.Resolve("system").Active(dark)
@@ -95,6 +97,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	right := float32(0)
 	open := true
 	tt := ui.NewTester(func(c *ui.Context) {
+		originalScrollbarTheme(c)
 		View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: open, FilePaneWidth: &right, OnOpenSettings: func() {}})
 	}, 1600, 800)
 	save("first-open-1600", tt, &sizes, right, 1600, 800)
@@ -117,4 +120,11 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(dir, "rendered-bounds.json"), data, 0644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Match the verified ui-theme scrollbar.css fixture; toolkit defaults to six.
+func originalScrollbarTheme(c *ui.Context) {
+	th := *c.Theme()
+	th.ScrollbarWidth = conversationScrollbarWidth
+	c.SetTheme(&th)
 }

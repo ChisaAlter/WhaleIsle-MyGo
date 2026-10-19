@@ -20,7 +20,7 @@ func TestWorkspaceFreeFloatDrop(t *testing.T) {
 			workspaceDockDropBarrier(dock)
 			dock.Children(func() {
 				ui.Button(c, "Move resource").Drag(workspaceTabDrag{ID: moving.ID})
-				workspaceDockDropTargets(c, Model{Sizes: &sizes, workspacePane: target})
+				workspaceDockDropTargets(c, Model{Sizes: &sizes, workspacePane: target}, dock)
 			})
 		})
 		if w.pending != nil {
@@ -55,8 +55,17 @@ func TestWorkspaceFreeFloatDrop(t *testing.T) {
 		t.Fatalf("did not place near release: %+v", moving.Float)
 	}
 	// A specific child destination still wins over the fallback surface.
-	zone, _ := tt.Find("Dock drop tabs")
-	drag(zone.X+zone.W/2, zone.Y+zone.H/2, false)
+	src, _ := tt.Find("Move resource")
+	tt.Press(src.X+src.W/2, src.Y+src.H/2)
+	tt.Move(150, 170)
+	zone, ok := tt.Find("Dock drop tabs")
+	if !ok {
+		t.Fatal("active tab gesture has no center destination")
+	}
+	x, y := zone.X+zone.W/2, zone.Y+zone.H/2
+	tt.Move(x, y)
+	tt.Release(x, y)
+	tt.Move(x+1, y)
 	if moving.Float != nil {
 		t.Fatal("explicit target lost precedence")
 	}

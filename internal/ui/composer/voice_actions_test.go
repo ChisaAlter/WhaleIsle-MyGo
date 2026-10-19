@@ -61,8 +61,18 @@ func TestUnavailableVoiceOpensSettings(t *testing.T) {
 		case "failed":
 			m.Voice = voiceinput.Status{Phase: "feedback", Message: "Speech unavailable"}
 		}
-		tt := ui.NewTester(func(c *ui.Context) { voiceStartButton(c, m, false, 32) }, 400, 100)
-		tt.Click("语音设置 / Voice settings")
+		d := NewDraftState("keep draft")
+		selected := 0
+		m.State, m.Draft, m.TextInput = d, &d.Text, d.Client
+		m.UseTextInputClient = true
+		m.SuggestList = &ui.ListState{Selected: &selected}
+		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
+		if err := tt.Click("+"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tt.Click(composerText("语音设置", "Voice settings")); err != nil {
+			t.Fatal(err)
+		}
 		if settings != 1 || started != 0 {
 			t.Fatalf("%s settings=%d microphone=%d", mode, settings, started)
 		}

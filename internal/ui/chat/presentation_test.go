@@ -75,15 +75,16 @@ func TestUserBubbleGeometryAndOutsideActions(t *testing.T) {
 			rectNear(t, actions.H, 28, "action strip height")
 			rectNear(t, actions.X+actions.W, float32(width-16), "actions right edge")
 			copy, _ := tt.Find(i18n.T(i18n.KeyChatCopy))
-			quote, _ := tt.Find(i18n.T(i18n.KeyChatQuote))
 			edit, _ := tt.Find(i18n.T(i18n.KeyChatEdit))
-			for _, r := range []ui.Rect{copy, quote, edit} {
+			for _, r := range []ui.Rect{copy, edit} {
 				rectNear(t, r.W, 28, "action width")
 				rectNear(t, r.H, 28, "action height")
 				rectNear(t, r.Y, actions.Y, "action baseline")
 			}
-			rectNear(t, quote.X-(copy.X+copy.W), 8, "copy/quote gap")
-			rectNear(t, edit.X-(quote.X+quote.W), 8, "quote/edit gap")
+			rectNear(t, edit.X-(copy.X+copy.W), 8, "copy/edit gap")
+			if _, found := tt.Find(i18n.T(i18n.KeyChatQuote)); found {
+				t.Fatal("non-original quote button occupies the row")
+			}
 		}
 	}
 }
@@ -96,7 +97,14 @@ func TestUserActionsPreserveOriginalBodies(t *testing.T) {
 		m.OnQuoteMessage = func(s string) { quoted = s }
 		m.OnEditMessage = func(n float64, s string) { seq = n; edited = s }
 	})
-	for _, label := range []string{i18n.T(i18n.KeyChatCopy), i18n.T(i18n.KeyChatQuote), i18n.T(i18n.KeyChatEdit)} {
+	if err := tt.Click(i18n.T(i18n.KeyChatCopy)); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(ui.Shift, ui.KeyF10)
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyChatQuote)); err != nil {
+		t.Fatal(err)
+	}
+	for _, label := range []string{i18n.T(i18n.KeyChatEdit)} {
 		if err := tt.Click(label); err != nil {
 			t.Fatal(err)
 		}

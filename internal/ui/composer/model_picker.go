@@ -6,7 +6,7 @@ import (
 )
 
 func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
-	row := ui.Row(c).Gap(6).AlignItems(ui.Center)
+	row := ui.Row(c).MinWidth(0).Grow(1).Gap(6).AlignItems(ui.Center)
 	model := ui.Local(row, "model-choice", func() modelPickerChoice { return modelPickerChoice{} })
 	effort := ui.Local(row, "effort-choice", func() modelPickerChoice { return modelPickerChoice{} })
 	model.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModel)
@@ -22,7 +22,7 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 			if m.Snapshot.ModelSelectionBusy {
 				label += " …"
 			}
-			ui.Text(c, label).FontSize(13).FontWeight(500).TextColor(muted)
+			ui.Text(c, label).MinWidth(0).Grow(1).MaxWidth(220).SingleLine().FontSize(13).FontWeight(500).TextColor(muted)
 		}
 		if len(m.Snapshot.ModelEffortLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
 			choice := composerSelect(c, &effort.Value, m.Snapshot.ModelEffortLabels).

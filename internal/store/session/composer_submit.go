@@ -260,6 +260,7 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 		s.composerAdmissions = make(map[string]*ComposerTarget)
 	}
 	s.composerAdmissions[requestID] = t
+	s.markPromptAttemptedLocked(id)
 	s.mu.Unlock()
 	s.fire()
 	var result struct {

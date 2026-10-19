@@ -10,7 +10,7 @@ Architecture: existing native frame, sidebar, composer and session store remain 
 - Read-only original: `C:\AI\Deepseek-Harness-Desktop` at e353e8e13f; running original `C:\软件\Whale Isle\Whale Isle.exe`. Do not assume that executable matches the source revision.
 - Dedicated isolated copy and branch `codex/native-workspace-parity-20261019`; no main edits, PR #2 merge, push, release, model requests, credential access, session deletion, config reset or security/network changes.
 - User explicitly authorizes planning followed by parallel implementation. Implementation precedes new regression tests/fixtures, per execution-constraints skill.
-- Screenshots unavailable in this execution surface: computer-use needs node_repl, which is absent; CUA native APIs disabled. Visual acceptance remains blocked until actual captures are available.
+- Existing user-instance screenshots unavailable in this execution surface: computer-use needs node_repl, which is absent; CUA native APIs disabled. The project's Window.CapturePage facility successfully captured an isolated native fixture at1200x800 DIP /1800x1200px (150%). Source JSX/CSS remains the primary implementation specification; same-state original-instance visual comparison remains open.
 
 ## State/page difference checklist and acceptance baseline
 
@@ -28,19 +28,20 @@ Verification order: region geometry and position; hierarchy/density/menus/hover;
 
 ## Parallel ownership and contracts
 
-- Layout worker: `internal/ui/frame/**` only. Own phase rendering and shared status placement. Consume `session.ViewState.HistoryLoading`, `HistoryReady`, `HistoryError` from state worker. Hero eligible only when not loading/error and actual history is ready (or no selected session). A settling selected session does not mount interactive composer. Unify Hero/active card-width calculation; composer owns its 16 DIP side clearances.
+- Layout worker: `internal/ui/frame/**` except `workspace_panes.go` and its dedicated tests after the inspection handoff. Own phase rendering and shared status placement. Consume `session.ViewState.HistoryLoading`, `HistoryReady`, `HistoryError`, `SelectedSummaryBlank`, `PromptAttempted` from state worker. Host-proven blank may show Hero before loading completes; unknown history settles. Composer stays mounted but invisible and noninteractive while settling. Unify Hero/active card-width calculation; composer owns its 16 DIP side clearances.
 - Sidebar worker: `internal/ui/sidebar/**` only. Replace selected action strip with original-style overflow menu; retain callback contracts and DnD.
 - Composer worker: `internal/ui/composer/**` only. Keep Model signature compatible; preserve copied resize crash fix. Recover original compact tool disclosure/voice controls/height behavior without deleting features or clearing preferences.
 - Theme worker: `internal/ui/theme/**` only. Confirm original font stack and control tokens, preserve explicit overrides.
 - State worker: `internal/store/session/**` only. Add snapshot booleans `HistoryLoading`, `HistoryReady` and string `HistoryError`; follow selection/generation owns state. Authoritative snapshot marks ready; errors remain visible and retry uses existing FollowSelected. Never equate zero messages with completed history or infer loss.
 - Integrator: cmd wiring, isolated native launch/build, review, final evidence/status; workers do not commit, mutate original repos or run shared full builds.
+- Batched native-renderer inspection found additional core vertical-slice drift: permanent assistant action/feedback diagnostic buttons and permanent directional/docking/reset rows in the right pane. A source specialist owns `internal/ui/chat/**` after the shared status helper handoff; another owns only `internal/ui/frame/workspace_panes.go` plus dedicated tests. Keep all existing actions in source-equivalent compact controls/menus; no other file overlaps.
 
 ## Execution and checks
 
 - [x] Discover actual source/process/version/dirty baseline and create isolated branch.
 - [x] Record acceptance baseline and non-overlapping ownership before edits.
-- [ ] Implement five workstreams, resolve shared contract changes through integrator.
-- [ ] After implementation add focused regressions: replay-to-empty/history/error/stale selection, Hero-first-message width, sidebar action identities, composer overflow/resize and font override behavior.
+- [x] Implement five workstreams, resolve shared contract changes through integrator; source-backed chat/feedback/right-pane corrections included.
+- [x] After implementation add focused regressions: replay-to-empty/history/error/stale selection, Hero-first-message width, sidebar action identities, composer overflow/resize and font override behavior.
 - [ ] Run targeted native tests, Windows build and isolated non-network UI process where supported.
 - [ ] Obtain real same-size/DPI/state screenshot comparisons; record missing pages and states honestly.
 - [ ] Independent branch review, fix evidence-backed defects, save verified changes as local commits.

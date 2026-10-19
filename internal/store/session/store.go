@@ -127,9 +127,18 @@ type ViewState struct {
 	Items            []Item
 	SelectedID       string
 	Messages         []Message
-	MessageEditBusy  bool
-	PromptBusy       bool
-	LastAction       string
+	// HistoryReady records an authoritative opening snapshot for this selection.
+	// Reopening the same selection retains that baseline while HistoryLoading.
+	HistoryLoading bool
+	HistoryReady   bool
+	HistoryError   string
+	// SelectedSummaryBlank is Host list authority, not inferred from Messages.
+	SelectedSummaryBlank bool
+	MessageEditBusy      bool
+	PromptBusy           bool
+	// PromptAttempted preserves the original Session's blank-to-engaging edge.
+	PromptAttempted bool
+	LastAction      string
 	// MessageRatings maps assistant message id → "up"|"down" for the current session.
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
@@ -224,6 +233,7 @@ type Store struct {
 	jobs                      nativeJobsState
 	composerHostGeneration    uint64
 	composerOrder             uint64
+	promptAttempted           map[string]bool
 	composerPending           map[string]*composerPending
 	composerObserved          map[string]composerObserved
 	composerAdmissions        map[string]*ComposerTarget
@@ -279,6 +289,9 @@ type Store struct {
 	items                                []Item
 	selectedID                           string
 	messages                             []Message
+	historyLoading                       bool
+	historyReady                         bool
+	historyError                         string
 	promptBusy                           bool
 	historyBranchBusy                    bool
 	lastAction                           string
@@ -599,7 +612,11 @@ func (s *Store) Snapshot() ViewState {
 		LastAction:          s.lastAction,
 		ListLoading:         s.listLoading,
 		SelectedID:          s.selectedID,
+		HistoryLoading:      s.historyLoading,
+		HistoryReady:        s.historyReady,
+		HistoryError:        s.historyError,
 		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
+		PromptAttempted:     s.promptAttempted[s.selectedID],
 		MessageEditBusy:     s.editTurnSeq > 0 || s.composerPendingForSelectedLocked(),
 		HistoryBranchBusy:   s.historyBranchBusy,
 		FeedbackBusyID:      s.feedbackBusyID,
@@ -632,6 +649,7 @@ func (s *Store) Snapshot() ViewState {
 	for _, it := range s.items {
 		if it.SessionID == s.selectedID {
 			st.SelectedCwd = it.Cwd
+			st.SelectedSummaryBlank = it.Blank
 			break
 		}
 	}
