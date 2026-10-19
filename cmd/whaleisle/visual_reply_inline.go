@@ -41,15 +41,14 @@ func inlinePublishedHTMLHandler(win *mygo.Window, store *session.Store, sid stri
 			page = nil
 		}
 		if page == nil {
-			page = &inlinePage{state: session.InlineVisualReply{Loading: true, Height: 360}}
+			page = &inlinePage{state: session.InlineVisualReply{Loading: true, Height: session.DefaultVisualReplyHeight}}
 			inlinePages.pages[key] = page
 			go loadInlinePublishedHTML(win, key, page, dark)
 		}
 		state := page.state
 		if page.handle != nil {
-			state.Height = page.handle.ContentHeight()
-			if state.Height < 80 {
-				state.Height = 360
+			if measured := page.handle.ContentHeight(); measured >= 80 {
+				state.Height = measured
 			}
 		}
 		state.ToggleExpanded = func() {
@@ -79,12 +78,13 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	readCtx, stop := context.WithTimeout(ctx, 30*time.Second)
-	html, valid, err := key.store.ReadVisualReplySnapshot(readCtx, key.sessionID, key.attachmentID)
+	publication, valid, err := key.store.ReadVisualReplyPageSnapshot(readCtx, key.sessionID, key.attachmentID)
 	stop()
 	var surface *publishedHTMLSurface
 	if err == nil {
 		inlinePages.Lock()
 		page.valid = valid
+		page.state.Height = publication.Publication.Height
 		inlinePages.Unlock()
 		exe, e := os.Executable()
 		err = e
@@ -94,7 +94,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 		}
 		if err == nil {
 			var h *previewprocess.Session
-			h, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: html, Width: 728, Appearance: appearance, Inline: true})
+			h, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: publication.HTML, Width: 728, InitialHeight: publication.Publication.Height, Appearance: appearance, Inline: true})
 			if err == nil {
 				surface = newPublishedHTMLSurface(h, win)
 			}

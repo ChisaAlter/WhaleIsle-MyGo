@@ -155,7 +155,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil {
 		return err
 	}
-	w.SetContentSize(doc.Width, 700)
+	w.SetContentSize(doc.Width, initialViewportHeight(doc))
 	encoded, err := json.Marshal(shell)
 	if err != nil {
 		return err

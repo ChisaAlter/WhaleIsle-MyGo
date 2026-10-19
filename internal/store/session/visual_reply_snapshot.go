@@ -66,6 +66,18 @@ func validateVisualReplySnapshot(expected, actual VisualReplyFile, html string) 
 // ReadVisualReplySnapshot authorizes one independent inline publication without
 // replacing the source reader or any sibling publication's live context.
 func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (string, func() bool, error) {
+	page, valid, err := s.ReadVisualReplyPageSnapshot(ctx, sid, id)
+	return page.HTML, valid, err
+}
+
+type VisualReplyPageSnapshot struct {
+	Publication VisualReplyPublication
+	HTML        string
+}
+
+// ReadVisualReplyPageSnapshot returns declared presentation metadata with the
+// same authorized bytes; reading metadata never issues an additional RPC.
+func (s *Store) ReadVisualReplyPageSnapshot(ctx context.Context, sid, id string) (VisualReplyPageSnapshot, func() bool, error) {
 	s.mu.Lock()
 	client, generation := s.client, s.followGeneration
 	var pub VisualReplyPublication
@@ -83,9 +95,9 @@ func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (st
 	s.mu.Unlock()
 	if !found {
 		if !authorized {
-			return "", nil, fmt.Errorf("published HTML session is unavailable or changed")
+			return VisualReplyPageSnapshot{}, nil, fmt.Errorf("published HTML session is unavailable or changed")
 		}
-		return "", nil, &visualReplyContentError{reason: "publication does not belong to the selected transcript"}
+		return VisualReplyPageSnapshot{}, nil, &visualReplyContentError{reason: "publication does not belong to the selected transcript"}
 	}
 	valid := func() bool {
 		s.mu.Lock()
@@ -107,9 +119,9 @@ func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (st
 		err = validateVisualReplySnapshot(pub.File, out.Attachment, out.HTML)
 	}
 	if err != nil {
-		return "", nil, err
+		return VisualReplyPageSnapshot{}, nil, err
 	}
-	return out.HTML, valid, nil
+	return VisualReplyPageSnapshot{Publication: pub, HTML: out.HTML}, valid, nil
 }
 
 type InlineVisualReply struct {

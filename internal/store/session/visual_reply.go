@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"unicode/utf8"
 )
 
 const MaxVisualReplyBytes = 25 * 1024 * 1024
+const DefaultVisualReplyHeight = 480
 
 type VisualReplyFile struct {
 	AttachmentID string `json:"attachmentId"`
@@ -17,8 +19,9 @@ type VisualReplyFile struct {
 }
 
 type VisualReplyPublication struct {
-	File  VisualReplyFile
-	Title string
+	File   VisualReplyFile
+	Title  string
+	Height int
 }
 
 // PublishedVisualReply follows the native and PTC publication contracts. A file
@@ -67,11 +70,13 @@ func PublishedVisualReply(raw json.RawMessage) (VisualReplyPublication, bool) {
 	if json.Unmarshal(presentation, &meta) != nil || strings.TrimSpace(meta.Title) == "" {
 		return p, false
 	}
-	if len(meta.Height) != 0 {
+	p.Height = DefaultVisualReplyHeight
+	if len(meta.Height) != 0 && string(meta.Height) != "null" {
 		var height float64
-		if string(meta.Height) == "null" || json.Unmarshal(meta.Height, &height) != nil || height < 80 || height > 2000 {
+		if json.Unmarshal(meta.Height, &height) != nil || height < 80 || height > 2000 {
 			return p, false
 		}
+		p.Height = int(math.Ceil(height))
 	}
 	var parts []struct {
 		Type       string          `json:"type"`

@@ -38,13 +38,14 @@ type Options struct {
 // Document contains an already authorized, resource-frozen snapshot. This
 // package never opens workspace paths or resolves document resource URLs.
 type Document struct {
-	OpenUI      *openui.Render
-	openUIShell bool // Trusted parent-prepared shell, never set by document JavaScript.
-	HTML        string
-	Width       int
-	Appearance  string
-	capture     bool
-	Inline      bool
+	OpenUI        *openui.Render
+	openUIShell   bool // Trusted parent-prepared shell, never set by document JavaScript.
+	HTML          string
+	Width         int
+	InitialHeight int // 0 retains the existing viewport; otherwise 80..2000 native pixels.
+	Appearance    string
+	capture       bool
+	Inline        bool
 }
 
 // Session owns the entire helper job until Close, cancellation, process exit,
@@ -116,7 +117,17 @@ func validateDocument(d Document) error {
 	if d.Width < 240 || d.Width > 1600 || (d.Appearance != "light" && d.Appearance != "dark") {
 		return errors.New("invalid preview dimensions or appearance")
 	}
+	if d.InitialHeight != 0 && (d.InitialHeight < 80 || d.InitialHeight > 2000) {
+		return errors.New("invalid initial preview height")
+	}
 	return nil
+}
+
+func initialViewportHeight(d Document) int {
+	if d.InitialHeight != 0 {
+		return d.InitialHeight
+	}
+	return interactiveHeight
 }
 
 type packet struct {
@@ -214,7 +225,7 @@ func sendDocument(w io.Writer, nonce string, d Document) error {
 	if err := validateDocument(d); err != nil {
 		return err
 	}
-	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline, OpenUI: d.openUIShell}); err != nil {
+	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Height: d.InitialHeight, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline, OpenUI: d.openUIShell}); err != nil {
 		return err
 	}
 	return writeAll(w, []byte(d.HTML))
@@ -235,7 +246,7 @@ func receiveDocument(r io.Reader, nonce string) (Document, error) {
 	if _, err := io.ReadFull(r, body); err != nil {
 		return Document{}, err
 	}
-	d := Document{HTML: string(body), Width: p.Width, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline, openUIShell: p.OpenUI}
+	d := Document{HTML: string(body), Width: p.Width, InitialHeight: p.Height, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline, openUIShell: p.OpenUI}
 	return d, validateDocument(d)
 }
 
