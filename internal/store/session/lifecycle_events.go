@@ -182,10 +182,10 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 	retiredSubmission := false
 	if m.kind == "api-session/removed" || m.kind == "api-session/deleted" {
 		delete(s.promptAttempted, m.sessionID)
-		if live {
+		if live && m.kind == "api-session/deleted" {
 			// Delete receipts use this same live path. A later list replay only
 			// repairs roster state; it must not retire a newer same-ID send.
-			retiredSubmission = s.retireSessionSubmissionsLocked(m.sessionID)
+			retiredSubmission = s.retireDeletedSessionSubmissionsLocked(m.sessionID)
 		}
 	}
 	if m.kind == "api-session/status" {

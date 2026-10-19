@@ -22,17 +22,18 @@ func (t *ComposerTarget) settleRetirementLocked(id string, err error) {
 	close(r.done)
 }
 
-// A removed/deleted Session no longer has a feed that can complete these
-// handoffs. Like Session.dispose, release only its unsettled echoes. Durable
-// messages and observed queued entries already left composerPending and retain
-// their successful settlement; a removal must never turn them into a resend.
-func (s *Store) retireSessionSubmissionsLocked(sessionID string) bool {
+// A durably deleted Session cannot be reopened to complete these handoffs.
+// Release only its unsettled echoes, as Session.dispose does. Ordinary removed
+// notifications retain reloadable Session state and do not take this path.
+// Observed messages/queued entries already left composerPending and retain
+// their successful settlement; deletion must never turn them into a resend.
+func (s *Store) retireDeletedSessionSubmissionsLocked(sessionID string) bool {
 	retired := false
 	for id, pending := range s.composerPending {
 		if pending.SessionID != sessionID || !pending.target.currentLocked() {
 			continue
 		}
-		pending.target.settleRetirementLocked(id, errors.New("session removed; send outcome unconfirmed, draft and attachments retained; check the conversation before retrying"))
+		pending.target.settleRetirementLocked(id, errors.New("session deleted; send outcome unconfirmed, draft and attachments retained; check the conversation before retrying"))
 		delete(s.composerPending, id)
 		retired = true
 	}
