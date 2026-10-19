@@ -176,6 +176,9 @@ type ViewState struct {
 
 	// PlanBoard is the folded plan/goal/queue/todo strip from follow events.
 	PlanBoard PlanBoard
+	// GoalReadError is a selected-follow diagnostic; background goal reads
+	// never replace the conversation's LastAction or open an empty goal panel.
+	GoalReadError string
 
 	HistoryNavigation HistoryNavigationView
 	HistoryBranchBusy bool
@@ -295,6 +298,7 @@ type Store struct {
 	promptBusy                           bool
 	historyBranchBusy                    bool
 	lastAction                           string
+	goalReadError                        goalReadErrorState
 	messageRatings                       map[string]string
 	feedbackBusyID                       string
 	modelOptions                         []ModelOption
@@ -370,6 +374,7 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
+		s.goalReadError = goalReadErrorState{}
 		s.cancelRetainedAgentReadsLocked("")
 		s.resetSidebarStatusesLocked()
 		s.clearStopSequenceConfigLocked()
@@ -610,6 +615,7 @@ func (s *Store) Snapshot() ViewState {
 		ScratchCwd:          s.scratchCwd,
 		WorkspaceMembers:    s.workspaceMembersLocked(),
 		LastAction:          s.lastAction,
+		GoalReadError:       s.goalReadErrorLocked(),
 		ListLoading:         s.listLoading,
 		SelectedID:          s.selectedID,
 		HistoryLoading:      s.historyLoading,

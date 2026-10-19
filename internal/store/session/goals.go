@@ -138,14 +138,18 @@ func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionI
 		s.mu.Unlock()
 		return
 	}
+	s.planBoard.goalReadToken = nil
 	if err != nil {
-		s.lastAction = err.Error()
-	} else if out.Id != "" {
-		s.applyGoalView(&out)
-		s.lastAction = "goal refreshed"
+		s.goalReadError = goalReadErrorState{client: client, sessionID: sessionID, generation: generation, message: "goals/get: " + err.Error()}
 	} else {
-		s.planBoard.Goal = nil
-		s.lastAction = "goal absent"
+		s.goalReadError = goalReadErrorState{}
+		// goals/get returns undefined when this live agent has no current goal.
+		// Empty success is ordinary optional state, never a global action/error.
+		if out.Id != "" {
+			s.applyGoalView(&out)
+		} else {
+			s.planBoard.Goal = nil
+		}
 	}
 	s.mu.Unlock()
 	s.fire()
