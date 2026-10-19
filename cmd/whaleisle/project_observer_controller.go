@@ -54,6 +54,7 @@ func (s *projectController) disposeLocked() {
 	s.closeProjectDeliveriesLocked()
 	s.closeProjectDocumentsLocked()
 	s.closeProjectMaterialCollectionLocked()
+	s.closeProjectVisualResultsLocked()
 	s.projectFlow.generation++
 	s.projectFlow.client = nil
 }

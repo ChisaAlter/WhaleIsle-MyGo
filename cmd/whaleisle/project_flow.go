@@ -38,6 +38,8 @@ type projectFlowState struct {
 	lifecycleNote                 string
 	assetDiff                     *projectflow.WorkDiff
 	assetNote                     string
+	requestRevertError            string
+	visualResults                 *projectVisualResultsState
 	requestProjectID, requestKind string
 	requestPage                   projectflow.RequestPage
 	requestCard                   *projectflow.RequestCard
@@ -72,6 +74,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		s.closeProjectActivityLocked()
 		s.closeProjectDeliveriesLocked()
 		s.closeProjectDocumentsLocked()
+		s.closeProjectVisualResultsLocked()
 		s.stopProjectRefreshLocked()
 		s.stopProjectProcessLocked()
 		expanded := f.expanded
@@ -92,6 +95,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
 	// Ephemeral authenticated Host identity; no credentials enter pane persistence.
 	m.ObserverHost = fmt.Sprintf("%p", f.client)
+	m.RequestRevertError = f.requestRevertError
 	m.TeamQuery = f.teamQuery
 	m.SearchQuery = f.searchQuery
 	m.History = f.history
@@ -120,6 +124,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 			s.closeProjectActivityLocked()
 			s.closeProjectDeliveriesLocked()
 			s.closeProjectDocumentsLocked()
+			s.closeProjectVisualResultsLocked()
 			s.stopProjectRefreshLocked()
 			s.stopProjectProcessLocked()
 		}
@@ -289,6 +294,13 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		}
 		s.runProjectAsset(win, m.RequestProjectID, "diff", projectflow.Artifact{}, workID, nil)
 	}
+	m.OnRequestDiff = func(requestID string) {
+		s.runProjectRequestChanges(win, m.RequestProjectID, requestID, queueOwner)
+	}
+	m.OnRevertRequest = func(requestID string, revision int) {
+		s.revertProjectRequest(win, m.RequestProjectID, requestID, revision, queueOwner)
+	}
+	m.OnRevertAskDraft = func() { s.runProjectRecoveryDraft(win, m.RequestProjectID, "revert") }
 	m.OnProjectDirectory = func() { s.runProjectAsset(win, m.RequestProjectID, "directory", projectflow.Artifact{}, "", nil) }
 	m.OnProjectDirectoryFor = func(id string) { s.runProjectAsset(win, id, "directory", projectflow.Artifact{}, "", nil, queueOwner) }
 	m.OnRequestWorkDetail = func(requestID, workID string) {
@@ -310,6 +322,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectDocuments(win, &m)
 	s.bindProjectHistorical(win, &m)
 	s.bindProjectMaterialCollection(win, &m)
+	s.bindProjectVisualResults(win, &m)
 	return m
 }
 func (s *projectController) runProjectAction(win *mygo.Window, action, arg, title string) {

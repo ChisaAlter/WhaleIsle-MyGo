@@ -182,6 +182,7 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 				ui.Text(c, summary).MaxLines(3).FontSize(theme.InterfaceSize(13))
 			}
 			taskDeliveryFiles(c, m, card, 4)
+			taskDeliveryChangeActions(c, m, card)
 			steps := taskCardSteps(card, m.Team)
 			if len(steps) > 0 {
 				completed := 0
@@ -215,6 +216,15 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 							m.OnRequestQueue(card.ID, action.id)
 						}
 						break
+					}
+				}
+				// The compact original card exposes undo beside its primary
+				// action for discussing/queued requests, as well as in More.
+				if card.Queue != nil && (card.Queue.State == "discussing" || card.Queue.State == "queued") {
+					for _, action := range taskQueueActions(m, p, card, queue) {
+						if action.id == "cancel" && ui.Button(c, tr("撤回", "Undo")).Height(28).Disabled(action.disabled).Clicked() && m.OnRequestQueue != nil {
+							m.OnRequestQueue(card.ID, action.id)
+						}
 					}
 				}
 				ui.Box(c).Grow(1)
@@ -275,7 +285,7 @@ func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []p
 		if s.MemberName == "" || strings.HasPrefix(s.MemberName, "member-") {
 			s.MemberName = tr("团队成员", "Team member")
 		}
-		if card.Status == "completed" || s.Current != nil && !*s.Current || team == nil || team.Team == nil {
+		if card.Status == "completed" || card.Queue != nil && card.Queue.Released || s.Current != nil && !*s.Current || team == nil || team.Team == nil {
 			continue
 		}
 		for _, task := range team.Team.Tasks {
@@ -286,6 +296,11 @@ func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []p
 				s.Title = task.Subject
 			}
 			s.Status = task.Status
+			// Settled work retains its state even if old dependencies are
+			// still present in the current team projection.
+			if task.Status == "completed" || task.Status == "deleted" {
+				continue
+			}
 			if task.Status == "in_progress" {
 				s.Status = "assigned"
 				for _, worker := range team.Workers {
@@ -311,71 +326,102 @@ func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []p
 }
 
 func taskCardStatus(p projectflow.Project, card projectflow.RequestCard, team *projectflow.Overview, queue *projectflow.RequestQueue) (state, executor, reason, next string) {
+	steps := taskCardSteps(card, team)
 	state = requestStatus(card.Status)
 	executor = "Lead · " + state
-	steps := taskCardSteps(card, team)
-	for _, s := range steps {
-		if s.Status == "running" {
-			executor = s.MemberName + " · " + stateLabel(s.Status)
+	for _, step := range steps {
+		if step.Status == "running" {
+			executor = step.MemberName + " · " + stateLabel(step.Status)
 			break
 		}
+	}
+	if card.Status == "completed" {
+		executor = tr("Lead · 已完成", "Lead · Completed")
+	}
+	if p.Archiving || p.Activity.State == "stopping" {
+		executor = tr("Lead · 正在停止", "Lead · Stopping")
 	}
 	if card.ArchivedAt != nil {
 		return tr("已归档", "Archived"), executor, "", ""
 	}
+	if card.Queue != nil && card.Queue.State == "cancelled" {
+		return tr("已取消", "Cancelled"), executor, "", tr("重新加入队列以继续。", "Rejoin the queue to continue.")
+	}
 	if card.Status == "completed" {
-		return tr("已交付", "Delivered"), tr("Lead · 已完成", "Lead · Completed"), "", ""
+		if card.Changes != nil && card.Changes.RevertedAt != nil {
+			return tr("已撤销改动", "Changes reverted"), executor, "", tr("如需再次实现，请在对话中说明。", "Say so in the conversation if you want it implemented again.")
+		}
+		return tr("已交付", "Delivered"), executor, "", ""
+	}
+	if card.Status == "needsReview" {
+		return tr("需复核", "Needs review"), executor, "", tr("交付依据已变化，请查看详情后重新加入队列。", "Its delivery evidence changed; review details, then queue it again.")
 	}
 	if card.Queue != nil {
 		switch card.Queue.State {
-		case "cancelled":
-			return tr("已取消", "Cancelled"), executor, "", tr("可重新加入队列。", "Rejoin the queue to continue.")
 		case "discussing":
-			return tr("讨论中", "Discussing"), executor, "", tr("准备好后加入队列。", "Add this request to the queue when ready.")
+			return tr("讨论中", "Discussing"), executor, "", tr("准备好后加入开发队列。", "Add this request to the queue when ready.")
 		case "queued":
 			state = tr("排队中", "Queued")
 			if card.Queue.Position > 0 {
 				state += fmt.Sprintf(" · %d", card.Queue.Position)
 			}
-			next = tr("等待前面的任务完成。", "Waiting for earlier requests.")
+			next = tr("等待前面的要求交付后自动开始。", "Starts automatically after the earlier request is delivered.")
+			for _, step := range steps {
+				if step.Status == "running" {
+					next = tr("正在准备此要求的工作。", "Preparing work for this request.")
+					break
+				}
+			}
 			if queue != nil && queue.Paused {
-				next = tr("队列已暂停。", "The queue is paused.")
+				next = tr("开发队列已暂停。", "The development queue is paused.")
 			}
 			return
 		}
 	}
+	if card.Status == "stopping" || p.Activity.State == "stopping" {
+		return tr("正在停止", "Stopping"), executor, "", ""
+	}
 	if p.Paused || card.Status == "paused" {
-		return tr("已暂停", "Paused"), executor, "", tr("恢复任务以继续。", "Resume this request to continue.")
+		return tr("已暂停", "Paused"), executor, "", tr("选择继续以恢复。", "Choose Continue to resume.")
 	}
 	if card.AuthorityError != "" {
-		return tr("受阻", "Blocked"), executor, card.AuthorityError, tr("请核对原始要求与授权。", "Review the original request and its authorization.")
+		return tr("受阻", "Blocked"), executor, card.AuthorityError, tr("核对原始要求及其授权。", "Review the original request and its authorization.")
 	}
-	if card.HandoverError != "" {
-		return tr("受阻", "Blocked"), executor, card.HandoverError, tr("重试读取已保存的成果并交付。", "Retry summarizing the saved results.")
+	if card.Status == "summaryFailed" || card.HandoverError != "" {
+		return tr("受阻", "Blocked"), executor, card.HandoverError, tr("重新整理已保存的成果。", "Retry summarizing the saved results.")
 	}
-	for _, s := range steps {
-		if s.WaitingReason != nil {
-			reason = waitingReasonLabel(s.WaitingReason)
-		} else if s.BlockedReason != "" {
-			reason = s.BlockedReason
+	if card.Status == "blocked" && card.Delivery != nil && card.Delivery.Outcome == "partial" {
+		return tr("部分交付", "Partial delivery"), executor, "", tr("在对话里补充，或请协调者继续未完成的部分。", "Add details in the conversation, or ask the coordinator to finish the rest.")
+	}
+	for _, step := range steps {
+		if step.WaitingReason != nil {
+			reason = waitingReasonLabel(step.WaitingReason)
+			switch step.WaitingReason.Kind {
+			case "dependencies":
+				next = tr("等待前置工作完成。", "Wait for prerequisite work to finish.")
+			case "directory":
+				next = tr("处理工作目录后继续。", "Resolve the working directory to continue.")
+			case "capacity":
+				next = tr("等待可用的执行名额。", "Wait for execution capacity.")
+			}
+			break
 		}
-		if reason != "" {
-			next = tr("解决阻碍后继续。", "Resolve the blocker to continue.")
+		if step.BlockedReason != "" {
+			reason = step.BlockedReason
 			break
 		}
 	}
-	if len(steps) == 0 && card.Queue != nil && card.Queue.State == "active" && !card.Queue.Released {
-		state = tr("安排中", "Arranging")
-		reason = tr("Lead 正在安排这项任务。", "The Lead is arranging this request.")
+	if card.Status == "blocked" {
+		state = tr("受阻", "Blocked")
+		if next == "" {
+			next = tr("查看详情并处理阻碍。", "Review the details and resolve the blocker.")
+		}
+		return
 	}
-	if card.Status == "pendingDelivery" && len(steps) > 0 {
-		all := true
-		for _, s := range steps {
-			all = all && s.Status == "completed"
-		}
-		if all {
-			state = tr("交付中", "Preparing delivery")
-		}
+	state = tr("进行中", "Active")
+	if len(steps) == 0 && card.Queue != nil && card.Queue.State == "active" && !card.Queue.Released && card.Delivery == nil && card.Status != "pendingDelivery" {
+		executor = tr("Lead · 正在安排", "Lead · Arranging")
+		reason = tr("协调者正在安排团队工作。", "The coordinator is arranging development.")
 	}
 	return
 }
@@ -498,6 +544,12 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			}
 		}
 	case "results":
+		taskDeliveryChangeActions(c, m, card)
+		if card.Delivery != nil {
+			pageModel := m
+			pageModel.RequestCard = &card
+			renderVisualPages(c, pageModel, "request:"+card.ID, card.Delivery.Pages)
+		}
 		if card.Delivery == nil {
 			ui.Text(c, tr("尚无最终交付。", "No final delivery yet."))
 		} else {

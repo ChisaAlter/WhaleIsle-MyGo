@@ -39,7 +39,10 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		m.Desktop.Host = access
 		m.Desktop.Shortcuts = s.pageShortcutEditor()
 		m.Desktop.Preferences = s.themeFontEditor(m.DesktopActive || m.AppearanceActive)
-		m.Desktop.Version = buildVersion
+		m.Desktop.Version = s.harnessVersionSnapshot()
+		s.mu.Lock()
+		m.Desktop.UpdateBusy = s.updateCheckPending || s.nativeReleases.busy
+		s.mu.Unlock()
 		m.Desktop.AutoStartDesktop = &s.desktopDraft.autoStartDesktop
 	}
 	if m.Appearance != nil {
@@ -60,9 +63,10 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		m.About.OnRevealHome = func() { _ = desktopcomponents.OpenInFileManager(paths.DshHome()) }
 		s.mu.Lock()
 		releases := s.nativeReleases
+		checking := s.updateCheckPending
 		win := s.win
 		s.mu.Unlock()
-		m.About.UpdateBusy = releases.busy
+		m.About.UpdateBusy = releases.busy || checking
 		m.About.UpdateStatus = strings.TrimSpace(releases.status + " " + releases.err)
 		m.About.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", false) }
 	}

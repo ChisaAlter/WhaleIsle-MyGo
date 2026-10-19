@@ -62,6 +62,10 @@ type Model struct {
 	OnArtifact         func(projectflow.Artifact, func(string))
 	OnResolvedFile     func(string)
 	OnWorkDiff         func(string)
+	OnRequestDiff      func(string)
+	OnRevertRequest    func(string, int)
+	OnRevertAskDraft   func()
+	RequestRevertError string
 	OnProjectDirectory func()
 	OnCloseDiff        func()
 

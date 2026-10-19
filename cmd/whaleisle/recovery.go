@@ -171,6 +171,12 @@ func (s *mainState) saveResume() error {
 // A normal quit must not silently discard an unsaved editor/composer. Default
 // action is to keep the window open so the user can resolve the disk problem.
 func (s *mainState) saveResumeBeforeClose(win *mygo.Window) bool {
+	s.mu.Lock()
+	hasFontEditor := s.appearanceEditor != nil
+	s.mu.Unlock()
+	if hasFontEditor {
+		mygo.RunOnMain(func() { s.flushInactiveGeneralFontEdits(true) })
+	}
 	if err := s.saveResume(); err != nil {
 		result, dialogErr := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
 			Title:   resumeText("未能保存恢复状态", "Could not save resume state"),

@@ -57,7 +57,11 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 		return
 	}
 	s.quitting = true
+	cancelPreparation := s.launcherStartCancel
 	s.mu.Unlock()
+	if cancelPreparation != nil {
+		cancelPreparation()
+	}
 	s.closeWhaleBridgeAlerts()
 	s.closeDesktopTray()
 	s.cancelComposerVoice()

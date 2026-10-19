@@ -38,6 +38,11 @@ func currentProjectRoute(m Model) (r projectRoute) {
 		}, body: historicalProcessView}
 	case m.AssetDiff != nil:
 		r = projectRoute{key: "diff/" + m.TeamID + "/" + m.RequestProjectID, title: tr("工作区更改", "Workspace changes"), project: m.TeamID, close: m.OnCloseDiff, body: assetDiffView}
+		if changes := m.AssetDiff.Requirement; changes != nil {
+			r.key = "requirement-diff/" + changes.ProjectID + "/" + changes.RequestID
+			r.title = tr("要求的改动", "Requirement changes")
+			r.project = changes.ProjectID
+		}
 		if r.project == "" {
 			r.project = m.RequestProjectID
 		}

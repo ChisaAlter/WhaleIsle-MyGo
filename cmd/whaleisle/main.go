@@ -167,6 +167,7 @@ type mainState struct {
 	settingsSkillHubTarget                  session.SkillTarget
 	settingsSkillHubQuery                   string
 	settingsSkillHubHits                    []settings.SkillHubHit
+	settingsSkillCreate                     settingsSkillCreateState
 	settingsSkillsLastAction                string
 	settingsSkillsDetail                    string
 	settingsSkillEditSession                string
@@ -306,12 +307,16 @@ type mainState struct {
 	launcherImportCancel                    context.CancelFunc
 	launcherUpdate                          string
 	launcherUpdateCheckBusy                 bool
+	updateCheckPending                      bool
+	launcherPrefsError                      string
 	nativeReleases                          nativeReleaseState
 	launcherUpdateAvailable                 bool
 	launcherUpdateSynced                    bool
 	launcherNote                            string
 	launcherTriedStart                      bool
 	launcherStartBusy                       bool
+	launcherStartPreparing                  bool
+	launcherStartCancel                     context.CancelFunc
 	launcherStartFailed                     bool
 	launcherStartErr                        string
 	launcherPrefsSeeded                     bool
@@ -325,6 +330,11 @@ type mainState struct {
 	launcherImportCatalog                   *importer.Catalog
 	launcherComponents                      []desktopcomponents.Row
 	launcherComponentsFresh                 bool
+	launcherComponentsRefreshBusy           bool
+	launcherComponentStatus                 string
+	launcherHarnessVersion                  string
+	quitRequestPending                      bool
+	quitCleanupFinished                     bool
 	launcherRoutePopOpen                    bool
 	workspaceMenuOpen                       bool
 	workspacePickerAnchor                   ui.Handle
@@ -1470,123 +1480,10 @@ func (s *mainState) updateDownloadRoute() string {
 	return ""
 }
 
-func (s *mainState) showUpdateCheck(win *mygo.Window) {
-	res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, s.updateDownloadRoute())
-	msg := res.Message
-	if err != nil {
-		msg = err.Error()
-	} else {
-		msg = fmt.Sprintf("%s\n\n%s", res.Status, res.Message)
-		if res.ReleaseURL != "" {
-			msg += "\n" + res.ReleaseURL
-		}
-	}
-	buttons := []string{"OK"}
-	if err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != "" {
-		buttons = []string{i18n.T(i18n.KeyUpdateDownload), "OK"}
-	}
-	choice, _ := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent:  win,
-		Type:    mygo.MessageInfo,
-		Title:   i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
-		Message: msg,
-		Buttons: buttons,
-	})
-	if choice.Button == 0 && len(buttons) == 2 && res.ReleaseURL != "" {
-		requireSig := strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "1") ||
-			strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "true")
-		expectPub := strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_PUBLISHER"))
-		var apply desktopupdate.ApplyResult
-		var aerr error
-		if res.IncrementalPossible {
-			apply, aerr = desktopupdate.ApplyIncremental(context.Background(), desktopupdate.IncrementalOptions{
-				CurrentVersion:    buildVersion,
-				Feed:              res.Feed,
-				Start:             false,
-				OldPath:           strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_OLD_INSTALLER")),
-				RequireSignature:  requireSig,
-				ExpectedPublisher: expectPub,
-			})
-		} else {
-			apply, aerr = desktopupdate.DownloadAndStageOpts(context.Background(), desktopupdate.StageOptions{
-				ReleaseURL:        res.ReleaseURL,
-				Start:             false,
-				ExpectSHA256:      res.SHA256,
-				ExpectSize:        res.Size,
-				RequireSignature:  requireSig,
-				ExpectedPublisher: expectPub,
-			})
-		}
-		if aerr == nil && desktopupdate.CanStartStaged(apply) && s.installStagedUpdate(win, apply) {
-			return
-		}
-		amsg := apply.Message
-		if aerr != nil {
-			amsg = aerr.Error()
-		} else if apply.Signature != "" && apply.Signature != desktopupdate.SignatureSkipped {
-			amsg = fmt.Sprintf("%s\nsig: %s", amsg, apply.Signature)
-			if apply.Publisher != "" {
-				amsg += "\n" + apply.Publisher
-			}
-		}
-		_, _ = mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:  win,
-			Type:    mygo.MessageInfo,
-			Title:   i18n.T(i18n.KeyUpdateDownloadTitle),
-			Message: amsg,
-			Buttons: []string{"OK"},
-		})
-	}
-}
-
-func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
-	s.closeWhaleBridgeAlerts()
-	s.closeDesktopTray()
-	s.cancelComposerVoice()
-	s.mu.Lock()
-	s.quitting = true
-	s.mu.Unlock()
-	if err := desktopcomponents.ShutdownGeneric(paths.UserDataDir()); err != nil {
-		log.Println("Components shutdown:", err)
-	}
-	if s.desktopPet != nil {
-		s.desktopPet.Close()
-	}
-	s.stopPhoneRuntime()
-	s.closeWebViewHost()
-	s.stopDSH()
-	s.closeTerminal()
-	if s.browserController != nil {
-		s.browserController.Close()
-	}
-	if sup != nil {
-		sup.Stop()
-	}
-}
-
 func (s *mainState) shouldCloseToTray() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.closeToTray && !isolatedDesktopRun()
-}
-
-func (s *mainState) refreshLauncherComponents() {
-	s.configureGenericComponents()
-	seen := map[string]struct{}{}
-	var rows []desktopcomponents.Row
-	for _, root := range desktopComponentRoots() {
-		for _, row := range desktopcomponents.ListUserData(root) {
-			if _, ok := seen[row.ID]; ok {
-				continue
-			}
-			seen[row.ID] = struct{}{}
-			rows = append(rows, row)
-		}
-	}
-	s.mu.Lock()
-	s.launcherComponents = rows
-	s.mu.Unlock()
-	s.observeWhaleBridgeAlerts()
 }
 
 // acceptOpenHookPath is a one-shot acceptance driver: write a panel id, app opens it.
@@ -1918,6 +1815,7 @@ func (s *mainState) stopDSHLocked() {
 	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.stopProjectProcessLocked()
+	s.invalidateSettingsSkillCreateLocked()
 	s.stopProjectRefreshLocked()
 	s.closeProjectHistoricalLocked()
 	s.mu.Unlock()
@@ -2356,7 +2254,12 @@ func main() {
 			closeToTray := state.closeToTray && !isolatedDesktopRun()
 			state.mu.Unlock()
 			if quitting {
-				state.finalizeQuit(sup)
+				state.mu.Lock()
+				finished := state.quitCleanupFinished
+				state.mu.Unlock()
+				if !finished {
+					e.PreventDefault()
+				}
 				return
 			}
 			if taskguard.HideOnClose(quitting, closeToTray) {
@@ -2364,10 +2267,8 @@ func main() {
 				state.hideToDesktopTray(win, sup)
 				return
 			}
-			if !state.quitProtected(win, sup) {
-				e.PreventDefault()
-				return
-			}
+			e.PreventDefault()
+			state.requestQuitProtected(win, sup)
 		})
 
 		state.mu.Lock()
@@ -2413,14 +2314,24 @@ func main() {
 		state.mu.Lock()
 		state.launcherOpen = true
 		state.mu.Unlock()
-		canStartAfterRecovery := state.recoverImportBeforeStart()
-		if state.coldStartupAllowed(cfg, canStartAfterRecovery) {
-			state.mu.Lock()
-			state.launcherTriedStart = true
-			state.launcherStartBusy = true
-			state.mu.Unlock()
-			startHarness(cfg)
-		}
+		state.mu.Lock()
+		state.launcherStartPreparing = true
+		state.mu.Unlock()
+		go func() {
+			defer state.finishLauncherPreparation(win)
+			canStartAfterRecovery := state.recoverImportBeforeStart()
+			if state.coldStartupAllowed(cfg, canStartAfterRecovery) {
+				state.mu.Lock()
+				if state.quitting {
+					state.mu.Unlock()
+					return
+				}
+				state.launcherTriedStart = true
+				state.launcherStartBusy = true
+				state.mu.Unlock()
+				startHarness(cfg)
+			}
+		}()
 	})
 
 	if err := mygo.App.Run(); err != nil {
@@ -2430,6 +2341,10 @@ func main() {
 
 func startHarness(cfg config.Config) {
 	state.mu.Lock()
+	if state.quitting {
+		state.mu.Unlock()
+		return
+	}
 	cfgStore := state.cfgStore
 	startupStore := state.startupRecovery.store
 	if state.launcherImportBusy {
@@ -2439,7 +2354,15 @@ func startHarness(cfg config.Config) {
 		return
 	}
 	state.launcherStartBusy = true
+	prepareCtx, cancelPreparation := context.WithCancel(context.Background())
+	state.launcherStartCancel = cancelPreparation
 	state.mu.Unlock()
+	defer func() {
+		cancelPreparation()
+		state.mu.Lock()
+		state.launcherStartCancel = nil
+		state.mu.Unlock()
+	}()
 	if !state.recoverImportBeforeStart() {
 		return
 	}
@@ -2457,8 +2380,8 @@ func startHarness(cfg config.Config) {
 	currentHost := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 	if currentHost.ArtifactsReady && !cfg.SkipUserPlugins {
 		bridge := harness.NewProjectBridge(cfg.NodeBin, paths.DshHome(), cfg.Workspace, desktopcomponents.OpenInFileManager, state.selectProjectDirectory)
-		if bridge.Ready(context.Background()) {
-			overlay, err := bridge.PrepareOverlay(context.Background(), filepath.Join(paths.VendorDir(), "dsh-project"), paths.WebProfileDir(), paths.HarnessRoot())
+		if bridge.Ready(prepareCtx) {
+			overlay, err := bridge.PrepareOverlay(prepareCtx, filepath.Join(paths.VendorDir(), "dsh-project"), paths.WebProfileDir(), paths.HarnessRoot())
 			if err == nil {
 				projectDispatch = bridge.Dispatch
 				projectPatches = append(projectPatches, overlay)
@@ -2466,6 +2389,9 @@ func startHarness(cfg config.Config) {
 				log.Println("Project unavailable: desktop overlay preparation failed")
 			}
 		}
+	}
+	if prepareCtx.Err() != nil {
+		return
 	}
 	installSrv := harness.NewInstallServer(harness.InstallServerOptions{
 		Project:     projectDispatch,
@@ -2527,11 +2453,6 @@ func startHarness(cfg config.Config) {
 			return startupStore.Record(false, reason, logs, buildVersion)
 		},
 	})
-	state.mu.Lock()
-	state.sup = sup
-	state.startupRecovery.recorded = false
-	state.mu.Unlock()
-
 	if strings.TrimSpace(cfg.Workspace) == "" {
 		state.mu.Lock()
 		state.launcherOpen = true
@@ -2552,7 +2473,37 @@ func startHarness(cfg config.Config) {
 		})
 		return
 	}
-	sup.Start()
+	// Publish on the window queue after preparation, so Close/import cannot
+	// race a late background bridge result into starting a new runtime.
+	launch := func() {
+		state.mu.Lock()
+		if state.quitting || state.launcherImportBusy {
+			state.launcherStartBusy = false
+			state.mu.Unlock()
+			return
+		}
+		state.sup = sup
+		state.startupRecovery.recorded = false
+		state.mu.Unlock()
+		sup.Start()
+	}
+	state.mu.Lock()
+	win := state.win
+	state.mu.Unlock()
+	if win != nil {
+		win.Update(launch)
+	} else {
+		launch()
+	}
+}
+
+func (s *mainState) finishLauncherPreparation(win *mygo.Window) {
+	s.mu.Lock()
+	s.launcherStartPreparing = false
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
 }
 
 func applyAppearance(id string) {
@@ -2874,6 +2825,15 @@ func (s *mainState) applyImportCatalog(win *mygo.Window, sourceHome string) {
 		s.launcherImportCatalog = nil
 	} else {
 		s.launcherImportCatalog = &cat
+		s.launcherImportAttachments = false
+		if cat.HasAttachments {
+			for _, item := range cat.Sessions {
+				if !item.Unsupported {
+					s.launcherImportAttachments = true
+					break
+				}
+			}
+		}
 		s.launcherImport = fmt.Sprintf(i18n.T(i18n.KeyLauncherImportSummary),
 			cat.SourceHome, cat.DestHome,
 			len(cat.Sessions), len(cat.Skills), len(cat.Plugins),
@@ -2897,6 +2857,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.flushInactiveGeneralFontEdits(false)
 	defer state.syncSettingsNativeSurfaces()
 	composerRendered := false
 	composerSessionID := ""
@@ -3173,11 +3134,14 @@ func mainView(c *ui.Context) {
 		fileOpenWithApps = nil
 	}
 	state.mu.Unlock()
-	if !imOpen || launcherOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
-		state.hideOfficeSettings()
-		if imStore != nil && imStore.Onboarding.Snapshot().Open {
+	imOnboardingRendered := false
+	defer func() {
+		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Open {
 			imStore.Onboarding.Hide()
 		}
+	}()
+	if !imOpen || launcherOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
+		state.hideOfficeSettings()
 	}
 	// Global native pages return before frame.View. Retire old bindings and
 	// pause debounce work here as well, without flushing hidden drafts.
@@ -3340,13 +3304,17 @@ func mainView(c *ui.Context) {
 				state.closeToTray = cfg.CloseToTray
 				state.launcherPrefsSeeded = true
 			}
-			if !state.launcherComponentsFresh {
+			state.mu.Lock()
+			componentsFresh := state.launcherComponentsFresh
+			state.mu.Unlock()
+			if !componentsFresh {
 				state.refreshLauncherComponents()
-				state.launcherComponentsFresh = true
 			}
 			state.mu.Lock()
 			compRows := append([]desktopcomponents.Row(nil), state.launcherComponents...)
+			prefsError := state.launcherPrefsError
 			state.mu.Unlock()
+			componentActivity := state.launcherComponentActivitySnapshot()
 			quitPtr := &state.launcherQuitAfterStart
 			trayPtr := &state.closeToTray
 			autoPtr := &state.launcherAutoStartDesktop
@@ -3390,11 +3358,13 @@ func mainView(c *ui.Context) {
 				ImportCategories:     state.launcherImportCategories,
 				ImportCatalog:        state.launcherImportCatalog,
 				Components:           compRows,
+				ComponentPending:     componentActivity.Pending,
+				ComponentStatus:      componentActivity.Status,
+				LauncherPrefsError:   prefsError,
 				ComponentBusy:        bridgeChangeActive.Load(),
 				HostRuntimeState:     st.State,
 				OnRefreshComponents: func() {
 					state.refreshLauncherComponents()
-					state.launcherComponentsFresh = true
 					if win != nil {
 						win.Update(func() {})
 					}
@@ -3412,13 +3382,20 @@ func mainView(c *ui.Context) {
 						return
 					}
 					if id == "whalebridge" && action == "start" {
+						release, ok := state.claimLauncherComponentAction(win, id, action)
+						if !ok {
+							return
+						}
 						state.mu.Lock()
 						state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"
+						state.launcherComponentStatus = state.launcherUpdate
 						state.mu.Unlock()
 						go func() {
+							defer release()
 							err := desktopcomponents.RunAction(paths.UserDataDir(), id, action)
 							state.mu.Lock()
 							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
+							state.launcherComponentStatus = state.launcherUpdate
 							state.mu.Unlock()
 							state.refreshLauncherComponents()
 							if win != nil {
@@ -3428,16 +3405,24 @@ func mainView(c *ui.Context) {
 						return
 					}
 					if id == "whalebridge" && action == "install" {
+						release, ok := state.claimLauncherComponentAction(win, id, action)
+						if !ok {
+							return
+						}
 						route := state.updateDownloadRoute()
 						state.mu.Lock()
 						state.launcherUpdate = "正在下载并校验鲸桥组件…"
+						state.launcherComponentStatus = state.launcherUpdate
 						state.mu.Unlock()
 						go func() {
+							defer release()
 							err := desktopcomponents.InstallWhaleBridge(context.Background(), paths.UserDataDir(), route)
 							state.mu.Lock()
 							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
+							state.launcherComponentStatus = state.launcherUpdate
 							if err == nil {
 								state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行"
+								state.launcherComponentStatus = state.launcherUpdate
 							}
 							state.mu.Unlock()
 							state.refreshLauncherComponents()
@@ -3460,13 +3445,22 @@ func mainView(c *ui.Context) {
 					ask := state.launcherAskOnUpdate
 					route := state.launcherDownloadRoute
 					state.mu.Unlock()
-					_ = cfgStore.Update(func(c *config.Config) {
+					err := cfgStore.Update(func(c *config.Config) {
 						c.QuitAfterStart = quit
 						c.CloseToTray = tray
 						c.AutoStartDesktop = auto
 						c.AskOnUpdate = ask
 						c.DownloadRoute = route
 					})
+					state.mu.Lock()
+					state.launcherPrefsError = ""
+					if err != nil {
+						state.launcherPrefsError = err.Error()
+					}
+					state.mu.Unlock()
+					if win != nil {
+						win.Update(func() {})
+					}
 				},
 				OnTab: func(tab string) {
 					state.mu.Lock()
@@ -3492,6 +3486,11 @@ func mainView(c *ui.Context) {
 				},
 				OnStart: func() {
 					state.mu.Lock()
+					if state.launcherStartPreparing || state.launcherStartBusy || state.launcherImportBusy || state.quitting {
+						state.mu.Unlock()
+						return
+					}
+					state.launcherStartPreparing = true
 					store := state.cfgStore
 					ws := strings.TrimSpace(state.launcherWorkspaceDraft)
 					state.launcherTriedStart = true
@@ -3499,52 +3498,55 @@ func mainView(c *ui.Context) {
 					state.launcherStartErr = ""
 					state.startupRecovery.updateHold = false
 					state.mu.Unlock()
-					if store == nil {
+					go func() {
+						defer state.finishLauncherPreparation(win)
+						if store == nil {
+							state.mu.Lock()
+							state.launcherStartBusy = false
+							state.launcherStartFailed = true
+							state.launcherStartErr = "config store is not ready"
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
+						}
+						if ws == "" {
+							ws = paths.DefaultWorkspace()
+						}
+						if err := os.MkdirAll(ws, 0o755); err != nil {
+							state.mu.Lock()
+							state.launcherStartBusy = false
+							state.launcherStartFailed = true
+							state.launcherStartErr = err.Error()
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
+						}
+						if err := store.Update(func(c *config.Config) {
+							c.Workspace = ws
+						}); err != nil {
+							state.mu.Lock()
+							state.launcherStartBusy = false
+							state.launcherStartFailed = true
+							state.launcherStartErr = err.Error()
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
+						}
 						state.mu.Lock()
-						state.launcherStartBusy = false
-						state.launcherStartFailed = true
-						state.launcherStartErr = "config store is not ready"
+						state.launcherWorkspaceDraft = ws
+						state.launcherOpen = true
 						state.mu.Unlock()
+						startHarness(store.Get())
 						if win != nil {
 							win.Update(func() {})
 						}
-						return
-					}
-					if ws == "" {
-						ws = paths.DefaultWorkspace()
-					}
-					if err := os.MkdirAll(ws, 0o755); err != nil {
-						state.mu.Lock()
-						state.launcherStartBusy = false
-						state.launcherStartFailed = true
-						state.launcherStartErr = err.Error()
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
-					if err := store.Update(func(c *config.Config) {
-						c.Workspace = ws
-					}); err != nil {
-						state.mu.Lock()
-						state.launcherStartBusy = false
-						state.launcherStartFailed = true
-						state.launcherStartErr = err.Error()
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-						return
-					}
-					state.mu.Lock()
-					state.launcherWorkspaceDraft = ws
-					state.launcherOpen = true
-					state.mu.Unlock()
-					startHarness(store.Get())
-					if win != nil {
-						win.Update(func() {})
-					}
+					}()
 				},
 				OnScanImport: func() {
 					state.applyImportCatalog(win, "")
@@ -4048,6 +4050,7 @@ func mainView(c *ui.Context) {
 						Name:   sk.Name,
 						Source: sk.Source, Path: skillPathValue(sk.Path), Directory: skillPathValue(sk.Directory),
 						Description:    sk.Description,
+						WhenToUse:      skillPathValue(sk.WhenToUse),
 						ModelInvocable: sk.ModelInvocable,
 						Groups:         sk.Groups, Writable: sk.Writable, UserInvocable: sk.UserInvocable, Error: sessSnap.SkillCatalog.Errors[sk.Name],
 					})
@@ -4064,6 +4067,7 @@ func mainView(c *ui.Context) {
 					SystemDark:            mygo.Theme.IsDark(),
 					DesktopActive:         desktopActive,
 					Desktop: &settings.DesktopAccess{
+						Version:       state.harnessVersionSnapshot(),
 						RestartPolicy: restartPolicy,
 						Fields:        desktopFields,
 						LastAction:    desktopAction,
@@ -4329,6 +4333,7 @@ func mainView(c *ui.Context) {
 					},
 					AppearanceActive: appearanceActive,
 					Appearance: &settings.AppearanceAccess{
+						OnSetTheme:       state.setAppearanceTheme,
 						Background:       state.wallpaperSettings(appearanceActive),
 						Preferences:      state.themeFontEditor(appearanceActive),
 						Theme:            &state.desktopDraft.theme,
@@ -4480,8 +4485,10 @@ func mainView(c *ui.Context) {
 					},
 					SkillsActive: skillsActive,
 					Skills: &settings.SkillsAccess{
-						Skills: skillRows,
-						Query:  &state.settingsSkillQuery, SourceFilter: &state.settingsSkillSource,
+						Create:       state.settingsSkillCreateAccess(),
+						OnOpenCreate: state.openSettingsSkillCreate,
+						Skills:       skillRows,
+						Query:        &state.settingsSkillQuery, SourceFilter: &state.settingsSkillSource,
 						RemovalID: removal.ID, RemovalLabel: removal.Label, RemovalMessage: removal.Message, RemovalReady: removal.Ready, RemovalBusy: removal.Busy,
 						OnCancelRemoval: func() {
 							if sessions != nil {
@@ -5250,6 +5257,7 @@ func mainView(c *ui.Context) {
 			}
 
 			if ((acceptPanelOK && embeddedSection == "" && imOpen) || embeddedSection == "channels") && imStore != nil {
+				imOnboardingRendered = true
 				state.mu.Lock()
 				muxReadyIM := state.dshMuxReady
 				imDraft := state.imDraft

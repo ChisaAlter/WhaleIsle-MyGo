@@ -14,6 +14,10 @@ func assetDiffView(c *ui.Context, m Model) {
 		m.OnCloseDiff()
 	}
 	value := m.AssetDiff
+	if value.Requirement != nil {
+		requestChangesView(c, m, *value.Requirement)
+		return
+	}
 	ui.Text(c, tr("当前工作区差异；这不是历史版本快照或回滚。", "Current workspace diff; this is not a historical version snapshot or rollback.")).FontSize(fonttheme.InterfaceSize(13))
 	ui.Text(c, value.Worker.CWD+" · "+value.Worker.Branch).FontSize(fonttheme.InterfaceSize(12))
 	if value.Snapshot.Truncated {

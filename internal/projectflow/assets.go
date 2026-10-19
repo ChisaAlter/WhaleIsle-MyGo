@@ -18,7 +18,8 @@ type ResolvedArtifact struct {
 	ModifiedSinceReport bool   `json:"modifiedSinceReport"`
 }
 type WorkDiff struct {
-	Snapshot struct {
+	Requirement *RequestChanges `json:"-"`
+	Snapshot    struct {
 		IsGit     *bool  `json:"isGit"`
 		Diff      string `json:"diff"`
 		Truncated bool   `json:"truncated"`

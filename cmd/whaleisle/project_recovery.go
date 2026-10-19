@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -46,6 +47,11 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 			s.mu.Unlock()
 			return
 		}
+	case "revert":
+		if f.requestProjectID != id || selectedCard == nil || selectedCard.ProjectID != id || !strings.Contains(f.requestRevertError, "pluginrpc: revert_conflict:") {
+			s.mu.Unlock()
+			return
+		}
 	default:
 		s.mu.Unlock()
 		return
@@ -66,6 +72,8 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 		var err error
 		if kind == "summary" {
 			draft, err = rpc.PrepareSummaryRetry(ctx, project, *selectedWork)
+		} else if kind == "revert" {
+			draft, err = rpc.PrepareRevertRequest(ctx, *selectedCard)
 		} else {
 			draft, err = rpc.PrepareHandoverRetry(ctx, project, *selectedCard)
 		}
@@ -78,7 +86,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 			}
 			f.busy = false
 			if kind == "summary" && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration) ||
-				kind == "handover" && (f.requestProjectID != id || f.requestCard != selectedCard || f.requestGeneration != requestGeneration) {
+				(kind == "handover" || kind == "revert") && (f.requestProjectID != id || f.requestCard != selectedCard || f.requestGeneration != requestGeneration) {
 				s.mu.Unlock()
 				return
 			}

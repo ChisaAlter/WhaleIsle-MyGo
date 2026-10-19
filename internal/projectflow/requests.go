@@ -7,31 +7,33 @@ import (
 
 // RequestCard is a user requirement and its delivery, not an agentTeam task.
 type RequestCard struct {
-	ID             string             `json:"id"`
-	ProjectID      string             `json:"projectId"`
-	Title          string             `json:"title"`
-	Revision       int                `json:"revision"`
-	UpdatedAt      float64            `json:"updatedAt"`
-	Status         string             `json:"status"`
-	Goal           string             `json:"goal"`
-	GoalPreview    string             `json:"goalPreview"`
-	ArchivedAt     *float64           `json:"archivedAt"`
-	Conditions     []string           `json:"conditions"`
-	Constraints    []string           `json:"constraints"`
-	AuthorityError string             `json:"authorityError"`
-	HandoverError  string             `json:"handoverError"`
-	Queue          *RequestQueueEntry `json:"queue"`
-	WorkPreview    []RequestWork      `json:"workPreview"`
+	ID             string                `json:"id"`
+	ProjectID      string                `json:"projectId"`
+	Title          string                `json:"title"`
+	Revision       int                   `json:"revision"`
+	UpdatedAt      float64               `json:"updatedAt"`
+	Status         string                `json:"status"`
+	Goal           string                `json:"goal"`
+	GoalPreview    string                `json:"goalPreview"`
+	ArchivedAt     *float64              `json:"archivedAt"`
+	Conditions     []string              `json:"conditions"`
+	Constraints    []string              `json:"constraints"`
+	AuthorityError string                `json:"authorityError"`
+	HandoverError  string                `json:"handoverError"`
+	Queue          *RequestQueueEntry    `json:"queue"`
+	Changes        *RequestChangeSummary `json:"changes"`
+	WorkPreview    []RequestWork         `json:"workPreview"`
 	Delivery       *struct {
-		Artifacts       []Artifact `json:"artifacts"`
-		ID              string     `json:"id"`
-		Outcome         string     `json:"outcome"`
-		Applicable      bool       `json:"applicable"`
-		Summary         string     `json:"summary"`
-		SummaryPreview  string     `json:"summaryPreview"`
-		ArtifactCount   int        `json:"artifactCount"`
-		Evidence        []string   `json:"evidence"`
-		RemainingIssues []string   `json:"remainingIssues"`
+		Artifacts       []Artifact              `json:"artifacts"`
+		Pages           []DeliveryPageReference `json:"pages"`
+		ID              string                  `json:"id"`
+		Outcome         string                  `json:"outcome"`
+		Applicable      bool                    `json:"applicable"`
+		Summary         string                  `json:"summary"`
+		SummaryPreview  string                  `json:"summaryPreview"`
+		ArtifactCount   int                     `json:"artifactCount"`
+		Evidence        []string                `json:"evidence"`
+		RemainingIssues []string                `json:"remainingIssues"`
 	} `json:"delivery"`
 	Versions []struct {
 		Revision int    `json:"revision"`
