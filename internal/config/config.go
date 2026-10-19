@@ -67,6 +67,7 @@ type Config struct {
 	GoPluginInstallRegistry *PluginInstallRegistry `json:"goPluginInstallRegistry,omitempty"`
 	GoVoiceMicrophoneID     string                 `json:"goVoiceMicrophoneId,omitempty"`
 	GoVoiceMicrophoneLabel  string                 `json:"goVoiceMicrophoneLabel,omitempty"`
+	GoOpenInAppChoice       string                 `json:"goOpenInAppChoice,omitempty"`
 	// Workspace is the last folder a new session started in.
 	Workspace string `json:"workspace"`
 	// Host and Port are where dsh web listens; Port is the first port tried.

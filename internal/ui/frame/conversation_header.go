@@ -19,18 +19,16 @@ import (
 // ConversationSessionHeader: titleCluster (crumbs + actions), utilities, corner.
 // Occupants share the original 560 DIP title-row compact threshold.
 func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors) {
-	compact := m.Sizes.Center-48 <= 560
+	rightInset := max(float32(28), m.captionRightInset)
+	compact := m.Sizes.Center-20-rightInset <= 560
 	gap := float32(8)
 	utilitiesMargin := float32(12)
 	if compact {
 		gap = 4
 		utilitiesMargin = 8
 	}
-	rightInset := float32(28)
-	if m.OnOpenSettings != nil {
-		rightInset = 12
-	}
 	muted := chrome.Color(colors.Muted)
+	managed := conversationIsManaged(snap)
 	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().MinHeight(40).Padding(8, rightInset, 0, 20).AlignItems(ui.Center).DragWindow().Children(func() {
 		ui.Row(c).Key("conversation-title-cluster").Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Clip().Children(func() {
@@ -41,6 +39,9 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 				}
 			})
 			ui.Row(c).Key("conversation-header-actions").Shrink(0).AlignItems(ui.Center).Gap(gap).Children(func() {
+				if managed {
+					return
+				}
 				preset := strings.TrimSpace(snap.SelectedAgentPreset)
 				if preset == "" && m.AgentPresetPick != nil {
 					preset = strings.TrimSpace(*m.AgentPresetPick)
@@ -53,27 +54,40 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 						}
 					})
 				}
+				projectObserverHeader(c, m)
 				jobsHeader(c, m)
-				conversationHeaderButton(c, "conversation-more", i18n.T(i18n.KeyLauncherOpen), "EllipsisOutline", true, muted, m.OnOpenLauncher, 0)
+				if m.WorkspaceTrailing != nil {
+					conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "AgentPresetOutline", compact, muted, m.OnOpenAgents, 0)
+				} else {
+					conversationHeaderButton(c, "conversation-more", i18n.T(i18n.KeyLauncherOpen), "EllipsisOutline", true, muted, m.OnOpenLauncher, 0)
+				}
 			})
 		})
 		ui.Row(c).Key("conversation-header-utilities").Shrink(0).AlignItems(ui.Center).Gap(gap).Padding(0, 0, 0, utilitiesMargin).Children(func() {
+			if managed {
+				return
+			}
+			conversationOpenInApp(c, m, snap, colors)
 			scheduleHeader(c, m, snap, colors)
 			openAgents := m.OnOpenAgents
 			if openAgents == nil {
 				openAgents = m.OnOpenAssistant
 			}
-			conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "AgentPresetOutline", compact, muted, openAgents, 0)
-			if !m.TitlebarPreferences.HideSurfacesToggle {
+			if m.WorkspaceTrailing == nil {
+				conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "AgentPresetOutline", compact, muted, openAgents, 0)
+			}
+			if m.WorkspaceTrailing == nil && !m.TitlebarPreferences.HideSurfacesToggle {
 				conversationHeaderButton(c, "conversation-docs", i18n.T(i18n.KeyFrameCaptionProjectDocs), "PanelLeftOutline", true, muted, m.OnToggleTools, 180)
 			}
-			if !m.TitlebarPreferences.HideTerminalToggle {
+			if m.WorkspaceTrailing == nil && !m.TitlebarPreferences.HideTerminalToggle {
 				conversationHeaderButton(c, "conversation-host-terminal", termui.HostTitle(), "CodeOutline", compact, muted, m.OnOpenHostTerminal, 0)
 				conversationHeaderButton(c, "conversation-terminal", i18n.T(i18n.KeyTerminalTitle), "PanelLeftOutline", true, muted, m.OnToggleTerminal, 90)
 			}
 		})
 		ui.Row(c).Key("conversation-header-corner").Shrink(0).AlignItems(ui.Center).Children(func() {
-			conversationHeaderButton(c, "conversation-settings", i18n.T(i18n.KeySettingsOpen), "SettingsOutline", true, muted, m.OnOpenSettings, 0)
+			if m.WorkspaceTrailing == nil {
+				conversationHeaderButton(c, "conversation-settings", i18n.T(i18n.KeySettingsOpen), "SettingsOutline", true, muted, m.OnOpenSettings, 0)
+			}
 		})
 	})
 }

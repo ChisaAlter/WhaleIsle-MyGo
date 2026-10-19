@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -96,6 +97,7 @@ import (
 
 type mainState struct {
 	voiceDevices           *composerVoiceDevices
+	workspaceOpenInApp     *frame.WorkspaceOpenInAppState
 	svgImages              *nativeSVGImages
 	svgImagesPaused        bool
 	nativePlugins          nativePluginManagerState
@@ -463,13 +465,15 @@ type mainState struct {
 	terminalSavedBottom   float32
 	terminalResumePending bool
 
-	dshMu       sync.Mutex
-	dshCancel   context.CancelFunc
-	dshEndpoint string
-	dshClient   *dsh.Client
-	dshMux      *dsh.Mux
-	dshMuxReady bool
-	dshMuxLost  bool
+	dshMu             sync.Mutex
+	dshCancel         context.CancelFunc
+	dshEndpoint       string
+	dshClient         *dsh.Client
+	dshMux            *dsh.Mux
+	dshMuxReady       bool
+	dshMuxLost        bool
+	dshBootstrapError string
+	dshNetworkOffline bool
 }
 
 var state = mainState{fileEditViewMode: files.EditViewEdit}
@@ -1656,8 +1660,12 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.dshCancel = cancel
 	s.dshEndpoint = key
+	s.mu.Lock()
 	s.dshMuxReady = false
 	s.dshMuxLost = false
+	s.dshBootstrapError = ""
+	s.dshNetworkOffline = false
+	s.mu.Unlock()
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.replaceMCPControllerLocked()
 	s.settingsProviderProfiles.ResetHost()
@@ -1819,8 +1827,12 @@ func (s *mainState) stopDSHLocked() {
 	s.settingsReferencedCredentials.Attach(nil)
 	s.settingsProviderDiscovery.Attach(nil)
 	s.dshMux = nil
+	s.mu.Lock()
 	s.dshMuxReady = false
 	s.dshMuxLost = false
+	s.dshBootstrapError = ""
+	s.dshNetworkOffline = false
+	s.mu.Unlock()
 	if s.sessions != nil {
 		s.sessions.Detach()
 	}
@@ -1863,8 +1875,15 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		}
 	}
 	connection := s.newConnectionAttemptState(ctx, client, mux, refresh)
-	_ = dsh.MaintainMux(ctx, mux, dsh.Backoff{}, func(ctx context.Context) error {
+	stopNetwork := connection.watchNetwork(ctx)
+	defer stopNetwork()
+	_ = dsh.MaintainMuxFromBootstrap(ctx, mux, client, func(ctx context.Context) error {
 		if !connection.begin(ctx) {
+			return context.Canceled
+		}
+		generationDone := make(chan struct{})
+		if !mux.BindGeneration(ctx, generationDone) {
+			close(generationDone)
 			return context.Canceled
 		}
 		var scheduleEventsOwner *schedstore.EventsOwner
@@ -1880,7 +1899,11 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 			delivery = inter.BeginEventsDelivery(ctx, client, mux)
 		}
 		go func() {
-			_ = client.FollowEvents(ctx, mux, dsh.EventsFuncs{
+			defer close(generationDone)
+			if inter != nil {
+				defer inter.RetireEventsDelivery(delivery)
+			}
+			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
 					connection.ready(ctx, func() {
 						pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
@@ -1935,7 +1958,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 				},
 			})
 			if ctx.Err() == nil {
-				connection.retry(ctx)
+				connection.retry(ctx, err)
 			}
 		}()
 		if sessions != nil {
@@ -1955,6 +1978,10 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		return nil
 	}, func(error) {
 		connection.lost()
+	}, func(warning error) {
+		log.Print("[connection] ", warning)
+	}, func(err error) {
+		connection.bootstrap(err)
 	})
 }
 
@@ -2167,6 +2194,7 @@ func main() {
 		win.OnHide(state.pauseVoiceDevices)
 		win.OnMinimize(state.pauseVoiceDevices)
 		win.OnClosed(state.pauseVoiceDevices)
+		win.OnClosed(state.closeWorkspaceOpenInApp)
 		win.OnHide(state.pauseSVGImages)
 		win.OnMinimize(state.pauseSVGImages)
 		win.OnClosed(state.pauseSVGImages)
@@ -2553,6 +2581,8 @@ func (s *mainState) refreshGit(workspaceRoot string) {
 		if snap, err := desktopgit.WorkspaceSnapshot(root); err == nil {
 			branch, dirty = snap.Branch, snap.Dirty
 			repositoryStatus = snap.Status
+		} else if errors.Is(err, desktopgit.ErrNotRepo) {
+			repositoryStatus = &desktopgit.RepositoryStatus{}
 		}
 	}
 	s.mu.Lock()
@@ -2880,6 +2910,8 @@ func marketInstallRequestID() string {
 
 func mainView(c *ui.Context) {
 	state.syncHostAppearance()
+	openInApp := state.observeWorkspaceOpenInApp()
+	defer openInApp.FinishFrame(c)
 	defer state.observePluginCreator()
 	defer state.finishVoiceDeviceSettingsFrame()
 	defer state.syncResumeCheckpoint(c)
@@ -3772,6 +3804,8 @@ func mainView(c *ui.Context) {
 		// Exclusive panels (settings/market/…) must not keep desktop title actions.
 		desktopChromeLocked := usageOpen || imOpen || marketOpen ||
 			scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen
+		sharedNativeCaption := runtime.GOOS == "windows" && st.State == harness.Ready &&
+			!usageOpen && !imOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen
 		acceptPanelOK := st.State == harness.Ready
 		// Keep the restore action outside the collapsed navigation track on
 		// desktop. Preserve existing page-specific title actions.
@@ -3787,7 +3821,9 @@ func mainView(c *ui.Context) {
 			}
 		}
 		state.mainCaptionFileDrop(c, st.State == harness.Ready, frame.Model{Store: sessions, Sizes: &layout, WorkspaceRoot: workspaceRoot}, func() {
-			if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit, captionNewSession) {
+			if sharedNativeCaption {
+				ui.Box(c).Height(0)
+			} else if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit, captionNewSession) {
 				// Settings and other exclusive routes bypass the navigation shell's
 				// writeback. Persist caption restores through the same layout state.
 				state.mu.Lock()
@@ -3796,10 +3832,12 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 			} else if desktopChromeLocked {
 				chrome.TitleBarWithActions(c, "", titleColors, gitBadge, nil)
+			} else if runtime.GOOS == "windows" {
+				// The workspace owns its shared auto-sized caption row. An extra
+				// top spacer shifts conversation and dock controls away from it.
+				ui.Box(c).Height(0)
 			} else {
-				// Thin drag strip so system traffic lights keep hit targets; no chip row.
-				ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).
-					Background(titleColors.Background).DragWindow()
+				ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).Background(titleColors.Background).DragWindow()
 			}
 		})
 		// In-window tools menu (UIA-clickable). Replaces native Popup which automation cannot invoke reliably.
@@ -6170,6 +6208,11 @@ func mainView(c *ui.Context) {
 					})
 					state.mu.Lock()
 					connBanner := connectionBanner(st, state.dshMuxReady, state.dshMuxLost)
+					if st.State == harness.Ready {
+						if unavailable := connectionUnavailableMessage(state.dshBootstrapError, state.dshNetworkOffline, state.dshMuxLost); unavailable != "" {
+							connBanner = unavailable
+						}
+					}
 					state.mu.Unlock()
 					var usageJobsToday *int
 					usageBalance := ""
@@ -7057,6 +7100,9 @@ func mainView(c *ui.Context) {
 							return state.officePreviewMessage(sessions, snap.SelectedID, path)
 						},
 					}
+					state.bindWorkspaceTrailing(win, &frameModel, gitBadge, gitRepositoryStatus, gitBusy, workspaceRoot, gitCommitDraft)
+					frameModel.WorkspaceOpenInApp = openInApp
+					frameModel.OnOpenWorkspaceLocal = func() { openInApp.OpenCurrent(sessions) }
 					state.bindProjectModel(win, &frameModel)
 					frameModel.OnOpenTerminalTarget = state.terminalTargetHandler(win, frameModel, func(tab string) {
 						state.mu.Lock()
@@ -7186,11 +7232,25 @@ func mainView(c *ui.Context) {
 				},
 			})
 		}
-		state.withMainNavigation(c, sharedNavigation, frame.Model{
+		navigationModel := frame.Model{
 			Store: sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
 			SessionSearch: &sessionSearch, RenameSessionID: &renameSessionID, RenameDraft: &renameDraft,
-			WorkspaceRoot: workspaceRoot,
-		}, func() { paintMainContent("") })
+			WorkspaceRoot: workspaceRoot, WorkspacePage: sharedNativeCaption && desktopChromeLocked,
+			GitWorkbench: &gitWorkbench,
+		}
+		if navigationModel.WorkspacePage {
+			state.bindGlobalWorkspace(win, &navigationModel, workspaceRoot, systemDark)
+			if setStore != nil {
+				navigationModel.TitlebarPreferences = settingsstore.TitlebarPreferencesFrom(setStore.Snapshot())
+			}
+			state.bindWorkspaceTrailing(win, &navigationModel, gitBadge, gitRepositoryStatus, gitBusy, workspaceRoot, gitCommitDraft)
+		}
+		state.withMainNavigation(c, sharedNavigation, navigationModel, func() { paintMainContent("") })
+		if navigationModel.WorkspacePage {
+			state.mu.Lock()
+			state.gitWorkbench = gitWorkbench
+			state.mu.Unlock()
+		}
 		paintSettingsOverlay()
 
 	})

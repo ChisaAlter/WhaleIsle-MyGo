@@ -75,7 +75,7 @@ func projectObserverHeader(c *ui.Context, m Model) {
 		if p.CoordinatorSessionID == "" || p.CoordinatorSessionID != m.Projects.SelectedSession {
 			continue
 		}
-		ui.Row(c).FillWidth().Gap(4).Children(func() {
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(4).Children(func() {
 			directory := strings.TrimRight(strings.ReplaceAll(p.CanonicalWorkingDirectory, "\\", "/"), "/")
 			if at := strings.LastIndex(directory, "/"); at >= 0 {
 				directory = directory[at+1:]
@@ -83,10 +83,10 @@ func projectObserverHeader(c *ui.Context, m Model) {
 			if directory == "" {
 				directory = p.CanonicalWorkingDirectory
 			}
-			if ui.Button(c, directory).Tooltip(p.CanonicalWorkingDirectory).MaxWidth(280).MinWidth(0).Clicked() && m.Projects.OnProjectDirectoryFor != nil {
+			if ui.Button(c, directory).Height(28).Padding(0, 6).BorderWidth(0).Background(ui.Transparent).Tooltip(p.CanonicalWorkingDirectory).MaxWidth(280).MinWidth(0).Clicked() && m.Projects.OnProjectDirectoryFor != nil {
 				m.Projects.OnProjectDirectoryFor(p.ID)
 			}
-			if ui.Button(c, paneLabel("项目概览", "Project overview")).Clicked() {
+			if ui.Button(c, paneLabel("项目概览", "Project overview")).Height(28).Padding(0, 6).BorderWidth(0).Background(ui.Transparent).Clicked() {
 				openProjectObserver(m, p.ID)
 			}
 		})

@@ -12,7 +12,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 	actions["pane.splitDown"] = func() { SplitWorkspacePane(m, true) }
 	actions["pane.fullscreen.toggle"] = func() { ToggleWorkspacePaneFullscreen(m) }
 	actions["workspace.add"] = m.OnBrowseWorkspace
-	actions["workspace.openLocal"] = m.OnRevealWorkspace
+	actions["workspace.openLocal"] = m.OnOpenWorkspaceLocal
 	actions["browser.open"] = m.OnOpenBrowserPreview
 	actions["terminal.host"] = m.OnOpenHostTerminal
 	actions["market.open"] = m.OnOpenMarket

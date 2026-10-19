@@ -150,17 +150,82 @@ drafts, and creates no permanent Host-cancel tombstone. A same-eventId replay ge
 a new waiter. Old answers, cancellation callbacks and late HTTP results cannot
 consume or remove its replacement. Actual Host Cancel remains separate.
 
-Source implementation is still open for the reference's configurable automatic
-recovery timings, jitter, total Ready deadline and old-generation join. These
-were found by following the actual registered connection producer and bootstrap
-global, not by reading user configuration. No regression preparation begins
-until that owned source and its final main wiring are closed.
+`04e7961c` implements the configurable recovery timings from the actual Host
+bootstrap global: 500ms base, factor2/max10000ms and 50–100% jitter, plus the
+3000ms readiness warning and 15000ms whole-generation deadline including Dial.
+Root's second narrow handoff binds the `$events` completion before starting it,
+then waits for retirement/join before the next generation. An unexpected events
+end uses automatic recovery; only an explicit user retry skips backoff.
+
+The same maintainer now also owns bootstrap loading. Read/parse failure keeps a
+visible error and an operational Retry on the same Host/Client. It does not
+silently accept defaults for invalid configuration or leave a dead retry button.
+The bootstrap document is bounded, same-origin, parsed without execution and
+never logged or persisted. No running user configuration was inspected.
+
+`4132225c` closes the Windows network-availability producer using local OS
+connectivity hints and change notifications. Unknown stays unknown; offline
+pauses automatic attempts, an explicit retry admits one attempt, and online
+restarts the initial backoff. Root wires its lifetime to the same Host attempt
+owner. No polling service, external probe or network setting is introduced.
+
+The remote close audit additionally found committed native text could precede
+the UI's delayed OnChange. `915f9452` gives each captured remote resource its own
+native buffer; dirty/preflight/save/check/suspend paths capture committed text
+from that owner before close or reset decisions. IME marked text and another
+session's buffer are not substituted. The fixed original remote contribution
+does not register whole-window persistence/close protection; this work does not
+invent or claim remote draft restoration after process exit.
+
+### Shared AppFrame topology and actual workspace open-in-app
+
+The fixed Whale shell injects its own 32x32 controls at top8/right8 and reserves
+112 DIP. Its preload does not set the upstream standalone desktop's
+`data-windows-titlebar` marker; importing that other branch's extra 40px spacer
+was incorrect. There is no extra 12-DIP spacer above the ordinary native shell.
+
+`138abe63` and root integration use one auto-sized shared title row (floor52,
+ordinary title/tabs approximately72, title without tabs53). Conversation headers
+and the compact Git/panel trailing cluster share that row; right dock tabs start
+in row two. Measured trailing width reserves only its overlap with the center,
+including native control space. Windows collapsed navigation remains56 DIP.
+Project header actions are in the title cluster rather than a separate row.
+
+`ff0d510f` provides compact Git branches/menu/progress and the panel toggles.
+Retained main-session cwd, managed composer and actual ui-git/titlebar settings
+control their visibility. Global main panels retain this title row and the same
+terminal panel/drawer. They intentionally have no active right-dock surface;
+the Surfaces button cannot alter hidden state or redirect to chat. The exact
+fixed-source chain is recorded in the settings source record (`40490dac`).
+`28b0a5b9` follows the actual direct Initialize action and keeps global commit,
+push and publish review visible in one existing Workbench modal. Review captures
+root/Host/session admission, retires on replacement, and never switches panels.
+Global terminal file/loopback targets use the same captured handler and retained
+resource state; they open the dock for later conversation visibility while the
+global panel remains active. External targets retain the existing OS action.
+
+The trailing width and shared-row height are observed after layout/commit in a
+paint receipt, including width zero, with rounding of the controls inset. Only
+changed geometry requests another frame; asynchronous Git arrival and all-toggle
+hide no longer depend on an unrelated input event or a permanent timer.
+
+`a0a40e39` adds the actual open-in-app application list, split picker, default
+choice and captured POST contract. Root supplies once-per-Host lifecycle,
+native preference persistence and both command routes in the main conversation
+scope. It does not substitute a fixed file-manager launch or a configured cwd
+fallback for the original selected-session action. Pending/default/error states
+share the header and command controller; Host replacement retires old requests.
+
+SVG restore now invalidates the window after visibility resumes. The frame ring
+uses the painter's already-inside stroke directly, keeping its edge at exactly
+one physical pixel without an additional half-pixel inset.
 
 ## Evidence status
 
 Source-owner commits include `67a6924`, `590e30f`, `b103ae7`, `b2d7273`,
 `bcf3d5f`, `5c2e6fc`, `4bfd992`, `ff6ac28`, `91e7916`, `e760f50`, `d93e409`,
-`915edb4`, `2ba3b072`, `b8228820`, `009c57bf`, `32acf481` and `1f565763`.
+`915edb4`, `2ba3b072`, `b8228820`, `009c57bf`, `32acf481`, `1f565763`,
+`4132225c`, `915f9452`, `70d4e0d2`, `138abe63`, `a0a40e39` and `28b0a5b9`.
 Domain records retain
 the exact branch/state evidence and explicit unreviewed branches.
 
@@ -169,6 +234,11 @@ Shared `main.go`/`frame.go` were edited with narrow hunks, preserving concurrent
 work. No new-phase tests, fixtures, builds, shader compilation, app/helper
 startup, device acquisition, Host mutation or user configuration operation was
 performed for this source integration milestone.
+
+All six source owners and root have now closed the confirmed changes of this
+expanded source batch. This admits regression preparation next. It does not
+change the coverage index's explicit non-exhaustive boundary or certify every
+original dynamic contribution/state.
 
 The previous phase's passing component/build receipts belong to its older
 source revision. They do not validate these new changes. Real Windows native

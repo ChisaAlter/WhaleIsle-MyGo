@@ -3,11 +3,9 @@ package main
 import (
 	"encoding/json"
 	"runtime"
-	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/shortcuts"
 )
@@ -83,17 +81,11 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 	}
 	actions["workspace.openLocal"] = func() {
 		s.mu.Lock()
-		sessions, cfg := s.sessions, s.cfgStore
+		sessions := s.sessions
+		blocked := s.marketOpen || s.scheduleOpen || s.assistantOpen || s.launcherOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen
 		s.mu.Unlock()
-		root := ""
-		if sessions != nil {
-			root = strings.TrimSpace(sessions.WorkspaceCwd())
-		}
-		if root == "" && cfg != nil {
-			root = strings.TrimSpace(cfg.Get().Workspace)
-		}
-		if root != "" {
-			_ = desktopcomponents.OpenInFileManager(root)
+		if !blocked {
+			s.observeWorkspaceOpenInApp().OpenCurrent(sessions)
 		}
 	}
 	actions["launcher.open"] = func() { s.openDesktopTrayPage(deeplink.ActionLauncher) }
@@ -155,7 +147,7 @@ func buildApplicationMenu(bindings map[string]shortcuts.Chord, platform string, 
 		menu = append(menu, group("app", "鲸屿", "Whale Isle", item("settings.about", "关于", "About"), mygo.Separator(), quit))
 	}
 	menu = append(menu,
-		group("file", "文件", "File", item("workspace.add", "打开工作区…", "Open workspace…"), item("launcher.open", "打开启动器", "Open launcher"), item("workspace.openLocal", "在文件管理器打开工作区", "Reveal workspace"), mygo.Separator(), item("settings.open", "设置…", "Settings…"), item("market.open", "插件市场…", "Marketplace…"), item("settings.mcp", "MCP…", "MCP…"), item("settings.skills", "技能…", "Skills…"), mygo.Separator(), last),
+		group("file", "文件", "File", item("workspace.add", "打开工作区…", "Open workspace…"), item("launcher.open", "打开启动器", "Open launcher"), item("workspace.openLocal", "在本地打开", "Open locally"), mygo.Separator(), item("settings.open", "设置…", "Settings…"), item("market.open", "插件市场…", "Marketplace…"), item("settings.mcp", "MCP…", "MCP…"), item("settings.skills", "技能…", "Skills…"), mygo.Separator(), last),
 		&mygo.MenuItem{ID: "edit", Role: mygo.RoleEditMenu},
 		group("run", "运行", "Run", item("harness.restart", "重启 Harness", "Restart Harness"), item("window.refresh", "重新绘制界面", "Refresh interface")),
 		group("view", "视图", "View", item("window.actualSize", "实际大小", "Actual size"), item("window.zoomIn", "放大", "Zoom in"), item("window.zoomOut", "缩小", "Zoom out"), mygo.Separator(), item("window.fullscreen", "全屏", "Fullscreen"), &mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}, item("shortcuts.open", "快捷键…", "Keyboard shortcuts…")),

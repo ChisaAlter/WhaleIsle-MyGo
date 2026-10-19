@@ -19,9 +19,8 @@ func WindowFramePainter(win *mygo.Window, dark bool) func(*ui.Painter, ui.Rect) 
 		if !visible {
 			return
 		}
-		width := 1 / p.Scale()
-		inset := width / 2
-		r.X, r.Y, r.W, r.H = r.X+inset, r.Y+inset, r.W-width, r.H-width
-		p.Stroke(r, ink, 20-inset, width)
+		// MyGo strokes inside the supplied edge; inset would shift the ring by
+		// another pixel after edge snapping, unlike the original inset:0 seat.
+		p.Stroke(r, ink, 20, 1/p.Scale())
 	}
 }

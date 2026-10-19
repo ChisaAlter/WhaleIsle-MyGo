@@ -12,6 +12,16 @@ import (
 	"whaleisle/internal/ui/launcher"
 )
 
+func connectionUnavailableMessage(bootstrapError string, offline, lost bool) string {
+	if bootstrapError != "" {
+		return bootstrapError
+	}
+	if offline && lost {
+		return resumeText("网络已离线，等待网络恢复。", "Offline. Waiting for network availability.")
+	}
+	return ""
+}
+
 // Main panel selection changes visibility only. The marketplace, scheduler,
 // assistant and per-session composer stores remain alive with their drafts.
 func (s *mainState) selectMainPanel(panel string) {
@@ -76,7 +86,8 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	s.mu.Lock()
 	win := s.win
 	m.ConnectionReady = s.bootStatus.State == harness.Ready && s.dshMuxReady
-	m.ConnectionConnecting = s.bootStatus.State == harness.Starting || s.bootStatus.State == harness.Ready && !s.dshMuxReady
+	m.ConnectionError = connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
+	m.ConnectionConnecting = s.bootStatus.State == harness.Starting || s.bootStatus.State == harness.Ready && !s.dshMuxReady && s.dshBootstrapError == "" && (!s.dshNetworkOffline || !s.dshMuxLost)
 	m.ConnectionEpoch = s.bootStatus.Generation
 	m.DesktopUpdateInstalling = s.nativeReleases.installing
 	m.DesktopUpdatePhase, m.DesktopUpdateDetail = s.nativeReleases.phase, strings.TrimSpace(s.nativeReleases.status+" "+s.nativeReleases.err)
@@ -177,6 +188,9 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Lock()
 		s.layout.Sidebar, s.layout.SidebarExpanded = m.Sizes.Sidebar, m.Sizes.SidebarExpanded
 		s.layout.Responsive = m.Sizes.Responsive
+		if m.WorkspacePage {
+			s.layout.Main = m.Sizes.Main
+		}
 		s.sessionSearch = *m.SessionSearch
 		s.renameSessionID, s.renameDraft = *m.RenameSessionID, *m.RenameDraft
 		s.mu.Unlock()

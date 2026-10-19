@@ -163,6 +163,9 @@ type Model struct {
 	OnReplyGroupThread      func(string)
 	DisableDeveloperTools   bool
 	TitlebarPreferences     settings.TitlebarPreferences
+	WorkspaceTrailing       func(*ui.Context, string)
+	WorkspacePage           bool
+	WorkspaceOpenInApp      *WorkspaceOpenInAppState
 	HideArchivedList        bool
 	ChatPreferences         settings.ChatPreferences
 	ConversationPreferences settings.ConversationPreferences
@@ -289,6 +292,7 @@ type Model struct {
 	OnSelectWorkspace     func(string)
 	OnBrowseWorkspace     func() // SidebarRoot ☰ / folder row
 	OnRevealWorkspace     func()
+	OnOpenWorkspaceLocal  func()
 	OnRenameWorkspace     func(title string)
 	OnDeleteWorkspace     func()
 	OnMoveSessionBefore   func(sessionID, beforeSessionID string)
@@ -327,6 +331,7 @@ type Model struct {
 	ConnectionBanner                        string
 	ConnectionReady                         bool
 	ConnectionConnecting                    bool
+	ConnectionError                         string
 	ConnectionEpoch                         uint64
 	DesktopUpdateInstalling                 bool
 	DesktopUpdatePhase, DesktopUpdateDetail string
@@ -373,6 +378,7 @@ type Model struct {
 
 	workspacePane     *WorkspacePane
 	centerHeight      float32 // resolved height below titlebar for terminal concessions
+	captionRightInset float32
 	jobsHeaderMounted *bool
 }
 
@@ -533,6 +539,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnOpenLauncher:  m.OnOpenLauncher,
 		OnOpenSettings:  m.OnOpenSettings,
 		ConnectionReady: m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
+		ConnectionError:         m.ConnectionError,
 		OnReconnect:             m.OnReconnect,
 		DesktopUpdateInstalling: m.DesktopUpdateInstalling,
 		DesktopUpdatePhase:      m.DesktopUpdatePhase, DesktopUpdateDetail: m.DesktopUpdateDetail, OnOpenDesktopUpdate: m.OnOpenDesktopUpdate,
@@ -612,6 +619,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 		sidebarColumns(c, m.Sizes, func() { navigationView(c, m, snap) }, body)
 	}
 	withNavigation(func() {
+		hero := conversationPhase(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) == conversationHero
+		paintHeader := func() {
+			headerHeight := workspaceSharedCaption(c, m, snap, colors, hero)
+			m.centerHeight = max(float32(0), m.centerHeight-headerHeight)
+		}
 		// Electron desktop defaults to 2-column (rail | chat). Files/diff mounts
 		// only when FilePaneWidth > 0 (tools toggle); otherwise chat fills.
 		paintChat := func() {
@@ -626,60 +638,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// overlay). Add top inset on the chat column only — not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
 			conversationArea.Children(func() {
-				if mainSubagentConversation(c, m) {
+				if mainSubagentConversationBody(c, m) {
 					return
 				}
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
-				projectObserverHeader(c, m)
-				if emptyHero {
-					// EmptyHero: blank header band (no Initialize Git / layout glyphs).
-					// Keep a thin drag strip for the Windows caption region only.
-					ui.Row(c).FillWidth().Height(40).Padding(0, 140, 0, 20).DragWindow().Children(func() {
-						ui.Box(c).Grow(1).MinWidth(0)
-						jobsHeader(c, m)
-					})
-				} else {
-					// Electron: caption row (workspace + actions) then 对话/轨迹 tabs.
-					ui.Column(c).FillWidth().Children(func() {
-						conversationHeaderTitleRow(c, m, snap, colors)
-						if !m.HideChatViewTabs && !m.DisableDeveloperTools {
-							ui.Row(c).FillWidth().Padding(4, 28, 0, 28).AlignItems(ui.End).Gap(36).Children(func() {
-								tab := "chat"
-								if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
-									tab = strings.TrimSpace(*m.ChatPaneTab)
-								}
-								paintTab := func(id, label string) {
-									active := tab == id
-									ink := muted
-									weight := 500
-									if active {
-										ink = chrome.Color(colors.Accent)
-									}
-									ui.Column(c).Children(func() {
-										b := ui.Button(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16)).FontWeight(weight).
-											BorderWidth(0).Background(ui.Transparent).TextColor(ink).
-											Padding(0, 0, 9, 0)
-										if b.Clicked() && m.ChatPaneTab != nil {
-											*m.ChatPaneTab = id
-										}
-										if active {
-											ui.Box(c).FillWidth().Height(2).Background(chrome.Color(colors.Accent)).Radius(2)
-										} else {
-											ui.Box(c).FillWidth().Height(2)
-										}
-									})
-								}
-								paintTab("chat", i18n.T(i18n.KeyChatPaneTabChat))
-								if !m.DisableDeveloperTools {
-									paintTab("trajectory", i18n.T(i18n.KeyChatPaneTabTrajectory))
-								}
-								ui.Box(c).Grow(1).MinWidth(0)
-							})
-							ui.Box(c).FillWidth().Height(0.5).Background(border)
-						}
-					})
-				}
 				// Prefer live commands/list from main; do not invent stub slash rows.
 				slashCatalog := m.ComposerSlash
 				filePaths := m.ComposerPaths
@@ -1158,7 +1121,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				})
 			})
 		}
-		workspaceColumns(c, m, paintCenter)
+		workspaceColumns(c, m, paintCenter, paintHeader)
 	})
 }
 

@@ -76,5 +76,9 @@ func (s *mainState) pauseSVGImages() {
 func (s *mainState) resumeSVGImages() {
 	s.mu.Lock()
 	s.svgImagesPaused = false
+	win := s.win
 	s.mu.Unlock()
+	if win != nil {
+		win.Invalidate()
+	}
 }

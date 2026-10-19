@@ -47,7 +47,7 @@ Each row follows the same source-first actions:
 - Effects and SVG additions must follow original supported behavior without new dependencies, external-resource fetching, or invented settings.
 - Settings and restoration must preserve actual scope, untouched fields and the source's save/restore timing.
 
-- [ ] Root reconciles all 39 source records and outstanding branches without converting unread states into completed labels.
+- [x] Root reconciles the 39 selected source records and confirmed integration gaps without converting unread states into completed labels.
 - [ ] After source closure, prepare meaningful changed-path regressions and run one unified offline/isolated root regression plus any changed nested SDK packages.
 - [ ] Correct actual failures, review Standards and Spec independently, and build final Windows targets once after relevant checks pass.
 - [ ] Record exact revision, receipts, native/Host acceptance limits and remaining implementation gaps; local commits only.

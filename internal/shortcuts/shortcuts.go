@@ -27,7 +27,7 @@ var commands = []Command{
 	{"session.previous", "上一个对话", "Previous conversation", "Mod+Alt+["},
 	{"session.next", "下一个对话", "Next conversation", "Mod+Alt+]"},
 	{"workspace.add", "添加工作区", "Add workspace", "Mod+Shift+O"},
-	{"workspace.openLocal", "在文件管理器中打开工作区", "Reveal workspace", "Mod+Alt+O"},
+	{"workspace.openLocal", "在本地打开", "Open locally", "Mod+Alt+O"},
 	{"workspace.files", "打开工作区文件", "Open workspace files", "Mod+Shift+B"},
 	{"browser.open", "打开浏览器面板", "Open browser pane", "Mod+Shift+U"},
 	{"terminal.host", "打开 Host 终端面板", "Open Host terminal pane", "Mod+Alt+T"},

@@ -377,7 +377,7 @@ func prepareWorkspace(m Model) {
 	w.focusPending = ""
 	w.syncRoute(derefString(m.RightPaneTab))
 }
-func workspaceColumns(c *ui.Context, m Model, center func()) {
+func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 	if m.Sizes.Workspace == nil {
 		prepareWorkspace(m)
 	}
@@ -406,13 +406,18 @@ func workspaceColumns(c *ui.Context, m Model, center func()) {
 		// modes. Retain every split and resource occurrence, and reuse the
 		// existing native-safe main area rather than stacking a canvas overlay
 		// above live WebView/terminal children.
-		ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(render)
+		ui.Column(c).Key("workspace-fullscreen-rows").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			if len(header) > 0 && header[0] != nil {
+				workspaceHeaderBand(c, header[0])
+			}
+			ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(render)
+		})
 		return
 	}
 	if w.Root.dockedLeaf() == nil {
 		m.RightPaneOpen = false
 	}
-	centerRightColumns(c, m, center, render)
+	centerRightColumns(c, m, center, render, header...)
 }
 func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
