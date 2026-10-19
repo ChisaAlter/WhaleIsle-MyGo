@@ -18,15 +18,19 @@ import (
 
 // Item is one row in the session tree.
 type Item struct {
-	Presentation      *SessionPresentation
-	presentationKnown bool
-	presentationKind  string
-	presentationSeq   float64
-	CompletionUnread  bool
-	AgentMetrics      AgentMetrics
-	BilledUsage       *sessioncost.Projection
-	BilledUsageSeq    float64
-	BilledUsageKind   string
+	Presentation          *SessionPresentation
+	presentationKnown     bool
+	presentationKind      string
+	presentationSeq       float64
+	SubagentIdentity      *SessionSubagentIdentity
+	subagentIdentityKnown bool
+	subagentIdentityKind  string
+	subagentIdentitySeq   float64
+	CompletionUnread      bool
+	AgentMetrics          AgentMetrics
+	BilledUsage           *sessioncost.Projection
+	BilledUsageSeq        float64
+	BilledUsageKind       string
 
 	SessionID    string
 	ParentID     string
@@ -210,6 +214,7 @@ type ViewState struct {
 
 // Store tracks sessions for the active dsh client.
 type Store struct {
+	subagentIdentities     map[string]sessionSubagentIdentityState
 	presetDraft            agentPresetDraftState
 	imageLimits            composerImageLimitState
 	planModeControl        planModeState
@@ -380,6 +385,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	if s.client != client {
 		s.resetSessionPresentationsLocked()
+		s.resetSessionSubagentIdentitiesLocked()
 		s.goalReadError = goalReadErrorState{}
 		s.cancelRetainedAgentReadsLocked("")
 		s.resetSidebarStatusesLocked()
@@ -525,6 +531,7 @@ func filepathClean(p string) string {
 func (s *Store) Detach() {
 	s.mu.Lock()
 	s.resetSessionPresentationsLocked()
+	s.resetSessionSubagentIdentitiesLocked()
 	s.cancelRetainedAgentReadsLocked("")
 	s.resetSidebarStatusesLocked()
 	s.clearNextPromptLocked()
@@ -842,7 +849,9 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	for i := range s.items {
 		if prior, ok := priorPresentations[s.items[i].SessionID]; ok {
 			mergeSessionPresentation(&s.items[i], prior)
+			mergeSessionSubagentIdentity(&s.items[i], prior)
 		}
+		s.syncSessionSubagentIdentityLocked(&s.items[i])
 	}
 	// A list response can finish after the user changed sessions and returned
 	// to the same id. Preserve that current foreground row; the follow stream

@@ -36,6 +36,7 @@ func (s *Store) RefreshProjections(ctx context.Context) {
 		}
 		s.applyCostBaselineLocked(sessionID, out.AsOfSeq, out.Values)
 		s.applySessionPresentationValuesLocked(sessionID, "sequenced", out.AsOfSeq, out.Values)
+		s.applySessionSubagentIdentityValuesLocked(sessionID, "sequenced", out.AsOfSeq, out.Values)
 		s.applyQueueValuesLocked(out.Values, out.AsOfSeq)
 		s.applyQuestionValuesLocked(out.Values, out.AsOfSeq)
 		s.applyPermissionValuesLocked(out.Values, out.AsOfSeq)

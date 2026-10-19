@@ -185,6 +185,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.clearHistoryErrorLocked()
 		if snap.Projections != nil {
 			s.applySessionPresentationValuesLocked(s.selectedID, "sequenced", snap.Projections.AsOfSeq, snap.Projections.Values)
+			s.applySessionSubagentIdentityValuesLocked(s.selectedID, "sequenced", snap.Projections.AsOfSeq, snap.Projections.Values)
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.resetInspectorLocked()

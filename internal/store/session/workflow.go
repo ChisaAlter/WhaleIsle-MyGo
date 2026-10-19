@@ -62,19 +62,32 @@ func ProjectWorkflowMessages(messages []Message, runs []workflowrun.Run) []Messa
 	return out
 }
 func WorkflowMemberAvailable(items []Item, parent string, member workflowrun.Member) bool {
+	_, available := workflowMemberMode(items, parent, member)
+	return available
+}
+
+func workflowMemberMode(items []Item, parent string, member workflowrun.Member) (string, bool) {
 	if member.Status != "running" || parent == "" || member.ChildID == "" {
-		return false
+		return "", false
 	}
 	for _, it := range items {
-		if it.SessionID == member.ChildID && it.ParentID == parent && it.Running {
-			return true
+		if it.SessionID == member.ChildID && it.ParentID == parent && it.Running && it.SubagentIdentity != nil {
+			mode := it.SubagentIdentity.Mode
+			if mode == "one-shot" || mode == "continuable" {
+				return mode, true
+			}
 		}
 	}
-	return false
+	return "", false
 }
 func (s *Store) workflowMemberAllowedLocked(parent, runID string, seq float64, child string) bool {
+	_, available := s.workflowMemberAddressLocked(parent, runID, seq, child)
+	return available
+}
+
+func (s *Store) workflowMemberAddressLocked(parent, runID string, seq float64, child string) (map[string]any, bool) {
 	if s.selectedID != parent {
-		return false
+		return nil, false
 	}
 	runs := s.workflowRunsLocked(projectMessageEdits(s.messages))
 	for _, r := range runs {
@@ -84,10 +97,14 @@ func (s *Store) workflowMemberAllowedLocked(parent, runID string, seq float64, c
 		for _, p := range r.Phases {
 			for _, m := range p.Members {
 				if m.Seq == seq && m.ChildID == child {
-					return WorkflowMemberAvailable(s.items, parent, m)
+					mode, available := workflowMemberMode(s.items, parent, m)
+					if available {
+						return map[string]any{"kind": "subagent", "parentSessionId": parent, "childSessionId": child, "mode": mode}, true
+					}
+					return nil, false
 				}
 			}
 		}
 	}
-	return false
+	return nil, false
 }

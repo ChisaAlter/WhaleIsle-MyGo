@@ -7,9 +7,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/projectflow"
-	"whaleisle/internal/workflowrun"
 )
 
 type WorkflowMemberView struct {
@@ -72,11 +70,12 @@ func (s *Store) workflowMemberCurrentLocked(ctx context.Context, token uint64) b
 	return ctx.Err() == nil && w.view.Open && w.view.Token == token && w.client == s.client && w.mux == s.mux && w.generation == s.followGeneration && w.view.ParentID == s.selectedID
 }
 
-// OpenWorkflowMember validates the original parent catalog before following a
-// one-shot address. It never selects a bare child, activates it, or sends input.
+// OpenWorkflowMember follows the current member using the Host's child-owned
+// identity mode. It never selects a bare child, activates it, or sends input.
 func (s *Store) OpenWorkflowMember(binding, parent, runID string, memberSeq float64, child, label string) {
 	s.mu.Lock()
-	if binding == "" || binding != s.planHistoryBinding || s.client == nil || s.mux == nil || !s.workflowMemberAllowedLocked(parent, runID, memberSeq, child) {
+	address, available := s.workflowMemberAddressLocked(parent, runID, memberSeq, child)
+	if binding == "" || binding != s.planHistoryBinding || s.client == nil || s.mux == nil || !available {
 		s.mu.Unlock()
 		return
 	}
@@ -92,30 +91,18 @@ func (s *Store) OpenWorkflowMember(binding, parent, runID string, memberSeq floa
 	ctx, cancel := context.WithCancel(context.Background())
 	token := s.workflowMember.view.Token + 1
 	client, mux := s.client, s.mux
-	s.workflowMember = workflowMemberState{view: WorkflowMemberView{Token: token, Open: true, Busy: true, ParentID: parent, RunID: runID, MemberSeq: memberSeq, ChildID: child, Label: label, Process: previous}, cancel: cancel, client: client, mux: mux, generation: s.followGeneration}
+	s.workflowMember = workflowMemberState{view: WorkflowMemberView{Token: token, Open: true, Busy: true, ParentID: parent, RunID: runID, MemberSeq: memberSeq, ChildID: child, Label: label, Process: previous}, cancel: cancel, client: client, mux: mux, generation: s.followGeneration, address: address}
 	s.mu.Unlock()
 	s.fire()
 	go func() {
 		defer cancel()
-		query, cancelQuery := context.WithTimeout(ctx, 15*time.Second)
-		var projection api.SessionProjectionsValue
-		err := client.Call(query, "session/projections", map[string]any{"request": map[string]any{"sessionId": parent}}, &projection)
-		cancelQuery()
-		address, valid := workflowrun.OneShotAddress(parent, child, projection.Values)
-		if err == nil && !valid {
-			err = fmt.Errorf("original one-shot member is absent from the parent catalog")
-		}
-		if err != nil {
-			s.finishWorkflowMember(ctx, token, err)
-			return
-		}
 		s.mu.Lock()
-		if !s.workflowMemberCurrentLocked(ctx, token) || !s.workflowMemberAllowedLocked(parent, runID, memberSeq, child) {
+		currentAddress, stillAvailable := s.workflowMemberAddressLocked(parent, runID, memberSeq, child)
+		if !s.workflowMemberCurrentLocked(ctx, token) || !stillAvailable || currentAddress["mode"] != address["mode"] {
 			s.mu.Unlock()
 			s.finishWorkflowMember(ctx, token, fmt.Errorf("the member is no longer running"))
 			return
 		}
-		s.workflowMember.address = address
 		s.mu.Unlock()
 		s.followWorkflowMember(ctx, token, mux, address)
 	}()

@@ -176,6 +176,8 @@ func itemFromListRow(it api.SessionListValueItemsItem) Item {
 	if it.Projections != nil {
 		row.Presentation, row.presentationKnown = presentationFromValues(it.Projections.Values)
 		row.presentationKind, row.presentationSeq = it.Projections.Kind, it.Projections.AsOfSeq
+		row.SubagentIdentity, row.subagentIdentityKnown = subagentIdentityFromValues(it.Projections.Values)
+		row.subagentIdentityKind, row.subagentIdentitySeq = it.Projections.Kind, it.Projections.AsOfSeq
 		row.AgentMetrics = decodeAgentMetrics(it.Projections.Values, it.Projections.AsOfSeq)
 		row.BilledUsage = sessioncost.Decode(it.Projections.Values)
 		row.BilledUsageSeq = it.Projections.AsOfSeq

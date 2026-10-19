@@ -179,6 +179,9 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 }
 
 func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) bool {
+	if m.kind == "api-session/deleted" {
+		delete(s.subagentIdentities, m.sessionID)
+	}
 	retiredSubmission := false
 	if m.kind == "api-session/removed" || m.kind == "api-session/deleted" {
 		delete(s.promptAttempted, m.sessionID)
@@ -203,6 +206,7 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 	}
 	if m.kind == "api-session/added" {
 		if index < 0 {
+			s.syncSessionSubagentIdentityLocked(&m.item)
 			s.items = append(s.items, m.item)
 		} else {
 			// Availability-only summaries may omit projection hints. The source
@@ -212,6 +216,8 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			}
 			m.item.AgentMetrics = mergeAgentMetrics(m.item.AgentMetrics, s.items[index].AgentMetrics)
 			mergeSessionPresentation(&m.item, s.items[index])
+			mergeSessionSubagentIdentity(&m.item, s.items[index])
+			s.syncSessionSubagentIdentityLocked(&m.item)
 			if m.item.BilledUsage == nil {
 				m.item.BilledUsage = s.items[index].BilledUsage
 				m.item.BilledUsageSeq = s.items[index].BilledUsageSeq
