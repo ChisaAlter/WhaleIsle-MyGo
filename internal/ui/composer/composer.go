@@ -129,6 +129,9 @@ type Model struct {
 	// Hero paints the Electron empty-session centered composer (larger card,
 	// build-oriented placeholder, workspace/mode chips above the card).
 	Hero bool
+	// OnCardLayout observes the current unshifted card before its enclosing
+	// stack receives the first-send displacement. It must not build controls.
+	OnCardLayout func(ui.Rect)
 }
 
 type suggestItem struct {
@@ -323,6 +326,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// is painted as elevation, so it does not consume draft layout space.
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
 			Radius(22).Padding(8, 0, 0, 0).Gap(12)
+		if m.OnCardLayout != nil {
+			card.OffsetAfterLayout(func(r ui.Rect) ui.Point {
+				m.OnCardLayout(r)
+				return ui.Point{}
+			})
+		}
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)

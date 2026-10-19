@@ -200,6 +200,7 @@ const (
 // Common input queries return false or zero for nil or cleared elements;
 // this does not make references to reused storage safe.
 type node struct {
+	offsetAfterLayout func(Rect) Point
 	decorativeButton bool
 	epoch            uint64
 	key              any
