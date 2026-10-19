@@ -15,6 +15,7 @@ type instructionsWrite struct {
 	pending         *string
 	ready, inFlight bool
 	timer           *time.Timer
+	queueRevision   uint64
 }
 
 // The existing conversation producer debounces custom instructions by 400ms.
@@ -37,13 +38,15 @@ func (s *Store) queueInstructions(client *dsh.Client, generation uint64, text st
 		s.instructionsWrite = w
 	}
 	w.pending = &text
+	w.queueRevision++
+	queuedRevision := w.queueRevision
 	w.ready = false
 	if w.timer != nil {
 		w.timer.Stop()
 	}
 	w.timer = time.AfterFunc(400*time.Millisecond, func() {
 		s.mu.Lock()
-		if s.instructionsWrite != w || s.client != client || s.generation != generation {
+		if s.instructionsWrite != w || s.client != client || s.generation != generation || w.queueRevision != queuedRevision {
 			s.mu.Unlock()
 			return
 		}

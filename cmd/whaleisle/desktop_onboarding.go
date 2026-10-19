@@ -13,7 +13,7 @@ import (
 // actual registration gate; launcher and hidden project windows own no overlay.
 func (s *mainState) renderDesktopOnboarding(c *ui.Context, themeID string, dark bool) bool {
 	s.mu.Lock()
-	active := !s.launcherOpen && !s.projectWindowHidden
+	active := !s.launcherOpen && !s.projectWindowHidden && !(s.accountReturn.platform != nil && s.webviewOpen)
 	store, usage := s.settings, s.usage
 	if s.desktopOnboarding == nil && store != nil {
 		s.desktopOnboarding = settingsstore.NewDesktopOnboarding(store)

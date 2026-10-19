@@ -17,6 +17,7 @@ import (
 // Model is sidebar state for one frame.
 type Model struct {
 	ConnectionReady              bool
+	DesktopUpdateInstalling      bool
 	ConnectionConnecting         bool
 	ConnectionEpoch              uint64
 	OnReconnect                  func()

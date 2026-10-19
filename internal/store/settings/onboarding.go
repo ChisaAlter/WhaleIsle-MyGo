@@ -119,10 +119,10 @@ func (o *DesktopOnboarding) Sync(account OnboardingAccount) {
 		progress = *o.draft
 	}
 	o.view.Progress = progress
-	o.view.Loading = loading || account.Loading
+	o.view.Loading = loading || account.Status == "" && account.Loading
 	o.view.CreditKnown = account.CreditKnown
 	o.view.CurrentCreditFunded = account.CreditFunded
-	if !o.creditCaptured && account.Status == "credential-stored" && progress.Step == "credit" && account.CreditKnown {
+	if !o.creditCaptured && account.Status == "credential-stored" && progress.Step == "credit" {
 		o.view.CreditFunded = account.CreditFunded
 		o.creditCaptured = true
 	}

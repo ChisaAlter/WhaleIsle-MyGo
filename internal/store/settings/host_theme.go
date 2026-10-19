@@ -18,6 +18,7 @@ type ThemeBinding struct {
 	inFlightFields  map[string]json.RawMessage
 	timer           *time.Timer
 	ready, inFlight bool
+	queueRevision   uint64
 }
 
 func (s *Store) BindTheme() *ThemeBinding {
@@ -109,12 +110,14 @@ func (t *ThemeBinding) Queue(values map[string]any) error {
 		t.pending[key] = raw
 	}
 	t.ready = false
+	t.queueRevision++
+	queuedRevision := t.queueRevision
 	if t.timer != nil {
 		t.timer.Stop()
 	}
 	t.timer = time.AfterFunc(300*time.Millisecond, func() {
 		s.mu.Lock()
-		if !t.currentLocked() {
+		if !t.currentLocked() || t.queueRevision != queuedRevision {
 			s.mu.Unlock()
 			return
 		}

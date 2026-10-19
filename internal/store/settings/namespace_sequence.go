@@ -155,6 +155,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 				s.saving, s.err, s.lastAction = false, err, err.Error()
 				s.mu.Unlock()
 				s.fire()
+				s.RefreshDescribe(ctx)
 				return
 			}
 			current.Revision = out.Revision

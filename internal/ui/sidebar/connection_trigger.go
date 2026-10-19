@@ -91,12 +91,20 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		phase = "connecting"
 	}
 	status, opacity := state.project(c.Now(), m.ConnectionEpoch, phase)
+	if m.DesktopUpdateInstalling {
+		status, opacity = "installing", 1
+	}
 	reduced := c.Preferences().ReduceMotion
 	if reduced {
 		opacity = 1
 	}
-	if status != "" {
+	if !reduced && (opacity < 1 || status == "connecting" || status == "installing") {
 		c.After(16 * time.Millisecond)
+	}
+	for _, deadline := range []time.Time{state.holdUntil, state.recoveredUntil, state.leaveUntil} {
+		if deadline.After(c.Now()) {
+			c.After(deadline.Sub(c.Now()))
+		}
 	}
 	row.Children(func() {
 		button := ui.Button(c, "").FillWidth().Height(42).Padding(0, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Label(i18n.T(i18n.KeySettingsOpen)).Tooltip(i18n.T(i18n.KeySettingsOpen)).Disabled(m.OnOpenSettings == nil)
@@ -132,21 +140,32 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 }
 
 func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Colors, reduced bool) {
+	if status == "installing" {
+		ink := chrome.Color(colors.Accent)
+		ui.Box(c).Size(36, 36).Radius(8).Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("正在准备重启…", "Preparing to restart…")).Tooltip(sidebarConnectionCopy("正在准备重启…", "Preparing to restart…")).Center().Children(func() {
+			angle := float32(0)
+			if !reduced {
+				angle = float32(c.Now().UnixNano()%int64(time.Second)) / float32(time.Second) * 360
+			}
+			ui.Icon(c, connectionRefresh).Size(14, 14).Rotate(angle).TextColor(ink)
+		})
+		return
+	}
 	dark := theme.ResolveWithSystem(m.ThemeID, m.SystemDark).Scheme == theme.SchemeDark
 	ink, fill := ui.RGB(221, 134, 41), ui.RGB(254, 245, 231)
 	if dark {
 		fill = ui.RGB(39, 36, 31)
 	}
-	label, action := sidebarConnectionCopy("连接已断开，点击重试", "Disconnected. Click to reconnect"), sidebarConnectionCopy("重新连接", "Reconnect")
+	label, action := sidebarConnectionCopy("连接异常，刷新重试", "Disconnected"), sidebarConnectionCopy("连接异常，点击立即重连", "Disconnected, reconnect now")
 	if status == "connecting" {
-		label, action = sidebarConnectionCopy("正在重新连接…", "Reconnecting…"), sidebarConnectionCopy("重新开始连接", "Restart connection attempt")
+		label, action = sidebarConnectionCopy("重新连接中", "Reconnecting"), sidebarConnectionCopy("连接中断，正在重试，点击立即重连", "Reconnecting, reconnect now")
 	}
 	if status == "recovered" {
 		ink, fill = ui.RGB(34, 197, 94), ui.RGB(230, 250, 237)
 		if dark {
 			fill = ui.RGB(35, 60, 44)
 		}
-		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("已重新连接", "Reconnected")).Tooltip(sidebarConnectionCopy("已重新连接", "Reconnected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
+		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("连接成功", "Connected")).Tooltip(sidebarConnectionCopy("连接成功", "Connected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
 		return
 	}
 	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Label(action).Tooltip(label).Disabled(m.OnReconnect == nil)
@@ -162,8 +181,13 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 				if reduced {
 					t = .5
 				}
-				start := t * 2 * math.Pi
-				length := .4 + .4*(1-math.Cos(t*2*math.Pi))/2
+				breath := (1 - math.Cos(t*2*math.Pi)) / 2
+				start := t*2*math.Pi + 6/9.5*breath
+				length := (12 + 12*breath) / 9.5
+				if reduced {
+					start = 3 / 9.5
+					length = 18 / 9.5
+				}
 				var path ui.Path
 				for i := 0; i <= 20; i++ {
 					a := start + length*float64(i)/20

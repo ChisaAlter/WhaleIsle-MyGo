@@ -95,6 +95,7 @@ func (s *mainState) syncHostAppearance() {
 		theme.SetPreferences(h.Preferences)
 	}
 	s.mu.Lock()
+	previousScheme := s.themeID
 	s.hostWallpaperImage = h.WallpaperImage
 	s.desktopDraft.wallpaperPath = h.WallpaperImage
 	switch h.Scheme {
@@ -106,7 +107,11 @@ func (s *mainState) syncHostAppearance() {
 		s.themeID = "deepseek"
 	}
 	s.desktopDraft.theme = s.themeID
+	acceptedScheme := s.themeID
 	s.mu.Unlock()
+	if previousScheme != acceptedScheme {
+		applyAppearance(acceptedScheme)
+	}
 	if g := s.wallpaperEditor(); g != nil {
 		if ownerChanged {
 			g.RetireOwner()

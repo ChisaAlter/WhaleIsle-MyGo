@@ -13,6 +13,7 @@ import (
 func (s *Store) OpenSettingsDocument(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
+	generation := s.generation
 	s.mu.Unlock()
 	if client == nil {
 		return
@@ -21,6 +22,10 @@ func (s *Store) OpenSettingsDocument(ctx context.Context) {
 		var out json.RawMessage
 		err := client.Call(ctx, "settings/openSettingsDocument", map[string]any{}, &out)
 		s.mu.Lock()
+		if s.client != client || s.generation != generation {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = "openSettingsDocument: " + err.Error()
 		} else {

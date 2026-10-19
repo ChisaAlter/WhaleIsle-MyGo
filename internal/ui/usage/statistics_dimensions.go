@@ -100,59 +100,61 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 	usageCard(c, "usage-model-share", title, fg, func() {
 		modelShareView(c, shareModels, shareTotal, settings, fg, muted, field)
 	})
-	ui.Text(c, usageText("服务商分项用量", "Provider token breakdown")).Bold().TextColor(fg)
-	providerMax := 1.0
-	if st.Range.Active() {
-		totals := map[string]float64{}
-		for _, row := range shareModels {
-			totals[row.Provider] += row.Total
-		}
-		for _, value := range totals {
-			providerMax = math.Max(providerMax, value)
-		}
-	} else {
-		for _, provider := range o.Providers {
-			providerMax = math.Max(providerMax, provider.Totals.Total)
-		}
-	}
-	if st.Range.Active() {
-		groups := map[string][]usagestore.ModelUsage{}
-		for _, row := range shareModels {
-			groups[row.Provider] = append(groups[row.Provider], row)
-		}
-		keys := make([]string, 0, len(groups))
-		for key := range groups {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			var t usagestore.Totals
-			for _, row := range groups[key] {
-				t.Input += row.Input
-				t.Output += row.Output
-				t.CacheRead += row.CacheRead
-				t.CacheWrite += row.CacheWrite
-				t.Total += row.Total
-			}
-			ui.Text(c, fmt.Sprintf("%s · %.0f tokens", key, t.Total)).TextColor(fg)
-			providerUsageBar(c, t.Total, providerMax, accent, field)
-			ui.Text(c, totalsText(t)+"\n"+usageCostText(groups[key], settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-	} else {
-		for _, provider := range o.Providers {
-			name := provider.Name
-			if name == "" {
-				name = provider.ID
-			}
-			rows := []usagestore.ModelUsage{}
+	if st.Range.Active() || len(o.Providers) > 0 && !(len(o.Providers) == 1 && (o.Providers[0].ID == "unknown" || o.Providers[0].Totals.Total <= 0)) {
+		ui.Text(c, usageText("服务商分项用量", "Provider token breakdown")).Bold().TextColor(fg)
+		providerMax := 1.0
+		if st.Range.Active() {
+			totals := map[string]float64{}
 			for _, row := range shareModels {
-				if row.Provider == provider.ID {
-					rows = append(rows, row)
-				}
+				totals[row.Provider] += row.Total
 			}
-			ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).TextColor(fg)
-			providerUsageBar(c, provider.Totals.Total, providerMax, accent, field)
-			ui.Text(c, totalsText(provider.Totals)+"\n"+usageCostText(rows, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			for _, value := range totals {
+				providerMax = math.Max(providerMax, value)
+			}
+		} else {
+			for _, provider := range o.Providers {
+				providerMax = math.Max(providerMax, provider.Totals.Total)
+			}
+		}
+		if st.Range.Active() {
+			groups := map[string][]usagestore.ModelUsage{}
+			for _, row := range shareModels {
+				groups[row.Provider] = append(groups[row.Provider], row)
+			}
+			keys := make([]string, 0, len(groups))
+			for key := range groups {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				var t usagestore.Totals
+				for _, row := range groups[key] {
+					t.Input += row.Input
+					t.Output += row.Output
+					t.CacheRead += row.CacheRead
+					t.CacheWrite += row.CacheWrite
+					t.Total += row.Total
+				}
+				ui.Text(c, fmt.Sprintf("%s · %.0f tokens", key, t.Total)).TextColor(fg)
+				providerUsageBar(c, t.Total, providerMax, accent, field)
+				ui.Text(c, totalsText(t)+"\n"+usageCostText(groups[key], settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			}
+		} else {
+			for _, provider := range o.Providers {
+				name := provider.Name
+				if name == "" {
+					name = provider.ID
+				}
+				rows := []usagestore.ModelUsage{}
+				for _, row := range shareModels {
+					if row.Provider == provider.ID {
+						rows = append(rows, row)
+					}
+				}
+				ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).TextColor(fg)
+				providerUsageBar(c, provider.Totals.Total, providerMax, accent, field)
+				ui.Text(c, totalsText(provider.Totals)+"\n"+usageCostText(rows, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			}
 		}
 	}
 	ui.Text(c, usageText("每日明细（与上方趋势范围相同）", "Daily details (same range as trend)")).Bold().TextColor(fg)
