@@ -1,10 +1,10 @@
-> Current integration checkpoint: product/test `da79d7df`. The five fixed original model-label/command contributions now have native adapters with authenticated declaration, registration/session/draft ownership and real selection-receipt handling. Complete ordinary Windows regression and matching main/helper builds passed. Actual read-only Host declaration admission passed at `d2e79d95`; SVG/GPU/SDK receipts retain their separate exact versions. See [current evidence and remaining gaps](source-depth-integration-20261019.md#current-windows-checkpoint). All older checkpoint descriptions below are historical. Same-DPI native visual/physical input, FlipText representation, full-app integration and installer acceptance remain open; arbitrary third-party React execution is outside this finite source set. Linux validation is canceled.
+> Current product remains `da79d7df`, with complete ordinary Windows regression and matching main/helper builds passed. Acceptance-only `59866d97` passed actual owned Host theme CAS/retry/restart; `3bea01ff` passed real main bootstrap/Ready/manual reconnect and owned cleanup. Protected graceful quit stopped at actual needs-consent preflight and is not passed. The fixed five contributions have native adapters; prior declaration/SVG/GPU/SDK receipts retain their exact versions. See [current evidence](source-depth-integration-20261019.md#current-windows-checkpoint) and [91-ID three-class checklist](native-full-function-acceptance-20261019.md#有限收尾三类结论). Same-DPI native-screen/physical input and installer acceptance remain open; FlipText is confirmed unimplemented. Arbitrary third-party React execution is outside the finite source set. Linux validation stays canceled.
 
 # 原版模块源码覆盖索引（2026-10-19）
 
 **全部原版模块是否已经逐功能、逐状态对照：否。** 下表覆盖当前验收清单登记的全部 ID；这证明范围登记完整，不证明原版每条动态插件贡献都已穷尽，也不把本轮分配项收尾写成全功能完成。
 
-**最新 Windows 收尾点：`f1fd8837`。** 前阶段39项入口抽查现已按六域及根集成深入到所列调用链/状态，具体39项、仍未穷尽的子路径和实际实现差异见[当前 Windows 清单](source-depth-integration-20261019.md#current-windows-checkpoint)。完整普通回归的首轮仍为失败；后续相关分包已复验通过，不能改称新一轮全量通过。最终 Windows main/helper 构建通过；当前原生 SVG 尺寸/回收检查失败且根因未定，当前真实 Host 和原版同 DPI 实机验收未完成。Linux 验证已取消，不列入本项目验收依据。以下旧版本与首轮记录须结合该最新清单读取。
+**最新产品验证点：`da79d7df`；有限补验：`59866d97`/`3bea01ff`。** 具体源码范围、独立版本回执及剩余缺口见[当前 Windows 清单](source-depth-integration-20261019.md#current-windows-checkpoint)。完整普通回归与 main/helper 构建已通过；SVG 原生 helper 在 `aa159b6a` 的真实加载/尺寸/撤销已通过，离屏硬件 GPU 交接在 `414a82c2` 通过。它们不等于当前全产品或原版同 DPI 实机通过。旧失败均保留，Linux 验证已取消。
 
 原版源码只读位置为 `C:/AI/Deepseek-Harness-Desktop`。下表沿用验收表缩写：D=`src/`，V=`vendor/`，P=`vendor/deepseek-harness/packages/client/`。Go 路径以本仓库为根。
 
@@ -15,12 +15,12 @@
 前阶段源码与验证记录（不能继承为本轮全部通过）：
 
 - 已关闭的本轮差异及本地提交见 [实现批次记录](source-parity-implementation-batch-20261019.md)，包括生命周期、逐卡动作、附件退休、Next Prompt、Skills Hub、Bot/Room/IM 等具体路径。
-- Market 图库、README GIF/WebP、限定 AVIF 序列及静态 SVG 扩展已提交源码；后续 Schedule/Jobs、question 收据与草稿、恢复 checkpoint、桌宠穿透、安装事务已有具体源码与普通回归记录。源码、回归和实际验收保持分开，安装事务目前仅静态检查。
-- 新一轮源码实现见 [共享集成记录](source-depth-integration-20261019.md)。Windows 128/1440 半浮点多通道 GPU fluid、Beam 分层与动态 SVG 隔离呈现已有 `b2d7273` 源码提交；非 Windows CPU、原生像素近似与 SVG 尺寸单位边界仍明确保留。Shader、GPU、helper 与实机视觉尚未验证，不能称效果验收通过。
-- 普通回归：run02、run03 的全量失败和后续定向结果完整保留在 [实现批次记录](source-parity-implementation-batch-20261019.md)。已观察的失败经源码或夹具归因后，对应包均有通过 receipts；最终 main 包于 `ee54f72` 通过，Windows main/preview 构建通过。其他组件只沿用未变源码/依赖树的有效结果，没有一次新的全库全绿执行，也没有全产品通过结论。
+- Market 图库、README GIF/WebP、限定 AVIF 序列及 SVG 已有源码与普通回归，实际 SVG helper 证据另绑定 `aa159b6a`。Schedule/Jobs、问题收据/草稿、恢复、桌宠和安装事务各保留其具体层级；无依赖/无脚本本地安装曾实际通过，依赖包、取消及不确定状态不能由此继承。
+- Windows128/1440 GPU fluid、共享纹理呈现、Beam 分层及隔离 SVG 均已实现。Shader/clip ABI、实际两设备离屏 GPU 与真实 helper 检查有独立回执；有限采样/异步帧/GPU-copy 表示差异、可见运动和原版实机像素仍未认证。具体版本见[共享集成记录](source-depth-integration-20261019.md)。
+- 普通回归：旧 run02/run03 等失败完整保留；当前 `da79d7df` 完整普通 Windows 回归和匹配 main/helper 构建退出0。它不证明全产品通过。之后的 `59866d97`/`3bea01ff` 仅新增/修正 tagged 验收代码并执行未覆盖的实际 Host theme 和主应用重连，未重复全量回归或构建产品候选。
 - 真实 Windows 原版/Go 截图及物理输入验收仍缺支持的原生捕获/输入能力。账户、设备、模型、系统安装等各自的前提和未验收状态继续保留在 [完整验收矩阵](native-full-function-acceptance-20261019.md)。现用程序、已交付目录和用户配置未替换。
 
-本轮源码阅读登记：91 行均有已列子路径的 `behavior-compared` 证据；此前 39 行入口抽查已获得六域深读记录。这不是完成率，也不代表每个模块的全部状态穷尽。各记录保留未审子路径、平台差异及真实验收边界。共享集成已有 `ce6f18d`，后续设置、caption/圆角、物理快捷键和交互投递已提交；自动恢复、Windows 网络通知、共享标题区和全局终端已完成本轮源码接线；Git 初始化及全局 review 已按固定源码闭合；下一阶段才准备并统一执行本轮回归。原版工作树存在既有修改，本轮按固定 `e353e8e` 或逐文件确认 clean 的来源对照。本轮首个统一回归绑定589143f6：应用102包通过、13包失败或构建阻断，SDK已列目标退出0；失败正归因修正，尚无本轮应用全绿或新Windows构建，前阶段构建不验证这一批改动。
+本轮源码阅读登记：91 行均有已列子路径的 `behavior-compared` 证据；此前39行入口抽查已获得六域深读记录。这不是完成率，也不代表全部状态穷尽。各记录保留未审子路径、平台差异与真实验收边界。原版工作树有既有修改，固定参照为 `e353e8e`。首次589143f6等失败是历史；当前普通回归、构建、实际 Host/主应用及剩余实现差异须以顶部最新回执为准，不能再沿用“下一阶段才执行/尚无全绿”的过时结论。源码实现、测试层级和真实产品验收仍分开登记。
 
 覆盖等级按各专用记录与其后续补充汇总，每个标签只覆盖链接中已读的选定子路径。即使某行选定行为已比较，其未审子状态、动态贡献或平台行为仍可能是 `not-reviewed`；不因总表每行都有证据就声称全功能完成。后续真实阅读可以更新等级，编译或测试数量不能。
 

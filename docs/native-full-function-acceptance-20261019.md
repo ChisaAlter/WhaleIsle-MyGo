@@ -1,17 +1,18 @@
 # 原版全量功能验收矩阵（2026-10-19）
 
-> Current Windows checkpoint: product/test revision `f1fd8837` has passing
-> changed-path ordinary receipts and final Windows main/helper builds. The full
-> ordinary run remains failed, followed by affected-package rechecks; no fresh
-> full-suite pass is claimed. The current native SVG check FAILED with unknown
-> cause; current real-Host and original/native visual/input acceptance remain
-> unverified. Linux verification is canceled and excluded from acceptance.
-> Existing delivered folders were not replaced. Older receipts below apply only
-> to their recorded revisions. See the current
+> Current Windows product remains `da79d7df`: complete ordinary regression and
+> matching main/helper builds passed. Acceptance-only `59866d97` passed real Host
+> theme CAS/retry/restart; `3bea01ff` passed real main bootstrap/Ready/manual
+> reconnect and owned cleanup. Protected graceful quit stopped at an actual
+> needs-consent preflight and is not passed. Earlier SVG/GPU/SDK results retain
+> their separate revisions. Same-DPI native-screen/physical input and installer
+> acceptance remain open; Linux validation stays canceled. Existing delivered
+> folders were not replaced. Older receipts below retain their exact identities.
+> See the current
 > [integration record](source-depth-integration-20261019.md) and
 > [non-exhaustive source index](source-coverage-index-20261019.md).
 
-> Source coverage is not complete: see [all registered module IDs and explicit reading levels](source-coverage-index-20261019.md). The former39 samples now have selected deep-read subpaths, not exhaustive whole-module coverage. Source closure, ordinary regression, real Host evidence and Windows/original-window acceptance are separate. Known renderer fidelity limits and unresolved native SVG failure are listed in the current integration record.
+> Source coverage is not complete: see [all registered module IDs and explicit reading levels](source-coverage-index-20261019.md). The former39 samples have selected deep-read subpaths, not exhaustive whole-module coverage. Source closure, ordinary regression, actual Host evidence and original-window acceptance stay separate. The old unknown SVG failure is superseded by the exact `aa159b6a` helper receipt; renderer representation and native visual/input limits remain in the current integration record.
 
 > Historical source-first update: new packaging, startup acceptance and mock-service runs were paused during the concentrated original-source implementation. Source995cbe0 fixes exact FixedLineHeight. Source9da81d3 fixes only the base update-check binding: the final native launcher overrides that callback with an already asynchronous release refresh, so it is not a demonstrated fix for the actual launcher button. Original-window parity remains unverified. The previously delivered complete folder remains source97e0427; the new binaries below did not replace it.
 
@@ -21,6 +22,35 @@
 本表承接 [原版还原记录与既有 65 条组件映射](native-workspace-parity-20261019.md#windows-follow-up-component-acceptance-ledger)，为“全部功能正常用”登记实际验收范围。源码存在、单测通过、页面截图和编译通过都不能单独认证产品功能可用；不能由同组一个成功动作推定整组通过。本表不是新增功能需求，不重复派发已有修复任务。
 
 当前工作分支为 `codex/session-runtime-compat-20261019`。记录时已知核心恢复产品为 `e537058`（runtime）、`7e54fa4`（可选 goal）、`85bde0d`（视图配置合并），构建证据见原记录的 Core availability 章。正在执行的主线仍由集成负责人维护，本表不另开运行时、会话或配置修复。
+
+## 有限收尾三类结论
+
+当前产品仍为 `da79d7df`；后续只有隔离验收代码与记录变更。现有清单核实为91个不同 ID：BOOT6、CHAT21、WORK12、SET18、PLUG5、TASK4、PROJ5、REMOTE4、BOT3、PET2、DESK7、SAVE4。下表按**子行为**分类，同一 ID 可同时有①已通过动作和②剩余验收，不能把部分成功提升为整行通过。下方原逐行矩阵继续保存历史具体动作；旧证据只认证其记录的版本。
+
+| 全部既有 ID 范围 | ①已实现并通过的具体范围 | ②已实现但尚未验收；具体前置 |
+|---|---|---|
+| BOOT-01..06 | 当前真实 `main()` bootstrap→Host/Mux/列表/工作区 Ready；既有 rc.2 stage/verify、严格快照/owned resume、导入和两进程恢复保留各自旧 receipt。 | 当前 crash/autorestart/safe-mode 和完整恢复未新认证；保护性退出在真实 activeWork1/needsConsent 门口停止。原生启动器/确认对话框需可调用的目标窗口操作工具。 |
+| CHAT-01..21 | 当前真实应用生产重连回调重新 Ready、同 Client/Mux/Stores/窗口/Host代际，贡献与权限目录代际重建；`d2e79d95` 只认证五项声明；`da79d7df` 的弹层回执/CAS/焦点等是普通夹具层。既有 CRUD/富历史/follow 子动作保留原 receipt。 | 物理 IME、picker/drop、菜单/窗口交互缺原生工具；发送/停止/审批/问题/Workflow/语音等真实运行缺当前允许的模型、账户、麦克风或任务前置。模型选择/权限切换尚无真实会话操作验收。 |
+| WORK-01..12 | `ee59f3a0` owned workspace/files/保存冲突/本地 Git；`aa159b6a` 真实 SVG helper 加载、尺寸与撤销；其他 reader/Browser/terminal 仅沿原具体 receipt。 | 原生拖动/浮动/输入、远程 Git、外部打开及终端交互未认证。尚未核实可直接复用的 legacy DOC/PPT/加密样本，不能由 OOXML 成功推定它们通过。 |
+| SET-01..18 | 新真实 `ui-theme` 两个标量的300ms队列、CAS冲突保草稿、显式重试保留并发字段、Host重启持久化与旧 owner拒绝；旧导航/skill/空preset/default等按各自 receipt。 | 物理设置操作、账户/provider discovery、设备和完整 onboarding 未认证。Onboarding 要求真实 credential-stored 或 API-key/credit事实，本轮不伪造或修改凭据。MCP catalog/health 通过不等于 tools/call。 |
+| PLUG-01..05 | 旧 inventory、无依赖/无脚本本地安装与本地 catalog；`aa159b6a` 两种 SVG 加载/尺寸/owner撤销。 | 依赖/脚本包、远程安装、取消/不确定状态和可见媒体运动未认证。没有已核实的离线无脚本依赖 fixture。实际 Host 不保留已完成 Install 的 WaitInstall 结果，不能新增“重复Wait必得同Change”的验收条件。 |
+| TASK-01..04 | 旧 owned jobs roster/output/cancel/kill/clear、inert schedule CRUD/restart，限原动作。 | 实际运行、取消、模型和投递生命周期及原生 UI 需当前未提供的任务/外部前置，未触发。 |
+| PROJ-01..05 | 旧 Host metadata、材料/docs、archive/restore/restart 子操作。 | 非空 request/team/delegation/report、真实模型执行和原生 dirty transitions 未验收；空列表不是业务闭环。 |
+| REMOTE-01..04 | 旧 owned loopback crypto、owned SSH server/forward 子操作。 | 真实 remote/phone/QR/公共relay/IM/用户SSH缺实际设备、远端与当前执行授权；本轮不触发。 |
+| BOT-01..03 | 旧自有 metadata CRUD、room 注册与重启。 | 模型执行、真实消息/通知/投递需未提供的外部前置；本轮不触发。 |
+| PET-01..02 | 只保留原有明确回归范围。 | 原生透明窗口、多屏/DPI、可见运动与真实聊天未认证；未审 renderer 分支不能写成缺实现。 |
+| DESK-01..07 | 旧安全菜单 controller、快捷键引擎、本地 updater 子操作；caption/clip ABI 是机制证据。当前 owned应用重连与诊断清理有实际结果。 | OS菜单/tray/hotkey/IME/系统注册缺原生操作验收；保护性退出需真实确认，尚未执行。NSIS 三次固定哈希获取失败仍缺有效工具包，不重复下载。 |
+| SAVE-01..04 | 当前 Host theme CAS/重启；旧配置合并、合成 DPAPI、恢复/partition 仅按原 receipt。 | 当前完整应用恢复链、真实账户退出/凭据和物理交互未新认证。退出诊断 teardown 不等于受保护正常退出。 |
+
+**③确定仍未实现：CHAT-09 的原版 FlipText 透视翻转。** 固定原版 `ui-primitives/FlipText.tsx` 保留旧文本400ms，配合 `motion.css` 的 perspective140px、rotateX±80deg 与透明度；当前 `internal/ui/composer/model_label_contribution.go:57–70` 直接绘制文字，没有旧文字/时钟状态。MyGo 现有 Rotate 只作用图标，文字接口没有透视变换或透明文字位图导出。最窄后续实现需要原生文字栅格化/投影接口；这是实现能力缺口，不能记为只差截图或用淡入淡出签署完成。本次有限验收不扩建 SDK/React runtime。
+
+Beam 的有限采样/异步保留帧与 fluid 的 GPU-copy/硬件边界属于**已有实现的表示差异**，不再写成“GPU未实现”。其他未审子分支保留未知，不能凭未验收新增③结论。
+
+本轮核实的可自主项已执行。保护退出的真实预检为 coverage 完整、localRunning0、scheduledWork0、activeWork1、needsConsent=true；来源 kind 未采集，保持未知。没有操作确认、没有宣称正常退出，也没有忽略任务。原生交互最小缺口是本线程可调用的 `node_repl` + `@oai/sky` 目标窗口观察/确认/输入接口；Ayase 连接授权有效不等于该 API 已暴露。`CapturePage` 对 Content 是实际应用场景的软件栅格，不能认证屏幕/GPU或原版同态对照。
+
+安全候选核查未扩成新执行：现有 MCP tool runner 要经 synthetic model 请求，本轮不发送模型请求；直连 tools/call 不能冒充正常 Agent permission路径。已检本地插件没有可控的无脚本取消窗口，legacy/encrypted Office 也缺已核实样本。已完成结果的 WaitInstall 返回 null 是实际 Host 协议，Go 保留 unknown；该候选条件被纠正，未运行安装、未改 Host。
+
+精确版本、两次新成功、首轮 helper 失败及其受影响修正见[现有集成记录](source-depth-integration-20261019.md#finite-remaining-acceptance-supplement)。不重复 da79 全量/构建、旧 SVG/GPU/Host 操作或 NSIS 下载；CI仍0。四处既有未跟踪工作保持原样。
 
 ## 状态与共同验收规则
 
@@ -104,8 +134,8 @@
 | SET-02 | account：`ui-settings-account/AccountSection` | settings account/signout、accountlogin/logout | 仅单测/夹具 | 登录/浏览器返回、账户流、额度、登出、失败恢复未真实验收 |
 | SET-03 | general：GeneralSection、instructions/permission contributions | settings desktop/custom_instructions/permission_defaults、settings store | Actual safe Host preference save/restart/restore PASS (partial) | Only ui-conversation.busyEnter was changed, verified after restart, restored and verified after a second restart. Other general settings not accepted by extrapolation. E/functional-plugins-settings-tasks-20261019.json. |
 | SET-04 | general 子项：shortcuts、developer tools、session log upload | settings_shortcuts、desktop preferences、session-log-deepseek row | 有实现；部分测试 | 快捷键编辑/冲突/恢复、开发工具开关、日志上传分别未实际验收；不擅自上传 |
-| SET-05 | appearance：AppearanceSection/font/wallpaper/cursor | settings appearance/theme_font/wallpaper/pointer、ui/theme | Actual native theme/font preview/cancel/save-reopen PASS (partial) | Native default/explicit family+size and theme state verified; code default and render-only fallback follow original source without raw config migration. GPU fluid remains simplified CPU path; arbitrary glyph coverage/original pixels unverified. E/functional-appearance-20261019.json. |
-| SET-06 | interface：InterfaceSection、Beam/TypingFx | settings interface/effect_preferences、composer effects | Actual effect settings persistence/native preview + reduced-motion regression PASS (partial) | Real Host safe four fields save/disable/restart persisted; native beam preview and public Tester reduced-motion input/undo/static scheduling passed. OS reduce=false was read only. Original128/1440 GPU fluid remains unimplemented; capability probe/plan is not implementation. |
+| SET-05 | appearance：AppearanceSection/font/wallpaper/cursor | settings appearance/theme_font/wallpaper/pointer、ui/theme | Real owned Host theme CAS/retry/restart PASS (partial), plus prior font/controller evidence | Current `59866d97` real fontSize/preference CAS conflict, draft preservation, retry and restart passed. Earlier preview/config evidence stays historical. Windows GPU fluid is implemented; original pixels, arbitrary glyph coverage and physical settings UI remain unverified. See current integration receipts. |
+| SET-06 | interface：InterfaceSection、Beam/TypingFx | settings interface/effect_preferences、composer effects | Prior effect persistence + ordinary regression + actual offscreen GPU PASS (partial) | Four Host effect fields had scoped save/disable/restart evidence. Windows128/1440 GPU fluid and shared two-device presentation are implemented; actual `414a82c2` hardware fixture passed, with recorded representation/resource limits. Original visible motion, OS reduced-motion gestures and pixel parity remain unverified. |
 | SET-07 | models：ModelsSection/provider forms/discovery | models、model_configuration、provider_profiles/discovery | Actual static provider configuration read PASS (partial) | Read two providers/43 configurable entries without discovery/auth/model calls; account, credentials, live discovery and selection not run. E/functional-default-session-skills-20261019.json. |
 | SET-08 | plugins：PluginsSettingsSection、inventory/client modules | settings plugins/plugin_body/plugin_inventory | Actual plugin inventory + owned fixture lifecycle PASS (partial) | Inventory20 and no-dependency/no-script local install/disable/remove persisted across restarts. Native settings UI and dependency-bearing packages remain unverified. |
 | SET-09 | skills：SkillsSection/groups/editor/catalog | settings skills、skill editor/directory、skill stores | Actual owned skill filesystem + default-session scope PASS (partial) | Create/read/edit/flags/delete and isolated restart persistence passed, plus default idle-session inventory path. Native picker/IME, external install/update/ACL not run. E/functional-local-settings-composer-20261019.json and E/functional-default-session-skills-20261019.json. |
@@ -127,7 +157,7 @@
 | PLUG-02 | 通用 Discover/detail/source/pagination：`ui-plugin-market` | pluginmanager discover/dialogs | Actual original optional-bundle local catalog PASS; default fresh profile HTTP404 | Own fresh profile enabled the already bundled original module via manager (no install); own-loopback indexes/catalog/page/search/cache/refresh/typed errors and restart persistence passed, sources restored and bundle disabled. Remote market/native UI remain unverified. E/functional-plugin-market-local-20261019.json. |
 | PLUG-03 | install/progress/log/cancel/uncertain reconciliation；依据：manager-store/install terminal、plugin market | pluginmanager install/controller、event wiring | Actual local install/disable/remove + restart persistence PASS (partial) | Original pnpm12.4.1 exact local binary required. Only no-script/no-dependency own fixture; cancel/uncertain reconciliation and remote dependencies not exercised. |
 | PLUG-04 | 精选 Market tabs/detail/README/install/update/remove：`ui-settings-market`、`D/main/dsh-market-desktop.js` | ui/market、desktop/market | Actual installed inventory20 PASS (partial) | Remote catalog/download/README/install/update not verified. Inventory is not remote-market acceptance. |
-| PLUG-05 | README 媒体播放/失败 alt；依据：原版 Markdown/media | market readme_images、Markdown/SVG/image support | 部分实现 | GIF 有实现；完整动画 WebP 与未支持 SVG 构造不能呈现为已一致；真实播放未验收 |
+| PLUG-05 | README 媒体播放/失败 alt；依据：原版 Markdown/media | market readme_images、Markdown/SVG/image support | Existing raster implementations/ordinary regression and actual SVG helper PASS (partial) | GIF/WebP and bounded AVIF sequence implementations exist. Exact `aa159b6a` helper passed two SVG load/intrinsic/owner cases; arbitrary formats/constructs and visible animation equivalence are not certified. Old missing-WebP/unknown-SVG statements are superseded, not proof of all media parity. |
 | TASK-01 | Jobs header/roster/output：`ui-jobs/JobListAction` | jobflow、session/jobs、frame/jobs | Actual rc.2 jobs roster/output/cursor/mount PASS | Production jobflow + real Mux NativeJobs wire, two original public-registry owned jobs, UTF-8 output and resume cursor; popup follow closed while mounted roster stayed live. Native user GUI/Store lifecycle not claimed. E/functional-jobs-20261019.json. |
 | TASK-02 | Jobs 两次确认 kill、输出展开、clear；依据：同上 JobListAction | jobflow control/state | Actual cancel/kill/settlement/clear semantics PASS | Cancel sends0kill; confirm sends1 requested receipt, later producer exit proves killed; clear hides only settled rows locally and leaves Host records intact. Unmount releases logical streams; child/Host/listener closed. E/functional-jobs-20261019.json. |
 | TASK-03 | schedule catalog/detail/history：`ui-schedule` | ui/schedule、schedule store | Actual future own schedule catalog/history PASS | One2099 task, history empty, edit persisted across real restart. No task execution/delivery. E/functional-plugins-settings-tasks-20261019.json. |
@@ -172,7 +202,7 @@
 
 1. 兼容 runtime 完整 stage/verify 已通过，最高优先级转为隔离实例的真实 Host 握手、会话加载、resume/follow、错误重试、消息显示和视图配置保存。全量矩阵不抢修复主线，不把只读快照成功放大为 UI 通过。
 2. 65 映射外需要补验收证据的主要能力是消息类型/Workflow/审批问题、文件编辑及全部预览格式、Git、两种终端、Whale/Bot、桌面集成、安装和逐路径持久化。以上大多已有实现，不能凭缺台账声明未实现。
-3. 已知部分实现：完整源 128/1440 GPU 流体与其资源/多遍契约尚未实施；剩余 Beam 图形层/最终像素未一致；README 的完整动画 WebP及不支持 SVG 构造仍有缺口。这些是代码/格式能力差异，不是缺截图导致的工具阻塞。GPU/GIF 后续开发当前暂停。
+3. 当前确证实现缺口是上述 FlipText 透视翻转。Windows128/1440 GPU fluid、共享纹理呈现和 GIF/WebP 等已实现；Beam有限采样、异步帧及fluid GPU-copy仍有表示差异，原版最终像素/运动未验收。不能沿用旧“GPU尚未实施/WebP缺失/SVG根因未知”的结论。
 4. 原版同状态视觉、原生 Windows IME、真实 PTY/系统菜单/托盘/设备/安装和外部服务行为仍没有当前产品认证。可用工具的变化需要更新具体状态，不能永久沿用历史阻塞。
 
 ## 本次审计事实与维护
@@ -203,9 +233,9 @@
 
 The authoritative binary source and hashes are the delivered folder's `BUILD.json`; later documentation and opt-in QA commits do not imply that a previously built EXE changed. The full91-row matrix above remains the acceptance record. An actual partial pass applies only to its stated operation and layer.
 
-Confirmed unfinished restoration: original128/1440 GPU cursor-fluid is still the existing low-resolution CPU approximation. A read-only hardware/WARP probe and implementation plan now show the Windows path is feasible; no GPU product change is included in this checkpoint. It is deferred behind functional availability.
+This historical checkpoint's GPU-implementation conclusion is superseded: Windows128/1440 fluid and shared two-device presentation are implemented, with actual offscreen hardware evidence at `414a82c2`. Finite representation differences and visible-motion/native-screen gaps remain. Current confirmed unimplemented FlipText and exact remaining gates are classified above.
 
-Safe follow-up work still possible without an account/device includes real owned Host crash/autorestart/recovery, a dependency-bearing local plugin install and cancellation/uncertain-result reconciliation, and a self-owned MCP tool invocation through the normal permission path. Current plugin install evidence covers no-script/no-dependency fixtures; current MCP evidence covers initialize/paged catalog/health/configuration lifecycle, with zero tools/call. These are unverified operations, not demonstrated defects.
+The earlier candidate list was only a proposal. The finite follow-up actually executed owned main reconnect and theme CAS/restart. Dependency-bearing/cancel fixtures and legacy/encrypted samples have not been established as ready; the existing normal-permission MCP fixture requires a model request excluded here. They remain unverified, not demonstrated defects or immediately runnable checks.
 
 Live model generation/streaming/send/queue/stop, live approval/question/Workflow transitions, actual Bot/routine execution and delivery, nonempty Project delegation, live paid usage and account/provider discovery were not triggered. Account/OAuth, real SSH/remote machine/phone/QR/public relay, microphone/transcription, publisher install/update/rollback and remote Git publication require their respective external resources and authorization.
 

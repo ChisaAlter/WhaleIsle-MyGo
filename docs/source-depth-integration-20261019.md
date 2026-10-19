@@ -65,6 +65,60 @@ Opening the native popup dismisses the same-token slash suggestion. `/new` and
 | Matching Windows main/helper | **PASS**, `da79d7df`, both builds exit0; version `0.0.0-local.da79d7df`. [Receipt, paths and flags](../../evidence/native-contribution-final-windows-r2-20261019/receipt.json). Main SHA256 `22e44f39375857dd6aa8bebcee2ecf94ae8cc73371b5d465f4e76810cce5478a`; helper `6e269a93093706d8030ebfa057c4e45f0a162c2591e11e8b233902b8c1d2789b`. Main was not launched, installed or copied into a user delivery directory. |
 | Actual isolated Host declarations | **PASS within this read-only scope**, `d2e79d95`, [receipt](../../evidence/native-contribution-current-host-20261019/receipt.json), [observations](../../evidence/native-contribution-current-host-20261019/native-contributions.json). Fresh blank owned Host admitted Known+all5 contributions+all4 command revisions. Cancel retired the stream; owned Host and listener stopped; modelRequests0. Runtime0.2.1-rc.2/pin`687f282e8625c6b8d11ff58211a90524be2e4317` provenance verify exit0, Node hash in receipt. Graph hash `31e7825a1c63ef7bd650a4043366ffa169c09b68bc3a4124ae67d7de64b0c376`. Later `d2e79d95..da79d7df` changes only popup focus and regression fixtures; Dsh, native declaration owner and this tool implementation are unchanged. This was not rerun or relabeled as a da79d7df full-app test. |
 | Software geometry and image | Current ordinary run exports [popup PNG](../../evidence/native-contribution-final-regression-r2-20261019/root/software-frames/native-command-popup-keyboard.png) and [bounds](../../evidence/native-contribution-final-regression-r2-20261019/root/software-frames/native-command-popup-keyboard.geometry.json). Card before/after stays `(16,553.3789,668,142.6211)`; last keyboard-selected row is visible above it. Fixtures also exercise hover then Enter, success/error/retry, focus return, risk confirmation, undo/CAS and actual SSE/Store owner retirement. These are MyGo software frames and synthetic UI input, not native screen capture or original visual equivalence. |
+| Remaining actual application reconnect | **PASS for this exact scope**, acceptance-only `3bea01ff`, unchanged product `da79d7df`: [runner/binary receipt](../../evidence/remaining-owned-main-r2-20261019/receipt.json), [application observations](../../evidence/remaining-owned-main-r2-20261019/owned-main-after-reconnect.png.json). Compiled opt-in test process runs real `main()`, private profile, original Host and production `MaintainMuxFromBootstrap -> EventsReady -> requestConnectionReconnect -> EventsReady`. Same Client/Mux/Stores/window/supervisor generation1/origin; registration generation3→6, permission catalog revision2→4; list and workspace ready before/after. Driver calls the real action callback on the UI thread; no physical menu/button input. Normal startup metadata reads are not claimed absent. Owned process44316 exited0; Host stopped/listener closed. Direct Host PID was not observed. |
+| Remaining actual Host theme CAS | **PASS**, acceptance-only `59866d97`, unchanged product `da79d7df`: [runner receipt](../../evidence/remaining-owned-theme-20261019/receipt.json), [controller/Host observations](../../evidence/remaining-owned-theme-20261019/theme.json). Fresh real `ui-theme` schema; production Store/HostThemeBinding/Editor, normal300ms queue, fontSize revision0→1, second owned writer preference1→2, stale size write rejected with actual `settings/conflict`, draft retained, explicit retry2→3 preserves preference. Two starts of the same owned Host confirm persistence and retired binding rejection. Four scalar mutations, three describe reads plus the loader's three read-only permission catalog calls;0 blocked RPCs, no account/credential/model calls. Host/listener stopped. This is controller acceptance, not physical settings UI or painting acceptance. |
+
+### Finite remaining acceptance supplement
+
+The above two scopes were the only new immediately executable cases confirmed
+by the finite audit. The complete91-ID checklist is now split by actual
+sub-behavior into implemented/passed, implemented but awaiting a named
+capability/resource, and confirmed unimplemented restoration in
+[the existing matrix](native-full-function-acceptance-20261019.md#有限收尾三类结论).
+This is not a new feature scope or certification of every branch.
+
+Only tagged acceptance files changed in `9ed75412..3bea01ff`; product code and
+dependencies still equal `da79d7df`. Its complete ordinary regression and matching
+main/helper artifacts above were preserved and not rerun. `59866d97` introduced
+the two opt-in checks; `3bea01ff` corrects only the main check's scene observer and
+diagnostic cleanup. The theme success was not rerun after that unrelated change.
+
+The actual application [Content image](../../evidence/remaining-owned-main-r2-20261019/owned-main-after-reconnect.png)
+was inspected: blank owned workspace, sidebar, Hero and input card are present.
+MyGo `CapturePage` for Content rerasterizes its last committed scene in software
+(`third_party/mygo/content.go:186`, `ui/window.go:365`); it is not a native
+framebuffer/screen capture. The window was briefly shown with the public
+`ShowInactive` API, resized and hidden again; no Activate or OS input call was made.
+The new scene is2172x1389 pixels with observed Content1448x926DIP, versus initial
+2160x1379 pixels/1440x919DIP. This confirms a new production scene, not original
+same-state/same-DPI layout, visible GPU motion or physical input acceptance.
+
+Protected graceful quit is **not passed**. The actual guard preflight returned
+complete known coverage, localRunning0, scheduledWork0, but activeWorkCount1 and
+needsConsent=true. Its work kind/source was not retained and remains unknown.
+The check refused consent, never requested production protected quit and used
+separately recorded owned diagnostic teardown. It did not dismiss a real dialog,
+relax protection or treat cleanup as graceful-quit proof. A proposed explanation
+that the declaration SSE permanently counted as work was disproved by both fixed
+original and actual staged source: HMR's handler returns after `connect(res)`,
+and the task wrapper's `finally` immediately calls `admission.done()`. No
+watcher-quiesce/product patch was made from that hypothesis. This dependent
+action stops at the real consent gate; passed reconnect is not repeated.
+
+The first new main check at `59866d97` remains **FAIL** in its
+[retained receipt](../../evidence/remaining-owned-main-20261019/receipt.json).
+It observed both actual Ready states and unchanged owners, but its hidden
+Content scene did not advance; its diagnostic cleanup also set quitting before
+cleanup finished, so the correct product OnClose guard prevented exit. The
+wrapper stopped only owned test process25976 and its tree after its200s bound;
+Host/listener had already stopped. Source establishes the hidden drawing
+limitation (`Window.OnReadyToShow`) and the cleanup ordering error. The initial
+DPI-truncation hypothesis was not established: the SDK conversions use rounding,
+and the old receipt lacked last-observed dimensions. The corrected observer
+requires ShowInactive plus a new PNG size matching actual resized Content;
+diagnostic cleanup uses existing `finalizeQuit`, preserves the original error
+and never certifies protected quit. Affected Standards review confirmed these
+limits before the single changed-condition rerun passed.
 
 The prior actual native SVG receipt at `aa159b6a`, GPU/SDK receipts and broader
 isolated Host receipts retain their exact versions and limits in the historical
@@ -98,7 +152,8 @@ review confirmed focus ordering; Standards review checked the event barrier and
 its cleanup. `78ef03af`/`da79d7df` contain the corrections. The new fixed complete
 run above then passed; no unchanged retry was used as a diagnosis.
 
-Retained failed coordinated local rounds are now21 (previous20+this one).
+Retained failed coordinated local rounds are now22: the previous20, the fixed
+contribution run above, and the first owned main acceptance in this supplement.
 Success does not erase them. Remote CI remains0. All evidence directories are
 preserved. The brief execution disconnect was followed by a read-only worktree
 and receipt check; completed writes/runs were not replayed.
@@ -121,11 +176,13 @@ and receipt check; completed writes/runs were not replayed.
   voice-only Codex screen context is inapplicable. No raw HWND capture/injection
   bypass or user-instance restart was attempted. Software frames cannot close
   this acceptance gate.
-- Main `MaintainMuxFromBootstrap -> EventsReady -> manual reconnect`, Host theme
-  write/CAS/onboarding, visible Beam/fluid/SVG motion and whole-workspace native
-  layout still lack current full-app acceptance. The real Host check above only
-  verifies the declaration transport; it does not exercise model/permission
-  selection against a real session. Ordinary fixtures use isolated mock RPCs.
+- The real main bootstrap/Ready/manual reconnect and owned Host theme CAS now
+  have the exact scoped acceptance above. Protected graceful quit remains
+  blocked at actual task consent; onboarding still needs real login/API-key
+  prerequisites. Visible Beam/fluid/SVG motion and whole-workspace native layout
+  lack physical/native-screen acceptance. The declaration check does not
+  exercise model/permission selection against a real session; ordinary selection
+  fixtures use isolated mock RPCs.
   Paid/model execution, automatic compaction pressure/recovery, external account,
   device/phone/IM/SSH and every transitive third-party branch remain unverified.
 - **Installer preparation blocked:** the three retained fixed-hash NSIS retrieval
