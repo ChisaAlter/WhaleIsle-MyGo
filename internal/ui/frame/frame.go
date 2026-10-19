@@ -637,8 +637,16 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only — not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
+			enter := conversationEnter(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, conversationEnterStructure(m, snap, phase, takeover))
+			if takeover || phase == conversationSettling {
+				enter.cancel()
+			}
+			var enterCard, enterViewport ui.Rect
+			enterScroll := ui.Local(conversationArea, "conversation-enter-scroll", func() conversationEnterScroll { return conversationEnterScroll{} })
+			enterScroll.signal(enter, c.Now())
 			conversationArea.Children(func() {
 				if mainSubagentConversationBody(c, m) {
+					enter.cancel()
 					return
 				}
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
@@ -705,33 +713,35 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.ComposerState.EndEdit()
 							}
 						},
-						Hero:                 hero,
-						ModelPick:            m.ModelPick,
-						PermissionOptions:    permissionOptions,
-						AgentPresetOptions:   agentPresetOptions,
-						PermissionPick:       m.PermissionPick,
-						AgentPresetPick:      presetPick,
-						AgentPresetSelection: presetSelection,
-						SlashCatalog:         slashCatalog,
-						OnRetrySlashCommands: func() { m.Store.RefreshSlashCommands(context.Background()) },
-						FilePaths:            filePaths,
-						OnSearchFileRefs:     m.OnSearchFileRefs,
-						OnSearchReferences:   m.OnSearchReferences,
-						SuggestList:          m.ComposerSuggest,
-						SkillsOpen:           m.ComposerSkillsOpen,
-						Skills:               snap.SkillOptions,
-						SkillsList:           m.ComposerSkillsList,
-						SkillsFilter:         m.ComposerSkillsFilter,
-						SkillHubHits:         snap.SkillHubHits,
-						OnSearchSkillHub:     m.OnSearchSkillHub,
-						OnInstallSkillHub:    m.OnInstallSkillHub,
-						OnDeleteSkill:        m.OnDeleteSkill,
-						SkillCreateName:      m.SkillCreateName,
-						OnCreateSkill:        m.OnCreateSkill,
-						OnToggleSkillModel:   m.OnToggleSkillModel,
-						ChipEdit:             m.ComposerChipEdit,
-						UseTextInputClient:   m.UseComposerTextInput,
-						TextInput:            m.ComposerTextInput,
+						Hero:                    hero,
+						OnCardLayout:            func(r ui.Rect) { enterCard = r },
+						ModelPick:               m.ModelPick,
+						PermissionOptions:       permissionOptions,
+						AgentPresetOptions:      agentPresetOptions,
+						PermissionPick:          m.PermissionPick,
+						AgentPresetPick:         presetPick,
+						AgentPresetSelection:    presetSelection,
+						OnAgentPresetIntroduced: m.Store.AcknowledgeAgentPresetIntroduction,
+						SlashCatalog:            slashCatalog,
+						OnRetrySlashCommands:    func() { m.Store.RefreshSlashCommands(context.Background()) },
+						FilePaths:               filePaths,
+						OnSearchFileRefs:        m.OnSearchFileRefs,
+						OnSearchReferences:      m.OnSearchReferences,
+						SuggestList:             m.ComposerSuggest,
+						SkillsOpen:              m.ComposerSkillsOpen,
+						Skills:                  snap.SkillOptions,
+						SkillsList:              m.ComposerSkillsList,
+						SkillsFilter:            m.ComposerSkillsFilter,
+						SkillHubHits:            snap.SkillHubHits,
+						OnSearchSkillHub:        m.OnSearchSkillHub,
+						OnInstallSkillHub:       m.OnInstallSkillHub,
+						OnDeleteSkill:           m.OnDeleteSkill,
+						SkillCreateName:         m.SkillCreateName,
+						OnCreateSkill:           m.OnCreateSkill,
+						OnToggleSkillModel:      m.OnToggleSkillModel,
+						ChipEdit:                m.ComposerChipEdit,
+						UseTextInputClient:      m.UseComposerTextInput,
+						TextInput:               m.ComposerTextInput,
 						OnSend: func(text string) {
 							editSeq := float64(0)
 							if m.EditMessageSeq != nil {
@@ -833,6 +843,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				conversationHistoryStatus(c, m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
 				chatRegion := ui.Column(c).Key("conversation-body").Grow(1).MinHeight(0)
+				chatRegion.ObserveLayout(func(r ui.Rect) { enterViewport = r })
 				if emptyHero {
 					chatRegion.Padding(0, 0, 32, 0)
 				}
@@ -902,6 +913,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											ThemeID:            m.ThemeID,
 											SystemDark:         m.SystemDark,
 											List:               m.ChatList,
+											Scroll:             &enterScroll.scroll,
 											ThinkingExpanded:   m.ThinkingExpanded,
 											SuppressStatus:     true,
 											FullColumnViewport: true,
@@ -1066,7 +1078,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 					seat.Children(func() {
 						ui.Box(c).Grow(1).MinWidth(0)
-						ui.Column(c).Key("conversation-composer-stack").Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).Children(func() {
+						ui.Column(c).Key("conversation-composer-stack").Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).
+							OffsetAfterLayout(func(r ui.Rect) ui.Point { return ui.Point{Y: enter.measure(c.Now(), enterCard, r, enterViewport)} }).Children(func() {
 							if emptyHero {
 								conversationHeroHeadline(c, m, colors)
 							}

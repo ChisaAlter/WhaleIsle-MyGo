@@ -47,6 +47,7 @@ type Model struct {
 	// FullColumnViewport keeps the main transcript's scrollbar at the column edge.
 	FullColumnViewport bool
 	List               *ui.ListState
+	Scroll             *ui.ScrollState
 	ThinkingExpanded   *map[string]bool
 	ConnectionBanner   string
 	OnReconnect        func()
@@ -142,6 +143,9 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		transcript := ui.List(c, list, len(msgs)).Fill()
+		if m.Scroll != nil {
+			transcript.TrackScroll(m.Scroll)
+		}
 		if m.FullColumnViewport {
 			transcript.ScrollbarInsets(0, -3, 0, 0)
 		}
