@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"time"
 
 	"whaleisle/internal/desktop/mediapreview"
@@ -97,34 +98,41 @@ func beginTextRead(m Model) {
 		if ctx.Err() != nil {
 			return out
 		}
-		full, err := workspacefs.JoinRoot(root, path)
-		out.fullPath = full
-		if (err == nil || (isTablePreviewPath(path) && remoteTable != nil)) && ctx.Err() == nil {
-			if isTablePreviewPath(path) {
-				if remoteTable != nil {
-					out.table, err = remoteTable(ctx, path, tableRequest)
-					out.remote = true
-				} else {
-					out.table, err = readTablePreview(ctx, full, tableRequest)
-				}
+		// A captured Host reader is the authority for this session's bytes. A
+		// same-named local file (or a local symlink) must not influence that read.
+		table := isTablePreviewPath(path)
+		out.remote = table && remoteTable != nil || !table && (remotePage != nil || remote != nil)
+		var err error
+		if out.remote {
+			out.fullPath = filepath.Join(root, path)
+			if table {
+				out.table, err = remoteTable(ctx, path, tableRequest)
 				if out.table != nil {
 					out.text = out.table.Text
 				}
+			} else if remotePage != nil {
+				page, pageErr := remotePage(ctx, path, 0)
+				out.text, err, out.truncated, out.page = page.Text, pageErr, !page.EOF, &page
 			} else {
-				var page workspacefs.TextPage
-				page, err = workspacefs.ReadFileTextPage(full, 0)
-				out.text, out.truncated, out.page = page.Text, !page.EOF, &page
+				out.text, err = remote(ctx, path)
+			}
+		} else {
+			full, localErr := workspacefs.JoinRoot(root, path)
+			out.fullPath, err = full, localErr
+			if err == nil && ctx.Err() == nil {
+				if isTablePreviewPath(path) {
+					out.table, err = readTablePreview(ctx, full, tableRequest)
+					if out.table != nil {
+						out.text = out.table.Text
+					}
+				} else {
+					var page workspacefs.TextPage
+					page, err = workspacefs.ReadFileTextPage(full, 0)
+					out.text, out.truncated, out.page = page.Text, !page.EOF, &page
+				}
 			}
 		}
 		out.err = err
-		if out.err != nil && (remote != nil || remotePage != nil) && ctx.Err() == nil && !isTablePreviewPath(path) {
-			if remotePage != nil {
-				page, pageErr := remotePage(ctx, path, 0)
-				out.text, out.err, out.remote, out.truncated, out.page = page.Text, pageErr, true, !page.EOF, &page
-			} else if body, remoteErr := remote(ctx, path); remoteErr == nil {
-				out.text, out.err, out.remote, out.truncated = body, nil, true, false
-			}
-		}
 		if stat != nil && ctx.Err() == nil {
 			out.stat = stat(ctx, path)
 		}

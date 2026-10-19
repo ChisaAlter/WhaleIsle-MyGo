@@ -94,7 +94,8 @@ type Model struct {
 	WatchRemoteContext workspacefs.RemoteDirectoryWatcher
 	// ReadRemote is optional workspaceFiles/read fallback when local preview fails.
 	ReadRemote func(rel string) (string, error)
-	// Context readers are captured from the same frame as BindingID.
+	// Context readers are captured from the same frame as BindingID and are
+	// authoritative when present; a failed Host read never selects local bytes.
 	ReadRemoteContext func(context.Context, string) (string, error)
 	// ReadImageContext is authoritative when present; image reads never fall back
 	// to a same-named local path after a Host read fails.
