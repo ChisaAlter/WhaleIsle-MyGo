@@ -470,3 +470,64 @@ The original lockfile pins Electron44.3.0, whose [DEPS](https://raw.githubuserco
 ### Local candidate provenance
 
 Product commit054fde1e7c98f9bba9f666b14cc646df429033aa contains this protection/opacity/SVG batch and regressions. Offline Windows/amd64 build with Go1.27.2, CGO0 and trimpath passed from clean source; embedded vcs.revision matches054fde1 and vcs.modified=false. Candidate E/whaleisle-native-guard-054fde1.exe is73844224 bytes; SHA256 2B7B8A801E43F54C10D57CA3FC7253860FE6DF9390C554F52559FD34FFA4240C. Adjacent .exe.build.json and .exe.buildinfo.txt retain provenance, and E/windows-fluid-implementation.json appends this batch without replacing historical bf347ff metrics or b426c7a publication. No launch/install or runtime/visual acceptance is claimed. Prior candidates remain intact. This product and subsequent evidence commit are local only, with no new remote verification or push.
+
+## Core availability: session runtime, optional goal and view preferences
+
+The user reported all selected sessions erroring, then two independent errors in a new-session screenshot. GPU/GIF work was paused before product edits; its plan is safely committed on codex/gpu-gif-plan-20261019@16fde68. The hotfix branch is codex/session-runtime-compat-20261019, based on b881c9d. The original native-parity branch and all old EXEs remain intact. No push is authorized for this batch.
+
+### Session reader root cause and repair
+
+The parent directly inspected the screenshot: resume and follow both report required, non-ignorable job/registered at seq20 unknown to this harness. Disk inspection found C:/AI/WhaleIsle-MyGo/runtime/vendor/deepseek-harness at0.2.1-alpha.1, matching the historical reference pin5badb15009ae1756c3afe0ae0cef1faafc290ccc. The installed original C:/软件/Whale Isle/resources/vendor and original source use0.2.1-rc.2, pin687f282e8625c6b8d11ff58211a90524be2e4317. Both claim logical session format4. The rc.2 built vocabulary adds job/registered, job/settled, conversation/next-prompt-request, team/control and working-directory/change. Actual alpha validateStoredEvents rejected the same synthetic seq20 job event with the screenshot error; actual installed rc.2 accepted it, while still rejecting unknown required events.
+
+The disk Go EXE currently embeds b426c7a with vcs.modified=true (SHA256162695545B30034096D7730F8DA99AC01C023E42D96FD60783BDCE9CC6393DE0). Process observations in this restricted surface did not expose an actual Go/Host process path. That is not proof that the user's instance is absent; actual running JS/Node selection remains unknown. CIM and original Git metadata queries previously denied were not retried.
+
+Code tracing places the shared failure before either response: resume and follow both reach observeSession -> readColdSessionLog -> validateStoredEvents. The old build-harness custom path populated only missing runtime directories; rebuilding a new EXE therefore left the old alpha reader beside it. Product e537058 repairs this boundary:
+
+- Resolve checks the actual compiled event registry, including configured standard source launchers; PlanStart rejects an old reader before preparing the shared profile. No session inspection, migration or unknown-event ignoring is added to startup.
+- scripts/session-runtime.mjs explicitly inspects, stages and verifies a complete released rc.2 vendor dependency graph into a fresh destination, plus its matching Node. It executes the actual strict reader against metadata-only fixtures, verifies the source pin, relocates internal links, hashes artifacts and rejects mixed versions. It never starts Host or reads user sessions.
+- The copied visual-reply bundle retains the existing per-operation HTML preview readiness gate. The exact released input/output hashes and all seven awaited checks are pinned; older904/e9 safety checks are preserved. This is a product patch only on the copied runtime, not a system permission change or modification of the original.
+- build-harness rejects the obsolete reference or a mixed existing tree and supports an explicit RuntimeSourceResources/fresh RuntimeDestination. Packaging preserves the selected runtime's Node hash, verifies the copied output, and only then continues toward a ready marker. Explicit mismatched Node overrides are errors. Independent Spec/Standards review identified this Node-selection mismatch; both closed the correction after bounded delta review.
+
+### Actual existing-session read evidence
+
+Three existing compressed v4 snapshots were read without writing their files, starting a backend writer or Host, or requesting a model. Complete Zstd frames were decoded using the original pure scanner; actual alpha/rc.2 validators and rc.2 readColdSessionLog were exercised through an in-memory read handle. Only schema metadata and counts were returned; no private title, session ID, message body or credential was output. All read handles closed and source bytes matched before/after each read.
+
+| Snapshot | Stored events | User / assistant message events | Alpha reader | rc.2 cold read |
+|---|---|---|---|---|
+|1|1316|33 /166|required job/registered refused|accepted;1319 events including in-memory interrupted-turn closers|
+|2|324|8 /45|same refusal|accepted;327 events|
+|3|1108|18 /134|same refusal|accepted;1110 events|
+
+This verifies real existing event data through the read API, not new MyGo UI resume/follow or message rendering acceptance. An initial one-shot Zstd probe read only the first frame/header and was not treated as empty history. A direct TypeScript import needed Node's process-local experimental transform-types flag for parameter properties; no tool/component installation or system setting change was made. E/session-runtime-compat-20261019.json retains sanitized measurements and exact limitations.
+
+### Separate goal and configuration failures
+
+Goal absent was generated by Go itself after a successful empty goals/get response. The original API returns GoalView | undefined; no goal is ordinary optional state. Background success now folds the goal without changing LastAction. Real read errors retain goals/get ownership in ViewState.GoalReadError, bound to client/session/follow generation, cleared on success and isolated across selection/Host changes. Write-action failures retain their existing action-error path. No empty goal panel or new entry point is added.
+
+View preference retry formerly repeated Save against the same stale config baseline, so an unrelated original/Go/background config update could make every retry fail. A dedicated persistent adapter now retains the caller's acknowledged baseline per Host. Saving rereads disk and three-way merges only changed groupBy/orderBy fields and individual collapsed/sessionOrders keys, retaining other Hosts, unknown keys and external settings. Same-field divergent changes remain explicit ErrConflict with pending local state; CAS is not disabled. Each rename attempt checks the fresh baseline; a conflict stops immediately instead of blindly retrying. Rebinding the same config store retains adapter identity. Actual cross-process atomicity beyond the retained compare-before-rename check is not claimed.
+
+Goal repair is local commit7e54fa4; view merge is85bde0d. Bounded Spec review found the first-edit default-value boundary: absent groupBy/orderBy must compare as the UI's workspace/manual defaults, otherwise an unrelated collapse looked like a group change. The shared comparison now normalizes base/current/next, its new regression passed, and Spec closed the P2. Standards reported no confirmed P1/P2 for this goal/view delta. No remaining confirmed review finding is being presented as a pass for the unavailable real Host/UI gate.
+
+Direct regressions: [built vocabulary vs stale source](../internal/harness/session_runtime_test.go#L30), [preparation preflight](../internal/harness/session_runtime_test.go#L71), [Node binding](../internal/harness/session_runtime_test.go#L130); [optional goal](../internal/store/session/goal_read_error_test.go#L49), [read-error ownership](../internal/store/session/goal_read_error_test.go#L86), [late goal error](../internal/store/session/goal_read_error_test.go#L145); [per-field/Host merge](../internal/config/workspace_preferences_merge_test.go#L43), [conflict/retry](../internal/config/workspace_preferences_merge_test.go#L94), [rename CAS](../internal/config/workspace_preferences_merge_test.go#L150), [first-edit default normalization](../cmd/whaleisle/view_preferences_test.go#L124).
+
+### Checks and Host smoke matrix
+
+- Runtime-focused Go regression PASS2.119s after Node-binding correction; PowerShell parse checks passed. Readiness byte-patch/mock fixture passed. Seven distinct Node runtime cases passed; two link cases are BLOCKED by EPERM, so that suite is not green. A broader harness gate and old socket-based goal groups produced no completion result and were cancelled; their cause remains unconfirmed and they are not passes. No identical-condition rerun or CI dispatch followed.
+- Five new in-memory, no-socket goal-read cases passed2.593s, including optional results, real errors, owner changes/late responses and write-error separation. Temporary configuration/cmd targets passed3.663s/3.142s, including concurrent fields/Hosts, same-field conflicts, retry/reopen, repeated saves and a write appearing between rename attempts. User configuration was not modified.
+- After default normalization, only affected view-preference targets were repeated: config PASS1.747s / cmd PASS2.755s. Existing broad gates were not rerun. Runtime Node-provenance and view-default P2 findings are both corrected and closed by bounded review.
+
+| Entry / operation | Read-only smoke scope | Actual status here | Persistent/paid actions withheld |
+|---|---|---|---|
+| Host connection | Unauthenticated GET loopback:3080 root, no body/credential read | Unavailable from this restricted surface; does not establish user Host is stopped | Start/restart/replace existing Host |
+| Sessions | Strict reader and cold read of existing snapshots | Actual results above; UI follow/resume/display unverified | Prompt, new session, resume activation against user data, history mutation/delete |
+| New-session goal | goals/get optional/error ownership | No-socket actual client/store fixture passed; actual Host/Hero unverified | Goal set/clear and model execution |
+| Workspace | workspace/follow, directoryPicker/list | Authenticated Host not available; not executed | initializeDefault/create/rename/delete/trust/order writes |
+| Plugins | Existing manager profile/inventory queries | Authenticated Host not available; not executed | Install/enable/remove/update |
+| Tasks | schedule/catalog/list/history; job/list/follow | Authenticated Host not available; not executed | Create/run/retry/cancel/delete or scheduled model delivery |
+| Settings | settings/describe and read-only inspection | Authenticated Host not available; not executed | update/mutate/replace, account/credential changes |
+
+### Exact staging blocker and minimum next operation
+
+The installed source graph was checked read-only:25375 regular files,6310 real directories,3143 links; no external, ancestor or broken target was found. Two temporary fixtures failed at fs.symlink(target,link,'junction') with EPERM before reaching production stage. Targets were the internal node_modules/@deepseek-ai/dsh-session link and external-link-rejection fixture under sandbox AC/Temp/session-runtime-fixture-G6L3Do and -09K9U4. The exact token/policy cause is unknown. No junction creation was retried, no elevation/security change was requested, and the real stage copy was not attempted after this evidence. No successful runtime marker or complete-deployment claim was made.
+
+Minimum prerequisite: a normal authorized Windows execution surface able to create links inside a fresh workspace runtime directory. Run the existing script's two link cases and explicit stage/verify there, with no administrator or policy change. Then a separately owned isolated candidate and matching data fixture can perform the read-only smoke matrix and actual message-display check. Switching or restarting the user's active instance remains outside this execution. These missing operations are separate from completed source corrections; a rebuilt EXE alone does not upgrade the adjacent Host.

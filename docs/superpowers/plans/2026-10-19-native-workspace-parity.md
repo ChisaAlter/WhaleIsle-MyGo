@@ -124,3 +124,17 @@ Ownership: integrator only ui/decorative_fluid_worker.go, its tests, and necessa
 Execution: [x] Resolve GPU reusable/missing mechanisms; [x] implement performance protection and independent exact animation/media rules; [x] then focused numeric/state/media and integration performance checks; [x] bounded independent review; [x] local commits/build. Do not repeat prior package gates without affected changes; no native visual/GPU equivalence claim from software fixtures. If every actionable item is complete and only tools/runtime/user operations remain, provide the minimum prerequisite list and stop this batch.
 
 Batch result: product054fde1 is locally committed; native cap/pacing and affected lifecycle/bitmap handoff checks passed, Composer3.155s/Market1.880s passed. Independent review closed the SVG unconditional-switch P2; no remaining confirmed P1/P2 for reviewed changes. A distinct clean Windows EXE was built and inspected, not launched/installed/pushed. Full GPU fields/multi-input/lifecycle and animated-media upload/cancellation/composition remain unimplemented code dependencies; remaining beam raster pixels also remain open. This is not an external-tools-only completion claim. Exact backend seams, browser media scheduling references, remaining acceptance prerequisites and candidate provenance are recorded in the canonical status document.
+
+## Core availability priority switch
+
+GPU/GIF planning is preserved separately in codex/gpu-gif-plan-20261019@16fde68; no product implementation started before the user reported sessions all erroring. The independent hotfix branch codex/session-runtime-compat-20261019 starts at b881c9d, so no pending GPU/GIF work is mixed into these fixes.
+
+- [x] Trace the screenshot's required job/registered refusal through actual reader versions: old adjacent alpha.1 vs original installed rc.2, both logicalv4. Actual validators and three metadata-only existing-session cold reads distinguish the failure; no migration/writer/model request.
+- [x] Repair complete runtime staging/verification, actual compiled event preflight, matching Node selection and existing visual-readiness safety. Local product e537058. Two link tests are blocked by EPERM; never mark the suite or real staging passed.
+- [x] Independently fix optional goals/get state and scoped background read errors. Local product7e54fa4, no-socket cases passed.
+- [x] Independently fix view preference persistence with fresh three-way field/key merge, pending same-field conflicts and retained CAS. Local product85bde0d; temporary configuration/rebind/default-value regression passed.
+- [x] Bounded two-axis review; both confirmed P2 findings (Node provenance/default-value merge) fixed and closed. Keep real smoke matrix in the single canonical report.
+- [ ] Build a new distinct Windows EXE from clean committed source, without launching or installing it.
+- [ ] Real fresh runtime link relocation and actual isolated UI/Host matrix: BLOCKED by current junction execution surface and missing authenticated isolated Host; do not restart user instances or fetch credentials to force acceptance.
+
+No push/CI/system install/security change or denied-operation retry. Source code completion, compile evidence, actual existing-reader evidence and full UI acceptance are explicitly separate in docs/native-workspace-parity-20261019.md.
