@@ -32,6 +32,9 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 	if w, h := preview.bitmap.Size(); w != 500 || h != 360 {
 		t.Fatalf("AVIF canvas=%dx%d", w, h)
 	}
+	// Full-viewport raster helpers outlive an individual animation fixture;
+	// create the required process-global team before entering its bubble.
+	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 700, 500)
 	synctest.Test(t, func(t *testing.T) {
 		selected := path
 		tab := &FileTab{Path: path, image: preview}

@@ -75,6 +75,44 @@ rasterizer. Animated WebP is implemented within existing resource limits;
 exact browser codec color/rounding, timing under actual window occlusion, and
 native visible playback remain unverified in this pass.
 
+### Parent unified run02 follow-up
+
+Parent-owned unified run02 at `221dba0` ended with exit 1. Its log is
+`../evidence/source-parity-unified-20261019T161408Z/go-test-all.log`; this
+delegated follow-up did not rerun it. The generated transparent/half-alpha
+finite AVIF fixture reached a genuine preflight omission: the pinned libavif
+1.4.2 writer emits an AV1 sequence `ccst` coding-constraint FullBox for both
+color and alpha descriptions, which the Go property switch previously rejected.
+The [pinned writer](https://github.com/AOMediaCodec/libavif/blob/v1.4.2/src/write.c#L3420)
+defines the exact stable box bytes as
+`00000010 63637374 00000000 7c000000`; these bytes were derived from its writer,
+not claimed as a dump from the prior test's in-memory sample. Read-only
+inspection also found the `ccst` constant in the bundled WASM and no such box
+in the older pinned 17-frame fixture, explaining why that fixture did not
+expose the omission. Product correction `0ca36ee` accepts only an eight-byte
+payload, version/flags zero and the 26 reserved bits zero. The six defined
+constraint bits add no resource or decoding entry. Other unknown properties,
+duplicate rejection and all existing decoder bounds remain unchanged.
+
+Prepared metadata fixtures now cover both color and alpha descriptions,
+the writer's valid constraints, all six defined constraint bits, truncated or
+extended payloads, invalid version/flags/reserved bits, and duplicates. The
+actual generated transparency/completion and finite-loop pixel/time assertions
+were not weakened or removed.
+
+Run02's two AVIF UI timeouts identified `raster.help` workers created by
+`raster.hire` inside a synctest bubble. Those global workers intentionally live
+for the process lifetime; this was a fixture initialization/lifetime problem,
+not evidence of an animation loop. The fixtures now render a simple full-size
+background outside the bubble before drawing the actual surface inside it:
+composer AVIF 700x500, composer WebP 600x400, Files AVIF 700x500, Market AVIF
+300x300, and Market GIF/WebP 160x100. The separate Market async-decoder fixture
+does not render and requires no raster initialization. The existing production
+pool, processor settings, renderer paths and timeouts were not changed. Actual
+canvas/pixel/time/hide/dismiss assertions remain intact; this harness correction
+and the new constraints cases have not yet been executed. Parent owns the
+next coordinated affected verification after all run02 failures are fixed.
+
 ### AVIF sequence follow-up
 
 The initial audit classified AVIF animation as unsupported. A follow-up source

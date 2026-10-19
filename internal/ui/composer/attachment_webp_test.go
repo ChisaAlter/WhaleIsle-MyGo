@@ -29,6 +29,8 @@ func TestAttachmentNativeWebPThumbnailAndOriginal(t *testing.T) {
 			t.Fatal("finite WebP did not stop")
 		}
 	}
+	// Global raster helpers must belong to the process, not the timed bubble.
+	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 600, 400)
 	synctest.Test(t, func(t *testing.T) {
 		v := readAttachmentDisplay(a, true)
 		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}

@@ -41,6 +41,9 @@ func TestAttachmentAVIFSequenceThumbnailOriginalAndDismissal(t *testing.T) {
 	if w, h := v.bitmap.Size(); w != 500 || h != 360 {
 		t.Fatal("original dimensions", w, h)
 	}
+	// The raster helpers are process-global and intentionally stay alive. Hire
+	// the ordinary drawing team outside this bubble at its largest viewport.
+	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 700, 500)
 	synctest.Test(t, func(t *testing.T) {
 		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
 		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 700, 500)

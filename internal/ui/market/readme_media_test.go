@@ -31,6 +31,9 @@ func TestMarketReadmeNativeAnimatedMediaPaintAndHide(t *testing.T) {
 	if err := gif.EncodeAll(&gifBytes, &gif.GIF{Image: []*image.Paletted{first, last}, Delay: []int{5, 5}, LoopCount: -1}); err != nil {
 		t.Fatal(err)
 	}
+	// Both rendering bubbles use this viewport. Keep the global raster team's
+	// lifetime outside them; the assertions still paint the actual README seat.
+	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 160, 100)
 	for name, data := range map[string][]byte{"moving.webp": webp, "moving.gif": gifBytes.Bytes()} {
 		t.Run(name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

@@ -20,6 +20,8 @@ func TestMarketReadmeAVIFSequenceNativePaintAndHide(t *testing.T) {
 	if err := os.WriteFile(cache.FilePath(source), data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	// Any global raster helpers for this viewport must outlive the bubble.
+	ui.NewTester(func(c *ui.Context) { ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)) }, 300, 300)
 	synctest.Test(t, func(t *testing.T) {
 		visible := true
 		tt := ui.NewTester(func(c *ui.Context) {

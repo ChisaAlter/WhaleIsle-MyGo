@@ -237,3 +237,51 @@ func TestNativeAVIFSequenceTransparentCompletionAndFiniteLoops(t *testing.T) {
 		t.Fatal("finite AVIF kept running", i, w)
 	}
 }
+
+func TestAVIFSequenceCodingConstraintsAreStrictlyBounded(t *testing.T) {
+	boxBytes := func(kind string, payload []byte) []byte {
+		box := make([]byte, 8+len(payload))
+		binary.BigEndian.PutUint32(box, uint32(len(box)))
+		copy(box[4:8], kind)
+		copy(box[8:], payload)
+		return box
+	}
+	description := func(constraints []byte, duplicate bool) avifBox {
+		entry := make([]byte, 78)
+		binary.BigEndian.PutUint16(entry[6:8], 1)
+		binary.BigEndian.PutUint16(entry[24:26], 4)
+		binary.BigEndian.PutUint16(entry[26:28], 2)
+		entry = append(entry, boxBytes("av1C", []byte{0x81, 0x20, 0, 0})...)
+		entry = append(entry, boxBytes("ccst", constraints)...)
+		if duplicate {
+			entry = append(entry, boxBytes("ccst", constraints)...)
+		}
+		payload := make([]byte, 8)
+		binary.BigEndian.PutUint32(payload[4:8], 1)
+		return avifBox{kind: "stsd", data: append(payload, boxBytes("av01", entry)...)}
+	}
+	for _, tc := range []struct {
+		name             string
+		payload          []byte
+		duplicate, valid bool
+	}{
+		{"libavif writer", []byte{0, 0, 0, 0, 0x7c, 0, 0, 0}, false, true},
+		{"all six constraint bits", []byte{0, 0, 0, 0, 0xfc, 0, 0, 0}, false, true},
+		{"short", make([]byte, 7), false, false},
+		{"trailing", make([]byte, 9), false, false},
+		{"version", []byte{1, 0, 0, 0, 0x7c, 0, 0, 0}, false, false},
+		{"flags", []byte{0, 0, 0, 1, 0x7c, 0, 0, 0}, false, false},
+		{"reserved", []byte{0, 0, 0, 0, 0x7c, 0, 0, 1}, false, false},
+		{"duplicate", []byte{0, 0, 0, 0, 0x7c, 0, 0, 0}, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, alpha := range []bool{false, true} {
+				budget := 256
+				_, err := avifSequenceDescription(description(tc.payload, tc.duplicate), 4, 2, alpha, &budget)
+				if (err == nil) != tc.valid {
+					t.Fatalf("alpha=%v accepted=%v want=%v: %v", alpha, err == nil, tc.valid, err)
+				}
+			}
+		})
+	}
+}
