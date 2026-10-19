@@ -88,6 +88,9 @@ type MessageOptions struct {
 	CancelButton    int
 	CheckboxLabel   string
 	CheckboxChecked bool
+	// BeforeShow runs on the main thread immediately before showing the dialog.
+	// Returning false resolves the dialog with CancelButton without showing it.
+	BeforeShow func() bool
 }
 
 // MessageResult is the outcome of Dialog.Message.
@@ -210,6 +213,10 @@ func (DialogModule) Message(opts MessageOptions) (MessageResult, error) {
 	}
 	ch := make(chan result, 1)
 	if !postMain(func() {
+		if opts.BeforeShow != nil && !opts.BeforeShow() {
+			deliver(ch, result{res: MessageResult{Button: cancel, CheckboxChecked: opts.CheckboxChecked}})
+			return
+		}
 		backend().Dialogs().ShowMessageBox(opts.Parent.nativeOrNil(), popts, func(r platform.MessageBoxResult, err error) {
 			button := r.Response
 			if button < 0 || button >= len(buttons) {

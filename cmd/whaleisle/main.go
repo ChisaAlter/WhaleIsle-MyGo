@@ -205,6 +205,8 @@ type mainState struct {
 	sshIdentity                             string
 	sshForward                              string
 	sshTunnelMsg                            string
+	sshConnectEpoch                         uint64
+	sshConnectCancel                        context.CancelFunc
 	imDraft                                 string
 	assistant                               *assiststore.Store
 	dshbotRoster                            *dshbotstore.Store
@@ -1406,7 +1408,7 @@ func (s *mainState) sessionRunningCount() int {
 
 // promptAcceptUnknownSSHHost asks whether to trust an unknown host key (TOFU).
 // Returns true when the user chooses Accept.
-func promptAcceptUnknownSSHHost(win *mygo.Window, unknown *sshremote.UnknownHostKey) bool {
+func promptAcceptUnknownSSHHost(win *mygo.Window, unknown *sshremote.UnknownHostKey, beforeShow func() bool) bool {
 	msg := fmt.Sprintf(
 		i18n.T(i18n.KeyRemoteSSHHostUnknownMessage),
 		unknown.Address, unknown.KeyType, unknown.Fingerprint,
@@ -1419,22 +1421,24 @@ func promptAcceptUnknownSSHHost(win *mygo.Window, unknown *sshremote.UnknownHost
 		Buttons:       []string{i18n.T(i18n.KeyRemoteSSHHostDecline), i18n.T(i18n.KeyRemoteSSHHostAccept)},
 		DefaultButton: 0,
 		CancelButton:  0,
+		BeforeShow:    beforeShow,
 	})
 	return err == nil && res.Button == 1
 }
 
 // showSSHHostKeyChanged refuses a mismatched host key with a clear dialog.
-func showSSHHostKeyChanged(win *mygo.Window, changed *sshremote.HostKeyChanged) {
+func showSSHHostKeyChanged(win *mygo.Window, changed *sshremote.HostKeyChanged, beforeShow func() bool) {
 	msg := fmt.Sprintf(
 		i18n.T(i18n.KeyRemoteSSHHostChangedMessage),
 		changed.Address, changed.KeyType, changed.Fingerprint,
 	)
 	_, _ = mygo.Dialog.Message(mygo.MessageOptions{
-		Parent:  win,
-		Type:    mygo.MessageWarning,
-		Title:   i18n.T(i18n.KeyRemoteSSHHostChangedTitle),
-		Message: msg,
-		Buttons: []string{"OK"},
+		Parent:     win,
+		Type:       mygo.MessageWarning,
+		Title:      i18n.T(i18n.KeyRemoteSSHHostChangedTitle),
+		Message:    msg,
+		Buttons:    []string{"OK"},
+		BeforeShow: beforeShow,
 	})
 }
 
@@ -5543,8 +5547,9 @@ func mainView(c *ui.Context) {
 							IdentityFile: strings.TrimSpace(sshIdentity),
 							LocalForward: strings.TrimSpace(sshForward),
 						}
-						err := sshremote.SaveTunnelConfig(paths.UserDataDir(), cfg)
 						state.mu.Lock()
+						state.invalidateSSHConnectLocked()
+						err := sshremote.SaveTunnelConfig(paths.UserDataDir(), cfg)
 						state.sshHost = cfg.Host
 						state.sshUser = cfg.User
 						state.sshPort = strconv.Itoa(cfg.Port)
@@ -5574,52 +5579,30 @@ func mainView(c *ui.Context) {
 							LocalForward: strings.TrimSpace(sshForward),
 						}
 						state.mu.Lock()
-						if state.sshTunnel == nil {
-							state.sshTunnel = sshremote.NewTunnelSession()
-						}
-						tun := state.sshTunnel
-						tun.SetConfig(cfg)
-						tun.SetTrustOnFirstUse(false)
+						op := state.beginSSHConnectLocked(cfg)
 						state.mu.Unlock()
-						go func() {
-							err := tun.Connect(context.Background())
-							msg := ""
-							if err != nil {
-								var changed *sshremote.HostKeyChanged
-								var unknown *sshremote.UnknownHostKey
-								switch {
-								case errors.As(err, &changed):
-									showSSHHostKeyChanged(win, changed)
-									msg = i18n.T(i18n.KeyRemoteSSHHostChangedStatus) + ": " + changed.Error()
-								case errors.As(err, &unknown):
-									if promptAcceptUnknownSSHHost(win, unknown) {
-										kh := sshremote.KnownHostsPath(paths.UserDataDir())
-										if aerr := sshremote.AcceptHostKey(kh, unknown.Address, unknown.Key); aerr != nil {
-											msg = aerr.Error()
-										} else if err = tun.Connect(context.Background()); err != nil {
-											msg = err.Error()
-										} else {
-											msg = i18n.T(i18n.KeyRemoteSSHConnected)
-										}
-									} else {
-										msg = i18n.T(i18n.KeyRemoteSSHHostDeclined)
-									}
-								default:
-									msg = err.Error()
+						kh := sshremote.KnownHostsPath(paths.UserDataDir())
+						go op.run(sshConnectEffects{
+							connect: op.tunnel.Connect,
+							prompt: func(unknown *sshremote.UnknownHostKey, beforeShow func() bool) bool {
+								return promptAcceptUnknownSSHHost(win, unknown, beforeShow)
+							},
+							changed: func(changed *sshremote.HostKeyChanged, beforeShow func() bool) {
+								showSSHHostKeyChanged(win, changed, beforeShow)
+							},
+							accept: func(unknown *sshremote.UnknownHostKey) error {
+								return sshremote.AcceptHostKey(kh, unknown.Address, unknown.Key)
+							},
+							redraw: func() {
+								if win != nil {
+									win.Update(func() {})
 								}
-							} else {
-								msg = i18n.T(i18n.KeyRemoteSSHConnected)
-							}
-							state.mu.Lock()
-							state.sshTunnelMsg = msg
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
+							},
+						})
 					},
 					OnDisconnectSSH: func() {
 						state.mu.Lock()
+						state.invalidateSSHConnectLocked()
 						if state.sshTunnel != nil {
 							state.sshTunnel.Disconnect()
 						}
