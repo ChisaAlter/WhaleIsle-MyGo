@@ -19,26 +19,10 @@ func userMessageParts(body string) (refs []string, text string) {
 	lines := strings.Split(body, "\n")
 	kept := make([]string, 0, len(lines))
 	seen := map[string]bool{}
-	var fence byte
-	fenceLength := 0
+	var fence userTextFence
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		marker, count := byte(0), 0
-		if len(trimmed) > 0 && (trimmed[0] == '`' || trimmed[0] == '~') {
-			marker = trimmed[0]
-			for count < len(trimmed) && trimmed[count] == marker {
-				count++
-			}
-		}
-		if fence != 0 {
-			kept = append(kept, line)
-			if marker == fence && count >= fenceLength && strings.TrimSpace(trimmed[count:]) == "" {
-				fence = 0
-			}
-			continue
-		}
-		if count >= 3 {
-			fence, fenceLength = marker, count
+		if fence.consumeLine(line) {
 			kept = append(kept, line)
 			continue
 		}

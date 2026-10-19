@@ -64,6 +64,31 @@ func userReferenceRuns(text string, known ...userReferenceFacts) []userReference
 		facts = known[0]
 	}
 	var runs []userReferenceRun
+	var fence userTextFence
+	offset, plain, codeStart := 0, 0, -1
+	for _, line := range strings.SplitAfter(text, "\n") {
+		inside := fence.marker != 0
+		literal := fence.consumeLine(line)
+		if literal && !inside {
+			runs = append(runs, userReferenceRunsUnfenced(text[plain:offset], facts)...)
+			codeStart = offset
+		}
+		offset += len(line)
+		if literal && fence.marker == 0 {
+			runs = append(runs, userReferenceRun{Text: text[codeStart:offset]})
+			plain, codeStart = offset, -1
+		}
+	}
+	if codeStart >= 0 {
+		runs = append(runs, userReferenceRun{Text: text[codeStart:]})
+	} else {
+		runs = append(runs, userReferenceRunsUnfenced(text[plain:], facts)...)
+	}
+	return runs
+}
+
+func userReferenceRunsUnfenced(text string, facts userReferenceFacts) []userReferenceRun {
+	var runs []userReferenceRun
 	plain := 0
 	for start := 0; start < len(text); {
 		r, size := utf8.DecodeRuneInString(text[start:])
