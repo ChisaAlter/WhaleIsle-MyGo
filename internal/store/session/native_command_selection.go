@@ -11,6 +11,7 @@ import (
 // registration. Identical session IDs from another Host are not interchangeable.
 type NativeCommandOwner struct {
 	HostGeneration, SessionGeneration, PermissionCatalogRevision uint64
+	RegistrationGeneration, PortGeneration                       uint64
 	SessionID, Revision, ReleaseVersion, ReleaseCommit           string
 }
 
@@ -23,6 +24,10 @@ type NativeCommandOption struct {
 
 func (s *Store) nativeCommandCurrentLocked(o NativeCommandOwner, name string) bool {
 	g := s.nativeContributions.snapshot
+	index := nativeCommandIndex(name)
+	if index < 0 || o.RegistrationGeneration != s.nativeContributions.generation || o.PortGeneration != s.nativeContributions.ports[index] {
+		return false
+	}
 	if s.client == nil || o.SessionID == "" || s.selectedID != o.SessionID || s.followGeneration != o.SessionGeneration || s.composerHostGeneration != o.HostGeneration || !g.Known || g.CommandRevision(name) != o.Revision || g.ReleaseVersion != o.ReleaseVersion || g.ReleaseCommit != o.ReleaseCommit {
 		return false
 	}

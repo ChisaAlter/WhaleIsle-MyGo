@@ -111,20 +111,22 @@ type ViewState struct {
 	TurnFiles      TurnFilesSnapshot
 	WorkflowRuns   []workflowrun.Run
 	// PlanHistoryBinding owns the last authoritative follow snapshot.
-	PlanHistoryBinding        string
-	WorkspaceLayout           WorkspaceLayoutState
-	Workspaces                []WorkspaceRow
-	WorkspaceReady            bool
-	WorkspaceNavigation       *WorkspaceNavigationState
-	QuestionProjection        QuestionProjectionState
-	ArchiveConfirmation       *ArchiveConfirmation
-	SlashCommands             []api.ListResultItem2
-	SlashCommandsLoading      bool
-	SlashCommandsKnown        bool
-	SlashCommandsErr          string
-	NativeContributions       dsh.NativeContributions
-	PermissionCatalogRevision uint64
-	QueueEditor               QueueEditorState
+	PlanHistoryBinding            string
+	WorkspaceLayout               WorkspaceLayoutState
+	Workspaces                    []WorkspaceRow
+	WorkspaceReady                bool
+	WorkspaceNavigation           *WorkspaceNavigationState
+	QuestionProjection            QuestionProjectionState
+	ArchiveConfirmation           *ArchiveConfirmation
+	SlashCommands                 []api.ListResultItem2
+	SlashCommandsLoading          bool
+	SlashCommandsKnown            bool
+	SlashCommandsErr              string
+	NativeContributions           dsh.NativeContributions
+	NativeContributionsGeneration uint64
+	nativeCommandGenerations      [4]uint64
+	PermissionCatalogRevision     uint64
+	QueueEditor                   QueueEditorState
 
 	CostSources      []sessioncost.Source
 	SelectedProvider string
@@ -679,6 +681,8 @@ func (s *Store) Snapshot() ViewState {
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)
 	s.snapshotCommandsLocked(&st)
 	st.NativeContributions = s.nativeContributions.snapshot
+	st.NativeContributionsGeneration = s.nativeContributions.generation
+	st.nativeCommandGenerations = s.nativeContributions.ports
 	st.PermissionCatalogRevision = s.permissionCatalogRevision
 	st.ComposerSessionGeneration = s.followGeneration
 	s.snapshotModelsLocked(&st)

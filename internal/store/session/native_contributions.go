@@ -9,16 +9,55 @@ import (
 // contributions. The Host graph declares their presence; it is never treated as
 // a receipt that an unrelated browser mounted React successfully.
 type nativeContributionState struct {
-	snapshot dsh.NativeContributions
-	owner    *EventsOwner
-	cancel   context.CancelFunc
+	snapshot   dsh.NativeContributions
+	owner      *EventsOwner
+	cancel     context.CancelFunc
+	generation uint64
+	ports      [4]uint64
+}
+
+func nativeCommandIndex(name string) int {
+	switch name {
+	case "file":
+		return 0
+	case "model":
+		return 1
+	case "permission":
+		return 2
+	case "feedback":
+		return 3
+	default:
+		return -1
+	}
+}
+
+// NativeCommandGeneration changes when this particular registration retires,
+// including removal and reinstatement of identical code between UI frames.
+func (s ViewState) NativeCommandGeneration(name string) uint64 {
+	if index := nativeCommandIndex(name); index >= 0 {
+		return s.nativeCommandGenerations[index]
+	}
+	return 0
+}
+
+func (s *Store) setNativeContributionsLocked(snapshot dsh.NativeContributions) {
+	state := &s.nativeContributions
+	if state.snapshot.Known && !snapshot.Known {
+		state.generation++
+	}
+	for index, name := range [...]string{"file", "model", "permission", "feedback"} {
+		if state.snapshot.CommandRevision(name) != snapshot.CommandRevision(name) {
+			state.ports[index]++
+		}
+	}
+	state.snapshot = snapshot
 }
 
 func (s *Store) resetNativeContributionsLocked() {
 	if s.nativeContributions.cancel != nil {
 		s.nativeContributions.cancel()
 	}
-	s.nativeContributions = nativeContributionState{}
+	s.nativeContributions = nativeContributionState{generation: s.nativeContributions.generation + 1}
 }
 
 // WatchNativeContributionsForEvents starts once for the authenticated, ready
@@ -45,7 +84,7 @@ func (s *Store) WatchNativeContributionsForEvents(owner *EventsOwner) {
 				s.mu.Unlock()
 				return
 			}
-			s.nativeContributions.snapshot = snapshot
+			s.setNativeContributionsLocked(snapshot)
 			s.mu.Unlock()
 			s.fire()
 		})
@@ -56,7 +95,7 @@ func (s *Store) WatchNativeContributionsForEvents(owner *EventsOwner) {
 		}
 		// Also revoke when this context has expired: a canceled stream cannot
 		// remain authority merely because no replacement graph has arrived.
-		s.nativeContributions.snapshot = dsh.NativeContributions{}
+		s.setNativeContributionsLocked(dsh.NativeContributions{})
 		if err != nil && ctx.Err() == nil {
 			s.nativeContributions.snapshot.Error = err.Error()
 		}

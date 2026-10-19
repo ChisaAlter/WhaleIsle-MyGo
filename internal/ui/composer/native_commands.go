@@ -15,7 +15,7 @@ type NativeCommandOption = session.NativeCommandOption
 
 func nativeCommandOwner(s session.ViewState, name string) NativeCommandOwner {
 	g := s.NativeContributions
-	return NativeCommandOwner{HostGeneration: s.ComposerHostGeneration, SessionGeneration: s.ComposerSessionGeneration, PermissionCatalogRevision: s.PermissionCatalogRevision, SessionID: s.SelectedID, Revision: g.CommandRevision(name), ReleaseVersion: g.ReleaseVersion, ReleaseCommit: g.ReleaseCommit}
+	return NativeCommandOwner{HostGeneration: s.ComposerHostGeneration, SessionGeneration: s.ComposerSessionGeneration, PermissionCatalogRevision: s.PermissionCatalogRevision, RegistrationGeneration: s.NativeContributionsGeneration, PortGeneration: s.NativeCommandGeneration(name), SessionID: s.SelectedID, Revision: g.CommandRevision(name), ReleaseVersion: g.ReleaseVersion, ReleaseCommit: g.ReleaseCommit}
 }
 func nativeCommandRegistered(s session.ViewState, name string) bool {
 	g := s.NativeContributions
@@ -144,6 +144,8 @@ type nativeCommandPopup struct {
 	active                            int
 	loading, started, busy, composing bool
 	reveal                            bool
+	pointerX, pointerY                float32
+	pointerPresent                    bool
 	confirmation                      *NativeCommandOption
 	acknowledged                      bool
 }
@@ -165,6 +167,9 @@ func (p *nativeCommandPopup) close() {
 func (d *DraftState) openNativeCommand(s session.ViewState, name string, segment nativeCommandSegment) {
 	d.ModelCommand.close()
 	d.PermissionCommand.close()
+	model := Model{State: d, Draft: &d.Text, Snapshot: s, TextInput: d.Client}
+	activeSuggestion(model, d.Client)
+	dismissSuggestion(model, d.Client)
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &nativeCommandPopup{owner: nativeCommandOwner(s, name), name: name, segment: segment, ctx: ctx, cancel: cancel, active: -1}
 	state := ModelCommandState{Open: true, SessionID: s.SelectedID, popup: p}
@@ -373,6 +378,10 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, panel, bor
 			height = min(height, max(float32(0), bounds.Y-4))
 		}
 		pane := ui.Column(c.Key("native-command:"+p.name)).Absolute().Left(0).Right(0).BottomPercent(100).Margin(0, 0, 4, 0).MaxHeight(height).Clip().Padding(4).Gap(4).Background(panel).Border(1, border).Radius(8)
+		pointerX, pointerY, pointerPresent := pane.PointerPosition()
+		pointerX, pointerY = pointerX+pane.Bounds().X, pointerY+pane.Bounds().Y
+		pointerMoved := pointerPresent && (!p.pointerPresent || pointerX != p.pointerX || pointerY != p.pointerY)
+		p.pointerX, p.pointerY, p.pointerPresent = pointerX, pointerY, pointerPresent
 		if !p.composing && (pane.Shortcut(0, ui.KeyEscape) || pane.Shortcut(ui.Shift, ui.KeyTab)) {
 			dismiss()
 			return
@@ -433,8 +442,14 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, panel, bor
 						ui.Text(c, label).FontSize(11).TextColor(muted).Padding(4)
 					}
 					button := ui.Button(c, "").Label(row.Label).FillWidth().Disabled(p.busy || p.loading || p.confirmation != nil).Padding(6, 8)
+					if pointerMoved && button.Hovered() && !p.busy && !p.loading {
+						p.active, p.reveal = i, false
+					}
 					if i == p.active {
 						button.Background(border)
+						if p.reveal {
+							button.ScrollIntoView()
+						}
 					}
 					button.Children(func() {
 						ui.Column(c).FillWidth().Gap(2).Children(func() {
