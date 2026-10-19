@@ -49,8 +49,11 @@ func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
 
 func TestSettingsDedicatedSelectionWinsOverStaleSchemaSelection(t *testing.T) {
 	snap := store.ViewState{SelectedNS: "pet"}
-	if got := activeSection(Model{InterfaceActive: true}, snap); got != SectionInterface {
+	if got := activeSection(Model{InterfaceActive: true, Interface: &InterfaceAccess{}}, snap); got != SectionInterface {
 		t.Fatalf("stale pet namespace took selection from Interface: %s", got)
+	}
+	if got := activeSection(Model{InterfaceActive: true}, snap); got != SectionGeneral {
+		t.Fatalf("unregistered Interface page bypassed navigation admission: %s", got)
 	}
 	for _, ns := range []string{"agent-loop", "web-search-deepseek", "subagent", "pwsh-local", "permission", "general"} {
 		if got := activeSection(Model{}, store.ViewState{SelectedNS: ns}); got != SectionGeneral {

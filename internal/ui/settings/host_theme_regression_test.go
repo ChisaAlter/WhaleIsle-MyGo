@@ -162,7 +162,7 @@ func TestThemePendingFontEditsAccumulateWithoutSavingCustomDraft(t *testing.T) {
 		t.Fatal(e.Status)
 	}
 	e.AcceptHost(submitted[len(submitted)-1], false, "")
-	if e.GeneralFontFamily("text") != "Fixture Face" || e.Saved.Interface.Family != "Fixture Face" {
+	if e.GeneralFontFamily("text") != `"Fixture Face"` || e.Saved.Interface.Family != `"Fixture Face"` {
 		t.Fatal("accepted General input did not settle")
 	}
 	e.AcceptHost(p, true, "")
