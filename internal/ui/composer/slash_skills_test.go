@@ -3,6 +3,7 @@ package composer
 import (
 	"context"
 	"testing"
+	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 )
 
@@ -17,7 +18,7 @@ func TestSlashMenuIncludesRankedSkillReferences(t *testing.T) {
 func TestSkillSelectionIsLiteralAndCommandsOwnCollisions(t *testing.T) {
 	d, m, _ := suggestionFixture("/cr")
 	m.Skills = []session.SkillOption{{Name: "code-review"}}
-	m.SlashCatalog = nil
+	m.Snapshot.SlashCommands = nil
 	calls := 0
 	m.OnExecuteSlash = func(context.Context, string) { calls++ }
 	items := buildSuggestItems(m, SuggestSlash, "cr")
@@ -28,14 +29,14 @@ func TestSkillSelectionIsLiteralAndCommandsOwnCollisions(t *testing.T) {
 	if d.Text != "/code-review " || calls != 0 || handleSlashSend(m, d.Text) {
 		t.Fatalf("skill sent as command: %q calls %d", d.Text, calls)
 	}
-	m.SlashCatalog = []SlashCommand{{Line: "/code-review", Description: "command"}}
+	m.Snapshot.SlashCommands = []api.ListResultItem2{{Name: "code-review", Description: "command"}}
 	items = buildSuggestItems(m, SuggestSlash, "")
 	if len(items) != 1 || items[0].sub != "command" || isSkillOnlyInvocation(m, "/code-review") {
 		t.Fatal("command collision priority lost")
 	}
 	m.Snapshot.SelectedID = "child"
 	m.Snapshot.Items = []session.Item{{SessionID: "child", Origin: "subagent"}}
-	m.SlashCatalog = nil
+	m.Snapshot.SlashCommands = nil
 	if len(buildSuggestItems(m, SuggestSlash, "")) != 0 {
 		t.Fatal("subagent skill source unexpectedly enabled")
 	}
@@ -43,6 +44,8 @@ func TestSkillSelectionIsLiteralAndCommandsOwnCollisions(t *testing.T) {
 func TestCommandLauncherPreservesDraftAndCurrentSelection(t *testing.T) {
 	d, m, sent := suggestionFixture("A😀B")
 	m.Snapshot.SelectedID = "a"
+	m.Snapshot.SlashCommands = nil
+	m.Skills = []session.SkillOption{{Name: "reference"}}
 	d.Client.SetSelectionUTF16(1, 3)
 	toggleCommandLauncher(m)
 	kind, query, tok, _, open := activeSuggestion(m, d.Client)

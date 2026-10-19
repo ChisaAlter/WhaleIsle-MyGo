@@ -3,39 +3,38 @@ package composer
 import "testing"
 
 func TestLocalModelCommand(t *testing.T) {
-	var p ModelCommandState
-	if handled, err := p.Handle(" /MoDeL ", "a", "", false, 0); !handled || err != "" || !p.Visible("a") {
-		t.Fatalf("local command not opened: %v %q %+v", handled, err, p)
+	snap := nativeCommandSnapshot(t)
+	d := NewDraftState(" /model ")
+	if !d.HandleNativeCommand(snap, nil) || !d.ModelCommand.Visible("a") || d.Text != " /model " {
+		t.Fatal("bare model did not open without consuming its command")
 	}
-	if p.Visible("b") {
+	if d.ModelCommand.Visible("b") {
 		t.Fatal("picker leaked across sessions")
 	}
-	p.Sync("b")
-	if p.Visible("a") {
-		t.Fatal("old picker survived navigation")
+	ctx := d.ModelCommand.popup.ctx
+	d.ModelCommand.Sync("b")
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("navigation did not retire popup work")
 	}
 	for _, text := range []string{"/model foo", "/model\nhello", "hello /model"} {
-		if handled, _ := p.Handle(text, "a", "", false, 0); handled {
+		d.Text = text
+		if d.HandleNativeCommand(snap, nil) {
 			t.Fatalf("claimed normal input %q", text)
 		}
 	}
-	if handled, _ := p.Handle("/model", "a", "", true, 0); handled {
+	d.Text = "/model"
+	d.EditSeq = 1
+	if d.HandleNativeCommand(snap, nil) {
 		t.Fatal("claimed edit")
 	}
-	for _, tc := range []struct {
-		id, target  string
-		attachments int
-	}{{"", "", 0}, {"a", "b", 0}, {"a", "", 1}} {
-		handled, err := p.Handle("/model", tc.id, tc.target, false, tc.attachments)
-		if !handled || err == "" || p.Open {
-			t.Fatalf("unsafe local command escaped: %+v %v %q", tc, handled, err)
-		}
+	d.EditSeq = 0
+	d.TargetID = "other"
+	if !d.HandleNativeCommand(snap, nil) || d.Error == "" || d.ModelCommand.Open || d.Text != "/model" {
+		t.Fatal("wrong-session request escaped or lost draft")
 	}
-	if LocalSlashAction("/model", StubSlashCommands()) != "model" {
-		t.Fatal("local entry missing")
-	}
-	catalog := MergeSlashCommands(StubSlashCommands(), []SlashCommand{{Line: "/model", Description: "remote"}})
-	if LocalSlashAction("/model", catalog) != "model" {
-		t.Fatal("Host catalog overrode local entry")
+	if len(StubSlashCommands()) != 0 {
+		t.Fatal("unavailable Host directory invented native commands")
 	}
 }

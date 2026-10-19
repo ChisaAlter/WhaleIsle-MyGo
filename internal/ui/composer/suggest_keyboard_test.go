@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/session"
 )
 
 func suggestionFixture(text string) (*DraftState, Model, *int) {
@@ -11,7 +13,7 @@ func suggestionFixture(text string) (*DraftState, Model, *int) {
 	selected := 0
 	sent := 0
 	m := Model{Draft: &d.Text, State: d, TextInput: d.Client, UseTextInputClient: true,
-		SuggestList: &ui.ListState{Selected: &selected}, SlashCatalog: StubSlashCommands(),
+		SuggestList: &ui.ListState{Selected: &selected}, Snapshot: session.ViewState{ClientReady: true, SelectedID: "a", SlashCommandsKnown: true, SlashCommands: []api.ListResultItem2{{Name: "goal", Input: &api.ListResultItem2Input{Hint: "Goal"}}}},
 		FilePaths: []string{"readme.md", "report.md"}, OnSubmit: func() { sent++ }}
 	return d, m, &sent
 }
@@ -20,7 +22,7 @@ func TestSuggestionEnterAcceptsHighlightWithoutSending(t *testing.T) {
 	for _, text := range []string{"/", "@r"} {
 		d, m, sent := suggestionFixture(text)
 		if text == "/" {
-			m.SlashCatalog = []SlashCommand{{Line: "/remote", Description: "Remote command"}}
+			m.Snapshot.SlashCommands = []api.ListResultItem2{{Name: "remote", Description: "Remote command", Input: &api.ListResultItem2Input{Hint: "Remote command"}}}
 		}
 		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyDown}) {
 			t.Fatal("down not consumed")

@@ -36,6 +36,7 @@ func TestActiveSuggestPrefersSlash(t *testing.T) {
 func TestFilterSlashCommands(t *testing.T) {
 	all := MergeSlashCommands(StubSlashCommands(), []SlashCommand{
 		{Line: "/compact", Description: "Compact"},
+		{Line: "/clear", Description: "Host clear"},
 	})
 	got := FilterSlashCommands(all, "cl", 10)
 	if len(got) != 1 || got[0].Line != "/clear" {
@@ -59,7 +60,7 @@ func TestReplaceToken(t *testing.T) {
 }
 
 func TestLocalSlashAction(t *testing.T) {
-	if LocalSlashAction("/new", StubSlashCommands()) != "new" {
+	if LocalSlashAction("/new", []SlashCommand{{Line: "/new", LocalAction: "new"}}) != "new" {
 		t.Fatal()
 	}
 	if LocalSlashAction("/compact", StubSlashCommands()) != "" {
