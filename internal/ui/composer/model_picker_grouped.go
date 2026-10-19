@@ -155,16 +155,18 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		*state = modelCatalogMenu{Binding: binding}
 	}
 	root.Children(func() {
-		caption := m.Snapshot.SelectedModel
-		if caption == "" && m.ModelPick != nil {
-			caption = strings.TrimSpace(*m.ModelPick)
+		selectionLabel := m.Snapshot.SelectedModel
+		if selectionLabel == "" && m.ModelPick != nil {
+			selectionLabel = strings.TrimSpace(*m.ModelPick)
 		}
-		if caption == "" {
-			caption = "模型 / Model"
+		name := modelLabelName(m.Snapshot, selectionLabel)
+		if name == "" {
+			name = "模型 / Model"
 		}
+		caption := name
 		hasCurrentChoice := false
 		for _, label := range m.Snapshot.ModelLabels {
-			if label == caption {
+			if label == selectionLabel {
 				hasCurrentChoice = true
 				break
 			}
@@ -176,7 +178,21 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			caption += " …"
 		}
 		trigger := ui.Button(c, "").Bind(triggerFocus).Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Inert)
-		trigger.Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20) })
+		trigger.Children(func() {
+			ui.Row(c).MinWidth(0).Grow(1).AlignItems(ui.Center).Gap(4).Children(func() {
+				if hasCurrentChoice {
+					ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)
+				} else {
+					ui.Text(c, name).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20)
+				}
+				if m.Snapshot.SelectedModelEffort != "" {
+					ui.Text(c, "· "+m.Snapshot.SelectedModelEffort).Shrink(0).SingleLine()
+				}
+				if m.Snapshot.ModelSelectionBusy {
+					ui.Text(c, "…").Shrink(0)
+				}
+			})
+		})
 
 		if trigger.Clicked() {
 			state.Open = !state.Open
@@ -204,7 +220,14 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			}
 			pane.Children(func() {
 				if state.Pane == "root" || state.Pane == "" {
-					modelButton := ui.Button(c, composerText("模型", "Model")+"  "+m.Snapshot.SelectedModel+"  ›").FillWidth().Disabled(m.Inert)
+					modelButton := ui.Button(c, "").Label(composerText("模型", "Model") + "  " + m.Snapshot.SelectedModel + "  ›").FillWidth().Disabled(m.Inert)
+					modelButton.Children(func() {
+						ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
+							ui.Text(c, composerText("模型", "Model")).Grow(1)
+							ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelMenu, true, muted, 13)
+							ui.Text(c, "›").Shrink(0)
+						})
+					})
 					if state.RootFocus != "effort" {
 						modelButton.AutoFocus()
 					}
@@ -319,11 +342,16 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						for _, g := range groups {
 							ui.Text(c, g.Name).FontSize(11).Bold().TextColor(muted)
 							for _, choice := range g.Choices {
-								label := choice.Name
-								if choice.Label == m.Snapshot.SelectedModel {
-									label = "✓ " + label
-								}
-								button := ui.Button(c, label).Label("Choose model " + choice.Label).FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+								selected := choice.Label == m.Snapshot.SelectedModel
+								button := ui.Button(c, "").Label("Choose model " + choice.Label).FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+								button.Children(func() {
+									ui.Row(c).Grow(1).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
+										if selected {
+											ui.Text(c, "✓").Shrink(0)
+										}
+										ModelLabel(c, m.Snapshot, choice.Label, ModelLabelOption, selected, c.Theme().Text, 13).Grow(1)
+									})
+								})
 								buttons = append(buttons, button)
 								if len(m.Snapshot.ModelLabels) <= 4 && (choice.Label == m.Snapshot.SelectedModel || m.Snapshot.SelectedModel == "" && index == 0) {
 									button.AutoFocus()
