@@ -44,7 +44,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	draft := create.Draft
 	open := true
 	bodyDialog(c, &open, providerCopy("添加技能", "Add skill"), func() {
-		ui.Text(c, providerCopy("名称", "Name")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		nameLabel := ui.Text(c, providerCopy("名称", "Name")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextInput(c, &draft.Name).FillWidth().Disabled(create.Busy).Placeholder("review-code")
 		ui.Text(c, providerCopy("描述", "Description")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextInput(c, &draft.Description).FillWidth().Disabled(create.Busy)
@@ -100,7 +100,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 		if create.Error != "" {
 			ui.Text(c, create.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		validation := ui.Local(c, "skill-create-validation", func() string { return "" })
+		validation := ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
 		if *validation != "" {
 			ui.Text(c, *validation).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
