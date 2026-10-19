@@ -72,8 +72,12 @@ func BackdropTerminal(c ui.Color) ui.Color {
 	}
 	return c.Alpha(float32(backgroundState.prefs.Terminal / 100))
 }
-func WallpaperBackgroundPainter(path string, p wallpapers.Preferences) func(*ui.Painter, ui.Rect) {
+
+// The caller captures the desktop preference during view construction.
+// wallpaper.css leaves the ambient blooms static under reduced motion.
+func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
 	ConfigureBackdrop(path, p)
+	reduced := len(reducedMotion) > 0 && reducedMotion[0]
 	if path != "" {
 		bmp := backgroundBitmap(path, p)
 		return func(painter *ui.Painter, r ui.Rect) {
@@ -93,7 +97,10 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences) func(*ui.
 				resolved[i] = Color(colors[i])
 			}
 		}
-		t := float64(painter.Now().UnixMilli()) / 1000 * p.Speed / 100
+		t := float64(0)
+		if !reduced {
+			t = float64(painter.Now().UnixMilli()) / 1000 * p.Speed / 100
+		}
 		painter.FillGradient(r, ui.LinearGradient{From: resolved[0], To: resolved[1], Angle: 40 + float32(math.Sin(t*.05)*20)}, 0)
 		for i := 0; i < min(5, max(1, int(p.Count))); i++ {
 			phase := float64(i) * 1.73
@@ -116,7 +123,9 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences) func(*ui.
 			}
 			painter.Shadow(ui.Rect{X: x - w/2, Y: y - h/2, W: w, H: h}, radius, 0, 0, 60, 0, resolved[i+2].Alpha(.38))
 		}
-		painter.AnimationFrame()
+		if !reduced {
+			painter.AnimationFrame()
+		}
 	}
 }
 func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {

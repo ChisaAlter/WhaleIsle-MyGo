@@ -3302,7 +3302,7 @@ func mainView(c *ui.Context) {
 	if !systemDark {
 		titleColors.Background = chrome.Color("#ffffff")
 	}
-	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen)).Children(func() {
+	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).Children(func() {
 		if launcherOpen {
 			// The pinned native release catalog owns the one background lookup.
 			// Full-window launcher shell (Electron parity): no main chrome.

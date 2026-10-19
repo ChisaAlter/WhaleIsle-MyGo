@@ -17,6 +17,10 @@ type FontPreference struct {
 // comma-separated families in order, including CJK fallbacks after Segoe UI.
 const DefaultTextFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif"
 
+// base.css deliberately omits a generic monospace tail from code: Windows
+// CJK text should reach the explicit PingFang/YaHei fallback, not SimSun.
+const DefaultCodeFamily = "'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei'"
+
 type Seed struct {
 	Background string `json:"background"`
 	Foreground string `json:"foreground"`
@@ -40,7 +44,7 @@ type Preferences struct {
 }
 
 func Defaults() Preferences {
-	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Family: DefaultTextFamily, Size: 14}, Chat: FontPreference{Family: DefaultTextFamily, Size: 14}, Code: FontPreference{Family: "monospace", Size: 13}, Composer: FontPreference{Family: DefaultTextFamily, Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
+	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Family: DefaultTextFamily, Size: 14}, Chat: FontPreference{Family: DefaultTextFamily, Size: 14}, Code: FontPreference{Family: DefaultCodeFamily, Size: 13}, Composer: FontPreference{Family: DefaultTextFamily, Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
 }
 func (p Preferences) Clone() Preferences { p.Custom = append([]Family(nil), p.Custom...); return p }
 func (p Preferences) Normalized() Preferences {

@@ -13,6 +13,9 @@ func TestEmptyPreferencesRestoreOriginalTextFallbacks(t *testing.T) {
 			t.Errorf("%s default=%+v", name, f)
 		}
 	}
+	if p.Code.Family != DefaultCodeFamily || p.Code.Size != 13 {
+		t.Errorf("code default = %+v", p.Code)
+	}
 }
 
 func TestNormalizePreservesExplicitTextPreferences(t *testing.T) {
@@ -20,6 +23,10 @@ func TestNormalizePreservesExplicitTextPreferences(t *testing.T) {
 	p := Preferences{Interface: want, Chat: want, Composer: want}.Normalized()
 	if p.Interface != want || p.Chat != want || p.Composer != want {
 		t.Fatalf("normalization changed explicit fonts: %+v", p)
+	}
+	explicitCode := FontPreference{Family: "monospace", Size: 16}
+	if got := (Preferences{Code: explicitCode}).Normalized().Code; got != explicitCode {
+		t.Fatal("explicit saved code family was migrated", got)
 	}
 }
 
