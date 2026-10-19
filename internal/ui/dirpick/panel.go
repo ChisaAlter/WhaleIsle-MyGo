@@ -197,23 +197,8 @@ func View(c *ui.Context, m Model) {
 	createDialog(c, m)
 	if m.Err != "" && s.FolderDraft == nil && s.FailureToast != m.Err {
 		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), ActionHandle: &recoveryFocus.action,
-			ActionOnEscape: func() {
-				if c.Resolve(recoveryFocus.path).Valid() && m.OnCancelPath != nil {
-					m.OnCancelPath()
-				} else {
-					c.CloseToast("directory-browse-error")
-				}
-			},
-			OnAction: func() {
-				// Resolve the current input, not the cloned state from when the
-				// notice appeared; it may have been replaced or unmounted.
-				if c.Resolve(recoveryFocus.path).Valid() {
-					recoveryFocus.path.Focus(c)
-				}
-				if m.OnRetry != nil {
-					m.OnRetry()
-				}
-			}, OnClose: m.OnDismissError})
+			ActionReturnFocus: &recoveryFocus.path, ActionOnEscape: m.OnCancelPath,
+			OnAction: m.OnRetry, OnClose: m.OnDismissError})
 		s.FailureToast = m.Err
 	} else if m.Err == "" && s.FailureToast != "" {
 		c.CloseToast("directory-browse-error")

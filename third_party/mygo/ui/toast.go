@@ -42,8 +42,12 @@ type Toast struct {
 	// portaled recovery action can then belong to that view's focus scope.
 	// It does not change the action's pointer or keyboard focus behavior.
 	ActionHandle *Handle
+	// ActionReturnFocus optionally identifies the current editor to focus when
+	// the action runs. An unmounted, hidden or disabled owner is not focused.
+	ActionReturnFocus *Handle
 	// ActionOnEscape optionally lets the owner cancel the editing scope while
-	// this action holds focus. Otherwise Escape only dismisses the toast.
+	// this action holds focus and ActionReturnFocus is mounted. Otherwise
+	// Escape only dismisses the toast.
 	ActionOnEscape func()
 	// OnClose runs as the toast closes: its time is over, or the user, its
 	// action or CloseToast closed it.
@@ -319,19 +323,48 @@ func (p toastParts) ActionButton() *node {
 	if i := p.c.rt.toastIndex(p.id); i >= 0 {
 		t := p.c.rt.toasts[i].Toast
 		wrapElement(b).Bind(t.ActionHandle)
-		if t.ActionOnEscape != nil {
-			wrapElement(b).OnShortcut(0, KeyEscape, t.ActionOnEscape)
+		if t.ActionOnEscape != nil && b.Shortcut(0, KeyEscape) {
+			if p.returnFocusTarget(t) != nil {
+				t.ActionOnEscape()
+			}
+			p.c.CloseToast(p.id)
 		}
 	}
 	if b.Clicked() {
 		if i := p.c.rt.toastIndex(p.id); i >= 0 {
-			if action := p.c.rt.toasts[i].OnAction; action != nil {
+			t := p.c.rt.toasts[i].Toast
+			if target := p.returnFocusTarget(t); target != nil {
+				target.Focus()
+			}
+			if action := t.OnAction; action != nil {
 				action()
 			}
 		}
 		p.c.CloseToast(p.id)
 	}
 	return b
+}
+
+// Resolve a stable Handle only against this render's context. Toast callbacks
+// can outlive the frame that added them; neither Context nor Element may do so.
+func (p toastParts) returnFocusTarget(t Toast) *node {
+	if t.ActionReturnFocus == nil {
+		return nil
+	}
+	b := t.ActionReturnFocus.binding(p.c.rt, false)
+	if b == nil || b.closed || !b.element.Valid() {
+		return nil
+	}
+	n := b.element.node()
+	if n == nil || n.c != p.c || n.IsDisabled() {
+		return nil
+	}
+	for parent := n; parent != nil; parent = parent.parent {
+		if parent.flags&(flagInvisible|flagInert) != 0 {
+			return nil
+		}
+	}
+	return n
 }
 
 // CloseButton creates a button without a look, as ButtonBase does, that

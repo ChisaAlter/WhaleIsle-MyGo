@@ -23,12 +23,14 @@ func TestToastActionHandleOptIn(t *testing.T) {
 				handle = &action
 			}
 			calls, editorFocused, actionFocused := 0, false, false
+			observedActionFocus := false
 			tt = NewTester(func(c *Context) {
+				observedActionFocus = action.Focused(c)
 				TextInput(c, &text).Label("Editor").AutoFocus()
 				if !added {
 					added = true
 					c.AddToast(Toast{ID: "retry", Title: "Read failed", Action: "Retry", ActionHandle: handle,
-						OnAction: func() { calls++; editorFocused = tt.Focused("Editor"); actionFocused = action.Focused(c) },
+						OnAction: func() { calls++; editorFocused = tt.Focused("Editor"); actionFocused = observedActionFocus },
 					})
 				}
 			}, 500, 300)
@@ -39,6 +41,97 @@ func TestToastActionHandleOptIn(t *testing.T) {
 				t.Fatalf("action identity/default focus: calls=%d editor=%v action=%v bound=%v text=%q", calls, editorFocused, actionFocused, bound, text)
 			}
 		})
+	}
+}
+
+func TestToastReturnFocusUsesCurrentFrameAndRetiresLostOwner(t *testing.T) {
+	for _, owner := range []string{"mounted", "replaced", "disabled", "hidden", "nil handle"} {
+		for _, key := range []Key{KeyEnter, KeyEscape} {
+			name := owner + "/Enter"
+			if key == KeyEscape {
+				name = owner + "/Escape"
+			}
+			t.Run(name, func(t *testing.T) {
+				var editor, action Handle
+				var returnTo *Handle = &editor
+				if owner == "nil handle" {
+					returnTo = nil
+				}
+				text, replacement := "owned draft", "new scope draft"
+				added, initial, showEditor, blocked, hidden := false, true, true, false, false
+				calls, canceled := 0, 0
+				focusAtAction := false
+				var tt *Tester
+				tt = NewTester(func(c *Context) {
+					Column(c).Fill().Children(func() {
+						if showEditor {
+							box := Box(c.Key("original-owner")).FillWidth()
+							if hidden {
+								box.Invisible()
+							}
+							box.Children(func() {
+								input := TextInput(c, &text).Label("Original editor").Bind(&editor).Disabled(blocked)
+								if initial {
+									input.AutoFocus()
+								}
+							})
+						}
+						if !showEditor {
+							TextInput(c.Key("new-owner"), &replacement).Label("Replacement editor").AutoFocus()
+						}
+					})
+					if !added {
+						added = true
+						c.AddToast(Toast{ID: "owner-retry", Title: "Read failed", Action: "Retry", ActionHandle: &action, ActionReturnFocus: returnTo,
+							OnAction: func() { calls++; focusAtAction = tt.Focused("Original editor") }, ActionOnEscape: func() { canceled++ },
+						})
+					}
+				}, 500, 300)
+				initial = false
+				// The persistent notice acts several frames after it was added.
+				// Replacing its editor also changes the current arena positions.
+				for range 3 {
+					tt.Frame()
+				}
+				switch owner {
+				case "replaced":
+					showEditor = false
+				case "disabled":
+					blocked = true
+				case "hidden":
+					hidden = true
+				}
+				tt.Frame()
+				action.Focus()
+				tt.Frame()
+				if !tt.Focused("Retry") {
+					t.Fatal("stable action handle did not reach live toast")
+				}
+				tt.Key(0, key)
+				if key == KeyEnter {
+					if calls != 1 || canceled != 0 {
+						t.Fatalf("retry=%d cancel=%d", calls, canceled)
+					}
+					// Observe explicit focus return before closing the overlay;
+					// its default opener restoration is an independent behavior.
+					if focusAtAction != (owner == "mounted") {
+						t.Fatal("focus did not follow current enabled owner")
+					}
+				} else if calls != 0 || canceled != map[bool]int{true: 1, false: 0}[owner == "mounted"] {
+					t.Fatalf("Escape acted on missing/replaced owner: retry=%d cancel=%d owner=%s", calls, canceled, owner)
+				}
+				if text != "owned draft" || replacement != "new scope draft" {
+					t.Fatal("notice modified a draft")
+				}
+				if owner == "replaced" {
+					showEditor = true
+					tt.Frame()
+					if tt.Focused("Original editor") {
+						t.Fatal("lost owner left a pending focus request after remount")
+					}
+				}
+			})
+		}
 	}
 }
 
