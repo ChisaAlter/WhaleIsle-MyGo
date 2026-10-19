@@ -15,7 +15,7 @@ func TestWorkflowDisclosureCompletionWaitsForContentFocus(t *testing.T) {
 		t.Run(departure, func(t *testing.T) {
 			phase := "Build phase"
 			run := workflowrun.Run{ID: "run", Name: "Build", Status: "running", Phases: []workflowrun.Phase{{Key: "phase", Name: &phase, Members: []workflowrun.Member{{Seq: 1, ChildID: "child", Label: "focused live member", Status: "running"}}}}}
-			model := Model{Snapshot: session.ViewState{SelectedID: "parent", PlanHistoryBinding: "owned-binding", Items: []session.Item{{SessionID: "child", ParentID: "parent", Running: true}}}, FeedbackStore: session.New()}
+			model := Model{Snapshot: session.ViewState{SelectedID: "parent", PlanHistoryBinding: "owned-binding", Items: []session.Item{{SessionID: "child", ParentID: "parent", Running: true, SubagentIdentity: &session.SessionSubagentIdentity{Mode: "one-shot", Seq: 1}}}}, FeedbackStore: session.New()}
 			// The transport-free Store has no binding/client, so the member
 			// action can acquire focus but cannot start an observer or request.
 			tt := ui.NewTester(func(c *ui.Context) {

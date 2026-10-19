@@ -98,7 +98,7 @@ func (s *Store) OpenWorkflowMember(binding, parent, runID string, memberSeq floa
 		defer cancel()
 		s.mu.Lock()
 		currentAddress, stillAvailable := s.workflowMemberAddressLocked(parent, runID, memberSeq, child)
-		if !s.workflowMemberCurrentLocked(ctx, token) || !stillAvailable || currentAddress["mode"] != address["mode"] {
+		if !s.workflowMemberCurrentLocked(ctx, token) || binding != s.planHistoryBinding || !stillAvailable || currentAddress["mode"] != address["mode"] {
 			s.mu.Unlock()
 			s.finishWorkflowMember(ctx, token, fmt.Errorf("the member is no longer running"))
 			return
