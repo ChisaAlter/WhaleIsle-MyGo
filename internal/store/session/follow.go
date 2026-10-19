@@ -78,6 +78,12 @@ func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, g
 }
 
 func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) bool {
+	s.mu.Lock()
+	current := s.followCurrentLocked(ctx, sessionID, generation)
+	s.mu.Unlock()
+	if !current {
+		return false
+	}
 	if err := mux.Dial(ctx); err != nil {
 		s.reportFollowError(ctx, sessionID, generation, "follow dial: ", err)
 		return false
@@ -109,7 +115,10 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 			// as carrier loss. Business error frames remain terminal; the main
 			// mux owner separately restores physical socket loss.
 			if errors.Is(err, dsh.ErrStreamEnd) && opened {
-				return true
+				s.mu.Lock()
+				current := s.followCurrentLocked(ctx, sessionID, generation)
+				s.mu.Unlock()
+				return current
 			}
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
