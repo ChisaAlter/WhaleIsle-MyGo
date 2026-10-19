@@ -29,6 +29,22 @@ type ApplyResult struct {
 	FetchedBlocks int
 }
 
+// StagePhase names work actually entered by the staging operation. Byte
+// progress is independent: receiving all bytes does not imply verification.
+type StagePhase string
+
+const (
+	StageDownloading StagePhase = "downloading"
+	StageVerifying   StagePhase = "verifying"
+	StageReady       StagePhase = "ready"
+)
+
+func reportStagePhase(ctx context.Context, notify func(StagePhase), phase StagePhase) {
+	if notify != nil && ctx.Err() == nil {
+		notify(phase)
+	}
+}
+
 // StageOptions configures DownloadAndStage verification.
 type StageOptions struct {
 	ReleaseURL string
@@ -43,6 +59,9 @@ type StageOptions struct {
 	MaxBytes int64
 	// OnProgress is called during download with received and expected bytes.
 	OnProgress func(received, total int64)
+	// OnPhase reports download and verification work on the staging goroutine.
+	// NativeStageOptions reports ready only after its complete pipeline succeeds.
+	OnPhase func(StagePhase)
 	// RequireSignature enables platform signature verification after download.
 	// Fail closed when the probe reports a non-valid signature (or cannot run).
 	// Windows uses Authenticode; Darwin uses codesign; other platforms skip the probe.
@@ -117,6 +136,7 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	if err != nil {
 		return ApplyResult{}, err
 	}
+	reportStagePhase(ctx, opt.OnPhase, StageDownloading)
 	resp, err := client.Do(req)
 	if err != nil {
 		return ApplyResult{}, err
@@ -147,6 +167,7 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		_ = os.Remove(dest)
 		return ApplyResult{}, err
 	}
+	reportStagePhase(ctx, opt.OnPhase, StageVerifying)
 	sum := hex.EncodeToString(h.Sum(nil))
 	if opt.ExpectSize > 0 && n != opt.ExpectSize {
 		_ = os.Remove(dest)

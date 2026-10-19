@@ -21,6 +21,7 @@ type PatchOptions struct {
 	// existing 8 GiB installer limit through reconstruction and full fallback.
 	MaxBytes          int64
 	OnProgress        func(int64, int64)
+	OnPhase           func(StagePhase)
 	OldPath           string
 	Feed              Feed
 	BlockMap          BlockMapInfo
@@ -88,6 +89,7 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 
 	if len(need) > 0 {
 		first := opt.BlockMap.Blocks[need[0]]
+		reportStagePhase(ctx, opt.OnPhase, StageDownloading)
 		data, err := FetchRange(ctx, releaseURL, first.Offset, first.Size, client)
 		if errors.Is(err, ErrRangeUnsupported) {
 			return downloadFullAndVerify(ctx, opt)
@@ -214,6 +216,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		}
 	}
 
+	reportStagePhase(ctx, opt.OnPhase, StageVerifying)
 	sum, n, err := hashFileBounded(dest, maxBytes)
 	if err != nil {
 		return ApplyResult{}, err
@@ -285,6 +288,7 @@ func downloadFullAndVerify(ctx context.Context, opt PatchOptions) (ApplyResult, 
 		ExpectSize:        opt.Feed.Size,
 		MaxBytes:          opt.MaxBytes,
 		OnProgress:        opt.OnProgress,
+		OnPhase:           opt.OnPhase,
 		RequireSignature:  opt.RequireSignature,
 		ExpectedPublisher: opt.ExpectedPublisher,
 	})

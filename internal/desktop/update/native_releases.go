@@ -373,6 +373,9 @@ type NativeStageOptions struct {
 	RequireRuntime bool
 	DestDir        string
 	OnProgress     func(int64, int64)
+	// OnPhase runs on the staging goroutine. No ready phase is published after
+	// cancellation or before size/hash/blockmap/signature checks complete.
+	OnPhase func(StagePhase)
 }
 
 func StageNativeRelease(ctx context.Context, release NativeRelease, requireRuntime bool, destDir string, onProgress func(int64, int64)) (ApplyResult, error) {
@@ -392,15 +395,16 @@ func StageNativeReleaseWithOptions(ctx context.Context, release NativeRelease, o
 	var result ApplyResult
 	var err error
 	if release.IsDelta() {
+		reportStagePhase(ctx, opt.OnPhase, StageVerifying)
 		base, baseErr := nativeCachedBase(release, opt.CurrentVersion, opt.CacheDir, true)
 		if baseErr != nil {
 			return ApplyResult{}, fmt.Errorf("native delta unavailable: %w; select the full package", baseErr)
 		}
 		result, err = ApplyBlockPatchOpts(ctx, PatchOptions{OldPath: base, Feed: release.Feed, BlockMap: release.Delta.BlockMap, DestDir: opt.DestDir,
-			HTTPClient: client, RequireSignature: requireSignature, ExpectedPublisher: publisher, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress})
+			HTTPClient: client, RequireSignature: requireSignature, ExpectedPublisher: publisher, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress, OnPhase: opt.OnPhase})
 	} else {
 		result, err = DownloadAndStageOpts(ctx, StageOptions{ReleaseURL: release.URL, DestDir: opt.DestDir, HTTPClient: client,
-			ExpectSHA256: release.SHA256, ExpectSize: release.Size, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress, RequireSignature: requireSignature, ExpectedPublisher: publisher})
+			ExpectSHA256: release.SHA256, ExpectSize: release.Size, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress, OnPhase: opt.OnPhase, RequireSignature: requireSignature, ExpectedPublisher: publisher})
 	}
 	if err != nil {
 		return ApplyResult{}, err
@@ -414,6 +418,7 @@ func StageNativeReleaseWithOptions(ctx context.Context, release NativeRelease, o
 			result.Message += "; native base cache unavailable: " + cacheErr.Error() + "; future updates can use a full package"
 		}
 	}
+	reportStagePhase(ctx, opt.OnPhase, StageReady)
 	return result, nil
 }
 
