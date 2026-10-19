@@ -359,53 +359,114 @@ func TestProjectLifecycleDialogsProtectTargetAndBusyState(t *testing.T) {
 	}
 }
 
+// The sidebar menu owns Rename/Open directory/Archive only (fixed dsh-project
+// client.js:529). ProjectHeader's Project overview opens this retained observer
+// (553-563); its real task actions open the independent child modal.
 func TestProjectNestedRouteReturnsToScrollAndOriginFocus(t *testing.T) {
+	locale := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
-	defer i18n.SetLocale(i18n.DefaultLocale)
+	defer i18n.SetLocale(locale)
 	m := projectFixture()
+	m.ObserverHost = "fixture-host"
+	requestsOpened := 0
 	m.OnRequests = func(id string) {
+		requestsOpened++
 		m.RequestProjectID = id
 		m.RequestKind = "current"
 		m.RequestLoaded = true
 		m.RequestPageNumber = 1
 	}
-	m.OnCloseRequests = func() { m.RequestProjectID = "" }
 	for index := 0; index < 24; index++ {
-		m.RequestPage.Items = append(m.RequestPage.Items, projectflow.RequestCard{ID: fmt.Sprint(index), ProjectID: "project-fixture", Title: fmt.Sprintf("Requirement %02d", index), GoalPreview: strings.Repeat("Long requirement preview. ", 4), Status: "discussing"})
+		m.RequestPage.Items = append(m.RequestPage.Items, projectflow.RequestCard{ID: fmt.Sprint(index), ProjectID: "project-fixture", Revision: 1, Title: fmt.Sprintf("Requirement %02d", index), GoalPreview: strings.Repeat("Long requirement preview. ", 4), Status: "discussing"})
 	}
-	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 700, 600)
-	if err := tt.RightClick("Harbor research"); err != nil {
-		t.Fatal(err)
+	m.OnRequestGet = func(id string) {
+		for _, card := range m.RequestPage.Items {
+			if card.ID == id {
+				copy := card
+				m.RequestCard = &copy
+				return
+			}
+		}
 	}
-	if err := tt.ChooseMenuItem("Project views", "Requests"); err != nil {
-		t.Fatal(err)
+	m.RequestCardActions = func(id string, revision int) RequestCardActions {
+		return RequestCardActions{Known: id == "23" && revision == 1, Activity: func() {
+			if id != "23" || revision != 1 {
+				t.Fatal("activity changed request owner")
+			}
+			m.Activity = &projectflow.ActivitySnapshot{Scope: projectflow.ActivityScope{ProjectID: "project-fixture", RequestID: id}, Loaded: true, Title: "Requirement 23"}
+		}}
 	}
-	route := currentProjectRoute(m)
-	panel, _ := tt.Find(route.title)
-	header, _ := tt.Find("Close")
-	tt.Scroll(panel.X+60, header.Y+header.H+70, 0, 1500)
-	before, ok := tt.Find("Requirement 23")
-	if !ok {
-		t.Fatal("last requirement missing")
-	}
-	m.Activity = &projectflow.ActivitySnapshot{Scope: projectflow.ActivityScope{ProjectID: "project-fixture", RequestID: "23"}, Loaded: true, Title: "Requirement 23"}
 	m.OnActivityAction = func(kind, _ string) {
 		if kind == "close" {
 			m.Activity = nil
 		}
 	}
+	observer := &ObserverState{ProjectID: "project-fixture", CoordinatorSessionID: "lead-fixture", Host: "fixture-host", Section: "tasks"}
+	tt := ui.NewTester(func(c *ui.Context) { ObserverView(c, m, observer) }, 700, 600)
 	tt.Frame()
-	tt.Key(0, ui.KeyEscape)
-	after, ok := tt.Find("Requirement 23")
-	if !ok || before != after {
-		t.Fatalf("return lost parent scroll: %+v -> %+v", before, after)
+	if requestsOpened != 1 || m.RequestProjectID != "project-fixture" {
+		t.Fatal("observer did not load its exact Project")
+	}
+	tt.Scroll(690, 300, 0, 2000)
+	if err := tt.Click("Expand task: Requirement 23"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(690, 300, 0, 2000)
+	if err := tt.Click("Task details"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Scroll(690, 300, 0, 2000)
+	if err := tt.Click("Activity"); err != nil {
+		t.Fatal(err)
+	}
+	before, ok := tt.Find("Task card: 23")
+	if !ok || before.Y <= 0 || before.Y >= 600 {
+		t.Fatalf("scrolled task is not visible: %+v", before)
+	}
+	if err := tt.Click("Activity timeline"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Activity == nil || !tt.Focused("Close") {
+		t.Fatal("real activity action did not open/focus child route")
 	}
 	tt.Key(0, ui.KeyEscape)
-	if m.RequestProjectID != "" || !tt.Focused("More: Harbor research") {
-		t.Fatal("closing route did not restore originating project menu focus")
+	after, ok := tt.Find("Task card: 23")
+	if m.Activity != nil || !ok || before != after {
+		t.Fatalf("return lost observer scroll: %+v -> %+v", before, after)
+	}
+	if !tt.Focused("Activity timeline") {
+		t.Fatal("child close did not restore originating task action focus")
+	}
+	if requestsOpened != 1 || observer.ProjectID != "project-fixture" || observer.RequestModes["23"].Mode != "full" {
+		t.Fatal("child close recreated observer or lost task mode")
 	}
 }
 
+func TestProjectRowLifecycleCancelReturnsToOriginFocus(t *testing.T) {
+	locale := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(locale)
+	m := projectFixture()
+	draft := ""
+	m.RenameDraft = &draft
+	m.OnBeginRename = func(p projectflow.Project) { m.RenameID = p.ID; draft = p.Title }
+	m.OnCancelRename = func() { m.RenameID = "" }
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 700, 600)
+	if err := tt.RightClick("Harbor research"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Rename"); err != nil {
+		t.Fatal(err)
+	}
+	if m.RenameID != "project-fixture" || !tt.Focused("Project name") {
+		t.Fatal("rename lost target or initial focus")
+	}
+	tt.Key(0, ui.KeyEscape)
+	if m.RenameID != "" || !tt.Focused("More: Harbor research") {
+		t.Fatal("cancel did not restore originating project menu focus")
+	}
+}
 func saveProjectSnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
 	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")
