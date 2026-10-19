@@ -13,9 +13,13 @@ import (
 
 const resumeCaptureInterval = 500 * time.Millisecond
 const resumeCheckpointDelay = 600 * time.Millisecond
+const resumeCheckpointMaxWait = 5 * time.Second
+
+type resumeCheckpointTimer interface{ Stop() bool }
 
 type resumeCheckpointRecord struct {
 	revision uint64
+	queuedAt time.Time
 	state    recovery.State // detached on the native UI owner before enqueue
 }
 
@@ -28,8 +32,10 @@ type resumeCheckpoint struct {
 	invalidate    func()
 	captureAt     time.Time
 	changedAt     time.Time
-	captureTimer  *time.Timer
-	writeTimer    *time.Timer
+	captureTimer  resumeCheckpointTimer
+	writeTimer    resumeCheckpointTimer
+	after         func(time.Duration, func()) resumeCheckpointTimer
+	now           func() time.Time
 	writeEpoch    uint64
 	running       chan struct{}
 	pending       *resumeCheckpointRecord
@@ -44,6 +50,20 @@ type resumeCheckpoint struct {
 	noticedSerial uint64
 }
 
+func (q *resumeCheckpoint) nowTime() time.Time {
+	if q.now != nil {
+		return q.now()
+	}
+	return time.Now()
+}
+
+func (q *resumeCheckpoint) afterFunc(delay time.Duration, fn func()) resumeCheckpointTimer {
+	if q.after != nil {
+		return q.after(delay, fn)
+	}
+	return time.AfterFunc(delay, fn)
+}
+
 func (q *resumeCheckpoint) due(now time.Time, invalidate func()) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -53,7 +73,7 @@ func (q *resumeCheckpoint) due(now time.Time, invalidate func()) bool {
 	}
 	if !q.forceCapture && !q.captureAt.IsZero() && now.Sub(q.captureAt) < resumeCaptureInterval {
 		if q.captureTimer == nil {
-			q.captureTimer = time.AfterFunc(resumeCaptureInterval-now.Sub(q.captureAt), func() {
+			q.captureTimer = q.afterFunc(resumeCaptureInterval-now.Sub(q.captureAt), func() {
 				q.mu.Lock()
 				q.captureTimer = nil
 				notify, active := q.invalidate, !q.closed
@@ -97,9 +117,13 @@ func (q *resumeCheckpoint) stage(next recovery.State, captureErr error, now time
 	}
 	digest := sha256.Sum256(data)
 	if !q.hasDigest || digest != q.digest {
+		queuedAt := now
+		if q.pending != nil {
+			queuedAt = q.pending.queuedAt
+		}
 		q.revision++
 		q.digest, q.hasDigest, q.changedAt = digest, true, now
-		q.pending = &resumeCheckpointRecord{revision: q.revision, state: next}
+		q.pending = &resumeCheckpointRecord{revision: q.revision, queuedAt: queuedAt, state: next}
 		q.stopWriteLocked()
 	}
 	q.armLocked(now)
@@ -125,8 +149,9 @@ func (q *resumeCheckpoint) armLocked(now time.Time) {
 		return
 	}
 	delay := max(time.Duration(0), resumeCheckpointDelay-now.Sub(q.changedAt))
+	delay = min(delay, max(time.Duration(0), resumeCheckpointMaxWait-now.Sub(q.pending.queuedAt)))
 	epoch := q.writeEpoch
-	q.writeTimer = time.AfterFunc(delay, func() { q.write(epoch) })
+	q.writeTimer = q.afterFunc(delay, func() { q.write(epoch) })
 }
 
 func (q *resumeCheckpoint) write(epoch uint64) {
@@ -154,7 +179,7 @@ func (q *resumeCheckpoint) write(epoch uint64) {
 		}
 		q.setErrorLocked(err)
 	}
-	q.armLocked(time.Now())
+	q.armLocked(q.nowTime())
 	notify, active := q.invalidate, !q.closed
 	close(done)
 	q.mu.Unlock()
@@ -179,7 +204,7 @@ func (q *resumeCheckpoint) pause() {
 func (q *resumeCheckpoint) resume() {
 	q.mu.Lock()
 	q.paused--
-	q.armLocked(time.Now())
+	q.armLocked(q.nowTime())
 	q.mu.Unlock()
 }
 
