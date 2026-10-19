@@ -111,10 +111,12 @@ func sessionScheduleHover(c *ui.Context, anchor ui.Element, item session.Item, s
 	}{epoch, item.SessionID}, func() struct {
 		shown bool
 		now   time.Time
-	} { return struct {
-		shown bool
-		now   time.Time
-	}{} })
+	} {
+		return struct {
+			shown bool
+			now   time.Time
+		}{}
+	})
 	shown := false
 	ui.TooltipBase(c.Key("session-task-hover"), anchor, func(tip ui.Element) {
 		shown = true
@@ -124,7 +126,7 @@ func sessionScheduleHover(c *ui.Context, anchor ui.Element, item session.Item, s
 		state.shown = true
 		ordered := orderSchedulePreview(rows, state.now)
 		width, height := c.Size()
-		tip.Label("Scheduled task preview: "+item.SessionID).Width(min(float32(300), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Padding(12).Radius(12).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .16)).Children(func() {
+		tip.Label("Scheduled task preview: "+item.SessionID).Width(min(float32(300), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().Padding(12).Radius(12).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .16)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 				ui.Text(c, item.Title).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0).MaxLines(2)
 				for _, task := range ordered[:min(2, len(ordered))] {
