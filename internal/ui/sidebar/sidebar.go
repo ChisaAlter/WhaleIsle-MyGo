@@ -17,6 +17,7 @@ import (
 // Model is sidebar state for one frame.
 type Model struct {
 	ConnectionReady              bool
+	ConnectionError              string
 	DesktopUpdateInstalling      bool
 	DesktopUpdatePhase           string
 	DesktopUpdateDetail          string

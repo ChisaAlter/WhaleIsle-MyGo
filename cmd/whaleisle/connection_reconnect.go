@@ -19,6 +19,7 @@ func (s *mainState) requestConnectionReconnect() {
 	}
 	s.mu.Lock()
 	s.dshMuxReady, s.dshMuxLost = false, false
+	s.dshBootstrapError = ""
 	win := s.win
 	s.mu.Unlock()
 	s.dshMu.Unlock()
@@ -93,10 +94,10 @@ func (a *connectionAttemptState) ready(ctx context.Context, hydrate func()) {
 	})
 }
 
-func (a *connectionAttemptState) retry(ctx context.Context) {
+func (a *connectionAttemptState) retry(ctx context.Context, err error) {
 	a.withCurrent(ctx, func() {
 		if a.publish(false, true) {
-			a.mux.RequestReconnect()
+			a.mux.GenerationLost(ctx, err)
 		}
 	})
 }
@@ -108,4 +109,25 @@ func (a *connectionAttemptState) lost() {
 	if a.ownsHost() {
 		a.publish(false, true)
 	}
+}
+
+func (a *connectionAttemptState) bootstrap(err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.state.dshMu.Lock()
+	if a.host.Err() != nil || a.state.dshClient != a.client || a.state.dshMux != a.mux {
+		a.state.dshMu.Unlock()
+		return
+	}
+	a.state.mu.Lock()
+	a.state.dshMuxReady = false
+	a.state.dshMuxLost = err != nil
+	a.state.dshBootstrapError = ""
+	if err != nil {
+		a.state.dshBootstrapError = err.Error()
+	}
+	a.state.mu.Unlock()
+	a.state.dshMu.Unlock()
+	a.state.hostTerminals.Transport(a.client, false)
+	a.refresh()
 }

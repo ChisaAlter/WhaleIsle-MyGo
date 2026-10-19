@@ -71,7 +71,7 @@ func (m *Mux) BindGeneration(ctx context.Context, done <-chan struct{}) bool {
 	m.maintainMu.Lock()
 	defer m.maintainMu.Unlock()
 	o := m.maintainer
-	if o == nil || o.stopping || o.attempt == nil || o.attempt.ctx != ctx || ctx.Err() != nil || done == nil || o.attempt.generation != nil {
+	if o == nil || o.stopping || o.attempt == nil || o.attempt.ready == nil || o.attempt.ctx != ctx || ctx.Err() != nil || done == nil || o.attempt.generation != nil {
 		return false
 	}
 	o.attempt.generation = done
@@ -83,7 +83,7 @@ func (m *Mux) MarkReady(ctx context.Context) bool {
 	m.maintainMu.Lock()
 	defer m.maintainMu.Unlock()
 	o := m.maintainer
-	if o == nil || o.stopping || o.attempt == nil || o.attempt.ctx != ctx || ctx.Err() != nil || o.attempt.readySet {
+	if o == nil || o.stopping || o.attempt == nil || o.attempt.ready == nil || o.attempt.ctx != ctx || ctx.Err() != nil || o.attempt.readySet {
 		return false
 	}
 	if !o.attempt.deadline.IsZero() && !time.Now().Before(o.attempt.deadline) {
@@ -94,10 +94,27 @@ func (m *Mux) MarkReady(ctx context.Context) bool {
 	return true
 }
 
+// GenerationLost retires the current event source using automatic recovery.
+// Unlike a user RequestReconnect, it preserves failed-attempt progression and
+// observes the configured retry delay before replacing this generation.
+func (m *Mux) GenerationLost(ctx context.Context, err error) bool {
+	m.maintainMu.Lock()
+	defer m.maintainMu.Unlock()
+	o := m.maintainer
+	if o == nil || o.stopping || o.attempt == nil || o.attempt.ready == nil || o.attempt.ctx != ctx || ctx.Err() != nil {
+		return false
+	}
+	if err == nil {
+		err = errors.New("connection generation ended")
+	}
+	o.attempt.cancel(err)
+	return true
+}
+
 // MaintainMux preserves the socket-ready callback contract for existing users.
 // Native $events owners use MaintainMuxWithRecovery for generation readiness.
 func MaintainMux(ctx context.Context, mux *Mux, backoff Backoff, onReady func(context.Context) error, onLost func(error)) error {
-	return maintainMux(ctx, mux, backoff.normalized(), RecoveryConfig{}, false, onReady, onLost, nil)
+	return maintainMux(ctx, mux, backoff.normalized(), RecoveryConfig{}, false, onReady, onLost, nil, nil, nil)
 }
 
 // MaintainMuxWithRecovery includes Dial and $events readiness in the Host's
@@ -106,10 +123,21 @@ func MaintainMuxWithRecovery(ctx context.Context, mux *Mux, config RecoveryConfi
 	if err := config.validate(); err != nil {
 		return err
 	}
-	return maintainMux(ctx, mux, config.backoff(), config, true, onReady, onLost, onWarning)
+	return maintainMux(ctx, mux, config.backoff(), config, true, onReady, onLost, onWarning, nil, nil)
 }
 
-func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig, requireReady bool, onReady func(context.Context) error, onLost func(error), onWarning func(error)) error {
+// MaintainMuxFromBootstrap owns both bootstrap loading and the subsequent Mux
+// generations. A bootstrap error keeps that owner alive for explicit Retry;
+// the failed policy never substitutes defaults or starts a different Client.
+// onBootstrap(nil) starts a load; onBootstrap(err) exposes a retryable failure.
+func MaintainMuxFromBootstrap(ctx context.Context, mux *Mux, client *Client, onReady func(context.Context) error, onLost func(error), onWarning func(error), onBootstrap func(error)) error {
+	if client == nil {
+		return errors.New("dsh mux: missing bootstrap client")
+	}
+	return maintainMux(ctx, mux, Backoff{}, RecoveryConfig{}, true, onReady, onLost, onWarning, client.ReadConnectionRecovery, onBootstrap)
+}
+
+func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig, requireReady bool, onReady func(context.Context) error, onLost func(error), onWarning func(error), loadRecovery func(context.Context) (RecoveryConfig, error), onBootstrap func(error)) error {
 	o := &muxMaintainer{ctx: ctx, requests: make(chan struct{}, 1)}
 	mux.maintainMu.Lock()
 	if mux.maintainer != nil {
@@ -122,9 +150,6 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 	mux.mu.Lock()
 	prev := mux.OnCarrierLost
 	previousDialTimeout := mux.DialTimeout
-	if requireReady && mux.DialTimeout <= 0 {
-		mux.DialTimeout = time.Duration(config.GenerationReadyTimeoutMS) * time.Millisecond
-	}
 	mux.OnCarrierLost = func(err error) {
 		if prev != nil {
 			prev(err)
@@ -175,6 +200,54 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		}
 		<-a.watchDone
 		mux.Reset()
+	}
+	if loadRecovery != nil {
+		for {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			bootctx, cancel := context.WithCancelCause(ctx)
+			a := &muxAttempt{ctx: bootctx, cancel: cancel}
+			mux.maintainMu.Lock()
+			o.attempt = a
+			mux.maintainMu.Unlock()
+			if onBootstrap != nil {
+				onBootstrap(nil)
+			}
+			resolved, err := loadRecovery(bootctx)
+			manual := pending() || errors.Is(context.Cause(bootctx), ErrReconnectRequested)
+			cancel(context.Canceled)
+			mux.maintainMu.Lock()
+			o.attempt = nil
+			mux.maintainMu.Unlock()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if manual {
+				continue
+			}
+			if err == nil {
+				err = resolved.validate()
+			}
+			if err == nil {
+				config = resolved
+				b = resolved.backoff()
+				break
+			}
+			if onBootstrap != nil {
+				onBootstrap(err)
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-o.requests:
+			}
+		}
+	}
+	if requireReady && previousDialTimeout <= 0 {
+		mux.mu.Lock()
+		mux.DialTimeout = time.Duration(config.GenerationReadyTimeoutMS) * time.Millisecond
+		mux.mu.Unlock()
 	}
 	delay := b.Initial
 	for {

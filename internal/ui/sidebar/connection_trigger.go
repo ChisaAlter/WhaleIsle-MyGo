@@ -163,6 +163,10 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 	if status == "connecting" {
 		label, action = sidebarConnectionCopy("重新连接中", "Reconnecting"), sidebarConnectionCopy("连接中断，正在重试，点击立即重连", "Reconnecting, reconnect now")
 	}
+	if m.ConnectionError != "" {
+		label += "\n" + m.ConnectionError
+		action += "\n" + m.ConnectionError
+	}
 	if status == "recovered" {
 		ink, fill = ui.RGB(34, 197, 94), ui.RGB(230, 250, 237)
 		if dark {
