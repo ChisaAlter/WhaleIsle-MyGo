@@ -44,6 +44,7 @@ type projectFlowState struct {
 	requestPage                   projectflow.RequestPage
 	requestCard                   *projectflow.RequestCard
 	requestCards                  map[string]projectflow.RequestCard
+	requestReverts                *projectRequestRevertState
 	requestCursors                []string
 	requestLoaded                 bool
 	requestGeneration             uint64
@@ -325,6 +326,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	s.bindProjectHistorical(win, &m)
 	s.bindProjectMaterialCollection(win, &m)
 	s.bindProjectVisualResults(win, &m)
+	s.bindProjectRequestReverts(win, &m)
 	return m
 }
 func (s *projectController) runProjectAction(win *mygo.Window, action, arg, title string) {

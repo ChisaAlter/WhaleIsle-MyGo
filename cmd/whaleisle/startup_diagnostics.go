@@ -148,8 +148,10 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 			// A remove must stop the kernel before the bundled CLI changes its files.
 			// Toggle alignment also stops a live/failed generation before profile edits.
 			restart := retry || (sup != nil && sup.Status().State != harness.Stopped && !remove)
+			if err := s.closeTaskProtectedResources(); err != nil {
+				return err
+			}
 			if sup != nil {
-				s.stopPhoneRuntime()
 				sup.Stop()
 			}
 			for _, name := range names {

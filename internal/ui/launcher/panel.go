@@ -70,6 +70,7 @@ type Model struct {
 	VendorReady                 bool
 	LauncherPackage             bool // Electron: tray row visible when packaged (not only when desk running)
 	DesktopRunning              bool
+	RuntimeBusy                 bool
 	OnInstallUpdate             func()
 	StartBusy                   bool
 	StartFailed                 bool
@@ -449,7 +450,7 @@ func homePanel(c *ui.Context, m Model) {
 			})
 			ui.Row(c).Gap(8).Children(func() {
 				if m.DesktopRunning && !m.StartBusy {
-					if ghostBtn(c, i18n.T(i18n.KeyLauncherCloseDesktop)).Clicked() && m.OnStop != nil {
+					if ghostBtn(c, i18n.T(i18n.KeyLauncherCloseDesktop)).Disabled(m.RuntimeBusy).Clicked() && m.OnStop != nil {
 						m.OnStop()
 					}
 					if ghostBtn(c, i18n.T(i18n.KeyLauncherCheckUpdate)).Clicked() && m.OnCheckUpdate != nil {
@@ -462,7 +463,7 @@ func homePanel(c *ui.Context, m Model) {
 					} else if m.StartFailed {
 						startLabel = i18n.T(i18n.KeyLauncherRetryStart)
 					}
-					btn := primaryBtn(c, startLabel).Disabled(m.StartBusy)
+					btn := primaryBtn(c, startLabel).Disabled(m.StartBusy || m.RuntimeBusy)
 					if btn.Clicked() && m.OnStart != nil {
 						m.OnStart()
 					}

@@ -147,19 +147,19 @@ func (s *mainState) startImport(win *mygo.Window) {
 }
 
 // Native restarts preserve import admission and coordinate Host task protection.
-func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
+func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 	if sup == nil {
-		return
+		return false
 	}
 	s.mu.Lock()
 	if s.launcherImportBusy {
 		s.launcherImport = "导入尚未结束，暂不能重启内核。"
 		s.mu.Unlock()
-		return
+		return false
 	}
 	if s.taskRestartPending || s.quitting {
 		s.mu.Unlock()
-		return
+		return false
 	}
 	s.taskRestartPending = true
 	win := s.win
@@ -196,4 +196,5 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	if win != nil {
 		win.Update(func() {})
 	}
+	return true
 }

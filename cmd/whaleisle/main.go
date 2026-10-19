@@ -168,6 +168,7 @@ type mainState struct {
 	settingsSkillHubQuery                   string
 	settingsSkillHubHits                    []settings.SkillHubHit
 	settingsSkillCreate                     settingsSkillCreateState
+	settingsSkillHub                        settingsSkillHubState
 	settingsSkillsLastAction                string
 	settingsSkillsDetail                    string
 	settingsSkillEditSession                string
@@ -523,66 +524,7 @@ func desktopControlOps() installctrl.DesktopOps {
 			}
 			return map[string]any{"ok": true, "plugins": plugins}, nil
 		},
-		ApplyConfig: func(_ context.Context, patch map[string]any) (any, error) {
-			state.mu.Lock()
-			store := state.cfgStore
-			sup := state.sup
-			state.mu.Unlock()
-			if store == nil {
-				return nil, errors.New("desktop config store unavailable")
-			}
-			for key, value := range patch {
-				switch key {
-				case "theme", "locale":
-					if _, ok := value.(string); !ok {
-						return nil, fmt.Errorf("%s must be a string", key)
-					}
-				case "closeToTray", "openAtLogin", "dshbotEnabled", "whaleAssistantEnabled", "remoteWorkspaceEnabled", "harnessAutoRestart":
-					if _, ok := value.(bool); !ok {
-						return nil, fmt.Errorf("%s must be a boolean", key)
-					}
-				case "harnessRestartMaxAttempts", "harnessRestartBaseDelayMs":
-					if _, ok := value.(float64); !ok {
-						return nil, fmt.Errorf("%s must be a number", key)
-					}
-				default:
-					return nil, fmt.Errorf("config field is not desktop-writable: %s", key)
-				}
-			}
-			restart := false
-			if err := store.Update(func(c *config.Config) {
-				for key, value := range patch {
-					switch key {
-					case "theme":
-						c.Theme = value.(string)
-					case "locale":
-						c.Locale = value.(string)
-					case "closeToTray":
-						c.CloseToTray = value.(bool)
-					case "openAtLogin":
-						c.OpenAtLogin = value.(bool)
-					case "dshbotEnabled":
-						c.DshbotEnabled, restart = value.(bool), true
-					case "whaleAssistantEnabled":
-						c.WhaleAssistantEnabled, restart = value.(bool), true
-					case "remoteWorkspaceEnabled":
-						c.RemoteWorkspaceEnabled, restart = value.(bool), true
-					case "harnessAutoRestart":
-						c.HarnessAutoRestart = value.(bool)
-					case "harnessRestartMaxAttempts":
-						c.HarnessRestartMaxAttempts = int(value.(float64))
-					case "harnessRestartBaseDelayMs":
-						c.HarnessRestartBaseDelayMs = int(value.(float64))
-					}
-				}
-			}); err != nil {
-				return nil, err
-			}
-			if restart && sup != nil {
-				sup.Restart()
-			}
-			return map[string]any{"ok": true, "restarting": restart}, nil
-		},
+		ApplyConfig: state.applyDesktopConfigPatch,
 		RemovePlugin: func(ctx context.Context, name string) (any, error) {
 			return callDesktopPlugin(ctx, "pluginManager/removeBundle", map[string]any{"name": strings.TrimSpace(name)})
 		},
@@ -1816,6 +1758,7 @@ func (s *mainState) stopDSHLocked() {
 	s.mu.Lock()
 	s.stopProjectProcessLocked()
 	s.invalidateSettingsSkillCreateLocked()
+	s.invalidateSettingsSkillHubLocked()
 	s.stopProjectRefreshLocked()
 	s.closeProjectHistoricalLocked()
 	s.mu.Unlock()
@@ -2857,6 +2800,8 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	state.beginAssistantGroupRuntimeFrame()
+	defer state.finishAssistantGroupRuntimeFrame()
 	state.flushInactiveGeneralFontEdits(false)
 	defer state.syncSettingsNativeSurfaces()
 	composerRendered := false
@@ -2973,6 +2918,7 @@ func mainView(c *ui.Context) {
 	launcherUpdateAvailable := state.launcherUpdateAvailable
 	launcherNote := state.launcherNote
 	launcherStartBusy := state.launcherStartBusy
+	launcherRuntimeBusy := state.taskRestartPending || state.quitRequestPending || state.quitting
 	launcherStartFailed := state.launcherStartFailed
 	launcherStartErr := state.launcherStartErr
 	cfgHideArchivedList := false
@@ -3320,9 +3266,9 @@ func mainView(c *ui.Context) {
 			autoPtr := &state.launcherAutoStartDesktop
 			askPtr := &state.launcherAskOnUpdate
 			routePtr := &state.launcherDownloadRoute
-			// Electron「桌面端已就绪」means the desk shell window is up, not only
-			// that the harness has reached Ready (MyGo keeps desk visible while Starting).
-			deskRunning := st.State == harness.Ready || sessions != nil
+			// Retained session stores keep the shell alive after Stop; they do not
+			// mean that a stopped or failed runtime can still accept work.
+			deskRunning := st.State == harness.Ready || st.State == harness.Starting && sessions != nil
 			launcher.View(c, state.withNativeReleases(win, launcher.Model{
 				ThemeID:         themeID,
 				SystemDark:      mygo.Theme.IsDark(),
@@ -3333,7 +3279,8 @@ func mainView(c *ui.Context) {
 				LauncherPackage: isLauncherPackage(),
 				DesktopRunning:  deskRunning,
 				// Keep the running chrome even while harness is still Starting.
-				StartBusy:            launcherStartBusy && !deskRunning,
+				StartBusy:            launcherStartBusy,
+				RuntimeBusy:          launcherRuntimeBusy,
 				StartFailed:          launcherStartFailed,
 				StartError:           launcherStartErr,
 				BootLogs:             logs,
@@ -3381,13 +3328,16 @@ func mainView(c *ui.Context) {
 						state.changeWhaleBridge(win, action)
 						return
 					}
-					if id == "whalebridge" && action == "start" {
+					if id == "whalebridge" && (action == "start" || action == "open" || action == "manage") {
 						release, ok := state.claimLauncherComponentAction(win, id, action)
 						if !ok {
 							return
 						}
 						state.mu.Lock()
 						state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"
+						if action != "start" {
+							state.launcherUpdate = resumeText("正在打开鲸桥设置…", "Opening WhaleBridge settings…")
+						}
 						state.launcherComponentStatus = state.launcherUpdate
 						state.mu.Unlock()
 						go func() {
@@ -3486,7 +3436,7 @@ func mainView(c *ui.Context) {
 				},
 				OnStart: func() {
 					state.mu.Lock()
-					if state.launcherStartPreparing || state.launcherStartBusy || state.launcherImportBusy || state.quitting {
+					if state.launcherStartPreparing || state.launcherStartBusy || state.launcherImportBusy || state.taskRestartPending || state.quitRequestPending || state.quitting {
 						state.mu.Unlock()
 						return
 					}
@@ -4486,6 +4436,7 @@ func mainView(c *ui.Context) {
 					SkillsActive: skillsActive,
 					Skills: &settings.SkillsAccess{
 						Create:       state.settingsSkillCreateAccess(),
+						Hub:          state.settingsSkillHubAccess(),
 						OnOpenCreate: state.openSettingsSkillCreate,
 						Skills:       skillRows,
 						Query:        &state.settingsSkillQuery, SourceFilter: &state.settingsSkillSource,
@@ -4558,18 +4509,9 @@ func mainView(c *ui.Context) {
 							target, _ := sessions.SkillInventoryTarget(session.SkillRootUser)
 							return target.Cwd
 						}(),
-						OnSelectRoot: func(root string) {
-							state.mu.Lock()
-							state.settingsSkillRoot = root
-							state.settingsSkillHubHits = nil
-							state.settingsSkillHubTarget = session.SkillTarget{}
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						HubQuery: &state.settingsSkillHubQuery,
-						HubHits:  append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
+						OnSelectRoot: state.selectSettingsSkillHubRoot,
+						HubQuery:     &state.settingsSkillHubQuery,
+						HubHits:      append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
 						OnRefresh: func() {
 							if sessions != nil {
 								sessions.RefreshSkills(context.Background())
@@ -4578,147 +4520,8 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnSearchHub: func(query string) {
-							query = strings.TrimSpace(query)
-							state.dshMu.Lock()
-							client := state.dshClient
-							state.dshMu.Unlock()
-							if client == nil || sessions == nil || query == "" {
-								return
-							}
-							target, targetErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
-							if targetErr == nil && !target.MatchesClient(client) {
-								return
-							}
-							if targetErr != nil {
-								state.mu.Lock()
-								state.settingsSkillsLastAction = targetErr.Error()
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-							go func() {
-								req := api.SkillHubSearchRequest{Query: query, Root: target.Root}
-								if target.SessionID != "" {
-									req.SessionId = &target.SessionID
-								}
-								if target.Cwd != "" {
-									req.Cwd = &target.Cwd
-								}
-								var out api.SearchHubResult
-								err := client.Call(context.Background(), "skillInventory/searchHub", map[string]any{"request": req}, &out)
-								hits := make([]settings.SkillHubHit, 0, len(out))
-								if err == nil {
-									for _, item := range out {
-										st := ""
-										if item.InstallationStatus != nil {
-											st = *item.InstallationStatus
-										}
-										hits = append(hits, settings.SkillHubHit{
-											SkillName:   item.SkillName,
-											Repo:        item.Repo,
-											Path:        item.Path,
-											Description: item.Description,
-											Stars:       item.Stars,
-											Status:      st,
-										})
-									}
-								}
-								state.mu.Lock()
-								currentTarget, currentErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
-								if currentErr != nil || currentTarget != target {
-									state.mu.Unlock()
-									return
-								}
-								if err != nil {
-									state.settingsSkillsLastAction = err.Error()
-									state.settingsSkillHubHits = nil
-								} else {
-									state.settingsSkillsLastAction = fmt.Sprintf("hub: %d", len(hits))
-									state.settingsSkillHubHits = hits
-									state.settingsSkillHubTarget = target
-								}
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
-						},
-						OnInstallHub: func(repo, path, skillName string) {
-							state.dshMu.Lock()
-							client := state.dshClient
-							state.dshMu.Unlock()
-							if client == nil || sessions == nil || repo == "" || path == "" || skillName == "" {
-								return
-							}
-							target, targetErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
-							if targetErr == nil && !target.MatchesClient(client) {
-								return
-							}
-							if targetErr != nil {
-								state.mu.Lock()
-								state.settingsSkillsLastAction = targetErr.Error()
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-							state.mu.Lock()
-							if state.settingsSkillHubTarget != target {
-								state.settingsSkillsLastAction = "Skill target changed; search again before installing."
-								state.settingsSkillHubHits = nil
-								state.mu.Unlock()
-								if win != nil {
-									win.Update(func() {})
-								}
-								return
-							}
-							state.mu.Unlock()
-							go func() {
-								req := api.SkillHubInstallRequest{
-									Repo: repo, Path: path, SkillName: skillName, Root: target.Root,
-								}
-								if target.SessionID != "" {
-									req.SessionId = &target.SessionID
-								}
-								if target.Cwd != "" {
-									req.Cwd = &target.Cwd
-								}
-								var out api.SkillHubInstallResult
-								err := client.Call(context.Background(), "skillInventory/installHub", map[string]any{"request": req}, &out)
-								message := ""
-								if err == nil {
-									message, err = session.SkillHubInstallMessage(out.Status, out.SkillName, out.Directory)
-								}
-								state.mu.Lock()
-								currentTarget, currentErr := sessions.SkillInventoryTarget(state.settingsSkillRoot)
-								if currentErr != nil || currentTarget != target {
-									state.mu.Unlock()
-									return
-								}
-								if err != nil {
-									state.settingsSkillsLastAction = err.Error()
-								} else {
-									state.settingsSkillsLastAction = message
-									for i := range state.settingsSkillHubHits {
-										row := &state.settingsSkillHubHits[i]
-										if row.Repo == repo && row.Path == path && row.SkillName == skillName {
-											row.Status = "installed"
-										}
-									}
-								}
-								state.mu.Unlock()
-								if err == nil {
-									sessions.RefreshSkills(context.Background())
-								}
-								if win != nil {
-									win.Update(func() {})
-								}
-							}()
-						},
+						OnSearchHub:  state.searchSettingsSkillHub,
+						OnInstallHub: state.requestSettingsSkillHubInstall,
 						OnInsert: func(name string) {
 							name = strings.TrimSpace(name)
 							if name == "" {
