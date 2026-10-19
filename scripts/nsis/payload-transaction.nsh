@@ -20,6 +20,15 @@ Var wiRootFS
 Var wiError
 Var wiManifestHandle
 Var wiRetired
+Var wiInstallID
+Var wiManifestID
+Var wiOldInstallID
+Var wiUninstallSource
+Var wiUninstallID
+Var wiCanManage
+Var wiOldManagementName
+Var wiOldManagementRetired
+Var wiOldManagementGuarded
 Var wiOldLocation
 Var wiOldUninstall
 Var wiOldDisplay
@@ -149,6 +158,55 @@ Function ${Prefix}wiCheckRoot
     Pop $R0
 FunctionEnd
 
+; Installation identity survives moves but is different for every new stage.
+; It prevents an old backup uninstaller from managing a newer same-app record.
+Function ${Prefix}wiReadManifestIdentity
+  Push $R0
+  Push $R1
+  Push $R2
+  StrCpy $wiManifestID ""
+  System::Call 'kernel32::GetFileAttributesW(w "$wiRootFS\${WI_MANIFEST}") i.r10'
+  ${If} $R0 == -1
+    Goto wi_identity_bad
+  ${EndIf}
+  IntOp $R0 $R0 & 0x410
+  ${If} $R0 != 0
+    Goto wi_identity_bad
+  ${EndIf}
+  ClearErrors
+  FileOpen $R0 "$wiRootFS\${WI_MANIFEST}" r
+  ${If} ${Errors}
+    Goto wi_identity_bad
+  ${EndIf}
+  FileReadUTF16LE $R0 $R1
+  ${If} $R1 != "WhaleIsle-Payload-1$\r$\n"
+    Goto wi_identity_close_bad
+  ${EndIf}
+  FileReadUTF16LE $R0 $R1
+  StrLen $R2 $R1
+  ${If} $R2 != 42
+    Goto wi_identity_close_bad
+  ${EndIf}
+  StrCpy $R2 $R1 3
+  ${If} $R2 != "I|{"
+    Goto wi_identity_close_bad
+  ${EndIf}
+  StrCpy $R2 $R1 3 -3
+  ${If} $R2 != "}$\r$\n"
+    Goto wi_identity_close_bad
+  ${EndIf}
+  StrCpy $wiManifestID $R1 38 2
+  FileClose $R0
+  Goto wi_identity_done
+  wi_identity_close_bad:
+    FileClose $R0
+  wi_identity_bad:
+    StrCpy $wiError 1
+  wi_identity_done:
+    Pop $R2
+    Pop $R1
+    Pop $R0
+FunctionEnd
 Function ${Prefix}wiOwnedPath
   Exch $R0
   Push $R1
@@ -272,6 +330,19 @@ Function ${Prefix}wiCleanOwnedPayload
     ClearErrors
     FileReadUTF16LE $R1 $R2
     ${If} $R2 != "WhaleIsle-Payload-1$\r$\n"
+      Goto wi_clean_close_bad
+    ${EndIf}
+    FileReadUTF16LE $R1 $R2
+    StrLen $R0 $R2
+    ${If} $R0 != 42
+      Goto wi_clean_close_bad
+    ${EndIf}
+    StrCpy $R0 $R2 3
+    ${If} $R0 != "I|{"
+      Goto wi_clean_close_bad
+    ${EndIf}
+    StrCpy $R0 $R2 3 -3
+    ${If} $R0 != "}$\r$\n"
       Goto wi_clean_close_bad
     ${EndIf}
   wi_clean_next:
@@ -451,7 +522,7 @@ Function wiCreateManifest
     StrCpy $wiError 1
     Return
   ${EndIf}
-  FileWriteUTF16LE $wiManifestHandle "WhaleIsle-Payload-1$\r$\n"
+  FileWriteUTF16LE $wiManifestHandle "WhaleIsle-Payload-1$\r$\nI|$wiInstallID$\r$\n"
   ${If} ${Errors}
     StrCpy $wiError 1
   ${Else}
@@ -484,6 +555,17 @@ Function wiRollback
     StrCpy $wiNewMoved ""
   ${EndIf}
   ${If} $wiOldMoved == "1"
+    ${If} $wiOldManagementRetired == "1"
+      ClearErrors
+      Rename "$wiOldFS\$wiOldManagementName.retired-uninstaller" "$wiOldFS\$wiOldManagementName"
+      ${If} ${Errors}
+        StrCpy $wiRecoveryStopped "1"
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Cannot restore the old uninstall entry. Complete previous application backup: $wiOld. Rename $wiOldManagementName.retired-uninstaller back to $wiOldManagementName before restoring the directory." /SD IDOK
+        SetErrorLevel 2
+        Return
+      ${EndIf}
+      StrCpy $wiOldManagementRetired ""
+    ${EndIf}
     ClearErrors
     Rename "$wiOldFS" "$wiFinalFS"
     ${If} ${Errors}
@@ -503,6 +585,85 @@ Function wiRollback
   ${EndIf}
 FunctionEnd
 
+; Only the exact quoted command from this installation's registered uninstall
+; record grants ownership of a legacy management executable. Unknown files
+; are never renamed by this helper.
+Function wiCaptureOldManagement
+  StrCpy $wiOldManagementName ""
+  StrCpy $wiOldManagementRetired ""
+  StrCpy $wiOldManagementGuarded ""
+  ${If} $wiOldLocation != $wiFinal
+  ${AndIf} $wiOldProductLocation != $wiFinal
+    Return
+  ${EndIf}
+  ${If} $wiOldUninstall == ""
+    Return
+  ${EndIf}
+  StrCpy $0 $wiOldUninstall 1
+  ${If} $0 != '$\"'
+    Abort "The registered uninstall command is not a quoted application path. Repair the installation record before upgrading."
+  ${EndIf}
+  StrCpy $1 1
+  wi_command_next:
+    StrCpy $0 $wiOldUninstall 1 $1
+    ${If} $0 == ""
+      Abort "The registered uninstall command is incomplete. The old installation was retained."
+    ${EndIf}
+    ${If} $0 == '$\"'
+      Goto wi_command_path
+    ${EndIf}
+    IntOp $1 $1 + 1
+    Goto wi_command_next
+  wi_command_path:
+    IntOp $1 $1 - 1
+    StrCpy $0 $wiOldUninstall $1 1
+    ${GetParent} "$0" $1
+    GetFullPathName $1 "$1"
+    ${If} $1 != $wiFinal
+      Abort "The registered uninstaller belongs to a different directory. No previous files were moved."
+    ${EndIf}
+    ${GetFileName} "$0" $wiOldManagementName
+    ${If} $wiOldManagementName == ""
+      Abort "The registered uninstall program has no filename. No previous files were moved."
+    ${EndIf}
+    ; This manifest identity was introduced together with the ownership guard.
+    ; Earlier native/Electron uninstallers have no identity and must be retired.
+    ${If} $wiOldInstallID != ""
+      StrCpy $wiRoot $wiFinal
+      StrCpy $wiRootFS $wiFinalFS
+      StrCpy $wiError 0
+      Call wiReadManifestIdentity
+      ${If} $wiError == 0
+      ${AndIf} $wiManifestID == $wiOldInstallID
+        StrCpy $wiOldManagementGuarded "1"
+      ${EndIf}
+      StrCpy $wiError 0
+    ${EndIf}
+FunctionEnd
+
+Function wiRetireLegacyManagement
+  ${If} $wiOldManagementName == ""
+  ${OrIf} $wiOldManagementGuarded == "1"
+    Return
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$wiOldFS\$wiOldManagementName") i.r0'
+  ${If} $0 == -1
+    SetErrorLevel 2
+    Abort "Cannot retire the previous registered uninstall program. The previous installation will be restored."
+  ${EndIf}
+  IntOp $0 $0 & 0x410
+  ${If} $0 != 0
+    SetErrorLevel 2
+    Abort "The previous uninstall program is not an ordinary file. The previous installation will be restored."
+  ${EndIf}
+  ClearErrors
+  Rename "$wiOldFS\$wiOldManagementName" "$wiOldFS\$wiOldManagementName.retired-uninstaller"
+  ${If} ${Errors}
+    SetErrorLevel 2
+    Abort "Cannot retire the previous registered uninstall program. The previous installation will be restored."
+  ${EndIf}
+  StrCpy $wiOldManagementRetired "1"
+FunctionEnd
 Function wiBeginStage
   StrCpy $wiFinal $INSTDIR
   StrCpy $wiOldMoved ""
@@ -562,10 +723,12 @@ Function wiBeginStage
       Abort "This directory contains unrelated files. Choose a dedicated application directory."
     ${EndIf}
   ${EndIf}
+  Call wiCaptureOldManagement
   System::Call 'ole32::CoCreateGuid(g .r0) i.r1'
   ${If} $1 != 0
     Abort "Cannot allocate the installation transaction."
   ${EndIf}
+  StrCpy $wiInstallID $0
   StrCpy $wiStage "$wiFinal.new-$0"
   StrCpy $wiOld "$wiFinal.old-$0"
   !insertmacro WI_LongPath "$wiFinal" $wiFinalFS $1
@@ -592,6 +755,7 @@ Function wiPromote
       Abort "Cannot move the previous application. Close it and retry; its files and registration were retained."
     ${EndIf}
     StrCpy $wiOldMoved "1"
+    Call wiRetireLegacyManagement
   ${EndIf}
   ClearErrors
   Rename "$wiStageFS" "$wiFinalFS"
@@ -626,6 +790,7 @@ Function wiRememberRegistration
   ReadRegStr $wiOldVersion HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayVersion"
   ReadRegStr $wiOldPublisher HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher"
   ReadRegStr $wiOldNative HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime"
+  ReadRegStr $wiOldInstallID HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID"
   StrCpy $wiHadDesktopLink ""
   StrCpy $wiHadMenuLink ""
   ${If} ${FileExists} "$DESKTOP\${PRODUCT_NAME}.lnk"
@@ -654,6 +819,7 @@ Function wiRestoreRegistration
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayVersion" $wiOldVersion
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher" $wiOldPublisher
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime" $wiOldNative
+  !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID" $wiOldInstallID
   DeleteRegKey /ifempty HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}"
   DeleteRegKey /ifempty HKCU "Software\${APP_ID}"
   ${If} $wiHadDesktopLink == "1"
@@ -716,17 +882,45 @@ Function .onGUIEnd
   ${EndIf}
 FunctionEnd
 
+Function un.wiOwnsRegistration
+  Push $R0
+  Push $R1
+  StrCpy $wiCanManage 0
+  ReadRegStr $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID"
+  ${If} $wiUninstallID == ""
+  ${OrIf} $R0 != $wiUninstallID
+    Goto wi_record_done
+  ${EndIf}
+  ReadRegStr $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime"
+  ${If} $R0 != "WhaleIsle-MyGo"
+    Goto wi_record_done
+  ${EndIf}
+  ReadRegStr $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "InstallLocation"
+  ReadRegStr $R1 HKCU "Software\${APP_ID}" "InstallLocation"
+  ${If} $R0 == $wiUninstallSource
+  ${AndIf} $R1 == $wiUninstallSource
+    StrCpy $wiCanManage 1
+  ${EndIf}
+  wi_record_done:
+    Pop $R1
+    Pop $R0
+FunctionEnd
 Function un.wiRetainRetry
   ; Cleanup may already have deleted some owned files. Do not promise a full
   ; restore. Keep management at the actual retired location for another attempt.
   CopyFiles /SILENT "$PLUGINSDIR\retry-uninstall.exe" "$wiRootFS\Uninstall.exe"
   CopyFiles /SILENT "$PLUGINSDIR\retry-manifest" "$wiRootFS\${WI_MANIFEST}"
-  ClearErrors
-  WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$wiRoot"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "InstallLocation" "$wiRoot"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "UninstallString" '"$wiRoot\Uninstall.exe"'
-  ${If} ${Errors}
-    DetailPrint "Could not update the uninstall record; retry directly from $wiRoot\Uninstall.exe"
+  Call un.wiOwnsRegistration
+  ${If} $wiCanManage == 1
+    ClearErrors
+    WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$wiRoot"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "InstallLocation" "$wiRoot"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "UninstallString" '"$wiRoot\Uninstall.exe"'
+    ${If} ${Errors}
+      DetailPrint "Could not update the uninstall record; retry directly from $wiRoot\Uninstall.exe"
+    ${EndIf}
+  ${Else}
+    DetailPrint "A different installation owns the current registration; it was not changed. Retry this cleanup directly from $wiRoot\Uninstall.exe"
   ${EndIf}
   SetErrorLevel 2
   Abort "Uninstall incomplete. Some application files may already be removed; unknown/locked files were retained at $wiRoot. Registration and shortcuts were kept. Close processes or move your own remaining files aside, then retry $wiRoot\Uninstall.exe."
@@ -742,6 +936,13 @@ Function un.wiRemovePayload
     SetErrorLevel 2
     Abort "Cannot uninstall from a linked or invalid directory. Registration and files were kept."
   ${EndIf}
+  StrCpy $wiUninstallSource $wiRoot
+  Call un.wiReadManifestIdentity
+  ${If} $wiError != 0
+    SetErrorLevel 2
+    Abort "The application ownership identity is missing or unreadable. No files or registration were removed."
+  ${EndIf}
+  StrCpy $wiUninstallID $wiManifestID
   ClearErrors
   CopyFiles /SILENT "$wiRootFS\Uninstall.exe" "$PLUGINSDIR\retry-uninstall.exe"
   ${If} ${Errors}
@@ -786,9 +987,3 @@ Function un.wiRemovePayload
   ${EndIf}
   ClearErrors
 FunctionEnd
-
-
-
-
-
-

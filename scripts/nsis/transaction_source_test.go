@@ -96,3 +96,31 @@ func TestExistingTreesRequireAnOwnedManifestAndNeverRecurse(t *testing.T) {
 	}
 }
 
+func TestRetiredUninstallerCannotManageAnotherInstallation(t *testing.T) {
+	helper := transactionSource(t, "payload-transaction.nsh")
+	owner := sourceRegion(t, helper, "Function un.wiOwnsRegistration", "FunctionEnd")
+	requireSourceOrder(t, owner, `"NativeInstallID"`, "$R0 != $wiUninstallID", `"NativeRuntime"`,
+		`"InstallLocation"`, "$R0 == $wiUninstallSource", "$R1 == $wiUninstallSource", "StrCpy $wiCanManage 1")
+	retry := sourceRegion(t, helper, "Function un.wiRetainRetry", "FunctionEnd")
+	requireSourceOrder(t, retry, "Call un.wiOwnsRegistration", "${If} $wiCanManage == 1", "WriteRegStr")
+	uninstall := sourceRegion(t, transactionSource(t, "whaleisle.nsi"), `Section "Uninstall"`, "SectionEnd")
+	requireSourceOrder(t, uninstall, "Call un.wiRemovePayload", "Call un.wiOwnsRegistration",
+		"${If} $wiCanManage == 1", "Delete ", "DeleteRegKey")
+	create := sourceRegion(t, helper, "Function wiCreateManifest", "FunctionEnd")
+	if !strings.Contains(create, "I|$wiInstallID") {
+		t.Fatal("payload does not retain its unique installation identity")
+	}
+}
+
+func TestLegacyRegisteredUninstallerRetiresBeforePromotion(t *testing.T) {
+	helper := transactionSource(t, "payload-transaction.nsh")
+	capture := sourceRegion(t, helper, "Function wiCaptureOldManagement", "FunctionEnd")
+	requireSourceOrder(t, capture, "$wiOldLocation != $wiFinal", "$wiOldUninstall", "${GetParent}",
+		"$1 != $wiFinal", "${GetFileName}", "Call wiReadManifestIdentity")
+	retire := sourceRegion(t, helper, "Function wiRetireLegacyManagement", "FunctionEnd")
+	requireSourceOrder(t, retire, "GetFileAttributesW", "0x410", "Rename", ".retired-uninstaller", "StrCpy $wiOldManagementRetired")
+	promote := sourceRegion(t, helper, "Function wiPromote", "FunctionEnd")
+	requireSourceOrder(t, promote, `Rename "$wiFinalFS" "$wiOldFS"`, "Call wiRetireLegacyManagement", `Rename "$wiStageFS" "$wiFinalFS"`)
+	rollback := sourceRegion(t, helper, "Function wiRollback", "FunctionEnd")
+	requireSourceOrder(t, rollback, ".retired-uninstaller", `Rename "$wiOldFS" "$wiFinalFS"`)
+}

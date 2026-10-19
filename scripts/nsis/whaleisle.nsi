@@ -165,6 +165,8 @@ Section "Install"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   !insertmacro WI_CheckExtract
   ; Distinguish this native product from the legacy Electron app sharing APP_ID.
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID" "$wiInstallID"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime" "WhaleIsle-MyGo"
   !insertmacro WI_CheckExtract
 
@@ -181,10 +183,14 @@ Section "Uninstall"
   ; Do not remove registration or shortcuts unless owned-payload cleanup
   ; succeeds. Failed cleanup retargets the retained record to its retry path.
   Call un.wiRemovePayload
+  Call un.wiOwnsRegistration
+  ${If} $wiCanManage == 1
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"
   RMDir "$SMPROGRAMS\${PRODUCT_NAME}"
   Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}"
   DeleteRegKey HKCU "Software\${APP_ID}"
+  ${EndIf}
 SectionEnd
+
 
