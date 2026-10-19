@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -229,5 +230,24 @@ func TestPreviewTreeLateMenuCannotDispatchAfterTabOrHostChange(t *testing.T) {
 		if !tab.Editing || tab.Draft != "owned draft" || tab.save != nil || tab.readLoading {
 			t.Fatalf("%s: stale tree menu mutated resource", change)
 		}
+	}
+}
+
+func TestPreviewToolbarCompactOpenTarget(t *testing.T) {
+	m, _ := toolbarFixture(t)
+	m.SessionID = ""
+	m.OnOpenDoc = func(string, workspacefs.DocKind, bool) {}
+	m.OnReveal = func(string) {}
+	tt := toolbarTester(&m, 451)
+	primary, mainOK := tt.Find(i18n.T(i18n.KeyFilesOpenExternal))
+	more, moreOK := tt.Find("More open options")
+	if !mainOK || !moreOK || primary.W != 23 || more.W != 17 || primary.H != 23 || more.H != 23 || more.X != primary.X+primary.W {
+		t.Fatalf("compact split geometry: primary=%+v more=%+v", primary, more)
+	}
+	if err := tt.Click("More open options"); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(tt.Menu(), i18n.T(i18n.KeyFilesReveal)) {
+		t.Fatal("compact menu lost reveal")
 	}
 }
