@@ -107,8 +107,15 @@ func TestTerminalDividerFrozenExcursionAndKeyboard(t *testing.T) {
 	sizes := DefaultLayout()
 	sizes.Right = 540
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true}) }, 1200, 800)
-	tt.Press(400, 560)
-	tt.Release(400, 560)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tt.Frame()
+	divider, ok := tt.Find("Terminal pane divider")
+	if !ok {
+		t.Fatal("missing real terminal divider")
+	}
+	x, y := divider.X+divider.W/2, divider.Y+divider.H/2
+	tt.Press(x, y)
+	tt.Release(x, y)
 	if sizes.Main != 560 {
 		t.Fatalf("no-op terminal press changed Main%v", sizes.Main)
 	}
@@ -116,11 +123,13 @@ func TestTerminalDividerFrozenExcursionAndKeyboard(t *testing.T) {
 	if sizes.Main != 550 {
 		t.Fatalf("terminal keyboard Main%v, want550", sizes.Main)
 	}
-	tt.Press(400, 550)
-	for _, y := range []float32{700, 780, 740, 700, 550} {
-		tt.Move(400, y)
+	divider, _ = tt.Find("Terminal pane divider")
+	y = divider.Y + divider.H/2
+	tt.Press(x, y)
+	for _, delta := range []float32{150, 230, 190, 150, 0} {
+		tt.Move(x, y+delta)
 	}
-	tt.Release(400, 550)
+	tt.Release(x, y)
 	if sizes.Main != 550 {
 		t.Fatalf("round-trip terminal drag Main%v, want frozen550", sizes.Main)
 	}

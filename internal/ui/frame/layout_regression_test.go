@@ -64,9 +64,9 @@ func TestTerminalStaysInsideCenterAndSidebarKeepsFullHeight(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Store: session.New(), Sizes: &sizes, FilePaneWidth: &right, RightPaneOpen: true, OnOpenSettings: func() {}})
 	}, 1600, 800)
-	term, ok := tt.Find(i18n.T(i18n.KeyTerminalTitle))
+	term, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
 	if !ok {
-		t.Fatal("terminal title missing")
+		t.Fatal("unconnected terminal drawer missing")
 	}
 	if term.X < 281 || term.X+term.W > 880 {
 		t.Fatalf("terminal bounds=%+v, want inside center x281..880", term)
@@ -141,7 +141,7 @@ func TestTerminalRemainsVisibleAfterHeightShrink(t *testing.T) {
 	sizes := DefaultLayout()
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Store: session.New(), Sizes: &sizes, OnOpenSettings: func() {}}) }, 1200, 800)
 	tt.SetSize(1200, 400)
-	r, ok := tt.Find(i18n.T(i18n.KeyTerminalTitle))
+	r, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
 	if !ok {
 		t.Fatal("terminal missing after height shrink")
 	}
@@ -194,18 +194,21 @@ func TestTerminalHeightConcessionDoesNotRewritePreference(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { ui.Box(c).Height(36).FillWidth(); View(c, Model{Store: session.New(), Sizes: &sizes}) })
 	}, 1200, 800)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tt.Frame()
 	tt.SetSize(1200, 400)
 	if sizes.Main != 560 {
 		t.Fatalf("height concession rewrote top-height preference: %v", sizes.Main)
 	}
-	r, _ := tt.Find(i18n.T(i18n.KeyTerminalTitle))
+	r, _ := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
 	if r.Y+r.H > 400 || r.H == 0 {
 		t.Fatalf("shrunk terminal header=%+v", r)
 	}
 	tt.SetSize(1200, 800)
-	r, _ = tt.Find(i18n.T(i18n.KeyTerminalTitle))
-	if r.Y != 601 {
-		t.Fatalf("restored terminal title=%+v, want y601 below36px titlebar", r)
+	r, _ = tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
+	// Outer36 + shared hero caption52 + saved chat560 + divider1 + body pad8.
+	if r.Y != 657 {
+		t.Fatalf("restored terminal status=%+v, want y657 below both caption rows", r)
 	}
 }
 

@@ -24,7 +24,8 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	if sizes.Sidebar != 360 {
 		t.Fatalf("drag width=%v", sizes.Sidebar)
 	}
-	tt.Key(ui.Cmd, ui.KeyB)
+	tt.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
+	tt.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	tt.Frame()
 	if sizes.Sidebar != 0 || sizes.SidebarExpanded != 360 {
 		t.Fatalf("collapse lost preference: %+v", sizes)
@@ -54,7 +55,8 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	if sizes.Sidebar != 0 {
 		t.Fatal("collapse button failed")
 	}
-	tt.Key(ui.Cmd, ui.KeyB)
+	tt.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
+	tt.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	if sizes.Sidebar != 360 {
 		t.Fatal("keyboard restore failed")
 	}
@@ -118,16 +120,19 @@ func TestSidebarCollapseRestore(t *testing.T) {
 			})
 		}
 	}, 600, 400)
-	owned.Key(ui.Cmd, ui.KeyB)
+	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
+	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	owned.Compose("ni", 2)
-	owned.Key(ui.Cmd, ui.KeyB)
+	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
+	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	owned.Type("你")
 	if resumed.Sidebar != 360 || text != "你" {
 		t.Fatal("text/IME command stolen")
 	}
 	mode = "custom"
 	owned.Frame()
-	owned.Key(ui.Cmd, ui.KeyB)
+	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
+	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	if resumed.Sidebar != 360 || custom != 1 {
 		t.Fatal("custom input command stolen")
 	}

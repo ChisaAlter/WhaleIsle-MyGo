@@ -44,15 +44,19 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 		}
 	}
 	type record struct {
-		Name                                        string `json:"name"`
-		Width, Height                               int
-		Center, Right, RememberedRight              float32
-		TerminalTitle, SidebarFooter, RightFilesTab ui.Rect
-		ComposerCard, UserBubble                    ui.Rect
+		Name                                         string `json:"name"`
+		Width, Height                                int
+		Center, Right, RememberedRight               float32
+		TerminalStatus, SidebarFooter, RightFilesTab ui.Rect
+		ComposerCard, UserBubble                     ui.Rect
 	}
 	var records []record
 	save := func(name string, tt *ui.Tester, sizes *LayoutSizes, right float32, w, h int) {
 		t.Helper()
+		// These exports record settled allocation; shell_motion_test separately
+		// drives the actual native track easing and intermediate bounds.
+		tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tt.Frame()
 		f, err := os.Create(filepath.Join(dir, name+".png"))
 		if err != nil {
 			t.Fatal(err)
@@ -64,12 +68,12 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 		if err = f.Close(); err != nil {
 			t.Fatal(err)
 		}
-		term, _ := tt.Find(i18n.T(i18n.KeyTerminalTitle))
+		term, _ := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
 		footer, _ := tt.Find(i18n.T(i18n.KeySettingsOpen))
 		files, _ := tt.Find(i18n.T(i18n.KeyRightPaneFiles))
 		card, _ := tt.Find("Composer card")
 		bubble, _ := tt.Find("User message bubble")
-		records = append(records, record{ComposerCard: card, UserBubble: bubble, Name: name, Width: w, Height: h, Center: sizes.Center, Right: right, RememberedRight: sizes.Right, TerminalTitle: term, SidebarFooter: footer, RightFilesTab: files})
+		records = append(records, record{ComposerCard: card, UserBubble: bubble, Name: name, Width: w, Height: h, Center: sizes.Center, Right: right, RememberedRight: sizes.Right, TerminalStatus: term, SidebarFooter: footer, RightFilesTab: files})
 	}
 	for _, width := range []int{900, 1200, 1600} {
 		for _, dark := range []bool{false, true} {

@@ -95,10 +95,12 @@ func TestGlobalPanelKeepsTerminalDrawerAndItsGeometry(t *testing.T) {
 			ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { content = r })
 		})
 	}, 1200, 800)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tt.Frame()
 	if content.Y != 52 || content.H != 400 {
 		t.Fatalf("global content=%+v, want below52 caption and above retained400 split", content)
 	}
-	if _, ok := tt.Find(i18n.T(i18n.KeyTerminalTitle)); !ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable)); !ok {
 		t.Fatal("global page lost its terminal drawer")
 	}
 	sizes.Bottom = 0
