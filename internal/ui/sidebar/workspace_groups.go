@@ -15,6 +15,23 @@ func workspaceText(zh, en string) string {
 	return en
 }
 func workspaceViewOptions(c *ui.Context, m Model) {
+	if m.BrowseArchivedFilter != nil {
+		values := []string{"hide", "show", "only"}
+		labels := []string{workspaceText("隐藏归档会话", "Hide archived sessions"), workspaceText("显示归档会话", "Show archived sessions"), workspaceText("仅归档会话", "Only archived sessions")}
+		selected := labels[0]
+		for i, value := range values {
+			if browseArchiveFilter(m) == value {
+				selected = labels[i]
+			}
+		}
+		ui.Select(c.Key("workspace-archive-filter"), &selected, labels).Label("Archived session visibility").FillWidth().OnChange(func() {
+			for i, label := range labels {
+				if selected == label {
+					*m.BrowseArchivedFilter = values[i]
+				}
+			}
+		})
+	}
 	group := m.Snapshot.WorkspaceLayout.GroupBy
 	if group == "" {
 		group = "workspace"
@@ -60,15 +77,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	layout := m.Snapshot.WorkspaceLayout
 	hiddenParents := map[string]bool{}
 	owners := session.WorkspaceSessionOwners(m.Snapshot.Workspaces, items)
-	if layout.PreferenceError != "" {
-		ui.Text(c, layout.PreferenceError).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-		if ui.Button(c, workspaceText("重试视图偏好", "Retry view preferences")).FontSize(theme.InterfaceSize(11)).Clicked() && m.OnRetryWorkspacePreferences != nil {
-			m.OnRetryWorkspacePreferences()
-		}
-	}
-	if layout.Error != "" {
-		ui.Text(c, layout.Error).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-	}
+	workspaceRowsStatus(c, m, fg)
 	for _, group := range groups {
 		g := group
 		if hiddenParents[g.ParentID] {

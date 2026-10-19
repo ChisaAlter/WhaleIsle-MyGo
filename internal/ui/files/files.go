@@ -256,13 +256,13 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Key(workspaceReference(m, path)).Padding(4, 8, 4, 8).Gap(4).FillWidth().Drag(workspaceReference(m, path))
+		row := ui.Row(c).Key(workspaceReference(m, path)).Label("File result "+path).Focusable().Height(28).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
 		if m.SelectedFile != nil && *m.SelectedFile == path {
-			row.Background(accent).Opacity(0.12)
+			row.Background(accent.Alpha(0.12))
 		}
 		row.Children(func() {
-			ui.Text(c, path).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-			paintReferenceButtons(c, m, path)
+			ui.Text(c, path).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+			paintTreeReferenceButton(c, m, row, path, muted)
 		})
 		if row.Clicked() {
 			selectFile(m, path)
@@ -295,6 +295,9 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 		ui.Text(c, state.WatchError).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(4, 8, 4, 8)
 	}
 	ents := state.Entries
+	if len(ents) == 0 && rel == "" {
+		ui.Text(c, label("此文件夹为空", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
+	}
 	for _, e := range ents {
 		childRel := e.Name
 		if rel != "" {
@@ -312,19 +315,16 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 }
 
 func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
-	pad := float32(4 + depth*14)
+	pad := float32(8 + depth*12)
 	expanded := isExpanded(m, rel)
-	chevron := "▸"
-	if expanded {
-		chevron = "▾"
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("Folder "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
+	if row.Hovered() || row.FocusWithin() {
+		row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
 	}
-	row := ui.Row(c).Key(workspaceReference(m, rel)).Padding(pad, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
 	row.Children(func() {
-		if ui.Button(c, chevron).Clicked() {
-			toggleExpanded(m, rel)
-		}
-		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-		ui.MenuButton(c, "⋯", treeDirectoryMenu(m, rel)).Tooltip(label("目录操作", "Directory actions"))
+		paintTreeTwist(c, expanded, muted)
+		paintTreeEntryIcon(c, true, muted)
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 	})
 	if row.Clicked() {
 		toggleExpanded(m, rel)
@@ -333,15 +333,19 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 }
 
 func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
-	pad := float32(4 + depth*14)
+	pad := float32(8 + depth*12)
 	selected := m.SelectedFile != nil && *m.SelectedFile == rel
-	row := ui.Row(c).Key(workspaceReference(m, rel)).Padding(pad+16, 4, 4, 4).Gap(4).Fill().AlignItems(ui.Center).Drag(workspaceReference(m, rel))
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
 	if selected {
-		row.Background(accent).Opacity(0.12)
+		row.Background(accent.Alpha(0.12))
+	} else if row.Hovered() || row.FocusWithin() {
+		row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
 	}
 	row.Children(func() {
-		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-		paintReferenceButtons(c, m, rel)
+		ui.Box(c).Width(12)
+		paintTreeEntryIcon(c, false, muted)
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+		paintTreeReferenceButton(c, m, row, rel, muted)
 	})
 	if row.Clicked() {
 		selectFile(m, rel)

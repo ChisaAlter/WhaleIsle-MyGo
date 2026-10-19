@@ -29,6 +29,9 @@ func VisibleBatchTargets(m Model) []session.SessionBatchTarget {
 	}
 	hidden := map[string]bool{}
 	for _, g := range session.BuildWorkspaceGroups(m.Snapshot, sidebarItems(m.Snapshot, m.SearchQuery)) {
+		if browseArchiveFilter(m) == "only" {
+			break
+		}
 		if hidden[g.ParentID] || m.Snapshot.WorkspaceLayout.Collapsed[g.Key] {
 			hidden[g.Key] = true
 			continue
@@ -37,7 +40,7 @@ func VisibleBatchTargets(m Model) []session.SessionBatchTarget {
 			add(it.SessionID, it.Title)
 		}
 	}
-	if !m.HideArchivedList {
+	if browseArchiveFilter(m) != "hide" {
 		for _, id := range m.Snapshot.ArchivedSessionIDs {
 			title := id
 			for _, it := range m.Snapshot.Items {

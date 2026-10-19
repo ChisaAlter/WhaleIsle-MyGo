@@ -37,12 +37,14 @@ type Model struct {
 
 	Projects         projects.Model
 	HideArchivedList bool
-	Collapsed        bool
-	OnToggle         func()
-	Snapshot         session.ViewState
-	ThemeID          string
-	SystemDark       bool
-	SearchQuery      *string
+	// BrowseArchivedFilter is a Host-local list filter, independent of search.
+	BrowseArchivedFilter *string
+	Collapsed            bool
+	OnToggle             func()
+	Snapshot             session.ViewState
+	ThemeID              string
+	SystemDark           bool
+	SearchQuery          *string
 	// SearchArchivedFilter is a search-local visibility choice: default, show, only.
 	SearchArchivedFilter *string
 	SearchFocus          *bool
@@ -114,6 +116,12 @@ func View(c *ui.Context, m Model) {
 	// Children (flex:none): logoRow (60), newSession, panelList;
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
 	root := ui.Column(c).Fill().MinWidth(0).Padding(6, 12, 6, 12)
+	if m.BrowseArchivedFilter == nil {
+		m.BrowseArchivedFilter = ui.Local(root, struct {
+			Key  string
+			Host uint64
+		}{"browse-archive-filter", m.Snapshot.WorkspaceLayout.HostGeneration}, func() string { return "default" })
+	}
 	if m.SearchArchivedFilter == nil {
 		m.SearchArchivedFilter = ui.Local(root, struct {
 			Key  string
@@ -221,14 +229,6 @@ func View(c *ui.Context, m Model) {
 					m.OnOpenAssistant()
 				}
 			})
-			label := m.WorkspaceLabel
-			if label == "" {
-				label = "Whale Isle"
-			}
-			base := label
-			if i := strings.LastIndexAny(label, `/\`); i >= 0 && i+1 < len(label) {
-				base = label[i+1:]
-			}
 			menuOpen := &workspaceMenuFB
 			if m.WorkspaceMenuOpen != nil {
 				menuOpen = m.WorkspaceMenuOpen
@@ -236,29 +236,21 @@ func View(c *ui.Context, m Model) {
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
 				workspaceHeading(c, m, menuOpen, fg, muted)
-				if len(m.Snapshot.Workspaces) == 0 {
-					// Rows.module.css .projectRow height 34.
-					folder := ui.Button(c, "").FillWidth().Height(34).BorderWidth(0).Background(ui.Transparent).
-						Padding(0, 0, 0, 0).Radius(8)
-					folder.Children(func() {
-						ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, "📁").FontSize(theme.InterfaceSize(13))
-							ui.Text(c, base).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-						})
-					})
-					if folder.Clicked() && m.OnBrowseWorkspace != nil {
-						m.OnBrowseWorkspace()
-					}
-				}
 				batchToolbar(c, m, fg)
 				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 					if sessionSearchResultsView(c, m, fg, muted) {
 						return
 					}
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
-					workspaceRowsView(c, m, items, fg, muted, border)
+					filter := browseArchiveFilter(m)
+					if filter != "only" {
+						workspaceRowsView(c, m, items, fg, muted, border)
+					} else {
+						workspaceRowsStatus(c, m, fg)
+					}
+					workspaceListFeedback(c, m, items, fg, muted)
 					projects.View(c, m.Projects)
-					if !m.HideArchivedList && len(m.Snapshot.ArchivedSessionIDs) > 0 {
+					if filter != "hide" && len(m.Snapshot.ArchivedSessionIDs) > 0 {
 						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)
 						for _, id := range m.Snapshot.ArchivedSessionIDs {
