@@ -117,14 +117,19 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
 // itself is being dragged, so an existing input selection survives toggles.
 func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	col := ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
-	height := col.Bounds().H
+	_, viewportHeight := c.Size()
+	previousViewportHeight := ui.Local(col, "terminal-viewport-height", func() float32 { return 0 })
+	// Bounds belongs to the previous layout. The shell's resolved allocation
+	// already reflects a resized viewport and its shared caption; an old small
+	// Bounds.H must not keep conceding the saved split after the window grows.
+	height := m.centerHeight
 	if height <= 0 {
-		height = m.centerHeight
+		height = col.Bounds().H
+		if height <= 0 || *previousViewportHeight != viewportHeight {
+			height = maxf(0, viewportHeight-col.Bounds().Y)
+		}
 	}
-	if height <= 0 {
-		_, viewportHeight := c.Size()
-		height = maxf(0, viewportHeight-col.Bounds().Y)
-	}
+	*previousViewportHeight = viewportHeight
 	open := m.Sizes.Bottom > 40
 	main := height
 	maxMain := maxf(0, height-81)
