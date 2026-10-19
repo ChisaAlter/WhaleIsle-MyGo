@@ -6155,6 +6155,25 @@ func mainView(c *ui.Context) {
 						visualReplyState = session.VisualReplyState{}
 					}
 					groupRoom, groupMembers := state.assistantGroupMembers(snap.SelectedID)
+					fileNavigation := files.Model{
+						BindingID: fileBindingID, SessionID: snap.SelectedID, WorkspaceRoot: snap.SelectedCwd,
+						Tabs: &fileTabs, SelectedFile: &selectedFile,
+						Preview: &filePreview, PreviewErr: &filePreviewErr,
+						Editing: &fileEditing, EditDraft: &fileEditDraft,
+						EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
+						ReadTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
+							return workspacefs.ReadRemoteTextPage(ctx, fileClient, fileSessionID, rel, offset)
+						},
+						ReadRemoteContext: func(ctx context.Context, rel string) (string, error) {
+							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)
+						},
+						StatRemoteContext: func(ctx context.Context, rel string) string {
+							return workspacePreviewStat(ctx, fileClient, rel)
+						},
+						ReadTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
+						ReadImageContext: remoteImageReader(sessions, fileClient, snap.SelectedID),
+						ImageGeneration:  snap.StopGeneration,
+					}
 					openDelivered := func(path string, complete func(error)) {
 						current := func() bool {
 							if sessions == nil {
@@ -6175,6 +6194,9 @@ func mainView(c *ui.Context) {
 							}
 							if complete != nil {
 								complete(err)
+								if win != nil {
+									win.Invalidate()
+								}
 							} else if err != nil {
 								sessions.SetLastAction(err.Error())
 							}
@@ -6188,14 +6210,7 @@ func mainView(c *ui.Context) {
 							finish(nil)
 							return
 						}
-						handled, err := files.OpenPresentedPath(files.Model{
-							BindingID: fileBindingID, SessionID: snap.SelectedID,
-							WorkspaceRoot: snap.SelectedCwd,
-							Tabs:          &fileTabs, SelectedFile: &selectedFile,
-							Preview: &filePreview, PreviewErr: &filePreviewErr,
-							Editing: &fileEditing, EditDraft: &fileEditDraft,
-							EditStatus: &fileEditStatus, StatNote: &state.fileStatNote,
-						}, path)
+						handled, err := files.OpenPresentedPath(fileNavigation, path)
 						if err != nil {
 							finish(err)
 							return
@@ -6680,21 +6695,15 @@ func mainView(c *ui.Context) {
 							state.dshMu.Unlock()
 							return workspacefs.ListRemoteDir(context.Background(), client, rel)
 						},
-						OnReadWorkspaceTableContext: remoteWorkbookReader(sessions, fileClient, snap.SelectedID),
-						OnReadWorkspaceImageContext: remoteImageReader(sessions, fileClient, snap.SelectedID),
-						FileImageGeneration:         snap.StopGeneration,
+						OnReadWorkspaceTableContext: fileNavigation.ReadTableContext,
+						OnReadWorkspaceImageContext: fileNavigation.ReadImageContext,
+						FileImageGeneration:         fileNavigation.ImageGeneration,
 						OnOpenDocumentViewer: func(path string) (files.DocumentSurface, error) {
 							return state.openDocumentViewer(fileClient, snap.SelectedID, path)
 						},
-						OnReadWorkspaceTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
-							return workspacefs.ReadRemoteTextPage(ctx, fileClient, fileSessionID, rel, offset)
-						},
-						OnReadWorkspaceFileContext: func(ctx context.Context, rel string) (string, error) {
-							return workspacefs.ReadRemoteText(ctx, fileClient, rel, workspacefs.DefaultMaxReadBytes)
-						},
-						OnStatWorkspaceFileContext: func(ctx context.Context, rel string) string {
-							return workspacePreviewStat(ctx, fileClient, rel)
-						},
+						OnReadWorkspaceTextPageContext: fileNavigation.ReadTextPageContext,
+						OnReadWorkspaceFileContext:     fileNavigation.ReadRemoteContext,
+						OnStatWorkspaceFileContext:     fileNavigation.StatRemoteContext,
 						OnReadWorkspaceFile: func(rel string) (string, error) {
 							state.dshMu.Lock()
 							client := state.dshClient
