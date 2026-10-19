@@ -9,10 +9,17 @@ import (
 
 type beamRGBA [4]float32 // premultiplied, sRGB
 type beamPixel struct {
-	angle, distance, outer, inner, ring, bloom float32
-	wash                                       beamRGBA
+	angle, outer, inner, ring, bloom float32
+	wash                             beamRGBA
 }
 type beamRaster struct {
+	beamRasterData
+	texture      ui.DecorativeRaster
+	frames       chan *beamRasterData
+	pending      bool
+	front, spare *image.RGBA
+}
+type beamRasterData struct {
 	width, height      int
 	w, h, scale, track float32
 	palette            []ui.Color
@@ -20,7 +27,8 @@ type beamRaster struct {
 	geometry           []beamPixel
 	pixels             *image.RGBA
 	bloom, scratch     []beamRGBA
-	texture            ui.DecorativeRaster
+	blurSteps          []beamRGBA
+	gaussian           beamGaussian
 }
 
 func beamOver(front, back beamRGBA) (out beamRGBA) {
@@ -44,19 +52,45 @@ func beamDistance(x, y, w, h, r float32) float32 {
 	a, b := float32(math.Abs(float64(x-w/2)))-w/2+r, float32(math.Abs(float64(y-h/2)))-h/2+r
 	return float32(math.Hypot(float64(max(a, 0)), float64(max(b, 0)))) + min(max(a, b), 0) - r
 }
-func beamCoverage(distance, scale float32) float32 { return min(1, max(0, .5-distance*scale)) }
-
-func (b *beamRaster) prepare(w, h, scale, track float32, colors []ui.Color, legacy bool) {
-	changed := b.w != w || b.h != h || b.scale != scale || b.track != track || b.legacy != legacy || len(b.palette) != len(colors)
-	if !changed {
-		for i, c := range colors {
-			if b.palette[i] != c {
-				changed = true
-				break
+func beamRoundedCoverage(x, y, w, h, radius, scale float32) float32 {
+	if w <= 0 || h <= 0 {
+		return 0
+	}
+	d := beamDistance(x, y, w, h, radius)
+	// Only boundary pixels need area sampling. Every point in a pixel lies
+	// within sqrt(.5) device pixels of its center.
+	if d*scale < -.708 {
+		return 1
+	}
+	if d*scale > .708 {
+		return 0
+	}
+	inside := 0
+	for sy := range 4 {
+		for sx := range 4 {
+			dx, dy := (float32(sx)+.5)/4-.5, (float32(sy)+.5)/4-.5
+			if beamDistance(x+dx/scale, y+dy/scale, w, h, radius) <= 0 {
+				inside++
 			}
 		}
 	}
-	if !changed {
+	return float32(inside) / 16
+}
+
+func (b *beamRasterData) matches(w, h, scale, track float32, colors []ui.Color, legacy bool) bool {
+	if b.w != w || b.h != h || b.scale != scale || b.track != track || b.legacy != legacy || len(b.palette) != len(colors) {
+		return false
+	}
+	for i, c := range colors {
+		if b.palette[i] != c {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *beamRasterData) prepare(w, h, scale, track float32, colors []ui.Color, legacy bool) {
+	if b.matches(w, h, scale, track, colors, legacy) {
 		return
 	}
 	b.w, b.h, b.scale, b.track, b.legacy = w, h, scale, track, legacy
@@ -66,6 +100,7 @@ func (b *beamRaster) prepare(w, h, scale, track float32, colors []ui.Color, lega
 	b.geometry = make([]beamPixel, n)
 	b.bloom = make([]beamRGBA, n)
 	b.scratch = make([]beamRGBA, n)
+	b.blurSteps = make([]beamRGBA, max(b.width, b.height))
 	b.pixels = image.NewRGBA(image.Rect(0, 0, b.width, b.height))
 	radials := [4][5]float32{{.74, 1, 180, 32, 107.0 / 255}, {.94, 0, 74, 32, 97.0 / 255}, {.06, 0, 80, 40, 102.0 / 255}, {.20, 0, 90, 45, 92.0 / 255}}
 	inks := [4]ui.Color{colors[0], colors[1%len(colors)], colors[2%len(colors)], colors[3%len(colors)]}
@@ -82,32 +117,40 @@ func (b *beamRaster) prepare(w, h, scale, track float32, colors []ui.Color, lega
 	for y := 0; y < b.height; y++ {
 		for x := 0; x < b.width; x++ {
 			px, py := (float32(x)+.5)/scale-4, (float32(y)+.5)/scale-4
-			d := beamDistance(px, py, w, h, 22)
 			g := &b.geometry[y*b.width+x]
 			g.angle = float32(math.Atan2(float64(px-w/2), -float64(py-h/2)) / (2 * math.Pi))
-			g.distance = d
-			g.inner = beamCoverage(d, scale)
-			g.outer = beamCoverage(beamDistance(px+4, py+4, w+8, h+8, 26), scale)
-			g.ring = max(0, g.inner-beamCoverage(beamDistance(px-track, py-track, w-2*track, h-2*track, max(0, 22-track)), scale))
-			g.bloom = max(0, g.inner-beamCoverage(beamDistance(px-1.5, py-1.5, w-3, h-3, 20.5), scale))
+			g.inner = beamRoundedCoverage(px, py, w, h, 22, scale)
+			g.outer = beamRoundedCoverage(px+4, py+4, w+8, h+8, 26, scale)
+			g.ring = max(0, g.inner-beamRoundedCoverage(px-track, py-track, w-2*track, h-2*track, max(0, 22-track), scale))
+			g.bloom = max(0, g.inner-beamRoundedCoverage(px-1.5, py-1.5, w-3, h-3, 20.5, scale))
 			var wash beamRGBA
 			for i := 3; i >= 0; i-- {
 				rad := radials[i]
 				distance := float32(math.Hypot(float64((px-rad[0]*w)/rad[2]), float64((py-rad[1]*h)/rad[3])))
 				wash = beamOver(beamInk(inks[i], rad[4]*max(0, 1-distance)), wash)
 			}
-			// CSS inset shadows lie above the radial backgrounds. The Gaussian
-			// edge integral reproduces their spread/blur falloff along each edge.
-			for i := 1; i >= 0; i-- {
-				spread, sigma := float32(3), float32(9)
-				if i == 1 {
-					spread, sigma = 10, 21
-				}
-				alpha := float32(.5*math.Erfc(float64((-d-spread)/(sigma*math.Sqrt2)))) * shadowAlpha[i]
-				wash = beamOver(beamInk(shadow[i], alpha), wash)
-			}
 			g.wash = wash
 		}
+	}
+	// CSS paints the first inset shadow above the second, both above the
+	// radial backgrounds. Blur the actual rounded hole in two dimensions;
+	// a one-dimensional distance integral loses the other edges and corners.
+	b.insetShadow(shadow[1], shadowAlpha[1], 10, 21)
+	b.insetShadow(shadow[0], shadowAlpha[0], 3, 9)
+}
+
+func (b *beamRasterData) insetShadow(ink ui.Color, opacity, spread, sigma float32) {
+	for y := 0; y < b.height; y++ {
+		for x := 0; x < b.width; x++ {
+			px, py := (float32(x)+.5)/b.scale-4-spread, (float32(y)+.5)/b.scale-4-spread
+			coverage := beamRoundedCoverage(px, py, b.w-2*spread, b.h-2*spread, max(0, 22-spread), b.scale)
+			b.bloom[y*b.width+x] = beamRGBA{0, 0, 0, coverage}
+		}
+	}
+	b.blur(float64(sigma * b.scale))
+	for i := range b.geometry {
+		alpha := (1 - min(1, b.bloom[i][3])) * opacity
+		b.geometry[i].wash = beamOver(beamInk(ink, alpha), b.geometry[i].wash)
 	}
 }
 
@@ -147,7 +190,53 @@ func (b *beamRaster) paint(p *ui.Painter, r ui.Rect, style beamStyle, colors []u
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
-	b.prepare(r.W, r.H, p.Scale(), style.TrackWidth, colors, style.Palette.Kind != "custom" && style.Palette.ID == "legacy")
+	scale := p.Scale()
+	legacy := style.Palette.Kind != "custom" && style.Palette.ID == "legacy"
+	if b.pending {
+		select {
+		case frame := <-b.frames:
+			b.pending = false
+			b.beamRasterData = *frame
+			if frame.matches(r.W, r.H, scale, style.TrackWidth, colors, legacy) {
+				b.spare, b.front = b.front, frame.pixels
+			} else {
+				// An obsolete size/palette may be reused as worker storage, but
+				// cannot replace the native seat's last complete image.
+				b.spare = frame.pixels
+			}
+		default:
+		}
+	}
+	if !b.pending {
+		if b.frames == nil {
+			b.frames = make(chan *beamRasterData, 1)
+		}
+		result := b.frames
+		palette := append([]ui.Color(nil), colors...)
+		state := b.beamRasterData
+		// The worker never writes the RGBA currently consumed by native paint.
+		// Two buffers are exchanged after completion, without a per-frame copy.
+		state.pixels = b.spare
+		b.spare = nil
+		b.pending = true
+		go func() {
+			state.render(r.W, r.H, scale, style, palette, intervals, phase, hue, hueEnabled, opacity)
+			result <- &state
+		}()
+	}
+	if b.front != nil {
+		b.texture.Paint(p, b.front, ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8})
+	}
+	// One finite off-UI image job, one buffered result, no persistent worker or
+	// queued historical frames. A detached beam leaves no waiting goroutine.
+	p.AnimationFrame()
+}
+
+func (b *beamRasterData) render(w, h, scale float32, style beamStyle, colors []ui.Color, intervals int, phase, hue float64, hueEnabled bool, opacity beamOpacities) {
+	b.prepare(w, h, scale, style.TrackWidth, colors, style.Palette.Kind != "custom" && style.Palette.ID == "legacy")
+	if b.pixels == nil || b.pixels.Rect.Dx() != b.width || b.pixels.Rect.Dy() != b.height {
+		b.pixels = image.NewRGBA(image.Rect(0, 0, b.width, b.height))
+	}
 	matrix := beamHueMatrix(hue)
 	// Each conic gradient has its own box: bloom's background is on the
 	// inset child, so all three centers coincide at the actual card center.
@@ -204,68 +293,6 @@ func (b *beamRaster) paint(p *ui.Painter, r ui.Rect, style beamStyle, colors []u
 		color := beamMultiply(beamOver(beamMultiply(strokes[at], g.ring), beamOver(bloom, inner)), g.outer)
 		for channel := range color {
 			b.pixels.Pix[i*4+channel] = uint8(min(1, max(0, color[channel]))*255 + .5)
-		}
-	}
-	box := ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}
-	b.texture.Paint(p, b.pixels, box)
-}
-
-// Three running-sum box passes approximate the CSS Gaussian without drawing
-// extra wide strokes. The independent bloom remains visible at blur zero.
-func (b *beamRaster) blur(sigma float64) {
-	ideal := math.Sqrt(4*sigma*sigma + 1)
-	low := int(math.Floor(ideal))
-	if low%2 == 0 {
-		low--
-	}
-	low = max(1, low)
-	high := low + 2
-	m := int(math.Round((12*sigma*sigma - 3*float64(low*low) - 12*float64(low) - 9) / (-4*float64(low) - 4)))
-	for pass := 0; pass < 3; pass++ {
-		size := high
-		if pass < m {
-			size = low
-		}
-		radius := (size - 1) / 2
-		for axis := 0; axis < 2; axis++ {
-			lines, length := b.height, b.width
-			if axis == 1 {
-				lines, length = b.width, b.height
-			}
-			index := func(line, pos int) int {
-				if axis == 0 {
-					return line*b.width + pos
-				}
-				return pos*b.width + line
-			}
-			for line := 0; line < lines; line++ {
-				var sum beamRGBA
-				for k := 0; k <= radius && k < length; k++ {
-					v := b.bloom[index(line, k)]
-					for c := range sum {
-						sum[c] += v[c]
-					}
-				}
-				for pos := 0; pos < length; pos++ {
-					out := index(line, pos)
-					for c := range sum {
-						b.scratch[out][c] = sum[c] / float32(size)
-					}
-					if remove := pos - radius; remove >= 0 {
-						v := b.bloom[index(line, remove)]
-						for c := range sum {
-							sum[c] -= v[c]
-						}
-					}
-					if add := pos + radius + 1; add < length {
-						v := b.bloom[index(line, add)]
-						for c := range sum {
-							sum[c] += v[c]
-						}
-					}
-				}
-			}
-			b.bloom, b.scratch = b.scratch, b.bloom
 		}
 	}
 }
