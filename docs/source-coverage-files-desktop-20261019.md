@@ -107,6 +107,12 @@ Go Files 的 `document_surface.go` 提供 Native/Document/Auto。`cmd/whaleisle/
 
 SAVE-04 恢复边界已具体对照：Files恢复携带draft/preview/truncated但不携带writer/read能力或save queue，`Tabs.Restore`先Dispose旧owner；Browser只持久地址/source metadata，普通网页显式Restore，PDF/HTML/Office重新走原source reader/lease，不持久native Host/cookie capability；Host terminal只保存上述可信descriptor，进程屏幕/字节/inputWindow不写入checkpoint。Workspace本机PTY在当前进程隐藏时保留，重启恢复不重放shell命令；root负责稳定WorkspaceLayoutScope、schema/legacy migration与临时float净化的共享总接线，本agent不修改总恢复文档。
 
+### 首轮统一回归后的保存边界归因
+
+固定 `e353e8e` 的 `C/ui-files/src/client/FilePreview.tsx:344-364` 在显式 activation/refresh 成功返回文本时更新 `text`，保留已有 dirty `draft`；`435-459` 仅用完整、非 binary/truncated 的 reread 判断冲突，`383-387,509-523,549-557` 明确保留已有 dirty 本地草稿的按钮、Ctrl/Cmd+S 和 registerSave 路径。输入事件是 `572-576` 的 `applyDraft → coordinator.change`，不能把基线更新或回执当成新输入。
+
+`TestTextReadReconcilePreservesDraftAndWriteAuthority` 将完整本地显式刷新也断言为旧基线+blocked，是过时夹具；现分开断言完整结果采纳新基线并保草稿，error/truncated/remote 继续保原基线与归属。`TestTextPrefixStrictSaveBoundary` 则发现通用 `SaveTextChecked` 吞掉 strict-read 错误的真实缺口，原断言原样保留。现该通用接口恢复严格读取错误拒写；`NewLocalEditorSaveQueue` 固定捕获 root/path/writer，仅真实 Flush 的 dirty 快照可走 private unread-reread 保存分支，Observe/后续新输入没有此手势。完整冲突仍拒绝当次、更新同 queue 的 baseline/revision 并阻止自动重试。新增真实临时文件断言覆盖：截断文件自动保存不改任何未知字节；clean prefix 即使 Flush 也不写；既有 dirty 草稿经过显式 Save 才写入其完整 captured draft；被更新输入替代的 pending Save 不传递显式手势。只格式化与差异检查，失败包重跑由 root 统一安排。
+
 混合面板关闭另提取 `files.PreflightDirtyForClose(Model)`、`remote.FileWorkspaceState.PreflightDirtyForClose()`→`store/remote/file_close.go` 同名preflight。它们只捕获committed draft并核对全部root/owner/ready/mtime/size/dirty资源，不建queue、不切资源、不排write；root先对local/remote两侧都检查，再各自Save，后续只poll。`cmd/whaleisle/terminal_lifecycle.go`封装`flushTerminalResizeLocked`，root在drawer hide/旧workspace换panel之前窄接。
 
 共享恢复review的实证：`cmd/whaleisle/workspace_sessions.go:139-141`的pane恢复错误被`recovery.go:90-92`提升为resumeError；`:183-185`拒生成新checkpoint，`resume_checkpoint.go:261-263`不再安排写入。故strict reject不会覆盖旧raw，但旧合法vertical/>2布局也不能进入UI；已告root应迁移为horizontal最多2dock并保全所有tab/resource/draft，只有真正malformed拒绝。本agent不把“raw未丢”当作“草稿已可用恢复”。

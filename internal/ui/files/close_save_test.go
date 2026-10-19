@@ -3,8 +3,12 @@ package files
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"whaleisle/internal/desktop/workspacefs"
 )
 
 func TestClosePreflightCapturesDraftAndRejectsOtherRootBeforeAnyWrite(t *testing.T) {
@@ -27,6 +31,48 @@ func TestClosePreflightCapturesDraftAndRejectsOtherRootBeforeAnyWrite(t *testing
 	}
 	if selectedTab(m).Draft != "committed current input" || other.Draft != "other draft" {
 		t.Fatal("preflight discarded input")
+	}
+}
+
+func TestDirtyLocalDraftAfterTruncatedRefreshSavesOnlyOnExplicitGesture(t *testing.T) {
+	m, done := autosaveModel(t)
+	*m.EditDraft = "retained complete authored draft"
+	unknown := strings.Repeat("external bytes\n", workspacefs.TextPreviewLimit/15+64)
+	path := filepath.Join(m.WorkspaceRoot, "a.txt")
+	if err := os.WriteFile(path, []byte(unknown), 0600); err != nil {
+		t.Fatal(err)
+	}
+	reloadSelectedFile(m)
+	deadline := time.After(3 * time.Second)
+	for selectedTab(m).readLoading {
+		select {
+		case <-done:
+			syncTextRead(m)
+		case <-deadline:
+			t.Fatal("truncated refresh did not complete")
+		}
+	}
+	tab := selectedTab(m)
+	if !tab.Truncated || !tab.readBlocked || *m.Preview != "original-a" || *m.EditDraft != "retained complete authored draft" {
+		t.Fatalf("truncated refresh adopted prefix/lost draft: %+v", tab)
+	}
+	observeAutosave(m)
+	if tab.save != nil {
+		t.Fatal("incomplete refresh restarted automatic saving")
+	}
+	if disk, err := os.ReadFile(path); err != nil || string(disk) != unknown {
+		t.Fatal("refresh/observation overwrote unknown bytes")
+	}
+	if err := requestSaveDraft(m); err != nil {
+		t.Fatal(err)
+	}
+	awaitAutosave(t, done)
+	syncSaveResults(m)
+	if tab.Truncated || tab.readBlocked || tab.Dirty() || *m.Preview != "retained complete authored draft" {
+		t.Fatalf("explicit captured save did not settle: %+v", tab)
+	}
+	if disk, err := os.ReadFile(path); err != nil || string(disk) != "retained complete authored draft" {
+		t.Fatalf("explicit save disk=%q err=%v", disk, err)
 	}
 }
 

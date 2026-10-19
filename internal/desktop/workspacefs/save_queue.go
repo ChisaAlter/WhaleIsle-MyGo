@@ -23,16 +23,32 @@ type SaveQueue struct {
 	cancel                                 context.CancelFunc
 	delay                                  time.Duration
 	persist                                func(context.Context, string, string) error
+	persistExplicit                        func(context.Context, string, string) error
 	notify                                 func()
 	timer                                  *time.Timer
 	timerVersion                           uint64
 	draft, confirmed, problem              string
 	revision                               uint64
 	pending, due, running, blocked, closed bool
+	pendingExplicit                        bool
 }
 
 func NewSaveQueue(baseline string, persist func(context.Context, string, string) error, notify func()) *SaveQueue {
 	return newSaveQueue(baseline, AutoSaveDelay, persist, notify)
+}
+
+// NewLocalEditorSaveQueue captures one local editor's root, path and writer.
+// Automatic writes require a complete reread. Only a subsequent explicit Flush
+// of a dirty draft retains the desktop editor's save action after a failed,
+// binary or truncated reread. An unchanged preview prefix is never writable.
+func NewLocalEditorSaveQueue(root, path, baseline string, write func(string, string) error, notify func()) *SaveQueue {
+	q := NewSaveQueue(baseline, func(ctx context.Context, base, text string) error {
+		return SaveTextChecked(ctx, root, path, base, text, write)
+	}, notify)
+	q.persistExplicit = func(ctx context.Context, base, text string) error {
+		return saveTextChecked(ctx, root, path, base, text, write, true)
+	}
+	return q
 }
 func newSaveQueue(baseline string, delay time.Duration, persist func(context.Context, string, string) error, notify func()) *SaveQueue {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -91,6 +107,7 @@ func (q *SaveQueue) Flush(text string) {
 	}
 	q.pending = true
 	q.due = true
+	q.pendingExplicit = true
 	q.startLocked()
 }
 func (q *SaveQueue) stopPendingLocked() {
@@ -101,6 +118,7 @@ func (q *SaveQueue) stopPendingLocked() {
 	q.timerVersion++
 	q.pending = false
 	q.due = false
+	q.pendingExplicit = false
 }
 func (q *SaveQueue) startLocked() {
 	if q.closed || q.running || q.blocked || !q.pending || !q.due {
@@ -109,14 +127,20 @@ func (q *SaveQueue) startLocked() {
 	if q.draft == q.confirmed {
 		q.pending = false
 		q.due = false
+		q.pendingExplicit = false
 		return
 	}
 	base, text := q.confirmed, q.draft
+	persist := q.persist
+	if q.pendingExplicit && q.persistExplicit != nil {
+		persist = q.persistExplicit
+	}
 	q.pending = false
 	q.due = false
+	q.pendingExplicit = false
 	q.running = true
 	go func() {
-		err := q.persist(q.ctx, base, text)
+		err := persist(q.ctx, base, text)
 		q.mu.Lock()
 		if q.closed {
 			q.running = false
@@ -172,15 +196,18 @@ func (e *SaveConflictError) Error() string {
 	return "File changed on disk. Draft kept. Save again to write the draft over the current file."
 }
 
-// SaveTextChecked rereads a desktop editor's target before writing. Like the
-// original FilePreview, only a complete text read can establish a conflict;
-// a retained dirty draft can still be saved after failed/binary/truncated reads.
-// The caller must own a local editor draft; Host previews have no write authority.
+// SaveTextChecked requires a complete local reread before writing. A preview
+// prefix can neither establish a conflict baseline nor authorize replacement.
+// The local editor's explicit dirty-save exception is private to its queue.
 // One gate also serializes a newly bound queue with an older write that had
 // already entered the OS before cancellation. Waiting remains cancellable.
 var checkedSaveGate = make(chan struct{}, 1)
 
 func SaveTextChecked(ctx context.Context, root, rel, baseline, text string, write func(string, string) error) error {
+	return saveTextChecked(ctx, root, rel, baseline, text, write, false)
+}
+
+func saveTextChecked(ctx context.Context, root, rel, baseline, text string, write func(string, string) error, explicitDirtyDraft bool) error {
 	select {
 	case checkedSaveGate <- struct{}{}:
 		defer func() { <-checkedSaveGate }()
@@ -195,6 +222,9 @@ func SaveTextChecked(ctx context.Context, root, rel, baseline, text string, writ
 		return err
 	}
 	current, err := ReadFileText(full, TextPreviewLimit)
+	if err != nil && !(explicitDirtyDraft && text != baseline) {
+		return err
+	}
 	if err == nil && current.Text == text {
 		return nil
 	}

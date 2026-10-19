@@ -123,13 +123,19 @@ func TestTextReadQueueCancelCloseAndFailure(t *testing.T) {
 
 func TestTextReadReconcilePreservesDraftAndWriteAuthority(t *testing.T) {
 	dirty := textReadState{preview: "baseline", draft: "unsaved"}
-	for _, result := range []textReadResult{{text: "changed"}, {text: "prefix", truncated: true}, {err: errors.New("failed")}} {
+	// An explicit complete local refresh adopts the full external baseline and
+	// keeps the exact draft. Passive watchers do not call reconcileTextRead.
+	got := reconcileTextRead(dirty, textReadResult{text: "changed"})
+	if got.preview != "changed" || got.draft != dirty.draft || got.blocked || got.truncated || got.remote {
+		t.Fatalf("complete explicit refresh did not retain draft/adopt baseline: %+v", got)
+	}
+	for _, result := range []textReadResult{{text: "prefix", truncated: true}, {err: errors.New("failed")}} {
 		got := reconcileTextRead(dirty, result)
 		if got.preview != dirty.preview || got.draft != dirty.draft || !got.blocked {
 			t.Fatalf("dirty baseline/draft overwritten or unsafe saving enabled: %+v", got)
 		}
 	}
-	got := reconcileTextRead(dirty, textReadResult{text: "baseline", remote: true})
+	got = reconcileTextRead(dirty, textReadResult{text: "baseline", remote: true})
 	if !got.remote || got.preview != dirty.preview || got.draft != dirty.draft {
 		t.Fatalf("remote completion established local authority: %+v", got)
 	}

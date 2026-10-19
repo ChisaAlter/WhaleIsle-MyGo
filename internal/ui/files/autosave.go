@@ -1,7 +1,6 @@
 package files
 
 import (
-	"context"
 	"errors"
 
 	"whaleisle/internal/desktop/workspacefs"
@@ -42,9 +41,7 @@ func prepareSaveQueue(m Model, t *FileTab, explicit bool) error {
 		return nil
 	}
 	root, path, write := m.WorkspaceRoot, t.Path, m.OnSaveEdit
-	t.save = workspacefs.NewSaveQueue(t.Preview, func(ctx context.Context, base, text string) error {
-		return workspacefs.SaveTextChecked(ctx, root, path, base, text, write)
-	}, m.notify)
+	t.save = workspacefs.NewLocalEditorSaveQueue(root, path, t.Preview, write, m.notify)
 	t.saveRevision = 0
 	// Loading/restoring/revisiting a draft is not a new typing event.
 	t.save.Observe(t.Draft, false)
