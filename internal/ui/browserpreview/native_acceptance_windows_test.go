@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -75,6 +76,13 @@ func runNativeBrowserAcceptance(output string) error {
 	if err != nil {
 		return err
 	}
+	privateBrowserData, err := os.MkdirTemp(os.TempDir(), "wbqa-")
+	if err != nil {
+		return err
+	}
+	if err := os.Setenv("LOCALAPPDATA", privateBrowserData); err != nil {
+		return err
+	}
 	mygo.App.SetName("WhaleIsle Browser acceptance " + filepath.Base(root))
 	mygo.App.SetPath(mygo.PathUserData, filepath.Join(root, "native"))
 	mygo.App.SetPath(mygo.PathCache, filepath.Join(root, "cache"))
@@ -87,7 +95,17 @@ func runNativeBrowserAcceptance(output string) error {
 		"readinessDiagnosticIsLoadFailure": false,
 		"matrix":                           []string{"WORK-07", "WORK-08", "DESK-03"},
 	}
+	record["privateBrowserDataBase"] = privateBrowserData
+	var requestMu sync.Mutex
+	requests := map[string]int{}
 	write := func(err error) error {
+		requestMu.Lock()
+		hits := map[string]int{}
+		for path, count := range requests {
+			hits[path] = count
+		}
+		requestMu.Unlock()
+		record["ownedHTTPRequests"] = hits
 		if previous, readErr := os.ReadFile(output); readErr == nil {
 			var old map[string]any
 			if json.Unmarshal(previous, &old) == nil && old["pass"] == false {
@@ -113,6 +131,9 @@ func runNativeBrowserAcceptance(output string) error {
 	}
 	beacons := make(chan string, 32)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestMu.Lock()
+		requests[r.URL.Path]++
+		requestMu.Unlock()
 		if r.URL.Path == "/beacon" {
 			select {
 			case beacons <- r.URL.Query().Get("value"):
@@ -174,6 +195,13 @@ func runNativeBrowserAcceptance(output string) error {
 					time.Sleep(50 * time.Millisecond)
 				}
 				_ = call(func() error { record["navigationEvents"] = append([]string(nil), events...); return nil })
+				requestMu.Lock()
+				hits := map[string]int{}
+				for path, count := range requests {
+					hits[path] = count
+				}
+				requestMu.Unlock()
+				record["ownedHTTPRequestsAtTimeout"] = hits
 				if len(pages) > 0 {
 					record["backendIsLoadingAtTimeout"] = pages[0].IsLoading()
 					diagnostic, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -205,6 +233,9 @@ func runNativeBrowserAcceptance(output string) error {
 			check := func() error {
 				if err := call(func() error {
 					browser.NewTab(server.URL + "/alpha")
+					if browser.current() == nil {
+						return fmt.Errorf("owned controller closed before initial Host returned")
+					}
 					first = browser.current().Host
 					if first == nil {
 						return fmt.Errorf("native Browser host creation: %s", browser.current().Error)
@@ -232,7 +263,19 @@ func runNativeBrowserAcceptance(output string) error {
 				}
 				record["nativeURLTitleScript"] = "pass"
 				if err := call(func() error {
+					for _, event := range events {
+						if event == "did-finish-load" {
+							record["nativeFinishCallback"] = "pass"
+							return nil
+						}
+					}
+					return fmt.Errorf("native finish callback did not return to later listeners")
+				}); err != nil {
+					return err
+				}
+				if err := call(func() error {
 					browser.Navigate(server.URL + "/beta")
+					record["secondControllerDispatch"] = map[string]any{"sameHost": browser.current().Host == first, "tabCount": len(browser.Tabs), "tabError": browser.current().Error, "draft": browser.current().Draft, "hostTarget": first.URL()}
 					first.SetViewport(&mygo.Rectangle{Width: 640, Height: 400})
 					return nil
 				}); err != nil {
@@ -309,6 +352,7 @@ func runNativeBrowserAcceptance(output string) error {
 			}
 			err := check()
 			cleanupErr := call(func() error {
+				record["navigationEvents"] = append([]string(nil), events...)
 				browser.Close()
 				if (first != nil && first.Alive()) || (second != nil && second.Alive()) || len(browser.Tabs) != 0 {
 					return fmt.Errorf("owned Browser Host remained alive after Close")

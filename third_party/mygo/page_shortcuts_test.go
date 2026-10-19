@@ -1,9 +1,47 @@
 package mygo
 
 import (
+	"runtime"
 	"testing"
 	"time"
 )
+
+func TestWebShortcutInstallReturnsFromLoadCallbackBeforeEval(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Web application shortcut integration is Windows-only")
+	}
+	parent, _ := readyWindow(t, WindowOptions{})
+	child, native := readyWindow(t, WindowOptions{})
+	inLoadFinished := false
+	evaluations := make(chan bool, 2)
+	onMain(func() {
+		native.AsyncCallback = func(_ string, reply func(string, error)) {
+			evaluations <- inLoadFinished
+			reply(`{"ok":true}`, nil)
+		}
+	})
+	if !child.Page().UseWebApplicationShortcuts(parent) {
+		t.Fatal("shortcut integration unavailable")
+	}
+	select {
+	case <-evaluations:
+	case <-time.After(2 * time.Second):
+		t.Fatal("initial shortcut installation did not run")
+	}
+	onMain(func() {
+		inLoadFinished = true
+		native.H.LoadFinished()
+		inLoadFinished = false
+	})
+	select {
+	case nested := <-evaluations:
+		if nested {
+			t.Fatal("shortcut Eval ran inside the native LoadFinished callback and can deadlock WebView2 completion")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("shortcut script was not installed after the load callback returned")
+	}
+}
 
 func TestWebShortcutPhysicalGate(t *testing.T) {
 	calls := 0

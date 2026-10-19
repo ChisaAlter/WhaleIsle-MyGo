@@ -76,7 +76,10 @@ func (p *Page) UseWebApplicationShortcuts(parent *Window) bool {
 		p.w.OnBlur(reset)
 		p.OnWillNavigate(func(*NavigateEvent) { reset() })
 		p.w.OnClosed(reset)
-		install := func() { p.Eval(webShortcutScript) }
+		// WebView2 serializes its COM callbacks. Eval awaits a completion, so
+		// running it inside LoadFinished would keep that callback on the stack
+		// and prevent both the evaluation and subsequent navigation committing.
+		install := func() { postMain(func() { p.Eval(webShortcutScript) }) }
 		p.OnDidFinishLoad(install)
 		install()
 	})

@@ -80,23 +80,21 @@ type Host struct {
 	localMediaURL     string
 	onClosed          func()
 
-	gateway          *pluginslots.Gateway
-	mu               sync.Mutex
-	parent           *mygo.Window
-	win              *mygo.Window
-	topInset         int
-	url              string
-	offResize        func()
-	offMove          func()
-	navigationEpoch  uint64
-	browserProfile   bool
-	browserCommitted bool
-	capturePending   bool
-	loading          bool
-	stopped          bool
-	err              string
-	title            string
-	changed          func()
+	gateway         *pluginslots.Gateway
+	mu              sync.Mutex
+	parent          *mygo.Window
+	win             *mygo.Window
+	topInset        int
+	url             string
+	offResize       func()
+	offMove         func()
+	navigationEpoch uint64
+	capturePending  bool
+	loading         bool
+	stopped         bool
+	err             string
+	title           string
+	changed         func()
 }
 
 // NewHost creates a hidden frameless child WebView2 window. Call
@@ -226,7 +224,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		}
 	}
 
-	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true, browserProfile: opts.BrowserProfile}
+	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	initialURL := pageURL
 	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
@@ -288,7 +286,6 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		h.mu.Lock()
 		h.navigationEpoch++
 		h.url = h.logicalURL(raw)
-		h.browserCommitted = true
 		h.err = ""
 		h.mu.Unlock()
 		h.notify()
@@ -629,24 +626,14 @@ func (h *Host) State() State {
 	s := State{URL: h.url, Title: h.title, Error: h.err, Loading: h.loading}
 	w := h.win
 	stopped := h.stopped
-	browserCommitted := h.browserProfile && h.browserCommitted
 	h.mu.Unlock()
 	if w != nil && !w.IsDestroyed() {
 		p := w.Page()
-		nativeLoading := !stopped && p.IsLoading()
-		currentURL := p.URL()
-		if browserCommitted && p.BrowserToolsAvailable() && currentURL != "" && h.logicalURL(currentURL) == s.URL {
-			// Browser is an unbound native page. Its actual loading state is
-			// authoritative after this navigation commits, even when no finish
-			// callback arrives. Before commit, retain the pending load identity.
-			s.Loading = nativeLoading
-		} else {
-			s.Loading = s.Loading || nativeLoading
-		}
+		s.Loading = s.Loading || (!stopped && p.IsLoading())
 		s.CanBack = p.CanGoBack()
 		s.CanForward = p.CanGoForward()
-		if currentURL != "" {
-			s.URL = h.logicalURL(currentURL)
+		if u := p.URL(); u != "" {
+			s.URL = h.logicalURL(u)
 		}
 	}
 	return s
@@ -704,7 +691,6 @@ func (h *Host) Stop() {
 func (h *Host) beginLoad() {
 	h.mu.Lock()
 	h.navigationEpoch++
-	h.browserCommitted = false
 	h.loading = true
 	h.stopped = false
 	h.err = ""
