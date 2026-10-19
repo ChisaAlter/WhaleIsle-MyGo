@@ -20,6 +20,14 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	if s.queueProjectionSessionID == s.selectedID && s.queueProjectionGeneration == s.followGeneration && seq < s.queueProjectionSeq {
 		return
 	}
+	var receipts struct {
+		NextTurn []composerInboxMessage `json:"next-turn"`
+		NextStep []composerInboxMessage `json:"next-step"`
+	}
+	if json.Unmarshal(raw, &receipts) == nil {
+		s.observeComposerInboxInsertionsLocked("next-turn", receipts.NextTurn, 0, seq)
+		s.observeComposerInboxInsertionsLocked("next-step", receipts.NextStep, 0, seq)
+	}
 	var inbox struct {
 		Next []struct {
 			ID      string              `json:"id"`

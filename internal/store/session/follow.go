@@ -266,11 +266,11 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 	inspectorChanged := s.captureInspectorEventLocked(raw)
 	s.captureWorkflowBoundaryLocked(raw)
 	timingChanged := s.captureTrajectoryBoundaryLocked(raw)
-	s.observeComposerEventLocked(raw)
+	submissionChanged := s.observeComposerEventLocked(raw)
 	s.bumpHistoryThroughSeq(head.Seq)
 	s.noteHistoryBaseLocked(head.Seq)
 	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
-	changed = changed || timingChanged || inspectorChanged
+	changed = changed || timingChanged || inspectorChanged || submissionChanged
 	if head.Type == events.TypeAgentPresetSelected {
 		var ev events.AgentPresetSelected
 		if json.Unmarshal(raw, &ev) == nil && ev.Data.AgentPreset != "" {

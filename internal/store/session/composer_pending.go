@@ -16,7 +16,21 @@ type PendingSubmission struct {
 }
 type composerPending struct {
 	PendingSubmission
-	target *ComposerTarget
+	target  *ComposerTarget
+	receipt *composerInboxReceipt
+}
+
+type composerInboxReceipt struct {
+	target string
+	seq    float64
+	index  int // -1 means consumed but not yet admitted as a durable user message.
+}
+
+type composerInboxMessage struct {
+	Source struct {
+		Kind  string `json:"kind"`
+		RPCID string `json:"rpcId"`
+	} `json:"source"`
 }
 type composerObserved struct {
 	target    *ComposerTarget
@@ -70,6 +84,19 @@ func (t *ComposerTarget) UpdateSubmissionAttachments(id string, attachments []Co
 func (t *ComposerTarget) AbandonSubmission(id string, err error) error {
 	return t.finishSubmission(id, err)
 }
+
+// A slash command is adjudicated after the editor has detached. It has no
+// session/prompt request whose durable echo could retire this provisional row.
+func (t *ComposerTarget) retireCommandSubmission(id string) {
+	s := t.store
+	s.mu.Lock()
+	if p := s.composerPending[id]; p != nil && p.target == t {
+		delete(s.composerPending, id)
+	}
+	s.mu.Unlock()
+	s.fire()
+}
+
 func (t *ComposerTarget) finishSubmission(id string, err error) error {
 	s := t.store
 	s.mu.Lock()
@@ -129,7 +156,7 @@ func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool)
 		s.planBoard.Queue = kept
 	}
 }
-func (s *Store) observeComposerEventLocked(raw json.RawMessage) {
+func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 	var e struct {
 		Type string  `json:"type"`
 		Seq  float64 `json:"seq"`
@@ -138,10 +165,66 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) {
 				Kind  string `json:"kind"`
 				RPCID string `json:"rpcId"`
 			} `json:"source"`
+			Target       string                 `json:"target"`
+			Start        int                    `json:"start"`
+			RemovedCount int                    `json:"removedCount"`
+			Inserted     []composerInboxMessage `json:"inserted"`
+			Outcome      string                 `json:"outcome"`
 		} `json:"data"`
 	}
-	if json.Unmarshal(raw, &e) == nil && e.Type == "user/message" && e.Data.Source.Kind == "user" && e.Data.Source.RPCID != "" {
+	if json.Unmarshal(raw, &e) != nil {
+		return false
+	}
+	if e.Type == "user/message" && e.Data.Source.Kind == "user" && e.Data.Source.RPCID != "" {
 		s.observeComposerRequestLocked(e.Data.Source.RPCID, e.Seq, false)
+		return true
+	}
+	if e.Type == "agent/inbox/spliced" {
+		for id, p := range s.composerPending {
+			r := p.receipt
+			if p.SessionID != s.selectedID || !p.target.currentLocked() || r == nil || r.target != e.Data.Target || r.index < 0 || r.seq >= e.Seq {
+				continue
+			}
+			removed := r.index >= e.Data.Start && r.index < e.Data.Start+e.Data.RemovedCount
+			if removed && e.Data.Outcome == "canceled" {
+				delete(s.composerPending, id)
+				changed = true
+				continue
+			}
+			r.seq = e.Seq
+			if removed {
+				r.index = -1
+			} else if r.index >= e.Data.Start {
+				r.index += len(e.Data.Inserted) - e.Data.RemovedCount
+			}
+		}
+		s.observeComposerInboxInsertionsLocked(e.Data.Target, e.Data.Inserted, e.Data.Start, e.Seq)
+		return
+	}
+	if e.Type == "request/context" || e.Type == "turn/end" {
+		for id, p := range s.composerPending {
+			r := p.receipt
+			if p.SessionID == s.selectedID && p.target.currentLocked() && r != nil && r.index < 0 && r.seq < e.Seq {
+				// Admitted messages already retired through user/message above.
+				// Only a consumed, unadmitted occurrence can fail this handoff.
+				delete(s.composerPending, id)
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+func (s *Store) observeComposerInboxInsertionsLocked(target string, messages []composerInboxMessage, start int, seq float64) {
+	for index, message := range messages {
+		if message.Source.Kind != "user" || message.Source.RPCID == "" {
+			continue
+		}
+		p := s.composerPending[message.Source.RPCID]
+		if p == nil || p.SessionID != s.selectedID || !p.target.currentLocked() || p.Placement == "queued" || p.receipt != nil && p.receipt.seq > seq {
+			continue
+		}
+		p.receipt = &composerInboxReceipt{target: target, seq: seq, index: start + index}
 	}
 }
 func (s *Store) hideComposerQueueLocked(id string) bool {

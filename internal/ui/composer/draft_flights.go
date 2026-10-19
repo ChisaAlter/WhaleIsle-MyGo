@@ -20,6 +20,13 @@ func (d *DraftState) BeginDetachedSend() (DraftFlight, bool) {
 	if d.Sending || d.Preparing > 0 || d.FailedAttachmentError() != "" || d.EditSeq > 0 || strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		return DraftFlight{}, false
 	}
+	// Restored or programmatically attached files may not have gone through
+	// preparation yet. Give each occurrence an identity before detaching it.
+	for i := range d.Attachments {
+		if d.Attachments[i].PreparationID == 0 {
+			d.Attachments[i].PreparationID = attachmentAttempt.Add(1)
+		}
+	}
 	d.flightSeq++
 	f := DraftFlight{ID: d.flightSeq, Text: d.Text, Attachments: append([]session.ComposerAttachment(nil), d.Attachments...)}
 	if d.failedRestoredMatches() {
@@ -43,16 +50,47 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 	if err == nil {
 		return
 	}
+	restoredUnchanged := d.failedRestoredMatches()
+	restoreText := restoredUnchanged || d.Text == "" && len(d.Attachments) == 0
 	f.Error = err.Error()
 	f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
 	if d.failedSends == nil {
 		d.failedSends = make(map[uint64]DraftFlight)
 	}
+	// Like the original facade, return failed files to the rail even while a
+	// newer text draft is protected. The rail then owns those occurrences;
+	// retaining another copy in the text-recovery record would resend them twice.
+	d.restoreFailedAttachments(f.Attachments)
+	if restoredUnchanged {
+		d.failedRestored.Attachments = append([]session.ComposerAttachment(nil), d.Attachments...)
+	}
+	f.Attachments = nil
 	d.failedSends[id] = f
 	d.Error = f.Error
-	if d.failedRestoredMatches() || d.Text == "" && len(d.Attachments) == 0 {
+	if restoreText {
 		d.RestoreFailedSends()
 	}
+}
+
+func (d *DraftState) restoreFailedAttachments(attachments []session.ComposerAttachment) {
+	seen := make(map[uint64]bool, len(d.Attachments)+len(attachments))
+	for _, a := range d.Attachments {
+		if a.PreparationID != 0 {
+			seen[a.PreparationID] = true
+		}
+	}
+	var restored []session.ComposerAttachment
+	for _, a := range attachments {
+		if a.PreparationID != 0 && seen[a.PreparationID] {
+			continue
+		}
+		if a.PreparationID == 0 {
+			a.PreparationID = attachmentAttempt.Add(1)
+		}
+		seen[a.PreparationID] = true
+		restored = append(restored, a)
+	}
+	d.Attachments = append(restored, d.Attachments...)
 }
 func (d *DraftState) failedRestoredMatches() bool {
 	return d.failedRestored != nil && d.Text == d.failedRestored.Text && reflect.DeepEqual(d.Attachments, d.failedRestored.Attachments)
@@ -73,9 +111,9 @@ func (d *DraftState) RestoreFailedSends() {
 	if d.Sending || d.Preparing > 0 || d.FailedAttachmentError() != "" || d.EditSeq > 0 || len(d.failedSends) == 0 {
 		return
 	}
-	text, attachments := d.Text, append([]session.ComposerAttachment(nil), d.Attachments...)
+	text := d.Text
 	if d.failedRestoredMatches() {
-		text, attachments = "", nil
+		text = ""
 	}
 	var texts []string
 	var files []session.ComposerAttachment
@@ -88,8 +126,12 @@ func (d *DraftState) RestoreFailedSends() {
 	if text != "" {
 		texts = append(texts, text)
 	}
-	files = append(files, attachments...)
-	d.Text, d.Attachments = strings.Join(texts, "\n\n"), files
+	d.restoreFailedAttachments(files)
+	for id, f := range d.failedSends {
+		f.Attachments = nil
+		d.failedSends[id] = f
+	}
+	d.Text = strings.Join(texts, "\n\n")
 	d.Client.ClearHistory()
 	d.failedRestored = &DraftFlight{Text: d.Text, Attachments: append([]session.ComposerAttachment(nil), d.Attachments...)}
 }

@@ -229,6 +229,10 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 			return err
 		}
 		if command, ok := commandForLine(commands, line); ok {
+			// The original command adjudication bypasses the prompt sink. Retire
+			// the editor's provisional prompt echo before taking that branch;
+			// failures still return through finishSubmission for draft recovery.
+			t.retireCommandSubmission(requestID)
 			if len(parts) > 0 && (command.Input == nil || command.Input.Attachments == nil || !*command.Input.Attachments) {
 				return fmt.Errorf("/%s does not accept attachments", command.Name)
 			}
