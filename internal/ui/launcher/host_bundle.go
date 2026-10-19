@@ -10,13 +10,17 @@ import (
 )
 
 func hostBundleCard(c *ui.Context, m Model, row components.Row, compact bool) {
-	busy := m.ComponentBusy || m.ImportBusy || m.StartBusy || m.HostRuntimeState == harness.Starting
+	pending := m.ComponentPending[row.ID]
+	busy := m.ComponentBusy || m.ImportBusy || m.StartBusy || pending != "" || m.HostRuntimeState == harness.Starting
 	ui.Column(c).FillWidth().Padding(12).Gap(8).Background(colSidebar).Border(1, colBorderL2).Radius(12).Children(func() {
 		title := releaseText("Host 离线运行时", "Host offline runtime")
 		if row.InstalledVersion != "" {
 			title += " · v" + row.InstalledVersion
 		}
 		ui.Text(c, title).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
+		if pending != "" {
+			ui.Text(c, componentPendingLabel(pending)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+		}
 		ui.Text(c, releaseText("先安装离线包，再选择版本。Host 和 Node 一起切换；启动使用现有内核生命周期。", "Install the offline bundle, then select a version. Host and Node switch together and use the existing runtime lifecycle.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		if row.Message != "" {
 			ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
@@ -34,7 +38,7 @@ func hostBundleCard(c *ui.Context, m Model, row components.Row, compact bool) {
 				}
 			}
 			if m.HostRuntimeState == harness.Ready || m.HostRuntimeState == harness.Starting {
-				if ghostSmall(c, releaseText("停止 Host", "Stop Host")).Disabled(m.ComponentBusy || m.ImportBusy).Clicked() && m.OnStop != nil {
+				if ghostSmall(c, releaseText("停止 Host", "Stop Host")).Disabled(m.ComponentBusy || m.ImportBusy || pending != "").Clicked() && m.OnStop != nil {
 					m.OnStop()
 				}
 			} else if row.InstalledVersion != "" {

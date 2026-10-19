@@ -21,11 +21,17 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 	if !bridgeChangeUI.TryLock() {
 		return
 	}
+	release, claimed := s.claimLauncherComponentAction(win, "whalebridge", action)
+	if !claimed {
+		bridgeChangeUI.Unlock()
+		return
+	}
 	bridgeChangeActive.Store(true)
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
 	sup := s.sup
 	s.launcherUpdate = resumeText("正在校验鲸桥版本和操作影响；现有实例保持运行…", "Verifying WhaleBridge version and impact; the current instance stays running…")
+	s.launcherComponentStatus = s.launcherUpdate
 	s.mu.Unlock()
 	generation := 0
 	if sup != nil {
@@ -41,6 +47,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		win.Update(func() {})
 	}
 	go func() {
+		defer release()
 		defer func() {
 			bridgeChangeActive.Store(false)
 			bridgeChangeUI.Unlock()
@@ -136,6 +143,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		} else if err == nil && plan != nil {
 			s.launcherUpdate = resumeText("鲸桥已切换至 v", "WhaleBridge switched to v") + plan.Version() + resumeText("；用户数据和原运行状态已保留", "; user data and the original running state were retained")
 		}
+		s.launcherComponentStatus = s.launcherUpdate
 		s.mu.Unlock()
 		s.refreshLauncherComponents()
 	}()
@@ -171,9 +179,9 @@ func confirmBridgeManagement(win *mygo.Window, action string, plan *desktopcompo
 func confirmBridgeDataRemoval(win *mygo.Window, removal *desktopcomponents.BridgeUninstall) (bool, error) {
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: win, Type: mygo.MessageWarning,
-		Title: resumeText("是否同时删除鲸桥配置？", "Also delete WhaleBridge configuration?"),
-		Message: fmt.Sprintf(resumeText("目标：%s\n\n删除会永久清除该目录内鲸桥的供应商配置和密钥、账户及用量数据，无法在应用内恢复。保留后重新安装可继续使用。聊天记录和其他渠道不会删除。", "Target: %s\n\nDeletion permanently removes WhaleBridge provider settings and keys, accounts and usage in this directory. It cannot be undone in the app. Keeping it lets you reuse it after reinstalling. Chats and other channels are not deleted."), removal.DataDirectory()),
-		Buttons: []string{resumeText("保留配置", "Keep configuration"), resumeText("删除配置", "Delete configuration")},
+		Title:         resumeText("是否同时删除鲸桥配置？", "Also delete WhaleBridge configuration?"),
+		Message:       fmt.Sprintf(resumeText("目标：%s\n\n删除会永久清除该目录内鲸桥的供应商配置和密钥、账户及用量数据，无法在应用内恢复。保留后重新安装可继续使用。聊天记录和其他渠道不会删除。", "Target: %s\n\nDeletion permanently removes WhaleBridge provider settings and keys, accounts and usage in this directory. It cannot be undone in the app. Keeping it lets you reuse it after reinstalling. Chats and other channels are not deleted."), removal.DataDirectory()),
+		Buttons:       []string{resumeText("保留配置", "Keep configuration"), resumeText("删除配置", "Delete configuration")},
 		DefaultButton: 0, CancelButton: 0,
 	})
 	return err == nil && answer.Button == 1, err

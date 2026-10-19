@@ -855,6 +855,10 @@ func kindLabel(kind string) string {
 
 func componentPendingLabel(action string) string {
 	switch action {
+	case "select":
+		return releaseText("正在选择版本…", "Selecting version…")
+	case "manage":
+		return releaseText("正在打开…", "Opening…")
 	case "install":
 		return releaseText("正在安装…", "Installing…")
 	case "start":

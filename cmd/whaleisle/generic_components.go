@@ -10,7 +10,7 @@ import (
 	"whaleisle/internal/paths"
 )
 
-var genericComponentPending sync.Map
+var launcherComponentPending sync.Map
 
 type launcherComponentActivity struct {
 	Pending map[string]string
@@ -19,7 +19,7 @@ type launcherComponentActivity struct {
 
 func (s *mainState) launcherComponentActivitySnapshot() launcherComponentActivity {
 	activity := launcherComponentActivity{Pending: map[string]string{}}
-	genericComponentPending.Range(func(key, value any) bool {
+	launcherComponentPending.Range(func(key, value any) bool {
 		activity.Pending[key.(string)] = value.(string)
 		return true
 	})
@@ -60,9 +60,11 @@ func (s *mainState) configureGenericComponents() {
 	})
 }
 
-func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action string) {
-	if _, loaded := genericComponentPending.LoadOrStore(id, action); loaded {
-		return
+// Share the launcher's existing per-component admission across generic and
+// built-in components. The returned release belongs to the existing worker.
+func (s *mainState) claimLauncherComponentAction(win *mygo.Window, id, action string) (release func(), claimed bool) {
+	if _, loaded := launcherComponentPending.LoadOrStore(id, action); loaded {
+		return nil, false
 	}
 	s.mu.Lock()
 	s.launcherComponentStatus = ""
@@ -70,13 +72,21 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 	if win != nil {
 		win.Update(func() {})
 	}
+	return func() {
+		launcherComponentPending.Delete(id)
+		if win != nil {
+			win.Update(func() {})
+		}
+	}, true
+}
+
+func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action string) {
+	release, claimed := s.claimLauncherComponentAction(win, id, action)
+	if !claimed {
+		return
+	}
 	go func() {
-		defer func() {
-			genericComponentPending.Delete(id)
-			if win != nil {
-				win.Update(func() {})
-			}
-		}()
+		defer release()
 		s.mu.Lock()
 		quitting := s.quitting
 		var row desktopcomponents.Row

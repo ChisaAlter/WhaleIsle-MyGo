@@ -21,8 +21,14 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 	if !desktopcomponents.HostBundleSupported() || win == nil || !bridgeChangeUI.TryLock() {
 		return
 	}
+	release, claimed := s.claimLauncherComponentAction(win, desktopcomponents.HostComponentID, action)
+	if !claimed {
+		bridgeChangeUI.Unlock()
+		return
+	}
 	bridgeChangeActive.Store(true)
 	go func() {
+		defer release()
 		defer func() {
 			bridgeChangeActive.Store(false)
 			bridgeChangeUI.Unlock()
@@ -44,7 +50,7 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 			var answer mygo.MessageResult
 			answer, err = mygo.Dialog.Message(mygo.MessageOptions{
 				Parent: win, Type: mygo.MessageQuestion,
-				Title: resumeText("安装 Host 离线包", "Install Host offline bundle"),
+				Title:   resumeText("安装 Host 离线包", "Install Host offline bundle"),
 				Message: fmt.Sprintf(resumeText("来源：%s\n目标：%s\n\n将解包并安装这个本地原生 Host 与配套 Node。请确认文件来源可信。安装不会运行包内程序，也不会停止当前 Host；安装后可选择版本并单独启动。", "Source: %s\nDestination: %s\n\nExtract and install this local native Host and its matching Node. Confirm that you trust the source. Installation does not execute the bundle or stop the current Host. Select a version and start it separately after installation."), picked[0], desktopcomponents.HostBundleVersionsDir(paths.UserDataDir())),
 				Buttons: []string{resumeText("取消", "Cancel"), resumeText("安装", "Install")}, DefaultButton: 0, CancelButton: 0,
 			})
@@ -98,6 +104,7 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 func (s *mainState) hostBundleMessage(win *mygo.Window, message string) {
 	s.mu.Lock()
 	s.launcherUpdate = message
+	s.launcherComponentStatus = message
 	s.mu.Unlock()
 	if win != nil {
 		win.Update(func() {})
@@ -130,7 +137,7 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 	}
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: win, Type: mygo.MessageWarning,
-		Title: resumeText("选择 Host 版本", "Select Host version"),
+		Title:   resumeText("选择 Host 版本", "Select Host version"),
 		Message: fmt.Sprintf(resumeText("目标：Host v%s (%s)\n\n会通过现有任务保护停止当前 Host 和手机连接，再保存该版本供下次启动使用。旧运行时、会话及配置会保留。选择完成后内核保持停止，需单独点击“启动 Host”。", "Target: Host v%s (%s)\n\nThe existing task protection will stop the current Host and phone connection before saving this version for the next start. Previous runtimes, sessions and settings are retained. The runtime stays stopped until you click “Start Host”."), bundle.Manifest.Version, bundle.Directory),
 		Buttons: []string{resumeText("取消", "Cancel"), resumeText("停止并选择", "Stop and select")}, DefaultButton: 0, CancelButton: 0,
 	})
