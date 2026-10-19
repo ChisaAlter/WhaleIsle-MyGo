@@ -61,11 +61,20 @@ func TestWorkspaceDockDropRejectsVerticalWithoutMovingResource(t *testing.T) {
 			disposed := false
 			moving.terminalDispose = func() { disposed = true }
 			moving.TerminalSource = "retained"
+			// Selecting the newly added tab makes it the group's root before
+			// the gesture. The destination remains the retained files tab.
+			root, active, route := w.Root, w.Active, w.route
+			if target == moving || root.find(target.ID) != target || root.find(moving.ID) != moving {
+				t.Fatal("fixture did not retain distinct source and destination")
+			}
 			before := string(w.Export())
 			if w.DropWorkspaceTab(moving.ID, target.ID, edge) {
 				t.Fatal("vertical dock accepted")
 			}
-			if string(w.Export()) != before || w.Root != target || w.Root.find(moving.ID) != moving || moving.TerminalSource != "retained" || disposed {
+			if string(w.Export()) != before || w.Root != root || w.Active != active || w.route != route {
+				t.Fatal("rejected vertical dock changed layout or active resource")
+			}
+			if w.Root.find(target.ID) != target || w.Root.find(moving.ID) != moving || moving.TerminalSource != "retained" || disposed {
 				t.Fatal("rejected vertical dock changed resource ownership")
 			}
 		})
