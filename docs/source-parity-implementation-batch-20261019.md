@@ -45,3 +45,15 @@ A single build was admitted after 0bdb900 supplied materially new evidence that 
 | Workflow disclosure did not follow later run/phase facts or defer clean collapse around focus | Original disclosure state progression and stable content focus ownership | `f5c3f6d` |
 
 The final source follow-up is now committed: independent retained-card file/diff/detail/activity/recovery actions (`9109718`, integration `40374c4`); complete Next Prompt readiness/interaction/managed projection (`0f35dfb`); original Room polling ownership (`27a8cab`); conversation/agents deep-link routing (`e322792`); and settlement of unobserved attachment sends only on durable deletion (`911ff74`, narrowing `1abc48d`). Ordinary removed sessions retain reload semantics. Source review found no further confirmed P1/P2 in these reviewed paths. This is source closure for the identified Windows batch, not full product acceptance. Concentrated regressions are being prepared in separate test commits; no additional compilation/test execution, mock services, packaging or runtime acceptance has occurred after the single recorded compile failure.
+# Current source follow-up (2026-10-19, after unified run01)
+
+Earlier “batch closed” statements below describe their recorded source snapshots. They do not close the complete original application. The registered 91-ID inventory still contains sampled or unread states; see [the coverage index](source-coverage-index-20261019.md).
+
+Run01 at `3b37750` exited 1. Its log is `../evidence/source-parity-unified-20261019T143443Z/go-test-all.log`. The observed compile failures, restored-attachment consumption defect and test readiness/scroll ownership issues were fixed in subsequent commits, but no run02 has executed. Current failed executed check rounds remain two (the admitted compile attempt and run01); an earlier pre-source-closure compile request was denied before execution.
+
+Additional source comparison found implementable gaps, so source work resumed before a second unified run. Native Market screenshot catalog/gallery, GIF/WebP README animation, broader bounded static SVG, compact child composer and original Workflow row rendering are committed. `8e1694c` now preserves actual subagent descriptor identity and permits both original workflow navigation modes; `c6854e8` restores desktop applyConfig’s public config response. These are source changes, not new regression or desktop acceptance claims.
+
+Parallel source work remains active for bounded AVIF sequences on composer/Market; Schedule/Jobs details and receipt lifecycles; pet transparent-region click-through; persistent pending-question drafts; automatic turn-file summaries; mounted visual reply lifetime; and transactional installer/uninstaller behavior. Actual failures and additional gaps remain recorded instead of being reclassified as screenshot blockers.
+
+The existing delivered folder and user instances have not been replaced. No new package, release, remote push, main merge or installer execution has occurred. Source implementation, ordinary regression, real Host operation and Windows/original same-state visual acceptance remain separate evidence levels.
+
