@@ -14,7 +14,7 @@ func TestLayoutOffsetCurrentFrameMeasurementFlowAndHit(t *testing.T) {
 				}
 				return Point{X: 25, Y: shift}
 			}).Children(func() {
-				b := Button(c, "Moved button").Width(100).Height(30).ObserveLayout(func(r Rect) { card = r })
+				b := Button(c, "Moved button").Label("Moved control").Width(100).Height(30).ObserveLayout(func(r Rect) { card = r })
 				if b.Clicked() {
 					clicked++
 				}
@@ -23,7 +23,7 @@ func TestLayoutOffsetCurrentFrameMeasurementFlowAndHit(t *testing.T) {
 		})
 	}, 300, 200)
 	defer tt.rt.close()
-	moved, ok := tt.Find("Moved button")
+	moved, ok := tt.Find("Moved control")
 	if !ok || moved.X != 25 || moved.Y != 60 || card.Y != 0 {
 		t.Fatalf("first frame did not shift from current geometry: shown=%+v measured=%+v", moved, card)
 	}
@@ -31,7 +31,7 @@ func TestLayoutOffsetCurrentFrameMeasurementFlowAndHit(t *testing.T) {
 	if sibling.Y != 50 {
 		t.Fatalf("relative displacement changed sibling flow: %+v", sibling)
 	}
-	if err := tt.Click("Moved button"); err != nil {
+	if err := tt.Click("Moved control"); err != nil {
 		t.Fatal(err)
 	}
 	if clicked != 1 {
@@ -39,7 +39,7 @@ func TestLayoutOffsetCurrentFrameMeasurementFlowAndHit(t *testing.T) {
 	}
 	shift = 20
 	tt.Frame()
-	moved, _ = tt.Find("Moved button")
+	moved, _ = tt.Find("Moved control")
 	if moved.Y != 20 || card.Y != 0 {
 		t.Fatalf("offset accumulated across frames: shown=%+v measured=%+v", moved, card)
 	}
