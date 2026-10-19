@@ -113,20 +113,16 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	bg := chrome.BackdropSidebar(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
-	if m.Collapsed {
-		ui.Column(c).Fill().MinWidth(0).Padding(6, 8, 6, 8).Background(bg).Children(func() {
-			if ui.Button(c, "›").Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand)+" (Ctrl+B)").FillWidth().Height(40).Clicked() && m.OnToggle != nil {
-				m.OnToggle()
-			}
-			ui.Spacer(c)
-			settingsConnectionTrigger(c, m, colors, true)
-		})
-		return
-	}
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
-	root := ui.Column(c).Fill().MinWidth(0).Padding(6, 12, 6, 12)
+	root := ui.Column(c.Key("sidebar-root")).Fill().MinWidth(0).Padding(6, 12, 6, 12)
+	if m.Collapsed {
+		root.Padding(18, 10, 6, 10)
+	}
+	if m.SearchFocus == nil {
+		m.SearchFocus = ui.Local(root, "search-focus-request", func() bool { return false })
+	}
 	if m.BrowseArchivedFilter == nil {
 		m.BrowseArchivedFilter = ui.Local(root, struct {
 			Key  string
@@ -141,150 +137,155 @@ func View(c *ui.Context, m Model) {
 	}
 	root.Background(bg).
 		Children(func() {
-			// SidebarRoot.module.css .logoRow height: 60px.
-			ui.Row(c).FillWidth().Height(60).Gap(8).AlignItems(ui.Center).Children(func() {
-				if bmp := chrome.BrandAvatar(); bmp != nil {
-					ui.Image(c, bmp).Width(28).Height(28).Fit(ui.Contain)
-				} else {
-					ui.Box(c).Width(28).Height(28).Radius(14).Background(chrome.Color(colors.Accent).Alpha(0.25))
-				}
-				ui.Column(c).Gap(0).Grow(1).Children(func() {
-					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(theme.InterfaceSize(15)).FontWeight(400).TextColor(fg)
-						ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
-					})
-					ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(9)).TextColor(muted)
-				})
-				if m.OnToggle != nil {
-					if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
-						m.OnToggle()
+			if m.Collapsed {
+				collapsedRail(c, m, fg, colors)
+			} else {
+				// SidebarRoot.module.css .logoRow height: 60px.
+				ui.Row(c).FillWidth().Height(60).Gap(8).AlignItems(ui.Center).Children(func() {
+					if bmp := chrome.BrandAvatar(); bmp != nil {
+						ui.Image(c, bmp).Width(28).Height(28).Fit(ui.Contain)
+					} else {
+						ui.Box(c).Width(28).Height(28).Radius(14).Background(chrome.Color(colors.Accent).Alpha(0.25))
 					}
+					ui.Column(c).Gap(0).Grow(1).Children(func() {
+						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(theme.InterfaceSize(15)).FontWeight(400).TextColor(fg)
+							ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
+						})
+						ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(9)).TextColor(muted)
+					})
+					if m.OnToggle != nil {
+						if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
+							m.OnToggle()
+						}
+					}
+				})
+				if m.OnCreate != nil {
+					// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
+					btn := ui.Button(c, "+  "+i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
+						Background(chrome.Color(colors.Field)).Border(1, border).
+						TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 16, 8, 16)
+					if btn.Clicked() {
+						m.OnCreate()
+					}
+					ui.Box(c).Height(8)
 				}
-			})
-			if m.OnCreate != nil {
-				// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
-				btn := ui.Button(c, "+  "+i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
-					Background(chrome.Color(colors.Field)).Border(1, border).
-					TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 16, 8, 16)
-				if btn.Clicked() {
-					m.OnCreate()
-				}
-				ui.Box(c).Height(8)
-			}
-			// SidebarRoot.panelList gap 4; .panelRow min-h 36, pad 7 8, radius-md, gap 8.
-			ui.Column(c).FillWidth().Gap(4).Padding(0, 0, 8, 0).Children(func() {
-				nav := func(drawIcon func(), label string, fn func()) {
-					row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
+				// SidebarRoot.panelList gap 4; .panelRow min-h 36, pad 7 8, radius-md, gap 8.
+				ui.Column(c).FillWidth().Gap(4).Padding(0, 0, 8, 0).Children(func() {
+					nav := func(drawIcon func(), label string, fn func()) {
+						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
+							Background(ui.Transparent).BorderWidth(0).
+							Padding(7, 8, 7, 8).AlignItems(ui.Center)
+						row.Children(func() {
+							ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+								if drawIcon != nil {
+									drawIcon()
+								}
+								ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
+							})
+						})
+						if fn != nil && row.Clicked() {
+							fn()
+						}
+					}
+					nav(func() {
+						ink := muted
+						ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) {
+							path := &ui.Path{}
+							path.MoveTo(r.X+2, r.Y+5)
+							path.LineTo(r.X+6, r.Y+5)
+							path.LineTo(r.X+6, r.Y+3)
+							path.LineTo(r.X+10, r.Y+3)
+							path.LineTo(r.X+10, r.Y+5)
+							path.LineTo(r.X+14, r.Y+5)
+							path.LineTo(r.X+14, r.Y+9)
+							path.LineTo(r.X+12, r.Y+9)
+							path.LineTo(r.X+12, r.Y+13)
+							path.LineTo(r.X+8, r.Y+13)
+							path.LineTo(r.X+8, r.Y+11)
+							path.LineTo(r.X+4, r.Y+11)
+							path.LineTo(r.X+4, r.Y+9)
+							path.LineTo(r.X+2, r.Y+9)
+							path.Close()
+							p.StrokePath(path, 1.2, ink)
+						})
+					}, i18n.T(i18n.KeySidebarMarket), m.OnOpenMarket)
+					nav(func() {
+						ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) {
+							circ := &ui.Path{}
+							circ.Circle(r.X+8, r.Y+8, 6.5)
+							p.StrokePath(circ, 1.2, muted)
+							hand := &ui.Path{}
+							hand.MoveTo(r.X+8, r.Y+4)
+							hand.LineTo(r.X+8, r.Y+8)
+							hand.LineTo(r.X+11, r.Y+10)
+							p.StrokePath(hand, 1.2, muted)
+						})
+					}, i18n.T(i18n.KeySidebarSchedule), m.OnOpenSchedule)
+					assist := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 						Background(ui.Transparent).BorderWidth(0).
 						Padding(7, 8, 7, 8).AlignItems(ui.Center)
-					row.Children(func() {
+					assist.Children(func() {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-							if drawIcon != nil {
-								drawIcon()
+							if bmp := chrome.BrandAvatar(); bmp != nil {
+								ui.Image(c, bmp).Width(18).Height(18).Fit(ui.Contain)
+							} else {
+								ui.Text(c, "◉").FontSize(theme.InterfaceSize(14)).TextColor(muted)
 							}
-							ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
+							ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
 						})
 					})
-					if fn != nil && row.Clicked() {
-						fn()
+					if m.OnOpenAssistant != nil && assist.Clicked() {
+						m.OnOpenAssistant()
 					}
+				})
+				menuOpen := &workspaceMenuFB
+				if m.WorkspaceMenuOpen != nil {
+					menuOpen = m.WorkspaceMenuOpen
 				}
-				nav(func() {
-					ink := muted
-					ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) {
-						path := &ui.Path{}
-						path.MoveTo(r.X+2, r.Y+5)
-						path.LineTo(r.X+6, r.Y+5)
-						path.LineTo(r.X+6, r.Y+3)
-						path.LineTo(r.X+10, r.Y+3)
-						path.LineTo(r.X+10, r.Y+5)
-						path.LineTo(r.X+14, r.Y+5)
-						path.LineTo(r.X+14, r.Y+9)
-						path.LineTo(r.X+12, r.Y+9)
-						path.LineTo(r.X+12, r.Y+13)
-						path.LineTo(r.X+8, r.Y+13)
-						path.LineTo(r.X+8, r.Y+11)
-						path.LineTo(r.X+4, r.Y+11)
-						path.LineTo(r.X+4, r.Y+9)
-						path.LineTo(r.X+2, r.Y+9)
-						path.Close()
-						p.StrokePath(path, 1.2, ink)
-					})
-				}, i18n.T(i18n.KeySidebarMarket), m.OnOpenMarket)
-				nav(func() {
-					ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) {
-						circ := &ui.Path{}
-						circ.Circle(r.X+8, r.Y+8, 6.5)
-						p.StrokePath(circ, 1.2, muted)
-						hand := &ui.Path{}
-						hand.MoveTo(r.X+8, r.Y+4)
-						hand.LineTo(r.X+8, r.Y+8)
-						hand.LineTo(r.X+11, r.Y+10)
-						p.StrokePath(hand, 1.2, muted)
-					})
-				}, i18n.T(i18n.KeySidebarSchedule), m.OnOpenSchedule)
-				assist := ui.Button(c, "").FillWidth().Height(36).Radius(12).
-					Background(ui.Transparent).BorderWidth(0).
-					Padding(7, 8, 7, 8).AlignItems(ui.Center)
-				assist.Children(func() {
-					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						if bmp := chrome.BrandAvatar(); bmp != nil {
-							ui.Image(c, bmp).Width(18).Height(18).Fit(ui.Contain)
+				// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
+				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
+					workspaceHeading(c, m, menuOpen, fg, muted)
+					batchToolbar(c, m, fg)
+					ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+						if sessionSearchResultsView(c, m, fg, muted) {
+							projects.View(c, m.Projects)
+							return
+						}
+						items := sidebarItems(m.Snapshot, m.SearchQuery)
+						filter := browseArchiveFilter(m)
+						if filter != "only" {
+							workspaceRowsView(c, m, items, fg, muted, border)
 						} else {
-							ui.Text(c, "◉").FontSize(theme.InterfaceSize(14)).TextColor(muted)
+							workspaceRowsStatus(c, m, fg)
 						}
-						ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
+						workspaceListFeedback(c, m, items, fg, muted)
+						projects.View(c, m.Projects)
+						if filter != "hide" && len(m.Snapshot.ArchivedSessionIDs) > 0 {
+							ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
+								Padding(8, 0, 2, 0)
+							for _, id := range m.Snapshot.ArchivedSessionIDs {
+								aid := id
+								label := aid
+								for _, it := range m.Snapshot.Items {
+									if it.SessionID == aid && strings.TrimSpace(it.Title) != "" {
+										label = it.Title
+										break
+									}
+								}
+								if batchRow(c, m, aid, label, muted) {
+									continue
+								}
+								rowArchivedSession(c, aid, label, m, muted)
+							}
+						}
 					})
 				})
-				if m.OnOpenAssistant != nil && assist.Clicked() {
-					m.OnOpenAssistant()
-				}
-			})
-			menuOpen := &workspaceMenuFB
-			if m.WorkspaceMenuOpen != nil {
-				menuOpen = m.WorkspaceMenuOpen
 			}
-			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
-			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
-				workspaceHeading(c, m, menuOpen, fg, muted)
-				batchToolbar(c, m, fg)
-				ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
-					if sessionSearchResultsView(c, m, fg, muted) {
-						projects.View(c, m.Projects)
-						return
-					}
-					items := sidebarItems(m.Snapshot, m.SearchQuery)
-					filter := browseArchiveFilter(m)
-					if filter != "only" {
-						workspaceRowsView(c, m, items, fg, muted, border)
-					} else {
-						workspaceRowsStatus(c, m, fg)
-					}
-					workspaceListFeedback(c, m, items, fg, muted)
-					projects.View(c, m.Projects)
-					if filter != "hide" && len(m.Snapshot.ArchivedSessionIDs) > 0 {
-						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
-							Padding(8, 0, 2, 0)
-						for _, id := range m.Snapshot.ArchivedSessionIDs {
-							aid := id
-							label := aid
-							for _, it := range m.Snapshot.Items {
-								if it.SessionID == aid && strings.TrimSpace(it.Title) != "" {
-									label = it.Title
-									break
-								}
-							}
-							if batchRow(c, m, aid, label, muted) {
-								continue
-							}
-							rowArchivedSession(c, aid, label, m, muted)
-						}
-					}
-				})
-			})
+			// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
 			// SidebarRoot.footArea: footer.action then settings (always pinned).
-			ui.Column(c).FillWidth().Padding(8, 0, 4, 0).Gap(2).Children(func() {
-				if m.OnOpenLauncher != nil {
+			ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 4, 0).Gap(2).Shrink(0).Children(func() {
+				if !m.Collapsed && m.OnOpenLauncher != nil {
 					btn := ui.Button(c, i18n.T(i18n.KeyLauncherOpen)).FillWidth().Height(32).Radius(8).
 						BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(13)).
 						Padding(0, 8, 0, 8).AlignItems(ui.Center)
@@ -292,11 +293,11 @@ func View(c *ui.Context, m Model) {
 						m.OnOpenLauncher()
 					}
 				}
-				if m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
+				if !m.Collapsed && m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 					m.OnContactAccount()
 				}
 				if m.OnOpenSettings != nil {
-					settingsConnectionTrigger(c, m, colors, false)
+					settingsConnectionTrigger(c, m, colors, m.Collapsed)
 				}
 			})
 		})
