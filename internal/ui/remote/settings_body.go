@@ -80,10 +80,16 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
 		ui.Text(c, label("连接状态", "Connection status")).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
 		status := m.PhoneRuntime.Status
+		if !m.RemoteEnabled {
+			status = label("已停用", "Disabled")
+		}
 		if status == "" {
 			status = label("未启动", "Stopped")
 		}
 		ui.Text(c, status).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+		if m.PhoneRuntime.Message != "" && !strings.Contains(m.PhoneActionMsg, m.PhoneRuntime.Message) {
+			ui.Text(c, m.PhoneRuntime.Message).TextColor(fg).Selectable()
+		}
 		if m.PhoneActionMsg != "" {
 			ui.Text(c, m.PhoneActionMsg).TextColor(fg)
 		}
