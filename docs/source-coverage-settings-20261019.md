@@ -2,6 +2,8 @@
 
 日期：2026-10-19。审计时 Go HEAD：`0345aed`（共享分支后续提交不自动更新本表）。这是源码对照记录，不是全部原版功能完成声明，也不是测试验收报告。本轮未运行测试、构建、服务、模型、账号、OAuth 或网络请求，未读取用户配置或凭据。
 
+明确跟进：`a364560` 已为下文 GAP-MARKET-SCREENSHOTS 补入截图字段、快照复制与 native 详情图库源码；该缺项的当前状态是 **source implemented / acceptance pending**，不是仍未编码。表中发现说明保留审计基线供追踪；README 动画由独立 owner 实现，本文不提前接收其未完成提交。图库另行准备的测试由 root 统一运行，本次未自跑。
+
 需求提到 15 个设置区域；当前验收矩阵实际列出 `SET-01` 至 `SET-18`，因此全部列入，另列 `PLUG-01` 至 `PLUG-05` 和 `REMOTE-01` 至 `REMOTE-04`。凭据没有独立 SET 行，归在 SET-07 补充说明。
 
 ## 来源和覆盖等级
@@ -58,7 +60,7 @@
 1. **GAP-MARKET-SCREENSHOTS（SET-10 / PLUG-04）**。原版 `D/main/marketplace-catalog.js:160` 返回最多 12 个 `screenshots` 字符串，`O/ui-settings-market:MarketDetails` 进一步筛 HTTPS 并提供当前图、上一张/下一张、计数、失败占位及打开原图。Go `internal/desktop/market/catalog.go` 的 `registryRow` 和 `CatalogItem` 没有该字段；`decodeCatalog` 因而在源头丢弃截图，native details 也没有图库。它是独立于 README 图像的原版可达功能，不能靠 README 可能含图片来视作实现。已报告 root，待分配产品 owner，本审计未动产品文件。
 2. **GAP-README-ANIMATION（PLUG-05）**。当前 `renderReadmeImage` 使用 `ui.DecodeBitmap` 后交给 `ui.Image`。`third_party/mygo/ui/bitmap.go` 明确写 GIF “its first frame”，Bitmap 只保存一个 scene image；该 README 路径没有动画时间轴。原版 browser img 会播放其支持的动画格式。确认的是“README 动画 GIF 未播放”，不是“GIF 文件完全不显示”；不能沿用旧矩阵“GIF 已实现”来认定此路径具有动画。已报告 root，待分配 owner。动画 WebP 和 SVG 全特性另需具体格式审计，不扩大当前结论。
 
-本轮没有为上述缺项运行网络、截图下载或任何真实服务。新实现若随后落地，应补独立源码/运行证据再更新这些缺项，不能静默将已分工当已修复。
+本轮没有为上述缺项运行网络、截图下载或任何真实服务。图库已落地 `a364560`：wire 保留最多 12 个字符串，UI 过滤无 URL 凭据的 HTTPS，16:10 contain 槽、前后边界、计数、失败占位、打开原图；`Discovery` 对 Catalog/Rows/Selected 的 screenshot slice 分别复制。媒体绘制复用独立 owner 的 `readmeDecodedImage.load/poll/advance`，完整回归待 root 统一运行。此源码交付不等于全部 Market、动画格式或原生视觉验收通过。
 
 ## 账户、凭据与 profile 的明确边界
 
