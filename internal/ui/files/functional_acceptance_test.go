@@ -27,8 +27,118 @@ import (
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/pdfpreview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 )
+
+// FileTree has no create/rename/hidden-toggle command in the original. This
+// acceptance checks its actual menu and safe reference/callback operations;
+// clipboard entries are inspected, never selected against the OS clipboard.
+func TestFunctionalFileTreeSourceContract(t *testing.T) {
+	root, out := os.Getenv("WHALEISLE_TREE_CONTRACT_ROOT"), os.Getenv("WHALEISLE_TREE_CONTRACT_OUTPUT")
+	if root == "" || out == "" {
+		t.Skip("explicit isolated tree acceptance paths required")
+	}
+	if !filepath.IsAbs(root) || !filepath.IsAbs(out) {
+		t.Fatal("absolute paths required")
+	}
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatal("fresh owned root required:", err)
+	}
+	folder := filepath.Join(root, "owned folder")
+	if err := os.Mkdir(folder, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(folder, "note.txt")
+	const content = "owned tree contract; never user data"
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	report := map[string]any{"matrix": []string{"WORK-03"}, "root": root, "scope": "real owned FS + production row/context menu with headless pointer input; safe callbacks only", "modelRequests": 0}
+	defer func() {
+		report["pass"] = !t.Failed()
+		raw, err := json.MarshalIndent(report, "", "  ")
+		if err == nil {
+			err = os.WriteFile(out, append(raw, '\n'), 0600)
+		}
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	expanded, selected := map[string]bool{}, "other.txt"
+	var reference filelink.Reference
+	var revealed, opened string
+	m := Model{BindingID: "owned-host", SessionID: "owned-session", WorkspaceRoot: root, Expanded: &expanded, SelectedFile: &selected, CanAddToChat: true,
+		OnReferenceFile: func(value filelink.Reference) error { reference = value; return nil },
+		OnReveal:        func(full string) { revealed = full },
+		OnOpenDoc: func(full string, _ workspacefs.DocKind, web bool) {
+			if web {
+				t.Error("system command selected webview")
+			}
+			opened = full
+		},
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			rowDir(c, m, "owned folder", "owned folder", 0, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80), ui.RGB(65, 118, 230))
+			rowFile(c, m, "owned folder/note.txt", "note.txt", 1, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80), ui.RGB(65, 118, 230))
+		})
+	}, 500, 250)
+	if err := tt.Click("Folder owned folder"); err != nil {
+		t.Fatal(err)
+	}
+	if !expanded["owned folder"] {
+		t.Fatal("directory did not expand")
+	}
+	tt.Key(0, ui.KeyEnter)
+	if expanded["owned folder"] {
+		t.Fatal("focused directory did not collapse")
+	}
+	if err := tt.RightClick("Folder owned folder"); err != nil {
+		t.Fatal(err)
+	}
+	folderMenu := tt.Menu()
+	report["directoryMenu"] = folderMenu
+	if len(folderMenu) != 4 {
+		t.Fatalf("directory menu drifted from original path-only actions: %v", folderMenu)
+	}
+	if err := tt.ChooseMenuItem("Show in folder"); err != nil {
+		t.Fatal(err)
+	}
+	if revealed != folder || selected != "other.txt" {
+		t.Fatal("directory reveal retargeted selection or path")
+	}
+	if err := tt.Click("Reference file owned folder/note.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if reference.Path != "owned folder/note.txt" || reference.BindingID != m.BindingID || reference.SessionID != m.SessionID || selected != "other.txt" {
+		t.Fatal("reference lost owner or selected the file")
+	}
+	if err := tt.RightClick("File owned folder/note.txt"); err != nil {
+		t.Fatal(err)
+	}
+	fileMenu := tt.Menu()
+	report["fileMenu"] = fileMenu
+	for _, item := range append(append([]string{}, folderMenu...), fileMenu...) {
+		lower := strings.ToLower(item)
+		if strings.Contains(lower, "rename") || strings.Contains(lower, "new folder") || strings.Contains(lower, "create") || strings.Contains(lower, "hidden") {
+			t.Fatalf("invented file-tree command %q", item)
+		}
+	}
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyFilesOpenExternal)); err != nil {
+		t.Fatal(err)
+	}
+	if opened != path || selected != "other.txt" {
+		t.Fatal("system-open callback did not retain clicked real path")
+	}
+	if raw, err := os.ReadFile(path); err != nil || string(raw) != content {
+		t.Fatal("context operation mutated actual source file")
+	}
+	report["checks"] = []string{"directory expand/collapse", "secondary-click opens shipped directory/file menu", "folder reveal callback receives own absolute path", "file reference retains Host/session/workspace owner without selecting", "file system-open callback receives clicked own absolute path", "source file bytes unchanged"}
+	report["notPerformed"] = []string{"actual OS clipboard writes", "Explorer/editor/system-app process launch", "native-window pointer interaction or drag/drop", "ACL mutations"}
+}
 
 // Opt-in acceptance drives the shipped controllers against a fresh, retained
 // filesystem and real Git/loopback services. It does not launch a Host, contact

@@ -193,7 +193,7 @@ func View(c *ui.Context, m Model) {
 	}
 	createDialog(c, m)
 	if m.Err != "" && s.FolderDraft == nil && s.FailureToast != m.Err {
-		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), OnAction: m.OnRetry, OnClose: m.OnDismissError})
+		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), ActionKeepFocus: true, OnAction: m.OnRetry, OnClose: m.OnDismissError})
 		s.FailureToast = m.Err
 	} else if m.Err == "" && s.FailureToast != "" {
 		c.CloseToast("directory-browse-error")

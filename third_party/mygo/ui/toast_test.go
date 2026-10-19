@@ -8,6 +8,35 @@ import (
 	"github.com/egoist/mygo/internal/platform"
 )
 
+func TestToastActionKeepFocusOptIn(t *testing.T) {
+	for _, keep := range []bool{false, true} {
+		name := "default"
+		if keep {
+			name = "editor recovery"
+		}
+		t.Run(name, func(t *testing.T) {
+			text, added := "unsent path", false
+			var tt *Tester
+			calls, editorFocused := 0, false
+			tt = NewTester(func(c *Context) {
+				TextInput(c, &text).Label("Editor").AutoFocus()
+				if !added {
+					added = true
+					c.AddToast(Toast{ID: "retry", Title: "Read failed", Action: "Retry", ActionKeepFocus: keep,
+						OnAction: func() { calls++; editorFocused = tt.Focused("Editor") },
+					})
+				}
+			}, 500, 300)
+			if err := tt.Click("Retry"); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 || editorFocused != keep || text != "unsent path" {
+				t.Fatalf("pointer focus policy: calls=%d focused=%v keep=%v text=%q", calls, editorFocused, keep, text)
+			}
+		})
+	}
+}
+
 func TestToastViewportBase(t *testing.T) {
 	var shown []Toast
 	var lefts []time.Duration

@@ -38,6 +38,10 @@ type Toast struct {
 	// and closes the toast.
 	Action   string
 	OnAction func()
+	// ActionKeepFocus keeps the current control focused when the action is
+	// pressed with the pointer, as a recovery action belonging to an editor.
+	// Keyboard Tab traversal is unchanged. The default action takes focus.
+	ActionKeepFocus bool
 	// OnClose runs as the toast closes: its time is over, or the user, its
 	// action or CloseToast closed it.
 	OnClose func()
@@ -309,6 +313,9 @@ func (p toastParts) Left() time.Duration { return p.left }
 // toast's Action.
 func (p toastParts) ActionButton() *node {
 	b := coreButtonBase(p.c)
+	if i := p.c.rt.toastIndex(p.id); i >= 0 && p.c.rt.toasts[i].ActionKeepFocus {
+		b.flags |= flagKeepFocus
+	}
 	if b.Clicked() {
 		if i := p.c.rt.toastIndex(p.id); i >= 0 {
 			if action := p.c.rt.toasts[i].OnAction; action != nil {

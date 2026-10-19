@@ -267,3 +267,40 @@ func TestPathEditorFocusLeavingCardCancelsDraft(t *testing.T) {
 		t.Fatal("focus escaping the path editor's card retained draft")
 	}
 }
+
+func TestFailedPathRetryRetainsFocusButOutsideAndEscapeCancel(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, action := range []string{"Retry", "Outside card", "Escape"} {
+		t.Run(action, func(t *testing.T) {
+			s := fixtureBrowser()
+			draft := "/home/project/missing"
+			s.PathDraft, s.FocusPath = &draft, true
+			retried, canceled := 0, 0
+			errText := "Directory is not available"
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Column(c).Fill().Children(func() {
+					ui.Button(c, "Outside card").Height(32)
+					ui.Box(c).Height(420).FillWidth().Children(func() {
+						View(c, Model{State: &s, Err: errText,
+							OnRetry:      func() { retried++ },
+							OnCancelPath: func() { canceled++; s.PathDraft = nil; errText = "" },
+						})
+					})
+				})
+			}, 680, 500)
+			if action == "Escape" {
+				tt.Key(0, ui.KeyEscape)
+			} else if err := tt.Click(action); err != nil {
+				t.Fatal(err)
+			}
+			if action == "Retry" {
+				if retried != 1 || canceled != 0 || s.PathDraft == nil || *s.PathDraft != draft {
+					t.Fatalf("recovery pointer canceled draft: retry=%d cancel=%d draft=%v", retried, canceled, s.PathDraft)
+				}
+			} else if canceled != 1 || retried != 0 || s.PathDraft != nil {
+				t.Fatalf("genuine cancellation was suppressed: retry=%d cancel=%d draft=%v", retried, canceled, s.PathDraft)
+			}
+		})
+	}
+}
