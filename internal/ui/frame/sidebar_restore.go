@@ -7,13 +7,13 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// SidebarCollapsedWidth matches AppFrame's macOS / Windows custom-caption
-// contract. The main MyGo window uses TitleBarHidden on Windows; Linux keeps
-// its compact navigation rail, as the original does without that caption.
+// SidebarCollapsedWidth follows the Whale preload's actual platform marks.
+// Only darwin removes the rail. Whale's win32 preload does not publish the
+// standalone Desktop's data-windows-titlebar flag, so Windows keeps 56 DIPs.
 func SidebarCollapsedWidth() float32 { return sidebarCollapsedWidth(runtime.GOOS) }
 
 func sidebarCollapsedWidth(platform string) float32 {
-	if platform == "darwin" || platform == "windows" {
+	if platform == "darwin" {
 		return 0
 	}
 	return SidebarCollapsed

@@ -10,7 +10,25 @@ type paneDrag struct {
 // centerRightColumns keeps the center mounted while the right track concedes.
 // Its divider uses a frozen rendered-width base for the whole pointer gesture:
 // the solved center floor cannot feed a new base into the next pointer delta.
-func centerRightColumns(c *ui.Context, m Model, center, right func()) {
+func centerRightColumns(c *ui.Context, m Model, center, right func(), header ...func()) {
+	if len(header) > 0 && header[0] != nil {
+		ui.Column(c).Key("workspace-shared-rows").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			workspaceHeaderBand(c, header[0])
+			centerRightBodyColumns(c, m, center, right)
+		})
+		return
+	}
+	centerRightBodyColumns(c, m, center, right)
+}
+
+// workspaceHeaderBand is AppFrame row 1 shared by the center's header and the
+// right titlebar seat. Its auto height follows the center header, with a 52-DIP
+// floor even for a sessionless or blank center. Resource tabs start in row 2.
+func workspaceHeaderBand(c *ui.Context, header func()) {
+	ui.Box(c).Key("workspace-shared-titlebar-row").FillWidth().MinHeight(52).Shrink(0).Children(header)
+}
+
+func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
 	viewport, _ := c.Size()
 	details := float32(0)
 	if m.FilePaneWidth != nil {
@@ -99,7 +117,10 @@ func centerRightColumns(c *ui.Context, m Model, center, right func()) {
 // itself is being dragged, so an existing input selection survives toggles.
 func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	col := ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
-	height := m.centerHeight
+	height := col.Bounds().H
+	if height <= 0 {
+		height = m.centerHeight
+	}
 	if height <= 0 {
 		_, viewportHeight := c.Size()
 		height = maxf(0, viewportHeight-col.Bounds().Y)
@@ -121,7 +142,7 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	col.Children(func() {
 		conversation := ui.Box(c).Key("chat-column").Clip()
 		if open {
-			conversation.Height(main).Shrink(0)
+			conversation.Height(main).Shrink(1).MinHeight(0)
 		} else {
 			// With no terminal split, inherit the actual parent allocation.
 			// A first-frame viewport height has not yet subtracted the caption;
@@ -140,7 +161,7 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		if !drag.active && !m.Sizes.dragging {
 			div.Transition(shellTrackTransition)
 		}
-		drawer := ui.Box(c).Key("terminal-column").Height(maxf(0, height-main-dividerHeight)).Shrink(0).MinHeight(0).Clip()
+		drawer := ui.Box(c).Key("terminal-column").Height(maxf(0, height-main-dividerHeight)).Shrink(1).MinHeight(0).Clip()
 		if !drag.active && !m.Sizes.dragging {
 			drawer.Transition(shellTrackTransition)
 		}

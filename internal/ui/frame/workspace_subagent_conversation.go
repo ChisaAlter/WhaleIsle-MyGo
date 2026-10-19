@@ -68,6 +68,44 @@ func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddres
 }
 
 func mainSubagentConversation(c *ui.Context, m Model) bool {
+	if m.Sizes == nil || m.Sizes.Workspace == nil || m.Sizes.Workspace.currentMainChild(m) == nil {
+		return false
+	}
+	ui.Column(c).Key("main-child-conversation-whole").Fill().MinHeight(0).Children(func() {
+		mainSubagentConversationHeader(c, m)
+		mainSubagentConversationBody(c, m)
+	})
+	return true
+}
+
+// mainSubagentConversationHeader owns only the addressed child's row-1 chrome.
+// Its presence suppresses the hidden parent's title and view tabs.
+func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float32) bool {
+	if m.Sizes == nil || m.Sizes.Workspace == nil {
+		return false
+	}
+	w := m.Sizes.Workspace
+	n := w.currentMainChild(m)
+	if n == nil {
+		return false
+	}
+	target := n.SubagentChat
+	paddingRight := float32(20)
+	if len(rightInset) > 0 {
+		paddingRight = rightInset[0]
+	}
+	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(40).Padding(8, paddingRight, 0, 20).Gap(8).DragWindow().Children(func() {
+		if ui.Button(c, paneLabel("返回父会话", "Back to parent conversation")).Clicked() {
+			w.closeMainChild()
+		}
+		ui.Text(c, target.Root+" → "+target.Address.ChildSessionID).Grow(1).MinWidth(0).NoWrap().Ellipsis("…")
+	})
+	return true
+}
+
+// mainSubagentConversationBody builds the addressed child exactly once in the
+// shared content row, without rebuilding either the child or parent header.
+func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 	if m.Sizes == nil || m.Sizes.Workspace == nil {
 		return false
 	}
@@ -86,12 +124,6 @@ func mainSubagentConversation(c *ui.Context, m Model) bool {
 	}
 	target := n.SubagentChat
 	ui.Column(c.Key(n.ID)).Fill().MinHeight(0).Children(func() {
-		ui.Row(c).FillWidth().Padding(10).Gap(8).Children(func() {
-			if ui.Button(c, paneLabel("返回父会话", "Back to parent conversation")).Clicked() {
-				w.closeMainChild()
-			}
-			ui.Text(c, target.Root+" → "+target.Address.ChildSessionID).Grow(1).Selectable()
-		})
 		if w.conversation == nil {
 			return
 		}
