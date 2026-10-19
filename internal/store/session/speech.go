@@ -167,12 +167,21 @@ func (s *Store) CancelSpeechPreparation(ctx context.Context, providerID string) 
 
 // WatchSpeechCatalog mirrors complete Host readiness independently of Sessions.
 func (s *Store) WatchSpeechCatalog(ctx context.Context) {
-	s.watchSpeechCatalog(ctx, nil)
+	s.watchSpeechCatalog(ctx, nil, nil)
 }
 
-func (s *Store) watchSpeechCatalog(ctx context.Context, owner *SpeechSettingsOwner) {
+// WatchSpeechCatalogForEvents admits one readiness restart from the exact
+// active $events owner. A rejected old Ready must not cancel a newer follow.
+func (s *Store) WatchSpeechCatalogForEvents(owner *EventsOwner) {
+	if owner == nil {
+		return
+	}
+	s.watchSpeechCatalog(owner.ctx, nil, owner)
+}
+
+func (s *Store) watchSpeechCatalog(ctx context.Context, owner *SpeechSettingsOwner, eventsOwner *EventsOwner) {
 	s.mu.Lock()
-	if owner != nil && !owner.currentLocked() {
+	if ctx == nil || ctx.Err() != nil || owner != nil && !owner.currentLocked() || eventsOwner != nil && (!s.eventsOwnerCurrentLocked(eventsOwner) || eventsOwner.mux != s.mux) {
 		s.mu.Unlock()
 		return
 	}

@@ -26,6 +26,7 @@ type lifecycleMutation struct {
 type EventsOwner struct {
 	store      *Store
 	client     *dsh.Client
+	mux        *dsh.Mux
 	ctx        context.Context
 	generation uint64
 }
@@ -47,7 +48,7 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	s.listGeneration++
 	s.listLoading = false
 	s.listMutations = nil
-	return &EventsOwner{store: s, client: client, ctx: ctx, generation: s.eventsGeneration}
+	return &EventsOwner{store: s, client: client, mux: s.mux, ctx: ctx, generation: s.eventsGeneration}
 }
 
 func (s *Store) eventsOwnerCurrentLocked(owner *EventsOwner) bool {

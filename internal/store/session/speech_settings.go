@@ -133,7 +133,7 @@ func (o *SpeechSettingsOwner) CancelPreparation(provider string) {
 	o.run(provider, "speech/cancelPreparation", map[string]any{"providerId": provider})
 }
 func (o *SpeechSettingsOwner) Retry() {
-	o.store.watchSpeechCatalog(context.Background(), o)
+	o.store.watchSpeechCatalog(context.Background(), o, nil)
 }
 
 // Key retires page-local source choices and dismissed feedback on Host changes.
