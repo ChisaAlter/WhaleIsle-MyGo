@@ -22,11 +22,11 @@ func TestDetachedDraftsPreserveNewerInputAndFailure(t *testing.T) {
 	d.Text = "newer draft"
 	d.Attachments = []session.ComposerAttachment{{Path: "new.txt"}}
 	d.CompleteDetachedSend(first.ID, first.Attachments, errors.New("rejected"))
-	if d.Text != "newer draft" || len(d.Attachments) != 1 || d.FailedSendCount() != 1 {
+	if d.Text != "newer draft" || len(d.Attachments) != 2 || d.Attachments[0].Path != "one.txt" || d.Attachments[1].Path != "new.txt" || d.FailedSendCount() != 1 {
 		t.Fatal("failure overwrote newer draft")
 	}
 	d.CompleteDetachedSend(second.ID, second.Attachments, nil)
-	if d.Text != "newer draft" || d.Attachments[0].Path != "new.txt" {
+	if d.Text != "newer draft" || len(d.Attachments) != 2 || d.Attachments[0].Path != "one.txt" || d.Attachments[1].Path != "new.txt" {
 		t.Fatal("late success cleared newer draft")
 	}
 	d.RestoreFailedSends()
