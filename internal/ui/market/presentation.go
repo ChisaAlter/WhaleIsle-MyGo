@@ -130,7 +130,7 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					}
 				})
 				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-					if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16) {
+					if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.SVGImages) {
 						ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 					ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)

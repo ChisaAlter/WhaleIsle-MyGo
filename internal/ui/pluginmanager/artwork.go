@@ -9,6 +9,7 @@ import (
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -41,7 +42,7 @@ func itemArtwork(id string) string {
 	}
 	return builtInArtwork("default")
 }
-func packagePreview(c *ui.Context, name string) {
+func packagePreview(c *ui.Context, name string, owner *svgimage.Owner) {
 	asset := ""
 	switch name {
 	case "@deepseek-ai/dsh-experimental-badge-skill-bundle":
@@ -58,7 +59,7 @@ func packagePreview(c *ui.Context, name string) {
 	if err != nil {
 		return
 	}
-	if !marketui.PluginImage(c, "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString(data), 640, 0) {
+	if !marketui.PluginImage(c, "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString(data), 640, 0, owner) {
 		ui.Text(c, copyText("预览暂不可用。", "Preview unavailable.")).FillWidth().TextColor(c.Theme().TextMuted)
 	}
 }

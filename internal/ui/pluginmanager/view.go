@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -29,6 +30,7 @@ type Contribution struct {
 	Render                    func(*ui.Context, manager.Subject)
 }
 type Model struct {
+	SVGImages                                   *svgimage.Owner
 	Controller                                  *manager.Controller
 	ThemeID                                     string
 	SystemDark                                  bool
@@ -189,17 +191,17 @@ func errorRow(c *ui.Context, message string, retry func()) {
 		}
 	})
 }
-func artwork(c *ui.Context, ink, border ui.Color, source ...string) {
-	artworkSized(c, ink, border, 48, 36, source...)
+func artwork(c *ui.Context, ink, border ui.Color, owner *svgimage.Owner, source ...string) {
+	artworkSized(c, ink, border, 48, 36, owner, source...)
 }
-func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, source ...string) {
+func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *svgimage.Owner, source ...string) {
 	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(10)
 	shown := false
 	if len(source) > 0 && source[0] != "" {
-		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size) })
+		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size, owner) })
 	}
 	if !shown {
-		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, builtInArtwork("default"), size, size) })
+		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, builtInArtwork("default"), size, size, owner) })
 	}
 	if !shown {
 		root.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -251,7 +253,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 			groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
 			for _, item := range basic {
 				ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
-					artwork(c, muted, border, itemArtwork(item.Key))
+					artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
 					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 						if ui.Button(c, item.Title).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
 							a.OpenItem(item.Key)
@@ -305,7 +307,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		c.After(time.Until(time.Unix(0, s.HighlightUntil)))
 	}
 	card.Children(func() {
-		artwork(c, muted, border, metaIcon(p.Meta))
+		artwork(c, muted, border, m.SVGImages, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 				if ui.Button(c, p.Title(i18n.Locale())).Label("Open " + p.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
@@ -450,7 +452,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 		}
 		renderConfig(c, m, subject)
 	} else {
-		packagePreview(c, pkg.Name)
+		packagePreview(c, pkg.Name, m.SVGImages)
 		if pkg.Error != nil {
 			ui.Text(c, pkg.Error.Code+": "+pkg.Error.Diagnostic).FillWidth().TextColor(c.Theme().Danger)
 		}
@@ -490,7 +492,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 					if icon == "" {
 						icon = builtInArtwork("subagent")
 					}
-					artworkSized(c, muted, border, 40, 30, icon)
+					artworkSized(c, muted, border, 40, 30, m.SVGImages, icon)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 						if configFor(m, manager.Subject{Kind: "row", Name: pkg.Name, RowID: r.RowID}) != nil {
 							if ui.Button(c, r.Title(i18n.Locale())).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
@@ -714,7 +716,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 		for _, entry := range d.Listing.Entries {
 			e := entry
 			ui.Row(c.Key("discover-" + e.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
-				artwork(c, muted, border, e.Icon)
+				artwork(c, muted, border, m.SVGImages, e.Icon)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					if ui.Button(c, e.Label(i18n.Locale())).Label("Open market " + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
 						a.OpenEntry(e.Name)

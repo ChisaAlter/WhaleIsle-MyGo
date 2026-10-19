@@ -66,6 +66,14 @@ Native follow-up anchors are `internal/pluginmanager/registry.go:36` (URL keys),
 The UI also adds root's requested `Model.CreatorNotice func(*ui.Context)` at `view.go:90`, independent of ordinary manager notices, so the shared Creator controller can retain Host/Cwd/session/error receipts and explicit navigation actions.
 
 This follow-up does not claim all installer details have runtime parity: exact refusal prose, every malformed/WHATWG URL normalization edge, complete raw-log retention versus existing native memory bounds, and all final-event interleavings remain acceptance/review boundaries. No analytics tracking was added. No tests, fixtures, builds, launches or live source/install operations were prepared or executed.
+## Source review follow-up: metadata SVG image ownership
+
+The conversation owner's source review identified a concrete missed adapter branch: `readme_media.go:55` can return `readmeDecodedImage.svgSeat` with valid intrinsic dimensions, but the initial `PluginImage` implementation only painted bitmap/native SVG and returned true, suppressing its caller's fallback while displaying nothing. The same local-data adapter also did not dispatch browser-required SVGs.
+
+`internal/ui/market/plugin_artwork.go:19` now accepts the existing optional `*svgimage.Owner`, closes an old seat before replacing a cached path, prepares the returned seat, and paints it through `Seat.PaintClipped` with the existing Contain rectangle and painter clip. Missing owners and preparation failures return false, preserving default artwork. The data-URL decoder also uses the existing `NeedsBrowserSVG`/`NewSeat` branch. No SVG executor, shared decoder, helper permissions or resource policy was added or changed; disappearance and owner changes retain the existing seat lease.
+
+All real callers pass the owner: Market's existing `Model.SVGImages` at `presentation.go:133`; plugin manager's new `Model.SVGImages` at `view.go:33`, through package/item/row/Discover artwork at `:194` and package previews at `artwork.go:45`. Root owns assigning the actual window/session owner in its native manager Model. This correction received source review, gofmt and an owned whitespace diff check only; dynamic SVG display, clipping and lease retirement still await unified runtime acceptance.
+
 ## Shared integration and explicit limits
 
 Root-owned remaining integration when this source commit is handed over:
