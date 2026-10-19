@@ -128,7 +128,7 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 			authoritativeFeedbackActions(c, m.FeedbackStore, msg.FeedbackMessageID(), muted)
 		}
 		if target.endSeq > 0 && m.OnForkTurn != nil {
-			allowed := session.CanForkTurn(m.Snapshot.Messages, target.endSeq) && !m.Snapshot.HistoryBranchBusy && m.Snapshot.ClientReady
+			allowed := canForkAssistantTarget(m.Snapshot.Messages, target) && !m.Snapshot.HistoryBranchBusy && m.Snapshot.ClientReady
 			b := messageAction(c, messageIconBranchOutline, branchActionLabel(), true, muted)
 			if !allowed {
 				b.Opacity(.4)
@@ -144,6 +144,38 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 	if showMessageFeedback(msg) && m.FeedbackStore != nil {
 		authoritativeFeedbackStatus(c, m.FeedbackStore, muted)
 	}
+}
+
+// The Store validates its canonical journal. Snapshot instead splits a durable
+// assistant/message into text/image/structured block rows with one source ID
+// and seq. Reconstitute only that same lifecycle before using the existing
+// boundary guard, so a trailing image block does not impersonate a later reply.
+// A separate later image event, tool result or failed boundary stays intact.
+func canForkAssistantTarget(messages []session.Message, target assistantActionTarget) bool {
+	if session.CanForkTurn(messages, target.endSeq) {
+		return true
+	}
+	message := target.message
+	if message.EventType != "assistant/message" || message.SourceMessageID == "" {
+		return false
+	}
+	canonical := make([]session.Message, 0, len(messages))
+	inserted := false
+	for _, block := range messages {
+		if block.SourceMessageID == message.SourceMessageID && block.Seq == message.Seq && block.EventType == message.EventType {
+			message.Streaming = message.Streaming || block.Streaming
+			if !inserted {
+				canonical = append(canonical, message)
+				inserted = true
+			}
+			continue
+		}
+		canonical = append(canonical, block)
+	}
+	if message.Streaming {
+		return false
+	}
+	return session.CanForkTurn(canonical, target.endSeq)
 }
 
 // Keep the old port's quote command accessible by context/menu key without

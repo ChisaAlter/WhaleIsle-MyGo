@@ -24,8 +24,8 @@
 | `ui-workspace/rows/Rows.module.css`、`Rows.tsx`、`WorkspaceBrowser.tsx` | sidebar.go、session_menu.go、workspace_heading.go、workspace_groups.go | 会话32、工作区34、状态槽16×20；选中仅换底色；操作进菜单；搜索/多选同排，Esc清空收起；无重复工作区层级 |
 | `ui-theme/styles/base.css`、`design-platform.css`、`derive.ts` | theme/preferences.go、theme.go；cmd/theme_font_preferences.go | 原版完整字体回退；保留显式覆盖；pressed/hover交互token；当前深色accent#7aaaff |
 | 原版GoalBar无目标返回null | frame.go | 无实际计划/目标/队列/todo/编辑器时不挂载占位计划面板 |
-| `MessageIconActions`、`TurnTailNodeView` | chat/message_actions.go、message_icons.go、feedback_editor.go | 检查后追加的聊天尾部控件还原；最终结果见下方验证记录 |
-| 原版dock/pane header及上下文菜单 | workspace_panes.go、workspace_dock_tabs.go、workspace_dock_drop.go | 检查后追加的右栏布局控件还原；最终结果见下方验证记录 |
+| `MessageIconActions`、`TurnTailNodeView`、`FeedbackDialog` | chat/message_actions.go、message_icons.go、feedback_editor.go、feedback_dialog.go | 尾部28DIP图标座/gap8，历史hover/focus显现；按持久回答聚合复制；488DIP反馈模态替代常驻诊断编辑器 |
+| 原版dock/pane header及上下文菜单 | workspace_panes.go、workspace_dock_tabs.go、workspace_dock_drop.go | 38DIP标题栏、28DIP标签/角落工具、溢出菜单；方向/浮动/重置回菜单，拖拽期间才显示落点 |
 
 ## 验证及证据
 
@@ -38,11 +38,25 @@
 - frame：最终整包通过6.514s，重新生成宽/窄、明/暗、右栏、长标题、Hero/active/settling/error证据；覆盖空计划占位、同宽输入卡、焦点保持及dock交互。
 - chat：最终整包通过3.945s；包括原版消息尾部图标、反馈模态布局与开关/失败草稿/键盘焦点/提交中关闭。
 - feedback：最新定向生命周期回归通过3.018s；关闭后重开草稿不被旧请求覆盖，重复成功通知不吞失。
-- Windows候选及隔离原生截图程序已构建成功；最终候选SHA及文件校验值待集成补齐。
+- `d7d07fc` Windows/amd64候选构建通过；嵌入Go1.27.2、vcs.revision=d7d07fcbca9894771e53f5ebc8a52447c5a60f80、vcs.modified=false。独立截图程序PID35932退出0；stderr为空。
 
 证据目录在工作副本外：`..\evidence\frame`（原生软件渲染器PNG/JSON，包含400/900/1500中栏、Hero→首条消息、长祖先标题、settling、失败、窄/宽窗与明暗主题）；`..\evidence\native`（独立MyGo进程调用内置Window.CapturePage所得PNG）。
 
 原生捕获实测客户区1200×800DIP、图像1800×1200px、scale1.5。测试窗口Hidden=true，未抢占现用会话；无Host、凭据或模型。它证明本机原生布局/字体栅格路径可运行，不是原版同状态对照。可复现捕获源保留在忽略目录 `.toolchain/native-parity/main.go`。
+
+已实际检查最终Hero、普通会话明/暗布局、400DIP长祖先顶栏和反馈窗口。Go修复前后同尺寸/同DPI的Hero对照显示：零附件210DIP空轨道和双语常驻工具条消除，输入卡恢复紧凑自然高度，助手预设回到工作区行右侧。主工作区渲染中右栏不再占用多排方向/重置工具，消息尾部回到图标行。软件渲染证据不是现用窗口或原版截图。
+
+Library附件（`d7d07fc`检查点，均为隔离fixture；对应元数据见 `..\evidence\library-artifacts-final.json`）：
+
+| 画面 | file_id | library_file_id |
+|---|---|---|
+| 原生Hero 150% | file_0000000026f881fd818bd0cd9ada4fd8 | libfile_8ef81c087e14819188949b069373a1bb |
+| 主工作区软件渲染 | file_00000000afd481fd82284b4886a6519e | libfile_0e4f16b08fc08191be8ab49cfbdc2944 |
+| 反馈模态软件渲染 | file_000000000d4081f8a9dfa32a8439ac6d | libfile_2b9e5fb4dc908191a5a4e434b2f85158 |
+
+Standards与Spec独立只读审查覆盖完整 `aeb77c5..d7d07fc`。曾提出的纯图片回答动作栏问题经原版projection+view联合核对后撤回，未据此增加原版没有的动作。
+
+另核实同一持久回答“文本＋图片”被Snapshot拆行为同SourceMessageID/Seq的块后，UI分支条件错误读取末尾图片空Body，而Store的原始事件允许分支。已仅在UI条件判断中还原该同一事件，再调用既有CanForkTurn；独立后续图片、工具和错误边界保持禁用。实际分支仍由Store复核。定向回归通过2.309s，包含实际按钮回调与真实endSeq。
 
 ## 明确保留的缺口
 

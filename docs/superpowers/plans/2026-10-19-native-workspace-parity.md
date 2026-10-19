@@ -42,8 +42,8 @@ Verification order: region geometry and position; hierarchy/density/menus/hover;
 - [x] Record acceptance baseline and non-overlapping ownership before edits.
 - [x] Implement five workstreams, resolve shared contract changes through integrator; source-backed chat/feedback/right-pane corrections included.
 - [x] After implementation add focused regressions: replay-to-empty/history/error/stale selection, Hero-first-message width, sidebar action identities, composer overflow/resize and font override behavior.
-- [ ] Run targeted native tests, Windows build and isolated non-network UI process where supported.
-- [ ] Obtain real same-size/DPI/state screenshot comparisons; record missing pages and states honestly.
-- [ ] Independent branch review, fix evidence-backed defects, save verified changes as local commits.
+- [x] Run targeted native tests, Windows build and isolated non-network UI process where supported. Results in `docs/native-workspace-parity-20261019.md`.
+- [ ] Obtain real same-size/DPI/state original/native screenshot comparisons. Original user-window capture is blocked by unavailable native automation; isolated native Go before/after is available, but does not close this acceptance item.
+- [x] Independent branch review, fix evidence-backed defects, save verified changes as local commits. Review corrections are bounded to source-proven behavior.
 
 CI: not triggered in this task. Historical failure count unknown; no push or CI dispatch permitted by this scope.

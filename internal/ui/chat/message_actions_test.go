@@ -64,6 +64,68 @@ func TestAssistantTailOneCompactRowKeepsLifecycleTextAndBoundary(t *testing.T) {
 	}
 }
 
+func TestAssistantForkDistinguishesMixedLifecycleFromLaterImage(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		text          bool
+		sameLifecycle bool
+		wantActions   bool
+		wantFork      bool
+	}{
+		{"text and image in one lifecycle", true, true, true, true},
+		{"earlier text then separate image lifecycle", true, false, true, false},
+		{"standalone image lifecycle", false, false, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			messages := []session.Message{}
+			if tc.text {
+				id, seq := "earlier", float64(2)
+				if tc.sameLifecycle {
+					id, seq = "mixed", 3
+				}
+				messages = append(messages, session.Message{ID: id, SourceMessageID: id, Role: "assistant", Kind: session.MessageKindText, EventType: "assistant/message", Seq: seq, Body: "Final prose"})
+			}
+			imageID := "image-only"
+			if tc.sameLifecycle {
+				imageID = "mixed"
+			}
+			messages = append(messages, session.Message{ID: imageID + "/image/1", SourceMessageID: imageID, Role: "assistant", Kind: session.MessageKindImage, EventType: "assistant/message", Seq: 3, ImageRef: "attachment:fixture"}, session.Message{ID: "end", Role: "status", Kind: session.MessageKindText, EventType: "turn/end", Seq: 4})
+			targets := assistantActionTargets(messages)
+			if (len(targets) > 0) != tc.wantActions {
+				t.Fatalf("targets=%+v", targets)
+			}
+			if tc.sameLifecycle && session.CanForkTurn(messages, 4) {
+				t.Fatal("fixture did not reproduce projected trailing-image mismatch")
+			}
+			forked := float64(0)
+			m := Model{Snapshot: session.ViewState{Messages: messages, ClientReady: true}, OnForkTurn: func(seq float64) { forked = seq }, FeedbackStore: session.New()}
+			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
+			if _, found := tt.Find(branchActionLabel()); found != tc.wantActions {
+				t.Fatalf("branch present=%v want%v", found, tc.wantActions)
+			}
+			if tc.wantActions {
+				target := targets[len(messages)-1]
+				if canForkAssistantTarget(messages, target) != tc.wantFork {
+					t.Fatalf("fork guard mismatch target=%+v", target)
+				}
+				if err := tt.Click(branchActionLabel()); err != nil {
+					t.Fatal(err)
+				}
+				wantSeq := float64(0)
+				if tc.wantFork {
+					wantSeq = 4
+				}
+				if forked != wantSeq {
+					t.Fatalf("fork seq=%v want%v", forked, wantSeq)
+				}
+				if target.message.FeedbackMessageID() != messages[0].FeedbackMessageID() {
+					t.Fatal("feedback target changed to image-only lifecycle")
+				}
+			}
+		})
+	}
+}
+
 func TestEarlierUserActionsRevealOnHoverAndKeyboardWithoutReflow(t *testing.T) {
 	msg := presentationMessage("Earlier message")
 	m := Model{Snapshot: session.ViewState{Messages: []session.Message{msg, {ID: "later", Role: "user", Kind: session.MessageKindText, Seq: 8, Body: "Later"}}}, OnQuoteMessage: func(string) {}}
