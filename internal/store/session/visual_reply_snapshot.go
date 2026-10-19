@@ -2,9 +2,66 @@ package session
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"unicode/utf8"
+
+	"whaleisle/internal/dsh"
 )
+
+// Invalid published bytes or a reference absent from the selected transcript
+// cannot be repaired by rereading the same publication. Connection/owner
+// changes remain ordinary transient errors, since a new mount may read again.
+type visualReplyContentError struct{ reason string }
+
+func (e *visualReplyContentError) Error() string { return "published HTML unavailable: " + e.reason }
+
+// VisualReplyRetryable matches PublishedPage's typed Host failure contract.
+// Unknown failures, including transport/helper failures, retain manual retry.
+func VisualReplyRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var content *visualReplyContentError
+	if errors.As(err, &content) {
+		return false
+	}
+	var remote *dsh.Error
+	if !errors.As(err, &remote) {
+		return true
+	}
+	if remote.Code == "session/not-found" {
+		return false
+	}
+	if remote.Code == "session/attachment-invalid" {
+		var details struct {
+			Reason string `json:"reason"`
+		}
+		if json.Unmarshal(remote.Details, &details) == nil {
+			switch details.Reason {
+			case "ATTACHMENT_NOT_REFERENCED", "VISUAL_REPLY_TOO_LARGE", "VISUAL_REPLY_INVALID_UTF8",
+				"ATTACHMENT_NOT_FOUND", "ATTACHMENT_CORRUPT", "INVALID_ATTACHMENT_REF":
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func validateVisualReplySnapshot(expected, actual VisualReplyFile, html string) error {
+	switch {
+	case expected != actual:
+		return &visualReplyContentError{reason: "attachment reference changed"}
+	case len(html) > MaxVisualReplyBytes:
+		return &visualReplyContentError{reason: "HTML exceeds the published size limit"}
+	case !utf8.ValidString(html):
+		return &visualReplyContentError{reason: "HTML is not valid UTF-8"}
+	case int64(len(html)) != actual.Bytes:
+		return &visualReplyContentError{reason: "HTML byte count does not match the attachment"}
+	}
+	return nil
+}
 
 // ReadVisualReplySnapshot authorizes one independent inline publication without
 // replacing the source reader or any sibling publication's live context.
@@ -13,7 +70,8 @@ func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (st
 	client, generation := s.client, s.followGeneration
 	var pub VisualReplyPublication
 	found := false
-	if client != nil && sid != "" && s.selectedID == sid {
+	authorized := client != nil && sid != "" && s.selectedID == sid
+	if authorized {
 		for _, m := range s.messages {
 			if p, ok := PublishedVisualReply(m.Raw); ok && p.File.AttachmentID == id {
 				pub = p
@@ -24,7 +82,10 @@ func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (st
 	}
 	s.mu.Unlock()
 	if !found {
-		return "", nil, fmt.Errorf("publication does not belong to the selected session")
+		if !authorized {
+			return "", nil, fmt.Errorf("published HTML session is unavailable or changed")
+		}
+		return "", nil, &visualReplyContentError{reason: "publication does not belong to the selected transcript"}
 	}
 	valid := func() bool {
 		s.mu.Lock()
@@ -39,8 +100,11 @@ func (s *Store) ReadVisualReplySnapshot(ctx context.Context, sid, id string) (st
 	if err == nil {
 		err = ctx.Err()
 	}
-	if err == nil && (!valid() || out.Attachment != pub.File || len(out.HTML) > MaxVisualReplyBytes || !utf8.ValidString(out.HTML) || int64(len(out.HTML)) != out.Attachment.Bytes) {
-		err = fmt.Errorf("published HTML owner or attachment changed")
+	if err == nil && !valid() {
+		err = fmt.Errorf("published HTML session changed")
+	}
+	if err == nil {
+		err = validateVisualReplySnapshot(pub.File, out.Attachment, out.HTML)
 	}
 	if err != nil {
 		return "", nil, err

@@ -17,9 +17,10 @@ type inlinePageKey struct {
 	sessionID, attachmentID string
 }
 type inlinePage struct {
-	state  session.InlineVisualReply
-	handle *publishedHTMLSurface
-	valid  func() bool
+	state     session.InlineVisualReply
+	handle    *publishedHTMLSurface
+	valid     func() bool
+	retryable bool
 }
 
 var inlinePages = struct {
@@ -57,13 +58,15 @@ func inlinePublishedHTMLHandler(win *mygo.Window, store *session.Store, sid stri
 			inlinePages.Unlock()
 			win.Update(func() {})
 		}
-		state.Retry = func() {
-			inlinePages.Lock()
-			if page.state.Error != "" && inlinePages.pages[key] == page {
-				delete(inlinePages.pages, key)
+		if page.state.Error != "" && page.retryable {
+			state.Retry = func() {
+				inlinePages.Lock()
+				if page.state.Error != "" && page.retryable && inlinePages.pages[key] == page {
+					delete(inlinePages.pages, key)
+				}
+				inlinePages.Unlock()
+				win.Update(func() {})
 			}
-			inlinePages.Unlock()
-			win.Update(func() {})
 		}
 		inlinePages.Unlock()
 		return state
@@ -104,6 +107,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	page.state.Loading = false
 	if err != nil {
 		page.state.Error = err.Error()
+		page.retryable = session.VisualReplyRetryable(err)
 	} else {
 		page.handle = surface
 		page.state.Surface = surface
@@ -144,6 +148,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	page.state.Surface = nil
 	page.handle = nil
 	page.state.Error = err.Error()
+	page.retryable = session.VisualReplyRetryable(err)
 	inlinePages.Unlock()
 	win.Update(func() {})
 }
