@@ -309,8 +309,6 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 			return s.Install.Inspection != nil, nil
 		})
 		if err == nil {
-			a.RequestInstall()
-			a.Confirm()
 			err = wait(func() (bool, error) {
 				s := controller.Snapshot()
 				if s.Install.Error != "" {

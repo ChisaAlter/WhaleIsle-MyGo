@@ -182,7 +182,7 @@ func TestManagerUnavailableCapabilityNeverCallsMutationOrBundleEndpoints(t *test
 	}
 }
 
-func TestManagerInstallNeedsConfirmationAndUsesCapturedOptions(t *testing.T) {
+func TestManagerInstallSingleGestureUsesAcceptedRegistryAndDisabledSelection(t *testing.T) {
 	writes := make(chan map[string]any, 2)
 	c := New()
 	c.Attach(basicFixture(func(method string, args any) error {
@@ -194,6 +194,7 @@ func TestManagerInstallNeedsConfirmationAndUsesCapturedOptions(t *testing.T) {
 		}
 		return nil
 	}), nil)
+	t.Cleanup(c.Detach)
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -201,118 +202,134 @@ func TestManagerInstallNeedsConfirmationAndUsesCapturedOptions(t *testing.T) {
 	a.OpenInstall()
 	a.EditInstall("fixture-plugin@2.0.0", "")
 	a.Inspect()
-	waitState(t, c, func(s State) bool { return s.Install.Inspection != nil })
-	a.RequestInstall()
-	select {
-	case <-writes:
-		t.Fatal("install ran before confirmation")
-	default:
-	}
-	a.Confirm()
 	select {
 	case v := <-writes:
 		options := v["options"].(map[string]any)
-		if v["spec"] != "fixture-plugin@2.0.0" || options["requestId"] == "" || options["approvedBuilds"] != nil {
-			t.Fatalf("uncaptured or unapproved install: %v", v)
+		registry, present := options["registry"]
+		if v["spec"] != "fixture-plugin@2.0.0" || options["requestId"] == "" || options["enabled"] != false || !present || registry != nil || options["approvedBuilds"] != nil {
+			t.Fatalf("incorrect reviewed request: %v", v)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("confirmed fixture install did not run")
+		t.Fatal("one Install gesture did not inspect and install")
 	}
 	waitState(t, c, func(s State) bool { return !s.Busy && s.Install.Result != nil })
-	a.RequestInstall()
-	a.CancelConfirmation()
 	if c.Snapshot().Confirmation != nil {
-		t.Fatal("cancel left an executable receipt")
+		t.Fatal("extra confirmation was inserted after Install")
+	}
+	select {
+	case v := <-writes:
+		t.Fatalf("duplicate install: %v", v)
+	default:
 	}
 }
 
-func TestManagerUnknownInstallationRequiresSuccessfulInventoryRefresh(t *testing.T) {
-	base := basicFixture(nil)
-	failRefresh := false
-	c := New()
-	c.Attach(fixtureCall(func(ctx context.Context, method string, args, out any) error {
-		if method == "pluginManager/waitForInstall" {
-			return reply(out, nil)
-		}
-		if failRefresh && method == "pluginInventory/list" {
-			return errors.New("inventory unavailable")
-		}
-		return base(ctx, method, args, out)
-	}), nil)
-	if err := c.Load(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	a := c.Actions(c.Snapshot().Owner)
-	a.edit(func(s *State) {
-		s.Install = InstallState{Open: true, Spec: "fixture-plugin", RequestID: "uncertain-request", Phase: "unconfirmed", Inspection: &Inspection{Status: "accepted"}}
-	})
-	a.ReconcileInstall()
-	waitState(t, c, func(s State) bool { return s.Install.Phase == "unknown" })
-	a.CloseInstall()
-	a.OpenInstall()
-	a.EditInstall("another-plugin", "")
-	a.Inspect()
-	a.RequestInstall()
-	s := c.Snapshot()
-	if s.Install.Phase != "unknown" || s.Install.Spec != "fixture-plugin" || s.Install.RequestID != "uncertain-request" || s.Confirmation != nil {
-		t.Fatalf("unknown install escaped reconciliation: %+v", s.Install)
-	}
-	failRefresh = true
-	if err := c.Load(context.Background()); err == nil || c.Snapshot().Install.Phase != "unknown" {
-		t.Fatal("failed inventory read released unknown install")
-	}
-	failRefresh = false
-	if err := c.Load(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if c.Snapshot().Install.Phase != "reviewed" || c.Snapshot().Install.Inspection != nil {
-		t.Fatal("successful inventory refresh did not require fresh inspection")
-	}
-	a.OpenInstall()
-	if c.Snapshot().Install.Phase != "idle" || c.Snapshot().Install.RequestID != "" {
-		t.Fatal("reviewed inventory prevented deliberate new installation")
-	}
-}
-
-func TestDiscoverUsesNamedQueryAndRejectsMixedIndexPages(t *testing.T) {
-	c := New()
-	fixture := basicFixture(nil)
-	c.Attach(fixtureCall(func(ctx context.Context, method string, args, out any) error {
-		switch method {
-		case "pluginMarket/listIndexes":
-			return reply(out, []Index{{URL: "https://fixture.invalid/index.json", Title: Text(`"Fixture market"`)}})
-		case "pluginMarket/search":
-			raw, _ := json.Marshal(args)
-			var request struct {
-				URL   string `json:"url"`
-				Query Query  `json:"query"`
-			}
-			_ = json.Unmarshal(raw, &request)
-			next := 50
-			result := SearchResult{URL: request.URL, FetchedAt: 10, Entries: []MarketEntry{{Name: "fixture-one"}}, Total: 100, NextOffset: &next}
-			if request.Query.Offset > 0 {
-				if request.Query.FetchedAt != 10 {
-					t.Fatal("later query did not pin the index document")
+func TestManagerUnknownInstallCanReturnToInputWithoutInventedRefreshGate(t *testing.T) {
+	for _, leave := range []string{"cancel", "close"} {
+		t.Run(leave, func(t *testing.T) {
+			base := basicFixture(nil)
+			c := New()
+			c.Attach(fixtureCall(func(ctx context.Context, method string, args, out any) error {
+				if method == "pluginManager/waitForInstall" {
+					return reply(out, nil)
 				}
-				result.FetchedAt = 11
-				result.Entries = []MarketEntry{{Name: "fixture-two"}}
+				return base(ctx, method, args, out)
+			}), nil)
+			t.Cleanup(c.Detach)
+			a := c.Actions(c.Snapshot().Owner)
+			a.edit(func(s *State) {
+				s.Install = InstallState{Open: true, Spec: "retained-spec", RequestID: "uncertain-request", Phase: "unconfirmed"}
+			})
+			a.ReconcileInstall()
+			waitState(t, c, func(s State) bool { return s.Install.Phase == "unknown" })
+			if err := c.Load(context.Background()); err != nil {
+				t.Fatal(err)
 			}
-			return reply(out, result)
-		default:
-			return fixture(ctx, method, args, out)
+			if c.Snapshot().Install.Phase != "unknown" {
+				t.Fatal("inventory refresh rewrote the Host's unknown result")
+			}
+			if leave == "cancel" {
+				a.CancelInstall()
+			} else {
+				a.CloseInstall()
+			}
+			s := c.Snapshot()
+			if s.Install.Phase != "idle" || s.Install.RequestID != "" || s.Busy {
+				t.Fatalf("retained unknown request was not released: %+v", s.Install)
+			}
+			if leave == "cancel" && s.Install.Spec != "retained-spec" {
+				t.Fatal("return to input discarded the typed spec")
+			}
+		})
+	}
+}
+func TestDiscoverMoreReloadsChangedDocumentWithoutMixingPages(t *testing.T) {
+	c := New()
+	base := basicFixture(nil)
+	requests := make(chan Query, 4)
+	c.Attach(fixtureCall(func(ctx context.Context, method string, args, out any) error {
+		if method == "pluginMarket/listIndexes" {
+			return reply(out, []Index{{URL: "https://fixture.invalid/index.json"}})
 		}
+		if method != "pluginMarket/search" {
+			return base(ctx, method, args, out)
+		}
+		raw, _ := json.Marshal(args)
+		var request struct {
+			URL   string `json:"url"`
+			Query Query  `json:"query"`
+		}
+		_ = json.Unmarshal(raw, &request)
+		requests <- request.Query
+		version, prefix, count := int64(10), "old", 50
+		if request.Query.Offset > 0 || request.Query.Limit == 100 {
+			version, prefix = 11, "new"
+		}
+		if request.Query.Limit == 100 {
+			count = 100
+		}
+		entries := make([]MarketEntry, count)
+		for n := range entries {
+			entries[n].Name = fmt.Sprintf("%s-%03d", prefix, request.Query.Offset+n)
+		}
+		result := SearchResult{URL: request.URL, FetchedAt: version, Entries: entries, Total: 100}
+		if request.Query.Limit != 100 {
+			next := request.Query.Offset + 50
+			result.NextOffset = &next
+		}
+		return reply(out, result)
 	}), nil)
+	defer c.Detach()
 	if err := c.LoadIndexes(context.Background(), c.Snapshot().Owner); err != nil {
 		t.Fatal(err)
 	}
-	a := c.Actions(c.Snapshot().Owner)
-	a.More()
-	s := waitState(t, c, func(s State) bool { return s.Discover.Error != "" })
-	if len(s.Discover.Listing.Entries) != 1 || s.Discover.Listing.Entries[0].Name != "fixture-one" {
-		t.Fatal("pages from different index documents were combined")
+	nextQuery := func() Query {
+		t.Helper()
+		select {
+		case q := <-requests:
+			return q
+		case <-time.After(3 * time.Second):
+			t.Fatal("expected Discover page request did not arrive")
+			return Query{}
+		}
+	}
+	nextQuery()
+	c.Actions(c.Snapshot().Owner).More()
+	s := waitState(t, c, func(s State) bool {
+		return !s.Discover.Loading && !s.Discover.MoreLoading && s.Discover.Listing != nil && s.Discover.Listing.FetchedAt == 11
+	})
+	more, reload := nextQuery(), nextQuery()
+	if more.Offset != 50 || more.FetchedAt != 10 || more.Limit != 50 || reload.Offset != 0 || reload.FetchedAt != 0 || reload.Limit != 100 {
+		t.Fatalf("incorrect pinned More/reload: %+v %+v", more, reload)
+	}
+	if s.Discover.Error != "" || len(s.Discover.Listing.Entries) != 100 {
+		t.Fatal(s.Discover.Error)
+	}
+	for _, entry := range s.Discover.Listing.Entries {
+		if !strings.HasPrefix(entry.Name, "new-") {
+			t.Fatal("mixed index documents", entry.Name)
+		}
 	}
 }
-
 func TestDiscoverMissingEndpointStaysDistinctFromCuratedMarket(t *testing.T) {
 	c := New()
 	c.Attach(fixtureCall(func(_ context.Context, method string, _, _ any) error {
@@ -320,7 +337,7 @@ func TestDiscoverMissingEndpointStaysDistinctFromCuratedMarket(t *testing.T) {
 	}), nil)
 	err := c.LoadIndexes(context.Background(), c.Snapshot().Owner)
 	state := c.Snapshot()
-	if err == nil || state.Discover.Status != "error" || !strings.Contains(state.Discover.Error, "pluginMarket/listIndexes") || state.Discover.Listing != nil {
+	if err == nil || state.Discover.Status != "error" || !strings.Contains(state.Discover.IndexesError, "pluginMarket/listIndexes") || state.Discover.Listing != nil {
 		t.Fatal("missing generic market endpoint was hidden by fallback data")
 	}
 }

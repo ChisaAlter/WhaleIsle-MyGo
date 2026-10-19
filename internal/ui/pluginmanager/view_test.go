@@ -73,11 +73,11 @@ func TestInstallTerminalShowsRunMetadataInNarrowDialog(t *testing.T) {
 	m := pageModel(t)
 	s := m.Controller.Snapshot()
 	exit := 1
-	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin", Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile", Chunks: []manager.InstallOutput{{Stream: "stdout", Text: "Installing fixture"}, {Stream: "stderr", Text: "Fixture failure"}}, Settled: true, ExitCode: &exit}}}
+	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin", DetailsOpen: true, Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile", Output: "Installing fixture\nFixture failure", Chunks: []manager.InstallOutput{{Stream: "stdout", Text: "Installing fixture"}, {Stream: "stderr", Text: "Fixture failure"}}, Settled: true, ExitCode: &exit}}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { installDialog(c, m, s, m.Controller.Actions(s.Owner)) })
 	}, 520, 760)
-	for _, label := range []string{"pnpm add fixture-plugin", "fixture-profile", "[stdout] Installing fixture", "[stderr] Fixture failure", "Exit: 1"} {
+	for _, label := range []string{"pnpm add fixture-plugin", "fixture-profile", "Installing fixture\nFixture failure", "Exit: 1"} {
 		if !tt.HasText(label) {
 			t.Fatalf("terminal omitted %q", label)
 		}
