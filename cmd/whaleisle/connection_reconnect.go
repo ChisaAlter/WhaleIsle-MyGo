@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
 	"sync"
 
+	"whaleisle/internal/desktop/networkstatus"
 	"whaleisle/internal/dsh"
 )
 
@@ -121,7 +123,7 @@ func (a *connectionAttemptState) bootstrap(err error) {
 	}
 	a.state.mu.Lock()
 	a.state.dshMuxReady = false
-	a.state.dshMuxLost = err != nil
+	a.state.dshMuxLost = err != nil || a.state.dshNetworkOffline
 	a.state.dshBootstrapError = ""
 	if err != nil {
 		a.state.dshBootstrapError = err.Error()
@@ -130,4 +132,42 @@ func (a *connectionAttemptState) bootstrap(err error) {
 	a.state.dshMu.Unlock()
 	a.state.hostTerminals.Transport(a.client, false)
 	a.refresh()
+}
+
+func (a *connectionAttemptState) networkAvailability(value networkstatus.Availability) {
+	known, available := value != networkstatus.Unknown, value != networkstatus.Offline
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.state.dshMu.Lock()
+	if a.host.Err() != nil || a.state.dshClient != a.client || a.state.dshMux != a.mux {
+		a.state.dshMu.Unlock()
+		return
+	}
+	a.state.mu.Lock()
+	offline := known && !available
+	changed := a.state.dshNetworkOffline != offline
+	a.state.dshNetworkOffline = offline
+	if changed {
+		a.state.dshMuxReady = false
+		a.state.dshMuxLost = offline
+	}
+	a.state.mu.Unlock()
+	a.state.dshMu.Unlock()
+	a.mux.SetNetworkAvailability(known, available)
+	if changed {
+		a.state.hostTerminals.Transport(a.client, false)
+	}
+	a.refresh()
+}
+
+func (a *connectionAttemptState) watchNetwork(ctx context.Context) func() {
+	stop, err := networkstatus.Watch(ctx, a.networkAvailability)
+	if err != nil && ctx.Err() == nil {
+		log.Print("[connection] ", err)
+	}
+	return func() {
+		if err := stop(); err != nil {
+			log.Print("[connection] ", err)
+		}
+	}
 }

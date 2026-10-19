@@ -28,22 +28,27 @@ func (b Backoff) normalized() Backoff {
 }
 
 var ErrReconnectRequested = errors.New("dsh mux: manual reconnect requested")
+var ErrNetworkOffline = errors.New("network is offline")
+var errNetworkStateChanged = errors.New("network availability changed")
 
 type muxAttempt struct {
-	ctx        context.Context
-	cancel     context.CancelCauseFunc
-	ready      chan struct{}
-	readySet   bool // guarded by Mux.maintainMu
-	generation <-chan struct{}
-	watchDone  chan struct{}
-	started    time.Time
-	deadline   time.Time
+	ctx             context.Context
+	cancel          context.CancelCauseFunc
+	ready           chan struct{}
+	readySet        bool // guarded by Mux.maintainMu
+	generation      <-chan struct{}
+	watchDone       chan struct{}
+	started         time.Time
+	deadline        time.Time
+	networkRevision uint64
 }
 type muxMaintainer struct {
-	ctx      context.Context
-	requests chan struct{}
-	attempt  *muxAttempt // guarded by Mux.maintainMu
-	stopping bool
+	ctx                                    context.Context
+	requests                               chan struct{}
+	attempt                                *muxAttempt // guarded by Mux.maintainMu
+	stopping                               bool
+	networkChanged                         chan struct{}
+	eventSequence, lastManual, lastNetwork uint64 // guarded by maintainMu
 }
 
 // RequestReconnect interrupts the current attempt or retry delay, retaining
@@ -55,6 +60,8 @@ func (m *Mux) RequestReconnect() bool {
 	if o == nil || o.stopping || o.ctx.Err() != nil {
 		return false
 	}
+	o.eventSequence++
+	o.lastManual = o.eventSequence
 	if o.attempt != nil {
 		o.attempt.cancel(ErrReconnectRequested)
 	}
@@ -63,6 +70,43 @@ func (m *Mux) RequestReconnect() bool {
 	default:
 	}
 	return true
+}
+
+// SetNetworkAvailability accepts the OS producer's known/available result.
+// Unknown permits recovery without asserting an online state. Only an actual
+// offline/available transition replaces a current physical generation.
+func (m *Mux) SetNetworkAvailability(known, available bool) {
+	m.maintainMu.Lock()
+	defer m.maintainMu.Unlock()
+	wasOffline := m.networkKnown && !m.networkAvailable
+	m.networkKnown, m.networkAvailable = known, available
+	if wasOffline == (known && !available) {
+		return
+	}
+	m.networkRevision++
+	o := m.maintainer
+	if o == nil || o.stopping || o.ctx.Err() != nil {
+		return
+	}
+	o.eventSequence++
+	o.lastNetwork = o.eventSequence
+	select {
+	case <-o.requests:
+	default:
+	} // network changes clear an older manual override
+	if o.attempt != nil && o.attempt.ready != nil {
+		o.attempt.cancel(errNetworkStateChanged)
+	}
+	select {
+	case o.networkChanged <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Mux) networkIsOffline() bool {
+	m.maintainMu.Lock()
+	defer m.maintainMu.Unlock()
+	return m.networkKnown && !m.networkAvailable
 }
 
 // BindGeneration registers the existing events pump's completion. A rejected
@@ -138,7 +182,7 @@ func MaintainMuxFromBootstrap(ctx context.Context, mux *Mux, client *Client, onR
 }
 
 func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig, requireReady bool, onReady func(context.Context) error, onLost func(error), onWarning func(error), loadRecovery func(context.Context) (RecoveryConfig, error), onBootstrap func(error)) error {
-	o := &muxMaintainer{ctx: ctx, requests: make(chan struct{}, 1)}
+	o := &muxMaintainer{ctx: ctx, requests: make(chan struct{}, 1), networkChanged: make(chan struct{}, 1)}
 	mux.maintainMu.Lock()
 	if mux.maintainer != nil {
 		mux.maintainMu.Unlock()
@@ -250,9 +294,31 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		mux.mu.Unlock()
 	}
 	delay := b.Initial
+	manualStart := false
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if mux.networkIsOffline() && !manualStart {
+			delay = b.Initial
+			notify(ErrNetworkOffline)
+			var err error
+			manualStart, err = mux.waitForNetwork(ctx, o)
+			if err != nil {
+				return err
+			}
+			if !manualStart {
+				manualStart, delay, err = mux.waitNetworkRetry(ctx, o, b.Initial, b.Initial)
+				if errors.Is(err, ErrNetworkOffline) {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				if !manualStart {
+					delay = nextDelay(delay, b)
+				}
+			}
 		}
 		select {
 		case <-lost:
@@ -264,14 +330,29 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 			a.deadline = a.started.Add(time.Duration(config.GenerationReadyTimeoutMS) * time.Millisecond)
 		}
 		mux.maintainMu.Lock()
+		a.networkRevision = mux.networkRevision
 		o.attempt = a
+		if manualStart && o.lastNetwork > o.lastManual {
+			manualStart = false
+			a.cancel(errNetworkStateChanged)
+		}
+		if mux.networkKnown && !mux.networkAvailable && !manualStart {
+			a.cancel(errNetworkStateChanged)
+		}
 		mux.maintainMu.Unlock()
+		manualStart = false
 		if requireReady {
 			go mux.watchReadiness(o, a, config, onWarning)
 		} else {
 			close(a.watchDone)
 		}
 		err, manual, fatal := runMuxAttempt(ctx, mux, a, o.requests, lost, pending, requireReady, onReady)
+		mux.maintainMu.Lock()
+		if a.networkRevision != mux.networkRevision && o.lastNetwork > o.lastManual {
+			manual = false
+			err = errNetworkStateChanged
+		}
+		mux.maintainMu.Unlock()
 		if errors.Is(err, ErrReconnectRequested) {
 			manual = true
 			pending()
@@ -291,14 +372,27 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		notify(err)
 		if manual {
 			delay = b.Initial
+			manualStart = true
 			continue
 		}
-		manual, err = waitMuxRetry(ctx, o.requests, jitterDelay(delay))
+		if errors.Is(err, errNetworkStateChanged) {
+			delay = b.Initial
+		}
+		if mux.networkIsOffline() {
+			delay = b.Initial
+			continue
+		}
+		manual, delay, err = mux.waitNetworkRetry(ctx, o, delay, b.Initial)
+		if errors.Is(err, ErrNetworkOffline) {
+			delay = b.Initial
+			continue
+		}
 		if err != nil {
 			return err
 		}
 		if manual {
 			delay = b.Initial
+			manualStart = true
 			notify(ErrReconnectRequested)
 		} else {
 			delay = nextDelay(delay, b)
@@ -309,6 +403,9 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 func runMuxAttempt(host context.Context, mux *Mux, a *muxAttempt, requests <-chan struct{}, lost <-chan error, pending func() bool, requireReady bool, onReady func(context.Context) error) (err error, manual, fatal bool) {
 	if pending() {
 		return ErrReconnectRequested, true, false
+	}
+	if a.ctx.Err() != nil {
+		return context.Cause(a.ctx), false, false
 	}
 	err = mux.Dial(a.ctx)
 	if host.Err() != nil {
@@ -350,6 +447,41 @@ func runMuxAttempt(host context.Context, mux *Mux, a *muxAttempt, requests <-cha
 		return context.Cause(a.ctx), false, false
 	case err = <-lost:
 		return err, false, false
+	}
+}
+
+func (m *Mux) waitForNetwork(ctx context.Context, o *muxMaintainer) (bool, error) {
+	for m.networkIsOffline() {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-o.requests:
+			return true, nil
+		case <-o.networkChanged:
+		}
+	}
+	return false, nil
+}
+
+func (m *Mux) waitNetworkRetry(ctx context.Context, o *muxMaintainer, delay, initial time.Duration) (bool, time.Duration, error) {
+	for {
+		if m.networkIsOffline() {
+			return false, delay, ErrNetworkOffline
+		}
+		timer := time.NewTimer(jitterDelay(delay))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return false, delay, ctx.Err()
+		case <-o.requests:
+			timer.Stop()
+			return true, delay, nil
+		case <-o.networkChanged:
+			timer.Stop()
+			delay = initial
+		case <-timer.C:
+			return false, delay, nil
+		}
 	}
 }
 

@@ -29,9 +29,12 @@ type Mux struct {
 	// DialTimeout caps the WebSocket handshake. Zero uses 15s.
 	DialTimeout time.Duration
 	// OnCarrierLost is invoked once when the physical socket dies (optional).
-	OnCarrierLost func(error)
-	maintainMu    sync.Mutex
-	maintainer    *muxMaintainer
+	OnCarrierLost    func(error)
+	maintainMu       sync.Mutex
+	maintainer       *muxMaintainer
+	networkKnown     bool // guarded by maintainMu; unknown never means offline
+	networkAvailable bool
+	networkRevision  uint64
 
 	mu      sync.Mutex
 	conn    *websocket.Conn
