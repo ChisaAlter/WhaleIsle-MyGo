@@ -72,13 +72,6 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 	if tab == nil || m.OpenDocumentViewer == nil {
 		return
 	}
-	if desktopDelimitedDefault(tab) {
-		tab.document.enabled = false
-		if tab.document.surface != nil {
-			tab.document.surface.SetVisible(false)
-		}
-		return
-	}
 	paintDocumentViewerChoices(c, m, tab)
 }
 
@@ -87,6 +80,13 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 func prepareDocumentViewer(m Model) {
 	tab := selectedTab(m)
 	if tab == nil || m.OpenDocumentViewer == nil {
+		return
+	}
+	if desktopDelimitedDefault(tab) {
+		tab.document.enabled = false
+		if tab.document.surface != nil {
+			tab.document.surface.SetVisible(false)
+		}
 		return
 	}
 	if !tab.document.attempted && !tab.Editing {
