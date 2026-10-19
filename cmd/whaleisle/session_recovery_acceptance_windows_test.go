@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -203,6 +204,23 @@ func runNativeSessionRecovery() error {
 			proof["sourceFileEditViewMode"] = fileMode
 			proof["selectedWorkspacePaneKey"] = activePane
 			proof["adapterLayoutStateDIP"] = geometry // Persisted state, not measured native node bounds.
+			if value := os.Getenv("WHALEISLE_SESSION_QA_STABILITY_SECONDS"); value != "" {
+				seconds, err := strconv.Atoi(value)
+				if err != nil || seconds < 1 || seconds > 120 {
+					finish(fmt.Errorf("owned stability observation requires1..120 seconds"))
+					return
+				}
+				started := time.Now()
+				for time.Since(started) < time.Duration(seconds)*time.Second {
+					if win.IsDestroyed() {
+						finish(fmt.Errorf("owned restored native window closed during stability observation"))
+						return
+					}
+					time.Sleep(250 * time.Millisecond)
+				}
+				proof["nativeWindowStabilitySeconds"] = seconds
+				proof["stabilityScope"] = "Owned restored main window idle observation; no OS input, no model request, not proof of the user's unobserved exit cause"
+			}
 			if phase == "restore" {
 				png, err := win.CapturePage()
 				if err != nil {
