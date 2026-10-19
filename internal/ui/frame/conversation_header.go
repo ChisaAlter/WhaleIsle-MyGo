@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -80,9 +79,7 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 }
 
 type scheduleHeaderState struct {
-	open   bool
-	mu     sync.Mutex
-	notice string
+	open bool
 }
 
 func scheduleHeader(c *ui.Context, m Model, sessionSnap session.ViewState, colors theme.Colors) {
@@ -108,13 +105,6 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 	root := ui.Row(c.Key("schedule-header:" + snap.Origin + ":" + sessionID)).Shrink(0)
 	state := ui.Local(root, "schedule-menu", func() *scheduleHeaderState { return &scheduleHeaderState{} })
 	local := *state
-	local.mu.Lock()
-	notice := local.notice
-	local.notice = ""
-	local.mu.Unlock()
-	if notice != "" {
-		c.Toast(notice)
-	}
 	if len(rows) == 0 && snap.Err == "" {
 		root.Size(0, 0)
 		return
@@ -184,14 +174,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 								if remove.Clicked() {
 									services := c.Services()
 									go func() {
-										err := m.ScheduleStore.DeleteEntry(context.Background(), row)
-										local.mu.Lock()
-										if err != nil {
-											local.notice = err.Error()
-										} else {
-											local.notice = archiveText("任务已删除", "Task deleted")
-										}
-										local.mu.Unlock()
+										_ = m.ScheduleStore.DeleteEntry(context.Background(), row)
 										services.Invalidate()
 										if m.OnScheduleInvalidate != nil {
 											m.OnScheduleInvalidate()

@@ -177,9 +177,11 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 		err = resultError(out)
 	}
 	var failure *ResultError
+	alreadyAbsent := false
 	if errors.As(err, &failure) && failure.Code == "schedule_not_found" {
 		// Already absent is a settled deletion; the catalog still has to confirm it.
 		err = nil
+		alreadyAbsent = true
 		out = json.RawMessage(`{"deleted":true}`)
 	}
 	if err == nil {
@@ -201,6 +203,14 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	if err == nil {
 		s.lastAction = "Schedule deleted"
 	}
+	outcome := "failed"
+	if err == nil {
+		outcome = "deleted"
+		if alreadyAbsent {
+			outcome = "alreadyAbsent"
+		}
+	}
+	s.publishDeletionLocked(outcome)
 	current := s.client == client
 	sid := s.sessionID
 	s.mu.Unlock()

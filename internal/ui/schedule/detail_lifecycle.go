@@ -102,7 +102,9 @@ func (p *Panel) deleteTask(m Model, row schedstore.Entry) {
 		}
 		p.actionPending, p.actionFailed = false, err != nil
 		if err != nil {
-			p.status, p.statusOwner = err.Error(), taskKey(row)
+			// The app-wide deletion notice owns the outcome, including when
+			// this detail has closed. Keep only this detail's failed draft.
+			p.status, p.statusOwner = "", taskKey(row)
 		} else {
 			p.deleteAck = &deleteReceipt{key: taskKey(row), revision: snap.CatalogRevision}
 		}

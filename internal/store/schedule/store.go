@@ -64,6 +64,9 @@ type Store struct {
 	catalogRevision  uint64
 	catalogRequest   uint64
 	catalogSettled   uint64
+	deleteSequence   uint64
+	deleteNotice     *DeletionNotice
+	deletePublished  bool
 	lastAction       string
 	busy             bool
 }
@@ -89,6 +92,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.catalogHint = ""
 		s.lastAction = ""
 		s.catalogReady = false
+		s.deleteNotice = nil
 	}
 	s.client = client
 	s.notify = notify
@@ -110,6 +114,7 @@ func (s *Store) Detach() {
 	s.rows = nil
 	s.catalogHint = ""
 	s.catalogReady = false
+	s.deleteNotice = nil
 	s.mu.Unlock()
 	s.fire()
 }

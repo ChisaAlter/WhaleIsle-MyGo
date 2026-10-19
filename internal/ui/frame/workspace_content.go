@@ -340,7 +340,11 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
-		n.Schedule.deactivate()
+		if retainReads {
+			// This path suspends an outgoing Session. OS hide/minimize uses
+			// PauseContent(false), which keeps the mounted task's draft.
+			n.Schedule.deactivate()
+		}
 		if !retainReads || !n.holdsAgentReadOccurrence() {
 			n.releaseAgentPane()
 		}
