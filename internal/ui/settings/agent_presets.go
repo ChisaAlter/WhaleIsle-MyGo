@@ -21,10 +21,14 @@ type AgentPresetsAccess struct {
 }
 
 func agentPresetSettingsLabel(row session.ManagedAgentPreset) string {
-	if row.Name == "" || row.Name == row.ID {
+	name, _ := agentPresetDisplay(row)
+	if row.BuiltIn {
+		return name
+	}
+	if name == "" || name == row.ID {
 		return row.ID
 	}
-	return row.Name + " (" + row.ID + ")"
+	return name + " (" + row.ID + ")"
 }
 
 func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -118,6 +122,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 					}
 					count++
 					label := agentPresetSettingsLabel(row)
+					_, description := agentPresetDisplay(row)
 					card := ui.Column(c.Key("preset-row/"+row.ID)).Width(cardWidth).MinWidth(0).Gap(0).Radius(12).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .20))
 					if row.ID == roster.DefaultID {
 						card = card.Background(ui.RGBA(muted.R, muted.G, muted.B, .08))
@@ -132,8 +137,8 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 										ui.Text(c, "✓").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 									}
 								})
-								if row.Description != "" {
-									ui.Text(c, row.Description).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(row.Description)
+								if description != "" {
+									ui.Text(c, description).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(description)
 								}
 								if row.Broken != "" {
 									ui.Text(c, "加载失败 / Failed to load: "+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
