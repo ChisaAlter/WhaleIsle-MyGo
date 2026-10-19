@@ -3,6 +3,7 @@ package im
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -11,6 +12,7 @@ import (
 	_ "image/png"
 	"net/url"
 	"strings"
+	"time"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -187,6 +189,7 @@ func onboardingView(c *ui.Context, m Model) {
 						}
 						ui.Text(c, b.Bot.Name+" · "+b.BotID+" · "+state).Bold().TextColor(fg)
 						ui.Text(c, b.Health.Summary).TextColor(muted)
+						channelHealthDetails(c, b, fg, muted, chrome.Color(colors.Accent))
 						action := func(label, method string) {
 							if ui.Button(c, label).Disabled(locked).Clicked() {
 								s.Review(v.Scope, method, b.BotID, "", "")
@@ -248,6 +251,51 @@ func onboardingView(c *ui.Context, m Model) {
 			})
 		})
 	})
+}
+
+func channelStatusTime(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var milliseconds float64
+	if json.Unmarshal(raw, &milliseconds) == nil {
+		if milliseconds < -8640000000000000 || milliseconds > 8640000000000000 {
+			return ""
+		}
+		return time.UnixMilli(int64(milliseconds)).Local().Format("2006-01-02 15:04:05")
+	}
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		if parsed, err := time.Parse(time.RFC3339Nano, text); err == nil {
+			return parsed.Local().Format("2006-01-02 15:04:05")
+		}
+	}
+	return ""
+}
+
+func channelHealthDetails(c *ui.Context, b imonboard.Bot, fg, muted, accent ui.Color) {
+	if checked := channelStatusTime(b.Health.LastCheckedAt); checked != "" {
+		ui.Text(c, "最近检查 / Last checked: "+checked).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	}
+	if message := strings.TrimSpace(b.Error.Message); message != "" {
+		ui.Text(c, "连接错误 / Connection error: "+message).TextColor(accent).Selectable()
+		if code := strings.TrimSpace(b.Error.Code); code != "" {
+			ui.Text(c, "错误码 / Code: "+code).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+		}
+	}
+	e := b.LastMessageError
+	// Match the original presentation contract: incomplete diagnostics are not
+	// rendered as a confirmed failure or fabricated reference/time.
+	if strings.TrimSpace(e.Code) == "" || strings.TrimSpace(e.Reason) == "" || strings.TrimSpace(e.Message) == "" || strings.TrimSpace(e.ReferenceID) == "" || e.At == nil {
+		return
+	}
+	ui.Text(c, "最近消息处理失败 / Last message failed").Bold().TextColor(accent)
+	ui.Text(c, strings.TrimSpace(e.Message)).TextColor(fg).Selectable()
+	ui.Text(c, fmt.Sprintf("错误码 / Code: %s · 参考号 / Reference: %s", e.Code, e.ReferenceID)).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+	raw, _ := json.Marshal(*e.At)
+	if occurred := channelStatusTime(raw); occurred != "" {
+		ui.Text(c, "发生时间 / Occurred: "+occurred).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	}
 }
 func renderPairingQR(c *ui.Context, source string) {
 	header, body, ok := strings.Cut(source, ",")

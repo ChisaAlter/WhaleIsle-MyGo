@@ -39,6 +39,16 @@ func PlatformByID(id string) Platform {
 }
 
 type Draft struct{ Identity, Secret, Extra, VerifyCode string }
+
+// Public presentation fields from the original connection.status snapshot.
+// Keep credential bindings, tokens and raw transport payloads out of this view.
+type LastMessageError struct {
+	Code        string   `json:"code"`
+	Reason      string   `json:"reason"`
+	Message     string   `json:"message"`
+	ReferenceID string   `json:"referenceId"`
+	At          *float64 `json:"at"`
+}
 type Bot struct {
 	BotID     string `json:"botId"`
 	State     string `json:"state"`
@@ -47,10 +57,16 @@ type Bot struct {
 		Name string `json:"name"`
 	} `json:"bot"`
 	Health struct {
-		Summary string `json:"summary"`
+		Summary       string          `json:"summary"`
+		LastCheckedAt json.RawMessage `json:"lastCheckedAt"`
 	} `json:"health"`
-	GroupResponseMode             string `json:"groupResponseMode"`
-	GroupMessagePermissionGranted bool   `json:"groupMessagePermissionGranted"`
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+	LastMessageError              LastMessageError `json:"lastMessageError"`
+	GroupResponseMode             string           `json:"groupResponseMode"`
+	GroupMessagePermissionGranted bool             `json:"groupMessagePermissionGranted"`
 	AccessPolicy                  struct {
 		AccessMode     string   `json:"accessMode"`
 		AllowedUsers   []string `json:"allowedUsers"`
@@ -130,6 +146,13 @@ func (s *Store) Snapshot() View {
 	defer s.mu.Unlock()
 	v := s.view
 	v.Bots = append([]Bot(nil), v.Bots...)
+	for i := range v.Bots {
+		v.Bots[i].Health.LastCheckedAt = append(json.RawMessage(nil), v.Bots[i].Health.LastCheckedAt...)
+		if v.Bots[i].LastMessageError.At != nil {
+			at := *v.Bots[i].LastMessageError.At
+			v.Bots[i].LastMessageError.At = &at
+		}
+	}
 	v.PolicyDrafts = map[string]string{}
 	for k, value := range s.view.PolicyDrafts {
 		v.PolicyDrafts[k] = value
