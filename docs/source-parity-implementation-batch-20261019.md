@@ -8,7 +8,7 @@ Run01 at `3b37750` exited 1. Its log is `../evidence/source-parity-unified-20261
 
 Additional source comparison found implementable gaps, so source work resumed before a second unified run. Native Market screenshot catalog/gallery, GIF/WebP README animation, broader bounded static SVG, compact child composer and original Workflow row rendering are committed. `8e1694c` now preserves actual subagent descriptor identity and permits both original workflow navigation modes; `c6854e8` restores desktop applyConfig’s public config response. These are source changes, not new regression or desktop acceptance claims.
 
-The identified follow-up product fixes are now committed; focused regression preparation and the final exact source reviews are finishing before unified run02. The current source ledger records 52 rows with bounded behavior comparisons and 39 with entry-point sampling. These 91 labels are not an exhaustive original-feature/state review: each linked report retains unread states, dynamic contributions and platform-specific limits.
+The identified follow-up product fixes, necessary regression source and the final exact source reviews are committed. Unified run02 is next; no passing result is implied by this source milestone. The current source ledger records 52 rows with bounded behavior comparisons and 39 with entry-point sampling. These 91 labels are not an exhaustive original-feature/state review: each linked report retains unread states, dynamic contributions and platform-specific limits.
 
 | Follow-up source behavior | Concrete implementation commits |
 |---|---|
@@ -19,7 +19,7 @@ The identified follow-up product fixes are now committed; focused regression pre
 | Recovery checkpoint debounce/max-wait/retry and hide/minimize capture; terminal drawer restore without replay | `59c3582`, `02c6bd3`, `6755c17`, `3a3064f` |
 | Files committed native input before paint, plus selected-range IME capture without persisting preedit | `bca41bb`, `99f732e`, `e11ebc0` |
 | Original desktop Files local source restored after withdrawing an over-broad Host-only inference | `5e918af`, `be7a34e`; [exact original route and correction](source-review-native-file-references-20261019.md) |
-| CSV/TSV default desktop edit/save and source-consistent observation; XLS/XLSX remain table previews | `8b25c42` |
+| CSV/TSV default desktop edit/save and source-consistent observation; XLS/XLSX remain table previews | `8b25c42`, `4f5055e`, `e6db66c`, `d9c99ca`; prepared round-trip/default chooser fixtures `5744f60` |
 | Desktop Files AVIF sequence route uses the already bounded shared decoder; composer/Market route retained | `ce67a12`, `3d61894`; [format limits](source-coverage-media-20261019.md) |
 | Pet transparent-region input gating and Room timeout aliases | `af11d25`, `4f08402` |
 | Narrow shortcut source reload without rebasing unrelated stale desktop drafts | `9cf5e01`, `1ba34d5` |
