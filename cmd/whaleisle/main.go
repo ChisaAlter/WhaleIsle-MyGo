@@ -75,7 +75,6 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/diffsurface"
-	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
@@ -144,6 +143,7 @@ type mainState struct {
 	interactions                            *interaction.Store
 	settings                                *settingsstore.Store
 	settingsOpen                            bool
+	settingsEmbeddedSection                 settings.SectionID
 	settingsNSFilter                        string
 	settingsRevealSecrets                   bool
 	settingsDesktopActive                   bool
@@ -319,6 +319,7 @@ type mainState struct {
 	launcherComponentsFresh                 bool
 	launcherRoutePopOpen                    bool
 	workspaceMenuOpen                       bool
+	workspacePickerAnchor                   ui.Handle
 	workspaceRenameDraft                    string
 	pendingDeeplink                         deeplink.Target
 	settingsDrafts                          []settingsDraftSlot
@@ -372,29 +373,34 @@ type mainState struct {
 	scheduleEditTitle  string
 	scheduleEditPrompt string
 
-	rightPaneTab       string
-	agentsPromptDraft  string
-	goalDraft          string
-	fileOpenWithApps   []files.OpenWithApp
-	fileOpenWithFor    string
-	diffPath           string
-	diffText           string
-	diffErr            string
-	planBoardOpen      bool
-	todoPanelCollapsed bool
-	chatPaneTab        string // "chat" | "trajectory"
-	trajSearch         string
-	trajSelectedID     string
-	trajActualDur      bool
-	trajTurnsFold      bool
-	trajCallsFold      bool
-	trajDetailTab      string
-	imageLightboxPath  string
-	dirPickOpen        bool
-	dirPickMode        string // "workspace" | "mention"
-	dirPickListing     api.DirectoryListing
-	dirPickErr         string
-	dirPickNewName     string
+	rightPaneTab          string
+	agentsPromptDraft     string
+	goalDraft             string
+	fileOpenWithApps      []files.OpenWithApp
+	fileOpenWithFor       string
+	diffPath              string
+	diffText              string
+	diffErr               string
+	planBoardOpen         bool
+	todoPanelCollapsed    bool
+	chatPaneTab           string // "chat" | "trajectory"
+	trajSearch            string
+	trajSelectedID        string
+	trajActualDur         bool
+	trajTurnsFold         bool
+	trajCallsFold         bool
+	trajDetailTab         string
+	imageLightboxPath     string
+	dirPickOpen           bool
+	dirPickLoading        bool
+	dirPickRequest        uint64
+	dirPickCancel         context.CancelFunc
+	dirPickHostGeneration uint64
+	dirPickMode           string // "workspace" | "mention"
+	dirPickPath           string
+	dirPickListing        api.DirectoryListing
+	dirPickErr            string
+	dirPickNewName        string
 
 	composerResize        composer.ResizeState
 	sessionCostState      costui.State
@@ -870,32 +876,6 @@ func (s *mainState) pickAndApplyWorkspace(win *mygo.Window, sessions *session.St
 	}
 }
 
-func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Window, mode string) {
-	if sessions == nil {
-		return
-	}
-	if mode == "" {
-		mode = "workspace"
-	}
-	go func() {
-		listing, err := sessions.ListDirectories(context.Background(), "")
-		s.mu.Lock()
-		if err != nil {
-			s.dirPickErr = err.Error()
-			s.dirPickListing = api.DirectoryListing{}
-		} else {
-			s.dirPickErr = ""
-			s.dirPickListing = listing
-		}
-		s.dirPickMode = mode
-		s.dirPickOpen = true
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
-	}()
-}
-
 // applyWorkspacePath adopts a Host path transactionally. mkdirLocal is retained
 // for call compatibility; registry adoption never creates desktop directories.
 func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store, ws string, mkdirLocal bool) {
@@ -959,6 +939,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.assistantConversationGeneration++
 		s.assistantOpen = false
 	case deeplink.ActionSettings:
+		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
 		s.launcherOpen = false
 		s.usageOpen = false
@@ -1048,6 +1029,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 	case deeplink.ActionAuth:
 		// OAuth return from account/startSignIn (callbackOrigin whaleisle://auth).
+		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
 		s.launcherOpen = false
 		s.usageOpen = false
@@ -1646,6 +1628,7 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	case "webview":
 		s.webviewOpen = true
 	case "settings", "s-desk":
+		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
 		s.settingsDesktopActive = true
 		s.seedDesktopDraft()
@@ -3638,6 +3621,7 @@ func mainView(c *ui.Context) {
 				OnOpenSettings: func() {
 					state.mu.Lock()
 					state.launcherOpen = false
+					state.settingsEmbeddedSection = ""
 					state.settingsOpen = true
 					state.settingsDesktopActive = true
 					state.seedDesktopDraft()
@@ -3934,6 +3918,7 @@ func mainView(c *ui.Context) {
 			sessions = state.sessions
 			state.mu.Unlock()
 		}
+		var paintMainContent func(settings.SectionID)
 		paintSettingsOverlay := func() {
 			if settingsOpen && setStore != nil {
 				snap := setStore.Snapshot()
@@ -4046,7 +4031,7 @@ func mainView(c *ui.Context) {
 				if sessions != nil {
 					removal = sessions.SkillRemovalReview()
 				}
-				settings.ModalView(c, settings.Model{
+				settingsModel := settings.Model{
 					Pet:                   state.desktopPet,
 					ReferencedCredentials: state.referencedCredentialsAccess(),
 					Store:                 setStore,
@@ -5031,8 +5016,7 @@ func mainView(c *ui.Context) {
 					},
 					OnOpenMarket: func() {
 						state.mu.Lock()
-						state.settingsOpen = false
-						state.marketOpen = true
+						state.settingsEmbeddedSection = settings.SectionMarket
 						state.mu.Unlock()
 						if marketStore != nil {
 							marketStore.Refresh(context.Background())
@@ -5080,12 +5064,15 @@ func mainView(c *ui.Context) {
 						})
 						return err == nil && res.Button == 1
 					},
-				})
+				}
+				settings.ModalView(c, state.settingsSectionModel(settingsModel, func(_ *ui.Context) {
+					paintMainContent(settings.SectionMarket)
+				}))
 				return
 			}
 		}
-		paintMainContent := func() {
-			if acceptPanelOK && marketOpen && marketStore != nil {
+		paintMainContent = func(embeddedSection settings.SectionID) {
+			if acceptPanelOK && (marketOpen || embeddedSection == settings.SectionMarket) && marketStore != nil {
 				marketStore.SetNotify(func() {
 					if win != nil {
 						win.Update(func() {})
@@ -5096,6 +5083,7 @@ func mainView(c *ui.Context) {
 				muxReadyMarket := state.dshMuxReady
 				state.mu.Unlock()
 				marketui.View(c, marketui.Model{
+					Embedded:             embeddedSection == settings.SectionMarket,
 					Store:                marketStore,
 					ThemeID:              themeID,
 					SystemDark:           mygo.Theme.IsDark(),
@@ -6497,6 +6485,7 @@ func mainView(c *ui.Context) {
 						},
 						OnDeleteSkill: func(name string) {
 							state.mu.Lock()
+							state.settingsEmbeddedSection = ""
 							state.settingsOpen = true
 							state.settingsSkillsActive = true
 							state.settingsDesktopActive = false
@@ -6559,8 +6548,9 @@ func mainView(c *ui.Context) {
 						OnPickHeroWorkspace: func() {
 							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
 						},
+						WorkspacePickerAnchor: &state.workspacePickerAnchor,
 						OnBrowseWorkspace: func() {
-							state.pickAndApplyWorkspace(win, sessions, workspaceRoot)
+							state.openDirectoryPicker(sessions, win, "workspace")
 						},
 						OnRevealWorkspace: func() {
 							root := strings.TrimSpace(workspaceRoot)
@@ -6892,6 +6882,7 @@ func mainView(c *ui.Context) {
 						OnContactAccount: state.contactAccountSupport,
 						OnOpenSettings: func() {
 							state.mu.Lock()
+							state.settingsEmbeddedSection = ""
 							state.settingsOpen = true
 							state.settingsDesktopActive = true
 							state.launcherOpen = false
@@ -7094,104 +7085,22 @@ func mainView(c *ui.Context) {
 					nextPromptRendered = true
 					frame.View(c, frameModel)
 					state.workspaceNavigationView(c, win, sessions, themeID, systemDark, func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) })
-					if state.dirPickOpen {
-						ui.Overlay(c, func() {
-							ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).
-								Background(ui.RGBA(0, 0, 0, 120)).Children(func() {
-								ui.Box(c).Grow(1)
-								ui.Row(c).Children(func() {
-									ui.Box(c).Grow(1)
-									ui.Column(c).Width(420).Children(func() {
-										dirpick.View(c, dirpick.Model{
-											Listing:    state.dirPickListing,
-											ThemeID:    themeID,
-											SystemDark: systemDark,
-											NewName:    &state.dirPickNewName,
-											Err:        state.dirPickErr,
-											OnNavigate: func(path string) {
-												if sessions == nil {
-													return
-												}
-												go func() {
-													listing, err := sessions.ListDirectories(context.Background(), path)
-													state.mu.Lock()
-													if err != nil {
-														state.dirPickErr = err.Error()
-													} else {
-														state.dirPickErr = ""
-														state.dirPickListing = listing
-													}
-													state.mu.Unlock()
-													if win != nil {
-														win.Update(func() {})
-													}
-												}()
-											},
-											OnPick: func(path string) {
-												state.mu.Lock()
-												mode := state.dirPickMode
-												state.dirPickOpen = false
-												state.mu.Unlock()
-												if mode == "mention" {
-													root := strings.TrimSpace(workspaceRoot)
-													if root == "" && state.cfgStore != nil {
-														root = strings.TrimSpace(state.cfgStore.Get().Workspace)
-													}
-													if err := composer.InsertDirectoryMention(&activeDraft.Text, root, path); err != nil {
-														if sessions != nil {
-															sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
-														}
-													}
-													if win != nil {
-														win.Update(func() {})
-													}
-													return
-												}
-												state.applyWorkspacePath(win, sessions, path, false)
-											},
-											OnCreate: func(parent, name string) {
-												if sessions == nil {
-													return
-												}
-												go func() {
-													created, err := sessions.CreateDirectory(context.Background(), parent, name)
-													if err != nil {
-														state.mu.Lock()
-														state.dirPickErr = err.Error()
-														state.mu.Unlock()
-														if win != nil {
-															win.Update(func() {})
-														}
-														return
-													}
-													listing, lerr := sessions.ListDirectories(context.Background(), parent)
-													state.mu.Lock()
-													if lerr != nil {
-														state.dirPickErr = lerr.Error()
-													} else {
-														state.dirPickErr = ""
-														state.dirPickListing = listing
-													}
-													_ = created
-													state.mu.Unlock()
-													if win != nil {
-														win.Update(func() {})
-													}
-												}()
-											},
-											OnClose: func() {
-												state.mu.Lock()
-												state.dirPickOpen = false
-												state.mu.Unlock()
-											},
-										})
-									})
-									ui.Box(c).Grow(1)
-								})
-								ui.Box(c).Grow(1)
-							})
-						})
-					}
+					state.directoryPickerView(c, win, sessions, themeID, systemDark, func(mode, path string) {
+						if mode == "mention" {
+							root := strings.TrimSpace(workspaceRoot)
+							if root == "" && state.cfgStore != nil {
+								root = strings.TrimSpace(state.cfgStore.Get().Workspace)
+							}
+							if err := composer.InsertDirectoryMention(&activeDraft.Text, root, path); err != nil && sessions != nil {
+								sessions.SetLastAction(i18n.T(i18n.KeyComposerDirOutside))
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+							return
+						}
+						state.applyWorkspacePath(win, sessions, path, false)
+					})
 					state.mu.Lock()
 					// Splitters mutate Sidebar/Right/Main/RightTree on the paint-local
 					// copy. Do not clobber Bottom: toggleTerminal writes it on state and
@@ -7295,7 +7204,7 @@ func mainView(c *ui.Context) {
 			Store: sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
 			SessionSearch: &sessionSearch, RenameSessionID: &renameSessionID, RenameDraft: &renameDraft,
 			WorkspaceRoot: workspaceRoot,
-		}, paintMainContent)
+		}, func() { paintMainContent("") })
 		paintSettingsOverlay()
 
 	})

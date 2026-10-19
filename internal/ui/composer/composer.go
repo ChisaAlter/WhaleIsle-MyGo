@@ -20,37 +20,38 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
-	GroupMembers         []session.GroupMember
-	NextPrompt           session.NextPromptSuggestion
-	OnAcceptNextPrompt   func() string
-	ComposerBeam         bool
-	ComposerBeamStyle    json.RawMessage
-	TypingFx             bool
-	TypingFxStyle        json.RawMessage
-	ResizeEnabled        bool
-	Resize               *ResizeState
-	ResizeMaxWidth       float32
-	OnResizeEnd          func(axis string, value float32)
-	Snapshot             session.ViewState
-	ThemeID              string
-	SystemDark           bool
-	WorkspaceRoot        string
-	Draft                *string
-	State                *DraftState
-	OnSubmit             func()
-	OnSubmitGesture      func(accelerated bool)
-	OnOpenURL            func(string)
-	OnOpenReference      func(path string) // existing session-owned file preview route
-	OnAttachFiles        func([]string)
-	OnRetryAttachment    func(int)
-	OnWorkspaceReference func(filelink.Reference) error
-	OnPasteImage         func(bool)
-	ModelPick            *string
-	PermissionOptions    []session.PermissionOption
-	AgentPresetOptions   []session.AgentPresetOption
-	AgentPresetSelection session.AgentPresetSelectionView
-	PermissionPick       *string
-	AgentPresetPick      *string
+	GroupMembers          []session.GroupMember
+	NextPrompt            session.NextPromptSuggestion
+	OnAcceptNextPrompt    func() string
+	ComposerBeam          bool
+	ComposerBeamStyle     json.RawMessage
+	TypingFx              bool
+	TypingFxStyle         json.RawMessage
+	ResizeEnabled         bool
+	Resize                *ResizeState
+	ResizeMaxWidth        float32
+	OnResizeEnd           func(axis string, value float32)
+	Snapshot              session.ViewState
+	ThemeID               string
+	SystemDark            bool
+	WorkspaceRoot         string
+	WorkspacePickerAnchor *ui.Handle
+	Draft                 *string
+	State                 *DraftState
+	OnSubmit              func()
+	OnSubmitGesture       func(accelerated bool)
+	OnOpenURL             func(string)
+	OnOpenReference       func(path string) // existing session-owned file preview route
+	OnAttachFiles         func([]string)
+	OnRetryAttachment     func(int)
+	OnWorkspaceReference  func(filelink.Reference) error
+	OnPasteImage          func(bool)
+	ModelPick             *string
+	PermissionOptions     []session.PermissionOption
+	AgentPresetOptions    []session.AgentPresetOption
+	AgentPresetSelection  session.AgentPresetSelectionView
+	PermissionPick        *string
+	AgentPresetPick       *string
 
 	OnRetrySlashCommands func()
 	SlashCatalog         []SlashCommand
@@ -252,6 +253,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
 				wsBtn := ui.Button(c, "").Label("Composer workspace").Height(28).Radius(8).Padding(0, 8, 0, 8).
 					Background(ui.Transparent).BorderWidth(0)
+				if m.WorkspacePickerAnchor != nil {
+					wsBtn.Bind(m.WorkspacePickerAnchor)
+				}
 				if (m.OnPickHeroWorkspace == nil && m.OnPickDirectory == nil) || (m.State != nil && (m.State.Sending || m.State.Preparing > 0)) {
 					wsBtn = wsBtn.Disabled(true)
 				}

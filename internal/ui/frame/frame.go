@@ -276,38 +276,39 @@ type Model struct {
 	OnReadWorkspaceTableContext    func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
 	OnStatWorkspaceFileContext     func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
-	OnStatWorkspaceFile  func(rel string) string
-	FileStatNote         *string
-	OnPickHeroWorkspace  func()
-	OnNoDirectory        func()
-	OnSelectWorkspace    func(string)
-	OnBrowseWorkspace    func() // SidebarRoot ☰ / folder row
-	OnRevealWorkspace    func()
-	OnRenameWorkspace    func(title string)
-	OnDeleteWorkspace    func()
-	OnMoveSessionBefore  func(sessionID, beforeSessionID string)
-	WorkspaceRenameDraft *string
-	WorkspaceMenuOpen    *bool
-	OnOpenFloatingDoc    func(string)
-	OnOpenDoc            func(absPath string, kind workspacefs.DocKind, inWebView bool)
-	OnOpenMedia          func(path string, floating bool)
-	OnRevealFile         func(absPath string)
-	OnOpenWithApp        func(absPath, appID string)
-	FileOpenWithApps     []files.OpenWithApp
-	OnRenderOfficePDF    func(rel string)
-	OfficePreviewStatus  func(path string) string
-	OnOpenBrowserPreview func()
-	OnOpenMarket         func()
-	OnOpenSchedule       func()
-	OnOpenAssistant      func()
-	OnOpenLauncher       func()
-	OnContactAccount     func()
-	OnOpenSettings       func()
-	OnToggleTools        func()
-	OnToggleTerminal     func()
-	OnOpenHostTerminal   func()
-	OnRestartTerminal    func()
-	OnCloseTerminal      func()
+	OnStatWorkspaceFile   func(rel string) string
+	FileStatNote          *string
+	OnPickHeroWorkspace   func()
+	WorkspacePickerAnchor *ui.Handle
+	OnNoDirectory         func()
+	OnSelectWorkspace     func(string)
+	OnBrowseWorkspace     func() // SidebarRoot ☰ / folder row
+	OnRevealWorkspace     func()
+	OnRenameWorkspace     func(title string)
+	OnDeleteWorkspace     func()
+	OnMoveSessionBefore   func(sessionID, beforeSessionID string)
+	WorkspaceRenameDraft  *string
+	WorkspaceMenuOpen     *bool
+	OnOpenFloatingDoc     func(string)
+	OnOpenDoc             func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	OnOpenMedia           func(path string, floating bool)
+	OnRevealFile          func(absPath string)
+	OnOpenWithApp         func(absPath, appID string)
+	FileOpenWithApps      []files.OpenWithApp
+	OnRenderOfficePDF     func(rel string)
+	OfficePreviewStatus   func(path string) string
+	OnOpenBrowserPreview  func()
+	OnOpenMarket          func()
+	OnOpenSchedule        func()
+	OnOpenAssistant       func()
+	OnOpenLauncher        func()
+	OnContactAccount      func()
+	OnOpenSettings        func()
+	OnToggleTools         func()
+	OnToggleTerminal      func()
+	OnOpenHostTerminal    func()
+	OnRestartTerminal     func()
+	OnCloseTerminal       func()
 
 	Terminal              *termui.Panel
 	HostTerminalStore     *hostterminal.Store
@@ -802,6 +803,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnInsertVoice:         m.OnInsertComposerVoice,
 						OnCycleSpeech:         m.OnCycleComposerSpeech,
 						OnPickHeroWorkspace:   m.OnPickHeroWorkspace,
+						WorkspacePickerAnchor: m.WorkspacePickerAnchor,
 						OnNoDirectory:         m.OnNoDirectory,
 						OnUseBusyEnterSetting: m.Store.UseBusyEnterSetting,
 						OnPromptModeChange: func(mode session.PromptMode) {

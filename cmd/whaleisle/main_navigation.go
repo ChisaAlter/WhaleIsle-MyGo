@@ -85,6 +85,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	m.OnOpenSettings = func() {
 		s.mu.Lock()
+		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
 		s.settingsDesktopActive = true
 		s.seedDesktopDraft()
@@ -102,7 +103,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 		s.openNoDirectory(win, sessions, draft, snap.SelectedID)
 	}
-	m.OnBrowseWorkspace = func() { s.selectMainPanel(""); s.pickAndApplyWorkspace(win, sessions, m.WorkspaceRoot) }
+	m.OnBrowseWorkspace = func() { s.selectMainPanel(""); s.openDirectoryPicker(sessions, win, "workspace") }
 	m.OnRevealWorkspace = func() {
 		root := strings.TrimSpace(m.WorkspaceRoot)
 		if root != "" {

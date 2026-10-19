@@ -33,6 +33,13 @@ func (s *mainState) workspaceSelectionCommitted(win *mygo.Window, sessions *sess
 }
 func (s *mainState) workspaceNavigationView(c *ui.Context, win *mygo.Window, sessions *session.Store, themeID string, systemDark bool, onNoDirectory func()) {
 	workspacepicker.View(c, workspacepicker.Model{Store: sessions, ThemeID: themeID, SystemDark: systemDark, OnNoDirectory: onNoDirectory,
+		Anchor: c.Resolve(s.workspacePickerAnchor),
+		OnBrowse: func() {
+			if request := sessions.Snapshot().WorkspaceNavigation; request != nil {
+				sessions.CancelWorkspaceNavigation(request.Token)
+			}
+			s.openDirectoryPicker(sessions, win, "workspace")
+		},
 		OnChoose: func(token uint64, id string) {
 			if sessions.ChooseRegisteredWorkspace(token, id, s.persistRegisteredWorkspace) {
 				s.workspaceSelectionCommitted(win, sessions, sessions.WorkspaceCwd())

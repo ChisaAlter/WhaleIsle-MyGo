@@ -75,3 +75,69 @@ Standards与Spec独立只读审查覆盖完整 `aeb77c5..d7d07fc`。曾提出的
 - 现有原生API不能精确表达原版鱼标的CSS旋转中心/位移/缓动、滚动条仅悬停滑块显现、反馈遮罩模糊和composer锚定通知位置；未为这些绘制差异修改工具包或搭新框架。
 - 其他页面（设置、插件、任务、账号等）本轮未逐页还原；富内容/复杂工具卡、非空计划的完整视觉、全部原版动画尚不能据本轮测试宣称完成。
 - CI本轮触发0次，未push；历史累计未通过次数未知，未用本轮任务重置它。
+
+## 第二阶段清点：高频页面与模态
+
+基线 `0b85f86`，保留 `ce4efcb` EXE。先由四条只读审计线检查实际注册、完整组件和桌面覆盖，再划定以下页面批次；此表的“未完成”不是权限阻塞。原版组件路径除注明外，前缀为 `vendor/deepseek-harness/packages/client/`。
+
+### 按严重程度排序的主要差异
+
+| 优先级 | 原版组件 → Go实现 | 清点结果与本批边界 |
+|---|---|---|
+| 高 | ui-settings-general SettingsRoot/CSS → settings/modal.go/settings.go | 实际CSS为800宽、最大800且viewport−48高、188导航、54内容标题栏；Go为1120×820、240导航和通栏标题。本批恢复外壳、15项注册顺序、活动项、滚动和统一错误显示 |
+| 高 | ui-plugin-manager + ui-plugin-market → main_navigation.go / ui/market | 原版侧栏Plugins管理器与桌面精选市场不同；Go合并入口且没有pluginMarket/调用。管理器package/row/item配置数据也缺失，保留为独立待完成范围，不以换标签冒充完成 |
+| 高 | ui-settings-market MarketSection/CSS + src/main/dsh-market-desktop.js → ui/market | Go通栏按钮、无活动页签、单列无卡片、空搜索无反馈、详情/确认在正文流中。本批恢复800列、原版页签、响应式卡片、状态及有界模态；精选目录后端不变 |
+| 高 | ui-settings-plugin-inventory → settings/plugin_inventory.go | Go无卡片层级且展开符为文字占位；本批恢复双列/窄列卡片、状态点、Loader标识、展开详情和长文本边界 |
+| 高 | ui-schedule TaskManagerPage/TaskDetail → schedule/Panel | Go列表、操作排、编辑、历史全部堆在同一滚动区；本批恢复960目录、47%详情、760以下详情接管、Rule/Records、独立滚动、脏草稿保存条及明确loading/empty/error |
+| 高 | ui-workspace WorkspacePicker → workspacepicker/picker.go + cmd/workspace_navigation.go | Go居中520弹窗并常驻路径注册字段；本批改为Hero触发控件锚定菜单，工作区身份选择和固定底部Add/No-folder；重命名/移除有界模态 |
+| 高 | ui-directory-picker-browse DirectoryBrowser → dirpick/panel.go + main.go旧overlay | Go固定420外壳、列表Column限高但不滚动，返回后才开窗，迟到结果能重新打开。本批恢复680×500有界模态、立即loading、取消/Host身份栅栏、真实列表滚动和固定底部 |
+| 中 | ui-jobs JobListAction → frame/jobs.go / jobflow/controller.go | 原版500×≤480锚定popover，挂载即观察并显示实时计数；Go为880居中modal、仅打开时观察且关闭清空。本批不改，单独后续生命周期批次 |
+| 中 | ui-schedule ScheduleCatalogAction → chat/schedule_context.go | 原版28图标/336锚定菜单/零项隐藏；Go为消息区常驻任务条，有溢出风险。本批不混入共享顶栏改造 |
+| 中 | 原版项目/资源浏览组件 → ui/projects/view.go等 | Go固定200列表和多排操作，项目详情跨历史/材料/团队，尚未逐状态还原。本批仅清点，不泛化为整项目页面改造 |
+| 中 | MarketExtras → market详情/历史 | README暂为文本；截图轮播资产和可展开完整操作日志缺少对应数据，当前有限历史不能冒充完整原版记录 |
+
+### 原版实际设置注册清单（共15项）
+
+依据完整index注册与本地插件，按order排列。`archived-sessions`仅有图标映射，未发现真实注册，不另造页面。
+
+| 原版section / order | Go实现 | 本批以外的正文缺口 |
+|---|---|---|
+| account / −10，仅credential-stored | settings/account*.go | 正文部分对齐；未登录入口保留在General，活动登录仍可返回 |
+| general / 0 | desktop.go、通用schema、自定义指令/权限 | 桌面与Host功能分组仍需恢复 |
+| appearance / 5 | appearance.go、theme/wallpaper | 正文未完整视觉对照 |
+| interface / 6 | interface.go | 原版多项界面功能行缺少专用呈现 |
+| models / 10 | models.go | 本批未深入正文审计，不宣称对齐 |
+| plugins / 15 | plugins.go、plugin_inventory.go | 本批清单卡片之外的配置/管理层级未完整 |
+| skills / 16 | skills.go | 堆叠表单与原版列表/详情不同 |
+| market / 17，桌面API gate | ui/market | 本批恢复设置内嵌及精选市场呈现，通用插件发现另列 |
+| mcp / 18 | mcp*.go | 正文部分迁移，未逐模态对齐 |
+| remote / 18 | ui/remote | Go混合SSH/手机页且离开设置；原版Gateway/Channels分组待恢复 |
+| agent-presets / 20 | agent_presets*.go | 正文与弹层部分迁移 |
+| usage-stats / 25，本地vendor/dsh-usage-panel | ui/usage | Go外部页且混入账号内容，设置内组合待恢复 |
+| pet / 40，桌面bridge gate | pet*.go | 保留能力条件；正文部分迁移 |
+| remote-workspace / 45，本地vendor/dsh-remote | 通用namespace；机器UI在ui/remote | 页面组合不对应原版 |
+| about / 90 | about.go | Go增加的管理元信息密度与原版不同 |
+
+原版可访问源码足以确定上述页面范围；没有因缺原版当前窗口截图停止实现。后续将按这份明确清单分批处理，不把所有页面归入本轮已完成。
+
+### 第二阶段本批验证与独立审查
+
+本批已实现上述设置外壳、桌面精选市场/清单、自动化任务目录/详情、锚定工作区选择/管理和有界目录浏览器；15项设置正文、独立Plugins管理器、Jobs、Projects与目录Miller多栏/隐藏项/路径编辑不在完成范围。项目页原版依据补充为本地 `vendor/dsh-project/client/client.js`（36px项目行、hover/focus菜单和760px/80vh项目模态），Go对应 `ui/projects`；保留下一独立页面批次。
+
+一次整批门禁（Go1.27.2、`-count=1`）通过：
+
+| 页面/主工作区门禁 | 结果 |
+|---|---|
+| settings / market / schedule | 2.771s / 1.930s / 1.908s |
+| workspacepicker / dirpick | 1.692s / 1.196s |
+| frame / composer / chat | 5.286s / 2.496s / 3.461s |
+| sidebar / theme / session store | 2.142s / 1.191s / 5.455s |
+| cmd/whaleisle | 2.957s |
+
+检查点后的Pet/账号返回入口两行修正，受影响外部导航/账号返回定向回归另通过2.680s，其他页面代码未变。
+
+两条独立审查覆盖完整 `git diff 0b85f86`，包含新增文件；随后只复查受影响修正。Standards指出任务筛选丢失、外部设置与Pet入口残留Market选择，均已修复；Spec指出目录错误缺Retry，已补保存失败目标路径并重试。组合fixture还实际发现嵌套滚动造成市场正文零尺寸，已修成由设置承载滚动的自然内容列。最终两条代码审查均无确认的剩余P1/P2，不代替原版视觉验收。
+
+`..\evidence\secondary` 保存20张PNG，已检查设置市场正常/窄窗、任务目录/详情/窄窗/记录/删除、目录短窗、工作区长列表/重命名、插件清单窄列及详情窄窗。未见本批关键操作越界或互相覆盖；截图均为隔离数据。`..\evidence\frame-phase2` 保存主工作区防退化渲染。部分次级正文仍保留原Go控件样式/文案，不能由本批结构恢复推定为完整视觉对齐。
+
+目录测试只用模拟HTTP，市场目录为内存夹具；没有创建真实任务/目录、安装插件、访问真实Host或发送模型请求。`go.mod`、`go.sum`和`.github`未变；没有CI、推送或用户实例操作。

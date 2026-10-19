@@ -65,7 +65,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		s.settingsOpen = false
 		s.launcherOpen = false
 		s.mu.Unlock()
-		s.pickAndApplyWorkspace(w, sessions, "")
+		s.openDirectoryPicker(sessions, w, "workspace")
 	}
 	actions["workspace.openLocal"] = func() {
 		s.mu.Lock()

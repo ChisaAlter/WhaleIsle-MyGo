@@ -21,6 +21,7 @@ type Panel struct {
 	recentZones         []string
 	drafts              map[string]*taskDraft
 	selected            string
+	detailTab           string
 	query, statusFilter string
 	deleting            *schedstore.Entry
 	initialized         bool
@@ -28,12 +29,14 @@ type Panel struct {
 	historyRequest      uint64
 	mu                  sync.Mutex
 	status              string
+	statusOwner         string
 	historyState        deliveryHistoryState
 	deliveryExpanded    map[string]bool
 	historyKey          string
 	historyRow          schedstore.Entry
 	historyLoading      bool
 	committed           map[string]savedDraft
+	deleted             []string
 }
 type savedDraft struct {
 	row    schedstore.Entry
@@ -129,9 +132,13 @@ func (d *taskDraft) change() (json.RawMessage, error) {
 	}
 	return json.Marshal(change)
 }
-func (p *Panel) message(text string) { p.mu.Lock(); p.status = text; p.mu.Unlock() }
+func (p *Panel) message(text string) {
+	p.mu.Lock()
+	p.status, p.statusOwner = text, ""
+	p.mu.Unlock()
+}
 
-// View renders the full catalog, captured-owner editor, deletion confirmation and history.
+// View shares one retained task editor between the catalog and a task tab.
 func (p *Panel) View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
@@ -140,7 +147,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	if !p.initialized || p.connectionEpoch != snap.ConnectionEpoch {
 		p.initialized = true
 		p.connectionEpoch = snap.ConnectionEpoch
-		p.selected = ""
+		p.selected, p.detailTab = "", "rule"
 		p.query, p.statusFilter = "", "all"
 		p.deleting = nil
 		p.mu.Lock()
@@ -148,223 +155,119 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		p.historyKey = ""
 		p.historyState = deliveryHistoryState{}
 		p.historyLoading = false
-		p.committed = nil
+		p.committed, p.deleted = nil, nil
+		p.status, p.statusOwner = "", ""
 		p.mu.Unlock()
 		m.Store.Refresh(context.Background(), m.SessionID)
 		snap = m.Store.Snapshot()
 	}
-	if m.DetailID != "" {
-		for _, row := range snap.Rows {
-			if row.ID == m.DetailID && row.SessionID == m.DetailSessionID && p.selected != taskKey(row) {
-				p.OpenTask(row, snap.ConnectionEpoch)
-			}
-		}
-	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
 	p.mu.Lock()
-	status := p.status
 	for key, saved := range p.committed {
 		if d := p.drafts[key]; d != nil {
 			d.row = saved.row
 			d.initialTiming = saved.timing
 		}
 	}
-	p.committed = nil
+	for _, key := range p.deleted {
+		if p.selected == key {
+			p.selected = ""
+		}
+		delete(p.drafts, key)
+	}
+	p.committed, p.deleted = nil, nil
 	p.mu.Unlock()
 	for _, row := range snap.Rows {
 		if d := p.drafts[taskKey(row)]; d != nil {
 			d.rebase(row)
 		}
+		if m.DetailID != "" && row.ID == m.DetailID && row.SessionID == m.DetailSessionID && p.selected != taskKey(row) {
+			p.OpenTask(row, snap.ConnectionEpoch)
+		}
 	}
-	ui.Column(c).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG)).Padding(12, 16, 12, 16).Gap(8).Children(func() {
-		ui.Row(c).Gap(8).Children(func() {
-			title := "定时任务 / Scheduled tasks"
-			if m.DetailID != "" {
-				title = "任务详情 / Task details"
-			}
-			ui.Text(c, title).Bold().Grow(1)
-			if m.OnNewTask != nil && ui.Button(c, "新任务 / New task").Disabled(!snap.ClientReady).Clicked() {
-				m.OnNewTask()
-			}
-			if ui.Button(c, "刷新 / Refresh").Disabled(snap.Loading || snap.Busy).Clicked() {
-				m.Store.Refresh(context.Background(), m.SessionID)
-			}
-			if m.OnClose != nil && ui.Button(c, "返回 / Back").Clicked() {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	root := ui.Row(c.Key("schedule-page")).Label("Automation tasks page").Grow(1).FillWidth().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).Background(chrome.Color(colors.BG))
+	width := root.Bounds().W
+	if width <= 0 {
+		width, _ = c.Size()
+	}
+	// Bounds are from the preceding frame. A pane resize needs one matching
+	// composition frame once layout has supplied the new local viewport width.
+	root.Draw(func(_ *ui.Painter, rect ui.Rect) {
+		if rect.W != width {
+			c.Services().Invalidate()
+		}
+	})
+	draft := p.drafts[p.selected]
+	root.Children(func() {
+		if m.DetailID == "" && (draft == nil || width > 760) {
+			p.catalogView(c, m, snap, colors, width)
+		}
+		if draft != nil {
+			p.detailView(c, m, snap, draft, colors, width)
+		} else if m.DetailID != "" {
+			ui.Column(c.Key("schedule-unavailable")).Fill().MinWidth(0).Children(func() {
+				p.detailStrip(c, m, snap, nil, colors, width)
+				ui.Column(c).Fill().Justify(ui.Center).Children(func() {
+					if !p.catalogFeedback(c, m, snap, colors, false) {
+						scheduleEmpty(c, scheduleText("任务不可用，可能已被删除。", "Task unavailable. It may have been deleted."), colors)
+					}
+				})
+			})
+		}
+	})
+	if p.deleting == nil && draft != nil && root.Shortcut(0, ui.KeyEscape) {
+		if m.DetailID != "" {
+			if m.OnClose != nil {
 				m.OnClose()
 			}
-		})
-		if m.DetailID == "" {
-			ui.Text(c, "点击新任务进入新会话，用自然语言说明执行内容和时间。任务保留原始 Session。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			ui.Row(c).Gap(8).Children(func() {
-				ui.TextInput(c, &p.query).Grow(1).Placeholder("搜索名称、指令或会话 / Search title, prompt or Session")
-				ui.Select(c, &p.statusFilter, []string{"all", "active", "inactive"})
-				if ui.Button(c, "清除筛选 / Clear filters").Clicked() {
-					p.query, p.statusFilter = "", "all"
-				}
-			})
-		}
-		if m.DetailID == "" && snap.CatalogHint != "" {
-			ui.Text(c, snap.CatalogHint).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		visibleRows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
-		if m.DetailID != "" {
-			visibleRows = nil
-			for _, row := range snap.Rows {
-				if row.ID == m.DetailID && row.SessionID == m.DetailSessionID {
-					visibleRows = append(visibleRows, row)
-				}
-			}
 		} else {
-			ui.Text(c, fmt.Sprintf("显示 / Showing %d / %d", len(visibleRows), len(snap.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			p.selected = ""
 		}
-		for _, text := range []string{snap.Err, snap.LastAction, status} {
-			if text != "" {
-				ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	}
+	p.deleteDialog(c, m, snap, colors)
+}
+
+func (d *taskDraft) dirty() bool {
+	return strings.TrimSpace(d.Title) != strings.TrimSpace(d.row.Title) ||
+		strings.TrimSpace(d.Prompt) != strings.TrimSpace(d.row.Prompt) || d.timingKey() != d.initialTiming
+}
+
+func (p *Panel) saveDraft(m Model, d *taskDraft) {
+	title, prompt := strings.TrimSpace(d.Title), strings.TrimSpace(d.Prompt)
+	change, err := d.change()
+	if title == "" || prompt == "" || len([]rune(title)) > 120 {
+		err = fmt.Errorf("%s", scheduleText("请输入不超过 120 字的任务名称及任务指令。", "Enter a task name of at most 120 characters and a task instruction."))
+	}
+	key, timing, row := taskKey(d.row), d.timingKey(), d.row
+	p.mu.Lock()
+	p.status, p.statusOwner = "", key
+	if err != nil {
+		p.status = err.Error()
+	}
+	p.mu.Unlock()
+	if err != nil {
+		return
+	}
+	go func() {
+		err := m.Store.Update(context.Background(), row, &title, &prompt, change)
+		p.mu.Lock()
+		if err != nil {
+			p.status, p.statusOwner = err.Error(), key
+		} else {
+			if p.committed == nil {
+				p.committed = map[string]savedDraft{}
 			}
+			for _, r := range m.Store.Snapshot().Rows {
+				if taskKey(r) == key {
+					p.committed[key] = savedDraft{row: r, timing: timing}
+					break
+				}
+			}
+			p.status, p.statusOwner = scheduleText("已保存", "Saved"), key
 		}
-		if snap.Err != "" && len(snap.Rows) > 0 {
-			ui.Text(c, "刷新失败，以下保留上次成功读取的数据 / Refresh failed; showing last successful rows").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		p.mu.Unlock()
+		if m.OnInvalidate != nil {
+			m.OnInvalidate()
 		}
-		if !snap.ClientReady {
-			ui.Text(c, "Host 未连接，连接后可管理计划。").TextColor(muted)
-		}
-		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-			ui.Column(c).Gap(8).Children(func() {
-				if len(visibleRows) == 0 && !snap.Loading && snap.Err == "" {
-					text := "没有匹配的任务 / No matching tasks"
-					if len(snap.Rows) == 0 {
-						text = "暂无定时任务 / No scheduled tasks"
-					}
-					if m.DetailID != "" {
-						text = "此任务当前不可用 / This task is unavailable"
-					}
-					ui.Text(c, text).TextColor(muted)
-				}
-				for _, r := range visibleRows {
-					row := r
-					key := taskKey(row)
-					ui.Column(c).Border(1, chrome.Color(colors.Border)).Radius(6).Padding(8, 8, 8, 8).Gap(4).Children(func() {
-						ui.Text(c, row.Title).Bold().TextColor(fg)
-						ui.Text(c, row.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Text(c, schedstore.TimingLabel(row)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Text(c, "Session: "+row.SessionID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.Row(c).Gap(8).Children(func() {
-							sessionLabel, canOpen := m.SessionLinks[row.SessionID]
-							if sessionLabel == "" {
-								sessionLabel = row.SessionID
-							}
-							if m.OnOpenSession != nil && ui.Button(c, "原会话 / Session: "+sessionLabel).Disabled(!canOpen || row.Origin != snap.Origin).Clicked() {
-								m.OnOpenSession(row)
-							}
-							if ui.Button(c, "编辑 / Edit").Disabled(row.Status == "inactive" || snap.Busy).Clicked() {
-								if p.drafts == nil {
-									p.drafts = map[string]*taskDraft{}
-								}
-								if p.drafts[key] == nil {
-									p.drafts[key] = newTaskDraft(row)
-								}
-								p.selected = key
-								p.message("")
-							}
-							if ui.Button(c, "历史 / History").Clicked() {
-								p.loadDeliveryHistory(m, row, "", true)
-							}
-							if ui.Button(c, "删除 / Delete").Disabled(snap.Busy).Clicked() {
-								p.deleting = &row
-							}
-						})
-					})
-				}
-				if p.deleting != nil {
-					row := *p.deleting
-					ui.Text(c, "确认删除 “"+row.Title+"” ? Session: "+row.SessionID).TextColor(fg)
-					ui.Row(c).Gap(8).Children(func() {
-						if ui.Button(c, "确认删除 / Confirm delete").Disabled(snap.Busy).Clicked() {
-							p.deleting = nil
-							go func() {
-								err := m.Store.DeleteEntry(context.Background(), row)
-								if err != nil {
-									p.message(err.Error())
-								}
-								if m.OnInvalidate != nil {
-									m.OnInvalidate()
-								}
-							}()
-						}
-						if ui.Button(c, "取消 / Cancel").Clicked() {
-							p.deleting = nil
-						}
-					})
-				}
-				if d := p.drafts[p.selected]; d != nil {
-					available := false
-					for _, row := range snap.Rows {
-						if taskKey(row) == p.selected && row.Status != "inactive" {
-							available = true
-							break
-						}
-					}
-					if !available {
-						ui.Text(c, "任务已结束、被删除或未完成刷新；当前草稿不能保存。").TextColor(muted)
-					}
-					ui.Text(c, "编辑 · "+d.row.ID+" · Session: "+d.row.SessionID).Bold().TextColor(fg)
-					input := func(label string, value *string) {
-						ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-						ui.TextInput(c, value).FillWidth()
-					}
-					input("名称 / Title", &d.Title)
-					ui.Text(c, "指令 / Prompt").FontSize(theme.InterfaceSize(11))
-					ui.TextArea(c, &d.Prompt).FillWidth().Lines(3, 6)
-					p.timingEditor(c, d, available && !snap.Busy && !snap.Loading && snap.ClientReady)
-					ui.Row(c).Gap(8).Children(func() {
-						if ui.Button(c, "保存全部 / Save all").Disabled(snap.Busy || snap.Loading || !snap.ClientReady || !available).Clicked() {
-							title, prompt := strings.TrimSpace(d.Title), strings.TrimSpace(d.Prompt)
-							change, err := d.change()
-							if title == "" || prompt == "" || len([]rune(title)) > 120 {
-								err = fmt.Errorf("title (1–120 characters) and prompt are required")
-							}
-							if err != nil {
-								p.message(err.Error())
-							} else {
-								row := d.row
-								key, timing := p.selected, d.timingKey()
-								go func() {
-									err := m.Store.Update(context.Background(), row, &title, &prompt, change)
-									if err != nil {
-										p.message(err.Error())
-									} else {
-										p.mu.Lock()
-										if p.committed == nil {
-											p.committed = map[string]savedDraft{}
-										}
-										for _, r := range m.Store.Snapshot().Rows {
-											if taskKey(r) == key {
-												p.committed[key] = savedDraft{row: r, timing: timing}
-												break
-											}
-										}
-										p.status = "已保存 / Saved"
-										p.mu.Unlock()
-									}
-									if m.OnInvalidate != nil {
-										m.OnInvalidate()
-									}
-								}()
-							}
-						}
-						if ui.Button(c, "收起，保留草稿 / Keep draft").Clicked() {
-							p.selected = ""
-						}
-						if ui.Button(c, "放弃草稿 / Discard draft").Disabled(snap.Busy).Clicked() {
-							delete(p.drafts, p.selected)
-							p.selected = ""
-						}
-					})
-				}
-				p.deliveryHistoryView(c, m, fg, muted)
-			})
-		})
-	})
+	}()
 }

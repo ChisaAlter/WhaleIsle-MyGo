@@ -8,6 +8,7 @@ func (s *mainState) openPetSettings() {
 		s.mu.Unlock()
 		return
 	}
+	s.settingsEmbeddedSection = ""
 	s.settingsOpen = true
 	s.launcherOpen = false
 	s.usageOpen = false

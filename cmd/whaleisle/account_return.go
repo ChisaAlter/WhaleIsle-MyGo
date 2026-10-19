@@ -146,6 +146,7 @@ func (s *mainState) returnFromAccountPage() {
 	}
 	s.accountReturn.embedded = ""
 	if source == "settings" {
+		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
 		s.settingsAccountActive = true
 	} else if source == "usage" {

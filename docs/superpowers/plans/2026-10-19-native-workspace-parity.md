@@ -47,3 +47,20 @@ Verification order: region geometry and position; hierarchy/density/menus/hover;
 - [x] Independent branch review, fix evidence-backed defects, save verified changes as local commits. Review corrections are bounded to source-proven behavior.
 
 CI: not triggered in this task. Historical failure count unknown; no push or CI dispatch permitted by this scope.
+
+## Second batch: high-frequency pages outside the workspace
+
+Baseline `0b85f86` (product `ce4efcb`). Preserve the existing ce4efcb EXE and use a separate filename for the next candidate. The original source checkout remains e353e8e13f, read-only. Inventory actual registrations and desktop overrides before changing a page; the detailed difference list lives in the existing status document.
+
+This batch restores the settings shell, curated desktop market/inventory presentation, schedule catalog/detail, workspace selection/rename/remove, and Host directory browser. It does not claim all settings bodies, the separate Plugins manager, Jobs observation, or Projects are restored.
+
+Ownership and shared contracts:
+
+- Settings worker: settings shell/modal/navigation only. Optional `Model.ActiveSection` + `SectionContent` compose a feature-owned body; existing callbacks and dedicated bodies retain their owners.
+- Plugins worker: `internal/ui/market/**` and settings `plugin_inventory.go` plus dedicated tests. Optional `market.Model.Embedded` omits the standalone header inside settings. Keep the curated catalog backend; do not impersonate the missing generic Plugins manager.
+- Schedule worker: active `internal/ui/schedule/Panel` presentation and Records rendering only. Root removes the duplicate frame task heading and passes the existing close callback. Preserve rule/CAS/history ownership.
+- Workspace worker: `internal/ui/workspacepicker/**` and `internal/ui/dirpick/**`. Picker accepts the current `ui.Element` anchor and `OnBrowse`; root publishes a stable Hero button handle through frame/composer. Sidebar Add opens the directory browser. Management stays in bounded modals.
+- Directory lifecycle worker: new cmd helper and focused tests only; root owns main.go fields/callsite removal. Immediate open/loading, captured Host client/generation, cancellation and request fences prevent late results reopening or retargeting a closed browser. The directory body accepts Loading/Busy and fills the bounded parent with a scrolling list and pinned footer.
+- Root: all cmd/main/frame/composer integration, combined fixtures, review, build and evidence. Shared files have one editor; workers add regressions only after their product changes.
+
+Validation: isolated page fixtures and layout/interaction regressions, then the complete existing main-workspace gate for this batch. Independent Standards and Spec review precedes commits. Build a new Windows EXE from a clean commit; do not replace or restart either user's existing instance. Original native screenshot absence is recorded, not a prerequisite for source-based implementation.

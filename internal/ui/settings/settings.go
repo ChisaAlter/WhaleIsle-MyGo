@@ -17,12 +17,15 @@ import (
 
 // Model wires the settings panel to store state.
 type Model struct {
-	Pet        *pet.Companion
-	Store      *settings.Store
-	ThemeID    string
-	SystemDark bool
-	OnClose    func()
-	OnDraft    func(key, value string)
+	// Optional feature-owned section body, composed by the application.
+	ActiveSection  SectionID
+	SectionContent func(*ui.Context)
+	Pet            *pet.Companion
+	Store          *settings.Store
+	ThemeID        string
+	SystemDark     bool
+	OnClose        func()
+	OnDraft        func(key, value string)
 	// DraftPtr returns a stable *string for editing one field in the selected namespace.
 	DraftPtr func(key, seed string) *string
 	// BoolPtr returns a stable *bool wired to the same field drafts (bool kinds).
@@ -77,7 +80,7 @@ type Model struct {
 
 // View paints namespace list + schema-driven form.
 func View(c *ui.Context, m Model) {
-	if m.Store == nil && m.Desktop == nil {
+	if m.Store == nil && m.Desktop == nil && m.SectionContent == nil {
 		return
 	}
 	th := theme.Resolve(m.ThemeID)
@@ -91,35 +94,31 @@ func View(c *ui.Context, m Model) {
 		snap = m.Store.Snapshot()
 	}
 
-	// Grow under the window title bar. Do not Fill() the nav column — Fill sets
-	// width to 100% and leaves a dead gray band beside a squeezed form pane.
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		header(c, m, snap, fg, muted, border)
-		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-			sidebarFill := chrome.Color(colors.Field)
-			if colors.Sidebar != "" {
-				sidebarFill = chrome.Color(colors.Sidebar)
-			}
-			nsList(c, m, snap, fg, muted, border, sidebarFill, chrome.Color(colors.Hover))
-			ui.Box(c).Width(1).Shrink(0).Background(border)
+	// The rail and the options column scroll independently inside one panel.
+	ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Background(bg).AlignItems(ui.Stretch).Children(func() {
+		nsList(c, m, snap, fg, muted, border, bg, chrome.Color(colors.Hover))
+		ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+			header(c, m, snap, fg, muted, border)
 			formPane(c, m, snap, fg, muted, border, bg)
 		})
 	})
 }
 
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
-	ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
+	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Children(func() {
 		if snap.Loading {
 			ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
-		if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeySettingsBack)).Clicked() {
-			m.OnClose()
+		ui.Box(c).Grow(1).MinWidth(0)
+		if m.OnClose != nil {
+			close := ui.Button(c, "").Label(i18n.T(i18n.KeySettingsBack)).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
+			close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(fg) })
+			if close.Clicked() {
+				m.OnClose()
+			}
 		}
 	})
-	ui.Box(c).Fill().Height(1).Background(border)
 }
-
 func sectionLabel(id SectionID) string {
 	switch id {
 	case SectionAccount:
@@ -179,131 +178,53 @@ func dedicatedNamespace(ns string) bool {
 	}
 }
 
-func settingsNavItem(c *ui.Context, label string, active bool, fg, hover ui.Color, onClick func()) {
-	bg := ui.Transparent
-	if active {
-		bg = hover
-		if bg.A == 0 {
-			// Light fallback when theme hover has no alpha; dark themes always set Hover.
-			bg = chrome.Color("rgb(232, 236, 240)")
-		}
-	}
-	btn := ui.Button(c, label).FillWidth().Height(36).Radius(8).
-		BorderWidth(0).Background(bg).TextColor(fg).FontSize(theme.InterfaceSize(13)).
-		Padding(0, 10, 0, 10).AlignItems(ui.Center)
-	if onClick != nil && btn.Clicked() {
-		onClick()
-	}
-}
-
 func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color) {
-	// Electron ui-settings nav column is ~240 DIP.
-	ui.Scroll(c).Width(240).Shrink(0).MinHeight(0).Background(navBG).Padding(8, 8, 8, 8).Gap(2).Children(func() {
-		if m.FilterPtr != nil {
-			ui.TextInput(c, m.FilterPtr).FillWidth().Placeholder(i18n.T(i18n.KeySettingsFilter))
-		}
-		if m.Desktop != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsDesktopNav), m.DesktopActive, fg, hover, m.OnSelectDesktop)
-		}
-		if m.Account != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsAccountNav), m.AccountActive, fg, hover, m.OnSelectAccount)
-		}
-		if m.Credentials != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsCredNav), m.CredentialsActive, fg, hover, m.OnSelectCredentials)
-		}
-		// plan §3.2 general — open harness general namespace when present.
-		if m.OnSelectNamespace != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionGeneral), snap.SelectedNS == generalNamespace(snap), fg, hover, func() {
-				m.OnSelectNamespace(generalNamespace(snap))
-			})
-		}
-		if m.Appearance != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsAppearanceNav), m.AppearanceActive, fg, hover, m.OnSelectAppearance)
-		}
-		if m.Interface != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsInterfaceNav), m.InterfaceActive, fg, hover, m.OnSelectInterface)
-		}
-		if m.Models != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsModelsNav), m.ModelsActive, fg, hover, m.OnSelectModels)
-		}
-		if m.Plugins != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsPluginsNav), m.PluginsActive, fg, hover, m.OnSelectPlugins)
-		}
-		if m.Skills != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSkillsNav), m.SkillsActive, fg, hover, m.OnSelectSkills)
-		}
-		if m.OnOpenMarket != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionMarket), false, fg, hover, m.OnOpenMarket)
-		}
-		if m.OnOpenRemote != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionRemote), false, fg, hover, m.OnOpenRemote)
-		}
-		if m.OnSelectNamespace != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionRemoteWorkspace),
-				snap.SelectedNS == "remote-workspace", fg, hover, func() {
-					m.OnSelectNamespace("remote-workspace")
-				})
-			petActive := snap.SelectedNS == "pet" || snap.SelectedNS == "live2d"
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionPet), petActive, fg, hover, func() {
-				m.OnSelectNamespace("pet")
-			})
-		}
-		if m.AgentPresets != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsAgentPresetsNav), m.AgentPresetsActive, fg, hover, m.OnSelectAgentPresets)
-		}
-		if m.MCP != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsMCPNav), m.MCPActive, fg, hover, m.OnSelectMCP)
-		}
-		if m.About != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsAboutNav), m.AboutActive, fg, hover, m.OnSelectAbout)
-		}
-		if m.OnOpenUsage != nil {
-			settingsNavItem(c, i18n.T(i18n.KeySettingsSectionUsageStats), false, fg, hover, m.OnOpenUsage)
-		}
-		names := make([]string, 0, len(snap.Namespaces))
-		for _, ns := range snap.Namespaces {
-			// Skip namespaces already covered by dedicated nav / overlay entries.
-			if dedicatedNamespace(ns.NS) {
-				continue
-			}
-			names = append(names, ns.NS)
-		}
-		query := ""
-		if m.FilterPtr != nil {
-			query = *m.FilterPtr
-		}
-		filtered := FilterNamespaces(names, query)
-		if len(names) == 0 && m.Desktop == nil {
-			ui.Text(c, i18n.T(i18n.KeySettingsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 4, 4, 4)
-		} else if len(names) > 0 && len(filtered) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsFilterEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 4, 4, 4)
-		}
-		dedicated := m.DesktopActive || m.AccountActive || m.CredentialsActive || m.AboutActive ||
-			m.AppearanceActive || m.InterfaceActive || m.ModelsActive || m.MCPActive ||
-			m.PluginsActive || m.SkillsActive || m.AgentPresetsActive
-		for _, group := range GroupNamespaces(filtered) {
-			ui.Text(c, sectionLabel(group.Section)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Padding(4, 2, 0, 2)
-			for _, ns := range group.Items {
-				active := !dedicated && ns == snap.SelectedNS
-				nsID := ns
-				settingsNavItem(c, ns, active, fg, hover, func() {
-					if m.OnSelectNamespace != nil {
-						m.OnSelectNamespace(nsID)
-					} else if m.Store != nil {
-						m.Store.Select(nsID)
+	active := activeSection(m, snap)
+	ui.Column(c).Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
+		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Children(func() {
+			for _, entry := range primaryNavigation(m, snap) {
+				selected := entry.id == active
+				fill := ui.Transparent
+				if selected {
+					fill = hover
+				}
+				label := sectionLabel(entry.id)
+				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(40).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(9, 16, 9, 12).Gap(8).AlignItems(ui.Center)
+				button.Children(func() {
+					ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(fg)
+					weight := 400
+					if selected {
+						weight = 500
 					}
+					ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FontWeight(weight).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 				})
+				if button.Hovered() && !selected {
+					button.Background(hover)
+				}
+				if button.Clicked() && entry.onSelect != nil {
+					entry.onSelect()
+				}
 			}
-		}
-		if m.Store != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
-			m.Store.RefreshDescribe(context.Background())
-		}
+		})
 	})
-	_ = border
 }
-
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color) {
-	ui.Scroll(c).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(12, 16, 12, 16).Gap(10).Children(func() {
+	active := activeSection(m, snap)
+	ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(10).Children(func() {
+		if snap.Err != "" {
+			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+		}
+		if snap.LastAction != "" {
+			ui.Text(c, snap.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
+		if m.SectionContent != nil && m.ActiveSection != "" {
+			m.SectionContent(c)
+			return
+		}
+		if active == SectionGeneral {
+			generalNavigation(c, m, snap)
+		}
 		if m.DesktopActive && m.Desktop != nil {
 			desktopPane(c, m, fg, muted)
 			return
@@ -352,12 +273,6 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			petPane(c, m.Pet, fg, muted)
 			petLookPane(c, m.Pet, m.Store, fg, muted)
 			return
-		}
-		if snap.Err != "" {
-			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent))
-		}
-		if snap.LastAction != "" {
-			ui.Text(c, snap.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		var ns *settings.Namespace
 		for i := range snap.Namespaces {

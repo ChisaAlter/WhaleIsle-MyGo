@@ -68,12 +68,6 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 			*m.RightPaneTab = "files"
 		}
 	}
-	ui.Row(c).Padding(6).Gap(6).Children(func() {
-		ui.Text(c, schedulePaneTitle(m)).Bold().Grow(1)
-		if ui.Button(c, paneLabel("关闭任务", "Close task")).Clicked() {
-			closeTask()
-		}
-	})
 	if target.ID == "" {
 		ui.Text(c, paneLabel("从会话任务或任务卡打开详情", "Open a task from its conversation entry or card"))
 		return
@@ -103,6 +97,7 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 		state.panels[key] = panel
 	}
 	panel.View(c, scheduleui.Model{Store: m.ScheduleStore, SessionID: target.SessionID, DetailID: target.ID, DetailSessionID: target.SessionID,
+		OnClose:      closeTask,
 		SessionLinks: links, OnOpenSession: m.OnOpenScheduleSession, ThemeID: m.ThemeID, SystemDark: m.SystemDark, OnInvalidate: m.OnScheduleInvalidate,
 		OnCopyHistory: func(text string) { mygo.Clipboard.WriteText(text) },
 	})

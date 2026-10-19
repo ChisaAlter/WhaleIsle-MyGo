@@ -2,7 +2,6 @@
 package market
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	desktopmarket "whaleisle/internal/desktop/market"
@@ -18,7 +17,9 @@ import (
 
 // Model wires the market panel to store, install state, and harness status.
 type Model struct {
-	Store                *marketstore.Store
+	Store *marketstore.Store
+	// Embedded is used by the Settings market section, whose shell owns its header and insets.
+	Embedded             bool
 	ThemeID              string
 	SystemDark           bool
 	HarnessReady         bool
@@ -67,37 +68,29 @@ func View(c *ui.Context, m Model) {
 	snap := m.Store.Snapshot()
 	d := m.Store.Discovery()
 	personal := m.Store.Personal()
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).Bold().Grow(1).TextColor(fg)
-			if ui.Button(c, marketText("发现", "Discover")).Clicked() {
-				m.Store.SetTab("discover")
-			}
-			if ui.Button(c, marketText("收藏", "Favorites")).Clicked() {
-				m.Store.SetTab("favorites")
-			}
-			if ui.Button(c, marketText("安装历史", "History")).Clicked() {
-				m.Store.SetTab("history")
-			}
-			if ui.Button(c, marketText("已安装", "Installed")).Clicked() {
-				m.Store.SetTab("installed")
-			}
-			if ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Clicked() {
-				m.Store.RefreshCatalog(true, i18n.Locale())
-				if m.OnRefresh != nil {
-					m.OnRefresh()
-				} else {
-					m.Store.Refresh(context.Background())
+	top, side, bottom := float32(28), float32(24), float32(48)
+	if m.Embedded {
+		top, side, bottom = 0, 0, 0
+	}
+	container := ui.Column(c).FillWidth().MinWidth(0).Background(bg)
+	if !m.Embedded {
+		container.Grow(1).MinHeight(0)
+	}
+	container.Children(func() {
+		var body ui.Element
+		if m.Embedded {
+			// Settings owns the options scroller. An inner growing viewport
+			// has no intrinsic height under that scroller and hides the section.
+			body = ui.Column(c).FillWidth().MinWidth(0)
+		} else {
+			body = ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Padding(top, side, bottom, side)
+		}
+		body.Children(func() {
+			ui.Column(c).Gap(16).FillWidth().MaxWidth(800).MinWidth(0).Children(func() {
+				if !m.Embedded {
+					marketHeader(c, m, d, fg, muted)
 				}
-			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Clicked() {
-				m.Store.CloseDetails()
-				m.OnClose()
-			}
-		})
-		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
-			ui.Column(c).Gap(10).FillWidth().Children(func() {
-				confirmationView(c, m, fg, accent)
+				marketTabs(c, m, d.Tab, fg, muted, field)
 				if personal.Err != "" {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
@@ -136,36 +129,7 @@ func View(c *ui.Context, m Model) {
 					if len(snap.Rows) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
-					for _, row := range snap.Rows {
-						if !showInstalledRow(m, row) {
-							continue
-						}
-						r := row
-						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-								ui.Text(c, r.Label).Bold().TextColor(fg)
-								ui.Text(c, r.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-								if r.ReadOnlyReason != "" {
-									ui.Text(c, r.ReadOnlyReason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-								}
-								if r.Error != "" {
-									ui.Text(c, r.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent)
-								}
-							})
-							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
-								label := i18n.T(i18n.KeySettingsPluginsEnable)
-								if *r.Enabled {
-									label = i18n.T(i18n.KeySettingsPluginsDisable)
-								}
-								if ui.Button(c, label).Clicked() {
-									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
-								}
-							}
-							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Clicked() {
-								m.OnRemoveBundle(r.Label)
-							}
-						})
-					}
+					installedRows(c, m, d, snap, fg, muted, border, accent)
 					installSection(c, m, fg, muted, field, border, accent)
 				}
 				if m.InstallMessage != "" {
@@ -189,7 +153,7 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, marketText("新的运行时已就绪，请在插件列表中查看加载状态。", "The new runtime is ready. Check the plugin list for loading status.")).TextColor(muted)
 				}
 				if m.InstallBusy {
-					ui.Row(c).Gap(8).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 						ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).TextColor(muted)
 						if m.CanCancelInstall && m.OnCancelInstall != nil && ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).Clicked() {
 							m.OnCancelInstall()
@@ -204,7 +168,7 @@ func View(c *ui.Context, m Model) {
 				}
 				for _, item := range m.Incompatible {
 					it := item
-					ui.Row(c).Gap(8).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 						ui.Text(c, it.Name+"@"+it.Version+" · runtime "+it.RuntimeVersion).TextColor(accent)
 						if !m.InstallBusy && m.OnAcceptExemption != nil && it.Name != "" && it.Version != "" && ui.Button(c, i18n.T(i18n.KeyMarketAcceptExemption)).Clicked() {
 							m.OnAcceptExemption(it.Name+"@"+it.Version, it.RuntimeVersion)
@@ -224,6 +188,8 @@ func View(c *ui.Context, m Model) {
 			})
 		})
 	})
+	catalogDetailsDialog(c, m, d, snap, fg, muted, field, border, accent)
+	confirmationView(c, m, fg, accent)
 }
 
 func marketText(zh, en string) string {
@@ -247,65 +213,10 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 	if d.Loading {
 		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
 	}
-	if d.Selected != nil {
-		item := *d.Selected
-		if ui.Button(c, marketText("返回目录", "Back to catalog")).Clicked() {
-			m.Store.CloseDetails()
-		}
-		ui.Text(c, item.ID).Bold().TextColor(fg)
-		favoriteButton(c, m, item.ID)
-		ui.Text(c, item.Description).TextColor(fg)
-		ui.Text(c, item.Homepage).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.Text(c, marketText("安装目标：", "Install target: ")+item.InstallSpec).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		if item.Deprecated {
-			ui.Text(c, marketText("已弃用；不提供安装。", "Deprecated; installation unavailable.")+" "+item.Replacement).TextColor(accent)
-		}
-		catalogInstallButton(c, m, d, item, inventory, fg, muted)
-		if d.DetailsLoading {
-			ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
-		}
-		if d.DetailsErr != "" {
-			ui.Text(c, d.DetailsErr).TextColor(accent)
-		}
-		if d.Details.Partial {
-			ui.Text(c, marketText("部分详情加载失败。", "Some details could not be loaded.")).TextColor(accent)
-		}
-		if !d.DetailsLoading && ui.Button(c, marketText("重新加载详情", "Reload details")).Clicked() {
-			m.Store.SelectDetails(item.ID, true)
-		}
-		if d.Details.Version != "" {
-			ui.Text(c, "Version: "+d.Details.Version).TextColor(fg)
-		}
-		ui.Text(c, marketText("声明的依赖要求（不代表兼容性验证）：", "Declared requirements (not a compatibility verdict):")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		for _, req := range d.Details.Requirements {
-			ui.Text(c, req).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		}
-		ui.Text(c, marketText("仓库 README（纯文本，仅供参考）", "Repository README (plain text, reference only)")).Bold().TextColor(muted)
-		ui.Text(c, d.Details.Readme).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		return
-	}
 	query := d.Query
 	ui.TextInput(c, &query).FillWidth().Placeholder(marketText("搜索名称、包名或描述", "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
-	labels := make([]string, 0, len(d.Catalog.Categories))
-	selected := ""
-	for _, cat := range d.Catalog.Categories {
-		label := fmt.Sprintf("%s (%d)", cat.Label, cat.Count)
-		labels = append(labels, label)
-		if cat.ID == d.Category {
-			selected = label
-		}
-	}
-	if len(labels) > 0 {
-		ui.Select(c, &selected, labels).FillWidth().OnChange(func() {
-			for n, label := range labels {
-				if label == selected {
-					m.Store.SetCategory(d.Catalog.Categories[n].ID)
-					break
-				}
-			}
-		})
-	}
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	catalogCategories(c, m, d, fg, muted, field)
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, marketText("排序", "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		sortIDs := []string{"catalog", "stars", "newest"}
 		sortLabels := []string{marketText("目录顺序", "Catalog order"), marketText("星标最多", "Most stars"), marketText("最新上架", "Newest")}
@@ -315,7 +226,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				sortLabel = sortLabels[n]
 			}
 		}
-		ui.Select(c, &sortLabel, sortLabels).Grow(1).OnChange(func() {
+		ui.Select(c, &sortLabel, sortLabels).Width(180).MaxWidthPercent(100).OnChange(func() {
 			for n, label := range sortLabels {
 				if label == sortLabel {
 					m.Store.SetSort(sortIDs[n])
@@ -332,7 +243,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				periodLabel = periodLabels[n]
 			}
 		}
-		ui.Select(c, &periodLabel, periodLabels).Grow(1).OnChange(func() {
+		ui.Select(c, &periodLabel, periodLabels).Width(180).MaxWidthPercent(100).OnChange(func() {
 			for n, label := range periodLabels {
 				if label == periodLabel {
 					m.Store.SetPeriod(periodIDs[n])
@@ -342,24 +253,8 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		})
 	})
 	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	for _, item := range d.Rows {
-		i := item
-		ui.Column(c).FillWidth().Background(field).Border(1, border).Radius(6).Padding(8, 10, 8, 10).Gap(4).Children(func() {
-			ui.Text(c, i.ID).Bold().TextColor(fg)
-			ui.Text(c, i.Description).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, i.Category).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				favoriteButton(c, m, i.ID)
-				if name := marketstore.InstalledName(i, inventory.Rows); name != "" {
-					ui.Text(c, marketText("已安装：", "Installed: ")+name).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-				}
-				if ui.Button(c, marketText("详情", "Details")).Clicked() {
-					m.Store.SelectDetails(i.ID, false)
-				}
-			})
-		})
-	}
-	ui.Row(c).Gap(8).Children(func() {
+	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		if d.Page > 0 && ui.Button(c, marketText("上一页", "Previous")).Clicked() {
 			m.Store.SetPage(d.Page - 1)
 		}
@@ -479,7 +374,7 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 			continue
 		}
 		r := row
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 			current, latest := r.Current, r.Latest
 			if current == "" {
 				current = marketText("未知", "unknown")

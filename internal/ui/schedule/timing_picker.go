@@ -149,7 +149,7 @@ func clockPicker(c *ui.Context, clock string, seconds bool, onPick func(string))
 	if !seconds {
 		count = 2
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		for col := 0; col < count; col++ {
 			n := 60
 			if col == 0 {
@@ -214,7 +214,7 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 		d.picker.month = time.Date(selected.Year(), selected.Month(), 1, 0, 0, 0, 0, time.UTC)
 	}
 	if d.picker.calendarOpen {
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 			if ui.Button(c, "‹").Clicked() {
 				d.picker.month = d.picker.month.AddDate(0, -1, 0)
 			}
@@ -226,17 +226,17 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 				d.picker.calendarOpen = false
 			}
 		})
-		ui.Row(c).Gap(4).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 			for _, label := range []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"} {
-				ui.Text(c, label).Width(40)
+				ui.Text(c, label).Grow(1).MinWidth(0).TextAlign(ui.Center).FontSize(11)
 			}
 		})
 		cells := calendarCells(d.picker.month)
 		for row := 0; row < len(cells); row += 7 {
-			ui.Row(c).Gap(4).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 				for _, day := range cells[row : row+7] {
 					if day == 0 {
-						ui.Text(c, "").Width(40)
+						ui.Text(c, "").Grow(1).MinWidth(0)
 						continue
 					}
 					picked := fmt.Sprintf("%04d-%02d-%02d", d.picker.month.Year(), d.picker.month.Month(), day)
@@ -244,7 +244,7 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 					if picked == date {
 						label = "[" + label + "]"
 					}
-					if ui.Button(c, label).Width(40).Clicked() {
+					if ui.Button(c, label).Grow(1).MinWidth(0).Padding(0).Height(28).Clicked() {
 						if err := d.pickWallClock(picked, clock, d.Zone); err != nil {
 							p.message(err.Error())
 						} else {
@@ -263,7 +263,7 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 }
 func dayPills(c *ui.Context, days []int, max int, onPick func([]int)) {
 	for start := 1; start <= max; start += 7 {
-		ui.Row(c).Gap(4).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 			for day := start; day < start+7 && day <= max; day++ {
 				label := strconv.Itoa(day)
 				if max == 7 {

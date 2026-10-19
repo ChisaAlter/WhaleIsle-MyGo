@@ -52,6 +52,12 @@ func inventoryPhase(value string) string {
 }
 
 func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
+	ui.Column(c).FillWidth().MaxWidth(760).MinWidth(0).Gap(14).Children(func() {
+		pluginInventoryContent(c, a, fg, muted)
+	})
+}
+
+func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
 	if a == nil {
 		return
 	}
@@ -72,9 +78,9 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 	if s.Busy {
 		ui.Text(c, pluginsText("正在读取实例…", "Loading inventory…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		query := s.Query
-		if ui.TextInput(c, &query).FillWidth().Placeholder(pluginsText("搜索名称、模块或实例标识", "Search name, module or entry ID")).Changed() && a.OnQuery != nil {
+		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(36).Placeholder(pluginsText("搜索名称、模块或实例标识", "Search name, module or entry ID")).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
 		}
 		if a.OnRefresh != nil && ui.Button(c, pluginsText("刷新实例", "Refresh inventory")).Disabled(!s.Connected || s.Busy).Clicked() {
@@ -114,58 +120,127 @@ func pluginInventoryPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.C
 		if len(p.Rows) == 0 && p.Broken == "" {
 			ui.Text(c, pluginsText("此预设没有匹配条目。", "No matching entries in this preset.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		for _, r := range p.Rows {
-			pluginInventoryRow(c, a, r, fg, muted)
-		}
+		pluginInventoryCards(c.Key("inventory-preset-"+p.ID), a, p.Rows, fg, muted)
 	}
 	open := s.GlobalOpen || v.Searching
-	mark := "+ "
-	if open {
-		mark = "− "
-	}
-	if a.OnToggleGlobal != nil && ui.Button(c, fmt.Sprintf("%s%s (%d)", mark, pluginsText("全局实例", "Global entries"), len(v.Global))).Clicked() {
-		a.OnToggleGlobal()
-	}
-	if open {
-		for _, r := range v.Global {
-			pluginInventoryRow(c, a, r, fg, muted)
+	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		button := ui.Button(c, fmt.Sprintf("%s (%d)", pluginsText("全局条目", "Global entries"), len(v.Global))).Role(ui.RoleDisclosure).Expanded(open).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
+		button.Children(func() { inventoryChevron(c, open, muted) })
+		if a.OnToggleGlobal != nil && button.Clicked() {
+			a.OnToggleGlobal()
 		}
+	})
+	if open {
+		pluginInventoryCards(c.Key("inventory-global"), a, v.Global, fg, muted)
 	}
 	if v.Empty {
 		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 
-func pluginInventoryRow(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, fg, muted ui.Color) {
-	open := a.Snapshot.Expanded == r.Key
-	mark := "+ "
-	if open {
-		mark = "− "
+// Each inventory scope measures its own content width. Expanded cards keep
+// their peers aligned to the top, as in the source's two-column inventory.
+func pluginInventoryCards(c *ui.Context, a *PluginInventoryAccess, rows []plugininventory.DisplayRow, fg, muted ui.Color) {
+	grid := ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(10).AlignItems(ui.Start)
+	width := grid.Bounds().W
+	grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+		if bounds.W != width {
+			c.Invalidate()
+		}
+	})
+	grid.Children(func() {
+		for _, row := range rows {
+			pluginInventoryCard(c, a, row, width, fg, muted)
+		}
+	})
+}
+
+func inventoryChevron(c *ui.Context, open bool, ink ui.Color) {
+	ui.Box(c).Width(12).Height(12).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
+		path := &ui.Path{}
+		if open {
+			path.MoveTo(r.X+3, r.Y+4)
+			path.LineTo(r.X+6, r.Y+7)
+			path.LineTo(r.X+9, r.Y+4)
+		} else {
+			path.MoveTo(r.X+4, r.Y+3)
+			path.LineTo(r.X+7, r.Y+6)
+			path.LineTo(r.X+4, r.Y+9)
+		}
+		p.StrokePath(path, 1.2, ink)
+	})
+}
+
+func inventoryPhaseColor(c *ui.Context, phase string, muted ui.Color) ui.Color {
+	switch phase {
+	case "active":
+		return c.Theme().Success
+	case "failed":
+		return c.Theme().Danger
+	case "pending", "loading", "unloading":
+		return c.Theme().Warning
+	default:
+		return muted
 	}
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, mark+r.Title).FontSize(fonttheme.InterfaceSize(12)).Clicked() && a.OnToggleRow != nil {
+}
+
+func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, width float32, fg, muted ui.Color) {
+	open := a.Snapshot.Expanded == r.Key
+	stroke := c.Theme().Border
+	if r.Phase == "failed" || r.MetadataError != "" {
+		stroke = c.Theme().Danger
+	}
+	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.5, stroke).Radius(12).Background(c.Theme().Background).Clip()
+	if width > 520 {
+		card.Width((width - 10) / 2)
+	} else {
+		card.FillWidth()
+	}
+	card.Children(func() {
+		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryEnablement(r.Enabled)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
+		if button.Hovered() || open {
+			button.Background(c.Theme().SurfaceHover)
+		}
+		button.Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(4).PassThrough().Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+					ink := inventoryPhaseColor(c, r.Phase, muted)
+					ui.Box(c).Width(8).Height(8).Radius(4).Background(ink).Label(inventoryPhase(r.Phase))
+					inventoryChevron(c, open, muted)
+				})
+				if r.Description != "" {
+					text := ui.Text(c, r.Description).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					if !open {
+						text.MaxLines(2)
+					}
+				}
+				if r.EntryID != "" {
+					ui.Text(c, r.EntryID).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.CurrentPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
+				}
+			})
+		})
+		if button.Clicked() && a.OnToggleRow != nil {
 			a.OnToggleRow(r.Key)
 		}
-		ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if r.MetadataError != "" {
+			ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FillWidth().Padding(0, 14, 10, 14).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
+		}
+		if open {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(10, 14, 12, 14).Gap(6).Background(c.Theme().Surface).Children(func() {
+				ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				entryID := r.EntryID
+				if entryID == "" {
+					entryID = pluginsText("未声明条目标识", "No entry ID declared")
+				}
+				ui.Text(c, "Loader: "+entryID).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				ui.Text(c, inventoryEnablement(r.Enabled)+" · "+inventoryPhase(r.Phase)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				if r.Condition != "" {
+					ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
+			})
+		}
 	})
-	if r.Description != "" {
-		ui.Text(c, r.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
-	if r.MetadataError != "" {
-		ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	}
-	if !open {
-		return
-	}
-	ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	entryID := r.EntryID
-	if entryID == "" {
-		entryID = pluginsText("未声明实例标识", "No entry ID declared")
-	}
-	ui.Text(c, "Loader: "+entryID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if r.Condition != "" {
-		ui.Text(c, pluginsText("启用条件：", "Enablement condition: ")+r.Condition).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
 }
 
 // The client page owns this status and retry. Host inventory refresh remains a

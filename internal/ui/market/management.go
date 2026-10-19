@@ -66,18 +66,28 @@ func managementFilters(c *ui.Context, m Model) {
 }
 func confirmationView(c *ui.Context, m Model, fg, accent ui.Color) {
 	if description := m.Store.Confirmation(); description != "" {
-		ui.Column(c).Gap(8).Children(func() {
-			ui.Text(c, marketText("确认操作", "Confirm operation")).Bold().TextColor(accent)
-			ui.Text(c, description).TextColor(fg)
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, marketText("取消", "Cancel")).Clicked() {
-					m.Store.ResolveConfirmation(false)
-				}
-				if !m.InstallBusy && ui.Button(c, marketText("确认并执行", "Confirm and run")).Clicked() {
-					m.Store.ResolveConfirmation(true)
-				}
+		open := true
+		w, h := c.Size()
+		ui.DialogBase(c.Key("market-confirm-dialog"), &open, func(backdrop, panel ui.Element) {
+			backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
+			panel.Role(ui.RoleAlertDialog).Label(marketText("确认操作", "Confirm operation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(12).Padding(20).Gap(16).Children(func() {
+				ui.Text(c, marketText("确认操作", "Confirm operation")).Bold().TextColor(accent)
+				ui.Scroll(c).FillWidth().MaxHeight(max(0, h-200)).MinHeight(0).Children(func() {
+					ui.Text(c, description).FillWidth().MinWidth(0).Selectable().TextColor(fg)
+				})
+				ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.End).Children(func() {
+					if ui.Button(c, marketText("取消", "Cancel")).Clicked() {
+						m.Store.ResolveConfirmation(false)
+					}
+					if !m.InstallBusy && ui.Button(c, marketText("确认并执行", "Confirm and run")).Clicked() {
+						m.Store.ResolveConfirmation(true)
+					}
+				})
 			})
 		})
+		if !open {
+			m.Store.ResolveConfirmation(false)
+		}
 	}
 }
 func withMarketConfirmations(m Model) Model {
