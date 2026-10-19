@@ -69,6 +69,38 @@ func (p *Panel) Workspace() string {
 	return p.cwd
 }
 
+// RunningCount counts live PTYs, including hidden panes, without counting
+// retained output from an exited process. The caller serializes panel access.
+func (p *Panel) RunningCount() int {
+	if p == nil {
+		return 0
+	}
+	running := func(term *myterm.Terminal) bool {
+		if term == nil || term.Done() == nil {
+			return false
+		}
+		select {
+		case <-term.Done():
+			return false
+		default:
+			return true
+		}
+	}
+	if len(p.panes) == 0 {
+		if running(p.Term) {
+			return 1
+		}
+		return 0
+	}
+	count := 0
+	for _, pane := range p.panes {
+		if running(pane.term) {
+			count++
+		}
+	}
+	return count
+}
+
 // Close releases every process in this workspace, for app exit/explicit removal.
 func (p *Panel) Close() {
 	if p == nil {

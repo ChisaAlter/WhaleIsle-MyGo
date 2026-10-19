@@ -47,9 +47,9 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 		lines = append(lines, resumeText("Host 任务保护不可用，无法确认后台任务、定时任务或在途请求是否已排空。继续将仅依赖本地会话信息，可能中断未显示的工作。", "Host task protection is unavailable. Background work, scheduled tasks and in-flight requests cannot be verified or drained. Continuing relies only on local session information and may interrupt unseen work."), i.Unknown)
 	}
 	if i.Unknown != "" {
-		lines = append(lines, fmt.Sprintf(resumeText("本地已知运行会话：%d；Host 活动和计划工作：未知。", "Known local running sessions: %d; Host active and scheduled work: unknown."), i.LocalRunning))
+		lines = append(lines, fmt.Sprintf(resumeText("本地运行工作（会话和终端）：%d；Host 活动和计划工作：未知。", "Known local running work (sessions and terminals): %d; Host active and scheduled work: unknown."), i.LocalRunning))
 	} else {
-		lines = append(lines, fmt.Sprintf(resumeText("本地已知运行会话：%d；Host 活动工作：%d；计划工作：%d。", "Known local running sessions: %d; Host active work: %d; scheduled work: %d."), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
+		lines = append(lines, fmt.Sprintf(resumeText("本地运行工作（会话和终端）：%d；Host 活动工作：%d；计划工作：%d。", "Known local running work (sessions and terminals): %d; Host active work: %d; scheduled work: %d."), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
 	}
 	missing := []string{}
 	for key, value := range i.Coverage {
@@ -86,13 +86,53 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 	return did && err == nil
 }
 
+// Include shell-owned PTYs: the Host cannot inspect them, and hidden terminal
+// panes continue running until an approved lifecycle commit closes them.
+func (s *mainState) localTaskRunningCount() int {
+	count := s.sessionRunningCount()
+	s.mu.Lock()
+	count += s.terminalSessions.RunningCount()
+	s.mu.Unlock()
+	return count
+}
+
+// Shared by approved Stop, Restart and import commits, matching the original
+// desktop's PTY cleanup and revoking the old Host's authenticated view.
+func (s *mainState) closeTaskProtectedResources() error {
+	s.stopPhoneRuntime()
+	s.mu.Lock()
+	if s.terminalVisible && s.layout.Bottom > terminalMinBottom {
+		s.terminalSavedBottom = s.layout.Bottom
+	}
+	s.terminalVisible = false
+	s.layout.Bottom = 0
+	s.mu.Unlock()
+	s.closeTerminal()
+	// Independent browser/document previews retain their own lifetime.
+	s.mu.Lock()
+	runtimeView := s.webviewHost
+	if runtimeView != nil && runtimeView.HasSession() {
+		s.lastWebViewURL = runtimeView.URL()
+		s.webviewHost = nil
+		s.pluginViewResumeAfterRestart = s.webviewOpen && !s.browserPreviewOpen
+		s.webviewHostErr = ""
+	} else {
+		runtimeView = nil
+	}
+	s.mu.Unlock()
+	if runtimeView != nil {
+		return runtimeView.Close()
+	}
+	return nil
+}
+
 // Imports already own the import slot. Reuse the same task inspection, drain
 // and confirmation without rejecting that owner as a competing operation.
 func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) (bool, error) {
 	var did bool
 	var err error
 	if sup != nil {
-		did, err = sup.ProtectTaskAction(ctx, operation, s.sessionRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
+		did, err = sup.ProtectTaskAction(ctx, operation, s.localTaskRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
 	} else {
 		// No owned Host exists. Preserve the original local-session confirmation.
 		label := resumeText("退出", "Quit")
@@ -105,7 +145,7 @@ func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup
 		} else if operation == "stop" {
 			label = resumeText("停止内核", "Stop runtime")
 		}
-		did, err = taskguard.ConfirmAction(win, s.sessionRunningCount(), label, resumeText("当前有 %d 个会话仍在运行。继续会中断任务，仍要继续吗？", "%d sessions are still running. Continuing will interrupt work. Continue?"), label, resumeText("取消", "Cancel"))
+		did, err = taskguard.ConfirmAction(win, s.localTaskRunningCount(), label, resumeText("当前有 %d 个本地工作（会话和终端）仍在运行。继续会中断任务，仍要继续吗？", "%d local work items (sessions and terminals) are still running. Continuing will interrupt work. Continue?"), label, resumeText("取消", "Cancel"))
 		if did && err == nil {
 			err = commit()
 			did = err == nil
@@ -153,23 +193,34 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 	}
 	s.taskRestartPending = true
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
-	s.withTaskProtection(win, sup, "stop", func() error {
-		s.mu.Lock()
-		if s.launcherImportBusy || s.quitting || s.sup != sup {
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			s.taskRestartPending = false
 			s.mu.Unlock()
-			return errors.New("runtime or import state changed; retry stop")
-		}
-		s.mu.Unlock()
-		s.stopPhoneRuntime()
-		sup.Stop()
-		s.mu.Lock()
-		s.launcherStartBusy = false
-		s.launcherStartFailed = false
-		s.launcherStartErr = ""
-		s.mu.Unlock()
-		return nil
-	})
+			if win != nil {
+				win.Update(func() {})
+			}
+		}()
+		s.withTaskProtection(win, sup, "stop", func() error {
+			s.mu.Lock()
+			if s.launcherImportBusy || s.quitting || s.sup != sup {
+				s.mu.Unlock()
+				return errors.New("runtime or import state changed; retry stop")
+			}
+			s.mu.Unlock()
+			if err := s.closeTaskProtectedResources(); err != nil {
+				return err
+			}
+			sup.Stop()
+			s.mu.Lock()
+			s.launcherStartBusy = false
+			s.launcherStartFailed = false
+			s.launcherStartErr = ""
+			s.mu.Unlock()
+			return nil
+		})
+	}()
 	if win != nil {
 		win.Update(func() {})
 	}

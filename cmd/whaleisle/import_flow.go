@@ -94,9 +94,11 @@ func (s *mainState) startImport(win *mygo.Window) {
 			if changed {
 				return errors.New(resumeText("运行环境已改变，请重新确认导入。", "The runtime changed. Confirm the import again."))
 			}
+			if err := s.closeTaskProtectedResources(); err != nil {
+				return err
+			}
 			if sup != nil {
 				kernelStopped = sup.Status().State != harness.Stopped
-				s.stopPhoneRuntime()
 				sup.Stop()
 			}
 			s.mu.Lock()
@@ -162,22 +164,36 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) {
 	s.taskRestartPending = true
 	win := s.win
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
-	if err := importer.CheckImportReady(paths.DshHome()); err != nil {
-		s.taskProtectionError(win, err)
-		return
-	}
-	s.withTaskProtection(win, sup, "restart", func() error {
-		// Recheck after Host inspection/confirmation and before the first side effect.
-		s.mu.Lock()
-		if s.launcherImportBusy || s.quitting || s.sup != sup {
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			s.taskRestartPending = false
 			s.mu.Unlock()
-			return errors.New("runtime or import state changed; retry restart")
+			if win != nil {
+				win.Update(func() {})
+			}
+		}()
+		if err := importer.CheckImportReady(paths.DshHome()); err != nil {
+			s.taskProtectionError(win, err)
+			return
 		}
-		s.launcherStartBusy = true
-		s.mu.Unlock()
-		s.stopPhoneRuntime()
-		sup.Restart()
-		return nil
-	})
+		s.withTaskProtection(win, sup, "restart", func() error {
+			// Recheck after Host inspection/confirmation and before the first side effect.
+			s.mu.Lock()
+			if s.launcherImportBusy || s.quitting || s.sup != sup {
+				s.mu.Unlock()
+				return errors.New("runtime or import state changed; retry restart")
+			}
+			s.launcherStartBusy = true
+			s.mu.Unlock()
+			if err := s.closeTaskProtectedResources(); err != nil {
+				return err
+			}
+			sup.Restart()
+			return nil
+		})
+	}()
+	if win != nil {
+		win.Update(func() {})
+	}
 }

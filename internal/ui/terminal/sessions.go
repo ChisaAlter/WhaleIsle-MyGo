@@ -64,6 +64,17 @@ func (s *Sessions) CloseWorkspace(root string) {
 		delete(s.panels, key)
 	}
 }
+
+// RunningCount includes live PTYs in every workspace, including hidden tabs.
+// Access is serialized by the main state's lock, like the other session methods.
+func (s *Sessions) RunningCount() int {
+	count := 0
+	for _, panel := range s.panels {
+		count += panel.RunningCount()
+	}
+	return count
+}
+
 func (s *Sessions) Close() {
 	for key, p := range s.panels {
 		p.Close()
