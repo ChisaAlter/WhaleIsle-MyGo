@@ -2,9 +2,55 @@ package schedule
 
 import (
 	"bytes"
+	"strconv"
+	"strings"
+	"time"
 
 	schedstore "whaleisle/internal/store/schedule"
 )
+
+// chooseKind restores the committed rule when returning to its kind. Clock
+// choices carry the shown time/zone; weekday choices survive those detours.
+func (d *taskDraft) chooseKind(kind string) {
+	if kind == d.Kind {
+		return
+	}
+	base := newTaskDraft(d.row)
+	date, clock := base.wallClock()
+	zone, days := d.Zone, d.Weekdays
+	if d.Kind == "daily" || d.Kind == "weekly" {
+		clock = d.Clock
+	}
+	if kind == base.Kind {
+		d.At, d.Seconds, d.Clock, d.Expression = base.At, base.Seconds, base.Clock, base.Expression
+		d.Zone = base.Zone
+	} else {
+		d.At, d.Seconds, d.Clock = base.At, "3600", clock
+		d.Zone = zone
+		hour, _ := strconv.Atoi(clock[:2])
+		minute, _ := strconv.Atoi(clock[3:5])
+		d.Expression = cronShape{kind: "daily", hour: hour, minute: minute}.expression()
+	}
+	if kind == "daily" || kind == "weekly" {
+		if kind != base.Kind && (d.Kind == "daily" || d.Kind == "weekly") {
+			d.Clock, d.Zone = clock, zone
+		}
+	}
+	if days == "" {
+		if base.Weekdays != "" {
+			days = base.Weekdays
+		} else {
+			instant, _ := time.Parse("2006-01-02", date)
+			day := int(instant.Weekday())
+			if day == 0 {
+				day = 7
+			}
+			days = strconv.Itoa(day)
+		}
+	}
+	d.Weekdays = strings.TrimSpace(days)
+	d.Kind, d.picker = kind, timingPickerState{}
+}
 
 // rebase adopts a refreshed CAS record while preserving fields edited locally.
 // A staged rule-kind switch keeps its full timing; untouched timing follows the
@@ -19,10 +65,10 @@ func (d *taskDraft) rebase(row schedstore.Entry) {
 		return
 	}
 	base := newTaskDraft(d.row)
-	if d.Title == base.Title {
+	if strings.TrimSpace(d.Title) == strings.TrimSpace(base.Title) {
 		d.Title = latest.Title
 	}
-	if d.Prompt == base.Prompt {
+	if strings.TrimSpace(d.Prompt) == strings.TrimSpace(base.Prompt) {
 		d.Prompt = latest.Prompt
 	}
 	dirtyTiming := d.timingKey() != d.initialTiming

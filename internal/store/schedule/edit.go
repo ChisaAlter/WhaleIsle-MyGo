@@ -1,6 +1,7 @@
 package schedule
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -114,13 +115,26 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 		s.lastAction = "Schedule saved"
 		for i := range s.rows {
 			if s.rows[i].ID == row.ID && s.rows[i].SessionID == row.SessionID {
-				s.rows[i].Raw = append(json.RawMessage(nil), committed...)
-				if title != nil {
-					s.rows[i].Title = *title
+				currentRule, snapshotErr := RuleSnapshot(s.rows[i].Raw)
+				if snapshotErr != nil || !bytes.Equal(currentRule, expected) {
+					// A catalog already observed a later rule while this save was
+					// in flight. Its newer CAS baseline must remain authoritative.
+					continue
 				}
-				if prompt != nil {
-					s.rows[i].Prompt = *prompt
+				// The committed rule owns its new instant/zone as well as text.
+				// Preserve catalog-only ownership and lifecycle metadata.
+				var record, metadata map[string]json.RawMessage
+				_ = json.Unmarshal(committed, &record)
+				_ = json.Unmarshal(s.rows[i].Raw, &metadata)
+				for _, key := range []string{"sessionId", "status", "lastDelivery"} {
+					if len(record[key]) == 0 && len(metadata[key]) != 0 {
+						record[key] = metadata[key]
+					}
 				}
+				merged, _ := json.Marshal(record)
+				fresh := parseScheduleList(api.ListResult4{merged})[0]
+				fresh.Origin, fresh.SessionID, fresh.Status = s.rows[i].Origin, s.rows[i].SessionID, s.rows[i].Status
+				s.rows[i] = fresh
 			}
 		}
 	}
@@ -161,6 +175,12 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	err := client.Call(ctx, "schedule/delete", map[string]any{"request": api.ScheduleDeleteRequest{Id: id, SessionId: sessionID}}, &out)
 	if err == nil {
 		err = resultError(out)
+	}
+	var failure *ResultError
+	if errors.As(err, &failure) && failure.Code == "schedule_not_found" {
+		// Already absent is a settled deletion; the catalog still has to confirm it.
+		err = nil
+		out = json.RawMessage(`{"deleted":true}`)
 	}
 	if err == nil {
 		var result struct {

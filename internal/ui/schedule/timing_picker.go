@@ -3,6 +3,7 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,7 +49,7 @@ func (d *taskDraft) wallClock() (string, string) {
 		instant = time.Now()
 	}
 	instant = instant.In(loc)
-	return instant.Format("2006-01-02"), instant.Format("15:04:05")
+	return instant.Format("2006-01-02"), instant.Format("15:04:05.999")
 }
 func (d *taskDraft) pickWallClock(date, clock, zone string) error {
 	loc, err := time.LoadLocation(zone)
@@ -57,10 +58,13 @@ func (d *taskDraft) pickWallClock(date, clock, zone string) error {
 	}
 	wall := date + "T" + clock
 	instant, err := time.ParseInLocation("2006-01-02T15:04:05", wall, loc)
-	if err != nil || instant.Format("2006-01-02T15:04:05") != wall {
+	// Parse accepts fractions even with a whole-second layout. Compare the wall
+	// fields, not formatted fraction spelling, to reject DST gaps without
+	// discarding an untouched stored millisecond value.
+	if err != nil || instant.Format("2006-01-02T15:04:05") != strings.SplitN(wall, ".", 2)[0] {
 		return fmt.Errorf("date/time does not exist in %s", zone)
 	}
-	d.At = instant.Format(time.RFC3339)
+	d.At = instant.Format(time.RFC3339Nano)
 	d.Zone = zone
 	return nil
 }
@@ -288,22 +292,37 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 		ui.Text(c, "当前时间规则只读 / Timing is read-only")
 		return
 	}
-	if ui.Select(c, &d.Kind, []string{"at", "every", "daily", "weekly", "cron"}).Changed() {
-		d.picker = timingPickerState{}
-		_, clock := d.wallClock()
-		if d.Clock == "" {
-			d.Clock = clock
+	choice := d.Kind
+	if choice == "every" {
+		switch d.intervalUnit {
+		case 3600:
+			choice = "every-hour"
+		case 60:
+			choice = "every-minute"
+		default:
+			choice = "every-second"
 		}
-		if d.Seconds == "0" || d.Seconds == "" {
-			d.Seconds = "60"
-		}
-		if d.Weekdays == "" {
-			d.Weekdays = "1"
-		}
-		if d.Expression == "" {
-			h, _ := strconv.Atoi(clock[:2])
-			m, _ := strconv.Atoi(clock[3:5])
-			d.Expression = cronShape{kind: "daily", hour: h, minute: m}.expression()
+	} else if choice == "weekly" && d.weekdayShortcut {
+		choice = "weekdays"
+	}
+	if ui.Select(c, &choice, []string{"at", "every-second", "every-minute", "every-hour", "daily", "weekdays", "weekly", "cron"}).Changed() {
+		switch choice {
+		case "every-second", "every-minute", "every-hour":
+			d.chooseKind("every")
+			d.intervalUnit = 1
+			if choice == "every-minute" {
+				d.intervalUnit = 60
+			}
+			if choice == "every-hour" {
+				d.intervalUnit = 3600
+			}
+		case "weekdays":
+			d.chooseKind("weekly")
+			d.Weekdays = "1,2,3,4,5"
+			d.weekdayShortcut = true
+		default:
+			d.chooseKind(choice)
+			d.weekdayShortcut = false
 		}
 	}
 	switch d.Kind {
@@ -311,8 +330,32 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 		p.datePicker(c, d)
 		p.zonePicker(c, d)
 	case "every":
-		ui.Text(c, "间隔秒数 / Interval seconds")
-		ui.TextInput(c, &d.Seconds).FillWidth()
+		factor := max(1, d.intervalUnit)
+		seconds, err := strconv.ParseFloat(d.Seconds, 64)
+		quantity := d.Seconds
+		if err == nil {
+			quantity = strconv.FormatFloat(seconds/float64(factor), 'f', -1, 64)
+		}
+		ui.Text(c, scheduleText("重复间隔", "Repeat interval"))
+		if ui.TextInput(c, &quantity).Label("Task repeat interval").FillWidth().Changed() {
+			if value, err := strconv.ParseFloat(quantity, 64); err == nil && !math.IsNaN(value) && !math.IsInf(value, 0) {
+				d.Seconds = strconv.FormatFloat(math.Round(value*float64(factor)), 'f', 0, 64)
+			} else {
+				d.Seconds = quantity
+			}
+		}
+		ui.Row(c).Gap(8).Children(func() {
+			for _, delta := range []int{-1, 1} {
+				label := "+"
+				if delta < 0 {
+					label = "−"
+				}
+				if ui.Button(c, label).Label("Adjust task interval " + label).Clicked() {
+					value, _ := strconv.Atoi(d.Seconds)
+					d.Seconds = strconv.Itoa(max(60, value+delta*factor))
+				}
+			}
+		})
 	case "daily", "weekly":
 		clockPicker(c, d.Clock, true, func(value string) { d.Clock = value })
 		p.zonePicker(c, d)
@@ -324,6 +367,7 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 				}
 			}
 			dayPills(c, days, 7, func(values []int) {
+				d.weekdayShortcut = false
 				parts := []string{}
 				for _, n := range values {
 					parts = append(parts, strconv.Itoa(n))

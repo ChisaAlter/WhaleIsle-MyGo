@@ -16,8 +16,19 @@ type ScheduleTaskTarget struct {
 	ID        string `json:"id"`
 }
 type SchedulePaneState struct {
-	Targets map[string]ScheduleTaskTarget `json:"targets"`
-	panels  map[string]*scheduleui.Panel
+	Targets  map[string]ScheduleTaskTarget `json:"targets"`
+	panels   map[string]*scheduleui.Panel
+	rendered bool
+}
+
+func (s *SchedulePaneState) deactivate() {
+	if s == nil {
+		return
+	}
+	for _, panel := range s.panels {
+		panel.Deactivate()
+	}
+	s.panels = nil
 }
 
 func scheduleScope(origin, viewer string) string { return origin + "\x00" + viewer }
@@ -61,6 +72,7 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 		delete(state.Targets, scope)
 		for key := range state.panels {
 			if strings.HasPrefix(key, scope+"\x00") {
+				state.panels[key].Deactivate()
 				delete(state.panels, key)
 			}
 		}
@@ -91,6 +103,13 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 	}
 	// One editor instance per task keeps its history and draft with that target.
 	key := scope + "\x00" + target.SessionID + "\x00" + target.ID
+	state.rendered = true
+	for old, panel := range state.panels {
+		if old != key {
+			panel.Deactivate()
+			delete(state.panels, old)
+		}
+	}
 	panel := state.panels[key]
 	if panel == nil {
 		panel = &scheduleui.Panel{}

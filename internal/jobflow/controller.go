@@ -98,6 +98,12 @@ func (c *Controller) Open(g uint64) {
 	if !c.view.Mounted {
 		c.mountLocked()
 	}
+	if row := c.rowLocked(c.view.SelectedID); row != nil && row.Observable() {
+		c.view.Observed = Observation{JobID: row.ID, Streaming: true}
+		ctx, cancel := context.WithCancel(c.ctx)
+		c.observationCancel = cancel
+		go c.runObservation(ctx, c.transport, row.Owner, row.ID, c.view.Generation, c.observationEpoch)
+	}
 	c.mu.Unlock()
 	c.changed()
 }
@@ -144,7 +150,9 @@ func (c *Controller) Close(g uint64) {
 		c.mu.Unlock()
 		return
 	}
+	selected := c.view.SelectedID
 	c.stopObservationLocked()
+	c.view.SelectedID = selected
 	c.view.Open = false
 	c.view.Generation++
 	c.mu.Unlock()

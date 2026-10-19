@@ -17,10 +17,14 @@ func (s *Store) EnsureContext(ctx context.Context, sessionID string, receiptIDs 
 	if s.receiptKeys == nil {
 		s.receiptKeys = map[string]bool{}
 	}
+	if s.receiptReads == nil {
+		s.receiptReads = map[string]uint64{}
+	}
 	for _, id := range receiptIDs {
 		key := s.client.Endpoint.Origin + "\x00" + sessionID + "\x00" + id
 		if !s.receiptKeys[key] {
 			s.receiptKeys[key] = true
+			s.receiptReads[key] = s.catalogRequest
 			refresh = true
 		}
 	}
@@ -28,6 +32,21 @@ func (s *Store) EnsureContext(ctx context.Context, sessionID string, receiptIDs 
 	if refresh {
 		s.Refresh(ctx, sessionID)
 	}
+}
+
+// ReceiptCatalogState reports whether this receipt was registered and whether
+// an all-session read issued after this
+// receipt first appeared has succeeded. An earlier in-flight read cannot prove
+// that a newly created task is absent; a failed read keeps the creation receipt.
+func (s *Store) ReceiptCatalogState(row Entry) (registered, settled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.client == nil || row.Origin != s.client.Endpoint.Origin {
+		return false, false
+	}
+	key := row.Origin + "\x00" + row.SessionID + "\x00" + row.ID
+	required, registered := s.receiptReads[key]
+	return registered, registered && s.catalogReady && s.catalogSettled > required
 }
 
 func ActiveForSession(snap ViewState, id string) []Entry {

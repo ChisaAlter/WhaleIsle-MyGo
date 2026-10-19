@@ -277,14 +277,30 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapshot, job jobflow.Job, colors theme.Colors) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	o := s.Observed
-	ui.Column(c.Key("job-output-panel-"+job.ID)).FillWidth().MinWidth(0).Padding(0, 8, 8).Gap(6).Children(func() {
+	panel := ui.Column(c.Key("job-output-panel-"+job.ID)).FillWidth().MinWidth(0).Padding(0, 8, 8).Gap(6)
+	notice := ui.Local(panel, "output-error-notice", func() struct {
+		value     string
+		dismissed bool
+	} {
+		return struct {
+			value     string
+			dismissed bool
+		}{}
+	})
+	if notice.value != o.Error {
+		notice.value, notice.dismissed = o.Error, false
+	}
+	panel.Children(func() {
 		if o.GapBefore {
 			ui.Text(c, archiveText("更早的输出已截断", "Earlier output was dropped")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 		}
-		if o.Error != "" {
+		if o.Error != "" && !notice.dismissed {
 			ui.Text(c, o.Error).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 			if ui.Button(c, archiveText("重试输出", "Retry output")).Clicked() {
 				controller.RetryOutput(s.Generation)
+			}
+			if ui.Button(c, archiveText("关闭提示", "Dismiss")).Clicked() {
+				notice.dismissed = true
 			}
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {

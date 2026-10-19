@@ -32,6 +32,9 @@ type ViewState struct {
 	Origin          string
 	ClientReady     bool
 	Loading         bool
+	CatalogReady    bool   // Successful all-session catalog, never a session-only fallback.
+	CatalogRevision uint64 // Advances only when that authoritative catalog settles.
+	CatalogRequest  uint64
 	Err             string
 	Rows            []Entry
 	CatalogHint     string
@@ -55,7 +58,12 @@ type Store struct {
 	connectionEpoch  uint64
 	eventsGeneration uint64
 	receiptKeys      map[string]bool
+	receiptReads     map[string]uint64
 	requested        bool
+	catalogReady     bool
+	catalogRevision  uint64
+	catalogRequest   uint64
+	catalogSettled   uint64
 	lastAction       string
 	busy             bool
 }
@@ -73,12 +81,14 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.eventsGeneration++
 		s.requested = false
 		s.receiptKeys = nil
+		s.receiptReads = nil
 		s.connectionEpoch++
 		s.loading = false
 		s.busy = false
 		s.rows = nil
 		s.catalogHint = ""
 		s.lastAction = ""
+		s.catalogReady = false
 	}
 	s.client = client
 	s.notify = notify
@@ -93,11 +103,13 @@ func (s *Store) Detach() {
 	s.connectionEpoch++
 	s.eventsGeneration++
 	s.requested = false
+	s.receiptKeys, s.receiptReads = nil, nil
 	s.client = nil
 	s.loading = false
 	s.busy = false
 	s.rows = nil
 	s.catalogHint = ""
+	s.catalogReady = false
 	s.mu.Unlock()
 	s.fire()
 }
@@ -110,6 +122,9 @@ func (s *Store) Snapshot() ViewState {
 		ConnectionEpoch: s.connectionEpoch,
 		ClientReady:     s.client != nil,
 		Loading:         s.loading,
+		CatalogReady:    s.catalogReady && !s.loading && s.err == nil,
+		CatalogRevision: s.catalogRevision,
+		CatalogRequest:  s.catalogRequest,
 		CatalogHint:     s.catalogHint,
 		SessionID:       s.sessionID,
 		LastAction:      s.lastAction,
@@ -149,6 +164,8 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 	}
 	s.generation++
 	generation := s.generation
+	s.catalogRequest++
+	request := s.catalogRequest
 	s.sessionID = sessionID
 	s.requested = true
 	s.loading = true
@@ -203,6 +220,11 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		if callErr == nil {
 			s.rows = rows
 			s.catalogHint = catalogHint
+			s.catalogReady = catalogErr == nil
+			if s.catalogReady {
+				s.catalogRevision++
+				s.catalogSettled = request
+			}
 		}
 		s.mu.Unlock()
 		s.fire()

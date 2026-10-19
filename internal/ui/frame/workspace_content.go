@@ -280,6 +280,9 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 		}
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Schedule != nil {
+			n.Schedule.rendered = false
+		}
 		if n.Agents != nil {
 			n.Agents.rendered = false
 			// Hidden child tabs retain their reader only within the same owner binding.
@@ -308,6 +311,9 @@ func (w *WorkspacePanes) EndContentFrame() {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Schedule != nil && !n.Schedule.rendered {
+			n.Schedule.deactivate()
+		}
 		if n.Inspector != nil && (n.Float != nil && n.Float.Minimized || n.Float == nil && w.Root.dockGroup(n.ID) != n) {
 			n.Inspector.navigation.Picking = false
 			n.Inspector.navigation.Target = nil
@@ -334,6 +340,7 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		n.Schedule.deactivate()
 		if !retainReads || !n.holdsAgentReadOccurrence() {
 			n.releaseAgentPane()
 		}
@@ -348,6 +355,7 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	n.Schedule.deactivate()
 	// Generic disposal only releases presentation; process termination belongs
 	// exclusively to the explicit close request in WorkspacePanes.close.
 	if n.terminalDispose != nil {

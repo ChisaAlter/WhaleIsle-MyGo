@@ -112,7 +112,6 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 						})
 						if b.Clicked() {
 							p.selectCatalogTask(row)
-							p.message("")
 						}
 					}
 				})
@@ -174,7 +173,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 		p.detailStrip(c, m, snap, d, colors, width)
 		if p.detailTab == "records" {
 			p.mu.Lock()
-			load := p.historyKey != taskKey(d.row) || (!p.historyLoading && !p.historyState.Loaded && p.historyState.Error == "")
+			load := p.historyKey != taskKey(d.row) || p.historyLatest != latestDelivery(d.row) || (!p.historyLoading && !p.historyState.Loaded && p.historyState.Error == "")
 			p.mu.Unlock()
 			if load {
 				p.loadDeliveryHistory(m, d.row, "", true)
@@ -250,6 +249,7 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 	}
 	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).Padding(0, detailGutter(width)).Gap(12).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, .5, 0).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(36).Children(func() {
+			var tabs []ui.Element
 			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "记录", "Records"}} {
 				selected := p.detailTab == option.id || p.detailTab == "" && option.id == "rule"
 				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(height).Padding(0).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13))
@@ -257,7 +257,22 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 					button.TextColor(fg).Border(1, fg).BorderWidth(0, 0, 1, 0)
 				}
 				if button.Clicked() {
-					p.detailTab = option.id
+					p.selectDetailTab(option.id)
+				}
+				tabs = append(tabs, button)
+			}
+			for index, button := range tabs {
+				next := -1
+				if button.Shortcut(0, ui.KeyLeft) || button.Shortcut(0, ui.KeyRight) {
+					next = 1 - index
+				} else if button.Shortcut(0, ui.KeyHome) {
+					next = 0
+				} else if button.Shortcut(0, ui.KeyEnd) {
+					next = 1
+				}
+				if next >= 0 {
+					p.selectDetailTab([]string{"rule", "records"}[next])
+					tabs[next].Focus()
 				}
 			}
 		})
@@ -274,7 +289,7 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 				}
 				more := scheduleIconButton(c, "schedule-task-actions", "Automation task actions", "more", muted)
 				more.Menu(func(menu *ui.Menu) {
-					if menu.Item(scheduleText("删除任务", "Delete task")).Disabled(snap.Busy || !snap.ClientReady).Chosen() {
+					if menu.Item(scheduleText("删除任务", "Delete task")).Disabled(snap.Busy || snap.Loading || !snap.ClientReady || !scheduleEntryAvailable(snap, d.row)).Chosen() {
 						row := d.row
 						p.deleting = &row
 					}
@@ -285,12 +300,11 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 				closeLabel = "Close task"
 			}
 			if scheduleIconButton(c, "schedule-close-detail", closeLabel, "close", muted).Clicked() {
+				p.closeDetail()
 				if m.DetailID != "" {
 					if m.OnClose != nil {
 						m.OnClose()
 					}
-				} else {
-					p.selected = ""
 				}
 			}
 		})
@@ -321,19 +335,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 					}
 					if ui.Button(c, scheduleText("确认删除", "Confirm deletion")).Disabled(snap.Busy || !snap.ClientReady).Clicked() {
 						p.deleting = nil
-						go func() {
-							err := m.Store.DeleteEntry(context.Background(), row)
-							p.mu.Lock()
-							if err != nil {
-								p.status, p.statusOwner = err.Error(), taskKey(row)
-							} else {
-								p.deleted = append(p.deleted, taskKey(row))
-							}
-							p.mu.Unlock()
-							if m.OnInvalidate != nil {
-								m.OnInvalidate()
-							}
-						}()
+						p.deleteTask(m, row)
 					}
 				})
 			})
@@ -370,7 +372,16 @@ func scheduleNextRun(row schedstore.Entry) string {
 			loc = ruleZone
 		}
 	}
-	return scheduleText("下次运行：", "Next run: ") + at.In(loc).Format("2006-01-02 15:04:05")
+	seconds := int64(time.Until(at).Seconds())
+	relative := scheduleText("即将运行", "due now")
+	if seconds >= 3600 {
+		relative = fmt.Sprintf(scheduleText("%d 小时后", "in %dh"), seconds/3600)
+	} else if seconds >= 60 {
+		relative = fmt.Sprintf(scheduleText("%d 分钟后", "in %dm"), seconds/60)
+	} else if seconds > 0 {
+		relative = fmt.Sprintf(scheduleText("%d 秒后", "in %ds"), seconds)
+	}
+	return scheduleText("下次运行：", "Next run: ") + at.In(loc).Format("2006-01-02 15:04:05") + " (" + relative + ")"
 }
 
 func scheduleFrequency(row schedstore.Entry) string {

@@ -19,12 +19,14 @@ type deliveryHistoryState struct {
 	Error           string
 	RetryBefore     string
 	RefreshRequired bool
+	Dismissed       bool
 }
 
 func (h *deliveryHistoryState) finish(next schedstore.DeliveryPage, before string, err error) {
 	h.Error = ""
 	h.RetryBefore = ""
 	h.RefreshRequired = false
+	h.Dismissed = false
 	if err != nil {
 		h.Error = err.Error()
 		h.RetryBefore = before
@@ -50,6 +52,19 @@ func (h *deliveryHistoryState) finish(next schedstore.DeliveryPage, before strin
 	h.Loaded = true
 }
 
+func latestDelivery(row schedstore.Entry) string {
+	var record struct {
+		LastDelivery *struct {
+			MessageID string `json:"messageId"`
+		} `json:"lastDelivery"`
+	}
+	_ = json.Unmarshal(row.Raw, &record)
+	if record.LastDelivery != nil {
+		return record.LastDelivery.MessageID
+	}
+	return ""
+}
+
 func (p *Panel) loadDeliveryHistory(m Model, row schedstore.Entry, before string, refresh bool) {
 	key := taskKey(row)
 	epoch := m.Store.Snapshot().ConnectionEpoch
@@ -62,6 +77,7 @@ func (p *Panel) loadDeliveryHistory(m Model, row schedstore.Entry, before string
 		p.historyState = deliveryHistoryState{}
 	}
 	p.historyKey = key
+	p.historyLatest = latestDelivery(row)
 	p.historyRow = row
 	p.historyLoading = true
 	p.historyRequest++
@@ -113,13 +129,22 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 				}
 				if h.Error != "" {
 					ui.Column(c).FillWidth().MinWidth(0).Padding(12).Gap(8).Background(chrome.Color(colors.Sidebar)).Radius(10).Children(func() {
-						ui.Text(c, h.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
+						message := h.Error
+						if h.Dismissed {
+							message = scheduleText("可以重试读取投递记录", "Retry delivery records when ready")
+						}
+						ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
 						label := scheduleText("重试", "Retry")
 						if h.RefreshRequired {
 							label = scheduleText("刷新记录", "Refresh records")
 						}
 						if ui.Button(c, label).Disabled(loading).Clicked() {
 							p.loadDeliveryHistory(m, row, h.RetryBefore, h.RetryBefore == "")
+						}
+						if !h.Dismissed && ui.Button(c, scheduleText("关闭提示", "Dismiss")).Clicked() {
+							p.mu.Lock()
+							p.historyState.Dismissed = true
+							p.mu.Unlock()
 						}
 					})
 				}

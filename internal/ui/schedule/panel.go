@@ -15,8 +15,8 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-// Panel retains each task's unfinished draft when switching tasks or closing the panel.
-// Background requests publish only status/history; they never overwrite editor inputs.
+// Panel retains the current detail draft while it is mounted, including failures.
+// Switching identity or unmounting retires its pending UI receipts.
 type Panel struct {
 	recentZones         []string
 	drafts              map[string]*taskDraft
@@ -35,14 +35,20 @@ type Panel struct {
 	historyKey          string
 	historyRow          schedstore.Entry
 	historyLoading      bool
+	historyLatest       string
 	committed           map[string]savedDraft
-	deleted             []string
+	detailOwner         uint64
+	actionRequest       uint64
+	actionPending       bool
+	actionFailed        bool
+	deleteAck           *deleteReceipt
 }
 type savedDraft struct {
-	row    schedstore.Entry
-	timing string
+	row schedstore.Entry
 }
 type taskDraft struct {
+	weekdayShortcut                                                     bool
+	intervalUnit                                                        int
 	picker                                                              timingPickerState
 	row                                                                 schedstore.Entry
 	Title, Prompt, Kind, At, Seconds, Clock, Zone, Weekdays, Expression string
@@ -63,6 +69,12 @@ func newTaskDraft(row schedstore.Entry) *taskDraft {
 	}
 	d.At = r.ScheduledAt
 	d.Seconds = strconv.Itoa(r.EverySeconds)
+	d.intervalUnit = 1
+	if r.EverySeconds > 0 && r.EverySeconds%3600 == 0 {
+		d.intervalUnit = 3600
+	} else if r.EverySeconds > 0 && r.EverySeconds%60 == 0 {
+		d.intervalUnit = 60
+	}
 	d.Clock = r.Time
 	d.Expression = r.Expression
 	if r.TimeZone != "" {
@@ -74,11 +86,25 @@ func newTaskDraft(row schedstore.Entry) *taskDraft {
 		}
 		d.Weekdays += strconv.Itoa(day)
 	}
+	d.weekdayShortcut = d.Weekdays == "1,2,3,4,5"
 	d.initialTiming = d.timingKey()
 	return d
 }
 func (d *taskDraft) timingKey() string {
-	return strings.Join([]string{d.Kind, d.At, d.Seconds, d.Clock, d.Zone, d.Weekdays, d.Expression}, "\x00")
+	fields := []string{d.Kind}
+	switch d.Kind {
+	case "at":
+		fields = append(fields, d.At)
+	case "every":
+		fields = append(fields, d.Seconds)
+	case "daily":
+		fields = append(fields, d.Clock, d.Zone)
+	case "weekly":
+		fields = append(fields, d.Clock, d.Zone, d.Weekdays)
+	case "cron":
+		fields = append(fields, d.Expression, d.Zone)
+	}
+	return strings.Join(fields, "\x00")
 }
 func (d *taskDraft) change() (json.RawMessage, error) {
 	if d.timingKey() == d.initialTiming {
@@ -135,6 +161,9 @@ func (d *taskDraft) change() (json.RawMessage, error) {
 func (p *Panel) message(text string) {
 	p.mu.Lock()
 	p.status, p.statusOwner = text, ""
+	if text == "" {
+		p.actionFailed = false
+	}
 	p.mu.Unlock()
 }
 
@@ -145,6 +174,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	}
 	snap := m.Store.Snapshot()
 	if !p.initialized || p.connectionEpoch != snap.ConnectionEpoch {
+		p.closeDetail()
 		p.initialized = true
 		p.connectionEpoch = snap.ConnectionEpoch
 		p.selected, p.detailTab = "", "rule"
@@ -155,7 +185,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		p.historyKey = ""
 		p.historyState = deliveryHistoryState{}
 		p.historyLoading = false
-		p.committed, p.deleted = nil, nil
+		p.committed = nil
 		p.status, p.statusOwner = "", ""
 		p.mu.Unlock()
 		m.Store.Refresh(context.Background(), m.SessionID)
@@ -164,19 +194,19 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	p.mu.Lock()
 	for key, saved := range p.committed {
 		if d := p.drafts[key]; d != nil {
-			d.row = saved.row
-			d.initialTiming = saved.timing
+			*d = *newTaskDraft(saved.row)
 		}
 	}
-	for _, key := range p.deleted {
-		if p.selected == key {
-			p.selected = ""
-		}
-		delete(p.drafts, key)
-	}
-	p.committed, p.deleted = nil, nil
+	p.committed = nil
 	p.mu.Unlock()
+	if p.reconcileDetail(snap) && m.DetailID != "" && m.OnClose != nil {
+		m.OnClose()
+		return
+	}
 	for _, row := range snap.Rows {
+		if row.Status == "active" {
+			c.After(time.Second)
+		}
 		if d := p.drafts[taskKey(row)]; d != nil {
 			d.rebase(row)
 		}
@@ -216,12 +246,11 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		}
 	})
 	if p.deleting == nil && draft != nil && root.Shortcut(0, ui.KeyEscape) {
+		p.closeDetail()
 		if m.DetailID != "" {
 			if m.OnClose != nil {
 				m.OnClose()
 			}
-		} else {
-			p.selected = ""
 		}
 	}
 	p.deleteDialog(c, m, snap, colors)
@@ -238,8 +267,18 @@ func (p *Panel) saveDraft(m Model, d *taskDraft) {
 	if title == "" || prompt == "" || len([]rune(title)) > 120 {
 		err = fmt.Errorf("%s", scheduleText("请输入不超过 120 字的任务名称及任务指令。", "Enter a task name of at most 120 characters and a task instruction."))
 	}
-	key, timing, row := taskKey(d.row), d.timingKey(), d.row
+	key, row := taskKey(d.row), d.row
+	var titleChange, promptChange *string
+	if title != strings.TrimSpace(row.Title) {
+		titleChange = &title
+	}
+	if prompt != strings.TrimSpace(row.Prompt) {
+		promptChange = &prompt
+	}
 	p.mu.Lock()
+	p.actionRequest++
+	owner, request, epoch := p.detailOwner, p.actionRequest, p.connectionEpoch
+	p.actionPending, p.actionFailed = err == nil, err != nil
 	p.status, p.statusOwner = "", key
 	if err != nil {
 		p.status = err.Error()
@@ -249,17 +288,23 @@ func (p *Panel) saveDraft(m Model, d *taskDraft) {
 		return
 	}
 	go func() {
-		err := m.Store.Update(context.Background(), row, &title, &prompt, change)
+		err := m.Store.Update(context.Background(), row, titleChange, promptChange, change)
+		snap := m.Store.Snapshot()
 		p.mu.Lock()
+		if !p.actionCurrentLocked(owner, request, epoch) || snap.ConnectionEpoch != epoch {
+			p.mu.Unlock()
+			return
+		}
+		p.actionPending, p.actionFailed = false, err != nil
 		if err != nil {
 			p.status, p.statusOwner = err.Error(), key
 		} else {
 			if p.committed == nil {
 				p.committed = map[string]savedDraft{}
 			}
-			for _, r := range m.Store.Snapshot().Rows {
+			for _, r := range snap.Rows {
 				if taskKey(r) == key {
-					p.committed[key] = savedDraft{row: r, timing: timing}
+					p.committed[key] = savedDraft{row: r}
 					break
 				}
 			}
