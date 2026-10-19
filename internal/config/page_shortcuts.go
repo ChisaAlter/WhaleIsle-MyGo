@@ -12,8 +12,16 @@ const pageShortcutsKey = "goPageShortcuts"
 func (s *Store) PageShortcuts(ids []string) (map[string]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	source := s.raw
+	if s.shortcutReload != nil {
+		var err error
+		source, _, err = s.shortcutSnapshotLocked()
+		if err != nil {
+			return nil, err
+		}
+	}
 	root := map[string]json.RawMessage{}
-	if raw := s.raw[pageShortcutsKey]; len(raw) > 0 {
+	if raw := source[pageShortcutsKey]; len(raw) > 0 {
 		if err := json.Unmarshal(raw, &root); err != nil {
 			return nil, err
 		}

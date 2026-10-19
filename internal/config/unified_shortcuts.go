@@ -1,16 +1,21 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"path/filepath"
 )
 
 const unifiedShortcutsKey = "goUnifiedShortcuts"
 
+type shortcutDocumentSnapshot struct {
+	raw      map[string]json.RawMessage
+	baseline fileBaseline
+}
+
 // ReloadShortcutDocument is only for the explicit discard-and-reload gesture.
-// It accepts the current persisted snapshot without writing or applying settings.
-// Rebase raw, typed values and the CAS baseline together so a later narrow save
-// cannot resurrect unrelated values from before the external edit.
+// It accepts a shortcut-owned persisted snapshot without changing the general
+// config baseline. An unrelated stale desktop form must still fail its CAS.
 func (s *Store) ReloadShortcutDocument() ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -20,8 +25,39 @@ func (s *Store) ReloadShortcutDocument() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.raw, s.cfg, s.baseline = fresh.raw, fresh.cfg, fresh.baseline
-	return append([]byte(nil), s.raw[unifiedShortcutsKey]...), nil
+	s.shortcutReload = &shortcutDocumentSnapshot{raw: fresh.raw, baseline: fresh.baseline}
+	return append([]byte(nil), fresh.raw[unifiedShortcutsKey]...), nil
+}
+
+func sameConfigBaseline(a, b fileBaseline) bool {
+	return a.exists == b.exists && bytes.Equal(a.data, b.data)
+}
+
+func (s *Store) shortcutSnapshotLocked() (map[string]json.RawMessage, fileBaseline, error) {
+	if s.shortcutReload == nil {
+		if err := s.checkBaseline(); err != nil {
+			return nil, fileBaseline{}, err
+		}
+		return s.raw, s.baseline, nil
+	}
+	view := s.shortcutReload
+	current, err := view.baseline.matches(s.path)
+	if err != nil {
+		return nil, fileBaseline{}, err
+	}
+	if !current {
+		// A normal accepted write in this same Store may advance the disk.
+		// Only that exact accepted baseline can refresh this shortcut view.
+		current, err = s.baseline.matches(s.path)
+		if err != nil {
+			return nil, fileBaseline{}, err
+		}
+		if !current {
+			return nil, fileBaseline{}, ErrConflict
+		}
+		view.raw, view.baseline = s.raw, s.baseline
+	}
+	return view.raw, view.baseline, nil
 }
 
 // ShortcutDocument is a single MyGo authority, not the independent Electron
@@ -29,10 +65,11 @@ func (s *Store) ReloadShortcutDocument() ([]byte, error) {
 func (s *Store) ShortcutDocument() ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.checkBaseline(); err != nil {
+	raw, _, err := s.shortcutSnapshotLocked()
+	if err != nil {
 		return nil, err
 	}
-	return append([]byte(nil), s.raw[unifiedShortcutsKey]...), nil
+	return append([]byte(nil), raw[unifiedShortcutsKey]...), nil
 }
 func (s *Store) InitializeShortcutDocument(data []byte) error {
 	return s.writeShortcutDocument(data, true)
@@ -41,17 +78,18 @@ func (s *Store) SaveShortcutDocument(data []byte) error { return s.writeShortcut
 func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.checkBaseline(); err != nil {
+	raw, baseline, err := s.shortcutSnapshotLocked()
+	if err != nil {
 		return err
 	}
-	if initialize && len(s.raw[unifiedShortcutsKey]) > 0 {
+	if initialize && len(raw[unifiedShortcutsKey]) > 0 {
 		return nil
 	}
 	if !json.Valid(data) {
 		return &json.SyntaxError{}
 	}
 	merged := map[string]json.RawMessage{}
-	for k, v := range s.raw {
+	for k, v := range raw {
 		merged[k] = v
 	}
 	merged[unifiedShortcutsKey] = append([]byte(nil), data...)
@@ -61,13 +99,22 @@ func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
 	}
 	commitMu.Lock()
 	defer commitMu.Unlock()
-	if err = s.checkBaseline(); err != nil {
+	current, err := baseline.matches(s.path)
+	if err != nil {
 		return err
+	}
+	if !current {
+		return ErrConflict
 	}
 	if err = writeAtomic(s.path, encoded, s.rename); err != nil {
 		return err
 	}
-	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: encoded}
+	next := fileBaseline{exists: true, data: encoded}
+	if sameConfigBaseline(s.baseline, baseline) {
+		s.raw, s.baseline = merged, next
+	}
+	if s.shortcutReload != nil {
+		s.shortcutReload.raw, s.shortcutReload.baseline = merged, next
+	}
 	return nil
 }

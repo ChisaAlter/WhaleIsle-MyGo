@@ -172,10 +172,11 @@ func Defaults() Config {
 type Store struct {
 	path string
 
-	mu       sync.Mutex
-	raw      map[string]json.RawMessage
-	cfg      Config
-	baseline fileBaseline
+	mu             sync.Mutex
+	raw            map[string]json.RawMessage
+	cfg            Config
+	baseline       fileBaseline
+	shortcutReload *shortcutDocumentSnapshot
 	// rename replaces the temp-file rename step; nil means os.Rename. It is
 	// a per-instance seam so tests can inject a deterministic write failure.
 	rename func(oldpath, newpath string) error
