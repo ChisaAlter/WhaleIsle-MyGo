@@ -33,6 +33,7 @@ func (s *Files) Remove(path string) error        { return s.mutate("remove", pat
 
 func (s *Files) mutate(operation, path, name string) error {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if v == nil || s.client == nil || v.Busy || !v.Bound || !v.Loaded || s.current != nil && !s.current() {
 		s.mu.Unlock()
@@ -158,6 +159,7 @@ func (s *Files) mutate(operation, path, name string) error {
 			return
 		}
 		v = s.states[key]
+		syncResourceDrafts(v)
 		v.Busy, v.Operation, v.MutationApplied = false, "", applied
 		s.cancel = nil
 		if applied {

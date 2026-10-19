@@ -56,6 +56,7 @@ func NewFiles() *Files { return &Files{states: map[string]*FileSnapshot{}} }
 func (s *Files) Bind(c *dsh.Client, sessionID string, notify func()) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.syncDraftsLocked()
 	key := ""
 	if c != nil && sessionID != "" {
 		key = c.Endpoint.Origin + "\x00" + sessionID
@@ -104,6 +105,7 @@ func (s *Files) Bind(c *dsh.Client, sessionID string, notify func()) {
 func (s *Files) Snapshot() FileSnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if v == nil {
 		return FileSnapshot{}
@@ -121,9 +123,10 @@ func (s *Files) Snapshot() FileSnapshot {
 func (s *Files) SetDraft(text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if v != nil && !v.Busy && v.FileLoaded && !v.File.Binary && !v.File.Truncated {
-		v.Draft = text
+		replaceResourceDraft(v, text)
 		stashResource(v)
 	}
 }
@@ -131,7 +134,7 @@ func (s *Files) Discard() {
 	s.mu.Lock()
 	v := s.states[s.key]
 	if v != nil && !v.Busy {
-		v.Draft = v.File.Content
+		replaceResourceDraft(v, v.File.Content)
 		v.Revision++
 		v.Error = ""
 		stashResource(v)
@@ -149,6 +152,7 @@ func (s *Files) Save()              { s.run("write", "") }
 func (s *Files) Download()          { s.run("download", "") }
 func (s *Files) run(action, path string) {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if v == nil || s.client == nil || v.Busy || s.current != nil && !s.current() {
 		s.mu.Unlock()
@@ -361,7 +365,7 @@ func (s *Files) run(action, path string) {
 				v.FilePath = path
 				v.File = file
 				v.FileLoaded = true
-				v.Draft = file.Content
+				replaceResourceDraft(v, file.Content)
 				v.Stale = false
 				v.Downloaded = ""
 				v.Revision++

@@ -16,7 +16,6 @@ type FileEditor struct {
 	Actions                            FileActions
 	Key                                string
 	Revision                           uint64
-	Draft                              string
 	Editing, ConfirmDownload           bool
 }
 
@@ -42,7 +41,7 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	e := m.FileEditor
 	key := s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + remotestore.ResourceAddress(s.SessionID, s.FilePath)
 	if e.Key != key || e.Revision != s.Revision {
-		e.Key, e.Revision, e.Draft = key, s.Revision, s.Draft
+		e.Key, e.Revision = key, s.Revision
 		e.Editing = s.Dirty()
 		for _, tab := range s.Tabs {
 			if tab.Path == s.FilePath {
@@ -104,11 +103,13 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	})
 	if !s.File.Binary {
 		if e.Editing {
-			area := ui.TextArea(c.Key(key), &e.Draft).FillWidth().MinHeight(180).Grow(1).Disabled(disabled)
-			area.OnChange(func() { m.Files.SetDraft(e.Draft) })
+			source, ok := m.Files.EditBuffer(s, newFileTextBuffer).(*fileTextBuffer)
+			if !ok {
+				return
+			}
+			area := ui.TextAreaBuffer(c.Key(key), source.buffer).FillWidth().MinHeight(180).Grow(1).Disabled(disabled)
 			save := func() {
 				if !disabled && !s.Stale {
-					m.Files.SetDraft(e.Draft)
 					m.Files.Save()
 				}
 			}

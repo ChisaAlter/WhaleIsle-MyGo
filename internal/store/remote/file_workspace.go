@@ -18,6 +18,7 @@ type FileLevel struct {
 }
 
 type FileResource struct {
+	draftOwner                             *fileDraftOwner
 	Path, Draft, Error, Notice, Downloaded string
 	File                                   RemoteFile
 	Loaded, Stale, Editing                 bool
@@ -29,6 +30,7 @@ func (r FileResource) Dirty() bool { return r.Loaded && r.Draft != r.File.Conten
 func (s *Files) HasDirty() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.syncDraftsLocked()
 	for _, view := range s.states {
 		if view.Dirty() {
 			return true
@@ -47,6 +49,7 @@ func (s *Files) HasDirty() bool {
 func (s *Files) Suspend() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.syncDraftsLocked()
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
@@ -105,6 +108,12 @@ func stashResource(v *FileSnapshot) {
 		i = len(v.Tabs) - 1
 	}
 	r := &v.Tabs[i]
+	if r.draftOwner == nil {
+		r.draftOwner = &fileDraftOwner{}
+	}
+	if r.draftOwner.buffer != nil {
+		v.Draft = r.draftOwner.buffer.CommittedText()
+	}
 	r.Draft, r.Error, r.Notice, r.Downloaded = v.Draft, v.Error, v.Notice, v.Downloaded
 	r.File, r.Loaded, r.Stale, r.Revision = v.File, v.FileLoaded, v.Stale, v.Revision
 }
@@ -249,6 +258,7 @@ func (s *Files) ToggleDirectory(path string) {
 
 func (s *Files) openResource(path string) {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if v == nil || v.Busy {
 		s.mu.Unlock()
@@ -292,6 +302,7 @@ func (s *Files) openResource(path string) {
 
 func (s *Files) SetEditing(editing bool) {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	if v := s.states[s.key]; v != nil && !v.Busy {
 		stashResource(v)
 		if i := resourceIndex(v, v.FilePath); i >= 0 {
@@ -322,6 +333,7 @@ func closeResource(v *FileSnapshot, path string) {
 
 func (s *Files) RequestClose(path string) {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	if v := s.states[s.key]; v != nil && !v.Busy {
 		stashResource(v)
 		if i := resourceIndex(v, path); i >= 0 {

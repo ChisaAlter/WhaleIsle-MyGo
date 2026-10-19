@@ -17,6 +17,7 @@ type fileCloseSave struct {
 // preflightCloseSaveLocked captures the current draft metadata and validates
 // every owner without selecting a resource, queuing a write or changing closeSave.
 func (s *Files) preflightCloseSaveLocked() (*fileCloseSave, error) {
+	s.syncDraftsLocked()
 	v := s.states[s.key]
 	if s.closeSave != nil {
 		return nil, fmt.Errorf("Remote close save is already pending")
@@ -89,6 +90,7 @@ func (s *Files) SaveDirtyForClose() error {
 // means pending. Any error ends this close attempt without discarding drafts.
 func (s *Files) CheckDirtyForClose() (bool, error) {
 	s.mu.Lock()
+	s.syncDraftsLocked()
 	p := s.closeSave
 	if p == nil {
 		for _, v := range s.states {
