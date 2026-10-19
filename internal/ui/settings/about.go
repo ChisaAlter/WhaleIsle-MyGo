@@ -10,21 +10,24 @@ import (
 
 // AboutAccess is the dedicated About settings page.
 type AboutAccess struct {
-	ReadCredentialStorage func() credentials.StorageStatus
-	OnOpenLink            func(string) error
-	AppName               string
-	Version               string
-	Identifier            string
-	UserData              string
-	VendorRoot            string
-	OnRevealUserData      func()
-	OnRevealLogs          func()
-	OnRevealVendor        func()
-	OnCheckUpdates        func()
-	OnCopyUserData        func()
-	OnCopyVersion         func()
-	AnalyticsEnabled      *bool
-	OnRefreshAnalytics    func()
+	Loading, UpdateBusy, HomeBusy       bool
+	Err, Status, UpdateStatus, HomePath string
+	OnInstallUpdate, OnRevealHome       func()
+	ReadCredentialStorage               func() credentials.StorageStatus
+	OnOpenLink                          func(string) error
+	AppName                             string
+	Version                             string
+	Identifier                          string
+	UserData                            string
+	VendorRoot                          string
+	OnRevealUserData                    func()
+	OnRevealLogs                        func()
+	OnRevealVendor                      func()
+	OnCheckUpdates                      func()
+	OnCopyUserData                      func()
+	OnCopyVersion                       func()
+	AnalyticsEnabled                    *bool
+	OnRefreshAnalytics                  func()
 }
 
 func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -32,85 +35,101 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.About
-	heading := ui.Text(c.Key("about-heading"), i18n.T(i18n.KeySettingsAboutTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	storage := ui.Local(heading, "metadata", func() credentials.StorageStatus {
+	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(12)
+	storage := ui.Local(anchor, "metadata", func() credentials.StorageStatus {
 		if a.ReadCredentialStorage != nil {
 			return a.ReadCredentialStorage()
 		}
 		return credentials.StorageStatus{Mode: "unknown"}
 	})
-	linkError := ui.Local(heading, "error", func() string { return "" })
-	ui.Text(c, i18n.T(i18n.KeySettingsAboutHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	analytics := "—"
-	if a.AnalyticsEnabled != nil {
-		if *a.AnalyticsEnabled {
-			analytics = i18n.T(i18n.KeySettingsAboutAnalyticsOn)
-		} else {
-			analytics = i18n.T(i18n.KeySettingsAboutAnalyticsOff)
+	linkError := ui.Local(anchor, "error", func() string { return "" })
+	anchor.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FontWeight(600).TextColor(fg)
+		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and the official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+		if a.Loading {
+			ui.Text(c, providerCopy("正在读取应用信息…", "Loading application information…")).FillWidth().TextColor(muted)
 		}
-	}
-	rows := []struct{ label, value string }{
-		{i18n.T(i18n.KeySettingsAboutApp), emptyDash(a.AppName)},
-		{i18n.T(i18n.KeySettingsAboutVersion), emptyDash(a.Version)},
-		{i18n.T(i18n.KeySettingsAboutID), emptyDash(a.Identifier)},
-		{i18n.T(i18n.KeySettingsAboutUserData), emptyDash(a.UserData)},
-		{i18n.T(i18n.KeySettingsAboutVendor), emptyDash(a.VendorRoot)},
-		{i18n.T(i18n.KeySettingsAboutAnalytics), analytics},
-	}
-	for _, row := range rows {
-		ui.Row(c).Gap(12).Children(func() {
-			ui.Text(c, row.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(140)
-			ui.Text(c, row.value).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
+		if a.Err != "" {
+			ui.Text(c, a.Err).FillWidth().TextColor(fg)
+		}
+		ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+			ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).Bold().TextColor(fg)
+			ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().SingleLine().Tooltip(a.Version).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, "Based on DeepSeek Harness").FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+				if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Disabled(a.UpdateBusy).Clicked() {
+					a.OnCheckUpdates()
+				}
+				if a.OnInstallUpdate != nil && ui.Button(c, providerCopy("在线安装", "Install update")).Disabled(a.UpdateBusy).Clicked() {
+					a.OnInstallUpdate()
+				}
+				if a.OnCopyVersion != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutCopyVersion)).Clicked() {
+					a.OnCopyVersion()
+				}
+			})
+			if a.UpdateBusy {
+				ui.Text(c, providerCopy("正在检测更新…", "Checking for updates…")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+			if a.UpdateStatus != "" {
+				ui.Text(c, a.UpdateStatus).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			if storage.Error != "" {
+				ui.Text(c, storage.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			}
+			if a.HomePath != "" {
+				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().SingleLine().Tooltip(a.HomePath).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+			if a.OnRevealHome != nil && ui.Button(c, providerCopy("打开运行目录", "Open runtime directory")).Disabled(a.HomeBusy).Clicked() {
+				a.OnRevealHome()
+			}
 		})
-	}
-
-	ui.Text(c, providerCopy("凭据存储", "Credential storage")+": "+storage.Backend).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Text(c, credentialStorageDescription(*storage)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if storage.Error != "" {
-		ui.Text(c, storage.Error).TextColor(fg)
-	}
-	if a.ReadCredentialStorage != nil && ui.Button(c, providerCopy("刷新凭据存储状态", "Refresh credential storage status")).Clicked() {
-		*storage = a.ReadCredentialStorage()
-	}
-	for _, link := range aboutLinks() {
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, link.URL).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-			if a.OnOpenLink != nil && ui.Button(c, link.Label).Clicked() {
+		for _, link := range aboutLinks() {
+			button := ui.Button(c, link.Label).FillWidth().MinWidth(0).Height(32).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(link.URL).Disabled(a.OnOpenLink == nil)
+			if button.Clicked() {
 				*linkError = ""
 				if err := a.OnOpenLink(link.URL); err != nil {
 					*linkError = err.Error()
 				}
 			}
+		}
+		if *linkError != "" {
+			ui.Text(c, *linkError).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		}
+		if a.Status != "" {
+			ui.Text(c, a.Status).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		}
+		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
+			for _, row := range []struct{ label, value string }{{i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
+				if row.value != "" {
+					bodyPreferenceRow(c, "about-detail-"+row.label, row.label, "", fg, muted, func() {
+						ui.Text(c, row.value).FillWidth().SingleLine().Tooltip(row.value).Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					})
+				}
+			}
+			if a.AnalyticsEnabled != nil {
+				value := i18n.T(i18n.KeySettingsAboutAnalyticsOff)
+				if *a.AnalyticsEnabled {
+					value = i18n.T(i18n.KeySettingsAboutAnalyticsOn)
+				}
+				ui.Text(c, i18n.T(i18n.KeySettingsAboutAnalytics)+": "+value).FillWidth().TextColor(muted)
+			}
+			if a.ReadCredentialStorage != nil && ui.Button(c, providerCopy("刷新凭据存储状态", "Refresh credential storage status")).Clicked() {
+				*storage = a.ReadCredentialStorage()
+			}
+			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+				for _, action := range []struct {
+					label string
+					run   func()
+				}{{i18n.T(i18n.KeySettingsAboutRevealData), a.OnRevealUserData}, {i18n.T(i18n.KeySettingsAboutRevealLogs), a.OnRevealLogs}, {i18n.T(i18n.KeySettingsAboutRevealVendor), a.OnRevealVendor}, {i18n.T(i18n.KeySettingsAboutCopyData), a.OnCopyUserData}, {i18n.T(i18n.KeySettingsRefresh), a.OnRefreshAnalytics}} {
+					if action.run != nil && ui.Button(c, action.label).Clicked() {
+						action.run()
+					}
+				}
+			})
 		})
-	}
-	if *linkError != "" {
-		ui.Text(c, *linkError).TextColor(fg)
-	}
-	ui.Row(c).Gap(8).Children(func() {
-		if a.OnRevealUserData != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutRevealData)).Clicked() {
-			a.OnRevealUserData()
-		}
-		if a.OnRevealLogs != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutRevealLogs)).Clicked() {
-			a.OnRevealLogs()
-		}
-		if a.OnRevealVendor != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutRevealVendor)).Clicked() {
-			a.OnRevealVendor()
-		}
-		if a.OnCopyUserData != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutCopyData)).Clicked() {
-			a.OnCopyUserData()
-		}
-		if a.OnCopyVersion != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutCopyVersion)).Clicked() {
-			a.OnCopyVersion()
-		}
-		if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Clicked() {
-			a.OnCheckUpdates()
-		}
-		if a.OnRefreshAnalytics != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			a.OnRefreshAnalytics()
-		}
 	})
 }
-
 func emptyDash(s string) string {
 	if s == "" {
 		return "—"

@@ -9,6 +9,7 @@ import (
 
 // AppearanceAccess is the dedicated Appearance settings page (theme + wallpaper).
 type AppearanceAccess struct {
+	Host              *BodySettingsAccess
 	Background        *WallpaperEditor
 	Preferences       *theme.Editor
 	Theme             *string
@@ -25,23 +26,25 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Appearance
-	themeFontPane(c, a.Preferences)
-	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAppearanceHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	bodyHostState(c, a.Host, muted)
+	bodyHeading(c, providerCopy("颜色模式", "Color scheme"), providerCopy("选择浅色、深色或跟随系统。", "Choose light, dark, or follow the system."), fg, muted)
 	if a.Err != "" {
 		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
 		ui.Text(c, a.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
-	desktopRow(c, i18n.T(i18n.KeySettingsDesktopTheme), func() {
-		if a.Theme == nil {
-			return
-		}
-		// Wire ids match config theme ids (Electron FAMILY_SEEDS / Resolve).
-		opts := []string{"deepseek", "system", "deepseek.dark", "deepseek.light"}
-		ui.Select(c, a.Theme, opts).FillWidth()
-	}, fg, muted)
+	if a.Theme != nil {
+		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			for _, mode := range []struct{ id, zh, en string }{{"deepseek.light", "浅色", "Light"}, {"deepseek.dark", "深色", "Dark"}, {"system", "跟随系统", "System"}} {
+				selected := *a.Theme == mode.id || mode.id == "system" && *a.Theme == "deepseek"
+				if ui.Button(c, providerCopy(mode.zh, mode.en)).Width(120).Height(64).Selected(selected).Disabled(a.OnSave == nil).Clicked() {
+					*a.Theme = mode.id
+				}
+			}
+		})
+	}
+	themeLibraryPane(c, a.Preferences, fg, muted)
 	desktopRow(c, i18n.T(i18n.KeySettingsDesktopWallpaper), func() {
 		if a.WallpaperPath == nil {
 			return
@@ -63,6 +66,8 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 	}, fg, muted)
 	wallpaperBackgroundPane(c, a.Background, fg, muted)
+	themeTypographyPane(c, a.Preferences, fg, muted)
+	bodyEffectPreference(c, a.Host, true, fg, muted)
 	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 		a.OnSave()
 	}

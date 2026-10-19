@@ -12,7 +12,8 @@ func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	closed := false
-	m := Model{Desktop: &DesktopAccess{}, DesktopActive: true, OnClose: func() { closed = true }}
+	locale := "en"
+	m := Model{Desktop: &DesktopAccess{Fields: DesktopFields{Locale: &locale}}, DesktopActive: true, OnClose: func() { closed = true }}
 	m.OnOpenMarket = func() {
 		m.ActiveSection = SectionMarket
 		m.SectionContent = func(c *ui.Context) { ui.Text(c, "Feature-owned market body") }
@@ -37,7 +38,7 @@ func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
 	if err := tt.Click(sectionLabel(SectionGeneral)); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText(i18n.T(i18n.KeySettingsDesktopWorkspace)) || tt.HasText("Feature-owned market body") {
+	if !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) || tt.HasText("Feature-owned market body") {
 		t.Fatal("General did not restore existing desktop controls")
 	}
 	tt.Key(0, ui.KeyEscape)

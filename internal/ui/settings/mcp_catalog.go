@@ -51,8 +51,6 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 		}
 	})
 	ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d / %d 个服务器", "Showing %d / %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, mcpCatalogText("浏览、筛选和刷新仅读取已有状态。测试会建立临时 MCP 连接，stdio 测试会启动配置的命令。", "Browsing, filtering and refresh only read existing state. Test opens a temporary MCP connection; stdio tests launch the configured command.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, mcpCatalogText("启用、重试、授权或保存可能启动服务、打开授权流程或修改配置；仅在点击对应操作后执行。", "Enable, Retry, Authorize or Save may start a server, open authorization or change configuration; they run only after the corresponding action.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if a.Snapshot.Err != "" && a.Snapshot.Ready {
 		ui.Text(c, mcpCatalogText("操作失败时保留上次成功读取的列表，请查看错误后刷新。", "On failure, the last successful list is retained. Check the error before refreshing.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}

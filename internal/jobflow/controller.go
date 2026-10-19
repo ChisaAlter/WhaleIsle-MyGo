@@ -19,14 +19,15 @@ type Transport interface {
 }
 type KillState struct{ JobID, Phase, Error string }
 type Snapshot struct {
-	Generation           uint64
-	SessionID            string
-	Ready, Open, Loading bool
-	Error                string
-	Rows                 []Job
-	SelectedID           string
-	Observed             Observation
-	Kill                 KillState
+	Generation                    uint64
+	SessionID                     string
+	Ready, Mounted, Open, Loading bool
+	SettledOpen                   *bool
+	Error                         string
+	Rows                          []Job
+	SelectedID                    string
+	Observed                      Observation
+	Kill                          KillState
 }
 type Controller struct {
 	mu                sync.Mutex
@@ -68,6 +69,10 @@ func (c *Controller) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	v := c.view
+	if v.SettledOpen != nil {
+		value := *v.SettledOpen
+		v.SettledOpen = &value
+	}
 	v.Rows = nil
 	for _, j := range c.view.Rows {
 		if !c.cleared[j.ID] || j.Live() {
@@ -90,14 +95,32 @@ func (c *Controller) Open(g uint64) {
 		return
 	}
 	c.view.Open = true
-	c.ctx, c.cancel = context.WithCancel(context.Background())
-	c.startRowsLocked()
+	if !c.view.Mounted {
+		c.mountLocked()
+	}
 	c.mu.Unlock()
 	c.changed()
 }
-func (c *Controller) Close(g uint64) {
+
+// Mount follows the visible session header, independently of its popup.
+func (c *Controller) Mount() {
 	c.mu.Lock()
-	if c.view.Generation != g {
+	if !c.view.Ready || c.view.Mounted {
+		c.mu.Unlock()
+		return
+	}
+	c.mountLocked()
+	c.mu.Unlock()
+	c.changed()
+}
+func (c *Controller) mountLocked() {
+	c.view.Mounted = true
+	c.ctx, c.cancel = context.WithCancel(context.Background())
+	c.startRowsLocked()
+}
+func (c *Controller) Unmount() {
+	c.mu.Lock()
+	if !c.view.Mounted {
 		c.mu.Unlock()
 		return
 	}
@@ -107,19 +130,29 @@ func (c *Controller) Close(g uint64) {
 	c.stopObservationLocked()
 	c.rowsEpoch++
 	c.killEpoch++
+	c.view.Generation++
+	c.view.Mounted, c.view.Open, c.view.Loading = false, false, false
+	c.view.Rows, c.view.SettledOpen = nil, nil
+	c.view.Error, c.view.Kill = "", KillState{}
+	c.ctx, c.cancel, c.rowsCancel, c.cleared = nil, nil, nil, nil
+	c.mu.Unlock()
+	c.changed()
+}
+func (c *Controller) Close(g uint64) {
+	c.mu.Lock()
+	if c.view.Generation != g {
+		c.mu.Unlock()
+		return
+	}
+	c.stopObservationLocked()
 	c.view.Open = false
 	c.view.Generation++
-	c.view.Rows = nil
-	c.view.Loading = false
-	c.view.Error = ""
-	c.view.Kill = KillState{}
-	c.cleared = nil
 	c.mu.Unlock()
 	c.changed()
 }
 func (c *Controller) Retry(g uint64) {
 	c.mu.Lock()
-	if c.view.Generation != g || !c.view.Open {
+	if c.view.Generation != g || !c.view.Mounted {
 		c.mu.Unlock()
 		return
 	}
@@ -136,12 +169,12 @@ func (c *Controller) startRowsLocked() {
 	c.rowsCancel = cancel
 	c.view.Loading = true
 	c.view.Error = ""
-	go c.runRows(ctx, c.transport, c.view.SessionID, c.view.Generation, c.rowsEpoch)
+	go c.runRows(ctx, c.transport, c.view.SessionID, c.rowsEpoch)
 }
 func (c *Controller) currentLocked(ctx context.Context, g uint64) bool {
 	return ctx.Err() == nil && c.view.Open && c.view.Generation == g
 }
-func (c *Controller) runRows(ctx context.Context, t Transport, sessionID string, g, e uint64) {
+func (c *Controller) runRows(ctx context.Context, t Transport, sessionID string, e uint64) {
 	accepted := false
 	for {
 		stream, err := t.Open(ctx, "job/list", map[string]any{"sessionId": sessionID})
@@ -164,7 +197,7 @@ func (c *Controller) runRows(ctx context.Context, t Transport, sessionID string,
 					break
 				}
 				c.mu.Lock()
-				if !c.currentLocked(ctx, g) || c.rowsEpoch != e {
+				if ctx.Err() != nil || !c.view.Mounted || c.rowsEpoch != e {
 					c.mu.Unlock()
 					stream.Cancel()
 					return
@@ -173,8 +206,11 @@ func (c *Controller) runRows(ctx context.Context, t Transport, sessionID string,
 				c.view.Loading = false
 				c.view.Error = ""
 				accepted = true
-				if c.view.SelectedID != "" && !c.hasRowLocked(c.view.SelectedID) {
-					c.stopObservationLocked()
+				if c.view.SelectedID != "" {
+					selected := c.rowLocked(c.view.SelectedID)
+					if selected == nil || !selected.Observable() {
+						c.stopObservationLocked()
+					}
 				}
 				kill := c.rowLocked(c.view.Kill.JobID)
 				if kill == nil || kill.Status != "running" {
@@ -186,18 +222,18 @@ func (c *Controller) runRows(ctx context.Context, t Transport, sessionID string,
 						delete(c.cleared, j.ID)
 					}
 				}
+				c.closeEmptyLocked()
 				c.mu.Unlock()
 				c.changed()
 			}
 			stream.Cancel()
 		}
 		c.mu.Lock()
-		if !c.currentLocked(ctx, g) || c.rowsEpoch != e {
+		if ctx.Err() != nil || !c.view.Mounted || c.rowsEpoch != e {
 			c.mu.Unlock()
 			return
 		}
 		retry := accepted && t.Retryable(err)
-		c.view.Rows = nil
 		c.view.Loading = retry
 		c.view.Error = err.Error()
 		c.view.Kill = KillState{}
@@ -369,13 +405,48 @@ func (c *Controller) ClearSettled(g uint64) {
 			}
 		}
 	}
+	c.closeEmptyLocked()
+	c.mu.Unlock()
+	c.changed()
+}
+
+func (c *Controller) closeEmptyLocked() {
+	for _, row := range c.view.Rows {
+		if row.Live() || !c.cleared[row.ID] {
+			return
+		}
+	}
+	if c.view.Open {
+		c.view.Open = false
+		c.view.Generation++
+		c.stopObservationLocked()
+	}
+}
+func (c *Controller) ToggleSettled(g uint64) {
+	c.mu.Lock()
+	if c.view.Generation != g || !c.view.Open {
+		c.mu.Unlock()
+		return
+	}
+	open := true
+	for _, row := range c.view.Rows {
+		if row.Live() {
+			open = false
+			break
+		}
+	}
+	if c.view.SettledOpen != nil {
+		open = *c.view.SettledOpen
+	}
+	open = !open
+	c.view.SettledOpen = &open
 	c.mu.Unlock()
 	c.changed()
 }
 func (c *Controller) ArmKill(g uint64, id string) {
 	c.mu.Lock()
 	j := c.rowLocked(id)
-	if c.view.Generation != g || !c.view.Open || j == nil || j.Status != "running" || c.view.Kill.Phase == "pending" {
+	if c.view.Generation != g || !c.view.Open || c.view.Loading || c.view.Error != "" || j == nil || j.Status != "running" || c.view.Kill.Phase == "pending" {
 		c.mu.Unlock()
 		return
 	}
@@ -386,7 +457,7 @@ func (c *Controller) ArmKill(g uint64, id string) {
 	c.changed()
 	time.AfterFunc(3*time.Second, func() {
 		c.mu.Lock()
-		changed := c.view.Generation == g && c.killEpoch == e && c.view.Kill.Phase == "armed"
+		changed := c.killEpoch == e && c.view.Kill.Phase == "armed"
 		if changed {
 			c.view.Kill = KillState{}
 		}
@@ -411,7 +482,7 @@ func (c *Controller) CancelKill(g uint64) {
 func (c *Controller) ConfirmKill(g uint64, id string) {
 	c.mu.Lock()
 	j := c.rowLocked(id)
-	if c.view.Generation != g || !c.view.Open || j == nil || j.Status != "running" || c.view.Kill.JobID != id || c.view.Kill.Phase != "armed" {
+	if c.view.Generation != g || !c.view.Open || c.view.Loading || c.view.Error != "" || j == nil || j.Status != "running" || c.view.Kill.JobID != id || c.view.Kill.Phase != "armed" {
 		c.mu.Unlock()
 		return
 	}
@@ -419,7 +490,8 @@ func (c *Controller) ConfirmKill(g uint64, id string) {
 	e := c.killEpoch
 	c.view.Kill.Phase = "pending"
 	t, sessionID := c.transport, c.view.SessionID
-	ctx, cancel := context.WithTimeout(c.ctx, 30*time.Second)
+	ownerContext := c.ctx
+	ctx, cancel := context.WithTimeout(ownerContext, 30*time.Second)
 	c.mu.Unlock()
 	c.changed()
 	go func() {
@@ -429,7 +501,7 @@ func (c *Controller) ConfirmKill(g uint64, id string) {
 			err = fmt.Errorf("unexpected job kill receipt %q", outcome)
 		}
 		c.mu.Lock()
-		if c.view.Generation != g || !c.view.Open || c.killEpoch != e {
+		if ownerContext.Err() != nil || !c.view.Mounted || c.killEpoch != e {
 			c.mu.Unlock()
 			return
 		}

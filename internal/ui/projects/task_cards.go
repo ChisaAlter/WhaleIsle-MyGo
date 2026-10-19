@@ -1,0 +1,554 @@
+package projects
+
+import (
+	"fmt"
+	"path"
+	"strings"
+
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
+)
+
+// Mode belongs to the observer/request identity, not its position in a page.
+// Completion changes reset it just as the source observer's completed-bit guard.
+func (o *ObserverState) requestMode(card projectflow.RequestCard, initial string) RequestMode {
+	if o.RequestModes == nil {
+		o.RequestModes = map[string]RequestMode{}
+	}
+	mode, ok := o.RequestModes[card.ID]
+	if !ok || mode.Completed != (card.Status == "completed") {
+		mode = RequestMode{Mode: initial, Completed: card.Status == "completed", Tab: "overview"}
+		o.RequestModes[card.ID] = mode
+	}
+	if mode.Tab == "" {
+		mode.Tab = "overview"
+		o.RequestModes[card.ID] = mode
+	}
+	return mode
+}
+
+func observerRequests(c *ui.Context, m Model, o *ObserverState, p projectflow.Project) {
+	queue := m.RequestQueue
+	if queue == nil {
+		queue = p.Queue
+	}
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
+		for _, tab := range []struct{ id, label string }{{"current", tr("当前", "Current")}, {"completed", tr("已交付", "Delivered")}} {
+			label := tab.label
+			if m.RequestKind == tab.id {
+				label = "✓ " + label
+			}
+			if ui.Button(c, label).Height(28).FontSize(theme.InterfaceSize(12)).Disabled(m.Busy).Clicked() && m.OnRequestList != nil {
+				m.OnRequestList(tab.id)
+			}
+		}
+		ui.Button(c, tr("任务历史", "Task history")).Height(28).FontSize(theme.InterfaceSize(12)).Menu(func(menu *ui.Menu) {
+			for _, entry := range []struct{ id, label string }{{"cancelled", tr("已取消", "Cancelled")}, {"archived", tr("已归档", "Archived")}} {
+				if menu.Item(entry.label).Disabled(m.Busy || m.OnRequestList == nil).Chosen() && m.OnRequestList != nil {
+					m.OnRequestList(entry.id)
+				}
+			}
+		})
+	})
+	if m.RequestLoaded && len(m.RequestPage.Items) == 0 && (queue == nil || queue.Active == nil) {
+		ui.Column(c).FillWidth().MinWidth(0).Padding(14, 16).Gap(8).Children(func() {
+			ui.Text(c, tr("任务会显示在这里", "Your tasks appear here")).FontSize(theme.InterfaceSize(14)).FontWeight(600)
+			ui.Text(c, tr("在 Lead 对话中描述目标，查看任务进展与交付。", "Describe a goal in the Lead conversation to follow its progress and delivery.")).FontSize(theme.InterfaceSize(13))
+		})
+	}
+	activeID := ""
+	if queue != nil && queue.Active != nil {
+		activeID = queue.Active.ID
+	}
+	if activeID != "" {
+		active := *queue.Active
+		for _, item := range m.RequestPage.Items {
+			if item.ID == activeID {
+				active = item
+				break
+			}
+		}
+		if active.ProjectID == "" {
+			active.ProjectID = p.ID
+		}
+		observerTaskCard(c.Key(p.ID+"/"+active.ID), m, o, p, active, "card", queue)
+	}
+	for _, item := range m.RequestPage.Items {
+		if item.ID == activeID {
+			continue
+		}
+		initial := "strip"
+		if item.ID == activeID {
+			initial = "card"
+		}
+		observerTaskCard(c.Key(p.ID+"/"+item.ID), m, o, p, item, initial, queue)
+	}
+	if m.RequestPageNumber > 1 || m.RequestPage.NextCursor != nil {
+		ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
+			if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || m.RequestPageNumber <= 1).Clicked() && m.OnRequestPage != nil {
+				m.OnRequestPage(-1)
+			}
+			if ui.Button(c, tr("更多任务", "More tasks")).Disabled(m.Busy || m.RequestPage.NextCursor == nil).Clicked() && m.OnRequestPage != nil {
+				m.OnRequestPage(1)
+			}
+		})
+	}
+}
+
+func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Project, preview projectflow.RequestCard, initial string, queue *projectflow.RequestQueue) {
+	mode := o.requestMode(preview, initial)
+	if o.requested == nil {
+		o.requested = map[string]string{}
+	}
+	revision := fmt.Sprintf("%d/%g/%s", preview.Revision, preview.UpdatedAt, preview.Status)
+	if mode.Mode != "strip" && o.requested[preview.ID] != revision && o.reading == "" && !m.Busy && m.OnRequestGet != nil {
+		o.requested[preview.ID] = revision
+		o.reading = preview.ID
+		m.OnRequestGet(preview.ID)
+	}
+	card := preview
+	loaded := false
+	if saved, ok := o.requests[preview.ID]; ok && saved.Revision == preview.Revision {
+		card = saved
+		loaded = true
+	}
+	setMode := func(value string) {
+		mode.Mode = value
+		o.RequestModes[preview.ID] = mode
+		if value != "strip" && m.OnRequestGet != nil {
+			delete(o.requested, preview.ID)
+		}
+	}
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	state, executor, reason, next := taskCardStatus(p, card, m.Team, queue)
+	box := ui.Column(c).Label("Task card: "+card.ID).FillWidth().MinWidth(0).Gap(8).Radius(14).Border(1, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.FG))
+	if mode.Mode == "strip" {
+		box.Height(44).Padding(0, 4).Children(func() {
+			ui.Row(c).FillWidth().Height(44).MinWidth(0).AlignItems(ui.Center).Children(func() {
+				open := ui.Button(c, "").Label("Expand task: "+card.Title).Grow(1).MinWidth(0).Height(44).Padding(0, 8).BorderWidth(0).Background(ui.Transparent)
+				open.Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+						taskStateDot(c, card.Status, chrome.Color(colors.Accent))
+						ui.Text(c, card.Title).Grow(1).MinWidth(0).SingleLine().FontSize(theme.InterfaceSize(13))
+						executorName, _, _ := strings.Cut(executor, " · ")
+						small := state + " · " + executorName
+						if card.Queue != nil && card.Queue.State == "queued" {
+							small = state
+						} else if card.Status == "completed" && card.Delivery != nil {
+							count := max(card.Delivery.ArtifactCount, len(card.Delivery.Artifacts))
+							if count > 0 {
+								small = fmt.Sprintf("%s · %d %s", state, count, tr("个文件", "files"))
+							}
+						}
+						ui.Text(c, small).MaxWidthPercent(38).MinWidth(0).SingleLine().FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
+						projectIcon(c, "down", 14, chrome.Color(colors.Muted), false)
+					})
+				})
+				if open.Clicked() {
+					setMode("card")
+				}
+				taskCardMenu(c, m, p, card, queue)
+			})
+		})
+		return
+	}
+	box.Padding(14, 16, 8, 16).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+			ui.Text(c, card.Title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(600)
+			taskCardMenu(c, m, p, card, queue)
+			if projectIconButton(c, "collapse", "Collapse task: "+card.Title, "up", chrome.Color(colors.Muted)).Clicked() {
+				setMode("strip")
+			}
+		})
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, state).FontSize(theme.InterfaceSize(12)).Padding(3, 7).Radius(6).Background(chrome.Color(colors.Hover))
+			ui.Text(c, executor).MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
+		})
+		if mode.Mode == "card" {
+			if reason != "" {
+				ui.Text(c, reason).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted))
+			}
+			if next != "" {
+				ui.Text(c, tr("下一步：", "Next: ")+next).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted))
+			}
+			ui.Divider(c)
+			if card.Status == "completed" && card.Delivery != nil {
+				summary := card.Delivery.Summary
+				if summary == "" {
+					summary = card.Delivery.SummaryPreview
+				}
+				ui.Text(c, summary).MaxLines(3).FontSize(theme.InterfaceSize(13))
+			}
+			taskDeliveryFiles(c, m, card, 4)
+			steps := taskCardSteps(card, m.Team)
+			if len(steps) > 0 {
+				completed := 0
+				for _, step := range steps {
+					if step.Status == "completed" {
+						completed++
+					}
+				}
+				ui.Row(c).FillWidth().Children(func() {
+					ui.Text(c, tr("任务进度", "Task progress")).Grow(1).FontSize(theme.InterfaceSize(12)).FontWeight(600)
+					ui.Text(c, fmt.Sprintf("%d / %d %s", completed, len(steps), tr("项工作", "work items"))).FontSize(theme.InterfaceSize(12))
+				})
+				ui.Progress(c, float64(completed)/float64(len(steps))).Label("Task progress: " + card.ID).FillWidth().Height(3)
+				for _, step := range steps[:min(3, len(steps))] {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(6, 0).Children(func() {
+						taskStateDot(c, step.Status, chrome.Color(colors.Accent))
+						ui.Text(c, step.Title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13))
+						ui.Text(c, step.MemberName+" · "+stateLabel(step.Status)).MaxWidthPercent(46).MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
+					})
+				}
+			} else if card.Status != "completed" && reason == "" && next == "" {
+				ui.Text(c, tr("尚未分配具体工作。", "No work assigned yet.")).FontSize(theme.InterfaceSize(13))
+			}
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
+				if loaded && !taskCardCurrent(m, card) && m.OnRequestGet != nil && ui.Button(c, tr("刷新任务详情", "Refresh task details")).Height(28).Disabled(m.Busy).Clicked() {
+					m.OnRequestGet(card.ID)
+				}
+				for _, action := range taskQueueActions(m, p, card, queue) {
+					if action.id == "enqueue" || action.id == "resume" {
+						if ui.Button(c, action.label).Height(28).Disabled(action.disabled).Clicked() && m.OnRequestQueue != nil {
+							m.OnRequestQueue(card.ID, action.id)
+						}
+						break
+					}
+				}
+				ui.Box(c).Grow(1)
+				if ui.Button(c, tr("任务详情", "Task details")).Height(28).FontSize(theme.InterfaceSize(12)).Clicked() {
+					setMode("full")
+				}
+			})
+		} else {
+			_, height := c.Size()
+			bodyScroll := ui.Local(box, "full-scroll", func() ui.ScrollState { return ui.ScrollState{} })
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
+				for _, tab := range []struct{ id, label string }{{"overview", tr("概览", "Overview")}, {"team", tr("团队", "Team")}, {"results", tr("成果", "Results")}, {"activity", tr("活动", "Activity")}} {
+					label := tab.label
+					if mode.Tab == tab.id {
+						label = "✓ " + label
+					}
+					if ui.Button(c, label).Height(28).FontSize(theme.InterfaceSize(12)).Clicked() {
+						mode.Tab = tab.id
+						o.RequestModes[card.ID] = mode
+						bodyScroll.Y = 0
+					}
+				}
+			})
+			ui.Scroll(c.Key("full/" + mode.Tab)).Label("Task detail body: " + card.ID).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(48, min(420, height-240))).TrackScroll(bodyScroll).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
+					if !loaded {
+						ui.Text(c, tr("正在加载详情…", "Loading details…")).FontSize(theme.InterfaceSize(13))
+						if m.Error != "" && ui.Button(c, tr("重试读取详情", "Retry task details")).Disabled(m.Busy || m.OnRequestGet == nil).Clicked() && m.OnRequestGet != nil {
+							m.OnRequestGet(card.ID)
+						}
+					} else {
+						taskCardDetail(c, m, card, mode.Tab)
+					}
+				})
+			})
+			if ui.Button(c, tr("收起详情", "Compact card")).Height(28).FontSize(theme.InterfaceSize(12)).Clicked() {
+				setMode("card")
+			}
+		}
+	})
+}
+
+func taskStateDot(c *ui.Context, state string, ink ui.Color) {
+	if state == "completed" {
+		ui.Text(c, "✓").FontSize(14).TextColor(ink).Shrink(0)
+	} else {
+		ui.Box(c).Width(6).Height(6).Radius(3).Margin(4, 4).Background(ink).Shrink(0)
+	}
+}
+
+func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []projectflow.RequestWork {
+	steps := append([]projectflow.RequestWork(nil), card.Work...)
+	if card.Work == nil {
+		steps = append(steps, card.WorkPreview...)
+	}
+	for i := range steps {
+		s := &steps[i]
+		if s.MemberName == "" || strings.HasPrefix(s.MemberName, "member-") {
+			s.MemberName = tr("团队成员", "Team member")
+		}
+		if card.Status == "completed" || s.Current != nil && !*s.Current || team == nil || team.Team == nil {
+			continue
+		}
+		for _, task := range team.Team.Tasks {
+			if task.ID != s.WorkstreamID {
+				continue
+			}
+			if task.Subject != "" {
+				s.Title = task.Subject
+			}
+			s.Status = task.Status
+			if task.Status == "in_progress" {
+				s.Status = "assigned"
+				for _, worker := range team.Workers {
+					if worker.SessionID == s.WorkerSessionID && !worker.Stopped && (worker.ActiveRunID != "" || len(worker.Jobs) > 0) {
+						s.Status = "running"
+					}
+				}
+			}
+			if task.Status == "pending" && !task.Ready {
+				s.Status = "blocked"
+			}
+			for _, id := range task.BlockedBy {
+				for _, dep := range team.Team.Tasks {
+					if dep.ID == id && dep.Status != "completed" {
+						s.Status = "blocked"
+						s.BlockedReason = tr("等待依赖：", "Waiting for dependency: ") + dep.Subject
+					}
+				}
+			}
+		}
+	}
+	return steps
+}
+
+func taskCardStatus(p projectflow.Project, card projectflow.RequestCard, team *projectflow.Overview, queue *projectflow.RequestQueue) (state, executor, reason, next string) {
+	state = requestStatus(card.Status)
+	executor = "Lead · " + state
+	steps := taskCardSteps(card, team)
+	for _, s := range steps {
+		if s.Status == "running" {
+			executor = s.MemberName + " · " + stateLabel(s.Status)
+			break
+		}
+	}
+	if card.ArchivedAt != nil {
+		return tr("已归档", "Archived"), executor, "", ""
+	}
+	if card.Status == "completed" {
+		return tr("已交付", "Delivered"), tr("Lead · 已完成", "Lead · Completed"), "", ""
+	}
+	if card.Queue != nil {
+		switch card.Queue.State {
+		case "cancelled":
+			return tr("已取消", "Cancelled"), executor, "", tr("可重新加入队列。", "Rejoin the queue to continue.")
+		case "discussing":
+			return tr("讨论中", "Discussing"), executor, "", tr("准备好后加入队列。", "Add this request to the queue when ready.")
+		case "queued":
+			state = tr("排队中", "Queued")
+			if card.Queue.Position > 0 {
+				state += fmt.Sprintf(" · %d", card.Queue.Position)
+			}
+			next = tr("等待前面的任务完成。", "Waiting for earlier requests.")
+			if queue != nil && queue.Paused {
+				next = tr("队列已暂停。", "The queue is paused.")
+			}
+			return
+		}
+	}
+	if p.Paused || card.Status == "paused" {
+		return tr("已暂停", "Paused"), executor, "", tr("恢复任务以继续。", "Resume this request to continue.")
+	}
+	if card.AuthorityError != "" {
+		return tr("受阻", "Blocked"), executor, card.AuthorityError, tr("请核对原始要求与授权。", "Review the original request and its authorization.")
+	}
+	if card.HandoverError != "" {
+		return tr("受阻", "Blocked"), executor, card.HandoverError, tr("重试读取已保存的成果并交付。", "Retry summarizing the saved results.")
+	}
+	for _, s := range steps {
+		if s.WaitingReason != nil {
+			reason = waitingReasonLabel(s.WaitingReason)
+		} else if s.BlockedReason != "" {
+			reason = s.BlockedReason
+		}
+		if reason != "" {
+			next = tr("解决阻碍后继续。", "Resolve the blocker to continue.")
+			break
+		}
+	}
+	if len(steps) == 0 && card.Queue != nil && card.Queue.State == "active" && !card.Queue.Released {
+		state = tr("安排中", "Arranging")
+		reason = tr("Lead 正在安排这项任务。", "The Lead is arranging this request.")
+	}
+	if card.Status == "pendingDelivery" && len(steps) > 0 {
+		all := true
+		for _, s := range steps {
+			all = all && s.Status == "completed"
+		}
+		if all {
+			state = tr("交付中", "Preparing delivery")
+		}
+	}
+	return
+}
+
+type taskQueueAction struct {
+	id, label string
+	disabled  bool
+}
+
+func taskQueueActions(m Model, p projectflow.Project, card projectflow.RequestCard, queue *projectflow.RequestQueue) []taskQueueAction {
+	if queue == nil || card.Queue == nil || card.Status == "completed" || card.ArchivedAt != nil || p.Lifecycle != "ready" || p.Archiving {
+		return nil
+	}
+	disabled := m.Busy || !m.Listing.Available || !m.RequestMutable || m.OnRequestQueue == nil
+	var out []taskQueueAction
+	add := func(id, label string, blocked bool) {
+		out = append(out, taskQueueAction{id, label, disabled || blocked})
+	}
+	state := card.Queue.State
+	index := -1
+	if queue != nil {
+		for i, item := range queue.Queued {
+			if item.ID == card.ID {
+				index = i
+				break
+			}
+		}
+	}
+	if state == "discussing" {
+		add("enqueue", tr("加入队列", "Add to queue"), false)
+	} else if state == "cancelled" || card.Queue.Released {
+		add("enqueue", tr("重新加入队列", "Rejoin queue"), false)
+	}
+	if queue != nil && ((queue.Active != nil && queue.Active.ID == card.ID && !card.Queue.Released && (queue.Paused || card.Status == "paused")) || (state == "queued" && queue.Paused && queue.Active == nil && index == 0)) {
+		add("resume", tr("继续任务", "Resume request"), false)
+	}
+	if state == "queued" {
+		add("moveUp", tr("上移", "Move up"), index <= 0)
+		add("moveDown", tr("下移", "Move down"), queue == nil || index < 0 || index >= len(queue.Queued)-1)
+	}
+	if state == "discussing" || state == "queued" || state == "active" {
+		add("cancel", tr("取消任务", "Cancel request"), false)
+	}
+	return out
+}
+func taskCardMenu(c *ui.Context, m Model, p projectflow.Project, card projectflow.RequestCard, queue *projectflow.RequestQueue) {
+	actions := taskQueueActions(m, p, card, queue)
+	archive := p.Lifecycle == "ready" && !p.Archiving && (card.Status == "completed" || card.ArchivedAt != nil)
+	if len(actions) == 0 && !archive {
+		return
+	}
+	button := projectIconButton(c, "task-more", "More task actions: "+card.Title, "more", chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Muted))
+	button.Menu(func(menu *ui.Menu) {
+		for _, action := range actions {
+			if menu.Item(action.label).Disabled(action.disabled).Chosen() && m.OnRequestQueue != nil {
+				m.OnRequestQueue(card.ID, action.id)
+			}
+		}
+		if archive {
+			label := tr("归档已交付要求", "Archive delivered request")
+			if card.ArchivedAt != nil {
+				label = tr("恢复到任务列表", "Restore to task list")
+			}
+			if menu.Item(label).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || m.OnRequestArchive == nil).Chosen() && m.OnRequestArchive != nil {
+				m.OnRequestArchive(card.ID, card.ArchivedAt == nil)
+			}
+		}
+	})
+}
+
+func taskDeliveryFiles(c *ui.Context, m Model, card projectflow.RequestCard, limit int) {
+	if card.Delivery == nil || (card.Status != "completed" && card.Delivery.Outcome != "partial") {
+		return
+	}
+	files := card.Delivery.Artifacts
+	if len(files) == 0 {
+		return
+	}
+	ui.Text(c, fmt.Sprintf(tr("交付文件（%d）", "Delivered files (%d)"), len(files))).FontSize(theme.InterfaceSize(12)).FontWeight(600)
+	for _, file := range files[:min(limit, len(files))] {
+		label := file.Title
+		if label == "" {
+			label = path.Base(strings.ReplaceAll(file.Path, "\\", "/"))
+		}
+		if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().MinWidth(0).Height(32).Disabled(m.Busy || !m.Listing.Available || !taskCardCurrent(m, card) || m.OnArtifact == nil || m.OnResolvedFile == nil).Clicked() && m.OnArtifact != nil {
+			m.OnArtifact(file, m.OnResolvedFile)
+		}
+	}
+}
+
+func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab string) {
+	current := taskCardCurrent(m, card)
+	if !current && m.OnRequestGet != nil && ui.Button(c, tr("刷新任务详情", "Refresh task details")).Disabled(m.Busy).Clicked() {
+		m.OnRequestGet(card.ID)
+	}
+	switch tab {
+	case "team":
+		teamReady := m.TeamID == card.ProjectID && m.Team != nil && m.Team.Project.ID == card.ProjectID
+		if len(card.Work) == 0 {
+			ui.Text(c, tr("尚无关联成员工作。", "No associated member work."))
+		}
+		for _, work := range card.Work {
+			ui.Text(c, work.Title+" · "+stateLabel(work.Status)).FontSize(theme.InterfaceSize(14)).FontWeight(500)
+			ui.Text(c, work.MemberName).FontSize(theme.InterfaceSize(12))
+			if work.Summary != "" {
+				ui.Text(c, work.Summary).FontSize(theme.InterfaceSize(13))
+			}
+			if work.BlockedReason != "" {
+				ui.Text(c, work.BlockedReason)
+			}
+			if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnRequestWorkDetail == nil && (!teamReady || m.OnInspect == nil)).Clicked() {
+				if m.OnRequestWorkDetail != nil {
+					m.OnRequestWorkDetail(card.ID, work.WorkstreamID)
+				} else if m.OnInspect != nil {
+					m.OnInspect(work.WorkstreamID, "")
+				}
+			}
+			if ui.Button(c, tr("查看当前工作区变更", "View current workspace diff")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnWorkDiff == nil).Clicked() && m.OnWorkDiff != nil {
+				m.OnWorkDiff(work.WorkstreamID)
+			}
+		}
+	case "results":
+		if card.Delivery == nil {
+			ui.Text(c, tr("尚无最终交付。", "No final delivery yet."))
+		} else {
+			taskDeliveryFiles(c, m, card, len(card.Delivery.Artifacts))
+			ui.Text(c, card.Delivery.Summary).FontSize(theme.InterfaceSize(13))
+			for _, text := range card.Delivery.Evidence {
+				ui.Text(c, tr("佐证：", "Evidence: ")+text)
+			}
+			for _, text := range card.Delivery.RemainingIssues {
+				ui.Text(c, tr("剩余问题：", "Remaining issue: ")+text)
+			}
+		}
+	case "activity":
+		if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || m.OnRequestActivity == nil).Clicked() && m.OnRequestActivity != nil {
+			m.OnRequestActivity()
+		}
+		for _, version := range card.Versions {
+			ui.Text(c, fmt.Sprintf("%s %d · %s", tr("要求版本", "Requirement version"), version.Revision, version.Title)).FontSize(theme.InterfaceSize(13))
+			ui.Text(c, version.Goal).FontSize(theme.InterfaceSize(13))
+		}
+		if len(card.Versions) == 0 {
+			ui.Text(c, tr("暂无已记录活动。", "No recorded activity yet."))
+		}
+	default:
+		ui.Text(c, tr("要求 → 团队 → 成员报告 → 交付给你", "Request → Team → Member reports → Delivery")).FontSize(theme.InterfaceSize(12))
+		if card.Delivery != nil {
+			ui.Text(c, card.Delivery.Summary).FontSize(theme.InterfaceSize(13))
+		} else {
+			ui.Text(c, tr("尚无最终交付。", "No final delivery yet.")).FontSize(theme.InterfaceSize(13))
+		}
+		ui.Text(c, tr("用户要求", "User request")).FontSize(theme.InterfaceSize(14)).FontWeight(600)
+		ui.Text(c, card.Goal).FontSize(theme.InterfaceSize(13))
+		for _, text := range card.Conditions {
+			ui.Text(c, tr("验收条件：", "Acceptance condition: ")+text).FontSize(theme.InterfaceSize(13))
+		}
+		for _, text := range card.Constraints {
+			ui.Text(c, tr("约束：", "Constraint: ")+text).FontSize(theme.InterfaceSize(13))
+		}
+		if card.AuthorityError != "" {
+			ui.Text(c, card.AuthorityError).FontSize(theme.InterfaceSize(13))
+		}
+		if card.HandoverError != "" {
+			ui.Text(c, card.HandoverError).FontSize(theme.InterfaceSize(13))
+			if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || !current || card.AuthorityError != "" || m.OnHandoverRetryDraft == nil).Clicked() && m.OnHandoverRetryDraft != nil {
+				m.OnHandoverRetryDraft()
+			}
+		}
+	}
+	ui.Text(c, fmt.Sprintf(tr("要求版本 %d", "Requirement version %d"), card.Revision)).FontSize(theme.InterfaceSize(12))
+}
+
+func taskCardCurrent(m Model, card projectflow.RequestCard) bool {
+	return m.RequestCard != nil && m.RequestCard.ID == card.ID && m.RequestCard.ProjectID == card.ProjectID && m.RequestCard.Revision == card.Revision
+}

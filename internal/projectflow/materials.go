@@ -21,11 +21,16 @@ func (m Material) Editable() string {
 	}
 	return m.Text
 }
-func materialPath(path string) bool { return path == "notes.md" || path == "preferences.md" }
+func materialPath(path string) bool {
+	return path == "notes.md" || path == "preferences.md" || path == "charter.md"
+}
 func (c Client) ReadMaterial(ctx context.Context, id, path string) (Material, error) {
 	return c.material(ctx, "store/read", id, path, nil)
 }
 func (c Client) WriteMaterial(ctx context.Context, id, path, text string) (Material, error) {
+	if path == "charter.md" && len(text) > 16000 {
+		return Material{}, fmt.Errorf("Project rules are limited to 16000 UTF-8 bytes; shorten them before saving")
+	}
 	if len(text) > 256000 || (path == "notes.md" && strings.Contains(text, NotesMarker)) {
 		return Material{}, fmt.Errorf("Only the user notes body or preferences up to 256000 UTF-8 bytes may be saved")
 	}
@@ -34,7 +39,7 @@ func (c Client) WriteMaterial(ctx context.Context, id, path, text string) (Mater
 func (c Client) material(ctx context.Context, method, id, path string, text *string) (Material, error) {
 	var out Material
 	if id == "" || !materialPath(path) {
-		return out, fmt.Errorf("Select a Project and notes.md or preferences.md")
+		return out, fmt.Errorf("Select a Project and notes.md, preferences.md or charter.md")
 	}
 	payload := map[string]any{"projectId": id, "path": path}
 	if text != nil {

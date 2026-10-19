@@ -150,3 +150,40 @@ Standards与Spec独立只读审查覆盖完整 `aeb77c5..d7d07fc`。曾提出的
 - 独立原生截图进程PID33432退出0，stderr为空；`..\evidence\native-pages-e565dcd\native-settings-market.png`，客户区1200×800DIP、图像1800×1200px、scale1.5。已实际查看设置外壳、15项模拟能力注册导航和市场正文；使用原生窗口/字体栅格，Hidden=true，无真实Host、用户配置、账号凭据或模型。夹具源码 `.toolchain/secondary-parity/main.go` 为任务内忽略文件。
 - Library原生截图：`file_00000000887881fdba723cc24f992cd5` / `libfile_a942226cdd8c81919b383c9d3313d8ea`；文件名 `WhaleIsle-MyGo-isolated-native-settings-market-e565dcd-150pct.png`。这是隔离实例，不是现用程序或原版对照。
 - 本轮候选未替换、启动为用户工作实例，也未进行安装包验收。原版同状态视觉对照、实际Windows IME及本节列明的后续页面仍未完成；无审批等待阻塞。
+
+## Third-batch integration checkpoint
+
+The fixed remaining scope is settings bodies, Jobs, Projects, the full Host directory browser and independent Plugins. Work continues on the same dedicated branch from 0376ce3; both earlier candidate binaries remain untouched. Source contracts and the third-batch ownership plan are recorded in the existing plan document.
+
+Jobs/header, directory browser, compact Projects/modal routes, the profile Plugins controller/page and the fifteen registered settings bodies now have native implementations. Independent review identified substantive gaps beyond outer page containers: compact Skills/MCP controls, rich provider editing, preset grid/card ownership, Observer task-card modes and install-event wiring. These corrections are part of this batch, rather than a deferred checklist. The final affected-package gate has now passed; clean build provenance is recorded below.
+
+The five Standards findings have dedicated corrections: Host-keyed local drafts, a single atomic captured snapshot/writer, directory UI-only merging after asynchronous commits, retained failed effect edits, uncertain-install reconciliation and content-sized Project modals. Root also binds plugin-manager changed/log/state events to the captured Host owner, and wires source-defined Project queue commands with the displayed request revision and before-request identities. No guessed queue-read endpoint was added: the existing Project projection contains its queue.
+
+Isolated captures include Jobs (evidence/phase3-inspect), Projects (evidence/phase3-projects), General/Interface/Appearance/Pet/About (phase3-settings-snapshots), feature bodies (phase3-body-snapshots), and composed setting-modal checks (evidence/phase3-composition). These are synthetic data, not installed-app certification. A hidden native Account fixture was captured at1200x800DIP/1800x1200px/scale1.5; the attempted second page in that same hidden window was a cached duplicate, explicitly invalidated as evidence. A fresh-process Plugins capture succeeded and was inspected; its evidence details follow below.
+
+Read-only process observation at2026-10-19T02:57:56Z found zero whaleisle.exe processes and the original Whale Isle.exe main PID31876 with direct Node child29456. No process was restarted or stopped. The initial Go PID24668 is historical discovery evidence, not the current running state. Exact observation is retained in evidence/phase3-runtime-observation.json. The executable-adjacent Go runtime candidate lacks plugin-market and dsh-project source; this does not establish the selected runtime of a nonexistent Go process. Generic Discover reports actual unavailable/error results without falling back to curated Market. Actual original-window same-state capture remains unavailable in this execution surface.
+
+### Third-batch final verification
+
+The full fixed source-backed scope is implemented: fifteen registered settings bodies (including the embedded Remote, Remote Workspace, Channels and Usage bodies), mounted Jobs/header actions, compact Projects/sidebar/modal and Observer task-card modes, the full Host directory browser, and the independent profile Plugins manager. This is a native MyGo implementation. Curated Market remains a separate route. Generic runtime capability errors remain explicit.
+
+The integrator closed the final functional review gaps: queue mutation captures its Host/route/request owner atomically; ordinary Project rows can open their listed directory without requiring a delivery card; first-entry task work details read the request, team projection and exact work details through existing read contracts. Cached non-current cards require refresh before current-card actions. These paths have focused fake-transport regressions. Source-known model contribution namespaces retain structured editors and captured binding ownership.
+
+Verification used Go1.27.2, CGO_ENABLED=0 and isolated caches, with -count=1. No real Host/model/configuration was used. All 22 affected packages passed across the final gates:
+
+| Packages | Result |
+|---|---|
+| settings store / market / composer / chat / theme | PASS: 1.286s / 2.004s / 3.819s / 4.335s / 1.267s |
+| remote / usage / im / assistant / pluginmanager / ui-pluginmanager | PASS: 2.281s / 2.083s / 1.864s / 2.719s / 1.213s / 1.698s |
+| session store / workspacepicker / dirpick / schedule / jobflow / projectflow | PASS: 6.628s / 0.813s / 0.703s / 1.003s / 0.296s / 0.597s |
+| Final five after the last integration changes: cmd / projects / frame / sidebar / settings | PASS: 6.362s / 3.249s / 7.040s / 2.449s / 4.558s |
+
+Additional atomic settings binding regressions passed after the final store binding change (1.136s). Two intermediate cmd compile failures were mistakes in newly added fake test fixtures (method name and install RPC expectation), corrected before the final complete cmd package pass; they are not omitted as passing runs. No CI was dispatched. git diff --check passed.
+
+Independent Standards and Spec reviewers both report zero remaining P1/P2 within the bounded changed scope. This is code/source review, not an assertion of original-app pixel parity. Evidence/phase3-final contains 247 synthetic PNGs; presets were regenerated after the alpha correction, and nine inspected Observer images were synchronized from the corrected source set. Evidence/frame-phase3 contains 41 workspace-state PNGs.
+
+The valid hidden native captures are Account and the fresh-process Plugins settings body at1200x800DIP /1800x1200px /scale1.5. The duplicate cached Account image from the first attempted Plugins capture remains explicitly invalid in evidence/native-phase3-working/capture-verification.json. The valid fresh Plugins SHA256 is ECDB765E76AF57B2CFC994EF7ECAF3A43D7A86AE5FDDB6341CDA4AA227198943. These capture binaries were built from the working tree before final commit and use isolated synthetic data; the separately built clean application candidate has its own provenance below.
+
+Library retained the inspected fresh image as file_00000000f95481fd87c52b1153f803e6 / libfile_9d6e6dd3f8c08191a04e1e30ae7260ac. Its returned version xattr was written to the local file; evidence/library-artifact-phase3.json records the upload.
+
+Remaining acceptance limits: original same-state native screenshot comparison is unavailable because this execution surface cannot capture native user windows. No restart or replacement of user instances occurred. Windows IME, installed-candidate behavior, real Host plugin installation and actual project/remote mutations remain unverified. The nominated executable-adjacent Go runtime lacks original plugin-market/dsh-project sources; selected runtime availability cannot be inferred without an actual running Go instance. Missing capabilities are reported rather than simulated. Original repositories, whale-code, user configuration, main, PR#2, network/security settings and remote branches remain untouched.

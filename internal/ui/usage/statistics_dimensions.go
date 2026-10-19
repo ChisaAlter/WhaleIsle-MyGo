@@ -70,7 +70,9 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 	for _, row := range o.AllTime.ByModel {
 		providers[row.Model] = row.Provider
 	}
-	usageKPIView(c, o.AllTime.Totals, o.AllTime.ByModel, settings, fg, muted)
+	if !m.Embedded {
+		usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
+	}
 	calendarUsageView(c, m, st, providers, settings, fg, muted, accent, field)
 	days := o.Days
 	models := o.ByModel
@@ -202,16 +204,16 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 	end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 	start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
 	months := calendarMonthLabels(start, end, lookup)
-	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(290).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
+	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(166).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
 		ui.Row(c).Gap(5).Children(func() {
 			ui.Column(c).Width(36).Gap(3).Children(func() {
 				ui.Box(c).Height(24)
 				for _, label := range []string{"Mon", "", "Wed", "", "Fri", "", ""} {
-					ui.Text(c, label).Height(30).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, label).Height(14).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 			})
 			for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
-				ui.Column(c).Width(48).Gap(3).Children(func() {
+				ui.Column(c).Width(20).Gap(3).Children(func() {
 					label := months[week.Format("2006-01-02")]
 					if label != "" {
 						ui.Text(c, label[5:]).Height(24).Tooltip(label).TextColor(fg)
@@ -222,7 +224,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 						date := week.AddDate(0, 0, n).Format("2006-01-02")
 						day, ok := lookup[date]
 						if !ok {
-							ui.Box(c).Width(48).Height(30)
+							ui.Box(c).Width(20).Height(14)
 							continue
 						}
 						color := field
@@ -236,12 +238,12 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 							color = accent
 							color.A = uint8(75 + level*45)
 						}
-						text := date[8:]
+						text := ""
 						if st.Range.Active() && date >= st.Range.Start && date <= st.Range.End {
-							text = "✓" + text
+							text = "•"
 						}
-						ui.Column(c).Width(48).Children(func() {
-							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(48).Height(30).Background(color).Tooltip(dayTip(day, providers, settings))
+						ui.Column(c).Width(20).Children(func() {
+							button := ui.Button(c.Key("day-"+date), text).Label(date + " UTC").Width(20).Height(14).Padding(0).Background(color).Tooltip(dayTip(day, providers, settings))
 							buttons[date] = button
 							if button.Focused() {
 								if *focusDay == "" && !button.Clicked() {
@@ -462,15 +464,14 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 	})
 }
 
-func usageKPIView(c *ui.Context, t usagestore.Totals, models []usagestore.ModelUsage, settings usagestore.BillingSettings, fg, muted ui.Color) {
+func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.ModelUsage, settings usagestore.BillingSettings, fg, muted ui.Color) {
+	t := o.AllTime.Totals
 	input := t.Input + t.CacheRead + t.CacheWrite
 	rate := usageText("无输入数据", "No input data")
 	if input > 0 {
 		rate = fmt.Sprintf("%.2f%%", t.CacheRead/input*100)
 	}
-	ui.Text(c, usageText("全部历史指标", "All-time indicators")).Bold().TextColor(fg)
-	ui.Text(c, fmt.Sprintf("Billed input %.0f · Output %.0f · Cache hit %s", input, t.Output, rate)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Text(c, usageCostText(models, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	topName, topDetail := "—", ""
 	if len(models) > 0 {
 		top := models[0]
 		for _, row := range models {
@@ -478,14 +479,46 @@ func usageKPIView(c *ui.Context, t usagestore.Totals, models []usagestore.ModelU
 				top = row
 			}
 		}
-		percent := 0.0
+		topName = top.Model
 		if t.Total > 0 {
-			percent = top.Total / t.Total * 100
+			topDetail = fmt.Sprintf("%.1f%%", top.Total/t.Total*100)
 		}
-		ui.Text(c, fmt.Sprintf("Top model: %s / %s · %.1f%%", top.Provider, top.Model, percent)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	}
+	costValue := "—"
+	sum, priced := 0.0, 0
+	for _, row := range models {
+		p, i, ok := usagestore.EstimateModelPhases(row, settings)
+		if ok {
+			sum += p + i
+			priced++
+		}
+	}
+	if priced > 0 {
+		costValue = fmt.Sprintf("≈ ¥%.2f", sum/100)
+	}
+	metrics := []struct{ label, value, detail string }{
+		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf("Input %.0f · Output %.0f", input, t.Output)},
+		{usageText("估算费用", "Estimated cost"), costValue, usageText("按模型价格估算", "Estimated from model prices")},
+		{usageText("会话", "Sessions"), fmt.Sprint(o.AllTime.SessionCount), fmt.Sprintf("Main %d · Subagent %d", o.Coverage.UsageSessionsMain, o.Coverage.UsageSessionsSubagent)},
+		{usageText("最常用模型", "Top model"), topName, topDetail},
+		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf("Cache read %.0f", t.CacheRead)},
+	}
+	for _, bounds := range [][2]int{{0, 2}, {2, 5}} {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Wrap().Children(func() {
+			for _, metric := range metrics[bounds[0]:bounds[1]] {
+				ui.Column(c).Grow(1).MinWidth(160).Gap(8).Padding(14).Radius(8).Border(1, muted).Children(func() {
+					ui.Text(c, metric.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					size := float32(20)
+					if metric.label == usageText("最常用模型", "Top model") {
+						size = 14
+					}
+					ui.Text(c, metric.value).FontSize(fonttheme.InterfaceSize(size)).Bold().TextColor(fg)
+					ui.Text(c, metric.detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				})
+			}
+		})
 	}
 }
-
 func providerUsageBar(c *ui.Context, value, maximum float64, accent, field ui.Color) {
 	ui.Box(c).Width(280).Height(8).Background(field).Draw(func(p *ui.Painter, r ui.Rect) {
 		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * float32(value/maximum), H: r.H}, accent, 3)

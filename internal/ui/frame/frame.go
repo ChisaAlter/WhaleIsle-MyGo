@@ -358,12 +358,15 @@ type Model struct {
 	TrajCallsCollapsed *bool
 	TrajDetailTab      *string
 
-	workspacePane *WorkspacePane
-	centerHeight  float32 // resolved height below titlebar for terminal concessions
+	workspacePane     *WorkspacePane
+	centerHeight      float32 // resolved height below titlebar for terminal concessions
+	jobsHeaderMounted *bool
 }
 
 // View paints the main dialogue shell below the title bar.
 func View(c *ui.Context, m Model) {
+	jobsMounted := false
+	m.jobsHeaderMounted = &jobsMounted
 	if m.Interactions != nil {
 		m.Interactions.BeginQuestionFocusFrame()
 		defer m.Interactions.EndQuestionFocusFrame()
@@ -437,7 +440,9 @@ func View(c *ui.Context, m Model) {
 	shell.Children(func() {
 		mainRow(c, m, snap, colors, border, muted)
 	})
-	jobsDialog(c, m)
+	if !jobsMounted && m.Store != nil {
+		m.Store.UnmountNativeJobs()
+	}
 	workflowMemberDialog(c, m)
 }
 

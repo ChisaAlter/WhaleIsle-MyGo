@@ -53,7 +53,7 @@ func configurationProviderField(c *ui.Context, m Model, s store.ViewState, ns st
 		if policy, exists := profile[field.Key]; exists {
 			configurationWrite(m, field.Key, policy)
 		} else {
-			m.Store.ResetDraft(field.Key)
+			configurationReset(m, field.Key)
 		}
 	}, fg, muted)
 	return true
@@ -310,7 +310,7 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 		draft := m.DraftPtr("configuration/"+formKey, name)
 		if ui.TextInput(c, draft).FillWidth().Placeholder(providerCopy("新字段名称", "New field name")).Disabled(disabled).Changed() {
 			name = *draft
-			m.Store.SetConfigurationForm(formKey, name)
+			configurationSetForm(m, formKey, name)
 		}
 	}
 	name = strings.TrimSpace(name)
@@ -318,7 +318,7 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 	if ui.Button(c, providerCopy("添加字段", "Add field")).Disabled(disabled || name == "" || exists).Clicked() {
 		row[name] = ""
 		save()
-		m.Store.SetConfigurationForm(formKey, "")
+		configurationSetForm(m, formKey, "")
 	}
 	if ui.Button(c, fmt.Sprintf("%s %s", providerCopy("继承", "Inherit"), key)).Disabled(disabled).Clicked() {
 		delete(parent, key)

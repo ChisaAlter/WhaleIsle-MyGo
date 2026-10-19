@@ -30,26 +30,42 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 	container := ui.Column(c.Key("preset-guide-" + row.ID)).Gap(6)
 	page := ui.Local(container, "page", func() string { return "" })
 	container.Children(func() {
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, "模式说明 / Mode details · "+row.ID).Clicked() {
-				*page = "explanation"
-			}
-			if ui.Button(c, "如何使用 / How to use · "+row.ID).Clicked() {
-				*page = "usage"
-			}
-			if *page != "" && ui.Button(c, "关闭帮助 / Close help · "+row.ID).Clicked() {
-				*page = ""
-			}
-		})
+		if *page == "" {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Clicked() {
+					*page = "explanation"
+				}
+				if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Clicked() {
+					*page = "usage"
+				}
+			})
+		}
 		if *page == "" {
 			return
 		}
-		ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		text := guide.Explanation
-		if *page == "usage" {
-			text = guide.Usage
+		open := true
+		bodyDialog(c, &open, providerCopy("模式指南", "Mode guide"), func() {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Clicked() {
+					*page = "explanation"
+				}
+				if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Clicked() {
+					*page = "usage"
+				}
+			})
+			if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label("关闭帮助 / Close help · " + row.ID).Clicked() {
+				*page = ""
+			}
+			ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Selectable()
+			text := guide.Explanation
+			if *page == "usage" {
+				text = guide.Usage
+			}
+			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(14)).TextColor(fg).Selectable()
+		})
+		if !open {
+			*page = ""
 		}
-		ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 	})
 }
 

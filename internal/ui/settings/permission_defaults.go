@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
@@ -67,4 +68,70 @@ func permissionDefaultField(c *ui.Context, m Model, s store.ViewState, f store.F
 		ui.Text(c, providerCopy("保存后继承默认权限；选择其他项可取消重置。", "Save to inherit default permissions; choose an option to cancel the reset.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	return true
+}
+
+func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted ui.Color) {
+	_, value, found := bodyHostValue(a, "permission", "defaultPreset")
+	if !found {
+		return
+	}
+	defaults := a.Snapshot.PermissionDefaults
+	if value == "" {
+		value = defaults.DefaultPreset
+	}
+	options, values := []string{}, map[string]string{}
+	selected := value
+	for _, option := range defaults.Options {
+		label := option.Name
+		if label == "" {
+			label = option.Value
+		}
+		options = append(options, label)
+		values[label] = option.Value
+		if option.Value == value {
+			selected = label
+		}
+	}
+	row := ui.Column(c.Key(fmt.Sprintf("general-permission-%d", a.Owner))).FillWidth().MinWidth(0)
+	confirming := ui.Local(row, "confirm", func() bool { return false })
+	acknowledged := ui.Local(row, "acknowledged", func() bool { return false })
+	row.Children(func() {
+		bodyPreferenceRow(c, "permission-row", providerCopy("新任务默认权限", "Default permissions for new tasks"), providerCopy("只影响以后创建的任务；当前会话权限保持不变。", "Applies to newly created tasks. The current session keeps its permissions."), fg, muted, func() {
+			if len(options) == 0 {
+				ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FillWidth().TextColor(muted)
+				return
+			}
+			if ui.Select(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).FillWidth().Disabled(bodyHostDisabled(a)).Changed() {
+				if values[selected] == "danger-full-access" {
+					*confirming, *acknowledged = true, false
+				} else {
+					a.OnChange("permission", "defaultPreset", values[selected])
+				}
+			}
+		})
+		if defaults.Err != "" {
+			ui.Text(c, defaults.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		}
+	})
+	if bodyHostDisabled(a) {
+		*confirming, *acknowledged = false, false
+	}
+	if *confirming {
+		ui.DialogBase(c, confirming, func(backdrop, panel ui.Element) {
+			backdrop.Background(ui.RGBA(0, 0, 0, .24))
+			panel.Width(420).MaxWidthPercent(90).Padding(24).Radius(16).Background(c.Theme().Background).Gap(12).Children(func() {
+				bodyHeading(c, providerCopy("启用完全访问权限？", "Enable full access?"), providerCopy("新任务将可以访问工作区之外的文件并执行命令。", "New tasks can access files outside the workspace and execute commands."), fg, muted)
+				ui.Checkbox(c, acknowledged, providerCopy("我了解这些权限的影响", "I understand the impact of these permissions")).Label("permission-full-access-acknowledgement")
+				ui.Row(c).Wrap().Gap(8).Children(func() {
+					if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
+						*confirming = false
+					}
+					if ui.Button(c, providerCopy("启用完全访问", "Enable full access")).Disabled(!*acknowledged).Clicked() {
+						*confirming = false
+						a.OnChange("permission", "defaultPreset", "danger-full-access")
+					}
+				})
+			})
+		})
+	}
 }

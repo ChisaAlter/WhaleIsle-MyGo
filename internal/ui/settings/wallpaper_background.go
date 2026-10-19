@@ -36,6 +36,10 @@ func NewWallpaperEditor(p wallpapers.Preferences, dir string, save func(wallpape
 	return &WallpaperEditor{Prefs: p.Clone(), Saved: p.Clone(), Directory: dir, Save: save, Apply: apply, Run: run, Source: "bing", Category: "100", Year: "最近", Page: 1, Thumbs: map[string]*ui.Bitmap{}}
 }
 func (g *WallpaperEditor) commit() bool {
+	if g.Save == nil {
+		g.Status = providerCopy("背景设置为只读。", "Background settings are read-only.")
+		return false
+	}
 	if err := g.Save(g.Prefs); err != nil {
 		g.Status = err.Error()
 		return false
@@ -213,7 +217,7 @@ func (g *WallpaperEditor) applyCrop() {
 		g.Status = "壁纸已应用；原图副本保留，可重新裁剪"
 	}
 }
-func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
+func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 	if g == nil {
 		return
 	}
@@ -223,7 +227,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	for _, s := range g.Prefs.Sources {
 		sources = append(sources, s.ID)
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Wrap().Gap(8).Children(func() {
 		if ui.Select(c, &g.Source, sources).Changed() {
 			g.generation++
 			g.Busy = false
@@ -249,14 +253,14 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	}
 	for _, item := range g.visible() {
 		item := item
-		ui.Row(c).Gap(10).Children(func() {
+		ui.Row(c).Wrap().Gap(10).Children(func() {
 			if bmp := g.Thumbs[item.ThumbURL]; bmp != nil {
 				ui.Image(c, bmp).Width(120).Height(74).Fit(ui.Cover)
 			}
-			ui.Column(c).Grow(1).Children(func() {
-				ui.Text(c, item.Title).TextColor(fg)
-				ui.Text(c, item.Copyright).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				ui.Row(c).Gap(8).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				ui.Text(c, item.Title).FillWidth().TextColor(fg)
+				ui.Text(c, item.Copyright).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Row(c).Wrap().Gap(8).Children(func() {
 					label := "收藏"
 					if g.Favorite(item) {
 						label = "取消收藏"
@@ -274,7 +278,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			})
 		})
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Wrap().Gap(8).Children(func() {
 		if ui.Button(c, "上一页").Disabled(g.Busy || (g.LocalPage == 0 && g.Page <= 1)).Clicked() {
 			if g.LocalPage > 0 {
 				g.LocalPage--
@@ -297,7 +301,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	for sourceIndex := range g.Prefs.Sources {
 		removed := false
 		s := g.Prefs.Sources[sourceIndex]
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Wrap().Gap(8).Children(func() {
 			ui.TextInput(c, &g.Prefs.Sources[sourceIndex].Name).Label("来源名称")
 			ui.Text(c, s.ID).FontSize(fonttheme.InterfaceSize(11))
 			if s.Kind == "catalog" {
@@ -334,7 +338,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			break
 		}
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Wrap().Gap(8).Children(func() {
 		ui.TextInput(c, &g.SourceName).Placeholder("来源名称")
 		ui.TextInput(c, &g.SourceURL).Placeholder("https://…/catalog.json").Grow(1)
 		if ui.Button(c, "添加来源").Clicked() {
@@ -379,7 +383,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	}
 	if g.cropOpen {
 		if g.preview != nil {
-			ui.Image(c, g.preview).Width(360).Height(210).Fit(ui.Contain)
+			ui.Image(c, g.preview).Width(360).MaxWidthPercent(100).Height(210).Fit(ui.Contain)
 		}
 		changed := false
 		for _, row := range []struct {
@@ -395,7 +399,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		if changed {
 			g.updatePreview()
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Wrap().Gap(8).Children(func() {
 			if ui.Button(c, "应用裁剪壁纸").Clicked() {
 				g.applyCrop()
 			}
@@ -404,38 +408,64 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			}
 		})
 	}
-	ui.Text(c, "背景效果").Bold()
-	for _, row := range []struct {
-		label  string
-		v      *float64
-		lo, hi float64
-	}{{"壁纸模糊", &g.Prefs.Blur, 0, 100}, {"壁纸像素化", &g.Prefs.Pixelate, 0, 100}, {"玻璃不透明度", &g.Prefs.Glass, 0, 100}, {"终端不透明度", &g.Prefs.Terminal, 40, 100}, {"渐变速度", &g.Prefs.Speed, 20, 300}, {"渐变光团数量", &g.Prefs.Count, 1, 5}} {
-		ui.Text(c, fmt.Sprintf("%s %.0f", row.label, *row.v)).FontSize(fonttheme.InterfaceSize(11))
-		ui.StepSlider(c, row.v, row.lo, row.hi, 1)
+}
+
+func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
+	if g == nil {
+		return
 	}
-	if ui.Checkbox(c, &g.Prefs.Transparent, "透明主题").Changed() && g.Prefs.Transparent && g.Prefs.Blur < 20 {
-		g.Prefs.Blur = 20
+	if g.Status != "" {
+		ui.Text(c, g.Status).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	ui.Checkbox(c, &g.Prefs.HideSidebarMask, "隐藏侧栏遮罩")
-	ui.Select(c, &g.Prefs.Effect, []string{"none", "gradient"})
-	if ui.Select(c, &g.Prefs.Preset, []string{"default", "aurora", "sunset", "ocean", "sakura", "custom"}).Changed() && g.Prefs.Preset != "custom" {
-		g.Prefs.Colors = wallpapers.PresetColors(g.Prefs.Preset)
+	if g.Busy {
+		ui.Text(c, providerCopy("正在读取图库…", "Loading wallpaper library…")).FillWidth().TextColor(muted)
 	}
-	ui.Select(c, &g.Prefs.Variant, []string{"orbs", "aurora", "chaos", "rays"})
-	ui.Text(c, "渐变配色：底色 1/2 与光团 1–5（#rrggbb）；壁纸优先于动态背景").FontSize(fonttheme.InterfaceSize(11))
-	for i := range g.Prefs.Colors {
-		if ui.TextInput(c, &g.Prefs.Colors[i]).Label(fmt.Sprintf("背景颜色 %d", i+1)).Changed() {
-			g.Prefs.Preset = "custom"
+	bodyDisclosure(c, "wallpaper-library", providerCopy("壁纸图库", "Wallpaper library"), func() { wallpaperGalleryPane(c, g, fg, muted) })
+	bodyDisclosure(c, "background-effects", providerCopy("背景特效", "Background effects"), func() {
+		bodyPreferenceRow(c, "background-effect-mode", providerCopy("动态背景", "Animated background"), providerCopy("壁纸优先于动态背景。", "Wallpaper takes precedence over the animated background."), fg, muted, func() {
+			ui.Select(c, &g.Prefs.Effect, []string{"none", "gradient"}).FillWidth().Disabled(g.Save == nil)
+		})
+		if g.Prefs.Effect == "gradient" {
+			bodyPreferenceRow(c, "background-preset", providerCopy("配色方案", "Color preset"), "", fg, muted, func() {
+				if ui.Select(c, &g.Prefs.Preset, []string{"default", "aurora", "sunset", "ocean", "sakura", "custom"}).FillWidth().Disabled(g.Save == nil).Changed() && g.Prefs.Preset != "custom" {
+					g.Prefs.Colors = wallpapers.PresetColors(g.Prefs.Preset)
+				}
+			})
+			bodyPreferenceRow(c, "background-variant", providerCopy("动画样式", "Animation style"), "", fg, muted, func() {
+				ui.Select(c, &g.Prefs.Variant, []string{"orbs", "aurora", "chaos", "rays"}).FillWidth().Disabled(g.Save == nil)
+			})
+			wallpaperSlider(c, "background-speed", providerCopy("速度", "Speed"), &g.Prefs.Speed, 20, 300, g.Save == nil, fg, muted)
+			wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), &g.Prefs.Count, 1, 5, g.Save == nil, fg, muted)
+			for i := range g.Prefs.Colors {
+				bodyPreferenceRow(c, fmt.Sprintf("background-color-%d", i), fmt.Sprintf(providerCopy("颜色 %d", "Color %d"), i+1), "#RRGGBB", fg, muted, func() {
+					if ui.TextInput(c, &g.Prefs.Colors[i]).FillWidth().Disabled(g.Save == nil).Changed() {
+						g.Prefs.Preset = "custom"
+					}
+				})
+			}
 		}
-	}
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, "保存背景效果").Clicked() {
+	})
+	pointerEffectsPane(c, g, fg, muted)
+	bodyLocalToggle(c, "metallic-buttons", providerCopy("按钮悬停光泽", "Button hover sheen"), providerCopy("减少动态效果时显示静态光泽。", "Uses a static sheen when reduced motion is enabled."), &g.Prefs.MetallicButtons, g.Save == nil, fg, muted, nil)
+	bodyHeading(c, providerCopy("玻璃与透明度", "Glass and transparency"), "", fg, muted)
+	wallpaperSlider(c, "wallpaper-blur", providerCopy("壁纸模糊", "Wallpaper blur"), &g.Prefs.Blur, 0, 100, g.Save == nil, fg, muted)
+	wallpaperSlider(c, "wallpaper-pixelate", providerCopy("壁纸像素化", "Wallpaper pixelation"), &g.Prefs.Pixelate, 0, 100, g.Save == nil, fg, muted)
+	wallpaperSlider(c, "glass-opacity", providerCopy("玻璃不透明度", "Glass opacity"), &g.Prefs.Glass, 0, 100, g.Save == nil || g.Prefs.Transparent && g.Prefs.Original != "", fg, muted)
+	wallpaperSlider(c, "terminal-opacity", providerCopy("终端不透明度", "Terminal opacity"), &g.Prefs.Terminal, 40, 100, g.Save == nil, fg, muted)
+	bodyLocalToggle(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), providerCopy("需要壁纸；模糊至少为 20。", "Requires wallpaper with a blur of at least 20."), &g.Prefs.Transparent, g.Save == nil, fg, muted, func(enabled bool) {
+		if enabled && g.Prefs.Blur < 20 {
+			g.Prefs.Blur = 20
+		}
+	})
+	bodyLocalToggle(c, "sidebar-mask", providerCopy("隐藏侧栏遮罩", "Hide sidebar mask"), "", &g.Prefs.HideSidebarMask, g.Save == nil, fg, muted, nil)
+	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+		if ui.Button(c, providerCopy("保存背景效果", "Save background effects")).Disabled(g.Save == nil || g.Busy).Clicked() {
 			g.commit()
 		}
-		if ui.Button(c, "撤销背景调整").Clicked() {
+		if ui.Button(c, providerCopy("撤销背景调整", "Discard background changes")).Clicked() {
 			g.Prefs = g.Saved.Clone()
 		}
-		if ui.Button(c, "重置背景效果").Clicked() {
+		if ui.Button(c, providerCopy("重置背景效果", "Reset background effects")).Disabled(g.Save == nil).Clicked() {
 			p := wallpapers.Defaults()
 			p.Sources = g.Prefs.Sources
 			p.Favorites = g.Prefs.Favorites
@@ -444,5 +474,10 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			g.Prefs = p
 		}
 	})
-	pointerEffectsPane(c, g, fg, muted)
+}
+func wallpaperSlider(c *ui.Context, key, label string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) {
+	bodyPreferenceRow(c, key, label, "", fg, muted, func() {
+		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.StepSlider(c, value, lo, hi, 1).FillWidth().Label(label).Disabled(disabled)
+	})
 }

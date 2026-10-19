@@ -35,7 +35,7 @@ func viewMachines(c *ui.Context, m Model) {
 	}
 	s, e := m.Machines.Snapshot(), m.MachineEditor
 	e.syncRemoval(s)
-	if !s.Loaded && !s.Busy && m.HarnessReady && m.RemoteWorkspaceEnabled {
+	if !s.Loaded && !s.Busy && s.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
 		m.Machines.Refresh()
 	}
 	if e.Saving && !s.Busy {
@@ -46,8 +46,8 @@ func viewMachines(c *ui.Context, m Model) {
 		}
 	}
 	ui.Column(c).Gap(8).Children(func() {
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, label("远程机器", "Remote machines")).Bold().Grow(1)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			ui.Text(c, label("远程机器", "Remote machines")).Bold().Grow(1).MinWidth(0)
 			if ui.Button(c, label("刷新", "Refresh")).Disabled(s.Busy || !m.HarnessReady).Clicked() {
 				m.Machines.Refresh()
 			}
@@ -72,8 +72,8 @@ func viewMachines(c *ui.Context, m Model) {
 			if s.Connected {
 				status = label("已连接", "Connected")
 			}
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, status).Grow(1)
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				ui.Text(c, status).Grow(1).MinWidth(0)
 				if ui.Button(c, label("连接 / 重连", "Connect / reconnect")).Disabled(s.Busy).Clicked() {
 					m.Machines.Connect()
 				}
@@ -91,25 +91,27 @@ func viewMachines(c *ui.Context, m Model) {
 			if machine.ID == s.CurrentID {
 				title = "✓ " + title
 			}
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, title+" · "+machine.Username+"@"+machine.Host+":"+strconv.Itoa(machine.Port)).Grow(1)
-				if ui.Button(c, label("选择", "Select")).Disabled(s.Busy).Clicked() {
-					m.Machines.Select(machine.ID)
-				}
-				if ui.Button(c, label("测试连接", "Test connection")).Disabled(s.Busy).Clicked() {
-					m.Machines.TestMachine(machine.ID)
-				}
-				if ui.Button(c, label("编辑", "Edit")).Disabled(s.Busy).Clicked() {
-					*e = MachineEditor{Open: true, Draft: machine.EditDraft()}
-				}
-				if ui.Button(c, label("移除", "Remove")).Disabled(s.Busy).Clicked() {
-					e.PendingRemove = machine.ID
-					e.RemovalGeneration = s.Generation
-				}
+			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(8, 0).Children(func() {
+				ui.Text(c, title+" · "+machine.Username+"@"+machine.Host+":"+strconv.Itoa(machine.Port)).FillWidth().MinWidth(0)
+				ui.Row(c).Gap(8).Wrap().Children(func() {
+					if ui.Button(c, label("选择", "Select")).Disabled(s.Busy).Clicked() {
+						m.Machines.Select(machine.ID)
+					}
+					if ui.Button(c, label("测试连接", "Test connection")).Disabled(s.Busy).Clicked() {
+						m.Machines.TestMachine(machine.ID)
+					}
+					if ui.Button(c, label("编辑", "Edit")).Disabled(s.Busy).Clicked() {
+						*e = MachineEditor{Open: true, Draft: machine.EditDraft()}
+					}
+					if ui.Button(c, label("移除", "Remove")).Disabled(s.Busy).Clicked() {
+						e.PendingRemove = machine.ID
+						e.RemovalGeneration = s.Generation
+					}
+				})
 			})
 			if e.PendingRemove == machine.ID {
-				ui.Row(c).Gap(8).Children(func() {
-					ui.Text(c, label("移除机器「"+title+"」？本机保存的凭据也会移除；不会删除远程文件。", "Remove machine \""+title+"\"? Locally saved credentials will also be removed; remote files are retained.")).Grow(1)
+				ui.Row(c).Gap(8).Wrap().Children(func() {
+					ui.Text(c, label("移除机器「"+title+"」？本机保存的凭据也会移除；不会删除远程文件。", "Remove machine \""+title+"\"? Locally saved credentials will also be removed; remote files are retained.")).Grow(1).MinWidth(0)
 					if ui.Button(c, label("确认移除", "Confirm removal")).Disabled(s.Busy).Clicked() {
 						e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
 					}
@@ -128,13 +130,13 @@ func viewMachines(c *ui.Context, m Model) {
 				{label("名称", "Name"), &e.Draft.Name}, {label("主机", "Host"), &e.Draft.Host}, {label("端口", "Port"), &e.Draft.Port},
 				{label("用户", "Username"), &e.Draft.Username}, {label("私钥文件路径", "Private key path"), &e.Draft.PrivateKeyPath}, {label("工作区路径", "Workspace path"), &e.Draft.Workspace},
 			} {
-				ui.Row(c).Gap(8).Children(func() { ui.Text(c, f.title).Width(130); ui.TextInput(c, f.value).FillWidth().Disabled(s.Busy) })
+				ui.Row(c).Gap(8).Wrap().Children(func() { ui.Text(c, f.title).Width(130); ui.TextInput(c, f.value).Grow(1).MinWidth(0).Disabled(s.Busy) })
 			}
 			viewConnectionOptions(c, e, s.Busy)
 			if e.Error != "" {
 				ui.Text(c, e.Error)
 			}
-			ui.Row(c).Gap(8).Children(func() {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
 				if ui.Button(c, label("测试表单", "Test draft")).Disabled(s.Busy).Clicked() {
 					if err := m.Machines.TestDraft(e.Draft); err != nil {
 						e.Error = err.Error()

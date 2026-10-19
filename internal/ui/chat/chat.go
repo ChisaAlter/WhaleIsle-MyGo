@@ -120,7 +120,6 @@ func View(c *ui.Context, m Model) {
 		if !m.SuppressStatus {
 			StatusView(c, m)
 		}
-		ScheduleHeaderView(c, m)
 		HistoryNavigationView(c, m, list, muted)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil {

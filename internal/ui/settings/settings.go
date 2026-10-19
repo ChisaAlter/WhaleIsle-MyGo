@@ -21,6 +21,7 @@ type Model struct {
 	ActiveSection  SectionID
 	SectionContent func(*ui.Context)
 	Pet            *pet.Companion
+	PetSettings    *PetSettingsAccess
 	Store          *settings.Store
 	ThemeID        string
 	SystemDark     bool
@@ -270,8 +271,8 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			return
 		}
 		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {
-			petPane(c, m.Pet, fg, muted)
-			petLookPane(c, m.Pet, m.Store, fg, muted)
+			petPane(c, m.Pet, fg, muted, m.PetSettings)
+			if m.PetSettings == nil { petLookPane(c, m.Pet, m.Store, fg, muted) }
 			return
 		}
 		var ns *settings.Namespace

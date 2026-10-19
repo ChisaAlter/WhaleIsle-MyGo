@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -44,7 +45,7 @@ func TestProjectMaterialEditing(t *testing.T) {
 	c := Client{Origin: srv.URL}
 	ctx := context.Background()
 	drafts := map[string]*MaterialDraft{}
-	for _, path := range []string{"notes.md", "preferences.md"} {
+	for _, path := range []string{"notes.md", "preferences.md", "charter.md"} {
 		d := &MaterialDraft{ProjectID: "p", Path: path}
 		drafts[path] = d
 		m, e := c.ReadMaterial(ctx, "p", path)
@@ -72,5 +73,11 @@ func TestProjectMaterialEditing(t *testing.T) {
 	}
 	if drafts["notes.md"] == drafts["preferences.md"] {
 		t.Fatal("draft identities collided")
+	}
+	if _, e := c.WriteMaterial(ctx, "p", "charter.md", strings.Repeat("界", 5334)); e == nil || writes != before {
+		t.Fatal("oversized UTF-8 charter reached Host")
+	}
+	if _, e := c.WriteMaterial(ctx, "p", "charter.md", strings.Repeat("a", 16000)); e != nil || writes != before+1 {
+		t.Fatal("exact charter limit rejected", e)
 	}
 }

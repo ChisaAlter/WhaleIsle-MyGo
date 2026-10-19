@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -15,8 +16,10 @@ import (
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
+	remoteui "whaleisle/internal/ui/remote"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
+	usageui "whaleisle/internal/ui/usage"
 )
 
 type sectionCatalog struct{}
@@ -26,6 +29,56 @@ func (sectionCatalog) List(context.Context, bool, string) (desktopmarket.Catalog
 		{ID: "fixture/first", Repo: "First plugin", Owner: "fixture", Stars: 123, Description: strings.Repeat("A readable plugin description. ", 8)},
 		{ID: "fixture/second", Repo: "Second plugin", Owner: "fixture", Description: "Another isolated catalog entry."},
 	}}, nil
+}
+
+func TestSettingsEmbeddedPagesStayInModalAcrossWidths(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	for _, section := range []settings.SectionID{settings.SectionRemote, settings.SectionRemoteWorkspace, settings.SectionUsageStats} {
+		for _, width := range []int{1000, 600} {
+			t.Run(fmt.Sprintf("%s-%d", section, width), func(t *testing.T) {
+				s := mainState{settingsEmbeddedSection: section}
+				locale := "en"
+				open := true
+				general := 0
+				tt := ui.NewTester(func(c *ui.Context) {
+					applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light)
+					ui.Text(c, "Preserved conversation")
+					if !open {
+						return
+					}
+					m := settings.Model{ThemeID: theme.IDDeepseekLight, DesktopActive: true, Desktop: &settings.DesktopAccess{Fields: settings.DesktopFields{Locale: &locale}}, OnSelectDesktop: func() { general++ }, OnClose: func() { open = false }, OnOpenRemote: func() {}, OnOpenUsage: func() {}, OnSelectNamespace: func(string) {}}
+					settings.ModalView(c, s.settingsSectionModel(m, func(c *ui.Context) {
+						ui.Text(c, "body-route:"+string(section))
+						if section == settings.SectionUsageStats {
+							usageui.View(c, usageui.Model{Embedded: true, ThemeID: theme.IDDeepseekLight})
+						} else {
+							page := "remote"
+							if section == settings.SectionRemoteWorkspace {
+								page = "workspace"
+							}
+							remoteui.View(c, remoteui.Model{Embedded: true, SettingsPage: page, ThemeID: theme.IDDeepseekLight})
+						}
+					}))
+				}, width, 600)
+				body, found := tt.Find("body-route:" + string(section))
+				if !found || body.W <= 0 || body.X < 180 || body.Y < 24 || body.X+body.W > float32(width)-16 || body.Y+body.H > 576 {
+					t.Fatalf("embedded body escaped modal: %+v", body)
+				}
+				saveSettingsSectionEvidence(t, tt, fmt.Sprintf("settings-composition-%s-%d", section, width))
+				if err := tt.Click(i18n.T(i18n.KeySettingsSectionGeneral)); err != nil {
+					t.Fatal(err)
+				}
+				if s.settingsEmbeddedSection != "" || general != 1 || !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) {
+					t.Fatal("embedded selection stranded the settings rail")
+				}
+				tt.Key(0, ui.KeyEscape)
+				if open || !tt.HasText("Preserved conversation") {
+					t.Fatal("closing embedded settings lost the workspace")
+				}
+			})
+		}
+	}
 }
 func (sectionCatalog) Details(context.Context, desktopmarket.CatalogItem, bool) (desktopmarket.Details, error) {
 	return desktopmarket.Details{}, nil
@@ -49,13 +102,14 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 	state := mainState{}
 	open := true
 	selectedGeneral := 0
+	locale := "en"
 	tt := ui.NewTester(func(c *ui.Context) {
 		applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light)
 		ui.Text(c, "Preserved workspace")
 		if !open {
 			return
 		}
-		m := settings.Model{Desktop: &settings.DesktopAccess{}, DesktopActive: true,
+		m := settings.Model{Desktop: &settings.DesktopAccess{Fields: settings.DesktopFields{Locale: &locale}}, DesktopActive: true,
 			OnSelectDesktop: func() { selectedGeneral++ }, OnClose: func() { open = false },
 			OnOpenMarket: func() { state.settingsEmbeddedSection = settings.SectionMarket },
 		}
@@ -89,7 +143,7 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeySettingsSectionGeneral)); err != nil {
 		t.Fatal(err)
 	}
-	if selectedGeneral != 1 || state.settingsEmbeddedSection != "" || !tt.HasText(i18n.T(i18n.KeySettingsDesktopWorkspace)) {
+	if selectedGeneral != 1 || state.settingsEmbeddedSection != "" || !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) {
 		t.Fatal("General did not restore the existing desktop controls")
 	}
 	tt.Key(0, ui.KeyEscape)

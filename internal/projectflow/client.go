@@ -11,13 +11,14 @@ import (
 )
 
 type Project struct {
-	Archiving                 bool   `json:"archiving"`
-	Paused                    bool   `json:"paused"`
-	ID                        string `json:"id"`
-	Title                     string `json:"title"`
-	CanonicalWorkingDirectory string `json:"canonicalWorkingDirectory"`
-	CoordinatorSessionID      string `json:"coordinatorSessionId"`
-	Lifecycle                 string `json:"lifecycle"`
+	Queue                     *RequestQueue `json:"queue"`
+	Archiving                 bool          `json:"archiving"`
+	Paused                    bool          `json:"paused"`
+	ID                        string        `json:"id"`
+	Title                     string        `json:"title"`
+	CanonicalWorkingDirectory string        `json:"canonicalWorkingDirectory"`
+	CoordinatorSessionID      string        `json:"coordinatorSessionId"`
+	Lifecycle                 string        `json:"lifecycle"`
 	Activity                  struct {
 		State              string `json:"state"`
 		CoordinatorRunning bool   `json:"coordinatorRunning"`

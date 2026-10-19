@@ -21,31 +21,31 @@ func teamView(c *ui.Context, m Model) {
 		detailView(c, m)
 		return
 	}
-	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, tr("返回项目", "Back to Projects")).Clicked() && m.OnCloseTeam != nil {
-			m.OnCloseTeam()
-		}
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 		if ui.Button(c, tr("刷新 Team", "Refresh Team")).Disabled(m.Busy).Clicked() && m.OnTeam != nil {
 			m.OnTeam(m.TeamID)
 		}
 	})
 	if m.Team == nil {
 		if !m.Busy {
-			ui.Text(c, tr("Team 当前不可用，请刷新重试。", "Team is unavailable; refresh to retry.")).FontSize(fonttheme.InterfaceSize(12))
+			ui.Text(c, tr("Team 当前不可用，请刷新重试。", "Team is unavailable; refresh to retry.")).FontSize(fonttheme.InterfaceSize(13))
 		}
 		return
 	}
 	teamSearchControls(c, &m)
 	o := m.Team
-	ui.Text(c, o.Project.Title+" · Team").FontSize(fonttheme.InterfaceSize(13))
+	if o.Team != nil && o.Team.Failure != "" {
+		ui.Text(c, o.Team.Failure).FontSize(fonttheme.InterfaceSize(13)).Selectable()
+	}
+	ui.Text(c, o.Project.Title+" · Team").FontSize(fonttheme.InterfaceSize(14))
 	if m.RefreshNote == "" {
-		ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, tr("最近读取的状态；刷新以获取最新进展。", "Last fetched state; refresh for current progress.")).FontSize(fonttheme.InterfaceSize(12))
 	}
 	if m.TeamNote != "" {
-		ui.Text(c, m.TeamNote).FontSize(fonttheme.InterfaceSize(12))
+		ui.Text(c, m.TeamNote).FontSize(fonttheme.InterfaceSize(13))
 	}
 	disabled := m.Busy || !m.Listing.Available || o.Team == nil || o.Team.Failure != "" || o.Project.Lifecycle != "ready"
-	ui.Row(c).Gap(4).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 		if ui.Button(c, tr("停止全部工作", "Stop all work")).Disabled(disabled).Clicked() && m.OnControl != nil {
 			m.OnControl("stop", "")
 		}
@@ -54,9 +54,9 @@ func teamView(c *ui.Context, m Model) {
 		}
 	})
 	if o.Project.Paused {
-		ui.Text(c, tr("解除暂停后需在 Lead 对话中发新指令；不会自动重启旧任务。", "After unpausing, send a new instruction in the Lead conversation. Old work is not restarted automatically.")).FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, tr("解除暂停后需在 Lead 对话中发新指令；不会自动重启旧任务。", "After unpausing, send a new instruction in the Lead conversation. Old work is not restarted automatically.")).FontSize(fonttheme.InterfaceSize(12))
 	}
-	ui.Scroll(c).Height(280).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
 			if o.Team == nil {
 				return
@@ -69,9 +69,9 @@ func teamView(c *ui.Context, m Model) {
 				}
 			}
 			if len(members) == 0 && m.TeamQuery != "" {
-				ui.Text(c, tr("没有匹配成员", "No matching members")).FontSize(fonttheme.InterfaceSize(12))
+				ui.Text(c, tr("没有匹配成员", "No matching members")).FontSize(fonttheme.InterfaceSize(13))
 			}
-			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(fonttheme.InterfaceSize(12))
+			ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(fonttheme.InterfaceSize(13))
 			for _, member := range members {
 				member := member
 				name := member.Name
@@ -84,20 +84,20 @@ func teamView(c *ui.Context, m Model) {
 						name = member.ID
 					}
 				}
-				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(fonttheme.InterfaceSize(12))
+				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(fonttheme.InterfaceSize(13))
 				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect("", member.ID)
 				}
 				if member.Description != "" {
-					ui.Text(c, member.Description).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, member.Description).FontSize(fonttheme.InterfaceSize(12))
 				}
 				if member.Error != "" {
-					ui.Text(c, member.Error).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, member.Error).FontSize(fonttheme.InterfaceSize(12))
 				}
 				for _, work := range o.Workstreams {
 					if work.WorkerSessionID == member.ID && work.Delegation.Phase == "queued" {
 						if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
-							ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(11))
+							ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(12))
 						}
 					}
 				}
@@ -108,25 +108,25 @@ func teamView(c *ui.Context, m Model) {
 					tasks = append(tasks, task)
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(tasks))).FontSize(fonttheme.InterfaceSize(12))
+			ui.Text(c, fmt.Sprintf(tr("Team 任务（%d）", "Team tasks (%d)"), len(tasks))).FontSize(fonttheme.InterfaceSize(13))
 			for _, task := range tasks {
-				ui.Text(c, task.Subject+" · "+stateLabel(task.Status)).FontSize(fonttheme.InterfaceSize(12))
+				ui.Text(c, task.Subject+" · "+stateLabel(task.Status)).FontSize(fonttheme.InterfaceSize(13))
 				owner := task.OwnerName
 				if owner == "" {
 					owner = tr("未分配", "Unassigned")
 				}
-				ui.Text(c, owner).FontSize(fonttheme.InterfaceSize(11))
+				ui.Text(c, owner).FontSize(fonttheme.InterfaceSize(12))
 				if task.Description != "" {
-					ui.Text(c, task.Description).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, task.Description).FontSize(fonttheme.InterfaceSize(12))
 				}
 				if len(task.BlockedBy) > 0 {
-					ui.Text(c, tr("依赖：", "Dependencies: ")+strings.Join(task.BlockedBy, ", ")).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, tr("依赖：", "Dependencies: ")+strings.Join(task.BlockedBy, ", ")).FontSize(fonttheme.InterfaceSize(12))
 				}
 				if len(task.WriteScopes) > 0 {
-					ui.Text(c, tr("写入范围：", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, tr("写入范围：", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FontSize(fonttheme.InterfaceSize(12))
 				}
 				for _, warning := range task.WriteScopeWarnings {
-					ui.Text(c, warning).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, warning).FontSize(fonttheme.InterfaceSize(12))
 				}
 			}
 			works := make([]projectflow.Workstream, 0, len(o.Workstreams))
@@ -135,23 +135,23 @@ func teamView(c *ui.Context, m Model) {
 					works = append(works, work)
 				}
 			}
-			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(fonttheme.InterfaceSize(12))
+			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(fonttheme.InterfaceSize(13))
 			for _, work := range works {
 				work := work
 				if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect(work.ID, "")
 				}
-				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(fonttheme.InterfaceSize(12))
+				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(fonttheme.InterfaceSize(13))
 				if work.Delegation.Phase == "queued" {
 					if reason := waitingReasonLabel(work.Delegation.WaitingReason); reason != "" {
-						ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(11))
+						ui.Text(c, reason).FontSize(fonttheme.InterfaceSize(12))
 					}
 				}
 				if work.BlockedReason != "" {
-					ui.Text(c, work.BlockedReason).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, work.BlockedReason).FontSize(fonttheme.InterfaceSize(12))
 				}
 				if work.SummaryFailure != nil {
-					ui.Text(c, work.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(11))
+					ui.Text(c, work.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(12))
 				}
 				live := false
 				for _, worker := range o.Workers {
@@ -163,7 +163,7 @@ func teamView(c *ui.Context, m Model) {
 					m.OnControl("stop", work.ID)
 				}
 			}
-			ui.Row(c).Gap(4).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 				if len(o.CurrentCursors) > 1 && ui.Button(c, tr("上一页当前工作", "Previous current-work page")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnPreviousWork != nil {
 					m.OnPreviousWork()
 				}

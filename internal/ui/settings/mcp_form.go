@@ -14,7 +14,7 @@ type MCPFormAccess struct {
 	OnChange, OnSave         func(mcpconfig.FormDraft)
 }
 
-func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string, fg, muted ui.Color) bool {
+func mcpFormEditorContent(c *ui.Context, a *MCPFormAccess, busy bool, editingID string, fg, muted ui.Color) bool {
 	if a == nil {
 		return false
 	}
@@ -31,7 +31,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 		ui.Text(c, mcpCatalogText("编辑服务器：", "Editing server: ")+editingID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	field := func(key, label string, value *string, locked bool, multiline bool) {
-		desktopRow(c, label, func() {
+		bodyRosterRow(c, label, func() {
 			if multiline {
 				if ui.TextArea(c, value).FillWidth().MinHeight(72).Disabled(busy || locked).Changed() {
 					changed = true
@@ -53,7 +53,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 	}
 	field("serverName", mcpCatalogText("工具命名空间", "Tool namespace"), &form.ServerName, false, false)
 	ui.Text(c, mcpCatalogText("ID 和命名空间：1–32 个英文字母、数字、下划线或连字符。", "ID and namespace: 1–32 letters, digits, underscores or hyphens.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	desktopRow(c, mcpCatalogText("传输方式", "Transport"), func() {
+	bodyRosterRow(c, mcpCatalogText("传输方式", "Transport"), func() {
 		if ui.Select(c, &form.Transport, []string{"stdio", "streamable-http"}).FillWidth().Disabled(busy).Changed() {
 			changed = true
 		}
@@ -84,7 +84,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 	if changed && a.OnChange != nil {
 		a.OnChange(form)
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Gap(8).Wrap().Children(func() {
 		if ui.Button(c, mcpCatalogText("保存配置（可能启动/重启）", "Save configuration (may start/restart)")).Disabled(busy).Clicked() && a.OnSave != nil {
 			a.OnSave(form)
 		}
@@ -95,5 +95,23 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 			a.OnCancel()
 		}
 	})
+	return true
+}
+
+func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string, fg, muted ui.Color) bool {
+	if a == nil {
+		return false
+	}
+	if a.Draft == nil {
+		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+			a.OnOpen()
+		}
+		return false
+	}
+	open := true
+	bodyDialog(c, &open, mcpCatalogText("MCP 服务器", "MCP server"), func() { mcpFormEditorContent(c, a, busy, editingID, fg, muted) })
+	if !open && !busy && a.OnCancel != nil {
+		a.OnCancel()
+	}
 	return true
 }

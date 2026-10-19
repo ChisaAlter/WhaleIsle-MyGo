@@ -8,13 +8,17 @@ import (
 	"whaleisle/internal/projectflow"
 )
 
-func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg string) {
+func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg string, queueChanges ...projectQueueSubmission) {
 	if win == nil || id == "" {
 		return
 	}
 	s.mu.Lock()
 	f := s.projectFlow
 	client := s.dshClient
+	if action == "queue" && (len(queueChanges) != 1 || !queueChanges[0].matches(f, client)) {
+		s.mu.Unlock()
+		return
+	}
 	if f.busy {
 		s.mu.Unlock()
 		return
@@ -36,7 +40,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 		s.mu.Unlock()
 		return
 	}
-	if (action == "archive" || action == "restore") && (project.Lifecycle != "ready" || project.Archiving) {
+	if (action == "archive" || action == "restore" || action == "queue") && (project.Lifecycle != "ready" || project.Archiving) {
 		f.err = resumeText("恢复 Project 后才能修改要求卡片。", "Restore the Project before changing request cards.")
 		s.mu.Unlock()
 		return
@@ -70,6 +74,11 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 	case "archive", "restore":
 		cursors = []string{""}
 	case "get":
+	case "queue":
+		if project.Queue == nil || len(queueChanges) != 1 || queueChanges[0].Change.RequestID != arg {
+			s.mu.Unlock()
+			return
+		}
 	default:
 		s.mu.Unlock()
 		return
@@ -83,6 +92,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 	generation := f.generation
 	f.requestGeneration++
 	requestGeneration := f.requestGeneration
+	selectedCard := f.requestCard
 	s.mu.Unlock()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -92,15 +102,27 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 		var card projectflow.RequestCard
 		var err error
 		mutated := false
+		var queueResult *projectflow.RequestQueueResult
 		if action == "get" {
 			card, err = rpc.Request(ctx, id, arg)
 		} else {
+			if action == "queue" {
+				result, queueErr := rpc.ChangeRequestQueue(ctx, id, queueChanges[0].Change)
+				err = queueErr
+				if err == nil {
+					queueResult = &result
+					mutated = true
+				}
+			}
 			if action == "archive" || action == "restore" {
 				err = rpc.SetRequestArchived(ctx, id, arg, action == "archive")
 				mutated = err == nil
 			}
 			if err == nil {
 				page, err = rpc.Requests(ctx, id, kind, cursors[len(cursors)-1])
+				if err == nil && action == "queue" && selectedCard != nil {
+					card, err = rpc.Request(ctx, id, selectedCard.ID)
+				}
 			}
 		}
 		win.Update(func() {
@@ -113,6 +135,13 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 			f.busy = false
 			if f.requestProjectID != id || f.requestGeneration != requestGeneration {
 				return
+			}
+			if queueResult != nil {
+				for i := range f.listing.Projects {
+					if f.listing.Projects[i].ID == id {
+						f.listing.Projects[i].Queue = &queueResult.ProjectQueue
+					}
+				}
 			}
 			if err != nil {
 				f.err = err.Error()
@@ -131,6 +160,9 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 				return
 			}
 			f.requestCard = nil
+			if action == "queue" && selectedCard != nil {
+				f.requestCard = &card
+			}
 			f.requestKind = kind
 			f.requestPage = page
 			f.requestCursors = cursors

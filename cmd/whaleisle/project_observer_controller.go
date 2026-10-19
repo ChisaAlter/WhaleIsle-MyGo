@@ -18,6 +18,7 @@ func (s *mainState) primaryProjectController() *projectController {
 }
 func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 	m := s.primaryProjectController().projectModel(win)
+	m.ThemeID, m.SystemDark = s.themeID, mygo.Theme.IsDark()
 	// Opening an observer does not make the sidebar own its controller lifetime.
 	m.OnObserver = nil
 	m.OnObserverSection = nil
@@ -25,7 +26,9 @@ func (s *mainState) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		controller := s.observerControllerLocked(o)
 		s.mu.Unlock()
-		return controller.projectModel(win)
+		observer := controller.projectModel(win)
+		observer.ThemeID, observer.SystemDark = s.themeID, mygo.Theme.IsDark()
+		return observer
 	}
 	return m
 }

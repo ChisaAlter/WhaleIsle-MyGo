@@ -96,9 +96,11 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m.SearchQuery = f.searchQuery
 	m.History = f.history
 	filterClient := f.client
+	queueOwner := projectQueueSubmission{Client: f.client, Generation: f.generation, Navigation: f.navigation, RequestGeneration: f.requestGeneration}
 	for _, p := range listing.Projects {
 		if p.ID == f.requestProjectID {
 			m.RequestMutable = p.Lifecycle == "ready" && !p.Archiving
+			m.RequestQueue = p.Queue
 		}
 	}
 	observerTeam := f.observerOpen && f.observerSection == "team"
@@ -232,6 +234,20 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m.OnRequests = func(id string) { s.runProjectRequests(win, id, "list", "current") }
 	m.OnRequestList = func(kind string) { s.runProjectRequests(win, m.RequestProjectID, "list", kind) }
 	m.OnRequestGet = func(id string) { s.runProjectRequests(win, m.RequestProjectID, "get", id) }
+	m.OnRequestQueue = func(id, action string) {
+		change, err := projectQueueChange(m.RequestPage, m.RequestCard, m.RequestQueue, id, action)
+		if err != nil {
+			s.mu.Lock()
+			if queueOwner.matches(s.projectFlow, s.dshClient) {
+				s.projectFlow.err = err.Error()
+			}
+			s.mu.Unlock()
+			return
+		}
+		submission := queueOwner
+		submission.Change = change
+		s.runProjectRequests(win, m.RequestProjectID, "queue", id, submission)
+	}
 	m.OnRequestPage = func(direction int) {
 		action := "next"
 		if direction < 0 {
@@ -274,6 +290,10 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		s.runProjectAsset(win, m.RequestProjectID, "diff", projectflow.Artifact{}, workID, nil)
 	}
 	m.OnProjectDirectory = func() { s.runProjectAsset(win, m.RequestProjectID, "directory", projectflow.Artifact{}, "", nil) }
+	m.OnProjectDirectoryFor = func(id string) { s.runProjectAsset(win, id, "directory", projectflow.Artifact{}, "", nil, queueOwner) }
+	m.OnRequestWorkDetail = func(requestID, workID string) {
+		s.runProjectRequestWorkDetail(win, m.RequestProjectID, requestID, workID, queueOwner)
+	}
 	m.OnCloseDiff = func() { s.mu.Lock(); s.projectFlow.assetDiff = nil; s.mu.Unlock() }
 	m.OnArchiveProject = func(id string) { s.runProjectLifecycle(win, id, "prepare") }
 	m.OnRestoreProject = func(id string) { s.runProjectLifecycle(win, id, "restore") }

@@ -75,6 +75,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/diffsurface"
+	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
@@ -93,6 +94,7 @@ import (
 )
 
 type mainState struct {
+	nativePlugins        nativePluginManagerState
 	customPanels         customPanelState
 	applicationMenu      *desktopApplicationMenu
 	wallpaperControls    *settings.WallpaperEditor
@@ -144,6 +146,7 @@ type mainState struct {
 	settings                                *settingsstore.Store
 	settingsOpen                            bool
 	settingsEmbeddedSection                 settings.SectionID
+	settingsRemoteTab                       string
 	settingsNSFilter                        string
 	settingsRevealSecrets                   bool
 	settingsDesktopActive                   bool
@@ -242,6 +245,7 @@ type mainState struct {
 	usageOpen                               bool
 	imOpen                                  bool
 	marketOpen                              bool
+	marketManager                           bool
 	scheduleOpen                            bool
 	scheduleHistoryText                     string
 	remoteOpen                              bool
@@ -392,6 +396,7 @@ type mainState struct {
 	trajDetailTab         string
 	imageLightboxPath     string
 	dirPickOpen           bool
+	dirPickBrowser        dirpick.BrowserState
 	dirPickLoading        bool
 	dirPickRequest        uint64
 	dirPickCancel         context.CancelFunc
@@ -1001,6 +1006,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.assistantOpen = false
 	case deeplink.ActionMarket:
 		s.marketOpen = true
+		s.marketManager = false
 		s.launcherOpen = false
 		s.settingsOpen = false
 		s.usageOpen = false
@@ -1838,6 +1844,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
 	marketStore.Attach(client, refresh)
+	s.bindNativePluginManager(client)
 	schedStore.Attach(client, refresh)
 	go func() {
 		_ = settingsstore.ReportProductEvent(context.Background(), client, api.ProductEvent(
@@ -1917,6 +1924,7 @@ func (s *mainState) stopDSHLocked() {
 	s.replaceMCPControllerLocked()
 	s.settingsProviderProfiles.ResetHost()
 	s.dshClient = nil
+	s.bindNativePluginManager(nil)
 	s.clearAccountReturn()
 	s.accountSignOut.Bind(nil)
 	s.attachPluginInventory(nil)
@@ -1953,6 +1961,7 @@ func (s *mainState) refreshSettingsMCP() {
 }
 
 func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
+	pluginEvent := s.nativePluginEventHandler(client)
 	s.mu.Lock()
 	sessions := s.sessions
 	schedStore := s.schedule
@@ -1986,6 +1995,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		go func() {
 			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
+					pluginEvent(dsh.EventsEmit{Event:"plugin-manager/changed"})
 					if schedStore != nil {
 						schedStore.OnEventsReady(scheduleEventsOwner)
 					}
@@ -1994,6 +2004,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 					}
 				},
 				Emit: func(emit dsh.EventsEmit) {
+					pluginEvent(emit)
 					if usageStore != nil {
 						usageStore.OnAccountNotice(ctx, client, emit)
 					}
@@ -2913,6 +2924,7 @@ func mainView(c *ui.Context) {
 	defer func() {
 		if !nextPromptRendered && sessions != nil {
 			sessions.SyncNextPrompt(context.Background(), false)
+			sessions.UnmountNativeJobs()
 		}
 	}()
 	interactions := state.interactions
@@ -2930,6 +2942,7 @@ func mainView(c *ui.Context) {
 	accountActionError := state.accountReturn.err
 	imOpen := state.imOpen
 	marketOpen := state.marketOpen
+	marketManager := state.marketManager
 	scheduleOpen := state.scheduleOpen
 	marketInstallSpecPtr := &state.marketInstallSpec
 	marketInstallBusy := state.marketInstallBusy
@@ -4961,6 +4974,9 @@ func mainView(c *ui.Context) {
 					},
 					OnSelectNamespace: func(ns string) {
 						state.mu.Lock()
+						if ns == "remote-workspace" {
+							state.settingsEmbeddedSection = settings.SectionRemoteWorkspace
+						}
 						state.settingsDesktopActive = false
 						state.settingsAccountActive = false
 						state.settingsCredentialsActive = false
@@ -5027,8 +5043,7 @@ func mainView(c *ui.Context) {
 					},
 					OnOpenRemote: func() {
 						state.mu.Lock()
-						state.settingsOpen = false
-						state.remoteOpen = true
+						state.settingsEmbeddedSection = settings.SectionRemote
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5036,8 +5051,7 @@ func mainView(c *ui.Context) {
 					},
 					OnOpenUsage: func() {
 						state.mu.Lock()
-						state.settingsOpen = false
-						state.usageOpen = true
+						state.settingsEmbeddedSection = settings.SectionUsageStats
 						state.mu.Unlock()
 						if usageStore != nil {
 							sid := ""
@@ -5065,14 +5079,22 @@ func mainView(c *ui.Context) {
 						return err == nil && res.Button == 1
 					},
 				}
+				state.wireSettingsBodies(&settingsModel)
 				settings.ModalView(c, state.settingsSectionModel(settingsModel, func(_ *ui.Context) {
-					paintMainContent(settings.SectionMarket)
+					state.mu.Lock()
+					section := state.settingsEmbeddedSection
+					state.mu.Unlock()
+					paintMainContent(section)
 				}))
 				return
 			}
 		}
 		paintMainContent = func(embeddedSection settings.SectionID) {
-			if acceptPanelOK && (marketOpen || embeddedSection == settings.SectionMarket) && marketStore != nil {
+			if acceptPanelOK && embeddedSection == "" && marketOpen && marketManager {
+				state.pluginManagerView(c, themeID)
+				return
+			}
+			if ((acceptPanelOK && embeddedSection == "" && marketOpen) || embeddedSection == settings.SectionMarket) && marketStore != nil {
 				marketStore.SetNotify(func() {
 					if win != nil {
 						win.Update(func() {})
@@ -5168,7 +5190,7 @@ func mainView(c *ui.Context) {
 				})
 				return
 			}
-			if acceptPanelOK && scheduleOpen && schedStore != nil {
+			if acceptPanelOK && embeddedSection == "" && scheduleOpen && schedStore != nil {
 				sid := ""
 				sessionLinks := map[string]string{}
 				if sessions != nil {
@@ -5207,12 +5229,13 @@ func mainView(c *ui.Context) {
 				return
 			}
 
-			if acceptPanelOK && imOpen && imStore != nil {
+			if ((acceptPanelOK && embeddedSection == "" && imOpen) || embeddedSection == "channels") && imStore != nil {
 				state.mu.Lock()
 				muxReadyIM := state.dshMuxReady
 				imDraft := state.imDraft
 				state.mu.Unlock()
 				imui.View(c, imui.Model{
+					Embedded:         embeddedSection == "channels",
 					Store:            imStore,
 					ThemeID:          themeID,
 					SystemDark:       mygo.Theme.IsDark(),
@@ -5261,7 +5284,7 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				return
 			}
-			if acceptPanelOK && remoteOpen {
+			if (acceptPanelOK && embeddedSection == "" && remoteOpen) || embeddedSection == settings.SectionRemote || embeddedSection == settings.SectionRemoteWorkspace {
 				state.mu.Lock()
 				muxReady := state.dshMuxReady
 				remoteMachines := state.remoteMachines
@@ -5281,7 +5304,19 @@ func mainView(c *ui.Context) {
 					}
 				}
 				state.mu.Unlock()
+				var channelsContent func(*ui.Context)
+				if imStore != nil && !imPluginDisabled {
+					channelsContent = func(c *ui.Context) { paintMainContent("channels") }
+				}
 				remoteui.View(c, remoteui.Model{
+					Embedded:            embeddedSection != "",
+					SettingsPage:        map[settings.SectionID]string{settings.SectionRemote: "remote", settings.SectionRemoteWorkspace: "workspace"}[embeddedSection],
+					ActiveTab:           &state.settingsRemoteTab,
+					ChannelsContent:     channelsContent,
+					GatewayProtocol:     "chisacode-v2",
+					LegacyRelayTokenSet: hasRemoteRelayToken,
+					OnSetRelayToken:     state.clearLegacyRelayToken,
+					OnRotateToken:       func() error { return state.phoneDeviceAction("rotate", "", "") },
 					OnUseWorkspaceMirror: func(localMirror string) {
 						go state.applyWorkspacePath(win, sessions, localMirror, false)
 					},
@@ -5570,7 +5605,7 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				return
 			}
-			if acceptPanelOK && assistantOpen {
+			if acceptPanelOK && embeddedSection == "" && assistantOpen {
 				origin := st.Endpoint.Origin
 				ep := st.Endpoint
 				whaleOn := true
@@ -5976,7 +6011,7 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				return
 			}
-			if acceptPanelOK && browserPreviewOpen {
+			if acceptPanelOK && embeddedSection == "" && browserPreviewOpen {
 				if state.browserController == nil {
 					state.browserController = state.newBrowserController(win)
 				}
@@ -5991,7 +6026,7 @@ func mainView(c *ui.Context) {
 				return
 			}
 
-			if acceptPanelOK && webviewOpen {
+			if acceptPanelOK && embeddedSection == "" && webviewOpen {
 				origin := st.Endpoint.Origin
 				state.mu.Lock()
 				host := state.webviewHost
@@ -6083,12 +6118,13 @@ func mainView(c *ui.Context) {
 				})
 				return
 			}
-			if acceptPanelOK && usageOpen && usageStore != nil {
+			if (acceptPanelOK && embeddedSection == "" && usageOpen && usageStore != nil) || embeddedSection == settings.SectionUsageStats {
 				sid := ""
 				if sessions != nil {
 					sid = sessions.Snapshot().SelectedID
 				}
 				usageui.View(c, usageui.Model{
+					Embedded:    embeddedSection == settings.SectionUsageStats,
 					ActionError: accountActionError,
 					Store:       usageStore,
 					OnExportStats: func(format string) {
@@ -6169,6 +6205,10 @@ func mainView(c *ui.Context) {
 				return
 			}
 
+			if embeddedSection != "" {
+				ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FillWidth().TextColor(c.Theme().TextMuted)
+				return
+			}
 			// Electron keeps the desk rail+chat chrome visible while harness boots
 			// or fails; exclusive boot.View hid the entire left rail and blocked
 			// pixel acceptance. Paint the dialogue shell whenever we have a store.

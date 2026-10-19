@@ -1,7 +1,9 @@
 package settings
 
 import (
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -51,8 +53,8 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.MCP
-	ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsMCPHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
+	ui.Text(c, mcpCatalogText("管理本机 MCP 服务器。HTTP 服务器可在本页登录后在对话里使用工具。组成配置条目只读。", "Manage local MCP servers. Sign in on an HTTP row so its tools are available in chat. Composition rows are read-only.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if !a.HasListRPC {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPStubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPSchemaHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -63,14 +65,13 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.LastAction != "" {
 		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if a.HasListRPC {
-		ui.Text(c, mcpCatalogText("面板可见时每2秒读取服务器状态；后台刷新只调用列表。", "Server status refreshes every 2 seconds while this panel is visible; background refresh only lists servers.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
 	if a.HealthRefreshFailed {
 		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Use Refresh to retry the read.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	mcpCatalogControls(c, a.Catalog, fg, muted)
-	if len(a.Servers) == 0 {
+	if len(a.Servers) == 0 && a.Busy {
+		ui.Text(c, i18n.T(i18n.KeySettingsLoading)).TextColor(muted)
+	} else if len(a.Servers) == 0 && a.Err == "" && a.HasListRPC {
 		message := i18n.T(i18n.KeySettingsMCPEmpty)
 		if a.Catalog != nil && len(a.Catalog.Snapshot.Rows) > 0 {
 			message = mcpCatalogText("没有匹配的服务器", "No matching servers")
@@ -78,54 +79,26 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {
 		for _, row := range a.Servers {
-			r := row
-			title := r.ID
-			if r.ServerName != "" && r.ServerName != r.ID {
-				title = r.ServerName + " · " + r.ID
-			}
-			desktopRow(c, emptyDash(title), func() {
-				ui.Text(c, mcpRowDetail(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				mcpCatalogDetails(c, a.Catalog, r.ID, fg, muted)
-				if !r.Writable {
-					ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				}
-				ui.Row(c).Gap(6).Children(func() {
-					if r.Writable && a.OnEdit != nil && ui.Button(c, i18n.T(i18n.KeyFilesEdit)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnEdit(r.ID)
-					}
-					toggle := i18n.T(i18n.KeySettingsMCPEnable)
-					if r.Enabled {
-						toggle = i18n.T(i18n.KeySettingsMCPDisable)
-					}
-					if r.Writable && a.OnSetEnabled != nil && ui.Button(c, toggle).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnSetEnabled(r.ID, !r.Enabled)
-					}
-					if r.Writable && a.OnRetry != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPRetry)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnRetry(r.ID)
-					}
-					if r.Writable && a.OnAuthorize != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPAuthorize)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnAuthorize(r.ID)
-					}
-					if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnTest(r.ID)
-					}
-					if r.Writable && a.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
-						a.OnDelete(r.ID)
-					}
-				})
-			}, fg, muted)
+			mcpCompactRow(c, a, row, fg, muted)
 		}
 	}
 	if a.DeletingID != "" {
-		ui.Text(c, "确认移除 / Confirm removal: "+a.DeletingID).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-		ui.Row(c).Gap(8).Children(func() {
-			if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Disabled(a.Busy).Clicked() {
-				a.OnConfirmDelete()
-			}
-			if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
-				a.OnCancelDelete()
-			}
+		open := true
+		bodyDialog(c, &open, mcpCatalogText("移除服务器", "Remove server"), func() {
+			ui.Text(c, a.DeletingID).TextColor(fg)
+			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).TextColor(muted)
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
+					a.OnCancelDelete()
+				}
+				if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Disabled(a.Busy).Clicked() {
+					a.OnConfirmDelete()
+				}
+			})
 		})
+		if !open && !a.Busy && a.OnCancelDelete != nil {
+			a.OnCancelDelete()
+		}
 	}
 	mcpImportPane(c, a.Import, a.Busy, fg, muted)
 	formOpen := mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
@@ -187,4 +160,98 @@ func FormatMCPStatus(fiberPhase, health string, lastError *string) string {
 // FormatMCPServerCount is a small helper kept for tests / status lines.
 func FormatMCPServerCount(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+var mcpAuthFailure = regexp.MustCompile(`(?i)\b(?:HTTP\s+)?(?:401|403)\b|\b(?:unauthorized|forbidden|invalid_token|invalid_grant|insufficient_scope)\b|missing bearer token`)
+
+func mcpNeedsSignIn(a *MCPAccess, r MCPServerRow) bool {
+	if !r.Writable || !r.Enabled || a.Catalog == nil {
+		return false
+	}
+	for _, entry := range a.Catalog.Snapshot.Rows {
+		if entry.Id == r.ID {
+			var spec struct {
+				Transport string `json:"transport"`
+			}
+			_ = json.Unmarshal(entry.Spec, &spec)
+			return spec.Transport == "streamable-http" && entry.Connection != nil && entry.Connection.LastError != nil && mcpAuthFailure.MatchString(*entry.Connection.LastError)
+		}
+	}
+	return false
+}
+func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Color) {
+	title := r.ServerName
+	if title == "" {
+		title = r.ID
+	}
+	ui.Column(c.Key("mcp-server/"+r.ID)).FillWidth().MinWidth(0).Gap(6).Padding(10, 0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Wrap().AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(180).Gap(4).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+					ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+					ui.Text(c, r.Origin).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				})
+				ui.Text(c, r.Status).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Status)
+			})
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Disabled(a.Busy).Clicked() {
+					a.OnTest(r.ID)
+				}
+				if r.Writable {
+					enabled := r.Enabled
+					if ui.Switch(c, &enabled).Label("Enable MCP server · "+r.ID).Disabled(a.Busy || a.OnSetEnabled == nil).Changed() && a.OnSetEnabled != nil {
+						a.OnSetEnabled(r.ID, enabled)
+					}
+					if mcpNeedsSignIn(a, r) && a.OnAuthorize != nil && ui.Button(c, providerCopy("登录", "Sign in")).Height(30).Disabled(a.Busy).Clicked() {
+						a.OnAuthorize(r.ID)
+					}
+					if a.OnEdit != nil && bodyIconAction(c, "Edit MCP server · "+r.ID, "edit", a.Busy) {
+						a.OnEdit(r.ID)
+					}
+					if a.OnDelete != nil && bodyIconAction(c, "Delete MCP server · "+r.ID, "trash", a.Busy) {
+						a.OnDelete(r.ID)
+					}
+				} else {
+					ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				}
+			})
+		})
+		if a.Catalog != nil {
+			snap := a.Catalog.Snapshot
+			for _, entry := range snap.Rows {
+				if entry.Id == r.ID && entry.Connection != nil && len(entry.Connection.Tools) > 0 {
+					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
+						a.Catalog.OnInspect(r.ID)
+					}
+				}
+			}
+			if snap.ExpandedID == r.ID {
+				open := true
+				bodyDialog(c, &open, title+providerCopy(" 可用工具", " tools"), func() {
+					for _, entry := range snap.Rows {
+						if entry.Id == r.ID && entry.Connection != nil {
+							for _, name := range entry.Connection.Tools {
+								ui.Text(c, name).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
+							}
+						}
+					}
+				})
+				if !open && a.Catalog.OnInspect != nil {
+					a.Catalog.OnInspect(r.ID)
+				}
+			}
+			if diagnostic, ok := snap.Tests[r.ID]; ok {
+				message := diagnostic.Err
+				if message == "" {
+					message = fmt.Sprintf(providerCopy("测试成功：%d 个工具", "Test succeeded: %d tools"), int(diagnostic.Result.ToolCount))
+				}
+				ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+		}
+		if strings.Contains(strings.ToLower(r.Status), "failed") && a.OnRetry != nil && r.Writable {
+			if bodyIconAction(c, "Retry MCP server · "+r.ID, "refresh", a.Busy) {
+				a.OnRetry(r.ID)
+			}
+		}
+	})
 }

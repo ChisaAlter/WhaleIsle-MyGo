@@ -67,6 +67,9 @@ func TestSP06DesktopRestartInputsPersistAndRetainFailedDraft(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { desktopPane(c, Model{Desktop: access}, ui.RGB(20, 20, 20), ui.RGB(90, 90, 90)) })
 	}, 1100, 1500)
+	if err := tt.Click("Local runtime and diagnostics"); err != nil {
+		t.Fatal(err)
+	}
 	if !tt.HasText("already scheduled retry timers") {
 		t.Fatal("pending timer contract missing from desktop UI")
 	}

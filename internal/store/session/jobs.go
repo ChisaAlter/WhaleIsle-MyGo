@@ -44,6 +44,17 @@ func (s *Store) invalidateJobsLocked() {
 	s.jobs.sessionID = ""
 }
 
+// UnmountNativeJobs releases only the logical jobs streams when its header is
+// absent, including top-level pages that replace the conversation frame.
+func (s *Store) UnmountNativeJobs() {
+	s.mu.Lock()
+	controller := s.jobs.controller
+	s.mu.Unlock()
+	if controller != nil {
+		controller.Unmount()
+	}
+}
+
 type nativeJobTransport struct {
 	client *dsh.Client
 	mux    *dsh.Mux

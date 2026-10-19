@@ -15,7 +15,11 @@ import (
 
 func configurationWrite(m Model, key string, value any) {
 	raw, _ := json.Marshal(value)
-	m.Store.SetDraft(key, string(raw))
+	if m.Models != nil && m.Models.configurationBinding != nil {
+		m.Models.configurationBinding.SetDraft(key, string(raw))
+	} else {
+		m.Store.SetDraft(key, string(raw))
+	}
 }
 func configurationField(c *ui.Context, m Model, s store.ViewState, ns store.Namespace, f store.Field, fg, muted ui.Color) bool {
 	if m.Store == nil {
@@ -33,7 +37,7 @@ func configurationField(c *ui.Context, m Model, s store.ViewState, ns store.Name
 		_ = json.Unmarshal([]byte(s.Drafts[f.Key]), &rows)
 		configurationModels(c, m, s, ns.NS, rows, store.ConfigurationFields(ns.Schema, "models", "0"), func(v []any) { configurationWrite(m, f.Key, v) }, fg, muted)
 		if ui.Button(c, providerCopy("继承模型目录", "Inherit model catalog")).Disabled(!s.Writable || s.Saving).Clicked() {
-			m.Store.ResetDraft(f.Key)
+			configurationReset(m, f.Key)
 		}
 		return true
 	case ns.NS == "subagent-model-selection-settings" && f.Key == "allowedModels":
@@ -267,7 +271,7 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 	ui.Text(c, providerCopy("添加自定义供应商", "Add custom provider")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	const key = "@provider-create"
 	draft := configurationObject(s.Drafts[key])
-	save := func() { raw, _ := json.Marshal(draft); m.Store.SetConfigurationForm(key, string(raw)) }
+	save := func() { raw, _ := json.Marshal(draft); configurationSetForm(m, key, string(raw)) }
 	for _, field := range []string{"route", "displayName", "baseURL"} {
 		field := field
 		configurationInput(c, m, s, "create/"+field, field, draft[field], false, func(v any) { configurationSet(draft, field, v); save() }, fg, muted)
@@ -299,10 +303,10 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 		}
 		providers[route] = profile
 		configurationWrite(m, "providers", providers)
-		m.Store.SetConfigurationForm(key, "{}")
+		configurationSetForm(m, key, "{}")
 	}
 	if ui.Button(c, providerCopy("清空创建表单", "Clear create form")).Disabled(s.Saving).Clicked() {
-		m.Store.SetConfigurationForm(key, "{}")
+		configurationSetForm(m, key, "{}")
 	}
 }
 
@@ -363,6 +367,21 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 		ui.Text(c, providerCopy("请选择至少一个模型后保存。", "Select at least one model before saving.")).TextColor(fg)
 	}
 	if ui.Button(c, providerCopy("继承可选模型集合", "Inherit selectable models")).Disabled(!s.Writable || s.Saving).Clicked() {
-		m.Store.ResetDraft("allowedModels")
+		configurationReset(m, "allowedModels")
+	}
+}
+
+func configurationReset(m Model, key string) {
+	if m.Models != nil && m.Models.configurationBinding != nil {
+		m.Models.configurationBinding.Reset(key)
+	} else if m.Store != nil {
+		m.Store.ResetDraft(key)
+	}
+}
+func configurationSetForm(m Model, key, value string) {
+	if m.Models != nil && m.Models.configurationBinding != nil {
+		m.Models.configurationBinding.SetForm(key, value)
+	} else if m.Store != nil {
+		m.Store.SetConfigurationForm(key, value)
 	}
 }

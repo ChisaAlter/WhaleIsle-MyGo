@@ -152,6 +152,10 @@ func (s *Store) Detach() {
 func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.snapshotLocked()
+}
+
+func (s *Store) snapshotLocked() ViewState {
 	st := ViewState{
 		PermissionDefaults: s.permissionDefaults.clone(),
 		ClientReady:        s.client != nil,
@@ -433,11 +437,15 @@ func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 }
 
 func (s *Store) saveMutate(ctx context.Context, name string, ops []json.RawMessage) {
+	s.saveMutateOwned(ctx, name, ops, nil, 0)
+}
+
+func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.RawMessage, owner *dsh.Client, ownerGeneration uint64) {
 	s.mu.Lock()
 	client := s.client
 	generation := s.generation
 	ns := s.findNamespaceLocked(name)
-	if s.saving || client == nil || ns == nil || len(ops) == 0 {
+	if s.saving || client == nil || ns == nil || len(ops) == 0 || (owner != nil && (client != owner || generation != ownerGeneration)) {
 		s.mu.Unlock()
 		return
 	}

@@ -7,12 +7,12 @@ import (
 
 // The desktop market is a settings section in the original registry. Keep its
 // existing store and installer callbacks, but paint it inside the modal shell.
-func (s *mainState) settingsSectionModel(m settings.Model, marketContent func(*ui.Context)) settings.Model {
+func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*ui.Context)) settings.Model {
 	s.mu.Lock()
 	section := s.settingsEmbeddedSection
 	s.mu.Unlock()
-	if section == settings.SectionMarket && marketContent != nil {
-		m.ActiveSection, m.SectionContent = section, marketContent
+	if (section == settings.SectionMarket || section == settings.SectionRemote || section == settings.SectionRemoteWorkspace || section == settings.SectionUsageStats) && sectionContent != nil {
+		m.ActiveSection, m.SectionContent = section, sectionContent
 	}
 	clear := func() {
 		s.mu.Lock()

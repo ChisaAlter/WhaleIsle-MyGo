@@ -15,13 +15,18 @@ import (
 // assistant and per-session composer stores remain alive with their drafts.
 func (s *mainState) selectMainPanel(panel string) {
 	s.mu.Lock()
-	s.marketOpen = panel == "market"
+	s.marketOpen = panel == "market" || panel == "plugins"
+	s.marketManager = panel == "plugins"
 	s.scheduleOpen = panel == "schedule"
 	s.assistantConversationGeneration++
 	s.assistantOpen = panel == "assistant"
 	s.toolsMenuOpen = false
 	win := s.win
+	set := s.settings
 	s.mu.Unlock()
+	if panel == "plugins" && set != nil {
+		set.RefreshDescribe(context.Background())
+	}
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -73,7 +78,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnOpenDeliverable = func(path string) { s.queueNavigationFile(sessions, path) }
 	m.OnSelectSession = func(id string) { s.selectMainPanel(""); sessions.Select(id) }
 	m.OnCreateSession = func() { s.selectMainPanel(""); sessions.CreateSession(context.Background()) }
-	m.OnOpenMarket = func() { s.selectMainPanel("market") }
+	m.OnOpenMarket = func() { s.selectMainPanel("plugins") }
 	m.OnOpenSchedule = func() { s.selectMainPanel("schedule") }
 	m.OnOpenAssistant = func() { s.selectMainPanel("assistant") }
 	m.OnOpenLauncher = func() {

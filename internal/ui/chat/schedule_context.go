@@ -2,7 +2,7 @@ package chat
 
 import (
 	"context"
-	"fmt"
+
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
@@ -20,27 +20,6 @@ func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
 		m.ScheduleStore.EnsureContext(context.Background(), m.Snapshot.SelectedID, ids)
 	}
 	return cards
-}
-func ScheduleHeaderView(c *ui.Context, m Model) {
-	if m.ScheduleStore == nil || m.Snapshot.SelectedID == "" {
-		return
-	}
-	snap := m.ScheduleStore.Snapshot()
-	rows := schedstore.ActiveForSession(snap, m.Snapshot.SelectedID)
-	ui.Row(c).Gap(6).Padding(4, 12).Children(func() {
-		ui.Text(c, fmt.Sprintf("会话任务 / Tasks (%d)", len(rows))).FontSize(11)
-		for _, row := range rows {
-			if ui.Button(c, row.Title).Tooltip(schedstore.TimingLabel(row)).FontSize(11).Clicked() && m.OnOpenScheduleTask != nil {
-				m.OnOpenScheduleTask(row)
-			}
-		}
-		if snap.Err != "" {
-			ui.Text(c, snap.Err).FontSize(11)
-		}
-		if ui.Button(c, "刷新任务 / Refresh tasks").Disabled(snap.Loading).FontSize(11).Clicked() {
-			m.ScheduleStore.Refresh(context.Background(), m.Snapshot.SelectedID)
-		}
-	})
 }
 func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 	if len(rows) == 0 {

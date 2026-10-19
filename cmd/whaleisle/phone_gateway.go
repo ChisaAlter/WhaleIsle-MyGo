@@ -3,7 +3,32 @@ package main
 import (
 	"errors"
 	"whaleisle/internal/config"
+	"whaleisle/internal/credentials"
+	"whaleisle/internal/paths"
 )
+
+// chisacode-v2 pairing is owned by the original runtime. Its legacy settings
+// disclosure only offers removal of an old desktop relay credential.
+func (s *mainState) clearLegacyRelayToken(value string) error {
+	if value != "" {
+		return errors.New("legacy relay credentials can only be cleared")
+	}
+	s.phoneOp.Lock()
+	defer s.phoneOp.Unlock()
+	creds, err := credentials.Load(paths.UserDataDir())
+	if err != nil {
+		return err
+	}
+	creds.RemoteRelayToken = ""
+	if err = credentials.Save(paths.UserDataDir(), creds); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.hasRemoteRelayToken = false
+	s.credsDraft.remoteRelayToken = ""
+	s.mu.Unlock()
+	return nil
+}
 
 func (s *mainState) savePhoneGateway(expected, p config.RemoteGatewayPreferences) error {
 	if s.cfgStore == nil {

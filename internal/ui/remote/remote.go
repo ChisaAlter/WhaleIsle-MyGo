@@ -20,12 +20,21 @@ import (
 
 // Model carries remote plugin and desktop connection state.
 type Model struct {
-	Files         *remotestore.Files
-	FileEditor    *FileEditor
-	Machines      *remotestore.Store
-	MachineEditor *MachineEditor
-	ThemeID       string
-	SystemDark    bool
+	GatewayProtocol     string
+	LegacyRelayTokenSet bool
+	// Embedded renders only the feature-owned settings body in the shared shell.
+	Embedded        bool
+	SettingsPage    string
+	ActiveTab       *string
+	ChannelsContent func(*ui.Context)
+	OnSetRelayToken func(string) error
+	OnRotateToken   func() error
+	Files           *remotestore.Files
+	FileEditor      *FileEditor
+	Machines        *remotestore.Store
+	MachineEditor   *MachineEditor
+	ThemeID         string
+	SystemDark      bool
 
 	RemoteWorkspaceEnabled    bool
 	RemoteEnabled             bool
@@ -81,6 +90,10 @@ type Model struct {
 
 // View paints the remote workspace panel.
 func View(c *ui.Context, m Model) {
+	if m.Embedded || m.SettingsPage != "" {
+		settingsView(c, m)
+		return
+	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	bg := chrome.Color(colors.BG)

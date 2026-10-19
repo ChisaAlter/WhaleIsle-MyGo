@@ -3,44 +3,42 @@ package settings
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
-	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/theme"
 )
 
 func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
+	if g == nil {
+		return
+	}
 	p := &g.Prefs
-	ui.Text(c, "指针特效与按钮光泽").Bold().TextColor(fg)
-	ui.Checkbox(c, &p.CursorEnabled, "启用指针特效")
-	ui.Select(c, &p.CursorEffect, []string{"trail", "splash"}).Label("指针效果")
-	if ui.Select(c, &p.CursorPreset, []string{"default", "rainbow", "aurora", "sunset", "ocean", "sakura", "custom"}).Label("指针配色方案").Changed() && p.CursorPreset != "custom" {
-		p.ApplyCursorPreset(p.CursorPreset)
-	}
-	ui.Text(c, fmt.Sprintf("速度 %.0f%%", p.CursorSpeed)).FontSize(fonttheme.InterfaceSize(11))
-	if ui.StepSlider(c, &p.CursorSpeed, 20, 300, 1).Changed() {
-		p.CursorPreset = "custom"
-	}
-	ui.Text(c, fmt.Sprintf("大小 %.0f%%", p.CursorSize)).FontSize(fonttheme.InterfaceSize(11))
-	if ui.StepSlider(c, &p.CursorSize, 25, 300, 1).Changed() {
-		p.CursorPreset = "custom"
-	}
-	for i := range p.CursorColors {
-		if ui.TextInput(c, &p.CursorColors[i]).Placeholder("#rrggbb；留空跟随主题").Label(fmt.Sprintf("指针颜色 %d", i+1)).Changed() {
-			p.CursorPreset = "custom"
+	bodyLocalToggle(c, "cursor-enabled", providerCopy("指针特效", "Pointer effects"), providerCopy("移动指针即可预览；系统减少动态效果会关闭动画。", "Move the pointer to preview. Reduced motion disables the animation."), &p.CursorEnabled, g.Save == nil, fg, muted, nil)
+	bodyDisclosure(c, "pointer-effects-options", providerCopy("指针特效设置", "Pointer effect settings"), func() {
+		bodyPreferenceRow(c, "cursor-effect", providerCopy("指针效果", "Pointer effect"), providerCopy("流体效果使用原生近似渲染。", "Fluid effects use the native approximation."), fg, muted, func() { ui.Select(c, &p.CursorEffect, []string{"trail", "splash"}).FillWidth().Disabled(g.Save == nil) })
+		bodyPreferenceRow(c, "cursor-preset", providerCopy("指针配色", "Pointer colors"), "", fg, muted, func() {
+			if ui.Select(c, &p.CursorPreset, []string{"default", "rainbow", "aurora", "sunset", "ocean", "sakura", "custom"}).FillWidth().Disabled(g.Save == nil).Changed() && p.CursorPreset != "custom" {
+				p.ApplyCursorPreset(p.CursorPreset)
+			}
+		})
+		wallpaperSlider(c, "cursor-speed", providerCopy("指针速度", "Pointer speed"), &p.CursorSpeed, 20, 300, g.Save == nil, fg, muted)
+		wallpaperSlider(c, "cursor-size", providerCopy("指针大小", "Pointer size"), &p.CursorSize, 25, 300, g.Save == nil, fg, muted)
+		for i := range p.CursorColors {
+			bodyPreferenceRow(c, fmt.Sprintf("cursor-color-%d", i), fmt.Sprintf(providerCopy("颜色 %d", "Color %d"), i+1), providerCopy("留空跟随主题。", "Leave blank to follow the theme."), fg, muted, func() {
+				if ui.TextInput(c, &p.CursorColors[i]).FillWidth().Disabled(g.Save == nil).Changed() {
+					p.CursorPreset = "custom"
+				}
+			})
 		}
-	}
-	ui.Checkbox(c, &p.MetallicButtons, "启用全局按钮悬停金属光泽")
-	ui.Text(c, "移动指针即可预览。trail 为渐隐像素轨迹；splash 使用原生 CPU 染料平流与扩散近似，不等同于原版 WebGL 流体。系统减少动态效果会关闭指针动画，并静止按钮光泽。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, "保存指针与按钮效果").Clicked() {
-			g.commit()
-		}
-		if ui.Button(c, "恢复指针默认").Clicked() {
-			p.CursorEnabled = false
-			p.CursorEffect = "trail"
-			p.ApplyCursorPreset("default")
-			p.MetallicButtons = false
-		}
-		if ui.Button(c, "撤销效果调整").Clicked() {
-			g.Prefs = g.Saved.Clone()
-		}
+		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			if ui.Button(c, providerCopy("保存指针效果", "Save pointer effects")).Disabled(g.Save == nil).Clicked() {
+				g.commit()
+			}
+			if ui.Button(c, providerCopy("恢复指针默认", "Reset pointer effects")).Disabled(g.Save == nil).Clicked() {
+				p.CursorEnabled = false
+				p.CursorEffect = "trail"
+				p.ApplyCursorPreset("default")
+				p.MetallicButtons = false
+			}
+		})
+		ui.Text(c, providerCopy("调整后保存以应用。", "Save to apply your changes.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	})
 }

@@ -40,7 +40,7 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reading != "broken" || selected != "" {
-		t.Fatal("reading changed the default choice")
+		t.Fatalf("independent reader: reading=%q selected=%q", reading, selected)
 	}
 	if err := tt.Click("选择默认 / Choose default · My mode (mine)"); err != nil {
 		t.Fatal(err)

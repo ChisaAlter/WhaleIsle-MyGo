@@ -3,92 +3,173 @@ package settings
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"strconv"
+	"strings"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
-	fonttheme "whaleisle/internal/ui/theme"
+	settingsstore "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/theme"
 )
 
-func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color) {
-	ui.Text(c, "Desktop companion / 桌面宠物").FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, "Independent sprite window. Default off. Drag the character to move it; the last deliberate drag position is restored on restart. / 独立图集宠物窗，默认关闭；拖动角色移动，重启恢复最后一次手动位置，自主移动不覆盖它。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Shows the selected task. Quick chat opens a compact card on Whale’s saved conversation; Main pet chat opens that same session in the main window. / 显示当前任务；聊聊打开紧凑聊天卡，宠物主会话打开相同持久会话；回到会话仍返回当前任务。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Feed file opens a native picker and changes only saved care stats; selected files stay untouched. / 喂文件只保存饱食/心情变化，不读取或改动所选文件。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Refresh bowl reads this app’s actual usage. Feed Token spends local game food only, never API credit. / 刷新粮碗读取本应用真实用量；喂 Token 只消费本地游戏粮点，不扣账户余额。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Pat saves the original mood/bond care effect; repeat pats use its ten-minute bond cooldown. / 摸摸头保存原版心情/亲密变化，重复互动沿用十分钟亲密冷却。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Sleep pauses rendering for this window; Wake uses the original mood −7, with no rest reward. / 睡觉临时暂停渲染；叫醒沿用原版心情 −7，无休息收益，重新开窗恢复清醒。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Optional THA4 neural animation uses verified local assets. Missing resources or runtime errors fall back to bundled layered animation, then sprites or animated fallback. / 可选 THA4 神经渲染；资源或运行时不可用时回退内置分层动画，再到图集或动态后备。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, "Look asks before each screenshot and uses the pet-specific image route selected below; replies appear on the pet. / 看看每次截图前确认，使用下方独立选择的桌宠视觉路由；回复显示在桌宠上。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	if p.Error != "" {
-		ui.Text(c, p.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+type PetSettingsAccess struct {
+	AssistantEnabled   bool
+	AssistantAvailable bool
+	Busy               bool
+	Err                string
+	OnSetAssistant     func(bool)
+	RenderAssistant    func(*ui.Context)
+	Store              *settingsstore.Store
+	OnSave             func()
+}
+
+func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*PetSettingsAccess) {
+	if p == nil {
+		return
 	}
-	if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Disabled(p.Store == nil).Clicked() {
-		p.LoadOriginalDraft()
+	var a *PetSettingsAccess
+	if len(accesses) > 0 {
+		a = accesses[0]
 	}
-	for _, line := range p.OriginalImportReport {
-		ui.Text(c, line).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
-	if p.PositionDraft != nil {
-		ui.Text(c, fmt.Sprintf("待保存位置 / Pending position: (%d, %d)", p.PositionDraft.X, p.PositionDraft.Y)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, "取消位置导入 / Discard position import").Clicked() {
-			p.PositionDraft = nil
-			p.OriginalImportReport = nil
+	anchor := ui.Column(c.Key("pet-settings-body")).FillWidth().MinWidth(0).Gap(8)
+	tab := ui.Local(anchor, "tab", func() int {
+		if a != nil && a.AssistantAvailable {
+			return 0
 		}
-	}
-	ui.Checkbox(c, &p.Enabled, "Show companion / 显示桌宠")
-	ui.Checkbox(c, &p.Neural, "THA4 animation (optional) / THA4 动画（可选）")
-	ui.Text(c, fmt.Sprintf("大小 / Scale %.1f · 透明度 / Opacity %.0f%%", p.Behavior.Scale, p.Behavior.Opacity*100)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, "− 大小").Clicked() {
-			p.Behavior.Scale -= .1
-		}
-		if ui.Button(c, "+ 大小").Clicked() {
-			p.Behavior.Scale += .1
-		}
-		if ui.Button(c, "− 透明度").Clicked() {
-			p.Behavior.Opacity -= .05
-		}
-		if ui.Button(c, "+ 透明度").Clicked() {
-			p.Behavior.Opacity += .05
-		}
-		p.Behavior = config.NormalizePetBehavior(p.Behavior)
+		return 1
 	})
-	ui.Text(c, "Personality / 性格").FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth()
-	ui.Text(c, "natural 自然 · genki 元气 · tsundere 傲娇 · poison 毒舌").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, "Activity / 活跃程度（quiet 安静 / balanced 均衡 / active 活泼）").FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth()
-	ui.Checkbox(c, &p.Behavior.Wander, "Wander around / 自主移动")
-	ui.Checkbox(c, &p.Behavior.SelfTalk, "Idle self-talk / 自言自语")
-	ui.Checkbox(c, &p.Behavior.PowerSave, "Power save after five idle minutes / 闲置五分钟后省电")
-	ui.Checkbox(c, &p.Behavior.LockPosition, "Lock position / 锁定拖动")
-	ui.Checkbox(c, &p.Behavior.ShiftToDrag, "Hold Shift to drag / 按住 Shift 拖动")
-	ui.Checkbox(c, &p.Behavior.ClickSound, "Click sound / 点击音效")
-	ui.Checkbox(c, &p.Behavior.ChatEnabled, "Enable pet chat / 允许桌宠聊天入口")
-	ui.Text(c, "Save applies appearance and interaction settings without restarting the pet. / 保存后应用外观与交互设置，无需重建桌宠窗口。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	options := []string{""}
-	found := p.SkinID == ""
-	for _, s := range p.Skins {
-		options = append(options, s.ID)
-		if s.ID == p.SkinID {
-			found = true
+	anchor.Children(func() {
+		bodyHeading(c, providerCopy("鲸鱼娘", "Whale"), providerCopy("你的常驻助理与桌面伙伴。", "Your resident assistant and desktop companion."), fg, muted)
+		ui.Row(c).FillWidth().MaxWidth(360).Wrap().Gap(4).Role(ui.RoleTabList).Children(func() {
+			for index, label := range []string{providerCopy("聊天与能力", "Chat and abilities"), providerCopy("桌面形象与行为", "Appearance and behavior")} {
+				if ui.Button(c.Key(fmt.Sprint("pet-tab-", index)), label).Role(ui.RoleTab).Selected(*tab == index).Height(34).Clicked() {
+					*tab = index
+				}
+			}
+		})
+		if p.Error != "" {
+			ui.Text(c, p.Error).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
-	}
-	if !found {
-		options = append(options, p.SkinID)
-		ui.Text(c, "Saved skin is missing; the bundled image will be shown. / 已存皮肤缺失，暂用内置形象。").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
-	ui.Text(c, "Skin (empty = bundled Whale image) / 皮肤（空白为内置鲸鱼娘）").FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	ui.Select(c, &p.SkinID, options).FillWidth()
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, "Refresh local skins / 刷新本地皮肤").Clicked() {
-			p.Refresh()
+		if a != nil && a.Err != "" {
+			ui.Text(c, a.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
-		if ui.Button(c, "Save / 保存").Clicked() {
-			p.Save()
+		if *tab == 0 {
+			if a != nil && a.AssistantAvailable {
+				bodyHeading(c, providerCopy("助理", "Assistant"), "", fg, muted)
+				enabled := a.AssistantEnabled
+				bodyLocalToggle(c, "pet-assistant", providerCopy("鲸鱼娘助理", "Whale assistant"), providerCopy("常驻对话与侧栏入口；切换后重启 Harness。", "Resident conversation and sidebar entry. Changing this restarts Harness."), &enabled, a.Busy || a.OnSetAssistant == nil, fg, muted, a.OnSetAssistant)
+				if a.RenderAssistant != nil {
+					a.RenderAssistant(c)
+				}
+			}
+			return
 		}
+		disabled := p.Store == nil && (a == nil || a.OnSave == nil)
+		if a != nil && a.Busy {
+			disabled = true
+			ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)
+		}
+		bodyHeading(c, providerCopy("外观", "Appearance"), "", fg, muted)
+		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on the desktop"), providerCopy("关闭后隐藏桌面形象，随时可以再开。", "Hide the desktop character; you can show her again at any time."), &p.Enabled, disabled, fg, muted, nil)
+		bodyPreferenceRow(c, "pet-scale-opacity", providerCopy("体型与不透明度", "Scale and opacity"), "", fg, muted, func() {
+			percentage := func(label string, value *float64, choices []string) {
+				selected := fmt.Sprintf("%.0f%%", *value*100)
+				found := false
+				for _, choice := range choices {
+					if choice == selected {
+						found = true
+					}
+				}
+				if !found {
+					choices = append(choices, selected)
+				}
+				if ui.Select(c, &selected, choices).FillWidth().Label(label).Disabled(disabled).Changed() {
+					number, _ := strconv.ParseFloat(strings.TrimSuffix(selected, "%"), 64)
+					*value = number / 100
+				}
+			}
+			percentage(providerCopy("体型", "Scale"), &p.Behavior.Scale, []string{"60%", "80%", "100%", "120%", "140%", "160%"})
+			percentage(providerCopy("不透明度", "Opacity"), &p.Behavior.Opacity, []string{"30%", "50%", "70%", "85%", "100%"})
+		})
+		bodyPreferenceRow(c, "pet-personality", providerCopy("性格", "Personality"), providerCopy("影响台词与「聊聊」语气，助理人格跟随同一设置。", "Affects dialogue and quick-chat tone; the assistant uses the same personality."), fg, muted, func() {
+			ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth().Label(providerCopy("性格", "Personality")).Disabled(disabled)
+		})
+		bodyHeading(c, providerCopy("行为", "Behavior"), "", fg, muted)
+		bodyPreferenceRow(c, "pet-activity", providerCopy("活跃频率", "Activity"), providerCopy("驱动自言自语与乱逛的间隔。", "Controls the interval between self-talk and wandering."), fg, muted, func() {
+			ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth().Label(providerCopy("活跃频率", "Activity")).Disabled(disabled)
+		})
+		bodyPreferenceRow(c, "pet-autonomy", providerCopy("自主行为", "Autonomous behavior"), providerCopy("她自己开口说话、到处乱逛。", "Let her talk to herself and wander around."), fg, muted, func() {
+			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+				ui.Text(c, providerCopy("自言自语", "Self-talk")).Grow(1).MinWidth(0)
+				ui.Switch(c, &p.Behavior.SelfTalk).Label(providerCopy("自言自语", "Self-talk")).Disabled(disabled)
+			})
+			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+				ui.Text(c, providerCopy("自主乱逛", "Wandering")).Grow(1).MinWidth(0)
+				ui.Switch(c, &p.Behavior.Wander).Label(providerCopy("自主乱逛", "Wandering")).Disabled(disabled)
+			})
+		})
+		bodyPreferenceRow(c, "pet-drag-mode", providerCopy("拖拽方式", "Dragging"), providerCopy("自由拖动、按住 Shift，或锁定位置。", "Drag freely, hold Shift to drag, or lock the position."), fg, muted, func() {
+			selected := "free"
+			if p.Behavior.LockPosition {
+				selected = "locked"
+			} else if p.Behavior.ShiftToDrag {
+				selected = "shift"
+			}
+			if ui.Select(c, &selected, []string{"free", "shift", "locked"}).FillWidth().Label(providerCopy("拖拽方式", "Dragging")).Disabled(disabled).Changed() {
+				p.Behavior.LockPosition = selected == "locked"
+				p.Behavior.ShiftToDrag = selected == "shift"
+			}
+		})
+		bodyLocalToggle(c, "pet-power", providerCopy("省电模式", "Power saving"), providerCopy("无交互约五分钟后降低帧率。", "Reduce the frame rate after about five idle minutes."), &p.Behavior.PowerSave, disabled, fg, muted, nil)
+		bodyLocalToggle(c, "pet-sound", providerCopy("点击音效", "Click sound"), "", &p.Behavior.ClickSound, disabled, fg, muted, nil)
+		bodyHeading(c, providerCopy("联动", "Integration"), "", fg, muted)
+		bodyLocalToggle(c, "pet-chat", providerCopy("快捷对话", "Quick chat"), providerCopy("右键面板中的「聊聊」对话卡。", "The quick-chat card in the context menu."), &p.Behavior.ChatEnabled, disabled, fg, muted, nil)
+		if a != nil {
+			petLookPane(c, p, a.Store, fg, muted)
+		}
+		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			if ui.Button(c, providerCopy("保存外观与行为", "Save appearance and behavior")).Disabled(disabled).Clicked() {
+				p.Behavior = config.NormalizePetBehavior(p.Behavior)
+				if a != nil && a.OnSave != nil {
+					a.OnSave()
+				} else {
+					p.Save()
+				}
+			}
+			if ui.Button(c, "恢复外观与行为默认 / Reset appearance and behavior").Disabled(p.Store == nil || disabled).Clicked() {
+				confirmResetPetAppearanceBehavior(p)
+			}
+		})
+		bodyDisclosure(c, "pet-local-skins", providerCopy("本地皮肤与动画", "Local skins and animation"), func() {
+			bodyLocalToggle(c, "pet-neural", providerCopy("THA4 动画", "THA4 animation"), providerCopy("使用已验证的本地资源；不可用时使用内置动画。", "Uses verified local resources, with bundled animation when unavailable."), &p.Neural, disabled, fg, muted, nil)
+			options := []string{""}
+			found := p.SkinID == ""
+			for _, skin := range p.Skins {
+				options = append(options, skin.ID)
+				if skin.ID == p.SkinID {
+					found = true
+				}
+			}
+			if !found {
+				options = append(options, p.SkinID)
+				ui.Text(c, providerCopy("已存皮肤缺失，暂用内置形象。", "Saved skin is missing; showing the bundled character.")).FillWidth().TextColor(muted)
+			}
+			bodyPreferenceRow(c, "pet-skin", providerCopy("皮肤", "Skin"), providerCopy("留空使用内置鲸鱼娘。", "Leave blank to use the bundled Whale."), fg, muted, func() { ui.Select(c, &p.SkinID, options).FillWidth().Disabled(disabled) })
+			if ui.Button(c, providerCopy("刷新本地皮肤", "Refresh local skins")).Disabled(p.Store == nil).Clicked() {
+				p.Refresh()
+			}
+			if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Disabled(p.Store == nil).Clicked() {
+				p.LoadOriginalDraft()
+			}
+			for _, line := range p.OriginalImportReport {
+				ui.Text(c, line).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			}
+			if p.PositionDraft != nil {
+				ui.Text(c, fmt.Sprintf(providerCopy("待保存位置：(%d, %d)", "Pending position: (%d, %d)"), p.PositionDraft.X, p.PositionDraft.Y)).FillWidth().TextColor(muted)
+				if ui.Button(c, providerCopy("取消位置导入", "Discard position import")).Clicked() {
+					p.PositionDraft = nil
+					p.OriginalImportReport = nil
+				}
+			}
+		})
 	})
-	if ui.Button(c, "恢复外观与行为默认 / Reset appearance and behavior").Disabled(p.Store == nil).Clicked() {
-		confirmResetPetAppearanceBehavior(p)
-	}
-	ui.Text(c, "Reads validated Codex pet.json + WebP sprites from CODEX_HOME/pets. No package scripts, downloads or uploads. Works offline without Harness. / 仅读取本地安全皮肤；无需 Harness 连通。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 }

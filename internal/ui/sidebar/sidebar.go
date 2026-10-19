@@ -233,7 +233,6 @@ func View(c *ui.Context, m Model) {
 			if m.WorkspaceMenuOpen != nil {
 				menuOpen = m.WorkspaceMenuOpen
 			}
-			projects.View(c, m.Projects)
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
 				workspaceHeading(c, m, menuOpen, fg, muted)
@@ -258,6 +257,7 @@ func View(c *ui.Context, m Model) {
 					}
 					items := sidebarItems(m.Snapshot, m.SearchQuery)
 					workspaceRowsView(c, m, items, fg, muted, border)
+					projects.View(c, m.Projects)
 					if !m.HideArchivedList && len(m.Snapshot.ArchivedSessionIDs) > 0 {
 						ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
 							Padding(8, 0, 2, 0)

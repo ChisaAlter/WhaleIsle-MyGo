@@ -36,7 +36,8 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 	if !s.Open {
 		return
 	}
-	ui.Column(c).Gap(8).Padding(12).Children(func() {
+	open := true
+	bodyDialog(c, &open, signOutText("退出账户", "Sign out"), func() {
 		ui.Text(c, signOutText("确认退出账户", "Confirm account sign-out")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 		if s.AccountID != "" {
 			ui.Text(c, signOutText("账户：", "Account: ")+s.AccountID).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -52,7 +53,7 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 		if s.Busy {
 			ui.Text(c, signOutText("正在处理，请稍候…", "Working, please wait…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Gap(8).Wrap().Children(func() {
 			cancel := signOutText("取消", "Cancel")
 			if s.Unknown {
 				cancel = signOutText("关闭提示", "Close notice")
@@ -69,4 +70,7 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 			}
 		})
 	})
+	if !open && !s.Busy && a.OnCancelSignOut != nil {
+		a.OnCancelSignOut()
+	}
 }

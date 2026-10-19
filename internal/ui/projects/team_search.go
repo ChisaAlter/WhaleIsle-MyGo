@@ -68,6 +68,6 @@ func teamSearchControls(c *ui.Context, m *Model) {
 		m.OnTeamQuery("")
 	}
 	if strings.TrimSpace(m.TeamQuery) != "" {
-		ui.Text(c, tr("查询全部已加载成员与 Team 任务；工作流按当前页查找。", "Search all loaded members and Team tasks; workstreams are searched on the current page.")).FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, tr("查询全部已加载成员与 Team 任务；工作流按当前页查找。", "Search all loaded members and Team tasks; workstreams are searched on the current page.")).FontSize(fonttheme.InterfaceSize(12))
 	}
 }

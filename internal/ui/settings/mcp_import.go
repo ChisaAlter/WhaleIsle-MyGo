@@ -17,7 +17,7 @@ type MCPImportAccess struct {
 	OnReplace                 func(bool)
 }
 
-func mcpImportPane(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Color) {
+func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Color) {
 	if a == nil {
 		return
 	}
@@ -98,4 +98,18 @@ func mcpImportPane(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Co
 	if ui.Button(c, mcpCatalogText("确认载入所选 1 项到草稿", "Confirm loading this one entry into the draft")).Disabled(busy || selected.Err != "" || (selected.Existing && !replacement)).Clicked() && a.OnStage != nil {
 		a.OnStage()
 	}
+}
+
+func mcpImportPane(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Color) {
+	if a == nil {
+		return
+	}
+	box := ui.Column(c.Key("mcp-import-dialog"))
+	open := ui.Local(box, "open", func() bool { return false })
+	box.Children(func() {
+		if ui.Button(c, mcpCatalogText("从 JSON 导入", "Import from JSON")).Disabled(busy).Clicked() {
+			*open = true
+		}
+		bodyDialog(c, open, mcpCatalogText("导入 MCP 服务器", "Import MCP server"), func() { mcpImportContent(c, a, busy, fg, muted) })
+	})
 }

@@ -9,6 +9,7 @@ import (
 // GatewayEditor owns an explicit draft, so runtime polling cannot overwrite edits.
 type GatewayEditor struct {
 	Open            bool
+	RelayToken      string
 	Draft, Expected config.RemoteGatewayPreferences
 	Error           string
 }
@@ -29,7 +30,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	ui.Text(c, label("更改会重连网关并撤销当前手机 Git 授权；已配对设备保留。", "Changes reconnect the gateway and revoke the current phone Git grant; paired devices are retained.")).TextColor(muted)
 	ui.Text(c, label("连接模式", "Connection mode")).TextColor(fg)
-	ui.Select(c, &e.Draft.Mode, []string{"relay", "lan", "ssh"}).FillWidth()
+	ui.Select(c, &e.Draft.Mode, []string{"relay", "lan"}).FillWidth()
 	for _, r := range []struct {
 		name  string
 		value *string

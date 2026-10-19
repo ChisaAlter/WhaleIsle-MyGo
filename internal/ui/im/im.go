@@ -17,6 +17,7 @@ import (
 
 // Model wires the IM panel to store and harness status.
 type Model struct {
+	Embedded         bool
 	Store            *imstore.Store
 	ThemeID          string
 	SystemDark       bool
@@ -33,6 +34,10 @@ type Model struct {
 
 // View paints the IM panel with channel list, local history, and composer.
 func View(c *ui.Context, m Model) {
+	if m.Embedded {
+		SettingsView(c, m)
+		return
+	}
 	if m.Store != nil && m.Store.Onboarding.Snapshot().Open {
 		onboardingView(c, m)
 		return
@@ -56,54 +61,58 @@ func View(c *ui.Context, m Model) {
 	}
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-			if m.Store != nil && ui.Button(c, "平台接入 / 修复").Disabled(m.PluginDisabled).Clicked() {
-				m.Store.Onboarding.Show("feishu")
-			}
-			if m.Store != nil && ui.Button(c, "AI Office").Disabled(m.PluginDisabled).Clicked() {
-				m.Store.Office.Show(context.Background())
-			}
-			if snap.Loading {
-				ui.Text(c, i18n.T(i18n.KeyIMLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
-			if m.OnOpenPluginWeb != nil && ui.Button(c, i18n.T(i18n.KeyIMOpenWeb)).Clicked() {
-				m.OnOpenPluginWeb()
-			}
-			if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyIMRefresh)).Disabled(snap.ConnectionBusy).Clicked() {
-				if m.OnRefresh != nil {
-					m.OnRefresh()
-				} else {
-					m.Store.Refresh(context.Background())
+		if !m.Embedded {
+			ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
+				if m.Store != nil && ui.Button(c, "平台接入 / 修复").Disabled(m.PluginDisabled).Clicked() {
+					m.Store.Onboarding.Show("feishu")
 				}
-			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyIMBack)).Clicked() {
-				m.OnClose()
-			}
-		})
-		ui.Box(c).Fill().Height(1).Background(border)
+				if m.Store != nil && ui.Button(c, "AI Office").Disabled(m.PluginDisabled).Clicked() {
+					m.Store.Office.Show(context.Background())
+				}
+				if snap.Loading {
+					ui.Text(c, i18n.T(i18n.KeyIMLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				}
+				if m.OnOpenPluginWeb != nil && ui.Button(c, i18n.T(i18n.KeyIMOpenWeb)).Clicked() {
+					m.OnOpenPluginWeb()
+				}
+				if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyIMRefresh)).Disabled(snap.ConnectionBusy).Clicked() {
+					if m.OnRefresh != nil {
+						m.OnRefresh()
+					} else {
+						m.Store.Refresh(context.Background())
+					}
+				}
+				if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyIMBack)).Clicked() {
+					m.OnClose()
+				}
+			})
+			ui.Box(c).Fill().Height(1).Background(border)
 
+		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
 			if !snap.HasIMRPC {
 				ui.Text(c, i18n.T(i18n.KeyIMStubNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 
-			rows := []struct{ label, value string }{
-				{i18n.T(i18n.KeyIMHarnessOverlay), onOff(m.HarnessIMOverlay)},
-				{i18n.T(i18n.KeyIMPluginDisabled), onOff(m.PluginDisabled)},
-				{i18n.T(i18n.KeyIMMux), muxLabel(m.HarnessReady, m.MuxConnected)},
-				{i18n.T(i18n.KeyIMGeneratedRPC), rpcLabel(snap.HasIMRPC, len(snap.Methods))},
-				{i18n.T(i18n.KeyIMBridge), bridgeLabel(snap.BridgeMode)},
-			}
-			ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-				for _, row := range rows {
-					ui.Row(c).Gap(12).Children(func() {
-						ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)
-						ui.Text(c, row.value).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-					})
+			if !m.Embedded {
+				rows := []struct{ label, value string }{
+					{i18n.T(i18n.KeyIMHarnessOverlay), onOff(m.HarnessIMOverlay)},
+					{i18n.T(i18n.KeyIMPluginDisabled), onOff(m.PluginDisabled)},
+					{i18n.T(i18n.KeyIMMux), muxLabel(m.HarnessReady, m.MuxConnected)},
+					{i18n.T(i18n.KeyIMGeneratedRPC), rpcLabel(snap.HasIMRPC, len(snap.Methods))},
+					{i18n.T(i18n.KeyIMBridge), bridgeLabel(snap.BridgeMode)},
 				}
-			})
+				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+					for _, row := range rows {
+						ui.Row(c).Gap(12).Children(func() {
+							ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)
+							ui.Text(c, row.value).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+						})
+					}
+				})
 
+			}
 			if m.PluginDisabled {
 				ui.Text(c, i18n.T(i18n.KeyIMPluginOff)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 			}

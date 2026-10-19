@@ -25,6 +25,7 @@ func jobKillable(status string) bool {
 
 // Model wires the usage panel to store state.
 type Model struct {
+	Embedded       bool
 	ActionError    string
 	Store          *usagestore.Store
 	SessionID      string
@@ -43,6 +44,10 @@ type Model struct {
 
 // View paints the native usage panel.
 func View(c *ui.Context, m Model) {
+	if m.Embedded {
+		embeddedView(c, m)
+		return
+	}
 	if m.Store == nil {
 		return
 	}

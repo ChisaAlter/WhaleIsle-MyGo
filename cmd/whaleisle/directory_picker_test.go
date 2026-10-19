@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -237,7 +239,11 @@ func TestDirectoryPickerListingFailureAndCreateNavigation(t *testing.T) {
 	}
 	s.mu.Unlock()
 	s.requestDirectoryPicker(sessions, nil, "/home", "child")
-	awaitDirectoryPicker(t, settled)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickBrowser.Creating && !s.dirPickLoading
+	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(created) != 1 || s.dirPickListing.Path != "/home/child" || s.dirPickErr != "" {
@@ -297,7 +303,7 @@ func TestDirectoryPickerModalBoundsAndEscape(t *testing.T) {
 		s := &mainState{dirPickOpen: true, dirPickLoading: true}
 		sessions := session.New()
 		tt := ui.NewTester(func(c *ui.Context) { s.directoryPickerView(c, nil, sessions, "system", false, nil) }, size[0], size[1])
-		closeButton, ok := tt.Find(i18n.T(i18n.KeyDirPickClose))
+		closeButton, ok := tt.Find("Cancel")
 		if !ok || closeButton.X < 24 || closeButton.Y < 24 || closeButton.X+closeButton.W > float32(size[0]-24) || closeButton.Y+closeButton.H > float32(size[1]-24) {
 			t.Fatalf("close escaped viewport budget at %v: %+v", size, closeButton)
 		}
@@ -308,5 +314,462 @@ func TestDirectoryPickerModalBoundsAndEscape(t *testing.T) {
 		if s.dirPickOpen || s.dirPickLoading {
 			t.Fatal("Escape failed to dismiss loading directory picker")
 		}
+	}
+}
+
+func directoryBrowserFixture(t *testing.T, handle func(string, map[string]any) (any, error)) (*mainState, *session.Store) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var q struct {
+			RPCID   string
+			Payload struct{ Args map[string]any }
+		}
+		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+			t.Error(err)
+			return
+		}
+		method := strings.TrimPrefix(r.URL.Path, "/api/")
+		if method != "directoryPicker/list" && method != "directoryPicker/createDirectory" {
+			t.Errorf("unexpected endpoint %s", method)
+		}
+		value, err := handle(method, q.Payload.Args)
+		result := map[string]any{"ok": true, "value": value}
+		if err != nil {
+			result = map[string]any{"ok": false, "error": map[string]any{"code": "directory-picker/unreadable", "message": err.Error()}}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": q.RPCID, "result": result})
+	}))
+	t.Cleanup(srv.Close)
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+	sessions := session.New()
+	sessions.Attach(client, nil)
+	return &mainState{dshClient: client}, sessions
+}
+
+func browserRoot() api.DirectoryListing {
+	return api.DirectoryListing{Path: "/", Home: "/", Crumbs: []api.DirectoryListingCrumbsItem{{Name: "/", Path: "/"}}, Entries: []api.DirectoryListingCrumbsItem{{Name: "Project", Path: "/project"}, {Name: "Other", Path: "/other"}}}
+}
+
+func browserProject() api.DirectoryListing {
+	return api.DirectoryListing{Path: "/project", Home: "/", Crumbs: []api.DirectoryListingCrumbsItem{{Name: "/", Path: "/"}, {Name: "Project", Path: "/project"}}, Entries: []api.DirectoryListingCrumbsItem{{Name: "Deep", Path: "/project/deep"}}}
+}
+
+func TestDirectoryBrowserMillerSelectAdvanceAndAnchoredNavigation(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		path, _ := args["path"].(string)
+		if path == "/project" {
+			once.Do(func() { close(entered); <-release })
+			return browserProject(), nil
+		}
+		if path == "/project/deep" {
+			return api.DirectoryListing{Path: path, Home: "/", Crumbs: []api.DirectoryListingCrumbsItem{{Path: "/"}, {Path: "/project"}, {Path: path}}}, nil
+		}
+		return browserRoot(), nil
+	})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.selectDirectoryPicker(sessions, nil, api.DirectoryListingCrumbsItem{Name: "Project", Path: "/project"}, false)
+	awaitDirectoryPicker(t, func() bool {
+		select {
+		case <-entered:
+			return true
+		default:
+			return false
+		}
+	})
+	s.mu.Lock()
+	immediate := s.dirPickLoading && s.dirPickBrowser.Selected != nil && s.dirPickBrowser.Selected.Path == "/project" && s.dirPickBrowser.Child == nil && s.dirPickBrowser.Parent.Path == "/"
+	s.mu.Unlock()
+	if !immediate {
+		t.Fatal("left pick did not immediately split and acknowledge selection")
+	}
+	close(release)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.dirPickBrowser.Child != nil && s.dirPickBrowser.Child.Path == "/project"
+	})
+	s.selectDirectoryPicker(sessions, nil, api.DirectoryListingCrumbsItem{Name: "Deep", Path: "/project/deep"}, true)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Child != nil && s.dirPickBrowser.Child.Path == "/project/deep"
+	})
+	s.mu.Lock()
+	advanced := s.dirPickBrowser.Parent.Path == "/project" && s.dirPickBrowser.Selected.Path == "/project/deep"
+	s.mu.Unlock()
+	if !advanced {
+		t.Fatal("right pick did not move child into parent column")
+	}
+	s.requestDirectoryPicker(sessions, nil, "/project", "")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent.Path == "/" && s.dirPickBrowser.Child != nil && s.dirPickBrowser.Child.Path == "/project"
+	})
+}
+
+func TestDirectoryBrowserParentWaitAndLateUpgrade(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		if args["path"] == "/" {
+			once.Do(func() { close(entered); <-release })
+			return browserRoot(), nil
+		}
+		return browserProject(), nil
+	})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		select {
+		case <-entered:
+			return true
+		default:
+			return false
+		}
+	})
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil && s.dirPickBrowser.Parent.Path == "/project" && s.dirPickBrowser.Selected == nil
+	})
+	close(release)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.dirPickBrowser.Parent.Path == "/" && s.dirPickBrowser.Selected != nil && s.dirPickBrowser.Child != nil
+	})
+}
+
+func TestDirectoryBrowserTypedPreviewWaitsBothLegsAndCancelKeepsLanding(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		path, _ := args["path"].(string)
+		if path == "/project/" {
+			return browserProject(), nil
+		}
+		if path == "/" {
+			once.Do(func() { close(entered); <-release })
+		}
+		return browserRoot(), nil
+	})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.beginDirectoryPath(sessions, nil)
+	s.editDirectoryPath(sessions, nil, "/project/De")
+	awaitDirectoryPicker(t, func() bool {
+		select {
+		case <-entered:
+			return true
+		default:
+			return false
+		}
+	})
+	// A speculative preview has no200ms single-pane fallback; holding the
+	// parent beyond that bound must preserve the previous readable pane.
+	timer := time.NewTimer(230 * time.Millisecond)
+	<-timer.C
+	s.mu.Lock()
+	held := s.dirPickLoading && s.dirPickBrowser.Parent.Path == "/" && s.dirPickBrowser.Child == nil
+	s.mu.Unlock()
+	if !held {
+		t.Fatal("draft preview flashed target alone before parent leg")
+	}
+	close(release)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Child != nil
+	})
+	s.mu.Lock()
+	prefix, ok := s.dirPickBrowser.Prefix()
+	retained := s.dirPickBrowser.PathDraft != nil && *s.dirPickBrowser.PathDraft == "/project/De"
+	s.mu.Unlock()
+	if !retained || !ok || prefix != "De" {
+		t.Fatal("preview lost draft or canonicalized prefix binding")
+	}
+	s.cancelDirectoryPath(sessions, nil)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dirPickBrowser.PathDraft != nil || s.dirPickBrowser.Child == nil || s.dirPickBrowser.Child.Path != "/project" {
+		t.Fatal("path cancellation undid already-landed panes")
+	}
+}
+
+func TestDirectoryBrowserCreateFailureRetryRawNameAndLanding(t *testing.T) {
+	const name = " child "
+	var creates atomic.Int32
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		if method == "directoryPicker/createDirectory" {
+			if args["path"] != "/" || args["name"] != name {
+				t.Errorf("create changed raw Host arguments %+v", args)
+			}
+			if creates.Add(1) == 1 {
+				return nil, fmt.Errorf("the folder could not be created")
+			}
+			return "/ child ", nil
+		}
+		if args["path"] == "/ child " {
+			return api.DirectoryListing{Path: "/ child ", Home: "/"}, nil
+		}
+		return browserRoot(), nil
+	})
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.createDirectoryPicker(sessions, nil, "/", name)
+	awaitDirectoryPicker(t, func() bool { s.mu.Lock(); defer s.mu.Unlock(); return !s.dirPickBrowser.Creating })
+	s.mu.Lock()
+	failed := s.dirPickBrowser.FolderDraft != nil && *s.dirPickBrowser.FolderDraft == name && s.dirPickBrowser.CreateError == "the folder could not be created" && s.dirPickErr == ""
+	s.mu.Unlock()
+	if !failed {
+		t.Fatal("create failure lost raw draft, Host message or nested ownership")
+	}
+	s.createDirectoryPicker(sessions, nil, "/", name)
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Child != nil && s.dirPickBrowser.Child.Path == "/ child "
+	})
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if creates.Load() != 2 || s.dirPickBrowser.Parent.Path != "/" || s.dirPickBrowser.Selected.Name != name || s.dirPickBrowser.FolderDraft != nil || s.dirPickBrowser.Creating {
+		t.Fatal("create retry did not relist parent and select created child")
+	}
+}
+
+func TestDirectoryBrowserEnteredPathPreservesWhitespaceAndErrorsStaySilentForPreview(t *testing.T) {
+	var entered atomic.Bool
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		path, _ := args["path"].(string)
+		if path == "/trailing " {
+			entered.Store(true)
+			return api.DirectoryListing{Path: path, Home: "/"}, nil
+		}
+		if path == "/denied/" {
+			return nil, fmt.Errorf("preview unavailable")
+		}
+		if path != "" {
+			t.Errorf("unexpected rewritten path %q", path)
+		}
+		return browserRoot(), nil
+	})
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.beginDirectoryPath(sessions, nil)
+	s.editDirectoryPath(sessions, nil, "/denied/name")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.dirPickBrowser.ScanWindow >= 2 && !s.dirPickLoading
+	})
+	s.mu.Lock()
+	silent := s.dirPickErr == "" && s.dirPickBrowser.Parent.Path == "/" && s.dirPickBrowser.PathDraft != nil
+	s.mu.Unlock()
+	if !silent {
+		t.Fatal("failed speculative path scan replaced panes or surfaced an error")
+	}
+	s.requestDirectoryPicker(sessions, nil, "/trailing ", "")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickListing.Path == "/trailing "
+	})
+	if !entered.Load() {
+		t.Fatal("submitted path was trimmed before Host")
+	}
+}
+
+func TestDirectoryBrowserClosedCreationCannotRepopulateReopenedFlow(t *testing.T) {
+	entered, release, responded := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	var lists atomic.Int32
+	s, sessions := directoryBrowserFixture(t, func(method string, args map[string]any) (any, error) {
+		if method == "directoryPicker/createDirectory" {
+			close(entered)
+			<-release
+			defer close(responded)
+			return "/late-created", nil
+		}
+		lists.Add(1)
+		if args["path"] != nil {
+			t.Errorf("old create issued follow-up after close: %+v", args)
+		}
+		return browserRoot(), nil
+	})
+	defer once.Do(func() { close(release) })
+	s.openDirectoryPicker(sessions, nil, "workspace")
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.mu.Lock()
+	s.dirPickBrowser.ShowHidden = true
+	s.mu.Unlock()
+	s.createDirectoryPicker(sessions, nil, "/", "late")
+	awaitDirectoryPicker(t, func() bool {
+		select {
+		case <-entered:
+			return true
+		default:
+			return false
+		}
+	})
+	s.closeDirectoryPicker(nil)
+	s.openDirectoryPicker(sessions, nil, "mention")
+	once.Do(func() { close(release) })
+	awaitDirectoryPicker(t, func() bool {
+		select {
+		case <-responded:
+			return true
+		default:
+			return false
+		}
+	})
+	awaitDirectoryPicker(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return !s.dirPickLoading && s.dirPickBrowser.Parent != nil
+	})
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.dirPickOpen || s.dirPickMode != "mention" || s.dirPickBrowser.ShowHidden || s.dirPickBrowser.Creating || s.dirPickBrowser.FolderDraft != nil || s.dirPickBrowser.Selected != nil || lists.Load() != 2 {
+		t.Fatal("old creation contaminated freshly reopened browser")
+	}
+}
+
+func TestDirectoryBrowserRenderMergePreservesSameRequestCommit(t *testing.T) {
+	root := browserRoot()
+	draft := "original draft"
+	s := &mainState{dirPickOpen: true}
+	s.dirPickBrowser.Parent = &root
+	s.dirPickBrowser.FolderDraft = &draft
+	s.dirPickBrowser.FocusEdit = true
+	sessions := session.New()
+	op := s.beginDirectoryScan(sessions, nil)
+	if op == nil {
+		t.Fatal("could not capture picker scope")
+	}
+	defer op.finish()
+	s.mu.Lock()
+	before := s.dirPickBrowser.Clone()
+	s.mu.Unlock()
+	edited := before.Clone()
+	edited.ShowHidden = true
+	*edited.FolderDraft = "typed in stale frame"
+	edited.FocusEdit = false
+	child := browserProject()
+	if !op.commit(func(b *dirpick.BrowserState) {
+		b.Child = &child
+		b.Creating = true
+		b.CreateError = "new Host failure"
+		b.FocusEdit = true
+		s.dirPickLoading = false
+	}) {
+		t.Fatal("same-request completion rejected")
+	}
+	s.mergeDirectoryPickerUI(op.request, before, edited)
+	s.mu.Lock()
+	retained := s.dirPickBrowser.Child == &child && s.dirPickBrowser.Creating && s.dirPickBrowser.CreateError == "new Host failure" && s.dirPickBrowser.FocusEdit && *s.dirPickBrowser.FolderDraft == "original draft" && s.dirPickBrowser.ShowHidden
+	s.mu.Unlock()
+	if !retained {
+		t.Fatal("render merge lost same-request Host state or UI toggle")
+	}
+	// Once editable, canceling the nested draft is a UI action, not a stale
+	// replacement of the freshly committed panes or error state.
+	op.commit(func(b *dirpick.BrowserState) { b.Creating = false })
+	s.mu.Lock()
+	before = s.dirPickBrowser.Clone()
+	s.mu.Unlock()
+	edited = before.Clone()
+	edited.FolderDraft = nil
+	edited.CreateError = ""
+	edited.PathHadFocus = true
+	s.mergeDirectoryPickerUI(op.request, before, edited)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dirPickBrowser.FolderDraft != nil || s.dirPickBrowser.CreateError != "" || s.dirPickBrowser.Child != &child || !s.dirPickBrowser.PathHadFocus {
+		t.Fatal("UI nested cancel did not merge independently of Host panes")
+	}
+}
+
+func TestDirectoryBrowserEditorEscapeMaskAndNestedEscapeOwnership(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	root := browserRoot()
+	draft := "/"
+	s := &mainState{dirPickOpen: true}
+	s.dirPickBrowser.Parent = &root
+	s.dirPickBrowser.PathDraft = &draft
+	s.dirPickBrowser.FocusPath = true
+	sessions := session.New()
+	tt := ui.NewTester(func(c *ui.Context) { s.directoryPickerView(c, nil, sessions, "system", false, nil) }, 900, 700)
+	if !s.dirPickOpen || s.dirPickBrowser.PathDraft == nil {
+		t.Fatalf("editor lost during initial modal focus: open=%v browser=%+v", s.dirPickOpen, s.dirPickBrowser)
+	}
+	tt.Key(0, ui.KeyEscape)
+	s.mu.Lock()
+	editorClosed := s.dirPickOpen && s.dirPickBrowser.PathDraft == nil
+	s.mu.Unlock()
+	if !editorClosed {
+		t.Fatalf("Escape closed browser instead of its path editor: open=%v browser=%+v", s.dirPickOpen, s.dirPickBrowser)
+	}
+	if err := tt.Click("Edit path"); err != nil {
+		t.Fatal(err)
+	}
+	tt.ClickAt(4, 4)
+	if s.dirPickOpen {
+		t.Fatal("mask click canceled only the path instead of closing browser")
+	}
+	s.mu.Lock()
+	s.dirPickOpen = true
+	s.dirPickBrowser.FolderDraft = &draft
+	s.mu.Unlock()
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.dirPickOpen || s.dirPickBrowser.FolderDraft != nil {
+		t.Fatal("nested Escape escaped both modal layers")
 	}
 }

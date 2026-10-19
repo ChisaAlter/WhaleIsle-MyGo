@@ -25,8 +25,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("Provider 档案", "Provider profiles")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("删除用户添加的档案及其可写的页面管理凭证；内置或基础配置档案不可删除。", "Remove user-added profiles and their writable page-managed credentials. Built-in/base profiles cannot be removed.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, providerCopy("已配置的供应商", "Configured providers")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(s.Busy).Clicked() {
 		a.OnRefresh()
 	}
@@ -44,14 +43,14 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 	}
 	for _, r := range s.Rows {
 		r := r
-		desktopRow(c, r.DisplayName+" ("+r.Provider+")", func() {
+		bodyRosterRow(c, r.DisplayName+" ("+r.Provider+")", func() {
 			ui.Text(c, r.Namespace+" / "+strings.Join(r.Path, " / ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if r.Removable {
 				if a.OnDelete != nil && ui.Button(c, providerCopy("删除档案", "Remove profile")).Disabled(s.Busy || !s.Ready).Clicked() {
 					a.OnDelete(r.ID)
 				}
 			} else {
-				ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).TextColor(muted)
+				ui.Text(c, providerCopy("内置或基础配置供应商", "Built-in or base provider")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
 		}, fg, muted)
 	}
@@ -64,7 +63,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 		} else {
 			ui.Text(c, providerCopy("没有可删除的页面管理凭证；仅移除此档案。", "No removable page-managed credential; only this profile will be removed.")).TextColor(muted)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if a.OnConfirm != nil && ui.Button(c, providerCopy("确认删除", "Confirm removal")).Disabled(s.Busy).Clicked() {
 				a.OnConfirm()
 			}

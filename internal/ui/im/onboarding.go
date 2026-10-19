@@ -25,31 +25,42 @@ func onboardingView(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady
 	ui.Column(c.Key(fmt.Sprintf("im-setup-%d", v.Scope))).Grow(1).MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
-		ui.Row(c).Padding(10).Gap(8).Children(func() {
-			ui.Text(c, p.Label+" 原生接入").Bold().Grow(1).TextColor(fg)
-			if ui.Button(c, "刷新连接状态").Disabled(blocked).Clicked() {
-				s.Refresh()
-			}
-			if ui.Button(c, "返回 IM").Clicked() {
-				s.Hide()
-			}
-			if m.OnClose != nil && ui.Button(c, "关闭").Clicked() {
-				s.Hide()
-				m.OnClose()
-			}
-		})
+		if !m.Embedded {
+			ui.Row(c).Padding(10).Gap(8).Children(func() {
+				ui.Text(c, p.Label+" 原生接入").Bold().Grow(1).TextColor(fg)
+				if ui.Button(c, "刷新连接状态").Disabled(blocked).Clicked() {
+					s.Refresh()
+				}
+				if ui.Button(c, "返回 IM").Clicked() {
+					s.Hide()
+				}
+				if m.OnClose != nil && ui.Button(c, "关闭").Clicked() {
+					s.Hide()
+					m.OnClose()
+				}
+			})
+		}
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(16).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
-				for start := 0; start < len(imonboard.Platforms); start += 3 {
-					end := start + 3
-					if end > len(imonboard.Platforms) {
-						end = len(imonboard.Platforms)
-					}
-					ui.Row(c).Gap(6).Children(func() {
-						for _, platform := range imonboard.Platforms[start:end] {
-							if ui.Button(c, platform.Label).Disabled(v.Busy || platform.ID == v.Channel).Clicked() {
-								s.Show(platform.ID)
+				if !m.Embedded {
+					for start := 0; start < len(imonboard.Platforms); start += 3 {
+						end := start + 3
+						if end > len(imonboard.Platforms) {
+							end = len(imonboard.Platforms)
+						}
+						ui.Row(c).Gap(6).Children(func() {
+							for _, platform := range imonboard.Platforms[start:end] {
+								if ui.Button(c, platform.Label).Disabled(v.Busy || platform.ID == v.Channel).Clicked() {
+									s.Show(platform.ID)
+								}
 							}
+						})
+					}
+				} else {
+					ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
+						ui.Text(c, p.Label).Bold().TextColor(fg).Grow(1)
+						if ui.Button(c, "刷新连接状态").Disabled(blocked).Clicked() {
+							s.Refresh()
 						}
 					})
 				}

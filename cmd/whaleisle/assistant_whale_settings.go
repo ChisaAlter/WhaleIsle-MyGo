@@ -14,12 +14,13 @@ import (
 
 func (s *mainState) whaleSettingsOwner(ep harness.Endpoint) (*dsh.Client, string) {
 	s.mu.Lock()
-	active := s.assistantOpen && s.bootStatus.State == harness.Ready && s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
+	petSettings := s.settingsPetActiveLocked()
+	active := (s.assistantOpen || petSettings) && s.bootStatus.State == harness.Ready && s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
 	readyEndpoint := s.bootStatus.Endpoint
 	generation := s.bootStatus.Generation
 	asst := s.assistant
 	s.mu.Unlock()
-	if !active || asst == nil || asst.Snapshot().Mode != assiststore.ModeWhale || readyEndpoint.Origin != ep.Origin || readyEndpoint.Cookie != ep.Cookie {
+	if !active || (!petSettings && (asst == nil || asst.Snapshot().Mode != assiststore.ModeWhale)) || readyEndpoint.Origin != ep.Origin || readyEndpoint.Cookie != ep.Cookie {
 		return nil, ""
 	}
 	s.dshMu.Lock()

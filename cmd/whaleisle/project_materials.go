@@ -50,7 +50,7 @@ func (s *projectController) runProjectMaterial(win *mygo.Window, id, path, actio
 		s.mu.Unlock()
 		return
 	}
-	if path != "notes.md" && path != "preferences.md" {
+	if path != "charter.md" && path != "notes.md" && path != "preferences.md" {
 		s.mu.Unlock()
 		return
 	}

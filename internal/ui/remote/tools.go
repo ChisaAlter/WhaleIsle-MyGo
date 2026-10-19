@@ -11,11 +11,11 @@ import (
 func viewMachineTools(c *ui.Context, m Model) {
 	s, e := m.Machines.Snapshot(), m.MachineEditor
 	v := s.Tools
-	if !v.Loaded && !s.Busy && m.HarnessReady && m.RemoteWorkspaceEnabled {
+	if !v.Loaded && !s.Busy && v.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
 		m.Machines.LoadTools()
 	}
-	ui.Row(c).Gap(8).Children(func() {
-		ui.Text(c, label("SSH 设置与端口转发", "SSH settings and port forwards")).Bold().Grow(1)
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		ui.Text(c, label("SSH 设置与端口转发", "SSH settings and port forwards")).Bold().Grow(1).MinWidth(0)
 		if ui.Button(c, label("刷新 SSH 设置", "Refresh SSH settings")).Disabled(s.Busy || !m.HarnessReady).Clicked() {
 			m.Machines.LoadTools()
 		}
@@ -37,15 +37,15 @@ func viewMachineTools(c *ui.Context, m Model) {
 		if s.Status.HostKeyKnown {
 			key = label("主机密钥已登记", "Host key is recorded")
 		}
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, key).Grow(1)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			ui.Text(c, key).Grow(1).MinWidth(0)
 			if ui.Button(c, label("忘记主机密钥", "Forget host key")).Disabled(s.Busy).Clicked() {
 				e.PendingForget = s.CurrentID
 			}
 		})
 		if e.PendingForget == s.CurrentID {
 			ui.Text(c, label("忘记后需要重新核对服务器指纹。确认清除此机器的记录？", "Verify the server fingerprint again after forgetting its key. Clear this machine's key record?"))
-			ui.Row(c).Gap(8).Children(func() {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
 				if ui.Button(c, label("确认忘记", "Confirm forget")).Disabled(s.Busy).Clicked() {
 					m.Machines.ForgetHostKey()
 					e.PendingForget = ""
@@ -65,8 +65,8 @@ func viewMachineTools(c *ui.Context, m Model) {
 	}
 	for _, entry := range v.SSHEntries {
 		entry := entry
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, entry.Host+" · "+entry.User+"@"+entry.HostName).Grow(1)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			ui.Text(c, entry.Host+" · "+entry.User+"@"+entry.HostName).Grow(1).MinWidth(0)
 			if ui.Button(c, label("导入表单", "Import to form")).Disabled(s.Busy).Clicked() {
 				d, err := entry.Draft()
 				if err != nil {
@@ -89,13 +89,13 @@ func viewMachineTools(c *ui.Context, m Model) {
 			}
 			count++
 			f := f
-			ui.Row(c).Gap(8).Children(func() {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
 				state := label("已停止", "Stopped")
 				action, actionLabel := "start", label("启动", "Start")
 				if f.Active {
 					state, action, actionLabel = label("运行中", "Running"), "stop", label("停止", "Stop")
 				}
-				ui.Text(c, fmt.Sprintf("%s :%d → %s:%d · %s", f.Direction, f.ListenPort, f.TargetHost, f.TargetPort, state)).Grow(1)
+				ui.Text(c, fmt.Sprintf("%s :%d → %s:%d · %s", f.Direction, f.ListenPort, f.TargetHost, f.TargetPort, state)).Grow(1).MinWidth(0)
 				if ui.Button(c, actionLabel).Disabled(s.Busy).Clicked() {
 					m.Machines.ForwardAction(f.ID, action)
 				}
@@ -131,7 +131,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 			{label("目标主机（默认 127.0.0.1）", "Target host (default 127.0.0.1)"), &e.Forward.TargetHost},
 			{label("目标端口（默认同监听）", "Target port (default same as listen)"), &e.Forward.TargetPort},
 		} {
-			ui.Row(c).Gap(8).Children(func() { ui.Text(c, f.title).Width(230); ui.TextInput(c, f.value).FillWidth().Disabled(s.Busy) })
+			ui.Row(c).Gap(8).Wrap().Children(func() { ui.Text(c, f.title).Width(230); ui.TextInput(c, f.value).FillWidth().Disabled(s.Busy) })
 		}
 		ui.Checkbox(c, &e.Forward.AutoStart, label("连接后自动启动本地转发", "Start local forward automatically on connection")).Disabled(s.Busy || e.Forward.Direction == "reverse")
 		if e.ForwardError != "" {
@@ -149,8 +149,8 @@ func viewMachineTools(c *ui.Context, m Model) {
 			}
 		}
 	}
-	ui.Row(c).Gap(8).Children(func() {
-		ui.Text(c, label("远程审计日志", "Remote audit log")).Bold().Grow(1)
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		ui.Text(c, label("远程审计日志", "Remote audit log")).Bold().Grow(1).MinWidth(0)
 		title := label("显示最近 100 行", "Show last 100 lines")
 		if e.ShowAudit {
 			title = label("隐藏日志", "Hide log")
