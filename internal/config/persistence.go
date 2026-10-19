@@ -83,6 +83,9 @@ func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) 
 		if errRename == nil {
 			return nil
 		}
+		if errors.Is(errRename, ErrConflict) {
+			return errRename
+		}
 		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
 	}
 	return errRename

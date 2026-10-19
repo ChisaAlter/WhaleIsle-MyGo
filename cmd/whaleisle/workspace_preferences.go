@@ -12,8 +12,12 @@ import (
 func (s *mainState) bindWorkspacePreferences(sessions *session.Store, client *dsh.Client) {
 	s.mu.Lock()
 	cfg := s.cfgStore
+	if cfg != nil && (s.viewPreferences == nil || s.viewPreferences.store != cfg) {
+		s.viewPreferences = newWorkspaceViewPreferences(cfg)
+	}
+	prefs := s.viewPreferences
 	s.mu.Unlock()
 	if cfg != nil {
-		sessions.BindWorkspacePreferences(client, "supervised-dsh-home:"+paths.DshHome(), cfg)
+		sessions.BindWorkspacePreferences(client, "supervised-dsh-home:"+paths.DshHome(), prefs)
 	}
 }

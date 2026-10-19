@@ -130,6 +130,7 @@ type mainState struct {
 	trayHideNotification *mygo.Notification
 	bridgeAlerts         *bridgeAlertUI
 	cfgStore             *config.Store
+	viewPreferences      *workspaceViewPreferences
 	desktopPet           *pet.Companion
 	petEvents            petEventController
 	petPersonality       petPersonalityMirror
