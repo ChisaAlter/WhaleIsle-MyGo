@@ -16,11 +16,18 @@ type DeliveryTerminalRef struct {
 	DelegationRef string `json:"delegationRef"`
 	RunID         string `json:"runId"`
 }
+type DeliveryPageFile struct {
+	AttachmentID string `json:"attachmentId"`
+	Name         string `json:"name"`
+	Bytes        int64  `json:"bytes"`
+}
+
 type DeliveryPageReference struct {
-	SessionID string `json:"sessionId"`
-	File      string `json:"file"`
-	Title     string `json:"title"`
-	CallID    string `json:"callId"`
+	SessionID string           `json:"sessionId"`
+	File      DeliveryPageFile `json:"file"`
+	Title     string           `json:"title"`
+	CallID    string           `json:"callId"`
+	Height    int              `json:"height"`
 }
 
 // HistoricalDelivery is the full recorded handover, not the current request

@@ -161,9 +161,7 @@ func activityEventView(c *ui.Context, m Model, e projectflow.ActivityEvent) {
 				for _, f := range d.Artifacts {
 					ui.Text(c, tr("文件引用：", "Artifact reference: ")+f.Path+" · "+f.WorkstreamID+" · "+f.DelegationRef).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 				}
-				for _, p := range d.Pages {
-					ui.Text(c, tr("页面引用：", "Page reference: ")+p.Title+" · "+p.SessionID+" · "+p.File).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-				}
+				renderVisualPages(c, m, "activity:"+e.Key, d.Pages)
 			}
 			for _, ref := range projectflow.ActivityEventReports(e) {
 				ref := ref

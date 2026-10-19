@@ -117,14 +117,9 @@ func deliveryRecordView(c *ui.Context, m Model, d projectflow.HistoricalDelivery
 			for _, file := range d.Artifacts {
 				ui.Text(c, tr("引用文件：", "Referenced file: ")+file.Path+"\n"+file.WorkstreamID+" · "+file.DelegationRef).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 			}
-			for _, page := range d.Pages {
-				ui.Text(c, tr("页面引用：", "Recorded page reference: ")+page.Title+"\n"+page.SessionID+" · "+page.File).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-			}
+			renderVisualPages(c, m, "delivery:"+d.ID, d.Pages)
 			if len(d.Error) > 0 && string(d.Error) != "null" {
 				ui.Text(c, tr("原记录错误：", "Recorded error: ")+string(d.Error)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-			}
-			if len(d.Artifacts) > 0 || len(d.Pages) > 0 {
-				ui.Text(c, tr("这里保留文件/页面来源身份；此视图不打开主机路径或执行页面。", "File and page provenance is retained here; this view does not open Host paths or execute pages.")).FontSize(fonttheme.InterfaceSize(12))
 			}
 		})
 	})
