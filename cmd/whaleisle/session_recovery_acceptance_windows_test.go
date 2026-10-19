@@ -202,7 +202,7 @@ func runNativeSessionRecovery() error {
 			proof := map[string]any{"phase": phase, "host": "ready", "historyReady": snap.HistoryReady, "messages": len(snap.Messages), "selectedOwnedID": id, "selectedWorkspaceProjectionRendered": projected, "modelRequests": 0, "productionSaveResume": phase == "save", "productionOpenResume": phase == "restore", "draftAndAttachment": true, "viewLayout": true, "fileTabsAndUnsavedBuffer": true, "workspaceDiskUntouched": true, "windowShownWithoutFocus": shown, "contentSizeDIP": []int{contentWidth, contentHeight}}
 			proof["sourceFileEditViewMode"] = fileMode
 			proof["selectedWorkspacePaneKey"] = activePane
-			proof["workspaceGeometryDIP"] = geometry
+			proof["adapterLayoutStateDIP"] = geometry // Persisted state, not measured native node bounds.
 			if phase == "restore" {
 				png, err := win.CapturePage()
 				if err != nil {
