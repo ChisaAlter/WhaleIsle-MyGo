@@ -1075,7 +1075,7 @@ func (s *Store) CancelRunning(ctx context.Context) {
 func (s *Store) CancelSession(ctx context.Context, sessionID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	s.mu.Lock()
-	client := s.client
+	client, hostGeneration := s.client, s.composerHostGeneration
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		return
@@ -1086,6 +1086,13 @@ func (s *Store) CancelSession(ctx context.Context, sessionID string) {
 			"request": map[string]string{"sessionId": sessionID},
 		}, &out)
 		s.mu.Lock()
+		// Stop belongs to the addressed Session, just like the original
+		// Session.promptError. A late result cannot become another Session's
+		// composer notice or cross a Host replacement, even if its ID is reused.
+		if s.client != client || s.composerHostGeneration != hostGeneration || s.selectedID != sessionID {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = err.Error()
 		} else if out.Accepted {

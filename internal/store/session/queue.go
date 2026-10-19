@@ -88,7 +88,10 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 		s.queueMutationScope, s.queueMutationID = "", ""
 	}
 	if err != nil {
-		if !batch || !queueSteerConverged(err) {
+		// The original conversation.updateQueue treats a consumed occurrence or
+		// an unavailable steering window as convergence for every Steer gesture,
+		// including the per-row button. Other mutations still report failures.
+		if action != QueueActionSteer || !queueSteerConverged(err) {
 			s.lastAction = "queue: " + err.Error()
 		}
 	} else {
