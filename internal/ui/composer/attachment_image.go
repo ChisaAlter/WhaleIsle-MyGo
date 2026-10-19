@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"context"
 	"image"
 	"time"
 
@@ -34,7 +35,13 @@ func attachmentBitmap(decoded image.Image, full bool) *ui.Bitmap {
 func (v *attachmentDisplay) decodeAnimation(data []byte, full bool) {
 	// Shared validation bounds bytes, frames and cumulative composited pixels
 	// before GIF allocation, and preserves disposal, delay and finite-loop rules.
-	animation, err := imagepreview.DecodeAnimation(data)
+	var animation *imagepreview.Animation
+	var err error
+	if imagepreview.IsAnimatedAVIF(data) {
+		animation, err = imagepreview.DecodeAVIFAnimationContext(context.Background(), data)
+	} else {
+		animation, err = imagepreview.DecodeAnimation(data)
+	}
 	if err != nil {
 		v.err = err
 		return

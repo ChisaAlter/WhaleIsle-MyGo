@@ -26,10 +26,18 @@ memory is capped at 512 MiB and pixel decoding has a ten-second context deadline
 
 The application retains its existing 16 MiB input / 32 million pixel policy and
 single-primary-item still-image subset. It supports 8-, 10- and 12-bit pixels and
-applies irot/imir orientation. Animated AVIF, auxiliary/alpha items, grids and
-collections continue to return explicit unsupported errors, never a flattened
-first frame. This is native image decoding, not browser capture or screenshot
-substitution. HDR tone mapping and ICC color management are not added.
+applies irot/imir orientation. The still decoder continues to reject animated
+AVIF, auxiliary/alpha items, grids and collections rather than flatten them.
+Composer and Market separately use the existing `decode_all` ABI for bounded
+AVIS sequences: one AV1 color track with an optional matching alpha track,
+sample timing and edit-list repetition, at most 256 frames / 32 million retained
+canvas pixels. The Go sequence gate checks sample extents and dimensions before
+WASM output allocation. Duration sentinels detect incomplete output because the
+upstream C ABI reports success even after `avifDecoderNextImage` fails. No C or
+WASM binary changed; Files retains its existing still-only AVIF path. Unsupported
+sequence properties (including clean-aperture crop, layered images and additional
+color tracks) return explicit errors. This is native image decoding, not browser
+capture. HDR tone mapping and ICC color management are not added.
 
 `../avif_orientation.go` is adapted only by changing the package name from
 upstream `orientation.go`. Fixtures in `../testdata/test_rot.avif`, `test10.avif`

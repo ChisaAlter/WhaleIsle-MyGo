@@ -105,6 +105,10 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 		out.err = errors.New("image exceeds safe preview byte budget")
 		return out
 	}
+	if imagepreview.IsAnimatedAVIF(data) {
+		out.decodeAnimation(data, len(full) > 0 && full[0])
+		return out
+	}
 	var decoded image.Image
 	switch strings.ToLower(filepath.Ext(a.Path)) {
 	case ".svg":
@@ -328,6 +332,9 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 }
 
 func httpImageType(data []byte) string {
+	if imagepreview.IsAnimatedAVIF(data) {
+		return "image/avif"
+	}
 	typ := http.DetectContentType(data)
 	if strings.HasPrefix(typ, "image/") {
 		return typ

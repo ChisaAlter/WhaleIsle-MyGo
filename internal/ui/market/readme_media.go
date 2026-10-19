@@ -55,7 +55,7 @@ func (d *readmeDecodedImage) load(path string, notify func()) {
 	if bitmapErr == nil && (cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > imagepreview.MaxPixels/int64(cfg.Height)) {
 		return
 	}
-	animated := format == "gif" || imagepreview.IsAnimatedWebP(data)
+	animated := format == "gif" || imagepreview.IsAnimatedWebP(data) || imagepreview.IsAnimatedAVIF(data)
 	if !animated && bitmapErr == nil {
 		d.bitmap, _ = ui.DecodeBitmap(data)
 		d.size()
@@ -91,7 +91,13 @@ func (d *readmeDecodedImage) load(path string, notify func()) {
 func decodeReadmeMedia(data []byte, animated, svg, ico bool) readmeDecodedImage {
 	d := readmeDecodedImage{}
 	if animated {
-		motion, err := imagepreview.DecodeAnimation(data)
+		var motion *imagepreview.Animation
+		var err error
+		if imagepreview.IsAnimatedAVIF(data) {
+			motion, err = imagepreview.DecodeAVIFAnimationContext(context.Background(), data)
+		} else {
+			motion, err = imagepreview.DecodeAnimation(data)
+		}
 		if err != nil {
 			return d
 		}

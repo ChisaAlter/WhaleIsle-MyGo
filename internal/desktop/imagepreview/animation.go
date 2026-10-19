@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Animation contains every composited frame of a prevalidated bounded GIF/WebP.
+// Animation contains every full frame of a prevalidated bounded GIF/WebP/AVIF.
 // It is independent of files, scripts, WebViews and external decoder processes.
 // Total retained canvas pixels cannot exceed MaxPixels.
 type Animation struct {

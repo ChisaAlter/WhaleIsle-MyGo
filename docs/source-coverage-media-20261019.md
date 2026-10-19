@@ -64,7 +64,7 @@ so this does not guess a filename or change network/cache policy.
 | ICO / bounded still AVIF | Existing shared decoder | Existing shared decoder | Added shared decoder |
 | SVG shapes, text, gradients, local references, supported static filters/patterns/markers and bounded embedded raster | Existing isolated rasterizer | Existing isolated rasterizer | Added same rasterizer for documents beyond the existing vector subset |
 | SVG scripts, SMIL/CSS animation, foreignObject, external images/use/paint, nested embedded SVG, unsupported stylesheet constructs | Rejected by existing bounded native gate | Same | Rejected/retains authored alt; no external-resource exception added |
-| Animated AVIF | Explicitly unsupported by existing shared AVIF gate | Same | Same |
+| Animated AVIF | Existing still-only AVIF route retained; no new sequence route | Added bounded AV1 sequence timeline | Added same sequence timeline |
 
 SVG is still a bounded static subset. Its validator rejects CSS at-rules,
 variables and unsupported resource functions; it bounds XML structure, geometry
@@ -74,6 +74,46 @@ unconditional switch/metadata cases); broader static artwork uses the isolated
 rasterizer. Animated WebP is implemented within existing resource limits;
 exact browser codec color/rounding, timing under actual window occlusion, and
 native visible playback remain unverified in this pass.
+
+### AVIF sequence follow-up
+
+The initial audit classified AVIF animation as unsupported. A follow-up source
+inspection found the existing bundled ABI already implements `decode_all` and
+writes every frame plus float64 seconds. No new codec dependency or WASM rebuild
+was necessary. The still decoder and Files source remain unchanged. Original
+Files actually lists AVIF in
+`ui-sidebar-documentpreview/src/client/document/unviewable.ts:27`, while original
+composer and Market use browser image elements. The sequence integration is
+therefore restricted to those composer/Market image owners, including their
+existing shared Market image loader. No `.avifs` Files registration was added.
+
+`avif_animation_bounds.go` validates bounded BMFF track/sample tables, dimensions,
+byte extents inside mdat, self-contained data references, per-frame timing and
+edit lists. `avif_animation.go` uses the existing isolated module's `decode_all`
+argument and copies full-canvas 8/10/12-bit frames into the current Animation
+contract. Its frame-duration output is initialized to NaN; each duration is
+written by the bundled C wrapper only after the corresponding complete pixel
+copy, so missing/corrupt later frames fail rather than exposing an unfinished
+buffer. Frame/canvas/16 MiB/10-second/512 MiB limits remain. Matching alpha tracks
+are accepted for sequences, including fully transparent valid frames; the still
+item/alpha policy is unchanged.
+
+The [bundled upstream DecodeAll implementation](https://github.com/gen2brain/avif/blob/v0.6.0/avif_wazero.go#L118)
+shows the existing all-frame and duration ABI. Its public LoopCount field is not
+populated during decode, so Go reads the same track-duration/edit-list ratio as
+[libavif 1.4.2](https://github.com/AOMediaCodec/libavif/blob/v1.4.2/src/read.c#L3566).
+The [original-version Chromium decoder](https://github.com/chromium/chromium/blob/152.0.7977.78/third_party/blink/renderer/platform/image-decoders/avif/avif_image_decoder.cc#L403)
+maps absent repetition metadata to infinite looping; the native timeline now
+uses that behavior, preserving explicit finite and infinite edit-list values.
+Explicit `avif` major-brand still selection remains separate from `avis` track
+selection. This is source evidence for the lockfile's browser version, not
+acceptance evidence from the user's running original installation.
+
+The sequence gate currently supports one color track and an optional matching
+alpha track. Extra color tracks, fragmented movie layouts, clean-aperture crop,
+layer selection, ICC profiles and unsupported sample descriptions fail explicitly.
+Exact libavif-versus-Chromium/crabbyavif pixels, HDR/color management and actual
+native visible AVIF playback remain unverified. GPU fluid/Beam remains paused.
 
 GPU fluid/Beam depth stays paused. Source still explicitly describes native
 fluid short-edge resolution 64 in
