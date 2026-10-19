@@ -80,6 +80,9 @@ func (s *mainState) startComposerVoice(win *mygo.Window, sessions *session.Store
 	if !ok {
 		return
 	}
+	microphone := s.voiceMicrophone()
+	device := microphone.Snapshot().Selected
+	s.pauseVoiceDevices()
 	s.mu.Lock()
 	if s.quitting || !s.dshMuxReady || s.bootStatus.State != harness.Ready {
 		s.mu.Unlock()
@@ -94,7 +97,9 @@ func (s *mainState) startComposerVoice(win *mygo.Window, sessions *session.Store
 	op := &composerVoiceOperation{sessions: sessions, draft: draft, id: id, win: win, generation: s.bootStatus.Generation}
 	s.voice = op
 	op.control = voiceinput.New(voiceinput.Options{
-		Capture: voicecapture.Start,
+		Capture: func(ctx context.Context, limits voicecapture.Limits) (voicecapture.Capture, error) {
+			return voicecapture.StartDevice(ctx, limits, device)
+		},
 		Prepare: func(ctx context.Context) (voicecapture.Limits, voiceinput.Transcribe, error) {
 			plan, err := sessions.PrepareSpeechRecording(ctx)
 			return plan.Limits, plan.Transcribe, err

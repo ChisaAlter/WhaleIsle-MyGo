@@ -87,11 +87,18 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 	}
 	if m.Voice.Phase == "" {
 		if voiceNeedsSetup(m) {
-			button("microphone", composerText("语音设置", "Voice settings"), locked, m.OnVoiceSettings)
+			button("microphone", composerText("语音设置", "Voice settings"), locked, func() {
+				if m.State != nil {
+					m.State.VoiceSetupOpen = true
+				} else if m.OnVoiceSettings != nil {
+					m.OnVoiceSettings()
+				}
+			})
 		} else {
 			button("microphone", composerText("开始录音", "Start recording"), locked, m.OnStartVoice)
 		}
 	}
+	paintVoiceSetup(c, m)
 	if m.Voice.Phase == "recording" {
 		button("■", composerText("停止并转写", "Stop recording"), false, m.OnStopVoice)
 	}
@@ -110,7 +117,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 }
 
 func voiceNeedsSetup(m Model) bool {
-	return m.OnStartVoice == nil || !m.Snapshot.ClientReady || m.Snapshot.SpeechSelection == ""
+	return m.OnStartVoice == nil || !m.Snapshot.ClientReady || m.Snapshot.SpeechSelection == "" || m.Snapshot.SpeechReadinessKnown && !m.Snapshot.SpeechReady
 }
 
 func composerSendDisabled(m Model) bool {

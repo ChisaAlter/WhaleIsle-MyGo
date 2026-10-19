@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -41,11 +43,6 @@ func (s *Store) TranscribeAudioFile(ctx context.Context, absPath string) (string
 		}
 		if id := strings.TrimSpace(catalog.Selection.ProviderId); id != "" {
 			providerID = &id
-			// Best-effort prepare so local models are ready before transcribe.
-			var prep api.PrepareResult
-			_ = client.Call(ctx, "speech/prepare", map[string]any{
-				"providerId": id,
-			}, &prep)
 		}
 		if lang := strings.TrimSpace(catalog.Selection.Language); lang != "" {
 			language = &lang
@@ -168,56 +165,90 @@ func (s *Store) CancelSpeechPreparation(ctx context.Context, providerID string) 
 	}, &out)
 }
 
-// WatchSpeechCatalog opens speech/follow and stores selection summary in LastAction.
+// WatchSpeechCatalog mirrors complete Host readiness independently of Sessions.
 func (s *Store) WatchSpeechCatalog(ctx context.Context) {
+	s.watchSpeechCatalog(ctx, nil)
+}
+
+func (s *Store) watchSpeechCatalog(ctx context.Context, owner *SpeechSettingsOwner) {
 	s.mu.Lock()
+	if owner != nil && !owner.currentLocked() {
+		s.mu.Unlock()
+		return
+	}
 	mux := s.mux
 	if s.speechFollowCancel != nil {
 		s.speechFollowCancel()
 		s.speechFollowCancel = nil
 	}
-	if mux == nil {
+	previous := s.speechReadiness
+	catalog := previous.view.Catalog
+	if previous.client != s.client {
+		catalog = nil
+	}
+	generation := previous.generation + 1
+	s.speechReadiness = speechReadinessState{client: s.client, mux: mux, generation: generation, view: SpeechSettingsView{Catalog: catalog}}
+	if mux == nil || s.client == nil {
 		s.mu.Unlock()
 		return
 	}
 	fctx, cancel := context.WithCancel(ctx)
 	s.speechFollowCancel = cancel
+	s.speechReadiness.ctx = fctx
 	s.mu.Unlock()
-	go s.runSpeechFollow(fctx, mux)
+	go s.runSpeechFollow(fctx, mux, generation)
 }
 
-func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux) {
+func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation uint64) {
 	if err := mux.Dial(ctx); err != nil {
+		s.failSpeechReadiness(ctx, mux, generation, err)
 		return
 	}
-	stream, err := mux.Open(ctx, "speech/follow", map[string]any{"args": map[string]any{}})
-	if err != nil {
-		return
-	}
-	defer stream.Cancel()
-	for {
-		raw, err := stream.Recv(ctx)
+	for ctx.Err() == nil {
+		stream, err := mux.Open(ctx, "speech/follow", map[string]any{"args": map[string]any{}})
 		if err != nil {
+			s.failSpeechReadiness(ctx, mux, generation, err)
 			return
 		}
-		var cat api.SpeechCatalog
-		if json.Unmarshal(raw, &cat) != nil {
-			continue
-		}
-		sel := strings.TrimSpace(cat.Selection.ProviderId)
-		if lang := strings.TrimSpace(cat.Selection.Language); lang != "" {
-			if sel != "" {
-				sel += "/" + lang
-			} else {
-				sel = lang
+		for {
+			raw, err := stream.Recv(ctx)
+			if err != nil {
+				stream.Cancel()
+				s.failSpeechReadiness(ctx, mux, generation, err)
+				if errors.Is(err, dsh.ErrStreamEnd) {
+					break
+				}
+				return
 			}
+			var cat api.SpeechCatalog
+			if json.Unmarshal(raw, &cat) != nil {
+				continue
+			}
+			sel := strings.TrimSpace(cat.Selection.ProviderId)
+			if lang := strings.TrimSpace(cat.Selection.Language); lang != "" {
+				if sel != "" {
+					sel += "/" + lang
+				} else {
+					sel = lang
+				}
+			}
+			s.mu.Lock()
+			if ctx.Err() != nil || s.mux != mux || s.speechReadiness.client != s.client || s.speechReadiness.generation != generation {
+				s.mu.Unlock()
+				stream.Cancel()
+				return
+			}
+			s.speechReadiness.view.Catalog = cloneSpeechCatalog(&cat)
+			s.speechReadiness.view.Connected = true
+			s.speechReadiness.view.ConnectionError = ""
+			s.speechSelection = sel
+			s.mu.Unlock()
+			s.fire()
 		}
-		if sel == "" {
-			continue
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(200 * time.Millisecond):
 		}
-		s.mu.Lock()
-		s.speechSelection = sel
-		s.mu.Unlock()
-		s.fire()
 	}
 }

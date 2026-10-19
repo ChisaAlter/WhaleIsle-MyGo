@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -43,7 +44,7 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 				c.WriteClipboard(body)
 			}
 			if !open && !st.HidePreview && preview != "" {
-				ui.Text(c, preview).FontSize(size - 1).TextColor(st.Muted).Grow(1).MinWidth(0).SingleLine()
+				ui.Text(c, preview).FontSize(size).TextColor(st.Muted).Grow(1).MinWidth(0).SingleLine()
 			}
 		})
 		if open && strings.TrimSpace(body) != "" {
@@ -75,6 +76,14 @@ func reasoningSummary(body string, streaming bool) string {
 		paragraphStart = false
 	}
 	return strings.ReplaceAll(summary, "**", "")
+}
+
+func secondaryChatSize() float32 {
+	size := theme.CurrentPreferences().Chat.Size
+	if size > 14 {
+		return size - 2
+	}
+	return size - 1
 }
 
 func isThinkingExpanded(expanded *map[string]bool, msgID string) bool {

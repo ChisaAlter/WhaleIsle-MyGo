@@ -276,7 +276,7 @@ func View(c *ui.Context, m Model) {
 							Muted:       muted,
 							Border:      border,
 							Field:       chrome.Color(colors.Field),
-							Size:        12,
+							Size:        secondaryChatSize(),
 						}
 						ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 					case session.MessageKindUnknown:
@@ -324,7 +324,7 @@ func View(c *ui.Context, m Model) {
 							})
 						} else if body != "" {
 							md := markdown.Style{
-								FontSize: 14,
+								FontSize: theme.CurrentPreferences().Chat.Size,
 								FG:       fg,
 								Muted:    muted,
 								CodeBG:   chrome.Color(colors.Field),

@@ -115,7 +115,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				}
 				switch {
 				case msg.Kind == session.MessageKindThinking:
-					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{Streaming: msg.Streaming, FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: 12})
+					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{Streaming: msg.Streaming, FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: secondaryChatSize()})
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
 					markdown.View(c, body, markdown.Style{FontSize: 13, FG: st.FG, Muted: st.Muted, CodeBG: st.Field, Accent: st.Accent, ResolveFile: FileMentionResolver(messages, msg), OnOpenFile: resource.OnOpenFile})
 					for _, ref := range readOnlyReferences(body) {

@@ -207,7 +207,8 @@ type ViewState struct {
 	BandActions    []BandAction
 	BandGeneration float64
 	// SpeechSelection is the latest speech/follow catalog selection summary.
-	SpeechSelection string
+	SpeechSelection                                            string
+	SpeechReadinessKnown, SpeechReady, SpeechNeedsInstallation bool
 	// ControlNote is the latest session/control frame type (or short preview).
 	ControlNote string
 }
@@ -354,6 +355,7 @@ type Store struct {
 	bandGeneration                       float64
 	speechFollowCancel                   context.CancelFunc
 	speechSelection                      string
+	speechReadiness                      speechReadinessState
 	controlCancel                        context.CancelFunc
 	controlNote                          string
 	cwd                                  string
@@ -567,6 +569,7 @@ func (s *Store) Detach() {
 		s.speechFollowCancel = nil
 	}
 	s.speechSelection = ""
+	s.speechReadiness = speechReadinessState{generation: s.speechReadiness.generation + 1}
 	if s.controlCancel != nil {
 		s.controlCancel()
 		s.controlCancel = nil
@@ -716,6 +719,7 @@ func (s *Store) Snapshot() ViewState {
 	st.BandGeneration = s.bandGeneration
 	st.BandActions = append([]BandAction(nil), s.bandActions...)
 	st.SpeechSelection = s.speechSelection
+	st.SpeechReadinessKnown, st.SpeechReady, st.SpeechNeedsInstallation = s.speechReadinessFlagsLocked()
 	st.ControlNote = s.controlNote
 	s.projectComposerSubmissionsLocked(&st)
 	return st

@@ -15,6 +15,7 @@ type DraftState struct {
 	GroupReply         *GroupReplyDraft
 	ModelCommand       ModelCommandState
 	PermissionCommand  ModelCommandState
+	VoiceSetupOpen     bool
 	flightSeq          uint64
 	flights            map[uint64]DraftFlight
 	failedSends        map[uint64]DraftFlight

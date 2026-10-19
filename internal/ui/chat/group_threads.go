@@ -87,7 +87,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 										ui.Text(c, "📎 "+name).TextColor(muted)
 									}
 								} else if message.Text != "" {
-									markdown.ViewInteractive(c, message.Text, markdown.Style{FontSize: 14, FG: fg, Muted: muted, CodeBG: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenCitationURL)
+									markdown.ViewInteractive(c, message.Text, markdown.Style{FontSize: theme.CurrentPreferences().Chat.Size, FG: fg, Muted: muted, CodeBG: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenCitationURL)
 								}
 							})
 						}
