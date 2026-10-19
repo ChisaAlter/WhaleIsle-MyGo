@@ -193,6 +193,7 @@ func onboardingView(c *ui.Context, m Model) {
 						ui.Text(c, b.Bot.Name+" · "+b.BotID+" · "+state).Bold().TextColor(fg)
 						ui.Text(c, b.Health.Summary).TextColor(muted)
 						channelHealthDetails(c, b, fg, muted, chrome.Color(colors.Accent))
+						channelBindingControls(c, m, v, b, locked, fg, muted)
 						action := func(label, method string) {
 							if ui.Button(c, label).Disabled(locked).Clicked() {
 								s.Review(v.Scope, method, b.BotID, "", "")

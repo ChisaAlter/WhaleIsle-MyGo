@@ -50,10 +50,12 @@ type LastMessageError struct {
 	At          *float64 `json:"at"`
 }
 type Bot struct {
-	BotID     string `json:"botId"`
-	State     string `json:"state"`
-	Connected bool   `json:"connected"`
-	Bot       struct {
+	BotID       string `json:"botId"`
+	Workspace   string `json:"workspace"`
+	AgentPreset string `json:"agentPreset"`
+	State       string `json:"state"`
+	Connected   bool   `json:"connected"`
+	Bot         struct {
 		Name string `json:"name"`
 	} `json:"bot"`
 	Health struct {
@@ -100,6 +102,8 @@ type View struct {
 	Provision                       Provision
 	Review, Target, Mode, Allowlist string
 	PolicyDrafts                    map[string]string
+	WorkspaceDrafts                 map[string]string
+	Presets                         []Preset
 }
 type Store struct {
 	mu               sync.Mutex
@@ -167,6 +171,11 @@ func (s *Store) Snapshot() View {
 	for k, value := range s.view.PolicyDrafts {
 		v.PolicyDrafts[k] = value
 	}
+	v.WorkspaceDrafts = map[string]string{}
+	for k, value := range s.view.WorkspaceDrafts {
+		v.WorkspaceDrafts[k] = value
+	}
+	v.Presets = append([]Preset(nil), s.view.Presets...)
 	return v
 }
 func (s *Store) Show(ch string) {
@@ -312,10 +321,25 @@ func (s *Store) Confirm() {
 	s.run(method, payload, pairing)
 }
 func (s *Store) run(method string, payload map[string]any, pairing bool) {
+	s.runScoped(0, method, payload, pairing)
+}
+func (s *Store) runScoped(expectedScope uint64, method string, payload map[string]any, pairing bool) {
 	s.mu.Lock()
-	if s.client == nil || s.view.Busy || !s.view.Open {
+	if s.client == nil || s.view.Busy || !s.view.Open || expectedScope != 0 && expectedScope != s.view.Scope {
 		s.mu.Unlock()
 		return
+	}
+	if method == "bot.workspace.set" || method == "bot.preset.set" {
+		if s.view.Review != "" || s.view.Provision.AttemptID != "" {
+			s.mu.Unlock()
+			return
+		}
+		if message := s.validateBindingLocked(method, payload); message != "" {
+			s.view.Error = message
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
 	}
 	if s.cancel != nil {
 		s.cancel()
@@ -457,19 +481,11 @@ func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
 	s.view.Busy = false
 	s.view.Error = message
 	if message == "" {
-		var result struct {
-			Bots     []Bot `json:"bots"`
-			Snapshot *struct {
-				Bots []Bot `json:"bots"`
-			} `json:"snapshot"`
-		}
-		if json.Unmarshal(raw, &result) != nil || result.Snapshot == nil && result.Bots == nil || result.Snapshot != nil && result.Snapshot.Bots == nil {
+		bots, presets, ok := decodeConnectionStatus(raw)
+		if !ok {
 			s.view.Error = "Host 状态格式不可用"
 		} else {
-			s.view.Bots = result.Bots
-			if result.Snapshot != nil {
-				s.view.Bots = result.Snapshot.Bots
-			}
+			s.applyConnectionStatusLocked(bots, presets)
 			s.statusReady = true
 			s.view.StatusError = ""
 			s.view.Notice = "已刷新 Host 连接状态"
@@ -505,16 +521,11 @@ func (s *Store) pollConnectionStatus(ctx context.Context, client *pluginrpc.Clie
 		var raw json.RawMessage
 		err := client.Call(callContext, channel, "connection.status", map[string]any{}, &raw)
 		cancel()
-		var result struct {
-			Bots     []Bot `json:"bots"`
-			Snapshot *struct {
-				Bots []Bot `json:"bots"`
-			} `json:"snapshot"`
-		}
+		bots, presets, valid := decodeConnectionStatus(raw)
 		message := ""
 		if err != nil {
 			message = "连接状态刷新失败，可手动刷新重试 / Connection status refresh failed; refresh to retry"
-		} else if json.Unmarshal(raw, &result) != nil || result.Snapshot == nil && result.Bots == nil || result.Snapshot != nil && result.Snapshot.Bots == nil {
+		} else if !valid {
 			message = "Host 状态格式不完整 / Incomplete Host connection status"
 		}
 		s.mu.Lock()
@@ -524,10 +535,7 @@ func (s *Store) pollConnectionStatus(ctx context.Context, client *pluginrpc.Clie
 		}
 		s.view.StatusError = message
 		if message == "" {
-			s.view.Bots = result.Bots
-			if result.Snapshot != nil {
-				s.view.Bots = result.Snapshot.Bots
-			}
+			s.applyConnectionStatusLocked(bots, presets)
 		}
 		s.mu.Unlock()
 		s.fire()
