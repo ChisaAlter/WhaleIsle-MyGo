@@ -100,6 +100,7 @@ func layoutTree(root *node, w, h float32) {
 		rt.lateInput()
 	}
 	place(root, 0, 0)
+	observeLayout(root)
 	applyLayoutOffsets(root)
 }
 

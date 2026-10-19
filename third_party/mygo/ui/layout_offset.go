@@ -2,6 +2,24 @@ package ui
 
 import "math"
 
+// ObserveLayout observes this frame's unshifted window rectangle before any
+// OffsetAfterLayout displacement. It follows the same callback restrictions.
+func (e Element) ObserveLayout(observe func(Rect)) Element {
+	if n := e.node(); n != nil {
+		n.observeLayout = observe
+	}
+	return e
+}
+
+func observeLayout(e *node) {
+	if e.observeLayout != nil {
+		e.observeLayout(Rect{X: e.x, Y: e.y, W: e.w, H: e.h})
+	}
+	for child := e.first; child != nil; child = child.next {
+		observeLayout(child)
+	}
+}
+
 // OffsetAfterLayout computes a relative displacement from this frame's laid
 // out window rectangle. It moves the element and its children without changing
 // sibling flow. Painting, hit testing, accessibility and native text geometry
