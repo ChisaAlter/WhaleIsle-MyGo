@@ -148,20 +148,15 @@ func ActiveSuggestAt(draft string, caret int) (kind SuggestKind, query string, t
 
 // SlashCommand is one row in the / command popup.
 type SlashCommand struct {
+	Label       string // contribution-owned localized caption; Host names remain authoritative
 	Line        string // e.g. "/clear"
 	Description string
 	LocalAction string // "clear", "new", or "" for remote execute
 }
 
-// StubSlashCommands are used when commands/list is unavailable.
-func StubSlashCommands() []SlashCommand {
-	return []SlashCommand{
-		{Line: "/model", Description: "Choose model and reasoning effort", LocalAction: "model"},
-		{Line: "/permission", Description: "Choose permission preset", LocalAction: "permission"},
-		{Line: "/clear", Description: "Clear draft", LocalAction: "clear"},
-		{Line: "/new", Description: "New session", LocalAction: "new"},
-	}
-}
+// StubSlashCommands preserves the public catalog builder without inventing
+// commands when the authoritative Host directory is unavailable.
+func StubSlashCommands() []SlashCommand { return nil }
 
 // MergeSlashCommands keeps stubs and appends remote names (deduped by line).
 func MergeSlashCommands(stubs, remote []SlashCommand) []SlashCommand {

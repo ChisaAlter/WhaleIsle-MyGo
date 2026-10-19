@@ -2,6 +2,7 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
+	"sort"
 	"strings"
 	"whaleisle/internal/ui/i18n"
 )
@@ -50,7 +51,17 @@ func toggleCommandLauncher(m Model) {
 // Commands keep source priority over same-name skills, matching Host command
 // adjudication. Skill picks insert the literal reference and never execute it.
 func slashMenuItems(m Model, query string) []suggestItem {
-	commands := FilterSlashCommands(m.SlashCatalog, query, len(m.SlashCatalog))
+	if m.GroupMembers != nil {
+		return nil
+	}
+	catalog, err := nativeSlashCatalog(m)
+	if err != nil {
+		if m.State != nil {
+			m.State.Error = err.Error()
+		}
+		return nil
+	}
+	commands := filterNativeSlashCommands(catalog, query)
 	out := make([]suggestItem, 0, len(commands)+len(m.Skills))
 	seen := map[string]bool{}
 	leading := true
@@ -77,7 +88,7 @@ func slashMenuItems(m Model, query string) []suggestItem {
 			}
 		}
 		seen[strings.ToLower(strings.TrimPrefix(cmd.Line, "/"))] = true
-		out = append(out, suggestItem{label: cmd.Line, sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash, command: true})
+		out = append(out, suggestItem{label: slashCommandCaption(cmd), sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash, command: true})
 	}
 	child := false
 	for _, item := range m.Snapshot.Items {
@@ -112,7 +123,8 @@ func isSkillOnlyInvocation(m Model, line string) bool {
 		return false
 	}
 	name := strings.TrimPrefix(fields[0], "/")
-	for _, cmd := range MergeSlashCommands(StubSlashCommands(), m.SlashCatalog) {
+	catalog, _ := nativeSlashCatalog(m)
+	for _, cmd := range catalog {
 		parts := strings.Fields(cmd.Line)
 		if len(parts) > 0 && strings.EqualFold(strings.TrimPrefix(parts[0], "/"), name) {
 			return false
@@ -124,4 +136,49 @@ func isSkillOnlyInvocation(m Model, line string) bool {
 		}
 	}
 	return false
+}
+
+func slashCommandCaption(c SlashCommand) string {
+	if c.Label != "" {
+		return c.Label
+	}
+	return c.Line
+}
+func filterNativeSlashCommands(rows []SlashCommand, query string) []SlashCommand {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		// Fixed presentation sections preserve Host order within each section.
+		section := func(name string) int {
+			switch name {
+			case "/file", "/goal", "/plan", "/feedback":
+				return 0
+			case "/compact", "/permission", "/model", "/export":
+				return 1
+			}
+			return 2
+		}
+		out := append([]SlashCommand(nil), rows...)
+		sort.SliceStable(out, func(i, j int) bool { return section(out[i].Line) < section(out[j].Line) })
+		return out
+	}
+	type match struct {
+		row   SlashCommand
+		score int
+	}
+	matches := []match{}
+	for _, r := range rows {
+		best, ok := modelNameScore(strings.TrimPrefix(r.Line, "/"), q)
+		if score, found := modelNameScore(r.Label, q); found && (!ok || score > best) {
+			best, ok = score, true
+		}
+		if ok {
+			matches = append(matches, match{r, best})
+		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].score > matches[j].score })
+	out := make([]SlashCommand, 0, len(matches))
+	for _, m := range matches {
+		out = append(out, m.row)
+	}
+	return out
 }

@@ -44,11 +44,11 @@ func claimLeadingSpace(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	if !strings.HasPrefix(token, "/") || strings.ContainsAny(token, " \t\n\r") {
 		return false
 	}
-	// Contributions/popup commands never claim Space.
-	for _, local := range StubSlashCommands() {
-		if local.Line == token {
-			return false
-		}
+	// Only actual registered contributions suppress Host leading-input claims.
+	// A permission/feedback decoration owns bare invocation, never Space/args.
+	name := strings.TrimPrefix(token, "/")
+	if (name == "file" || name == "model") && nativeCommandRegistered(m.Snapshot, name) {
+		return false
 	}
 	for _, cmd := range m.Snapshot.SlashCommands {
 		if "/"+cmd.Name != token || cmd.Input == nil {

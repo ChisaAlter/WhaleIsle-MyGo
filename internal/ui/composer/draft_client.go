@@ -35,6 +35,7 @@ type DraftClient struct {
 	typingUndoEnd      int
 	layout             *ui.TextLayout
 	lastText           string
+	revision           uint64
 	wrapWidth          float32
 	font               ui.Font
 	// Display geometry is a fixed24px projection of the toolkit's retained
@@ -96,6 +97,7 @@ func (c *DraftClient) ensure() {
 	}
 	cur := *c.Draft
 	if cur != c.lastText {
+		c.revision++
 		c.lastText = cur
 		c.marked = nil
 		c.compositionPending = nil
@@ -154,6 +156,9 @@ func (c *DraftClient) replace(r ui.TextInputRange, text string) {
 	next := s[:a] + text + s[z:]
 	if c.Draft != nil {
 		*c.Draft = next
+	}
+	if c.lastText != next {
+		c.revision++
 	}
 	c.lastText = next
 	end := r.Start + ui.UTF16Len(text)
@@ -295,3 +300,6 @@ func (c *DraftClient) revealCaretInViewport() {
 	}
 	c.revealCaret = false
 }
+
+// Revision is the mutation identity used by deferred command span consumption.
+func (c *DraftClient) Revision() uint64 { c.ensure(); return c.revision }

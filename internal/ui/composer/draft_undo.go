@@ -35,6 +35,9 @@ func (c *DraftClient) restore(s draftSnapshot) {
 	if c.Draft != nil {
 		*c.Draft = s.text
 	}
+	if c.lastText != s.text {
+		c.revision++
+	}
 	c.lastText = s.text
 	c.selection = s.selection
 	c.marked = nil

@@ -10,19 +10,33 @@ func pickSlashCommand(m Model, item suggestItem, token TokenRange) bool {
 		return false
 	}
 	line := strings.TrimSpace(item.insert)
-	if m.State != nil && (line == "/model" || line == "/permission") {
+	name := strings.TrimPrefix(line, "/")
+	if m.State != nil && nativeCommandAvailable(m.Snapshot, name) {
 		if m.State.TargetID != "" && m.State.TargetID != m.Snapshot.SelectedID {
+			return true
+		}
+		if m.State.Sending || m.State.Preparing > 0 {
+			return true
+		}
+		if name == "file" || name == "feedback" {
+			if m.OnNativeCommandAction == nil {
+				return true
+			}
+			if replaceSuggestionToken(m, token, "") {
+				dismissSuggestion(m, m.TextInput)
+				m.OnNativeCommandAction(nativeCommandOwner(m.Snapshot, name), name)
+			}
 			return true
 		}
 		if len(m.State.Attachments) > 0 {
 			m.State.Error = line + " does not accept attachments; remove them before opening the picker"
 			return true
 		}
-		if !replaceSuggestionToken(m, token, "") {
-			return true
+		segment := nativeCommandSegment{text: *m.Draft, token: token, client: m.State.Client}
+		if segment.client != nil {
+			segment.revision = segment.client.Revision()
 		}
-		m.State.ModelCommand = ModelCommandState{Open: line == "/model", SessionID: m.Snapshot.SelectedID}
-		m.State.PermissionCommand = ModelCommandState{Open: line == "/permission", SessionID: m.Snapshot.SelectedID}
+		m.State.openNativeCommand(m.Snapshot, name, segment)
 		dismissSuggestion(m, m.TextInput)
 		return true
 	}

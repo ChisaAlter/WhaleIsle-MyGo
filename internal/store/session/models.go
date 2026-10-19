@@ -330,16 +330,27 @@ func (s *Store) SelectModelEffortSelectionForSessionID(ctx context.Context, sess
 }
 
 func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault, effortOnly bool) {
+	s.selectModelSelectionWithReceipt(ctx, sessionID, selection, effortOnly, nil, nil)
+}
+
+func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID string, selection api.ModelCatalogDefault, effortOnly bool, owner *NativeCommandOwner, completed func(error)) {
+	finish := func(err error) {
+		if completed != nil {
+			completed(err)
+		}
+	}
 	s.mu.Lock()
 	client, generation := s.client, s.followGeneration
 	current, known := s.currentModelSelectionLocked()
 	opt, available := modelOptionForSelection(selection, s.modelOptions)
-	if client == nil || sessionID == "" || s.selectedID != sessionID || ctx.Err() != nil || !known || !available || !s.modelSelectionAvailableLocked() || s.modelState.Pending {
+	if client == nil || sessionID == "" || s.selectedID != sessionID || ctx.Err() != nil || !known || !available || !s.modelSelectionAvailableLocked() || s.modelState.Pending || (owner != nil && !s.nativeCommandCurrentLocked(*owner, "model")) {
 		s.mu.Unlock()
+		finish(fmt.Errorf("Model selection unavailable or owner changed"))
 		return
 	}
 	if effortOnly && (current.Provider != selection.Provider || current.Model != selection.Model) {
 		s.mu.Unlock()
+		finish(fmt.Errorf("Model route changed"))
 		return
 	}
 	if selection.ReasoningEffort != nil {
@@ -354,11 +365,13 @@ func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID 
 		}
 		if !valid {
 			s.mu.Unlock()
+			finish(fmt.Errorf("Reasoning effort is no longer available"))
 			return
 		}
 	}
 	if sameModelSelection(current, selection, s.modelOptions) {
 		s.mu.Unlock()
+		finish(nil)
 		return
 	}
 	selection = cloneModelSelection(selection)
@@ -370,20 +383,21 @@ func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID 
 	s.mu.Unlock()
 	s.fire()
 	go func() {
+		var err error
+		defer func() { finish(err) }()
 		s.mu.Lock()
-		valid := s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation
+		valid := s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation && (owner == nil || s.nativeCommandCurrentLocked(*owner, "model"))
 		s.mu.Unlock()
 		var out api.SessionSelectModelValue
 		var baseline api.SessionProjectionsValue
-		var err error
 		if valid {
 			req := api.SessionSelectModelRequest{SessionId: sessionID, Provider: selection.Provider, Model: selection.Model, ReasoningEffort: selection.ReasoningEffort}
 			err = client.Call(ctx, "session/selectModel", map[string]any{"request": req}, &out)
-			if err == nil && (out.Selected.Model == "" || out.Selected.Provider == "") {
+			if err == nil && (out.Selected.Provider == "" || out.Selected.Model == "") {
 				err = fmt.Errorf("Host 未返回已提交的模型选择")
 			}
 			s.mu.Lock()
-			valid = s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation
+			valid = s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation && (owner == nil || s.nativeCommandCurrentLocked(*owner, "model"))
 			s.mu.Unlock()
 			if err == nil && valid {
 				err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &baseline)
@@ -395,12 +409,14 @@ func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID 
 		s.mu.Lock()
 		if s.client != client || s.selectedID != sessionID || s.followGeneration != generation || s.modelState.Operation != operation {
 			s.mu.Unlock()
+			err = fmt.Errorf("Model selection owner changed")
 			return
 		}
 		s.modelState.Pending = false
-		if !valid || ctx.Err() != nil {
+		if !valid || ctx.Err() != nil || (owner != nil && !s.nativeCommandCurrentLocked(*owner, "model")) {
 			s.mu.Unlock()
 			s.fire()
+			err = fmt.Errorf("Model selection owner changed")
 			return
 		}
 		if err == nil {

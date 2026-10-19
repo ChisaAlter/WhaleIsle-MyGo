@@ -70,26 +70,53 @@ func permissionOptionByLabel(label string, options []PermissionOption) (Permissi
 // defaultPreset belongs to future sessions, never the composer's active value.
 func (s *Store) RefreshPermissionCatalog(ctx context.Context) {
 	s.mu.Lock()
-	client, generation := s.client, s.eventsGeneration
+	run := s.beginPermissionCatalogLocked(ctx)
 	s.mu.Unlock()
-	if client == nil || ctx.Err() != nil {
+	if run != nil {
+		go run()
+	}
+}
+
+// The events callback must retain its actual delivery owner through admission;
+// an old notification cannot begin a read against a replacement Host.
+func (s *Store) RefreshPermissionCatalogForEvents(owner *EventsOwner) {
+	s.mu.Lock()
+	if !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
 		return
 	}
-	go func() {
+	run := s.beginPermissionCatalogLocked(owner.ctx)
+	s.mu.Unlock()
+	if run != nil {
+		go run()
+	}
+}
+
+func (s *Store) beginPermissionCatalogLocked(ctx context.Context) func() {
+	s.permissionCatalogRevision++
+	revision := s.permissionCatalogRevision
+	client, generation := s.client, s.eventsGeneration
+	if client == nil || ctx.Err() != nil {
+		return nil
+	}
+	return func() {
+		s.fire()
 		var cat api.PermissionCatalog
 		err := client.Call(ctx, "permissionPresets/catalog", map[string]any{}, &cat)
 		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != generation || ctx.Err() != nil {
+		if s.client != client || s.eventsGeneration != generation || s.permissionCatalogRevision != revision || ctx.Err() != nil {
 			s.mu.Unlock()
 			return
 		}
 		s.permissionsErr = err
 		if err == nil {
 			s.permissionOptions = flattenPermissionCatalog(cat)
+		} else {
+			s.permissionOptions = nil
 		}
 		s.mu.Unlock()
 		s.fire()
-	}()
+	}
 }
 
 // SelectPermissionPreset switches the captured current session through the
@@ -137,30 +164,34 @@ func (s *Store) SelectPermissionValueForSession(ctx context.Context, targetID, v
 }
 
 func (s *Store) runPermissionPreset(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, opt PermissionOption) {
+	_ = s.settlePermissionPreset(ctx, client, sessionID, generation, opt, nil)
+}
+
+func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, opt PermissionOption, owner *NativeCommandOwner) error {
 	s.mu.Lock()
-	current := s.sessionResultCurrentLocked(ctx, client, sessionID, generation)
+	current := s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && (owner == nil || s.nativeCommandCurrentLocked(*owner, "permission"))
 	s.mu.Unlock()
 	var err error
 	var out api.SessionProjectionsValue
 	if current {
 		err = executeCommand(ctx, client, sessionID, "/permission "+opt.Value, nil)
-		if err == nil {
-			err = client.Call(ctx, "session/projections", map[string]any{
-				"request": map[string]any{"sessionId": sessionID},
-			}, &out)
+		s.mu.Lock()
+		current = s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && (owner == nil || s.nativeCommandCurrentLocked(*owner, "permission"))
+		s.mu.Unlock()
+		if err == nil && current {
+			err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &out)
 		}
 	}
 	s.mu.Lock()
-	// Release only this target's busy state even if its context was canceled.
 	if s.client != client || s.selectedID != sessionID || s.followGeneration != generation {
 		s.mu.Unlock()
-		return
+		return fmt.Errorf("Permission selection owner changed")
 	}
 	s.permissionProjection.Pending = false
-	if !current || ctx.Err() != nil {
+	if !current || ctx.Err() != nil || (owner != nil && !s.nativeCommandCurrentLocked(*owner, "permission")) {
 		s.mu.Unlock()
 		s.fire()
-		return
+		return fmt.Errorf("Permission selection owner changed")
 	}
 	if err == nil {
 		s.applyPermissionValuesLocked(out.Values, out.AsOfSeq)
@@ -176,4 +207,5 @@ func (s *Store) runPermissionPreset(ctx context.Context, client *dsh.Client, ses
 	}
 	s.mu.Unlock()
 	s.fire()
+	return err
 }

@@ -7,6 +7,7 @@ import "strings"
 type ModelCommandState struct {
 	Open      bool
 	SessionID string
+	popup     *nativeCommandPopup
 }
 
 func (p *ModelCommandState) Visible(sessionID string) bool {
@@ -15,7 +16,7 @@ func (p *ModelCommandState) Visible(sessionID string) bool {
 
 func (p *ModelCommandState) Sync(sessionID string) {
 	if p.SessionID != sessionID {
-		p.Open = false
+		p.close()
 	}
 }
 
@@ -25,7 +26,7 @@ func (p *ModelCommandState) Handle(text, sessionID, targetID string, editing boo
 	if editing || !strings.EqualFold(strings.TrimSpace(text), "/model") {
 		return false, ""
 	}
-	p.Open = false
+	p.close()
 	if sessionID == "" || (targetID != "" && targetID != sessionID) {
 		return true, "Select the draft's session before choosing a model"
 	}
@@ -34,4 +35,12 @@ func (p *ModelCommandState) Handle(text, sessionID, targetID string, editing boo
 	}
 	p.SessionID, p.Open = sessionID, true
 	return true, ""
+}
+
+func (p *ModelCommandState) close() {
+	if p.popup != nil {
+		p.popup.close()
+	}
+	p.popup = nil
+	p.Open = false
 }
