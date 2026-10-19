@@ -19,7 +19,7 @@ type settingsSkillCreateState struct {
 	cancel     context.CancelFunc
 }
 
-func (s *mainState) retireSettingsSkillCreateLocked() {
+func (s *mainState) invalidateSettingsSkillCreateLocked() {
 	if s.settingsSkillCreate.cancel != nil {
 		s.settingsSkillCreate.cancel()
 	}
@@ -29,7 +29,7 @@ func (s *mainState) retireSettingsSkillCreateLocked() {
 // The Host detach path also calls this when the Settings page is not rendered.
 func (s *mainState) invalidateSettingsSkillCreate() {
 	s.mu.Lock()
-	s.retireSettingsSkillCreateLocked()
+	s.invalidateSettingsSkillCreateLocked()
 	s.mu.Unlock()
 }
 
@@ -72,7 +72,7 @@ func (s *mainState) settingsSkillCreateAccess() *settings.SkillCreateAccess {
 	defer s.mu.Unlock()
 	create := &s.settingsSkillCreate
 	if create.open && create.source != nil && !s.settingsSkillCreateCurrentLocked() {
-		s.retireSettingsSkillCreateLocked()
+		s.invalidateSettingsSkillCreateLocked()
 		create = &s.settingsSkillCreate
 	}
 	return &settings.SkillCreateAccess{Open: create.open, Busy: create.busy, Draft: &create.draft, Error: create.err, OnSave: s.saveSettingsSkillCreate, OnCancel: s.cancelSettingsSkillCreate}
@@ -81,7 +81,7 @@ func (s *mainState) settingsSkillCreateAccess() *settings.SkillCreateAccess {
 func (s *mainState) cancelSettingsSkillCreate() {
 	s.mu.Lock()
 	if !s.settingsSkillCreate.busy {
-		s.retireSettingsSkillCreateLocked()
+		s.invalidateSettingsSkillCreateLocked()
 	}
 	win := s.win
 	s.mu.Unlock()
@@ -98,7 +98,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 		return
 	}
 	if !s.settingsSkillCreateCurrentLocked() {
-		s.retireSettingsSkillCreateLocked()
+		s.invalidateSettingsSkillCreateLocked()
 		s.mu.Unlock()
 		return
 	}
@@ -123,7 +123,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 			return
 		}
 		if !s.settingsSkillCreateCurrentLocked() {
-			s.retireSettingsSkillCreateLocked()
+			s.invalidateSettingsSkillCreateLocked()
 			s.mu.Unlock()
 			if win != nil {
 				win.Update(func() {})
@@ -135,7 +135,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 		if err != nil {
 			s.settingsSkillCreate.err = err.Error()
 		} else {
-			s.retireSettingsSkillCreateLocked()
+			s.invalidateSettingsSkillCreateLocked()
 			s.settingsSkillsLastAction = "Skill created: " + draft.Name
 		}
 		s.mu.Unlock()
