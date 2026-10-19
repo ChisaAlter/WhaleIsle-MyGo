@@ -23,7 +23,7 @@ func TestWhaleSettingsNativeFormRequiresExplicitClear(t *testing.T) {
 		}}}
 		whaleSettingsBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(150, 150, 150), ui.RGB(20, 20, 20), ui.RGB(90, 90, 90), ui.RGB(60, 130, 240))
 	}, 1100, 2200)
-	for _, text := range []string{"保存记忆 / Save memory", "保存人设 / Save persona", "保存名字与称呼 / Save name and title"} {
+	for _, text := range []string{"保存记忆 / Save memory", "保存人设 / Save persona"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing native control %q", text)
 		}

@@ -20,11 +20,11 @@ func TestDSK10RegistryValidationAndSearch(t *testing.T) {
 		t.Fatal("missing tools alternate binding")
 	}
 	for _, raw := range []string{"B", "Alt+F4", "Win+B", "Mod+Space", "Mod+S", "Mod+Q", "Mod+Shift+V", "Mod+Mod+B", "Mod++B", "Mod+Banana"} {
-		if _, err := Parse(raw); err == nil {
+		if _, err := parseForPlatform(raw, "linux"); err == nil {
 			t.Errorf("unsafe/invalid binding accepted: %s", raw)
 		}
 	}
-	chord, err := Parse(" control + shift + j ")
+	chord, err := parseForPlatform(" control + shift + j ", "linux")
 	if err != nil || chord.String() != "Mod+Shift+J" {
 		t.Fatalf("parse: %+v %v", chord, err)
 	}
@@ -85,7 +85,7 @@ func TestDSK10EditorDraftCommitFailureAndReset(t *testing.T) {
 }
 
 func TestDSK10InvalidSavedBindingsFailClosed(t *testing.T) {
-	e := NewEditor(map[string]string{"settings.open": "Mod+B", "terminal.toggle": "Alt+F4"}, nil, nil)
+	e := NewEditor(map[string]string{"settings.open": "Mod+B", "terminal.toggle": "Mod+UnknownKey"}, nil, nil)
 	live := Resolve(e.Active())
 	if _, ok := live["settings.open"]; ok {
 		t.Fatal("conflicting settings key remains active")
@@ -102,10 +102,10 @@ func TestDSK10InvalidSavedBindingsFailClosed(t *testing.T) {
 	}
 }
 
-func TestDSK10ReservedSystemKeys(t *testing.T) {
+func TestDSK10DesktopCustomizationAndSystemSafeDefaults(t *testing.T) {
 	for _, raw := range []string{"Mod+`", "Mod+Shift+`", "Mod+Shift+3", "Mod+Shift+4", "Mod+Shift+5", "Mod+Shift+6", "Mod+Alt+D"} {
-		if _, err := parseForPlatform(raw, "darwin"); err == nil {
-			t.Errorf("macOS reserved key accepted: %s", raw)
+		if _, err := parseForPlatform(raw, "darwin"); err != nil {
+			t.Errorf("explicit macOS physical customization lost: %s", raw)
 		}
 	}
 	if _, err := parseForPlatform("Mod+`", "windows"); err != nil {

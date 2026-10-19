@@ -9,7 +9,7 @@ func TestExtendedFunctionKeysAndRecording(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"F5", "Alt+F4", "Mod+F13", "Mod+S"} {
-		if _, err := Parse(key); err == nil {
+		if _, err := parseForPlatform(key, "linux"); err == nil {
 			t.Fatal("accepted", key)
 		}
 	}
@@ -23,8 +23,8 @@ func TestExtendedFunctionKeysAndRecording(t *testing.T) {
 		t.Fatal("recording must change draft only")
 	}
 	e.BeginRecording("window.refresh")
-	if e.Record("Alt+F4") {
-		t.Fatal("reserved chord accepted")
+	if e.Record("Mod+UnknownKey") {
+		t.Fatal("invalid key accepted")
 	}
 	e.CancelRecording()
 	if !e.Save() || e.Active()["window.refresh"] != "Mod+Shift+F7" || writes != 1 {

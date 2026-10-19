@@ -79,7 +79,7 @@ func TestSessionFileReadConflictAndDownload(t *testing.T) {
 		t.Fatal("reload discarded dirty draft")
 	}
 	s.Discard()
-	s.Open("/work/a.txt")
+	s.Reload() // Opening a loaded tab retains its cache; explicit Reload reconciles stale mtime.
 	wait()
 	conflict = false
 	s.SetDraft("saved")
