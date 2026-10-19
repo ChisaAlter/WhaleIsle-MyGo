@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -16,27 +17,68 @@ import (
 type userReferenceRun struct {
 	Text, Raw, Path, Kind string
 }
+type userReferenceFacts struct {
+	Labels, Skills []string
+	OpenSkill      func(string)
+}
 
 var userSessionReference = regexp.MustCompile(`^@\[([^\]\n]+)\]\(dsh-session:[^)\s]+\)`)
 
 // Original user text is literal. Only complete reference spellings receive
 // semantics; session/folder chips do not invent navigation. No discovery or
 // filesystem resolution occurs while parsing or painting a historical entry.
-func userReferenceRuns(text string, knownLabels ...[]string) []userReferenceRun {
+func userReferenceRuns(text string, known ...userReferenceFacts) []userReferenceRun {
+	var facts userReferenceFacts
+	if len(known) > 0 {
+		facts = known[0]
+	}
 	var runs []userReferenceRun
 	plain := 0
 	for start := 0; start < len(text); {
 		r, size := utf8.DecodeRuneInString(text[start:])
-		if r != '@' {
+		if r != '@' && r != '/' {
 			start += size
 			continue
 		}
 		end, kind, label, target := start, "", "", ""
-		if wire := userSessionReference.FindStringSubmatch(text[start:]); wire != nil {
+		if r == '/' {
+			boundary := start == 0
+			if start > 0 {
+				previous, _ := utf8.DecodeLastRuneInString(text[:start])
+				boundary = unicode.IsSpace(previous)
+			}
+			if boundary {
+				for _, name := range facts.Skills {
+					candidate := "/" + name
+					if name == "" || !strings.HasPrefix(text[start:], candidate) {
+						continue
+					}
+					end = start + len(candidate)
+					if end < len(text) {
+						next, _ := utf8.DecodeRuneInString(text[end:])
+						if !unicode.IsSpace(next) {
+							continue
+						}
+					}
+					valid := true
+					for _, c := range name {
+						valid = valid && (c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '-')
+					}
+					if valid {
+						kind, label, target = "skill", candidate, name
+						break
+					}
+				}
+			}
+			if kind == "" {
+				start += size
+				continue
+			}
+		} else if wire := userSessionReference.FindStringSubmatch(text[start:]); wire != nil {
 			end, kind, label = start+len(wire[0]), "session", wire[1]
 		}
-		if kind == "" && len(knownLabels) > 0 {
-			for _, candidate := range knownLabels[0] {
+		if kind == "" {
+			for _, candidate := range facts.Labels {
 				if candidate != "" && strings.HasPrefix(text[start+1:], candidate) && len(candidate) > len(label) {
 					end, kind, label = start+1+len(candidate), "session", candidate
 				}
@@ -93,9 +135,9 @@ func userReferenceRuns(text string, knownLabels ...[]string) []userReferenceRun 
 	return runs
 }
 
-func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Color, open func(string), knownLabels ...[]string) {
+func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Color, open func(string), facts userReferenceFacts) {
 	ui.RichText(c).Font(theme.RenderPreferences().Chat.Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable().Children(func() {
-		for _, run := range userReferenceRuns(text, knownLabels...) {
+		for _, run := range userReferenceRuns(text, facts) {
 			run := run
 			el := ui.Text(c, run.Text)
 			if run.Kind == "" {
@@ -108,8 +150,62 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 					open(run.Path)
 				}
 			}
+			if run.Kind == "skill" && facts.OpenSkill != nil {
+				el = el.Label(run.Text).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink).Underline()
+				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+					facts.OpenSkill(run.Path)
+				}
+			}
 		}
 	})
+}
+
+// Only direct messages and sourced contexts share a skill batch. Any other
+// visible transcript contribution closes it, including the durable turn tail.
+func userMessageSkillNames(messages []session.Message, target session.Message) []string {
+	if target.Seq <= 0 {
+		return nil
+	}
+	ordered := append([]session.Message(nil), messages...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Seq < ordered[j].Seq })
+	var names []string
+	seen, contains := map[string]bool{}, false
+	for _, message := range ordered {
+		if message.Kind == session.MessageKindContext {
+			var event struct {
+				Data struct {
+					Source  json.RawMessage `json:"source"`
+					Message *struct {
+						Source json.RawMessage `json:"source"`
+					} `json:"message"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(message.Raw, &event) == nil {
+				raw := event.Data.Source
+				if event.Data.Message != nil {
+					raw = event.Data.Message.Source
+				}
+				var source struct{ Kind, Name string }
+				if json.Unmarshal(raw, &source) == nil && source.Kind == "skill-invocation" && source.Name != "" && !seen[source.Name] {
+					seen[source.Name] = true
+					names = append(names, source.Name)
+				}
+			}
+			continue
+		}
+		if message.Role == "user" && message.Kind == session.MessageKindText {
+			contains = contains || message.Seq == target.Seq
+			continue
+		}
+		if contains {
+			return names
+		}
+		names, seen = nil, map[string]bool{}
+	}
+	if contains {
+		return names
+	}
+	return nil
 }
 
 // Recall labels belong only to the direct user event immediately preceding

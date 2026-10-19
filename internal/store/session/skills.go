@@ -56,6 +56,11 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 	}, &out)
 	s.mu.Lock()
 	current := s.skillOptionsScopeCurrentLocked(owner)
+	if current && err == nil && ctx.Err() == nil {
+		s.skillOptions = flattenSkillList(out)
+		s.skillOptionsOwner = owner
+		s.skillsErr = nil
+	}
 	s.mu.Unlock()
 	if !current || ctx.Err() != nil {
 		return nil
@@ -63,6 +68,7 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 	if err != nil {
 		return cached
 	}
+	s.fire()
 	return flattenSkillList(out)
 }
 

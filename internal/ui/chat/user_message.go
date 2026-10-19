@@ -1,8 +1,10 @@
 package chat
 
 import (
+	"context"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -81,6 +83,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 							ink = muted
 						}
 						var openReference func(string)
+						var openSkill func(string)
 						if m.OnOpenDeliverable != nil && m.HistoryStore != nil {
 							scope := m.Snapshot.TurnFiles.Scope
 							openReference = func(path string) {
@@ -88,8 +91,25 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 									m.OnOpenDeliverable(path)
 								}
 							}
+							openSkill = func(name string) {
+								ref, ok := m.HistoryStore.CaptureHistorySkillReference(scope, name)
+								if !ok {
+									return
+								}
+								go func() {
+									resolved, ok := m.HistoryStore.ResolveHistorySkillReference(context.Background(), ref)
+									if !ok {
+										return
+									}
+									mygo.RunOnMain(func() {
+										if path, ok := m.HistoryStore.HistorySkillReferencePath(resolved); ok {
+											m.OnOpenDeliverable(path)
+										}
+									})
+								}()
+							}
 						}
-						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, referenceLabels)
+						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, userReferenceFacts{Labels: referenceLabels, Skills: userMessageSkillNames(m.Snapshot.Messages, msg), OpenSkill: openSkill})
 					})
 				}
 				if len(referenceLabels) > 0 {
