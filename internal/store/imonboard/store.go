@@ -288,7 +288,7 @@ func (s *Store) Confirm() {
 	case "provision.cancel":
 		payload["attemptId"] = v.Provision.AttemptID
 	case "bot.reconnect-test":
-		if v.Channel != "feishu" {
+		if PlatformByID(v.Channel).ID == "" {
 			return
 		}
 		method = "bot.reconnect"
