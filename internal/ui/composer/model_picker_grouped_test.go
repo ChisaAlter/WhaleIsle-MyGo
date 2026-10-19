@@ -37,6 +37,9 @@ func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
 	if chosen != "official — deepseek-chat" || snap.SelectedModel != "custom — alpha" {
 		t.Fatal("callback changed or optimistic selection invented")
 	}
+	if !tt.Focused("Model catalog") {
+		t.Fatal("mouse selection did not return focus to the trigger")
+	}
 }
 
 func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
@@ -115,26 +118,66 @@ func TestGroupedModelPickerWithoutCatalogSelectionOpensModelPaneDirectly(t *test
 }
 
 func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
+	for _, key := range []struct {
+		name  string
+		value ui.Key
+	}{{"Enter", ui.KeyEnter}, {"Tab", ui.KeyTab}} {
+		t.Run(key.name, func(t *testing.T) {
+			snap := session.ViewState{SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
+			chosen := ""
+			tt := ui.NewTester(func(c *ui.Context) {
+				paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
+			}, 800, 600)
+			if err := tt.Click("Model catalog"); err != nil {
+				t.Fatal(err)
+			}
+			// The root model row owns keyboard focus and drills into the searchable
+			// model pane; the first click does not directly open the catalog.
+			tt.Key(0, ui.KeyRight)
+			if err := tt.Click("Search models"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Type("e")
+			tt.Key(0, key.value)
+			if chosen != "e" || snap.SelectedModel != "a" {
+				t.Fatalf("keyboard selection %q", chosen)
+			}
+			if _, ok := tt.Find("Search models"); ok {
+				t.Fatal("menu not closed after selection")
+			}
+			if !tt.Focused("Model catalog") {
+				t.Fatal("keyboard selection did not return focus to the trigger")
+			}
+		})
+	}
+}
+
+func TestGroupedModelPickerEscapeReturnsFocusWithoutSelecting(t *testing.T) {
 	snap := session.ViewState{SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, ui.RGB(80, 80, 80), 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)
 	}
-	// The root model row owns keyboard focus and drills into the searchable
-	// model pane; the first click does not directly open the catalog.
-	tt.Key(0, ui.KeyRight)
-	if err := tt.Click("Search models"); err != nil {
+	tt.Key(0, ui.KeyEscape)
+	if !tt.Focused("Model catalog") || chosen != "" {
+		t.Fatal("root Escape changed selection or failed to restore trigger focus")
+	}
+	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Type("e")
-	tt.Key(0, ui.KeyEnter)
-	if chosen != "e" || snap.SelectedModel != "a" {
-		t.Fatalf("keyboard selection %q", chosen)
+	tt.Key(0, ui.KeyRight)
+	if _, ok := tt.Find("Search models"); !ok {
+		t.Fatal("model search pane missing")
 	}
+	tt.Key(0, ui.KeyEscape)
 	if _, ok := tt.Find("Search models"); ok {
-		t.Fatal("menu not closed after selection")
+		t.Fatal("first Escape did not return from search to root")
+	}
+	tt.Key(0, ui.KeyEscape)
+	if !tt.Focused("Model catalog") || chosen != "" {
+		t.Fatal("search Escape changed selection or failed to restore trigger focus")
 	}
 }

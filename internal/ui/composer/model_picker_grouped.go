@@ -149,6 +149,7 @@ func groupedModelChoices(s session.ViewState, query string) []modelCatalogGroup 
 func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height float32) {
 	root := ui.Column(c.Key("grouped-model-catalog"))
 	state := ui.Local(root, "menu", func() modelCatalogMenu { return modelCatalogMenu{} })
+	triggerFocus := ui.Local(root, "trigger-focus", func() ui.Handle { return ui.Handle{} })
 	binding := fmt.Sprintf("%d:%s", m.Snapshot.ComposerHostGeneration, m.Snapshot.SelectedID)
 	if state.Binding != binding {
 		*state = modelCatalogMenu{Binding: binding}
@@ -174,7 +175,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		if m.Snapshot.ModelSelectionBusy {
 			caption += " …"
 		}
-		trigger := ui.Button(c, "").Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Inert)
+		trigger := ui.Button(c, "").Bind(triggerFocus).Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Inert)
 		trigger.Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20) })
 
 		if trigger.Clicked() {
@@ -195,7 +196,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						return true
 					}
 					state.Open = false
-					trigger.Focus()
+					triggerFocus.RequestFocus(c)
 					return true
 				}
 				return false
@@ -241,7 +242,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						}
 						if button.Clicked() && m.OnModelEffortChange != nil {
 							state.Open = false
-							trigger.Focus()
+							triggerFocus.RequestFocus(c)
 							m.OnModelEffortChange(effort)
 						}
 					}
@@ -271,7 +272,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					}
 					state.Open = false
 					state.Query = ""
-					trigger.Focus()
+					// Search HandleInput runs between builds, when the captured
+					// Element has expired. The stable handle requests the trigger
+					// in this window after the closed menu is rebuilt.
+					triggerFocus.RequestFocus(c)
 					if m.ModelPick != nil {
 						*m.ModelPick = label
 					}
