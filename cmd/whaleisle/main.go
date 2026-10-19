@@ -381,6 +381,7 @@ type mainState struct {
 	gitCommitDraft      string
 	gitCheckedRoot      string
 	gitCheckedAt        time.Time
+	gitRefresh          *gitRefreshRead
 	gitPROpen           bool
 	gitPRBusy           bool
 	gitPRReport         desktopgit.PRReport
@@ -2195,6 +2196,7 @@ func main() {
 		win.OnMinimize(state.pauseVoiceDevices)
 		win.OnClosed(state.pauseVoiceDevices)
 		win.OnClosed(state.closeWorkspaceOpenInApp)
+		win.OnClosed(state.cancelGitRefresh)
 		win.OnHide(state.pauseSVGImages)
 		win.OnMinimize(state.pauseSVGImages)
 		win.OnClosed(state.pauseSVGImages)
@@ -2567,33 +2569,6 @@ func applyAppearance(id string) {
 const gitRefreshInterval = 3 * time.Second
 const prRefreshInterval = 30 * time.Second
 
-func (s *mainState) refreshGit(workspaceRoot string) {
-	root := strings.TrimSpace(workspaceRoot)
-	s.mu.Lock()
-	stale := root != s.gitCheckedRoot || time.Since(s.gitCheckedAt) >= gitRefreshInterval
-	s.mu.Unlock()
-	if !stale {
-		return
-	}
-	branch, dirty := "", false
-	var repositoryStatus *desktopgit.RepositoryStatus
-	if root != "" {
-		if snap, err := desktopgit.WorkspaceSnapshot(root); err == nil {
-			branch, dirty = snap.Branch, snap.Dirty
-			repositoryStatus = snap.Status
-		} else if errors.Is(err, desktopgit.ErrNotRepo) {
-			repositoryStatus = &desktopgit.RepositoryStatus{}
-		}
-	}
-	s.mu.Lock()
-	s.gitCheckedRoot = root
-	s.gitCheckedAt = time.Now()
-	s.gitBranch = branch
-	s.gitDirty = dirty
-	s.gitRepositoryStatus = repositoryStatus
-	s.mu.Unlock()
-}
-
 func gitStatusLine(actionOK, actionFail string, out string, err error) string {
 	if err != nil {
 		msg := actionFail
@@ -2803,6 +2778,7 @@ func (s *mainState) runGitRemote(action string, root string, run func(context.Co
 		out, err := run(ctx)
 		msg := gitStatusLine(okLabel, failLabel, out, err)
 		progress.Finish(msg, err != nil)
+		s.cancelGitRefresh()
 
 		s.mu.Lock()
 		s.gitBusy = false
@@ -2818,10 +2794,8 @@ func (s *mainState) runGitRemote(action string, root string, run func(context.Co
 		if win != nil {
 			win.Update(func() {})
 		}
-		s.refreshGit(root)
-		if win != nil {
-			win.Update(func() {})
-		}
+		// The next frame refreshes its currently selected root. A completed
+		// operation from a previous workspace cannot replace that read owner.
 	}()
 }
 

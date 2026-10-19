@@ -244,3 +244,60 @@ The previous phase's passing component/build receipts belong to its older
 source revision. They do not validate these new changes. Real Windows native
 visual comparison, GPU/helper containment, full external-service behavior and
 packaging remain separate acceptance obligations, not inferred successes.
+
+## First coordinated expanded-batch run
+
+Source `589143f67b3a7f80f993a20d71d6f261305843d9`, tree
+`002514352c23ca9a22c338a11aee65d29679f7a0`, ran only after all six source/fixture
+owners and root had committed. Receipts are in
+`../evidence/source-depth-unified-20261019T1940Z` relative to the checkout's parent.
+Each process used Go1.27.2/windows-amd64/CGO0, offline module cache and fresh owned
+userdata; inherited product acceptance opt-ins were cleared only in that process.
+
+- Application `go test -json -count=1 -timeout=3m ./...`: exit1, 102 package
+  passes and13 package failures/build blocks. Full JSON, build errors, failed
+  test output and the settings fatal/timeout remain in `root/root-all.jsonl`,
+  `root/failures.txt` and `root/receipt.json`. No passing application conclusion.
+- SDK `./ui`: exit0. Includes persistent SplitFraction input/resize and native
+  physical-key driver coverage; this is software/headless UI evidence.
+- SDK fluid: real Windows D3DCompile and DXBC layout tests exited0, covering
+  profile128/1440 and the48-byte/splat/ink ABI. No GPU output comparison claimed.
+- SDK rounded clip: real surface-free COM property-tree ABI test exited0.
+- SDK native caption checks and the explicit inert terminal resize/close tests
+  exited0. No real PTY was started or downloaded.
+
+Three invalid `ui.RoleAlert` references caused several UI packages to be build
+blocked; `aa46bc67` replaces them with the existing inline `RoleStatus` role.
+Other failures are being traced against fixed original behavior, including
+history window/EOF fixtures, two-level model menu paths, asynchronous Host theme
+receipts, SVG renderer ownership, and strict generic versus explicit-editor save
+authority. A synctest bubble crossed persistent raster workers in a new settings
+fixture; its fatal/timeout is a failure, not a skipped or passing check.
+
+This adds one failed local round to the six retained earlier local rounds.
+Remote CI remains zero. Corrections must complete before a coordinated recheck;
+unaffected SDK results retain their exact source-tree boundary.
+
+Corrections prepared before the second coordinated run:
+
+- `2597798e`: accepted Host defaults/font normalization/registered-page fixtures
+  follow their actual consumers; rendered UI is outside the synctest bubble.
+- `227c2159`: fixes SVG native/helper routing and failed README image fallback,
+  retaining every prior pixel/alt/paragraph assertion.
+- `1f7b8059`: generic checked saves reject incomplete rereads. Only the local
+  editor's real explicit Flush of a dirty draft may use the original exception;
+  later input cannot inherit that gesture. Prefix safety assertions remain.
+- `16dddb2b`: validates dense history before accepting/merging its older subset,
+  matches the original model menu/current-choice and busy-browsing behavior,
+  and prevents unavailable voice feedback from admitting retry recording.
+
+Root's final interaction audit also found synchronous `WorkspaceSnapshot`
+directly in the frame/menu callback, with its existing ten-second timeout. The
+native Git refresh now admits a bounded background `ReadRepositoryStatus`,
+cancels a replaced root/window owner, rejects late results, and waits for
+mutations to settle before publishing a fresh status. A completed operation
+invalidates the selected frame instead of forcing its old workspace back into
+the status reader. No fetch/account lookup or Git mutation is added. New tests
+hold the reader to prove admission returns, then inspect the actual completion;
+separate receipt cases reject retired and mutation-racing owners. These changes
+have only been formatted/diff-checked at this point, not declared passing.
