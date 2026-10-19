@@ -7,8 +7,8 @@ const port = document.querySelector('#scrollport'), pages = document.querySelect
 const pageInput = document.querySelector('#page'), zoomInput = document.querySelector('#zoom');
 const status = document.querySelector('#status'), retry = document.querySelector('#retry');
 let pdf, worker, bridge, loading, observer, disposed = false, restoring = false, generation = 0;
-let records = [], state = readState(), publishing = false, scrollTimer, renderQueue = Promise.resolve();
 const number = (x, lo, hi, fallback) => Number.isInteger(+x) && +x >= lo && +x <= hi ? +x : fallback;
+let records = [], state = readState(), publishing = false, scrollTimer, renderQueue = Promise.resolve(), navigationPosition = null;
 function readState() {
   const p = new URLSearchParams(location.hash.slice(1));
   const z = (p.get('zoom') || '100,0,0').split(',');
@@ -23,9 +23,15 @@ function readState() {
 function publish() {
   if (!pdf || restoring || disposed) return;
   state.left = Math.round(port.scrollLeft); state.top = Math.round(port.scrollTop);
-  let nearest = records[0];
-  for (const r of records) { if (r.node.offsetTop <= port.scrollTop + 16) nearest = r; else break; }
-  state.page = nearest?.index || 1;
+  // A short last page cannot always align with the viewport's top. Keep an
+  // explicit page choice at its clamped scroll position, until actual scrolling
+  // changes that position; otherwise Next immediately snaps its page number back.
+  if (!navigationPosition || state.left !== navigationPosition.left || state.top !== navigationPosition.top) {
+    navigationPosition = null;
+    let nearest = records[0];
+    for (const r of records) { if (r.node.offsetTop <= port.scrollTop + 16) nearest = r; else break; }
+    state.page = nearest?.index || 1;
+  }
   const p = new URLSearchParams({page:String(state.page),zoom:[state.zoom,state.left,state.top].join(','),fit:state.fit?'1':'0'});
   if (state.selection) p.set('selection',state.selection.join(','));
   publishing = true;
@@ -121,6 +127,7 @@ async function apply(next,jump=false) {
   if(changed){layout();lastLayout={fit:state.fit,zoom:state.zoom};}
   state.page=Math.min(state.page,pdf.numPages);
   port.scrollTo(state.left,jump?records[state.page-1].node.offsetTop-12:state.top);
+  navigationPosition={left:Math.round(port.scrollLeft),top:Math.round(port.scrollTop)};
   restoring=false;renderVisible();restoreSelection();publish();
 }
 let lastLayout={};
