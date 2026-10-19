@@ -157,6 +157,9 @@ func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string
 					}
 				})
 				if button.Clicked() {
+					if *open {
+						e.FlushGeneralFontEdits(true)
+					}
 					*open = !*open
 				}
 			}
@@ -171,12 +174,12 @@ func generalFontFamilyRow(c *ui.Context, e *theme.Editor, role, title, hint, sav
 			Value, Base string
 			Focused     bool
 		}
-		draft := ui.Local(anchor, "family-draft", func() familyDraft { return familyDraft{Value: saved, Base: saved} })
+		draft := ui.Local(anchor, "family-draft", func() familyDraft { return familyDraft{Value: e.GeneralFontFamily(role), Base: saved} })
 		if draft.Base != saved {
 			draft.Value, draft.Base = saved, saved
 		}
 		commit := func() {
-			if draft.Value != draft.Base && e.OnSave != nil && e.SaveFontFamily(role, draft.Value) {
+			if e.OnSave != nil && e.CommitGeneralFontEdit(role) {
 				c.Invalidate()
 			}
 		}
@@ -194,6 +197,7 @@ func generalFontFamilyRow(c *ui.Context, e *theme.Editor, role, title, hint, sav
 						break
 					}
 				}
+				e.QueueGeneralFontEdit(role, draft.Value)
 			})
 			if draft.Focused && !input.Focused() && !input.Composing() {
 				commit()

@@ -6,6 +6,69 @@ import (
 	"unicode"
 )
 
+// GeneralFontFamily restores an uncommitted General input after navigation,
+// including a failed save, without projecting Appearance's independent draft.
+func (e *Editor) GeneralFontFamily(role string) string {
+	if value, ok := e.generalFontEdits[role]; ok {
+		return value
+	}
+	switch role {
+	case "text":
+		return e.Saved.Interface.Family
+	case "code":
+		return e.Saved.Code.Family
+	case "terminal":
+		return e.Saved.Terminal.Family
+	}
+	return ""
+}
+
+// QueueGeneralFontEdit records typing only. It never persists per keystroke.
+func (e *Editor) QueueGeneralFontEdit(role, value string) {
+	if current, ok := e.generalFontEdits[role]; ok && current == value {
+		return
+	}
+	if e.generalFontEdits == nil {
+		e.generalFontEdits = make(map[string]string)
+	}
+	e.generalFontEdits[role] = value
+	e.generalFontRevision++
+}
+
+// CommitGeneralFontEdit consumes one input on its explicit blur or Enter.
+// Failure retains the pending value and prevents automatic retry on paints.
+func (e *Editor) CommitGeneralFontEdit(role string) bool {
+	value, ok := e.generalFontEdits[role]
+	if !ok {
+		return true
+	}
+	if !e.SaveFontFamily(role, value) {
+		e.generalFontAttempted = e.generalFontRevision
+		return false
+	}
+	delete(e.generalFontEdits, role)
+	return true
+}
+
+// FlushGeneralFontEdits is the General-leaving seam. An unchanged failed
+// revision is attempted once automatically; explicit collapse/close may force
+// one retry. It never saves any other Appearance or font drafts.
+func (e *Editor) FlushGeneralFontEdits(force bool) bool {
+	if len(e.generalFontEdits) == 0 {
+		return true
+	}
+	if !force && e.generalFontAttempted == e.generalFontRevision {
+		return false
+	}
+	e.generalFontAttempted = e.generalFontRevision
+	for _, role := range []string{"text", "code", "terminal"} {
+		if !e.CommitGeneralFontEdit(role) {
+			return false
+		}
+	}
+	return true
+}
+
 // SaveFontSize is the General settings stepper's single-field write. Its
 // text role is conversation content, independent of the interface scale.
 func (e *Editor) SaveFontSize(role string, size float32) bool {

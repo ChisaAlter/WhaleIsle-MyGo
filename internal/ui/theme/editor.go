@@ -7,6 +7,10 @@ type Editor struct {
 	Status   string
 	Preview  bool
 	OnSave   func(Preferences) error
+	// Only General's explicitly edited family inputs enter this pending set.
+	generalFontEdits     map[string]string
+	generalFontRevision  uint64
+	generalFontAttempted uint64
 }
 
 func NewEditor(p Preferences, save func(Preferences) error) *Editor {
