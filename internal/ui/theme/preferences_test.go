@@ -6,15 +6,18 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestEmptyPreferencesRestoreOriginalTextFallbacks(t *testing.T) {
+func TestEmptyPreferencesPreserveRawFamiliesAndRestoreRoleSizes(t *testing.T) {
 	p := (Preferences{}).Normalized()
-	for name, f := range map[string]FontPreference{"interface": p.Interface, "chat": p.Chat, "composer": p.Composer} {
-		if f.Family != DefaultTextFamily || f.Size != 14 {
-			t.Errorf("%s default=%+v", name, f)
+	for name, pair := range map[string]struct {
+		got  FontPreference
+		size float32
+	}{"interface": {p.Interface, 16}, "chat": {p.Chat, 14}, "composer": {p.Composer, 14}, "code": {p.Code, 13}, "terminal": {p.Terminal, 13}} {
+		if pair.got.Family != "" || pair.got.Size != pair.size {
+			t.Errorf("%s raw default=%+v", name, pair.got)
 		}
 	}
-	if p.Code.Family != DefaultCodeFamily || p.Code.Size != 13 {
-		t.Errorf("code default = %+v", p.Code)
+	if TextFamily(p.Interface.Family) != DefaultTextFamily || CodeFamily(p.Code.Family) != DefaultCodeFamily {
+		t.Fatal("render fallback missing for empty raw Host family")
 	}
 }
 
@@ -38,7 +41,7 @@ func TestApplyInterfaceUsesFallbackStackAndPreservesPalette(t *testing.T) {
 		before := *c.Theme()
 		ApplyInterface(c)
 		after := *c.Theme()
-		if after.Font != DefaultTextFamily || after.FontSize != 14 {
+		if after.Font != DefaultTextFamily || after.FontSize != 16 {
 			t.Errorf("native interface font=%q size=%g", after.Font, after.FontSize)
 		}
 		after.Font, after.FontSize = before.Font, before.FontSize

@@ -99,7 +99,7 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 				inter := &InterfaceAccess{Host: h, ShowArchivedList: &enabled, OnSave: func() {}}
 				appearance := &AppearanceAccess{Host: h, Preferences: prefs, Background: background, Theme: &scheme, WallpaperPath: &wallpaperPath, OnSave: func() {}}
 				pa := &PetSettingsAccess{OnSave: func() {}}
-				about := &AboutAccess{AppName: "WhaleIsle", Version: "0.0.0-fixture", HomePath: strings.Repeat("long-directory/", 12), OnRevealHome: func() {}, OnCheckUpdates: func() {}, ReadCredentialStorage: func() credentials.StorageStatus { return credentials.StorageStatus{Mode: "dpapi"} }}
+				about := &AboutAccess{AppName: "WhaleIsle", Version: "0.0.0-fixture", HomePath: strings.Repeat("long-directory/", 12), OnRevealHome: func() error { return nil }, OnCheckUpdates: func() {}, ReadCredentialStorage: func() credentials.StorageStatus { return credentials.StorageStatus{Mode: "dpapi"} }}
 				switch state {
 				case "loading":
 					h.Snapshot.Loading = true
