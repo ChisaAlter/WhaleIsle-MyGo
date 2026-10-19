@@ -320,3 +320,21 @@ callback; it requires a stable focus owner. The project search/context-menu
 fixtures and shortcut clear/default fixture still described removed UI paths.
 Their owners are tracing/fixing those exact cases before the next coordinated
 execution. No broad SDK rerun is admitted: its tested tree remains unchanged.
+
+The third run, source `0c43cea7`, is retained in
+`../evidence/source-depth-narrow-20261019T2006Z/narrow`: exit1, settings/sidebar
+passed, main/frame/projects/composer failed or build-blocked. Go1.27 build
+diagnostics are `build-output` entries in the JSON, not necessarily stderr.
+There are now nine retained failed local rounds; remote CI remains zero.
+Main exposed an int-to-uint64 connection-generation assignment and stale menu
+gesture/physical-chord fixtures. After frame finally compiled, its older
+caption/rail, raw-pointer coordinates and vertical-dock fixtures were reached.
+Their assertions must follow the fixed source and real physical input producer.
+
+Two newly reached failures identify production focus gaps: non-bubbling model
+menu Escape and a Project Activity child without its task-action focus origin.
+The compact sidebar audit additionally found missing real rail actions and a
+replaced footer identity. `47de782b` restores the original generic 56-DIP rail
+actions and common footer; actual Whale preload does not enable the upstream
+standalone Windows titlebar flag. These corrections remain subject to a new
+coordinated check, with all original failure receipts retained.
