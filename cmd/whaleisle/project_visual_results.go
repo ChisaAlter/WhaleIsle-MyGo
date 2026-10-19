@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/htmlpreview"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
@@ -30,8 +32,17 @@ type projectVisualOwner struct {
 }
 
 type projectVisualPage struct {
-	state  projects.VisualPagePreview
-	cancel context.CancelFunc
+	state             projects.VisualPagePreview
+	ctx               context.Context
+	cancel            context.CancelFunc
+	captureCancel     context.CancelFunc
+	captureToken      uint64
+	interactiveCancel context.CancelFunc
+	interactiveToken  uint64
+	handle            *publishedHTMLSurface
+	html              string
+	width             int
+	dark              bool
 }
 
 type projectVisualResultsState struct {
@@ -126,7 +137,7 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 	}
 	s.mu.Unlock()
 	dark := mygo.Theme.IsDark()
-	m.VisualPage = func(source string, reference projectflow.DeliveryPageReference) projects.VisualPagePreview {
+	m.VisualPage = func(source string, reference projectflow.DeliveryPageReference, width int) projects.VisualPagePreview {
 		s.dshMu.Lock()
 		current := s.dshClient
 		s.dshMu.Unlock()
@@ -141,21 +152,38 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 			s.mu.Unlock()
 			return projects.VisualPagePreview{}
 		}
+		if width < 1 {
+			s.mu.Unlock()
+			return projects.VisualPagePreview{Available: true, Loading: true}
+		}
+		width = max(htmlpreview.MinWidth, min(htmlpreview.MaxWidth, width))
 		if f.visualResults == nil {
 			f.visualResults = &projectVisualResultsState{pages: map[projectVisualOwner]*projectVisualPage{}}
 		}
 		state := f.visualResults
 		page := state.pages[owner]
 		if page == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-			page = &projectVisualPage{state: projects.VisualPagePreview{Available: true, Loading: true}, cancel: cancel}
+			ctx, cancel := context.WithCancel(context.Background())
+			page = &projectVisualPage{state: projects.VisualPagePreview{Available: true, Loading: true}, ctx: ctx, cancel: cancel, width: width, dark: dark}
 			state.pages[owner] = page
-			go s.loadProjectVisualPage(ctx, win, state, owner, page, dark)
+			go s.loadProjectVisualPage(ctx, win, state, owner, page)
+		} else if page.width != width || page.dark != dark {
+			widthChanged := page.width != width
+			page.width, page.dark = width, dark
+			if page.html != "" {
+				if page.state.InteractiveError != "" {
+					s.startProjectVisualCaptureLocked(win, state, owner, page)
+				} else if widthChanged && (runtime.GOOS != "windows" || page.handle == nil) {
+					// Windows reflows the same child through the clipped native
+					// seat. Pixel-backed helpers need a new viewport snapshot.
+					s.startProjectVisualInteractiveLocked(win, state, owner, page)
+				}
+			}
 		}
 		snapshot := page.state
 		snapshot.Retry = func() {
 			s.mu.Lock()
-			if s.projectFlow.visualResults == state && state.pages[owner] == page && page.state.Error != "" && s.projectVisualCurrentLocked(owner) {
+			if s.projectFlow.visualResults == state && state.pages[owner] == page && (page.state.Error != "" || page.state.InteractiveError != "") && s.projectVisualCurrentLocked(owner) {
 				if page.cancel != nil {
 					page.cancel()
 				}
@@ -169,8 +197,9 @@ func (s *projectController) bindProjectVisualResults(win *mygo.Window, m *projec
 	}
 }
 
-func (s *projectController) loadProjectVisualPage(ctx context.Context, win *mygo.Window, state *projectVisualResultsState, owner projectVisualOwner, page *projectVisualPage, dark bool) {
-	defer page.cancel()
+func (s *projectController) loadProjectVisualPage(lifetime context.Context, win *mygo.Window, state *projectVisualResultsState, owner projectVisualOwner, page *projectVisualPage) {
+	ctx, cancel := context.WithTimeout(lifetime, 30*time.Second)
+	defer cancel()
 	valid := func() bool { return ctx.Err() == nil && s.projectVisualCurrent(owner, state, page) }
 	var err error
 	if owner.page.CallID == "" || strings.TrimSpace(owner.page.Title) == "" || owner.page.Height < 80 || owner.page.Height > 2000 {
@@ -187,25 +216,6 @@ func (s *projectController) loadProjectVisualPage(ctx context.Context, win *mygo
 		file := owner.page.File
 		html, err = session.ReadPublishedVisualReply(ctx, owner.client, owner.page.SessionID, session.VisualReplyFile{AttachmentID: file.AttachmentID, Name: file.Name, Bytes: file.Bytes}, valid)
 	}
-	var png []byte
-	contentHeight, capturedHeight := 0, 0
-	if err == nil && valid() {
-		appearance := "light"
-		if dark {
-			appearance = "dark"
-		}
-		// Reuse the existing isolated saved-page renderer. Only authorized HTML
-		// bytes enter the helper; it receives no Host credentials or file paths.
-		capture, captureErr := captureHTMLInHelper(ctx, html, 728, appearance)
-		err = captureErr
-		if err == nil {
-			png, err = base64.StdEncoding.DecodeString(capture.PNG)
-			contentHeight, capturedHeight = capture.ContentHeight, capture.CapturedHeight
-		}
-	}
-	if err == nil && !valid() {
-		err = fmt.Errorf("Project page owner changed while rendering")
-	}
 	win.Update(func() {
 		s.dshMu.Lock()
 		current := s.dshClient
@@ -215,14 +225,71 @@ func (s *projectController) loadProjectVisualPage(ctx context.Context, win *mygo
 		if current != owner.client || s.projectFlow.visualResults != state || state.pages[owner] != page || !s.projectVisualCurrentLocked(owner) {
 			return
 		}
-		page.state.Loading = false
-		if err == nil {
-			page.state.Bitmap, err = ui.DecodeBitmap(png)
-		}
 		if err != nil {
+			page.state.Loading = false
 			page.state.Error = err.Error()
 			return
 		}
-		page.state.ContentHeight, page.state.CapturedHeight = contentHeight, capturedHeight
+		page.html = html
+		s.startProjectVisualInteractiveLocked(win, state, owner, page)
 	})
+}
+
+func (s *projectController) startProjectVisualCaptureLocked(win *mygo.Window, state *projectVisualResultsState, owner projectVisualOwner, page *projectVisualPage) {
+	if page.captureCancel != nil {
+		page.captureCancel()
+	}
+	ctx, cancel := context.WithTimeout(page.ctx, 60*time.Second)
+	page.captureCancel = cancel
+	page.captureToken++
+	token, width, dark, html := page.captureToken, page.width, page.dark, page.html
+	page.state.Loading, page.state.Error, page.state.Bitmap = true, "", nil
+	go func() {
+		defer cancel()
+		// Layout can change through many DIPs during one resize gesture. Keep
+		// only the last requested width before starting the isolated renderer.
+		settle := time.NewTimer(120 * time.Millisecond)
+		defer settle.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-settle.C:
+		}
+		if !s.projectVisualCurrent(owner, state, page) {
+			return
+		}
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		// Only the same authorized HTML bytes enter the existing isolated
+		// renderer. Width changes do not perform another Host read.
+		capture, err := captureHTMLInHelper(ctx, html, width, appearance)
+		var png []byte
+		if err == nil {
+			png, err = base64.StdEncoding.DecodeString(capture.PNG)
+		}
+		if err == nil {
+			err = ctx.Err()
+		}
+		win.Update(func() {
+			s.dshMu.Lock()
+			current := s.dshClient
+			s.dshMu.Unlock()
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if current != owner.client || s.projectFlow.visualResults != state || state.pages[owner] != page || page.captureToken != token || !s.projectVisualCurrentLocked(owner) {
+				return
+			}
+			page.state.Loading = false
+			if err == nil {
+				page.state.Bitmap, err = ui.DecodeBitmap(png)
+			}
+			if err != nil {
+				page.state.Error = err.Error()
+				return
+			}
+			page.state.ContentHeight, page.state.CapturedHeight = capture.ContentHeight, capture.CapturedHeight
+		})
+	}()
 }

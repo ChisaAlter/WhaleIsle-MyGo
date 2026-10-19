@@ -1,8 +1,12 @@
 package projects
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -11,6 +15,8 @@ import (
 type VisualPagePreview struct {
 	Available, Loading            bool
 	Error                         string
+	InteractiveError              string
+	Surface                       session.VisualReplySurface
 	Bitmap                        *ui.Bitmap
 	ContentHeight, CapturedHeight int
 	Retry                         func()
@@ -19,12 +25,22 @@ type VisualPagePreview struct {
 func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflow.DeliveryPageReference) {
 	for _, page := range pages {
 		page := page
-		ui.Column(c.Key("project-visual-" + source + "/" + page.CallID)).FillWidth().MinWidth(0).Gap(6).Children(func() {
+		slot := ui.Column(c.Key("project-visual-" + source + "/" + page.CallID)).FillWidth().MinWidth(0).Gap(6)
+		width := slot.Bounds().W // Public Bounds reports the previous frame in DIPs.
+		slot.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+			if bounds.W != width {
+				c.Invalidate() // Read the settled layout in the next build, never capture during paint.
+			}
+		})
+		slot.Children(func() {
 			ui.Text(c, page.Title).FontSize(theme.InterfaceSize(13)).FontWeight(600)
 			ui.Text(c, page.File.Name).FontSize(theme.InterfaceSize(12)).Selectable()
 			state := VisualPagePreview{}
 			if m.VisualPage != nil {
-				state = m.VisualPage(source, page)
+				// The helper normalizes device-scale PNGs to CSS dimensions. DIPs
+				// are the native CSS width here; multiplying by display DPI would
+				// change the page's responsive breakpoint rather than its sharpness.
+				state = m.VisualPage(source, page, int(math.Round(float64(width))))
 			}
 			if !state.Available {
 				ui.Text(c, tr("打开原任务详情以预览已发布页面。", "Open the original request details to preview this published page.")).FontSize(theme.InterfaceSize(12))
@@ -35,9 +51,16 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 			}
 			if state.Error != "" {
 				ui.Text(c, state.Error).FontSize(theme.InterfaceSize(12)).Selectable()
-				if state.Retry != nil && ui.Button(c, tr("重试页面预览", "Retry page preview")).Clicked() {
-					state.Retry()
-				}
+			}
+			if state.InteractiveError != "" {
+				ui.Text(c, tr("交互页面不可用，正在使用静态预览：", "Interactive page unavailable; using a static preview: ")+state.InteractiveError).FontSize(theme.InterfaceSize(12)).Selectable()
+			}
+			if (state.Error != "" || state.InteractiveError != "") && state.Retry != nil && ui.Button(c, tr("重试页面预览", "Retry page preview")).Clicked() {
+				state.Retry()
+			}
+			if state.Surface != nil {
+				chat.PublishedPageSurface(c, state.Surface, m.ThemeID, m.SystemDark, float32(max(80, min(2000, page.Height))))
+				return
 			}
 			if state.Bitmap != nil {
 				height := float32(max(80, min(2000, page.Height)))

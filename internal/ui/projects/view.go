@@ -7,6 +7,7 @@ import (
 )
 
 type Model struct {
+	VisualPage                                                           func(string, projectflow.DeliveryPageReference, int) VisualPagePreview
 	modalBody                                                            bool
 	presentation                                                         *projectPresentation
 	ThemeID                                                              string
