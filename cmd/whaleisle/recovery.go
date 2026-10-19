@@ -131,6 +131,16 @@ func (s *mainState) restoreResumeSelection() {
 
 func (s *mainState) saveResume() error {
 	s.mu.Lock()
+	interactions := s.interactions
+	s.mu.Unlock()
+	// Flush outside mainState.mu: the draft writer owns a separate serial lock
+	// and its resume callback must finish before the final combined snapshot.
+	if interactions != nil {
+		if err := interactions.FlushQuestionDraftPersistence(); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.resumeError != "" {
 		return fmt.Errorf("%s", s.resumeError)
@@ -139,6 +149,9 @@ func (s *mainState) saveResume() error {
 		return fmt.Errorf("resume storage is not available")
 	}
 	next := s.resumeStore.Snapshot()
+	if interactions != nil {
+		next.QuestionDrafts = interactions.ExportQuestionDrafts(questionDraftProfileOwner())
+	}
 	if s.cfgStore != nil {
 		next.Workspace = s.cfgStore.Get().Workspace
 	}

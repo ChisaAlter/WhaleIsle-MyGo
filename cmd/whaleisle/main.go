@@ -387,10 +387,11 @@ type mainState struct {
 	fileEditViewMode files.EditViewMode
 	fileEditSplit    float32
 
-	schedulePanel      scheduleui.Panel
-	scheduleEditID     string
-	scheduleEditTitle  string
-	scheduleEditPrompt string
+	schedulePanel         scheduleui.Panel
+	schedulePanelRendered bool
+	scheduleEditID        string
+	scheduleEditTitle     string
+	scheduleEditPrompt    string
 
 	rightPaneTab          string
 	agentsPromptDraft     string
@@ -1720,6 +1721,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	if inter != nil {
 		inter.AttachClient(client, mux)
+		s.bindQuestionDraftRecovery(inter)
 	}
 	go s.runDSH(ctx, client, mux, inter)
 	sessions.FollowWorkspace(ctx)
@@ -2795,6 +2797,13 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	standaloneScheduleRendered := false
+	defer func() {
+		if state.schedulePanelRendered && !standaloneScheduleRendered {
+			state.schedulePanel.Deactivate()
+		}
+		state.schedulePanelRendered = standaloneScheduleRendered
+	}()
 	state.beginAssistantGroupRuntimeFrame()
 	defer state.finishAssistantGroupRuntimeFrame()
 	state.flushInactiveGeneralFontEdits(false)
@@ -5023,6 +5032,7 @@ func mainView(c *ui.Context) {
 					sid = sessionSnap.SelectedID
 					sessionLinks = scheduleSessionLinks(sessionSnap)
 				}
+				standaloneScheduleRendered = true
 				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 					SessionLinks:  sessionLinks,
 					OnOpenSession: state.openScheduleSession,
