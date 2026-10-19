@@ -10,8 +10,8 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 )
 
-// Runs on the same UI thread as the existing notification observer. It projects
-// already-accepted activity and session snapshots; no request, timer or notify.
+// Projects notification/session snapshots and read-only Room runtime observation
+// while the original BotPage's native counterpart is actually mounted.
 func (s *mainState) assistantContactsActivity(ep harness.Endpoint, catalog pluginrpc.DshbotContactCatalog) map[string]dshbotstore.ContactActivity {
 	out := map[string]dshbotstore.ContactActivity{}
 	s.mu.Lock()
@@ -50,31 +50,54 @@ func (s *mainState) assistantContactsActivity(ep harness.Endpoint, catalog plugi
 			}
 		}
 	}
+	runtimes := s.assistantContactRoomRuntimes(ep, catalog)
 	runtime := s.assistantRoomRuntime.Snapshot()
-	if runtime.Loaded {
+	if runtime.Loaded && runtimes[runtime.Data.Room.ID].data.Room.ID == "" {
 		id := runtime.Data.Room.ID
 		digest := sha256.Sum256([]byte(fmt.Sprintf("%p\x00%s\x00%s\x00%s", client, ep.Origin, ep.Cookie, id)))
 		if runtime.Scope == fmt.Sprintf("%x", digest) {
 			for _, row := range catalog.Items {
 				if row.ID == id && row.SessionID == runtime.Data.Room.SessionID {
-					live := out[id]
-					for _, member := range runtime.Data.Members {
-						var fields map[string]json.RawMessage
-						_ = json.Unmarshal(member.Raw, &fields)
-						status := strings.ToLower(member.Status)
-						active := contactRuntimeTruth(fields["running"]) || contactRuntimeTruth(member.Pending) || contactRuntimeTruth(member.Error) || contactRuntimeTruth(member.LastError)
-						for _, term := range []string{"running", "pending", "waiting", "approval", "question", "error", "failed"} {
-							active = active || strings.Contains(status, term)
-						}
-						live.Active = live.Active || active
-					}
-					out[id] = live
+					out[id] = contactRoomActivity(out[id], runtime.Data)
 					break
 				}
 			}
 		}
 	}
+	for id, runtime := range runtimes {
+		for _, row := range catalog.Items {
+			if row.ID != id || row.Kind != "room" {
+				continue
+			}
+			live := out[id]
+			if row.SessionID == runtime.data.Room.SessionID {
+				live = contactRoomActivity(live, runtime.data)
+			}
+			if runtime.err != "" {
+				live.Active = true
+				if live.Preview == "" {
+					live.Preview = runtime.err
+				}
+			}
+			out[id] = live
+			break
+		}
+	}
 	return out
+}
+
+func contactRoomActivity(live dshbotstore.ContactActivity, runtime pluginrpc.DshbotRoomRuntime) dshbotstore.ContactActivity {
+	for _, member := range runtime.Members {
+		var fields map[string]json.RawMessage
+		_ = json.Unmarshal(member.Raw, &fields)
+		status := strings.ToLower(member.Status)
+		active := contactRuntimeTruth(fields["running"]) || contactRuntimeTruth(member.Pending) || contactRuntimeTruth(member.Error) || contactRuntimeTruth(member.LastError)
+		for _, term := range []string{"running", "pending", "waiting", "approval", "question", "error", "failed"} {
+			active = active || strings.Contains(status, term)
+		}
+		live.Active = live.Active || active
+	}
+	return live
 }
 func contactRuntimeTruth(raw json.RawMessage) bool {
 	var value any
