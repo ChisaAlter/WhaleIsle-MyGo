@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -21,23 +22,57 @@ func (a Actions) Update(name string) {
 	}
 	for _, p := range s.Packages {
 		if p.Name == name && UpdateAvailable(p) {
-			enabled := p.Enabled
-			a.c.openInstall(a.owner, p.InstallTarget.Spec, "", &enabled, true)
+			c := a.c
+			c.mu.Lock()
+			if c.state.Owner != a.owner || c.client == nil || c.state.ActionBusy(p.Name) {
+				c.mu.Unlock()
+				return
+			}
+			client, ctx := Client{c.client}, c.life
+			if c.state.BusyKeys == nil {
+				c.state.BusyKeys = map[string]bool{}
+			}
+			c.state.BusyKeys[p.Name] = true
+			c.mu.Unlock()
+			c.fire()
+			go func() {
+				result, err := client.Remove(ctx, p.Name)
+				accepted := err == nil && (result.Application != "failed" || result.Error != nil && result.Error.Code == "stop-profile")
+				if !c.patch(a.owner, func(s *State) {
+					delete(s.BusyKeys, p.Name)
+					if err != nil {
+						s.Notice = err.Error()
+					} else {
+						s.Notice = changeMessage(result)
+					}
+				}) {
+					return
+				}
+				if accepted {
+					c.openCatalogInstall(a.owner, p, p.Enabled)
+				}
+				_ = c.Load(ctx)
+				c.BundlesChanged(a.owner)
+			}()
 			return
 		}
 	}
 }
-func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *bool, exact bool) {
+func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *bool, exact bool) bool {
 	c.mu.Lock()
 	if c.state.Owner != owner || c.client == nil {
 		c.mu.Unlock()
-		return
+		return false
 	}
-	if c.state.Install.RequestID != "" && (installPending(c.state.Install.Phase) || c.state.Install.Phase == "unknown") {
+	if c.state.Install.RequestID != "" && c.state.Install.Phase != "reviewed" {
 		c.state.Install.Open = true
 		c.mu.Unlock()
 		c.fire()
-		return
+		return false
+	}
+	if c.inspectCancel != nil {
+		c.inspectCancel()
+		c.inspectCancel = nil
 	}
 	c.state.Install = InstallState{Open: true, Spec: spec, Registry: registry, Enabled: enabled, SaveExact: exact, Phase: "idle"}
 	c.installRead++
@@ -48,17 +83,64 @@ func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *b
 	c.fire()
 	go func() {
 		registries, err := client.Registries(ctx)
+		start := false
 		c.patch(owner, func(s *State) {
 			if c.registryRead != read {
 				return
 			}
+			s.Install.RegistryReadDone = true
+			start = s.Install.StartAfterRegistry
 			if err != nil {
 				s.Install.Error = err.Error()
 				return
 			}
 			s.Install.RegistryInfo = &registries
+			if s.Install.Registry == "" && registries.Registry != nil {
+				s.Install.Registry = *registries.Registry
+			}
 		})
+		if start {
+			c.Actions(owner).startConfirmedInstall()
+		}
 	}()
+	return true
+}
+func (c *Controller) openCatalogInstall(owner uint64, p Package, enabled bool) {
+	if p.InstallTarget == nil || !c.openInstall(owner, p.InstallTarget.Spec, "", &enabled, !strings.HasPrefix(p.InstallTarget.Spec, "link:")) {
+		return
+	}
+	c.patch(owner, func(s *State) {
+		bundle := true
+		s.Install.Inspection = &Inspection{Status: "accepted", Name: p.Name, Version: p.InstallTarget.Version, Bundle: &bundle}
+		s.Install.Confirmed = true
+		s.Install.Title = p.Name
+		s.Install.Version = p.InstallTarget.Version
+		if p.Meta != nil {
+			s.Install.ConfirmedTitle = p.Meta.Title
+		}
+	})
+	c.Actions(owner).startConfirmedInstall()
+}
+func (a Actions) startConfirmedInstall() {
+	c := a.c
+	c.mu.Lock()
+	if c.state.Owner != a.owner || !c.state.Install.Confirmed {
+		c.mu.Unlock()
+		return
+	}
+	if !c.state.Install.RegistryReadDone {
+		c.state.Install.StartAfterRegistry = true
+		c.mu.Unlock()
+		return
+	}
+	c.state.Install.StartAfterRegistry = false
+	prepared := c.state.Install.Inspection != nil
+	c.mu.Unlock()
+	if prepared {
+		a.RequestInstall()
+	} else {
+		a.Inspect()
+	}
 }
 func (a Actions) CloseInstall() {
 	c := a.c
@@ -132,6 +214,7 @@ func (a Actions) Inspect() {
 			selected = &registry
 		}
 		inspection, err := client.Inspect(ctx, spec, selected)
+		automatic := false
 		c.patch(a.owner, func(s *State) {
 			if c.installRead != read || s.Install.Spec != spec || s.Install.Registry != registry {
 				return
@@ -149,16 +232,20 @@ func (a Actions) Inspect() {
 			if inspection.Status != "accepted" {
 				s.Install.Error = inspection.Problem + ": " + inspection.Reason
 			}
+			automatic = s.Install.Confirmed && s.Install.Error == ""
 		})
+		if automatic {
+			a.RequestInstall()
+		}
 	}()
 }
 func (a Actions) RequestInstall() {
 	c := a.c
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	s := &c.state
 	i := &s.Install
 	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || (i.Inspection.Bundle != nil && !*i.Inspection.Bundle) || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
+		c.mu.Unlock()
 		return
 	}
 	id := requestID()
@@ -170,6 +257,15 @@ func (a Actions) RequestInstall() {
 	c.pending = &action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
 	s.Confirmation = &Confirmation{Kind: "install", Target: i.Spec, Description: "Install " + i.Spec + "? Plugins run with the profile's permissions."}
 	i.RequestID = id
+	if i.Confirmed {
+		op := *c.pending
+		c.pending = nil
+		s.Confirmation = nil
+		c.mu.Unlock()
+		c.run(op)
+		return
+	}
+	c.mu.Unlock()
 	go c.fire()
 }
 func (a Actions) ApproveBuilds() {
@@ -181,6 +277,45 @@ func (a Actions) ApproveBuilds() {
 		s.Install.Phase = "idle"
 		s.Install.Result = nil
 	})
+}
+func (a Actions) EnableInstalled() {
+	c := a.c
+	c.mu.Lock()
+	i := &c.state.Install
+	if c.state.Owner != a.owner || c.client == nil || i.Phase != "done" || i.Enabling || i.Result == nil {
+		c.mu.Unlock()
+		return
+	}
+	name := i.Result.Bundle
+	if name == "" && i.Inspection != nil {
+		name = i.Inspection.Name
+	}
+	i.Enabling = true
+	client, ctx := Client{c.client}, c.life
+	c.mu.Unlock()
+	c.fire()
+	go func() {
+		var result Change
+		var err error
+		if name != "" {
+			result, err = client.SetBundleEnabled(ctx, name, true)
+		}
+		if !c.patch(a.owner, func(s *State) {
+			if err != nil {
+				s.Notice = err.Error()
+			} else if name != "" {
+				s.Notice = changeMessage(result)
+			}
+			s.Install = InstallState{Phase: "idle"}
+			s.Tab = "installed"
+			s.Highlight = name
+			s.HighlightUntil = time.Now().Add(2400 * time.Millisecond).UnixNano()
+		}) {
+			return
+		}
+		_ = c.Load(ctx)
+		c.BundlesChanged(a.owner)
+	}()
 }
 func (a Actions) RequestExemption(pkg, runtime string) {
 	c := a.c

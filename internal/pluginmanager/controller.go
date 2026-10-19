@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Controller struct {
@@ -19,6 +20,10 @@ type Controller struct {
 	state                                                             State
 	read, listingRead, indexRead, installRead, registryRead, revision uint64
 	pending                                                           *action
+	selectAdded                                                       bool
+	failedDiscover                                                    *discoverRead
+	discoverTextTimer                                                 *time.Timer
+	textRead                                                          uint64
 }
 type action struct {
 	kind, target, spec, runtime string
@@ -42,6 +47,11 @@ func (c *Controller) Attach(call Caller, notify func()) {
 		c.cancel()
 	}
 	c.inspectCancel = nil
+	if c.discoverTextTimer != nil {
+		c.discoverTextTimer.Stop()
+		c.discoverTextTimer = nil
+	}
+	c.textRead++
 	c.life, c.cancel = context.WithCancel(context.Background())
 	c.client = call
 	c.notify = notify
@@ -50,6 +60,8 @@ func (c *Controller) Attach(call Caller, notify func()) {
 	c.listingRead++
 	c.revision++
 	c.pending = nil
+	c.selectAdded = false
+	c.failedDiscover = nil
 	c.mu.Unlock()
 	c.fire()
 }
@@ -222,13 +234,30 @@ func (a Actions) SelectTab(tab string) {
 	if tab != "installed" && tab != "discover" {
 		return
 	}
-	if a.edit(func(s *State) { s.Tab = tab; s.View = Subject{Kind: "list"} }) && tab == "discover" {
+	if a.edit(func(s *State) {
+		s.Tab = tab
+		if tab != "discover" {
+			a.c.cancelDiscoverText()
+			s.Discover.TextDraft = s.Discover.Query.Text
+			s.Discover.SelectedEntry = ""
+			s.Discover.Opened = nil
+			s.Discover.Choice = nil
+		}
+	}) && tab == "discover" {
 		a.c.EnsureDiscover(a.owner)
 	}
 }
 func (a Actions) OpenPackage(name string) {
 	a.edit(func(s *State) {
 		if hasPackage(s.Packages, name) {
+			a.c.cancelDiscoverText()
+			s.Discover.TextDraft = s.Discover.Query.Text
+			s.Discover.SelectedEntry = ""
+			s.Discover.Opened = nil
+			s.Discover.Choice = nil
+			if s.View.Name != name {
+				s.RowFilter = ""
+			}
 			from := s.View.Kind == "more" || s.View.FromMore
 			s.Tab = "installed"
 			s.View = Subject{Kind: "package", Name: name, FromMore: from}
@@ -256,7 +285,8 @@ func (a Actions) OpenRow(name, id string) {
 func (a Actions) OpenItem(id string) {
 	a.edit(func(s *State) { s.View = Subject{Kind: "item", ItemID: id} })
 }
-func (a Actions) ShowMore() { a.edit(func(s *State) { s.View = Subject{Kind: "more"} }) }
+func (a Actions) ShowMore()               { a.edit(func(s *State) { s.View = Subject{Kind: "more"} }) }
+func (a Actions) FilterRows(value string) { a.edit(func(s *State) { s.RowFilter = value }) }
 func (a Actions) Back() {
 	a.edit(func(s *State) {
 		switch s.View.Kind {
@@ -275,7 +305,14 @@ func (a Actions) Back() {
 }
 func (c *Controller) Leave() {
 	s := c.Snapshot()
-	c.Actions(s.Owner).edit(func(s *State) { s.View = Subject{Kind: "list"}; s.Discover.SelectedEntry = "" })
+	c.Actions(s.Owner).edit(func(s *State) {
+		c.cancelDiscoverText()
+		s.View = Subject{Kind: "list"}
+		s.Discover.SelectedEntry = ""
+		s.Discover.Opened = nil
+		s.Discover.Choice = nil
+		s.Discover.TextDraft = s.Discover.Query.Text
+	})
 }
 func (a Actions) DismissNotice() { a.edit(func(s *State) { s.Notice = "" }) }
 
@@ -290,7 +327,7 @@ func (a Actions) Remove(name string) {
 }
 func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 	c.mu.Lock()
-	if c.state.Owner != owner || !c.state.Connected || c.state.Busy || c.state.Status != "ready" {
+	if c.state.Owner != owner || !c.state.Connected || c.state.ActionBusy(op.target) || !c.state.ManagementReady() {
 		c.mu.Unlock()
 		return
 	}
@@ -299,17 +336,22 @@ func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 	for _, p := range c.state.Packages {
 		if p.Name == op.target && op.kind != "row" {
 			valid = p.ReadOnlyReason == ""
+			if op.kind == "bundle" {
+				valid = !p.SwitchLocked()
+			}
 			if op.kind == "remove" {
 				valid = valid && p.Removable
 			}
 			if op.kind == "bundle" && p.Availability == "missing" && op.enabled && p.InstallTarget != nil {
-				target := *p.InstallTarget
 				c.mu.Unlock()
-				c.openInstall(owner, target.Spec, "", &op.enabled, true)
+				c.openCatalogInstall(owner, p, op.enabled)
 				return
 			}
 		}
 		if op.kind == "row" {
+			if !p.Enabled || c.state.ActionBusy(p.Name) {
+				continue
+			}
 			for _, r := range p.Parts {
 				if r.EntryID == op.target && r.EntryID != "" {
 					valid = r.ReadOnlyReason == ""
@@ -334,6 +376,9 @@ func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 func (a Actions) CancelConfirmation() {
 	a.c.mu.Lock()
 	if a.c.state.Owner == a.owner {
+		if op := a.c.pending; op != nil && op.kind == "install" && a.c.state.Install.Phase == "idle" && a.c.state.Install.RequestID == op.options.RequestID {
+			a.c.state.Install.RequestID = ""
+		}
 		a.c.pending = nil
 		a.c.state.Confirmation = nil
 	}
@@ -361,12 +406,19 @@ func (a Actions) Confirm() {
 }
 func (c *Controller) run(op action) {
 	c.mu.Lock()
-	if c.state.Owner != op.owner || c.client == nil || c.state.Busy {
+	if c.state.Owner != op.owner || c.client == nil || op.kind == "install" && c.state.Busy || op.kind != "install" && c.state.ActionBusy(op.target) {
 		c.mu.Unlock()
 		return
 	}
 	client, ctx := Client{c.client}, c.life
-	c.state.Busy = true
+	if op.kind == "install" {
+		c.state.Busy = true
+	} else {
+		if c.state.BusyKeys == nil {
+			c.state.BusyKeys = map[string]bool{}
+		}
+		c.state.BusyKeys[op.target] = true
+	}
 	c.state.Notice = ""
 	if op.kind == "install" {
 		c.state.Install.Phase = "starting"
@@ -398,7 +450,11 @@ func (c *Controller) run(op action) {
 			result, err = client.Exempt(ctx, op.target, op.runtime)
 		}
 		if !c.patch(op.owner, func(s *State) {
-			s.Busy = false
+			if op.kind == "install" {
+				s.Busy = false
+			} else {
+				delete(s.BusyKeys, op.target)
+			}
 			if op.kind == "install" && (s.Install.RequestID != op.options.RequestID || !installPending(s.Install.Phase)) {
 				return
 			}
@@ -425,8 +481,9 @@ func (c *Controller) run(op action) {
 		}) {
 			return
 		}
-		if err == nil {
+		if err == nil || op.kind != "install" {
 			_ = c.Load(ctx)
+			c.BundlesChanged(op.owner)
 		} else if op.kind == "install" {
 			c.reconcileInstall(op.owner, op.options.RequestID)
 		}

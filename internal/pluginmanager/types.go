@@ -106,13 +106,17 @@ type Package struct {
 	Parts []Row
 }
 
+func (p Package) SwitchLocked() bool {
+	return p.ReadOnlyReason != "" || !p.Enabled && p.Error != nil && !(p.Availability == "missing" && p.InstallTarget != nil)
+}
+
 func (p Package) Title(locale string) string {
 	if p.Meta != nil {
 		if title := p.Meta.Title.Resolve(locale); title != "" {
 			return title
 		}
 	}
-	return ShortName(p.Name)
+	return p.Name
 }
 func (p Package) Summary(locale string) string {
 	if p.Meta != nil {
@@ -120,12 +124,20 @@ func (p Package) Summary(locale string) string {
 			return description
 		}
 	}
-	return p.Description
+	return ""
 }
 func ShortName(name string) string {
 	if strings.HasPrefix(name, "@") {
 		if i := strings.IndexByte(name, '/'); i >= 0 {
-			return name[i+1:]
+			name = name[i+1:]
+		}
+	}
+	if strings.HasPrefix(name, "dsh-") {
+		name = strings.TrimPrefix(name, "dsh-")
+		if strings.HasPrefix(name, "host-") {
+			name = strings.TrimPrefix(name, "host-")
+		} else {
+			name = strings.TrimPrefix(name, "client-")
 		}
 	}
 	return name
@@ -135,9 +147,6 @@ func (r Row) Title(locale string) string {
 		if title := r.Meta.Title.Resolve(locale); title != "" {
 			return title
 		}
-	}
-	if r.RowID != "" {
-		return r.RowID
 	}
 	return r.ModuleName
 }
@@ -319,7 +328,7 @@ func (e MarketEntry) Label(locale string) string {
 	if title := e.Title.Resolve(locale); title != "" {
 		return title
 	}
-	return ShortName(e.Name)
+	return e.Name
 }
 
 type SearchResult struct {
@@ -352,14 +361,50 @@ type InstallState struct {
 	Recovering                                           bool
 	Runs                                                 []InstallRun
 	Attempts                                             []InstallAttempt
+	Confirmed                                            bool
+	Title, Version                                       string
+	ConfirmedTitle                                       Text
+	RegistryReadDone, StartAfterRegistry                 bool
+	Enabling                                             bool
 }
 type DiscoverState struct {
 	Status, Error, Selected, SelectedEntry, Draft string
+	SourceError                                   string
+	IndexesError                                  string
+	SourceErrorSequence                           uint64
+	TextDraft                                     string
 	Indexes                                       []Index
 	Query                                         Query
+	Answered                                      *Query
 	Listing                                       *SearchResult
+	Opened                                        *MarketEntry
 	Loading, MoreLoading, SourcesOpen             bool
+	Saving                                        bool
+	Choice                                        *MarketChoice
 }
+type MarketChoice struct {
+	Entry   MarketEntry
+	Version MarketVersion
+}
+
+type SourceFact struct{ Kind, Value string }
+
+func SourceFacts(name string, version MarketVersion) []SourceFact {
+	s := version.Source
+	if s.Type == "npm" {
+		facts := []SourceFact{{"Package", name + "@" + version.Version}}
+		if s.Registry != "" {
+			facts = append(facts, SourceFact{"Registry", s.Registry})
+		}
+		return facts
+	}
+	facts := []SourceFact{{"Repository", s.URL}, {"Commit", s.Commit}}
+	if s.Path != "" {
+		facts = append(facts, SourceFact{"Directory", s.Path})
+	}
+	return facts
+}
+
 type State struct {
 	Owner                      uint64
 	Connected, Loading, Busy   bool
@@ -369,6 +414,21 @@ type State struct {
 	Confirmation               *Confirmation
 	Install                    InstallState
 	Discover                   DiscoverState
+	RowFilter                  string
+	BusyKeys                   map[string]bool
+	Highlight                  string
+	HighlightUntil             int64
+}
+
+func (s State) ManagementReady() bool {
+	return s.Status == "ready" || s.Status == "error" && len(s.Packages) > 0
+}
+func (s State) ActionBusy(key string) bool {
+	if s.BusyKeys[key] {
+		return true
+	}
+	i := s.Install
+	return i.Inspection != nil && i.Inspection.Name == key && (i.Phase == "checking" || installPending(i.Phase))
 }
 
 var extensionOrder = []string{"@deepseek-ai/dsh-experimental-agent-team-profile", "@deepseek-ai/dsh-experimental-voice-input-bundle", "@deepseek-ai/dsh-experimental-auto-review", "@deepseek-ai/dsh-experimental-inspector-profile"}
@@ -379,7 +439,7 @@ func Listed(p Package) bool {
 	case "@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-headless", "@deepseek-ai/dsh-sdk-app", "@deepseek-ai/dsh-acp-app", "@deepseek-ai/dsh-sdk-minimal":
 		return false
 	}
-	return p.Installed || p.Official || p.Optional || p.Error != nil
+	return p.Installed || p.Official || p.Error != nil
 }
 
 func UpdateAvailable(p Package) bool {

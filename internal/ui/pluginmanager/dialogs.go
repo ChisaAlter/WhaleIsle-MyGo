@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -58,50 +59,58 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 			})
 			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Padding(0, 20, 20, 20).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
-					ui.Text(c, copyText("输入完整的 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
-					spec := i.Spec
-					if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
-						a.EditInstall(spec, i.Registry)
-					}
-					ui.Text(c, copyText("安装源", "Installation registry")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-					registry := i.Registry
-					if i.RegistryInfo != nil {
-						labels := []string{copyText("配置的默认安装源", "Configured default registry")}
-						ids := []string{""}
-						if i.RegistryInfo.Registry != nil {
-							labels = append(labels, *i.RegistryInfo.Registry)
-							ids = append(ids, *i.RegistryInfo.Registry)
+					if i.Confirmed {
+						title := i.ConfirmedTitle.Resolve(i18n.Locale())
+						if title == "" {
+							title = i.Title
 						}
-						for _, url := range i.RegistryInfo.FallbackRegistries {
-							found := false
-							for _, existing := range ids {
-								if existing == url {
-									found = true
+						ui.Text(c, title+" · "+i.Version).FillWidth().TextColor(fg)
+					} else {
+						ui.Text(c, copyText("输入完整的 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
+						spec := i.Spec
+						if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
+							a.EditInstall(spec, i.Registry)
+						}
+						ui.Text(c, copyText("安装源", "Installation registry")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
+						registry := i.Registry
+						if i.RegistryInfo != nil {
+							labels := []string{copyText("配置的默认安装源", "Configured default registry")}
+							ids := []string{""}
+							if i.RegistryInfo.Registry != nil {
+								labels = append(labels, *i.RegistryInfo.Registry)
+								ids = append(ids, *i.RegistryInfo.Registry)
+							}
+							for _, url := range i.RegistryInfo.FallbackRegistries {
+								found := false
+								for _, existing := range ids {
+									if existing == url {
+										found = true
+									}
+								}
+								if !found {
+									labels = append(labels, url)
+									ids = append(ids, url)
 								}
 							}
-							if !found {
-								labels = append(labels, url)
-								ids = append(ids, url)
+							selected := labels[0]
+							for n, id := range ids {
+								if id == registry {
+									selected = labels[n]
+								}
 							}
-						}
-						selected := labels[0]
-						for n, id := range ids {
-							if id == registry {
-								selected = labels[n]
-							}
-						}
-						if ui.Select(c, &selected, labels).FillWidth().Disabled(pending || s.Busy || i.Phase == "checking").Changed() {
-							for n, label := range labels {
-								if selected == label {
-									a.EditInstall(i.Spec, ids[n])
+							if ui.Select(c, &selected, labels).FillWidth().Disabled(pending || s.Busy || i.Phase == "checking").Changed() {
+								for n, label := range labels {
+									if selected == label {
+										a.EditInstall(i.Spec, ids[n])
+									}
 								}
 							}
 						}
+						if ui.TextInput(c, &registry).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://registry.npmjs.org/").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
+							a.EditInstall(i.Spec, registry)
+						}
+						ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
-					if ui.TextInput(c, &registry).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://registry.npmjs.org/").ReadOnly(pending || s.Busy || i.Phase == "checking").Changed() {
-						a.EditInstall(i.Spec, registry)
-					}
-					ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					if i.Phase == "checking" {
 						ui.Text(c, copyText("正在检查…", "Checking…")).TextColor(muted)
 						if ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
@@ -138,6 +147,9 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 						ui.Text(c, result.Application).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
 						if result.Application == "restart-required" {
 							ui.Text(c, copyText("已保存。重启运行时后生效：", "Saved. Restart the runtime to apply: ")+result.RestartReason).FillWidth().TextColor(muted)
+						}
+						if i.Phase == "done" && i.Enabled == nil && ui.PrimaryButton(c, copyText("启用插件", "Enable plugin")).Disabled(i.Enabling).Clicked() {
+							a.EnableInstalled()
 						}
 						if result.Error != nil {
 							ui.Text(c, result.Error.Code+": "+result.Error.Diagnostic).FillWidth().TextColor(c.Theme().Danger)
@@ -206,5 +218,71 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	})
 	if !open {
 		a.CloseInstall()
+	}
+}
+
+func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
+	open := true
+	w, h := c.Size()
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	ui.DialogBase(c.Key("plugin-index-sources"), &open, func(backdrop, panel ui.Element) {
+		dismissed := ui.Local(panel, "source-error-dismissed", func() uint64 { return 0 })
+		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
+		panel.Label(copyText("插件索引源", "Plugin index sources")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(12).Background(chrome.Color(colors.BG)).Radius(12).Children(func() {
+			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-140)).MinHeight(0).Children(func() { sourcesEditor(c, s, a, chrome.Color(colors.FG), chrome.Color(colors.Muted)) })
+			if s.Discover.SourceError != "" && *dismissed != s.Discover.SourceErrorSequence {
+				ui.Overlay(c.Key("plugin-source-error-toast"), func() {
+					ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(560).Padding(12).Gap(10).Role(ui.RoleStatus).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(8).Children(func() {
+						ui.Text(c, s.Discover.SourceError).Grow(1).MinWidth(0).TextColor(c.Theme().Danger)
+						if ui.Button(c, copyText("关闭", "Close")).Clicked() {
+							*dismissed = s.Discover.SourceErrorSequence
+						}
+					})
+				})
+			}
+			if ui.Button(c, copyText("关闭", "Close")).Clicked() {
+				open = false
+			}
+		})
+	})
+	if !open {
+		a.ToggleSources()
+	}
+}
+func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
+	choice := s.Discover.Choice
+	if choice == nil {
+		return
+	}
+	open := true
+	w, h := c.Size()
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	ui.DialogBase(c.Key("plugin-market-choice"), &open, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
+		panel.Label(copyText("确认安装插件", "Confirm plugin installation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(16).Background(chrome.Color(colors.BG)).Radius(12).Children(func() {
+			ui.Text(c, choice.Entry.Label(i18n.Locale())+" · "+choice.Version.Version).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
+			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-220)).MinHeight(0).Children(func() {
+				ui.Text(c, choice.Entry.Author).FillWidth().TextColor(muted)
+				for _, fact := range manager.SourceFacts(choice.Entry.Name, choice.Version) {
+					ui.Text(c, fact.Kind+": "+fact.Value).FillWidth().Selectable().TextColor(fg)
+				}
+				if !choice.Version.Compatibility.Compatible {
+					ui.Text(c, copyText("此版本具有兼容性风险豁免。", "This version has a compatibility risk exemption.")).FillWidth().TextColor(c.Theme().Warning)
+				}
+				ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().TextColor(muted)
+			})
+			ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Children(func() {
+				if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
+					open = false
+				}
+				if ui.PrimaryButton(c, copyText("安装", "Install")).Clicked() {
+					a.ConfirmMarketChoice()
+				}
+			})
+		})
+	})
+	if !open {
+		a.CancelMarketChoice()
 	}
 }

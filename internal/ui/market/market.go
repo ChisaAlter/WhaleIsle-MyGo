@@ -12,14 +12,17 @@ import (
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
 
 // Model wires the market panel to store, install state, and harness status.
 type Model struct {
-	Store *marketstore.Store
+	SVGImages *svgimage.Owner
+	Store     *marketstore.Store
 	// Embedded is used by the Settings market section, whose shell owns its header and insets.
 	Embedded             bool
+	categoriesExpanded   *bool
 	ThemeID              string
 	SystemDark           bool
 	HarnessReady         bool
@@ -75,6 +78,7 @@ func View(c *ui.Context, m Model) {
 		top, side, bottom = 0, 0, 0
 	}
 	container := ui.Column(c).FillWidth().MinWidth(0).Background(bg)
+	m.categoriesExpanded = ui.Local(container, "market-categories-expanded", func() bool { return false })
 	if !m.Embedded {
 		container.Grow(1).MinHeight(0)
 	}
@@ -89,9 +93,7 @@ func View(c *ui.Context, m Model) {
 		}
 		body.Children(func() {
 			ui.Column(c).Gap(16).FillWidth().MaxWidth(800).MinWidth(0).Children(func() {
-				if !m.Embedded {
-					marketHeader(c, m, d, fg, muted)
-				}
+				marketHeader(c, m, d, fg, muted)
 				marketTabs(c, m, d.Tab, fg, muted, field)
 				if personal.Err != "" {
 					ui.Text(c, personal.Err).TextColor(accent)
@@ -128,7 +130,7 @@ func View(c *ui.Context, m Model) {
 					}
 					managementFilters(c, m)
 					updatesView(c, m, snap, fg, muted, accent)
-					if len(snap.Rows) == 0 {
+					if len(desktopInstalledRows(snap.Rows)) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
 					installedRows(c, m, d, snap, fg, muted, border, accent)

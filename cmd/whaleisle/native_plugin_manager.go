@@ -70,6 +70,9 @@ func (s *mainState) nativePluginEventHandler(client *dsh.Client) func(dsh.Events
 			if c.Snapshot().Status != "idle" {
 				c.Refresh(context.Background())
 			}
+			c.BundlesChanged(owner)
+		case "plugin-market/changed":
+			c.SourcesChanged(owner)
 		case "plugin-manager/install-log":
 			if len(emit.Args) != 1 {
 				return
@@ -135,5 +138,6 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		Controller: s.nativePluginController(), ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 		Contributions: contributions,
 		OnClose:       func() { s.selectMainPanel("") },
+		OnOpenURL:     func(raw string) { _ = mygo.Shell.OpenExternal(raw) },
 	})
 }

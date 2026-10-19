@@ -3,6 +3,7 @@ package market
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -30,7 +31,7 @@ func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted ui.
 					m.Store.Refresh(context.Background())
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Clicked() {
+			if !m.Embedded && m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Clicked() {
 				m.Store.CloseDetails()
 				m.OnClose()
 			}
@@ -45,7 +46,14 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 			{"favorites", "收藏", "Favorites"}, {"history", "安装历史", "History"},
 		} {
 			active := tab == item.id || tab == "" && item.id == "discover"
-			button := ui.Button(c.Key("market-tab-"+item.id), marketText(item.zh, item.en)).Role(ui.RoleTab).Height(30).Padding(0, 12).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Selected(active)
+			label := marketText(item.zh, item.en)
+			if item.id == "installed" {
+				count := len(desktopInstalledRows(m.Store.Snapshot().Rows))
+				if count > 0 {
+					label = fmt.Sprintf("%s (%d)", label, count)
+				}
+			}
+			button := ui.Button(c.Key("market-tab-"+item.id), label).Role(ui.RoleTab).Height(30).Padding(0, 12).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Selected(active)
 			if active {
 				button.Background(field).TextColor(fg)
 			}
@@ -53,20 +61,18 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 				m.Store.SetTab(item.id)
 			}
 		}
-		if m.Embedded && ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Disabled(m.Store.Discovery().Loading || m.InstallBusy).Clicked() {
-			m.Store.RefreshCatalog(true, i18n.Locale())
-			if m.OnRefresh != nil {
-				m.OnRefresh()
-			} else {
-				m.Store.Refresh(context.Background())
-			}
-		}
 	})
 }
 
 func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, field ui.Color) {
+	if len(d.Catalog.Categories) <= 1 {
+		return
+	}
 	ui.Row(c).Role(ui.RoleRadioGroup).Label(marketText("分类", "Categories")).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		for _, category := range d.Catalog.Categories {
+		for i, category := range d.Catalog.Categories {
+			if i >= 5 && category.ID != d.Category && (m.categoriesExpanded == nil || !*m.categoriesExpanded) {
+				continue
+			}
 			active := category.ID == d.Category
 			button := ui.Button(c.Key("market-category-"+category.ID), fmt.Sprintf("%s %d", category.Label, category.Count)).Role(ui.RoleRadio).Checked(active).Height(28).Padding(0, 10).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
 			if active {
@@ -74,6 +80,15 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 			}
 			if button.Clicked() {
 				m.Store.SetCategory(category.ID)
+			}
+		}
+		if len(d.Catalog.Categories) > 5 && m.categoriesExpanded != nil {
+			label := marketText("展开分类", "More categories")
+			if *m.categoriesExpanded {
+				label = marketText("收起分类", "Fewer categories")
+			}
+			if ui.Button(c, label).Clicked() {
+				*m.categoriesExpanded = !*m.categoriesExpanded
 			}
 		}
 	})
@@ -115,6 +130,9 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					}
 				})
 				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+					if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16) {
+						ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					}
 					ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					ui.Text(c, fmt.Sprintf(marketText("%s 星标", "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				})
@@ -124,6 +142,11 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					favoriteButton(c, m, i.ID)
 					if ui.Button(c, marketText("详情", "Details")).Clicked() {
 						m.Store.SelectDetails(i.ID, false)
+					}
+					if parsed, err := url.Parse(i.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
+						if ui.Button(c, marketText("主页", "Homepage")).Clicked() {
+							m.OnOpenURL(parsed.String())
+						}
 					}
 					catalogInstallButton(c, m, d, i, inventory, fg, muted)
 				})
@@ -184,12 +207,13 @@ func installedGroups(catalog desktopmarket.Catalog, rows []marketstore.Entry) []
 
 func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap marketstore.ViewState, fg, muted, border, accent ui.Color) {
 	var rows []marketstore.Entry
-	for _, row := range snap.Rows {
+	installed := desktopInstalledRows(snap.Rows)
+	for _, row := range installed {
 		if showInstalledRow(m, row) {
 			rows = append(rows, row)
 		}
 	}
-	if len(rows) == 0 && len(snap.Rows) > 0 {
+	if len(rows) == 0 && len(installed) > 0 {
 		ui.Text(c, marketText("没有匹配的插件。", "No matching plugins.")).FillWidth().Padding(24).TextColor(muted)
 	}
 	for _, group := range installedGroups(d.Catalog, rows) {
@@ -232,6 +256,18 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 			}
 		})
 	}
+}
+
+// The desktop Market's installed list is the profile's declared dependencies;
+// optional packages merely shipped by the runtime belong to Plugin Manager.
+func desktopInstalledRows(rows []marketstore.Entry) []marketstore.Entry {
+	var installed []marketstore.Entry
+	for _, row := range rows {
+		if row.IdentityKnown && row.Installed {
+			installed = append(installed, row)
+		}
+	}
+	return installed
 }
 
 func formatStars(stars float64) string {

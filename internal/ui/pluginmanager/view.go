@@ -5,13 +5,18 @@ package pluginmanager
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	marketui "whaleisle/internal/ui/market"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -32,6 +37,10 @@ type Model struct {
 	DetailActions, DetailBadges, DetailSections func(*ui.Context, manager.Subject)
 	AddActions                                  func(*ui.Context)
 	OnClose                                     func()
+	OnOpenURL                                   func(string)
+	OnCreatePlugin, OnOpenAddMenu               func()
+	CreatePluginReady                           bool
+	CreatePluginDescription                     string
 }
 
 func copyText(zh, en string) string {
@@ -50,7 +59,9 @@ func View(c *ui.Context, m Model) {
 	a := m.Controller.Actions(s.Owner)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, bg, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.BG), chrome.Color(colors.Border)
-	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, 24, 48, 24).Background(bg).AlignItems(ui.Center).Children(func() {
+	w, _ := c.Size()
+	inset := max(float32(24), min(float32(48), w*.04))
+	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, inset, 48, inset).Background(bg).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(960).MinWidth(0).Gap(32).Children(func() {
 			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
 			if !detail && s.View.Kind != "more" {
@@ -108,8 +119,12 @@ func View(c *ui.Context, m Model) {
 	})
 	if s.Confirmation != nil {
 		confirmationDialog(c, m, s, a)
+	} else if s.Discover.Choice != nil {
+		marketChoiceDialog(c, m, s, a)
 	} else if s.Install.Open {
 		installDialog(c, m, s, a)
+	} else if s.Discover.SourcesOpen {
+		sourcesDialog(c, m, s, a)
 	}
 }
 
@@ -124,15 +139,12 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 				if ui.Button(c, copyText("刷新", "Refresh")).Disabled(s.Loading || s.Busy || !s.Connected).Clicked() {
 					m.Controller.Refresh(context.Background())
 				}
-				label := copyText("添加插件", "Add plugin")
-				if s.Install.RequestID != "" && (s.Install.Phase == "running" || s.Install.Phase == "unconfirmed" || s.Install.Phase == "applying") {
-					label = copyText("查看安装任务", "View installation")
-				}
-				if ui.PrimaryButton(c, label).Disabled(s.Status != "ready").Clicked() {
-					a.OpenInstall()
-				}
-				if m.AddActions != nil {
-					m.AddActions(c)
+				if s.Install.RequestID != "" {
+					if ui.PrimaryButton(c, copyText("查看安装任务", "View installation")).Disabled(!s.ManagementReady()).Clicked() {
+						a.OpenInstall()
+					}
+				} else {
+					addPluginMenu(c, m, s, a)
 				}
 			}
 			if m.OnClose != nil && ui.Button(c, copyText("返回", "Back")).Clicked() {
@@ -163,29 +175,41 @@ func errorRow(c *ui.Context, message string, retry func()) {
 		}
 	})
 }
-func artwork(c *ui.Context, ink, border ui.Color) {
-	ui.Box(c).Width(48).Height(48).Shrink(0).Border(.5, border).Radius(10).Draw(func(p *ui.Painter, r ui.Rect) {
-		path := &ui.Path{}
-		path.MoveTo(r.X+15, r.Y+13)
-		path.LineTo(r.X+33, r.Y+13)
-		path.LineTo(r.X+33, r.Y+21)
-		path.LineTo(r.X+37, r.Y+21)
-		path.LineTo(r.X+37, r.Y+29)
-		path.LineTo(r.X+33, r.Y+29)
-		path.LineTo(r.X+33, r.Y+35)
-		path.LineTo(r.X+15, r.Y+35)
-		path.Close()
-		p.StrokePath(path, 1.3, ink)
-	})
+func artwork(c *ui.Context, ink, border ui.Color, source ...string) {
+	artworkSized(c, ink, border, 48, 36, source...)
 }
-
+func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, source ...string) {
+	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(10)
+	shown := false
+	if len(source) > 0 && source[0] != "" {
+		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size) })
+	}
+	if !shown {
+		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, builtInArtwork("default"), size, size) })
+	}
+	if !shown {
+		root.Draw(func(p *ui.Painter, r ui.Rect) {
+			path := &ui.Path{}
+			path.MoveTo(r.X+15, r.Y+13)
+			path.LineTo(r.X+33, r.Y+13)
+			path.LineTo(r.X+33, r.Y+21)
+			path.LineTo(r.X+37, r.Y+21)
+			path.LineTo(r.X+37, r.Y+29)
+			path.LineTo(r.X+33, r.Y+29)
+			path.LineTo(r.X+33, r.Y+35)
+			path.LineTo(r.X+15, r.Y+35)
+			path.Close()
+			p.StrokePath(path, 1.3, ink)
+		})
+	}
+}
 func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
 	var mine, official []manager.Package
 	for _, p := range s.Packages {
 		if !manager.Listed(p) {
 			continue
 		}
-		if p.Official || p.Optional {
+		if p.Official {
 			official = append(official, p)
 		} else {
 			mine = append(mine, p)
@@ -213,7 +237,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 			groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
 			for _, item := range basic {
 				ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
-					artwork(c, muted, border)
+					artwork(c, muted, border, itemArtwork(item.Key))
 					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 						if ui.Button(c, item.Title).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
 							a.OpenItem(item.Key)
@@ -256,8 +280,18 @@ func groupTitle(c *ui.Context, title string, ink ui.Color) {
 	ui.Text(c, title).Role(ui.RoleHeading).Level(3).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(ink)
 }
 func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
-	ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12).Children(func() {
-		artwork(c, muted, border)
+	card := ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12)
+	if s.Highlight == p.Name && time.Now().UnixNano() < s.HighlightUntil {
+		card.Background(c.Theme().Surface)
+		seen := ui.Local(card, "install-highlight", func() int64 { return 0 })
+		if *seen != s.HighlightUntil {
+			*seen = s.HighlightUntil
+			card.ScrollIntoView()
+		}
+		c.After(time.Until(time.Unix(0, s.HighlightUntil)))
+	}
+	card.Children(func() {
+		artwork(c, muted, border, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 				if ui.Button(c, p.Title(i18n.Locale())).Label("Open " + p.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
@@ -268,13 +302,13 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 			ui.Text(c, p.Summary(i18n.Locale())).FillWidth().MinWidth(0).MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 		})
 		value := p.Enabled
-		if ui.Switch(c, &value).Label("Enable " + p.Name).Disabled(s.Busy || s.Loading || p.ReadOnlyReason != "").Changed() {
+		if ui.Switch(c, &value).Label("Enable " + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
 			a.Enable(p.Name, value)
 		}
 	})
 }
 func packageTags(c *ui.Context, p manager.Package, muted ui.Color) {
-	if p.Optional {
+	if strings.HasPrefix(p.Name, "@deepseek-ai/dsh-experimental-") {
 		ui.Text(c, copyText("实验性", "Experimental")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if p.Error != nil {
@@ -333,14 +367,14 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			m.DetailActions(c, subject)
 		}
 		if pkg != nil && subject.Kind == "package" {
-			if manager.UpdateAvailable(*pkg) && ui.Button(c, copyText("更新", "Update")).Disabled(s.Busy).Clicked() {
+			if manager.UpdateAvailable(*pkg) && ui.Button(c, copyText("更新", "Update")).Disabled(s.ActionBusy(pkg.Name)).Clicked() {
 				a.Update(pkg.Name)
 			}
-			if pkg.Removable && ui.Button(c, copyText("卸载", "Uninstall")).Disabled(s.Busy || pkg.ReadOnlyReason != "").Clicked() {
+			if (pkg.Installed || pkg.Removable) && ui.Button(c, copyText("卸载", "Uninstall")).Disabled(s.ActionBusy(pkg.Name) || !pkg.Removable || pkg.ReadOnlyReason != "").Clicked() {
 				a.Remove(pkg.Name)
 			}
 			value := pkg.Enabled
-			if ui.Switch(c, &value).Label("Enable " + pkg.Name).Disabled(s.Busy || pkg.ReadOnlyReason != "").Changed() {
+			if ui.Switch(c, &value).Label("Enable " + pkg.Name).Disabled(s.ActionBusy(pkg.Name) || pkg.SwitchLocked()).Changed() {
 				a.Enable(pkg.Name, value)
 			}
 		}
@@ -362,6 +396,9 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 	if pkg == nil {
 		ui.Text(c, copyText("插件已不在当前清单中。", "Plugin is no longer in the current inventory.")).TextColor(muted)
 		return
+	}
+	if pkg.Meta != nil && pkg.Meta.Error != "" {
+		ui.Text(c, pkg.Meta.Error).FillWidth().Role(ui.RoleStatus).TextColor(c.Theme().Warning)
 	}
 	title, description := pkg.Title(i18n.Locale()), pkg.Summary(i18n.Locale())
 	var row *manager.Row
@@ -399,6 +436,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 		}
 		renderConfig(c, m, subject)
 	} else {
+		packagePreview(c, pkg.Name)
 		if pkg.Error != nil {
 			ui.Text(c, pkg.Error.Code+": "+pkg.Error.Diagnostic).FillWidth().TextColor(c.Theme().Danger)
 		}
@@ -409,13 +447,36 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			renderConfig(c, m, subject)
 		}
 		ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
+			if pkg.Availability == "missing" {
+				return
+			}
 			groupTitle(c, copyText("包中包含的插件", "Plugins in this package"), muted)
+			ui.Text(c, partsSummary(pkg.Parts)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			filter := s.RowFilter
+			if len(pkg.Parts) > 10 && ui.TextInput(c, &filter).FillWidth().Label(copyText("筛选组件", "Filter components")).Changed() {
+				a.FilterRows(filter)
+			}
+			query := strings.ToLower(strings.TrimSpace(filter))
+			shown := 0
 			if len(pkg.Parts) == 0 {
 				ui.Text(c, copyText("此包未声明插件条目。", "This package declares no plugin entries.")).TextColor(muted)
 			}
 			for _, part := range pkg.Parts {
 				r := part
+				description := ""
+				if r.Meta != nil {
+					description = r.Meta.Description.Resolve(i18n.Locale())
+				}
+				if query != "" && !strings.Contains(strings.ToLower(strings.Join([]string{r.Title(i18n.Locale()), description, r.RowID, r.ModuleName}, " ")), query) {
+					continue
+				}
+				shown++
 				ui.Row(c.Key("plugin-row-" + r.RowID)).FillWidth().MinWidth(0).Wrap().Gap(12).Padding(8).Children(func() {
+					icon := metaIcon(r.Meta)
+					if icon == "" {
+						icon = builtInArtwork("subagent")
+					}
+					artworkSized(c, muted, border, 40, 30, icon)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 						if configFor(m, manager.Subject{Kind: "row", Name: pkg.Name, RowID: r.RowID}) != nil {
 							if ui.Button(c, r.Title(i18n.Locale())).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
@@ -425,20 +486,46 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 							ui.Text(c, r.Title(i18n.Locale())).FillWidth().TextColor(fg)
 						}
 						ui.Text(c, r.RowID+" · "+r.ModuleName).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-						ui.Text(c, r.Phase).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						if description != "" {
+							ui.Text(c, description).FillWidth().TextColor(muted)
+						}
+						phase := r.Phase
+						if !r.Enabled {
+							phase = copyText("已关闭", "Off")
+						} else if phase == "" {
+							phase = copyText("空闲", "Idle")
+						}
+						ui.Text(c, phase).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						if r.Meta != nil && r.Meta.Error != "" {
+							ui.Text(c, r.Meta.Error).FillWidth().Role(ui.RoleStatus).TextColor(c.Theme().Warning)
+						}
+						if r.ReadOnlyReason != "" {
+							ui.Text(c, r.ReadOnlyReason).FillWidth().TextColor(muted)
+						}
 					})
 					value := r.Enabled
-					if ui.Switch(c, &value).Label("Enable entry " + r.RowID).Disabled(s.Busy || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
+					if pkg.Enabled && ui.Switch(c, &value).Label("Enable entry "+r.RowID).Disabled(s.ActionBusy(pkg.Name) || s.ActionBusy(r.EntryID) || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
 						a.EnableRow(r.EntryID, value)
 					}
 				})
+			}
+			if len(pkg.Parts) > 0 && shown == 0 {
+				ui.Text(c, copyText("没有匹配的组件。", "No matching components.")).TextColor(muted)
 			}
 		})
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
 			groupTitle(c, copyText("来源信息", "Source information"), muted)
 			source := pkg.Source
 			if source == "" {
-				source = copyText("内置", "Built in")
+				if pkg.Availability == "missing" {
+					if pkg.Installed {
+						source = copyText("已声明，但安装文件缺失", "Declared dependency; installed files missing")
+					} else {
+						source = copyText("尚未安装", "Not installed")
+					}
+				} else {
+					source = copyText("内置", "Built in")
+				}
 			}
 			ui.Text(c, source).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 			ui.Text(c, pkg.Availability).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -456,11 +543,17 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 	d := s.Discover
 	if d.Status == "idle" || d.Status == "loading" {
 		loadingRows(c, muted)
+		return
 	}
 	if d.Status == "error" {
-		errorRow(c, d.Error, a.ReloadIndexes)
+		errorRow(c, d.IndexesError, a.ReloadIndexes)
+		return
 	}
 	if d.SelectedEntry != "" && d.Listing != nil {
+		if d.Opened != nil {
+			marketDetail(c, m, *d.Opened, s, a, fg, muted)
+			return
+		}
 		for _, entry := range d.Listing.Entries {
 			if entry.Name == d.SelectedEntry {
 				marketDetail(c, m, entry, s, a, fg, muted)
@@ -470,27 +563,41 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		labels := []string{}
-		ids := map[string]string{}
+		ids := []string{}
 		selected := ""
 		for _, index := range d.Indexes {
 			label := index.Title.Resolve(i18n.Locale())
 			if label == "" {
 				label = index.URL
+				if parsed, err := url.Parse(index.URL); err == nil && parsed.Host != "" {
+					label = parsed.Host
+				}
 			}
 			labels = append(labels, label)
-			ids[label] = index.URL
+			// Preserve duplicate localized titles as independent source choices.
+			for _, other := range d.Indexes {
+				if other.URL != index.URL && other.Title.Resolve(i18n.Locale()) == index.Title.Resolve(i18n.Locale()) {
+					label += " · " + index.URL
+					break
+				}
+			}
+			labels[len(labels)-1] = label
+			ids = append(ids, index.URL)
 			if index.URL == d.Selected {
 				selected = label
 			}
 		}
 		if len(labels) > 0 && ui.Select(c, &selected, labels).Width(240).MaxWidthPercent(100).Changed() {
-			a.SelectIndex(ids[selected])
+			for i, label := range labels {
+				if selected == label {
+					a.SelectIndex(ids[i])
+					break
+				}
+			}
 		}
-		query := d.Query.Text
+		query := d.TextDraft
 		if ui.TextInput(c, &query).Label(copyText("搜索插件", "Search plugins")).Placeholder(copyText("搜索插件", "Search plugins")).Grow(1).MinWidth(120).Changed() {
-			q := d.Query
-			q.Text = query
-			a.Search(q)
+			a.SearchText(query)
 		}
 		if ui.Button(c, copyText("刷新列表", "Refresh listing")).Disabled(d.Loading || d.Selected == "").Clicked() {
 			a.RefreshDiscover()
@@ -499,8 +606,18 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 			a.ToggleSources()
 		}
 	})
-	if d.SourcesOpen || len(d.Indexes) == 0 {
-		sourcesEditor(c, s, a, fg, muted)
+	if len(d.Indexes) == 0 {
+		ui.Text(c, copyText("尚未配置插件索引。添加一个源以浏览插件。", "No plugin indexes configured. Add a source to browse plugins.")).FillWidth().TextColor(muted)
+		if ui.PrimaryButton(c, copyText("添加索引源", "Add index source")).Clicked() {
+			a.ToggleSources()
+		}
+		return
+	}
+	if d.Loading && d.Listing == nil {
+		loadingRows(c, muted)
+	}
+	if d.MoreLoading {
+		ui.Text(c, copyText("正在读取更多插件…", "Loading more plugins…")).Role(ui.RoleStatus).TextColor(muted)
 	}
 	if d.Listing != nil {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
@@ -509,7 +626,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 				q.Category = ""
 				a.Search(q)
 			}
-			keys := sortedKeys(d.Listing.Metadata.Categories)
+			keys := declarationKeys(d.Listing.Metadata.Categories)
 			for _, id := range keys {
 				label := d.Listing.Metadata.Categories[id].Title.Resolve(i18n.Locale())
 				if ui.Button(c, label).Checked(d.Query.Category == id).Clicked() {
@@ -520,9 +637,13 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 			}
 		})
 		ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
-			sorts := []manager.MarketSort{{Kind: "index"}, {Kind: "relevance"}, {Kind: "published", Direction: "desc"}}
-			labels := []string{copyText("索引顺序", "Index order"), copyText("相关性", "Relevance"), copyText("最新发布", "Newest published")}
-			for _, id := range sortedKeys(d.Listing.Metadata.SortKeys) {
+			sorts := []manager.MarketSort{{Kind: "index"}, {Kind: "published", Direction: "desc"}}
+			labels := []string{copyText("索引顺序", "Index order"), copyText("最新发布", "Newest published")}
+			if strings.TrimSpace(d.Query.Text) != "" {
+				sorts = append(sorts, manager.MarketSort{Kind: "relevance"})
+				labels = append(labels, copyText("相关性", "Relevance"))
+			}
+			for _, id := range declarationKeys(d.Listing.Metadata.SortKeys) {
 				meta := d.Listing.Metadata.SortKeys[id]
 				sorts = append(sorts, manager.MarketSort{Kind: "key", ID: id, Direction: meta.Order})
 				labels = append(labels, meta.Title.Resolve(i18n.Locale()))
@@ -542,7 +663,18 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 					}
 				}
 			}
-			for _, id := range sortedKeys(d.Listing.Metadata.Labels) {
+			if d.Query.Sort.Kind == "published" || d.Query.Sort.Kind == "key" {
+				if ui.Button(c, copyText("切换升序/降序", "Reverse sort direction")).Clicked() {
+					q := d.Query
+					if q.Sort.Direction == "asc" {
+						q.Sort.Direction = "desc"
+					} else {
+						q.Sort.Direction = "asc"
+					}
+					a.Search(q)
+				}
+			}
+			for _, id := range declarationKeys(d.Listing.Metadata.Labels) {
 				selected := false
 				for _, v := range d.Query.Labels {
 					if v == id {
@@ -568,26 +700,43 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 		for _, entry := range d.Listing.Entries {
 			e := entry
 			ui.Row(c.Key("discover-" + e.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
-				artwork(c, muted, border)
+				artwork(c, muted, border, e.Icon)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					if ui.Button(c, e.Label(i18n.Locale())).Label("Open market " + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
 						a.OpenEntry(e.Name)
 					}
 					ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
-					ui.Text(c, e.Author).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					meta := e.Author
+					if version := presentedVersion(e); version != nil {
+						meta = strings.TrimSpace(meta + " · " + version.Version + " · " + time.Unix(version.PublishTimestamp, 0).Local().Format("2006-01-02"))
+					}
+					ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					for _, id := range e.Metadata.Labels {
+						if label, ok := d.Listing.Metadata.Labels[id]; ok {
+							ui.Text(c, label.Title.Resolve(i18n.Locale())).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						}
+					}
 				})
 				marketInstall(c, e, s, a)
 			})
 		}
 		if len(d.Listing.Entries) == 0 && !d.Loading {
-			ui.Text(c, copyText("没有匹配的插件。", "No matching plugins.")).FillWidth().TextColor(muted)
+			query := d.Query
+			if d.Answered != nil {
+				query = *d.Answered
+			}
+			message := copyText("没有匹配的插件。", "No matching plugins.")
+			if strings.TrimSpace(query.Text) == "" && query.Category == "" && len(query.Labels) == 0 {
+				message = copyText("此索引尚无插件。", "This index has no plugins.")
+			}
+			ui.Text(c, message).FillWidth().TextColor(muted)
 		}
-		if d.Listing.NextOffset != nil && ui.Button(c, copyText("加载更多", "Show more")).Disabled(d.Loading || d.MoreLoading).Clicked() {
+		if d.Listing.NextOffset != nil && ui.Button(c, copyText("加载更多", "Show more")).Disabled(d.Loading || d.MoreLoading || d.Error != "").Clicked() {
 			a.More()
 		}
 	}
 	if d.Error != "" && d.Status != "error" {
-		errorRow(c, d.Error, a.RefreshDiscover)
+		errorRow(c, d.Error, a.RetryDiscover)
 	}
 }
 func sortedKeys[V any](values map[string]V) []string {
@@ -598,9 +747,24 @@ func sortedKeys[V any](values map[string]V) []string {
 	sort.Strings(keys)
 	return keys
 }
+func declarationKeys(values map[string]manager.NamedMetadata) []string {
+	keys := sortedKeys(values)
+	order := collate.New(language.Make(i18n.Locale()))
+	sort.SliceStable(keys, func(i, j int) bool {
+		comparison := order.CompareString(values[keys[i]].Title.Resolve(i18n.Locale()), values[keys[j]].Title.Resolve(i18n.Locale()))
+		return comparison < 0 || comparison == 0 && keys[i] < keys[j]
+	})
+	return keys
+}
 func marketInstall(c *ui.Context, e manager.MarketEntry, s manager.State, a manager.Actions) {
-	if e.Installation.Status != "not-installed" && e.Installation.Status != "update-available" {
-		if ui.Button(c, copyText("查看已安装", "View installed")).Clicked() {
+	if e.Installation.Status != "not-installed" {
+		label := copyText("已安装", "Installed")
+		if e.Installation.Status == "update-available" {
+			label = copyText("可更新", "Update available")
+		} else if e.Installation.Status == "provided" {
+			label = copyText("内置提供", "Provided")
+		}
+		if ui.Button(c, label).Clicked() {
 			a.OpenPackage(e.Name)
 		}
 		return
@@ -614,7 +778,7 @@ func marketInstall(c *ui.Context, e manager.MarketEntry, s manager.State, a mana
 	if e.Installation.Status == "update-available" {
 		label = copyText("更新", "Update")
 	}
-	if ui.Button(c, label).Disabled(s.Busy || s.Status != "ready").Clicked() {
+	if ui.Button(c, label).Clicked() {
 		a.InstallVersion(e.Name, version)
 	}
 }
@@ -625,9 +789,29 @@ func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State
 	ui.Text(c, e.Label(i18n.Locale())).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 	ui.Text(c, e.Name).FillWidth().Selectable().TextColor(muted)
 	ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().TextColor(fg)
-	ui.Text(c, e.Homepage).FillWidth().Selectable().TextColor(muted)
+	marketInstall(c, e, s, a)
+	ui.Text(c, e.Author).FillWidth().TextColor(muted)
+	detailLink(c, m, e.Homepage, muted)
 	if e.Repository != nil {
-		ui.Text(c, e.Repository.URL+"\n"+e.Repository.Directory).FillWidth().Selectable().TextColor(muted)
+		detailLink(c, m, e.Repository.URL, muted)
+		ui.Text(c, e.Repository.Directory).FillWidth().Selectable().TextColor(muted)
+	}
+	if v := presentedVersion(e); v != nil {
+		for _, fact := range manager.SourceFacts(e.Name, *v) {
+			ui.Text(c, fact.Kind+": "+fact.Value).FillWidth().Selectable().TextColor(muted)
+		}
+		ui.Text(c, time.Unix(v.PublishTimestamp, 0).Local().Format("2006-01-02")).TextColor(muted)
+	}
+	if listing := s.Discover.Listing; listing != nil {
+		if category, ok := listing.Metadata.Categories[e.Metadata.Category]; ok {
+			ui.Text(c, category.Title.Resolve(i18n.Locale())).TextColor(muted)
+		}
+		for _, id := range e.Metadata.Labels {
+			if label, ok := listing.Metadata.Labels[id]; ok {
+				ui.Text(c, label.Title.Resolve(i18n.Locale())).TextColor(muted)
+			}
+		}
+		ui.Text(c, listing.Title.Resolve(i18n.Locale())).FillWidth().TextColor(muted)
 	}
 	groupTitle(c, copyText("版本", "Versions"), muted)
 	for _, version := range e.Versions {
@@ -635,15 +819,30 @@ func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State
 		ui.Row(c).FillWidth().Wrap().Gap(12).Padding(8).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				ui.Text(c, v.Version).TextColor(fg)
+				if v.Version == e.DefaultVersion {
+					ui.Text(c, copyText("默认版本", "Default version")).TextColor(muted)
+				}
+				if strings.Contains(strings.Split(v.Version, "+")[0], "-") {
+					ui.Text(c, copyText("预发布", "Prerelease")).TextColor(muted)
+				}
+				if v.Version == e.Installation.InstalledVersion {
+					ui.Text(c, copyText("已安装", "Installed")).TextColor(muted)
+				}
+				ui.Text(c, time.Unix(v.PublishTimestamp, 0).Local().Format("2006-01-02")).TextColor(muted)
 				ui.Text(c, v.Install.Spec).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				if !v.Compatibility.Compatible {
-					ui.Text(c, copyText("运行时要求未满足：", "Unmet runtime requirement: ")+v.Compatibility.RuntimeVersion).FillWidth().TextColor(c.Theme().Warning)
+					message := copyText("运行时要求未满足：", "Unmet runtime requirement: ") + v.Compatibility.RuntimeVersion
+					if v.Compatibility.Exempted {
+						message = copyText("已接受此版本的兼容性风险。", "Compatibility risk accepted for this version.")
+					}
+					ui.Text(c, message).FillWidth().TextColor(c.Theme().Warning)
 					for _, key := range sortedKeys(v.Compatibility.Requirements) {
 						ui.Text(c, key+": "+v.Compatibility.Requirements[key]).FillWidth().TextColor(muted)
 					}
 				}
 			})
-			if ui.Button(c, copyText("安装此版本", "Install this version")).Disabled(s.Busy || s.Status != "ready" || !v.Compatibility.Compatible && !v.Compatibility.Exempted).Clicked() {
+			offered := e.Installation.Status != "provided" && e.Installation.InstalledVersion != v.Version && (v.Compatibility.Compatible || v.Compatibility.Exempted)
+			if offered && ui.Button(c, copyText("安装此版本", "Install this version")).Clicked() {
 				a.InstallVersion(e.Name, v.Version)
 			}
 		})
@@ -664,19 +863,69 @@ func sourcesEditor(c *ui.Context, s manager.State, a manager.Actions, fg, muted 
 						ui.Text(c, i.Error).FillWidth().TextColor(c.Theme().Danger)
 					}
 				})
-				if ui.Button(c, copyText("移除源", "Remove source")).Disabled(s.Busy).Clicked() {
+				if ui.Button(c, copyText("移除源", "Remove source")).Disabled(s.Discover.Saving).Clicked() {
 					a.RemoveSource(i.URL)
 				}
 			})
 		}
 		draft := s.Discover.Draft
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-			if ui.TextInput(c, &draft).Label(copyText("索引 URL", "Index URL")).Placeholder("https://example.com/plugins.json").Grow(1).MinWidth(120).Changed() {
+			if ui.TextInput(c, &draft).Label(copyText("索引 URL", "Index URL")).Tooltip(s.Discover.SourceError).Placeholder("https://example.com/plugins.json").Grow(1).MinWidth(120).Changed() {
 				a.EditSource(draft)
 			}
-			if ui.Button(c, copyText("添加源", "Add source")).Disabled(s.Busy || strings.TrimSpace(draft) == "").Clicked() {
+			if ui.Button(c, copyText("添加源", "Add source")).Disabled(s.Discover.Saving || strings.TrimSpace(draft) == "").Clicked() {
 				a.AddSource()
 			}
 		})
+		ui.Text(c, copyText("请仅添加信任的索引源；插件会以当前配置的权限运行。", "Add only trusted index sources. Plugins run with this profile's permissions.")).FillWidth().TextColor(muted)
 	})
+}
+
+func presentedVersion(e manager.MarketEntry) *manager.MarketVersion {
+	for i := range e.Versions {
+		if e.Versions[i].Version == e.DefaultVersion {
+			return &e.Versions[i]
+		}
+	}
+	if len(e.Versions) > 0 {
+		return &e.Versions[0]
+	}
+	return nil
+}
+func partsSummary(rows []manager.Row) string {
+	running, off, failed := 0, 0, 0
+	for _, r := range rows {
+		if !r.Enabled {
+			off++
+		}
+		if r.Enabled && r.Phase == "active" {
+			running++
+		}
+		if r.Phase == "failed" {
+			failed++
+		}
+	}
+	parts := []string{fmt.Sprintf(copyText("共 %d", "Total %d"), len(rows))}
+	if running > 0 {
+		parts = append(parts, fmt.Sprintf(copyText("运行 %d", "Running %d"), running))
+	}
+	if off > 0 {
+		parts = append(parts, fmt.Sprintf(copyText("关闭 %d", "Off %d"), off))
+	}
+	if failed > 0 {
+		parts = append(parts, fmt.Sprintf(copyText("失败 %d", "Failed %d"), failed))
+	}
+	return strings.Join(parts, " · ")
+}
+func detailLink(c *ui.Context, m Model, raw string, ink ui.Color) {
+	if raw == "" {
+		return
+	}
+	if m.OnOpenURL != nil && (strings.HasPrefix(raw, "https://") || strings.HasPrefix(raw, "http://")) {
+		if ui.Button(c, raw).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Background(ui.Transparent).TextColor(ink).Clicked() {
+			m.OnOpenURL(raw)
+		}
+	} else {
+		ui.Text(c, raw).FillWidth().Selectable().TextColor(ink)
+	}
 }
