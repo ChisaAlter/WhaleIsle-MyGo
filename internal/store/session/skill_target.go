@@ -27,6 +27,12 @@ func (t SkillTarget) MatchesClient(client *dsh.Client) bool {
 	return client != nil && t.client == client
 }
 
+// SameScope compares the Host and session/workspace owning an editor. Changing
+// its user/project destination does not change the editor's captured scope.
+func (t SkillTarget) SameScope(other SkillTarget) bool {
+	return t.client != nil && t.client == other.client && t.Cwd == other.Cwd && t.SessionID == other.SessionID
+}
+
 func resolveSkillTarget(root, cwd, sessionID string) (SkillTarget, error) {
 	root = strings.TrimSpace(root)
 	switch root {
