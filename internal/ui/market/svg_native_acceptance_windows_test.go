@@ -98,7 +98,7 @@ func runSVGNativeAcceptance(helper string) error {
 						stage = fmt.Sprintf("decoded=%gx%g seat=%v bitmap=%v static-svg=%v pending=%v", decoded.width, decoded.height, decoded.svgSeat != nil, decoded.bitmap != nil, decoded.svg != nil, decoded.pending != nil)
 						if decoded.svgSeat != nil {
 							sw, sh := decoded.svgSeat.Size()
-							stage += fmt.Sprintf(" seat-size=%gx%g seat-error=%v", sw, sh, decoded.svgSeat.Error())
+							stage += fmt.Sprintf(" seat-size=%gx%g seat-error=%v load=%+v", sw, sh, decoded.svgSeat.Error(), decoded.svgSeat.LoadStatus())
 						}
 					}
 					completed <- fmt.Errorf("real helper never replaced plugin 300x150 hint with 80x160 intrinsic ratio (last=%+v,ready=%v; %s)", r, ready, stage)

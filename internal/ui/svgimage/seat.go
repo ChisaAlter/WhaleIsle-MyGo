@@ -194,6 +194,24 @@ func (s *Seat) Error() error {
 	return s.err
 }
 
+// LoadStatus distinguishes provisional geometry from a completed helper load.
+// It contains no image bytes, paths or owner identifiers.
+type LoadStatus struct {
+	Pending, Loaded, Retired bool
+	Generation               uint64
+	PaintAgeMS               int64
+}
+
+func (s *Seat) LoadStatus() LoadStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	status := LoadStatus{Pending: s.pending, Loaded: s.surface != nil, Retired: s.ctx != nil && s.ctx.Err() != nil, Generation: s.generation}
+	if !s.lastPaint.IsZero() {
+		status.PaintAgeMS = time.Since(s.lastPaint).Milliseconds()
+	}
+	return status
+}
+
 // Paint supports the native image's existing Contain/Cover/zoom rectangle.
 // The child is pointer-inert. Clipped/hidden seats retire rather than owning a
 // stale process or accepting a late decode from another tab/attachment owner.
