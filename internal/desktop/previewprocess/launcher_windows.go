@@ -49,6 +49,32 @@ type profile struct {
 	folder string
 }
 
+// Startup diagnostics end before a document is sent. Keep draining stderr to
+// avoid blocking the contained child, but never retain document-time output.
+type helperStartupDiagnostic struct {
+	mu      sync.Mutex
+	data    []byte
+	stopped bool
+}
+
+func (d *helperStartupDiagnostic) Write(p []byte) (int, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.stopped && len(d.data) < 4096 {
+		d.data = append(d.data, p[:min(len(p), 4096-len(d.data))]...)
+	}
+	return len(p), nil
+}
+
+func (d *helperStartupDiagnostic) finish() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.stopped = true
+	text := strings.TrimSpace(string(d.data))
+	d.data = nil
+	return text
+}
+
 func hresult(op string, hr uintptr) error {
 	if int32(uint32(hr)) < 0 {
 		return fmt.Errorf("%s failed (HRESULT 0x%08x)", op, uint32(hr))
@@ -380,7 +406,13 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 			_ = s.Close()
 		}
 	}()
-	go func() { _, _ = io.Copy(io.Discard, errorRead) }()
+	startupDiagnostic := &helperStartupDiagnostic{}
+	diagnosticDone := make(chan struct{})
+	go func() {
+		defer close(diagnosticDone)
+		_, _ = io.Copy(startupDiagnostic, errorRead)
+	}()
+	defer startupDiagnostic.finish()
 	stopCancellation := context.AfterFunc(lifetime, func() { _ = s.Close() })
 	go func() { <-s.Done(); stopCancellation() }()
 	if err = verifyInJob(process.Process, job); err != nil {
@@ -398,7 +430,18 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	defer startupTimer.Stop()
 	ready, err := readPacket(outputRead)
 	if err != nil {
-		return nil, fmt.Errorf("preview helper handshake: %w", err)
+		// Both streams close on child exit; allow its already-written startup
+		// error to drain. Open runs on a worker, never the native UI thread.
+		select {
+		case <-diagnosticDone:
+		case <-time.After(100 * time.Millisecond):
+		}
+		message := startupDiagnostic.finish()
+		var code uint32
+		if exitErr := windows.GetExitCodeProcess(process.Process, &code); exitErr == nil {
+			return nil, fmt.Errorf("preview helper handshake: %w (exit=0x%08x; startup=%s)", err, code, message)
+		}
+		return nil, fmt.Errorf("preview helper handshake: %w (startup=%s)", err, message)
 	}
 	if err = expect(ready, "ready", nonce); err != nil {
 		return nil, err
@@ -412,6 +455,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
 		return nil, err
 	}
+	startupDiagnostic.finish()
 	// This is the first point at which any document bytes enter the helper.
 	if err = sendDocument(inputWrite, nonce, doc); err != nil {
 		return nil, err
