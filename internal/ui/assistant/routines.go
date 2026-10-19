@@ -77,7 +77,8 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 	r := m.Routines
 	s := r.State
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
-	ui.Column(c.Key("bot-routines")).Gap(8).Children(func() {
+	block := ui.Column(c.Key("bot-routines")).Gap(8)
+	block.Children(func() {
 		botTextProfileBlock(c, r.TextProfile, blocked, fg, muted, accent)
 		botSenderPolicyBlock(c, r.SenderPolicy, blocked, fg, muted, accent)
 		botNotifyBlock(c, r.Notify, blocked, fg, muted, accent)
@@ -119,7 +120,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		}
 		// Original dismissals last for this canonical session, without changing
 		// the Host's missed-run records or any scheduling configuration.
-		dismissed := ui.Local(c, "routine-missed:"+s.Scope.HostKey+":"+s.SessionID, func() map[string]bool { return map[string]bool{} })
+		dismissed := ui.Local(block, "routine-missed:"+s.Scope.HostKey+":"+s.SessionID, func() map[string]bool { return map[string]bool{} })
 		missed := []string{}
 		if s.MissedKnown {
 			for _, id := range s.MissedIDs {
@@ -136,7 +137,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				}
 			}
 		}
-		query := ui.Local(c, "routine-query:"+s.Scope.HostKey+":"+s.Scope.BotID, func() string { return "" })
+		query := ui.Local(block, "routine-query:"+s.Scope.HostKey+":"+s.Scope.BotID, func() string { return "" })
 		ui.TextInput(c.Key("routine-search"), query).Label("搜索定时任务、机器人或错误 / Search routines, bots, or errors").FillWidth()
 		visible := visibleBotRoutines(s.Routines, s.BotName, *query)
 		if s.Loaded && len(s.Routines) > 0 && len(visible) == 0 {

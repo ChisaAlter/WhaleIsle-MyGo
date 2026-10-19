@@ -44,7 +44,8 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 	tasks := m.Tasks
 	s := tasks.State
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
-	ui.Column(c.Key("bot-task-controls")).Gap(8).Children(func() {
+	block := ui.Column(c.Key("bot-task-controls")).Gap(8)
+	block.Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Bot 任务 / Bot tasks").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
 			if ui.Button(c, "刷新任务 / Refresh tasks").Disabled(blocked || s.Scope.BotID == "").Clicked() {
@@ -80,8 +81,8 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 			ui.Text(c, "此 Bot 暂无委派任务 / No delegation tasks for this Bot").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		filterKey := s.Scope.HostKey + ":" + s.Scope.BotID
-		query := ui.Local(c, "task-query:"+filterKey, func() string { return "" })
-		status := ui.Local(c, "task-status:"+filterKey, func() string { return "all" })
+		query := ui.Local(block, "task-query:"+filterKey, func() string { return "" })
+		status := ui.Local(block, "task-status:"+filterKey, func() string { return "all" })
 		ui.TextInput(c.Key("task-search"), query).Label("搜索任务、参与者或错误 / Search tasks, participants, or errors").FillWidth()
 		ui.Select(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}).Label("任务状态 / Task status").FillWidth()
 		visible := visibleBotTasks(s.Tasks, *query, *status)
