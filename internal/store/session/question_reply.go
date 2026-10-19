@@ -29,14 +29,24 @@ func classifyQuestionReply(raw json.RawMessage) (Message, bool) {
 	var e struct {
 		Type      string
 		Seq, Time float64
-		SurfaceOp struct{ Op string }
+		SurfaceOp json.RawMessage
 		Data      struct {
 			ID      string
 			Source  struct{ Kind, CallID, Outcome string }
 			Content []struct{ Type, Text string }
 		}
 	}
-	if json.Unmarshal(raw, &e) != nil || e.Type != "user/message" || e.SurfaceOp.Op != "append" || e.Data.Source.Kind != "user-question-reply" || e.Data.Source.CallID == "" || e.Data.Source.Outcome != "answered" {
+	if json.Unmarshal(raw, &e) != nil || e.Type != "user/message" || e.Data.Source.Kind != "user-question-reply" || e.Data.Source.CallID == "" || e.Data.Source.Outcome != "answered" {
+		return Message{}, false
+	}
+	var operation string
+	if json.Unmarshal(e.SurfaceOp, &operation) != nil {
+		var legacy struct{ Op string }
+		if json.Unmarshal(e.SurfaceOp, &legacy) == nil {
+			operation = legacy.Op
+		}
+	}
+	if operation != "append" {
 		return Message{}, false
 	}
 	body := ""
