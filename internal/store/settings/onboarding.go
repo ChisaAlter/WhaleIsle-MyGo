@@ -73,6 +73,7 @@ func (o *DesktopOnboarding) Sync(account OnboardingAccount) {
 	s := o.store
 	s.mu.Lock()
 	client, generation, credentialEpoch := s.client, s.generation, s.onboardingCredentialEpoch
+	described := client != nil && s.describedClient == client
 	ns := s.findNamespaceLocked(DesktopOnboardingNamespace)
 	progress := freshOnboarding()
 	if ns != nil {
@@ -119,16 +120,19 @@ func (o *DesktopOnboarding) Sync(account OnboardingAccount) {
 		progress = *o.draft
 	}
 	o.view.Progress = progress
-	o.view.Loading = loading || account.Status == "" && account.Loading
+	o.view.Loading = loading || !described && storeError == "" || account.Status == "" && account.Loading
 	o.view.CreditKnown = account.CreditKnown
 	o.view.CurrentCreditFunded = account.CreditFunded
 	if !o.creditCaptured && account.Status == "credential-stored" && progress.Step == "credit" {
 		o.view.CreditFunded = account.CreditFunded
 		o.creditCaptured = true
 	}
-	o.view.Visible = account.Enabled && client != nil && account.Status == "credential-stored" && (available && writable || loading) && progress.Step != "done"
-	if o.view.Error == "" && storeError != "" && (loading || !available) {
-		o.view.Error = storeError
+	o.view.Visible = account.Enabled && client != nil && account.Status == "credential-stored" && (!described || available && writable) && progress.Step != "done"
+	if o.failed == nil {
+		o.view.Error = ""
+		if storeError != "" && (!described || loading) {
+			o.view.Error = storeError
+		}
 	}
 	auto := account.Enabled && client != nil && available && writable && chatReady && !loading && !account.Loading && account.Status == "signed-out" && account.HasAPIKey != nil && *account.HasAPIKey && progress.Step != "done" && !o.view.Saving && o.failed == nil
 	checkKeys := account.Enabled && client != nil && available && chatReady && !loading && account.Status == "signed-out" && account.HasAPIKey == nil && !o.checkingKeys
