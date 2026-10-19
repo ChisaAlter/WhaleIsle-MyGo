@@ -28,6 +28,14 @@ func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.Bot
 	controls := &s.assistantBotCreator
 	controls.Bind(scope, binding)
 	snapshot := controls.Snapshot(scope)
+	s.mu.Lock()
+	modelSessions := s.sessions
+	s.mu.Unlock()
+	var modelOptions []session.ModelOption
+	modelsKnown := false
+	if modelSessions != nil {
+		modelOptions, modelsKnown = modelSessions.CachedModelCatalog(client)
+	}
 	current := func() bool {
 		s.mu.Lock()
 		sameAssistant := originalAssistant != nil && s.assistant == originalAssistant
@@ -92,7 +100,13 @@ func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.Bot
 		}
 		s.openAssistantCreatedBot(ep, client, current, item, cwd, sessions, target)
 	}
-	return assistantui.BotCreateModel{State: snapshot, HostLabel: ep.Origin, OnRefresh: refresh,
+	return assistantui.BotCreateModel{State: snapshot, HostLabel: ep.Origin, ModelOptions: modelOptions, ModelsKnown: modelsKnown, OnRefresh: refresh,
+		OnSelectModel: func(v pluginrpc.DshbotRouteModel) {
+			if current() {
+				controls.ChangeModel(scope, v)
+				s.updateAssistantTasks()
+			}
+		},
 		OnStart: func() {
 			if current() {
 				s.mu.Lock()

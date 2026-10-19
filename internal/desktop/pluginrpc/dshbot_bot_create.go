@@ -126,10 +126,16 @@ func ValidateDshbotBotCreate(cmd DshbotBotCreateCommand) error {
 		value    string
 		max      int
 		required bool
-	}{{cmd.ID, 200, true}, {cmd.SessionID, 240, true}, {d.Name, 120, true}, {d.Title, 120, false}, {d.Description, 12000, false}, {d.WorkspaceID, 2000, false}, {d.ScratchCwd, 2000, d.WorkspaceID == ""}, {d.Provider, 200, true}, {d.Model, 500, true}, {d.ReasoningEffort, 100, false}} {
+	}{{cmd.ID, 200, true}, {cmd.SessionID, 240, true}, {d.Name, 120, true}, {d.Title, 120, false}, {d.Description, 12000, false}, {d.WorkspaceID, 2000, false}, {d.ScratchCwd, 2000, d.WorkspaceID == ""}, {d.Provider, 200, false}, {d.Model, 500, false}, {d.ReasoningEffort, 100, false}} {
 		if !utf8.ValidString(f.value) || f.value != trimBotMemory(f.value) || (f.required && f.value == "") || WhaleTextLength(f.value) > f.max {
-			return fmt.Errorf("invalid Bot fields: require name, explicit provider/model and workspace or scratch cwd; respect the displayed text limits")
+			return fmt.Errorf("invalid Bot fields: require name and workspace or scratch cwd; respect the displayed text limits")
 		}
+	}
+	if (d.Provider == "") != (d.Model == "") {
+		return fmt.Errorf("Model provider and model must be selected together.")
+	}
+	if d.Provider == "" && d.ReasoningEffort != "" {
+		return fmt.Errorf("Reasoning effort requires a selected model.")
 	}
 	if cmd.Expected.Revision < 0 {
 		return fmt.Errorf("refresh the Bot catalog first")

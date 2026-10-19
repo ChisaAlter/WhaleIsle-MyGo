@@ -267,6 +267,21 @@ func (c *BotCreator) Dismiss(k string) {
 		}
 	}
 }
+
+// Apply a catalog choice atomically, including its default effort.
+func (c *BotCreator) ChangeModel(k string, v pluginrpc.DshbotRouteModel) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e := c.editable(k)
+	if e == nil {
+		return
+	}
+	e.state.Draft.Provider, e.state.Draft.Model, e.state.Draft.ReasoningEffort = v.Provider, v.Model, v.ReasoningEffort
+	e.state.Draft.Version++
+	e.state.Review = nil
+	e.state.Error = ""
+}
+
 func (c *BotCreator) Prepare(k string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

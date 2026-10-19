@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/store/session"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -16,6 +17,9 @@ const botCreateConfirmLabel = "确认创建并打开 Bot / Confirm create and op
 type BotCreateModel struct {
 	State                                                                 dshbotstore.BotCreateSnapshot
 	HostLabel                                                             string
+	ModelOptions                                                          []session.ModelOption
+	ModelsKnown                                                           bool
+	OnSelectModel                                                         func(pluginrpc.DshbotRouteModel)
 	OnRefresh, OnStart, OnReview, OnConfirm, OnDismiss, OnDiscard, OnOpen func()
 	OnChange                                                              func(field, value string)
 	OnAcknowledge                                                         func(bool)
@@ -30,6 +34,10 @@ func botCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 }
 func botCreateReviewText(host string, cmd pluginrpc.DshbotBotCreateCommand) string {
 	d := cmd.Draft
+	if d.Provider == "" {
+		d.Provider = "继承应用默认模型 / Application default"
+		d.Model = "由 Host 解析 / Resolved by Host"
+	}
 	return fmt.Sprintf("Host: %s · revision %d\nBot name: %s\nDisplay title: %s\nDescription: %s\nWorkspace ID: %s\nScratch cwd: %s\nBot ID: %s\nCanonical session: %s\nModel provider: %s\nModel ID: %s\nReasoning effort: %s\nmemoryReview: %t · notify: %t\nAvatar: blob circle/blue\nTools / Skills / MCP: 全部 / all (empty name filters)\nPeer message/task sources: []\nobjective: empty · objectiveMaxRounds: 16\nSection: none · pinned: false · hidden: false\nPersonal Bot defaults: memberBotIds [] · maxRounds 3 · maxSpeaks 10", host, cmd.Expected.Revision, d.Name, d.Title, d.Description, d.WorkspaceID, d.ScratchCwd, cmd.ID, cmd.SessionID, d.Provider, d.Model, d.ReasoningEffort, d.MemoryReview, d.Notify)
 }
 func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, field, border, accent ui.Color) {
@@ -37,7 +45,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-bot-create")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, "新建个人 Bot / Create personal Bot").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "创建 Bot 资料与专属会话。请填写真实模型 provider / model ID；Host 会校验模型配置。更多头像、能力和来源配置仍可使用 Bot Web。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, "创建 Bot 及专属会话，可继承应用默认模型，或选择当前 Host 已加载的模型。 / Create a Bot with the application default or a cached Host model.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if m.OnRefresh != nil && ui.Button(c, "刷新 Bot 创建目录 / Refresh Bot creation catalog").Disabled(blocked || s.Scope == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -68,7 +76,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
 		ui.Text(c, fmt.Sprintf("Host: %s · revision %d", m.HostLabel, s.Catalog.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		for _, f := range []struct{ id, label, value string }{{"name", "稳定名称 / Stable Bot name (≤120)", d.Name}, {"title", "显示标题 / Display title (≤120)", d.Title}, {"workspaceId", "工作区 ID / Workspace ID (空=临时目录)", d.WorkspaceID}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}, {"provider", "模型提供方 ID / Provider ID (必填，≤200)", d.Provider}, {"model", "模型 ID / Model ID (必填，≤500)", d.Model}, {"reasoningEffort", "推理强度 ID / Reasoning effort (可空，≤100)", d.ReasoningEffort}} {
+		for _, f := range []struct{ id, label, value string }{{"name", "稳定名称 / Stable Bot name (≤120)", d.Name}, {"title", "显示标题 / Display title (≤120)", d.Title}, {"workspaceId", "工作区 ID / Workspace ID (空=临时目录)", d.WorkspaceID}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}} {
 			f := f
 			value := f.value
 			ui.TextInput(c.Key("new-bot-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
@@ -77,6 +85,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 				}
 			})
 		}
+		botCreateModelPicker(c, m, d, disabled, muted)
 		description := d.Description
 		ui.TextArea(c.Key("new-bot-description"), &description).Label("Bot 说明 / Description (≤12000)").Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
@@ -130,6 +139,70 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 					m.OnConfirm()
 				}
 			})
+		}
+	})
+}
+
+// Choices reuse the current authenticated Host's already loaded picker metadata.
+// Route IDs stay opaque; captions never get parsed back into a provider/model.
+func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCreateDraft, disabled bool, muted ui.Color) {
+	defaultLabel := "继承应用默认模型 / Application default"
+	labels := []string{defaultLabel}
+	choices := map[string]pluginrpc.DshbotRouteModel{defaultLabel: {}}
+	selected := defaultLabel
+	var selectedOption *session.ModelOption
+	for i, option := range m.ModelOptions {
+		label := fmt.Sprintf("%d · %s", i+1, option.Label)
+		labels = append(labels, label)
+		choice := pluginrpc.DshbotRouteModel{Provider: option.Provider, Model: option.Model}
+		if option.Reasoning != nil && option.Reasoning.DefaultEffort != nil {
+			choice.ReasoningEffort = *option.Reasoning.DefaultEffort
+		}
+		choices[label] = choice
+		if option.Provider == d.Provider && option.Model == d.Model {
+			selected = label
+			copy := option
+			selectedOption = &copy
+		}
+	}
+	if d.Provider != "" && selectedOption == nil {
+		selected = fmt.Sprintf("保留当前模型 / Preserve: %s · %s", d.Provider, d.Model)
+		labels = append(labels, selected)
+	}
+	ui.Text(c, "模型 / Model").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Select(c.Key("new-bot-model-choice"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
+		if choice, ok := choices[selected]; ok && m.OnSelectModel != nil {
+			m.OnSelectModel(choice)
+		}
+	})
+	if !m.ModelsKnown {
+		ui.Text(c, "模型目录尚未加载，保留当前选择或继承应用默认。 / Catalog not loaded; keep the current choice or inherit the application default.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+	effortDefault := "模型默认推理强度 / Model default effort"
+	effortLabels := []string{effortDefault}
+	efforts := map[string]string{effortDefault: ""}
+	effortSelected := effortDefault
+	if selectedOption != nil && selectedOption.Reasoning != nil {
+		for i, effort := range selectedOption.Reasoning.Efforts {
+			label := fmt.Sprintf("%d · %s", i+1, effort.Name)
+			if effort.Name == "" {
+				label = fmt.Sprintf("%d · %s", i+1, effort.Id)
+			}
+			effortLabels = append(effortLabels, label)
+			efforts[label] = effort.Id
+			if effort.Id == d.ReasoningEffort {
+				effortSelected = label
+			}
+		}
+	}
+	if d.ReasoningEffort != "" && effortSelected == effortDefault {
+		effortSelected = "保留推理强度 / Preserve: " + d.ReasoningEffort
+		effortLabels = append(effortLabels, effortSelected)
+	}
+	ui.Text(c, "推理强度 / Reasoning effort").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Select(c.Key("new-bot-effort-choice"), &effortSelected, effortLabels).FillWidth().Disabled(disabled || selectedOption == nil || selectedOption.Reasoning == nil).OnChange(func() {
+		if effort, ok := efforts[effortSelected]; ok && m.OnSelectModel != nil {
+			m.OnSelectModel(pluginrpc.DshbotRouteModel{Provider: d.Provider, Model: d.Model, ReasoningEffort: effort})
 		}
 	})
 }
