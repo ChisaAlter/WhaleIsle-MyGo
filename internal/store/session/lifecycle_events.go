@@ -179,8 +179,14 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 }
 
 func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) bool {
+	retiredSubmission := false
 	if m.kind == "api-session/removed" || m.kind == "api-session/deleted" {
 		delete(s.promptAttempted, m.sessionID)
+		if live {
+			// Delete receipts use this same live path. A later list replay only
+			// repairs roster state; it must not retire a newer same-ID send.
+			retiredSubmission = s.retireSessionSubmissionsLocked(m.sessionID)
+		}
 	}
 	if m.kind == "api-session/status" {
 		s.observeSidebarRunningLocked(m.sessionID, m.running, live && s.listLoading)
@@ -221,7 +227,7 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			s.selectSessionLocked("")
 			return true
 		}
-		return false
+		return retiredSubmission
 	}
 	switch m.kind {
 	case "api-session/status":
