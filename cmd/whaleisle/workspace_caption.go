@@ -168,18 +168,9 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 					}
 					return
 				}
-				if !diffsurface.CaptionAction(c, diffModel, message, action, m.WorkspacePage) {
+				if !diffsurface.CaptionAction(c, diffModel, message, action, true) {
 					return
 				}
-				if action == "init" || m.WorkspacePage {
-					if win != nil {
-						win.Invalidate()
-					}
-					return
-				}
-				s.mu.Lock()
-				s.filesPaneOpen, s.rightPaneTab, s.gitPROpen = true, "diff", false
-				s.mu.Unlock()
 				if win != nil {
 					win.Invalidate()
 				}
@@ -192,8 +183,8 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 			},
 		}
 		chrome.WorkspaceTrailing(c, model)
-		// Review retirement is independent of the visible Git button. A global
-		// modal stays the same seat when navigating back to an open diff.
+		// Review retirement is independent of the visible Git button. Titlebar
+		// reviews share this modal without replacing the current dock surface.
 		diffsurface.CaptionReview(c, diffModel)
 		if !m.RightPaneOpen || m.RightPaneTab == nil || *m.RightPaneTab != "diff" || m.GitWorkbench.CaptionReviewOpen() {
 			diffsurface.CaptionActivity(c, diffModel)

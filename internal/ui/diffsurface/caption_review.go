@@ -25,7 +25,7 @@ func (w *Workbench) CaptionReviewOpen() bool { return w != nil && w.captionRevie
 // CaptionAction is called only by the captured titlebar click. Initialize
 // directly starts the existing operation, matching the pinned runInit action.
 // Other actions open the existing review; overlay=true presents that same
-// Workbench above a global page without changing its active panel or dock.
+// Workbench above the retained workspace without changing its panel or dock.
 func CaptionAction(c *ui.Context, m Model, message, action string, overlay ...bool) bool {
 	w := m.Workbench
 	if w == nil || c == nil || w.Operation != nil || strings.TrimSpace(m.WorkspaceRoot) == "" || m.CaptionAdmission != nil && !m.CaptionAdmission() {
