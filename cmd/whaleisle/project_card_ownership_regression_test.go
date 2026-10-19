@@ -128,6 +128,15 @@ func TestProjectActivityAndItsPageSurviveReadingAnotherCard(t *testing.T) {
 	}
 	activity := &projectActivityState{browser: browser, owner: state, request: projectRequestRevision{a.ID, a.Revision}}
 	s.projectFlow.activity = activity
+	activityView := browser.View()
+	historicalSourceValid := func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.projectActivityHistoricalSourceValidLocked(s.projectFlow, activity, activityView)
+	}
+	if !historicalSourceValid() {
+		t.Fatal("admitted A activity did not provide a historical source owner")
+	}
 	owner, ok := s.projectVisualOwnerLocked("activity:"+snapshot.Events[0].Key, a.Delivery.Pages[0])
 	if !ok {
 		t.Fatal("activity publication unavailable")
@@ -138,9 +147,25 @@ func TestProjectActivityAndItsPageSurviveReadingAnotherCard(t *testing.T) {
 	if s.projectFlow.activity != activity || m.Activity == nil || m.Activity.Scope.RequestID != "A" || !s.projectVisualCurrentLocked(owner) {
 		t.Fatal("B read replaced A's activity/browser publication owner")
 	}
+	if !historicalSourceValid() {
+		t.Fatal("reading B retired the cached A historical source revision")
+	}
+	// Even an identical browser/request tuple cannot replace the captured
+	// activity instance that supplied this historical source callback.
+	s.projectFlow.activity = &projectActivityState{browser: browser, owner: state, request: activity.request}
+	if historicalSourceValid() {
+		t.Fatal("replacement activity retained the old historical source callback")
+	}
+	s.projectFlow.activity = activity
+	if !historicalSourceValid() {
+		t.Fatal("restoring the actual activity did not restore its unchanged owner")
+	}
 	changed := a
 	changed.Revision++
 	s.rememberProjectRequestCardLocked(&changed)
+	if historicalSourceValid() {
+		t.Fatal("historical source survived A's actual cached revision change")
+	}
 	s.bindProjectActivity(nil, &m)
 	if s.projectFlow.activity != nil || s.projectVisualCurrentLocked(owner) {
 		t.Fatal("activity survived a real source revision change")
