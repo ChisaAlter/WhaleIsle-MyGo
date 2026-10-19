@@ -78,6 +78,22 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	s.queueProjectionGeneration = s.followGeneration
 	s.queueProjectionSeq = seq
 	s.planBoard.Queue = next
+	if edit := s.queueEditorSnapshotLocked(); edit.ItemID != "" {
+		present := false
+		for _, item := range next {
+			if item.ID == edit.ItemID {
+				present = true
+				break
+			}
+		}
+		if !present {
+			// The original QueueDock dismisses an editor when its occurrence
+			// leaves the authoritative inbox. Fence outstanding reads/writes so
+			// their receipts cannot recreate that vanished editing surface.
+			s.queueEditorToken++
+			s.queueEditor = queueEditor{}
+		}
+	}
 }
 func (s *Store) applyQueueControlLocked(raw json.RawMessage) {
 	var frame struct {

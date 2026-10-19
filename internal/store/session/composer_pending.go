@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 )
 
 const MessageKindSubmission MessageKind = "submission"
@@ -67,7 +68,12 @@ func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAtta
 		s.composerPending = make(map[string]*composerPending)
 	}
 	s.composerPending[id] = &composerPending{PendingSubmission: PendingSubmission{RequestID: id, SessionID: t.SessionID, Text: text, Placement: placement, Attachments: append([]ComposerAttachment(nil), attachments...), Order: s.composerOrder}, target: t}
-	s.markPromptAttemptedLocked(t.SessionID)
+	// Slash candidates first go through command adjudication. Recognized
+	// commands never enter the prompt sink; unknown spellings mark this edge
+	// in Submit immediately before their real session/prompt admission.
+	if !strings.HasPrefix(strings.TrimSpace(text), "/") {
+		s.markPromptAttemptedLocked(t.SessionID)
+	}
 	s.mu.Unlock()
 	s.fire()
 	return id
