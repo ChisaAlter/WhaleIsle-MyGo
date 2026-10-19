@@ -88,15 +88,21 @@ func defaultAgentPresetLabel(options []AgentPresetOption, roster api.AgentPreset
 // RefreshAgentPresets loads agentPresets/list for the composer picker.
 func (s *Store) RefreshAgentPresets(ctx context.Context) {
 	s.mu.Lock()
-	client := s.client
+	client, generation := s.client, s.eventsGeneration
+	s.agentPresetsRequest++
+	request := s.agentPresetsRequest
 	s.mu.Unlock()
-	if client == nil {
+	if client == nil || ctx.Err() != nil {
 		return
 	}
 	go func() {
 		var roster api.AgentPresetRoster
 		err := client.Call(ctx, "agentPresets/list", map[string]any{}, &roster)
 		s.mu.Lock()
+		if s.client != client || s.eventsGeneration != generation || s.agentPresetsRequest != request || ctx.Err() != nil {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.agentPresetsErr = err
 			s.mu.Unlock()
