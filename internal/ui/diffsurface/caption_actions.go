@@ -135,7 +135,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
 			}
 			if w.BranchStatus != "" {
-				ui.Text(c, w.BranchStatus).FillWidth().Padding(8, 10).Role(ui.RoleAlert).TextColor(c.Theme().Danger)
+				ui.Text(c, w.BranchStatus).FillWidth().Padding(8, 10).Role(ui.RoleStatus).TextColor(c.Theme().Danger)
 			}
 			needle := strings.ToLower(strings.TrimSpace(w.BranchQuery))
 			matches := 0

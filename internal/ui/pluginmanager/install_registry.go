@@ -66,7 +66,7 @@ func installRegistryOptions(c *ui.Context, i manager.InstallState, a manager.Act
 				a.ChooseRegistry(manager.RegistryChoice{Kind: "custom", URL: *draft})
 			}
 			if i.RegistryError {
-				ui.Text(c, copyText("请输入以 http:// 或 https:// 开头的地址", "Enter an address starting with http:// or https://")).FillWidth().Role(ui.RoleAlert).TextColor(c.Theme().Danger)
+				ui.Text(c, copyText("请输入以 http:// 或 https:// 开头的地址", "Enter an address starting with http:// or https://")).FillWidth().Role(ui.RoleStatus).TextColor(c.Theme().Danger)
 			}
 			ui.Text(c, copyText("填写内网或私有 npm 源地址。需要登录时，请将凭据保存在本机 ~/.npmrc。", "Enter an internal or private npm registry. Store required login credentials in this machine's ~/.npmrc.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
 		})

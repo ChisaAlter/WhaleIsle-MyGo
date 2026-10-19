@@ -107,7 +107,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 						ui.Text(c, i.Inspection.Description).FillWidth().TextColor(muted)
 					}
 					if i.Error != "" {
-						ui.Text(c, i.Error).FillWidth().Role(ui.RoleAlert).TextColor(c.Theme().Danger)
+						ui.Text(c, i.Error).FillWidth().Role(ui.RoleStatus).TextColor(c.Theme().Danger)
 					}
 					if i.Phase == "checking" {
 						ui.Text(c, copyText("正在检查…", "Checking…")).Role(ui.RoleStatus).TextColor(muted)
