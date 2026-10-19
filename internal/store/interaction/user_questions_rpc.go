@@ -12,6 +12,9 @@ import (
 // AttachClient binds an optional dsh client for userQuestions/* RPC (waterfall remains primary).
 func (s *Store) AttachClient(client *dsh.Client, mux *dsh.Mux) {
 	s.mu.Lock()
+	if s.client != client || s.mux != mux {
+		s.retireEventsDeliveryLocked(s.eventsDeliveryOwner)
+	}
 	if s.client != client {
 		s.resetQuestionRecoveryLocked()
 	}

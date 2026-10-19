@@ -139,3 +139,11 @@
 固定 `P/ui-agent-preset/src/client/CreatePluginMenuItem.tsx` 完整阅读：ready roster含cordis才可选，idle/loading/error/missing分别描述；选中先onDismiss，再startCreatorDraft。`index.ts:190` 使用既有workspace startSession，clearPreviousDraft:false、cordis、beforeOpen stage/apply，无额外review modal、seed文本或send。两文件相对e353e8e无dirty差异。
 
 新增 `cmd/whaleisle/plugin_creator_task.go` 独立Controller接线复用现有session.CreatorTask：唯一菜单click Prepare→Create(ticket)，成功后Open；没有第二确认、自动重试create/select或模型请求。过程和不确定回执在manager notice显示准确Host/Cwd/Session/phase/error；Locate只读该ID，explicit Open打开同一确认目标。page owner按实际main.go paintMainContent的 `marketOpen && marketManager`，不是Settings内置插件列表。observePluginCreator/postframe与suspendPluginCreator/hide由root接线。`CreatorPresetCatalog` 区分已读空roster、loading、failed和cordis可用，复用原有process roster；Add重开通过refreshPluginCreatorRoster显式刷新。新任务创建、presets选择等外部动作只存在产品回调源码，本轮未执行。
+
+### 手动 carrier 重连的 interaction delivery 收口
+
+固定原版 `api/gateway/src/client/stream-client.ts` 的 reconnect 退役当前carrier/logical stream；`client/remote-events.ts:168` finally abort各delivery并await tasks。server `api/gateway/src/index.ts:571` 新client注册时重放同一pending，`:688`推送同一pending.frame/eventId，`:717`断开只移除client delivery而不删除Host pending。因此复用client/interaction Store的Go手动重连不能把stream退出当真实Host Cancel，也不能让两个attempt等待同一answer channel。
+
+已确认两条可达缺陷：旧FollowEvents synthetic OnCancel永久写`cancelled[eventId]`，新replay被误作cancelled；忽略旧Cancel又会让新旧handler争读旧waiter。另普通approval没有Scoped EventDelivery时，旧HTTP回执仅按eventId处理，会删除/报错到新replay卡。
+
+新增 `interaction/events_delivery.go` 的 BeginEventsDelivery / HandleWaterfallForDelivery / OnResultForDelivery / OnCancelForDelivery / RetireEventsDelivery。Begin同锁退役旧owner，取消其HTTP权限、释放其live waiter/claim、记住callId draft；不写Host取消tombstone、不清continued RPC卡。新replay建fresh waiter；结果同锁核owner、waiter与本次response authority指针。每次返回的outcome合并原Scoped authority与attempt context，carrier退休在HTTP开始前/进行中均可撤权。真实Host Cancel保留原语义。`dsh.EventsFuncs.Retire func()` 与可选OnRetire合同把generation退出和Host取消分开；具备Retire合同的FollowEvents在退役后join本次handler任务。旧调用接口仍兼容。main captured-owner接线由root/settings组集成；本批仅产品源、gofmt、diffcheck，未tests/build/连接Host。

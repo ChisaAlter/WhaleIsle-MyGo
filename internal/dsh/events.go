@@ -27,6 +27,19 @@ type EventsFuncs struct {
 	Waterfall func(EventsWaterfall) (*EventResultOutcome, error)
 	Cancel    func(EventsCancel)
 	Result    func(EventResult, error) bool
+	// Retire withdraws this logical delivery generation, preserving durable
+	// request drafts. It is distinct from a real Host EventCancel.
+	Retire func()
+}
+
+// OnRetire reports whether this handler owns generation cleanup. Legacy
+// handlers without it keep per-event cancellation cleanup on stream exit.
+func (f EventsFuncs) OnRetire() bool {
+	if f.Retire == nil {
+		return false
+	}
+	f.Retire()
+	return true
 }
 
 func (f EventsFuncs) OnReady(ready EventsReady) {
@@ -92,11 +105,36 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 	defer stream.Cancel()
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	sess := &EventsSession{client: c, mux: mux, stream: stream}
 	failures := make(chan error, 1)
 	var activeMu sync.Mutex
 	active := make(map[string]context.CancelFunc)
+	var tasks sync.WaitGroup
+	defer func() {
+		cancel()
+		stream.Cancel()
+		retired := false
+		if handler, ok := handler.(interface{ OnRetire() bool }); ok {
+			retired = handler.OnRetire()
+		}
+		if !retired {
+			activeMu.Lock()
+			ids := make([]string, 0, len(active))
+			for id := range active {
+				ids = append(ids, id)
+			}
+			activeMu.Unlock()
+			for _, id := range ids {
+				handler.OnCancel(EventsCancel{Type: EventCancel, EventID: id})
+			}
+		}
+		// An owned Retire releases its waiters before joining this generation.
+		// Legacy handlers expose no context-aware join contract; preserve their
+		// existing cancellation callback rather than waiting on arbitrary work.
+		if retired {
+			tasks.Wait()
+		}
+	}()
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
@@ -123,26 +161,14 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 			active[wf.EventID] = requestCancel
 			activeMu.Unlock()
 			// A prompt must not block later requests or its own cancellation frame.
+			tasks.Add(1)
 			go func() {
+				defer tasks.Done()
 				defer func() {
 					requestCancel()
 					activeMu.Lock()
 					delete(active, wf.EventID)
 					activeMu.Unlock()
-				}()
-				done := make(chan struct{})
-				defer close(done)
-				go func() {
-					select {
-					case <-requestCtx.Done():
-						select {
-						case <-done:
-							return
-						default:
-						}
-						handler.OnCancel(EventsCancel{Type: EventCancel, EventID: wf.EventID})
-					case <-done:
-					}
 				}()
 				if err := sess.answerWaterfall(requestCtx, handler, wf); err != nil && requestCtx.Err() == nil {
 					select {

@@ -55,6 +55,8 @@ type ViewState struct {
 
 // Store serializes waterfall handlers with the main-thread UI.
 type Store struct {
+	eventsDeliveryOwner *EventsDeliveryOwner
+	eventsDeliveries    map[string]*eventsDelivery
 	questionWriter      questionDraftWriter
 	questionStorage     questionDraftStorage
 	questionFocusFrame  bool
@@ -98,6 +100,7 @@ func (s *Store) Attach(notify func()) {
 // Detach clears pending state when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.retireEventsDeliveryLocked(s.eventsDeliveryOwner)
 	s.resetQuestionRecoveryLocked()
 	s.client = nil
 	s.mux = nil
@@ -394,8 +397,16 @@ func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 // OnResult retains the card and its exact response on delivery failure.
 // Returning true lets the event stream wait for an explicit user retry.
 func (s *Store) OnResult(result dsh.EventResult, err error) bool {
+	return s.onResultForDelivery(nil, result, err)
+}
+
+func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.EventResult, err error) bool {
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
+	if owner != nil && !s.eventsResultCurrentLocked(owner, result) {
+		s.mu.Unlock()
+		return false
+	}
 	p := s.findPending(result.EventID)
 	if result.Outcome.Delivery != nil && s.responses[result.EventID].Delivery != result.Outcome.Delivery {
 		s.mu.Unlock()
@@ -421,6 +432,10 @@ func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 			p.Error = err.Error()
 			retry = true
 		}
+	}
+	if owner != nil && p == nil {
+		s.forgetEventsDeliveryLocked(result.EventID)
+		delete(s.responses, result.EventID)
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -474,6 +489,7 @@ func (s *Store) SnapshotForAgent(agentID string) ViewState {
 
 func (s *Store) dropPending(eventID string) {
 	s.rememberQuestionDraftLocked(eventID)
+	s.forgetEventsDeliveryLocked(eventID)
 	if eventID == "" {
 		s.pending = nil
 		s.questionDrafts = make(map[string]*draftSession)
@@ -508,30 +524,42 @@ func (s *Store) findPending(eventID string) *Pending {
 
 // HandleWaterfall implements dsh.EventsHandler waterfall dispatch for the shell.
 func (s *Store) HandleWaterfall(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+	return s.handleWaterfallForDelivery(nil, wf)
+}
+
+func (s *Store) handleWaterfallForDelivery(owner *EventsDeliveryOwner, wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
 	s.mu.Lock()
+	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
+		return expiredEventsOutcome(owner, wf.EventID), nil
+	}
 	ch := s.waiters[wf.EventID]
 	cancelled := s.cancelled[wf.EventID]
 	s.mu.Unlock()
 	if cancelled {
 		out := approvalOutcome("cancelled")
-		return &out, nil
+		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
 	if ch != nil {
 		out := <-ch
-		return &out, nil
+		return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
 	}
 
 	switch wf.Event {
 	case EventApproval:
-		return s.handleApproval(wf)
+		return s.handleApprovalForDelivery(owner, wf)
 	case EventUserQuestions:
-		return s.handleUserQuestions(wf)
+		return s.handleUserQuestionsForDelivery(owner, wf)
 	default:
 		return nil, nil
 	}
 }
 
 func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+	return s.handleApprovalForDelivery(nil, wf)
+}
+
+func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
 	var req approvalRequest
 	_ = json.Unmarshal(wf.Request, &req)
 	title := req.ToolName
@@ -559,21 +587,30 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 	s.mu.Unlock()
 	if auto {
 		s.mu.Lock()
+		if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
+			s.mu.Unlock()
+			return expiredEventsOutcome(owner, wf.EventID), nil
+		}
 		s.banner = title
 		s.mu.Unlock()
 		s.fire()
 		out := approvalOutcome(outcomeAllowedOnce)
-		return &out, nil
+		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
 
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
+	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
+		return expiredEventsOutcome(owner, wf.EventID), nil
+	}
 	if s.cancelled[wf.EventID] {
 		s.mu.Unlock()
 		out := approvalOutcome("cancelled")
-		return &out, nil
+		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
 	s.waiters[wf.EventID] = ch
+	s.registerEventsDeliveryLocked(owner, wf.EventID, ch)
 	s.pending = append(s.pending, Pending{
 		EventID:                wf.EventID,
 		Event:                  wf.Event,
@@ -592,10 +629,14 @@ func (s *Store) handleApproval(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome,
 	s.fire()
 
 	out := <-ch
-	return &out, nil
+	return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
 }
 
 func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+	return s.handleUserQuestionsForDelivery(nil, wf)
+}
+
+func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
 	var req userQuestionsRequest
 	_ = json.Unmarshal(wf.Request, &req)
 	title := questionCardTitle(req)
@@ -607,13 +648,18 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
+	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
+		return expiredEventsOutcome(owner, wf.EventID), nil
+	}
 	mux := s.mux
 	if s.cancelled[wf.EventID] {
 		s.mu.Unlock()
 		out := approvalOutcome("cancelled")
-		return &out, nil
+		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
 	s.waiters[wf.EventID] = ch
+	s.registerEventsDeliveryLocked(owner, wf.EventID, ch)
 	s.questionDrafts[wf.EventID] = s.liveQuestionDraftLocked(wf.AgentID, callID, req)
 	waitCtx, cancelWait := context.WithCancel(context.Background())
 	s.waitCancels[wf.EventID] = cancelWait
@@ -632,13 +678,21 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 	}
 
 	out := <-ch
-	return &out, nil
+	return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
 }
 
 // OnCancel drops a pending waterfall when the host cancels it.
 func (s *Store) OnCancel(c dsh.EventsCancel) {
+	s.onCancelForDelivery(nil, c)
+}
+
+func (s *Store) onCancelForDelivery(owner *EventsDeliveryOwner, c dsh.EventsCancel) {
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
+	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
+		s.mu.Unlock()
+		return
+	}
 	s.cancelled[c.EventID] = true
 	ch, ok := s.waiters[c.EventID]
 	if ok {
