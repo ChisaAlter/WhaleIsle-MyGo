@@ -6,6 +6,12 @@ import (
 )
 
 func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
+	// The model-selection plugin owns this entire seat, independently of its
+	// optional label decorator. Omitting the subtree also retires local menus;
+	// the Host's model projection remains available to the session store.
+	if !m.Snapshot.NativeContributions.Known || !m.Snapshot.NativeContributions.ModelCommand {
+		return
+	}
 	row := ui.Row(c).MinWidth(0).Grow(1).Gap(6).AlignItems(ui.Center)
 	model := ui.Local(row, "model-choice", func() modelPickerChoice { return modelPickerChoice{} })
 	effort := ui.Local(row, "effort-choice", func() modelPickerChoice { return modelPickerChoice{} })
