@@ -50,12 +50,12 @@ func (s *Store) ReceiptCatalogState(row Entry) (registered, settled bool) {
 }
 
 func ActiveForSession(snap ViewState, id string) []Entry {
-	if !snap.ClientReady || snap.Err != "" {
+	if !snap.ClientReady || !snap.CatalogSettled {
 		return nil
 	}
 	var rows []Entry
 	for _, row := range snap.Rows {
-		if row.SessionID == id && row.Status == "active" {
+		if row.Origin == snap.Origin && row.SessionID == id && row.Status == "active" {
 			rows = append(rows, row)
 		}
 	}

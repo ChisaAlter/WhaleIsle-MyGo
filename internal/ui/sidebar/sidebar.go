@@ -316,11 +316,9 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if text := statusLabel(status); text != "" {
 		hint += "\n" + text
 	}
-	for _, task := range schedstore.ActiveForSession(m.Schedules, it.SessionID) {
-		hint += "\n" + task.Title + " · " + schedstore.TimingLabel(task)
-	}
+	tasks := schedstore.ActiveForSession(m.Schedules, it.SessionID)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	row := ui.Button(c, "").Label(label).Tooltip(hint).FillWidth().Height(32).Radius(8).
+	row := ui.Button(c, "").Label(label).Description(hint).FillWidth().Height(32).Radius(8).
 		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).AlignItems(ui.Center)
 	if selected || row.Hovered() || row.FocusWithin() {
 		row.Background(selectedBackground(colors))
@@ -331,7 +329,11 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	}
 	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(0).Children(func() {
-			sessionStatusSlot(c, status, muted)
+			if status == "" && len(tasks) > 0 {
+				sessionScheduleMark(c, len(tasks), muted)
+			} else {
+				sessionStatusSlot(c, status, muted)
+			}
 			if renaming {
 				input := ui.TextInput(c.Key("session-rename"), m.RenameDraft).MinWidth(0).Grow(1).Height(24).
 					FontSize(theme.InterfaceSize(14)).Disabled(m.RenameBusy)
@@ -376,6 +378,11 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			}
 		})
 	})
+	if len(tasks) == 0 {
+		row.Tooltip(hint)
+	} else {
+		sessionScheduleHover(c, row, it, status, tasks, m.Schedules.ConnectionEpoch, colors)
+	}
 	if !renaming {
 		sessionDragSource(row, m, it)
 		sessionDropTarget(row, m, it, false, fg)

@@ -33,6 +33,7 @@ type ViewState struct {
 	ClientReady     bool
 	Loading         bool
 	CatalogReady    bool   // Successful all-session catalog, never a session-only fallback.
+	CatalogSettled  bool   // Retained full-catalog facts, including during refresh/error.
 	CatalogRevision uint64 // Advances only when that authoritative catalog settles.
 	CatalogRequest  uint64
 	Err             string
@@ -128,6 +129,7 @@ func (s *Store) Snapshot() ViewState {
 		ClientReady:     s.client != nil,
 		Loading:         s.loading,
 		CatalogReady:    s.catalogReady && !s.loading && s.err == nil,
+		CatalogSettled:  s.catalogReady,
 		CatalogRevision: s.catalogRevision,
 		CatalogRequest:  s.catalogRequest,
 		CatalogHint:     s.catalogHint,
@@ -167,6 +169,7 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		s.mu.Unlock()
 		return
 	}
+	hadCatalog := s.catalogReady
 	s.generation++
 	generation := s.generation
 	s.catalogRequest++
@@ -190,6 +193,10 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		var callErr error
 		if catalogErr == nil {
 			rows = parseScheduleList(catalog)
+		} else if hadCatalog {
+			// A transient catalog failure cannot replace known all-session
+			// facts with a partial list from whichever Session is selected.
+			callErr = catalogErr
 		} else if sessionID == "" {
 			callErr = fmt.Errorf("Host catalog unavailable; select a Session to list its active schedules")
 		} else {
