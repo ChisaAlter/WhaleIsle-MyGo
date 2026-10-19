@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {inspectSessionRuntime, stageSessionRuntime, verifyStagedSessionRuntime, sessionAdmissionTypes} from './session-runtime.mjs';
+import crypto from 'node:crypto';
+import {inspectSessionRuntime, stageSessionRuntime, cloneStagedSessionRuntime, verifyStagedSessionRuntime, sessionAdmissionTypes} from './session-runtime.mjs';
 import {outputSHA256, bundlePath} from './session-runtime-readiness.mjs';
 
 const pin = {repo: 'https://github.com/deepseek-ai/deepseek-harness.git', ref: 'dsh-v0.2.1-rc.2', sha: '687f282e8625c6b8d11ff58211a90524be2e4317', npm: '0.2.1-rc.2'};
@@ -55,6 +56,52 @@ async function linkDirectory(target, link) {
   await fs.mkdir(path.dirname(link), {recursive: true});
   await fs.symlink(target, link, process.platform === 'win32' ? 'junction' : 'dir');
 }
+
+// The explicit guarded fixture supplies only pinned visual bundle/record bytes;
+// all validator, Node and lifecycle bytes remain the tiny synthetic fixture.
+async function cloneFixture(t) {
+  const f=await fixture(t);
+  const stage=process.env.WHALEISLE_SESSION_RUNTIME_STAGED_FIXTURE;
+  assert.ok(stage,'Set WHALEISLE_SESSION_RUNTIME_STAGED_FIXTURE to the verified rc.2 stage');
+  const real=JSON.parse(await fs.readFile(path.join(stage,'vendor/host-session-runtime.json'),'utf8'));
+  await fs.mkdir(path.dirname(path.join(f.vendor,bundlePath)),{recursive:true});
+  await fs.copyFile(path.join(stage,'vendor',bundlePath),path.join(f.vendor,bundlePath));
+  await fs.copyFile(path.join(stage,'vendor/session-runtime-readiness.json'),path.join(f.vendor,'session-runtime-readiness.json'));
+  const node=await fs.readFile(path.join(f.resources,'runtime/primary-runtime/dependencies/node/bin/node.exe'));
+  await write(path.join(f.resources,'node/node.exe'),node.toString());
+  const inspected=await inspectSessionRuntime(f.harness);
+  await write(path.join(f.vendor,'host-session-runtime.json'),{...inspected,safetyPatch:real.safetyPatch,
+    node:{path:'node/node.exe',sha256:crypto.createHash('sha256').update(node).digest('hex')},relocatedLinks:0});
+  return f;
+}
+
+test('clone keeps guarded bytes and relocates links independently of the old stage',async t=>{
+  const f=await cloneFixture(t);
+  await linkDirectory(path.join(f.harness,'packages/core/session'),path.join(f.vendor,'session-alias'));
+  const sourceManifest=await fs.readFile(path.join(f.vendor,'host-session-runtime.json'),'utf8');
+  const result=await cloneStagedSessionRuntime(f.resources,f.destination);
+  assert.equal(result.harnessRoot,path.join(f.destination,'vendor/deepseek-harness'));
+  assert.equal(result.relocatedLinks,1);
+  assert.equal(await fs.realpath(path.join(f.destination,'vendor/session-alias')),path.join(f.destination,'vendor/deepseek-harness/packages/core/session'));
+  assert.equal(await fs.readFile(path.join(f.vendor,'host-session-runtime.json'),'utf8'),sourceManifest);
+  assert.deepEqual(await fs.readFile(path.join(f.destination,'vendor',bundlePath)),await fs.readFile(path.join(f.vendor,bundlePath)));
+  await fs.rename(f.resources,path.join(f.root,'old-stage-unavailable'));
+  assert.equal((await verifyStagedSessionRuntime(path.join(f.destination,'vendor'))).cliVersion,pin.npm);
+});
+
+test('clone refuses existing, overlapping and external-link destinations without changing source',async t=>{
+  const f=await cloneFixture(t);
+  await fs.mkdir(f.destination);
+  await write(path.join(f.destination,'keep.txt'),'keep');
+  await assert.rejects(cloneStagedSessionRuntime(f.resources,f.destination),/must be fresh/);
+  assert.equal(await fs.readFile(path.join(f.destination,'keep.txt'),'utf8'),'keep');
+  await assert.rejects(cloneStagedSessionRuntime(f.resources,path.join(f.resources,'nested')),/overlaps source stage/);
+  const external=path.join(f.root,'outside');await fs.mkdir(external);
+  await linkDirectory(external,path.join(f.vendor,'external-link'));
+  const fresh=path.join(f.root,'never-created');
+  await assert.rejects(cloneStagedSessionRuntime(f.resources,fresh),/External or ancestor runtime link/);
+  await assert.rejects(fs.lstat(fresh),{code:'ENOENT'});
+});
 
 test('old runtime rejects the required seq20 event through its actual validator export', async t => {
   const f = await fixture(t, {version: '0.2.1-alpha.1', coreTypes: []});

@@ -205,6 +205,39 @@ export async function stageSessionRuntime(resources, destination) {
   return verifyStagedSessionRuntime(targetVendor);
 }
 
+/** Relocate an already guarded stage. No source repair, patching, or link following. */
+export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
+  const source = await fs.realpath(path.resolve(stageRoot));
+  const absolute = path.resolve(freshDest);
+  const target = path.join(await fs.realpath(path.dirname(absolute)), path.basename(absolute));
+  if (within(source, target) || within(target, source)) throw new Error('Runtime destination overlaps source stage');
+  try { await fs.lstat(target); throw new Error(`Runtime destination must be fresh: ${target}`); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const metadata = await verifyStagedSessionRuntime(path.join(source, 'vendor'));
+  const graph = await inventoryVendor(path.join(source, 'vendor'));
+  if (!within(source, graph.root)) throw new Error('Source vendor graph is outside selected stage');
+  const nodeSource = await fileInside(source, 'node/node.exe');
+  await fs.mkdir(target);
+  const vendor = path.join(target, 'vendor');
+  await fs.mkdir(vendor);
+  graph.directories.sort((a, b) => a.split(path.sep).length - b.split(path.sep).length);
+  for (const relative of graph.directories) await fs.mkdir(child(vendor, relative));
+  for (const relative of graph.files) {
+    if (relative === 'host-session-runtime.json') continue;
+    await fs.copyFile(child(graph.root, relative), child(vendor, relative), constants.COPYFILE_EXCL);
+  }
+  for (const link of graph.links) {
+    const relocated = child(vendor, link.path), targetPath = child(vendor, link.target);
+    await fs.symlink(process.platform === 'win32' && link.directory ? targetPath : path.relative(path.dirname(relocated), targetPath), relocated,
+      link.directory ? (process.platform === 'win32' ? 'junction' : 'dir') : 'file');
+  }
+  await fs.mkdir(path.join(target, 'node'));
+  await fs.copyFile(nodeSource, path.join(target, 'node/node.exe'), constants.COPYFILE_EXCL);
+  const result = {...metadata, harnessRoot: path.join(vendor, 'deepseek-harness'), relocatedLinks: graph.links.length};
+  await fs.writeFile(path.join(vendor, 'host-session-runtime.json'), JSON.stringify(result, null, 2) + '\n', {flag: 'wx'});
+  return verifyStagedSessionRuntime(vendor);
+}
+
 /** Verify the MyGo-specific staged profile before packaging or selecting it. */
 export async function verifyStagedSessionRuntime(vendorDir) {
   const root = await fs.realpath(path.resolve(vendorDir));
@@ -251,11 +284,12 @@ export async function verifyStagedSessionRuntime(vendorDir) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, source, destination, ...extra] = process.argv.slice(2);
   try {
-    if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : command !== 'stage' || !destination)) {
-      throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir>');
+    if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : !['stage', 'clone'].includes(command) || !destination)) {
+      throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir>');
     }
     console.log(JSON.stringify(command === 'inspect' ? await inspectSessionRuntime(source)
-      : command === 'verify' ? await verifyStagedSessionRuntime(source) : await stageSessionRuntime(source, destination), null, 2));
+      : command === 'verify' ? await verifyStagedSessionRuntime(source)
+      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : await stageSessionRuntime(source, destination), null, 2));
   } catch (error) {
     console.error(`Session runtime: ${error.message}`);
     process.exitCode = 1;
