@@ -63,15 +63,33 @@ func composerToolItems(m Model, query string) []suggestItem {
 	return items
 }
 
-// Only an active operation occupies the toolbar; microphone setup and idle
-// intake stay in +, while stop/insert/discard remain immediately reachable.
+// The optional voice contribution keeps its microphone trigger in the input
+// activity seat; feedback offers Retry without forcing a trip to Settings.
 func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height float32) {
 	locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
 	button := func(glyph, label string, disabled bool, action func()) {
-		if action != nil && ui.Button(c, glyph).Label(label).Tooltip(label).
-			Width(height).Height(height).Padding(0).Radius(height/2).
-			Background(fill).BorderWidth(0).TextColor(fg).Disabled(disabled).Clicked() {
+		if action == nil {
+			return
+		}
+		caption := glyph
+		if glyph == "microphone" {
+			caption = ""
+		}
+		control := ui.Button(c, caption).Label(label).Tooltip(label).
+			Width(height).Height(height).Padding(0).Radius(height / 2).
+			Background(fill).BorderWidth(0).TextColor(fg).Disabled(disabled)
+		if glyph == "microphone" {
+			control.Children(func() { ui.Icon(c, voiceMicrophoneIcon).Size(18, 18).PassThrough() })
+		}
+		if control.Clicked() {
 			action()
+		}
+	}
+	if m.Voice.Phase == "" {
+		if voiceNeedsSetup(m) {
+			button("microphone", composerText("语音设置", "Voice settings"), locked, m.OnVoiceSettings)
+		} else {
+			button("microphone", composerText("开始录音", "Start recording"), locked, m.OnStartVoice)
 		}
 	}
 	if m.Voice.Phase == "recording" {
@@ -79,6 +97,9 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 	}
 	if m.Voice.Pending != "" {
 		button("↵", composerText("插入转写", "Insert transcript"), locked, m.OnInsertVoice)
+	}
+	if m.Voice.Phase == "feedback" && m.Voice.Pending == "" {
+		button("microphone", composerText("重试录音", "Retry recording"), locked, m.OnStartVoice)
 	}
 	if m.Voice.Phase != "" {
 		button("×", composerText("取消录音", "Discard recording"), false, m.OnCancelVoice)
@@ -89,8 +110,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 }
 
 func voiceNeedsSetup(m Model) bool {
-	return m.OnStartVoice == nil || !m.Snapshot.ClientReady || m.Snapshot.SpeechSelection == "" ||
-		(m.Voice.Phase == "feedback" && m.Voice.Pending == "" && m.Voice.Message != "")
+	return m.OnStartVoice == nil || !m.Snapshot.ClientReady || m.Snapshot.SpeechSelection == ""
 }
 
 func composerSendDisabled(m Model) bool {

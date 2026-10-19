@@ -2,6 +2,7 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
+	"time"
 )
 
 const maxDraftUndo = 100
@@ -37,6 +38,8 @@ func (c *DraftClient) restore(s draftSnapshot) {
 	c.lastText = s.text
 	c.selection = s.selection
 	c.marked = nil
+	c.compositionPending = nil
+	c.typingUndoAt = time.Time{}
 	if s.marked != nil {
 		m := *s.marked
 		c.marked = &m
@@ -77,5 +80,7 @@ func (c *DraftClient) ClearHistory() {
 	c.Sync()
 	c.undo, c.redo = nil, nil
 	c.marked = nil
+	c.compositionPending = nil
+	c.typingUndoAt = time.Time{}
 	c.navigationXValid = false
 }

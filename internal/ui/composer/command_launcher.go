@@ -53,9 +53,31 @@ func slashMenuItems(m Model, query string) []suggestItem {
 	commands := FilterSlashCommands(m.SlashCatalog, query, len(m.SlashCatalog))
 	out := make([]suggestItem, 0, len(commands)+len(m.Skills))
 	seen := map[string]bool{}
+	leading := true
+	if m.Draft != nil {
+		caret := len(*m.Draft)
+		if m.TextInput != nil {
+			caret = ui.UTF16ByteOffset(*m.Draft, m.TextInput.Selection().Caret())
+		}
+		if _, _, token, ok := ActiveSuggestAt(*m.Draft, caret); ok {
+			leading = strings.TrimSpace((*m.Draft)[:token.Start]) == ""
+		}
+	}
 	for _, cmd := range commands {
+		if !leading {
+			input := false
+			for _, descriptor := range m.Snapshot.SlashCommands {
+				if "/"+descriptor.Name == cmd.Line && descriptor.Input != nil {
+					input = true
+					break
+				}
+			}
+			if input {
+				continue
+			}
+		}
 		seen[strings.ToLower(strings.TrimPrefix(cmd.Line, "/"))] = true
-		out = append(out, suggestItem{label: cmd.Line, sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash})
+		out = append(out, suggestItem{label: cmd.Line, sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash, command: true})
 	}
 	child := false
 	for _, item := range m.Snapshot.Items {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"sort"
+	"strings"
 )
 
 type TrajectoryProviderMetadata struct {
@@ -43,6 +44,8 @@ type TrajectoryRequest struct {
 	Header           *TrajectoryRequestHeader    `json:"header,omitempty"`
 	Summary          string                      `json:"summary,omitempty"`
 	RawOutput        *string                     `json:"rawOutput,omitempty"`
+	SummaryBlocks    json.RawMessage             `json:"summaryBlocks,omitempty"`
+	RawOutputBlocks  json.RawMessage             `json:"rawOutputBlocks,omitempty"`
 	Error            *string                     `json:"error,omitempty"`
 	Retries          []RetryAttempt              `json:"retries,omitempty"`
 	Attempts         []TrajectoryAttemptEvidence `json:"attempts,omitempty"`
@@ -54,15 +57,16 @@ type trajectoryRequestEvent struct {
 	Seq  float64  `json:"seq"`
 	Time *float64 `json:"time"`
 	Data struct {
-		Turn, Step               *float64
-		CompactionID             string          `json:"compactionId"`
-		Usage                    json.RawMessage `json:"usage"`
-		Interrupted              bool            `json:"interrupted"`
-		Error                    *string         `json:"error"`
-		Provider, Model, Summary string
-		RawOutput                *string  `json:"rawOutput"`
-		MaxTokens                *float64 `json:"maxTokens"`
-		Message                  struct {
+		Turn, Step      *float64
+		CompactionID    string          `json:"compactionId"`
+		Usage           json.RawMessage `json:"usage"`
+		Interrupted     bool            `json:"interrupted"`
+		Error           *string         `json:"error"`
+		Provider, Model string
+		Summary         json.RawMessage `json:"summary"`
+		RawOutput       json.RawMessage `json:"rawOutput"`
+		MaxTokens       *float64        `json:"maxTokens"`
+		Message         struct {
 			Source TrajectoryProviderMetadata `json:"source"`
 		} `json:"message"`
 		Source struct{ Kind, CompactionID string } `json:"source"`
@@ -116,6 +120,20 @@ func (s *Store) trajectoryRequestsLocked() []TrajectoryRequest {
 					reason := "compaction interrupted by session/end"
 					r.Error = &reason
 					r.Events = append(r.Events, append(json.RawMessage(nil), raw...))
+				}
+			}
+		case "session/end-seed":
+			// The original seed boundary interrupts the latest unfinished
+			// compaction preceding it; earlier unrelated requests keep their
+			// own recorded outcomes.
+			for i := len(out) - 1; i >= 0; i-- {
+				if out[i].Purpose == "compaction" && out[i].Status == "running" {
+					r := &out[i]
+					r.Status, r.CompletedAt = "error", trajectoryTimestamp(e.Time)
+					reason := "trajectory.compaction-interrupted"
+					r.Error = &reason
+					r.Events = append(r.Events, append(json.RawMessage(nil), raw...))
+					break
 				}
 			}
 		}
@@ -187,8 +205,13 @@ func (s *Store) trajectoryRequestsLocked() []TrajectoryRequest {
 			}
 		case "compaction/summary":
 			r.ResultSeq = &e.Seq
-			r.Summary = d.Summary
-			r.RawOutput = d.RawOutput
+			r.Summary = trajectorySummaryText(d.Summary)
+			r.SummaryBlocks = append(json.RawMessage(nil), d.Summary...)
+			if len(d.RawOutput) > 0 && string(d.RawOutput) != "null" {
+				text := trajectorySummaryText(d.RawOutput)
+				r.RawOutput = &text
+				r.RawOutputBlocks = append(json.RawMessage(nil), d.RawOutput...)
+			}
 			if d.Provider != "" || d.Model != "" {
 				r.ProviderMetadata = &TrajectoryProviderMetadata{Provider: d.Provider, Model: d.Model}
 				config := map[string]any{"provider": d.Provider, "model": d.Model, "purpose": "compaction"}
@@ -253,6 +276,27 @@ func (s *Store) trajectoryRequestsLocked() []TrajectoryRequest {
 		}
 	}
 	return out
+}
+
+// Compaction persists ContentBlock[], including reasoning in rawOutput. Keep
+// the original blocks for inspection while projecting readable text for the
+// compact ledger. Existing string-valued history remains readable as well.
+func trajectorySummaryText(raw json.RawMessage) string {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text
+	}
+	var blocks []struct{ Type, Text string }
+	if json.Unmarshal(raw, &blocks) != nil {
+		return ""
+	}
+	var parts []string
+	for _, block := range blocks {
+		if (block.Type == "text" || block.Type == "reasoning") && block.Text != "" {
+			parts = append(parts, block.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 // Usage chunks are additive within this exact active attempt. Missing fields

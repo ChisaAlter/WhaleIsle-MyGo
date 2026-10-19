@@ -84,6 +84,8 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 	}
 	payload := map[string]any{"args": map[string]any{"request": map[string]any{
 		"address": sessionAddressJSON(sessionID), "assistantStream": true,
+		"maxMessages": historyPageMaxMessages,
+		"turnWindow":  map[string]any{"minMessages": 50, "minTurns": 2},
 	}}}
 	stream, err := mux.Open(ctx, "session/follow", payload)
 	if err != nil {
@@ -98,9 +100,17 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 	}
 	s.mu.Unlock()
 	s.fire()
+	opened, cursorKnown := false, false
+	cursor := float64(-1)
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
+			// The original journal treats an accepted follow's unexplained end
+			// as carrier loss. Business error frames remain terminal; the main
+			// mux owner separately restores physical socket loss.
+			if errors.Is(err, dsh.ErrStreamEnd) && opened {
+				return true
+			}
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
 			} else {
@@ -113,8 +123,33 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 			}
 			return false
 		}
+		var frame struct {
+			Type   string   `json:"type"`
+			Cursor *float64 `json:"cursor"`
+			Event  struct {
+				Seq *float64 `json:"seq"`
+			} `json:"event"`
+		}
+		if json.Unmarshal(raw, &frame) == nil && frame.Type == "event" && frame.Event.Seq != nil && cursorKnown {
+			if *frame.Event.Seq <= cursor {
+				continue
+			}
+			if *frame.Event.Seq != cursor+1 {
+				// Never fold an event over a hole. Reopening obtains the atomic
+				// durable window and assistant baseline from the Host.
+				return true
+			}
+		}
 		if !s.applyFollowFrameForTarget(ctx, sessionID, generation, raw) {
 			return false
+		}
+		if frame.Type == "snapshot" {
+			opened = true
+			if frame.Cursor != nil {
+				cursor, cursorKnown = *frame.Cursor, true
+			}
+		} else if frame.Type == "event" && frame.Event.Seq != nil {
+			cursor, cursorKnown = *frame.Event.Seq, true
 		}
 		s.mu.Lock()
 		restart := s.followCurrentLocked(ctx, sessionID, generation) && s.assistantStream.rebaseline

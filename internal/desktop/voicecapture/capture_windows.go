@@ -74,13 +74,35 @@ type nativeRecording struct {
 // Start opens the Windows-selected input device only when called. There are no
 // permission-setting changes, fallbacks to files/URLs, or network operations.
 func Start(ctx context.Context, limits Limits) (Capture, error) {
+	return StartDevice(ctx, limits, Device{})
+}
+
+// StartDevice resolves the saved interface identity against the current device
+// roster before opening it; a disconnected choice never falls back to another
+// microphone. An empty identity follows the Windows system input.
+func StartDevice(ctx context.Context, limits Limits, device Device) (Capture, error) {
+	pcmBytes, duration, err := boundedLimits(limits)
+	if err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(duration)
+	n, err := openNativeInput(ctx, pcmBytes, device)
+	if err != nil {
+		return nil, err
+	}
+	c := newRecording(ctx)
+	go n.run(c, deadline)
+	return c, nil
+}
+
+func openNativeInput(ctx context.Context, pcmBytes int, device Device) (*nativeRecording, error) {
 	if ctx == nil {
 		return nil, errors.New("recording context is required")
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	pcmBytes, duration, err := boundedLimits(limits)
+	deviceID, err := resolveInputDevice(device)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +132,7 @@ func Start(ctx context.Context, limits Limits) (Capture, error) {
 		AvgBytesPerSec: bytesPerSecond, BlockAlign: blockAlign, BitsPerSample: 16}
 	// CALLBACK_NULL: bounded recording needs no cross-runtime native callback.
 	// A single full-capacity buffer avoids requeue gaps and ordering hazards.
-	code, _, _ := waveOpen.Call(uintptr(unsafe.Pointer(&n.handle)), waveMapper, uintptr(unsafe.Pointer(&format)), 0, 0, 0)
+	code, _, _ := waveOpen.Call(uintptr(unsafe.Pointer(&n.handle)), deviceID, uintptr(unsafe.Pointer(&format)), 0, 0, 0)
 	if code != 0 {
 		_, cleanupErr := n.release(false)
 		if code == 32 { // WAVERR_BADFORMAT
@@ -125,8 +147,6 @@ func Start(ctx context.Context, limits Limits) (Capture, error) {
 	if err == nil {
 		err = ctx.Err()
 	}
-	// Count start-call latency toward the acquisition limit as well.
-	deadline := time.Now().Add(duration)
 	if err == nil {
 		err = n.deviceCall(waveStart)
 	}
@@ -134,9 +154,7 @@ func Start(ctx context.Context, limits Limits) (Capture, error) {
 		_, cleanupErr := n.release(false)
 		return nil, errors.Join(err, cleanupErr)
 	}
-	c := newRecording(ctx)
-	go n.run(c, deadline)
-	return c, nil
+	return n, nil
 }
 
 func (n *nativeRecording) run(c *recording, deadline time.Time) {

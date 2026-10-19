@@ -43,6 +43,9 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 		caret = ui.UTF16ByteOffset(draft, client.Selection().Caret())
 	}
 	kind, query, tok, open := ActiveSuggestAt(draft, caret)
+	if kind == SuggestSlash && currentLeadingClaim(m) != nil {
+		open = false
+	}
 	if state := suggestionState(m, client); state != nil && state.launcher != nil {
 		launch := state.launcher
 		if launch.sessionID != m.Snapshot.SelectedID || launch.draft != draft || m.Editing {
@@ -90,7 +93,7 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 // handleSuggestKey runs ahead of draft submission and edit/stop Escape. Native
 // input calls it directly so element shortcuts cannot bypass IME arbitration.
 func handleSuggestKey(client *DraftClient, m Model, ev ui.InputEvent) bool {
-	if ev.Kind != ui.InputKeyDown || client != nil && client.marked != nil ||
+	if ev.Kind != ui.InputKeyDown || client != nil && client.composing() ||
 		m.State != nil && (m.State.ModelCommand.Visible(m.Snapshot.SelectedID) || m.State.PermissionCommand.Visible(m.Snapshot.SelectedID)) {
 		return false
 	}

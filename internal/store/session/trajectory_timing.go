@@ -86,7 +86,7 @@ func (s *Store) captureTrajectoryBoundaryLocked(raw json.RawMessage) bool {
 		return false
 	}
 	switch e.Type {
-	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started", "compaction/start", "compaction/summary", "compaction/end", "session/end":
+	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started", "compaction/start", "compaction/summary", "compaction/end", "session/end", "session/end-seed":
 	default:
 		var ok bool
 		raw, ok = sanitizedPromptBoundary(raw)
@@ -165,11 +165,24 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 	ops := make(map[string]*TrajectoryTiming)
 	anchors := make(map[string]json.RawMessage)
 	starts := make(map[string]bool)
+	startSeqs := make(map[string]float64)
 	finals := make(map[string]bool)
 	for _, seq := range seqs {
 		raw := raws[seq]
 		var e trajectoryTimeEvent
 		if json.Unmarshal(raw, &e) != nil {
+			continue
+		}
+		if e.Type == "session/end-seed" {
+			latest, latestSeq := "", float64(-1)
+			for candidate, timing := range ops {
+				if strings.HasPrefix(candidate, "compaction:") && !timing.Closed && startSeqs[candidate] > latestSeq {
+					latest, latestSeq = candidate, startSeqs[candidate]
+				}
+			}
+			if latest != "" {
+				ops[latest].CompletedAt, ops[latest].Closed = trajectoryTimestamp(e.Time), true
+			}
 			continue
 		}
 		id := trajectoryEventID(e, raw)
@@ -190,6 +203,7 @@ func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
 				t.Invalid = true
 			}
 			starts[id] = true
+			startSeqs[id] = seq
 			t.StartedAt = trajectoryTimestamp(e.Time)
 		case "assistant/message", "tool/result", "tool/ptc-dispatch", "compaction/end":
 			// A second distinct terminal record for one identity is ambiguous.

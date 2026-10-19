@@ -23,7 +23,14 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			if row.Highlighted() {
 				row = row.Background(t.Accent).TextColor(t.AccentText)
 			}
-			row.Children(func() { ui.Text(c, o.Label) })
+			row.Children(func() {
+				ui.Column(c).Gap(2).Children(func() {
+					ui.Text(c, o.Label)
+					if o.Description != "" {
+						ui.Text(c, o.Description).FontSize(11).MaxWidth(280)
+					}
+				})
+			})
 		}
 	})
 	if trigger.Changed() {

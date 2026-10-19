@@ -13,10 +13,11 @@ type modelCatalogGroup struct {
 	Choices        []session.ModelCatalogChoice
 }
 type modelCatalogMenu struct {
-	Binding, Query string
-	Open           bool
-	Active         int
-	Composing      bool
+	Binding, Query, Pane string
+	RootFocus            string
+	Open                 bool
+	Active               int
+	Composing            bool
 }
 
 // Match original ordered-subsequence scoring, retaining catalog order on ties.
@@ -160,20 +161,94 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		if caption == "" {
 			caption = "模型 / Model"
 		}
-		trigger := ui.Button(c, "").Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted)
+		if m.Snapshot.SelectedModelEffort != "" {
+			caption += " · " + m.Snapshot.SelectedModelEffort
+		}
+		if m.Snapshot.ModelSelectionBusy {
+			caption += " …"
+		}
+		trigger := ui.Button(c, "").Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Snapshot.ModelSelectionBusy)
 		trigger.Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20) })
 
 		if trigger.Clicked() {
 			state.Open = !state.Open
 			state.Query = ""
-			state.Active = 0
+			state.Active = -1
+			state.Pane = "root"
+			state.RootFocus = "model"
 		}
 		ui.Popover(c, trigger, &state.Open, func() {
-			ui.Column(c).Width(300).Gap(5).Children(func() {
+			ui.Column(c.Key("model-pane:" + state.Pane)).Width(300).Gap(5).HandleInput(func(ev ui.InputEvent) bool {
+				if ev.Kind == ui.InputKeyDown && !state.Composing && (ev.Key == ui.KeyEscape && ev.Mods == 0 || ev.Key == ui.KeyTab && ev.Mods == ui.Shift) {
+					if state.Pane != "root" {
+						state.Pane, state.Query = "root", ""
+						return true
+					}
+					state.Open = false
+					trigger.Focus()
+					return true
+				}
+				return false
+			}).Children(func() {
+				if state.Pane == "root" || state.Pane == "" {
+					modelButton := ui.Button(c, composerText("模型", "Model")+"  "+m.Snapshot.SelectedModel+"  ›").FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+					if state.RootFocus != "effort" {
+						modelButton.AutoFocus()
+					}
+					buttons := []ui.Element{modelButton}
+					if modelButton.Clicked() || modelButton.Shortcut(0, ui.KeyRight) {
+						state.Pane, state.RootFocus, state.Query, state.Active = "model", "model", "", -1
+					}
+					if len(m.Snapshot.ModelEffortLabels) > 0 {
+						effortButton := ui.Button(c, composerText("思考强度", "Effort")+"  "+m.Snapshot.SelectedModelEffort+"  ›").FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+						buttons = append(buttons, effortButton)
+						if state.RootFocus == "effort" {
+							effortButton.AutoFocus()
+						}
+						if effortButton.Clicked() || effortButton.Shortcut(0, ui.KeyRight) {
+							state.Pane, state.RootFocus = "effort", "effort"
+						}
+					}
+					modelMenuKeyboard(buttons)
+					return
+				}
+				if ui.Button(c, composerText("‹ 返回", "‹ Back")).Clicked() {
+					state.Pane, state.Query = "root", ""
+				}
+				if state.Pane == "effort" {
+					var buttons []ui.Element
+					for index, effort := range m.Snapshot.ModelEffortLabels {
+						label := effort
+						if effort == m.Snapshot.SelectedModelEffort {
+							label = "✓ " + label
+						}
+						button := ui.Button(c, label).Label("Choose effort " + effort).FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+						buttons = append(buttons, button)
+						if effort == m.Snapshot.SelectedModelEffort || m.Snapshot.SelectedModelEffort == "" && index == 0 {
+							button.AutoFocus()
+						}
+						if button.Clicked() && m.OnModelEffortChange != nil {
+							state.Open = false
+							trigger.Focus()
+							m.OnModelEffortChange(effort)
+						}
+					}
+					modelMenuKeyboard(buttons)
+					return
+				}
 				groups := groupedModelChoices(m.Snapshot, state.Query)
 				visible := []session.ModelCatalogChoice{}
 				for _, g := range groups {
 					visible = append(visible, g.Choices...)
+				}
+				if state.Active < 0 {
+					state.Active = 0
+					for index, choice := range visible {
+						if choice.Label == m.Snapshot.SelectedModel {
+							state.Active = index
+							break
+						}
+					}
 				}
 				if state.Active >= len(visible) {
 					state.Active = 0
@@ -184,6 +259,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					}
 					state.Open = false
 					state.Query = ""
+					trigger.Focus()
 					if m.ModelPick != nil {
 						*m.ModelPick = label
 					}
@@ -221,6 +297,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 				ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
 						index := 0
+						var buttons []ui.Element
 						for _, g := range groups {
 							ui.Text(c, g.Name).FontSize(11).Bold().TextColor(muted)
 							for _, choice := range g.Choices {
@@ -228,7 +305,11 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 								if choice.Label == m.Snapshot.SelectedModel {
 									label = "✓ " + label
 								}
-								button := ui.Button(c, label).Label("Choose model " + choice.Label).FillWidth()
+								button := ui.Button(c, label).Label("Choose model " + choice.Label).FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+								buttons = append(buttons, button)
+								if len(m.Snapshot.ModelLabels) <= 4 && (choice.Label == m.Snapshot.SelectedModel || m.Snapshot.SelectedModel == "" && index == 0) {
+									button.AutoFocus()
+								}
 								if len(m.Snapshot.ModelLabels) > 4 && index == state.Active {
 									button.BorderWidth(1)
 								}
@@ -238,6 +319,9 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 								index++
 							}
 						}
+						if len(m.Snapshot.ModelLabels) <= 4 {
+							modelMenuKeyboard(buttons)
+						}
 						if len(visible) == 0 {
 							ui.Text(c, "没有匹配模型 / No matching models").FontSize(12)
 						}
@@ -246,4 +330,20 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			})
 		})
 	})
+}
+
+func modelMenuKeyboard(buttons []ui.Element) {
+	for index, button := range buttons {
+		next := -1
+		if button.Shortcut(0, ui.KeyDown) {
+			next = (index + 1) % len(buttons)
+		}
+		if button.Shortcut(0, ui.KeyUp) {
+			next = (index + len(buttons) - 1) % len(buttons)
+		}
+		if next >= 0 {
+			buttons[next].Focus()
+			return
+		}
+	}
 }

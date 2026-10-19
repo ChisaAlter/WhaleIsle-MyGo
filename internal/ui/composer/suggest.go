@@ -112,14 +112,36 @@ func ActiveSuggest(draft string) (kind SuggestKind, query string, tok TokenRange
 }
 
 func ActiveSuggestAt(draft string, caret int) (kind SuggestKind, query string, tok TokenRange, ok bool) {
-	if caret < 0 || caret > len(draft) {
+	if caret < 0 || caret > len(draft) || !utf8.ValidString(draft[:caret]) {
 		return SuggestNone, "", TokenRange{}, false
 	}
-	if q, tr, okSlash := SlashToken(draft[:caret]); okSlash {
-		return SuggestSlash, q, tr, true
-	}
+	// A path query can contain slashes. Its shared @ grammar wins before
+	// scanning for an inline skill/command trigger.
 	if q, tr, okAt := MentionTokenAt(draft, caret); okAt {
 		return SuggestMention, q, tr, true
+	}
+	for at := caret; at > 0; {
+		r, size := utf8.DecodeLastRuneInString(draft[:at])
+		at -= size
+		if unicode.IsSpace(r) {
+			break
+		}
+		if r != '/' {
+			continue
+		}
+		if at > 0 {
+			prev, prevSize := utf8.DecodeLastRuneInString(draft[:at])
+			if unicode.IsLetter(prev) || unicode.IsNumber(prev) || prev == '_' || prev == '/' {
+				continue
+			}
+			if prev == ':' && at > prevSize {
+				before, _ := utf8.DecodeLastRuneInString(draft[:at-prevSize])
+				if !unicode.IsSpace(before) {
+					continue
+				}
+			}
+		}
+		return SuggestSlash, draft[at+1 : caret], TokenRange{at, caret}, true
 	}
 	return SuggestNone, "", TokenRange{}, false
 }

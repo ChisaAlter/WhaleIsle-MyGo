@@ -13,6 +13,7 @@ import (
 // ThinkingStyle colors for collapsible thinking blocks.
 type ThinkingStyle struct {
 	HidePreview bool
+	Streaming   bool
 	FG          ui.Color
 	Muted       ui.Color
 	Border      ui.Color
@@ -31,7 +32,7 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 	if open {
 		chevron = "▾"
 	}
-	preview := thinkingPreview(body, 120)
+	preview := reasoningSummary(body, st.Streaming)
 	ui.Column(c).Padding(8, 10, 8, 10).Gap(4).Fill().Background(st.Field).Border(1, st.Border).Radius(6).Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			header := ui.Button(c, chevron+" "+i18n.T(i18n.KeyChatThinking))
@@ -42,13 +43,38 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 				c.WriteClipboard(body)
 			}
 			if !open && !st.HidePreview && preview != "" {
-				ui.Text(c, preview).FontSize(size - 1).TextColor(st.Muted).Grow(1)
+				ui.Text(c, preview).FontSize(size - 1).TextColor(st.Muted).Grow(1).MinWidth(0).SingleLine()
 			}
 		})
 		if open && strings.TrimSpace(body) != "" {
 			markdown.View(c, body, markdown.Style{FontSize: size, FG: st.Muted, Muted: st.Muted, CodeBG: st.Field, Accent: st.FG})
 		}
 	})
+}
+
+// A live reasoning preview advances only when a paragraph's first line is
+// complete. Settled reasoning uses its first line. Partial words from the
+// streaming tail must not replace the last completed summary on every chunk.
+func reasoningSummary(body string, streaming bool) string {
+	if !streaming {
+		line, _, _ := strings.Cut(body, "\n")
+		return strings.ReplaceAll(strings.TrimSuffix(line, "\r"), "**", "")
+	}
+	lines := strings.Split(body, "\n")
+	summary := ""
+	paragraphStart := true
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			paragraphStart = true
+			continue
+		}
+		if paragraphStart && i < len(lines)-1 {
+			summary = line
+		}
+		paragraphStart = false
+	}
+	return strings.ReplaceAll(summary, "**", "")
 }
 
 func isThinkingExpanded(expanded *map[string]bool, msgID string) bool {

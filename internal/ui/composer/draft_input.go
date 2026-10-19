@@ -193,7 +193,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			client.ReplaceText(&r, "")
 			return true
 		case ui.KeyEnter:
-			if client.marked != nil {
+			if client.composing() {
 				return false
 			}
 			// Only plain Enter and exactly Ctrl/Cmd+Enter submit. Other
@@ -250,7 +250,8 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 				m.OnPasteImage(false)
 			}
 			if text := mygo.Clipboard.ReadText(); text != "" {
-				client.ReplaceText(nil, text)
+				r := client.target(nil)
+				client.ReplaceText(&r, text)
 			}
 		case "delete":
 			client.ReplaceText(nil, "")

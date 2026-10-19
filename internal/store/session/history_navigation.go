@@ -299,6 +299,9 @@ func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id s
 		if resultErr != nil {
 			break
 		}
+		if resultErr = validateHistoryPage(out.Records, through, before); resultErr != nil {
+			break
+		}
 		next := before
 		var accepted []api.SessionPageRecordsItem
 		for _, rec := range out.Records {

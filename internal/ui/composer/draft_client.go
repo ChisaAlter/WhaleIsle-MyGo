@@ -2,6 +2,8 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
+	"time"
+	"unicode/utf8"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -22,15 +24,19 @@ type DraftClient struct {
 	stop        stopSequence
 	// Native text input retains this adapter identity across frames so an
 	// ordinary repaint does not release an active IME composition.
-	input     typingInputClient
-	typing    typingEffects
-	Draft     *string
-	selection ui.TextInputSelection
-	marked    *ui.TextInputRange
-	layout    *ui.TextLayout
-	lastText  string
-	wrapWidth float32
-	font      ui.Font
+	input              typingInputClient
+	typing             typingEffects
+	Draft              *string
+	selection          ui.TextInputSelection
+	marked             *ui.TextInputRange
+	compositionPending *ui.TextInputRange
+	compositionEnded   time.Time
+	typingUndoAt       time.Time
+	typingUndoEnd      int
+	layout             *ui.TextLayout
+	lastText           string
+	wrapWidth          float32
+	font               ui.Font
 	// Display geometry is a fixed24px projection of the toolkit's retained
 	// shaping. The native text owner, UTF16 offsets, and edit history stay here.
 	visualLines      []draftVisualLine
@@ -70,6 +76,7 @@ func (c *DraftClient) Sync() {
 // SetSelectionUTF16 sets the primary selection in UTF-16 document offsets.
 func (c *DraftClient) SetSelectionUTF16(start, end int) {
 	c.ensure()
+	c.typingUndoAt = time.Time{}
 	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: start, End: end}}
 	c.marked = nil
 	c.revealCaret = true
@@ -91,6 +98,8 @@ func (c *DraftClient) ensure() {
 	if cur != c.lastText {
 		c.lastText = cur
 		c.marked = nil
+		c.compositionPending = nil
+		c.typingUndoAt = time.Time{}
 		c.clampSelection()
 		c.shape()
 	}
@@ -174,14 +183,33 @@ func (c *DraftClient) MarkedRange() (ui.TextInputRange, bool) {
 
 func (c *DraftClient) ReplaceText(r *ui.TextInputRange, text string) {
 	c.stop.reset()
-	c.pushUndo()
+	c.ensure()
+	// A native IME commit replaces its marked range. The pre-composition
+	// snapshot already owns this edit; intermediate candidates are not undo
+	// steps and must never be restored as an active composition.
+	committing := c.marked != nil || c.compositionPending != nil && r != nil && *r == *c.compositionPending
+	typing := !committing && r == nil && c.selection.Range.Start == c.selection.Range.End && text != "\n" && utf8.RuneCountInString(text) == 1
+	now := time.Now()
+	merge := typing && !c.typingUndoAt.IsZero() && now.Sub(c.typingUndoAt) < time.Second && c.typingUndoEnd == c.selection.Caret()
+	if !committing && !merge {
+		c.pushUndo()
+	}
 	c.replace(c.target(r), text)
 	c.marked = nil
+	c.compositionPending = nil
+	c.typingUndoAt = time.Time{}
+	if typing {
+		c.typingUndoAt, c.typingUndoEnd = now, c.selection.Caret()
+	}
 }
 
 func (c *DraftClient) SetMarkedText(r *ui.TextInputRange, text string, selected ui.TextInputRange) {
 	c.stop.reset()
-	c.pushUndo()
+	c.typingUndoAt = time.Time{}
+	if c.marked == nil {
+		c.pushUndo()
+	}
+	c.compositionPending = nil
 	wanted := c.target(r)
 	c.replace(wanted, text)
 	mark := ui.TextInputRange{Start: wanted.Start, End: wanted.Start + ui.UTF16Len(text)}
@@ -189,7 +217,18 @@ func (c *DraftClient) SetMarkedText(r *ui.TextInputRange, text string, selected 
 	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: mark.Start + selected.Start, End: mark.Start + selected.End}}
 }
 
-func (c *DraftClient) UnmarkText() { c.marked = nil }
+func (c *DraftClient) UnmarkText() {
+	if c.marked != nil {
+		r := *c.marked
+		c.compositionPending = &r
+		c.compositionEnded = time.Now()
+	}
+	c.marked = nil
+}
+
+func (c *DraftClient) composing() bool {
+	return c.marked != nil || c.compositionPending != nil && time.Since(c.compositionEnded) < 10*time.Millisecond
+}
 
 func (c *DraftClient) BoundsForRange(r ui.TextInputRange) (ui.Rect, ui.TextInputRange, bool) {
 	c.ensure()
@@ -218,6 +257,7 @@ func (c *DraftClient) IndexForPoint(p ui.Point) (int, bool) {
 
 func (c *DraftClient) move(to int, extend bool) {
 	c.navigationXValid = false
+	c.typingUndoAt = time.Time{}
 	c.ensure()
 	n := ui.UTF16Len(c.text())
 	to = max(0, min(to, n))

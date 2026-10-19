@@ -14,12 +14,14 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
 // Model is composer state for one frame.
 type Model struct {
+	SVGImages             *svgimage.Owner
 	GroupMembers          []session.GroupMember
 	NextPrompt            session.NextPromptSuggestion
 	OnAcceptNextPrompt    func() string
@@ -99,8 +101,11 @@ type Model struct {
 	OnClearDraft        func()
 	OnNewSession        func()
 	OnExecuteSlash      func(ctx context.Context, line string) // remote commands/execute
-	OnToggleSkills      func(open bool)
-	OnPickDirectory     func()
+	// OnPickCommand captures the rendered Host epoch and Session before a
+	// detached, attachment-free menu execution leaves the editor.
+	OnPickCommand   func(hostGeneration uint64, sessionID, line string)
+	OnToggleSkills  func(open bool)
+	OnPickDirectory func()
 	// OnPickImage attaches a local image path into the draft (Electron InputBar + menu).
 	OnPickImage func()
 	// OnPickSpeech picks an audio file and appends speech/transcribe text to the draft.
@@ -127,12 +132,13 @@ type Model struct {
 }
 
 type suggestItem struct {
-	action func()
-	drill  string
-	label  string
-	sub    string
-	insert string
-	kind   SuggestKind
+	action  func()
+	drill   string
+	label   string
+	sub     string
+	insert  string
+	kind    SuggestKind
+	command bool
 }
 
 // View paints the prompt area with send and stop actions.
@@ -912,14 +918,12 @@ func applySuggest(m Model, it suggestItem, tok TokenRange) {
 	}
 	switch it.kind {
 	case SuggestSlash:
-		*m.Draft = ReplaceToken(*m.Draft, tok, it.insert)
+		if it.command && pickSlashCommand(m, it, tok) {
+			return
+		}
+		replaceSuggestionToken(m, tok, it.insert)
 	case SuggestMention:
-		*m.Draft = ReplaceToken(*m.Draft, tok, it.insert)
-	}
-	if m.TextInput != nil {
-		m.TextInput.Sync()
-		caret := ui.UTF16Len((*m.Draft)[:tok.Start+len(it.insert)])
-		m.TextInput.SetSelectionUTF16(caret, caret)
+		replaceSuggestionToken(m, tok, it.insert)
 	}
 	activeSuggestion(m, m.TextInput)
 	dismissSuggestion(m, m.TextInput)

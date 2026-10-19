@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -121,6 +122,9 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 	}
 	var out api.SessionPage
 	err := client.Call(ctx, "session/page", map[string]any{"request": req}, &out)
+	if err == nil {
+		err = validateHistoryPage(out.Records, through, before)
+	}
 
 	s.mu.Lock()
 	if !s.historyPageOwnedLocked(client, sessionID, generation, requestID) {
@@ -150,6 +154,25 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 	s.fire()
 }
 
+// The Host history is dense. Match RemoteJournalStream.prepend's page and
+// join checks before publishing anything, rather than presenting a page with
+// a missing interval as a successful older-history load.
+func validateHistoryPage(records []api.SessionPageRecordsItem, through, before float64) error {
+	for i, record := range records {
+		seq := record.Event.Seq
+		if record.Type != "event" || !historySafeNumber(seq) || seq > through || seq >= before {
+			return errors.New("History page crossed its requested cursor")
+		}
+		if i > 0 && seq != records[i-1].Event.Seq+1 {
+			return errors.New("History page contains a missing interval")
+		}
+	}
+	if len(records) > 0 && records[len(records)-1].Event.Seq+1 != before {
+		return errors.New("History page does not join the current window")
+	}
+	return nil
+}
+
 func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 	if len(records) == 0 {
 		return
@@ -172,7 +195,7 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 			continue
 		}
 		s.captureInspectorEventLocked(raw)
-	s.bumpHistoryThroughSeq(rec.Event.Seq)
+		s.bumpHistoryThroughSeq(rec.Event.Seq)
 		s.noteHistoryBaseLocked(rec.Event.Seq)
 		s.captureWorkflowBoundaryLocked(raw)
 		s.captureTrajectoryBoundaryLocked(raw)

@@ -1,0 +1,6 @@
+package composer
+
+import "github.com/egoist/mygo/ui"
+
+// ui-primitives IconMicrophoneOutlineRegular, one-pixel artwork.
+var voiceMicrophoneIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><rect x="5" y="1.5" width="6" height="9" rx="3"/><path d="M2.35 8.675C3.075 11.3 5.2 13.125 8 13.125C10.8 13.125 12.925 11.3 13.65 8.675M8 13.125V15"/></svg>`))

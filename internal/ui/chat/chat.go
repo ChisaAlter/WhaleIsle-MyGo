@@ -271,6 +271,7 @@ func View(c *ui.Context, m Model) {
 					case session.MessageKindThinking:
 						thSt := ThinkingStyle{
 							HidePreview: m.Preferences.TranscriptView == "compact" && !msg.Streaming,
+							Streaming:   msg.Streaming,
 							FG:          fg,
 							Muted:       muted,
 							Border:      border,

@@ -30,7 +30,7 @@ func currentLeadingClaim(m Model) *leadingInputClaim {
 }
 
 func claimLeadingSpace(client *DraftClient, m Model, ev ui.InputEvent) bool {
-	if ev.Kind != ui.InputKeyDown || ev.Key != ui.KeySpace || ev.Mods != 0 || ev.Repeat || client == nil || client.marked != nil || m.Draft == nil ||
+	if ev.Kind != ui.InputKeyDown || ev.Key != ui.KeySpace || ev.Mods != 0 || ev.Repeat || client == nil || client.composing() || m.Draft == nil ||
 		m.Editing || m.GroupMembers != nil || !m.Snapshot.ClientReady || m.Snapshot.SlashCommandsLoading || m.Snapshot.SlashCommandsErr != "" ||
 		m.State != nil && (m.State.Sending || m.State.Preparing > 0 || m.State.TargetID != "" && m.State.TargetID != m.Snapshot.SelectedID) {
 		return false

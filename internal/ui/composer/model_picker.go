@@ -12,7 +12,7 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 	model.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModel)
 	effort.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModelEffort)
 	row.Children(func() {
-		if len(m.Snapshot.ModelLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
+		if len(m.Snapshot.ModelLabels) > 0 {
 			paintGroupedModelCatalog(c, m, muted, height)
 		} else {
 			label := m.Snapshot.SelectedModel
@@ -24,7 +24,9 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 			}
 			ui.Text(c, label).MinWidth(0).Grow(1).MaxWidth(220).SingleLine().FontSize(13).FontWeight(500).TextColor(muted)
 		}
-		if len(m.Snapshot.ModelEffortLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
+		if len(m.Snapshot.ModelLabels) > 0 {
+			// Model and effort share the two-level native menu above.
+		} else if len(m.Snapshot.ModelEffortLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
 			choice := composerSelect(c, &effort.Value, m.Snapshot.ModelEffortLabels).
 				Height(height).FontSize(12).Background(ui.Transparent).BorderWidth(0).TextColor(muted)
 			if choice.Changed() {

@@ -10,16 +10,26 @@ type referenceCrumb struct {
 	current       bool
 }
 
+// Completion is an editor mutation, so one Undo restores the original token
+// and selection just as it does for typing or a pasted reference.
+func replaceSuggestionToken(m Model, token TokenRange, text string) bool {
+	if m.Draft == nil || token.Start < 0 || token.End < token.Start || token.End > len(*m.Draft) {
+		return false
+	}
+	if m.TextInput != nil && m.TextInput.Draft == m.Draft {
+		r := ui.TextInputRange{Start: ui.UTF16Len((*m.Draft)[:token.Start]), End: ui.UTF16Len((*m.Draft)[:token.End])}
+		m.TextInput.ReplaceText(&r, text)
+	} else {
+		*m.Draft = ReplaceToken(*m.Draft, token, text)
+	}
+	return true
+}
+
 func applySuggestDrill(m Model, it suggestItem, tok TokenRange) {
 	if m.Draft == nil || it.drill == "" {
 		return
 	}
-	*m.Draft = ReplaceToken(*m.Draft, tok, it.drill)
-	if m.TextInput != nil {
-		m.TextInput.Sync()
-		caret := ui.UTF16Len((*m.Draft)[:tok.Start+len(it.drill)])
-		m.TextInput.SetSelectionUTF16(caret, caret)
-	}
+	replaceSuggestionToken(m, tok, it.drill)
 	if state := suggestionState(m, m.TextInput); state != nil {
 		state.dismissed = nil
 		activeSuggestion(m, m.TextInput)
