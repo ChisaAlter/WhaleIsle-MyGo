@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 )
 
@@ -20,6 +22,24 @@ import (
 // data directory and explicitly select a verified runtime. It never imports
 // installed credentials or sends a prompt.
 var nativeAcceptanceError error
+
+// These reads exercise served namespaces used by the full desktop. Each result
+// stays separate from window acceptance and never triggers install/run actions.
+func nativeAcceptanceReadSmoke(client *dsh.Client) map[string]any {
+	out := map[string]any{}
+	for _, method := range []string{"settings/describe", "pluginManager/listBundles", "schedule/catalog"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		var value json.RawMessage
+		err := client.Call(ctx, method, nil, &value)
+		cancel()
+		item := map[string]any{"pass": err == nil, "responseBytes": len(value)}
+		if err != nil {
+			item["error"] = err.Error()
+		}
+		out[method] = item
+	}
+	return out
+}
 
 func stopNativeAcceptance() {
 	state.mu.Lock()
@@ -62,6 +82,8 @@ func runNativeCoreRecoveryDesktop() error {
 	go func() {
 		deadline := time.Now().Add(100 * time.Second)
 		revealed := false
+		requestedSelection := false
+		selection := os.Getenv("WHALEISLE_ACCEPTANCE_SESSION")
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
 			win, status, sessions, muxReady := state.win, state.bootStatus, state.sessions, state.dshMuxReady
@@ -91,18 +113,48 @@ func runNativeCoreRecoveryDesktop() error {
 					stopNativeAcceptance()
 					return
 				}
+				if selection != "" {
+					if !requestedSelection {
+						sessions.Select(selection)
+						requestedSelection = true
+						continue
+					}
+					if snap.HistoryError != "" || snap.GoalReadError != "" {
+						result <- fmt.Errorf("isolated selected history or goal read failed")
+						stopNativeAcceptance()
+						return
+					}
+					if snap.SelectedID != selection || !snap.HistoryReady || snap.HistoryLoading {
+						time.Sleep(100 * time.Millisecond)
+						continue
+					}
+					if len(snap.Messages) == 0 || snap.PromptBusy {
+						result <- fmt.Errorf("isolated persisted selection has no messages or is unexpectedly running")
+						stopNativeAcceptance()
+						return
+					}
+				}
 				time.Sleep(700 * time.Millisecond)
 				if strings.HasPrefix(sessions.Snapshot().LastAction, "workspace follow:") {
 					result <- fmt.Errorf("workspace follow error remains in the ready desktop")
 					stopNativeAcceptance()
 					return
 				}
+				state.dshMu.Lock()
+				client := state.dshClient
+				state.dshMu.Unlock()
+				if client == nil {
+					result <- fmt.Errorf("ready desktop has no client")
+					stopNativeAcceptance()
+					return
+				}
+				reads := nativeAcceptanceReadSmoke(client)
 				png, err := win.CapturePage()
 				if err == nil {
 					err = os.WriteFile(out, png, 0o600)
 				}
 				if err == nil {
-					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "mux": "ready", "sessionList": "ready", "workspace": "ready", "windowHidden": true, "view": "production mainView", "data": "isolated profile", "modelRequests": 0}, "", "  ")
+					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "mux": "ready", "sessionList": "ready", "workspace": "ready", "historyReady": snap.HistoryReady, "messageCount": len(snap.Messages), "readSmoke": reads, "windowHidden": true, "view": "production mainView", "data": "isolated profile", "modelRequests": 0}, "", "  ")
 					err = os.WriteFile(out+".json", meta, 0o600)
 				}
 				result <- err
