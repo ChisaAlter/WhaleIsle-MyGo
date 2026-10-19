@@ -57,6 +57,7 @@ func userMessageParts(body string) (refs []string, text string) {
 // nested caps express min(chat-width * .702, 82% of the available row).
 func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.Colors, refs []string, body string, onOpenImage func(string)) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	referenceLabels := userMessageReferenceLabels(m.Snapshot.Messages, msg.Seq)
 	axis := m.ContentWidth
 	if axis <= 0 {
 		axis = 748
@@ -79,8 +80,20 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 						if m.EditingSeq > 0 && msg.Seq == m.EditingSeq {
 							ink = muted
 						}
-						ui.Text(c, body).Font(theme.RenderPreferences().Chat.Family).FontSize(theme.CurrentPreferences().Chat.Size).FixedLineHeight(theme.CurrentPreferences().Chat.Size + 8).TextColor(ink).Selectable()
+						var openReference func(string)
+						if m.OnOpenDeliverable != nil && m.HistoryStore != nil {
+							scope := m.Snapshot.TurnFiles.Scope
+							openReference = func(path string) {
+								if scope.Binding != "" && scope == m.HistoryStore.Snapshot().TurnFiles.Scope {
+									m.OnOpenDeliverable(path)
+								}
+							}
+						}
+						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, referenceLabels)
 					})
+				}
+				if len(referenceLabels) > 0 {
+					ui.Text(c, "Referenced session · "+strings.Join(referenceLabels, ", ")).FontSize(11).TextColor(muted)
 				}
 				// Preserve the existing URL-opening action alongside literal user text.
 				if m.OnOpenCitationURL != nil {
