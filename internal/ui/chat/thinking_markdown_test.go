@@ -50,3 +50,28 @@ func TestThinkingMarkdownDisclosureStreamingAndCopy(t *testing.T) {
 		t.Fatal("collapsed code remained visible")
 	}
 }
+
+func TestThinkingPreviewAdvancesOnlyOnCompletedParagraphFirstLine(t *testing.T) {
+	body := "**First line**\ncontinuation\n\n**Second paragraph**"
+	streaming := true
+	expanded := map[string]bool{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ThinkingBlockView(c, "summary", body, &expanded, ThinkingStyle{Size: 12, Streaming: streaming})
+	}, 700, 130)
+	if _, ok := tt.Find("First line"); !ok {
+		t.Fatal("incomplete trailing paragraph replaced completed preview")
+	}
+	if _, ok := tt.Find("Second paragraph"); ok {
+		t.Fatal("partial streaming tail shown as summary")
+	}
+	body += "\nunfinished continuation"
+	tt.Frame()
+	if _, ok := tt.Find("Second paragraph"); !ok {
+		t.Fatal("completed new paragraph did not advance preview")
+	}
+	streaming = false
+	tt.Frame()
+	if _, ok := tt.Find("First line"); !ok {
+		t.Fatal("settled reasoning did not return to first-line summary")
+	}
+}

@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -41,6 +42,9 @@ func TestBusyEnterNativeGestureIMEAndFocus(t *testing.T) {
 		t.Fatal("IME Enter was claimed")
 	}
 	d.Client.UnmarkText()
+	// Busy/focus assertions own independent user gestures after the native
+	// closing key interval, rather than passing because the IME guard masks them.
+	d.Client.compositionEnded = time.Now().Add(-20 * time.Millisecond)
 	d.Preparing = 1
 	key(0, false)
 	d.Preparing = 0
