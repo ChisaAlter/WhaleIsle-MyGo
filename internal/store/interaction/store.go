@@ -43,16 +43,19 @@ type Pending struct {
 
 // ViewState is UI-safe interaction state.
 type ViewState struct {
-	QuestionHistory []QuestionHistoryView
-	QuestionStatus  string
-	AutoAllow       bool
-	Banner          string
-	Pending         []Pending
-	QuestionCards   map[string]QuestionCardView
+	QuestionDraftError string
+	QuestionHistory    []QuestionHistoryView
+	QuestionStatus     string
+	AutoAllow          bool
+	Banner             string
+	Pending            []Pending
+	QuestionCards      map[string]QuestionCardView
 }
 
 // Store serializes waterfall handlers with the main-thread UI.
 type Store struct {
+	questionWriter      questionDraftWriter
+	questionStorage     questionDraftStorage
 	questionFocusFrame  bool
 	questionFocusScopes map[string]string
 	questionHistory     map[string]*questionHistoryState
@@ -122,9 +125,10 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		AutoAllow:     s.autoAllow,
-		Banner:        s.banner,
-		QuestionCards: make(map[string]QuestionCardView),
+		QuestionDraftError: s.questionStorage.err,
+		AutoAllow:          s.autoAllow,
+		Banner:             s.banner,
+		QuestionCards:      make(map[string]QuestionCardView),
 	}
 	st.Pending = append([]Pending(nil), s.pending...)
 	for id, ds := range s.questionDrafts {
@@ -197,6 +201,7 @@ func (s *Store) ResolveQuestions(eventID string) {
 
 // SetQuestionSingleSelect picks one option for a single-select question.
 func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p := s.findPending(eventID); p != nil && p.Sending {
@@ -220,6 +225,7 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 
 // SetQuestionOptionChecked toggles one option (checkbox multi-select or radio-style single).
 func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on bool) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p := s.findPending(eventID); p != nil && p.Sending {
@@ -267,6 +273,7 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 
 // SetQuestionCustom sets free-text when a question has no options.
 func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p := s.findPending(eventID); p != nil && p.Sending {
@@ -386,6 +393,7 @@ func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 // OnResult retains the card and its exact response on delivery failure.
 // Returning true lets the event stream wait for an explicit user retry.
 func (s *Store) OnResult(result dsh.EventResult, err error) bool {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	p := s.findPending(result.EventID)
 	if result.Outcome.Delivery != nil && s.responses[result.EventID].Delivery != result.Outcome.Delivery {
@@ -621,6 +629,7 @@ func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOut
 
 // OnCancel drops a pending waterfall when the host cancels it.
 func (s *Store) OnCancel(c dsh.EventsCancel) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	s.cancelled[c.EventID] = true
 	ch, ok := s.waiters[c.EventID]

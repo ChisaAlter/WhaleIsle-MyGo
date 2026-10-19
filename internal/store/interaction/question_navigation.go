@@ -15,6 +15,7 @@ func (s *Store) questionWizardLocked(agentID, eventID string) *draftSession {
 // NavigateQuestion is the unrestricted pager: answers need not be complete.
 // Index lives with the draft, so hide/reopen and live-to-continued retain it.
 func (s *Store) NavigateQuestion(agentID, eventID string, index int) bool {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds == nil || index < 0 || index >= len(ds.req.Questions) {
@@ -30,6 +31,7 @@ func (s *Store) NavigateQuestion(agentID, eventID string, index int) bool {
 // AdvanceQuestionChoice follows an explicit single-choice selection, never a
 // multiselect toggle or untouched recommended default. Final choices do not send.
 func (s *Store) AdvanceQuestionChoice(agentID, eventID, questionID string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds != nil && ds.index >= 0 && ds.index < len(ds.req.Questions) {
@@ -66,6 +68,7 @@ func (s *Store) SubmitQuestionBatch(agentID, eventID string) (focusID, feedback 
 }
 
 func (s *Store) submitQuestionBatch(agentID, eventID string, submit func(string)) (focusID, feedback string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)
@@ -90,6 +93,7 @@ func (s *Store) SkipQuestionAndContinue(agentID, eventID, questionID string) (fo
 }
 
 func (s *Store) skipQuestionAndContinue(agentID, eventID, questionID string, submit func(string)) (focusID, feedback string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)

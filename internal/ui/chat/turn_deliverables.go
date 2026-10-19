@@ -10,9 +10,9 @@ import (
 	"whaleisle/internal/ui/widgets/diff"
 )
 
-// TurnDeliveryView is an explicit-gesture consumer of recorded coordinates.
-// Rendering only projects memory. The existing file preview callback is used
-// only after revalidating its original presented declaration and Host scope.
+// TurnDeliveryView observes the recorded summary and desktop metadata once per
+// mounted owner. File handoffs and review navigation remain explicit gestures,
+// revalidated against the original declaration and captured Host scope.
 func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCardStyle) {
 	if m.DisableDeveloperTools {
 		d.Changes = nil
@@ -40,23 +40,55 @@ func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCar
 	if m.OnOpenDeliverable == nil {
 		preview = nil
 	}
-	AddressedTurnDeliveryView(c, d, snapshot, enabled, run, preview, st)
+	AddressedTurnDeliveryView(c, d, snapshot, enabled, run, preview, st, func(target session.TurnFileTarget, action string) {
+		go m.HistoryStore.RunTurnFileAction(context.Background(), scope, session.TurnFileRequest{Target: target, Action: action})
+	})
 }
 
-func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot session.TurnFilesSnapshot, enabled bool, run func(session.TurnFileTarget, string), preview func(session.TurnFileTarget), st ToolCardStyle) {
+func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot session.TurnFilesSnapshot, enabled bool, run func(session.TurnFileTarget, string), preview func(session.TurnFileTarget), st ToolCardStyle, readers ...func(session.TurnFileTarget, string)) {
 	scope := snapshot.Scope
 	key := fmt.Sprintf("turn-files:%s:%d:%d", scope.Binding, scope.Generation, d.Turn)
+	seat := ui.Box(c.Key(key + ":reads")).Width(0).Height(0)
+	requested := ui.Local(seat, "requested", func() map[session.TurnFileRequest]bool { return make(map[session.TurnFileRequest]bool) })
+	read := run
+	if len(readers) > 0 {
+		read = readers[0]
+	}
+	ensure := func(target session.TurnFileTarget, action string) {
+		request := session.TurnFileRequest{Target: target, Action: action}
+		if _, exists := snapshot.Results[request]; enabled && read != nil && !exists && !(*requested)[request] {
+			(*requested)[request] = true
+			read(target, action)
+		}
+	}
+	if d.Changes != nil {
+		ensure(*d.Changes, "summary")
+	}
+	hostTarget := session.TurnFileTarget{}
+	if d.Changes != nil {
+		hostTarget = *d.Changes
+	} else if len(d.Files) > 0 {
+		hostTarget = d.Files[0].Target
+	}
+	if d.Changes != nil || len(d.Files) > 0 {
+		ensure(hostTarget, "host")
+	}
+	// Like the original turn tail, an absent/expired/empty summary contributes
+	// no changed-files card. Explicit presented files remain independently usable.
+	if len(d.Files) == 0 {
+		if d.Changes == nil {
+			return
+		}
+		summary := snapshot.Results[session.TurnFileRequest{Target: *d.Changes, Action: "summary"}].Summary
+		if summary == nil || len(summary.Files) == 0 {
+			return
+		}
+	}
 	box := ui.Column(c.Key(key)).FillWidth().Gap(6).Padding(10).Border(1, st.Border).Radius(6).Background(st.Field)
 	expanded := ui.Local(box, "expanded", func() bool { return false })
 	box.Children(func() {
 		ui.Text(c, fmt.Sprintf("本轮交付与变更 / Turn %d deliveries and review", d.Turn)).FontSize(12).Bold().TextColor(st.FG)
 		ui.Text(c, fmt.Sprintf("Session %s · Host %s", scope.SessionID, snapshot.HostLabel)).FontSize(10).TextColor(st.Muted).Selectable()
-		hostTarget := session.TurnFileTarget{}
-		if d.Changes != nil {
-			hostTarget = *d.Changes
-		} else if len(d.Files) > 0 {
-			hostTarget = d.Files[0].Target
-		}
 		hostRequest := session.TurnFileRequest{Target: hostTarget, Action: "host"}
 		host := snapshot.Results[hostRequest]
 		nativeAvailable := host.Host != nil && host.Host.Available

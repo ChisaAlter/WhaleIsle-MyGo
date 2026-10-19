@@ -41,7 +41,7 @@ func View(c *ui.Context, m Model) {
 	snap := m.Snapshot
 	// Idle in manual mode: omit strip. Auto-allow on → banner (toggle to manual).
 	// Pending → approval / question cards.
-	if snap.Banner == "" && len(snap.Pending) == 0 && len(snap.QuestionHistory) == 0 && snap.QuestionStatus == "" && !snap.AutoAllow {
+	if snap.Banner == "" && len(snap.Pending) == 0 && len(snap.QuestionHistory) == 0 && snap.QuestionStatus == "" && snap.QuestionDraftError == "" && !snap.AutoAllow {
 		return
 	}
 	th := theme.Resolve(m.ThemeID)
@@ -62,6 +62,9 @@ func View(c *ui.Context, m Model) {
 	}
 	strip.Children(func() {
 		ui.Box(c).Fill().Height(1).Background(border)
+		if snap.QuestionDraftError != "" {
+			ui.Text(c, snap.QuestionDraftError).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		}
 		if snap.AutoAllow {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				msg := i18n.T(i18n.KeyInteractionAutoAllowOn)

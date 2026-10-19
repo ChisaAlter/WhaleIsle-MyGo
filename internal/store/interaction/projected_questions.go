@@ -151,6 +151,7 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 			delete(p.submitted, callID)
 		}
 	}
+	s.pruneQuestionDraftsLocked(agentID, active)
 	// Recovered rows may be withdrawn, but a live waterfall keeps its own lifecycle.
 	for _, pending := range append([]Pending(nil), s.pending...) {
 		if pending.AgentID == agentID && pending.Continued {
@@ -178,6 +179,7 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 		draft := p.drafts[row.CallID]
 		if draft == nil {
 			draft = newDraftSession(req)
+			s.restoreQuestionDraftLocked(agentID, row.CallID, draft)
 			p.drafts[row.CallID] = draft
 		}
 		s.questionDrafts[id] = draft
@@ -206,6 +208,7 @@ func (s *Store) liveQuestionDraftLocked(agentID, callID string, req userQuestion
 	draft := p.drafts[callID]
 	if draft == nil {
 		draft = newDraftSession(req)
+		s.restoreQuestionDraftLocked(agentID, callID, draft)
 		p.drafts[callID] = draft
 	}
 	return draft
@@ -216,6 +219,7 @@ func (s *Store) questionWaterfallDeliveredLocked(pending Pending, outcome dsh.Ev
 	}
 }
 func (s *Store) resetQuestionRecoveryLocked() {
+	s.retainQuestionDraftsLocked()
 	s.questionHistory = nil
 	for _, p := range append([]Pending(nil), s.pending...) {
 		if p.Continued {

@@ -45,6 +45,9 @@ type State struct {
 	// Files belongs to the files editor, including unsaved buffers. It is opaque
 	// here to avoid coupling persistence to the UI or the file-writing machinery.
 	Files json.RawMessage `json:"files,omitempty"`
+	// QuestionDrafts is an opaque, explicit Host-profile-owned answer draft
+	// envelope. Loading it cannot recreate a Host interaction or submit an answer.
+	QuestionDrafts json.RawMessage `json:"questionDrafts,omitempty"`
 }
 
 type Store struct {
@@ -101,6 +104,7 @@ func clone(s State) State {
 		s.Drafts = drafts
 	}
 	s.Files = append(json.RawMessage(nil), s.Files...)
+	s.QuestionDrafts = append(json.RawMessage(nil), s.QuestionDrafts...)
 	return s
 }
 func (s *Store) Snapshot() State { s.mu.Lock(); defer s.mu.Unlock(); return clone(s.data) }

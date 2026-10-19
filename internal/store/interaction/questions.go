@@ -172,6 +172,7 @@ func removeLabel(labels []string, label string) []string {
 // SetQuestionSkipped explicitly completes one generic question without an answer.
 // Undoing a skip leaves it unanswered; selecting or typing an answer also clears it.
 func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || ds == nil || planReviewOf(ds.req.Questions) != nil {

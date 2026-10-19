@@ -8,6 +8,7 @@ func (s *Store) ContinueQuestion(agentID, eventID, questionID string) (focusID, 
 }
 
 func (s *Store) continueQuestion(agentID, eventID, questionID string, submit func(string)) (focusID, feedback string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	p := s.findPending(eventID)

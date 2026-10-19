@@ -70,7 +70,10 @@ func inlinePublishedHTMLHandler(win *mygo.Window, store *session.Store, sid stri
 	}
 }
 func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePage, dark bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	// The mounted publication owns this page, including its JavaScript state.
+	// Navigation/Host replacement and helper exit retire it below; elapsed time
+	// must not discard a page that is still mounted and being used.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	readCtx, stop := context.WithTimeout(ctx, 30*time.Second)
 	html, valid, err := key.store.ReadVisualReplySnapshot(readCtx, key.sessionID, key.attachmentID)

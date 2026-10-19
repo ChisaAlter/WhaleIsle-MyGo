@@ -100,6 +100,7 @@ func (s *Store) SyncQuestionFocus(agentID, eventID string) {
 
 // TakeQuestionTime holds this exact live request until the user answers.
 func (s *Store) TakeQuestionTime(agentID, eventID string) {
+	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.AgentID != agentID || p.Event != EventUserQuestions || p.Sending || p.Continued || ds == nil || !ds.wait.active || ds.wait.held {
