@@ -129,7 +129,10 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 			height = maxf(0, viewportHeight-col.Bounds().Y)
 		}
 	}
-	*previousViewportHeight = viewportHeight
+	// A consumed action can rebuild several passes before any layout commits.
+	// Keep every pass on the resized allocation, then publish the viewport only
+	// after painting; publishing here would let pass two reuse the old Bounds.H.
+	col.DrawOver(func(_ *ui.Painter, _ ui.Rect) { *previousViewportHeight = viewportHeight })
 	open := m.Sizes.Bottom > 40
 	main := height
 	maxMain := maxf(0, height-81)
