@@ -412,6 +412,7 @@ func previewViewerChoices(menu *ui.Menu, m Model, tab *FileTab) {
 				return
 			}
 			tab.document.surface = surface
+			tab.document.attempted = true
 		}
 		tab.document.choice = 2
 		tab.document.workbook = isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface)

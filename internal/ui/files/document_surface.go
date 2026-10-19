@@ -72,6 +72,13 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 	if tab == nil || m.OpenDocumentViewer == nil {
 		return
 	}
+	if desktopDelimitedDefault(tab) {
+		tab.document.enabled = false
+		if tab.document.surface != nil {
+			tab.document.surface.SetVisible(false)
+		}
+		return
+	}
 	paintDocumentViewerChoices(c, m, tab)
 }
 
@@ -119,6 +126,7 @@ func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 				return
 			}
 			tab.document.surface = surface
+			tab.document.attempted = true
 		}
 		tab.document.choice = 2
 		tab.document.workbook = isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface)
@@ -154,10 +162,14 @@ func paintDocumentSurface(c *ui.Context, m Model) bool {
 // fallback. Its recommendation must not replace the default editable source;
 // an explicit viewer choice still opens that existing document owner.
 func tabDocumentSurfaceEnabled(tab *FileTab) bool {
-	if tab == nil || tab.document.choice == 0 && workspacefs.IsCSVPath(tab.Path) {
+	if tab == nil || desktopDelimitedDefault(tab) {
 		return false
 	}
 	return documentSurfaceEnabled(tab.document)
+}
+
+func desktopDelimitedDefault(tab *FileTab) bool {
+	return tab.document.choice == 0 && workspacefs.IsCSVPath(tab.Path)
 }
 
 func documentSurfaceEnabled(state documentSurfaceState) bool {
