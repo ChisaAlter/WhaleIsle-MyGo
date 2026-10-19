@@ -3,9 +3,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	pngcodec "image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,8 +15,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
+	"whaleisle/internal/store/session"
 )
 
 // This opt-in check runs the real desktop startup and real Host, with the
@@ -22,6 +27,52 @@ import (
 // data directory and explicitly select a verified runtime. It never imports
 // installed credentials or sends a prompt.
 var nativeAcceptanceError error
+
+func nativeAcceptancePreferences(sessions *session.Store) error {
+	external, err := config.Open(paths.UserDataDir())
+	if err != nil {
+		return err
+	}
+	wantTray := !external.Get().CloseToTray
+	if err = external.Update(func(c *config.Config) { c.CloseToTray = wantTray }); err != nil {
+		return err
+	}
+	before := sessions.Snapshot().WorkspaceLayout.GroupBy
+	mode := "flat"
+	if before == mode {
+		mode = "workspace"
+	}
+	for _, group := range []string{mode, before} {
+		sessions.SetWorkspaceGrouping(group)
+		deadline := time.Now().Add(8 * time.Second)
+		persisted := false
+		for time.Now().Before(deadline) {
+			if e := sessions.Snapshot().WorkspaceLayout.PreferenceError; e != "" {
+				return fmt.Errorf("production view preference write failed: %s", e)
+			}
+			fresh, e := config.Open(paths.UserDataDir())
+			if e != nil {
+				return e
+			}
+			prefs, e := fresh.WorkspaceNavigationPreferences(sessions.WorkspaceLayoutScope())
+			if e != nil {
+				return e
+			}
+			if prefs.GroupBy == group {
+				if fresh.Get().CloseToTray != wantTray {
+					return fmt.Errorf("view write overwrote independent config edit")
+				}
+				persisted = true
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !persisted {
+			return fmt.Errorf("production view preference write did not persist")
+		}
+	}
+	return nil
+}
 
 // These reads exercise served namespaces used by the full desktop. Each result
 // stays separate from window acceptance and never triggers install/run actions.
@@ -149,12 +200,27 @@ func runNativeCoreRecoveryDesktop() error {
 					return
 				}
 				reads := nativeAcceptanceReadSmoke(client)
+				preferencesVerified := false
+				if os.Getenv("WHALEISLE_ACCEPTANCE_PREFERENCES") == "1" {
+					if err := nativeAcceptancePreferences(sessions); err != nil {
+						result <- err
+						stopNativeAcceptance()
+						return
+					}
+					preferencesVerified = true
+				}
 				png, err := win.CapturePage()
+				contentWidth, contentHeight := win.ContentSize()
+				windowWidth, windowHeight := win.Size()
+				imageSize, decodeErr := pngcodec.DecodeConfig(bytes.NewReader(png))
+				if err == nil {
+					err = decodeErr
+				}
 				if err == nil {
 					err = os.WriteFile(out, png, 0o600)
 				}
 				if err == nil {
-					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "mux": "ready", "sessionList": "ready", "workspace": "ready", "historyReady": snap.HistoryReady, "messageCount": len(snap.Messages), "readSmoke": reads, "windowHidden": true, "view": "production mainView", "data": "isolated profile", "modelRequests": 0}, "", "  ")
+					meta, _ := json.MarshalIndent(map[string]any{"host": "ready", "mux": "ready", "sessionList": "ready", "workspace": "ready", "historyReady": snap.HistoryReady, "messageCount": len(snap.Messages), "preferencesConcurrentEdit": preferencesVerified, "readSmoke": reads, "contentSizeDIP": []int{contentWidth, contentHeight}, "windowSizeDIP": []int{windowWidth, windowHeight}, "imagePixels": []int{imageSize.Width, imageSize.Height}, "windowHidden": true, "view": "production mainView", "data": "isolated profile", "modelRequests": 0}, "", "  ")
 					err = os.WriteFile(out+".json", meta, 0o600)
 				}
 				result <- err
