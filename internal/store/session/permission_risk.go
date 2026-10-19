@@ -70,8 +70,8 @@ func (s *Store) ConfirmPermissionRisk(ctx context.Context, token uint64) {
 		return
 	}
 	p := *s.permissionRisk
-	opt, exists := permissionOptionByLabel(p.view.Label, s.permissionOptions)
-	if !exists || opt.Value != p.view.Value {
+	opt, exists := permissionOptionByValue(p.view.Value, s.permissionOptions)
+	if !exists {
 		s.resetPermissionRiskLocked()
 		s.mu.Unlock()
 		s.fire()

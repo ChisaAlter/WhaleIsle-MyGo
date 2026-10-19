@@ -89,18 +89,26 @@ func defaultAgentPresetLabel(options []AgentPresetOption, roster api.AgentPreset
 func (s *Store) RefreshAgentPresets(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.eventsGeneration
+	if client == nil || ctx.Err() != nil {
+		s.mu.Unlock()
+		return
+	}
+	s.agentPresetsLoading = true
 	s.agentPresetsRequest++
 	request := s.agentPresetsRequest
 	s.mu.Unlock()
-	if client == nil || ctx.Err() != nil {
-		return
-	}
 	go func() {
 		var roster api.AgentPresetRoster
 		err := client.Call(ctx, "agentPresets/list", map[string]any{}, &roster)
 		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != generation || s.agentPresetsRequest != request || ctx.Err() != nil {
+		if s.client != client || s.eventsGeneration != generation || s.agentPresetsRequest != request {
 			s.mu.Unlock()
+			return
+		}
+		s.agentPresetsLoading = false
+		if ctx.Err() != nil {
+			s.mu.Unlock()
+			s.fire()
 			return
 		}
 		if err != nil {
@@ -110,6 +118,7 @@ func (s *Store) RefreshAgentPresets(ctx context.Context) {
 			return
 		}
 		s.agentPresetsErr = nil
+		s.agentPresetsLoaded = true
 		s.agentPresetOptions = flattenAgentPresetRoster(roster)
 		if lbl := defaultAgentPresetLabel(s.agentPresetOptions, roster); lbl != "" && s.selectedAgentPresetLabel == "" {
 			s.selectedAgentPresetLabel = lbl
@@ -117,6 +126,24 @@ func (s *Store) RefreshAgentPresets(ctx context.Context) {
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+// CreatorPresetCatalog shares the process roster and distinguishes loading,
+// missing cordis and a refused read. It never changes a preset or a session.
+func (s *Store) CreatorPresetCatalog() (loaded, loading, available bool, message string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	loaded, loading = s.agentPresetsLoaded, s.agentPresetsLoading
+	if s.agentPresetsErr != nil {
+		message = s.agentPresetsErr.Error()
+	}
+	for _, row := range s.agentPresetOptions {
+		if row.ID == "cordis" && row.Broken == "" {
+			available = loaded && message == ""
+			break
+		}
+	}
+	return
 }
 
 // ReadAgentPresetDocument loads agentPresets/read for the preset id (or label match).

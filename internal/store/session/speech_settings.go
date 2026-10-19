@@ -28,6 +28,7 @@ type SpeechSettingsOwner struct {
 	store      *Store
 	client     *dsh.Client
 	generation uint64
+	pageKey    string
 }
 
 func cloneSpeechCatalog(catalog *api.SpeechCatalog) *api.SpeechCatalog {
@@ -68,7 +69,7 @@ func (s *Store) BindSpeechSettings() (*SpeechSettingsOwner, SpeechSettingsView) 
 	if r.client != s.client || r.mux != s.mux {
 		v = SpeechSettingsView{}
 	}
-	return &SpeechSettingsOwner{s, s.client, r.generation}, v
+	return &SpeechSettingsOwner{s, s.client, r.generation, fmt.Sprintf("%p:%d", s.client, s.composerHostGeneration)}, v
 }
 func (o *SpeechSettingsOwner) currentLocked() bool {
 	return o != nil && o.client != nil && o.store.client == o.client && o.store.speechReadiness.client == o.client && o.store.speechReadiness.mux == o.store.mux && o.store.speechReadiness.generation == o.generation
@@ -136,7 +137,7 @@ func (o *SpeechSettingsOwner) Retry() {
 }
 
 // Key retires page-local source choices and dismissed feedback on Host changes.
-func (o *SpeechSettingsOwner) Key() string { return fmt.Sprint(o.generation) }
+func (o *SpeechSettingsOwner) Key() string { return o.pageKey }
 
 func (s *Store) speechReadinessFlagsLocked() (known, ready, installation bool) {
 	r := &s.speechReadiness

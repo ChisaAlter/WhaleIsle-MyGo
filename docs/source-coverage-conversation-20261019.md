@@ -47,3 +47,95 @@
 本表是源码覆盖笔记，不给上列改动签“全部功能正常”。统一回归 run01 固定源码 `3b37750` 已失败；其后修复及并行媒体修改不能继承旧版本通过结果。本文编写不运行测试、构建、Host 或模型，也不修改总验收矩阵的实际状态。所有 `entrypoint-sampled` / `not-reviewed` 及行为级比较之外的分支仍是明确的源码覆盖欠账。
 
 本轮追加源码收口：`6b17bff`（Workflow 成员/摘要及 child 紧凑输入区）、`8e1694c`（真实 child identity 与导航 mode）及 `010b708` 的 captured history binding 校验。`5995b6c` / `010b708` 中的新回归只准备源码，未执行；本记录仍不报告构建、测试、实机视觉或整模块全功能通过。当前无已确认的这两项源码缺口留后，未读与未验收边界如表列出。其他并行审计者的 CHAT 覆盖由总索引整合，不冒充本记录作者已读范围。
+
+## 2026-10-19 conversation_depth 深读增量
+
+以下是后续独立阅读和产品源码修改的证据，覆盖优先于上表旧的入口抽样记录；**只提升明确列出的分支**，不把整个 CHAT 模块签成全功能完成。产品提交 `67a6924`、`5c2e6fc`；本轮未编写测试/夹具，未运行 go test、build、应用、Host、语音设备或模型。仅运行独占文件 gofmt 和精确文件 diffcheck。实际验证由主线程在所有产品源完成后统一进行。
+
+### 固定原版与协议证据
+
+原版基准固定为 `e353e8e`，不能将 `C:/AI/Deepseek-Harness-Desktop` 工作区的 dirty 行为当基准。逐路径 diff 确认本轮 voice input/bundle、session-controller、gateway journal-stream、agents-panel/subagent、trajectory、ReasoningContent/ReasoningRow 没有相对基准的 dirty 差异。另直接阅读固定 `git show e353e8e:<path>` 的 ModelSelect、editor/runtime、PermissionSelect、AgentPresetSeat/seat-store、PreparationCard、VoiceSetupDialog、VoiceInput、readiness 和 compact Markdown CSS。ModelSelect 的 dirty 修改是 label slot/placement；两级菜单、搜索与焦点规则在固定版本已存在。runtime 的 dirty 修改涉及 command chip 恢复/commandsAllowed；1000ms 撤销合并在固定版本已存在。本次不导入这些 dirty 修改。
+
+`session/follow` 新字段经过真实 server schema/handler 核对，不是只照相近客户端方法猜协议：
+
+- `A/src/types.ts:585` 定义 maxMessages/turnWindow，`:596` 的 SessionFollowRequest 明确继承二者；`A/src/history.ts:120` 的 follow 接受此 request，`:184` 用这两个字段 paginate，`:320` 校验窗口值。
+- `A/src/client/transport.ts:172` 的 follow 在 `:179` 调真实 `remote.session.follow` 并带 repairRequest；`:242` 和 `:243` 保留同名 maxMessages/turnWindow。`A/src/client/sessions/session.ts:54` 的实际 opening options 是 maxMessages500 / minMessages50 / minTurns2。
+- Native `internal/store/session/follow.go:85` 按现有 Mux RPC 包装 `args.request` 发到真实 `session/follow`，字段名完全对应上述 server request；未新增私有 RPC。`internal/dsh/mux.go` 仍是既有路由，未改 SDK。
+
+### CHAT-03：history / opening / follow / reconnect
+
+原版深读 `A/src/client/sessions/session.ts` 的 open/doOpen、older page、history navigation、snapshot replacement；`api/gateway/src/client/journal-stream.ts:188` prepend、`:261` replaceGeneration、`:289` replaceFromOpening、gap repair/replaceThrough 和 assertPage；server `history.ts` 的 snapshot/assistant baseline/page window。Native 对照 `follow.go:70`、`page.go:95`、`history_navigation.go`、assistant_stream 系列和主线程现有 MaintainMux→FollowSelected 接线。
+
+已关具体差异（`67a6924`）：opening 带真实 turnWindow；accepted follow 的逻辑 clean end 重开；business error 终止并显示错误；重复 durable seq 不重放；durable gap 不跨洞折叠，而重新取得原子 opening 和 assistant baseline；older/jump page 在提交前检查类型、安全序号、稠密区间、through/before 以及与已有窗口尾首相接（`page.go:160`）。generation、Session、ctx 的校验与整个 frame fold 共锁。原版重新 opening 的 replaceGeneration 会替换已发表历史窗口，并不保留所有此前 prepend 的老前缀；Native 重开替换因此不是已知丢历史缺口。
+
+本轮没有穷尽多后台 Session 同时保留的 manager 调度，以及每种 malformed opening / server业务错误分类。物理断线由既有 main MaintainMux 负责；未用逻辑 clean-end 重试替代物理 owner。上述未审分支和真实断线/恢复验证保留为欠账。
+
+### CHAT-04：Hero / workspace / first send
+
+深读 `P/ui-conversation/src/client/skeleton/{ConversationMainPanel,ConversationRoot,HeroShell,InputBar}.tsx` 的 presentationOwned、opened/loading/error、blank/hero、resident editor 及工作区 before-send seat；对照 frame/conversation_phase.go、composer/workspace.go、draft_input.go、draft flights。确认原版由 presentation 对象存在门控，不只 managed owner，向 root 提供精确共享修复位置，由 root 接 `Items.Presentation != nil`。
+
+本组没有改共享 frame/main，也没有重造 workspace flow。工作区 authoritative member/session fallback 由 workspace/root 负责；原生 first-send 动画与全部断线空态布局仍未由本组逐分支读完，不能据已有 resident editor 就关闭 CHAT-04。
+
+### CHAT-05：native Chinese IME / selection / undo / newline / focus
+
+深读固定 `P/ui-conversation/src/client/input/editor/{runtime,view-binding,keymap,command-chip-selection}.ts` 与 input facade；对照 Go draft_client/input/navigation/undo/reference_navigation/leading_claim/suggest_keyboard，以及只读 MyGo Windows composition End→UnmarkText→ReplaceText 的实际回调顺序。
+
+`67a6924` 将 composition 中间更新归为一次撤销；记录结束的 marked range，识别先 Unmark 再显式 range commit 的系统顺序；结束后短窗口阻止同一次中文确认 Enter 落入发送/补全/leading claim；普通连续单字符同 caret 1秒内合并撤销；paste、显式 range、selection replacement、Undo/Redo/ClearHistory 分离。保留 UTF16 选区和 resident input，补全替换也通过 DraftClient.ReplaceText 进入同一 undo 路径。
+
+未改系统 IME；真实候选窗口位置、TSF/IMM 系统差异、跨 DPI/resize、平台 word movement 和每种 clipboard representation 尚未运行也未穷尽源比较。现有旧 undo 测试以每字符一帧为前提，需要主线程统一验证时按真实产品规则复核，不能回退产品换旧夹具通过。
+
+### CHAT-08：slash / @ / skill / file completion
+
+深读 `P/ui-input-trigger/src/client/controller.ts` 的触发边界和键盘仲裁、ui-commands directory/service 的 input/command adjudication、ui-reference/skill 的 grammar 和引用激活；对照 suggest.go:114、suggest_keyboard、command_launcher、leading_claim、reference_activation/navigation、mentions、command catalog 与 executeCommand。
+
+`67a6924` 补 slash 的 start/whitespace/punctuation 边界、word/url carve-out、@ grammar 优先；有 claim 时不重复 slash；leading input command 插入/claim，inline 隐藏 input descriptor；bare Host command 从菜单消费 token 后执行，而非只插字符串等用户再次发送。`command_pick.go:11` 校验当前 catalog、Host epoch、Session 后捕获 client+epoch+Session target，异步发往 captured client，late error 受 generation 限制。接口 `Model.OnPickCommand func(hostGeneration uint64, sessionID,line string)`，root 接到 `Store.PickComposerCommand`。本地 /model、/permission 复用已有专用 popup，没有创造泛化 popup 系统。
+
+未知第三方 command 的任意 render/factory contribution、file reference 每种 preview 与远端 filesystem 错误尚未穷尽；不能把 Host descriptor 可执行泛化成任意前端 Factory 已实现。附件媒体预览由媒体组另审。
+
+### CHAT-09：model / preset / permission menus
+
+深读固定 ModelSelect.tsx 的 root/model/effort pane、>4 search、fuzzy排序、当前项聚焦、上下/横向/Escape/ShiftTab、选择收起与 focus restore、loading/busy；AgentPresetSeat.tsx/seat-store.ts 的 default/stage/blank/main retained/developer filter/refusal；PermissionSelect.tsx 的 projection/catalog缺失、锁定、optimistic pending/5秒 settle、full-access/auto acknowledge 和 rejected/error toast。对照 Go model_picker/model_picker_grouped、models projection/selection、agent_presets/agent_preset_draft、permissions/permission_projection/permission_risk 及 frame risk dialog。
+
+`67a6924` 补模型/effort 共用原有 native menu，两级 pane、搜索键盘、当前聚焦和选择后触发器焦点；Hero preset 菜单显示 name+description（固定 AgentPresetSeat 实际如此，不能拿 Settings 的 PresetMenu 只有 name 来否定 Hero）。权限已有 token/client/Session/follow generation 风险确认、acknowledge、cancel、重复 confirm消费保护，已经存在不重做；投影为权威，Native没有实现原版纯UI optimistic caption，但会busy到 command+projection核对并显示失败。
+
+完整 custom model label Factory、Preset Settings creator/guide全部入口、introduce逐字符动画，以及catalog变更时每种弹层退出仍未穷尽。权限没有用危险值直接绕过既有确认。上述范围不能由“有菜单”替代。
+
+### CHAT-11：voice record / cancel / device / preparation
+
+固定原版实际注册链：`boot/app-boot/src/profile.ts:224` 的 OPTIONAL_BUNDLES 包含 voice，默认 disabled；`experimental/voice-input-bundle/cordis.patch.yml:13` 挂载 client-ui-voice-input；`experimental/client-ui-voice-input/src/client/mount.ts:24` 注册 conversation.input.activity、同一 bundle 的 plugins.bundle.config。不是未装载实验样例，也不是默认启用功能。确切 key 为 `@deepseek-ai/dsh-experimental-voice-input-bundle`。
+
+完整深读该 client 的 VoiceInput/controller录音请求、recording、stop/transcribing、generation+Abort、cancel、blur/hidden/unmount、pending插入冲突、retry；readiness镜像；microphone-device 的 client-local `dsh.voice-input.microphone` id/label、默认空id；MicrophonePicker 的可见页预览、换设备、missing/hotplug、默认输入与清理；PreparationCard全部 phase/steps/source/progress/failure/provider/language/configure；VoiceSetupDialog 只引导，不隐式安装或录音。Native对照 speech_recording、speech_insertion、voiceinput/controller、capture_windows 和 cmd/composer_voice。
+
+`67a6924` 增加 native device/preview API 和 client-local controller（`voicecapture/devices_windows.go:110`、`voiceinput/microphone.go:60`）。Windows用 WinMM 设备接口ID保存选择，record/preview都准确解析该设备，失效不偷偷回退；默认空id走系统默认。preview只采样计算RMS/清空缓冲，不生成WAV/不转写；关闭、切页、最小化/隐藏和shutdown由owner取消并join释放；2秒枚举处理hotplug，失败需要用户Retry，不重复开拒绝设备。只读核对 Microsoft DRV_QUERYDEVICEINTERFACE / SIZE 和 WAVEINCAPSW 文档，未调用任何设备。
+
+`5c2e6fc`：`speech_settings.go:54` 保留完整catalog与独立connection error，所有页面动作捕获 client/mux/generation；重试也原子核owner后开流；provider/language是Host持久选择，麦克风id/label只写现有local config两个字段。`VoicePreparationView:56` 支持所有 phase、展开steps、等待计时、known/unknown bytes、source自动/单源/人工选择、失败source/reason/HTTP/code、prepare/retry/cancel（waking不取消、cancelling禁重复）。`voice_setup.go` 按connected和ready/standby/waking门控，host-local unprepared提示安装，其余提示详情。移除旧文件转写路径的隐式 prepare。
+
+`cmd/voice_devices.go` 的 `renderVoiceDeviceSettings(c,*key)` 实际签名是 `renderVoiceDeviceSettings(c *ui.Context,key string) bool`，仅认上述bundle config；`pauseVoiceDevices()` 和 `finishVoiceDeviceSettingsFrame()` 管理页面可见生命周期。`openVoiceSettings()` 通过现有 pluginmanager frozen owner，在冷 inventory完成后进入现有bundle details；frame/main callback由 root 共享集成。`composer_voice.go` 在手势时冻结所选device并先释放preview，再交给既有录音controller。完整语音链仍未实机/Host/网络执行。其他OS的设备picker是明确unsupported实现，Windows为本项目目标平台；不能报告跨平台全功能。
+
+### CHAT-12：Markdown / thinking / stream / tools
+
+深读固定 ui-chat reasoning row/content/summary、ui-primitives MarkdownText compact样式，以及 native chat/main/read-only/group、thinking、tool round/body/retry/usage/disclosure。`67a6924` 修正已完成thinking首行去粗体标记、streaming取最后完整段首行，避免每chunk截半个词；live/read-only都传streaming。`5c2e6fc` 主消息明确Chat.Size，thinking preview和compact body同一secondary（<=14减1，>14减2），不把所有明确次级字号变正文。widgets Markdown默认大小由 root 独占修改。
+
+没有把 Markdown lexer/parser、KaTeX/数学、每种语法高亮、所有tool render Factory与流式patch变体读完。通用tool入口存在不能证明全部custom tool body一致；这些是实际剩余深读项，非已确认缺功能。
+
+### CHAT-16：agents hierarchy / navigation / detail
+
+深读固定 AgentsPanel 的main retained owner、subagentCatalog优先、fallback list、external禁打开、mode/status/tag与jobs入口；ui-subagent replacement 的unknown/one-shot/continuable/parentOffline；native agents/panel、child_editor/readonly，`agent_navigation.go:125` sync、`:167` open、`:195` back、`:234` earlier、`:327` rows、`:388` page、`:419` prompt/interrupt；retained scope与当前client/owner/token/binding校验。已有真实child identity/mode与captured read/write路径，不重复实现。
+
+本组没有穷尽 jobs provider全部分支、任意多级后代的全部并发交错、所有custom detail body；既有布局提交不能提升为整个agents全覆盖。此次未另改agents产品源。
+
+### CHAT-17：trajectory / context / compaction / history range
+
+深读固定 ui-trajectory definitions/compaction/header/request/raw/detail、compaction/compaction/src/types.ts:37、:57 的真实ContentBlock[]，ContextMeter显示门控与manual compaction入口；对照 trajectory_requests/timing、history_navigation/page、inspector、context_meter和compaction动作。
+
+`67a6924` 修复实际schema差异：compaction summary/rawOutput为ContentBlock[]，旧string字段导致整事件unmarshal失败；现在保留原始blocks并提取可读文本，兼容旧string但不丢真实字段。`trajectory_requests.go:125` 与 `trajectory_timing.go:176` 消费真实session/end-seed，将未完成compaction标为interrupted并保留duration/end时间；旧session/end兼容保留。历史range与olderpage共享上述dense/join检查。原版 source contract包含typed blocks，不以旧string夹具反推协议。
+
+完整每一种模型请求header/redaction/usage timing、自动压缩所有触发条件与custom trajectory factory未穷尽。已有入口或原始JSON可见不等同全部详情正常。所有本节修复仅源码落地，未获编译/回归/实际视觉通过结论。
+
+### 后续窄收口：permission opaque ID / Plugins Creator
+
+继续对照固定 PermissionSelect 的 opaque value，发现 native 风险确认虽然最初选择按value，confirm却按caption反查，重名caption会误拒；`permission_risk.go:73` 改为核对已捕获value仍在当前catalog，风险token/acknowledge/owner规则保持。
+
+固定 `P/ui-agent-preset/src/client/CreatePluginMenuItem.tsx` 完整阅读：ready roster含cordis才可选，idle/loading/error/missing分别描述；选中先onDismiss，再startCreatorDraft。`index.ts:190` 使用既有workspace startSession，clearPreviousDraft:false、cordis、beforeOpen stage/apply，无额外review modal、seed文本或send。两文件相对e353e8e无dirty差异。
+
+新增 `cmd/whaleisle/plugin_creator_task.go` 独立Controller接线复用现有session.CreatorTask：唯一菜单click Prepare→Create(ticket)，成功后Open；没有第二确认、自动重试create/select或模型请求。过程和不确定回执在manager notice显示准确Host/Cwd/Session/phase/error；Locate只读该ID，explicit Open打开同一确认目标。page owner按实际main.go paintMainContent的 `marketOpen && marketManager`，不是Settings内置插件列表。observePluginCreator/postframe与suspendPluginCreator/hide由root接线。`CreatorPresetCatalog` 区分已读空roster、loading、failed和cordis可用，复用原有process roster；Add重开通过refreshPluginCreatorRoster显式刷新。新任务创建、presets选择等外部动作只存在产品回调源码，本轮未执行。

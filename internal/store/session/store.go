@@ -321,6 +321,8 @@ type Store struct {
 	selectedAgentPresetLabel             string
 	agentPresetsErr                      error
 	agentPresetsRequest                  uint64
+	agentPresetsLoaded                   bool
+	agentPresetsLoading                  bool
 	skillCatalogClient                   *dsh.Client
 	skillCatalogLoading                  bool
 	skillCatalog                         SkillCatalog
@@ -411,6 +413,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.agentPresetOptions = nil
 		s.selectedAgentPresetLabel = ""
 		s.agentPresetsErr = nil
+		s.agentPresetsLoaded, s.agentPresetsLoading = false, false
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
@@ -545,6 +548,7 @@ func (s *Store) Detach() {
 	s.agentPresetOptions = nil
 	s.selectedAgentPresetLabel = ""
 	s.agentPresetsErr = nil
+	s.agentPresetsLoaded, s.agentPresetsLoading = false, false
 	s.questionProjections = nil
 	s.invalidateArchiveLocked()
 	s.invalidateCommandsLocked()
