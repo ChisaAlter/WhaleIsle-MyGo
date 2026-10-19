@@ -26,6 +26,9 @@ type Style struct {
 	// LineHeight is the height of a line as a multiple of Size; 0 takes
 	// the font's own line spacing.
 	LineHeight float32
+	// ExactLineHeight keeps an explicit LineHeight even when a font's
+	// ascent and descent are taller, centering them with negative leading.
+	ExactLineHeight bool
 	// LetterSpacing adds DIPs after every character; negative tightens.
 	LetterSpacing float32
 	// Features are OpenType features, comma separated: a tag turns one
@@ -865,6 +868,9 @@ func line(p Params, text []rune, sl shapedLine, offset int, rtl bool, m lineMetr
 	}
 	line.Width = max(line.Width, 0)
 	line.Height = max(m.lineHeight, line.Ascent+line.Descent)
+	if p.Style.ExactLineHeight && p.Style.LineHeight > 0 {
+		line.Height = m.lineHeight
+	}
 	line.Y = *y
 	line.Baseline = *y + (line.Height-line.Ascent-line.Descent)/2 + line.Ascent
 	for i := range line.Glyphs {

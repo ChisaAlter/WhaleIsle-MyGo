@@ -180,6 +180,7 @@ func (e *node) textParams(width float32) text.Params {
 	}
 	if ts.fixedLine && ts.lineHeight > 0 {
 		style.LineHeight = ts.lineHeight / style.FontSize()
+		style.ExactLineHeight = true
 	}
 	p := text.Params{Text: e.text, Width: width, MaxLines: e.maxLines, Style: style, Spans: e.textSpans(), NoWrap: e.noWrap, Ellipsis: e.ellipsis}
 	switch ts.align {
