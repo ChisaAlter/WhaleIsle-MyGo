@@ -1,5 +1,7 @@
 # 原版全量功能验收矩阵（2026-10-19）
 
+> Source coverage is not complete: see [all registered module IDs and explicit reading levels](source-coverage-index-20261019.md). New code closure, ordinary regression, real Host evidence and Windows/original-window acceptance are separate. The current unified run01 failed; new source gaps are still being implemented.
+
 > Source-first implementation update: new packaging, startup acceptance and mock-service runs are paused until the concentrated original-source parity changes finish. Source995cbe0 fixes exact FixedLineHeight. Source9da81d3 fixes only the base update-check binding: the final native launcher overrides that callback with an already asynchronous release refresh, so it is not a demonstrated fix for the actual launcher button. Broad click/text complaints and original-window parity remain unresolved. The previously delivered complete folder remains source97e0427.
 
 
