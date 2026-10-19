@@ -127,11 +127,13 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 	}
 	desired := make(map[string]projectedQuestion)
 	active := make(map[string]bool)
+	states := make(map[string]string)
 	for _, row := range p.active {
 		if row.CallID == "" {
 			continue
 		}
 		active[row.CallID] = true
+		states[row.CallID] = row.State
 		if submission, ok := p.submitted[row.CallID]; ok {
 			if p.queued[row.CallID] {
 				submission.queuedSeen = true
@@ -152,6 +154,32 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 		}
 	}
 	s.pruneQuestionDraftsLocked(agentID, active)
+	// The Host projection, not the HTTP outcome receipt, owns foreground
+	// completion. A continued call reuses its draft through the RPC channel;
+	// a confirmed closed call removes it. An older empty baseline cannot
+	// withdraw a live request that it has never observed.
+	for _, pending := range append([]Pending(nil), s.pending...) {
+		if pending.AgentID != agentID || pending.Event != EventUserQuestions || pending.Continued || pending.CallID == "" {
+			continue
+		}
+		live := s.findPending(pending.EventID)
+		if active[pending.CallID] {
+			live.questionSeen = true
+		}
+		if states[pending.CallID] == "continued" || p.settled[pending.CallID] || live.questionSeen && !active[pending.CallID] {
+			waiter := s.waiters[pending.EventID]
+			delete(s.waiters, pending.EventID)
+			s.cancelled[pending.EventID] = true
+			s.dropPending(pending.EventID)
+			if waiter != nil {
+				select {
+				case waiter <- dsh.EventResultOutcome{Kind: "next"}:
+				default:
+				}
+			}
+			s.persistQuestionDrafts()
+		}
+	}
 	// Recovered rows may be withdrawn, but a live waterfall keeps its own lifecycle.
 	for _, pending := range append([]Pending(nil), s.pending...) {
 		if pending.AgentID == agentID && pending.Continued {
@@ -212,11 +240,6 @@ func (s *Store) liveQuestionDraftLocked(agentID, callID string, req userQuestion
 		p.drafts[callID] = draft
 	}
 	return draft
-}
-func (s *Store) questionWaterfallDeliveredLocked(pending Pending, outcome dsh.EventResultOutcome) {
-	if pending.Event == EventUserQuestions && pending.CallID != "" && outcome.Kind == "result" {
-		s.questionAgentLocked(pending.AgentID).answered[pending.CallID] = true
-	}
 }
 func (s *Store) resetQuestionRecoveryLocked() {
 	s.retainQuestionDraftsLocked()

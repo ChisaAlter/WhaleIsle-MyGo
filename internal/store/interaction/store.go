@@ -35,6 +35,7 @@ type Pending struct {
 	approvalCallID    string
 	approvalRequester bool
 	approvalResolved  bool
+	questionSeen      bool // this call appeared in an authoritative question projection
 	// CallID is the harness tool call id when present.
 	CallID  string
 	Sending bool
@@ -403,8 +404,15 @@ func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 	retry := false
 	if p != nil {
 		if err == nil {
+			if p.Event == EventUserQuestions && p.CallID != "" {
+				// HTTP delivery is not Host acceptance: an expired waterfall
+				// outcome may be silently ignored. Keep this draft and timed
+				// claim until the Host closes or continues the actual request.
+				s.mu.Unlock()
+				s.fire()
+				return false
+			}
 			agentID := p.AgentID
-			s.questionWaterfallDeliveredLocked(*p, s.responses[result.EventID])
 			delete(s.waiters, result.EventID)
 			s.dropPending(result.EventID)
 			s.reconcileProjectedQuestionsLocked(agentID)

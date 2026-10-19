@@ -48,6 +48,17 @@ func (s *Store) attachQuestionWait(ctx context.Context, mux *dsh.Mux, agentID, c
 		if json.Unmarshal(raw, &wait) != nil || wait.RemainingMs < 0 || wait.RemainingMs > 2147483647 {
 			return
 		}
-		s.runQuestionWait(ctx, agentID, callID, eventID, time.Duration(wait.RemainingMs)*time.Millisecond)
+		claimCtx, cancelClaim := context.WithCancel(ctx)
+		defer cancelClaim()
+		go s.runQuestionWait(claimCtx, agentID, callID, eventID, time.Duration(wait.RemainingMs)*time.Millisecond)
+		// attachWait closes only after Host acceptance/withdrawal. Returning
+		// the local waterfall answer must not dispose this foreground claim.
+		// Observe the close while the countdown runs rather than leaving an
+		// unread stream alive until a local timer happens to finish.
+		for {
+			if _, err := stream.Recv(ctx); err != nil {
+				return
+			}
+		}
 	}()
 }
