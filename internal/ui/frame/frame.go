@@ -1070,7 +1070,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 					// Electron keeps the composer seat mounted on the trajectory tab
 					// (data-conversation-composer-overlay); do not hide it.
-					seat := ui.Row(c).Key("conversation-composer-seat").FillWidth().Padding(0, conversationScrollGutter, 0, 0)
+					// ConversationRoot.composerSeat is flex:none: the transcript
+					// yields height before the input and its below-card status rows.
+					seat := ui.Row(c).Key("conversation-composer-seat").FillWidth().Shrink(0).Padding(0, conversationScrollGutter, 0, 0)
 					if phase == conversationSettling {
 						seat.Invisible()
 					}

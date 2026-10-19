@@ -119,7 +119,15 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	}
 	drag := ui.Local(col, "terminal-drag", func() paneDrag { return paneDrag{} })
 	col.Children(func() {
-		conversation := ui.Box(c).Key("chat-column").Height(main).Shrink(0).Clip()
+		conversation := ui.Box(c).Key("chat-column").Clip()
+		if open {
+			conversation.Height(main).Shrink(0)
+		} else {
+			// With no terminal split, inherit the actual parent allocation.
+			// A first-frame viewport height has not yet subtracted the caption;
+			// fixing and transitioning that stale height clips the footer.
+			conversation.Grow(1).MinHeight(0)
+		}
 		if !drag.active && !m.Sizes.dragging {
 			conversation.Transition(shellTrackTransition)
 		}
