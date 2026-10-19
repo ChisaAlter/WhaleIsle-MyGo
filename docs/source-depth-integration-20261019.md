@@ -6,6 +6,141 @@ acceptance. Earlier checkpoints and all failed receipts remain historical.
 
 ## Current Windows checkpoint
 
+Product/test revision: `da79d7dfcae48eb485429e31ff3994492a254b65`, tree
+`f8cccff3e3d93520d42119ebdc97b20272368398`. The final ledger commit changes
+documentation only. Branch: `codex/session-runtime-compat-20261019`, checkout
+`C:\Users\48818\Documents\Codex\2026-10-19\task-2\WhaleIsle-MyGo`.
+Original source was read only from fixed git object
+`e353e8e13fa0e7f9cb6bc16368e2fc00d6b3be49`; its dirty working tree was not used
+as an implicit baseline. **This is not all-function or native visual acceptance.**
+
+### Fixed original contributions implemented
+
+This continuation after `cb2f1b99` follows the actual shipped contribution set,
+not an arbitrary React execution framework. Shared Store/frame/placement
+contracts had one integrator; stream, command and model-label owners used
+exclusive file ranges. Product implementation preceded regression preparation.
+No SDK, credential, execution privilege or new runtime framework was needed.
+
+In the table, `P/` is original
+`vendor/deepseek-harness/packages/client/`. The package mount list is in
+`vendor/deepseek-harness/packages/bundle/web-app/cordis.patch.yml`.
+
+| Actual original contribution | Native implementation and admission | Fixed original source |
+|---|---|---|
+| `ui-conversation` `/file` action | Registration requires the original commandUi dependency chain. Reuses existing native file intake, retaining the session/draft owner across the dialog; no permanent long file button. | `P/ui-conversation/src/client/apply.ts` registration around462. |
+| `ui-model-selection` `/model` popupSelect | Original provider groups, group-local fuzzy search, catalog errors/retry, active row, scroll, pointer/keyboard selection and successful projected receipt before consuming the captured input segment. Addressed subagents and dshbot rooms bypass this local contribution. | `P/ui-model-selection/src/client/index.ts` around129; `P/ui-commands/src/client/popup.ts`, `PopupSelectView.tsx`. |
+| `ui-permission-presets` `/permission` decoration | Decorates a real Host descriptor; no fabricated Host command. Bare command opens actual catalog options; arguments remain Host input. Full/Auto risk confirmation, exact catalog-change invalidation and captured selection/projection receipts are retained. The toolbar seat requires admitted contribution and actual projected/catalog data. | `P/ui-permission-presets/src/client/index.ts` around166/176; `catalog.ts` exact zero-argument `permission-presets/catalog-changed`. |
+| `ui-message-feedback` `/feedback` action decoration | Decorates an existing Host descriptor, bare command only, and invokes the existing feedback controller. Command arguments still go to Host. | `P/ui-message-feedback/src/client/index.ts` around136. |
+| `ui-deepseek-model-label-1017` | Renders the original information badge in trigger, menu and popup option placements only for provider `deepseek-account`/`deepseek-official`, model ID `deepseek-flash`, exact catalog name `DeepSeek-V4.1-Flash`. Opaque route keys are preserved; unknown catalog entries get no invented badge. | `P/ui-deepseek-model-label-1017/src/client/index.ts`, `DeepSeekModelLabel.tsx`; `P/ui-model-selection/src/client/ModelSelect.tsx`; `P/ui-primitives/src/client/Tag.module.css`. |
+
+`internal/dsh/native_contributions*.go` reads the existing authenticated,
+loopback-only `/plugins/events` SSE graph. It never fetches graph bundle URLs or
+evaluates JavaScript. The graph declares which fixed Go adapters should exist;
+the Go adapters are their own compiled native registration authority. This does
+not claim that an unrelated browser successfully mounted React. Initial graph,
+dependency availability, rebuild, removal, malformed declaration, EOF recovery,
+release change and cancellation all have explicit ownership. No silent boot
+fallback or disconnected placeholder registration was added.
+
+The watch starts after the existing `$events` Ready owner. Per-command dependency
+revision plus global registration and individual port generations reject old
+receipts after withdrawal/reinstatement, including same-revision ABA between UI
+frames. Unrelated graph changes do not retire an unchanged command. Session,
+Host, permission catalog, draft mutation and popup lifetime are checked through
+the existing Store selection cores. Native action consumption follows original
+action ordering; popup consumption waits for a successful receipt and uses CAS.
+
+The popup is an absolute child above the measured card, max320DIP, with no card
+flow-height growth. Escape/Shift+Tab preserve the token and return composer
+focus; successful selection does so after consuming only its owned segment.
+Opening the native popup dismisses the same-token slash suggestion. `/new` and
+`/clear` no longer have invented local shortcuts that bypass real Host behavior.
+
+### Current evidence and its limits
+
+| Evidence | Actual result and exact source |
+|---|---|
+| Complete ordinary Windows regression | **PASS**, `da79d7df`, `go test -json -count=1 -timeout=3m ./...`, Windows amd64/Go1.27.2/CGO0/offline/isolated. Exit0; 115 package passes,22 package skips,4197 test/subtest passes,27 skips,0 failures. [Receipt](../../evidence/native-contribution-final-regression-r2-20261019/root/receipt.json), [counts](../../evidence/native-contribution-final-regression-r2-20261019/root/summary.json). Skips do not establish acceptance. |
+| Matching Windows main/helper | **PASS**, `da79d7df`, both builds exit0; version `0.0.0-local.da79d7df`. [Receipt, paths and flags](../../evidence/native-contribution-final-windows-r2-20261019/receipt.json). Main SHA256 `22e44f39375857dd6aa8bebcee2ecf94ae8cc73371b5d465f4e76810cce5478a`; helper `6e269a93093706d8030ebfa057c4e45f0a162c2591e11e8b233902b8c1d2789b`. Main was not launched, installed or copied into a user delivery directory. |
+| Actual isolated Host declarations | **PASS within this read-only scope**, `d2e79d95`, [receipt](../../evidence/native-contribution-current-host-20261019/receipt.json), [observations](../../evidence/native-contribution-current-host-20261019/native-contributions.json). Fresh blank owned Host admitted Known+all5 contributions+all4 command revisions. Cancel retired the stream; owned Host and listener stopped; modelRequests0. Runtime0.2.1-rc.2/pin`687f282e8625c6b8d11ff58211a90524be2e4317` provenance verify exit0, Node hash in receipt. Graph hash `31e7825a1c63ef7bd650a4043366ffa169c09b68bc3a4124ae67d7de64b0c376`. Later `d2e79d95..da79d7df` changes only popup focus and regression fixtures; Dsh, native declaration owner and this tool implementation are unchanged. This was not rerun or relabeled as a da79d7df full-app test. |
+| Software geometry and image | Current ordinary run exports [popup PNG](../../evidence/native-contribution-final-regression-r2-20261019/root/software-frames/native-command-popup-keyboard.png) and [bounds](../../evidence/native-contribution-final-regression-r2-20261019/root/software-frames/native-command-popup-keyboard.geometry.json). Card before/after stays `(16,553.3789,668,142.6211)`; last keyboard-selected row is visible above it. Fixtures also exercise hover then Enter, success/error/retry, focus return, risk confirmation, undo/CAS and actual SSE/Store owner retirement. These are MyGo software frames and synthetic UI input, not native screen capture or original visual equivalence. |
+
+The prior actual native SVG receipt at `aa159b6a`, GPU/SDK receipts and broader
+isolated Host receipts retain their exact versions and limits in the historical
+checkpoint below. This continuation changes none of the SVG helper, Beam,
+fluid or SDK source/dependencies. They were not rerun just to produce new counts,
+and their receipts are not fresh acceptance of the new binary. The old complete
+ordinary regression/build are superseded by the current ones above.
+
+### Reviews and retained failure
+
+Independent Standards review of the finite product changes found two P2 issues:
+the active row did not actually scroll, and registration ownership allowed
+withdraw/reinstate ABA. Independent Spec review found two P2 issues: the same
+scroll problem and hover not updating the row selected by Enter. These are three
+distinct findings. `135f7a26` fixed them; both affected re-reviews confirmed the
+code changes and found no new concrete issue. Code review did not count as a
+test pass.
+
+The first new fixed run at `d2e79d95` remains **FAIL** in
+[its receipt](../../evidence/native-contribution-final-regression-20261019/root/receipt.json)
+and [summary](../../evidence/native-contribution-final-regression-20261019/root/summary.json):
+113 package passes,22 skips,2 failed packages;4191 test/subtest passes,27 skips,
+3 failed tests. Diagnosis separated a real focus handoff bug (popup helper runs
+after the editor, so setting focus alone scheduled no consuming frame), an old
+permission-seat fixture with no contribution admission, and an existing event
+fixture that could close the carrier before its first callback. The correction
+adds an explicit next-frame request, real registered fixture state plus
+withdrawal assertion, and a deterministic first-callback barrier with bounded
+cleanup. Original success-focus and stale-event assertions remain. Affected Spec
+review confirmed focus ordering; Standards review checked the event barrier and
+its cleanup. `78ef03af`/`da79d7df` contain the corrections. The new fixed complete
+run above then passed; no unchanged retry was used as a diagnosis.
+
+Retained failed coordinated local rounds are now21 (previous20+this one).
+Success does not erase them. Remote CI remains0. All evidence directories are
+preserved. The brief execution disconnect was followed by a read-only worktree
+and receipt check; completed writes/runs were not replayed.
+
+### Remaining differences and exact blockers
+
+- The fixed shipped model-label and four command contributions now have native
+  implementations. Arbitrary third-party React factory/callback execution is
+  outside this finite source set; served full-page paths retain their own
+  registration/runtime. No universal React bridge is claimed.
+- Original model-label FlipText rotateX/400ms animation is still a native visual
+  representation difference. Beam finite raster sampling/asynchronous retained
+  frame and fluid GPU-copy/hardware boundaries below remain differences too.
+  Their practical visible cost against the original is not measured.
+- **Pending tool exposure, not denied or uncertain execution:** same-window,
+  same-DPI/font/data original-versus-Go screenshots and physical menus, hover,
+  typing/IME/window input. Parent reports Ayase connected/attached/authorized;
+  this executor's active callable inventory still exposes no Ayase/native
+  capture/input API after recovery. CUA native APIs are explicitly disabled;
+  voice-only Codex screen context is inapplicable. No raw HWND capture/injection
+  bypass or user-instance restart was attempted. Software frames cannot close
+  this acceptance gate.
+- Main `MaintainMuxFromBootstrap -> EventsReady -> manual reconnect`, Host theme
+  write/CAS/onboarding, visible Beam/fluid/SVG motion and whole-workspace native
+  layout still lack current full-app acceptance. The real Host check above only
+  verifies the declaration transport; it does not exercise model/permission
+  selection against a real session. Ordinary fixtures use isolated mock RPCs.
+  Paid/model execution, automatic compaction pressure/recovery, external account,
+  device/phone/IM/SSH and every transitive third-party branch remain unverified.
+- **Installer preparation blocked:** the three retained fixed-hash NSIS retrieval
+  failures in the [existing preparation record](../../evidence/nsis-toolchain-preparation-20261019.json)
+  remain. No fourth download attempt, hash bypass, installation or refreshed
+  installer/portable acceptance is claimed.
+
+All work remains on the dedicated local branch. Original WhaleIsle,
+`C:\AI\whale-code`, credentials, user instances/data and delivery directories
+were not modified. Four pre-existing untracked paths remain untouched. No push,
+merge, PR publication, release, remote CI, network/security setting change or
+new non-Windows validation was performed.
+
+## Historical Windows checkpoint at aa159b6a (superseded)
+
 Product/test revision: `aa159b6aade0fa108cfd699cce81338a80a3cf3e` (tree
 `a1216fe1a14908e5a777f01577f8de72466acd0d`). The final ledger commit changes
 documentation only. Branch: `codex/session-runtime-compat-20261019` in
