@@ -39,7 +39,7 @@ Go 已读 `internal/recovery/store.go` 的 bounded schema、无效/新版本原�
 
 Combined writer 仅拥有 Workspace、SelectedSession、Layout、Drafts、Files；Update 保留当时 Store 的 QuestionDrafts，避免覆盖独立回答草稿 writer。失败保留 UI/最新 pending，停止无依据自动重试，以常驻 native error toast 提供显式 Retry。`02c6bd3` 失效失败捕获的 fingerprint，保证 A→capture error→相同 A Retry 仍能入队。
 
-正常退出先在 mainState 锁外 Pause/barrier 等待旧 writer，再保持 question.Flush 在 mainState 锁外，最终通过 RunOnMain 捕获最新 UI，写 combined owned 字段；旧 revision 不能在最终保存后回写。此处是源码契约，尚未运行新回归或进行异常退出实机验收。
+正常退出先在 mainState 锁外 Pause/barrier 等待旧 writer，再保持 question.Flush 在 mainState 锁外，最终通过 RunOnMain 捕获最新 UI，写 combined owned 字段；旧 revision 不能在最终保存后回写。`3a3064f` 补 OnHide/OnMinimize 的 UI 线程即时捕获：SDK Invalidate 最终依赖 Windows surface paint，隐藏窗口不保证继续 mainView，因此不能让最后一帧受节流的编辑只等待下次绘制；生命周期回调直接 stage 独立 payload，仍沿同一 debounce/max-wait/CAS writer。此处是源码契约，尚未运行新回归或进行异常退出实机验收。
 
 ## SAVE-04：展示状态、shortcut 与边界
 

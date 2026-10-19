@@ -406,3 +406,29 @@ func TestResumeCheckpointQuietAndContinuousEditsHaveBoundedWriteLatency(t *testi
 		})
 	}
 }
+
+func TestResumeVisibilityCapturePersistsThrottledLastEditWithoutAnotherPaint(t *testing.T) {
+	s, q, tab, _ := checkpointFixture(t)
+	clock := &checkpointTestClock{time: time.Unix(0, 0)}
+	q.now, q.after = clock.now, clock.after
+	repaintRequests := 0
+	if !q.due(clock.now(), func() { repaintRequests++ }) {
+		t.Fatal("initial UI capture was unexpectedly throttled")
+	}
+	q.stage(captureCheckpoint(t, s), nil, clock.now())
+	clock.advance(10 * time.Millisecond)
+	s.composerDrafts["owned-session"].Text, tab.Draft = "last edit before hide", "last file edit before hide"
+	if q.due(clock.now(), func() { repaintRequests++ }) {
+		t.Fatal("fixture did not reach the throttled last-edit path")
+	}
+	// This is the exact application OnHide/OnMinimize callback. No mainView,
+	// surface paint, UI dispatch or another capture is run after this boundary.
+	s.checkpointResumeOnVisibilityChange()
+	clock.advance(resumeCheckpointDelay)
+	if composerText, fileText := savedCheckpointDrafts(t, s.resumeStore.Snapshot()); composerText != "last edit before hide" || fileText != "last file edit before hide" {
+		t.Fatal("hidden surface needed a later paint to capture its last edit")
+	}
+	if repaintRequests == 0 {
+		t.Fatal("fixture failed to model invalidations that can be ignored by a hidden surface")
+	}
+}
