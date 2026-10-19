@@ -291,18 +291,30 @@ func TestTerminalTogglePreservesComposerFocusAndSelection(t *testing.T) {
 			sizes.Bottom = 0
 			draft := "ABCDE"
 			client := composer.NewDraftClient(&draft)
+			// An unselected Hero is intentionally inert until a workspace/session
+			// is chosen. Exercise the editable active conversation, retaining its
+			// Store owner across every terminal/viewport frame.
+			store := session.New()
+			store.Select("terminal-focus-session")
+			store.AppendStreamDelta("user", "Owned active conversation fixture")
 			rightOpen := true
 			tt := ui.NewTester(func(c *ui.Context) {
-				View(c, Model{Store: session.New(), Sizes: &sizes, Draft: &draft, UseComposerTextInput: native, ComposerTextInput: client, RightPaneOpen: rightOpen})
+				View(c, Model{Store: store, Sizes: &sizes, Draft: &draft, UseComposerTextInput: native, ComposerTextInput: client, RightPaneOpen: rightOpen})
 			}, 1200, 800)
 			if err := tt.Click("Composer draft"); err != nil {
 				t.Fatal(err)
+			}
+			if !tt.Focused("Composer draft") {
+				t.Fatal("editable composer never acquired initial focus")
 			}
 			if native {
 				client.SetSelectionUTF16(1, 4)
 				tt.Frame()
 			} else {
 				tt.Key(ui.Cmd, ui.KeyA)
+			}
+			if !tt.Focused("Composer draft") {
+				t.Fatal("selection setup lost composer focus before terminal toggle")
 			}
 			for _, bottom := range []float32{180, 0, 180, 0} {
 				sizes.Bottom = bottom
