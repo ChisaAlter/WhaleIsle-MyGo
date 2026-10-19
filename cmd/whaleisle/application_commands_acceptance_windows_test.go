@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
+	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
 )
 
@@ -49,14 +51,16 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		s := &mainState{cfgStore: cfg}
 		bindings := shortcuts.Resolve(s.pageShortcutBindings())
 		encoded, _ := json.Marshal(bindings)
+		revision := s.pageShortcutPreferences().Get().Revision
 		// Only the platform's menu installation is excluded. Real production
 		// pending-command consumption below still runs on each native frame.
-		s.applicationMenu = &desktopApplicationMenu{signature: string(encoded) + resumeText("zh", "en")}
+		s.applicationMenu = &desktopApplicationMenu{signature: string(encoded) + resumeText("zh", "en") + revision}
 		menu := buildApplicationMenu(bindings, "windows", func(id string) {
-			s.applicationMenu.pending = append(s.applicationMenu.pending, id)
+			s.applicationMenu.pending = append(s.applicationMenu.pending, desktopMenuGesture{id: id, revision: revision})
 		})
 		tt := ui.NewTester(func(c *ui.Context) {
 			s.syncApplicationMenu(c)
+			defer s.processApplicationMenu(c)
 			ui.Button(c, "Owned main command scope").Width(220).Height(32)
 		}, 600, 300)
 		for _, id := range []string{"file", "edit", "run", "view", "help", "workspace.add", "workspace.openLocal", "harness.restart", "window.refresh", "window.actualSize", "window.zoomIn", "window.zoomOut", "window.fullscreen", "window.inspector", "help.web", "help.sdk", "app.quit"} {
@@ -145,26 +149,37 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal("conflict changed accepted bytes")
 		}
 		e.Discard()
+		// Desktop customization admits supported physical keys. A file-save
+		// reservation exists only when its input owner registers the fixed row.
+		prefs := s.pageShortcutPreferences()
+		prefs.SetDefinitions("fixture-input", []shortcutprefs.Definition{{ID: "fixture.input-save", Fixed: []shortcutprefs.Binding{{Code: "KeyS", Modifiers: []string{"control"}}}}})
+		e = s.pageShortcutEditor()
 		*e.Draft("settings.mcp") = "Mod+S"
-		if e.Save() {
-			t.Fatal("reserved file-save chord accepted")
+		if e.Save() || !strings.Contains(strings.ToLower(e.Err), "conflict") {
+			t.Fatal("registered fixed file-save owner was not protected", e.Err)
+		}
+		after, _ = cfg.ShortcutDocument()
+		if !bytes.Equal(before, after) || s.pageShortcutBindings()["settings.mcp"] != "Mod+Alt+F8" {
+			t.Fatal("fixed-owner conflict changed accepted document")
 		}
 		e.Discard()
+		prefs.SetDefinitions("fixture-input", nil)
+		e = s.pageShortcutEditor()
 		e.BeginRecording("settings.mcp")
 		e.CancelRecording()
 		if e.Recording != "" || *e.Draft("settings.mcp") != "Mod+Alt+F8" {
 			t.Fatal("cancel recording changed binding")
 		}
 		e.BeginRecording("settings.mcp")
-		if !e.Record("Mod+Alt+F10") || !e.Save() {
+		if !e.RecordAndSave("Mod+Alt+F10") {
 			t.Fatal("record/save failed", e.Err)
 		}
 		e.ResetDraft("launcher.open")
-		if !e.Save() || s.pageShortcutBindings()["launcher.open"] != e.Default("launcher.open") {
+		if !e.SaveRow("launcher.open", true) || s.pageShortcutBindings()["launcher.open"] != e.Default("launcher.open") {
 			t.Fatal("reset did not restore default", e.Err)
 		}
 		checks["fresh-config-save-reopen-unbind-and-menu-keycaps"] = true
-		checks["conflict-and-reserved-chord-retain-active-document"] = true
+		checks["conflict-and-registered-fixed-owner-retain-active-document"] = true
 		checks["record-cancel-save-and-reset"] = true
 		// Simulate an accepted external document with two conflicting rows:
 		// both must become inactive without suppressing explicit menu clicks.
@@ -219,7 +234,10 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			})
 		}, 600, 400)
 		tt.SetFocused(true)
-		press := func() { tt.Key(ui.Cmd|ui.Alt, ui.KeyF8) }
+		press := func() {
+			tt.PhysicalKeyDown("F8", ui.KeyF8, ui.Cmd|ui.Alt, false, false, false)
+			tt.PhysicalKeyUp("F8", ui.KeyF8, ui.Cmd|ui.Alt, false)
+		}
 		clearRoute := func() { s.settingsOpen, s.settingsMCPActive = false, false }
 		if err := tt.Click("Neutral focus"); err != nil {
 			t.Fatal(err)
@@ -302,7 +320,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			role, err := shortcuts.Parse(raw)
 			if err == nil {
 				for id, chord := range bindings {
-					if chord == role {
+					if reflect.DeepEqual(chord.PhysicalBinding(), role.PhysicalBinding()) {
 						t.Fatalf("native inspector accelerator %s duplicates accepted application command %s (%s)", inspector.Accelerator, id, chord.String())
 					}
 				}
