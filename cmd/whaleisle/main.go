@@ -889,6 +889,15 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	s.assistantRoutines.Bind(dshbotstore.RoutineScope{})
 	s.mu.Lock()
 	s.pendingDeeplink = t
+	// Session and Agents links navigate to the conversation workspace. Tool
+	// pages return before that workspace is painted, so retire their routes.
+	// A plain Open link continues to raise the current page without navigating.
+	if t.Action == deeplink.ActionSession || t.Action == deeplink.ActionAgents {
+		s.imOpen, s.remoteOpen, s.marketOpen = false, false, false
+		s.webviewOpen, s.browserPreviewOpen = false, false
+		s.assistantOpen, s.toolsMenuOpen = false, false
+		s.assistantConversationGeneration++
+	}
 	switch t.Action {
 	case deeplink.ActionLauncher:
 		s.launcherOpen = true
