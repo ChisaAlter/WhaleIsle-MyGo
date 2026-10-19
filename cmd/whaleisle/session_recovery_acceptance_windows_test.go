@@ -70,7 +70,7 @@ func runNativeSessionRecovery() error {
 	}
 	go func() {
 		deadline := time.Now().Add(105 * time.Second)
-		revealed, rendered, selected := false, false, false
+		revealed, rendered, selected, projected, shown := false, false, false, false, false
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
 			win, status, sessions, ready := state.win, state.bootStatus, state.sessions, state.dshMuxReady
@@ -114,6 +114,30 @@ func runNativeSessionRecovery() error {
 			}
 			if snap.SelectedID != id || !snap.HistoryReady || snap.HistoryLoading {
 				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if !projected {
+				// CapturePage reuses an existing frame. Let this owned window paint
+				// normally so production mainView binds the newly selected session
+				// before injecting or checking per-session recovery state.
+				if !shown {
+					win.ShowInactive()
+					shown = true
+					continue
+				}
+				if _, err := win.CapturePage(); err != nil {
+					finish(err)
+					return
+				}
+				want := workspaceSessionKey(sessions.WorkspaceLayoutScope(), workspace, id)
+				state.mu.Lock()
+				bound := state.workspaceSessions.active == want && state.workspaceSessions.BySession[want] != nil
+				state.mu.Unlock()
+				if !bound {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				projected = true
 				continue
 			}
 			if phase == "save" {
@@ -165,7 +189,20 @@ func runNativeSessionRecovery() error {
 					return
 				}
 			}
-			proof := map[string]any{"phase": phase, "host": "ready", "historyReady": snap.HistoryReady, "messages": len(snap.Messages), "selectedOwnedID": id, "modelRequests": 0, "productionSaveResume": phase == "save", "productionOpenResume": phase == "restore", "draftAndAttachment": true, "viewLayout": true, "fileTabsAndUnsavedBuffer": true, "workspaceDiskUntouched": true, "windowHidden": true}
+			contentWidth, contentHeight := win.ContentSize()
+			state.mu.Lock()
+			fileMode := state.fileEditViewMode
+			activePane := state.workspaceSessions.active
+			geometry := map[string]any{"sidebar": state.layout.Sidebar, "transcriptWidth": state.layout.TranscriptWidth, "right": state.layout.Right, "rightTree": state.layout.RightTree}
+			state.mu.Unlock()
+			if fileMode != files.EditViewEdit {
+				finish(fmt.Errorf("fresh native source editor mode = %d, want Edit only", fileMode))
+				return
+			}
+			proof := map[string]any{"phase": phase, "host": "ready", "historyReady": snap.HistoryReady, "messages": len(snap.Messages), "selectedOwnedID": id, "selectedWorkspaceProjectionRendered": projected, "modelRequests": 0, "productionSaveResume": phase == "save", "productionOpenResume": phase == "restore", "draftAndAttachment": true, "viewLayout": true, "fileTabsAndUnsavedBuffer": true, "workspaceDiskUntouched": true, "windowShownWithoutFocus": shown, "contentSizeDIP": []int{contentWidth, contentHeight}}
+			proof["sourceFileEditViewMode"] = fileMode
+			proof["selectedWorkspacePaneKey"] = activePane
+			proof["workspaceGeometryDIP"] = geometry
 			if phase == "restore" {
 				png, err := win.CapturePage()
 				if err != nil {
