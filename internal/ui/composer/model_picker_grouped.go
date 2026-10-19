@@ -189,18 +189,20 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			state.RootFocus = "model"
 		}
 		ui.Popover(c, trigger, &state.Open, func() {
-			ui.Column(c.Key("model-pane:" + state.Pane)).Width(300).Gap(5).HandleInput(func(ev ui.InputEvent) bool {
-				if ev.Kind == ui.InputKeyDown && !state.Composing && (ev.Key == ui.KeyEscape && ev.Mods == 0 || ev.Key == ui.KeyTab && ev.Mods == ui.Shift) {
-					if state.Pane != "root" && hasCurrentChoice {
-						state.Pane, state.Query = "root", ""
-						return true
-					}
+			pane := ui.Column(c.Key("model-pane:" + state.Pane)).Width(300).Gap(5)
+			// HandleInput is delivered only to the focused control itself. A
+			// subtree shortcut owns Escape from both menu buttons and search,
+			// before Popover's fallback dismissal can discard the return focus.
+			if !state.Composing && (pane.Shortcut(0, ui.KeyEscape) || pane.Shortcut(ui.Shift, ui.KeyTab)) {
+				if state.Pane != "root" && hasCurrentChoice {
+					state.Pane, state.Query = "root", ""
+				} else {
 					state.Open = false
 					triggerFocus.RequestFocus(c)
-					return true
+					return
 				}
-				return false
-			}).Children(func() {
+			}
+			pane.Children(func() {
 				if state.Pane == "root" || state.Pane == "" {
 					modelButton := ui.Button(c, composerText("模型", "Model")+"  "+m.Snapshot.SelectedModel+"  ›").FillWidth().Disabled(m.Inert)
 					if state.RootFocus != "effort" {

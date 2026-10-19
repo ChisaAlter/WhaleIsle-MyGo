@@ -180,4 +180,19 @@ func TestGroupedModelPickerEscapeReturnsFocusWithoutSelecting(t *testing.T) {
 	if !tt.Focused("Model catalog") || chosen != "" {
 		t.Fatal("search Escape changed selection or failed to restore trigger focus")
 	}
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(0, ui.KeyRight)
+	if _, ok := tt.Find("Search models"); !ok {
+		t.Fatal("model search pane missing before Shift+Tab")
+	}
+	tt.Key(ui.Shift, ui.KeyTab)
+	if _, ok := tt.Find("Search models"); ok {
+		t.Fatal("Shift+Tab did not return from search to root")
+	}
+	tt.Key(ui.Shift, ui.KeyTab)
+	if !tt.Focused("Model catalog") || chosen != "" {
+		t.Fatal("Shift+Tab changed selection or failed to restore trigger focus")
+	}
 }
