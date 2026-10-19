@@ -16,6 +16,16 @@ type projectHistoricalState struct {
 	generation, navigation uint64
 }
 
+// Activity belongs to an admitted cached request revision, independently of the
+// controller's most recently opened detail card. Caller holds s.mu.
+func (s *projectController) projectActivityHistoricalSourceValidLocked(f *projectFlowState, activity *projectActivityState, view uint64) bool {
+	if activity == nil || f.activity != activity || activity.browser.View() != view {
+		return false
+	}
+	_, known := s.requestRevertCardLocked(activity.owner, activity.request)
+	return known
+}
+
 func (s *projectController) closeProjectHistoricalLocked() {
 	f := s.projectFlow
 	if h := f.historical; h != nil {
@@ -101,7 +111,7 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 				return f.deliveries == delivery && delivery.browser.NavigationToken() == deliveryToken
 			}
 		case "activity":
-			if activity == nil || f.activity != activity || activity.browser.View() != activityToken {
+			if !s.projectActivityHistoricalSourceValidLocked(f, activity, activityToken) {
 				s.mu.Unlock()
 				return
 			}
@@ -128,7 +138,7 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 				}
 			}
 			valid = func(f *projectFlowState) bool {
-				return f.activity == activity && activity.browser.View() == activityToken && f.requestCard == activity.sourceCard && f.requestGeneration == activity.requestGeneration
+				return s.projectActivityHistoricalSourceValidLocked(f, activity, activityToken)
 			}
 		default:
 			s.mu.Unlock()
