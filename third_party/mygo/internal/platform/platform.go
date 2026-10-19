@@ -234,12 +234,14 @@ type WindowOptions struct {
 	TitleBarStyle string
 	// TitleBarHeight is the height of a hidden title bar in DIPs (Linux,
 	// Windows); 0 is the backend's own.
-	TitleBarHeight       int
-	TrafficLightPosition *Point
-	Vibrancy             string
-	Opacity              float64
-	Parent               Window
-	Modal                bool
+	TitleBarHeight           int
+	WindowsCaptionButtons    *WindowsCaptionButtonOptions
+	WindowsFrameCornerRadius int
+	TrafficLightPosition     *Point
+	Vibrancy                 string
+	Opacity                  float64
+	Parent                   Window
+	Modal                    bool
 
 	// UserScripts are injected into every page, in order.
 	UserScripts []UserScript

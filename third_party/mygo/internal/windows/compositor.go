@@ -267,6 +267,7 @@ type compositor struct {
 	target, visual, surface uintptr
 	w, h                    int32
 	px                      []uint32 // the pixels to show, kept from one paint to the next
+	frame                   *frameClip
 	// retry is when to draw again after drawing failed fails times in a
 	// row, with a device that stayed valid.
 	retry time.Time
@@ -354,6 +355,9 @@ func (c *compositor) draw(dev *composition, px []uint32, w, h int32) error {
 	if hr := comCall(c.surface, dcompSurfaceEndDraw); failed(hr) {
 		return hresultError("IDCompositionSurface::EndDraw", hr)
 	}
+	if err := c.applyFrameClip(dev, w, h); err != nil {
+		return err
+	}
 	if hr := comCall(dev.dcomp, dcompDevCommit); failed(hr) {
 		return hresultError("IDCompositionDevice::Commit", hr)
 	}
@@ -361,6 +365,7 @@ func (c *compositor) draw(dev *composition, px []uint32, w, h int32) error {
 }
 
 func (c *compositor) free() {
+	c.freeFrameClip()
 	for _, p := range []*uintptr{&c.surface, &c.visual, &c.target} {
 		if *p != 0 {
 			release(*p)

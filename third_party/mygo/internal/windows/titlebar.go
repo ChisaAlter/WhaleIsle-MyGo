@@ -91,7 +91,8 @@ type captionBar struct {
 	active       bool // the window is the active window
 	// comp shows the buttons in a window without a redirection bitmap,
 	// where UpdateLayeredWindow cannot (compositor.go); nil otherwise.
-	comp *compositor
+	comp    *compositor
+	rounded roundedCaptionRaster
 }
 
 func newCaptionBar(w *window) *captionBar {
@@ -156,11 +157,21 @@ func (w *window) buttonEnabled(b captionButton) bool {
 
 func (w *window) titleBarHeight() int { return cmp.Or(w.opts.TitleBarHeight, captionHeight) }
 
+// captionGeometry keeps the overlay's physical bounds independent of the
+// document's title strip. The default still fills the old system-style strip.
+func (w *window) captionGeometry() (width, height, top, right int) {
+	if o := w.opts.WindowsCaptionButtons; o != nil {
+		return max(cmp.Or(o.Width, 32), 1), max(cmp.Or(o.Height, 32), 1), max(o.Top, 0), max(o.Right, 0)
+	}
+	return captionButtonWidth, w.titleBarHeight(), 0, 0
+}
+
 func (w *window) TitleBar() platform.TitleBar {
 	if w.caption == nil || w.fullScreen {
 		return platform.TitleBar{}
 	}
-	return platform.TitleBar{Height: w.titleBarHeight(), Right: captionButtonWidth * len(w.shownButtons())}
+	bw, _, _, right := w.captionGeometry()
+	return platform.TitleBar{Height: w.titleBarHeight(), Right: bw*len(w.shownButtons()) + right}
 }
 
 // titleBarScript tells the first page the room of the window controls, at
@@ -193,21 +204,28 @@ func (c *captionBar) layout() {
 	dpi := dpiOf(w.hwnd)
 	var r rect
 	procGetClientRect.Call(w.hwnd, uintptr(unsafe.Pointer(&r)))
-	width := toPx(captionButtonWidth, dpi) * int32(len(c.shown))
-	height := toPx(w.titleBarHeight(), dpi)
-	x := r.Right - width
+	bw, bh, top, right := w.captionGeometry()
+	width := toPx(bw, dpi) * int32(len(c.shown))
+	height := toPx(bh, dpi)
+	x := r.Right - width - toPx(right, dpi)
 	show := uintptr(swpShowWindow)
 	if w.fullScreen {
 		show = swpHideWindow
 	}
 	// HWND_TOP (0): above the webview's window, created after them.
-	procSetWindowPos.Call(c.buttons, 0, uintptr(x), 0, uintptr(width), uintptr(height), swpNoActivate|show)
+	procSetWindowPos.Call(c.buttons, 0, uintptr(x), uintptr(toPx(top, dpi)), uintptr(width), uintptr(height), swpNoActivate|show)
 	if c.edge != 0 {
 		edge := uintptr(swpShowWindow)
 		if w.fullScreen || w.IsMaximized() || !w.hasStyle(wsThickFrame) {
 			edge = swpHideWindow // nothing resizes it
 		}
-		procSetWindowPos.Call(c.edge, 0, 0, 0, uintptr(max(x, 0)), uintptr(resizeBorder(dpi)), swpNoActivate|edge)
+		edgeWidth := max(x, 0)
+		if top > 0 {
+			// The inset controls leave the whole top border available,
+			// including the top-right corner above the close button.
+			edgeWidth = r.Right
+		}
+		procSetWindowPos.Call(c.edge, 0, 0, 0, uintptr(edgeWidth), uintptr(resizeBorder(dpi)), swpNoActivate|edge)
 	}
 	c.paint()
 }
@@ -248,8 +266,9 @@ func (c *captionBar) indexAt(lp uintptr) int {
 	pt := point{getXParam(lp), getYParam(lp)}
 	procScreenToClient.Call(c.buttons, uintptr(unsafe.Pointer(&pt)))
 	dpi := dpiOf(c.w.hwnd)
-	bw := toPx(captionButtonWidth, dpi)
-	if pt.X < 0 || pt.Y < 0 || pt.Y >= toPx(c.w.titleBarHeight(), dpi) || bw <= 0 {
+	width, height, _, _ := c.w.captionGeometry()
+	bw := toPx(width, dpi)
+	if pt.X < 0 || pt.Y < 0 || pt.Y >= toPx(height, dpi) || bw <= 0 {
 		return -1
 	}
 	if i := int(pt.X / bw); i < len(c.shown) {
@@ -291,6 +310,13 @@ func (c *captionBar) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, b
 			if pt.X < toPx(resizeCornerSize, dpiOf(w.hwnd)) {
 				return htTopLeft, true
 			}
+			if w.opts.WindowsCaptionButtons != nil {
+				var bounds rect
+				procGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&bounds)))
+				if pt.X >= bounds.Right-toPx(resizeCornerSize, dpiOf(w.hwnd)) {
+					return htTopRight, true
+				}
+			}
 			return htTop, true
 		case wmNCLButtonDown, wmNCLButtonDblClk:
 			// The window resizes from its top edge, or a double click
@@ -301,6 +327,14 @@ func (c *captionBar) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, b
 		return 0, false
 	}
 	switch m {
+	case wmSetCursor:
+		if w.opts.WindowsCaptionButtons != nil {
+			hit := uintptr(loword(lp))
+			if hit == htMinButton || hit == htMaxButton || hit == htClose {
+				procSetCursor.Call(cursorHandle(platform.CursorPointer))
+				return 1, true
+			}
+		}
 	case wmNCHitTest:
 		if i := c.indexAt(lp); i >= 0 && w.buttonEnabled(c.shown[i]) {
 			return c.shown[i].hitTest(), true
@@ -326,6 +360,12 @@ func (c *captionBar) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, b
 		// Not DefWindowProc: it would run the system's buttons on this
 		// child window.
 		if i := c.indexAt(lp); i >= 0 && w.buttonEnabled(c.shown[i]) {
+			if w.opts.WindowsCaptionButtons != nil {
+				// The inset controls' pointerdown action runs immediately,
+				// as in the app's original controls; release must not repeat it.
+				c.click(c.shown[i])
+				return 0, true
+			}
 			c.pressed = i
 			c.paint()
 		}
@@ -360,6 +400,9 @@ var (
 // close. At rest the backplate is all but transparent, which keeps the
 // buttons' window taking the mouse there.
 func (c *captionBar) colors(i int, b captionButton, dark, fluent bool) (back, fore rgba) {
+	if c.w.opts.WindowsCaptionButtons != nil {
+		return c.roundedColors(i, b, dark)
+	}
 	fore = rgba{0, 0, 0, 0xE4}
 	if dark {
 		fore = rgba{0xFF, 0xFF, 0xFF, 0xFF}
@@ -402,7 +445,8 @@ func over(fore rgba, cov uint32, back rgba) uint32 {
 func (c *captionBar) paint() {
 	w := c.w
 	dpi := dpiOf(w.hwnd)
-	bw, height := toPx(captionButtonWidth, dpi), toPx(w.titleBarHeight(), dpi)
+	buttonWidth, buttonHeight, _, _ := w.captionGeometry()
+	bw, height := toPx(buttonWidth, dpi), toPx(buttonHeight, dpi)
 	width := bw * int32(len(c.shown))
 	if width <= 0 || height <= 0 {
 		return
@@ -421,6 +465,11 @@ func (c *captionBar) paint() {
 		}
 		defer img.free()
 		px = img.px
+	}
+	if w.opts.WindowsCaptionButtons != nil {
+		c.paintRounded(px, width, height, bw, dpi)
+		c.showPixels(screen, img, px, width, height)
+		return
 	}
 	mask := newBitmap(screen, width, height)
 	if mask == nil {
@@ -452,6 +501,10 @@ func (c *captionBar) paint() {
 			}
 		}
 	}
+	c.showPixels(screen, img, px, width, height)
+}
+
+func (c *captionBar) showPixels(screen uintptr, img *bitmap, px []uint32, width, height int32) {
 	if c.comp != nil {
 		c.comp.show(px, width, height)
 		return

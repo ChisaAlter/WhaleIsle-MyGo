@@ -12,6 +12,9 @@ func newGPURenderer(n platform.SurfaceNative) (gpuRenderer, error) {
 		return nil, errors.New("the surface has no window")
 	}
 	if n.Composed {
+		if n.FrameCornerRadius > 0 {
+			return d3d11.NewComposedRounded(n.HWND, n.FrameCornerRadius)
+		}
 		// The window shows its material where the frames are transparent.
 		return d3d11.NewComposed(n.HWND)
 	}

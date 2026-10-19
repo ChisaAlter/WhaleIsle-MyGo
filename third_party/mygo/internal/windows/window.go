@@ -74,13 +74,14 @@ type window struct {
 	inMenu                 bool    // in a menu loop, of the bar or a popup
 	menuKey                menuKey // the letter that opened popupMenuBar
 
-	programmatic bool
-	loading      bool
-	zoom         float64
-	devTools     bool
-	htmlFor      map[string]string // LoadHTML documents by the URL they load at
-	calls        map[int]func(string, error)
-	nextCall     int
+	programmatic        bool
+	roundedFramePending bool
+	loading             bool
+	zoom                float64
+	devTools            bool
+	htmlFor             map[string]string // LoadHTML documents by the URL they load at
+	calls               map[int]func(string, error)
+	nextCall            int
 }
 
 func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler) (platform.Window, error) {
@@ -107,6 +108,12 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 	// style is the window's for life: Windows neither adds it nor removes it
 	// later.
 	w.noRedirect = o.Vibrancy != "" && systemBackdrops() && (!w.hiddenTitleBar && !o.Surface || b.composition() != nil)
+	if w.frameRadius() > 0 {
+		if b.composition() == nil {
+			return nil, errors.New("mygo: transparent rounded native window requires DirectComposition")
+		}
+		w.noRedirect = true
+	}
 	var owner uintptr
 	if p, ok := o.Parent.(*window); ok && p != nil && !p.closed {
 		w.parent, owner = p, p.hwnd
@@ -173,6 +180,10 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		} else {
 			b.whenEnvironment(w.createWebView)
 		}
+	}
+	if err := w.configureRoundedFrame(); err != nil {
+		procDestroyWindow.Call(w.hwnd)
+		return nil, err
 	}
 	return w, nil
 }
@@ -268,6 +279,9 @@ func (w *window) monitor() uintptr {
 
 // message handles a window message; ok false lets DefWindowProc run.
 func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
+	if result, handled := w.roundedFrameMessage(m, wp, lp); handled {
+		return result, true
+	}
 	if m == w.b.taskbarButtonCreated && m != 0 {
 		w.applyTaskbar()
 		return 0, true
@@ -437,6 +451,15 @@ func (w *window) frameCalcSize(wp, lp uintptr) uintptr {
 	params := (*ncCalcSizeParams)(native(lp))
 	if w.IsMaximized() {
 		params.Rgrc[0] = monitorWorkArea(w.monitor())
+		return 0
+	}
+	if w.frameRadius() > 0 {
+		// The transparent app supplies the entire silhouette. Keep only the
+		// Windows 11 top pixel required by the existing native Snap contract;
+		// the surface forwards the other invisible resize edges itself.
+		if w.hiddenTitleBar && windows11() {
+			params.Rgrc[0].Top++
+		}
 		return 0
 	}
 	if windowLong(w.hwnd, gwlStyle)&wsThickFrame != 0 {

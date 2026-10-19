@@ -257,6 +257,7 @@ type Renderer struct {
 	// root of dcomp's target for the window.
 	composed              bool
 	dcomp, target, visual uintptr
+	rounded               *roundedFrame
 
 	// swapChain2 is the swap chain's IDXGISwapChain2 (Windows 8.1), bw×bh
 	// the size of its buffers, larger than w×h while resizing, and
@@ -566,6 +567,9 @@ func (r *Renderer) armSettle() {
 
 // Release frees the renderer's GPU objects.
 func (r *Renderer) Release() {
+	if r.rounded != nil {
+		r.rounded.clip.Close()
+	}
 	if settling[r.hwnd] {
 		delete(settling, r.hwnd)
 		procKillTimer.Call(r.hwnd, settleTimer)
@@ -670,6 +674,11 @@ func (r *Renderer) Render(s *scene.Scene) error {
 	resized := r.swapChain != 0 && (s.Width != r.w || s.Height != r.h)
 	if err := r.draw(s); err != nil {
 		return err
+	}
+	if r.rounded != nil {
+		if err := r.rounded.apply(r, s); err != nil {
+			return err
+		}
 	}
 	// A frame of a new size is presented at once (sync interval 0), not
 	// after the frame queued before it, which would miss the next

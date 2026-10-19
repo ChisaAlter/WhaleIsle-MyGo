@@ -107,6 +107,14 @@ type WindowOptions struct {
 	// 32 on Windows, as Windows 11's own title bars, and the height of the
 	// desktop's header bars on Linux.
 	TitleBarHeight int
+	// WindowsCaptionButtons replaces the default Windows hidden-title-bar
+	// controls with inset rounded buttons. It does not reserve content height.
+	WindowsCaptionButtons *WindowsCaptionButtonOptions
+	// WindowsFrameCornerRadius clips a transparent native-UI window to
+	// circular corners in DIPs using DirectComposition. Maximized and
+	// full-screen windows have square corners. Zero preserves default chrome;
+	// this option requires Transparent and Content and affects Windows only.
+	WindowsFrameCornerRadius int
 
 	DisableResize     bool
 	DisableMove       bool
@@ -459,46 +467,53 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 	po := o.Page
 	p := &platform.WindowOptions{
-		TransientProfile:  po.TransientProfile,
-		BrowserProfile:    po.BrowserProfile,
-		BrowserPartition:  po.BrowserPartition,
-		IsolatedPreview:   po.IsolatedPreview,
-		LocalPDFViewerURL: po.LocalPDFViewerURL,
-		LocalPDFURL:       po.LocalPDFURL,
-		LocalHTMLURL:      po.LocalHTMLURL,
-		LocalMediaURL:     po.LocalMediaURL,
-		Title:             o.Title,
-		X:                 o.X,
-		Y:                 o.Y,
-		Width:             or(o.Width, 800),
-		Height:            or(o.Height, 600),
-		Center:            o.X == 0 && o.Y == 0,
-		UseContentSize:    o.UseContentSize,
-		MinSize:           platform.Size{Width: o.MinWidth, Height: o.MinHeight},
-		MaxSize:           platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
-		Resizable:         !o.DisableResize,
-		Movable:           !o.DisableMove,
-		Minimizable:       !o.DisableMinimize,
-		Maximizable:       !o.DisableMaximize,
-		Closable:          !o.DisableClose,
-		Focusable:         true,
-		Fullscreenable:    !o.DisableFullScreen,
-		AlwaysOnTop:       o.AlwaysOnTop,
-		FullScreen:        o.FullScreen,
-		Maximized:         o.Maximized,
-		SkipTaskbar:       o.SkipTaskbar,
-		AutoHideMenu:      o.AutoHideMenuBar,
-		HasShadow:         !o.DisableShadow,
-		Frameless:         o.Frameless,
-		Transparent:       o.Transparent,
-		TitleBarStyle:     string(o.TitleBarStyle),
-		TitleBarHeight:    max(o.TitleBarHeight, 0),
-		Vibrancy:          string(o.Vibrancy),
-		Opacity:           o.Opacity,
-		Modal:             o.Modal,
-		UserAgent:         po.UserAgent,
-		Zoom:              po.ZoomFactor,
-		Schemes:           Protocol.schemes(),
+		TransientProfile:         po.TransientProfile,
+		BrowserProfile:           po.BrowserProfile,
+		BrowserPartition:         po.BrowserPartition,
+		IsolatedPreview:          po.IsolatedPreview,
+		LocalPDFViewerURL:        po.LocalPDFViewerURL,
+		LocalPDFURL:              po.LocalPDFURL,
+		LocalHTMLURL:             po.LocalHTMLURL,
+		LocalMediaURL:            po.LocalMediaURL,
+		Title:                    o.Title,
+		X:                        o.X,
+		Y:                        o.Y,
+		Width:                    or(o.Width, 800),
+		Height:                   or(o.Height, 600),
+		Center:                   o.X == 0 && o.Y == 0,
+		UseContentSize:           o.UseContentSize,
+		MinSize:                  platform.Size{Width: o.MinWidth, Height: o.MinHeight},
+		MaxSize:                  platform.Size{Width: o.MaxWidth, Height: o.MaxHeight},
+		Resizable:                !o.DisableResize,
+		Movable:                  !o.DisableMove,
+		Minimizable:              !o.DisableMinimize,
+		Maximizable:              !o.DisableMaximize,
+		Closable:                 !o.DisableClose,
+		Focusable:                true,
+		Fullscreenable:           !o.DisableFullScreen,
+		AlwaysOnTop:              o.AlwaysOnTop,
+		FullScreen:               o.FullScreen,
+		Maximized:                o.Maximized,
+		SkipTaskbar:              o.SkipTaskbar,
+		AutoHideMenu:             o.AutoHideMenuBar,
+		HasShadow:                !o.DisableShadow,
+		Frameless:                o.Frameless,
+		Transparent:              o.Transparent,
+		TitleBarStyle:            string(o.TitleBarStyle),
+		TitleBarHeight:           max(o.TitleBarHeight, 0),
+		WindowsFrameCornerRadius: max(o.WindowsFrameCornerRadius, 0),
+		Vibrancy:                 string(o.Vibrancy),
+		Opacity:                  o.Opacity,
+		Modal:                    o.Modal,
+		UserAgent:                po.UserAgent,
+		Zoom:                     po.ZoomFactor,
+		Schemes:                  Protocol.schemes(),
+	}
+	if c := o.WindowsCaptionButtons; c != nil {
+		p.WindowsCaptionButtons = &platform.WindowsCaptionButtonOptions{
+			Width: c.Width, Height: c.Height, Top: c.Top, Right: c.Right,
+			CornerRadius: c.CornerRadius, GlyphSize: c.GlyphSize,
+		}
 	}
 	if p.Title == "" {
 		p.Title = App.Name()

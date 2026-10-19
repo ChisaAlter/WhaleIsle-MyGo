@@ -391,3 +391,58 @@ containment/readiness, theme/transparent background, native child clipping,
 parent input delivery, thumbnail/lightbox transitions and process release all
 remain unverified until the coordinated runtime phase. Source wiring alone is
 not evidence those native operations passed.
+
+### DESK03: opt-in native caption and transparent frame geometry
+
+Fixed source evidence is `e353e8e13fa0e7f9cb6bc16368e2fc00d6b3be49`:
+`src/renderer/window-controls.css` and `window-controls.js`,
+`src/main/harness-chrome-inject.js`, `src/main/native-window-motion.js`,
+`src/main/chrome.js`, and ui-theme `styles/design-platform.css`. The referenced
+paths were also compared with the original worktree and have no dirty diff.
+The controls are a fixed 48px overlay, not 48px added to document flow: their
+buttons are 32x32 at top/right8, radius8, with actual rounded 12-unit SVG glyphs.
+The main body retains its existing title strip instead of shifting down36px.
+
+`mygo.WindowOptions.WindowsCaptionButtons` is copied into platform options;
+nil keeps the existing SDK controls unchanged. For the app's explicit
+32/32/8/8/r8/g12 option, `titlebar.go` uses the same dimensions for positioning,
+paint and native hit testing; reports right104 independently of title-strip
+height; preserves `HTMAXBUTTON`/`DefWindowProc` Snap handling; uses the original
+pointerdown action and pointer cursor. `caption_rounded.go` draws the actual
+min/max/restore/close vector geometry, caches its coverage, and uses source
+light/dark label/hover tokens and close `#e81123`. Source inject reserves an
+additional8px cluster gap (112px total); the app's existing right padding owns
+that content spacing. Its anti-aliasing uses a4x4 coverage grid, not a claim of
+identical Chromium rasterization. A one-alpha native hit plate keeps each
+transparent rectangular button target operable.
+
+`Transparent:true` plus native `Content` plus
+`WindowsFrameCornerRadius:20` explicitly selects existing DirectComposition
+alpha presentation; zero leaves SDK window defaults unchanged. CPU bitmap and
+GPU swap-chain visuals share a circular `IDCompositionRectangleClip` through
+`internal/gpu/d3d11/roundclip`; DPI resize updates the physical radius, and
+maximize/fullscreen remove it. Clip, visual and device lifetimes stay on their
+existing render thread, with clip release before visual/device release. COM
+errors are returned into the real presentation path. No new shader, browser,
+external dependency, download or retry mechanism is added.
+
+The native window keeps caption/thick-frame styles and native state animation,
+disables DWM non-client paint and the Windows11 OS corner mask, and restores
+that policy after an enabled-DWM notification using one coalesced posted
+message. App-only frame calculation removes the side/bottom native insets;
+the native surface forwards the actual resize-edge hit codes to its parent.
+The SDK's existing one-physical-pixel Windows11 top inset remains for native
+Snap behavior. The original one-physical-pixel inside frame ring is app/root
+paint wiring: BorderL2 is black.10 in light appearance, white.12 in dark, and
+the ring is hidden when maximized/fullscreen.
+
+COM slots are derived from the installed Windows SDK10.0.26100 dcomp.h and
+MSVC overload ordering: device CreateRectangleClip24, Visual.SetClip(Clip*)13,
+RectangleClip float properties4,6,...,26. AMD64 uses the existing SyscallN XMM
+argument mirroring. ARM64 has a narrow static assembly thunk that transfers
+float bits to S0 then tail-calls the COM method through the normal SyscallN
+foreign-call entry; it adds no executable allocation or cgo. Source formatting
+and whitespace checks are the only checks in this phase. Compilation on both
+architectures, COM ABI execution, GPU availability, visual alpha/DPI/resize,
+Snap/animation, pointer interaction, and app ring/layout remain unverified
+until the coordinated validation phase; no hardware result is inferred here.
