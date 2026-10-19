@@ -69,11 +69,11 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 		var inv api.SkillInventorySnapshot
 		err := client.Call(ctx, "skillInventory/list", map[string]any{"request": scope}, &inv)
 		notice := ""
-		if err != nil && sid != "" {
-			scope.SessionId = nil
+		if err != nil && (sid != "" || cwd != "") {
+			scope = api.SkillInventoryScope{}
 			err = client.Call(ctx, "skillInventory/list", map[string]any{"request": scope}, &inv)
 			if err == nil {
-				notice = "Session skill catalog unavailable; showing global skills."
+				notice = "Scoped skill catalog unavailable; showing global skills."
 			}
 		}
 		s.mu.Lock()
@@ -84,7 +84,6 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 		s.skillCatalogLoading = false
 		if err != nil {
 			s.skillCatalog.Err = err.Error()
-			s.skillCatalog.Skills = nil
 		} else {
 			s.skillCatalog.Skills = inv.Skills
 			s.skillCatalog.Err = ""
