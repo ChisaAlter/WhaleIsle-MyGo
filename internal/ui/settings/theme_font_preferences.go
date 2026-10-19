@@ -3,7 +3,6 @@ package settings
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
-	"time"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -28,36 +27,67 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		label string
 		value *string
 	}{{providerCopy("浅色主题", "Light theme"), &e.Draft.Light}, {providerCopy("深色主题", "Dark theme"), &e.Draft.Dark}} {
-		bodyPreferenceRow(c, "theme-half-"+half.label, half.label, "", fg, muted, func() { ui.Select(c, half.value, ids).FillWidth().Label(half.label) })
+		bodyPreferenceRow(c, "theme-half-"+half.label, half.label, "", fg, muted, func() {
+			if ui.Select(c, half.value, ids).FillWidth().Label(half.label).Disabled(e.OnSave == nil).Changed() {
+				e.SelectThemeHalf(half.value == &e.Draft.Dark, *half.value)
+			}
+		})
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		for _, f := range e.Draft.Families() {
 			ui.Column(c.Key("theme-family-" + f.ID)).Width(124).MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).Gap(2).Children(func() {
-					for _, s := range []theme.Seed{f.Light, f.Dark} {
-						ui.Text(c, "Aa").Width(60).Height(42).FontSize(20).Background(chrome.Color(s.Background)).TextColor(chrome.Color(s.Foreground)).Padding(8)
+					for index, s := range []theme.Seed{f.Light, f.Dark} {
+						if ui.Button(c, "Aa").Width(60).Height(42).FontSize(20).Background(chrome.Color(s.Background)).TextColor(chrome.Color(s.Foreground)).Padding(8).Disabled(e.OnSave == nil).Clicked() {
+							e.SelectThemeHalf(index == 1, f.ID)
+						}
 					}
 				})
 				ui.Text(c, f.Name).FillWidth().SingleLine().Tooltip(f.Name).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				ui.Row(c).Wrap().Gap(4).Children(func() {
+					if ui.Button(c, providerCopy("复制", "Duplicate")).Disabled(e.OnSave == nil).Clicked() {
+						copy := e.Draft.DuplicateFamily(f)
+						e.StartFamily(copy)
+					}
+				})
 			})
 		}
 	})
-	bodyDisclosure(c, "custom-theme-editor", providerCopy("自定义主题", "Custom themes"), func() {
+	ui.Row(c).Wrap().Gap(8).Children(func() {
+		if ui.Button(c, providerCopy("创建主题", "Create theme")).Disabled(e.OnSave == nil).Clicked() {
+			e.StartFamily(e.Saved.DuplicateFamily(e.Saved.Family(e.Saved.Dark)))
+		}
+		if e.OnImport != nil && ui.Button(c, providerCopy("导入主题文件", "Import theme file")).Disabled(e.OnSave == nil).Clicked() {
+			raw, err := e.OnImport()
+			if err != nil {
+				e.Status = err.Error()
+			} else if raw != "" {
+				if family, err := e.Saved.ImportFamily(raw); err != nil {
+					e.Status = err.Error()
+				} else {
+					e.Draft = e.Saved.Clone()
+					e.Draft.Custom = append(e.Draft.Custom, family)
+					e.Save()
+				}
+			}
+		}
+	})
+	ui.Column(c.Key("custom-theme-editor")).FillWidth().Gap(8).Children(func() {
 		customIDs := []string{""}
 		for _, f := range e.Draft.Custom {
 			customIDs = append(customIDs, f.ID)
 		}
-		ui.Select(c, &e.Selected, customIDs).FillWidth().Label(providerCopy("选择自定义主题", "Select custom theme"))
+		if ui.Select(c, &e.Selected, customIDs).FillWidth().Label(providerCopy("选择自定义主题", "Select custom theme")).Changed() && e.Selected != "" {
+			e.StartFamily(e.Draft.Family(e.Selected))
+		}
 		ui.Row(c).Wrap().Gap(8).Children(func() {
 			if ui.Button(c, providerCopy("复制浅色主题", "Duplicate light theme")).Clicked() {
-				f := e.Draft.Family(e.Draft.Light)
-				f.ID = fmt.Sprintf("custom-%d", time.Now().UnixNano())
-				f.Name += " copy"
-				e.Draft.Custom = append(e.Draft.Custom, f)
-				e.Selected = f.ID
+				f := e.Draft.DuplicateFamily(e.Draft.Family(e.Draft.Light))
+				e.StartFamily(f)
 			}
 			if ui.Button(c, providerCopy("删除自定义主题", "Delete custom theme")).Disabled(e.Selected == "").Clicked() {
 				e.DeleteSelected()
+				e.Save()
 			}
 		})
 		for i := range e.Draft.Custom {
@@ -66,6 +96,9 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				continue
 			}
 			ui.TextInput(c, &f.Name).FillWidth().Label(providerCopy("主题名称", "Theme name"))
+			if ui.Button(c, providerCopy("导出主题 JSON", "Export theme JSON")).Clicked() {
+				c.WriteClipboard(theme.SerializeFamily(*f))
+			}
 			for _, variant := range []struct {
 				label string
 				seed  *theme.Seed
@@ -77,7 +110,40 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				}{{providerCopy("背景", "Background"), &variant.seed.Background}, {providerCopy("文字", "Foreground"), &variant.seed.Foreground}, {providerCopy("强调色", "Accent"), &variant.seed.Accent}} {
 					bodyPreferenceRow(c, "color-"+variant.label+color.label, color.label, "#RRGGBB", fg, muted, func() { ui.TextInput(c, color.value).FillWidth().Label(variant.label + " " + color.label) })
 				}
+				contrast := variant.seed.ContrastValue()
+				bodyPreferenceRow(c, "contrast-"+variant.label, providerCopy("对比度", "Contrast"), "", fg, muted, func() {
+					if ui.StepSlider(c, &contrast, 0, 100, 1).FillWidth().Changed() {
+						variant.seed.Contrast = &contrast
+					}
+				})
+				bodyDisclosure(c, "overrides-"+variant.label, providerCopy("高级颜色覆盖", "Advanced token overrides"), func() {
+					for _, key := range []string{"--dsw-alias-bg-base", "--dsw-alias-bg-layer-1", "--dsw-alias-bg-layer-2", "--dsw-alias-bg-overlay", "--dsw-alias-label-primary", "--dsw-alias-label-secondary", "--dsw-alias-brand-primary", "--dsw-alias-state-business-primary", "--dsw-alias-button-info-fill", "--dsw-alias-border-l1", "--dsw-alias-border-l2", "--dsw-specific-sidebar-fill", "--dsw-specific-bubble"} {
+						value := variant.seed.Overrides[key]
+						if ui.TextInput(c, &value).FillWidth().Label(key).Placeholder("Auto").Changed() {
+							if variant.seed.Overrides == nil {
+								variant.seed.Overrides = map[string]string{}
+							}
+							if value == "" {
+								delete(variant.seed.Overrides, key)
+							} else {
+								variant.seed.Overrides[key] = value
+							}
+						}
+					}
+				})
 			}
+		}
+		if e.Selected != "" {
+			e.PreviewSelectedFamily()
+			ui.Row(c).Gap(8).Children(func() {
+				if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
+					e.Cancel()
+					e.Selected = ""
+				}
+				if ui.PrimaryButton(c, providerCopy("保存主题", "Save theme")).Disabled(e.OnSave == nil).Clicked() {
+					e.SaveSelectedFamily()
+				}
+			})
 		}
 	})
 }
@@ -211,32 +277,33 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		return
 	}
 	bodyHeading(c, providerCopy("字体与字号", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
-	render := func(label string, f *theme.FontPreference, family func(string) string) {
-		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() { ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")) })
-		value := float64(f.Size)
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			if ui.StepSlider(c, &value, 8, 48, 1).Grow(1).MinWidth(0).Label(label + providerCopy("字号", " size")).Changed() {
-				f.Size = float32(value)
+	render := func(role, label string, f *theme.FontPreference, family func(string) string, lo, hi float64, size bool) {
+		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() {
+			if ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")).Disabled(e.OnSave == nil).Changed() {
+				e.SaveAppearanceFont(role, *f)
 			}
-			ui.Text(c, fmt.Sprintf("%.0f px", f.Size)).Width(44).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		})
+		value := float64(f.Size)
+		if size {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+				if ui.StepSlider(c, &value, lo, hi, 1).Grow(1).MinWidth(0).Label(label + providerCopy("字号", " size")).Disabled(e.OnSave == nil).Changed() {
+					f.Size = float32(value)
+					e.SaveAppearanceFont(role, *f)
+				}
+				ui.Text(c, fmt.Sprintf("%.0f px", f.Size)).Width(44).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			})
+		}
 		ui.Text(c, providerCopy("预览 字体 Aa 0123", "Preview Aa 0123")).FillWidth().Font(family(f.Family)).FontSize(f.Size).TextColor(fg)
 	}
-	render(providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily)
-	render(providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily)
+	render("interface", providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily, 12, 22, true)
+	render("code", providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily, 10, 20, true)
 	bodyDisclosure(c, "typography-advanced", providerCopy("高级字体设置", "Advanced typography"), func() {
-		render(providerCopy("聊天", "Chat"), &e.Draft.Chat, theme.TextFamily)
-		render(providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily)
-		render(providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f })
+		render("composer", providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily, 10, 22, false)
+		render("terminal", providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f }, 10, 20, false)
 	})
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Clicked() {
-			d := theme.Defaults()
-			e.Draft.Interface = d.Interface
-			e.Draft.Chat = d.Chat
-			e.Draft.Code = d.Code
-			e.Draft.Composer = d.Composer
-			e.Draft.Terminal = d.Terminal
+			e.ResetAppearanceFonts()
 		}
 		if ui.Button(c, providerCopy("预览", "Preview")).Clicked() {
 			e.ApplyPreview()

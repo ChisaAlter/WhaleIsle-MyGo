@@ -29,6 +29,12 @@ func (s *Store) BindDescribedPreferences() (ViewState, uint64, func(context.Cont
 	s.mu.Unlock()
 	return snapshot, generation, func(ctx context.Context, namespace string, values map[string]string) {
 		if client != nil {
+			if namespace == CustomInstructionsNamespace && len(values) == 1 {
+				if text, ok := values[CustomInstructionsField]; ok {
+					s.queueInstructions(client, generation, text)
+					return
+				}
+			}
 			s.patchDescribedFieldsOwned(ctx, namespace, values, client, generation)
 		}
 	}
@@ -40,6 +46,12 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 	ns := s.findNamespaceLocked(namespace)
 	if client == nil || s.describedClient != client || s.loading || s.saving || !s.writable || ns == nil || (owner != nil && (client != owner || generation != ownerGeneration)) {
 		s.mu.Unlock()
+		return
+	}
+	if err := validateCustomInstructions(namespace, values); err != nil {
+		s.err, s.lastAction = err, err.Error()
+		s.mu.Unlock()
+		s.fire()
 		return
 	}
 	ops := []json.RawMessage{}

@@ -91,6 +91,7 @@ func (s *Store) ResetDraft(key string) {
 		if field.Key != key {
 			continue
 		}
+		s.beginDraftLocked(ns.NS)
 		s.ensureDraftsLocked(ns.NS)
 		if s.resets == nil {
 			s.resets = map[string]map[string]bool{}

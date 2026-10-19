@@ -16,6 +16,10 @@ import (
 
 // Model is sidebar state for one frame.
 type Model struct {
+	ConnectionReady              bool
+	ConnectionConnecting         bool
+	ConnectionEpoch              uint64
+	OnReconnect                  func()
 	PendingStatuses              map[string]string
 	sessionDrag                  *sessionDragContext
 	Batch                        session.SessionBatch
@@ -109,6 +113,8 @@ func View(c *ui.Context, m Model) {
 			if ui.Button(c, "›").Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand)+" (Ctrl+B)").FillWidth().Height(40).Clicked() && m.OnToggle != nil {
 				m.OnToggle()
 			}
+			ui.Spacer(c)
+			settingsConnectionTrigger(c, m, colors, true)
 		})
 		return
 	}
@@ -284,12 +290,7 @@ func View(c *ui.Context, m Model) {
 					m.OnContactAccount()
 				}
 				if m.OnOpenSettings != nil {
-					btn := ui.Button(c, i18n.T(i18n.KeySettingsOpen)).FillWidth().Height(32).Radius(8).
-						BorderWidth(0).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(13)).
-						Padding(0, 8, 0, 8).AlignItems(ui.Center)
-					if btn.Clicked() {
-						m.OnOpenSettings()
-					}
+					settingsConnectionTrigger(c, m, colors, false)
 				}
 			})
 		})

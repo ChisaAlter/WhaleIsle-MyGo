@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/draw"
 	"math"
-	"os"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
@@ -133,7 +132,7 @@ func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
 	if s.path == path && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil {
 		return s.bitmap
 	}
-	data, err := os.ReadFile(path)
+	data, err := wallpaperImageBytes(path)
 	if err != nil {
 		return nil
 	}

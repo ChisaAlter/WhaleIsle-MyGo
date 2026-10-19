@@ -62,13 +62,15 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 	}
 	anchor.Children(func() {
 		bodyHeading(c, i18n.T(i18n.KeyCustomInstructionsTitle), i18n.T(i18n.KeyCustomInstructionsScope), fg, muted)
-		ui.TextArea(c, &draft.Value).FillWidth().Lines(4, 10).Label(i18n.T(i18n.KeyCustomInstructionsTitle)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading)
+		if ui.TextArea(c, &draft.Value).FillWidth().Lines(4, 10).Label(i18n.T(i18n.KeyCustomInstructionsTitle)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading).Changed() && a.OnChange != nil {
+			draft.Value = store.LimitCustomInstructions(draft.Value)
+			if store.CustomInstructionsLength(draft.Value) <= store.CustomInstructionsMaxLength {
+				a.OnChange(store.CustomInstructionsNamespace, store.CustomInstructionsField, draft.Value)
+			}
+		}
 		ui.Text(c, fmt.Sprintf("%d / %d", store.CustomInstructionsLength(draft.Value), store.CustomInstructionsMaxLength)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if store.CustomInstructionsLength(draft.Value) > store.CustomInstructionsMaxLength {
 			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FillWidth().TextColor(fg)
-		}
-		if ui.Button(c, providerCopy("保存自定义指令", "Save custom instructions")).Disabled(bodyHostDisabled(a) || draft.Value == value || store.CustomInstructionsLength(draft.Value) > store.CustomInstructionsMaxLength).Clicked() {
-			a.OnChange(store.CustomInstructionsNamespace, store.CustomInstructionsField, draft.Value)
 		}
 	})
 }

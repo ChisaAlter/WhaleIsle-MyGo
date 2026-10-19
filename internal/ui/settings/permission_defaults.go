@@ -86,6 +86,12 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 		if label == "" {
 			label = option.Value
 		}
+		for _, other := range defaults.Options {
+			if other.Value != option.Value && other.Name == option.Name {
+				label += " (" + option.Value + ")"
+				break
+			}
+		}
 		options = append(options, label)
 		values[label] = option.Value
 		if option.Value == value {

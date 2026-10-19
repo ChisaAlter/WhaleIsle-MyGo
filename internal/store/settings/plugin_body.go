@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 )
 
 // NamespaceBinding captures one namespace and Host generation without changing
@@ -70,6 +69,7 @@ func (b *NamespaceBinding) Snapshot() ViewState {
 		st.Err = s.err.Error()
 	}
 	ns := *s.findNamespaceLocked(b.namespace)
+	ns.DraftRevision, ns.HasDraftRevision = s.draftRevisions[b.namespace]
 	ns.Fields = append([]Field{}, ns.Fields...)
 	ns.Value = append(json.RawMessage{}, ns.Value...)
 	ns.Base = append(json.RawMessage{}, ns.Base...)
@@ -99,6 +99,7 @@ func (b *NamespaceBinding) SetDraft(key, value string) {
 		s.mu.Unlock()
 		return
 	}
+	s.beginDraftLocked(b.namespace)
 	s.ensureDraftsLocked(b.namespace)
 	if s.dirty[b.namespace] == nil {
 		s.dirty[b.namespace] = map[string]bool{}
@@ -106,6 +107,7 @@ func (b *NamespaceBinding) SetDraft(key, value string) {
 	s.drafts[b.namespace][key] = value
 	s.dirty[b.namespace][key] = true
 	delete(s.resets[b.namespace], key)
+	s.err, s.lastAction = nil, ""
 	s.mu.Unlock()
 	s.fire()
 }
@@ -119,6 +121,7 @@ func (b *NamespaceBinding) Reset(key string) {
 	ns := s.findNamespaceLocked(b.namespace)
 	for _, field := range ns.Fields {
 		if field.Key == key {
+			s.beginDraftLocked(b.namespace)
 			s.ensureDraftsLocked(b.namespace)
 			if s.resets == nil {
 				s.resets = map[string]map[string]bool{}
@@ -132,6 +135,7 @@ func (b *NamespaceBinding) Reset(key string) {
 			s.resets[b.namespace][key] = true
 			s.dirty[b.namespace][key] = true
 			s.drafts[b.namespace][key] = ValueDraft(ns.Base, key, field.Kind)
+			s.err, s.lastAction = nil, ""
 			break
 		}
 	}
@@ -148,6 +152,7 @@ func (b *NamespaceBinding) Discard() {
 	delete(s.drafts, b.namespace)
 	delete(s.dirty, b.namespace)
 	delete(s.resets, b.namespace)
+	delete(s.draftRevisions, b.namespace)
 	s.ensureDraftsLocked(b.namespace)
 	s.mu.Unlock()
 	s.fire()
@@ -156,75 +161,5 @@ func (b *NamespaceBinding) Discard() {
 // Save uses the existing field diff, secret-preservation guard and namespace
 // revision. Its reply acknowledges only the drafts that were actually sent.
 func (b *NamespaceBinding) Save(ctx context.Context) {
-	s := b.store
-	s.mu.Lock()
-	if !b.currentLocked() || s.saving || s.loading || !s.writable || s.client == nil {
-		s.mu.Unlock()
-		return
-	}
-	ns := *s.findNamespaceLocked(b.namespace)
-	drafts := copyDrafts(s.drafts[b.namespace])
-	resets := copyFlags(s.resets[b.namespace])
-	patch, ops, submitted, err := draftWrite(ns, drafts, s.dirty[b.namespace], resets)
-	if err == nil && !resets[CustomInstructionsField] {
-		err = validateCustomInstructions(ns.NS, drafts)
-	}
-	if err != nil {
-		s.err = err
-		s.lastAction = err.Error()
-		s.mu.Unlock()
-		s.fire()
-		return
-	}
-	if len(patch) == 0 && len(ops) == 0 {
-		s.acknowledgeDraftsLocked(ns, submitted, resets)
-		s.mu.Unlock()
-		s.fire()
-		return
-	}
-	s.saving = true
-	s.err = nil
-	s.mu.Unlock()
-	s.fire()
-	go func() {
-		method := "settings/update"
-		args := map[string]any{"ns": ns.NS, "patch": patch, "expectedRevision": ns.Revision}
-		enables := visualReplyEnabled(patch)
-		if len(ops) > 0 {
-			method = "settings/mutate"
-			delete(args, "patch")
-			args["ops"] = ops
-			enables = visualReplyMutationEnables(ops)
-		}
-		err := s.verifyVisualReplyEnable(ctx, ns.NS, enables, b.client.Endpoint.Origin, b.generation)
-		var out api.SettingsNamespaceView
-		if err == nil {
-			err = b.client.Call(ctx, method, args, &out)
-		}
-		s.mu.Lock()
-		if !b.currentLocked() {
-			s.mu.Unlock()
-			return
-		}
-		s.saving = false
-		if err != nil {
-			s.err = err
-			s.lastAction = err.Error()
-			s.mu.Unlock()
-			s.fire()
-			return
-		}
-		s.err = nil
-		s.lastAction = "settings saved"
-		current := s.findNamespaceLocked(ns.NS)
-		current.Revision = out.Revision
-		current.Value = append(json.RawMessage{}, out.Value...)
-		current.Base = append(json.RawMessage{}, out.Base...)
-		current.User = append(json.RawMessage{}, out.User...)
-		current.HasSecrets = hasSetSecrets(out.Secrets)
-		current.SecretPaths = configuredSecretPaths(out.Secrets)
-		s.acknowledgeDraftsLocked(*current, submitted, resets)
-		s.mu.Unlock()
-		s.fire()
-	}()
+	b.SaveSequence(ctx)
 }

@@ -1,11 +1,15 @@
 package settings
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"image"
+	"image/png"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/wallpapers"
@@ -16,6 +20,7 @@ type WallpaperEditor struct {
 	Prefs                          wallpapers.Preferences
 	Saved                          wallpapers.Preferences
 	Save                           func(wallpapers.Preferences) error
+	Pending                        func() bool
 	Apply                          func(string) error
 	Run                            func(func() func())
 	Directory                      string
@@ -25,11 +30,24 @@ type WallpaperEditor struct {
 	Thumbs                         map[string]*ui.Bitmap
 	Page, NextPage, LocalPage      int
 	Busy                           bool
+	Inline                         bool
 	Status                         string
 	generation                     int
 	previewSource                  image.Image
 	preview                        *ui.Bitmap
 	cropOpen                       bool
+}
+
+func (g *WallpaperEditor) Cropping() bool { return g.cropOpen }
+
+func (g *WallpaperEditor) RetireOwner() {
+	g.generation++
+	g.Busy = false
+	g.cropOpen = false
+	g.previewSource = nil
+	g.preview = nil
+	g.Items = nil
+	g.Thumbs = map[string]*ui.Bitmap{}
 }
 
 func NewWallpaperEditor(p wallpapers.Preferences, dir string, save func(wallpapers.Preferences) error, apply func(string) error, run func(func() func())) *WallpaperEditor {
@@ -46,6 +64,9 @@ func (g *WallpaperEditor) commit() bool {
 	}
 	g.Saved = g.Prefs.Clone()
 	g.Status = "已保存背景和图库设置"
+	if g.Pending != nil && g.Pending() {
+		g.Status = providerCopy("正在保存背景设置…", "Saving background settings…")
+	}
 	return true
 }
 func (g *WallpaperEditor) Favorite(item wallpapers.Item) bool {
@@ -163,15 +184,23 @@ func (g *WallpaperEditor) download(item wallpapers.Item) {
 	g.importImage(func() ([]byte, error) { return wallpapers.Fetch(context.Background(), item.ImageURL, true) })
 }
 func (g *WallpaperEditor) importImage(read func() ([]byte, error)) {
+	g.generation++
+	generation, inline := g.generation, g.Inline
 	g.Busy = true
 	g.Status = "正在准备壁纸…"
 	g.Run(func() func() {
 		data, err := read()
 		path := ""
-		if err == nil {
+		var decoded image.Image
+		if err == nil && inline {
+			decoded, err = wallpapers.Decode(data)
+		} else if err == nil {
 			path, err = wallpapers.Import(g.Directory, data)
 		}
 		return func() {
+			if generation != g.generation {
+				return
+			}
 			g.Busy = false
 			if err != nil {
 				g.Status = err.Error()
@@ -179,7 +208,12 @@ func (g *WallpaperEditor) importImage(read func() ([]byte, error)) {
 			}
 			g.Prefs.Original = path
 			g.Prefs.Crop = wallpapers.DefaultCrop()
-			g.openCrop()
+			if decoded != nil {
+				g.previewSource, g.cropOpen = decoded, true
+				g.updatePreview()
+			} else {
+				g.openCrop()
+			}
 			g.Status = "调整裁剪后应用壁纸"
 		}
 	})
@@ -204,7 +238,14 @@ func (g *WallpaperEditor) updatePreview() {
 	}
 }
 func (g *WallpaperEditor) applyCrop() {
-	path, err := wallpapers.SaveCrop(g.Directory, g.Prefs.Original, g.Prefs.Crop)
+	path, err := "", error(nil)
+	if g.Inline {
+		var data bytes.Buffer
+		err = png.Encode(&data, wallpapers.Cropped(g.previewSource, g.Prefs.Crop))
+		path = "data:image/png;base64," + base64.StdEncoding.EncodeToString(data.Bytes())
+	} else {
+		path, err = wallpapers.SaveCrop(g.Directory, g.Prefs.Original, g.Prefs.Crop)
+	}
 	if err == nil {
 		err = g.Apply(path)
 	}
@@ -414,6 +455,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	if g == nil {
 		return
 	}
+	before := g.Prefs.Clone()
 	if g.Status != "" {
 		ui.Text(c, g.Status).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -450,7 +492,13 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	bodyHeading(c, providerCopy("玻璃与透明度", "Glass and transparency"), "", fg, muted)
 	wallpaperSlider(c, "wallpaper-blur", providerCopy("壁纸模糊", "Wallpaper blur"), &g.Prefs.Blur, 0, 100, g.Save == nil, fg, muted)
 	wallpaperSlider(c, "wallpaper-pixelate", providerCopy("壁纸像素化", "Wallpaper pixelation"), &g.Prefs.Pixelate, 0, 100, g.Save == nil, fg, muted)
-	wallpaperSlider(c, "glass-opacity", providerCopy("玻璃不透明度", "Glass opacity"), &g.Prefs.Glass, 0, 100, g.Save == nil || g.Prefs.Transparent && g.Prefs.Original != "", fg, muted)
+	bodyPreferenceRow(c, "glass-opacity", providerCopy("玻璃不透明度", "Glass opacity"), "", fg, muted, func() {
+		ui.Text(c, fmt.Sprintf("%.0f%%", g.Prefs.Glass)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.StepSlider(c, &g.Prefs.Glass, 40, 100, 5).FillWidth().Label(providerCopy("玻璃不透明度", "Glass opacity")).Disabled(g.Save == nil || g.Prefs.Transparent && g.Prefs.Original != "")
+		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil).Clicked() {
+			g.Prefs.Glass = 80
+		}
+	})
 	wallpaperSlider(c, "terminal-opacity", providerCopy("终端不透明度", "Terminal opacity"), &g.Prefs.Terminal, 40, 100, g.Save == nil, fg, muted)
 	bodyLocalToggle(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), providerCopy("需要壁纸；模糊至少为 20。", "Requires wallpaper with a blur of at least 20."), &g.Prefs.Transparent, g.Save == nil, fg, muted, func(enabled bool) {
 		if enabled && g.Prefs.Blur < 20 {
@@ -474,6 +522,9 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			g.Prefs = p
 		}
 	})
+	if !g.Busy && !reflect.DeepEqual(before, g.Prefs) {
+		g.commit()
+	}
 }
 func wallpaperSlider(c *ui.Context, key, label string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) {
 	bodyPreferenceRow(c, key, label, "", fg, muted, func() {

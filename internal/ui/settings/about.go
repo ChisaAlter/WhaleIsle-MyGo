@@ -13,7 +13,8 @@ import (
 type AboutAccess struct {
 	Loading, UpdateBusy, HomeBusy       bool
 	Err, Status, UpdateStatus, HomePath string
-	OnInstallUpdate, OnRevealHome       func()
+	OnInstallUpdate                     func()
+	OnRevealHome                        func() error
 	ReadCredentialStorage               func() credentials.StorageStatus
 	OnOpenLink                          func(string) error
 	AppName                             string
@@ -38,6 +39,12 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	a := m.About
 	accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
 	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(12)
+	ui.Local(anchor, "initial-update-check", func() bool {
+		if a.OnCheckUpdates != nil {
+			a.OnCheckUpdates()
+		}
+		return true
+	})
 	storage := ui.Local(anchor, "metadata", func() credentials.StorageStatus {
 		if a.ReadCredentialStorage != nil {
 			return a.ReadCredentialStorage()
@@ -45,6 +52,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return credentials.StorageStatus{Mode: "unknown"}
 	})
 	linkError := ui.Local(anchor, "error", func() string { return "" })
+	homeResult := ui.Local(anchor, "home-result", func() string { return "" })
 	anchor.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and the official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
@@ -83,7 +91,14 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().Tooltip(a.HomePath).TextColor(muted)
 			}
 			if a.OnRevealHome != nil && ui.Button(c, providerCopy("打开运行目录", "Open runtime directory")).Disabled(a.HomeBusy).Clicked() {
-				a.OnRevealHome()
+				if err := a.OnRevealHome(); err != nil {
+					*homeResult = err.Error()
+				} else {
+					*homeResult = ""
+				}
+			}
+			if *homeResult != "" {
+				ui.Text(c, *homeResult).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
 		})
 		for _, link := range aboutLinks() {

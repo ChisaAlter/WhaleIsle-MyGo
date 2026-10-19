@@ -92,6 +92,30 @@ func (s *Store) ModelConfigurationCatalog() ([]VisionRoute, bool, string) {
 	return append([]VisionRoute(nil), s.modelRoutes...), s.modelCatalogLoading, s.modelCatalogErr
 }
 
+func (s *Store) EnsureModelConfigurationCatalog(ctx context.Context) {
+	s.mu.Lock()
+	loaded := s.modelCatalogLoaded || s.modelCatalogLoading || s.modelCatalogErr != ""
+	s.mu.Unlock()
+	if !loaded {
+		s.RefreshModelConfigurationCatalog(ctx)
+	}
+}
+
+func (s *Store) InvalidateModelConfigurationCatalog(ctx context.Context) {
+	s.mu.Lock()
+	s.modelCatalogRequest++
+	s.modelCatalogLoaded, s.modelCatalogLoading, s.modelCatalogErr = false, false, ""
+	enabled := false
+	if ns := s.findNamespaceLocked("subagent-model-selection-settings"); ns != nil {
+		s.ensureDraftsLocked(ns.NS)
+		enabled = s.drafts[ns.NS]["enabled"] == "true"
+	}
+	s.mu.Unlock()
+	if enabled {
+		s.RefreshModelConfigurationCatalog(ctx)
+	}
+}
+
 // RefreshModelConfigurationCatalog uses the global catalog, not a current session selection.
 func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 	s.mu.Lock()
@@ -101,6 +125,8 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 		return
 	}
 	s.modelCatalogLoading = true
+	s.modelCatalogRequest++
+	request := s.modelCatalogRequest
 	s.modelCatalogErr = ""
 	s.mu.Unlock()
 	s.fire()
@@ -114,7 +140,7 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if generation != s.generation {
+		if generation != s.generation || request != s.modelCatalogRequest {
 			s.mu.Unlock()
 			return
 		}
@@ -122,6 +148,7 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 		if err != nil {
 			s.modelCatalogErr = err.Error()
 		} else {
+			s.modelCatalogLoaded = true
 			s.modelRoutes = routes
 			for _, failure := range catalog.Failures {
 				s.modelCatalogErr += failure.Name + ": " + failure.Message + "\n"

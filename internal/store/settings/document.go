@@ -45,6 +45,26 @@ func IsDocumentUpdatedEmit(event string, argsPreview string) bool {
 
 // OnEmitMaybeRefresh refreshes describe when emit looks like a settings document update.
 func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
+	if emit.Event == "credentials/reference-updated" || emit.Event == "llm/adapters-updated" {
+		s.mu.Lock()
+		s.onboardingCredentialEpoch++
+		s.mu.Unlock()
+	}
+	if emit.Event == "llm/adapters-updated" {
+		s.InvalidateModelConfigurationCatalog(ctx)
+	}
+	if emit.Event == "credentials/reference-updated" || emit.Event == "credentials/record-updated" {
+		s.mu.Lock()
+		key := s.webSearchKey
+		if key != nil && key.currentLocked() {
+			key.state.Known = false
+			key.state.Error = ""
+		}
+		s.mu.Unlock()
+		if key != nil {
+			key.Refresh(ctx)
+		}
+	}
 	preview := ""
 	if len(emit.Args) > 0 {
 		preview = string(emit.Args[0])
@@ -55,6 +75,7 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 	if !IsDocumentUpdatedEmit(emit.Event, preview) {
 		return
 	}
+	s.InvalidateModelConfigurationCatalog(ctx)
 	s.mu.Lock()
 	s.lastAction = "settings document updated"
 	s.mu.Unlock()

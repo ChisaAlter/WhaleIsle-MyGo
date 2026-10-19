@@ -17,7 +17,20 @@ type navigationEntry struct {
 	onSelect func()
 }
 
-func activeSection(m Model, snap store.ViewState) SectionID {
+func activeSection(m Model, snap store.ViewState) (active SectionID) {
+	defer func() {
+		entries := primaryNavigation(m, snap)
+		for _, entry := range entries {
+			if entry.id == active {
+				return
+			}
+		}
+		if len(entries) > 0 {
+			active = entries[0].id
+		} else {
+			active = SectionGeneral
+		}
+	}()
 	if m.ActiveSection != "" && m.SectionContent != nil {
 		return m.ActiveSection
 	}

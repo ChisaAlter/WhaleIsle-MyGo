@@ -1,0 +1,86 @@
+# Settings source depth — fixed original e353e8e
+
+This record supersedes the entrypoint-only scope of SET-01/03/04/05/14/17/18 and SAVE-03 in the earlier source-coverage records **only for the explicit state paths below**. It is a source implementation record, not a build, test, pixel-equivalence or service acceptance receipt. The original tree was read only. No user config, credential literal, account, model, running service or external endpoint was read or changed.
+
+## Source authority
+
+Original paths below are relative to `C:/AI/Deepseek-Harness-Desktop`; `C/` means `vendor/deepseek-harness/packages/client/`, `U/` means `vendor/dsh-usage-panel/src/client/`. Every conclusion uses `git show e353e8e:<path>` or a working file subsequently checked with `git diff e353e8e -- <path>`. The original working tree is dirty. In particular:
+
+- `C/ui-settings-web-search/src/client/web-search-card-controller.ts` differs: fixed HEAD has a separate credential form on Messages, saved **after** provider selection. The dirty tree moved it into selection. Native now follows fixed HEAD, including when selection is absent.
+- `C/ui-settings-subagent/src/client/subagent-model-selection-card-controller.ts` differs around catalog exception handling. Native keeps its existing error boundary, while the source comparison does not credit dirty additions as pinned behavior.
+- `C/ui-settings-general/src/client/AboutSection.tsx` differs by an extra successful-open-home notice; native restores the fixed HEAD error receipt without importing that addition. General row presentation and release-reload bridge files also differ; their dirty changes are not the parity baseline.
+- `C/ui-shortcuts/src/client/{Editor,Reference,locales}.tsx/ts` differ. Recording comparison was explicitly rerun with fixed HEAD; native physical recording/editor ownership belongs to root/remote_pet_depth.
+- No difference was found for `C/ui-theme`, the desktop onboarding controller/steps, `src/main/welcome-backend.js`, `U/`, or the SettingsRoot/navigation source used here. Desktop theme/preload main differences remove reload wiring, unrelated to the theme authority evidence.
+
+## SET-01: shell, navigation and desktop onboarding
+
+Original: `C/ui-settings-general/src/client/SettingsRoot.tsx:152` (whole component and corresponding CSS read), `settings-navigation.ts:29,64,75`, and `C/ui-settings-account/src/client/index.ts:296` registration. Native: `internal/ui/settings/navigation.go:20`, `modal.go:12,33`, `cmd/whaleisle/desktop_onboarding.go:14`, `internal/ui/settings/onboarding.go:38`, `internal/store/settings/onboarding.go:64`, `onboarding_credentials.go:12`.
+
+Compared shell open/request/close, unsupported or removed active section fallback, independent rail/content scrolling, 800×800/max viewport minus 48 modal sizing, backdrop/dismissal, focus containment/restoration, desktop's suppression of the generic welcome/model onboarding steps, and actual desktop overlay registration. Native now falls back to the first currently available navigation row when a requested section disappears.
+
+Desktop onboarding source read: `C/ui-settings-account/src/client/onboarding-state.ts:42,76,100,158,198`, `DesktopOnboarding.tsx`, `Onboarding{Welcome,Credit,Purpose,Process}Step.tsx`, `OnboardingConfirmation.tsx`, `onboarding-balance.ts`, `locales/onboarding.ts`, `DesktopOnboarding.module.css`; `src/main/welcome-backend.js:45–91`. States compared/implemented:
+
+- Served/writable/initial-loading/read-failed/retry; desktop enabled gate; launcher and hidden-window exclusion.
+- Signed-in/resume/Back; each selection previews immediately and serializes progress writes. Host/account replacement fences stale settlements. Login failure/cancel or sign-out cannot finish a retired flow.
+- Welcome → credit → purpose (office/development/both/none) → process (compact/standard/detailed) → done. Office skips process; explicit skip selects standard/compact/no developer tools. Development uses chosen process/detailed/developer tools.
+- Active `ui-chat` preferences, then `ui-settings.enabled`, then the durable completion marker. Each response is checked; failures retain the exact retry phase, and completion joins pending selections.
+- API-key completion reads only actual provider `settingsNs/settingsPath` references plus `llm-deepseek.apiKeyEnv`, then `credentials/describe` metadata in batches of 64. No credential value read. Reference/adapters/describe invalidations retire metadata reads.
+- Purchased **or** bonus wallet balance >0 using exact decimal arithmetic. Credit layout captures initial credit status; Next uses the latest balance. Distinct credit/credit-skip/skip confirmations, close/continue/recharge/skip actions, disabled recharge, native recharge return reuse, heading focus and process arrow focus.
+- Original localized artwork (8 WebP variants), five original SVG icons, original Chinese/English content, full viewport surface, welcome copy/art versus credit art/copy, purpose/process cards, confirmation actions.
+
+SettingsRoot's trigger connection pill has a minimum connecting time of 800ms and a 2000ms restored notice (`SettingsRoot.tsx:33,36,237–275`); expanded ownership now implements this in `internal/ui/sidebar/connection_trigger.go:19,77` and `sidebar.go`. `C/ui-primitives/src/{ConnectionIndicator,StateDot}.tsx` and matching CSS were read completely, including the 150ms exit, compact 36px seat, light/dark semantic warning/success colors, animated ongoing ring, refresh/check, reconnect/restart accessible names, tooltip, hover and reduced-motion behavior. Root supplies actual physical mux readiness/connecting/Host epoch and reconnect callback through every navigation model. Expanded 44px settings row and collapsed 80px rail share this producer; list snapshot readiness is not used as a connection signal. Update-installing seat precedence remains with root's shared update presentation. Browser DOM inertness/animations are represented by native DialogBase ownership; exact visual acceptance remains pending.
+
+## SET-03 / SET-04: General contributions
+
+Original: `C/ui-conversation/src/client/settings/CustomInstructionsRow.tsx` whole; `input/submission-policy.ts` standing-instructions producer; `C/ui-permission-presets/src/client/PermissionRow.tsx` whole; `C/ui-settings-general/src/client/DeveloperToolsRow.tsx`; `C/ui-settings/src/client/developer-tools.ts`; `C/ui-settings-session-log/src/client/{UploadRow,upload-preference}.tsx/ts` whole.
+
+Native: `internal/ui/settings/desktop.go:48`, `custom_instructions.go:52`, `permission_defaults.go:83`, `internal/store/settings/body_preferences.go:24`, `instructions_write.go:22,58`, `custom_instructions.go:14`, `developer_preferences.go:6`, `upload_notice.go:3`, `internal/ui/settings/preference_notices.go:10`.
+
+Compared/implemented: contribution namespace availability, read-only/loading/accepted value, General's accepted display, custom instructions 1500 UTF-16 limit and counter, owner-bound 400ms debounced writes retaining the newest edit during another write; permission directory and unavailable state, default for future tasks versus current-session permission, full-access acknowledgement/cancel, duplicate display names retaining separate IDs; developer-tools accepted false fallback and error state. Upload keeps accepted state during writes, checks returned values, exposes success/failure shell receipt after settings closes, and dismisses the matching receipt generation. No upload service action was invoked.
+
+Shortcuts: fixed `C/ui-shortcuts/src/client/Editor.tsx:24–170` read for physical release capture, composition/dead-key/AltGraph guards, revision staleness, conflict, native-readiness, reset/clear/review/retry and disposal. Existing `internal/ui/settings/{shortcuts,shortcut_recording}.go` was read; physical recorder/backend/UI source closure is owned by root/remote_pet_depth. We did not modify that owner's files or count the old text-and-global-Save UI as equivalent to release-triggered saving.
+
+## SET-05: one Host appearance authority
+
+Original: `C/ui-theme/src/client/index.ts:289–363,389–518,529–816,1170`, `theme-settings.ts`, `theme-family.ts`, `derive.ts`, `client/{AppearanceSection,ThemeLibrary,ThemeEditor}.tsx`; `src/renderer/theme.js` official-shell branch and `src/preload/index.js:409–422` native theme mirror. These show the registered desktop module gets `ConfigForm<ThemeSettings>('ui-theme')`; desktop `config.theme` is launcher/bootstrap chrome, not the editor's durable authority.
+
+Native: `internal/store/settings/host_theme.go:23,36`, `internal/ui/settings/host_theme.go:17`, `internal/ui/theme/host_preferences.go:48`, `host_wallpaper_sources.go:16,35`, `cmd/whaleisle/theme_font_preferences.go:15,59`, `wallpaper_background.go:15`, `internal/ui/chrome/wallpaper.go:38`, `background.go:19`. Root separately owns main's one sync call, fields, scheme writer and exclusion of accepted Host theme/wallpaper from launcher config saving.
+
+Compared/implemented: accepted Host adoption and multi-client revision refresh, no local migration or dual write, queued 300ms continuous controls, immediate General size/family flush, pending/in-flight gesture projection, returned receipt verification and refresh on refusal, owner replacement, served field whitelist, read-only states, disconnected Host cannot fall back into a local write after authority is accepted.
+
+Theme library: seven built-ins with exact contrast seeds; half selection immediately writes its half; create/duplicate/edit/live preview/Cancel restores accepted state; Save sets both active halves; file JSON import, clipboard export, delete active family fallback, contrast 0–100 and all 13 source override fields. Native theme-derived semantic colors now use the source contrast/luminance formulas and retain override documents. Exact web CSS token coverage beyond the native semantic palette is not a pixel-equivalence claim.
+
+Fonts: General content 10–22/code and terminal 10–20, blur/Enter normalized families; Appearance interface 12–22/code 10–20 and raw family inputs, advanced composer/terminal families, source reset fields, no invented composer/chat size controls. Empty raw family values remain empty in settings and receive drawing fallback only.
+
+Wallpaper: source list/favorites and legacy catalogs are normalized in memory at the source boundary with original limits/IDs; no automatic config migration. Host imports/crops encode a data URL from memory, accepted data URLs decode only in memory for backdrop rendering, and owner retirement drops stale gallery/image settlements. Local file persistence remains the existing pre-Host launcher path. Glass 40–100 step5/default80, terminal opacity/default75, blur/pixelation, transparent/sidebar and shared cursor/background fields use the same Host writer. Detailed pointer GPU/effect implementation is owned by effects_depth and is not claimed by reading configuration controls.
+
+## SET-14: usage dimensions and loading
+
+Original: `U/StatsSection.tsx`, `components/{BarChart,Heatmap,KpiCards,ModelDonut,ProvidersCard}.tsx`, `hooks.ts:1–130`, `api.ts:1–175` read. Native: `internal/ui/usage/statistics_dimensions.go:54,166,~365`, `timeline.go:11,19`, `stats.go`, `time_range.go`, and existing `internal/store/usage` stats/cache/rank/repair/billing producers read.
+
+Compared states: initial/fresh/stale cache/background load/fallback/error, empty usage, repair and forced rescan, UTC day bucketing, 7/14/30 ranges, whole-window heatmap quartiles, Monday-first weeks/month labels, keyboard date movement, selected-range projection, top-model/total/cache/session/cost KPI, five ranked model series plus Other, model/provider rank and exports. Existing native selected-date range remains its already-implemented feature.
+
+Implemented actual layout/data gaps: one responsive 230-DIP timeline with a common 1/2/5 axis and all dates across, per-date tooltips including zero-use bands (replacing seven-day wrapped mini-bars); source-size donut with center total, top5/Other per-row cache-read/(input+cache-read+cache-write) rates; responsive provider bars. Existing native pricing tables, raw daily details and export feature were preserved. Full billing/repricing server algorithm, every ranking pagination failure, cache corruption case and real scan behavior were not re-exercised; no full-domain acceptance inferred from chart implementation.
+
+## SET-17: About/version/update
+
+Original `C/ui-settings-general/src/client/AboutSection.tsx:25,68,88,125,145,178` whole read: idle/checking/none/current/available/error/download/install/manual/cancel/opened-page; version/config read failure, secure-storage metadata, open-home failure, initial check and progress listener lifetime. Native `internal/ui/settings/about.go:35`, `cmd/whaleisle/settings_body_wiring.go:64`, existing `native_releases.go:19,35,110` read.
+
+Implemented missing mount check and open-home failure propagation; existing native release selection/download/progress/staging/confirmation controller remains owner of install. Native product release URL/identity is retained. Original secure-storage plaintext fallback is not copied; that deliberate safety boundary is documented by SAVE-02. No update download, installer, publisher, OS storage or live version request was performed. Cross-platform updater integration and exact installation outcome remain root acceptance work, not claimed by the About UI.
+
+## SET-18 / SAVE-03: served forms and atomic writes
+
+Original `C/ui-settings-subagent/src/client/{SubagentCard,SubagentModelSelectionFields}.tsx`, `subagent-model-selection-card-controller.ts:262,296`; `C/ui-settings-web-search/src/client/web-search-card-controller.ts:166,220,314,332` fixed HEAD; shell/agent-loop registration and dedicated cards; `C/ui-primitives/src/settings-form/form-model.ts` staging/parsing/reset/secret semantics read.
+
+Native: `internal/ui/settings/served_plugin_body.go:15,202`, `served_subagent_models.go:17`, `internal/store/settings/namespace_sequence.go:13,17`, `served_validation.go:12,29`, `web_search_credential.go:27,39`, `namespace_receipt.go:10`, `plugin_body.go:21,~87`, `store.go:99,~247,~800`. Extensions owner integrates `ServedPluginBody` in the native plugin-manager contribution; this record does not edit or independently certify its external registration.
+
+Compared/implemented:
+
+- Subagent safe integer maxDepth≥0 (including negative-zero refusal), maxActive≥1; optional values/reset/overrides. Enable allowlist requires a model; catalog loading/error/partial/refresh; retain unavailable accepted and draft routes; provider grouping; revision conflict disables Save until discard; save model selection before limits using independent revisions.
+- Web Search requires actual Messages namespace. Optional Search/Fetch provider switch couples both fields and resets to base when equal; selected provider's endpoint/count1–50 or Messages maxUses; only existing apiKeyEnv/default source reference; configured/writable metadata and write-only draft; blank secret leaves existing. Fixed-head order Messages→API→selection→credential. Failure retains failed/unattempted drafts and does not advance provider selection beyond prior failures.
+- Shell selects actually served PowerShell sandbox before Bash, exposes only timeoutMs/maxOutputBytes. Agent-loop exposes only maxParallelToolCalls; generic schema breadth is not treated as a missing feature.
+- One staged baseline revision is retained separately from latest accepted values. External describe cannot silently rebase a staged form, while direct preference writes use current accepted revision. Discard refreshes baseline. Each namespace sends one atomic patch/mutate preserving unknown/redacted fields; per-namespace returned values are checked before clearing submitted drafts. Host replacement fences work; disappearing namespaces release busy state and preserve drafts.
+
+## Verification handoff
+
+Only exact-owned-file `gofmt` and `git diff --check` ran. They passed. No tests, fixtures, Go build, app, helper, model, account or external service ran in this source-first phase. Root will coordinate runtime validation after all source owners close. Shared source follow-ups are explicit above (update seat priority and root-owned shortcut release persistence); deferred runtime boundaries are not missing-source claims.

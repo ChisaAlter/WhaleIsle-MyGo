@@ -22,9 +22,11 @@ const DefaultTextFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingF
 const DefaultCodeFamily = "'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei'"
 
 type Seed struct {
-	Background string `json:"background"`
-	Foreground string `json:"foreground"`
-	Accent     string `json:"accent"`
+	Background string            `json:"background"`
+	Foreground string            `json:"foreground"`
+	Accent     string            `json:"accent"`
+	Contrast   *float64          `json:"contrast,omitempty"`
+	Overrides  map[string]string `json:"overrides,omitempty"`
 }
 type Family struct {
 	ID    string `json:"id"`
@@ -44,9 +46,38 @@ type Preferences struct {
 }
 
 func Defaults() Preferences {
-	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Family: DefaultTextFamily, Size: 14}, Chat: FontPreference{Family: DefaultTextFamily, Size: 14}, Code: FontPreference{Family: DefaultCodeFamily, Size: 13}, Composer: FontPreference{Family: DefaultTextFamily, Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
+	return Preferences{Light: "deepseek", Dark: "deepseek", Interface: FontPreference{Family: DefaultTextFamily, Size: 16}, Chat: FontPreference{Family: DefaultTextFamily, Size: 14}, Code: FontPreference{Family: DefaultCodeFamily, Size: 13}, Composer: FontPreference{Family: DefaultTextFamily, Size: 14}, Terminal: FontPreference{Family: "monospace", Size: 13}}
 }
-func (p Preferences) Clone() Preferences { p.Custom = append([]Family(nil), p.Custom...); return p }
+func (p Preferences) Clone() Preferences {
+	p.Custom = append([]Family(nil), p.Custom...)
+	for i := range p.Custom {
+		p.Custom[i].Light = p.Custom[i].Light.Clone()
+		p.Custom[i].Dark = p.Custom[i].Dark.Clone()
+	}
+	return p
+}
+
+func (s Seed) Clone() Seed {
+	if s.Contrast != nil {
+		value := *s.Contrast
+		s.Contrast = &value
+	}
+	if s.Overrides != nil {
+		values := map[string]string{}
+		for k, v := range s.Overrides {
+			values[k] = v
+		}
+		s.Overrides = values
+	}
+	return s
+}
+
+func (s Seed) ContrastValue() float64 {
+	if s.Contrast == nil {
+		return 46
+	}
+	return *s.Contrast
+}
 func (p Preferences) Normalized() Preferences {
 	d := Defaults()
 	if p.Light == "" {
@@ -61,9 +92,6 @@ func (p Preferences) Normalized() Preferences {
 	}{{&p.Interface, d.Interface}, {&p.Chat, d.Chat}, {&p.Code, d.Code}, {&p.Composer, d.Composer}, {&p.Terminal, d.Terminal}} {
 		if pair.p.Size <= 0 {
 			pair.p.Size = pair.d.Size
-		}
-		if pair.p.Family == "" {
-			pair.p.Family = pair.d.Family
 		}
 	}
 	return p
@@ -84,6 +112,9 @@ func (p Preferences) Validate() error {
 		}
 		seen[f.ID] = true
 		for _, s := range []Seed{f.Light, f.Dark} {
+			if s.ContrastValue() < 0 || s.ContrastValue() > 100 {
+				return fmt.Errorf("Contrast must be between 0 and 100")
+			}
 			for _, c := range []string{s.Background, s.Foreground, s.Accent} {
 				if len(c) != 7 || c[0] != '#' {
 					return fmt.Errorf("颜色格式为 #RRGGBB / Use #RRGGBB")
@@ -100,14 +131,17 @@ func (p Preferences) Validate() error {
 	return nil
 }
 func Library() []Family {
+	seed := func(bg, fg, accent string, contrast float64) Seed {
+		return Seed{Background: bg, Foreground: fg, Accent: accent, Contrast: &contrast}
+	}
 	return []Family{
-		{"deepseek", "DeepSeek", Seed{"#ffffff", "#0f1115", "#4176e6"}, Seed{"#151517", "#f5f5f5", "#679efe"}},
-		{"midnight", "午夜 / Midnight", Seed{"#f3f6fb", "#1a1f2b", "#3b6fd4"}, Seed{"#0b0d12", "#e8eef9", "#6ea8ff"}},
-		{"celadon", "青瓷 / Celadon", Seed{"#f3faf7", "#10211c", "#0f766e"}, Seed{"#071411", "#e7f6f1", "#3dd6b5"}},
-		{"violet", "暮紫 / Violet", Seed{"#f7f3fc", "#1c1524", "#7c3aed"}, Seed{"#120e18", "#f3eefc", "#c4a1ff"}},
-		{"amber", "琥珀 / Amber", Seed{"#fbf6ee", "#1c1915", "#b45309"}, Seed{"#14100b", "#f6efe4", "#e2b15c"}},
-		{"paper", "宣纸 / Paper", Seed{"#f3efe6", "#1c1915", "#0f766e"}, Seed{"#1a1712", "#f6efe4", "#5eead4"}},
-		{"contrast", "对比 / Contrast", Seed{"#ffffff", "#050505", "#111111"}, Seed{"#050505", "#f5f5f5", "#ffffff"}},
+		{"deepseek", "DeepSeek", seed("#ffffff", "#0f1115", "#4176e6", 46), seed("#151517", "#f5f5f5", "#6ea8ff", 41)},
+		{"midnight", "午夜 / Midnight", seed("#f3f6fb", "#1a1f2b", "#3b6fd4", 44), seed("#0b0d12", "#e8eef9", "#6ea8ff", 48)},
+		{"celadon", "青瓷 / Celadon", seed("#f3faf7", "#10211c", "#0f766e", 44), seed("#071411", "#e7f6f1", "#3dd6b5", 50)},
+		{"violet", "暮紫 / Violet", seed("#f7f3fc", "#1c1524", "#7c3aed", 46), seed("#120e18", "#f3eefc", "#c4a1ff", 50)},
+		{"amber", "琥珀 / Amber", seed("#fbf6ee", "#1c1915", "#b45309", 48), seed("#14100b", "#f6efe4", "#e2b15c", 52)},
+		{"paper", "宣纸 / Paper", seed("#f3efe6", "#1c1915", "#0f766e", 50), seed("#1a1712", "#f6efe4", "#5eead4", 48)},
+		{"contrast", "对比 / Contrast", seed("#ffffff", "#050505", "#111111", 68), seed("#050505", "#f5f5f5", "#ffffff", 64)},
 	}
 }
 func (p Preferences) Families() []Family { return append(Library(), p.Custom...) }
@@ -139,7 +173,7 @@ func CurrentPreferences() Preferences {
 	defer preferenceState.RUnlock()
 	return preferenceState.value.Clone()
 }
-func InterfaceSize(base float32) float32 { return base * CurrentPreferences().Interface.Size / 14 }
+func InterfaceSize(base float32) float32 { return base * CurrentPreferences().Interface.Size / 16 }
 func mix(a, b string, t float64) string {
 	x, _ := strconv.ParseUint(strings.TrimPrefix(a, "#"), 16, 24)
 	y, _ := strconv.ParseUint(strings.TrimPrefix(b, "#"), 16, 24)
@@ -182,7 +216,7 @@ func palette(s Seed, dark bool) Colors {
 	}
 	c.ButtonInfoHover = mix(c.Accent, tint, .18)
 	c.ButtonFG = c.BG
-	return c
+	return derivePalette(c, s)
 }
 func selectedPalettes(t Theme) Theme {
 	p := CurrentPreferences()

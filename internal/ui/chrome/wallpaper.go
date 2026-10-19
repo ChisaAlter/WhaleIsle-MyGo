@@ -1,7 +1,10 @@
 package chrome
 
 import (
+	"encoding/base64"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
@@ -38,7 +41,7 @@ func loadWallpaperBitmap(path string) *ui.Bitmap {
 	if wallpaperCache.path == path && wallpaperCache.bmp != nil {
 		return wallpaperCache.bmp
 	}
-	data, err := os.ReadFile(path)
+	data, err := wallpaperImageBytes(path)
 	if err != nil {
 		wallpaperCache.path = path
 		wallpaperCache.bmp = nil
@@ -53,4 +56,18 @@ func loadWallpaperBitmap(path string) *ui.Bitmap {
 	wallpaperCache.path = path
 	wallpaperCache.bmp = bmp
 	return bmp
+}
+
+// Host ui-theme stores the image itself. Decode accepted data URLs in memory;
+// local paths belong only to the existing launcher/offline configuration.
+func wallpaperImageBytes(source string) ([]byte, error) {
+	if !strings.HasPrefix(source, "data:") {
+		return os.ReadFile(source)
+	}
+	header, payload, _ := strings.Cut(source, ",")
+	if strings.HasSuffix(header, ";base64") {
+		return base64.StdEncoding.DecodeString(payload)
+	}
+	decoded, err := url.PathUnescape(payload)
+	return []byte(decoded), err
 }

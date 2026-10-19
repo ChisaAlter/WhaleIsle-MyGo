@@ -23,10 +23,16 @@ func appendFontFallback(family, fallback string) string {
 
 func renderPreferences(p Preferences) Preferences {
 	p = p.Clone()
+	if p.Composer.Family == "" {
+		p.Composer.Family = p.Interface.Family
+	}
 	p.Interface.Family = TextFamily(p.Interface.Family)
 	p.Chat.Family = TextFamily(p.Chat.Family)
 	p.Composer.Family = TextFamily(p.Composer.Family)
 	p.Code.Family = CodeFamily(p.Code.Family)
+	if p.Terminal.Family == "" {
+		p.Terminal.Family = "monospace"
+	}
 	return p
 }
 

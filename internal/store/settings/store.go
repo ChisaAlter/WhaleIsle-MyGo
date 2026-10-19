@@ -13,15 +13,17 @@ import (
 
 // Namespace is one settings form from describe.
 type Namespace struct {
-	NS          string
-	Revision    float64
-	Fields      []Field
-	Value       json.RawMessage
-	Schema      json.RawMessage
-	Base        json.RawMessage
-	User        json.RawMessage
-	HasSecrets  bool
-	SecretPaths [][]string
+	NS               string
+	Revision         float64
+	Fields           []Field
+	Value            json.RawMessage
+	Schema           json.RawMessage
+	Base             json.RawMessage
+	User             json.RawMessage
+	HasSecrets       bool
+	SecretPaths      [][]string
+	DraftRevision    float64
+	HasDraftRevision bool
 }
 
 // ViewState is a UI-safe snapshot of the store.
@@ -54,42 +56,56 @@ type Store struct {
 	err        error
 	lastAction string
 
-	namespaces          []Namespace
-	selectedNS          string
-	drafts              map[string]map[string]string
-	dirty               map[string]map[string]bool
-	resets              map[string]map[string]bool
-	generation          uint64
-	origin              string
-	hostDrafts          map[string]map[string]map[string]string
-	hostDirty           map[string]map[string]map[string]bool
-	hostResets          map[string]map[string]map[string]bool
-	modelRoutes         []VisionRoute
-	modelCatalogErr     string
-	modelCatalogLoading bool
-	visionRoutes        []VisionRoute
-	visionLoading       bool
-	visionErr           string
-	permissionDefaults  PermissionDefaults
+	namespaces                []Namespace
+	selectedNS                string
+	drafts                    map[string]map[string]string
+	dirty                     map[string]map[string]bool
+	resets                    map[string]map[string]bool
+	generation                uint64
+	origin                    string
+	hostDrafts                map[string]map[string]map[string]string
+	hostDirty                 map[string]map[string]map[string]bool
+	hostResets                map[string]map[string]map[string]bool
+	draftRevisions            map[string]float64
+	hostDraftRevisions        map[string]map[string]float64
+	modelRoutes               []VisionRoute
+	modelCatalogErr           string
+	modelCatalogLoading       bool
+	modelCatalogLoaded        bool
+	modelCatalogRequest       uint64
+	visionRoutes              []VisionRoute
+	visionLoading             bool
+	visionErr                 string
+	permissionDefaults        PermissionDefaults
+	webSearchKey              *WebSearchCredential
+	themeBinding              *ThemeBinding
+	instructionsWrite         *instructionsWrite
+	onboardingCredentialEpoch uint64
+	uploadNoticeSequence      uint64
+	uploadNotice              string
 }
 
 // New returns an empty settings store.
 func New() *Store {
 	return &Store{
-		drafts: map[string]map[string]string{},
-		dirty:  map[string]map[string]bool{},
-		resets: map[string]map[string]bool{},
+		drafts:         map[string]map[string]string{},
+		dirty:          map[string]map[string]bool{},
+		resets:         map[string]map[string]bool{},
+		draftRevisions: map[string]float64{},
 	}
 }
 
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.uploadNotice = ""
 	s.generation++
 	s.permissionDefaults = PermissionDefaults{}
 	s.modelRoutes = nil
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
+	s.modelCatalogLoaded = false
+	s.modelCatalogRequest++
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
@@ -102,10 +118,18 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.hostDrafts[s.origin] = s.drafts
 		s.hostDirty[s.origin] = s.dirty
 		s.hostResets[s.origin] = s.resets
+		if s.hostDraftRevisions == nil {
+			s.hostDraftRevisions = map[string]map[string]float64{}
+		}
+		s.hostDraftRevisions[s.origin] = s.draftRevisions
 		s.origin = client.Endpoint.Origin
 		s.drafts = s.hostDrafts[s.origin]
 		s.dirty = s.hostDirty[s.origin]
 		s.resets = s.hostResets[s.origin]
+		s.draftRevisions = s.hostDraftRevisions[s.origin]
+		if s.draftRevisions == nil {
+			s.draftRevisions = map[string]float64{}
+		}
 		if s.resets == nil {
 			s.resets = map[string]map[string]bool{}
 		}
@@ -136,6 +160,8 @@ func (s *Store) Detach() {
 	s.modelRoutes = nil
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
+	s.modelCatalogLoaded = false
+	s.modelCatalogRequest++
 	s.visionRoutes = nil
 	s.visionLoading = false
 	s.visionErr = ""
@@ -153,6 +179,17 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.snapshotLocked()
+}
+
+// EnsureLoaded starts the one initial describe for a connected Host. A refused
+// read stays visible until the explicit settings/onboarding Retry action.
+func (s *Store) EnsureLoaded(ctx context.Context) {
+	s.mu.Lock()
+	needed := s.client != nil && s.describedClient != s.client && !s.loading && s.err == nil
+	s.mu.Unlock()
+	if needed {
+		s.RefreshDescribe(ctx)
+	}
 }
 
 func (s *Store) snapshotLocked() ViewState {
@@ -173,6 +210,7 @@ func (s *Store) snapshotLocked() ViewState {
 	}
 	st.Namespaces = append([]Namespace(nil), s.namespaces...)
 	for i := range st.Namespaces {
+		st.Namespaces[i].DraftRevision, st.Namespaces[i].HasDraftRevision = s.draftRevisions[st.Namespaces[i].NS]
 		st.Namespaces[i].Fields = append([]Field(nil), st.Namespaces[i].Fields...)
 		st.Namespaces[i].Value = append(json.RawMessage(nil), st.Namespaces[i].Value...)
 		st.Namespaces[i].Base = append(json.RawMessage(nil), st.Namespaces[i].Base...)
@@ -209,6 +247,7 @@ func (s *Store) SetDraft(key, value string) {
 	if s.selectedNS == "" {
 		return
 	}
+	s.beginDraftLocked(s.selectedNS)
 	if s.drafts[s.selectedNS] == nil {
 		s.drafts[s.selectedNS] = map[string]string{}
 	}
@@ -280,12 +319,8 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 				SecretPaths: configuredSecretPaths(item.Secrets),
 			})
 		}
-		for i := range nsList {
-			if old := s.findNamespaceLocked(nsList[i].NS); old != nil && len(s.dirty[old.NS]) > 0 {
-				nsList[i].Revision = old.Revision
-			}
-		}
 		s.namespaces = nsList
+		s.onboardingCredentialEpoch++
 		s.describedClient = client
 		if s.selectedNS == "" && len(nsList) > 0 {
 			s.selectedNS = nsList[0].NS
@@ -347,7 +382,7 @@ func (s *Store) saveReplace(ctx context.Context, name string, section map[string
 	}
 	submitted := copyDrafts(s.drafts[ns.NS])
 	submittedResets := copyFlags(s.resets[ns.NS])
-	rev := ns.Revision
+	rev := s.draftRevisionLocked(*ns)
 	nsName := ns.NS
 	s.saving = true
 	s.err = nil
@@ -459,6 +494,9 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 	submitted := map[string]string{}
 	rev := ns.Revision
 	nsName := ns.NS
+	if nsName == "session-log-deepseek" {
+		s.uploadNotice = ""
+	}
 	s.saving = true
 	s.err = nil
 	s.mu.Unlock()
@@ -475,12 +513,22 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 		if err == nil {
 			err = client.Call(ctx, "settings/mutate", args, &out)
 		}
+		if err == nil && nsName == "session-log-deepseek" && !namespaceWriteLanded(out, nil, ops) {
+			err = fmt.Errorf("Session log upload preference was not accepted")
+		}
 		s.mu.Lock()
 		if s.generation != generation {
 			s.mu.Unlock()
 			return
 		}
 		s.saving = false
+		if nsName == "session-log-deepseek" {
+			s.uploadNoticeSequence++
+			s.uploadNotice = "saved"
+			if err != nil {
+				s.uploadNotice = "failed"
+			}
+		}
 		if err != nil {
 			s.err = err
 			s.lastAction = err.Error()
@@ -526,6 +574,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 		return
 	}
 	captured := *ns
+	captured.Revision = s.draftRevisionLocked(captured)
 	ns = &captured
 	drafts := copyDrafts(s.drafts[ns.NS])
 	resets := copyFlags(s.resets[ns.NS])
@@ -737,6 +786,25 @@ func (s *Store) ensureDraftsLocked(ns string) {
 	}
 }
 
+func (s *Store) beginDraftLocked(name string) {
+	if len(s.dirty[name]) > 0 {
+		return
+	}
+	if ns := s.findNamespaceLocked(name); ns != nil {
+		if s.draftRevisions == nil {
+			s.draftRevisions = map[string]float64{}
+		}
+		s.draftRevisions[name] = ns.Revision
+	}
+}
+
+func (s *Store) draftRevisionLocked(ns Namespace) float64 {
+	if revision, ok := s.draftRevisions[ns.NS]; ok && len(s.dirty[ns.NS]) > 0 {
+		return revision
+	}
+	return ns.Revision
+}
+
 func (s *Store) seedDraftsLocked(ns Namespace) {
 	if s.drafts[ns.NS] == nil {
 		s.drafts[ns.NS] = map[string]string{}
@@ -763,6 +831,8 @@ func (s *Store) fire() {
 	if fn != nil {
 		fn()
 	}
+	s.flushQueuedTheme()
+	s.flushQueuedInstructions()
 }
 
 // Only the submitted draft is acknowledged; edits made during a write survive.
@@ -778,6 +848,11 @@ func (s *Store) acknowledgeDraftsLocked(ns Namespace, submitted map[string]strin
 		}
 	}
 	s.seedDraftsLocked(ns)
+	if len(s.dirty[ns.NS]) == 0 {
+		delete(s.draftRevisions, ns.NS)
+	} else if len(submitted) > 0 {
+		s.draftRevisions[ns.NS] = ns.Revision
+	}
 }
 
 // DiscardDrafts abandons only the selected namespace and reloads its current revision.
@@ -787,6 +862,7 @@ func (s *Store) DiscardDrafts(ctx context.Context) {
 	delete(s.dirty, ns)
 	delete(s.resets, ns)
 	delete(s.drafts, ns)
+	delete(s.draftRevisions, ns)
 	s.ensureDraftsLocked(ns)
 	s.mu.Unlock()
 	s.RefreshDescribe(ctx)

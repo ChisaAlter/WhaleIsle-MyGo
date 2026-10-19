@@ -91,7 +91,13 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 	default:
 		return false
 	}
-	return e.saveFontField(next, draft)
+	if !e.saveFontField(next, draft) {
+		return false
+	}
+	if e.FlushWrites != nil {
+		e.FlushWrites()
+	}
+	return true
 }
 
 // SaveFontFamily normalizes only an explicit General font edit, as the
@@ -110,7 +116,13 @@ func (e *Editor) SaveFontFamily(role, family string) bool {
 	default:
 		return false
 	}
-	return e.saveFontField(next, draft)
+	if !e.saveFontField(next, draft) {
+		return false
+	}
+	if e.FlushWrites != nil {
+		e.FlushWrites()
+	}
+	return true
 }
 
 func (e *Editor) saveFontField(next, draft Preferences) bool {
@@ -129,7 +141,35 @@ func (e *Editor) saveFontField(next, draft Preferences) bool {
 	SetPreferences(next)
 	RefreshWindows()
 	e.Status = "已保存 / Saved"
+	if e.Pending != nil && e.Pending() {
+		e.Status = "正在保存… / Saving…"
+	}
 	return true
+}
+
+// Appearance's typography controls commit their own source-defined role only;
+// a custom-theme draft stays with its editor until its separate Save.
+func (e *Editor) SaveAppearanceFont(role string, value FontPreference) bool {
+	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	switch role {
+	case "interface":
+		next.Interface = value
+		draft.Interface = value
+		next.Chat.Family = value.Family
+		draft.Chat.Family = value.Family
+	case "code":
+		next.Code = value
+		draft.Code = value
+	case "composer":
+		next.Composer.Family = value.Family
+		draft.Composer.Family = value.Family
+	case "terminal":
+		next.Terminal.Family = value.Family
+		draft.Terminal.Family = value.Family
+	default:
+		return false
+	}
+	return e.saveFontField(next, draft)
 }
 
 // Mirrors ui-theme/theme-settings.ts normalizeFontFamily.

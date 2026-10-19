@@ -13,6 +13,21 @@ const CustomInstructionsMaxLength = 1500
 // z.string().max(1500), including two UTF-16 units for astral characters.
 func CustomInstructionsLength(text string) int { return len(utf16.Encode([]rune(text))) }
 
+func LimitCustomInstructions(text string) string {
+	units := 0
+	for offset, r := range text {
+		size := 1
+		if r > 0xffff {
+			size = 2
+		}
+		if units+size > CustomInstructionsMaxLength {
+			return text[:offset]
+		}
+		units += size
+	}
+	return text
+}
+
 func validateCustomInstructions(ns string, drafts map[string]string) error {
 	if ns == CustomInstructionsNamespace && CustomInstructionsLength(drafts[CustomInstructionsField]) > CustomInstructionsMaxLength {
 		return fmt.Errorf("自定义指令不能超过 1500 字符 / Custom instructions must not exceed 1500 UTF-16 units")

@@ -343,9 +343,10 @@ func calendarFocusTarget(date string, key ui.Key, days []usagestore.DayUsage) st
 }
 
 type usageSlice struct {
-	name  string
-	value float64
-	color ui.Color
+	name    string
+	value   float64
+	color   ui.Color
+	buckets usagestore.Totals
 }
 
 func modelSlices(models []usagestore.ModelUsage) []usageSlice {
@@ -359,11 +360,15 @@ func modelSlices(models []usagestore.ModelUsage) []usageSlice {
 	slices := []usageSlice{}
 	for i, row := range rows {
 		if i < 5 {
-			slices = append(slices, usageSlice{row.Model, row.Total, usageSeriesColors[i]})
+			slices = append(slices, usageSlice{row.Model, row.Total, usageSeriesColors[i], row.Totals})
 		} else if i == 5 {
-			slices = append(slices, usageSlice{usageText("其他", "Other"), row.Total, usageSeriesColors[5]})
+			slices = append(slices, usageSlice{usageText("其他", "Other"), row.Total, usageSeriesColors[5], row.Totals})
 		} else {
 			slices[5].value += row.Total
+			slices[5].buckets.Input += row.Input
+			slices[5].buckets.Output += row.Output
+			slices[5].buckets.CacheRead += row.CacheRead
+			slices[5].buckets.CacheWrite += row.CacheWrite
 		}
 	}
 	return slices
@@ -371,55 +376,16 @@ func modelSlices(models []usagestore.ModelUsage) []usageSlice {
 
 func stackedUsageView(c *ui.Context, days []usagestore.DayUsage, models []usagestore.ModelUsage, providers map[string]string, settings usagestore.BillingSettings, fg, muted, field ui.Color) {
 	slices := modelSlices(models)
-	maxTotal := 1.0
+	maxTotal := 0.0
 	for _, day := range days {
 		maxTotal = math.Max(maxTotal, day.Total)
 	}
-	for _, s := range slices {
-		ui.Text(c, "■ "+s.name).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
-	}
-	ui.Scroll(c).Height(200).Children(func() {
-		ui.Column(c).Gap(8).Children(func() {
-			for start := 0; start < len(days); start += 7 {
-				ui.Row(c).Gap(5).AlignItems(ui.End).Children(func() {
-					for _, day := range days[start:min(start+7, len(days))] {
-						day := day
-						ui.Column(c).Width(40).Gap(3).Children(func() {
-							ui.Box(c).Width(36).Height(100).Tooltip(dayTip(day, providers, settings)).Draw(func(p *ui.Painter, r ui.Rect) {
-								y := r.Y + r.H
-								for i, s := range slices {
-									value := day.Models[s.name].Total
-									if i == 5 {
-										value = 0
-										for name, t := range day.Models {
-											known := false
-											for _, top := range slices[:5] {
-												if top.name == name {
-													known = true
-													break
-												}
-											}
-											if !known {
-												value += t.Total
-											}
-										}
-									}
-									height := float32(value/maxTotal) * r.H
-									y -= height
-									p.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: height}, s.color, 0)
-								}
-								if day.Total == 0 {
-									p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, field, 0)
-								}
-							})
-							ui.Text(c, day.Date[5:]).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-							ui.Text(c, fmt.Sprintf("%.0f", day.Total)).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
-						})
-					}
-				})
-			}
-		})
+	ui.Row(c).FillWidth().Wrap().Gap(12).Children(func() {
+		for _, s := range slices {
+			ui.Text(c, "■ "+s.name).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
+		}
 	})
+	usageTimeline(c, days, slices, maxTotal, providers, settings, muted, field)
 }
 
 func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64, settings usagestore.BillingSettings, fg, muted, field ui.Color) {
@@ -430,9 +396,9 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 		if total > 0 {
 			percent = s.value / total * 100
 		}
-		tip += fmt.Sprintf("\n%s · %.1f%% · %.0f tokens", s.name, percent, s.value)
+		tip += fmt.Sprintf("\n%s · %.1f%% · %.0f tokens · %s", s.name, percent, s.value, usageHitRate(s.buckets))
 	}
-	ui.Box(c).Width(160).Height(160).Tooltip(tip).Draw(func(p *ui.Painter, r ui.Rect) {
+	ui.Box(c).Width(180).Height(180).Tooltip(tip).Draw(func(p *ui.Painter, r ui.Rect) {
 		if total <= 0 {
 			p.Fill(r, field, 80)
 			return
@@ -447,7 +413,7 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 			steps := max(2, int(math.Ceil(sweep*30)))
 			for i := 0; i <= steps; i++ {
 				a := angle + sweep*float64(i)/float64(steps)
-				x, y := r.X+r.W/2+float32(math.Cos(a))*r.W/2, r.Y+r.H/2+float32(math.Sin(a))*r.H/2
+				x, y := r.X+r.W/2+float32(math.Cos(a))*82, r.Y+r.H/2+float32(math.Sin(a))*82
 				if i == 0 {
 					path.MoveTo(x, y)
 				} else {
@@ -456,19 +422,21 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 			}
 			for i := steps; i >= 0; i-- {
 				a := angle + sweep*float64(i)/float64(steps)
-				path.LineTo(r.X+r.W/2+float32(math.Cos(a))*r.W*.30, r.Y+r.H/2+float32(math.Sin(a))*r.H*.30)
+				path.LineTo(r.X+r.W/2+float32(math.Cos(a))*58, r.Y+r.H/2+float32(math.Sin(a))*58)
 			}
 			path.Close()
 			p.FillPath(&path, s.color)
 			angle += sweep
 		}
+		usagePlotText(p, fmt.Sprintf("%.0f", total), ui.Rect{X: r.X + 25, Y: r.Y + 68, W: 130, H: 25}, fonttheme.InterfaceSize(18), fg, ui.Center)
+		usagePlotText(p, usageText("总 Tokens", "Total tokens"), ui.Rect{X: r.X + 25, Y: r.Y + 94, W: 130, H: 18}, fonttheme.InterfaceSize(11), muted, ui.Center)
 	})
 	for _, s := range slices {
 		percent := 0.0
 		if total > 0 {
 			percent = s.value / total * 100
 		}
-		ui.Text(c, fmt.Sprintf("■ %s · %.1f%% · %.0f tokens", s.name, percent, s.value)).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
+		ui.Text(c, fmt.Sprintf("■ %s · %.1f%% · %.0f tokens · %s", s.name, percent, s.value, usageHitRate(s.buckets))).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
 	}
 	ui.Scroll(c).Height(180).Children(func() {
 		ui.Column(c).Gap(6).Children(func() {
@@ -558,7 +526,7 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 	})
 }
 func providerUsageBar(c *ui.Context, value, maximum float64, accent, field ui.Color) {
-	ui.Box(c).Width(280).Height(8).Background(field).Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * float32(value/maximum), H: r.H}, accent, 3)
+	ui.Box(c).FillWidth().Height(8).Background(field).Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * max(.02, float32(value/maximum)), H: r.H}, accent, 3)
 	})
 }

@@ -1,12 +1,15 @@
 package theme
 
 type Editor struct {
-	Draft    Preferences
-	Saved    Preferences
-	Selected string
-	Status   string
-	Preview  bool
-	OnSave   func(Preferences) error
+	Draft       Preferences
+	Saved       Preferences
+	Selected    string
+	Status      string
+	Preview     bool
+	OnSave      func(Preferences) error
+	OnImport    func() (string, error)
+	Pending     func() bool
+	FlushWrites func()
 	// Only General's explicitly edited family inputs enter this pending set.
 	generalFontEdits     map[string]string
 	generalFontRevision  uint64
@@ -51,6 +54,9 @@ func (e *Editor) Save() {
 	RefreshWindows()
 	e.Preview = false
 	e.Status = "已保存 / Saved"
+	if e.Pending != nil && e.Pending() {
+		e.Status = "正在保存… / Saving…"
+	}
 }
 func (e *Editor) DeleteSelected() {
 	for i, f := range e.Draft.Custom {

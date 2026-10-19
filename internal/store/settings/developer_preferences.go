@@ -6,7 +6,7 @@ import "encoding/json"
 func DeveloperToolsEnabled(v ViewState) bool {
 	p := struct {
 		Enabled bool `json:"enabled"`
-	}{true}
+	}{}
 	for _, ns := range v.Namespaces {
 		if ns.NS == "ui-settings" {
 			_ = json.Unmarshal(ns.Value, &p)
