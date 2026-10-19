@@ -566,3 +566,26 @@ func exportNativePopupGeometry(t *testing.T, tt *ui.Tester, bounds map[string]ui
 		t.Fatal(err)
 	}
 }
+
+func TestNativePopupKeyboardDismissReturnsComposerFocus(t *testing.T) {
+	for _, key := range []struct {
+		name string
+		mods ui.Modifiers
+		key  ui.Key
+	}{{"Escape", 0, ui.KeyEscape}, {"ShiftTab", ui.Shift, ui.KeyTab}} {
+		t.Run(key.name, func(t *testing.T) {
+			d, m, tt, changed := nativePopupFixture(t, "/model", []NativeCommandOption{testModelRow("Alpha", true)})
+			openNativePopup(t, d, m, tt, changed)
+			if err := tt.Click("Search command options"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Key(key.mods, key.key)
+			if d.ModelCommand.Open || d.Text != "/model" {
+				t.Fatal("keyboard dismissal selected or consumed the command")
+			}
+			if !tt.Focused("Composer draft") {
+				t.Fatal("keyboard dismissal did not restore composer focus")
+			}
+		})
+	}
+}

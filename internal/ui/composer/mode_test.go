@@ -14,16 +14,29 @@ func TestViewPromptModeLabels(t *testing.T) {
 	defer i18n.SetLocale(i18n.DefaultLocale)
 
 	draft := ""
+	want := i18n.T(i18n.KeyComposerPermissionDefault)
+	snap := nativeCommandSnapshot(t)
+	snap.PromptMode = session.PromptModeQueue
+	snap.SelectedPermission = want
+	pick := want
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{
-			Snapshot: session.ViewState{PromptMode: session.PromptModeQueue},
-			Draft:    &draft,
+			Snapshot:           snap,
+			PermissionOptions:  []session.PermissionOption{{Label: want, Value: "workspace-write"}},
+			PermissionPick:     &pick,
+			Draft:              &draft,
 			OnPromptModeChange: func(session.PromptMode) {},
 		})
 	}, 800, 200)
 
-	want := i18n.T(i18n.KeyComposerPermissionDefault)
 	if !tt.HasText(want) {
 		t.Fatalf("missing %q; texts = %q", want, tt.Texts())
+	}
+	// Withdrawing the contribution removes this seat even though the Host's
+	// selected permission and process catalog are still retained.
+	snap.NativeContributions.Known = false
+	tt.Frame()
+	if tt.HasText(want) {
+		t.Fatal("withdrawn permission contribution retained its toolbar seat")
 	}
 }

@@ -353,6 +353,9 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, panel, bor
 		if p.poll(m.State) {
 			state.close()
 			m.State.EditFocus = true
+			// This helper is built after the editor. Schedule the pass that consumes
+			// its explicit focus request rather than waiting for unrelated input.
+			c.Services().Invalidate()
 			continue
 		}
 		if !p.started {
@@ -368,7 +371,11 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, panel, bor
 				}
 			}
 		}
-		dismiss := func() { state.close(); m.State.EditFocus = true }
+		dismiss := func() {
+			state.close()
+			m.State.EditFocus = true
+			c.Services().Invalidate()
+		}
 		if p.confirmation != nil {
 			paintNativePermissionConfirmation(c, m, p, panel, fg)
 			continue
