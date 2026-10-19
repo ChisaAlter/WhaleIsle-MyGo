@@ -152,7 +152,15 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		// Desktop customization admits supported physical keys. A file-save
 		// reservation exists only when its input owner registers the fixed row.
 		prefs := s.pageShortcutPreferences()
-		prefs.SetDefinitions("fixture-input", []shortcutprefs.Definition{{ID: "fixture.input-save", Fixed: []shortcutprefs.Binding{{Code: "KeyS", Modifiers: []string{"control"}}}}})
+		if state := prefs.Get(); state.Status != "ready" {
+			t.Fatal("accepted preferences were not readable before fixed-owner registration", state.Status, state.Error)
+		}
+		// Even a fixed catalog row has an explicitly empty defaults object in
+		// the authoritative protocol; nil is an invalid catalog, not a reservation.
+		registered := prefs.SetDefinitions("fixture-input", []shortcutprefs.Definition{{ID: "fixture.input-save", Defaults: map[string]shortcutprefs.Binding{}, Fixed: []shortcutprefs.Binding{{Code: "KeyS", Modifiers: []string{"control"}}}}})
+		if registered.Status != "ready" {
+			t.Fatal("fixed-owner fixture registration invalidated preferences", registered.Status, registered.Error)
+		}
 		e = s.pageShortcutEditor()
 		*e.Draft("settings.mcp") = "Mod+S"
 		if e.Save() || !strings.Contains(strings.ToLower(e.Err), "conflict") {
@@ -163,7 +171,9 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal("fixed-owner conflict changed accepted document")
 		}
 		e.Discard()
-		prefs.SetDefinitions("fixture-input", nil)
+		if state := prefs.SetDefinitions("fixture-input", nil); state.Status != "ready" {
+			t.Fatal("removing the fixed-owner fixture invalidated accepted preferences", state.Status, state.Error)
+		}
 		e = s.pageShortcutEditor()
 		e.BeginRecording("settings.mcp")
 		e.CancelRecording()
