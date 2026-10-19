@@ -1562,7 +1562,7 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 func (s *mainState) shouldCloseToTray() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.closeToTray
+	return s.closeToTray && !isolatedDesktopRun()
 }
 
 func (s *mainState) refreshLauncherComponents() {
@@ -2090,6 +2090,10 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 
 func main() {
 	mygo.App.SetName("Whale Isle")
+	if err := preparePortableDesktop(); err != nil {
+		log.Println("portable desktop:", err)
+		return
+	}
 	if err := prepareIsolatedDesktop(); err != nil {
 		log.Println("isolated desktop:", err)
 		return
@@ -2220,7 +2224,7 @@ func main() {
 			log.Println("openAtLogin:", err)
 		}
 
-		hidden := isolatedDesktopRun() || mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
+		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		winOpts := mygo.WindowOptions{
@@ -2344,7 +2348,7 @@ func main() {
 			state.mu.Lock()
 			quitting := state.quitting
 			sup := state.sup
-			closeToTray := state.closeToTray
+			closeToTray := state.closeToTray && !isolatedDesktopRun()
 			state.mu.Unlock()
 			if quitting {
 				state.finalizeQuit(sup)
