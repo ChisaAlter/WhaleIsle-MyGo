@@ -857,7 +857,7 @@ func (s *mainState) saveDesktopConfig() {
 	s.themeID = cfg.Theme
 	i18n.SetLocale(cfg.Locale)
 	applyAppearance(cfg.Theme)
-	if err := mygo.App.SetOpenAtLogin(cfg.OpenAtLogin); err != nil {
+	if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 		s.desktopLastAction = ""
 		s.desktopSaveErr = fmt.Sprintf("%s: %v", resumeText("设置已保存，但开机启动未生效", "Settings saved, but startup registration failed"), err)
 		log.Println("openAtLogin:", err)
@@ -1568,7 +1568,7 @@ func (s *mainState) refreshLauncherComponents() {
 	s.configureGenericComponents()
 	seen := map[string]struct{}{}
 	var rows []desktopcomponents.Row
-	for _, root := range []string{paths.UserDataDir(), importer.ElectronUserDataDir()} {
+	for _, root := range desktopComponentRoots() {
 		for _, row := range desktopcomponents.ListUserData(root) {
 			if _, ok := seen[row.ID]; ok {
 				continue
@@ -1590,6 +1590,9 @@ func acceptOpenHookPath() string {
 }
 
 func (s *mainState) pollAcceptOpenHook() bool {
+	if isolatedDesktopRun() {
+		return false
+	}
 	path := acceptOpenHookPath()
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -1676,6 +1679,9 @@ func (s *mainState) pollAcceptOpenHook() bool {
 }
 
 func (s *mainState) watchAcceptOpenHook() {
+	if isolatedDesktopRun() {
+		return
+	}
 	go func() {
 		for {
 			time.Sleep(200 * time.Millisecond)
@@ -1995,7 +2001,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		go func() {
 			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
-					pluginEvent(dsh.EventsEmit{Event:"plugin-manager/changed"})
+					pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
 					if schedStore != nil {
 						schedStore.OnEventsReady(scheduleEventsOwner)
 					}
@@ -2083,6 +2089,10 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 
 func main() {
 	mygo.App.SetName("Whale Isle")
+	if err := prepareIsolatedDesktop(); err != nil {
+		log.Println("isolated desktop:", err)
+		return
+	}
 
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
@@ -2098,7 +2108,7 @@ func main() {
 		}
 		log.Printf("deeplink: ignored %s", rawURL)
 	})
-	if err := mygo.App.RegisterURLScheme(deeplink.Scheme); err != nil {
+	if err := desktopSystemIntegration(func() error { return mygo.App.RegisterURLScheme(deeplink.Scheme) }); err != nil {
 		log.Println("RegisterURLScheme:", err)
 	}
 	mygo.App.OnSecondInstance(func(args []string, workingDir string) {
@@ -2203,11 +2213,11 @@ func main() {
 			state.mu.Unlock()
 		}
 
-		if err := mygo.App.SetOpenAtLogin(cfg.OpenAtLogin); err != nil {
+		if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 			log.Println("openAtLogin:", err)
 		}
 
-		hidden := mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
+		hidden := isolatedDesktopRun() || mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		winOpts := mygo.WindowOptions{
@@ -2240,7 +2250,7 @@ func main() {
 		state.desktopPet.OnRefreshGrowth = state.refreshPetGrowth
 		state.desktopPet.OnAutoRefreshGrowth = state.autoRefreshPetGrowth
 		state.desktopPet.OnFeedTokens = state.feedPetTokens
-		state.desktopPet.SetReady(true)
+		state.desktopPet.SetReady(!isolatedDesktopRun())
 		win.OnClosed(func() { state.desktopPet.Close() })
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
@@ -2381,8 +2391,10 @@ func main() {
 			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("恢复状态需要处理", "Resume state needs attention"), Message: resumeErr + "\n\n" + resumeText("原文件已保留，请备份后修复。当前窗口不会自动覆盖该文件。", "The original file is preserved. Back it up before repairing it. This window will not automatically overwrite it.")})
 		}
 
-		state.setupDesktopTray()
-		state.startWhaleBridgeAlerts(win)
+		if !isolatedDesktopRun() {
+			state.setupDesktopTray()
+			state.startWhaleBridgeAlerts(win)
+		}
 
 		// Electron launcher.js: show launcher first; auto-start desktop only when
 		// workspace is set AND autoStartDesktop is enabled (default true).

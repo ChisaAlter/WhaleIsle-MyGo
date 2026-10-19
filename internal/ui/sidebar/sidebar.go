@@ -366,12 +366,20 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).
 				Padding(0, 6, 0, 4).SingleLine()
 			if !it.Blank {
+				showActions := row.Hovered() || row.FocusWithin()
+				if !showActions {
+					ui.Text(c, sessionTrailingLabel(status, it.UpdatedAt)).Label("Session time " + it.SessionID).
+						FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+					if it.Pinned {
+						sessionPinIndicator(c, it.SessionID, muted)
+					}
+				}
 				more := ui.Button(c.Key("session-menu"), "…").Label(sessionActionsLabel(it.SessionID)).
 					Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(20).Padding(0).
 					BorderWidth(0).Background(ui.Transparent).TextColor(muted).Menu(menu)
 				// Keep the trigger in the tab order; focus reveals the same glyph as hover.
-				if !row.Hovered() && !row.FocusWithin() && !more.Focused() {
-					more.Opacity(0)
+				if !showActions && !more.Focused() {
+					more.Absolute().Right(0).Opacity(0)
 				}
 			}
 		})

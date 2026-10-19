@@ -321,9 +321,14 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				paintDraftAttachments(c, m, fg, muted)
 			}
 			if m.Editing {
-				ui.Row(c).FillWidth().Padding(0, 16).Gap(8).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
-					if ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(m.State != nil && m.State.Sending).Clicked() && m.OnCancelEdit != nil {
+				// InputBar.editRow floats above the card and never moves its draft.
+				ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
+					Right(8).Bottom(8).MaxWidthPercent(100).Padding(4, 8).Gap(8).AlignItems(ui.Center).
+					Radius(8).Background(panel).Children(func() {
+					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).MinWidth(0).SingleLine().FontSize(12).FixedLineHeight(18).TextColor(muted)
+					if ui.Button(c, "×").Label(i18n.T(i18n.KeyQuitConfirmCancel)).Tooltip(i18n.T(i18n.KeyQuitConfirmCancel)).
+						Width(22).Height(22).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
+						Disabled(m.State != nil && m.State.Sending).Clicked() && m.OnCancelEdit != nil {
 						m.OnCancelEdit()
 					}
 				})
