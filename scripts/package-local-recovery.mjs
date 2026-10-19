@@ -51,6 +51,13 @@ async function staticInputs(options) {
   if(options.exe)await add(options.exe,'WhaleIsle.exe',true);else missing.push('exe');
   if(options.preview) {await add(options.preview,'whaleisle-preview.exe',true);availability.preview={verified:true,provenance:'explicit local build; no upstream binary pin'};}
   else missing.push('preview');
+  if(options.pnpm) {
+    const root=await fs.realpath(options.pnpm), metadata=await json(path.join(root,'package.json'));
+    if(metadata.name!=='pnpm'||typeof metadata.version!=='string')throw Error('Invalid explicit pnpm package metadata');
+    const binary=await add(path.join(root,'pnpm-native.exe'),'runtime/pnpm/pnpm.exe',true);
+    for(const name of ['package.json','LICENSE','THIRD-PARTY-NOTICES.md'])await add(path.join(root,name),path.join('runtime/pnpm',name));
+    availability.pnpm={verified:true,version:metadata.version,sha256:binary.sha256,provenance:'explicit installed original native package; recorded local bytes, no upstream binary pin'};
+  } else missing.push('pnpm');
   const native=await json(path.join(repo,'internal/desktop/terminalruntime/native-manifest.json'));
   const binding=await json(path.join(repo,'third_party/mygo/plugins/terminal/mygo-plugin.json'));
   const lib=native.libraries.find(x=>x.name==='libghostty-vt');
@@ -106,12 +113,22 @@ export async function inventoryLocalRecoverySources(options) {
     files:inputs.files.map(({path,size,sha256})=>({path:path.split(path.sep).join('/'),size,sha256}))};
 }
 
+// The executable becomes discoverable only after the complete package marker.
+// A failed resource copy or marker write leaves no double-clickable entry that
+// could fall through to ordinary installed startup without private data paths.
+export async function publishLocalRecoveryEntry(destination, entryBytes, manifest) {
+  const pending=path.join(destination,'WhaleIsle.exe.pending');
+  await fs.writeFile(pending,entryBytes,{flag:'wx'});
+  await fs.writeFile(path.join(destination,'portable-package.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+  await fs.rename(pending,path.join(destination,'WhaleIsle.exe'));
+}
+
 export async function packageLocalRecovery(options) {
   const absolute=path.resolve(options.out);
   const destination=path.join(await fs.realpath(path.dirname(absolute)),path.basename(absolute));
   try {await fs.lstat(destination);throw Error('Portable package destination must be fresh');}
   catch(error){if(error.code!=='ENOENT')throw error;}
-  for(const source of [options.stage,options.exe,options.preview,options.terminal,options.pet,options.components].filter(Boolean)) {
+  for(const source of [options.stage,options.exe,options.preview,options.pnpm,options.terminal,options.pet,options.components].filter(Boolean)) {
     const real=await fs.realpath(source);
     if(inside(real,destination)||inside(destination,real))throw Error('Portable package destination overlaps an input');
   }
@@ -121,6 +138,7 @@ export async function packageLocalRecovery(options) {
   await fs.mkdir(destination);
   const runtime=await cloneStagedSessionRuntime(options.stage,path.join(destination,'runtime'));
   for(const file of inputs.files) {
+    if(file.path==='WhaleIsle.exe')continue;
     const target=path.join(destination,file.path);
     await fs.mkdir(path.dirname(target),{recursive:true});
     await fs.writeFile(target,file.bytes,{flag:'wx'});
@@ -129,18 +147,17 @@ export async function packageLocalRecovery(options) {
   const manifest={schemaVersion:1,kind:'whaleisle-isolated-portable',userData:'data',runtime:'runtime',entry:'WhaleIsle.exe',
     provenance:{runtime:{cliVersion:runtime.cliVersion,harnessPin:runtime.harnessPin,node:runtime.node,relocatedLinks:runtime.relocatedLinks},
       assets:inputs.availability,components,files:inputs.files.map(({path,size,sha256})=>({path:path.split(path.sep).join('/'),size,sha256}))}};
-  // Marker last: incomplete copying never advertises a launchable package.
-  await fs.writeFile(path.join(destination,'portable-package.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+  await publishLocalRecoveryEntry(destination,inputs.files.find(file=>file.path==='WhaleIsle.exe').bytes,manifest);
   return manifest;
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try {
     const [command,...args]=process.argv.slice(2), options={};
-    if(!['inventory','package'].includes(command)||args.length%2)throw Error('Usage: package-local-recovery.mjs inventory|package --stage DIR [--exe FILE --preview FILE --terminal DLL --pet DIR --components DIR --out FRESH_DIR]');
+    if(!['inventory','package'].includes(command)||args.length%2)throw Error('Usage: package-local-recovery.mjs inventory|package --stage DIR [--exe FILE --preview FILE --pnpm DIR --terminal DLL --pet DIR --components DIR --out FRESH_DIR]');
     for(let i=0;i<args.length;i+=2) {
       const key=args[i].slice(2);
-      if(!args[i].startsWith('--')||!['stage','exe','preview','terminal','pet','components','out'].includes(key)||options[key])throw Error(`Invalid option: ${args[i]}`);
+      if(!args[i].startsWith('--')||!['stage','exe','preview','pnpm','terminal','pet','components','out'].includes(key)||options[key])throw Error(`Invalid option: ${args[i]}`);
       options[key]=args[i+1];
     }
     if(!options.stage||(command==='package'&&!options.out))throw Error('--stage and package --out are required');

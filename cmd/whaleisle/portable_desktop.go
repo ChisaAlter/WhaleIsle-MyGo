@@ -68,6 +68,7 @@ func preparePortableDesktopAt(executable string) error {
 	userData := filepath.Join(root, "data")
 	vendor := filepath.Join(root, "runtime", "vendor")
 	node := filepath.Join(root, "runtime", "node", "node.exe")
+	pnpm := filepath.Join(root, "runtime", "pnpm", "pnpm.exe")
 	cli := filepath.Join(vendor, "deepseek-harness", "apps", "cli", "lib", "bin.js")
 	for key, want := range map[string]string{paths.EnvUserData: userData, paths.EnvVendor: vendor} {
 		if override := os.Getenv(key); override != "" && !samePortablePath(override, want) {
@@ -83,7 +84,7 @@ func preparePortableDesktopAt(executable string) error {
 	}
 	// Internal runtime dependency junctions remain valid. Only the runtime and
 	// data roots, and the files we use, must resolve inside this package.
-	for _, path := range []string{manifestPath, filepath.Join(root, "runtime"), vendor, node, cli} {
+	for _, path := range []string{manifestPath, filepath.Join(root, "runtime"), vendor, node, pnpm, cli} {
 		if err := portableContainedPath(root, path, false); err != nil {
 			return err
 		}
@@ -110,6 +111,9 @@ func preparePortableDesktopAt(executable string) error {
 	if _, err := harness.Resolve(harness.LaunchOptions{Host: "127.0.0.1", VendorDir: vendor, HarnessRoot: filepath.Join(vendor, "deepseek-harness"), NodeBin: node}, 3080); err != nil {
 		return fmt.Errorf("portable runtime: %w", err)
 	}
+	if stat, err := os.Stat(pnpm); err != nil || !stat.Mode().IsRegular() {
+		return fmt.Errorf("portable package requires its bundled native pnpm executable")
+	}
 	store, err := config.Open(userData)
 	if err != nil {
 		return err
@@ -134,6 +138,9 @@ func preparePortableDesktopAt(executable string) error {
 	} else if err != nil {
 		return err
 	}
+	if err := preparePortablePackageTools(root, userData); err != nil {
+		return err
+	}
 	if err := os.Setenv(paths.EnvUserData, userData); err != nil {
 		return err
 	}
@@ -142,6 +149,42 @@ func preparePortableDesktopAt(executable string) error {
 	}
 	portableDesktopRoot = root
 	return nil
+}
+
+// These variables affect only this process and its owned Host. Package-manager
+// preferences and stores stay beside the private profile, away from user npm
+// configuration and credentials. Existing private preference bytes are kept.
+func preparePortablePackageTools(root, userData string) error {
+	manager := filepath.Join(userData, "package-manager")
+	if err := portableContainedPath(userData, manager, true); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(manager, 0o700); err != nil {
+		return err
+	}
+	for variable, name := range map[string]string{"NPM_CONFIG_USERCONFIG": "user.npmrc", "NPM_CONFIG_GLOBALCONFIG": "global.npmrc"} {
+		filename := filepath.Join(manager, name)
+		if err := portableContainedPath(userData, filename, true); err != nil {
+			return err
+		}
+		file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			err = file.Close()
+		} else if os.IsExist(err) {
+			err = nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := os.Setenv(variable, filename); err != nil {
+			return err
+		}
+	}
+	if err := os.Setenv("NPM_CONFIG_STORE_DIR", filepath.Join(manager, "store")); err != nil {
+		return err
+	}
+	prefix := filepath.Join(root, "runtime", "node") + string(os.PathListSeparator) + filepath.Join(root, "runtime", "pnpm")
+	return os.Setenv("PATH", prefix+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func samePortablePath(a, b string) bool {

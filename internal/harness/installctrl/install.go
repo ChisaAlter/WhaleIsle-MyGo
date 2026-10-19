@@ -256,14 +256,11 @@ func prependPnpmToPath(cfg InstallConfig) string {
 }
 
 func findPnpmBin() string {
-	names := []string{"pnpm"}
-	if runtime.GOOS == "windows" {
-		names = []string{"pnpm.cmd", "pnpm.exe", "pnpm"}
-	}
-	for _, name := range names {
-		if bin, err := exec.LookPath(name); err == nil {
-			return bin
-		}
+	// LookPath applies PATHEXT within each Windows PATH directory. Searching
+	// every directory for .cmd first would let a later global shim override an
+	// earlier package-local pnpm.exe, defeating the selected child toolchain.
+	if bin, err := exec.LookPath("pnpm"); err == nil {
+		return bin
 	}
 	return ""
 }

@@ -17,6 +17,9 @@ func portableTestEnvironment(t *testing.T) {
 	t.Setenv(paths.EnvUserData, "")
 	t.Setenv(paths.EnvVendor, "")
 	t.Setenv("WHALEISLE_ISOLATED", "")
+	for _, key := range []string{"PATH", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_GLOBALCONFIG", "NPM_CONFIG_STORE_DIR"} {
+		t.Setenv(key, os.Getenv(key))
+	}
 	previous := portableDesktopRoot
 	portableDesktopRoot = ""
 	t.Cleanup(func() { portableDesktopRoot = previous })
@@ -122,6 +125,11 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 		t.Skip("explicit verified runtime fixture directory required")
 	}
 	root := t.TempDir()
+	pnpm := os.Getenv("WHALEISLE_PORTABLE_TEST_PNPM")
+	if pnpm == "" {
+		t.Fatal("explicit native pnpm fixture required with verified runtime")
+	}
+	copyPortableGateInput(t, pnpm, filepath.Join(root, "runtime", "pnpm", "pnpm.exe"))
 	for _, relative := range []string{
 		"node/node.exe", "vendor/host-session-runtime.json", "vendor/harness-upstream.json",
 		"vendor/deepseek-harness/apps/cli/lib/bin.js", "vendor/deepseek-harness/apps/web/dist/index.html",
@@ -139,6 +147,18 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 	data := filepath.Join(root, "data")
 	if paths.UserDataDir() != data || paths.VendorDir() != filepath.Join(root, "runtime", "vendor") || !isolatedDesktopRun() || isolatedDesktopHidden() {
 		t.Fatal("portable startup did not choose private visible mode")
+	}
+	pathEntries := filepath.SplitList(os.Getenv("PATH"))
+	if len(pathEntries) < 2 || pathEntries[0] != filepath.Join(root, "runtime", "node") || pathEntries[1] != filepath.Join(root, "runtime", "pnpm") {
+		t.Fatal("portable child tools do not select the adjacent Node and pnpm first")
+	}
+	managerConfig := filepath.Join(data, "package-manager", "user.npmrc")
+	if os.Getenv("NPM_CONFIG_USERCONFIG") != managerConfig || os.Getenv("NPM_CONFIG_GLOBALCONFIG") != filepath.Join(data, "package-manager", "global.npmrc") || os.Getenv("NPM_CONFIG_STORE_DIR") != filepath.Join(data, "package-manager", "store") {
+		t.Fatal("package manager can reach inherited user preferences instead of private files")
+	}
+	privatePreferences := []byte("# retain private preferences\n")
+	if err := os.WriteFile(managerConfig, privatePreferences, 0o600); err != nil {
+		t.Fatal(err)
 	}
 	store, err := config.Open(data)
 	if err != nil {
@@ -161,6 +181,9 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 	got, err := os.ReadFile(store.Path())
 	if err != nil || !bytes.Equal(got, retained) {
 		t.Fatal("existing portable configuration was rewritten")
+	}
+	if got, err := os.ReadFile(managerConfig); err != nil || !bytes.Equal(got, privatePreferences) {
+		t.Fatal("existing private package manager configuration was rewritten")
 	}
 	if err := os.WriteFile(store.Path(), []byte(`{"nodeBin":"C:\\outside\\node.exe"}`), 0o600); err != nil {
 		t.Fatal(err)

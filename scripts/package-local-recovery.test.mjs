@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {packageLocalRecovery} from './package-local-recovery.mjs';
+import {packageLocalRecovery, publishLocalRecoveryEntry} from './package-local-recovery.mjs';
 
 async function fixture(t) {
   const parent=await fs.realpath(os.tmpdir()),root=await fs.mkdtemp(path.join(parent,'portable-package-test-'));
@@ -20,7 +20,7 @@ async function fixture(t) {
 
 test('missing explicit native/static dependencies leave the output absent',async t=>{
   const f=await fixture(t);
-  await assert.rejects(packageLocalRecovery(f),/Missing explicit package inputs: terminal, pet, components/);
+  await assert.rejects(packageLocalRecovery(f),/Missing explicit package inputs: pnpm, terminal, pet, components/);
   await assert.rejects(fs.lstat(f.out),{code:'ENOENT'});
 });
 test('an existing package is preserved without overwrites or deletion',async t=>{
@@ -43,4 +43,21 @@ test('an unbuilt entry is rejected before creating a portable marker',async t=>{
   const f=await fixture(t);await fs.writeFile(f.exe,'placeholder');
   await assert.rejects(packageLocalRecovery(f),/not a built Windows executable/);
   await assert.rejects(fs.lstat(f.out),{code:'ENOENT'});
+});
+
+test('a marker publication failure leaves no runnable fallback entry',async t=>{
+  const f=await fixture(t);await fs.mkdir(f.out);
+  await fs.mkdir(path.join(f.out,'portable-package.json'));
+  await assert.rejects(publishLocalRecoveryEntry(f.out,await fs.readFile(f.exe),{schemaVersion:1}));
+  await assert.rejects(fs.lstat(path.join(f.out,'WhaleIsle.exe')),{code:'ENOENT'});
+  assert.equal((await fs.stat(path.join(f.out,'WhaleIsle.exe.pending'))).isFile(),true);
+});
+
+test('a completed marker is published before the final executable entry',async t=>{
+  const f=await fixture(t);await fs.mkdir(f.out);
+  const bytes=await fs.readFile(f.exe),manifest={schemaVersion:1,kind:'whaleisle-isolated-portable'};
+  await publishLocalRecoveryEntry(f.out,bytes,manifest);
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.out,'portable-package.json'),'utf8')),manifest);
+  assert.deepEqual(await fs.readFile(path.join(f.out,'WhaleIsle.exe')),bytes);
+  await assert.rejects(fs.lstat(path.join(f.out,'WhaleIsle.exe.pending')),{code:'ENOENT'});
 });
