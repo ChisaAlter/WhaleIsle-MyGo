@@ -2,10 +2,11 @@ package market
 
 // Confirmation is ephemeral: no action or credential is restored after restart.
 type managementState struct {
-	filter       string
-	selected     map[string]bool
-	confirmation string
-	confirm      func()
+	filter         string
+	selected       map[string]bool
+	confirmation   string
+	confirm        func()
+	confirmRuntime uint64
 }
 
 func (s *Store) ManagementFilter() string {
@@ -50,6 +51,7 @@ func (s *Store) RequestConfirmation(description string, action func()) {
 	s.mu.Lock()
 	s.management.confirmation = description
 	s.management.confirm = action
+	s.management.confirmRuntime = s.generation
 	s.mu.Unlock()
 	s.fire()
 }
@@ -61,11 +63,17 @@ func (s *Store) Confirmation() string {
 func (s *Store) ResolveConfirmation(accept bool) {
 	s.mu.Lock()
 	action := s.management.confirm
-	s.management.confirm = nil
-	s.management.confirmation = ""
+	current := s.management.confirmRuntime == s.generation
+	s.clearConfirmationLocked()
 	s.mu.Unlock()
 	s.fire()
-	if accept && action != nil {
+	if accept && current && action != nil {
 		action()
 	}
+}
+
+func (s *Store) clearConfirmationLocked() {
+	s.management.confirm = nil
+	s.management.confirmation = ""
+	s.management.confirmRuntime = 0
 }

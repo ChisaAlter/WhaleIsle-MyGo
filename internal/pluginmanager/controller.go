@@ -10,14 +10,14 @@ import (
 )
 
 type Controller struct {
-	mu                                                  sync.Mutex
-	client                                              Caller
-	life                                                context.Context
-	cancel                                              context.CancelFunc
-	notify                                              func()
-	state                                               State
-	read, listingRead, indexRead, installRead, revision uint64
-	pending                                             *action
+	mu                                                                sync.Mutex
+	client                                                            Caller
+	life                                                              context.Context
+	cancel                                                            context.CancelFunc
+	notify                                                            func()
+	state                                                             State
+	read, listingRead, indexRead, installRead, registryRead, revision uint64
+	pending                                                           *action
 }
 type action struct {
 	kind, target, spec, runtime string
@@ -116,6 +116,10 @@ func (c *Controller) Load(ctx context.Context) error {
 	}
 	defer done()
 	c.mu.Lock()
+	if c.state.Owner != owner {
+		c.mu.Unlock()
+		return context.Canceled
+	}
 	c.read++
 	read := c.read
 	unknownRequest := ""

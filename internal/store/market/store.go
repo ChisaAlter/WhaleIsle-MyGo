@@ -83,6 +83,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	}
 	s.generation++
 	s.refreshID++
+	s.clearConfirmationLocked()
 	s.rows = nil
 	s.loading = false
 	s.client = client
@@ -99,6 +100,7 @@ func (s *Store) Detach() {
 	}
 	s.generation++
 	s.refreshID++
+	s.clearConfirmationLocked()
 	s.client = nil
 	s.loading = false
 	s.hasListRPC = false

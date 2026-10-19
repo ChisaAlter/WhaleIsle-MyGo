@@ -40,12 +40,17 @@ func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *b
 	}
 	c.state.Install = InstallState{Open: true, Spec: spec, Registry: registry, Enabled: enabled, SaveExact: exact, Phase: "idle"}
 	c.installRead++
+	c.registryRead++
+	read := c.registryRead
 	client, ctx := Client{c.client}, c.life
 	c.mu.Unlock()
 	c.fire()
 	go func() {
 		registries, err := client.Registries(ctx)
 		c.patch(owner, func(s *State) {
+			if c.registryRead != read {
+				return
+			}
 			if err != nil {
 				s.Install.Error = err.Error()
 				return

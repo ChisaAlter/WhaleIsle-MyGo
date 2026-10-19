@@ -76,6 +76,7 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 	}
 	s.mu.Lock()
 	client := s.client
+	epoch := s.connectionEpoch
 	if s.busy || client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		s.mu.Unlock()
 		return fmt.Errorf("not connected or another schedule write is pending")
@@ -103,7 +104,7 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 		}
 	}
 	s.mu.Lock()
-	if s.client != client {
+	if s.client != client || s.connectionEpoch != epoch {
 		s.mu.Unlock()
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}
@@ -146,6 +147,7 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	}
 	s.mu.Lock()
 	client := s.client
+	epoch := s.connectionEpoch
 	if s.busy || client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		s.mu.Unlock()
 		return fmt.Errorf("not connected or another schedule write is pending")
@@ -170,7 +172,7 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 		}
 	}
 	s.mu.Lock()
-	if s.client != client {
+	if s.client != client || s.connectionEpoch != epoch {
 		s.mu.Unlock()
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}

@@ -218,6 +218,7 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 	}
 	s.mu.Lock()
 	client := s.client
+	epoch := s.connectionEpoch
 	s.mu.Unlock()
 	if client == nil {
 		return "", fmt.Errorf("not connected")
@@ -228,6 +229,12 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 	var out api.ScheduleDeliveryHistoryResult
 	if err := client.Call(ctx, "schedule/history", map[string]any{"request": req}, &out); err != nil {
 		return "", err
+	}
+	s.mu.Lock()
+	current := s.client == client && s.connectionEpoch == epoch
+	s.mu.Unlock()
+	if !current {
+		return "", fmt.Errorf("Host connection changed; reload task history")
 	}
 	raw, _ := json.MarshalIndent(out, "", "  ")
 	if err := resultError(out); err != nil {
