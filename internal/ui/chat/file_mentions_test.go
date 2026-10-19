@@ -36,14 +36,14 @@ func TestInlineFileMentionsFixture(t *testing.T) {
 		call("failed", "write", `{"file_path":"failed.md","content":"ok"}`, 8), result("failed", 9, true),
 		call("bad", "edit", `{"file_path":"bad.md","old_string":"same","new_string":"same"}`, 10), result("bad", 11, false),
 		call("pending", "write", `{"file_path":"pending.md","content":"ok"}`, 12),
-		event("tool/ptc-dispatch", 13, map[string]any{"rootCallId": "write", "name": "write", "arguments": map[string]string{"file_path": "unresolved.md", "content": "ok"}}),
+		event("tool/ptc-dispatch", 13, map[string]any{"rootCallId": "write", "name": "write", "arguments": map[string]string{"file_path": "located.md", "content": "ok"}}),
 		event("deliverables/presented", 14, map[string]any{"files": []map[string]string{{"path": "missing-turn.md"}}}),
 	}
 	resolve := FileMentionResolver(messages, closing)
 	if resolve == nil {
 		t.Fatal("no resolver")
 	}
-	for token, want := range map[string]string{"report.md": "out/report.md", "out/report.md": "out/report.md", "written.md": "out/written.md", "win.txt": `C:\output\win.txt`, "same.md": "", "a/same.md": "a/same.md", "other-turn.md": "", "future.md": "", "read.md": "", "failed.md": "", "bad.md": "", "pending.md": "", "unresolved.md": "", "missing-turn.md": "", "guessed.pdf": ""} {
+	for token, want := range map[string]string{"report.md": "out/report.md", "out/report.md": "out/report.md", "written.md": "out/written.md", "win.txt": `C:\output\win.txt`, "same.md": "", "a/same.md": "a/same.md", "other-turn.md": "", "future.md": "", "read.md": "", "failed.md": "", "bad.md": "", "pending.md": "", "located.md": "located.md", "missing-turn.md": "", "guessed.pdf": ""} {
 		if got := resolve(token); got != want {
 			t.Fatalf("%q => %q, want %q", token, got, want)
 		}

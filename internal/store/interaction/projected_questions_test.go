@@ -91,7 +91,7 @@ func TestContinuedWaterfallTimeoutRestoresDraftWithoutDoubleAnswer(t *testing.T)
 		t.Fatalf("draft lost during continuation: %q", got)
 	}
 }
-func TestLiveWaterfallAnswerIsNotReplayedAsLateAnswer(t *testing.T) {
+func TestHostQueuedWaterfallAnswerIsNotReplayedAsLateAnswer(t *testing.T) {
 	s := New()
 	done := make(chan struct{})
 	go func() {
@@ -99,12 +99,12 @@ func TestLiveWaterfallAnswerIsNotReplayedAsLateAnswer(t *testing.T) {
 		close(done)
 	}()
 	awaitQuestionFixture(t, func() bool { return len(s.SnapshotForAgent("A").Pending) == 1 })
-	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
+	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[{"callId":"call-1","state":"open","questions":[{"id":"q","options":[{"label":"A"}]}]}],"settled":[]}`), emptyInboxFixture)
 	s.SetQuestionSingleSelect("live", "q", "A")
 	s.ResolveQuestions("live")
 	<-done
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
-	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
+	s.SyncProjectedQuestions("A", continuedFixture, json.RawMessage(`{"next-step":[{"source":{"kind":"user-question-reply","callId":"call-1"}}],"next-turn":[]}`))
 	if len(s.SnapshotForAgent("A").Pending) != 0 {
 		t.Fatal("delivered waterfall answer gained a second RPC submission")
 	}
