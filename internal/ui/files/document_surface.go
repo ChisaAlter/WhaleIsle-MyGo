@@ -3,6 +3,7 @@ package files
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/workspacefs"
 )
 
 // DocumentSurface is an exact-Host child owned by one native file tab. The live
@@ -88,7 +89,7 @@ func prepareDocumentViewer(m Model) {
 			tab.document.surface = surface
 		}
 	}
-	tab.document.enabled = documentSurfaceEnabled(tab.document)
+	tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 	if !tab.document.enabled && tab.document.surface != nil {
 		tab.document.surface.SetVisible(false)
 	}
@@ -121,11 +122,11 @@ func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 		}
 		tab.document.choice = 2
 		tab.document.workbook = isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface)
-		tab.document.enabled = documentSurfaceEnabled(tab.document)
+		tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 	}
 	if tab.document.choice != 0 && ui.Button(c, label("自动选择", "Auto viewer")).Clicked() {
 		tab.document.choice = 0
-		tab.document.enabled = documentSurfaceEnabled(tab.document)
+		tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 	}
 
 }
@@ -147,6 +148,16 @@ func paintDocumentSurface(c *ui.Context, m Model) bool {
 	surface.SetVisible(bounds.W > 0 && bounds.H > 0)
 	box.Children(func() { ui.Text(c, label("正在载入资源预览器…", "Loading resource viewer…")) })
 	return true
+}
+
+// Desktop-file claims delimited text before the Host's builtin spreadsheet
+// fallback. Its recommendation must not replace the default editable source;
+// an explicit viewer choice still opens that existing document owner.
+func tabDocumentSurfaceEnabled(tab *FileTab) bool {
+	if tab == nil || tab.document.choice == 0 && workspacefs.IsCSVPath(tab.Path) {
+		return false
+	}
+	return documentSurfaceEnabled(tab.document)
 }
 
 func documentSurfaceEnabled(state documentSurfaceState) bool {

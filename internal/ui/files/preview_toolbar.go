@@ -419,5 +419,5 @@ func previewViewerChoices(menu *ui.Menu, m Model, tab *FileTab) {
 	if menu.Item(label("自动选择", "Auto viewer")).Checked(tab.document.choice == 0).Disabled(editing).Chosen() {
 		tab.document.choice = 0
 	}
-	tab.document.enabled = documentSurfaceEnabled(tab.document)
+	tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 }
