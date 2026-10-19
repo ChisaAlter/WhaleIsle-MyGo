@@ -66,6 +66,9 @@ func imagePathFromBlock(raw json.RawMessage) string {
 		URL          string `json:"url"`
 		Src          string `json:"src"`
 		AttachmentId string `json:"attachmentId"`
+		Attachment   *struct {
+			ID string `json:"attachmentId"`
+		} `json:"attachment"`
 	}
 	if err := json.Unmarshal(raw, &blk); err != nil {
 		return ""
@@ -75,6 +78,11 @@ func imagePathFromBlock(raw json.RawMessage) string {
 	}
 	if id := strings.TrimSpace(blk.AttachmentId); id != "" {
 		return "attachment:" + id
+	}
+	if blk.Type == "image" && blk.Attachment != nil {
+		if id := strings.TrimSpace(blk.Attachment.ID); id != "" {
+			return "attachment:" + id
+		}
 	}
 	for _, p := range []string{blk.Path, blk.URL, blk.Src} {
 		p = strings.TrimSpace(p)
