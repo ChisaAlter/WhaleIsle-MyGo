@@ -87,7 +87,7 @@ func servePrivateFrames(ctx context.Context, w *mygo.Window, input io.Reader, ou
 	case <-startup.Done():
 		return startup.Err()
 	}
-	shell, err := htmlpreview.ProcessDocumentShell(doc.HTML, doc.Width, doc.Appearance)
+	shell, err := documentShell(doc)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,11 @@ func servePrivateFrames(ctx context.Context, w *mygo.Window, input io.Reader, ou
 	if err = validateFrame(first, doc.Width); err != nil {
 		return err
 	}
-	if err = writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce}); err != nil {
+	imageWidth, imageHeight, err := inertImageDimensions(startup, w, doc)
+	if err != nil {
+		return err
+	}
+	if err = writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, ImageWidth: imageWidth, ImageHeight: imageHeight}); err != nil {
 		return err
 	}
 	if err = sendFrame(output, nonce, first, doc.Width); err != nil {

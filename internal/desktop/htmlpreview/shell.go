@@ -30,6 +30,15 @@ func buildShellMode(input request, palette previewPalette, interactive bool) str
 		"--text": palette.Text, "--text-secondary": palette.Secondary, "--border": palette.Border, "--accent": palette.Accent,
 	})
 	appearance, _ := json.Marshal(input.Appearance)
+	imageReady, imageState := "", ""
+	if input.inertImage {
+		imageReady = `const image=document.images[0];if(document.images.length!==1||!image?.complete)throw new Error('Image did not decode');let iw=image.naturalWidth,ih=image.naturalHeight;if(iw===0||ih===0){const style=image.getAttribute('style');image.style.setProperty('width','auto','important');image.style.setProperty('height','auto','important');const box=image.getBoundingClientRect();if(style===null)image.removeAttribute('style');else image.setAttribute('style',style);iw=iw||box.width;ih=ih||box.height;}if(!Number.isFinite(iw)||!Number.isFinite(ih)||iw<=0||ih<=0||iw>32768||ih>32768||iw*ih>32000000)throw new Error('Image intrinsic dimensions exceed the preview budget');const intrinsic={imageWidth:iw,imageHeight:ih};`
+		imageState = `if(data.type==='preview-ready'){if(!Number.isFinite(data.imageWidth)||!Number.isFinite(data.imageHeight)||data.imageWidth<=0||data.imageHeight<=0||data.imageWidth>32768||data.imageHeight>32768||data.imageWidth*data.imageHeight>32000000){state.error='Invalid image intrinsic dimensions.';return;}state.imageWidth=data.imageWidth;state.imageHeight=data.imageHeight;}`
+	}
+	readyMessage := `send({type:'preview-ready',height});`
+	if input.inertImage {
+		readyMessage = `send({type:'preview-ready',height,...intrinsic});`
+	}
 	child := `<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childCSP) + `"><style>html,body{margin:0;background:transparent}*{box-sizing:border-box}</style><script>(()=>{
 const send=data=>parent.postMessage(data,'*');
 addEventListener('message',event=>{
@@ -51,7 +60,7 @@ addEventListener('load',async()=>{try{
  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
  for(const tag of new Set([...document.querySelectorAll('svg *')].filter(el=>el.constructor===SVGElement).map(el=>el.localName)))send({type:'preview-console',level:'warning',text:('HTML preview: Chromium does not recognize SVG tag <'+tag+'>.').slice(0,500)});
  const height=window.__whaleVisualReplyHeight?window.__whaleVisualReplyHeight():Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
- send({type:'preview-ready',height});
+ ` + imageReady + readyMessage + `
 }catch(e){send({type:'preview-error',error:String(e).slice(0,500)})}},{once:true});
 })();</script>` + input.HTML
 	encoded, _ := json.Marshal(child) // escapes '<', so supplied markup cannot close our script
@@ -69,6 +78,7 @@ addEventListener('message',event=>{
  if(data.type==='preview-console'&&typeof data.text==='string'){
   if(state.consoleMessages.length<20)state.consoleMessages.push({level:['log','info','warning','error'].includes(data.level)?data.level:'log',text:data.text.slice(0,500)});else state.omitted++;
  }else if(data.type==='preview-ready'||data.type==='whale-visual-reply-size'){
+  ` + imageState + `
   if(Number.isFinite(data.height)&&data.height>=1&&data.height<=Number.MAX_SAFE_INTEGER){state.height=Math.ceil(data.height);state.ready=true}else state.error='Page returned an invalid content height.';
  }else if(data.type==='preview-error'&&typeof data.error==='string')state.error=data.error.slice(0,500);
 });

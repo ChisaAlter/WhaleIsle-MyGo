@@ -114,6 +114,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 			e = errors.New("legacy renderer identity changed")
 		}
 		if e == nil {
+			e = session.acceptImageDimensions(doc, p)
+		}
+		if e == nil {
 			e = verifyMacProcess(cmd.Process.Pid, identity)
 		}
 		if e == nil && doc.capture {

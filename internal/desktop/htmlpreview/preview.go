@@ -25,6 +25,7 @@ const (
 )
 
 type request struct {
+	inertImage bool   // Trusted helper-only mode, never accepted from JSON.
 	HTML       string `json:"html"`
 	Width      int    `json:"width"`
 	Appearance string `json:"appearance"`

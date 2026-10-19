@@ -51,7 +51,11 @@ func NewSeat(data []byte) (*Seat, error) {
 	}
 	return &Seat{width: w, height: h, data: bytes.Clone(data)}, nil
 }
-func (s *Seat) Size() (float32, float32) { return s.width, s.height }
+func (s *Seat) Size() (float32, float32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.width, s.height
+}
 
 // Prepare only starts or observes work. Neither file reads nor helper startup
 // runs on the UI thread. Paint, not a built-but-clipped element, renews authority.
@@ -122,6 +126,7 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 	generation := s.generation
 	// The first build grants only startup. Subsequent paints must renew it.
 	s.lastPaint = time.Now()
+	width, height := s.width, s.height
 	s.mu.Unlock()
 	appearance := "light"
 	if c.Theme().Dark {
@@ -160,10 +165,13 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 	}()
 	go func() {
 		defer close(openingDone)
-		surface, err := Open(ctx, owner.Window, owner.HelperPath, s.data, int(s.width), int(s.height), appearance, valid)
+		surface, err := Open(ctx, owner.Window, owner.HelperPath, s.data, int(width), int(height), appearance, valid)
 		s.mu.Lock()
 		current := s.generation == generation && s.ownerID == owner.ID && ctx.Err() == nil
 		if current {
+			if surface != nil && err == nil {
+				s.width, s.height = surface.Size()
+			}
 			s.pending = false
 			s.surface = surface
 			s.err = err
@@ -201,6 +209,7 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 		s.lastPaint = time.Now()
 	}
 	surface := s.surface
+	width, height := s.width, s.height
 	err := s.err
 	restart := surface == nil && !s.pending && err == nil && s.notify != nil
 	notify := s.notify
@@ -225,16 +234,16 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 		}
 		return
 	}
-	factor := min(r.W/s.width, r.H/s.height)
+	factor := min(r.W/width, r.H/height)
 	if fit == ui.Cover {
-		factor = max(r.W/s.width, r.H/s.height)
+		factor = max(r.W/width, r.H/height)
 	}
 	if fit == ui.FillBox {
 		factor = 0
 	}
 	imageRect := r
 	if factor > 0 {
-		imageRect = ui.Rect{X: r.X + (r.W-s.width*factor)/2, Y: r.Y + (r.H-s.height*factor)/2, W: s.width * factor, H: s.height * factor}
+		imageRect = ui.Rect{X: r.X + (r.W-width*factor)/2, Y: r.Y + (r.H-height*factor)/2, W: width * factor, H: height * factor}
 	}
 	appearance := "light"
 	if p.Theme().Dark {

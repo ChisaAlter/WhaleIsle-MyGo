@@ -8,7 +8,6 @@ import (
 	"html"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -40,6 +39,9 @@ func NeedsBrowserSVG(data []byte) bool {
 	if validateNativeSVG(data) != nil {
 		return true
 	}
+	if _, _, exact, err := svgIntrinsicHint(data); err == nil && !exact {
+		return true
+	}
 	// resvg's static image renderer cannot play an embedded raster timeline.
 	// Preserve GIF resources in their original image context, and route WebP
 	// sequences when their actual bounded data carries animation metadata.
@@ -52,6 +54,11 @@ func NeedsBrowserSVG(data []byte) bool {
 		element, ok := token.(xml.StartElement)
 		if !ok {
 			continue
+		}
+		if strings.EqualFold(element.Name.Local, "style") {
+			// A stylesheet may change the root's used geometry, including
+			// font-dependent intrinsic dimensions. Keep that cascade in img.
+			return true
 		}
 		for _, a := range element.Attr {
 			if a.Name.Local != "href" {
@@ -71,39 +78,15 @@ func NeedsBrowserSVG(data []byte) bool {
 	}
 }
 
-// SVGImageSize uses the same validated intrinsic dimensions as the bounded
-// native SVG route, without rasterizing or starting the helper.
+// SVGImageSize returns an absolute-unit layout hint without starting a helper.
+// The live image's browser-reported natural dimensions replace this hint after
+// decode, including default object sizing, percentages and font/CSS lengths.
 func SVGImageSize(data []byte) (float32, float32, error) {
 	if err := validateBrowserSVG(data); err != nil {
 		return 0, 0, err
 	}
-	d := xml.NewDecoder(bytes.NewReader(data))
-	for {
-		token, err := d.Token()
-		if err != nil {
-			return 0, 0, err
-		}
-		root, ok := token.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		values := map[string]string{}
-		for _, a := range root.Attr {
-			values[strings.ToLower(a.Name.Local)] = strings.TrimSpace(a.Value)
-		}
-		w, h := float64(300), float64(150)
-		if fields := strings.Fields(strings.ReplaceAll(values["viewbox"], ",", " ")); len(fields) == 4 {
-			w, _ = strconv.ParseFloat(fields[2], 64)
-			h, _ = strconv.ParseFloat(fields[3], 64)
-		}
-		if v := values["width"]; v != "" && !strings.HasSuffix(v, "%") {
-			w, _ = strconv.ParseFloat(strings.TrimSuffix(v, "px"), 64)
-		}
-		if v := values["height"]; v != "" && !strings.HasSuffix(v, "%") {
-			h, _ = strconv.ParseFloat(strings.TrimSuffix(v, "px"), 64)
-		}
-		return float32(w), float32(h), nil
-	}
+	w, h, _, err := svgIntrinsicHint(data)
+	return w, h, err
 }
 
 // SVGSurfaceHTML is fixed image-only markup for the existing isolated inline
@@ -146,7 +129,7 @@ func validateBrowserSVG(data []byte) error {
 				if t.Name.Local != "svg" || t.Name.Space != "" && t.Name.Space != svgNS {
 					return errors.New("SVG root element is missing")
 				}
-				if err := svgDimensions(t.Attr); err != nil {
+				if err := svgBrowserDimensions(t.Attr); err != nil {
 					return err
 				}
 				seen = true

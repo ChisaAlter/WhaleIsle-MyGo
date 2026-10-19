@@ -12,6 +12,18 @@ import (
 // previewprocess helper, after its AppContainer/job handshake. It must never
 // be used in the in-process LocalHTMLURL path.
 func ProcessDocumentShell(preparedHTML string, width int, appearance string) (string, error) {
+	return processDocumentShell(preparedHTML, width, appearance, false)
+}
+
+// ProcessImageDocumentShell keeps the same opaque iframe and trusted readiness
+// bootstrap, and additionally reports its sole inert image's natural size.
+// Its caller supplies only the fixed data-URL image document, never SVG markup
+// as executable page content. Supplied image bytes remain script-inert.
+func ProcessImageDocumentShell(preparedHTML string, width int, appearance string) (string, error) {
+	return processDocumentShell(preparedHTML, width, appearance, true)
+}
+
+func processDocumentShell(preparedHTML string, width int, appearance string, inertImage bool) (string, error) {
 	if len(preparedHTML) > MaxPreparedHTMLBytes || !utf8.ValidString(preparedHTML) || strings.TrimSpace(preparedHTML) == "" {
 		return "", errors.New("invalid prepared HTML snapshot")
 	}
@@ -22,7 +34,7 @@ func ProcessDocumentShell(preparedHTML string, width int, appearance string) (st
 	if appearance == "dark" {
 		palette = previewPalette{Background: "#171717", Surface: "#242424", Text: "#eeeeee", Secondary: "#aaaaaa", Border: "#444444", Accent: "#60a5fa"}
 	}
-	return buildShellMode(request{HTML: preparedHTML, Width: width, Appearance: appearance}, palette, true), nil
+	return buildShellMode(request{HTML: preparedHTML, Width: width, Appearance: appearance, inertImage: inertImage}, palette, true), nil
 }
 
 // ProcessThemeScript changes the existing iframe, never replacing its document.

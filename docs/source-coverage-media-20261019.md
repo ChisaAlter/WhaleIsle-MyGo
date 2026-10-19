@@ -384,9 +384,9 @@ mislabelled as live animation. The root owns model/window-provider and separate
 `htmldocument` SVG entry wiring.
 
 Remaining bounds are the existing 1MiB XML, 40,000 tokens, 10,000 nodes, depth64,
-64KiB attribute and bounded dimension/geometry policy. Width/height sizing still
-uses the existing px/viewBox contract; SVG physical/font-relative sizing beyond
-that contract is not implemented. Declarative frame rendering on a real helper,
+64KiB attribute and bounded dimension/geometry policy. The previous browser-seat
+px/viewBox sizing restriction is closed by the intrinsic-size continuation below.
+Declarative frame rendering on a real helper,
 containment/readiness, theme/transparent background, native child clipping,
 parent input delivery, thumbnail/lightbox transitions and process release all
 remain unverified until the coordinated runtime phase. Source wiring alone is
@@ -446,3 +446,47 @@ and whitespace checks are the only checks in this phase. Compilation on both
 architectures, COM ABI execution, GPU availability, visual alpha/DPI/resize,
 Snap/animation, pointer interaction, and app ring/layout remain unverified
 until the coordinated validation phase; no hardware result is inferred here.
+
+### SVG intrinsic sizing continuation
+
+Fixed original conversation `service.ts`'s `probeDimensions` constructs an
+`Image`, waits for onload and records `naturalWidth`/`naturalHeight` from its
+attachment blob preview URL; it does not parse a viewBox as pixel dimensions.
+This source path is unchanged from e353e8e in the original worktree.
+
+`svg_intrinsic.go` separates browser image admission from the existing static
+SVG gate. It converts absolute px/in/cm/mm/Q/pt/pc lengths at CSS96dpi for an
+initial bounded layout hint, accepts percentages/auto/missing dimensions without
+requiring a viewBox, and leaves font-relative/CSS sizing to the browser. A
+300x150 default-object box is only provisional; a viewBox is never falsely
+reported as the final natural pixel size. SVGs requiring that browser intrinsic
+resolution, including root CSS geometry, use the existing live image seat.
+The static native SVG parser and WASM capability/resource boundary are unchanged.
+
+The same ongoing inert helper now reports bounded `imageWidth`/`imageHeight`
+on its nonce-checked loaded packet. Its existing trusted child bootstrap waits
+for the sole img to decode, reads natural dimensions, and passes only numbers
+through the opaque iframe's existing readiness message. The parent reads outer
+`__previewState` only; it never accesses the opaque child DOM. For positive
+subpixel SVG dimensions truncated to zero by the naturalWidth/Height integer
+API, the hidden startup temporarily sets that same img to auto sizing, measures
+its browser-used rectangle and restores its style before presentation. This
+does not create another image/helper, change SVG bytes, guess font metrics, or
+add a frame/capture loop. Finite positive dimensions remain bounded to32768 per
+axis and32MP. Ordinary HTML/OpenUI/capture sessions cannot request this mode.
+
+Windows and Linux existing Go helpers return that metadata after their current
+readiness path. The macOS existing single-process legacy WebView helper returns
+the same two numbers from the state it already reads; no new evaluator or
+script grant was introduced. Its source branch still requires a separately
+signed real helper and has not been compiled or run on macOS here.
+
+Seat generation/owner checks retain the original byte snapshot, cancel stale
+results and update mutex-protected natural size only for the current helper.
+Its existing invalidation updates Files zoom/pan and displayed dimensions,
+composer lightbox sizing, and Market README/gallery image ratios. Standalone
+`BuildSVGImage` documents also pass the browser dimension gate and retain the
+ordinary browser img intrinsic behavior. No source dimension-unit omission
+remains in this browser route. Actual physical/font-relative/default-size
+rendering, helper handshake, font availability, owner transitions and the three
+platform renderers remain unverified until the coordinated validation phase.

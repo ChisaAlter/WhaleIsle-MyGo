@@ -222,7 +222,11 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil || currentPID != pid {
 		return errors.New("preview browser changed during document load")
 	}
-	if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid, WindowHandle: uint64(w.NativeHandle())}); err != nil {
+	imageWidth, imageHeight, err := inertImageDimensions(startup, w, doc)
+	if err != nil {
+		return err
+	}
+	if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid, WindowHandle: uint64(w.NativeHandle()), ImageWidth: imageWidth, ImageHeight: imageHeight}); err != nil {
 		return err
 	}
 	if !doc.Inline {

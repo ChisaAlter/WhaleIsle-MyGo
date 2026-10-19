@@ -46,26 +46,28 @@ type Document struct {
 	Appearance    string
 	capture       bool
 	Inline        bool
+	InertImage    bool // Trusted fixed data-URL image shell; no document scripts.
 }
 
 // Session owns the entire helper job until Close, cancellation, process exit,
 // a failed containment check, or the thirty-minute lifetime limit.
 type Session struct {
-	openUIEvents  *openUIEventQueue
-	openUIUpdates *openUIUpdateQueue
-	openUIAPI     *openUIAPIQueue
-	pixels        *pixelSurface
-	done          chan struct{}
-	once          sync.Once
-	closeFn       func() error
-	err           error
-	capture       *htmlpreview.CaptureResult
-	surfaceMu     sync.Mutex
-	height        atomic.Int64
-	surfaceHandle uintptr
-	surfacePID    uint32
-	theme         string
-	sendTheme     func(string, map[string]string) error
+	openUIEvents            *openUIEventQueue
+	openUIUpdates           *openUIUpdateQueue
+	openUIAPI               *openUIAPIQueue
+	pixels                  *pixelSurface
+	done                    chan struct{}
+	once                    sync.Once
+	closeFn                 func() error
+	err                     error
+	capture                 *htmlpreview.CaptureResult
+	surfaceMu               sync.Mutex
+	height                  atomic.Int64
+	surfaceHandle           uintptr
+	surfacePID              uint32
+	theme                   string
+	sendTheme               func(string, map[string]string) error
+	imageWidth, imageHeight float64
 }
 
 func (s *Session) Done() <-chan struct{} { return s.done }
@@ -103,6 +105,9 @@ func OpenExperimental(ctx context.Context, opt Options, doc Document) (*Session,
 }
 
 func validateDocument(d Document) error {
+	if d.InertImage && (!d.Inline || d.capture || d.OpenUI != nil || d.openUIShell) {
+		return errors.New("inert image requires an ordinary inline image session")
+	}
 	if d.OpenUI != nil {
 		if err := openui.ValidateRender(*d.OpenUI); err != nil {
 			return err
@@ -147,6 +152,9 @@ type packet struct {
 	Appearance     string            `json:"appearance,omitempty"`
 	Capture        bool              `json:"capture,omitempty"`
 	Inline         bool              `json:"inline,omitempty"`
+	InertImage     bool              `json:"inertImage,omitempty"`
+	ImageWidth     float64           `json:"imageWidth,omitempty"`
+	ImageHeight    float64           `json:"imageHeight,omitempty"`
 	Variables      map[string]string `json:"variables,omitempty"`
 	Height         int               `json:"height,omitempty"`
 	WindowHandle   uint64            `json:"windowHandle,omitempty"`
@@ -225,7 +233,7 @@ func sendDocument(w io.Writer, nonce string, d Document) error {
 	if err := validateDocument(d); err != nil {
 		return err
 	}
-	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Height: d.InitialHeight, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline, OpenUI: d.openUIShell}); err != nil {
+	if err := writePacket(w, packet{Version: protocolVersion, Kind: "document", Nonce: nonce, Bytes: len(d.HTML), Width: d.Width, Height: d.InitialHeight, Appearance: d.Appearance, Capture: d.capture, Inline: d.Inline, InertImage: d.InertImage, OpenUI: d.openUIShell}); err != nil {
 		return err
 	}
 	return writeAll(w, []byte(d.HTML))
@@ -246,7 +254,7 @@ func receiveDocument(r io.Reader, nonce string) (Document, error) {
 	if _, err := io.ReadFull(r, body); err != nil {
 		return Document{}, err
 	}
-	d := Document{HTML: string(body), Width: p.Width, InitialHeight: p.Height, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline, openUIShell: p.OpenUI}
+	d := Document{HTML: string(body), Width: p.Width, InitialHeight: p.Height, Appearance: p.Appearance, capture: p.Capture, Inline: p.Inline, InertImage: p.InertImage, openUIShell: p.OpenUI}
 	return d, validateDocument(d)
 }
 

@@ -94,6 +94,7 @@ func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryStat
 					owner = owners[0]
 				}
 				decoded.svgSeat.Prepare(c, owner)
+				decoded.width, decoded.height = decoded.svgSeat.Size()
 			}
 			if decoded.pending == nil && (decoded.width <= 0 || decoded.height <= 0) {
 				state.failed[source] = true

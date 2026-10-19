@@ -66,6 +66,7 @@ static void verifyIdentity(void) {
 @property BOOL initialNavigation;
 @property BOOL capture;
 @property BOOL inlineSeat;
+@property BOOL inertImage;
 @property BOOL openUI;
 @property(strong) WebFrame *openUIViewerFrame;
 @property(strong) NSHashTable<WebFrame *> *openUIHtmlFrames;
@@ -292,7 +293,15 @@ static void verifyIdentity(void) {
         NSString *enabled=[self.web stringByEvaluatingJavaScriptFromString:@"window.__whaleOpenUIHtmlViewSupport(true)"];
         if(![enabled isEqual:@"true"]) fail(@"OpenUI HtmlView capability rejected by shell");
     }
-    packet(@"loaded",@{@"browserPID":@(getpid())});
+    NSMutableDictionary *loaded=[@{@"browserPID":@(getpid())} mutableCopy];
+    if(self.inertImage) {
+        id iw=state[@"imageWidth"],ih=state[@"imageHeight"];
+        if(![iw isKindOfClass:NSNumber.class] || ![ih isKindOfClass:NSNumber.class]) fail(@"missing image intrinsic dimensions");
+        double width=[iw doubleValue],height=[ih doubleValue];
+        if(!isfinite(width) || !isfinite(height) || width<=0 || height<=0 || width>32768 || height>32768 || width*height>32000000) fail(@"unbounded image intrinsic dimensions");
+        loaded[@"imageWidth"]=@(width);loaded[@"imageHeight"]=@(height);
+    }
+    packet(@"loaded",loaded);
     if(!self.capture) {
         if(self.inlineSeat) { [self.window makeFirstResponder:self.web];[self emitFrame]; }
         else { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
@@ -344,7 +353,8 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");
     NSString *html=[[NSString alloc] initWithData:readExact(n) encoding:NSUTF8StringEncoding];if(!html) fail(@"invalid document UTF-8");
-    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.inlineSeat=[doc[@"inline"] boolValue];preview.initialNavigation=YES;preview.openUI=[doc[@"openUI"] isEqual:@YES];
+    preview.width=width;preview.capture=[doc[@"capture"] boolValue];preview.inlineSeat=[doc[@"inline"] boolValue];preview.initialNavigation=YES;preview.openUI=[doc[@"openUI"] isEqual:@YES];preview.inertImage=[doc[@"inertImage"] isEqual:@YES];
+    if(preview.inertImage && (preview.capture || !preview.inlineSeat || preview.openUI)) fail(@"invalid inert image mode");
     if(preview.openUI && preview.capture) fail(@"OpenUI requires interactive mode");
     if(preview.inlineSeat && preview.capture) fail(@"capture requires a dedicated session");
     if(preview.inlineSeat) [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];

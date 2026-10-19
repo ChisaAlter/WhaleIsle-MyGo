@@ -426,6 +426,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 	if loaded.BrowserPID != ready.BrowserPID {
 		return nil, errors.New("preview browser identity changed")
 	}
+	if err = s.acceptImageDimensions(doc, loaded); err != nil {
+		return nil, err
+	}
 	if err = verifyTree(job, sid, process.ProcessId, ready.BrowserPID); err != nil {
 		return nil, err
 	}

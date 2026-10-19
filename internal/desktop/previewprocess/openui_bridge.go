@@ -127,6 +127,12 @@ func prepareOpenUIDocument(d Document) (Document, error) {
 	return d, validateDocument(d)
 }
 func documentShell(d Document) (string, error) {
+	if d.InertImage {
+		if err := validateDocument(d); err != nil {
+			return "", err
+		}
+		return htmlpreview.ProcessImageDocumentShell(d.HTML, d.Width, d.Appearance)
+	}
 	if d.OpenUI != nil {
 		prepared, err := prepareOpenUIDocument(d)
 		return prepared.HTML, err

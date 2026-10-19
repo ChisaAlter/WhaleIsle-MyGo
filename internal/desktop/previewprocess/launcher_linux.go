@@ -144,6 +144,9 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 			}
 		}
 		if err == nil && !doc.capture {
+			err = session.acceptImageDimensions(doc, p)
+		}
+		if err == nil && !doc.capture {
 			firstFrame, err = receiveFrame(output, nonce, doc.Width)
 		}
 		if err == nil && doc.capture {

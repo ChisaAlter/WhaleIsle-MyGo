@@ -95,14 +95,17 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 		ui.Text(c, label("可用“外部打开”查看此图片；不会自动启动其他应用。", "Use Open external to view this image. No other app is opened automatically.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
 		return
 	}
-	if preview.note != "" {
-		ui.Text(c, preview.note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
-	}
+	note := preview.note
 	if preview.svg != nil {
 		preview.svg.Prepare(c, m.SVGImages)
+		w, h := preview.svg.Size()
+		note = fmt.Sprintf("%.0f × %.0f", w, h)
 		if err := preview.svg.Error(); err != nil {
 			ui.Text(c, err.Error()).FontSize(12).TextColor(muted).FillWidth()
 		}
+	}
+	if note != "" {
+		ui.Text(c, note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
 	}
 	view := &imageViewState{}
 	if t != nil {

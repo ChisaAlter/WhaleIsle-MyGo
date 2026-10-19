@@ -40,7 +40,7 @@ func Open(ctx context.Context, parent *mygo.Window, helperPath string, data []by
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	handle, err := previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helperPath}, previewprocess.Document{HTML: markup, Width: max(240, min(1600, width)), InitialHeight: max(80, min(2000, height)), Appearance: appearance, Inline: true})
+	handle, err := previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: helperPath}, previewprocess.Document{HTML: markup, Width: max(240, min(1600, width)), InitialHeight: max(80, min(2000, height)), Appearance: appearance, Inline: true, InertImage: true})
 	if err != nil {
 		cancel()
 		return nil, err
@@ -98,6 +98,10 @@ func (s *Surface) fail(err error) {
 }
 func (s *Surface) Error() error          { s.mu.Lock(); defer s.mu.Unlock(); return s.err }
 func (s *Surface) Done() <-chan struct{} { return s.handle.Done() }
+func (s *Surface) Size() (float32, float32) {
+	w, h := s.handle.ImageSize()
+	return float32(w), float32(h)
+}
 func (s *Surface) Close() error {
 	s.once.Do(func() {
 		s.cancel()
