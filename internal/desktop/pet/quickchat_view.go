@@ -86,8 +86,12 @@ func (q *QuickChat) view(c *ui.Context) {
 		}
 		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
 		input := ui.TextArea(c, &q.draft).Font(fonttheme.CurrentPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 发送，Shift+Enter 换行 / Enter sends; Shift+Enter newline")
+		// Read the IME composition state during the build: input callbacks run
+		// outside the build pass, where an Element query panics ("element from
+		// pass N used in pass N"). The next frame refreshes it.
+		composing := input.Composing()
 		input.HandleInput(func(ev ui.InputEvent) bool {
-			if !quickChatSendKey(ev, input.Composing()) {
+			if !quickChatSendKey(ev, composing) {
 				return false
 			}
 			if !ev.Repeat && active && !q.sending.busy() && !q.picking.busy() && !q.stopping.busy() && strings.TrimSpace(q.draft) != "" {

@@ -10,11 +10,29 @@ type ResizeState struct {
 	heightPending, widthPending bool
 	dragging                    string
 	origin, originSize          float32
+	handles                     map[string]*ui.Handle
+}
+
+// handle returns the stable ui.Handle of one resize axis. Input callbacks run
+// outside the build pass, where ui.Element queries panic, so the handle keeps
+// the control addressable for focus across passes.
+func (s *ResizeState) handle(axis string) *ui.Handle {
+	if s.handles == nil {
+		s.handles = map[string]*ui.Handle{}
+	}
+	if h := s.handles[axis]; h != nil {
+		return h
+	}
+	h := &ui.Handle{}
+	s.handles[axis] = h
+	return h
 }
 
 func (s *ResizeState) Adopt(binding string, height, width float32) {
 	if s.Binding != binding {
+		handles := s.handles
 		*s = ResizeState{Binding: binding, Height: height, Width: width, savedHeight: height, savedWidth: width}
+		s.handles = handles
 		return
 	}
 	if height != s.savedHeight {
@@ -47,10 +65,19 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 		return
 	}
 	s := m.Resize
+	// Input callbacks run outside the build pass, where ui.Element geometry and
+	// focus are unavailable (mygo panics: "element from pass N used in pass N").
+	// Address each control through its ui.Handle, which reads committed geometry
+	// between builds, and capture the plain elements' boxes here, during the
+	// build, for the same reason.
+	cardW := card.Bounds().W
+	rootH := c.Root().Bounds().H
 	for _, axis := range []string{"height", "left", "right"} {
 		axis := axis
 		handle := ui.Box(c.Key("composer-resize-" + axis)).Absolute().Focusable().Role(ui.RoleSplitter).
 			Label("Resize composer " + axis)
+		ref := s.handle(axis)
+		handle.Bind(ref)
 		if axis == "height" {
 			handle.Left(28).Right(28).Top(-4).Height(8).Cursor(ui.CursorResizeNS)
 		} else {
@@ -71,7 +98,7 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 			}
 			p.Fill(grip, muted, 1)
 		}).HandleInput(func(ev ui.InputEvent) bool {
-			bounds := handle.Bounds()
+			bounds := ref.Bounds(c)
 			pointer := bounds.X + ev.X
 			if axis == "height" {
 				pointer = bounds.Y + ev.Y
@@ -81,9 +108,9 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 				if ev.Button != 0 {
 					return false
 				}
-				handle.Focus()
+				ref.Focus(c)
 				s.dragging, s.origin = axis, pointer
-				s.originSize = card.Bounds().W
+				s.originSize = cardW
 				if axis == "height" {
 					s.originSize = float32(36)
 					if m.Hero {
@@ -102,7 +129,7 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 					return false
 				}
 				if axis == "height" {
-					s.Height = min(c.Root().Bounds().H*.7, max(float32(52), s.originSize+s.origin-pointer))
+					s.Height = min(rootH*.7, max(float32(52), s.originSize+s.origin-pointer))
 				} else {
 					delta := pointer - s.origin
 					if axis == "left" {
@@ -144,7 +171,7 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 					if current <= 0 && m.TextInput != nil {
 						current = m.TextInput.viewportHeight
 					}
-					s.Height = min(c.Root().Bounds().H*.7, max(float32(52), current+delta))
+					s.Height = min(rootH*.7, max(float32(52), current+delta))
 					s.heightPending = true
 					if m.OnResizeEnd != nil {
 						m.OnResizeEnd("height", s.Height)
@@ -164,7 +191,7 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 					}
 					current := s.Width
 					if current <= 0 {
-						current = card.Bounds().W
+						current = cardW
 					}
 					s.Width = min(m.ResizeMaxWidth, max(min(float32(280), m.ResizeMaxWidth), current+delta))
 					s.widthPending = true

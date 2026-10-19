@@ -3038,6 +3038,15 @@ func mainView(c *ui.Context) {
 	}
 	layout := state.layout
 	win := state.win
+	// The very first view build happens inside mygo.NewWindow (main.go:2232),
+	// before state.win is assigned at main.go:2358, so win is still nil there.
+	// Resolve the native parent defensively instead of dereferencing it: the
+	// OpenUI native surface seat is skipped while it is 0 (chat/openui.go) and
+	// attaches on the next render, once the window exists.
+	var openUIParent uintptr
+	if win != nil {
+		openUIParent = win.NativeHandle()
+	}
 	chatList := state.chatList
 	draft := state.draft
 	editMessageSeq := state.editMessageSeq
@@ -6936,7 +6945,7 @@ func mainView(c *ui.Context) {
 						OnPreviewVisualReply:         func(id string) { previewPublishedHTML(sessions, snap.SelectedID, id) },
 						OnInteractVisualReply:        interactivePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
 						OnInlineVisualReply:          inlinePublishedHTMLHandler(win, sessions, snap.SelectedID, mygo.Theme.IsDark()),
-						OpenUIParent:                 win.NativeHandle(),
+						OpenUIParent:                 openUIParent,
 						OpenUIWindow:                 win,
 						OnStopInteractiveVisualReply: sessions.StopInteractiveVisualReply,
 						OnReadVisualReply:            func(id string) { readPublishedHTML(sessions, snap.SelectedID, id) },
