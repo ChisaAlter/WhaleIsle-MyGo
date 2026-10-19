@@ -9,6 +9,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -163,35 +164,37 @@ func TestAttachmentGIFTimingAndThumbnailBudget(t *testing.T) {
 }
 
 func TestAttachmentGIFThumbnailRailAnimates(t *testing.T) {
-	d := NewDraftState("")
-	d.Attachments = []session.ComposerAttachment{attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))}
-	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentRail(c, Model{State: d}, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 600, 400)
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		if _, ok := tt.Find("Preview attachment moving.gif"); ok {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("GIF thumbnail did not load")
-		}
-		time.Sleep(time.Millisecond * 5)
+	synctest.Test(t, func(t *testing.T) {
+		d := NewDraftState("")
+		d.Attachments = []session.ComposerAttachment{attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))}
+		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentRail(c, Model{State: d}, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 600, 400)
+		// The preview label exists during loading. Drain its asynchronous decode
+		// before the first rendered frame starts the animation's paint clock.
+		synctest.Wait()
 		tt.Frame()
-	}
-	time.Sleep(110 * time.Millisecond)
-	tt.Frame()
-	rect, ok := tt.Find("Preview attachment moving.gif")
-	if !ok {
-		t.Fatal("GIF thumbnail disappeared")
-	}
-	img := tt.Image()
-	c := img.RGBAAt(int(rect.X+rect.W/2), int(rect.Y+rect.H/2))
-	if c.B < 220 || c.R > 40 {
-		t.Fatalf("rail thumbnail remains first frame: %+v", c)
-	}
-	if err := tt.Click("Remove attachment moving.gif"); err != nil {
-		t.Fatal(err)
-	}
-	if len(d.Attachments) != 0 {
-		t.Fatal("animated attachment removal failed")
-	}
+		sample := func() color.RGBA {
+			t.Helper()
+			rect, ok := tt.Find("Preview attachment moving.gif")
+			if !ok {
+				t.Fatal("GIF thumbnail disappeared")
+			}
+			return tt.Image().RGBAAt(int(rect.X+rect.W/2), int(rect.Y+rect.H/2))
+		}
+		first := sample()
+		if first.R < 220 || first.B > 40 {
+			t.Fatalf("initial GIF frame was not rendered: %+v", first)
+		}
+		time.Sleep(110 * time.Millisecond)
+		tt.Frame()
+		last := sample()
+		if last.B < 220 || last.R > 40 {
+			t.Fatalf("rail thumbnail remains first frame: %+v", last)
+		}
+		if err := tt.Click("Remove attachment moving.gif"); err != nil {
+			t.Fatal(err)
+		}
+		if len(d.Attachments) != 0 {
+			t.Fatal("animated attachment removal failed")
+		}
+	})
 }
