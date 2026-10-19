@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -136,5 +137,49 @@ func TestAgentPresetCatalogCanceledBeforeStartDoesNotRead(t *testing.T) {
 	s.RefreshAgentPresets(ctx)
 	if calls.Load() != 0 {
 		t.Fatal("canceled refresh started a request")
+	}
+}
+
+func TestAgentPresetCatalogCacheBelongsToAttachedHost(t *testing.T) {
+	for _, transition := range []string{"other-client", "attach-nil", "detach"} {
+		t.Run(transition, func(t *testing.T) {
+			s := New()
+			s.Attach(&dsh.Client{}, nil)
+			s.agentPresetOptions = []AgentPresetOption{{ID: "old-preset", Label: "Old preset"}}
+			s.selectedAgentPresetLabel = "Old preset"
+			s.agentPresetsErr = errors.New("old Host refusal")
+			switch transition {
+			case "other-client":
+				s.Attach(&dsh.Client{}, nil)
+			case "attach-nil":
+				s.Attach(nil, nil)
+			case "detach":
+				s.Detach()
+			}
+			got := s.Snapshot()
+			if len(got.AgentPresetLabels) != 0 || got.SelectedAgentPreset != "" || got.AgentPresetsErr != "" {
+				t.Fatalf("old Host catalog remains selectable: %+v %q %q", got.AgentPresetLabels, got.SelectedAgentPreset, got.AgentPresetsErr)
+			}
+			// Empty-session selection is a local future-session draft, so this
+			// exposes stale menu admission without any Host or model request.
+			s.SelectAgentPresetForSession(context.Background(), "Old preset")
+			if v := s.AgentPresetSelection(); v.ID != "" {
+				t.Fatal("old Host option staged on current Host", v)
+			}
+		})
+	}
+	client := &dsh.Client{}
+	s := New()
+	s.Attach(client, nil)
+	s.agentPresetOptions = []AgentPresetOption{{ID: "current", Label: "Current"}}
+	s.selectedAgentPresetLabel = "Current"
+	s.selectedID = "retained-session"
+	s.Attach(client, nil)
+	if got := s.Snapshot(); len(got.AgentPresetLabels) != 1 || got.SelectedAgentPreset != "Current" || got.SelectedID != "retained-session" {
+		t.Fatal("same-owner Attach discarded current choices or selected identity")
+	}
+	s.Attach(&dsh.Client{}, nil)
+	if s.Snapshot().SelectedID != "retained-session" {
+		t.Fatal("catalog reset changed selected session identity")
 	}
 }

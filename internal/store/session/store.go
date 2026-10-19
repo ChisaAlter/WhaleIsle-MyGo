@@ -395,6 +395,9 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.questionProjections = nil
 		s.permissionOptions = nil
 		s.resetModelCatalogLocked()
+		s.agentPresetOptions = nil
+		s.selectedAgentPresetLabel = ""
+		s.agentPresetsErr = nil
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
@@ -524,6 +527,9 @@ func (s *Store) Detach() {
 	s.invalidateRenameLocked()
 	s.invalidateSessionFeedbackLocked()
 	s.resetModelCatalogLocked()
+	s.agentPresetOptions = nil
+	s.selectedAgentPresetLabel = ""
+	s.agentPresetsErr = nil
 	s.questionProjections = nil
 	s.invalidateArchiveLocked()
 	s.invalidateCommandsLocked()
