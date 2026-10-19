@@ -75,7 +75,10 @@ type Model struct {
 	OnOpenCitationURL    func(url string)
 	OnOpenPlanResource   func(planpreview.Document)
 	// OnOpenDeliverable opens a presented file path in the files dock.
-	OnOpenDeliverable            func(path string)
+	OnOpenDeliverable func(path string)
+	// Starts on the UI thread and completes on the UI thread. The local
+	// reference owns failure/retry presentation; later preview loading does not.
+	OnOpenHistoryReference       func(path string, complete func(error))
 	OnOpenChangesReview          func(session.TurnFileScope, session.TurnFileTarget)
 	VisualReply                  session.VisualReplyState
 	VisualReplyBitmap            *ui.Bitmap

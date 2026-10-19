@@ -98,8 +98,12 @@ func TestPlanReviewContractFixture(t *testing.T) {
 		t.Fatal("retry changed decision")
 	}
 	live.OnResult(dsh.EventResult{EventID: "live"}, nil)
+	if pending := live.SnapshotForAgent("A").Pending; len(pending) != 1 || !pending[0].Sending {
+		t.Fatal("HTTP receipt replaced Host plan acceptance")
+	}
+	live.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"review-call"}]}`), emptyInboxFixture)
 	if len(live.SnapshotForAgent("A").Pending) != 0 {
-		t.Fatal("delivered live request remained pending")
+		t.Fatal("Host-settled live request remained pending")
 	}
 	unnamed := New()
 	unnamed.questionDrafts["unnamed"] = newDraftSession(request)

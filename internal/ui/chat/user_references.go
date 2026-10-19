@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -20,6 +21,36 @@ type userReferenceRun struct {
 type userReferenceFacts struct {
 	Labels, Skills []string
 	OpenSkill      func(string)
+	OpenFile       func(string, func(error))
+	Current        func() bool
+}
+
+type userFileReferenceState struct {
+	request uint64
+	failed  bool
+}
+
+func (s *userFileReferenceState) dismiss() { s.request++; s.failed = false }
+
+func (s *userFileReferenceState) open(path string, start func(string, func(error)), current func() bool) {
+	if start == nil || current != nil && !current() {
+		return
+	}
+	s.request++
+	request := s.request
+	start(path, func(err error) {
+		if s.request != request || current != nil && !current() {
+			return
+		}
+		s.failed = err != nil
+	})
+}
+
+func referenceCopy(en, zh string) string {
+	if i18n.Locale() == i18n.LocaleEN {
+		return en
+	}
+	return zh
 }
 
 var userSessionReference = regexp.MustCompile(`^@\[([^\]\n]+)\]\(dsh-session:[^)\s]+\)`)
@@ -136,6 +167,16 @@ func userReferenceRuns(text string, known ...userReferenceFacts) []userReference
 }
 
 func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Color, open func(string), facts userReferenceFacts) {
+	type failedReference struct {
+		state    *userFileReferenceState
+		path     string
+		activate func()
+	}
+	var references []failedReference
+	startFile := facts.OpenFile
+	if startFile == nil && open != nil {
+		startFile = func(path string, complete func(error)) { open(path); complete(nil) }
+	}
 	ui.RichText(c).Font(theme.RenderPreferences().Chat.Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable().Children(func() {
 		for _, run := range userReferenceRuns(text, facts) {
 			run := run
@@ -144,10 +185,13 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 				continue
 			}
 			el = el.Tooltip(run.Raw).TextColor(muted)
-			if run.Kind == "file" && open != nil {
+			if run.Kind == "file" && startFile != nil {
 				el = el.Label(run.Text).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink).Underline()
+				state := ui.Local(el, "file-open:"+run.Raw, func() userFileReferenceState { return userFileReferenceState{} })
+				activate := func() { state.open(run.Path, startFile, facts.Current) }
+				references = append(references, failedReference{state: state, path: run.Path, activate: activate})
 				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
-					open(run.Path)
+					activate()
 				}
 			}
 			if run.Kind == "skill" && facts.OpenSkill != nil {
@@ -158,6 +202,30 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 			}
 		}
 	})
+	for index, reference := range references {
+		if !reference.state.failed || facts.Current != nil && !facts.Current() {
+			continue
+		}
+		visible := true
+		ui.DialogBase(c.Key(index), &visible, func(backdrop, panel ui.Element) {
+			backdrop.Background(ui.RGBA(0, 0, 0, .24)).Padding(24)
+			panel.Label(referenceCopy("Couldn’t open file", "无法打开文件")).Width(420).MaxWidthPercent(100).Gap(16).Padding(24).Radius(16).Background(c.Theme().Surface).Children(func() {
+				ui.Text(c, referenceCopy("Couldn’t open file", "无法打开文件")).FontSize(16).Bold().TextColor(fg)
+				ui.Text(c, reference.path).FontSize(13).TextColor(muted).Selectable()
+				ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
+					if ui.Button(c, referenceCopy("Close", "关闭")).Clicked() {
+						visible = false
+					}
+					if ui.Button(c, referenceCopy("Retry", "重试")).Clicked() {
+						reference.activate()
+					}
+				})
+			})
+		})
+		if !visible {
+			reference.state.dismiss()
+		}
+	}
 }
 
 // Only direct messages and sourced contexts share a skill batch. Any other

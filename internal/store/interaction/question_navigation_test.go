@@ -90,11 +90,14 @@ func TestQuestionWizardFinalSkipFindsMissingThenSubmits(t *testing.T) {
 func TestQuestionWizardIndexSurvivesContinuation(t *testing.T) {
 	s := questionWizardFixture()
 	projection := json.RawMessage(`{"active":[{"callId":"call","state":"continued","questions":[{"id":"first","question":"First","options":[{"label":"A"},{"label":"B"}]},{"id":"last","question":"Last"}]}],"settled":[]}`)
-	s.SyncProjectedQuestions("A", projection, emptyInboxFixture)
 	s.SetQuestionCustom("e", "first", "draft")
 	s.NavigateQuestion("A", "e", 1)
 	s.resolve("e", dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Code: "ASK_TIMED_OUT"}})
 	s.OnResult(dsh.EventResult{EventID: "e"}, nil)
+	if pending := s.SnapshotForAgent("A").Pending; len(pending) != 1 || !pending[0].Sending || pending[0].Continued {
+		t.Fatal("HTTP receipt settled the named live question")
+	}
+	s.SyncProjectedQuestions("A", projection, emptyInboxFixture)
 	view := s.SnapshotForAgent("A")
 	if len(view.Pending) != 1 || !view.Pending[0].Continued {
 		t.Fatal("continued request missing")

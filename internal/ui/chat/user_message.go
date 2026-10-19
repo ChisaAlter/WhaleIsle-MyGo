@@ -109,7 +109,9 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 								}()
 							}
 						}
-						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, userReferenceFacts{Labels: referenceLabels, Skills: userMessageSkillNames(m.Snapshot.Messages, msg), OpenSkill: openSkill})
+						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, userReferenceFacts{Labels: referenceLabels, Skills: userMessageSkillNames(m.Snapshot.Messages, msg), OpenSkill: openSkill, OpenFile: m.OnOpenHistoryReference, Current: func() bool {
+							return m.HistoryStore != nil && m.Snapshot.TurnFiles.Scope.Binding != "" && m.Snapshot.TurnFiles.Scope == m.HistoryStore.Snapshot().TurnFiles.Scope
+						}})
 					})
 				}
 				if len(referenceLabels) > 0 {
