@@ -36,7 +36,7 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 	if strings.Contains(text, "hidden") {
 		t.Fatal("healthy hidden preset leaked")
 	}
-	if err := tt.Click("选择阅读 / Select for reading · broken"); err != nil {
+	if err := tt.Click("查看配置 / View configuration · broken"); err != nil {
 		t.Fatal(err)
 	}
 	if reading != "broken" || selected != "" {
@@ -54,9 +54,9 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "工作方式") {
 		t.Fatal("mode explanation did not open")
 	}
-	if err := tt.Click("如何使用 / How to use · standard"); err != nil {
-		t.Fatal(err)
-	}
+	tt.Key(0, ui.KeyTab)
+	tt.Key(0, ui.KeyEnter)
+
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "修复一个问题") {
 		t.Fatal("mode examples did not open")
 	}
