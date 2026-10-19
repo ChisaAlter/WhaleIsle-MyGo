@@ -184,53 +184,92 @@ func attachmentDisplayStatus(d *DraftState, i int) string {
 	}
 	return "待上传 / Pending"
 }
+
+// Draft files share the original 64-DIP rail: files are 240 wide and images 64.
+// Metadata reads and upload state never reserve an additional vertical block.
 func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 	d := m.State
 	if len(d.Attachments) > 0 {
-		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(210).Padding(0, 14).Children(func() {
+		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(66).Padding(2, 10, 0).Margin(0, 0, -6, 0).Gap(10).Children(func() {
 			for i, a := range d.Attachments {
 				i, a := i, a
 				label := a.Name
 				if label == "" {
 					label = filepath.Base(a.Path)
 				}
-				card := ui.Column(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Width(200).Height(196).Gap(3).Padding(5).Border(1, c.Theme().Border)
+				imageFile := a.ImageData != "" || strings.HasPrefix(a.MediaType, "image/") || strings.HasPrefix(mime.TypeByExtension(strings.ToLower(filepath.Ext(a.Path))), "image/")
+				width := float32(240)
+				if imageFile {
+					width = 64
+				}
+				card := ui.Row(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Label("Attachment "+label).Width(width).Height(64).Gap(10).Radius(16).Border(.5, c.Theme().Border).AlignItems(ui.Center)
+				if !imageFile {
+					card.Padding(0, 12)
+				}
 				seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
 				seat.load(a, false, c.Services().Invalidate)
+				if seat.result != nil && strings.HasPrefix(seat.result.mediaType, "image/") {
+					imageFile = true
+					card.Width(64).Padding(0)
+				}
+				if imageFile {
+					card.Radius(20)
+				}
 				remove := false
 				card.Children(func() {
-					ui.Text(c, label).FontSize(12).TextColor(fg).MaxLines(1)
-					if seat.result == nil {
-						ui.Text(c, "读取信息 / Reading…").FontSize(10)
+					v := seat.result
+					if imageFile {
+						preview := ui.Box(c).Fill().Radius(20).Clip().Focusable().Label("Preview attachment " + label).Tooltip(label)
+						preview.Children(func() {
+							if v != nil && v.bitmap != nil {
+								v.animate(c)
+								ui.Image(c, v.bitmap).Fill().Fit(ui.Cover)
+							} else {
+								ui.Text(c, composerText("图片", "Image")).FontSize(12).TextColor(muted)
+							}
+						})
+						if v != nil && v.err != nil {
+							preview.Tooltip(v.err.Error())
+						}
+						if v != nil && v.bitmap != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
+							seat.open = true
+						}
 					} else {
-						v := seat.result
-						if v.bitmap != nil {
-							v.animate(c)
-							preview := ui.Box(c).FillWidth().Height(48).Focusable().Label("Preview attachment " + label)
-							preview.Children(func() { ui.Image(c, v.bitmap).Fill().Fit(ui.Contain) })
-							if preview.Clicked() || preview.Shortcut(0, ui.KeyEnter) {
-								seat.open = true
+						ui.Text(c, "▤").Width(28).FontSize(22).TextColor(muted)
+						body := ui.Column(c).Grow(1).MinWidth(0).Gap(0).Tooltip(label)
+						if a.PrepareError != "" && m.OnRetryAttachment != nil {
+							body.Focusable().Label("Retry upload: " + label).Tooltip(a.PrepareError)
+							if !d.Sending && !d.AttachmentPreparing(i) && (body.Clicked() || body.Shortcut(0, ui.KeyEnter)) {
+								m.OnRetryAttachment(i)
 							}
 						}
-						typ := v.mediaType
-						if typ == "" {
-							typ = "file"
-						}
-						ui.Text(c, fmt.Sprintf("%s · %d bytes", typ, v.bytes)).FontSize(10).TextColor(muted).MaxLines(1)
-						if v.err != nil {
-							ui.Text(c, "预览不可用 / Preview unavailable").FontSize(10).TextColor(muted)
-						}
+						body.Children(func() {
+							ui.Text(c, label).FontSize(14).FixedLineHeight(22).TextColor(fg).MaxLines(1)
+							meta := composerText("待上传", "Pending upload")
+							if d.AttachmentPreparing(i) {
+								meta = composerText("上传中", "Uploading")
+							} else if a.PrepareError != "" {
+								meta = composerText("上传失败，点击重试", "Upload failed, retry")
+							} else if v != nil && v.err != nil {
+								meta = composerText("文件不可用", "File unavailable")
+								body.Tooltip(v.err.Error())
+							} else if v != nil && a.Upload.ReceiptId != "" {
+								meta = fmt.Sprintf("%s · %d bytes", strings.ToUpper(strings.TrimPrefix(filepath.Ext(label), ".")), v.bytes)
+							}
+							ui.Text(c, meta).FontSize(12).FixedLineHeight(15).TextColor(muted).MaxLines(1)
+						})
 					}
-					ui.Text(c, attachmentDisplayStatus(d, i)).FontSize(11).TextColor(muted)
 					if a.PrepareError != "" {
-						ui.Text(c, a.PrepareError).FontSize(10).MaxLines(1)
-						if m.OnRetryAttachment != nil && ui.Button(c, "重试上传 / Retry upload: "+label).FontSize(10).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
+						card.Tooltip(a.PrepareError).Border(.5, ui.RGB(213, 73, 65))
+						if imageFile && m.OnRetryAttachment != nil && ui.Button(c, "↻").Label("Retry upload: "+label).Tooltip(a.PrepareError).Absolute().Bottom(4).Left(4).Width(18).Height(18).Padding(0).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
 							m.OnRetryAttachment(i)
 						}
 					}
-					if ui.Button(c, label+" ×").Label("Remove attachment " + label).FontSize(10).Disabled(d.Sending).Clicked() {
-						remove = true
+					close := ui.Button(c, "×").Absolute().Top(4).Right(4).Width(18).Height(18).Padding(0).Radius(9).BorderWidth(0).Label("Remove attachment " + label).Disabled(d.Sending)
+					if !card.Hovered() && !card.FocusWithin() && a.PrepareError == "" {
+						close.Opacity(0)
 					}
+					remove = close.Clicked()
 				})
 				if remove {
 					d.RemoveAttachment(i)
