@@ -198,6 +198,9 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, word("将设置 origin；若已有提交，会上传当前分支及其提交历史。空仓库仅设置远端。未提交文件与编辑器草稿不会上传。", "This sets origin and uploads the current branch and its commit history when commits exist. An empty repository gets the remote only. Uncommitted files and editor drafts are excluded.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
 		if ui.Button(c, word("确认发布仓库", "Confirm publish repository")).Clicked() {
+			if !captionAdmitted(m) {
+				return
+			}
 			root := m.WorkspaceRoot
 			w.PublishReview = false
 			beginGitOperation(c, w, word("正在发布仓库", "Publishing repository"), func(ctx context.Context) gitOperationResult {

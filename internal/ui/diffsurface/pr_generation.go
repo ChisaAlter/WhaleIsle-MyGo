@@ -28,6 +28,9 @@ func (w *Workbench) cancelPRGeneration() {
 	}
 }
 func beginPRGeneration(c *ui.Context, m Model) {
+	if !captionAdmitted(m) {
+		return
+	}
 	w := m.Workbench
 	s := w.Remote
 	if s == nil || s.Generation != nil || s.Task != nil || w.Operation != nil {

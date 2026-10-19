@@ -17,11 +17,14 @@ import (
 
 // Model is diff panel state for one frame.
 type Model struct {
-	OnOpenFile    func(path string) error
-	Workbench     *Workbench
-	WorkspaceRoot string
-	ThemeID       string
-	SystemDark    bool
+	// CaptionAdmission captures the window/Host/retained-Session owner for a
+	// titlebar gesture. Global-page review modals retain this exact callback.
+	CaptionAdmission func() bool
+	OnOpenFile       func(path string) error
+	Workbench        *Workbench
+	WorkspaceRoot    string
+	ThemeID          string
+	SystemDark       bool
 
 	PathFilter *string // optional repo-relative path; empty means whole tree
 	Text       *string

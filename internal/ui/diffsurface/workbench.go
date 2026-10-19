@@ -9,6 +9,7 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
+	captionReview                             *captionReviewState
 	Progress                                  *git.Progress
 	LastStack                                 *git.StackResult
 	Remote                                    *remoteWorkflowState
@@ -97,6 +98,13 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 	w := m.Workbench
 	if w == nil {
 		return
+	}
+	if w.captionReview != nil {
+		seat := w.captionReview
+		if seat.root == m.WorkspaceRoot && w.Root == seat.root && seat.valid != nil && seat.valid() {
+			return // The same review controls are already mounted in the root modal.
+		}
+		closeCaptionReview(w, seat)
 	}
 	w.invalidate = c.Services().Invalidate
 	if !w.Loaded || w.Root != m.WorkspaceRoot {

@@ -99,7 +99,7 @@ func (w *Workbench) RequestCommit(root, message string) {
 	w.cancelRemotePreparation()
 	w.Remote = nil
 	if w.Root != root {
-		*w = Workbench{Operation: w.Operation}
+		*w = Workbench{Operation: w.Operation, invalidate: w.invalidate}
 	}
 	w.reload(root)
 	w.commitState().CaptionAction = ""
@@ -144,6 +144,9 @@ func finishCommitPreparation(m Model) {
 	}
 }
 func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
+	if !captionAdmitted(m) {
+		return
+	}
 	w := m.Workbench
 	s := w.commitState()
 	if s.Task != nil || w.Operation != nil {
@@ -391,6 +394,9 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 }
 func confirmSelectedCommit(c *ui.Context, m Model) {
+	if !captionAdmitted(m) {
+		return
+	}
 	w := m.Workbench
 	s := w.commitState()
 	if s.Plan == nil || s.StackPlan == nil {

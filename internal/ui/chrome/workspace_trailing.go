@@ -42,8 +42,9 @@ func captionWord(zh, en string) string {
 	return en
 }
 
-// WorkspaceTrailing returns a 32px row. The shell places it at y=8 inside its
-// 48px caption; it must not also draw these controls in the conversation row.
+// WorkspaceTrailing returns a 32px row at y=8 of the 48px control plate. The
+// surrounding shell title row is min52/auto; it must not duplicate these controls
+// in the conversation row.
 // Controllers/dialogs remain owned and mounted outside visibility preferences.
 func WorkspaceTrailing(c *ui.Context, m WorkspaceTrailingModel) {
 	ui.Row(c.Key("workspace-titlebar-trailing")).Height(WorkspaceTrailingHeight).Shrink(0).AlignItems(ui.Center).Gap(8).Children(func() {

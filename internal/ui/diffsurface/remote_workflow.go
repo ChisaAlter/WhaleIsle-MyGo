@@ -67,6 +67,9 @@ func paintPRReview(c *ui.Context, p git.PullRequestPlan, fg, muted ui.Color) {
 	ui.Text(c, pullRequestModeLabel(p.Draft)+word("；如已有匹配的开放 PR 则打开已有项，不改变其状态。", "; an existing matching open PR is reused without changing its state.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 }
 func beginRemotePreparation(c *ui.Context, m Model) {
+	if !captionAdmitted(m) {
+		return
+	}
 	w := m.Workbench
 	s := w.Remote
 	if s == nil || s.Task != nil || s.Generation != nil || w.Operation != nil {
@@ -170,6 +173,9 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				caption = word("确认创建", "Confirm create ") + pullRequestModeLabel(s.Draft)
 			}
 			if ui.Button(c, caption).Clicked() {
+				if !captionAdmitted(m) {
+					return true
+				}
 				root, plan := m.WorkspaceRoot, *s.Plan
 				w.Remote = nil
 				beginGitOperation(c, w, word("正在执行后续操作", "Running next action"), func(ctx context.Context) gitOperationResult {

@@ -12,7 +12,8 @@ import (
 
 // RequestCaptionAction opens the existing repository/selected-file review. It
 // never prepares a message, runs a model, publishes, pushes or creates a commit.
-// Pull and open_pr are handled by the caller's existing GitBadge callbacks.
+// Initialize requires CaptionAction's click context. Pull and open_pr are
+// handled by the caller's existing GitBadge callbacks.
 func (w *Workbench) RequestCaptionAction(root, message, action string) bool {
 	if w == nil || w.Operation != nil || strings.TrimSpace(root) == "" {
 		return false
@@ -46,7 +47,7 @@ func (w *Workbench) RequestCaptionAction(root, message, action string) bool {
 	case "create_pr":
 		w.RequestPR(root)
 		return true
-	case "publish", "init":
+	case "publish":
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
 		w.Remote = nil
@@ -58,7 +59,7 @@ func (w *Workbench) RequestCaptionAction(root, message, action string) bool {
 			*w = Workbench{Operation: operation, invalidate: invalidate, AgainstHEAD: true}
 		}
 		w.reload(root)
-		w.PublishOpen = action == "publish"
+		w.PublishOpen = true
 		w.PublishReview = false
 		if w.PublishOpen {
 			w.PublishName = filepath.Base(root)
