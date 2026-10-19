@@ -18,8 +18,12 @@ import (
 // installed application's protocol, login registration or single-instance lock.
 // It is opt-in so normal installed startup keeps its existing behavior.
 func isolatedDesktopRun() bool {
-	return os.Getenv("WHALEISLE_ISOLATED") == "1"
+	return os.Getenv("WHALEISLE_ISOLATED") == "1" || portableDesktopRoot != ""
 }
+
+// A portable double-click opens a visible desktop. Only the explicit QA mode
+// requests a hidden window; both modes retain the private integration guards.
+func isolatedDesktopHidden() bool { return os.Getenv("WHALEISLE_ISOLATED") == "1" }
 
 func prepareIsolatedDesktop() error {
 	if !isolatedDesktopRun() {

@@ -91,3 +91,23 @@ func TestIsolatedDesktopDoesNotConsumeSharedAcceptanceHook(t *testing.T) {
 		t.Fatalf("isolated run consumed a shared hook: %q %v", b, err)
 	}
 }
+
+func TestPortableDesktopKeepsIsolationWithoutHidingWindow(t *testing.T) {
+	portableTestEnvironment(t)
+	portableDesktopRoot = t.TempDir()
+	t.Setenv(paths.EnvUserData, filepath.Join(portableDesktopRoot, "data"))
+	if !isolatedDesktopRun() || isolatedDesktopHidden() {
+		t.Fatal("portable double-click must be isolated and visible")
+	}
+	called := false
+	if err := desktopSystemIntegration(func() error { called = true; return nil }); err != nil || called {
+		t.Fatal("portable run reached system registration")
+	}
+	if roots := desktopComponentRoots(); !reflect.DeepEqual(roots, []string{paths.UserDataDir()}) {
+		t.Fatalf("portable component roots include installed data: %#v", roots)
+	}
+	t.Setenv("WHALEISLE_ISOLATED", "1")
+	if !isolatedDesktopHidden() {
+		t.Fatal("explicit QA isolation no longer hides the portable window")
+	}
+}
