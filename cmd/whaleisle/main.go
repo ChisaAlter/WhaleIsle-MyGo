@@ -2146,6 +2146,8 @@ func main() {
 		win.OnHide(state.suspendMCPHealth)
 		win.OnMinimize(state.suspendMCPHealth)
 		win.OnClosed(state.suspendMCPHealth)
+		win.OnHide(state.checkpointResumeOnVisibilityChange)
+		win.OnMinimize(state.checkpointResumeOnVisibilityChange)
 		win.OnHide(func() { state.layout.Workspace.PauseContent() })
 		win.OnMinimize(func() { state.layout.Workspace.PauseContent() })
 		win.OnClosed(func() { state.disposeWorkspaceSessions() })

@@ -257,11 +257,9 @@ func (s *mainState) closeResumeCheckpoint() {
 // mainView defers this until all visible editors and pane projections finish.
 // Throttle capture, debounce writes and fingerprint unchanged snapshots: native
 // paint/animation frames never cause a full disk write per rendered frame.
-func (s *mainState) syncResumeCheckpoint(c *ui.Context) {
-	s.mu.Lock()
+func (s *mainState) resumeCheckpointForOwnerLocked() *resumeCheckpoint {
 	if s.resumeStore == nil || s.resumeError != "" || s.quitting {
-		s.mu.Unlock()
-		return
+		return nil
 	}
 	checkpoint := s.resumeCheckpoint
 	if checkpoint == nil || checkpoint.owner != s.resumeStore {
@@ -271,7 +269,39 @@ func (s *mainState) syncResumeCheckpoint(c *ui.Context) {
 		checkpoint = &resumeCheckpoint{owner: s.resumeStore}
 		s.resumeCheckpoint = checkpoint
 	}
+	return checkpoint
+}
+
+// Native lifecycle callbacks already run on the UI owner. A hidden/minimized
+// surface need not paint again, so capture the last edit here rather than
+// relying on the throttled Invalidate callback to build another mainView.
+func (s *mainState) checkpointResumeOnVisibilityChange() {
+	s.mu.Lock()
+	checkpoint := s.resumeCheckpointForOwnerLocked()
+	if checkpoint == nil {
+		s.mu.Unlock()
+		return
+	}
+	next, err := s.captureResumeOwnedLocked()
 	s.mu.Unlock()
+	now := checkpoint.nowTime()
+	checkpoint.mu.Lock()
+	checkpoint.captureAt, checkpoint.forceCapture = now, false
+	if checkpoint.captureTimer != nil {
+		checkpoint.captureTimer.Stop()
+		checkpoint.captureTimer = nil
+	}
+	checkpoint.mu.Unlock()
+	checkpoint.stage(next, err, now)
+}
+
+func (s *mainState) syncResumeCheckpoint(c *ui.Context) {
+	s.mu.Lock()
+	checkpoint := s.resumeCheckpointForOwnerLocked()
+	s.mu.Unlock()
+	if checkpoint == nil {
+		return
+	}
 	if checkpoint.due(time.Now(), c.Services().Invalidate) {
 		s.mu.Lock()
 		next, err := s.captureResumeOwnedLocked()
