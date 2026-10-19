@@ -11,9 +11,10 @@ import (
 func nativeDraftFixture(t *testing.T, initial string) (Model, *ui.Tester, *int) {
 	t.Helper()
 	m := previewViewModel(initial)
-	// Production frame state uses a separate current Model mirror.
-	draft := initial
-	m.EditDraft = &draft
+	// Production frame state uses separate current Model mirrors for both
+	// draft and disk preview; neither pointer belongs to a previous FileTab.
+	draft, preview := initial, initial
+	m.EditDraft, m.Preview = &draft, &preview
 	frames := new(int)
 	tester := ui.NewTester(func(c *ui.Context) {
 		*frames++
@@ -161,12 +162,21 @@ func TestFilesNativeDraftExternalReplacementAndInactiveOwner(t *testing.T) {
 	w.Open = append(w.Open, second)
 	w.Active = second.Path
 	restore(m, second)
+	if first.Preview != "base" {
+		t.Fatalf("tab restore changed the inactive disk baseline before Export: %q", first.Preview)
+	}
 	first.Draft = "inactive external replacement"
 	if _, err := m.Tabs.Export(); err != nil {
 		t.Fatal(err)
 	}
-	if *m.EditDraft != "second" || first.editBuffer.String() != first.Draft || first.Preview != "base" {
-		t.Fatal("inactive export corrupted the current Model or original disk baseline")
+	if *m.EditDraft != "second" || *m.Preview != "second" {
+		t.Fatalf("inactive export corrupted the current Model: draft=%q preview=%q", *m.EditDraft, *m.Preview)
+	}
+	if first.editBuffer.String() != first.Draft {
+		t.Fatalf("inactive export did not synchronize its own document: buffer=%q draft=%q", first.editBuffer.String(), first.Draft)
+	}
+	if first.Preview != "base" {
+		t.Fatalf("inactive export changed the original disk baseline: %q", first.Preview)
 	}
 }
 
