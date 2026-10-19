@@ -8,6 +8,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -284,9 +285,8 @@ func TestAssistantProtocolRepairReopensFollowAndAdoptsAtomicBaseline(t *testing.
 				if !send(`{"type":"assistant-stream","frame":{"type":"chunk","revision":4,"attemptId":"a","index":1,"time":2,"chunk":{"type":"text-delta","index":0,"text":"!"}}}`) {
 					return
 				}
-				if wsjson.Write(r.Context(), c, dsh.ServerFrame{Type: dsh.FrameEnd, StreamID: frame.StreamID}) != nil {
-					return
-				}
+				// Keep the repaired logical follow alive. An accepted EOF now
+				// correctly means carrier loss and would request another baseline.
 			}
 		}
 	}))
@@ -297,7 +297,22 @@ func TestAssistantProtocolRepairReopensFollowAndAdoptsAtomicBaseline(t *testing.
 	defer mux.Close()
 	s := New()
 	s.selectedID = "a"
-	s.runFollow(ctx, mux, "a", s.followGeneration)
+	repaired, finished := make(chan struct{}), make(chan struct{})
+	var repairedOnce sync.Once
+	s.notify = func() {
+		messages := s.Snapshot().Messages
+		if len(messages) == 1 && messages[0].Body == "Hello!" {
+			repairedOnce.Do(func() { close(repaired) })
+		}
+	}
+	go func() { s.runFollow(ctx, mux, "a", s.followGeneration); close(finished) }()
+	select {
+	case <-repaired:
+	case <-ctx.Done():
+		t.Fatal("repair did not adopt the complete atomic baseline")
+	}
+	cancel()
+	wait(t, finished)
 	if opens.Load() != 2 {
 		t.Fatalf("repair opened %d streams, want 2", opens.Load())
 	}

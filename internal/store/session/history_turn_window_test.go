@@ -22,6 +22,7 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 	for seq := 121; seq <= 180; seq++ {
 		records = append(records, api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: "user/message", Seq: float64(seq), Data: json.RawMessage(`{"turn":2,"source":{"kind":"user"},"content":[{"type":"text","text":"older page"}]}`)}})
 	}
+	records = denseHistoryFixture(records, 480)
 	makeStore := func(client *dsh.Client) *Store {
 		s := New()
 		s.client = client

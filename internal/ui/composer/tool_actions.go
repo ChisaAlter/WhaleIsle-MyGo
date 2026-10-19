@@ -106,7 +106,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 		button("↵", composerText("插入转写", "Insert transcript"), locked, m.OnInsertVoice)
 	}
 	if m.Voice.Phase == "feedback" && m.Voice.Pending == "" {
-		button("microphone", composerText("重试录音", "Retry recording"), locked, m.OnStartVoice)
+		button("microphone", composerText("重试录音", "Retry recording"), locked || voiceNeedsSetup(m), m.OnStartVoice)
 	}
 	if m.Voice.Phase != "" {
 		button("×", composerText("取消录音", "Discard recording"), false, m.OnCancelVoice)

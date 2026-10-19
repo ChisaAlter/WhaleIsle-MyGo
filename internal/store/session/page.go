@@ -144,7 +144,15 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 		s.fire()
 		return
 	}
-	s.prependPageRecordsLocked(out.Records)
+	// RemoteJournalStream validates the whole ordered page, then discards the
+	// portion already owned by the current window before publishing the prepend.
+	older := out.Records[:0]
+	for _, record := range out.Records {
+		if record.Event.Seq < before {
+			older = append(older, record)
+		}
+	}
+	s.prependPageRecordsLocked(older)
 	s.historyHasMore = out.HasMore
 	if len(out.Records) == 0 {
 		s.historyHasMore = false
@@ -158,16 +166,21 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 // join checks before publishing anything, rather than presenting a page with
 // a missing interval as a successful older-history load.
 func validateHistoryPage(records []api.SessionPageRecordsItem, through, before float64) error {
+	var acceptedTail float64
+	accepted := false
 	for i, record := range records {
 		seq := record.Event.Seq
-		if record.Type != "event" || !historySafeNumber(seq) || seq > through || seq >= before {
+		if record.Type != "event" || !historySafeNumber(seq) || seq > through {
 			return errors.New("History page crossed its requested cursor")
 		}
 		if i > 0 && seq != records[i-1].Event.Seq+1 {
 			return errors.New("History page contains a missing interval")
 		}
+		if seq < before {
+			acceptedTail, accepted = seq, true
+		}
 	}
-	if len(records) > 0 && records[len(records)-1].Event.Seq+1 != before {
+	if accepted && acceptedTail+1 != before {
 		return errors.New("History page does not join the current window")
 	}
 	return nil

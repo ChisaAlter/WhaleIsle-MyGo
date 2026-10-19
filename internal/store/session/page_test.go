@@ -6,11 +6,34 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
 )
+
+// Real journal pages include non-visible extension/configuration events too.
+// Keep their raw sequence dense without inventing extra chat messages.
+func denseHistoryFixture(records []api.SessionPageRecordsItem, before float64) []api.SessionPageRecordsItem {
+	if len(records) == 0 {
+		return nil
+	}
+	bySeq := make(map[float64]api.SessionPageRecordsItem, len(records))
+	for _, record := range records {
+		bySeq[record.Event.Seq] = record
+	}
+	var dense []api.SessionPageRecordsItem
+	for seq := records[0].Event.Seq; seq < before; seq++ {
+		record, ok := bySeq[seq]
+		if !ok {
+			record = api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: "fixture/metadata", Seq: seq, Data: json.RawMessage(`{}`)}}
+		}
+		dense = append(dense, record)
+	}
+	return dense
+}
 
 func TestLoadEarlierHistoryPrependsMerge(t *testing.T) {
 	var pageCalls atomic.Int32
@@ -96,8 +119,8 @@ func TestLoadEarlierHistoryDedupesOverlap(t *testing.T) {
 			rpcOK(w, body["rpcId"], map[string]any{
 				"hasMore": true,
 				"records": []map[string]any{
-					pageEventRecord(2, "user/message", "dup"),
 					pageEventRecord(1, "user/message", "one"),
+					pageEventRecord(2, "user/message", "dup"),
 				},
 			})
 			return
@@ -135,11 +158,56 @@ func TestLoadEarlierHistoryDedupesOverlap(t *testing.T) {
 	wait(t, done)
 
 	snap := st.Snapshot()
-	if len(snap.Messages) != 3 || snap.Messages[0].Body != "one" {
+	if len(snap.Messages) != 3 || snap.Messages[0].Body != "one" || snap.Messages[1].Body != "two" {
 		t.Fatalf("%#v", snap.Messages)
 	}
 	if !snap.HistoryHasMore {
 		t.Fatal("expected hasMore true")
+	}
+}
+
+func TestLoadEarlierHistoryRejectsDiscontinuousPagesWithoutChangingWindow(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		seqs []int
+	}{
+		{"descending", []int{3, 2}},
+		{"internal hole", []int{1, 3}},
+		{"tail does not join", []int{1, 2}},
+		{"crossed durable cut", []int{2, 3, 4, 5, 6}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var in map[string]any
+				_ = json.NewDecoder(r.Body).Decode(&in)
+				var records []map[string]any
+				for _, seq := range test.seqs {
+					records = append(records, pageEventRecord(float64(seq), "user/message", "invalid older record"))
+				}
+				rpcOK(w, in["rpcId"], map[string]any{"records": records, "hasMore": false})
+			}))
+			defer srv.Close()
+			s := New()
+			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+			done := make(chan struct{})
+			var once sync.Once
+			s.Attach(client, func() {
+				v := s.Snapshot()
+				if !v.HistoryPageBusy && v.HistoryPageErr != "" {
+					once.Do(func() { close(done) })
+				}
+			})
+			s.selectedID = "s"
+			s.historyHasMore = true
+			s.historyThroughSeq = 5
+			s.messages = []Message{{ID: "current", Seq: 4, Body: "retained", Role: "user", Kind: MessageKindText}}
+			s.LoadEarlierHistory(context.Background())
+			wait(t, done)
+			v := s.Snapshot()
+			if len(v.Messages) != 1 || v.Messages[0].Body != "retained" || v.HistoryPageErr == "" || !v.HistoryHasMore || s.historyThroughSeq != 5 {
+				t.Fatalf("invalid page changed current window: %+v", v)
+			}
+		})
 	}
 }
 

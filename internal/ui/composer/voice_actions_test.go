@@ -48,7 +48,7 @@ func TestVoiceEscapeOwnsCancellation(t *testing.T) {
 }
 
 func TestUnavailableVoiceOpensSettings(t *testing.T) {
-	for _, mode := range []string{"missing", "offline", "unselected", "failed"} {
+	for _, mode := range []string{"missing", "offline", "unselected", "unprepared"} {
 		started, settings := 0, 0
 		m := Model{Snapshot: session.ViewState{ClientReady: true, SpeechSelection: "provider/en"}, OnStartVoice: func() { started++ }, OnVoiceSettings: func() { settings++ }}
 		switch mode {
@@ -58,8 +58,8 @@ func TestUnavailableVoiceOpensSettings(t *testing.T) {
 			m.Snapshot.ClientReady = false
 		case "unselected":
 			m.Snapshot.SpeechSelection = ""
-		case "failed":
-			m.Voice = voiceinput.Status{Phase: "feedback", Message: "Speech unavailable"}
+		case "unprepared":
+			m.Snapshot.SpeechReadinessKnown, m.Snapshot.SpeechNeedsInstallation = true, true
 		}
 		d := NewDraftState("keep draft")
 		selected := 0
@@ -67,14 +67,46 @@ func TestUnavailableVoiceOpensSettings(t *testing.T) {
 		m.UseTextInputClient = true
 		m.SuggestList = &ui.ListState{Selected: &selected}
 		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
-		if err := tt.Click("+"); err != nil {
-			t.Fatal(err)
-		}
 		if err := tt.Click(composerText("语音设置", "Voice settings")); err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", mode, err)
 		}
-		if settings != 1 || started != 0 {
+		if settings != 0 || started != 0 || !d.VoiceSetupOpen {
+			t.Fatalf("%s microphone bypassed setup guide", mode)
+		}
+		if err := tt.Click(composerText("打开插件详情", "Open plugin details")); err != nil {
+			t.Fatalf("%s: %v", mode, err)
+		}
+		if settings != 1 || started != 0 || d.Text != "keep draft" || d.VoiceSetupOpen {
 			t.Fatalf("%s settings=%d microphone=%d", mode, settings, started)
 		}
+	}
+}
+
+func TestVoiceFeedbackRetriesOnlyWhileRecognitionRemainsUsable(t *testing.T) {
+	for _, mode := range []string{"ready", "offline", "unselected", "unprepared"} {
+		t.Run(mode, func(t *testing.T) {
+			d := NewDraftState("keep draft")
+			started, settings := 0, 0
+			m := Model{State: d, Draft: &d.Text, Snapshot: session.ViewState{ClientReady: true, SpeechSelection: "provider/en", SpeechReadinessKnown: true, SpeechReady: true}, Voice: voiceinput.Status{Phase: "feedback", Message: "Transcription failed"}, OnStartVoice: func() { started++ }, OnVoiceSettings: func() { settings++ }}
+			switch mode {
+			case "offline":
+				m.Snapshot.ClientReady = false
+			case "unselected":
+				m.Snapshot.SpeechSelection = ""
+			case "unprepared":
+				m.Snapshot.SpeechReady = false
+			}
+			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
+			if err := tt.Click(composerText("重试录音", "Retry recording")); err != nil {
+				t.Fatal(err)
+			}
+			want := 0
+			if mode == "ready" {
+				want = 1
+			}
+			if started != want || settings != 0 || d.Text != "keep draft" {
+				t.Fatalf("%s retry=%d settings=%d draft=%q", mode, started, settings, d.Text)
+			}
+		})
 	}
 }

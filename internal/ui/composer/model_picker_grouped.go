@@ -161,13 +161,20 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		if caption == "" {
 			caption = "模型 / Model"
 		}
+		hasCurrentChoice := false
+		for _, label := range m.Snapshot.ModelLabels {
+			if label == caption {
+				hasCurrentChoice = true
+				break
+			}
+		}
 		if m.Snapshot.SelectedModelEffort != "" {
 			caption += " · " + m.Snapshot.SelectedModelEffort
 		}
 		if m.Snapshot.ModelSelectionBusy {
 			caption += " …"
 		}
-		trigger := ui.Button(c, "").Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Snapshot.ModelSelectionBusy)
+		trigger := ui.Button(c, "").Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Inert)
 		trigger.Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20) })
 
 		if trigger.Clicked() {
@@ -175,12 +182,15 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			state.Query = ""
 			state.Active = -1
 			state.Pane = "root"
+			if !hasCurrentChoice {
+				state.Pane = "model"
+			}
 			state.RootFocus = "model"
 		}
 		ui.Popover(c, trigger, &state.Open, func() {
 			ui.Column(c.Key("model-pane:" + state.Pane)).Width(300).Gap(5).HandleInput(func(ev ui.InputEvent) bool {
 				if ev.Kind == ui.InputKeyDown && !state.Composing && (ev.Key == ui.KeyEscape && ev.Mods == 0 || ev.Key == ui.KeyTab && ev.Mods == ui.Shift) {
-					if state.Pane != "root" {
+					if state.Pane != "root" && hasCurrentChoice {
 						state.Pane, state.Query = "root", ""
 						return true
 					}
@@ -191,7 +201,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 				return false
 			}).Children(func() {
 				if state.Pane == "root" || state.Pane == "" {
-					modelButton := ui.Button(c, composerText("模型", "Model")+"  "+m.Snapshot.SelectedModel+"  ›").FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+					modelButton := ui.Button(c, composerText("模型", "Model")+"  "+m.Snapshot.SelectedModel+"  ›").FillWidth().Disabled(m.Inert)
 					if state.RootFocus != "effort" {
 						modelButton.AutoFocus()
 					}
@@ -200,7 +210,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						state.Pane, state.RootFocus, state.Query, state.Active = "model", "model", "", -1
 					}
 					if len(m.Snapshot.ModelEffortLabels) > 0 {
-						effortButton := ui.Button(c, composerText("思考强度", "Effort")+"  "+m.Snapshot.SelectedModelEffort+"  ›").FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+						effortButton := ui.Button(c, composerText("思考强度", "Effort")+"  "+m.Snapshot.SelectedModelEffort+"  ›").FillWidth().Disabled(m.Inert)
 						buttons = append(buttons, effortButton)
 						if state.RootFocus == "effort" {
 							effortButton.AutoFocus()
@@ -212,8 +222,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					modelMenuKeyboard(buttons)
 					return
 				}
-				if ui.Button(c, composerText("‹ 返回", "‹ Back")).Clicked() {
-					state.Pane, state.Query = "root", ""
+				if hasCurrentChoice {
+					if ui.Button(c, composerText("‹ 返回", "‹ Back")).Clicked() {
+						state.Pane, state.Query = "root", ""
+					}
 				}
 				if state.Pane == "effort" {
 					var buttons []ui.Element
@@ -254,7 +266,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					state.Active = 0
 				}
 				choose := func(label string) {
-					if m.Snapshot.ModelSelectionBusy || m.OnModelChange == nil {
+					if m.Inert || m.Snapshot.ModelSelectionBusy || m.OnModelChange == nil {
 						return
 					}
 					state.Open = false
@@ -276,12 +288,12 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						}
 						switch ev.Key {
 						case ui.KeyDown:
-							if len(visible) > 0 {
+							if !m.Snapshot.ModelSelectionBusy && len(visible) > 0 {
 								state.Active = (state.Active + 1) % len(visible)
 							}
 							return true
 						case ui.KeyUp:
-							if len(visible) > 0 {
+							if !m.Snapshot.ModelSelectionBusy && len(visible) > 0 {
 								state.Active = (state.Active + len(visible) - 1) % len(visible)
 							}
 							return true

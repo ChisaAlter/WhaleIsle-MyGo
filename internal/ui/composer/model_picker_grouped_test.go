@@ -18,6 +18,9 @@ func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal("grouped catalog trigger absent:", err)
 	}
+	if err := tt.Click(composerText("模型", "Model") + "  " + snap.SelectedModel + "  ›"); err != nil {
+		t.Fatal("model submenu absent:", err)
+	}
 	if !tt.HasText("deepseek-account") || !tt.HasText("deepseek-official") {
 		t.Fatal("provider groups absent")
 	}
@@ -58,12 +61,15 @@ func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
 }
 
 func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
-	snap := session.ViewState{SelectedID: "s", ModelLabels: []string{"one", "two"}}
+	snap := session.ViewState{SelectedID: "s", SelectedModel: "one", ModelLabels: []string{"one", "two"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(composerText("模型", "Model") + "  " + snap.SelectedModel + "  ›"); err != nil {
 		t.Fatal(err)
 	}
 	snap.SelectedID = "other"
@@ -73,11 +79,38 @@ func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
 	}
 	snap.ModelSelectionBusy = true
 	tt.Frame()
-	if _, ok := tt.Find("Model catalog"); ok {
-		t.Fatal("busy selection still interactive")
+	if _, ok := tt.Find("Model catalog"); !ok {
+		t.Fatal("busy selection removed its visible trigger")
 	}
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(composerText("模型", "Model") + "  " + snap.SelectedModel + "  ›"); err != nil {
+		t.Fatal("busy catalog cannot be inspected:", err)
+	}
+	if err := tt.Click("Choose model two"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(0, ui.KeyEnter)
 	if chosen != "" {
 		t.Fatal("navigation submitted a choice")
+	}
+}
+
+func TestGroupedModelPickerWithoutCatalogSelectionOpensModelPaneDirectly(t *testing.T) {
+	snap := session.ViewState{SelectedID: "s", SelectedModel: "retired-model", ModelLabels: []string{"one", "two"}}
+	chosen := ""
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, ui.RGB(80, 80, 80), 24)
+	}, 800, 600)
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Choose model two"); err != nil {
+		t.Fatal("missing selection did not directly open model catalog:", err)
+	}
+	if chosen != "two" || snap.SelectedModel != "retired-model" {
+		t.Fatal("direct catalog selection lost Host authority")
 	}
 }
 
@@ -87,8 +120,15 @@ func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, ui.RGB(80, 80, 80), 24)
 	}, 800, 600)
-	tt.Click("Model catalog")
-	tt.Click("Search models")
+	if err := tt.Click("Model catalog"); err != nil {
+		t.Fatal(err)
+	}
+	// The root model row owns keyboard focus and drills into the searchable
+	// model pane; the first click does not directly open the catalog.
+	tt.Key(0, ui.KeyRight)
+	if err := tt.Click("Search models"); err != nil {
+		t.Fatal(err)
+	}
 	tt.Type("e")
 	tt.Key(0, ui.KeyEnter)
 	if chosen != "e" || snap.SelectedModel != "a" {

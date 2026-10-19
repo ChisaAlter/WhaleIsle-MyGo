@@ -159,3 +159,13 @@ controller.ts:24-106 的子状态包括初始 apps=null、每 controller 只读�
 新 `internal/ui/frame/conversation_open_in_app.go` 的 WorkspaceOpenInAppState 持有 once-per-Host 应用/图标缓存和客户端选择；ObserveHost 在页面不挂载时仍退休旧 Host，普通 Session/页面切换不清缓存。载入/图标/打开晚回执在 captured source/context 下发布；Close 只用于窗口最终关闭。launch 全局串行；菜单成功后更新 choice 并通过 root 的 save 回调持久化，保存失败明确回执“应用已打开，但无法记住选择”。FinishFrame 只清已卸载控件的 toast，路径变更也撤销其旧反馈，绝不清应用缓存。OpenCurrent 与 split button 复用同一默认应用/busy/capture，给既有 workspace.openLocal 路由使用。主 header utilities、Model/mainState/config 生命周期与命令资格门控由 root 窄接线；本文件不修改共享 main/frame/header。
 
 此项本轮仅源码实现、API 对照、gofmt 与精确 diffcheck。未连接 Host、未调用打开接口、未读写用户配置，未运行 tests/build/应用；菜单实际 popup 焦点/窄窗/长应用列表滚动、busy 的 toolkit 视觉 seat 和全部 Host 平台应用启动仍待统一验证。不能据此声称产品/视觉验收通过。
+
+### 首轮统一回归失败后的定向纠正
+
+root 提供 `evidence/source-depth-unified-20261019T1940Z/root/{failures.txt,root-all.jsonl}` 的已执行失败信号。本轮不自行重跑，集中修正后交 root 统一重跑失败包。固定 e353e8e `api/gateway/src/client/journal-stream.ts:188` 的 prepend 先核整页升序连续，再滤去 first>=before，最后核 accepted tail 与 before 接合；Go 曾在过滤前拒绝所有 overlap，已改为同一顺序。倒序、内部缺口、不接合和跨 through 仍拒绝；补定向负例，原 overlap 用例改为合法 [1,2] 并继续核旧 seq2 内容不被“dup”覆盖。turn navigation/ordinary page 旧夹具分别以80..81接180、120..180接480，确有原始 seq 缺口；补不产生消息的 extension metadata，使真实 journal 连续，保持消息数、页数、through、turn boundary、streaming tail、重试断言。
+
+AssistantProtocolRepair 的旧夹具每次成功快照后都主动 End，accepted EOF 已按原版重开，所以30次请求不是修复逻辑再坏；改为保持第二条 follow 活跃，观察 Hello! 后显式取消，继续要求恰好两条流和原子基线。没有加超时、skip 或减少结果断言。
+
+固定 `ui-model-selection/src/client/ModelSelect.tsx` 的 show 在 currentChoice 缺失时直接开 model，否则开 root；pending 不移除 trigger，父 locked 才禁用 trigger，pending 禁用选择行/提交但允许浏览。Go 原先总 root 且 selection busy 禁整个 trigger，已窄对齐；模型测试改走 root→model、键盘右箭头钻入，并保持 provider/search/current Host value/selection/dismiss 断言。该原版文件存在 dirty17/15 行，本轮均读 git show e353e8e；不采用 worktree 的 slot/layout 变动。
+
+固定 experimental/client-ui-voice-input VoiceInput.tsx feedback 的 retryRecording 为 disabled={!usable||locked}；Go 漏掉 !usable，已补。idle 不可用测试走麦克风→setup dialog→插件详情，继续要求不启动录音、不改草稿；feedback 另核可用时重录、离线/未选/未准备时禁止重录。上述 journal/voice 固定生产源无 dirty 差异。所有本节后续修改只完成源码与 gofmt/diffcheck，尚未取得重跑结果或实机验收结论。

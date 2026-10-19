@@ -241,8 +241,9 @@ func TestComposerTruncatedModelKeepsRealValueAndSelection(t *testing.T) {
 	model := original
 	changed := ""
 	changes := 0
+	snap := session.ViewState{SelectedID: "s", SelectedModel: original, ModelLabels: []string{original, "small"}}
 	tt := ui.NewTester(func(c *ui.Context) {
-		View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, Snapshot: session.ViewState{ModelLabels: []string{original, "small"}}, OnModelChange: func(s string) { changed = s; changes++ }})
+		View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, Snapshot: snap, OnModelChange: func(s string) { changed = s; changes++ }})
 	}, 320, 500)
 	trigger, ok := tt.Find(original)
 	if !ok {
@@ -257,16 +258,26 @@ func TestComposerTruncatedModelKeepsRealValueAndSelection(t *testing.T) {
 	if err := tt.Click(original); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText(original) {
+	if err := tt.Click(composerText("模型", "Model") + "  " + original + "  ›"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tt.Find("Choose model " + original); !ok {
 		t.Fatal("full model choice missing from popup")
 	}
-	if err := tt.Click("small"); err != nil {
+	if err := tt.Click("Choose model small"); err != nil {
 		t.Fatal(err)
 	}
 	if model != "small" || changed != "small" || changes != 1 {
 		t.Fatalf("selection/callback: model=%q changed=%q count=%d", model, changed, changes)
 	}
-	if err := tt.Click("small"); err != nil {
+	if snap.SelectedModel != original {
+		t.Fatal("gesture invented a Host acknowledgement")
+	}
+	// The Host's acknowledgement relabels the trigger independently of the
+	// optimistic local pick pointer used by this isolated composer fixture.
+	snap.SelectedModel = "small"
+	tt.Frame()
+	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Key(0, ui.KeyEscape)

@@ -108,6 +108,7 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 			if n == 2 {
 				records = []api.SessionPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
 			}
+			records = denseHistoryFixture(records, want)
 			rpcOK(w, in.RPCID, api.SessionPage{Records: records, HasMore: n == 1})
 		}))
 		defer srv.Close()
@@ -144,6 +145,7 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 			records := []api.SessionPageRecordsItem{record(180, "turn/start", 3, "")}
 			if n == 2 {
 				records = []api.SessionPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
+				records = denseHistoryFixture(records, 180)
 			}
 			rpcOK(w, in["rpcId"], api.SessionPage{Records: records, HasMore: true})
 		}))
