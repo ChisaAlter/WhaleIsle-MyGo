@@ -70,11 +70,18 @@ addEventListener('load',async()=>{try{
 })();</script>` + input.HTML
 	encoded, _ := json.Marshal(child) // escapes '<', so supplied markup cannot close our script
 	background, _ := json.Marshal(palette.Background)
+	outerCSP := parentCSP
+	if input.inertImage {
+		// srcdoc inherits this policy in addition to its own stricter meta.
+		// Permit the fixed image's already-admitted inline resources at both
+		// layers; default/connect/frame/worker/object restrictions still apply.
+		outerCSP += "; img-src data:; font-src data:"
+	}
 	themeBridge := ""
 	if interactive {
 		themeBridge = `window.__previewTheme=data=>{document.documentElement.style.backgroundColor=data.variables['--background'];frame.contentWindow?.postMessage(data,'*')};frame.addEventListener('load',()=>frame.contentWindow?.postMessage({type:'whale-visual-reply-theme',appearance:` + string(appearance) + `,variables:` + string(variables) + `},'*'));`
 	}
-	return `<!doctype html><meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(parentCSP) + `"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0;width:100%;height:100vh}</style><script>
+	return `<!doctype html><meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(outerCSP) + `"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0;width:100%;height:100vh}</style><script>
 window.__previewState={ready:false,height:0,error:'',consoleMessages:[],omitted:0};
 const frame=document.createElement('iframe');frame.setAttribute('sandbox','` + sandbox + `');frame.setAttribute('referrerpolicy','no-referrer');
 addEventListener('message',event=>{

@@ -143,6 +143,8 @@ type packet struct {
 	Input          *interactiveInput `json:"input,omitempty"`
 	Version        int               `json:"version"`
 	Kind           string            `json:"kind"`
+	FailureStage   string            `json:"failureStage,omitempty"`
+	FailureCode    string            `json:"failureCode,omitempty"`
 	Nonce          string            `json:"nonce"`
 	SID            string            `json:"sid,omitempty"`
 	HelperPID      uint32            `json:"helperPID,omitempty"`
@@ -219,10 +221,35 @@ func readPacket(r io.Reader) (packet, error) {
 }
 
 func expect(p packet, kind, nonce string) error {
+	if p.Version == protocolVersion && p.Nonce == nonce && len(nonce) == 64 && p.Kind == "failure" {
+		if !validFailureStage(p.FailureStage) || !validFailureCode(p.FailureCode) {
+			return errors.New("invalid preview helper failure receipt")
+		}
+		return fmt.Errorf("preview helper %s: %s", p.FailureStage, p.FailureCode)
+	}
+	if p.FailureStage != "" || p.FailureCode != "" {
+		return errors.New("unexpected preview helper failure fields")
+	}
 	if p.Version != protocolVersion || p.Kind != kind || p.Nonce != nonce || len(nonce) != 64 {
 		return fmt.Errorf("unexpected preview protocol phase %q", p.Kind)
 	}
 	return nil
+}
+
+func validFailureStage(stage string) bool {
+	switch stage {
+	case "load-blank", "browser-identity", "receive-document", "document-shell", "document-eval", "document-ready", "image-size", "loaded-receipt":
+		return true
+	}
+	return false
+}
+
+func validFailureCode(code string) bool {
+	switch code {
+	case "deadline-exceeded", "canceled", "input-closed", "initialization-error":
+		return true
+	}
+	return false
 }
 
 func sendDocument(w io.Writer, nonce string, d Document) error {

@@ -124,12 +124,31 @@ func loadHelperBlank(ctx context.Context, w *mygo.Window) error {
 	}
 }
 
-func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output io.Writer, nonce, sid string) error {
+func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output io.Writer, nonce, sid string) (resultErr error) {
+	phase := "load-blank"
+	defer func() {
+		if resultErr == nil || phase == "" {
+			return
+		}
+		code := "initialization-error"
+		switch {
+		case errors.Is(resultErr, context.DeadlineExceeded):
+			code = "deadline-exceeded"
+		case errors.Is(resultErr, context.Canceled):
+			code = "canceled"
+		case errors.Is(resultErr, io.EOF):
+			code = "input-closed"
+		}
+		// Fixed stage/code only: never send HTML, console output, paths or
+		// arbitrary page error strings across this diagnostic receipt.
+		_ = writePacket(output, packet{Version: protocolVersion, Kind: "failure", Nonce: nonce, FailureStage: phase, FailureCode: code})
+	}()
 	startup, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 	if err := loadHelperBlank(startup, w); err != nil {
 		return err
 	}
+	phase = "browser-identity"
 	if err := verifyCurrentToken(sid); err != nil {
 		return err
 	}
@@ -142,6 +161,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err := writePacket(output, packet{Version: protocolVersion, Kind: "ready", Nonce: nonce, OpenUI: true, OpenUIUpdate: true, OpenUIAPI: true, OpenUIAPIBytes: maxHTMLBytes, SID: sid, HelperPID: uint32(os.Getpid()), BrowserPID: pid}); err != nil {
 		return err
 	}
+	phase = "receive-document"
 	doc, err := receiveDocument(input, nonce)
 	if err != nil {
 		return err
@@ -176,6 +196,7 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 		_, _ = input.Read(b[:])
 		return nil
 	}
+	phase = "document-shell"
 	shell, err := documentShell(doc)
 	if err != nil {
 		return err
@@ -193,9 +214,11 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 			return err
 		}
 	}
+	phase = "document-eval"
 	if _, err := w.Page().EvalContext(startup, "document.open();document.write("+string(encoded)+");document.close();true"); err != nil {
 		return err
 	}
+	phase = "document-ready"
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
 	openUIFrameSupportSet := !doc.openUIShell
@@ -247,13 +270,16 @@ func serveDocument(ctx context.Context, w *mygo.Window, input io.Reader, output 
 	if err != nil || currentPID != pid {
 		return errors.New("preview browser changed during document load")
 	}
+	phase = "image-size"
 	imageWidth, imageHeight, err := inertImageDimensions(startup, w, doc)
 	if err != nil {
 		return err
 	}
+	phase = "loaded-receipt"
 	if err := writePacket(output, packet{Version: protocolVersion, Kind: "loaded", Nonce: nonce, BrowserPID: pid, WindowHandle: uint64(w.NativeHandle()), ImageWidth: imageWidth, ImageHeight: imageHeight}); err != nil {
 		return err
 	}
+	phase = ""
 	if !doc.Inline {
 		w.Show()
 	}
