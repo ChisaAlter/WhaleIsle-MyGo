@@ -1,3 +1,5 @@
+> Integrated Windows update at `aa159b6a`: final ordinary regression and matching main/helper builds passed. Normal fluid presentation now uses a nonblocking shared GPU lease and GPU-to-GPU copy, with no final CPU readback; the actual two-device hardware fixture passed at its recorded revision. The final exact SVG helper passed real hidden-parent loading, browser intrinsic-size refinement and owner revocation after contained-temp and inherited inert-policy fixes. Beam blur/coverage corrections and their ordinary regressions are integrated. See [exact receipts, representation differences and remaining visible-motion/input gaps](source-depth-integration-20261019.md#current-windows-checkpoint). Below, unrun/readback/failure statements describe earlier source phases and are superseded where this checkpoint says so; they are preserved as history.
+
 # Media source coverage, 2026-10-19
 
 Scope: original desktop image behavior in Files, composer attachments/lightbox,

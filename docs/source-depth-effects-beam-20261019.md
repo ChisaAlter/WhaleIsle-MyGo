@@ -36,8 +36,11 @@ its already-running finite calculation, whose result send cannot block.
 Regression preparation covers an independent full two-dimensional Gaussian
 sum at the viewport edge, solid/CDF and sparse paths, kernel reuse, the opposite
 edge contribution in a narrow inset hole, bloom-before-clip and rounded area
-coverage. These new checks have not been run in this source phase. No build or
-app launch has been performed for this continuation.
+coverage. Root's final integrated Windows ordinary run at `aa159b6a` passed,
+including these fixtures; see the [current integration checkpoint](source-depth-integration-20261019.md#current-windows-checkpoint)
+and [fixed-commit receipt](../../evidence/final-svg-closed-regression-20261019/root/receipt.json).
+The matching main/helper build also passed; the main application was not
+launched. The owner implementation phase itself performed no test or build.
 
 This does not claim Chromium pixel equivalence: finite three-sigma sampling,
 4x4 coverage, the existing 2048 conic samples and the existing native RGBA upload

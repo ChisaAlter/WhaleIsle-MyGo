@@ -1,3 +1,5 @@
+> Current integration checkpoint: product/test `aa159b6a`. The final fixed Windows ordinary run and matching main/helper build passed; the exact helper also passed actual hidden-parent SVG load, intrinsic refinement and owner revocation. Current-phase isolated Host and offscreen hardware GPU receipts have their own exact revisions. See [current evidence and remaining gaps](source-depth-integration-20261019.md#current-windows-checkpoint). The older f1fd8837 snapshot and its failed/unknown conclusions below are historical and superseded, not the current result. Native matching-DPI visual/input, arbitrary React contribution bridging and installer acceptance remain open; Linux validation is canceled.
+
 # 原版模块源码覆盖索引（2026-10-19）
 
 **全部原版模块是否已经逐功能、逐状态对照：否。** 下表覆盖当前验收清单登记的全部 ID；这证明范围登记完整，不证明原版每条动态插件贡献都已穷尽，也不把本轮分配项收尾写成全功能完成。

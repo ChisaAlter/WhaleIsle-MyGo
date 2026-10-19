@@ -1,3 +1,5 @@
+> Integrated Windows update at `aa159b6a`: final ordinary regression passed, including the finite tree-reopen and gateway-label fixtures. These use owned mock/loopback/headless state, not real SSH, pairing, device revocation, IM or pet-window acceptance. See [current checkpoint and exact receipt](source-depth-integration-20261019.md#current-windows-checkpoint). The owner source-phase unrun statements below remain historical records and do not override that coordinated regression result.
+
 # Remote / Pet source-depth record — 2026-10-19
 
 Scope: SET-12, SET-15, SET-16, REMOTE-01, REMOTE-02, REMOTE-03. This is source evidence and confirmed source changes, **not full feature acceptance**. Read-only original: `C:/AI/Deepseek-Harness-Desktop` at `e353e8e`. Native branch: `codex/session-runtime-compat-20261019`, task baseline `ffe7ab6`. Paths prefixed `O/` below are relative to that original; unprefixed paths are relative to this Go repository.

@@ -1,3 +1,5 @@
+> Integrated Windows update at `aa159b6a`: registered Creator/guide/read-only/preset-introduction/compaction and first-send placement regressions passed in the final ordinary run. Spec font/icon findings were corrected and rechecked. Actual Host fixtures have narrower recorded coverage; no Creator model prompt, automatic compaction/model recovery, physical input or visible animation was executed. Arbitrary native React model-label/command contribution bridging remains an implementation gap. See [current checkpoint and exact receipts](source-depth-integration-20261019.md#current-windows-checkpoint). Source-phase unrun statements below are historical; they do not override these integrated results.
+
 # Conversation 源码覆盖记录（2026-10-19）
 
 本表按完整清单逐行登记 CHAT-01–21，但仅代表本记录者实际读过的源码范围，不代表所有原版模块均已深审，也不把另一组的截图、测试结果或历史 PASS 转记为本表的源码比较成果。功能总清单仍见 [native-full-function-acceptance-20261019.md](native-full-function-acceptance-20261019.md)。

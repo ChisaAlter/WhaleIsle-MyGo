@@ -1,10 +1,123 @@
 # Native source integration, 2026-10-19
 
 This records the source-first continuation after `ffe7ab6`. The current Windows
-checkpoint below distinguishes source, ordinary regression, real Host and native
-acceptance. Historical source-only milestones and failed receipts remain below.
+checkpoint distinguishes source, ordinary regression, real Host and native
+acceptance. Earlier checkpoints and all failed receipts remain historical.
 
 ## Current Windows checkpoint
+
+Product/test revision: `aa159b6aade0fa108cfd699cce81338a80a3cf3e` (tree
+`a1216fe1a14908e5a777f01577f8de72466acd0d`). The final ledger commit changes
+documentation only. Branch: `codex/session-runtime-compat-20261019` in
+`C:\Users\48818\Documents\Codex\2026-10-19\task-2\WhaleIsle-MyGo`.
+Reference remains the read-only original git object
+`e353e8e13fa0e7f9cb6bc16368e2fc00d6b3be49`.
+**This is not complete original-product, visual or all-function acceptance.**
+
+The finite continuation after `2e09236a` closed the following confirmed source
+differences. Root integrated shared placement/frame contracts; domain owners
+used exclusive file ranges. Implementation preceded new regression preparation.
+
+| Scope | Implemented behavior | Source/limits |
+|---|---|---|
+| SVG native helper | Contained Windows temp creation uses the actual returned temp path inside owned staging. Hidden inert images complete after font/image decode without waiting for visibility-dependent animation frames. Inert parent/child policies consistently admit embedded data images/fonts. Bounded pre-document startup and fixed authenticated stage/code receipts distinguish handshake, load and metadata failures. | `8763dcf9`, `5d1c5706`, `ae16a847`, `8ff206ef`. Ordinary preview policy and external resource restrictions remain. No global network/security setting change. |
+| Beam | Gaussian bloom is filtered before the outer clip; inset shadows use the two-dimensional rounded-hole complement and 4x4 boundary coverage. A single finite off-UI job and two RGBA buffers retain a completed frame and reject stale geometry/palette results. | `0dfb54ea`; [domain record](source-depth-effects-beam-20261019.md). Finite three-sigma/4x4/2048-conic rasterization and asynchronous frame latency still differ from Chromium. |
+| Windows fluid | Normal worker presentation transfers a shared D3D11 texture lease to a separate UI device; keyed-mutex admission is nonblocking, and UI copies GPU-to-GPU into the ordinary image layer. No final CPU readback or CPU placeholder upload in that path. Diagnostic readback is explicit and allocates staging lazily. | `f1b43fae`, `3693fbcc`. A GPU copy and bounded hardware/resource profile remain different from direct WebGL presentation. |
+| First-send placement | Original 80ms quiet/450ms cap and 300ms easing hold the actual measured card position during first-send layout, then dock it. Same-frame observe/relative-placement hooks move paint, hit, accessibility and IME geometry together without changing sibling flow. Session/Host, scroll, takeover, reduced-motion and cancellation boundaries retire the transition. | `b14353b3`, `df209db5`, `dbcb6fa5`, `cc3574e0`; current-frame and actual Store echo fixtures. No model submission. |
+| Preset/compaction registered states | One-click Creator Prepare/Create and exact successful-task Open; per-guide-page scroll and modal focus return; explicit read-only configuration; receiving-session-only introduction with original timing, current theme font and original icon; automatic compaction is collapsed by default and expands full Markdown only on explicit input. | `2d464632`, `414a82c2`; [conversation record](source-coverage-conversation-20261019.md). Host owns automatic pressure/model recovery; no client reimplementation. |
+| Remote registered states | Reopening every expanded directory refreshes through the captured Browse owner. Gateway labels preserve saved unavailable NIC choices and distinguish unknown from observed-empty address data; selected labels still save the raw IP. | `574252e3`, `7722ecef`; [finite six-ID record](source-depth-remote-pet-20261019.md). No real pairing/SSH/IM action. |
+
+The SVG diagnosis retained each failed experiment rather than repeating it
+unchanged. Initial route diagnostics showed handshake EOF; pre-document stderr
+then identified the contained nested temp directory. Once startup succeeded,
+load-stage diagnosis isolated inherited CSP admission. A child policy cannot
+relax its inherited parent restriction; the correction is limited to inert
+data-image/font resources. See [CSP inheritance](https://www.w3.org/TR/CSP3/#security-inherit-csp)
+and [multiple policies](https://www.w3.org/TR/CSP3/#multiple-policies).
+The final remaining size failure was an incorrect fixture expectation: CSS-only
+SVG has browser natural size300x150 here. The fixture preserves that case, adds
+fractional intrinsic dimensions that must refine to actual browser metadata,
+requires `LoadStatus.Loaded`, and checks both owner revocations. It cannot pass
+using only provisional geometry.
+
+| Evidence class | Actual result and exact source |
+|---|---|
+| Final complete ordinary Windows regression | **PASS**, `aa159b6a`, `go test -json -count=1 -timeout=3m ./...`, Windows amd64/Go1.27.2/CGO0/offline, exit0; 115 package passes,22 package skips,4073 test/subtest passes,27 test/subtest skips,0 failures. [Receipt](../../evidence/final-svg-closed-regression-20261019/root/receipt.json), [count summary](../../evidence/final-svg-closed-regression-20261019/root/summary.json). Skips are not acceptance. |
+| Matching final Windows artifacts | **PASS**, `aa159b6a`, main and helper exit0, version `0.0.0-local.aa159b6a`. [Build receipt, paths, flags and hashes](../../evidence/final-svg-closed-windows-20261019/receipt.json). Main SHA256 `1a208e9008d07105ece36dd0b1ef8e81263ddde3c45ed59614fb2a162e5973a4`; helper `64d700cb983baf83731ccdc9ef129d6e6c32a1fd8012e940ac96909053088de2`. Fresh evidence outputs only; main was not launched, installed or copied to delivery directories. |
+| Final native SVG with that exact helper | **PASS**, `aa159b6a`, opt-in actual contained helper plus owned hidden native parent, exit0. CSS-only300x150 gives640x320; fractional hint80.5x160.5 refines to browser81x161 and640x1272.0988. Both report pending=false/loaded=true/retired=false, then both owner cancellations clear ready and loaded. [Receipt and exact helper hash](../../evidence/final-svg-candidate-native-20261019/nativesvg/receipt.json), adjacent JSONL contains observations. Earlier successful different-helper receipt is retained separately. No screenshot or visible animation claim. |
+| SDK ordinary and real GPU | Initial coordinated SDK UI run passed494 tests and skipped1, with only the new placement fixture failing. Its label/occlusion assertions were corrected; [final placement receipt](../../evidence/bounded-geometry-r3-20261019/receipt.json) at`ee59f3a0` exits0 and checks exposed hit region, ordinary sibling occlusion and IME bounds. Actual hardware two-device D3D11 test at`414a82c2` exits0 in the [retained handoff receipt](../../evidence/bounded-native-handoff-20261019/receipt.json): red/blue GPU frames, real mutex contention, retained old frame, lease through resize/solver close and no normal staging/readback. That receipt's separate earlier placement step remains FAIL. Shader compile, rounded-clip ABI, caption and inert terminal flush exited0 in [SDK receipt](../../evidence/bounded-final-regression-20261019/sdk/receipt.json); Windows amd64/arm64 SDK builds exited0 in [build receipt](../../evidence/bounded-final-windows-20261019/receipt.json). Subsequent SVG changes do not alter this SDK tree. No HWND/screen capture/input was used by the GPU test. |
+| New current-phase actual isolated Host | **PASS within recorded scope**, `ee59f3a0`, [receipt](../../evidence/bounded-current-host-20261019/receipt.json), [combined results](../../evidence/bounded-current-host-20261019/combined-summary.json). Host/CLI0.2.1-rc.2, pin`687f282e8625c6b8d11ff58211a90524be2e4317`, runtime provenance verified. Fresh private homes/profile; 3 durable job fixtures resume/follow, real workspace registry/files, preset/skill persistence/restarts and local Files/Git controllers passed. Owned Host/listeners stopped. No models, accounts, devices, IM, SSH, user-instance restart or session deletion. Settings skips provider/model discovery and MCP execution; counts include explicit not-run entries. Later changes only concern SVG preview/diagnostics/fixture, not these controllers. This is a new execution, not an inherited earlier Host success, and is not an aa159b6a full-app reconnect test. |
+
+### Remaining implementation differences
+
+- Native inline model controls do not execute arbitrary React
+  `conversation.input.model.label` or `commandUi action/popupSelect` contributions.
+  Original shipped1017 decoration is controlled by the client entry. Host desired
+  graphs are not successful mount authority; current snapshots do not expose
+  mounted registrations. No unconditional badge or invented universal bridge was
+  added. Served full-page paths retain their own React registration/runtime.
+  This is an actual architecture gap, not a tool block or proof from unread code.
+- Beam raster sampling/one retained asynchronous frame and fluid GPU-copy plus
+  hardware/resource boundaries above remain representation differences. Their
+  practical visible cost has not been measured against the original.
+- The finite registered-state ledger does not certify all transitive
+  Markdown/tool/trajectory, pet-renderer or third-party factory implementations.
+  Unread branches remain unread; they are not automatically declared missing.
+
+### Verification gaps and exact tool blocks
+
+- **Not executed / pending callable native capability:** same-window/DPI/font/data
+  original-versus-Go screenshots and physical menu/hover/typing/IME/window input.
+  Although the parent reports Ayase connected and authorized, this executor has
+  no callable Ayase tools in its active inventory. CUA native APIs are explicitly
+  disabled. Codex screen-context is limited to active voice/current Codex and is
+  inapplicable. Raw HWND capture/injection helpers were not used as a bypass.
+  This is tool exposure, not a new request for user authorization or a denial.
+- Visible Beam/fluid/SVG motion, occlusion, performance, native whole-workspace
+  pixel layout and physical input are unverified. Offscreen hardware textures,
+  hidden SVG loading and software fixture frames do not establish them.
+- Main `MaintainMuxFromBootstrap -> events Ready -> manual reconnect`, Host theme
+  write/CAS and onboarding still lack current full-app integration acceptance.
+  Paid/model behavior, automatic compression pressure/recovery, external account,
+  real device/phone/IM/SSH and served registration runtime remain not run.
+- **Installer tool preparation blocked:** three retained fixed-hash NSIS
+  retrieval failures, [preparation record](../../evidence/nsis-toolchain-preparation-20261019.json).
+  No fourth retry, hash bypass, install or installer/portable refresh claim.
+
+### Review and retained failures
+
+Independent Standards review of `2e09236a..8ff206ef`, with final affected review
+`8ff206ef..aa159b6a`, found0 new hard breaches and no necessary new maintenance
+finding. Spec review found2 concrete preset font/icon mismatches; `414a82c2`
+corrected both and the reviewer rechecked them. SVG policy/error-receipt and final
+fixture reviews found no new confirmed mismatch or weakened gate. These code
+reviews do not close the architecture or native acceptance gaps above.
+
+The earlier failed checkpoint remains below. This continuation retains eight
+additional failed coordinated rounds (20 total with the prior12; successes do
+not reset the count):
+
+- `svg-stage-diagnostic-20261019`, `svg-handshake-diagnostic-20261019`;
+- `bounded-final-regression-20261019` (114 ordinary package passes,1 settings
+  fixture failure; SDK placement fixture failure);
+- `bounded-native-handoff-20261019` (placement failure; hardware step passed);
+- `bounded-native-svg-fixed-20261019`,
+  `svg-decode-readiness-acceptance-20261019`;
+- `svg-inherited-policy-acceptance-20261019`,
+  `svg-load-state-diagnostic-20261019` (completed load exposed incorrect old size
+  expectation; final two-case fixture preserves the browser behavior).
+
+All directories are under `../../evidence/`; none was overwritten. The earlier
+full ordinary run at`414a82c2` also exited0 in
+`bounded-final-regression-r2-20261019/root/receipt.json`; final aa159b6a execution
+above supersedes it for current ordinary acceptance. Remote CI remains0.
+No push, PR, merge, release, user-instance replacement, credentials readout or
+global network/security setting change. Original WhaleIsle, `C:\AI\whale-code`,
+user data and delivery directories were not modified. Four pre-existing
+untracked paths remain untouched. Linux validation remains canceled; no new
+non-Windows validation was run during this continuation.
+
+## Historical Windows checkpoint at f1fd8837 (superseded)
 
 Validated product/test revision: `f1fd883760697bacc2a5aa90dbace7a864268dca`.
 The final ledger commit changes documentation only. **This is not a complete
