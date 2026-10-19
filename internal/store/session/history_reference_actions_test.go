@@ -155,3 +155,56 @@ func TestHistorySkillColdResponseCannotOpenAfterSessionChanges(t *testing.T) {
 		t.Fatal("old cold catalog response acquired new-session preview authority")
 	}
 }
+
+func TestWaitableHistoryFileHandoffReturnsItsOwnErrorAndFencesOwner(t *testing.T) {
+	for _, mode := range []string{"refused", "accepted", "owner-retired"} {
+		t.Run(mode, func(t *testing.T) {
+			s := New()
+			s.selectedID = "root"
+			s.cwd = `C:\workspace`
+			s.followGeneration = 1
+			s.lastAction = "unrelated action"
+			var calls int
+			s.client = &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://fixture.invalid"}, HTTP: &http.Client{Transport: turnDeliveryTransport(func(r *http.Request) (*http.Response, error) {
+				calls++
+				var request struct {
+					RPCID   string `json:"rpcId"`
+					Payload struct {
+						Args struct {
+							Request struct {
+								Path string `json:"path"`
+							} `json:"request"`
+						} `json:"args"`
+					} `json:"payload"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&request)
+				var value any = true
+				if strings.HasSuffix(r.URL.Path, "canOpenWorkspacePath") {
+					if mode == "owner-retired" {
+						s.mu.Lock()
+						s.followGeneration++
+						s.mu.Unlock()
+					}
+				} else {
+					if r.URL.Path != "/api/session/openWorkspacePath" || request.Payload.Args.Request.Path != `C:\workspace\dir/file.txt` {
+						t.Errorf("wrong file handoff: %s %+v", r.URL, request.Payload.Args.Request)
+					}
+					value = map[string]any{"opened": mode == "accepted"}
+				}
+				raw, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": request.RPCID, "result": map[string]any{"ok": true, "value": value}})
+				return referenceFixtureResponse(r, string(raw)), nil
+			})}}
+			s.turnFilesHistoryBinding = turnFileHistoryBinding(s.client, s.selectedID)
+			err := s.OpenHistoryReferenceOnHost(context.Background(), s.Snapshot().TurnFiles.Scope, "dir/file.txt")
+			if (err == nil) != (mode == "accepted") {
+				t.Fatalf("wrong precise completion: %v", err)
+			}
+			if mode == "owner-retired" && calls != 1 {
+				t.Fatal("retired handoff reached open RPC")
+			}
+			if s.lastAction != "unrelated action" {
+				t.Fatal("reference failure was routed through global status")
+			}
+		})
+	}
+}

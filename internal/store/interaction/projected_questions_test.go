@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -76,13 +77,14 @@ func TestContinuedWaterfallTimeoutRestoresDraftWithoutDoubleAnswer(t *testing.T)
 		done <- *out
 	}()
 	awaitQuestionFixture(t, func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].EventID == "live" })
-	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
+	s.SyncProjectedQuestions("A", json.RawMessage(strings.Replace(string(continuedFixture), `"continued"`, `"open"`, 1)), emptyInboxFixture)
 	if len(s.SnapshotForAgent("A").Pending) != 1 {
 		t.Fatal("projection duplicated live waterfall")
 	}
 	s.resolve("live", dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Code: "ASK_TIMED_OUT"}})
 	<-done
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
+	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
 	snap := s.SnapshotForAgent("A")
 	if len(snap.Pending) != 1 || !snap.Pending[0].Continued {
 		t.Fatalf("timed out question lost: %+v", snap.Pending)
