@@ -201,3 +201,6 @@ The final package's private profile is moved to the evidence archive after start
 ## Final screenshot follow-up
 
 The d7df1ff production native restore passed and its screenshot exposed a real remaining geometry error: short trajectory records were vertically centered below the timeline. Source033d61c adds FillHeight to the ledger column; its parent Row defaults to cross-axis Center. Actual first-row/viewport-top assertions at451/900DIP and nested inspector/tab regressions passed2.898s. This fixes the application column, without changing SDK list scrolling or forcing selection to the top. E/trajectory-top-alignment-regression-20261019.log records the bounded verification. The final integrated screenshot/ordinary startup receipts are named checkpoint-final; package BUILD.json is the binary source authority.
+
+
+Final checkpoint receipts are now collected and visually checked: E/checkpoint-final-summary.json binds clean source `97e04277fff09938d56759fac3edca4533f21d9a`, the full folder, final native restore and ordinary startup. Actual startup ready15.082s; exact-owned forced cleanup and data archive passed. Protected graceful quit is explicitly false/unverified. The image confirms the corrected trajectory top alignment; it does not certify original pixel parity or every matrix row.
