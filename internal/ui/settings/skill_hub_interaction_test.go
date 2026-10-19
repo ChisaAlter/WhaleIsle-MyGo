@@ -131,6 +131,12 @@ func TestSkillCreateValidationSurvivesFramesAndAllowsCorrectedInput(t *testing.T
 	}
 	tt.Scroll(650, 600, 0, 4000)
 	clickSkillControl(t, tt, "Project skills")
+	if draft.Root != "project-dsh" {
+		t.Fatalf("project selection did not update the creation draft: %q", draft.Root)
+	}
+	// Project selection adds the cwd row above the footer. Reveal the footer
+	// again: Tester.Find also returns labels outside a scroll container's clip.
+	tt.Scroll(650, 600, 0, 4000)
 	clickSkillControl(t, tt, "Create skill")
 	if len(saved) != 1 || saved[0].Name != "owned-skill" || saved[0].Root != "project-dsh" || saved[0].Content != draft.Content {
 		t.Fatalf("corrected form was not submitted intact: %+v", saved)
