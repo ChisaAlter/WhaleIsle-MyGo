@@ -13,7 +13,7 @@
 - 已关闭的本轮差异及本地提交见 [实现批次记录](source-parity-implementation-batch-20261019.md)，包括生命周期、逐卡动作、附件退休、Next Prompt、Skills Hub、Bot/Room/IM 等具体路径。
 - Market 图库、README GIF/WebP、限定 AVIF 序列及静态 SVG 扩展已提交源码；后续 Schedule/Jobs、question 收据与草稿、恢复 checkpoint、桌宠穿透、安装事务也已有具体源码和待运行回归。不能将这些提交标为验收通过。
 - 原版 128/1440 GPU fluid、Beam 尚不一致的图层，以及仍不支持的 SVG 构造属于代码/效果差异；既有 GPU 深度工作优先级暂停仍单独保留，不伪装成截图工具阻塞。
-- 普通回归 run01：source `3b37750`，完整日志 `../evidence/source-parity-unified-20261019T143443Z/go-test-all.log`，exit 1。编译缺漏、真实草稿恢复缺陷与夹具前提/就绪竞态已分别定位，后续提交尚未复跑；没有新的通过结论。
+- 普通回归 run02：source `221dba0`，`../evidence/source-parity-unified-20261019T161408Z/` 保存日志和 receipts；仓库全量 exit 1，受影响 UI SDK 全包 exit 0。实际编译、AVIF、字面文本与焦点等问题和旧契约/时钟夹具分别处理；未构建新候选，没有全产品通过结论。
 - 真实 Windows 原版/Go 截图及物理输入验收仍缺支持的原生捕获/输入能力。账户、设备、模型、系统安装等各自的前提和未验收状态继续保留在 [完整验收矩阵](native-full-function-acceptance-20261019.md)。现用程序、已交付目录和用户配置未替换。
 
 覆盖等级按各专用记录与其后续补充汇总，每个标签只覆盖链接中已读的选定子路径。即使某行选定行为已比较，其未审子状态、动态贡献或平台行为仍可能是 `not-reviewed`；不因总表每行都有证据就声称全功能完成。后续真实阅读可以更新等级，编译或测试数量不能。
