@@ -79,7 +79,8 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 		return nil, err
 	}
 	// Preserve write/effect ordering across concurrent desktop requests.
-	err = s.applyDesktopConfigEffects(store.Get(), patch, win)
+	saved := store.Get()
+	err = s.applyDesktopConfigEffects(saved, patch, win)
 	release()
 	if err != nil {
 		return nil, fmt.Errorf("settings saved but could not be fully applied: %w", err)
@@ -89,7 +90,7 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 		s.syncHarnessFromConfig()
 		restartRequested = s.restartUnlessImport(sup)
 	}
-	return map[string]any{"ok": true, "restarting": restartRequested, "restartRequired": restart && !restartRequested}, nil
+	return map[string]any{"ok": true, "config": desktopPublicConfig(saved), "restarting": restartRequested, "restartRequired": restart && !restartRequested}, nil
 }
 
 // Apply only patched desktop fields. Other settings drafts remain owned by
@@ -127,4 +128,23 @@ func (s *mainState) applyDesktopConfigEffects(cfg config.Config, patch map[strin
 		}
 	})
 	return loginErr
+}
+
+// Keep both desktop control responses on the same existing public whitelist.
+func desktopPublicConfig(cfg config.Config) map[string]any {
+	return map[string]any{
+		"workspace":                 cfg.Workspace,
+		"host":                      cfg.Host,
+		"port":                      cfg.Port,
+		"theme":                     cfg.Theme,
+		"locale":                    cfg.Locale,
+		"closeToTray":               cfg.CloseToTray,
+		"openAtLogin":               cfg.OpenAtLogin,
+		"dshbotEnabled":             cfg.DshbotEnabled,
+		"whaleAssistantEnabled":     cfg.WhaleAssistantEnabled,
+		"remoteWorkspaceEnabled":    cfg.RemoteWorkspaceEnabled,
+		"harnessAutoRestart":        cfg.HarnessAutoRestart,
+		"harnessRestartMaxAttempts": cfg.HarnessRestartMaxAttempts,
+		"harnessRestartBaseDelayMs": cfg.HarnessRestartBaseDelayMs,
+	}
 }

@@ -482,21 +482,7 @@ func desktopControlOps() installctrl.DesktopOps {
 					}
 				}
 			}
-			public := map[string]any{
-				"workspace":                 cfg.Workspace,
-				"host":                      cfg.Host,
-				"port":                      cfg.Port,
-				"theme":                     cfg.Theme,
-				"locale":                    cfg.Locale,
-				"closeToTray":               cfg.CloseToTray,
-				"openAtLogin":               cfg.OpenAtLogin,
-				"dshbotEnabled":             cfg.DshbotEnabled,
-				"whaleAssistantEnabled":     cfg.WhaleAssistantEnabled,
-				"remoteWorkspaceEnabled":    cfg.RemoteWorkspaceEnabled,
-				"harnessAutoRestart":        cfg.HarnessAutoRestart,
-				"harnessRestartMaxAttempts": cfg.HarnessRestartMaxAttempts,
-				"harnessRestartBaseDelayMs": cfg.HarnessRestartBaseDelayMs,
-			}
+			public := desktopPublicConfig(cfg)
 			return map[string]any{
 				"ok": true, "version": buildVersion, "kernel": status.State.String(),
 				"plugins": plugins, "disabledPlugins": append([]string(nil), cfg.DisabledPlugins...),
