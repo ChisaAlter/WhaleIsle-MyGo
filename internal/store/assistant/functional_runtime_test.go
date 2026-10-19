@@ -72,8 +72,16 @@ func TestFunctionalAssistantRuntime(t *testing.T) {
 	}
 	root := os.Getenv("WHALEISLE_ASSISTANT_TEST_READ_OWNED")
 	readOwned := root != ""
+	continueRoot := os.Getenv("WHALEISLE_ASSISTANT_TEST_CONTINUE_OWNED")
+	continuing := continueRoot != ""
+	if readOwned && continuing {
+		t.Fatal("choose read-only verification or continuation, not both")
+	}
+	if continuing {
+		root = continueRoot
+	}
 	var err error
-	if readOwned {
+	if readOwned || continuing {
 		rel, e := filepath.Rel(base, root)
 		require(e)
 		if filepath.IsAbs(rel) || strings.Contains(rel, string(filepath.Separator)) || !strings.HasPrefix(rel, "assistant-functional-check-") {
@@ -175,7 +183,11 @@ func TestFunctionalAssistantRuntime(t *testing.T) {
 		}
 	}
 	var savedWhale pluginrpc.WhaleSettings
-	if whaleErr == nil {
+	if whaleErr == nil && continuing {
+		savedWhale = settings
+		assert("BOT-01-continue-existing-settings-without-rewrite", settings.Name == "Owned Whale" && settings.Memory == "Owned local memory. No delivery.", 0)
+	}
+	if whaleErr == nil && !continuing {
 		var editor WhaleSettingsEditor
 		editor.Bind("owned-host-1")
 		ticket, ok := editor.BeginLoad("owned-host-1")
@@ -201,57 +213,78 @@ func TestFunctionalAssistantRuntime(t *testing.T) {
 	var botSessionIDs []string
 	var roomID, duplicateID string
 	if botErr == nil {
-		assert("BOT-02-fresh-empty-bot-catalog", len(catalog.Items) == 0, len(catalog.Items))
-		for i := 1; i <= 2; i++ {
-			cmd := pluginrpc.DshbotBotCreateCommand{ID: fmt.Sprintf("%s-bot-%d", filepath.Base(root), i), SessionID: fmt.Sprintf("session-%s-bot-%d", filepath.Base(root), i), Expected: catalog,
-				// Actual rc.2 llm-deepseek-api-key PROVIDER and declared DEFAULT_MODELS.
-				// resolveCallConfig validates metadata; authentication/transport are
-				// deferred to generate(), which this test never invokes.
-				Draft: pluginrpc.DshbotBotDraft{Name: fmt.Sprintf("Owned Bot %d", i), Title: "Owned local bot", Description: "Empty objective, no routines or notifications.", ScratchCwd: workspace, Provider: "deepseek-official", Model: "deepseek-v4-pro", MemoryReview: false, Notify: false}}
-			created, err := c.DshbotCreateBot(ctx, cmd)
-			require(err)
-			catalog = created.Catalog
-			botIDs = append(botIDs, created.Item.ID)
-			botSessionIDs = append(botSessionIDs, created.Item.SessionID)
-			assert("BOT-02-real-create-idle-bot", created.Item.ID == cmd.ID && created.Item.SessionID == cmd.SessionID && created.Item.Notify != nil && !*created.Item.Notify, 1)
+		if continuing {
+			assert("BOT-02-continue-three-existing-bots-without-create", len(catalog.Items) == 3, len(catalog.Items))
+			for i := 1; i <= 2; i++ {
+				id := fmt.Sprintf("%s-bot-%d", filepath.Base(root), i)
+				for _, item := range catalog.Items {
+					if item.ID == id {
+						botIDs = append(botIDs, item.ID)
+						botSessionIDs = append(botSessionIDs, item.SessionID)
+					}
+				}
+			}
+			for _, item := range catalog.Items {
+				if item.Name == "Owned duplicate" {
+					duplicateID = item.ID
+				}
+			}
+			assert("BOT-02-existing-original-identities-retained", len(botIDs) == 2 && duplicateID != "", len(botIDs))
 		}
-		contacts, err := c.DshbotContacts(ctx)
-		require(err)
-		section := pluginrpc.DshbotContactCommand{Expected: contacts, Action: "create", ID: "owned-section", Name: "Owned section"}
-		changed, err := c.DshbotChangeContacts(ctx, section)
-		require(err)
-		contacts = changed.Catalog
-		assert("BOT-02-section-create", pluginrpc.DshbotContactApplied(section, contacts), len(contacts.Sections))
-		section = pluginrpc.DshbotContactCommand{Expected: contacts, Action: "rename", ID: "owned-section", Name: "Owned renamed section"}
-		changed, err = c.DshbotChangeContacts(ctx, section)
-		require(err)
-		contacts = changed.Catalog
-		assert("BOT-02-section-rename", pluginrpc.DshbotContactApplied(section, contacts), len(contacts.Sections))
-		section = pluginrpc.DshbotContactCommand{Expected: contacts, Action: "assign", ID: botIDs[0], SessionID: botSessionIDs[0], SectionID: "owned-section"}
-		changed, err = c.DshbotChangeContacts(ctx, section)
-		require(err)
-		contacts = changed.Catalog
-		assert("BOT-02-contact-section-assignment", pluginrpc.DshbotContactApplied(section, contacts), 0)
-		catalog, err = c.DshbotBotCatalog(ctx)
-		require(err)
-		visibility, err := c.DshbotSetVisibility(ctx, pluginrpc.DshbotVisibilityCommand{Expected: catalog, ID: botIDs[0], SessionID: botSessionIDs[0], Hidden: true, UpdatedAt: time.Now().UnixMilli()})
-		require(err)
-		assert("BOT-02-contact-hide", visibility.Item.Hidden, 0)
-		visibility, err = c.DshbotSetVisibility(ctx, pluginrpc.DshbotVisibilityCommand{Expected: visibility.Catalog, ID: botIDs[0], SessionID: botSessionIDs[0], Hidden: false, UpdatedAt: time.Now().UnixMilli() + 1})
-		require(err)
-		catalog = visibility.Catalog
-		assert("BOT-02-contact-unhide", !visibility.Item.Hidden, 0)
-		duplicate, err := c.DshbotDuplicateBot(ctx, pluginrpc.DshbotBotDuplicateCommand{SourceID: botIDs[0], Name: "Owned duplicate", ScratchCwd: workspace, Expected: catalog})
-		require(err)
-		duplicateID = duplicate.Item.ID
-		assert("BOT-02-real-duplicate-empty-objective", duplicateID != "" && duplicateID != botIDs[0], 1)
+		if !continuing {
+			assert("BOT-02-fresh-empty-bot-catalog", len(catalog.Items) == 0, len(catalog.Items))
+			for i := 1; i <= 2; i++ {
+				cmd := pluginrpc.DshbotBotCreateCommand{ID: fmt.Sprintf("%s-bot-%d", filepath.Base(root), i), SessionID: fmt.Sprintf("session-%s-bot-%d", filepath.Base(root), i), Expected: catalog,
+					// Actual rc.2 llm-deepseek-api-key PROVIDER and declared DEFAULT_MODELS.
+					// resolveCallConfig validates metadata; authentication/transport are
+					// deferred to generate(), which this test never invokes.
+					Draft: pluginrpc.DshbotBotDraft{Name: fmt.Sprintf("Owned Bot %d", i), Title: "Owned local bot", Description: "Empty objective, no routines or notifications.", ScratchCwd: workspace, Provider: "deepseek-official", Model: "deepseek-v4-pro", MemoryReview: false, Notify: false}}
+				created, err := c.DshbotCreateBot(ctx, cmd)
+				require(err)
+				catalog = created.Catalog
+				botIDs = append(botIDs, created.Item.ID)
+				botSessionIDs = append(botSessionIDs, created.Item.SessionID)
+				assert("BOT-02-real-create-idle-bot", created.Item.ID == cmd.ID && created.Item.SessionID == cmd.SessionID && created.Item.Notify != nil && !*created.Item.Notify, 1)
+			}
+			contacts, err := c.DshbotContacts(ctx)
+			require(err)
+			section := pluginrpc.DshbotContactCommand{Expected: contacts, Action: "create", ID: "owned-section", Name: "Owned section"}
+			changed, err := c.DshbotChangeContacts(ctx, section)
+			require(err)
+			contacts = changed.Catalog
+			assert("BOT-02-section-create", pluginrpc.DshbotContactApplied(section, contacts), len(contacts.Sections))
+			section = pluginrpc.DshbotContactCommand{Expected: contacts, Action: "rename", ID: "owned-section", Name: "Owned renamed section"}
+			changed, err = c.DshbotChangeContacts(ctx, section)
+			require(err)
+			contacts = changed.Catalog
+			assert("BOT-02-section-rename", pluginrpc.DshbotContactApplied(section, contacts), len(contacts.Sections))
+			section = pluginrpc.DshbotContactCommand{Expected: contacts, Action: "assign", ID: botIDs[0], SessionID: botSessionIDs[0], SectionID: "owned-section"}
+			changed, err = c.DshbotChangeContacts(ctx, section)
+			require(err)
+			contacts = changed.Catalog
+			assert("BOT-02-contact-section-assignment", pluginrpc.DshbotContactApplied(section, contacts), 0)
+			catalog, err = c.DshbotBotCatalog(ctx)
+			require(err)
+			visibility, err := c.DshbotSetVisibility(ctx, pluginrpc.DshbotVisibilityCommand{Expected: catalog, ID: botIDs[0], SessionID: botSessionIDs[0], Hidden: true, UpdatedAt: time.Now().UnixMilli()})
+			require(err)
+			assert("BOT-02-contact-hide", visibility.Item.Hidden, 0)
+			visibility, err = c.DshbotSetVisibility(ctx, pluginrpc.DshbotVisibilityCommand{Expected: visibility.Catalog, ID: botIDs[0], SessionID: botSessionIDs[0], Hidden: false, UpdatedAt: time.Now().UnixMilli() + 1})
+			require(err)
+			catalog = visibility.Catalog
+			assert("BOT-02-contact-unhide", !visibility.Item.Hidden, 0)
+			duplicate, err := c.DshbotDuplicateBot(ctx, pluginrpc.DshbotBotDuplicateCommand{SourceID: botIDs[0], Name: "Owned duplicate", ScratchCwd: workspace, Expected: catalog})
+			require(err)
+			duplicateID = duplicate.Item.ID
+			assert("BOT-02-real-duplicate-empty-objective", duplicateID != "" && duplicateID != botIDs[0], 1)
+		}
 		rooms, err := c.DshbotRoomCatalog(ctx)
 		require(err)
-		createdRoom, err := c.DshbotCreateRoom(ctx, pluginrpc.DshbotRoomCreateCommand{ID: "owned-room", SessionID: "session-owned-room", Expected: rooms,
+		newRoomID := filepath.Base(root) + "-room"
+		createdRoom, err := c.DshbotCreateRoom(ctx, pluginrpc.DshbotRoomCreateCommand{ID: newRoomID, SessionID: "session-" + newRoomID, Expected: rooms,
 			Draft: pluginrpc.DshbotRoomDraft{Name: "Owned room", Description: "No messages submitted.", ScratchCwd: workspace, MemberBotIDs: botIDs, MaxRounds: 1, MaxSpeaks: 1}})
 		require(err)
 		roomID = createdRoom.Item.ID
-		assert("BOT-03-real-room-catalog-create", roomID == "owned-room" && len(createdRoom.Item.MemberBotIDs) == 2, 2)
+		assert("BOT-03-real-room-catalog-create", roomID == newRoomID && len(createdRoom.Item.MemberBotIDs) == 2, 2)
 		runtime, err := c.DshbotRoomRuntime(ctx, roomID)
 		require(err)
 		assert("BOT-03-room-runtime-read-without-dispatch", runtime.Room.ID == roomID && len(runtime.Members) == 0, len(runtime.Members))
