@@ -49,28 +49,41 @@ func (s *mainState) creatorTaskAccess(source *session.Store) *settings.CreatorTa
 			win.Update(func() {})
 		}
 	}
+	create := func(ticket uint64) {
+		if !s.creatorTaskVisible(source) {
+			s.suspendCreatorTask()
+			return
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			defer cancel()
+			ready := creator.Create(ctx, ticket)
+			if win != nil {
+				win.Update(func() {
+					if ready {
+						s.openCreatorTask(creator, source, ticket, true)
+					}
+				})
+			}
+		}()
+	}
 	return &settings.CreatorTaskAccess{
-		State:     creator.Snapshot(),
-		OnPrepare: func() { creator.Prepare(); refresh() },
-		OnCancel:  func(ticket uint64) { creator.Cancel(ticket); refresh() },
-		OnCreate: func(ticket uint64) {
+		State: creator.Snapshot(),
+		OnPrepare: func() {
 			if !s.creatorTaskVisible(source) {
-				s.suspendCreatorTask()
 				return
 			}
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-				defer cancel()
-				ready := creator.Create(ctx, ticket)
-				if win != nil {
-					win.Update(func() {
-						if ready {
-							s.openCreatorTask(creator, source, ticket, true)
-						}
-					})
-				}
-			}()
+			creator.Prepare()
+			prepared := creator.Snapshot()
+			if prepared.Review && !prepared.Busy {
+				// This explicit settings action is the admission, just as the
+				// Plugins Creator menu is. Keep its captured target and receipts.
+				create(prepared.Ticket)
+			}
+			refresh()
 		},
+		OnCancel: func(ticket uint64) { creator.Cancel(ticket); refresh() },
+		OnCreate: create,
 		OnLocate: func(ticket uint64) {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

@@ -38,18 +38,6 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 		if s.Review || s.Attempted {
 			ui.Text(c, fmt.Sprintf("Host: %s\nWorkspace: %s\nSession: %s\nPreset: cordis · %s", s.Host, s.Cwd, s.SessionID, s.Phase)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
-		if s.Review {
-			ui.Text(c, "确认后仅对上面的新任务创建并应用 cordis；离开本页或切换 Host/会话会使确认失效。 / Confirm this exact new task. Leaving this page or changing Host/session invalidates the review.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, "取消 / Cancel Creator").Disabled(s.Busy || a.OnCancel == nil).Clicked() && a.OnCancel != nil {
-					a.OnCancel(s.Ticket)
-				}
-				if ui.Button(c, "确认创建 Creator 任务 / Create Creator task").Disabled(s.Busy || !available || a.OnCreate == nil).Clicked() && a.OnCreate != nil {
-					a.OnCreate(s.Ticket)
-				}
-			})
-			return
-		}
 		if s.Attempted && !s.Opened {
 			ui.Row(c).Gap(8).Children(func() {
 				if !s.Created && ui.Button(c, "定位已提交目标 / Locate attempted task").Disabled(s.Busy || a.OnLocate == nil).Clicked() && a.OnLocate != nil {
@@ -61,7 +49,7 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 			})
 			return
 		}
-		if ui.Button(c, "新建 Creator 任务… / New Creator task…").Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
+		if ui.Button(c, "新建 Creator 任务 / New Creator task").Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
 			a.OnPrepare()
 		}
 	})

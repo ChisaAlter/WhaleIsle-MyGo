@@ -12,8 +12,27 @@ import (
 
 type AgentPresetReaderAccess struct {
 	State                   session.AgentPresetReaderState
+	focus                   *presetReaderFocus
 	OnSelect                func(uint64, string)
 	OnRead, OnClose, OnCopy func(uint64)
+}
+
+type presetReaderFocus struct {
+	Trigger *ui.Handle
+	Open    bool
+}
+
+func agentPresetViewAction(c *ui.Context, a *AgentPresetReaderAccess, label string, disabled bool) bool {
+	button := ui.Button(c, "").Label("查看配置 / View configuration · "+label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
+	handle := ui.Local(button, "view-trigger", func() ui.Handle { return ui.Handle{} })
+	button.Bind(handle).Children(func() { ui.Icon(c, bodyIcon("document")).Size(16, 16) })
+	if button.Clicked() {
+		if a.focus != nil {
+			a.focus.Trigger = handle
+		}
+		return true
+	}
+	return false
 }
 
 func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster session.AgentPresetManagerState, fg, muted ui.Color) {
@@ -21,57 +40,39 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		return
 	}
 	s := a.State
-	ui.Column(c.Key("agent-preset-reader")).Gap(7).Children(func() {
-		ui.Text(c, "预设声明 · 只读 / Preset declaration · Read only").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "内容和元数据来自当前 Host 的 agentPresets/read；仅阅读和复制，不执行文档中的指令。 / Content and metadata come from the current Host's agentPresets/read; document instructions remain inert.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if s.Host == "" {
-			ui.Text(c, "Host 未连接，暂时无法读取 / Connect a Host to read declarations").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if !s.Open {
+		if a.focus != nil && a.focus.Open && a.focus.Trigger != nil {
+			a.focus.Trigger.RequestFocus(c)
 		}
-		selected := ""
-		broken := ""
-		for _, row := range roster.Rows {
-			if row.ID == s.SelectedID {
-				selected = agentPresetSettingsLabel(row)
-				broken = row.Broken
-			}
+		if a.focus != nil {
+			a.focus.Open = false
 		}
-		if selected == "" {
-			ui.Text(c, "从上方目录选择要阅读的预设 / Select a preset to read from the roster above").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		} else {
-			ui.Text(c, "阅读选择 / Reading choice: "+selected).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		return
+	}
+	if a.focus != nil {
+		a.focus.Open = true
+	}
+	selected := s.SelectedID
+	for _, row := range roster.Rows {
+		if row.ID == s.SelectedID {
+			selected = agentPresetSettingsLabel(row)
 		}
-		if broken != "" {
-			ui.Text(c, "预设诊断 / Preset diagnostic: "+broken).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, "读取声明 / Read declaration").Disabled(s.Busy || s.SelectedID == "" || a.OnRead == nil).Clicked() && a.OnRead != nil {
-				a.OnRead(s.Ticket)
-			}
-			if s.Open && ui.Button(c, "关闭阅读 / Close reader").Clicked() && a.OnClose != nil {
-				a.OnClose(s.Ticket)
-			}
-		})
-		if !s.Open {
-			return
-		}
-		ui.Text(c, "Host: "+s.Host+"\nPreset ID: "+s.SelectedID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+	}
+	open := true
+	bodyDialog(c.Key("agent-preset-reader"), &open, providerCopy("查看配置", "View configuration")+" · "+selected, func() {
 		if s.Busy {
 			ui.Text(c, "正在读取声明… / Loading declaration…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if s.Error != "" {
-			ui.Text(c, s.Error+"\n可再次点击读取重试 / Use Read declaration to retry").FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+			if ui.Button(c, providerCopy("重试", "Retry")).Disabled(a.OnRead == nil).Clicked() && a.OnRead != nil {
+				a.OnRead(s.Ticket)
+			}
 			return
 		}
 		if !s.Loaded {
 			return
-		}
-		ui.Text(c, "Name: "+s.Name).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg).Selectable()
-		if s.Description != "" {
-			ui.Text(c, "Description: "+s.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
-		if s.MetadataTruncated {
-			ui.Text(c, "名称或说明超过显示上限，已截断 / Name or description truncated at the display limit").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if ui.Button(c, "复制全文 / Copy full declaration").Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
 			a.OnCopy(s.Ticket)
@@ -101,6 +102,13 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 			ui.TextArea(c.Key(pages.Start), &content).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
 	})
+	if !open && a.OnClose != nil {
+		a.OnClose(s.Ticket)
+		if a.focus != nil && a.focus.Trigger != nil {
+			a.focus.Trigger.RequestFocus(c)
+			a.focus.Open = false
+		}
+	}
 }
 
 type presetDocumentPages struct {

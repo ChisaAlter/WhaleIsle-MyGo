@@ -36,6 +36,11 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := *m.AgentPresets
+	if a.Reader != nil {
+		reader := *a.Reader
+		reader.focus = ui.Local(ui.Box(c.Key("preset-reader-focus")), "focus", func() presetReaderFocus { return presetReaderFocus{} })
+		a.Reader = &reader
+	}
 	snap := a.Manager.Snapshot()
 	if a.DisableDeveloperTools {
 		rows := make([]session.ManagedAgentPreset, 0, len(snap.Rows))
@@ -148,7 +153,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 						readerClicked := false
 						ui.Row(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 10, 10, 10).AlignItems(ui.Center).Children(func() {
 							ui.Box(c).Grow(1).MinWidth(0).Children(func() { agentPresetGuidePane(c, row, fg, muted) })
-							if a.Reader != nil && bodyIconAction(c, "选择阅读 / Select for reading · "+label, "document", !roster.Loaded || a.Reader.OnSelect == nil) && a.Reader.OnSelect != nil {
+							if a.Reader != nil && agentPresetViewAction(c, a.Reader, label, !roster.Loaded || a.Reader.State.Busy || a.Reader.OnSelect == nil) && a.Reader.OnSelect != nil {
 								readerClicked = true
 								a.Reader.OnSelect(a.Reader.State.Ticket, row.ID)
 							}

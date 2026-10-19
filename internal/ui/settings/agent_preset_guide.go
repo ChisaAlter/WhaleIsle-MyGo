@@ -23,49 +23,76 @@ func agentPresetGuide(row session.ManagedAgentPreset) (presetModeGuide, bool) {
 	return guide, ok
 }
 
+type presetGuideReader struct {
+	Page, Trigger                string
+	Explanation, Usage           ui.ScrollState
+	DetailsTrigger, UsageTrigger ui.Handle
+}
+
 func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, muted ui.Color) {
 	guide, ok := agentPresetGuide(row)
 	if !ok {
 		return
 	}
 	container := ui.Column(c.Key("preset-guide-" + row.ID)).Gap(6)
-	page := ui.Local(container, "page", func() string { return "" })
+	state := ui.Local(container, "reader", func() presetGuideReader { return presetGuideReader{} })
 	container.Children(func() {
-		if *page == "" {
-			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Clicked() {
-					*page = "explanation"
-				}
-				if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Clicked() {
-					*page = "usage"
-				}
-			})
-		}
-		if *page == "" {
+		// Keep the opening controls mounted so every close route can return
+		// focus to the exact action, rather than to a removed modal child.
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Bind(&state.DetailsTrigger).Clicked() {
+				state.Page, state.Trigger = "explanation", "explanation"
+				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
+			}
+			if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Bind(&state.UsageTrigger).Clicked() {
+				state.Page, state.Trigger = "usage", "usage"
+				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
+			}
+		})
+		if state.Page == "" {
 			return
 		}
 		open := true
-		bodyDialog(c, &open, providerCopy("模式指南", "Mode guide"), func() {
-			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Clicked() {
-					*page = "explanation"
-				}
-				if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Clicked() {
-					*page = "usage"
-				}
+		ui.DialogBase(c.Key("mode-guide"), &open, func(backdrop, panel ui.Element) {
+			backdrop.Background(ui.RGBA(0, 0, 0, .4))
+			w, h := c.Size()
+			panel.Width(max(0, min(720, w-32))).Height(max(0, min(720, h-32))).Padding(20).Radius(12).Background(c.Theme().Background).Children(func() {
+				ui.Column(c).Fill().MinHeight(0).Gap(12).Children(func() {
+					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, providerCopy("模式指南", "Mode guide")).FontSize(fonttheme.InterfaceSize(16)).Bold().Grow(1)
+						if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label("关闭帮助 / Close help · " + row.ID).Clicked() {
+							open = false
+						}
+					})
+					ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Selectable()
+					ui.Row(c).Gap(8).Children(func() {
+						for _, tab := range []struct{ id, label string }{{"explanation", providerCopy("模式说明", "Mode details")}, {"usage", providerCopy("如何使用", "How to use")}} {
+							button := ui.Button(c.Key(tab.id), tab.label).Role(ui.RoleTab).Selected(state.Page == tab.id)
+							if state.Page == tab.id {
+								button.AutoFocus()
+							}
+							if button.Clicked() {
+								state.Page = tab.id
+							}
+						}
+					})
+					text, scroll := guide.Explanation, &state.Explanation
+					if state.Page == "usage" {
+						text, scroll = guide.Usage, &state.Usage
+					}
+					ui.Scroll(c.Key(state.Page)).TrackScroll(scroll).Grow(1).MinHeight(0).Focusable().Children(func() {
+						markdown.View(c.Key("preset-guide-content/"+state.Page), text, markdown.Style{DocumentLayout: true, FG: fg, Muted: muted, CodeBG: c.Theme().Surface, Accent: c.Theme().Accent, QuoteBorder: c.Theme().Border, RuleBorder: c.Theme().Border})
+					})
+				})
 			})
-			if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label("关闭帮助 / Close help · " + row.ID).Clicked() {
-				*page = ""
-			}
-			ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Selectable()
-			text := guide.Explanation
-			if *page == "usage" {
-				text = guide.Usage
-			}
-			markdown.View(c.Key("preset-guide-content/"+*page), text, markdown.Style{DocumentLayout: true, FG: fg, Muted: muted, CodeBG: c.Theme().Surface, Accent: c.Theme().Accent, QuoteBorder: c.Theme().Border, RuleBorder: c.Theme().Border})
 		})
 		if !open {
-			*page = ""
+			state.Page = ""
+			if state.Trigger == "usage" {
+				state.UsageTrigger.RequestFocus(c)
+			} else {
+				state.DetailsTrigger.RequestFocus(c)
+			}
 		}
 	})
 }

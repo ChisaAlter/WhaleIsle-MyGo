@@ -9,12 +9,19 @@ type presetChoice struct{ ID, Label, Description, Broken string }
 
 // The toolkit's selection value is the opaque ID. Captions are display-only,
 // including when multiple catalog rows share exactly the same name.
-func presetSelect(c *ui.Context, caption string, options []presetChoice, pick func(string)) ui.Element {
+func presetSelect(c *ui.Context, caption string, options []presetChoice, pick func(string), captionView ...func()) ui.Element {
 	owner := ui.Box(c)
 	selected := ui.Local(owner, "preset-selection", func() string { return "" })
 	parts := ui.SelectBase(c, selected)
 	trigger := parts.Trigger.Label(caption).Tooltip(caption).MaxWidth(220).MinWidth(0).Padding(0, 4, 0, 8).Gap(4).Radius(8).AlignItems(ui.Center)
-	trigger.Children(func() { ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine(); ui.Text(c, "▾") })
+	trigger.Children(func() {
+		if len(captionView) > 0 && captionView[0] != nil {
+			captionView[0]()
+		} else {
+			ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine()
+		}
+		ui.Text(c, "▾")
+	})
 	t := c.Theme()
 	parts.Popup(func(panel ui.Element) {
 		panel.Padding(t.Space(1)).Radius(t.Radius+2).Background(t.Background).Border(1, t.Border)

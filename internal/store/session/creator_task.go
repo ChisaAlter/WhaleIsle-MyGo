@@ -279,6 +279,9 @@ func (c *CreatorTask) Open(ticket uint64, automatic bool) bool {
 	s.selectedAgentPresetLabel = ""
 	if c.state.Applied {
 		s.selectedAgentPresetLabel = labelForAgentPresetID("cordis", s.agentPresetOptions)
+		p := s.presetStateLocked()
+		p.introduction++
+		p.introduceSession = id
 	}
 	s.lastAction = "Creator task: " + id
 	c.state.Opened = true

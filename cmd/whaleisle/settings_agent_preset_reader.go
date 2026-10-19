@@ -32,10 +32,37 @@ func (s *mainState) agentPresetReaderAccess(source *session.Store) *settings.Age
 			win.Update(func() {})
 		}
 	}
+	read := func(ticket uint64) {
+		if !s.creatorTaskVisible(source) {
+			reader.ObserveVisible(false)
+			return
+		}
+		next := reader.Begin(ticket)
+		if next == 0 {
+			return
+		}
+		refresh()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			reader.Load(ctx, next)
+			refresh()
+		}()
+	}
 	return &settings.AgentPresetReaderAccess{
-		State:    reader.Snapshot(),
-		OnSelect: func(ticket uint64, id string) { reader.Select(ticket, id); refresh() },
-		OnClose:  func(ticket uint64) { reader.Close(ticket); refresh() },
+		State: reader.Snapshot(),
+		OnSelect: func(ticket uint64, id string) {
+			before := reader.Snapshot()
+			if !s.creatorTaskVisible(source) || before.Busy || before.Ticket != ticket {
+				return
+			}
+			reader.Select(ticket, id)
+			selected := reader.Snapshot()
+			if selected.SelectedID == id {
+				read(selected.Ticket)
+			}
+		},
+		OnClose: func(ticket uint64) { reader.Close(ticket); refresh() },
 		OnCopy: func(ticket uint64) {
 			if !s.creatorTaskVisible(source) {
 				reader.ObserveVisible(false)
@@ -45,23 +72,7 @@ func (s *mainState) agentPresetReaderAccess(source *session.Store) *settings.Age
 				mygo.Clipboard.WriteText(text)
 			}
 		},
-		OnRead: func(ticket uint64) {
-			if !s.creatorTaskVisible(source) {
-				reader.ObserveVisible(false)
-				return
-			}
-			next := reader.Begin(ticket)
-			if next == 0 {
-				return
-			}
-			refresh()
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				reader.Load(ctx, next)
-				refresh()
-			}()
-		},
+		OnRead: read,
 	}
 }
 

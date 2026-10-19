@@ -87,20 +87,21 @@ type Model struct {
 	UseTextInputClient bool
 	TextInput          *DraftClient
 
-	OnSend              func(text string)
-	OnStop              func()
-	StopBlocked         bool // pending approval/question owns response input
-	stopSuggestionsOpen bool
-	OnModelChange       func(label string)
-	OnModelEffortChange func(label string)
-	OnRetryModels       func()
-	OnRetryPermissions  func()
-	OnExitPlanMode      func()
-	OnPermissionChange  func(value string)
-	OnAgentPresetChange func(id string)
-	OnClearDraft        func()
-	OnNewSession        func()
-	OnExecuteSlash      func(ctx context.Context, line string) // remote commands/execute
+	OnSend                  func(text string)
+	OnStop                  func()
+	StopBlocked             bool // pending approval/question owns response input
+	stopSuggestionsOpen     bool
+	OnModelChange           func(label string)
+	OnModelEffortChange     func(label string)
+	OnRetryModels           func()
+	OnRetryPermissions      func()
+	OnExitPlanMode          func()
+	OnPermissionChange      func(value string)
+	OnAgentPresetChange     func(id string)
+	OnAgentPresetIntroduced func(hostGeneration uint64, sessionID string, sequence uint64)
+	OnClearDraft            func()
+	OnNewSession            func()
+	OnExecuteSlash          func(ctx context.Context, line string) // remote commands/execute
 	// OnPickCommand captures the rendered Host epoch and Session before a
 	// detached, attachment-free menu execution leaves the editor.
 	OnPickCommand   func(hostGeneration uint64, sessionID, line string)
@@ -310,7 +311,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					presetLabel = m.Snapshot.AgentPresetLabels[0]
 				}
 				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
-					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange).
+					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, func() { paintPresetIntroduction(c, m, presetLabel, fg) }).
 						Height(28).FontSize(13).FontWeight(500).
 						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
 				} else {

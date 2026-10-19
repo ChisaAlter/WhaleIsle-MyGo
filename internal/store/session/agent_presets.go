@@ -191,6 +191,7 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		return
 	}
 	p.session, p.generation = sessionID, generation
+	p.introduceSession = ""
 	p.error = ""
 	if !s.blankPresetTargetLocked(sessionID) || opt.Broken != "" {
 		p.error = opt.Label + ": presets can only be applied to a blank session"
