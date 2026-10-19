@@ -121,10 +121,10 @@ func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 		})
 		spans := highlightedCodeSpans(language, code, st)
 		if *wrap {
-			ui.RichText(c, spans...).FillWidth().MinWidth(0).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
+			ui.RichText(c, spans...).FillWidth().MinWidth(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
 		} else {
 			ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-				ui.RichText(c, spans...).NoWrap().Font(theme.CurrentPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
+				ui.RichText(c, spans...).NoWrap().Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
 			})
 		}
 	})

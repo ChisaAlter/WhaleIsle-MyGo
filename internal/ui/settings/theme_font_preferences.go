@@ -102,7 +102,7 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		return
 	}
 	bodyHeading(c, providerCopy("字体与字号", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
-	render := func(label string, f *theme.FontPreference) {
+	render := func(label string, f *theme.FontPreference, family func(string) string) {
 		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() { ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")) })
 		value := float64(f.Size)
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
@@ -111,14 +111,14 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 			}
 			ui.Text(c, fmt.Sprintf("%.0f px", f.Size)).Width(44).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		})
-		ui.Text(c, providerCopy("预览 字体 Aa 0123", "Preview Aa 0123")).FillWidth().Font(f.Family).FontSize(f.Size).TextColor(fg)
+		ui.Text(c, providerCopy("预览 字体 Aa 0123", "Preview Aa 0123")).FillWidth().Font(family(f.Family)).FontSize(f.Size).TextColor(fg)
 	}
-	render(providerCopy("界面", "Interface"), &e.Draft.Interface)
-	render(providerCopy("代码", "Code"), &e.Draft.Code)
+	render(providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily)
+	render(providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily)
 	bodyDisclosure(c, "typography-advanced", providerCopy("高级字体设置", "Advanced typography"), func() {
-		render(providerCopy("聊天", "Chat"), &e.Draft.Chat)
-		render(providerCopy("输入框", "Composer"), &e.Draft.Composer)
-		render(providerCopy("终端", "Terminal"), &e.Draft.Terminal)
+		render(providerCopy("聊天", "Chat"), &e.Draft.Chat, theme.TextFamily)
+		render(providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily)
+		render(providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f })
 	})
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Clicked() {

@@ -87,7 +87,7 @@ func Spans(source string, st Style) []ui.Span {
 		case strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---"):
 			color = del
 		}
-		out = append(out, ui.Span{Text: line + "\n", Size: size, Color: color, Font: theme.CurrentPreferences().Code.Family})
+		out = append(out, ui.Span{Text: line + "\n", Size: size, Color: color, Font: theme.RenderPreferences().Code.Family})
 	}
 	return out
 }
@@ -102,7 +102,7 @@ func View(c *ui.Context, source string, st Style) {
 	if len(spans) == 0 {
 		return
 	}
-	ui.RichText(c, spans...).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
+	ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
 }
 
 // LineDiff produces a unified-style patch string between a and b using go-diff.

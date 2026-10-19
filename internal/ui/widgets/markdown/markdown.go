@@ -135,7 +135,7 @@ func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string,
 }
 
 func styledRichText(c *ui.Context, spans []ui.Span, st Style) ui.Element {
-	el := ui.RichText(c, spans...).Font(theme.CurrentPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
+	el := ui.RichText(c, spans...).Font(theme.RenderPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
 	if st.lineHeight > 0 {
 		el = el.FixedLineHeight(st.lineHeight)
 	}
@@ -490,7 +490,7 @@ func codeSpan(text string, st Style) ui.Span {
 		Size:       theme.CurrentPreferences().Code.Size,
 		Color:      st.FG,
 		Background: st.CodeBG,
-		Font:       theme.CurrentPreferences().Code.Family,
+		Font:       theme.RenderPreferences().Code.Family,
 	}
 }
 

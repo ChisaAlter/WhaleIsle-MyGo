@@ -52,13 +52,13 @@ func sourceView(m Model, key string) *sourceViewState {
 	return v
 }
 func sourceMeasuredWidth(m Model, text string) float32 {
-	font := theme.CurrentPreferences().Code
+	font := theme.RenderPreferences().Code
 	cacheKey := text + "\x00" + fmt.Sprint(font)
 	t := selectedTab(m)
 	if t != nil && t.sourceWidthValid && t.sourceWidthText == cacheKey {
 		return t.sourceWidth
 	}
-	width, _ := ui.ShapeText(text, ui.Font{Family: theme.CurrentPreferences().Code.Family, Size: theme.CurrentPreferences().Code.Size}, 0).Size()
+	width, _ := ui.ShapeText(text, ui.Font{Family: theme.RenderPreferences().Code.Family, Size: theme.RenderPreferences().Code.Size}, 0).Size()
 	if t != nil {
 		t.sourceWidthText, t.sourceWidth, t.sourceWidthValid = cacheKey, width, true
 	}
@@ -87,7 +87,7 @@ func sourceTextArea(c *ui.Context, m Model, text *string, readOnly bool, key str
 	}
 	var editor ui.Element
 	scroll.Children(func() {
-		editor = ui.TextArea(c, text).Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly)
+		editor = ui.TextArea(c, text).Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.RenderPreferences().Code.Size).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly)
 		if !wrap {
 			editor.NoWrap()
 		}
@@ -109,7 +109,7 @@ func revealSourceCaret(c *ui.Context, m Model, editor ui.Element, text, key stri
 	if line := strings.LastIndexAny(prefix, "\r\n"); line >= 0 {
 		prefix = prefix[line+1:]
 	}
-	x, _ := ui.ShapeText(prefix, ui.Font{Family: theme.CurrentPreferences().Code.Family, Size: theme.CurrentPreferences().Code.Size}, 0).Size()
+	x, _ := ui.ShapeText(prefix, ui.Font{Family: theme.RenderPreferences().Code.Family, Size: theme.RenderPreferences().Code.Size}, 0).Size()
 	x += 8
 	next := view.scroll.X
 	if x < next {

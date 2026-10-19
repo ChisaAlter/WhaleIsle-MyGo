@@ -122,12 +122,16 @@ func (p Preferences) Family(id string) Family {
 
 var preferenceState = struct {
 	sync.RWMutex
-	value Preferences
-}{value: Defaults()}
+	value    Preferences
+	rendered Preferences
+}{value: Defaults(), rendered: renderPreferences(Defaults())}
 
 func SetPreferences(p Preferences) {
+	p = p.Normalized().Clone()
+	rendered := renderPreferences(p)
 	preferenceState.Lock()
-	preferenceState.value = p.Normalized().Clone()
+	preferenceState.value = p
+	preferenceState.rendered = rendered
 	preferenceState.Unlock()
 }
 func CurrentPreferences() Preferences {

@@ -136,7 +136,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 								ui.Text(c, scheduleText("旧记录未保存指令内容", "Prompt unavailable in this legacy receipt")).FontSize(theme.InterfaceSize(13)).TextColor(muted).FillWidth().MinWidth(0)
 							} else {
 								expanded := p.deliveryExpanded[key+"/"+record.MessageID]
-								font := theme.CurrentPreferences().Interface.Family
+								font := theme.RenderPreferences().Interface.Family
 								prompt := ui.Text(c, *record.Prompt).Font(font).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
 								clamped := ui.Local(prompt, "saved-prompt-clamped", func() bool { return false })
 								if !expanded {

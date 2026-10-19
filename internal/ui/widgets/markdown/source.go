@@ -73,7 +73,7 @@ func SourceSpans(path, code string, st Style) []ui.Span {
 	case "markdown":
 		return Spans(code, st)
 	case "csv", "tsv":
-		return []ui.Span{{Text: code, Size: st.FontSize, Color: st.FG, Font: theme.CurrentPreferences().Code.Family}}
+		return []ui.Span{{Text: code, Size: st.FontSize, Color: st.FG, Font: theme.RenderPreferences().Code.Family}}
 	}
 	return highlightedCodeSpans(lang, code, st)
 }
@@ -83,8 +83,8 @@ func SourceView(c *ui.Context, path, code string, st Style) {
 	st.FontSize = theme.CurrentPreferences().Code.Size
 	spans := SourceSpans(path, code, st)
 	if len(spans) == 0 {
-		ui.Text(c, code).Font(theme.CurrentPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
+		ui.Text(c, code).Font(theme.RenderPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
 		return
 	}
-	ui.RichText(c, spans...).Font(theme.CurrentPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
+	ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(st.FontSize).TextColor(st.FG)
 }

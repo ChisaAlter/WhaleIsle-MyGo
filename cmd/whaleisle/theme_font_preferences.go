@@ -23,14 +23,14 @@ func (s *mainState) beginAppearanceFrame(c *ui.Context) {
 	s.mu.Lock()
 	id := s.themeID
 	s.mu.Unlock()
-	p := theme.CurrentPreferences()
+	p := theme.RenderPreferences()
 	colors := theme.Resolve(id).Active(mygo.Theme.IsDark())
 	applyAppearanceTheme(c, p, colors)
 }
 
 func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Colors) {
 	t := *c.Theme()
-	t.Font = p.Interface.Family
+	t.Font = theme.TextFamily(p.Interface.Family)
 	t.FontSize = p.Interface.Size
 	t.Background = chrome.Color(colors.BG)
 	t.Text = chrome.Color(colors.FG)

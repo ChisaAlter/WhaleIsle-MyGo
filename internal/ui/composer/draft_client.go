@@ -58,7 +58,7 @@ func NewDraftClient(draft *string) *DraftClient {
 
 // Sync reconciles selection after the draft was changed without ReplaceText.
 func (c *DraftClient) Sync() {
-	p := theme.CurrentPreferences().Composer
+	p := theme.RenderPreferences().Composer
 	if c.font.Family != p.Family || c.font.Size != p.Size {
 		c.font.Family = p.Family
 		c.font.Size = p.Size

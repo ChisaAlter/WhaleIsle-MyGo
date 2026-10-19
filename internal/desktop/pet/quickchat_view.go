@@ -77,7 +77,7 @@ func (q *QuickChat) view(c *ui.Context) {
 				}
 				ui.Column(row.Context).Padding(8).Gap(3).FillWidth().Children(func() {
 					ui.Text(row.Context, label).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
-					ui.Text(row.Context, message.Text).Font(fonttheme.CurrentPreferences().Chat.Family).FontSize(fonttheme.CurrentPreferences().Chat.Size).TextColor(color).Selectable()
+					ui.Text(row.Context, message.Text).Font(fonttheme.RenderPreferences().Chat.Family).FontSize(fonttheme.CurrentPreferences().Chat.Size).TextColor(color).Selectable()
 				})
 			})
 		}
@@ -85,7 +85,7 @@ func (q *QuickChat) view(c *ui.Context) {
 			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		}
 		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Font(fonttheme.CurrentPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 发送，Shift+Enter 换行 / Enter sends; Shift+Enter newline")
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 发送，Shift+Enter 换行 / Enter sends; Shift+Enter newline")
 		// Read the IME composition state during the build: input callbacks run
 		// outside the build pass, where an Element query panics ("element from
 		// pass N used in pass N"). The next frame refreshes it.

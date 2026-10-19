@@ -93,7 +93,7 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 	if previous := root.Bounds().W; previous > 0 {
 		width = previous
 	}
-	key := fmt.Sprint(spans, st.FontSize, st.lineHeight, theme.CurrentPreferences().Chat.Family, offset, targets, st.urlTargets)
+	key := fmt.Sprint(spans, st.FontSize, st.lineHeight, theme.RenderPreferences().Chat.Family, offset, targets, st.urlTargets)
 	if state.lastKey != key || state.lastWidth != width || state.lastRevision != revision {
 		atoms := mathAtoms(spans, st, targets, offset, images, width)
 		lineHeight := st.FontSize * 1.25
@@ -182,7 +182,7 @@ func mathAtoms(spans []ui.Span, st Style, targets map[int]string, offset int, im
 func appendTextAtoms(atoms []mathAtom, span ui.Span, st Style, target string, width float32) []mathAtom {
 	font := ui.Font{Family: span.Font, Size: span.Size, Weight: span.Weight, Italic: span.Italic, Features: span.Features}
 	if font.Family == "" {
-		font.Family = theme.CurrentPreferences().Chat.Family
+		font.Family = theme.RenderPreferences().Chat.Family
 	}
 	if font.Size <= 0 {
 		font.Size = st.FontSize

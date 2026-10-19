@@ -25,7 +25,7 @@ func TestAppearanceFrameMapsNativeInteractiveTokens(t *testing.T) {
 			if native.SurfacePressed != chrome.Color(colors.Pressed) || native.AccentHover != chrome.Color(colors.ButtonInfoHover) || native.AccentPressed != native.AccentHover {
 				t.Fatalf("native interaction tokens did not follow %s: %+v", id, native)
 			}
-			if native.Font != custom.Interface.Family {
+			if native.Font != theme.TextFamily(custom.Interface.Family) {
 				t.Fatalf("custom font overwritten: %q", native.Font)
 			}
 			if native.ScrollbarWidth != 5 {

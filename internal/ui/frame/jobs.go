@@ -189,7 +189,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 					}
 					if !live {
 						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Field)).TextColor(muted).Shrink(0)
-						ui.Text(c, label).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
+						ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
 						detail := job.Detail
 						if detail == "" {
 							detail = jobStatus(job.Status)
@@ -202,7 +202,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 							if !live {
 								ink = muted
 							}
-							ui.Text(c, label).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(ink).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
+							ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(ink).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
 							ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 								ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Sidebar)).TextColor(muted).Shrink(0)
 								detail := job.Progress
@@ -285,7 +285,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 			}
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, job.Label).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)
+			ui.Text(c, job.Label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)
 			if ui.Button(c, archiveText("复制", "Copy")).Label("Copy job command").FontSize(theme.InterfaceSize(11)).Disabled(job.Label == "").Clicked() {
 				mygo.Clipboard.WriteText(job.Label)
 			}
@@ -295,7 +295,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 			if body == "" {
 				body = archiveText("暂无输出", "No output yet.")
 			}
-			ui.Text(c, body).Font(theme.CurrentPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
+			ui.Text(c, body).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
 		})
 	})
 }

@@ -216,7 +216,7 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 					}
 				}
 				if r.EntryID != "" {
-					ui.Text(c, r.EntryID).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.CurrentPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
+					ui.Text(c, r.EntryID).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
 				}
 			})
 		})

@@ -43,13 +43,13 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 			Size:       theme.CurrentPreferences().Code.Size,
 			Color:      chromaColor(style, tok.Type, st.FG),
 			Background: st.CodeBG,
-			Font:       theme.CurrentPreferences().Code.Family,
+			Font:       theme.RenderPreferences().Code.Family,
 		})
 	}
 	if len(out) == 0 {
 		return []ui.Span{codeSpan(code+"\n", st)}
 	}
-	out = append(out, ui.Span{Text: "\n", Size: theme.CurrentPreferences().Code.Size, Background: st.CodeBG, Font: theme.CurrentPreferences().Code.Family})
+	out = append(out, ui.Span{Text: "\n", Size: theme.CurrentPreferences().Code.Size, Background: st.CodeBG, Font: theme.RenderPreferences().Code.Family})
 	return out
 }
 

@@ -152,7 +152,7 @@ func runNativeAppearanceAcceptance(output string) (failure error) {
 			osReduced = c.Preferences().ReduceMotion
 			draws++
 			ui.Column(c).Fill().MinHeight(0).Children(func() {
-				p := theme.CurrentPreferences()
+				p := theme.RenderPreferences()
 				ui.Column(c).Height(154).Shrink(0).Padding(8, 16).Gap(4).Children(func() {
 					for _, sample := range []struct {
 						name, text string
