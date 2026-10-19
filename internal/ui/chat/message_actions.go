@@ -119,13 +119,15 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 	row := ui.Row(c).Key("assistant-actions").Label("Assistant message actions").Gap(8).
 		Height(28+theme.CurrentPreferences().Chat.Size-14).AlignItems(ui.Center).Margin(4, 0, 0, -6)
 	messageQuoteMenu(row, m, msg)
-	if !target.latest && !owner.Hovered() && !owner.FocusWithin() {
-		row.Opacity(0)
-	}
+	revealed := target.latest || owner.Hovered() || owner.FocusWithin()
 	row.Children(func() {
-		messageCopyAction(c, msg, true, muted)
+		copySeat := ui.Box(c.Key("copy-reveal"))
+		if !revealed {
+			copySeat.Opacity(0)
+		}
+		copySeat.Children(func() { messageCopyAction(c, msg, true, muted) })
 		if showMessageFeedback(msg) && m.FeedbackStore != nil {
-			authoritativeFeedbackActions(c, m.FeedbackStore, msg.FeedbackMessageID(), muted)
+			authoritativeFeedbackActions(c, m.FeedbackStore, msg.FeedbackMessageID(), muted, revealed)
 		}
 		if target.endSeq > 0 && m.OnForkTurn != nil {
 			allowed := canForkAssistantTarget(m.Snapshot.Messages, target) && !m.Snapshot.HistoryBranchBusy && m.Snapshot.ClientReady
@@ -133,12 +135,18 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 			if !allowed {
 				b.Opacity(.4)
 			}
+			if !revealed {
+				b.Opacity(0)
+			}
 			if allowed && b.Clicked() {
 				m.OnForkTurn(target.endSeq)
 			}
 		}
 		if msg.EventTime > 0 {
-			ui.Text(c, formatEventTime(msg.EventTime)).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, 8).TextColor(muted)
+			stamp := ui.Text(c, formatEventTime(msg.EventTime)).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, 8).TextColor(muted)
+			if !revealed {
+				stamp.Opacity(0)
+			}
 		}
 	})
 	if showMessageFeedback(msg) && m.FeedbackStore != nil {

@@ -14,7 +14,7 @@ type feedbackActionState struct {
 
 // MessageFeedbackActions seeds on first hover/focus. Feedback stays in the
 // assistant's IconActions row; loading is not a separate product action.
-func authoritativeFeedbackActions(c *ui.Context, store *session.Store, id string, muted ui.Color) {
+func authoritativeFeedbackActions(c *ui.Context, store *session.Store, id string, muted ui.Color, reveal ...bool) {
 	root := ui.Row(c.Key("feedback-actions-" + id)).Gap(8).AlignItems(ui.Center)
 	state := ui.Local(root, "seed", func() feedbackActionState { return feedbackActionState{} })
 	v := store.Feedback()
@@ -57,6 +57,9 @@ func authoritativeFeedbackActions(c *ui.Context, store *session.Store, id string
 				}
 			}
 			b := messageAction(c, icon, FeedbackButtonLabel(rating, item.Rating), true, muted, "feedback-"+rating).Checked(rating == item.Rating).Disabled(busy)
+			if len(reveal) > 0 && !reveal[0] && rating != item.Rating {
+				b.Opacity(0)
+			}
 			if !state.seeded && (b.Hovered() || b.Focused()) {
 				state.seeded = true
 				if !v.Ready && !v.Loading {
