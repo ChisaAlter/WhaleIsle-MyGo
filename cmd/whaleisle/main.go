@@ -305,6 +305,7 @@ type mainState struct {
 	launcherImportBusy                      bool
 	launcherImportCancel                    context.CancelFunc
 	launcherUpdate                          string
+	launcherUpdateCheckBusy                 bool
 	nativeReleases                          nativeReleaseState
 	launcherUpdateAvailable                 bool
 	launcherUpdateSynced                    bool
@@ -3633,26 +3634,7 @@ func mainView(c *ui.Context) {
 					}
 				},
 				OnCheckUpdate: func() {
-					res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, state.updateDownloadRoute())
-					state.mu.Lock()
-					if err != nil {
-						state.launcherUpdate = err.Error()
-						state.launcherUpdateAvailable = false
-					} else {
-						state.launcherUpdateAvailable = res.Status == desktopupdate.StatusUpdateAvailable
-						if state.launcherUpdateAvailable {
-							state.launcherUpdate = fmt.Sprintf(i18n.T(i18n.KeyLauncherUpdateAvailable), res.Version, buildVersion)
-						} else {
-							state.launcherUpdate = string(res.Status) + ": " + res.Message
-							if res.ReleaseURL != "" {
-								state.launcherUpdate += " · " + res.ReleaseURL
-							}
-						}
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
+					state.checkLauncherUpdate(win)
 				},
 				OnOpenSettings: func() {
 					state.mu.Lock()

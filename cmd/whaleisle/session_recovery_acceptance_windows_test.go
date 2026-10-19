@@ -204,6 +204,14 @@ func runNativeSessionRecovery() error {
 			proof["sourceFileEditViewMode"] = fileMode
 			proof["selectedWorkspacePaneKey"] = activePane
 			proof["adapterLayoutStateDIP"] = geometry // Persisted state, not measured native node bounds.
+			if os.Getenv("WHALEISLE_SESSION_QA_UPDATE_RESPONSIVENESS") == "1" {
+				observation, err := probeLauncherUpdateResponsiveness(win)
+				if err != nil {
+					finish(err)
+					return
+				}
+				proof["launcherUpdateResponsiveness"] = observation
+			}
 			if value := os.Getenv("WHALEISLE_SESSION_QA_STABILITY_SECONDS"); value != "" {
 				seconds, err := strconv.Atoi(value)
 				if err != nil || seconds < 1 || seconds > 120 {
