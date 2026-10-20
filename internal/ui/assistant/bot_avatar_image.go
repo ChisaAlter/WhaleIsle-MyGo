@@ -13,7 +13,7 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 	if ui.Button(c, i18n.T(i18n.KeyMiscAssistantChooseLocalAvatarImage)).Disabled(!eligible || p.Busy || p.Ready || m.OnChooseImage == nil).Clicked() {
 		m.OnChooseImage()
 	}
-	ui.Text(c, "仅手动选择本地 JPEG/PNG，≤8 MiB、边长≤4096、≤800万像素。裁剪输出192×192 JPEG（质量82），不保留原图元数据。此处仅本地预览，确认保存才随完整资料发送当前Host。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyAManuallyChosenLocalJpegPngIsUse)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if p.Error != "" {
 		ui.Text(c, p.Error).TextColor(accent)
 	}
@@ -23,13 +23,13 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 	ui.Column(c.Key("avatar-image-crop")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantLocalImageCrop)).Bold().TextColor(fg)
 		if p.Busy {
-			ui.Text(c, "等待选择或在后台读取解码；取消、隐藏或切换Host/Bot会丢弃这次选择。").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantWaitingForASelectionOrReadingAndDecod)).TextColor(muted)
 		}
 		if p.Ready {
 			ui.Text(c, fmt.Sprintf("%s · %s · %d bytes · %d×%d", p.Name, p.Format, p.Bytes, p.Width, p.Height)).TextColor(fg).Selectable()
 			value := pluginrpc.DshbotAvatarValues{Kind: "image", DataURL: p.Preview, Crop: p.Crop.Shape}
 			_ = botAvatarUncachedPreview(c.Key("crop-preview"), value, 192, i18n.T(i18n.KeyMiscAssistantLocalCropPreview), fg, muted)
-			ui.Text(c, "使用缩放与X/Y位置滑条（本轮替代原版拖动）；圆形/方形仅改变显示裁剪，输出像素始终为方形。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantUseTheZoomAndXYSlidersThisPassRepla)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			crop := p.Crop
 			changed := false
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantZoomPercent), crop.Zoom)).TextColor(fg)

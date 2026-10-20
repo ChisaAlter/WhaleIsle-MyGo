@@ -32,7 +32,7 @@ func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, mut
 func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, botID, currentID string, rows []pluginrpc.DshbotRoutine, onChange func(string, string), disabled bool, fg, muted, accent ui.Color) {
 	ui.Column(c.Key("routine-advanced")).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantAdvancedSettings)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-		ui.Text(c, "仅提交明确修改的高级字段；未改字段由 Host 保留。不会探测 URL、试运行命令或读取触发凭据。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyExplicitlyChangedAdvancedFieldsAre)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		choices := []string{"self"}
 		for _, r := range rows {
 			if r.BotID == botID && r.ID != currentID {
@@ -56,7 +56,7 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 		if ui.Checkbox(c, &silent, i18n.T(i18n.KeyMiscAssistantAllowSilentResponse)).Disabled(disabled).Changed() && onChange != nil {
 			onChange("silentAllowed", fmt.Sprint(silent))
 		}
-		ui.Text(c, "静默只影响正常输出方式，不表示任务不会执行或没有外部影响。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantSilenceOnlyChangesHowNormalOutputIsDe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if d.WatchUnknown {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnknownWatchPreserved)+d.WatchRaw).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
 		}
@@ -84,7 +84,7 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 					onChange("watchTimeout", timeout)
 				}
 			})
-			ui.Text(c, "检查结果未变化时可跳过调度；检查失败仍可能排队执行 Bot。保存本身不执行检查。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantAnUnchangedCheckMaySkipTheRunAFailed)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 		}
 	})
 }
@@ -98,7 +98,7 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 		sources = []string{i18n.T(i18n.KeyMiscAssistantNone)}
 	}
 	ui.Text(c, i18n.T(i18n.KeyMiscAssistantEffectiveContextSources)+strings.Join(sources, "\n")+fmt.Sprintf("\nSilent allowed: %t", d.SilentAllowed)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-	ui.Text(c, "后续执行会将所选任务的上一轮输出提供给此 Bot（每份最多 8000 字符）；self 是本任务上一轮输出。静默不取消执行、工具或消息影响。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyW4AssistantLaterRunsFeedThePreviousOutputOfTheS)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if d.WatchUnknown {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantEffectiveWatchUnrecognized)+d.WatchRaw).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 	} else if d.WatchKind == "" {
@@ -106,7 +106,7 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 	} else {
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantEffectiveWatch), d.WatchKind, d.WatchValue, d.WatchTimeout)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		if d.WatchKind == "url" {
-			ui.Text(c, "自动调度前 Host 会读取该 URL（会跟随重定向），内容可能作为此 Bot 的输入。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantBeforeEachAutomaticRunTheHostReadsThi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 		}
 	}
 	if d.WatchKind == "command" || d.WatchUnknown {
@@ -114,10 +114,10 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 		if workspace == "" {
 			workspace = i18n.T(i18n.KeyMiscAssistantNotConfigured)
 		}
-		ui.Text(c, "配置 workspaceId（未验证实际 cwd）: "+workspace+"\n运行时目录规则：若该路径存在且是目录则使用；否则用 DSH_HOME，未设时用 DSHD_HOME；均未设则继承 Host 进程目录。实际执行目录此刻无法核实，且运行时可能变化。\ncommand 使用 Host 的 cmd（Windows）或 sh（其他系统）执行，可能读写文件、启动程序、访问网络或发送信息。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantConfiguredWorkspaceidRealCwdUnverified)+workspace+i18n.T(i18n.KeyW4AssistantNruntimeWorkingDirectoryUseThatPathWhe)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 	}
 	if d.WatchKind != "" || d.WatchUnknown {
-		ui.Text(c, "自动调度的 watch 检查失败仍可能排队执行 Bot；未变化才可跳过。手动立即运行会跳过 watch，但仍使用所选上下文。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantAFailedWatchCheckDuringAnAutomaticRun)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 	if dshbotstore.RoutineReviewNeedsWatchAcknowledgement(r) {
 		ack := r.WatchAcknowledged

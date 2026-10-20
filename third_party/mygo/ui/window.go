@@ -169,6 +169,10 @@ func (h *windowHost) size() (float32, float32, float32) {
 	return float32(w / z), float32(ht / z), float32(s * z)
 }
 
+// pixels reports that a surface measures the window in device pixels: the runtime
+// divides its size by scale to get the DIPs the view lays out in.
+func (h *windowHost) pixels() bool { return true }
+
 func (h *windowHost) present(s *scene.Scene) {
 	h.last, h.path = s, ""
 	if s.Width <= 0 || s.Height <= 0 {

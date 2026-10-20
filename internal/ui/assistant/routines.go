@@ -55,19 +55,19 @@ func routineActionLabel(action string, enabled bool) string {
 func routineImpact(cmd pluginrpc.DshbotRoutineCommand) string {
 	switch cmd.Action {
 	case "delete":
-		return "将删除此例行任务及其专属 notepad，并取消尚未投递的任务邮件。不会中止正在运行的模型，也不会撤销已发生的文件、工具或外部操作。"
+		return i18n.T(i18n.KeyW4AssistantDeletesThisRoutineAndItsDedicatedNotep)
 	case "run":
-		return "将立即触发此 Bot，可能执行工具、发送外部消息并产生模型费用。暂停状态也可手动触发；返回目录不代表执行成功。结果不确定时先刷新，不要重复运行。"
+		return i18n.T(i18n.KeyW4AssistantTriggersThisBotImmediatelyItMayRunToo)
 	case "toggle":
 		if cmd.EnabledBefore {
-			return "将暂停后续调度，并取消尚未投递的任务邮件。不会中止正在运行的模型，也不会撤销已发生的操作。"
+			return i18n.T(i18n.KeyW4AssistantFutureSchedulingPausesAndUndeliveredTas)
 		}
-		return "将启用后续调度并重算下次时间，Bot 可能按提示词执行工具、发送外部消息并产生模型费用。"
+		return i18n.T(i18n.KeyW4AssistantEnablesFutureSchedulingAndRecomputesThe)
 	case "save":
 		if cmd.Edit.Enabled {
-			return "将保存以下配置并重算下次执行时间，按启用配置调度。Bot 可能按此提示词周期执行工具、发送外部消息并产生模型费用。仅明确修改的高级字段会一并提交，未改字段由 Host 保留。"
+			return i18n.T(i18n.KeyW4AssistantSavesTheConfigurationBelowAndRecomputes)
 		}
-		return "将保存以下配置并保持暂停，重算下次时间、取消未投递邮件。不会停止已运行的模型；仅明确修改的高级字段会一并提交，未改字段由 Host 保留。"
+		return i18n.T(i18n.KeyW4AssistantSavesTheConfigurationBelowWhileStaying)
 	}
 	return ""
 }
@@ -96,7 +96,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				r.OnRefresh()
 			}
 		})
-		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建八种时间类型；已有任务可编辑上下文、静默及 watch，并可独立审阅获取当前 Host 目录共享触发凭据。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadsTheSelectedBotSRealRoutinesBelow)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSelectABotFirst)).TextColor(muted)
 			return
@@ -252,7 +252,7 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, accen
 				}
 			})
 		}
-		ui.Text(c, "规则示例：30m（一次）、every 1h、0 9 * * 1-5；由 Host 校验。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantRuleExamples30mOnceEvery1h0915Vali)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		prompt := d.Edit.Prompt
 		ui.TextArea(c.Key("routine-prompt"), &prompt).Label(i18n.T(i18n.KeyMiscAssistantRoutinePrompt)).Lines(4, 10).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {

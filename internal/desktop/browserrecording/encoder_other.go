@@ -5,8 +5,9 @@ package browserrecording
 import (
 	"context"
 	"errors"
+	"whaleisle/internal/store/storelocale"
 )
 
 func newEncoder(context.Context) (encoder, error) {
-	return nil, errors.New("当前平台不支持网页 WebM 录制")
+	return nil, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingWebmWebpageRecordingIsUnsupportedOnThi))
 }

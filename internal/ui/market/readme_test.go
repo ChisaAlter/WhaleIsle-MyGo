@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	desktopmarket "whaleisle/internal/desktop/market"
 	marketstore "whaleisle/internal/store/market"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -234,7 +235,7 @@ func TestMarketRichReadmeDetailsWideAndNarrow(t *testing.T) {
 		}, size[0], size[1])
 		panel, ok := tt.Find("Native tools")
 		section, mounted := tt.Find("Repository README")
-		close, closeOK := tt.Find(marketText("关闭", "Close"))
+		close, closeOK := tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
 		if !ok || !mounted || !closeOK || panel.W > 680 || panel.W > float32(size[0])-32 || section.W > panel.W-32 || close.X < 0 || close.Y < 0 || close.X+close.W > float32(size[0]) || close.Y+close.H > float32(size[1]) {
 			t.Fatalf("size%v escaped native details: panel=%+v section=%+v close=%+v", size, panel, section, close)
 		}

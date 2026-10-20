@@ -48,6 +48,7 @@ type LayoutSizes struct {
 	Sidebar           float32
 	SidebarExpanded   float32 // last expanded preference; Sidebar=0 is the compact rail
 	Center            float32 // resolved chat width; not a saved right-pane preference
+	viewportW         float32 // viewport the columns were resolved against
 	Right             float32 // remembered right width, 0 = first-open viewport default
 	Main              float32 // height of the dialogue column when the terminal is open
 	Bottom            float32 // >40 shows the terminal (saved height preference when hidden)
@@ -112,6 +113,7 @@ func DefaultDetailsWidth(viewport float32) float32 {
 // Right is initialized only on first opening and survives shrink and close/open.
 func (sizes *LayoutSizes) ResolveColumns(viewport float32, rightOpen bool) Columns {
 	sizes.observeSidebarViewport(viewport)
+	sizes.viewportW = viewport
 	if rightOpen && !sizes.Responsive.rightOpen && sizes.Responsive.narrow {
 		sizes.Responsive.expanded = false
 	}
@@ -185,6 +187,11 @@ type Model struct {
 	OnHideBrowser        func()
 	// ExternalNavigation reuses NavigationShell instead of mounting a second rail.
 	ExternalNavigation bool
+	// ViewportW/H are the window's client area in DIPs (viewportDIP). Children
+	// that clamp tooltips or popovers to the screen read them instead of
+	// Context.Size, which reports device pixels on a scaled display.
+	ViewportW float32
+	ViewportH float32
 	OnSelectSession    func(string)
 	OnCreateSession    func()
 
@@ -228,6 +235,8 @@ type Model struct {
 	FilePreviewList  *ui.ListState
 	FileTreeSplit    *float32
 	FileShortcuts    func() bool
+	// OnOpenFilePicker backs the file strip's trailing control. Nil hides it.
+	OnOpenFilePicker func()
 	FileEditing      *bool
 	FileEditDraft    *string
 	FileEditStatus   *string
@@ -418,7 +427,8 @@ func View(c *ui.Context, m Model) {
 	if !workspaceVisible(m, "agents") {
 		m.Store.CloseAgentNavigation()
 	}
-	viewport, _ := c.Size()
+	viewport, viewportHeight := viewportDIP(c)
+	m.ViewportW, m.ViewportH = viewport, viewportHeight
 	m.Sizes.observeSidebarViewport(viewport)
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
@@ -456,7 +466,7 @@ func View(c *ui.Context, m Model) {
 	// the center's surface; the sidebar and right track own their own surfaces.
 	shell := ui.Column(c).Grow(1).MinHeight(0).Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
 	workspaceFloatDropSurface(c, m, shell)
-	_, height := c.Size()
+	_, height := viewportDIP(c)
 	// The titlebar is above this shell. Its previous-frame origin remains
 	// stable during a window resize; preserve a visible terminal below it.
 	m.centerHeight = maxf(0, height-shell.Bounds().Y)
@@ -521,6 +531,8 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		Schedules:            schedules,
 		Projects:             projectModel,
 		Collapsed:            m.Sizes.sidebarCollapsed(),
+		ViewportW:            m.ViewportW,
+		ViewportH:            m.ViewportH,
 		OnToggle:             m.Sizes.ToggleSidebar,
 		Snapshot:             snap,
 		ThemeID:              m.ThemeID,
@@ -835,7 +847,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				// subtracts one; sizing the hero seat from it would clip the
 				// headline's 预览版 badge at the right edge.
 				if m.Sizes != nil && m.Sizes.drawerMode() {
-					if width, _ := c.Size(); width > 0 {
+					if width, _ := viewportDIP(c); width > 0 {
 						colW = width
 					}
 				}
@@ -862,7 +874,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				conversationHistoryStatus(c, m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
 				chatRegion := ui.Column(c).Key("conversation-body").Grow(1).MinHeight(0)
-				chatRegion.ObserveLayout(func(r ui.Rect) { enterViewport = r })
+				chatRegion.ObserveLayout(func(r ui.Rect) {
+					enterViewport = r
+				})
 				if emptyHero {
 					chatRegion.Padding(0, 0, 32, 0)
 				}
@@ -1396,6 +1410,7 @@ func rightPane(c *ui.Context, m Model) {
 			SVGImages:           m.SVGImages,
 			PlanOnly:            tab == "plan",
 			AllowPageShortcuts:  m.FileShortcuts,
+			OnNewTab:            m.OnOpenFilePicker,
 			PlanSnapshot:        m.Store.Snapshot(),
 			OnLoadPlanHistory:   func() { m.Store.LoadEarlierHistory(context.Background()) },
 			ReadSubagentPlan:    m.Store.ReadSubagentPlan,

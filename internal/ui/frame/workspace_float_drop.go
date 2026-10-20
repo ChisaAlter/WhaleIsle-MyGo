@@ -12,7 +12,7 @@ func workspaceFloatDropSurface(c *ui.Context, m Model, surface ui.Element) {
 	w := m.Sizes.Workspace
 	x, y, inside := surface.PointerPosition()
 	bounds := surface.Bounds()
-	width, height := c.Size()
+	width, height := viewportDIP(c)
 	if drag, over := ui.DragOver[workspaceTabDrag](surface); over && inside {
 		if n := w.Root.find(drag.ID); n != nil && n.Kind != "project-observer" {
 			ui.Overlay(c, func() {

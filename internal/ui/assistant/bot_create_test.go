@@ -6,6 +6,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotCreateUIFullReviewExplicitAction(t *testing.T) {
@@ -19,7 +20,7 @@ func TestBotCreateUIFullReviewExplicitAction(t *testing.T) {
 		t.Fatal("render mutated")
 	}
 	text := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"https://fixture.invalid", "revision 12", "Stable name", "Display title", "Full description untruncated", "workspace-fixture", "/reviewed/cwd", "bot-fixture", "canonical-fixture", "provider-id", "model-id", "high", "circle/blue", "objective", "memoryReview: true", "notify: true", "全部", "费用", "不自动重试"} {
+	for _, term := range []string{"https://fixture.invalid", "revision 12", "Stable name", "Display title", "Full description untruncated", "workspace-fixture", "/reviewed/cwd", "bot-fixture", "canonical-fixture", "provider-id", "model-id", "high", "circle/blue", "objective", "memoryReview: true", "notify: true", i18n.T(i18n.KeyW4AssistantAll), "费用", "不自动重试"} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing reviewed field/effect", term)
 		}

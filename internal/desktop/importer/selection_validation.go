@@ -1,9 +1,12 @@
 package importer
 
+
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Match Electron's admission rule: distinct selected skill sources must not
@@ -24,7 +27,7 @@ func validateSelectedSkills(cat Catalog, sel ApplySelection) error {
 			target = strings.ToLower(target)
 		}
 		if previous, ok := selected[target]; ok && previous != id {
-			return fmt.Errorf("所选技能 %s 和 %s 指向同名目标 %s；每个目标只能选择一个来源，尚未写入", previous, id, row.Label)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterSelectedSkillsSAndSTargetTheSameDest), previous, id, row.Label))
 		}
 		selected[target] = id
 	}

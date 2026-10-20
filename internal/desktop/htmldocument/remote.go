@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 	"whaleisle/internal/desktop/htmlpreview"
 	"whaleisle/internal/desktop/mediapreview"
+	"whaleisle/internal/store/storelocale"
 )
 
 // OpenRemote freezes the document and its declared static dependencies through
@@ -70,7 +71,7 @@ func openBytes(path string, data []byte, valid func() bool, g *resourceGraph) (*
 		return nil, errors.New("HTML preview requires a nonempty UTF-8 document within 8 MiB")
 	}
 	prepared := string(data)
-	resources := ResourceReport{Bytes: len(data), Skipped: 1, Warnings: []string{"远端静态快照；相对资源和脚本未载入"}}
+	resources := ResourceReport{Bytes: len(data), Skipped: 1, Warnings: []string{storelocale.T(storelocale.KeyStoreHtmldocumentRemoteStaticSnapshotRelativeResourcesAn)}}
 	if g != nil {
 		var err error
 		prepared, resources, err = prepareResourceGraph(g, strings.ReplaceAll(path, `\`, "/"), prepared, g.valid, false)
@@ -110,31 +111,31 @@ func (g *resourceGraph) readRemote(base, reference, kind string) (resourceFile, 
 	}
 	rel := pathpkg.Join(pathpkg.Dir(base), ref)
 	if rel == ".." || strings.HasPrefix(rel, "../") || gitPath(rel) {
-		return resourceFile{}, "", "", errors.New("资源越出授权工作区或位于 .git")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsOutsideTheAuthorizedWorks))
 	}
 	ext := strings.ToLower(pathpkg.Ext(rel))
 	if !resourceKindAllows(kind, ext) {
-		return resourceFile{}, "", "", errors.New("不支持的资源类型")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedResourceType))
 	}
 	if cached, ok := g.files[rel]; ok {
 		if !resourceKindMIME(kind, cached.mime) {
-			return resourceFile{}, "", "", errors.New("资源类型别名不匹配")
+			return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceTypeAliasDoesNotMatch))
 		}
 		return cached, rel, rel, nil
 	}
 	if len(g.files) >= MaxAssets {
-		return resourceFile{}, "", "", errors.New("资源文件数量超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheNumberOfResourceFilesExceedsTheLim))
 	}
 	limit := min(MaxAssetBytes, MaxGraphBytes-g.report.Bytes)
 	if limit < 1 {
-		return resourceFile{}, "", "", errors.New("资源大小超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceSizeExceedsTheLimit))
 	}
 	data, err := g.remoteRead(rel, limit)
 	if err != nil {
-		return resourceFile{}, "", "", errors.New("资源缺失或不可读取")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsMissingOrUnreadable))
 	}
 	if len(data) < 1 || len(data) > limit {
-		return resourceFile{}, "", "", errors.New("资源大小超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceSizeExceedsTheLimit))
 	}
 	file, err := g.rememberResource(rel, ext, data)
 	return file, rel, rel, err

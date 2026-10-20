@@ -134,7 +134,7 @@ func (w *WorkspacePanes) RedockWorkspaceTab(id, destination string) bool {
 
 func workspaceFloating(c *ui.Context, m Model) {
 	w := m.Sizes.Workspace
-	viewportWidth, viewportHeight := c.Size()
+	viewportWidth, viewportHeight := viewportDIP(c)
 	var floats []*WorkspacePane
 	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Float != nil && (n.Kind != "project-observer" || projectObserverVisible(m, n)) {

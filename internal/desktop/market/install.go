@@ -12,6 +12,7 @@ import (
 
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/store/storelocale"
 )
 
 // InstallOptions optionally overrides Node.js location (config nodeBin).
@@ -25,7 +26,7 @@ type InstallOptions struct {
 // profile, matching the loopback installctrl server.
 func InstallGithubSpec(spec string, allowBuilds []string, opts InstallOptions) installctrl.Result {
 	if !installctrl.IsValidGithubSpec(spec) {
-		return installctrl.Result{Spec: strings.TrimSpace(spec), Error: "仅支持 github:owner/repo[#ref] 安装规格"}
+		return installctrl.Result{Spec: strings.TrimSpace(spec), Error: storelocale.T(storelocale.KeyStoreMarketOnlyGithubOwnerRepoRefInstallSpecsAre)}
 	}
 	return InstallSpecContext(context.Background(), spec, allowBuilds, opts)
 }
@@ -35,17 +36,17 @@ func InstallGithubSpec(spec string, allowBuilds []string, opts InstallOptions) i
 func InstallSpecContext(ctx context.Context, spec string, allowBuilds []string, opts InstallOptions) installctrl.Result {
 	spec = strings.TrimSpace(spec)
 	if !installctrl.IsValidGithubSpec(spec) && installctrl.RegistryPluginName(spec) == "" {
-		return installctrl.Result{Spec: spec, Error: "仅支持 GitHub 或明确版本的 npm 安装规格"}
+		return installctrl.Result{Spec: spec, Error: storelocale.T(storelocale.KeyStoreMarketOnlyGithubOrExplicitlyVersionedNpmInst)}
 	}
 	if err := ctx.Err(); err != nil {
 		return installctrl.Result{Spec: spec, Error: err.Error()}
 	}
 	if opts.ExpectedPackageName != "" && installctrl.RegistryPluginName(opts.ExpectedPackageName+"@0.0.0") != opts.ExpectedPackageName {
-		return installctrl.Result{Spec: spec, Error: "预期插件包名无效"}
+		return installctrl.Result{Spec: spec, Error: storelocale.T(storelocale.KeyStoreMarketExpectedPluginPackageNameIsInvalid)}
 	}
 	normalized := installctrl.NormalizeAllowBuilds(allowBuilds)
 	if normalized == nil {
-		return installctrl.Result{Spec: spec, Error: "allowBuilds 包含非法包名"}
+		return installctrl.Result{Spec: spec, Error: storelocale.T(storelocale.KeyStoreMarketAllowbuildsContainsAnInvalidPackageName)}
 	}
 	home := strings.TrimSpace(opts.DshHome)
 	if home == "" {

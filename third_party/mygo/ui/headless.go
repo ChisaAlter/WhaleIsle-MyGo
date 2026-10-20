@@ -57,6 +57,10 @@ type headless struct {
 }
 
 func (h *headless) size() (float32, float32, float32) { return h.w, h.h, h.scale }
+
+// pixels is false: a test renders a window of w×h DIPs at scale, so the size is
+// already what the view lays out in.
+func (h *headless) pixels() bool { return false }
 func (h *headless) refreshRate() float32              { return h.hz }
 func (h *headless) occluded() bool                    { return h.hidden }
 func (h *headless) present(s *scene.Scene) {

@@ -27,8 +27,8 @@ func (p *Companion) growthStatus() GrowthStatus {
 		status.Message = storelocale.T(storelocale.KeyDesktopPetLedgerUnavailable)
 		return status
 	}
-	status.Label = fmt.Sprintf("Lv.%d %s · %d 成长点", snap.Level, snap.LevelName, snap.Points)
-	status.Detail = fmt.Sprintf("本地粮 %d · 本次可喂 %d · 今日新增 %d", snap.Available, snap.NextFeed, snap.TodayUsed)
+	status.Label = fmt.Sprintf(storelocale.T(storelocale.KeyStorePetLvDSDGrowthPoints), snap.Level, snap.LevelName, snap.Points)
+	status.Detail = fmt.Sprintf(storelocale.T(storelocale.KeyStorePetLocalFoodDFeedableNowDAddedTodayD), snap.Available, snap.NextFeed, snap.TodayUsed)
 	// An empty displayed bowl may have new unsettled usage. A deliberate click
 	// must still be able to run the original pre-feed refresh.
 	status.CanFeed = !busy

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Preset is the host's public, non-secret agent preset descriptor.
@@ -86,7 +87,7 @@ func (s *Store) ReconnectBot(ctx context.Context, id string) error {
 func (s *Store) SaveWorkspace(ctx context.Context, id, workspace string) error {
 	workspace = strings.TrimSpace(workspace)
 	if len(workspace) > 4096 || !absoluteWorkspace(workspace) {
-		return s.connectionFailure("请输入工作区绝对路径")
+		return s.connectionFailure(storelocale.T(storelocale.KeyStoreImEnterAnAbsoluteWorkspacePath))
 	}
 	return s.changeConnection(ctx, id, "bot.workspace.set", map[string]any{"workspace": workspace})
 }
@@ -97,7 +98,7 @@ func absoluteWorkspace(value string) bool {
 func (s *Store) SaveAgentPreset(ctx context.Context, id, preset string) error {
 	preset = strings.TrimSpace(preset)
 	if preset != "" && !presetIDPattern.MatchString(preset) {
-		return s.connectionFailure("Agent Preset 无效")
+		return s.connectionFailure(storelocale.T(storelocale.KeyStoreImInvalidAgentPreset))
 	}
 	var value any
 	if preset != "" {
@@ -130,7 +131,7 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 	}
 	if !supported || !botIDPattern.MatchString(target.BotID) || s.plugin == nil || s.connectionBusy || s.loading {
 		s.mu.Unlock()
-		return s.connectionFailure("机器人不可用或操作进行中，请刷新后重试")
+		return s.connectionFailure(storelocale.T(storelocale.KeyStoreImTheBotIsUnavailableOrAnOperationIsRu))
 	}
 	if method == "bot.preset.set" && payload["agentPreset"] != nil {
 		found := false
@@ -141,12 +142,12 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 		}
 		if !found {
 			s.mu.Unlock()
-			return s.connectionFailure("该 Agent Preset 不在 Host 可用目录中")
+			return s.connectionFailure(storelocale.T(storelocale.KeyStoreImThatAgentPresetIsNotInTheHostCatalog))
 		}
 	}
 	plugin, epoch := s.plugin, s.connectionEpoch
 	s.connectionBusy = true
-	s.connectionNote = "正在更新机器人…"
+	s.connectionNote = storelocale.T(storelocale.KeyStoreImUpdatingTheBot)
 	payload["botId"] = target.BotID
 	s.mu.Unlock()
 	s.fire()
@@ -155,11 +156,11 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 		defer cancel()
 		var result json.RawMessage
 		err := plugin.Call(callCtx, target.Channel, method, payload, &result)
-		note := "操作失败，请检查连接后重试"
+		note := storelocale.T(storelocale.KeyStoreImOperationFailedCheckTheConnectionAndRe)
 		var rows []Entry
 		refreshed := false
 		if err == nil {
-			note = "操作已完成，但状态刷新失败，请手动刷新"
+			note = storelocale.T(storelocale.KeyStoreImTheOperationFinishedButTheStatusRefres)
 			raw, refreshErr := plugin.IMChannelStatus(callCtx, target.Channel)
 			if refreshErr == nil {
 				var status struct {
@@ -171,7 +172,7 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 				if json.Unmarshal(raw, &status) == nil && (status.Bots != nil || (status.Snapshot != nil && status.Snapshot.Bots != nil)) {
 					rows = parseCordisBots(raw, target.Channel)
 					refreshed = true
-					note = "机器人状态已更新"
+					note = storelocale.T(storelocale.KeyStoreImBotStatusUpdated)
 				}
 			}
 		}

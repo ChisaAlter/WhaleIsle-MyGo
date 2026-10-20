@@ -9,6 +9,7 @@ import (
 
 	xhtml "golang.org/x/net/html"
 	"whaleisle/internal/desktop/htmlpreview"
+	"whaleisle/internal/store/storelocale"
 )
 
 const maxHTMLTokens = 200000
@@ -50,11 +51,11 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 		}
 	}
 	if hasBase {
-		g.warn("base URL 不支持，未读取相对资源")
+		g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedBaseUrlRelativeResourcesWere))
 	}
 	loadImage := func(ref string) string {
 		if hasBase && !embeddedReference(ref) {
-			g.warn("base URL 相对资源已跳过")
+			g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT))
 			return "data:,"
 		}
 		out, err := g.image(relative, ref)
@@ -66,7 +67,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 	}
 	loadScript := func(ref string) string {
 		if hasBase && !embeddedReference(ref) {
-			g.warn("base URL 相对脚本已跳过")
+			g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeScriptsWereSkippedBecauseOfThe))
 			return "data:text/javascript,"
 		}
 		value, err := g.script(relative, ref)
@@ -83,9 +84,9 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 			if embeddedReference(ref) {
 				return g.asset(base, ref)
 			}
-			return "", errors.New("base URL 相对资源已跳过")
+			return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT))
 		}
-		loadCSS = func(string, string, int) (string, error) { return "", errors.New("base URL 相对资源已跳过") }
+		loadCSS = func(string, string, int) (string, error) { return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT)) }
 	}
 	z := xhtml.NewTokenizer(strings.NewReader(source))
 	var out strings.Builder
@@ -118,7 +119,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 			if tag == "script" {
 				script = true
 				if !interactive {
-					g.warn("脚本禁用")
+					g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentScriptsDisabled))
 					continue
 				}
 				for i := range t.Attr {
@@ -127,7 +128,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 					}
 				}
 				if strings.EqualFold(attr(t, "type"), "module") {
-					g.warn("模块的运行时 import/fetch 依赖不展开")
+					g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentRuntimeImportFetchDependenciesOfModules))
 				}
 				if err := appendText(t.String()); err != nil {
 					return "", g.report, err
@@ -161,7 +162,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 						return "", g.report, err
 					}
 				} else if attr(t, "href") != "" {
-					g.warn("非普通 stylesheet 链接未加载")
+					g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentNonPlainStylesheetLinksWereNotLoaded))
 				}
 				continue
 			}
@@ -169,15 +170,15 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 			for _, a := range t.Attr {
 				key := strings.ToLower(a.Key)
 				if strings.HasPrefix(key, "on") && !interactive {
-					g.warn("事件脚本禁用")
+					g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentEventHandlerScriptsDisabled))
 					continue
 				}
 				switch {
 				case key == "style":
 					// @import is invalid in a style declaration; never use it to read files.
-					css, err := inlineCSS(a.Val, relative, 0, func(string, string, int) (string, error) { return "", errors.New("style 属性不支持 import") }, loadURL, g.warn)
+					css, err := inlineCSS(a.Val, relative, 0, func(string, string, int) (string, error) { return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheStyleAttributeDoesNotSupportImport)) }, loadURL, g.warn)
 					if err != nil {
-						g.warn("内联样式无法解析")
+						g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentInlineStyleCouldNotBeParsed))
 						continue
 					}
 					a.Val = css
@@ -186,7 +187,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 				case key == "srcset" && (tag == "img" || (tag == "source" && picture > 0)):
 					set, ok := inlineSrcset(a.Val, loadImage)
 					if !ok {
-						g.warn("不支持的 srcset 语法")
+						g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedSrcsetSyntax))
 						continue
 					}
 					a.Val = set
@@ -200,7 +201,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 					if strings.HasPrefix(a.Val, "#") && tag == "use" {
 						break
 					}
-					g.warn("媒体或嵌套文档未加载")
+					g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentMediaOrNestedDocumentsWereNotLoaded))
 					continue
 				}
 				attrs = append(attrs, a)
@@ -234,7 +235,7 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 		} else if style && kind == xhtml.TextToken {
 			css, err := inlineCSS(raw, relative, 0, loadCSS, loadURL, g.warn)
 			if err != nil {
-				g.warn("样式表无法解析")
+				g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentStylesheetCouldNotBeParsed))
 				raw = ""
 			} else {
 				raw = safeStyle(css)

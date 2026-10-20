@@ -63,9 +63,9 @@ func archiveAction(m Model, it session.Item) func() {
 
 // sessionHoverCard is the original row's hover card: full title, relative time,
 // workspace path and every resting status, in the shared menu material.
-func sessionHoverCard(c *ui.Context, anchor ui.Element, it session.Item, label, status string, colors theme.Colors) {
+func sessionHoverCard(c *ui.Context, m Model, anchor ui.Element, it session.Item, label, status string, colors theme.Colors) {
 	ui.TooltipBase(c.Key("session-hover:"+it.SessionID), anchor, func(tip ui.Element) {
-		width, height := c.Size()
+		width, height := m.viewport(c)
 		tip.Label("Session preview: " + it.SessionID).
 			Width(min(float32(280), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().
 			Padding(12).Radius(12).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).

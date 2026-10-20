@@ -32,7 +32,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-avatar")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantPersonalBotAvatar)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "原版8种轮廓×11种颜色，支持明确选择本地JPEG/PNG并裁剪。原生静态预览；动画仍在Bot Web。不自动拉取远程图片或读取文件路径。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOriginalEightShapesByElevenColours)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshAvatar)).Disabled(blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
 			m.OnRefresh()
 		}
@@ -71,7 +71,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		botAvatarImageImportBlock(c.Key("image-import"), m, editable, fg, muted, accent)
 		editable = editable && !s.ImageImport.Busy && !s.ImageImport.Ready
 		if current.Kind == "image" {
-			ui.Text(c, "现有图片保持不变。选择并应用本地图片，或明确点击轮廓/颜色，才生成替换草稿；最终仍需审阅与确认保存。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheExistingImageStaysUnchangedAReplace)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}
 		draft := s.Draft
 		color, shape := "ink", "circle"
@@ -147,14 +147,14 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantAfter)+botAvatarSummary(cmd.Values)).TextColor(fg).Selectable()
 			afterErr := botAvatarUncachedPreview(c.Key("after-avatar"), cmd.Values, 72, i18n.T(i18n.KeyMiscAssistantAfterAvatarPreview), fg, muted)
 			if before.Kind == "image" && cmd.Values.Kind == "blob" {
-				ui.Text(c, "将用上面的 blob 替换当前内嵌图片；保存后该 Bot 的头像记录不再保留旧图片。不会删除原始本地图片文件。").TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheBlobAboveReplacesTheCurrentInlineI)).TextColor(accent)
 			}
 			if cmd.Values.Kind == "image" {
-				ui.Text(c, "确认保存后，上方预览图片的内嵌dataURL将随完整Bot资料发送至当前Host："+m.HostLabel+"。新导入图为192px JPEG；仅修改旧图圆形/方形显示时原dataURL保持不变。不会发送源路径；本地重新编码的图片不带原图元数据。旧头像记录将被替换，原始本地文件不删除。").TextColor(accent).Selectable()
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantAfterYouConfirmTheSaveTheInlineDataU)+m.HostLabel+i18n.T(i18n.KeyW4AssistantANewlyImportedImageBecomesA192pxJpeg)).TextColor(accent).Selectable()
 			}
-			ui.Text(c, "bot/update 会写审计、更新会话 presentation，并尝试 rename 会话标题。展示/重命名或回滚可能失败。虽然仅改头像，保存仍校验原模型/能力并 requestSync：live idle 可能创建目标、重建已暂停目标或修改 active 目标；可能调用模型、执行工具、发送外部消息并产生费用。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "忙碌/冷会话可能后续 idle 同步；同步失败可能只记Host日志。资料回执不证明会话展示、重命名、目标同步或执行完成。revision CAS 不原子锁定 live 目标；不停止在途执行，不撤销已发生操作。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Text(c, fmt.Sprintf("保留名称/标题/描述、模型、工作区及其他完整资料。workspaceId: %s\nmodel: %s\n不主动 prompt/start/resume/open。关闭不撤回已发请求；未知结果锁定，只读回，不自动重试。取消图片选择会清除本次临时源图；取消图片保存或隐藏会丢弃未发送图片草稿。已发送结果未知时保留审阅图用于读回核对。", botCapabilityProfileText(cmd.Expected, "workspaceId"), botCapabilityProfileText(cmd.Expected, "model"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantBotUpdateWritesAuditRecordsUpdatesThe)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantABusyOrColdSessionMaySyncAtALaterI2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantKeepsTheNameTitleDescriptionModelWorks), botCapabilityProfileText(cmd.Expected, "workspaceId"), botCapabilityProfileText(cmd.Expected, "model"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ack := r.Acknowledged
 			if ui.Checkbox(c, &ack, botAvatarAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)

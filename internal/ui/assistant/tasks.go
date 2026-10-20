@@ -53,7 +53,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				tasks.OnRefresh()
 			}
 		})
-		ui.Text(c, "仅显示所选 Bot 发出或收到的委派任务；刷新读取当前 Host，操作由你确认后执行。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantShowsOnlyDelegatedTasksThisBotSentOr)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSelectABotFirst)).TextColor(muted)
 			return
@@ -156,21 +156,21 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if s.Review != nil {
 			command := s.Review.Command
 			ui.Column(c.Key("bot-task-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, "确认："+taskActionLabel(command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirm)+taskActionLabel(command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Bot: %s (%s)\nTask: %s · revision %d", s.BotName, command.BotID, firstTaskValue(command.TaskID, "—"), command.Revision)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-				caveat := "仅修改任务状态；不会撤销已发生的工具、文件或外部操作。"
+				caveat := i18n.T(i18n.KeyW4AssistantOnlyTheTaskStateChangesCompletedToolF)
 				if command.Action == "retry" {
-					caveat = "会创建新的任务尝试并唤醒接收 Bot，可能再次执行工具或产生模型费用。原任务保留。"
+					caveat = i18n.T(i18n.KeyW4AssistantCreatesANewTaskAttemptAndWakesTheRec)
 				}
 				if command.Action == "resume" {
-					caveat = "会将任务重新排队并唤醒接收 Bot，可能执行工具或产生模型费用。"
+					caveat = i18n.T(i18n.KeyW4AssistantRequeuesTheTaskAndWakesTheReceivingBo)
 				}
 				if command.Action == "stop" {
-					caveat = "会停止此 Bot 的当前会话（群组会停止成员轮次）；保留 inbox，不取消全部委派任务，也不撤销已发生的操作。"
+					caveat = i18n.T(i18n.KeyW4AssistantStopsThisBotSCurrentSessionForAGroup)
 				}
 				ui.Text(c, caveat).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				if command.Action == "retry" {
-					ui.Text(c, "失败后再次确认会沿用同一请求 ID；不要重复新建任务。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirmingAgainAfterAFailureReusesThe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				ui.Row(c).Gap(8).Children(func() {
 					if tasks.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBack)).Disabled(s.Busy).Clicked() {

@@ -22,8 +22,8 @@ func TestBotVisibilityReviewStatesScopeAndEffects(t *testing.T) {
 			t.Fatal("room identity")
 		}
 	}
-	for _, needle := range []string{"显示隐藏项", "不会停用", "通知", "catalog/items", "revision", "requestSync", "后台工作", "不额外启动"} {
-		if !strings.Contains(botVisibilityEffects, needle) {
+	for _, needle := range []string{i18n.T(i18n.KeyW4AssistantShowHiddenItems), "不会停用", "通知", "catalog/items", "revision", "requestSync", "后台工作", "不额外启动"} {
+		if !strings.Contains(botVisibilityEffects(), needle) {
 			t.Fatal("missing impact", needle)
 		}
 	}

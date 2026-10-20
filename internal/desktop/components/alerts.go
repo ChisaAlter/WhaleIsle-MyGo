@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 	"whaleisle/internal/desktop/bridgealerts"
+	"whaleisle/internal/store/storelocale"
 )
 
 type bridgeAlertSource struct {
@@ -30,7 +31,7 @@ func NewWhaleBridgeAlerts(userData string) *bridgealerts.Monitor {
 func bridgeAlertAccess(st bridgeState) (*url.URL, error) {
 	u, err := url.Parse(st.URL)
 	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
-		return nil, fmt.Errorf("鲸桥本机管理地址无效")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeLocalManagementAddressIs))
 	}
 	return u, nil
 }
@@ -43,24 +44,24 @@ func (s *bridgeAlertSource) capture(ctx context.Context) (bridgeState, string, e
 		return bridgeState{}, "", nil
 	}
 	if err != nil {
-		return bridgeState{}, "", fmt.Errorf("无法读取鲸桥本机状态")
+		return bridgeState{}, "", errors.New(storelocale.T(storelocale.KeyStoreComponentsCouldNotReadTheLocalWhalebridgeState))
 	}
 	inst, err := checkedBridgeInstalled(s.root)
 	if errors.Is(err, ErrNotInstalled) {
 		return bridgeState{}, "", nil
 	}
 	if err != nil {
-		return bridgeState{}, "", fmt.Errorf("鲸桥安装记录无效")
+		return bridgeState{}, "", errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeInstallRecord))
 	}
 	if st.ID != "whalebridge" || !st.Ready || st.PID <= 0 || st.Version != inst.Version {
-		return bridgeState{}, "", fmt.Errorf("鲸桥本机实例身份不一致")
+		return bridgeState{}, "", errors.New(storelocale.T(storelocale.KeyStoreComponentsTheLocalWhalebridgeInstanceIdentityDoes))
 	}
 	if _, err = bridgeAlertAccess(st); err != nil {
 		return bridgeState{}, "", err
 	}
 	identity, err := s.processIdentity(st.PID, filepath.Join(s.root, "versions", inst.Version, bridgeAsset))
 	if err != nil {
-		return bridgeState{}, "", fmt.Errorf("无法验证鲸桥已安装进程")
+		return bridgeState{}, "", errors.New(storelocale.T(storelocale.KeyStoreComponentsCouldNotVerifyTheInstalledWhalebridgeP))
 	}
 	raw, _ := json.Marshal(struct {
 		State     bridgeState
@@ -111,15 +112,15 @@ func (s *bridgeAlertSource) Claim(ctx context.Context, key string) (bridgealerts
 	safe.Transport = &http.Transport{Proxy: nil, DisableKeepAlives: true}
 	resp, err := safe.Do(req)
 	if err != nil {
-		return bridgealerts.Batch{}, fmt.Errorf("鲸桥提醒认领结果未确认")
+		return bridgealerts.Batch{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReminderClaimResultIsUnc))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return bridgealerts.Batch{}, fmt.Errorf("鲸桥提醒接口返回未确认状态")
+		return bridgealerts.Batch{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReminderEndpointReturnedA))
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, (256<<10)+1))
 	if err != nil || len(b) > 256<<10 {
-		return bridgealerts.Batch{}, fmt.Errorf("鲸桥提醒结果无法完整读取")
+		return bridgealerts.Batch{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReminderResultCouldNotBe))
 	}
 	return decodeBridgeAlertReceipt(b)
 }
@@ -130,18 +131,18 @@ func decodeBridgeAlertReceipt(b []byte) (bridgealerts.Batch, error) {
 		Alerts   *[]bridgealerts.Record `json:"alerts"`
 	}
 	if json.Unmarshal(b, &wire) != nil || wire.Sequence == nil || wire.Alerts == nil {
-		return bridgealerts.Batch{}, fmt.Errorf("鲸桥提醒结果格式无效")
+		return bridgealerts.Batch{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeReminderResultFormat))
 	}
 	return bridgealerts.Batch{Sequence: *wire.Sequence, Alerts: *wire.Alerts}, nil
 }
 func (s *bridgeAlertSource) Open(ctx context.Context, key string) error {
 	if !bridgeStartMu.TryLock() {
-		return fmt.Errorf("鲸桥正在切换，请稍后重新查看提醒")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsSwitchingViewTheReminders))
 	}
 	defer bridgeStartMu.Unlock()
 	st, err := s.verified(ctx, key)
 	if err != nil {
-		return fmt.Errorf("鲸桥实例已改变，未打开其他实例")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeInstanceChangedNoOtherIn))
 	}
 	u, _ := bridgeAlertAccess(st)
 	if ctx.Err() != nil {

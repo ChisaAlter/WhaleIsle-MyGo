@@ -75,7 +75,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 		s = controller.Snapshot()
 	}
 	open := s.Open
-	w, h := c.Size()
+	w, h := viewportDIP(c)
 	ui.PopoverBase(c.Key("jobs-popover"), anchor, &open, func(panel ui.Element) {
 		headerPopupInset(c, panel, anchor, min(float32(500), max(float32(0), w-32)), w, 12)
 		panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4).Background(chrome.Color(colors.BG)).Radius(12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {

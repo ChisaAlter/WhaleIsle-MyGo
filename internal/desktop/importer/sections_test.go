@@ -6,9 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestSelectedSectionMergeFixtures(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
@@ -35,7 +39,7 @@ func TestSelectedSectionMergeFixtures(t *testing.T) {
 	}
 	sel := ApplySelection{SelectedSettingIDs: []string{"ui-theme", "agent-default-model", "unlisted"}, SelectedMcpIDs: []string{"alpha", "beta"}}
 	preview := Confirmation(cat, sel)
-	if !strings.Contains(preview, "MCP / alpha：跳过并保留") || !strings.Contains(preview, "MCP / beta：新增") {
+	if !strings.Contains(preview, "MCP / alpha：Skip and keep") || !strings.Contains(preview, "MCP / beta：Add") {
 		t.Fatal(preview)
 	}
 	result, err := ApplyCatalog(cat, sel)

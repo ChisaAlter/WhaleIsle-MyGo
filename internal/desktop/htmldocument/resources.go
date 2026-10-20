@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	_ "golang.org/x/image/webp"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -37,9 +38,9 @@ type ResourceReport struct {
 }
 
 func (r ResourceReport) Summary() string {
-	s := fmt.Sprintf("已内联 %d 个静态资源（%d KiB）", r.Files, (r.Bytes+1023)/1024)
+	s := fmt.Sprintf(storelocale.T(storelocale.KeyStoreHtmldocumentInlinedDStaticResourcesDKib), r.Files, (r.Bytes+1023)/1024)
 	if r.Skipped > 0 {
-		s += fmt.Sprintf("；跳过 %d 项：%s", r.Skipped, strings.Join(r.Warnings, "、"))
+		s += fmt.Sprintf(storelocale.T(storelocale.KeyStoreHtmldocumentSkippedDS), r.Skipped, strings.Join(r.Warnings, "、"))
 	}
 	return s
 }
@@ -87,22 +88,22 @@ func relativeAsset(base, reference string) (string, error) {
 	}
 	rel := filepath.Clean(filepath.Join(filepath.Dir(base), filepath.FromSlash(ref)))
 	if outsideAssetRoot(rel) || gitPath(rel) {
-		return "", errors.New("资源越出授权工作区或位于 .git")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsOutsideTheAuthorizedWorks))
 	}
 	return rel, nil
 }
 
 func relativeAssetPath(reference string) (string, error) {
 	if len(reference) > 8192 || strings.ContainsAny(reference, "\\\x00\r\n") {
-		return "", errors.New("不支持的资源路径")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedResourcePath))
 	}
 	u, err := url.Parse(strings.TrimSpace(reference))
 	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || u.Opaque != "" || u.Path == "" || strings.HasPrefix(u.Path, "/") || strings.ContainsAny(u.Path, "\\\x00\r\n:") {
-		return "", errors.New("外部或绝对资源路径")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentExternalOrAbsoluteResourcePath))
 	}
 	for _, r := range u.Path {
 		if r < 32 || r == 127 {
-			return "", errors.New("不支持的资源路径")
+			return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedResourcePath))
 		}
 	}
 	return u.Path, nil
@@ -129,11 +130,11 @@ func (g *resourceGraph) read(base, reference string, cssOnly bool) (resourceFile
 
 func (g *resourceGraph) readKind(base, reference, kind string) (resourceFile, string, string, error) {
 	if !g.valid() {
-		return resourceFile{}, "", "", errors.New("预览所属会话已改变")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheSessionThatOwnsThisPreviewChanged))
 	}
 	g.references++
 	if g.references > MaxReferences {
-		return resourceFile{}, "", "", errors.New("资源引用数量超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheNumberOfResourceReferencesExceedsTh))
 	}
 	if g.remoteRead != nil {
 		return g.readRemote(base, reference, kind)
@@ -144,50 +145,50 @@ func (g *resourceGraph) readKind(base, reference, kind string) (resourceFile, st
 	}
 	ext := strings.ToLower(filepath.Ext(rel))
 	if !resourceKindAllows(kind, ext) {
-		return resourceFile{}, "", "", errors.New("不支持的资源类型")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedResourceType))
 	}
 	info, err := g.root.Stat(rel)
 	if err != nil || !info.Mode().IsRegular() {
-		return resourceFile{}, "", "", errors.New("资源缺失或不可读取")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsMissingOrUnreadable))
 	}
 	// os.Root enforces the actual opened file boundary; canonical identity also
 	// de-duplicates aliases and rejects aliases into .git before reading bytes.
 	canonical, err := filepath.EvalSymlinks(filepath.Join(g.root.Name(), rel))
 	if err != nil {
-		return resourceFile{}, "", "", errors.New("资源路径无法解析")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourcePathCouldNotBeResolved))
 	}
 	canonicalRel, err := filepath.Rel(g.canonicalRoot, canonical)
 	if err != nil || outsideAssetRoot(canonicalRel) || gitPath(canonicalRel) {
-		return resourceFile{}, "", "", errors.New("资源越出授权工作区或位于 .git")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsOutsideTheAuthorizedWorks))
 	}
 	if cached, ok := g.files[canonical]; ok {
 		if !resourceKindMIME(kind, cached.mime) {
-			return resourceFile{}, "", "", errors.New("资源类型别名不匹配")
+			return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceTypeAliasDoesNotMatch))
 		}
 		return cached, rel, canonical, nil
 	}
 	if len(g.files) >= MaxAssets {
-		return resourceFile{}, "", "", errors.New("资源文件数量超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheNumberOfResourceFilesExceedsTheLim))
 	}
 	if info.Size() < 1 || info.Size() > MaxAssetBytes || info.Size() > int64(MaxGraphBytes-g.report.Bytes) {
-		return resourceFile{}, "", "", errors.New("资源大小超过限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceSizeExceedsTheLimit))
 	}
 	f, err := g.root.Open(rel)
 	if err != nil {
-		return resourceFile{}, "", "", errors.New("资源无法在工作区内打开")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceCannotBeOpenedInsideTheWor))
 	}
 	defer f.Close()
 	opened, err := f.Stat()
 	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
-		return resourceFile{}, "", "", errors.New("资源读取前已改变")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceChangedBeforeItWasRead))
 	}
 	data, err := io.ReadAll(io.LimitReader(f, MaxAssetBytes+1))
 	if err != nil {
-		return resourceFile{}, "", "", errors.New("资源读取失败")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentReadingTheResourceFailed))
 	}
 	after, err := f.Stat()
 	if err != nil || !after.ModTime().Equal(info.ModTime()) || after.Size() != info.Size() || int64(len(data)) != info.Size() || len(data) > MaxAssetBytes || len(data) > MaxGraphBytes-g.report.Bytes {
-		return resourceFile{}, "", "", errors.New("资源读取时改变或超出大小限制")
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceChangedWhileBeingReadOrExc))
 	}
 	file, err := g.rememberResource(canonical, ext, data)
 	return file, rel, canonical, err
@@ -199,10 +200,10 @@ func (g *resourceGraph) rememberResource(key, ext string, data []byte) (resource
 		return resourceFile{}, err
 	}
 	if ext == ".svg" && (bytes.Contains(bytes.ToLower(data), []byte("<style")) || bytes.Contains(bytes.ToLower(data), []byte("<image"))) {
-		g.warn("SVG 内部嵌套依赖不递归展开")
+		g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentNestedDependenciesInsideSvgAreNotExpan))
 	}
 	if !g.valid() {
-		return resourceFile{}, errors.New("预览所属会话已改变")
+		return resourceFile{}, errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheSessionThatOwnsThisPreviewChanged))
 	}
 	file := resourceFile{data: data, mime: mime}
 	g.files[key] = file
@@ -212,14 +213,14 @@ func (g *resourceGraph) rememberResource(key, ext string, data []byte) (resource
 }
 func (g *resourceGraph) stylesheet(base, reference string, depth int) (string, error) {
 	if depth > MaxCSSDepth {
-		return "", errors.New("CSS 依赖层级超过限制")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentCssDependencyDepthExceedsTheLimit))
 	}
 	file, rel, key, err := g.read(base, reference, true)
 	if err != nil {
 		return "", err
 	}
 	if g.active[key] {
-		return "", errors.New("CSS 循环引用")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentCircularCssReference))
 	}
 	g.active[key] = true
 	defer delete(g.active, key)
@@ -242,14 +243,14 @@ func (g *resourceGraph) binary(base, reference string, imageOnly bool) (string, 
 		if strings.HasPrefix(mime, "data:image/") || (!imageOnly && strings.HasPrefix(mime, "data:font/")) {
 			return reference, nil
 		}
-		return "", errors.New("不支持的嵌入资源类型")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedEmbeddedResourceType))
 	}
 	file, _, _, err := g.read(base, reference, false)
 	if err != nil {
 		return "", err
 	}
 	if imageOnly && !strings.HasPrefix(file.mime, "image/") {
-		return "", errors.New("图片类型不匹配")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheImageTypeDoesNotMatch))
 	}
 	return "data:" + file.mime + ";base64," + base64.StdEncoding.EncodeToString(file.data), nil
 }
@@ -261,7 +262,7 @@ func binaryExtension(ext string) bool {
 	return false
 }
 func resourceMIME(ext string, data []byte) (string, error) {
-	bad := errors.New("资源内容与允许类型不符")
+	bad := errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceContentDoesNotMatchAnAllow))
 	if ext == ".css" || ext == ".js" || ext == ".mjs" {
 		if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 			return "", bad
@@ -343,7 +344,7 @@ func resourceMIME(ext string, data []byte) (string, error) {
 	}
 	config, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > 20000 || config.Height > 20000 || int64(config.Width)*int64(config.Height) > 40_000_000 {
-		return "", errors.New("图片尺寸无效或超过限制")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheImageDimensionsAreInvalidOrExceedT))
 	}
 	return want, nil
 }

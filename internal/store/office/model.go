@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 const ProtocolVersion = "office-harness.v1"
@@ -90,7 +91,7 @@ func absolutePath(p string) bool {
 func parseMap(text string, workspace bool) (map[string]string, error) {
 	out := map[string]string{}
 	if len(text) > 512<<10 {
-		return nil, errors.New("映射过长")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeMappingIsTooLong))
 	}
 	for _, raw := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(raw)
@@ -101,16 +102,16 @@ func parseMap(text string, workspace bool) (map[string]string, error) {
 		k = strings.TrimSpace(k)
 		v = strings.TrimSpace(v)
 		if !ok || !aliasPattern.MatchString(k) || v == "" || strings.ContainsRune(v, 0) {
-			return nil, errors.New("映射每行须为 alias=value；alias 为 2–64 位小写字母、数字或连字符")
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeEachMappingLineMustBeAliasValueTheAl))
 		}
 		if _, duplicate := out[k]; duplicate {
-			return nil, errors.New("映射 alias 不可重复")
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeMappingAliasesMustBeUnique))
 		}
 		if workspace && !absolutePath(v) {
-			return nil, errors.New("Workspace 映射必须使用 Host 上的绝对路径")
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeWorkspaceMappingsMustUseAbsolutePathsO))
 		}
 		if !workspace && len([]rune(v)) > 8000 {
-			return nil, errors.New("Instruction Preset 不可超过 8000 字符")
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeTheInstructionPresetMustNotExceed8000))
 		}
 		out[k] = v
 	}
@@ -119,12 +120,12 @@ func parseMap(text string, workspace bool) (map[string]string, error) {
 func normalizeBase(value string) (string, error) {
 	u, e := url.Parse(strings.TrimSpace(value))
 	if e != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" {
-		return "", errors.New("Office URL 必须为不含账号、查询或片段的 HTTPS 地址")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreOfficeTheOfficeUrlMustBeAnHttpsAddressWith))
 	}
 	u.Scheme = strings.ToLower(u.Scheme)
 	local := u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1"
 	if u.Scheme != "https" && !(u.Scheme == "http" && local) {
-		return "", errors.New("Office URL 必须使用 HTTPS；HTTP 仅允许本机测试")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreOfficeTheOfficeUrlMustUseHttpsHttpIsAllowe))
 	}
 	u.Path = ""
 	u.RawPath = ""
@@ -137,15 +138,15 @@ func configurePayload(d Draft, current Status) (map[string]any, error) {
 	}
 	id := strings.TrimSpace(d.DeviceID)
 	if !devicePattern.MatchString(id) {
-		return nil, errors.New("Device ID 须为 3–64 位字母、数字、下划线或连字符")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeDeviceIdMustBe364LettersDigitsUnders))
 	}
 	n, e := strconv.Atoi(strings.TrimSpace(d.MaxConcurrency))
 	if e != nil || n < 1 || n > 4 {
-		return nil, errors.New("最大并发须为 1–4 的整数")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeMaximumConcurrencyMustBeAnIntegerFrom))
 	}
 	h, e := strconv.Atoi(strings.TrimSpace(d.HeartbeatSeconds))
 	if e != nil || h < 10 || h > 300 {
-		return nil, errors.New("Heartbeat 须为 10–300 的整数秒")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeHeartbeatMustBeAnIntegerNumberOfSecon))
 	}
 	work, e := parseMap(d.Workspaces, true)
 	if e != nil {
@@ -157,10 +158,10 @@ func configurePayload(d Draft, current Status) (map[string]any, error) {
 	}
 	token := strings.TrimSpace(d.DeviceToken)
 	if token != "" && len(token) < 32 {
-		return nil, errors.New("Device Token 至少需要 32 个字符")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeTheDeviceTokenMustBeAtLeast32Charact))
 	}
 	if token == "" && (!current.Configured || !current.TokenConfigured || base != current.Config.BaseURL || id != current.Config.DeviceID) {
-		return nil, errors.New("新连接或更换 Office / Device ID 时请重新输入对应的 Device Token")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreOfficeEnterTheMatchingDeviceTokenAgainForA))
 	}
 	payload := map[string]any{"baseUrl": base, "deviceId": id, "maxConcurrency": n, "heartbeatSeconds": h, "workspaces": work, "instructionPresets": presets}
 	if token != "" {
@@ -181,15 +182,15 @@ func fingerprint(s Status) [32]byte {
 func safeError(code string) string {
 	switch code {
 	case "invalid-device-token":
-		return "AI Office 拒绝了 Device Token。"
+		return storelocale.T(storelocale.KeyStoreOfficeAiOfficeRejectedTheDeviceToken)
 	case "office-hook-unavailable":
-		return "AI Office Hook 尚未上线或地址不正确。"
+		return storelocale.T(storelocale.KeyStoreOfficeTheAiOfficeHookIsNotAvailableYetOrT)
 	case "office-protocol-mismatch":
-		return "AI Office Connector 协议版本不兼容。"
+		return storelocale.T(storelocale.KeyStoreOfficeTheAiOfficeConnectorProtocolVersionIs)
 	case "office-transport-failed":
-		return "Host 暂时无法访问 AI Office。"
+		return storelocale.T(storelocale.KeyStoreOfficeTheHostCannotReachAiOfficeRightNow)
 	default:
-		return "AI Office 连接中断；请检查 Host 和 Office 状态。"
+		return storelocale.T(storelocale.KeyStoreOfficeTheAiOfficeConnectionDroppedCheckTheH)
 	}
 }
 func parseStatus(raw json.RawMessage) (Status, bool, error) {
@@ -198,7 +199,7 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 		Tested   bool            `json:"tested"`
 	}
 	if json.Unmarshal(raw, &outer) != nil {
-		return Status{}, false, errors.New("AI Office 响应无法识别")
+		return Status{}, false, errors.New(storelocale.T(storelocale.KeyStoreOfficeUnrecognizedAiOfficeResponse))
 	}
 	tested := outer.Tested
 	if len(outer.Snapshot) > 0 {
@@ -210,7 +211,7 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 		Status
 	}
 	if json.Unmarshal(raw, &wire) != nil || wire.SchemaVersion != 1 || wire.Configured == nil {
-		return Status{}, false, errors.New("AI Office 状态未确认，请刷新或使用插件页面")
+		return Status{}, false, errors.New(storelocale.T(storelocale.KeyStoreOfficeAiOfficeStatusIsUnconfirmedRefreshOrU))
 	}
 	s := wire.Status
 	s.Configured = *wire.Configured
@@ -219,7 +220,7 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 	}
 	base, e := normalizeBase(s.Config.BaseURL)
 	if e != nil || base != s.Config.BaseURL || !devicePattern.MatchString(s.Config.DeviceID) || s.Config.ProtocolVersion != ProtocolVersion {
-		return Status{}, false, errors.New("AI Office 配置或协议不受支持，请使用插件页面")
+		return Status{}, false, errors.New(storelocale.T(storelocale.KeyStoreOfficeTheAiOfficeConfigurationOrProtocolIsU))
 	}
 	if s.Config.Workspaces == nil {
 		s.Config.Workspaces = map[string]string{}
@@ -231,7 +232,7 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 	d := draftFor(s)
 	d.DeviceToken = strings.Repeat("x", 32)
 	if _, e = configurePayload(d, s); e != nil {
-		return Status{}, false, errors.New("AI Office 返回了无效配置")
+		return Status{}, false, errors.New(storelocale.T(storelocale.KeyStoreOfficeAiOfficeReturnedAnInvalidConfiguration))
 	}
 	switch s.State {
 	case "connected", "connecting", "reconnecting", "missing-token", "idle":
@@ -263,20 +264,20 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 }
 func StateLabel(s Status) string {
 	if !s.Configured {
-		return "尚未配置"
+		return storelocale.T(storelocale.KeyStoreOfficeNotConfiguredYet)
 	}
 	if s.Connected {
-		return "已连接 Office"
+		return storelocale.T(storelocale.KeyStoreOfficeOfficeConnected)
 	}
 	switch s.State {
 	case "connecting":
-		return "配置已保存，正在连接"
+		return storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedConnecting)
 	case "reconnecting":
-		return "配置已保存，等待重连"
+		return storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedWaitingToReconnect)
 	case "missing-token":
-		return "配置已保存，凭据缺失"
+		return storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedCredentialsMissing)
 	default:
-		return "配置已保存，Office 尚未连接"
+		return storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedOfficeIsNotConnected)
 	}
 }
 func HookURLs(base string) map[string]string {

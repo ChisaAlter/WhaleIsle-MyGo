@@ -431,17 +431,42 @@ func TestGlassSurfaceReplacesTheSolidBackground(t *testing.T) {
 }
 
 func TestMenuSurfacePaintsMaterialAndShadow(t *testing.T) {
+	base := ui.RGB(30, 30, 30)
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Box(c).Fill().Background(ui.RGB(250, 250, 250))
-		panel := MenuSurface(ui.Box(c).Absolute().Left(10).Top(4).Width(20).Height(12).Radius(4), ui.RGB(30, 30, 30), ui.RGB(200, 200, 200))
+		panel := MenuSurface(ui.Box(c).Absolute().Left(10).Top(4).Width(20).Height(12).Radius(4), base, ui.RGB(200, 200, 200), 4)
 		panel.Label("menu")
 	}, 40, 24)
 	tt.Frame()
-	if got := tt.Image().RGBAAt(20, 10).R; got > 120 {
-		t.Fatalf("menu surface did not paint its material: %d", got)
+	// Without a wallpaper the menu keeps the theme's own fill.
+	if got := tt.Image().RGBAAt(20, 10).R; got != base.R {
+		t.Fatalf("menu surface pixel = %d, want the theme fill %d", got, base.R)
 	}
 	if got := tt.Image().RGBAAt(20, 22).R; got > 250 {
 		t.Fatalf("menu surface cast no shadow: %d", got)
+	}
+}
+
+// TestMenuSurfaceSharesTheWallpaper checks the menu keeps its own share
+// (--dsw-menu-surface-fill) once a wallpaper is behind it.
+func TestMenuSurfaceSharesTheWallpaper(t *testing.T) {
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	const wall = 200
+	url := pngDataURL(t, color.RGBA{R: wall, G: wall, B: wall, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	base := ui.RGB(30, 30, 30)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+		MenuSurface(ui.Box(c).Absolute().Left(10).Top(4).Width(30).Height(16).Radius(4), base, ui.RGB(200, 200, 200), 4)
+	}, 50, 24)
+	tt.Frame()
+	under := float64(wall) * (1 - maskDark)
+	want := float64(base.R)*menuSolidityDark + under*(1-menuSolidityDark)
+	if got := float64(tt.Image().RGBAAt(25, 12).R); math.Abs(got-want) > 4 {
+		t.Fatalf("menu over the wallpaper = %.0f, want about %.0f", got, want)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ApplySelection mirrors Electron runImport checkbox payload, including supported plugin reinstalls.
@@ -56,7 +57,7 @@ func ApplyCatalogProgress(ctx context.Context, cat Catalog, sel ApplySelection, 
 func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelection, install PluginInstaller, progress func(ApplyResult)) (result ApplyResult, resultErr error) {
 	empty := sel.Count() == 0
 	if empty {
-		return ApplyResult{OK: true, Empty: true, Message: "未选择任何项，未写入。", Journal: []string{"未选择任何项，未写入。"}}, nil
+		return ApplyResult{OK: true, Empty: true, Message: storelocale.T(storelocale.KeyStoreImporterNothingSelectedNothingWasWritten), Journal: []string{storelocale.T(storelocale.KeyStoreImporterNothingSelectedNothingWasWritten)}}, nil
 	}
 	if cat.SourceHome == "" || cat.DestHome == "" {
 		return ApplyResult{}, ErrNotDirectory
@@ -82,7 +83,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 	var journal []string
 	defer func() {
 		if resultErr != nil {
-			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: fmt.Sprintf("导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留。%v", copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
+			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterImportIncompleteCopiedDInstalledDPlugi), copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
 			result.Journal = append(result.Journal, result.Message)
 		}
 	}()
@@ -104,25 +105,25 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		it, ok := byRel[rel]
 		if !ok || it.Unsupported {
 			skipped++
-			note("跳过会话 " + rel)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedSession) + rel)
 			continue
 		}
 		dst := filepath.Join(cat.DestHome, "sessions", filepath.FromSlash(rel))
 		if it.Conflict && !sel.Overwrite {
 			skipped++
-			note("跳过会话（冲突） " + rel)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedSessionConflict) + rel)
 			continue
 		}
 		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
 			if errors.Is(err, errImportConflict) {
 				skipped++
-				note("跳过（写入前发现冲突） " + rel)
+				note(storelocale.T(storelocale.KeyStoreImporterSkippedConflictFoundBeforeWriting) + rel)
 				continue
 			}
 			return ApplyResult{}, fmt.Errorf("session %s: %w", rel, err)
 		}
 		copied++
-		note("复制会话 " + rel)
+		note(storelocale.T(storelocale.KeyStoreImporterCopiedSession) + rel)
 	}
 
 	// Skills
@@ -137,25 +138,25 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		it, ok := bySkill[id]
 		if !ok {
 			skipped++
-			note("跳过技能 " + id)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedSkill) + id)
 			continue
 		}
 		dst := filepath.Join(cat.DestHome, "skills", it.Label)
 		if it.Conflict && !sel.Overwrite {
 			skipped++
-			note("跳过技能（冲突） " + it.Label)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedSkillConflict) + it.Label)
 			continue
 		}
 		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
 			if errors.Is(err, errImportConflict) {
 				skipped++
-				note("跳过（写入前发现冲突） " + id)
+				note(storelocale.T(storelocale.KeyStoreImporterSkippedConflictFoundBeforeWriting) + id)
 				continue
 			}
 			return ApplyResult{}, fmt.Errorf("skill %s: %w", id, err)
 		}
 		copied++
-		note("复制技能 " + it.Label)
+		note(storelocale.T(storelocale.KeyStoreImporterCopiedSkill) + it.Label)
 	}
 
 	// Settings and MCP publish only the selected sections/records. One file is
@@ -165,7 +166,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		mcp   bool
 		label string
 	}{
-		{sel.SelectedMcpIDs, true, "MCP"}, {sel.SelectedSettingIDs, false, "设置"},
+		{sel.SelectedMcpIDs, true, "MCP"}, {sel.SelectedSettingIDs, false, storelocale.T(storelocale.KeyStoreImporterSettings)},
 	} {
 		var yamlIDs []string
 		for _, id := range group.ids {
@@ -178,9 +179,9 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			copied += n
 			skipped += skip
 			if err != nil {
-				return ApplyResult{}, fmt.Errorf("%s 合并失败: %w", group.label, err)
+				return ApplyResult{}, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterSMergeFailedW), group.label, err))
 			}
-			note(fmt.Sprintf("%s：合并 %d 项，跳过 %d 项", group.label, n, skip))
+			note(fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterSMergedDItemsSkippedDItems), group.label, n, skip))
 			if len(refs) > 0 {
 				rows, err := importCredentialRefs(ctx, cat, refs, sel.Overwrite)
 				for _, row := range rows {
@@ -193,7 +194,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 					default:
 						failed++
 					}
-					line := "凭据引用 " + row.Ref + "：" + row.Status
+					line := storelocale.T(storelocale.KeyStoreImporterCredentialReference) + row.Ref + "：" + row.Status
 					if row.Reason != "" {
 						line += " (" + row.Reason + ")"
 					}
@@ -220,13 +221,13 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		}
 		if src == nil || (before != nil && !sel.Overwrite) {
 			skipped++
-			note("跳过设置 AGENTS.md")
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedSettingsAgentsMd))
 		} else {
 			if err := writeMergedFile(path, before, src); err != nil {
 				return ApplyResult{}, err
 			}
 			copied++
-			note("复制设置 AGENTS.md")
+			note(storelocale.T(storelocale.KeyStoreImporterCopiedSettingsAgentsMd))
 		}
 	}
 
@@ -242,25 +243,25 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		it, ok := byPreset[id]
 		if !ok || it.Unsupported {
 			skipped++
-			note("跳过预设 " + id)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedPreset) + id)
 			continue
 		}
 		dst := filepath.Join(cat.DestHome, ".agent-presets", id)
 		if it.Conflict && !sel.Overwrite {
 			skipped++
-			note("跳过预设（冲突） " + id)
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedPresetConflict) + id)
 			continue
 		}
 		if err := publishDirectory(ctx, cat.DestHome, it.Abs, dst, sel.Overwrite, false); err != nil {
 			if errors.Is(err, errImportConflict) {
 				skipped++
-				note("跳过（写入前发现冲突） " + id)
+				note(storelocale.T(storelocale.KeyStoreImporterSkippedConflictFoundBeforeWriting) + id)
 				continue
 			}
 			return ApplyResult{}, fmt.Errorf("preset %s: %w", id, err)
 		}
 		copied++
-		note("复制预设 " + id)
+		note(storelocale.T(storelocale.KeyStoreImporterCopiedPreset) + id)
 	}
 
 	if sel.ImportAttachments {
@@ -274,9 +275,9 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 				return ApplyResult{}, err
 			}
 			copied++
-			note("复制附件 attachments/")
+			note(storelocale.T(storelocale.KeyStoreImporterCopiedAttachmentsAttachments))
 		} else {
-			note("跳过附件（源不存在）")
+			note(storelocale.T(storelocale.KeyStoreImporterSkippedAttachmentsSourceMissing))
 		}
 	}
 
@@ -329,7 +330,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		default:
 			skipped++
 		}
-		line := "插件 " + id + "：" + record.Status
+		line := storelocale.T(storelocale.KeyStoreImporterPlugin) + id + "：" + record.Status
 		if record.Reason != "" {
 			line += " (" + record.Reason + ")"
 		}
@@ -345,14 +346,14 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		}
 	}
 
-	msg := fmt.Sprintf("已复制 %d 项，安装插件 %d 项，失败 %d 项", copied, installed, failed)
+	msg := fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterCopiedDInstalledDPluginsFailedD), copied, installed, failed)
 	if skipped > 0 {
-		msg += fmt.Sprintf("，跳过 %d 项（冲突未覆盖或不受支持）", skipped)
+		msg += fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterSkippedDConflictsNotOverwrittenOrUnsup), skipped)
 	}
 	msg += "。"
 	for _, row := range credentialRows {
 		if row.Status == "missing" || row.Status == "unsupported" || row.Status == "failed" {
-			msg += "部分引用凭据未迁移，请查看凭据结果并重新配置。"
+			msg += storelocale.T(storelocale.KeyStoreImporterSomeReferencedCredentialsWereNotMigrate)
 			break
 		}
 	}

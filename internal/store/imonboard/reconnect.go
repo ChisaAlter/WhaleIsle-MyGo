@@ -1,5 +1,9 @@
 package imonboard
 
+import (
+	"whaleisle/internal/store/storelocale"
+)
+
 import "encoding/json"
 
 func reconnectBotID(payload map[string]any) string { id, _ := payload["botId"].(string); return id }
@@ -19,7 +23,7 @@ func reconnectTestResult(raw json.RawMessage, botID string) (notice, failure str
 		} `json:"testMessage"`
 	}
 	if json.Unmarshal(raw, &result) != nil {
-		return "", "连接检查回执格式不可用"
+		return "", storelocale.T(storelocale.KeyStoreImonboardConnectionCheckReceiptHasAnUnusableFor)
 	}
 	bots := result.Bots
 	if result.Snapshot != nil {
@@ -33,16 +37,16 @@ func reconnectTestResult(raw json.RawMessage, botID string) (notice, failure str
 		}
 	}
 	if !connected {
-		return "", "连接检查失败，机器人仍未连接；请检查配置后重试。"
+		return "", storelocale.T(storelocale.KeyStoreImonboardConnectionCheckFailedAndTheBotIsStill)
 	}
 	if result.TestMessage == nil {
-		return "连接检查完成，Host 未返回测试消息回执。", ""
+		return storelocale.T(storelocale.KeyStoreImonboardConnectionCheckFinishedButTheHostRetur), ""
 	}
 	if result.TestMessage.Sent {
-		return "测试消息已发送，请到飞书会话中确认。", ""
+		return storelocale.T(storelocale.KeyStoreImonboardTestMessageSentConfirmItInYourFeishu), ""
 	}
 	if result.TestMessage.Code == "test-target-unavailable" {
-		return "连接检查完成。机器人尚未收到可用于测试的私聊消息。", ""
+		return storelocale.T(storelocale.KeyStoreImonboardConnectionCheckFinishedTheBotHasNotRe), ""
 	}
-	return "连接检查完成，但测试消息发送失败。", ""
+	return storelocale.T(storelocale.KeyStoreImonboardConnectionCheckFinishedButTheTestMessa), ""
 }

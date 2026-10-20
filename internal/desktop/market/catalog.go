@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 const CatalogURL = "https://awesome-dsh-plugin.com/plugins.json"
@@ -176,7 +177,7 @@ func decodeCatalog(raw []byte, locale string) (Catalog, error) {
 	}
 	all := "All"
 	if strings.HasPrefix(locale, "zh") {
-		all = "全部"
+		all = storelocale.T(storelocale.KeyStoreMarketAll)
 	}
 	out.Categories = []Category{{ID: "all", Label: all, Count: len(out.Items)}}
 	keys := make([]string, 0, len(reg.Categories))

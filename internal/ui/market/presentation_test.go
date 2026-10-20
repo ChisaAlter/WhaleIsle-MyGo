@@ -1,16 +1,20 @@
 package market
 
 import (
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	desktopmarket "whaleisle/internal/desktop/market"
 	marketstore "whaleisle/internal/store/market"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestMarketCardsReflowWithTheirContainer(t *testing.T) {
@@ -66,7 +70,7 @@ func TestMarketConfirmationIsModalAndEscapeCancels(t *testing.T) {
 	}
 	store.RequestConfirmation("Install owner/plugin", func() { run++ })
 	tt.Frame()
-	if err := tt.Click(marketText("确认并执行", "Confirm and run")); err != nil {
+	if err := tt.Click(marketText(i18n.T(i18n.KeyW4MarketConfirmAndRun), "Confirm and run")); err != nil {
 		t.Fatal(err)
 	}
 	if run != 1 || store.Confirmation() != "" {
@@ -94,7 +98,7 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 	}
 	saveMarketSnapshot(t, tt, "market-details-wide.png")
 	tt.SetSize(520, 600)
-	close, ok := tt.Find(marketText("关闭", "Close"))
+	close, ok := tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
 	if !ok || close.X < 0 || close.Y < 0 || close.X+close.W > 520 || close.Y+close.H > 600 {
 		t.Fatalf("narrow details close action escaped viewport: %v", close)
 	}
@@ -127,7 +131,7 @@ func TestMarketTabsRetainStoreAndEmbeddedRefresh(t *testing.T) {
 	store := marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "market.json"))
 	model := Model{Store: store, Embedded: true}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, model) }, 650, 800)
-	if err := tt.Click(marketText("安装历史", "History")); err != nil {
+	if err := tt.Click(marketText(i18n.T(i18n.KeyW4MarketInstallHistory), "History")); err != nil {
 		t.Fatal(err)
 	}
 	if store.Discovery().Tab != "history" {
@@ -140,3 +144,41 @@ func TestMarketTabsRetainStoreAndEmbeddedRefresh(t *testing.T) {
 		t.Fatal("embedded section lost catalog refresh")
 	}
 }
+
+// TestMarketDetailsDrawsItsHairlineInTheDark pins the elevation stroke: with no
+// wallpaper the glass fills the panel opaquely, so the hairline has to paint
+// after it or it disappears.
+func TestMarketDetailsDrawsItsHairlineInTheDark(t *testing.T) {
+	store := marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "market.json"))
+	item := desktopmarket.CatalogItem{
+		ID: "fixture/hairline", Repo: "Hairline fixture", Owner: "fixture",
+		Description: "A local fixture for the details dialog's elevation hairline.",
+	}
+	d := marketstore.Discovery{Selected: &item}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		ui.Column(c).Fill().Background(c.Theme().Background)
+		catalogDetailsDialog(c, Model{Store: store, ThemeID: theme.IDDeepseekDark, SystemDark: true}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+	}, 900, 700)
+	// The panel fades in; a settled clock shows its material, not frame one.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(time.Second))
+	// The panel is min(680, w-32) × min(720, h-48), centered by DialogBase with
+	// its 16 DIP padding: 680×652 at (110, 24).
+	image := tt.Image()
+	const panelTop, panelLeft = 24, 110
+	inside := ttColor(image.RGBAAt(panelLeft+200, panelTop+6))
+	edge := ttColor(image.RGBAAt(panelLeft+200, panelTop))
+	contrast := chrome.ContrastRatio(edge, inside)
+	t.Logf("details hairline %v on fill %v = %.2f:1", edge, inside, contrast)
+	if contrast < 1.15 {
+		t.Fatalf("details hairline invisible in the dark: %.2f:1 (edge %v on fill %v)", contrast, edge, inside)
+	}
+	if edge.R <= inside.R {
+		t.Fatalf("details hairline is darker than its fill: %v on %v", edge, inside)
+	}
+}
+
+// ttColor reads a rendered pixel as a theme color.
+func ttColor(c color.RGBA) ui.Color { return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255) }

@@ -186,7 +186,7 @@ func (c *RoomCreator) Start(k, cwd string) {
 		return
 	}
 	id := hex.EncodeToString(bytes[:])
-	e.state.Draft = &RoomCreateDraft{ID: "room-" + id, SessionID: "session-room-" + id, Name: "新群聊", ScratchCwd: strings.TrimSpace(cwd), MaxRounds: "3", MaxSpeaks: "10"}
+	e.state.Draft = &RoomCreateDraft{ID: "room-" + id, SessionID: "session-room-" + id, Name: storelocale.T(storelocale.KeyStoreDshbotNewGroupChat), ScratchCwd: strings.TrimSpace(cwd), MaxRounds: "3", MaxSpeaks: "10"}
 	e.state.Created = pluginrpc.DshbotRoomItem{}
 	e.state.CreatedScratchCwd = ""
 	e.state.Error = ""

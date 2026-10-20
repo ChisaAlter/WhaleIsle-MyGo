@@ -49,22 +49,22 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		query := s.Filters.Query
 		ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().OnChange(func() { change("query", query) })
 		ui.Row(c).Gap(6).Children(func() {
-			for _, opt := range []struct{ id, label string }{{"", "全部"}, {"bots", "Bot"}, {"rooms", "群聊"}} {
+			for _, opt := range []struct{ id, label string }{{"", i18n.T(i18n.KeyW4AssistantAll)}, {"bots", "Bot"}, {"rooms", i18n.T(i18n.KeyW4AssistantGroup)}} {
 				opt := opt
 				if ui.Button(c, opt.label).Disabled(s.Filters.Kind == opt.id).Clicked() {
 					change("kind", opt.id)
 				}
 			}
 			hidden := s.Filters.ShowHidden
-			if ui.Checkbox(c, &hidden, "显示隐藏项").Changed() {
+			if ui.Checkbox(c, &hidden, i18n.T(i18n.KeyW4AssistantShowHiddenItems)).Changed() {
 				change("hidden", fmt.Sprint(hidden))
 			}
-			if ui.Button(c, "清除筛选").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyW4AssistantClearFilters)).Clicked() {
 				change("reset", "")
 			}
 		})
 		ui.Row(c).Gap(6).Children(func() {
-			for _, opt := range []struct{ id, label string }{{"", "全部活动"}, {"active", "活跃"}, {"recent", "最近 7 天"}, {"idle", "闲置"}} {
+			for _, opt := range []struct{ id, label string }{{"", i18n.T(i18n.KeyW4AssistantAllActivity)}, {"active", i18n.T(i18n.KeyW4AssistantActive)}, {"recent", i18n.T(i18n.KeyW4AssistantLast7Days)}, {"idle", i18n.T(i18n.KeyW4AssistantIdle)}} {
 				opt := opt
 				if ui.Button(c, opt.label).Disabled(s.Filters.Activity == opt.id).Clicked() {
 					change("activity", opt.id)
@@ -87,15 +87,15 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			})
 		}
 		if !s.Loaded {
-			ui.Text(c, "正在读取当前 Host 的完整联系人目录；也可点击刷新。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingTheCurrentHostSFullContactCata)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
-		ui.Text(c, fmt.Sprintf("目录 revision %d · %d 位联系人 · %d 个分组", s.Catalog.Revision, len(s.Catalog.Items), len(s.Catalog.Sections))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantCatalogRevisionDDContactsDSections), s.Catalog.Revision, len(s.Catalog.Items), len(s.Catalog.Sections))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if !s.Writable {
-			ui.Text(c, "Host 当前只读，仍可搜索与打开会话。").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostIsReadOnlyRightNowButConversa)).TextColor(muted)
 		}
 		if s.Pending != nil && !s.Busy {
-			ui.Text(c, "有待核实的目录操作。刷新会读回结果，不会重发。").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantACatalogOperationIsAwaitingVerification)).TextColor(accent)
 		}
 		ui.Column(c.Key("contacts-section-editor")).Background(field).Padding(8).Gap(6).Children(func() {
 			label := i18n.T(i18n.KeyMiscAssistantNewSection)
@@ -112,13 +112,13 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 					}
 					action(pluginrpc.DshbotContactCommand{Action: kind, ID: s.EditingSection, Name: name})
 				}
-				if s.EditingSection != "" && ui.Button(c, "取消重命名").Disabled(blocked).Clicked() {
+				if s.EditingSection != "" && ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelRename)).Disabled(blocked).Clicked() {
 					change("edit", "")
 				}
 			})
 		})
 		if s.Undo != nil {
-			ui.Text(c, fmt.Sprintf("已删除分组“%s”；联系人保留并移至未分组。撤销会将仍存在的原成员移回该组。", s.Undo.Section.Name)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantDeletedSectionSItsContactsAreKeptAnd), s.Undo.Section.Name)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreSection)).Disabled(readonly).Clicked() {
 				action(pluginrpc.DshbotContactCommand{Action: "restore", Snapshot: s.Undo})
 			}
@@ -131,26 +131,26 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 				ui.Text(c, fmt.Sprintf("%s (%d)", group.Name, len(group.Items))).Bold().TextColor(fg)
 				if group.ID != "" {
 					ui.Row(c).Gap(6).Children(func() {
-						if ui.Button(c, "重命名").Disabled(readonly).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantRename)).Disabled(readonly).Clicked() {
 							change("edit", group.ID)
 						}
-						if ui.Button(c, "上移").Disabled(readonly || index == 0).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveUp)).Disabled(readonly || index == 0).Clicked() {
 							action(pluginrpc.DshbotContactCommand{Action: "move", ID: group.ID, Delta: -1})
 						}
-						if ui.Button(c, "下移").Disabled(readonly || index >= len(s.Catalog.Sections)-1).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveDown)).Disabled(readonly || index >= len(s.Catalog.Sections)-1).Clicked() {
 							action(pluginrpc.DshbotContactCommand{Action: "move", ID: group.ID, Delta: 1})
 						}
-						if ui.Button(c, "删除分组").Disabled(readonly).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantDeleteSection)).Disabled(readonly).Clicked() {
 							change("delete", group.ID)
 						}
 					})
 					if s.DeleteSection == group.ID {
-						ui.Text(c, "只删除分组，所有成员移至未分组；不删除 Bot、群聊或历史。成功后可撤销。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+						ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyTheSectionIsDeletedAndEveryMember)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						ui.Row(c).Gap(6).Children(func() {
-							if ui.Button(c, "确认删除分组").Disabled(readonly).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantConfirmSectionDeletion)).Disabled(readonly).Clicked() {
 								action(pluginrpc.DshbotContactCommand{Action: "delete", ID: group.ID})
 							}
-							if ui.Button(c, "取消").Disabled(blocked).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancel)).Disabled(blocked).Clicked() {
 								change("delete", "")
 							}
 						})
@@ -165,14 +165,14 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 							title = "★ " + title
 						}
 						if row.Hidden {
-							title += " (隐藏)"
+							title += i18n.T(i18n.KeyW4AssistantHidden)
 						}
 						if row.ID == m.DshbotSelectedID {
 							title = "• " + title
 						}
 						kind := "Bot"
 						if row.Kind == "room" {
-							kind = "群聊"
+							kind = i18n.T(i18n.KeyW4AssistantGroup)
 						}
 						ui.Text(c, kind+" · "+title).TextColor(fg).Bold()
 						if title != row.Name && row.Kind != "room" {
@@ -182,7 +182,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 							ui.Text(c, description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 						}
 						if _, label := pluginrpc.DshbotContactSource(row); label != "" {
-							ui.Text(c, "来源: "+label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, i18n.T(i18n.KeyW4AssistantSource)+label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 						if live := cm.Activity[row.ID]; live.Active {
 							ui.Text(c, i18n.T(i18n.KeyMiscAssistantActive)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
@@ -203,26 +203,26 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 							}
 						}
 						ui.Row(c).Gap(6).Children(func() {
-							if m.OnDshbotSelect != nil && ui.Button(c, "选择").Disabled(blocked || row.ID == m.DshbotSelectedID).Clicked() {
+							if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantSelect)).Disabled(blocked || row.ID == m.DshbotSelectedID).Clicked() {
 								m.OnDshbotSelect(row.ID)
 							}
-							if m.OnDshbotOpenRosterSession != nil && ui.Button(c, "打开会话").Disabled(blocked).Clicked() {
+							if m.OnDshbotOpenRosterSession != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantOpenConversation)).Disabled(blocked).Clicked() {
 								m.OnDshbotOpenRosterSession(row.ID)
 							}
-							label := "置顶"
+							label := i18n.T(i18n.KeyW4AssistantPin)
 							if row.Pinned {
-								label = "取消置顶"
+								label = i18n.T(i18n.KeyW4AssistantUnpin)
 							}
 							if ui.Button(c, label).Disabled(readonly).Clicked() {
 								action(pluginrpc.DshbotContactCommand{Action: "pin", ID: row.ID, SessionID: row.SessionID, Pinned: !row.Pinned})
 							}
-							if ui.Button(c, "移动到分组").Disabled(readonly).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToSection)).Disabled(readonly).Clicked() {
 								change("assign", row.ID)
 							}
 						})
 						if s.AssignmentItem == row.ID {
 							ui.Column(c).Gap(4).Children(func() {
-								if ui.Button(c, "移至未分组").Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == "").Clicked() {
+								if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToUnassigned)).Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == "").Clicked() {
 									action(pluginrpc.DshbotContactCommand{Action: "assign", ID: row.ID, SessionID: row.SessionID})
 								}
 								for _, section := range s.Catalog.Sections {
@@ -231,7 +231,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 										action(pluginrpc.DshbotContactCommand{Action: "assign", ID: row.ID, SessionID: row.SessionID, SectionID: section.ID})
 									}
 								}
-								if ui.Button(c, "取消移动").Disabled(blocked).Clicked() {
+								if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelMove)).Disabled(blocked).Clicked() {
 									change("assign", "")
 								}
 							})

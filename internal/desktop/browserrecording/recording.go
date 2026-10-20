@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -360,11 +361,11 @@ func (a Artifact) Export(ctx context.Context, path string) error {
 		return err
 	}
 	if path == "" || !strings.EqualFold(filepath.Ext(path), a.Extension()) {
-		return fmt.Errorf("请选择新的 %s 文件名", a.Extension())
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreBrowserrecordingChooseANewSFileName), a.Extension()))
 	}
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return fmt.Errorf("导出失败；请选择尚不存在的 %s 文件：%w", a.Extension(), err)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreBrowserrecordingExportFailedChooseASFileThatDoesNot), a.Extension(), err))
 	}
 	identity, err := file.Stat()
 	if err != nil {

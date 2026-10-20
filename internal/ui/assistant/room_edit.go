@@ -58,7 +58,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-room-edit")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupProfileAndLimits)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "编辑已选群聊的名称、完整说明，以及原有成员顺序和限额。工作区、头像及其他资料保持原样；没有独立 title 输入。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantEditTheSelectedGroupSNameFullDescript)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadGroupProfile)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
@@ -78,7 +78,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWriteAuthorityUnavailable3)).TextColor(accent)
 		}
 		if s.Status.WriteError != "" {
-			ui.Text(c, "无法证明未编辑资料可无损保留，原生保存已禁用；请使用现有 Bot Web 入口。\n"+s.Status.WriteError).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantLosslessPreservationOfUneditedDataCanno)+s.Status.WriteError).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		if s.Loaded {
 			r := s.Status.Item
@@ -137,7 +137,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		}
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraftOrder)+roomEditMembers(s.Draft.MemberBotIDs, s.Status.Catalog)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 		if s.Uncertain {
-			ui.Text(c, "结果未知，草稿保持锁定；目录不存在或不同也不自动重发。关闭界面不撤销已发送更新。本地保护只在当前进程保留；重启后请先通过 Web 核对。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOutcomeIsUnknownAndTheDraftStaysL)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			if s.Candidate && m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback2)).Disabled(blocked).Clicked() {
 				m.OnAdopt()
 			}
@@ -155,7 +155,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			ui.Column(c.Key("room-edit-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewGroupUpdate)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantRoomEditDiff), m.HostLabel, cmd.Expected.Catalog.Revision, before.Name, before.ID, before.SessionID, before.MaxRounds, after.MaxRounds, before.MaxSpeaks, after.MaxSpeaks, roomEditMembers(before.MemberBotIDs, cmd.Expected.Catalog), roomEditMembers(after.MemberBotIDs, cmd.Expected.Catalog))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-				ui.Text(c, "Host 会写入目录和审计记录，更新原会话展示并尝试同步会话标题。新成员与限额影响群聊后续读取配置时的执行，成员可能调用模型、工具或外部消息并产生费用；不保证正在进行的讨论立刻采用新设置。本次保存不发送提示词、不启动或停止群聊。工作区和 canonical session 不变。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostWritesCatalogAndAuditRecordsUp)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				if cmd.Values.Text != nil {
 					ui.Text(c, roomEditTextReview(cmd)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				}

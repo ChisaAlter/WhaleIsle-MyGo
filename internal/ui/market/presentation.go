@@ -20,7 +20,7 @@ func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted ui.
 	ui.Row(c).FillWidth().Wrap().Gap(16).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
-			ui.Text(c, marketText("发现并管理当前配置中的插件。", "Discover and manage plugins in the current profile.")).FontSize(theme.InterfaceSize(14)).TextColor(muted).FillWidth()
+			ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketFindAndManagePluginsInTheCurrentConfi), "Discover and manage plugins in the current profile.")).FontSize(theme.InterfaceSize(14)).TextColor(muted).FillWidth()
 		})
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Disabled(d.Loading || m.InstallBusy).Clicked() {
@@ -42,8 +42,8 @@ func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted ui.
 func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 	ui.Row(c).Role(ui.RoleTabList).Label(i18n.T(i18n.KeyMarketTitle)).FillWidth().Wrap().Gap(4).Children(func() {
 		for _, item := range []struct{ id, zh, en string }{
-			{"discover", "发现", "Discover"}, {"installed", "已安装", "Installed"},
-			{"favorites", "收藏", "Favorites"}, {"history", "安装历史", "History"},
+			{"discover", i18n.T(i18n.KeyW4MarketDiscover), "Discover"}, {"installed", i18n.T(i18n.KeyW4MarketInstalled2), "Installed"},
+			{"favorites", i18n.T(i18n.KeyW4MarketSave), "Favorites"}, {"history", i18n.T(i18n.KeyW4MarketInstallHistory), "History"},
 		} {
 			active := tab == item.id || tab == "" && item.id == "discover"
 			label := marketText(item.zh, item.en)
@@ -68,7 +68,7 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 	if len(d.Catalog.Categories) <= 1 {
 		return
 	}
-	ui.Row(c).Role(ui.RoleRadioGroup).Label(marketText("分类", "Categories")).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
+	ui.Row(c).Role(ui.RoleRadioGroup).Label(marketText(i18n.T(i18n.KeyW4MarketCategories), "Categories")).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 		for i, category := range d.Catalog.Categories {
 			if i >= 5 && category.ID != d.Category && (m.categoriesExpanded == nil || !*m.categoriesExpanded) {
 				continue
@@ -83,9 +83,9 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 			}
 		}
 		if len(d.Catalog.Categories) > 5 && m.categoriesExpanded != nil {
-			label := marketText("展开分类", "More categories")
+			label := marketText(i18n.T(i18n.KeyW4MarketExpandCategories), "More categories")
 			if *m.categoriesExpanded {
-				label = marketText("收起分类", "Fewer categories")
+				label = marketText(i18n.T(i18n.KeyW4MarketCollapseCategories), "Fewer categories")
 			}
 			if ui.Button(c, label).Clicked() {
 				*m.categoriesExpanded = !*m.categoriesExpanded
@@ -96,9 +96,9 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 
 func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
 	if len(d.Rows) == 0 && !d.Loading && d.Err == "" {
-		message := marketText("暂无插件。", "No plugins available.")
+		message := marketText(i18n.T(i18n.KeyW4MarketNoPluginsYet), "No plugins available.")
 		if d.Query != "" || d.Category != "all" && d.Category != "" || d.Period != "all" || d.Tab == "favorites" {
-			message = marketText("没有匹配的插件。", "No matching plugins.")
+			message = marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")
 		}
 		ui.Text(c, message).FillWidth().Padding(24).Border(1, border).Radius(8).TextColor(muted)
 	}
@@ -126,7 +126,7 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
 					ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
 					if i.Deprecated {
-						ui.Text(c, marketText("已弃用", "Deprecated")).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 					}
 				})
 				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
@@ -134,17 +134,17 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 						ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 					ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					ui.Text(c, fmt.Sprintf(marketText("%s 星标", "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketSStars), "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				})
 				ui.Text(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(36).FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(i.Description)
 				ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					favoriteButton(c, m, i.ID)
-					if ui.Button(c, marketText("详情", "Details")).Clicked() {
+					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketDetails), "Details")).Clicked() {
 						m.Store.SelectDetails(i.ID, false)
 					}
 					if parsed, err := url.Parse(i.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
-						if ui.Button(c, marketText("主页", "Homepage")).Clicked() {
+						if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketHomepage), "Homepage")).Clicked() {
 							m.OnOpenURL(parsed.String())
 						}
 					}
@@ -181,7 +181,7 @@ func installedGroups(catalog desktopmarket.Catalog, rows []marketstore.Entry) []
 	for index, category := range catalog.Categories {
 		groups[index].label = category.Label
 	}
-	other := installedGroup{label: marketText("未分类", "Ungrouped")}
+	other := installedGroup{label: marketText(i18n.T(i18n.KeyW4MarketUncategorized), "Ungrouped")}
 	for _, row := range rows {
 		category := ""
 		for _, item := range catalog.Items {
@@ -214,7 +214,7 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 		}
 	}
 	if len(rows) == 0 && len(installed) > 0 {
-		ui.Text(c, marketText("没有匹配的插件。", "No matching plugins.")).FillWidth().Padding(24).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")).FillWidth().Padding(24).TextColor(muted)
 	}
 	for _, group := range installedGroups(d.Catalog, rows) {
 		if len(group.rows) == 0 {
@@ -291,10 +291,10 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 		panel.Label(catalogTitle(item)).Width(max(0, min(float32(680), w-32))).Height(max(0, min(float32(720), h-48))).Border(.5, border).Radius(12).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).BG), chrome.MaterialPanel, 12)).Children(func() {
 			ui.Row(c).FillWidth().Padding(16).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-				if ui.Button(c, marketText("重新加载详情", "Reload details")).Disabled(d.DetailsLoading).Clicked() {
+				if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details")).Disabled(d.DetailsLoading).Clicked() {
 					m.Store.SelectDetails(item.ID, true)
 				}
-				if ui.Button(c, marketText("关闭", "Close")).Clicked() {
+				if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketClose), "Close")).Clicked() {
 					open = false
 				}
 			})
@@ -305,7 +305,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					favoriteButton(c, m, item.ID)
 					catalogInstallButton(c, m, d, item, inventory, fg, muted)
 					if item.Deprecated {
-						ui.Text(c, marketText("已弃用，不提供安装。", "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
 					}
 					if d.DetailsLoading {
 						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
@@ -314,13 +314,13 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 						ui.Text(c, d.DetailsErr).FillWidth().TextColor(accent)
 					}
 					if d.Details.Partial {
-						ui.Text(c, marketText("部分详情加载失败。", "Some details could not be loaded.")).FillWidth().TextColor(accent)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSomeDetailsFailedToLoad), "Some details could not be loaded.")).FillWidth().TextColor(accent)
 					}
 					if d.Details.Version != "" {
 						ui.Text(c, "Version: "+d.Details.Version).TextColor(fg)
 					}
 					if len(d.Details.Requirements) > 0 {
-						ui.Text(c, marketText("声明的运行要求（不代表兼容性验证）", "Declared requirements (not a compatibility verdict)")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeclaredRuntimeRequirementsNotACompatib), "Declared requirements (not a compatibility verdict)")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 						for _, requirement := range d.Details.Requirements {
 							ui.Text(c, requirement).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						}
@@ -329,6 +329,15 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
 			})
+		})
+		// --dsw-elevation-stroke: the panel paints its hairline after the glass,
+		// because the glass fill runs after the element's own border and would
+		// cover it once no wallpaper makes the fill opaque (as MenuSurface does).
+		panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if border.A == 0 || r.W <= 0 || r.H <= 0 {
+				return
+			}
+			p.Stroke(r, border, 12, 0.5)
 		})
 	})
 	if !open {

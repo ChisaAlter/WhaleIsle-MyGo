@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/store/storelocale"
 )
 
 //go:embed helper.js
@@ -35,7 +36,7 @@ func newEncoder(ctx context.Context) (result encoder, err error) {
 		if r := recover(); r != nil {
 			e.Close()
 			result = nil
-			err = fmt.Errorf("视频编码窗口不可用：%v", r)
+			err = errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoEncoderWindowIsUnavailableV), r))
 		}
 	}()
 	e.win = mygo.NewWindow(mygo.WindowOptions{
@@ -45,22 +46,22 @@ func newEncoder(ctx context.Context) (result encoder, err error) {
 	})
 	if e.win == nil || e.win.IsDestroyed() || e.win.Page() == nil {
 		e.Close()
-		return nil, errors.New("视频编码窗口创建失败")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingCouldNotCreateTheVideoEncoderWindow))
 	}
 	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if err = e.loadBlank(initCtx); err != nil {
 		e.Close()
-		return nil, fmt.Errorf("视频隔离编码页启动失败：%w", err)
+		return nil, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreBrowserrecordingCouldNotStartTheIsolatedVideoEncoding), err))
 	}
 	value, err := e.call(initCtx, helperScript)
 	if err != nil {
 		e.Close()
-		return nil, fmt.Errorf("当前系统 WebView 无可用 视频编码器：%w", err)
+		return nil, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreBrowserrecordingTheSystemWebviewHasNoUsableVideoEncod), err))
 	}
 	if ready, ok := value.(bool); !ok || !ready {
 		e.Close()
-		return nil, errors.New("视频编码器未就绪")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoEncoderIsNotReady))
 	}
 	return e, nil
 }
@@ -99,7 +100,7 @@ func (e *nativeEncoder) call(ctx context.Context, code string) (any, error) {
 		return nil, err
 	}
 	if e.win == nil || e.win.IsDestroyed() {
-		return nil, errors.New("视频编码窗口已关闭")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoEncoderWindowWasClosed))
 	}
 	timeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -112,7 +113,7 @@ func (e *nativeEncoder) Start(ctx context.Context, frame []byte) (string, error)
 	}
 	mime, ok := value.(string)
 	if !ok || !validMIME(mime) {
-		return "", errors.New("视频编码器返回了无效格式")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoEncoderReturnedAnInvalidFormat))
 	}
 	return mime, nil
 }
@@ -122,7 +123,7 @@ func (e *nativeEncoder) Frame(ctx context.Context, frame []byte) error {
 		return err
 	}
 	if accepted, ok := value.(bool); !ok || !accepted {
-		return errors.New("视频编码器未接收帧")
+		return errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoEncoderAcceptedNoFrames))
 	}
 	return nil
 }
@@ -150,7 +151,7 @@ func (e *nativeEncoder) Finish(ctx context.Context) (Artifact, error) {
 		return Artifact{}, err
 	}
 	if !validMIME(info.MIME) || info.Bytes < 64 || info.Bytes > MaxBytes {
-		return Artifact{}, errors.New("视频编码长度或格式无效")
+		return Artifact{}, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingInvalidVideoEncodingLengthOrFormat))
 	}
 	result := Artifact{MIME: info.MIME, Data: make([]byte, 0, info.Bytes)}
 	for len(result.Data) < info.Bytes {
@@ -169,11 +170,11 @@ func (e *nativeEncoder) Finish(ctx context.Context) (Artifact, error) {
 		}
 		expected := min(TransferChunkBytes, info.Bytes-offset)
 		if part.Offset != offset || part.Length != expected || len(part.Data) != base64.StdEncoding.EncodedLen(expected) {
-			return Artifact{}, errors.New("视频输出分块无效")
+			return Artifact{}, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingInvalidVideoOutputChunk))
 		}
 		data, err := base64.StdEncoding.DecodeString(part.Data)
 		if err != nil || len(data) != expected {
-			return Artifact{}, errors.New("视频输出分块无法解码")
+			return Artifact{}, errors.New(storelocale.T(storelocale.KeyStoreBrowserrecordingTheVideoOutputChunkCouldNotBeDecoded))
 		}
 		result.Data = append(result.Data, data...)
 	}

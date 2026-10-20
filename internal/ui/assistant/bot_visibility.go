@@ -12,7 +12,9 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-const botVisibilityEffects = "隐藏只改变联系人列表的可见性，可在本块勾选“显示隐藏项”后恢复。不会停用 Bot 或群聊，不会停止会话、目标、例行任务、消息或任务委派，也不等于关闭通知；通知仍按 notify、权限及消费者条件处理。群聊成员、历史和资料保持原样。保存通过 catalog/items 将审阅时完整 items 数组连同 revision 发送当前 Host，只改目标 hidden 与 updatedAt；该原版路由不直接调用 bot/update 的 rename/presentation/requestSync。现有后台工作仍可继续，目录并发变化会拒绝或留下待核实结果。本入口不额外启动、停止或打开会话。"
+func botVisibilityEffects() string {
+	return i18n.T(i18n.KeyW4AssistantHidingOnlyChangesVisibilityInTheContac)
+}
 
 type BotVisibilityModel struct {
 	State                          dshbotstore.BotVisibilitySnapshot
@@ -57,7 +59,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-visibility-management")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantVisibilityTitle)).Bold().TextColor(fg)
-		ui.Text(c, "此管理块独立于普通列表；显示隐藏项仅改变本地查看，不会恢复或修改 Host 目录。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantThisManagementBlockIsSeparateFromTheO)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
@@ -88,7 +90,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			m.OnRefresh()
 		}
 		if s.Uncertain {
-			ui.Text(c, "原写入保持未知，不能自动或手动重发；读回不等于再次保存。锁仅在本进程保留，重启不是安全重试证明。").TextColor(accent).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOriginalWriteStaysUnknownAndCannot)).TextColor(accent).Selectable()
 			if s.Pending != nil {
 				ui.Text(c, botVisibilityReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
@@ -98,7 +100,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			return
 		}
 		if !s.Loaded {
-			ui.Text(c, "先读取当前 Host 完整目录与写权限；隐藏后的目标也可在此找回。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantReadTheCurrentHostSFullCatalogAndWri)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if !s.Writable {
@@ -111,7 +113,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 					m.OnCancel()
 				}
 				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
-				ui.Text(c, botVisibilityEffects).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+				ui.Text(c, botVisibilityEffects()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				ack := r.Acknowledged
 				if ui.Checkbox(c, &ack, i18n.T(i18n.KeyMiscAssistantIConfirmThisTargetAndEffects)).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)

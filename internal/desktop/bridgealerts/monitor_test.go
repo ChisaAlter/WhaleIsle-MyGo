@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"whaleisle/internal/store/storelocale"
 )
 
 type fakeSource struct {
@@ -163,7 +164,7 @@ func TestBridgeAlertsFormatAndMalformedFixture(t *testing.T) {
 		{Alert{Kind: "expires", Credits: scalar("3"), ResetsAt: "2030-02-03T04:05:06Z"}, "3 次额度重置"},
 		{Alert{Balance: scalar("$2.10")}, "$2.10"},
 		{Alert{Window: "Day", Used: scalar("0")}, "0%"},
-		{Alert{Window: "Day"}, "用量未提供"},
+		{Alert{Window: "Day"}, storelocale.T(storelocale.KeyStoreBridgealertsUsageNotProvided)},
 	} {
 		_, body := Format(tc.a)
 		if !strings.Contains(body, tc.want) {

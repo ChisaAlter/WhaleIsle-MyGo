@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ErrUnknownAction means action is not install|start|stop|open.
@@ -70,11 +71,11 @@ func RunAction(userData, id, action string) error {
 }
 
 var bridgeStartMu sync.Mutex
-var errBridgeExitUnconfirmed = errors.New("鲸桥启动失败，进程退出尚未确认，请查看组件日志")
+var errBridgeExitUnconfirmed = errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeFailedToStartAndTheProcess))
 
 func startWhalebridge(root, dshHome string) error {
 	if !bridgeStartMu.TryLock() {
-		return fmt.Errorf("鲸桥正在启动")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStarting))
 	}
 	defer bridgeStartMu.Unlock()
 	return startWhalebridgeLocked(root, dshHome)
@@ -87,7 +88,7 @@ func startWhalebridgeLocked(root, dshHome string) error {
 		return ErrNotInstalled
 	}
 	if !bridgeVersion.MatchString(ver) {
-		return fmt.Errorf("鲸桥安装版本无效")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeInstalledVersion))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -99,11 +100,11 @@ func startWhalebridgeLocked(root, dshHome string) error {
 		// needs explicit lifecycle recovery, not an implicit duplicate launch.
 		return verifyBridgeReady(ctx, st, ver, st.PID, client)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("鲸桥已有状态记录无法验证，请先检查组件日志")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheExistingWhalebridgeStateRecordCannot))
 	}
 	exe := filepath.Join(root, "versions", ver, bridgeAsset)
 	if info, err := os.Stat(exe); err != nil || !info.Mode().IsRegular() {
-		return fmt.Errorf("鲸桥程序缺失或不是常规文件")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeProgramIsMissingOrIsNot))
 	}
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return err
@@ -127,7 +128,7 @@ func startWhalebridgeLocked(root, dshHome string) error {
 	cmd.Stdout = logF
 	cmd.Stderr = logF
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("鲸桥进程无法启动，请查看组件日志")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeProcessCouldNotStartChec))
 	}
 	exited := make(chan error, 1)
 	go func() { exited <- cmd.Wait(); close(exited) }()
@@ -151,7 +152,7 @@ func startWhalebridgeLocked(root, dshHome string) error {
 
 func stopWhalebridge(root string) error {
 	if !bridgeStartMu.TryLock() {
-		return fmt.Errorf("鲸桥正在启动或切换")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStartingOrSwitching))
 	}
 	defer bridgeStartMu.Unlock()
 	// A missing state remains an idempotent stop, including an uninstalled component.
@@ -226,13 +227,13 @@ func openURL(raw string) error {
 // FormatActionError returns a short UI note for RunAction failures.
 func FormatActionError(id, action string, err error) string {
 	if err == nil {
-		return id + " · " + action + " 完成"
+		return id + " · " + action + storelocale.T(storelocale.KeyStoreComponentsDone)
 	}
 	if errors.Is(err, ErrNotInstalled) {
-		return id + " 尚未安装"
+		return id + storelocale.T(storelocale.KeyStoreComponentsNotInstalled)
 	}
 	if errors.Is(err, ErrUnknownAction) {
-		return "未知操作: " + action
+		return storelocale.T(storelocale.KeyStoreComponentsUnknownAction) + action
 	}
 	return id + " · " + action + ": " + err.Error()
 }

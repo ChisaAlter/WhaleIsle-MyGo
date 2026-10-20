@@ -267,9 +267,9 @@ func (p *Companion) interactionCare(thrown bool) {
 	}
 	_ = p.rest.wake(nil)
 	if thrown {
-		p.feedMessage = "抛掷：心情 −9；亲密按同类冷却计入"
+		p.feedMessage = storelocale.T(storelocale.KeyStorePetThrowMood9AffectionCountedPerSameType)
 	} else {
-		p.feedMessage = "点按：心情 +2；亲密按同类冷却计入"
+		p.feedMessage = storelocale.T(storelocale.KeyStorePetTapMood2AffectionCountedPerSameTypeC)
 	}
 }
 func (p *Companion) serveInteraction(w http.ResponseWriter, r *http.Request) bool {

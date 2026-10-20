@@ -25,7 +25,7 @@ func (q *QuickChat) view(c *ui.Context) {
 	theme := c.Theme()
 	ui.Column(c).Fill().Padding(14).Gap(10).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, quickChatName(q.state.Name, "鲸鱼娘")+" · 聊聊").Bold().FontSize(fonttheme.InterfaceSize(17)).Grow(1)
+			ui.Text(c, quickChatName(q.state.Name, storelocale.T(storelocale.KeyStorePetWhale))+storelocale.T(storelocale.KeyStorePetChat)).Bold().FontSize(fonttheme.InterfaceSize(17)).Grow(1)
 			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetOpen)).Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
@@ -70,7 +70,7 @@ func (q *QuickChat) view(c *ui.Context) {
 				case "user":
 					label = storelocale.T(storelocale.KeyDesktopPetYou)
 				case "her":
-					label = quickChatName(label, "鲸鱼娘")
+					label = quickChatName(label, storelocale.T(storelocale.KeyStorePetWhale))
 				case "err":
 					label, color = storelocale.T(storelocale.KeyDesktopPetStatus), theme.Danger
 				default:
@@ -123,9 +123,9 @@ func (q *QuickChat) view(c *ui.Context) {
 			}
 		})
 		if direct {
-			ui.Text(c, "取消不保证撤回 API 请求。关闭清除临时记录；Host 恢复后重新点聊聊进入共同会话。").FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
+			ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingDoesNotGuaranteeTheApiReques)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
 		} else {
-			ui.Text(c, "取消等待不会撤回消息。停止仅作用于此宠物会话的当前轮；排队消息请到主会话管理。").FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
+			ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingTheWaitDoesNotWithdrawTheMe)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
 		}
 	})
 	if c.Shortcut(0, ui.KeyEscape) {

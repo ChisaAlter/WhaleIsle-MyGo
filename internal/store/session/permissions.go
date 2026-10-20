@@ -1,11 +1,14 @@
 package session
 
+
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // PermissionOption is one row in the composer permission preset picker.
@@ -196,14 +199,14 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 	if err == nil {
 		s.applyPermissionValuesLocked(out.Values, out.AsOfSeq)
 		if !s.permissionProjectionCurrentLocked() || s.permissionProjection.Value != opt.Value {
-			err = fmt.Errorf("Host 未确认当前会话的权限预设，请刷新后重试")
+			err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotConfirmTheCurrentSession))
 		}
 	}
 	s.permissionsErr = err
 	if err != nil {
 		s.lastAction = err.Error()
 	} else {
-		s.lastAction = "当前会话权限已更新：" + s.permissionLabelLocked()
+		s.lastAction = storelocale.T(storelocale.KeyStoreSessionCurrentSessionPermissionUpdated) + s.permissionLabelLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

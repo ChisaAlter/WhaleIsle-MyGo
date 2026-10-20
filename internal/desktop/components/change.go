@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 // BridgeChange holds a verified, immutable staged version. Preparing a change
@@ -26,7 +27,7 @@ func (p *BridgeChange) Version() string { return p.version }
 
 func PrepareWhaleBridgeUpdate(ctx context.Context, userData, route string) (*BridgeChange, error) {
 	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
-		return nil, fmt.Errorf("鲸桥仅支持 Windows x64")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeSupportsWindowsX64Only))
 	}
 	endpoint, err := bridgeReleaseEndpoint(route)
 	if err != nil {
@@ -37,7 +38,7 @@ func PrepareWhaleBridgeUpdate(ctx context.Context, userData, route string) (*Bri
 
 func prepareBridgeUpdate(ctx context.Context, userData, endpoint string, client *http.Client, fixture bool) (*BridgeChange, error) {
 	if !componentInstallMu.TryLock() {
-		return nil, fmt.Errorf("组件安装或切换正在进行")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	p, err := newBridgeChange(userData)
@@ -49,7 +50,7 @@ func prepareBridgeUpdate(ctx context.Context, userData, endpoint string, client 
 		return nil, err
 	}
 	if compareVersions(m.Version, p.from.Version) <= 0 {
-		return nil, fmt.Errorf("当前线路没有较新版本；降级请使用回滚")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsNoNewerVersionOnThisChannelUseRollbac))
 	}
 	if _, err := stageBridgeRelease(ctx, p.root, m, asset, client, fixture); err != nil {
 		return nil, err
@@ -60,7 +61,7 @@ func prepareBridgeUpdate(ctx context.Context, userData, endpoint string, client 
 
 func PrepareWhaleBridgeRollback(userData string) (*BridgeChange, error) {
 	if !componentInstallMu.TryLock() {
-		return nil, fmt.Errorf("组件安装或切换正在进行")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	p, err := newBridgeChange(userData)
@@ -68,7 +69,7 @@ func PrepareWhaleBridgeRollback(userData string) (*BridgeChange, error) {
 		return nil, err
 	}
 	if !bridgeVersion.MatchString(p.from.Previous) || p.from.Previous == p.from.Version {
-		return nil, fmt.Errorf("没有可回滚版本")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsNoVersionToRollBackTo))
 	}
 	if _, err := verifyBridgeVersion(p.root, p.from.Previous); err != nil {
 		return nil, err
@@ -100,7 +101,7 @@ func checkedBridgeInstalled(root string) (installedFile, error) {
 		return inst, err
 	}
 	if json.Unmarshal(b, &inst) != nil || !bridgeVersion.MatchString(inst.Version) {
-		return inst, fmt.Errorf("鲸桥安装记录无效，已保留现有文件")
+		return inst, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeInstallRecordExisting))
 	}
 	return inst, nil
 }
@@ -110,15 +111,15 @@ func checkedBridgeInstalled(root string) (installedFile, error) {
 func verifyBridgeVersion(root, version string) (bridgeReleaseManifest, error) {
 	var m bridgeReleaseManifest
 	if !bridgeVersion.MatchString(version) {
-		return m, fmt.Errorf("鲸桥版本无效")
+		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeVersion))
 	}
 	dir := filepath.Join(root, "versions", version)
 	if info, err := os.Lstat(dir); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return m, fmt.Errorf("鲸桥版本目录缺失或无效")
+		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeVersionDirectoryIsMissing))
 	}
 	for _, name := range []string{bridgeManifest, bridgeAsset} {
 		if info, err := os.Lstat(filepath.Join(dir, name)); err != nil || !info.Mode().IsRegular() {
-			return m, fmt.Errorf("鲸桥版本文件缺失或不是常规文件")
+			return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeVersionFileIsMissingOrI))
 		}
 	}
 	b, err := os.ReadFile(filepath.Join(dir, bridgeManifest))
@@ -126,7 +127,7 @@ func verifyBridgeVersion(root, version string) (bridgeReleaseManifest, error) {
 		return m, err
 	}
 	if json.Unmarshal(b, &m) != nil || validateBridgeManifest(m) != nil || m.Version != version {
-		return m, fmt.Errorf("鲸桥本地版本清单无效")
+		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeLocalVersionManifest))
 	}
 	spec := m.Platforms["win32-x64"]
 	f, err := os.Open(filepath.Join(dir, bridgeAsset))
@@ -137,7 +138,7 @@ func verifyBridgeVersion(root, version string) (bridgeReleaseManifest, error) {
 	h := sha256.New()
 	n, err := io.Copy(h, io.LimitReader(f, spec.Size+1))
 	if err != nil || n != spec.Size || fmt.Sprintf("%x", h.Sum(nil)) != spec.SHA256 {
-		return m, fmt.Errorf("鲸桥本地程序大小或 SHA256 校验失败")
+		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeLocalProgramSizeOrSha256Ver))
 	}
 	return m, nil
 }
@@ -160,11 +161,11 @@ func (p *BridgeChange) Apply(ctx context.Context) error { return p.apply(ctx, br
 
 func (p *BridgeChange) apply(ctx context.Context, life bridgeLifecycle) error {
 	if !componentInstallMu.TryLock() {
-		return fmt.Errorf("组件安装或切换正在进行")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	if !bridgeStartMu.TryLock() {
-		return fmt.Errorf("鲸桥正在启动或停止")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStartingOrStopping))
 	}
 	defer bridgeStartMu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -175,7 +176,7 @@ func (p *BridgeChange) apply(ctx context.Context, life bridgeLifecycle) error {
 		return err
 	}
 	if current != p.from {
-		return fmt.Errorf("鲸桥版本已改变，请重新检查更新或回滚")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeVersionChangedCheckForUp))
 	}
 	for _, version := range []string{p.version, current.Version} {
 		if _, err := verifyBridgeVersion(p.root, version); err != nil {
@@ -204,17 +205,17 @@ func (p *BridgeChange) restore(old installedFile, running bool, life bridgeLifec
 	// A failed launch cleans up only its own process. If its exit is uncertain or a
 	// different instance appeared, never overwrite that owner's record or launch a duplicate.
 	if _, err := os.Lstat(filepath.Join(p.root, "data", "state.json")); errors.Is(cause, errBridgeExitUnconfirmed) || !os.IsNotExist(err) {
-		return fmt.Errorf("版本切换未完成，实例退出无法确认；已保留全部版本和数据：%w", cause)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheVersionSwitchDidNotFinishAndTheIn), cause))
 	}
 	if err := replaceBridgeRecord(p.root, old); err != nil {
-		return fmt.Errorf("版本切换失败且无法恢复安装记录，旧版本和数据仍保留：%w", err)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheVersionSwitchFailedAndTheInstallRe), err))
 	}
 	if running {
 		if err := life.start(p.root, p.dshHome); err != nil {
-			return fmt.Errorf("版本切换失败，已恢复旧版本记录，但旧实例未就绪：%w", err)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheVersionSwitchFailedTheOldVersionRe), err))
 		}
 	}
-	return fmt.Errorf("版本切换未生效，已恢复原版本：%w", cause)
+	return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheVersionSwitchDidNotTakeEffectTheP), cause))
 }
 
 func replaceBridgeRecord(root string, inst installedFile) error {
@@ -251,7 +252,7 @@ func stopBridgeInstance(ctx context.Context, root, version string, life bridgeLi
 	// Pin an OS process handle and check its exact installed image before status
 	// authentication and maintenance. No PID-only kill, even after launcher restart.
 	if st.ID != "whalebridge" || st.PID <= 0 || st.Version != version {
-		return false, fmt.Errorf("鲸桥现有实例身份不一致，已保留")
+		return false, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheExistingWhalebridgeInstanceIdentityD))
 	}
 	proc, err := life.open(st.PID, filepath.Join(root, "versions", version, bridgeAsset))
 	if err != nil {
@@ -276,7 +277,7 @@ func stopBridgeInstance(ctx context.Context, root, version string, life bridgeLi
 	}
 	// Re-read immediately before termination: a replacement state is never ours.
 	if current, err := readBridgeState(path); err != nil || current != st {
-		return false, fmt.Errorf("鲸桥实例已改变，已取消切换")
+		return false, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeInstanceChangedSoTheSwit))
 	}
 	if err := proc.Terminate(ctx); err != nil {
 		return false, err
@@ -287,7 +288,7 @@ func stopBridgeInstance(ctx context.Context, root, version string, life bridgeLi
 			return true, err
 		}
 	} else if !os.IsNotExist(err) {
-		return true, fmt.Errorf("鲸桥停止后状态已改变，已保留新状态")
+		return true, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeStateChangedAfterStopping))
 	}
 	return true, nil
 }

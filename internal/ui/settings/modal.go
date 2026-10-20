@@ -30,6 +30,20 @@ func ModalView(c *ui.Context, m Model) {
 			Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(colors.BG), chrome.MaterialPanel, 28)).
 			Children(func() { View(c, m) })
 		chrome.MenuElevation(panel)
+		// --dsw-elevation-stroke: the harness draws a 0.5px hairline in
+		// --dsw-elevation-stroke-color, which is --dsw-alias-border-l4 over the
+		// light half and --dsw-alias-border-l3 over the dark one
+		// (gradient-shadow-text.css). The shell carries --dsw-alias-border-l2 as
+		// theme.Colors.Border, the same hairline family the rest of the chrome
+		// draws, so the panel uses that. It paints after the glass, which runs
+		// after the element's own border and would otherwise cover it.
+		panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			border := chrome.Color(colors.Border)
+			if border.A == 0 || r.W <= 0 || r.H <= 0 {
+				return
+			}
+			p.Stroke(r, border, 28, 0.5)
+		})
 	})
 	if !open && m.OnClose != nil {
 		m.OnClose()

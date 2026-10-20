@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"whaleisle/internal/store/storelocale"
 )
 
 //go:embed generic-source/index.js generic-source/store.js generic-source/registry.js generic-source/lifecycle.js generic-source/worker.js
@@ -130,12 +131,12 @@ func runGenericTarget(userData, id, action string, target any) (GenericResult, e
 	}
 	s := genericServiceFor(userData)
 	if s == nil {
-		return GenericResult{}, errors.New("组件运行时未配置")
+		return GenericResult{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheComponentRuntimeIsNotConfigured))
 	}
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return GenericResult{}, errors.New("组件服务正在退出")
+		return GenericResult{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheComponentServiceIsExiting))
 	}
 	opts := s.options
 	if s.worker != nil {
@@ -171,7 +172,7 @@ func runGenericTarget(userData, id, action string, target any) (GenericResult, e
 		return result, fmt.Errorf("%s: %s", result.Error, result.Message)
 	}
 	if result.State == "error" {
-		return result, fmt.Errorf("组件已切换版本，但启动失败：%s", result.Message)
+		return result, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheComponentSwitchedVersionsButFailedT), result.Message))
 	}
 	return result, nil
 }
@@ -214,7 +215,7 @@ func ShutdownGeneric(userData string) error {
 
 func startGenericWorker(userData string, opts GenericOptions) (*genericWorker, error) {
 	if opts.NodeBin == "" {
-		return nil, errors.New("组件需要 Host 的 Node 运行时；请检查运行时设置")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheComponentNeedsTheHostNodeRuntimeCh))
 	}
 	source, err := genericSource.ReadFile("generic-source/worker.js")
 	if err != nil {
@@ -318,7 +319,7 @@ func (w *genericWorker) read(output io.Reader) {
 		err = scanner.Err()
 	}
 	w.mu.Lock()
-	w.dead = fmt.Errorf("组件后台已退出：%w", err)
+	w.dead = errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheComponentBackgroundExitedW), err))
 	for id, pending := range w.pending {
 		pending.result <- genericResponse{GenericResult: GenericResult{Error: "worker-exited", Message: w.dead.Error()}}
 		delete(w.pending, id)

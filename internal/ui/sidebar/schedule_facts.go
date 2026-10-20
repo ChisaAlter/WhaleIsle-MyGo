@@ -104,7 +104,7 @@ func schedulePreviewFrequency(row schedstore.Entry) string {
 	return workspaceText("仅一次", "Once")
 }
 
-func sessionScheduleHover(c *ui.Context, anchor ui.Element, item session.Item, status string, rows []schedstore.Entry, epoch uint64, colors theme.Colors) {
+func sessionScheduleHover(c *ui.Context, m Model, anchor ui.Element, item session.Item, status string, rows []schedstore.Entry, epoch uint64, colors theme.Colors) {
 	state := ui.Local(anchor, struct {
 		epoch   uint64
 		session string
@@ -125,7 +125,7 @@ func sessionScheduleHover(c *ui.Context, anchor ui.Element, item session.Item, s
 		}
 		state.shown = true
 		ordered := orderSchedulePreview(rows, state.now)
-		width, height := c.Size()
+		width, height := m.viewport(c)
 		tip.Label("Scheduled task preview: "+item.SessionID).Width(min(float32(300), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().Padding(12).Radius(12).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .16)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 				ui.Text(c, item.Title).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0).MaxLines(2)

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type ViewState struct {
@@ -163,7 +164,7 @@ func (s *Store) Review(scope uint64, action string) bool {
 		}
 	case "test", "reconnect", "remove":
 		if !s.state.Status.Configured || s.state.Dirty {
-			s.state.Error = "请先保存或放弃草稿，再操作当前已保存的连接。"
+			s.state.Error = storelocale.T(storelocale.KeyStoreOfficeSaveOrDiscardTheDraftBeforeActingOnT)
 			valid = false
 		}
 	default:
@@ -224,7 +225,7 @@ func (s *Store) Refresh(ctx context.Context) {
 		return
 	}
 	if s.client == nil {
-		s.state.Error = "Host 未连接；可在 Host 就绪后重试。"
+		s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheHostIsNotConnectedRetryOnceTheHos)
 		s.state.Fresh = false
 		s.mu.Unlock()
 		s.fire()
@@ -248,7 +249,7 @@ func (s *Store) Refresh(ctx context.Context) {
 		s.state.Busy = false
 		if e != nil {
 			s.state.Fresh = false
-			s.state.Error = "无法读取 AI Office 状态，请重试或打开原版插件页面。"
+			s.state.Error = storelocale.T(storelocale.KeyStoreOfficeCouldNotReadAiOfficeStatusRetryOrOpe)
 		} else {
 			s.adoptLocked(v)
 		}
@@ -300,11 +301,11 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 			s.state.ReviewAction = ""
 			if err != nil {
 				s.state.Fresh = false
-				s.state.Error = "操作前无法确认最新配置，未提交更改。请刷新后重试。"
+				s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheLatestConfigurationCouldNotBeConfir)
 			} else {
 				s.adoptLocked(fresh)
 				s.state.Conflict = true
-				s.state.Error = "Office 配置已被其他窗口修改，未提交更改。请检查并采用最新配置。"
+				s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheOfficeConfigurationWasChangedByAnot)
 			}
 			s.mu.Unlock()
 			s.fire()
@@ -344,7 +345,7 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 		s.state.ReviewAction = ""
 		if !valid {
 			s.state.Fresh = false
-			s.state.Error = "操作结果未确认；请刷新核实，避免重复提交。凭据如需重试，请重新输入。"
+			s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheOutcomeIsUnconfirmedRefreshToVerify)
 		} else {
 			if action == "configure" || action == "remove" {
 				s.state.Dirty = false
@@ -354,20 +355,20 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 			switch action {
 			case "configure":
 				if next.Connected {
-					s.state.Notice = "配置已保存，Office 已连接。"
+					s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedOfficeIsConnected)
 				} else {
-					s.state.Notice = "配置已保存，Office 尚未连接。可刷新查看连接进展。"
+					s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeConfigurationSavedOfficeIsNotConnected2)
 				}
 			case "reconnect":
 				if next.Connected {
-					s.state.Notice = "已重新连接 Office。"
+					s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeOfficeReconnected)
 				} else {
-					s.state.Notice = "已发起重新连接，Office 尚未连接。"
+					s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeReconnectionStartedOfficeIsNotConnected)
 				}
 			case "test":
-				s.state.Notice = "连接测试通过；这不代表持续连接已建立。"
+				s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeConnectionTestPassedThisDoesNotMeanA)
 			case "remove":
-				s.state.Notice = "连接配置已移除。"
+				s.state.Notice = storelocale.T(storelocale.KeyStoreOfficeConnectionConfigurationRemoved)
 			}
 		}
 		s.mu.Unlock()
@@ -383,13 +384,13 @@ func ReviewSummary(v ViewState) string {
 	switch v.ReviewAction {
 	case "configure":
 		base, _ := normalizeBase(v.Draft.BaseURL)
-		return "保存到 Host 后会停止旧连接并主动连接 " + base + " / " + strings.TrimSpace(v.Draft.DeviceID) + "。Host 会向 Office 发送设备 ID、协议版本、映射 alias 和并发能力，并可接收 Job。工作区实际路径留在 Host；Token 只写入 Host 凭据存储。"
+		return storelocale.T(storelocale.KeyStoreOfficeAfterSavingToTheHostTheOldConnection) + base + " / " + strings.TrimSpace(v.Draft.DeviceID) + storelocale.T(storelocale.KeyStoreOfficeTheHostSendsTheDeviceIdProtocolVersio)
 	case "test":
-		return "向已保存的 Office 发送一次带认证的 Heartbeat 探测：" + target + "。探测会发送设备 ID、映射 alias 和并发能力。"
+		return storelocale.T(storelocale.KeyStoreOfficeSendOneAuthenticatedHeartbeatProbeToTh) + target + storelocale.T(storelocale.KeyStoreOfficeTheProbeSendsTheDeviceIdMappingAliase)
 	case "reconnect":
-		return "停止当前连接并重新连接已保存的 Office：" + target + "。连接恢复后可继续接收 Job。"
+		return storelocale.T(storelocale.KeyStoreOfficeStopTheCurrentConnectionAndReconnectTo) + target + storelocale.T(storelocale.KeyStoreOfficeJobsAreReceivedAgainOnceTheConnection)
 	case "remove":
-		return "停止连接并从 Host 移除配置，Host 将尝试清理对应 Device Token：" + target + "。正在处理的 Job 会受影响；已执行的操作不会撤销。"
+		return storelocale.T(storelocale.KeyStoreOfficeStopTheConnectionAndRemoveTheConfigura) + target + storelocale.T(storelocale.KeyStoreOfficeJobsInProgressAreAffectedCompletedOper)
 	}
 	return ""
 }

@@ -1,9 +1,10 @@
 package components
 
+
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 // BridgeUninstall pins the verified installed version and default-model impact
@@ -58,18 +60,18 @@ func bridgeRemovalRuntime() bridgeRemovalOps {
 
 func PrepareWhaleBridgeUninstall(ctx context.Context, userData string) (*BridgeUninstall, error) {
 	if !WhaleBridgeManagementSupported() {
-		return nil, fmt.Errorf("鲸桥组件管理仅支持 Windows x64")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeComponentManagementRequiresWi))
 	}
 	return prepareBridgeUninstall(ctx, userData, bridgeRemovalRuntime())
 }
 
 func prepareBridgeUninstall(ctx context.Context, userData string, ops bridgeRemovalOps) (*BridgeUninstall, error) {
 	if !componentInstallMu.TryLock() {
-		return nil, fmt.Errorf("组件安装或切换正在进行")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	if !bridgeStartMu.TryLock() {
-		return nil, fmt.Errorf("鲸桥正在启动或停止")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStartingOrStopping))
 	}
 	defer bridgeStartMu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -104,7 +106,7 @@ func (p *BridgeUninstall) Apply(ctx context.Context) (string, error) {
 // after the user explicitly confirms deleting this component's configuration.
 func (p *BridgeUninstall) ApplyWithDataRemoval(ctx context.Context, removeData bool) (string, error) {
 	if !WhaleBridgeManagementSupported() {
-		return "", fmt.Errorf("鲸桥组件管理仅支持 Windows x64")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeComponentManagementRequiresWi))
 	}
 	return p.applyWithDataRemoval(ctx, bridgeRemovalRuntime(), removeData)
 }
@@ -115,11 +117,11 @@ func (p *BridgeUninstall) apply(ctx context.Context, ops bridgeRemovalOps) (stri
 
 func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRemovalOps, removeData bool) (string, error) {
 	if !componentInstallMu.TryLock() {
-		return "", fmt.Errorf("组件安装或切换正在进行")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	if !bridgeStartMu.TryLock() {
-		return "", fmt.Errorf("鲸桥正在启动或停止")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStartingOrStopping))
 	}
 	defer bridgeStartMu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -133,7 +135,7 @@ func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRe
 		return "", err
 	}
 	if current != p.from {
-		return "", fmt.Errorf("鲸桥安装版本已改变，请重新确认卸载目标")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsTheInstalledWhalebridgeVersionChangedCo))
 	}
 	if _, err := verifyBridgeVersion(p.root, p.Version()); err != nil {
 		return "", err
@@ -143,7 +145,7 @@ func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRe
 		return "", err
 	}
 	if impact != p.defaultModel {
-		return "", fmt.Errorf("鲸桥默认模型状态已改变，请重新确认卸载影响")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeDefaultModelStateChanged))
 	}
 	running, err := ops.stop(ctx, p.root, p.Version())
 	if err != nil {
@@ -172,11 +174,11 @@ func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRe
 		return "", p.restoreRemoval(stage, true, true, running, ops)
 	}
 	if err := ops.remove(stage); err != nil {
-		return "鲸桥已卸载并断开；程序文件清理未完成，已保留隔离文件。供应商配置、账户、用量和聊天记录已保留。", nil
+		return storelocale.T(storelocale.KeyStoreComponentsWhalebridgeWasUninstalledAndDisconnected), nil
 	}
 	if removeData {
 		if err := ops.remove(p.DataDirectory()); err != nil {
-			return "鲸桥已卸载并断开，但鲸桥配置清理未完成：" + err.Error() + "。聊天记录和其他渠道未删除。", nil
+			return storelocale.T(storelocale.KeyStoreComponentsWhalebridgeWasUninstalledAndDisconnected2) + err.Error() + storelocale.T(storelocale.KeyStoreComponentsChatHistoryAndOtherChannelsWereNotDel), nil
 		}
 	}
 	return "", nil
@@ -185,7 +187,7 @@ func (p *BridgeUninstall) applyWithDataRemoval(ctx context.Context, ops bridgeRe
 // Recovery never overwrites a replacement owner or starts a duplicate process.
 // On any uncertain recovery the quarantine is retained rather than destroyed.
 func (p *BridgeUninstall) restoreRemoval(stage string, movedVersions, movedRecord, running bool, ops bridgeRemovalOps) error {
-	retained := fmt.Errorf("卸载未完成，自动恢复未完成；程序和安装记录保留在组件目录的隔离文件夹，供应商数据未删除。请检查组件日志并恢复安装；同时检查默认模型和受管代理的接入状态")
+	retained := errors.New(storelocale.T(storelocale.KeyStoreComponentsTheUninstallAndAutomaticRecoveryDidNot))
 	if _, err := os.Lstat(filepath.Join(p.root, "data", "state.json")); !os.IsNotExist(err) {
 		return retained
 	}
@@ -210,10 +212,10 @@ func (p *BridgeUninstall) restoreRemoval(stage string, movedVersions, movedRecor
 	} // Empty directory only; never delete recovery payloads.
 	if running {
 		if err := ops.start(p.root, p.dshHome); err != nil {
-			return fmt.Errorf("卸载未完成，已恢复原版本；原实例未就绪。请重试启动并检查默认模型及受管代理的接入状态")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheUninstallDidNotFinishAndThePreviou))
 		}
 	}
-	return fmt.Errorf("卸载未完成，已恢复原版本及原运行状态；供应商数据未删除。部分接入设置可能已断开，请检查默认模型和受管代理；程序恢复不代表这些接入设置已恢复")
+	return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheUninstallDidNotFinishThePreviousVe))
 }
 
 func validateBridgeRemovalPaths(root string) error {
@@ -221,12 +223,12 @@ func validateBridgeRemovalPaths(root string) error {
 	// does not claim protection against privileged concurrent path replacement.
 	abs, err := filepath.Abs(root)
 	if err != nil {
-		return fmt.Errorf("鲸桥组件路径无效")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeComponentPath))
 	}
 	for dir := abs; ; dir = filepath.Dir(dir) {
 		info, err := os.Lstat(dir)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("鲸桥组件目录缺失或含链接，已保留")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeComponentDirectoryIsMissi))
 		}
 		if filepath.Dir(dir) == dir {
 			break
@@ -238,7 +240,7 @@ func validateBridgeRemovalPaths(root string) error {
 			continue
 		}
 		if err != nil || info.Mode()&os.ModeSymlink != 0 || name != "installed.json" && !info.IsDir() || name == "installed.json" && !info.Mode().IsRegular() {
-			return fmt.Errorf("鲸桥程序或安装记录缺失或含链接，已保留")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeProgramOrInstallRecordIs))
 		}
 	}
 	return nil
@@ -260,12 +262,12 @@ func inspectBridgeRemoval(ctx context.Context, root, dshHome, version string) (b
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			return false, fmt.Errorf("无法读取鲸桥卸载影响")
+			return false, errors.New(storelocale.T(storelocale.KeyStoreComponentsCouldNotReadTheWhalebridgeUninstallImp2))
 		}
 		output, err = io.ReadAll(io.LimitReader(resp.Body, (64<<10)+1))
 	}
 	if err != nil || len(output) > 64<<10 {
-		return false, fmt.Errorf("无法读取鲸桥卸载影响，未停止组件")
+		return false, errors.New(storelocale.T(storelocale.KeyStoreComponentsCouldNotReadTheWhalebridgeUninstallImp))
 	}
 	var info struct {
 		DefaultModel *bool  `json:"defaultModel"`
@@ -273,7 +275,7 @@ func inspectBridgeRemoval(ctx context.Context, root, dshHome, version string) (b
 		Version      string `json:"version"`
 	}
 	if json.Unmarshal(output, &info) != nil || info.DefaultModel == nil || st.PID != 0 && (info.PID != st.PID || info.Version != version) {
-		return false, fmt.Errorf("鲸桥卸载影响状态无效，未停止组件")
+		return false, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeUninstallImpactStateIsIn))
 	}
 	return *info.DefaultModel, nil
 }
@@ -298,7 +300,7 @@ func (b *bridgeCommandOutput) Write(p []byte) (int, error) {
 // invented HTTP APIs. No credential value or command output enters an error.
 func bridgeOfflineCommand(ctx context.Context, exe, data, dshHome, command string) ([]byte, error) {
 	if !WhaleBridgeManagementSupported() || command != "whalebridge-status" && command != "whalebridge-disconnect" {
-		return nil, fmt.Errorf("鲸桥组件命令不受支持")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsUnsupportedWhalebridgeComponentCommand))
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -317,7 +319,7 @@ func bridgeOfflineCommand(ctx context.Context, exe, data, dshHome, command strin
 	cmd.Stdout, cmd.Stderr = &output, io.Discard
 	cmd.WaitDelay = time.Second
 	if err := cmd.Run(); err != nil || output.overflow {
-		return nil, fmt.Errorf("鲸桥离线命令未完成，请检查组件状态")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeOfflineCommandDidNotFini))
 	}
 	return output.bytes, nil
 }

@@ -1,9 +1,11 @@
 // Package wallpapers implements the original e9 wallpaper catalog contracts.
 package wallpapers
 
+
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 type Source struct {
@@ -42,7 +45,7 @@ type Result struct {
 }
 
 func Sources() []Source {
-	return []Source{{ID: "bing", Kind: "bing", Name: "必应"}, {ID: "wallhaven", Kind: "wallhaven", Name: "Wallhaven"}}
+	return []Source{{ID: "bing", Kind: "bing", Name: storelocale.T(storelocale.KeyStoreWallpapersBing)}, {ID: "wallhaven", Kind: "wallhaven", Name: "Wallhaven"}}
 }
 
 // Retain the original catalog's HTTPS/public-host, redirect, byte and timeout boundaries.
@@ -64,7 +67,7 @@ func blocked(host string) bool {
 func URL(raw string) (*url.URL, error) {
 	u, e := url.Parse(strings.TrimSpace(raw))
 	if e != nil || u.Scheme != "https" || u.User != nil || blocked(u.Hostname()) {
-		return nil, fmt.Errorf("壁纸地址必须是公开 HTTPS 地址")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressMustBeAPublicHttps))
 	}
 	return u, nil
 }
@@ -78,7 +81,7 @@ func allowed(ctx context.Context, u *url.URL) error {
 	}
 	for _, ip := range ips {
 		if blocked(ip.IP.String()) {
-			return fmt.Errorf("壁纸地址解析到不允许的内网地址")
+			return errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperAddressResolvesToADisallow))
 		}
 	}
 	return nil
@@ -99,7 +102,7 @@ func Fetch(ctx context.Context, raw string, image bool) ([]byte, error) {
 	}
 	client := &http.Client{Timeout: timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 4 {
-			return fmt.Errorf("壁纸重定向过多")
+			return errors.New(storelocale.T(storelocale.KeyStoreWallpapersTooManyWallpaperRedirects))
 		}
 		return allowed(req.Context(), req.URL)
 	}}
@@ -114,19 +117,19 @@ func Fetch(ctx context.Context, raw string, image bool) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("壁纸请求失败 (%d)", resp.StatusCode)
+		return nil, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreWallpapersWallpaperRequestFailedD), resp.StatusCode))
 	}
 	if image {
 		mime := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0]))
 		switch mime {
 		case "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif":
 		default:
-			return nil, fmt.Errorf("壁纸不是可用的图片")
+			return nil, errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperIsNotAUsableImage))
 		}
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err == nil && int64(len(data)) > limit {
-		err = fmt.Errorf("壁纸文件过大")
+		err = errors.New(storelocale.T(storelocale.KeyStoreWallpapersTheWallpaperFileIsTooLarge))
 	}
 	return data, err
 }
@@ -170,7 +173,7 @@ func List(ctx context.Context, q Query) Result {
 	case "catalog":
 		urls = []string{q.Source.URL}
 	default:
-		return Result{Warning: "请选择图库来源"}
+		return Result{Warning: storelocale.T(storelocale.KeyStoreWallpapersChooseAGallerySource)}
 	}
 	result := Result{}
 	seen := map[string]bool{}
@@ -207,7 +210,7 @@ func List(ctx context.Context, q Query) Result {
 					result.NextPage = body.Meta.Current + 1
 				}
 			} else if err == nil {
-				err = fmt.Errorf("不是壁纸目录")
+				err = errors.New(storelocale.T(storelocale.KeyStoreWallpapersNotAWallpaperDirectory))
 			}
 		}
 		if err != nil {

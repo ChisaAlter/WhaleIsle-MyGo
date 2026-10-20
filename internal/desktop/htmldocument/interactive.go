@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Done closes when the snapshot's lease expires or its owner is revoked.
@@ -104,7 +105,7 @@ func (g *resourceGraph) script(base, reference string) (string, error) {
 		case "text/javascript", "application/javascript", "text/ecmascript", "application/ecmascript":
 			return reference, nil
 		}
-		return "", errors.New("不支持的内嵌脚本类型")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentUnsupportedEmbeddedScriptType))
 	}
 	file, _, _, err := g.readKind(base, reference, "script")
 	if err != nil {

@@ -99,7 +99,7 @@ func (sizes *LayoutSizes) ToggleSidebar() {
 // sidebarColumns preserves the center's identity across collapse/expand. A
 // compact rail has no resize target, so dragging cannot overwrite saved width.
 func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
-	viewport, _ := c.Size()
+	viewport, _ := viewportDIP(c)
 	sizes.observeSidebarViewport(viewport)
 	if sizes.drawerMode() {
 		sidebarDrawer(c, sizes, sidebar, center, viewport)

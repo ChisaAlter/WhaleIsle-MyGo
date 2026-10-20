@@ -19,15 +19,15 @@ type Platform struct {
 }
 
 var Platforms = []Platform{
-	{"feishu", storelocale.T(storelocale.KeyStoreImonboardLark), "App ID", "App Secret", "", "使用飞书扫码创建应用；管理员授权仍在平台完成。", true},
-	{"weixin", "微信", "", "", "", "使用微信扫描二维码；如需风控验证，在微信官方页面完成后填写验证码。", true},
-	{"dingtalk", "钉钉", "Client ID", "Client Secret", "", "使用钉钉扫码或填写已有应用凭据。", true},
-	{"qq", "QQ", "App ID", "App Secret", "", "使用 QQ 扫码或填写开放平台应用凭据。", true},
-	{"wecom", "企业微信", "Bot ID", "Secret", "", "使用企业微信扫码或填写智能机器人凭据。", true},
-	{"telegram", "Telegram", "", "Bot Token", "", "先通过 Telegram BotFather 创建机器人，再填写 Token。", false},
-	{"discord", "Discord", "", "Bot Token", "", "先在 Discord Developer Portal 创建 Bot、开启需要的 Intent 并邀请到服务器。", false},
-	{"whatsapp", "WhatsApp", "", "", "", "在 WhatsApp 的关联设备中扫描二维码。", true},
-	{"slack", "Slack", "", "Bot Token", "App Token", "先在 Slack 创建并安装应用；App Token 需包含 connections:write，Bot Token 来自 OAuth & Permissions。", false},
+	{"feishu", storelocale.T(storelocale.KeyStoreImonboardLark), "App ID", "App Secret", "", storelocale.T(storelocale.KeyStoreImonboardScanWithFeishuToCreateTheAppAdministr), true},
+	{"weixin", storelocale.T(storelocale.KeyStoreImonboardWechat), "", "", "", storelocale.T(storelocale.KeyStoreImonboardScanTheQrCodeWithWechatIfRiskVerific), true},
+	{"dingtalk", storelocale.T(storelocale.KeyStoreImonboardDingtalk), "Client ID", "Client Secret", "", storelocale.T(storelocale.KeyStoreImonboardScanWithDingtalkOrEnterExistingAppCre), true},
+	{"qq", "QQ", "App ID", "App Secret", "", storelocale.T(storelocale.KeyStoreImonboardScanWithQqOrEnterOpenPlatformAppCred), true},
+	{"wecom", storelocale.T(storelocale.KeyStoreImonboardWecom), "Bot ID", "Secret", "", storelocale.T(storelocale.KeyStoreImonboardScanWithWecomOrEnterSmartBotCredentia), true},
+	{"telegram", "Telegram", "", "Bot Token", "", storelocale.T(storelocale.KeyStoreImonboardCreateTheBotThroughTelegramBotfatherFi), false},
+	{"discord", "Discord", "", "Bot Token", "", storelocale.T(storelocale.KeyStoreImonboardCreateABotInTheDiscordDeveloperPortal), false},
+	{"whatsapp", "WhatsApp", "", "", "", storelocale.T(storelocale.KeyStoreImonboardScanTheQrCodeFromLinkedDevicesInWhat), true},
+	{"slack", "Slack", "", "Bot Token", "App Token", storelocale.T(storelocale.KeyStoreImonboardCreateAndInstallTheAppInSlackFirstTh), false},
 }
 
 func PlatformByID(id string) Platform {
@@ -351,7 +351,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 	s.statusGeneration++
 	s.view.Busy = true
 	s.view.Error = ""
-	s.view.Notice = "正在等待 Host…"
+	s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardWaitingForTheHost)
 	if method == "bot.reconnect" {
 		s.view.TestNotice = ""
 	}
@@ -369,12 +369,12 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 		var raw json.RawMessage
 		if pairing && method != "provision.verify" && previous.AttemptID != "" {
 			if err := call("provision.cancel", map[string]any{"attemptId": previous.AttemptID}, &raw); err != nil {
-				s.finish(scope, "无法取消上次接入，请刷新后重试", nil)
+				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardCouldNotCancelThePreviousSetupRefresh), nil)
 				return
 			}
 		}
 		if err := call(method, payload, &raw); err != nil {
-			s.finish(scope, "Host 操作失败，请检查平台配置与连接后重试", nil)
+			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardHostOperationFailedCheckThePlatformCon), nil)
 			return
 		}
 		testNotice, testError := "", ""
@@ -402,7 +402,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			}
 			provision := decodeProvision(raw, base)
 			if provision.AttemptID == "" {
-				s.finish(scope, "Host 未返回有效接入任务", nil)
+				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardTheHostReturnedNoValidSetupTask), nil)
 				return
 			}
 			s.mu.Lock()
@@ -413,7 +413,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			}
 			s.view.Busy = false
 			s.view.Provision = provision
-			s.view.Notice = "等待平台授权；连接状态以 Host 返回为准"
+			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardWaitingForPlatformAuthorizationConnectio)
 			s.mu.Unlock()
 			s.fire()
 			s.poll(ctx, p, scope, ch, provision)
@@ -428,7 +428,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 		}
 		if method != "connection.status" {
 			if err := call("connection.status", map[string]any{}, &raw); err != nil {
-				s.finish(scope, "操作已提交，但状态刷新失败，请刷新确认", nil)
+				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardTheActionWasSubmittedButTheStatusRefr), nil)
 				return
 			}
 		}
@@ -484,12 +484,12 @@ func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
 	if message == "" {
 		bots, presets, ok := decodeConnectionStatus(raw)
 		if !ok {
-			s.view.Error = "Host 状态格式不可用"
+			s.view.Error = storelocale.T(storelocale.KeyStoreImonboardHostStatusFormatIsUnusable)
 		} else {
 			s.applyConnectionStatusLocked(bots, presets)
 			s.statusReady = true
 			s.view.StatusError = ""
-			s.view.Notice = "已刷新 Host 连接状态"
+			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardHostConnectionStatusRefreshed)
 		}
 	}
 	s.mu.Unlock()
@@ -606,7 +606,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 			}
 			if scope == s.view.Scope {
 				s.view.Provision = Provision{}
-				s.view.Notice = "平台授权已完成，正在读取连接状态"
+				s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardPlatformAuthorizationCompleteReadingConn)
 			}
 			s.mu.Unlock()
 			s.Refresh()
@@ -622,7 +622,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 				provision.QR = ""
 				provision.URL = ""
 				s.view.Provision = provision
-				s.view.Notice = "接入已停止：" + provision.Status
+				s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardSetupStopped) + provision.Status
 			}
 			s.mu.Unlock()
 			s.fire()
@@ -643,7 +643,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 			return
 		}
 		if err != nil {
-			s.finish(scope, "接入状态读取失败，请取消后重新扫码", nil)
+			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardCouldNotReadSetupStatusCancelAndScan), nil)
 			return
 		}
 		provision = decodeProvision(raw, provision)

@@ -33,7 +33,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-room-runtime")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupMemberRuntime)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "读取完整成员状态、错误与待处理事项。刷新只读，不启动讨论、跟随成员或自动回答。开始讨论仍使用群聊会话发送；整群停止使用现有确认入口。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadsCompleteMemberStatesErrorsAndPend)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
@@ -50,7 +50,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 			return
 		}
 		room := s.Data.Room
-		ui.Text(c, fmt.Sprintf("Host: %s\nRoom: %s (%s) · canonical session: %s\n目录 revision: %d · 运行状态为独立读取快照", m.HostLabel, room.Name, room.ID, room.SessionID, s.Data.Catalog.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantHostSNroomSSCanonicalSessionSNcatalo), m.HostLabel, room.Name, room.ID, room.SessionID, s.Data.Catalog.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		if len(s.Data.Members) == 0 {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoVisibleMemberRuntimeThisIsNotA)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
@@ -82,7 +82,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 				if member.OpenError != "" {
 					ui.Text(c, member.OpenError).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
 				}
-				ui.Text(c, "打开将切换到已核实的既有成员会话并观察其历史/交互；可能恢复该会话。不会创建新会话、发送提示词或自动批准/回答。后续处理由你在会话中明确操作。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningSwitchesToTheVerifiedExistingMe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if m.OnOpen != nil && ui.Button(c, roomRuntimeOpenLabel()).Disabled(blocked || !s.Loaded || member.OpenError != "" || member.SessionID == "").Clicked() {
 					m.OnOpen(member.SessionID)
 				}

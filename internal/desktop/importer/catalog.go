@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Catalog is the Electron scanImport-shaped inventory for the launcher import tab.
@@ -247,7 +248,7 @@ func scanSessions(src, dst string) []CatalogItem {
 			label = id
 		}
 		if group == "" {
-			group = "无工作区"
+			group = storelocale.T(storelocale.KeyStoreImporterNoWorkspace)
 		}
 		unsupported := sessionUnsupported(abs)
 		conflict := entryExists(filepath.Join(dstRoot, filepath.FromSlash(rel)), true)

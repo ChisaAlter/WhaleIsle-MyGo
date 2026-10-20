@@ -319,7 +319,7 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
 			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""
-			ui.Text(c, "先选择上方 Bot 或群聊；消息发送到该条目的专属会话。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantChooseABotOrGroupAboveFirstMessagesG)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy || m.PluginRPCBusy || !available
 		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Disabled(empty).Clicked() {

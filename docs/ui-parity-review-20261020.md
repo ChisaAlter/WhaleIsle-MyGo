@@ -4,7 +4,7 @@
 > 对照基准：运行中的 Electron 版鲸屿（3080）+ 其前端源码（alpha.1 可读源码 / rc.2 构建产物）
 > 分册：[01 外壳与导航](review-20261020/01-shell-nav.md) · [02 对话与消息](review-20261020/02-conversation.md) · [03 输入区](review-20261020/03-composer.md) · [04 功能界面](review-20261020/04-surfaces.md) · [05 视觉与特效](review-20261020/05-visual-system.md)
 
-> **修复进展（2026-10-20，Wave 1-3）**：本报告 103 条里，14 条去重 P0 已全部有实现（材质为部分 + DPI 待验收）。已落地：设计原语层、hero/settling、品牌锁与账号区、单行标题带、Markdown 块级排版、单行工具 disclosure、代码块双主题、设置行式与 Switch、文件横向 chip、Diff 行带/行号/hunk 折叠、用量仪表盘、终端标签、Git 提审对话框与 +N/-N、附件卡/图片/审批卡/提问卡/队列 dock/回合导航轨、圆角采样玻璃与弹层淡入、窄宽抽屉、指针/金属漆桥接。本地化：UI 包 + store/desktop（411 处）+ cmd（76 处）双语双写归零（仅 6 处单语中文夹标识符例外）。默认外观更正为跟随系统（原版 DEFAULT_PREFERENCE=system）。未关闭：150% DPI 下 hero/composer 宽轴仍被裁（真实窗口验收发现）、剩余应用语义 MessageBox、纯中文文案英文化、文件标签 "+" picker、实机深色/壁纸对照。执行记录见 [fix-plan](fix-plan-20261020.md)，截图见 `review-20261020/evidence/after/`。
+> **修复进展（2026-10-20，Wave 1-4）**：本报告 103 条里的 P0 已全部有实现，Wave 4 补上了最后两个系统性缺口：**真实 DPI**（runtime 把 host 设备像素归一成 DIP + `host.pixels()` 能力位；150% 下 1440/1280/960 px 实机截图里 hero 徽章与 composer 卡均完整）和**材质可读性**（玻璃对比度守卫：4 组合正文最低 7.85:1、次要 3.01:1；菜单/市场/设置 hairline 改 DrawOver）。本地化：UI 284 + store/desktop 375 个纯中文 key 英文化，双语双写保持 0，剩余 19 处均为 Excel 本地化日期解析表与品牌名。文件标签 "+" 的真实 picker 已接。已落地明细见 [fix-plan](fix-plan-20261020.md)，截图见 `review-20261020/evidence/after/`。未关闭：同步式生命周期 MessageBox（卸载/更新/任务保护）的异步化迁移、实机深色+壁纸同条件对照、100/125% DPI 与多显示器验收、消息级组件实机走查。
 
 ## 0. 一句话结论
 

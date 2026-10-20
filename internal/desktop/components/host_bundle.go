@@ -2,6 +2,7 @@ package components
 
 // 功能优先；全部功能完成前不运行测试、不做独立审查、不新增防御性扩展
 
+
 import (
 	"archive/tar"
 	"compress/gzip"
@@ -10,6 +11,7 @@ import (
 	"debug/macho"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +23,7 @@ import (
 	"whaleisle/internal/desktop/phoneremote"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/store/storelocale"
 )
 
 const HostComponentID = "whaleisle-host"
@@ -61,14 +64,14 @@ func HostBundleVersionsDir(userData string) string {
 // modifies the app bundle, or selects a runtime behind a running Host.
 func InstallHostBundle(ctx context.Context, userData, archive string) (HostBundle, error) {
 	if !HostBundleSupported() {
-		return HostBundle{}, fmt.Errorf("Host 离线包安装仅支持 macOS")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsHostOfflineBundleInstallationRequiresMa))
 	}
 	if !componentInstallMu.TryLock() {
-		return HostBundle{}, fmt.Errorf("组件安装或切换正在进行")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	if !strings.HasSuffix(strings.ToLower(archive), ".tar.gz") {
-		return HostBundle{}, fmt.Errorf("请选择 WhaleIsle-Host 的 .tar.gz 离线包")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsChooseTheWhaleisleHostTarGzOfflineBun))
 	}
 	sum, err := hostFileSHA256(archive)
 	if err != nil {
@@ -113,7 +116,7 @@ func InstallHostBundle(ctx context.Context, userData, archive string) (HostBundl
 // reuses the Host provenance/readiness gate before offering it for activation.
 func LoadHostBundle(userData, directory string) (HostBundle, error) {
 	if !HostBundleSupported() {
-		return HostBundle{}, fmt.Errorf("Host 离线包选择仅支持 macOS")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsHostOfflineBundleSelectionRequiresMacos))
 	}
 	versions, err := filepath.Abs(HostBundleVersionsDir(userData))
 	if err != nil {
@@ -121,10 +124,10 @@ func LoadHostBundle(userData, directory string) (HostBundle, error) {
 	}
 	target, err := filepath.Abs(directory)
 	if err != nil || filepath.Dir(target) != versions || strings.HasPrefix(filepath.Base(target), ".") {
-		return HostBundle{}, fmt.Errorf("请选择 Host 组件 versions 目录中的已安装版本")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsChooseAnInstalledVersionFromTheHostCo))
 	}
 	if info, err := os.Lstat(target); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return HostBundle{}, fmt.Errorf("Host 版本目录缺失或无效")
+		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostVersionDirectoryIsMissingOrInv))
 	}
 	manifest, err := readHostBundle(target)
 	if err != nil {
@@ -140,10 +143,10 @@ func LoadHostBundle(userData, directory string) (HostBundle, error) {
 // Host stop. The former version and all profile data stay in place.
 func (b HostBundle) Select(userData string) error {
 	if os.Getenv(paths.EnvVendor) != "" {
-		return fmt.Errorf("WHALEISLE_VENDOR 正在指定外部 Host；请先移除该覆盖后再选择组件版本")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhaleisleVendorPointsToAnExternalHost))
 	}
 	if !componentInstallMu.TryLock() {
-		return fmt.Errorf("组件安装或切换正在进行")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
 	current, err := readHostBundle(b.root)
@@ -151,7 +154,7 @@ func (b HostBundle) Select(userData string) error {
 		return err
 	}
 	if current != b.Manifest {
-		return fmt.Errorf("Host 版本已改变，请重新选择")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostVersionChangedChooseAgain))
 	}
 	selection := paths.HostRuntimeSelection{Version: b.Manifest.Version, Directory: b.Directory}
 	if old, err := paths.ReadHostRuntimeSelection(userData); err == nil {
@@ -201,7 +204,7 @@ func readHostBundle(root string) (HostBundleManifest, error) {
 		manifest.RuntimeDirectory != "runtime" || !hostBundleVersion.MatchString(manifest.Version) ||
 		(manifest.HostSourceCommit != harness.CurrentHostSourceCommit && manifest.HostSourceCommit != harness.CurrentHostE9SourceCommit) ||
 		manifest.HostReadinessGuard != harness.CurrentHostReadinessGuardID {
-		return manifest, fmt.Errorf("Host 离线包与当前原生应用、架构或 Host 契约不匹配")
+		return manifest, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostOfflineBundleDoesNotMatchTheC))
 	}
 	return manifest, nil
 }
@@ -214,7 +217,7 @@ func verifyHostBundle(root string, manifest HostBundleManifest) error {
 	}
 	host := harness.ReadCurrentHostCapabilities(vendor, harness.CurrentHostBridges{})
 	if !host.ArtifactsReady || !host.ReadinessGuardReady {
-		return fmt.Errorf("Host 离线包不完整：%s", host.Reason)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheHostOfflineBundleIsIncompleteS), host.Reason))
 	}
 	node := filepath.Join(runtimeDir, "node", "node")
 	cpu := macho.CpuArm64
@@ -224,12 +227,12 @@ func verifyHostBundle(root string, manifest HostBundleManifest) error {
 	if binary, err := macho.Open(node); err == nil {
 		defer binary.Close()
 		if binary.Cpu != cpu || binary.Type != macho.TypeExec {
-			return fmt.Errorf("Host Node 架构与当前 macOS 不匹配")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostNodeArchitectureDoesNotMatchTh))
 		}
 	} else {
 		binary, err := macho.OpenFat(node)
 		if err != nil {
-			return fmt.Errorf("Host 包缺少原生 macOS Node：%w", err)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheHostPackageIsMissingTheNativeMacos), err))
 		}
 		defer binary.Close()
 		matched := false
@@ -237,7 +240,7 @@ func verifyHostBundle(root string, manifest HostBundleManifest) error {
 			matched = matched || (arch.Cpu == cpu && arch.Type == macho.TypeExec)
 		}
 		if !matched {
-			return fmt.Errorf("Host Node 架构与当前 macOS 不匹配")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostNodeArchitectureDoesNotMatchTh))
 		}
 	}
 	var build struct {
@@ -257,14 +260,14 @@ func verifyHostBundle(root string, manifest HostBundleManifest) error {
 	}
 	if json.Unmarshal(data, &build) != nil || build.Platform != "darwin" || build.Arch != arch ||
 		build.Node == "" || build.Node != manifest.NodeVersion || build.ABI == "" || build.ABI != manifest.NodeABI {
-		return fmt.Errorf("Host 包的 Node 与移动运行时构建记录不匹配")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostPackageNodeDoesNotMatchThePor))
 	}
 	sum, err := hostFileSHA256(node)
 	if err != nil {
 		return err
 	}
 	if sum != build.NodeSHA256 {
-		return fmt.Errorf("Host Node 与打包时的原生模块运行时不匹配")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostNodeDoesNotMatchTheNativeModu))
 	}
 	mobile, err := phoneremote.ResolveResources(filepath.Join(root, ".bundle-check"), vendor)
 	if err != nil {
@@ -275,7 +278,7 @@ func verifyHostBundle(root string, manifest HostBundleManifest) error {
 		return err
 	}
 	if mobileSum != build.NodeSHA256 {
-		return fmt.Errorf("移动运行时 Node 与 Host 包构建记录不匹配")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsThePortableRuntimeNodeDoesNotMatchThe))
 	}
 	return nil
 }
@@ -326,7 +329,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 		}
 		name := filepath.Clean(filepath.FromSlash(header.Name))
 		if !filepath.IsLocal(name) || (name != "runtime" && name != hostBundleManifest && !strings.HasPrefix(name, "runtime"+string(filepath.Separator))) {
-			return fmt.Errorf("Host 包包含未知或越界路径：%s", header.Name)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheHostPackageContainsAnUnknownOrOut), header.Name))
 		}
 		target := name
 		switch header.Typeflag {
@@ -354,7 +357,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 			copy := *header
 			links = append(links, &copy)
 		default:
-			return fmt.Errorf("Host 包包含不支持的文件类型：%s", header.Name)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheHostPackageContainsAnUnsupportedFil), header.Name))
 		}
 	}
 	// Read through gzip's trailer so a truncated archive cannot be installed.
@@ -369,7 +372,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 			resolved = filepath.Join(filepath.Dir(name), link)
 		}
 		if filepath.IsAbs(link) || !filepath.IsLocal(resolved) {
-			return fmt.Errorf("Host 包链接超出运行时目录：%s", header.Name)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsAHostPackageLinkPointsOutsideTheRunti), header.Name))
 		}
 		target := name
 		if err := root.MkdirAll(filepath.Dir(target), 0755); err != nil {
@@ -386,7 +389,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 	}
 	for _, header := range links {
 		if _, err := root.Stat(filepath.FromSlash(header.Name)); err != nil {
-			return fmt.Errorf("Host 运行时链接不可用：%s: %w", header.Name, err)
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsTheHostRuntimeLinkIsUnavailableSW), header.Name, err))
 		}
 	}
 	return nil
@@ -394,7 +397,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 
 func hostBundleRow(userData string) Row {
 	row := Row{ID: HostComponentID, Name: "Host runtime", Kind: "runtime", Source: "local",
-		Description: "macOS 原生 Host 与配套 Node 离线运行时", State: "available"}
+		Description: storelocale.T(storelocale.KeyStoreComponentsNativeMacosHostWithTheMatchingNodeOff), State: "available"}
 	if entries, err := os.ReadDir(HostBundleVersionsDir(userData)); err == nil {
 		count := 0
 		for _, entry := range entries {
@@ -406,7 +409,7 @@ func hostBundleRow(userData string) Row {
 			}
 		}
 		if count > 0 {
-			row.Message = fmt.Sprintf("已安装 %d 个 Host 版本；选择版本后可启动。", count)
+			row.Message = fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsDHostVersionsInstalledChooseAVersionT), count)
 		}
 	}
 	selection, err := paths.ReadHostRuntimeSelection(userData)
@@ -420,7 +423,7 @@ func hostBundleRow(userData string) Row {
 		row.Message = err.Error()
 	}
 	if os.Getenv(paths.EnvVendor) != "" {
-		row.Message = "WHALEISLE_VENDOR 正在优先使用外部运行时；组件版本尚未生效。"
+		row.Message = storelocale.T(storelocale.KeyStoreComponentsWhaleisleVendorCurrentlyPrefersTheExter)
 	}
 	return row
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 	marketstore "whaleisle/internal/store/market"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestHistoryExportInvokesNativeAction(t *testing.T) {
@@ -15,7 +16,7 @@ func TestHistoryExportInvokesNativeAction(t *testing.T) {
 	store.SetTab("history")
 	calls := 0
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Store: store, OnExportHistory: func() { calls++ }}) }, 1200, 1800)
-	if err := tt.Click(marketText("导出安装历史", "Export installation history")); err != nil {
+	if err := tt.Click(marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 {

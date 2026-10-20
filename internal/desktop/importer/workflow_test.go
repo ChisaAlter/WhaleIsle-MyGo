@@ -6,9 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestImportWorkflowFixtures(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
@@ -73,7 +77,7 @@ func TestImportWorkflowFixtures(t *testing.T) {
 	}
 	sel.Overwrite = true
 	confirmation := Confirmation(cat, sel)
-	for _, warning := range []string{source, dest, "只替换所选同名项", "引用凭据不迁移", "未选节"} {
+	for _, warning := range []string{source, dest, "replace only selected same-name items", "Referenced credentials are not migrated", "Unselected sections"} {
 		if !strings.Contains(confirmation, warning) {
 			t.Fatalf("missing disclosure %q", warning)
 		}

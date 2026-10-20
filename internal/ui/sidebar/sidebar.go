@@ -15,8 +15,22 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// viewport is the window's client area in DIPs: the frame's measurement when the
+// sidebar is painted inside it, Context.Size otherwise (tests, previews).
+func (m Model) viewport(c *ui.Context) (width, height float32) {
+	if m.ViewportW > 0 && m.ViewportH > 0 {
+		return m.ViewportW, m.ViewportH
+	}
+	return c.Size()
+}
+
 // Model is sidebar state for one frame.
 type Model struct {
+	// ViewportW/H are the window's client area in DIPs. Context.Size reports
+	// device pixels on a scaled display, so the hover cards take their bounds
+	// from here and fall back to Context.Size only when the frame did not say.
+	ViewportW                    float32
+	ViewportH                    float32
 	ConnectionReady              bool
 	ConnectionError              string
 	DesktopUpdateInstalling      bool
@@ -437,9 +451,9 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		})
 	})
 	if len(tasks) == 0 {
-		sessionHoverCard(c, row, it, label, status, colors)
+		sessionHoverCard(c, m, row, it, label, status, colors)
 	} else {
-		sessionScheduleHover(c, row, it, status, tasks, m.Schedules.ConnectionEpoch, colors)
+		sessionScheduleHover(c, m, row, it, status, tasks, m.Schedules.ConnectionEpoch, colors)
 	}
 	if !renaming {
 		sessionDragSource(row, m, it)

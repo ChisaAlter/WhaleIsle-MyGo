@@ -75,7 +75,7 @@ func TestStateColorDistinguishesStates(t *testing.T) {
 		}
 		seen[c] = state
 	}
-	if got := StateColor(theme, StateIdle).Over(theme.Background); contrastRatio(got, theme.Background) < 1.4 {
-		t.Errorf("the idle dot disappears into the background: %.2f", contrastRatio(got, theme.Background))
+	if got := StateColor(theme, StateIdle).Over(theme.Background); ContrastRatio(got, theme.Background) < 1.4 {
+		t.Errorf("the idle dot disappears into the background: %.2f", ContrastRatio(got, theme.Background))
 	}
 }

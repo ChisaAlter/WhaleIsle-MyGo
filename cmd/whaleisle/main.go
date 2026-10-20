@@ -7061,6 +7061,13 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnOpenDeliverable:      func(path string) { openDelivered(path, nil) },
+						OnOpenFilePicker: func() {
+							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdOpenFile)})
+							if err != nil || len(paths) == 0 || strings.TrimSpace(paths[0]) == "" {
+								return
+							}
+							openDelivered(paths[0], nil)
+						},
 						OnOpenHistoryReference: openDelivered,
 						FileOpenWithApps:       fileOpenWithApps,
 						OnOpenMedia: func(path string, floating bool) {

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"whaleisle/internal/store/storelocale"
 )
 
 func TestListUserDataWhalebridgeCatalog(t *testing.T) {
@@ -27,7 +28,7 @@ func TestListUserDataWhalebridgeCatalog(t *testing.T) {
 	if len(rows) != 1 {
 		t.Fatalf("rows=%d want 1", len(rows))
 	}
-	if rows[0].Name != "鲸桥" || rows[0].State != "available" || rows[0].Version != "1.1.0" {
+	if rows[0].Name != storelocale.T(storelocale.KeyStoreComponentsWhalebridge) || rows[0].State != "available" || rows[0].Version != "1.1.0" {
 		t.Fatalf("row=%+v", rows[0])
 	}
 }

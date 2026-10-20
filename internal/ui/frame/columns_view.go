@@ -30,7 +30,7 @@ func workspaceHeaderBand(c *ui.Context, header func()) {
 }
 
 func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
-	viewport, _ := c.Size()
+	viewport, _ := viewportDIP(c)
 	details := float32(0)
 	if m.FilePaneWidth != nil {
 		details = *m.FilePaneWidth
@@ -122,7 +122,7 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
 // itself is being dragged, so an existing input selection survives toggles.
 func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	col := ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
-	_, viewportHeight := c.Size()
+	_, viewportHeight := viewportDIP(c)
 	previousViewportHeight := ui.Local(col, "terminal-viewport-height", func() float32 { return 0 })
 	// Bounds belongs to the previous layout. The shell's resolved allocation
 	// already reflects a resized viewport and its shared caption; an old small

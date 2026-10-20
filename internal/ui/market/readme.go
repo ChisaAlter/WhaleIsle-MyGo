@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -21,7 +22,7 @@ func marketReadme(c *ui.Context, m Model, source string, fg, muted, codeBG, acce
 		// appends MarketSection CSS later. Its equally specific .readme h3
 		// fixes every descendant h3 at14/22 while preserving Markdown's weight
 		// and margins. Other Markdown typography follows the content preference.
-		ui.Text(c, marketText("仓库 README", "Repository README")).FontSize(14).FixedLineHeight(22).Bold().TextColor(fg)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketRepositoryReadme), "Repository README")).FontSize(14).FixedLineHeight(22).Bold().TextColor(fg)
 		markdown.View(c, source, markdown.Style{
 			FontSize: theme.CurrentPreferences().Chat.Size,
 			FG:       fg, Muted: muted, CodeBG: codeBG, Accent: accent,

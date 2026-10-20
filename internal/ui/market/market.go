@@ -99,12 +99,12 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
 				if d.Tab == "history" {
-					if m.OnExportHistory != nil && ui.Button(c, marketText("导出安装历史", "Export installation history")).Disabled(len(personal.History) == 0).Clicked() {
+					if m.OnExportHistory != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")).Disabled(len(personal.History) == 0).Clicked() {
 						m.OnExportHistory()
 					}
-					ui.Text(c, marketText("最近 200 次操作；interrupted 或 unknown 表示结果未确认，重试前请刷新库存。", "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
+					ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheLast200OperationsInterruptedOrUnkno), "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
 					if len(personal.History) == 0 {
-						ui.Text(c, marketText("暂无安装历史。", "No installation history yet.")).TextColor(muted)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoInstallHistoryYet), "No installation history yet.")).TextColor(muted)
 					}
 					managementFilters(c, m)
 					for _, h := range personal.History {
@@ -126,7 +126,7 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
 					}
 					if !snap.ClientReady {
-						ui.Text(c, marketText("运行时未连接；目录仍可浏览。", "Runtime disconnected; the catalog remains available.")).TextColor(muted)
+						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheRuntimeIsNotConnectedTheCatalogIs), "Runtime disconnected; the catalog remains available.")).TextColor(muted)
 					}
 					managementFilters(c, m)
 					updatesView(c, m, snap, fg, muted, accent)
@@ -140,21 +140,21 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, m.InstallMessage).TextColor(accent)
 				}
 				if m.Activation.Pending {
-					text := marketText("插件变更已保存，等待重启生效。", "Plugin changes are saved and await a runtime restart.")
+					text := marketText(i18n.T(i18n.KeyW4MarketPluginChangesAreSavedAndTakeEffectAft), "Plugin changes are saved and await a runtime restart.")
 					if m.Activation.Failed {
-						text = marketText("重启未成功，变更仍待生效；无需再次安装。", "Restart failed. Saved changes still await activation; do not install again.")
+						text = marketText(i18n.T(i18n.KeyW4MarketTheRestartDidNotSucceedAndChangesStil), "Restart failed. Saved changes still await activation; do not install again.")
 					}
 					if m.Activation.Restarting {
-						text = marketText("正在重启运行时，等待新的 Host 就绪…", "Restarting; waiting for the new Host to become ready…")
+						text = marketText(i18n.T(i18n.KeyW4MarketRestartingTheRuntimeAndWaitingForTheN), "Restarting; waiting for the new Host to become ready…")
 					}
 					ui.Text(c, text).TextColor(accent)
 					if m.CanRestart && !m.InstallBusy && !m.Activation.Restarting && m.OnRestart != nil {
-						if ui.Button(c, marketText("重启运行时并应用", "Restart runtime and apply")).Clicked() {
+						if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketRestartRuntimeAndApply), "Restart runtime and apply")).Clicked() {
 							m.OnRestart()
 						}
 					}
 				} else if m.Activation.Refreshed {
-					ui.Text(c, marketText("新的运行时已就绪，请在插件列表中查看加载状态。", "The new runtime is ready. Check the plugin list for loading status.")).TextColor(muted)
+					ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheNewRuntimeIsReadyCheckTheLoadStat), "The new runtime is ready. Check the plugin list for loading status.")).TextColor(muted)
 				}
 				if m.InstallBusy {
 					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
@@ -204,7 +204,7 @@ func marketText(zh, en string) string {
 }
 
 func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
-	ui.Text(c, marketText("目录来源：", "Catalog source: ")+d.Catalog.Source+" · "+marketText("更新日期：", "updated: ")+d.Catalog.Updated).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCatalogSource), "Catalog source: ")+d.Catalog.Source+" · "+marketText(i18n.T(i18n.KeyW4MarketUpdated), "updated: ")+d.Catalog.Updated).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	if !d.Catalog.FetchedAt.IsZero() {
 		ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
@@ -218,12 +218,12 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
 	}
 	query := d.Query
-	ui.TextInput(c, &query).FillWidth().Placeholder(marketText("搜索名称、包名或描述", "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
+	ui.TextInput(c, &query).FillWidth().Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
 	catalogCategories(c, m, d, fg, muted, field)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, marketText("排序", "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSort), "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		sortIDs := []string{"catalog", "stars", "newest"}
-		sortLabels := []string{marketText("目录顺序", "Catalog order"), marketText("星标最多", "Most stars"), marketText("最新上架", "Newest")}
+		sortLabels := []string{marketText(i18n.T(i18n.KeyW4MarketCatalogOrder), "Catalog order"), marketText(i18n.T(i18n.KeyW4MarketMostStars), "Most stars"), marketText(i18n.T(i18n.KeyW4MarketNewest), "Newest")}
 		sortLabel := sortLabels[0]
 		for n, id := range sortIDs {
 			if id == d.Sort {
@@ -238,9 +238,9 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				}
 			}
 		})
-		ui.Text(c, marketText("上架时间", "Listed")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPublished), "Listed")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		periodIDs := []string{"all", "7", "30"}
-		periodLabels := []string{marketText("全部时间", "All time"), marketText("最近 7 天", "Last 7 days"), marketText("最近 30 天", "Last 30 days")}
+		periodLabels := []string{marketText(i18n.T(i18n.KeyW4MarketAnyTime), "All time"), marketText(i18n.T(i18n.KeyW4MarketLast7Days), "Last 7 days"), marketText(i18n.T(i18n.KeyW4MarketLast30Days), "Last 30 days")}
 		periodLabel := periodLabels[0]
 		for n, id := range periodIDs {
 			if id == d.Period {
@@ -256,28 +256,28 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			}
 		})
 	})
-	ui.Text(c, fmt.Sprintf(marketText("%d 项插件", "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		if d.Page > 0 && ui.Button(c, marketText("上一页", "Previous")).Clicked() {
+		if d.Page > 0 && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketPreviousPage), "Previous")).Clicked() {
 			m.Store.SetPage(d.Page - 1)
 		}
-		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText("下一页", "Next")).Clicked() {
+		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketNextPage), "Next")).Clicked() {
 			m.Store.SetPage(d.Page + 1)
 		}
 	})
 }
 func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item desktopmarket.CatalogItem, inventory marketstore.ViewState, fg, muted ui.Color) {
 	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
-		ui.Text(c, marketText("已安装：", "Installed: ")+name).TextColor(fg)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed: ")+name).TextColor(fg)
 		return
 	}
 	if !desktopmarket.ValidInstallItem(item) {
-		ui.Text(c, marketText("无受支持的安装目标。", "No supported install target.")).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoSupportedInstallTarget), "No supported install target.")).TextColor(muted)
 		return
 	}
 	if !d.RuntimeReady {
-		ui.Text(c, marketText("请连接运行时后安装。", "Connect the runtime to install.")).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketConnectTheRuntimeBeforeInstalling), "Connect the runtime to install.")).TextColor(muted)
 		return
 	}
 	if !m.InstallBusy && !d.Loading && m.OnInstallCatalog != nil && ui.Button(c, i18n.T(i18n.KeyMarketInstallButton)).Clicked() {
@@ -340,9 +340,9 @@ func rpcLabel(hasRPC bool, count int) string {
 }
 
 func favoriteButton(c *ui.Context, m Model, id string) {
-	label := marketText("收藏", "Favorite")
+	label := marketText(i18n.T(i18n.KeyW4MarketSave), "Favorite")
 	if m.Store.Personal().Favorites[id] {
-		label = marketText("取消收藏", "Unfavorite")
+		label = marketText(i18n.T(i18n.KeyW4MarketRemoveFromSaved), "Unfavorite")
 	}
 	if ui.Button(c, label).Clicked() {
 		_ = m.Store.ToggleFavorite(id)
@@ -353,22 +353,22 @@ func favoriteButton(c *ui.Context, m Model, id string) {
 // cancellation, runtime guards, and installation history with normal installs.
 func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, muted, accent ui.Color) {
 	u := m.Store.Updates()
-	ui.Text(c, marketText("插件版本更新", "Plugin version updates")).Bold().TextColor(fg)
+	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPluginVersionUpdates), "Plugin version updates")).Bold().TextColor(fg)
 	if !m.InstallBusy && !inventory.Loading && inventory.Err == "" && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
-		if ui.Button(c, marketText("检查插件更新", "Check plugin updates")).Clicked() {
+		if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketCheckPluginUpdates), "Check plugin updates")).Clicked() {
 			m.Store.CheckUpdates()
 		}
 	}
 	if u.Loading {
-		ui.Text(c, marketText("正在检查版本元数据…", "Checking version metadata…")).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCheckingVersionMetadata), "Checking version metadata…")).TextColor(muted)
 	}
 	if u.Err != "" {
 		ui.Text(c, u.Err).TextColor(accent)
 	}
 	if !u.CheckedAt.IsZero() {
-		ui.Text(c, marketText("检查时间：", "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCheckedAt), "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
-	ui.Text(c, marketText("仅比较已确认的 npm 稳定版本；Git、本地来源及不可比较版本显示未知。检查不会自动安装。", "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketOnlyConfirmedNpmStableVersionsAreCompa), "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	batchSelectionView(c, m, u, muted)
 	for _, row := range u.Rows {
 		if m.Store.ManagementFilter() == "updates" && !row.Available {
@@ -381,17 +381,17 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 			current, latest := r.Current, r.Latest
 			if current == "" {
-				current = marketText("未知", "unknown")
+				current = marketText(i18n.T(i18n.KeyW4MarketUnknown), "unknown")
 			}
 			if latest == "" {
-				latest = marketText("未知", "unknown")
+				latest = marketText(i18n.T(i18n.KeyW4MarketUnknown), "unknown")
 			}
-			status := marketText("未知", "unknown")
+			status := marketText(i18n.T(i18n.KeyW4MarketUnknown), "unknown")
 			if r.Known {
-				status = marketText("没有较新版本", "No newer version")
+				status = marketText(i18n.T(i18n.KeyW4MarketNoNewerVersion), "No newer version")
 			}
 			if r.Available {
-				status = marketText("可更新", "Update available")
+				status = marketText(i18n.T(i18n.KeyW4MarketUpdateAvailable), "Update available")
 			}
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				ui.Text(c, r.Name+" · "+current+" → "+latest+" · "+status).TextColor(fg)
@@ -400,15 +400,15 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 				}
 			})
 			if r.Available && !m.InstallBusy && !u.Loading && u.Err == "" && m.OnInstallCatalog != nil {
-				label := marketText("选择", "Select")
+				label := marketText(i18n.T(i18n.KeyW4MarketSelect), "Select")
 				if m.Store.UpdateSelected(r.ID) {
-					label = marketText("取消选择", "Deselect")
+					label = marketText(i18n.T(i18n.KeyW4MarketClearSelection), "Deselect")
 				}
 				if ui.Button(c, label).Clicked() {
 					m.Store.ToggleUpdateSelected(r.ID)
 				}
 				if target, err := m.Store.CaptureUpdateTarget(r.ID); err == nil {
-					if ui.Button(c, marketText("更新至 ", "Update to ")+r.Latest).Clicked() {
+					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketUpdateTo), "Update to ")+r.Latest).Clicked() {
 						m.OnInstallCatalog(target)
 					}
 				}

@@ -56,6 +56,6 @@ func (p *Companion) fileDropAction(raw string) bool {
 	}
 	p.careAction = newCareAnimation("file", name, 0)
 	_ = p.rest.wake(nil)
-	p.feedMessage = "吃掉了「" + name + storelocale.T(storelocale.KeyDesktopPetFed2)
+	p.feedMessage = storelocale.T(storelocale.KeyStorePetAte) + name + storelocale.T(storelocale.KeyDesktopPetFed2)
 	return true
 }

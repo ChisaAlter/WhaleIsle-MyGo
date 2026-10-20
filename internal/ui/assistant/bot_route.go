@@ -47,7 +47,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 	editable := !blocked && s.Loaded && s.Writable && s.Status.WriteError == "" && !s.Uncertain && s.Review == nil
 	ui.Column(c.Key("bot-route-editor")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelAndWorkspace)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "选择当前 Host 的模型、推理强度和真实目录。完整资料无法无损保留时，请使用现有 Bot Web 编辑入口。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantChooseAModelReasoningEffortAndRealDir)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshModelAndWorkspace)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -187,11 +187,11 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantConfirmModelAndWorkspace)).Bold().TextColor(fg)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantRouteReviewDetail), m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botRouteModelText(old.Model), botRouteModelText(cmd.Values.Model), botRouteWorkspaceText(old.WorkspaceID, cmd.Expected.Options), botRouteWorkspaceText(cmd.Values.WorkspaceID, cmd.Expected.Options), botRouteModelText(cmd.Expected.Options.Default))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			if old.WorkspaceID != cmd.Values.WorkspaceID {
-				ui.Text(c, "重要：工作区改变会由 Host 创建新的 canonical sessionId 和新会话。旧会话不迁移、不删除；旧会话展示清理可能失败并留下警告。新 ID 只在真实回执后核实；不预造或冒认。blank=true 只是前置保护，Host 的历史检查仍权威，目录 revision CAS 不原子锁定消息历史。").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantImportantChangingTheWorkspaceMakesTheH)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(accent)
 			}
-			ui.Text(c, "模型/推理强度可能改变后续模型调用、能力及费用；空模型配置沿用 Host 默认值，后续默认值变化仍会影响此 Bot。保存不会取消在途模型或工具，也不撤销已发生的操作。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "bot/update 会校验模型、写审计、更新会话展示并尝试重命名，还会 requestSync：live idle 会话现在或下次 idle 可能创建目标、重建已暂停目标或修改 active 目标，调用模型、执行工具、发送外部消息并产生费用。冷会话不会在此保存路径解析，之后变为 live/idle 时可能同步；同步失败可能仅记 Host 日志。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "仅替换 model 与 workspaceId，完整其他资料原样保留；无注册目录时额外携带审阅的 Host scratchCwd。完整回执不证明目标同步或任务完成。此页不主动 prompt/start/resume/open；保存后可刷新并从现有入口打开。关闭界面不撤回已发送请求。未知结果先读回，不自动重试。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheModelAndReasoningEffortCanChangeLa)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantBotUpdateValidatesTheModelWritesAudit)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyModelAndWorkspaceidAreReplacedAnd)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
 			if ui.Checkbox(c, &ack, botRouteAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)

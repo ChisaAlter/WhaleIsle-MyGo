@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/theme"
 )
 
 // Material names one layer of the shell's glass. Each layer keeps the
@@ -178,14 +179,25 @@ func SurfaceFill(rect ui.Rect, base ui.Color, alpha float32) ui.Color {
 	return base.Alpha(alpha).Over(backdrop)
 }
 
-// BackdropFill returns the flat fill of material m over the wallpaper under
-// rect. It is the color form of Glass, for elements that only take a
-// Background color: a menu row, a chip, a small pane.
+// BackdropFill returns the flat color material m produces over the wallpaper
+// under rect: the same share and contrast guard DrawGlass paints, without the
+// frost. It is the color form of Glass, for elements that only take a Background
+// color: a menu row, a chip, a small pane.
 func BackdropFill(rect ui.Rect, base ui.Color, m Material, p wallpapers.Preferences, dark bool) ui.Color {
 	if !backgroundState.active {
 		return base
 	}
-	return SurfaceFill(rect, base, MaterialAlpha(m, effectivePrefs(p), dark))
+	p = effectivePrefs(p)
+	alpha := MaterialAlpha(m, p, dark)
+	backdrop, ok := SampleBackdrop(rect)
+	if !ok {
+		return MaterialFill(base, alpha)
+	}
+	alpha = MaterialAlphaFor(backdrop, base, m, p, dark, Color(theme.SecondaryInk(dark)))
+	if alpha <= 0 {
+		return ui.Transparent
+	}
+	return MaterialFill(base, alpha).Over(backdrop)
 }
 
 // Glass returns a Draw callback that paints material m over base on the
@@ -200,7 +212,8 @@ func BackdropFill(rect ui.Rect, base ui.Color, m Material, p wallpapers.Preferen
 //
 // The callback paints after the element's own background, so leave the element
 // without one; its own Radius clips what it draws. Without a wallpaper or an
-// ambient gradient it fills base opaquely, like the Background it replaces.
+// ambient gradient it paints base at the material's own share, which over the
+// theme's background looks like the solid surface the Background gave it.
 func Glass(base ui.Color, m Material, radius ...float32) func(*ui.Painter, ui.Rect) {
 	round := firstRadius(radius)
 	return func(p *ui.Painter, r ui.Rect) { DrawGlass(p, r, base, m, round) }
@@ -211,38 +224,46 @@ func Glass(base ui.Color, m Material, radius ...float32) func(*ui.Painter, ui.Re
 // radius so the corners do not square off or spill over the element's clip. A
 // layer that neither frosts nor tints draws nothing and lets the wallpaper
 // show, which is what a transparent theme asks for.
+//
+// Over a wallpaper the material checks its own contrast first (MaterialAlphaFor):
+// where the token's share would leave secondary text under 3:1 on the surface it
+// produces, the surface frosts more solid instead.
 func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...float32) {
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
 	round := firstRadius(radius)
-	if !backgroundState.active {
-		p.Fill(r, base, round)
-		return
-	}
 	// The transparent theme drops every chrome fill, so the image shows
 	// through unmasked; the terminal and menus keep their own fills.
 	prefs := effectivePrefs(backgroundState.prefs)
 	if prefs.Transparent && chromeSurface(m) {
 		return
 	}
-	frost := frostOf(m)
-	alpha := MaterialAlpha(m, prefs, p.Theme().Dark)
-	// Surface tokens may already carry the glass opacity (input-major is an
-	// 80% rgba). Multiplying the material alpha on top would double-fade them,
-	// so a translucent base keeps its own alpha.
-	if base.A > 0 && base.A < 255 && alpha > 0 {
-		alpha = float32(base.A) / 255
+	if !backgroundState.active {
+		// No backdrop to share: the surface keeps the theme's own fill, as the
+		// Background it replaces did.
+		p.Fill(r, base, round)
+		return
 	}
+	dark := p.Theme().Dark
+	// A surface token may carry the glass opacity in its own alpha
+	// (--dsw-specific-input-major is an 80% rgba in the sheets); the material
+	// decides that share here, so the slider drives it once instead of twice.
+	alpha := MaterialAlpha(m, prefs, dark)
+	if backdrop, ok := SampleBackdrop(r); ok {
+		alpha = MaterialAlphaFor(backdrop, base, m, prefs, dark, Color(theme.SecondaryInk(dark)))
+	}
+	if alpha <= 0 {
+		return
+	}
+	frost := frostOf(m)
 	if frost.cell > 0 {
 		if patch, ok := glassPatch(r, frost); ok {
 			// Stretched, not covered: the cells stand for exactly this rect.
 			p.Clip(r, round, func() { p.Image(patch, r, ui.FillBox) })
 		}
 	}
-	if alpha > 0 {
-		p.Fill(r, base.Alpha(alpha), round)
-	}
+	p.Fill(r, MaterialFill(base, alpha), round)
 }
 
 // firstRadius returns the optional radius of a glass call, 0 when square.
@@ -277,8 +298,19 @@ func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui
 // keeps its own fill instead of following the glass slider, the hairline border
 // and the elevation shadow. The caller keeps its width, padding and radius
 // (passed here so the glass follows the rounded corners).
+//
+// The hairline is painted after the glass: a Draw callback runs after the
+// element's border, so a bordered glass panel would lose its edge under an
+// opaque fill.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
-	return MenuElevation(GlassSurface(e, base, MaterialMenu, radius...).Border(0.5, border))
+	round := firstRadius(radius)
+	e = GlassSurface(e, base, MaterialMenu, round).Border(0.5, border)
+	return MenuElevation(e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if border.A == 0 || r.W <= 0 || r.H <= 0 {
+			return
+		}
+		p.Stroke(r, border, round, 0.5)
+	}))
 }
 
 // MenuShadow paints the elevation of a menu or floating card on rect: two soft

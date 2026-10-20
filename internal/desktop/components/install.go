@@ -1,8 +1,10 @@
 package components
 
+
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/update"
+	"whaleisle/internal/store/storelocale"
 )
 
 const bridgeAsset = "WhaleBridge-win32-x64.exe"
@@ -64,7 +67,7 @@ type bridgeRelease struct {
 // edits credentials, or replaces an existing version. Starting remains explicit.
 func InstallWhaleBridge(ctx context.Context, userData, route string) error {
 	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
-		return fmt.Errorf("鲸桥首版仅支持 Windows x64")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheFirstWhalebridgeReleaseSupportsWindo))
 	}
 	endpoint, err := bridgeReleaseEndpoint(route)
 	if err != nil {
@@ -80,14 +83,14 @@ func bridgeReleaseEndpoint(route string) (string, error) {
 	case "cnb", "gitee":
 		endpoint = "https://cnb.cool/ayasealter/WhaleIsle/-/releases?page_size=100"
 	default:
-		return "", fmt.Errorf("未知组件下载线路")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsUnknownComponentDownloadChannel))
 	}
 	return endpoint, nil
 }
 
 func installBridge(ctx context.Context, userData, endpoint string, client *http.Client, fixture bool) error {
 	if !componentInstallMu.TryLock() {
-		return fmt.Errorf("组件安装正在进行")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallIsAlreadyRunning))
 	}
 	defer componentInstallMu.Unlock()
 	root := filepath.Join(userData, "components", "whalebridge")
@@ -95,7 +98,7 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 	// Existing installs must go through the separately protected lifecycle workflow.
 	for _, name := range []string{"installed.json", filepath.Join("data", "state.json")} {
 		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
-			return fmt.Errorf("鲸桥已有安装或运行记录，首次安装不能覆盖")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeAlreadyHasInstallOrRunRecor))
 		}
 	}
 	entries, err := os.ReadDir(filepath.Join(root, "versions"))
@@ -104,7 +107,7 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 	}
 	for _, e := range entries {
 		if !strings.HasPrefix(e.Name(), ".") {
-			return fmt.Errorf("鲸桥已有版本，首次安装不能覆盖")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeAlreadyHasAVersionAFirstIn))
 		}
 	}
 	m, binaryAsset, err := resolveBridgeRelease(ctx, endpoint, client, fixture)
@@ -153,7 +156,7 @@ func resolveBridgeRelease(ctx context.Context, endpoint string, client *http.Cli
 			}
 		}
 		if selected == nil {
-			return m, binaryAsset, fmt.Errorf("鲸桥组件尚未发布到当前线路")
+			return m, binaryAsset, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeComponentIsNotPublishedO))
 		}
 		var manifestAsset bridgeReleaseAsset
 		for _, a := range selected.Assets {
@@ -165,14 +168,14 @@ func resolveBridgeRelease(ctx context.Context, endpoint string, client *http.Cli
 			}
 		}
 		if manifestAsset.address() == "" || binaryAsset.address() == "" {
-			return m, binaryAsset, fmt.Errorf("鲸桥发布缺少组件文件")
+			return m, binaryAsset, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReleaseIsMissingComponent))
 		}
 		if err := bridgeJSON(ctx, client, manifestAsset.address(), &m, fixture); err != nil {
 			return m, binaryAsset, err
 		}
 		spec := m.Platforms["win32-x64"]
 		if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || selected.Tag != "whalebridge-v"+m.Version || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || binaryAsset.Size != spec.Size || !strings.Contains(m.License, "MIT License") {
-			return m, binaryAsset, fmt.Errorf("鲸桥发布清单或资产不一致")
+			return m, binaryAsset, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReleaseManifestAndAssets))
 		}
 	}
 	return m, binaryAsset, nil
@@ -190,7 +193,7 @@ func stageBridgeRelease(ctx context.Context, root string, m bridgeReleaseManifes
 			return "", err
 		}
 		if got.Platforms["win32-x64"] != spec {
-			return "", fmt.Errorf("目标版本已存在且清单不一致，拒绝覆盖")
+			return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsTheTargetVersionExistsWithADifferentM))
 		}
 		return target, nil
 	} else if !os.IsNotExist(err) {
@@ -223,7 +226,7 @@ func stageBridgeRelease(ctx context.Context, root string, m bridgeReleaseManifes
 		return "", err
 	}
 	if _, err := os.Lstat(target); !os.IsNotExist(err) {
-		return "", fmt.Errorf("目标版本已存在，拒绝覆盖")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreComponentsTheTargetVersionAlreadyExistsOverwrite))
 	}
 	if err := os.Rename(staging, target); err != nil {
 		return "", err
@@ -250,7 +253,7 @@ func bridgeWriteNewRecord(root string, b []byte) error {
 		return err
 	}
 	if _, err := os.Lstat(filepath.Join(root, "installed.json")); !os.IsNotExist(err) {
-		return fmt.Errorf("安装记录已存在，拒绝覆盖")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAnInstallRecordAlreadyExistsOverwriteR))
 	}
 	return os.Rename(name, filepath.Join(root, "installed.json"))
 }
@@ -263,13 +266,13 @@ func bridgeURL(raw string, fixture bool) error {
 		return nil
 	}
 	if u.Scheme != "https" || u.User != nil {
-		return fmt.Errorf("组件地址必须使用官方 HTTPS 发布源")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheComponentAddressMustUseAnOfficialH))
 	}
 	switch u.Hostname() {
 	case "api.github.com", "github.com", "cnb.cool":
 		return nil
 	}
-	return fmt.Errorf("组件发布地址不是受支持的官方源")
+	return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheComponentReleaseAddressIsNotASuppo))
 }
 func bridgeJSON(ctx context.Context, client *http.Client, raw string, out any, fixture bool) error {
 	if err := bridgeURL(raw, fixture); err != nil {
@@ -289,7 +292,7 @@ func bridgeJSON(ctx context.Context, client *http.Client, raw string, out any, f
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("组件元数据 HTTP %d", resp.StatusCode)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsComponentMetadataHttpD), resp.StatusCode))
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(out)
 }
@@ -297,7 +300,7 @@ func bridgeJSON(ctx context.Context, client *http.Client, raw string, out any, f
 func validateBridgeManifest(m bridgeReleaseManifest) error {
 	spec := m.Platforms["win32-x64"]
 	if m.ID != "whalebridge" || !bridgeVersion.MatchString(m.Version) || spec.Asset != bridgeAsset || !bridgeHash.MatchString(spec.SHA256) || spec.Size <= 0 || spec.Size > 200<<20 || !strings.Contains(m.License, "MIT License") {
-		return fmt.Errorf("鲸桥发布清单无效")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeReleaseManifestIsInvalid))
 	}
 	return nil
 }

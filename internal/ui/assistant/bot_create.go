@@ -69,7 +69,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		}
 		if s.Created.ID != "" {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantCreatedDetail), s.Created.Name, s.Created.ID, s.Created.SessionID)).TextColor(fg).Selectable()
-			ui.Text(c, "打开仅核实或恢复这个 Bot 的专属会话。打开失败会保留创建结果，不重新创建。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningOnlyVerifiesOrResumesThisBotS)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedBot)).Disabled(blocked).Clicked() {
 				m.OnOpen()
 			}
@@ -111,13 +111,13 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 			}
 		}
 		if s.Uncertain {
-			ui.Text(c, "创建结果未知：保留并锁定草稿与身份，只读核对，不自动重试。没有记录也不能重建。关闭或隐藏界面不取消已发送创建；保护仅保留在当前应用进程。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheCreationOutcomeIsUnknownTheDraftAn)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			if row := s.Candidate; row != nil {
 				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantExactMatchingRecord), row.Name, row.ID, row.SessionID)).TextColor(fg).Selectable()
 				if s.Pending != nil {
 					ui.Text(c, botCreateReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 				}
-				ui.Text(c, "所有提交字段与该身份记录匹配；目录存在不证明会话创建完成。采用仅保留已有身份，之后单独打开会核实或恢复 canonical 会话。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantEverySubmittedFieldMatchesThisIdentity)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptInspectedBot)).Disabled(blocked).Clicked() {
 					m.OnAdopt(row.ID)
 				}
@@ -134,8 +134,8 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 			ui.Column(c.Key("new-bot-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewNewBot)).Bold().TextColor(fg)
 				ui.Text(c, botCreateReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-				ui.Text(c, "Host 将校验模型配置、写入 Bot 目录与审计记录、创建并打开专属会话，可能触发会话生命周期处理。非空 workspace 优先于 scratch cwd。后续 Bot 模型、工具、记忆复盘和通知可能产生费用或外部消息。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-				ui.Text(c, "本次不发送 prompt、不调用模型生成、不启动 objective 或例行任务、不发送 IM。使用上方固定头像与全部能力；没有 peer 来源和目标。创建未知不自动重试；打开失败与创建失败分开处理。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostValidatesTheModelConfigurationW)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantThisActionSendsNoPromptCallsNoModelG)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ack := r.Acknowledged
 				if ui.Checkbox(c, &ack, botCreateAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)

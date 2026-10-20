@@ -16,6 +16,10 @@ import (
 // headless rendering and tests.
 type host interface {
 	size() (w, h, scale float32)
+	// pixels reports whether size returns device pixels rather than DIPs, as a
+	// window's surface does. The view lays out in DIPs and paint multiplies them
+	// by scale, so a pixel size is divided by scale first.
+	pixels() bool
 	// refreshRate returns how many times a second the display refreshes,
 	// 0 when unknown.
 	refreshRate() float32
@@ -352,6 +356,18 @@ func (rt *engine) runFrame() {
 	rt.stats.begin(rt)
 	now := rt.now()
 	w, h, scale := rt.host.size()
+	if scale <= 0 {
+		scale = 1
+	}
+	// A surface reports the window in device pixels, while a headless host
+	// reports DIPs; the view lays out in DIPs and paint multiplies them back up
+	// by scale. Laying out the pixel size would give the scene scale times the
+	// room the window has, clipping its right and bottom edges on a scaled
+	// display.
+	rt.painted = [3]float32{w, h, scale}
+	if rt.host.pixels() {
+		w, h = w/scale, h/scale
+	}
 	// The content takes the room the inspector leaves.
 	appW := rt.insp.contentWidth(w)
 	rt.insp.lap(-1)
@@ -359,7 +375,6 @@ func (rt *engine) runFrame() {
 	rt.c.vibrancy = rt.host.vibrancy()
 	rt.text.BeginFrame()
 	rt.gen = rt.text.Generation()
-	rt.painted = [3]float32{w, h, scale}
 	rt.animating, rt.repainting, rt.repaintAt = false, false, time.Time{}
 	rt.routeKeys()
 	if rt.drag != nil {

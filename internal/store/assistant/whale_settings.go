@@ -293,7 +293,7 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	case "identity", "name", "title":
 		name := strings.TrimSpace(cmd.Value.Name)
 		if name == "" {
-			name = "鲸鱼娘"
+			name = storelocale.T(storelocale.KeyStoreAssistantWhale)
 		}
 		matches = (cmd.Action == "title" || actual.Name == name) && (cmd.Action == "name" || actual.UserTitle == strings.TrimSpace(cmd.Value.UserTitle))
 	}

@@ -32,11 +32,11 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	ui.Column(c.Key("whale-settings")).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhaleSettings)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, "读取 / 刷新 Host 内容 · Refresh").Disabled(blocked).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshHostContentRefresh)).Disabled(blocked).Clicked() {
 				w.OnRefresh()
 			}
 		})
-		ui.Text(c, "读取、保存只作用于当前 Host 的鲸鱼娘；刷新保留未保存草稿，不会调用模型。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingAndSavingAffectOnlyTheCurrentH)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Busy {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
@@ -141,7 +141,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 					w.OnSave("title")
 				}
 			})
-			ui.Text(c, "失去焦点或按 Enter 保存当前字段。名字和称呼各限 64 UTF-16 字符；空名字由 Host 恢复为「鲸鱼娘」。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantBlurTheFieldOrPressEnterToSaveItThe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
 				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreNameDraft)).Disabled(disabled).Clicked() {
 					w.OnRestore("identity")

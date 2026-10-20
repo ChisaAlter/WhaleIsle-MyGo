@@ -25,8 +25,8 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-memory")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "当前 Host、所选 Bot 的 bot/user 两轨。读取和保存不会启动 Bot；刷新保留同身份草稿，不会自动覆盖或重试。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, "读取 / 刷新 Bot 记忆 · Refresh memory").Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheBotAndUserTracksOfTheSelectedBot)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshBotMemoryRefreshMemory)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -106,8 +106,8 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 			ui.Column(c.Key("bot-memory-review")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewMemoryReplacement)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s · Session: %s\nTrack: %s · Memory revision: %s", m.HostLabel, r.Command.BotID, r.Command.SessionID, r.Command.Track, r.Command.MemoryRevision)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-				ui.Text(c, "这会替换当前轨的整轨文件，影响此 Bot 后续使用的记忆；不会修改另一轨或启动 Bot，也不会撤销当前会话已读取的快照。空内容会删除该轨文件，移除内容不能自动恢复。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-				ui.Text(c, "沿用原版条目序列化：去掉每项首尾空白，使用 - 前缀重新组成全文；原始非条目行和格式也将被以下内容替换。请核对完整前后内容。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantThisReplacesTheWholeFileForThisTrack)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantUsesTheOriginalEntrySerializationTrimmi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantBeforeContent)+r.Before+i18n.T(i18n.KeyMiscAssistantAfterContent)+r.Command.Text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Row(c).Gap(8).Children(func() {
 					if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToMemoryEdit)).Disabled(blocked).Clicked() {

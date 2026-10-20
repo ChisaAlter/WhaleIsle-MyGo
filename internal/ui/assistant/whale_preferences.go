@@ -45,7 +45,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		disabled := blocked || !s.Loaded
 		route := s.Route
-		ui.Text(c, "她自身会话的默认模型；保存后 Host 同步已有常驻会话。留空跟随会话默认。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheDefaultModelForHerOwnSessionAfter)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		labels := []string{i18n.T(i18n.KeyMiscAssistantFollowSessionDefault)}
 		choices := map[string]pluginrpc.WhaleModelRoute{labels[0]: {ReasoningEffort: route.ReasoningEffort}}
 		selected := labels[0]
@@ -127,7 +127,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 				m.OnSave("im")
 			}
 		}
-		ui.Text(c, "未指定其他预设的 IM 机器人进入她的常驻会话，与桌面共用记录。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantImBotsWithoutAnotherPresetJoinHerResi2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		enabled := 0
 		for _, skill := range s.Server.Skills {
 			if skill.Enabled {
@@ -136,7 +136,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).Bold().TextColor(fg)
 		if len(s.Server.Skills) == 0 {
-			ui.Text(c, "还没有技能；在此 Host 的 Whale 目录下放入 skills/<名称>/SKILL.md 后刷新。\n"+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		for _, skill := range s.Server.Skills {
 			skill := skill

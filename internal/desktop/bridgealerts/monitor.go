@@ -12,11 +12,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"unicode"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ErrNotClaimed is reserved for a failure established before dispatching POST.
 var ErrNotClaimed = errors.New("reminder claim was not dispatched")
-var errStale = errors.New("鲸桥实例或窗口已改变，请重新查看提醒")
+var errStale = errors.New(storelocale.T(storelocale.KeyStoreBridgealertsTheWhalebridgeInstanceOrWindowChangedO))
 
 type Scalar string
 
@@ -156,7 +157,7 @@ func (m *Monitor) Continue(t Ticket) error {
 	}
 	delete(m.blocked, key)
 	m.snapshot.Paused = false
-	m.snapshot.Status = "已继续接收后续提醒。之前可能已认领但未显示的提醒，请在鲸桥管理页的提醒历史中查看。"
+	m.snapshot.Status = storelocale.T(storelocale.KeyStoreBridgealertsFutureRemindersAreReceivedAgainEarlier)
 	return nil
 }
 func (m *Monitor) bindLocked(key string) {
@@ -181,7 +182,7 @@ func (m *Monitor) Observe() {
 		return
 	}
 	if err != nil {
-		m.snapshot.Status = "无法核验本机鲸桥实例，尚未认领新提醒；稍后会重新检查。"
+		m.snapshot.Status = storelocale.T(storelocale.KeyStoreBridgealertsCouldNotVerifyTheLocalWhalebridgeInsta)
 		return
 	}
 	m.bindLocked(key)
@@ -202,7 +203,7 @@ func (m *Monitor) Poll() {
 		return
 	}
 	if err != nil {
-		m.snapshot.Status = "无法核验本机鲸桥实例，尚未认领新提醒；稍后会重新检查。"
+		m.snapshot.Status = storelocale.T(storelocale.KeyStoreBridgealertsCouldNotVerifyTheLocalWhalebridgeInsta)
 		m.mu.Unlock()
 		return
 	}
@@ -214,7 +215,7 @@ func (m *Monitor) Poll() {
 	}
 	if m.blocked[key] {
 		m.snapshot.Paused = true
-		m.snapshot.Status = uncertainStatus
+		m.snapshot.Status = uncertainStatus()
 		m.mu.Unlock()
 		return
 	}
@@ -241,10 +242,10 @@ func (m *Monitor) Poll() {
 	}
 	if err != nil {
 		if errors.Is(err, ErrNotClaimed) {
-			m.snapshot.Status = "鲸桥提醒预检未完成，未认领新提醒；稍后会重新检查。"
+			m.snapshot.Status = storelocale.T(storelocale.KeyStoreBridgealertsTheWhalebridgeReminderPrecheckDidNotFi)
 		} else {
 			m.snapshot.Paused = true
-			m.snapshot.Status = uncertainStatus
+			m.snapshot.Status = uncertainStatus()
 		}
 		return
 	}
@@ -267,12 +268,14 @@ func (m *Monitor) Poll() {
 		m.snapshot.Dropped += n
 		m.snapshot.Alerts = append([]Notice(nil), m.snapshot.Alerts[n:]...)
 	}
-	if m.snapshot.Status != "" && !strings.HasPrefix(m.snapshot.Status, "已继续") {
+	if m.snapshot.Status != "" && !strings.HasPrefix(m.snapshot.Status, storelocale.T(storelocale.KeyStoreBridgealertsContinued)) {
 		m.snapshot.Status = ""
 	}
 }
 
-const uncertainStatus = "提醒队列认领结果未确认，已暂停接收。上一批可能已认领但未显示；鲸桥管理页保留提醒历史。确认后可继续接收后续提醒。"
+func uncertainStatus() string {
+	return storelocale.T(storelocale.KeyStoreBridgealertsTheReminderQueueClaimResultIsUnconfirm)
+}
 
 func validateBatch(b Batch) error {
 	if b.Sequence < 0 || b.Alerts == nil || len(b.Alerts) > 100 {
@@ -307,38 +310,38 @@ func Format(a Alert) (string, string) {
 		}
 		name += user
 	}
-	title := "鲸桥"
+	title := storelocale.T(storelocale.KeyStoreBridgealertsWhalebridge)
 	if name != "" {
 		title += " · " + name
 	}
 	when := plain(a.ResetsAt)
 	if when == "" {
-		when = "时间未提供"
+		when = storelocale.T(storelocale.KeyStoreBridgealertsTimeNotProvided)
 	}
-	used := "用量未提供"
+	used := storelocale.T(storelocale.KeyStoreBridgealertsUsageNotProvided)
 	if a.Used != "" {
-		used = "已使用 " + plain(string(a.Used)) + "%"
+		used = storelocale.T(storelocale.KeyStoreBridgealertsUsed) + plain(string(a.Used)) + "%"
 	}
 	window := plain(a.Window)
 	if window == "" {
-		window = "额度窗口"
+		window = storelocale.T(storelocale.KeyStoreBridgealertsQuotaWindow)
 	}
 	switch plain(a.Kind) {
 	case "expires":
 		credits := plain(string(a.Credits))
 		if credits == "" {
-			credits = "数量未提供"
+			credits = storelocale.T(storelocale.KeyStoreBridgealertsAmountNotProvided)
 		}
-		return title, fmt.Sprintf("%s 次额度重置将在 %s 到期。", credits, when)
+		return title, fmt.Sprintf(storelocale.T(storelocale.KeyStoreBridgealertsSQuotaResetsExpireAtS), credits, when)
 	case "renews":
-		return title, fmt.Sprintf("%s 将在 %s 重置，当前%s。", window, when, used)
+		return title, fmt.Sprintf(storelocale.T(storelocale.KeyStoreBridgealertsSResetsAtSCurrentlyS), window, when, used)
 	default:
 		if a.Balance != "" {
-			return title, "余额已降至 " + plain(string(a.Balance)) + "。"
+			return title, storelocale.T(storelocale.KeyStoreBridgealertsBalanceDroppedTo) + plain(string(a.Balance)) + "。"
 		}
 		body := window + " " + used + "。"
 		if a.ResetsAt != "" {
-			body += "下次重置：" + when + "。"
+			body += storelocale.T(storelocale.KeyStoreBridgealertsNextReset) + when + "。"
 		}
 		return title, body
 	}

@@ -183,7 +183,7 @@ func (c *RoutineCreator) Start(k RoutineScope, zone string) {
 		e.state.Error = err.Error()
 		return
 	}
-	e.state.Draft = &RoutineCreateDraft{Name: "新定时任务", Frequency: "daily", Weekday: "1", MonthDay: "1", Cron: "0 9 * * *", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
+	e.state.Draft = &RoutineCreateDraft{Name: storelocale.T(storelocale.KeyStoreDshbotNewScheduledTask), Frequency: "daily", Weekday: "1", MonthDay: "1", Cron: "0 9 * * *", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
 	e.state.Draft.Advanced = RoutineAdvancedDraft{SilentAllowed: true, WatchTimeout: "15000"}
 	e.state.CreatedID = ""
 	e.state.Error = ""

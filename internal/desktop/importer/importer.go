@@ -8,6 +8,7 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ErrNotDirectory means userData is missing or not a directory.
@@ -92,16 +93,16 @@ func ImportReport(userData string) (Report, error) {
 // FormatReport returns a multi-line summary suitable for info dialogs.
 func FormatReport(r Report) string {
 	var b strings.Builder
-	b.WriteString("路径: ")
+	b.WriteString(storelocale.T(storelocale.KeyStoreImporterPath))
 	b.WriteString(r.UserData)
 	b.WriteString("\n")
 	if r.IsDefaultElectronPath {
-		b.WriteString("（Electron 默认数据目录）\n")
+		b.WriteString(storelocale.T(storelocale.KeyStoreImporterElectronDefaultDataDirectoryN))
 	}
 	if !r.DirExists {
-		b.WriteString("目录: 不存在\n")
+		b.WriteString(storelocale.T(storelocale.KeyStoreImporterDirectoryMissingN))
 	} else {
-		b.WriteString("目录: 存在\n")
+		b.WriteString(storelocale.T(storelocale.KeyStoreImporterDirectoryExistsN))
 	}
 	b.WriteString("config.json: ")
 	b.WriteString(yesNo(r.ConfigJSON))

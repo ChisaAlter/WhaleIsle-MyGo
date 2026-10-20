@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"whaleisle/internal/store/storelocale"
 )
@@ -176,7 +175,7 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 			return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcSectionName1120Characters))
 		}
 		if cmd.ID == "" {
-			return "", nil, fmt.Errorf("分组 ID 不可为空")
+			return "", nil, errors.New(storelocale.T(storelocale.KeyStorePluginrpcGroupIdMustNotBeEmpty))
 		}
 		for _, section := range cmd.Expected.Sections {
 			if section.ID != cmd.ID && strings.EqualFold(strings.TrimSpace(section.Name), name) {
@@ -186,7 +185,7 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 		payload["id"], payload["name"] = cmd.ID, name
 	case "move":
 		if cmd.Delta != -1 && cmd.Delta != 1 {
-			return "", nil, fmt.Errorf("移动方向无效")
+			return "", nil, errors.New(storelocale.T(storelocale.KeyStorePluginrpcInvalidMoveDirection))
 		}
 		payload["id"], payload["delta"] = cmd.ID, cmd.Delta
 	case "assign":

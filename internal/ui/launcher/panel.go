@@ -1043,7 +1043,7 @@ func importPanel(c *ui.Context, m Model) {
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportLede)).
 			FontSize(12).TextColor(colSecondary)
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(theme.InterfaceSize(12)).TextColor(colAccent)
-		ui.Text(c, importer.CopyOnlyNotice).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+		ui.Text(c, importer.CopyOnlyNotice()).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		ui.Text(c, releaseText("确认导入后会先检查当前任务并停止 Host 内核；窗口保持打开，导入后可手动启动内核。", "After confirmation, import checks current tasks and stops the Host runtime. The window stays open; start the runtime manually after importing.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 
 		pathLine := i18n.T(i18n.KeyLauncherImportEmpty)

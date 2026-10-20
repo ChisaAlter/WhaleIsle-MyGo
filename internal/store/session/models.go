@@ -1,11 +1,14 @@
 package session
 
+
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ModelOption retains the exact route and adapter-owned reasoning metadata.
@@ -121,14 +124,14 @@ func modelEffortOptions(opt ModelOption) []modelEffortOption {
 	}
 	var out []modelEffortOption
 	if opt.Reasoning.DefaultEffort == nil {
-		out = append(out, modelEffortOption{Label: "提供商默认"})
+		out = append(out, modelEffortOption{Label: storelocale.T(storelocale.KeyStoreSessionProviderDefault)})
 	}
 	counts := map[string]int{}
 	for _, e := range opt.Reasoning.Efforts {
 		counts[e.Name]++
 	}
 	seen := map[string]bool{}
-	labels := map[string]bool{"提供商默认": opt.Reasoning.DefaultEffort == nil}
+	labels := map[string]bool{storelocale.T(storelocale.KeyStoreSessionProviderDefault): opt.Reasoning.DefaultEffort == nil}
 	for _, e := range opt.Reasoning.Efforts {
 		if seen[e.Id] {
 			continue
@@ -394,7 +397,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 			req := api.SessionSelectModelRequest{SessionId: sessionID, Provider: selection.Provider, Model: selection.Model, ReasoningEffort: selection.ReasoningEffort}
 			err = client.Call(ctx, "session/selectModel", map[string]any{"request": req}, &out)
 			if err == nil && (out.Selected.Provider == "" || out.Selected.Model == "") {
-				err = fmt.Errorf("Host 未返回已提交的模型选择")
+				err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotReturnTheSubmittedModel))
 			}
 			s.mu.Lock()
 			valid = s.sessionResultCurrentLocked(ctx, client, sessionID, generation) && s.modelState.Operation == operation && (owner == nil || s.nativeCommandCurrentLocked(*owner, "model"))
@@ -402,7 +405,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 			if err == nil && valid {
 				err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &baseline)
 				if err != nil {
-					err = fmt.Errorf("模型选择已提交，读取当前会话状态失败：%w", err)
+					err = errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionModelSelectionSubmittedButReadingTheCu), err))
 				}
 			}
 		}
@@ -423,14 +426,14 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 			s.applyModelValuesLocked(baseline.Values, baseline.AsOfSeq)
 			actual, known := s.currentModelSelectionLocked()
 			if !known || (!sameModelSelection(actual, out.Selected, s.modelOptions) && s.modelState.Projection.Seq <= startSeq) {
-				err = fmt.Errorf("Host 尚未返回当前会话的模型投影，请刷新后重试")
+				err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostHasNotReturnedTheCurrentSessio))
 			}
 		}
 		s.modelsErr = err
 		if err != nil {
 			s.lastAction = err.Error()
 		} else {
-			s.lastAction = "当前会话模型已更新"
+			s.lastAction = storelocale.T(storelocale.KeyStoreSessionCurrentSessionModelUpdated)
 		}
 		s.mu.Unlock()
 		s.fire()

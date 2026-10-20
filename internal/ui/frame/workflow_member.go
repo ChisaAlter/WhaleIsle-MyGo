@@ -20,7 +20,7 @@ func workflowMemberDialog(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	open := true
-	_, height := c.Size()
+	_, height := viewportDIP(c)
 	panelHeight := min(float32(700), max(float32(280), height-64))
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))

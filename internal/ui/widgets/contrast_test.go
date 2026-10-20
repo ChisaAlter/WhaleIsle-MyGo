@@ -50,7 +50,7 @@ func TestPrimitiveColorsMeetContrast(t *testing.T) {
 			})
 		}
 		for _, c := range cases {
-			if got := contrastRatio(c.fg, c.bg); got < c.want {
+			if got := ContrastRatio(c.fg, c.bg); got < c.want {
 				t.Errorf("%s %s: contrast %.2f, want at least %.1f", name, c.what, got, c.want)
 			}
 		}
@@ -63,7 +63,7 @@ func TestReadableOnPicksTheBetterInk(t *testing.T) {
 		ui.Hex("#3b82f6"), ui.Hex("#facc15"), ui.Hex("#808080"),
 	} {
 		ink := readableOn(fill)
-		if got := contrastRatio(ink, fill); got < TextContrast {
+		if got := ContrastRatio(ink, fill); got < TextContrast {
 			t.Errorf("ink on %v reaches %.2f, want at least %.1f", fill, got, TextContrast)
 		}
 	}

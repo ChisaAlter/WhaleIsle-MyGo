@@ -18,9 +18,10 @@ const (
 	ControlContrast = 3.0
 )
 
-// relativeLuminance returns how bright a color is, from 0 to 1, as the web's
-// contrast rules measure it.
-func relativeLuminance(c ui.Color) float64 {
+// RelativeLuminance returns how bright a color is, from 0 to 1, as the web's
+// contrast rules measure it. Surfaces that paint their own material, as chrome's
+// glass does, check the contrast they leave for text with it.
+func RelativeLuminance(c ui.Color) float64 {
 	channel := func(v uint8) float64 {
 		s := float64(v) / 255
 		if s <= 0.04045 {
@@ -31,10 +32,10 @@ func relativeLuminance(c ui.Color) float64 {
 	return 0.2126*channel(c.R) + 0.7152*channel(c.G) + 0.0722*channel(c.B)
 }
 
-// contrastRatio returns how far apart two colors are, from 1 to 21, as the
+// ContrastRatio returns how far apart two colors are, from 1 to 21, as the
 // web's contrast rules measure them.
-func contrastRatio(a, b ui.Color) float64 {
-	hi, lo := relativeLuminance(a), relativeLuminance(b)
+func ContrastRatio(a, b ui.Color) float64 {
+	hi, lo := RelativeLuminance(a), RelativeLuminance(b)
 	if hi < lo {
 		hi, lo = lo, hi
 	}
@@ -46,7 +47,7 @@ func contrastRatio(a, b ui.Color) float64 {
 func readableOn(fill ui.Color) ui.Color {
 	white := ui.RGB(255, 255, 255)
 	dark := ui.RGB(15, 17, 21)
-	if contrastRatio(white, fill) >= contrastRatio(dark, fill) {
+	if ContrastRatio(white, fill) >= ContrastRatio(dark, fill) {
 		return white
 	}
 	return dark

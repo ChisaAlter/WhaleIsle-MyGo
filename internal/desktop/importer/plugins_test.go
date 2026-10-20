@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"whaleisle/internal/ui/i18n"
 )
 
 func pluginFixture(t *testing.T, home, body string) {
@@ -22,6 +23,9 @@ func pluginFixture(t *testing.T, home, body string) {
 }
 
 func TestPluginImportSelectionAndSpecs(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
 	root := t.TempDir()
 	t.Setenv("HOME", root)
 	t.Setenv("USERPROFILE", root)
@@ -51,7 +55,7 @@ func TestPluginImportSelectionAndSpecs(t *testing.T) {
 	if len(sel.SelectedPluginIDs) != 2 || sel.Count() != 2 {
 		t.Fatalf("selection: %+v", sel)
 	}
-	for _, part := range []string{"fixture-git", "github:fixture/plugin#v1", "@fixture/npm@^1.2.3", "构建脚本"} {
+	for _, part := range []string{"fixture-git", "github:fixture/plugin#v1", "@fixture/npm@^1.2.3", "Build scripts"} {
 		if !strings.Contains(Confirmation(cat, sel), part) {
 			t.Fatalf("missing disclosure %q", part)
 		}

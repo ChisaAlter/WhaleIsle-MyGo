@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 func TestConnectionManagementFixture(t *testing.T) {
@@ -59,7 +60,7 @@ func TestConnectionManagementFixture(t *testing.T) {
 		for s.Snapshot().ConnectionBusy && time.Now().Before(deadline) {
 			time.Sleep(time.Millisecond)
 		}
-		if s.Snapshot().ConnectionBusy || s.Snapshot().ConnectionNote != "机器人状态已更新" {
+		if s.Snapshot().ConnectionBusy || s.Snapshot().ConnectionNote != storelocale.T(storelocale.KeyStoreImBotStatusUpdated) {
 			t.Fatalf("operation failed: %+v", s.Snapshot())
 		}
 	}

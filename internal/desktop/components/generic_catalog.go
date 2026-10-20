@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 var genericID = regexp.MustCompile(`(?i)^[a-z0-9][a-z0-9._-]{0,63}$`)
@@ -92,7 +93,7 @@ func genericDiskRows(userData, samples string) []Row {
 			state = "stopped"
 			rec.PID = 0
 			rec.URL = ""
-			rec.LastError = "进程已退出（启动器重启或外部终止）。"
+			rec.LastError = storelocale.T(storelocale.KeyStoreComponentsTheProcessExitedLauncherRestartOrExter)
 		}
 		name := rec.Name
 		if name == "" {

@@ -20,7 +20,7 @@ type BotObjectiveModel struct {
 func botObjectiveActionLabel(action string) string {
 	switch action {
 	case "start":
-		return "开始 / 恢复目标… / Start or resume objective…"
+		return i18n.T(i18n.KeyW4AssistantStartResumeObjective)
 	case "pause":
 		return i18n.T(i18n.KeyMiscAssistantPauseObjective)
 	case "clear":
@@ -31,11 +31,11 @@ func botObjectiveActionLabel(action string) string {
 func botObjectiveImpact(action string) string {
 	switch action {
 	case "start":
-		return "会解析或恢复该 Bot 的冷会话、同步目录目标，并按 Host 当前目标状态创建、恢复或重新启用目标推进。随后可能调用模型、执行工具、发送外部消息并产生费用；不会因为收到回执就表示目标完成。"
+		return i18n.T(i18n.KeyW4AssistantResolvesOrResumesThisBotSColdSession)
 	case "pause":
-		return "仅在 Host 已有 active live 目标时请求暂停；冷会话或非 active 状态可能无变化返回。不清除目录目标，不等同于停止 Bot 的所有工作；不承诺中断正在运行的模型轮，已发生的工具或外部操作不会撤销。"
+		return i18n.T(i18n.KeyW4AssistantRequestsAPauseOnlyWhenTheHostAlready)
 	case "clear":
-		return "把此 Bot 的目录目标文本清空，并尝试清除其当前 live 目标。live 清除失败可作为 Host 警告返回；配置成功不等于 live 清除成功。这不是暂停或 Bot 全局停止，不承诺中断在途模型或撤销已发生的操作。"
+		return i18n.T(i18n.KeyW4AssistantClearsThisBotSCatalogObjectiveTextAnd)
 	}
 	return ""
 }
@@ -62,7 +62,7 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-objective")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotObjective)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "此处管理目录目标的开始、暂停和清除；下方可新增或修改目标配置。无法无损编辑的资料仍保留现有 Bot Web 入口。普通会话目标面板不能替代 Bot 目录配置。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantStartPauseAndClearTheCatalogObjective)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjective)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -104,9 +104,9 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 				botObjectiveStatus(c, before, fg, muted)
 				ui.Text(c, botObjectiveImpact(r.Command.Action)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				if r.Command.Action == "clear" {
-					ui.Text(c, "清除只对目录 revision 做 Host CAS；live 清除是随后尝试，须检查警告与刷新状态。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyW4AssistantClearingOnlyAppliesTheHostCasToTheCa)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				} else {
-					ui.Text(c, "原版 start/pause 没有原子 CAS 或幂等请求键。发送前会重读核对目录版本、配置及 live 摘要，检查后仍有状态变化窗口；不伪造 goal ID/revision。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOriginalStartPauseHasNoAtomicCasO)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshUncertainOutcomesNeverAutoRe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {

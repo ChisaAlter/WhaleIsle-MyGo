@@ -19,6 +19,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/imonboard"
 	officestore "whaleisle/internal/store/office"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -647,8 +648,8 @@ func channelKey(e Entry) string {
 
 func defaultChannels() []Entry {
 	return []Entry{
-		{ID: "general", Label: "通用", Detail: "本地频道"},
-		{ID: "notes", Label: "笔记", Detail: "本地频道"},
+		{ID: "general", Label: storelocale.T(storelocale.KeyStoreImGeneral), Detail: storelocale.T(storelocale.KeyStoreImLocalChannels)},
+		{ID: "notes", Label: storelocale.T(storelocale.KeyStoreImNotes), Detail: storelocale.T(storelocale.KeyStoreImLocalChannels)},
 	}
 }
 

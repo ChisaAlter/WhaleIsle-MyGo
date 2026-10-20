@@ -190,7 +190,7 @@ func (c *BotCreator) Start(k, cwd string) {
 		return
 	}
 	id := hex.EncodeToString(bytes[:])
-	e.state.Draft = &BotCreateDraft{ID: "bot-" + id, SessionID: "session-bot-" + id, Name: "新 Bot", ScratchCwd: strings.TrimSpace(cwd), MemoryReview: true, Notify: true}
+	e.state.Draft = &BotCreateDraft{ID: "bot-" + id, SessionID: "session-bot-" + id, Name: storelocale.T(storelocale.KeyStoreDshbotNewBot), ScratchCwd: strings.TrimSpace(cwd), MemoryReview: true, Notify: true}
 	e.state.Created = pluginrpc.DshbotBotItem{}
 	e.state.CreatedScratchCwd = ""
 	e.state.Error = ""

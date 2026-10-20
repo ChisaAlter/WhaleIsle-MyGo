@@ -22,9 +22,9 @@ type RoutineCreateModel struct {
 
 func routineCreateImpact(enabled bool) string {
 	if enabled {
-		return "将创建并启用例行任务。Host 会计算下次时间并自动调度，Bot 可能执行工具、发送外部消息并产生模型费用；本次保存不会额外调用立即运行。"
+		return i18n.T(i18n.KeyW4AssistantCreatesAndEnablesTheRoutineTheHostCom)
 	}
-	return "将创建暂停的例行任务，后续须单独确认启用才会自动调度。本次保存不会调用立即运行；启用后可能执行工具、发送外部消息并产生模型费用。"
+	return i18n.T(i18n.KeyW4AssistantCreatesTheRoutineInAPausedStateAutoma)
 }
 func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	w := m.RoutineCreate

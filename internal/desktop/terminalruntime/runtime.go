@@ -2,14 +2,17 @@
 // by the checked-in MyGo binding. It never downloads or loads executable code.
 package terminalruntime
 
+
 import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"whaleisle/internal/store/storelocale"
 )
 
 // These are copied from the binding's mygo-plugin.json and its pinned Ghostty
@@ -122,7 +125,7 @@ func Resolve(spec Spec, explicit string, dirs []string) (string, error) {
 		}
 		return filepath.Abs(candidate)
 	}
-	return "", fmt.Errorf("原生终端缺少 %s；请使用包含终端运行库的安装包，或设置 MYGO_GHOSTTY_VT 指向已校验的固定版本", spec.Name)
+	return "", errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreTerminalruntimeTheNativeTerminalIsMissingSUseABuild), spec.Name))
 }
 
 func CacheDirectory(spec Spec) string {

@@ -26,6 +26,7 @@ func TestHeroPreviewBadgeStaysInsideTheColumn(t *testing.T) {
 		staleCenter float32
 	}{
 		{"1440-wide", 1440, 420, 0},
+		{"960-center-inflated-1.5x", 960, 280, 1383},
 		{"1440-stale-center", 1440, 420, 1600},
 		{"1024-boundary", 1024, 280, 1200},
 		{"800-drawer", 800, 280, 900},

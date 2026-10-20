@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Row is one catalog/install entry shown in launcher 组件 / 我的组件.
@@ -79,11 +80,11 @@ func whalebridgeRow(dir string) (Row, bool) {
 
 	name := cat.Manifest.Name
 	if name == "" {
-		name = "鲸桥"
+		name = storelocale.T(storelocale.KeyStoreComponentsWhalebridge)
 	}
 	desc := cat.Manifest.Description
 	if desc == "" {
-		desc = "将 API 供应商和订阅账号接入 MyGo鲸屿，统一管理模型、请求路由与用量。"
+		desc = storelocale.T(storelocale.KeyStoreComponentsConnectApiProvidersAndSubscriptionAccou)
 	}
 	ver := cat.Manifest.Version
 	if ver == "" || compareVersions(inst.Version, ver) > 0 {

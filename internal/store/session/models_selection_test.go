@@ -12,6 +12,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 func modelTestCatalog() api.ModelCatalog {
@@ -209,8 +210,8 @@ func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 	s.SelectModelEffortForSessionID(context.Background(), "current", "Dynamic")
 	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModelEffort == "Dynamic" })
 	<-requests
-	s.SelectModelEffortForSessionID(context.Background(), "current", "提供商默认")
-	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModelEffort == "提供商默认" })
+	s.SelectModelEffortForSessionID(context.Background(), "current", storelocale.T(storelocale.KeyStoreSessionProviderDefault))
+	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModelEffort == storelocale.T(storelocale.KeyStoreSessionProviderDefault) })
 	req = <-requests
 	if _, ok := req["reasoningEffort"]; ok {
 		t.Fatal("reset to provider default must omit field")

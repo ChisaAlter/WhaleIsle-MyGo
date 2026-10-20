@@ -158,6 +158,7 @@ const (
 	KeyCmdConfigurationLoadFailed = "cmd.configuration_load_failed"
 	KeyCmdCommitStagedChangesOnly = "cmd.commit_staged_changes_only"
 	KeyCmdSecondsRemaining        = "cmd.seconds_remaining"
+	KeyCmdOpenFile                = "cmd.open_file"
 )
 
 func init() {
@@ -165,4 +166,5 @@ func init() {
 	Register(KeyCmdConfigurationLoadFailed, "配置读取失败", "Configuration could not be loaded")
 	Register(KeyCmdCommitStagedChangesOnly, "仅提交以下已暂存变更：\n", "Commit only these staged changes:\n")
 	Register(KeyCmdSecondsRemaining, "剩余 %d 秒", "%d seconds remaining")
+	Register(KeyCmdOpenFile, "打开文件", "Open file")
 }

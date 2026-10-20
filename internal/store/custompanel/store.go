@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"whaleisle/internal/store/storelocale"
 )
 
 type Scope struct {
@@ -292,5 +293,5 @@ func (s *Store) Remove(scope Scope, id string) error {
 const Example = `{"title":"Daily dashboard","width":420,"height":320,"columns":1,"widgets":[{"id":"heading","kind":"text","text":"My daily plan","fontSize":18},{"id":"notes","kind":"input","label":"Notes","text":""},{"id":"done","kind":"checkbox","label":"Complete"}]}`
 
 func CreationPrompt(requirements string) string {
-	return "请根据我的需求定制可复用右侧 Panel。先沟通需求，完成后仅输出一个 JSON 对象或 json 代码块。禁止脚本、HTML、网络与文件操作。schema 示例：" + Example + "\nwidgets 支持 text/input/checkbox/progress/select/action；字段 id,kind,label,text,options(string array),value(progress 0–1),fontSize(10–32)。action.text 只填入聊天草稿，由我发送。width 240–1600，height 120–1600，columns 1–4，widgets 顺序即显示顺序，最多64项。我的需求：\n" + requirements
+	return storelocale.T(storelocale.KeyStoreCustompanelCustomizeAReusableRightSidePanelForMy) + Example + storelocale.T(storelocale.KeyStoreCustompanelNwidgetsSupportTextInputCheckboxProgres) + requirements
 }

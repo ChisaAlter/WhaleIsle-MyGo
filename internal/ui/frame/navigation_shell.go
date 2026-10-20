@@ -14,7 +14,7 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 		content()
 		return
 	}
-	viewport, _ := c.Size()
+	viewport, _ := viewportDIP(c)
 	m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
 	registerPageCommands(c, m)
 	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Children(func() {

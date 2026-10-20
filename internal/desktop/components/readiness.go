@@ -1,9 +1,11 @@
 package components
 
+
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"os"
 	"regexp"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 type bridgeState struct {
@@ -30,7 +33,7 @@ func readBridgeState(path string) (bridgeState, error) {
 		return st, err
 	}
 	if json.Unmarshal(b, &st) != nil {
-		return st, fmt.Errorf("鲸桥状态文件无效")
+		return st, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeStateFile))
 	}
 	return st, nil
 }
@@ -39,7 +42,7 @@ func readBridgeState(path string) (bridgeState, error) {
 // never contain the management URL, token, response body, or credentials.
 func verifyBridgeReady(ctx context.Context, st bridgeState, version string, pid int, client *http.Client) error {
 	if st.ID != "whalebridge" || !st.Ready || st.PID <= 0 || st.PID != pid || st.Version != version {
-		return fmt.Errorf("鲸桥进程 PID 或版本与启动记录不一致")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeProcessPidOrVersionDoes))
 	}
 	resp, err := bridgeLocalRequest(ctx, st, http.MethodGet, "status", nil, client)
 	if err != nil {
@@ -47,14 +50,14 @@ func verifyBridgeReady(ctx context.Context, st bridgeState, version string, pid 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("鲸桥状态接口 HTTP %d", resp.StatusCode)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeStatusEndpointHttpD), resp.StatusCode))
 	}
 	var status struct {
 		PID     int    `json:"pid"`
 		Version string `json:"version"`
 	}
 	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&status) != nil || status.PID != pid || status.Version != version {
-		return fmt.Errorf("鲸桥状态接口 PID 或版本不一致")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeStatusEndpointReportsADi))
 	}
 	return nil
 }
@@ -68,7 +71,7 @@ func bridgeLocalRequest(ctx context.Context, st bridgeState, method, route strin
 	}
 	req, err := http.NewRequestWithContext(ctx, method, "http://"+u.Host+"/api/whalebridge/"+route, body)
 	if err != nil {
-		return nil, fmt.Errorf("鲸桥本机请求无效")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeLocalRequest))
 	}
 	req.AddCookie(&http.Cookie{Name: "magpie_web_" + u.Port(), Value: u.Query().Get("k")})
 	if body != nil {
@@ -79,7 +82,7 @@ func bridgeLocalRequest(ctx context.Context, st bridgeState, method, route strin
 	safe.Transport = &http.Transport{Proxy: nil, DisableKeepAlives: true}
 	resp, err := safe.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("鲸桥本机管理接口不可用")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeLocalManagementEndpointIs))
 	}
 	return resp, nil
 }
@@ -92,16 +95,16 @@ func bridgeMaintenance(ctx context.Context, st bridgeState, on bool, client *htt
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusConflict {
-		return fmt.Errorf("鲸桥仍有正在生成的回复，请完成后重试；未停止现有实例")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeIsStillGeneratingAReplyRetr))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("鲸桥维护接口 HTTP %d", resp.StatusCode)
+		return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeMaintenanceEndpointHttpD), resp.StatusCode))
 	}
 	var result struct {
 		Active *int `json:"active"`
 	}
 	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&result) != nil || result.Active == nil || on && *result.Active != 0 {
-		return fmt.Errorf("鲸桥维护状态未确认，已取消操作")
+		return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeMaintenanceStateIsUnconfi))
 	}
 	return nil
 }
@@ -112,7 +115,7 @@ func waitBridgeReady(ctx context.Context, path, version string, pid int, exited 
 	for {
 		select {
 		case <-exited:
-			return fmt.Errorf("鲸桥启动进程已退出，请查看组件日志")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeStartProcessExitedCheckT))
 		default:
 		}
 		st, err := readBridgeState(path)
@@ -122,19 +125,19 @@ func waitBridgeReady(ctx context.Context, path, version string, pid int, exited 
 			}
 			select {
 			case <-exited:
-				return fmt.Errorf("鲸桥启动进程已退出，请查看组件日志")
+				return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeStartProcessExitedCheckT))
 			default:
 				return nil
 			}
 		}
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("无法读取鲸桥就绪状态，请查看组件日志")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsCouldNotReadTheWhalebridgeReadinessSta))
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("鲸桥启动超时或已取消，请查看组件日志")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsWhalebridgeStartTimedOutOrWasCancelled))
 		case <-exited:
-			return fmt.Errorf("鲸桥启动进程已退出，请查看组件日志")
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeStartProcessExitedCheckT))
 		case <-ticker.C:
 		}
 	}
@@ -144,7 +147,7 @@ func waitBridgeReady(ctx context.Context, path, version string, pid int, exited 
 func bridgeManagementURL(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || !managementKeyPattern.MatchString(u.Query().Get("k")) {
-		return nil, fmt.Errorf("鲸桥本机管理地址无效")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeLocalManagementAddressIs))
 	}
 	return u, nil
 }

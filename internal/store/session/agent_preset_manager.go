@@ -1,13 +1,15 @@
 package session
 
+
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"sync"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 const agentPresetNamespace = "agent-preset-registry"
@@ -76,7 +78,7 @@ func (m *AgentPresetManager) Refresh(ctx context.Context) {
 	m.source.fire()
 	client := m.currentClient()
 	if client == nil {
-		m.finish(fmt.Errorf("Host 未连接"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionHostNotConnected)), "")
 		return
 	}
 	var roster api.AgentPresetRoster
@@ -126,7 +128,7 @@ func (m *AgentPresetManager) Refresh(ctx context.Context) {
 		}
 	}
 	if m.currentClient() != client {
-		m.finish(fmt.Errorf("Host 已切换，请刷新"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionHostChangedRefresh)), "")
 		return
 	}
 	m.mu.Lock()
@@ -157,11 +159,11 @@ func (m *AgentPresetManager) SaveDefault(ctx context.Context, id string) {
 	m.mu.Unlock()
 	m.source.fire()
 	if !ready {
-		m.finish(fmt.Errorf("此预设不可设为默认，或配置只读；请刷新后重试"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionThisPresetCannotBeSetAsDefaultOrThe)), "")
 		return
 	}
 	if client == nil || m.currentClient() != client {
-		m.finish(fmt.Errorf("Host 已切换，请刷新"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionHostChangedRefresh)), "")
 		return
 	}
 	var out api.SettingsNamespaceView
@@ -171,18 +173,18 @@ func (m *AgentPresetManager) SaveDefault(ctx context.Context, id string) {
 		return
 	}
 	if agentDefaultID(out.Value) != id {
-		m.finish(fmt.Errorf("Host 未确认保存所选默认预设，请刷新"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotConfirmSavingTheDefault)), "")
 		return
 	}
 	if m.currentClient() != client {
-		m.finish(fmt.Errorf("Host 已切换，请刷新确认保存结果"), "")
+		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionHostChangedRefreshToConfirmTheSaveRes)), "")
 		return
 	}
 	m.mu.Lock()
 	m.state.DefaultID = id
 	m.state.Revision = out.Revision
 	m.mu.Unlock()
-	m.finish(nil, "已保存；后续新任务使用此默认预设")
+	m.finish(nil, storelocale.T(storelocale.KeyStoreSessionSavedLaterNewTasksUseThisDefaultPrese))
 }
 
 func agentDefaultID(raw json.RawMessage) string {

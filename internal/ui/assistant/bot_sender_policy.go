@@ -67,7 +67,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 	editable := !blocked && s.Loaded && s.Writable && s.Status.WriteError == "" && !s.Uncertain && s.Review == nil
 	ui.Column(c.Key("bot-sender-policy-editor")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantMessageAndTaskSources)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "选择当前 Host 同一 catalog 的个人 Bot。默认空名单不是拒绝所有，也不允许所有任务。群组按现有成员规则；隐藏 Bot 仍是有效身份。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantChoosePersonalBotsFromTheSameCatalogO)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshSourcePolicy)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -111,7 +111,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 			}
 		})
 		if draft.Selected {
-			ui.Text(c, "指定名单必须至少选择一个 Bot；只有所选者可发普通消息和直接任务，同群也不例外。取消最后一个不会自动变成默认规则。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheSelectedListNeedsAtLeastOneBotOnl)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			for _, peer := range s.Status.Peers {
 				peer := peer
 				checked := slices.Contains(draft.IDs, peer.ID)
@@ -148,12 +148,12 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantConfirmSourcePolicy)).Bold().TextColor(fg)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantSenderPolicyDiff), m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botSenderPolicySummary(cmd.Expected, old), botSenderPolicySummary(cmd.Expected, cmd.Values))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			if expands {
-				ui.Text(c, "权限扩大：新增允许者见修改后完整名单。切换默认规则还允许未来加入同 catalog 的个人 Bot 发普通消息；同群关系今后改变会影响默认任务权限。指定 Bot 可直接委派任务，即使不在同群。").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(accent)
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantAccessExpansionTheAddedAllowListEntrie)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(accent)
 			}
-			ui.Text(c, "更改不撤销已发送/入队消息，不取消已创建或在途任务、模型和工具。现有失败/已取消任务重试会重新检查委派权限。此处没有拒绝全部的空名单语义，也没有外部 IM 身份或通配字符串授权。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "bot/update 会校验保留的模型和能力、写审计、更新会话展示并尝试重命名，还会 requestSync：live idle 会话现在或下次 idle 可能创建目标、重建已暂停目标或修改 active 目标，调用模型、执行工具、发送外部消息并产生费用。冷会话不会在此保存路径解析，之后变为 live/idle 时可能同步；同步失败可能仅记 Host 日志。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheChangeDoesNotRetractSentOrQueuedM)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantBotUpdateValidatesTheKeptModelAndCapa)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRetainedObjective)+string(cmd.Expected.Profile["objective"])+i18n.T(i18n.KeyMiscAssistantRetainedModel)+string(cmd.Expected.Profile["model"])).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-			ui.Text(c, "只替换 allowedSenderIds。完整资料和原 revision 精确提交，不刷新替代审阅版本；CAS 不原子锁定目标或在途执行。回执只证明资料，不证明同步/重命名/执行完成。关闭不撤回已发送请求；未知结果只读回，不自动重试。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyAllowedsenderidsIsReplacedTheFullP)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
 			if ui.Checkbox(c, &ack, botSenderPolicyAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)

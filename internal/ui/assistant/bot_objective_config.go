@@ -30,7 +30,7 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 	editable := !blocked && s.Loaded && s.Writable && s.Status.WriteError == "" && s.Review == nil
 	ui.Column(c.Key("bot-objective-config")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantObjectiveConfiguration)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "为已有 Bot 新增或修改目录目标。目标按原版去除首尾空白后最多 2,000 UTF-16 单元；轮数上限为整数 1–200。保存可能立即执行，不是仅存草稿。清除仍使用上方清除目录目标入口。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantAddOrChangeTheCatalogObjectiveOfAnEx)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjectiveConfiguration)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
@@ -51,7 +51,7 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 		}
 		current, err := pluginrpc.DshbotObjectiveConfigValue(s.Status)
 		if err != nil {
-			ui.Text(c, "Host 未返回完整目标字段；不补默认值，请使用现有 Bot Web 入口").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostReturnedNoCompleteObjectiveFiel)).TextColor(accent)
 			return
 		}
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantCurrentObjectiveDetail), m.HostLabel, s.Status.Bot.ID, s.Status.Bot.SessionID, s.Status.Revision, current.Objective, current.MaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
@@ -88,10 +88,10 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewObjectiveConfiguration2)).Bold().TextColor(fg)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantObjectiveConfigDiff), m.HostLabel, before.Bot.ID, before.Bot.SessionID, before.Revision, old.Objective, r.Command.Desired.Objective, old.MaxRounds, r.Command.Desired.MaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantRetainedConfig), botCapabilityProfileText(before, "model"), botCapabilityProfileText(before, "workspaceId"), botCapabilityProfileText(before, "capabilities"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-			ui.Text(c, "此 bot/update 保存会 requestSync：live idle 会话可能立即创建目标、重建已暂停或其他非 active 目标，或修改正在 active 的目标；运行中的会话在后续 idle 同步。可能调用模型、执行工具、发送外部消息并产生费用。未指定模型时沿用 Host 默认模型；轮数上限不等于费用或外部操作限额。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "保存路径不解析冷会话；冷会话后续变为 live/idle 时可能同步并执行。成功回执仅证明目录配置返回，不证明 live 目标同步成功或任务完成；原版同步失败可只记录 Host 日志而不返回警告，请另行刷新目标状态。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			ui.Text(c, "只替换 objective 与 objectiveMaxRounds，其他完整资料原样交回；目录 revision CAS 不等于 live 目标原子锁。原版同时写审计、更新会话展示并尝试重命名。不会取消在途模型/工具，也不撤销已发生的外部操作。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Text(c, "需要独立确认执行影响后才发送保存；本页不另发 start/resume。未知回包先读回，保留并锁定草稿，不自动重试。关闭界面只清本地草稿，不撤回已发保存。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantThisBotUpdateSaveCallsRequestsyncALiv)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheSavePathDoesNotResolveAColdSessio)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyObjectiveAndObjectivemaxroundsAreRe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheSaveIsSentOnlyAfterYouSeparatelyC)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
 			if ui.Checkbox(c, &ack, botObjectiveConfigAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)

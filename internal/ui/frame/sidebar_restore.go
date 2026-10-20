@@ -29,7 +29,7 @@ func drawSidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.
 	if sizes == nil || sidebarCollapsedWidth(platform) != 0 {
 		return false
 	}
-	viewport, _ := c.Size()
+	viewport, _ := viewportDIP(c)
 	sizes.observeSidebarViewport(viewport)
 	if sizes.sidebarPreference() > 0 {
 		return false

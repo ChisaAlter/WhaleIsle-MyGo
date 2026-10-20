@@ -27,7 +27,7 @@ func TestBotDeleteUIDefaultCancelAndCompleteEffects(t *testing.T) {
 		t.Fatal("render/default mutated")
 	}
 	for _, want := range []string{"不可恢复", "notepad", "当前", "原子", "未知", "历史", "memory"} {
-		if !strings.Contains(botDeleteEffectsWarning, want) {
+		if !strings.Contains(botDeleteEffectsWarning(), want) {
 			t.Fatal("missing consequence", want)
 		}
 	}
