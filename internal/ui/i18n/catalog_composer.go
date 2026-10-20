@@ -188,3 +188,21 @@ func init() {
 	Register(KeyComposerVoicePrepareBody, "所选本地识别服务首次使用前需要准备模型。请打开插件详情开始准备。", "The selected local recognizer needs its models prepared before first use. Open plugin details to prepare it.")
 
 }
+
+// Built-in agent preset names and the selection spinner. The Host reports the
+// preset id in AgentPresetLabels; the composer localizes the built-in ids.
+const (
+	KeyComposerPresetStandard = "composer.preset.standard"
+	KeyComposerPresetPTC      = "composer.preset.ptc"
+	KeyComposerPresetMinimal  = "composer.preset.minimal"
+	KeyComposerPresetCordis   = "composer.preset.cordis"
+	KeyComposerPresetApplying = "composer.preset.applying"
+)
+
+func init() {
+	Register(KeyComposerPresetStandard, "标准模式", "Standard mode")
+	Register(KeyComposerPresetPTC, "PTC 模式", "PTC mode")
+	Register(KeyComposerPresetMinimal, "极简模式", "Minimal mode")
+	Register(KeyComposerPresetCordis, "创造模式", "Creator mode")
+	Register(KeyComposerPresetApplying, "正在应用预设…", "Applying preset…")
+}

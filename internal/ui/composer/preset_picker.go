@@ -194,7 +194,11 @@ func agentPresetChoices(options []session.AgentPresetOption) []presetChoice {
 			}
 			detail += o.Broken
 		}
-		out = append(out, presetChoice{ID: o.ID, Label: o.Label, Raw: o.Label, Description: detail, Broken: o.Broken})
+		label := o.Label
+		if localized, ok := builtinPresetName(o.ID); ok {
+			label = localized
+		}
+		out = append(out, presetChoice{ID: o.ID, Label: label, Raw: o.Label, Description: detail, Broken: o.Broken})
 	}
 	return out
 }

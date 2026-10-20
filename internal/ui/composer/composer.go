@@ -304,7 +304,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				}
 				if m.AgentPresetSelection.Busy {
-					ui.Text(c, "Applying preset…").FontSize(12)
+					ui.Text(c, i18n.T(i18n.KeyComposerPresetApplying)).FontSize(12)
 				}
 				if m.AgentPresetSelection.Error != "" {
 					ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
@@ -313,9 +313,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				// Hero options follow margin-left:auto after the workspace control.
 				presetLabel := i18n.T(i18n.KeyComposerPresetDefault)
 				if m.AgentPresetPick != nil && strings.TrimSpace(*m.AgentPresetPick) != "" {
-					presetLabel = strings.TrimSpace(*m.AgentPresetPick)
+					presetLabel = presetDisplayName(*m.AgentPresetPick)
 				} else if len(m.Snapshot.AgentPresetLabels) > 0 {
-					presetLabel = m.Snapshot.AgentPresetLabels[0]
+					presetLabel = presetDisplayName(m.Snapshot.AgentPresetLabels[0])
 				}
 				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
 					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, colors, presetOptions{
