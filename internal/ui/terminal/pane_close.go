@@ -2,6 +2,8 @@ package terminal
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -44,6 +46,7 @@ func paneRunning(pane *terminalPane) bool {
 // terminalClosePrompt asks before ending a running terminal. It closes itself
 // when the pane is already gone, so a prompt can never outlive its pane.
 func terminalClosePrompt(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	p := m.Panel
 	if p == nil || p.pendingClose == 0 {
 		return
@@ -64,10 +67,10 @@ func terminalClosePrompt(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, i18n.T(i18n.KeySurfacesTerminalCloseBody)).
 				FillWidth().FontSize(12).TextColor(muted)
 			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Padding(6, 0, 0, 0).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeySurfacesTerminalCancel)).Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesTerminalCancel), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
 					open = false
 				}
-				if ui.Button(c, i18n.T(i18n.KeySurfacesTerminalClose)).TextColor(c.Theme().Danger).Label(i18n.T(i18n.KeySurfacesTerminalConfirmClose)).Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesTerminalConfirmClose), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium}).Clicked() {
 					open = false
 					closePaneFromView(m, id)
 				}

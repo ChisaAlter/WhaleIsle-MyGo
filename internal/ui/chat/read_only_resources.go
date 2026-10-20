@@ -29,7 +29,7 @@ func readOnlyResourceLink(c *ui.Context, ref string, opts ReadOnlyResourceOption
 	}
 	u, _ := url.Parse(ref)
 	if u != nil && (u.Scheme == "https" || u.Scheme == "http") {
-		if ui.Button(c, ref).FontSize(11).Disabled(opts.OnOpenURL == nil).Clicked() {
+		if stdButton(c, st.Colors, ref, buttonGhost, opts.OnOpenURL == nil).Clicked() {
 			opts.OnOpenURL(ref)
 		}
 		return
@@ -47,7 +47,7 @@ func readOnlyResourceLink(c *ui.Context, ref string, opts ReadOnlyResourceOption
 	if read.Error != "" {
 		label = i18n.T(i18n.KeyChatImageRetry) + ": " + ref
 	}
-	if ui.Button(c, label).FontSize(11).Disabled(read.Busy).Clicked() {
+	if stdButton(c, st.Colors, label, buttonGhost, read.Busy).Clicked() {
 		opts.OnRead(ref, false)
 	}
 }
@@ -122,7 +122,7 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		}
 		if read.Error != "" {
 			ui.Text(c, read.Error).FontSize(11).TextColor(st.Muted)
-			if ui.Button(c, i18n.T(i18n.KeyChatImageRetry) + ": "+ref).FontSize(10).Clicked() {
+			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatImageRetry)+": "+ref, buttonGhost, false).Clicked() {
 				opts.OnRead(ref, false)
 			}
 		}
@@ -130,7 +130,7 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 			if opts.Scope != "" && filepath.IsAbs(read.Path) && loadChatBitmap(read.Path) != nil {
 				open := func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false }
 				ImageInlineView(c, read.Path, st.FG, st.Muted, open)
-				if ui.Button(c, i18n.T(i18n.KeyChatImageEnlarge) + ": "+ref).Clicked() {
+				if stdButton(c, st.Colors, i18n.T(i18n.KeyChatImageEnlarge)+": "+ref, buttonGhost, false).Clicked() {
 					open(read.Path)
 				}
 			} else {
@@ -143,7 +143,7 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		if read.Text != "" {
 			ui.Text(c, read.Text).FontSize(12).TextColor(st.FG).Selectable()
 		}
-		if !read.Busy && !read.EOF && read.Error == "" && ui.Button(c, i18n.T(i18n.KeyChatResourceMore) + ": "+ref).FontSize(10).Clicked() {
+		if !read.Busy && !read.EOF && read.Error == "" && stdButton(c, st.Colors, i18n.T(i18n.KeyChatResourceMore)+": "+ref, buttonGhost, false).Clicked() {
 			opts.OnRead(ref, true)
 		}
 	}

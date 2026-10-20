@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"math"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/theme"
 )
 
 // InspectorNavigation is an in-memory gesture owned by one visible inspector
@@ -104,13 +105,13 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		n.Notice = "No matching loaded chat content"
 	}
 }
-func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {
+func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	n := m.Inspector
 	if n == nil || n.SessionID != m.Snapshot.SelectedID || m.DisableDeveloperTools {
 		return
 	}
 	if n.Picking {
-		if ui.Button(c, historyNavigationText("选择此聊天节点", "Pick this chat node")).Clicked() {
+		if stdButton(c, palette, historyNavigationText("选择此聊天节点", "Pick this chat node"), buttonGhost, false).Clicked() {
 			n.Picked = &InspectorTarget{ID: msg.ID, Seq: msg.Seq}
 			n.Picking = false
 			n.Highlight = msg.ID

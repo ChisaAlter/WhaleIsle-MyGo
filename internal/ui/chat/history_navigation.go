@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func historyNavigationText(zh, en string) string {
@@ -61,7 +62,7 @@ func prepareHistoryNavigation(m Model, msgs []session.Message, list *ui.ListStat
 
 // HistoryNavigationView is the native equivalent of the original turn rail:
 // a keyboard-accessible directory with Host previews and explicit jump/cancel.
-func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.Color) {
+func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.Color) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.HistoryStore == nil {
 		return
 	}
@@ -76,16 +77,16 @@ func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.
 			}
 			if v.Busy {
 				ui.Text(c, historyNavigationText("正在加载回合…", "Loading turn…")).FontSize(11).TextColor(muted)
-				if ui.Button(c, historyNavigationText("取消跳转", "Cancel jump")).FontSize(11).Clicked() {
+				if stdButton(c, palette, historyNavigationText("取消跳转", "Cancel jump"), buttonGhost, false).Clicked() {
 					m.HistoryStore.CancelHistoryTurnJump(m.Snapshot.SelectedID, v.Request)
 				}
 			}
 			if v.Err != "" && v.HasTarget {
-				if ui.Button(c, historyNavigationText("重试跳转", "Retry jump")).FontSize(11).Clicked() {
+				if stdButton(c, palette, historyNavigationText("重试跳转", "Retry jump"), buttonGhost, false).Clicked() {
 					m.HistoryStore.JumpToHistoryTurn(context.Background(), m.Snapshot.SelectedID, v.Request, v.TargetSeq)
 				}
 			}
-			if ui.Button(c, historyNavigationText("回到最新", "Latest")).FontSize(11).Clicked() {
+			if stdButton(c, palette, historyNavigationText("回到最新", "Latest"), buttonGhost, false).Clicked() {
 				if m.HistoryStore.CancelHistoryTurnJump(m.Snapshot.SelectedID, v.Request) {
 					list.ScrollToEnd()
 				}

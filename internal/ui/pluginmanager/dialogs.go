@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/widgets"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -27,7 +28,7 @@ func confirmationDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 				if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
 					open = false
 				}
-				if ui.PrimaryButton(c, copyText("确认并执行", "Confirm and run")).Disabled(s.Busy).Clicked() {
+				if widgets.Button(c, colors, copyText("确认并执行", "Confirm and run"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: s.Busy}).Clicked() {
 					a.Confirm()
 				}
 			})
@@ -157,7 +158,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							if result.FailedAt == "registry" && !i.Confirmed && ui.Button(c, copyText("更换安装源", "Change registry")).Clicked() {
 								a.ChangeRegistry()
 							}
-							if ui.PrimaryButton(c, copyText("重试安装", "Retry installation")).Disabled(s.Busy).Clicked() {
+							if widgets.Button(c, colors, copyText("重试安装", "Retry installation"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: s.Busy}).Clicked() {
 								a.RetryInstall()
 							}
 						}

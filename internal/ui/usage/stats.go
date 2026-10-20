@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -76,6 +77,7 @@ func formatCompactTokens(value float64) string {
 // usageRangeToolbar is the dashboard's tool row: the recent-day choices, a
 // rescan action and the date-range editor.
 func usageRangeToolbar(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Row(c).FillWidth().Wrap().Gap(4).AlignItems(ui.Center).Children(func() {
 		for _, days := range []int{7, 14, 30} {
 			window := days
@@ -85,7 +87,7 @@ func usageRangeToolbar(c *ui.Context, m Model, st usagestore.StatsView, fg, mute
 			})
 		}
 		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
-		if ui.Button(c, i18n.T(i18n.KeySurfacesUsageScan)).FontSize(fonttheme.InterfaceSize(12)).Disabled(st.Loading).Clicked() {
+		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesUsageScan), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(st.Loading).Clicked() {
 			m.Store.RefreshStats(context.Background(), true)
 		}
 		ui.Box(c).Grow(1)

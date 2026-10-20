@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 )
 
 func viewMachineTools(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s, e := m.Machines.Snapshot(), m.MachineEditor
 	v := s.Tools
 	if !v.Loaded && !s.Busy && v.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
@@ -16,7 +18,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 	}
 	ui.Row(c).Gap(8).Wrap().Children(func() {
 		ui.Text(c, label("SSH 设置与端口转发", "SSH settings and port forwards")).Bold().Grow(1).MinWidth(0)
-		if ui.Button(c, label("刷新 SSH 设置", "Refresh SSH settings")).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+		if widgets.Button(c, colors, label("刷新 SSH 设置", "Refresh SSH settings"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
 			m.Machines.LoadTools()
 		}
 	})
@@ -39,18 +41,18 @@ func viewMachineTools(c *ui.Context, m Model) {
 		}
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			ui.Text(c, key).Grow(1).MinWidth(0)
-			if ui.Button(c, label("忘记主机密钥", "Forget host key")).Disabled(s.Busy).Clicked() {
+			if widgets.Button(c, colors, label("忘记主机密钥", "Forget host key"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 				e.PendingForget = s.CurrentID
 			}
 		})
 		if e.PendingForget == s.CurrentID {
 			ui.Text(c, label("忘记后需要重新核对服务器指纹。确认清除此机器的记录？", "Verify the server fingerprint again after forgetting its key. Clear this machine's key record?"))
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, label("确认忘记", "Confirm forget")).Disabled(s.Busy).Clicked() {
+				if widgets.Button(c, colors, label("确认忘记", "Confirm forget"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 					m.Machines.ForgetHostKey()
 					e.PendingForget = ""
 				}
-				if ui.Button(c, label("取消", "Cancel")).Clicked() {
+				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					e.PendingForget = ""
 				}
 			})
@@ -67,7 +69,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 		entry := entry
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			ui.Text(c, entry.Host+" · "+entry.User+"@"+entry.HostName).Grow(1).MinWidth(0)
-			if ui.Button(c, label("导入表单", "Import to form")).Disabled(s.Busy).Clicked() {
+			if widgets.Button(c, colors, label("导入表单", "Import to form"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 				d, err := entry.Draft()
 				if err != nil {
 					e.ForwardError = err.Error()
@@ -99,7 +101,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 				if ui.Button(c, actionLabel).Disabled(s.Busy).Clicked() {
 					m.Machines.ForwardAction(f.ID, action)
 				}
-				if ui.Button(c, label("移除转发", "Remove forward")).Disabled(s.Busy).Clicked() {
+				if widgets.Button(c, colors, label("移除转发", "Remove forward"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 					m.Machines.ForwardAction(f.ID, "remove")
 				}
 			})
@@ -137,7 +139,7 @@ func viewMachineTools(c *ui.Context, m Model) {
 		if e.ForwardError != "" {
 			ui.Text(c, e.ForwardError)
 		}
-		if ui.Button(c, label("添加转发定义", "Add forward definition")).Disabled(s.Busy).Clicked() {
+		if widgets.Button(c, colors, label("添加转发定义", "Add forward definition"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 			d := e.Forward
 			if d.Direction == "reverse" {
 				d.AutoStart = false

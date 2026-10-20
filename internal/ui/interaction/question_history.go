@@ -5,10 +5,11 @@ import (
 	"strings"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store CardStore, fg, muted, accent ui.Color) {
+func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store CardStore, colors fonttheme.Colors, fg, muted, accent ui.Color) {
 	if len(records) == 0 {
 		return
 	}
@@ -76,7 +77,7 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			}
 			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		if ui.Button(c, i18n.T(i18n.KeyChatQuestionCloseHist)).Clicked() {
+		if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionCloseHist), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			store.ReviewQuestionHistory(v.AgentID, "")
 		}
 	})

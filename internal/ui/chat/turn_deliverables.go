@@ -98,7 +98,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			if host.Error != "" {
 				label = i18n.T(i18n.KeyChatDeliveryRetryHost)
 			}
-			if ui.Button(c, label).FontSize(10).Disabled(!enabled || host.Busy).Clicked() {
+			if stdButton(c, st.Colors, label, buttonGhost, !enabled || host.Busy).Clicked() {
 				run(hostTarget, "host")
 			}
 			if host.Busy {
@@ -123,7 +123,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			if state.Error != "" {
 				label = i18n.T(i18n.KeyChatDeliveryRetryReview)
 			}
-			if ui.Button(c, label).FontSize(11).Disabled(!enabled || state.Busy).Clicked() {
+			if stdButton(c, st.Colors, label, buttonGhost, !enabled || state.Busy).Clicked() {
 				run(target, "summary")
 			}
 			if state.Busy {
@@ -153,7 +153,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						if comparison.Error != "" {
 							label = i18n.T(i18n.KeyChatDeliveryRetryDiff) + ": " + file.Display
 						}
-						if ui.Button(c, label).FontSize(11).Disabled(!enabled || comparison.Busy).Clicked() {
+						if stdButton(c, st.Colors, label, buttonGhost, !enabled || comparison.Busy).Clicked() {
 							run(selected, "diff")
 						}
 						ui.Text(c, fmt.Sprintf("%s · event %d / index %d", file.Path, selected.Seq, selected.Index)).FontSize(10).TextColor(st.Muted).Selectable()
@@ -202,7 +202,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 					ui.Text(c, f.Description).FontSize(11).TextColor(st.Muted).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("event %d / index %d", f.Target.Seq, f.Target.Index)).FontSize(10).TextColor(st.Muted)
-				if ui.Button(c, i18n.T(i18n.KeyChatResourcePreview)).FontSize(10).Disabled(!enabled || preview == nil).Clicked() {
+				if stdButton(c, st.Colors, i18n.T(i18n.KeyChatResourcePreview), buttonGhost, !enabled || preview == nil).Clicked() {
 					preview(f.Target)
 				}
 				TurnFileNativeActions(c, f.Target, snapshot, nativeAvailable && enabled, run, st)
@@ -219,7 +219,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			if *expanded {
 				label = i18n.T(i18n.KeyChatRowCollapse)
 			}
-			if ui.Button(c, label).FontSize(10).Clicked() {
+			if stdButton(c, st.Colors, label, buttonGhost, false).Clicked() {
 				*expanded = !*expanded
 			}
 		}
@@ -246,7 +246,7 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 			if state.Error != "" && state.Action == action {
 				label = i18n.T(i18n.KeyChatDeliveryRetryAction) + " " + action
 			}
-			if ui.Button(c, label).FontSize(10).Disabled(!enabled || state.Busy).Clicked() {
+			if stdButton(c, st.Colors, label, buttonGhost, !enabled || state.Busy).Clicked() {
 				run(target, action)
 			}
 		}

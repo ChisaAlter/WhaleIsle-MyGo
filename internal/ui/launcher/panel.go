@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Tab ids match Electron data-tab values.
@@ -51,6 +52,10 @@ var (
 	colOfficialBG = chrome.Color("rgb(228, 237, 253)")
 	colSegActive  = chrome.Color("rgb(235, 238, 242)")
 )
+
+// launcherColors is the resolved palette the standard buttons read; the token
+// globals above stay for the rows and tabs that paint themselves.
+var launcherColors = theme.Resolve("deepseek").Light
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
@@ -172,6 +177,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func applyLightTokens() {
+	launcherColors = theme.Resolve("deepseek").Light
 	colPrimary = chrome.Color("rgb(15, 17, 21)")
 	colSecondary = chrome.Color("rgb(97, 102, 107)")
 	colTertiary = chrome.Color("rgb(129, 133, 140)")
@@ -195,6 +201,7 @@ func applyLightTokens() {
 }
 
 func applyDarkTokens() {
+	launcherColors = theme.Resolve("deepseek").Dark
 	th := theme.Resolve("deepseek.dark").Dark
 	colPrimary = chrome.Color(th.FG)
 	colSecondary = chrome.Color(th.Muted)
@@ -1438,21 +1445,15 @@ func switchCheck(c *ui.Context, title, desc string, checked *bool, onSave func()
 }
 
 func primaryBtn(c *ui.Context, label string) ui.Element {
-	return ui.Button(c, label).Height(36).Padding(0, 14, 0, 14).
-		Radius(18).Background(colPrimary).BorderWidth(0).
-		TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(14))
+	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary})
 }
 
 func ghostBtn(c *ui.Context, label string) ui.Element {
-	return ui.Button(c, label).Height(36).Padding(0, 14, 0, 14).
-		Radius(18).Border(1, colBorderL2).Background(ui.Transparent).
-		TextColor(colPrimary).FontSize(theme.InterfaceSize(14))
+	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline})
 }
 
 func ghostSmall(c *ui.Context, label string) ui.Element {
-	return ui.Button(c, label).Height(28).Padding(0, 12, 0, 12).
-		Radius(14).Border(1, colBorderL2).Background(ui.Transparent).
-		TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
+	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall})
 }
 
 func kv(c *ui.Context, label, value string) {

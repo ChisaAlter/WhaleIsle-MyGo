@@ -8,6 +8,8 @@ import (
 
 	"whaleisle/internal/dsh/events"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -22,6 +24,9 @@ type ToolCardStyle struct {
 	OK       ui.Color
 	Err      ui.Color
 	FontSize float32
+	// Colors is the active whaleisle palette; the standard text buttons inside a
+	// tool card use it. Zero keeps the framework face (see stdButton).
+	Colors theme.Colors
 }
 
 // ToolCardInfo is parsed display data for one persistence tool event.
@@ -281,6 +286,14 @@ func truncateToolText(s string, max int) string {
 		return s
 	}
 	return s[:max] + "…"
+}
+
+// toolCardStyle builds a tool style for one active palette: the framework face
+// colors plus the whaleisle palette the standard buttons use.
+func toolCardStyle(colors theme.Colors, fg, muted, border ui.Color) ToolCardStyle {
+	style := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
+	style.Colors = colors
+	return style
 }
 
 // DefaultToolCardStyle builds colors from theme chrome helpers.

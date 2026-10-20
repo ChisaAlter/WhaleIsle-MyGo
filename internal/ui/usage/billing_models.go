@@ -4,15 +4,17 @@ import (
 	"context"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 )
 
 func billingModelsView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	v := m.Store.BillingModels()
 	ui.Row(c).Gap(6).Children(func() {
 		ui.Text(c, usageText("选择服务商与模型", "Choose provider and model")).Bold().TextColor(fg).Grow(1)
-		if ui.Button(c, usageText("刷新模型目录", "Refresh model directory")).Disabled(v.Loading).Clicked() {
+		if widgets.Button(c, colors, usageText("刷新模型目录", "Refresh model directory"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(v.Loading).Clicked() {
 			m.Store.LoadBillingModels(context.Background())
 		}
 	})

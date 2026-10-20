@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -116,17 +117,17 @@ func (f *floatingPreview) view(c *ui.Context) {
 				if before != previewPreferences(m).WordWrap && f.notify != nil {
 					f.notify()
 				}
-				if ui.Button(c, label("复制文本", "Copy text")).Clicked() {
+				if widgets.Button(c, colors, label("复制文本", "Copy text"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 					mygo.Clipboard.WriteText(f.snapshot.Text)
 				}
-				if isMarkdown(f.snapshot.Path) && ui.Button(c, label("源码或渲染", "Source or rendered")).Clicked() {
+				if isMarkdown(f.snapshot.Path) && widgets.Button(c, colors, label("源码或渲染", "Source or rendered"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 					f.tab.RenderedMarkdown = !f.tab.RenderedMarkdown
 				}
 			}
-			if ui.Button(c, label("刷新", "Refresh")).Disabled(f.loading).Clicked() {
+			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(f.loading).Clicked() {
 				f.refresh()
 			}
-			if ui.Button(c, label("关闭", "Close")).Clicked() && f.win != nil {
+			if widgets.Button(c, colors, label("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() && f.win != nil {
 				f.win.Close()
 			}
 		})

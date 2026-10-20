@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	st := m.Store.Stats()
 	ui.Text(c, usageText("日期范围（UTC，含首尾）", "Date range (UTC, inclusive)")).TextColor(fg)
 	ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
 		start, end := st.RangeStart, st.RangeEnd
 		ui.TextInput(c, &start).Width(145).Placeholder("YYYY-MM-DD").OnChange(func() { m.Store.SetStatsRangeDraft(start, end) })
 		ui.TextInput(c, &end).Width(145).Placeholder("YYYY-MM-DD").OnChange(func() { m.Store.SetStatsRangeDraft(start, end) })
-		if ui.Button(c, usageText("应用", "Apply")).Clicked() {
+		if widgets.Button(c, colors, usageText("应用", "Apply"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.ApplyStatsRangeDraft()
 		}
-		if ui.Button(c, usageText("清除", "Clear")).Clicked() {
+		if widgets.Button(c, colors, usageText("清除", "Clear"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.ClearStatsDateRange()
 		}
 	})
@@ -46,7 +48,7 @@ func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 						if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 							m.Store.SelectStatsDay(day.Date, false)
 						}
-						if st.Range.Active() && ui.Button(c, usageText("扩展", "Extend")).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
+						if st.Range.Active() && widgets.Button(c, colors, usageText("扩展", "Extend"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 							m.Store.SelectStatsDay(day.Date, true)
 						}
 					}

@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func scheduleText(zh, en string) string {
@@ -40,14 +41,15 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
 					if m.OnNewTask != nil {
-						b := ui.Button(c.Key("schedule-new"), "").Label("New automation task").Height(32).Padding(0, 12).Radius(16).FontSize(theme.InterfaceSize(13)).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).BorderWidth(0).Disabled(!snap.ClientReady)
-						b.Children(func() {
-							ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+						newTask := widgets.Button(c, colors, scheduleText("新建", "New"), widgets.ButtonSpec{
+							Variant:  widgets.ButtonPrimary,
+							Size:     widgets.ButtonSmall,
+							Disabled: !snap.ClientReady,
+							Leading: func(c *ui.Context) {
 								ui.Icon(c, scheduleIcons["plus"]).Size(13, 13).TextColor(chrome.Color(colors.ButtonFG))
-								ui.Text(c, scheduleText("新建", "New")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.ButtonFG))
-							})
+							},
 						})
-						if b.Clicked() {
+						if newTask.Clicked() {
 							m.OnNewTask()
 						}
 					}
@@ -84,7 +86,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 					scheduleEmpty(c, label, colors)
 					if m.OnNewTask != nil {
 						ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-							if ui.Button(c, scheduleText("新建自动化任务", "New automation task")).Disabled(!snap.ClientReady).Clicked() {
+							if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !snap.ClientReady}).Clicked() {
 								m.OnNewTask()
 							}
 						})
@@ -144,7 +146,7 @@ func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewStat
 			if populated {
 				ui.Text(c, scheduleText("正在显示上次成功加载的任务。", "Showing the last successfully loaded tasks.")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
 			}
-			if ui.Button(c, scheduleText("重试", "Retry")).Disabled(snap.Loading).Clicked() {
+			if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: snap.Loading}).Clicked() {
 				m.Store.Refresh(context.Background(), m.SessionID)
 			}
 		})
@@ -229,11 +231,14 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 				} else {
 					ui.Box(c).Grow(1)
 				}
-				if ui.Button(c, scheduleText("取消", "Cancel")).Label("Cancel task changes").Height(32).FontSize(theme.InterfaceSize(13)).Disabled(snap.Busy).Clicked() {
+				palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+				cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Busy})
+				cancel.Label("Cancel task changes")
+				if cancel.Clicked() {
 					*d = *newTaskDraft(d.row)
 					p.message("")
 				}
-				if ui.Button(c, scheduleText("保存更改", "Save changes")).Height(32).FontSize(theme.InterfaceSize(13)).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).BorderWidth(0).Disabled(!editable).Clicked() {
+				if widgets.Button(c, palette, scheduleText("保存更改", "Save changes"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !editable}).Clicked() {
 					p.saveDraft(m, d)
 				}
 			})
@@ -330,10 +335,13 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 					})
 				})
 				ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
-					if ui.Button(c, scheduleText("取消", "Cancel")).Label("Cancel task deletion").AutoFocus().Disabled(snap.Busy).Clicked() {
+					palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+					cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Busy})
+					cancel.Label("Cancel task deletion")
+					if cancel.Clicked() {
 						p.deleting = nil
 					}
-					if ui.Button(c, scheduleText("确认删除", "Confirm deletion")).Disabled(snap.Busy || !snap.ClientReady).Clicked() {
+					if widgets.Button(c, palette, scheduleText("确认删除", "Confirm deletion"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium, Disabled: snap.Busy || !snap.ClientReady}).Clicked() {
 						p.deleting = nil
 						p.deleteTask(m, row)
 					}

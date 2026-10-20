@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // The desktop-owned MarketSection is an 800 DIP settings column. The
@@ -149,11 +150,11 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					favoriteButton(c, m, i.ID)
 					ui.Box(c).Grow(1)
-					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketDetails), "Details")).Clicked() {
+					if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketDetails), "Details"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 						m.Store.SelectDetails(i.ID, false)
 					}
 					if parsed, err := url.Parse(i.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
-						if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketHomepage), "Homepage")).Clicked() {
+						if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketHomepage), "Homepage"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnOpenURL(parsed.String())
 						}
 					}

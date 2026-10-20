@@ -46,15 +46,16 @@ func TestMarketSurfaceSnapshot(t *testing.T) {
 		{ID: "tool", Label: "Tools", Count: 2},
 	}}
 	rows := []desktopmarket.CatalogItem{
-		{ID: "dsh-ui-market", Repo: "dsh-ui-market", Owner: "deepseek-ai", Description: "Browse and install plugins from the registry without leaving the window.", Stars: 1200, Category: "ui"},
+		{ID: "dsh-worktree-1", Repo: "dsh-worktree", Owner: "deepseek-ai", PackageName: "@deepseek-ai/dsh-worktree", InstallSpec: "@deepseek-ai/dsh-worktree", Description: "Browse and install plugins from the registry without leaving the window.", Stars: 1200, Category: "ui"},
 		{ID: "dsh-worktree", Repo: "dsh-worktree", Owner: "deepseek-ai", Description: "Manage git worktrees for parallel agent sessions.", Stars: 860, Category: "tool"},
 		{ID: "dsh-glass", Repo: "dsh-glass", Owner: "community", Description: "Frosted glass effect for the window chrome and composer.", Stars: 240, Category: "ui"},
 		{ID: "dsh-usage", Repo: "dsh-usage", Owner: "community", Description: "Token usage dashboard with a contribution calendar.", Stars: 180, Category: "tool"},
 	}
-	d := marketstore.Discovery{Category: "all", Period: "all", Tab: "discover", Catalog: catalog, Rows: rows}
+	d := marketstore.Discovery{Category: "all", Period: "all", Tab: "discover", RuntimeReady: true, Catalog: catalog, Rows: rows}
+	inventory := marketstore.ViewState{ClientReady: true, Rows: []marketstore.Entry{{Label: "@deepseek-ai/dsh-glass", Detail: "1.2.0"}}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(16).Gap(16).Children(func() {
-			catalogCards(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+			catalogCards(c, Model{Store: store, ThemeID: "deepseek.light"}, d, inventory, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
 		})
 	}, 800, 640)
 	saveSurfaceSnapshot(t, tt, "surface-market.png")

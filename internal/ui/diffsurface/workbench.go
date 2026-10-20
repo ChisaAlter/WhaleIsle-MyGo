@@ -4,6 +4,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
@@ -97,6 +99,7 @@ func scopeDiff(m Model, path string, staged bool) {
 	refresh(m)
 }
 func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil {
 		return
@@ -142,7 +145,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		paintComparison(c, m, fg, muted)
 		paintBranches(c, m, fg, muted)
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, word("全部修改（对比 HEAD）", "All changes vs HEAD")).Clicked() {
+			if widgets.Button(c, colors, word("全部修改（对比 HEAD）", "All changes vs HEAD"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 				if m.PathFilter != nil {
 					*m.PathFilter = ""
 				}
@@ -150,10 +153,10 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 				w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
 				refresh(m)
 			}
-			if ui.Button(c, word("全部未暂存", "All unstaged")).Clicked() {
+			if widgets.Button(c, colors, word("全部未暂存", "All unstaged"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 				scopeDiff(m, "", false)
 			}
-			if ui.Button(c, word("全部已暂存", "All staged")).Clicked() {
+			if widgets.Button(c, colors, word("全部已暂存", "All staged"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 				scopeDiff(m, "", true)
 			}
 		})

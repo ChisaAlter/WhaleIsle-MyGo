@@ -59,7 +59,21 @@ type Colors struct {
 	InputMajor      string // --dsw-specific-input-major (glass-opacity 80%)
 	ButtonInfoFill  string // --dsw-alias-button-info-fill
 	ButtonInfoHover string // --dsw-alias-button-info-hover (also active)
-	SelectorFill    string // --dsw-specific-selector
+	// BrandPrimary/Hover carry --dsw-alias-button-primary-fill/hover: the
+	// monochrome primary button (nearly black in light, nearly white in dark),
+	// not the blue info fill.
+	BrandPrimary      string
+	BrandPrimaryHover string
+	// BorderL3 is --dsw-alias-border-l3, the 0.5 DIP outline-button stroke.
+	BorderL3 string
+	// ToolbarFill/Hover are --dsw-alias-button-tool-bar-fill/hover.
+	ToolbarFill  string
+	ToolbarHover string
+	// Danger/DangerHover are --dsw-alias-state-error-primary and the derived
+	// pressed shade, the destructive fill.
+	Danger       string
+	DangerHover  string
+	SelectorFill string // --dsw-specific-selector
 }
 
 // Theme is a resolved family with both palettes and a scheme preference.
@@ -95,6 +109,13 @@ var deepseekLight = Colors{
 	InputMajor:      "rgba(255, 255, 255, 0.8)",
 	ButtonInfoFill:  "rgb(65, 118, 230)",
 	ButtonInfoHover: "rgb(122, 170, 255)",
+	BrandPrimary:      "#0f1115",             // --dsw-alias-brand-primary (neutral-bluish-1000)
+	BrandPrimaryHover: "rgb(67, 69, 74)",     // --dsw-alias-button-primary-hover (neutral-bluish-750)
+	BorderL3:          "rgba(0, 0, 0, 0.12)",
+	ToolbarFill:       "rgba(84, 85, 87, 0.5)",
+	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
+	Danger:            "rgb(236, 19, 19)",
+	DangerHover:       "rgb(209, 18, 18)",
 	SelectorFill:    "rgb(245, 246, 247)",
 }
 
@@ -126,6 +147,15 @@ var deepseekDark = Colors{
 	// (--dsw-static-deepseek-400); its hover is deepseek-500.
 	ButtonInfoFill:  "rgb(122, 170, 255)",
 	ButtonInfoHover: "rgb(65, 118, 230)",
+	// --dsw-alias-brand-primary is neutral-bluish-50 in the dark half; the
+	// primary button there is nearly white with dark foreground text.
+	BrandPrimary:      "rgb(249, 250, 251)",
+	BrandPrimaryHover: "rgb(235, 238, 242)",
+	BorderL3:          "rgba(255, 255, 255, 0.16)",
+	ToolbarFill:       "rgba(84, 85, 87, 0.5)",
+	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
+	Danger:            "rgb(242, 90, 90)",
+	DangerHover:       "rgb(244, 102, 102)",
 	SelectorFill:    "rgb(53, 54, 56)",
 }
 

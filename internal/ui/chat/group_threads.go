@@ -10,12 +10,12 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-func groupThreadsView(c *ui.Context, m Model) {
+func groupThreadsView(c *ui.Context, m Model) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
 	threads := session.ProjectGroupThreads(m.Snapshot.Messages, m.GroupMembers)
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
-		ConnBannerView(c, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
+		ConnBannerView(c, palette, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
 		ui.Row(c).Padding(8, 12).Gap(8).Wrap().Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatGroupTitle)).Bold().TextColor(fg)
 			for _, member := range m.GroupMembers {
@@ -32,7 +32,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 				ui.Text(c, name).TextColor(muted)
 			}
 		})
-		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && ui.Button(c, i18n.T(i18n.KeyChatGroupEarlier)).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
+		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupEarlier), buttonGhost, false).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
 			m.OnLoadEarlier()
 		}
 		if m.Snapshot.HistoryPageErr != "" {
@@ -92,7 +92,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 								}
 							})
 						}
-						if m.OnReplyGroupThread != nil && ui.Button(c, i18n.T(i18n.KeyChatGroupReply)).Disabled(m.Snapshot.PromptBusy).Clicked() {
+						if m.OnReplyGroupThread != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupReply), buttonGhost, false).Disabled(m.Snapshot.PromptBusy).Clicked() {
 							m.OnReplyGroupThread(thread.ID)
 						}
 					})

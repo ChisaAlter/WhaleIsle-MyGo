@@ -2,6 +2,7 @@ package remote
 
 import (
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -20,11 +21,12 @@ func remoteFileActionKey(s remotestore.FileSnapshot) string {
 }
 
 func fileRowActions(c *ui.Context, m Model, item remotestore.DirectoryEntry, s remotestore.FileSnapshot, disabled bool) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	a := &m.FileEditor.Actions
-	if ui.Button(c, label("复制路径", "Copy path")).Disabled(disabled).Clicked() {
+	if widgets.Button(c, colors, label("复制路径", "Copy path"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 		mygo.Clipboard.WriteText(item.Path)
 	}
-	if ui.Button(c, label("复制相对路径", "Copy relative path")).Disabled(disabled || s.RootPath == "").Clicked() {
+	if widgets.Button(c, colors, label("复制相对路径", "Copy relative path"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled || s.RootPath == "").Clicked() {
 		p, root := strings.ReplaceAll(item.Path, "\\", "/"), strings.TrimRight(strings.ReplaceAll(s.RootPath, "\\", "/"), "/")
 		relative := p
 		if p == root {
@@ -35,15 +37,16 @@ func fileRowActions(c *ui.Context, m Model, item remotestore.DirectoryEntry, s r
 		mygo.Clipboard.WriteText(relative)
 	}
 	blocked := disabled || s.Dirty() || !s.Bound || !s.Loaded || item.Drive
-	if ui.Button(c, label("重命名", "Rename")).Disabled(blocked).Clicked() {
+	if widgets.Button(c, colors, label("重命名", "Rename"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
 		*a = FileActions{Key: remoteFileActionKey(s), Operation: "rename", Path: item.Path, Name: item.Name, Directory: item.IsDirectory()}
 	}
-	if ui.Button(c, label("删除", "Delete")).Disabled(blocked).Clicked() {
+	if widgets.Button(c, colors, label("删除", "Delete"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
 		*a = FileActions{Key: remoteFileActionKey(s), Operation: "remove", Path: item.Path, Directory: item.IsDirectory()}
 	}
 }
 
 func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, disabled bool) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	a := &m.FileEditor.Actions
 	key := remoteFileActionKey(s)
 	if a.Key != "" && a.Key != key {
@@ -57,7 +60,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 			a.Error = s.Error
 		}
 	}
-	if ui.Button(c, label("新建远程文件夹", "New remote folder")).Disabled(disabled || !s.Bound || !s.Loaded).Clicked() {
+	if widgets.Button(c, colors, label("新建远程文件夹", "New remote folder"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || !s.Bound || !s.Loaded).Clicked() {
 		*a = FileActions{Key: key, Operation: "mkdir", Path: s.RootPath}
 	}
 	if a.Operation == "" {
@@ -83,7 +86,6 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 		}
 	}
 	open := true
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .24))
 		width, _ := c.Size()
@@ -112,7 +114,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 				ui.Text(c, s.Error).FillWidth()
 			}
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 					*a = FileActions{}
 				}
 				title := label("确认创建", "Confirm create")

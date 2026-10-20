@@ -12,6 +12,7 @@ import (
 // native text until interaction mounts a lifetime-bound AppContainer child.
 // The chat process never loads the HTML or executes its scripts.
 func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, fg, muted, border, field ui.Color) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	id := p.File.AttachmentID
 	state := m.VisualReply
 	active := state.SessionID == m.Snapshot.SelectedID && state.AttachmentID == id
@@ -20,29 +21,29 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		ui.Text(c, i18n.T(i18n.KeyChatVisualPublished)).FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {
 			if m.OnInteractVisualReply != nil && m.OnInlineVisualReply == nil {
-				if ui.Button(c, i18n.T(i18n.KeyChatVisualInteract)).Disabled(active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
+				if stdButton(c, palette, i18n.T(i18n.KeyChatVisualInteract), buttonPrimary, active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
 					Tooltip(i18n.T(i18n.KeyChatVisualIsolatedTooltip)).Clicked() {
 					m.OnInteractVisualReply(id)
 				}
 			}
 			if active && (state.InteractiveLoading || state.InteractiveActive) && m.OnStopInteractiveVisualReply != nil {
-				if ui.Button(c, i18n.T(i18n.KeyChatVisualStop)).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatVisualStop), buttonDanger, false).Clicked() {
 					m.OnStopInteractiveVisualReply()
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatVisualSafePreview)).Disabled(m.OnPreviewVisualReply == nil || (active && (state.Loading || state.PreviewLoading))).Clicked() {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatVisualSafePreview), buttonGhost, m.OnPreviewVisualReply == nil || (active && (state.Loading || state.PreviewLoading))).Clicked() {
 				m.OnPreviewVisualReply(id)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatVisualSource)).Disabled(m.OnReadVisualReply == nil || (active && state.Loading)).Clicked() {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatVisualSource), buttonGhost, m.OnReadVisualReply == nil || (active && state.Loading)).Clicked() {
 				m.OnReadVisualReply(id)
 			}
 			if active && state.Ready {
-				if ui.Button(c, i18n.T(i18n.KeyChatVisualSaveAs)).Disabled(m.OnSaveVisualReply == nil).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatVisualSaveAs), buttonGhost, m.OnSaveVisualReply == nil).Clicked() {
 					m.OnSaveVisualReply(id)
 				}
 			}
 			if active && m.OnCloseVisualReply != nil {
-				if ui.Button(c, i18n.T(i18n.KeyChatImageClose)).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatImageClose), buttonGhost, false).Clicked() {
 					m.OnCloseVisualReply()
 				}
 			}
@@ -66,7 +67,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			if state.Surface != nil {
 				c.After(100 * time.Millisecond)
 				expanded := state.InteractiveExpanded
-				if ui.Button(c, i18n.T(i18n.KeyChatVisualExpand)).Disabled(m.HistoryStore == nil).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatVisualExpand), buttonGhost, m.HistoryStore == nil).Clicked() {
 					m.HistoryStore.ToggleVisualReplyExpanded()
 				}
 				if !expanded {
@@ -78,7 +79,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 						panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
 							ui.Row(c).FillWidth().Children(func() {
 								ui.Text(c, p.Title).Grow(1).TextColor(fg)
-								if ui.Button(c, i18n.T(i18n.KeyChatRowCollapse)).Clicked() {
+								if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {
 									open = false
 								}
 							})
@@ -136,13 +137,14 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 }
 
 func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, page session.InlineVisualReply, fg, muted, field ui.Color) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if page.Loading {
 		ui.Text(c, i18n.T(i18n.KeyChatVisualLoadingPage)).TextColor(muted)
 		return
 	}
 	if page.Error != "" {
 		ui.Text(c, page.Error).TextColor(muted)
-		if page.Retry != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).Clicked() {
+		if page.Retry != nil && stdButton(c, palette, i18n.T(i18n.KeyChatImageRetry), buttonGhost, false).Clicked() {
 			page.Retry()
 		}
 		return
@@ -153,7 +155,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	c.After(100 * time.Millisecond)
 	height := float32(max(80, min(2000, page.Height)))
 	if !page.Expanded {
-		if ui.Button(c, i18n.T(i18n.KeyChatVisualExpand)).Clicked() {
+		if stdButton(c, palette, i18n.T(i18n.KeyChatVisualExpand), buttonGhost, false).Clicked() {
 			page.ToggleExpanded()
 		}
 		visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, height)
@@ -166,7 +168,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 		panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Text(c, p.Title).Grow(1).TextColor(fg)
-				if ui.Button(c, i18n.T(i18n.KeyChatRowCollapse)).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {
 					open = false
 				}
 			})

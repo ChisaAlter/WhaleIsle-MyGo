@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/theme"
 )
 
 // Pointer effect bounds and defaults, mirroring ui-theme/src/cursor-fx.ts:
@@ -98,9 +99,7 @@ func cursorPalette(stored [6]string, accent ui.Color) []ui.Color {
 		if _, err := strconv.ParseUint(raw[1:], 16, 24); err != nil {
 			continue
 		}
-		if c, err := parseHexSafe(raw); err == nil {
-			out = append(out, c)
-		}
+		out = append(out, theme.Color(raw))
 	}
 	if len(out) == 0 {
 		if accent.A == 0 {

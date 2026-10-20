@@ -50,29 +50,22 @@ func interactionCardHeader(c *ui.Context, state widgets.State, label, trailing s
 	})
 }
 
-// interactionPrimaryButton is the card's confirming action: filled accent with
-// on-accent text, 32 DIPs tall, 10 DIP radius.
-func interactionPrimaryButton(c *ui.Context, t *ui.Theme, label string) ui.Element {
-	return ui.Button(c, label).Height(32).Padding(0, 14, 0, 14).Radius(10).
-		Background(t.Accent).TextColor(t.AccentText).FontSize(13)
+// interactionPrimaryButton is the card's confirming action, on the harness
+// primary recipe (sm: 28 DIP, 12px text).
+func interactionPrimaryButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: disabled})
 }
 
-// interactionSecondaryButton is the card's quiet action: hairline outline that
-// keeps the card's surface, 32 DIPs tall, 10 DIP radius.
-func interactionSecondaryButton(c *ui.Context, t *ui.Theme, label string) ui.Element {
-	return ui.Button(c, label).Height(32).Padding(0, 14, 0, 14).Radius(10).
-		Background(ui.Transparent).Border(0.5, t.Border).TextColor(t.Text).FontSize(13)
+// interactionGhostButton is the card's quiet action: no face until hovered.
+func interactionGhostButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: disabled})
 }
 
-// interactionDangerButton is the refusing action: outline until hovered, then
-// the danger tint, so a destructive answer never reads as the default.
-func interactionDangerButton(c *ui.Context, t *ui.Theme, label string) ui.Element {
-	button := ui.Button(c, label).Height(32).Padding(0, 14, 0, 14).Radius(10).
-		Background(ui.Transparent).Border(0.5, t.Border).TextColor(t.TextMuted).FontSize(13)
-	if button.Hovered() {
-		button.Background(t.Danger.Alpha(.10)).Border(0.5, t.Danger.Alpha(.55)).TextColor(t.Danger)
-	}
-	return button
+// interactionOutlineButton is the card's refusing action: harness outline stroke
+// over the card surface. The primitive has no danger-text variant, so the
+// refusal reads through position and the label rather than a red hover.
+func interactionOutlineButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: disabled})
 }
 
 // approvalCommand extracts the command an approval is really about: a shell

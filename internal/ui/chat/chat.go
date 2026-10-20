@@ -133,7 +133,7 @@ func View(c *ui.Context, m Model) {
 				label = i18n.T(i18n.KeyChatLoadEarlierBusy)
 			}
 			ui.Row(c).Padding(8, 12, 0, 12).Children(func() {
-				if ui.Button(c, label).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
+				if stdButton(c, colors, label, buttonGhost, m.Snapshot.HistoryPageBusy).Clicked() {
 					m.OnLoadEarlier()
 				}
 			})
@@ -179,7 +179,7 @@ func View(c *ui.Context, m Model) {
 						return
 					}
 					if msg.Kind == session.MessageKindQuestionReply {
-						QuestionReplyView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
+						QuestionReplyView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, colors, fg, muted)
 						return
 					}
 					if msg.Kind == session.MessageKindContext {
@@ -199,11 +199,11 @@ func View(c *ui.Context, m Model) {
 						return
 					}
 					if msg.TurnDelivery != nil {
-						TurnDeliveryView(row.Context, *msg.TurnDelivery, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
+						TurnDeliveryView(row.Context, *msg.TurnDelivery, m, toolCardStyle(colors, fg, muted, border))
 						return
 					}
 					if msg.Workflow != nil {
-						WorkflowRunView(row.Context, *msg.Workflow, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
+						WorkflowRunView(row.Context, *msg.Workflow, m, toolCardStyle(colors, fg, muted, border))
 						return
 					}
 					if msg.Kind == session.MessageKindSubmittedPlan {
@@ -286,7 +286,7 @@ func View(c *ui.Context, m Model) {
 					}
 					switch msg.Kind {
 					case session.MessageKindCommand:
-						CommandCardView(row.Context, msg, m, DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent)))
+						CommandCardView(row.Context, msg, m, toolCardStyle(colors, fg, muted, border))
 					case session.MessageKindTool:
 						tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 						ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
@@ -428,7 +428,7 @@ func StatusView(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	field := chrome.Color(colors.Field)
 	border := chrome.Color(colors.Border)
-	ConnBannerView(c, m.ConnectionBanner, muted, field, border, m.OnReconnect)
+	ConnBannerView(c, colors, m.ConnectionBanner, muted, field, border, m.OnReconnect)
 	UsageLabelView(c, FormatUsageLabel(m.UsageJobsToday, m.UsageBalance), muted, field, border, m.OnOpenUsage)
 	// Host bookkeeping strings (e.g. "workspace ready: <title>") are internal
 	// state, not transcript copy; the shell shows user-facing status only.

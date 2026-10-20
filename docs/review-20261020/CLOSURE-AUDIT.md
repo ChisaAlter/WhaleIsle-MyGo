@@ -65,3 +65,9 @@ P0：19/19 有实现。P1：约 45/49 闭合。P2：约 25/33 闭合（另有 2 
 - **剩余工作集中在「功能界面的结构还原」**：桌宠（窗口/渲染）、Project 完整面板与画廊、市场的安装细节与图标、远程的文件元信息/上传下载（需 store 协议字段）、设置面板密度、桌宠。插件市场/列表/定时任务/远程主体已在 W9 重做。
 - 视觉层剩余为长尾：token 清单 6 项、滚动条 per-container（终端插件自绘/无滚动位置读取）。
 - 建议下一阶段按「桌宠 → Project 完整面板 → 市场安装细节 → 远程 store 字段 → 设置密度」顺序收口；视觉长尾可与之一并做。
+
+## 7. 追加审查：按钮样式（Wave 11）
+
+用户直接反馈「按键样式还有比较大的差距」，原 101 条未覆盖此粒度。已按 `ui-primitives/src/Button.module.css` 落地标准按钮原语并替换约 290 处（详见 `buttons.md`）：md 36/14px/radius 12、sm 28/12px/radius 8、Primary 为黑/白单色而非 Accent 蓝、Ghost 无面、Outline 0.5 DIP border-l3、disabled 0.4。
+
+未纳入替换：tab/chip/segmented/icon-only/菜单项（自有配方）、缺主题参数的 6 个 helper（需继续上传 `theme.Colors`）、outline+danger 组合、composer 的 chips 与自绘发送按钮。

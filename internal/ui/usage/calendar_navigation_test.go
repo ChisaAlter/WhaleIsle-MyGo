@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	usagestore "whaleisle/internal/store/usage"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func TestCalendarFocusNavigation(t *testing.T) {
@@ -31,7 +32,7 @@ func TestPriceDialogDismissPreservesDraft(t *testing.T) {
 		if ui.Button(c, "Prices").Clicked() {
 			open = true
 		}
-		pricingDialog(c, &open, func() { ui.TextInput(c, &draft).Label("Price draft") })
+		pricingDialog(c, &open, fonttheme.Resolve("").Active(false), func() { ui.TextInput(c, &draft).Label("Price draft") })
 	}, 1000, 900)
 	tt.Click("Prices")
 	tt.Key(0, ui.KeyEscape)

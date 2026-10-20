@@ -4,6 +4,7 @@ package diffsurface
 import (
 	"errors"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -106,11 +107,11 @@ func View(c *ui.Context, m Model) {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if m.Text != nil && strings.TrimSpace(*m.Text) != "" {
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeyChatCopy), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					mygo.Clipboard.WriteText(*m.Text)
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeyDiffRefresh)).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyDiffRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 				refreshWorkbench(m)
 			}
 		})

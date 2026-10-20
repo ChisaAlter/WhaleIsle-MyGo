@@ -87,7 +87,7 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 					ui.Text(c, i18n.T(i18n.KeyChatToolCallRelated)+": "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
 				}
 				if !childGallery.TextOnly && call.CallID != "" && childGallery.OnInspectCall != nil {
-					if ui.Button(c, i18n.T(i18n.KeyChatToolInspect)).FontSize(11).Clicked() {
+					if stdButton(c, st.Colors, i18n.T(i18n.KeyChatToolInspect), buttonGhost, false).Clicked() {
 						childGallery.OnInspectCall(call.CallID)
 					}
 				}

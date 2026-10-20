@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -190,7 +191,7 @@ func View(c *ui.Context, m Model) {
 					c.Invalidate()
 				}
 			}
-			if ui.Button(c, label("刷新", "Refresh")).FontSize(theme.InterfaceSize(10)).Clicked() && m.Tabs != nil {
+			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() && m.Tabs != nil {
 				if m.Tabs.Tree != nil {
 					m.Tabs.Tree.Refresh()
 				}
@@ -247,6 +248,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accent ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Tabs == nil || m.Tabs.Search == nil {
 		return
 	}
@@ -273,7 +275,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		}
 	}
 	if len(state.Paths) < state.Total {
-		if ui.Button(c, fmt.Sprintf(label("加载更多（%d/%d）", "Show more (%d/%d)"), len(state.Paths), state.Total)).Clicked() {
+		if widgets.Button(c, colors, fmt.Sprintf(label("加载更多（%d/%d）", "Show more (%d/%d)"), len(state.Paths), state.Total), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.Tabs.Search.More()
 		}
 	}
@@ -358,6 +360,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 }
 
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
 		ui.Box(c).Fill().Height(1).Background(border)
 		paintTabs(c, m, fg, muted)
@@ -386,7 +389,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
 			ui.Row(c).Gap(8).Padding(0, 12, 4, 12).Children(func() {
 				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				if ui.Button(c, label("取消读取", "Cancel read")).Clicked() {
+				if widgets.Button(c, colors, label("取消读取", "Cancel read"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.stopTextRead(false, false)
 					setFileStatus(m, label("读取已取消，草稿保留。点击重新载入可重试。", "Read cancelled; draft kept. Choose Reload to retry."))
 				}

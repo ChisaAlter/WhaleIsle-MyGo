@@ -4,11 +4,12 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // ConnBannerView paints a connection / mux status strip above the transcript.
 // When onReconnect is set, a retry control is shown (Electron reconnect affordance).
-func ConnBannerView(c *ui.Context, text string, muted, field, border ui.Color, onReconnect func()) {
+func ConnBannerView(c *ui.Context, palette theme.Colors, text string, muted, field, border ui.Color, onReconnect func()) {
 	if text == "" {
 		return
 	}
@@ -16,7 +17,7 @@ func ConnBannerView(c *ui.Context, text string, muted, field, border ui.Color, o
 		ui.Row(c).FillWidth().Padding(6, 12, 6, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, text).FontSize(12).TextColor(muted).Grow(1)
 			if onReconnect != nil {
-				if ui.Button(c, i18n.T(i18n.KeyChatReconnect)).FontSize(11).Clicked() {
+				if stdButton(c, palette, i18n.T(i18n.KeyChatReconnect), buttonGhost, false).Clicked() {
 					onReconnect()
 				}
 			}

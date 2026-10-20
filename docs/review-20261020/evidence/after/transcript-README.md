@@ -41,6 +41,9 @@ go test -count=1 ./internal/ui/interaction -run TestTranscriptGallery
 16. `chat/tool_blocks.go`（W8）search 命中列表（`path:line` + accent 高亮片段 + 横向滚动 + 12 行上限与「还有 N 条」）、web 卡（标题/域名/两行摘要/打开链接，无原始文本时用 sources 重建复制负载）、todo 清单（状态点 + 完成项删除线 + 状态词）。
 17. `chat/toolkind.go`（W8）`web_search`/`web_fetch` 曾因先匹配 `search` 落到 grep 家族，改为 web 优先。
 
+18. `interaction/card_chrome.go` / `card.go` / `question_navigation.go` / `plan_review.go` / `question_wait.go` / `question_history.go`（W11）审批与提问卡的全部文字按钮改用 `widgets.Button` 标准配方：允许/批准/下一步/提交 → Primary sm，拒绝/讨论修改 → Outline sm，跳过/隐藏/收起问题/查看答案摘要/回看第 N 题/关闭历史/让我慢慢回答/返回审批/在右侧打开计划/重试 → Ghost sm；warn 色条、等宽命令块、翻页 chevron、选项卡本身保持不变。
+19. `chat/standard_button.go`（W11）新增 `stdButton`：带 palette 时走 `widgets.Button`，没有 palette 的旧调用点（纯测试/只读座位）回落框架按钮；`ToolCardStyle` 增加 `Colors` 以便工具卡内部文字按钮统一。对话内的「加载更早/重连/取消跳转/重试/回到最新/任务详情/选择聊天节点/取消队列编辑/关闭历史」→ Ghost sm，「在卡片中交互/发送/打开」→ Primary sm，「停止交互/清空目标」→ Danger sm，「批准计划/保存队列」→ Primary sm。图标动作、复制座位、chip、segmented、菜单项、工具栏与队列 dock 图标一律未转换。
+
 ## 仍未覆盖 / 需要 store 字段
 
 - 提问卡的「推荐」徽章：`interaction.QuestionRowView` 没有 recommended 字段（store 不在本任务写入范围）。

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -68,13 +69,14 @@ func (w *Workbench) finishBranchList() {
 }
 
 func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil {
 		return
 	}
 	w.finishBranchList()
 	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, word("分支…", "Branches…")).Clicked() {
+		if widgets.Button(c, colors, word("分支…", "Branches…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 			w.BranchesOpen = !w.BranchesOpen
 			if w.BranchesOpen {
 				w.reloadBranches()
@@ -82,7 +84,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 				w.cancelBranchList()
 			}
 		}
-		if w.BranchesOpen && ui.Button(c, word("刷新分支", "Refresh branches")).Clicked() {
+		if w.BranchesOpen && widgets.Button(c, colors, word("刷新分支", "Refresh branches"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 			w.reloadBranches()
 		}
 	})
@@ -116,7 +118,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 					if b.Unsupported {
 						hint = word("此分支名称包含桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
 					}
-					if ui.Button(c, word("切换", "Switch")).FontSize(fonttheme.InterfaceSize(11)).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
+					if widgets.Button(c, colors, word("切换", "Switch"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
 						root, name := m.WorkspaceRoot, b.Name
 						beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
 							out, err := git.SwitchBranchContext(ctx, root, name)
@@ -139,7 +141,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 				break
 			}
 		}
-		if ui.Button(c, word("创建并切换", "Create and switch")).Disabled(strings.TrimSpace(w.BranchName) == "" || taken).Clicked() {
+		if widgets.Button(c, colors, word("创建并切换", "Create and switch"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(strings.TrimSpace(w.BranchName) == "" || taken).Clicked() {
 			root, name := m.WorkspaceRoot, strings.TrimSpace(w.BranchName)
 			beginGitOperation(c, w, word("正在创建分支…", "Creating branch…"), func(ctx context.Context) gitOperationResult {
 				out, err := git.CreateBranchContext(ctx, root, name)

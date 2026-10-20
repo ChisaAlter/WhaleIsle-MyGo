@@ -4,6 +4,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strconv"
 	"whaleisle/internal/config"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // GatewayEditor owns an explicit draft, so runtime polling cannot overwrite edits.
@@ -15,12 +17,13 @@ type GatewayEditor struct {
 }
 
 func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.GatewayEditor
 	if e == nil || m.OnSaveGateway == nil {
 		return
 	}
 	if !e.Open {
-		if ui.Button(c, label("编辑手机网关", "Edit phone gateway")).Clicked() {
+		if widgets.Button(c, colors, label("编辑手机网关", "Edit phone gateway"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			e.Expected = config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
 			e.Draft = e.Expected
 			e.Error = ""
@@ -47,7 +50,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	if e.Error != "" {
 		ui.Text(c, e.Error).TextColor(fg)
 	}
-	if ui.Button(c, label("保存并重新连接", "Save and reconnect")).Disabled(m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy).Clicked() {
+	if widgets.Button(c, colors, label("保存并重新连接", "Save and reconnect"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Disabled(m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy).Clicked() {
 		if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
 			e.Error = err.Error()
 		} else {
@@ -55,7 +58,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 			e.Error = ""
 		}
 	}
-	if ui.Button(c, label("取消", "Cancel")).Clicked() {
+	if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
 		e.Open = false
 		e.Error = ""
 	}

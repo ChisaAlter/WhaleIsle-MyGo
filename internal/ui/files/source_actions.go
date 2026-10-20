@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -107,6 +108,7 @@ func requestLineNow(m Model, line int) {
 }
 
 func paintSourceActions(c *ui.Context, m Model, path string, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	t := selectedTab(m)
 	if t == nil || imageMode(m, path) || (m.PreviewErr != nil && *m.PreviewErr != "") {
 		return
@@ -126,7 +128,7 @@ func paintSourceActions(c *ui.Context, m Model, path string, muted ui.Color) {
 			}
 		}
 		ui.TextInput(c, &t.lineDraft).Width(64).Placeholder(label("行号", "Line"))
-		if ui.Button(c, label("跳到行", "Go to line")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if widgets.Button(c, colors, label("跳到行", "Go to line"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 			line, err := strconv.Atoi(strings.TrimSpace(t.lineDraft))
 			if err != nil || line < 1 {
 				setFileStatus(m, label("请输入大于零的行号", "Enter a positive line number"))
@@ -136,10 +138,10 @@ func paintSourceActions(c *ui.Context, m Model, path string, muted ui.Color) {
 		}
 		if !t.RenderedMarkdown && t.selectionText == text {
 			if fragment, ok := FormatSelectedLines(path, text, t.selectionStart, t.selectionEnd); ok {
-				if ui.Button(c, label("复制所选行", "Copy selected lines")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+				if widgets.Button(c, colors, label("复制所选行", "Copy selected lines"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 					mygo.Clipboard.WriteText(fragment)
 				}
-				if ui.Button(c, label("添加到对话", "Add to chat")).FontSize(fonttheme.InterfaceSize(11)).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+				if widgets.Button(c, colors, label("添加到对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
 					if err := m.OnAddToChat(fragment); err != nil {
 						setFileStatus(m, err.Error())
 					} else {

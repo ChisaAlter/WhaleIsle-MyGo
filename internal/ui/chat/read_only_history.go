@@ -98,7 +98,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				}
 				ui.Text(c, label).FontSize(10).TextColor(st.Muted)
 				if msg.Kind == session.MessageKindQuestionReply {
-					QuestionReplyView(c, msg, scope, st.FG, st.Muted)
+					QuestionReplyView(c, msg, scope, st.Colors, st.FG, st.Muted)
 					return
 				}
 				if msg.Kind == session.MessageKindContext {
@@ -139,7 +139,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					readOnlyResourceLink(c, ref, resource, st)
 				}
 				CitationsView(c, CitationsForMessage(msg), st.Muted, st.Accent, resource.OnOpenURL)
-				if body != "" && ui.Button(c, i18n.T(i18n.KeyChatReadOnlyCopy)).FontSize(10).Clicked() {
+				if body != "" && stdButton(c, st.Colors, i18n.T(i18n.KeyChatReadOnlyCopy), buttonGhost, false).Clicked() {
 					c.Services().WriteClipboard(body)
 				}
 			})

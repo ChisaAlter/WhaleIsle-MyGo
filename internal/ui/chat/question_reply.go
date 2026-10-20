@@ -6,14 +6,15 @@ import (
 	"strings"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
-func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, muted ui.Color) {
+func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette theme.Colors, fg, muted ui.Color) {
 	data := session.QuestionReplyDetails(msg)
 	root := ui.Column(c.Key(fmt.Sprintf("question-reply:%s:%s:%g", scope, msg.ID, msg.Seq))).FillWidth().Gap(5)
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
-		if ui.Button(c, i18n.T(i18n.KeyChatQuestionEarlier)).Label("Question reply details " + msg.ID).Clicked() {
+		if stdButton(c, palette, i18n.T(i18n.KeyChatQuestionEarlier), buttonGhost, false).Label("Question reply details " + msg.ID).Clicked() {
 			*open = !*open
 		}
 		if !*open {
@@ -64,7 +65,7 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, mut
 			if data.Time > 0 {
 				ui.Text(c, formatEventTime(data.Time)).FontSize(11).TextColor(muted)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionCopyReply)).Label("Copy question reply " + msg.ID).Clicked() {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatQuestionCopyReply), buttonGhost, false).Label("Copy question reply " + msg.ID).Clicked() {
 				c.WriteClipboard(questionReplyClipboard(data))
 			}
 		})

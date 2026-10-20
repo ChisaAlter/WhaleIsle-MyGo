@@ -3,6 +3,8 @@ package diffsurface
 import (
 	"context"
 	"strings"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -84,6 +86,7 @@ func finishComparison(m Model) {
 }
 
 func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	label := word("比较基线…", "Compare branch…")
 	if w.BaseRef != "" {
@@ -101,12 +104,12 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			}
 		}
-		if w.BaseRef != "" && ui.Button(c, word("返回工作区差异", "Worktree changes")).Clicked() {
+		if w.BaseRef != "" && widgets.Button(c, colors, word("返回工作区差异", "Worktree changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			scopeDiff(m, "", false)
 		}
 		if w.comparison != nil {
 			ui.Text(c, word("正在比较…", "Comparing…")).FontSize(11).TextColor(muted)
-			if ui.Button(c, word("取消比较", "Cancel comparison")).Clicked() {
+			if widgets.Button(c, colors, word("取消比较", "Cancel comparison"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				w.CancelComparison()
 				if m.ErrMsg != nil {
 					*m.ErrMsg = word("已取消比较；可刷新重试。", "Comparison canceled; refresh to retry.")

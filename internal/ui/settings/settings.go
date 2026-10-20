@@ -13,6 +13,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the settings panel to store state.
@@ -271,7 +272,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			return
 		}
 		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {
-			petPane(c, m.Pet, fg, muted, m.PetSettings)
+			petPane(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), m.Pet, fg, muted, m.PetSettings)
 			if m.PetSettings == nil { petLookPane(c, m.Pet, m.Store, fg, muted) }
 			return
 		}
@@ -374,19 +375,16 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsUnsaved), muted)
 			}
 			ui.Box(c).Grow(1)
+			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			if ns != nil && !ns.HasSecrets {
-				replace := ui.Button(c, i18n.T(i18n.KeySurfacesSettingsReplace)).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Danger).Disabled(blocked)
-				if replace.Hovered() && !blocked {
-					replace.Background(c.Theme().SurfaceHover)
-				}
-				if replace.Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsReplace), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium, Disabled: blocked}).Clicked() {
 					*confirming = true
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsDiscard)).FontSize(theme.InterfaceSize(12)).Disabled(snap.Loading || snap.Saving).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsDiscard), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Loading || snap.Saving}).Clicked() {
 				m.Store.DiscardDrafts(context.Background())
 			}
-			if ui.PrimaryButton(c, i18n.T(i18n.KeySurfacesSettingsSave)).Disabled(blocked || !snap.Dirty).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: blocked || !snap.Dirty}).Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 		})
@@ -399,6 +397,7 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 		return
 	}
 	ConfirmDialog(c, ConfirmOptions{
+		Colors:       theme.Resolve(m.ThemeID).Active(m.SystemDark),
 		Title:        i18n.T(i18n.KeySurfacesSettingsConfirmTitle),
 		Body:         i18n.T(i18n.KeySurfacesSettingsConfirmBody),
 		Detail:       i18n.T(i18n.KeySurfacesSettingsReplaceHint),

@@ -142,7 +142,7 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 						case "appearance":
 							appearancePane(c, Model{Appearance: appearance}, c.Theme().Text, c.Theme().TextMuted)
 						case "pet":
-							petPane(c, companion, c.Theme().Text, c.Theme().TextMuted, pa)
+							petPane(c, theme.Resolve(theme.IDDeepseekLight).Light, companion, c.Theme().Text, c.Theme().TextMuted, pa)
 						case "about":
 							aboutPane(c, Model{About: about}, c.Theme().Text, c.Theme().TextMuted)
 						}

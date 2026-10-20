@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/desktop/webview"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type remoteWorkflowState struct {
@@ -138,6 +139,7 @@ func finishRemotePreparation(m Model) {
 	}
 }
 func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	finishRemotePreparation(m)
 	s := w.Remote
@@ -159,7 +161,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			paintPRGeneration(c, m, fg, muted)
 		}
 		if s.Plan == nil {
-			if ui.Button(c, word("准备核对", "Prepare review")).Disabled(s.Generation != nil).Clicked() {
+			if widgets.Button(c, colors, word("准备核对", "Prepare review"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Generation != nil).Clicked() {
 				beginRemotePreparation(c, m)
 			}
 		} else {
@@ -185,7 +187,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			}
 		}
 	}
-	if ui.Button(c, word("取消后续操作", "Cancel next action")).Clicked() {
+	if widgets.Button(c, colors, word("取消后续操作", "Cancel next action"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 		w.cancelRemotePreparation()
 		w.Remote = nil
 	}
@@ -195,6 +197,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	return true
 }
 func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w.LastStack == nil {
 		return
@@ -208,15 +211,15 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	switch r.NextAction() {
 	case "push":
-		if ui.Button(c, word("核对后仅推送…", "Review push only…")).Clicked() {
+		if widgets.Button(c, colors, word("核对后仅推送…", "Review push only…"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			w.requestRemote(m.WorkspaceRoot, "push")
 		}
 	case "create_pr":
-		if ui.Button(c, word("核对 PR…", "Review PR…")).Clicked() {
+		if widgets.Button(c, colors, word("核对 PR…", "Review PR…"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			w.RequestPR(m.WorkspaceRoot)
 		}
 	case "open_pr":
-		if ui.Button(c, word("查看 PR", "View PR")).Clicked() {
+		if widgets.Button(c, colors, word("查看 PR", "View PR"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			if !git.ValidPullRequestURL(r.PR.URL, r.PR.Repository) {
 				w.Status = "Unexpected PR URL"
 			} else if e := webview.OpenExternal(r.PR.URL); e != nil {
@@ -225,7 +228,7 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	case "check_pr":
 		ui.Text(c, word("PR 创建结果尚不确定，先检查已有项，勿重复创建。", "PR outcome is unknown. Check existing PRs before creating again.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
-		if r.PRPlan != nil && ui.Button(c, word("检查已有 PR（只读）", "Check existing PR (read-only)")).Clicked() {
+		if r.PRPlan != nil && widgets.Button(c, colors, word("检查已有 PR（只读）", "Check existing PR (read-only)"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			root, plan := m.WorkspaceRoot, *r.PRPlan
 			beginGitOperation(c, w, word("正在检查已有 PR", "Checking existing PR"), func(ctx context.Context) gitOperationResult {
 				found, e := git.LookupPullRequestReviewed(ctx, root, plan, r.CommitSHA)

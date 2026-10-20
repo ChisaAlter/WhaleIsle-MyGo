@@ -190,13 +190,14 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 }
 
 func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Board.Goal == nil {
 		ui.Text(c, i18n.T(i18n.KeyPlanBoardNoGoal)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		if m.GoalDraft != nil && m.OnCreateGoal != nil {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.TextInput(c, m.GoalDraft).Grow(1).
 					Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
-				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalCreate)).FontSize(theme.InterfaceSize(11)).
+				if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalCreate), buttonGhost, false).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					obj := strings.TrimSpace(*m.GoalDraft)
 					if obj != "" {
@@ -229,7 +230,7 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.TextInput(c, m.GoalDraft).Grow(1).
 				Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalEdit)).FontSize(theme.InterfaceSize(11)).
+			if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalEdit), buttonGhost, false).
 				BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 				obj := strings.TrimSpace(*m.GoalDraft)
 				if obj != "" {
@@ -242,25 +243,25 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent ui.Color) 
 		resume := g.Phase == "paused" || (g.Phase == "active" && g.Activation == "disarmed")
 		if resume {
 			if m.OnResumeGoal != nil {
-				if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalResume)).FontSize(theme.InterfaceSize(11)).
+				if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalResume), buttonGhost, false).
 					BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 					m.OnResumeGoal()
 				}
 			}
 		} else if g.Phase == "active" && g.Activation == "armed" && m.OnPauseGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalPause)).FontSize(theme.InterfaceSize(11)).
+			if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalPause), buttonGhost, false).
 				BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 				m.OnPauseGoal()
 			}
 		}
 		if m.OnCompleteGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalComplete)).FontSize(theme.InterfaceSize(11)).
+			if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalComplete), buttonPrimary, false).
 				BorderWidth(0).Background(ui.Transparent).TextColor(accent).Clicked() {
 				m.OnCompleteGoal()
 			}
 		}
 		if m.OnClearGoal != nil {
-			if ui.Button(c, i18n.T(i18n.KeyPlanBoardGoalClear)).FontSize(theme.InterfaceSize(11)).
+			if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalClear), buttonDanger, false).
 				BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 				m.OnClearGoal()
 			}
@@ -337,6 +338,7 @@ func todoStatusGlyph(status string) string {
 }
 
 func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.QueueEditor
 	if e.ItemID == "" {
 		return
@@ -361,7 +363,7 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 			if e.Ready && m.OnSaveQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Disabled(e.Saving || strings.TrimSpace(e.Text) == "").Clicked() {
 				m.OnSaveQueueEdit(e.Token)
 			}
-			if m.OnCancelQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).Disabled(e.Saving).Clicked() {
+			if m.OnCancelQueueEdit != nil && stdButton(c, palette, i18n.T(i18n.KeySidebarRenameCancel), buttonGhost, e.Saving).Clicked() {
 				m.OnCancelQueueEdit(e.Token)
 			}
 		})

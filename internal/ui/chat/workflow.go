@@ -123,7 +123,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 			}
 		})
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, i18n.T(i18n.KeyChatWorkflowCopy)).FontSize(10).Clicked() {
+			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatWorkflowCopy), buttonGhost, false).Clicked() {
 				raw, _ := json.MarshalIndent(run.Events, "", "  ")
 				mygo.Clipboard.WriteText(string(raw))
 			}

@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func settingsView(c *ui.Context, m Model) {
@@ -23,7 +24,7 @@ func settingsView(c *ui.Context, m Model) {
 				}
 				if !m.RemoteWorkspaceEnabled {
 					ui.Text(c, label("远程工作区尚未启用。", "Remote workspace is disabled.")).TextColor(muted)
-					if m.OnToggleWorkspace != nil && ui.Button(c, label("启用远程工作区", "Enable remote workspace")).Clicked() {
+					if m.OnToggleWorkspace != nil && widgets.Button(c, colors, label("启用远程工作区", "Enable remote workspace"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 						m.OnToggleWorkspace(true)
 					}
 					return
@@ -81,6 +82,7 @@ func settingsView(c *ui.Context, m Model) {
 }
 
 func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.OnSaveGateway == nil || m.GatewayEditor == nil {
 		ui.Text(c, label("当前桌面连接未提供网关设置。", "Gateway settings are unavailable on this desktop connection.")).TextColor(muted)
 		return
@@ -107,7 +109,7 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 			legacy := ui.Column(c.Key("legacy-remote-settings")).FillWidth().Gap(8)
 			open := ui.Local(legacy, "open", func() bool { return false })
 			legacy.Children(func() {
-				if ui.Button(c, label("旧版配置", "Legacy configuration")).Clicked() {
+				if widgets.Button(c, colors, label("旧版配置", "Legacy configuration"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					*open = !*open
 				}
 				if *open {
@@ -115,7 +117,7 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 					if !m.LegacyRelayTokenSet {
 						ui.Text(c, label("没有保存的旧版令牌。", "No legacy token is stored.")).TextColor(muted)
 					}
-					if m.LegacyRelayTokenSet && m.OnSetRelayToken != nil && ui.Button(c, label("清除旧版令牌", "Clear legacy token")).Clicked() {
+					if m.LegacyRelayTokenSet && m.OnSetRelayToken != nil && widgets.Button(c, colors, label("清除旧版令牌", "Clear legacy token"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 						if err := m.OnSetRelayToken(""); err != nil {
 							e.Error = err.Error()
 						} else {
@@ -129,7 +131,7 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 			gatewayReadRow(c, label("令牌状态", "Token status"), credLabel(m.HasRemoteRelayToken), fg, muted)
 			ui.TextInput(c, &e.RelayToken).Password().FillWidth().Placeholder(label("输入新的中继令牌", "Enter a new relay token"))
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if ui.Button(c, label("保存令牌", "Save token")).Disabled(strings.TrimSpace(e.RelayToken) == "").Clicked() {
+				if widgets.Button(c, colors, label("保存令牌", "Save token"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(strings.TrimSpace(e.RelayToken) == "").Clicked() {
 					if err := m.OnSetRelayToken(strings.TrimSpace(e.RelayToken)); err != nil {
 						e.Error = err.Error()
 					} else {
@@ -137,7 +139,7 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 						e.Error = ""
 					}
 				}
-				if ui.Button(c, label("清除令牌", "Clear token")).Disabled(!m.HasRemoteRelayToken).Clicked() {
+				if widgets.Button(c, colors, label("清除令牌", "Clear token"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!m.HasRemoteRelayToken).Clicked() {
 					if err := m.OnSetRelayToken(""); err != nil {
 						e.Error = err.Error()
 					} else {
@@ -150,7 +152,7 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 		if m.OnRotateToken != nil {
 			ui.Text(c, label("轮换连接令牌", "Rotate connection token")).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
 			ui.Text(c, label("重新生成配对连接；已配对设备保持绑定。", "Renew the pairing offer; paired devices remain bound.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if ui.Button(c, label("轮换令牌", "Rotate token")).Disabled(m.PhoneRuntime.DeviceAction.Busy || m.PhoneRuntime.Status == "starting").Clicked() {
+			if widgets.Button(c, colors, label("轮换令牌", "Rotate token"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(m.PhoneRuntime.DeviceAction.Busy || m.PhoneRuntime.Status == "starting").Clicked() {
 				if err := m.OnRotateToken(); err != nil {
 					e.Error = err.Error()
 				} else {
@@ -171,6 +173,7 @@ func gatewayReadRow(c *ui.Context, title, value string, fg, muted ui.Color) {
 }
 
 func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.GatewayEditor
 	current := config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
 	if !e.Open {
@@ -198,12 +201,12 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 			e.Open = true
 		}
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if ui.Button(c, label("保存", "Save")).Disabled(busy).Clicked() {
+			if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 				next := current
 				next.RelayEndpoint = e.Draft.RelayEndpoint
 				save(next)
 			}
-			if ui.Button(c, label("使用默认地址", "Use default relay")).Disabled(busy).Clicked() {
+			if widgets.Button(c, colors, label("使用默认地址", "Use default relay"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 				next := current
 				next.RelayEndpoint = ""
 				save(next)
@@ -222,7 +225,7 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 		if ui.TextInput(c, &e.Draft.Port).Label("Gateway port").FillWidth().Disabled(busy).Changed() {
 			e.Open = true
 		}
-		if ui.Button(c, label("保存", "Save")).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			next := current
 			next.Port = e.Draft.Port
 			save(next)

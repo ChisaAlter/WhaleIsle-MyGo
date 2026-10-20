@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/git"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type prGenerationTask struct {
@@ -96,6 +97,7 @@ func (w *Workbench) applyGeneratedPR() {
 	s.GenerationError = ""
 }
 func paintPRGeneration(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	finishPRGeneration(m)
 	s := w.Remote
@@ -105,10 +107,10 @@ func paintPRGeneration(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, word("生成会向已配置模型发送此分支已提交的 diff、提交列表和目标分支模板；没有 API key 时按提交历史生成。", "Generation sends this branch's committed diff, commit list and base template to the configured model. Without an API key it uses local commit history.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	if s.Generation != nil {
 		ui.Text(c, word("正在生成；可继续手写，结果不会覆盖当前内容。", "Generating; you can keep editing. Results will not overwrite your text.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
-		if ui.Button(c, word("取消生成", "Cancel generation")).Clicked() {
+		if widgets.Button(c, colors, word("取消生成", "Cancel generation"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			w.cancelPRGeneration()
 		}
-	} else if ui.Button(c, word("自动生成 PR 标题和正文", "Generate PR title and body")).Disabled(s.Task != nil).Clicked() {
+	} else if widgets.Button(c, colors, word("自动生成 PR 标题和正文", "Generate PR title and body"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Task != nil).Clicked() {
 		beginPRGeneration(c, m)
 	}
 	if s.GenerationError != "" {
@@ -125,10 +127,10 @@ func paintPRGeneration(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, g.Body).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
 		ui.Text(c, word("采用会替换上方标题和正文；发布仍需重新核对并确认。", "Apply replaces the title and body above. Publishing still requires review and confirmation.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, word("采用生成文案", "Use generated copy")).Clicked() {
+			if widgets.Button(c, colors, word("采用生成文案", "Use generated copy"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 				w.applyGeneratedPR()
 			}
-			if ui.Button(c, word("保留手写内容", "Keep my text")).Clicked() {
+			if widgets.Button(c, colors, word("保留手写内容", "Keep my text"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				s.Generated = nil
 			}
 		})

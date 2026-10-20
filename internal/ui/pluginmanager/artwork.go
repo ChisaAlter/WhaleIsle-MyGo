@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/widgets"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
@@ -66,7 +67,7 @@ func packagePreview(c *ui.Context, name string, owner *svgimage.Owner) {
 
 func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	ui.Row(c.Key("plugin-add-group")).Gap(0).Children(func() {
-		if ui.PrimaryButton(c, copyText("添加插件", "Add plugin")).Disabled(!s.ManagementReady()).Clicked() {
+		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("添加插件", "Add plugin"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !s.ManagementReady()}).Clicked() {
 			a.OpenInstall()
 		}
 		trigger := ui.PrimaryButton(c, "⌄").Label(copyText("选择添加方式", "Choose add method")).Disabled(!s.ManagementReady())

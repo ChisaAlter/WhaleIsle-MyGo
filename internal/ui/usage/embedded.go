@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // embeddedView is the usage-stats settings contribution. Account and jobs retain
@@ -20,7 +21,7 @@ func embeddedView(c *ui.Context, m Model) {
 				ui.Text(c, usageText("用量统计", "Usage statistics")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(fg).Grow(1)
 			})
 			if m.Store != nil {
-				if ui.Button(c, usageText("刷新", "Refresh")).Disabled(m.Store.Stats().Loading).Clicked() {
+				if widgets.Button(c, colors, usageText("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(m.Store.Stats().Loading).Clicked() {
 					m.Store.RefreshStats(context.Background(), true)
 				}
 			}

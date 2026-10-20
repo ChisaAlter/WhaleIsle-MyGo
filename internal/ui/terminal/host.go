@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"fmt"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	myterm "github.com/egoist/mygo/plugins/terminal"
@@ -113,10 +114,10 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		ui.Text(c, terminalLabel("Host 保留终端", "Retained Host terminal")).Bold().TextColor(fg)
 		ui.Text(c, terminalLabel("终端归当前 Host 和会话所有，隐藏后保持。新建会以 Host 系统用户权限启动 shell。", "Terminals belong to this Host and session and survive hiding. New starts a shell with the Host system user's permissions.")).FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(4).Children(func() {
-			if ui.Button(c, terminalLabel("刷新列表", "Refresh list")).FontSize(11).Disabled(!v.ClientReady || session == "" || v.Busy).Clicked() {
+			if widgets.Button(c, colors, terminalLabel("刷新列表", "Refresh list"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!v.ClientReady || session == "" || v.Busy).Clicked() {
 				store.Refresh(v.Owner, session)
 			}
-			if ui.Button(c, terminalLabel("新建 Host 终端", "New Host terminal")).FontSize(11).Disabled(!v.Ready || session == "" || v.Busy).Clicked() {
+			if widgets.Button(c, colors, terminalLabel("新建 Host 终端", "New Host terminal"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(!v.Ready || session == "" || v.Busy).Clicked() {
 				store.Create(v.Owner, session)
 			}
 		})
@@ -137,7 +138,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 						if id == v.ActiveID {
 							title = "▸ " + title
 						}
-						if ui.Button(c, terminalLabel("连接：", "Connect: ")+title).FontSize(11).Disabled(!v.Ready || v.Busy).Clicked() {
+						if widgets.Button(c, colors, terminalLabel("连接：", "Connect: ")+title, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy).Clicked() {
 							store.Connect(v.Owner, session, id)
 						}
 					}
@@ -163,10 +164,10 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 			ui.Text(c, fmt.Sprintf("%s · %s", v.ActiveID, v.Info.Cwd)).FontSize(10).TextColor(muted)
 			hostRenameView(c, store, v, session, muted)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, terminalLabel("重连并接管输入", "Reconnect and take control")).FontSize(11).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
+				if widgets.Button(c, colors, terminalLabel("重连并接管输入", "Reconnect and take control"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
 					store.Connect(v.Owner, session, v.ActiveID)
 				}
-				if ui.Button(c, terminalLabel("关闭 Host 进程", "Close Host process")).FontSize(11).Disabled(!v.Ready || v.Phase == "closing" || v.Phase == "closed" || v.Busy).Clicked() {
+				if widgets.Button(c, colors, terminalLabel("关闭 Host 进程", "Close Host process"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Phase == "closing" || v.Phase == "closed" || v.Busy).Clicked() {
 					h.confirmClose = true
 				}
 			})
@@ -174,11 +175,11 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		if h.confirmClose {
 			ui.Text(c, terminalLabel("将终止此 Host 会话中选中的终端进程。", "This terminates the selected process in this Host session.")).FontSize(11).TextColor(fg)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, terminalLabel("确认关闭", "Confirm close")).FontSize(11).Clicked() {
+				if widgets.Button(c, colors, terminalLabel("确认关闭", "Confirm close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 					h.confirmClose = false
 					store.Close(v.Owner, session, v.ActiveID)
 				}
-				if ui.Button(c, terminalLabel("取消", "Cancel")).FontSize(11).Clicked() {
+				if widgets.Button(c, colors, terminalLabel("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					h.confirmClose = false
 				}
 			})
@@ -192,7 +193,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		if h.terminal != nil {
 			h.terminal.SetReadOnly(!v.Writable)
 			selection, selected := h.terminal.SelectionText()
-			if ui.Button(c, terminalLabel("复制选区", "Copy selection")).FontSize(10).Disabled(!selected || selection == "").Clicked() {
+			if widgets.Button(c, colors, terminalLabel("复制选区", "Copy selection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(!selected || selection == "").Clicked() {
 				if store.CanCopySelection(v.Owner, session, v.ActiveID, h.attachment) {
 					// Read again at the action, never substitute the full screen.
 					if text, ok := h.terminal.SelectionText(); ok && text != "" {

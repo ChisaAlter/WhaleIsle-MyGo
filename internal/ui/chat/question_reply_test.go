@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -12,7 +13,9 @@ func TestQuestionReplyDisclosureCopyAndSessionIsolation(t *testing.T) {
 	body := `{"questions":[{"id":"q","header":"Header","question":"Pick","detail":"Full detail","options":[{"label":"Yes","description":"Description"}]}],"answers":[{"id":"q","selected":["Yes"],"custom":"custom"}]}`
 	msg := session.Message{ID: "reply", Kind: session.MessageKindQuestionReply, Body: body, EventTime: 1000}
 	scope := "one"
-	tt := ui.NewTester(func(c *ui.Context) { QuestionReplyView(c, msg, scope, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 800, 700)
+	tt := ui.NewTester(func(c *ui.Context) {
+		QuestionReplyView(c, msg, scope, theme.Resolve("deepseek.light").Light, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80))
+	}, 800, 700)
 	if tt.HasText("Full detail") {
 		t.Fatal("not collapsed")
 	}

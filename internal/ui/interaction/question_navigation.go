@@ -8,9 +8,10 @@ import (
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
-func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, fg, muted ui.Color) bool {
+func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, fg, muted ui.Color) bool {
 	if len(card.Rows) == 0 {
 		return false
 	}
@@ -28,15 +29,15 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			if flow.minimized {
 				label = i18n.T(i18n.KeyChatQuestionExpand)
 			}
-			if ui.Button(c, label).Disabled(p.Sending).Clicked() {
+			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
 				flow.minimized = !flow.minimized
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionReview)).Disabled(p.Sending).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionReview), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
 				flow.summary = !flow.summary
 			}
 		})
 		if flow.summary {
-			questionDraftSummary(c, p, card, store, flow, muted)
+			questionDraftSummary(c, p, card, store, colors, flow, muted)
 		}
 		if flow.minimized {
 			return
@@ -57,13 +58,13 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			}
 			if row.Skipped {
 				ui.Text(c, i18n.T(i18n.KeyChatQuestionSkipped)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				if ui.Button(c, i18n.T(i18n.KeyChatQuestionUndoSkip)).Disabled(p.Sending).Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionUndoSkip), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
 					store.SetQuestionSkipped(p.EventID, row.ID, false)
 					flow.feedback = ""
 				}
 			}
 			ui.Box(c).Grow(1).MinWidth(0)
-			if skip := interactionSecondaryButton(c, c.Theme(), i18n.T(i18n.KeyChatQuestionSkip)); skip.Disabled(p.Sending || p.Error != "").Clicked() {
+			if skip := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionSkip), p.Sending || p.Error != ""); skip.Clicked() {
 				flow.focusID, flow.feedback = store.SkipQuestionAndContinue(p.AgentID, p.EventID, row.ID)
 			}
 			label := i18n.T(i18n.KeyChatQuestionStep)
@@ -74,11 +75,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 				}
 			}
 			answered := len(row.Selected) > 0 || strings.TrimSpace(row.Custom) != ""
-			submit := interactionPrimaryButton(c, c.Theme(), label)
-			submit.Disabled(p.Sending || p.Error != "" || !answered)
-			if !answered {
-				submit.Opacity(.5)
-			}
+			submit := interactionPrimaryButton(c, colors, label, p.Sending || p.Error != "" || !answered)
 			if submit.Clicked() {
 				flow.focusID, flow.feedback = store.ContinueQuestion(p.AgentID, p.EventID, row.ID)
 			}
@@ -89,7 +86,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 
 // Optional draft recap is a navigation aid, never a mandatory submit gate.
 // Settled/queued history remains the separate read-only recorded-answer view.
-func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, flow *questionEditorFlow, muted ui.Color) {
+func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, flow *questionEditorFlow, muted ui.Color) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for index, row := range card.Rows {
 			label := row.Header
@@ -108,7 +105,7 @@ func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction
 				}
 			}
 			ui.Text(c, fmt.Sprintf("%d. %s: %s", index+1, label, answer)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			if ui.Button(c, fmt.Sprintf(i18n.T(i18n.KeyChatQuestionReviewN), index+1)).Disabled(p.Sending).Clicked() {
+			if widgets.Button(c, colors, fmt.Sprintf(i18n.T(i18n.KeyChatQuestionReviewN), index+1), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
 				if store.NavigateQuestion(p.AgentID, p.EventID, index) {
 					flow.summary, flow.minimized = false, false
 					flow.feedback = ""

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	myterm "github.com/egoist/mygo/plugins/terminal"
@@ -225,7 +226,7 @@ func View(c *ui.Context, m Model) {
 		if p.notice != "" && len(p.panes) > 0 {
 			ui.Row(c).Gap(6).Children(func() {
 				ui.Text(c, p.notice).FontSize(11).TextColor(muted).Grow(1)
-				if ui.Button(c, terminalLabel("关闭提示", "Dismiss")).FontSize(10).Clicked() {
+				if widgets.Button(c, colors, terminalLabel("关闭提示", "Dismiss"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					p.notice = ""
 				}
 			})
@@ -277,10 +278,10 @@ func View(c *ui.Context, m Model) {
 						bounds := surface.Bounds()
 						ui.Overlay(c, func() {
 							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(4).Background(c.Theme().Surface).Children(func() {
-								if ui.Button(c, terminalLabel("复制", "Copy")).FontSize(12).Clicked() {
+								if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 									mygo.Clipboard.WriteText(selection)
 								}
-								if ui.Button(c, terminalLabel("添加到对话", "Add to chat")).FontSize(12).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+								if widgets.Button(c, colors, terminalLabel("添加到对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
 									if err := m.OnAddToChat(fragment); err != nil {
 										p.notice = err.Error()
 									} else {

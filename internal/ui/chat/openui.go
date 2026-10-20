@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 type openUIBlock struct {
@@ -36,7 +37,7 @@ type openUIBlock struct {
 	media                        *openUIMedia
 }
 
-func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {
+func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if language != "openui" && language != "openui-lang" {
 		return false
 	}
@@ -103,13 +104,13 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 	}
 	box.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyChatIsolated)).FontSize(12)
-		if ui.Button(c, i18n.T(i18n.KeyChatOpenUIRetry)).Disabled(loading || handle != nil).Clicked() {
+		if stdButton(c, palette, i18n.T(i18n.KeyChatOpenUIRetry), buttonGhost, loading || handle != nil).Clicked() {
 			start(true)
 		}
-		if ui.Button(c, i18n.T(i18n.KeyChatIsolatedOpen)).Disabled(msg.Streaming || loading || handle != nil).Clicked() {
+		if stdButton(c, palette, i18n.T(i18n.KeyChatIsolatedOpen), buttonPrimary, msg.Streaming || loading || handle != nil).Clicked() {
 			start(false)
 		}
-		if handle != nil && ui.Button(c, i18n.T(i18n.KeyChatOpenUIClose)).Clicked() {
+		if handle != nil && stdButton(c, palette, i18n.T(i18n.KeyChatOpenUIClose), buttonGhost, false).Clicked() {
 			b.mu.Lock()
 			if b.cancel != nil {
 				b.cancel()
@@ -167,7 +168,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		if action != nil {
 			ui.Text(c, i18n.T(i18n.KeyChatIsolatedGesture)).FontSize(11)
 			ui.Text(c, action.ActionText()).Selectable().FontSize(12)
-			if ui.Button(c, i18n.T(i18n.KeyChatIsolatedSend)).Clicked() {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatIsolatedSend), buttonPrimary, false).Clicked() {
 				b.mu.Lock()
 				current := b.action
 				target, valid := b.target, b.valid
@@ -185,14 +186,14 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 					}()
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatIsolatedIgnore)).Clicked() {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatIsolatedIgnore), buttonGhost, false).Clicked() {
 				b.mu.Lock()
 				b.action = nil
 				b.mu.Unlock()
 			}
 		}
 		show := ui.Local(box, "source", func() bool { return false })
-		if ui.Button(c, i18n.T(i18n.KeyChatIsolatedSource)).Clicked() {
+		if stdButton(c, palette, i18n.T(i18n.KeyChatIsolatedSource), buttonGhost, false).Clicked() {
 			*show = !*show
 		}
 		if *show {

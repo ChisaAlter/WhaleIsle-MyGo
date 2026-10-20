@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"context"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -98,6 +99,7 @@ func closeCaptionReview(w *Workbench, seat *captionReviewState) {
 // captured at admission; a new Host, retained Session or cwd retires this seat.
 // Merely painting this modal never prepares a message or executes Git.
 func CaptionReview(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil || w.captionReview == nil {
 		return
@@ -124,7 +126,7 @@ func CaptionReview(c *ui.Context, m Model) {
 		panel.Width(max(0, min(float32(680), width-32))).MaxHeight(max(0, height-48)).Padding(20).Gap(16).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(12).Label(title).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Text(c, title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
-				if ui.Button(c, word("关闭", "Close")).Clicked() {
+				if widgets.Button(c, colors, word("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					open = false
 				}
 			})

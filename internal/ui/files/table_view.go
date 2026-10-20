@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func requestTablePage(m Model, request workspacefs.XLSXPageRequest) {
@@ -20,6 +21,7 @@ func requestTablePage(m Model, request workspacefs.XLSXPageRequest) {
 }
 
 func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	tab := selectedTab(m)
 	if tab == nil || !isTablePreviewPath(tab.Path) {
 		return
@@ -49,30 +51,30 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 				}
 			}
 		}
-		if ui.Button(c, label("上一行页", "Previous rows")).Disabled(blocked || page.Request.Row == 0).Clicked() {
+		if widgets.Button(c, colors, label("上一行页", "Previous rows"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Request.Row == 0).Clicked() {
 			req := page.Request
 			req.Row = max(0, req.Row-req.Rows)
 			requestTablePage(m, req)
 		}
-		if ui.Button(c, label("下一行页", "Next rows")).Disabled(blocked || page.Request.Row+page.Request.Rows >= page.TotalRows).Clicked() {
+		if widgets.Button(c, colors, label("下一行页", "Next rows"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Request.Row+page.Request.Rows >= page.TotalRows).Clicked() {
 			req := page.Request
 			req.Row += req.Rows
 			requestTablePage(m, req)
 		}
-		if ui.Button(c, label("上一列页", "Previous columns")).Disabled(blocked || page.Request.Column == 0).Clicked() {
+		if widgets.Button(c, colors, label("上一列页", "Previous columns"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Request.Column == 0).Clicked() {
 			req := page.Request
 			req.Column = max(0, req.Column-req.Columns)
 			requestTablePage(m, req)
 		}
-		if ui.Button(c, label("下一列页", "Next columns")).Disabled(blocked || page.Request.Column+page.Request.Columns >= page.TotalColumns).Clicked() {
+		if widgets.Button(c, colors, label("下一列页", "Next columns"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Request.Column+page.Request.Columns >= page.TotalColumns).Clicked() {
 			req := page.Request
 			req.Column += req.Columns
 			requestTablePage(m, req)
 		}
-		if ui.Button(c, label("复制本页原始 TSV", "Copy raw page TSV")).Disabled(blocked || page.Problem != "").Clicked() {
+		if widgets.Button(c, colors, label("复制本页原始 TSV", "Copy raw page TSV"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Problem != "").Clicked() {
 			mygo.Clipboard.WriteText(page.TSV)
 		}
-		if ui.Button(c, label("复制本页显示 TSV", "Copy displayed page TSV")).Disabled(blocked || page.Problem != "").Clicked() {
+		if widgets.Button(c, colors, label("复制本页显示 TSV", "Copy displayed page TSV"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked || page.Problem != "").Clicked() {
 			mygo.Clipboard.WriteText(page.DisplayTSV)
 		}
 	})
@@ -90,7 +92,7 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 				tab.tableSelectionKind = "cell"
 			}
 
-			if ui.Button(c, label("复制单元格显示值", "Copy displayed cell value")).Disabled(blocked).Clicked() {
+			if widgets.Button(c, colors, label("复制单元格显示值", "Copy displayed cell value"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == tab.tableCell {
 						mygo.Clipboard.WriteText(cell.DisplayValue)
@@ -98,7 +100,7 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 					}
 				}
 			}
-			if ui.Button(c, label("复制单元格原文", "Copy original cell value")).Disabled(blocked).Clicked() {
+			if widgets.Button(c, colors, label("复制单元格原文", "Copy original cell value"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == tab.tableCell {
 						mygo.Clipboard.WriteText(cell.Value)

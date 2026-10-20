@@ -6,9 +6,11 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	v := m.Store.Repair()
 	if v.Busy {
 		if v.Rescanning {
@@ -17,7 +19,7 @@ func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			ui.Text(c, usageText("正在修复会话日志：", "Repairing session log: ")+v.SessionID).TextColor(muted)
 			if v.StopRequested {
 				ui.Text(c, usageText("已停止后续排队；等待当前请求的真实结果，再重扫。已发出的宿主修复不能撤销。", "Queue stopped; waiting for the current request’s actual result, then rescanning. A submitted host repair cannot be undone.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-			} else if ui.Button(c, usageText("停止后续修复", "Stop queued repairs")).Clicked() {
+			} else if widgets.Button(c, colors, usageText("停止后续修复", "Stop queued repairs"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.StopRepairQueue()
 			}
 		}
@@ -52,7 +54,7 @@ func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	if v.RescanErr != "" {
 		ui.Text(c, usageText("修复请求结果已保留，但重扫失败，旧统计仍在显示：", "Repair request results retained, but verification failed; previous statistics remain visible: ")+v.RescanErr).TextColor(accent)
-		if !v.Busy && ui.Button(c, usageText("重新扫描以验证", "Rescan to verify")).Clicked() {
+		if !v.Busy && widgets.Button(c, colors, usageText("重新扫描以验证", "Rescan to verify"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.RefreshStats(context.Background(), true)
 		}
 	} else if v.RescanComplete {
@@ -74,21 +76,21 @@ func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		ui.Text(c, strings.Join(ids, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		ui.Text(c, usageText("宿主将逐条解码日志、从 0 重新编号事件、创建 .bak-时间戳 备份后替换文件。这会修改磁盘日志，无预览和撤销接口。完成后自动强制重扫；失败时停止后续排队。切换 Host 或停止排队不能撤销已发出的修复。", "The host will sequentially decode logs, renumber events from zero, save .bak-timestamp backups, and replace files. This modifies on-disk logs; no preview or undo endpoint exists. A forced rescan follows; a failure stops queued repairs. Switching hosts or stopping the queue cannot undo submitted repairs.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, usageText("确认备份、修复并重扫", "Confirm backup, repair and rescan")).Clicked() {
+			if widgets.Button(c, colors, usageText("确认备份、修复并重扫", "Confirm backup, repair and rescan"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 				if v.PendingID != "" {
 					m.Store.ConfirmRepair(context.Background(), v.PendingID)
 				} else {
 					m.Store.ConfirmRepairAll(context.Background(), ids)
 				}
 			}
-			if ui.Button(c, usageText("取消", "Cancel")).Clicked() {
+			if widgets.Button(c, colors, usageText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.CancelRepair()
 			}
 		})
 		return
 	}
 	candidates := m.Store.RepairCandidates()
-	if len(candidates) > 0 && ui.Button(c, fmt.Sprintf(usageText("批量修复 %d 个失败日志并重扫", "Repair %d failed logs and rescan"), len(candidates))).Clicked() {
+	if len(candidates) > 0 && widgets.Button(c, colors, fmt.Sprintf(usageText("批量修复 %d 个失败日志并重扫", "Repair %d failed logs and rescan"), len(candidates)), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 		m.Store.PrepareRepairAll()
 	}
 	for _, id := range candidates {

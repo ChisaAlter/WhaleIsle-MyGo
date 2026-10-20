@@ -7,6 +7,7 @@ import (
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
@@ -22,7 +23,7 @@ func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
 	}
 	return cards
 }
-func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
+func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if len(rows) == 0 {
 		return
 	}
@@ -57,7 +58,7 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 				}
 				ui.Text(c, label).FontSize(11)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatScheduleDetails)).Disabled(deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil).Clicked() && m.OnOpenScheduleTask != nil {
+			if stdButton(c, palette, i18n.T(i18n.KeyChatScheduleDetails), buttonGhost, false).Disabled(deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil).Clicked() && m.OnOpenScheduleTask != nil {
 				m.OnOpenScheduleTask(row)
 			}
 		})

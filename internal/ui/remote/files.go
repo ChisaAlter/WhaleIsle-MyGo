@@ -6,6 +6,7 @@ import (
 	"time"
 	remotestore "whaleisle/internal/store/remote"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // FileEditor belongs to one native pane occurrence, while Files retains every
@@ -38,6 +39,7 @@ func viewSessionFiles(c *ui.Context, m Model) {
 }
 
 func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.FileEditor
 	key := s.BindingID + "\x00" + s.RemoteIdentity + "\x00" + remotestore.ResourceAddress(s.SessionID, s.FilePath)
 	if e.Key != key || e.Revision != s.Revision {
@@ -65,7 +67,7 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	if !s.FileLoaded {
 		if s.Busy {
 			ui.Text(c, label("正在读取…", "Reading…"))
-		} else if ui.Button(c, label("重试读取", "Retry read")).Clicked() {
+		} else if widgets.Button(c, colors, label("重试读取", "Retry read"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.Files.Reload()
 		}
 		return
@@ -80,24 +82,24 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 		ui.Text(c, label("预览已截断，禁止保存不完整文件。", "Preview truncated; saving incomplete contents is disabled."))
 	}
 	ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
-		if ui.Button(c, label("重新读取", "Reload")).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
+		if widgets.Button(c, colors, label("重新读取", "Reload"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
 			m.Files.Reload()
 		}
-		if !e.Editing && ui.Button(c, label("编辑", "Edit")).Disabled(disabled || s.Stale || s.File.Binary || s.File.Truncated || s.File.Mtime == nil).Clicked() {
+		if !e.Editing && widgets.Button(c, colors, label("编辑", "Edit"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled || s.Stale || s.File.Binary || s.File.Truncated || s.File.Mtime == nil).Clicked() {
 			e.Editing = true
 			m.Files.SetEditing(true)
 		}
 		if e.Editing {
-			if ui.Button(c, label("保存到远端", "Save to remote")).Disabled(disabled || s.Stale || !s.Dirty()).Clicked() {
+			if widgets.Button(c, colors, label("保存到远端", "Save to remote"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || s.Stale || !s.Dirty()).Clicked() {
 				m.Files.Save()
 			}
-			if ui.Button(c, label("取消编辑", "Cancel editing")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("取消编辑", "Cancel editing"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				m.Files.Discard()
 				m.Files.SetEditing(false)
 				e.Editing = false
 			}
 		}
-		if ui.Button(c, label("下载到会话镜像…", "Download to session mirror…")).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
+		if widgets.Button(c, colors, label("下载到会话镜像…", "Download to session mirror…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty() || !s.Bound).Clicked() {
 			e.ConfirmDownload = true
 		}
 	})
@@ -129,10 +131,10 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	if e.ConfirmDownload {
 		ui.Text(c, label("下载会写入此会话的本地镜像，并可能覆盖同名文件。", "Download writes into this session's local mirror and may overwrite a same-named file.")).FillWidth()
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				e.ConfirmDownload = false
 			}
-			if ui.Button(c, label("确认下载", "Confirm download")).Disabled(disabled || s.Dirty()).Clicked() {
+			if widgets.Button(c, colors, label("确认下载", "Confirm download"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || s.Dirty()).Clicked() {
 				e.ConfirmDownload = false
 				m.Files.Download()
 			}

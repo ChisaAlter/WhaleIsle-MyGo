@@ -320,7 +320,7 @@ func toolFileButton(c *ui.Context, path string, line int, st ToolCardStyle, open
 		ui.Text(c, label).FontSize(11).TextColor(st.Muted)
 		return
 	}
-	if ui.Button(c, label).FontSize(11).Clicked() {
+	if stdButton(c, st.Colors, label, buttonGhost, false).Clicked() {
 		open(label)
 	}
 }

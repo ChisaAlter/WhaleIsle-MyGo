@@ -2,6 +2,7 @@ package remote
 
 import (
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
@@ -12,6 +13,7 @@ import (
 // entry with its kind and name, the actions that change the directory, and the
 // three states (loading, empty, error) told apart instead of run together.
 func viewDirectory(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Machines == nil {
 		return
 	}
@@ -25,16 +27,16 @@ func viewDirectory(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, label("远程文件", "Remote files")).Bold().Grow(1).MinWidth(0)
-			if ui.Button(c, label("远程主目录", "Remote home")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("远程主目录", "Remote home"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				m.Machines.BrowseHome()
 			}
-			if ui.Button(c, label("上级", "Up")).Disabled(disabled || !d.Loaded || d.Path == "" || d.Path == "/").Clicked() {
+			if widgets.Button(c, colors, label("上级", "Up"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled || !d.Loaded || d.Path == "" || d.Path == "/").Clicked() {
 				m.Machines.Browse(remotestore.ParentDirectory(d.Path))
 			}
-			if ui.Button(c, label("刷新", "Refresh")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				m.Machines.Browse(d.Path)
 			}
-			if ui.Button(c, label("新建文件夹", "New folder")).Disabled(disabled || !d.CanChoose()).Clicked() {
+			if widgets.Button(c, colors, label("新建文件夹", "New folder"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || !d.CanChoose()).Clicked() {
 				m.Machines.ShowDirectoryCreate(true)
 			}
 		})
@@ -50,7 +52,7 @@ func viewDirectory(c *ui.Context, m Model) {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(14).Radius(10).Border(.5, border).Children(func() {
 				ui.Text(c, label("无法读取此目录", "This directory could not be read")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(500).TextColor(c.Theme().Danger)
 				ui.Text(c, d.Error).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if ui.Button(c, label("重试", "Retry")).Disabled(disabled).Clicked() {
+				if widgets.Button(c, colors, label("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 					m.Machines.Browse(d.Path)
 				}
 			})
@@ -74,7 +76,7 @@ func viewDirectory(c *ui.Context, m Model) {
 		})
 		if d.LocalMirror != "" {
 			ui.Text(c, label("本地镜像：", "Local mirror: ")+d.LocalMirror).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if m.OnUseWorkspaceMirror != nil && ui.Button(c, label("使用此镜像作为工作区", "Use this mirror as workspace")).Disabled(disabled).Clicked() {
+			if m.OnUseWorkspaceMirror != nil && widgets.Button(c, colors, label("使用此镜像作为工作区", "Use this mirror as workspace"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				m.OnUseWorkspaceMirror(d.LocalMirror)
 			}
 		}
@@ -161,12 +163,13 @@ func directoryRow(c *ui.Context, m Model, entry remotestore.DirectoryEntry, disa
 
 // directoryCreate is the inline new-folder form.
 func directoryCreate(c *ui.Context, m Model, d remotestore.DirectorySnapshot, disabled bool, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(12).Radius(10).Border(.5, c.Theme().Border).Children(func() {
 		ui.Text(c, label("新建文件夹于：", "Create a folder in: ")+d.Path).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		name := d.NewName
 		ui.TextInput(c, &name).FillWidth().Disabled(disabled).Placeholder(label("文件夹名称", "Folder name")).OnChange(func() { m.Machines.SetDirectoryName(name) })
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				m.Machines.ShowDirectoryCreate(false)
 			}
 			if ui.PrimaryButton(c, label("创建", "Create")).Disabled(disabled || !d.CanChoose() || strings.TrimSpace(name) == "").Clicked() {

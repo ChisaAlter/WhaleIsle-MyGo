@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -296,6 +298,7 @@ func paintPreviewSelectionActions(c *ui.Context, m Model, path string) {
 }
 
 func paintPreviewLineNavigation(c *ui.Context, m Model, open *bool) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	t := selectedTab(m)
 	if t == nil {
 		*open = false
@@ -308,12 +311,12 @@ func paintPreviewLineNavigation(c *ui.Context, m Model, open *bool) {
 			input.Focus()
 			*focus = true
 		}
-		if input.Shortcut(0, ui.KeyEscape) || ui.Button(c, label("取消", "Cancel")).Clicked() {
+		if input.Shortcut(0, ui.KeyEscape) || widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			*open = false
 			*focus = false
 			return
 		}
-		if input.Submitted() && !input.Composing() || ui.Button(c, label("跳转行", "Go to line")).Clicked() {
+		if input.Submitted() && !input.Composing() || widgets.Button(c, colors, label("跳转行", "Go to line"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 			line, err := strconv.Atoi(strings.TrimSpace(t.lineDraft))
 			if err != nil || line < 1 {
 				setFileStatus(m, label("请输入正整数行号", "Enter a positive line number"))

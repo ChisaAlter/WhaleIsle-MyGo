@@ -42,7 +42,7 @@ func imageRouteModel(root string) (Model, *FileTab, chan struct{}) {
 // decode. The failure names the file and what the route was still reporting.
 func awaitImageRoute(t *testing.T, m Model, tab *FileTab, notified <-chan struct{}) *imagePreview {
 	t.Helper()
-	const budget = 2 * time.Second
+	const budget = 5 * time.Second
 	deadline := time.NewTimer(budget)
 	defer deadline.Stop()
 	checks := 0

@@ -6,9 +6,11 @@ import (
 	"github.com/egoist/mygo/ui"
 	usagestore "whaleisle/internal/store/usage"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Text(c, usageText("项目排行（会话工作目录）", "Project ranking (session working directories)")).Bold().TextColor(fg)
 	if st.Range.Active() {
 		ui.Text(c, usageText("项目排行仅支持全部历史；清除日期选择后查看。", "Project ranking is all-time only; clear the date selection to view it.")).TextColor(muted)
@@ -31,7 +33,7 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 				m.Store.ResetProjectRanking(context.Background(), sort)
 			}
 		}
-		if ui.Button(c, usageText("刷新排行", "Refresh ranking")).Disabled(st.Loading || r.Loading).Clicked() {
+		if widgets.Button(c, colors, usageText("刷新排行", "Refresh ranking"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(st.Loading || r.Loading).Clicked() {
 			m.Store.ResetProjectRanking(context.Background(), r.Sort)
 		}
 	})

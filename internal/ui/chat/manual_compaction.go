@@ -54,7 +54,7 @@ func ManualCompactionCardView(c *ui.Context, msg session.Message, m Model, st To
 				if expanded {
 					action = i18n.T(i18n.KeyPlanBoardCollapse)
 				}
-				if ui.Button(c, action).FontSize(11).Clicked() {
+				if stdButton(c, st.Colors, action, buttonGhost, false).Clicked() {
 					if *m.ThinkingExpanded == nil {
 						*m.ThinkingExpanded = make(map[string]bool)
 					}
@@ -68,7 +68,7 @@ func ManualCompactionCardView(c *ui.Context, msg session.Message, m Model, st To
 				}
 				copyText += compact.Summary
 			}
-			if copyText != "" && ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(11).Clicked() {
+			if copyText != "" && stdButton(c, st.Colors, i18n.T(i18n.KeyChatCopy), buttonGhost, false).Clicked() {
 				mygo.Clipboard.WriteText(copyText)
 			}
 		})

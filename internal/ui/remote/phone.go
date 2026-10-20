@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -73,6 +74,7 @@ func phoneReadinessLabel(r phoneremote.Readiness) string {
 
 // viewPhoneSection paints the M11 phone remote panel (status, URL, devices, actions).
 func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	snap := phoneSnapshot(m)
 
 	ui.Text(c, i18n.T(i18n.KeyRemotePhoneTitle)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
@@ -153,13 +155,13 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Text(c, i18n.T(i18n.KeyMiscRemoteNoUsableOfferEnablingStartsTheInst)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyMiscRemoteCopyPairingLink)).Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteCopyPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyMiscRemoteOpenPairingLink)).Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteOpenPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.OnOpenConnectURL()
 		}
-		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Disabled(runtime.DeviceAction.Busy).Clicked() {
+		if m.OnRefreshPhone != nil && widgets.Button(c, colors, i18n.T(i18n.KeyRemotePhoneRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(runtime.DeviceAction.Busy).Clicked() {
 			m.OnRefreshPhone()
 		}
 	})

@@ -4,6 +4,7 @@ package usage
 import (
 	"context"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -67,7 +68,7 @@ func View(c *ui.Context, m Model) {
 			if snap.Loading {
 				ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyUsageRefresh)).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyUsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.RefreshStats(context.Background(), true)
 				if m.OnRefresh != nil {
 					m.OnRefresh()
@@ -75,7 +76,7 @@ func View(c *ui.Context, m Model) {
 					m.Store.Refresh(context.Background(), m.SessionID)
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyUsageBack)).Clicked() {
+			if m.OnClose != nil && widgets.Button(c, colors, i18n.T(i18n.KeyUsageBack), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				m.OnClose()
 			}
 		})
@@ -112,27 +113,27 @@ func View(c *ui.Context, m Model) {
 
 				ui.Row(c).Gap(8).Children(func() {
 					if snap.UsageURL != "" && m.OnOpenUsageWeb != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageOpenWeb)).Clicked() {
+						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageOpenWeb), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnOpenUsageWeb()
 						}
 					}
 					if snap.UsageURL != "" && m.OnCopyUsageURL != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyURL)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyURL), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnCopyUsageURL(snap.UsageURL)
 						}
 					}
 					if snap.TopUpURL != "" && m.OnOpenTopUp != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageOpenTopUp)).Clicked() {
+						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageOpenTopUp), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnOpenTopUp()
 						}
 					}
 					if snap.TopUpURL != "" && m.OnCopyTopUpURL != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyTopUp)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyTopUp), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnCopyTopUpURL(snap.TopUpURL)
 						}
 					}
 					if snap.BalanceSummary != "" && m.OnCopyBalance != nil {
-						if ui.Button(c, i18n.T(i18n.KeyUsageCopyBalance)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyBalance), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnCopyBalance(snap.BalanceSummary)
 						}
 					}
@@ -153,17 +154,16 @@ func View(c *ui.Context, m Model) {
 									if body == "" {
 										body = entry.Label
 									}
-									if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
+									if widgets.Button(c, colors, i18n.T(i18n.KeyChatCopy), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 										mygo.Clipboard.WriteText(body)
 									}
 									if entry.JobID != "" {
-										if ui.Button(c, i18n.T(i18n.KeyUsageFollowJob)).FontSize(theme.InterfaceSize(11)).Clicked() {
+										if widgets.Button(c, colors, i18n.T(i18n.KeyUsageFollowJob), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 											m.Store.FollowJob(context.Background(), m.SessionID, entry.JobID)
 										}
 									}
 									if entry.JobID != "" && jobKillable(entry.Status) {
-										if ui.Button(c, i18n.T(i18n.KeyUsageKillJob)).FontSize(theme.InterfaceSize(11)).
-											TextColor(accent).Clicked() {
+										if widgets.Button(c, colors, i18n.T(i18n.KeyUsageKillJob), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 											m.Store.KillJob(context.Background(), m.SessionID, entry.JobID)
 										}
 									}

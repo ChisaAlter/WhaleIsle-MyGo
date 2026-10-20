@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/widgets"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 	manager "whaleisle/internal/pluginmanager"
@@ -156,7 +157,7 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 					m.Controller.Refresh(context.Background())
 				}
 				if s.Install.RequestID != "" {
-					if ui.PrimaryButton(c, copyText("查看安装任务", "View installation")).Disabled(!s.ManagementReady()).Clicked() {
+					if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("查看安装任务", "View installation"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !s.ManagementReady()}).Clicked() {
 						a.OpenInstall()
 					}
 				} else {
@@ -306,7 +307,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 				ui.Row(c).FillWidth().Children(func() {
 					groupTitle(c, copyText("实验性插件", "Experimental plugins"), muted)
 					ui.Box(c).Grow(1)
-					if heldBack && ui.Button(c, copyText("更多", "More")).Clicked() {
+					if heldBack && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("更多", "More"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 						a.ShowMore()
 					}
 				})
@@ -748,7 +749,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 	})
 	if len(d.Indexes) == 0 {
 		ui.Text(c, copyText("尚未配置插件索引。添加一个源以浏览插件。", "No plugin indexes configured. Add a source to browse plugins.")).FillWidth().TextColor(muted)
-		if ui.PrimaryButton(c, copyText("添加索引源", "Add index source")).Clicked() {
+		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("添加索引源", "Add index source"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
 			a.ToggleSources()
 		}
 		return

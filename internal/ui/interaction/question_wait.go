@@ -6,9 +6,10 @@ import (
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
-func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, muted ui.Color) {
+func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, muted ui.Color) {
 	w := card.Wait
 	if w == nil || p.Continued {
 		return
@@ -41,11 +42,7 @@ func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.Q
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
 		ui.Text(c, message).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
 		if !held {
-			label := "Take my time"
-			if zh {
-				label = "让我慢慢回答"
-			}
-			if ui.Button(c, label).Disabled(p.Sending).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionTakeTime), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
 				store.TakeQuestionTime(p.AgentID, p.EventID)
 			}
 		}

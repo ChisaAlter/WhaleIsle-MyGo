@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"fmt"
 	"strconv"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -75,16 +76,17 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 // paintCommitFileList is the dialog's staged checklist: one row per change with
 // its selection box, its status letters and its path.
 func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil {
 		return
 	}
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitFiles)).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(fg).Grow(1)
-		if ui.Button(c, i18n.T(i18n.KeySurfacesGitSelectAll)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesGitSelectAll), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			selectAllCommitFiles(w, true)
 		}
-		if ui.Button(c, i18n.T(i18n.KeySurfacesGitSelectNone)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesGitSelectNone), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			selectAllCommitFiles(w, false)
 		}
 	})

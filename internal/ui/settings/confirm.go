@@ -1,6 +1,11 @@
 package settings
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
+)
 
 // ConfirmOptions is the content of one in-app confirmation. The settings domain
 // hosts it so every destructive surface can ask in the application's own
@@ -11,8 +16,11 @@ type ConfirmOptions struct {
 	Detail       string
 	ConfirmLabel string
 	CancelLabel  string
-	// Danger paints the confirm action in the theme's danger color.
-	Danger    bool
+	// Danger paints the confirm action as the destructive action.
+	Danger bool
+	// Colors is the active palette; a zero value falls back to the light one so
+	// a caller that forgets it still paints readable chrome.
+	Colors    theme.Colors
 	OnConfirm func()
 	OnCancel  func()
 }
@@ -50,15 +58,21 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 			if opts.Detail != "" {
 				ui.Text(c, opts.Detail).FillWidth().FontSize(12).FixedLineHeight(18).TextColor(c.Theme().TextMuted)
 			}
+			colors := opts.Colors
+			if colors.FG == "" {
+				colors = theme.Resolve(theme.IDDeepseekLight).Light
+			}
+			// A dialog footer is the medium size: cancel is the quiet action and
+			// the answer carries the weight (danger when the question is destructive).
 			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Padding(8, 0, 0, 0).Children(func() {
-				if ui.Button(c, cancelLabel).Clicked() {
+				if widgets.Button(c, colors, cancelLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
 					finish(opts.OnCancel)
 				}
-				confirm := ui.PrimaryButton(c, opts.ConfirmLabel)
+				variant := widgets.ButtonPrimary
 				if opts.Danger {
-					confirm.TextColor(c.Theme().Danger)
+					variant = widgets.ButtonDanger
 				}
-				if confirm.Clicked() {
+				if widgets.Button(c, colors, opts.ConfirmLabel, widgets.ButtonSpec{Variant: variant, Size: widgets.ButtonMedium}).Clicked() {
 					finish(opts.OnConfirm)
 				}
 			})

@@ -73,7 +73,7 @@ func View(c *ui.Context, m Model) {
 					msg = i18n.T(i18n.KeyInteractionAutoAllowed) + ": " + snap.Banner
 				}
 				ui.Text(c, msg).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
-				if ui.Button(c, i18n.T(i18n.KeyInteractionManual)).Clicked() {
+				if widgets.Button(c, colors, i18n.T(i18n.KeyInteractionManual), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					m.Store.SetAutoAllow(false)
 					if m.OnAutoAllowChanged != nil {
 						m.OnAutoAllowChanged(false)
@@ -85,24 +85,25 @@ func View(c *ui.Context, m Model) {
 			text := questionStatusText(snap.QuestionStatus)
 			ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
-		questionHistory(c, snap.QuestionHistory, m.Store, fg, muted, accent)
+		questionHistory(c, snap.QuestionHistory, m.Store, colors, fg, muted, accent)
 		for _, p := range snap.Pending {
-			if pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, fg, muted, accent, m.OnOpenPlanResource) {
+			if pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, colors, fg, muted, accent, m.OnOpenPlanResource) {
 				focusedAgent, focusedEvent = p.AgentID, p.EventID
 			}
 		}
 	})
 }
 
-func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store CardStore, onAuto func(bool), fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
+func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store CardStore, onAuto func(bool), colors theme.Colors, fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
-		planReviewCard(c, p, card, store, fg, muted, accent, onOpenPlan)
+		planReviewCard(c, p, card, store, colors, fg, muted, accent, onOpenPlan)
 		return false
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, p.Title).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionReopen)).Clicked() {
+			reopen := widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionReopen), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall})
+			if reopen.Clicked() {
 				store.ReopenQuestion(p.EventID)
 			}
 		})
@@ -146,8 +147,8 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			if card, ok := snap.QuestionCards[p.EventID]; ok {
-				questionWaitStatus(c, p, card, store, muted)
-				focused = questionsBody(c, p, card, store, fg, muted)
+				questionWaitStatus(c, p, card, store, colors, muted)
+				focused = questionsBody(c, p, card, store, colors, fg, muted)
 			}
 		} else {
 			approvalReason(c, p, muted)
@@ -169,29 +170,29 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Wrap().Children(func() {
 			if p.Sending {
-				ui.Button(c, i18n.T(i18n.KeyInteractionContinue)).Disabled(true)
+				widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: true})
 				return
 			}
 			if p.Error != "" {
-				if ui.Button(c, i18n.T(i18n.KeyBootRetry)).Clicked() {
+				if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}); retry.Clicked() {
 					store.Retry(p.EventID)
 				}
 				return
 			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
-				if hide := interactionSecondaryButton(c, t, i18n.T(i18n.KeyChatQuestionHide)); hide.Clicked() {
+				if hide := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionHide), false); hide.Clicked() {
 					store.HideQuestion(p.EventID)
 				}
 
 				if !p.Continued {
-					if deny := interactionDangerButton(c, t, i18n.T(i18n.KeyInteractionDeny)); deny.Clicked() {
+					if deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false); deny.Clicked() {
 						store.ResolveDeny(p.EventID)
 					}
 				}
 			default:
-				deny := interactionDangerButton(c, t, i18n.T(i18n.KeyInteractionDeny))
-				allow := interactionPrimaryButton(c, t, i18n.T(i18n.KeyInteractionAllow))
+				deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false)
+				allow := interactionPrimaryButton(c, colors, i18n.T(i18n.KeyInteractionAllow), false)
 				if keys != nil {
 					allow.HandleInput(approvalHandler(keys, p, store, true))
 					deny.HandleInput(approvalHandler(keys, p, store, true))

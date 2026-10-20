@@ -3,6 +3,7 @@ package remote
 import (
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -16,6 +17,7 @@ type PhoneDeviceEditor struct {
 }
 
 func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s, e := m.PhoneRuntime, m.PhoneDeviceEditor
 	action := s.DeviceAction
 	if e != nil && e.Submitted && !action.Busy {
@@ -73,11 +75,11 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(8, 10, 8, 10).Gap(6).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, device.Name).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
-				if ui.Button(c, label("重命名", "Rename")).Disabled(disabled).Clicked() {
+				if widgets.Button(c, colors, label("重命名", "Rename"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 					e.EditingID, e.Name, e.Error = device.ID, device.Name, ""
 					e.PendingUnbind, e.ConfirmRotate = "", false
 				}
-				if ui.Button(c, label("解绑", "Unbind")).Disabled(disabled).Clicked() {
+				if widgets.Button(c, colors, label("解绑", "Unbind"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 					e.PendingUnbind = device.ID
 					e.EditingID, e.ConfirmRotate = "", false
 				}
@@ -89,10 +91,10 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 			if e.EditingID == device.ID {
 				ui.TextInput(c, &e.Name).FillWidth().Disabled(disabled)
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, label("保存名称", "Save name")).Disabled(disabled || strings.TrimSpace(e.Name) == "").Clicked() {
+					if widgets.Button(c, colors, label("保存名称", "Save name"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || strings.TrimSpace(e.Name) == "").Clicked() {
 						run("rename", device.ID, e.Name)
 					}
-					if ui.Button(c, label("取消", "Cancel")).Disabled(action.Busy).Clicked() {
+					if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(action.Busy).Clicked() {
 						e.EditingID, e.Name, e.Error = "", "", ""
 					}
 				})
@@ -100,27 +102,27 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 			if e.PendingUnbind == device.ID {
 				ui.Text(c, label("解绑此手机？所有手机连接将暂时中断，此手机需要重新配对；其他手机可重新连接。", "Unbind this phone? All phone connections briefly disconnect. This phone must pair again; other phones can reconnect.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, label("确认解绑", "Confirm unbind")).Disabled(disabled).Clicked() {
+					if widgets.Button(c, colors, label("确认解绑", "Confirm unbind"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 						run("unbind", device.ID, "")
 					}
-					if ui.Button(c, label("取消", "Cancel")).Disabled(action.Busy).Clicked() {
+					if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(action.Busy).Clicked() {
 						e.PendingUnbind = ""
 					}
 				})
 			}
 		})
 	}
-	if ui.Button(c, label("更新配对令牌", "Renew pairing token")).Disabled(disabled).Clicked() {
+	if widgets.Button(c, colors, label("更新配对令牌", "Renew pairing token"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 		e.ConfirmRotate = true
 		e.PendingUnbind, e.EditingID = "", ""
 	}
 	if e.ConfirmRotate {
 		ui.Text(c, label("生成新的临时配对链接？已配对设备身份保持不变，旧链接仍遵循原有效期。", "Generate a new temporary pairing link? Paired device identities stay unchanged; older links retain their original expiry.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, label("确认更新", "Confirm renewal")).Disabled(disabled).Clicked() {
+			if widgets.Button(c, colors, label("确认更新", "Confirm renewal"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				run("rotate", "", "")
 			}
-			if ui.Button(c, label("取消", "Cancel")).Disabled(action.Busy).Clicked() {
+			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(action.Busy).Clicked() {
 				e.ConfirmRotate = false
 			}
 		})

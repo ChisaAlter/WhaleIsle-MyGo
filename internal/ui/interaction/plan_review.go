@@ -7,11 +7,12 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/planpreview"
+	"whaleisle/internal/ui/widgets"
 )
 
 // planReviewCard deliberately replaces generic Continue/Deny. Discussion only
 // dismisses the panel; approval is sent exclusively by the explicit decision.
-func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store CardStore, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
+func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store CardStore, colors fonttheme.Colors, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
 	review := card.PlanReview
 	if review == nil {
 		return
@@ -20,7 +21,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, planpreview.Text("计划审批", "Plan review")).Bold().FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).Grow(1)
 			if card.PlanReviewHidden {
-				if ui.Button(c, planpreview.Text("返回审批", "Return to review")).Clicked() {
+				if widgets.Button(c, colors, planpreview.Text("返回审批", "Return to review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					store.ReopenPlanReview(pending.EventID)
 				}
 			}
@@ -39,7 +40,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 		if title == "" {
 			title = planpreview.Text("提交的计划", "Submitted plan")
 		}
-		if onOpen != nil && ui.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if onOpen != nil && widgets.Button(c, colors, planpreview.Text("在右侧打开计划", "Open plan in sidebar"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			address := planpreview.ReviewAddress(pending.AgentID, pending.EventID)
 			if review.CallID != "" {
 				address = planpreview.PlanAddress(pending.AgentID, review.CallID)
@@ -54,17 +55,17 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 			ui.Text(c, review.Approve.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, planpreview.Text("讨论修改", "Discuss changes")).Disabled(pending.Sending).Clicked() {
+			if widgets.Button(c, colors, planpreview.Text("讨论修改", "Discuss changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Clicked() {
 				store.DismissPlanReview(pending.EventID)
 			}
 			label := planpreview.Text("批准计划", "Approve plan")
 			if pending.Sending {
 				label = planpreview.Text("正在提交…", "Submitting…")
 			}
-			if ui.Button(c, label).Tooltip(review.Approve.Label).Disabled(pending.Sending).Clicked() {
+			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Tooltip(review.Approve.Label).Clicked() {
 				store.ApprovePlanReview(pending.EventID)
 			}
-			if pending.Error != "" && ui.Button(c, planpreview.Text("重试上次操作", "Retry last action")).Disabled(pending.Sending).Clicked() {
+			if pending.Error != "" && widgets.Button(c, colors, planpreview.Text("重试上次操作", "Retry last action"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Clicked() {
 				store.Retry(pending.EventID)
 			}
 		})

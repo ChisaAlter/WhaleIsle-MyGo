@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/pet"
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type PetSettingsAccess struct {
@@ -22,7 +23,7 @@ type PetSettingsAccess struct {
 	OnSave             func()
 }
 
-func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*PetSettingsAccess) {
+func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.Color, accesses ...*PetSettingsAccess) {
 	if p == nil {
 		return
 	}
@@ -147,11 +148,11 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 		}
 		reset := ui.Local(anchor, "confirm-reset", func() bool { return false })
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("恢复外观与行为默认", "Reset appearance and behavior")).Disabled(p.Store == nil || disabled).Clicked() {
+			if widgets.Button(c, colors, providerCopy("恢复外观与行为默认", "Reset appearance and behavior"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall, Disabled: p.Store == nil || disabled}).Clicked() {
 				*reset = true
 			}
 		})
-		ConfirmDialog(c, petResetQuestion(p, reset))
+		ConfirmDialog(c, petResetQuestion(p, reset, colors))
 		bodyDisclosure(c, "pet-local-skins", providerCopy("本地皮肤与动画", "Local skins and animation"), func() {
 			if ui.Button(c, providerCopy("保存本地皮肤与导入草稿", "Save local skin and imported draft")).Disabled(disabled).Clicked() {
 				save()

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -100,6 +101,7 @@ func observePlanHistory(m Model) {
 }
 
 func paintPlanTabs(c *ui.Context, m Model) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Tabs == nil {
 		return
 	}
@@ -109,7 +111,7 @@ func paintPlanTabs(c *ui.Context, m Model) {
 		return
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(4).Padding(6, 8).Children(func() {
-		if !m.PlanOnly && ui.Button(c, label("文件", "Files")).FontSize(theme.InterfaceSize(11)).Clicked() {
+		if !m.PlanOnly && widgets.Button(c, colors, label("文件", "Files"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 			m.Tabs.CancelPlanRead()
 			r.ShowFiles(sid)
 		}
@@ -160,13 +162,13 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 		paintPlanTabs(c, m)
 		ui.Row(c).FillWidth().Padding(0, 8).Gap(4).Children(func() {
 			ui.TextInput(c, &nav.Draft).Grow(1).Label("Plan resource address")
-			if ui.Button(c, label("前往", "Go")).Clicked() {
+			if widgets.Button(c, colors, label("前往", "Go"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 				nav.Error = r.Navigate(sid, nav.Draft)
 				if nav.Error == "" {
 					m.Tabs.AllowPlanRead(r.ActiveAddress(sid))
 				}
 			}
-			if ui.Button(c, label("复制地址", "Copy address")).Clicked() {
+			if widgets.Button(c, colors, label("复制地址", "Copy address"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				mygo.Clipboard.WriteText(address)
 			}
 		})
@@ -180,7 +182,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 			switch {
 			case target.IsSubagent() && m.Tabs.planReadAddress != address:
 				message = label("打开后只读加载子代理历史。", "Opening reads subagent history (read-only).")
-				if ui.Button(c, label("打开子代理计划", "Open subagent plan")).Clicked() {
+				if widgets.Button(c, colors, label("打开子代理计划", "Open subagent plan"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.AllowPlanRead(address)
 					if m.notify != nil {
 						m.notify()
@@ -191,7 +193,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 				if message == "" {
 					message = label("正在读取子代理计划…", "Reading subagent plan…")
 				}
-				if readState.Error != "" && ui.Button(c, label("重试", "Retry")).Clicked() {
+				if readState.Error != "" && widgets.Button(c, colors, label("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.AllowPlanRead(address)
 					if m.notify != nil {
 						m.notify()
@@ -203,7 +205,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 				message = label("等待当前会话历史…", "Waiting for current session history…")
 			case m.PlanSnapshot.HistoryPageErr != "":
 				message = m.PlanSnapshot.HistoryPageErr
-				if m.OnLoadPlanHistory != nil && ui.Button(c, label("重试", "Retry")).Clicked() {
+				if m.OnLoadPlanHistory != nil && widgets.Button(c, colors, label("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.OnLoadPlanHistory()
 				}
 			case m.PlanSnapshot.HistoryPageBusy:
@@ -219,7 +221,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 		}
 		ui.Row(c).FillWidth().Gap(8).Padding(8).Children(func() {
 			ui.Text(c, doc.Title).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, label("复制文档", "Copy document")).Clicked() {
+			if widgets.Button(c, colors, label("复制文档", "Copy document"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				mygo.Clipboard.WriteText(doc.Markdown)
 			}
 		})

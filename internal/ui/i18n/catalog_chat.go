@@ -282,6 +282,7 @@ const (
 	KeyChatApprovalWaiting = "chat.approval.waiting"
 	KeyChatQuestionWaiting = "chat.question.waiting"
 	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
+	KeyChatQuestionTakeTime = "chat.question.take_time"
 
 	// Search / web / todo evidence blocks.
 	KeyChatToolNoMatches = "chat.tool.no_matches"
@@ -580,6 +581,7 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatApprovalWaiting, "等待你的确认", "Waiting for your approval")
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
 	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
+	Register(KeyChatQuestionTakeTime, "让我慢慢回答", "Take my time")
 	Register(KeyChatToolNoMatches, "没有命中", "No matches")
 	Register(KeyChatToolMoreHits, "还有 %d 条", "%d more")
 	Register(KeyChatWebTruncated, "结果已截断", "Results truncated")

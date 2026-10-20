@@ -8,23 +8,25 @@ import (
 	"strings"
 	usagestore "whaleisle/internal/store/usage"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	trigger := ui.Button(c.Key("usage-pricing"), usageText("价格详情与设置", "Price details and settings"))
 	open := ui.Local(trigger, "open", func() bool { return false })
 	if trigger.Clicked() {
 		*open = true
 	}
-	pricingDialog(c, open, func() { pricingContent(c, m, fg, muted, accent) })
+	pricingDialog(c, open, colors, func() { pricingContent(c, m, fg, muted, accent) })
 }
 
-func pricingDialog(c *ui.Context, open *bool, content func()) {
+func pricingDialog(c *ui.Context, open *bool, colors fonttheme.Colors, content func()) {
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))
 		w, h := c.Size()
 		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Background(c.Theme().Background).Padding(16).Children(func() {
-			if ui.Button(c, usageText("关闭价格详情", "Close price details")).Clicked() {
+			if widgets.Button(c, colors, usageText("关闭价格详情", "Close price details"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				*open = false
 			}
 			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() { ui.Column(c).Gap(8).Children(content) })
@@ -33,6 +35,7 @@ func pricingDialog(c *ui.Context, open *bool, content func()) {
 }
 
 func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	v := m.Store.Billing()
 	ui.Text(c, usageText("价格配置与费用估算", "Price settings and cost estimates")).Bold().TextColor(fg)
 	ui.Text(c, usageText("计价货币 CNY，单位为每百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -46,14 +49,14 @@ func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		return
 	}
 	ui.Row(c).Gap(6).Children(func() {
-		if !v.Dirty && ui.Button(c, usageText("读取价格", "Load prices")).Clicked() {
+		if !v.Dirty && widgets.Button(c, colors, usageText("读取价格", "Load prices"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.LoadBilling(context.Background())
 		}
 		if v.Loaded && v.Dirty {
-			if ui.Button(c, usageText("保存价格", "Save prices")).Clicked() {
+			if widgets.Button(c, colors, usageText("保存价格", "Save prices"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.SaveBilling(context.Background())
 			}
-			if ui.Button(c, usageText("放弃草稿", "Discard draft")).Clicked() {
+			if widgets.Button(c, colors, usageText("放弃草稿", "Discard draft"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.DiscardPrices()
 			}
 		}
@@ -83,7 +86,7 @@ func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 						title = "● " + title
 					}
 					ui.Text(c, title).TextColor(fg).Grow(1)
-					if ui.Button(c, usageText("删除价格", "Remove price")).Clicked() {
+					if widgets.Button(c, colors, usageText("删除价格", "Remove price"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 						m.Store.RemovePrice(key)
 					}
 				})
@@ -110,7 +113,7 @@ func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	key := v.NewKey
 	ui.Row(c).Gap(6).Children(func() {
 		ui.TextInput(c, &key).Grow(1).Placeholder("provider/model").OnChange(func() { m.Store.SetPriceKey(key) })
-		if ui.Button(c, usageText("添加价格", "Add price")).Clicked() {
+		if widgets.Button(c, colors, usageText("添加价格", "Add price"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			key = strings.TrimSpace(key)
 			if _, exists := v.Drafts[key]; !exists {
 				m.Store.EditPrice(key, usagestore.PriceDraft{})

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
@@ -41,6 +42,7 @@ var (
 )
 
 func viewMachines(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.Machines == nil || m.MachineEditor == nil {
 		return
 	}
@@ -63,10 +65,10 @@ func viewMachines(c *ui.Context, m Model) {
 			if len(s.Machines) > 0 {
 				ui.Text(c, fmt.Sprintf("%d", len(s.Machines))).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
 			}
-			if ui.Button(c, label("刷新", "Refresh")).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
 				m.Machines.Refresh()
 			}
-			if ui.Button(c, label("新增", "Add")).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+			if widgets.Button(c, colors, label("新增", "Add"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
 				*e = MachineEditor{Open: true, Draft: remotestore.NewDraft()}
 			}
 		})
@@ -213,6 +215,7 @@ func machineMenu(c *ui.Context, menu *ui.Menu, m Model, s remotestore.Snapshot, 
 
 // removeMachineConfirm asks before dropping a machine and its saved credentials.
 func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, machine remotestore.Machine, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	title := machine.Name
 	if title == "" {
 		title = machine.Host
@@ -220,10 +223,10 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Padding(0, 14).Children(func() {
 		ui.Text(c, label("移除机器「"+title+"」？本机保存的凭据也会移除；不会删除远程文件。", "Remove machine \""+title+"\"? Locally saved credentials are removed too; remote files are kept.")).
 			Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if ui.Button(c, label("取消", "Cancel")).Disabled(s.Busy || e.Removing).Clicked() {
+		if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || e.Removing).Clicked() {
 			e.PendingRemove = ""
 		}
-		if ui.Button(c, label("确认移除", "Confirm removal")).TextColor(c.Theme().Danger).Disabled(s.Busy).Clicked() {
+		if widgets.Button(c, colors, label("确认移除", "Confirm removal"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 			e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
 		}
 	})
@@ -233,6 +236,7 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 // are computed locally so a wrong port or a duplicate name never needs a round
 // trip to the host.
 func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	draft := &e.Draft
 	problem := machineDraftProblem(*draft, s.Machines)
 	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14).Radius(10).Border(.5, c.Theme().Border).Children(func() {
@@ -259,13 +263,13 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 			ui.Text(c, e.Error).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, label("取消", "Cancel")).Disabled(s.Busy).Clicked() {
+			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 				e.Open = false
 				e.Draft = remotestore.Draft{}
 				e.Error = ""
 			}
 			ui.Box(c).Grow(1)
-			if ui.Button(c, label("测试表单", "Test draft")).Disabled(s.Busy || problem != "").Clicked() {
+			if widgets.Button(c, colors, label("测试表单", "Test draft"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
 				if err := m.Machines.TestDraft(e.Draft); err != nil {
 					e.Error = err.Error()
 				} else {

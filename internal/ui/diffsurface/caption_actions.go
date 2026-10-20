@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -82,6 +83,7 @@ type captionBranchState struct {
 // trigger. It shares the Workbench's cancellable branch read and operation
 // owner; no second Git executor or independent branch cache is introduced.
 func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil || open == nil {
 		return
@@ -190,7 +192,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 				ui.Text(c, word("从当前 HEAD 创建并切换到新分支。", "Create a local branch from the current HEAD and switch to it.")).FillWidth().TextColor(c.Theme().TextMuted)
 				submitted := ui.TextInput(c, &state.name).FillWidth().Label(word("分支名称", "Branch name")).Placeholder("feature/my-change").Submitted()
 				ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-					if ui.Button(c, word("取消", "Cancel")).Clicked() {
+					if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 						state.createOpen = false
 					}
 					name := strings.TrimSpace(state.name)

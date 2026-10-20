@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -17,6 +18,7 @@ import (
 // name, share, tokens and cost — but reads as a ranked row with a bar instead
 // of one sentence per line.
 func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	models := st.Overview.AllTime.ByModel
 	scope := i18n.T(i18n.KeySurfacesUsageAllTime)
 	if st.Range.Active() {
@@ -48,7 +50,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 			}
 		})
 		if limit < len(models) {
-			if ui.Button(c, i18n.T(i18n.KeySurfacesUsageShowMore)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesUsageShowMore), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				m.Store.ShowMoreModels()
 			}
 		}
@@ -112,7 +114,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 						ui.Text(c, fmt.Sprint(index+1)).Width(18).Shrink(0).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).TextAlign(ui.End)
 						ui.Text(c, name).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(name)
 						ui.Text(c, formatCompactTokens(entry.Totals.Total)).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
-						if m.OnOpenSession != nil && ui.Button(c, usageText("打开", "Open")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if m.OnOpenSession != nil && widgets.Button(c, colors, usageText("打开", "Open"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 							m.OnOpenSession(entry.ID)
 						}
 					})

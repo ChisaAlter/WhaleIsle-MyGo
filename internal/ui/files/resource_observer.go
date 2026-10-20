@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // One active resource owns one watch and one bounded latest-read queue. Watch
@@ -215,6 +217,7 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 	tab.externalChanged = false
 }
 func paintResourceRefreshControls(c *ui.Context, m Model) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	tab := selectedTab(m)
 	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled || !tab.externalChanged {
 		return
@@ -222,7 +225,7 @@ func paintResourceRefreshControls(c *ui.Context, m Model) {
 	ui.Row(c).Gap(6).Padding(0, 12, 4, 12).Wrap().Children(func() {
 		if tab.externalChanged {
 			ui.Text(c, label("外部内容已变化；未保存草稿不会被覆盖。", "External content changed; unsaved draft will not be overwritten.")).FontSize(11)
-			if ui.Button(c, label("重新读取源文件", "Refresh source file")).Clicked() {
+			if widgets.Button(c, colors, label("重新读取源文件", "Refresh source file"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 				reloadSelectedFile(m)
 			}
 		}

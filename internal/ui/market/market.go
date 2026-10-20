@@ -14,6 +14,7 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the market panel to store, install state, and harness status.
@@ -269,7 +270,9 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 }
 func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item desktopmarket.CatalogItem, inventory marketstore.ViewState, fg, muted ui.Color) {
 	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
-		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed: ")+name).TextColor(fg)
+		// The installed row keeps the button slot, disabled, so a card does not
+		// change height when its state flips.
+		widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: true})
 		return
 	}
 	if !desktopmarket.ValidInstallItem(item) {
@@ -280,7 +283,8 @@ func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item 
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketConnectTheRuntimeBeforeInstalling), "Connect the runtime to install.")).TextColor(muted)
 		return
 	}
-	if !m.InstallBusy && !d.Loading && m.OnInstallCatalog != nil && ui.Button(c, i18n.T(i18n.KeyMarketInstallButton)).Clicked() {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	if !m.InstallBusy && !d.Loading && m.OnInstallCatalog != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMarketInstallButton), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 		if target, e := m.Store.CaptureTarget(item.ID); e == nil {
 			m.OnInstallCatalog(target)
 		}
@@ -344,7 +348,7 @@ func favoriteButton(c *ui.Context, m Model, id string) {
 	if m.Store.Personal().Favorites[id] {
 		label = marketText(i18n.T(i18n.KeyW4MarketRemoveFromSaved), "Unfavorite")
 	}
-	if ui.Button(c, label).Clicked() {
+	if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 		_ = m.Store.ToggleFavorite(id)
 	}
 }
@@ -355,7 +359,7 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 	u := m.Store.Updates()
 	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPluginVersionUpdates), "Plugin version updates")).Bold().TextColor(fg)
 	if !m.InstallBusy && !inventory.Loading && inventory.Err == "" && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
-		if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketCheckPluginUpdates), "Check plugin updates")).Clicked() {
+		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketCheckPluginUpdates), "Check plugin updates"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.CheckUpdates()
 		}
 	}

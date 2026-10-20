@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func reviewDiscard(m Model, path string) {
@@ -19,6 +20,7 @@ func reviewDiscard(m Model, path string) {
 }
 
 func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w.Discard == nil {
 		return
@@ -32,10 +34,10 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		ui.Text(c, impact).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, word("取消", "Cancel")).Clicked() {
+			if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				w.Discard = nil
 			}
-			if ui.Button(c, word("确认丢弃此文件", "Confirm discard file")).Clicked() {
+			if widgets.Button(c, colors, word("确认丢弃此文件", "Confirm discard file"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 				// Capture and clear before running: repeated clicks cannot replay this review.
 				w.Discard = nil
 				_, err := git.DiscardReviewed(m.WorkspaceRoot, plan)

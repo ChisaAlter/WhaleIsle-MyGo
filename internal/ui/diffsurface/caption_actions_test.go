@@ -50,7 +50,9 @@ func captionFixtureRepo(t *testing.T) string {
 // the caller-supplied state so a red run explains itself.
 func awaitCaptionFixture(t *testing.T, tt *ui.Tester, ready func() bool, detail ...func() string) {
 	t.Helper()
-	const budget = 2 * time.Second
+	// The whole suite runs in parallel on a loaded machine, so allow more than
+	// one scheduler quantum for a frame to settle.
+	const budget = 5 * time.Second
 	deadline := time.Now().Add(budget)
 	frames := 0
 	for time.Now().Before(deadline) {

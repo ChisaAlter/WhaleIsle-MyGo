@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Tabs owns drafts for all open workspace files for the lifetime of this window.
@@ -405,6 +406,7 @@ func paintBrowseButton(c *ui.Context, m Model, muted ui.Color) {
 // paintPendingClose shows the unsaved-tab decision for the tab that requested a
 // close, instead of a second modal over the editor.
 func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if w.PendingClose == "" {
 		return
 	}
@@ -416,10 +418,10 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 	}
 	ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, label("保留草稿", "Keep draft")).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("保留草稿", "Keep draft"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			w.PendingClose = ""
 		}
-		if ui.Button(c, label("保存并关闭", "Save and close")).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("保存并关闭", "Save and close"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			selectFile(m, path)
 			if err := requestSaveDraft(m); err != nil {
 				if m.EditStatus != nil {
@@ -431,7 +433,7 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 				closeTab(m, path, false)
 			}
 		}
-		if ui.Button(c, label("丢弃并关闭", "Discard and close")).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("丢弃并关闭", "Discard and close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			closeTab(m, path, true)
 		}
 	})

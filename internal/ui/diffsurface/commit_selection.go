@@ -9,6 +9,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/git"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type commitSelectionState struct {
@@ -242,6 +243,7 @@ func safelyAcknowledgesLarge(p git.SelectedCommitPlan, ack bool) bool {
 	return len(p.LargeFiles) == 0 || ack
 }
 func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	finishCommitPreparation(m)
 	w := m.Workbench
 	if w.Commit == nil || w.Commit.Task == nil {
@@ -249,7 +251,7 @@ func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	ui.Text(c, word("正在准备所选文件并生成说明…", "Preparing the selected files and generating a message…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, word("生成失败可重试或手写说明；此时还未创建提交。", "If generation fails, retry or write a message. No commit has been created yet.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-	if ui.Button(c, word("取消准备", "Cancel preparation")).Clicked() {
+	if widgets.Button(c, colors, word("取消准备", "Cancel preparation"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 		w.cancelCommitPreparation()
 		w.Status = word("已取消，可修改选择或手写说明。", "Canceled. Change the selection or enter a message.")
 	}
@@ -266,16 +268,17 @@ func paintCommitCheckbox(c *ui.Context, w *Workbench, path string) {
 	}
 }
 func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	s := w.commitState()
 	ui.Text(c, word("勾选文件将提交其已保存的完整工作副本（含该文件未暂存修改）；未勾选的暂存保持不变。", "Checked files commit their complete saved working copies, including unstaged edits. Unchecked staging is preserved.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, word("全选", "Select all")).Clicked() {
+		if widgets.Button(c, colors, word("全选", "Select all"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			s.Excluded = map[string]bool{}
 			s.LargeAcknowledged = false
 			w.invalidateCommitReview()
 		}
-		if ui.Button(c, word("全不选", "Select none")).Clicked() {
+		if widgets.Button(c, colors, word("全不选", "Select none"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			for _, ch := range w.Changes {
 				s.Excluded[ch.Path] = true
 			}
@@ -343,14 +346,14 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 			return
 		}
 		ui.Row(c).Gap(6).Children(func() {
-			if ui.Button(c, word("核对所选文件并提交…", "Review selected files to commit…")).Clicked() {
+			if widgets.Button(c, colors, word("核对所选文件并提交…", "Review selected files to commit…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
 				beginCommitPreparation(c, m, false, false)
 			}
-			if ui.Button(c, word("核对提交并推送…", "Review commit and push…")).Clicked() {
+			if widgets.Button(c, colors, word("核对提交并推送…", "Review commit and push…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
 				beginCommitPreparation(c, m, true, false)
 			}
 		})
-		if s.WantPR && ui.Button(c, word("核对提交、推送及 PR…", "Review commit, push and PR…")).Clicked() {
+		if s.WantPR && widgets.Button(c, colors, word("核对提交、推送及 PR…", "Review commit, push and PR…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
 			beginCommitPreparation(c, m, true, true)
 		}
 		return
@@ -387,7 +390,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		if ui.Button(c, caption).Clicked() {
 			confirmSelectedCommit(c, m)
 		}
-		if ui.Button(c, word("取消核对", "Cancel review")).Clicked() {
+		if widgets.Button(c, colors, word("取消核对", "Cancel review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			w.invalidateCommitReview()
 			w.Status = ""
 		}
