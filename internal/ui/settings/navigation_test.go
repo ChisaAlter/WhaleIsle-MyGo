@@ -19,14 +19,14 @@ func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
 		m.SectionContent = func(c *ui.Context) { ui.Text(c, "Feature-owned market body") }
 	}
 	m.OnSelectDesktop = func() { m.ActiveSection = ""; m.SectionContent = nil; m.DesktopActive = true }
+	// The market entry left the rail (task-48), so the feature section is reached
+	// the way a deep link does it, not by clicking the navigation.
+	m.OnOpenMarket()
 	tt := ui.NewTester(func(c *ui.Context) {
 		if !closed {
 			ModalView(c, m)
 		}
 	}, 1000, 760)
-	if err := tt.Click(sectionLabel(SectionMarket)); err != nil {
-		t.Fatal(err)
-	}
 	if !tt.HasText("Feature-owned market body") || !tt.HasText(i18n.T(i18n.KeySettingsTitle)) {
 		t.Fatal("feature selection lost the shared settings shell")
 	}
@@ -88,4 +88,43 @@ func TestSettingsUnsignedAccountStillHasLoginEntry(t *testing.T) {
 	if len(entries) == 0 || entries[0].id != SectionAccount {
 		t.Fatal("active sign-in flow has no account navigation entry")
 	}
+}
+
+// TestSettingsNavigationHidesMarketButDeepLinkResolves covers task-48: the market
+// entry leaves the settings rail, while the constant, the namespace mapping and
+// the rendering path stay so an existing deep link still lands on the page.
+func TestSettingsNavigationHidesMarketButDeepLinkResolves(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	locale := "en"
+	m := Model{Desktop: &DesktopAccess{Fields: DesktopFields{Locale: &locale}}, DesktopActive: true, OnClose: func() {}}
+	for _, entry := range primaryNavigation(m, store.ViewState{}) {
+		if entry.id == SectionMarket {
+			t.Fatal("the settings rail still offers a market entry")
+		}
+	}
+	if planSectionOrderHas(SectionMarket) {
+		t.Fatal("the market section is still in the plan order")
+	}
+	for _, alias := range []string{"market", "ui-settings-market"} {
+		if got := SectionForNamespace(alias); got != SectionMarket {
+			t.Fatalf("deep link %q resolved to %q, want %q", alias, got, SectionMarket)
+		}
+	}
+	m.ActiveSection = SectionMarket
+	m.SectionContent = func(c *ui.Context) { ui.Text(c, "Feature-owned market body") }
+	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1000, 760)
+	if !tt.HasText("Feature-owned market body") {
+		t.Fatal("a deep link to the market section no longer renders")
+	}
+}
+
+// planSectionOrderHas reports whether a section still appears in the rail order.
+func planSectionOrderHas(id SectionID) bool {
+	for _, candidate := range planSectionOrder {
+		if candidate == id {
+			return true
+		}
+	}
+	return false
 }

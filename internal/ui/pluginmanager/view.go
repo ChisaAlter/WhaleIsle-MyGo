@@ -71,7 +71,7 @@ func View(c *ui.Context, m Model) {
 			if !detail && s.View.Kind != "more" {
 				pageHeader(c, m, s, a, fg, muted)
 				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 0, 0).Children(func() {
-					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
+					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}} {
 						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
 						if s.Tab == tab.id {
 							b.Background(chrome.Color(colors.Field)).TextColor(fg)

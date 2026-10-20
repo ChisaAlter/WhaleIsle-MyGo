@@ -155,7 +155,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 启停语义 | 未改：仍调 `OnSetModelInvocable` / `OnSetGroupInvocable`，只是把开关换成自绘 44×24（点击后由调用方取反上报） |
 | 空态/加载态 | 沿用现有（空态一句 muted 文案；加载仍是 Busy 文案），参考无更强证据 |
 
-### 市场（ref-settings-market）→ 部分已修
+### 市场（ref-settings-market）→ 入口移除（官方市场）
 | 差异 | 状态 |
 | --- | --- |
 | 标题「插件市场」+ 说明 + 右上单个刷新 icon | 本仓库头部有标题/刷新，但无该说明句与内容区右对齐 layout |
@@ -262,3 +262,17 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 关于 | 标题「关于」18；应用名 16 + 桌面版本 + Based on；版本只读下拉 150 + 深色「在线安装」徽标；凭据存储/运行目录 12；`打开运行目录` 28 高 Outline 内容宽；两条 14 accent 链接（GitHub 发行版/官方 Harness） | 应用数据与诊断折叠为额外项（参考没有）；凭据状态取决于平台后端 |
 
 验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿；`SETTINGS_GALLERY_DIR` 可重出全部设置页快照。
+## 11. 第五轮：停做自有市场，接入 dsh 官方插件市场（2026-10-20 深夜）
+
+产品决定：不再维护自有“市场”界面，插件发现统一走 dsh 官方市场 `https://awesome-dsh-plugin.com`（也就是 `internal/desktop/market/catalog.go` 里 `CatalogURL` 的同一份官方 registry）。
+
+| 位置 | 改动 | 保留 |
+| --- | --- | --- |
+| 设置左栏 | 移除“市场”入口（`planSectionOrder` 删除 SectionMarket） | `SectionMarket` 常量、`market`/`ui-settings-market` 深链映射、market 面板渲染 |
+| 插件页 | 移除“已安装 / 发现”双 tab，只显示“已安装”；`discoverView` 代码保留但 UI 不可达 | 已安装列表、可更新徽标与“更新”按钮、安装/卸载流程 |
+| 插件页 ⌄ 菜单 | 新增「插件市场」：描述“在 dsh 官方市场浏览插件（awesome-dsh-plugin.com）”，点击 `OnOpenURL` 只开浏览器、不切页；无浏览器能力时 disabled+tooltip | “安装已有插件”“让 Agent 创建插件”、AddActions |
+| 代码 | 未删 `internal/ui/market`、`internal/desktop/market`、`internal/store/market` | 更新检查、安装管线、封面/详情等底层能力 |
+
+测试：`pluginmanager` 新增“无发现 tab / 菜单含插件市场 / 点击只回调 URL 且不改 state / 无回调时无副作用”四条；settings 新增“导航无市场但深链仍解析并渲染”。
+
+验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿。

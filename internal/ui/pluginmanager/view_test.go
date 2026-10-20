@@ -254,3 +254,75 @@ func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
 		t.Fatal(err)
 	}
 }
+
+func TestPluginPageDropsTheDiscoverTab(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	m := pageModel(t)
+	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
+	if tt.HasText("Discover") {
+		t.Fatalf("the discover tab is still reachable: %v", tt.Texts())
+	}
+	if !tt.HasText("Installed") {
+		t.Fatalf("the installed tab went missing: %v", tt.Texts())
+	}
+	// The old discovery catalog stays available for hosts that still drive it,
+	// it just has no tab of its own any more.
+	m.Controller.Actions(m.Controller.Snapshot().Owner).SelectTab("discover")
+	tt.Frame()
+	if m.Controller.Snapshot().Tab != "discover" {
+		t.Fatal("SelectTab no longer reaches the hidden discovery view")
+	}
+}
+
+func TestAddMenuOffersTheOfficialMarketplace(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	m := pageModel(t)
+	opened := []string{}
+	m.OnOpenURL = func(url string) { opened = append(opened, url) }
+	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
+	if err := tt.Click("Choose add method"); err != nil {
+		t.Fatalf("add menu trigger missing: %v", err)
+	}
+	if !tt.HasText("Plugin marketplace") {
+		t.Fatalf("marketplace entry missing: %v", tt.Texts())
+	}
+	if !tt.HasText("Browse plugins in the official dsh marketplace (awesome-dsh-plugin.com)") {
+		t.Fatalf("marketplace description missing: %v", tt.Texts())
+	}
+	if !tt.HasText("Install existing plugin") {
+		t.Fatal("install entry disappeared")
+	}
+	before := m.Controller.Snapshot()
+	if err := tt.Click("Plugin marketplace"); err != nil {
+		t.Fatal(err)
+	}
+	if len(opened) != 1 || opened[0] != "https://awesome-dsh-plugin.com" {
+		t.Fatalf("marketplace opened %v", opened)
+	}
+	after := m.Controller.Snapshot()
+	if after.Tab != before.Tab || after.View.Kind != before.View.Kind {
+		t.Fatalf("marketplace entry changed the page: %+v -> %+v", before.View, after.View)
+	}
+}
+
+func TestAddMenuMarketplaceIsDisabledWithoutABrowser(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	m := pageModel(t)
+	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
+	if err := tt.Click("Choose add method"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("Plugin marketplace") {
+		t.Fatalf("disabled entry should still be listed: %v", tt.Texts())
+	}
+	if err := tt.Click("Plugin marketplace"); err != nil {
+		t.Fatal(err)
+	}
+	// Nothing to call and nothing to change.
+	if snap := m.Controller.Snapshot(); snap.View.Kind != "" && snap.View.Kind != "list" {
+		t.Fatalf("disabled marketplace entry navigated: %+v", snap.View)
+	}
+}
