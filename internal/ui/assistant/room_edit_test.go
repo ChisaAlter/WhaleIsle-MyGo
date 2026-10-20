@@ -17,19 +17,19 @@ func TestRoomEditUIFullReviewAndExplicitSave(t *testing.T) {
 		roomEditView(c, RoomEditModel{State: state, HostLabel: "https://fixture.invalid", OnAcknowledge: func(v bool) { state.Review.Acknowledged = v }, OnConfirm: func() { saves++ }}, false, ui.RGB(255, 255, 255), ui.RGB(120, 120, 120), ui.RGB(40, 40, 40), ui.RGB(80, 80, 80), ui.RGB(70, 130, 210))
 	}, 1200, 3400)
 	text := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"https://fixture.invalid", "revision 7", "Full room name", "canonical-room", "workspace-1", "Alpha", "sa", "Beta", "sb", "3 → 2", "10 → 4", "Full before", "Full after", "retain all nested fields", "费用", "审计", "不启动或停止"} {
+	for _, term := range []string{"https://fixture.invalid", "revision 7", "Full room name", "canonical-room", "workspace-1", "Alpha", "sa", "Beta", "sb", "3 → 2", "10 → 4", "保存前完整资料", "保存后完整资料", "retain all nested fields", "费用", "审计", "不启动或停止"} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing review or effect", term)
 		}
 	}
-	tt.Click(roomEditConfirmLabel)
+	tt.Click(roomEditConfirmLabel())
 	if saves != 0 {
 		t.Fatal("saved without acknowledgment")
 	}
-	if err := tt.Click(roomEditAcknowledgement); err != nil {
+	if err := tt.Click(roomEditAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(roomEditConfirmLabel); err != nil {
+	if err := tt.Click(roomEditConfirmLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

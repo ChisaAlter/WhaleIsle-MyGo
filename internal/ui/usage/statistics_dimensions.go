@@ -33,7 +33,7 @@ func usageCostText(models []usagestore.ModelUsage, settings usagestore.BillingSe
 	if priced == 0 {
 		return usageText("费用未计价", "Cost unpriced")
 	}
-	return fmt.Sprintf("≈ CNY %.2f (peak %.2f / off-peak %.2f) · %d priced / %d unpriced", (peak+idle)/100, peak/100, idle/100, priced, unknown)
+	return fmt.Sprintf(usageText("≈ CNY %.2f（峰值 %.2f，谷值 %.2f）· 已计价 %d，未计价 %d", "≈ CNY %.2f (peak %.2f, off-peak %.2f) · %d priced, %d unpriced"), (peak+idle)/100, peak/100, idle/100, priced, unknown)
 }
 
 func dayModels(day usagestore.DayUsage, providers map[string]string) []usagestore.ModelUsage {
@@ -54,7 +54,7 @@ func dayTip(day usagestore.DayUsage, providers map[string]string, settings usage
 	rows := dayModels(day, providers)
 	lines := []string{fmt.Sprintf("%s UTC · %.0f tokens", day.Date, day.Total), usageCostText(rows, settings)}
 	for _, row := range rows {
-		lines = append(lines, fmt.Sprintf("%s / %s · %.0f\n%s\n%s", row.Provider, row.Model, row.Total, totalsText(row.Totals), usageCostText([]usagestore.ModelUsage{row}, settings)))
+		lines = append(lines, fmt.Sprintf("%s · %s · %.0f\n%s\n%s", row.Provider, row.Model, row.Total, totalsText(row.Totals), usageCostText([]usagestore.ModelUsage{row}, settings)))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -202,7 +202,7 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 		focusDay := ui.Local(heading, "focus-date", func() string { return "" })
 		buttons := map[string]ui.Element{}
 		focusTarget := ""
-		ui.Text(c, fmt.Sprintf("%.0f tokens · %d active / %d days · %s", selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(usageText("%.0f tokens · %d 天有用量，共 %d 天 · %s", "%.0f tokens · %d active of %d days · %s"), selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Text(c, usageText("颜色按全窗口四分位分级；聚焦或悬停查看日期详情；方向键按日/周移动，Home/End 到首尾；Enter 选择，Shift+Enter 扩展。", "Colors use whole-window quartiles. Focus or hover for day details. Arrow keys move by day/week; Home/End reach bounds. Enter selects; Shift+Enter extends.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		start, _ := time.Parse("2006-01-02", days[0].Date)
 		end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
@@ -445,7 +445,7 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 				if total > 0 {
 					percent = row.Total / total * 100
 				}
-				ui.Text(c, fmt.Sprintf("%s / %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				ui.Text(c, fmt.Sprintf("%s · %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				ui.Text(c, totalsText(row.Totals)+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})

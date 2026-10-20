@@ -24,14 +24,14 @@ func TestBotCreateUIFullReviewExplicitAction(t *testing.T) {
 			t.Fatal("missing reviewed field/effect", term)
 		}
 	}
-	tt.Click(botCreateConfirmLabel)
+	tt.Click(botCreateConfirmLabel())
 	if saves != 0 {
 		t.Fatal("no acknowledgement")
 	}
-	if err := tt.Click(botCreateAcknowledgement); err != nil {
+	if err := tt.Click(botCreateAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(botCreateConfirmLabel); err != nil {
+	if err := tt.Click(botCreateConfirmLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

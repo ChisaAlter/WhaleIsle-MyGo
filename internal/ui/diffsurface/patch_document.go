@@ -16,29 +16,83 @@ type patchRow struct {
 }
 type patchViewState struct {
 	Split, Wrap bool
-	Open        map[string]bool
-	source      string
-	files       []patchFile
+	Closed      map[string]bool
+	// Folded marks a file's collapsed hunks by hunk index; a missing entry is an
+	// expanded hunk, which is the default every patch opens with.
+	Folded map[string]map[int]bool
+	source string
+	files  []patchFile
 }
 
 func (s *patchViewState) update(source string) []patchFile {
-	if s.Open == nil {
-		s.Open = map[string]bool{}
+	if s.Closed == nil {
+		s.Closed = map[string]bool{}
+	}
+	if s.Folded == nil {
+		s.Folded = map[string]map[int]bool{}
 	}
 	if s.source != source {
 		s.source = source
 		s.files = parsePatchFiles(source)
 		keep := map[string]bool{}
+		keepFolded := map[string]map[int]bool{}
 		for _, file := range s.files {
-			keep[file.Path] = s.Open[file.Path]
+			keep[file.Path] = s.Closed[file.Path]
+			if hunks := s.Folded[file.Path]; len(hunks) > 0 {
+				keepFolded[file.Path] = hunks
+			}
 		}
-		s.Open = keep
+		s.Closed = keep
+		s.Folded = keepFolded
 	}
 	return s.files
 }
-func (s *patchViewState) setAll(open bool) {
+
+// foldedHunks is the collapse state of one file's hunks, created on demand.
+func (s *patchViewState) foldedHunks(path string) map[int]bool {
+	if s.Folded == nil {
+		s.Folded = map[string]map[int]bool{}
+	}
+	hunks := s.Folded[path]
+	if hunks == nil {
+		hunks = map[int]bool{}
+		s.Folded[path] = hunks
+	}
+	return hunks
+}
+
+// toggleHunk folds or unfolds one hunk of one file.
+func (s *patchViewState) toggleHunk(path string, index int) {
+	hunks := s.foldedHunks(path)
+	hunks[index] = !hunks[index]
+}
+
+// setAllHunks folds or unfolds every hunk of every visible file, the per-hunk
+// counterpart of setAll.
+func (s *patchViewState) setAllHunks(folded bool) {
 	for _, file := range s.files {
-		s.Open[file.Path] = open
+		if !folded {
+			delete(s.Folded, file.Path)
+			continue
+		}
+		hunks := s.foldedHunks(file.Path)
+		index := 0
+		for _, row := range file.Rows {
+			if !strings.HasPrefix(row.Meta, "@@") {
+				continue
+			}
+			hunks[index] = true
+			index++
+		}
+	}
+}
+func (s *patchViewState) setAllClosed(closed bool) {
+	for _, file := range s.files {
+		if !closed {
+			delete(s.Closed, file.Path)
+			continue
+		}
+		s.Closed[file.Path] = true
 	}
 }
 func safePatchPath(p string) bool {

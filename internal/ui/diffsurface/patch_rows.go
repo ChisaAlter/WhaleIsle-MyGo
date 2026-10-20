@@ -88,15 +88,67 @@ func unifiedMinWidth(rows []patchRow) float32 {
 	return float32(longest+10) * 7.5
 }
 
-// paintUnifiedRows paints one file change as a single column of line bands.
-func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool) {
+// paintUnifiedRows paints one file change as a single column of line bands. A
+// folded hunk keeps its header and drops its lines.
+func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fold hunkFold) {
 	minWidth := float32(0)
 	if !wrap {
 		minWidth = unifiedMinWidth(rows)
 	}
 	ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+		hunk, hidden := -1, false
 		for _, line := range unifiedLines(rows) {
+			if line.Kind == diffLineHunk {
+				hunk++
+				hidden = fold.collapsed[hunk]
+				paintHunkHeader(c, line.Text, hunk, st, fold)
+				continue
+			}
+			if hidden {
+				continue
+			}
 			paintDiffLine(c, line, st, minWidth, wrap)
+		}
+	})
+}
+
+// hunkFold is one file's per-hunk collapse state. A zero fold paints every hunk
+// expanded and leaves the headers inert.
+type hunkFold struct {
+	collapsed map[int]bool
+	onToggle  func(index int)
+}
+
+// paintHunkHeader paints one hunk header. A bound fold turns it into a control
+// that hides the hunk's lines; an unbound one stays a static label.
+func paintHunkHeader(c *ui.Context, text string, index int, st diff.Style, fold hunkFold) {
+	folded := fold.collapsed[index]
+	if fold.onToggle == nil {
+		ui.Row(c).FillWidth().MinWidth(0).Padding(4, 8).Radius(6).Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .16)).Children(func() {
+			ui.Text(c, text).Font("monospace").FontSize(st.FontSize).TextColor(st.Hunk).NoWrap()
+		})
+		return
+	}
+	row := ui.Row(c).FillWidth().MinWidth(0).Gap(4).Height(24).Padding(0, 6).Radius(6).AlignItems(ui.Center).Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .16))
+	row.Children(func() {
+		caption := text
+		if folded {
+			caption = text + "  …"
+		}
+		toggle := ui.Button(c, "").Label(text).FillWidth().Height(22).Padding(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Start).Tooltip(text)
+		toggle.Children(func() {
+			if folded {
+				ui.Icon(c, diffChevronRightIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
+			} else {
+				ui.Icon(c, diffChevronDownIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
+			}
+			ui.Text(c, " "+caption).Font("monospace").FontSize(st.FontSize).TextColor(st.Hunk).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+		})
+		if toggle.Hovered() {
+			toggle.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .12))
+		}
+		if toggle.Clicked() {
+			fold.onToggle(index)
 		}
 	})
 }

@@ -225,7 +225,9 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					card.Width(64).Padding(0)
 				}
 				if imageFile {
-					card.Radius(20)
+					// The empty seat keeps a quiet placeholder fill while the
+					// preview decodes, instead of flashing a white square.
+					card.Radius(20).Background(muted.Alpha(0.12))
 				}
 				remove := false
 				card.Children(func() {
@@ -290,7 +292,11 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							m.OnRetryAttachment(i)
 						}
 					}
-					close := ui.Button(c, "×").Absolute().Top(4).Right(4).Width(18).Height(18).Padding(0).Radius(9).BorderWidth(0).Label("Remove attachment " + label).Disabled(d.Sending)
+					// Contrast-fill disc, as the reference's remove button: a dark
+					// translucent seat with white ink reads on any preview.
+					close := ui.Button(c, "×").Absolute().Top(4).Right(4).Width(18).Height(18).Padding(0).Radius(9).
+						BorderWidth(0).Background(ui.RGB(0, 0, 0).Alpha(0.55)).TextColor(ui.RGB(255, 255, 255)).FontSize(12).
+						Label("Remove attachment " + label).Disabled(d.Sending)
 					if !card.Hovered() && !card.FocusWithin() && a.PrepareError == "" {
 						close.Opacity(0)
 					}

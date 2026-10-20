@@ -13,6 +13,7 @@ import (
 	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotAvatarImageUIExplicitPreviewApplyAndReview(t *testing.T) {
@@ -58,11 +59,11 @@ func TestBotAvatarImageUIExplicitPreviewApplyAndReview(t *testing.T) {
 	if chose+applied+saves != 0 {
 		t.Fatal("render action")
 	}
-	click("选择本地头像图片 / Choose local avatar image")
+	click(i18n.T(i18n.KeyMiscAssistantChooseLocalAvatarImage))
 	if chose != 1 || state.Draft != old || saves != 0 {
 		t.Fatal("chooser changed profile")
 	}
-	for _, label := range []string{"Avatar crop zoom", "Avatar crop X", "Avatar crop Y", "本地裁剪预览 / Local crop preview"} {
+	for _, label := range []string{"Avatar crop zoom", "Avatar crop X", "Avatar crop Y", i18n.T(i18n.KeyMiscAssistantLocalCropPreview)} {
 		if _, ok := tt.Find(label); !ok {
 			t.Fatal("missing crop consumer", label)
 		}
@@ -72,7 +73,7 @@ func TestBotAvatarImageUIExplicitPreviewApplyAndReview(t *testing.T) {
 	if changes == 0 || state.ImageImport.Crop.Zoom <= 1 {
 		t.Fatal("zoom slider not consumed")
 	}
-	click("裁剪显示 / Crop: square")
+	click(i18n.T(i18n.KeyMiscAssistantCrop) + "square")
 	if state.ImageImport.Crop.Shape != "square" {
 		t.Fatal("crop display")
 	}
@@ -94,28 +95,28 @@ func TestBotAvatarImageUIExplicitPreviewApplyAndReview(t *testing.T) {
 	if cached {
 		t.Fatal("temporary preview cached")
 	}
-	click("取消图片选择 / Cancel image selection")
+	click(i18n.T(i18n.KeyMiscAssistantCancelImageSelection))
 	if cancelled != 1 || state.Draft != old || state.ImageImport.Ready {
 		t.Fatal("cancel")
 	}
-	click("选择本地头像图片 / Choose local avatar image")
-	click("应用裁剪到草稿 / Apply crop to draft")
+	click(i18n.T(i18n.KeyMiscAssistantChooseLocalAvatarImage))
+	click(i18n.T(i18n.KeyMiscAssistantApplyCropToDraft))
 	if applied != 1 || state.Draft.Kind != "image" || saves != 0 {
 		t.Fatal("apply saved")
 	}
-	click("审阅头像 / Review avatar")
+	click(i18n.T(i18n.KeyMiscAssistantReviewAvatar))
 	text := strings.Join(tt.Texts(), "\n")
 	for _, term := range []string{"192px JPEG", "dataURL", "发送至当前Host：https://fixture.invalid", "不会发送源路径", "原图元数据", "requestSync", "重建已暂停", "工具", "外部消息", "费用", "不自动重试", "SHA-256="} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing disclosure", term)
 		}
 	}
-	click("确认保存头像 / Confirm avatar save")
+	click(i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave))
 	if saves != 0 {
 		t.Fatal("missing acknowledgement")
 	}
-	click(botAvatarAcknowledgement)
-	click("确认保存头像 / Confirm avatar save")
+	click(botAvatarAcknowledgement())
+	click(i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave))
 	if saves != 1 {
 		t.Fatal("confirmed save")
 	}

@@ -7,7 +7,7 @@ import (
 
 func hostShellView(c *ui.Context, store *hostterminal.Store, v hostterminal.View, session string, muted ui.Color) {
 	shells := store.ShellSnapshot(v.Owner, session)
-	if ui.Button(c, terminalLabel("选择 / 刷新 shell", "Choose / refresh shell")).FontSize(11).Disabled(!v.Ready || session == "" || v.Busy || shells.Loading).Clicked() {
+	if ui.Button(c, terminalLabel("选择或刷新 shell", "Choose or refresh the shell")).FontSize(11).Disabled(!v.Ready || session == "" || v.Busy || shells.Loading).Clicked() {
 		store.DiscoverShells(v.Owner, session)
 	}
 	if shells.Loading {

@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutinePanelRequiresExplicitReview(t *testing.T) {
@@ -19,31 +20,31 @@ func TestBotRoutinePanelRequiresExplicitReview(t *testing.T) {
 		}, OnConfirm: func() { confirmed++ }, OnDismiss: func() { state.Review = nil }}}
 		routineControlBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 	}, 1100, 3000)
-	if !tt.HasText("提示词 / Prompt: Fixture objective") || !tt.HasText("Fixture run failure") {
+	if !tt.HasText(i18n.T(i18n.KeyMiscAssistantPrompt) + "Fixture objective") || !tt.HasText("Fixture run failure") {
 		t.Fatal(tt.Texts())
 	}
 	if confirmed != 0 {
 		t.Fatal("render issued write")
 	}
-	if err := tt.Click("立即运行… / Run now…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantRunNow)); err != nil {
 		t.Fatal(err)
 	}
-	if reviewed != "run" || confirmed != 0 || !tt.HasText("确认例行任务操作 / Confirm routine action") {
+	if reviewed != "run" || confirmed != 0 || !tt.HasText(i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)) {
 		t.Fatal(tt.Texts())
 	}
-	if err := tt.Click("返回 / Back to routine"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantBackToRoutine)); err != nil {
 		t.Fatal(err)
 	}
 	if confirmed != 0 || state.Review != nil {
 		t.Fatal("cancel issued action")
 	}
-	if err := tt.Click("删除例行任务… / Delete routine…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantDeleteRoutine)); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText(routineImpact(state.Review.Command)) {
 		t.Fatal("no deletion consequence")
 	}
-	if err := tt.Click("确认例行任务操作 / Confirm routine action"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)); err != nil {
 		t.Fatal(err)
 	}
 	if confirmed != 1 {

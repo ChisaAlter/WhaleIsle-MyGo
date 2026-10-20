@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRead, opts ReadOnlyResourceOptions, st ToolCardStyle) {
@@ -22,7 +23,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 	}
 	blocked := read.Busy || opts.OnReadTable == nil
 	box.Children(func() {
-		ui.Text(c, "只读工作簿；公式显示已存储值 / Read-only workbook; formulas show stored values").FontSize(10).TextColor(st.Muted)
+		ui.Text(c, i18n.T(i18n.KeyChatWorkbookReadOnly)).FontSize(10).TextColor(st.Muted)
 		options := make([]string, len(page.Sheets))
 		selected := ""
 		for i, sheet := range page.Sheets {
@@ -39,22 +40,22 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 			}
 		}
 		ui.Row(c).Wrap().Gap(5).Children(func() {
-			if ui.Button(c, "上一行页 / Previous rows").Disabled(blocked || page.Request.Row == 0).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookPrevRows)).Disabled(blocked || page.Request.Row == 0).Clicked() {
 				r := page.Request
 				r.Row = max(0, r.Row-r.Rows)
 				run(r)
 			}
-			if ui.Button(c, "下一行页 / Next rows").Disabled(blocked || page.Request.Row+page.Request.Rows >= page.TotalRows).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookNextRows)).Disabled(blocked || page.Request.Row+page.Request.Rows >= page.TotalRows).Clicked() {
 				r := page.Request
 				r.Row += r.Rows
 				run(r)
 			}
-			if ui.Button(c, "上一列页 / Previous columns").Disabled(blocked || page.Request.Column == 0).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookPrevCols)).Disabled(blocked || page.Request.Column == 0).Clicked() {
 				r := page.Request
 				r.Column = max(0, r.Column-r.Columns)
 				run(r)
 			}
-			if ui.Button(c, "下一列页 / Next columns").Disabled(blocked || page.Request.Column+page.Request.Columns >= page.TotalColumns).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookNextCols)).Disabled(blocked || page.Request.Column+page.Request.Columns >= page.TotalColumns).Clicked() {
 				r := page.Request
 				r.Column += r.Columns
 				run(r)
@@ -83,7 +84,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 				*selectedCell = page.Cells[0].Address
 			}
 			ui.Select(c, selectedCell, options).Disabled(blocked)
-			if ui.Button(c, "复制单元格显示值 / Copy displayed cell value").Disabled(blocked).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookCopyShown)).Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == *selectedCell {
 						c.Services().WriteClipboard(cell.DisplayValue)
@@ -91,7 +92,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 					}
 				}
 			}
-			if ui.Button(c, "复制单元格原文 / Copy cell value").Disabled(blocked).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookCopyRaw)).Disabled(blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == *selectedCell {
 						c.Services().WriteClipboard(cell.Value)

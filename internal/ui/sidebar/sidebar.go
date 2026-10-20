@@ -115,7 +115,6 @@ func View(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
-	bg := chrome.BackdropSidebar(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
@@ -139,7 +138,7 @@ func View(c *ui.Context, m Model) {
 			Host uint64
 		}{"search-archive-filter", m.Snapshot.WorkspaceLayout.HostGeneration}, func() string { return "default" })
 	}
-	root.Background(bg).
+	root.Draw(chrome.Glass(chrome.Color(colors.Sidebar), chrome.MaterialSidebar)).
 		Children(func() {
 			if m.Collapsed {
 				collapsedRail(c, m, fg, colors)

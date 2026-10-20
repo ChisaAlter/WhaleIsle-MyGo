@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestRoomRuntimeCompleteUIExplicitOpenFixture(t *testing.T) {
@@ -24,12 +25,12 @@ func TestRoomRuntimeCompleteUIExplicitOpenFixture(t *testing.T) {
 		t.Fatal("render activated runtime")
 	}
 	text := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"Full room", "room-session", "Alpha", "member-session", "pending", "EXTERNAL_UNKNOWN", "full failure", "approval-1", "all details", "root extension", "或自动回答", "可能恢复", "Needs attention"} {
+	for _, term := range []string{"Full room", "room-session", "Alpha", "member-session", "pending", "EXTERNAL_UNKNOWN", "full failure", "approval-1", "all details", "root extension", "或自动回答", "可能恢复", i18n.T(i18n.KeyMiscAssistantNeedsAttention)} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing complete runtime or effect", term)
 		}
 	}
-	if err := tt.Click(roomRuntimeOpenLabel); err != nil {
+	if err := tt.Click(roomRuntimeOpenLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if opens != 1 {
@@ -38,7 +39,7 @@ func TestRoomRuntimeCompleteUIExplicitOpenFixture(t *testing.T) {
 	state.Loaded = false
 	state.Error = "group/runtime failed"
 	tt.Frame()
-	tt.Click(roomRuntimeOpenLabel)
+	tt.Click(roomRuntimeOpenLabel())
 	if opens != 1 {
 		t.Fatal("failed stale runtime opened")
 	}

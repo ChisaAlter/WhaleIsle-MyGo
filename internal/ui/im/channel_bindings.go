@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -14,7 +15,7 @@ import (
 func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboard.Bot, disabled bool, fg, muted ui.Color) {
 	s := &m.Store.Onboarding
 	disabled = disabled || v.Provision.AttemptID != ""
-	ui.Text(c, "当前工作区 / Workspace: "+b.Workspace).TextColor(muted).Selectable()
+	ui.Text(c, i18n.T(i18n.KeyMiscImWorkspace)+b.Workspace).TextColor(muted).Selectable()
 	workspace := b.Workspace
 	if draft, ok := v.WorkspaceDrafts[b.BotID]; ok {
 		workspace = draft
@@ -22,10 +23,10 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 	if ui.TextInput(c.Key("channel-workspace"), &workspace).Label("Workspace path").FillWidth().Disabled(disabled).Changed() {
 		s.EditWorkspace(v.Scope, b.BotID, workspace)
 	}
-	if ui.Button(c, "保存工作区 / Save workspace").Disabled(disabled || strings.TrimSpace(workspace) == "" || strings.TrimSpace(workspace) == b.Workspace).Clicked() {
+	if ui.Button(c, i18n.T(i18n.KeyMiscImSaveWorkspace)).Disabled(disabled || strings.TrimSpace(workspace) == "" || strings.TrimSpace(workspace) == b.Workspace).Clicked() {
 		s.SaveWorkspace(v.Scope, b.BotID, workspace)
 	}
-	inherit := "跟随 Host 默认 / Host default"
+	inherit := i18n.T(i18n.KeyMiscImHostDefault)
 	labels := []string{inherit}
 	ids := map[string]string{inherit: ""}
 	selected := inherit
@@ -42,7 +43,7 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 		selected = b.AgentPreset + " / Unavailable"
 		labels = append(labels, selected)
 		ids[selected] = b.AgentPreset
-		ui.Text(c, "当前 Agent Preset 已不可用，可选择其他 Preset 或跟随 Host 默认。 / Current preset unavailable.").TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscImCurrentPresetUnavailable)).TextColor(muted)
 	}
 	ui.Text(c, "Agent Preset").TextColor(fg)
 	ui.Select(c.Key("channel-preset"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
@@ -50,5 +51,5 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 			s.SaveAgentPreset(v.Scope, b.BotID, id)
 		}
 	})
-	ui.Text(c, "仅影响新会话；切换当前聊天请先发送 /new。 / Applies to new sessions; send /new to switch the current chat.").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyMiscImAppliesToNewSessionsSendNewToSwit)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 }

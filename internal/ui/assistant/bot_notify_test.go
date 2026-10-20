@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotNotifyUIExplicitToggleAndConsumerBoundary(t *testing.T) {
@@ -27,23 +28,23 @@ func TestBotNotifyUIExplicitToggleAndConsumerBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	click(botNotifyToggleLabel)
+	click(botNotifyToggleLabel())
 	if changes != 1 || !state.Draft || saves != 0 {
 		t.Fatal("toggle sent")
 	}
-	click("审阅通知配置 / Review notification setting")
+	click(i18n.T(i18n.KeyMiscAssistantReviewNotificationSetting))
 	text := strings.Join(tt.Texts(), "\n")
 	for _, term := range []string{"notify=false", "notify=true", "https://fixture.invalid", "Bot ID: bot", "Session ID: session", "revision 8", "原版 Bot Web", "窗口未聚焦", "首次观测", "silent", "completed/failed/interrupted", "IM", "不申请系统通知权限", "不证明通知投递", "requestSync", "重建已暂停", "模型", "工具", "外部消息", "费用", "不自动重试", "keep-workspace", "Keep objective"} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing boundary", term)
 		}
 	}
-	click("确认保存通知配置 / Confirm notification setting")
+	click(i18n.T(i18n.KeyMiscAssistantConfirmNotificationSetting2))
 	if saves != 0 {
 		t.Fatal("unacknowledged")
 	}
-	click(botNotifyAcknowledgement)
-	click("确认保存通知配置 / Confirm notification setting")
+	click(botNotifyAcknowledgement())
+	click(i18n.T(i18n.KeyMiscAssistantConfirmNotificationSetting2))
 	if saves != 1 {
 		t.Fatal("confirm")
 	}

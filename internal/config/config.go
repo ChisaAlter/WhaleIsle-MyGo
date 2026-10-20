@@ -35,6 +35,13 @@ const DataDirName = "Deepseek-Harness-Desktop"
 // FileName is the configuration file inside the data directory.
 const FileName = "config.json"
 
+// DefaultTheme is the theme id of a first run: the deepseek dark palette
+// (theme.IDDeepseekDark). The shipped product look is dark chrome over the
+// ambient backdrop, so a new install starts there instead of following the OS
+// scheme into light. A stored theme always wins, and an invalid one falls back
+// here.
+const DefaultTheme = "deepseek.dark"
+
 // Remote relay topology constants mirrored from
 // reference/electron/src/shared/lan.js (hardcoded product defaults).
 const (
@@ -143,7 +150,8 @@ type Config struct {
 }
 
 // Defaults returns the configuration of a first run. Values mirror
-// DEFAULTS in reference/electron/src/main/config.js.
+// DEFAULTS in reference/electron/src/main/config.js, except the theme, which
+// starts on the shipped dark palette (DefaultTheme).
 func Defaults() Config {
 	return Config{
 		Host:                      "127.0.0.1",
@@ -152,7 +160,7 @@ func Defaults() Config {
 		CloseToTray:               true, // DEFAULT_CLOSE_TO_TRAY
 		OpenAtLogin:               false,
 		OpenDevTools:              false,
-		Theme:                     "deepseek",
+		Theme:                     DefaultTheme,
 		Locale:                    "zh",
 		RemoteEnabled:             false,
 		RemotePort:                6767,
@@ -187,6 +195,9 @@ type Store struct {
 	cfg            Config
 	baseline       fileBaseline
 	shortcutReload *shortcutDocumentSnapshot
+	// firstRun records that no config.json existed when the store opened, so
+	// callers can apply first-run appearance without overriding a saved one.
+	firstRun bool
 	// rename replaces the temp-file rename step; nil means os.Rename. It is
 	// a per-instance seam so tests can inject a deterministic write failure.
 	rename func(oldpath, newpath string) error
@@ -216,6 +227,7 @@ func Open(dir string) (*Store, error) {
 	s := &Store{path: filepath.Join(dir, FileName), raw: map[string]json.RawMessage{}, cfg: Defaults()}
 	data, err := os.ReadFile(s.path)
 	if errors.Is(err, fs.ErrNotExist) {
+		s.firstRun = true
 		return s, nil
 	}
 	if err != nil {
@@ -242,6 +254,16 @@ func Open(dir string) (*Store, error) {
 
 // Path returns the file the store reads and writes.
 func (s *Store) Path() string { return s.path }
+
+// IsFirstRun reports whether config.json was absent when this store opened.
+// The shell uses it to apply first-run appearance (dark chrome and the ambient
+// backdrop) once, without overriding a profile that has already saved its own
+// appearance or theme.
+func (s *Store) IsFirstRun() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.firstRun
+}
 
 // Get returns a detached snapshot of the current configuration.
 func (s *Store) Get() Config {

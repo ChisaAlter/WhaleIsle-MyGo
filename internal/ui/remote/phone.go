@@ -140,21 +140,21 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Text(c, runtime.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 	if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) {
-		ui.Text(c, "配对链接有效 / Pairing link valid · "+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscRemotePairingLinkValid)+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		if runtime.PairingImage != nil {
 			ui.Image(c, ui.NewBitmap(runtime.PairingImage)).Width(320).Height(320).Fit(ui.Contain)
-			ui.Text(c, "用手机扫码配对，请勿分享二维码。 / Scan privately to pair your phone.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscRemoteScanPrivatelyToPairYourPhone)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		} else {
-			ui.Text(c, "二维码不可用，可复制临时配对链接。 / QR unavailable; copy the temporary link privately.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscRemoteQrUnavailableCopyTheTemporaryLinkP)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	} else {
-		ui.Text(c, "没有可用配对链接。启用会自动启动已安装的原版运行时；失败时请检查运行时后刷新重试。 / No usable offer. Enabling starts the installed runtime automatically; check the runtime and refresh to retry if needed.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscRemoteNoUsableOfferEnablingStartsTheInst)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, "复制配对链接 / Copy pairing link").Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyMiscRemoteCopyPairingLink)).Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && ui.Button(c, "打开配对链接 / Open pairing link").Clicked() {
+		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && ui.Button(c, i18n.T(i18n.KeyMiscRemoteOpenPairingLink)).Clicked() {
 			m.OnOpenConnectURL()
 		}
 		if m.OnRefreshPhone != nil && ui.Button(c, i18n.T(i18n.KeyRemotePhoneRefresh)).Disabled(runtime.DeviceAction.Busy).Clicked() {

@@ -333,7 +333,7 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 		item, _ := raw.(map[string]any)
 		p, model := configurationText(item["provider"]), configurationText(item["model"])
 		if !known[p+"\x00"+model] {
-			routes = append(routes, store.VisionRoute{Provider: p, Model: model, Label: p + " / " + model + providerCopy("（目录当前未列出）", " (not currently listed)")})
+			routes = append(routes, store.VisionRoute{Provider: p, Model: model, Label: p + " · " + model + providerCopy("（目录当前未列出）", " (not currently listed)")})
 			known[p+"\x00"+model] = true
 		}
 	}

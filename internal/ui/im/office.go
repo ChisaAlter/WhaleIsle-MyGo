@@ -91,7 +91,7 @@ func officeSettingsView(c *ui.Context, m Model) {
 					hint = "已配置；同一 Office 和 Device ID 留空保留"
 				}
 				ui.TextInput(c.Key("office-token"), &draft.DeviceToken).FillWidth().Password().Placeholder(hint).Disabled(locked)
-				ui.Text(c, "不会读取或回显已保存 Token。更换 Office / Device ID 需重新输入；关闭页面或提交后清空输入。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, "不会读取或回显已保存 Token。更换 Office/Device ID 需重新输入；关闭页面或提交后清空输入。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				input("最大并发（1–4）", &draft.MaxConcurrency, "1")
 				input("Heartbeat 秒数（10–300）", &draft.HeartbeatSeconds, "30")
 				ui.Text(c, "Workspace 映射：每行 alias=Host 上的绝对路径；Office 仅收到 alias。").FontSize(theme.InterfaceSize(12)).TextColor(fg)

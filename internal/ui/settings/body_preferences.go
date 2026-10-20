@@ -72,11 +72,27 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 	return row
 }
 
+// bodyDisclosure folds a secondary group behind one row. The chevron and the
+// hover fill are what make the row read as openable, so a folded group stays
+// discoverable next to the rows that are always visible.
 func bodyDisclosure(c *ui.Context, key, title string, body func()) {
 	anchor := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8)
 	open := ui.Local(anchor, "open", func() bool { return false })
+	muted := c.Theme().TextMuted
 	anchor.Children(func() {
-		if ui.Button(c, title).FillWidth().Height(34).Clicked() {
+		toggle := ui.Button(c, "").Label(title).FillWidth().Height(34).Padding(0, 8, 0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Tooltip(title)
+		toggle.Children(func() {
+			if *open {
+				ui.Icon(c, bodyIcon("down")).Size(12, 12).TextColor(muted).PassThrough()
+			} else {
+				ui.Icon(c, bodyIcon("right")).Size(12, 12).TextColor(muted).PassThrough()
+			}
+			ui.Text(c, " "+title).FontSize(theme.InterfaceSize(13)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+		})
+		if toggle.Hovered() {
+			toggle.Background(c.Theme().SurfaceHover)
+		}
+		if toggle.Clicked() {
 			*open = !*open
 		}
 		if *open {

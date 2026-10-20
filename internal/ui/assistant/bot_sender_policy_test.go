@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotSenderPolicyUISeparateRightsAndExplicitExpansion(t *testing.T) {
@@ -22,33 +23,33 @@ func TestBotSenderPolicyUISeparateRightsAndExplicitExpansion(t *testing.T) {
 	if reads != 0 || saves != 0 {
 		t.Fatal("render caused action")
 	}
-	if err := tt.Click("审阅消息与任务来源 / Review source policy"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewSourcePolicy)); err != nil {
 		t.Fatal(err)
 	}
 	all := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"https://fixture.invalid", "revision 8", "普通消息 / Ordinary messages", "直接任务委派 / Direct task delegation", "id=peer-a", "id=peer-b", "hidden", "allowedSenderIds", "未来", "Existing objective", "requestSync", "重建已暂停目标", "不取消", "不自动重试"} {
+	for _, term := range []string{"https://fixture.invalid", "revision 8", "普通消息：", "直接任务委派：", "id=peer-a", "id=peer-b", "已隐藏", "allowedSenderIds", "未来", "Existing objective", "requestSync", "重建已暂停目标", "不取消", "不自动重试"} {
 		if !strings.Contains(all, term) {
 			t.Fatal("missing review", term)
 		}
 	}
-	tt.Click("确认保存来源规则 / Confirm source save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmSourceSave))
 	if saves != 0 {
 		t.Fatal("no impact acknowledgement")
 	}
-	if err := tt.Click(botSenderPolicyAcknowledgement); err != nil {
+	if err := tt.Click(botSenderPolicyAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	tt.Click("确认保存来源规则 / Confirm source save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmSourceSave))
 	if saves != 0 {
 		t.Fatal("permission expansion without specific approval")
 	}
-	if err := tt.Click(botSenderPolicyExpansionAcknowledgement); err != nil {
+	if err := tt.Click(botSenderPolicyExpansionAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存来源规则 / Confirm source save"); err != nil || saves != 1 {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmSourceSave)); err != nil || saves != 1 {
 		t.Fatal(err, saves)
 	}
-	if err := tt.Click("取消来源保存 / Cancel source save"); err != nil || state.Review != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCancelSourceSave)); err != nil || state.Review != nil {
 		t.Fatal("dismiss failed", err)
 	}
 }

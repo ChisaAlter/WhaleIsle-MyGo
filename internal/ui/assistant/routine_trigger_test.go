@@ -6,6 +6,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutineTriggerUIIndependentConfirmation(t *testing.T) {
@@ -44,7 +45,7 @@ func TestBotRoutineTriggerUIIndependentConfirmation(t *testing.T) {
 	if obtains != 0 || len(copies) != 0 {
 		t.Fatal("render acquired/copied credential")
 	}
-	if err := tt.Click("审阅获取当前 Host 的 Bot 目录触发凭据… / Review Host catalog credential…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewHostCatalogCredential)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
@@ -53,32 +54,32 @@ func TestBotRoutineTriggerUIIndependentConfirmation(t *testing.T) {
 			t.Fatal("missing shared credential consequence", value, text)
 		}
 	}
-	_ = tt.Click("确认获取/生成 Host 目录凭据 / Confirm Host catalog credential")
+	_ = tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmHostCatalogCredential))
 	if obtains != 0 {
 		t.Fatal("missing independent acknowledgement")
 	}
-	if err := tt.Click(routineTriggerAcknowledgement); err != nil {
+	if err := tt.Click(routineTriggerAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
 	if obtains != 0 {
 		t.Fatal("checkbox obtained credential")
 	}
-	if err := tt.Click("确认获取/生成 Host 目录凭据 / Confirm Host catalog credential"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmHostCatalogCredential)); err != nil {
 		t.Fatal(err)
 	}
 	if obtains != 1 || len(copies) != 0 || !tt.HasText("X-Dshbot-Token: synthetic-ui-credential") {
 		t.Fatal("explicit obtain missing or auto copied")
 	}
-	if err := tt.Click("复制触发地址 / Copy trigger address"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCopyTriggerAddress)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("复制敏感鉴权头 / Copy secret header"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCopySecretHeader)); err != nil {
 		t.Fatal(err)
 	}
 	if len(copies) != 2 || strings.Contains(copies[0], "credential") || copies[1] != "X-Dshbot-Token: synthetic-ui-credential" {
 		t.Fatal("copy scope incorrect")
 	}
-	if err := tt.Click("关闭并清除本页凭据 / Close and clear credential"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCloseAndClearCredential)); err != nil {
 		t.Fatal(err)
 	}
 	if cstore.Snapshot(k).Trigger.Open || tt.HasText("X-Dshbot-Token: synthetic-ui-credential") {

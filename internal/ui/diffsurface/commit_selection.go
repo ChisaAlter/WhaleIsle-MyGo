@@ -247,7 +247,7 @@ func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	if w.Commit == nil || w.Commit.Task == nil {
 		return false
 	}
-	ui.Text(c, word("正在准备所选文件 / 生成说明…", "Preparing selected files / generating message…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, word("正在准备所选文件并生成说明…", "Preparing the selected files and generating a message…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, word("生成失败可重试或手写说明；此时还未创建提交。", "If generation fails, retry or write a message. No commit has been created yet.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	if ui.Button(c, word("取消准备", "Cancel preparation")).Clicked() {
 		w.cancelCommitPreparation()

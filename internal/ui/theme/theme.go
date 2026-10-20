@@ -2,8 +2,9 @@
 // harness --dsw-* CSS variables (see reference/electron mobile tokens and
 // src/shared/themes.js FAMILY_SEEDS).
 //
-// Config stores a theme id (default "deepseek"). Resolve maps that id to a
-// Theme with light and dark palettes. BackgroundColor returns a value
+// Config stores a theme id. A profile with no stored theme starts on
+// FirstRunThemeID, the dark palette the product ships; Resolve maps that id to
+// a Theme with light and dark palettes. BackgroundColor returns a value
 // suitable for mygo.WindowOptions.BackgroundColor, including the
 // light-dark(#light, #dark) form when the theme follows the system scheme.
 // Optional window wallpaper uses config goWallpaperPath; see wallpaper.go
@@ -15,7 +16,8 @@ import "strings"
 
 // Well-known theme ids accepted by Resolve.
 const (
-	// DefaultID is the config.json default (internal/config Defaults).
+	// DefaultID is the deepseek family id, which Resolve also uses for unknown
+	// ids. internal/config Defaults stores FirstRunThemeID instead.
 	DefaultID = "deepseek"
 	// IDSystem follows the OS light/dark preference via light-dark() strings.
 	IDSystem = "system"
@@ -23,6 +25,10 @@ const (
 	IDDeepseekDark = "deepseek.dark"
 	// IDDeepseekLight forces the deepseek light palette.
 	IDDeepseekLight = "deepseek.light"
+	// FirstRunThemeID is the theme of a fresh profile (internal/config
+	// DefaultTheme): the shipped dark look, so a first launch does not follow
+	// the OS scheme into light. A stored theme id always wins.
+	FirstRunThemeID = IDDeepseekDark
 )
 
 // Scheme values for Theme.Scheme.

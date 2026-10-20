@@ -71,6 +71,20 @@ const (
 	KeySurfacesFilesOpen  = "surfaces.files.open"
 	KeySurfacesFilesClose = "surfaces.files.close"
 	KeySurfacesFilesDirty = "surfaces.files.dirty"
+
+	KeySurfacesGitCommitTitle    = "surfaces.git.commit_title"
+	KeySurfacesGitCommitSubtitle = "surfaces.git.commit_subtitle"
+	KeySurfacesGitCommitFiles    = "surfaces.git.commit_files"
+	KeySurfacesGitCommitEmpty    = "surfaces.git.commit_empty"
+	KeySurfacesGitCommitOpen     = "surfaces.git.commit_open"
+	KeySurfacesGitClose          = "surfaces.git.close"
+	KeySurfacesGitSelectAll      = "surfaces.git.select_all"
+	KeySurfacesGitSelectNone     = "surfaces.git.select_none"
+	KeySurfacesGitOpenDiff       = "surfaces.git.open_diff"
+
+	KeySurfacesTerminalClose = "surfaces.terminal.close"
+
+	KeySurfacesDiffFoldHunk = "surfaces.diff.fold_hunk"
 )
 
 func init() {
@@ -141,4 +155,16 @@ func init() {
 	Register(KeySurfacesFilesOpen, "打开文件", "Open a file")
 	Register(KeySurfacesFilesClose, "关闭标签", "Close tab")
 	Register(KeySurfacesFilesDirty, "有未保存的更改", "Has unsaved changes")
+
+	Register(KeySurfacesGitCommitTitle, "提交更改", "Commit changes")
+	Register(KeySurfacesGitCommitSubtitle, "分支 %s · %d 个更改", "Branch %s · %d changes")
+	Register(KeySurfacesGitCommitFiles, "本次提交的文件", "Files in this commit")
+	Register(KeySurfacesGitCommitEmpty, "没有可提交的更改。", "No changes to commit.")
+	Register(KeySurfacesGitCommitOpen, "提交更改…（%d）", "Commit changes… (%d)")
+	Register(KeySurfacesGitClose, "关闭", "Close")
+	Register(KeySurfacesGitSelectAll, "全选", "Select all")
+	Register(KeySurfacesGitSelectNone, "全不选", "Select none")
+	Register(KeySurfacesGitOpenDiff, "查看差异", "Open diff")
+	Register(KeySurfacesTerminalClose, "关闭终端", "Close terminal")
+	Register(KeySurfacesDiffFoldHunk, "折叠或展开此段", "Fold or unfold this hunk")
 }

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutineAdvancedUIExplicitCommandAcknowledgement(t *testing.T) {
@@ -44,17 +45,17 @@ func TestBotRoutineAdvancedUIExplicitCommandAcknowledgement(t *testing.T) {
 					t.Fatal("review hides effective consequence", value, texts)
 				}
 			}
-			_ = tt.Click("确认例行任务操作 / Confirm routine action")
+			_ = tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction))
 			if submitted != 0 {
 				t.Fatal("missing explicit command acknowledgement")
 			}
-			if err := tt.Click(routineWatchAcknowledgement); err != nil {
+			if err := tt.Click(routineWatchAcknowledgement()); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 0 || !controls.Snapshot(k).Review.WatchAcknowledged {
 				t.Fatal("acknowledgement sent mutation or missing")
 			}
-			if err := tt.Click("确认例行任务操作 / Confirm routine action"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 1 {

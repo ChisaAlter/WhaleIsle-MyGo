@@ -20,20 +20,20 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		ui.Text(c, "已发布 HTML / Published HTML").FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {
 			if m.OnInteractVisualReply != nil && m.OnInlineVisualReply == nil {
-				if ui.Button(c, "在卡片中交互 / Interact inline").Disabled(active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
+				if ui.Button(c, i18n.T(i18n.KeyChatVisualInteract)).Disabled(active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
 					Tooltip("在隔离进程中的卡片表面运行控件和脚本；不开放网络、本机文件、应用权限或持久登录。 / Runs this page in an isolated process without network, local files or application access.").Clicked() {
 					m.OnInteractVisualReply(id)
 				}
 			}
 			if active && (state.InteractiveLoading || state.InteractiveActive) && m.OnStopInteractiveVisualReply != nil {
-				if ui.Button(c, "停止交互 / Stop interaction").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatVisualStop)).Clicked() {
 					m.OnStopInteractiveVisualReply()
 				}
 			}
-			if ui.Button(c, "安全图片预览 / Safe image preview").Disabled(m.OnPreviewVisualReply == nil || (active && (state.Loading || state.PreviewLoading))).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatVisualSafePreview)).Disabled(m.OnPreviewVisualReply == nil || (active && (state.Loading || state.PreviewLoading))).Clicked() {
 				m.OnPreviewVisualReply(id)
 			}
-			if ui.Button(c, "查看完整源码 / View source").Disabled(m.OnReadVisualReply == nil || (active && state.Loading)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatVisualSource)).Disabled(m.OnReadVisualReply == nil || (active && state.Loading)).Clicked() {
 				m.OnReadVisualReply(id)
 			}
 			if active && state.Ready {
@@ -42,7 +42,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 				}
 			}
 			if active && m.OnCloseVisualReply != nil {
-				if ui.Button(c, "关闭 / Close").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImageClose)).Clicked() {
 					m.OnCloseVisualReply()
 				}
 			}
@@ -66,7 +66,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			if state.Surface != nil {
 				c.After(100 * time.Millisecond)
 				expanded := state.InteractiveExpanded
-				if ui.Button(c, "展开 / Expand").Disabled(m.HistoryStore == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatVisualExpand)).Disabled(m.HistoryStore == nil).Clicked() {
 					m.HistoryStore.ToggleVisualReplyExpanded()
 				}
 				if !expanded {
@@ -78,7 +78,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 						panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
 							ui.Row(c).FillWidth().Children(func() {
 								ui.Text(c, p.Title).Grow(1).TextColor(fg)
-								if ui.Button(c, "收起 / Collapse").Clicked() {
+								if ui.Button(c, i18n.T(i18n.KeyChatRowCollapse)).Clicked() {
 									open = false
 								}
 							})
@@ -92,19 +92,19 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			}
 		}
 		if state.InteractiveError != "" {
-			ui.Text(c, "交互页未启动或已停止，源码仍可查看或另存 / Interactive page unavailable: "+state.InteractiveError).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPage) + ": "+state.InteractiveError).TextColor(muted)
 		}
 		if state.PreviewLoading {
 			ui.Text(c, "正在检查隔离环境并生成静态预览… / Checking isolation and rendering a static preview…").TextColor(muted)
 		}
 		if state.PreviewError != "" {
-			ui.Text(c, "安全预览不可用，仍可查看源码或另存 / Safe preview unavailable: "+state.PreviewError).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPreview) + ": "+state.PreviewError).TextColor(muted)
 		}
 		if m.VisualReplyBitmap != nil && state.PreviewID != 0 {
 			ui.Image(c, m.VisualReplyBitmap).FillWidth().AspectRatio(float32(state.PreviewWidth) / float32(state.PreviewCapturedHeight)).Fit(ui.Contain)
-			ui.Text(c, "此图为静态 PNG；请在卡片交互表面操作 / This image is static; use the interactive surface for controls").FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualStatic)).FontSize(11).TextColor(muted)
 			if state.PreviewCapturedHeight < state.PreviewContentHeight {
-				ui.Text(c, "页面超过4000像素，预览未覆盖底部 / Preview is capped at4000 pixels; the bottom is not shown.").FontSize(11).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyChatVisualCapped)).FontSize(11).TextColor(muted)
 			}
 		}
 		if state.Ready {
@@ -153,7 +153,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	c.After(100 * time.Millisecond)
 	height := float32(max(80, min(2000, page.Height)))
 	if !page.Expanded {
-		if ui.Button(c, "展开 / Expand").Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatVisualExpand)).Clicked() {
 			page.ToggleExpanded()
 		}
 		visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, height)
@@ -166,7 +166,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 		panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Text(c, p.Title).Grow(1).TextColor(fg)
-				if ui.Button(c, "收起 / Collapse").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatRowCollapse)).Clicked() {
 					open = false
 				}
 			})

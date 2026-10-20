@@ -343,52 +343,75 @@ func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui
 			}
 		}
 	}
-	for _, raw := range ns.Fields {
+	for index, raw := range ns.Fields {
 		field := raw
+		last := index == len(ns.Fields)-1
 		if permissionDefaultField(c, m, snap, field, fg, muted) {
 			continue
 		}
 		if configurationField(c, m, snap, *ns, field, fg, muted) {
 			continue
 		}
-		fieldRow(c, m, snap, field, fg, muted)
+		fieldRow(c, m, snap, field, fg, muted, last)
 	}
 	settingsActions(c, m, snap, ns, fg, muted)
 }
 
-// settingsActions is the sticky footer of a namespace page: the save state on
-// the left, then discard, the rare full replace and the save action.
+// settingsActions is the footer of a namespace page: the save state on the left,
+// then discard, the rare full replace and the save action. Replace asks in the
+// application's own dialog, so a destructive write never opens an operating
+// system message box over the themed window.
 func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settings.Namespace, fg, muted ui.Color) {
 	blocked := snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" ||
 		customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap)
-	ui.Row(c).FillWidth().Gap(8).Padding(16, 0, 6, 0).AlignItems(ui.Center).Children(func() {
-		switch {
-		case snap.Saving:
-			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaving), muted)
-		case snap.Dirty:
-			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsUnsaved), muted)
-		}
-		ui.Box(c).Grow(1)
-		if ns != nil && !ns.HasSecrets {
-			replace := ui.Button(c, i18n.T(i18n.KeySurfacesSettingsReplace)).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Danger).Disabled(blocked)
-			if replace.Hovered() && !blocked {
-				replace.Background(c.Theme().SurfaceHover)
+	anchor := ui.Column(c.Key("settings-actions")).FillWidth().MinWidth(0).Gap(0)
+	confirming := ui.Local(anchor, "confirm-replace", func() bool { return false })
+	anchor.Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Padding(16, 0, 6, 0).AlignItems(ui.Center).Children(func() {
+			switch {
+			case snap.Saving:
+				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaving), muted)
+			case snap.Dirty:
+				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsUnsaved), muted)
 			}
-			if replace.Clicked() {
-				RequestReplace(m)
+			ui.Box(c).Grow(1)
+			if ns != nil && !ns.HasSecrets {
+				replace := ui.Button(c, i18n.T(i18n.KeySurfacesSettingsReplace)).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Danger).Disabled(blocked)
+				if replace.Hovered() && !blocked {
+					replace.Background(c.Theme().SurfaceHover)
+				}
+				if replace.Clicked() {
+					*confirming = true
+				}
 			}
+			if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsDiscard)).FontSize(theme.InterfaceSize(12)).Disabled(snap.Loading || snap.Saving).Clicked() {
+				m.Store.DiscardDrafts(context.Background())
+			}
+			if ui.PrimaryButton(c, i18n.T(i18n.KeySurfacesSettingsSave)).Disabled(blocked || !snap.Dirty).Clicked() {
+				m.Store.SaveUpdate(context.Background())
+			}
+		})
+		if ns != nil && ns.HasSecrets {
+			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSecretsHint), muted)
 		}
-		if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsDiscard)).FontSize(theme.InterfaceSize(12)).Disabled(snap.Loading || snap.Saving).Clicked() {
-			m.Store.DiscardDrafts(context.Background())
-		}
-		if ui.PrimaryButton(c, i18n.T(i18n.KeySurfacesSettingsSave)).Disabled(blocked || !snap.Dirty).Clicked() {
-			m.Store.SaveUpdate(context.Background())
-		}
+		settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaveHint), muted)
 	})
-	if ns != nil && ns.HasSecrets {
-		settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSecretsHint), muted)
+	if !*confirming {
+		return
 	}
-	settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaveHint), muted)
+	ConfirmDialog(c, ConfirmOptions{
+		Title:        i18n.T(i18n.KeySurfacesSettingsConfirmTitle),
+		Body:         i18n.T(i18n.KeySurfacesSettingsConfirmBody),
+		Detail:       i18n.T(i18n.KeySurfacesSettingsReplaceHint),
+		ConfirmLabel: i18n.T(i18n.KeySurfacesSettingsConfirmOK),
+		CancelLabel:  i18n.T(i18n.KeySurfacesSettingsCancel),
+		Danger:       true,
+		OnConfirm: func() {
+			*confirming = false
+			m.Store.SaveReplaceFromDrafts(context.Background())
+		},
+		OnCancel: func() { *confirming = false },
+	})
 }
 
 // hasSecretField reports whether a namespace holds any password-like string
@@ -407,7 +430,7 @@ func hasSecretField(ns *settings.Namespace) bool {
 
 // fieldRow paints one schema field as a settings row: the switch, the select or
 // the input sits at the row's end, and only long-form text takes a full block.
-func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color) {
+func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color, last bool) {
 	if snap.SelectedNS == settings.CustomInstructionsNamespace && f.Key == settings.CustomInstructionsField {
 		customInstructionsRow(c, m, snap, fg, muted)
 		return
@@ -431,6 +454,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	if m.Store != nil && !disabled {
 		reset = func() { m.Store.ResetDraft(f.Key) }
 	}
+	divider := !last
 	seed := snap.Drafts[f.Key]
 	key := "field-" + f.Key
 	switch f.Kind {
@@ -439,38 +463,38 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 			return
 		}
 		checked := m.BoolPtr(f.Key, seed)
-		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
 			ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Children(func() {
 				if ui.Switch(c, checked).Label(label).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, fmt.Sprint(*checked))
 				}
 			})
-		})
+		}, divider)
 	case settings.FieldEnum:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
 			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		})
+		}, divider)
 	case settings.FieldJSON:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldBlock(c, key, label, hint, fg, muted, func() {
+		settingsFieldBlockDivider(c, key, label, hint, fg, muted, func() {
 			if ui.TextArea(c, draft).Fill().Lines(4, 12).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		})
+		}, divider)
 	case settings.FieldNumber:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
 			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		})
+		}, divider)
 	default:
 		draft := m.DraftPtr(f.Key, seed)
 		if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
-			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+			settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
 				input := ui.TextInput(c, draft).Fill()
 				if m.RevealSecrets == nil || !*m.RevealSecrets {
 					input = input.Password()
@@ -478,21 +502,21 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 				if input.Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-			})
+			}, divider)
 			return
 		}
 		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
-			settingsFieldBlock(c, key, label, hint, fg, muted, func() {
+			settingsFieldBlockDivider(c, key, label, hint, fg, muted, func() {
 				if ui.TextArea(c, draft).Fill().Lines(3, 10).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-			})
+			}, divider)
 			return
 		}
-		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
 			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		})
+		}, divider)
 	}
 }

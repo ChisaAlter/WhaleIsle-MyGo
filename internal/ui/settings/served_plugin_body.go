@@ -108,7 +108,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			_, apiAvailable := states["web-deepseek-api"]
 			useAPI := switchAvailable && apiAvailable && web.Drafts["searchProvider"] == "deepseek-search-api"
 			if switchAvailable && apiAvailable {
-				bodyPreferenceRow(c, "web-api-switch", providerCopy("使用 Search / Fetch API", "Use Search / Fetch API"), providerCopy("同时切换搜索和抓取服务。", "Switches search and fetch providers together."), fg, muted, func() {
+				bodyPreferenceRow(c, "web-api-switch", providerCopy("使用 Search/Fetch API", "Use Search/Fetch API"), providerCopy("同时切换搜索和抓取服务。", "Switches search and fetch providers together."), fg, muted, func() {
 					if ui.Switch(c, &useAPI).Label("Search / Fetch API").Disabled(disabled || invalid || web.Err != "").Changed() {
 						b := m.Store.BindNamespace("web")
 						targets := map[string]string{"searchProvider": "deepseek-official", "fetchProvider": "http"}

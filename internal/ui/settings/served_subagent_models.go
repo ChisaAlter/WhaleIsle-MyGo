@@ -38,7 +38,7 @@ func servedSubagentModels(c *ui.Context, s *store.Store, b *store.NamespaceBindi
 	for _, route := range append(accepted.Routes, selected...) {
 		id := route.Provider + "\x00" + route.Model
 		if !known[id] {
-			routes = append(routes, store.VisionRoute{Provider: route.Provider, Model: route.Model, Label: route.Provider + " / " + route.Model + providerCopy("（当前不可用）", " (unavailable)")})
+			routes = append(routes, store.VisionRoute{Provider: route.Provider, Model: route.Model, Label: route.Provider + " · " + route.Model + providerCopy("（当前不可用）", " (unavailable)")})
 			known[id] = true
 		}
 	}

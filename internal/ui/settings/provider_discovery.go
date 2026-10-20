@@ -158,7 +158,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		}
 	}
 	if s.Review {
-		ui.Text(c, providerCopy("确认保存此供应商的模型列表，以及已修改的 endpoint / 协议。已有模型的其他字段保留；临时密钥不保存。更改目标地址会影响今后使用此供应商及其已保存凭据的请求。", "Confirm this provider's model list and edited endpoint/protocol. Other fields on existing models are preserved; the temporary key is not saved. Changing the target affects future requests using this provider and its saved credentials.")).TextColor(fg)
+		ui.Text(c, providerCopy("确认保存此供应商的模型列表，以及已修改的 endpoint 与协议。已有模型的其他字段保留；临时密钥不保存。更改目标地址会影响今后使用此供应商及其已保存凭据的请求。", "Confirm this provider's model list and edited endpoint/protocol. Other fields on existing models are preserved; the temporary key is not saved. Changing the target affects future requests using this provider and its saved credentials.")).TextColor(fg)
 		ui.Text(c, row.Provider+" · "+s.Endpoint+" · "+s.Protocol).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, providerCopy("确认保存供应商模型", "Confirm save provider models")).Disabled(s.Busy).Clicked() && a.OnSave != nil {
@@ -171,7 +171,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 	} else if ui.Button(c, providerCopy("审阅并保存草稿…", "Review and save draft…")).Disabled(s.Busy || !s.Dirty || !row.Writable || row.Blocked != "").Clicked() && a.OnReview != nil {
 		a.OnReview(s.Ticket, true)
 	}
-	if ui.Button(c, providerCopy("放弃此草稿 / 清空候选", "Discard draft / clear candidates")).Disabled(s.Busy).Clicked() && a.OnDiscard != nil {
+	if ui.Button(c, providerCopy("放弃此草稿并清空候选", "Discard the draft and clear candidates")).Disabled(s.Busy).Clicked() && a.OnDiscard != nil {
 		a.OnDiscard(s.Ticket)
 	}
 }

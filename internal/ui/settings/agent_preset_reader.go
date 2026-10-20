@@ -86,7 +86,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		viewer.Children(func() {
 			content, next := agentPresetDocumentPage(s.Content, pages.Start)
 			if len(s.Content) > session.AgentPresetContentLimit {
-				ui.Text(c, fmt.Sprintf(providerCopy("显示字节 %d–%d / %d；可翻页阅读，复制包含全文", "Showing bytes %d–%d / %d; browse every page, copy includes the full declaration"), pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, fmt.Sprintf(providerCopy("显示字节 %d–%d（共 %d）；可翻页阅读，复制包含全文", "Showing bytes %d–%d of %d; browse every page, copy includes the full declaration"), pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("上一页", "Previous page")).Disabled(len(pages.Previous) == 0).Clicked() {
 						last := len(pages.Previous) - 1

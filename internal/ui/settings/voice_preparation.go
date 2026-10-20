@@ -233,7 +233,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 		if state.Phase == "downloading" {
 			metric = fmt.Sprintf(voiceText("已下载 %.1f MB", "Downloaded %.1f MB"), state.CompletedBytes/1e6)
 			if state.TotalBytes != nil && *state.TotalBytes > 0 {
-				metric = fmt.Sprintf("%.1f / %.1f MB · %.0f%%", state.CompletedBytes/1e6, *state.TotalBytes/1e6, math.Floor(state.CompletedBytes / *state.TotalBytes * 100))
+				metric = fmt.Sprintf("%.1f MB（共 %.1f MB）· %.0f%%", state.CompletedBytes/1e6, *state.TotalBytes/1e6, math.Floor(voiceRatio(state.CompletedBytes, *state.TotalBytes)*100))
 			}
 		} else if preparing && startedAt != nil {
 			metric = fmt.Sprintf(voiceText("已等待 %.0f 秒", "Waiting %.0f seconds"), math.Max(0, float64(time.Now().UnixMilli())-*startedAt)/1000)
@@ -261,7 +261,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 			}
 		}
 		if state.Phase == "downloading" && state.TotalBytes != nil && *state.TotalBytes > 0 {
-			ui.Progress(c, math.Max(0, math.Min(1, state.CompletedBytes / *state.TotalBytes))).FillWidth().Label(voiceText("下载进度", "Download progress"))
+			ui.Progress(c, voiceRatio(state.CompletedBytes, *state.TotalBytes)).FillWidth().Label(voiceText("下载进度", "Download progress"))
 		}
 		if state.Resource != "" && state.Phase == "downloading" {
 			ui.Text(c, state.Resource).FontSize(11).TextColor(c.Theme().TextMuted)
@@ -289,7 +289,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 			}
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if canPrepare && ui.Button(c, voiceText("准备或重试准备", "Prepare / retry preparation")).Disabled(!connected || submitting).Clicked() {
+			if canPrepare && ui.Button(c, voiceText("准备或重试准备", "Prepare or retry preparation")).Disabled(!connected || submitting).Clicked() {
 				*dismissed = ""
 				owner.Prepare(id, selectedSource)
 			}
@@ -298,4 +298,13 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 			}
 		})
 	})
+}
+
+// voiceRatio is the completed share of a download; a zero total counts as zero
+// so a missing size never divides the progress bar.
+func voiceRatio(completed, total float64) float64 {
+	if total <= 0 {
+		return 0
+	}
+	return math.Max(0, math.Min(1, completed/total))
 }

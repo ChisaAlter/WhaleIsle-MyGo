@@ -6,6 +6,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotMemoryUIReviewDeleteOnlyOnConfirm(t *testing.T) {
@@ -31,7 +32,7 @@ func TestBotMemoryUIReviewDeleteOnlyOnConfirm(t *testing.T) {
 	if reads != 0 || saves != 0 {
 		t.Fatal("render performed RPC")
 	}
-	if err := tt.Click("删除记忆条目 1… / Delete entry 1…"); err != nil {
+	if err := tt.Click(strings.Replace(i18n.T(i18n.KeyMiscAssistantDeleteEntry), "%d", "1", 1)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 0 {
@@ -43,7 +44,7 @@ func TestBotMemoryUIReviewDeleteOnlyOnConfirm(t *testing.T) {
 			t.Fatal("review omitted impact", word)
 		}
 	}
-	if err := tt.Click("返回记忆编辑 / Back to memory edit"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantBackToMemoryEdit)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 0 {
@@ -51,7 +52,7 @@ func TestBotMemoryUIReviewDeleteOnlyOnConfirm(t *testing.T) {
 	}
 	controls.Prepare(k)
 	tt.Frame()
-	if err := tt.Click("确认替换此轨记忆 / Confirm track replacement"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmTrackReplacement)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

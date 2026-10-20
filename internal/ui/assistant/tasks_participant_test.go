@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestTaskParticipantConversationNavigation(t *testing.T) {
@@ -30,7 +31,7 @@ func TestTaskParticipantConversationNavigation(t *testing.T) {
 				}
 				taskControlBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 			}, 1100, 1800)
-			label := "打开发件人会话 / Open sender conversation"
+			label := i18n.T(i18n.KeyMiscAssistantOpenSenderConversation)
 			if tt.HasText(label) != tc.want {
 				t.Fatalf("navigation availability=%v want %v: %q", tt.HasText(label), tc.want, tt.Texts())
 			}
@@ -42,7 +43,7 @@ func TestTaskParticipantConversationNavigation(t *testing.T) {
 					t.Fatalf("opened %q", opened)
 				}
 			}
-			if tt.HasText("打开收件人会话 / Open recipient conversation") {
+			if tt.HasText(i18n.T(i18n.KeyMiscAssistantOpenRecipientConversation)) {
 				t.Fatal("deleted recipient exposed navigation")
 			}
 		})

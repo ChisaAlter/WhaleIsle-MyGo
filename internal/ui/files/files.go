@@ -74,6 +74,8 @@ type Model struct {
 	PaneWidth *float32
 	// EditSplit is the first-pane size for the edit/preview split (width or height).
 	EditSplit         *float32
+	// OnNewTab opens the owner's new-tab flow from the strip's trailing control.
+	OnNewTab          func()
 	OnShowDiff        func(rel string)
 	OnSaveEdit        func(rel, text string) error
 	OnOpenFloatingDoc func(string)
@@ -271,7 +273,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		}
 	}
 	if len(state.Paths) < state.Total {
-		if ui.Button(c, fmt.Sprintf(label("加载更多（%d / %d）", "Show more (%d / %d)"), len(state.Paths), state.Total)).Clicked() {
+		if ui.Button(c, fmt.Sprintf(label("加载更多（%d/%d）", "Show more (%d/%d)"), len(state.Paths), state.Total)).Clicked() {
 			m.Tabs.Search.More()
 		}
 	}

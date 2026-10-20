@@ -144,8 +144,8 @@ func maxf(a, b float32) float32 {
 	return b
 }
 
-// DefaultLayout returns initial split sizes for a 1200×800 window.
-// SplitVertical *size is the FIRST (top) pane height — that must be Main, not Bottom.
+// DefaultLayout returns initial split sizes for a 1200脳800 window.
+// SplitVertical *size is the FIRST (top) pane height 鈥?that must be Main, not Bottom.
 func DefaultLayout() LayoutSizes {
 	// ui-layout columns.ts: SIDEBAR_DEFAULT = 280 (min 264, max 420).
 	return LayoutSizes{Sidebar: SidebarDefault, Center: 680, Main: 560, Bottom: 180, RightTree: 280}
@@ -294,7 +294,7 @@ type Model struct {
 	WorkspacePickerAnchor *ui.Handle
 	OnNoDirectory         func()
 	OnSelectWorkspace     func(string)
-	OnBrowseWorkspace     func() // SidebarRoot ☰ / folder row
+	OnBrowseWorkspace     func() // SidebarRoot 鈽?/ folder row
 	OnRevealWorkspace     func()
 	OnOpenWorkspaceLocal  func()
 	OnRenameWorkspace     func(title string)
@@ -640,7 +640,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			}
 			interactionSnapshot, takeover := composerInteraction(interactionSnapshot)
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
-			// overlay). Add top inset on the chat column only — not the rail.
+			// overlay). Add top inset on the chat column only 鈥?not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
 			enter := conversationEnter(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, conversationEnterStructure(m, snap, phase, takeover))
 			if takeover || phase == conversationSettling {
@@ -1083,13 +1083,17 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					// ConversationRoot.composerSeat is flex:none: the transcript
 					// yields height before the input and its below-card status rows.
 					seat := ui.Row(c).Key("conversation-composer-seat").FillWidth().Shrink(0).Padding(0, conversationScrollGutter, 0, 0)
-					if phase == conversationSettling {
-						seat.Invisible()
-					}
 					seat.Children(func() {
 						ui.Box(c).Grow(1).MinWidth(0)
 						ui.Column(c).Key("conversation-composer-stack").Width(composerOuterW).MaxWidthPercent(100).MinWidth(0).
 							OffsetAfterLayout(func(r ui.Rect) ui.Point { return ui.Point{Y: enter.measure(c.Now(), enterCard, r, enterViewport)} }).Children(func() {
+							if phase == conversationSettling {
+								// The unknown page settles on the Hero shell: same fish,
+								// title slot and input-card geometry, no blank box and no
+								// jump when the composer mounts.
+								conversationSettlingSkeleton(c, colors)
+								return
+							}
 							if emptyHero {
 								conversationHeroHeadline(c, m, colors)
 							}
@@ -1119,7 +1123,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							ordinary.Children(func() {
 								paintComposer(emptyHero)
 								if !emptyHero {
-									chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
+									// sessioncost owns the whole compact statistics row;
+									// painting the chat line as well duplicated it.
+									if !costui.OwnsPerformanceStats {
+										chat.PerformanceUsageView(c, snap, m.ChatPreferences.PerformanceUsage, muted)
+									}
 									costModel := m.SessionCost
 									costModel.Snapshot = snap
 									costui.View(c, costModel, muted)
@@ -1128,7 +1136,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 						ui.Box(c).Grow(1).MinWidth(0)
 					})
-					if emptyHero {
+					// Hero and skeleton share one centered stack: the space below
+					// mirrors the growing space above so the column stays centered.
+					if emptyHero || phase == conversationSettling {
 						ui.Box(c).Key("conversation-hero-bottom-space").Grow(1).MinHeight(0)
 					}
 				})
@@ -1214,7 +1224,7 @@ func rightPane(c *ui.Context, m Model) {
 		}
 	}
 
-	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).Draw(chrome.Glass(field, chrome.MaterialPanel)).Children(func() {
 		workspacePaneControls(c, m)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if tab == "browser" && m.BrowserContent != nil {

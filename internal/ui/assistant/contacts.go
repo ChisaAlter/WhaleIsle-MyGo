@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -34,8 +35,8 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 	}
 	ui.Column(c.Key("bot-contacts")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "联系人目录 / Contacts").Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, "刷新 / Refresh").Disabled(blocked || s.Scope == "").Clicked() && cm.OnRefresh != nil {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantContacts)).Bold().TextColor(fg).Grow(1)
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefresh)).Disabled(blocked || s.Scope == "").Clicked() && cm.OnRefresh != nil {
 				cm.OnRefresh()
 			}
 		})
@@ -46,7 +47,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		query := s.Filters.Query
-		ui.TextInput(c.Key("contacts-search"), &query).Label("搜索名称、标题和说明 / Search contacts").FillWidth().OnChange(func() { change("query", query) })
+		ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().OnChange(func() { change("query", query) })
 		ui.Row(c).Gap(6).Children(func() {
 			for _, opt := range []struct{ id, label string }{{"", "全部"}, {"bots", "Bot"}, {"rooms", "群聊"}} {
 				opt := opt
@@ -72,9 +73,9 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		})
 		sources := dshbotstore.ContactSources(s.Catalog)
 		if len(sources) > 0 {
-			ui.Text(c, "来源 / Source").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSource)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Column(c).Gap(4).Children(func() {
-				if ui.Button(c, "全部来源 / All sources").Disabled(s.Filters.Source == "").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantAllSources)).Disabled(s.Filters.Source == "").Clicked() {
 					change("source", "")
 				}
 				for _, source := range sources {
@@ -97,14 +98,14 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			ui.Text(c, "有待核实的目录操作。刷新会读回结果，不会重发。").TextColor(accent)
 		}
 		ui.Column(c.Key("contacts-section-editor")).Background(field).Padding(8).Gap(6).Children(func() {
-			label := "新建分组 / New section"
+			label := i18n.T(i18n.KeyMiscAssistantNewSection)
 			if s.EditingSection != "" {
-				label = "重命名分组 / Rename section"
+				label = i18n.T(i18n.KeyMiscAssistantRenameSection)
 			}
 			name := s.SectionName
 			ui.TextInput(c.Key("contacts-section-name"), &name).Label(label + " (1–120)").FillWidth().Disabled(readonly).OnChange(func() { change("name", name) })
 			ui.Row(c).Gap(6).Children(func() {
-				if ui.Button(c, "保存分组 / Save section").Disabled(readonly || name == "").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantSaveSection)).Disabled(readonly || name == "").Clicked() {
 					kind := "create"
 					if s.EditingSection != "" {
 						kind = "rename"
@@ -118,7 +119,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		})
 		if s.Undo != nil {
 			ui.Text(c, fmt.Sprintf("已删除分组“%s”；联系人保留并移至未分组。撤销会将仍存在的原成员移回该组。", s.Undo.Section.Name)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if ui.Button(c, "撤销删除分组 / Restore section").Disabled(readonly).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreSection)).Disabled(readonly).Clicked() {
 				action(pluginrpc.DshbotContactCommand{Action: "restore", Snapshot: s.Undo})
 			}
 		}
@@ -184,11 +185,11 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 							ui.Text(c, "来源: "+label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 						if live := cm.Activity[row.ID]; live.Active {
-							ui.Text(c, "活跃 / Active").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+							ui.Text(c, i18n.T(i18n.KeyMiscAssistantActive)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						}
 						if live := cm.Activity[row.ID]; live.Unread() {
-							ui.Text(c, "有未读完成结果 / Unread completed result").TextColor(accent)
-							if ui.Button(c, "标为已读 / Mark read").Disabled(readonly || cm.OnMarkRead == nil).Clicked() {
+							ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnreadCompletedResult)).TextColor(accent)
+							if ui.Button(c, i18n.T(i18n.KeyMiscAssistantMarkRead)).Disabled(readonly || cm.OnMarkRead == nil).Clicked() {
 								cm.OnMarkRead(row.ID, live.ActivitySeq)
 							}
 						}
@@ -240,7 +241,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			})
 		}
 		if count == 0 {
-			ui.Text(c, "没有符合筛选的联系人 / No matching contacts").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingContacts)).TextColor(muted)
 		}
 	})
 }

@@ -29,21 +29,21 @@ func TestBotDuplicateUIRequiresIndependentGoalConsent(t *testing.T) {
 			t.Fatal("missing complete value/effect", term)
 		}
 	}
-	tt.Click(botDuplicateConfirmLabel)
+	tt.Click(botDuplicateConfirmLabel())
 	if saves != 0 {
 		t.Fatal("no ack")
 	}
-	if err := tt.Click(botDuplicateAcknowledgement); err != nil {
+	if err := tt.Click(botDuplicateAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	tt.Click(botDuplicateConfirmLabel)
+	tt.Click(botDuplicateConfirmLabel())
 	if saves != 0 {
 		t.Fatal("no independent goal ack")
 	}
-	if err := tt.Click(botDuplicateExecutionAcknowledgement); err != nil {
+	if err := tt.Click(botDuplicateExecutionAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(botDuplicateConfirmLabel); err != nil {
+	if err := tt.Click(botDuplicateConfirmLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 || opens != 0 {

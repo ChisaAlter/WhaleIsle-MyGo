@@ -68,6 +68,8 @@ const (
 	KeyComposerRetryUpload              = "composer.retry_upload"
 	KeyComposerRemoveAttachment         = "composer.remove_attachment"
 	KeyComposerRemoveReference          = "composer.remove_reference"
+	KeyComposerDropTitle                = "composer.drop.title"
+	KeyComposerDropDetail               = "composer.drop.detail"
 )
 
 func init() {
@@ -135,4 +137,6 @@ func init() {
 	Register(KeyComposerRetryUpload, "重试上传", "Retry upload")
 	Register(KeyComposerRemoveAttachment, "移除附件 %s", "Remove attachment %s")
 	Register(KeyComposerRemoveReference, "移除引用", "Remove reference")
+	Register(KeyComposerDropTitle, "文件或图片拖动到此处即可添加", "Drop files or images here")
+	Register(KeyComposerDropDetail, "松手即加入输入区，随消息一起发送", "Release to add them to the message")
 }

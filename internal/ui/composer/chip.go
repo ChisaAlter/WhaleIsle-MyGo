@@ -21,6 +21,20 @@ var (
 // The chip row shares one height with the toolbar's other controls.
 const chipHeight = float32(28)
 
+// Menu surfaces share one set of metrics so the permission/model picks, the
+// context panel and the `/` `@` menus read as one family.
+const (
+	menuRowHeight = float32(34)
+	menuRadius    = float32(10)
+)
+
+// menuSurface gives a popup the composer's shared card chrome: themed
+// background, hairline border, menu radius and one soft elevation.
+func menuSurface(e ui.Element, colors theme.Colors) ui.Element {
+	return e.Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).
+		Radius(menuRadius).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18))
+}
+
 // chevron paints the closed/open marker of a picker chip: ChevronDown at rest,
 // ChevronUp while its popup is open (the reference rotates it 180 degrees).
 func chevron(c *ui.Context, open bool) ui.Element {

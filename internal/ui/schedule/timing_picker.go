@@ -12,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/i18n"
 )
 
 type timingPickerState struct {
@@ -148,7 +149,7 @@ func rememberZone(recent []string, zone string) []string {
 	return next
 }
 func clockPicker(c *ui.Context, clock string, seconds bool, onPick func(string)) {
-	labels := []string{"时 / Hour", "分 / Minute", "秒 / Second"}
+	labels := []string{i18n.T(i18n.KeyMiscScheduleHour), i18n.T(i18n.KeyMiscScheduleMinute), i18n.T(i18n.KeyMiscScheduleSecond)}
 	count := 3
 	if !seconds {
 		count = 2
@@ -182,7 +183,7 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 	}
 	selectZone := func(zone string) {
 		if _, err := time.LoadLocation(zone); err != nil {
-			p.message("请输入有效 IANA 时区 / Choose a valid IANA zone")
+			p.message(i18n.T(i18n.KeyMiscScheduleChooseAValidIanaZone))
 			return
 		}
 		if d.Kind == "at" {
@@ -196,7 +197,7 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		}
 		p.recentZones = rememberZone(loadRecentZones(systemScheduleZone()), zone)
 	}
-	ui.Text(c, "时区 / Time zone: "+d.Zone)
+	ui.Text(c, i18n.T(i18n.KeyMiscScheduleTimeZone)+d.Zone)
 	ui.Column(c).Gap(4).Children(func() {
 		for _, zone := range p.recentZones {
 			if ui.Button(c, zone).Clicked() {
@@ -205,14 +206,14 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		}
 	})
 	zone := d.Zone
-	if ui.Combobox(c, &zone, scheduleZoneNames).Label("搜索时区 / Search time zones").FillWidth().Changed() {
+	if ui.Combobox(c, &zone, scheduleZoneNames).Label(i18n.T(i18n.KeyMiscScheduleSearchTimeZones)).FillWidth().Changed() {
 		selectZone(zone)
 	}
 
 }
 func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 	date, clock := d.wallClock()
-	if ui.Button(c, "日期 / Date: "+date).Clicked() {
+	if ui.Button(c, i18n.T(i18n.KeyMiscScheduleDate)+date).Clicked() {
 		d.picker.calendarOpen = !d.picker.calendarOpen
 		selected, _ := time.Parse("2006-01-02", date)
 		d.picker.month = time.Date(selected.Year(), selected.Month(), 1, 0, 0, 0, 0, time.UTC)
@@ -226,7 +227,7 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 			if ui.Button(c, "›").Clicked() {
 				d.picker.month = d.picker.month.AddDate(0, 1, 0)
 			}
-			if ui.Button(c, "关闭 / Close").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMiscScheduleClose)).Clicked() {
 				d.picker.calendarOpen = false
 			}
 		})
@@ -289,7 +290,7 @@ func dayPills(c *ui.Context, days []int, max int, onPick func([]int)) {
 func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 	if !editable {
 		d.picker.calendarOpen = false
-		ui.Text(c, "当前时间规则只读 / Timing is read-only")
+		ui.Text(c, i18n.T(i18n.KeyMiscScheduleTimingIsReadOnly))
 		return
 	}
 	choice := d.Kind
@@ -431,7 +432,7 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 				options[i] = strconv.Itoa(i + 1)
 			}
 			step := strconv.Itoa(shape.step)
-			ui.Text(c, "每隔 / Every")
+			ui.Text(c, i18n.T(i18n.KeyMiscScheduleEvery))
 			if ui.Select(c, &step, options).Changed() {
 				shape.step, _ = strconv.Atoi(step)
 				update()
@@ -443,7 +444,7 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 			for i := range options {
 				options[i] = fmt.Sprintf("%02d", i)
 			}
-			ui.Text(c, "分钟 / Minute")
+			ui.Text(c, i18n.T(i18n.KeyMiscScheduleMinute2))
 			if ui.Select(c, &minute, options).Changed() {
 				shape.minute, _ = strconv.Atoi(minute)
 				update()
@@ -468,6 +469,6 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 	if parsed, err := parseTaskCron(d.Expression); err != nil {
 		ui.Text(c, err.Error())
 	} else {
-		ui.Text(c, "预览 / Preview: "+parsed.preview()+" · "+d.Zone)
+		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+parsed.preview()+" · "+d.Zone)
 	}
 }

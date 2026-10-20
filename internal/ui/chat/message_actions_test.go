@@ -257,7 +257,9 @@ func TestFullColumnTranscriptCentersContentAndKeepsScrollbarSpace(t *testing.T) 
 			t.Fatal("bubble missing")
 		}
 		bodyWidth := min(float32(680), float32(width)-69)
-		wantRight := (float32(width)-5+bodyWidth)/2 - 16
+		// The full-column wrapper already clears the 32 DIP side gutter, so the
+		// message spends no second 16 DIP inset: its right edge is the column's.
+		wantRight := (float32(width) - 5 + bodyWidth) / 2
 		rectNear(t, bubble.X+bubble.W, wantRight, "full-column content axis")
 	}
 }

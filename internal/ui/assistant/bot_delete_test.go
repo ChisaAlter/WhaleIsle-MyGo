@@ -22,7 +22,7 @@ func TestBotDeleteUIDefaultCancelAndCompleteEffects(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		botDeleteView(c, m, false, ui.RGB(255, 255, 255), ui.RGB(120, 120, 120), ui.RGB(40, 40, 40), ui.RGB(80, 80, 80), ui.RGB(70, 130, 210))
 	}, 1200, 3000)
-	tt.Click(botDeleteConfirmLabel)
+	tt.Click(botDeleteConfirmLabel())
 	if count != 0 {
 		t.Fatal("render/default mutated")
 	}

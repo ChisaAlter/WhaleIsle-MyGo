@@ -8,11 +8,16 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-const botCreateAcknowledgement = "我理解 Bot 创建与会话影响 / I understand Bot and session effects"
-const botCreateConfirmLabel = "确认创建并打开 Bot / Confirm create and open Bot"
+func botCreateAcknowledgement() string {
+	return i18n.T(i18n.KeyMiscAssistantIUnderstandBotAndSessionEffects)
+}
+func botCreateConfirmLabel() string {
+	return i18n.T(i18n.KeyMiscAssistantConfirmCreateAndOpenBot)
+}
 
 type BotCreateModel struct {
 	State                                                                 dshbotstore.BotCreateSnapshot
@@ -37,18 +42,18 @@ func botCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 func botCreateReviewText(host string, cmd pluginrpc.DshbotBotCreateCommand) string {
 	d := cmd.Draft
 	if d.Provider == "" {
-		d.Provider = "继承应用默认模型 / Application default"
-		d.Model = "由 Host 解析 / Resolved by Host"
+		d.Provider = i18n.T(i18n.KeyMiscAssistantApplicationDefault)
+		d.Model = i18n.T(i18n.KeyMiscAssistantResolvedByHost)
 	}
-	return fmt.Sprintf("Host: %s · revision %d\nBot name: %s\nDisplay title: %s\nDescription: %s\nWorkspace ID: %s\nScratch cwd: %s\nBot ID: %s\nCanonical session: %s\nModel provider: %s\nModel ID: %s\nReasoning effort: %s\nmemoryReview: %t · notify: %t\nAvatar: blob circle/blue\nTools / Skills / MCP: 全部 / all (empty name filters)\nPeer message/task sources: []\nobjective: empty · objectiveMaxRounds: 16\nSection: none · pinned: false · hidden: false\nPersonal Bot defaults: memberBotIds [] · maxRounds 3 · maxSpeaks 10", host, cmd.Expected.Revision, d.Name, d.Title, d.Description, d.WorkspaceID, d.ScratchCwd, cmd.ID, cmd.SessionID, d.Provider, d.Model, d.ReasoningEffort, d.MemoryReview, d.Notify)
+	return fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantBotCreateConfig), host, cmd.Expected.Revision, d.Name, d.Title, d.Description, d.WorkspaceID, d.ScratchCwd, cmd.ID, cmd.SessionID, d.Provider, d.Model, d.ReasoningEffort, d.MemoryReview, d.Notify)
 }
 func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, field, border, accent ui.Color) {
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("native-bot-create")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "新建个人 Bot / Create personal Bot").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "创建 Bot 及专属会话，可继承应用默认模型，或选择当前 Host 已加载的模型。 / Create a Bot with the application default or a cached Host model.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, "刷新 Bot 创建目录 / Refresh Bot creation catalog").Disabled(blocked || s.Scope == "").Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreatePersonalBot)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateABotWithTheApplicationDefaul)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshBotCreationCatalog)).Disabled(blocked || s.Scope == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -58,19 +63,19 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, "先读取完整目录、revision 与写权限 / Read current catalog and authority first").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadCurrentCatalogAndAuthorityFirst)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		} else if !s.Writable {
-			ui.Text(c, "Host 写权限未核实或目录只读 / Write authority unavailable").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWriteAuthorityUnavailable3)).TextColor(accent)
 		}
 		if s.Created.ID != "" {
-			ui.Text(c, fmt.Sprintf("已创建 / Created: %s (%s)\nCanonical session: %s", s.Created.Name, s.Created.ID, s.Created.SessionID)).TextColor(fg).Selectable()
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantCreatedDetail), s.Created.Name, s.Created.ID, s.Created.SessionID)).TextColor(fg).Selectable()
 			ui.Text(c, "打开仅核实或恢复这个 Bot 的专属会话。打开失败会保留创建结果，不重新创建。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if m.OnOpen != nil && ui.Button(c, "打开已创建 Bot / Open created Bot").Disabled(blocked).Clicked() {
+			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedBot)).Disabled(blocked).Clicked() {
 				m.OnOpen()
 			}
 		}
 		if s.Draft == nil {
-			if m.OnStart != nil && ui.Button(c, "新建个人 Bot / New personal Bot").Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
+			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewPersonalBot)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
 				m.OnStart()
 			}
 			return
@@ -78,7 +83,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
 		ui.Text(c, fmt.Sprintf("Host: %s · revision %d", m.HostLabel, s.Catalog.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		for _, f := range []struct{ id, label, value string }{{"name", "稳定名称 / Stable Bot name (≤120)", d.Name}, {"title", "显示标题 / Display title (≤120)", d.Title}, {"scratchCwd", "临时会话目录 / Scratch cwd (无工作区时必填)", d.ScratchCwd}} {
+		for _, f := range []struct{ id, label, value string }{{"name", i18n.T(i18n.KeyMiscAssistantStableBotName120), d.Name}, {"title", i18n.T(i18n.KeyMiscAssistantDisplayTitle120), d.Title}, {"scratchCwd", i18n.T(i18n.KeyMiscAssistantScratchCwdRequired), d.ScratchCwd}} {
 			f := f
 			value := f.value
 			ui.TextInput(c.Key("new-bot-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
@@ -90,7 +95,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		createWorkspacePicker(c.Key("new-bot-workspace"), d.WorkspaceID, m.Workspaces, m.WorkspacesKnown, disabled, m.OnChange, muted)
 		botCreateModelPicker(c, m, d, disabled, muted)
 		description := d.Description
-		ui.TextArea(c.Key("new-bot-description"), &description).Label("Bot 说明 / Description (≤12000)").Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextArea(c.Key("new-bot-description"), &description).Label(i18n.T(i18n.KeyMiscAssistantDescription12000)).Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("description", description)
 			}
@@ -98,7 +103,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		for _, f := range []struct {
 			id, label string
 			value     bool
-		}{{"memoryReview", "允许后续记忆复盘 / Memory review", d.MemoryReview}, {"notify", "允许后续完成通知 / Notifications", d.Notify}} {
+		}{{"memoryReview", i18n.T(i18n.KeyMiscAssistantMemoryReview), d.MemoryReview}, {"notify", i18n.T(i18n.KeyMiscAssistantNotifications), d.Notify}} {
 			f := f
 			value := f.value
 			if ui.Checkbox(c.Key("new-bot-"+f.id), &value, f.label).Disabled(disabled).Changed() && m.OnChange != nil {
@@ -108,37 +113,37 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		if s.Uncertain {
 			ui.Text(c, "创建结果未知：保留并锁定草稿与身份，只读核对，不自动重试。没有记录也不能重建。关闭或隐藏界面不取消已发送创建；保护仅保留在当前应用进程。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			if row := s.Candidate; row != nil {
-				ui.Text(c, fmt.Sprintf("精确匹配目录记录 / Exact matching record: %s (%s)\nCanonical session: %s", row.Name, row.ID, row.SessionID)).TextColor(fg).Selectable()
+				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantExactMatchingRecord), row.Name, row.ID, row.SessionID)).TextColor(fg).Selectable()
 				if s.Pending != nil {
 					ui.Text(c, botCreateReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 				}
 				ui.Text(c, "所有提交字段与该身份记录匹配；目录存在不证明会话创建完成。采用仅保留已有身份，之后单独打开会核实或恢复 canonical 会话。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.OnAdopt != nil && ui.Button(c, "采用核对后的 Bot / Adopt inspected Bot").Disabled(blocked).Clicked() {
+				if m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptInspectedBot)).Disabled(blocked).Clicked() {
 					m.OnAdopt(row.ID)
 				}
 			}
 		} else {
-			if m.OnDiscard != nil && ui.Button(c, "丢弃 Bot 草稿 / Discard Bot draft").Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardBotDraft)).Disabled(blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, "审阅 Bot 创建 / Review Bot creation").Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
+			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewBotCreation)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
 				m.OnReview()
 			}
 		}
 		if r := s.Review; r != nil {
 			ui.Column(c.Key("new-bot-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, "创建前完整审阅 / Review new Bot").Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewNewBot)).Bold().TextColor(fg)
 				ui.Text(c, botCreateReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, "Host 将校验模型配置、写入 Bot 目录与审计记录、创建并打开专属会话，可能触发会话生命周期处理。非空 workspace 优先于 scratch cwd。后续 Bot 模型、工具、记忆复盘和通知可能产生费用或外部消息。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, "本次不发送 prompt、不调用模型生成、不启动 objective 或例行任务、不发送 IM。使用上方固定头像与全部能力；没有 peer 来源和目标。创建未知不自动重试；打开失败与创建失败分开处理。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, botCreateAcknowledgement).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if ui.Checkbox(c, &ack, botCreateAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if m.OnDismiss != nil && ui.Button(c, "返回修改 Bot / Back to Bot draft").Disabled(blocked).Clicked() {
+				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToBotDraft)).Disabled(blocked).Clicked() {
 					m.OnDismiss()
 				}
-				if m.OnConfirm != nil && ui.Button(c, botCreateConfirmLabel).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
+				if m.OnConfirm != nil && ui.Button(c, botCreateConfirmLabel()).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
 					m.OnConfirm()
 				}
 			})
@@ -147,7 +152,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 }
 
 func createWorkspacePicker(c *ui.Context, workspaceID string, rows []session.WorkspaceRow, known, disabled bool, change func(string, string), muted ui.Color) {
-	scratch := "临时目录 / Scratch directory"
+	scratch := i18n.T(i18n.KeyMiscAssistantScratchDirectory)
 	labels := []string{scratch}
 	choices := map[string]string{scratch: ""}
 	selected := scratch
@@ -164,24 +169,24 @@ func createWorkspacePicker(c *ui.Context, workspaceID string, rows []session.Wor
 		}
 	}
 	if workspaceID != "" && selected == scratch {
-		selected = "保留当前工作区 / Preserve: " + workspaceID
+		selected = i18n.T(i18n.KeyMiscAssistantPreserve) + workspaceID
 		labels = append(labels, selected)
 	}
-	ui.Text(c, "工作区 / Workspace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyMiscAssistantWorkspace)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Select(c.Key("workspace-choice"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
 		if id, ok := choices[selected]; ok && change != nil {
 			change("workspaceId", id)
 		}
 	})
 	if !known {
-		ui.Text(c, "工作区目录尚未加载，可保留当前选择或使用临时目录。 / Registry not loaded; keep the current workspace or use a scratch directory.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantRegistryNotLoadedKeepTheCurrentWor)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 
 // Choices reuse the current authenticated Host's already loaded picker metadata.
 // Route IDs stay opaque; captions never get parsed back into a provider/model.
 func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCreateDraft, disabled bool, muted ui.Color) {
-	defaultLabel := "继承应用默认模型 / Application default"
+	defaultLabel := i18n.T(i18n.KeyMiscAssistantApplicationDefault)
 	labels := []string{defaultLabel}
 	choices := map[string]pluginrpc.DshbotRouteModel{defaultLabel: {}}
 	selected := defaultLabel
@@ -201,19 +206,19 @@ func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCrea
 		}
 	}
 	if d.Provider != "" && selectedOption == nil {
-		selected = fmt.Sprintf("保留当前模型 / Preserve: %s · %s", d.Provider, d.Model)
+		selected = fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantPreserveModel), d.Provider, d.Model)
 		labels = append(labels, selected)
 	}
-	ui.Text(c, "模型 / Model").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyMiscAssistantModel)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Select(c.Key("new-bot-model-choice"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
 		if choice, ok := choices[selected]; ok && m.OnSelectModel != nil {
 			m.OnSelectModel(choice)
 		}
 	})
 	if !m.ModelsKnown {
-		ui.Text(c, "模型目录尚未加载，保留当前选择或继承应用默认。 / Catalog not loaded; keep the current choice or inherit the application default.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCatalogNotLoadedKeepTheCurrentChoi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	effortDefault := "模型默认推理强度 / Model default effort"
+	effortDefault := i18n.T(i18n.KeyMiscAssistantModelDefaultEffort)
 	effortLabels := []string{effortDefault}
 	efforts := map[string]string{effortDefault: ""}
 	effortSelected := effortDefault
@@ -231,10 +236,10 @@ func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCrea
 		}
 	}
 	if d.ReasoningEffort != "" && effortSelected == effortDefault {
-		effortSelected = "保留推理强度 / Preserve: " + d.ReasoningEffort
+		effortSelected = i18n.T(i18n.KeyMiscAssistantPreserve2) + d.ReasoningEffort
 		effortLabels = append(effortLabels, effortSelected)
 	}
-	ui.Text(c, "推理强度 / Reasoning effort").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeyMiscAssistantReasoningEffort)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	ui.Select(c.Key("new-bot-effort-choice"), &effortSelected, effortLabels).FillWidth().Disabled(disabled || selectedOption == nil || selectedOption.Reasoning == nil).OnChange(func() {
 		if effort, ok := efforts[effortSelected]; ok && m.OnSelectModel != nil {
 			m.OnSelectModel(pluginrpc.DshbotRouteModel{Provider: d.Provider, Model: d.Model, ReasoningEffort: effort})

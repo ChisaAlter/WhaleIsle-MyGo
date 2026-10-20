@@ -21,6 +21,10 @@ var wallpaperCache struct {
 // WallpaperBackdrop draws a full-window cover image when path is a readable
 // raster file. mygo has no WindowOptions.BackgroundImage yet; this is the
 // content-layer stub until native backdrop support exists.
+//
+// It paints the bare image only: no dim mask, no glass sampling and no ambient
+// effects. The shell's live wallpaper layer is WallpaperBackgroundPainter;
+// keep this for a caller that wants the untouched image.
 func WallpaperBackdrop(c *ui.Context, path string) {
 	path = theme.NormalizeWallpaperPath(path)
 	if path == "" {

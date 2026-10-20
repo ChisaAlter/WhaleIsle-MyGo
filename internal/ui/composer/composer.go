@@ -151,6 +151,10 @@ type suggestItem struct {
 	command bool
 }
 
+// stopShortcutHint names the composer's double-Escape stop gesture in the stop
+// button's tooltip, where the reference surfaces the binding.
+const stopShortcutHint = "Esc Esc"
+
 // View paints the prompt area with send and stop actions.
 func View(c *ui.Context, m Model) {
 	viewWithColors(c, m, theme.Resolve(m.ThemeID).Active(m.SystemDark))
@@ -199,6 +203,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	selectStart, selectEnd := -1, -1
 	selectIsUTF16 := m.UseTextInputClient && m.TextInput != nil
 	requestWorkspaceFocus := false
+	// Drag state observed on the draft surface, painted as one overlay later so
+	// the capsule keeps its size while a file hovers over it.
+	fileDrag, referenceDrag := false, false
 
 	// InputBar uses its semantic translucent surface over the shell canvas.
 	_ = panel
@@ -426,14 +433,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					wireFileDrop(area, m)
 					wireWorkspaceReferenceDrop(area, m)
 				}
-				if _, over := ui.DragOver[filelink.Reference](area); over {
-					ui.Text(c, i18n.T(i18n.KeyComposerSuggestAddReference)).FontSize(11).TextColor(muted)
-				}
+				_, referenceDrag = ui.DragOver[filelink.Reference](area)
+				fileDrag = area.FileDragOver() && strings.TrimSpace(m.WorkspaceRoot) != ""
 				if m.UseTextInputClient && m.TextInput != nil {
 					m.TextInput.Sync()
-				}
-				if area.FileDragOver() && strings.TrimSpace(m.WorkspaceRoot) != "" {
-					ui.Text(c, i18n.T(i18n.KeyComposerDropHint)).FontSize(11).TextColor(muted)
 				}
 			}
 			// InputBar.row: pad 2 8 6; tools/trailing gap 12; +.add 28 selector fill;
@@ -508,7 +511,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						return b
 					}
 					if primaryStops || running && child && m.OnStop != nil {
-						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
+						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).
+							Tooltip(i18n.T(i18n.KeyComposerStop) + "  " + stopShortcutHint).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
 							TextColor(onAccent).Disabled(m.OnStop == nil)
@@ -561,6 +565,25 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if requestWorkspaceFocus {
 					trigger.Focus()
 				}
+			}
+			if !m.Inert && (fileDrag || referenceDrag) {
+				// PassThrough keeps the drop target and hover routing on the draft
+				// surface underneath, so the overlay is only a visual promise.
+				overlay := ui.Box(c.Key("composer-drop-overlay")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
+					Radius(cardRadius).Background(chrome.Color(colors.BG).Alpha(0.92)).
+					Border(1, accent).Justify(ui.Center).AlignItems(ui.Center).PassThrough()
+				overlay.Children(func() {
+					ui.Column(c).Gap(4).AlignItems(ui.Center).Children(func() {
+						title := i18n.T(i18n.KeyComposerDropTitle)
+						detail := i18n.T(i18n.KeyComposerDropDetail)
+						if referenceDrag {
+							title = i18n.T(i18n.KeyComposerSuggestAddReference)
+							detail = i18n.T(i18n.KeyComposerSuggestDropReference)
+						}
+						ui.Text(c, title).FontSize(13).FontWeight(500).TextColor(fg)
+						ui.Text(c, detail).FontSize(11).TextColor(muted)
+					})
+				})
 			}
 			paintNativeCommandPopup(c, m, card, panel, border, fg, muted)
 		})
@@ -918,8 +941,8 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 	} else {
 		popup = popup.BottomPercent(100).Margin(0, 0, 4, 0)
 	}
-	popup.MaxHeight(height).Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).Radius(10).
-		Padding(4).Gap(2).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
+	popup = menuSurface(popup.MaxHeight(height).Padding(4).Gap(2), colors)
+	popup.Children(func() {
 		paintReferenceBreadcrumbs(c, m, tok)
 		ui.Text(c, title).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
 		drilled := false

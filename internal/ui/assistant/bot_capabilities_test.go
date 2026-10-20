@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotCapabilitiesUIReviewRequiresImpactAcknowledgement(t *testing.T) {
@@ -24,7 +25,7 @@ func TestBotCapabilitiesUIReviewRequiresImpactAcknowledgement(t *testing.T) {
 	if reads != 0 || saves != 0 {
 		t.Fatal("render performed RPC")
 	}
-	if err := tt.Click("审阅能力变更 / Review capability changes"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCapabilityChanges)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
@@ -33,14 +34,14 @@ func TestBotCapabilitiesUIReviewRequiresImpactAcknowledgement(t *testing.T) {
 			t.Fatal("hidden impact/scope", term)
 		}
 	}
-	tt.Click("确认保存能力 / Confirm capability save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmCapabilitySave))
 	if saves != 0 {
 		t.Fatal("saved without acknowledgement")
 	}
-	if err := tt.Click(botCapabilityAcknowledgement); err != nil {
+	if err := tt.Click(botCapabilityAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存能力 / Confirm capability save"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmCapabilitySave)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

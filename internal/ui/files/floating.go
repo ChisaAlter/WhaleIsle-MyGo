@@ -119,7 +119,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 				if ui.Button(c, label("复制文本", "Copy text")).Clicked() {
 					mygo.Clipboard.WriteText(f.snapshot.Text)
 				}
-				if isMarkdown(f.snapshot.Path) && ui.Button(c, label("源码 / 渲染", "Source / Rendered")).Clicked() {
+				if isMarkdown(f.snapshot.Path) && ui.Button(c, label("源码或渲染", "Source or rendered")).Clicked() {
 					f.tab.RenderedMarkdown = !f.tab.RenderedMarkdown
 				}
 			}

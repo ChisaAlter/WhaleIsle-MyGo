@@ -5,6 +5,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestWhaleSettingsNativeFormRequiresExplicitClear(t *testing.T) {
@@ -23,36 +24,36 @@ func TestWhaleSettingsNativeFormRequiresExplicitClear(t *testing.T) {
 		}}}
 		whaleSettingsBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(150, 150, 150), ui.RGB(20, 20, 20), ui.RGB(90, 90, 90), ui.RGB(60, 130, 240))
 	}, 1100, 2200)
-	for _, text := range []string{"保存记忆 / Save memory", "保存人设 / Save persona"} {
+	for _, text := range []string{i18n.T(i18n.KeyMiscAssistantSaveMemory), i18n.T(i18n.KeyMiscAssistantSavePersona)} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing native control %q", text)
 		}
 	}
-	if tt.HasText("确认清空长期记忆 / Confirm clear memory") || confirmed != 0 {
+	if tt.HasText(i18n.T(i18n.KeyMiscAssistantConfirmClearMemory)) || confirmed != 0 {
 		t.Fatal("clear confirmation initially open")
 	}
-	if err := tt.Click("清空记忆… / Clear memory…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantClearMemory)); err != nil {
 		t.Fatal(err)
 	}
 	if confirmed != 0 {
 		t.Fatal("first click sent clear")
 	}
-	if err := tt.Click("取消清空 / Cancel clear"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCancelClear)); err != nil {
 		t.Fatal(err)
 	}
 	if editor.Snapshot().Memory != "unsaved draft" {
 		t.Fatal("cancel lost draft")
 	}
-	if err := tt.Click("保存人设 / Save persona"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantSavePersona)); err != nil {
 		t.Fatal(err)
 	}
 	if len(saves) != 1 || saves[0] != "persona" {
 		t.Fatal(saves)
 	}
-	if err := tt.Click("清空记忆… / Clear memory…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantClearMemory)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认清空长期记忆 / Confirm clear memory"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmClearMemory)); err != nil {
 		t.Fatal(err)
 	}
 	if confirmed != 1 {

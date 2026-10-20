@@ -15,6 +15,13 @@ import (
 // The measured content width decides between the row layout and the stacked
 // layout, so the same row keeps working inside the modal and in a narrow pane.
 func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, reset func(), controls func()) ui.Element {
+	return settingsFieldRowDivider(c, key, title, hint, fg, muted, reset, controls, true)
+}
+
+// settingsFieldRowDivider is settingsFieldRow with the trailing separator under
+// the caller's control: a page strips the hairline of its last row, the way a
+// list drops the line after its final item.
+func settingsFieldRowDivider(c *ui.Context, key, title, hint string, fg, muted ui.Color, reset func(), controls func(), divider bool) ui.Element {
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	width := row.Bounds().W
 	row.Draw(func(_ *ui.Painter, bounds ui.Rect) {
@@ -58,7 +65,9 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 		} else {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14, 0).Children(body)
 		}
-		ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
+		if divider {
+			ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
+		}
 	})
 	return row
 }
@@ -67,6 +76,11 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 // a multi-line text area or a JSON editor: the title and description stay above
 // it, and the block keeps the same hairline rhythm as settingsFieldRow.
 func settingsFieldBlock(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) ui.Element {
+	return settingsFieldBlockDivider(c, key, title, hint, fg, muted, control, true)
+}
+
+// settingsFieldBlockDivider is settingsFieldBlock with an explicit separator.
+func settingsFieldBlockDivider(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func(), divider bool) ui.Element {
 	block := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8).Padding(14, 0)
 	block.Children(func() {
 		if title != "" {
@@ -78,7 +92,9 @@ func settingsFieldBlock(c *ui.Context, key, title, hint string, fg, muted ui.Col
 		if control != nil {
 			control()
 		}
-		ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
+		if divider {
+			ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
+		}
 	})
 	return block
 }

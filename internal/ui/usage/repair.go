@@ -30,7 +30,7 @@ func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 				events += o.Result.Repaired
 			}
 		}
-		ui.Text(c, fmt.Sprintf(usageText("修复结果：已确认 %d / %d 个请求成功，%d 个事件；目标 %d 个会话。", "Repair results: %d / %d attempted requests confirmed, %d events; %d target sessions."), succeeded, len(v.Outcomes), events, len(v.Targets))).TextColor(fg)
+		ui.Text(c, fmt.Sprintf(usageText("修复结果：已确认 %d 个（共 %d 个）请求成功，%d 个事件；目标 %d 个会话。", "Repair results: %d of %d attempted requests confirmed, %d events; %d target sessions."), succeeded, len(v.Outcomes), events, len(v.Targets))).TextColor(fg)
 		for _, o := range v.Outcomes {
 			if o.Result != nil {
 				r := o.Result

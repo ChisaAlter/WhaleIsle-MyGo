@@ -43,8 +43,8 @@ func paintDiffControls(c *ui.Context, m Model) {
 		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
 		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffWrap), view.Wrap, func() { view.Wrap = !view.Wrap })
 		ui.Box(c).Grow(1)
-		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffExpandAll), false, func() { view.setAll(true) })
-		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffCollapseAll), false, func() { view.setAll(false) })
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffExpandAll), false, func() { view.setAllClosed(false); view.setAllHunks(false) })
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffCollapseAll), false, func() { view.setAllClosed(true); view.setAllHunks(true) })
 	})
 }
 
@@ -59,7 +59,7 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 	for _, file := range view.update(source) {
 		f := file
 		ui.Column(c).FillWidth().MinWidth(0).Gap(3).Padding(0, 0, 6, 0).Children(func() {
-			open := view.Open[f.Path]
+			open := !view.Closed[f.Path]
 			ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 				title := f.Path
 				if title == "" {
@@ -90,18 +90,19 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 					toggle.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
 				}
 				if toggle.Clicked() {
-					view.Open[f.Path] = !open
+					view.Closed[f.Path] = open
 				}
 			})
 			if !open {
 				return
 			}
 			render := func() {
+				fold := hunkFold{collapsed: view.foldedHunks(f.Path), onToggle: func(index int) { view.toggleHunk(f.Path, index) }}
 				if !view.Split {
-					paintUnifiedRows(c, f.Rows, st, view.Wrap)
+					paintUnifiedRows(c, f.Rows, st, view.Wrap, fold)
 					return
 				}
-				paintSplitRows(c, f.Rows, st, view.Wrap)
+				paintSplitRows(c, f.Rows, st, view.Wrap, fold)
 			}
 			if view.Wrap {
 				render()
@@ -114,7 +115,7 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 
 // paintSplitRows paints the two-column view: the before cell on the left and the
 // after cell on the right, each tinted by its own change kind.
-func paintSplitRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool) {
+func paintSplitRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fold hunkFold) {
 	minWidth := float32(0)
 	if !wrap {
 		minWidth = splitColumnWidth(rows)
@@ -124,14 +125,20 @@ func paintSplitRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool) {
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffBefore)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffAfter)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 		})
+		hunk, hidden := -1, false
 		for _, row := range rows {
 			r := row
 			if r.Meta != "" {
-				kind := diffLineMeta
 				if len(r.Meta) > 1 && r.Meta[0] == '@' && r.Meta[1] == '@' {
-					kind = diffLineHunk
+					hunk++
+					hidden = fold.collapsed[hunk]
+					paintHunkHeader(c, r.Meta, hunk, st, fold)
+					continue
 				}
-				paintDiffLine(c, diffLine{Kind: kind, Text: r.Meta}, st, minWidth, wrap)
+				paintDiffLine(c, diffLine{Kind: diffLineMeta, Text: r.Meta}, st, minWidth, wrap)
+				continue
+			}
+			if hidden {
 				continue
 			}
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
@@ -150,7 +157,7 @@ func paintUnifiedStandalone(c *ui.Context, source string, st diff.Style) {
 		return
 	}
 	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-		paintUnifiedRows(c, rows, st, false)
+		paintUnifiedRows(c, rows, st, false, hunkFold{})
 	})
 }
 

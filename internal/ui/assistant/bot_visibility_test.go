@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotVisibilityReviewStatesScopeAndEffects(t *testing.T) {
@@ -17,7 +18,7 @@ func TestBotVisibilityReviewStatesScopeAndEffects(t *testing.T) {
 				t.Fatal("missing review", needle)
 			}
 		}
-		if kind == "room" && !strings.Contains(text, "群聊 / Room") {
+		if kind == "room" && !strings.Contains(text, i18n.T(i18n.KeyMiscAssistantRoom)) {
 			t.Fatal("room identity")
 		}
 	}

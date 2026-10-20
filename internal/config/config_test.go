@@ -21,7 +21,7 @@ func TestMissingFileGivesDefaults(t *testing.T) {
 
 func TestDefaultsMatchReferenceDefaults(t *testing.T) {
 	d := Defaults()
-	if d.Host != "127.0.0.1" || d.Port != 3080 || d.Theme != "deepseek" || d.Locale != "zh" {
+	if d.Host != "127.0.0.1" || d.Port != 3080 || d.Theme != DefaultTheme || d.Locale != "zh" {
 		t.Fatalf("core defaults drifted: %+v", d)
 	}
 	if d.RemotePort != 6767 || d.RemoteMode != "relay" || d.RemoteBindAddress != "127.0.0.1" {

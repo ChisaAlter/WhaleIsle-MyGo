@@ -203,6 +203,51 @@ const (
 	KeyChatTrajDisplayLimited = "chat.traj.display_limited"
 	KeyChatTrajDepthLimit  = "chat.traj.depth_limit"
 
+	// Turn deliverables card.
+	KeyChatDeliveryTitle       = "chat.delivery.title"
+	KeyChatDeliveryCheckHost   = "chat.delivery.check_host"
+	KeyChatDeliveryRetryHost   = "chat.delivery.retry_host"
+	KeyChatDeliveryNoDesktop   = "chat.delivery.no_desktop"
+	KeyChatDeliveryReview      = "chat.delivery.review"
+	KeyChatDeliveryRetryReview = "chat.delivery.retry_review"
+	KeyChatDeliveryReadSummary = "chat.delivery.reading_summary"
+	KeyChatDeliveryFiles       = "chat.delivery.files"
+	KeyChatDeliveryRetryDiff   = "chat.delivery.retry_diff"
+	KeyChatDeliveryReadDiff    = "chat.delivery.reading_diff"
+	KeyChatDeliveryBinary      = "chat.delivery.binary"
+	KeyChatDeliveryTooLarge    = "chat.delivery.too_large"
+	KeyChatDeliveryShowAll     = "chat.delivery.show_all"
+	KeyChatDeliveryCollapse    = "chat.delivery.collapse"
+	KeyChatDeliveryOpenHost    = "chat.delivery.open_host"
+	KeyChatDeliveryRevealHost  = "chat.delivery.reveal_host"
+	KeyChatDeliveryRetryAction = "chat.delivery.retry_action"
+	KeyChatDeliveryAccepted    = "chat.delivery.accepted"
+
+	// Published-page (visual reply) card.
+	KeyChatVisualInteract    = "chat.visual.interact"
+	KeyChatVisualStop        = "chat.visual.stop"
+	KeyChatVisualSafePreview = "chat.visual.safe_preview"
+	KeyChatVisualSource      = "chat.visual.source"
+	KeyChatVisualExpand      = "chat.visual.expand"
+	KeyChatVisualCollapse    = "chat.visual.collapse"
+	KeyChatVisualNoPage      = "chat.visual.no_page"
+	KeyChatVisualNoPreview   = "chat.visual.no_preview"
+	KeyChatVisualStatic      = "chat.visual.static"
+	KeyChatVisualCapped      = "chat.visual.capped"
+
+	// Read-only workbook viewer.
+	KeyChatWorkbookReadOnly  = "chat.workbook.read_only"
+	KeyChatWorkbookPrevRows  = "chat.workbook.prev_rows"
+	KeyChatWorkbookNextRows  = "chat.workbook.next_rows"
+	KeyChatWorkbookPrevCols  = "chat.workbook.prev_columns"
+	KeyChatWorkbookNextCols  = "chat.workbook.next_columns"
+	KeyChatWorkbookCopyShown = "chat.workbook.copy_shown"
+	KeyChatWorkbookCopyRaw   = "chat.workbook.copy_raw"
+
+	// Shared row actions.
+	KeyChatRowExpand   = "chat.row.expand"
+	KeyChatRowCollapse = "chat.row.collapse"
+
 	KeyMarkdownCode      = "markdown.code"
 	KeyMarkdownCopyCode  = "markdown.copy_code"
 	KeyMarkdownCopied    = "markdown.copied"
@@ -412,4 +457,49 @@ func init() {
 	Register(KeyChatFeedbackEdit, "编辑反馈", "Edit feedback")
 	Register(KeyChatTrajDisplayLimited, "展示已限量；复制保留完整内容", "Display limited; copy retains full content")
 	Register(KeyChatTrajDepthLimit, "深度限制；复制包含子树", "Depth limit; copy includes subtree")
+
+	// Turn deliverables.
+	Register(KeyChatDeliveryTitle, "本轮交付与变更 · 第 %d 轮", "Turn %d deliveries and review")
+	Register(KeyChatDeliveryCheckHost, "检查 Host 文件打开能力", "Check Host desktop")
+	Register(KeyChatDeliveryRetryHost, "重试 Host 信息", "Retry Host info")
+	Register(KeyChatDeliveryNoDesktop, "桌面不可用", "desktop unavailable")
+	Register(KeyChatDeliveryReview, "查看本轮变更 · 第 %d 轮 · 事件 %d", "Review turn %d · event %d")
+	Register(KeyChatDeliveryRetryReview, "重试读取本轮变更", "Retry reading this turn's changes")
+	Register(KeyChatDeliveryReadSummary, "正在读取该轮摘要…", "Reading this turn's summary…")
+	Register(KeyChatDeliveryFiles, "%d 个文件 · +%d −%d", "%d files · +%d −%d")
+	Register(KeyChatDeliveryRetryDiff, "重试读取对比", "Retry comparison")
+	Register(KeyChatDeliveryReadDiff, "读取对比中…", "Reading comparison…")
+	Register(KeyChatDeliveryBinary, "二进制文件，无文本对比", "Binary file; no text comparison")
+	Register(KeyChatDeliveryTooLarge, "文件过大，Host 未提供文本对比", "Too large for a text comparison")
+	Register(KeyChatDeliveryShowAll, "展开全部文件", "Show all files")
+	Register(KeyChatDeliveryCollapse, "收起", "Collapse")
+	Register(KeyChatDeliveryOpenHost, "在 Host 打开", "Open on Host")
+	Register(KeyChatDeliveryRevealHost, "在 Host 定位", "Reveal on Host")
+	Register(KeyChatDeliveryRetryAction, "重试文件动作", "Retry file action")
+	Register(KeyChatDeliveryAccepted, "Host 已接受文件动作", "Host accepted file action")
+
+	// Published-page card.
+	Register(KeyChatVisualInteract, "在卡片中交互", "Interact inline")
+	Register(KeyChatVisualStop, "停止交互", "Stop interaction")
+	Register(KeyChatVisualSafePreview, "安全图片预览", "Safe image preview")
+	Register(KeyChatVisualSource, "查看完整源码", "View source")
+	Register(KeyChatVisualExpand, "展开", "Expand")
+	Register(KeyChatVisualCollapse, "收起", "Collapse")
+	Register(KeyChatVisualNoPage, "交互页未启动或已停止，源码仍可查看或另存", "Interactive page unavailable")
+	Register(KeyChatVisualNoPreview, "安全预览不可用，仍可查看源码或另存", "Safe preview unavailable")
+	Register(KeyChatVisualStatic, "此图为静态 PNG；请在卡片交互表面操作", "This image is static; use the interactive surface for controls")
+	Register(KeyChatVisualCapped, "页面超过 4000 像素，预览未覆盖底部", "Preview is capped at 4000 pixels; the bottom is not shown")
+
+	// Read-only workbook.
+	Register(KeyChatWorkbookReadOnly, "只读工作簿；公式显示已存储值", "Read-only workbook; formulas show stored values")
+	Register(KeyChatWorkbookPrevRows, "上一行页", "Previous rows")
+	Register(KeyChatWorkbookNextRows, "下一行页", "Next rows")
+	Register(KeyChatWorkbookPrevCols, "上一列页", "Previous columns")
+	Register(KeyChatWorkbookNextCols, "下一列页", "Next columns")
+	Register(KeyChatWorkbookCopyShown, "复制单元格显示值", "Copy displayed cell value")
+	Register(KeyChatWorkbookCopyRaw, "复制单元格原文", "Copy cell value")
+
+	// Shared row actions.
+	Register(KeyChatRowExpand, "展开", "Expand")
+	Register(KeyChatRowCollapse, "收起", "Collapse")
 }

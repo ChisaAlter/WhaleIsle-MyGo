@@ -43,13 +43,27 @@ func (s *modelFlipTimeline) update(text string, now time.Time, reduced bool) {
 		s.HasOutgoing = false
 		return
 	}
-	if !s.HasOutgoing {
+	fresh := s.recipeOver(now)
+	if fresh {
+		// No recipe is running, or the last one already finished inside its
+		// cleaned-up window: this value starts its own 400ms window.
 		s.Started = now
 	}
-	if !s.HasOutgoing || s.Outgoing != previous {
+	if fresh || s.Outgoing != previous {
 		s.Expires = now.Add(modelFlipDuration)
 	}
 	s.Outgoing, s.HasOutgoing = previous, true
+}
+
+// recipeOver reports whether the 400ms visual recipe has run its course. The
+// cleanup clock (Expires) may outlive it after a rapid replacement; the label
+// returns to ordinary text as soon as the recipe itself ends, so a later
+// deadline can never replay or prolong the animation.
+func (s *modelFlipTimeline) recipeOver(now time.Time) bool {
+	if !s.HasOutgoing {
+		return true
+	}
+	return !now.Before(s.Started.Add(modelFlipDuration))
 }
 
 type modelFlipInk struct {
@@ -96,8 +110,12 @@ func modelFlipText(c *ui.Context, key, value string, color ui.Color, fontSize fl
 		Font(font.Family).FontSize(font.Size).FontWeight(font.Weight).TextColor(color)
 	state := ui.Local(label, "model-flip", func() modelFlipState { return modelFlipState{} })
 	reduced := c.Preferences().ReduceMotion
-	state.Timeline.update(value, c.Now(), reduced)
-	if !state.Timeline.HasOutgoing || reduced {
+	now := c.Now()
+	state.Timeline.update(value, now, reduced)
+	if reduced || state.Timeline.recipeOver(now) {
+		// The recipe (or reduced motion) is over: the framework paints the
+		// ordinary label, which keeps the final frame byte-identical to a
+		// label that never flipped.
 		state.Current, state.Outgoing = modelFlipInk{}, modelFlipInk{}
 		return label
 	}
@@ -109,21 +127,17 @@ func modelFlipText(c *ui.Context, key, value string, color ui.Color, fontSize fl
 		// the projection's near-edge expansion inside that wrapper, away from
 		// the independent release badge and neighbouring trigger controls.
 		p.Clip(box, 0, func() {
-			now := p.Now()
-			elapsed := now.Sub(state.Timeline.Started)
+			paintNow := p.Now()
+			elapsed := paintNow.Sub(state.Timeline.Started)
 			state.Current.prepare(value, font, color, p.Scale(), box.W, box.H)
+			state.Outgoing.prepare(state.Timeline.Outgoing, font, color, p.Scale(), box.W, box.H)
 			if elapsed >= modelFlipDuration {
+				// Build and paint disagree about the clock: show the current
+				// value plainly rather than leaving a transparent frame.
 				_, height := state.Current.layout.Size()
 				p.TextLayout(state.Current.layout, box.X, box.Y+(box.H-height)/2, color)
-				if now.Before(state.Timeline.Expires) {
-					p.After(state.Timeline.Expires.Sub(now))
-				} else {
-					state.Timeline.HasOutgoing = false
-					state.Outgoing = modelFlipInk{}
-				}
 				return
 			}
-			state.Outgoing.prepare(state.Timeline.Outgoing, font, color, p.Scale(), box.W, box.H)
 			progress := cssBezier(float64(elapsed)/float64(modelFlipDuration), .4, 0, .2, 1)
 			paint := func(ink *modelFlipInk, raster *ui.DecorativeRaster, angle, opacity float64) {
 				pixels, offset := projectModelFlip(ink.pixels, box.W, box.H, p.Scale(), angle, opacity)
@@ -134,6 +148,11 @@ func modelFlipText(c *ui.Context, key, value string, color ui.Color, fontSize fl
 			}
 			paint(&state.Outgoing, &state.OutgoingRaster, -80*progress, 1-progress)
 			paint(&state.Current, &state.CurrentRaster, 80*(1-progress), progress)
+			// Wake once when the recipe ends so the label returns to ordinary
+			// text even if animation frames are throttled.
+			if remaining := modelFlipDuration - elapsed; remaining > 0 {
+				p.After(remaining)
+			}
 			p.AnimationFrame()
 		})
 	})

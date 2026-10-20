@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRouteUIFullReviewAndSeparateImpact(t *testing.T) {
@@ -22,7 +23,7 @@ func TestBotRouteUIFullReviewAndSeparateImpact(t *testing.T) {
 	if reads != 0 || saves != 0 {
 		t.Fatal("render dispatched")
 	}
-	if err := tt.Click("审阅模型与目录 / Review model and workspace"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewModelAndWorkspace)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
@@ -31,14 +32,14 @@ func TestBotRouteUIFullReviewAndSeparateImpact(t *testing.T) {
 			t.Fatal("missing review", term)
 		}
 	}
-	tt.Click("确认保存模型/目录 / Confirm route save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRouteSave))
 	if saves != 0 {
 		t.Fatal("unacknowledged saved")
 	}
-	if err := tt.Click(botRouteAcknowledgement); err != nil {
+	if err := tt.Click(botRouteAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存模型/目录 / Confirm route save"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRouteSave)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

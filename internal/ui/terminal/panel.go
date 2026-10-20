@@ -295,22 +295,13 @@ func View(c *ui.Context, m Model) {
 				})
 			}
 		}
+		terminalTabs(c, m, fg, muted)
 		ui.Row(c).Fill().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			if group.vertical {
 				ui.Column(c).Key(group.id).Fill().Grow(1).MinHeight(0).Gap(0.5).Children(paint)
 			} else {
 				ui.Row(c).Key(group.id).Fill().Grow(1).MinHeight(0).MinWidth(0).Gap(0.5).Children(paint)
 			}
-			if len(p.panes) > 1 {
-				ui.Box(c).Width(0.5).FillHeight().Background(border)
-				terminalSidebar(c, m, fg, muted)
-			}
 		})
 	})
-	if p != nil && len(p.panes) <= 1 {
-		bounds := root.Bounds()
-		ui.Overlay(c, func() {
-			ui.Row(c).Absolute().Left(max(bounds.X, bounds.X+bounds.W-148)).Top(bounds.Y + 8).Height(28).Children(func() { terminalActionBar(c, m, false) })
-		})
-	}
 }

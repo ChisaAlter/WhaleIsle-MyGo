@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/htmldocument"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -28,7 +29,7 @@ func (b *Controller) openHTMLTab(t *Tab, doc *htmldocument.Document) error {
 		if t.source != nil {
 			t.HTML = nil
 		}
-		t.Error = browserChromeLabel("HTML 预览不可用，请使用系统打开 / HTML preview unavailable; use system open", "HTML preview unavailable; open externally")
+		t.Error = browserChromeLabel(i18n.T(i18n.KeyMiscBrowserpreviewHtmlPreviewUnavailableUseSystemOpen), "HTML preview unavailable; open externally")
 	} else {
 		t.Host = h
 		if b.current() == t {

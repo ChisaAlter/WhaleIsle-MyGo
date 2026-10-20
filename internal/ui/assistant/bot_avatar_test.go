@@ -14,6 +14,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func avatarImageFixture(w, h int) pluginrpc.DshbotAvatarValues {
@@ -119,19 +120,19 @@ func TestBotAvatarUIExplicitImageReplacementAndImpact(t *testing.T) {
 	if reads != 0 || saves != 0 || state.Draft != old || state.Dirty {
 		t.Fatal("render coerced image or dispatched")
 	}
-	if err := tt.Click("轮廓 / Shape: cloud"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantShape) + "cloud"); err != nil {
 		t.Fatal(err)
 	}
 	if state.Draft.Kind != "blob" || state.Draft.Shape != "cloud" || state.Draft.Color != "ink" {
 		t.Fatal("explicit shape choice", state.Draft)
 	}
-	if err := tt.Click("颜色 / Color: teal"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantColor) + "teal"); err != nil {
 		t.Fatal(err)
 	}
 	if state.Draft.Shape != "cloud" || state.Draft.Color != "teal" {
 		t.Fatal("color did not preserve shape")
 	}
-	if err := tt.Click("审阅头像 / Review avatar"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewAvatar)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
@@ -140,14 +141,14 @@ func TestBotAvatarUIExplicitImageReplacementAndImpact(t *testing.T) {
 			t.Fatal("missing review", term)
 		}
 	}
-	tt.Click("确认保存头像 / Confirm avatar save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave))
 	if saves != 0 {
 		t.Fatal("unacknowledged")
 	}
-	if err := tt.Click(botAvatarAcknowledgement); err != nil {
+	if err := tt.Click(botAvatarAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存头像 / Confirm avatar save"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

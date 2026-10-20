@@ -139,7 +139,14 @@ func View(c *ui.Context, m Model) {
 			})
 		}
 		if len(msgs) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(13).TextColor(muted).Padding(16, 16, 16, 16)
+			// The empty Session is the Hero's job (conversationPhase), so this
+			// only paints for a standalone surface or an errored settle: center
+			// the hint instead of pinning a 13px line to the top-left corner.
+			if m.Snapshot.HistoryError == "" {
+				ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+					ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
+				})
+			}
 			ui.Box(c).Grow(1) // keep composer pinned to the bottom of the dialogue column
 			return
 		}
@@ -153,7 +160,16 @@ func View(c *ui.Context, m Model) {
 		transcript.Rows(func(row ui.ListRow) {
 			paintMessage := func() {
 				msg := msgs[row.Index]
-				padT, padR, padB, padL := float32(12), float32(16), float32(8), float32(16)
+				// The transcript column already clears the Original 32 DIP side
+				// gutter when it owns the scrollbar, so a row spends its padding
+				// vertically only there: process rows sit 6 apart, an answer 12,
+				// a turn header 16. A standalone surface keeps its own 16 DIP side
+				// inset because no column provides one.
+				padT, padB := messageSpacing(msg)
+				padL, padR := float32(16), float32(16)
+				if m.FullColumnViewport {
+					padL, padR = 0, 0
+				}
 				isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 				messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill()
 				messageRoot.Children(func() {
@@ -438,6 +454,24 @@ func displayableAction(text string) string {
 		}
 	}
 	return trimmed
+}
+
+// messageSpacing grades the vertical rhythm of one transcript row. The side
+// gutter is the column's job; this only owns the block gap above and below, as
+// the Original flow does (process rows 6, an answer 12, a turn header 16).
+func messageSpacing(msg session.Message) (top, bottom float32) {
+	switch {
+	case msg.Role == "user":
+		return 16, 2
+	case msg.Role == "status":
+		return 16, 2
+	case msg.Kind == session.MessageKindThinking, msg.Kind == session.MessageKindTool:
+		return 6, 0
+	case msg.Role == "assistant" && msg.Kind == session.MessageKindText:
+		return 12, 4
+	default:
+		return 12, 2
+	}
 }
 
 func formatTurnStatus(elapsedMsBody string) string {

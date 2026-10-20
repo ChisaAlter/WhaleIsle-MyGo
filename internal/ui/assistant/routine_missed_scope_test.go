@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
+
 )
 
 func TestRoutineMissedDismissalKeepsHostSessionAndNewMissesSeparate(t *testing.T) {
@@ -18,7 +20,7 @@ func TestRoutineMissedDismissalKeepsHostSessionAndNewMissesSeparate(t *testing.T
 	dismiss := func() {
 		t.Helper()
 		for _, label := range tt.Texts() {
-			if strings.Contains(label, "Dismiss missed-run notice") {
+			if strings.Contains(label, i18n.T(i18n.KeyMiscAssistantDismissMissedRunNotice)) {
 				if err := tt.Click(label); err != nil {
 					t.Fatal(err)
 				}
@@ -27,11 +29,11 @@ func TestRoutineMissedDismissalKeepsHostSessionAndNewMissesSeparate(t *testing.T
 		}
 		t.Fatal("missed-run dismiss action unavailable", tt.Texts())
 	}
-	if !tt.HasText("Missed scheduled runs") {
+	if !tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("initial missed-run notice unavailable")
 	}
 	dismiss()
-	if tt.HasText("Missed scheduled runs") {
+	if tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("dismissed notice still visible")
 	}
 	if len(state.MissedIDs) != 1 || state.MissedIDs[0] != "missed-a" {
@@ -39,24 +41,24 @@ func TestRoutineMissedDismissalKeepsHostSessionAndNewMissesSeparate(t *testing.T
 	}
 	state.MissedIDs = append(state.MissedIDs, "new-miss")
 	tt.Frame()
-	if !tt.HasText("Missed scheduled runs") {
+	if !tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("previous dismissal hid a newly missed routine")
 	}
 	dismiss()
 	state.Scope.HostKey = "host-b"
 	tt.Frame()
-	if !tt.HasText("Missed scheduled runs") {
+	if !tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("another Host inherited dismissal")
 	}
 	dismiss()
 	state.SessionID = "session-b"
 	tt.Frame()
-	if !tt.HasText("Missed scheduled runs") {
+	if !tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("another canonical session inherited dismissal")
 	}
 	state.MissedKnown = false
 	tt.Frame()
-	if tt.HasText("Missed scheduled runs") {
+	if tt.HasText(strings.Replace(i18n.T(i18n.KeyMiscAssistantMissedRuns), "%d", "", 1)) {
 		t.Fatal("unverified missed state presented as authoritative")
 	}
 }

@@ -50,7 +50,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			}
 		}
 	})
-	ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d / %d 个服务器", "Showing %d / %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d 个服务器，共 %d 个", "Showing %d of %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if a.Snapshot.Err != "" && a.Snapshot.Ready {
 		ui.Text(c, mcpCatalogText("操作失败时保留上次成功读取的列表，请查看错误后刷新。", "On failure, the last successful list is retained. Check the error before refreshing.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -21,9 +22,9 @@ func botObjectiveActionLabel(action string) string {
 	case "start":
 		return "开始 / 恢复目标… / Start or resume objective…"
 	case "pause":
-		return "暂停目标推进… / Pause objective…"
+		return i18n.T(i18n.KeyMiscAssistantPauseObjective)
 	case "clear":
-		return "清除目录目标… / Clear catalog objective…"
+		return i18n.T(i18n.KeyMiscAssistantClearCatalogObjective)
 	}
 	return action
 }
@@ -40,11 +41,11 @@ func botObjectiveImpact(action string) string {
 }
 func botObjectiveStatus(c *ui.Context, s pluginrpc.DshbotObjectiveStatus, fg, muted ui.Color) {
 	if !s.GoalKnown {
-		ui.Text(c, "该回执未包含 live 目标状态；请刷新核实 / Live goal not included; refresh").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantLiveGoalNotIncludedRefresh)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	if s.Goal == nil {
-		ui.Text(c, "Host 本次未报告可见 live 目标；冷会话可能仍有目录目标，不能据此判定已停止 / No visible live goal in this snapshot").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoVisibleLiveGoalInThisSnapshot)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	g := s.Goal
@@ -60,9 +61,9 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-objective")).Gap(7).Children(func() {
-		ui.Text(c, "Bot 目标循环 / Bot objective").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotObjective)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, "此处管理目录目标的开始、暂停和清除；下方可新增或修改目标配置。无法无损编辑的资料仍保留现有 Bot Web 入口。普通会话目标面板不能替代 Bot 目录配置。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, "刷新 Bot 目标状态 / Refresh objective").Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjective)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -72,19 +73,19 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		for _, warning := range s.Warnings {
-			ui.Text(c, "上次操作的 Host 警告 / Host warning: "+warning).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning2)+warning).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, "请刷新核实后再操作；旧快照或回执不代表实时状态 / Refresh before another action").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeAnotherAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Status.Bot.ID == "" {
 			return
 		}
 		b := s.Status.Bot
-		ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s · revision %d\n目录目标 / Catalog objective: %s\n目录轮数上限 / Catalog max rounds: %d", m.HostLabel, b.Name, b.ID, b.SessionID, s.Status.Revision, b.Objective, b.ObjectiveMaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantCatalogObjectiveDetail), m.HostLabel, b.Name, b.ID, b.SessionID, s.Status.Revision, b.Objective, b.ObjectiveMaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		botObjectiveStatus(c, s.Status, fg, muted)
 		if s.Status.ActivityError != "" {
-			ui.Text(c, "Host 活动读取提示 / Activity warning: "+s.Status.ActivityError).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantActivityWarning)+s.Status.ActivityError).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		ui.Row(c).Gap(7).Children(func() {
 			for _, action := range []string{"start", "pause", "clear"} {
@@ -98,8 +99,8 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 			r := s.Review
 			before := r.Command.Expected
 			ui.Column(c.Key("bot-objective-review")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
-				ui.Text(c, "确认 / Review: "+botObjectiveActionLabel(r.Command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s · Session: %s · revision %d\n完整目录目标 / Objective: %s\nMax rounds: %d", m.HostLabel, before.Bot.ID, before.Bot.SessionID, before.Revision, before.Bot.Objective, before.Bot.ObjectiveMaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReview)+botObjectiveActionLabel(r.Command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantObjectiveReviewDetail), m.HostLabel, before.Bot.ID, before.Bot.SessionID, before.Revision, before.Bot.Objective, before.Bot.ObjectiveMaxRounds)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				botObjectiveStatus(c, before, fg, muted)
 				ui.Text(c, botObjectiveImpact(r.Command.Action)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				if r.Command.Action == "clear" {
@@ -107,12 +108,12 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 				} else {
 					ui.Text(c, "原版 start/pause 没有原子 CAS 或幂等请求键。发送前会重读核对目录版本、配置及 live 摘要，检查后仍有状态变化窗口；不伪造 goal ID/revision。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
-				ui.Text(c, "回包不明时先刷新查看权威状态；不自动重发，也不把刷新当作再次执行。 / Refresh uncertain outcomes; never auto-retry.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshUncertainOutcomesNeverAutoRe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
-					if m.OnDismiss != nil && ui.Button(c, "取消目标操作 / Cancel objective action").Disabled(blocked).Clicked() {
+					if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelObjectiveAction)).Disabled(blocked).Clicked() {
 						m.OnDismiss()
 					}
-					if m.OnConfirm != nil && ui.Button(c, "确认目标操作 / Confirm objective action").Disabled(blocked || !s.Loaded).Clicked() {
+					if m.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveAction)).Disabled(blocked || !s.Loaded).Clicked() {
 						m.OnConfirm()
 					}
 				})

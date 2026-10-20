@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -26,12 +27,12 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 	}
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
-		ui.Text(c, "鲸鱼娘 · 模型、IM 与技能 / Whale preferences").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		if ui.Button(c, "读取模型、IM 与技能 / Refresh preferences").Disabled(blocked).Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhalePreferences)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Busy {
-			ui.Text(c, "正在等待 Host… / Waiting for Host…").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).TextColor(muted)
 		}
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
@@ -45,7 +46,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		disabled := blocked || !s.Loaded
 		route := s.Route
 		ui.Text(c, "她自身会话的默认模型；保存后 Host 同步已有常驻会话。留空跟随会话默认。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		labels := []string{"跟随会话默认 / Follow session default"}
+		labels := []string{i18n.T(i18n.KeyMiscAssistantFollowSessionDefault)}
 		choices := map[string]pluginrpc.WhaleModelRoute{labels[0]: {ReasoningEffort: route.ReasoningEffort}}
 		selected := labels[0]
 		found := route.Provider == "" && route.Model == ""
@@ -75,12 +76,12 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			}
 		}
 		if !found {
-			selected = "当前配置 / Current: " + route.Provider + " / " + route.Model
+			selected = i18n.T(i18n.KeyMiscAssistantCurrent) + route.Provider + " / " + route.Model
 			labels = append(labels, selected)
 			choices[selected] = route
 		}
 		if s.ModelsError != "" {
-			ui.Text(c, "模型目录读取失败 / Model catalog: "+s.ModelsError).TextColor(accent).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelCatalog)+s.ModelsError).TextColor(accent).Selectable()
 		}
 		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Disabled(disabled || s.ModelsError != "").OnChange(func() {
 			if v, ok := choices[selected]; ok && m.OnEdit != nil {
@@ -90,7 +91,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 				}
 			}
 		})
-		effortLabels := []string{"默认推理档 / Default effort"}
+		effortLabels := []string{i18n.T(i18n.KeyMiscAssistantDefaultEffort)}
 		effortValues := map[string]string{effortLabels[0]: ""}
 		effortSelected := effortLabels[0]
 		effortFound := route.ReasoningEffort == ""
@@ -120,7 +121,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			}
 		})
 		im := s.IMDefault
-		if ui.Checkbox(c.Key("whale-im-default"), &im, "IM 接入同一对话 / Share conversation with IM").Disabled(disabled).Changed() && m.OnEdit != nil {
+		if ui.Checkbox(c.Key("whale-im-default"), &im, i18n.T(i18n.KeyMiscAssistantShareConversationWithIm)).Disabled(disabled).Changed() && m.OnEdit != nil {
 			m.OnEdit(s.Route, im)
 			if m.OnSave != nil {
 				m.OnSave("im")
@@ -133,7 +134,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 				enabled++
 			}
 		}
-		ui.Text(c, fmt.Sprintf("她的技能 / Whale skills · %d / %d 已启用", enabled, len(s.Server.Skills))).Bold().TextColor(fg)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).Bold().TextColor(fg)
 		if len(s.Server.Skills) == 0 {
 			ui.Text(c, "还没有技能；在此 Host 的 Whale 目录下放入 skills/<名称>/SKILL.md 后刷新。\n"+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}

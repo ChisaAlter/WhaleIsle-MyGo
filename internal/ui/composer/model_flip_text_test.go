@@ -85,6 +85,34 @@ func TestModelFlipTimelineReducedMotionAndPreferenceChanges(t *testing.T) {
 	}
 }
 
+// A rapid replacement may extend the outgoing ink's cleanup deadline, but the
+// recipe itself still ends 400ms after the change that started it: the label
+// must return to ordinary text on that clock and the next value must start a
+// fresh recipe instead of inheriting the finished one.
+func TestModelFlipRecipeEndsOnItsOwnClock(t *testing.T) {
+	start := time.Unix(5000, 0)
+	var state modelFlipTimeline
+	state.update("A", start, false)
+	state.update("B", start.Add(10*time.Millisecond), false)
+	state.update("C", start.Add(110*time.Millisecond), false)
+	if state.recipeOver(start.Add(409 * time.Millisecond)) {
+		t.Fatal("recipe ended before its 400ms clock")
+	}
+	if !state.recipeOver(start.Add(410 * time.Millisecond)) {
+		t.Fatal("a rapid replacement's cleanup deadline prolonged the recipe")
+	}
+	if !state.HasOutgoing {
+		t.Fatal("cleanup bookkeeping retired with the recipe")
+	}
+	state.update("D", start.Add(420*time.Millisecond), false)
+	if !state.HasOutgoing || !state.Started.Equal(start.Add(420*time.Millisecond)) || state.Outgoing != "C" {
+		t.Fatalf("value after the finished recipe did not start a fresh one: %+v", state)
+	}
+	if state.recipeOver(start.Add(500 * time.Millisecond)) {
+		t.Fatal("fresh recipe ended immediately")
+	}
+}
+
 func modelFlipImageCopy(src image.Image) *image.RGBA {
 	dst := image.NewRGBA(src.Bounds())
 	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)

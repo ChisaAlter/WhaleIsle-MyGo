@@ -40,7 +40,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, fmt.Sprint(index+1)).Width(18).Shrink(0).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).TextAlign(ui.End)
-						ui.Text(c, entry.Model).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(entry.Provider + " / " + entry.Model)
+						ui.Text(c, entry.Model).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(entry.Provider + " · " + entry.Model)
 						ui.Text(c, formatCompactTokens(entry.Total)).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
 					})
 					providerUsageBar(c, entry.Total, maximum, accent, c.Theme().SurfaceHover)

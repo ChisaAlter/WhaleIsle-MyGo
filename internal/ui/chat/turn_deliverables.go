@@ -88,15 +88,15 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 	box := ui.Column(c.Key(key)).FillWidth().Gap(6).Padding(10).Border(1, st.Border).Radius(6).Background(st.Field)
 	expanded := ui.Local(box, "expanded", func() bool { return false })
 	box.Children(func() {
-		ui.Text(c, fmt.Sprintf("本轮交付与变更 / Turn %d deliveries and review", d.Turn)).FontSize(12).Bold().TextColor(st.FG)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyChatDeliveryTitle), d.Turn)).FontSize(12).Bold().TextColor(st.FG)
 		ui.Text(c, fmt.Sprintf("Session %s · Host %s", scope.SessionID, snapshot.HostLabel)).FontSize(10).TextColor(st.Muted).Selectable()
 		hostRequest := session.TurnFileRequest{Target: hostTarget, Action: "host"}
 		host := snapshot.Results[hostRequest]
 		nativeAvailable := host.Host != nil && host.Host.Available
 		ui.Row(c).Gap(6).Children(func() {
-			label := "检查 Host 文件打开能力 / Check Host desktop"
+			label := i18n.T(i18n.KeyChatDeliveryCheckHost)
 			if host.Error != "" {
-				label = "重试 Host 信息 / Retry Host info"
+				label = i18n.T(i18n.KeyChatDeliveryRetryHost)
 			}
 			if ui.Button(c, label).FontSize(10).Disabled(!enabled || host.Busy).Clicked() {
 				run(hostTarget, "host")
@@ -107,7 +107,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			if host.Host != nil {
 				status := host.Host.Name
 				if !host.Host.Available {
-					status += " · 桌面不可用 / desktop unavailable"
+					status += " · " + i18n.T(i18n.KeyChatDeliveryNoDesktop)
 				}
 				ui.Text(c, status).FontSize(10).TextColor(st.Muted)
 			}
@@ -119,21 +119,21 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			target := *d.Changes
 			request := session.TurnFileRequest{Target: target, Action: "summary"}
 			state := snapshot.Results[request]
-			label := fmt.Sprintf("查看本轮变更 / Review turn %d · event %d", target.Turn, target.Seq)
+			label := fmt.Sprintf(i18n.T(i18n.KeyChatDeliveryReview), target.Turn, target.Seq)
 			if state.Error != "" {
-				label = "重试读取本轮变更 / Retry reading this turn's changes"
+				label = i18n.T(i18n.KeyChatDeliveryRetryReview)
 			}
 			if ui.Button(c, label).FontSize(11).Disabled(!enabled || state.Busy).Clicked() {
 				run(target, "summary")
 			}
 			if state.Busy {
-				ui.Text(c, "正在读取该轮摘要 / Reading this turn's summary…").FontSize(10).TextColor(st.Muted)
+				ui.Text(c, i18n.T(i18n.KeyChatDeliveryReadSummary)).FontSize(10).TextColor(st.Muted)
 			}
 			if state.Error != "" {
 				ui.Text(c, state.Error).FontSize(10).TextColor(st.Muted)
 			}
 			if summary := state.Summary; summary != nil {
-				ui.Text(c, fmt.Sprintf("%d 个文件 / files · +%d −%d", summary.Total, summary.Added, summary.Deleted)).FontSize(11).TextColor(st.Muted)
+				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyChatDeliveryFiles), summary.Total, summary.Added, summary.Deleted)).FontSize(11).TextColor(st.Muted)
 				rows := summary.Files
 				if !*expanded && len(rows) > 4 {
 					rows = rows[:4]
@@ -151,14 +151,14 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 							label += " · oversized"
 						}
 						if comparison.Error != "" {
-							label = "重试读取对比 / Retry comparison: " + file.Display
+							label = i18n.T(i18n.KeyChatDeliveryRetryDiff) + ": " + file.Display
 						}
 						if ui.Button(c, label).FontSize(11).Disabled(!enabled || comparison.Busy).Clicked() {
 							run(selected, "diff")
 						}
 						ui.Text(c, fmt.Sprintf("%s · event %d / index %d", file.Path, selected.Seq, selected.Index)).FontSize(10).TextColor(st.Muted).Selectable()
 						if comparison.Busy {
-							ui.Text(c, "读取对比中 / Reading comparison…").FontSize(10).TextColor(st.Muted)
+							ui.Text(c, i18n.T(i18n.KeyChatDeliveryReadDiff)).FontSize(10).TextColor(st.Muted)
 						}
 						if comparison.Error != "" {
 							ui.Text(c, comparison.Error).FontSize(10).TextColor(st.Muted)
@@ -166,9 +166,9 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						if content := comparison.Diff; content != nil {
 							switch content.Kind {
 							case "binary":
-								ui.Text(c, "二进制文件，无文本对比 / Binary file; no text comparison").FontSize(11).TextColor(st.Muted)
+								ui.Text(c, i18n.T(i18n.KeyChatDeliveryBinary)).FontSize(11).TextColor(st.Muted)
 							case "oversized":
-								ui.Text(c, "文件过大，Host 未提供文本对比 / Too large for a text comparison").FontSize(11).TextColor(st.Muted)
+								ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).TextColor(st.Muted)
 							case "text":
 								patch := content.Patch()
 								if len(patch) > 64<<10 {
@@ -215,9 +215,9 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 			}
 		}
 		if hasMore {
-			label := "展开全部文件 / Show all files"
+			label := i18n.T(i18n.KeyChatDeliveryShowAll)
 			if *expanded {
-				label = "收起 / Collapse"
+				label = i18n.T(i18n.KeyChatRowCollapse)
 			}
 			if ui.Button(c, label).FontSize(10).Clicked() {
 				*expanded = !*expanded
@@ -239,12 +239,12 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 	}
 	ui.Row(c).Gap(6).Children(func() {
 		for _, action := range []string{"open", "reveal"} {
-			label := "在 Host 打开 / Open on Host"
+			label := i18n.T(i18n.KeyChatDeliveryOpenHost)
 			if action == "reveal" {
-				label = "在 Host 定位 / Reveal on Host"
+				label = i18n.T(i18n.KeyChatDeliveryRevealHost)
 			}
 			if state.Error != "" && state.Action == action {
-				label = "重试文件动作 / Retry file " + action
+				label = i18n.T(i18n.KeyChatDeliveryRetryAction) + " " + action
 			}
 			if ui.Button(c, label).FontSize(10).Disabled(!enabled || state.Busy).Clicked() {
 				run(target, action)
@@ -281,6 +281,6 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 		ui.Text(c, state.Error).FontSize(10).TextColor(st.Muted)
 	}
 	if state.Ready {
-		ui.Text(c, "Host 已接受文件动作 / Host accepted file "+state.Action).FontSize(10).TextColor(st.Muted)
+		ui.Text(c, i18n.T(i18n.KeyChatDeliveryAccepted) + " "+state.Action).FontSize(10).TextColor(st.Muted)
 	}
 }

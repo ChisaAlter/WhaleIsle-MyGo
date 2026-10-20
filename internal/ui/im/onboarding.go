@@ -15,6 +15,7 @@ import (
 	"time"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -101,7 +102,7 @@ func onboardingView(c *ui.Context, m Model) {
 						ui.Text(c, "凭据将交给当前 Host 验证并存入 Host 凭据存储；本地面板不会写入磁盘。").TextColor(muted)
 					}
 					if v.Review == "bot.reconnect-test" {
-						ui.Text(c, "将重新连接，并可能向 Host 按原版平台规则选择的测试目标发送消息。请到对应会话核对结果；此处不指定新收件人。 / Reconnect and send a test message to the original platform target selected by Host.").TextColor(muted)
+						ui.Text(c, i18n.T(i18n.KeyMiscImReconnectAndSendATestMessageToThe)).TextColor(muted)
 					}
 					if v.Review == "bot.delete" {
 						ui.Text(c, "删除该平台机器人连接及 Host 保存的绑定；需要重新接入才能恢复。").TextColor(muted)
@@ -235,7 +236,7 @@ func onboardingView(c *ui.Context, m Model) {
 							if value, ok := v.PolicyDrafts[b.BotID]; ok {
 								text = value
 							}
-							ui.Text(c, "允许名单（每行一个；Telegram User ID / WhatsApp 国际号码，不含 +）").TextColor(fg)
+							ui.Text(c, "允许名单（每行一个；Telegram User ID/WhatsApp 国际号码，不含 +）").TextColor(fg)
 							ui.TextArea(c.Key("allowlist"), &text).FillWidth().Lines(2, 5).Disabled(locked)
 							s.EditPolicy(v.Scope, b.BotID, text)
 							modes := []string{"self-only", "private-allowlist", "open"}
@@ -279,12 +280,12 @@ func channelStatusTime(raw json.RawMessage) string {
 
 func channelHealthDetails(c *ui.Context, b imonboard.Bot, fg, muted, accent ui.Color) {
 	if checked := channelStatusTime(b.Health.LastCheckedAt); checked != "" {
-		ui.Text(c, "最近检查 / Last checked: "+checked).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscImLastChecked)+checked).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if message := strings.TrimSpace(b.Error.Message); message != "" {
-		ui.Text(c, "连接错误 / Connection error: "+message).TextColor(accent).Selectable()
+		ui.Text(c, i18n.T(i18n.KeyMiscImConnectionError)+message).TextColor(accent).Selectable()
 		if code := strings.TrimSpace(b.Error.Code); code != "" {
-			ui.Text(c, "错误码 / Code: "+code).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyMiscImCode)+code).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 	}
 	e := b.LastMessageError
@@ -293,12 +294,12 @@ func channelHealthDetails(c *ui.Context, b imonboard.Bot, fg, muted, accent ui.C
 	if strings.TrimSpace(e.Code) == "" || strings.TrimSpace(e.Reason) == "" || strings.TrimSpace(e.Message) == "" || strings.TrimSpace(e.ReferenceID) == "" || e.At == nil {
 		return
 	}
-	ui.Text(c, "最近消息处理失败 / Last message failed").Bold().TextColor(accent)
+	ui.Text(c, i18n.T(i18n.KeyMiscImLastMessageFailed)).Bold().TextColor(accent)
 	ui.Text(c, strings.TrimSpace(e.Message)).TextColor(fg).Selectable()
-	ui.Text(c, fmt.Sprintf("错误码 / Code: %s · 参考号 / Reference: %s", e.Code, e.ReferenceID)).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+	ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscIMCodeReference), e.Code, e.ReferenceID)).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
 	raw, _ := json.Marshal(*e.At)
 	if occurred := channelStatusTime(raw); occurred != "" {
-		ui.Text(c, "发生时间 / Occurred: "+occurred).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscImOccurred)+occurred).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 func renderPairingQR(c *ui.Context, source string) {

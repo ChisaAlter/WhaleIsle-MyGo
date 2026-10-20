@@ -7,28 +7,31 @@ import (
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-const routineWatchAcknowledgement = "我理解命令影响及目录回退，允许按此配置自动执行 / I understand command effects and working-directory fallback"
+func routineWatchAcknowledgement() string {
+	return i18n.T(i18n.KeyMiscAssistantIUnderstandCommandEffectsAndWorking)
+}
 
 func routineContextName(id string, rows []pluginrpc.DshbotRoutine) string {
 	if id == "self" {
-		return "本任务上一轮输出 / This routine's previous output (self)"
+		return i18n.T(i18n.KeyMiscAssistantThisRoutineSPreviousOutputSelf)
 	}
 	for _, r := range rows {
 		if r.ID == id {
 			return r.Name + " (" + id + ")"
 		}
 	}
-	return "来源已不可用；保存前须明确移除 / Unavailable source; remove explicitly before saving: " + id
+	return i18n.T(i18n.KeyMiscAssistantUnavailableSourceRemoveExplicitlyBef) + id
 }
 func routineAdvancedEditor(c *ui.Context, m RoutineModel, disabled bool, fg, muted, accent ui.Color) {
 	routineAdvancedFields(c, m.State.Draft.Advanced, m.State.Scope.BotID, m.State.SelectedID, m.State.Routines, m.OnChange, disabled, fg, muted, accent)
 }
 func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, botID, currentID string, rows []pluginrpc.DshbotRoutine, onChange func(string, string), disabled bool, fg, muted, accent ui.Color) {
 	ui.Column(c.Key("routine-advanced")).Gap(6).Children(func() {
-		ui.Text(c, "高级配置 / Advanced settings").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantAdvancedSettings)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		ui.Text(c, "仅提交明确修改的高级字段；未改字段由 Host 保留。不会探测 URL、试运行命令或读取触发凭据。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		choices := []string{"self"}
 		for _, r := range rows {
@@ -41,7 +44,7 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 				choices = append(choices, id)
 			}
 		}
-		ui.Text(c, "上下文来源 / Context sources (最多 3 项 / max 3)").FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantContextSources)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		for _, id := range choices {
 			id := id
 			checked := slices.Contains(d.ContextFrom, id)
@@ -50,15 +53,15 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 			}
 		}
 		silent := d.SilentAllowed
-		if ui.Checkbox(c, &silent, "允许静默完成 / Allow silent response").Disabled(disabled).Changed() && onChange != nil {
+		if ui.Checkbox(c, &silent, i18n.T(i18n.KeyMiscAssistantAllowSilentResponse)).Disabled(disabled).Changed() && onChange != nil {
 			onChange("silentAllowed", fmt.Sprint(silent))
 		}
 		ui.Text(c, "静默只影响正常输出方式，不表示任务不会执行或没有外部影响。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if d.WatchUnknown {
-			ui.Text(c, "未知 watch 配置保持原样；明确选择类型才替换 / Unknown watch preserved: "+d.WatchRaw).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnknownWatchPreserved)+d.WatchRaw).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			for _, choice := range []struct{ id, label string }{{"", "不检查 / No watch"}, {"url", "读取 URL / URL watch"}, {"command", "执行命令 / Command watch"}} {
+			for _, choice := range []struct{ id, label string }{{"", i18n.T(i18n.KeyMiscAssistantNoWatch)}, {"url", i18n.T(i18n.KeyMiscAssistantUrlWatch)}, {"command", i18n.T(i18n.KeyMiscAssistantCommandWatch)}} {
 				choice := choice
 				if ui.Button(c, choice.label).Disabled(disabled || !d.WatchUnknown && d.WatchKind == choice.id).Clicked() && onChange != nil {
 					onChange("watchKind", choice.id)
@@ -67,16 +70,16 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 		})
 		if !d.WatchUnknown && d.WatchKind != "" {
 			value, timeout := d.WatchValue, d.WatchTimeout
-			label := "完整 URL / Full watch URL"
+			label := i18n.T(i18n.KeyMiscAssistantFullWatchUrl)
 			if d.WatchKind == "command" {
-				label = "完整 Host shell 命令 / Full Host shell command"
+				label = i18n.T(i18n.KeyMiscAssistantFullHostShellCommand)
 			}
 			ui.TextArea(c.Key("routine-watch-value"), &value).Label(label).Lines(2, 6).FillWidth().Disabled(disabled).OnChange(func() {
 				if onChange != nil {
 					onChange("watchValue", value)
 				}
 			})
-			ui.TextInput(c.Key("routine-watch-timeout"), &timeout).Label("超时毫秒 / Timeout ms (1–300000)").FillWidth().Disabled(disabled).OnChange(func() {
+			ui.TextInput(c.Key("routine-watch-timeout"), &timeout).Label(i18n.T(i18n.KeyMiscAssistantTimeoutMs1300000)).FillWidth().Disabled(disabled).OnChange(func() {
 				if onChange != nil {
 					onChange("watchTimeout", timeout)
 				}
@@ -92,16 +95,16 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 		sources = append(sources, routineContextName(id, m.State.Routines))
 	}
 	if len(sources) == 0 {
-		sources = []string{"无 / None"}
+		sources = []string{i18n.T(i18n.KeyMiscAssistantNone)}
 	}
-	ui.Text(c, "有效上下文来源 / Effective context sources:\n"+strings.Join(sources, "\n")+fmt.Sprintf("\nSilent allowed: %t", d.SilentAllowed)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+	ui.Text(c, i18n.T(i18n.KeyMiscAssistantEffectiveContextSources)+strings.Join(sources, "\n")+fmt.Sprintf("\nSilent allowed: %t", d.SilentAllowed)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 	ui.Text(c, "后续执行会将所选任务的上一轮输出提供给此 Bot（每份最多 8000 字符）；self 是本任务上一轮输出。静默不取消执行、工具或消息影响。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if d.WatchUnknown {
-		ui.Text(c, "有效 watch：未知配置，未编辑保持原样 / Effective watch is unrecognized and preserved:\n"+d.WatchRaw).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantEffectiveWatchUnrecognized)+d.WatchRaw).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 	} else if d.WatchKind == "" {
-		ui.Text(c, "有效 watch / Effective watch: none").FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantEffectiveWatchNone)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	} else {
-		ui.Text(c, fmt.Sprintf("有效 watch / Effective watch: %s\n完整目标 / Full target:\n%s\nTimeout: %s ms", d.WatchKind, d.WatchValue, d.WatchTimeout)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantEffectiveWatch), d.WatchKind, d.WatchValue, d.WatchTimeout)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 		if d.WatchKind == "url" {
 			ui.Text(c, "自动调度前 Host 会读取该 URL（会跟随重定向），内容可能作为此 Bot 的输入。").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 		}
@@ -109,7 +112,7 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 	if d.WatchKind == "command" || d.WatchUnknown {
 		workspace := r.WorkspaceID
 		if workspace == "" {
-			workspace = "（未配置 / not configured）"
+			workspace = i18n.T(i18n.KeyMiscAssistantNotConfigured)
 		}
 		ui.Text(c, "配置 workspaceId（未验证实际 cwd）: "+workspace+"\n运行时目录规则：若该路径存在且是目录则使用；否则用 DSH_HOME，未设时用 DSHD_HOME；均未设则继承 Host 进程目录。实际执行目录此刻无法核实，且运行时可能变化。\ncommand 使用 Host 的 cmd（Windows）或 sh（其他系统）执行，可能读写文件、启动程序、访问网络或发送信息。").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 	}
@@ -118,7 +121,7 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 	}
 	if dshbotstore.RoutineReviewNeedsWatchAcknowledgement(r) {
 		ack := r.WatchAcknowledged
-		if ui.Checkbox(c, &ack, routineWatchAcknowledgement).Disabled(m.State.Busy).Changed() && m.OnAcknowledgeWatch != nil {
+		if ui.Checkbox(c, &ack, routineWatchAcknowledgement()).Disabled(m.State.Busy).Changed() && m.OnAcknowledgeWatch != nil {
 			m.OnAcknowledgeWatch(ack)
 		}
 	}

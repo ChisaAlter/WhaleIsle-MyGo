@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotMemoryReviewUIExplicitEffectsAndConfirmation(t *testing.T) {
@@ -24,7 +25,7 @@ func TestBotMemoryReviewUIExplicitEffectsAndConfirmation(t *testing.T) {
 			if reads != 0 || saves != 0 {
 				t.Fatal("render performed action")
 			}
-			if err := tt.Click("审阅自动记忆配置 / Review memory learning"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewMemoryLearning)); err != nil {
 				t.Fatal(err)
 			}
 			text := strings.Join(tt.Texts(), "\n")
@@ -33,14 +34,14 @@ func TestBotMemoryReviewUIExplicitEffectsAndConfirmation(t *testing.T) {
 					t.Fatal("missing effect", term)
 				}
 			}
-			tt.Click("确认保存自动记忆配置 / Confirm memory learning")
+			tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmMemoryLearning))
 			if saves != 0 {
 				t.Fatal("saved without acknowledgement")
 			}
-			if err := tt.Click(botMemoryReviewAcknowledgement); err != nil {
+			if err := tt.Click(botMemoryReviewAcknowledgement()); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click("确认保存自动记忆配置 / Confirm memory learning"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmMemoryLearning)); err != nil {
 				t.Fatal(err)
 			}
 			if saves != 1 {

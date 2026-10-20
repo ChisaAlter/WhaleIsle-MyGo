@@ -43,7 +43,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 			}
 		}
 		if !found {
-			selected = s.Provider + " / " + s.Model + providerCopy("（当前值，目录未列出）", " (current, not in catalog)")
+			selected = s.Provider + " · " + s.Model + providerCopy("（当前值，目录未列出）", " (current, not in catalog)")
 			routes = append(routes, settingsstore.VisionRoute{Provider: s.Provider, Model: s.Model, Label: selected})
 		}
 	}

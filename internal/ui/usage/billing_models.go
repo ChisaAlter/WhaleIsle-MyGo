@@ -11,7 +11,7 @@ import (
 func billingModelsView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	v := m.Store.BillingModels()
 	ui.Row(c).Gap(6).Children(func() {
-		ui.Text(c, usageText("选择服务商 / 模型", "Choose provider / model")).Bold().TextColor(fg).Grow(1)
+		ui.Text(c, usageText("选择服务商与模型", "Choose provider and model")).Bold().TextColor(fg).Grow(1)
 		if ui.Button(c, usageText("刷新模型目录", "Refresh model directory")).Disabled(v.Loading).Clicked() {
 			m.Store.LoadBillingModels(context.Background())
 		}

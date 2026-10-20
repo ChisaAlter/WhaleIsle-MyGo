@@ -166,7 +166,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 			ui.Text(c, fmt.Sprintf("%s · %s", v.ActiveID, v.Info.Cwd)).FontSize(10).TextColor(muted)
 			hostRenameView(c, store, v, session, muted)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, terminalLabel("重连 / 接管输入", "Reconnect / take control")).FontSize(11).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
+				if ui.Button(c, terminalLabel("重连并接管输入", "Reconnect and take control")).FontSize(11).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
 					store.Connect(v.Owner, session, v.ActiveID)
 				}
 				if ui.Button(c, terminalLabel("关闭 Host 进程", "Close Host process")).FontSize(11).Disabled(!v.Ready || v.Phase == "closing" || v.Phase == "closed" || v.Busy).Clicked() {

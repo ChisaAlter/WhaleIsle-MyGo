@@ -108,9 +108,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel.Padding(4).Gap(2).MinWidth(200).MaxWidthPercent(100).
-			Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).Radius(10).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18))
+		panel = menuSurface(panel.Padding(4).Gap(2).MinWidth(200).MaxWidthPercent(100), colors)
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.Rows[nav.Active].RequestFocus(c)
@@ -123,7 +121,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(2).Children(func() {
 				for i, o := range options {
 					i, o := i, o
-					row := ui.Button(c, "").Bind(nav.Rows[i]).FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
+					row := ui.Button(c, "").Bind(nav.Rows[i]).FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).
 						Background(ui.Transparent).AlignItems(ui.Center)
 					if row.Hovered() || i == nav.Active {
 						row = row.Background(chrome.Color(colors.Hover))

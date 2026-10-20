@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotTextProfileUICompleteTextAndIndependentImpact(t *testing.T) {
@@ -23,23 +24,23 @@ func TestBotTextProfileUICompleteTextAndIndependentImpact(t *testing.T) {
 	if reads != 0 || saves != 0 {
 		t.Fatal("render action")
 	}
-	if err := tt.Click("审阅文本资料 / Review text profile"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewTextProfile)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"old-address", "new-address", "Old display", "Old final line", "New final line", "(空 / empty)", "revision 8", "presentation", "rename", "requestSync", "重建已暂停", "模型", "工具", "外部消息", "费用", "@name", "系统提示词", "不自动重试", "不主动 prompt/start/resume/open", "12000", "workspace-keep", "keep-provider", "https://fixture.invalid"} {
+	for _, term := range []string{"old-address", "new-address", "Old display", "Old final line", "New final line", i18n.T(i18n.KeyMiscAssistantEmpty), "revision 8", "presentation", "rename", "requestSync", "重建已暂停", "模型", "工具", "外部消息", "费用", "@name", "系统提示词", "不自动重试", "不主动 prompt/start/resume/open", "12000", "workspace-keep", "keep-provider", "https://fixture.invalid"} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing full review", term)
 		}
 	}
-	tt.Click("确认保存文本资料 / Confirm text profile save")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmTextProfileSave))
 	if saves != 0 {
 		t.Fatal("unacknowledged")
 	}
-	if err := tt.Click(botTextProfileAcknowledgement); err != nil {
+	if err := tt.Click(botTextProfileAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存文本资料 / Confirm text profile save"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmTextProfileSave)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

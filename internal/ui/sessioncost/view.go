@@ -108,15 +108,19 @@ func tokensDetail(b cost.Bucket) string {
 		compactCount(b.Hit)+rate, compactCount(b.Miss), compactCount(b.Output))
 }
 
+// OwnsPerformanceStats reports that this package paints the composer's whole
+// statistics line, including the decode-speed ("tok/s") and cache-hit clusters
+// the conversation feature can also derive. The conversation's own performance
+// row must stay off beside View while this is true.
+const OwnsPerformanceStats = true
+
 // dockLine is the composer's statistics strip: one centered row of compact
-// clusters ("12 轮 280 步 · 237 tok/s", "77.7M tok · 缓存命中 99.7%"). The chat
-// feature owns the decode-speed line while its own preference shows it, so the
-// counts cluster appears here only when that line is not painted.
+// clusters ("12 轮 280 步 · 237 tok/s", "77.7M tok · 缓存命中 99.7%"). It is the
+// only place the composer reports those numbers; see OwnsPerformanceStats.
 func dockLine(c *ui.Context, m Model, r cost.Result, stats bool, muted ui.Color) {
 	var clusters []string
 	perfTokens, perfMS, perfSteps := session.RecordedPerformance(m.Snapshot.Messages)
-	chatShowsPerformance := settings.ChatPreferencesFrom(m.Preferences).PerformanceUsage != "compact" && perfMS > 0
-	if stats && !chatShowsPerformance {
+	if stats {
 		var parts []string
 		if turns := len(m.Snapshot.TurnUsage); turns > 0 && perfSteps > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s %d %s", turns, i18n.T(i18n.KeyComposerDockTurns),

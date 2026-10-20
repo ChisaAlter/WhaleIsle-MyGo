@@ -5,6 +5,7 @@ import (
 	"testing"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
@@ -36,15 +37,15 @@ func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
 			}
 			want := "30m"
 			if frequency == "interval" {
-				if err := tt.Click("分钟 / Minutes"); err != nil {
+				if err := tt.Click(i18n.T(i18n.KeyMiscAssistantMinutes)); err != nil {
 					t.Fatal(err)
 				}
 				want = "every 1m"
 			}
-			if err := tt.Click("新任务：暂停 / New routine paused"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantNewRoutinePaused)); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click("审阅新建… / Review creation…"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 0 || !tt.HasText(routineCreateImpact(true)) {
@@ -54,19 +55,19 @@ func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
 				t.Fatal("review schedule incorrect")
 			}
 			// A reviewed form locks frequency and duration; only Back enables changes.
-			if err := tt.Click("每日 / Daily"); err == nil && creator.Snapshot(key).Draft.Frequency != frequency {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantDaily)); err == nil && creator.Snapshot(key).Draft.Frequency != frequency {
 				t.Fatal("reviewed frequency changed")
 			}
-			if err := tt.Click("返回修改 / Back to draft"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantBackToDraft2)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 0 || creator.Snapshot(key).Review != nil {
 				t.Fatal("back submitted")
 			}
-			if err := tt.Click("审阅新建… / Review creation…"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click("确认保存新例行任务 / Confirm new routine"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 1 || schedule != want {

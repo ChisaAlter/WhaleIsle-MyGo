@@ -6,6 +6,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotObjectiveUIIndependentActionReview(t *testing.T) {
@@ -54,7 +55,7 @@ func TestBotObjectiveUIIndependentActionReview(t *testing.T) {
 			if action != "clear" && !strings.Contains(text, "没有原子 CAS") {
 				t.Fatal("invented start/pause CAS")
 			}
-			if err := tt.Click("取消目标操作 / Cancel objective action"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCancelObjectiveAction)); err != nil {
 				t.Fatal(err)
 			}
 			if actions != 0 {
@@ -63,7 +64,7 @@ func TestBotObjectiveUIIndependentActionReview(t *testing.T) {
 			if err := tt.Click(botObjectiveActionLabel(action)); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click("确认目标操作 / Confirm objective action"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmObjectiveAction)); err != nil {
 				t.Fatal(err)
 			}
 			if actions != 1 {

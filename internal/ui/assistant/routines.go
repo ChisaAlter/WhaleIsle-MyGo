@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -38,16 +39,16 @@ type RoutineModel struct {
 func routineActionLabel(action string, enabled bool) string {
 	switch action {
 	case "save":
-		return "核对并保存… / Review save…"
+		return i18n.T(i18n.KeyMiscAssistantReviewSave)
 	case "toggle":
 		if enabled {
-			return "暂停例行任务… / Pause routine…"
+			return i18n.T(i18n.KeyMiscAssistantPauseRoutine)
 		}
-		return "启用例行任务… / Enable routine…"
+		return i18n.T(i18n.KeyMiscAssistantEnableRoutine)
 	case "run":
-		return "立即运行… / Run now…"
+		return i18n.T(i18n.KeyMiscAssistantRunNow)
 	case "delete":
-		return "删除例行任务… / Delete routine…"
+		return i18n.T(i18n.KeyMiscAssistantDeleteRoutine)
 	}
 	return action
 }
@@ -90,14 +91,14 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		botObjectiveBlock(c, r.Objective, blocked, fg, muted, accent)
 		botObjectiveConfigBlock(c, r.ObjectiveConfig, blocked, fg, muted, accent)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Bot 例行任务 / Bot routines").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, "刷新例行任务 / Refresh routines").Disabled(blocked || s.Scope.BotID == "").Clicked() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotRoutines)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshRoutines)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 				r.OnRefresh()
 			}
 		})
 		ui.Text(c, "读取所选 Bot 的真实例行任务。下方可新建八种时间类型；已有任务可编辑上下文、静默及 watch，并可独立审阅获取当前 Host 目录共享触发凭据。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if s.Scope.BotID == "" {
-			ui.Text(c, "先选择当前 Host 的 Bot / Select a Bot first").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSelectABotFirst)).TextColor(muted)
 			return
 		}
 		if s.Error != "" {
@@ -107,15 +108,15 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, "请刷新读取当前 Host。未确认结果前不开放写操作 / Refresh before making changes.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeMakingChanges)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Busy {
-			ui.Text(c, "等待 Host… / Waiting for Host…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Loaded {
 			ui.Text(c, fmt.Sprintf("%s · Bot %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if len(s.Routines) == 0 {
-				ui.Text(c, "此 Bot 暂无例行任务 / No routines for this Bot").TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoRoutinesForThisBot)).TextColor(muted)
 			}
 		}
 		// Original dismissals last for this canonical session, without changing
@@ -130,25 +131,25 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 			}
 		}
 		if len(missed) > 0 {
-			ui.Text(c, fmt.Sprintf("%d 个定时任务错过运行 / Missed scheduled runs", len(missed))).TextColor(accent)
-			if ui.Button(c, "知道了 / Dismiss missed-run notice").Clicked() {
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantMissedRuns), len(missed))).TextColor(accent)
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDismissMissedRunNotice)).Clicked() {
 				for _, id := range missed {
 					(*dismissed)[id] = true
 				}
 			}
 		}
 		query := ui.Local(block, "routine-query:"+s.Scope.HostKey+":"+s.Scope.BotID, func() string { return "" })
-		ui.TextInput(c.Key("routine-search"), query).Label("搜索定时任务、机器人或错误 / Search routines, bots, or errors").FillWidth()
+		ui.TextInput(c.Key("routine-search"), query).Label(i18n.T(i18n.KeyMiscAssistantSearchRoutinesBotsOrErrors)).FillWidth()
 		visible := visibleBotRoutines(s.Routines, s.BotName, *query)
 		if s.Loaded && len(s.Routines) > 0 && len(visible) == 0 {
-			ui.Text(c, "没有匹配的定时任务 / No matching routines").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingRoutines)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		for _, row := range visible {
 			row := row
 			ui.Column(c.Key("bot-routine-"+row.ID)).Background(field).Border(1, border).Radius(8).Padding(10).Gap(6).Children(func() {
-				status := "暂停 / Paused"
+				status := i18n.T(i18n.KeyMiscAssistantPaused)
 				if row.Enabled {
-					status = "启用 / Enabled"
+					status = i18n.T(i18n.KeyMiscAssistantEnabled3)
 				}
 				title := firstTaskValue(row.Name, row.ID) + " · " + status
 				if r.OnSelect != nil && ui.Button(c, title).Disabled(blocked).Clicked() {
@@ -157,24 +158,24 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				ui.Text(c, fmt.Sprintf("%s · %s · %s", row.ID, row.Schedule, row.Timezone)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				for _, id := range s.MissedIDs {
 					if id == row.ID && s.MissedKnown && !(*dismissed)[id] {
-						ui.Text(c, "Host 标记为错过执行 / Missed scheduled run").FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+						ui.Text(c, i18n.T(i18n.KeyMiscAssistantMissedScheduledRun)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 					}
 				}
 				if s.SelectedID != row.ID {
 					return
 				}
-				ui.Text(c, "提示词 / Prompt: "+row.Prompt).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantPrompt)+row.Prompt).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, fmt.Sprintf("Next: %s · Last: %s\nRuns: %d / %s · Outcome: %s", taskTime(row.NextRunAt), taskTime(row.LastRunAt), row.RunCount, routineLimit(row.MaxRuns), firstTaskValue(row.LastOutcome, "—"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				if row.LastError != "" {
 					ui.Text(c, row.LastError).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				}
 				if row.LastOutput != "" {
-					ui.Text(c, "上次输出 / Last output: "+row.LastOutput).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+					ui.Text(c, i18n.T(i18n.KeyMiscAssistantLastOutput)+row.LastOutput).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("Context: %s · Silent allowed: %t\nWatch: %s", strings.Join(row.ContextFrom, ", "), row.SilentAllowed, firstTaskValue(string(row.Watch), "—"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				routineTriggerBlock(c, r, blocked, fg, muted, accent)
 				ui.Row(c).Gap(6).Children(func() {
-					if r.OnEdit != nil && ui.Button(c, "编辑例行任务 / Edit routine").Disabled(blocked || !s.Loaded).Clicked() {
+					if r.OnEdit != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantEditRoutine)).Disabled(blocked || !s.Loaded).Clicked() {
 						r.OnEdit()
 					}
 					for _, action := range []string{"toggle", "run", "delete"} {
@@ -187,11 +188,11 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				if s.Draft != nil && s.Draft.ID == row.ID {
 					routineEditor(c, r, blocked, fg, muted, accent)
 				}
-				ui.Text(c, "运行历史 / Run history (latest 10)").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRunHistoryLatest10)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 				if row.RunHistory == nil {
-					ui.Text(c, "Host 未提供运行历史 / History unavailable").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyMiscAssistantHistoryUnavailable)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				} else if len(row.RunHistory) == 0 {
-					ui.Text(c, "暂无运行记录 / No recorded runs").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoRecordedRuns)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				for i := len(row.RunHistory) - 1; i >= 0 && i >= len(row.RunHistory)-10; i-- {
 					run := row.RunHistory[i]
@@ -206,7 +207,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 			review := s.Review
 			cmd := review.Command
 			ui.Column(c.Key("routine-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, "确认 / Review: "+routineActionLabel(cmd.Action, cmd.EnabledBefore)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReview)+routineActionLabel(cmd.Action, cmd.EnabledBefore)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s\nRoutine: %s (%s) · revision %d", r.HostLabel, s.BotName, cmd.BotID, review.SessionID, review.Name, cmd.ID, cmd.Revision)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, "Prompt: "+review.Prompt+"\nSchedule: "+review.Schedule+" · "+review.Timezone).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				if cmd.Action == "save" {
@@ -217,10 +218,10 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					routineAdvancedReview(c, r, *review, fg, muted, accent)
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if r.OnDismiss != nil && ui.Button(c, "返回 / Back to routine").Disabled(s.Busy).Clicked() {
+					if r.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToRoutine)).Disabled(s.Busy).Clicked() {
 						r.OnDismiss()
 					}
-					if r.OnConfirm != nil && ui.Button(c, "确认例行任务操作 / Confirm routine action").Disabled(blocked || !s.Loaded || cmd.Revision != s.Revision || dshbotstore.RoutineReviewNeedsWatchAcknowledgement(*review) && !review.WatchAcknowledged).Clicked() {
+					if r.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)).Disabled(blocked || !s.Loaded || cmd.Revision != s.Revision || dshbotstore.RoutineReviewNeedsWatchAcknowledgement(*review) && !review.WatchAcknowledged).Clicked() {
 						r.OnConfirm()
 					}
 				})
@@ -230,7 +231,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 }
 func routineLimit(n int) string {
 	if n == 0 {
-		return "不限 / Unlimited"
+		return i18n.T(i18n.KeyMiscAssistantUnlimited)
 	}
 	return fmt.Sprint(n)
 }
@@ -238,11 +239,11 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, accen
 	d := *m.State.Draft
 	disabled := blocked || m.State.Review != nil
 	ui.Column(c.Key("routine-editor-" + d.ID)).Gap(7).Children(func() {
-		ui.Text(c, fmt.Sprintf("本地草稿 / Local draft · revision %d", d.Revision)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantLocalDraft), d.Revision)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 		if d.Revision != m.State.Revision {
-			ui.Text(c, "草稿基线已过期；核对当前记录后可丢弃并重新编辑。 / Draft revision is stale.").FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraftRevisionIsStale)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}
-		for _, f := range []struct{ id, label, value string }{{"name", "名称 / Routine name", d.Edit.Name}, {"schedule", "时间规则 / Schedule", d.Edit.Schedule}, {"timezone", "时区 / Timezone", d.Edit.Timezone}, {"maxRuns", "执行次数上限 / Max runs (0 = unlimited)", d.MaxRunsText}} {
+		for _, f := range []struct{ id, label, value string }{{"name", i18n.T(i18n.KeyMiscAssistantRoutineName), d.Edit.Name}, {"schedule", i18n.T(i18n.KeyMiscAssistantSchedule), d.Edit.Schedule}, {"timezone", i18n.T(i18n.KeyMiscAssistantTimezone), d.Edit.Timezone}, {"maxRuns", i18n.T(i18n.KeyMiscAssistantMaxRuns0Unlimited), d.MaxRunsText}} {
 			f := f
 			value := f.value
 			ui.TextInput(c.Key("routine-field-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
@@ -253,21 +254,21 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, accen
 		}
 		ui.Text(c, "规则示例：30m（一次）、every 1h、0 9 * * 1-5；由 Host 校验。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		prompt := d.Edit.Prompt
-		ui.TextArea(c.Key("routine-prompt"), &prompt).Label("例行任务提示词 / Routine prompt").Lines(4, 10).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextArea(c.Key("routine-prompt"), &prompt).Label(i18n.T(i18n.KeyMiscAssistantRoutinePrompt)).Lines(4, 10).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("prompt", prompt)
 			}
 		})
 		routineAdvancedEditor(c, m, disabled, fg, muted, accent)
-		enabledLabel := "草稿：暂停 / Draft paused"
+		enabledLabel := i18n.T(i18n.KeyMiscAssistantDraftPaused)
 		if d.Edit.Enabled {
-			enabledLabel = "草稿：启用 / Draft enabled"
+			enabledLabel = i18n.T(i18n.KeyMiscAssistantDraftEnabled)
 		}
 		if m.OnChange != nil && ui.Button(c, enabledLabel).Disabled(disabled).Clicked() {
 			m.OnChange("enabled", fmt.Sprint(!d.Edit.Enabled))
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if m.OnDiscard != nil && ui.Button(c, "丢弃草稿 / Discard routine draft").Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardRoutineDraft)).Disabled(blocked).Clicked() {
 				m.OnDiscard()
 			}
 			if m.OnReview != nil && ui.Button(c, routineActionLabel("save", d.Edit.Enabled)).Disabled(disabled || !m.State.Loaded || d.Revision != m.State.Revision).Clicked() {

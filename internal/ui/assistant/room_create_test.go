@@ -24,14 +24,14 @@ func TestRoomCreateUICompleteReviewAndExplicitConfirmation(t *testing.T) {
 			t.Fatal("missing reviewed value or effect", term)
 		}
 	}
-	tt.Click(roomCreateConfirmLabel)
+	tt.Click(roomCreateConfirmLabel())
 	if saves != 0 {
 		t.Fatal("unacknowledged creation")
 	}
-	if err := tt.Click(roomCreateAcknowledgement); err != nil {
+	if err := tt.Click(roomCreateAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(roomCreateConfirmLabel); err != nil {
+	if err := tt.Click(roomCreateConfirmLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

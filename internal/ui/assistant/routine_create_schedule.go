@@ -1,23 +1,27 @@
 package assistant
 
+import (
+	"whaleisle/internal/ui/i18n"
+)
+
 func routineCreateFrequencyLabel(frequency string) string {
 	switch frequency {
 	case "hourly":
-		return "每小时 / Hourly"
+		return i18n.T(i18n.KeyMiscAssistantHourly)
 	case "weekdays":
-		return "工作日 / Weekdays"
+		return i18n.T(i18n.KeyMiscAssistantWeekdays)
 	case "weekly":
-		return "每周 / Weekly"
+		return i18n.T(i18n.KeyMiscAssistantWeekly)
 	case "monthly":
-		return "每月 / Monthly"
+		return i18n.T(i18n.KeyMiscAssistantMonthly)
 	case "advanced":
-		return "高级 Cron / Advanced"
+		return i18n.T(i18n.KeyMiscAssistantAdvanced)
 	case "once":
-		return "延迟一次 / Once"
+		return i18n.T(i18n.KeyMiscAssistantOnce)
 	case "interval":
-		return "固定间隔 / Interval"
+		return i18n.T(i18n.KeyMiscAssistantInterval)
 	default:
-		return "每日 / Daily"
+		return i18n.T(i18n.KeyMiscAssistantDaily)
 	}
 }
 

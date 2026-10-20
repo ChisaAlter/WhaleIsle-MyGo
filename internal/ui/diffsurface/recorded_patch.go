@@ -10,6 +10,6 @@ func RecordedPatchView(c *ui.Context, source string, split, wrap bool, st diff.S
 	w := &Workbench{}
 	w.View.Split, w.View.Wrap = split, wrap
 	w.View.update(source)
-	w.View.setAll(true)
+	w.View.setAllClosed(false)
 	paintPatchFiles(c, Model{Workbench: w}, source, st)
 }

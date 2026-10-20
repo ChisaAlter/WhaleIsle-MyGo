@@ -35,7 +35,7 @@ func pricingDialog(c *ui.Context, open *bool, content func()) {
 func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	v := m.Store.Billing()
 	ui.Text(c, usageText("价格配置与费用估算", "Price settings and cost estimates")).Bold().TextColor(fg)
-	ui.Text(c, usageText("单位：CNY / 百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, usageText("计价货币 CNY，单位为每百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if v.Err != "" {
 		ui.Text(c, v.Err).TextColor(accent)
 	} else if v.Notice != "" {
@@ -66,7 +66,7 @@ func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	if v.Dirty {
 		ui.Text(c, usageText("有未保存草稿；估算仍使用已保存价格。保存失败可重试。", "Unsaved draft; estimates still use saved prices. Failed saves can be retried.")).TextColor(accent)
 	}
-	ui.Text(c, usageText("峰值顺序：缓存命中 / 未命中（含缓存写入）/ 输出。谷值三项留空时沿原面板按峰值一半估算，此为配置约定。", "Rate order: cache hit / miss (including cache writes) / output. Three blank off-peak fields use half of peak, following the original panel convention.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, usageText("峰值顺序：缓存命中、未命中（含缓存写入）、输出。谷值三项留空时沿原面板按峰值一半估算，此为配置约定。", "Rate order: cache hit, miss (including cache writes), output. Three blank off-peak fields use half of peak, following the original panel convention.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	keys := make([]string, 0, len(v.Drafts))
 	for k := range v.Drafts {
 		keys = append(keys, k)
@@ -134,13 +134,13 @@ func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 		} else {
 			unpriced++
 		}
-		ui.Text(c, fmt.Sprintf("%s / %s · %s", row.Provider, row.Model, label)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%s · %s · %s", row.Provider, row.Model, label)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if priced > 0 {
 		ui.Text(c, usageText("全部历史已计价部分估算", "All-time priced portion estimate")+fmt.Sprintf(": ≈ CNY %.2f · %d priced · %d unpriced", total/100, priced, unpriced)).TextColor(fg)
 	}
 	cv := st.Overview.Coverage
 	if unpriced > 0 || cv.SessionsFailed > 0 || cv.SessionsPending > 0 || st.Overview.Stale || st.Err != "" {
-		ui.Text(c, usageText("价格或用量覆盖不完整 / 数据可能过期，不代表完整费用。", "Price/usage coverage is incomplete or data may be stale; this is not a complete cost.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+		ui.Text(c, usageText("价格或用量覆盖不完整，或数据可能过期，不代表完整费用。", "Price/usage coverage is incomplete or data may be stale; this is not a complete cost.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 }

@@ -6,10 +6,13 @@ import (
 	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-const botAvatarAcknowledgement = "我理解头像替换、会话展示及目标可能执行的影响 / I understand avatar replacement, presentation and execution effects"
+func botAvatarAcknowledgement() string {
+	return i18n.T(i18n.KeyMiscAssistantIUnderstandAvatarReplacementPresenta)
+}
 
 type BotAvatarModel struct {
 	OnChooseImage, OnApplyImageCrop, OnCancelImageCrop            func()
@@ -28,9 +31,9 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 	s := m.State
 	blocked = blocked || s.Busy
 	ui.Column(c.Key("bot-avatar")).Gap(7).Children(func() {
-		ui.Text(c, "个人 Bot 头像 / Personal Bot avatar").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantPersonalBotAvatar)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, "原版8种轮廓×11种颜色，支持明确选择本地JPEG/PNG并裁剪。原生静态预览；动画仍在Bot Web。不自动拉取远程图片或读取文件路径。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, "刷新头像 / Refresh avatar").Disabled(blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshAvatar)).Disabled(blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -43,23 +46,23 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, "先读回核实；未知结果保留并锁定草稿，只读回，不自动重试 / Read back before saving").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadBackBeforeSaving)).TextColor(muted)
 		}
 		if s.Status.Bot.ID == "" {
 			return
 		}
 		current, err := pluginrpc.DshbotAvatarValue(s.Status)
 		if err != nil {
-			ui.Text(c, "头像记录无法无损读取，请用 Bot Web / Unsupported avatar; use Bot Web").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnsupportedAvatarUseBotWeb)).TextColor(accent)
 			return
 		}
-		ui.Text(c, fmt.Sprintf("Host: %s\nBot ID: %s · Session ID: %s · revision %d\n当前已保存头像 / Saved avatar: %s", m.HostLabel, s.Status.Bot.ID, s.Status.Bot.SessionID, s.Status.Revision, botAvatarSummary(current))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-		previewErr := botAvatarPreview(c.Key("saved-avatar"), current, 64, "已保存头像 / Saved avatar preview", fg, muted)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantSavedAvatarDetail), m.HostLabel, s.Status.Bot.ID, s.Status.Bot.SessionID, s.Status.Revision, botAvatarSummary(current))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
+		previewErr := botAvatarPreview(c.Key("saved-avatar"), current, 64, i18n.T(i18n.KeyMiscAssistantSavedAvatarPreview), fg, muted)
 		if previewErr != nil {
-			ui.Text(c, "现有图片无法安全预览，保留原头像；请用 Bot Web 核对并编辑 / Existing image unavailable; preserved, use Bot Web").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantExistingImageUnavailablePreservedUse)).TextColor(accent)
 		}
 		if !s.Writable {
-			ui.Text(c, "Host 写权限未核实 / Write authority unavailable").TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWriteAuthorityUnavailable)).TextColor(accent)
 		}
 		if s.Status.WriteError != "" {
 			ui.Text(c, s.Status.WriteError).TextColor(accent).Selectable()
@@ -82,7 +85,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 					v := pluginrpc.DshbotAvatarValues{Kind: "blob", Shape: choice, Color: color}
 					ui.Column(c.Key("shape-" + choice)).Gap(2).Children(func() {
 						botAvatarDrawBlob(c, v, 40, "shape preview "+choice, fg, muted)
-						button := ui.Button(c, "轮廓 / Shape: "+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
+						button := ui.Button(c, i18n.T(i18n.KeyMiscAssistantShape)+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
 						if draft.Kind == "blob" && draft.Shape == choice {
 							button.Border(2, accent)
 						}
@@ -100,7 +103,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 					v := pluginrpc.DshbotAvatarValues{Kind: "blob", Shape: shape, Color: choice}
 					ui.Column(c.Key("color-" + choice)).Gap(2).Children(func() {
 						botAvatarDrawBlob(c, v, 32, "color preview "+choice, fg, muted)
-						button := ui.Button(c, "颜色 / Color: "+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
+						button := ui.Button(c, i18n.T(i18n.KeyMiscAssistantColor)+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
 						if draft.Kind == "blob" && draft.Color == choice {
 							button.Border(2, accent)
 						}
@@ -111,24 +114,24 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 				}
 			})
 		}
-		ui.Text(c, "草稿 / Draft: "+botAvatarSummary(draft)).TextColor(fg).Selectable()
-		_ = botAvatarUncachedPreview(c.Key("draft-avatar"), draft, 64, "头像草稿 / Draft avatar preview", fg, muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraft)+botAvatarSummary(draft)).TextColor(fg).Selectable()
+		_ = botAvatarUncachedPreview(c.Key("draft-avatar"), draft, 64, i18n.T(i18n.KeyMiscAssistantDraftAvatarPreview), fg, muted)
 		if draft.Kind == "image" {
 			for _, crop := range []string{"circle", "square"} {
-				if ui.Button(c, "草稿图片显示 / Draft image crop: "+crop).Disabled(!editable).Clicked() && m.OnChange != nil {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDraftImageCrop)+crop).Disabled(!editable).Clicked() && m.OnChange != nil {
 					next := draft
 					next.Crop = crop
 					m.OnChange(next)
 				}
 			}
 		}
-		if ui.Button(c, "丢弃头像草稿 / Discard avatar draft").Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardAvatarDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, "审阅头像 / Review avatar").Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewAvatar)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, "采用匹配头像读回 / Adopt matching avatar readback").Disabled(blocked || previewErr != nil).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingAvatarReadback)).Disabled(blocked || previewErr != nil).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -138,11 +141,11 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		cmd := r.Command
 		before, _ := pluginrpc.DshbotAvatarValue(cmd.Expected)
 		ui.Column(c.Key("bot-avatar-confirmation")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
-			ui.Text(c, "确认头像替换 / Confirm avatar replacement").Bold().TextColor(fg)
-			ui.Text(c, fmt.Sprintf("Host: %s\nBot ID: %s · Session ID: %s · revision %d\n原头像 / Before: %s", m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botAvatarSummary(before))).TextColor(fg).Selectable()
-			beforeErr := botAvatarPreview(c.Key("before-avatar"), before, 72, "原头像 / Before avatar preview", fg, muted)
-			ui.Text(c, "新头像 / After: "+botAvatarSummary(cmd.Values)).TextColor(fg).Selectable()
-			afterErr := botAvatarUncachedPreview(c.Key("after-avatar"), cmd.Values, 72, "新头像 / After avatar preview", fg, muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantConfirmAvatarReplacement)).Bold().TextColor(fg)
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantBeforeAvatarDetail), m.HostLabel, cmd.Expected.Bot.ID, cmd.Expected.Bot.SessionID, cmd.Expected.Revision, botAvatarSummary(before))).TextColor(fg).Selectable()
+			beforeErr := botAvatarPreview(c.Key("before-avatar"), before, 72, i18n.T(i18n.KeyMiscAssistantBeforeAvatarPreview), fg, muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantAfter)+botAvatarSummary(cmd.Values)).TextColor(fg).Selectable()
+			afterErr := botAvatarUncachedPreview(c.Key("after-avatar"), cmd.Values, 72, i18n.T(i18n.KeyMiscAssistantAfterAvatarPreview), fg, muted)
 			if before.Kind == "image" && cmd.Values.Kind == "blob" {
 				ui.Text(c, "将用上面的 blob 替换当前内嵌图片；保存后该 Bot 的头像记录不再保留旧图片。不会删除原始本地图片文件。").TextColor(accent)
 			}
@@ -153,13 +156,13 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 			ui.Text(c, "忙碌/冷会话可能后续 idle 同步；同步失败可能只记Host日志。资料回执不证明会话展示、重命名、目标同步或执行完成。revision CAS 不原子锁定 live 目标；不停止在途执行，不撤销已发生操作。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Text(c, fmt.Sprintf("保留名称/标题/描述、模型、工作区及其他完整资料。workspaceId: %s\nmodel: %s\n不主动 prompt/start/resume/open。关闭不撤回已发请求；未知结果锁定，只读回，不自动重试。取消图片选择会清除本次临时源图；取消图片保存或隐藏会丢弃未发送图片草稿。已发送结果未知时保留审阅图用于读回核对。", botCapabilityProfileText(cmd.Expected, "workspaceId"), botCapabilityProfileText(cmd.Expected, "model"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botAvatarAcknowledgement).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if ui.Checkbox(c, &ack, botAvatarAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, "取消头像保存 / Cancel avatar save").Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelAvatarSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, "确认保存头像 / Confirm avatar save").Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || beforeErr != nil || afterErr != nil).Clicked() && m.OnConfirm != nil {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || beforeErr != nil || afterErr != nil).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

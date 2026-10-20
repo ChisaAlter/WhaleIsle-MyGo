@@ -43,7 +43,7 @@ func TestRoomDeleteUIExplicitRoomConfirmation(t *testing.T) {
 			t.Fatal("missing room-specific review", s)
 		}
 	}
-	tt.Click(roomDeleteConfirmLabel)
+	tt.Click(roomDeleteConfirmLabel())
 	if writes != 0 {
 		t.Fatal("default room deletion")
 	}
@@ -51,7 +51,7 @@ func TestRoomDeleteUIExplicitRoomConfirmation(t *testing.T) {
 	state.Review.TypedName = "name-a"
 	state.Review.Acknowledged = true
 	tt.Frame()
-	tt.Click(roomDeleteConfirmLabel)
+	tt.Click(roomDeleteConfirmLabel())
 	if writes != 0 {
 		t.Fatal("member identity accepted")
 	}
@@ -59,12 +59,12 @@ func TestRoomDeleteUIExplicitRoomConfirmation(t *testing.T) {
 	state.Review.TypedName = "name-room"
 	state.Review.Acknowledged = false
 	tt.Frame()
-	tt.Click(roomDeleteConfirmLabel)
+	tt.Click(roomDeleteConfirmLabel())
 	if writes != 0 {
 		t.Fatal("missing danger consent")
 	}
-	tt.Click(botDeleteDangerAcknowledgement)
-	if err := tt.Click(roomDeleteConfirmLabel); err != nil {
+	tt.Click(botDeleteDangerAcknowledgement())
+	if err := tt.Click(roomDeleteConfirmLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if writes != 1 {

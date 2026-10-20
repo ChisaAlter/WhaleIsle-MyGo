@@ -33,14 +33,14 @@ func TestRoomTextUICompleteReviewAndExplicitImpact(t *testing.T) {
 			t.Fatal("missing room text/effect", s)
 		}
 	}
-	tt.Click(roomEditConfirmLabel)
+	tt.Click(roomEditConfirmLabel())
 	if saves != 0 {
 		t.Fatal("render/unconfirmed save")
 	}
-	if e := tt.Click(roomEditAcknowledgement); e != nil {
+	if e := tt.Click(roomEditAcknowledgement()); e != nil {
 		t.Fatal(e)
 	}
-	if e := tt.Click(roomEditConfirmLabel); e != nil {
+	if e := tt.Click(roomEditConfirmLabel()); e != nil {
 		t.Fatal(e)
 	}
 	if saves != 1 {

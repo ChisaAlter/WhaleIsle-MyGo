@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/settings"
+	"whaleisle/internal/ui/theme"
 )
 
 func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
@@ -20,6 +21,12 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 		return nil
 	}
 	p, err := s.cfgStore.WallpaperBackground()
+	// A fresh profile starts on the product's dark appearance with the default
+	// aurora background, matching the shipped Electron first-run look. Saved
+	// profiles keep whatever they already stored.
+	if s.cfgStore.IsFirstRun() {
+		p = theme.FirstRunAppearance()
+	}
 	g := settings.NewWallpaperEditor(p, filepath.Join(paths.UserDataDir(), "wallpapers"), func(p wallpapers.Preferences) error {
 		if s.hostAppearanceAccepted {
 			if s.hostAppearance == nil {

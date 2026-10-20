@@ -382,11 +382,13 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 	})
 }
 
-// paintBrowseButton returns the file tree to a browsable listing so another
-// file can open as a tab. Tabs are only created by opening a tree entry, so the
-// control clears the live filter and refreshes the listing instead of opening
-// an empty placeholder tab.
+// paintBrowseButton is the strip's trailing control. The owner binds OnNewTab to
+// its own new-tab flow; the strip only calls it, and stays out of the way when
+// the owner binds nothing.
 func paintBrowseButton(c *ui.Context, m Model, muted ui.Color) {
+	if m.OnNewTab == nil {
+		return
+	}
 	caption := i18n.T(i18n.KeySurfacesFilesOpen)
 	control := ui.Button(c, "").Label(caption).Size(28, 28).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(caption)
 	control.Children(func() {
@@ -395,14 +397,8 @@ func paintBrowseButton(c *ui.Context, m Model, muted ui.Color) {
 	if control.Hovered() {
 		control.Background(c.Theme().SurfaceHover)
 	}
-	if !control.Clicked() {
-		return
-	}
-	if m.Filter != nil {
-		*m.Filter = ""
-	}
-	if m.Tabs != nil && m.Tabs.Tree != nil {
-		m.Tabs.Tree.Refresh()
+	if control.Clicked() {
+		m.OnNewTab()
 	}
 }
 

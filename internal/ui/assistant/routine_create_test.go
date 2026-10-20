@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutineCreateEmptyListReview(t *testing.T) {
@@ -25,34 +26,34 @@ func TestBotRoutineCreateEmptyListReview(t *testing.T) {
 		}, OnConfirm: func() { submitted++ }, OnDismiss: func() { state.Review = nil }}}
 		routineCreateBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 	}, 1100, 2500)
-	if err := tt.Click("新建例行任务 / New routine"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantNewRoutine)); err != nil {
 		t.Fatal(err)
 	}
 	if starts != 1 || submitted != 0 {
 		t.Fatal("new button performed create")
 	}
-	if err := tt.Click("新任务：暂停 / New routine paused"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantNewRoutinePaused)); err != nil {
 		t.Fatal(err)
 	}
 	if !state.Draft.Enabled || submitted != 0 {
 		t.Fatal("local enable performed write")
 	}
-	if err := tt.Click("审阅新建… / Review creation…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 		t.Fatal(err)
 	}
 	if submitted != 0 || !tt.HasText(routineCreateImpact(true)) {
 		t.Fatal(tt.Texts())
 	}
-	if err := tt.Click("返回修改 / Back to draft"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantBackToDraft2)); err != nil {
 		t.Fatal(err)
 	}
 	if submitted != 0 || state.Review != nil {
 		t.Fatal("Back submitted")
 	}
-	if err := tt.Click("审阅新建… / Review creation…"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存新例行任务 / Confirm new routine"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)); err != nil {
 		t.Fatal(err)
 	}
 	if submitted != 1 {

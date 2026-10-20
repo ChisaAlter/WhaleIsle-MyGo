@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	panel "whaleisle/internal/store/custompanel"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -42,13 +43,13 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Padding(10).Gap(10).Children(func() {
-			ui.Text(c, "自定义面板 / Custom Panels").Bold().TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelCustomPanels)).Bold().TextColor(fg)
 			if m.Editor == nil {
 				return
 			}
 			e := m.Editor
 			if !m.Available {
-				ui.Text(c, "请打开 Bot 的主会话；面板列表按当前 Bot 隔离。 / Open a Bot's canonical conversation.").TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscCustompanelOpenABotSCanonicalConversation)).TextColor(muted)
 			} else {
 				ui.Text(c, m.BotLabel).TextColor(muted)
 			}
@@ -61,22 +62,22 @@ func View(c *ui.Context, m Model) {
 			if !m.Available {
 				return
 			}
-			ui.TextArea(c.Key("panel-requirements"), &e.Requirements).Label("需求 / Requirements").Lines(2, 5).FillWidth()
-			if ui.Button(c, "创建面板：与 Bot 对话 / Create with Bot").Disabled(m.OnCreate == nil).Clicked() {
+			ui.TextArea(c.Key("panel-requirements"), &e.Requirements).Label(i18n.T(i18n.KeyMiscCustompanelRequirements)).Lines(2, 5).FillWidth()
+			if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelCreateWithBot)).Disabled(m.OnCreate == nil).Clicked() {
 				m.OnCreate()
 			}
-			ui.Text(c, "创建会填入主聊天草稿；请发送并与 Bot 讨论，再导入完成的 JSON。 / Send the prepared draft, then import the completed reply.").FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelSendThePreparedDraftThenImportThe)).FontSize(11).TextColor(muted)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, "导入 Bot 回复 / Import reply").Disabled(m.OnImport == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelImportReply)).Disabled(m.OnImport == nil).Clicked() {
 					m.OnImport()
 				}
-				if ui.Button(c, "新建 JSON / New JSON").Disabled(m.OnNew == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelNewJson)).Disabled(m.OnNew == nil).Clicked() {
 					m.OnNew()
 				}
 			})
-			mode := "新模板与本 Bot 副本 / New template and Bot copy"
+			mode := i18n.T(i18n.KeyMiscCustompanelNewTemplateAndBotCopy)
 			if e.EditingID != "" {
-				mode = "仅修改本 Bot 副本 / Edit this Bot's copy"
+				mode = i18n.T(i18n.KeyMiscCustompanelEditThisBotSCopy)
 				if e.Template {
 					mode = "编辑库模板（已有副本不变）/ Edit template for future copies"
 				}
@@ -84,10 +85,10 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, mode).FontSize(11).TextColor(muted)
 			ui.TextArea(c.Key("panel-json"), &e.JSON).Label("Panel JSON").Lines(4, 10).FillWidth().OnChange(func() { e.Preview = nil })
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, "预览 / Preview").Disabled(m.OnPreview == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelPreview)).Disabled(m.OnPreview == nil).Clicked() {
 					m.OnPreview()
 				}
-				if ui.Button(c, "保存 / Save").Disabled(e.Preview == nil || m.OnSave == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelSave)).Disabled(e.Preview == nil || m.OnSave == nil).Clicked() {
 					m.OnSave()
 				}
 			})
@@ -95,7 +96,7 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, "预览（不运行操作）/ Preview").TextColor(muted)
 				render(c.Key("preview"), panel.Instance{Definition: *e.Preview, State: map[string]string{}}, nil, nil, fg, border)
 			}
-			ui.Text(c, "本 Bot 的面板 / This Bot's Panels").Bold().TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelThisBotSPanels)).Bold().TextColor(fg)
 			for _, item := range m.State.Instances {
 				i := item
 				pc := c.Key("instance-" + i.Definition.ID)
@@ -107,10 +108,10 @@ func View(c *ui.Context, m Model) {
 						if ui.Button(pc, "↓").Clicked() && m.OnMove != nil {
 							m.OnMove(i.Definition.ID, 1)
 						}
-						if ui.Button(pc, "编辑 / Edit").Clicked() && m.OnEdit != nil {
+						if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelEdit)).Clicked() && m.OnEdit != nil {
 							m.OnEdit(i.Definition, false)
 						}
-						if ui.Button(pc, "移除 / Remove").Clicked() && m.OnRemove != nil {
+						if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelRemove)).Clicked() && m.OnRemove != nil {
 							m.OnRemove(i.Definition.ID)
 						}
 					})
@@ -132,13 +133,13 @@ func View(c *ui.Context, m Model) {
 							m.OnUpdate(i)
 						}
 					})
-					if ui.Button(pc, "用此副本更新库模板 / Update library template").Clicked() && m.OnTemplate != nil {
+					if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelUpdateLibraryTemplate)).Clicked() && m.OnTemplate != nil {
 						m.OnTemplate(i.Definition)
 					}
 					render(pc, i, m.OnUpdate, m.OnPrompt, fg, border)
 				})
 			}
-			ui.Text(c, "面板库 / Panel library").Bold().TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelPanelLibrary)).Bold().TextColor(fg)
 			for _, definition := range m.State.Library {
 				d := definition
 				lc := c.Key("library-" + d.ID)
@@ -151,10 +152,10 @@ func View(c *ui.Context, m Model) {
 								added = true
 							}
 						}
-						if ui.Button(lc, "添加独立副本 / Add copy").Disabled(added || m.OnAdd == nil).Clicked() {
+						if ui.Button(lc, i18n.T(i18n.KeyMiscCustompanelAddCopy)).Disabled(added || m.OnAdd == nil).Clicked() {
 							m.OnAdd(d.ID)
 						}
-						if ui.Button(lc, "编辑模板 / Edit template").Disabled(m.OnEdit == nil).Clicked() {
+						if ui.Button(lc, i18n.T(i18n.KeyMiscCustompanelEditTemplate)).Disabled(m.OnEdit == nil).Clicked() {
 							m.OnEdit(d, true)
 						}
 					})
@@ -212,7 +213,7 @@ func render(c *ui.Context, i panel.Instance, onUpdate func(panel.Instance), onPr
 										change(value)
 									}
 								case "action":
-									if ui.Button(wc, w.Label).Disabled(onPrompt == nil).Tooltip("填入本 Bot 聊天草稿；不会自动发送 / Prepare chat draft; does not send").Clicked() {
+									if ui.Button(wc, w.Label).Disabled(onPrompt == nil).Tooltip(i18n.T(i18n.KeyMiscCustompanelPrepareChatDraftDoesNotSend)).Clicked() {
 										onPrompt(w.Text)
 									}
 								}

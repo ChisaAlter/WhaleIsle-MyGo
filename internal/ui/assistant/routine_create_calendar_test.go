@@ -5,6 +5,7 @@ import (
 	"testing"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotRoutineCalendarUIReview(t *testing.T) {
@@ -34,20 +35,20 @@ func TestBotRoutineCalendarUIReview(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tc.frequency == "weekly" {
-				if err := tt.Click("周日 / Sun"); err != nil {
+				if err := tt.Click(i18n.T(i18n.KeyMiscAssistantSun)); err != nil {
 					t.Fatal(err)
 				}
 			}
 			if !tt.HasText(routineCreateTimingHint(tc.frequency)) {
 				t.Fatal("Host timing/validation boundary missing", tt.Texts())
 			}
-			if err := tt.Click("审阅新建… / Review creation…"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 0 || !tt.HasText(routineCreateImpact(false)) || creator.Snapshot(key).Review.Command.Edit.Schedule != tc.want {
 				t.Fatal("review created or schedule differs")
 			}
-			if err := tt.Click("确认保存新例行任务 / Confirm new routine"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)); err != nil {
 				t.Fatal(err)
 			}
 			if submitted != 1 || schedule != tc.want {

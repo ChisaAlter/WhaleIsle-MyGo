@@ -92,6 +92,31 @@ func TestToolRowCollapsedKeepsOneLineAndStructuredBody(t *testing.T) {
 	}
 }
 
+func TestEmptyTranscriptCentersItsHintInsteadOfTopLeftLine(t *testing.T) {
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() { View(c, Model{Snapshot: session.ViewState{SelectedID: "s"}}) })
+	}, 700, 500)
+	hint, ok := tt.Find(i18n.T(i18n.KeyChatEmpty))
+	if !ok {
+		t.Fatalf("empty hint missing: %q", tt.Texts())
+	}
+	// Centered horizontally, and not pinned to the very top.
+	if hint.X < 200 || hint.X+hint.W > 500 {
+		t.Fatalf("hint not centered: %+v", hint)
+	}
+	if hint.Y < 40 {
+		t.Fatalf("hint still sits at the top edge: %+v", hint)
+	}
+	errTT := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			View(c, Model{Snapshot: session.ViewState{SelectedID: "s", HistoryError: "offline"}})
+		})
+	}, 700, 500)
+	if errTT.HasText(i18n.T(i18n.KeyChatEmpty)) {
+		t.Fatal("errored settle kept the generic empty hint")
+	}
+}
+
 func TestInternalStatusPhrasesStayOutOfTranscript(t *testing.T) {
 	for _, internal := range []string{"workspace ready: Whale Isle", "workspace ready", "session ready: abc"} {
 		if got := displayableAction(internal); got != "" {

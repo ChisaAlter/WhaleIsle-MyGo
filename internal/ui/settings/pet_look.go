@@ -44,7 +44,7 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 			continue
 		}
 		// Explicit indices keep labels unique even if provider display names collide.
-		route.Label = fmt.Sprintf("%d · %s / %s", len(choices), route.Provider, route.Model)
+		route.Label = fmt.Sprintf("%d · %s · %s", len(choices), route.Provider, route.Model)
 		choices = append(choices, route)
 		if route.Provider == provider && route.Model == value.LookModel {
 			selected, found = route.Label, true
@@ -55,7 +55,7 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 		labels[i] = route.Label
 	}
 	if !found {
-		selected = providerCopy("已存但当前不可用：", "Saved, unavailable: ") + value.LookProvider + " / " + value.LookModel
+		selected = providerCopy("已存但当前不可用：", "Saved, unavailable: ") + value.LookProvider + " · " + value.LookModel
 		labels = append(labels, selected) // display-only sentinel, never saved implicitly
 	}
 	bodyPreferenceRow(c, "pet-look-model", providerCopy("看一眼模型", "Look model"), providerCopy("独立于全局视觉模型保存。每次截图和发送前仍需确认。", "Saved separately from the global vision model. Each screenshot and send still asks for confirmation."), fg, muted, func() {

@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -34,11 +35,11 @@ func (h *deliveryHistoryState) finish(next schedstore.DeliveryPage, before strin
 		if errors.As(err, &failure) {
 			switch failure.Code {
 			case "delivery_cursor_not_found":
-				h.Error = "分页游标已失效，请刷新已保存的投递记录 / Delivery cursor expired; refresh saved records"
+				h.Error = i18n.T(i18n.KeyMiscScheduleDeliveryCursorExpiredRefreshSavedRe)
 				h.RefreshRequired = true
 				h.RetryBefore = ""
 			case "schedule_not_found":
-				h.Error = "找不到原任务的投递记录 / Task delivery history not found"
+				h.Error = i18n.T(i18n.KeyMiscScheduleTaskDeliveryHistoryNotFound)
 				h.RetryBefore = ""
 			}
 		}

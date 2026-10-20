@@ -7,6 +7,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestBotObjectiveConfigUIWholeReviewAndExecutionAcknowledgement(t *testing.T) {
@@ -21,7 +22,7 @@ func TestBotObjectiveConfigUIWholeReviewAndExecutionAcknowledgement(t *testing.T
 	if reads != 0 || saves != 0 {
 		t.Fatal("render performed action")
 	}
-	if err := tt.Click("审阅目标配置 / Review objective configuration"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewObjectiveConfiguration)); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(tt.Texts(), "\n")
@@ -30,14 +31,14 @@ func TestBotObjectiveConfigUIWholeReviewAndExecutionAcknowledgement(t *testing.T
 			t.Fatal("missing review", term)
 		}
 	}
-	tt.Click("确认保存目标配置 / Confirm objective configuration")
+	tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmObjectiveConfiguration))
 	if saves != 0 {
 		t.Fatal("unacknowledged save")
 	}
-	if err := tt.Click(botObjectiveConfigAcknowledgement); err != nil {
+	if err := tt.Click(botObjectiveConfigAcknowledgement()); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("确认保存目标配置 / Confirm objective configuration"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmObjectiveConfiguration)); err != nil {
 		t.Fatal(err)
 	}
 	if saves != 1 {

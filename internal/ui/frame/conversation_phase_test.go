@@ -31,7 +31,10 @@ func TestConversationPhaseSeparatesHistoryReadinessFromEmpty(t *testing.T) {
 		{"unknown failed", session.ViewState{SelectedID: "old", HistoryError: "offline"}, false, conversationActive},
 		{"ready empty", session.ViewState{SelectedID: "old", HistoryReady: true}, false, conversationHero},
 		{"retained history reconnect", session.ViewState{SelectedID: "old", HistoryLoading: true, Messages: []session.Message{{Body: "retained"}}}, false, conversationActive},
-		{"running blank", session.ViewState{SelectedID: "new", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "new", Running: true}}}, false, conversationActive},
+		// A running session with no messages yet keeps the Hero: the Original
+		// blank-draft surface stays until the first message arrives, and the
+		// composer owns the running/stop affordance.
+		{"running blank", session.ViewState{SelectedID: "new", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "new", Running: true}}}, false, conversationHero},
 		{"prompt pending", session.ViewState{SelectedID: "new", PromptBusy: true, SelectedSummaryBlank: true}, false, conversationActive},
 		{"first prompt failed", session.ViewState{SelectedID: "new", PromptAttempted: true, SelectedSummaryBlank: true}, false, conversationActive},
 		{"interaction", session.ViewState{SelectedID: "new", SelectedSummaryBlank: true}, true, conversationActive},
@@ -100,6 +103,59 @@ func TestConversationHeroFirstMessageKeepsCardAndDraftIdentity(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// An empty but ready session is the Hero: the blank-draft surface, never the
+// 13px "select a session" hint or an empty transcript column.
+func TestEmptyReadySessionRendersHero(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Bottom = 0
+	snap := session.ViewState{SelectedID: "old", HistoryReady: true}
+	st := session.New()
+	tt := ui.NewTester(func(c *ui.Context) {
+		originalScrollbarTheme(c)
+		sizes.ResolveColumns(1200, false)
+		colors := theme.Resolve("deepseek.light").Light
+		ui.Column(c).Fill().Children(func() {
+			mainRow(c, Model{Store: st, Sizes: &sizes}, snap, colors, chrome.Color(colors.Border), chrome.Color(colors.Muted))
+		})
+	}, 1200, 800)
+	if !tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText(i18n.T(i18n.KeyChatHeroPreview)) {
+		t.Fatalf("empty session lost the hero: %q", tt.Texts())
+	}
+	if _, ok := tt.Find("Composer card"); !ok {
+		t.Fatal("hero lost its centered composer")
+	}
+	if tt.HasText(i18n.T(i18n.KeyChatEmpty)) {
+		t.Fatal("empty session fell back to the 13px hint")
+	}
+}
+
+// Unknown history settles on the Hero shell: skeleton placeholders instead of a
+// blank box, and no real composer to focus or submit through.
+func TestSettlingPaintsSkeletonWithComposerGeometry(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Bottom = 0
+	snap := session.ViewState{SelectedID: "old", HistoryLoading: true}
+	st := session.New()
+	tt := ui.NewTester(func(c *ui.Context) {
+		originalScrollbarTheme(c)
+		sizes.ResolveColumns(1200, false)
+		colors := theme.Resolve("deepseek.light").Light
+		ui.Column(c).Fill().Children(func() {
+			mainRow(c, Model{Store: st, Sizes: &sizes}, snap, colors, chrome.Color(colors.Border), chrome.Color(colors.Muted))
+		})
+	}, 1200, 800)
+	skeleton, ok := tt.Find("Loading conversation")
+	if !ok {
+		t.Fatalf("settling painted no skeleton: %q", tt.Texts())
+	}
+	if _, ok := tt.Find("Composer card"); ok {
+		t.Fatal("settling mounted the real composer")
+	}
+	if skeleton.W <= 0 || skeleton.H <= 0 {
+		t.Fatalf("skeleton collapsed: %+v", skeleton)
 	}
 }
 

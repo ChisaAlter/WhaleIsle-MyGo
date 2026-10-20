@@ -47,7 +47,7 @@ func TestFieldRowBoolRendersLabeledSwitch(t *testing.T) {
 	snap := store.ViewState{Drafts: map[string]string{"auto": "false"}, Writable: true}
 	field := store.Field{Key: "auto", Label: "Auto save", Kind: store.FieldBool}
 	tt := ui.NewTester(func(c *ui.Context) {
-		fieldRow(c, m, snap, field, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
+		fieldRow(c, m, snap, field, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120), true)
 	}, 720, 240)
 	named := 0
 	for _, text := range tt.Texts() {

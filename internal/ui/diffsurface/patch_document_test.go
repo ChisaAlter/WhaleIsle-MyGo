@@ -24,20 +24,28 @@ func TestSplitPatchRowsAlignUnequalChangesAndContext(t *testing.T) {
 func TestPatchViewFoldAndCacheState(t *testing.T) {
 	var state patchViewState
 	files := state.update("diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-a\n+b")
-	if len(files) != 1 || state.Open["a"] {
-		t.Fatal("initial file should be collapsed")
+	if len(files) != 1 || state.Closed["a"] {
+		t.Fatal("a fresh diff should show its lines")
 	}
-	state.setAll(true)
-	if !state.Open["a"] {
-		t.Fatal("expand did not open file")
+	state.setAllClosed(true)
+	if !state.Closed["a"] {
+		t.Fatal("collapse did not close file")
 	}
 	state.update(state.source)
-	if !state.Open["a"] {
-		t.Fatal("same diff lost open state")
+	if !state.Closed["a"] {
+		t.Fatal("same diff lost its collapsed file")
 	}
-	state.setAll(false)
-	if state.Open["a"] {
-		t.Fatal("collapse did not close file")
+	state.setAllClosed(false)
+	if state.Closed["a"] {
+		t.Fatal("expand did not open file")
+	}
+	state.toggleHunk("a", 0)
+	if !state.foldedHunks("a")[0] {
+		t.Fatal("hunk toggle did not fold the hunk")
+	}
+	state.setAllHunks(false)
+	if state.foldedHunks("a")[0] {
+		t.Fatal("expand-all did not unfold hunks")
 	}
 	if safePatchPath("../outside") || safePatchPath("/absolute") || safePatchPath(".git/config") || !safePatchPath("dir/a b.txt") {
 		t.Fatal("unsafe open-file path")

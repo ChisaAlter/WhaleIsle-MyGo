@@ -114,7 +114,7 @@ func View(c *ui.Context, m Model) {
 				routineCreateBlock(c, m, fg, muted, field, border, accent)
 				composeBlock(c, m, fg, muted, accent)
 				pluginRPCBlock(c, m, fg, muted, accent)
-				ui.Text(c, "完整消息历史、流式回复、工具审批与停止请在主会话中查看。 / Full history, streaming replies, approvals and stop live in the main conversation.").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantFullHistoryStreamingRepliesApprovals)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 
 				statusBlock(c, field, border, fg, muted, []kv{
 					{i18n.T(i18n.KeyAssistantModeLabel), modeLabel(m.Mode)},
@@ -292,7 +292,7 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, kindLabel).FontSize(theme.InterfaceSize(11)).TextColor(muted).Width(88)
 						ui.Text(c, clip(label, 120)).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-						if m.OnDshbotSelect != nil && ui.Button(c, "选择 / Select").Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
+						if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSelect)).Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
 							m.OnDshbotSelect(id)
 						}
 						if canOpen && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterOpen)).Disabled(busy || !m.DshbotEnabled).Clicked() {
@@ -314,12 +314,12 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "打开专属主会话并发送；回复、审批和停止均在主聊天中。 / Open the canonical chat to send, follow replies, approve tools and stop.").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantOpenTheCanonicalChatToSendFollowR)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		ui.TextArea(c, m.Draft).Lines(2, 4).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
 			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""
-			ui.Text(c, "先选择上方 Bot / 群聊；消息发送到该条目的专属会话。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, "先选择上方 Bot 或群聊；消息发送到该条目的专属会话。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy || m.PluginRPCBusy || !available
 		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Disabled(empty).Clicked() {
