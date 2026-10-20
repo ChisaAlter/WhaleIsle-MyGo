@@ -2011,7 +2011,7 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 }
 
 func main() {
-	mygo.App.SetName("Whale Isle")
+	mygo.App.SetName("MyGo鲸屿")
 	if err := preparePortableDesktop(); err != nil {
 		log.Println("portable desktop:", err)
 		return
