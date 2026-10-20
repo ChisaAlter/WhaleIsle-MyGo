@@ -2,9 +2,11 @@ package schedule
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // The original task-cron.ts dialect is numeric five-field cron. Starred day
@@ -273,4 +275,44 @@ func toggleNumber(values []int, n int) []int {
 	result = append(result, n)
 	sort.Ints(result)
 	return result
+}
+
+// matches reports whether the expression fires at t, in the wall clock t already
+// carries. Starred day fields intersect, two explicit day fields union, which is
+// the same rule the preview text describes.
+func (p taskCron) matches(t time.Time) bool {
+	if !slices.Contains(p[0].values, t.Minute()) || !slices.Contains(p[1].values, t.Hour()) || !slices.Contains(p[3].values, int(t.Month())) {
+		return false
+	}
+	dom, dow := p[2], p[4]
+	domOK := slices.Contains(dom.values, t.Day())
+	dowOK := slices.Contains(dow.values, int(t.Weekday()))
+	switch {
+	case dom.full && dow.full:
+		return true
+	case dom.full:
+		return dowOK
+	case dow.full:
+		return domOK
+	default:
+		return domOK || dowOK
+	}
+}
+
+// nextAfter is the first occurrence after from, looked for over six weeks so the
+// monthly shapes still land inside the window. The host still owns dispatch; this
+// only fills the form's next-run preview.
+func (p taskCron) nextAfter(from time.Time, loc *time.Location) (time.Time, bool) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	t := from.In(loc).Truncate(time.Minute).Add(time.Minute)
+	limit := t.AddDate(0, 0, 45)
+	for t.Before(limit) {
+		if p.matches(t) {
+			return t, true
+		}
+		t = t.Add(time.Minute)
+	}
+	return time.Time{}, false
 }

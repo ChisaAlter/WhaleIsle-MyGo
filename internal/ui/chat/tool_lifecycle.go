@@ -73,6 +73,9 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			info.Arguments = arguments
 			if call.Result != nil {
 				info.Output = output
+				// The typed web metadata (sources / fetch URL) lives on the result
+				// message and drives the web card, not the raw JSON.
+				info.Web = call.Result.Web
 			}
 			// Everything below belongs to the expanded body: a collapsed row is
 			// one 24px line, as the Original ToolRow keeps it.

@@ -148,7 +148,7 @@ func (f *scheduleUIFixture) panel() (*Panel, Model) {
 
 func saveScheduleSnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
-	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")
+	dir := surfaceGalleryDir(os.Getenv("SECONDARY_SNAPSHOT_DIR"))
 	if dir == "" {
 		return
 	}
@@ -497,4 +497,45 @@ func TestSavedPromptExpansionFollowsMeasuredOverflow(t *testing.T) {
 	if _, ok := tt.Find("Expand"); ok {
 		t.Fatal("prompt that fits still offers expansion")
 	}
+}
+
+// surfaceGalleryDir routes a surface snapshot to the evidence gallery when
+// SURFACES_GALLERY_DIR is set, so the same test writes documentation images
+// without a second harness.
+func surfaceGalleryDir(fallback string) string {
+	if dir := os.Getenv("SURFACES_GALLERY_DIR"); dir != "" {
+		return dir
+	}
+	return fallback
+}
+// saveSurfaceSnapshot writes the rendered surface for the evidence gallery when
+// SURFACES_GALLERY_DIR is set.
+func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
+	t.Helper()
+	dir := os.Getenv("SURFACES_GALLERY_DIR")
+	if dir == "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(file, tt.Image()); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+// TestScheduleSurfaceSnapshot renders the task manager for
+// evidence/after/surface-schedule.png.
+func TestScheduleSurfaceSnapshot(t *testing.T) {
+	f := newScheduleUIFixture(t)
+	p, m := f.panel()
+	tt := ui.NewTester(func(c *ui.Context) { p.View(c, m) }, 1000, 700)
+	saveSurfaceSnapshot(t, tt, "surface-schedule.png")
 }

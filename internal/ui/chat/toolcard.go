@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/dsh/events"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -30,6 +31,8 @@ type ToolCardInfo struct {
 	Detail string
 	Images []string
 	Links  []markdown.Link
+	// Web is the typed presentation metadata of a web tool/result.
+	Web *session.WebResult
 	// Arguments and Output keep the full payloads for the expanded body. Detail
 	// stays the one-line summary the collapsed row uses.
 	Arguments string
@@ -152,7 +155,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if extra != nil {
 			extra()
 		}
-		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key)
+		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
 		if !handled {
 			if info.Arguments != "" {
 				toolLifecycleDetail(c, key+":args", i18n.T(i18n.KeyChatToolArguments), prettyToolPayload(info.Arguments), st, nil, opts.TextOnly)

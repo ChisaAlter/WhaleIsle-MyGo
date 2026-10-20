@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -194,6 +195,51 @@ func TestTranscriptGalleryToolRows(t *testing.T) {
 		})
 	}, 1200, 760)
 	writeGallery(t, dir, "transcript-tools.png", tt)
+}
+
+// transcript-tool-kinds.png — the non-terminal tool families, one expanded row
+// each: a grep hit list (path:line + highlighted snippet + overflow count), a web
+// search with title/domain/snippet cards, and a todo checklist with state dots.
+func TestTranscriptGalleryToolKinds(t *testing.T) {
+	dir := galleryDir(t)
+	colors, fg, muted := galleryTheme()
+	st := ToolCardStyle{FG: fg, Muted: muted, Border: chrome.Color(colors.Border), Field: chrome.Color(colors.Field),
+		Accent: chrome.Color(colors.Accent), OK: ui.RGB(61, 153, 112), Err: ui.RGB(200, 70, 70), FontSize: 13}
+	result := func(seq int, text string) *session.Message {
+		raw := []byte(`{"type":"tool/result","seq":` + itoaFast(seq) + `,"data":{"message":{"content":[{"type":"text","text":` + strconv.Quote(text) + `}]}}}`)
+		return &session.Message{Kind: session.MessageKindTool, Role: "tool", EventType: "tool/result", Raw: raw}
+	}
+	searchOutput := strings.Join([]string{
+		"internal/ui/chat/chat.go:145: if len(msgs) == 0 {",
+		"internal/ui/chat/chat.go:146: ui.Text(c, i18n.T(i18n.KeyChatEmpty))",
+		"internal/ui/chat/transcript_preferences.go:88: if len(msgs) == 0 {",
+		"internal/ui/chat/tool_lifecycle.go:64: output := toolLifecycleOutputFor(call, true)",
+		"internal/ui/chat/gallery_test.go:12: len(msgs) == 0",
+	}, "\n")
+	search := session.Message{ID: "k1", Role: "assistant", Kind: session.MessageKindTool, Seq: 11, EventTime: 1700000200000,
+		Tool: &session.ToolCallView{CallID: "call-grep", Name: "grep", State: "ok",
+			Arguments: `{"pattern":"len(msgs) == 0"}`, Result: result(12, searchOutput)}}
+	web := session.Message{ID: "k2", Role: "assistant", Kind: session.MessageKindTool, Seq: 13, EventTime: 1700000210000,
+		Tool: &session.ToolCallView{CallID: "call-web", Name: "web_search", State: "ok",
+			Arguments: `{"query":"gofmt line endings CRLF"}`,
+			Result: &session.Message{Kind: session.MessageKindTool, Role: "tool", EventType: "tool/result",
+				Web: &session.WebResult{Kind: "search", Truncated: false, Sources: []session.WebSource{
+					{URL: "https://www.example.com/go/gofmt", Title: "gofmt rewrites files in place", Snippet: "gofmt -w rewrites every file, which turns CRLF into LF and shows up as a whole-file diff.", PublishedAt: "2026-02-11"},
+					{URL: "https://docs.example.org/text", Title: "Text normalization", Snippet: "Normalize line endings before comparing generated files."},
+					}}}}}
+	todo := session.Message{ID: "k3", Role: "assistant", Kind: session.MessageKindTool, Seq: 15, EventTime: 1700000220000,
+		Tool: &session.ToolCallView{CallID: "call-todo", Name: "todo", State: "ok",
+			Arguments: `{"todos":[]}`,
+			Result: result(16, "- [x] 修好表格列宽\n- [~] 复核工具行画廊\n- [ ] 补 terminalBlock 深色截图\n- 收尾更新 README")}}
+	expanded := map[string]bool{"k1|tool:call-grep": true, "k2|tool:call-web": true, "k3|tool:call-todo": true}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(12).Children(func() {
+			ToolMessageView(c, search, st, ToolImageGalleryOptions{ID: "k1", Expanded: &expanded, OnOpenURL: func(string) {}})
+			ToolMessageView(c, web, st, ToolImageGalleryOptions{ID: "k2", Expanded: &expanded, OnOpenURL: func(string) {}})
+			ToolMessageView(c, todo, st, ToolImageGalleryOptions{ID: "k3", Expanded: &expanded})
+		})
+	}, 1200, 900)
+	writeGallery(t, dir, "transcript-tool-kinds.png", tt)
 }
 
 // transcript-queue-dock.png — the composer queue dock with two rows, previews

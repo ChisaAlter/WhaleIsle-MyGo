@@ -283,6 +283,15 @@ const (
 	KeyChatQuestionWaiting = "chat.question.waiting"
 	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
 
+	// Search / web / todo evidence blocks.
+	KeyChatToolNoMatches = "chat.tool.no_matches"
+	KeyChatToolMoreHits  = "chat.tool.more_hits"
+	KeyChatWebTruncated  = "chat.web.truncated"
+	KeyChatTodoDone      = "chat.todo.done"
+	KeyChatTodoRunning   = "chat.todo.running"
+	KeyChatTodoPending   = "chat.todo.pending"
+	KeyChatTodoEmpty     = "chat.todo.empty"
+
 	// Attachment cards.
 	KeyChatAttachmentFile = "chat.attachment.file"
 	// Shared row actions.
@@ -571,6 +580,13 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatApprovalWaiting, "等待你的确认", "Waiting for your approval")
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
 	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
+	Register(KeyChatToolNoMatches, "没有命中", "No matches")
+	Register(KeyChatToolMoreHits, "还有 %d 条", "%d more")
+	Register(KeyChatWebTruncated, "结果已截断", "Results truncated")
+	Register(KeyChatTodoDone, "已完成", "Done")
+	Register(KeyChatTodoRunning, "进行中", "In progress")
+	Register(KeyChatTodoPending, "待办", "Pending")
+	Register(KeyChatTodoEmpty, "没有待办项", "No todo items")
 	Register(KeyChatAttachmentFile, "文件", "File")
 
 	// Shared row actions.

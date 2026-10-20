@@ -35,10 +35,12 @@ func ClassifyToolName(name string) (ToolKind, string) {
 		return ToolKindRead, "read"
 	case strings.Contains(n, "write") || strings.Contains(n, "edit") || strings.Contains(n, "apply_patch") || strings.Contains(n, "str_replace"):
 		return ToolKindWrite, "write"
+	case strings.Contains(n, "web") || strings.Contains(n, "fetch") || strings.Contains(n, "browser") || strings.Contains(n, "http"):
+		// Web names carry "search" too (web_search), so this outranks the search
+		// family below.
+		return ToolKindWeb, "web"
 	case strings.Contains(n, "search") || strings.Contains(n, "grep") || strings.Contains(n, "glob") || strings.Contains(n, "find"):
 		return ToolKindSearch, "search"
-	case strings.Contains(n, "web") || strings.Contains(n, "fetch") || strings.Contains(n, "browser") || strings.Contains(n, "http"):
-		return ToolKindWeb, "web"
 	default:
 		return ToolKindGeneric, "tool"
 	}

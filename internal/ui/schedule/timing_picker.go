@@ -3,6 +3,7 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"math"
 	"os"
 	"path/filepath"
@@ -160,13 +161,18 @@ func clockPicker(c *ui.Context, clock string, seconds bool, onPick func(string))
 			if col == 0 {
 				n = 24
 			}
+			value := "00"
+			if len(clock) >= col*3+2 {
+				value = clock[col*3 : col*3+2]
+			}
 			options := make([]string, n)
 			for i := range options {
 				options[i] = fmt.Sprintf("%02d", i)
 			}
-			value := "00"
-			if len(clock) >= col*3+2 {
-				value = clock[col*3 : col*3+2]
+			// A wall-clock minute is chosen in quarter hours; a minute that came
+			// from an existing cron keeps its place in the list.
+			if col == 1 && !seconds {
+				options = minuteMarks(value)
 			}
 			ui.Column(c).Gap(3).Children(func() {
 				ui.Text(c, labels[col])
@@ -466,9 +472,35 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 		}
 		ui.Text(c, "Cron: "+d.Expression)
 	}
+	muted := c.Theme().TextMuted
 	if parsed, err := parseTaskCron(d.Expression); err != nil {
-		ui.Text(c, err.Error())
+		// The parser speaks for itself; a wrong expression is shown where it is
+		// edited, next to the field that produced it.
+		ui.Text(c, err.Error()).FontSize(12).TextColor(c.Theme().Danger)
+		return
 	} else {
-		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+parsed.preview()+" · "+d.Zone)
+		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+parsed.preview()+" · "+d.Zone).FontSize(12).TextColor(muted)
+		loc := time.UTC
+		if loaded, err := time.LoadLocation(d.Zone); err == nil {
+			loc = loaded
+		}
+		if at, ok := parsed.nextAfter(time.Now(), loc); ok {
+			ui.Text(c, scheduleText("下次运行：", "Next run: ")+at.Format("2006-01-02 15:04 MST")).FontSize(12).TextColor(muted)
+		} else {
+			ui.Text(c, scheduleText("这个表达式在 45 天内不会再运行。", "This expression does not run again within 45 days.")).FontSize(12).TextColor(muted)
+		}
 	}
+}
+
+// minuteMarks is the minute list of the wall-clock picker: quarter hours, plus
+// whatever minute the expression already carries so editing never silently moves
+// an existing task.
+func minuteMarks(current string) []string {
+	marks := []string{"00", "15", "30", "45"}
+	if slices.Contains(marks, current) {
+		return marks
+	}
+	all := append(append([]string{}, marks...), current)
+	slices.Sort(all)
+	return all
 }

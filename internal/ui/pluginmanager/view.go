@@ -220,27 +220,63 @@ func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owne
 	}
 }
 func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
-	var mine, official []manager.Package
+	packages := make([]manager.Package, 0, len(s.Packages))
 	for _, p := range s.Packages {
-		if !manager.Listed(p) {
-			continue
-		}
-		if p.Official {
-			official = append(official, p)
-		} else {
-			mine = append(mine, p)
+		if manager.Listed(p) {
+			packages = append(packages, p)
 		}
 	}
-	sort.SliceStable(official, func(i, j int) bool {
-		return manager.OfficialRank(official[i].Name) < manager.OfficialRank(official[j].Name)
+	sort.SliceStable(packages, func(i, j int) bool {
+		if packages[i].Official != packages[j].Official {
+			return packages[i].Official
+		}
+		return packages[i].Name < packages[j].Name
 	})
 	items := append([]Contribution{}, m.Contributions...)
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Order < items[j].Order })
 	if s.View.Kind == "more" {
-		for _, p := range official {
-			packageCard(c, m, p, s, a, fg, muted, border)
+		for _, p := range packages {
+			if p.Official {
+				packageCard(c, m, p, s, a, fg, muted, border)
+			}
 		}
 		return
+	}
+
+	anchor := ui.Column(c).Key("plugins-installed").FillWidth().MinWidth(0).Gap(10)
+	query := ui.Local(anchor, "plugin-filter", func() string { return "" })
+	if len(packages) > 0 {
+		anchor.Children(func() {
+			ui.TextInput(c, query).FillWidth().Placeholder(copyText("按名称筛选插件", "Filter plugins by name"))
+		})
+	}
+	matches := func(p manager.Package) bool {
+		q := strings.ToLower(strings.TrimSpace(*query))
+		if q == "" {
+			return true
+		}
+		return strings.Contains(strings.ToLower(p.Name), q) || strings.Contains(strings.ToLower(p.Title(i18n.Locale())), q)
+	}
+
+	var enabled, disabled, official []manager.Package
+	heldBack := false
+	for _, p := range packages {
+		if !matches(p) {
+			continue
+		}
+		if p.Official {
+			if manager.Pinned(p) {
+				official = append(official, p)
+			} else {
+				heldBack = true
+			}
+			continue
+		}
+		if p.Enabled {
+			enabled = append(enabled, p)
+		} else {
+			disabled = append(disabled, p)
+		}
 	}
 	var basic []Contribution
 	for _, item := range items {
@@ -248,55 +284,82 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 			basic = append(basic, item)
 		}
 	}
-	if len(basic) > 0 {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
-			for _, item := range basic {
-				ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
-					artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
-					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-						if ui.Button(c, item.Title).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
-							a.OpenItem(item.Key)
-						}
-						ui.Text(c, item.Summary).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+	anchor.Children(func() {
+		if len(basic) > 0 {
+			ui.Column(c).FillWidth().Gap(10).Children(func() {
+				groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
+				for _, item := range basic {
+					ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
+						artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
+						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+							if ui.Button(c, item.Title).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
+								a.OpenItem(item.Key)
+							}
+							ui.Text(c, item.Summary).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+						})
 					})
-				})
-			}
-		})
-	}
-	if len(official) > 0 {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			ui.Row(c).FillWidth().Children(func() {
-				groupTitle(c, copyText("实验性插件", "Experimental plugins"), muted)
-				ui.Box(c).Grow(1)
-				if ui.Button(c, copyText("更多", "More")).Clicked() {
-					a.ShowMore()
 				}
 			})
-			for _, p := range official {
-				if manager.Pinned(p) {
+		}
+		if len(official) > 0 {
+			ui.Column(c).FillWidth().Gap(10).Children(func() {
+				ui.Row(c).FillWidth().Children(func() {
+					groupTitle(c, copyText("实验性插件", "Experimental plugins"), muted)
+					ui.Box(c).Grow(1)
+					if heldBack && ui.Button(c, copyText("更多", "More")).Clicked() {
+						a.ShowMore()
+					}
+				})
+				for _, p := range official {
 					packageCard(c, m, p, s, a, fg, muted, border)
 				}
+			})
+		}
+		// Enabled first: the list answers "what runs now" before "what is
+		// installed but idle".
+		for _, group := range []struct {
+			title string
+			rows  []manager.Package
+		}{
+			{groupCount(copyText("已启用", "Enabled"), len(enabled)), enabled},
+			{groupCount(copyText("已停用", "Disabled"), len(disabled)), disabled},
+		} {
+			if len(group.rows) == 0 {
+				continue
 			}
-		})
-	}
-	if len(mine) > 0 {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			groupTitle(c, copyText("已安装插件", "Installed plugins"), muted)
-			for _, p := range mine {
-				packageCard(c, m, p, s, a, fg, muted, border)
-			}
-		})
-	}
-	if len(basic)+len(official)+len(mine) == 0 && s.Status == "ready" {
-		ui.Text(c, copyText("还没有安装任何插件。", "No plugins installed yet.")).FillWidth().TextColor(muted)
-	}
+			ui.Column(c).FillWidth().Gap(10).Children(func() {
+				groupTitle(c, group.title, muted)
+				for _, p := range group.rows {
+					packageCard(c, m, p, s, a, fg, muted, border)
+				}
+			})
+		}
+		if len(packages) > 0 && len(enabled)+len(disabled) == 0 {
+			ui.Text(c, copyText("没有匹配的插件。", "No matching plugins.")).FillWidth().TextColor(muted)
+		}
+		if len(packages) == 0 && s.Status == "ready" {
+			ui.Text(c, copyText("还没有安装任何插件。", "No plugins installed yet.")).FillWidth().TextColor(muted)
+		}
+	})
 }
+
+// groupCount names a group with the number of plugins it holds.
+func groupCount(label string, count int) string {
+	if count == 0 {
+		return label
+	}
+	return fmt.Sprintf("%s (%d)", label, count)
+}
+
 func groupTitle(c *ui.Context, title string, ink ui.Color) {
 	ui.Text(c, title).Role(ui.RoleHeading).Level(3).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(ink)
 }
+
 func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
-	card := ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12)
+	card := ui.Row(c.Key("plugin-package-"+p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12).AlignItems(ui.Center)
+	if card.Hovered() {
+		card.Background(c.Theme().SurfaceHover)
+	}
 	if s.Highlight == p.Name && time.Now().UnixNano() < s.HighlightUntil {
 		card.Background(c.Theme().Surface)
 		seen := ui.Local(card, "install-highlight", func() int64 { return 0 })
@@ -306,6 +369,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		}
 		c.After(time.Until(time.Unix(0, s.HighlightUntil)))
 	}
+	card.ContextMenu(func(menu *ui.Menu) { packageMenu(menu, p, s, a) })
 	card.Children(func() {
 		artwork(c, muted, border, m.SVGImages, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
@@ -316,12 +380,72 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 				packageTags(c, p, muted)
 			})
 			ui.Text(c, p.Summary(i18n.Locale())).FillWidth().MinWidth(0).MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+			if meta := packageMetaLine(p); meta != "" {
+				ui.Text(c, meta).FillWidth().MinWidth(0).SingleLine().Tooltip(meta).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			}
 		})
 		value := p.Enabled
 		if ui.Switch(c, &value).Label("Enable " + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
 			a.Enable(p.Name, value)
 		}
+		menuLabel := copyText("更多操作", "More actions")
+		more := ui.Button(c, "").Label(menuLabel).Size(24, 24).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(menuLabel)
+		more.Children(func() { ui.Text(c, "⋯").FontSize(theme.InterfaceSize(14)).TextColor(muted) })
+		if more.Hovered() {
+			more.Background(c.Theme().SurfaceHover)
+		}
+		more.Menu(func(menu *ui.Menu) { packageMenu(menu, p, s, a) })
 	})
+}
+
+// packageMenu is one plugin's action list, shared by the overflow button and the
+// row's context menu.
+func packageMenu(menu *ui.Menu, p manager.Package, s manager.State, a manager.Actions) {
+	if menu.Item(copyText("打开详情", "Open details")).Chosen() {
+		a.OpenPackage(p.Name)
+	}
+	menu.Separator()
+	if menu.Item(copyText("停用", "Disable")).Disabled(!p.Enabled || s.ActionBusy(p.Name) || p.SwitchLocked()).Chosen() {
+		a.Enable(p.Name, false)
+	}
+	if menu.Item(copyText("启用", "Enable")).Disabled(p.Enabled || s.ActionBusy(p.Name) || p.SwitchLocked()).Chosen() {
+		a.Enable(p.Name, true)
+	}
+	if p.Removable {
+		menu.Separator()
+		if menu.Item(copyText("移除插件…", "Remove plugin…")).Disabled(s.ActionBusy(p.Name)).Chosen() {
+			a.Remove(p.Name)
+		}
+	}
+}
+
+// packageMetaLine is the row's source line: version, where the plugin came from,
+// and whether it is optional.
+func packageMetaLine(p manager.Package) string {
+	parts := []string{}
+	if p.Version != "" {
+		parts = append(parts, "v"+p.Version)
+	}
+	parts = append(parts, packageSource(p))
+	if p.Optional {
+		parts = append(parts, copyText("可选", "Optional"))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// packageSource names where a plugin comes from, in the terms the manager
+// already distinguishes: bundled, installed from a market entry, or local.
+func packageSource(p manager.Package) string {
+	switch {
+	case p.Official:
+		return copyText("内置", "Built-in")
+	case p.InstallTarget != nil:
+		return copyText("市场", "Market")
+	case p.Source != "":
+		return copyText("本地", "Local")
+	default:
+		return copyText("本地", "Local")
+	}
 }
 func packageTags(c *ui.Context, p manager.Package, muted ui.Color) {
 	if strings.HasPrefix(p.Name, "@deepseek-ai/dsh-experimental-") {

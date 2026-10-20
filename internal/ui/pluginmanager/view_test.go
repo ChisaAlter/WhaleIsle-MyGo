@@ -119,6 +119,7 @@ func TestManagerNativeNavigationConfigurationsAndNarrowLayout(t *testing.T) {
 	if !tt.HasText("Bundle configuration fixture") || !tt.HasText("fixture-module") {
 		t.Fatal("package details lost config or declared rows")
 	}
+	saveSurfaceSnapshot(t, tt, "surface-plugins.png")
 	savePageSnapshot(t, tt, "plugins-package-detail.png")
 	if err := tt.Click("Fixture component"); err != nil {
 		t.Fatal(err)
@@ -201,11 +202,44 @@ func TestManagerDisconnectedPageNeverShowsCuratedCatalog(t *testing.T) {
 
 func savePageSnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
-	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")
+	dir := surfaceGalleryDir(os.Getenv("SECONDARY_SNAPSHOT_DIR"))
 	if dir == "" {
 		return
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(file, tt.Image()); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// surfaceGalleryDir routes a surface snapshot to the evidence gallery when
+// SURFACES_GALLERY_DIR is set, so the same test writes documentation images
+// without a second harness.
+func surfaceGalleryDir(fallback string) string {
+	if dir := os.Getenv("SURFACES_GALLERY_DIR"); dir != "" {
+		return dir
+	}
+	return fallback
+}
+// saveSurfaceSnapshot writes the rendered surface for the evidence gallery when
+// SURFACES_GALLERY_DIR is set.
+func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
+	t.Helper()
+	dir := os.Getenv("SURFACES_GALLERY_DIR")
+	if dir == "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	file, err := os.Create(filepath.Join(dir, name))

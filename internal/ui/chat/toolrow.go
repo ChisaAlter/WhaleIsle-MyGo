@@ -188,26 +188,6 @@ func paintToolRow(c *ui.Context, kind ToolKind, title, summary string, status ro
 	})
 }
 
-// toolOutputBlock renders a scrollable monospace payload with an optional
-// label. The Original caps terminal/read/search bodies (224px terminal, 150px
-// list) and keeps the card compact.
-func toolOutputBlock(c *ui.Context, key, label, body string, st ToolCardStyle) {
-	body = strings.TrimRight(body, "\n")
-	if body == "" {
-		return
-	}
-	if label != "" {
-		ui.Text(c, label).FontSize(11).TextColor(st.Muted)
-	}
-	ui.Box(c).Key("tool-block:"+key).FillWidth().MinWidth(0).Background(st.Muted.Alpha(.06)).Radius(6).
-		Padding(6, 8, 6, 8).Children(func() {
-		ui.Scroll(c).FillWidth().MaxHeight(toolRowBlockMaxHeight).Children(func() {
-			ui.Text(c, body).FontSize(CodeSizeFor(st)).Font(theme.RenderPreferences().Code.Family).
-				FixedLineHeight(CodeSizeFor(st) + 6).TextColor(st.FG).Selectable()
-		})
-	})
-}
-
 // toolNumberedBlock renders file content with a muted line-number gutter, as the
 // Original ReadBlock does.
 func toolNumberedBlock(c *ui.Context, key, body string, st ToolCardStyle) {
@@ -251,7 +231,7 @@ func padLine(n, total int) string {
 // matches for searches and the payload for web/todo calls. It reports whether
 // the family was handled (the caller otherwise falls back to the argument and
 // result disclosures) and whether that body already owns the copy action.
-func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string) (handled, ownsCopy bool) {
+func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string, opts ToolImageGalleryOptions) (handled, ownsCopy bool) {
 	switch kind {
 	case ToolKindBash:
 		command := toolArgField(info.Arguments, argumentFields[kind])
@@ -280,23 +260,28 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		if query == "" && info.Output == "" {
 			return false, false
 		}
-		if query != "" {
-			ui.Text(c, i18n.T(i18n.KeyChatToolQuery)+" 路 "+query).FontSize(11).TextColor(st.Muted).Selectable()
-		}
-		toolOutputBlock(c, key+":hits", i18n.T(i18n.KeyChatToolMatches), info.Output, st)
-		return true, false
+		// Hits keep path:line plus the highlighted snippet in one scrolled seat.
+		searchHitsBlock(c, toolSeatStyle{FG: st.FG, Muted: st.Muted, Field: st.Field, Size: CodeSizeFor(st)},
+			key+":hits", query, info.Output, func(text string) { c.WriteClipboard(text) })
+		return true, true
 	case ToolKindWeb:
-		if info.Output == "" {
+		if info.Output == "" && info.Web == nil {
 			return false, false
 		}
-		toolOutputBlock(c, key+":page", "", info.Output, st)
-		return true, false
+		openURL := opts.OnOpenURL
+		if opts.TextOnly {
+			openURL = nil
+		}
+		webResultBlock(c, toolSeatStyle{FG: st.FG, Muted: st.Muted, Field: st.Field, Accent: st.Accent, Size: CodeSizeFor(st)},
+			key+":page", info.Web, info, openURL, func(text string) { c.WriteClipboard(text) })
+		return true, true
 	case ToolKindTodo:
 		if info.Output == "" {
 			return false, false
 		}
-		toolOutputBlock(c, key+":plan", "", info.Output, st)
-		return true, false
+		todoBlock(c, toolSeatStyle{FG: st.FG, Muted: st.Muted, Field: st.Field, Size: CodeSizeFor(st)},
+			key+":plan", info.Output, func(text string) { c.WriteClipboard(text) })
+		return true, true
 	default:
 		return false, false
 	}

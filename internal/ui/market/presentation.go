@@ -117,29 +117,38 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 		for _, item := range d.Rows {
 			i := item
 			card := ui.Column(c.Key("market-card-"+i.ID)).MinWidth(0).Background(field).Border(.5, border).Radius(8).Padding(12, 14).Gap(8)
+			if card.Hovered() {
+				card.Background(c.Theme().SurfaceHover)
+			}
 			if columns == 2 {
 				card.Width((width - 12) / 2)
 			} else {
 				card.FillWidth()
 			}
 			card.Children(func() {
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-					if i.Deprecated {
-						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).TextColor(accent)
-					}
-				})
-				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-					if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.SVGImages) {
-						ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					}
-					ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketSStars), "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
+					marketIconTile(c, i, muted, border)
+					ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+						ui.Row(c).FillWidth().Gap(8).Children(func() {
+							ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+							if i.Deprecated {
+								ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+							}
+						})
+						ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+							if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.SVGImages) {
+								ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							}
+							ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+							ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketSStars), "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						})
+					})
 				})
 				ui.Text(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(36).FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(i.Description)
 				ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					favoriteButton(c, m, i.ID)
+					ui.Box(c).Grow(1)
 					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketDetails), "Details")).Clicked() {
 						m.Store.SelectDetails(i.ID, false)
 					}
@@ -343,4 +352,17 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 	if !open {
 		m.Store.CloseDetails()
 	}
+}
+
+// marketIconTile is the card's 44px identity tile: a rounded frame with the
+// plugin's initial, the same weight a row icon carries in the plugin list.
+func marketIconTile(c *ui.Context, item desktopmarket.CatalogItem, muted, border ui.Color) {
+	tile := ui.Box(c.Key("market-icon-"+item.ID)).Size(44, 44).Shrink(0).Radius(10).Border(.5, border).AlignItems(ui.Center).Justify(ui.Center)
+	tile.Children(func() {
+		initial := "?"
+		if runes := []rune(strings.TrimSpace(catalogTitle(item))); len(runes) > 0 {
+			initial = strings.ToUpper(string(runes[0]))
+		}
+		ui.Text(c, initial).FontSize(theme.InterfaceSize(17)).FontWeight(600).TextColor(muted)
+	})
 }
