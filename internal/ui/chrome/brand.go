@@ -25,7 +25,7 @@ var fishLogoBMP *ui.Bitmap
 var railWashOnce sync.Once
 var railWashBMP *ui.Bitmap
 
-// BrandAvatar returns the shared Whale Isle mascot bitmap (nil if decode fails).
+// BrandAvatar returns the shared MyGo鲸屿 mascot bitmap (nil if decode fails).
 func BrandAvatar() *ui.Bitmap {
 	whaleHeadOnce.Do(func() {
 		bmp, err := ui.DecodeBitmap(whaleHeadPNG)

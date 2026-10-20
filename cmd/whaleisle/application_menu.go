@@ -144,7 +144,7 @@ func buildApplicationMenu(bindings map[string]shortcuts.Chord, platform string, 
 	}
 	menu := []*mygo.MenuItem{}
 	if platform == "darwin" {
-		menu = append(menu, group("app", "鲸屿", "Whale Isle", item("settings.about", "关于", "About"), mygo.Separator(), quit))
+		menu = append(menu, group("app", "MyGo鲸屿", "MyGo鲸屿", item("settings.about", "关于", "About"), mygo.Separator(), quit))
 	}
 	menu = append(menu,
 		group("file", "文件", "File", item("workspace.add", "打开工作区…", "Open workspace…"), item("launcher.open", "打开启动器", "Open launcher"), item("workspace.openLocal", "在本地打开", "Open locally"), mygo.Separator(), item("settings.open", "设置…", "Settings…"), item("market.open", "插件市场…", "Marketplace…"), item("settings.mcp", "MCP…", "MCP…"), item("settings.skills", "技能…", "Skills…"), mygo.Separator(), last),

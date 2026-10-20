@@ -83,7 +83,7 @@ func whalebridgeRow(dir string) (Row, bool) {
 	}
 	desc := cat.Manifest.Description
 	if desc == "" {
-		desc = "将 API 供应商和订阅账号接入鲸屿，统一管理模型、请求路由与用量。"
+		desc = "将 API 供应商和订阅账号接入 MyGo鲸屿，统一管理模型、请求路由与用量。"
 	}
 	ver := cat.Manifest.Version
 	if ver == "" || compareVersions(inst.Version, ver) > 0 {

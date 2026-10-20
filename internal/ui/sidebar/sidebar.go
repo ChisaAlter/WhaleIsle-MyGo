@@ -150,7 +150,7 @@ func View(c *ui.Context, m Model) {
 					ui.Column(c).Gap(0).Grow(1).Children(func() {
 						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 							ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(theme.InterfaceSize(15)).FontWeight(400).TextColor(fg)
-							ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
+							ui.Text(c, "MYGO鲸屿").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
 						})
 						ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(9)).TextColor(muted)
 					})

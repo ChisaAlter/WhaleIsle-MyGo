@@ -3,7 +3,7 @@
 //
 // # Plugin slot URLs
 //
-// Whale Isle opens the harness web origin with a query consumed by its
+// MyGo鲸屿 opens the harness web origin with a query consumed by its
 // desktop plugin-views adapter. The adapter discovers live registered views
 // and opens them through their original owners; the Host shell stays intact:
 //
@@ -17,7 +17,7 @@
 //
 // # Host surface
 //
-// Whale Isle's plan (docs/plan.md) is a borderless WebView2 child window
+// MyGo鲸屿's plan (docs/plan.md) is a borderless WebView2 child window
 // aligned to a native panel rectangle inside the main Content window.
 //
 //	type Host struct { /* opaque */ }

@@ -48,7 +48,7 @@ func officePreviewReady(fonts []string) string {
 }
 
 func officePreviewFailure(err error) string {
-	unavailable := "Office 预览不可用。请在运行 Whale Isle Host 的主机上启用文档预览服务，并确认 LibreOffice Kit 运行依赖可用；然后点击“转为 PDF 预览”重试。"
+	unavailable := "Office 预览不可用。请在运行 MyGo鲸屿 Host 的主机上启用文档预览服务，并确认 LibreOffice Kit 运行依赖可用；然后点击“转为 PDF 预览”重试。"
 	var remote *dsh.Error
 	if errors.As(err, &remote) {
 		switch remote.Code {

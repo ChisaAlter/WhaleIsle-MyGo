@@ -42,7 +42,7 @@ func prepareIsolatedDesktop() error {
 		return fmt.Errorf("WHALEISLE_ISOLATED cannot use the installed application's data directory")
 	}
 	sum := sha256.Sum256([]byte(strings.ToLower(data)))
-	mygo.App.SetName(fmt.Sprintf("Whale Isle Isolated %x", sum[:6]))
+	mygo.App.SetName(fmt.Sprintf("MyGo鲸屿 Isolated %x", sum[:6]))
 	mygo.App.SetPath(mygo.PathUserData, filepath.Join(data, "native"))
 	mygo.App.SetPath(mygo.PathCache, filepath.Join(data, "native", "cache"))
 	mygo.App.SetPath(mygo.PathLogs, filepath.Join(data, "native", "logs"))

@@ -106,7 +106,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 		panel.Width(460).MaxWidthPercent(92).Padding(20).Radius(14).Background(chrome.Color(colors.BG)).Children(func() {
 			ui.Column(c).Gap(12).Children(func() {
 				ui.Text(c, resumeText("当前无可用余额", "No balance available")).Bold().FontSize(16).TextColor(chrome.Color(colors.FG))
-				ui.Text(c, resumeText("没有可用额度时，Whale Isle 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。", "Whale Isle cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.")).TextColor(chrome.Color(colors.FG))
+				ui.Text(c, resumeText("没有可用额度时，MyGo鲸屿 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。", "MyGo鲸屿 cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.")).TextColor(chrome.Color(colors.FG))
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, resumeText("取消", "Cancel")).Clicked() {
 						sessions.DismissQuotaNotice(notice.ID)

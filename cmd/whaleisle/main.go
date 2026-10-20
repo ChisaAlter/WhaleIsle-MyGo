@@ -1,4 +1,4 @@
-// Command whaleisle is the Go desktop shell of Whale Isle.
+// Command whaleisle is the Go desktop shell of MyGo鲸屿.
 //
 // Assembles M1 shell chrome and M2 harness boot: single-instance lock,
 // config / credentials, custom title bar, tray, close-to-tray, open-at-login,

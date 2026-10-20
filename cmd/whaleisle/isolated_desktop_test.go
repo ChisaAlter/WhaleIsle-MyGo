@@ -48,12 +48,12 @@ func TestIsolatedDesktopSeparatesNativePathsLockNameAndComponentDiscovery(t *tes
 	originalApp := mygo.App
 	mygo.App = &mygo.Application{}
 	t.Cleanup(func() { mygo.App = originalApp })
-	mygo.App.SetName("Whale Isle")
+	mygo.App.SetName("MyGo鲸屿")
 	if err := prepareIsolatedDesktop(); err != nil {
 		t.Fatal(err)
 	}
 	firstName := mygo.App.Name()
-	if firstName == "Whale Isle" || !strings.HasPrefix(firstName, "Whale Isle Isolated ") {
+	if firstName == "MyGo鲸屿" || !strings.HasPrefix(firstName, "MyGo鲸屿 Isolated ") {
 		t.Fatalf("shared installed single-instance identity: %q", firstName)
 	}
 	for key, want := range map[mygo.PathName]string{

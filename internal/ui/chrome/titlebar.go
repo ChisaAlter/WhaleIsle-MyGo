@@ -1,4 +1,4 @@
-// Package chrome holds shared native window chrome for Whale Isle:
+// Package chrome holds shared native window chrome for MyGo鲸屿:
 // the custom title bar drawn under MyGo's TitleBarHidden controls.
 package chrome
 
@@ -32,7 +32,7 @@ func DefaultTitleBarColors() TitleBarColors {
 
 // TitleBarHeight is the caption strip reserved for system traffic lights.
 // Electron desk lets the left rail run under the caption; keep this thin so
-// the rail brand sits near the top edge like the live Whale Isle window.
+// the rail brand sits near the top edge like the live MyGo鲸屿 window.
 const TitleBarHeight = 12
 
 // EffectiveTitleBarHeight is the caption strip height for the active mode.

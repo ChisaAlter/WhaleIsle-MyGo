@@ -1,4 +1,4 @@
-// Package paths resolves the file system locations Whale Isle uses:
+// Package paths resolves the file system locations MyGo鲸屿 uses:
 // the user data directory it shares with the Electron shell, the dsh home
 // inside it, and the runtime directory holding the pid file.
 //
