@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/dsh/events"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -29,6 +30,10 @@ type ToolCardInfo struct {
 	Detail string
 	Images []string
 	Links  []markdown.Link
+	// Arguments and Output keep the full payloads for the expanded body. Detail
+	// stays the one-line summary the collapsed row uses.
+	Arguments string
+	Output    string
 }
 
 // ParseToolCard extracts name, status, and truncated args/result from raw JSON.
@@ -47,6 +52,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 			}
 			info.Status = "call"
 			info.Links = markdown.Links(ev.Data.Arguments)
+			info.Arguments = ev.Data.Arguments
 			info.Detail = truncateToolText(ev.Data.Arguments, 160)
 		}
 	case events.TypeToolResult:
@@ -59,6 +65,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 				info.Images = nil
 			}
 			info.Links = markdown.Links(toolResultText(ev))
+			info.Output = toolResultText(ev)
 			info.Detail = truncateToolText(toolResultText(ev), 200)
 			if len(info.Images) > 0 {
 				info.Detail = toolResultText(ev)
@@ -69,6 +76,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 		if json.Unmarshal(raw, &ev) == nil {
 			info.Name = ev.Data.Name
 			info.Status = "running"
+			info.Arguments = mustJSON(ev.Data.Arguments)
 			info.Detail = truncateToolText(mustJSON(ev.Data.Arguments), 160)
 		}
 	case events.TypeToolPtcDispatch:
@@ -80,6 +88,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 				info.Images = toolImageReferences(ev.Data.Content)
 			}
 			info.Links = markdown.Links(ptcDetail(ev.Data))
+			info.Output = ptcDetail(ev.Data)
 			info.Detail = truncateToolText(ptcDetail(ev.Data), 200)
 			if len(info.Images) > 0 {
 				info.Detail = toolImageText(ev.Data.Content, true)
@@ -88,6 +97,7 @@ func ParseToolCard(eventType string, raw json.RawMessage) ToolCardInfo {
 	default:
 		info.Name = strings.TrimPrefix(eventType, "tool/")
 		info.Detail = truncateToolText(extractLooseText(raw), 160)
+		info.Output = extractLooseText(raw)
 	}
 	if info.Name == "" {
 		info.Name = "tool"
@@ -100,57 +110,90 @@ func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolC
 	toolCardInfoView(c, ParseToolCard(eventType, raw), st, gallery...)
 }
 
-// toolCardInfoView shares image, link and style rendering with lifecycle cards.
+// toolCardInfoView paints one tool call as the Original ToolRow does: a single
+// 24px disclosure line (kind icon, title, argument summary, status dot,
+// chevron) whose structured body mounts only when opened.
 func toolCardInfoView(c *ui.Context, info ToolCardInfo, st ToolCardStyle, gallery ...ToolImageGalleryOptions) {
-	kind, chip := ClassifyToolName(info.Name)
+	toolCardInfoViewExtra(c, info, st, nil, gallery...)
+}
+
+// toolCardInfoViewExtra adds owner content (diff/file cards, inspect action)
+// inside the disclosure body, so a collapsed row keeps one line.
+func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, extra func(), gallery ...ToolImageGalleryOptions) {
+	opts := ToolImageGalleryOptions{}
+	if len(gallery) > 0 {
+		opts = gallery[0]
+	}
+	kind, _ := ClassifyToolName(info.Name)
 	size := st.FontSize
 	if size <= 0 {
 		size = 12
 	}
-	statusColor := st.Muted
-	switch info.Status {
-	case "ok":
-		statusColor = st.OK
-	case "error", "failed":
-		statusColor = st.Err
-	case "call", "running", "preparing":
-		statusColor = st.Accent
+	key := opts.ID
+	if key == "" {
+		key = info.Name + ":" + info.Status + ":" + info.Detail
 	}
-	chipBG := st.Border
-	switch kind {
-	case ToolKindBash:
-		chipBG = ui.RGB(45, 55, 72)
-	case ToolKindRead:
-		chipBG = ui.RGB(49, 70, 89)
-	case ToolKindWrite:
-		chipBG = ui.RGB(70, 55, 40)
-	case ToolKindSearch:
-		chipBG = ui.RGB(55, 60, 90)
-	case ToolKindWeb:
-		chipBG = ui.RGB(40, 70, 70)
-	case ToolKindTodo:
-		chipBG = ui.RGB(55, 75, 55)
-	case ToolKindAsk:
-		chipBG = ui.RGB(75, 60, 40)
-	case ToolKindSubagent:
-		chipBG = ui.RGB(65, 50, 80)
+	summary := toolArgSummary(info.Arguments, info.Name)
+	if summary == "" {
+		summary = toolArgSummary(info.Detail, info.Name)
 	}
-	ui.Column(c).Padding(8, 10, 8, 10).Gap(4).Fill().Background(st.Field).Border(1, st.Border).Radius(6).Children(func() {
-		ui.Row(c).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, chip).FontSize(size-2).Bold().TextColor(st.FG).Background(chipBG).Padding(2, 6, 2, 6).Radius(4)
-			ui.Text(c, info.Name).FontSize(size).Bold().TextColor(st.FG).Grow(1)
-			ui.Text(c, info.Status).FontSize(size - 1).TextColor(statusColor)
-		})
-		if len(info.Images) > 0 && len(gallery) > 0 && !gallery[0].TextOnly {
-			toolImageGallery(c, info.Images, st, gallery[0])
+	if toolRowStatus(info.Status) == statusError {
+		if line := firstDetailLine(info.Detail); line != "" {
+			summary = line
 		}
-		if len(gallery) > 0 && !gallery[0].TextOnly {
-			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, gallery[0].OnOpenURL)
+	}
+	body := func() {
+		if len(info.Images) > 0 && !opts.TextOnly {
+			toolImageGallery(c, info.Images, st, opts)
 		}
-		if info.Detail != "" {
-			ui.Text(c, info.Detail).FontSize(size - 1).TextColor(st.Muted)
+		if !opts.TextOnly {
+			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
-	})
+		if extra != nil {
+			extra()
+		}
+		if !toolStructuredBody(c, kind, info, st, key) {
+			if info.Arguments != "" {
+				toolLifecycleDetail(c, key+":args", i18n.T(i18n.KeyChatToolArguments), prettyToolPayload(info.Arguments), st, nil, opts.TextOnly)
+			}
+			if info.Output != "" {
+				toolLifecycleDetail(c, key+":result", i18n.T(i18n.KeyChatToolResult), info.Output, st, nil, opts.TextOnly)
+			}
+		}
+		// One copy seat keeps the whole call (arguments + output) reachable, as
+		// the Original detail cards expose their own clipboard action.
+		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" {
+			if ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).Clicked() {
+				if opts.TextOnly {
+					c.Services().WriteClipboard(payload)
+				} else {
+					c.WriteClipboard(payload)
+				}
+			}
+		}
+	}
+	paintToolRow(c, kind, toolKindTitle(kind), summary, toolRowStatus(info.Status), st, key, opts.Expanded, body)
+}
+
+// toolCopyPayload joins the call evidence for the copy action.
+func toolCopyPayload(arguments, output string) string {
+	parts := make([]string, 0, 2)
+	if strings.TrimSpace(arguments) != "" {
+		parts = append(parts, arguments)
+	}
+	if strings.TrimSpace(output) != "" {
+		parts = append(parts, output)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func firstDetailLine(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			return clipRunes(collapseSpace(trimmed), toolRowSummaryRunes)
+		}
+	}
+	return ""
 }
 
 func toolResultName(ev events.ToolResult) string {

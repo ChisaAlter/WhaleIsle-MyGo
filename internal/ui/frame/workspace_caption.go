@@ -25,10 +25,15 @@ func conversationIsManaged(snapshot session.ViewState) bool {
 	return false
 }
 
+// workspaceCaptionHeight is the single title band above every column: the
+// desktop caption's 48px (titlebar-density.ts sits in the band's trailing
+// cluster). The band never grows a second row.
+const workspaceCaptionHeight = float32(48)
+
 // AppFrame owns one auto-sized title row across conversation and details.
 // The right dock begins in row two; native caption controls remain an overlay.
 func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, hero bool) float32 {
-	row := ui.Row(c.Key("workspace-shared-caption")).FillWidth().MinHeight(52).Shrink(0).DragWindow()
+	row := ui.Row(c.Key("workspace-shared-caption")).FillWidth().MinHeight(workspaceCaptionHeight).Shrink(0).DragWindow()
 	conversationFileDrop(c, m, row, snap.SelectedID)
 	measure := ui.Local(row, "trailing-measure", func() workspaceCaptionMeasure { return workspaceCaptionMeasure{} })
 	controls := max(float32(112), c.TitleBar().Right+8)
@@ -45,25 +50,22 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	row.Children(func() {
 		ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center).Shrink(0).MinWidth(0).Children(func() {
 			if m.WorkspacePage {
-				ui.Box(c).Height(52)
+				ui.Box(c).Height(workspaceCaptionHeight)
 				return
 			}
 			if mainSubagentConversationHeader(c, m, m.captionRightInset) {
 				return
 			}
 			if hero {
-				ui.Row(c).FillWidth().Height(52).Padding(0, m.captionRightInset, 0, 20).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().Height(workspaceCaptionHeight).Padding(0, m.captionRightInset, 0, 20).AlignItems(ui.Center).Children(func() {
 					ui.Box(c).Grow(1).MinWidth(0)
 					jobsHeader(c, m)
 				})
 				return
 			}
+			// Title, status actions and the 对话/轨迹 switcher share this one 48px
+			// row; rc.2 has no second tab row under the band.
 			conversationHeaderTitleRow(c, m, snap, colors)
-			if m.HideChatViewTabs || m.DisableDeveloperTools || conversationIsManaged(snap) {
-				ui.Box(c).Height(13) // source bottom padding12 + transparent border1
-				return
-			}
-			conversationViewTabs(c, m, colors)
 		})
 		if m.WorkspaceTrailing != nil {
 			densityWidth := m.Sizes.Center
@@ -76,7 +78,9 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			} else if densityWidth < 900 {
 				density = "cozy"
 			}
-			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(8).Right(controls).Height(32).Gap(8)
+			// titlebar-density.ts: the cluster sits 12px below the band's top edge
+			// and ends at the native caption reserve (dshd-wco-controls = 112px).
+			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(8)
 			trailing.Children(func() { m.WorkspaceTrailing(c, density) })
 		}
 	})
@@ -93,37 +97,47 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			c.Invalidate()
 		}
 	})
-	return max(float32(52), row.Bounds().H)
+	// The band's bottom hairline anchors the header the way the client's
+	// conversation-header ::after does.
+	row.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - .5, W: r.W, H: .5}, chrome.Color(colors.Border), 0)
+	})
+	return max(workspaceCaptionHeight, row.Bounds().H)
 }
 
-func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors) {
-	ui.Row(c).FillWidth().Padding(4, 28, 0, 28).AlignItems(ui.End).Gap(36).Children(func() {
-		tab := derefString(m.ChatPaneTab)
-		if tab == "" {
-			tab = "chat"
+// conversationViewTabs renders the 对话/轨迹 switcher inside the title band.
+// The preference (ui-conversation viewTabs) still owns whether it exists; it
+// never adds a row of its own, so the band stays 48px in every state.
+func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact bool) {
+	if compact {
+		// The original collapses the trailing cluster instead of squeezing it; the
+		// band keeps the title and the panel/terminal utilities at narrow widths.
+		return
+	}
+	tab := derefString(m.ChatPaneTab)
+	if tab == "" {
+		tab = "chat"
+	}
+	paint := func(id, label string) {
+		ink := chrome.Color(colors.Muted)
+		if tab == id {
+			ink = chrome.Color(colors.Accent)
 		}
-		paint := func(id, label string) {
-			ink := chrome.Color(colors.Muted)
-			if tab == id {
-				ink = chrome.Color(colors.Accent)
+		ui.Column(c).Shrink(0).Height(workspaceCaptionHeight).Justify(ui.End).Children(func() {
+			button := ui.Button(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).
+				BorderWidth(0).Background(ui.Transparent).TextColor(ink).Padding(0, 2, 9, 2)
+			if button.Clicked() && m.ChatPaneTab != nil {
+				*m.ChatPaneTab = id
 			}
-			ui.Column(c).Children(func() {
-				button := ui.Button(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16)).FontWeight(500).
-					BorderWidth(0).Background(ui.Transparent).TextColor(ink).Padding(0, 0, 9, 0)
-				if button.Clicked() && m.ChatPaneTab != nil {
-					*m.ChatPaneTab = id
-				}
-				line := ui.Box(c).FillWidth().Height(2)
-				if tab == id {
-					line.Background(chrome.Color(colors.Accent)).Radius(2)
-				}
-			})
-		}
+			line := ui.Box(c).FillWidth().Height(2).Radius(1)
+			if tab == id {
+				line.Background(chrome.Color(colors.Accent))
+			}
+		})
+	}
+	ui.Row(c).Key("conversation-view-tabs").Shrink(0).Height(workspaceCaptionHeight).AlignItems(ui.End).Gap(18).
+		Margin(0, 10, 0, 10).Children(func() {
 		paint("chat", i18n.T(i18n.KeyChatPaneTabChat))
 		paint("trajectory", i18n.T(i18n.KeyChatPaneTabTrajectory))
-		ui.Box(c).Grow(1).MinWidth(0)
-	})
-	ui.Box(c).FillWidth().Height(1).Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - .5, W: r.W, H: .5}, chrome.Color(colors.Border), 0)
 	})
 }

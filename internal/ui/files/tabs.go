@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -313,63 +314,131 @@ func saveDraft(m Model) error {
 	capture(m)
 	return nil
 }
+// paintTabs paints the open-file strip: one 28px chip per tab, the active chip
+// filled, the close control only while the chip is active or hovered, and the
+// trailing control that returns the tree to a browsable listing. Long names
+// ellipsize instead of widening the strip.
 func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 	w := tabsFor(m)
 	if w == nil {
 		return
 	}
 	ui.Column(c).Gap(2).Padding(4, 8, 4, 8).Children(func() {
-		for _, t := range append([]*FileTab(nil), w.Open...) {
-			path := t.Path
-			name := path
-			if t.Dirty() {
-				name += " •"
-			}
-			if w.Active == path {
-				name = "▸ " + name
-			}
-			ui.Row(c).Gap(4).FillWidth().Children(func() {
-				if ui.Button(c, name).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-					selectFile(m, path)
-				}
-				if ui.Button(c, "×").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-					closeTab(m, path, false)
-				}
-			})
-		}
-		if w.PendingClose != "" {
-			path := w.PendingClose
-			busy := false
-			if tab := findTab(w, path); tab != nil && tab.save != nil {
-				save := tab.save.Snapshot()
-				busy = save.Running || (tab.closeWhenSaved && save.Pending)
-			}
-			ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, label("保留草稿", "Keep draft")).Disabled(busy).Clicked() {
-					w.PendingClose = ""
-				}
-				if ui.Button(c, label("保存并关闭", "Save and close")).Disabled(busy).Clicked() {
-					selectFile(m, path)
-					if err := requestSaveDraft(m); err != nil {
-						if m.EditStatus != nil {
-							*m.EditStatus = err.Error()
-						}
-					} else {
-						if t := selectedTab(m); t != nil && t.save != nil {
-							t.closeWhenSaved = true
-						} else {
-							closeTab(m, path, false)
-						}
+		ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
+				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+					for _, tab := range append([]*FileTab(nil), w.Open...) {
+						paintTabChip(c, m, w, tab, fg, muted)
 					}
-				}
-				if ui.Button(c, label("丢弃并关闭", "Discard and close")).Disabled(busy).Clicked() {
-					closeTab(m, path, true)
-				}
+				})
 			})
+			paintBrowseButton(c, m, muted)
+		})
+		paintPendingClose(c, m, w, muted)
+	})
+}
+
+// paintTabChip paints one 28px tab chip.
+func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, muted ui.Color) {
+	active := w.Active == tab.Path
+	dirty := tab.Dirty()
+	chip := ui.Row(c.Key("tab-"+tab.Path)).Gap(5).Height(28).MinWidth(80).MaxWidth(170).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
+	hovered := chip.Hovered()
+	switch {
+	case active:
+		chip.Background(c.Theme().SurfaceHover)
+	case hovered:
+		chip.Background(ui.RGBA(muted.R, muted.G, muted.B, .16))
+	}
+	textColor := muted
+	if active {
+		textColor = fg
+	}
+	chip.Children(func() {
+		title := ui.Button(c, "").Label(tab.Path).Grow(1).MinWidth(0).Height(26).Padding(0).BorderWidth(0).Background(ui.Transparent)
+		title.Children(func() {
+			ui.Text(c, filepath.Base(tab.Path)).FontSize(fonttheme.InterfaceSize(13)).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+		})
+		if title.Clicked() {
+			selectFile(m, tab.Path)
+		}
+		if dirty {
+			accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
+			ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(accent).Tooltip(i18n.T(i18n.KeySurfacesFilesDirty))
+		}
+		if active || hovered {
+			closeLabel := i18n.T(i18n.KeySurfacesFilesClose)
+			close := ui.Button(c, "").Label(closeLabel).Size(18, 18).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
+			close.Children(func() {
+				ui.Icon(c, tabCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
+			})
+			if close.Hovered() {
+				close.Background(c.Theme().SurfacePressed)
+			}
+			if close.Clicked() {
+				closeTab(m, tab.Path, false)
+			}
 		}
 	})
-	_ = fg
+}
+
+// paintBrowseButton returns the file tree to a browsable listing so another
+// file can open as a tab. Tabs are only created by opening a tree entry, so the
+// control clears the live filter and refreshes the listing instead of opening
+// an empty placeholder tab.
+func paintBrowseButton(c *ui.Context, m Model, muted ui.Color) {
+	caption := i18n.T(i18n.KeySurfacesFilesOpen)
+	control := ui.Button(c, "").Label(caption).Size(28, 28).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(caption)
+	control.Children(func() {
+		ui.Icon(c, tabPlusIcon).Size(12, 12).TextColor(muted).PassThrough()
+	})
+	if control.Hovered() {
+		control.Background(c.Theme().SurfaceHover)
+	}
+	if !control.Clicked() {
+		return
+	}
+	if m.Filter != nil {
+		*m.Filter = ""
+	}
+	if m.Tabs != nil && m.Tabs.Tree != nil {
+		m.Tabs.Tree.Refresh()
+	}
+}
+
+// paintPendingClose shows the unsaved-tab decision for the tab that requested a
+// close, instead of a second modal over the editor.
+func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color) {
+	if w.PendingClose == "" {
+		return
+	}
+	path := w.PendingClose
+	busy := false
+	if tab := findTab(w, path); tab != nil && tab.save != nil {
+		save := tab.save.Snapshot()
+		busy = save.Running || (tab.closeWhenSaved && save.Pending)
+	}
+	ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Row(c).Gap(4).Children(func() {
+		if ui.Button(c, label("保留草稿", "Keep draft")).Disabled(busy).Clicked() {
+			w.PendingClose = ""
+		}
+		if ui.Button(c, label("保存并关闭", "Save and close")).Disabled(busy).Clicked() {
+			selectFile(m, path)
+			if err := requestSaveDraft(m); err != nil {
+				if m.EditStatus != nil {
+					*m.EditStatus = err.Error()
+				}
+			} else if tab := selectedTab(m); tab != nil {
+				tab.closeWhenSaved = true
+			} else {
+				closeTab(m, path, false)
+			}
+		}
+		if ui.Button(c, label("丢弃并关闭", "Discard and close")).Disabled(busy).Clicked() {
+			closeTab(m, path, true)
+		}
+	})
 }
 
 // Export captures tab/draft state for the application recovery store.

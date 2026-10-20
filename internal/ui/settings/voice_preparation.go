@@ -289,7 +289,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 			}
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if canPrepare && ui.Button(c, voiceText("准备 / 重试准备", "Prepare / retry preparation")).Disabled(!connected || submitting).Clicked() {
+			if canPrepare && ui.Button(c, voiceText("准备或重试准备", "Prepare / retry preparation")).Disabled(!connected || submitting).Clicked() {
 				*dismissed = ""
 				owner.Prepare(id, selectedSource)
 			}

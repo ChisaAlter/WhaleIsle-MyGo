@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 var queueImageLoads attachmentLoadCache
@@ -38,7 +39,7 @@ func paintQueueAttachments(c *ui.Context, m PlanBoardModel, item session.PlanQue
 					ui.Image(c, loadChatBitmap(state.path)).Width(64).Height(48).Fit(ui.Contain)
 				} else {
 					ui.Text(c, "[image]").Width(64).FontSize(11).TextColor(muted)
-					if state.err != nil && ui.Button(c, "重试 / Retry").FontSize(10).Clicked() {
+					if state.err != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(10).Clicked() {
 						queueImageLoads.retry(key)
 						c.Services().Invalidate()
 					}

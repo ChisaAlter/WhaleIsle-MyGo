@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestOpenUIFenceStageUI(t *testing.T) {
@@ -15,10 +16,10 @@ func TestOpenUIFenceStageUI(t *testing.T) {
 			t.Error("fence not recognized")
 		}
 	}, 800, 1000)
-	if !tt.HasText("OpenUI · 隔离交互 / Isolated interaction") {
+	if !tt.HasText(i18n.T(i18n.KeyChatIsolated)) {
 		t.Fatal("streaming inline block missing")
 	}
-	if err := tt.Click("源码 / Source"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatIsolatedSource)); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("main=Text(\"real program\")") {

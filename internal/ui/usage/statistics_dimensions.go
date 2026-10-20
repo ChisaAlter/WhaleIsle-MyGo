@@ -70,9 +70,7 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 	for _, row := range o.AllTime.ByModel {
 		providers[row.Model] = row.Provider
 	}
-	if !m.Embedded {
-		usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
-	}
+	usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
 	calendarUsageView(c, m, st, providers, settings, fg, muted, accent, field)
 	days := o.Days
 	models := o.ByModel

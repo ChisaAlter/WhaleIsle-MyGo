@@ -40,11 +40,11 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 		// Keep the opening controls mounted so every close route can return
 		// focus to the exact action, rather than to a removed modal child.
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if ui.Button(c, providerCopy("模式说明", "Mode details")).Label("模式说明 / Mode details · " + row.ID).Bind(&state.DetailsTrigger).Clicked() {
+			if ui.Button(c, providerCopy("模式说明", "Mode details")).Label(providerCopy("模式说明", "Mode details") + " · " + row.ID).Bind(&state.DetailsTrigger).Clicked() {
 				state.Page, state.Trigger = "explanation", "explanation"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
-			if ui.Button(c, providerCopy("如何使用", "How to use")).Label("如何使用 / How to use · " + row.ID).Bind(&state.UsageTrigger).Clicked() {
+			if ui.Button(c, providerCopy("如何使用", "How to use")).Label(providerCopy("如何使用", "How to use") + " · " + row.ID).Bind(&state.UsageTrigger).Clicked() {
 				state.Page, state.Trigger = "usage", "usage"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
@@ -60,7 +60,7 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 				ui.Column(c).Fill().MinHeight(0).Gap(12).Children(func() {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, providerCopy("模式指南", "Mode guide")).FontSize(fonttheme.InterfaceSize(16)).Bold().Grow(1)
-						if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label("关闭帮助 / Close help · " + row.ID).Clicked() {
+						if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label(providerCopy("关闭帮助", "Close help") + " · " + row.ID).Clicked() {
 							open = false
 						}
 					})

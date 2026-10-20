@@ -276,8 +276,8 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 			g.LocalPage = 0
 			g.NextPage = 0
 		}
-		ui.TextInput(c, &g.Search).Placeholder("搜索标题 / Wallhaven 关键词").FillWidth()
-		if ui.Button(c, "查找 / 刷新").Disabled(g.Busy).Clicked() {
+		ui.TextInput(c, &g.Search).Placeholder(providerCopy("搜索标题或 Wallhaven 关键词", "Search titles or Wallhaven keywords")).FillWidth()
+		if ui.Button(c, providerCopy("查找或刷新", "Find or refresh")).Disabled(g.Busy).Clicked() {
 			g.load(1)
 		}
 	})
@@ -289,7 +289,7 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 		ui.Select(c, &g.Year, years)
 	}
 	if g.Source == "wallhaven" {
-		ui.Text(c, "分类：100 风景 / 010 动漫 / 001 人物；仅 SFW").FontSize(fonttheme.InterfaceSize(11))
+		ui.Text(c, providerCopy("分类：100 风景、010 动漫、001 人物；仅 SFW", "Categories: 100 scenery, 010 anime, 001 people; SFW only")).FontSize(fonttheme.InterfaceSize(11))
 		ui.Select(c, &g.Category, []string{"100", "010", "001"})
 	}
 	for _, item := range g.visible() {

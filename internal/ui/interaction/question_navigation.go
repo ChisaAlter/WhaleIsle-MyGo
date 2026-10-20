@@ -22,14 +22,14 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 	frame.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
 			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
-			label := "收起问题 / Minimize question"
+			label := i18n.T(i18n.KeyChatQuestionMinimize)
 			if flow.minimized {
-				label = "展开问题 / Expand question"
+				label = i18n.T(i18n.KeyChatQuestionExpand)
 			}
 			if ui.Button(c, label).Disabled(p.Sending).Clicked() {
 				flow.minimized = !flow.minimized
 			}
-			if ui.Button(c, "查看答案摘要 / Review answers").Disabled(p.Sending).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionReview)).Disabled(p.Sending).Clicked() {
 				flow.summary = !flow.summary
 			}
 		})
@@ -44,27 +44,27 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			ui.Text(c, questionFeedback(flow.feedback)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
-			if ui.Button(c, "上一题 / Previous question").Disabled(p.Sending || index == 0).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionPrev)).Disabled(p.Sending || index == 0).Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index-1)
 				flow.feedback = ""
 			}
-			if ui.Button(c, "下一题 / Next question").Disabled(p.Sending || index+1 == len(card.Rows)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionNext)).Disabled(p.Sending || index+1 == len(card.Rows)).Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index+1)
 				flow.feedback = ""
 			}
 			if row.Skipped {
-				ui.Text(c, "已跳过 / Skipped").FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				if ui.Button(c, "撤销跳过 / Undo skip").Disabled(p.Sending).Clicked() {
+				ui.Text(c, i18n.T(i18n.KeyChatQuestionSkipped)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				if ui.Button(c, i18n.T(i18n.KeyChatQuestionUndoSkip)).Disabled(p.Sending).Clicked() {
 					store.SetQuestionSkipped(p.EventID, row.ID, false)
 					flow.feedback = ""
 				}
 			}
-			if ui.Button(c, "跳过此题 / Skip question").Disabled(p.Sending || p.Error != "").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionSkip)).Disabled(p.Sending || p.Error != "").Clicked() {
 				flow.focusID, flow.feedback = store.SkipQuestionAndContinue(p.AgentID, p.EventID, row.ID)
 			}
-			label := "下一步 / Next"
+			label := i18n.T(i18n.KeyChatQuestionStep)
 			if index+1 == len(card.Rows) {
-				label = "提交 / Submit"
+				label = i18n.T(i18n.KeyChatQuestionSubmit)
 				if p.Continued {
 					label = questionStatusText("submit")
 				}
@@ -93,13 +93,13 @@ func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction
 			}
 			answer := strings.Join(values, " · ")
 			if answer == "" {
-				answer = "未回答 / Unanswered"
+				answer = i18n.T(i18n.KeyChatQuestionUnanswer)
 				if row.Skipped {
-					answer = "已跳过 / Skipped"
+					answer = i18n.T(i18n.KeyChatQuestionSkipped)
 				}
 			}
 			ui.Text(c, fmt.Sprintf("%d. %s: %s", index+1, label, answer)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			if ui.Button(c, fmt.Sprintf("回看第 %d 题 / Review question %d", index+1, index+1)).Disabled(p.Sending).Clicked() {
+			if ui.Button(c, fmt.Sprintf(i18n.T(i18n.KeyChatQuestionReviewN), index+1)).Disabled(p.Sending).Clicked() {
 				if store.NavigateQuestion(p.AgentID, p.EventID, index) {
 					flow.summary, flow.minimized = false, false
 					flow.feedback = ""

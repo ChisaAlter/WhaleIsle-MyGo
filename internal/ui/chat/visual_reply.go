@@ -5,6 +5,7 @@ import (
 	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/i18n"
 )
 
 // VisualReplyView sits outside ToolCardView's disclosure. HTML is always plain
@@ -141,7 +142,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	}
 	if page.Error != "" {
 		ui.Text(c, page.Error).TextColor(muted)
-		if page.Retry != nil && ui.Button(c, "重试 / Retry").Clicked() {
+		if page.Retry != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).Clicked() {
 			page.Retry()
 		}
 		return

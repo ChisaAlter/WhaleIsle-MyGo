@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestQuestionReplyDisclosureCopyAndSessionIsolation(t *testing.T) {
@@ -16,13 +17,13 @@ func TestQuestionReplyDisclosureCopyAndSessionIsolation(t *testing.T) {
 		t.Fatal("not collapsed")
 	}
 	tt.Click("Question reply details reply")
-	for _, text := range []string{"Header", "Full detail", "Yes — Description", "回答 / Answer: Yes, custom"} {
+	for _, text := range []string{"Header", "Full detail", "Yes — Description", i18n.T(i18n.KeyChatQuestionAnswer) + ": Yes, custom"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %s", text)
 		}
 	}
 	tt.Click("Copy question reply reply")
-	if tt.Clipboard() != "Header — Pick\n回答 / Answer: Yes, custom" {
+	if tt.Clipboard() != "Header — Pick\n" + i18n.T(i18n.KeyChatQuestionAnswer) + ": Yes, custom" {
 		t.Fatal(tt.Clipboard())
 	}
 	scope = "two"

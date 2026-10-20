@@ -22,10 +22,11 @@ func centerRightColumns(c *ui.Context, m Model, center, right func(), header ...
 }
 
 // workspaceHeaderBand is AppFrame row 1 shared by the center's header and the
-// right titlebar seat. Its auto height follows the center header, with a 52-DIP
-// floor even for a sessionless or blank center. Resource tabs start in row 2.
+// right titlebar seat. Its auto height follows the center header, with the 48-DIP
+// caption floor even for a sessionless or blank center. Nothing starts below it
+// in a second row.
 func workspaceHeaderBand(c *ui.Context, header func()) {
-	ui.Box(c).Key("workspace-shared-titlebar-row").FillWidth().MinHeight(52).Shrink(0).Children(header)
+	ui.Box(c).Key("workspace-shared-titlebar-row").FillWidth().MinHeight(workspaceCaptionHeight).Shrink(0).Children(header)
 }
 
 func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {

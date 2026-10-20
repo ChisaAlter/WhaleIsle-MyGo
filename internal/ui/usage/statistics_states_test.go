@@ -17,13 +17,13 @@ func TestEmbeddedUsageInitialLoadingErrorAndEmptyStates(t *testing.T) {
 			s := usageFixture(t, state)
 			tt := ui.NewTester(func(c *ui.Context) { ui.Scroll(c).Fill().Children(func() { View(c, Model{Store: s, Embedded: true}) }) }, 680, 1000)
 			text := strings.Join(tt.Texts(), "\n")
-			if state == "loading" && !strings.Contains(text, "Reading session usage statistics") {
+			if state == "loading" && !strings.Contains(text, "Loading usage") {
 				t.Fatal(text)
 			}
 			if state == "error" && !strings.Contains(text, s.Stats().Err) {
 				t.Fatal("initial error hidden", text)
 			}
-			if state == "empty" && !strings.Contains(text, "No usage recorded yet") {
+			if state == "empty" && !strings.Contains(text, "No usage in this range.") {
 				t.Fatal(text)
 			}
 			if strings.Contains(text, "Date range (UTC") || strings.Contains(text, "Export json") {
@@ -40,13 +40,13 @@ func TestEmbeddedUsageRangeSharesDimensionsAndExportScope(t *testing.T) {
 	s := usageFixture(t, "data")
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Children(func() { View(c, Model{Store: s, Embedded: true, OnExportStats: func(string) {}}) })
-	}, 850, 2200)
-	if !tt.HasText("Model share (all time)") || !tt.HasText("Daily model breakdown (recent)") || !tt.HasText("Export sessions") {
-		t.Fatal("all-time/recent dimensions missing")
+	}, 850, 3600)
+	if !tt.HasText("Model share (all time)") || !tt.HasText("Daily model breakdown (recent)") || !tt.HasText("Export session CSV") {
+		t.Fatal("all-time/recent dimensions missing:" + "\n" + strings.Join(tt.Texts(), "\n"))
 	}
 	s.SelectStatsDay("2026-10-14", false)
 	tt.Frame()
-	if !tt.HasText("Model share (selected dates)") || !tt.HasText("Daily model breakdown (selected dates)") || tt.HasText("Export sessions") {
+	if !tt.HasText("Model share (selected dates)") || !tt.HasText("Daily model breakdown (selected dates)") || tt.HasText("Export session CSV") {
 		t.Fatal("selection was not shared across dimensions and exports")
 	}
 	s.SetStatsRangeDraft("2026-10-15", "2026-10-14")
@@ -55,7 +55,7 @@ func TestEmbeddedUsageRangeSharesDimensionsAndExportScope(t *testing.T) {
 	if s.Stats().RangeError == "" || !tt.HasText(s.Stats().RangeError) || !s.Stats().Range.Active() {
 		t.Fatal("invalid range silently replaced accepted selection")
 	}
-	if err := tt.Click("7 days"); err != nil {
+	if err := tt.Click("Last 7 days"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Stats().Days != 7 || s.Stats().RangeError == "" {
@@ -65,7 +65,7 @@ func TestEmbeddedUsageRangeSharesDimensionsAndExportScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if s.Stats().Range.Active() || !tt.HasText("Model share (all time)") || !tt.HasText("Export sessions") {
+	if s.Stats().Range.Active() || !tt.HasText("Model share (all time)") || !tt.HasText("Export session CSV") {
 		t.Fatal("cleared range retained selected-date export scope")
 	}
 }

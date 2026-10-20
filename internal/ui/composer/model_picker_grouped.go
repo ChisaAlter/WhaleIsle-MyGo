@@ -1,10 +1,14 @@
 package composer
 
 import (
-	"github.com/egoist/mygo/ui"
 	"sort"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 type modelCatalogGroup struct {
@@ -145,7 +149,8 @@ func groupedModelChoices(s session.ViewState, query string) []modelCatalogGroup 
 	}
 	return filtered
 }
-func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height float32) {
+func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, height float32) {
+	muted := chrome.Color(colors.Muted)
 	root := ui.Column(c.Key("grouped-model-catalog"))
 	state := ui.Local(root, "menu", func() modelCatalogMenu { return modelCatalogMenu{} })
 	triggerFocus := ui.Local(root, "trigger-focus", func() ui.Handle { return ui.Handle{} })
@@ -160,7 +165,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		}
 		name := modelLabelName(m.Snapshot, selectionLabel)
 		if name == "" {
-			name = "模型 / Model"
+			name = i18n.T(i18n.KeyComposerModelMenuModel)
 		}
 		caption := name
 		hasCurrentChoice := false
@@ -176,21 +181,20 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 		if m.Snapshot.ModelSelectionBusy {
 			caption += " …"
 		}
-		trigger := ui.Button(c, "").Bind(triggerFocus).Label("Model catalog").Tooltip(caption).MaxWidth(220).MinWidth(0).Height(height).FontSize(13).TextColor(muted).Disabled(m.Inert)
+		trigger := chip(c, colors, state.Open, muted).Bind(triggerFocus).Label("Model catalog").Tooltip(caption).MaxWidth(260).Disabled(m.Inert)
 		trigger.Children(func() {
-			ui.Row(c).MinWidth(0).Grow(1).AlignItems(ui.Center).Gap(4).Children(func() {
-				if hasCurrentChoice {
-					ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)
-				} else {
-					modelFlipText(c, "unknown-current:"+binding, name, muted, 13).Grow(1)
-				}
-				if m.Snapshot.SelectedModelEffort != "" {
-					modelFlipText(c, "trigger-effort:"+binding, m.Snapshot.SelectedModelEffort, muted, 13).Shrink(1000)
-				}
-				if m.Snapshot.ModelSelectionBusy {
-					ui.Text(c, "…").Shrink(0)
-				}
-			})
+			if hasCurrentChoice {
+				ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)
+			} else {
+				modelFlipText(c, "unknown-current:"+binding, name, muted, 13).Grow(1)
+			}
+			if m.Snapshot.SelectedModelEffort != "" {
+				modelFlipText(c, "trigger-effort:"+binding, m.Snapshot.SelectedModelEffort, chrome.Color(colors.Caption), 13).Shrink(1000)
+			}
+			if m.Snapshot.ModelSelectionBusy {
+				ui.Text(c, "…").Shrink(0).TextColor(muted)
+			}
+			chevron(c, state.Open)
 		})
 
 		if trigger.Clicked() {
@@ -219,10 +223,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 			}
 			pane.Children(func() {
 				if state.Pane == "root" || state.Pane == "" {
-					modelButton := ui.Button(c, "").Label(composerText("模型", "Model") + "  " + m.Snapshot.SelectedModel + "  ›").FillWidth().Disabled(m.Inert)
+					modelButton := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerModelMenuModel) + "  " + m.Snapshot.SelectedModel + "  ›").FillWidth().Disabled(m.Inert)
 					modelButton.Children(func() {
 						ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
-							ui.Text(c, composerText("模型", "Model")).Grow(1)
+							ui.Text(c, i18n.T(i18n.KeyComposerModelMenuModel)).Grow(1)
 							ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelMenu, true, muted, 13)
 							ui.Text(c, "›").Shrink(0)
 						})
@@ -235,7 +239,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 						state.Pane, state.RootFocus, state.Query, state.Active = "model", "model", "", -1
 					}
 					if len(m.Snapshot.ModelEffortLabels) > 0 {
-						effortButton := ui.Button(c, composerText("思考强度", "Effort")+"  "+m.Snapshot.SelectedModelEffort+"  ›").FillWidth().Disabled(m.Inert)
+						effortButton := ui.Button(c, i18n.T(i18n.KeyComposerModelMenuEffort)+"  "+m.Snapshot.SelectedModelEffort+"  ›").FillWidth().Disabled(m.Inert)
 						buttons = append(buttons, effortButton)
 						if state.RootFocus == "effort" {
 							effortButton.AutoFocus()
@@ -248,7 +252,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					return
 				}
 				if hasCurrentChoice {
-					if ui.Button(c, composerText("‹ 返回", "‹ Back")).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyComposerModelBack)).Clicked() {
 						state.Pane, state.Query = "root", ""
 					}
 				}
@@ -306,7 +310,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 					m.OnModelChange(label)
 				}
 				if len(m.Snapshot.ModelLabels) > 4 {
-					ui.TextInput(c, &state.Query).Label("Search models").Placeholder("搜索模型 / Search models").FillWidth().AutoFocus().OnChange(func() { state.Active = 0 }).HandleInput(func(ev ui.InputEvent) bool {
+					ui.TextInput(c, &state.Query).Label("Search models").Placeholder(i18n.T(i18n.KeyComposerModelSearch)).FillWidth().AutoFocus().OnChange(func() { state.Active = 0 }).HandleInput(func(ev ui.InputEvent) bool {
 						if ev.Kind == ui.InputCompose {
 							state.Composing = ev.Text != ""
 							return false
@@ -342,11 +346,15 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 							ui.Text(c, g.Name).FontSize(11).Bold().TextColor(muted)
 							for _, choice := range g.Choices {
 								selected := choice.Label == m.Snapshot.SelectedModel
-								button := ui.Button(c, "").Label("Choose model " + choice.Label).FillWidth().Disabled(m.Snapshot.ModelSelectionBusy)
+								button := ui.Button(c, "").Label("Choose model " + choice.Label).FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
+									Background(ui.Transparent).Disabled(m.Snapshot.ModelSelectionBusy)
+								if button.Hovered() || (len(m.Snapshot.ModelLabels) > 4 && index == state.Active) {
+									button = button.Background(chrome.Color(colors.Hover))
+								}
 								button.Children(func() {
-									ui.Row(c).Grow(1).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
+									ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
 										if selected {
-											ui.Text(c, "✓").Shrink(0)
+											ui.Icon(c, checkIcon).Size(14, 14).Shrink(0)
 										}
 										ModelLabel(c, m.Snapshot, choice.Label, ModelLabelOption, selected, c.Theme().Text, 13).Grow(1)
 									})
@@ -354,9 +362,6 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 								buttons = append(buttons, button)
 								if len(m.Snapshot.ModelLabels) <= 4 && (choice.Label == m.Snapshot.SelectedModel || m.Snapshot.SelectedModel == "" && index == 0) {
 									button.AutoFocus()
-								}
-								if len(m.Snapshot.ModelLabels) > 4 && index == state.Active {
-									button.BorderWidth(1)
 								}
 								if button.Clicked() {
 									choose(choice.Label)
@@ -368,7 +373,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 							modelMenuKeyboard(buttons)
 						}
 						if len(visible) == 0 {
-							ui.Text(c, "没有匹配模型 / No matching models").FontSize(12)
+							ui.Text(c, i18n.T(i18n.KeyComposerModelNoMatch)).FontSize(12)
 						}
 					})
 				})

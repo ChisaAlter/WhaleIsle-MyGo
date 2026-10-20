@@ -9,6 +9,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -24,7 +26,7 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			info.Images, info.Links = nil, nil
 			info.Detail = truncateToolText(string(msg.Raw), 200)
 			toolCardInfoView(c, info, st)
-			toolLifecycleDetail(c, "tool-event:"+msg.ID, "原始记录 / Event", string(msg.Raw), st, gallery.Expanded, true)
+			toolLifecycleDetail(c, "tool-event:"+msg.ID, i18n.T(i18n.KeyChatToolEvent), string(msg.Raw), st, gallery.Expanded, true)
 			return
 		}
 		ToolCardView(c, msg.EventType, msg.Raw, st, gallery)
@@ -46,7 +48,9 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 		seen[item.call] = true
 		call := item.call
 		childGallery := gallery
-		childGallery.ID = "tool:" + call.CallID
+		// Keep the owner scope in the row key: the same call id in another
+		// message/scope must not inherit an expanded seat.
+		childGallery.ID = gallery.ID + "|tool:" + call.CallID
 		depth := item.depth
 		if depth > 6 {
 			depth = 6
@@ -66,29 +70,33 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			} else {
 				arguments = prettyToolPayload(arguments)
 			}
-			toolCardInfoView(c, info, st, childGallery)
-			if !childGallery.TextOnly && call.CallID != "" && childGallery.OnInspectCall != nil {
-				if ui.Button(c, "检查此调用 / Inspect this call").Clicked() {
-					childGallery.OnInspectCall(call.CallID)
-				}
-			}
-			if !childGallery.TextOnly {
-				toolFileView(c, call, st, childGallery)
-			}
-			toolLifecycleDetail(c, "tool-args:"+call.CallID, "参数 / Arguments", arguments, st, childGallery.Expanded, childGallery.TextOnly)
+			info.Arguments = arguments
 			if call.Result != nil {
-				toolLifecycleDetail(c, "tool-result:"+call.CallID, "结果 / Result", output, st, childGallery.Expanded, childGallery.TextOnly)
+				info.Output = output
 			}
-			if call.ParentIssue != "" {
-				ui.Text(c, "调用关系 / Call relation: "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
-			}
-			if !childGallery.TextOnly {
-				var citations []Citation
-				for _, source := range call.Events {
-					citations = append(citations, CitationsForMessage(source)...)
+			// Everything below belongs to the expanded body: a collapsed row is
+			// one 24px line, as the Original ToolRow keeps it.
+			extra := func() {
+				if !childGallery.TextOnly {
+					toolFileView(c, call, st, childGallery)
 				}
-				CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, childGallery.OnOpenURL)
+				if call.ParentIssue != "" {
+					ui.Text(c, i18n.T(i18n.KeyChatToolCallRelated)+": "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
+				}
+				if !childGallery.TextOnly && call.CallID != "" && childGallery.OnInspectCall != nil {
+					if ui.Button(c, i18n.T(i18n.KeyChatToolInspect)).FontSize(11).Clicked() {
+						childGallery.OnInspectCall(call.CallID)
+					}
+				}
+				if !childGallery.TextOnly {
+					var citations []Citation
+					for _, source := range call.Events {
+						citations = append(citations, CitationsForMessage(source)...)
+					}
+					CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, childGallery.OnOpenURL)
+				}
 			}
+			toolCardInfoViewExtra(c, info, st, extra, childGallery)
 		})
 		for i := len(call.Children) - 1; i >= 0; i-- {
 			stack = append(stack, entry{call.Children[i], item.depth + 1})
@@ -121,29 +129,37 @@ func ToolLifecycleCardInfo(call *session.ToolCallView) ToolCardInfo {
 }
 
 func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyle, expanded *map[string]bool, textOnly bool) {
+	body = strings.TrimRight(body, "\n")
 	if body == "" {
 		return
 	}
 	open := expanded == nil || isThinkingExpanded(expanded, key)
-	arrow := "▸"
-	if open {
-		arrow = "▾"
-	}
-	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, arrow+" "+label).FontSize(11).Clicked() {
-				toggleThinkingExpanded(expanded, key)
-			}
-			if open && ui.Button(c, "复制 / Copy").FontSize(10).Clicked() {
-				if textOnly {
-					c.Services().WriteClipboard(body)
-				} else {
-					mygo.Clipboard.WriteText(body)
+	ui.Column(c).Key("tool-detail:"+key).Gap(3).FillWidth().MinWidth(0).Children(func() {
+		if expanded != nil {
+			paintDisclosureRow(c, disclosureRow{
+				Key:        "tool-detail-row:" + key,
+				Title:      label,
+				Summary:    firstDetailLine(body),
+				Open:       open,
+				Expandable: true,
+				OnToggle:   func() { toggleThinkingExpanded(expanded, key) },
+			}, toolRowStyle(st))
+		} else {
+			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, label).FontSize(11).TextColor(st.Muted).Grow(1)
+				if ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).Clicked() {
+					if textOnly {
+						c.Services().WriteClipboard(body)
+					} else {
+						mygo.Clipboard.WriteText(body)
+					}
 				}
-			}
-		})
+			})
+		}
 		if open {
-			ui.Text(c, body).FontSize(11).TextColor(st.Muted)
+			ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(toolRowBlockMaxHeight).Children(func() {
+				ui.Text(c, body).FontSize(11).Font(theme.RenderPreferences().Code.Family).TextColor(st.Muted).Selectable()
+			})
 		}
 	})
 }

@@ -145,11 +145,13 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 		if a != nil {
 			petLookPane(c, p, a.Store, fg, muted, disabled)
 		}
+		reset := ui.Local(anchor, "confirm-reset", func() bool { return false })
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, "恢复外观与行为默认 / Reset appearance and behavior").Disabled(p.Store == nil || disabled).Clicked() {
-				confirmResetPetAppearanceBehavior(p)
+			if ui.Button(c, providerCopy("恢复外观与行为默认", "Reset appearance and behavior")).Disabled(p.Store == nil || disabled).Clicked() {
+				*reset = true
 			}
 		})
+		ConfirmDialog(c, petResetQuestion(p, reset))
 		bodyDisclosure(c, "pet-local-skins", providerCopy("本地皮肤与动画", "Local skins and animation"), func() {
 			if ui.Button(c, providerCopy("保存本地皮肤与导入草稿", "Save local skin and imported draft")).Disabled(disabled).Clicked() {
 				save()
@@ -171,7 +173,7 @@ func petPane(c *ui.Context, p *pet.Companion, fg, muted ui.Color, accesses ...*P
 			if ui.Button(c, providerCopy("刷新本地皮肤", "Refresh local skins")).Disabled(p.Store == nil).Clicked() {
 				p.Refresh()
 			}
-			if ui.Button(c, "载入原版设置草稿 / Load original settings draft").Disabled(p.Store == nil).Clicked() {
+			if ui.Button(c, providerCopy("载入原版设置草稿", "Load original settings draft")).Disabled(p.Store == nil).Clicked() {
 				p.LoadOriginalDraft()
 			}
 			for _, line := range p.OriginalImportReport {

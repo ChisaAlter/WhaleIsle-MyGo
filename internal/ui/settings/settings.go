@@ -172,7 +172,7 @@ func dedicatedNamespace(ns string) bool {
 	case "account", "general", "appearance", "theme", "interface", "ui", "models", "model", "llm",
 		"plugins", "plugin", "skills", "skill", "market", "ui-settings-market",
 		"remote", "mcp", "agent-presets", "agentpresets", "agentpreset",
-		"about", "usage-stats", "usagestats", "usage", "remote-workspace", "pet", "live2d":
+		"about", "usage-stats", "usagestats", "usage", "pet", "live2d":
 		return true
 	default:
 		return false
@@ -224,7 +224,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			return
 		}
 		if active == SectionGeneral {
-			generalNavigation(c, m, snap)
+			generalNavigation(c, m, snap, fg, muted)
 		}
 		if m.DesktopActive && m.Desktop != nil {
 			desktopPane(c, m, fg, muted)
@@ -275,90 +275,8 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			if m.PetSettings == nil { petLookPane(c, m.Pet, m.Store, fg, muted) }
 			return
 		}
-		var ns *settings.Namespace
-		for i := range snap.Namespaces {
-			if snap.Namespaces[i].NS == snap.SelectedNS {
-				ns = &snap.Namespaces[i]
-				break
-			}
-		}
-		if ns == nil {
-			ui.Text(c, i18n.T(i18n.KeySettingsPickNS)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			return
-		}
-		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, ns.NS).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
-			ui.Text(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySettingsRevision), ns.Revision)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			if snap.Writable {
-				ui.Text(c, i18n.T(i18n.KeySettingsWritable)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(fg)
-			} else {
-				accent := chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
-				ui.Text(c, i18n.T(i18n.KeySettingsReadOnly)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(accent)
-			}
-		})
-		if m.RevealSecrets != nil {
-			hasSecret := false
-			for _, f := range ns.Fields {
-				if f.Kind == settings.FieldString && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label)) {
-					hasSecret = true
-					break
-				}
-			}
-			if hasSecret {
-				ui.Checkbox(c, m.RevealSecrets, i18n.T(i18n.KeySettingsRevealSecrets))
-			}
-		}
-		if snap.SelectedNS == "general" && m.OnSelectNamespace != nil {
-			for _, candidate := range snap.Namespaces {
-				if candidate.NS == "permission" && ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Clicked() {
-					m.OnSelectNamespace("permission")
-				}
-				if candidate.NS == settings.CustomInstructionsNamespace && ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
-					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
-				}
-			}
-		}
-		if snap.SelectedNS == settings.VisualRepliesNamespace {
-			ui.Text(c, "启用 HTML 视觉回复前会检查本机隔离渲染；失败时保持关闭并显示原因。 / Enabling HTML visual replies first checks isolated rendering; failure keeps the setting off.").FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
-		if ns.NS == "llm-deepseek" || ns.NS == "llm-pi-ai" || ns.NS == "web-search-deepseek" {
-			referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
-		}
-		for _, f := range ns.Fields {
-			if permissionDefaultField(c, m, snap, f, fg, muted) {
-				continue
-			}
-			if configurationField(c, m, snap, *ns, f, fg, muted) {
-				continue
-			}
-			fieldRow(c, m, snap, f, fg, muted)
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
-			if snap.Loading || snap.Saving || !snap.Writable || !snap.Dirty || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap) {
-				save = save.Disabled(true)
-			}
-			if save.Clicked() {
-				m.Store.SaveUpdate(context.Background())
-			}
-			replace := ui.Button(c, i18n.T(i18n.KeySettingsReplace))
-			if snap.Loading || snap.Saving || !snap.Writable || ns.HasSecrets || snap.SelectedNS == "" || customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap) {
-				replace = replace.Disabled(true)
-			}
-			if replace.Clicked() {
-				RequestReplace(m)
-			}
-			if ui.Button(c, "放弃草稿 / Discard drafts").Disabled(snap.Loading || snap.Saving).Clicked() {
-				m.Store.DiscardDrafts(context.Background())
-			}
-		})
-		ui.Text(c, providerCopy("保存只提交已修改字段；重置会删除覆盖值并继承默认设置。", "Save submits changed fields only. Reset removes an override and inherits its default.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		if ns.HasSecrets {
-			ui.Text(c, providerCopy("此配置包含隐藏密钥，完整替换不可用；普通保存会保留未编辑的密钥。", "This section contains hidden secrets. Use Save to preserve unedited secrets; full replacement is unavailable.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		ui.Text(c, i18n.T(i18n.KeySettingsReplaceHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		namespaceForm(c, m, snap, fg, muted)
 	})
-	_ = border
 }
 
 // RequestReplace confirms (optional) then posts a full settings/replace from drafts.
@@ -372,6 +290,123 @@ func RequestReplace(m Model) {
 	m.Store.SaveReplaceFromDrafts(context.Background())
 }
 
+// namespaceForm paints the schema-driven form of the selected namespace: the
+// title row, feature-owned hints, one row per field and the action bar.
+func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui.Color) {
+	var ns *settings.Namespace
+	for i := range snap.Namespaces {
+		if snap.Namespaces[i].NS == snap.SelectedNS {
+			ns = &snap.Namespaces[i]
+			break
+		}
+	}
+	if ns == nil {
+		ui.Text(c, i18n.T(i18n.KeySurfacesSettingsPick)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		return
+	}
+	access := i18n.T(i18n.KeySurfacesSettingsWritable)
+	accessColor := fg
+	if !snap.Writable {
+		access = i18n.T(i18n.KeySurfacesSettingsReadOnly)
+		accessColor = chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
+	}
+	ui.Row(c).FillWidth().Gap(8).Padding(14, 0, 2, 0).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, ns.NS).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Grow(1)
+		ui.Text(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySurfacesSettingsRevision), ns.Revision)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, access).FontSize(theme.InterfaceSize(11)).FontWeight(500).TextColor(accessColor)
+	})
+	if m.RevealSecrets != nil && hasSecretField(ns) {
+		reveal := *m.RevealSecrets
+		settingsFieldRow(c, "reveal-secrets", i18n.T(i18n.KeySurfacesSettingsReveal), "", fg, muted, nil, func() {
+			if ui.Switch(c, &reveal).Label(i18n.T(i18n.KeySurfacesSettingsReveal)).Changed() {
+				*m.RevealSecrets = reveal
+			}
+		})
+	}
+	if snap.SelectedNS == settings.VisualRepliesNamespace {
+		ui.Text(c, i18n.T(i18n.KeySurfacesSettingsVisualHint)).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+	}
+	if ns.NS == "llm-deepseek" || ns.NS == "llm-pi-ai" || ns.NS == "web-search-deepseek" {
+		referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
+	}
+	if snap.SelectedNS == "general" && m.OnSelectNamespace != nil {
+		for _, candidate := range snap.Namespaces {
+			switch candidate.NS {
+			case "permission":
+				if ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Clicked() {
+					m.OnSelectNamespace("permission")
+				}
+			case settings.CustomInstructionsNamespace:
+				if ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
+					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
+				}
+			}
+		}
+	}
+	for _, raw := range ns.Fields {
+		field := raw
+		if permissionDefaultField(c, m, snap, field, fg, muted) {
+			continue
+		}
+		if configurationField(c, m, snap, *ns, field, fg, muted) {
+			continue
+		}
+		fieldRow(c, m, snap, field, fg, muted)
+	}
+	settingsActions(c, m, snap, ns, fg, muted)
+}
+
+// settingsActions is the sticky footer of a namespace page: the save state on
+// the left, then discard, the rare full replace and the save action.
+func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settings.Namespace, fg, muted ui.Color) {
+	blocked := snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" ||
+		customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap)
+	ui.Row(c).FillWidth().Gap(8).Padding(16, 0, 6, 0).AlignItems(ui.Center).Children(func() {
+		switch {
+		case snap.Saving:
+			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaving), muted)
+		case snap.Dirty:
+			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsUnsaved), muted)
+		}
+		ui.Box(c).Grow(1)
+		if ns != nil && !ns.HasSecrets {
+			replace := ui.Button(c, i18n.T(i18n.KeySurfacesSettingsReplace)).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Danger).Disabled(blocked)
+			if replace.Hovered() && !blocked {
+				replace.Background(c.Theme().SurfaceHover)
+			}
+			if replace.Clicked() {
+				RequestReplace(m)
+			}
+		}
+		if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsDiscard)).FontSize(theme.InterfaceSize(12)).Disabled(snap.Loading || snap.Saving).Clicked() {
+			m.Store.DiscardDrafts(context.Background())
+		}
+		if ui.PrimaryButton(c, i18n.T(i18n.KeySurfacesSettingsSave)).Disabled(blocked || !snap.Dirty).Clicked() {
+			m.Store.SaveUpdate(context.Background())
+		}
+	})
+	if ns != nil && ns.HasSecrets {
+		settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSecretsHint), muted)
+	}
+	settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaveHint), muted)
+}
+
+// hasSecretField reports whether a namespace holds any password-like string
+// field, which gates the full-replace action.
+func hasSecretField(ns *settings.Namespace) bool {
+	if ns == nil {
+		return false
+	}
+	for _, f := range ns.Fields {
+		if f.Kind == settings.FieldString && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label)) {
+			return true
+		}
+	}
+	return false
+}
+
+// fieldRow paints one schema field as a settings row: the switch, the select or
+// the input sits at the row's end, and only long-form text takes a full block.
 func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color) {
 	if snap.SelectedNS == settings.CustomInstructionsNamespace && f.Key == settings.CustomInstructionsField {
 		customInstructionsRow(c, m, snap, fg, muted)
@@ -380,80 +415,84 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	if m.DraftPtr == nil {
 		return
 	}
-	ui.Column(c).Gap(4).Children(func() {
-		label := f.Label
-		if f.Required {
-			label += " *"
+	label := strings.TrimSpace(f.Label)
+	if label == "" {
+		label = f.Key
+	}
+	if f.Required {
+		label += " *"
+	}
+	hint := f.Description
+	if snap.Resets[f.Key] {
+		hint = i18n.T(i18n.KeySurfacesSettingsInherit)
+	}
+	disabled := snap.Loading || snap.Saving || !snap.Writable
+	var reset func()
+	if m.Store != nil && !disabled {
+		reset = func() { m.Store.ResetDraft(f.Key) }
+	}
+	seed := snap.Drafts[f.Key]
+	key := "field-" + f.Key
+	switch f.Kind {
+	case settings.FieldBool:
+		if m.BoolPtr == nil {
+			return
 		}
-		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-			if m.Store != nil && ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).FontSize(theme.InterfaceSize(11)).Disabled(snap.Loading || snap.Saving || !snap.Writable).Clicked() {
-				m.Store.ResetDraft(f.Key)
+		checked := m.BoolPtr(f.Key, seed)
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+			ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Children(func() {
+				if ui.Switch(c, checked).Label(label).Disabled(disabled).Changed() && m.OnDraft != nil {
+					m.OnDraft(f.Key, fmt.Sprint(*checked))
+				}
+			})
+		})
+	case settings.FieldEnum:
+		draft := m.DraftPtr(f.Key, seed)
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Disabled(disabled).Changed() && m.OnDraft != nil {
+				m.OnDraft(f.Key, *draft)
 			}
 		})
-		if snap.Resets[f.Key] {
-			ui.Text(c, providerCopy("保存后使用继承值；再次编辑可取消重置。", "Will inherit after Save. Edit again to cancel the reset.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		if f.Description != "" {
-			ui.Text(c, f.Description).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		seed := snap.Drafts[f.Key]
-		switch f.Kind {
-		case settings.FieldBool:
-			if m.BoolPtr == nil {
-				return
+	case settings.FieldJSON:
+		draft := m.DraftPtr(f.Key, seed)
+		settingsFieldBlock(c, key, label, hint, fg, muted, func() {
+			if ui.TextArea(c, draft).Fill().Lines(4, 12).Disabled(disabled).Changed() && m.OnDraft != nil {
+				m.OnDraft(f.Key, *draft)
 			}
-			checked := m.BoolPtr(f.Key, seed)
-			box := ui.Checkbox(c, checked, "")
-			if box.Changed() && m.OnDraft != nil {
-				if *checked {
-					m.OnDraft(f.Key, "true")
-				} else {
-					m.OnDraft(f.Key, "false")
+		})
+	case settings.FieldNumber:
+		draft := m.DraftPtr(f.Key, seed)
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
+				m.OnDraft(f.Key, *draft)
+			}
+		})
+	default:
+		draft := m.DraftPtr(f.Key, seed)
+		if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
+			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+				input := ui.TextInput(c, draft).Fill()
+				if m.RevealSecrets == nil || !*m.RevealSecrets {
+					input = input.Password()
 				}
-			}
-		case settings.FieldEnum:
-			draft := m.DraftPtr(f.Key, seed)
-			sel := ui.Select(c, draft, f.EnumOptions)
-			if sel.Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
-		case settings.FieldJSON:
-			draft := m.DraftPtr(f.Key, seed)
-			area := ui.TextArea(c, draft).Fill().Lines(4, 12)
-			if area.Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
-		case settings.FieldNumber:
-			draft := m.DraftPtr(f.Key, seed)
-			inp := ui.TextInput(c, draft).Fill()
-			if inp.Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
-		default:
-			draft := m.DraftPtr(f.Key, seed)
-			if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
-				inp := ui.TextInput(c, draft).Fill()
-				reveal := m.RevealSecrets != nil && *m.RevealSecrets
-				if !reveal {
-					inp = inp.Password()
-				}
-				if inp.Changed() && m.OnDraft != nil {
+				if input.Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-				break
-			}
-			if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
-				area := ui.TextArea(c, draft).Fill().Lines(3, 10)
-				if area.Changed() && m.OnDraft != nil {
+			})
+			return
+		}
+		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
+			settingsFieldBlock(c, key, label, hint, fg, muted, func() {
+				if ui.TextArea(c, draft).Fill().Lines(3, 10).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-				break
-			}
-			inp := ui.TextInput(c, draft).Fill()
-			if inp.Changed() && m.OnDraft != nil {
+			})
+			return
+		}
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
+			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		}
-	})
+		})
+	}
 }

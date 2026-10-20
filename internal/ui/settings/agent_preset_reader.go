@@ -23,7 +23,7 @@ type presetReaderFocus struct {
 }
 
 func agentPresetViewAction(c *ui.Context, a *AgentPresetReaderAccess, label string, disabled bool) bool {
-	button := ui.Button(c, "").Label("查看配置 / View configuration · "+label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
+	button := ui.Button(c, "").Label(providerCopy("查看配置", "View configuration") + " · "+label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
 	handle := ui.Local(button, "view-trigger", func() ui.Handle { return ui.Handle{} })
 	button.Bind(handle).Children(func() { ui.Icon(c, bodyIcon("document")).Size(16, 16) })
 	if button.Clicked() {
@@ -61,7 +61,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 	open := true
 	bodyDialog(c.Key("agent-preset-reader"), &open, providerCopy("查看配置", "View configuration")+" · "+selected, func() {
 		if s.Busy {
-			ui.Text(c, "正在读取声明… / Loading declaration…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, providerCopy("正在读取声明…", "Loading declaration…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		if s.Error != "" {
@@ -74,11 +74,11 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		if !s.Loaded {
 			return
 		}
-		if ui.Button(c, "复制全文 / Copy full declaration").Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
+		if ui.Button(c, providerCopy("复制全文", "Copy full declaration")).Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
 			a.OnCopy(s.Ticket)
 		}
 		if s.Content == "" {
-			ui.Text(c, "该预设声明内容为空 / This preset declaration is empty").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, providerCopy("该预设声明内容为空", "This preset declaration is empty")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		viewer := ui.Column(c.Key(fmt.Sprintf("preset-document-%d", s.Ticket))).Gap(6)
@@ -86,20 +86,20 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		viewer.Children(func() {
 			content, next := agentPresetDocumentPage(s.Content, pages.Start)
 			if len(s.Content) > session.AgentPresetContentLimit {
-				ui.Text(c, fmt.Sprintf("显示字节 / Showing bytes %d–%d / %d；可翻页阅读，复制包含全文 / Browse every page; copy includes the full declaration", pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, fmt.Sprintf(providerCopy("显示字节 %d–%d / %d；可翻页阅读，复制包含全文", "Showing bytes %d–%d / %d; browse every page, copy includes the full declaration"), pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, "上一页 / Previous page").Disabled(len(pages.Previous) == 0).Clicked() {
+					if ui.Button(c, providerCopy("上一页", "Previous page")).Disabled(len(pages.Previous) == 0).Clicked() {
 						last := len(pages.Previous) - 1
 						pages.Start = pages.Previous[last]
 						pages.Previous = pages.Previous[:last]
 					}
-					if ui.Button(c, "下一页 / Next page").Disabled(next == len(s.Content)).Clicked() {
+					if ui.Button(c, providerCopy("下一页", "Next page")).Disabled(next == len(s.Content)).Clicked() {
 						pages.Previous = append(pages.Previous, pages.Start)
 						pages.Start = next
 					}
 				})
 			}
-			ui.TextArea(c.Key(pages.Start), &content).Label("预设配置只读内容 / Preset configuration source").FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			ui.TextArea(c.Key(pages.Start), &content).Label(providerCopy("预设配置只读内容", "Preset configuration source")).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
 	})
 	if !open && a.OnClose != nil {

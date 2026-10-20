@@ -101,7 +101,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, p.Title).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
-			if ui.Button(c, "重新打开问题 / Reopen questions").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionReopen)).Clicked() {
 				store.ReopenQuestion(p.EventID)
 			}
 		})
@@ -159,7 +159,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
-				if ui.Button(c, "暂时隐藏 / Hide for now").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatQuestionHide)).Clicked() {
 					store.HideQuestion(p.EventID)
 				}
 

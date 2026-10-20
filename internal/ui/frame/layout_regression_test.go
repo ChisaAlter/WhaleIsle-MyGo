@@ -75,8 +75,18 @@ func TestTerminalStaysInsideCenterAndSidebarKeepsFullHeight(t *testing.T) {
 	if !ok {
 		t.Fatal("sidebar settings missing")
 	}
-	if settings.Y < 740 {
-		t.Fatalf("sidebar footer=%+v, terminal must not shorten sidebar", settings)
+	// The bottom seat is the account row (SidebarRoot footArea: settings, then the
+	// account trigger); it must still reach the viewport's foot with the terminal
+	// drawer open, which is what proves the sidebar keeps its full height.
+	account, ok := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
+	if !ok {
+		t.Fatal("sidebar account seat missing")
+	}
+	if account.Y <= settings.Y+settings.H {
+		t.Fatalf("account seat=%+v must sit below settings=%+v", account, settings)
+	}
+	if account.Y+account.H < 788 {
+		t.Fatalf("sidebar bottom seat=%+v, terminal must not shorten sidebar", account)
 	}
 }
 
@@ -206,9 +216,9 @@ func TestTerminalHeightConcessionDoesNotRewritePreference(t *testing.T) {
 	}
 	tt.SetSize(1200, 800)
 	r, _ = tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
-	// Label bounds include their padding: outer36 + caption52 + chat560 + divider1.
-	if r.Y != 649 {
-		t.Fatalf("restored terminal status=%+v, want y649 below both caption rows", r)
+	// Label bounds include their padding: outer36 + caption48 + chat560 + divider1.
+	if r.Y != 645 {
+		t.Fatalf("restored terminal status=%+v, want y645 below the caption row", r)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestQuestionDetailMarkdownCodeCopyAndWrap(t *testing.T) {
@@ -17,36 +18,36 @@ func TestQuestionDetailMarkdownCodeCopyAndWrap(t *testing.T) {
 	}
 	store, tt, outcome := questionEditorFixture(t, string(questions))
 	tt.SetSize(340, 1500)
-	if _, ok := tt.Find("Copy code"); !ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyMarkdownCopyCode)); !ok {
 		t.Fatal("question detail has no Markdown code toolbar")
 	}
 	if tt.HasText("**Important**") || !tt.HasText("Important") || !tt.HasText("After code") {
 		t.Fatal("question detail is raw Markdown or lost surrounding prose")
 	}
-	if err := tt.Click("Copy code"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMarkdownCopyCode)); err != nil {
 		t.Fatal(err)
 	}
 	if got := tt.Clipboard(); got != code {
 		t.Fatalf("code copy changed source bytes: %q", got)
 	}
-	if _, ok := tt.Find("Unwrap lines"); !ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyMarkdownNoWrap)); !ok {
 		t.Fatal("question code should initially wrap like the original composer")
 	}
-	if err := tt.Click("Unwrap lines"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMarkdownNoWrap)); err != nil {
 		t.Fatal(err)
 	}
 	before, ok := tt.Find("Question answer: Question")
 	if !ok {
 		t.Fatal("answer missing below Markdown")
 	}
-	if err := tt.Click("Wrap lines"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMarkdownWrap)); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := tt.Find("Question answer: Question")
-	if _, ok := tt.Find("Unwrap lines"); !ok || after.Y <= before.Y {
+	if _, ok := tt.Find(i18n.T(i18n.KeyMarkdownNoWrap)); !ok || after.Y <= before.Y {
 		t.Fatalf("long code did not wrap: before=%+v after=%+v", before, after)
 	}
-	if err := tt.Click("Unwrap lines"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyMarkdownNoWrap)); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("Question answer: Question"); err != nil {
@@ -65,8 +66,8 @@ func TestQuestionDetailMarkdownCodeCopyAndWrap(t *testing.T) {
 	}
 	store.ResolveQuestions("e")
 	tt.Frame()
-	_ = tt.Click("Wrap lines")
-	if _, ok := tt.Find("Wrap lines"); !ok {
+	_ = tt.Click(i18n.T(i18n.KeyMarkdownWrap))
+	if _, ok := tt.Find(i18n.T(i18n.KeyMarkdownWrap)); !ok {
 		t.Fatal("Sending changed question detail controls")
 	}
 	_ = tt.Click("Question answer: Question")
@@ -136,7 +137,7 @@ func TestQuestionContentLongBodyScrollKeepsFooterReachable(t *testing.T) {
 	questions, _ := json.Marshal([]map[string]any{{"id": "q", "header": "Heading", "question": "Question", "options": options}})
 	_, tt, _ := questionEditorFixture(t, string(questions))
 	tt.SetSize(600, 700)
-	footer, ok := tt.Find("提交 / Submit")
+	footer, ok := tt.Find(i18n.T(i18n.KeyChatQuestionSubmit))
 	if !ok || footer.Y+footer.H > 700 {
 		t.Fatalf("long body pushed footer beyond the window: %+v found=%v", footer, ok)
 	}
@@ -146,7 +147,7 @@ func TestQuestionContentLongBodyScrollKeepsFooterReachable(t *testing.T) {
 	if !ok || last.Y < 0 || last.Y+last.H > footer.Y {
 		t.Fatalf("last option cannot be reached by scrolling: %+v found=%v", last, ok)
 	}
-	if err := tt.Click("收起问题 / Minimize question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionMinimize)); err != nil {
 		t.Fatal(err)
 	}
 	_, hasHeader := tt.Find("Heading")

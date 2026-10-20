@@ -38,6 +38,25 @@ type Style struct {
 	Muted                ui.Color
 	CodeBG               ui.Color
 	Accent               ui.Color
+	// Dark selects the dark syntax palette. A light palette on a dark
+	// transcript renders unreadable tokens; the Original follows the theme.
+	Dark bool
+	// LineNumbers shows the code gutter. Off by default, as in the Original.
+	LineNumbers bool
+	// CodeBanner is the code-card header fill; zero derives a muted tint.
+	CodeBanner ui.Color
+	// TableHeader is the table header fill; zero derives a muted tint.
+	TableHeader ui.Color
+	// QuoteInset is the blockquote text inset next to the 2px rule. Zero keeps
+	// the market/readme baseline of 16px; the conversation passes 14px.
+	QuoteInset float32
+	// Code-card toolbar copy overrides the package's English defaults, so the
+	// conversation can localize them without changing other surfaces.
+	CopyLabel   string
+	CopiedLabel string
+	WrapLabel   string
+	NoWrapLabel string
+	CodeLabel   string
 	// CodeWrapDefault opts a surface into wrapped code initially. The retained
 	// per-block toggle still wins after the user chooses wrap or unwrap.
 	CodeWrapDefault bool
@@ -491,7 +510,7 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 func codeSpan(text string, st Style) ui.Span {
 	return ui.Span{
 		Text:       text,
-		Size:       theme.CurrentPreferences().Code.Size,
+		Size:       InlineCodeSize(st),
 		Color:      st.FG,
 		Background: st.CodeBG,
 		Font:       theme.RenderPreferences().Code.Family,

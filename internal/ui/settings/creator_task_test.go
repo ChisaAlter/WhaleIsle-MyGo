@@ -32,13 +32,13 @@ func TestCreatorTaskEntryUIFixture(t *testing.T) {
 	if started != 0 || extraConfirm != 0 {
 		t.Fatal("render performed action")
 	}
-	if err := tt.Click("新建 Creator 任务 / New Creator task"); err != nil {
+	if err := tt.Click("新建 Creator 任务"); err != nil {
 		t.Fatal(err)
 	}
 	if started != 1 || extraConfirm != 0 {
 		t.Fatal("one click did not start the task directly")
 	}
-	for _, old := range []string{"确认创建 Creator 任务 / Create Creator task", "取消 / Cancel Creator"} {
+	for _, old := range []string{"确认创建 Creator 任务", "取消"} {
 		if _, ok := tt.Find(old); ok {
 			t.Fatal("extra review step remains", old)
 		}
@@ -49,7 +49,7 @@ func TestCreatorTaskEntryUIFixture(t *testing.T) {
 			t.Fatal("missing disclosure", want)
 		}
 	}
-	if err := tt.Click("定位已提交目标 / Locate attempted task"); err != nil {
+	if err := tt.Click("定位已提交目标"); err != nil {
 		t.Fatal(err)
 	}
 	if located != 0 || started != 1 {
@@ -60,7 +60,7 @@ func TestCreatorTaskEntryUIFixture(t *testing.T) {
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "session-fixture") {
 		t.Fatal("lost recoverable result")
 	}
-	if err := tt.Click("定位已提交目标 / Locate attempted task"); err != nil {
+	if err := tt.Click("定位已提交目标"); err != nil {
 		t.Fatal(err)
 	}
 	if located != 1 || started != 1 {
@@ -68,7 +68,7 @@ func TestCreatorTaskEntryUIFixture(t *testing.T) {
 	}
 	state.Created = true
 	tt.Frame()
-	if err := tt.Click("打开已有任务 / Open existing task"); err != nil {
+	if err := tt.Click("打开已有任务"); err != nil {
 		t.Fatal(err)
 	}
 	if opened != 1 || started != 1 || extraConfirm != 0 {
@@ -96,7 +96,7 @@ func TestCreatorTaskEntryUnavailableDoesNotStart(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) {
 				creatorTaskPane(c, &CreatorTaskAccess{OnPrepare: func() { started++ }}, rows, c.Theme().Text, c.Theme().Text)
 			}, 900, 700)
-			if err := tt.Click("新建 Creator 任务 / New Creator task"); err != nil {
+			if err := tt.Click("新建 Creator 任务"); err != nil {
 				t.Fatal(err)
 			}
 			if started != 0 {

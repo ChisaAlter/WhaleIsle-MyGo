@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // A single synthetic pure projection/render fixture. No carrier or real Host.
@@ -56,22 +57,24 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	}
 	current := messages
 	tt := ui.NewTester(func(c *ui.Context) { ReadOnlyHistoryView(c, scope, current, "", style) }, 800, 1200)
-	if !tt.HasText("read") || !tt.HasText("grep") || !tt.HasText("↳ root-call") {
+	if !tt.HasText(i18n.T(i18n.KeyChatToolRead)) || !tt.HasText(i18n.T(i18n.KeyChatToolSearch)) || !tt.HasText("↳ root-call") {
 		t.Fatalf("tree not rendered: %q", tt.Texts())
 	}
-	if err := tt.Click("▸ 结果 / Result"); err != nil {
+	// Tool rows are disclosures: the result evidence mounts with the body.
+	if err := tt.Click(i18n.T(i18n.KeyChatToolRead)); err != nil {
 		t.Fatal(err)
 	}
+	tt.Frame()
 	if !tt.HasText("child-image") || !tt.HasText("image/png") {
 		t.Fatalf("attachment evidence hidden: %q", tt.Texts())
 	}
-	if err := tt.Click("复制 / Copy"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatToolCopy)); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(tt.Clipboard(), "child-image") || !strings.Contains(tt.Clipboard(), "child output") || !strings.Contains(tt.Clipboard(), "image caption") {
 		t.Fatalf("copy lost evidence: %q", tt.Clipboard())
 	}
-	for _, target := range []string{"编辑", "重试 / Retry", "批准", "Images (1)", "Branch here"} {
+	for _, target := range []string{"编辑", i18n.T(i18n.KeyChatImageRetry), "批准", "Images (1)", "Branch here"} {
 		if tt.HasText(target) {
 			t.Fatalf("unsafe action %q", target)
 		}
@@ -84,18 +87,20 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	} {
 		scope = next
 		tt.Frame()
-		if tt.HasText("▾ 结果 / Result") {
+		// "image/png" only appears inside the expanded tool body, so its absence
+		// proves the disclosure did not survive the identity/token change.
+		if tt.HasText("image/png") {
 			t.Fatal("disclosure crossed identity/token")
 		}
 	}
 	current = []session.Message{{ID: "assistant", Kind: session.MessageKindText, Role: "assistant", Body: "**bold** and `code`\n\n```go\nfmt.Println(\"child\")\n```\n[report](relative/child.txt) ![photo](attachment:child-image)", Streaming: true}}
 	tt.Frame()
-	for _, want := range []string{"bold and code", "fmt.Println", "relative/child.txt", "attachment:child-image", "live preview"} {
+	for _, want := range []string{"bold and code", "fmt.Println", "relative/child.txt", "attachment:child-image", i18n.T(i18n.KeyChatReadOnlyLive)} {
 		if !tt.HasText(want) {
 			t.Fatalf("missing %q: %q", want, tt.Texts())
 		}
 	}
-	if err := tt.Click("复制消息 / Copy message"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatReadOnlyCopy)); err != nil {
 		t.Fatal(err)
 	}
 	if tt.Clipboard() != current[0].Body {

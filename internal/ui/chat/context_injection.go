@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // ContextInjectionView is deliberately read-only. Producer metadata never
@@ -15,9 +16,9 @@ func ContextInjectionView(c *ui.Context, msg session.Message, scope string, fg, 
 	box := ui.Column(c.Key(key)).FillWidth().Gap(4)
 	open := ui.Local(box, "open", func() bool { return false })
 	box.Children(func() {
-		title := historyNavigationText("上下文注入", "Injected context")
+		title := historyNavigationText(i18n.T(i18n.KeyChatContextTitle), "Injected context")
 		if v.Role == "recall" {
-			title = historyNavigationText("会话回忆", "Recalled context")
+			title = historyNavigationText(i18n.T(i18n.KeyChatContextRecall), "Recalled context")
 		}
 		title += " · " + clipReadOnlyText(v.Producer, 512)
 		if v.Form != "" {
@@ -47,16 +48,16 @@ func ContextInjectionView(c *ui.Context, msg session.Message, scope string, fg, 
 					ui.Text(c, label).FontSize(11).TextColor(muted)
 					ui.Text(c, shown).FontSize(12).TextColor(fg).Selectable()
 				}
-				paint(historyNavigationText("模型可见内容", "Model-facing content"), v.Body)
+				paint(historyNavigationText(i18n.T(i18n.KeyChatContextContent), "Model-facing content"), v.Body)
 				for _, field := range v.Fields {
 					paint(field.Name, field.Value)
 				}
 				if budget <= 0 {
-					ui.Text(c, historyNavigationText("展示已截断；复制可获取完整内容。", "Display clipped; copy includes full content.")).FontSize(11).TextColor(muted)
+					ui.Text(c, historyNavigationText(i18n.T(i18n.KeyChatContextClipped), "Display clipped; copy includes full content.")).FontSize(11).TextColor(muted)
 				}
 			})
 		})
-		if ui.Button(c, historyNavigationText("复制上下文", "Copy context")).Clicked() {
+		if ui.Button(c, historyNavigationText(i18n.T(i18n.KeyChatContextCopy), "Copy context")).Clicked() {
 			var parts []string
 			parts = append(parts, v.Body)
 			for _, field := range v.Fields {

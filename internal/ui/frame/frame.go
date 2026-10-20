@@ -189,6 +189,8 @@ type Model struct {
 	OnCreateSession    func()
 
 	Projects                projects.Model
+	// Account is the sidebar's bottom account seat (avatar, name, menu).
+	Account                 sidebar.Account
 	Store                   *session.Store
 	AgentPresetManager      *session.AgentPresetManager
 	Interactions            *interaction.Store
@@ -515,6 +517,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
 		OnBatchCancel:        m.Store.CancelSessionBatch,
 		HideArchivedList:     m.HideArchivedList,
+		Account:              m.Account,
 		Schedules:            schedules,
 		Projects:             projectModel,
 		Collapsed:            m.Sizes.sidebarPreference() <= 0,

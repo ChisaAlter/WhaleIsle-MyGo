@@ -4,6 +4,7 @@ package composer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -168,8 +169,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 
 	if !m.Inert && m.State != nil && m.State.GroupReply != nil {
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, "回复线程 / Reply to thread: "+m.State.GroupReply.ThreadID).TextColor(muted)
-			if ui.Button(c, "取消回复 / Cancel reply").Disabled(m.State.Sending).Clicked() {
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerReplyThread), m.State.GroupReply.ThreadID)).TextColor(muted)
+			if ui.Button(c, i18n.T(i18n.KeyComposerReplyCancel)).Disabled(m.State.Sending).Clicked() {
 				m.State.CancelGroupReply()
 			}
 		})
@@ -221,8 +222,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	composerRegion.Children(func() {
 		if m.State != nil && m.State.FailedSendCount() > 0 {
 			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, "未发送草稿 / Unsent drafts").FontSize(11).TextColor(muted)
-				if !m.State.FailedSendsRestored() && ui.Button(c, "恢复 / Restore").FontSize(11).Disabled(m.State.Sending || m.State.Preparing > 0 || m.Editing).Clicked() {
+				ui.Text(c, i18n.T(i18n.KeyComposerUnsentDraft)).FontSize(11).TextColor(muted)
+				if !m.State.FailedSendsRestored() && ui.Button(c, i18n.T(i18n.KeyComposerUnsentRestore)).FontSize(11).Disabled(m.State.Sending || m.State.Preparing > 0 || m.Editing).Clicked() {
 					m.State.RestoreFailedSends()
 				}
 			})
@@ -251,9 +252,6 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}
 		paintLeadingClaimHint(c, m, muted)
-		if suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0) {
-			paintSuggestPopup(c, m, items, kind, tok, panel, border, fg, muted)
-		}
 		if m.Hero {
 			// ConversationRoot.heroWorkspaceRow is inset from the actual card,
 			// with 4px above its 28px controls and an 8px gap below.
@@ -313,9 +311,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					presetLabel = m.Snapshot.AgentPresetLabels[0]
 				}
 				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
-					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, func() { paintPresetIntroduction(c, m, presetLabel, fg) }).
-						Height(28).FontSize(13).FontWeight(500).
-						Background(ui.Transparent).BorderWidth(0).TextColor(fg)
+					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, colors, presetOptions{
+						Leading:  func() { paintPresetIntroduction(c, m, presetLabel, fg) },
+						Text:     fg,
+						FontSize: 13,
+						Weight:   500,
+					})
 				} else {
 					ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
 						ui.Icon(c, presetAgentIcon).Size(16, 16).TextColor(fg)
@@ -325,21 +326,31 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				}
 			})
 		}
-		// InputBar.card: 8px top pad, 12px gap, 22px radius. The hairline
-		// is painted as elevation, so it does not consume draft layout space.
+		// InputBar.card: 8px top pad, 12px gap, --dsw-radius-panel (28px). The
+		// hairline is painted as elevation, so it does not consume draft layout
+		// space, and the inset white bloom below is the reference's
+		// `inset 0 0 12px 1px rgba(255,255,255,.25)` (visible in dark themes).
+		cardRadius := float32(28)
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
-			Radius(22).Padding(8, 0, 0, 0).Gap(12)
+			Radius(cardRadius).Padding(8, 0, 0, 0).Gap(12)
 		if m.OnCardLayout != nil {
 			card.ObserveLayout(m.OnCardLayout)
 		}
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
+			paintInnerBloom(p, r, cardRadius)
 		})
-		card.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, 22, 0.5) })
+		card.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, cardRadius, 0.5) })
 		card.Children(func() {
 			if !m.Inert {
 				paintResizeHandles(c, m, card, muted)
+			}
+			// The suggestion menu floats above the card rather than growing it,
+			// and is built here so it precedes the toolbar in tree order (labels
+			// shared with the toolbar resolve to the menu while it is open).
+			if !m.Inert && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0) {
+				paintSuggestPopup(c, m, card, items, kind, tok, colors)
 			}
 			if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
 				ui.Box(c).FillWidth().Disabled(m.Inert).Children(func() { paintDraftAttachments(c, m, fg, muted) })
@@ -416,7 +427,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					wireWorkspaceReferenceDrop(area, m)
 				}
 				if _, over := ui.DragOver[filelink.Reference](area); over {
-					ui.Text(c, "添加文件引用 / Add file reference").FontSize(11).TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyComposerSuggestAddReference)).FontSize(11).TextColor(muted)
 				}
 				if m.UseTextInputClient && m.TextInput != nil {
 					m.TextInput.Sync()
@@ -430,14 +441,28 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			btnH := float32(28)
 			sendH := float32(34)
 			selectorFill := chrome.Color(colors.SelectorFill)
+			selectorHover := chrome.Color(colors.Pressed)
+			selectorPressed := selectorFill.Mix(chrome.Color(colors.FG), 0.10)
 			infoFill := chrome.Color(colors.ButtonInfoFill)
+			infoHover := chrome.Color(colors.ButtonInfoHover)
+			infoPressed := infoHover.Mix(chrome.Color(colors.FG), 0.12)
 			onAccent := chrome.Color(colors.ButtonFG)
 			ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert).Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
-					plus := ui.Button(c, "+").Label("命令列表 / Commands").Tooltip("命令列表 / Commands").Width(btnH).Height(btnH).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(fg).FontSize(18)
+					plus := ui.Button(c, "+").Label(i18n.T(i18n.KeyComposerCommands)).Tooltip(i18n.T(i18n.KeyComposerCommands)).
+						Width(btnH).Height(btnH).Padding(0).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(fg).FontSize(16)
 					if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 						plus = plus.Disabled(true)
+					}
+					if !plus.IsDisabled() {
+						// A button with its own background skips styleButton's hover
+						// (third_party/mygo/ui widgets.go), so the fill is chosen here.
+						if plus.Pressed() {
+							plus = plus.Background(selectorPressed)
+						} else if plus.Hovered() {
+							plus = plus.Background(selectorHover)
+						}
 					}
 					if plus.Clicked() {
 						toggleCommandLauncher(m)
@@ -446,14 +471,17 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					paintPlanModeControl(c, m, muted, btnH)
 					// InputBar .select: permission scope (not PromptMode queue/steer).
 					if m.Snapshot.NativeContributions.Known && m.Snapshot.NativeContributions.PermissionCommand && len(m.PermissionOptions) > 0 && m.PermissionPick != nil && m.Snapshot.SelectedPermission != "" && m.Snapshot.PermissionsErr == "" {
-						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange).
-							Height(btnH).FontSize(13).FontWeight(500).
-							Background(ui.Transparent).BorderWidth(0).TextColor(muted)
+						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange, colors, presetOptions{
+							Icon:     shieldIcon,
+							Text:     muted,
+							FontSize: 13,
+							Weight:   500,
+						})
 					}
 				})
 				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					paintContextMeter(c, m.Snapshot, muted, btnH)
-					paintModelPicker(c, m, muted, btnH)
+					paintContextMeter(c, m.Snapshot, colors, btnH)
+					paintModelPicker(c, m, colors, btnH)
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {
 						if item.SessionID == m.Snapshot.SelectedID && item.Running {
@@ -467,23 +495,39 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
+					primaryFill := func(b ui.Element) ui.Element {
+						if b.IsDisabled() {
+							return b
+						}
+						if b.Pressed() {
+							return b.Background(infoPressed)
+						}
+						if b.Hovered() {
+							return b.Background(infoHover)
+						}
+						return b
+					}
 					if primaryStops || running && child && m.OnStop != nil {
-						stop := ui.Button(c, "■").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
+						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).Tooltip(i18n.T(i18n.KeyComposerStop)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
-							TextColor(onAccent).FontSize(12).Disabled(m.OnStop == nil)
+							TextColor(onAccent).Disabled(m.OnStop == nil)
+						stop = primaryFill(stop)
+						stop.Children(func() { ui.Icon(c, stopIcon).Size(16, 16).PassThrough() })
 						if stop.Clicked() && m.OnStop != nil {
 							m.OnStop()
 						}
 					}
 					if !primaryStops {
-						send := ui.Button(c, "↑").Label(i18n.T(i18n.KeyComposerSend)).Tooltip(i18n.T(i18n.KeyComposerSend)).
+						send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).Tooltip(i18n.T(i18n.KeyComposerSend)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
-							TextColor(onAccent).FontSize(16)
+							TextColor(onAccent)
 						if composerSendDisabled(m) {
 							send = send.Disabled(true)
 						}
+						send = primaryFill(send)
+						send.Children(func() { ui.Icon(c, sendIcon).Size(16, 16).PassThrough() })
 						if send.Clicked() && handleModelCommand(m) {
 							// Local entry consumes no prompt or attachment.
 						} else if send.Clicked() && m.OnSubmitGesture != nil {
@@ -771,7 +815,7 @@ func paintMentionChips(c *ui.Context, m Model, mentions []DraftMention, muted, a
 				activateDraftReference(m, ment)
 			}
 			if ui.Button(c, "×").Label("Remove reference " + ment.Text).
-				Tooltip("移除引用 / Remove reference").TextColor(muted).
+				Tooltip(i18n.T(i18n.KeyComposerRemoveReference)).TextColor(muted).
 				Disabled(m.State != nil && m.State.Sending).Clicked() {
 				removeDraftReference(m, ment)
 			}
@@ -833,11 +877,16 @@ func applySkillPick(m Model, sk session.SkillOption) {
 	}
 }
 
-func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind SuggestKind, tok TokenRange, panel, border, fg, muted ui.Color) {
+// paintSuggestPopup renders the `/` command and `@` reference menu. It floats
+// above the card, edge to edge with it, instead of pushing the capsule taller:
+// the reference's popup is an overlay anchored at the composer's top edge.
+func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestItem, kind SuggestKind, tok TokenRange, colors theme.Colors) {
 	list := m.SuggestList
 	if list == nil {
 		return
 	}
+	fg := chrome.Color(colors.FG)
+	hover := chrome.Color(colors.Hover)
 	sel := 0
 	if list.Selected != nil {
 		sel = *list.Selected
@@ -848,44 +897,79 @@ func paintSuggestPopup(c *ui.Context, m Model, items []suggestItem, kind Suggest
 			*list.Selected = 0
 		}
 	}
-	ui.Column(c).Gap(1).Padding(0, 0, 4, 0).Children(func() {
-		ui.Column(c).Background(panel).Border(1, border).Radius(6).Padding(2, 2, 2, 2).MaxHeight(180).Children(func() {
-			paintReferenceBreadcrumbs(c, m, tok)
-			drilled := false
-			clicked := -1
-			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
-				it := items[row.Index]
-				bg := panel
-				if row.Index == sel {
-					bg = muted
-				}
-				itemRow := ui.Column(row.Context).Padding(6, 8, 6, 8).Background(bg)
-				itemRow.Children(func() {
-					ui.Row(row.Context).Children(func() {
-						ui.Text(row.Context, it.label).Grow(1).FontSize(12).Bold().TextColor(fg)
-						if it.drill != "" && ui.Button(row.Context, "›").Tooltip("浏览目录 / Browse directory").Clicked() {
+	// Prefer the room above the card, where the composer sits at the window's
+	// bottom edge; a short window flips the menu below so it stays on screen.
+	height := float32(320)
+	below := false
+	if bounds := card.Bounds(); bounds.W > 0 {
+		if bounds.Y < 160 {
+			below = true
+		} else {
+			height = min(height, max(float32(120), bounds.Y-8))
+		}
+	}
+	title := i18n.T(i18n.KeyComposerSlashCommandMenuTitle)
+	if kind == SuggestMention {
+		title = i18n.T(i18n.KeyComposerMentionMenuTitle)
+	}
+	popup := ui.Column(c.Key("composer-suggest")).Absolute().Left(0).Right(0)
+	if below {
+		popup = popup.TopPercent(100).Margin(4, 0, 0, 0)
+	} else {
+		popup = popup.BottomPercent(100).Margin(0, 0, 4, 0)
+	}
+	popup.MaxHeight(height).Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).Radius(10).
+		Padding(4).Gap(2).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
+		paintReferenceBreadcrumbs(c, m, tok)
+		ui.Text(c, title).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
+		drilled := false
+		clicked := -1
+		ui.Scroll(c).FillWidth().MaxHeight(max(80, height-40)).Children(func() {
+			// Rows are plain buttons: the list widget paints its own accent
+			// selection over the reference's single hover fill, and the arrows and
+			// Enter already belong to the editor's keymap.
+			ui.Column(c).FillWidth().Gap(2).Children(func() {
+				for i, it := range items {
+					i, it := i, it
+					itemRow := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
+						AlignItems(ui.Center).BorderWidth(0).Background(ui.Transparent)
+					if i == sel || itemRow.Hovered() {
+						itemRow = itemRow.Background(hover)
+					}
+					itemRow.Children(func() {
+						ui.Text(c, it.label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(fg)
+						if it.drill != "" && i == sel {
+							ui.Row(c).Shrink(0).Gap(3).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, "Tab").FontSize(10).TextColor(chrome.Color(colors.Caption)).
+									Padding(0, 4).Radius(4).Background(hover)
+								ui.Icon(c, chevronDown).Size(12, 12)
+							})
+						}
+						if it.sub != "" {
+							ui.Text(c, it.sub).Shrink(0).MaxWidthPercent(45).SingleLine().FontSize(12).
+								TextColor(chrome.Color(colors.Caption))
+						}
+						if it.drill != "" && ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSuggestBrowse)).
+							Tooltip(i18n.T(i18n.KeyComposerSuggestBrowse)).Width(18).Height(18).Padding(0).
+							BorderWidth(0).Background(ui.Transparent).Clicked() {
 							drilled = true
 							applySuggestDrill(m, it, tok)
 						}
 					})
-					if it.sub != "" {
-						ui.Text(row.Context, it.sub).FontSize(11).TextColor(muted)
+					if itemRow.Clicked() {
+						clicked = i
 					}
-				})
-				if itemRow.Clicked() {
-					clicked = row.Index
 				}
 			})
 			if !drilled && clicked >= 0 {
 				applySuggest(m, items[clicked], tok)
-			} else if !drilled && (l.Submitted() || l.Changed()) {
-				if list.Selected != nil && *list.Selected >= 0 && *list.Selected < len(items) {
-					applySuggest(m, items[*list.Selected], tok)
+				if m.State != nil {
+					// A row click moves the focus to the row; the draft takes it back.
+					m.State.EditFocus = true
 				}
 			}
 		})
 	})
-	_ = kind
 }
 
 func wireFileDrop(area ui.Element, m Model) {

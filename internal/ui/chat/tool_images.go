@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 // ToolImageGalleryOptions keeps disclosure state in the owning chat model.
@@ -30,7 +32,7 @@ func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolI
 	if open {
 		arrow = "▾"
 	}
-	if ui.Button(c, fmt.Sprintf("%s 图片 / Images (%d)", arrow, len(refs))).Clicked() {
+	if ui.Button(c, fmt.Sprintf("%s" + fmt.Sprintf(i18n.T(i18n.KeyChatImageGallery), len(refs)), arrow, len(refs))).Clicked() {
 		toggleThinkingExpanded(opts.Expanded, key)
 	}
 	if open {

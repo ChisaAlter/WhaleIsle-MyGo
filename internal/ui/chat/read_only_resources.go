@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type ReadOnlyResourceOptions struct {
@@ -42,9 +43,9 @@ func readOnlyResourceLink(c *ui.Context, ref string, opts ReadOnlyResourceOption
 		return
 	}
 	read := opts.Reads[ref]
-	label := "预览 / Preview: " + ref
+	label := i18n.T(i18n.KeyChatResourcePreview) + ": " + ref
 	if read.Error != "" {
-		label = "重试 / Retry: " + ref
+		label = i18n.T(i18n.KeyChatImageRetry) + ": " + ref
 	}
 	if ui.Button(c, label).FontSize(11).Disabled(read.Busy).Clicked() {
 		opts.OnRead(ref, false)
@@ -117,11 +118,11 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		read := opts.Reads[ref]
 		ui.Text(c, ref).FontSize(11).TextColor(st.Muted).Selectable()
 		if read.Busy {
-			ui.Text(c, "读取中 / Reading…").FontSize(10).TextColor(st.Muted)
+			ui.Text(c, i18n.T(i18n.KeyChatResourceReading)).FontSize(10).TextColor(st.Muted)
 		}
 		if read.Error != "" {
 			ui.Text(c, read.Error).FontSize(11).TextColor(st.Muted)
-			if ui.Button(c, "重试 / Retry: "+ref).FontSize(10).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatImageRetry) + ": "+ref).FontSize(10).Clicked() {
 				opts.OnRead(ref, false)
 			}
 		}
@@ -129,7 +130,7 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 			if opts.Scope != "" && filepath.IsAbs(read.Path) && loadChatBitmap(read.Path) != nil {
 				open := func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false }
 				ImageInlineView(c, read.Path, st.FG, st.Muted, open)
-				if ui.Button(c, "放大 / Enlarge: "+ref).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImageEnlarge) + ": "+ref).Clicked() {
 					open(read.Path)
 				}
 			} else {
@@ -142,7 +143,7 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 		if read.Text != "" {
 			ui.Text(c, read.Text).FontSize(12).TextColor(st.FG).Selectable()
 		}
-		if !read.Busy && !read.EOF && read.Error == "" && ui.Button(c, "继续读取 / Read more: "+ref).FontSize(10).Clicked() {
+		if !read.Busy && !read.EOF && read.Error == "" && ui.Button(c, i18n.T(i18n.KeyChatResourceMore) + ": "+ref).FontSize(10).Clicked() {
 			opts.OnRead(ref, true)
 		}
 	}

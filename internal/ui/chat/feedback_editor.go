@@ -37,7 +37,7 @@ func authoritativeFeedbackActions(c *ui.Context, store *session.Store, id string
 	item := v.Items[id]
 	if item.Version != "" {
 		root.ContextMenu(func(menu *ui.Menu) {
-			if menu.Item("编辑反馈 / Edit feedback").Disabled(busy).Chosen() {
+			if menu.Item(i18n.T(i18n.KeyChatFeedbackEdit)).Disabled(busy).Chosen() {
 				store.BeginFeedback(id, item.Rating)
 			}
 		})

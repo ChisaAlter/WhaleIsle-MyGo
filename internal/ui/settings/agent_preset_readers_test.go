@@ -47,8 +47,8 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		}
 		return out
 	}
-	click("模式说明 / Mode details · standard")
-	if !tt.Focused("Mode details") || tt.Focused("模式说明 / Mode details · standard") {
+	click("Mode details · standard")
+	if !tt.Focused("Mode details") || tt.Focused("Mode details · standard") {
 		t.Fatal("opening guide did not focus its selected tab")
 	}
 	initialExplanation := positions("Explanation")
@@ -77,18 +77,18 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		t.Fatal("returning to usage lost its own scroll")
 	}
 	tt.Key(0, ui.KeyEscape)
-	if tt.HasText("Fixture guide") || !tt.Focused("模式说明 / Mode details · standard") {
+	if tt.HasText("Fixture guide") || !tt.Focused("Mode details · standard") {
 		t.Fatal("Escape did not close only the guide and restore its opening action")
 	}
-	click("如何使用 / How to use · standard")
+	click("How to use · standard")
 	if !maps.Equal(positions("Usage"), initialUsage) {
 		t.Fatal("new guide opening retained the previous reader scroll")
 	}
-	click("关闭帮助 / Close help · standard")
-	if !tt.Focused("如何使用 / How to use · standard") {
+	click("Close help · standard")
+	if !tt.Focused("How to use · standard") {
 		t.Fatal("close button returned to the wrong action")
 	}
-	click("模式说明 / Mode details · standard")
+	click("Mode details · standard")
 	visible = false
 	tt.Frame()
 	visible = true
@@ -138,7 +138,7 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 	if reads != 0 {
 		t.Fatal("render read a declaration")
 	}
-	if err := tt.Click("查看配置 / View configuration · broken"); err != nil {
+	if err := tt.Click("View configuration · broken"); err != nil {
 		t.Fatal(err)
 	}
 	if reads != 1 || !tt.HasText("Loading declaration") {
@@ -146,7 +146,7 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 	}
 	tt.Key(0, ui.KeyTab)
 	tt.Key(0, ui.KeyTab)
-	if reads != 1 || !state.Open || tt.Focused("查看配置 / View configuration · broken") {
+	if reads != 1 || !state.Open || tt.Focused("View configuration · broken") {
 		t.Fatal("modal let keyboard focus or a second admission escape to the card")
 	}
 	state.Busy = false
@@ -167,7 +167,7 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 	state.Content = "- id: broken\n  prompt: do not execute\n"
 	state.TotalBytes = len(state.Content)
 	tt.Frame()
-	const sourceLabel = "预设配置只读内容 / Preset configuration source"
+	const sourceLabel = "Preset configuration source"
 	if err := tt.Click(sourceLabel); err != nil {
 		t.Fatal("read-only source control not visible:", err)
 	}
@@ -190,7 +190,7 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 		t.Fatalf("read-only editor accepted an edit: %q", got)
 	}
 	tt.Key(0, ui.KeyEscape)
-	if state.Open || closed != 1 || !tt.Focused("查看配置 / View configuration · broken") {
+	if state.Open || closed != 1 || !tt.Focused("View configuration · broken") {
 		t.Fatal("modal close failed to retire and return to its original card")
 	}
 	if _, present := tt.Find(sourceLabel); present || reads != 1 {

@@ -3,7 +3,6 @@ package markdown
 import (
 	"strconv"
 	"strings"
-	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
@@ -94,81 +93,5 @@ func codeBlockSource(node ast.Node, source string) (language, code string) {
 	return language, buf.String()
 }
 
-func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
-	language, code := codeBlockSource(node, source)
-	if st.RenderFence != nil && node.Lines().Len() > 0 && st.RenderFence(c, language, code, node.Lines().At(0).Start) {
-		return
-	}
-	root := ui.Column(c).FillWidth().MinWidth(0).Background(st.CodeBG).Padding(8).Gap(4)
-	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
-	root.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			label := language
-			if label == "" {
-				label = "code"
-			}
-			ui.Text(c, label).FontSize(st.FontSize).TextColor(st.Muted).Grow(1)
-			if ui.Button(c, "Copy code").Clicked() {
-				c.WriteClipboard(code)
-			}
-			label = "Wrap lines"
-			if *wrap {
-				label = "Unwrap lines"
-			}
-			if ui.Button(c, label).Clicked() {
-				*wrap = !*wrap
-			}
-		})
-		spans := highlightedCodeSpans(language, code, st)
-		if *wrap {
-			ui.RichText(c, spans...).FillWidth().MinWidth(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
-		} else {
-			ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-				ui.RichText(c, spans...).NoWrap().Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
-			})
-		}
-	})
-}
-
-func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
-	// Fixed column widths keep cells aligned across rows; horizontal scrolling
-	// retains wide tables without squeezing or truncating their content.
-	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-		ui.Column(c).Children(func() {
-			for row := table.FirstChild(); row != nil; row = row.NextSibling() {
-				_, header := row.(*extast.TableHeader)
-				ui.Row(c).Children(func() {
-					for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
-						ui.Column(c).Width(180).Padding(6).BorderWidth(1).BorderColor(st.Muted).Children(func() {
-							cellStyle := st
-							cellStyle.maths = map[int]mathFormula{}
-							collectURLTargets(&cellStyle)
-							var blocks []richBlock
-							cellStyle.blockAt = func(start, end int, node ast.Node) {
-								blocks = append(blocks, richBlock{start: start, end: end, node: node})
-							}
-							targets := map[int]string{}
-							cellStyle.codeSpanAt = func(index int, value string) {
-								if st.ResolveFile != nil && st.OnOpenFile != nil {
-									targets[index] = st.ResolveFile(value)
-								}
-							}
-							var spans []ui.Span
-							walkInlines(cell, source, cellStyle, &spans)
-							if header {
-								for i := range spans {
-									spans[i].Weight = 700
-								}
-							}
-							if len(blocks) > 0 {
-								viewBlocks(c, source, cellStyle, spans, targets, blocks)
-							} else {
-								viewSpans(c, cellStyle, spans, targets, 0)
-							}
-						})
-					}
-				})
-			}
-		})
-	})
-}
+// viewCodeBlock and viewTable live in codeblock.go and table.go: both draw
+// block-level chrome that a single RichText run cannot express.

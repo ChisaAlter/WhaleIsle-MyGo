@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 var trajectoryJSONIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
@@ -76,7 +78,7 @@ func trajectoryPayloadView(c *ui.Context, scope, body string, fg, muted ui.Color
 		budget := 200
 		trajectoryJSONNode(c, "$", value, 0, &budget, fg, muted)
 		if budget <= 0 {
-			ui.Text(c, "展示已限量；复制保留完整内容 / Display limited; copy retains full content").FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatTrajDisplayLimited)).FontSize(11).TextColor(muted)
 		}
 	})
 }
@@ -132,7 +134,7 @@ func trajectoryJSONNode(c *ui.Context, path string, value any, depth int, budget
 			return
 		}
 		if depth >= 64 {
-			ui.Text(c, "深度限制 / Depth limit; copy includes subtree").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatTrajDepthLimit)).TextColor(muted)
 			return
 		}
 		if isObject {

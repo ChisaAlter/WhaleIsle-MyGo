@@ -80,7 +80,9 @@ func TestViewShellLabels(t *testing.T) {
 		i18n.T(i18n.KeySidebarMarket),
 		i18n.T(i18n.KeySidebarSchedule),
 		i18n.T(i18n.KeySidebarWorkspaceSection),
-		"↑", // circular send control (Electron parity)
+		// The send control is the composer's; assert its locale label rather than
+		// pinning the glyph the composer currently draws.
+		i18n.T(i18n.KeyComposerSend),
 		// Empty store → Electron empty-session hero (no 对话/轨迹 chrome).
 		i18n.T(i18n.KeyChatHeroSlogan),
 		i18n.T(i18n.KeyChatHeroPreview),

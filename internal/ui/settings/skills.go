@@ -131,7 +131,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.DetailPreview != "" {
 		ui.Text(c, a.DetailPreview).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, "取消编辑 / Cancel edit").Disabled(a.Busy).Clicked() {
+	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, providerCopy("取消编辑", "Cancel edit")).Disabled(a.Busy).Clicked() {
 		a.OnCancelEdit()
 	}
 	if a.EditWritable && a.EditName != "" && a.EditDesc != nil && a.EditContent != nil && a.OnSaveUpdate != nil {
@@ -140,17 +140,17 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 			ui.TextInput(c, a.EditDesc).FillWidth().Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
 			if a.EditWhenToUse != nil {
-				ui.Text(c, "使用条件（清空以移除） / When to use (empty removes it)").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, providerCopy("使用条件（清空以移除）", "When to use (empty removes it)")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.TextArea(c, a.EditWhenToUse).FillWidth().Lines(2, 5).Disabled(a.Busy)
 			}
 			ui.TextArea(c, a.EditContent).FillWidth().Lines(5, 16).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
 			if a.EditModelInvocable != nil {
-				ui.Checkbox(c, a.EditModelInvocable, "模型可调用 / Model invocable").Disabled(a.Busy)
+				ui.Checkbox(c, a.EditModelInvocable, providerCopy("模型可调用", "Model invocable")).Disabled(a.Busy)
 			}
 			if a.EditUserInvocable != nil {
-				ui.Checkbox(c, a.EditUserInvocable, "用户可调用 / User invocable").Disabled(a.Busy)
+				ui.Checkbox(c, a.EditUserInvocable, providerCopy("用户可调用", "User invocable")).Disabled(a.Busy)
 			}
-			ui.Text(c, "仅保存会写入 Skill 文件；文本不会在此执行。 / Only Save writes the Skill file; text is not executed here.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, providerCopy("仅保存会写入 Skill 文件；文本不会在此执行。", "Only Save writes the Skill file; text is not executed here.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if a.EditGroups != nil {
 				ui.Text(c, "Groups (comma-separated; leave empty to clear)").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.TextInput(c, a.EditGroups).FillWidth().Disabled(a.Busy)
@@ -185,7 +185,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 			}
 			if !a.EditCanSave && !a.Busy {
-				ui.Text(c, "草稿已保留；目标或版本已变化，请重新查看后再保存。 / Draft retained; inspect again before saving after a target, revision, or result change.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, providerCopy("草稿已保留；目标或版本已变化，请重新查看后再保存。", "Draft retained; inspect again before saving after a target, revision, or result change.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 			if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy || !a.EditCanSave).Clicked() {
 				a.OnSaveUpdate()
@@ -196,13 +196,13 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	if a.RemovalID != 0 {
-		ui.Text(c, "删除审阅 / Review deletion").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, providerCopy("删除审阅", "Review deletion")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, a.RemovalLabel).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Text(c, a.RemovalMessage).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		if a.OnCancelRemoval != nil && ui.Button(c, "取消 / Cancel").Disabled(a.RemovalBusy).Clicked() {
+		if a.OnCancelRemoval != nil && ui.Button(c, providerCopy("取消", "Cancel")).Disabled(a.RemovalBusy).Clicked() {
 			a.OnCancelRemoval()
 		}
-		if a.OnConfirmRemoval != nil && ui.Button(c, "确认永久删除 / Confirm permanent deletion").Disabled(!a.RemovalReady || a.RemovalBusy).Clicked() {
+		if a.OnConfirmRemoval != nil && ui.Button(c, providerCopy("确认永久删除", "Confirm permanent deletion")).Disabled(!a.RemovalReady || a.RemovalBusy).Clicked() {
 			a.OnConfirmRemoval()
 		}
 	}

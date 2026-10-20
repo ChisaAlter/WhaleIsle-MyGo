@@ -9,14 +9,14 @@ import (
 )
 
 func TestChatStatusRestoration(t *testing.T) {
-	for _, tc := range []struct{ reason, status, detail string }{
-		{`{"kind":"max-tokens"}`, "Output limit reached", "token limit"},
-		{`{"kind":"error","error":{"message":"upstream timeout","code":"TIMEOUT"}}`, "Failed", "upstream timeout [TIMEOUT]"},
-		{`{"kind":"aborted","reason":{"kind":"hook","reason":"deepseek-account/signed-out"}}`, "Stopped", "ACCOUNT_SIGNED_OUT"},
+	for _, tc := range []struct{ reason, kind, detail string }{
+		{`{"kind":"max-tokens"}`, "truncated", "token 上限"},
+		{`{"kind":"error","error":{"message":"upstream timeout","code":"TIMEOUT"}}`, "failed", "upstream timeout [TIMEOUT]"},
+		{`{"kind":"aborted","reason":{"kind":"hook","reason":"deepseek-account/signed-out"}}`, "stopped", "ACCOUNT_SIGNED_OUT"},
 	} {
 		msg := session.Message{Raw: json.RawMessage(`{"data":{"reason":` + tc.reason + `}}`)}
-		if !strings.Contains(completedTurnStatus(msg), tc.status) || !strings.Contains(terminalReasonDetail(msg), tc.detail) {
-			t.Fatalf("reason %s: %s / %s", tc.reason, completedTurnStatus(msg), terminalReasonDetail(msg))
+		if !strings.Contains(turnStatusKind(msg), tc.kind) || !strings.Contains(terminalReasonDetail(msg), tc.detail) {
+			t.Fatalf("reason %s: %s / %s", tc.reason, turnStatusKind(msg), terminalReasonDetail(msg))
 		}
 	}
 	auth := session.Message{Raw: json.RawMessage(`{"data":{"reason":{"kind":"error","error":{"message":"secret credential fragment","code":"AUTH"}}}}`)}

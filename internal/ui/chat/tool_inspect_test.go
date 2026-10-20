@@ -5,13 +5,19 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestToolInspectActionIsPresent(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "c", Name: "shell"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(string) {}})
 	}, 600, 500)
-	if _, ok := tt.Find("检查此调用 / Inspect this call"); !ok {
+	// The inspect seat lives in the expanded body of the single-line row.
+	if err := tt.Click(i18n.T(i18n.KeyChatToolRun)); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find(i18n.T(i18n.KeyChatToolInspect)); !ok {
 		t.Fatal("tool card has no inspect-call action")
 	}
 }
@@ -21,14 +27,22 @@ func TestToolInspectActionDispatchesRealCallID(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "sub-opaque", Name: "same name"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(id string) { opened = id }})
 	}, 600, 500)
-	tt.Click("检查此调用 / Inspect this call")
+	tt.Frame()
+	if err := tt.Click(toolKindTitle(ToolKindGeneric)); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Click(i18n.T(i18n.KeyChatToolInspect))
 	if opened != "sub-opaque" {
 		t.Fatalf("inspect target %q", opened)
 	}
 	tt = ui.NewTester(func(c *ui.Context) {
 		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "private", Name: "same name"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{TextOnly: true, OnInspectCall: func(id string) { opened = id }})
 	}, 600, 500)
-	if _, ok := tt.Find("检查此调用 / Inspect this call"); ok {
+	tt.Frame()
+	_ = tt.Click(toolKindTitle(ToolKindGeneric))
+	tt.Frame()
+	if _, ok := tt.Find(i18n.T(i18n.KeyChatToolInspect)); ok {
 		t.Fatal("read-only addressed seat exposed main navigation")
 	}
 }

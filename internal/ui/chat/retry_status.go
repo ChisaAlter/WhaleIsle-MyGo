@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func displayFailure(raw json.RawMessage) (message, code string) {
@@ -56,12 +57,12 @@ func RetryStatusView(c *ui.Context, m Model, msg session.Message, fg, muted ui.C
 		if current.Mode == "always" {
 			maximum = "∞"
 		}
-		label := "等待重试 / Waiting to retry"
+		label := i18n.T(i18n.KeyChatRetryWaiting)
 		switch current.State {
 		case "started":
-			label = "重试已开始 / Retry started"
+			label = i18n.T(i18n.KeyChatRetryStarted)
 		case "cancelled":
-			label = "重试已取消 / Retry cancelled"
+			label = i18n.T(i18n.KeyChatRetryCancelled)
 		}
 		text := fmt.Sprintf("%s · %d/%s", label, current.Retry, maximum)
 		if current.State == "scheduled" {
@@ -118,10 +119,10 @@ func readTurnReason(msg session.Message) turnReason {
 func terminalReasonDetail(msg session.Message) string {
 	r := readTurnReason(msg)
 	if r.Kind == "max-tokens" {
-		return "输出达到本次请求的 token 上限，回答可能不完整。 / Output reached the request token limit; the answer may be incomplete."
+		return i18n.T(i18n.KeyChatTurnMaxTokens)
 	}
 	if r.Kind == "aborted" && r.Reason.Kind == "hook" && r.Reason.Reason == "deepseek-account/signed-out" {
-		return "已停止，因为你已退出 DeepSeek。 / Stopped because you signed out of DeepSeek. [ACCOUNT_SIGNED_OUT]"
+		return i18n.T(i18n.KeyChatTurnSignedOut)
 	}
 	if r.Kind == "error" || r.Kind == "failed" {
 		message, code := displayFailure(r.Error)

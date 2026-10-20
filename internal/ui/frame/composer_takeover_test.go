@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -115,7 +116,7 @@ func TestConversationApprovalAndQuestionTakeComposerSeatThenRestoreDraft(t *test
 				if !tt.Focused("Composer draft") {
 					t.Fatal("minimized question left draft inaccessible")
 				}
-				if err := tt.Click("重新打开问题 / Reopen questions"); err != nil {
+				if err := tt.Click(i18n.T(i18n.KeyChatQuestionReopen)); err != nil {
 					t.Fatal(err)
 				}
 				tt.Frame()

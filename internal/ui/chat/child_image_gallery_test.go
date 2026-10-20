@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestChildImageGalleryScopedNavigation(t *testing.T) {
@@ -39,31 +40,31 @@ func TestChildImageGalleryScopedNavigation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	click("放大 / Enlarge: attachment:a")
+	click(i18n.T(i18n.KeyChatImageEnlarge) + ": attachment:a")
 	if !tt.HasText("1 / 2 · attachment:a") {
 		t.Fatal("gallery did not open only local images")
 	}
-	click("下一张 / Next image")
+	click(i18n.T(i18n.KeyChatImageNext))
 	if !tt.HasText("2 / 2 · attachment:b") {
 		t.Fatal("next image failed")
 	}
 	click("1:1")
-	click("适应 / Fit")
-	click("上一张 / Previous image")
+	click(i18n.T(i18n.KeyChatImageFit))
+	click(i18n.T(i18n.KeyChatImagePrev))
 	scope = "host/other-child/token2"
 	tt.Frame()
-	if tt.HasText("关闭图片 / Close image") {
+	if tt.HasText(i18n.T(i18n.KeyChatImageCloseOne)) {
 		t.Fatal("viewer crossed child ownership")
 	}
-	click("放大 / Enlarge: attachment:a")
+	click(i18n.T(i18n.KeyChatImageEnlarge) + ": attachment:a")
 	delete(reads, "attachment:a")
 	tt.Frame()
-	if tt.HasText("关闭图片 / Close image") {
+	if tt.HasText(i18n.T(i18n.KeyChatImageCloseOne)) {
 		t.Fatal("revoked image remained visible")
 	}
-	click("放大 / Enlarge: attachment:b")
+	click(i18n.T(i18n.KeyChatImageEnlarge) + ": attachment:b")
 	tt.Key(0, ui.KeyEscape)
-	if tt.HasText("关闭图片 / Close image") {
+	if tt.HasText(i18n.T(i18n.KeyChatImageCloseOne)) {
 		t.Fatal("Escape did not close modal")
 	}
 }

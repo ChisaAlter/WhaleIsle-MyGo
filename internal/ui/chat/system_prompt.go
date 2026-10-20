@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // SystemPromptView is an opaque, collapsed disclosure, never a diagnostic or a
@@ -10,9 +11,9 @@ import (
 func SystemPromptView(c *ui.Context, m Model, msg session.Message, fg, muted ui.Color) {
 	key := "system-prompt:" + m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID + ":" + msg.ID
 	open := isThinkingExpanded(m.ThinkingExpanded, key)
-	title := "系统提示词 / System prompt"
+	title := i18n.T(i18n.KeyChatSystemPrompt)
 	if msg.EventType == "system-prompt-update" {
-		title = "系统提示词更新 / System prompt update"
+		title = i18n.T(i18n.KeyChatSystemPromptUpdate)
 	}
 	arrow := "▸ "
 	if open {

@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/i18n"
 )
 
 func questionEditorFixture(t *testing.T, questions string) (*interaction.Store, *ui.Tester, <-chan dsh.EventResultOutcome) {
@@ -148,7 +149,7 @@ func TestQuestionEditorSendingHasNoLivePointerBindings(t *testing.T) {
 	if err := tt.Click("B"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("跳过此题 / Skip question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionSkip)); err != nil {
 		t.Fatal(err)
 	}
 	if got := *store.QuestionCustomPtr("e", "q"); got != "before" {

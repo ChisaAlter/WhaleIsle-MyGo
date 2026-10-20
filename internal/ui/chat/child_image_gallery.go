@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type childGalleryState struct {
@@ -49,21 +50,21 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 		pw, ph := max(float32(0), min(float32(1000), w-32)), max(float32(0), h-32)
 		panel.Width(pw).Height(ph).Padding(12).Background(c.Theme().Background).Children(func() {
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, "上一张 / Previous image").Disabled(index == 0).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImagePrev)).Disabled(index == 0).Clicked() {
 					index--
 					state.Ref = refs[index]
 				}
-				if ui.Button(c, "下一张 / Next image").Disabled(index == len(refs)-1).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImageNext)).Disabled(index == len(refs)-1).Clicked() {
 					index++
 					state.Ref = refs[index]
 				}
-				if ui.Button(c, "适应 / Fit").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImageFit)).Clicked() {
 					state.ActualSize = false
 				}
 				if ui.Button(c, "1:1").Clicked() {
 					state.ActualSize = true
 				}
-				if ui.Button(c, "关闭图片 / Close image").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatImageCloseOne)).Clicked() {
 					state.Open = false
 				}
 			})

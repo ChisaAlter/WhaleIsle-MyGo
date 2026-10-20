@@ -116,7 +116,8 @@ func TestComposerResolvedAndCustomPalette(t *testing.T) {
 			}
 			card, _ := tt.Find("Composer card")
 			fill := chrome.Color(colors.InputMajor)
-			p := tt.Image().RGBAAt(int(card.X+40), int(card.Y+4))
+			// Sample below the 8px inset highlight band the card paints on its rim.
+			p := tt.Image().RGBAAt(int(card.X+40), int(card.Y+16))
 			// The software renderer composites the semantic translucent fill over white.
 			for i, pair := range [][2]uint8{{p.R, fill.R}, {p.G, fill.G}, {p.B, fill.B}} {
 				expected := uint8((int(pair[1])*int(fill.A) + 255*(255-int(fill.A)) + 127) / 255)

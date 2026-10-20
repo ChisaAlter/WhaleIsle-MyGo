@@ -7,21 +7,17 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
-// titleForItem picks a sidebar label from list projections or session id.
+// titleForItem picks the Host projection title, or "" when the Session has none
+// yet. A blank or unnamed Session therefore carries no label: internal ids stay
+// out of every surface, and each surface shows its own localized placeholder
+// (the sidebar's row and the conversation title band own theirs).
 func titleForItem(it api.SessionListValueItemsItem) string {
 	if it.Projections != nil && len(it.Projections.Values) > 0 {
 		if t := titleFromProjections(it.Projections.Values); t != "" {
 			return t
 		}
 	}
-	id := it.SessionId
-	if len(id) > 8 {
-		id = id[:8]
-	}
-	if it.Blank {
-		return "New chat · " + id
-	}
-	return id
+	return ""
 }
 
 func titleFromProjections(raw json.RawMessage) string {

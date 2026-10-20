@@ -9,16 +9,16 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func TestSharedCaptionKeepsResourceTabsBelowTheWholeHeader(t *testing.T) {
+func TestSharedCaptionIsOneRowAcrossEveryRoute(t *testing.T) {
 	for _, tc := range []struct {
 		name                   string
 		hero, hideTabs, global bool
 		want                   float32
 	}{
-		{"conversation", false, false, false, 72},
-		{"without tabs", false, true, false, 53},
-		{"hero", true, false, false, 52},
-		{"global panel", false, false, true, 52},
+		{"conversation", false, false, false, 48},
+		{"without tabs", false, true, false, 48},
+		{"hero", true, false, false, 48},
+		{"global panel", false, false, true, 48},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sizes := DefaultLayout()
@@ -48,7 +48,9 @@ func TestSharedCaptionKeepsResourceTabsBelowTheWholeHeader(t *testing.T) {
 			if center.Y != tc.want || details.Y != tc.want || center.H != 800-tc.want || details.H != 800-tc.want {
 				t.Fatalf("header %s: center=%+v details=%+v, want top%v/full remaining height", tc.name, center, details, tc.want)
 			}
-			if trailing.Y != 8 || trailing.H != 32 || trailing.X+trailing.W != 1200-112 {
+			// titlebar-density.ts: the cluster sits 12px into the 48px band and
+			// ends at the native caption reserve.
+			if trailing.Y != 12 || trailing.H != 32 || trailing.X+trailing.W != 1200-112 {
 				t.Fatalf("native control reserve/trailing: %+v", trailing)
 			}
 			if density != "compact" {
@@ -57,6 +59,39 @@ func TestSharedCaptionKeepsResourceTabsBelowTheWholeHeader(t *testing.T) {
 		})
 	}
 }
+
+// TestConversationViewTabsStayInsideTheBand pins the rc.2 layout: the 对话/轨迹
+// switcher shares the 48px title row instead of adding a second one.
+func TestConversationViewTabsStayInsideTheBand(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Center, sizes.Right = 900, 0
+	tab := "chat"
+	store := session.New()
+	var band float32
+	tt := ui.NewTester(func(c *ui.Context) {
+		m := Model{Store: store, Sizes: &sizes, ChatPaneTab: &tab}
+		band = workspaceSharedCaption(c, m, session.ViewState{SelectedID: "s1", Items: []session.Item{{SessionID: "s1", Title: "Current"}}}, theme.Resolve("deepseek.light").Light, false)
+	}, 1200, 800)
+	if band != 48 {
+		t.Fatalf("band=%v, want the single 48px caption", band)
+	}
+	for _, label := range []string{i18n.T(i18n.KeyChatPaneTabChat), i18n.T(i18n.KeyChatPaneTabTrajectory)} {
+		r, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("missing view tab %q; texts=%q", label, tt.Texts())
+		}
+		if r.Y < 0 || r.Y+r.H > 48 {
+			t.Fatalf("view tab %q escaped the band: %+v", label, r)
+		}
+	}
+	if err := tt.Click(i18n.T(i18n.KeyChatPaneTabTrajectory)); err != nil {
+		t.Fatal(err)
+	}
+	if tab != "trajectory" {
+		t.Fatalf("tab=%q after click", tab)
+	}
+}
+
 
 func TestCaptionReflowsAfterAsyncToolArrivalAndRemoval(t *testing.T) {
 	sizes := DefaultLayout()
@@ -97,14 +132,14 @@ func TestGlobalPanelKeepsTerminalDrawerAndItsGeometry(t *testing.T) {
 	}, 1200, 800)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	tt.Frame()
-	if content.Y != 52 || content.H != 400 {
-		t.Fatalf("global content=%+v, want below52 caption and above retained400 split", content)
+	if content.Y != 48 || content.H != 400 {
+		t.Fatalf("global content=%+v, want below48 caption and above retained400 split", content)
 	}
 	if _, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable)); !ok {
 		t.Fatal("global page lost its terminal drawer")
 	}
 	tt.SetSize(1200, 400)
-	if content.Y != 52 || content.H != 267 || sizes.Main != 400 {
+	if content.Y != 48 || content.H != 271 || sizes.Main != 400 {
 		t.Fatalf("global resize did not concede without rewriting split: content=%+v Main=%v", content, sizes.Main)
 	}
 	status, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
@@ -112,12 +147,12 @@ func TestGlobalPanelKeepsTerminalDrawerAndItsGeometry(t *testing.T) {
 		t.Fatalf("global terminal escaped resized viewport: %+v", status)
 	}
 	tt.SetSize(1200, 800)
-	if content.Y != 52 || content.H != 400 || sizes.Main != 400 {
+	if content.Y != 48 || content.H != 400 || sizes.Main != 400 {
 		t.Fatalf("global window growth retained a stale concession: content=%+v Main=%v", content, sizes.Main)
 	}
 	sizes.Bottom = 0
 	tt.Frame()
-	if content.Y != 52 || content.H != 748 {
+	if content.Y != 48 || content.H != 752 {
 		t.Fatalf("closed drawer did not return allocated space: %+v", content)
 	}
 }

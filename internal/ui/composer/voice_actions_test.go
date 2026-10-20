@@ -5,6 +5,7 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestVoiceEscapeOwnsCancellation(t *testing.T) {
@@ -67,7 +68,7 @@ func TestUnavailableVoiceOpensSettings(t *testing.T) {
 		m.UseTextInputClient = true
 		m.SuggestList = &ui.ListState{Selected: &selected}
 		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
-		if err := tt.Click(composerText("语音设置", "Voice settings")); err != nil {
+		if err := tt.Click(i18n.T(i18n.KeyComposerVoiceInput)); err != nil {
 			t.Fatalf("%s: %v", mode, err)
 		}
 		if settings != 0 || started != 0 || !d.VoiceSetupOpen {

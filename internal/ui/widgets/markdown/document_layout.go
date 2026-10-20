@@ -19,7 +19,7 @@ func viewDocument(c *ui.Context, source string, st Style) {
 	}
 	md := newMarkdown()
 	doc := md.Parser().Parse(text.NewReader([]byte(source)))
-	st.lineHeight = st.FontSize + 10
+	st.lineHeight = BodyLineHeight(st)
 	// The source resets margins on .markdown's first and last children.
 	viewDocumentBlocks(c, doc, source, st, true)
 }
@@ -109,11 +109,10 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	case *ast.Paragraph, *ast.TextBlock:
 		viewDocumentInlines(c, node, source, st)
 	case *ast.Blockquote:
-		border := st.QuoteBorder
-		if border.A == 0 {
-			border = st.Muted
-		}
-		ui.Column(c).FillWidth().MinWidth(0).Padding(0, 0, 0, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+		border := quoteBorderColor(st)
+		inset := quoteInset(st)
+		// Original MarkdownText blockquote: 2px rule with a text inset.
+		ui.Column(c).FillWidth().MinWidth(0).Padding(0, 0, 0, inset).Draw(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: 2, H: r.H}, border, 0)
 		}).Children(func() { viewDocumentBlocks(c, node, source, st, true) })
 	case *ast.List:
@@ -129,7 +128,7 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 				top = 6 // li:not(:first-child)
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Gap(0).Padding(top, 0, 0, 0).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, marker).Width(18).NoWrap().FontSize(st.FontSize).FixedLineHeight(24).TextColor(st.Muted)
+				ui.Text(c, marker).Width(18).NoWrap().FontSize(st.FontSize).FixedLineHeight(BodyLineHeight(st)).TextColor(st.Muted)
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() { viewDocumentBlocks(c, item, source, st, true) })
 			})
 		}

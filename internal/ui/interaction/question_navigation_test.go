@@ -1,9 +1,12 @@
 package interaction
 
-import (
+import (	"fmt"
+
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"time"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestQuestionWizardShowsOnlyCurrentQuestion(t *testing.T) {
@@ -22,7 +25,7 @@ func TestQuestionWizardPagerMinimizeSummaryAndReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Type("retained answer")
-	if err := tt.Click("下一题 / Next question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionNext)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := tt.Find("Question answer: First"); ok {
@@ -31,37 +34,37 @@ func TestQuestionWizardPagerMinimizeSummaryAndReopen(t *testing.T) {
 	if _, ok := tt.Find("Question answer: Last"); !ok {
 		t.Fatal("next editor missing")
 	}
-	if err := tt.Click("收起问题 / Minimize question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionMinimize)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := tt.Find("Question answer: Last"); ok {
 		t.Fatal("minimize did not remove body")
 	}
-	if _, ok := tt.Find("上一题 / Previous question"); ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyChatQuestionPrev)); ok {
 		t.Fatal("minimize did not remove footer")
 	}
-	if err := tt.Click("展开问题 / Expand question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionExpand)); err != nil {
 		t.Fatal(err)
 	}
 	if tt.Focused("Question answer: Last") {
 		t.Fatal("expand stole focus from toggle")
 	}
-	if err := tt.Click("查看答案摘要 / Review answers"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionReview)); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("retained answer") {
 		t.Fatal("summary omitted retained answer")
 	}
-	if err := tt.Click("回看第 1 题 / Review question 1"); err != nil {
+	if err := tt.Click(fmt.Sprintf(i18n.T(i18n.KeyChatQuestionReviewN), 1)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := tt.Find("Question answer: First"); !ok {
 		t.Fatal("summary could not navigate back")
 	}
-	if err := tt.Click("暂时隐藏 / Hide for now"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionHide)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("重新打开问题 / Reopen questions"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionReopen)); err != nil {
 		t.Fatal(err)
 	}
 	if got := store.SnapshotForAgent("A").QuestionCards["e"]; got.Index != 0 || got.Rows[0].Custom != "retained answer" {
@@ -87,7 +90,7 @@ func TestQuestionWizardSingleChoiceAdvancesAndFinalSkipSends(t *testing.T) {
 		t.Fatalf("choice auto-submitted: %+v", got)
 	default:
 	}
-	if err := tt.Click("跳过此题 / Skip question"); err != nil {
+	if err := tt.Click(i18n.T(i18n.KeyChatQuestionSkip)); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -99,8 +102,8 @@ func TestQuestionWizardSingleChoiceAdvancesAndFinalSkipSends(t *testing.T) {
 		t.Fatal("last skip did not submit")
 	}
 	before := store.SnapshotForAgent("A").QuestionCards["e"].Index
-	_ = tt.Click("上一题 / Previous question")
-	_ = tt.Click("收起问题 / Minimize question")
+	_ = tt.Click(i18n.T(i18n.KeyChatQuestionPrev))
+	_ = tt.Click(i18n.T(i18n.KeyChatQuestionMinimize))
 	if store.SnapshotForAgent("A").QuestionCards["e"].Index != before {
 		t.Fatal("Sending navigation changed page")
 	}

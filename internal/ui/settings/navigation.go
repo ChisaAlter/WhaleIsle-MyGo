@@ -51,12 +51,13 @@ func activeSection(m Model, snap store.ViewState) (active SectionID) {
 	switch snap.SelectedNS {
 	case "pet", "live2d":
 		return SectionPet
-	case "remote-workspace":
-		return SectionRemoteWorkspace
 	}
 	return SectionGeneral
 }
 
+// primaryNavigation is the feature rail, in the original order. Implementation
+// namespaces such as remote-workspace are configuration sections inside General,
+// never top-level destinations.
 func primaryNavigation(m Model, snap store.ViewState) []navigationEntry {
 	var entries []navigationEntry
 	add := func(id SectionID, icon string, enabled bool, selectPage func()) {
@@ -91,20 +92,31 @@ func primaryNavigation(m Model, snap store.ViewState) []navigationEntry {
 	add(SectionAgentPresets, "AgentPresetOutline", m.AgentPresets != nil, m.OnSelectAgentPresets)
 	add(SectionUsageStats, "ChartOutline", m.OnOpenUsage != nil, m.OnOpenUsage)
 	add(SectionPet, "SettingsOutline", m.Pet != nil, selectNamespace("pet"))
-	add(SectionRemoteWorkspace, "SettingsOutline", m.OnSelectNamespace != nil, selectNamespace("remote-workspace"))
 	add(SectionAbout, "InfoOutline", m.About != nil, m.OnSelectAbout)
 	return entries
 }
 
-// General keeps Go's backed desktop and schema controls reachable without
-// promoting implementation namespaces into extra primary settings sections.
-func generalNavigation(c *ui.Context, m Model, snap store.ViewState) {
+// generalNavigation paints the General page's own rows: the account entry, then
+// the configuration browser folded under Advanced. The browser used to lead the
+// page as a button strip plus a namespace dropdown, which read as an internal
+// tool rather than as settings.
+func generalNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
 	if m.Account != nil && m.Account.Status != "credential-stored" && m.OnSelectAccount != nil {
-		if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Clicked() {
-			m.OnSelectAccount()
-		}
+		bodyPreferenceRow(c, "general-account", i18n.T(i18n.KeySettingsSectionAccount), "", fg, muted, func() {
+			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Clicked() {
+				m.OnSelectAccount()
+			}
+		})
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	bodyDisclosure(c, "settings-advanced", i18n.T(i18n.KeySurfacesSettingsAdvanced), func() {
+		advancedNavigation(c, m, snap, fg, muted)
+	})
+}
+
+// advancedNavigation is the namespace browser: the backed desktop and credential
+// pages, the live filter, the namespace chooser and a describe refresh.
+func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
+	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if m.Desktop != nil && m.OnSelectDesktop != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopNav)).Clicked() {
 			m.OnSelectDesktop()
 		}
@@ -118,9 +130,9 @@ func generalNavigation(c *ui.Context, m Model, snap store.ViewState) {
 	if m.Store == nil {
 		return
 	}
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 		if m.FilterPtr != nil {
-			ui.TextInput(c, m.FilterPtr).FillWidth().Placeholder(i18n.T(i18n.KeySettingsFilter))
+			ui.TextInput(c, m.FilterPtr).FillWidth().Placeholder(i18n.T(i18n.KeySurfacesSettingsFilter))
 		}
 		names := []string{}
 		for _, ns := range snap.Namespaces {
@@ -142,7 +154,7 @@ func generalNavigation(c *ui.Context, m Model, snap store.ViewState) {
 					selected = labels[index]
 				}
 			}
-			ui.Select(c, &selected, labels).FillWidth().Label(i18n.T(i18n.KeySettingsFilter)).OnChange(func() {
+			ui.Select(c, &selected, labels).FillWidth().Label(i18n.T(i18n.KeySurfacesSettingsNamespace)).OnChange(func() {
 				for index, label := range labels {
 					if label != selected {
 						continue
@@ -157,9 +169,9 @@ func generalNavigation(c *ui.Context, m Model, snap store.ViewState) {
 				}
 			})
 		} else if len(names) > 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsFilterEmpty))
+			ui.Text(c, i18n.T(i18n.KeySurfacesSettingsFilterEmpty)).FontSize(11).TextColor(muted)
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsRefresh)).Clicked() {
 			m.Store.RefreshDescribe(context.Background())
 		}
 	})

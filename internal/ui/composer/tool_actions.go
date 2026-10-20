@@ -86,8 +86,10 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 		}
 	}
 	if m.Voice.Phase == "" {
+		// One stable control name: the launcher row that opens voice settings
+		// keeps its own caption, so the microphone never shadows it in the tree.
 		if voiceNeedsSetup(m) {
-			button("microphone", composerText("语音设置", "Voice settings"), locked, func() {
+			button("microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, func() {
 				if m.State != nil {
 					m.State.VoiceSetupOpen = true
 				} else if m.OnVoiceSettings != nil {
@@ -95,7 +97,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 				}
 			})
 		} else {
-			button("microphone", composerText("开始录音", "Start recording"), locked, m.OnStartVoice)
+			button("microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, m.OnStartVoice)
 		}
 	}
 	paintVoiceSetup(c, m)

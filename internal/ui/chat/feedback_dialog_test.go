@@ -193,7 +193,7 @@ func TestFeedbackModalSourceGeometryAndWorkflow(t *testing.T) {
 	if err := tt.RightClick(activeDown); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("编辑反馈 / Edit feedback"); err != nil {
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyChatFeedbackEdit)); err != nil {
 		t.Fatal(err)
 	}
 	if st.Feedback().EditorID != "answer" {

@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/widgets/diff"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Tool file cards consume the first-party read/edit/write wire schemas only.
@@ -274,9 +275,9 @@ func toolFileView(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, o
 			}
 		}
 		if len(card.Diffs) > 0 {
-			label := "已写入差异 / Applied diff"
+			label := i18n.T(i18n.KeyChatToolAppliedDiff)
 			if card.Intended {
-				label = "拟议差异 / Proposed diff"
+				label = i18n.T(i18n.KeyChatToolProposedDiff)
 			}
 			ui.Text(c, label).FontSize(10).TextColor(st.Muted)
 			for _, d := range card.Diffs {
@@ -290,12 +291,12 @@ func toolFileView(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, o
 				}
 				// Bound resident work; full exact text remains in the original disclosures.
 				if len(old)+len(d.NewText) > 256*1024 {
-					ui.Text(c, "差异过大，请展开原始记录 / Large diff: expand original payload").FontSize(11)
+					ui.Text(c, i18n.T(i18n.KeyChatToolDiffLarge)).FontSize(11)
 					continue
 				}
 				patch := diff.LineDiff(old, d.NewText)
 				if patch == "" {
-					ui.Text(c, "无文本差异 / No text changes").FontSize(11).TextColor(st.Muted)
+					ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(st.Muted)
 					continue
 				}
 				lines := strings.Split(patch, "\n")
@@ -324,9 +325,9 @@ func toolFileButton(c *ui.Context, path string, line int, st ToolCardStyle, open
 	}
 }
 func toolFileDisclosure(c *ui.Context, id string, opts ToolImageGalleryOptions) {
-	label := "展开文件内容 / Expand file content"
+	label := i18n.T(i18n.KeyChatToolExpandFile)
 	if isThinkingExpanded(opts.Expanded, "tool-file:"+id) {
-		label = "收起文件内容 / Collapse file content"
+		label = i18n.T(i18n.KeyChatToolCollapseFile)
 	}
 	if ui.Button(c, label).FontSize(10).Clicked() {
 		toggleThinkingExpanded(opts.Expanded, "tool-file:"+id)

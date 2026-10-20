@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/widgets/diff"
+	"whaleisle/internal/ui/i18n"
 )
 
 // TurnDeliveryView observes the recorded summary and desktop metadata once per
@@ -101,7 +102,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 				run(hostTarget, "host")
 			}
 			if host.Busy {
-				ui.Text(c, "读取中 / Reading…").FontSize(10).TextColor(st.Muted)
+				ui.Text(c, i18n.T(i18n.KeyChatResourceReading)).FontSize(10).TextColor(st.Muted)
 			}
 			if host.Host != nil {
 				status := host.Host.Name
@@ -178,7 +179,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									ui.Text(c, "对比展示截断为64 KiB / Comparison display limited to 64 KiB").FontSize(10).TextColor(st.Muted)
 								}
 								if patch == "" {
-									ui.Text(c, "无文本差异 / No text changes").FontSize(11).TextColor(st.Muted)
+									ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(st.Muted)
 								} else {
 									diff.View(c, patch, diff.Style{FontSize: 11, FG: st.FG, Muted: st.Muted, Add: ui.RGB(40, 160, 90), Del: ui.RGB(210, 70, 70), Hunk: st.Accent})
 								}
@@ -201,7 +202,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 					ui.Text(c, f.Description).FontSize(11).TextColor(st.Muted).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("event %d / index %d", f.Target.Seq, f.Target.Index)).FontSize(10).TextColor(st.Muted)
-				if ui.Button(c, "预览 / Preview").FontSize(10).Disabled(!enabled || preview == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatResourcePreview)).FontSize(10).Disabled(!enabled || preview == nil).Clicked() {
 					preview(f.Target)
 				}
 				TurnFileNativeActions(c, f.Target, snapshot, nativeAvailable && enabled, run, st)

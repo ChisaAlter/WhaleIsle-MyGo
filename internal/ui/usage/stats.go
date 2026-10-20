@@ -3,9 +3,12 @@ package usage
 import (
 	"context"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strings"
 	"time"
+
+	"github.com/egoist/mygo/ui"
+
+	usagestore "whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -16,92 +19,152 @@ func usageText(zh, en string) string {
 	}
 	return en
 }
+
+// statsView paints the usage dashboard: the range toolbar, the KPI cards, the
+// calendar, the model breakdown, the ranking cards and — folded away — the
+// diagnostics and export controls that used to lead the page as raw text.
 func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
-	pricingView(c, m, fg, muted, accent)
-	repairView(c, m, fg, muted, accent)
 	st := m.Store.Stats()
-	if !m.Embedded {
-		ui.Text(c, usageText("Token 用量统计", "Token usage statistics")).Bold().TextColor(fg)
-	}
-	if st.Loading && (!m.Embedded || st.Overview != nil) {
-		ui.Text(c, usageText("正在读取用量…", "Loading usage…")).TextColor(muted)
-	}
-	if st.Err != "" && (!m.Embedded || st.Overview != nil) {
-		ui.Text(c, st.Err).TextColor(accent)
+	switch {
+	case st.Loading && st.Overview == nil:
+		ui.Text(c, i18n.T(i18n.KeySurfacesUsageLoading)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		return
+	case st.Err != "" && st.Overview == nil:
+		usageEmpty(c, "", st.Err, fg, muted)
+		return
+	case st.Overview == nil:
+		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageEmpty), usageText("刷新以读取内置统计服务。", "Refresh to read the built-in statistics service."), fg, muted)
+		return
 	}
 	o := st.Overview
-	if o == nil && (st.Loading || st.Err != "") {
-		if m.Embedded {
-			if st.Err != "" {
-				usageEmpty(c, "", st.Err, fg, muted)
-			} else {
-				usageEmpty(c, usageText("正在读取用量…", "Loading usage…"), usageText("正在读取会话用量统计。", "Reading session usage statistics."), fg, muted)
-			}
-		}
-		return
-	}
-	if o == nil {
-		usageEmpty(c, "", usageText("暂无用量数据。刷新以读取内置统计服务。", "No usage data. Refresh to read the built-in statistics service."), fg, muted)
-		return
-	}
-	if !m.Embedded {
-		ui.Text(c, usageText("全部历史", "All time")+fmt.Sprintf(": %.0f tokens · %d sessions", o.AllTime.Totals.Total, o.AllTime.SessionCount)).TextColor(fg)
-		t := o.AllTime.Totals
-		ui.Text(c, fmt.Sprintf("Input %.0f · Output %.0f · Cache read %.0f · Cache write %.0f", t.Input, t.Output, t.CacheRead, t.CacheWrite)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		ui.Text(c, usageText("近30天", "Recent 30 days")+fmt.Sprintf(": %.0f tokens · %d sessions", o.Totals.Total, o.SessionCount)).TextColor(fg)
-		ui.Text(c, totalsText(o.Totals)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
-	stamp := time.UnixMilli(o.UpdatedAt).UTC().Format("2006-01-02 15:04:05 UTC")
-	ui.Text(c, usageText("最近成功更新：", "Last successful update: ")+stamp).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if st.Cached {
-		ui.Text(c, usageText("已恢复上次启动的缓存；时间仍为上次成功更新。", "Restored cached overview. Timestamp is the last successful update.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
-	if st.Cached || o.Stale || st.Err != "" {
-		ui.Text(c, usageText("正在显示上次结果，可能已过期。", "Showing previous results; they may be stale.")).TextColor(accent)
-	}
 	if m.Embedded && o.AllTime.Totals.Total == 0 && o.AllTime.SessionCount == 0 && o.Totals.Total == 0 && o.SessionCount == 0 {
-		usageEmpty(c, usageText("尚无用量记录", "No usage recorded yet"), usageText("开始使用模型后统计会显示在这里。", "Usage appears here after you use a model."), fg, muted)
+		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageEmpty), usageText("开始使用模型后统计会显示在这里。", "Usage appears here after you use a model."), fg, muted)
 		return
 	}
-	if m.Embedded {
-		settings := m.Store.Billing().Settings
-		usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
+	if st.Err != "" {
+		ui.Text(c, st.Err).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
-	ui.Row(c).Gap(6).Wrap().Children(func() {
-		for _, n := range []int{7, 14, 30} {
-			if ui.Button(c, fmt.Sprintf("%d days", n)).Clicked() {
-				m.Store.SelectStatsRecentDays(n)
-			}
-		}
-		if ui.Button(c, usageText("重新扫描", "Rescan")).Clicked() {
-			m.Store.RefreshStats(context.Background(), true)
-		}
-	})
-	timeRangeView(c, m, fg, muted, accent)
+	usageRangeToolbar(c, m, st, fg, muted, accent)
 	statisticsDimensionsView(c, m, st, fg, muted, accent, field)
-	if st.Range.Active() {
-		ui.Text(c, usageText("JSON / 每日 / 模型导出：当前选定 UTC 日期。费用为 CNY 分；未知留空，部分计价另列覆盖数。", "JSON / daily / model exports: selected UTC dates. Costs are CNY cents; unknown values are blank and partial pricing has coverage counts.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	} else {
-		ui.Text(c, usageText("模型导出：近30天；每日导出：热力图全部可用 UTC 日期；会话导出：全部历史 Top-N。费用为 CNY 分，计价覆盖数区分部分估算。", "Model export: recent 30 days; daily export: all available heatmap UTC dates; sessions: all-time Top-N. Costs are CNY cents with pricing coverage counts.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
-	ui.Row(c).Gap(6).Wrap().Children(func() {
-		for _, kind := range []string{"json", "days", "models", "sessions"} {
-			kind := kind
-			if st.Range.Active() && kind == "sessions" {
-				continue
-			}
-			if m.OnExportStats != nil && ui.Button(c, usageText("导出 ", "Export ")+kind).Clicked() {
-				m.OnExportStats(kind)
-			}
-		}
-	})
 	rankingView(c, m, st, fg, muted, accent)
 	projectRankingView(c, m, st, fg, muted, accent)
-	cv := o.Coverage
-	ui.Text(c, fmt.Sprintf("Coverage: %d/%d · Failed %d · Pending %d · %s · UTC", cv.SessionsOk, cv.SessionsTotal, cv.SessionsFailed, cv.SessionsPending, cv.Mode)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	ui.Text(c, fmt.Sprintf("Events %d · Retries %d · Compaction %.0f tokens · Main %d · Subagent %d", cv.EventsCounted, cv.Retries, cv.CompactionTokens, cv.UsageSessionsMain, cv.UsageSessionsSubagent)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if len(cv.FailedSessionIDs) > 0 {
-		ui.Text(c, usageText("读取失败的会话：", "Sessions that could not be read: ")+strings.Join(cv.FailedSessionIDs, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-	}
+	usageDiagnostics(c, m, st, fg, muted, accent)
+	pricingView(c, m, fg, muted, accent)
+	repairView(c, m, fg, muted, accent)
+}
 
+// formatCompactTokens renders a token count the way a status line does: 12.4K,
+// 1.2M, 77.7M. A value below a thousand keeps its integer form.
+func formatCompactTokens(value float64) string {
+	units := []struct {
+		limit  float64
+		suffix string
+	}{{1e9, "B"}, {1e6, "M"}, {1e3, "K"}}
+	for _, unit := range units {
+		if value < unit.limit {
+			continue
+		}
+		scaled := value / unit.limit
+		if scaled >= 100 {
+			return fmt.Sprintf("%.0f%s", scaled, unit.suffix)
+		}
+		return fmt.Sprintf("%.1f%s", scaled, unit.suffix)
+	}
+	return fmt.Sprintf("%.0f", value)
+}
+
+// usageRangeToolbar is the dashboard's tool row: the recent-day choices, a
+// rescan action and the date-range editor.
+func usageRangeToolbar(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
+	ui.Row(c).FillWidth().Wrap().Gap(4).AlignItems(ui.Center).Children(func() {
+		for _, days := range []int{7, 14, 30} {
+			window := days
+			label := fmt.Sprintf(i18n.T(i18n.KeySurfacesUsageDays), window)
+			usageScopeChip(c, m, label, !st.Range.Active() && st.Days == window, st.Loading, func() {
+				m.Store.SelectStatsRecentDays(window)
+			})
+		}
+		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
+		if ui.Button(c, i18n.T(i18n.KeySurfacesUsageScan)).FontSize(fonttheme.InterfaceSize(12)).Disabled(st.Loading).Clicked() {
+			m.Store.RefreshStats(context.Background(), true)
+		}
+		ui.Box(c).Grow(1)
+		if st.Overview.UpdatedAt > 0 {
+			stamp := time.UnixMilli(st.Overview.UpdatedAt).UTC().Format("2006-01-02 15:04 UTC")
+			ui.Text(c, i18n.T(i18n.KeySurfacesUsageUpdated)+" "+stamp).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		}
+	})
+	if st.Cached || st.Overview.Stale {
+		ui.Text(c, i18n.T(i18n.KeySurfacesUsageStale)).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+	}
+	timeRangeView(c, m, fg, muted, accent)
+	usageExportRow(c, m, st)
+}
+
+// usageExportRow keeps the export actions next to the range they respect: the
+// session export needs the all-time scope, so it disappears while a date range
+// is active.
+func usageExportRow(c *ui.Context, m Model, st usagestore.StatsView) {
+	if m.OnExportStats == nil {
+		return
+	}
+	ui.Row(c).FillWidth().Wrap().Gap(4).AlignItems(ui.Center).Children(func() {
+		for _, kind := range []struct{ id, zh, en string }{
+			{"json", "导出 JSON", "Export JSON"},
+			{"days", "导出每日 CSV", "Export daily CSV"},
+			{"models", "导出模型 CSV", "Export model CSV"},
+			{"sessions", "导出会话 CSV", "Export session CSV"},
+		} {
+			format := kind
+			if format.id == "sessions" && st.Range.Active() {
+				continue
+			}
+			if ui.Button(c, usageText(format.zh, format.en)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+				m.OnExportStats(format.id)
+			}
+		}
+	})
+}
+
+// usageDiagnostics folds the scan coverage, the event counters and the export
+// actions behind one disclosure so the dashboard is not a diagnostics page.
+func usageDiagnostics(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
+	o := st.Overview
+	anchor := ui.Column(c.Key("usage-diagnostics")).FillWidth().MinWidth(0).Gap(8)
+	open := ui.Local(anchor, "open", func() bool { return false })
+	anchor.Children(func() {
+		toggle := ui.Button(c, "").Label(i18n.T(i18n.KeySurfacesUsageDiagnostic)).FillWidth().Height(30).Padding(0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Tooltip(i18n.T(i18n.KeySurfacesUsageDiagnostic))
+		toggle.Children(func() {
+			if *open {
+				ui.Icon(c, usageChevronDownIcon).Size(10, 10).TextColor(muted).PassThrough()
+			} else {
+				ui.Icon(c, usageChevronRightIcon).Size(10, 10).TextColor(muted).PassThrough()
+			}
+			ui.Text(c, " "+i18n.T(i18n.KeySurfacesUsageDiagnostic)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1)
+		})
+		if toggle.Hovered() {
+			toggle.Background(c.Theme().SurfaceHover)
+		}
+		if toggle.Clicked() {
+			*open = !*open
+		}
+		if !*open {
+			return
+		}
+		cv := o.Coverage
+		ui.Text(c, fmt.Sprintf("%s: %d/%d · %s %d · %s %d · %s",
+			i18n.T(i18n.KeySurfacesUsageCoverage), cv.SessionsOk, cv.SessionsTotal,
+			usageText("失败", "failed"), cv.SessionsFailed,
+			usageText("待处理", "pending"), cv.SessionsPending,
+			cv.Timezone)).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%s %d · %s %d · %s %s · %s %d · %s %d",
+			usageText("事件", "events"), cv.EventsCounted,
+			usageText("重试", "retries"), cv.Retries,
+			usageText("压缩", "compaction"), formatCompactTokens(cv.CompactionTokens),
+			usageText("主会话", "main"), cv.UsageSessionsMain,
+			usageText("子代理", "subagent"), cv.UsageSessionsSubagent)).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if len(cv.FailedSessionIDs) > 0 {
+			ui.Text(c, usageText("读取失败的会话：", "Sessions that could not be read: ")+strings.Join(cv.FailedSessionIDs, ", ")).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+		}
+	})
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/text"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -46,6 +47,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 	allowed := map[string]bool{}
 	for _, msg := range rows {
 		allowed[msg.ID] = true
+		allowed["thinking:"+msg.ID] = true
 		if msg.Tool == nil {
 			allowed["tool-event:"+msg.ID] = true
 			continue
@@ -61,6 +63,9 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 			seen[call] = true
 			allowed["tool-args:"+call.CallID] = true
 			allowed["tool-result:"+call.CallID] = true
+			// The tool row's own seat keeps its open state across frames;
+			// without it the disclosure would collapse on the next render.
+			allowed[msg.ID+"|tool:"+call.CallID] = true
 			stack = append(stack, call.Children...)
 		}
 	}
@@ -70,9 +75,9 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 		}
 	}
 	box.Children(func() {
-		ui.Text(c, "子会话只读阅读 / Child read-only history").FontSize(10).TextColor(st.Muted)
+		ui.Text(c, i18n.T(i18n.KeyChatReadOnlyBadge)).FontSize(10).TextColor(st.Muted)
 		if limited {
-			ui.Text(c, "展示已截断：最多400行、每行64 KiB、合计512 KiB；原始历史与游标未变。 / Display clipped; history and cursors are unchanged.").FontSize(10).TextColor(st.Muted)
+			ui.Text(c, i18n.T(i18n.KeyChatReadOnlyNote)).FontSize(10).TextColor(st.Muted)
 		}
 		if len(rows) == 0 {
 			ui.Text(c, clipReadOnlyText(fallback, readOnlyMessageByteLimit)).FontSize(12).TextColor(st.FG).Selectable()
@@ -87,7 +92,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					label = string(msg.Kind)
 				}
 				if msg.Streaming {
-					label += " · 实时临时输出 / live preview"
+					label += " 路 " + i18n.T(i18n.KeyChatReadOnlyLive)
 				} else {
 					label += fmt.Sprintf(" #%.0f", msg.Seq)
 				}
@@ -111,13 +116,16 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				}
 				body := msg.Body
 				if msg.Command != nil {
-					body = strings.TrimSpace("/" + msg.Command.Name + " · " + msg.Command.State + "\n" + msg.Command.Args + "\n" + msg.Command.Text)
+					body = strings.TrimSpace("/" + msg.Command.Name + " 路 " + msg.Command.State + "\n" + msg.Command.Args + "\n" + msg.Command.Text)
 				}
 				switch {
 				case msg.Kind == session.MessageKindThinking:
 					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{Streaming: msg.Streaming, FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: secondaryChatSize()})
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
-					markdown.View(c, body, markdown.Style{FontSize: 13, FG: st.FG, Muted: st.Muted, CodeBG: st.Field, Accent: st.Accent, ResolveFile: FileMentionResolver(messages, msg), OnOpenFile: resource.OnOpenFile})
+					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, 13, darkSurface(st.Muted))
+				writeStyle.ResolveFile = FileMentionResolver(messages, msg)
+				writeStyle.OnOpenFile = resource.OnOpenFile
+				markdown.View(c, body, writeStyle)
 					for _, ref := range readOnlyReferences(body) {
 						readOnlyResourceLink(c, ref, resource, st)
 					}
@@ -131,7 +139,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					readOnlyResourceLink(c, ref, resource, st)
 				}
 				CitationsView(c, CitationsForMessage(msg), st.Muted, st.Accent, resource.OnOpenURL)
-				if body != "" && ui.Button(c, "复制消息 / Copy message").FontSize(10).Clicked() {
+				if body != "" && ui.Button(c, i18n.T(i18n.KeyChatReadOnlyCopy)).FontSize(10).Clicked() {
 					c.Services().WriteClipboard(body)
 				}
 			})
@@ -155,7 +163,7 @@ func readOnlyHistoryMessages(messages []session.Message) ([]session.Message, boo
 		if size > readOnlyMessageByteLimit || unsupportedTree {
 			limited = true
 			var body strings.Builder
-			body.WriteString("[展示截断 / display clipped]\n")
+			body.WriteString(i18n.T(i18n.KeyChatReadOnlyClipped) + "\n")
 			parts := []string{msg.Body, msg.Args, string(msg.Raw[:min(len(msg.Raw), readOnlyMessageByteLimit)])}
 			if msg.Tool != nil {
 				parts = append(parts, msg.Tool.Name, msg.Tool.Arguments)

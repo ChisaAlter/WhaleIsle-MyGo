@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -40,7 +41,9 @@ func paintSessionAncestry(c *ui.Context, chain []session.Item, open func(string)
 			}
 			title := strings.TrimSpace(it.Title)
 			if title == "" {
-				title = it.SessionID
+				// An untitled Session reads as the localized new-session label; the
+				// internal id never reaches the title band.
+				title = i18n.T(i18n.KeySidebarNewSessionFallback)
 			}
 			if i == len(chain)-1 || it.Origin == "subagent" || it.ContactError != "" || slices.Contains(blocked, it.SessionID) || open == nil {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…").Padding(4, 8)
@@ -55,7 +58,8 @@ func sessionAncestryHeader(c *ui.Context, m Model, snap session.ViewState) {
 	chain := sessionAncestry(snap.Items, snap.SelectedID)
 	if len(chain) == 0 {
 		if snap.SelectedID != "" {
-			ui.Text(c, snap.SelectedID).FontSize(theme.InterfaceSize(13))
+			ui.Text(c, i18n.T(i18n.KeySidebarNewSessionFallback)).FontSize(theme.InterfaceSize(14)).
+				FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).Padding(4, 8)
 		}
 		return
 	}

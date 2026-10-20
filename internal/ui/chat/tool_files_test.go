@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func fileToolFixture(name, args string, meta any, text string) *session.ToolCallView {
@@ -94,6 +95,11 @@ func TestToolFileExplicitClickAndReadOnlyBoundary(t *testing.T) {
 	if opened != "" {
 		t.Fatal("render opened file")
 	}
+	// The file card is part of the expanded tool body.
+	if err := tt.Click(i18n.T(i18n.KeyChatToolRead)); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
 	if err := tt.Click("src/a.go:12"); err != nil {
 		t.Fatal(err)
 	}
@@ -104,6 +110,8 @@ func TestToolFileExplicitClickAndReadOnlyBoundary(t *testing.T) {
 	tt = ui.NewTester(func(c *ui.Context) {
 		ToolMessageView(c, session.Message{Tool: call}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{TextOnly: true, OnOpenFile: func(path string) { opened = path }})
 	}, 800, 600)
+	tt.Frame()
+	_ = tt.Click(i18n.T(i18n.KeyChatToolRead))
 	tt.Frame()
 	if err := tt.Click("src/a.go:12"); err == nil {
 		t.Fatal("read-only resource exposed active file link")

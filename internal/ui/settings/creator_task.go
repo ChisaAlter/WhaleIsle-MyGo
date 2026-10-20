@@ -25,12 +25,12 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 		}
 	}
 	ui.Column(c.Key("creator-task-entry")).Gap(7).Children(func() {
-		ui.Text(c, "Creator 新任务 / Creator task").FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, "创建独立任务并为该任务选择 cordis，随后返回输入区；不会发送模型提示词，也不会改变全局默认预设。 / Creates a new cordis task and opens its composer; no prompt or global default change.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("Creator 新任务", "Creator task")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, providerCopy("创建独立任务并为该任务选择 cordis，随后返回输入区；不会发送模型提示词，也不会改变全局默认预设。", "Creates a new cordis task and opens its composer; no prompt or global default change.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if !roster.Loaded {
-			ui.Text(c, "请先刷新预设列表 / Refresh presets first").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, providerCopy("请先刷新预设列表", "Refresh presets first")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		} else if !available {
-			ui.Text(c, "当前 Host 未提供可用 cordis；无法创建 Creator 任务 / cordis is missing, hidden or broken").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, providerCopy("当前 Host 未提供可用 cordis；无法创建 Creator 任务", "cordis is missing, hidden or broken")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
@@ -40,16 +40,16 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 		}
 		if s.Attempted && !s.Opened {
 			ui.Row(c).Gap(8).Children(func() {
-				if !s.Created && ui.Button(c, "定位已提交目标 / Locate attempted task").Disabled(s.Busy || a.OnLocate == nil).Clicked() && a.OnLocate != nil {
+				if !s.Created && ui.Button(c, providerCopy("定位已提交目标", "Locate attempted task")).Disabled(s.Busy || a.OnLocate == nil).Clicked() && a.OnLocate != nil {
 					a.OnLocate(s.Ticket)
 				}
-				if s.Created && ui.Button(c, "打开已有任务 / Open existing task").Disabled(s.Busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+				if s.Created && ui.Button(c, providerCopy("打开已有任务", "Open existing task")).Disabled(s.Busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
 					a.OnOpen(s.Ticket)
 				}
 			})
 			return
 		}
-		if ui.Button(c, "新建 Creator 任务 / New Creator task").Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
+		if ui.Button(c, providerCopy("新建 Creator 任务", "New Creator task")).Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
 			a.OnPrepare()
 		}
 	})

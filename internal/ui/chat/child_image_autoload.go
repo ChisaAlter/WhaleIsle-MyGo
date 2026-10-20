@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Bounded per navigation occurrence, not a background history prefetch queue.
@@ -84,7 +85,7 @@ func childAutoImages(c *ui.Context, msg session.Message, opts ReadOnlyResourceOp
 			if read.Path != "" {
 				ImageInlineView(c, read.Path, st.FG, st.Muted, func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false })
 			} else if read.Busy {
-				ui.Text(c, "加载图片 / Loading image: "+ref).FontSize(11)
+				ui.Text(c, i18n.T(i18n.KeyChatImageLoading) + ": "+ref).FontSize(11)
 			} else {
 				readOnlyResourceLink(c, ref, opts, st)
 			}

@@ -70,7 +70,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				ink = st.Err
 			}
 			ui.Text(c, workflowStatus(run.Status)).FontSize(11).TextColor(ink)
-			ui.Text(c, fmt.Sprintf("%d 成员 / members", count)).FontSize(11).TextColor(st.Muted)
+			ui.Text(c, fmt.Sprintf("%d" + " " + i18n.T(i18n.KeyChatWorkflowMembers), count)).FontSize(11).TextColor(st.Muted)
 		})
 		if !disclosures.run.open {
 			for _, phase := range run.Phases {
@@ -80,15 +80,15 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 		}
 		ui.Column(c.Key("run-content")).Bind(&disclosures.run.content).FillWidth().Gap(6).Children(func() {
 			if count == 0 {
-				ui.Text(c, "尚无已启动成员 / No member has started").FontSize(11).TextColor(st.Muted)
+				ui.Text(c, i18n.T(i18n.KeyChatWorkflowNoMember)).FontSize(11).TextColor(st.Muted)
 			}
 			for _, phase := range run.Phases {
 				p := phase
-				phaseName := "未分组 / Unassigned"
+				phaseName := i18n.T(i18n.KeyChatWorkflowUngrouped)
 				if p.Name != nil {
 					phaseName = *p.Name
 					if phaseName == "" {
-						phaseName = "空阶段名 / Empty phase"
+						phaseName = i18n.T(i18n.KeyChatWorkflowEmptyPhase)
 					}
 				}
 				pk := key + ":" + p.Key
@@ -111,7 +111,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 							ch := member
 							label := ch.Label
 							if label == "" {
-								label = "未命名成员 / Unnamed member"
+								label = i18n.T(i18n.KeyChatWorkflowUnnamed)
 							}
 							available := m.FeedbackStore != nil && session.WorkflowMemberAvailable(m.Snapshot.Items, m.Snapshot.SelectedID, ch)
 							paintWorkflowMember(c, ch, label, available, st, func() {
@@ -123,7 +123,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 			}
 		})
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, "复制运行记录 / Copy run records").FontSize(10).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkflowCopy)).FontSize(10).Clicked() {
 				raw, _ := json.MarshalIndent(run.Events, "", "  ")
 				mygo.Clipboard.WriteText(string(raw))
 			}

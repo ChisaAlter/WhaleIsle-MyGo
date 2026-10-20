@@ -29,6 +29,11 @@ func TestBrowserLinksFixture(t *testing.T) {
 	if opened != "" {
 		t.Fatal("passive render navigated")
 	}
+	// The row is a disclosure: its link actions mount with the body.
+	if err := tt.Click("调用工具"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
 	if err := tt.Click("↗ result"); err != nil {
 		t.Fatal(err)
 	}

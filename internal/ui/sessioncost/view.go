@@ -4,12 +4,15 @@ package sessioncost
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/egoist/mygo/ui"
+	"strings"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	cost "whaleisle/internal/store/sessioncost"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/store/usage"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -44,26 +47,109 @@ func preferences(v settings.ViewState) (stats, show, official bool) {
 
 	return
 }
+
+// compactCount renders a token count the way the reference status line does:
+// 812, 12.3K, 77.7M.
+func compactCount(value float64) string {
+	if value < 0 {
+		value = 0
+	}
+	if value < 1000 {
+		return fmt.Sprintf("%.0f", value)
+	}
+	scaled := func(f float64) string {
+		if f >= 100 {
+			return fmt.Sprintf("%.0f", f)
+		}
+		return strings.TrimSuffix(fmt.Sprintf("%.1f", f), ".0")
+	}
+	switch {
+	case value < 1e6:
+		return scaled(value/1e3) + "K"
+	case value < 1e9:
+		return scaled(value/1e6) + "M"
+	default:
+		return scaled(value/1e9) + "B"
+	}
+}
+
 func money(r cost.Result) string {
 	if !r.Available {
-		return "Host 未提供计费用量 / Billing usage unavailable"
+		return i18n.T(i18n.KeyComposerCostMoneyUnavailable)
 	}
 	if r.Priced == 0 {
-		return "没有设置价格 / No priced routes"
+		return i18n.T(i18n.KeyComposerCostNoPrices)
 	}
 	v := fmt.Sprintf("¥%.2f", r.Cents/100)
 	if r.Unpriced > 0 {
-		v += "（部分模型未定价 / partly unpriced）"
+		v += i18n.T(i18n.KeyComposerCostPartlyUnpriced)
 	}
 	return v
 }
-func tokens(b cost.Bucket) string {
-	rate := ""
-	if b.Hit+b.Miss > 0 {
-		rate = fmt.Sprintf(" (%.1f%%)", 100*b.Hit/(b.Hit+b.Miss))
+
+// bucketTotal is the sum the status line reports for a session.
+func bucketTotal(b cost.Bucket) float64 { return b.Hit + b.Miss + b.Output }
+
+// cacheHitPercent is empty until the bucket has prompt tokens to divide.
+func cacheHitPercent(b cost.Bucket) string {
+	if b.Hit+b.Miss <= 0 {
+		return ""
 	}
-	return fmt.Sprintf("命中 / Hit %.0f%s · 未命中 / Miss %.0f · 输出 / Output %.0f", b.Hit, rate, b.Miss, b.Output)
+	return fmt.Sprintf("%.1f%%", 100*b.Hit/(b.Hit+b.Miss))
 }
+
+// tokensDetail is the panel's per-bucket breakdown.
+func tokensDetail(b cost.Bucket) string {
+	rate := ""
+	if pct := cacheHitPercent(b); pct != "" {
+		rate = " (" + pct + ")"
+	}
+	return fmt.Sprintf(i18n.T(i18n.KeyComposerCostTokensDetail),
+		compactCount(b.Hit)+rate, compactCount(b.Miss), compactCount(b.Output))
+}
+
+// dockLine is the composer's statistics strip: one centered row of compact
+// clusters ("12 轮 280 步 · 237 tok/s", "77.7M tok · 缓存命中 99.7%"). The chat
+// feature owns the decode-speed line while its own preference shows it, so the
+// counts cluster appears here only when that line is not painted.
+func dockLine(c *ui.Context, m Model, r cost.Result, stats bool, muted ui.Color) {
+	var clusters []string
+	perfTokens, perfMS, perfSteps := session.RecordedPerformance(m.Snapshot.Messages)
+	chatShowsPerformance := settings.ChatPreferencesFrom(m.Preferences).PerformanceUsage != "compact" && perfMS > 0
+	if stats && !chatShowsPerformance {
+		var parts []string
+		if turns := len(m.Snapshot.TurnUsage); turns > 0 && perfSteps > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s %d %s", turns, i18n.T(i18n.KeyComposerDockTurns),
+				perfSteps, i18n.T(i18n.KeyComposerDockSteps)))
+		}
+		if perfMS > 0 && perfTokens > 0 {
+			parts = append(parts, fmt.Sprintf("%.0f %s", float64(perfTokens)*1000/float64(perfMS),
+				i18n.T(i18n.KeyComposerDockSpeedUnit)))
+		}
+		if len(parts) > 0 {
+			clusters = append(clusters, strings.Join(parts, " · "))
+		}
+	}
+	if stats && r.Available {
+		parts := []string{fmt.Sprintf("%s %s", compactCount(bucketTotal(r.Total)), i18n.T(i18n.KeyComposerDockTokenUnit))}
+		if hit := cacheHitPercent(r.Total); hit != "" {
+			parts = append(parts, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), hit))
+		}
+		clusters = append(clusters, strings.Join(parts, " · "))
+	}
+	if len(clusters) == 0 {
+		if stats {
+			ui.Text(c, i18n.T(i18n.KeyComposerCostUnavailable)).FontSize(12).TextColor(muted).Padding(1, 8)
+		}
+		return
+	}
+	ui.Row(c).Key("composer-dock-stats").FillWidth().Justify(ui.Center).Gap(12).Children(func() {
+		for _, text := range clusters {
+			ui.Text(c, text).FontSize(12).TextColor(muted).Padding(1, 8)
+		}
+	})
+}
+
 func View(c *ui.Context, m Model, muted ui.Color) {
 	if m.Snapshot.SelectedID == "" || m.State == nil {
 		return
@@ -76,14 +162,10 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		return
 	}
 	r := cost.Calculate(m.Snapshot.SelectedID, m.Snapshot.CostSources, m.Billing.Settings)
-	ui.Column(c).FillWidth().Gap(4).Padding(4, 8, 4, 8).Children(func() {
-		if stats && settings.ChatPreferencesFrom(m.Preferences).PerformanceUsage != "compact" {
-			text := "Host 未提供计费 Token / Billed tokens unavailable"
-			if r.Available {
-				text = "含子代理计费 Token / Billed tokens incl. subagents · " + tokens(r.Total)
-			}
-			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
+	// Keep the same 4 DIP bottom inset the Electron dock has; without it the
+	// status line sits flush on the window edge at every viewport height.
+	ui.Column(c).Key("composer-dock").FillWidth().Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
+		dockLine(c, m, r, stats, muted)
 		if !show {
 			return
 		}
@@ -99,54 +181,61 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 			if seconds < 0 {
 				seconds = 0
 			}
-			phase := "空闲 / Off-peak"
+			phase := i18n.T(i18n.KeyComposerDockOffPeak)
 			if peak {
-				phase = "高峰 / Peak"
+				phase = i18n.T(i18n.KeyComposerDockPeak)
 			}
-			ui.Text(c, fmt.Sprintf("北京时间 %s · 距切换 / Switch in %02d:%02d:%02d", phase, seconds/3600, seconds/60%60, seconds%60)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockPeakSwitch), phase,
+				fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60))).
+				FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		label := "会话累计费用 / Session estimate · " + money(r)
+		label := i18n.T(i18n.KeyComposerCostEstimate) + " · " + money(r)
 		if !m.Billing.Loaded && r.Available {
-			label = "会话累计费用 / Session estimate · 价格未加载 / Prices not loaded"
+			label = i18n.T(i18n.KeyComposerCostEstimate) + " · " + i18n.T(i18n.KeyComposerCostPricesLoading)
 		}
 		if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 			m.State.Open = !m.State.Open
 		}
 		if !m.Snapshot.ClientReady {
-			ui.Text(c, "离线缓存 / Offline cached usage").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyComposerCostOffline)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if r.Partial {
-			ui.Text(c, "仅包含已上报用量的会话及子代理；缺失部分未计入 / Reported sessions and subagents only; missing usage excluded").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyComposerCostPartial)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if !m.State.Open {
 			return
 		}
 		ui.Scroll(c).Height(180).Children(func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				ui.Text(c, "基于全局配置估算，非账单 / Estimate from global prices, not a bill").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyComposerCostNotABill)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if m.Billing.Err != "" {
 					ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				for _, row := range r.Rows {
 					name := row.Provider + "/" + row.Model
 					if name == "/" {
-						name = "未知路由 / Unknown route"
+						name = i18n.T(i18n.KeyComposerCostUnknownRoute)
 					}
-					price := "没有设置价格 / Unpriced"
+					price := i18n.T(i18n.KeyComposerCostUnpriced)
 					if row.Priced {
 						price = fmt.Sprintf("¥%.2f", row.Cents/100)
 					}
 					ui.Text(c, name+" · "+price).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-					ui.Text(c, "高峰 / Peak · "+tokens(*row.Peak)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-					ui.Text(c, "空闲 / Off-peak · "+tokens(*row.OffPeak)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPeakPriceLine), tokensDetail(*row.Peak))).
+						FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine), tokensDetail(*row.OffPeak))).
+						FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					if row.Priced {
 						p, ok := m.Billing.Settings.Prices[row.Provider+"/"+row.Model]
 						if !ok {
 							p = m.Billing.Settings.Prices[row.Model]
 						}
-						ui.Text(c, fmt.Sprintf("CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.InputCacheHit, p.InputCacheMiss, p.Output)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPriceLine), p.InputCacheHit, p.InputCacheMiss, p.Output)).
+							FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						if !p.Flat && p.Idle != nil {
-							ui.Text(c, fmt.Sprintf("Off-peak CNY / 1M · Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine),
+								fmt.Sprintf("Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output))).
+								FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 					}
 				}
@@ -158,13 +247,14 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 						renderChildren(c, m, muted)
 					}
 				}
-				if m.OnPrices != nil && ui.Button(c, "消耗统计中的计费设置 / Global billing settings").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+				if m.OnPrices != nil && ui.Button(c, i18n.T(i18n.KeyComposerCostGlobalBilling)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 					m.OnPrices()
 				}
 			})
 		})
 	})
 }
+
 func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 	selected := map[string]bool{m.Snapshot.SelectedID: true}
 	for changed := true; changed; {
@@ -192,10 +282,10 @@ func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 		if name == "" {
 			name = s.ID
 		}
-		ui.Text(c, name+" · "+money(own)+" · "+tokens(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, name+" · "+money(own)+" · "+tokensDetail(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if count > 10 {
-		ui.Text(c, fmt.Sprintf("还有 / More: %d", count-10)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostMore), count-10)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 
@@ -207,5 +297,5 @@ func childSummary(m Model, n int) string {
 		}
 	}
 	r := cost.Calculate(m.Snapshot.SelectedID, sources, m.Billing.Settings)
-	return fmt.Sprintf("子代理 / Subagents %d · %s · %s ▾", n, money(r), tokens(r.Total))
+	return fmt.Sprintf("%s · %s · %s ▾", fmt.Sprintf(i18n.T(i18n.KeyComposerCostSubagents), n), money(r), tokensDetail(r.Total))
 }

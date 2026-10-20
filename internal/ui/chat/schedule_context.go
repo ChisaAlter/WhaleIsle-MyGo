@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
@@ -46,17 +47,17 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 		}
 		deleted := settled && !found
 		ui.Column(c).Padding(8, 12).Gap(4).Border(1, c.Theme().Border).Radius(6).Children(func() {
-			ui.Text(c, "定时任务 / Scheduled task · "+row.Title).Bold()
+			ui.Text(c, i18n.T(i18n.KeyChatScheduleTask) + " · "+row.Title).Bold()
 			ui.Text(c, row.Prompt).FontSize(12)
 			ui.Text(c, schedstore.TimingLabel(row)).FontSize(11)
 			if !found {
-				label := "创建时记录 / Creation receipt · " + row.ID
+				label := i18n.T(i18n.KeyChatScheduleReceipt) + " · " + row.ID
 				if deleted {
-					label = "任务已删除 / Task deleted"
+					label = i18n.T(i18n.KeyChatScheduleDeleted)
 				}
 				ui.Text(c, label).FontSize(11)
 			}
-			if ui.Button(c, "任务详情 / Task details").Disabled(deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil).Clicked() && m.OnOpenScheduleTask != nil {
+			if ui.Button(c, i18n.T(i18n.KeyChatScheduleDetails)).Disabled(deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil).Clicked() && m.OnOpenScheduleTask != nil {
 				m.OnOpenScheduleTask(row)
 			}
 		})

@@ -125,8 +125,8 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 		return path, err
 	}, svc.Invalidate)
 	if state.err != nil {
-		ui.Text(c, "图片加载失败 / Image failed: "+state.err.Error()).FontSize(12).TextColor(fg)
-		if ui.Button(c, "重试 / Retry").Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyChatImageFailed) + ": "+state.err.Error()).FontSize(12).TextColor(fg)
+		if ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).Clicked() {
 			session.ForgetCachedAttachment(id)
 			attachmentLoads.retry(id)
 			svc.Invalidate()
@@ -135,7 +135,7 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 	}
 	if state.path != "" {
 		if loadChatBitmap(state.path) == nil {
-			ui.Text(c, "图片无法解码 / Invalid image").FontSize(12).TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyChatImageInvalid)).FontSize(12).TextColor(fg)
 			return
 		}
 		paintInlineImage(c, state.path, muted, onOpen)

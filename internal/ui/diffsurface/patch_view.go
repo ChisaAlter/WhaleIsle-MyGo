@@ -1,15 +1,32 @@
 package diffsurface
 
 import (
-	"strconv"
-	"strings"
-	"unicode/utf8"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/widgets/diff"
 )
 
+// diffToolButton paints one compact control of the patch tool row.
+func diffToolButton(c *ui.Context, label string, selected bool, onClick func()) ui.Element {
+	button := ui.Button(c, label).Height(26).Padding(0, 10).Radius(6).BorderWidth(0).FontSize(fonttheme.InterfaceSize(12)).Selected(selected).Tooltip(label)
+	if selected {
+		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
+	} else {
+		button.Background(ui.Transparent).TextColor(c.Theme().TextMuted)
+	}
+	if button.Hovered() && !selected {
+		button.Background(ui.RGBA(c.Theme().TextMuted.R, c.Theme().TextMuted.G, c.Theme().TextMuted.B, .14))
+	}
+	if button.Clicked() && onClick != nil {
+		onClick()
+	}
+	return button
+}
+
+// paintDiffControls paints the tool row above the patch: the view mode as a
+// two-chip choice, then wrap and fold controls.
 func paintDiffControls(c *ui.Context, m Model) {
 	if m.Workbench == nil {
 		return
@@ -20,96 +37,71 @@ func paintDiffControls(c *ui.Context, m Model) {
 		source = *m.Text
 	}
 	view.update(source)
-	ui.Row(c).Gap(6).Padding(4, 12, 6, 12).Wrap().Children(func() {
-		mode := word("切换为分栏", "Use split view")
-		if view.Split {
-			mode = word("切换为统一视图", "Use unified view")
-		}
-		if ui.Button(c, mode).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			view.Split = !view.Split
-		}
-		wrap := word("启用折行", "Wrap lines")
-		if view.Wrap {
-			wrap = word("取消折行", "Do not wrap")
-		}
-		if ui.Button(c, wrap).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			view.Wrap = !view.Wrap
-		}
-		if ui.Button(c, word("全部折叠", "Collapse all")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			view.setAll(false)
-		}
-		if ui.Button(c, word("全部展开", "Expand all")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			view.setAll(true)
-		}
+	ui.Row(c).FillWidth().Gap(4).Padding(6, 12, 6, 12).Wrap().AlignItems(ui.Center).Children(func() {
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffUnified), !view.Split, func() { view.Split = false })
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffSplit), view.Split, func() { view.Split = true })
+		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffWrap), view.Wrap, func() { view.Wrap = !view.Wrap })
+		ui.Box(c).Grow(1)
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffExpandAll), false, func() { view.setAll(true) })
+		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffCollapseAll), false, func() { view.setAll(false) })
 	})
 }
 
+// paintPatchFiles paints every file of a patch as a collapsible block: its path
+// header, then the unified or split body.
 func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 	if m.Workbench == nil {
-		diff.View(c, source, st)
+		paintUnifiedStandalone(c, source, st)
 		return
 	}
 	view := &m.Workbench.View
 	for _, file := range view.update(source) {
 		f := file
-		ui.Column(c).FillWidth().MinWidth(0).Gap(3).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				toggle := word("展开", "Expand")
-				if view.Open[f.Path] {
-					toggle = word("折叠", "Collapse")
-				}
-				if ui.Button(c, toggle).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
-					view.Open[f.Path] = !view.Open[f.Path]
-				}
+		ui.Column(c).FillWidth().MinWidth(0).Gap(3).Padding(0, 0, 6, 0).Children(func() {
+			open := view.Open[f.Path]
+			ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 				title := f.Path
 				if title == "" {
 					title = word("差异内容", "Diff contents")
 				}
-				if ui.Button(c, title).FontSize(fonttheme.InterfaceSize(11)).Grow(1).MinWidth(0).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Clicked() {
+				head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(26).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
+				if head.Hovered() && m.OnOpenFile != nil && safePatchPath(f.Path) {
+					head.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
+				}
+				if head.Clicked() && m.OnOpenFile != nil {
 					if err := m.OnOpenFile(f.Path); err != nil {
 						m.Workbench.Status = err.Error()
 					}
 				}
+				fold := i18n.T(i18n.KeySurfacesDiffExpandAll)
+				if open {
+					fold = i18n.T(i18n.KeySurfacesDiffCollapseAll)
+				}
+				toggle := ui.Button(c, "").Label(fold).Size(22, 22).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(fold)
+				toggle.Children(func() {
+					if open {
+						ui.Icon(c, diffChevronDownIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
+					} else {
+						ui.Icon(c, diffChevronRightIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
+					}
+				})
+				if toggle.Hovered() {
+					toggle.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
+				}
+				if toggle.Clicked() {
+					view.Open[f.Path] = !open
+				}
 			})
-			if !view.Open[f.Path] {
+			if !open {
 				return
 			}
 			render := func() {
 				if !view.Split {
-					text := ui.RichText(c, diff.Spans(f.Source, st)...).FontSize(st.FontSize).TextColor(st.FG)
-					if view.Wrap {
-						text.FillWidth().MinWidth(0)
-					} else {
-						text.NoWrap()
-					}
+					paintUnifiedRows(c, f.Rows, st, view.Wrap)
 					return
 				}
-				minWidth := float32(0)
-				if !view.Wrap {
-					minWidth = splitColumnWidth(f.Rows)
-				}
-				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
-					ui.Row(c).FillWidth().Gap(8).Children(func() {
-						ui.Text(c, word("原始", "Before")).Grow(1).MinWidth(minWidth).TextColor(st.Muted)
-						ui.Text(c, word("修改后", "After")).Grow(1).MinWidth(minWidth).TextColor(st.Muted)
-					})
-					for _, row := range f.Rows {
-						r := row
-						if r.Meta != "" {
-							text := ui.Text(c, r.Meta).Font("monospace").FontSize(st.FontSize).TextColor(st.Hunk)
-							if view.Wrap {
-								text.FillWidth().MinWidth(0)
-							} else {
-								text.NoWrap()
-							}
-							continue
-						}
-						ui.Row(c).FillWidth().Gap(8).Children(func() {
-							paintPatchCell(c, r.Old, r.OldNumber, view.Wrap, minWidth, st)
-							paintPatchCell(c, r.New, r.NewNumber, view.Wrap, minWidth, st)
-						})
-					}
-				})
+				paintSplitRows(c, f.Rows, st, view.Wrap)
 			}
 			if view.Wrap {
 				render()
@@ -119,33 +111,58 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 		})
 	}
 }
+
+// paintSplitRows paints the two-column view: the before cell on the left and the
+// after cell on the right, each tinted by its own change kind.
+func paintSplitRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool) {
+	minWidth := float32(0)
+	if !wrap {
+		minWidth = splitColumnWidth(rows)
+	}
+	ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Padding(0, 8, 4, 8).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeySurfacesDiffBefore)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
+			ui.Text(c, i18n.T(i18n.KeySurfacesDiffAfter)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
+		})
+		for _, row := range rows {
+			r := row
+			if r.Meta != "" {
+				kind := diffLineMeta
+				if len(r.Meta) > 1 && r.Meta[0] == '@' && r.Meta[1] == '@' {
+					kind = diffLineHunk
+				}
+				paintDiffLine(c, diffLine{Kind: kind, Text: r.Meta}, st, minWidth, wrap)
+				continue
+			}
+			ui.Row(c).FillWidth().Gap(8).Children(func() {
+				paintSplitCell(c, r.Old, r.OldNumber, wrap, minWidth, st)
+				paintSplitCell(c, r.New, r.NewNumber, wrap, minWidth, st)
+			})
+		}
+	})
+}
+
+// paintUnifiedStandalone paints a patch when no workbench owns the pane; the
+// panel then has no per-file folding, so the whole patch is one column.
+func paintUnifiedStandalone(c *ui.Context, source string, st diff.Style) {
+	rows := splitPatchRows(source)
+	if len(rows) == 0 {
+		return
+	}
+	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
+		paintUnifiedRows(c, rows, st, false)
+	})
+}
+
+// splitColumnWidth estimates the pixel width of the widest line in a hunk.
 func splitColumnWidth(rows []patchRow) float32 {
 	longest := 20
 	for _, r := range rows {
 		for _, line := range []string{r.Old, r.New} {
-			if n := utf8.RuneCountInString(strings.ReplaceAll(line, "\t", "    ")); n > longest {
+			if n := len([]rune(line)); n > longest {
 				longest = n
 			}
 		}
 	}
 	return float32(longest+7) * 7.5
-}
-func paintPatchCell(c *ui.Context, line string, number int, wrap bool, minWidth float32, st diff.Style) {
-	color := st.FG
-	if strings.HasPrefix(line, "+") {
-		color = st.Add
-	} else if strings.HasPrefix(line, "-") {
-		color = st.Del
-	}
-	prefix := ""
-	if number > 0 {
-		prefix = strconv.Itoa(number) + "  "
-	}
-	if line == "" {
-		line = " "
-	}
-	text := ui.RichText(c, ui.Span{Text: prefix, Color: st.Muted, Font: "monospace"}, ui.Span{Text: line, Color: color, Font: "monospace"}).FontSize(st.FontSize).Grow(1).MinWidth(minWidth)
-	if !wrap {
-		text.NoWrap()
-	}
 }

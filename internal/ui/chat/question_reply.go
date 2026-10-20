@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, muted ui.Color) {
@@ -12,7 +13,7 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, mut
 	root := ui.Column(c.Key(fmt.Sprintf("question-reply:%s:%s:%g", scope, msg.ID, msg.Seq))).FillWidth().Gap(5)
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
-		if ui.Button(c, "之前问题的回复 / Reply to earlier questions").Label("Question reply details " + msg.ID).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatQuestionEarlier)).Label("Question reply details " + msg.ID).Clicked() {
 			*open = !*open
 		}
 		if !*open {
@@ -22,7 +23,7 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, mut
 			}
 			summary := strings.Join(values, ", ")
 			if summary == "" {
-				summary = "未作答 / Skipped"
+				summary = i18n.T(i18n.KeyChatQuestionSkipped)
 				if len(data.Questions) == 0 {
 					summary = msg.Body
 				}
@@ -50,11 +51,11 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, mut
 							ui.Text(c, text).FontSize(12).TextColor(muted)
 						}
 						values := data.AnswerValues(q.ID)
-						answer := "未作答 / Skipped"
+						answer := i18n.T(i18n.KeyChatQuestionSkipped)
 						if len(values) > 0 {
 							answer = strings.Join(values, ", ")
 						}
-						ui.Text(c, "回答 / Answer: "+answer).FontSize(12).TextColor(fg).Selectable()
+						ui.Text(c, i18n.T(i18n.KeyChatQuestionAnswer) + ": "+answer).FontSize(12).TextColor(fg).Selectable()
 					}
 				})
 			})
@@ -63,9 +64,31 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, fg, mut
 			if data.Time > 0 {
 				ui.Text(c, formatEventTime(data.Time)).FontSize(11).TextColor(muted)
 			}
-			if ui.Button(c, "复制回复 / Copy reply").Label("Copy question reply " + msg.ID).Clicked() {
-				c.WriteClipboard(data.ClipboardText())
+			if ui.Button(c, i18n.T(i18n.KeyChatQuestionCopyReply)).Label("Copy question reply " + msg.ID).Clicked() {
+				c.WriteClipboard(questionReplyClipboard(data))
 			}
 		})
 	})
+}
+
+// questionReplyClipboard keeps the copied reply in the active locale. The store
+// projection still carries legacy bilingual text, so the UI owns the copy
+// surface it renders.
+func questionReplyClipboard(v session.QuestionReplyView) string {
+	if len(v.Questions) == 0 {
+		return v.Text
+	}
+	blocks := make([]string, 0, len(v.Questions))
+	for _, q := range v.Questions {
+		heading := q.Question
+		if q.Header != "" && q.Header != q.Question {
+			heading = q.Header + " — " + heading
+		}
+		answer := i18n.T(i18n.KeyChatQuestionSkipped)
+		if values := v.AnswerValues(q.ID); len(values) > 0 {
+			answer = i18n.T(i18n.KeyChatQuestionAnswer) + ": " + strings.Join(values, ", ")
+		}
+		blocks = append(blocks, heading+"\n"+answer)
+	}
+	return strings.Join(blocks, "\n\n")
 }

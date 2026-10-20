@@ -1,7 +1,9 @@
 package chat
 
 import (
+	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
@@ -20,37 +22,69 @@ type ThinkingStyle struct {
 	Border      ui.Color
 	Field       ui.Color
 	Size        float32
+	// Duration, when known, renders as the row's trailing label ("思考了 12 秒").
+	Duration time.Duration
+	// Accent and Hover complete the disclosure palette.
+	Accent ui.Color
+	Hover  ui.Color
 }
 
-// ThinkingBlockView renders assistant thinking in a muted, expandable panel.
+// ThinkingBlockView renders assistant reasoning as the Original ReasoningRow:
+// one 24px disclosure line (think glyph, localized title, separator, streaming
+// preview, duration) and an indented Markdown body once opened.
 func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]bool, st ThinkingStyle) {
 	size := st.Size
 	if size <= 0 {
-		size = 12
+		size = secondaryChatSize()
 	}
 	open := isThinkingExpanded(expanded, msgID)
-	chevron := "▸"
-	if open {
-		chevron = "▾"
+	preview := ""
+	if !st.HidePreview {
+		preview = reasoningSummary(body, st.Streaming)
 	}
-	preview := reasoningSummary(body, st.Streaming)
-	ui.Column(c).Padding(8, 10, 8, 10).Gap(4).Fill().Background(st.Field).Border(1, st.Border).Radius(6).Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-			header := ui.Button(c, chevron+" "+i18n.T(i18n.KeyChatThinking))
-			if header.Clicked() {
-				toggleThinkingExpanded(expanded, msgID)
-			}
-			if strings.TrimSpace(body) != "" && ui.Button(c, i18n.T(i18n.KeyChatCopy)).Label("Copy reasoning "+msgID).Clicked() {
-				c.WriteClipboard(body)
-			}
-			if !open && !st.HidePreview && preview != "" {
-				ui.Text(c, preview).FontSize(size).TextColor(st.Muted).Grow(1).MinWidth(0).SingleLine()
-			}
-		})
-		if open && strings.TrimSpace(body) != "" {
-			markdown.View(c, body, markdown.Style{FontSize: size, FG: st.Muted, Muted: st.Muted, CodeBG: st.Field, Accent: st.FG})
+	status := statusDone
+	if st.Streaming {
+		status = statusRunning
+	}
+	trailing := ""
+	if st.Duration > 0 {
+		trailing = fmt.Sprintf(i18n.T(i18n.KeyChatThinkingFor), formatDuration(st.Duration))
+	}
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(1)
+	root.Children(func() {
+		paintDisclosureRow(c, disclosureRow{
+			Key:        "thinking:" + msgID,
+			Icon:       disclosureIconThink,
+			Title:      i18n.T(i18n.KeyChatThinking),
+			TitleColor: st.FG,
+			Summary:    preview,
+			Trailing:   trailing,
+			Status:     status,
+			Open:       open,
+			Expandable: strings.TrimSpace(body) != "",
+			OnToggle:   func() { toggleThinkingExpanded(expanded, msgID) },
+		}, disclosureStyle{FG: st.FG, Muted: st.Muted, Hover: st.Hover, Accent: st.Accent, Size: size})
+		if !open || strings.TrimSpace(body) == "" {
+			return
 		}
+		ui.Column(c).FillWidth().MinWidth(0).Padding(2, 0, 2, 22).Children(func() {
+			markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
+		})
 	})
+}
+
+// formatDuration renders a short elapsed label ("12 秒", "3 分 05 秒").
+func formatDuration(d time.Duration) string {
+	seconds := int(d.Seconds())
+	if seconds < 60 {
+		return fmt.Sprintf(i18n.T(i18n.KeyChatDurationSec), seconds)
+	}
+	minutes := seconds / 60
+	rest := seconds % 60
+	if rest == 0 {
+		return fmt.Sprintf(i18n.T(i18n.KeyChatDurationMin), minutes)
+	}
+	return fmt.Sprintf(i18n.T(i18n.KeyChatDurationMS), minutes, rest)
 }
 
 // A live reasoning preview advances only when a paragraph's first line is

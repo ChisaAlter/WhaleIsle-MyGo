@@ -46,6 +46,10 @@ type Model struct {
 
 	Projects         projects.Model
 	HideArchivedList bool
+	// Account is the bottom account seat (avatar, name, menu). The shell fills
+	// it from the account details snapshot and the sign-out flow; the zero value
+	// still renders the row and routes account settings to OnOpenSettings.
+	Account Account
 	// BrowseArchivedFilter is a Host-local list filter, independent of search.
 	BrowseArchivedFilter *string
 	Collapsed            bool
@@ -140,19 +144,32 @@ func View(c *ui.Context, m Model) {
 			if m.Collapsed {
 				collapsedRail(c, m, fg, colors)
 			} else {
-				// SidebarRoot.module.css .logoRow height: 60px.
-				ui.Row(c).FillWidth().Height(60).Gap(8).AlignItems(ui.Center).Children(func() {
+				// SidebarRoot.module.css .logoRow: 60px tall (40 under a native
+				// caption), and the original brand lock: 38px mark, 鲸屿 18/700
+				// with the 屿 glyph in the brand accent, MYGO鲸屿 10/600, and the
+				// 8/500 Harness attribution (Brand.module.css).
+				ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(60).Gap(8).AlignItems(ui.Center).
+					DragWindow().Children(func() {
 					if bmp := chrome.BrandAvatar(); bmp != nil {
-						ui.Image(c, bmp).Width(28).Height(28).Fit(ui.Contain)
+						ui.Image(c, bmp).Size(38, 38).Fit(ui.Contain)
 					} else {
-						ui.Box(c).Width(28).Height(28).Radius(14).Background(chrome.Color(colors.Accent).Alpha(0.25))
+						ui.Box(c).Size(38, 38).Radius(19).Background(chrome.Color(colors.Accent).Alpha(0.25))
 					}
-					ui.Column(c).Gap(0).Grow(1).Children(func() {
-						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeySidebarBrand)).FontSize(theme.InterfaceSize(15)).FontWeight(400).TextColor(fg)
-							ui.Text(c, "MYGO鲸屿").FontSize(theme.InterfaceSize(11)).FontWeight(400).TextColor(muted)
+					ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
+						ui.Row(c).Height(theme.InterfaceSize(22)).Gap(8).AlignItems(ui.Center).Children(func() {
+							ui.Row(c).Gap(0).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, "鲸").FontSize(theme.InterfaceSize(18)).FixedLineHeight(theme.InterfaceSize(22)).
+									FontWeight(700).LetterSpacing(-0.7).TextColor(fg)
+								ui.Text(c, "屿").FontSize(theme.InterfaceSize(18)).FixedLineHeight(theme.InterfaceSize(22)).
+									FontWeight(700).LetterSpacing(-0.7).TextColor(chrome.Color(colors.Accent))
+							})
+							// Baselines line up: the 10px wordmark sits on the 18px
+							// line's baseline, as the original's titleRow does.
+							ui.Text(c, "MYGO鲸屿").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(12)).
+								FontWeight(600).LetterSpacing(1.2).TextColor(fg).Padding(7, 0, 0, 0)
 						})
-						ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(9)).TextColor(muted)
+						ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8)).
+							FixedLineHeight(theme.InterfaceSize(10)).FontWeight(500).LetterSpacing(0.32).TextColor(muted)
 					})
 					if m.OnToggle != nil {
 						if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
@@ -266,7 +283,7 @@ func View(c *ui.Context, m Model) {
 								Padding(8, 0, 2, 0)
 							for _, id := range m.Snapshot.ArchivedSessionIDs {
 								aid := id
-								label := aid
+								label := i18n.T(i18n.KeySidebarNewSessionFallback)
 								for _, it := range m.Snapshot.Items {
 									if it.SessionID == aid && strings.TrimSpace(it.Title) != "" {
 										label = it.Title
@@ -283,8 +300,11 @@ func View(c *ui.Context, m Model) {
 				})
 			}
 			// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
-			// SidebarRoot.footArea: footer.action then settings (always pinned).
+			// SidebarRoot.footArea: footer.action then settings (always pinned), and the
+			// account seat at the very bottom.
 			ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 4, 0).Gap(2).Shrink(0).Children(func() {
+				// The footer's top edge drags the window, like the logo row does.
+				ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
 				if !m.Collapsed && m.OnOpenLauncher != nil {
 					btn := ui.Button(c, i18n.T(i18n.KeyLauncherOpen)).FillWidth().Height(32).Radius(8).
 						BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(13)).
@@ -296,8 +316,16 @@ func View(c *ui.Context, m Model) {
 				if !m.Collapsed && m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 					m.OnContactAccount()
 				}
+				// The rail stacks the account control above the settings seat,
+				// which pins itself to the bottom of its own box.
+				if m.Collapsed {
+					accountRow(c, m, colors, muted, true)
+				}
 				if m.OnOpenSettings != nil {
 					settingsConnectionTrigger(c, m, colors, m.Collapsed)
+				}
+				if !m.Collapsed {
+					accountRow(c, m, colors, muted, false)
 				}
 			})
 		})

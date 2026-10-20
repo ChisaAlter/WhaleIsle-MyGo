@@ -48,3 +48,8 @@ func usageEmpty(c *ui.Context, title, hint string, fg, muted ui.Color) {
 }
 
 var usagePageIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 13V9.5M8 13V5.5M13 13V3M2 13.5h12"/></svg>`))
+
+// Disclosure chevrons for folded sections, from the original 16px icon set.
+var usageChevronDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.25L8 9.75L11.5 6.25"/></svg>`))
+
+var usageChevronRightIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.25 4.5L9.75 8L6.25 11.5"/></svg>`))

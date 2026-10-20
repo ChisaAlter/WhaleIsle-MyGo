@@ -29,7 +29,9 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	}
 	muted := chrome.Color(colors.Muted)
 	managed := conversationIsManaged(snap)
-	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().MinHeight(40).Padding(8, rightInset, 0, 20).AlignItems(ui.Center).DragWindow().Children(func() {
+	// One 48px band: title, the optional 对话/轨迹 switcher and the status
+	// actions share it; rc.2 has no tab row under the caption.
+	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionHeight).Padding(0, rightInset, 0, 20).AlignItems(ui.Center).DragWindow().Children(func() {
 		ui.Row(c).Key("conversation-title-cluster").Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Clip().Children(func() {
 				if snap.SelectedID != "" {
@@ -38,6 +40,9 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 					ui.Text(c, i18n.T(i18n.KeyAppName)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				}
 			})
+			if !m.HideChatViewTabs && !m.DisableDeveloperTools && !managed {
+				conversationViewTabs(c, m, colors, compact)
+			}
 			ui.Row(c).Key("conversation-header-actions").Shrink(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 				if managed {
 					return

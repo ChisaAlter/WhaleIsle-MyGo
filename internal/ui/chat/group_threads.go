@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
+	"whaleisle/internal/ui/i18n"
 )
 
 func groupThreadsView(c *ui.Context, m Model) {
@@ -16,7 +17,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
 		ConnBannerView(c, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
 		ui.Row(c).Padding(8, 12).Gap(8).Wrap().Children(func() {
-			ui.Text(c, "群聊讨论 / Group discussion").Bold().TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyChatGroupTitle)).Bold().TextColor(fg)
 			for _, member := range m.GroupMembers {
 				name := member.Title
 				if name == "" {
@@ -31,7 +32,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 				ui.Text(c, name).TextColor(muted)
 			}
 		})
-		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && ui.Button(c, "加载更早讨论 / Earlier discussions").Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
+		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && ui.Button(c, i18n.T(i18n.KeyChatGroupEarlier)).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
 			m.OnLoadEarlier()
 		}
 		if m.Snapshot.HistoryPageErr != "" {
@@ -40,7 +41,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {
 				if len(threads) == 0 {
-					ui.Text(c, "尚无讨论 / No discussion yet").TextColor(muted)
+					ui.Text(c, i18n.T(i18n.KeyChatGroupEmpty)).TextColor(muted)
 				}
 				for i, thread := range threads {
 					key := "group-thread:" + m.Snapshot.SelectedID + ":" + thread.ID
@@ -51,7 +52,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 						}
 					}
 					ui.Column(c.Key(key)).FillWidth().Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-						label := fmt.Sprintf("%s · %d 条消息 / messages", thread.ID, len(thread.Messages))
+						label := fmt.Sprintf(i18n.T(i18n.KeyChatGroupCount), thread.ID, len(thread.Messages))
 						if !expanded && len(thread.Messages) > 0 {
 							label = thread.Messages[0].Text + " · " + label
 						}
@@ -68,7 +69,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 							ui.Column(c.Key(message.ID)).FillWidth().Gap(4).Children(func() {
 								label := message.Speaker
 								if message.Late {
-									label += " · 延迟回复 / Late reply"
+									label += " · " + i18n.T(i18n.KeyChatGroupLate)
 								}
 								if message.State != "settled" {
 									label += " · " + message.State
@@ -87,11 +88,11 @@ func groupThreadsView(c *ui.Context, m Model) {
 										ui.Text(c, "📎 "+name).TextColor(muted)
 									}
 								} else if message.Text != "" {
-									markdown.ViewInteractive(c, message.Text, markdown.Style{FontSize: theme.CurrentPreferences().Chat.Size, FG: fg, Muted: muted, CodeBG: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenCitationURL)
+									markdown.ViewInteractive(c, message.Text, transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), theme.CurrentPreferences().Chat.Size, darkSurface(muted)), m.OnOpenCitationURL)
 								}
 							})
 						}
-						if m.OnReplyGroupThread != nil && ui.Button(c, "回复此讨论 / Reply to thread").Disabled(m.Snapshot.PromptBusy).Clicked() {
+						if m.OnReplyGroupThread != nil && ui.Button(c, i18n.T(i18n.KeyChatGroupReply)).Disabled(m.Snapshot.PromptBusy).Clicked() {
 							m.OnReplyGroupThread(thread.ID)
 						}
 					})

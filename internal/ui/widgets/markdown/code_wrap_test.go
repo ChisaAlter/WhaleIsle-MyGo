@@ -4,14 +4,18 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestCodeWrapDefaultIsCallerScopedAndToggleRetained(t *testing.T) {
 	for _, initial := range []bool{false, true} {
 		tt := ui.NewTester(func(c *ui.Context) {
-			ui.Column(c).FillWidth().Children(func() { View(c, "```go\nfmt.Println(1)\n```", Style{CodeWrapDefault: initial}) })
+			ui.Column(c).FillWidth().Children(func() { View(c, "```go\nfmt.Println(1)\n```", Style{CodeWrapDefault: initial, WrapLabel: i18n.T(i18n.KeyMarkdownWrap), NoWrapLabel: i18n.T(i18n.KeyMarkdownNoWrap)}) })
 		}, 400, 300)
-		first, after := "Wrap lines", "Unwrap lines"
+		// The wrap seat reports the action it performs: a wrapped block offers
+		// "保留列宽", an unwrapped one offers "自动换行".
+		first, after := i18n.T(i18n.KeyMarkdownWrap), i18n.T(i18n.KeyMarkdownNoWrap)
 		if initial {
 			first, after = after, first
 		}

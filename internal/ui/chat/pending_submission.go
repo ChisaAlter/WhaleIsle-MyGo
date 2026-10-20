@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, muted ui.Color) {
@@ -25,12 +26,12 @@ func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, mute
 				ui.Text(c, name).FontSize(11).TextColor(muted)
 			})
 		}
-		status := "发送中 / Sending…"
+		status := i18n.T(i18n.KeyChatPendingSending)
 		if p.Accepted {
-			status = "已接受，等待会话更新 / Accepted, waiting for conversation update"
+			status = i18n.T(i18n.KeyChatPendingAccepted)
 		}
 		if p.Placement == "steering" {
-			status = "插话 · " + status
+			status = i18n.T(i18n.KeyChatPendingSteering) + " · " + status
 		}
 		ui.Text(c, status).FontSize(11).TextColor(muted)
 	})

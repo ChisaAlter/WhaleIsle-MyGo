@@ -15,6 +15,7 @@ import (
 	"whaleisle/internal/desktop/openui"
 	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type openUIBlock struct {
@@ -101,11 +102,11 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		go runOpenUI(ctx, b, id, program, appearance, invalidate)
 	}
 	box.Children(func() {
-		ui.Text(c, "OpenUI · 隔离交互 / Isolated interaction").FontSize(12)
+		ui.Text(c, i18n.T(i18n.KeyChatIsolated)).FontSize(12)
 		if ui.Button(c, "重试内联 UI / Retry inline UI").Disabled(loading || handle != nil).Clicked() {
 			start(true)
 		}
-		if ui.Button(c, "打开独立窗口 / Open separate window").Disabled(msg.Streaming || loading || handle != nil).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatIsolatedOpen)).Disabled(msg.Streaming || loading || handle != nil).Clicked() {
 			start(false)
 		}
 		if handle != nil && ui.Button(c, "关闭交互 UI / Close interactive UI").Clicked() {
@@ -116,7 +117,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			b.mu.Unlock()
 		}
 		if loading {
-			ui.Text(c, "正在启动隔离渲染器 / Starting isolated renderer").FontSize(11)
+			ui.Text(c, i18n.T(i18n.KeyChatIsolatedStart)).FontSize(11)
 		}
 		if errText != "" {
 			ui.Text(c, errText).Selectable().FontSize(11)
@@ -159,14 +160,14 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 						})
 					}
 				} else {
-					ui.Text(c, "当前可见时加载真实运行资源 / Loads the real runtime when visible").FontSize(11)
+					ui.Text(c, i18n.T(i18n.KeyChatIsolatedVisible)).FontSize(11)
 				}
 			})
 		}
 		if action != nil {
-			ui.Text(c, "交互请求尚未发送：渲染消息不含可信用户手势证明 / Confirm this action: renderer messages do not attest a user gesture.").FontSize(11)
+			ui.Text(c, i18n.T(i18n.KeyChatIsolatedGesture)).FontSize(11)
 			ui.Text(c, action.ActionText()).Selectable().FontSize(12)
-			if ui.Button(c, "发送交互结果 / Send interaction result").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatIsolatedSend)).Clicked() {
 				b.mu.Lock()
 				current := b.action
 				target, valid := b.target, b.valid
@@ -184,14 +185,14 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 					}()
 				}
 			}
-			if ui.Button(c, "忽略交互请求 / Dismiss interaction request").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatIsolatedIgnore)).Clicked() {
 				b.mu.Lock()
 				b.action = nil
 				b.mu.Unlock()
 			}
 		}
 		show := ui.Local(box, "source", func() bool { return false })
-		if ui.Button(c, "源码 / Source").Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatIsolatedSource)).Clicked() {
 			*show = !*show
 		}
 		if *show {

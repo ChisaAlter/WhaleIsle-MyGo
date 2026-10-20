@@ -11,11 +11,14 @@ import (
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/theme"
 )
 
 func TestConversationFooterStaysInsideNativeViewport(t *testing.T) {
+	i18n.SetLocale("zh")
+	defer i18n.SetLocale(i18n.DefaultLocale)
 	for _, height := range []int{800, 792, 600} {
 		for _, transcript := range []string{"one persisted message", strings.Repeat("history line\n", 60)} {
 			for _, showCost := range []bool{false, true} {
@@ -42,12 +45,14 @@ func TestConversationFooterStaysInsideNativeViewport(t *testing.T) {
 							})
 						})
 					}, 1200, height)
-					firstLabel := "Host 未提供计费 Token / Billed tokens unavailable"
+					// The composer owns this copy; resolve it through its locale keys so
+					// the frame test never pins one language's wording.
+					firstLabel := i18n.T(i18n.KeyComposerCostUnavailable)
 					lastLabel := firstLabel
 					if showCost {
-						lastLabel = "仅包含已上报用量的会话及子代理；缺失部分未计入 / Reported sessions and subagents only; missing usage excluded"
-						if !tt.HasText("Switch in") || !tt.HasText("Session estimate") {
-							t.Fatal("expanded official cost rows were not mounted")
+						lastLabel = i18n.T(i18n.KeyComposerCostPartial)
+						if !textsContain(tt.Texts(), i18n.T(i18n.KeyComposerCostEstimate)) {
+							t.Fatalf("expanded cost block missing the estimate row; texts=%q", tt.Texts())
 						}
 					}
 					footer, ok := tt.Find(lastLabel)
@@ -64,4 +69,15 @@ func TestConversationFooterStaysInsideNativeViewport(t *testing.T) {
 			}
 		}
 	}
+}
+
+// textsContain reports whether any rendered text contains want, for copy the
+// composer composes from several locale keys.
+func textsContain(texts []string, want string) bool {
+	for _, text := range texts {
+		if strings.Contains(text, want) {
+			return true
+		}
+	}
+	return false
 }

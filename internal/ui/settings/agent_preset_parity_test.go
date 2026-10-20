@@ -28,7 +28,7 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 	}}}
 	tt := ui.NewTester(func(c *ui.Context) { agentPresetRosterPane(c, &a, rows, ui.RGB(255, 255, 255), ui.RGB(150, 150, 150)) }, 1200, 1800)
 	text := strings.Join(tt.Texts(), "\n")
-	for _, want := range []string{"内置 / Built-in", "自定义 / Custom", "Own description", "missing declaration"} {
+	for _, want := range []string{"内置", "自定义", "Own description", "missing declaration"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing roster detail %q in %s", want, text)
 		}
@@ -36,19 +36,19 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 	if strings.Contains(text, "hidden") {
 		t.Fatal("healthy hidden preset leaked")
 	}
-	if err := tt.Click("查看配置 / View configuration · broken"); err != nil {
+	if err := tt.Click("查看配置 · broken"); err != nil {
 		t.Fatal(err)
 	}
 	if reading != "broken" || selected != "" {
 		t.Fatalf("independent reader: reading=%q selected=%q", reading, selected)
 	}
-	if err := tt.Click("选择默认 / Choose default · My mode (mine)"); err != nil {
+	if err := tt.Click("选择默认 · My mode (mine)"); err != nil {
 		t.Fatal(err)
 	}
 	if selected != "My mode (mine)" {
 		t.Fatal("default row was not staged")
 	}
-	if err := tt.Click("模式说明 / Mode details · standard"); err != nil {
+	if err := tt.Click("模式说明 · standard"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "工作方式") {
@@ -60,7 +60,7 @@ func TestAgentPresetSettingsParity(t *testing.T) {
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "修复一个问题") {
 		t.Fatal("mode examples did not open")
 	}
-	if err := tt.Click("关闭帮助 / Close help · standard"); err != nil {
+	if err := tt.Click("关闭帮助 · standard"); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(strings.Join(tt.Texts(), "\n"), "修复一个问题") {

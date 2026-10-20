@@ -89,6 +89,7 @@ import (
 	scheduleui "whaleisle/internal/ui/schedule"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/settings"
+	"whaleisle/internal/ui/sidebar"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 	usageui "whaleisle/internal/ui/usage"
@@ -6356,6 +6357,11 @@ func mainView(c *ui.Context) {
 						}
 						finish(nil)
 					}
+					// The sidebar account seat mirrors the settings account row.
+					accountUsage := usagestore.ViewState{}
+					if state.usage != nil {
+						accountUsage = state.usage.Snapshot()
+					}
 					frameModel := frame.Model{
 						SVGImages:          svgImages,
 						CustomPanelContent: state.customPanelContent(snap.SelectedID, themeID),
@@ -6946,6 +6952,28 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnContactAccount: state.contactAccountSupport,
+						Account: sidebar.Account{
+							Name:      strings.TrimSpace(accountUsage.Name),
+							Detail:    strings.TrimSpace(accountUsage.Email),
+							SignedIn:  strings.TrimSpace(accountUsage.Name) != "" || strings.TrimSpace(accountUsage.Email) != "",
+							OnSignOut: func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
+							OnOpen: func() {
+								state.mu.Lock()
+								state.settingsEmbeddedSection = ""
+								state.settingsOpen = true
+								state.settingsDesktopActive = true
+								state.launcherOpen = false
+								state.toolsMenuOpen = false
+								state.seedDesktopDraft()
+								state.mu.Unlock()
+								if state.settings != nil {
+									state.settings.OpenSettingsDocument(context.Background())
+								}
+								if win != nil {
+									win.Update(func() {})
+								}
+							},
+						},
 						OnOpenSettings: func() {
 							state.mu.Lock()
 							state.settingsEmbeddedSection = ""

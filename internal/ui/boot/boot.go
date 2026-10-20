@@ -43,7 +43,9 @@ const (
 	KeyPluginsIndeterminate = "boot.plugins_indeterminate"
 )
 
-// View paints the boot page inside the main window body (below the title bar).
+// View paints the boot page inside the main window body (below the title bar):
+// the reference page's layered scene with a centred brand block, status line and
+// the tail of the startup log.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -52,55 +54,95 @@ func View(c *ui.Context, m Model) {
 	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
 
-	ui.Column(c).Fill().Background(bg).Padding(24, 32, 24, 32).Gap(16).Children(func() {
-		ui.Text(c, i18n.T(KeyTitle)).FontSize(theme.InterfaceSize(22)).Bold().TextColor(fg)
-		ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
-		if m.Status.State == harness.Failed {
-			hint := "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
-			if i18n.Locale() == "en" {
-				hint = "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
-			}
-			ui.Text(c, hint).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-		}
-		if line := pluginProgressLine(m.Status); line != "" {
-			ui.Text(c, line).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-		}
+	root := ui.Column(c).Key("boot-root").Fill().Background(bg)
+	root.Draw(bootBackdrop(bg, chrome.Color(colors.Accent), m.SystemDark))
+	drawer := ui.Local(root, "boot-log-drawer", func() bool { return false })
+	root.Children(func() {
+		ui.Column(c).Key("boot-center").Fill().AlignItems(ui.Center).Justify(ui.Center).Padding(24, 32, 28, 32).Children(func() {
+			ui.Column(c).Width(460).MaxWidthPercent(92).Gap(10).AlignItems(ui.Center).Children(func() {
+				if bmp := chrome.BrandAvatar(); bmp != nil {
+					ui.Image(c, bmp).Size(64, 64).Fit(ui.Contain)
+				}
+				ui.Text(c, i18n.T(KeyTitle)).FontSize(theme.InterfaceSize(24)).FixedLineHeight(theme.InterfaceSize(30)).
+					FontWeight(600).TextColor(fg)
+				ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8)).FixedLineHeight(theme.InterfaceSize(10)).
+					FontWeight(500).LetterSpacing(.32).TextColor(muted)
+				ui.Box(c).Height(10)
 
-		ui.Row(c).Gap(8).Children(func() {
-			if m.OnConfigure != nil {
-				label := "打开启动器"
-				if i18n.Locale() == "en" {
-					label = "Open launcher"
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+					if m.Status.State == harness.Starting && !m.Status.RecoveryCancelled {
+						ui.Spinner(c).Size(14, 14)
+					}
+					ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(fg)
+				})
+				if line := pluginProgressLine(m.Status); line != "" {
+					ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
-				if ui.Button(c, label).Clicked() {
-					m.OnConfigure()
+				if m.Status.State == harness.Failed {
+					hint := "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
+					if i18n.Locale() == "en" {
+						hint = "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
+					}
+					ui.Text(c, hint).FontSize(theme.InterfaceSize(12)).TextColor(muted).MaxLines(3)
 				}
-			}
-			cancelRecoveryAction(c, m)
-			if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
-				m.OnRetry()
-			}
-			if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
-				m.OnExport()
-			}
+
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(6, 0, 0, 0).Children(func() {
+					if m.OnConfigure != nil {
+						label := "打开启动器"
+						if i18n.Locale() == "en" {
+							label = "Open launcher"
+						}
+						if ui.Button(c, label).Clicked() {
+							m.OnConfigure()
+						}
+					}
+					cancelRecoveryAction(c, m)
+					if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
+						m.OnRetry()
+					}
+					if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
+						m.OnExport()
+					}
+					if ui.Button(c, bootText("全部启动日志", "All startup logs")).Clicked() {
+						*drawer = true
+					}
+				})
+
+				// Ticker: the newest line, or the waiting placeholder before logs.
+				last := i18n.T(KeyWaiting)
+				if len(m.Logs) > 0 {
+					last = m.Logs[len(m.Logs)-1]
+				}
+				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(10, 0, 0, 0).Children(func() {
+					ui.Box(c).Size(6, 6).Radius(3).Background(muted.Alpha(.5))
+					ui.Text(c, last).FontSize(theme.InterfaceSize(11)).TextColor(muted).MinWidth(0).Grow(1).SingleLine().Ellipsis("…")
+				})
+			})
 		})
-
-		ui.Column(c).Fill().Background(chrome.Color(colors.Field)).
-			Border(1, border).Radius(8).
-			Padding(12, 12, 12, 12).Gap(4).Children(func() {
-			start := 0
-			if n := len(m.Logs); n > logTail {
-				start = n - logTail
-			}
-			for _, line := range m.Logs[start:] {
-				ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
-			if len(m.Logs) == 0 {
-				ui.Text(c, i18n.T(KeyWaiting)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
+		ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
+			backdrop.Background(ui.RGBA(0, 0, 0, .4))
+			w, h := c.Size()
+			panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(bg).Border(1, border).
+				Radius(12).Padding(16).Children(func() {
+				ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold().TextColor(fg)
+				if ui.Button(c, bootText("关闭日志", "Close logs")).Clicked() {
+					*drawer = false
+				}
+				ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+					ui.Column(c).Gap(4).Children(func() {
+						for _, line := range m.Logs {
+							ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
+						}
+						if len(m.Logs) == 0 {
+							ui.Text(c, i18n.T(KeyWaiting)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						}
+					})
+				})
+			})
 		})
 	})
 }
+
 
 func pluginProgressLine(st harness.Status) string {
 	if st.State != harness.Starting {

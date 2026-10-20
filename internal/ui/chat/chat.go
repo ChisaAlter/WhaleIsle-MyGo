@@ -103,6 +103,7 @@ func View(c *ui.Context, m Model) {
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
 	border := chrome.Color(colors.Border)
+	dark := th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark)
 	// Let the frame desk-wash show through (Electron chat pane is translucent mica).
 	_ = colors.BG
 
@@ -193,13 +194,31 @@ func View(c *ui.Context, m Model) {
 						SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenPlanResource)
 						return
 					}
-					// Electron turn/end strip: 「已完成，用时 … ▾」.
+					// Electron turn/end strip: 「已完成，用时 …」 with the usage row
+					// below it. The store writes elapsed milliseconds into Body.
 					if msg.Role == "status" && msg.EventType == "turn/end" {
 						ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
+						key := "turn-end:" + msg.ID
+						open := isThinkingExpanded(m.ThinkingExpanded, key)
+						detail := terminalReasonDetail(msg)
+						root := ui.Column(row.Context).FillWidth().MinWidth(0).Gap(2)
+						root.Children(func() {
+							paintDisclosureRow(row.Context, disclosureRow{
+								Key:        key,
+								Title:      turnStatusLabel(msg),
+								TitleColor: muted,
+								Status:     turnStatusRowStatus(msg),
+								Expandable: detail != "",
+								Open:       open,
+								OnToggle:   func() { toggleThinkingExpanded(m.ThinkingExpanded, key) },
+							}, disclosureStyle{FG: fg, Muted: muted, Hover: chrome.Color(colors.Hover), Accent: chrome.Color(colors.Accent), Size: 12})
+							if open && detail != "" {
+								ui.Column(row.Context).Padding(0, 0, 2, 22).Children(func() {
+									ui.Text(row.Context, detail).FontSize(12).TextColor(fg)
+								})
+							}
+						})
 						TurnUsageView(row.Context, m, msg, muted)
-						if detail := terminalReasonDetail(msg); detail != "" {
-							ui.Text(row.Context, detail).FontSize(12).TextColor(fg)
-						}
 						if target, ok := actionTargets[row.Index]; ok {
 							assistantMessageActions(row.Context, m, target, messageRoot, muted)
 						}
@@ -281,10 +300,12 @@ func View(c *ui.Context, m Model) {
 							Border:      border,
 							Field:       chrome.Color(colors.Field),
 							Size:        secondaryChatSize(),
+							Accent:      chrome.Color(colors.Accent),
+							Hover:       chrome.Color(colors.Hover),
 						}
 						ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 					case session.MessageKindUnknown:
-						ui.Text(row.Context, "未知内容 / Unknown content").TextColor(muted)
+						ui.Text(row.Context, i18n.T(i18n.KeyChatUnknownContent)).TextColor(muted)
 						ui.Text(row.Context, string(msg.ContentBlock)).TextColor(fg)
 					default:
 						refs := session.ImageRefs(msg.Body)
@@ -327,13 +348,8 @@ func View(c *ui.Context, m Model) {
 								Muted:    muted,
 							})
 						} else if body != "" {
-							md := markdown.Style{
-								FontSize: theme.CurrentPreferences().Chat.Size,
-								FG:       fg,
-								Muted:    muted,
-								CodeBG:   chrome.Color(colors.Field),
-								Accent:   chrome.Color(colors.Accent),
-							}
+							md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), theme.CurrentPreferences().Chat.Size, dark)
+							md.TableHeader = chrome.Color(colors.Sidebar)
 							md.ResolveFile = FileMentionResolver(m.Snapshot.Messages, msg)
 							md.OnOpenFile = m.OnOpenDeliverable
 							md.RenderFence = func(ctx *ui.Context, language, program string, offset int) bool {
@@ -393,9 +409,35 @@ func StatusView(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	ConnBannerView(c, m.ConnectionBanner, muted, field, border, m.OnReconnect)
 	UsageLabelView(c, FormatUsageLabel(m.UsageJobsToday, m.UsageBalance), muted, field, border, m.OnOpenUsage)
-	if m.Snapshot.LastAction != "" {
-		ui.Text(c, m.Snapshot.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
+	// Host bookkeeping strings (e.g. "workspace ready: <title>") are internal
+	// state, not transcript copy; the shell shows user-facing status only.
+	if action := displayableAction(m.Snapshot.LastAction); action != "" {
+		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
 	}
+}
+
+// internalActionPrefixes are Host-side bookkeeping phrases that must never be
+// painted as conversation status.
+var internalActionPrefixes = []string{
+	"workspace ready:",
+	"workspace ready",
+	"session ready:",
+	"session ready",
+}
+
+// displayableAction drops internal status phrases and keeps user-facing ones.
+func displayableAction(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range internalActionPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return ""
+		}
+	}
+	return trimmed
 }
 
 func formatTurnStatus(elapsedMsBody string) string {

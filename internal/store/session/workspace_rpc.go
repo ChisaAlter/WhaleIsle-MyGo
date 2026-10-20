@@ -27,14 +27,8 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 		if err != nil {
 			s.lastAction = "workspace init: " + err.Error()
 		} else {
-			title := strings.TrimSpace(out.Workspace.Title)
-			if title == "" {
-				title = strings.TrimSpace(out.Workspace.Path)
-			}
-			if title == "" {
-				title = out.Workspace.WorkspaceId
-			}
-			s.lastAction = "workspace ready: " + title
+			// A successful initializeDefault is silent: the status line belongs to
+			// connection and failure facts, not to a routine workspace handshake.
 			if id := strings.TrimSpace(out.Workspace.WorkspaceId); id != "" {
 				s.workspaceID = id
 			}

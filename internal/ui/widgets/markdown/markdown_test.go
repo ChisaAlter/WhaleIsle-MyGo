@@ -20,11 +20,14 @@ func TestSpansBoldAndCode(t *testing.T) {
 	}
 	var sawBold, sawCode bool
 	codeFont := theme.CurrentPreferences().Code
+	// Inline code sits one step under the body (12px at the 14px default), not
+	// at the editor's code size; the Original uses --dsw-font-markdown-code.
+	wantCodeSize := float32(12)
 	for _, s := range spans {
 		if s.Text == "world" && s.Weight >= 600 {
 			sawBold = true
 		}
-		if s.Text == "code" && s.Font == codeFont.Family && s.Size == codeFont.Size {
+		if s.Text == "code" && s.Font == codeFont.Family && s.Size == wantCodeSize {
 			sawCode = true
 		}
 	}

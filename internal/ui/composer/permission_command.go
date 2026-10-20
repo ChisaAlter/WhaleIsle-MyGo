@@ -5,24 +5,11 @@ import (
 	"whaleisle/internal/store/session"
 )
 
+// nativeOptionLabel renders one row of the /permission picker. Permission
+// presets go through the composer's single product-name mapping, so the chip
+// and the command row can never disagree about a preset's name.
 func nativeOptionLabel(row NativeCommandOption) string {
-	switch row.ID {
-	case session.PermissionAutoReview:
-		return composerText("自动审查", "Auto review")
-	case "read-only":
-		if row.Label == row.ID || row.Label == "Read Only" {
-			return composerText("仅可查看", "Read Only")
-		}
-	case "workspace-write":
-		if row.Label == row.ID || row.Label == "Workspace Write" {
-			return composerText("工作区写入", "Workspace Write")
-		}
-	case session.PermissionFullAccess:
-		if row.Label == row.ID || row.Label == "Full access" {
-			return composerText("完全权限", "Full access")
-		}
-	}
-	return row.Label
+	return permissionLabel(row.ID, row.Label)
 }
 func paintNativePermissionConfirmation(c *ui.Context, m Model, p *nativeCommandPopup, panel, fg ui.Color) {
 	title := composerText("确认启用完全权限？", "Enable Full access?")

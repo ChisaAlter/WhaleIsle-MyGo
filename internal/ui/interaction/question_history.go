@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -11,7 +12,7 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 	if len(records) == 0 {
 		return
 	}
-	labels := []string{"查看回答历史 / Review answer history"}
+	labels := []string{i18n.T(i18n.KeyChatQuestionHistory)}
 	selected := labels[0]
 	var current *interaction.QuestionHistoryView
 	for i, r := range records {
@@ -38,9 +39,9 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 	}
 	v := *current
 	ui.Column(c).FillWidth().Padding(8).Gap(6).Background(accent.Alpha(0.06)).Radius(12).Children(func() {
-		label := "已记录回答（只读） / Recorded answers (read-only)"
+		label := i18n.T(i18n.KeyChatQuestionRecorded)
 		if v.Queued {
-			label = "已排队回答（只读） / Queued answers (read-only)"
+			label = i18n.T(i18n.KeyChatQuestionQueued)
 		}
 		ui.Text(c, label).Bold().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		for _, r := range v.Rows {
@@ -71,11 +72,11 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			}
 			text := strings.Join(answer, " · ")
 			if text == "" {
-				text = "未作答 / Skipped"
+				text = i18n.T(i18n.KeyChatQuestionSkipped)
 			}
 			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		if ui.Button(c, "关闭历史 / Close history").Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatQuestionCloseHist)).Clicked() {
 			store.ReviewQuestionHistory(v.AgentID, "")
 		}
 	})

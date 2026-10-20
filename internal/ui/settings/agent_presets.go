@@ -105,9 +105,9 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.AgentPresetManagerState, fg, muted ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		for _, builtIn := range []bool{true, false} {
-			title := "自定义 / Custom"
+			title := providerCopy("自定义", "Custom")
 			if builtIn {
-				title = "内置 / Built-in"
+				title = providerCopy("内置", "Built-in")
 			}
 			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(muted)
 			grid := ui.Row(c.Key("preset-grid/" + title)).FillWidth().MinWidth(0).Wrap().AlignItems(ui.Start).Gap(12)
@@ -133,7 +133,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 						card = card.Background(ui.RGBA(muted.R, muted.G, muted.B, .08))
 					}
 					card.Children(func() {
-						main := ui.Button(c, "").Label("选择默认 / Choose default · " + label).MinHeight(82).FillWidth().MinWidth(0).Padding(14).BorderWidth(0).Background(ui.Transparent).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
+						main := ui.Button(c, "").Label(providerCopy("选择默认", "Choose default") + " · " + label).MinHeight(82).FillWidth().MinWidth(0).Padding(14).BorderWidth(0).Background(ui.Transparent).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
 						main.Children(func() {
 							ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 								ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
@@ -146,7 +146,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 									ui.Text(c, description).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(description)
 								}
 								if row.Broken != "" {
-									ui.Text(c, "加载失败 / Failed to load: "+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+									ui.Text(c, providerCopy("加载失败：", "Failed to load: ")+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 								}
 							})
 						})

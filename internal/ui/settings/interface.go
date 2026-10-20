@@ -71,33 +71,33 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.CloseToTray == nil {
 				return
 			}
-			ui.Checkbox(c, a.CloseToTray, "")
+			ui.Switch(c, a.CloseToTray).Label(i18n.T(i18n.KeySettingsDesktopCloseToTray))
 		}, fg, muted)
 		desktopRow(c, i18n.T(i18n.KeySettingsDesktopOpenAtLogin), func() {
 			if a.OpenAtLogin == nil {
 				return
 			}
-			ui.Checkbox(c, a.OpenAtLogin, "")
+			ui.Switch(c, a.OpenAtLogin).Label(i18n.T(i18n.KeySettingsDesktopOpenAtLogin))
 		}, fg, muted)
 		desktopRow(c, i18n.T(i18n.KeySettingsInterfaceAutoStart), func() {
 			if a.AutoStartDesktop == nil {
 				return
 			}
-			ui.Checkbox(c, a.AutoStartDesktop, "")
+			ui.Switch(c, a.AutoStartDesktop).Label(i18n.T(i18n.KeySettingsInterfaceAutoStart))
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoStartDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		desktopRow(c, i18n.T(i18n.KeySettingsInterfaceViewTabs), func() {
 			if a.ShowViewTabs == nil {
 				return
 			}
-			ui.Checkbox(c, a.ShowViewTabs, "")
+			ui.Switch(c, a.ShowViewTabs).Label(i18n.T(i18n.KeySettingsInterfaceViewTabs))
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		desktopRow(c, i18n.T(i18n.KeySettingsInterfaceAutoAllow), func() {
 			if a.AutoAllowTools == nil {
 				return
 			}
-			ui.Checkbox(c, a.AutoAllowTools, "")
+			ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow))
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {

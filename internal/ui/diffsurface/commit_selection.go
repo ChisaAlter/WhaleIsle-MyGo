@@ -258,7 +258,7 @@ func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
 func paintCommitCheckbox(c *ui.Context, w *Workbench, path string) {
 	s := w.commitState()
 	selected := !s.Excluded[path]
-	ui.Checkbox(c, &selected, "")
+	ui.Checkbox(c, &selected, "").Label(path)
 	if selected == s.Excluded[path] {
 		s.Excluded[path] = !selected
 		s.LargeAcknowledged = false
