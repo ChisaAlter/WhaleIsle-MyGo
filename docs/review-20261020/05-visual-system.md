@@ -51,3 +51,10 @@
 - MyGo 是否能对"表面下层内容"做实时采样/模糊（决定 #1/#2 的实现方式，可能需要分层窗口或离屏合成）。
 - ~~原生窗口是否真的无边框~~ **已由 shell 审查更正**：原生已经是无边框 + 自绘窗口按钮（`cmd/whaleisle/main.go:2164-2168`），截图里的"系统标题栏"其实是 1px 恒色硬描边（`internal/ui/chrome/frame_ring.go:12-25`）+ 12px 全空 caption 条（主路由 `Height(0)`）叠加浅色背景造成的错觉；真正的差距是外壳整体感，不是 OS 外壳。详见 [01-shell-nav.md](01-shell-nav.md)。
 - 滚动条与 DPI 行为需实机截图。
+
+## 修复后更正（2026-10-20，Wave 1/2）
+
+- **#3 指针特效"未实现"不成立（已关闭）**：MyGo 框架本身已渲染 trail/splash 并已接线（`third_party/mygo/ui/decorative_effects.go:47`、`ui/paint.go:60`、`cmd/whaleisle/pointer_effects.go`、`cmd/whaleisle/main.go:2921`）。Wave 2 补了 `chrome.CursorEffectConfig/ApplyCursorEffects` 做钳制、accent 回退与 reduced-motion 规则（`internal/ui/chrome/cursor.go`，`cursor_test.go` 用渲染器证明 trail 上屏、禁用/reduced 不画）。
+- **#4 金属漆"空转"不成立（已关闭）**：框架对每个 `ButtonBase` 已上光（`third_party/mygo/ui/base.go:27`、`paintMetallicButton`）；Wave 2 另加 `chrome.MetallicSheen` 供自绘按钮使用。
+- **#2 壁纸默认模糊**：原版 `DEFAULT_WALLPAPER_EFFECT=0`（`runtime/vendor/.../ui-theme/src/wallpaper.ts:10`），默认 blur 本来就是 0；"观感不同"来自深色 + `bg-mask-1` 遮罩 + 环境渐变。Wave 2 已补遮罩图层与首启深色（`chrome/background.go`、`theme/first_run.go`）。
+- **#1 假玻璃已部分解决**：新增材质模型与壁纸采样（`chrome/glass.go`：`Material`/`SampleBackdrop`/`DrawGlass`/`MenuSurface`），侧栏与右栏已改为采样玻璃；圆角面板（composer 卡、弹层）尚未接线，因为 `DrawGlass` 还不接受圆角裁剪（列在 fix-plan Wave 3）。
