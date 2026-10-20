@@ -5,6 +5,7 @@ import (
 	"image"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/egoist/mygo/internal/platform"
 	"github.com/egoist/mygo/internal/raster"
@@ -220,6 +221,14 @@ func (t *Tester) SetPreferences(p Preferences) {
 
 // Frame renders another frame, as when the view's state changed.
 func (t *Tester) Frame() { t.h.requested.Store(true); t.settle() }
+
+// SetTime renders a frame at a fixed time, without waiting for a wall clock.
+// Subsequent frames keep this time until SetTime is called again. This changes
+// only this in-memory tester; native windows retain their display frame clock.
+func (t *Tester) SetTime(now time.Time) {
+	t.rt.clock = func() time.Time { return now }
+	t.Frame()
+}
 
 // NativeTextInputClient returns the currently active native input adapter, or
 // nil when no editable input owns focus. Unlike Type/Compose, calls through

@@ -124,6 +124,7 @@ type ViewState struct {
 	SlashCommandsErr              string
 	NativeContributions           dsh.NativeContributions
 	NativeContributionsGeneration uint64
+	NativeModelLabelGeneration    uint64
 	nativeCommandGenerations      [4]uint64
 	PermissionCatalogRevision     uint64
 	QueueEditor                   QueueEditorState
@@ -682,6 +683,7 @@ func (s *Store) Snapshot() ViewState {
 	s.snapshotCommandsLocked(&st)
 	st.NativeContributions = s.nativeContributions.snapshot
 	st.NativeContributionsGeneration = s.nativeContributions.generation
+	st.NativeModelLabelGeneration = s.nativeContributions.modelLabel
 	st.nativeCommandGenerations = s.nativeContributions.ports
 	st.PermissionCatalogRevision = s.permissionCatalogRevision
 	st.ComposerSessionGeneration = s.followGeneration

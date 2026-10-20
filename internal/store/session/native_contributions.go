@@ -14,6 +14,7 @@ type nativeContributionState struct {
 	cancel     context.CancelFunc
 	generation uint64
 	ports      [4]uint64
+	modelLabel uint64
 }
 
 func nativeCommandIndex(name string) int {
@@ -49,6 +50,9 @@ func (s *Store) setNativeContributionsLocked(snapshot dsh.NativeContributions) {
 		if state.snapshot.CommandRevision(name) != snapshot.CommandRevision(name) {
 			state.ports[index]++
 		}
+	}
+	if state.snapshot.ModelLabelRevision() != snapshot.ModelLabelRevision() || state.snapshot.ModelLabel1017 != snapshot.ModelLabel1017 {
+		state.modelLabel++
 	}
 	state.snapshot = snapshot
 }

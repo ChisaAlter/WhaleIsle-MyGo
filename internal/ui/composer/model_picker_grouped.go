@@ -1,7 +1,6 @@
 package composer
 
 import (
-	"fmt"
 	"github.com/egoist/mygo/ui"
 	"sort"
 	"strings"
@@ -150,7 +149,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 	root := ui.Column(c.Key("grouped-model-catalog"))
 	state := ui.Local(root, "menu", func() modelCatalogMenu { return modelCatalogMenu{} })
 	triggerFocus := ui.Local(root, "trigger-focus", func() ui.Handle { return ui.Handle{} })
-	binding := fmt.Sprintf("%d:%s", m.Snapshot.ComposerHostGeneration, m.Snapshot.SelectedID)
+	binding := modelSelectBinding(m.Snapshot)
 	if state.Binding != binding {
 		*state = modelCatalogMenu{Binding: binding}
 	}
@@ -183,10 +182,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, muted ui.Color, height flo
 				if hasCurrentChoice {
 					ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)
 				} else {
-					ui.Text(c, name).Grow(1).MinWidth(0).SingleLine().FixedLineHeight(20)
+					modelFlipText(c, "unknown-current:"+binding, name, muted, 13).Grow(1)
 				}
 				if m.Snapshot.SelectedModelEffort != "" {
-					ui.Text(c, "· "+m.Snapshot.SelectedModelEffort).Shrink(0).SingleLine()
+					modelFlipText(c, "trigger-effort:"+binding, m.Snapshot.SelectedModelEffort, muted, 13).Shrink(1000)
 				}
 				if m.Snapshot.ModelSelectionBusy {
 					ui.Text(c, "…").Shrink(0)

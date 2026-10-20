@@ -95,6 +95,10 @@ func ShapeRichText(spans []Span, font Font, width float32) *TextLayout {
 
 func shapeText(s string, font Font, width float32, spans []Span) *TextLayout {
 	l := text.Shared().Shape(text.Params{Text: s, Style: font.style(), Width: width, KeepSpaces: true, Spans: encodeSpans(spans)})
+	return retainTextLayout(l, spans)
+}
+
+func retainTextLayout(l *text.Layout, spans []Span) *TextLayout {
 	t := &TextLayout{l: l, units: make([]int, len(l.Runes)+1), spans: spans}
 	for i, r := range l.Runes {
 		t.units[i+1] = t.units[i] + utf16.RuneLen(r)

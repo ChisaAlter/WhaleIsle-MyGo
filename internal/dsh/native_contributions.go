@@ -24,6 +24,16 @@ type NativeContributions struct {
 	FileCommand, ModelCommand, PermissionCommand, FeedbackCommand, ModelLabel1017 bool
 	Error                                                                         string
 	fileRevision, modelRevision, permissionRevision, feedbackRevision             string
+	modelLabelRevision                                                            string
+}
+
+// ModelLabelRevision identifies the admitted renderer's code and dependency
+// closure, so a reload retires only its own retained presentation state.
+func (n NativeContributions) ModelLabelRevision() string {
+	if n.Known && n.ModelLabel1017 {
+		return n.modelLabelRevision
+	}
+	return ""
 }
 
 // CommandRevision identifies the fixed command owner's code and dependencies,

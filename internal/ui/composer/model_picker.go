@@ -22,13 +22,16 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 			paintGroupedModelCatalog(c, m, muted, height)
 		} else {
 			label := m.Snapshot.SelectedModel
+			binding := modelSelectBinding(m.Snapshot)
+			source := "unknown-model:"
 			if label == "" {
 				label = i18n.T(i18n.KeyComposerModel)
+				source = "initial-model:"
 			}
+			modelFlipText(c, source+binding, label, muted, 13).Grow(1).MaxWidth(220)
 			if m.Snapshot.ModelSelectionBusy {
-				label += " …"
+				ui.Text(c, "…").Shrink(0).FontSize(13).FontWeight(400).TextColor(muted)
 			}
-			ui.Text(c, label).MinWidth(0).Grow(1).MaxWidth(220).SingleLine().FontSize(13).FontWeight(500).TextColor(muted)
 		}
 		if len(m.Snapshot.ModelLabels) > 0 {
 			// Model and effort share the two-level native menu above.
@@ -42,7 +45,8 @@ func paintModelPicker(c *ui.Context, m Model, muted ui.Color, height float32) {
 				}
 			}
 		} else if m.Snapshot.SelectedModelEffort != "" {
-			ui.Text(c, m.Snapshot.SelectedModelEffort).FontSize(12).TextColor(muted)
+			binding := modelSelectBinding(m.Snapshot)
+			modelFlipText(c, "retained-effort:"+binding, m.Snapshot.SelectedModelEffort, muted, 13).Shrink(1000)
 		}
 		if m.Snapshot.ModelsErr != "" {
 			ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).TextColor(muted)

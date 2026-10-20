@@ -273,6 +273,9 @@ func (g *nativeContributionGraph) snapshot() NativeContributions {
 	if snapshot.FeedbackCommand {
 		snapshot.feedbackRevision = g.commandRevision(feedbackBase)
 	}
+	if snapshot.ModelLabel1017 {
+		snapshot.modelLabelRevision = g.commandRevision([]string{nativeLabel1017})
+	}
 	if g.Release != nil {
 		snapshot.ReleaseVersion = g.Release.Version
 		if g.Release.Commit != nil {
