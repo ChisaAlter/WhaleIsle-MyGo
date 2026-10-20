@@ -45,7 +45,7 @@ func TestSkillsHubScopeAndInstallReviewInteraction(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Gap(8).Children(func() { skillsPane(c, Model{Skills: a}, c.Theme().Text, c.Theme().TextMuted) })
 	}, 1100, 900)
-	clickSkillControl(t, tt, "Find skills")
+	clickSkillControl(t, tt, "Browse GitHub skills")
 	clickSkillControl(t, tt, "Project skills")
 	clickSkillControl(t, tt, "User skills")
 	if strings.Join(roots, ",") != "project-dsh,user-dsh" || !hub.Open || a.Create.Open {

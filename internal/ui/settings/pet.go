@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
+	"whaleisle/internal/desktop/whale"
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -21,6 +22,16 @@ type PetSettingsAccess struct {
 	RenderAssistant    func(*ui.Context)
 	Store              *settingsstore.Store
 	OnSave             func()
+
+	// Whale is the dsh-whale catalog snapshot the Whale page edits. It and
+	// every callback stay nil until the Host answers, so the page keeps its
+	// current behaviour while the plugin is unavailable.
+	Whale           *whale.Catalog
+	OnLoadWhale     func()
+	OnUpdateWhale   func(whale.Patch)
+	OnReplaceMemory func(string)
+	OnClearMemory   func()
+	OnToggleSkill   func(string, bool)
 }
 
 func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.Color, accesses ...*PetSettingsAccess) {
@@ -54,9 +65,9 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				bodyHeading(c, providerCopy("助理", "Assistant"), "", fg, muted)
 				enabled := a.AssistantEnabled
 				bodyLocalToggle(c, "pet-assistant", providerCopy("鲸鱼娘助理", "Whale assistant"), providerCopy("常驻对话与侧栏入口；切换后重启 Harness。", "Resident conversation and sidebar entry. Changing this restarts Harness."), &enabled, a.Busy || a.OnSetAssistant == nil, fg, muted, a.OnSetAssistant)
-				if a.RenderAssistant != nil {
-					a.RenderAssistant(c)
-				}
+				// The dsh-whale catalog drives the rest of the page; the legacy
+				// assistant form is no longer rendered here.
+				petWhaleSection(c, colors, a, fg, muted)
 			}
 			return
 		}

@@ -6,6 +6,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -15,6 +16,11 @@ type ModelsAccess struct {
 	ProviderDiscovery    *ProviderDiscoveryAccess
 	ProviderProfiles     *ProviderProfilesAccess
 	Vision               *VisionAccess
+	// ProviderEnv reports the environment variables a provider namespace reads
+	// its API key from, and whether this process has one set: the orange hint on
+	// a card that still needs a key. Nil leaves the page saying nothing about the
+	// environment, as before the Host is described.
+	ProviderEnv func(namespace string) (names []string, present bool)
 	Labels               []string
 	Selected             *string
 	SessionID            string
@@ -77,6 +83,9 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if count == 0 && !state.Loading {
 			ui.Text(c, providerCopy("当前 Host 尚未提供模型供应商配置。", "This Host exposes no provider configuration.")).TextColor(muted)
 		}
+		modelAddProviderCard(c, m, a, fg, muted)
+	} else {
+		modelAddProviderCard(c, m, a, fg, muted)
 	}
 	visionPane(c, a.Vision, fg, muted)
 	advanced := ui.Column(c.Key("model-provider-tools")).FillWidth().MinWidth(0).Gap(12)
@@ -122,4 +131,32 @@ func modelProviderTitle(namespace string) string {
 	default:
 		return namespace
 	}
+}
+
+// modelAddProviderCard is the reference's dashed full-width add row. Providers
+// still come from the Host, so without a selection target the card explains
+// itself instead of implying a local form.
+func modelAddProviderCard(c *ui.Context, m Model, a *ModelsAccess, fg, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	label := i18n.T(i18n.KeySettingsModelsAddProvider)
+	card := ui.Column(c.Key("model-add-provider")).FillWidth().MinWidth(0).Height(52).
+		Border(1, chrome.Color(colors.Border)).Radius(12).Justify(ui.Center).AlignItems(ui.Center)
+	target := ""
+	if m.OnSelectNamespace != nil {
+		target = "llm-pi-ai"
+	}
+	disabled := target == ""
+	if disabled {
+		card.Tooltip(i18n.T(i18n.KeySettingsModelsAddUnavailable))
+	}
+	card.Children(func() {
+		button := ui.Button(c, "").Label(label).Height(24).Padding(0, 10).BorderWidth(0).
+			Background(ui.Transparent).TextColor(muted).Disabled(disabled)
+		button.Children(func() {
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+		})
+		if !disabled && button.Clicked() {
+			m.OnSelectNamespace(target)
+		}
+	})
 }

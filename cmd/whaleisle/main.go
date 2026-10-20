@@ -246,6 +246,7 @@ type mainState struct {
 	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
 	assistantGroupLive                      assistantGroupLiveState
 	whaleSettings                           assiststore.WhaleSettingsEditor
+	whaleCatalog                            whaleCatalogState
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
 	desktopLastAction                       string
@@ -4465,6 +4466,15 @@ func mainView(c *ui.Context) {
 						ProviderDiscovery: state.providerDiscoveryAccess(),
 						ProviderProfiles:  state.providerProfilesAccess(),
 						Vision:            state.visionSettingsAccess(),
+						ProviderEnv: func(namespace string) ([]string, bool) {
+							state.mu.Lock()
+							set := state.settings
+							state.mu.Unlock()
+							if set == nil {
+								return nil, false
+							}
+							return set.ProviderEnv(namespace)
+						},
 						Labels:            sessSnap.ModelLabels,
 						Selected:          &state.settingsModelLabel,
 						SessionID:         sessSnap.SelectedID,

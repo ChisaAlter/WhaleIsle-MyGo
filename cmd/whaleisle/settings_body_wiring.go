@@ -85,7 +85,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	ep, ready := s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
 	petSaveErr := s.desktopSaveErr
 	s.mu.Unlock()
-	m.PetSettings = &settings.PetSettingsAccess{
+	petSettings := &settings.PetSettingsAccess{
 		Err: petSaveErr,
 		Store: m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil,
 		OnSetAssistant: func(v bool) { s.setAssistantFlag(&v, nil) },
@@ -95,6 +95,12 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 				WhaleSettings: s.assistantWhaleSettingsModel(ep)})
 		},
 	}
+	// The dsh-whale catalog is Host data: without a ready Host every field and
+	// callback stays nil and the page renders exactly as before.
+	petSettings.Whale, petSettings.OnLoadWhale, petSettings.OnUpdateWhale,
+		petSettings.OnReplaceMemory, petSettings.OnClearMemory, petSettings.OnToggleSkill =
+		s.whalePetAccess(ep, ready)
+	m.PetSettings = petSettings
 }
 
 func (s *mainState) setRemoteWorkspacePreference(v bool) {

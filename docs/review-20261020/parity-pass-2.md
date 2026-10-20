@@ -115,7 +115,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | `打开配置文件` Outline sm + 关闭 X | **已修**：新增 `Model.OnOpenConfig`，nil 时 disabled + 说明 tooltip；X 已有 |
 | 行内齿轮（发送消息时的思考炫光） | 未做（需按命名空间挑出带自定义的项） |
 
-### 模型（ref-settings-models）→ 部分已修
+### 模型（ref-settings-models）→ 已修（task-43/45）
 | 差异 | 状态 |
 | --- | --- |
 | 账号卡（DeepSeek 账号 + 编辑） | 未做（账号信息在 account 分页） |
@@ -123,7 +123,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 虚线 `+ 添加模型提供商` | 未核对渲染样式（`configurationCreateProvider` 存在） |
 | 识图模型卡（标签 + 下拉 + 灰字说明） | 已有 `visionPane`，未逐项比对样式 |
 
-### 鲸鱼娘（ref-settings-pet）→ 未修
+### 鲸鱼娘（ref-settings-pet）→ 已修（task-42/45）
 | 差异 | 状态 |
 | --- | --- |
 | 顶部两段 segmented（聊天与能力 / 桌面形象与行为，等宽白药丸） | **已修**：`settingsSegmented`（38 高、白药丸、等宽段），宠物页两段已替换 |
@@ -145,13 +145,15 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | --- | --- |
 | 参考是 **2 列卡片网格**，加载态是骨架卡（两条灰条） | 本仓库是文本行；骨架网格未做 |
 
-### 技能（ref-settings-skills）→ 未修
+### 技能（ref-settings-skills）→ 已修（task-44）
 | 差异 | 状态 |
 | --- | --- |
-| 内容区头部三个动作：`浏览 GitHub 技能`（带搜索图标）、`+`、刷新 | 未做 |
-| 搜索框 + `全部` 下拉同一行 | 部分有（搜索框存在），下拉未对齐 |
-| 分组标题「工作区与个人技能 7 项」 | 未做（无计数） |
-| 每行：文件图标 + 名称 + 单行描述 + `捆绑` 徽标 + 44×24 开关 | 未做（当前行是按钮 + 摘要） |
+| 内容区头部三个动作：`浏览 GitHub 技能`（Outline sm + 放大镜）、`+`、刷新 | **已修**：`skillsBrowseButton`（28 高/radius 8/0.5 描边/12px）；无 Hub 回调时 disabled + tooltip；`+` 与刷新沿用 `bodyIconAction` |
+| 搜索框 + `全部` 下拉同一行（下拉约 88 宽） | **已修**：搜索 32 高、占宽、占位「搜索名称、描述、分组或何时使用」；下拉 88 宽、首项「全部」 |
+| 分组标题「工作区与个人技能 7 项」（名称 + 计数 + 项） | **已修**：单一未分组时也画该行（13px muted）；有分组时同样格式 |
+| 每行：24 图标 + 名称 14 semibold + 描述 12 muted 单行省略 + `捆绑` 徽标 + 44×24 开关；行高 64、无分隔线 | **已修**：图标 24、名称 600、描述单行省略、`skillSourceBadge`（白底 + 0.5 描边）、`settingsToggle` 44×24、行 MinHeight(64)、无分隔线 |
+| 启停语义 | 未改：仍调 `OnSetModelInvocable` / `OnSetGroupInvocable`，只是把开关换成自绘 44×24（点击后由调用方取反上报） |
+| 空态/加载态 | 沿用现有（空态一句 muted 文案；加载仍是 Busy 文案），参考无更强证据 |
 
 ### 市场（ref-settings-market）→ 未修
 | 差异 | 状态 |
@@ -227,3 +229,22 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 ## 8. 结论
 
 第一眼的壳层差距（侧栏、标题栏、背景、composer、调试文案）已经收敛；剩余主要是**需要数据模型支持的分页内容**（模型/鲸鱼娘/技能/内置插件）和**页面定位差异**（远程）。这些不适合再用“改样式”解决。
+## 9. 第三轮：数据层 + 三页收口（2026-10-20 夜）
+
+### 数据层
+
+- **dsh-whale 客户端** `internal/desktop/whale`：`New/Catalog/Update/ReplaceMemory/ClearMemory/ToggleSkill`，httptest 11 条用例。字段按插件源码：catalog 扁平（modelProvider/modelModel/modelReasoningEffort），update 只认嵌套 `model:{...}`，这个不对称被测试锁住；memory 上限按 UTF-16 40000 本地拦截；skills 名称本地校验并透传插件原因。
+- **接线** `cmd/whaleisle/pet_whale.go`：按 origin+cookie 缓存 catalog，打开设置页后台拉取（15s 超时、失败 5s 退避），写操作后强制重拉；Host 未就绪时 `Whale` 与 5 个回调全 nil。
+- **模型页数据** `internal/store/settings`：`ProviderEnv(ns)`（显式映射：llm-deepseek→DEEPSEEK_API_KEY、openai/anthropic/google/gemini/openrouter/groq/mistral/xai/azure；已 describe 的 apiKeyEnv 优先）、`NamespaceDraft(ns)`、`SaveNamespace(ctx,ns)`；确认 drafts/dirty 本就按 ns 隔离，补的是访问面。`ModelsAccess.ProviderEnv` 已在 main.go 接线。
+
+### 三页（tester 快照见 evidence/compare/ours-settings-*.png）
+
+| 页 | 已实现 | 未实现/差距 |
+| --- | --- | --- |
+| 鲸鱼娘 | 名字/称呼双输入（失焦或回车 Patch）、默认模型只读显示（空=跟随会话默认/在模型页选择）、IM 开关、额外人设行内编辑、长期记忆对话框（保存/清空二次确认）、技能列表 + 44×24 开关、Whale==nil 占位 | 默认模型下拉缺“选项列表”数据（catalog 只给当前路由）；旧 `RenderAssistant` 字段待清理 |
+| 模型 | 凭据字段优先（API 密钥/密码框/env 占位）、橙色未检测提示（含变量名）、`> 自定义设置` 折叠、卡内取消/保存（仅本 ns）、每卡独立编辑态、添加卡 | 添加卡是 1px 细边框而非虚线（mygo 无 dashed，需要 chrome 层 pattern）；识图卡内部未重排 |
+| 技能 | 头部 3 动作（浏览 GitHub 技能 Outline sm + `+` + 刷新）、搜索 + 88 宽 `全部` 下拉、分组标题「… N 项」、行 24 图标/14 semibold/12 单行/`捆绑` 徽标/44×24 开关/64 高 | 空态卡无参考证据；行内仍保留打开目录/删除两个 icon（功能未丢） |
+
+### 验证
+
+`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿；`go test ./internal/ui/settings` 81 pass；`SETTINGS_GALLERY_DIR` 可重出两张设置页快照。

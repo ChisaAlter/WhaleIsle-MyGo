@@ -24,19 +24,24 @@ func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.
 		track = c.Theme().Accent
 	}
 	toggle := ui.Button(c, "").Label(title).Width(toggleWidth).Height(toggleHeight).Shrink(0).
-		Radius(toggleHeight / 2).BorderWidth(0).Padding(2).Gap(0).
-		Background(track).AlignItems(ui.Center)
+		Radius(toggleHeight / 2).BorderWidth(0).Padding(0).Gap(0).
+		Background(ui.Transparent).AlignItems(ui.Center)
 	if disabled {
 		toggle = toggle.Disabled(true).Opacity(0.5)
 	}
-	knobAlign := ui.Start
-	if on {
-		knobAlign = ui.End
-	}
-	toggle.Children(func() {
-		ui.Row(c).FillWidth().FillHeight().Justify(knobAlign).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Size(toggleKnob, toggleKnob).Radius(toggleKnob / 2).Background(ui.Hex("#ffffff"))
-		})
+	// The track and the knob are painted, not laid out: a child box would take the
+	// pointer hit before the button sees it and the switch would stop toggling.
+	knob := ui.Hex("#ffffff")
+	toggle.Draw(func(p *ui.Painter, r ui.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+		p.Fill(r, track, r.H/2)
+		x := r.X + 2
+		if on {
+			x = r.X + r.W - 2 - toggleKnob
+		}
+		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-toggleKnob)/2, W: toggleKnob, H: toggleKnob}, knob, toggleKnob/2)
 	})
 	return toggle
 }

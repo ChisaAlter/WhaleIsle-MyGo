@@ -97,7 +97,11 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, providerCopy("查找并管理用户、当前项目与捆绑技能。", "Find and manage user, current-project, and bundled skills.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		})
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-			if a.HubQuery != nil && a.OnSearchHub != nil && ui.Button(c, providerCopy("搜索技能", "Find skills")).Height(30).Clicked() {
+			browse := skillsBrowseButton(c, i18n.T(i18n.KeySurfacesSkillsBrowseHub), muted)
+			if a.HubQuery == nil || a.OnSearchHub == nil {
+				browse = browse.Disabled(true).Opacity(0.5)
+				browse.Tooltip(providerCopy("此构建未接入技能搜索", "Skill search is not wired in this build"))
+			} else if browse.Clicked() {
 				if a.Hub != nil && a.Hub.OnOpen != nil {
 					a.Hub.OnOpen()
 				} else {
@@ -208,11 +212,11 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
 		if a.Query != nil {
-			ui.TextInput(c, a.Query).Grow(1).MinWidth(180).Height(36).Placeholder(providerCopy("搜索技能", "Search skills"))
+			ui.TextInput(c, a.Query).Grow(1).MinWidth(180).Height(32).Placeholder(providerCopy("搜索名称、描述、分组或何时使用", "Search names, descriptions, groups or when to use"))
 		}
 		if a.SourceFilter != nil {
 			choices := []struct{ value, label string }{
-				{"", providerCopy("全部来源", "All sources")},
+				{"", providerCopy("全部", "All")},
 				{"user", providerCopy("用户", "User")},
 				{"project", providerCopy("项目", "Project")},
 				{"bundled", providerCopy("内置", "Bundled")},
@@ -226,7 +230,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					current = choice.label
 				}
 			}
-			if ui.Select(c, &current, options).Label("Skill source filter").Width(130).Changed() {
+			if ui.Select(c, &current, options).Label("Skill source filter").Width(88).Height(32).Changed() {
 				for _, choice := range choices {
 					if current == choice.label {
 						*a.SourceFilter = choice.value
@@ -246,13 +250,14 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	})
 	visible := filterSkillRows(a.Skills, a.Query, a.SourceFilter)
-	ui.Text(c, fmt.Sprintf(providerCopy("%d 个技能", "%d skills"), len(visible))).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if len(visible) == 0 {
 		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {
 		groups := skillSections(visible)
 		for _, group := range groups {
 			if len(groups) == 1 && group.Name == "" {
+				ui.Text(c, i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup)+" "+fmt.Sprint(len(group.Skills))+" "+providerCopy("项", "skills")).
+					FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 				for _, row := range group.Skills {
 					skillCompactRow(c, a, row, fg, muted)
 				}
@@ -260,8 +265,9 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 			label := group.Name
 			if label == "" {
-				label = providerCopy("未分组", "Ungrouped")
+				label = i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup)
 			}
+			count := providerCopy("项", "skills")
 			section := ui.Column(c.Key("skill-group/" + group.Name)).FillWidth().MinWidth(0).Gap(4)
 			open := ui.Local(section, "expanded", func() bool { return true })
 			section.Children(func() {
@@ -272,16 +278,16 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						if *open {
 							icon = "down"
 						}
-						ui.Icon(c, bodyIcon(icon)).Size(14, 14).TextColor(muted)
-						ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-						ui.Text(c, fmt.Sprint(len(group.Skills))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						ui.Icon(c, bodyIcon(icon)).Size(12, 12).TextColor(muted)
+						ui.Text(c, label+" "+fmt.Sprint(len(group.Skills))+" "+count).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 					})
 					if disclosure.Clicked() {
 						*open = !*open
 					}
 					enabled := group.AllEnabled
-					if ui.Switch(c, &enabled).Label("Enable skill group · "+label).Disabled(a.Busy || group.Writable == 0 || a.OnSetGroupInvocable == nil).Changed() && a.OnSetGroupInvocable != nil {
-						a.OnSetGroupInvocable(group.Name, enabled)
+					groupDisabled := a.Busy || group.Writable == 0 || a.OnSetGroupInvocable == nil
+					if settingsToggle(c, "Enable skill group · "+label, &enabled, groupDisabled).Clicked() && !groupDisabled && a.OnSetGroupInvocable != nil {
+						a.OnSetGroupInvocable(group.Name, !enabled)
 					}
 				})
 				if *open {
@@ -428,15 +434,17 @@ func skillSections(rows []SkillRow) []skillSection {
 }
 
 func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.Color) {
-	ui.Column(c.Key("skill-row/"+row.Source+"/"+row.Name)).FillWidth().MinWidth(0).Gap(4).Padding(8, 0).Children(func() {
+	ui.Column(c.Key("skill-row/"+row.Source+"/"+row.Name)).FillWidth().MinWidth(0).Gap(4).MinHeight(64).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(10).Wrap().AlignItems(ui.Center).Children(func() {
 			main := ui.Button(c, "").Label("Inspect skill · " + row.Name).MinHeight(48).Grow(1).MinWidth(180).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(!row.Writable || a.Busy || a.OnInspect == nil)
 			main.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(10).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, settingsIcons["SkillOutline"]).Size(16, 16).Shrink(0).TextColor(muted)
+					ui.Icon(c, settingsIcons["SkillOutline"]).Size(24, 24).Shrink(0).TextColor(muted)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-						ui.Text(c, row.Name).FontSize(fonttheme.InterfaceSize(14)).TextColor(fg)
-						ui.Text(c, row.Description).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(row.Description)
+						ui.Text(c, row.Name).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+						if row.Description != "" {
+							ui.Text(c, row.Description).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(row.Description)
+						}
 					})
 				})
 			})
@@ -444,13 +452,14 @@ func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.
 				a.OnInspect(row.Name)
 			}
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, skillSourceLabel(row.Source)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Tooltip(row.Directory)
+				skillSourceBadge(c, skillSourceLabel(row.Source), row.Directory, muted)
 				if row.Directory != "" && a.OnOpenDirectory != nil && bodyIconAction(c, "Open directory · "+row.Name, "folder", a.Busy) {
 					a.OnOpenDirectory(row.Name)
 				}
 				enabled := row.ModelInvocable
-				if ui.Switch(c, &enabled).Label("Model invocation · "+row.Name).Disabled(!row.Writable || a.Busy || a.OnSetModelInvocable == nil).Changed() && a.OnSetModelInvocable != nil {
-					a.OnSetModelInvocable(row.Name, enabled)
+				switchDisabled := !row.Writable || a.Busy || a.OnSetModelInvocable == nil
+				if settingsToggle(c, "Model invocation · "+row.Name, &enabled, switchDisabled).Clicked() && !switchDisabled && a.OnSetModelInvocable != nil {
+					a.OnSetModelInvocable(row.Name, !enabled)
 				}
 				if row.Writable && a.OnDelete != nil && bodyIconAction(c, "Delete skill · "+row.Name, "trash", a.Busy || a.RemovalBusy) {
 					a.OnDelete(row.Name)
@@ -461,4 +470,29 @@ func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.
 			ui.Text(c, row.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
 	})
+}
+
+// skillsBrowseButton is the outline sm action with the magnifier glyph that the
+// installed build puts at the right of the skills header.
+func skillsBrowseButton(c *ui.Context, label string, muted ui.Color) ui.Element {
+	button := ui.Button(c, "").Label(label).Height(28).Shrink(0).Padding(0, 10).Radius(8).Gap(6).
+		Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .35)).Background(ui.Transparent).AlignItems(ui.Center)
+	button.Children(func() {
+		ui.Icon(c, bodyIcon("search")).Size(14, 14).TextColor(c.Theme().Text)
+		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Text)
+	})
+	return button
+}
+// skillSourceBadge is the small white chip after a skill row: the source name in
+// 11px over a 0.5 hairline, the way the installed build tags bundled skills.
+func skillSourceBadge(c *ui.Context, label, directory string, muted ui.Color) {
+	if label == "" {
+		return
+	}
+	badge := ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().TextMuted).
+		Padding(1, 6).Radius(4).Shrink(0).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .3)).
+		Background(c.Theme().Surface)
+	if directory != "" {
+		badge.Tooltip(directory)
+	}
 }
