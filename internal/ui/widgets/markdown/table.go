@@ -7,32 +7,31 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
 	extast "github.com/yuin/goldmark/extension/ast"
+
+	"whaleisle/internal/ui/theme"
 )
 
-// Table metrics from the Original MarkdownText sheet: 12px header, 6px cell
-// padding, a 0.5px row rule and a horizontal scroll wrapper for wide tables.
+// Table metrics from the Original MarkdownText sheet: a 0.5px row and column
+// rule, 6px cell padding, a 60 DIP column floor and a 40% ceiling of the
+// message column. Widths come from measured content, not a rune guess: CJK
+// cells are twice as wide as the Latin average, and a proportional split used
+// to wrap them.
 const (
 	tableCellPadY      = 6
 	tableCellPadX      = 10
-	tableMinColumn     = 88
-	tableMaxColumn     = 260
-	tableWeightMin     = 6
-	tableWeightMax     = 40
+	tableMinColumn     = 60
+	tableColumnShare   = 0.4
 	tableHeaderRowPadY = 5
+	tableDefaultAxis   = 748
 )
 
-// viewTable lays a GFM table out with content-proportional columns. The
-// Original sizes columns from their content and scrolls the wrapper when the
-// result exceeds the message column, so the native port keeps one Row per
-// record with Grow weights plus a per-column pixel floor.
+// viewTable lays a GFM table out from measured cell content. Every column takes
+// its widest cell plus padding, clamped to [60, 40% of the available width]; the
+// table only scrolls horizontally when those widths no longer fit.
 func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 	var rows []ast.Node
-	var headerRow ast.Node
 	columns := 0
 	for row := table.FirstChild(); row != nil; row = row.NextSibling() {
-		if _, header := row.(*extast.TableHeader); header && headerRow == nil {
-			headerRow = row
-		}
 		count := 0
 		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 			count++
@@ -45,79 +44,123 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 	if columns == 0 || len(rows) == 0 {
 		return
 	}
-	weights := make([]float32, columns)
+	available := tableAxis(st)
+	maxColumn := available * tableColumnShare
+	if maxColumn < tableMinColumn {
+		maxColumn = tableMinColumn
+	}
 	widths := make([]float32, columns)
+	alignments := make([]extast.Alignment, columns)
+	for column := 0; column < columns; column++ {
+		alignments[column] = tableAlignment(table, column)
+	}
 	for _, row := range rows {
+		_, isHeader := row.(*extast.TableHeader)
 		index := 0
 		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 			if index >= columns {
 				break
 			}
-			text := nodeText(cell, source)
-			weight := float32(utf8.RuneCountInString(text))
-			if weight < tableWeightMin {
-				weight = tableWeightMin
-			}
-			if weight > tableWeightMax {
-				weight = tableWeightMax
-			}
-			if weight > weights[index] {
-				weights[index] = weight
-			}
-			width := float32(utf8.RuneCountInString(text))*7 + 2*tableCellPadX
-			if width < tableMinColumn {
-				width = tableMinColumn
-			}
-			if width > tableMaxColumn {
-				width = tableMaxColumn
-			}
+			width := measureCellWidth(c, cell, source, st, isHeader) + 2*tableCellPadX
+			width = clampf(width, tableMinColumn, maxColumn)
 			if width > widths[index] {
 				widths[index] = width
 			}
 			index++
 		}
 	}
-	for index := range weights {
-		if weights[index] == 0 {
-			weights[index] = tableWeightMin
-		}
+	var total float32
+	for index := range widths {
 		if widths[index] == 0 {
 			widths[index] = tableMinColumn
 		}
+		total += widths[index]
 	}
-	var total float32
-	for _, width := range widths {
-		total += width
-	}
-	rule := st.Muted.Alpha(.28)
-	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-		ui.Column(c).MinWidth(total).Children(func() {
+	paint := func(ctx *ui.Context) {
+		ui.Column(ctx).Width(total).MinWidth(0).Children(func() {
 			for _, row := range rows {
-				_, isHeader := row.(*extast.TableHeader)
-				fill := ui.Transparent
-				padY := float32(tableCellPadY)
-				if isHeader {
-					fill = tableHeaderFill(st)
-					padY = tableHeaderRowPadY
-				}
-				ui.Row(c).FillWidth().AlignItems(ui.Start).Background(fill).Draw(func(p *ui.Painter, r ui.Rect) {
-					p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - .5, W: r.W, H: .5}, rule, 0)
-				}).Children(func() {
-					index := 0
-					for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
-						if index >= columns {
-							break
-						}
-						column := index
-						index++
-						ui.Box(c).Grow(weights[column]).MinWidth(widths[column]).Padding(padY, tableCellPadX, padY, tableCellPadX).MinWidth(0).Children(func() {
-							viewTableCell(c, cell, source, st, isHeader, tableAlignment(table, column))
-						})
-					}
-				})
+				paintTableRow(ctx, row, source, st, widths, alignments, columns, total)
 			}
 		})
+	}
+	if total > available {
+		ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() { paint(c) })
+		return
+	}
+	ui.Column(c).FillWidth().MinWidth(0).Children(func() { paint(c) })
+}
+
+// tableAxis is the width the table may use before it scrolls. The conversation
+// passes its content axis; a document without one keeps the Original 748.
+func tableAxis(st Style) float32 {
+	if st.AvailableWidth > 0 {
+		return st.AvailableWidth
+	}
+	return tableDefaultAxis
+}
+
+// paintTableRow draws one record: the header fill, a 0.5px bottom rule and the
+// column separators, so a scrolled table keeps its grid.
+func paintTableRow(c *ui.Context, row ast.Node, source string, st Style, widths []float32, alignments []extast.Alignment, columns int, total float32) {
+	_, isHeader := row.(*extast.TableHeader)
+	fill := ui.Transparent
+	padY := float32(tableCellPadY)
+	if isHeader {
+		fill = tableHeaderFill(st)
+		padY = tableHeaderRowPadY
+	}
+	// A 0.5 DIP rule disappears on integer-pixel software rendering, so the grid
+	// uses a 1px hairline at a low alpha and stays visible either way.
+	rule := st.Muted.Alpha(.20)
+	ui.Row(c).Width(total).MinWidth(0).AlignItems(ui.Start).Background(fill).Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, rule, 0)
+	}).Children(func() {
+		index := 0
+		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+			if index >= columns {
+				break
+			}
+			column := index
+			index++
+			width := widths[column]
+			last := column == columns-1
+			box := ui.Box(c).Width(width).MinWidth(0).Padding(padY, tableCellPadX, padY, tableCellPadX)
+			if !last {
+				box.Draw(func(p *ui.Painter, r ui.Rect) {
+					p.Fill(ui.Rect{X: r.X + r.W - 1, Y: r.Y + padY/2, W: 1, H: r.H - padY}, rule, 0)
+				})
+			}
+			box.Children(func() {
+				viewTableCell(c, cell, source, st, isHeader, alignments[column])
+			})
+		}
 	})
+}
+
+// measureCellWidth runs the cell's plain text through the same font and size
+// the cell paints with, so a CJK column gets its true advance width.
+func measureCellWidth(c *ui.Context, cell ast.Node, source string, st Style, header bool) float32 {
+	text := nodeText(cell, source)
+	if text == "" {
+		return 0
+	}
+	weight := 400
+	if header {
+		weight = 600
+	}
+	span := ui.Span{Text: text, Size: st.FontSize, Weight: weight, Font: theme.RenderPreferences().Chat.Family}
+	width, _ := c.MeasureText(0, span)
+	return width
+}
+
+func clampf(value, low, high float32) float32 {
+	if value < low {
+		return low
+	}
+	if value > high {
+		return high
+	}
+	return value
 }
 
 // tableAlignment reads the GFM alignment marker for one column.
@@ -189,3 +232,5 @@ func nodeText(node ast.Node, source string) string {
 	})
 	return out.String()
 }
+
+var _ = utf8.RuneCountInString

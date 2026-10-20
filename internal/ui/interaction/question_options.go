@@ -4,6 +4,8 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 // The question options are selectable cards, not bare checkboxes: a 20 DIP
@@ -39,7 +41,7 @@ func questionPagerButton(c *ui.Context, icon *ui.SVG, label string, enabled bool
 // questionOptionCard paints one option and returns its row so the caller can
 // attach the wizard's own keys. The whole card is the mouse target; multi
 // select answers keep check-box semantics, single select answers radio ones.
-func questionOptionCard(c *ui.Context, key string, index int, label, description string, checked, multi, disabled bool, onToggle func()) ui.Element {
+func questionOptionCard(c *ui.Context, key string, index int, label, description string, checked, multi, disabled, recommended bool, onToggle func()) ui.Element {
 	t := c.Theme()
 	border, background := t.Border, ui.Transparent
 	if checked {
@@ -66,7 +68,13 @@ func questionOptionCard(c *ui.Context, key string, index int, label, description
 			ui.Text(c, strconv.Itoa(index+1)).FontSize(11).TextColor(t.TextMuted)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, label).FontSize(13).FixedLineHeight(20).TextColor(t.Text).MinWidth(0)
+			ui.Row(c).Gap(6).AlignItems(ui.Center).MinWidth(0).Children(func() {
+				ui.Text(c, label).FontSize(13).FixedLineHeight(20).TextColor(t.Text).MinWidth(0).Shrink(1)
+				if recommended {
+					ui.Text(c, i18n.T(i18n.KeyChatQuestionRecommended)).FontSize(10).TextColor(t.Accent).
+						Padding(2, 6, 2, 6).Radius(9).Background(t.Accent.Alpha(.12)).Shrink(0)
+				}
+			})
 			if description != "" {
 				ui.Text(c, description).FontSize(11).FixedLineHeight(17).TextColor(t.TextMuted).MinWidth(0)
 			}

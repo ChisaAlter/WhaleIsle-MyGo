@@ -366,6 +366,11 @@ func View(c *ui.Context, m Model) {
 						} else if body != "" {
 							md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), theme.CurrentPreferences().Chat.Size, dark)
 							md.TableHeader = chrome.Color(colors.Sidebar)
+							// Tables size their columns from measured content and
+							// only scroll once they no longer fit the message axis.
+							if m.ContentWidth > 0 {
+								md.AvailableWidth = m.ContentWidth
+							}
 							md.ResolveFile = FileMentionResolver(m.Snapshot.Messages, msg)
 							md.OnOpenFile = m.OnOpenDeliverable
 							md.RenderFence = func(ctx *ui.Context, language, program string, offset int) bool {

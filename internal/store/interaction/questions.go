@@ -16,6 +16,10 @@ type QuestionRowView struct {
 	OptionDescriptions []string
 	Header             string
 	OptionLabels       []string
+	// Recommended mirrors OptionLabels: an option whose label carries the
+	// Host's "(recommended)" suffix. The suffix stays in the label so answers
+	// round-trip unchanged; the UI shows the badge instead of the words.
+	Recommended        []bool
 	MultiSelect        bool
 	Skipped            bool
 }
@@ -73,6 +77,17 @@ func newDraftSession(req userQuestionsRequest) *draftSession {
 	return ds
 }
 
+// RecommendedQuestionLabel returns the option label without the Host's
+// "(recommended)" suffix, for display only; drafts and wire answers keep the
+// complete label.
+func RecommendedQuestionLabel(label string) string {
+	if loc := recommendedQuestionSuffix.FindStringIndex(label); loc != nil {
+		if trimmed := strings.TrimSpace(label[:loc[0]]); trimmed != "" {
+			return trimmed
+		}
+	}
+	return label
+}
 func (ds *draftSession) cardView(eventID string) QuestionCardView {
 	cv := QuestionCardView{Index: min(max(ds.index, 0), max(0, len(ds.req.Questions)-1)), Wait: ds.wait.view(time.Now()), Hidden: ds.hidden, EventID: eventID, PlanReview: planReviewOf(ds.req.Questions), PlanReviewHidden: ds.planReviewHidden}
 	for _, q := range ds.req.Questions {
@@ -91,6 +106,7 @@ func (ds *draftSession) cardView(eventID string) QuestionCardView {
 		for _, o := range q.Options {
 			row.OptionLabels = append(row.OptionLabels, o.Label)
 			row.OptionDescriptions = append(row.OptionDescriptions, o.Description)
+			row.Recommended = append(row.Recommended, recommendedQuestionSuffix.MatchString(o.Label))
 		}
 		cv.Rows = append(cv.Rows, row)
 	}

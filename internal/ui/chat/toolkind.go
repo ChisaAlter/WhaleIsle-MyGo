@@ -22,7 +22,8 @@ func ClassifyToolName(name string) (ToolKind, string) {
 	n := strings.ToLower(strings.TrimSpace(name))
 	n = strings.TrimPrefix(n, "tool/")
 	switch {
-	case strings.Contains(n, "bash") || strings.Contains(n, "shell") || strings.Contains(n, "terminal") || n == "exec":
+	case strings.Contains(n, "bash") || strings.Contains(n, "shell") || strings.Contains(n, "terminal") ||
+		n == "exec" || n == "run" || n == "run_command" || n == "execute":
 		return ToolKindBash, "bash"
 	case strings.Contains(n, "todo") || strings.Contains(n, "task_list"):
 		return ToolKindTodo, "todo"

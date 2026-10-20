@@ -87,7 +87,9 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 				}
 				flow.feedback = ""
 			}
-			choice := questionOptionCard(c, "question-option:"+row.ID+":"+strconv.Itoa(index), index, opt, description, checked, row.MultiSelect, p.Sending, toggle)
+			recommended := index < len(row.Recommended) && row.Recommended[index]
+			display := interaction.RecommendedQuestionLabel(opt)
+			choice := questionOptionCard(c, "question-option:"+row.ID+":"+strconv.Itoa(index), index, display, description, checked, row.MultiSelect, p.Sending, recommended, toggle)
 			// Enter keeps the wizard's meaning (validate and advance); Space is
 			// the toggle, as a native radio/check-box pair behaves.
 			choice.HandleInput(func(ev ui.InputEvent) bool {

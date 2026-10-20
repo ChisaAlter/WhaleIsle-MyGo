@@ -145,41 +145,54 @@ func TestTranscriptGalleryAssistantMarkdown(t *testing.T) {
 		"| 现象 | 根因 | 处理 |",
 		"|---|---|---|",
 		"| EACCES | 目录只读 | 换到工作区目录 |",
-		"| ENOENT | 父目录不存在 | 先 MkdirAll |",
-		"| 内容被截断 | 并发写 | 加锁或写临时文件再改名 |",
+		"| ENOENT | 父目录不存在或无法读取 | 先 MkdirAll |",
+		"| 内容被截断 | 两个进程同时写同一个文件 | 加锁或写临时文件再改名 |",
 	}, "\n")
 	msg := session.Message{ID: "a1", Role: "assistant", Kind: session.MessageKindText, Seq: 4, EventTime: 1700000090000, Body: body}
 	colors, fg, muted := galleryTheme()
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Children(func() {
-			markdown.View(c, msg.Body, transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), 14, false))
+			style := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), 14, false)
+			// The transcript's message axis: tables only scroll past this width.
+			style.AvailableWidth = 720
+			markdown.View(c, msg.Body, style)
 		})
 	}, 1200, 1150)
 	writeGallery(t, dir, "transcript-assistant-markdown.png", tt)
 }
 
 // transcript-tools.png — the expanded bash tool row (single-line disclosure plus
-// its terminal body) above a collapsed read row.
+// its terminal seat holding command and output) above a collapsed read row, and
+// a second bash row whose long output scrolls inside the same seat.
 func TestTranscriptGalleryToolRows(t *testing.T) {
 	dir := galleryDir(t)
 	colors, fg, muted := galleryTheme()
 	st := ToolCardStyle{FG: fg, Muted: muted, Border: chrome.Color(colors.Border), Field: chrome.Color(colors.Field),
 		Accent: chrome.Color(colors.Accent), OK: ui.RGB(61, 153, 112), Err: ui.RGB(200, 70, 70), FontSize: 13}
-	bashResult := `{"type":"tool/result","seq":6,"data":{"message":{"content":[{"type":"text","text":"ok  \twhaleisle/internal/ui/chat\t2.41s\nPASS\n"}]}}}`
+	bashResult := `{"type":"tool/result","seq":6,"data":{"message":{"content":[{"type":"text","text":"ok  \twhaleisle/internal/ui/chat\t2.41s\nok  \twhaleisle/internal/ui/frame\t9.02s\nFAIL\twhaleisle/internal/ui/composer\t7.57s\nPASS\n"}]}}}`
 	bash := session.Message{ID: "t1", Role: "assistant", Kind: session.MessageKindTool, Seq: 5, EventTime: 1700000100000,
 		Tool: &session.ToolCallView{CallID: "call-bash", Name: "bash", State: "ok",
-			Arguments: `{"command":"go test ./internal/ui/chat -run TestTranscriptGallery -count=1"}`,
+			Arguments: `{"command":"go test ./internal/ui/chat ./internal/ui/frame ./internal/ui/composer -count=1"}`,
 			Result:    &session.Message{Kind: session.MessageKindTool, Role: "tool", EventType: "tool/result", Raw: []byte(bashResult)}}}
 	read := session.Message{ID: "t2", Role: "assistant", Kind: session.MessageKindTool, Seq: 7, EventTime: 1700000110000,
 		Tool: &session.ToolCallView{CallID: "call-read", Name: "read", State: "ok",
 			Arguments: `{"path":"internal/ui/chat/chat.go","offset":96,"limit":40}`}}
-	expanded := map[string]bool{"t1|tool:call-bash": true}
+	// One very wide line proves the seat scrolls horizontally instead of
+	// widening the transcript.
+	wideResult := `{"type":"tool/result","seq":10,"data":{"message":{"content":[{"type":"text","text":"` +
+		strings.Repeat("ok      whaleisle/internal/ui/widgets/markdown     1.20s                                      ", 3) + `\nPASS\n"}]}}}`
+	wide := session.Message{ID: "t3", Role: "assistant", Kind: session.MessageKindTool, Seq: 9, EventTime: 1700000120000,
+		Tool: &session.ToolCallView{CallID: "call-run", Name: "run", State: "ok",
+			Arguments: `{"command":"go test ./internal/ui/widgets/markdown -run TestTable -count=1"}`,
+			Result:    &session.Message{Kind: session.MessageKindTool, Role: "tool", EventType: "tool/result", Raw: []byte(wideResult)}}}
+	expanded := map[string]bool{"t1|tool:call-bash": true, "t3|tool:call-run": true}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(10).Children(func() {
 			ToolMessageView(c, bash, st, ToolImageGalleryOptions{ID: "t1", Expanded: &expanded})
 			ToolMessageView(c, read, st, ToolImageGalleryOptions{ID: "t2", Expanded: &expanded})
+			ToolMessageView(c, wide, st, ToolImageGalleryOptions{ID: "t3", Expanded: &expanded})
 		})
-	}, 1200, 520)
+	}, 1200, 760)
 	writeGallery(t, dir, "transcript-tools.png", tt)
 }
 

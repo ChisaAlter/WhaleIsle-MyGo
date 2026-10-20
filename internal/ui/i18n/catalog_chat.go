@@ -577,3 +577,10 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatRowExpand, "展开", "Expand")
 	Register(KeyChatRowCollapse, "收起", "Collapse")
 }
+
+// Question option recommendation badge.
+const KeyChatQuestionRecommended = "chat.question.recommended"
+
+func init() {
+	Register(KeyChatQuestionRecommended, "推荐", "Recommended")
+}

@@ -249,56 +249,56 @@ func padLine(n, total int) string {
 // toolStructuredBody renders the per-family detail the Original toolviews own:
 // a terminal card for commands, a numbered file card for reads, the query plus
 // matches for searches and the payload for web/todo calls. It reports whether
-// the family was handled; the caller falls back to the argument/result
-// disclosures when it was not.
-func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string) bool {
+// the family was handled (the caller otherwise falls back to the argument and
+// result disclosures) and whether that body already owns the copy action.
+func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string) (handled, ownsCopy bool) {
 	switch kind {
 	case ToolKindBash:
 		command := toolArgField(info.Arguments, argumentFields[kind])
 		if command == "" && info.Output == "" {
-			return false
+			return false, false
 		}
-		if command != "" {
-			ui.Text(c, i18n.T(i18n.KeyChatToolCommand)).FontSize(11).TextColor(st.Muted)
-			toolOutputBlock(c, key+":cmd", "", command, st)
-		}
-		toolOutputBlock(c, key+":out", i18n.T(i18n.KeyChatToolOutput), info.Output, st)
-		return true
+		// One terminal seat holds the command and its output, as the Original
+		// TerminalBlock does; long lines scroll inside it instead of widening
+		// the bubble.
+		terminalBlock(c, terminalBlockStyle{FG: st.FG, Muted: st.Muted, Field: st.Field, Size: CodeSizeFor(st)},
+			key, command, info.Output, func(text string) { c.WriteClipboard(text) })
+		return true, true
 	case ToolKindRead:
 		path := toolArgField(info.Arguments, argumentFields[kind])
 		if path == "" && info.Output == "" {
-			return false
+			return false, false
 		}
 		if path != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatToolPath)).FontSize(11).TextColor(st.Muted)
 			ui.Text(c, path).FontSize(11).Font(theme.RenderPreferences().Code.Family).TextColor(st.FG).Selectable()
 		}
 		toolNumberedBlock(c, key+":content", info.Output, st)
-		return true
+		return true, false
 	case ToolKindSearch:
 		query := toolArgField(info.Arguments, argumentFields[kind])
 		if query == "" && info.Output == "" {
-			return false
+			return false, false
 		}
 		if query != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatToolQuery)+" 路 "+query).FontSize(11).TextColor(st.Muted).Selectable()
 		}
 		toolOutputBlock(c, key+":hits", i18n.T(i18n.KeyChatToolMatches), info.Output, st)
-		return true
+		return true, false
 	case ToolKindWeb:
 		if info.Output == "" {
-			return false
+			return false, false
 		}
 		toolOutputBlock(c, key+":page", "", info.Output, st)
-		return true
+		return true, false
 	case ToolKindTodo:
 		if info.Output == "" {
-			return false
+			return false, false
 		}
 		toolOutputBlock(c, key+":plan", "", info.Output, st)
-		return true
+		return true, false
 	default:
-		return false
+		return false, false
 	}
 }
 

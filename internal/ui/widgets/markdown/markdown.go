@@ -47,6 +47,9 @@ type Style struct {
 	CodeBanner ui.Color
 	// TableHeader is the table header fill; zero derives a muted tint.
 	TableHeader ui.Color
+	// AvailableWidth is the width a table may use before it scrolls. Zero keeps
+	// the Original 748 DIP document axis.
+	AvailableWidth float32
 	// QuoteInset is the blockquote text inset next to the 2px rule. Zero keeps
 	// the market/readme baseline of 16px; the conversation passes 14px.
 	QuoteInset float32

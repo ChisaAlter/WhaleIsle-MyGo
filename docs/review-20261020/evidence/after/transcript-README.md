@@ -13,8 +13,8 @@ go test -count=1 ./internal/ui/interaction -run TestTranscriptGallery
 | PNG | 画布 | 内容 | 生成测试 |
 |---|---|---|---|
 | `transcript-user-attachments.png` | 1200×760 | 用户行：240×64 PDF 附件卡（类型图标 + 文件名 + `pdf · 2.3 MB`）、坏图 danger 失败卡（`图片不存在或无法读取`）、两张 64 DIP 多图瓦片与气泡文本 | `internal/ui/chat/gallery_test.go` `TestTranscriptGalleryUserAttachments` |
-| `transcript-assistant-markdown.png` | 1200×1150 | 助手 Markdown 块阶梯：h2、无序列表（18px 标记槽）、引用（2px 左线 + 14px 缩进）、行内代码 chip、Go 代码卡（语言标签 + 换行/复制图标 + 4 空格缩进 + 语法高亮）、三列表格（表头底色、内容比例列宽） | `TestTranscriptGalleryAssistantMarkdown` |
-| `transcript-tools.png` | 1200×520 | 展开的 bash 工具行（单行 disclosure 保留摘要 + `命令`/`输出` 结构化 body + 右下角复制座位）与折叠的 read 行（图标 + 标题 + 圆点 + 摘要 + chevron，24px） | `TestTranscriptGalleryToolRows` |
+| `transcript-assistant-markdown.png` | 1200×1150 | 助手 Markdown 块阶梯：h2、无序列表（18px 标记槽）、引用（2px 左线 + 14px 缩进）、行内代码 chip、Go 代码卡（语言标签 + 换行/复制图标 + 4 空格缩进 + 语法高亮）、三列表格（表头底色、按内容测宽的列宽、行列线、总宽未超时不出滚动条） | `TestTranscriptGalleryAssistantMarkdown` |
+| `transcript-tools.png` | 1200×760 | 两个展开的终端座位（`$ 命令` 与输出同容器、8px 内边距、18 行高、右上复制）、超宽行在座位内横向滚动、折叠的 read 行（图标 + 标题 + 圆点 + 摘要 + chevron，24px） | `TestTranscriptGalleryToolRows` |
 | `transcript-approval-card.png` | 1200×360 | 审批卡：warn 左边条 + warn 边框、StateDot + `等待你的确认`、15/24 标题、`bash` 等宽命令块（含复制座位）、右对齐 `拒绝`（outline→danger）/ `允许`（primary） | `internal/ui/interaction/gallery_test.go` `TestTranscriptGalleryApprovalCard` |
 | `transcript-question-card.png` | 1200×700 | 提问卡：StateDot 表头、15/24 问题、三个选项卡（20px 序号徽章 + 描述）、自定义回答占位、`‹ 1 / 3 ›` 翻页器、`跳过此题` + `下一步`（未作答禁用）、`暂时隐藏` / `拒绝` | `TestTranscriptGalleryQuestionCard` |
 | `transcript-queue-dock.png` | 1200×260 | 队列 dock：标题 + 条数、两行 preview（单行截断）+ 图标动作（编辑 / 插话 / 删除） | `internal/ui/chat/gallery_test.go` `TestTranscriptGalleryQueueDock` |
@@ -34,9 +34,13 @@ go test -count=1 ./internal/ui/interaction -run TestTranscriptGallery
 10. `interaction/card_chrome.go` 审批命令块自带复制座位，不再重复展开原始 args。
 11. `interaction/question_navigation.go` 顶部与翻页器重复的 `1 / 3` 只保留翻页器。
 12. `interaction/question_editing.go` 自定义回答加占位符。
+13. `chat/terminal.go`（W7）bash/run 类工具统一 `terminalBlock`：命令与输出同一底色容器、8px 内边距、18 行高、横向滚动、右上复制；展开行不再出现「命令/输出」两段裸文本，也不再重复复制按钮。
+14. `widgets/markdown/table.go`（W7）列宽改 `c.MeasureText` 实测 + `clamp(内容+2*10, 60, 40% 可用宽)`，总宽超限才横向滚动；补 1px 行列线（0.5px 在整数像素渲染下会消失）。
 
 ## 仍未覆盖 / 需要 store 字段
 
 - 提问卡的「推荐」徽章：`interaction.QuestionRowView` 没有 recommended 字段（store 不在本任务写入范围）。
-- 工具行的终端块没有独立底色容器（命令有 `Field` 底、输出无底），与原版 `TerminalBlock` 的统一容器仍有差距。
-- 表格单元格内边距只有水平 6px 左右，长中文列仍会折行；原版按内容自适应更宽。
+- 表格没有单元格内的富文本测宽（行内代码/加粗按普通字宽估算），极端混排单元格仍会有几像素误差。
+- 终端座位只覆盖 bash/run 家族；search/web/todo 仍是轻量文本块（`toolOutputBlock`），未统一到 `terminalBlock`。
+- 以上图仍是软件渲染；实机窗口截图（真实字体整形/DIP/阴影）未覆盖。
+
