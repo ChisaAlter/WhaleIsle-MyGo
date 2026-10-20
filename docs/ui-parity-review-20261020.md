@@ -4,7 +4,7 @@
 > 对照基准：运行中的 Electron 版鲸屿（3080）+ 其前端源码（alpha.1 可读源码 / rc.2 构建产物）
 > 分册：[01 外壳与导航](review-20261020/01-shell-nav.md) · [02 对话与消息](review-20261020/02-conversation.md) · [03 输入区](review-20261020/03-composer.md) · [04 功能界面](review-20261020/04-surfaces.md) · [05 视觉与特效](review-20261020/05-visual-system.md)
 
-> **修复进展（2026-10-20）**：本报告 103 条里，Wave 1/2 已关闭全部 14 条 P0 中的 12 条（hero、品牌锁/账号区、标题带、Markdown、工具行、原语层、代码块、本地化、设置行式、文件标签、Diff、用量、材质/首启外观），并清零 chat 与 17 个 UI 包的双语双写（955→≈0，仅剩单语中文待英文化）。执行记录见 [fix-plan](fix-plan-20261020.md)，验收截图见 `review-20261020/evidence/after/`。未关闭项：圆角面板玻璃、Host 外观覆盖首启深色、cmd 系统弹框、附件卡/队列/回合导航等 P1 细节。
+> **修复进展（2026-10-20，Wave 1-3）**：本报告 103 条里，14 条去重 P0 已全部有实现（材质为部分 + DPI 待验收）。已落地：设计原语层、hero/settling、品牌锁与账号区、单行标题带、Markdown 块级排版、单行工具 disclosure、代码块双主题、设置行式与 Switch、文件横向 chip、Diff 行带/行号/hunk 折叠、用量仪表盘、终端标签、Git 提审对话框与 +N/-N、附件卡/图片/审批卡/提问卡/队列 dock/回合导航轨、圆角采样玻璃与弹层淡入、窄宽抽屉、指针/金属漆桥接。本地化：UI 包 + store/desktop（411 处）+ cmd（76 处）双语双写归零（仅 6 处单语中文夹标识符例外）。默认外观更正为跟随系统（原版 DEFAULT_PREFERENCE=system）。未关闭：150% DPI 下 hero/composer 宽轴仍被裁（真实窗口验收发现）、剩余应用语义 MessageBox、纯中文文案英文化、文件标签 "+" picker、实机深色/壁纸对照。执行记录见 [fix-plan](fix-plan-20261020.md)，截图见 `review-20261020/evidence/after/`。
 
 ## 0. 一句话结论
 
