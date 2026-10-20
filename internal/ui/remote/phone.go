@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -136,6 +137,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		status = "offline"
 	}
 	ui.Text(c, "offer v2 · "+status).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+	pairingSteps(c, runtime, status, fg, muted, accent)
 	if runtime.Message != "" {
 		ui.Text(c, runtime.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
@@ -171,4 +173,61 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if m.GatewayProtocol != "chisacode-v2" && snap.RemoteEnabled && !snap.HasRemoteToken {
 		ui.Text(c, i18n.T(i18n.KeyRemoteMobileNeedToken)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
+}
+
+// pairingStep is one stage of the pairing flow.
+type pairingStep struct {
+	title  string
+	detail string
+	state  string // done, active, failed, pending
+}
+
+// pairingSteps is the pairing flow as three stages — code, wait, result — with
+// the stage the runtime is in marked, so the page says where the reader is
+// instead of only printing a status word.
+func pairingSteps(c *ui.Context, runtime phoneremote.RuntimeState, status string, fg, muted, accent ui.Color) {
+	valid := runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt)
+	expired := runtime.PairingURL != "" && !time.Now().Before(runtime.ExpiresAt)
+	steps := []pairingStep{
+		{label("生成配对码", "Create a pairing code"), label("打开手机运行时", "Start the phone runtime"), "pending"},
+		{label("等待扫码", "Wait for the scan"), label("用手机扫描二维码或打开链接", "Scan the QR code or open the link"), "pending"},
+		{label("配对完成", "Paired"), label("设备出现在已配对列表", "The device appears in the paired list"), "pending"},
+	}
+	switch {
+	case runtime.PairingURL != "":
+		steps[0].state = "done"
+		switch {
+		case valid:
+			steps[1].state = "active"
+		case expired:
+			steps[1].state = "failed"
+		default:
+			steps[1].state = "pending"
+		}
+	case status == "ready":
+		steps[0].state = "active"
+	}
+	if len(runtime.Devices) > 0 {
+		for index := range steps {
+			steps[index].state = "done"
+		}
+	}
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
+		for index, step := range steps {
+			dot := muted
+			switch step.state {
+			case "done":
+				dot = accent
+			case "active":
+				dot = accent
+			case "failed":
+				dot = c.Theme().Danger
+			}
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(6, 10).Radius(8).Border(.5, c.Theme().Border).Children(func() {
+				ui.Box(c).Size(6, 6).Shrink(0).Radius(3).Background(dot)
+				ui.Text(c, fmt.Sprintf("%d. %s", index+1, step.title)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+				ui.Text(c, step.detail).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+			})
+		}
+	})
 }

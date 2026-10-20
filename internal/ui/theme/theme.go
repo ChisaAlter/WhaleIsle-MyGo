@@ -47,9 +47,9 @@ type Colors struct {
 	FG              string // --dsw-alias-label-primary
 	Muted           string // --dsw-alias-label-tertiary
 	Caption         string // --dsw-alias-label-caption / composer placeholder
-	Accent          string // --dsw-alias-state-business-primary / deepseek-500
+	Accent          string // --dsw-alias-state-business-primary (deepseek-500 light, rgb(103, 158, 254) dark)
 	Border          string // --dsw-alias-border-l2
-	Field           string // --dsw-alias-bg-layer-1 / module-platform
+	Field           string // raised surface: --dsw-alias-bg-layer-1 (dark #232324; light reads module-platform #f5f6f7 where the token is #ffffff)
 	Sidebar         string // --dsw-specific-sidebar-fill
 	Titlebar        string // titlebar / chrome strip
 	Hover           string // --dsw-alias-interactive-bg-hover
@@ -73,12 +73,18 @@ type Theme struct {
 
 // deepseekLight mirrors official dsh web light tokens (dsh-webui-tokens.css).
 var deepseekLight = Colors{
-	BG:              "#ffffff",
-	FG:              "#0f1115",
-	Muted:           "#81858c",
-	Caption:         "#adb2b8",
-	Accent:          "#4176e6",
-	Border:          "rgba(0, 0, 0, 0.10)",
+	BG:      "#ffffff",
+	FG:      "#0f1115",
+	Muted:   "#81858c",
+	Caption: "#adb2b8",
+	Accent:  "#4176e6",
+	Border:  "rgba(0, 0, 0, 0.10)",
+	// Raised surface. --dsw-alias-bg-layer-1 is rgb(255, 255, 255) here
+	// (mixWallpaperSurfaces' light "raised" fallback, neutral-bluish-00); this
+	// value instead reads --dsw-alias-bg-module-platform (rgb(245, 246, 247)),
+	// which keeps light-mode wells visible against the white base. Matching the
+	// sheet would need #ffffff and is left to a wave that can retune the surfaces
+	// sharing the token (see the Wave 9 token report).
 	Field:           "#f5f6f7",
 	Sidebar:         "#f9fafb",
 	Titlebar:        "#f9fafb",
@@ -94,20 +100,30 @@ var deepseekLight = Colors{
 
 // deepseekDark mirrors official dsh web dark tokens.
 var deepseekDark = Colors{
-	BG:              "#151517",
-	FG:              "#f9fafb",
-	Muted:           "#adb2b8",
-	Caption:         "#81858c",
-	Accent:          "#7aaaff",
-	Border:          "rgba(255, 255, 255, 0.12)",
-	Field:           "#232324",
-	Sidebar:         "#1b1b1c",
-	Titlebar:        "#232324",
-	Hover:           "rgba(255, 255, 255, 0.08)",
-	Pressed:         "rgba(255, 255, 255, 0.14)",
-	ButtonFG:        "#0f1115",
-	Bubble:          "rgb(44, 44, 46)",
-	InputMajor:      "rgba(44, 44, 46, 0.8)",
+	BG:      "#151517",
+	FG:      "#f9fafb",
+	Muted:   "#adb2b8",
+	Caption: "#81858c",
+	// --dsw-alias-state-business-primary: the harness stylesheet resolves it to
+	// --dsw-static-deepseek-400 (rgb(122, 170, 255)) in the dark half. The
+	// app-level dsh-webui-tokens.css copy says rgb(103, 158, 254); the cascaded
+	// value is the harness one, which the shell follows.
+	Accent: "#7aaaff",
+	Border: "rgba(255, 255, 255, 0.12)",
+	// Raised surface, --dsw-alias-bg-layer-1: rgb(35, 35, 36), which is also
+	// mixWallpaperSurfaces' dark "raised" fallback (neutral-bluish-875). The light
+	// half reads --dsw-alias-bg-module-platform instead (see deepseekLight.Field).
+	Field:    "#232324",
+	Sidebar:  "#1b1b1c",
+	Titlebar: "#232324",
+	Hover:    "rgba(255, 255, 255, 0.08)",
+	Pressed:  "rgba(255, 255, 255, 0.14)",
+	ButtonFG: "#0f1115",
+	Bubble:   "rgb(44, 44, 46)",
+	// --dsw-specific-input-major: color-mix(rgb(44, 44, 46) 80%, transparent).
+	InputMajor: "rgba(44, 44, 46, 0.8)",
+	// --dsw-alias-button-info-fill follows state-business-primary here
+	// (--dsw-static-deepseek-400); its hover is deepseek-500.
 	ButtonInfoFill:  "rgb(122, 170, 255)",
 	ButtonInfoHover: "rgb(65, 118, 230)",
 	SelectorFill:    "rgb(53, 54, 56)",

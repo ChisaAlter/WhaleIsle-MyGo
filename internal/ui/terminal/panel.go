@@ -57,10 +57,13 @@ func openNativeTerminal(root string, dark bool) (*myterm.Terminal, error) {
 	if err := prepareNativeRuntime(); err != nil {
 		return nil, err
 	}
-	light, darkTheme := myterm.LightTheme(), myterm.DarkTheme()
-	opts := myterm.Options{Dir: root, Theme: light, DarkTheme: darkTheme, Transparent: true, PTYResizeDelay: 150 * time.Millisecond}
-	if dark {
-		opts.Theme = darkTheme
+	// Open before the first frame has a theme id: the default palette of the
+	// half; View refines it once the workspace's theme is known.
+	themed := terminalTheme(theme.Default().Active(dark), dark)
+	opts := myterm.Options{
+		Dir: root, Theme: themed, DarkTheme: themed, Transparent: true,
+		PTYResizeDelay: 150 * time.Millisecond,
+		Font:           terminalFont(theme.RenderPreferences().Terminal),
 	}
 	return myterm.New(opts)
 }
@@ -258,21 +261,14 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, fmt.Sprintf(terminalLabel("进程已退出（code %d），重启可新建当前终端", "Process exited (code %d). Restart reopens this terminal."), shell.term.ExitCode())).FontSize(11).TextColor(muted)
 					default:
 					}
-					font := theme.CurrentPreferences().Terminal
+					font := theme.RenderPreferences().Terminal
 					if shell.appearanceFont != font {
-						shell.term.SetFont(myterm.Font{Family: font.Family, Size: font.Size})
+						shell.term.SetFont(terminalFont(font))
 						shell.appearanceFont = font
 					}
 					colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 					if shell.appearanceColors != colors {
-						native := myterm.LightTheme()
-						if m.SystemDark {
-							native = myterm.DarkTheme()
-						}
-						native.Background = chrome.Color(colors.BG)
-						native.Foreground = chrome.Color(colors.FG)
-						native.Cursor = chrome.Color(colors.Accent)
-						native.Selection = chrome.Color(colors.Accent).Alpha(.3)
+						native := terminalTheme(colors, m.SystemDark)
 						shell.term.SetTheme(native, native)
 						shell.appearanceColors = colors
 					}

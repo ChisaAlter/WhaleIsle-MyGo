@@ -88,12 +88,9 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 				if v.Environment.Scrollback > 0 {
 					scrollback = min(20<<20, v.Environment.Scrollback*max(80, v.Environment.MaxCols)*4)
 				}
-				light, darkTheme := myterm.LightTheme(), myterm.DarkTheme()
+				themed := terminalTheme(colors, dark)
 				copyOwner, copyID, copyAttachment := v.Owner, v.ActiveID, v.Attachment
-				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: light, DarkTheme: darkTheme, Scrollback: scrollback}
-				if dark {
-					opts.Theme = darkTheme
-				}
+				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: themed, DarkTheme: themed, Scrollback: scrollback, Font: terminalFont(theme.RenderPreferences().Terminal)}
 				var err error
 				h.terminal, err = myterm.New(opts)
 				if err != nil {

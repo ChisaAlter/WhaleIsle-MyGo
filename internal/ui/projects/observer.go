@@ -125,18 +125,31 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 	}
 	root.Children(func() {
 		colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-		ui.Row(c).FillWidth().MinWidth(0).Height(32).Shrink(0).Gap(4).Padding(0, 4).AlignItems(ui.Center).Children(func() {
-			projectIcon(c, "folder", 14, chrome.Color(colors.Muted), false)
-			ui.Text(c, p.Title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted)).SingleLine()
-			for _, section := range []struct{ id, zh, en string }{{"tasks", "任务与要求", "Tasks / requests"}, {"team", "成员", "Team"}, {"materials", "材料", "Materials"}} {
-				label := tr(section.zh, section.en)
-				if o.Section == section.id {
-					label = "● " + label
+		ui.Column(c).FillWidth().MinWidth(0).Shrink(0).Gap(2).Padding(0, 4).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
+				projectIcon(c, "folder", 14, chrome.Color(colors.Muted), false)
+				ui.Text(c, p.Title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).SingleLine()
+				if status := projectStateLabel(p); status != "" {
+					ui.Text(c, status).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
 				}
-				if ui.Button(c, label).Height(28).Padding(0, 6).FontSize(fonttheme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy).Clicked() {
-					o.navigate(m, section.id)
-				}
+			})
+			if p.CanonicalWorkingDirectory != "" {
+				ui.Text(c, p.CanonicalWorkingDirectory).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(p.CanonicalWorkingDirectory).
+					Font("monospace").FontSize(fonttheme.InterfaceSize(10)).TextColor(chrome.Color(colors.Muted))
 			}
+			ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
+				for _, section := range []struct{ id, zh, en string }{{"tasks", "任务与要求", "Tasks / requests"}, {"team", "成员", "Team"}, {"materials", "材料", "Materials"}} {
+					label := tr(section.zh, section.en)
+					active := o.Section == section.id
+					button := ui.Button(c.Key("observer-section-"+section.id), label).Role(ui.RoleTab).Height(26).Radius(6).Padding(0, 8).FontSize(fonttheme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).Selected(active).Disabled(m.Busy)
+					if active {
+						button.Background(c.Theme().SurfaceHover)
+					}
+					if button.Clicked() {
+						o.navigate(m, section.id)
+					}
+				}
+			})
 		})
 		if m.Error != "" {
 			ui.Text(c, m.Error).Selectable()
@@ -212,4 +225,22 @@ func observerLoad(c *ui.Context, m Model, load func()) {
 	if ui.Button(c, tr("读取此项目内容", "Load this Project")).Disabled(m.Busy).Clicked() {
 		load()
 	}
+}
+
+// projectStateLabel is the observer header's one-word status: paused wins, then
+// the coordinator's activity, then the lifecycle stage.
+func projectStateLabel(p projectflow.Project) string {
+	switch {
+	case p.Paused:
+		return tr("已暂停", "Paused")
+	case p.Archiving:
+		return tr("归档中", "Archiving")
+	case p.Activity.Running > 0:
+		return tr("运行中", "Running")
+	case p.Activity.Queued > 0:
+		return tr("排队中", "Queued")
+	case p.Lifecycle != "":
+		return p.Lifecycle
+	}
+	return ""
 }

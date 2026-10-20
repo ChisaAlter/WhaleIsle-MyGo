@@ -23,9 +23,34 @@ var backgroundState struct {
 	hasBox  bool
 	dark    bool
 	version uint64
+	// transparent is whether the transparent theme was effective on the last
+	// configure, so the sharp-wallpaper lift runs once per transition; liftedBlur
+	// is what it raised the blur to while it stays effective.
+	transparent bool
+	liftedBlur  float64
 }
 
+// transparentMinBlur is TRANSPARENT_MIN_BLUR (ui-theme/src/wallpaper.ts): the
+// blur the harness lifts the wallpaper to when the transparent theme becomes
+// effective, so text is not left on a sharp image with 0% surfaces.
+const transparentMinBlur = 20
+
 func ConfigureBackdrop(path string, p wallpapers.Preferences) {
+	// The harness raises a too-sharp wallpaper once, when the transparent theme
+	// becomes effective, and the raise holds while it stays effective: the saved
+	// preferences keep the user's own blur, so this only changes what the window
+	// paints, and turning the theme off restores it.
+	transparent := p.Transparent && path != ""
+	if transparent && !backgroundState.transparent && p.Blur < transparentMinBlur {
+		backgroundState.liftedBlur = transparentMinBlur
+	}
+	if !transparent {
+		backgroundState.liftedBlur = 0
+	}
+	if transparent && backgroundState.liftedBlur > p.Blur {
+		p.Blur = backgroundState.liftedBlur
+	}
+	backgroundState.transparent = transparent
 	backgroundState.prefs = p
 	backgroundState.wallpaper = path
 	backgroundState.active = path != "" || p.Effect == "gradient"
@@ -84,6 +109,10 @@ func BackdropTerminal(c ui.Color) ui.Color {
 // glass.go), so the mask is part of what they sample.
 func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
 	ConfigureBackdrop(path, p)
+	// ConfigureBackdrop owns the effective preferences: the transparent theme
+	// may have lifted the blur (transparentMinBlur), and the bitmap has to be
+	// built with that value.
+	p = backgroundState.prefs
 	reduced := len(reducedMotion) > 0 && reducedMotion[0]
 	if path != "" {
 		bmp := backgroundBitmap(path, p)
