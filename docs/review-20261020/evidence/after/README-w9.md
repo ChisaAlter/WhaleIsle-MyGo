@@ -40,7 +40,8 @@ SURFACES_GALLERY_DIR=docs/review-20261020/evidence/after \
 | `surface-remote-machines.png` | 机器行卡片：状态点（已连接/当前/离线三种色）、名称 + 当前/已连接标记、`user@host:port` 等宽行、延迟/最近连接/工作区元信息、`⋯` 动作菜单（选择/测试/连接/编辑/移除，右键同菜单） |
 | `surface-remote-files.png` | 文件页：可点击面包屑（逐段返回上级）+ 每行目录/文件图标 + 名称 + 类别；加载/空/错误三态与「新建文件夹」内联表单 |
 | `surface-pairing.png` | 配对三步：生成配对码 → 等待扫码 → 配对完成，按运行时状态着色（进行中/完成/超时失败） |
-| `surface-project.png` | **未生成**：ObserverView 需要完整的 projectflow fixture（Listing + Coordinator 会话 + 观察器状态），本轮余额不足；Project 观察器头部已重构（标题 + 状态词 + 等宽路径行 + 无 `● ` 前缀的分区 chip），由既有 projects 测试覆盖 |
+| `surface-project.png` | Project 观察器（`ObserverView` 真实 View 路径，900×520）：项目标题 + 等宽路径行 + 右侧状态词、分区 chip（Tasks/requests · Team · Materials）、请求筛选 chips（Current · Delivered · Task history）、展开中的活动请求卡（Active 徽标 + Lead · Running + Task details）与其下的折叠卡；fixture 字段：Listing{Available,Projects} + SelectedSession == CoordinatorSessionID + ObserverHost + RequestPage.Items + ObserverState{Section,Initialized} |
 
 复现（PowerShell）：`$env:SURFACES_GALLERY_DIR='docs\review-20261020\evidence\after'` 后
-`go test ./internal/ui/remote -run TestRemoteMachineCardsSnapshot|TestRemoteFilesSnapshot|TestRemotePairingSnapshot`。
+`go test ./internal/ui/remote -run TestRemoteMachineCardsSnapshot|TestRemoteFilesSnapshot|TestRemotePairingSnapshot`、
+`go test ./internal/ui/projects -run TestProjectObserverSurfaceSnapshot`。

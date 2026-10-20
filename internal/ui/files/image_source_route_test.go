@@ -37,10 +37,15 @@ func imageRouteModel(root string) (Model, *FileTab, chan struct{}) {
 	return m, tab, notified
 }
 
+// awaitImageRoute waits for the decode goroutine by polling the route state: a
+// notification wakes the loop, and the deadline only bounds a genuinely stuck
+// decode. The failure names the file and what the route was still reporting.
 func awaitImageRoute(t *testing.T, m Model, tab *FileTab, notified <-chan struct{}) *imagePreview {
 	t.Helper()
-	deadline := time.NewTimer(time.Second)
+	const budget = 2 * time.Second
+	deadline := time.NewTimer(budget)
 	defer deadline.Stop()
+	checks := 0
 	for {
 		result := readImagePreview(m, tab)
 		if !result.loading {
@@ -49,8 +54,10 @@ func awaitImageRoute(t *testing.T, m Model, tab *FileTab, notified <-chan struct
 		select {
 		case <-notified:
 		case <-deadline.C:
-			t.Fatal("image route did not settle")
+			t.Fatalf("image route for %q did not settle within %s (%d state checks, loading=%v, generation=%d)",
+				tab.Path, budget, checks, result.loading, m.ImageGeneration)
 		}
+		checks++
 	}
 }
 

@@ -77,7 +77,18 @@ func TestAttachmentRetrySurvivesDecodeFailure(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		paintAttachmentRail(c, m, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80))
 	}, 600, 300)
-	if err := tt.Click("Retry upload: broken.png"); err != nil {
+	retryLabel := "Retry upload: broken.png"
+	// Decoding runs in a goroutine, so under load the first frame can still be
+	// the loading state; wait for the retry seat instead of clicking blind.
+	deadline := time.Now().Add(2 * time.Second)
+	for !tt.HasText(retryLabel) {
+		if time.Now().After(deadline) {
+			t.Fatalf("a failed preview never showed its retry: %v", tt.Texts())
+		}
+		tt.Frame()
+		time.Sleep(time.Millisecond)
+	}
+	if err := tt.Click(retryLabel); err != nil {
 		t.Fatalf("a failed preview hid its retry: %v", err)
 	}
 	if retries != 1 {

@@ -2,6 +2,7 @@ package diffsurface
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,17 +44,30 @@ func captionFixtureRepo(t *testing.T) string {
 	run("commit", "-m", "isolated fixture")
 	return root
 }
-func awaitCaptionFixture(t *testing.T, tt *ui.Tester, ready func() bool) {
+// awaitCaptionFixture drives frames until the fixture settles. It polls the
+// condition instead of sleeping a fixed amount, so a fast machine finishes fast
+// and a loaded one still has 2s of headroom; the failure names the condition and
+// the caller-supplied state so a red run explains itself.
+func awaitCaptionFixture(t *testing.T, tt *ui.Tester, ready func() bool, detail ...func() string) {
 	t.Helper()
-	deadline := time.Now().Add(4 * time.Second)
+	const budget = 2 * time.Second
+	deadline := time.Now().Add(budget)
+	frames := 0
 	for time.Now().Before(deadline) {
 		tt.Frame()
+		frames++
 		if ready() {
 			return
 		}
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(time.Millisecond)
 	}
-	t.Fatal("isolated caption fixture did not settle")
+	state := ""
+	for _, describe := range detail {
+		if describe != nil {
+			state += " " + describe()
+		}
+	}
+	t.Fatalf("caption fixture did not settle within %s after %d frames;%s", budget, frames, state)
 }
 
 func TestCaptionInitializeIsOneGestureAndCapturesItsRoot(t *testing.T) {
@@ -75,7 +89,9 @@ func TestCaptionInitializeIsOneGestureAndCapturesItsRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	current = next
-	awaitCaptionFixture(t, tt, func() bool { return w.Operation == nil })
+	awaitCaptionFixture(t, tt, func() bool { return w.Operation == nil }, func() string {
+		return fmt.Sprintf("operation=%v accepted=%v status=%q", w.Operation != nil, accepted, w.Status)
+	})
 	if !accepted {
 		t.Fatal("one gesture did not admit initialization")
 	}
