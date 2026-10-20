@@ -29,6 +29,12 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 }
 
 func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
+	s.mu.Lock()
+	hasWindow := s.win != nil
+	s.mu.Unlock()
+	if win == nil || !hasWindow {
+		return false, errors.New("no desktop window for the task confirmation")
+	}
 	label := resumeText("退出", "Quit")
 	if operation == "restart" {
 		label = resumeText("重启", "Restart")
@@ -69,8 +75,16 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 		lines = append(lines, resumeText("以下检查状态未知：", "These checks are unknown: ")+strings.Join(missing, ", "))
 	}
 	lines = append(lines, resumeText("继续可能中断任务；这不代表任务已经完成。是否仍要", "Continuing may interrupt work; this does not mean it has finished. Continue with ")+label+"?")
-	result, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: label, Message: strings.Join(lines, "\n\n"), Buttons: []string{resumeText("取消", "Cancel"), resumeText("仍要", "Continue: ") + label}, DefaultButton: 0, CancelButton: 0})
-	return err == nil && result.Button == 1, err
+	// Every caller reaches this through a background goroutine, so the in-app
+	// confirmation can be awaited here; a UI-thread caller would deadlock.
+	approved := s.askConfirmBlocking(confirmAskRequest{
+		Title:        label,
+		Body:         strings.Join(lines, "\n\n"),
+		ConfirmLabel: resumeText("仍要", "Continue: ") + label,
+		CancelLabel:  resumeText("取消", "Cancel"),
+		Danger:       true,
+	})
+	return approved, nil
 }
 
 func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) bool {

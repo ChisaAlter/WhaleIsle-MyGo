@@ -60,13 +60,24 @@ func (s *mainState) startImport(win *mygo.Window) {
 		release()
 		return
 	}
-	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent: win, Type: mygo.MessageQuestion, Title: "确认导入数据",
-		Message: importer.Confirmation(cat, sel) + "\n\n" + resumeText("导入前会检查当前任务并停止 Host 内核；如有运行中的工作，会继续显示现有任务确认。桌面窗口保持打开，导入结束后内核保持停止，可稍后手动启动。", "Before importing, current tasks are checked and the Host runtime is stopped. Active work uses the existing task confirmation. The desktop window stays open and the runtime stays stopped after import until you start it again."), Buttons: []string{"取消", "确认并继续"}, DefaultButton: 0, CancelButton: 0,
+	s.askConfirm(confirmAskRequest{
+		Title:        resumeText("确认导入数据", "Confirm data import"),
+		Body:         importer.Confirmation(cat, sel) + "\n\n" + resumeText("导入前会检查当前任务并停止 Host 内核；如有运行中的工作，会继续显示现有任务确认。桌面窗口保持打开，导入结束后内核保持停止，可稍后手动启动。", "Before importing, current tasks are checked and the Host runtime is stopped. Active work uses the existing task confirmation. The desktop window stays open and the runtime stays stopped after import until you start it again."),
+		ConfirmLabel: resumeText("确认并继续", "Confirm and continue"),
+		CancelLabel:  resumeText("取消", "Cancel"),
+		Danger:       true,
+		Run:          func() { s.continueImport(win, sup, cat, sel) },
+		Cancel:       release,
 	})
-	if err != nil || answer.Button != 1 {
-		release()
-		return
+}
+
+// continueImport performs the protected stop and the import after the in-app
+// confirmation; it owns the import slot until the goroutine below releases it.
+func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, cat importer.Catalog, sel importer.ApplySelection) {
+	refresh := func() {
+		if win != nil {
+			win.Update(func() {})
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
