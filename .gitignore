@@ -15,3 +15,17 @@ dist/
 
 # Verified THA4 runtime is staged locally, never checked in.
 pet-render-assets/
+
+# Local MyGo dev instance: its private data dir (WHALEISLE_USER_DATA, holds a
+# copy of credentials.json) and the runtime staged for it by
+# scripts/session-runtime.mjs. Never committed.
+.devdata/
+.runtime-rc2/
+
+# Scratch notes, logs and one-off helper scripts.
+tmp/
+
+# Runtime files the packaging stage copies next to the built shell.
+/ghostty-vt.dll
+/ghostty-vt.dll.LICENSE
+/terminal-runtime.json
