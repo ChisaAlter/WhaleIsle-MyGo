@@ -2,6 +2,8 @@
 package usage
 
 import (
+	"time"
+	"fmt"
 	"context"
 	"strings"
 	"whaleisle/internal/ui/widgets"
@@ -63,21 +65,35 @@ func View(c *ui.Context, m Model) {
 	snap := m.Store.Snapshot()
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyUsageTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-			if snap.Loading {
-				ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeyUsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-				m.Store.RefreshStats(context.Background(), true)
-				if m.OnRefresh != nil {
-					m.OnRefresh()
-				} else {
-					m.Store.Refresh(context.Background(), m.SessionID)
+		ui.Column(c).FillWidth().MinWidth(0).Padding(14, 16, 8, 16).Gap(4).Children(func() {
+			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, usageChartIcon).Size(16, 16).TextColor(fg)
+				ui.Text(c, i18n.T(settingsPass4UsageTitle)).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(fg).Grow(1)
+				if snap.Loading {
+					ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
-			}
-			if m.OnClose != nil && widgets.Button(c, colors, i18n.T(i18n.KeyUsageBack), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-				m.OnClose()
+				// The reference keeps export/settings next to refresh; both are
+				// disabled here because this build has no exporter or dialog yet.
+				export := widgets.Button(c, colors, i18n.T(settingsPass4UsageExport),
+					widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: true})
+				export.Tooltip(i18n.T(settingsPass4UsageExportUnavailable))
+				settings := widgets.Button(c, colors, i18n.T(settingsPass4UsageSettings),
+					widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: true})
+				settings.Tooltip(i18n.T(settingsPass4UsageSettingsUnavailable))
+				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+					m.Store.RefreshStats(context.Background(), true)
+					if m.OnRefresh != nil {
+						m.OnRefresh()
+					} else {
+						m.Store.Refresh(context.Background(), m.SessionID)
+					}
+				}
+				if m.OnClose != nil && widgets.Button(c, colors, i18n.T(i18n.KeyUsageBack), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+					m.OnClose()
+				}
+			})
+			if at := m.Store.Stats().UpdatedAt; at > 0 {
+				ui.Text(c, usageUpdatedLabel(at)).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 		ui.Box(c).Fill().Height(1).Background(border)
@@ -176,4 +192,19 @@ func View(c *ui.Context, m Model) {
 			})
 		})
 	})
+}
+
+// usageChartIcon is the bar-chart glyph beside the usage title.
+var usageChartIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V8M8 13V3M13 13V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`))
+// usageUpdatedLabel renders the Host's snapshot time in UTC, matching the
+// reference's "data as of HH:MM · UTC" line. Values above 1e12 are taken as
+// milliseconds because older Host builds send both units.
+func usageUpdatedLabel(at int64) string {
+	if at <= 0 {
+		return ""
+	}
+	if at > 1e12 {
+		at /= 1000
+	}
+	return fmt.Sprintf(i18n.T(settingsPass4UsageUpdated), time.Unix(at, 0).UTC().Format("15:04"))
 }

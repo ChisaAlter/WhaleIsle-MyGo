@@ -18,6 +18,7 @@ func bodyIcon(name string) *ui.SVG {
 		"document": `<path d="M4 2h6l3 3v9H4zM10 2v4h3M6 8h5M6 11h5"/>`,
 		"down":     `<path d="m4 6 4 4 4-4"/>`,
 		"right":    `<path d="m6 4 4 4-4 4"/>`,
+		"gear":     `<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/>`,
 	}
 	icon := ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">` + paths[name] + `</svg>`))
 	bodyIcons[name] = icon
@@ -26,5 +27,16 @@ func bodyIcon(name string) *ui.SVG {
 func bodyIconAction(c *ui.Context, label, icon string, disabled bool) bool {
 	button := ui.Button(c, "").Label(label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
 	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
+	return button.Clicked()
+}
+
+// bodyIconAction32 is bodyIconAction at the 32 DIP size the installed build uses
+// in page headers.
+func bodyIconAction32(c *ui.Context, label, icon string, disabled bool) bool {
+	button := ui.Button(c, "").Label(label).Size(32, 32).Padding(7).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
+	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
+	if button.Hovered() {
+		button.Background(c.Theme().SurfaceHover)
+	}
 	return button.Clicked()
 }

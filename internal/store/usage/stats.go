@@ -87,6 +87,9 @@ type statsState struct {
 	Cached                           bool
 	Err                              string
 	Days                             int
+	// UpdatedAt is the Host's `updatedAt` for this snapshot (epoch seconds),
+	// 0 when the response carried none.
+	UpdatedAt int64
 }
 type StatsView struct {
 	raw                              json.RawMessage
@@ -97,6 +100,9 @@ type StatsView struct {
 	Cached                           bool
 	Err                              string
 	Days                             int
+	// UpdatedAt is the Host's updatedAt for this snapshot (epoch seconds),
+	// 0 when the response carried none.
+	UpdatedAt int64
 }
 
 func (s *Store) Stats() StatsView {
@@ -110,6 +116,7 @@ func (s *Store) Stats() StatsView {
 		var o Overview
 		if json.Unmarshal(s.stats.Raw, &o) == nil {
 			v.Overview = &o
+		v.UpdatedAt = o.UpdatedAt
 		}
 	}
 	return v

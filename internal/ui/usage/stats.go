@@ -34,7 +34,7 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageError), st.Err+i18n.T(i18n.KeySurfacesUsageRetryHint), fg, muted)
 		return
 	case st.Overview == nil:
-		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageEmpty), usageText("刷新以读取内置统计服务。", "Refresh to read the built-in statistics service."), fg, muted)
+		usageEmpty(c, i18n.T(settingsPass4UsageEmptyTitle), i18n.T(settingsPass4UsageEmptyBody), fg, muted)
 		return
 	}
 	o := st.Overview

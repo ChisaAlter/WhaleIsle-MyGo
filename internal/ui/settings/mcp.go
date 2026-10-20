@@ -54,8 +54,23 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.MCP
-	ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
-	ui.Text(c, mcpCatalogText("管理本机 MCP 服务器。HTTP 服务器可在本页登录后在对话里使用工具。组成配置条目只读。", "Manage local MCP servers. Sign in on an HTTP row so its tools are available in chat. Composition rows are read-only.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(18)).Bold().TextColor(fg)
+			ui.Text(c, i18n.T(KeyPass4AMCPHintManaged)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, i18n.T(KeyPass4AMCPHintHTTP)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, i18n.T(KeyPass4AMCPHintComposition)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		})
+		ui.Row(c).Gap(6).Shrink(0).AlignItems(ui.Center).Children(func() {
+			addLabel := mcpCatalogText("添加 MCP 服务器", "Add MCP server")
+			if bodyIconAction32(c, addLabel, "plus", a.Busy || a.OnEdit == nil) && a.OnEdit != nil {
+				a.OnEdit("")
+			}
+			if bodyIconAction32(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
+				a.OnRefresh()
+			}
+		})
+	})
 	if !a.HasListRPC {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPStubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPSchemaHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -77,7 +92,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.Catalog != nil && len(a.Catalog.Snapshot.Rows) > 0 {
 			message = mcpCatalogText("没有匹配的服务器", "No matching servers")
 		}
-		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		mcpEmptyCard(c, message, muted)
 	} else {
 		for _, row := range a.Servers {
 			mcpCompactRow(c, a, row, fg, muted)
@@ -119,9 +134,6 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
 			a.OnCancelEdit()
 		}
-	}
-	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(a.Busy).Clicked() {
-		a.OnRefresh()
 	}
 }
 
@@ -285,7 +297,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 				if message == "" {
 					message = fmt.Sprintf(providerCopy("测试成功：%d 个工具（%s）", "Test succeeded: %d tools (%s)"), int(diagnostic.Result.ToolCount), mcpTestToolSummary(diagnostic.Result.ToolNames))
 				}
-				ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				mcpEmptyCard(c, message, muted)
 			}
 		}
 		if strings.Contains(strings.ToLower(r.Status), "failed") && a.OnRetry != nil && r.Writable {
@@ -293,5 +305,16 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 				a.OnRetry(r.ID)
 			}
 		}
+	})
+}
+
+// mcpEmptyCard is the dashed placeholder the installed build shows before the
+// first server: a 1px dashed muted outline, radius 8, two centered lines.
+func mcpEmptyCard(c *ui.Context, message string, muted ui.Color) {
+	ui.Column(c.Key("mcp-empty")).FillWidth().MinWidth(0).MinHeight(92).Gap(4).Padding(20, 16).
+		Radius(8).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .3)).BorderStyle(ui.BorderDashed).
+		AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+		ui.Text(c, i18n.T(KeyPass4AMCPEmptySecondary)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	})
 }

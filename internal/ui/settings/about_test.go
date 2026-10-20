@@ -38,7 +38,7 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	if checks != 1 || reads != 1 || !tt.HasText("synthetic metadata error") || !tt.HasText("synthetic update pending") {
 		t.Fatal("initial metadata/check/error receipts missing")
 	}
-	if err := tt.Click("Open runtime directory"); err != nil {
+	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}
 	if homes != 0 {
@@ -50,20 +50,20 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	}
 	a.Loading, a.UpdateBusy, a.HomeBusy = false, false, false
 	tt.Frame()
-	if err := tt.Click("Open runtime directory"); err != nil {
+	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}
 	if homes != 1 || !tt.HasText("synthetic reveal denied") {
 		t.Fatal("reveal error hidden")
 	}
-	if err := tt.Click("Releases"); err != nil {
+	if err := tt.Click(i18n.T(KeyPass4GitHubReleases)); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("synthetic link denied") {
 		t.Fatal("link error hidden")
 	}
 	a.OnRevealHome = func() error { homes++; return nil }
-	if err := tt.Click("Open runtime directory"); err != nil {
+	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}
 	if tt.HasText("synthetic reveal denied") {

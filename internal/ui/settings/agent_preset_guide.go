@@ -40,11 +40,12 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 		// Keep the opening controls mounted so every close route can return
 		// focus to the exact action, rather than to a removed modal child.
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if ui.Button(c, providerCopy("模式说明", "Mode details")).Label(providerCopy("模式说明", "Mode details") + " · " + row.ID).Bind(&state.DetailsTrigger).Clicked() {
+			if presetTextAction(c, i18n.T(KeyPass4ModeExplanation), row.ID, &state.DetailsTrigger, muted, fg) {
 				state.Page, state.Trigger = "explanation", "explanation"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
-			if ui.Button(c, providerCopy("如何使用", "How to use")).Label(providerCopy("如何使用", "How to use") + " · " + row.ID).Bind(&state.UsageTrigger).Clicked() {
+			ui.Text(c, "·").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	if presetTextAction(c, i18n.T(KeyPass4HowToUse), row.ID, &state.UsageTrigger, muted, fg) {
 				state.Page, state.Trigger = "usage", "usage"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
@@ -143,4 +144,19 @@ var presetGuidesZH = map[string]presetModeGuide{
 		Explanation: "### 可以创造什么\n\n创造模式具备标准任务工具，并增加运行时检查、持久化插件管理，以及 Cordis 插件和 Agent 预设的开发指引。可以编写插件来添加功能或界面，也可以组合工具和提示词，创建适合特定任务的模式。\n\n### 插件与模式的关系\n\n插件为 DSH 增加能力，例如工具、服务连接或界面入口。模式是一份 Agent 预设，用来选择任务可用的工具，并约定 Agent 的工作方式。自定义模式中也可以使用自己开发的插件。\n\n### 怎样让成果生效\n\n可以要求 Agent 完成安装并验证实际效果。插件可能即时加载，也可能需要重启，取决于修改内容；新建的模式在创建新任务时选择。",
 		Usage:       "### 添加一个界面\n\n> 帮我写一个 DSH 插件，在侧栏增加「项目笔记」入口，列出当前工作区的 Markdown 文件，点击后能预览内容。完成安装并验证页面能打开。\n\n预期产出：带侧栏入口和预览页的插件，以及仍需完成的生效步骤。\n\n### 添加一个工具\n\n> 写一个插件，提供读取项目测试报告、汇总失败用例的工具。注册工具，并用一份示例报告验证调用结果。\n\n预期产出：可调用的新工具，以及一次示例调用的验证结果。\n\n### 创建自己的模式\n\n> 基于标准模式创建「代码审查」模式，优先检查潜在错误和测试缺口，指出文件与行号，修改文件前先询问我。保存成可选择的预设。\n\n预期产出：可在新任务中选择的自定义模式。审查要求用于指导 Agent，实际可执行的操作仍由权限设置决定。",
 	},
+}
+// presetTextAction is the card footer's plain text action: 12 DIP muted, no
+// border or fill, and the primary text colour on hover.
+func presetTextAction(c *ui.Context, label, id string, trigger *ui.Handle, muted, fg ui.Color) bool {
+	ink := muted
+	button := ui.Button(c, "").Label(label + " · " + id).Height(22).Padding(0, 2).Radius(4).
+		BorderWidth(0).Background(ui.Transparent).TextColor(ink)
+	if button.Hovered() {
+		ink = fg
+	}
+	button.Bind(trigger)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(ink)
+	})
+	return button.Clicked()
 }

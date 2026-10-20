@@ -27,26 +27,25 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 		return
 	}
 	query := a.Snapshot.Query
-	if ui.TextInput(c, &query).FillWidth().Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
-		a.OnQuery(query)
-	}
-	ui.Row(c).Gap(6).Children(func() {
-		for _, choice := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"enabled", "已启用", "Enabled"}, {"disabled", "已禁用", "Disabled"}} {
-			label := mcpCatalogText(choice.zh, choice.en)
-			active := a.Snapshot.EnabledFilter == choice.id || (choice.id == "all" && a.Snapshot.EnabledFilter == "")
-			if active {
-				label = "• " + label
-			}
-			if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.OnFilter != nil {
-				a.OnFilter(choice.id)
+	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
+		if ui.TextInput(c, &query).Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
+			a.OnQuery(query)
+		}
+		// One dropdown replaces the three chips the installed build does not have.
+		labels := []string{mcpCatalogText("全部", "All"), mcpCatalogText("已启用", "Enabled"), mcpCatalogText("已禁用", "Disabled")}
+		ids := []string{"all", "enabled", "disabled"}
+		current := labels[0]
+		for index, id := range ids {
+			if a.Snapshot.EnabledFilter == id {
+				current = labels[index]
 			}
 		}
-		if (a.Snapshot.Query != "" || (a.Snapshot.EnabledFilter != "" && a.Snapshot.EnabledFilter != "all")) && ui.Button(c, mcpCatalogText("清除筛选", "Clear filters")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			if a.OnQuery != nil {
-				a.OnQuery("")
-			}
-			if a.OnFilter != nil {
-				a.OnFilter("all")
+		if ui.Select(c, &current, labels).Label("MCP filter").Width(88).Height(32).Changed() && a.OnFilter != nil {
+			for index, label := range labels {
+				if current == label {
+					a.OnFilter(ids[index])
+					break
+				}
 			}
 		}
 	})

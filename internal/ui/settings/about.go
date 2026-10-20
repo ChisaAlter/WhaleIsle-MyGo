@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/ui/chrome"
@@ -38,7 +39,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.About
 	accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
-	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(12)
+	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(520).MinWidth(0).Gap(12)
 	ui.Local(anchor, "initial-update-check", func() bool {
 		if a.OnCheckUpdates != nil {
 			a.OnCheckUpdates()
@@ -54,7 +55,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	linkError := ui.Local(anchor, "error", func() string { return "" })
 	homeResult := ui.Local(anchor, "home-result", func() string { return "" })
 	anchor.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsAboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(KeyPass4AboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and the official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
 		if a.Loading {
 			ui.Text(c, providerCopy("正在读取应用信息…", "Loading application information…")).FillWidth().TextColor(muted)
@@ -66,15 +67,34 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
 			ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().Tooltip(a.Version).TextColor(muted)
 			ui.Text(c, "Based on DeepSeek Harness").FillWidth().TextColor(muted)
-			ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).Children(func() {
-				if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Disabled(a.UpdateBusy).Clicked() {
-					a.OnCheckUpdates()
+			// Version row: the installed version as a one-row picker, then the
+			// installer badge. Nothing is faked: without an installer the badge
+			// explains itself instead of pretending to start a download.
+			ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).AlignItems(ui.Center).Children(func() {
+				versions := []string{emptyDash(a.Version)}
+				picked := versions[0]
+				ui.Select(c, &picked, versions).Width(150).Disabled(true).Label(i18n.T(i18n.KeySettingsAboutCopyVersion))
+				installLabel := i18n.T(KeyPass4OnlineInstall)
+				// The badge keeps its near-black fill even when the installer is
+				// absent; only the label fades, so it still reads as a badge.
+				badgeInk := ui.RGBA(255, 255, 255, .95)
+				enabled := a.OnInstallUpdate != nil && !a.UpdateBusy
+				if !enabled {
+					badgeInk = ui.RGBA(255, 255, 255, .62)
 				}
-				if a.OnInstallUpdate != nil && ui.Button(c, providerCopy("在线安装", "Install update")).Disabled(a.UpdateBusy).Clicked() {
+				install := ui.Button(c, "").Label(installLabel).Height(28).Padding(0, 12).Radius(8).
+					Background(pass4InstallBadgeFill).AlignSelf(ui.Start)
+				if !enabled {
+					install = install.Tooltip(i18n.T(KeyPass4InstallUnavailable))
+				}
+				install.Children(func() {
+					ui.Text(c, installLabel).FontSize(fonttheme.InterfaceSize(12)).TextColor(badgeInk)
+				})
+				if install.Clicked() && a.OnInstallUpdate != nil {
 					a.OnInstallUpdate()
 				}
-				if a.OnCopyVersion != nil && ui.Button(c, i18n.T(i18n.KeySettingsAboutCopyVersion)).Clicked() {
-					a.OnCopyVersion()
+				if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Disabled(a.UpdateBusy).Clicked() {
+					a.OnCheckUpdates()
 				}
 			})
 			if a.UpdateBusy {
@@ -90,11 +110,17 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.HomePath != "" {
 				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().Tooltip(a.HomePath).TextColor(muted)
 			}
-			if a.OnRevealHome != nil && ui.Button(c, providerCopy("打开运行目录", "Open runtime directory")).Disabled(a.HomeBusy).Clicked() {
-				if err := a.OnRevealHome(); err != nil {
-					*homeResult = err.Error()
-				} else {
-					*homeResult = ""
+			if a.OnRevealHome != nil {
+				colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+				folder := widgets.Button(c, colors, i18n.T(KeyPass4OpenRuntime),
+					widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: a.HomeBusy})
+				folder.AlignSelf(ui.Start)
+				if folder.Clicked() {
+					if err := a.OnRevealHome(); err != nil {
+						*homeResult = err.Error()
+					} else {
+						*homeResult = ""
+					}
 				}
 			}
 			if *homeResult != "" {
@@ -161,7 +187,7 @@ type aboutLink struct{ Label, URL string }
 
 func aboutLinks() []aboutLink {
 	return []aboutLink{
-		{providerCopy("发行版本", "Releases"), "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases"},
+		{i18n.T(KeyPass4GitHubReleases), "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases"},
 		{providerCopy("官方 Harness", "Official Harness"), "https://github.com/deepseek-ai/deepseek-harness"},
 	}
 }

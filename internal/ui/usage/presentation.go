@@ -37,7 +37,11 @@ func usageCard(c *ui.Context, key, title string, fg ui.Color, content func()) {
 
 func usageEmpty(c *ui.Context, title, hint string, fg, muted ui.Color) {
 	surface, _, _ := usageCardPalette(c)
-	ui.Column(c).FillWidth().MinWidth(0).Padding(32, 20).Gap(4).AlignItems(ui.Center).Radius(8).Background(surface).Border(1, c.Theme().Border).BorderStyle(ui.BorderDashed).Children(func() {
+	// The reference's empty state: a plain white card, about 108 DIP tall,
+	// with the title and one muted line centred.
+	ui.Column(c).FillWidth().MinWidth(0).Height(108).Padding(0, 20).Gap(4).Radius(12).
+		Background(surface).Border(.5, c.Theme().Border).Shadow(0, 1, 3, 0, ui.RGBA(15, 23, 42, .08)).
+		Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 		if title != "" {
 			ui.Text(c, title).FillWidth().TextAlign(ui.Center).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(600).TextColor(fg)
 		}

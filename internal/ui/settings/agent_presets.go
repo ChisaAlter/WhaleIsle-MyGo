@@ -58,8 +58,8 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		snap.Rows = rows
 	}
-	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsTitle)).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	ui.Text(c, i18n.T(KeyPass4PresetsTitle)).FontSize(fonttheme.InterfaceSize(18)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(KeyPass4PresetsHint)).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(20)).TextColor(muted)
 	if snap.Err != "" {
 		ui.Text(c, snap.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
@@ -105,11 +105,11 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.AgentPresetManagerState, fg, muted ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		for _, builtIn := range []bool{true, false} {
-			title := providerCopy("自定义", "Custom")
+			title := i18n.T(KeyPass4Custom)
 			if builtIn {
-				title = providerCopy("内置", "Built-in")
+				title = i18n.T(KeyPass4BuiltIn)
 			}
-			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(muted)
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 			grid := ui.Row(c.Key("preset-grid/" + title)).FillWidth().MinWidth(0).Wrap().AlignItems(ui.Start).Gap(12)
 			width := grid.Bounds().W
 			grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
@@ -117,7 +117,11 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 					c.Invalidate()
 				}
 			})
-			columns := max(1, int((width+12)/280))
+			// Two cards per row at the reference width, one on narrow panes.
+			columns := 2
+			if width < 600 {
+				columns = 1
+			}
 			cardWidth := (width - float32(columns-1)*12) / float32(columns)
 			grid.Children(func() {
 				count := 0
@@ -128,22 +132,38 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 					count++
 					label := agentPresetSettingsLabel(row)
 					_, description := agentPresetDisplay(row)
-					card := ui.Column(c.Key("preset-row/"+row.ID)).Width(cardWidth).MinWidth(0).Gap(0).Radius(12).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .20))
-					if row.ID == roster.DefaultID {
-						card = card.Background(ui.RGBA(muted.R, muted.G, muted.B, .08))
-					}
+					card := ui.Column(c.Key("preset-row/"+row.ID)).Width(cardWidth).Height(170).MinWidth(0).Gap(0).
+						Radius(12).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .18)).Background(c.Theme().Background)
 					card.Children(func() {
 						main := ui.Button(c, "").Label(providerCopy("选择默认", "Choose default") + " · " + label).MinHeight(82).FillWidth().MinWidth(0).Padding(14).BorderWidth(0).Background(ui.Transparent).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
 						main.Children(func() {
 							ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-								ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-									ui.Text(c, label).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-									if row.ID == roster.DefaultID {
-										ui.Text(c, "✓").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+								ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+									ui.Text(c, label).Shrink(0).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+									badge := i18n.T(KeyPass4BadgeBuiltIn)
+									filled := row.ID == roster.DefaultID
+									if filled {
+										badge = i18n.T(KeyPass4TaskDefault)
 									}
+									chip := ui.Row(c).Height(18).Padding(0, 6).Radius(4).AlignItems(ui.Center).Shrink(0)
+									if filled {
+										chip = chip.Background(fg)
+									} else {
+										chip = chip.Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .5))
+									}
+									chip.Children(func() {
+										ink := muted
+										if filled {
+											ink = c.Theme().Background
+										}
+										ui.Text(c, badge).FontSize(fonttheme.InterfaceSize(10)).TextColor(ink)
+									})
+									ui.Box(c).Grow(1).MinWidth(0)
+									ui.Text(c, row.ID).Shrink(0).FontSize(fonttheme.InterfaceSize(10)).
+										Font(fonttheme.RenderPreferences().Code.Family).TextColor(muted)
 								})
 								if description != "" {
-									ui.Text(c, description).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(description)
+									ui.Text(c, description).FillWidth().MaxLines(3).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted).Tooltip(description)
 								}
 								if row.Broken != "" {
 									ui.Text(c, providerCopy("加载失败：", "Failed to load: ")+row.Broken).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
@@ -151,6 +171,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 							})
 						})
 						readerClicked := false
+						ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .18))
 						ui.Row(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 10, 10, 10).AlignItems(ui.Center).Children(func() {
 							ui.Box(c).Grow(1).MinWidth(0).Children(func() { agentPresetGuidePane(c, row, fg, muted) })
 							if a.Reader != nil && agentPresetViewAction(c, a.Reader, label, !roster.Loaded || a.Reader.State.Busy || a.Reader.OnSelect == nil) && a.Reader.OnSelect != nil {
@@ -170,10 +191,27 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 
 					})
 				}
-				if count == 0 {
+				if count == 0 && builtIn {
 					ui.Text(c, i18n.T(i18n.KeySettingsAgentPresetsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
+				if !builtIn {
+					// The reference's dashed entry: the Agent drafts a new preset
+					// mode rather than asking for hand-written JSON.
+					label := i18n.T(KeyPass4CreateWithAgent)
+					create := ui.Button(c, "").Label(label).FillWidth().Height(46).Radius(12).
+						Border(1, ui.RGBA(muted.R, muted.G, muted.B, .5)).BorderStyle(ui.BorderDashed).
+						Background(ui.Transparent).TextColor(fg)
+					create.Children(func() {
+						ui.Text(c, label).FontSize(fonttheme.InterfaceSize(14)).TextColor(fg)
+					})
+					if create.Clicked() && a.Creator != nil && a.Creator.OnPrepare != nil {
+						a.Creator.OnPrepare()
+					}
 				}
 			})
 		}
 	})
 }
+// presetBookIcon is the handbook glyph at the right edge of a preset card's
+// action row; it opens the same guide view as the text actions.
+var presetBookIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 4.1C6.9 3.3 5.4 3 2.8 3v8.6c2.6 0 4.1.3 5.2 1.1 1.1-.8 2.6-1.1 5.2-1.1V3c-2.6 0-4.1.3-5.2 1.1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 4.1v8.6" stroke="currentColor" stroke-width="1.2"/></svg>`))

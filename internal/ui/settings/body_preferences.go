@@ -62,6 +62,7 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
 			})
+			if gear := takeRowGear(); gear != nil { 				rowGearButton(c, *gear) 			}
 			if controls != nil {
 				control := ui.Column(c).MinWidth(0).Gap(6)
 				if width >= 420 {
@@ -247,4 +248,49 @@ func bodyLocalToggle(c *ui.Context, key, title, hint string, value *bool, disabl
 			changed(*value)
 		}
 	})
+}
+
+// rowGear is the optional 16×16 gear a preference row can carry to the left of
+// its control. A row renders at most one, and only when the caller explicitly
+// asks for it through withRowGear, so unrelated rows never grow one.
+type rowGear struct {
+	label    string
+	hint     string
+	disabled bool
+	onOpen   func()
+}
+
+var pendingRowGear *rowGear
+
+// withRowGear renders the next bodyPreferenceRow with a gear.
+func withRowGear(gear rowGear, render func()) {
+	pendingRowGear = &gear
+	defer func() { pendingRowGear = nil }()
+	render()
+}
+
+// takeRowGear hands the pending gear to the row that is being built now.
+func takeRowGear() *rowGear {
+	gear := pendingRowGear
+	pendingRowGear = nil
+	return gear
+}
+
+// rowGearButton paints the 16×16 gear: muted glyph, hover wash, tooltip, and a
+// dimmed state when no callback is wired yet.
+func rowGearButton(c *ui.Context, gear rowGear) {
+	button := ui.Button(c, "").Label(gear.label).Size(24, 24).Padding(4).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(gear.disabled)
+	if gear.hint != "" {
+		button.Tooltip(gear.hint)
+	}
+	if button.Hovered() && !gear.disabled {
+		button.Background(c.Theme().SurfaceHover)
+	}
+	button.Children(func() { ui.Icon(c, bodyIcon("gear")).Size(16, 16).TextColor(c.Theme().TextMuted) })
+	if gear.disabled {
+		return
+	}
+	if button.Clicked() && gear.onOpen != nil {
+		gear.onOpen()
+	}
 }

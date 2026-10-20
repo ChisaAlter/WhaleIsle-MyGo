@@ -25,7 +25,7 @@ func bodyFixtureHost() *BodySettingsAccess {
 		return store.Namespace{NS: name, Fields: fields, Value: raw}
 	}
 	boolField := func(key string) store.Field {
-		return store.Field{Key: key, Kind: store.FieldBool, Description: "A feature preference supplied by the active Host."}
+		return store.Field{Key: key, Kind: store.FieldBool, Description: "由当前 Host 提供的功能偏好。"}
 	}
 	enum := func(key string, options ...string) store.Field {
 		return store.Field{Key: key, Kind: store.FieldEnum, EnumOptions: options}
@@ -266,7 +266,12 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Padding(24).Children(func() { bodyEffectPreference(c, h, typing, c.Theme().Text, c.Theme().TextMuted) })
 			}, 900, 950)
-			if err := tt.Click("configure-" + key); err != nil {
+			// The row gear replaced the old Configure button; it opens the same dialog.
+			gearLabel := "Thinking glow settings"
+			if typing {
+				gearLabel = "Typing effect settings"
+			}
+			if err := tt.Click(gearLabel); err != nil {
 				t.Fatal(err)
 			}
 			if !tt.HasText("Color source") || !tt.HasText("Save and apply") {
@@ -302,7 +307,7 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 			if tt.HasText("Save and apply") {
 				t.Fatal("successful save did not acknowledge and close")
 			}
-			if err := tt.Click("configure-" + key); err != nil {
+			if err := tt.Click(gearLabel); err != nil {
 				t.Fatal(err)
 			}
 			h.Owner++

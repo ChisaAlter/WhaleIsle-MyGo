@@ -140,7 +140,7 @@ func modelAddProviderCard(c *ui.Context, m Model, a *ModelsAccess, fg, muted ui.
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	label := i18n.T(i18n.KeySettingsModelsAddProvider)
 	card := ui.Column(c.Key("model-add-provider")).FillWidth().MinWidth(0).Height(52).
-		Border(1, chrome.Color(colors.Border)).Radius(12).Justify(ui.Center).AlignItems(ui.Center)
+		Border(1, chrome.Color(colors.Border)).BorderStyle(ui.BorderDashed).Radius(12).Justify(ui.Center).AlignItems(ui.Center)
 	target := ""
 	if m.OnSelectNamespace != nil {
 		target = "llm-pi-ai"

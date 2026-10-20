@@ -47,8 +47,8 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		}
 		return out
 	}
-	click("Mode details · standard")
-	if !tt.Focused("Mode details") || tt.Focused("Mode details · standard") {
+	click(i18n.T(KeyPass4ModeExplanation) + " · standard")
+	if !tt.Focused("Mode details") || tt.Focused(i18n.T(KeyPass4ModeExplanation) + " · standard") {
 		t.Fatal("opening guide did not focus its selected tab")
 	}
 	initialExplanation := positions("Explanation")
@@ -77,7 +77,7 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		t.Fatal("returning to usage lost its own scroll")
 	}
 	tt.Key(0, ui.KeyEscape)
-	if tt.HasText("Fixture guide") || !tt.Focused("Mode details · standard") {
+	if tt.HasText("Fixture guide") || !tt.Focused(i18n.T(KeyPass4ModeExplanation) + " · standard") {
 		t.Fatal("Escape did not close only the guide and restore its opening action")
 	}
 	click("How to use · standard")
@@ -88,7 +88,7 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 	if !tt.Focused("How to use · standard") {
 		t.Fatal("close button returned to the wrong action")
 	}
-	click("Mode details · standard")
+	click(i18n.T(KeyPass4ModeExplanation) + " · standard")
 	visible = false
 	tt.Frame()
 	visible = true

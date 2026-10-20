@@ -132,7 +132,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 额外人设/长期记忆/技能 行右侧**蓝色文字动作**（编辑 / 查看与编辑 / 管理） | **未修**：无对应回调（persona/memory/skills 不在 settings 域） |
 | 行间 hairline + 行高 64 + 控件 32 | 随通用页原语已生效 |
 
-### 界面设置（ref-settings-interface）→ 未修
+### 界面设置（ref-settings-interface）→ 已修（task-46）
 | 差异 | 状态 |
 | --- | --- |
 | 纯开关行（44×24 蓝色），右侧开关 | **已修**：settings 域自绘 `settingsToggle`（44×24、20 卡榫、2 内缩），`bodyLocalToggle` 全部走它 |
@@ -140,7 +140,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 「机器人（Bots）」行带「测试中」徽标 | **已修**：`bodyToggleRowBadge`，标题右侧小徽标，行高仍 64 |
 | 行间 hairline | 已有 |
 
-### 内置插件（ref-settings-builtin）→ 未修
+### 内置插件（ref-settings-builtin）→ 已修（task-46）
 | 差异 | 状态 |
 | --- | --- |
 | 参考是 **2 列卡片网格**，加载态是骨架卡（两条灰条） | 本仓库是文本行；骨架网格未做 |
@@ -155,7 +155,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 启停语义 | 未改：仍调 `OnSetModelInvocable` / `OnSetGroupInvocable`，只是把开关换成自绘 44×24（点击后由调用方取反上报） |
 | 空态/加载态 | 沿用现有（空态一句 muted 文案；加载仍是 Busy 文案），参考无更强证据 |
 
-### 市场（ref-settings-market）→ 未修
+### 市场（ref-settings-market）→ 部分已修
 | 差异 | 状态 |
 | --- | --- |
 | 标题「插件市场」+ 说明 + 右上单个刷新 icon | 本仓库头部有标题/刷新，但无该说明句与内容区右对齐 layout |
@@ -168,19 +168,19 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 参考是**网关配置页**：顶部两个 tab「网关 / 消息渠道」；行内是「中继主机」输入 + 黑色 sm「保存」+ 文字动作「恢复默认」；「旧版配置清理」分节；「连接方式」右侧「局域网」标签 + 黑色「服务器」按钮；「监听端口」输入 + 黑色「保存」；「监听范围」下拉（仅本机）；「传输加密」纯文本行；「刷新配对码」右侧文字动作「刷新」。
 本仓库同页是**机器列表 + 文件浏览 + 配对**（W9 重做过），与参考的信息架构不同：参考没有机器卡，只有网关参数。→ 差异属"页面定位不同"，不是样式差；若要还原，需要把机器管理整体移出设置页。
 
-### MCP（ref-settings-mcp）→ 未修
+### MCP（ref-settings-mcp）→ 已修（task-46）
 参考：标题「MCP 服务器」+ 两行说明；内容区右上 `+` 与刷新两个 icon 按钮；搜索框（带放大镜）+ `全部` 下拉；空态是**虚线圆角卡片**内居中一句「还没有 MCP 服务器。添加一个服务器以连接本地工具或远程服务。」
 本仓库：有搜索与列表，但缺内容区右上两个 icon 按钮与虚线空态卡样式。
 
-### Agent 预设（ref-settings-presets）→ 未修
+### Agent 预设（ref-settings-presets）→ 已修（task-47）
 参考：「内置」分节标签 + **2×2 预设卡**（约 275×165：标题行＝名称 + 徽标「任务默认」/「内置」+ 右侧 muted id；3–4 行描述；底部 `模式说明` / `如何使用` 链接 + 右侧书本 icon）；「自定义」分节 + **虚线整宽按钮**「+ 让 Agent 帮我创建预设模式」。
 本仓库：预设页存在（agent_presets.go / agent_preset_guide.go），但未对照卡片网格/徽标/底部链接这个形态改造。
 
-### 用量统计（ref-settings-usage）→ 未修
+### 用量统计（ref-settings-usage）→ 已修（task-47）
 参考：标题行＝图表 icon + 「用量统计」，下方「数据更新于 11:06 · UTC」；右侧 `导出`、`设置`、`刷新` 三个带 icon 的小按钮；正文空态是**白卡片**：「暂无统计数据」+「开始使用 DeepSeek Harness 后，这里会展示 Token 消耗情况」。
 本仓库：W1 已做成 KPI 卡 + 日历 + 排行（内容更丰富），但空态样式与右上三按钮组未对齐参考（参考的空态是卡片，不是虚线框）。
 
-### 关于（ref-settings-about）→ 未修
+### 关于（ref-settings-about）→ 已修（task-47）
 参考：标题「关于」+ 一句说明；「Whale Isle」（16 bold）、「桌面版本 0.3.9」、「Based on DeepSeek Harness」；一行版本更新（禁用输入 `...` + 深色徽标「在线安装」）；「凭据存储：系统钥匙串加密（safeStorage）」、「运行目录 …」；`打开运行目录` 按钮；两行**蓝色链接** `GitHub 发行版`、`官方 Harness`。
 本仓库：about.go 有版本/凭据/目录/检查更新，但排版与参考的左对齐单列＋蓝色链接行不同，且参考的「在线安装」徽标未实现。
 
@@ -248,3 +248,17 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 ### 验证
 
 `go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿；`go test ./internal/ui/settings` 81 pass；`SETTINGS_GALLERY_DIR` 可重出两张设置页快照。
+## 10. 第四轮：界面设置/内置插件/MCP/预设/用量/关于（2026-10-20 深夜）
+
+截图：`evidence/compare/ours-settings-{interface,builtin,builtin-loading,mcp,presets,usage,about}.png`，与同目录 `ref-settings-*` 对照。
+
+| 页 | 已实现 | 未实现/差异 |
+| --- | --- | --- |
+| 界面设置 | 光效行 `[齿轮][开关]`（齿轮打开与旧 Configure 相同的对话框，原子保存测试改为点齿轮）；其余行 44×24 开关 + hairline；Bots「测试中」保持 | 无 |
+| 内置插件 | 标题 18 + 说明；2 列白卡（273×60、radius 12、12/16 padding）；加载态 2×2 骨架（120×10/180×8，muted 10%）；`pluginStatusLabel` 本地化（已启用/已停用/加载失败/按条件启用/状态未知） | 卡片第二行用状态而非参考的「版本/来源」；参考只采到加载态，无法逐项比对 |
+| MCP | 标题 18 + 三行说明；右上 32×32 `+`/刷新；搜索 32 + 88 宽 `全部` 下拉（替换三 chip）；空态 **真 dashed** 圆角卡两行文案；删除 legacy 整宽刷新按钮 | Catalog 为 nil 时（Host 未提供目录）筛选行不渲染，参考始终显示；若要恒显示需把搜索/下拉做成 disabled 常驻 |
+| Agent 预设 | 标题 18 + 说明；内置/自定义 13 muted 小节；2×2 卡（(w-12)/2、170 高、radius 12、白底、0.5 分隔线）；标题 14 + 任务默认黑徽标/内置描边徽标 + 右上 id 10 mono；描述 3 行；底部 12 muted 文字动作 `模式说明 · 如何使用` + 书本 16 icon；自定义整宽 46 高 **虚线**按钮 | 参考卡片底部左右分布更松（书本靠右）；其余一致 |
+| 用量统计 | 标题行 图表 16 + 18 + 导出/设置/刷新 Outline sm；`UpdatedAt` 透传后显示「数据更新于 HH:MM · UTC」；空态白卡 H=108/radius 12/0.5 描边/轻阴影，14 semibold + 12 muted | 导出/设置 disabled+tooltip（无导出器/范围对话框）；空态卡尺寸常量，测试断言文案与上下关系 |
+| 关于 | 标题「关于」18；应用名 16 + 桌面版本 + Based on；版本只读下拉 150 + 深色「在线安装」徽标；凭据存储/运行目录 12；`打开运行目录` 28 高 Outline 内容宽；两条 14 accent 链接（GitHub 发行版/官方 Harness） | 应用数据与诊断折叠为额外项（参考没有）；凭据状态取决于平台后端 |
+
+验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿；`SETTINGS_GALLERY_DIR` 可重出全部设置页快照。

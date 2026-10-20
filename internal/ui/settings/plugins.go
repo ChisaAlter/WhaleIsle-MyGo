@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -46,9 +47,9 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Plugins
-	ui.Text(c, i18n.T(i18n.KeySettingsPluginsTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsPluginsHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Text(c, i18n.T(i18n.KeySettingsPluginsMarketHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsPluginsTitle)).FontSize(fonttheme.InterfaceSize(18)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	builtinPluginGrid(c, a, fg, muted)
 	pluginInventoryPane(c, a.Inventory, fg, muted)
 	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 	if !a.ClientReady {
@@ -140,4 +141,64 @@ func pluginsText(zh, en string) string {
 		return zh
 	}
 	return en
+}
+
+// builtinPluginGrid is the built-in plugin list as the installed build shows it: a
+// two column grid of 60 DIP cards, or a 2×2 skeleton while the list loads.
+func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
+	if a.Loading && len(a.Rows) == 0 {
+		grid := ui.Grid(c.Key("builtin-plugins-loading")).FillWidth().MinWidth(0).Gap(12)
+		grid.Columns(2).Children(func() {
+			for index := 0; index < 4; index++ {
+				ui.Column(c.Key(fmt.Sprintf("builtin-skeleton-%d", index))).FillWidth().MinWidth(0).Height(60).Gap(8).Padding(12, 16).
+					Radius(12).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center).Children(func() {
+					ui.Box(c).Width(120).Height(10).Shrink(0).Radius(4).Background(ui.RGBA(muted.R, muted.G, muted.B, .1))
+					ui.Box(c).Width(180).Height(8).Shrink(0).Radius(4).Background(ui.RGBA(muted.R, muted.G, muted.B, .1))
+				})
+			}
+		})
+		return
+	}
+	if len(a.Rows) == 0 {
+		return
+	}
+	grid := ui.Grid(c.Key("builtin-plugins")).FillWidth().MinWidth(0).Gap(12)
+	grid.Columns(2).Children(func() {
+		for _, row := range a.Rows {
+			plugin := row
+			detail := pluginStatusLabel(plugin)
+			if plugin.ReadOnlyReason != "" {
+				detail = plugin.ReadOnlyReason
+			}
+			card := ui.Column(c.Key("builtin-plugin/" + plugin.Name)).FillWidth().MinWidth(0).Height(60).Gap(2).Padding(12, 16).
+				Radius(12).Background(c.Theme().Surface).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
+			card.Children(func() {
+				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).SingleLine().Ellipsis("…")
+				if detail != "" {
+					ui.Text(c, detail).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Ellipsis("…")
+				}
+			})
+		}
+	})
+}
+// pluginStatusLabel turns a Host status value into its localized wording; the raw
+// value never reaches the card.
+func pluginStatusLabel(row PluginRow) string {
+	if row.Disabled {
+		return pluginsText("已停用", "Disabled")
+	}
+	switch strings.ToLower(strings.TrimSpace(row.Status)) {
+	case "enabled", "active", "running":
+		return pluginsText("已启用", "Enabled")
+	case "disabled", "inactive", "stopped":
+		return pluginsText("已停用", "Disabled")
+	case "failed", "error", "broken":
+		return pluginsText("加载失败", "Failed to load")
+	case "conditional", "on-demand":
+		return pluginsText("按条件启用", "Conditional")
+	case "":
+		return ""
+	default:
+		return pluginsText("状态未知", "Unknown state")
+	}
 }

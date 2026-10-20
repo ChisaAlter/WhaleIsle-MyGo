@@ -299,34 +299,47 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 	anchor := ui.Column(c.Key(fmt.Sprintf("effect-settings-%d-%s", a.Owner, enabledKey))).FillWidth().MinWidth(0)
 	open := ui.Local(anchor, "open", func() bool { return false })
 	draft := ui.Local(anchor, "draft", func() effectDraft { return effectDraft{} })
+	openSettings := func() {
+		style := effectDefaults(typing)
+		_ = json.Unmarshal([]byte(styleValue), &style)
+		if style == nil {
+			style = effectDefaults(typing)
+		}
+		normalized, normalizeErr := normalizeEffect(style, typing)
+		if normalizeErr != nil {
+			normalized = effectDefaults(typing)
+		}
+		presets := map[string]map[string]any{}
+		_ = json.Unmarshal([]byte(presetsValue), &presets)
+		if presets == nil {
+			presets = map[string]map[string]any{}
+		}
+		*draft = effectDraft{Style: normalized, Presets: presets, CustomTyping: typingCustomSeed(normalized)}
+		if normalizeErr != nil {
+			draft.Err = normalizeErr.Error()
+		}
+		*open = true
+	}
 	anchor.Children(func() {
-		bodyPreferenceRow(c, "effect-row-"+enabledKey, title, "", fg, muted, func() {
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("设置", "Configure")).Label("configure-" + enabledKey).Disabled(bodyHostDisabled(a) || !styleFound).Clicked() {
-					style := effectDefaults(typing)
-					_ = json.Unmarshal([]byte(styleValue), &style)
-					if style == nil {
-						style = effectDefaults(typing)
+	gearLabel := providerCopy("思考炫光设置", "Thinking glow settings")
+	if typing {
+		gearLabel = providerCopy("打字特效设置", "Typing effect settings")
+	}
+		// This row carries the 16×16 gear that opens the effect dialog; no other
+		// preference row asks for one.
+		withRowGear(rowGear{
+			label:    gearLabel,
+			hint:     providerCopy("打开输入框光效与指针特效设置", "Open the composer beam and pointer effect settings"),
+			disabled: bodyHostDisabled(a) || !styleFound,
+			onOpen:   openSettings,
+		}, func() {
+			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, "", fg, muted, func() {
+				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+					checked := enabled == "true"
+					if ui.Switch(c, &checked).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
+						a.OnChange("ui-conversation", enabledKey, fmt.Sprint(checked))
 					}
-					normalized, normalizeErr := normalizeEffect(style, typing)
-					if normalizeErr != nil {
-						normalized = effectDefaults(typing)
-					}
-					presets := map[string]map[string]any{}
-					_ = json.Unmarshal([]byte(presetsValue), &presets)
-					if presets == nil {
-						presets = map[string]map[string]any{}
-					}
-					*draft = effectDraft{Style: normalized, Presets: presets, CustomTyping: typingCustomSeed(normalized)}
-					if normalizeErr != nil {
-						draft.Err = normalizeErr.Error()
-					}
-					*open = true
-				}
-				checked := enabled == "true"
-				if ui.Switch(c, &checked).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
-					a.OnChange("ui-conversation", enabledKey, fmt.Sprint(checked))
-				}
+				})
 			})
 		})
 	})
