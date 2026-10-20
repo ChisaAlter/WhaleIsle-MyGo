@@ -221,32 +221,43 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 			return
 		}
 		s.clearStartupUpdateNotice()
-		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageInfo,
-			Title:   resumeText("MyGo 更新可用", "MyGo update available"),
-			Message: update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
-			Buttons: []string{resumeText("稍后", "Later"), resumeText("查看版本与下载方式", "Review versions and downloads")}, DefaultButton: 0, CancelButton: 0})
-		visible = !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized()
-		s.mu.Lock()
-		r = &s.startupRecovery
-		current := s.startupUpdateCurrentLocked(win, ticket)
-		resolved := false
-		if current {
-			resolved = r.updateAttention.Resolve(ticket)
-		} else if r.updateAttention.Current(ticket) {
-			r.updateAttention.Clear()
-		}
-		allowed := current && resolved && err == nil && choice.Button == 1 && visible && s.launcherOpen
-		if err != nil && current {
-			s.launcherNote = startuprec.RedactLine(err.Error())
-		}
-		s.mu.Unlock()
-		if allowed {
-			s.mu.Lock()
-			s.launcherTab = launcher.TabVersions
-			s.nativeReleases.selected = release.PackageKey()
-			s.startupRecovery.updateHold = true
-			s.mu.Unlock()
-			win.Update(func() {})
-		}
+		s.askConfirm(confirmAskRequest{
+			Title:        resumeText("MyGo 更新可用", "MyGo update available"),
+			Body:         update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
+			ConfirmLabel: resumeText("查看版本与下载方式", "Review versions and downloads"),
+			CancelLabel:  resumeText("稍后", "Later"),
+			Run:          func() { s.finishStartupUpdatePrompt(win, ticket, release, true) },
+			Cancel:       func() { s.finishStartupUpdatePrompt(win, ticket, release, false) },
+		})
 	})
+}
+
+// finishStartupUpdatePrompt settles the in-app update prompt: the answer is
+// valid only while the window, the runtime generation and the catalog are the
+// ones that raised it, and every answer resolves or clears the ticket so the
+// same release never prompts twice.
+func (s *mainState) finishStartupUpdatePrompt(win *mygo.Window, ticket startuprec.UpdateAttentionTicket, release update.NativeRelease, review bool) {
+	if win == nil {
+		return
+	}
+	visible := !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized()
+	s.mu.Lock()
+	r := &s.startupRecovery
+	current := s.startupUpdateCurrentLocked(win, ticket)
+	resolved := false
+	if current {
+		resolved = r.updateAttention.Resolve(ticket)
+	} else if r.updateAttention.Current(ticket) {
+		r.updateAttention.Clear()
+	}
+	allowed := current && resolved && review && visible && s.launcherOpen
+	s.mu.Unlock()
+	if allowed {
+		s.mu.Lock()
+		s.launcherTab = launcher.TabVersions
+		s.nativeReleases.selected = release.PackageKey()
+		s.startupRecovery.updateHold = true
+		s.mu.Unlock()
+		win.Update(func() {})
+	}
 }

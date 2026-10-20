@@ -24,6 +24,8 @@ type confirmAskRequest struct {
 	CancelLabel  string
 	Danger       bool
 	Run          func()
+	// Cancel, when non-nil, runs after the user dismisses the request.
+	Cancel func()
 	// Result, when non-nil, receives the answer instead of Run being called.
 	Result chan bool
 }
@@ -75,8 +77,12 @@ func (s *mainState) syncConfirmAsk(c *ui.Context) {
 			case req.Result <- run:
 			default:
 			}
-		} else if run && req.Run != nil {
-			req.Run()
+		} else if run {
+			if req.Run != nil {
+				req.Run()
+			}
+		} else if req.Cancel != nil {
+			req.Cancel()
 		}
 		if win != nil {
 			win.Update(func() {})
