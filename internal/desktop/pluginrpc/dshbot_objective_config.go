@@ -3,9 +3,11 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Only the two original individual-Bot objective configuration fields are edited.
@@ -42,14 +44,14 @@ func ParseDshbotObjectiveConfigDraft(d DshbotObjectiveConfigDraft) (DshbotObject
 	}
 	out.Objective = trimBotMemory(d.Objective)
 	if out.Objective == "" {
-		return out, fmt.Errorf("目标不能为空；清除请使用已有清除目录目标入口 / Use Clear catalog objective to remove it")
+		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcUseClearCatalogObjectiveToRemoveIt))
 	}
 	if WhaleTextLength(out.Objective) > 2000 {
-		return out, fmt.Errorf("目标最多 2,000 UTF-16 单元 / Objective exceeds 2,000 UTF-16 units")
+		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcObjectiveExceeds2000Utf16Units))
 	}
 	n, err := strconv.Atoi(trimBotMemory(d.MaxRounds))
 	if err != nil || n < 1 || n > 200 {
-		return out, fmt.Errorf("轮数上限须为 1–200 的整数 / Round cap must be an integer from 1 to 200")
+		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRoundCapMustBeAnIntegerFrom1To2))
 	}
 	out.MaxRounds = n
 	return out, nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/petcare"
+	"whaleisle/internal/store/storelocale"
 )
 
 type CareStatus struct {
@@ -28,7 +29,7 @@ func (p *Companion) careStatus() CareStatus {
 	busy, message, action := p.feeding, p.feedMessage, p.careAction
 	p.assetMu.RUnlock()
 	if message == "" {
-		message = "不读取内容，不修改文件 / Files stay untouched"
+		message = storelocale.T(storelocale.KeyDesktopPetFilesStayUntouched)
 	}
 	level := 1
 	for _, threshold := range []float64{40, 120, 260, 520} {
@@ -36,7 +37,7 @@ func (p *Companion) careStatus() CareStatus {
 			level++
 		}
 	}
-	return CareStatus{Action: action, Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf("饱食 / Satiety %.0f · 心情 / Mood %.0f · 亲密 / Bond %.0f", stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
+	return CareStatus{Action: action, Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf(storelocale.T(storelocale.KeyDesktopPetCareLabel), stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
 }
 func renderCarePage(page []byte, care CareStatus) []byte {
 	return []byte(strings.NewReplacer("{{CARE_LABEL}}", html.EscapeString(care.Label), "{{CARE_MESSAGE}}", html.EscapeString(care.Message)).Replace(string(page)))
@@ -55,7 +56,7 @@ func (p *Companion) feedFile() {
 		return
 	}
 	p.feeding = true
-	p.feedMessage = "选择一个文件投喂 / Choose one file"
+	p.feedMessage = storelocale.T(storelocale.KeyDesktopPetChooseOneFile)
 	p.assetMu.Unlock()
 	defer func() {
 		if p.win == w {
@@ -64,7 +65,7 @@ func (p *Companion) feedFile() {
 			p.assetMu.Unlock()
 		}
 	}()
-	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: w, Title: "投喂一次（不读取或修改文件） / Feed once; file stays untouched"})
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: w, Title: storelocale.T(storelocale.KeyDesktopPetFeedOnceFileStaysUntouched)})
 	// Native dialogs can pump close/settings events. A replacement pet must not
 	// receive the previous instance's selection or its pending care award.
 	if p.win != w || w.IsDestroyed() || !p.ready || !p.Store.DesktopPet().Enabled {
@@ -73,13 +74,13 @@ func (p *Companion) feedFile() {
 	message := ""
 	fed := false
 	if err != nil {
-		message = "文件选择失败 / File selection failed"
+		message = storelocale.T(storelocale.KeyDesktopPetFileSelectionFailed)
 	} else if len(paths) > 0 {
 		if err = p.Store.FeedPetFile(time.Now()); err != nil {
-			message = "保存失败，未计入状态 / Save failed; not applied"
+			message = storelocale.T(storelocale.KeyDesktopPetSaveFailedNotApplied)
 		} else {
 			fed = true
-			message = "已投喂：饱食 +2，心情 +1（上限 100） / Fed"
+			message = storelocale.T(storelocale.KeyDesktopPetFed)
 		}
 	}
 	p.assetMu.Lock()

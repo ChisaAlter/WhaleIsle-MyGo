@@ -125,23 +125,25 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 		return path, err
 	}, svc.Invalidate)
 	if state.err != nil {
-		ui.Text(c, i18n.T(i18n.KeyChatImageFailed) + ": "+state.err.Error()).FontSize(12).TextColor(fg)
-		if ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).Clicked() {
+		paintImageFailure(c, i18n.T(i18n.KeyChatImageFailed)+": "+state.err.Error(), func() {
 			session.ForgetCachedAttachment(id)
 			attachmentLoads.retry(id)
 			svc.Invalidate()
-		}
+		})
 		return
 	}
 	if state.path != "" {
 		if loadChatBitmap(state.path) == nil {
-			ui.Text(c, i18n.T(i18n.KeyChatImageInvalid)).FontSize(12).TextColor(fg)
+			paintImageFailure(c, i18n.T(i18n.KeyChatImageInvalid), nil)
 			return
 		}
 		paintInlineImage(c, state.path, muted, onOpen)
 		return
 	}
-	ui.Text(c, "[image…] attachment:"+id).FontSize(12).TextColor(muted)
+	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
+	frame.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
+	})
 }
 
 func paintRemoteImage(c *ui.Context, rawURL string, fg, muted ui.Color, onOpen func(string)) {
@@ -162,32 +164,115 @@ func paintRemoteImage(c *ui.Context, rawURL string, fg, muted ui.Color, onOpen f
 			return
 		}
 	case imgcache.StatusFetching:
-		ui.Text(c, "[image…] "+rawURL).FontSize(12).TextColor(muted)
+		frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
+		frame.Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
+		})
 		return
 	case imgcache.StatusError:
-		ui.Text(c, "[image] "+rawURL).FontSize(12).TextColor(fg)
+		paintImageFailure(c, i18n.T(i18n.KeyChatImageFailed)+": "+rawURL, nil)
 		return
 	}
 	svc := c.Services()
 	cache.Ensure(rawURL, func() { svc.Invalidate() })
-	ui.Text(c, "[image…] "+rawURL).FontSize(12).TextColor(muted)
+	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
+	frame.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
+	})
 }
 
 func paintInlineImage(c *ui.Context, local string, muted ui.Color, onOpen func(string)) {
-	if bmp := loadChatBitmap(local); bmp != nil {
-		ui.Column(c).Width(360).MaxWidthPercent(100).MinWidth(0).Gap(4).Children(func() {
-			row := ui.Row(c).FillWidth().MinWidth(0)
-			row.Children(func() {
-				ui.Image(c, bmp).FillWidth().Height(220).Fit(ui.Contain)
-			})
-			if onOpen != nil && row.Clicked() {
-				onOpen(local)
-			}
-			ui.Text(c, filepath.Base(local)).MaxWidthPercent(100).FontSize(11).TextColor(muted)
-		})
+	bmp := loadChatBitmap(local)
+	if bmp == nil {
+		ui.Text(c, "[image] "+local).FontSize(12).TextColor(muted)
 		return
 	}
-	ui.Text(c, "[image] "+local).FontSize(12).TextColor(muted)
+	w, h := inlineImageBounds(bmp)
+	ratio := w / h
+	card := ui.Column(c).Width(w).MaxWidthPercent(100).AspectRatio(ratio).Radius(16).
+		Border(0.5, muted.Alpha(0.28)).Clip()
+	card.Children(func() {
+		ui.Image(c, bmp).Fill().Fit(ui.Cover)
+	})
+	if card.Hovered() {
+		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(r, muted.Alpha(0.06), 16)
+		})
+	}
+	if onOpen != nil {
+		card.Label("Message image").Focusable().Role(ui.RoleButton)
+		if card.Clicked() {
+			onOpen(local)
+		}
+	}
+}
+
+// inlineImageBounds implements the Original MessageImage sizing: the longer
+// side caps at 240 DIP, the natural aspect ratio stays inside 0.25–4, and the
+// short side follows from it.
+func inlineImageBounds(bmp *ui.Bitmap) (w, h float32) {
+	const (
+		longEdge = float32(240)
+		minRatio = float32(0.25)
+		maxRatio = float32(4)
+	)
+	width, height := bmp.Size()
+	if width <= 0 || height <= 0 {
+		return longEdge, longEdge * .75
+	}
+	ratio := float32(width) / float32(height)
+	if ratio < minRatio {
+		ratio = minRatio
+	}
+	if ratio > maxRatio {
+		ratio = maxRatio
+	}
+	if ratio >= 1 {
+		return longEdge, longEdge / ratio
+	}
+	return longEdge * ratio, longEdge
+}
+
+// paintImageTile is the 64 DIP multi-image thumbnail the Original uses when a
+// message carries more than one picture.
+func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(string)) {
+	const size = float32(64)
+	local := DisplayImagePath(path)
+	bmp := (*ui.Bitmap)(nil)
+	if local != "" {
+		bmp = loadChatBitmap(local)
+	}
+	tile := ui.Column(c).Width(size).Height(size).Radius(12).Border(0.5, muted.Alpha(0.28)).Clip()
+	tile.Children(func() {
+		switch {
+		case bmp != nil:
+			ui.Image(c, bmp).Fill().Fit(ui.Cover)
+		case path != "":
+			ui.Box(c).Fill().Background(muted.Alpha(0.10)).Center().Children(func() {
+				ui.Icon(c, attachmentIconImage).Width(18).Height(18).TextColor(muted)
+			})
+		}
+	})
+	if onOpen != nil {
+		tile.Label("Message image").Focusable().Role(ui.RoleButton)
+		if tile.Clicked() {
+			onOpen(local)
+		}
+	}
+}
+
+// paintImageFailure is the danger card the Original shows instead of a broken
+// picture: a tinted panel, the reason and an explicit retry.
+func paintImageFailure(c *ui.Context, message string, retry func()) {
+	ui.Column(c).Width(240).MaxWidthPercent(100).MinWidth(0).Radius(16).Padding(10, 12, 10, 12).Gap(6).
+		Background(ui.RGBA(200, 60, 60, 22)).Border(0.5, ui.RGBA(200, 60, 60, 90)).Children(func() {
+		ui.Text(c, message).FontSize(12).TextColor(ui.RGB(190, 60, 60))
+		if retry != nil {
+			if ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(11).Clicked() {
+				retry()
+			}
+		}
+	})
 }
 
 // ImageLightboxOverlay paints a full-window image viewer when displayPath is set.

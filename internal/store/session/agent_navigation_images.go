@@ -3,11 +3,13 @@ package session
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Child continuation accepts image data directly; files must never be staged
@@ -29,7 +31,7 @@ func agentNavigationPromptContentWithLimits(text string, paths []string, limits 
 		switch mediaType {
 		case "image/png", "image/jpeg", "image/gif", "image/webp":
 		default:
-			return nil, fmt.Errorf("子代理仅接受图片 / Child continuation accepts images only: %s", filepath.Base(path))
+			return nil, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionChildImagesOnly), filepath.Base(path)))
 		}
 		block, _ := json.Marshal(map[string]string{"type": "image", "mediaType": mediaType, "data": base64.StdEncoding.EncodeToString(data), "name": filepath.Base(path)})
 		parts = append(parts, block)

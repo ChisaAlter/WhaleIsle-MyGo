@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 // HostKey is an opaque fingerprint of the authenticated client, never a URL or
@@ -120,7 +121,7 @@ func (c *TaskControls) FinishLoad(t TaskTicket, view *pluginrpc.DshbotTaskView, 
 		return true
 	}
 	c.state.Error = ""
-	c.state.Notice = "任务已从当前 Host 刷新 / Tasks refreshed"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotTasksRefreshed)
 	return true
 }
 func (c *TaskControls) Select(scope TaskScope, id string) {
@@ -204,7 +205,7 @@ func (c *TaskControls) BeginAction(scope TaskScope) (TaskTicket, pluginrpc.Dshbo
 	review := c.state.Review
 	command := review.Command
 	if command.Revision != c.state.Revision || review.SessionID != c.state.SessionID {
-		c.state.Error = "目录已变化。关闭确认框并重新核对操作 / Catalog changed; review the action again"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewTheActionAgain)
 		return TaskTicket{}, empty, false
 	}
 	if command.Action != "stop" {
@@ -246,11 +247,11 @@ func (c *TaskControls) FinishAction(t TaskTicket, result pluginrpc.DshbotTaskRes
 	}
 	c.state.Review = nil
 	c.state.Error = ""
-	c.state.Notice = "Host 已确认 / Host accepted: " + review.Command.Action
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostAccepted) + review.Command.Action
 	if strings.TrimSpace(result.WakeError) != "" {
-		c.state.Notice += "；任务状态已保存，但唤醒失败 / State saved; wake failed: " + result.WakeError
+		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotStateSavedWakeFailed) + result.WakeError
 	} else if (review.Command.Action == "resume" || review.Command.Action == "retry") && !result.WakeAccepted {
-		c.state.Notice += "；Host 未确认唤醒，请刷新检查 / Wake not confirmed; refresh to inspect"
+		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotWakeNotConfirmedRefreshToInspect)
 	}
 	return true
 }

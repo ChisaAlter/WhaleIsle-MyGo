@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type BotCreateDraft struct {
@@ -165,9 +166,9 @@ func (c *BotCreator) FinishLoad(t BotCreateTicket, v pluginrpc.DshbotBotCatalog,
 		row, matchErr := pluginrpc.DshbotCreatedBot(e.attempt.Command, v)
 		if matchErr == nil {
 			e.state.Candidate = &row
-			e.state.Notice = "目录已有同身份记录；核对后采用，再单独打开 canonical 会话 / Exact catalog record found; inspect and adopt"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactCatalogRecordFoundInspectAndA)
 		} else {
-			e.state.Notice = "读回未确认完整匹配记录。结果仍未知，不解锁重建；可使用 Bot Web 入口核对 / Outcome remains unknown; no retry"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeRemainsUnknownNoRetry)
 			e.state.Error = matchErr.Error()
 		}
 	}
@@ -362,7 +363,7 @@ func (c *BotCreator) AbortUnsent(t BotCreateTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送创建；草稿保留，刷新后重新审阅 / Not sent; draft retained"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -381,7 +382,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 		e.attempt = nil
 		e.state.Uncertain = false
 		e.state.Error = err.Error()
-		e.state.Notice = "写入前拒绝；保留草稿，请刷新后重新审阅 / Rejected before write; draft retained"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWriteDraftRetained)
 		return
 	}
 	if err == nil {
@@ -394,7 +395,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "创建结果未知，草稿与身份已锁定。仅可读回，不重复创建 / Unknown outcome; read back without retry"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeReadBackWithoutRetry)
 		return
 	}
 	e.state.Created = pluginrpc.CloneDshbotBotItem(result.Item)
@@ -403,7 +404,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 	e.state.Draft = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已确认Bot和专属会话创建。打开失败不代表创建失败 / Bot created; opening failure is separate"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotBotCreatedOpeningFailureIsSeparate)
 	e.attempt = nil
 }
 func (c *BotCreator) Adopt(k, id string) bool {
@@ -423,7 +424,7 @@ func (c *BotCreator) Adopt(k, id string) bool {
 	e.state.Review = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "已采用目录中的同身份Bot，未重发创建。打开会核实或恢复专属会话 / Adopted existing bot; opening verifies/restores its canonical session"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedExistingBotOpeningVerifiesRe)
 	e.attempt = nil
 	return true
 }

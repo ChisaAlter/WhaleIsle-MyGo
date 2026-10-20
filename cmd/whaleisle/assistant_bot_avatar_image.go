@@ -5,6 +5,7 @@ import (
 	"whaleisle/internal/desktop/avatarimage"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) bindBotAvatarImageActions(m *assistantui.BotAvatarModel, k dshbotstore.RoutineScope, current, viewCurrent func() bool) {
@@ -26,7 +27,7 @@ func (s *mainState) bindBotAvatarImageActions(m *assistantui.BotAvatarModel, k d
 			source, err := avatarimage.Select(func() ([]string, error) {
 				// MyGo dialog methods may be called from any goroutine. No path entry,
 				// default path, enumeration, directory selection or remote fetch is added.
-				return mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: "选择本地头像图片 / Choose local avatar image", Filters: []mygo.FileFilter{{Name: "JPEG / PNG", Extensions: []string{"jpg", "jpeg", "png"}}}})
+				return mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdChooseLocalAvatarImage), Filters: []mygo.FileFilter{{Name: "JPEG / PNG", Extensions: []string{"jpg", "jpeg", "png"}}}})
 			}, live, avatarimage.ReadPickedFile)
 			if !live() {
 				return

@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoomRuntimeSnapshot struct {
@@ -77,11 +78,11 @@ func (c *RoomRuntimeReader) FinishRead(t RoomRuntimeTicket, v pluginrpc.DshbotRo
 	s.Loaded = err == nil
 	if err != nil {
 		s.Error = err.Error()
-		s.Notice = "运行态不可用；旧快照不代表当前状态 / Runtime unavailable; any old snapshot is stale"
+		s.Notice = storelocale.T(storelocale.KeyStoreDshbotRuntimeUnavailableAnyOldSnapshotIs)
 	} else {
 		s.Data = pluginrpc.CloneDshbotRoomRuntime(v)
 		s.Error = ""
-		s.Notice = "只读快照；不会自动 follow 或启动成员 / Read-only snapshot; no automatic member activation"
+		s.Notice = storelocale.T(storelocale.KeyStoreDshbotReadOnlySnapshotNoAutomaticMemberA)
 	}
 	return true
 }
@@ -111,7 +112,7 @@ func (c *RoomRuntimeReader) FinishOpen(t RoomRuntimeTicket, err error) bool {
 	if err != nil {
 		c.state.Error = err.Error()
 		c.state.Loaded = false
-		c.state.Notice = "打开失败；未创建或执行成员会话，请重新读取状态 / Open failed; refresh before another explicit open"
+		c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOpenFailedRefreshBeforeAnotherExpli)
 	}
 	return true
 }

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 type composerVoiceOperation struct {
@@ -86,7 +87,7 @@ func (s *mainState) startComposerVoice(win *mygo.Window, sessions *session.Store
 	s.mu.Lock()
 	if s.quitting || !s.dshMuxReady || s.bootStatus.State != harness.Ready {
 		s.mu.Unlock()
-		draft.Error = "Host 未连接，无法开始录音 / Host offline"
+		draft.Error = i18n.T(i18n.KeyCmdHostOffline)
 		return
 	}
 	old := s.voice

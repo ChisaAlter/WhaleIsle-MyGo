@@ -7,6 +7,7 @@ import (
 	"math"
 	"strings"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 const MaxVisualReplyBytes = 25 * 1024 * 1024
@@ -198,7 +199,7 @@ func (s *Store) loadVisualReply(ctx context.Context, sessionID, attachmentID str
 	}
 	s.visualReply.Loading = false
 	if err != nil {
-		s.visualReply.Error = "无法读取已发布 HTML / Published HTML unavailable: " + err.Error()
+		s.visualReply.Error = storelocale.T(storelocale.KeyStoreSessionPublishedHtmlUnavailable) + err.Error()
 	} else {
 		s.visualReply.HTML = out.HTML
 		s.visualReply.Ready = true

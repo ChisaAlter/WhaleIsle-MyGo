@@ -26,9 +26,10 @@ const (
 	// IDDeepseekLight forces the deepseek light palette.
 	IDDeepseekLight = "deepseek.light"
 	// FirstRunThemeID is the theme of a fresh profile (internal/config
-	// DefaultTheme): the shipped dark look, so a first launch does not follow
-	// the OS scheme into light. A stored theme id always wins.
-	FirstRunThemeID = IDDeepseekDark
+	// DefaultTheme): the deepseek family, which follows the OS light/dark
+	// preference like the harness install default. A stored theme id always
+	// wins.
+	FirstRunThemeID = DefaultID
 )
 
 // Scheme values for Theme.Scheme.

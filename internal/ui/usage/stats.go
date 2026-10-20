@@ -30,7 +30,7 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeySurfacesUsageLoading)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	case st.Err != "" && st.Overview == nil:
-		usageEmpty(c, "", st.Err, fg, muted)
+		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageError), st.Err+i18n.T(i18n.KeySurfacesUsageRetryHint), fg, muted)
 		return
 	case st.Overview == nil:
 		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageEmpty), usageText("刷新以读取内置统计服务。", "Refresh to read the built-in statistics service."), fg, muted)

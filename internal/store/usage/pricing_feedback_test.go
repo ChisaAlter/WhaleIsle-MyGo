@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 type pricingFeedbackTransport func(*http.Request) (*http.Response, error)
@@ -55,7 +56,7 @@ func TestUpstreamDeltaPricingFeedback(t *testing.T) {
 	fail.Store(false)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
-	if v.Err != "" || v.Dirty || !strings.Contains(v.Notice, "saved") || v.Settings.Prices["p/m"].InputCacheMiss != 8 {
+	if v.Err != "" || v.Dirty || !strings.Contains(v.Notice, storelocale.T(storelocale.KeyStoreUsagePricesSaved)) || v.Settings.Prices["p/m"].InputCacheMiss != 8 {
 		t.Fatalf("saved: %+v", v)
 	}
 	s.EditPrice("p/m", d)

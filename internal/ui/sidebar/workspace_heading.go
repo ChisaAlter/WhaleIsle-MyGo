@@ -70,7 +70,12 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 				if m.OnRenameWorkspace != nil {
 					rename = func() { m.OnRenameWorkspace("") }
 				}
-				panel.Width(220).Padding(6).Gap(2).Radius(10).Background(chrome.Color(colors.Field)).Border(1, chrome.Color(colors.Border)).Children(func() {
+				// The shared menu material: its own fill, the elevation hairline
+				// and shadow, faded in over the popover token.
+				progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
+				panel.Width(220).Padding(6).Gap(2).Radius(10).Opacity(progress)
+				chrome.MenuSurface(panel, chrome.Color(colors.Field), chrome.Color(colors.Border), 10)
+				panel.Children(func() {
 					workspaceViewOptions(c, m)
 					for _, action := range []struct {
 						label string

@@ -12,6 +12,7 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/store/session"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantRoomClient(ep harness.Endpoint) *dsh.Client {
@@ -216,7 +217,7 @@ func (s *mainState) openAssistantCreatedRoom(ep harness.Endpoint, client *dsh.Cl
 		return
 	}
 	s.assistantPluginBusy = true
-	label := "已创建群聊：打开专属会话 / Created room: open canonical session"
+	label := i18n.T(i18n.KeyCmdCreatedRoomOpenCanonicalSession)
 	s.assistantPluginDetail = label + "…"
 	s.assistantLastAct = s.assistantPluginDetail
 	s.mu.Unlock()

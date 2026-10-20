@@ -8,6 +8,7 @@ import (
 	"time"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/store/storelocale"
 )
 
 // workflowMemberStream borrows the existing, verified assistant presentation
@@ -154,7 +155,7 @@ func (s *Store) followWorkflowMember(ctx context.Context, token uint64, mux *dsh
 		}
 		w := &s.workflowMember
 		w.view.Process.Live = false
-		w.view.Process.Error = "实时序列不连续，正在重新同步… / Live sequence changed; resynchronizing…"
+		w.view.Process.Error = storelocale.T(storelocale.KeyStoreSessionLiveSequenceChangedResynchronizing)
 		w.view.Busy = true
 		notify := !w.notifyPending
 		w.notifyPending = true
@@ -185,7 +186,7 @@ func WorkflowMemberDisplayText(v WorkflowMemberView) string {
 			label = string(message.Kind)
 		}
 		if message.Streaming {
-			label += " · 实时临时输出 / live preview"
+			label += storelocale.T(storelocale.KeyStoreSessionLivePreview)
 		} else if message.Seq > 0 {
 			label += fmt.Sprintf(" #%.0f", message.Seq)
 		}

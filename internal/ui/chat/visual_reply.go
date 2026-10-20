@@ -17,11 +17,11 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 	active := state.SessionID == m.Snapshot.SelectedID && state.AttachmentID == id
 	ui.Column(c.Key("published-html-"+id)).FillWidth().Gap(6).Padding(10).Background(field).Border(1, border).Radius(6).Children(func() {
 		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
-		ui.Text(c, "已发布 HTML / Published HTML").FontSize(11).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyChatVisualPublished)).FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {
 			if m.OnInteractVisualReply != nil && m.OnInlineVisualReply == nil {
 				if ui.Button(c, i18n.T(i18n.KeyChatVisualInteract)).Disabled(active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
-					Tooltip("在隔离进程中的卡片表面运行控件和脚本；不开放网络、本机文件、应用权限或持久登录。 / Runs this page in an isolated process without network, local files or application access.").Clicked() {
+					Tooltip(i18n.T(i18n.KeyChatVisualIsolatedTooltip)).Clicked() {
 					m.OnInteractVisualReply(id)
 				}
 			}
@@ -37,7 +37,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 				m.OnReadVisualReply(id)
 			}
 			if active && state.Ready {
-				if ui.Button(c, "另存 HTML… / Save as…").Disabled(m.OnSaveVisualReply == nil).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatVisualSaveAs)).Disabled(m.OnSaveVisualReply == nil).Clicked() {
 					m.OnSaveVisualReply(id)
 				}
 			}
@@ -54,13 +54,13 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			return
 		}
 		if state.Loading {
-			ui.Text(c, "正在授权读取… / Reading published page…").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualReading)).TextColor(muted)
 		}
 		if state.Error != "" {
 			ui.Text(c, state.Error).TextColor(muted)
 		}
 		if state.InteractiveLoading {
-			ui.Text(c, "正在准备隔离交互表面… / Preparing isolated interactive surface…").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualPreparing)).TextColor(muted)
 		}
 		if state.InteractiveActive {
 			if state.Surface != nil {
@@ -95,7 +95,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPage) + ": "+state.InteractiveError).TextColor(muted)
 		}
 		if state.PreviewLoading {
-			ui.Text(c, "正在检查隔离环境并生成静态预览… / Checking isolation and rendering a static preview…").TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualChecking)).TextColor(muted)
 		}
 		if state.PreviewError != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPreview) + ": "+state.PreviewError).TextColor(muted)
@@ -110,7 +110,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		if state.Ready {
 			source := state.HTML
 			ui.TextArea(c.Key("html-source"), &source).ReadOnly(true).FillWidth().Lines(8, 20).FontSize(12).TextColor(fg)
-			ui.Text(c, "源码视图为纯文本；安全图片预览为 PNG，交互页在隔离进程运行。另存后在外部浏览器打开可能运行脚本或访问网络。 / Source is plain text; image preview is PNG, and interaction uses a separate isolated process. Opening a saved page externally may run scripts or access the network.").FontSize(11).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualSourceNote)).FontSize(11).TextColor(muted)
 		}
 	})
 }
@@ -137,7 +137,7 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 
 func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, page session.InlineVisualReply, fg, muted, field ui.Color) {
 	if page.Loading {
-		ui.Text(c, "正在加载交互页面… / Loading interactive page…").TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyChatVisualLoadingPage)).TextColor(muted)
 		return
 	}
 	if page.Error != "" {

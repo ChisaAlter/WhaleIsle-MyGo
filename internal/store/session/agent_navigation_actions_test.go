@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Separate new fence fixture; the earlier navigation fixture is not rerun.
@@ -81,13 +82,13 @@ func TestNativeAgentActionScopeFixture(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		v := s.AgentNavigationSnapshot()
-		if !v.ActionBusy && strings.Contains(v.ActionStatus, "Interrupt requested") {
+		if !v.ActionBusy && strings.Contains(v.ActionStatus, storelocale.T(storelocale.KeyStoreSessionInterruptRequested)) {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
 	v := s.AgentNavigationSnapshot()
-	if newCalls.Load() != 1 || v.ActionBusy || !strings.Contains(v.ActionStatus, "Interrupt requested") {
+	if newCalls.Load() != 1 || v.ActionBusy || !strings.Contains(v.ActionStatus, storelocale.T(storelocale.KeyStoreSessionInterruptRequested)) {
 		t.Fatalf("current action did not settle: %+v calls=%d", v, newCalls.Load())
 	}
 	if s.Snapshot().LastAction != "" {

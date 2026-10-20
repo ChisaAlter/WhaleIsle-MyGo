@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -88,6 +89,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 		if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
 			collapsed = false
 		}
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		if g.Kind != "flat" {
 			title := g.Workspace.Title
 			if title == "" {
@@ -99,16 +101,38 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if g.Kind == "other" {
 				title = workspaceText("其他会话", "Other sessions")
 			}
-			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
+			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(12)
 			if header.Hovered() || header.FocusWithin() {
-				header.Background(selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark)))
+				header.Background(selectedBackground(colors))
+			}
+			holdsSelection := false
+			for _, item := range g.Items {
+				if item.SessionID == m.Snapshot.SelectedID {
+					holdsSelection = true
+					break
+				}
 			}
 			header.Children(func() {
-				fold := "▾"
-				if collapsed {
-					fold = "▸"
-				}
-				if ui.Button(c, fold).Label(workspaceText("折叠工作区 ", "Toggle workspace ")+g.Key).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() && m.OnToggleWorkspaceGroup != nil {
+				// Rows.module.css: the folder rests, and the row swaps it for the
+				// disclosure arrow on hover (the arrow rotates as the group opens).
+				hovered := header.Hovered() || header.FocusWithin()
+				lead := ui.ButtonBase(c).Width(16).Height(20).Shrink(0).Padding(0).BorderWidth(0).
+					Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center()
+				lead.Children(func() {
+					if hovered {
+						ui.Icon(c, workspaceChevronArtwork).Size(12, 12).TextColor(muted).
+							Label(workspaceText("展开箭头 ", "Workspace chevron ") + g.Key).
+							Rotate(groupChevronAngle(c, lead, collapsed))
+						return
+					}
+					ink := muted
+					if holdsSelection {
+						ink = chrome.Color(colors.Accent)
+					}
+					ui.Icon(c, workspaceFolderArtwork).Size(16, 16).TextColor(ink).
+						Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
+				})
+				if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
 					m.OnToggleWorkspaceGroup(g.Key)
 				}
 				titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)

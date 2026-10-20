@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"whaleisle/internal/store/storelocale"
 )
 
 var DshbotCapabilityGroups = []string{"tools", "skills", "mcp"}
@@ -71,7 +72,7 @@ func (v dshbotCapabilityView) status(id string, catalog DshbotCapabilityCatalog)
 			out.Bot = b
 			matches++
 			if !validCapabilityUnicode(raw) {
-				out.WriteError = "资料包含不能无损解码的 Unicode，保留 Web 入口 / Unsupported Unicode; use existing Web editor"
+				out.WriteError = storelocale.T(storelocale.KeyDesktopPluginrpcUnsupportedUnicodeUseExistingWebEdi)
 			}
 			if json.Unmarshal(raw, &out.Profile) != nil {
 				return out, fmt.Errorf("Bot profile unavailable")
@@ -87,7 +88,7 @@ func (v dshbotCapabilityView) status(id string, catalog DshbotCapabilityCatalog)
 		err = ValidateDshbotCapabilityProfile(out)
 	}
 	if err != nil {
-		out.WriteError = "无法证明资料无损，保留 Web 编辑入口 / Profile cannot be safely round-tripped: " + err.Error()
+		out.WriteError = storelocale.T(storelocale.KeyDesktopPluginrpcProfileCannotBeSafelyRoundTripped) + err.Error()
 	}
 	return out, nil
 }

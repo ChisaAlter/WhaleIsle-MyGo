@@ -13,6 +13,7 @@ import (
 	"whaleisle/internal/desktop/voicecapture"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // SpeechRecordingPlan freezes the existing selected provider/language and Host
@@ -30,7 +31,7 @@ func (s *Store) PrepareSpeechRecording(ctx context.Context) (SpeechRecordingPlan
 	client, id := s.client, s.selectedID
 	s.mu.Unlock()
 	if client == nil {
-		return SpeechRecordingPlan{}, errors.New("语音 Host 未连接 / Speech Host offline")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionSpeechHostOffline))
 	}
 	// Audio and this Host's cookie may not be redirected to another endpoint.
 	rpc := *client
@@ -44,7 +45,7 @@ func (s *Store) PrepareSpeechRecording(ctx context.Context) (SpeechRecordingPlan
 	defer cancel()
 	var catalog api.SpeechCatalog
 	if err := rpc.Call(ctx, "speech/catalog", map[string]any{}, &catalog); err != nil {
-		return SpeechRecordingPlan{}, errors.New("语音服务不可用，请检查语音插件 / Speech unavailable")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionSpeechUnavailable))
 	}
 	provider := strings.TrimSpace(catalog.Selection.ProviderId)
 	ready := false
@@ -59,22 +60,22 @@ func (s *Store) PrepareSpeechRecording(ctx context.Context) (SpeechRecordingPlan
 		}
 	}
 	if provider == "" || !ready {
-		return SpeechRecordingPlan{}, errors.New("请先在语音输入插件设置准备所选提供方 / Prepare the selected speech provider")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionPrepareTheSelectedSpeechProvider))
 	}
 	bytes, seconds := catalog.MaxAudioBytes, catalog.MaxDurationSeconds
 	if math.IsNaN(bytes) || math.IsInf(bytes, 0) || bytes < 46 || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds <= 0 {
-		return SpeechRecordingPlan{}, errors.New("语音服务限额无效 / Invalid speech limits")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionInvalidSpeechLimits))
 	}
 	maxBytes := int(math.Min(math.Floor(bytes), 8<<20))
 	duration := time.Duration(math.Min(seconds, 120) * float64(time.Second))
 	// PCM capacity, timer and Host bounds must agree even for a tiny byte limit.
 	duration = min(duration, time.Duration((maxBytes-44)/2)*time.Second/16000)
 	if duration <= 0 {
-		return SpeechRecordingPlan{}, errors.New("语音服务限额过小 / Speech limit too small")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionSpeechLimitTooSmall))
 	}
 	plan := SpeechRecordingPlan{Limits: voicecapture.Limits{MaxBytes: maxBytes, MaxDuration: duration}, ProviderID: provider, Language: catalog.Selection.Language, SessionID: id, owner: s, client: client, rpc: &rpc}
 	if !plan.Current() {
-		return SpeechRecordingPlan{}, errors.New("语音会话已变化 / Speech session changed")
+		return SpeechRecordingPlan{}, errors.New(storelocale.T(storelocale.KeyStoreSessionSpeechSessionChanged))
 	}
 	return plan, nil
 }
@@ -98,22 +99,22 @@ func (p SpeechRecordingPlan) Transcribe(ctx context.Context, raw []byte) (string
 	request := api.TranscriptionRequest{AudioBase64: base64.StdEncoding.EncodeToString(raw), ProviderId: &p.ProviderID, Language: &p.Language}
 	var result api.Transcript
 	if err := p.rpc.Call(ctx, "speech/transcribe", map[string]any{"request": request}, &result); err != nil {
-		return "", errors.New("转写失败，原草稿未改动 / Transcription failed")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreSessionTranscriptionFailed))
 	}
 	if !p.Current() || ctx.Err() != nil {
 		return "", errors.New("speech session changed")
 	}
 	text := strings.TrimSpace(result.Text)
 	if text == "" {
-		return "", errors.New("未识别到文字 / No speech recognized")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreSessionNoSpeechRecognized))
 	}
 	if len(text) > 1<<20 {
-		return "", errors.New("转写文字过长 / Transcript too large")
+		return "", errors.New(storelocale.T(storelocale.KeyStoreSessionTranscriptTooLarge))
 	}
 	return text, nil
 }
 func validateRecording(b []byte, limit voicecapture.Limits) error {
-	bad := errors.New("无有效录音或超出限额 / Invalid recording")
+	bad := errors.New(storelocale.T(storelocale.KeyStoreSessionInvalidRecording))
 	if len(b) < 46 || len(b) > limit.MaxBytes || string(b[:4]) != "RIFF" || string(b[8:16]) != "WAVEfmt " || binary.LittleEndian.Uint32(b[16:20]) != 16 || binary.LittleEndian.Uint16(b[20:22]) != 1 || binary.LittleEndian.Uint16(b[22:24]) != 1 || binary.LittleEndian.Uint32(b[24:28]) != 16000 || binary.LittleEndian.Uint32(b[28:32]) != 32000 || binary.LittleEndian.Uint16(b[32:34]) != 2 || binary.LittleEndian.Uint16(b[34:36]) != 16 || string(b[36:40]) != "data" || int(binary.LittleEndian.Uint32(b[4:8])) != len(b)-8 || int(binary.LittleEndian.Uint32(b[40:44])) != len(b)-44 || (len(b)-44)%2 != 0 {
 		return bad
 	}

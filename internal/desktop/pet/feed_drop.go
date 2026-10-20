@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 //go:embed assets/pet-drop.js
@@ -50,11 +51,11 @@ func (p *Companion) fileDropAction(raw string) bool {
 		return true
 	}
 	if err := p.Store.FeedPetFile(time.Now()); err != nil {
-		p.feedMessage = "保存失败，未计入状态 / Save failed; not applied"
+		p.feedMessage = storelocale.T(storelocale.KeyDesktopPetSaveFailedNotApplied)
 		return true
 	}
 	p.careAction = newCareAnimation("file", name, 0)
 	_ = p.rest.wake(nil)
-	p.feedMessage = "吃掉了「" + name + "」的心意！饱食 +2，心情 +1；文件未读取或改动 / Fed"
+	p.feedMessage = "吃掉了「" + name + storelocale.T(storelocale.KeyDesktopPetFed2)
 	return true
 }

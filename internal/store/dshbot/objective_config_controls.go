@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type ObjectiveConfigTicket struct {
@@ -97,7 +98,7 @@ func (c *ObjectiveConfigControls) FinishLoad(t ObjectiveConfigTicket, status plu
 	c.state.Busy = false
 	value, valueErr := pluginrpc.DshbotObjectiveConfigValue(status)
 	if err != nil || valueErr != nil || status.Bot.ID != t.Scope.BotID || status.Bot.SessionID == "" {
-		c.state.Error = "目标配置未能核实；保留并锁定草稿，请刷新 / Read unavailable; draft retained and locked"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetainedAndLock2)
 		return true
 	}
 	draftValue, draftErr := pluginrpc.ParseDshbotObjectiveConfigDraft(c.state.Draft)
@@ -110,7 +111,7 @@ func (c *ObjectiveConfigControls) FinishLoad(t ObjectiveConfigTicket, status plu
 	c.state.Writable = writable
 	c.state.Loaded = true
 	c.state.Error = ""
-	c.state.Notice = "已读回配置；不同于 Host 的草稿须重新审阅 / Read back; review any remaining draft"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewAnyRemainingDraft)
 	return true
 }
 func (c *ObjectiveConfigControls) editable(k RoutineScope) bool {
@@ -208,14 +209,14 @@ func (c *ObjectiveConfigControls) FinishSave(t ObjectiveConfigTicket, out plugin
 	c.state.Review = nil
 	c.state.Warnings = append([]string(nil), out.Warnings...)
 	if err != nil || out.Status.Bot.ID != t.Scope.BotID || out.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = "保存结果未知；保留并锁定草稿，先读回，不自动重试 / Outcome uncertain; read back before saving"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin2)
 		if !out.Attempted {
-			c.state.Error = "发送前资料或权限变化，未保存；刷新重新审阅 / Preflight changed; no save sent"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent2)
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
 	c.state.Error = ""
-	c.state.Notice = "Host 返回保存回执；刷新核实配置与警告 / Receipt received; read back to verify"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReceiptReceivedReadBackToVerify)
 	return true
 }

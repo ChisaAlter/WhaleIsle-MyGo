@@ -9,6 +9,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // AgentPresetContentLimit bounds one native reader page, never the stored source.
@@ -154,7 +155,7 @@ func (r *AgentPresetReader) Load(ctx context.Context, ticket uint64) {
 		return
 	}
 	if doc.AgentPreset != id {
-		r.state.Error = fmt.Sprintf("预设身份不一致 / Preset identity mismatch: requested %q", id)
+		r.state.Error = fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionPresetIdentityMismatch), id)
 		return
 	}
 	r.state.Loaded = true

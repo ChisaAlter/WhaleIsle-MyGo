@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // refreshPetTask uses the same current connection and session roster as chat.
@@ -100,11 +101,11 @@ func (s *mainState) openPetChat() {
 		return
 	}
 	if cfg == nil || !cfg.Get().WhaleAssistantEnabled {
-		finish("请先在助手设置启用鲸鱼娘 / Whale assistant is disabled")
+		finish(i18n.T(i18n.KeyCmdWhaleAssistantIsDisabled))
 		return
 	}
 	if !ready || sessions == nil || !sessions.Snapshot().ClientReady || win == nil {
-		finish("Host 未连接，请稍后重试 / Host offline")
+		finish(i18n.T(i18n.KeyCmdHostOffline2))
 		return
 	}
 	selected := sessions.Snapshot().SelectedID
@@ -116,20 +117,20 @@ func (s *mainState) openPetChat() {
 			current := !s.quitting && s.win == win && s.desktopPet == p && s.sessions == sessions && s.cfgStore == cfg && s.dshMuxReady && now.State == harness.Ready && now.Generation == host.Generation && now.Endpoint.Origin == host.Endpoint.Origin && now.Endpoint.Cookie == host.Endpoint.Cookie
 			s.mu.Unlock()
 			if !current || !cfg.Get().WhaleAssistantEnabled {
-				finish("Host 或插件已变化，请重试 / Connection changed")
+				finish(i18n.T(i18n.KeyCmdConnectionChanged))
 				return
 			}
 			if sessions.Snapshot().SelectedID != selected {
-				finish("已切换会话，请重新点击 / Conversation changed")
+				finish(i18n.T(i18n.KeyCmdConversationChanged))
 				return
 			}
 			if err != nil {
 				// Host bodies/errors may contain URLs or private data. Do not publish them
 				// to the local renderer or silently substitute the current task session.
-				finish("宠物会话不可用，请检查鲸鱼娘插件 / Pet chat unavailable")
+				finish(i18n.T(i18n.KeyCmdPetChatUnavailable))
 				return
 			}
-			if !finish("已打开宠物会话 / Pet chat opened") {
+			if !finish(i18n.T(i18n.KeyCmdPetChatOpened)) {
 				return
 			}
 			s.activatePetConversation(sessions, id)

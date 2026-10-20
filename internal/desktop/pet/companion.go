@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
+	"whaleisle/internal/store/storelocale"
 )
 
 //go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
@@ -95,7 +96,7 @@ func (p *Companion) Save() {
 		}
 		// Keep an already-saved missing skin, but don't allow arbitrary new IDs.
 		if !found && p.SkinID != previous.SkinID {
-			p.Error = "Selected skin is unavailable / 皮肤不可用"
+			p.Error = storelocale.T(storelocale.KeyDesktopPetSkinUnavailable)
 			return
 		}
 	}
@@ -175,7 +176,7 @@ func (p *Companion) sync() {
 		neuralAssets, err = loadRenderAssets(defaultRenderRoot())
 		if err != nil {
 			p.Error = err.Error()
-			notice = "THA4 资源不可用，已回退 / Missing or changed THA4 assets; fallback"
+			notice = storelocale.T(storelocale.KeyDesktopPetMissingOrChangedTha4AssetsFallback)
 		}
 	}
 	p.assetMu.Lock()
@@ -186,7 +187,7 @@ func (p *Companion) sync() {
 	p.assetMu.Unlock()
 	w := mygo.NewWindow(mygo.WindowOptions{Title: "MyGo鲸屿 companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
-		p.Error = "Companion window could not open / 桌宠窗口创建失败"
+		p.Error = storelocale.T(storelocale.KeyDesktopPetWindowCreateFailed)
 		p.close()
 		return
 	}

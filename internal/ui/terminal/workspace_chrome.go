@@ -48,7 +48,7 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 			_ = p.createPane(m.SystemDark, false, false)
 		}
 		if tool(terminalLabel("关闭当前", "Close current"), terminalTrashIcon, p.active == 0) {
-			closePaneFromView(m, p.active)
+			requestClosePane(m, p.active)
 		}
 	})
 }
@@ -64,8 +64,8 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Row(c).FillWidth().MinWidth(0).Gap(4).Padding(2, 8, 4, 8).AlignItems(ui.Center).Children(func() {
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-				for _, pane := range append([]*terminalPane(nil), p.panes...) {
-					paintTerminalChip(c, m, pane, fg, muted)
+				for index, pane := range append([]*terminalPane(nil), p.panes...) {
+					paintTerminalChip(c, m, pane, index+1, fg, muted)
 				}
 			})
 		})
@@ -74,13 +74,13 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 }
 
 // paintTerminalChip paints one pane chip with the same geometry as a file tab.
-func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, fg, muted ui.Color) {
+func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, fg, muted ui.Color) {
 	p := m.Panel
 	if p == nil || pane == nil {
 		return
 	}
 	active := p.active == pane.id
-	chip := ui.Row(c.Key(fmt.Sprintf("terminal-tab-%d", pane.id))).Gap(5).Height(28).MinWidth(80).MaxWidth(200).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
+	chip := ui.Row(c.Key(fmt.Sprintf("terminal-tab-%d", pane.id))).Gap(5).Height(28).MinWidth(80).MaxWidth(200).Shrink(0).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
 	hovered := chip.Hovered()
 	switch {
 	case active:
@@ -92,7 +92,7 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, fg, muted ui.
 	if active {
 		textColor = fg
 	}
-	caption := terminalTabLabel(pane)
+	caption := terminalTabLabel(pane, ordinal)
 	chip.Children(func() {
 		title := ui.Button(c, "").Label(terminalTitle(pane)).Grow(1).MinWidth(0).Height(26).Padding(0).BorderWidth(0).Background(ui.Transparent)
 		title.Children(func() {
@@ -109,15 +109,18 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, fg, muted ui.
 				close.Background(c.Theme().SurfacePressed)
 			}
 			if close.Clicked() {
-				closePaneFromView(m, pane.id)
+				requestClosePane(m, pane.id)
 			}
 		}
 	})
 }
 
 // terminalTabLabel prefers the shell's own title (OSC 0/2) and falls back to the
-// pane number, so a chip names the running program the way a terminal tab does.
-func terminalTabLabel(pane *terminalPane) string {
+// pane's position in the strip, so a chip names the running program when the
+// shell reports one and otherwise reads as the first, second, third terminal.
+// The number is the pane's place, not its creation id, so closing a middle pane
+// never leaves a gap in the strip.
+func terminalTabLabel(pane *terminalPane, ordinal int) string {
 	if pane == nil {
 		return ""
 	}
@@ -129,5 +132,5 @@ func terminalTabLabel(pane *terminalPane) string {
 			return title
 		}
 	}
-	return fmt.Sprintf(terminalLabel("终端 %d", "Terminal %d"), pane.id)
+	return fmt.Sprintf(terminalLabel("终端 %d", "Terminal %d"), ordinal)
 }

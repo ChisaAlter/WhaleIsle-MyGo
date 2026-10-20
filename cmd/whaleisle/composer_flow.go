@@ -132,7 +132,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		}
 		if claimed {
 			if body == "" && len(d.Attachments) == 0 {
-				d.Error = "请输入回复内容 / Enter a reply or add an attachment"
+				d.Error = i18n.T(i18n.KeyCmdEnterAReplyOrAddAnAttachment)
 				return
 			}
 			text, err = session.EncodeGroupThreadReply(thread, body)

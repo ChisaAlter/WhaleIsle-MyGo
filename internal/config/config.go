@@ -35,12 +35,12 @@ const DataDirName = "Deepseek-Harness-Desktop"
 // FileName is the configuration file inside the data directory.
 const FileName = "config.json"
 
-// DefaultTheme is the theme id of a first run: the deepseek dark palette
-// (theme.IDDeepseekDark). The shipped product look is dark chrome over the
-// ambient backdrop, so a new install starts there instead of following the OS
-// scheme into light. A stored theme always wins, and an invalid one falls back
-// here.
-const DefaultTheme = "deepseek.dark"
+// DefaultTheme is the theme id of a first run: the deepseek family, which
+// follows the OS light/dark preference. That matches the harness install
+// default (ui-theme/src/theme-settings.ts DEFAULT_PREFERENCE = "system"); a
+// first launch must not force a palette the user did not choose. A stored
+// theme always wins, and an invalid one falls back here.
+const DefaultTheme = "deepseek"
 
 // Remote relay topology constants mirrored from
 // reference/electron/src/shared/lan.js (hardcoded product defaults).

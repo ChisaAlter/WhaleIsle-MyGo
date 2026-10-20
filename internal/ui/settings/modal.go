@@ -18,13 +18,18 @@ func ModalView(c *ui.Context, m Model) {
 	colors := resolved.Active(m.SystemDark)
 	w, h := c.Size()
 	w, h = settingsModalSize(w, h)
-	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		maskAlpha := float32(.24)
-		if resolved.Scheme == theme.SchemeDark {
-			maskAlpha = .5
+	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
+		dark := resolved.Scheme == theme.SchemeDark || resolved.Scheme == theme.SchemeSystem && m.SystemDark
+		mask := ui.RGBA(0, 0, 0, .24)
+		if dark {
+			mask = ui.RGBA(0, 0, 0, .5)
 		}
-		backdrop.Background(ui.RGBA(0, 0, 0, maskAlpha))
-		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).Background(chrome.Color(colors.BG)).Radius(28).Clip().Children(func() { View(c, m) })
+		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
+		chrome.RevealMask(backdrop, mask, progress)
+		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
+			Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(colors.BG), chrome.MaterialPanel, 28)).
+			Children(func() { View(c, m) })
+		chrome.MenuElevation(panel)
 	})
 	if !open && m.OnClose != nil {
 		m.OnClose()

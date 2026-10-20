@@ -6,6 +6,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/store/storelocale"
 )
 
 func quickChatName(name, fallback string) string {
@@ -25,55 +26,55 @@ func (q *QuickChat) view(c *ui.Context) {
 	ui.Column(c).Fill().Padding(14).Gap(10).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Text(c, quickChatName(q.state.Name, "鲸鱼娘")+" · 聊聊").Bold().FontSize(fonttheme.InterfaceSize(17)).Grow(1)
-			if !direct && ui.Button(c, "↗ 主会话 / Open").Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
+			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetOpen)).Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
-			if ui.Button(c, "×").Label("关闭聊天卡片 / Close quick chat").Tooltip("关闭只取消本地等待，服务端可能继续 / Closing only cancels the local wait").Clicked() {
+			if ui.Button(c, "×").Label(storelocale.T(storelocale.KeyDesktopPetCloseQuickChat)).Tooltip(storelocale.T(storelocale.KeyDesktopPetClosingOnlyCancelsTheLocalWait)).Clicked() {
 				q.owner.CloseQuickChat()
 			}
 		})
 		if direct {
-			ui.Text(c, "联网临时聊天 · deepseek-chat · 使用桌面 API 设置；仅保留本窗口最近 6 轮，不写入共同会话 / Temporary online API chat").FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
+			ui.Text(c, storelocale.T(storelocale.KeyDesktopPetTemporaryOnlineApiChat)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		} else {
-			ui.Text(c, "与主窗口共享模型、上下文和持久记录 / One shared conversation").FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
+			ui.Text(c, storelocale.T(storelocale.KeyDesktopPetOneSharedConversation)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
 		}
 		if q.state.SessionID != "" {
-			ui.Text(c, q.state.SessionID).Label("宠物会话 ID / Pet session ID").SingleLine().FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).Selectable()
+			ui.Text(c, q.state.SessionID).Label(storelocale.T(storelocale.KeyDesktopPetPetSessionId)).SingleLine().FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).Selectable()
 		}
 		if !direct {
 			q.modelPicker(c, active)
 		}
 		if len(q.state.History) == 0 {
 			ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-				line := "正在读取共同记录… / Loading shared history…"
+				line := storelocale.T(storelocale.KeyDesktopPetLoadingSharedHistory)
 				if direct {
-					line = "输入后点联网发送才会请求 API / Click Send to API to send"
+					line = storelocale.T(storelocale.KeyDesktopPetClickSendToApiToSend)
 				}
 				if q.state.SessionID != "" {
-					line = "还没有文字记录 / No messages yet"
+					line = storelocale.T(storelocale.KeyDesktopPetNoMessagesYet)
 				}
 				if q.stale {
-					line = "连接不可用；草稿仍保留 / Connection unavailable"
+					line = storelocale.T(storelocale.KeyDesktopPetConnectionUnavailable)
 				}
 				ui.Text(c, line).TextColor(theme.TextMuted).FontSize(fonttheme.InterfaceSize(12))
 			})
 		} else {
-			historyLabel := "共同会话记录 / Shared history"
+			historyLabel := storelocale.T(storelocale.KeyDesktopPetSharedHistory)
 			if direct {
-				historyLabel = "临时 API 聊天记录 / Temporary API history"
+				historyLabel = storelocale.T(storelocale.KeyDesktopPetTemporaryApiHistory)
 			}
 			ui.List(c, &q.list, len(q.state.History)).Label(historyLabel).Grow(1).FillWidth().MinHeight(80).Rows(func(row ui.ListRow) {
 				message := q.state.History[row.Index]
 				label, color := q.state.Name, theme.Text
 				switch message.Role {
 				case "user":
-					label = "你 / You"
+					label = storelocale.T(storelocale.KeyDesktopPetYou)
 				case "her":
 					label = quickChatName(label, "鲸鱼娘")
 				case "err":
-					label, color = "状态 / Status", theme.Danger
+					label, color = storelocale.T(storelocale.KeyDesktopPetStatus), theme.Danger
 				default:
-					label = "会话 / Session"
+					label = storelocale.T(storelocale.KeyDesktopPetSession)
 				}
 				ui.Column(row.Context).Padding(8).Gap(3).FillWidth().Children(func() {
 					ui.Text(row.Context, label).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
@@ -85,7 +86,7 @@ func (q *QuickChat) view(c *ui.Context) {
 			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		}
 		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label("聊天草稿 / Quick chat draft").FillWidth().Lines(2, 4).Placeholder("说点什么… Enter 发送，Shift+Enter 换行 / Enter sends; Shift+Enter newline")
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label(storelocale.T(storelocale.KeyDesktopPetQuickChatDraft)).FillWidth().Lines(2, 4).Placeholder(storelocale.T(storelocale.KeyDesktopPetEnterSendsShiftEnterNewline))
 		// Read the IME composition state during the build: input callbacks run
 		// outside the build pass, where an Element query panics ("element from
 		// pass N used in pass N"). The next frame refreshes it.
@@ -103,20 +104,20 @@ func (q *QuickChat) view(c *ui.Context) {
 			input.AutoFocus()
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			sendLabel := "发送 / Send"
+			sendLabel := storelocale.T(storelocale.KeyDesktopPetSend)
 			if direct {
-				sendLabel = "联网发送 / Send to API"
+				sendLabel = storelocale.T(storelocale.KeyDesktopPetSendToApi)
 			}
 			if ui.Button(c, sendLabel).Disabled(!active || (!direct && q.state.SessionID == "") || q.sending.busy() || q.picking.busy() || q.stopping.busy() || strings.TrimSpace(q.draft) == "").Clicked() {
 				q.send()
 			}
-			if q.sending.busy() && ui.Button(c, "取消等待 / Cancel wait").Disabled(!active).Clicked() {
+			if q.sending.busy() && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetCancelWait)).Disabled(!active).Clicked() {
 				q.cancelWait()
 			}
-			if !direct && ui.Button(c, "停止当前轮 / Stop turn").Disabled(!active || q.state.SessionID == "" || q.stopping.busy() || q.picking.busy()).Clicked() {
+			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetStopTurn)).Disabled(!active || q.state.SessionID == "" || q.stopping.busy() || q.picking.busy()).Clicked() {
 				q.stopTurn()
 			}
-			if !direct && ui.Button(c, "刷新 / Refresh").Disabled(!active || q.history.busy()).Clicked() {
+			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetRefresh)).Disabled(!active || q.history.busy()).Clicked() {
 				q.refreshHistory()
 				q.refreshCatalog()
 			}
@@ -135,7 +136,7 @@ func (q *QuickChat) view(c *ui.Context) {
 func (q *QuickChat) modelPicker(c *ui.Context, active bool) {
 	blocked := !active || q.sending.busy() || q.picking.busy() || q.stopping.busy()
 	selected := q.state.Model
-	modelLabel := "模型 / Model"
+	modelLabel := storelocale.T(storelocale.KeyDesktopPetModel)
 	if selected != nil {
 		modelLabel = selected.Provider + " / " + selected.Model
 	}
@@ -155,7 +156,7 @@ func (q *QuickChat) modelPicker(c *ui.Context, active bool) {
 					}
 				})
 			}
-		}).Label("选择共同会话模型 / Select shared model").MaxWidthPercent(100).MinWidth(0).Disabled(blocked || len(q.state.Groups) == 0)
+		}).Label(storelocale.T(storelocale.KeyDesktopPetSelectSharedModel)).MaxWidthPercent(100).MinWidth(0).Disabled(blocked || len(q.state.Groups) == 0)
 		if selected != nil {
 			for _, group := range q.state.Groups {
 				if group.ID != selected.Provider {
@@ -165,9 +166,9 @@ func (q *QuickChat) modelPicker(c *ui.Context, active bool) {
 					if model.ID != selected.Model || len(model.Efforts) == 0 {
 						continue
 					}
-					label := "思考 / Reasoning: " + quickChatName(selected.ReasoningEffort, "默认 / Default")
+					label := storelocale.T(storelocale.KeyDesktopPetReasoning) + quickChatName(selected.ReasoningEffort, storelocale.T(storelocale.KeyDesktopPetDefault))
 					ui.MenuButton(c, label, func(menu *ui.Menu) {
-						if menu.Item("默认 / Default").Checked(selected.ReasoningEffort == "").Disabled(blocked).Chosen() {
+						if menu.Item(storelocale.T(storelocale.KeyDesktopPetDefault)).Checked(selected.ReasoningEffort == "").Disabled(blocked).Chosen() {
 							q.choose(quickChatModel{Provider: selected.Provider, Model: selected.Model})
 						}
 						for _, effort := range model.Efforts {
@@ -175,7 +176,7 @@ func (q *QuickChat) modelPicker(c *ui.Context, active bool) {
 								q.choose(quickChatModel{Provider: selected.Provider, Model: selected.Model, ReasoningEffort: effort.ID})
 							}
 						}
-					}).Label("选择思考强度 / Select reasoning effort").Disabled(blocked)
+					}).Label(storelocale.T(storelocale.KeyDesktopPetSelectReasoningEffort)).Disabled(blocked)
 				}
 			}
 		}

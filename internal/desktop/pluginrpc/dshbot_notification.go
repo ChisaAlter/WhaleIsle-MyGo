@@ -3,9 +3,11 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"whaleisle/internal/desktop/botnotify"
+	"whaleisle/internal/store/storelocale"
 )
 
 // DshbotNotificationSnapshot reads exactly the original contacts catalog items,
@@ -22,7 +24,7 @@ func (c *Client) DshbotNotificationSnapshot(ctx context.Context) (botnotify.Snap
 	}
 	out.Revision = catalog.View.Revision
 	if len(catalog.View.Value.Items) > botnotify.MaxBots {
-		return out, fmt.Errorf("Bot 通知不可用：目录超过 200 个条目 / Notification catalog exceeds the Host limit of 200 items")
+		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNotificationCatalogExceedsTheHostLi))
 	}
 	profiles := map[string]DshbotCatalogItem{}
 	ids := make([]string, 0, len(catalog.View.Value.Items))

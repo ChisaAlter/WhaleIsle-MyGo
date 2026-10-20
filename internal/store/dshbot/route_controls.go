@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RouteTicket struct {
@@ -137,7 +138,7 @@ func (c *RouteControls) FinishLoad(t RouteTicket, status pluginrpc.DshbotRouteSt
 	c.generation++
 	value, ve := pluginrpc.DshbotRouteValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = "模型/工作区未核实；保留草稿，请刷新 / Read unavailable; draft retained"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained3)
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotRoute(status)
@@ -147,9 +148,9 @@ func (c *RouteControls) FinishLoad(t RouteTicket, status pluginrpc.DshbotRouteSt
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotRouteApplied(e.attempt.Command, status.DshbotCapabilityStatus) == nil {
 			e.state.Candidate = true
-			e.state.Notice = "完整资料已匹配审阅值，核对新会话后可采用读回 / Matching profile found; inspect and adopt"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotMatchingProfileFoundInspectAndAdopt3)
 		} else {
-			e.state.Notice = "结果仍未知；仅保留读回，不允许重发。请在 Bot Web 核对 / Unknown outcome remains locked"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeRemainsLocked)
 		}
 		return true
 	}
@@ -158,7 +159,7 @@ func (c *RouteControls) FinishLoad(t RouteTicket, status pluginrpc.DshbotRouteSt
 	}
 	e.hasDraft = true
 	e.state.Dirty = e.state.Draft != value
-	e.state.Notice = "已读回；剩余草稿需要重新审阅 / Read back; review remaining changes"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewRemainingChanges)
 	return true
 }
 func (c *RouteControls) editable(k RoutineScope) *routeEntry {
@@ -292,7 +293,7 @@ func (c *RouteControls) AbortUnsent(t RouteTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送；草稿保留，刷新重新审阅 / Not sent; refresh and review"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -310,7 +311,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 	e.state.Warnings = append([]string(nil), out.Warnings...)
 	if !out.Attempted {
 		e.attempt = nil
-		e.state.Notice = "未发送；刷新重新审阅 / Not sent; refresh"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
 			e.state.Error = err.Error()
 		}
@@ -322,7 +323,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "结果未知；保留并锁定草稿，只读回，不自动重试 / Unknown; read back only"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
 	e.state.Status.DshbotCapabilityStatus = pluginrpc.CloneDshbotCapabilities(out.Status)
@@ -331,7 +332,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已返回完整保存回执；尚未打开新会话，刷新后可从现有入口打开 / Saved; use existing entry to open after refresh"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotSavedUseExistingEntryToOpenAfterR)
 	e.attempt = nil
 }
 func (c *RouteControls) Adopt(k RoutineScope) bool {
@@ -350,7 +351,7 @@ func (c *RouteControls) Adopt(k RoutineScope) bool {
 	e.state.Candidate = false
 	e.state.Review = nil
 	e.state.Error = ""
-	e.state.Notice = "已采用完整匹配资料，没有重发；会话创建及目标同步需另行核实 / Adopted catalog; session and live synchronization remain unverified"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogSessionAndLiveSynchro)
 	e.attempt = nil
 	c.generation++
 	return true

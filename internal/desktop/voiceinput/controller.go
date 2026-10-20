@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/voicecapture"
+	"whaleisle/internal/store/storelocale"
 )
 
 type Transcribe func(context.Context, []byte) (string, error)
@@ -55,7 +56,7 @@ func (c *Controller) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.ctx = ctx
 	c.cancel = cancel
-	c.status = Status{Phase: "requesting", Message: "正在检查语音服务与麦克风权限 / Opening microphone…"}
+	c.status = Status{Phase: "requesting", Message: storelocale.T(storelocale.KeyDesktopVoiceinputOpeningMicrophone)}
 	c.mu.Unlock()
 	c.notify()
 	go func() {
@@ -70,7 +71,7 @@ func (c *Controller) Start() {
 		}
 		capture, err := c.opts.Capture(ctx, limits)
 		if err != nil {
-			c.complete(serial, "", "无法打开麦克风，请检查系统权限和设备 / Microphone unavailable")
+			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputMicrophoneUnavailable))
 			return
 		}
 		c.mu.Lock()
@@ -81,7 +82,7 @@ func (c *Controller) Start() {
 		}
 		c.capture = capture
 		c.transcribe = transcribe
-		c.status = Status{Phase: "recording", Message: "录音中：停止并转写，或取消；到时自动转写 / Recording"}
+		c.status = Status{Phase: "recording", Message: storelocale.T(storelocale.KeyDesktopVoiceinputRecording)}
 		c.timer = time.AfterFunc(limits.MaxDuration, func() { c.stop(serial) })
 		c.mu.Unlock()
 		c.notify()
@@ -100,14 +101,14 @@ func (c *Controller) stop(serial uint64) {
 		c.timer.Stop()
 		c.timer = nil
 	}
-	c.status = Status{Phase: "transcribing", Message: "正在转写，结果只填入草稿 / Transcribing…"}
+	c.status = Status{Phase: "transcribing", Message: storelocale.T(storelocale.KeyDesktopVoiceinputTranscribing)}
 	c.mu.Unlock()
 	c.notify()
 	go func() {
 		defer capture.Cancel()
 		raw, err := capture.Stop()
 		if err != nil {
-			c.complete(serial, "", "录音失败，原草稿未改动 / Recording failed")
+			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputRecordingFailed))
 			return
 		}
 		defer clear(raw)
@@ -117,7 +118,7 @@ func (c *Controller) stop(serial uint64) {
 		}
 		text, err := transcribe(ctx, raw)
 		if err != nil {
-			c.complete(serial, "", "转写失败，原草稿未改动 / Transcription failed")
+			c.complete(serial, "", storelocale.T(storelocale.KeyStoreSessionTranscriptionFailed))
 			return
 		}
 		c.complete(serial, text, "")
@@ -149,7 +150,7 @@ func (c *Controller) complete(serial uint64, text, message string) {
 		if inserted {
 			c.status = Status{}
 		} else if text != "" {
-			c.status = Status{Phase: "feedback", Pending: text, Message: "草稿已修改；点击插入或取消 / Draft changed; insert or discard"}
+			c.status = Status{Phase: "feedback", Pending: text, Message: storelocale.T(storelocale.KeyDesktopVoiceinputDraftChangedInsertOrDiscard)}
 		} else {
 			c.status = Status{Phase: "feedback", Message: message}
 		}

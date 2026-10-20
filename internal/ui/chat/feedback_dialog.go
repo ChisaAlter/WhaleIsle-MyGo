@@ -103,9 +103,12 @@ func messageFeedbackDialog(c *ui.Context, m Model) {
 	open := true
 	w, _ := c.Size()
 	ui.DialogBase(c.Key("message-feedback-modal"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(mask).Padding(24)
+		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
+		chrome.RevealMask(backdrop, mask, progress)
+		backdrop.Padding(24)
 		panel.Label(feedbackText("title")).Width(max(0, min(float32(488), w-48))).Gap(38).Padding(0, 0, 24, 0).
-			Radius(28).Clip().Background(chrome.BackdropSurface(layer)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+			Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(layer, chrome.MaterialPanel, 28)).
+			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				ui.Row(c).FillWidth().Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, feedbackText("title")).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(fg).Grow(1)

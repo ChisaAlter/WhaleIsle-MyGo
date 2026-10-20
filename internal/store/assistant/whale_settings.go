@@ -1,10 +1,11 @@
 package assistant
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 // WhaleSettingsEditor holds only this native editor's in-memory drafts. It
@@ -65,7 +66,7 @@ func (s *WhaleSettingsEditor) Suspend() {
 	s.pending = 0
 	if s.busy {
 		s.loaded = false
-		s.notice = "操作已中断，请重新读取核对 / Interrupted; refresh to verify"
+		s.notice = storelocale.T(storelocale.KeyStoreAssistantInterruptedRefreshToVerify)
 	}
 	s.busy = false
 	s.confirm = false
@@ -117,7 +118,7 @@ func (s *WhaleSettingsEditor) Restore(host, field string) {
 	s.revision++
 	s.confirm = false
 	s.lastErr = ""
-	s.notice = "草稿已恢复为当前 Host 内容 / Draft restored from Host"
+	s.notice = storelocale.T(storelocale.KeyStoreAssistantDraftRestoredFromHost)
 }
 func (s *WhaleSettingsEditor) ticket() WhaleSettingsTicket {
 	s.serial++
@@ -144,7 +145,7 @@ func (s *WhaleSettingsEditor) mergeRead(v pluginrpc.WhaleSettings) {
 		s.draft = v
 		s.revision++
 		if s.seen {
-			s.notice = "Whale 身份已变更，已隔离之前的草稿 / Whale identity changed"
+			s.notice = storelocale.T(storelocale.KeyStoreAssistantWhaleIdentityChanged)
 		}
 	} else {
 		if s.draft.Memory == s.server.Memory {
@@ -179,7 +180,7 @@ func (s *WhaleSettingsEditor) FinishLoad(q WhaleSettingsTicket, v pluginrpc.Whal
 	}
 	s.mergeRead(v)
 	if s.notice == "" {
-		s.notice = "已读取；未保存的草稿保持不变 / Loaded; unsaved drafts preserved"
+		s.notice = storelocale.T(storelocale.KeyStoreAssistantLoadedUnsavedDraftsPreserved)
 	}
 	return true
 }
@@ -213,7 +214,7 @@ func (s *WhaleSettingsEditor) BeginWrite(host, action string) (WhaleSettingsTick
 		}
 	case "memory":
 		if pluginrpc.WhaleTextLength(cmd.Value.Memory) > 40000 {
-			err = fmt.Errorf("长期记忆超过 40000 字符限制 / Memory exceeds 40000 UTF-16 units")
+			err = errors.New(storelocale.T(storelocale.KeyStoreAssistantMemoryExceeds40000Utf16Units))
 		}
 	case "identity":
 		err = pluginrpc.ValidateWhaleSettingsPatch(pluginrpc.WhaleSettingsPatch{Name: &cmd.Value.Name, UserTitle: &cmd.Value.UserTitle})
@@ -237,7 +238,7 @@ func (s *WhaleSettingsEditor) BeginWrite(host, action string) (WhaleSettingsTick
 // The upstream API has no CAS; this preflight detects known changes, not races.
 func (cmd WhaleSettingsCommand) Check(current pluginrpc.WhaleSettings) error {
 	if !cmd.Base.SameIdentity(current) {
-		return fmt.Errorf("Whale 身份已改变，请重新读取 / Whale identity changed; refresh")
+		return errors.New(storelocale.T(storelocale.KeyStoreAssistantWhaleIdentityChangedRefresh))
 	}
 	same := false
 	switch cmd.Action {
@@ -253,7 +254,7 @@ func (cmd WhaleSettingsCommand) Check(current pluginrpc.WhaleSettings) error {
 		same = cmd.Base.PersonaText == current.PersonaText
 	}
 	if !same {
-		return fmt.Errorf("Host 内容已变化，未提交；请重新读取并核对草稿 / Host content changed; refresh and compare your draft")
+		return errors.New(storelocale.T(storelocale.KeyStoreAssistantHostContentChangedRefreshAndCompare))
 	}
 	return nil
 }
@@ -269,9 +270,9 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	if err != nil || actual == nil || !accepted {
 		s.loaded = false
 		if accepted {
-			s.notice = "Host 已确认操作；重新读取后才能继续 / Host confirmed the operation; refresh to verify"
+			s.notice = storelocale.T(storelocale.KeyStoreAssistantHostConfirmedTheOperationRefreshTo)
 		} else {
-			s.notice = "未确认完成；草稿已保留，先重新读取再决定是否重试 / Not confirmed; draft retained. Refresh before retrying"
+			s.notice = storelocale.T(storelocale.KeyStoreAssistantNotConfirmedDraftRetainedRefreshBef)
 		}
 		if err != nil {
 			s.lastErr = err.Error()
@@ -280,7 +281,7 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	}
 	if !cmd.Base.SameIdentity(*actual) {
 		s.loaded = false
-		s.lastErr = "操作后 Whale 身份已变化，请重新读取核对 / Whale identity changed after submission"
+		s.lastErr = storelocale.T(storelocale.KeyStoreAssistantWhaleIdentityChangedAfterSubmission)
 		return true
 	}
 	matches := true
@@ -298,7 +299,7 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	}
 	if !matches {
 		s.mergeWriteRead(*actual, cmd.Action, true)
-		s.lastErr = "Host 已接受写入，但读回内容不一致；草稿已保留，请核对 / Host accepted the write but read-back differs; compare the preserved draft"
+		s.lastErr = storelocale.T(storelocale.KeyStoreAssistantHostAcceptedTheWriteButReadBackDi)
 		return true
 	}
 	if q.revision == s.revision {
@@ -318,9 +319,9 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	}
 	s.mergeWriteRead(*actual, cmd.Action, q.revision != s.revision)
 	s.lastErr = ""
-	s.notice = "已保存并从 Host 重新读取 / Saved and read back from Host"
+	s.notice = storelocale.T(storelocale.KeyStoreAssistantSavedAndReadBackFromHost)
 	if cmd.Action == "clear" {
-		s.notice = "清空已由 Host 确认；已读取当前内容 / Clear confirmed by Host; current contents loaded"
+		s.notice = storelocale.T(storelocale.KeyStoreAssistantClearConfirmedByHostCurrentContents)
 	}
 	return true
 }

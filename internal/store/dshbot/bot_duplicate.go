@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type BotDuplicateDraft struct {
@@ -162,7 +163,7 @@ func (c *BotDuplicator) FinishLoad(t BotDuplicateTicket, v pluginrpc.DshbotBotCa
 	e.state.Error = ""
 	if e.attempt != nil && e.state.Uncertain {
 		e.state.Candidates = pluginrpc.DshbotBotDuplicateCandidates(e.attempt.Command, v)
-		e.state.Notice = "仅列出新出现且配置相符的目录候选；不能证明是此请求创建，原 attempt 保持未知且不可重发。Bot 记忆复制结果也未知 / Candidates do not establish causality; no retry"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCandidatesDoNotEstablishCausalityNo)
 	}
 
 	return true
@@ -329,7 +330,7 @@ func (c *BotDuplicator) AbortUnsent(t BotDuplicateTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送创建；草稿保留，刷新后重新审阅 / Not sent; draft retained"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -349,7 +350,7 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 		e.attempt = nil
 		e.state.Uncertain = false
 		e.state.Error = err.Error()
-		e.state.Notice = "写入前拒绝；保留草稿，请刷新后重新审阅 / Rejected before write; draft retained"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWriteDraftRetained)
 		return
 	}
 	if err == nil {
@@ -362,7 +363,7 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "复制结果未知，原来源与本次输入已锁定。Host 自生新身份；只能读回候选，不能自动归因或重试 / Unknown duplicate outcome; candidates are not causal receipts"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownDuplicateOutcomeCandidatesAre)
 		return
 	}
 	e.state.Created = pluginrpc.CloneDshbotBotItem(result.Item)
@@ -371,6 +372,6 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 	e.state.Draft = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已确认副本资料与新会话创建；记忆复制状态请看完整 warning。不会自动打开，请单独选择 / Profile/session receipt confirmed; inspect warnings before opening"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSessionReceiptConfirmedInspec)
 	e.attempt = nil
 }

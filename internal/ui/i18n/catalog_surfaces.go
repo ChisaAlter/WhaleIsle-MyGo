@@ -58,6 +58,8 @@ const (
 	KeySurfacesUsageCoverageOK = "surfaces.usage.coverage_ok"
 	KeySurfacesUsageTokens     = "surfaces.usage.tokens"
 	KeySurfacesUsageStale      = "surfaces.usage.stale"
+	KeySurfacesUsageError      = "surfaces.usage.error"
+	KeySurfacesUsageRetryHint  = "surfaces.usage.retry_hint"
 
 	KeySurfacesDiffUnified     = "surfaces.diff.unified"
 	KeySurfacesDiffSplit       = "surfaces.diff.split"
@@ -82,7 +84,11 @@ const (
 	KeySurfacesGitSelectNone     = "surfaces.git.select_none"
 	KeySurfacesGitOpenDiff       = "surfaces.git.open_diff"
 
-	KeySurfacesTerminalClose = "surfaces.terminal.close"
+	KeySurfacesTerminalClose        = "surfaces.terminal.close"
+	KeySurfacesTerminalClosePrompt  = "surfaces.terminal.close_prompt"
+	KeySurfacesTerminalCloseBody    = "surfaces.terminal.close_body"
+	KeySurfacesTerminalConfirmClose = "surfaces.terminal.confirm_close"
+	KeySurfacesTerminalCancel       = "surfaces.terminal.cancel"
 
 	KeySurfacesDiffFoldHunk = "surfaces.diff.fold_hunk"
 )
@@ -142,6 +148,8 @@ func init() {
 	Register(KeySurfacesUsageCoverageOK, "%d/%d 个会话可读", "%d/%d sessions readable")
 	Register(KeySurfacesUsageTokens, "tokens", "tokens")
 	Register(KeySurfacesUsageStale, "正在显示上次结果，可能已过期。", "Showing the previous result; it may be stale.")
+	Register(KeySurfacesUsageError, "读取用量统计失败", "Could not read usage statistics")
+	Register(KeySurfacesUsageRetryHint, "。可稍后重试。", ". Try again later.")
 
 	Register(KeySurfacesDiffUnified, "统一视图", "Unified")
 	Register(KeySurfacesDiffSplit, "分栏视图", "Split")
@@ -166,5 +174,9 @@ func init() {
 	Register(KeySurfacesGitSelectNone, "全不选", "Select none")
 	Register(KeySurfacesGitOpenDiff, "查看差异", "Open diff")
 	Register(KeySurfacesTerminalClose, "关闭终端", "Close terminal")
+	Register(KeySurfacesTerminalClosePrompt, "关闭仍在运行的终端？", "Close a running terminal?")
+	Register(KeySurfacesTerminalCloseBody, "该终端里正在运行的进程会被结束。", "The process running in this terminal will be ended.")
+	Register(KeySurfacesTerminalConfirmClose, "确认关闭终端", "Confirm closing the terminal")
+	Register(KeySurfacesTerminalCancel, "取消", "Cancel")
 	Register(KeySurfacesDiffFoldHunk, "折叠或展开此段", "Fold or unfold this hunk")
 }

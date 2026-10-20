@@ -9,22 +9,19 @@ import (
 
 // settingsFieldRow paints one row of a schema-driven settings page: the title
 // and its description sit on the left, the control on the right, the row is
-// separated from the next by a hairline, and the optional reset action stays
-// with the copy instead of competing with the control.
+// separated from the previous one by a hairline, and the optional reset action
+// stays with the copy instead of competing with the control.
 //
 // The measured content width decides between the row layout and the stacked
 // layout, so the same row keeps working inside the modal and in a narrow pane.
 func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, reset func(), controls func()) ui.Element {
-	return settingsFieldRowDivider(c, key, title, hint, fg, muted, reset, controls, true)
-}
-
-// settingsFieldRowDivider is settingsFieldRow with the trailing separator under
-// the caller's control: a page strips the hairline of its last row, the way a
-// list drops the line after its final item.
-func settingsFieldRowDivider(c *ui.Context, key, title, hint string, fg, muted ui.Color, reset func(), controls func(), divider bool) ui.Element {
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	width := row.Bounds().W
-	row.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
+	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
+		if leadingRule {
+			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y, W: bounds.W, H: .5}, ui.RGBA(muted.R, muted.G, muted.B, .25), 0)
+		}
 		if bounds.W != width {
 			c.Invalidate()
 		}
@@ -65,9 +62,6 @@ func settingsFieldRowDivider(c *ui.Context, key, title, hint string, fg, muted u
 		} else {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14, 0).Children(body)
 		}
-		if divider {
-			ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
-		}
 	})
 	return row
 }
@@ -76,12 +70,13 @@ func settingsFieldRowDivider(c *ui.Context, key, title, hint string, fg, muted u
 // a multi-line text area or a JSON editor: the title and description stay above
 // it, and the block keeps the same hairline rhythm as settingsFieldRow.
 func settingsFieldBlock(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) ui.Element {
-	return settingsFieldBlockDivider(c, key, title, hint, fg, muted, control, true)
-}
-
-// settingsFieldBlockDivider is settingsFieldBlock with an explicit separator.
-func settingsFieldBlockDivider(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func(), divider bool) ui.Element {
 	block := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8).Padding(14, 0)
+	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
+	block.Draw(func(p *ui.Painter, bounds ui.Rect) {
+		if leadingRule {
+			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y, W: bounds.W, H: .5}, ui.RGBA(muted.R, muted.G, muted.B, .25), 0)
+		}
+	})
 	block.Children(func() {
 		if title != "" {
 			ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(fg)
@@ -91,9 +86,6 @@ func settingsFieldBlockDivider(c *ui.Context, key, title, hint string, fg, muted
 		}
 		if control != nil {
 			control()
-		}
-		if divider {
-			ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
 		}
 	})
 	return block

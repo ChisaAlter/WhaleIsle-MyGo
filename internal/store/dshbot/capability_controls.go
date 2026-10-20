@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type CapabilityTicket struct {
@@ -98,7 +99,7 @@ func (c *CapabilityControls) FinishLoad(t CapabilityTicket, value pluginrpc.Dshb
 	c.generation++
 	c.state.Busy = false
 	if err != nil || value.Bot.ID != t.Scope.BotID || value.Bot.SessionID == "" {
-		c.state.Error = "未能核实当前能力资料；草稿保留且禁写，请刷新 / Read failed; draft retained and locked"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadFailedDraftRetainedAndLocked)
 		return true
 	}
 	if c.state.Draft == nil || !c.state.Dirty {
@@ -109,7 +110,7 @@ func (c *CapabilityControls) FinishLoad(t CapabilityTicket, value pluginrpc.Dshb
 	c.state.Loaded = true
 	c.state.Dirty = !reflect.DeepEqual(c.state.Draft, value.Policies)
 	c.state.Error = ""
-	c.state.Notice = "已读回当前 Host 资料；保留的草稿需按当前版本重新审阅 / Read back; review preserved draft against current state"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewPreservedDraftAgainst)
 	return true
 }
 func (c *CapabilityControls) editable(k RoutineScope) bool {
@@ -222,14 +223,14 @@ func (c *CapabilityControls) FinishSave(t CapabilityTicket, out pluginrpc.Dshbot
 	c.state.Review = nil
 	c.state.Warnings = append([]string(nil), out.Warnings...)
 	if err != nil || out.Status.Bot.ID != t.Scope.BotID || out.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = "保存结果未知；草稿锁定，先读回核实，不自动重试 / Outcome uncertain; read back before saving again"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin)
 		if !out.Attempted {
-			c.state.Error = "发送前资料或权限已变化，未保存；草稿保留，请刷新重新审阅 / Preflight changed; no save sent"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent)
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
 	c.state.Error = ""
-	c.state.Notice = "Host 已返回保存回执；草稿保留，刷新核实实际配置与警告 / Saved receipt; read back to reconcile"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotSavedReceiptReadBackToReconcile)
 	return true
 }

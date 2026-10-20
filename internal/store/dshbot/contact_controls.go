@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type ContactFilters struct {
@@ -169,9 +170,9 @@ func (c *ContactControls) FinishLoad(t ContactTicket, v pluginrpc.DshbotContactC
 	if p := e.state.Pending; p != nil {
 		if pluginrpc.DshbotContactApplied(*p, v) {
 			c.applySuccess(e, p, nil)
-			e.state.Notice = "读回已确认操作结果 / Refreshed catalog confirms the operation"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRefreshedCatalogConfirmsTheOperation)
 		} else {
-			e.state.Notice = "原操作结果尚未确认；保留操作并只读刷新，不会自动重发 / Outcome unknown; refresh without resending"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeUnknownRefreshWithoutResendin)
 		}
 	}
 	return true
@@ -230,14 +231,14 @@ func (c *ContactControls) Finish(t ContactTicket, cmd pluginrpc.DshbotContactCom
 			e.state.Pending = nil
 			e.state.Loaded = false
 		} else {
-			e.state.Notice = "操作结果未知；请刷新目录核实，未重发 / Outcome unknown; refresh to reconcile"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeUnknownRefreshToReconcile)
 		}
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotContactCatalog(result.Catalog)
 	e.state.Loaded = true
 	c.applySuccess(e, &cmd, result.Snapshot)
-	e.state.Notice = "目录已保存 / Directory saved"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotDirectorySaved)
 	return true
 }
 func ContactSources(v pluginrpc.DshbotContactCatalog) []ContactSource {
@@ -275,7 +276,7 @@ func ContactGroups(v pluginrpc.DshbotContactCatalog, f ContactFilters, activity 
 		byID[section.ID] = len(groups)
 		groups = append(groups, ContactGroup{ID: section.ID, Name: section.Name})
 	}
-	groups = append(groups, ContactGroup{Name: "未分组 / Unassigned"})
+	groups = append(groups, ContactGroup{Name: storelocale.T(storelocale.KeyStoreDshbotUnassigned)})
 	needle := strings.ToLower(strings.TrimSpace(f.Query))
 	for _, row := range v.Items {
 		if row.Hidden && !f.ShowHidden {

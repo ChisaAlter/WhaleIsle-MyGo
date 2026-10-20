@@ -176,7 +176,7 @@ func AddressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									if at := strings.LastIndexByte(patch, '\n'); at >= 0 {
 										patch = patch[:at]
 									}
-									ui.Text(c, "对比展示截断为64 KiB / Comparison display limited to 64 KiB").FontSize(10).TextColor(st.Muted)
+									ui.Text(c, i18n.T(i18n.KeyChatDeliveryDiffClip)).FontSize(10).TextColor(st.Muted)
 								}
 								if patch == "" {
 									ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(st.Muted)

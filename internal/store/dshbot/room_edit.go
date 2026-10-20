@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoomEditDraft struct {
@@ -152,9 +153,9 @@ func (c *RoomEditor) FinishLoad(t RoomEditTicket, status pluginrpc.DshbotRoomEdi
 	if e.attempt != nil && e.state.Uncertain {
 		if match := pluginrpc.DshbotRoomEditApplied(e.attempt.Command, status); match == nil {
 			e.state.Candidate = true
-			e.state.Notice = "读回已匹配审阅后的完整资料；核对后采用 / Exact reviewed profile found; inspect and adopt"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactReviewedProfileFoundInspectAnd)
 		} else {
-			e.state.Notice = "读回尚未完整匹配；草稿仍锁定，不重发。可通过 Bot Web 核对 / Not confirmed; no retry"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotConfirmedNoRetry)
 			e.state.Error = match.Error()
 		}
 	}
@@ -279,7 +280,7 @@ func (c *RoomEditor) Prepare(k string) {
 	r, er := strconv.Atoi(strings.TrimSpace(d.MaxRounds))
 	s, es := strconv.Atoi(strings.TrimSpace(d.MaxSpeaks))
 	if er != nil || es != nil {
-		e.state.Error = "轮数和发言上限须为整数 / Limits must be integers"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotLimitsMustBeIntegers2)
 		return
 	}
 	cmd := pluginrpc.DshbotRoomEditCommand{Expected: pluginrpc.CloneDshbotRoomEdit(e.state.Status), Values: pluginrpc.DshbotRoomEditValues{MemberBotIDs: append([]string(nil), d.MemberBotIDs...), MaxRounds: r, MaxSpeaks: s, Text: &textValues}}
@@ -289,7 +290,7 @@ func (c *RoomEditor) Prepare(k string) {
 	}
 	before := cmd.Expected.Item
 	if r == before.MaxRounds && s == before.MaxSpeaks && reflect.DeepEqual(d.MemberBotIDs, before.MemberBotIDs) && !pluginrpc.DshbotRoomTextChanged(cmd) {
-		e.state.Error = "草稿没有变更 / No changes to save"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotNoChangesToSave)
 		return
 	}
 	c.sequence++
@@ -358,7 +359,7 @@ func (c *RoomEditor) AbortUnsent(t RoomEditTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送保存，草稿保留；刷新后重新审阅 / Not sent; draft retained"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained2)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -377,7 +378,7 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 	if !result.Attempted {
 		e.attempt = nil
 		e.state.Uncertain = false
-		e.state.Notice = "本地校验拒绝，未发送；草稿保留 / Not sent; draft retained"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained3)
 		if err != nil {
 			e.state.Error = err.Error()
 		}
@@ -389,14 +390,14 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "保存结果未知；保留并锁定草稿，仅可读回，不自动重试 / Unknown outcome; read back only"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeReadBackOnly)
 		return
 	}
 	e.state.Status = pluginrpc.CloneDshbotRoomEdit(result.Status)
 	e.state.Draft = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已确认群聊资料保存 / Host confirmed group update"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostConfirmedGroupUpdate)
 	e.attempt = nil
 }
 func (c *RoomEditor) Adopt(k string) bool {
@@ -418,7 +419,7 @@ func (c *RoomEditor) Adopt(k string) bool {
 	e.state.Review = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "已采用读回的完整匹配资料；没有重发更新。会话展示副作用不能仅凭目录核实 / Adopted matching catalog; presentation side effects remain unverified"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedMatchingCatalogPresentationSi)
 	e.attempt = nil
 	return true
 }

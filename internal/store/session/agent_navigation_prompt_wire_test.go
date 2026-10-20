@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 func TestNativeAgentPromptWireFixture(t *testing.T) {
@@ -66,7 +67,7 @@ func TestNativeAgentPromptWireFixture(t *testing.T) {
 		for time.Now().Before(deadline) && s.AgentNavigationSnapshot().ActionBusy {
 			time.Sleep(time.Millisecond)
 		}
-		if v := s.AgentNavigationSnapshot(); v.ActionBusy || !strings.Contains(v.ActionStatus, "Child prompt submitted") {
+		if v := s.AgentNavigationSnapshot(); v.ActionBusy || !strings.Contains(v.ActionStatus, storelocale.T(storelocale.KeyStoreSessionChildPromptSubmitted)) {
 			t.Fatalf("ack failed: %+v", v)
 		}
 	}

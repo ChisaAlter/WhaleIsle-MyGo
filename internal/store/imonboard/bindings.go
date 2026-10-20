@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Preset contains only the existing connection.status public catalog fields.
@@ -54,13 +55,13 @@ func (s *Store) validateBindingLocked(method string, payload map[string]any) str
 		}
 	}
 	if !found || !bindingBotID.MatchString(id) {
-		return "机器人已不可用，请刷新后重试 / Bot unavailable; refresh to retry"
+		return storelocale.T(storelocale.KeyStoreImonboardBotUnavailableRefreshToRetry)
 	}
 	if method == "bot.workspace.set" {
 		workspace, _ := payload["workspace"].(string)
 		absolute := filepath.IsAbs(workspace) || strings.HasPrefix(workspace, "/") || strings.HasPrefix(workspace, `\\`) || len(workspace) >= 3 && ((workspace[0] >= 'A' && workspace[0] <= 'Z') || (workspace[0] >= 'a' && workspace[0] <= 'z')) && workspace[1] == ':' && (workspace[2] == '\\' || workspace[2] == '/')
 		if !absolute || len(workspace) > 4096 {
-			return "请输入工作区绝对路径 / Enter an absolute workspace path"
+			return storelocale.T(storelocale.KeyStoreImonboardEnterAnAbsoluteWorkspacePath)
 		}
 		return ""
 	}
@@ -75,7 +76,7 @@ func (s *Store) validateBindingLocked(method string, payload map[string]any) str
 			}
 		}
 	}
-	return "Agent Preset 不在当前 Host 公开目录中 / Preset unavailable on this Host"
+	return storelocale.T(storelocale.KeyStoreImonboardPresetUnavailableOnThisHost)
 }
 
 func decodeConnectionStatus(raw json.RawMessage) ([]Bot, []Preset, bool) {

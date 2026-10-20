@@ -220,12 +220,12 @@ func TestUserLocalAttachmentStaysInsideNarrowStack(t *testing.T) {
 	}
 	opened := ""
 	tt := messageTester(presentationMessage("[image] "+path), 320, func(m *Model) { m.OnOpenImageLightbox = func(s string) { opened = s } })
-	caption, ok := tt.Find("fixture.png")
+	image, ok := tt.Find("Message image")
 	if !ok {
 		t.Fatal("local attachment lost")
 	}
-	if caption.X < 304-288*.82-.1 || caption.X+caption.W > 304.1 {
-		t.Errorf("attachment caption outside user cap: %v", caption)
+	if image.X < 304-288*.82-.1 || image.X+image.W > 304.1 {
+		t.Errorf("attachment outside user cap: %v", image)
 	}
 	rendered := tt.Image()
 	for y := 0; y < 230; y++ {
@@ -235,8 +235,9 @@ func TestUserLocalAttachmentStaysInsideNarrowStack(t *testing.T) {
 			}
 		}
 	}
-	// The square fixture must remain visible, right aligned, and clickable.
-	tt.ClickAt(285, caption.Y-80)
+	// The Original sizes a lone image to its natural ratio and opens the
+	// lightbox on click; it does not caption it with the file name.
+	tt.ClickAt(image.X+image.W/2, image.Y+image.H/2)
 	if opened != path {
 		t.Errorf("image callback=%q want %q", opened, path)
 	}

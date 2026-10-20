@@ -3,8 +3,10 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Contacts use the same authoritative catalog and revision as profile editing.
@@ -130,7 +132,7 @@ func contactTarget(cmd DshbotContactCommand) (DshbotBotItem, error) {
 			return row, nil
 		}
 	}
-	return DshbotBotItem{}, fmt.Errorf("联系人已变化，请刷新目录 / Refresh the contact identity")
+	return DshbotBotItem{}, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRefreshTheContactIdentity))
 }
 func contactPinItems(cmd DshbotContactCommand) []map[string]json.RawMessage {
 	maxOrder := float64(0)
@@ -159,7 +161,7 @@ func contactPinItems(cmd DshbotContactCommand) []map[string]json.RawMessage {
 func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 	payload := map[string]any{"revision": cmd.Expected.Revision}
 	if cmd.Expected.Revision < 0 {
-		return "", nil, fmt.Errorf("请先刷新目录 / Refresh the catalog first")
+		return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRefreshTheCatalogFirst))
 	}
 	switch cmd.Action {
 	case "pin":
@@ -171,14 +173,14 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 	case "create", "rename":
 		name := strings.TrimSpace(cmd.Name)
 		if name == "" || WhaleTextLength(name) > 120 {
-			return "", nil, fmt.Errorf("分组名称需为 1–120 字符 / Section name: 1–120 characters")
+			return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcSectionName1120Characters))
 		}
 		if cmd.ID == "" {
 			return "", nil, fmt.Errorf("分组 ID 不可为空")
 		}
 		for _, section := range cmd.Expected.Sections {
 			if section.ID != cmd.ID && strings.EqualFold(strings.TrimSpace(section.Name), name) {
-				return "", nil, fmt.Errorf("分组名称已存在 / Section name already exists")
+				return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcSectionNameAlreadyExists))
 			}
 		}
 		payload["id"], payload["name"] = cmd.ID, name
@@ -196,11 +198,11 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 		payload["id"] = cmd.ID
 	case "restore":
 		if cmd.Snapshot == nil {
-			return "", nil, fmt.Errorf("没有可恢复的分组快照 / No section snapshot")
+			return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNoSectionSnapshot))
 		}
 		payload["snapshot"] = cmd.Snapshot
 	default:
-		return "", nil, fmt.Errorf("不支持的联系人操作 / Unsupported contacts action")
+		return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcUnsupportedContactsAction))
 	}
 	return "section/" + cmd.Action, payload, nil
 }

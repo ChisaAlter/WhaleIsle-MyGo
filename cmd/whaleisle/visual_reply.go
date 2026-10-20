@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func readPublishedHTML(s *session.Store, sessionID, attachmentID string) {
@@ -27,7 +28,7 @@ func readPublishedHTML(s *session.Store, sessionID, attachmentID string) {
 	// HTML and does not depend on the generation enabled setting.
 	caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 	if !caps.VisualReplyReader {
-		s.SetLastAction("已发布 HTML 读取不可用 / Published HTML unavailable: " + caps.Reason)
+		s.SetLastAction(i18n.T(i18n.KeyCmdPublishedHtmlUnavailable) + caps.Reason)
 		return
 	}
 	go func() {
@@ -49,7 +50,7 @@ func savePublishedHTML(win *mygo.Window, s *session.Store, sessionID, attachment
 	if name == "." || name == "" || !strings.HasSuffix(name, ".html") {
 		name = "published-page.html"
 	}
-	target, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "另存已发布 HTML / Save published HTML", DefaultPath: name})
+	target, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdSavePublishedHtml), DefaultPath: name})
 	if err != nil {
 		mygo.Dialog.Error("Save HTML", err.Error())
 		return
@@ -148,7 +149,7 @@ func interactivePublishedHTMLHandler(win *mygo.Window, s *session.Store, session
 				helper := previewprocess.HelperPath(executable)
 				info, err := os.Stat(helper)
 				if err != nil || !info.Mode().IsRegular() {
-					return nil, fmt.Errorf("隔离 helper 未随应用安装 / Isolated preview helper is not installed")
+					return nil, errors.New(i18n.T(i18n.KeyCmdIsolatedPreviewHelperIsNotInstalled))
 				}
 				// readVisualReply returns the already-prepared attachment: local
 				// images were embedded by the original publication. Never resolve

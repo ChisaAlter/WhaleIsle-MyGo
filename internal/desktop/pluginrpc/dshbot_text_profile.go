@@ -3,8 +3,10 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 // These are the three actual text identity/persona fields from the pinned
@@ -33,16 +35,16 @@ func DshbotTextProfileValue(s DshbotCapabilityStatus) (DshbotTextProfileValues, 
 }
 func ParseDshbotTextProfile(v DshbotTextProfileValues) (DshbotTextProfileValues, error) {
 	if !utf8.ValidString(v.Name) || !utf8.ValidString(v.Title) || !utf8.ValidString(v.Description) {
-		return DshbotTextProfileValues{}, fmt.Errorf("文本含无效 Unicode / Invalid Unicode")
+		return DshbotTextProfileValues{}, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcInvalidUnicode))
 	}
 	v.Name = trimBotMemory(v.Name)
 	v.Title = trimBotMemory(v.Title)
 	v.Description = trimBotMemory(v.Description)
 	if v.Name == "" || WhaleTextLength(v.Name) > 120 {
-		return v, fmt.Errorf("寻址名称必填且最多120个UTF-16单元 / Name is required, maximum 120 UTF-16 units")
+		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNameIsRequiredMaximum120Utf16Unit))
 	}
 	if WhaleTextLength(v.Title) > 120 || WhaleTextLength(v.Description) > 12000 {
-		return v, fmt.Errorf("显示标题最多120，人设描述最多12000个UTF-16单元 / Title ≤120; description ≤12000 UTF-16 units")
+		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcTitle120Description12000Utf16Units))
 	}
 	return v, nil
 }

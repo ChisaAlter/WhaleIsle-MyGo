@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotRoomRuntimeMember struct {
@@ -63,10 +64,10 @@ func dshbotRoomMemberIdentity(roomSessionID, botID, sessionID string) bool {
 }
 func roomRuntimeOpenError(v DshbotRoomRuntime, m DshbotRoomRuntimeMember) string {
 	if m.RoomSessionID != v.Room.SessionID || m.BotID == "" {
-		return "成员归属未核实 / Member ownership unavailable"
+		return storelocale.T(storelocale.KeyDesktopPluginrpcMemberOwnershipUnavailable)
 	}
 	if !slices.Contains(v.Room.MemberBotIDs, m.BotID) {
-		return "已不在当前群聊成员中 / Historical member; not in current room"
+		return storelocale.T(storelocale.KeyDesktopPluginrpcHistoricalMemberNotInCurrentRoom)
 	}
 	found := false
 	for _, bot := range v.Catalog.Items {
@@ -75,13 +76,13 @@ func roomRuntimeOpenError(v DshbotRoomRuntime, m DshbotRoomRuntimeMember) string
 		}
 	}
 	if !found {
-		return "当前 Bot 身份不可用 / Current Bot identity unavailable"
+		return storelocale.T(storelocale.KeyDesktopPluginrpcCurrentBotIdentityUnavailable)
 	}
 	if m.SessionID == "" {
-		return "成员会话不可用 / Member session unavailable"
+		return storelocale.T(storelocale.KeyDesktopPluginrpcMemberSessionUnavailable)
 	}
 	if !dshbotRoomMemberIdentity(v.Room.SessionID, m.BotID, m.SessionID) {
-		return "会话身份无法对应此群聊成员 / Session does not identify this room member"
+		return storelocale.T(storelocale.KeyDesktopPluginrpcSessionDoesNotIdentifyThisRoomMemb)
 	}
 	return ""
 }
@@ -127,7 +128,7 @@ func decodeDshbotRoomRuntime(catalog DshbotRoomCatalog, id string, raw json.RawM
 	for i := range out.Members {
 		m := &out.Members[i]
 		if seenBots[m.BotID] > 1 || m.SessionID != "" && seenSessions[m.SessionID] > 1 {
-			m.OpenError = "运行身份重复，禁止打开 / Ambiguous runtime identity"
+			m.OpenError = storelocale.T(storelocale.KeyDesktopPluginrpcAmbiguousRuntimeIdentity)
 		}
 	}
 	return out, nil

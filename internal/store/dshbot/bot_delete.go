@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type BotDeleteReview struct {
@@ -140,12 +141,12 @@ func (c *BotDeleter) FinishLoad(t BotDeleteTicket, p pluginrpc.DshbotBotDeletePl
 	e.state.Error = ""
 	if e.attempt != nil && e.state.Uncertain {
 		e.state.Observation = pluginrpc.DshbotBotDeleteObservation(e.attempt.Command.Plan, v)
-		e.state.Notice = "只读核验不能证明停止、目录、任务或 notepad 的最终结果；原删除仍未知，禁止重发 / Readback does not settle the unknown attempt"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadbackDoesNotSettleTheUnknownAtt)
 		return true
 	}
 	e.state.Plan = pluginrpc.CloneDshbotBotDeletePlan(p)
 	e.state.Warnings = append([]string(nil), p.Preview.Warnings...)
-	e.state.Notice = "完整预览已读取；尚未授权删除 / Preview read; deletion not authorized"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotPreviewReadDeletionNotAuthorized)
 	return true
 }
 func (c *BotDeleter) Prepare(k string) {
@@ -160,7 +161,7 @@ func (c *BotDeleter) Prepare(k string) {
 	}
 	p, err := pluginrpc.BuildDshbotBotDeletePlan(e.state.Plan.Catalog, e.state.Plan.Preview, e.state.Plan.Target.ID)
 	if err != nil || !pluginrpc.SameDshbotBotDeletePlan(p, e.state.Plan) {
-		e.state.Error = "删除预览已失效，请重新读取 / Deletion preview expired"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotDeletionPreviewExpired)
 		return
 	}
 	c.sequence++
@@ -203,7 +204,7 @@ func (c *BotDeleter) Cancel(k string) {
 	if e.attempt == nil && !e.state.Busy {
 		e.state.Review = nil
 		e.state.Loaded = false
-		e.state.Notice = "已取消，未发送删除；下次需重新读取完整预览 / Cancelled before dispatch"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCancelledBeforeDispatch)
 	}
 }
 func (c *BotDeleter) Begin(k string, r *BotDeleteReview) (BotDeleteTicket, pluginrpc.DshbotBotDeleteCommand, bool) {
@@ -263,7 +264,7 @@ func (c *BotDeleter) AbortUnsent(t BotDeleteTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送删除；需重新读取预览并当次确认 / Deletion not sent"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotDeletionNotSent)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -282,7 +283,7 @@ func (c *BotDeleter) Finish(t BotDeleteTicket, result pluginrpc.DshbotBotDeleteR
 	if err != nil && result.Rejected {
 		e.attempt = nil
 		e.state.Error = err.Error()
-		e.state.Notice = "Host 在副作用前明确拒绝；请重新读取预览并确认 / Rejected before effects"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeEffects)
 		return
 	}
 	if err == nil {
@@ -291,13 +292,13 @@ func (c *BotDeleter) Finish(t BotDeleteTicket, result pluginrpc.DshbotBotDeleteR
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "删除结果未知；可能已停止代理、取消任务、改目录或删除 notepad。只能只读核验，禁止自动重试或假定回滚 / Unknown; side effects may already have occurred"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownSideEffectsMayAlreadyHaveOc)
 		return
 	}
 	e.state.Plan = pluginrpc.CloneDshbotBotDeletePlan(e.attempt.Command.Plan)
 	e.state.Completed = true
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = fmt.Sprintf("Host 已确认删除目录目标 %s；history/memory 保留。请检查完整 warning，停止/presentation/notepad 可能有部分失败；不是全部可恢复 / Deletion receipt confirmed; inspect warnings", result.Removed)
+	e.state.Notice = fmt.Sprintf(storelocale.T(storelocale.KeyStoreDshbotDeletionConfirmed), result.Removed)
 	e.attempt = nil
 }

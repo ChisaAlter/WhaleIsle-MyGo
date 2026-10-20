@@ -15,6 +15,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // One new carrier fixture exercises the live navigator rather than replaying
@@ -221,7 +222,7 @@ func TestNativeAgentLiveNavigationFixture(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("page did not start")
 	}
-	if got := s.AgentNavigationSnapshot(); got.Process.Live || strings.Contains(got.Body, "live preview") {
+	if got := s.AgentNavigationSnapshot(); got.Process.Live || strings.Contains(got.Body, storelocale.T(storelocale.KeyStoreSessionLivePreview)) {
 		t.Fatal("older-page transition kept live preview")
 	}
 	send(second, `{"type":"assistant-stream","frame":{"type":"chunk","attemptId":"fresh","revision":61,"index":21,"time":2,"chunk":{"type":"text-delta","index":0,"text":"LATE"}}}`)

@@ -2,6 +2,7 @@ package usage
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -82,5 +83,69 @@ func TestDiagnosticsStayFolded(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("Coverage:") {
 		t.Fatalf("diagnostics did not open: %v", tt.Texts())
+	}
+}
+
+// TestRangeSwitchKeepsEverySectionConsistent checks that one range control moves
+// the whole dashboard: the KPI grid, the calendar, the model share and the
+// rankings all stay on screen for the chosen window.
+func TestRangeSwitchKeepsEverySectionConsistent(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(old)
+	s := usageFixture(t, "data")
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Scroll(c).Fill().Children(func() {
+			View(c, Model{Store: s, Embedded: true, OnExportStats: func(string) {}})
+		})
+	}, 850, 3600)
+	sections := []string{
+		i18n.T(i18n.KeySurfacesUsageTotal),
+		"Usage calendar",
+		"Model share",
+		i18n.T(i18n.KeySurfacesUsageModelRank),
+		i18n.T(i18n.KeySurfacesUsageRanking),
+	}
+	for _, window := range []int{14, 30, 7} {
+		chip := fmt.Sprintf(i18n.T(i18n.KeySurfacesUsageDays), window)
+		if err := tt.Click(chip); err != nil {
+			t.Fatalf("%d-day chip is not reachable: %v", window, err)
+		}
+		tt.Frame()
+		if got := s.Stats().Days; got != window {
+			t.Fatalf("window = %d, want %d", got, window)
+		}
+		for _, section := range sections {
+			if !tt.HasText(section) {
+				t.Fatalf("%d-day window dropped %q: %v", window, section, tt.Texts())
+			}
+		}
+	}
+}
+
+// TestUsageStateCopyFollowsTheLocale keeps the empty and failure pages translated
+// instead of printing English into a Chinese window (or the reverse).
+func TestUsageStateCopyFollowsTheLocale(t *testing.T) {
+	render := func(state string, locale string) string {
+		i18n.SetLocale(locale)
+		t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+		tt := usageDashboardTester(t, state)
+		return strings.Join(tt.Texts(), "|")
+	}
+	for _, state := range []string{"empty", "error"} {
+		en, zh := render(state, i18n.LocaleEN), render(state, i18n.LocaleZH)
+		if en == "" || zh == "" {
+			t.Fatalf("%s state rendered nothing", state)
+		}
+		if state == "empty" {
+			if !strings.Contains(en, "No usage in this range.") || !strings.Contains(zh, "此范围暂无用量。") {
+				t.Fatalf("%s state lost its copy: en=%s zh=%s", state, en, zh)
+			}
+		}
+		if state == "error" {
+			if !strings.Contains(en, "Try again later") || !strings.Contains(zh, "稍后重试") {
+				t.Fatalf("%s state is not localised: en=%s zh=%s", state, en, zh)
+			}
+		}
 	}
 }

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -47,7 +48,7 @@ func TestFieldRowBoolRendersLabeledSwitch(t *testing.T) {
 	snap := store.ViewState{Drafts: map[string]string{"auto": "false"}, Writable: true}
 	field := store.Field{Key: "auto", Label: "Auto save", Kind: store.FieldBool}
 	tt := ui.NewTester(func(c *ui.Context) {
-		fieldRow(c, m, snap, field, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120), true)
+		fieldRow(c, m, snap, field, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
 	}, 720, 240)
 	named := 0
 	for _, text := range tt.Texts() {
@@ -95,5 +96,22 @@ func TestImplementationNamespacesStayInsideGeneral(t *testing.T) {
 	}
 	if dedicatedNamespace("remote-workspace") {
 		t.Fatal("remote-workspace is still hidden from the namespace browser")
+	}
+}
+
+// TestPreferenceRowIndexIsPerFrame pins the rule-suppression mechanism every
+// settings page relies on: the first row of a frame carries no leading hairline,
+// each following row does, and the next frame starts counting again. That is why
+// no page ends on a stray rule above its action bar.
+func TestPreferenceRowIndexIsPerFrame(t *testing.T) {
+	preferenceRowFrame, preferenceRowCount = time.Time{}, 0
+	base := time.Now()
+	for want := 0; want < 3; want++ {
+		if got := nextPreferenceRowIndex(base); got != want {
+			t.Fatalf("row %d of a frame numbered %d", want, got)
+		}
+	}
+	if got := nextPreferenceRowIndex(base.Add(time.Millisecond)); got != 0 {
+		t.Fatalf("next frame kept counting: %d", got)
 	}
 }

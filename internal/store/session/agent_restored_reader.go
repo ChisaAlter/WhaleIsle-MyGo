@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 // RestoreRetainedAgentChat schedules only a fresh read. The durable Host scope
@@ -95,7 +96,7 @@ func (s *Store) verifyRestoredAgentReader(lease *agentRetainedRead) {
 	}
 	if err != nil {
 		s.agentNavigation.view.Busy = false
-		s.agentNavigation.view.Error = "恢复目标未通过来源目录验证 / Restored target failed source catalog verification"
+		s.agentNavigation.view.Error = storelocale.T(storelocale.KeyStoreSessionRestoredTargetFailedSourceCatalogVe)
 		lease.cancel() // Keep a tombstone; rendering must never silently retry/rebind.
 		s.mu.Unlock()
 		s.fire()

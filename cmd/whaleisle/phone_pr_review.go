@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	desktopgit "whaleisle/internal/desktop/git"
+	"whaleisle/internal/ui/i18n"
 )
 
 type phonePRResult struct {
@@ -47,7 +48,7 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 		if childCtx.Err() != nil {
 			return
 		}
-		q.win = mygo.NewWindow(mygo.WindowOptions{Title: "手机 PR 审阅 / Phone PR review", Width: 660, Height: 720, MinWidth: 520, MinHeight: 520, Parent: parent, Content: ui.View(q.view)})
+		q.win = mygo.NewWindow(mygo.WindowOptions{Title: i18n.T(i18n.KeyCmdPhonePrReview), Width: 660, Height: 720, MinWidth: 520, MinHeight: 520, Parent: parent, Content: ui.View(q.view)})
 		if q.win == nil || q.win.IsDestroyed() {
 			q.finish(phonePRResult{err: errors.New("Could not open desktop PR review")})
 			return
@@ -91,7 +92,7 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 }
 func (q *phonePRReview) start(work func() func()) {
 	q.busy = true
-	q.message = "处理中 / Working…"
+	q.message = i18n.T(i18n.KeyCmdWorking)
 	go func() {
 		apply := work()
 		q.win.Update(func() {
@@ -106,21 +107,21 @@ func (q *phonePRReview) start(work func() func()) {
 func (q *phonePRReview) view(c *ui.Context) {
 	ui.Scroll(c).Grow(1).Padding(18).Children(func() {
 		ui.Column(c).Gap(10).Children(func() {
-			ui.Text(c, "手机请求创建 PR；请在本窗口核对并确认 / Phone requested a PR; review and confirm here").Bold()
+			ui.Text(c, i18n.T(i18n.KeyCmdPhoneRequestedAPrReviewAndConfirm)).Bold()
 			ui.Text(c, q.root)
 			if deadline, ok := q.ctx.Deadline(); ok {
-				ui.Text(c, fmt.Sprintf("剩余 %d 秒 / seconds remaining", max(0, int(time.Until(deadline).Seconds()))))
+				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyCmdSecondsRemaining), max(0, int(time.Until(deadline).Seconds()))))
 			}
-			ui.Text(c, "手机上的提交/推送可能已完成。取消不会撤销这些操作；手机只重试剩余 PR。 / Commit/push may already be complete. Cancel does not undo them; the phone retains the remaining PR step.")
+			ui.Text(c, i18n.T(i18n.KeyCmdCommitPushMayAlreadyBeCompleteCanc))
 			if !q.busy {
 				beforeTitle, beforeBody, beforeDraft := q.title, q.body, q.draft
-				ui.TextInput(c, &q.title).FillWidth().Placeholder("PR 标题 / PR title")
-				ui.TextArea(c, &q.body).FillWidth().Lines(4, 10).Placeholder("PR 正文 / PR body")
-				ui.Checkbox(c, &q.draft, "创建草稿 PR / Create draft PR")
+				ui.TextInput(c, &q.title).FillWidth().Placeholder(i18n.T(i18n.KeyCmdPrTitle))
+				ui.TextArea(c, &q.body).FillWidth().Lines(4, 10).Placeholder(i18n.T(i18n.KeyCmdPrBody))
+				ui.Checkbox(c, &q.draft, i18n.T(i18n.KeyCmdCreateDraftPr))
 				if beforeTitle != q.title || beforeBody != q.body || beforeDraft != q.draft {
 					q.plan = nil
 				}
-				if ui.Button(c, "生成候选文案 / Generate candidate").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyCmdGenerateCandidate)).Clicked() {
 					q.plan = nil
 					q.start(func() func() {
 						g, e := desktopgit.GeneratePullRequestContent(q.ctx, q.root)
@@ -129,7 +130,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 								q.message = e.Error()
 							} else {
 								q.candidate = &g
-								q.message = "候选文案未采用 / Candidate not yet applied"
+								q.message = i18n.T(i18n.KeyCmdCandidateNotYetApplied)
 							}
 						}
 					})
@@ -137,14 +138,14 @@ func (q *phonePRReview) view(c *ui.Context) {
 				if q.candidate != nil {
 					ui.Text(c, q.candidate.Title)
 					ui.Text(c, q.candidate.Body)
-					if ui.Button(c, "采用候选文案 / Apply candidate").Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyCmdApplyCandidate)).Clicked() {
 						q.title = q.candidate.Title
 						q.body = q.candidate.Body
 						q.candidate = nil
 						q.plan = nil
 					}
 				}
-				if ui.Button(c, "准备核对目标 / Prepare target review").Disabled(strings.TrimSpace(q.title) == "").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyCmdPrepareTargetReview)).Disabled(strings.TrimSpace(q.title) == "").Clicked() {
 					title, body, draft := q.title, q.body, q.draft
 					q.plan = nil
 					q.start(func() func() {
@@ -158,7 +159,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 								q.message = e.Error()
 							} else {
 								q.plan = &p
-								q.message = "请核对下方完整内容 / Review the exact content below"
+								q.message = i18n.T(i18n.KeyCmdReviewTheExactContentBelow)
 							}
 						}
 					})
@@ -169,7 +170,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 					ui.Text(c, p.Title)
 					ui.Text(c, p.Body)
 					ui.Text(c, fmt.Sprintf("Draft: %t", p.Draft))
-					if ui.Button(c, "确认创建此 PR / Confirm this PR").Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyCmdConfirmThisPr)).Clicked() {
 						q.plan = nil
 						q.start(func() func() {
 							if q.ctx.Err() != nil || !q.authorize() {
@@ -180,7 +181,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 								if e != nil {
 									q.message = e.Error()
 									if result.Uncertain {
-										q.message += "; 结果不确定，请先检查已有 PR / Outcome uncertain; check existing PR before retry"
+										q.message += i18n.T(i18n.KeyCmdOutcomeUncertainCheckExistingPrBefo)
 									}
 								} else {
 									q.finish(phonePRResult{value: map[string]any{"ok": true, "status": "created", "url": result.URL, "existing": result.Existing}})
@@ -193,7 +194,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 			if q.message != "" {
 				ui.Text(c, q.message)
 			}
-			if ui.Button(c, "取消 / Cancel").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyCmdCancel)).Clicked() {
 				q.finish(phonePRResult{err: errors.New("Desktop PR review cancelled; retry remaining action on phone")})
 			}
 		})

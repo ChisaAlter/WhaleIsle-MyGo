@@ -24,8 +24,33 @@ func commitDialogTester(t *testing.T) (*Workbench, *ui.Tester) {
 	return workbench, tt
 }
 
-// TestCommitFormStaysClosedUntilAsked keeps the diff pane readable: the commit
-// form is a dialog, and the pane only offers the launcher.
+// TestCommitChecklistShowsDiffstat puts the git line counts on the row, so the
+// checklist says how large each change is before the patch is opened.
+func TestCommitChecklistShowsDiffstat(t *testing.T) {
+	workbench := &Workbench{CommitOpen: true, Changes: []git.Change{
+		{Path: "dir/alpha.go", Index: 'M', Worktree: ' ', Added: 12, Deleted: 3},
+		{Path: "dir/beta.go", Index: 'A', Worktree: ' ', Added: 4},
+	}}
+	text := ""
+	m := Model{Workbench: workbench, WorkspaceRoot: "workspace", Text: &text}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			commitDialog(c, m, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
+		})
+	}, 720, 460)
+	if !tt.HasText("+12") || !tt.HasText("-3") {
+		t.Fatalf("edited row lost its diffstat: %v", tt.Texts())
+	}
+	if !tt.HasText("+4") {
+		t.Fatalf("added row lost its diffstat: %v", tt.Texts())
+	}
+	for _, text := range tt.Texts() {
+		if text == "-0" {
+			t.Fatalf("deleted count printed for a file with no deletions: %v", tt.Texts())
+		}
+	}
+}
+
 func TestCommitFormStaysClosedUntilAsked(t *testing.T) {
 	workbench, tt := commitDialogTester(t)
 	if workbench.CommitOpen {

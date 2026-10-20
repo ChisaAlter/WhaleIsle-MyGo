@@ -9,6 +9,7 @@ import (
 	"sync"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // CreatorTask is an explicit new-session admission, independent of persisted
@@ -43,7 +44,7 @@ func (c *CreatorTask) Snapshot() CreatorTaskState {
 	if c.state.Review && !c.currentLocked(c.state.Ticket, true) {
 		c.state.Review = false
 		c.state.Ticket++
-		c.state.Error = "Creator 确认已失效；请在当前 Host 和页面重新准备 / Creator confirmation expired"
+		c.state.Error = storelocale.T(storelocale.KeyStoreSessionCreatorConfirmationExpired)
 	}
 	return c.state
 }
@@ -91,7 +92,7 @@ func (c *CreatorTask) Prepare() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.client == nil {
-		c.state.Error = "请先连接 Host / Connect a Host first"
+		c.state.Error = storelocale.T(storelocale.KeyStoreSessionConnectAHostFirst)
 		return
 	}
 	cwd := s.cwd
@@ -99,12 +100,12 @@ func (c *CreatorTask) Prepare() {
 		cwd = s.scratchCwd
 	}
 	if strings.TrimSpace(cwd) == "" {
-		c.state.Error = "请选择工作目录，或等待 Host 提供无目录工作区 / Choose a workspace first"
+		c.state.Error = storelocale.T(storelocale.KeyStoreSessionChooseAWorkspaceFirst)
 		return
 	}
 	var uuid [16]byte
 	if _, err := rand.Read(uuid[:]); err != nil {
-		c.state.Error = "无法生成新任务身份 / Cannot allocate a task identity"
+		c.state.Error = storelocale.T(storelocale.KeyStoreSessionCannotAllocateATaskIdentity)
 		return
 	}
 	uuid[6] = (uuid[6] & 15) | 64
@@ -158,17 +159,17 @@ func (c *CreatorTask) Create(ctx context.Context, ticket uint64) bool {
 	c.source.fire()
 	var roster api.AgentPresetRoster
 	if err := client.Call(ctx, "agentPresets/list", map[string]any{}, &roster); err != nil {
-		c.complete(id, "checking", "无法确认 cordis 是否可用；尚未创建任务 / Could not verify cordis; no task was created")
+		c.complete(id, "checking", storelocale.T(storelocale.KeyStoreSessionCouldNotVerifyCordisNoTaskWasCrea))
 		return false
 	}
 	if !creatorAvailable(roster) {
-		c.complete(id, "checking", "当前 Host 的 cordis 缺失、隐藏或损坏；尚未创建任务 / cordis is unavailable; no task was created")
+		c.complete(id, "checking", storelocale.T(storelocale.KeyStoreSessionCordisIsUnavailableNoTaskWasCreate))
 		return false
 	}
 	c.mu.Lock()
 	if ctx.Err() != nil || !c.currentLocked(ticket, true) {
 		c.mu.Unlock()
-		c.complete(id, "checking", "页面或 Host 已改变，未创建任务 / Navigation changed; no task was created")
+		c.complete(id, "checking", storelocale.T(storelocale.KeyStoreSessionNavigationChangedNoTaskWasCreated))
 		return false
 	}
 	c.state.Attempted = true
@@ -178,7 +179,7 @@ func (c *CreatorTask) Create(ctx context.Context, ticket uint64) bool {
 	var out api.SessionCreateValue
 	err := client.Call(ctx, "session/create", map[string]any{"request": api.SessionCreateRequest{Cwd: &cwd, SessionId: &id}}, &out)
 	if err != nil || out.SessionId != id {
-		c.complete(id, "create-unknown", "创建结果未确认；保留目标 ID，请定位已有任务，勿重复创建 / Creation outcome unknown; locate the retained ID before creating again")
+		c.complete(id, "create-unknown", storelocale.T(storelocale.KeyStoreSessionCreationOutcomeUnknownLocateTheReta))
 		return false
 	}
 	c.mu.Lock()
@@ -186,7 +187,7 @@ func (c *CreatorTask) Create(ctx context.Context, ticket uint64) bool {
 	c.state.Phase = "created"
 	if ctx.Err() != nil || !c.currentLocked(ticket, true) {
 		c.mu.Unlock()
-		c.complete(id, "created", "任务已创建，页面或 Host 已改变；未应用 cordis / Task created; navigation changed before cordis was applied")
+		c.complete(id, "created", storelocale.T(storelocale.KeyStoreSessionTaskCreatedNavigationChangedBeforeC))
 		return false
 	}
 	c.state.Phase = "applying"
@@ -194,7 +195,7 @@ func (c *CreatorTask) Create(ctx context.Context, ticket uint64) bool {
 	var selected api.SelectResult
 	err = client.Call(ctx, "agentPresets/select", map[string]any{"agentId": id, "agentPreset": "cordis"}, &selected)
 	if err != nil || string(selected) != "cordis" {
-		c.complete(id, "apply-unknown", "任务已创建，cordis 应用结果未确认；可打开该任务检查，不会自动重试 / Task created; cordis outcome unconfirmed; open the existing task to inspect")
+		c.complete(id, "apply-unknown", storelocale.T(storelocale.KeyStoreSessionTaskCreatedCordisOutcomeUnconfirmed))
 		return false
 	}
 	c.mu.Lock()
@@ -202,7 +203,7 @@ func (c *CreatorTask) Create(ctx context.Context, ticket uint64) bool {
 	current := ctx.Err() == nil && c.currentLocked(ticket, true)
 	c.mu.Unlock()
 	if !current {
-		c.complete(id, "ready", "已在该任务应用 cordis；页面已改变，未切换当前会话 / cordis applied; newer navigation preserved")
+		c.complete(id, "ready", storelocale.T(storelocale.KeyStoreSessionCordisAppliedNewerNavigationPreserve))
 		return false
 	}
 	c.complete(id, "ready", "")
@@ -223,7 +224,7 @@ func (c *CreatorTask) Locate(ctx context.Context, ticket uint64) {
 	c.source.fire()
 	var list api.SessionListValue
 	if err := client.Call(ctx, "session/list", map[string]any{"_request": api.SessionListRequest{}}, &list); err != nil {
-		c.complete(id, "create-unknown", "读取任务列表失败；目标 ID 保留 / Could not locate task; ID retained")
+		c.complete(id, "create-unknown", storelocale.T(storelocale.KeyStoreSessionCouldNotLocateTaskIdRetained))
 		return
 	}
 	found := false
@@ -236,15 +237,15 @@ func (c *CreatorTask) Locate(ctx context.Context, ticket uint64) {
 	c.mu.Lock()
 	if !c.currentLocked(ticket, false) {
 		c.mu.Unlock()
-		c.complete(id, "create-unknown", "Host 或页面已改变；定位结果未采纳 / Host or page changed; readback not adopted")
+		c.complete(id, "create-unknown", storelocale.T(storelocale.KeyStoreSessionHostOrPageChangedReadbackNotAdopte))
 		return
 	}
 	c.state.Created = found
 	c.mu.Unlock()
 	if found {
-		c.complete(id, "located", "已定位此目标；cordis 状态未确认，请打开检查 / Existing task located; inspect its preset in the composer")
+		c.complete(id, "located", storelocale.T(storelocale.KeyStoreSessionExistingTaskLocatedInspectItsPreset))
 	} else {
-		c.complete(id, "create-unknown", "列表尚未确认此目标；不会据此重建 / This ID is not confirmed in the list; no replacement was created")
+		c.complete(id, "create-unknown", storelocale.T(storelocale.KeyStoreSessionThisIdIsNotConfirmedInTheListNo))
 	}
 }
 

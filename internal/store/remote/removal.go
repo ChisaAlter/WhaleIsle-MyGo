@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // RemoveAtGeneration submits only a confirmation belonging to this Host.
@@ -32,7 +33,7 @@ func (s *Store) RemoveAtGeneration(id string, generation uint64) bool {
 		if registryLoaded {
 			for _, machine := range machines {
 				if machine.ID == id {
-					v.Error = "删除未能确认：Host 仍返回此机器，请刷新后重试。 / Removal could not be verified: the Host still lists this machine; refresh before retrying."
+					v.Error = storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS)
 					return
 				}
 			}
@@ -54,9 +55,9 @@ func (s *Store) RemoveAtGeneration(id string, generation uint64) bool {
 			v.Tools = ToolsSnapshot{}
 		}
 		v.RemovedID = id
-		v.Notice = fmt.Sprintf("已删除机器「%s」 / Deleted machine %q", name, name)
+		v.Notice = fmt.Sprintf(storelocale.T(storelocale.KeyStoreRemoteDeletedMachine), name)
 		if refreshErr != nil {
-			v.Notice += "；状态刷新失败，请刷新。 / Status refresh failed; refresh to check the remaining state."
+			v.Notice += storelocale.T(storelocale.KeyStoreRemoteStatusRefreshFailedRefreshToCheckT)
 		}
 	})
 }

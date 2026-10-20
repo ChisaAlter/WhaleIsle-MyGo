@@ -67,15 +67,20 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			// row; rc.2 has no second tab row under the band.
 			conversationHeaderTitleRow(c, m, snap, colors)
 		})
-		if m.WorkspaceTrailing != nil {
+		// AppFrame hides the whole trailing cluster at data-compact-header
+		// (viewport < SIDEBAR_AUTO_COLLAPSE): the density tiers below only apply
+		// while the cluster still has room.
+		if m.WorkspaceTrailing != nil && (m.Sizes == nil || !m.Sizes.narrowHeader()) {
 			densityWidth := m.Sizes.Center
 			if details > 0 {
 				densityWidth = min(densityWidth, details)
 			}
+			// titlebar-density.ts: below 560 the branch trigger drops its ref name,
+			// below 720 the Session log collapses to its icon.
 			density := "full"
-			if densityWidth < 720 {
+			if densityWidth < 560 {
 				density = "compact"
-			} else if densityWidth < 900 {
+			} else if densityWidth < 720 {
 				density = "cozy"
 			}
 			// titlebar-density.ts: the cluster sits 12px below the band's top edge

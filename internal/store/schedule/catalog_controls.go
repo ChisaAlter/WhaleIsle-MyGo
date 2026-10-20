@@ -8,6 +8,7 @@ import (
 	_ "time/tzdata"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // EventsOwner binds one existing Host $events stream, including reconnects that
@@ -88,14 +89,14 @@ func FilterEntries(rows []Entry, query, status string) []Entry {
 // another occurrence locally, which could disagree with Host DST/cron rules.
 func TimingLabel(row Entry) string {
 	if row.Status == "inactive" {
-		return "已结束，不再执行 / Ended; no future deliveries"
+		return storelocale.T(storelocale.KeyStoreScheduleEndedNoFutureDeliveries)
 	}
 	if row.Status != "active" {
-		return "状态未知，请刷新 / Unknown status; refresh to verify"
+		return storelocale.T(storelocale.KeyStoreScheduleUnknownStatusRefreshToVerify)
 	}
 	at, err := time.Parse(time.RFC3339Nano, row.ScheduledAt)
 	if err != nil {
-		return "下次执行时间不可用，请刷新 / Next run unavailable; refresh"
+		return storelocale.T(storelocale.KeyStoreScheduleNextRunUnavailableRefresh)
 	}
 	zone := strings.TrimSpace(row.TimeZone)
 	if zone == "" {
@@ -103,7 +104,7 @@ func TimingLabel(row Entry) string {
 	}
 	loc, err := time.LoadLocation(zone)
 	if err != nil {
-		return "下次执行 / Next run: " + at.UTC().Format(time.RFC3339Nano) + " · 规则时区无法显示 / Rule zone unavailable: " + zone
+		return storelocale.T(storelocale.KeyStoreScheduleNextRun) + at.UTC().Format(time.RFC3339Nano) + storelocale.T(storelocale.KeyStoreScheduleRuleZoneUnavailable) + zone
 	}
-	return "下次执行 / Next run: " + at.In(loc).Format("2006-01-02 15:04:05.999 -07:00") + " · " + zone
+	return storelocale.T(storelocale.KeyStoreScheduleNextRun) + at.In(loc).Format("2006-01-02 15:04:05.999 -07:00") + " · " + zone
 }

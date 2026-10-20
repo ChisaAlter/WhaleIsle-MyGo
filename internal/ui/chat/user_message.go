@@ -43,7 +43,9 @@ func userMessageParts(body string) (refs []string, text string) {
 // nested caps express min(chat-width * .702, 82% of the available row).
 func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.Colors, refs []string, body string, onOpenImage func(string)) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	border, field := chrome.Color(colors.Border), chrome.Color(colors.Field)
 	referenceLabels := userMessageReferenceLabels(m.Snapshot.Messages, msg.Seq)
+	attachments := userFileAttachments(msg)
 	axis := m.ContentWidth
 	if axis <= 0 {
 		axis = 748
@@ -52,12 +54,25 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 	owner.Children(func() {
 		ui.Column(c).FillWidth().MaxWidthPercent(82).MinWidth(0).AlignItems(ui.End).Children(func() {
 			ui.Column(c).FillWidth().MaxWidth(axis * .702).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
-				for _, ref := range refs {
-					var open func(string)
-					if m.OnOpenImageLightbox != nil || m.ImageLightboxPath != nil {
-						open = onOpenImage
+				// Durable file parts paint as the Original 240×64 attachment card.
+				for _, file := range attachments {
+					attachmentCardView(c, file, fg, muted, border, field)
+				}
+				var open func(string)
+				if m.OnOpenImageLightbox != nil || m.ImageLightboxPath != nil {
+					open = onOpenImage
+				}
+				if len(refs) > 1 {
+					// Multi-image messages keep the Original 64 DIP tile strip.
+					ui.Row(c).Wrap().Gap(8).Justify(ui.End).MaxWidthPercent(100).Children(func() {
+						for _, ref := range refs {
+							paintImageTile(c, ref, muted, open)
+						}
+					})
+				} else {
+					for _, ref := range refs {
+						ImageInlineView(c, ref, fg, muted, open)
 					}
-					ImageInlineView(c, ref, fg, muted, open)
 				}
 				if body != "" {
 					ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).

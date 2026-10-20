@@ -1,8 +1,9 @@
 package pluginrpc
 
 import (
-	"fmt"
+	"errors"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Rooms have name/description only. Their existing title must remain empty;
@@ -11,15 +12,15 @@ type DshbotRoomTextValues struct{ Name, Description string }
 
 func ParseDshbotRoomText(v DshbotRoomTextValues) (DshbotRoomTextValues, error) {
 	if !utf8.ValidString(v.Name) || !utf8.ValidString(v.Description) {
-		return v, fmt.Errorf("群文本含无效 Unicode / Invalid room text Unicode")
+		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcInvalidRoomTextUnicode))
 	}
 	v.Name = trimBotMemory(v.Name)
 	v.Description = trimBotMemory(v.Description)
 	if v.Name == "" || WhaleTextLength(v.Name) > 120 {
-		return v, fmt.Errorf("群名必填且最多 120 UTF-16 单元 / Room name required, maximum 120 UTF-16 units")
+		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRoomNameRequiredMaximum120Utf16Un))
 	}
 	if WhaleTextLength(v.Description) > 12000 {
-		return v, fmt.Errorf("群说明最多 12000 UTF-16 单元 / Room description maximum 12000 UTF-16 units")
+		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRoomDescriptionMaximum12000Utf16Un))
 	}
 	// The Host owns locale-sensitive same-kind uniqueness; do not pretend Go
 	// case folding is an equivalent preflight or silently choose another name.

@@ -10,6 +10,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Entry is one scheduled job row.
@@ -186,7 +187,7 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		catalogHint := ""
 		catalogErr := client.Call(ctx, "schedule/catalog", nil, &catalog)
 		if catalogErr == nil {
-			catalogHint = "全部会话 / All sessions · " + formatCatalogHint(catalog)
+			catalogHint = storelocale.T(storelocale.KeyStoreScheduleAllSessions) + formatCatalogHint(catalog)
 		}
 
 		var rows []Entry
@@ -200,7 +201,7 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		} else if sessionID == "" {
 			callErr = fmt.Errorf("Host catalog unavailable; select a Session to list its active schedules")
 		} else {
-			catalogHint = "仅当前会话 / Current session only: " + sessionID + " · 全局目录不可用 / Host catalog unavailable"
+			catalogHint = storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly) + sessionID + storelocale.T(storelocale.KeyStoreScheduleHostCatalogUnavailable)
 			var list api.ListResult4
 			req := map[string]any{"sessionId": sessionID}
 			callErr = client.Call(ctx, "schedule/list", map[string]any{"request": req}, &list)

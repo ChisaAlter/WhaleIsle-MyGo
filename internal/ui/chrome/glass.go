@@ -194,23 +194,30 @@ func BackdropFill(rect ui.Rect, base ui.Color, m Material, p wallpapers.Preferen
 //
 //	ui.Column(c).Key("sidebar").Draw(chrome.Glass(fill, chrome.MaterialSidebar))
 //
+// radius rounds the fill and the frost to the panel's own corners, so a card
+// keeps its shape: pass the element's Radius (28 for the composer card, for
+// instance). Omit it for a square surface.
+//
 // The callback paints after the element's own background, so leave the element
 // without one; its own Radius clips what it draws. Without a wallpaper or an
 // ambient gradient it fills base opaquely, like the Background it replaces.
-func Glass(base ui.Color, m Material) func(*ui.Painter, ui.Rect) {
-	return func(p *ui.Painter, r ui.Rect) { DrawGlass(p, r, base, m) }
+func Glass(base ui.Color, m Material, radius ...float32) func(*ui.Painter, ui.Rect) {
+	round := firstRadius(radius)
+	return func(p *ui.Painter, r ui.Rect) { DrawGlass(p, r, base, m, round) }
 }
 
 // DrawGlass paints material m on rect: the frosted patch of the wallpapered
-// backdrop under it, then base at the material's opacity. A layer that neither
-// frosts nor tints draws nothing and lets the wallpaper show, which is what a
-// transparent theme asks for.
-func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material) {
+// backdrop under it, then base at the material's opacity, both rounded by
+// radius so the corners do not square off or spill over the element's clip. A
+// layer that neither frosts nor tints draws nothing and lets the wallpaper
+// show, which is what a transparent theme asks for.
+func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...float32) {
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
+	round := firstRadius(radius)
 	if !backgroundState.active {
-		p.Fill(r, base, 0)
+		p.Fill(r, base, round)
 		return
 	}
 	// The transparent theme drops every chrome fill, so the image shows
@@ -221,15 +228,29 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material) {
 	}
 	frost := frostOf(m)
 	alpha := MaterialAlpha(m, prefs, p.Theme().Dark)
+	// Surface tokens may already carry the glass opacity (input-major is an
+	// 80% rgba). Multiplying the material alpha on top would double-fade them,
+	// so a translucent base keeps its own alpha.
+	if base.A > 0 && base.A < 255 && alpha > 0 {
+		alpha = float32(base.A) / 255
+	}
 	if frost.cell > 0 {
 		if patch, ok := glassPatch(r, frost); ok {
 			// Stretched, not covered: the cells stand for exactly this rect.
-			p.Clip(r, 0, func() { p.Image(patch, r, ui.FillBox) })
+			p.Clip(r, round, func() { p.Image(patch, r, ui.FillBox) })
 		}
 	}
 	if alpha > 0 {
-		p.Fill(r, base.Alpha(alpha), 0)
+		p.Fill(r, base.Alpha(alpha), round)
 	}
+}
+
+// firstRadius returns the optional radius of a glass call, 0 when square.
+func firstRadius(radius []float32) float32 {
+	if len(radius) == 0 || radius[0] < 0 || math.IsNaN(float64(radius[0])) {
+		return 0
+	}
+	return radius[0]
 }
 
 // chromeSurface reports whether the material is one the transparent theme
@@ -244,19 +265,20 @@ func chromeSurface(m Material) bool {
 
 // GlassSurface dresses e as a surface of material m: it clears the element's
 // own background and paints base through the glass instead, so the wallpaper
-// shows through the surface rather than behind an opaque fill:
+// shows through the surface rather than behind an opaque fill. radius is the
+// element's own Radius, so the glass follows the panel's corners:
 //
 //	shell := chrome.GlassSurface(ui.Column(c).Fill(), fill, chrome.MaterialCanvas)
-func GlassSurface(e ui.Element, base ui.Color, m Material) ui.Element {
-	return e.Background(ui.Transparent).Draw(Glass(base, m))
+func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui.Element {
+	return e.Background(ui.Transparent).Draw(Glass(base, m, radius...))
 }
 
 // MenuSurface dresses e as the shared menu panel: the menu material, which
-// keeps its own fill instead of following the glass slider, and the elevation
-// shadow. The caller keeps its width, padding and radius, and its menu rows stay
-// inside the panel. Add PopoverTransition to it for the enter motion.
-func MenuSurface(e ui.Element, base, border ui.Color) ui.Element {
-	return MenuElevation(GlassSurface(e, base, MaterialMenu).Border(0.5, border))
+// keeps its own fill instead of following the glass slider, the hairline border
+// and the elevation shadow. The caller keeps its width, padding and radius
+// (passed here so the glass follows the rounded corners).
+func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
+	return MenuElevation(GlassSurface(e, base, MaterialMenu, radius...).Border(0.5, border))
 }
 
 // MenuShadow paints the elevation of a menu or floating card on rect: two soft
@@ -278,13 +300,13 @@ func MenuShadow(p *ui.Painter, rect ui.Rect, radius float32) {
 
 // MenuElevation gives a floating menu or card its drop shadow, matching the
 // --dsw-elevation-* recipe: a small near shadow plus one wide soft one. A menu
-// panel takes the shared material, the hairline and this elevation together:
+// panel takes the shared material, the hairline, this elevation and the popover
+// fade together:
 //
 //	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
-//		panel.Key("workspace-menu").Radius(10).Border(0.5, border).
-//			Transition(chrome.PopoverTransition()).
-//			Draw(chrome.Glass(fill, chrome.MaterialMenu))
-//		chrome.MenuElevation(panel)
+//		progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
+//		panel.Width(220).Radius(10).Opacity(progress)
+//		chrome.MenuSurface(panel, fill, border, 10)
 //	})
 func MenuElevation(e ui.Element) ui.Element {
 	return e.Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .22))

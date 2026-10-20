@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 // This panel is an entry point, not another transcript or prompt transport.
@@ -59,7 +60,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 		return
 	}
 	asst.SetBusy(true)
-	asst.SetLastAction("正在打开主会话 / Opening canonical conversation…", "")
+	asst.SetLastAction(i18n.T(i18n.KeyCmdOpeningCanonicalConversation), "")
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
@@ -89,7 +90,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 			conflict := text != "" && (draft.Text != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing > 0 || draft.EditSeq != 0)
 			s.mu.Unlock()
 			if conflict {
-				asst.SetLastAction("目标会话已有草稿；请先处理主聊天草稿，再返回发送。 / Resolve the existing chat draft before sending.", "Draft retained; nothing sent")
+				asst.SetLastAction(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftBeforeS), "Draft retained; nothing sent")
 				return
 			}
 			s.revokePhoneGit()
@@ -112,7 +113,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 			if text != "" {
 				draft.Client.Sync()
 			}
-			asst.SetLastAction("已打开主会话 / Canonical conversation opened", "")
+			asst.SetLastAction(i18n.T(i18n.KeyCmdCanonicalConversationOpened), "")
 			if text != "" {
 				// Ownership moves to the visible canonical draft. Failed/uncertain sends
 				// stay in the standard composer/submission UI and are never auto-retried.

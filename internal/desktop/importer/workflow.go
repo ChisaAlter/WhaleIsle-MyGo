@@ -33,7 +33,7 @@ func (c Catalog) Snapshot() Catalog {
 func Confirmation(c Catalog, s ApplySelection) string {
 	policy := "已有同名数据：跳过并保留"
 	if s.Overwrite {
-		policy = "已有同名数据：覆盖；设置/MCP 只替换所选同名项，无法撤销"
+		policy = "已有同名数据：覆盖；设置与 MCP 只替换所选同名项，无法撤销"
 	}
 	var preview []string
 	for _, group := range []struct {

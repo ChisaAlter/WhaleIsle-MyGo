@@ -1,6 +1,9 @@
 package pet
 
-import "time"
+import (
+	"time"
+	"whaleisle/internal/store/storelocale"
+)
 
 // patPet is a fixed native action for the original PANEL_ACTIONS pat entry.
 // No animation gesture, arbitrary care bridge or inference is needed to apply
@@ -15,10 +18,10 @@ func (p *Companion) patPet() {
 		return
 	}
 	if err := p.Store.PatPet(time.Now()); err != nil {
-		p.feedMessage = "保存失败，未计入互动 / Save failed; unchanged"
+		p.feedMessage = storelocale.T(storelocale.KeyDesktopPetSaveFailedUnchanged3)
 		return
 	}
 	p.careAction = newCareAnimation("pat", "", 0)
 	_ = p.rest.wake(nil)
-	p.feedMessage = "已摸摸头：心情 +10；亲密按同类冷却计入 / Patted"
+	p.feedMessage = storelocale.T(storelocale.KeyDesktopPetPatted)
 }

@@ -9,11 +9,12 @@ import (
 	"whaleisle/internal/harness"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) bindRoutineTriggerModel(m *assistantui.RoutineModel, ep harness.Endpoint, scope dshbotstore.RoutineScope, current func() bool) {
 	if _, err := pluginrpc.DshbotRoutineTriggerURL(ep.Origin, m.State.SelectedID); err != nil {
-		m.TriggerUnavailable = "此 Host/任务无法表示为安全触发地址；未请求凭据 / Unsupported trigger address; no credential requested"
+		m.TriggerUnavailable = i18n.T(i18n.KeyCmdUnsupportedTriggerAddressNoCredentia)
 		return
 	}
 	sequence := m.State.Trigger.Sequence

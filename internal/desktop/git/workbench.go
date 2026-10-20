@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,14 +9,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // Change describes both index and working-tree state. Paths are workspace-relative.
+// Added and Deleted are the line counts of the whole change against HEAD, so a
+// commit list can show the same +N/-N a diff does.
 type Change struct {
 	Path, Original  string
 	Index, Worktree byte
+	Added, Deleted  int
 }
 
 func (c Change) Staged() bool   { return c.Index != ' ' && c.Index != '?' }
@@ -60,7 +65,79 @@ func changesRaw(root, prefix string) ([]Change, error) {
 		}
 		changes = append(changes, c)
 	}
+	attachDiffstat(ctx, root, prefix, changes)
 	return changes, nil
+}
+
+// attachDiffstat fills each change's line counts. One numstat pass against HEAD
+// covers staged and unstaged edits together, which is what the commit list means;
+// untracked files are counted from disk, and binary files report zero.
+func attachDiffstat(ctx context.Context, root, prefix string, changes []Change) {
+	if len(changes) == 0 {
+		return
+	}
+	counts := map[string][2]int{}
+	// stdout only: a combined runner would fold git warnings into the first
+	// record and turn its added count into a parse failure.
+	if out, err := selectedCommand(ctx, root, "", "diff", "--numstat", "-z", "--no-renames", "HEAD", "--", "."); err == nil {
+		readNumstat(counts, out, prefix)
+	}
+	for i := range changes {
+		c := &changes[i]
+		if c.Index == '?' {
+			c.Added, c.Deleted = countUntrackedLines(root, c.Path)
+			continue
+		}
+		if n, ok := counts[c.Path]; ok {
+			c.Added, c.Deleted = n[0], n[1]
+		}
+	}
+}
+
+// readNumstat parses `git diff --numstat -z` into path → {added, deleted}.
+func readNumstat(counts map[string][2]int, out []byte, prefix string) {
+	for _, record := range strings.Split(string(out), "\x00") {
+		// The runners fold stderr into stdout, so a warning may precede the
+		// record; the record itself is always the last line of the chunk.
+		if cut := strings.LastIndexByte(record, '\n'); cut >= 0 {
+			record = record[cut+1:]
+		}
+		parts := strings.SplitN(record, "\t", 3)
+		if len(parts) != 3 || parts[2] == "" {
+			continue
+		}
+		added, errAdded := strconv.Atoi(parts[0])
+		deleted, errDeleted := strconv.Atoi(parts[1])
+		if errAdded != nil || errDeleted != nil {
+			continue
+		}
+		counts[strings.TrimPrefix(parts[2], prefix)] = [2]int{added, deleted}
+	}
+}
+
+// countUntrackedLines counts a file HEAD does not know yet. A large or binary
+// file reports zero instead of guessing.
+func countUntrackedLines(root, path string) (int, int) {
+	info, err := os.Stat(filepath.Join(root, path))
+	if err != nil || info.IsDir() || info.Size() > 4<<20 {
+		return 0, 0
+	}
+	data, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil || len(data) == 0 {
+		return 0, 0
+	}
+	head := data
+	if len(head) > 8000 {
+		head = head[:8000]
+	}
+	if bytes.IndexByte(head, 0) >= 0 {
+		return 0, 0
+	}
+	lines := bytes.Count(data, []byte("\n"))
+	if data[len(data)-1] != '\n' {
+		lines++
+	}
+	return lines, 0
 }
 
 func literalPath(path string) error {

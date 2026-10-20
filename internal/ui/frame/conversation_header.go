@@ -29,9 +29,15 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	}
 	muted := chrome.Color(colors.Muted)
 	managed := conversationIsManaged(snap)
+	// The phone band floats the drawer's menu button over the band's leading
+	// edge (AppFrame .phoneMenu at 10,10 36x36), so the title clears it.
+	leftInset := float32(20)
+	if m.Sizes != nil && m.Sizes.drawerMode() {
+		leftInset = 48
+	}
 	// One 48px band: title, the optional 对话/轨迹 switcher and the status
 	// actions share it; rc.2 has no tab row under the caption.
-	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionHeight).Padding(0, rightInset, 0, 20).AlignItems(ui.Center).DragWindow().Children(func() {
+	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionHeight).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
 		ui.Row(c).Key("conversation-title-cluster").Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Clip().Children(func() {
 				if snap.SelectedID != "" {

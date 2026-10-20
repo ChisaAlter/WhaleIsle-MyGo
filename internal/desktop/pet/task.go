@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/store/storelocale"
 )
 
 // TaskStatus identifies the selected session. Global watcher activity may supply
@@ -31,18 +32,18 @@ func TaskFromSession(online bool, s session.ViewState) TaskStatus {
 }
 
 func renderTaskPage(page []byte, task TaskStatus) []byte {
-	label := "状态未知 / Unknown"
+	label := storelocale.T(storelocale.KeyDesktopPetUnknown)
 	switch task.State {
 	case "running":
-		label = "运行中 / Running"
+		label = storelocale.T(storelocale.KeyDesktopPetRunning)
 	case "idle":
-		label = "未运行 / Idle"
+		label = storelocale.T(storelocale.KeyDesktopPetIdle)
 	case "offline":
-		label = "离线 / Offline"
+		label = storelocale.T(storelocale.KeyDesktopPetOffline)
 	}
 	open := ""
 	if task.SessionID != "" {
-		open = `<a id="open" href="open?session=` + html.EscapeString(url.QueryEscape(task.SessionID)) + `" title="回到此会话 / Open this conversation">回到会话 / Open chat</a>`
+		open = `<a id="open" href="open?session=` + html.EscapeString(url.QueryEscape(task.SessionID)) + `" title="` + storelocale.T(storelocale.KeyDesktopPetOpenConversationTitle) + `">` + storelocale.T(storelocale.KeyDesktopPetOpenChat) + `</a>`
 	}
 	return []byte(strings.NewReplacer("{{STATUS}}", html.EscapeString(label), "{{TITLE}}", html.EscapeString(task.Title), "{{OPEN}}", open).Replace(string(page)))
 }
@@ -99,7 +100,7 @@ func taskAction(raw string, task TaskStatus) string {
 // active Host watcher. Global work has no single navigation target.
 func taskWithGlobalActivity(task TaskStatus, owner, state string) TaskStatus {
 	if owner != "" && state == "working" && task.State != "running" {
-		return TaskStatus{State: "running", Title: "其他会话正在运行 / Other conversations are working"}
+		return TaskStatus{State: "running", Title: storelocale.T(storelocale.KeyDesktopPetOtherConversationsAreWorking)}
 	}
 	return task
 }

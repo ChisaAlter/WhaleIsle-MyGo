@@ -9,6 +9,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // RepairResult is the existing usage-stats repair.session contract. Only the
@@ -287,7 +288,7 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 	s.stats.Loading = false
 	s.statsCancel = nil
 	if err != nil {
-		s.stats.Err = "修复后的统计重扫失败 / Post-repair statistics rescan failed: " + err.Error()
+		s.stats.Err = storelocale.T(storelocale.KeyStoreUsagePostRepairStatisticsRescanFailed) + err.Error()
 	} else {
 		s.stats.Raw = append(json.RawMessage(nil), raw...)
 		s.reconcileStatsRangeLocked()

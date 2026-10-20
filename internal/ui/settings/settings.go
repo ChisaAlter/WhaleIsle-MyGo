@@ -343,16 +343,15 @@ func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui
 			}
 		}
 	}
-	for index, raw := range ns.Fields {
+	for _, raw := range ns.Fields {
 		field := raw
-		last := index == len(ns.Fields)-1
 		if permissionDefaultField(c, m, snap, field, fg, muted) {
 			continue
 		}
 		if configurationField(c, m, snap, *ns, field, fg, muted) {
 			continue
 		}
-		fieldRow(c, m, snap, field, fg, muted, last)
+		fieldRow(c, m, snap, field, fg, muted)
 	}
 	settingsActions(c, m, snap, ns, fg, muted)
 }
@@ -430,7 +429,7 @@ func hasSecretField(ns *settings.Namespace) bool {
 
 // fieldRow paints one schema field as a settings row: the switch, the select or
 // the input sits at the row's end, and only long-form text takes a full block.
-func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color, last bool) {
+func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field, fg, muted ui.Color) {
 	if snap.SelectedNS == settings.CustomInstructionsNamespace && f.Key == settings.CustomInstructionsField {
 		customInstructionsRow(c, m, snap, fg, muted)
 		return
@@ -454,7 +453,6 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	if m.Store != nil && !disabled {
 		reset = func() { m.Store.ResetDraft(f.Key) }
 	}
-	divider := !last
 	seed := snap.Drafts[f.Key]
 	key := "field-" + f.Key
 	switch f.Kind {
@@ -463,38 +461,38 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 			return
 		}
 		checked := m.BoolPtr(f.Key, seed)
-		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 			ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Children(func() {
 				if ui.Switch(c, checked).Label(label).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, fmt.Sprint(*checked))
 				}
 			})
-		}, divider)
+		})
 	case settings.FieldEnum:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		}, divider)
+		})
 	case settings.FieldJSON:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldBlockDivider(c, key, label, hint, fg, muted, func() {
+		settingsFieldBlock(c, key, label, hint, fg, muted, func() {
 			if ui.TextArea(c, draft).Fill().Lines(4, 12).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		}, divider)
+		})
 	case settings.FieldNumber:
 		draft := m.DraftPtr(f.Key, seed)
-		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		}, divider)
+		})
 	default:
 		draft := m.DraftPtr(f.Key, seed)
 		if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
-			settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
+			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 				input := ui.TextInput(c, draft).Fill()
 				if m.RevealSecrets == nil || !*m.RevealSecrets {
 					input = input.Password()
@@ -502,21 +500,21 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 				if input.Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-			}, divider)
+			})
 			return
 		}
 		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
-			settingsFieldBlockDivider(c, key, label, hint, fg, muted, func() {
+			settingsFieldBlock(c, key, label, hint, fg, muted, func() {
 				if ui.TextArea(c, draft).Fill().Lines(3, 10).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
-			}, divider)
+			})
 			return
 		}
-		settingsFieldRowDivider(c, key, label, hint, fg, muted, reset, func() {
+		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
-		}, divider)
+		})
 	}
 }

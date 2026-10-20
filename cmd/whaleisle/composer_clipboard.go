@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Called only from a user paste command or explicit Paste image button.
@@ -19,7 +20,7 @@ func (s *mainState) pasteComposerImage(win *mygo.Window, sessions *session.Store
 	raw := mygo.Clipboard.ReadImage()
 	if len(raw) == 0 {
 		if explicit {
-			d.Error = "剪贴板没有图片 / No image on the clipboard"
+			d.Error = i18n.T(i18n.KeyCmdNoImageOnTheClipboard)
 		}
 		return
 	}

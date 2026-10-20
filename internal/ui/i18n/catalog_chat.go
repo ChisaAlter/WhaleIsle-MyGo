@@ -61,9 +61,9 @@ const (
 
 	// Turn terminal status. KeyChatTurnDone ("chat.turn_done") already exists in
 	// i18n.go and is reused as the completed label.
-	KeyChatTurnFailed    = "chat.turn.failed"
-	KeyChatTurnStopped   = "chat.turn.stopped"
-	KeyChatTurnTruncated = "chat.turn.truncated"
+	KeyChatTurnFailed     = "chat.turn.failed"
+	KeyChatTurnStopped    = "chat.turn.stopped"
+	KeyChatTurnTruncated  = "chat.turn.truncated"
 	KeyChatUnknownContent = "chat.unknown_content"
 	KeyChatTurnMaxTokens  = "chat.turn.max_tokens"
 	KeyChatTurnSignedOut  = "chat.turn.signed_out"
@@ -96,23 +96,23 @@ const (
 	KeyChatDurationMS  = "chat.duration.min_sec"
 
 	// Question card.
-	KeyChatQuestionMinimize  = "chat.question.minimize"
-	KeyChatQuestionExpand    = "chat.question.expand"
-	KeyChatQuestionReview    = "chat.question.review"
-	KeyChatQuestionPrev      = "chat.question.prev"
-	KeyChatQuestionNext      = "chat.question.next"
-	KeyChatQuestionSkip      = "chat.question.skip"
-	KeyChatQuestionUndoSkip  = "chat.question.undo_skip"
-	KeyChatQuestionSkipped   = "chat.question.skipped"
-	KeyChatQuestionUnanswer  = "chat.question.unanswered"
-	KeyChatQuestionStep      = "chat.question.step"
-	KeyChatQuestionSubmit    = "chat.question.submit"
-	KeyChatQuestionReopen    = "chat.question.reopen"
-	KeyChatQuestionHide      = "chat.question.hide"
-	KeyChatQuestionReviewN   = "chat.question.review_n"
-	KeyChatQuestionAnswer    = "chat.question.answer"
-	KeyChatQuestionCopyReply = "chat.question.copy_reply"
-	KeyChatQuestionEarlier   = "chat.question.earlier"
+	KeyChatQuestionMinimize   = "chat.question.minimize"
+	KeyChatQuestionExpand     = "chat.question.expand"
+	KeyChatQuestionReview     = "chat.question.review"
+	KeyChatQuestionPrev       = "chat.question.prev"
+	KeyChatQuestionNext       = "chat.question.next"
+	KeyChatQuestionSkip       = "chat.question.skip"
+	KeyChatQuestionUndoSkip   = "chat.question.undo_skip"
+	KeyChatQuestionSkipped    = "chat.question.skipped"
+	KeyChatQuestionUnanswer   = "chat.question.unanswered"
+	KeyChatQuestionStep       = "chat.question.step"
+	KeyChatQuestionSubmit     = "chat.question.submit"
+	KeyChatQuestionReopen     = "chat.question.reopen"
+	KeyChatQuestionHide       = "chat.question.hide"
+	KeyChatQuestionReviewN    = "chat.question.review_n"
+	KeyChatQuestionAnswer     = "chat.question.answer"
+	KeyChatQuestionCopyReply  = "chat.question.copy_reply"
+	KeyChatQuestionEarlier    = "chat.question.earlier"
 	KeyChatQuestionIncomplete = "chat.question.incomplete"
 	KeyChatQuestionPickFirst  = "chat.question.pick_first"
 	KeyChatQuestionHistory    = "chat.question.history"
@@ -163,19 +163,19 @@ const (
 	KeyChatGroupLate    = "chat.group.late"
 
 	// Workflow run card.
-	KeyChatWorkflowMembers  = "chat.workflow.members"
-	KeyChatWorkflowNoMember = "chat.workflow.no_member"
-	KeyChatWorkflowUngrouped = "chat.workflow.ungrouped"
+	KeyChatWorkflowMembers    = "chat.workflow.members"
+	KeyChatWorkflowNoMember   = "chat.workflow.no_member"
+	KeyChatWorkflowUngrouped  = "chat.workflow.ungrouped"
 	KeyChatWorkflowEmptyPhase = "chat.workflow.empty_phase"
-	KeyChatWorkflowUnnamed  = "chat.workflow.unnamed"
-	KeyChatWorkflowCopy     = "chat.workflow.copy"
+	KeyChatWorkflowUnnamed    = "chat.workflow.unnamed"
+	KeyChatWorkflowCopy       = "chat.workflow.copy"
 
 	// Tool file/diff bodies.
-	KeyChatToolAppliedDiff = "chat.tool.applied_diff"
+	KeyChatToolAppliedDiff  = "chat.tool.applied_diff"
 	KeyChatToolProposedDiff = "chat.tool.proposed_diff"
-	KeyChatToolDiffLarge   = "chat.tool.diff_large"
-	KeyChatToolNoDiff      = "chat.tool.no_diff"
-	KeyChatToolExpandFile  = "chat.tool.expand_file"
+	KeyChatToolDiffLarge    = "chat.tool.diff_large"
+	KeyChatToolNoDiff       = "chat.tool.no_diff"
+	KeyChatToolExpandFile   = "chat.tool.expand_file"
 	KeyChatToolCollapseFile = "chat.tool.collapse_file"
 
 	// Read-only resources.
@@ -189,19 +189,19 @@ const (
 
 	// Markdown code-card toolbar.
 	// Retry and schedule rows.
-	KeyChatRetryWaiting    = "chat.retry.waiting"
-	KeyChatRetryStarted    = "chat.retry.started"
-	KeyChatRetryCancelled  = "chat.retry.cancelled"
-	KeyChatSystemPrompt    = "chat.system_prompt"
+	KeyChatRetryWaiting       = "chat.retry.waiting"
+	KeyChatRetryStarted       = "chat.retry.started"
+	KeyChatRetryCancelled     = "chat.retry.cancelled"
+	KeyChatSystemPrompt       = "chat.system_prompt"
 	KeyChatSystemPromptUpdate = "chat.system_prompt_update"
-	KeyChatScheduleTask    = "chat.schedule.task"
-	KeyChatScheduleReceipt = "chat.schedule.receipt"
-	KeyChatScheduleDeleted = "chat.schedule.deleted"
-	KeyChatScheduleDetails = "chat.schedule.details"
-	KeyChatImageLoading    = "chat.image.loading"
-	KeyChatFeedbackEdit    = "chat.feedback.edit"
+	KeyChatScheduleTask       = "chat.schedule.task"
+	KeyChatScheduleReceipt    = "chat.schedule.receipt"
+	KeyChatScheduleDeleted    = "chat.schedule.deleted"
+	KeyChatScheduleDetails    = "chat.schedule.details"
+	KeyChatImageLoading       = "chat.image.loading"
+	KeyChatFeedbackEdit       = "chat.feedback.edit"
 	KeyChatTrajDisplayLimited = "chat.traj.display_limited"
-	KeyChatTrajDepthLimit  = "chat.traj.depth_limit"
+	KeyChatTrajDepthLimit     = "chat.traj.depth_limit"
 
 	// Turn deliverables card.
 	KeyChatDeliveryTitle       = "chat.delivery.title"
@@ -215,6 +215,7 @@ const (
 	KeyChatDeliveryRetryDiff   = "chat.delivery.retry_diff"
 	KeyChatDeliveryReadDiff    = "chat.delivery.reading_diff"
 	KeyChatDeliveryBinary      = "chat.delivery.binary"
+	KeyChatDeliveryDiffClip  = "chat.delivery.diff_clip"
 	KeyChatDeliveryTooLarge    = "chat.delivery.too_large"
 	KeyChatDeliveryShowAll     = "chat.delivery.show_all"
 	KeyChatDeliveryCollapse    = "chat.delivery.collapse"
@@ -244,6 +245,44 @@ const (
 	KeyChatWorkbookCopyShown = "chat.workbook.copy_shown"
 	KeyChatWorkbookCopyRaw   = "chat.workbook.copy_raw"
 
+// Second localization sweep: workbook TSV, inline OpenUI, retry copy, visual
+	// reply and workflow notes.
+	KeyChatWorkbookCopyRawTSV  = "chat.workbook.copy_raw_tsv"
+	KeyChatWorkbookCopyShownTSV = "chat.workbook.copy_shown_tsv"
+	KeyChatOpenUIRetry         = "chat.openui.retry"
+	KeyChatOpenUIClose         = "chat.openui.close"
+	KeyChatRetryAuthFailed     = "chat.retry.auth_failed"
+	KeyChatRetrySignedOut      = "chat.retry.signed_out"
+	KeyChatRetrySignIn         = "chat.retry.sign_in"
+	KeyChatRetryQuota          = "chat.retry.quota"
+	KeyChatRetryAwaitingHost   = "chat.retry.awaiting_host"
+	KeyChatVisualPublished     = "chat.visual.published"
+	KeyChatVisualIsolatedNote  = "chat.visual.isolated_note"
+	KeyChatVisualSaveAs        = "chat.visual.save_as"
+	KeyChatVisualReading       = "chat.visual.reading"
+	KeyChatVisualPreparing     = "chat.visual.preparing"
+	KeyChatVisualChecking      = "chat.visual.checking"
+	KeyChatVisualLoadingPage   = "chat.visual.loading_page"
+	KeyChatVisualIsolatedTooltip = "chat.visual.isolated_tooltip"
+	KeyChatVisualSourceNote    = "chat.visual.source_note"
+	KeyChatWorkflowEndedNote   = "chat.workflow.ended_note"
+
+	// Turn rail.
+	KeyChatTurnRailLabel = "chat.turn_rail.label"
+	KeyChatTurnRailJump = "chat.turn_rail.jump"
+	KeyChatTurnRailTurn = "chat.turn_rail.turn"
+	KeyChatTurnRailEmpty = "chat.turn_rail.empty"
+
+	// Queue dock.
+	KeyChatQueueTitle = "chat.queue.title"
+	KeyChatQueueEmptyPreview = "chat.queue.empty_preview"
+
+	// Interaction cards.
+	KeyChatApprovalWaiting = "chat.approval.waiting"
+	KeyChatQuestionWaiting = "chat.question.waiting"
+
+	// Attachment cards.
+	KeyChatAttachmentFile = "chat.attachment.file"
 	// Shared row actions.
 	KeyChatRowExpand   = "chat.row.expand"
 	KeyChatRowCollapse = "chat.row.collapse"
@@ -470,6 +509,7 @@ func init() {
 	Register(KeyChatDeliveryRetryDiff, "重试读取对比", "Retry comparison")
 	Register(KeyChatDeliveryReadDiff, "读取对比中…", "Reading comparison…")
 	Register(KeyChatDeliveryBinary, "二进制文件，无文本对比", "Binary file; no text comparison")
+	Register(KeyChatDeliveryDiffClip, "对比展示截断为 64 KiB", "Comparison display limited to 64 KiB")
 	Register(KeyChatDeliveryTooLarge, "文件过大，Host 未提供文本对比", "Too large for a text comparison")
 	Register(KeyChatDeliveryShowAll, "展开全部文件", "Show all files")
 	Register(KeyChatDeliveryCollapse, "收起", "Collapse")
@@ -498,6 +538,36 @@ func init() {
 	Register(KeyChatWorkbookNextCols, "下一列页", "Next columns")
 	Register(KeyChatWorkbookCopyShown, "复制单元格显示值", "Copy displayed cell value")
 	Register(KeyChatWorkbookCopyRaw, "复制单元格原文", "Copy cell value")
+
+	// Attachment cards.
+	Register(KeyChatTurnRailLabel, "回合", "Turns")
+	Register(KeyChatTurnRailJump, "跳到第", "Jump to")
+	Register(KeyChatTurnRailTurn, "回合", "Turn")
+	Register(KeyChatTurnRailEmpty, "（空白回合）", "(empty turn)")
+Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV")
+	Register(KeyChatWorkbookCopyShownTSV, "复制本页显示 TSV", "Copy displayed page TSV")
+	Register(KeyChatOpenUIRetry, "重试内联 UI", "Retry inline UI")
+	Register(KeyChatOpenUIClose, "关闭交互 UI", "Close interactive UI")
+	Register(KeyChatRetryAuthFailed, "身份验证失败，请检查登录状态。", "Authentication failed. Check your sign-in.")
+	Register(KeyChatRetrySignedOut, "已停止，因为你已退出 DeepSeek。", "Stopped because you signed out of DeepSeek.")
+	Register(KeyChatRetrySignIn, "请先登录 DeepSeek。", "Sign in to DeepSeek to continue.")
+	Register(KeyChatRetryQuota, "额度不足。", "Account quota exhausted.")
+	Register(KeyChatRetryAwaitingHost, "等待 Host", "Awaiting Host")
+	Register(KeyChatVisualPublished, "已发布 HTML", "Published HTML")
+	Register(KeyChatVisualIsolatedNote, "在隔离进程中的卡片表面运行控件和脚本；不开放网络、本机文件、应用权限或持久登录。", "Runs this page in an isolated process without network, local files or persistent sign-in.")
+	Register(KeyChatVisualSaveAs, "另存 HTML…", "Save as…")
+	Register(KeyChatVisualReading, "正在授权读取…", "Reading published page…")
+	Register(KeyChatVisualPreparing, "正在准备隔离交互表面…", "Preparing isolated interactive surface…")
+	Register(KeyChatVisualChecking, "正在检查隔离环境并生成静态预览…", "Checking isolation and rendering a static preview…")
+	Register(KeyChatVisualLoadingPage, "正在加载交互页面…", "Loading interactive page…")
+	Register(KeyChatVisualIsolatedTooltip, "在隔离进程中的卡片表面运行控件和脚本；不开放网络、本机文件、应用权限或持久登录。", "Runs this page in an isolated process without network, local files or application access.")
+	Register(KeyChatVisualSourceNote, "源码视图为纯文本；安全图片预览为 PNG，交互页在隔离进程运行。另存后在外部浏览器打开可能运行脚本或访问网络。", "Source is plain text; image preview is PNG, and interaction uses a separate isolated process. Opening a saved page externally may run scripts or access the network.")
+	Register(KeyChatWorkflowEndedNote, "已结束或不可用成员保留轨迹，不会重新启动。", "Unavailable members retain their recorded status.")
+	Register(KeyChatQueueTitle, "待发送队列", "Queued prompts")
+	Register(KeyChatQueueEmptyPreview, "（无预览）", "(no preview)")
+	Register(KeyChatApprovalWaiting, "等待你的确认", "Waiting for your approval")
+	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
+	Register(KeyChatAttachmentFile, "文件", "File")
 
 	// Shared row actions.
 	Register(KeyChatRowExpand, "展开", "Expand")

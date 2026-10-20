@@ -70,30 +70,39 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 		questionDetail(c, row.Detail, fg, muted)
 		for index, opt := range row.OptionLabels {
 			checked := slices.Contains(row.Selected, opt)
-			choice := ui.Checkbox(c.Key("question-option:"+strconv.Itoa(index)), &checked, "").Label(opt).FillWidth().MinWidth(0).OnChange(func() {
-				if row.MultiSelect || checked {
-					store.SetQuestionOptionChecked(p.EventID, row.ID, opt, checked)
-					if !row.MultiSelect {
-						store.AdvanceQuestionChoice(p.AgentID, p.EventID, row.ID)
-					}
-					flow.feedback = ""
+			description := ""
+			if index < len(row.OptionDescriptions) {
+				description = row.OptionDescriptions[index]
+			}
+			option := opt
+			toggle := func() {
+				next := !checked
+				if !row.MultiSelect {
+					next = true
 				}
-			})
-			// The styled checkbox's implicit label has an automatic min-content
-			// width. A shrinkable label also wraps long unbroken identifiers.
-			choice.Children(func() { ui.Text(c, opt).MinWidth(0).Grow(1).TextColor(fg) })
+				store.SetQuestionOptionChecked(p.EventID, row.ID, option, next)
+				if !row.MultiSelect {
+					store.AdvanceQuestionChoice(p.AgentID, p.EventID, row.ID)
+				}
+				flow.feedback = ""
+			}
+			choice := questionOptionCard(c, "question-option:"+row.ID+":"+strconv.Itoa(index), index, opt, description, checked, row.MultiSelect, p.Sending, toggle)
+			// Enter keeps the wizard's meaning (validate and advance); Space is
+			// the toggle, as a native radio/check-box pair behaves.
 			choice.HandleInput(func(ev ui.InputEvent) bool {
-				if ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEnter {
+				if ev.Kind != ui.InputKeyDown || ev.Repeat {
 					return false
 				}
-				if !ev.Repeat {
+				switch ev.Key {
+				case ui.KeyEnter:
 					flow.focusID, flow.feedback = store.SubmitQuestionBatch(p.AgentID, p.EventID)
+					return true
+				case ui.KeySpace:
+					toggle()
+					return true
 				}
-				return true
+				return false
 			})
-			if index < len(row.OptionDescriptions) && row.OptionDescriptions[index] != "" {
-				questionText(c, row.OptionDescriptions[index], 11, muted)
-			}
 		}
 		// Frame-local binding prevents pre-Sending events from mutating the draft.
 		custom := row.Custom

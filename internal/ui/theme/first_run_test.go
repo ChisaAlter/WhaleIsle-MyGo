@@ -50,20 +50,26 @@ func TestFirstRunAppearanceLeavesNoWallpaper(t *testing.T) {
 	}
 }
 
-// TestFirstRunThemeIsTheDarkPalette pins the first-run theme id: pinning the
-// dark palette keeps a fresh launch off the OS scheme.
-func TestFirstRunThemeIsTheDarkPalette(t *testing.T) {
-	if FirstRunThemeID != IDDeepseekDark {
-		t.Fatalf("FirstRunThemeID = %q, want %q", FirstRunThemeID, IDDeepseekDark)
+// TestFirstRunThemeFollowsTheOS pins the first-run theme id: the harness
+// install default is preference "system" (ui-theme/src/theme-settings.ts
+// DEFAULT_PREFERENCE), so a fresh launch follows the OS scheme instead of
+// forcing a palette the user did not choose.
+func TestFirstRunThemeFollowsTheOS(t *testing.T) {
+	if FirstRunThemeID != DefaultID {
+		t.Fatalf("FirstRunThemeID = %q, want %q", FirstRunThemeID, DefaultID)
 	}
 	fresh := ResolveWithSystem(FirstRunThemeID, false)
-	if fresh.Scheme != SchemeDark {
-		t.Fatalf("first-run theme followed the OS scheme: %q", fresh.Scheme)
+	if fresh.Scheme != SchemeLight {
+		t.Fatalf("first-run light scheme = %q, want %q", fresh.Scheme, SchemeLight)
 	}
-	if got := fresh.Active(false).BG; got != deepseekDark.BG {
-		t.Fatalf("first-run background = %q, want the dark palette %q", got, deepseekDark.BG)
+	if got := fresh.Active(false).BG; got != deepseekLight.BG {
+		t.Fatalf("first-run light background = %q, want %q", got, deepseekLight.BG)
 	}
-	if bg := fresh.BackgroundColor(); bg != deepseekDark.BG {
-		t.Fatalf("first-run window background = %q, want %q", bg, deepseekDark.BG)
+	dark := ResolveWithSystem(FirstRunThemeID, true)
+	if dark.Scheme != SchemeDark {
+		t.Fatalf("first-run dark scheme = %q, want %q", dark.Scheme, SchemeDark)
+	}
+	if got := dark.Active(true).BG; got != deepseekDark.BG {
+		t.Fatalf("first-run dark background = %q, want %q", got, deepseekDark.BG)
 	}
 }

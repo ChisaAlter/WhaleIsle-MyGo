@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 // freezeAgentNavigationView discards transient previews when leaving latest.
@@ -162,7 +163,7 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 		n := &s.agentNavigation
 		n.view = freezeAgentNavigationView(n.view)
 		n.view.Busy = true
-		n.view.Error = "实时序列不连续，正在重新同步… / Live sequence changed; resynchronizing…"
+		n.view.Error = storelocale.T(storelocale.KeyStoreSessionLiveSequenceChangedResynchronizing)
 		notify := !n.notifyPending
 		n.notifyPending = true
 		s.mu.Unlock()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 const MessageKindQuestionReply MessageKind = "question-reply"
@@ -142,9 +143,9 @@ func (v QuestionReplyView) ClipboardText() string {
 		if q.Header != "" && q.Header != q.Question {
 			heading = q.Header + " — " + heading
 		}
-		answer := "未作答 / Skipped"
+		answer := storelocale.T(storelocale.KeyStoreSessionSkipped)
 		if values := v.AnswerValues(q.ID); len(values) > 0 {
-			answer = "回答 / Answer: " + strings.Join(values, ", ")
+			answer = storelocale.T(storelocale.KeyStoreSessionAnswer) + strings.Join(values, ", ")
 		}
 		blocks = append(blocks, heading+"\n"+answer)
 	}

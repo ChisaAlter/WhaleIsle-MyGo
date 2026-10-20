@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoutineScope struct{ HostKey, BotID string }
@@ -223,9 +224,9 @@ func (c *RoutineControls) FinishLoad(t RoutineTicket, v *pluginrpc.DshbotRoutine
 	}
 	c.state.MissedKnown = missedErr == nil
 	c.state.Error = ""
-	c.state.Notice = "例行任务已从当前 Host 刷新 / Routines refreshed"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRoutinesRefreshed)
 	if missedErr != nil {
-		c.state.Notice += "；错过记录不可用 / Missed-run status unavailable: " + missedErr.Error()
+		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotMissedRunStatusUnavailable) + missedErr.Error()
 	}
 	return true
 }
@@ -350,12 +351,12 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 			return
 		}
 		if d.Revision != c.state.Revision || d.SessionID != c.state.SessionID {
-			c.state.Error = "目录已变化。草稿保留；请核对当前记录后丢弃旧草稿再编辑 / Catalog changed; review current values before discarding the stale draft"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewCurrentValuesBe)
 			return
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(d.MaxRunsText))
 		if err != nil {
-			c.state.Error = "执行次数上限必须为整数 / Run limit must be an integer"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger)
 			return
 		}
 		d.Edit.MaxRuns = n
@@ -364,7 +365,7 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 			return
 		}
 		if d.Edit.Enabled && n > 0 && n <= r.RunCount {
-			c.state.Error = "启用时次数上限必须大于已执行次数 / Limit must exceed current run count"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotLimitMustExceedCurrentRunCount)
 			return
 		}
 		advanced, err := prepareRoutineAdvanced(d.Advanced, s.BotID, r.ID, c.state.Routines)
@@ -382,7 +383,7 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 		review.Timezone = d.Edit.Timezone
 	case "run":
 		if r.LastOutcome == "queued" || r.LastOutcome == "running" {
-			c.state.Error = "上一轮仍在排队或运行 / A previous run is pending or running"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotAPreviousRunIsPendingOrRunning)
 			return
 		}
 	case "toggle", "delete":
@@ -453,7 +454,7 @@ func (c *RoutineControls) FinishAction(t RoutineTicket, v *pluginrpc.DshbotRouti
 	}
 	if err != nil {
 		c.state.Loaded = false
-		c.state.Error = err.Error() + "；结果可能已生效，先刷新核实再操作 / Outcome may have applied; refresh before another action"
+		c.state.Error = err.Error() + storelocale.T(storelocale.KeyStoreDshbotOutcomeMayHaveAppliedRefreshBefore)
 		return true
 	}
 	if review.Command.Action == "save" || review.Command.Action == "delete" {
@@ -465,9 +466,9 @@ func (c *RoutineControls) FinishAction(t RoutineTicket, v *pluginrpc.DshbotRouti
 	c.state.MissedKnown = false
 	c.state.MissedIDs = nil
 	c.state.Error = ""
-	c.state.Notice = "Host 已返回目录 / Host returned catalog: " + review.Command.Action
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostReturnedCatalog) + review.Command.Action
 	if review.Command.Action == "run" {
-		c.state.Notice += "；执行结果请看状态与历史，不代表已完成 / Check status and history; this is not completion"
+		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotCheckStatusAndHistoryThisIsNotCom)
 	}
 	return true
 }

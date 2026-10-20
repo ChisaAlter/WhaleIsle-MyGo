@@ -148,6 +148,7 @@ type mainState struct {
 	hostAppearanceOwner    string
 	hostAppearanceAccepted bool
 	hostWallpaperImage     string
+	confirmAsk             *confirmAskRequest
 	desktopOnboarding      *settingsstore.DesktopOnboarding
 	sup                    *harness.Supervisor
 	bootStatus             harness.Status
@@ -2101,7 +2102,7 @@ func main() {
 
 		cfgStore, err := config.Open(userData)
 		if err != nil {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageWarning, Title: "Configuration could not be loaded / 配置读取失败", Message: err.Error() + "\n\nThe original file is preserved. Back up and repair config.json, then restart. / 原文件已保留，请备份并修复 config.json 后重启。"})
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdConfigurationLoadFailed), Message: err.Error() + "\n\nThe original file is preserved. Back up and repair config.json, then restart. / 原文件已保留，请备份并修复 config.json 后重启。"})
 			mygo.App.Quit()
 			return
 		}
@@ -2738,7 +2739,7 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 		Parent:        win,
 		Type:          mygo.MessageQuestion,
 		Title:         i18n.T(i18n.KeyGitCommitConfirmTitle),
-		Message:       "Commit only these staged changes / 仅提交以下已暂存变更：\n" + summary + "\n\nUnstaged files and editor drafts are excluded; no push. / 不含未暂存文件或编辑器草稿，不会推送。",
+		Message:       i18n.T(i18n.KeyCmdCommitStagedChangesOnly) + summary + "\n\nUnstaged files and editor drafts are excluded; no push. / 不含未暂存文件或编辑器草稿，不会推送。",
 		Buttons:       []string{i18n.T(i18n.KeyGitCommitCancel), i18n.T(i18n.KeyGitCommit)},
 		DefaultButton: 0,
 		CancelButton:  0,
@@ -2911,6 +2912,7 @@ func mainView(c *ui.Context) {
 	defer state.syncAccountStatusNotices(c)
 	defer state.syncAccountQuotaNotice(c)
 	defer state.syncScheduleDeleteNotice(c)
+	defer state.syncConfirmAsk(c)
 	state.beginWallpaperFrame()
 	defer state.endWallpaperFrame()
 	state.registerApplicationCommands(c)
@@ -5104,7 +5106,7 @@ func mainView(c *ui.Context) {
 					},
 					OnExportHistory: func() {
 						data := marketStore.ExportHistory()
-						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: "导出安装历史 / Export installation history", DefaultPath: "whaleisle-marketplace.log"})
+						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdExportInstallationHistory), DefaultPath: "whaleisle-marketplace.log"})
 						if err != nil {
 							mygo.Dialog.Error("Market export", err.Error())
 							return
@@ -5355,7 +5357,7 @@ func mainView(c *ui.Context) {
 							c.RemoteEnabled = enabled
 						}); err != nil {
 							state.mu.Lock()
-							state.phoneActionMsg = "手机 Remote 设置未保存，请重试。 / Phone Remote setting was not saved; retry."
+							state.phoneActionMsg = i18n.T(i18n.KeyCmdPhoneRemoteSettingWasNotSavedRetry)
 							state.mu.Unlock()
 							if win != nil {
 								win.Update(func() {})

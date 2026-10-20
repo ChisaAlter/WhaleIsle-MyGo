@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // SkillRemovalReview is a one-use, action-time confirmation, never a name-only command.
@@ -78,7 +79,7 @@ func (s *Store) ReviewSkillRemoval(ctx context.Context, name string) {
 	} else {
 		s.skillRemoval.target = loaded
 		s.skillRemoval.Ready = true
-		s.skillRemoval.Message = "永久删除此 Skill 目录及其中内容，无法在应用内撤销。 / Permanently delete this Skill directory and its contents; there is no in-app undo. Review the exact target, then confirm or cancel."
+		s.skillRemoval.Message = storelocale.T(storelocale.KeyStoreSessionPermanentlyDeleteThisSkillDirectory)
 	}
 	s.mu.Unlock()
 	s.fire()

@@ -25,7 +25,7 @@ func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	if st.Range.Active() {
 		selected := st.Selection()
-		ui.Text(c, fmt.Sprintf("%s → %s UTC · %.0f tokens · %d days", st.Range.Start, st.Range.End, selected.Totals.Total, len(selected.Days))).TextColor(fg)
+		ui.Text(c, fmt.Sprintf(usageText("%s → %s UTC · %.0f tokens · %d 天", "%s → %s UTC · %.0f tokens · %d days"), st.Range.Start, st.Range.End, selected.Totals.Total, len(selected.Days))).TextColor(fg)
 		ui.Text(c, usageText("日统计、模型排行和导出使用相同选区；扫描覆盖情况仍适用。", "Daily statistics, model ranking and exports use this selection; scan coverage still applies.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if st.Overview == nil || m.Embedded {

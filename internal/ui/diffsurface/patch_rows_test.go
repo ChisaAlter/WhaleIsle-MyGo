@@ -125,3 +125,65 @@ func TestFoldedHunkHidesItsLines(t *testing.T) {
 		t.Fatalf("unfold did not restore the hunk: %v", tt.Texts())
 	}
 }
+
+// TestHunkFoldSurvivesViewSwitch keeps the reader's fold when they flip between
+// unified and split: both views read one per-file fold state.
+func TestHunkFoldSurvivesViewSwitch(t *testing.T) {
+	workbench := &Workbench{}
+	tt := patchBodyTester(t, workbench)
+	if err := tt.Click("@@ -1 +1 @@"); err != nil {
+		t.Fatalf("hunk header is not reachable: %v", err)
+	}
+	tt.Frame()
+	if tt.HasText("old one") {
+		t.Fatalf("fold did not close the hunk: %v", tt.Texts())
+	}
+	workbench.View.Split = true
+	tt.Frame()
+	if tt.HasText("old one") || tt.HasText("new one") {
+		t.Fatalf("switching to split reopened the folded hunk: %v", tt.Texts())
+	}
+	if !tt.HasText("@@ -1 +1 @@") {
+		t.Fatalf("split view lost the hunk header: %v", tt.Texts())
+	}
+	workbench.View.Split = false
+	tt.Frame()
+	if tt.HasText("old one") {
+		t.Fatalf("switching back to unified reopened the folded hunk: %v", tt.Texts())
+	}
+}
+
+// TestSplitViewShowsBothSidesOfARow keeps the two columns aligned on one row:
+// the before cell carries the removed line and the after cell the added one.
+func TestSplitViewShowsBothSidesOfARow(t *testing.T) {
+	workbench := &Workbench{}
+	workbench.View.Split = true
+	tt := patchBodyTester(t, workbench)
+	for _, want := range []string{
+		i18n.T(i18n.KeySurfacesDiffBefore),
+		i18n.T(i18n.KeySurfacesDiffAfter),
+		"old one",
+		"new one",
+	} {
+		if !tt.HasText(want) {
+			t.Fatalf("split view missing %q: %v", want, tt.Texts())
+		}
+	}
+}
+
+// TestWrappedSplitKeepsBothColumns covers wrapping in the two-column view: the
+// same row still paints its before and after cells without a horizontal scroller.
+func TestWrappedSplitKeepsBothColumns(t *testing.T) {
+	workbench := &Workbench{}
+	workbench.View.Split = true
+	workbench.View.Wrap = true
+	tt := patchBodyTester(t, workbench)
+	if !tt.HasText("old one") || !tt.HasText("new one") {
+		t.Fatalf("wrapped split view lost a column: %v", tt.Texts())
+	}
+	workbench.View.Wrap = false
+	tt.Frame()
+	if !tt.HasText("old one") || !tt.HasText("new one") {
+		t.Fatalf("unwrapped split view lost a column: %v", tt.Texts())
+	}
+}

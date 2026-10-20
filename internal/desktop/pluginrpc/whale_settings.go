@@ -3,9 +3,11 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 // WhaleSettings is dsh-whale/catalog. This plugin has no revision/CAS field:
@@ -46,7 +48,7 @@ func (c *Client) WhaleSettings(ctx context.Context) (WhaleSettings, error) {
 }
 func (c *Client) WhaleReplaceMemory(ctx context.Context, text string) error {
 	if WhaleTextLength(text) > 40000 {
-		return fmt.Errorf("长期记忆超过 40000 字符限制 / Memory exceeds 40000 UTF-16 units")
+		return errors.New(storelocale.T(storelocale.KeyStoreAssistantMemoryExceeds40000Utf16Units))
 	}
 	var receipt struct {
 		OK    bool   `json:"ok"`

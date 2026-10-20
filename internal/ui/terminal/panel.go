@@ -32,6 +32,8 @@ type Panel struct {
 	focused uint64
 	nextID  uint64
 	notice  string
+	// pendingClose holds the pane whose close is waiting for confirmation.
+	pendingClose uint64
 }
 
 // Open starts the first shell in a nonempty, existing workspace directory.
@@ -296,6 +298,7 @@ func View(c *ui.Context, m Model) {
 			}
 		}
 		terminalTabs(c, m, fg, muted)
+		terminalClosePrompt(c, m, fg, muted)
 		ui.Row(c).Fill().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			if group.vertical {
 				ui.Column(c).Key(group.id).Fill().Grow(1).MinHeight(0).Gap(0.5).Children(paint)

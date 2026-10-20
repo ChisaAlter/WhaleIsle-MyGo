@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type Platform struct {
@@ -18,7 +19,7 @@ type Platform struct {
 }
 
 var Platforms = []Platform{
-	{"feishu", "飞书 / Lark", "App ID", "App Secret", "", "使用飞书扫码创建应用；管理员授权仍在平台完成。", true},
+	{"feishu", storelocale.T(storelocale.KeyStoreImonboardLark), "App ID", "App Secret", "", "使用飞书扫码创建应用；管理员授权仍在平台完成。", true},
 	{"weixin", "微信", "", "", "", "使用微信扫描二维码；如需风控验证，在微信官方页面完成后填写验证码。", true},
 	{"dingtalk", "钉钉", "Client ID", "Client Secret", "", "使用钉钉扫码或填写已有应用凭据。", true},
 	{"qq", "QQ", "App ID", "App Secret", "", "使用 QQ 扫码或填写开放平台应用凭据。", true},
@@ -524,9 +525,9 @@ func (s *Store) pollConnectionStatus(ctx context.Context, client *pluginrpc.Clie
 		bots, presets, valid := decodeConnectionStatus(raw)
 		message := ""
 		if err != nil {
-			message = "连接状态刷新失败，可手动刷新重试 / Connection status refresh failed; refresh to retry"
+			message = storelocale.T(storelocale.KeyStoreImonboardConnectionStatusRefreshFailedRefresh)
 		} else if !valid {
-			message = "Host 状态格式不完整 / Incomplete Host connection status"
+			message = storelocale.T(storelocale.KeyStoreImonboardIncompleteHostConnectionStatus)
 		}
 		s.mu.Lock()
 		if ctx.Err() != nil || s.client != client || s.view.Scope != scope || s.statusGeneration != generation || !s.view.Open || s.view.Channel != channel || s.view.Busy || s.view.Review != "" || s.view.Provision.AttemptID != "" {

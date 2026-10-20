@@ -5,6 +5,7 @@ import (
 	"html"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RestStatus struct {
@@ -15,14 +16,14 @@ type RestStatus struct {
 func (p *Companion) restStatus() RestStatus {
 	p.assetMu.RLock()
 	defer p.assetMu.RUnlock()
-	status := RestStatus{Sleeping: p.rest.sleeping, Dozing: p.rest.dozing, Label: "睡觉 / Sleep", Action: "sleep-pet", Message: "清醒 / Awake"}
+	status := RestStatus{Sleeping: p.rest.sleeping, Dozing: p.rest.dozing, Label: storelocale.T(storelocale.KeyDesktopPetSleep), Action: "sleep-pet", Message: storelocale.T(storelocale.KeyDesktopPetAwake)}
 	if status.Dozing {
-		status.Message = "打盹中 / Dozing"
+		status.Message = storelocale.T(storelocale.KeyDesktopPetDozing)
 	}
 	if status.Sleeping {
-		status.Label = "叫醒 / Wake"
+		status.Label = storelocale.T(storelocale.KeyDesktopPetWake)
 		status.Action = "wake-pet"
-		status.Message = "休眠中 / Resting"
+		status.Message = storelocale.T(storelocale.KeyDesktopPetResting)
 	}
 	if p.rest.message != "" {
 		status.Message = p.rest.message
@@ -48,7 +49,7 @@ func (p *Companion) restPet(action string) {
 		_ = p.rest.wake(nil) // original cursor contact: no care penalty
 	case "wake-pet":
 		if err := p.rest.wake(func() error { return p.Store.WakePet(time.Now()) }); err != nil {
-			p.rest.message = "唤醒保存失败，仍保持休眠 / Save failed; still resting"
+			p.rest.message = storelocale.T(storelocale.KeyDesktopPetSaveFailedStillResting)
 		}
 	}
 }

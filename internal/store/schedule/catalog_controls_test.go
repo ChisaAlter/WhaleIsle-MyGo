@@ -13,6 +13,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 type catalogTransport func(*http.Request) (*http.Response, error)
@@ -143,7 +144,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	// it must not replace that answer with a partial selected-Session fallback.
 	global := snap
 	if global.Err != "" || !global.CatalogReady || !global.CatalogSettled || global.CatalogRevision == 0 ||
-		!strings.Contains(global.CatalogHint, "All sessions") || len(global.Rows) != 1 ||
+		!strings.Contains(global.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleAllSessions)) || len(global.Rows) != 1 ||
 		global.Rows[0].SessionID != "owner" || global.Rows[0].Status != "active" ||
 		global.Rows[0].Origin != client.Endpoint.Origin || global.Rows[0].ID != "job" ||
 		global.Rows[0].Title != "Morning" || string(global.Rows[0].Raw) != newRecord || lists.Load() != 0 {
@@ -155,8 +156,8 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	snap = wait(s)
 	if !strings.Contains(snap.Err, "unsupported") || !strings.Contains(snap.Err, "catalog unavailable") ||
 		snap.CatalogReady || !snap.CatalogSettled || !reflect.DeepEqual(snap.Rows, global.Rows) ||
-		snap.CatalogHint != global.CatalogHint || !strings.Contains(snap.CatalogHint, "All sessions") ||
-		strings.Contains(snap.CatalogHint, "Current session only") || snap.CatalogRevision != global.CatalogRevision ||
+		snap.CatalogHint != global.CatalogHint || !strings.Contains(snap.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleAllSessions)) ||
+		strings.Contains(snap.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly)) || snap.CatalogRevision != global.CatalogRevision ||
 		snap.CatalogRequest != global.CatalogRequest+1 || catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList {
 		t.Fatalf("failed catalog replaced settled global scope/facts or queried a partial list: %+v catalog=%d list=%d", snap, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
 	}
@@ -185,7 +186,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	fresh.Refresh(context.Background(), "selected")
 	partial := wait(fresh)
 	if partial.Err != "" || partial.CatalogReady || partial.CatalogSettled || partial.CatalogRevision != 0 ||
-		partial.CatalogRequest != 1 || !strings.Contains(partial.CatalogHint, "Current session only: selected") ||
+		partial.CatalogRequest != 1 || !strings.Contains(partial.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly)+"selected") ||
 		strings.Contains(partial.CatalogHint, "All sessions") || len(partial.Rows) != 1 ||
 		partial.Rows[0].SessionID != "selected" || partial.Rows[0].Status != "active" ||
 		partial.Rows[0].Origin != other.Endpoint.Origin || partial.Rows[0].ID != "job" || partial.Rows[0].Title != "Morning" ||
@@ -213,10 +214,10 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 		t.Fatal("sort did not preserve source rows")
 	}
 	label := TimingLabel(rows[0])
-	if !strings.Contains(label, "09:00:00 +08:00") || !strings.Contains(label, "Asia/Shanghai") || !strings.Contains(label, "Next run") {
+	if !strings.Contains(label, "09:00:00 +08:00") || !strings.Contains(label, "Asia/Shanghai") || !strings.Contains(label, storelocale.T(storelocale.KeyStoreScheduleNextRun)) {
 		t.Fatalf("time zone label: %s", label)
 	}
-	if strings.Contains(TimingLabel(rows[1]), "Next run") || !strings.Contains(TimingLabel(rows[1]), "Ended") {
+	if strings.Contains(TimingLabel(rows[1]), storelocale.T(storelocale.KeyStoreScheduleNextRun)) || !strings.Contains(TimingLabel(rows[1]), storelocale.T(storelocale.KeyStoreScheduleEndedNoFutureDeliveries)) {
 		t.Fatal("inactive task has a next run")
 	}
 	invalid := rows[0]

@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"fmt"
+	"errors"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 const CustomInstructionsNamespace = "ui-conversation"
@@ -30,7 +31,7 @@ func LimitCustomInstructions(text string) string {
 
 func validateCustomInstructions(ns string, drafts map[string]string) error {
 	if ns == CustomInstructionsNamespace && CustomInstructionsLength(drafts[CustomInstructionsField]) > CustomInstructionsMaxLength {
-		return fmt.Errorf("自定义指令不能超过 1500 字符 / Custom instructions must not exceed 1500 UTF-16 units")
+		return errors.New(storelocale.T(storelocale.KeyStoreSettingsCustomInstructionsMustNotExceed1500))
 	}
 	return nil
 }

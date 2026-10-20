@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf16"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Rates are CNY per million tokens; saved overrides or a pinned reference table, never live quotes.
@@ -105,7 +106,7 @@ func parseRates(d [3]string) (PriceRates, error) {
 	for i, v := range d {
 		x, e := strconv.ParseFloat(strings.TrimSpace(v), 64)
 		if e != nil || math.IsNaN(x) || math.IsInf(x, 0) || x < 0 || x > 1e6 {
-			return PriceRates{}, errors.New("价格须为 0–1000000 有限数值 / Prices must be finite numbers in [0, 1000000]")
+			return PriceRates{}, errors.New(storelocale.T(storelocale.KeyStoreUsagePricesMustBeFiniteNumbersIn010000))
 		}
 		n[i] = x
 	}
@@ -282,7 +283,7 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 			s.billing.Loaded = true
 			s.billing.Dirty = false
 			if save {
-				s.billing.Notice = "价格已保存 / Prices saved"
+				s.billing.Notice = storelocale.T(storelocale.KeyStoreUsagePricesSaved)
 			}
 		}
 		s.mu.Unlock()

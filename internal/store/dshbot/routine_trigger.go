@@ -3,6 +3,7 @@ package dshbot
 import (
 	"fmt"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoutineTriggerSnapshot struct {
@@ -101,9 +102,9 @@ func (c *RoutineControls) FinishTrigger(t RoutineTriggerTicket, token []byte, er
 	c.state.Review = nil
 	// Get-or-create returns no catalog revision. Require a read-only catalog
 	// refresh before further writes; that refresh also clears the displayed token.
-	c.state.Notice = "获取凭据可能改变目录版本；其他写操作前请刷新。刷新会清除本页明文 / Refresh before further changes; refresh clears this credential view"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRefreshBeforeFurtherChangesRefreshC)
 	if err != nil || len(token) == 0 {
-		c.trigger.meta.Error = "未能取得可用凭据；Host 可能已创建它，未自动重试。关闭后先刷新，再独立确认获取 / Credential outcome uncertain; no automatic retry"
+		c.trigger.meta.Error = storelocale.T(storelocale.KeyStoreDshbotCredentialOutcomeUncertainNoAutomati)
 		return true
 	}
 	c.trigger.token = append([]byte(nil), token...)

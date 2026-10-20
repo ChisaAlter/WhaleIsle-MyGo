@@ -3,6 +3,8 @@ package session
 import (
 	"encoding/json"
 	"testing"
+	"whaleisle/internal/store/storelocale"
+
 )
 
 func TestQuestionReplyClassifiesBeforeContext(t *testing.T) {
@@ -22,7 +24,8 @@ func TestQuestionReplyBoundaryAndStructuredValues(t *testing.T) {
 	if len(details.Questions) != 2 || details.Questions[0].Options[0].Description != "Why" || len(details.AnswerValues("q")) != 2 {
 		t.Fatalf("lost context %+v", details)
 	}
-	if details.ClipboardText() != "Heading — Pick\n回答 / Answer: yes, custom\n\nSkip?\n未作答 / Skipped" {
+	want := "Heading — Pick\n" + storelocale.T(storelocale.KeyStoreSessionAnswer) + "yes, custom\n\nSkip?\n" + storelocale.T(storelocale.KeyStoreSessionSkipped)
+	if details.ClipboardText() != want {
 		t.Fatal(details.ClipboardText())
 	}
 	event["surfaceOp"] = map[string]string{"op": "replace"}

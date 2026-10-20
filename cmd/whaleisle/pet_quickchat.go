@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/petdirect"
+	"whaleisle/internal/ui/i18n"
 )
 
 // The compact card is a second native surface on Whale's persistent session.
@@ -25,9 +26,9 @@ func (s *mainState) openPetQuickChat() {
 	whaleEnabled := cfg != nil && cfg.Get().WhaleAssistantEnabled
 	clientReady := sessions != nil && sessions.Snapshot().ClientReady
 	if cfg == nil || !cfg.Get().WhaleAssistantEnabled {
-		unavailable = "请先在助手设置启用鲸鱼娘 / Whale assistant is disabled"
+		unavailable = i18n.T(i18n.KeyCmdWhaleAssistantIsDisabled)
 	} else if !ready || sessions == nil || !sessions.Snapshot().ClientReady || win == nil || win.IsDestroyed() {
-		unavailable = "Host 未连接。恢复后重新点聊聊。 / Host offline; reopen after connecting."
+		unavailable = i18n.T(i18n.KeyCmdHostOfflineReopenAfterConnecting)
 	}
 	// This decision is made before any chat submission. No result/error handler
 	// changes routes, and credentials are not read until explicit API Send.

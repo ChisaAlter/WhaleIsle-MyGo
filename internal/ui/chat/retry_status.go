@@ -22,13 +22,13 @@ func displayFailure(raw json.RawMessage) (message, code string) {
 	message, code = failure.Message, failure.Code
 	switch code {
 	case "AUTH":
-		message = "身份验证失败，请检查登录状态。 / Authentication failed. Check your sign-in."
+		message = i18n.T(i18n.KeyChatRetryAuthFailed)
 	case "ACCOUNT_SIGNED_OUT":
-		message = "已停止，因为你已退出 DeepSeek。 / Stopped because you signed out of DeepSeek."
+		message = i18n.T(i18n.KeyChatRetrySignedOut)
 	case "ACCOUNT_SIGN_IN_REQUIRED":
-		message = "请先登录 DeepSeek。 / Sign in to DeepSeek to continue."
+		message = i18n.T(i18n.KeyChatRetrySignIn)
 	case "QUOTA", "ACCOUNT_QUOTA":
-		message = "额度不足。 / Account quota exhausted."
+		message = i18n.T(i18n.KeyChatRetryQuota)
 	}
 	if message == "" && len(raw) > 0 {
 		message = string(raw)
@@ -71,7 +71,7 @@ func RetryStatusView(c *ui.Context, m Model, msg session.Message, fg, muted ui.C
 				text += fmt.Sprintf(" · 预计 %d 秒 / ~%ds", seconds, seconds)
 				c.Services().Invalidate()
 			} else {
-				text += " · 等待 Host / Awaiting Host"
+				text += " · " + i18n.T(i18n.KeyChatRetryAwaitingHost)
 			}
 		}
 		open := workflowExpanded(m.ThinkingExpanded, scope, false)

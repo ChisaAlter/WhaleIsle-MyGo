@@ -1,5 +1,6 @@
 package pet
 
+import "whaleisle/internal/store/storelocale"
 // hide persists the same opt-out as the original panel action. An OS window
 // close remains temporary; a failed save keeps the visible pet recoverable.
 func (p *Companion) hide() {
@@ -11,7 +12,7 @@ func (p *Companion) hide() {
 	if err := p.Store.SaveDesktopPet(cfg); err != nil {
 		p.Error = err.Error()
 		p.assetMu.Lock()
-		p.feedMessage = "无法保存隐藏设置，请重试 / Could not save Hide; try again"
+		p.feedMessage = storelocale.T(storelocale.KeyDesktopPetCouldNotSaveHideTryAgain)
 		p.assetMu.Unlock()
 		return
 	}

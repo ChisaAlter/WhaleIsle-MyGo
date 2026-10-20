@@ -23,6 +23,9 @@ type PlanBoardModel struct {
 	LoadQueueImage    func(context.Context, string) (string, error)
 	ThemeID           string
 	SystemDark        bool
+	// HideQueue moves the queue rows and the inline queue editor to the
+	// composer dock (QueueDockView); the goal, plan and todo sections stay here.
+	HideQueue bool
 	// Open nil means always expanded; non-nil is a toggle.
 	Open *bool
 	// GoalDraft is the create/edit objective field (Electron goals strip).
@@ -114,11 +117,14 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardGoal), muted, fg, func() {
 				paintPlanGoal(c, m, fg, muted, accent)
 			})
-			paintQueueEditor(c, m, fg, muted)
+			if !m.HideQueue {
+				paintQueueEditor(c, m, fg, muted)
+			}
 			if m.Board.Empty() {
 				return
 			}
-			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardQueue), muted, fg, func() {
+			if !m.HideQueue {
+				paintPlanSection(c, i18n.T(i18n.KeyPlanBoardQueue), muted, fg, func() {
 				for _, pending := range m.Board.Pending {
 					paintPendingSubmission(c, pending, fg, muted)
 				}
@@ -158,6 +164,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 					})
 				}
 			})
+			}
 			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardTodos), muted, fg, func() {
 				if len(m.Board.Todos) == 0 {
 					ui.Text(c, i18n.T(i18n.KeyPlanBoardTodosEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)

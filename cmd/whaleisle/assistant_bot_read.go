@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/i18n"
 )
 
 func applyBotReadView(contacts []botnotify.ContactActivity, view pluginrpc.DshbotSettingsView) {
@@ -106,7 +107,7 @@ func (s *mainState) markOpenedBotRead(ep harness.Endpoint, client *dsh.Client, i
 					win := s.win
 					s.mu.Unlock()
 					if current() && asst != nil {
-						asst.SetLastAction("会话已打开；已读状态保存失败 / Conversation opened; read marker failed", err.Error())
+						asst.SetLastAction(i18n.T(i18n.KeyCmdConversationOpenedReadMarkerFailed), err.Error())
 						if win != nil {
 							win.Invalidate()
 						}

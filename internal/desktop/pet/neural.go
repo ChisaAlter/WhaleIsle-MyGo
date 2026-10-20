@@ -4,9 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"whaleisle/internal/store/storelocale"
 )
 
 // The manifest is compiled into the executable. Neither directory entries nor
@@ -30,7 +32,7 @@ func loadRenderAssets(dir string) (map[string][]byte, error) {
 	}
 	root, err := os.OpenRoot(dir)
 	if err != nil {
-		return nil, fmt.Errorf("THA4 assets unavailable; stage pet-render-assets beside the executable / 缺少桌宠资源")
+		return nil, errors.New(storelocale.T(storelocale.KeyDesktopPetAssetsMissing))
 	}
 	defer root.Close()
 	result := make(map[string][]byte)

@@ -103,13 +103,13 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 	}
 	box.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyChatIsolated)).FontSize(12)
-		if ui.Button(c, "重试内联 UI / Retry inline UI").Disabled(loading || handle != nil).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyChatOpenUIRetry)).Disabled(loading || handle != nil).Clicked() {
 			start(true)
 		}
 		if ui.Button(c, i18n.T(i18n.KeyChatIsolatedOpen)).Disabled(msg.Streaming || loading || handle != nil).Clicked() {
 			start(false)
 		}
-		if handle != nil && ui.Button(c, "关闭交互 UI / Close interactive UI").Clicked() {
+		if handle != nil && ui.Button(c, i18n.T(i18n.KeyChatOpenUIClose)).Clicked() {
 			b.mu.Lock()
 			if b.cancel != nil {
 				b.cancel()

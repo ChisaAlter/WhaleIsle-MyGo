@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/petdirect"
+	"whaleisle/internal/store/storelocale"
 )
 
 // QuickChatOptions bind one compact card to one authenticated Host generation.
@@ -70,17 +71,17 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 		p.CloseQuickChat()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	q := &QuickChat{owner: p, parent: p.win, options: options, life: ctx, cancel: cancel, draft: draft, status: "正在读取共同会话… / Loading shared conversation…"}
+	q := &QuickChat{owner: p, parent: p.win, options: options, life: ctx, cancel: cancel, draft: draft, status: storelocale.T(storelocale.KeyDesktopPetLoadingSharedConversation)}
 	q.list.FollowEnd = true
 	q.list.Key = func(index int) any { return quickChatHistoryKey(q.state, index) }
 	if options.Direct != nil {
-		q.status = options.Unavailable + " 联网发送使用桌面 API 设置 / Send uses desktop API settings"
+		q.status = options.Unavailable + storelocale.T(storelocale.KeyDesktopPetSendUsesDesktopApiSettings)
 	} else if options.Unavailable != "" {
 		q.stale, q.status = true, options.Unavailable
 	} else {
 		client, err := newQuickChatClient(options.Origin, options.Cookie)
 		if err != nil {
-			q.stale, q.status = true, "Host 地址不可用 / Host unavailable"
+			q.stale, q.status = true, storelocale.T(storelocale.KeyDesktopPetHostUnavailable)
 		} else {
 			q.client = client
 		}
@@ -88,14 +89,14 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 	p.QuickChat = q
 	p.setQuickChatOpen(true)
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title: "鲸鱼娘 · 聊聊 / Whale quick chat", Width: 460, Height: 620,
+		Title: storelocale.T(storelocale.KeyDesktopPetWhaleQuickChat), Width: 460, Height: 620,
 		MinWidth: 420, MinHeight: 580, Parent: p.win, AlwaysOnTop: true,
 		SkipTaskbar: true, DisableMaximize: true, DisableFullScreen: true,
 		Content: ui.View(q.view),
 	})
 	q.win = w
 	if w == nil || w.IsDestroyed() {
-		p.Error = "聊天卡片创建失败 / Quick chat window could not open"
+		p.Error = storelocale.T(storelocale.KeyDesktopPetQuickChatWindowCouldNotOpen)
 		p.CloseQuickChat()
 		return
 	}
@@ -204,7 +205,7 @@ func (q *QuickChat) check() bool {
 	q.stale = true
 	q.cancel()
 	q.abortRequests()
-	q.status = "Host 或设置已变化，草稿保留。重新点聊聊连接。 / Connection changed; reopen quick chat."
+	q.status = storelocale.T(storelocale.KeyDesktopPetConnectionChangedReopenQuickChat)
 	if q.win != nil {
 		q.win.Invalidate()
 	}
@@ -229,7 +230,7 @@ func (q *QuickChat) refreshHistory() {
 				return
 			}
 			if err != nil {
-				q.readNote = "共同会话暂不可读，请检查 Host / Shared history unavailable"
+				q.readNote = storelocale.T(storelocale.KeyDesktopPetSharedHistoryUnavailable)
 				return
 			}
 			q.readNote = ""
@@ -243,9 +244,9 @@ func (q *QuickChat) refreshHistory() {
 				q.catalogAt = time.Time{}
 				q.list.ScrollToEnd()
 				if expected == "" {
-					q.status = "与主窗口使用同一持久会话 / Shared with main conversation"
+					q.status = storelocale.T(storelocale.KeyDesktopPetSharedWithMainConversation)
 				} else {
-					q.status = "宠物会话已更新；旧请求已停止等待，草稿保留 / Pet session changed"
+					q.status = storelocale.T(storelocale.KeyDesktopPetPetSessionChanged)
 				}
 			}
 			if changed || q.catalogAt.IsZero() {
@@ -273,7 +274,7 @@ func (q *QuickChat) refreshCatalog() {
 				return
 			}
 			if err != nil || next.SessionID != expected {
-				q.catalogNote = "模型目录暂不可用 / Model catalog unavailable"
+				q.catalogNote = storelocale.T(storelocale.KeyDesktopPetModelCatalogUnavailable)
 				if err == nil {
 					q.refreshHistory()
 				}
@@ -284,7 +285,7 @@ func (q *QuickChat) refreshCatalog() {
 			q.catalogAt = time.Now()
 			q.catalogNote = ""
 			if next.Groups == nil {
-				q.catalogNote = "Host 未提供模型目录 / Host model catalog unavailable"
+				q.catalogNote = storelocale.T(storelocale.KeyDesktopPetHostModelCatalogUnavailable)
 			}
 		})
 	}()
@@ -300,14 +301,14 @@ func (q *QuickChat) send() {
 	draft := q.draft
 	text, err := quickChatText(draft)
 	if err != nil {
-		q.status = "请输入 1–2000 字；表情可能占两字 / Enter up to 2000 UTF-16 units"
+		q.status = storelocale.T(storelocale.KeyDesktopPetEnterUpTo2000Utf16Units)
 		return
 	}
 	ctx, serial := q.sending.begin(q.life, 140*time.Second)
 	if ctx == nil {
 		return
 	}
-	q.status = "正在等待共同会话回复… / Waiting for shared session…"
+	q.status = storelocale.T(storelocale.KeyDesktopPetWaitingForSharedSession)
 	client, win, expected := q.client, q.win, q.state.SessionID
 	go func() {
 		err := client.send(ctx, expected, text)
@@ -319,11 +320,11 @@ func (q *QuickChat) send() {
 				if q.draft == draft {
 					q.draft = ""
 				}
-				q.status = "本轮已完成，正在同步记录 / Turn completed; syncing history"
+				q.status = storelocale.T(storelocale.KeyDesktopPetTurnCompletedSyncingHistory)
 			} else if errors.Is(err, errQuickChatSessionChanged) {
-				q.status = "会话已改变，消息未发送；请重新查看 / Pet session changed before send"
+				q.status = storelocale.T(storelocale.KeyDesktopPetPetSessionChangedBeforeSend)
 			} else {
-				q.status = "未确认本轮完成；请查看共同记录，勿重复发送 / Completion unconfirmed; check history"
+				q.status = storelocale.T(storelocale.KeyDesktopPetCompletionUnconfirmedCheckHistory)
 			}
 			q.history.abort()
 			q.refreshHistory()
@@ -337,10 +338,10 @@ func (q *QuickChat) cancelWait() {
 	q.sending.abort()
 	q.direct.Cancel()
 	if q.options.Direct != nil {
-		q.status = "已取消本地等待；API 可能已收到请求，请勿直接重复发送 / Wait cancelled; API may continue"
+		q.status = storelocale.T(storelocale.KeyDesktopPetWaitCancelledApiMayContinue)
 		return
 	}
-	q.status = "已取消本地等待。Host 可能仍在运行或排队。 / Wait cancelled; Host may continue."
+	q.status = storelocale.T(storelocale.KeyDesktopPetWaitCancelledHostMayContinue)
 	q.refreshHistory()
 }
 func (q *QuickChat) choose(choice quickChatModel) {
@@ -356,7 +357,7 @@ func (q *QuickChat) choose(choice quickChatModel) {
 	}
 	q.history.abort()
 	q.catalog.abort()
-	q.status = "正在切换共同会话模型… / Changing shared session model…"
+	q.status = storelocale.T(storelocale.KeyDesktopPetChangingSharedSessionModel)
 	client, win, expected := q.client, q.win, q.state.SessionID
 	go func() {
 		selected, err := client.selectModel(ctx, expected, choice)
@@ -366,9 +367,9 @@ func (q *QuickChat) choose(choice quickChatModel) {
 			}
 			if err == nil {
 				q.state.Model = selected
-				q.status = "模型已更新 / Model updated"
+				q.status = storelocale.T(storelocale.KeyDesktopPetModelUpdated)
 			} else {
-				q.status = "模型未确认切换，请刷新后重试 / Model change unconfirmed"
+				q.status = storelocale.T(storelocale.KeyDesktopPetModelChangeUnconfirmed)
 			}
 			q.history.abort()
 			q.refreshHistory()
@@ -384,7 +385,7 @@ func (q *QuickChat) stopTurn() {
 	if ctx == nil {
 		return
 	}
-	q.status = "请求停止宠物会话当前轮… / Stopping the current pet turn…"
+	q.status = storelocale.T(storelocale.KeyDesktopPetStoppingTheCurrentPetTurn)
 	client, win, expected := q.client, q.win, q.state.SessionID
 	go func() {
 		err := client.stop(ctx, expected)
@@ -394,9 +395,9 @@ func (q *QuickChat) stopTurn() {
 			}
 			if err == nil {
 				q.sending.abort()
-				q.status = "Host 已接受停止当前轮；排队消息请到主会话管理 / Stop accepted; queued messages remain"
+				q.status = storelocale.T(storelocale.KeyDesktopPetStopAcceptedQueuedMessagesRemain)
 			} else {
-				q.status = "未确认停止，请到主会话查看 / Stop unconfirmed; check main conversation"
+				q.status = storelocale.T(storelocale.KeyDesktopPetStopUnconfirmedCheckMainConversation)
 			}
 			q.history.abort()
 			q.refreshHistory()
@@ -419,7 +420,7 @@ func (q *QuickChat) openMain() {
 				return
 			}
 			if err != nil {
-				q.status = "会话身份已变化或不可用，请刷新 / Session changed or unavailable"
+				q.status = storelocale.T(storelocale.KeyDesktopPetSessionChangedOrUnavailable)
 				q.refreshHistory()
 				return
 			}

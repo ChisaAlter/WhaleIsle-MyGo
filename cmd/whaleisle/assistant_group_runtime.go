@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type assistantGroupLiveState struct {
@@ -116,7 +117,7 @@ func (s *mainState) refreshAssistantGroupRuntime(ep harness.Endpoint, roomID, se
 			if member.BotID == members[i].ID {
 				members[i].RuntimeStatus = member.Status
 				if pluginrpc.DshbotRoomRuntimeAttention(member) {
-					members[i].RuntimeError = "需要处理 / Needs attention"
+					members[i].RuntimeError = i18n.T(i18n.KeyCmdNeedsAttention)
 				}
 				break
 			}

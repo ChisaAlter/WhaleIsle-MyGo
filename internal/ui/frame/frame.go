@@ -520,7 +520,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		Account:              m.Account,
 		Schedules:            schedules,
 		Projects:             projectModel,
-		Collapsed:            m.Sizes.sidebarPreference() <= 0,
+		Collapsed:            m.Sizes.sidebarCollapsed(),
 		OnToggle:             m.Sizes.ToggleSidebar,
 		Snapshot:             snap,
 		ThemeID:              m.ThemeID,
@@ -830,6 +830,15 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				if m.Sizes != nil {
 					colW = m.Sizes.Center
 				}
+				// The drawer band reserves no sidebar track, so the conversation
+				// column owns the full width even though the resolved Center still
+				// subtracts one; sizing the hero seat from it would clip the
+				// headline's 预览版 badge at the right edge.
+				if m.Sizes != nil && m.Sizes.drawerMode() {
+					if width, _ := c.Size(); width > 0 {
+						colW = width
+					}
+				}
 				contentAxis := conversationContentWidth(colW)
 				if m.Sizes != nil {
 					if emptyHero || m.Sizes.transcriptGesture.binding != m.FileBindingID {
@@ -1001,9 +1010,21 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								})
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
 							})
+							if paneTab != "trajectory" && len(snap.Messages) > 0 && m.ChatList != nil {
+								ui.Box(c).Key("turn-rail-seat").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).Children(func() {
+									chat.TurnRailView(c, chat.Model{Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark}, transcriptWidth, func(seq float64) {
+										for i, msg := range snap.Messages {
+											if msg.Seq == seq {
+												m.ChatList.ScrollTo(i, ui.Start)
+												break
+											}
+										}
+									})
+								})
+							}
 							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory")
 						})
-						if paneTab != "trajectory" && (!snap.PlanBoard.Empty() || snap.QueueEditor.ItemID != "") {
+						if paneTab != "trajectory" && (snap.PlanBoard.PlanMode || snap.PlanBoard.Goal != nil || len(snap.PlanBoard.Todos) > 0) {
 							// Goal/todo/takeover cards share the transcript content axis.
 							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
 								ui.Box(c).Grow(1).MinWidth(0)
@@ -1013,6 +1034,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
 										ThemeID:        m.ThemeID,
 										SystemDark:     m.SystemDark,
+										HideQueue:      true,
 										Open:           m.PlanBoardOpen,
 										GoalDraft:      m.GoalDraft,
 										OnCreateGoal: func(objective string) {
@@ -1121,6 +1143,29 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ordinary.Absolute().Top(0).Left(0).Right(0).Invisible()
 							}
 							ordinary.Children(func() {
+								if !emptyHero {
+									// Queued prompts sit directly above the composer; the
+									// expanded plan board keeps goal/todo/plan sections only.
+									chat.QueueDockView(c, chat.PlanBoardModel{
+										Board:          snap.PlanBoard,
+										LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
+										ThemeID:        m.ThemeID,
+										SystemDark:     m.SystemDark,
+										QueueEditor:    snap.QueueEditor,
+										OnQueueRemove: func(itemID string) {
+											m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionRemove)
+										},
+										OnQueueSteer: func(itemID string) {
+											m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionSteer)
+										},
+										OnQueueEdit: func(itemID, _ string) {
+											m.Store.BeginQueueEditForSession(context.Background(), snap.SelectedID, itemID)
+										},
+										OnChangeQueueEdit: m.Store.ChangeQueueEdit,
+										OnCancelQueueEdit: m.Store.CancelQueueEdit,
+										OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },
+									})
+								}
 								paintComposer(emptyHero)
 								if !emptyHero {
 									// sessioncost owns the whole compact statistics row;

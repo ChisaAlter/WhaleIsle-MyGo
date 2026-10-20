@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type MemoryTicket struct {
@@ -117,13 +118,13 @@ func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogI
 		err = fmt.Errorf("select an available individual Bot")
 	}
 	if err != nil {
-		c.state.Error = "读取记忆失败；保留草稿，重新读取后才可保存 / Memory unavailable; draft retained"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryUnavailableDraftRetained)
 		return true
 	}
 	if c.state.SessionID != "" && c.state.SessionID != bot.SessionID {
 		c.state.Draft = nil
 		c.attempt = nil
-		c.state.Notice = "Bot 会话身份已改变，旧编辑已隔离 / Bot identity changed"
+		c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotBotIdentityChanged)
 	}
 	c.state.Server = pluginrpc.CloneDshbotMemory(v)
 	c.state.SessionID = bot.SessionID
@@ -135,14 +136,14 @@ func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogI
 		actual := v.Track(c.attempt.Track)
 		if actual.Text == c.attempt.Text {
 			c.state.Draft = nil
-			c.state.Notice = "刷新已核实 Host 当前内容与提交内容一致，未重复保存 / Readback matches submitted content; no repeat write"
+			c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadbackMatchesSubmittedContentNoRe)
 		} else {
-			c.state.Notice = "已读取 Host 当前内容；草稿未自动覆盖或重试，请重新核对 / Refreshed without retrying or rebasing draft"
+			c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRefreshedWithoutRetryingOrRebasingD)
 		}
 		c.attempt = nil
 	}
 	if d := c.state.Draft; d != nil && d.BaseRevision != v.Track(d.Track).Revision {
-		c.state.Error = "此轨记忆已改变；保留草稿但禁止静默覆盖。请先核对当前内容，再明确放弃旧草稿后重新编辑 / Memory conflict; no automatic rebase"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryConflictNoAutomaticRebase)
 	}
 	return true
 }
@@ -214,7 +215,7 @@ func (c *MemoryControls) prepare(k RoutineScope) {
 		return
 	}
 	if d.BaseRevision != c.state.Server.Track(d.Track).Revision {
-		c.state.Error = "记忆版本冲突，保留草稿；请核对 Host 当前内容 / Memory revision conflict"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryRevisionConflict)
 		return
 	}
 	entries := append([]string(nil), d.Entries...)
@@ -222,7 +223,7 @@ func (c *MemoryControls) prepare(k RoutineScope) {
 		entries = append(entries[:d.Index], entries[d.Index+1:]...)
 	} else {
 		if pluginrpc.DshbotMemoryText([]string{d.Input}) == "" {
-			c.state.Error = "记忆条目不能为空 / Entry must not be empty"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotEntryMustNotBeEmpty)
 			return
 		}
 		if d.Index < 0 {
@@ -237,7 +238,7 @@ func (c *MemoryControls) prepare(k RoutineScope) {
 		return
 	}
 	if cmd.Text == d.BaseText {
-		c.state.Error = "内容未改变 / No memory changes"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotNoMemoryChanges)
 		return
 	}
 	c.sequence++
@@ -283,7 +284,7 @@ func (c *MemoryControls) FinishSave(t MemoryTicket, out pluginrpc.DshbotMemoryRe
 		err = pluginrpc.ValidateDshbotMemoryReceipt(cmd, out)
 	}
 	if err != nil {
-		c.state.Error = "保存结果未确认；草稿保留且不自动重试。请刷新核实 Host 当前内容 / Save uncertain; refresh to verify"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotSaveUncertainRefreshToVerify)
 		return true
 	}
 	track := out.DshbotMemoryTrack
@@ -297,6 +298,6 @@ func (c *MemoryControls) FinishSave(t MemoryTicket, out pluginrpc.DshbotMemoryRe
 	c.state.Draft = nil
 	c.attempt = nil
 	c.state.Error = ""
-	c.state.Notice = "Host 已确认此轨记忆替换；未启动 Bot / Host confirmed memory replacement"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostConfirmedMemoryReplacement)
 	return true
 }

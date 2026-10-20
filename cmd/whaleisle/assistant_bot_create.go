@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.BotCreateModel {
@@ -92,7 +93,7 @@ func (s *mainState) assistantBotCreateModel(ep harness.Endpoint) assistantui.Bot
 		}
 		if target == nil {
 			s.mu.Lock()
-			s.assistantPluginDetail = "Bot 已创建；当前会话连接暂不可用于打开。保留已有身份，连接恢复后单独打开 / Bot created; session connection unavailable, open the existing Bot after reconnecting"
+			s.assistantPluginDetail = i18n.T(i18n.KeyCmdBotCreatedSessionConnectionUnavailab)
 			s.assistantLastAct = s.assistantPluginDetail
 			s.mu.Unlock()
 			s.updateAssistantTasks()
@@ -238,7 +239,7 @@ func (s *mainState) openAssistantCreatedBot(ep harness.Endpoint, client *dsh.Cli
 		return
 	}
 	s.assistantPluginBusy = true
-	label := "已创建 Bot：打开专属会话 / Created Bot: open canonical session"
+	label := i18n.T(i18n.KeyCmdCreatedBotOpenCanonicalSession)
 	s.assistantPluginDetail = label + "…"
 	s.assistantLastAct = s.assistantPluginDetail
 	s.mu.Unlock()

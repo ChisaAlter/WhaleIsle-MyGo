@@ -43,12 +43,13 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 		if flow.feedback != "" {
 			ui.Text(c, questionFeedback(flow.feedback)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionPrev)).Disabled(p.Sending || index == 0).Clicked() {
+		ui.Row(c).FillWidth().Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+			if prev := questionPagerButton(c, questionPagerPrev, i18n.T(i18n.KeyChatQuestionPrev), !p.Sending && index > 0); prev.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index-1)
 				flow.feedback = ""
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionNext)).Disabled(p.Sending || index+1 == len(card.Rows)).Clicked() {
+			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			if next := questionPagerButton(c, questionPagerNext, i18n.T(i18n.KeyChatQuestionNext), !p.Sending && index+1 < len(card.Rows)); next.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index+1)
 				flow.feedback = ""
 			}
@@ -59,7 +60,8 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 					flow.feedback = ""
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeyChatQuestionSkip)).Disabled(p.Sending || p.Error != "").Clicked() {
+			ui.Box(c).Grow(1).MinWidth(0)
+			if skip := interactionSecondaryButton(c, c.Theme(), i18n.T(i18n.KeyChatQuestionSkip)); skip.Disabled(p.Sending || p.Error != "").Clicked() {
 				flow.focusID, flow.feedback = store.SkipQuestionAndContinue(p.AgentID, p.EventID, row.ID)
 			}
 			label := i18n.T(i18n.KeyChatQuestionStep)
@@ -70,7 +72,12 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 				}
 			}
 			answered := len(row.Selected) > 0 || strings.TrimSpace(row.Custom) != ""
-			if ui.Button(c, label).Disabled(p.Sending || p.Error != "" || !answered).Clicked() {
+			submit := interactionPrimaryButton(c, c.Theme(), label)
+			submit.Disabled(p.Sending || p.Error != "" || !answered)
+			if !answered {
+				submit.Opacity(.5)
+			}
+			if submit.Clicked() {
 				flow.focusID, flow.feedback = store.ContinueQuestion(p.AgentID, p.EventID, row.ID)
 			}
 		})

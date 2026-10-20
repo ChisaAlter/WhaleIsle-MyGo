@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
+	"whaleisle/internal/store/storelocale"
 )
 
 // motionState belongs exclusively to the UI thread, including all callbacks.
@@ -297,7 +298,7 @@ func (p *Companion) saveMotionAnchor(position motionPoint) {
 	if err := p.Store.SaveDesktopPet(cfg); err != nil {
 		// Preserve the store's conflict/error semantics; never reload and retry
 		// a stale whole-config write or continuously retry an idle timer.
-		p.Error = "桌宠位置保存失败 / Pet position was not saved: " + err.Error()
+		p.Error = storelocale.T(storelocale.KeyDesktopPetPetPositionWasNotSaved) + err.Error()
 	}
 }
 

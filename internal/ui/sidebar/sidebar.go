@@ -3,6 +3,7 @@ package sidebar
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -141,7 +142,18 @@ func View(c *ui.Context, m Model) {
 	root.Draw(chrome.Glass(chrome.Color(colors.Sidebar), chrome.MaterialSidebar)).
 		Children(func() {
 			if m.Collapsed {
-				collapsedRail(c, m, fg, colors)
+				// SidebarRoot.railIn: the rail's controls enter from the former
+				// expanded edge over 150 ms as the track finishes collapsing.
+				rail := ui.Column(c.Key("sidebar-rail-content")).FillWidth().Grow(1).MinHeight(0)
+				if !c.Preferences().ReduceMotion {
+					rail.Transition(ui.ElementTransition{
+						Duration: 150 * time.Millisecond,
+						Ease:     ui.EaseOut,
+						Position: true,
+						Enter:    &ui.Motion{X: 49, Opacity: 0},
+					})
+				}
+				rail.Children(func() { collapsedRail(c, m, fg, colors) })
 			} else {
 				// SidebarRoot.module.css .logoRow: 60px tall (40 under a native
 				// caption), and the original brand lock: 38px mark, 鲸屿 18/700
@@ -353,8 +365,8 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	}
 	tasks := schedstore.ActiveForSession(m.Schedules, it.SessionID)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	row := ui.Button(c, "").Label(label).Description(hint).FillWidth().Height(32).Radius(8).
-		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).AlignItems(ui.Center)
+	row := ui.Button(c, "").Label(label).Description(hint).FillWidth().Height(32).Radius(12).
+		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).Clip().AlignItems(ui.Center)
 	if selected || row.Hovered() || row.FocusWithin() {
 		row.Background(selectedBackground(colors))
 	}
@@ -392,8 +404,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 				}
 				return
 			}
-			ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).
-				Padding(0, 6, 0, 4).SingleLine()
+			sessionTitleCell(c, row, it.SessionID, label, fg)
 			if !it.Blank {
 				showActions := row.Hovered() || row.FocusWithin()
 				if !showActions {
@@ -403,18 +414,30 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 						sessionPinIndicator(c, it.SessionID, muted)
 					}
 				}
-				more := ui.Button(c.Key("session-menu"), "…").Label(sessionActionsLabel(it.SessionID)).
-					Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(20).Padding(0).
-					BorderWidth(0).Background(ui.Transparent).TextColor(muted).Menu(menu)
-				// Keep the trigger in the tab order; focus reveals the same glyph as hover.
-				if !showActions && !more.Focused() {
-					more.Absolute().Right(0).Opacity(0)
+				// Rows.module.css: hover replaces the time cell with bare 16px
+				// glyphs at a 10 DIP gap; the hidden group stays in the tree so
+				// Tab still reaches the actions menu.
+				actions := ui.Row(c).Key("session-actions-"+it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(10)
+				if !showActions {
+					actions.Absolute().Right(4).Opacity(0)
 				}
+				actions.Children(func() {
+					if showActions {
+						sessionRowAction(c, "pin-"+it.SessionID, pinArtwork, sessionPinLabel(it.Pinned),
+							sessionPinTip(it.Pinned), muted, pinAction(m, it))
+						sessionRowAction(c, "archive-"+it.SessionID, archiveArtwork, i18n.T(i18n.KeySidebarArchive),
+							i18n.T(i18n.KeySidebarArchive), muted, archiveAction(m, it))
+					}
+					more := ui.Button(c.Key("session-menu-"+it.SessionID), "…").Label(sessionActionsLabel(it.SessionID)).
+						Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(16).Padding(0).
+						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Menu(menu)
+					_ = more
+				})
 			}
 		})
 	})
 	if len(tasks) == 0 {
-		row.Tooltip(hint)
+		sessionHoverCard(c, row, it, label, status, colors)
 	} else {
 		sessionScheduleHover(c, row, it, status, tasks, m.Schedules.ConnectionEpoch, colors)
 	}

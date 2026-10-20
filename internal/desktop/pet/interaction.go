@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Native cursor sampling owns all desktop movement. The fixed-origin page
@@ -261,7 +262,7 @@ func (p *Companion) interactionCare(thrown bool) {
 		err = p.Store.PokePet(time.Now())
 	}
 	if err != nil {
-		p.feedMessage = "互动保存失败 / Interaction was not saved"
+		p.feedMessage = storelocale.T(storelocale.KeyDesktopPetInteractionWasNotSaved)
 		return
 	}
 	_ = p.rest.wake(nil)

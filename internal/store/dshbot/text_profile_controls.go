@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type TextProfileTicket struct {
@@ -137,7 +138,7 @@ func (c *TextProfileControls) FinishLoad(t TextProfileTicket, status pluginrpc.D
 	c.generation++
 	value, ve := pluginrpc.DshbotTextProfileValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = "文本资料未核实；保留草稿，请刷新 / Read unavailable; draft retained"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained5)
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotCapabilities(status)
@@ -147,9 +148,9 @@ func (c *TextProfileControls) FinishLoad(t TextProfileTicket, status pluginrpc.D
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotTextProfileApplied(e.attempt.Command, status) == nil {
 			e.state.Candidate = true
-			e.state.Notice = "完整资料已匹配审阅值，核对三项完整文本后可采用读回 / Matching profile found; inspect and adopt"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotMatchingProfileFoundInspectAndAdopt5)
 		} else {
-			e.state.Notice = "结果仍未知；仅保留读回，不允许重发。请在 Bot Web 核对 / Unknown outcome remains locked"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeRemainsLocked)
 		}
 		return true
 	}
@@ -159,7 +160,7 @@ func (c *TextProfileControls) FinishLoad(t TextProfileTicket, status pluginrpc.D
 	}
 	e.hasDraft = true
 	e.state.Dirty = e.state.Draft != value
-	e.state.Notice = "已读回；剩余草稿需要重新审阅 / Read back; review remaining changes"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewRemainingChanges)
 	return true
 }
 func (c *TextProfileControls) editable(k RoutineScope) *textProfileEntry {
@@ -302,7 +303,7 @@ func (c *TextProfileControls) AbortUnsent(t TextProfileTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送；草稿保留，刷新重新审阅 / Not sent; refresh and review"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -320,7 +321,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 	e.state.Warnings = append([]string(nil), out.Warnings...)
 	if !out.Attempted {
 		e.attempt = nil
-		e.state.Notice = "未发送；刷新重新审阅 / Not sent; refresh"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
 			e.state.Error = err.Error()
 		}
@@ -332,7 +333,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "结果未知；保留并锁定草稿，只读回，不自动重试 / Unknown; read back only"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
 	e.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
@@ -341,7 +342,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已返回完整文本资料回执；请刷新核对展示、警告与目标状态 / Profile saved; verify presentation, warnings and goal state"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSavedVerifyPresentationWarnin3)
 	e.attempt = nil
 }
 func (c *TextProfileControls) Adopt(k RoutineScope) bool {
@@ -360,7 +361,7 @@ func (c *TextProfileControls) Adopt(k RoutineScope) bool {
 	e.state.Candidate = false
 	e.state.Review = nil
 	e.state.Error = ""
-	e.state.Notice = "已采用完整匹配资料，没有重发；会话展示/重命名及目标同步需另行核实 / Adopted catalog; presentation, rename and goal sync remain unverified"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogPresentationRenameAnd)
 	e.attempt = nil
 	c.generation++
 	return true

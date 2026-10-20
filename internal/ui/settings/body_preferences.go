@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
@@ -30,10 +31,19 @@ func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 
 // A Setting-Cell is a flat, hairline-separated title/description and compact
 // control. Measured content width controls stacking, including inside a modal.
+//
+// The hairline is drawn above each row instead of below it, and the first row of
+// the frame skips it. That way a page can never end on a stray rule above its
+// action bar, and a list of generated rows (colours, presets, fonts) needs no
+// per-call-site bookkeeping.
 func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, controls func()) ui.Element {
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	width := row.Bounds().W
-	row.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
+	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
+		if leadingRule {
+			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y, W: bounds.W, H: .5}, ui.RGBA(muted.R, muted.G, muted.B, .25), 0)
+		}
 		if bounds.W != width {
 			c.Invalidate()
 		}
@@ -67,9 +77,27 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 		} else {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14, 0).Children(content)
 		}
-		ui.Box(c).FillWidth().Height(.5).Background(ui.RGBA(muted.R, muted.G, muted.B, .25))
 	})
 	return row
+}
+
+// Preference rows are painted in one pass per frame, so the frame's timestamp
+// identifies the page: the same frame's first row starts the list, and the next
+// frame starts a fresh count.
+var (
+	preferenceRowFrame time.Time
+	preferenceRowCount int
+)
+
+// nextPreferenceRowIndex is this row's ordinal inside the frame.
+func nextPreferenceRowIndex(now time.Time) int {
+	if !now.Equal(preferenceRowFrame) {
+		preferenceRowFrame = now
+		preferenceRowCount = 0
+	}
+	index := preferenceRowCount
+	preferenceRowCount++
+	return index
 }
 
 // bodyDisclosure folds a secondary group behind one row. The chevron and the

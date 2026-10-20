@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 // ChatStatus contains presentation state only. Host credentials and the ensured
@@ -32,7 +33,7 @@ func (e *chatEntry) begin() (context.Context, uint64) {
 	e.serial++
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	e.cancel = cancel
-	e.status = ChatStatus{Busy: true, Message: "正在打开宠物会话… / Opening pet chat…"}
+	e.status = ChatStatus{Busy: true, Message: storelocale.T(storelocale.KeyDesktopPetOpeningPetChat)}
 	return ctx, e.serial
 }
 func (e *chatEntry) finish(serial uint64, message string) bool {

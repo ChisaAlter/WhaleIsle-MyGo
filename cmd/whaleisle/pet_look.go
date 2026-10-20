@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/desktop/screenglance"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/petlook"
+	"whaleisle/internal/ui/i18n"
 )
 
 // petLookRoute uses only the committed pet-specific pair and image catalog.
@@ -36,12 +37,12 @@ func (s *mainState) lookFromPet() {
 		return
 	}
 	if !ready || cfg == nil || !cfg.Get().WhaleAssistantEnabled || settings == nil || sessions == nil || win == nil {
-		attempt.Finish("请连接 Host 并启用鲸鱼娘 / Connect Host and enable Whale first")
+		attempt.Finish(i18n.T(i18n.KeyCmdConnectHostAndEnableWhaleFirst))
 		return
 	}
 	provider, model, available := petLookRoute(cfg.DesktopPet().Behavior, settings.ImageCatalogSnapshot())
 	if !available {
-		attempt.Finish("请在设置 → 桌宠选择看看模型并刷新图像目录 / Select the Pet Look model and refresh its image catalog in Settings → Pet")
+		attempt.Finish(i18n.T(i18n.KeyCmdSelectThePetLookModelAndRefreshIt))
 		return
 	}
 	selected := sessions.Snapshot().SelectedID
@@ -62,18 +63,18 @@ func (s *mainState) lookFromPet() {
 	}
 	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent: attempt.Window, Type: mygo.MessageQuestion,
-		Title:   "看看屏幕 / Look at screen",
+		Title:   i18n.T(i18n.KeyCmdLookAtScreen),
 		Message: screenglance.ApprovalMessage(),
 		Detail: "Provider: " + provider + "\nModel: " + model + "\nHost: " + host.Endpoint.Origin +
 			"\n" + screenglance.StorageDetail(),
-		Buttons: []string{"取消 / Cancel", "截图并发送 / Capture and send"}, DefaultButton: 0, CancelButton: 0,
+		Buttons: []string{i18n.T(i18n.KeyCmdCancel), i18n.T(i18n.KeyCmdCaptureAndSend)}, DefaultButton: 0, CancelButton: 0,
 	})
 	if err != nil || answer.Button != 1 {
-		attempt.Finish("已取消，未截图 / Cancelled; no screenshot taken")
+		attempt.Finish(i18n.T(i18n.KeyCmdCancelledNoScreenshotTaken))
 		return
 	}
 	if !current() || !attempt.CaptureStarted() {
-		attempt.Finish("窗口、会话或视觉配置已变化，请重试 / Window, conversation or vision route changed")
+		attempt.Finish(i18n.T(i18n.KeyCmdWindowConversationOrVisionRouteChan))
 		return
 	}
 	handle := attempt.Window.NativeHandle()
@@ -90,7 +91,7 @@ func (s *mainState) lookFromPet() {
 			if ctx.Err() != nil || !current() {
 				clear(frame)
 				cancel()
-				attempt.Finish("窗口、会话或视觉配置已变化，截图未发送 / Context changed; screenshot was not sent")
+				attempt.Finish(i18n.T(i18n.KeyCmdContextChangedScreenshotWasNotSent))
 				return
 			}
 			go func() {
@@ -99,12 +100,12 @@ func (s *mainState) lookFromPet() {
 				win.Update(func() {
 					defer cancel()
 					if !current() {
-						attempt.Finish("窗口、会话或视觉配置已变化 / Context changed")
+						attempt.Finish(i18n.T(i18n.KeyCmdContextChanged))
 						return
 					}
 					if err != nil {
 						// Server error bodies can contain URLs or private content.
-						attempt.Finish("看看失败，请检查视觉模型后重试 / Look failed; check the vision model")
+						attempt.Finish(i18n.T(i18n.KeyCmdLookFailedCheckTheVisionModel))
 						return
 					}
 					attempt.Finish(reply)

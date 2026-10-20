@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type ObjectiveTicket struct {
@@ -92,13 +93,13 @@ func (c *ObjectiveControls) FinishLoad(t ObjectiveTicket, value pluginrpc.Dshbot
 	c.generation++
 	c.state.Busy = false
 	if err != nil || value.Bot.ID != t.Scope.BotID || value.Bot.SessionID == "" || !value.GoalKnown {
-		c.state.Error = "目标状态未能核实；保留旧快照但禁止操作，请刷新 / Objective state unavailable; refresh before actions"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotObjectiveStateUnavailableRefreshBefo)
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotObjective(value)
 	c.state.Loaded = true
 	c.state.Error = ""
-	c.state.Notice = "已读取当前 Host 的目录目标和 live 摘要；未运行 Bot / Refreshed without starting a Bot"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRefreshedWithoutStartingABot)
 	return true
 }
 func (c *ObjectiveControls) Prepare(k RoutineScope, action string) {
@@ -153,14 +154,14 @@ func (c *ObjectiveControls) FinishAction(t ObjectiveTicket, result pluginrpc.Dsh
 	// Every action needs an independent read before another action. A receipt is
 	// not proof of work completion, and clear omits the live goal altogether.
 	if err != nil || result.Status.Bot.ID != t.Scope.BotID || result.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = "目标操作结果未确认；未自动重试。先刷新状态，不要重复发送 / Outcome uncertain; refresh before another action"
+		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainRefreshBeforeAnother)
 		if !result.Attempted {
-			c.state.Error = "发送前目标或连接状态无法核实，未发送目标操作；请刷新重新审阅 / Preflight changed or unavailable; no action sent"
+			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedOrUnavailableNoActi)
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotObjective(result.Status)
 	c.state.Error = ""
-	c.state.Notice = "Host 已返回操作回执；这不证明目标完成或运行已中断。请刷新核对当前状态 / Host receipt received; refresh to verify live state"
+	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostReceiptReceivedRefreshToVerify)
 	return true
 }

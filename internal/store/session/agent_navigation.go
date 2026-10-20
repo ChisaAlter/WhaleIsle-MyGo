@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/store/storelocale"
 )
 
 // AgentSessionAddress preserves the original discriminated SessionAddress.
@@ -523,9 +524,9 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 			s.agentNavigation.view.ActionStatus = err.Error()
 		} else if prompt {
 			s.agentNavigation.view.PromptImages = nil
-			s.agentNavigation.view.ActionStatus = "子代理输入已提交 / Child prompt submitted"
+			s.agentNavigation.view.ActionStatus = storelocale.T(storelocale.KeyStoreSessionChildPromptSubmitted)
 		} else {
-			s.agentNavigation.view.ActionStatus = "中断请求已提交 / Interrupt requested"
+			s.agentNavigation.view.ActionStatus = storelocale.T(storelocale.KeyStoreSessionInterruptRequested)
 		}
 		s.mu.Unlock()
 		s.fire()

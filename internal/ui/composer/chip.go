@@ -28,11 +28,10 @@ const (
 	menuRadius    = float32(10)
 )
 
-// menuSurface gives a popup the composer's shared card chrome: themed
-// background, hairline border, menu radius and one soft elevation.
+// menuSurface gives a popup the shared menu material: sampled glass fill, the
+// 0.5 DIP hairline and the elevation shadow every floating menu uses.
 func menuSurface(e ui.Element, colors theme.Colors) ui.Element {
-	return e.Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).
-		Radius(menuRadius).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18))
+	return chrome.MenuSurface(e, chrome.Color(colors.BG), chrome.Color(colors.Border), menuRadius)
 }
 
 // chevron paints the closed/open marker of a picker chip: ChevronDown at rest,

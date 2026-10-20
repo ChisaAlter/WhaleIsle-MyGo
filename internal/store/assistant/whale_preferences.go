@@ -5,6 +5,7 @@ import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 type WhalePreferencesSnapshot struct {
@@ -47,7 +48,7 @@ func (s *WhalePreferencesEditor) Suspend() {
 	s.generation++
 	if s.state.Busy {
 		s.state.Loaded = false
-		s.state.Notice = "操作中断，请刷新 / Interrupted; refresh"
+		s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantInterruptedRefresh)
 	}
 	s.state.Busy = false
 }
@@ -99,7 +100,7 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 		s.state.Error = err.Error()
 		s.state.Loaded = false
 		if cmd != nil {
-			s.state.Notice = "保存结果未核实，请刷新后核对 / Save not verified; refresh to compare"
+			s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantSaveNotVerifiedRefreshToCompare)
 		}
 		return
 	}
@@ -121,7 +122,7 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 		s.state.Catalog = *cat
 		s.state.ModelsError = modelErr
 	}
-	s.state.Notice = "已读取 Whale 设置 / Whale settings loaded"
+	s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantWhaleSettingsLoaded)
 	if cmd != nil {
 		matches := true
 		switch cmd.Action {
@@ -145,9 +146,9 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 			}
 		}
 		if !matches {
-			s.state.Error = fmt.Sprintf("Host 已返回，但 %s 读回与选择不一致，请核对 / Read-back differs", cmd.Action)
+			s.state.Error = fmt.Sprintf(storelocale.T(storelocale.KeyStoreAssistantReadbackDiffers), cmd.Action)
 			return
 		}
-		s.state.Notice = "已保存并读回 Whale 设置 / Saved and read back"
+		s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantSavedAndReadBack)
 	}
 }

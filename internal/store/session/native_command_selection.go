@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sort"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // NativeCommandOwner binds an invocation to one retained session and one native
@@ -69,7 +70,7 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 	s.mu.Lock()
 	if ctx.Err() != nil || !s.nativeCommandCurrentLocked(o, name) {
 		s.mu.Unlock()
-		return nil, errors.New("命令所属会话或扩展已变更 / Command owner changed")
+		return nil, errors.New(storelocale.T(storelocale.KeyStoreSessionCommandOwnerChanged))
 	}
 	client, follow := s.client, s.followGeneration
 	request := s.modelState.CatalogRequest
@@ -178,7 +179,7 @@ func (s *Store) SelectNativeCommandPermission(ctx context.Context, o NativeComma
 	}
 	if permissionNeedsConfirmation(value) && !acknowledged {
 		s.mu.Unlock()
-		return errors.New("请确认权限风险 / Explicit permission risk acknowledgement required")
+		return errors.New(storelocale.T(storelocale.KeyStoreSessionExplicitPermissionRiskAcknowledgement))
 	}
 	if value == s.permissionProjection.Value {
 		s.mu.Unlock()

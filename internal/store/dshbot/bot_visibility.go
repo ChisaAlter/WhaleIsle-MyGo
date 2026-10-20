@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type BotVisibilityReview struct {
@@ -173,10 +174,10 @@ func (c *BotVisibilityManager) FinishLoad(t BotVisibilityTicket, v pluginrpc.Dsh
 		row, matchErr := pluginrpc.DshbotVisibilityApplied(e.attempt.Command, v)
 		if matchErr == nil {
 			e.state.Candidate = &row
-			e.state.Notice = "完整目录读回匹配原 attempt；核对后显式采用，不会重发 / Exact readback; inspect and adopt"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactReadbackInspectAndAdopt)
 		} else {
 			e.state.Error = matchErr.Error()
-			e.state.Notice = "仍未确认原写入；保留锁定，只读核对或使用 Web 管理 / Still unknown; no retry"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotStillUnknownNoRetry)
 		}
 	}
 	return true
@@ -277,7 +278,7 @@ func (c *BotVisibilityManager) AbortUnsent(t BotVisibilityTicket, err error) {
 	e.state.Busy = false
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Notice = "未发送；刷新目录后重新审阅 / Not sent; refresh and review"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview2)
 	if err != nil {
 		e.state.Error = err.Error()
 	}
@@ -296,7 +297,7 @@ func (c *BotVisibilityManager) Finish(t BotVisibilityTicket, result pluginrpc.Ds
 		e.attempt = nil
 		e.state.Uncertain = false
 		e.state.Error = err.Error()
-		e.state.Notice = "Host 写入前拒绝；刷新后重新审阅 / Rejected before write"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWrite)
 		return
 	}
 	if err == nil {
@@ -309,14 +310,14 @@ func (c *BotVisibilityManager) Finish(t BotVisibilityTicket, result pluginrpc.Ds
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "隐藏/恢复结果未知；保留原身份，只读回，不重发 / Unknown outcome; no retry"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeNoRetry)
 		return
 	}
 	e.state.Result = pluginrpc.CloneDshbotBotItem(result.Item)
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(result.Catalog)
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已确认精确隐藏状态；可在此显示隐藏项并恢复 / Confirmed visibility; hidden items remain manageable here"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotConfirmedVisibilityHiddenItemsRemain)
 	e.state.ShowHidden = true
 	e.attempt = nil
 }
@@ -334,7 +335,7 @@ func (c *BotVisibilityManager) Adopt(k, id, session string) bool {
 	e.state.Candidate = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "已采用完整匹配读回；未重发 / Adopted exact readback; no resend"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedExactReadbackNoResend)
 	e.state.ShowHidden = true
 	e.attempt = nil
 	return true

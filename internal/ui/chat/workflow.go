@@ -127,7 +127,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				raw, _ := json.MarshalIndent(run.Events, "", "  ")
 				mygo.Clipboard.WriteText(string(raw))
 			}
-			ui.Text(c, "已结束或不可用成员保留轨迹，不会重新启动。 / Unavailable members retain their recorded status.").FontSize(10).TextColor(st.Muted)
+			ui.Text(c, i18n.T(i18n.KeyChatWorkflowEndedNote)).FontSize(10).TextColor(st.Muted)
 		})
 	})
 }

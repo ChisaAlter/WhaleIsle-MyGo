@@ -2,11 +2,13 @@ package dshbot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoutineAdvancedDraft struct {
@@ -61,10 +63,10 @@ func editRoutineAdvanced(d *RoutineAdvancedDraft, field, value, botID, currentID
 			d.ContextFrom = append(append([]string(nil), d.ContextFrom[:index]...), d.ContextFrom[index+1:]...)
 		} else {
 			if !routineContextCandidate(value, botID, currentID, rows) {
-				return false, fmt.Errorf("上下文来源不属于此 Bot / Context source is not owned by this Bot")
+				return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotContextSourceIsNotOwnedByThisBot))
 			}
 			if len(d.ContextFrom) >= 3 {
-				return false, fmt.Errorf("最多选择 3 个上下文来源 / At most 3 context sources")
+				return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotAtMost3ContextSources))
 			}
 			d.ContextFrom = append(append([]string(nil), d.ContextFrom...), value)
 		}
@@ -74,20 +76,20 @@ func editRoutineAdvanced(d *RoutineAdvancedDraft, field, value, botID, currentID
 		d.SilentChanged = true
 	case "watchKind":
 		if value != "" && value != "url" && value != "command" {
-			return false, fmt.Errorf("不支持的 watch 类型 / Unsupported watch kind")
+			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotUnsupportedWatchKind))
 		}
 		d.WatchKind = value
 		d.WatchUnknown = false
 		d.WatchChanged = true
 	case "watchValue":
 		if d.WatchUnknown {
-			return false, fmt.Errorf("未知 watch 配置须先明确选择已支持类型 / Select a supported watch type first")
+			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst))
 		}
 		d.WatchValue = value
 		d.WatchChanged = true
 	case "watchTimeout":
 		if d.WatchUnknown {
-			return false, fmt.Errorf("未知 watch 配置须先明确选择已支持类型 / Select a supported watch type first")
+			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst))
 		}
 		d.WatchTimeout = value
 		d.WatchChanged = true
@@ -106,7 +108,7 @@ func prepareRoutineAdvanced(d RoutineAdvancedDraft, botID, currentID string, row
 	}
 	for _, id := range d.ContextFrom {
 		if !routineContextCandidate(id, botID, currentID, rows) {
-			return p, fmt.Errorf("上下文来源 %s 已不可用；明确移除后再审阅 / Remove the unavailable context source before review", id)
+			return p, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreDshbotContextSourceUnavailable), id))
 		}
 	}
 	if p.ContextSet {
@@ -115,7 +117,7 @@ func prepareRoutineAdvanced(d RoutineAdvancedDraft, botID, currentID string, row
 	if p.WatchSet && d.WatchKind != "" {
 		timeout, err := strconv.Atoi(strings.TrimSpace(d.WatchTimeout))
 		if err != nil {
-			return p, fmt.Errorf("watch 超时须为整数毫秒 / Watch timeout must be integer milliseconds")
+			return p, errors.New(storelocale.T(storelocale.KeyStoreDshbotWatchTimeoutMustBeIntegerMillisecon))
 		}
 		p.Watch = &pluginrpc.DshbotRoutineWatch{Kind: d.WatchKind, Value: strings.TrimSpace(d.WatchValue), TimeoutMS: timeout}
 	}

@@ -3,6 +3,7 @@ package pet
 import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/petlook"
+	"whaleisle/internal/store/storelocale"
 )
 
 // SaveLookRoute commits only this pet's pair; a catalog read or picker render
@@ -12,11 +13,11 @@ func (p *Companion) SaveLookRoute(provider, model string, catalog petlook.Catalo
 		return false
 	}
 	if p.Store == nil {
-		p.Error = "桌宠配置不可用 / Pet configuration unavailable"
+		p.Error = storelocale.T(storelocale.KeyDesktopPetPetConfigurationUnavailable)
 		return false
 	}
 	if (provider != "" || model != "") && !petlook.Resolve(provider, model, catalog) {
-		p.Error = "所选视觉路由不在当前图像目录中，请刷新或关闭看看 / Refresh the image catalog or turn Look off"
+		p.Error = storelocale.T(storelocale.KeyDesktopPetRefreshTheImageCatalogOrTurnLookO)
 		return false
 	}
 	next := p.Store.DesktopPet()

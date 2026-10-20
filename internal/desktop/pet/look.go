@@ -16,6 +16,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/desktop/screenglance"
+	"whaleisle/internal/store/storelocale"
 )
 
 type LookStatus struct {
@@ -34,13 +35,13 @@ func (e *lookEntry) begin(now time.Time) (context.Context, uint64) {
 		return nil, 0
 	}
 	if !e.lastCapture.IsZero() && now.Sub(e.lastCapture) < 4*time.Second {
-		e.status.Message = "请稍等再看看 / Please wait before another glance"
+		e.status.Message = storelocale.T(storelocale.KeyDesktopPetPleaseWaitBeforeAnotherGlance)
 		return nil, 0
 	}
 	e.serial++
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
-	e.status = LookStatus{Busy: true, Message: "等待本次截图确认 / Waiting for screenshot approval"}
+	e.status = LookStatus{Busy: true, Message: storelocale.T(storelocale.KeyDesktopPetWaitingForScreenshotApproval)}
 	return ctx, e.serial
 }
 func (e *lookEntry) finish(serial uint64, message string) bool {
@@ -99,7 +100,7 @@ func (a *LookAttempt) CaptureStarted() bool {
 	a.pet.assetMu.Lock()
 	defer a.pet.assetMu.Unlock()
 	a.pet.look.lastCapture = time.Now()
-	a.pet.look.status.Message = "正在看看… / Looking…"
+	a.pet.look.status.Message = storelocale.T(storelocale.KeyDesktopPetLooking)
 	return true
 }
 func (a *LookAttempt) Finish(message string) bool {

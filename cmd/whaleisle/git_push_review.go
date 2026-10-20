@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/egoist/mygo"
 	desktopgit "whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
 )
@@ -17,6 +16,8 @@ func gitActionLabel(zh, en string) string {
 }
 
 // reviewGitPush binds a titlebar Push click to the branch and destination shown.
+// The confirmation is an in-app modal so the themed window is not interrupted by
+// an operating-system message box.
 func (s *mainState) reviewGitPush(root string) {
 	plan, err := desktopgit.PreparePush(root)
 	s.mu.Lock()
@@ -36,17 +37,15 @@ func (s *mainState) reviewGitPush(root string) {
 	if plan.DefaultBranch {
 		message += "\n" + gitActionLabel("目标是默认分支。仅在确认要更新它时继续。", "The destination is the default branch. Continue only if you intend to update it.")
 	}
-	result, err := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent: win, Type: mygo.MessageQuestion,
-		Title:         gitActionLabel("确认推送目标", "Confirm push destination"),
-		Message:       message,
-		Buttons:       []string{gitActionLabel("取消", "Cancel"), gitActionLabel("确认推送", "Confirm push")},
-		DefaultButton: 0, CancelButton: 0,
+	s.askConfirm(confirmAskRequest{
+		Title:        gitActionLabel("确认推送目标", "Confirm push destination"),
+		Body:         message,
+		ConfirmLabel: gitActionLabel("确认推送", "Confirm push"),
+		CancelLabel:  gitActionLabel("取消", "Cancel"),
+		Run: func() {
+			s.runGitRemote("push", root, func(ctx context.Context) (string, error) {
+				return desktopgit.PushReviewedContext(ctx, root, plan)
+			}, i18n.T(i18n.KeyGitPushOK), i18n.T(i18n.KeyGitActionFailed))
+		},
 	})
-	if err != nil || result.Button != 1 {
-		return
-	}
-	s.runGitRemote("push", root, func(ctx context.Context) (string, error) {
-		return desktopgit.PushReviewedContext(ctx, root, plan)
-	}, i18n.T(i18n.KeyGitPushOK), i18n.T(i18n.KeyGitActionFailed))
 }

@@ -60,10 +60,10 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 				r.Column += r.Columns
 				run(r)
 			}
-			if ui.Button(c, "复制本页原始 TSV / Copy raw page TSV").Disabled(blocked || page.Problem != "").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookCopyRawTSV)).Disabled(blocked || page.Problem != "").Clicked() {
 				c.Services().WriteClipboard(page.TSV)
 			}
-			if ui.Button(c, "复制本页显示 TSV / Copy displayed page TSV").Disabled(blocked || page.Problem != "").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyChatWorkbookCopyShownTSV)).Disabled(blocked || page.Problem != "").Clicked() {
 				c.Services().WriteClipboard(page.DisplayTSV)
 			}
 		})

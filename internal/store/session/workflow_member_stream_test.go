@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"whaleisle/internal/store/storelocale"
 )
 
 // One focused fixture covers the new adapter; old stream suites are not rerun.
@@ -67,7 +68,7 @@ func TestWorkflowMemberAssistantStreamAdapter(t *testing.T) {
 	}
 	view := WorkflowMemberView{Messages: p.messages(), PresentationReady: true, Process: p.process}
 	display := WorkflowMemberDisplayText(view)
-	if !strings.Contains(display, "live preview") || !strings.Contains(display, "fresh") {
+	if !strings.Contains(display, storelocale.T(storelocale.KeyStoreSessionLivePreview)) || !strings.Contains(display, "fresh") {
 		t.Fatal("preview invisible or unlabelled")
 	}
 	if strings.Contains(WorkflowProcessText(view), "fresh") {

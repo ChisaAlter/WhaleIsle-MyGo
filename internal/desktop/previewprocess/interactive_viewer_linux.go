@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/store/storelocale"
 )
 
 // This window contains native pixels only, never document HTML or a webview.
@@ -44,7 +45,7 @@ func startPrivateViewer(ctx context.Context, s *Session, input io.Writer, output
 		s.pixels = &pixelSurface{bitmap: bitmap, width: doc.Width, enqueue: enqueue}
 		s.height.Store(interactiveHeight)
 	} else {
-		viewer = mygo.NewWindow(mygo.WindowOptions{Title: "隔离交互预览 / Isolated interactive preview", Width: doc.Width, Height: interactiveHeight, UseContentSize: true, DisableResize: true,
+		viewer = mygo.NewWindow(mygo.WindowOptions{Title: storelocale.T(storelocale.KeyDesktopPreviewprocessIsolatedInteractivePreview), Width: doc.Width, Height: interactiveHeight, UseContentSize: true, DisableResize: true,
 			Content: ui.View(func(c *ui.Context) {
 				ui.Image(c, bitmap).Width(float32(doc.Width)).Height(interactiveHeight).Focusable().AutoFocus().TextCaret(ui.Rect{X: 0, Y: 0, W: 1, H: 20}).HandleInput(func(e ui.InputEvent) bool {
 					v := interactiveInput{}

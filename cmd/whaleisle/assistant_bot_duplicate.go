@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantBotDuplicateModel(ep harness.Endpoint, sourceID string) assistantui.BotDuplicateModel {
@@ -218,7 +219,7 @@ func (s *mainState) openAssistantDuplicateBot(ep harness.Endpoint, client *dsh.C
 	}
 	if target == nil {
 		s.mu.Lock()
-		s.assistantPluginDetail = "目录记录保留，但当前会话连接不能打开 / Catalog record retained; session connection unavailable"
+		s.assistantPluginDetail = i18n.T(i18n.KeyCmdCatalogRecordRetainedSessionConnecti)
 		s.assistantLastAct = s.assistantPluginDetail
 		s.mu.Unlock()
 		s.updateAssistantTasks()
@@ -234,7 +235,7 @@ func (s *mainState) openAssistantDuplicateBot(ep harness.Endpoint, client *dsh.C
 		return
 	}
 	s.assistantPluginBusy = true
-	label := "打开已核对目录 Bot / Open inspected catalog Bot"
+	label := i18n.T(i18n.KeyCmdOpenInspectedCatalogBot)
 	s.assistantPluginDetail = label + "…"
 	s.assistantLastAct = s.assistantPluginDetail
 	s.mu.Unlock()

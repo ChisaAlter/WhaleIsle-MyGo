@@ -5,6 +5,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/i18n"
 )
 
 // chisacode-v2 pairing is owned by the original runtime. Its legacy settings
@@ -41,7 +42,7 @@ func (s *mainState) savePhoneGateway(expected, p config.RemoteGatewayPreferences
 	// lifecycle changes through phoneOp and reads the latest committed config.
 	s.revokePhoneGit()
 	s.mu.Lock()
-	s.phoneActionMsg = "网关设置已保存，正在应用 / Gateway settings saved; applying"
+	s.phoneActionMsg = i18n.T(i18n.KeyCmdGatewaySettingsSavedApplying)
 	s.mu.Unlock()
 	go func() {
 		s.stopPhoneRuntime()

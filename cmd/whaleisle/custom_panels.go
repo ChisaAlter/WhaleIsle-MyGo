@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/store/session"
 	panelui "whaleisle/internal/ui/custompanel"
+	"whaleisle/internal/ui/i18n"
 )
 
 type customPanelState struct {
@@ -56,7 +58,7 @@ func latestCustomPanelReply(messages []session.Message) (panel.Definition, error
 			return panel.Parse(m.Body)
 		}
 	}
-	return panel.Definition{}, fmt.Errorf("尚无已完成的 Bot JSON 回复 / No completed Bot JSON reply")
+	return panel.Definition{}, errors.New(i18n.T(i18n.KeyCmdNoCompletedBotJsonReply))
 }
 
 // The content hook resolves ownership from the currently visible canonical session.
@@ -116,13 +118,13 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			draft := s.composerDraftLocked(sid)
 			if draft.Text != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing > 0 || draft.EditSeq != 0 {
 				s.mu.Unlock()
-				report(fmt.Errorf("请先处理主聊天已有草稿 / Resolve the existing chat draft first"), "")
+				report(errors.New(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftFirst)), "")
 				return
 			}
 			draft.Text = text
 			s.mu.Unlock()
 			draft.Client.Sync()
-			report(nil, "已填入主聊天草稿；请审阅后发送 / Draft prepared; review and send")
+			report(nil, i18n.T(i18n.KeyCmdDraftPreparedReviewAndSend))
 		}
 		edit := func(d panel.Definition, template bool) {
 			if !current() {
@@ -163,7 +165,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			raw, _ := json.MarshalIndent(d, "", "  ")
 			editor.JSON = string(raw)
 			editor.Preview = &d
-			report(nil, "已导入预览；保存后生效 / Imported for preview; save to apply")
+			report(nil, i18n.T(i18n.KeyCmdImportedForPreviewSaveToApply))
 		}
 		model.OnPreview = func() {
 			if !current() {
@@ -205,7 +207,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 					err = fmt.Errorf("Panel instance no longer exists")
 				}
 			}
-			report(err, "已保存；其他 Bot 的副本保持独立 / Saved; other Bot copies remain independent")
+			report(err, i18n.T(i18n.KeyCmdSavedOtherBotCopiesRemainIndependen))
 			if err == nil {
 				editor.Preview = nil
 				editor.EditingID = ""
@@ -214,7 +216,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 		}
 		model.OnAdd = func(id string) {
 			if current() {
-				report(store.Add(scope, id), "已添加独立副本 / Independent copy added")
+				report(store.Add(scope, id), i18n.T(i18n.KeyCmdIndependentCopyAdded))
 			}
 		}
 		model.OnUpdate = func(i panel.Instance) {
@@ -224,7 +226,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 		}
 		model.OnTemplate = func(d panel.Definition) {
 			if current() {
-				report(store.SaveTemplate(d), "已更新库模板；已有 Bot 副本不变 / Template updated for future copies")
+				report(store.SaveTemplate(d), i18n.T(i18n.KeyCmdTemplateUpdatedForFutureCopies))
 			}
 		}
 		model.OnMove = func(id string, delta int) {
@@ -234,7 +236,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 		}
 		model.OnRemove = func(id string) {
 			if current() {
-				report(store.Remove(scope, id), "已从本 Bot 移除；可从库重新添加 / Removed from this Bot; template retained")
+				report(store.Remove(scope, id), i18n.T(i18n.KeyCmdRemovedFromThisBotTemplateRetained))
 			}
 		}
 		panelui.View(c.Key("custom-panels-"+scope.Host+"-"+scope.Bot), model)

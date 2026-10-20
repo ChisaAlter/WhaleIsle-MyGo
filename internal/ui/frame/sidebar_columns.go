@@ -1,12 +1,25 @@
 package frame
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
 
-// SidebarResponsive mirrors AppFrame's desktop 1024px breakpoint. It is
-// shared across copied frame models but is never a saved layout preference.
+	"whaleisle/internal/ui/i18n"
+)
+
+// SidebarResponsive mirrors AppFrame's desktop 1024px breakpoint and the phone
+// drawer band below PHONE_MAX. It is shared across copied frame models but is
+// never a saved layout preference.
 type SidebarResponsive struct {
+	viewport                    float32
 	narrow, expanded, rightOpen bool
 }
+
+// ui-layout columns.ts: the sidebar leaves the grid for an overlay drawer below
+// PHONE_MAX and the drawer never exceeds PHONE_DRAWER.
+const (
+	phoneMax    = float32(768)
+	phoneDrawer = float32(320)
+)
 
 func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 	if sizes.Responsive == nil {
@@ -17,6 +30,40 @@ func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 		sizes.Responsive.expanded = false
 	}
 	sizes.Responsive.narrow = narrow
+	sizes.Responsive.viewport = width
+}
+
+// drawerMode reports the phone band where the sidebar floats over the centre
+// column instead of taking a track (AppFrame data-phone-sidebar).
+func (sizes *LayoutSizes) drawerMode() bool {
+	r := sizes.Responsive
+	return r != nil && r.viewport > 0 && r.viewport < phoneMax
+}
+
+// drawerWidth is min(320, 100% - 48): the sidebar leaves 48 DIPs of conversation
+// visible so the drawer reads as an overlay.
+func (sizes *LayoutSizes) drawerWidth() float32 {
+	viewport := float32(0)
+	if sizes.Responsive != nil {
+		viewport = sizes.Responsive.viewport
+	}
+	return min(phoneDrawer, max(float32(0), viewport-48))
+}
+
+// sidebarCollapsed reports whether the navigation paints its compact rail. In
+// the drawer band the open drawer shows the expanded content.
+func (sizes *LayoutSizes) sidebarCollapsed() bool {
+	if r := sizes.Responsive; r != nil && r.narrow {
+		return !r.expanded
+	}
+	return sizes.sidebarPreference() <= 0
+}
+
+// narrowHeader hides the titlebar trailing cluster the way
+// AppFrame's data-compact-header does: below the auto-collapse width the
+// cluster would paint over the session title.
+func (sizes *LayoutSizes) narrowHeader() bool {
+	return sizes.Responsive != nil && sizes.Responsive.narrow
 }
 
 func (sizes *LayoutSizes) sidebarPreference() float32 {
@@ -54,6 +101,10 @@ func (sizes *LayoutSizes) ToggleSidebar() {
 func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 	viewport, _ := c.Size()
 	sizes.observeSidebarViewport(viewport)
+	if sizes.drawerMode() {
+		sidebarDrawer(c, sizes, sidebar, center, viewport)
+		return
+	}
 	preference := sizes.sidebarPreference()
 	open := preference > 0
 	width := SidebarCollapsedWidth()
@@ -125,3 +176,55 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 		})
 	})
 }
+
+// sidebarDrawer is the phone band's overlay navigation (AppFrame data-phone):
+// the centre column keeps the full width, the sidebar slides in over it from the
+// left at min(320, 100%-48), and a floating menu button reopens it once closed.
+func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), viewport float32) {
+	open := sizes.Responsive != nil && sizes.Responsive.expanded
+	width := sizes.drawerWidth()
+	animate := !c.Preferences().ReduceMotion
+	shell := ui.Box(c).Key("sidebar-drawer-shell").Grow(1).MinWidth(0).MinHeight(0).Clip()
+	shell.Children(func() {
+		main := ui.Box(c).Key("main-column").Fill().MinWidth(0).MinHeight(0).Clip()
+		main.Children(center)
+
+		if open {
+			backdrop := ui.Box(c).Key("sidebar-drawer-backdrop").Absolute().Top(0).Bottom(0).Left(0).Right(0)
+			backdrop.Background(ui.RGBA(0, 0, 0, .28)).Label(i18n.T(i18n.KeySidebarCollapse))
+			if backdrop.Clicked() {
+				sizes.ToggleSidebar()
+			}
+		}
+
+		left := float32(0)
+		if !open {
+			left = -width
+		}
+		drawer := ui.Box(c).Key("sidebar-drawer").Absolute().Top(0).Bottom(0).Left(left).Width(width).Clip()
+		if animate {
+			drawer.Transition(shellTrackTransition)
+		}
+		// Closed drawers stop building immediately: no off-canvas keyboard owner
+		// or focusable control survives behind the conversation.
+		if open {
+			drawer.Children(sidebar)
+		}
+
+		if !open {
+			// AppFrame .phoneMenu: the only way back into navigation once the
+			// drawer has left the grid.
+			open := ui.ButtonBase(c.Key("sidebar-drawer-open")).Absolute().Left(10).Top(10).Size(36, 36).
+				Radius(10).Padding(0).BorderWidth(0).Background(c.Theme().Surface).
+				Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, .14)).Center().
+				Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand))
+			open.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(c.Theme().Text) })
+			if open.Clicked() {
+				sizes.ToggleSidebar()
+			}
+		}
+	})
+}
+
+// drawerMenuArtwork is the phone menu glyph: three 1px rules.
+var drawerMenuArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>`))

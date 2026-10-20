@@ -8,24 +8,27 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-// TestFirstRunStartsDark pins the shipped first-run appearance: a profile with
-// no config.json opens on the dark palette, not on the OS scheme.
-func TestFirstRunStartsDark(t *testing.T) {
+// TestFirstRunFollowsTheSystem pins the shipped first-run appearance: a profile
+// with no config.json follows the OS scheme, matching the harness install
+// default (theme settings preference "system").
+func TestFirstRunFollowsTheSystem(t *testing.T) {
 	if DefaultTheme != theme.FirstRunThemeID {
 		t.Fatalf("DefaultTheme = %q, want theme.FirstRunThemeID %q", DefaultTheme, theme.FirstRunThemeID)
 	}
 	d := Defaults()
-	if d.Theme != theme.IDDeepseekDark {
-		t.Fatalf("first-run theme = %q, want the dark palette", d.Theme)
+	if d.Theme != theme.DefaultID {
+		t.Fatalf("first-run theme = %q, want the system-following family %q", d.Theme, theme.DefaultID)
 	}
-	resolved := theme.ResolveWithSystem(d.Theme, false)
-	if resolved.Scheme != theme.SchemeDark {
-		t.Fatalf("first-run theme followed the system scheme: %q", resolved.Scheme)
+	light := theme.ResolveWithSystem(d.Theme, false)
+	if light.Scheme != theme.SchemeLight {
+		t.Fatalf("first-run theme did not follow the light system scheme: %q", light.Scheme)
 	}
-	light := theme.ResolveWithSystem(d.Theme, true).Active(true)
-	dark := theme.Resolve(d.Theme).Dark
-	if light.BG != dark.BG {
-		t.Fatalf("first-run palette is not the dark one: %q vs %q", light.BG, dark.BG)
+	dark := theme.ResolveWithSystem(d.Theme, true)
+	if dark.Scheme != theme.SchemeDark {
+		t.Fatalf("first-run theme did not follow the dark system scheme: %q", dark.Scheme)
+	}
+	if light.Active(false).BG == dark.Active(true).BG {
+		t.Fatalf("system schemes resolved to the same palette: %q", light.Active(false).BG)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"time"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/i18n"
 )
 
 // All entry points share one cancellable scan. Only the explicit feed entry
@@ -37,7 +38,7 @@ func (s *mainState) refreshPetGrowthAction(wantsFeed, automatic bool) {
 			current := !s.quitting && s.desktopPet == p && s.cfgStore == cfg && s.win == win && s.bootStatus.Generation == generation && s.sup == sup && currentClient == client
 			s.mu.Unlock()
 			if !current || cfg.Get().NodeBin != node || paths.DshHome() != home {
-				finish("运行环境已变化，请重试 / Runtime changed", nil)
+				finish(i18n.T(i18n.KeyCmdRuntimeChanged), nil)
 				return
 			}
 			finishPetGrowthRefresh(ctx, err, wantsFeed, finish, func() error {

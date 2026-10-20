@@ -2,6 +2,7 @@ package diffsurface
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/egoist/mygo/ui"
 
@@ -13,6 +14,13 @@ import (
 // commitDialogWidth is the reviewed commit form's width: narrow enough to read
 // as a focused task, wide enough for a path and its status.
 const commitDialogWidth float32 = 520
+
+// The checklist's line counts use the diff renderer's palette, so one glance
+// reads the same green and red in the list and in the patch below it.
+var (
+	commitAddedColor   = ui.RGB(61, 153, 112)
+	commitDeletedColor = ui.RGB(224, 102, 102)
+)
 
 // commitDialog paints the commit flow as one in-app form: the file selection,
 // the message, the branch and PR options and the review result all live in the
@@ -108,6 +116,12 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 			paintCommitCheckbox(c, w, ch.Path)
 			ui.Text(c, string([]byte{ch.Index, ch.Worktree})).Width(22).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 			ui.Text(c, ch.Path).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(ch.Path)
+			if ch.Added > 0 {
+				ui.Text(c, "+"+strconv.Itoa(ch.Added)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(commitAddedColor)
+			}
+			if ch.Deleted > 0 {
+				ui.Text(c, "-"+strconv.Itoa(ch.Deleted)).Shrink(0).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(commitDeletedColor)
+			}
 		})
 		row.ContextMenu(func(menu *ui.Menu) {
 			if menu.Item(i18n.T(i18n.KeySurfacesGitOpenDiff)).Chosen() {

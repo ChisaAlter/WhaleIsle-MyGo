@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 // These shapes follow the built-in dsh-usage-panel shared/contract.ts, version 4.
@@ -171,7 +172,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 		s.stats.Loading = false
 		s.statsCancel = nil
 		if err != nil {
-			s.stats.Err = "用量统计后端不可用 / Usage statistics unavailable: " + err.Error()
+			s.stats.Err = storelocale.T(storelocale.KeyStoreUsageUsageStatisticsUnavailable) + err.Error()
 		} else {
 			s.stats.Raw = append(json.RawMessage(nil), raw...)
 			s.stats.Cached = false

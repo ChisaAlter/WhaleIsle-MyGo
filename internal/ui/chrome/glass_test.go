@@ -347,6 +347,68 @@ func TestTransparentThemeNeedsAWallpaper(t *testing.T) {
 	}
 }
 
+// TestGlassKeepsRoundedCorners paints a rounded glass card over a wallpaper and
+// checks the corners: outside the arc the wallpaper shows, inside it the glass
+// tints, and the same fill without a radius would square the corner.
+func TestGlassKeepsRoundedCorners(t *testing.T) {
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	url := pngDataURL(t, color.RGBA{R: 40, G: 40, B: 40, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	const radius = 20
+	render := func(round float32) *ui.Tester {
+		t.Helper()
+		tt := ui.NewTester(func(c *ui.Context) {
+			paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+			ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+			ui.Box(c).Absolute().Left(10).Top(10).Width(60).Height(40).Radius(round).
+				Draw(Glass(ui.RGB(255, 255, 255), MaterialMenu, round))
+		}, 80, 60)
+		tt.Frame()
+		return tt
+	}
+	rounded := render(radius)
+	corner := rounded.Image().RGBAAt(10, 10)
+	if corner.R > 80 {
+		t.Fatalf("rounded glass squared its corner: %d", corner.R)
+	}
+	// (16,16) is inside the 20 DIP arc whose centre is (30,30).
+	inside := rounded.Image().RGBAAt(16, 16)
+	if inside.R < 120 {
+		t.Fatalf("glass left the rounded corner unpainted: %d", inside.R)
+	}
+	center := rounded.Image().RGBAAt(40, 30)
+	if center.R < 120 {
+		t.Fatalf("glass did not fill the panel: %d", center.R)
+	}
+	square := render(0).Image().RGBAAt(10, 10)
+	if square.R < 120 {
+		t.Fatalf("the square control did not paint its corner: %d", square.R)
+	}
+}
+
+// TestMenuSurfaceRoundsTheMenuGlass checks the menu helper threads its radius
+// into the material, border and shadow it paints.
+func TestMenuSurfaceRoundsTheMenuGlass(t *testing.T) {
+	url := pngDataURL(t, color.RGBA{R: 40, G: 40, B: 40, A: 255}, 8, 8)
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	tt := ui.NewTester(func(c *ui.Context) {
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+		MenuSurface(ui.Box(c).Absolute().Left(20).Top(10).Width(40).Height(30).Radius(10),
+			ui.RGB(255, 255, 255), ui.RGB(200, 200, 200), 10)
+	}, 80, 60)
+	tt.Frame()
+	if got := tt.Image().RGBAAt(20, 10); got.R > 90 {
+		t.Fatalf("menu corner is not rounded: %v", got)
+	}
+	if got := tt.Image().RGBAAt(40, 25); got.R < 120 {
+		t.Fatalf("menu glass did not paint its face: %v", got)
+	}
+}
+
 // TestGlassSurfaceReplacesTheSolidBackground checks the wiring helper: it must
 // clear an element's own background, or the opaque fill would hide the glass.
 func TestGlassSurfaceReplacesTheSolidBackground(t *testing.T) {

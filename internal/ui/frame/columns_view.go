@@ -41,7 +41,11 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
 		parentDragging := m.Sizes.dragging
 		m.Sizes.dragging = parentDragging || drag.active
 		defer func() { m.Sizes.dragging = parentDragging }()
-		conversation := ui.Box(c).Key("conversation-column").Width(m.Sizes.Center).Shrink(0).Clip()
+		// The conversation column takes the room the other tracks leave instead of
+		// an absolute resolved width: a Center that lags a frame (a resize, a
+		// dragged sidebar, the drawer band) would otherwise push the column past
+		// the window edge and clip the hero headline with it.
+		conversation := ui.Box(c).Key("conversation-column").Grow(1).MinWidth(0).Clip()
 		if !drag.active && !m.Sizes.dragging {
 			conversation.Transition(shellTrackTransition)
 		}

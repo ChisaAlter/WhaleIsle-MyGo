@@ -282,7 +282,7 @@ func TestFunctionalOwnedSSHHostKeyForwardAndPeerClose(t *testing.T) {
 			}
 			defer c.Close()
 			_ = c.SetDeadline(time.Now().Add(2 * time.Second))
-			payload := []byte("owned SSH echo / 合成数据")
+			payload := []byte("owned SSH echo sample")
 			if _, e = c.Write(payload); e != nil {
 				t.Fatal(e)
 			}

@@ -6,6 +6,7 @@ import (
 	"html"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 type GrowthStatus struct {
@@ -23,7 +24,7 @@ func (p *Companion) growthStatus() GrowthStatus {
 	}
 	snap, err := p.Store.PetGrowth(time.Now())
 	if err != nil {
-		status.Message = "成长账本不可用，未改动存档 / Ledger unavailable"
+		status.Message = storelocale.T(storelocale.KeyDesktopPetLedgerUnavailable)
 		return status
 	}
 	status.Label = fmt.Sprintf("Lv.%d %s · %d 成长点", snap.Level, snap.LevelName, snap.Points)
@@ -32,7 +33,7 @@ func (p *Companion) growthStatus() GrowthStatus {
 	// must still be able to run the original pre-feed refresh.
 	status.CanFeed = !busy
 	if status.Message == "" {
-		status.Message = "刷新实际用量；首次仅建基线 / Local game only"
+		status.Message = storelocale.T(storelocale.KeyDesktopPetLocalGameOnly)
 	}
 	return status
 }
@@ -54,7 +55,7 @@ func (p *Companion) StartGrowthRefresh(automatic bool) (context.Context, func(st
 	ctx, serial := p.growth.begin()
 	if ctx != nil {
 		p.growthAutomatic = automatic
-		p.growth.status.Message = "读取本应用实际用量… / Reading local usage…"
+		p.growth.status.Message = storelocale.T(storelocale.KeyDesktopPetReadingLocalUsage)
 	}
 	p.assetMu.Unlock()
 	if ctx == nil {
@@ -68,12 +69,12 @@ func (p *Companion) StartGrowthRefresh(automatic bool) (context.Context, func(st
 		}
 		p.growthAutomatic = false
 		if ctx.Err() != nil {
-			p.growth.finish(serial, "读取已取消，未改动账本 / Cancelled")
+			p.growth.finish(serial, storelocale.T(storelocale.KeyDesktopPetCancelled))
 			return false
 		}
 		if commit != nil {
 			if err := commit(); err != nil {
-				message = "账本保存失败，粮与成长未改动 / Save failed; unchanged"
+				message = storelocale.T(storelocale.KeyDesktopPetSaveFailedUnchanged)
 			}
 		}
 		return p.growth.finish(serial, message)
@@ -101,11 +102,11 @@ func (p *Companion) consumePetTokens(fresh bool) {
 	before, _ := p.Store.PetGrowth(time.Now())
 	fed, err := p.Store.FeedPetTokens(time.Now())
 	if err != nil {
-		p.growth.status.Message = "保存失败，粮与成长均未扣改 / Save failed; unchanged"
+		p.growth.status.Message = storelocale.T(storelocale.KeyDesktopPetSaveFailedUnchanged2)
 		return
 	}
 	if fed == 0 {
-		p.growth.status.Message = "粮碗空了，先刷新实际用量 / No local food"
+		p.growth.status.Message = storelocale.T(storelocale.KeyDesktopPetNoLocalFood)
 		return
 	}
 	after, _ := p.Store.PetGrowth(time.Now())
@@ -115,8 +116,8 @@ func (p *Companion) consumePetTokens(fresh bool) {
 	}
 	p.careAction = newCareAnimation("token", "", level)
 	_ = p.rest.wake(nil)
-	p.growth.status.Message = fmt.Sprintf("已喂 %d 本地粮，成长 +%d / Fed", fed, fed)
+	p.growth.status.Message = fmt.Sprintf(storelocale.T(storelocale.KeyDesktopPetFedLocalFood), fed, fed)
 	if !fresh {
-		p.growth.status.Message += "（刷新不可用，仅使用已结算粮 / saved food only）"
+		p.growth.status.Message += storelocale.T(storelocale.KeyDesktopPetSavedFoodOnly)
 	}
 }

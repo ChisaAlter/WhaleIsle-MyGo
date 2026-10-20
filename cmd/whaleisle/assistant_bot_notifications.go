@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 type botNotificationRun struct {
@@ -91,7 +92,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 		s.botNotificationReadSlot = make(chan struct{}, 1)
 	}
 	readSlot := s.botNotificationReadSlot
-	s.botNotificationMessage = "Bot 通知观察中：仅当前 Bot 页完整目录 / Watching this Bot page’s complete catalog"
+	s.botNotificationMessage = i18n.T(i18n.KeyCmdWatchingThisBotPageSCompleteCatalo)
 	s.mu.Unlock()
 	rpc := s.pluginRPCClient(ep)
 	go botnotify.Poll(ctx, botnotify.Interval, botnotify.ReadTimeout, func(ctx context.Context) (botnotify.Snapshot, error) {
@@ -152,11 +153,11 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 				run.pending = run.pending[len(run.pending)-botnotify.MaxBots:]
 			}
 			if !supported {
-				s.botNotificationStatus("系统通知不可用或未获允许；Bot 页状态仍可查看 / System notifications unavailable or not allowed")
+				s.botNotificationStatus(i18n.T(i18n.KeyCmdSystemNotificationsUnavailableOrNot))
 			} else if snapshot.Unavailable > 0 {
-				s.botNotificationStatus(fmt.Sprintf("%d 个 Bot 状态暂不可用；其余继续观察 / Some Bot activity is unavailable; remaining items are monitored", snapshot.Unavailable) + run.navigationMessage)
+				s.botNotificationStatus(fmt.Sprintf(i18n.T(i18n.KeyCmdBotStatusUnavailable), snapshot.Unavailable) + run.navigationMessage)
 			} else {
-				s.botNotificationStatus("Bot 通知观察中：仅当前 Bot 页完整目录 / Watching this Bot page’s complete catalog" + run.navigationMessage)
+				s.botNotificationStatus(i18n.T(i18n.KeyCmdWatchingThisBotPageSCompleteCatalo) + run.navigationMessage)
 			}
 			s.deliverBotNotification(run)
 		})
@@ -253,7 +254,7 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 				return
 			}
 			if !run.window.IsVisible() || run.window.IsMinimized() {
-				s.botNotificationStatus("无法显示通知目标窗口 / Could not restore the notification target window")
+				s.botNotificationStatus(i18n.T(i18n.KeyCmdCouldNotRestoreTheNotificationTarge))
 				return
 			}
 			// The latest accepted catalog/activity pair owns this exact item,
@@ -286,7 +287,7 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 				if !s.revealAssistantBotVisibility(run.endpoint, run.client, target.ID, target.SessionID) {
 					return
 				}
-				run.navigationMessage = " · 通知目标：" + target.Name + "；请在隐藏/显示管理块核对 / Notification target: verify in visibility management"
+				run.navigationMessage = " · 通知目标：" + target.Name + i18n.T(i18n.KeyCmdNotificationTargetVerifyInVisibility)
 				s.botNotificationStatus(run.navigationMessage)
 			} else {
 				asst.SelectDshbot(notice.Ticket.BotID, run.endpoint.Origin)
@@ -338,7 +339,7 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 							s.botNotificationDenied = true
 							s.mu.Unlock()
 						}
-						s.botNotificationStatus("系统通知未能投递；请检查系统通知权限 / System notification delivery failed; check OS notification permission")
+						s.botNotificationStatus(i18n.T(i18n.KeyCmdSystemNotificationDeliveryFailedChec))
 					}
 				}
 				if s.botNotificationCurrent(currentRun) {

@@ -1,6 +1,9 @@
 package pet
 
-import "whaleisle/internal/config"
+import (
+	"whaleisle/internal/config"
+	"whaleisle/internal/store/storelocale"
+)
 
 // ResetAppearanceBehavior is called only after the settings confirmation. Like
 // upstream applySettings({reset:true}), it resets preferences, not visibility,
@@ -11,7 +14,7 @@ func (p *Companion) ResetAppearanceBehavior() bool {
 		return false
 	}
 	if p.Store == nil {
-		p.Error = "桌宠配置不可用 / Pet configuration unavailable"
+		p.Error = storelocale.T(storelocale.KeyDesktopPetPetConfigurationUnavailable)
 		return false
 	}
 	next := p.Store.DesktopPet()

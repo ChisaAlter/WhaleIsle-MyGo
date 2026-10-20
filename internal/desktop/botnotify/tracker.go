@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -138,11 +139,11 @@ func (t *Tracker) Observe(s Snapshot, focused, supported bool) []Notice {
 		var events []string
 		var mask uint8
 		if exists && row.Attention && !old.row.Attention {
-			events = append(events, "Bot 需要处理待确认事项 / Bot needs your attention")
+			events = append(events, storelocale.T(storelocale.KeyDesktopBotnotifyBotNeedsYourAttention))
 			mask |= 1
 		}
 		if exists && row.GoalPhase == "blocked" && old.row.GoalPhase != "blocked" {
-			events = append(events, "Bot 目标遇到阻碍 / Bot objective is blocked")
+			events = append(events, storelocale.T(storelocale.KeyDesktopBotnotifyBotObjectiveIsBlocked))
 			mask |= 2
 		}
 		run := row.Run
@@ -159,9 +160,9 @@ func (t *Tracker) Observe(s Snapshot, focused, supported bool) []Notice {
 				current.runs[key] = true
 			}
 			if exists && unseen && !run.Silent && key != old.row.Run.key() {
-				message := "例行任务结束但未成功 / Routine did not complete successfully"
+				message := storelocale.T(storelocale.KeyDesktopBotnotifyRoutineDidNotCompleteSuccessfully)
 				if run.Status == "completed" {
-					message = "例行任务已完成 / Routine completed"
+					message = storelocale.T(storelocale.KeyDesktopBotnotifyRoutineCompleted)
 				}
 				if name := strings.TrimSpace(run.Name); name != "" {
 					message += ": " + name
@@ -169,9 +170,9 @@ func (t *Tracker) Observe(s Snapshot, focused, supported bool) []Notice {
 				events = append(events, message)
 				mask |= 4
 			} else if exists && unseen && !run.Silent && !old.row.Run.terminal() {
-				message := "例行任务结束但未成功 / Routine did not complete successfully"
+				message := storelocale.T(storelocale.KeyDesktopBotnotifyRoutineDidNotCompleteSuccessfully)
 				if run.Status == "completed" {
-					message = "例行任务已完成 / Routine completed"
+					message = storelocale.T(storelocale.KeyDesktopBotnotifyRoutineCompleted)
 				}
 				if name := strings.TrimSpace(run.Name); name != "" {
 					message += ": " + name

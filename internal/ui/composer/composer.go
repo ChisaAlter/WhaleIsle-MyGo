@@ -338,13 +338,17 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// space, and the inset white bloom below is the reference's
 		// `inset 0 0 12px 1px rgba(255,255,255,.25)` (visible in dark themes).
 		cardRadius := float32(28)
-		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().Background(chrome.BackdropSurface(chrome.Color(colors.InputMajor))).
+		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
 			Radius(cardRadius).Padding(8, 0, 0, 0).Gap(12)
 		if m.OnCardLayout != nil {
 			card.ObserveLayout(m.OnCardLayout)
 		}
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
+			// The card's material paints under the beam and the inner bloom, so
+			// the wallpaper shows through the glass and the beam still glows on
+			// top of it.
+			chrome.DrawGlass(p, r, chrome.Color(colors.InputMajor), chrome.MaterialPanel, cardRadius)
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 			paintInnerBloom(p, r, cardRadius)
 		})

@@ -10,6 +10,7 @@ import (
 	"time"
 	_ "time/tzdata"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/store/storelocale"
 )
 
 type RoutineCreateDraft struct {
@@ -100,7 +101,7 @@ func (c *RoutineCreator) Sync(k RoutineScope, binding uint64, source RoutineSnap
 	}
 	cmd := e.attempt.Command
 	if source.SessionID != cmd.SessionID {
-		e.state.Error = "Bot 会话已更换。创建结果待核对，不能重发 / Bot session changed; inspect the original creation"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotBotSessionChangedInspectTheOriginal)
 		return
 	}
 	if source.Revision < cmd.Revision {
@@ -284,7 +285,7 @@ func (c *RoutineCreator) Rebase(k RoutineScope) {
 		return
 	}
 	if e.state.Draft.SessionID != c.source.SessionID {
-		e.state.Error = "Bot 会话已更换，请先核对原任务 / Bot identity changed"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotBotIdentityChanged2)
 		return
 	}
 	id, err := createRequestID()
@@ -300,7 +301,7 @@ func (c *RoutineCreator) Rebase(k RoutineScope) {
 	e.state.Uncertain = false
 	e.state.RetryVerified = false
 	e.state.Error = ""
-	e.state.Notice = "已采用当前目录基线，请重新审阅保存 / Current catalog adopted; review creation again"
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCurrentCatalogAdoptedReviewCreation)
 }
 func (c *RoutineCreator) Prepare(k RoutineScope) {
 	c.mu.Lock()
@@ -315,7 +316,7 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 	e.state.Review = nil
 	d := e.state.Draft
 	if d.Revision != c.source.Revision || d.SessionID != c.source.SessionID {
-		e.state.Error = "目录已变化；先核对当前目录再审阅创建 / Catalog changed; recheck before reviewing"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedRecheckBeforeReviewing)
 		return
 	}
 	schedule, err := routineCreateSchedule(*d)
@@ -325,16 +326,16 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 	}
 	limit, lErr := strconv.Atoi(strings.TrimSpace(d.MaxRuns))
 	if lErr != nil {
-		e.state.Error = "执行次数上限须为整数 / Run limit must be an integer"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger2)
 		return
 	}
 	zone := strings.TrimSpace(d.Timezone)
 	if zone == "" || zone == "Local" {
-		e.state.Error = "请明确填写 IANA 时区 / Specify the intended IANA timezone"
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotSpecifyTheIntendedIanaTimezone)
 		return
 	}
 	if _, err := time.LoadLocation(zone); err != nil {
-		e.state.Error = "时区无效 / Invalid IANA timezone: " + zone
+		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotInvalidIanaTimezone) + zone
 		return
 	}
 	edit := pluginrpc.DshbotRoutineEdit{Name: d.Name, Prompt: d.Prompt, Schedule: schedule, Timezone: d.Timezone, MaxRuns: limit, Enabled: d.Enabled}
@@ -420,7 +421,7 @@ func (c *RoutineCreator) AbortUnsent(t RoutineCreateTicket) {
 		e.attempt = nil
 		e.state.Busy = false
 		e.state.Review = nil
-		e.state.Notice = "未发送创建请求；草稿保留，请重新审阅 / Creation not sent; review the retained draft again"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCreationNotSentReviewTheRetainedDr)
 	}
 }
 func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRoutineCreateResult, err error) {
@@ -436,7 +437,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 		e.state.Uncertain = false
 		e.state.Review = nil
 		e.state.Error = err.Error()
-		e.state.Notice = "Host 在写入前拒绝创建；草稿保留，修正或刷新后重新审阅 / Creation rejected before write; draft retained"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCreationRejectedBeforeWriteDraftRet)
 		return
 	}
 	if err == nil {
@@ -449,7 +450,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 	if err != nil {
 		e.state.Uncertain = true
 		e.state.Error = err.Error()
-		e.state.Notice = "创建结果待核对，已锁定此请求与草稿；刷新只读目录，勿重复保存 / Outcome uncertain; inspect the catalog before another creation"
+		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainInspectTheCatalogBe)
 		return
 	}
 	e.state.CreatedID = result.ID
@@ -457,7 +458,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 	e.state.Review = nil
 	e.state.Uncertain = false
 	e.state.Error = ""
-	e.state.Notice = "Host 已返回新例行任务 / Created routine: " + result.ID
+	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCreatedRoutine) + result.ID
 	e.attempt = nil
 }
 func (c *RoutineCreator) Adopt(k RoutineScope, id string) bool {
@@ -479,7 +480,7 @@ func (c *RoutineCreator) Adopt(k RoutineScope, id string) bool {
 			e.state.Candidates = nil
 			e.state.RetryVerified = false
 			e.state.Error = ""
-			e.state.Notice = "已采用核对后的已有记录，未发送新建请求 / Using the inspected existing record"
+			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUsingTheInspectedExistingRecord)
 			e.attempt = nil
 			return true
 		}

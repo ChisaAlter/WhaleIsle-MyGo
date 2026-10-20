@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 type removalTransport func(*http.Request) (*http.Response, error)
@@ -67,7 +68,7 @@ func TestUpstreamDeltaRemovalFeedback(t *testing.T) {
 		t.Fatal("retry rejected")
 	}
 	v = waitStore(t, s)
-	if v.RemovedID != "one" || len(v.Machines) != 0 || v.CurrentID != "" || v.Error == "" || !strings.Contains(v.Notice, "Deleted") {
+	if v.RemovedID != "one" || len(v.Machines) != 0 || v.CurrentID != "" || v.Error == "" || !strings.Contains(v.Notice, "Dev") {
 		t.Fatalf("acknowledged delete/failed refresh: %+v", v)
 	}
 	s.Attach(c, nil)
@@ -118,7 +119,7 @@ func TestUpstreamDeltaRemovalStatusFailure(t *testing.T) {
 	s.view.Machines = []Machine{{ID: "one", Name: "Dev"}}
 	s.Remove("one")
 	v := waitStore(t, s)
-	if v.RemovedID != "" || v.Notice != "" || len(v.Machines) != 1 || !strings.Contains(v.Error, "still lists") {
+	if v.RemovedID != "" || v.Notice != "" || len(v.Machines) != 1 || !strings.Contains(v.Error, storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS)) {
 		t.Fatalf("status error hid contradictory registry: %+v", v)
 	}
 }

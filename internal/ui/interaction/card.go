@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the card to the interaction store snapshot.
@@ -108,9 +109,15 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		return false
 	}
 	focused := false
-	card := ui.Column(c.Key("approval-card:"+p.AgentID+":"+p.EventID)).Padding(8, 8, 8, 8).Gap(6).Background(accent.Alpha(0.08)).Radius(12)
+	t := c.Theme()
+	approval := p.Event == interaction.EventApproval
+	tint := accent.Alpha(0.06)
+	if approval {
+		tint = t.Warning.Alpha(0.07)
+	}
+	card := interactionCardSeat(c, "approval-card:"+p.AgentID+":"+p.EventID, approval, tint)
 	var keys *approvalKeys
-	if p.Event == interaction.EventApproval {
+	if approval {
 		keys = ui.Local(card, "approval-keys", func() approvalKeys { return approvalKeys{} })
 		card.Focusable().Label("Approval details: " + p.EventID).HandleInput(approvalHandler(keys, p, store, false))
 	}
@@ -127,7 +134,13 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				title = row.Header
 			}
 		}
-		ui.Text(c, title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		if approval {
+			interactionCardHeader(c, widgets.StateWarning, i18n.T(i18n.KeyChatApprovalWaiting), p.CallID, muted)
+		} else {
+			// The pager below already reports "1 / 3"; the header names the wait.
+			interactionCardHeader(c, widgets.StateRunning, i18n.T(i18n.KeyChatQuestionWaiting), "", muted)
+		}
+		ui.Text(c, title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(15)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 		if p.Event == interaction.EventUserQuestions {
 			if p.Continued {
 				ui.Text(c, questionStatusText("continued")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -138,15 +151,17 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 		} else {
 			approvalReason(c, p, muted)
-			if p.CallID != "" {
+			if command := approvalCommand(p.Args); command != "" {
+				commandBlock(c, t, command)
+			} else if p.CallID != "" {
 				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			approvalArguments(c, p, store, keys, fg, muted, accent)
 		}
 		if p.Error != "" {
-			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Wrap().Children(func() {
 			if p.Sending {
 				ui.Button(c, i18n.T(i18n.KeyInteractionContinue)).Disabled(true)
 				return
@@ -159,18 +174,18 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
-				if ui.Button(c, i18n.T(i18n.KeyChatQuestionHide)).Clicked() {
+				if hide := interactionSecondaryButton(c, t, i18n.T(i18n.KeyChatQuestionHide)); hide.Clicked() {
 					store.HideQuestion(p.EventID)
 				}
 
 				if !p.Continued {
-					if ui.Button(c, i18n.T(i18n.KeyInteractionDeny)).Clicked() {
+					if deny := interactionDangerButton(c, t, i18n.T(i18n.KeyInteractionDeny)); deny.Clicked() {
 						store.ResolveDeny(p.EventID)
 					}
 				}
 			default:
-				allow := ui.Button(c, i18n.T(i18n.KeyInteractionAllow))
-				deny := ui.Button(c, i18n.T(i18n.KeyInteractionDeny))
+				deny := interactionDangerButton(c, t, i18n.T(i18n.KeyInteractionDeny))
+				allow := interactionPrimaryButton(c, t, i18n.T(i18n.KeyInteractionAllow))
 				if keys != nil {
 					allow.HandleInput(approvalHandler(keys, p, store, true))
 					deny.HandleInput(approvalHandler(keys, p, store, true))
