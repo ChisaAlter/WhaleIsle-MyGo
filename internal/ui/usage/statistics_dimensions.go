@@ -485,11 +485,11 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 		costValue = fmt.Sprintf("≈ ¥%.2f", sum/100)
 	}
 	metrics := []struct{ label, value, detail string }{
-		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf("Input %.0f · Output %.0f", input, t.Output)},
+		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f", "Input %.0f · Output %.0f"), input, t.Output)},
 		{usageText("估算费用", "Estimated cost"), costValue, usageText("按模型价格估算", "Estimated from model prices")},
-		{usageText("会话", "Sessions"), fmt.Sprint(o.AllTime.SessionCount), fmt.Sprintf("Main %d · Subagent %d", o.Coverage.UsageSessionsMain, o.Coverage.UsageSessionsSubagent)},
+		{usageText("会话", "Sessions"), fmt.Sprint(o.AllTime.SessionCount), fmt.Sprintf(usageText("主会话 %d · 子代理 %d", "Main %d · Subagent %d"), o.Coverage.UsageSessionsMain, o.Coverage.UsageSessionsSubagent)},
 		{usageText("最常用模型", "Top model"), topName, topDetail},
-		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf("Cache read %.0f", t.CacheRead)},
+		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf(usageText("缓存读取 %.0f", "Cache read %.0f"), t.CacheRead)},
 	}
 	surface, border, secondary := usageCardPalette(c)
 	grid := ui.Grid(c.Key("usage-kpis")).FillWidth().MinWidth(0).Gap(12)
@@ -520,7 +520,7 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 					size, height = 14, 22
 				}
 				ui.Text(c, metric.value).FillWidth().Margin(8, 0, 0).FontSize(fonttheme.InterfaceSize(size)).FixedLineHeight(fonttheme.InterfaceSize(height)).FontWeight(700).FontFeatures("tnum").TextColor(fg)
-				ui.Text(c, metric.detail).FillWidth().Margin(4, 0, 0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(secondary)
+				ui.Text(c, metric.detail).FillWidth().Margin(4, 0, 0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).FontFeatures("tnum").TextColor(secondary)
 			})
 		}
 	})

@@ -1,7 +1,10 @@
 package composer
 
 import (
+	"fmt"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -102,20 +105,81 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 	}
 	paintVoiceSetup(c, m)
 	if m.Voice.Phase == "recording" {
-		button("■", composerText("停止并转写", "Stop recording"), false, m.OnStopVoice)
+		button("■", i18n.T(i18n.KeyComposerVoiceStop), false, m.OnStopVoice)
+		paintVoiceClock(c, m, fg, muted)
+	} else if m.State != nil && !m.State.VoiceStarted.IsZero() {
+		// Leaving the recording phase retires the clock; the controller owns
+		// the transcript, not the elapsed time.
+		m.State.VoiceStarted = time.Time{}
+		m.State.VoiceTick = time.Time{}
 	}
 	if m.Voice.Pending != "" {
-		button("↵", composerText("插入转写", "Insert transcript"), locked, m.OnInsertVoice)
+		button("↵", i18n.T(i18n.KeyComposerVoiceInsert), locked, m.OnInsertVoice)
 	}
 	if m.Voice.Phase == "feedback" && m.Voice.Pending == "" {
-		button("microphone", composerText("重试录音", "Retry recording"), locked || voiceNeedsSetup(m), m.OnStartVoice)
+		button("microphone", i18n.T(i18n.KeyComposerVoiceRetry), locked || voiceNeedsSetup(m), m.OnStartVoice)
 	}
 	if m.Voice.Phase != "" {
-		button("×", composerText("取消录音", "Discard recording"), false, m.OnCancelVoice)
+		button("×", i18n.T(i18n.KeyComposerVoiceCancel), false, m.OnCancelVoice)
 	}
 	if m.Voice.Message != "" {
-		ui.Text(c, m.Voice.Message).MaxWidth(180).SingleLine().FontSize(11).TextColor(muted).Tooltip(m.Voice.Pending)
+		// Feedback such as "microphone unavailable" stays visible and offers the
+		// settings seat as its recovery, so a failed capture is never a dead end.
+		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, m.Voice.Message).MaxWidth(180).SingleLine().FontSize(11).TextColor(muted).Tooltip(m.Voice.Pending)
+			if !m.Voice.Busy() && m.OnVoiceSettings != nil {
+				link := ui.Button(c, i18n.T(i18n.KeyComposerVoiceSettings)).FontSize(11).Padding(0, 4).Height(20).
+					Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+				if link.Clicked() {
+					m.OnVoiceSettings()
+				}
+			}
+		})
 	}
+}
+
+// voiceTickInterval paces the recording clock and the activity bars; the strip
+// only exists while a capture is running, so the repaint cost is bounded.
+const voiceTickInterval = 200 * time.Millisecond
+
+// paintVoiceClock draws the live "1:05" clock and a five-bar activity strip.
+// The bars are an animation of the recording state, not a level meter: the
+// capture pipeline publishes no amplitudes.
+func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
+	if m.State == nil {
+		return
+	}
+	now := c.Now()
+	if m.State.VoiceStarted.IsZero() || now.Before(m.State.VoiceStarted) {
+		// A clock that stepped backwards (test frame clocks, sleep/wake) starts
+		// the strip again rather than showing a negative elapsed time.
+		m.State.VoiceStarted = now
+		m.State.VoiceTick = time.Time{}
+	}
+	elapsed := now.Sub(m.State.VoiceStarted)
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	if m.State.VoiceTick.IsZero() || !now.Before(m.State.VoiceTick.Add(voiceTickInterval)) {
+		m.State.VoiceTick = now
+		services := c.Services()
+		time.AfterFunc(voiceTickInterval, services.Invalidate)
+	}
+	seconds := int(elapsed / time.Second)
+	clock := fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
+	ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {
+		t := float32(elapsed.Seconds())
+		ui.Box(c).Width(26).Height(12).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+			const bars = 5
+			for i := 0; i < bars; i++ {
+				level := 0.35 + 0.65*float32(math.Abs(math.Sin(float64(t)*2.4+float64(i)*1.35)))
+				bar := r.H * level
+				step := r.W / bars
+				p.Fill(ui.Rect{X: r.X + float32(i)*step, Y: r.Y + (r.H-bar)/2, W: max(1, step-2), H: bar}, muted, 1)
+			}
+		})
+		ui.Text(c, clock).FontSize(11).TextColor(fg).FixedLineHeight(14).Shrink(0).Tooltip(i18n.T(i18n.KeyComposerVoiceRecording))
+	})
 }
 
 func voiceNeedsSetup(m Model) bool {

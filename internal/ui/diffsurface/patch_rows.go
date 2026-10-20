@@ -26,6 +26,9 @@ type diffLine struct {
 	Text   string
 	Number int
 	Kind   diffLineKind
+	// Hunk is the line's hunk ordinal, set on headers so a folded header can
+	// name the hunk it hides.
+	Hunk int
 }
 
 // diffRowHeight is the painted height of one line; the original workbench gives
@@ -88,27 +91,117 @@ func unifiedMinWidth(rows []patchRow) float32 {
 	return float32(longest+10) * 7.5
 }
 
-// paintUnifiedRows paints one file change as a single column of line bands. A
-// folded hunk keeps its header and drops its lines.
-func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fold hunkFold) {
-	minWidth := float32(0)
-	if !wrap {
-		minWidth = unifiedMinWidth(rows)
-	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
-		hunk, hidden := -1, false
-		for _, line := range unifiedLines(rows) {
-			if line.Kind == diffLineHunk {
-				hunk++
-				hidden = fold.collapsed[hunk]
-				paintHunkHeader(c, line.Text, hunk, st, fold)
-				continue
-			}
-			if hidden {
-				continue
-			}
-			paintDiffLine(c, line, st, minWidth, wrap)
+// visibleUnifiedLines is the unified view's line list after folding: a folded
+// hunk keeps its header and loses its lines, and every header learns its index.
+func visibleUnifiedLines(rows []patchRow, fold hunkFold) []diffLine {
+	lines := unifiedLines(rows)
+	visible := make([]diffLine, 0, len(lines))
+	hunk, hidden := -1, false
+	for _, line := range lines {
+		if line.Kind == diffLineHunk {
+			hunk++
+			hidden = fold.collapsed[hunk]
+			line.Hunk = hunk
+			visible = append(visible, line)
+			continue
 		}
+		if hidden {
+			continue
+		}
+		visible = append(visible, line)
+	}
+	return visible
+}
+
+// diffLineBox is the height one line occupies in both the gutter and the text
+// column; keeping the two columns on the same sequence of heights is what aligns
+// them.
+func diffLineBox(kind diffLineKind) float32 {
+	if kind == diffLineHunk {
+		return 24
+	}
+	return diffRowHeight
+}
+
+// paintUnifiedRows paints one file change as a single column of line bands.
+//
+// Without wrapping the text scrolls sideways inside its own scroller while the
+// number gutter stays put, so the end of a long line is reachable and the line
+// still shows its own number. With wrapping there is nothing to scroll and the
+// rows paint as one column.
+func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fold hunkFold) {
+	lines := visibleUnifiedLines(rows, fold)
+	if wrap {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+			for _, line := range lines {
+				if line.Kind == diffLineHunk {
+					paintHunkHeader(c, line.Text, line.Hunk, st, fold)
+					continue
+				}
+				paintDiffLine(c, line, st, 0, true)
+			}
+		})
+		return
+	}
+	minWidth := unifiedMinWidth(rows)
+	ui.Row(c).FillWidth().MinWidth(0).Gap(0).AlignItems(ui.Start).Children(func() {
+		ui.Column(c).Width(diffNumberWidth + diffSignWidth).Shrink(0).Gap(1).Children(func() {
+			for _, line := range lines {
+				paintDiffGutter(c, line, st)
+			}
+		})
+		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Column(c).MinWidth(minWidth).Gap(1).Children(func() {
+				for _, line := range lines {
+					paintDiffText(c, line, st, fold)
+				}
+			})
+		})
+	})
+}
+
+// paintDiffGutter paints one line's number and change marker outside the
+// horizontal scroller.
+func paintDiffGutter(c *ui.Context, line diffLine, st diff.Style) {
+	color := st.FG
+	sign := " "
+	switch line.Kind {
+	case diffLineAdd:
+		color, sign = st.Add, "+"
+	case diffLineDel:
+		color, sign = st.Del, "-"
+	}
+	ui.Row(c).Width(diffNumberWidth+diffSignWidth).Height(diffLineBox(line.Kind)).Gap(0).AlignItems(ui.Center).Children(func() {
+		if line.Kind == diffLineHunk || line.Kind == diffLineMeta {
+			return
+		}
+		number := ""
+		if line.Number > 0 {
+			number = strconv.Itoa(line.Number)
+		}
+		ui.Text(c, number).Width(diffNumberWidth).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End)
+		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center)
+	})
+}
+
+// paintDiffText paints one line's text inside the scroller, at the same height
+// its gutter cell used.
+func paintDiffText(c *ui.Context, line diffLine, st diff.Style, fold hunkFold) {
+	if line.Kind == diffLineHunk {
+		paintHunkHeader(c, line.Text, line.Hunk, st, fold)
+		return
+	}
+	color := st.FG
+	switch line.Kind {
+	case diffLineAdd:
+		color = st.Add
+	case diffLineDel:
+		color = st.Del
+	case diffLineMeta:
+		color = st.File
+	}
+	ui.Row(c).Height(diffLineBox(line.Kind)).MinWidth(0).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, line.Text).Font("monospace").FontSize(st.FontSize).TextColor(color).NoWrap()
 	})
 }
 

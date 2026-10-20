@@ -123,11 +123,12 @@ func (s *mainState) beginAppearanceFrame(c *ui.Context) {
 	id := s.themeID
 	s.mu.Unlock()
 	p := theme.RenderPreferences()
-	colors := theme.Resolve(id).Active(mygo.Theme.IsDark())
-	applyAppearanceTheme(c, p, colors)
+	dark := mygo.Theme.IsDark()
+	colors := theme.Resolve(id).Active(dark)
+	applyAppearanceTheme(c, p, colors, dark)
 }
 
-func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Colors) {
+func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Colors, dark bool) {
 	t := *c.Theme()
 	t.Font = theme.TextFamily(p.Interface.Family)
 	t.FontSize = p.Interface.Size
@@ -144,8 +145,18 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.AccentText = chrome.Color(colors.ButtonFG)
 	t.Focus = t.Accent
 	t.Selection = t.Accent.Alpha(.3)
-	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb on desktop.
+	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb; its colors are
+	// --dsw-alias-scrollbar-bg-l1/hover-l1 (--dsw-static-neutral-200/300 in the
+	// light palette, 700/600 in the dark one).
 	t.ScrollbarWidth = 5
+	t.ScrollbarAlways = true
+	if dark {
+		t.Scrollbar = ui.RGBA(60, 60, 61, 1)
+		t.ScrollbarHover = ui.RGBA(84, 85, 87, 1)
+	} else {
+		t.Scrollbar = ui.RGBA(229, 229, 229, 1)
+		t.ScrollbarHover = ui.RGBA(212, 212, 212, 1)
+	}
 	c.SetTheme(&t)
 }
 func (s *mainState) endAppearanceFrame() {

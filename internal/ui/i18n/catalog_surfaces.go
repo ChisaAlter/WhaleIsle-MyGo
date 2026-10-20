@@ -17,6 +17,7 @@ const (
 	KeySurfacesSettingsFilterEmpty  = "surfaces.settings.filter_empty"
 	KeySurfacesSettingsNamespace    = "surfaces.settings.namespace"
 	KeySurfacesSettingsRefresh      = "surfaces.settings.refresh"
+	KeySurfacesSettingsDevHint      = "surfaces.settings.dev_hint"
 	KeySurfacesSettingsSignIn       = "surfaces.settings.sign_in"
 	KeySurfacesSettingsWritable     = "surfaces.settings.writable"
 	KeySurfacesSettingsReadOnly     = "surfaces.settings.read_only"
@@ -60,6 +61,7 @@ const (
 	KeySurfacesUsageStale      = "surfaces.usage.stale"
 	KeySurfacesUsageError      = "surfaces.usage.error"
 	KeySurfacesUsageRetryHint  = "surfaces.usage.retry_hint"
+	KeySurfacesUsageRefreshing = "surfaces.usage.refreshing"
 
 	KeySurfacesDiffUnified     = "surfaces.diff.unified"
 	KeySurfacesDiffSplit       = "surfaces.diff.split"
@@ -89,6 +91,7 @@ const (
 	KeySurfacesTerminalCloseBody    = "surfaces.terminal.close_body"
 	KeySurfacesTerminalConfirmClose = "surfaces.terminal.confirm_close"
 	KeySurfacesTerminalCancel       = "surfaces.terminal.cancel"
+	KeySurfacesTerminalShortcuts    = "surfaces.terminal.shortcuts"
 
 	KeySurfacesDiffFoldHunk = "surfaces.diff.fold_hunk"
 )
@@ -107,6 +110,7 @@ func init() {
 	Register(KeySurfacesSettingsFilterEmpty, "没有匹配的分区", "No matching sections")
 	Register(KeySurfacesSettingsNamespace, "配置分区", "Configuration section")
 	Register(KeySurfacesSettingsRefresh, "刷新", "Refresh")
+	Register(KeySurfacesSettingsDevHint, "这里的命名空间由内核与插件注册，供排查问题时使用；日常设置不必修改。", "These namespaces come from the core and its plugins. They are for troubleshooting; day-to-day settings do not need them.")
 	Register(KeySurfacesSettingsSignIn, "登录账号", "Sign in")
 	Register(KeySurfacesSettingsWritable, "可写", "Writable")
 	Register(KeySurfacesSettingsReadOnly, "只读", "Read-only")
@@ -150,6 +154,7 @@ func init() {
 	Register(KeySurfacesUsageStale, "正在显示上次结果，可能已过期。", "Showing the previous result; it may be stale.")
 	Register(KeySurfacesUsageError, "读取用量统计失败", "Could not read usage statistics")
 	Register(KeySurfacesUsageRetryHint, "。可稍后重试。", ". Try again later.")
+	Register(KeySurfacesUsageRefreshing, "正在更新…", "Updating…")
 
 	Register(KeySurfacesDiffUnified, "统一视图", "Unified")
 	Register(KeySurfacesDiffSplit, "分栏视图", "Split")
@@ -178,5 +183,6 @@ func init() {
 	Register(KeySurfacesTerminalCloseBody, "该终端里正在运行的进程会被结束。", "The process running in this terminal will be ended.")
 	Register(KeySurfacesTerminalConfirmClose, "确认关闭终端", "Confirm closing the terminal")
 	Register(KeySurfacesTerminalCancel, "取消", "Cancel")
+	Register(KeySurfacesTerminalShortcuts, "复制 Ctrl+Shift+C（macOS ⌘C） · 粘贴 Ctrl+Shift+V（macOS ⌘V） · Shift+PageUp/PageDown 翻看历史", "Copy Ctrl+Shift+C (⌘C on macOS) · Paste Ctrl+Shift+V (⌘V on macOS) · Shift+PageUp/PageDown scrolls history")
 	Register(KeySurfacesDiffFoldHunk, "折叠或展开此段", "Fold or unfold this hunk")
 }

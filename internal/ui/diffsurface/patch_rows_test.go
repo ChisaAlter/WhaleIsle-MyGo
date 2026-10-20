@@ -1,6 +1,7 @@
 package diffsurface
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -72,7 +73,12 @@ const singleFilePatch = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@
 
 func patchBodyTester(t *testing.T, workbench *Workbench) *ui.Tester {
 	t.Helper()
-	text := singleFilePatch
+	return patchTesterWith(t, workbench, singleFilePatch, 900, 420)
+}
+
+func patchTesterWith(t *testing.T, workbench *Workbench, patch string, width, height int) *ui.Tester {
+	t.Helper()
+	text := patch
 	m := Model{Workbench: workbench, Text: &text}
 	st := diff.Style{
 		FontSize: 12,
@@ -85,7 +91,7 @@ func patchBodyTester(t *testing.T, workbench *Workbench) *ui.Tester {
 	}
 	return ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { paintPatchFiles(c, m, text, st) })
-	}, 900, 420)
+	}, width, height)
 }
 
 // TestPatchBodyShowsLinesByDefault keeps a diff readable without a click: a
@@ -185,5 +191,27 @@ func TestWrappedSplitKeepsBothColumns(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("old one") || !tt.HasText("new one") {
 		t.Fatalf("unwrapped split view lost a column: %v", tt.Texts())
+	}
+}
+
+// TestLongLineKeepsItsNumberAndReachesTheEnd covers the horizontal case: a line
+// far wider than the pane paints whole inside the scroller (so its end is
+// reachable instead of ellipsized) and the pinned gutter still shows its number.
+// The two views agree about the text.
+func TestLongLineKeepsItsNumberAndReachesTheEnd(t *testing.T) {
+	long := strings.Repeat("0123456789", 30)
+	patch := "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-" + long + "\n+short\n"
+	workbench := &Workbench{}
+	tt := patchTesterWith(t, workbench, patch, 600, 300)
+	if !tt.HasText(long) {
+		t.Fatalf("long line was truncated instead of scrolling: %d chars", len(strings.Join(tt.Texts(), "")))
+	}
+	if !tt.HasText("1") {
+		t.Fatalf("pinned gutter lost the line number: %v", tt.Texts())
+	}
+	workbench.View.Wrap = true
+	tt.Frame()
+	if !tt.HasText(long) {
+		t.Fatal("wrapped view lost the long line")
 	}
 }

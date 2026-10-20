@@ -466,7 +466,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						// A button with its own background skips styleButton's hover
 						// (third_party/mygo/ui widgets.go), so the fill is chosen here.
 						if plus.Pressed() {
-							plus = plus.Background(selectorPressed)
+							plus = plus.Background(selectorPressed).Top(1)
 						} else if plus.Hovered() {
 							plus = plus.Background(selectorHover)
 						}
@@ -502,17 +502,27 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
+					// The pressed state sinks the disc one DIP and darkens its fill,
+					// the way the reference's :active composes. The metallic sheen is
+					// the framework's decorativeButtons path (chrome.CursorEffectConfig
+					// → ui.SetDecorativeEffects), so it is not painted twice here.
 					primaryFill := func(b ui.Element) ui.Element {
 						if b.IsDisabled() {
 							return b
 						}
 						if b.Pressed() {
-							return b.Background(infoPressed)
+							return b.Background(infoPressed).Top(-1)
 						}
 						if b.Hovered() {
 							return b.Background(infoHover)
 						}
 						return b
+					}
+					// Disabled discs keep the info fill; the glyph is nudged to the
+					// readable side so the 0.5 opacity frame still shows an arrow.
+					primaryInk := onAccent
+					if composerSendDisabled(m) {
+						primaryInk = chrome.EnsureContrast(onAccent, infoFill)
 					}
 					if primaryStops || running && child && m.OnStop != nil {
 						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).
@@ -527,10 +537,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 					}
 					if !primaryStops {
-						send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).Tooltip(i18n.T(i18n.KeyComposerSend)).
+						send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).
+							Tooltip(i18n.T(i18n.KeyComposerSend) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEnter)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
 							Background(infoFill).BorderWidth(0).Top(-2).
-							TextColor(onAccent)
+							TextColor(primaryInk)
 						if composerSendDisabled(m) {
 							send = send.Disabled(true)
 						}
@@ -573,6 +584,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			if !m.Inert && (fileDrag || referenceDrag) {
 				// PassThrough keeps the drop target and hover routing on the draft
 				// surface underneath, so the overlay is only a visual promise.
+				images, bytes := composerIntake(m.State)
 				overlay := ui.Box(c.Key("composer-drop-overlay")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
 					Radius(cardRadius).Background(chrome.Color(colors.BG).Alpha(0.92)).
 					Border(1, accent).Justify(ui.Center).AlignItems(ui.Center).PassThrough()
@@ -580,12 +592,26 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					ui.Column(c).Gap(4).AlignItems(ui.Center).Children(func() {
 						title := i18n.T(i18n.KeyComposerDropTitle)
 						detail := i18n.T(i18n.KeyComposerDropDetail)
+						limit := fmt.Sprintf(i18n.T(i18n.KeyComposerDropLimit),
+							composerMaxImages, composerFileSize(composerMaxImageBytes))
+						danger := ""
 						if referenceDrag {
 							title = i18n.T(i18n.KeyComposerSuggestAddReference)
 							detail = i18n.T(i18n.KeyComposerSuggestDropReference)
+							limit = ""
+						} else {
+							danger = composerDropWarning(images, bytes)
 						}
 						ui.Text(c, title).FontSize(13).FontWeight(500).TextColor(fg)
 						ui.Text(c, detail).FontSize(11).TextColor(muted)
+						if danger != "" {
+							// A refusal replaces the capacity line, in the rail's
+							// error ink so it reads as a warning.
+							ui.Text(c, danger).FontSize(11).
+								TextColor(chrome.EnsureContrast(attachmentErrorInk, chrome.Color(colors.BG)))
+						} else if limit != "" {
+							ui.Text(c, limit).FontSize(11).TextColor(muted)
+						}
 					})
 				})
 			}
@@ -988,6 +1014,10 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					}
 				}
 			})
+			// Keyboard hints for the overlay; the rows above stay Tab/Enter
+			// focusable and the editor keymap handles the arrow keys.
+			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(11).
+				TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
 			if !drilled && clicked >= 0 {
 				applySuggest(m, items[clicked], tok)
 				if m.State != nil {

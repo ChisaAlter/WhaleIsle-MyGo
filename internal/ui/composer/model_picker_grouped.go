@@ -181,7 +181,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 		if m.Snapshot.ModelSelectionBusy {
 			caption += " …"
 		}
-		trigger := chip(c, colors, state.Open, muted).Bind(triggerFocus).Label("Model catalog").Tooltip(caption).MaxWidth(260).Disabled(m.Inert)
+		trigger := chip(c, colors, state.Open, muted).Bind(triggerFocus).Label("Model catalog").Tooltip(caption + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
 		trigger.Children(func() {
 			if hasCurrentChoice {
 				ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)

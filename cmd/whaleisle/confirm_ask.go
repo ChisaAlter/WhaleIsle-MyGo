@@ -1,13 +1,21 @@
 package main
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/settings"
 )
 
+// confirmWaitTimeout bounds a background caller that blocks on an in-app
+// confirmation. A closed window or a replaced request must never park it
+// forever.
+const confirmWaitTimeout = 5 * time.Minute
+
 // confirmAskRequest is one shell-level confirmation rendered inside the
 // application chrome. Callers that would otherwise open an operating-system
-// message box queue one of these and continue the work from Run.
+// message box queue one of these and continue the work from Run, or block on
+// Result when they already run on a background goroutine.
 type confirmAskRequest struct {
 	Title        string
 	Body         string
@@ -16,6 +24,8 @@ type confirmAskRequest struct {
 	CancelLabel  string
 	Danger       bool
 	Run          func()
+	// Result, when non-nil, receives the answer instead of Run being called.
+	Result chan bool
 }
 
 // askConfirm queues a confirmation and repaints. Only the most recent request
@@ -27,6 +37,21 @@ func (s *mainState) askConfirm(req confirmAskRequest) {
 	s.mu.Unlock()
 	if win != nil {
 		win.Update(func() {})
+	}
+}
+
+// askConfirmBlocking queues a confirmation and waits for the answer. Call it
+// only from a goroutine, never from the UI thread: painting the dialog needs a
+// frame.
+func (s *mainState) askConfirmBlocking(req confirmAskRequest) bool {
+	answer := make(chan bool, 1)
+	req.Result = answer
+	s.askConfirm(req)
+	select {
+	case ok := <-answer:
+		return ok
+	case <-time.After(confirmWaitTimeout):
+		return false
 	}
 }
 
@@ -45,7 +70,12 @@ func (s *mainState) syncConfirmAsk(c *ui.Context) {
 		s.confirmAsk = nil
 		win := s.win
 		s.mu.Unlock()
-		if run && req.Run != nil {
+		if req.Result != nil {
+			select {
+			case req.Result <- run:
+			default:
+			}
+		} else if run && req.Run != nil {
 			req.Run()
 		}
 		if win != nil {

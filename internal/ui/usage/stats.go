@@ -89,6 +89,11 @@ func usageRangeToolbar(c *ui.Context, m Model, st usagestore.StatsView, fg, mute
 			m.Store.RefreshStats(context.Background(), true)
 		}
 		ui.Box(c).Grow(1)
+		// A range change keeps the old numbers on screen while the new window
+		// loads, so the toolbar says the dashboard is catching up.
+		if st.Loading && st.Overview != nil && st.Overview.UpdatedAt > 0 {
+			ui.Text(c, i18n.T(i18n.KeySurfacesUsageRefreshing)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		}
 		if st.Overview.UpdatedAt > 0 {
 			stamp := time.UnixMilli(st.Overview.UpdatedAt).UTC().Format("2006-01-02 15:04 UTC")
 			ui.Text(c, i18n.T(i18n.KeySurfacesUsageUpdated)+" "+stamp).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)

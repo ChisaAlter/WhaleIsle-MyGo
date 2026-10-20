@@ -725,10 +725,13 @@ func (p *Painter) scrollbars(e *node) {
 		}
 	}
 	dragging := rt.scrollDrag.st == st
-	if !hovered && !dragging {
+	if !hovered && !dragging && !theme.ScrollbarAlways {
 		return
 	}
 	color := theme.Scrollbar
+	if (hovered || dragging) && theme.ScrollbarHover.A > 0 {
+		color = theme.ScrollbarHover
+	}
 	w, h := e.contentW, e.contentH
 	x, y := st.scrollX, st.scrollY
 	if dragging {

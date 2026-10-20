@@ -19,9 +19,25 @@ import (
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
+
+// attachmentErrorInk marks a failed attachment. theme.Colors carries no danger
+// token yet, so the shell's error red is kept here for the composer's rail.
+var attachmentErrorInk = ui.RGB(213, 73, 65)
+
+// firstError prefers the staging error and falls back to the preview's.
+func firstError(prepare string, v *attachmentDisplay) string {
+	if prepare != "" {
+		return prepare
+	}
+	if v != nil && v.err != nil {
+		return v.err.Error()
+	}
+	return ""
+}
 
 type attachmentDisplay struct {
 	svg       *svgimage.Seat
@@ -252,7 +268,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 								v.animate(c)
 								ui.Image(c, v.bitmap).Fill().Fit(ui.Cover)
 							} else {
-								ui.Text(c, composerText("图片", "Image")).FontSize(12).TextColor(muted)
+								ui.Text(c, i18n.T(i18n.KeyComposerAttachmentImage)).FontSize(12).TextColor(muted)
 							}
 						})
 						if v != nil && v.err != nil {
@@ -272,13 +288,13 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 						}
 						body.Children(func() {
 							ui.Text(c, label).FontSize(14).FixedLineHeight(22).TextColor(fg).MaxLines(1)
-							meta := composerText("待上传", "Pending upload")
+							meta := i18n.T(i18n.KeyComposerAttachmentPending)
 							if d.AttachmentPreparing(i) {
-								meta = composerText("上传中", "Uploading")
+								meta = i18n.T(i18n.KeyComposerAttachmentUploading)
 							} else if a.PrepareError != "" {
-								meta = composerText("上传失败，点击重试", "Upload failed, retry")
+								meta = i18n.T(i18n.KeyComposerAttachmentFailed)
 							} else if v != nil && v.err != nil {
-								meta = composerText("文件不可用", "File unavailable")
+								meta = i18n.T(i18n.KeyComposerAttachmentUnavailable)
 								body.Tooltip(v.err.Error())
 							} else if v != nil && a.Upload.ReceiptId != "" {
 								meta = fmt.Sprintf("%s · %d bytes", strings.ToUpper(strings.TrimPrefix(filepath.Ext(label), ".")), v.bytes)
@@ -286,18 +302,28 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							ui.Text(c, meta).FontSize(12).FixedLineHeight(15).TextColor(muted).MaxLines(1)
 						})
 					}
-					if a.PrepareError != "" {
-						card.Tooltip(a.PrepareError).Border(.5, ui.RGB(213, 73, 65))
-						if imageFile && m.OnRetryAttachment != nil && ui.Button(c, "↻").Label("Retry upload: "+label).Tooltip(a.PrepareError).Absolute().Bottom(4).Left(4).Width(18).Height(18).Padding(0).Disabled(d.Sending || d.AttachmentPreparing(i)).Clicked() {
+					// Contrast-fill discs sit on top of an unpredictable preview, so
+					// both the retry and remove buttons use the same dark seat and a
+					// glyph colour checked against it.
+					discFill := ui.RGB(0, 0, 0).Alpha(0.55)
+					discInk := chrome.EnsureContrast(ui.RGB(255, 255, 255), ui.RGB(0, 0, 0))
+					failed := a.PrepareError != "" || v != nil && v.err != nil
+					if failed {
+						// The theme exposes no danger token yet; this is the shell's
+						// error ink, kept in one place.
+						card.Tooltip(firstError(a.PrepareError, v)).Border(.5, attachmentErrorInk)
+						if imageFile && m.OnRetryAttachment != nil && !d.Sending && !d.AttachmentPreparing(i) &&
+							ui.Button(c, "↻").Label("Retry upload: "+label).
+								Tooltip(firstError(a.PrepareError, v)).
+								Absolute().Bottom(4).Left(4).Width(18).Height(18).Padding(0).Radius(9).BorderWidth(0).
+								Background(discFill).TextColor(discInk).FontSize(12).Clicked() {
 							m.OnRetryAttachment(i)
 						}
 					}
-					// Contrast-fill disc, as the reference's remove button: a dark
-					// translucent seat with white ink reads on any preview.
 					close := ui.Button(c, "×").Absolute().Top(4).Right(4).Width(18).Height(18).Padding(0).Radius(9).
-						BorderWidth(0).Background(ui.RGB(0, 0, 0).Alpha(0.55)).TextColor(ui.RGB(255, 255, 255)).FontSize(12).
+						BorderWidth(0).Background(discFill).TextColor(discInk).FontSize(12).
 						Label("Remove attachment " + label).Disabled(d.Sending)
-					if !card.Hovered() && !card.FocusWithin() && a.PrepareError == "" {
+					if !card.Hovered() && !card.FocusWithin() && a.PrepareError == "" && !failed {
 						close.Opacity(0)
 					}
 					remove = close.Clicked()

@@ -208,6 +208,8 @@ func View(c *ui.Context, m Model) {
 		if m.OnRestart != nil && menu.Item(i18n.T(i18n.KeyTerminalRestart)).Chosen() {
 			m.OnRestart()
 		}
+		menu.Separator()
+		menu.Item(i18n.T(i18n.KeySurfacesTerminalShortcuts)).Disabled(true)
 	})
 	root.Children(func() {
 		if note := strings.TrimSpace(m.ShellsNote); note != "" {

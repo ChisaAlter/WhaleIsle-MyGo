@@ -41,9 +41,14 @@ type Theme struct {
 	Inverse     Color
 	InverseText Color
 	// Scrollbar colors scroll bar thumbs, ScrollbarWidth DIPs wide (6 by
-	// default; 0 is 6).
+	// default; 0 is 6). ScrollbarHover colors them while the pointer is over
+	// the container or a drag is moving them; its zero value keeps Scrollbar.
 	Scrollbar      Color
-	ScrollbarWidth float32
+	ScrollbarHover Color
+	// ScrollbarAlways keeps scroll bar thumbs painted while the pointer is
+	// elsewhere; the zero value paints them on hover and drag only.
+	ScrollbarAlways bool
+	ScrollbarWidth  float32
 	// Radius rounds the corners of controls.
 	Radius float32
 	// Spacing is the unit of the room widgets leave inside and between
@@ -122,6 +127,7 @@ func LightTheme() *Theme {
 		Selection:      RGBA(37, 99, 235, 0.25),
 		Focus:          RGBA(37, 99, 235, 0.55),
 		Scrollbar:      RGBA(0, 0, 0, 0.32),
+		ScrollbarHover: RGBA(0, 0, 0, 0.5),
 		Radius:         6,
 		Spacing:        4,
 		FontSize:       defaultFontSize(),
@@ -149,6 +155,7 @@ func DarkTheme() *Theme {
 		Selection:      RGBA(59, 130, 246, 0.4),
 		Focus:          RGBA(96, 165, 250, 0.6),
 		Scrollbar:      RGBA(255, 255, 255, 0.35),
+		ScrollbarHover: RGBA(255, 255, 255, 0.55),
 		Radius:         6,
 		Spacing:        4,
 		FontSize:       defaultFontSize(),

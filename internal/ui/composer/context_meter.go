@@ -34,7 +34,7 @@ func paintContextMeter(c *ui.Context, snapshot session.ViewState, colors theme.C
 	}
 	reading := fmt.Sprintf("%d%%", value.Percent)
 	trigger := ui.Button(c, "").Label("Context occupancy").
-		Tooltip(fmt.Sprintf(i18n.T(i18n.KeyComposerContextUsed), reading)).
+		Tooltip(fmt.Sprintf(i18n.T(i18n.KeyComposerContextUsed), reading) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).
 		Height(height).Padding(0, 8).Gap(6).Radius(8).AlignItems(ui.Center).
 		Background(ui.Transparent).TextColor(muted)
 	if trigger.Hovered() || state.Open {

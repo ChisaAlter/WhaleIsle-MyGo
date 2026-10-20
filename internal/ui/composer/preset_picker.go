@@ -64,7 +64,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 	if opt.MaxWidth > 0 {
 		trigger = trigger.MaxWidth(opt.MaxWidth)
 	}
-	trigger = trigger.Label(display).Tooltip(display)
+	trigger = trigger.Label(display).Tooltip(display + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc))
 	trigger.Bind(&nav.Anchor)
 	trigger.Children(func() {
 		if opt.Icon != nil {
@@ -148,6 +148,8 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 					}
 				}
 			})
+			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(11).
+				TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
 		})
 		// The current row takes the focus once as the popup opens, so the arrows
 		// and Enter work at once, the way a native select does. Later frames

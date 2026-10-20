@@ -67,7 +67,7 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 	case m.Snapshot.SelectedModel != "":
 		label = m.Snapshot.SelectedModel
 	}
-	trigger := chip(c, colors, *open, muted).Label(label).Tooltip(label).MaxWidth(260).Disabled(m.Inert)
+	trigger := chip(c, colors, *open, muted).Label(label).Tooltip(label + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
 	trigger.Children(func() {
 		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(muted)
 		chevron(c, *open)

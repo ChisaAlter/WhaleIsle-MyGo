@@ -81,10 +81,10 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		removeData := false
 		if err == nil && (plan != nil || removal != nil) {
 			var approved bool
-			approved, err = confirmBridgeManagement(win, action, plan, removal)
+			approved, err = s.confirmBridgeManagement(action, plan, removal)
 			cancelled = err == nil && !approved
 			if err == nil && approved && removal != nil {
-				removeData, err = confirmBridgeDataRemoval(win, removal)
+				removeData, err = s.confirmBridgeDataRemoval(removal)
 			}
 		}
 		if err == nil && !cancelled && !scopeValid() {
@@ -149,8 +149,11 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 	}()
 }
 
-func confirmBridgeManagement(win *mygo.Window, action string, plan *desktopcomponents.BridgeChange, removal *desktopcomponents.BridgeUninstall) (bool, error) {
-	if win == nil {
+func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponents.BridgeChange, removal *desktopcomponents.BridgeUninstall) (bool, error) {
+	s.mu.Lock()
+	hasWindow := s.win != nil
+	s.mu.Unlock()
+	if !hasWindow {
 		return false, fmt.Errorf("无法显示组件操作确认；未更改组件")
 	}
 	title, button, message := "", "", ""
@@ -170,19 +173,25 @@ func confirmBridgeManagement(win *mygo.Window, action string, plan *desktopcompo
 	} else {
 		return false, desktopcomponents.ErrUnknownAction
 	}
-	answer, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: title, Message: message, Buttons: []string{resumeText("取消", "Cancel"), button}, DefaultButton: 0, CancelButton: 0})
-	return err == nil && answer.Button == 1, err
+	approved := s.askConfirmBlocking(confirmAskRequest{
+		Title:        title,
+		Body:         message,
+		ConfirmLabel: button,
+		CancelLabel:  resumeText("取消", "Cancel"),
+		Danger:       true,
+	})
+	return approved, nil
 }
 
 // The original launcher asks about configuration separately after approving
 // uninstall. Closing this choice or selecting the default keeps all data.
-func confirmBridgeDataRemoval(win *mygo.Window, removal *desktopcomponents.BridgeUninstall) (bool, error) {
-	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent: win, Type: mygo.MessageWarning,
-		Title:         resumeText("是否同时删除鲸桥配置？", "Also delete WhaleBridge configuration?"),
-		Message:       fmt.Sprintf(resumeText("目标：%s\n\n删除会永久清除该目录内鲸桥的供应商配置和密钥、账户及用量数据，无法在应用内恢复。保留后重新安装可继续使用。聊天记录和其他渠道不会删除。", "Target: %s\n\nDeletion permanently removes WhaleBridge provider settings and keys, accounts and usage in this directory. It cannot be undone in the app. Keeping it lets you reuse it after reinstalling. Chats and other channels are not deleted."), removal.DataDirectory()),
-		Buttons:       []string{resumeText("保留配置", "Keep configuration"), resumeText("删除配置", "Delete configuration")},
-		DefaultButton: 0, CancelButton: 0,
+func (s *mainState) confirmBridgeDataRemoval(removal *desktopcomponents.BridgeUninstall) (bool, error) {
+	approved := s.askConfirmBlocking(confirmAskRequest{
+		Title:        resumeText("是否同时删除鲸桥配置？", "Also delete WhaleBridge configuration?"),
+		Body:         fmt.Sprintf(resumeText("目标：%s\n\n删除会永久清除该目录内鲸桥的供应商配置和密钥、账户及用量数据，无法在应用内恢复。保留后重新安装可继续使用。聊天记录和其他渠道不会删除。", "Target: %s\n\nDeletion permanently removes WhaleBridge provider settings and keys, accounts and usage in this directory. It cannot be undone in the app. Keeping it lets you reuse it after reinstalling. Chats and other channels are not deleted."), removal.DataDirectory()),
+		ConfirmLabel: resumeText("删除配置", "Delete configuration"),
+		CancelLabel:  resumeText("保留配置", "Keep configuration"),
+		Danger:       true,
 	})
-	return err == nil && answer.Button == 1, err
+	return approved, nil
 }

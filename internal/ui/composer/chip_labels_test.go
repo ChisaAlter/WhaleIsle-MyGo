@@ -13,8 +13,8 @@ func permissionModelFixture() Model {
 	permission := "workspace-write"
 	d := NewDraftState("")
 	return Model{State: d, Draft: &d.Text, TextInput: d.Client, UseTextInputClient: true,
-		SuggestList:     &ui.ListState{Selected: new(int)},
-		PermissionPick:  &permission,
+		SuggestList:    &ui.ListState{Selected: new(int)},
+		PermissionPick: &permission,
 		PermissionOptions: []session.PermissionOption{
 			{Label: "read-only", Value: "read-only"},
 			{Label: "workspace-write", Value: "workspace-write"},

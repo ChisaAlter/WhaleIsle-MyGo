@@ -116,6 +116,7 @@ func generalNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted u
 // advancedNavigation is the namespace browser: the backed desktop and credential
 // pages, the live filter, the namespace chooser and a describe refresh.
 func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
+	ui.Text(c, i18n.T(i18n.KeySurfacesSettingsDevHint)).FillWidth().FontSize(11).FixedLineHeight(16).TextColor(muted)
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if m.Desktop != nil && m.OnSelectDesktop != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopNav)).Clicked() {
 			m.OnSelectDesktop()

@@ -19,7 +19,7 @@ func TestAppearanceFrameMapsNativeInteractiveTokens(t *testing.T) {
 			colors := theme.Resolve(id).Active(id == theme.IDDeepseekDark)
 			var native ui.Theme
 			ui.NewTester(func(c *ui.Context) {
-				applyAppearanceTheme(c, custom, colors)
+				applyAppearanceTheme(c, custom, colors, false)
 				native = *c.Theme()
 			}, 100, 100)
 			if native.SurfacePressed != chrome.Color(colors.Pressed) || native.AccentHover != chrome.Color(colors.ButtonInfoHover) || native.AccentPressed != native.AccentHover {

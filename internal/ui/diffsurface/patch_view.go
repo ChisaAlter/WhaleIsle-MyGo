@@ -98,16 +98,22 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 			}
 			render := func() {
 				fold := hunkFold{collapsed: view.foldedHunks(f.Path), onToggle: func(index int) { view.toggleHunk(f.Path, index) }}
-				if !view.Split {
-					paintUnifiedRows(c, f.Rows, st, view.Wrap, fold)
-					return
-				}
+				paintUnifiedRows(c, f.Rows, st, view.Wrap, fold)
+			}
+			renderSplit := func() {
+				fold := hunkFold{collapsed: view.foldedHunks(f.Path), onToggle: func(index int) { view.toggleHunk(f.Path, index) }}
 				paintSplitRows(c, f.Rows, st, view.Wrap, fold)
 			}
-			if view.Wrap {
-				render()
+			if view.Split {
+				// The two-column view scrolls as one block so both sides stay in
+				// step; the unified view owns its scroller to keep the gutter put.
+				if view.Wrap {
+					renderSplit()
+				} else {
+					ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(renderSplit)
+				}
 			} else {
-				ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(render)
+				render()
 			}
 		})
 	}

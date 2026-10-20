@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
+
 	"whaleisle/internal/store/session"
 )
 
@@ -32,6 +34,8 @@ type DraftState struct {
 	EditSessionID      string
 	EditReturnSeq      float64
 	EditFocus          bool
+	VoiceStarted       time.Time // recording clock, reset when the phase leaves recording
+	VoiceTick          time.Time // last tick that scheduled a clock repaint
 	stashedText        string
 	stashedAttachments []session.ComposerAttachment
 }

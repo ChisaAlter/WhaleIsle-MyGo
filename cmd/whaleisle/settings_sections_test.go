@@ -42,7 +42,7 @@ func TestSettingsEmbeddedPagesStayInModalAcrossWidths(t *testing.T) {
 				open := true
 				general := 0
 				tt := ui.NewTester(func(c *ui.Context) {
-					applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light)
+					applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light, false)
 					ui.Text(c, "Preserved conversation")
 					if !open {
 						return
@@ -104,7 +104,7 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 	selectedGeneral := 0
 	locale := "en"
 	tt := ui.NewTester(func(c *ui.Context) {
-		applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light)
+		applyAppearanceTheme(c, theme.Defaults(), theme.Resolve(theme.IDDeepseekLight).Light, false)
 		ui.Text(c, "Preserved workspace")
 		if !open {
 			return

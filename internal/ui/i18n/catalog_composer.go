@@ -50,26 +50,50 @@ const (
 	KeyComposerSuggestDropReference    = "composer.suggest.drop_reference"
 	KeyComposerSuggestSkillsEmpty      = "composer.suggest.skills_empty"
 	KeyComposerModelTooltipUnavailable = "composer.model.tooltip_unavailable"
-	KeyComposerModelMenuModel           = "composer.model.menu_model"
-	KeyComposerModelMenuEffort          = "composer.model.menu_effort"
-	KeyComposerModelBack                = "composer.model.back"
-	KeyComposerModelSearch              = "composer.model.search"
-	KeyComposerModelNoMatch             = "composer.model.no_match"
-	KeyComposerModelEmpty               = "composer.model.empty"
-	KeyComposerCommands                 = "composer.commands"
-	KeyComposerVoiceInput               = "composer.voice_input"
-	KeyComposerSlashCommandMenuTitle    = "composer.slash_menu.title"
-	KeyComposerMentionMenuTitle         = "composer.mention_menu.title"
-	KeyComposerEditNotice               = "composer.edit_notice"
-	KeyComposerUnsentDraft              = "composer.unsent_draft"
-	KeyComposerUnsentRestore            = "composer.unsent_restore"
-	KeyComposerReplyThread              = "composer.reply_thread"
-	KeyComposerReplyCancel              = "composer.reply_cancel"
-	KeyComposerRetryUpload              = "composer.retry_upload"
-	KeyComposerRemoveAttachment         = "composer.remove_attachment"
-	KeyComposerRemoveReference          = "composer.remove_reference"
-	KeyComposerDropTitle                = "composer.drop.title"
-	KeyComposerDropDetail               = "composer.drop.detail"
+	KeyComposerModelMenuModel          = "composer.model.menu_model"
+	KeyComposerModelMenuEffort         = "composer.model.menu_effort"
+	KeyComposerModelBack               = "composer.model.back"
+	KeyComposerModelSearch             = "composer.model.search"
+	KeyComposerModelNoMatch            = "composer.model.no_match"
+	KeyComposerModelEmpty              = "composer.model.empty"
+	KeyComposerCommands                = "composer.commands"
+	KeyComposerVoiceInput              = "composer.voice_input"
+	KeyComposerSlashCommandMenuTitle   = "composer.slash_menu.title"
+	KeyComposerMentionMenuTitle        = "composer.mention_menu.title"
+	KeyComposerEditNotice              = "composer.edit_notice"
+	KeyComposerUnsentDraft             = "composer.unsent_draft"
+	KeyComposerUnsentRestore           = "composer.unsent_restore"
+	KeyComposerReplyThread             = "composer.reply_thread"
+	KeyComposerReplyCancel             = "composer.reply_cancel"
+	KeyComposerRetryUpload             = "composer.retry_upload"
+	KeyComposerRemoveAttachment        = "composer.remove_attachment"
+	KeyComposerRemoveReference         = "composer.remove_reference"
+	KeyComposerDropTitle               = "composer.drop.title"
+	KeyComposerDropDetail              = "composer.drop.detail"
+	KeyComposerShortcutEnter           = "composer.shortcut.enter"
+	KeyComposerShortcutEsc             = "composer.shortcut.esc"
+	KeyComposerMenuFooter              = "composer.menu.footer"
+	KeyComposerDropLimit               = "composer.drop.limit"
+	KeyComposerDropFull                = "composer.drop.full"
+	KeyComposerDropTooLarge            = "composer.drop.too_large"
+	KeyComposerVoiceRecording          = "composer.voice.recording"
+	KeyComposerVoiceSettings           = "composer.voice.settings"
+	KeyComposerAttachmentPending       = "composer.attachment.pending"
+	KeyComposerAttachmentUploading     = "composer.attachment.uploading"
+	KeyComposerAttachmentFailed        = "composer.attachment.failed"
+	KeyComposerAttachmentUnavailable   = "composer.attachment.unavailable"
+	KeyComposerAttachmentImage         = "composer.attachment.image"
+
+	KeyComposerVoiceStop            = "composer.voice.stop"
+	KeyComposerVoiceInsert          = "composer.voice.insert"
+	KeyComposerVoiceRetry           = "composer.voice.retry"
+	KeyComposerVoiceCancel          = "composer.voice.cancel"
+	KeyComposerVoiceDetails         = "composer.voice.details"
+	KeyComposerVoiceLater           = "composer.voice.later"
+	KeyComposerVoiceUnavailable     = "composer.voice.unavailable_title"
+	KeyComposerVoiceUnavailableBody = "composer.voice.unavailable_body"
+	KeyComposerVoicePrepare         = "composer.voice.prepare_title"
+	KeyComposerVoicePrepareBody     = "composer.voice.prepare_body"
 )
 
 func init() {
@@ -135,8 +159,32 @@ func init() {
 	Register(KeyComposerReplyThread, "回复线程：%s", "Reply to thread: %s")
 	Register(KeyComposerReplyCancel, "取消回复", "Cancel reply")
 	Register(KeyComposerRetryUpload, "重试上传", "Retry upload")
-	Register(KeyComposerRemoveAttachment, "移除附件 %s", "Remove attachment %s")
+	Register(KeyComposerRemoveAttachment, "移除附件", "Remove attachment")
 	Register(KeyComposerRemoveReference, "移除引用", "Remove reference")
 	Register(KeyComposerDropTitle, "文件或图片拖动到此处即可添加", "Drop files or images here")
 	Register(KeyComposerDropDetail, "松手即加入输入区，随消息一起发送", "Release to add them to the message")
+	Register(KeyComposerShortcutEnter, "Enter", "Enter")
+	Register(KeyComposerShortcutEsc, "Esc", "Esc")
+	Register(KeyComposerMenuFooter, "↑↓ 选择 · Tab 钻入 · Enter 确认 · Esc 关闭", "↑↓ select · Tab drill in · Enter confirm · Esc close")
+	Register(KeyComposerDropLimit, "最多 %d 张，每张 ≤ %s", "Up to %d images, %s each")
+	Register(KeyComposerDropFull, "已达 %d 张上限，超出的图片会被忽略", "The %d image limit is reached; extra images are ignored")
+	Register(KeyComposerDropTooLarge, "附件总大小超过 %s，请先移除部分附件", "Attachments exceed %s; remove some first")
+	Register(KeyComposerVoiceRecording, "录制中", "Recording")
+	Register(KeyComposerVoiceSettings, "语音设置", "Voice settings")
+	Register(KeyComposerAttachmentPending, "待上传", "Pending upload")
+	Register(KeyComposerAttachmentUploading, "上传中", "Uploading")
+	Register(KeyComposerAttachmentFailed, "上传失败，点击重试", "Upload failed, retry")
+	Register(KeyComposerAttachmentUnavailable, "文件不可用", "File unavailable")
+	Register(KeyComposerAttachmentImage, "图片", "Image")
+	Register(KeyComposerVoiceStop, "停止并转写", "Stop recording")
+	Register(KeyComposerVoiceInsert, "插入转写", "Insert transcript")
+	Register(KeyComposerVoiceRetry, "重试录音", "Retry recording")
+	Register(KeyComposerVoiceCancel, "取消录音", "Discard recording")
+	Register(KeyComposerVoiceDetails, "打开插件详情", "Open plugin details")
+	Register(KeyComposerVoiceLater, "稍后", "Later")
+	Register(KeyComposerVoiceUnavailable, "语音识别暂不可用", "Speech recognition unavailable")
+	Register(KeyComposerVoiceUnavailableBody, "请在语音输入插件详情中查看识别服务状态和设置。", "Check recognition status and settings in the Voice Input plugin details.")
+	Register(KeyComposerVoicePrepare, "准备语音输入", "Set up voice input")
+	Register(KeyComposerVoicePrepareBody, "所选本地识别服务首次使用前需要准备模型。请打开插件详情开始准备。", "The selected local recognizer needs its models prepared before first use. Open plugin details to prepare it.")
+
 }
