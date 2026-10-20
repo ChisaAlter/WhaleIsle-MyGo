@@ -199,6 +199,7 @@ const (
 	KeyChatScheduleDeleted    = "chat.schedule.deleted"
 	KeyChatScheduleDetails    = "chat.schedule.details"
 	KeyChatImageLoading       = "chat.image.loading"
+	KeyChatImageMissing       = "chat.image.missing"
 	KeyChatFeedbackEdit       = "chat.feedback.edit"
 	KeyChatTrajDisplayLimited = "chat.traj.display_limited"
 	KeyChatTrajDepthLimit     = "chat.traj.depth_limit"
@@ -280,6 +281,7 @@ const (
 	// Interaction cards.
 	KeyChatApprovalWaiting = "chat.approval.waiting"
 	KeyChatQuestionWaiting = "chat.question.waiting"
+	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
 
 	// Attachment cards.
 	KeyChatAttachmentFile = "chat.attachment.file"
@@ -493,6 +495,7 @@ func init() {
 	Register(KeyChatScheduleDeleted, "任务已删除", "Task deleted")
 	Register(KeyChatScheduleDetails, "任务详情", "Task details")
 	Register(KeyChatImageLoading, "加载图片", "Loading image")
+	Register(KeyChatImageMissing, "图片不存在或无法读取", "Image not found or unreadable")
 	Register(KeyChatFeedbackEdit, "编辑反馈", "Edit feedback")
 	Register(KeyChatTrajDisplayLimited, "展示已限量；复制保留完整内容", "Display limited; copy retains full content")
 	Register(KeyChatTrajDepthLimit, "深度限制；复制包含子树", "Depth limit; copy includes subtree")
@@ -567,6 +570,7 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatQueueEmptyPreview, "（无预览）", "(no preview)")
 	Register(KeyChatApprovalWaiting, "等待你的确认", "Waiting for your approval")
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
+	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
 	Register(KeyChatAttachmentFile, "文件", "File")
 
 	// Shared row actions.

@@ -57,23 +57,21 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 			msg += "\n" + res.ReleaseURL
 		}
 	}
-	buttons := []string{"OK"}
-	if err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != "" {
-		buttons = []string{i18n.T(i18n.KeyUpdateDownload), "OK"}
+	download := err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != ""
+	confirmLabel := resumeText("好", "OK")
+	if download {
+		confirmLabel = i18n.T(i18n.KeyUpdateDownload)
 	}
-	choice, dialogErr := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent:       win,
-		Type:         mygo.MessageInfo,
+	approved := s.askConfirmBlocking(confirmAskRequest{
 		Title:        i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
-		Message:      msg,
-		Buttons:      buttons,
-		CancelButton: len(buttons) - 1,
-		BeforeShow:   canPresent,
+		Body:         msg,
+		ConfirmLabel: confirmLabel,
+		CancelLabel:  resumeText("关闭", "Close"),
 	})
-	if dialogErr != nil || !canPresent() {
+	if !canPresent() {
 		return
 	}
-	if choice.Button == 0 && len(buttons) == 2 && res.ReleaseURL != "" {
+	if approved && download {
 		requireSig := strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "1") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "true")
 		expectPub := strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_PUBLISHER"))

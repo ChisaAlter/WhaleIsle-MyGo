@@ -162,6 +162,7 @@ func paintToolRow(c *ui.Context, kind ToolKind, title, summary string, status ro
 			Icon:       toolKindIcon(kind),
 			Title:      title,
 			Summary:    summary,
+			KeepSummary: true,
 			Status:     status,
 			Running:    status == statusRunning,
 			Open:       open,

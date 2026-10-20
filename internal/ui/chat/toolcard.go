@@ -161,15 +161,21 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 			}
 		}
 		// One copy seat keeps the whole call (arguments + output) reachable, as
-		// the Original detail cards expose their own clipboard action.
+		// the Original detail cards expose their own clipboard action. It is a
+		// quiet trailing action, not a full-width bar.
 		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" {
-			if ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).Clicked() {
-				if opts.TextOnly {
-					c.Services().WriteClipboard(payload)
-				} else {
-					c.WriteClipboard(payload)
+			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
+				copySeat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).
+					Height(22).Padding(0, 8, 0, 8).Radius(6).Border(0.5, st.Border).
+					Background(ui.Transparent).TextColor(st.Muted)
+				if copySeat.Clicked() {
+					if opts.TextOnly {
+						c.Services().WriteClipboard(payload)
+					} else {
+						c.WriteClipboard(payload)
+					}
 				}
-			}
+			})
 		}
 	}
 	paintToolRow(c, kind, toolKindTitle(kind), summary, toolRowStatus(info.Status), st, key, opts.Expanded, body)

@@ -152,11 +152,17 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		} else {
 			approvalReason(c, p, muted)
 			if command := approvalCommand(p.Args); command != "" {
-				commandBlock(c, t, command)
-			} else if p.CallID != "" {
+				// The command seat already carries the exact string, so the raw
+				// payload is not repeated as a second open block; the copy action
+				// under the command still yields it.
+				commandBlock(c, t, command, func(text string) { c.WriteClipboard(text) })
+			}
+			if p.CallID != "" {
 				ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
-			approvalArguments(c, p, store, keys, fg, muted, accent)
+			if approvalCommand(p.Args) == "" {
+				approvalArguments(c, p, store, keys, fg, muted, accent)
+			}
 		}
 		if p.Error != "" {
 			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)

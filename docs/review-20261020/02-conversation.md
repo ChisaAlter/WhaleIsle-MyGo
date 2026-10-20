@@ -86,6 +86,7 @@
 ## 三、待验证项
 
 1. **需要一张“有消息”的原生截图**。证据截图是空会话，消息气泡/正文/工具卡的最终像素无法核对。建议用测试快照（`internal/ui/chat/software_snapshot_test.go:70` 已能生成 `chat-composer-<width>-dark-<bool>-attachments-<bool>` 的软件快照）或新截一张 3090 的多轮会话图，再校验本文 P0-1/P0-2 的实际观感。
+   - **2026-10-20 更新**：已补一组组件级软件渲染画廊 `evidence/after/transcript-*.png`（附件卡/坏图失败态/多图瓦片、助手 Markdown 块阶梯与代码卡、展开 bash + 折叠 read 工具行、审批卡、提问卡、队列 dock、回合轨），说明见 `evidence/after/transcript-README.md`。它们仍是 `ui.NewTester` 软件渲染（非实机窗口），"有消息的真实窗口截图"这一项**仍未闭环**。
 2. **`ui.List` 的行高与虚拟化能力**：原生消息列表用 `ui.List(c, list, len(msgs))` + `FollowEnd`（`chat.go:145-152`）；原版是 `use-chat-viewport` 自研虚拟化 + `use-scroll-follow` 锚定（`ui-chat/src/client/chat/use-chat-viewport.ts`、`use-scroll-follow.ts`）。没查到“长列表（>500 行）滚动是否掉帧、插入历史时是否跳动”的直接证据，待实测。
 3. **轨迹 tab 的细节**（`version-drift` 风险）：原版 rc.2 的 `TrajectoryTable.tsx` 有 3500+ 行、含工具栏视图切换/搜索索引/分组与虚拟占位；原生只有工具栏（时长/回合/调用折叠 + 160px 搜索框）、概览条、台账 + 检查器（`trajectory.go:115-320`）。逐项对照（列宽拖拽、搜索结果高亮计数、行分组、请求头 tab）需要再用运行版截图核实。
 4. **`version-drift` 候选**：本文引用的 `RunningStatus`（深度思考计时）、`TurnNavigator`（回合轨）、`StatsPills`/`TurnUsageDisclosure`（用量胶囊）在 alpha.1 源码中均存在，但运行版为 rc.2，其文案/尺寸可能已改；排期前应到 `C:\软件\Whale Isle\resources\vendor\deepseek-harness\packages\client\ui-chat\lib\client.js` 抽查一次字符串与 token。

@@ -80,6 +80,8 @@ type disclosureRow struct {
 	TitleColor ui.Color
 	Summary    string
 	Trailing   string
+	// KeepSummary keeps the line readable while open, as tool rows do.
+	KeepSummary bool
 	Status     rowStatus
 	Open       bool
 	Expandable bool
@@ -100,6 +102,7 @@ func paintDisclosureRow(c *ui.Context, d disclosureRow, st disclosureStyle) {
 		Size:         st.size(),
 		Color:        titleColor,
 		SummaryColor: summaryColor,
+		KeepSummaryWhenOpen: d.KeepSummary,
 		Running:      d.Running,
 		OnToggle:     func(bool) { d.OnToggle() },
 	}

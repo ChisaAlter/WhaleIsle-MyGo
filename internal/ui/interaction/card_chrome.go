@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -105,13 +106,23 @@ func approvalCommand(args string) string {
 }
 
 // commandBlock paints the monospace command seat: the exact command, scrollable
-// when long, never reflowed into prose.
-func commandBlock(c *ui.Context, t *ui.Theme, command string) {
+// when long, never reflowed into prose, with a quiet copy action beneath it.
+func commandBlock(c *ui.Context, t *ui.Theme, command string, onCopy func(string)) {
 	font := theme.RenderPreferences().Code.Family
-	ui.Column(c).FillWidth().MinWidth(0).Radius(10).Background(t.Surface).Padding(8, 10, 8, 10).
+	ui.Column(c).FillWidth().MinWidth(0).Radius(10).Background(t.Surface).Padding(8, 10, 8, 10).Gap(4).
 		Children(func() {
 			ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(140).Children(func() {
 				ui.Text(c, command).FontSize(11).FixedLineHeight(17).Font(font).TextColor(t.Text).MinWidth(0)
+			})
+			if onCopy == nil {
+				return
+			}
+			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
+				seat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Height(20).Padding(0, 8, 0, 8).Radius(6).
+					Border(0.5, t.Border).Background(ui.Transparent).TextColor(t.TextMuted)
+				if seat.Clicked() {
+					onCopy(command)
+				}
 			})
 		})
 }

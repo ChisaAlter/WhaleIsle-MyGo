@@ -47,8 +47,8 @@ func TestTurnRailTicksAndNarrowFallback(t *testing.T) {
 	if !ok {
 		t.Fatalf("rail tick missing: %q", tt.Texts())
 	}
-	if tick.W != turnRailTickWidth {
-		t.Fatalf("tick width %v, want the 14 DIP seat", tick.W)
+	if tick.W != turnRailWidth {
+		t.Fatalf("tick seat width %v, want the %v DIP rail column", tick.W, turnRailWidth)
 	}
 	if err := tt.Click(i18n.T(i18n.KeyChatTurnRailJump) + " 2"); err != nil {
 		t.Fatal(err)

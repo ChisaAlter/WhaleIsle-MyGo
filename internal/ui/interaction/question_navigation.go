@@ -21,7 +21,9 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 	focused := false
 	frame.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
-			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
+			// The pager below owns the progress readout; the header keeps only the
+			// minimize/review affordances.
+			ui.Box(c).Grow(1).MinWidth(0)
 			label := i18n.T(i18n.KeyChatQuestionMinimize)
 			if flow.minimized {
 				label = i18n.T(i18n.KeyChatQuestionExpand)

@@ -51,12 +51,12 @@ func queueDockHasRows(board session.PlanBoard) bool {
 
 func queueCountLabel(n int) string {
 	if i18n.Locale() == i18n.LocaleZH {
-		return "待发送 " + queueCountNumber(n)
+		return queueCountNumber(n) + " 条"
 	}
 	if n == 1 {
 		return "1 queued"
 	}
-	return queueCountNumber(n) + " queued"
+	return queueCountNumber(n) + " items"
 }
 
 func queueCountNumber(n int) string {

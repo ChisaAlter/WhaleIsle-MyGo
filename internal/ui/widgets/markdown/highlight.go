@@ -41,13 +41,13 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 		lexer = lexers.Analyse(code)
 	}
 	if lexer == nil {
-		return withLineNumbers([]ui.Span{{Text: code + "\n", Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
 	}
 	lexer = chroma.Coalesce(lexer)
 	style := chromaPalette(st.Dark)
 	it, err := lexer.Tokenise(nil, code)
 	if err != nil {
-		return withLineNumbers([]ui.Span{{Text: code + "\n", Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
 	}
 	var out []ui.Span
 	for _, tok := range it.Tokens() {
@@ -63,9 +63,10 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 		})
 	}
 	if len(out) == 0 {
-		return withLineNumbers([]ui.Span{{Text: code + "\n", Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
 	}
-	out = append(out, ui.Span{Text: "\n", Size: size, Background: st.CodeBG, Font: font})
+	// No trailing newline: a text run does not need one, and it would paint an
+	// empty last line box that the Original <pre> never shows.
 	return withLineNumbers(out, st)
 }
 

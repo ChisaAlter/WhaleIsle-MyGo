@@ -135,14 +135,15 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 	if sup != nil {
 		generation = sup.Status().Generation
 	}
-	answer, err := mygo.Dialog.Message(mygo.MessageOptions{
-		Parent: win, Type: mygo.MessageWarning,
-		Title:   resumeText("选择 Host 版本", "Select Host version"),
-		Message: fmt.Sprintf(resumeText("目标：Host v%s (%s)\n\n会通过现有任务保护停止当前 Host 和手机连接，再保存该版本供下次启动使用。旧运行时、会话及配置会保留。选择完成后内核保持停止，需单独点击“启动 Host”。", "Target: Host v%s (%s)\n\nThe existing task protection will stop the current Host and phone connection before saving this version for the next start. Previous runtimes, sessions and settings are retained. The runtime stays stopped until you click “Start Host”."), bundle.Manifest.Version, bundle.Directory),
-		Buttons: []string{resumeText("取消", "Cancel"), resumeText("停止并选择", "Stop and select")}, DefaultButton: 0, CancelButton: 0,
+	approved := s.askConfirmBlocking(confirmAskRequest{
+		Title:        resumeText("选择 Host 版本", "Select Host version"),
+		Body:         fmt.Sprintf(resumeText("目标：Host v%s (%s)\n\n会通过现有任务保护停止当前 Host 和手机连接，再保存该版本供下次启动使用。旧运行时、会话及配置会保留。选择完成后内核保持停止，需单独点击“启动 Host”。", "Target: Host v%s (%s)\n\nThe existing task protection will stop the current Host and phone connection before saving this version for the next start. Previous runtimes, sessions and settings are retained. The runtime stays stopped until you click “Start Host”."), bundle.Manifest.Version, bundle.Directory),
+		ConfirmLabel: resumeText("停止并选择", "Stop and select"),
+		CancelLabel:  resumeText("取消", "Cancel"),
+		Danger:       true,
 	})
-	if err != nil || answer.Button != 1 {
-		return false, err
+	if !approved {
+		return false, nil
 	}
 	var applyErr error
 	did := s.withTaskProtection(win, sup, "stop", func() error {

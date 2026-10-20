@@ -55,12 +55,14 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("未检测到可安全启动的卸载器", "No verified uninstaller found"), Message: resumeText("当前程序可能为便携版、源码构建或没有新版原生安装标记。未启动任何卸载器。请使用“已安装应用”并核对安装位置。", "This may be a portable/source build or an installation without the native marker. No uninstaller was started. Use Installed apps and check the installation location.") + "\n\n" + err.Error()})
 			return
 		}
-		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("卸载当前原生应用", "Uninstall current native app"), Message: resumeText("继续将检查并停止任务、启动此安装的卸载器并退出应用。卸载器仍会要求确认；在其中取消不会恢复已退出的应用。不会清理用户数据目录。安装位置：", "Continuing checks and stops tasks, opens this installation's uninstaller and quits the app. The uninstaller still asks for confirmation; cancelling there will not reopen the app. User data directories are retained. Install location: ") + plan.InstallLocation(), Buttons: []string{resumeText("取消", "Cancel"), resumeText("启动卸载器并退出", "Start uninstaller and quit")}, DefaultButton: 0, CancelButton: 0})
-		if err != nil {
-			s.taskProtectionError(win, err)
-			return
-		}
-		if choice.Button != 1 || !s.saveResumeBeforeClose(win) {
+		approved := s.askConfirmBlocking(confirmAskRequest{
+			Title:        resumeText("卸载当前原生应用", "Uninstall current native app"),
+			Body:         resumeText("继续将检查并停止任务、启动此安装的卸载器并退出应用。卸载器仍会要求确认；在其中取消不会恢复已退出的应用。不会清理用户数据目录。安装位置：", "Continuing checks and stops tasks, opens this installation's uninstaller and quits the app. The uninstaller still asks for confirmation; cancelling there will not reopen the app. User data directories are retained. Install location: ") + plan.InstallLocation(),
+			ConfirmLabel: resumeText("启动卸载器并退出", "Start uninstaller and quit"),
+			CancelLabel:  resumeText("取消", "Cancel"),
+			Danger:       true,
+		})
+		if !approved || !s.saveResumeBeforeClose(win) {
 			return
 		}
 		did := s.withTaskProtection(win, sup, "quit", func() error {

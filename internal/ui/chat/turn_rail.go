@@ -18,7 +18,7 @@ const (
 	turnRailWidth     = float32(28)
 	turnRailNarrowMin = float32(720)
 	turnRailTickWidth = float32(14)
-	turnRailTickHover = float32(6)
+	turnRailSeatHeight = float32(12)
 )
 
 // turnAnchor is one jump target on the rail.
@@ -81,26 +81,37 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 		return
 	}
 	current := len(anchors) - 1
-	rail := ui.Column(c).Key("turn-rail").Width(turnRailWidth).Gap(3).AlignItems(ui.Center).Padding(6, 0, 6, 0)
+	rail := ui.Column(c).Key("turn-rail").Width(turnRailWidth).Gap(0).AlignItems(ui.Center).Padding(6, 0, 6, 0)
 	rail.Children(func() {
 		for index, anchor := range anchors {
 			anchor := anchor
 			active := index == current
-			tick := ui.Box(c).Key("turn-rail-tick:"+itoaFast(anchor.Index)).Width(turnRailTickWidth).Height(3).Radius(2).
-				Background(muted.Alpha(.35))
+			// The seat is the hit target: a 12 DIP row holding the 4 DIP tick, so
+			// a four-turn transcript still gives each tick a comfortable target.
+			seat := ui.Box(c).Key("turn-rail-tick:"+itoaFast(anchor.Index)).
+				Width(turnRailWidth).Height(turnRailSeatHeight).Center()
+			interactive := onJump != nil
+			if interactive {
+				seat.Label(i18n.T(i18n.KeyChatTurnRailJump) + " " + itoaFast(anchor.Index)).Focusable().Role(ui.RoleButton)
+			}
+			hovered := interactive && seat.Hovered()
+			barColor := muted.Alpha(.35)
+			barHeight := float32(4)
 			if active {
-				tick.Background(accent)
+				barColor = accent
+				barHeight = 6
 			}
-			if onJump != nil {
-				tick = tick.Label(i18n.T(i18n.KeyChatTurnRailJump) + " " + itoaFast(anchor.Index)).Focusable().Role(ui.RoleButton)
-				if tick.Hovered() {
-					tick.Height(turnRailTickHover).Background(accent.Alpha(.85))
-				}
-				if tick.Clicked() {
-					onJump(anchor.Seq)
-				}
+			if hovered {
+				barColor = accent.Alpha(.85)
+				barHeight = 6
 			}
-			tick.Tooltip(i18n.T(i18n.KeyChatTurnRailTurn) + " " + itoaFast(anchor.Index) + " · " + anchor.Preview)
+			seat.Children(func() {
+				ui.Box(c).Width(turnRailTickWidth).Height(barHeight).Radius(2).Background(barColor)
+			})
+			seat.Tooltip(i18n.T(i18n.KeyChatTurnRailTurn) + " " + itoaFast(anchor.Index) + " · " + anchor.Preview)
+			if interactive && seat.Clicked() {
+				onJump(anchor.Seq)
+			}
 		}
 	})
 }

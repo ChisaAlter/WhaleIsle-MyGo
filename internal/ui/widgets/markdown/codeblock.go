@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -27,6 +28,9 @@ const (
 // check). RenderFence keeps owner-bound fences (OpenUI) untouched.
 func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	language, code := codeBlockSource(node, source)
+	// Tabs carry the source's nesting; expand them to the Original's four-column
+	// tab stop so the card shows indentation instead of a flat left edge.
+	code = strings.ReplaceAll(code, "\t", "    ")
 	if st.RenderFence != nil && node.Lines().Len() > 0 && st.RenderFence(c, language, code, node.Lines().At(0).Start) {
 		return
 	}
@@ -64,7 +68,9 @@ func paintCodeCard(c *ui.Context, language, code string, st Style) {
 				})
 			}
 		})
-		spans := highlightedCodeSpans(language, code, st)
+		// A trailing newline would paint one empty line box; the clipboard keeps
+		// the exact source, the card shows its lines.
+		spans := highlightedCodeSpans(language, strings.TrimRight(code, "\n"), st)
 		lineHeight := codeLineHeight(st)
 		paint := func(el ui.Element) ui.Element {
 			return el.Font(font).FontSize(size).FixedLineHeight(lineHeight).TextColor(st.FG)

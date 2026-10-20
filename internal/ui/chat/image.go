@@ -101,7 +101,22 @@ func ImageInlineView(c *ui.Context, path string, fg, muted ui.Color, onOpen func
 		paintRemoteImage(c, path, fg, muted, onOpen)
 		return
 	}
+	if looksLikeImagePath(path) {
+		// A missing or unreadable local file is a broken attachment, not raw
+		// placeholder text: paint the Original danger card instead.
+		paintImageFailure(c, i18n.T(i18n.KeyChatImageMissing)+": "+filepath.Base(path), nil)
+		return
+	}
 	ui.Text(c, "[image] "+path).FontSize(12).TextColor(fg)
+}
+
+// looksLikeImagePath reports whether a ref names an image file by extension.
+func looksLikeImagePath(path string) bool {
+	switch strings.ToLower(strings.TrimPrefix(filepath.Ext(strings.TrimSpace(path)), ".")) {
+	case "png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "heic", "tif", "tiff":
+		return true
+	}
+	return false
 }
 
 func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen func(string)) {
@@ -265,7 +280,7 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 // picture: a tinted panel, the reason and an explicit retry.
 func paintImageFailure(c *ui.Context, message string, retry func()) {
 	ui.Column(c).Width(240).MaxWidthPercent(100).MinWidth(0).Radius(16).Padding(10, 12, 10, 12).Gap(6).
-		Background(ui.RGBA(200, 60, 60, 22)).Border(0.5, ui.RGBA(200, 60, 60, 90)).Children(func() {
+		Background(ui.RGBA(200, 60, 60, .10)).Border(0.5, ui.RGBA(200, 60, 60, .45)).Children(func() {
 		ui.Text(c, message).FontSize(12).TextColor(ui.RGB(190, 60, 60))
 		if retry != nil {
 			if ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(11).Clicked() {
@@ -290,7 +305,7 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	muted := chrome.Color(colors.Muted)
 	ui.Overlay(c, func() {
 		ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Children(func() {
-			dim := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Background(ui.RGBA(0, 0, 0, 170))
+			dim := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Background(ui.RGBA(0, 0, 0, .66))
 			if dim.Clicked() {
 				onClose()
 			}
