@@ -63,7 +63,7 @@ func TestShellColumnGeometryPaintBounds(t *testing.T) {
 		}, width, 800)
 		_ = tt
 		rail := float32(280)
-		if width < 1024 {
+		if width < 768 {
 			rail = SidebarCollapsedWidth()
 		}
 		sidebarDivider := float32(1)

@@ -19,13 +19,14 @@ func TestStatefulEmptyAttachmentRailDoesNotDisplaceDraft(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 1000)
 			card, _ := tt.Find("Composer card")
 			input, _ := tt.Find("Composer draft")
-			closeMetric(t, input.Y-card.Y, 8, "stateful zero-attachment draft top")
-			want := float32(36)
+			wantTop, want, limit := float32(8), float32(36), float32(120)
 			if hero {
-				want = 52
+				// HeroShell.card: 20px padding around a single 24px line.
+				wantTop, want, limit = 20, 24, 100
 			}
+			closeMetric(t, input.Y-card.Y, wantTop, "stateful zero-attachment draft top")
 			closeMetric(t, input.H, want, "natural empty draft")
-			if card.H > 120 {
+			if card.H > limit+8 {
 				t.Fatalf("empty attachment rail still expands card: %+v", card)
 			}
 			d.Error = "Attachment rejected"
@@ -118,28 +119,75 @@ func TestComposerPhaseAndPanelsRetainMarkedIMEOwner(t *testing.T) {
 	}
 }
 
-func TestHeroWorkspaceGeometryRelativeToCard(t *testing.T) {
+// One 28px row above the card carries both entries: the workspace picker on
+// the left and the agent preset on the right.
+func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 	for _, width := range []int{432, 800} {
-		d := NewDraftState("")
-		preset := "Fixture agent"
-		tt := ui.NewTester(func(c *ui.Context) {
-			View(c, Model{State: d, Draft: &d.Text, Hero: true, WorkspaceRoot: `C:\fixture`, AgentPresetPick: &preset})
-		}, width, 900)
-		card, _ := tt.Find("Composer card")
-		row, ok := tt.Find("Composer workspace row")
-		if !ok {
-			t.Fatal("workspace row missing")
-		}
-		workspace, _ := tt.Find("Composer workspace")
-		options, _ := tt.Find("Composer hero preset")
-		closeMetric(t, row.X, card.X, "workspace row tracks card left")
-		closeMetric(t, row.W, card.W, "workspace row tracks card width")
-		closeMetric(t, row.Y, 4, "workspace row top margin")
-		closeMetric(t, card.Y-row.Y-row.H, 8, "workspace-card gap")
-		closeMetric(t, workspace.X-card.X, 20, "workspace left inset")
-		closeMetric(t, card.X+card.W-options.X-options.W, 16, "preset right inset")
-		if options.X <= workspace.X+workspace.W {
-			t.Fatal("preset was not pushed to row right")
+		for _, root := range []string{`C:\fixture`, ""} {
+			d := NewDraftState("")
+			preset := "Fixture agent"
+			picked := 0
+			tt := ui.NewTester(func(c *ui.Context) {
+				View(c, Model{State: d, Draft: &d.Text, Hero: true, WorkspaceRoot: root,
+					AgentPresetPick: &preset, OnPickHeroWorkspace: func() { picked++ }})
+			}, width, 900)
+			card, _ := tt.Find("Composer card")
+			row, ok := tt.Find("Composer hero preset row")
+			if !ok {
+				t.Fatal("hero row missing")
+			}
+			workspace, ok := tt.Find("Composer workspace")
+			if !ok {
+				t.Fatalf("workspace entry missing for root=%q", root)
+			}
+			presetChip, ok := tt.Find("Composer hero preset")
+			if !ok {
+				t.Fatalf("preset chip missing for root=%q", root)
+			}
+			closeMetric(t, row.X, card.X, "hero row tracks card left")
+			closeMetric(t, row.W, card.W, "hero row tracks card width")
+			closeMetric(t, row.Y, 4, "hero row top margin")
+			closeMetric(t, card.Y-row.Y-row.H, 8, "hero row-card gap")
+			closeMetric(t, row.H, 28, "hero row height")
+			// The row keeps Padding(0,16,0,20): 20 on the left, 16 on the right.
+			closeMetric(t, workspace.X-row.X, 20, "workspace left inset")
+			closeMetric(t, workspace.H, 28, "workspace chip height")
+			closeMetric(t, presetChip.H, 28, "preset chip height")
+			closeMetric(t, (workspace.Y+workspace.H/2)-(presetChip.Y+presetChip.H/2), 0, "both chips share the row")
+			closeMetric(t, row.X+row.W-16-(presetChip.X+presetChip.W), 0, "preset right inset")
+			if presetChip.X <= workspace.X+workspace.W {
+				t.Fatalf("preset was not pushed to the row's right edge: %v %v", workspace, presetChip)
+			}
+			want := "fixture"
+			if root == "" {
+				want = i18n.T(i18n.KeyChatHeroChooseWorkspace)
+			}
+			if !tt.HasText(want) {
+				t.Fatalf("workspace label = %v, want %q", tt.Texts(), want)
+			}
+			if tt.HasText(i18n.T(i18n.KeyNoDirectory)) {
+				t.Fatalf("hero row added a second no-directory button: %v", tt.Texts())
+			}
+			// The chip shares the permission/model capsule face: transparent at
+			// rest, the theme's hover fill under the pointer.
+			probe := func() ui.Color {
+				pixel := tt.Image().RGBAAt(int(workspace.X+6), int(workspace.Y+workspace.H/2))
+				return ui.RGBA(pixel.R, pixel.G, pixel.B, 255)
+			}
+			rest := probe()
+			tt.Move(workspace.X+workspace.W/2, workspace.Y+workspace.H/2)
+			tt.Frame()
+			if hovered := probe(); hovered == rest {
+				t.Fatalf("workspace chip painted no hover fill: %v", rest)
+			}
+			tt.Move(0, 0)
+			tt.Frame()
+			if err := tt.Click("Composer workspace"); err != nil {
+				t.Fatalf("workspace entry is not clickable: %v", err)
+			}
+			if picked != 1 {
+				t.Fatalf("workspace click calls=%d", picked)
+			}
 		}
 	}
 }

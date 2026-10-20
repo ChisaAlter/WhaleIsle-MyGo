@@ -37,6 +37,14 @@ func (p Preferences) Clone() Preferences {
 }
 func PresetColors(id string) [7]string {
 	switch id {
+	case "dune":
+		// The installed build's default backdrop, sampled from
+		// evidence/compare/ref-hero-1440.png: a grey-blue wash at the top
+		// (#D1D6DC/#CED5DD), green toward the lower left (#B7D4C8, #B2D0CB), a
+		// lavender floor (#C6C4DB), a grey-blue right flank (#D0D4DD) and the
+		// bright centre (#F4F4F8). Slot 0 and 1 are the wash's top and bottom,
+		// 2..6 the blooms, in the order the painter places them.
+		return [7]string{"#D1D6DC", "#C6C4DB", "#F4F4F8", "#B7D4C8", "#B2D0CB", "#D0D4DD", "#CED5DD"}
 	case "aurora":
 		return [7]string{"", "", "#34d399", "#22d3ee", "#a78bfa", "#4ade80", "#38bdf8"}
 	case "sunset":

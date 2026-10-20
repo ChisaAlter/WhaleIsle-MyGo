@@ -15,18 +15,21 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		client.SetSelectionUTF16(selectUTF16Start, selectUTF16End)
 	}
 	placeholder := composerPlaceholder(m)
+	left, right, top := draftInsets(m.Hero)
+	client.setInsets(left, right, top)
 	minH := float32(36)
 	if m.Hero {
-		minH = 52
+		// One 24px placeholder line; the card's own 20px padding frames it.
+		minH = 24
 	}
 	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(m.Inert)
 	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.
 	if width := box.Bounds().W; width > 0 {
-		client.setWrapWidth(max(0, width-draftInputLeft-draftInputRight))
+		client.setWrapWidth(max(0, width-left-right))
 	}
-	height := min(draftInputMaxHeight, max(minH, client.visualHeight()+draftInputTop))
+	height := min(draftInputMaxHeight, max(minH, client.visualHeight()+top))
 	height = resizeInputHeight(c, m, height)
 	client.setViewport(height)
 	box.Height(height).Clip()
@@ -45,7 +48,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		})
 	}
 	box.Draw(func(p *ui.Painter, r ui.Rect) {
-		width := max(0, r.W-draftInputLeft-draftInputRight)
+		width := max(0, r.W-left-right)
 		if width != client.wrapWidth {
 			client.setWrapWidth(width)
 			c.Services().Invalidate()
@@ -55,8 +58,8 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		}
 		p.Clip(r, 0, func() {
 			for _, b := range client.visualSelectionRects(client.selection.Range) {
-				b.X += r.X + draftInputLeft
-				b.Y += r.Y + draftInputTop - client.scrollY
+				b.X += r.X + left
+				b.Y += r.Y + top - client.scrollY
 				p.Fill(b, c.Theme().Selection, 0)
 			}
 		})
@@ -68,8 +71,8 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	box.Children(func() {
 		text := client.text()
 		if text == "" {
-			ui.Box(c).Label("Composer placeholder").Absolute().Left(draftInputLeft).Right(draftInputRight).
-				Top(draftInputTop).Children(func() {
+			ui.Box(c).Label("Composer placeholder").Absolute().Left(left).Right(right).
+				Top(top).Children(func() {
 				if paintNextPrompt(c, m, placeholderInk) {
 					return
 				}
@@ -83,8 +86,8 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			})
 			return
 		}
-		ui.Text(c, text).Absolute().Left(draftInputLeft).Right(draftInputRight).
-			Top(draftInputTop - client.scrollY).Font(client.font.Family).FontSize(client.font.Size).
+		ui.Text(c, text).Absolute().Left(left).Right(right).
+			Top(top - client.scrollY).Font(client.font.Family).FontSize(client.font.Size).
 			FixedLineHeight(client.lineHeight()).TextColor(textInk).PassThrough()
 	})
 

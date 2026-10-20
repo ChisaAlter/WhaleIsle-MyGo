@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -260,48 +261,40 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		}
 		paintLeadingClaimHint(c, m, muted)
 		if m.Hero {
-			// ConversationRoot.heroWorkspaceRow is inset from the actual card,
-			// with 4px above its 28px controls and an 8px gap below.
-			wsLabel := strings.TrimSpace(m.WorkspaceRoot)
-			folderIcon := "📂"
-			if m.Inert || wsLabel == "" {
-				wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
-				folderIcon = "📁"
-			} else if i := strings.LastIndexAny(wsLabel, `/\`); i >= 0 && i+1 < len(wsLabel) {
-				wsLabel = wsLabel[i+1:]
-			}
-			if !m.Inert && m.Snapshot.ScratchCwd != "" && filepathCleanForLabel(m.WorkspaceRoot) == filepathCleanForLabel(m.Snapshot.ScratchCwd) {
-				wsLabel = i18n.T(i18n.KeyNoDirectory)
-				folderIcon = ""
-			}
-			ui.Row(c.Key("composer-hero-workspace")).Label("Composer workspace row").FillWidth().MinWidth(0).Gap(2).AlignItems(ui.Center).
+			// One 28px row above the card carries both entries: the workspace
+			// picker on the left and the agent preset on the right.
+			ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(2).AlignItems(ui.Center).
 				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
-				wsBtn := ui.Button(c, "").Label("Composer workspace").Height(28).Radius(8).Padding(0, 8, 0, 8).
-					Background(ui.Transparent).BorderWidth(0)
+				wsLabel := strings.TrimSpace(m.WorkspaceRoot)
+				// Session groups without a directory carry sentinel ids such as
+				// "no-workspace"; only an absolute root names a workspace.
+				if !filepath.IsAbs(wsLabel) {
+					wsLabel = ""
+				} else if i := strings.LastIndexAny(wsLabel, `/\`); i >= 0 && i+1 < len(wsLabel) {
+					wsLabel = wsLabel[i+1:]
+					// The harness parks directory-less sessions in a
+					// dsh-home/no-workspace folder; that is not a workspace name.
+					if wsLabel == "no-workspace" {
+						wsLabel = ""
+					}
+				}
+				if m.Inert || wsLabel == "" {
+					wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
+				}
+				workspace := chip(c, colors, false, fg).Label("Composer workspace").Padding(0, 8, 0, 8)
 				if m.WorkspacePickerAnchor != nil {
-					wsBtn.Bind(m.WorkspacePickerAnchor)
+					workspace.Bind(m.WorkspacePickerAnchor)
 				}
-				if (m.OnPickHeroWorkspace == nil && m.OnPickDirectory == nil) || (m.State != nil && (m.State.Sending || m.State.Preparing > 0)) {
-					wsBtn = wsBtn.Disabled(true)
+				if m.OnPickHeroWorkspace == nil || (m.State != nil && (m.State.Sending || m.State.Preparing > 0)) {
+					workspace = workspace.Disabled(true)
 				}
-				wsBtn.Children(func() {
-					ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, folderIcon).FontSize(13)
-						ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg)
-						ui.Text(c, "▾").FontSize(11).TextColor(muted)
-					})
+				workspace.Children(func() {
+					ui.Icon(c, folderIcon).Size(16, 16).TextColor(muted).Shrink(0)
+					ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg).SingleLine().MaxLines(1)
+					chevron(c, false)
 				})
-				if wsBtn.Clicked() {
-					if m.OnPickHeroWorkspace != nil {
-						m.OnPickHeroWorkspace()
-					} else if m.OnPickDirectory != nil {
-						m.OnPickDirectory()
-					}
-				}
-				if m.OnNoDirectory != nil {
-					if ui.Button(c, i18n.T(i18n.KeyNoDirectory)).Height(28).FontSize(13).Disabled(m.State != nil && (m.State.Sending || m.State.Preparing > 0)).Clicked() {
-						m.OnNoDirectory()
-					}
+				if workspace.Clicked() && m.OnPickHeroWorkspace != nil {
+					m.OnPickHeroWorkspace()
 				}
 				if m.AgentPresetSelection.Busy {
 					ui.Text(c, i18n.T(i18n.KeyComposerPresetApplying)).FontSize(12)
@@ -339,7 +332,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// `inset 0 0 12px 1px rgba(255,255,255,.25)` (visible in dark themes).
 		cardRadius := float32(28)
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
-			Radius(cardRadius).Padding(8, 0, 0, 0).Gap(12)
+			Radius(cardRadius)
+		if m.Hero {
+			// HeroShell.card: 20px vertical and 16px horizontal padding (measured
+			// from the installed build) around a single 24px placeholder line and
+			// the 28px control row.
+			card = card.Padding(20, 16, 20, 16).Gap(8)
+		} else {
+			card = card.Padding(8, 0, 0, 0).Gap(12)
+		}
 		if m.OnCardLayout != nil {
 			card.ObserveLayout(m.OnCardLayout)
 		}
@@ -396,17 +397,18 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						area.Focus()
 					}
 				} else {
-					// InputBar: docked min-height 36 (~1 line); hero .input 52 (~2×24).
+					// InputBar: docked min-height 36 (~1 line). The hero card shows
+					// one 24px placeholder line and grows with the draft.
 					minLines, maxLines := 1, 8
 					if m.Hero {
-						minLines, maxLines = 2, 10
+						minLines, maxLines = 1, 10
 					}
 					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
 						Font(theme.RenderPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					ta.Disabled(m.Inert)
 					if m.Hero {
-						ta = ta.MinHeight(52)
+						ta = ta.Padding(0).MinHeight(24)
 					}
 					if m.ResizeEnabled && m.Resize != nil && m.Resize.Height > 0 {
 						ta.Height(resizeInputHeight(c, m, 36))
@@ -454,7 +456,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			infoHover := chrome.Color(colors.ButtonInfoHover)
 			infoPressed := infoHover.Mix(chrome.Color(colors.FG), 0.12)
 			onAccent := chrome.Color(colors.ButtonFG)
-			ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert).Children(func() {
+			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Disabled(m.Inert)
+			if m.Hero {
+				// HeroShell: the 28px control row sits inside the card's own 20px
+				// padding, so the 34px primary disc overhangs it like the reference.
+				tools = tools.Padding(0).Height(28)
+			} else {
+				tools = tools.Padding(2, 8, 6, 8)
+			}
+			tools.Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
 					plus := ui.Button(c, "+").Label(i18n.T(i18n.KeyComposerCommands)).Tooltip(i18n.T(i18n.KeyComposerCommands)).
@@ -487,7 +497,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					paintContextMeter(c, m.Snapshot, colors, btnH)
+					// The hero keeps the reference's control set: the occupancy ring
+					// only appears once the Host reports token usage.
+					if !m.Hero || m.Snapshot.ContextOccupancy != nil {
+						paintContextMeter(c, m.Snapshot, colors, btnH)
+					}
 					paintModelPicker(c, m, colors, btnH)
 					running := m.Snapshot.PromptBusy
 					for _, item := range m.Snapshot.Items {

@@ -58,9 +58,9 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 	}
 	row.Children(func() {
 		if width >= 420 {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(body)
+			ui.Row(c).FillWidth().MinWidth(0).MinHeight(64).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(body)
 		} else {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14, 0).Children(body)
+			ui.Column(c).FillWidth().MinWidth(0).MinHeight(64).Gap(10).Padding(14, 0).Children(body)
 		}
 	})
 	return row

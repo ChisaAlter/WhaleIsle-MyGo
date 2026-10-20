@@ -71,7 +71,7 @@ P0：19/19 有实现。P1：约 45/49 闭合。P2：约 25/33 闭合（另有 2 
 用户直接反馈「按键样式还有比较大的差距」，原 101 条未覆盖此粒度。已按 `ui-primitives/src/Button.module.css` 落地标准按钮原语并替换约 290 处（详见 `buttons.md`）：md 36/14px/radius 12、sm 28/12px/radius 8、Primary 为黑/白单色而非 Accent 蓝、Ghost 无面、Outline 0.5 DIP border-l3、disabled 0.4。
 
 未纳入替换：tab/chip/segmented/icon-only/菜单项（自有配方）、缺主题参数的 6 个 helper（需继续上传 `theme.Colors`）、outline+danger 组合、composer 的 chips 与自绘发送按钮。
-## 8. 第二轮：安装版实机像素对照（2026-10-20）
+## 8. 第二轮：安装版实机像素对照（2026-10-20，已修一轮）
 
 第一轮之后用户反馈“还是大量不一样”。本轮改用安装版 0.3.9 的真实界面（独立 profile + CDP，1440×920）逐页截图对照，详见 `parity-pass-2.md`。
 

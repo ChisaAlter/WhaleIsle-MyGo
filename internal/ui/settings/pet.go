@@ -40,13 +40,9 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 	})
 	anchor.Children(func() {
 		bodyHeading(c, providerCopy("鲸鱼娘", "Whale"), providerCopy("你的常驻助理与桌面伙伴。", "Your resident assistant and desktop companion."), fg, muted)
-		ui.Row(c).FillWidth().MaxWidth(360).Wrap().Gap(4).Role(ui.RoleTabList).Children(func() {
-			for index, label := range []string{providerCopy("聊天与能力", "Chat and abilities"), providerCopy("桌面形象与行为", "Appearance and behavior")} {
-				if ui.Button(c.Key(fmt.Sprint("pet-tab-", index)), label).Role(ui.RoleTab).Selected(*tab == index).Height(34).Clicked() {
-					*tab = index
-				}
-			}
-		})
+		if _, picked := settingsSegmented(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat and abilities"), providerCopy("桌面形象与行为", "Appearance and behavior")}, *tab, false); picked >= 0 {
+			*tab = picked
+		}
 		if p.Error != "" {
 			ui.Text(c, p.Error).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}

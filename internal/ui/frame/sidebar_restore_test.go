@@ -128,6 +128,9 @@ func TestWhaleWindowsRailRetainsOriginalActions(t *testing.T) {
 	}
 }
 
+// TestCaptionRestorePreservesNarrowPreference covers the drawer band: the
+// caption's expand button opens the drawer transiently and never rewrites the
+// saved 336-DIP preference.
 func TestCaptionRestorePreservesNarrowPreference(t *testing.T) {
 	sizes := DefaultLayout()
 	sizes.Sidebar = 336
@@ -135,16 +138,16 @@ func TestCaptionRestorePreservesNarrowPreference(t *testing.T) {
 		ui.Column(c).Fill().Children(func() {
 			drawSidebarRestoreCaption(c, &sizes, chrome.DefaultTitleBarColors(), nil, "darwin")
 		})
-	}, 900, 800)
+	}, 700, 800)
 	if err := tt.Click(i18n.T(i18n.KeySidebarExpand)); err != nil {
 		t.Fatal(err)
 	}
 	if sizes.Sidebar != 336 || sizes.sidebarPreference() != 336 {
-		t.Fatalf("narrow restore changed preference: %+v", sizes)
+		t.Fatalf("drawer restore changed preference: %+v", sizes)
 	}
 	sizes.ToggleSidebar()
 	if sizes.Sidebar != 336 || sizes.sidebarPreference() != 0 {
-		t.Fatal("narrow override did not close independently")
+		t.Fatal("drawer override did not close independently")
 	}
 	sizes.observeSidebarViewport(1200)
 	if sizes.sidebarPreference() != 336 {

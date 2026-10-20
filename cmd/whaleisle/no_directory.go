@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Keep the current draft on failure and never steal focus from newer navigation.
@@ -36,7 +37,9 @@ func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, d
 			draft.Sending = false
 			if err != nil {
 				draft.Error = err.Error()
-				sessions.SetLastAction("no workspace folder: " + err.Error())
+				// Only a failure leaves a status, in the shell's locale: the old
+				// success path painted "no workspace folder ready" over the hero.
+				sessions.SetLastAction(i18n.T(i18n.KeyComposerDirNoWorkspace) + ": " + err.Error())
 				return
 			}
 			if sessions.Snapshot().SelectedID != sourceID {
@@ -52,7 +55,8 @@ func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, d
 				s.mu.Unlock()
 			}
 			sessions.Select(id)
-			sessions.SetLastAction("no workspace folder ready")
+			// No status on success: the conversation itself is the feedback.
+			sessions.SetLastAction("")
 		})
 	}()
 }

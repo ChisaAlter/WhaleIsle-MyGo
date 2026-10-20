@@ -212,8 +212,9 @@ func View(c *ui.Context, m Model) {
 					}
 					ui.Box(c).Height(8)
 				}
-				// SidebarRoot.panelList gap 4; .panelRow min-h 36, pad 7 8, radius-md, gap 8.
-				ui.Column(c).FillWidth().Gap(4).Padding(0, 0, 8, 0).Children(func() {
+				// SidebarRoot.panelList: .panelRow is 36 high and the rows butt together, so
+				// the pitch is 36 (the pass-2 measurement; a 4-DIP gap made it 40).
+				ui.Column(c).FillWidth().Padding(0, 0, 8, 0).Children(func() {
 					nav := func(drawIcon func(), label string, fn func()) {
 						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 							Background(ui.Transparent).BorderWidth(0).
@@ -330,14 +331,10 @@ func View(c *ui.Context, m Model) {
 			ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 4, 0).Gap(2).Shrink(0).Children(func() {
 				// The footer's top edge drags the window, like the logo row does.
 				ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
-				if !m.Collapsed && m.OnOpenLauncher != nil {
-					btn := ui.Button(c, i18n.T(i18n.KeyLauncherOpen)).FillWidth().Height(32).Radius(8).
-						BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(13)).
-						Padding(0, 8, 0, 8).AlignItems(ui.Center)
-					if btn.Clicked() {
-						m.OnOpenLauncher()
-					}
-				}
+				// The launcher is not a sidebar row in the installed build: the header's
+				// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
+				// to workspaces and sessions.
+
 				if !m.Collapsed && m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 					m.OnContactAccount()
 				}

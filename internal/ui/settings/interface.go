@@ -51,7 +51,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		bodyHostPreference(c, a.Host, field.ns, field.key, providerCopy(field.zh, field.en), "", fg, muted)
 	}
-	bodyLocalToggle(c, "interface-dshbot", providerCopy("Dshbot", "Dshbot"), providerCopy("切换内置机器人连接。", "Toggle the bundled bot connection."), a.DshbotEnabled, a.OnSetDshbot == nil, fg, muted, a.OnSetDshbot)
+	bodyToggleRowBadge(c, "interface-dshbot", providerCopy("机器人（Bots）", "Bots"), providerCopy("测试中", "Beta"), providerCopy("侧栏启用机器人联系人与群聊。该功能仍在测试，可能不稳定；切换后会自动重启 Harness。", "Turns on the sidebar bot contact and group chat. This feature is still in beta and may be unstable; switching restarts Harness."), a.DshbotEnabled, a.OnSetDshbot == nil, fg, muted, a.OnSetDshbot)
 	bodyLocalToggle(c, "interface-remote-workspace", providerCopy("远程工作区", "Remote workspaces"), providerCopy("启用远程工作区的目录与连接入口。", "Enable remote workspace directory and connection entries."), a.RemoteWorkspaceEnabled, a.OnSetRemoteWorkspace == nil, fg, muted, a.OnSetRemoteWorkspace)
 	bodyLocalToggle(c, "interface-archive", providerCopy("显示归档列表", "Show archived list"), "", a.ShowArchivedList, a.OnSave == nil, fg, muted, nil)
 	if a.Err != "" {

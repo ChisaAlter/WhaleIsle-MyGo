@@ -88,6 +88,10 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(8)
 			trailing.Children(func() { m.WorkspaceTrailing(c, density) })
 		}
+		// The reference's corner order is terminal, right panel, minimize,
+		// maximize, close: the panel toggles come from the trailing cluster and the
+		// native overlay keeps the close, so the shell adds the two missing.
+		captionWindowButtons(c, chrome.Color(colors.Muted))
 	})
 	// Build-time Bounds is the previous frame. Painting follows layout/commit,
 	// so this observes actual new geometry, including a trailing width of zero.

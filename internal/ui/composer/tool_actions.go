@@ -69,6 +69,13 @@ func composerToolItems(m Model, query string) []suggestItem {
 // The optional voice contribution keeps its microphone trigger in the input
 // activity seat; feedback offers Retry without forcing a trip to Settings.
 func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height float32) {
+	// The hero composer mirrors the reference's control set: no microphone seat
+	// until speech is configured, unless a capture, feedback or the setup guide
+	// is active. The docked composer keeps its always-visible control.
+	if m.Hero && !composerVoiceConfigured(m) && m.Voice.Phase == "" && m.Voice.Pending == "" &&
+		m.Voice.Message == "" && !(m.State != nil && m.State.VoiceSetupOpen) {
+		return
+	}
 	locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
 	button := func(glyph, label string, disabled bool, action func()) {
 		if action == nil {
@@ -180,6 +187,15 @@ func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 		ui.Text(c, clock).FontSize(11).TextColor(fg).FixedLineHeight(14).Shrink(0).Tooltip(i18n.T(i18n.KeyComposerVoiceRecording))
 	})
+}
+
+// composerVoiceConfigured reports a usable speech selection, which is what
+// lets the hero show the microphone instead of hiding the unconfigured seat.
+func composerVoiceConfigured(m Model) bool {
+	if m.OnStartVoice == nil || !m.Snapshot.ClientReady || strings.TrimSpace(m.Snapshot.SpeechSelection) == "" {
+		return false
+	}
+	return !m.Snapshot.SpeechReadinessKnown || m.Snapshot.SpeechReady
 }
 
 func voiceNeedsSetup(m Model) bool {

@@ -73,9 +73,9 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 			}
 		}
 		if width >= 420 {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(content)
+			ui.Row(c).FillWidth().MinWidth(0).MinHeight(64).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(content)
 		} else {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14, 0).Children(content)
+			ui.Column(c).FillWidth().MinWidth(0).MinHeight(64).Gap(10).Padding(14, 0).Children(content)
 		}
 	})
 	return row
@@ -212,7 +212,7 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 					}
 				}
 			}
-			if ui.Select(c, &value, options).Label(title).FillWidth().Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
+			if ui.Select(c, &value, options).Label(title).FillWidth().Height(32).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
 				a.OnChange(namespace, key, value)
 			}
 		default:

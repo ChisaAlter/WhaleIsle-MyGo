@@ -76,7 +76,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, *schemeError).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
 		}
 	})
-	themeLibraryPane(c, a.Preferences, fg, muted)
+	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
 	desktopRow(c, i18n.T(i18n.KeySettingsDesktopWallpaper), func() {
 		if a.WallpaperPath == nil {
 			return

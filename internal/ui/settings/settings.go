@@ -27,6 +27,9 @@ type Model struct {
 	ThemeID        string
 	SystemDark     bool
 	OnClose        func()
+	// OnOpenConfig opens the configuration file in the host editor; nil renders
+	// the header action disabled with an explanation.
+	OnOpenConfig   func()
 	OnDraft        func(key, value string)
 	// DraftPtr returns a stable *string for editing one field in the selected namespace.
 	DraftPtr func(key, seed string) *string
@@ -97,7 +100,9 @@ func View(c *ui.Context, m Model) {
 	}
 
 	// The rail and the options column scroll independently inside one panel.
-	ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Background(bg).AlignItems(ui.Stretch).Children(func() {
+	// Rail 180 + 16 gap + 16 pane padding puts the content column at x=532 in the
+	// 800 wide panel, the geometry the installed build uses.
+	ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(16).Background(bg).AlignItems(ui.Stretch).Children(func() {
 		nsList(c, m, snap, fg, muted, border, bg, chrome.Color(colors.Hover))
 		ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			header(c, m, snap, fg, muted, border)
@@ -112,6 +117,14 @@ func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 			ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		ui.Box(c).Grow(1).MinWidth(0)
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
+		configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
+		if m.OnOpenConfig == nil {
+			configButton.Tooltip(i18n.T(i18n.KeySurfacesSettingsOpenConfigHint))
+		} else if configButton.Clicked() {
+			m.OnOpenConfig()
+		}
 		if m.OnClose != nil {
 			close := ui.Button(c, "").Label(i18n.T(i18n.KeySettingsBack)).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
 			close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(fg) })
@@ -182,7 +195,7 @@ func dedicatedNamespace(ns string) bool {
 
 func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color) {
 	active := activeSection(m, snap)
-	ui.Column(c).Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
+	ui.Column(c).Key("settings-rail").Width(180).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
 		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Children(func() {
 			for _, entry := range primaryNavigation(m, snap) {
@@ -470,7 +483,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	case settings.FieldEnum:
 		draft := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})
@@ -484,7 +497,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	case settings.FieldNumber:
 		draft := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.TextInput(c, draft).Fill().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})
@@ -511,7 +524,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 			return
 		}
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.TextInput(c, draft).Fill().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})

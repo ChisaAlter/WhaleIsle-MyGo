@@ -31,14 +31,21 @@ func TestComposerCurrentCardGeometry(t *testing.T) {
 		if !ok {
 			t.Fatal("composer input missing")
 		}
-		closeMetric(t, input.Y-card.Y, 8, "card top padding")
-		closeMetric(t, input.X-card.X, 0, "input owns horizontal inset")
-		closeMetric(t, input.W, card.W, "draft scrollport width")
+		// The hero card carries HeroShell's 20/24 padding around a flush input;
+		// the docked card keeps the InputBar 8px top pad and inset input.
+		topPad, sideInset, draftShrink, rightInset, bottomInset := float32(8), float32(0), float32(0), float32(8), float32(8)
+		if hero {
+			// The hero's 34px primary overhangs the card's 20px bottom padding.
+			topPad, sideInset, draftShrink, rightInset, bottomInset = 20, 16, 32, 16, 16
+		}
+		closeMetric(t, input.Y-card.Y, topPad, "card top padding")
+		closeMetric(t, input.X-card.X, sideInset, "input owns horizontal inset")
+		closeMetric(t, input.W, card.W-draftShrink, "draft scrollport width")
 		send, _ := tt.Find(i18n.T(i18n.KeyComposerSend))
 		closeMetric(t, send.W, 34, "primary width")
 		closeMetric(t, send.H, 34, "primary height")
-		closeMetric(t, card.X+card.W-(send.X+send.W), 8, "primary right inset")
-		closeMetric(t, card.Y+card.H-(send.Y+send.H), 8, "primary bottom inset including upward shift")
+		closeMetric(t, card.X+card.W-(send.X+send.W), rightInset, "primary right inset")
+		closeMetric(t, card.Y+card.H-(send.Y+send.H), bottomInset, "primary bottom inset including upward shift")
 		closeMetric(t, card.X, 16, "shared side clearance")
 	}
 }

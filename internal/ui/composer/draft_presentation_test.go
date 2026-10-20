@@ -19,6 +19,22 @@ func shippedDraftTester(draft *string, client *DraftClient, width int, hero, dar
 	}, width, 1000)
 }
 
+// heroCardTopInset and heroSidePadding describe the card's own hero padding,
+// which replaces the InputBar top pad and the input's outer insets.
+func heroCardTopInset(hero bool) float32 {
+	if hero {
+		return 20
+	}
+	return 8
+}
+
+func heroSidePadding(hero bool) float32 {
+	if hero {
+		return 32
+	}
+	return 0
+}
+
 func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 	for _, hero := range []bool{false, true} {
 		draft := "MMMM\nMMMM"
@@ -26,14 +42,15 @@ func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 		tt := shippedDraftTester(&draft, client, 320, hero, false)
 		card, _ := tt.Find("Composer card")
 		input, _ := tt.Find("Composer draft")
-		closeMetric(t, input.Y-card.Y, 8, "shipped card top inset")
-		closeMetric(t, input.W, card.W, "shipped input width")
+		left, right, top := draftInsets(hero)
+		closeMetric(t, input.Y-card.Y, heroCardTopInset(hero), "shipped card top inset")
+		closeMetric(t, input.W, card.W-heroSidePadding(hero), "shipped input width")
 		closeMetric(t, client.font.Size, 14, "shipped glyph font size")
-		closeMetric(t, client.wrapWidth, input.W-22, "shipped left14/right8 wrap width")
+		closeMetric(t, client.wrapWidth, input.W-left-right, "shipped wrap width")
 		first, _, _ := client.BoundsForRange(ui.TextInputRange{Start: 0, End: 0})
 		second, _, _ := client.BoundsForRange(ui.TextInputRange{Start: 5, End: 5})
-		closeMetric(t, first.X, 14, "native caret left inset")
-		closeMetric(t, first.Y, 4, "native caret top inset")
+		closeMetric(t, first.X, left, "native caret left inset")
+		closeMetric(t, first.Y, top, "native caret top inset")
 		closeMetric(t, second.Y-first.Y, 24, "native line advance")
 		closeMetric(t, first.H, 24, "native caret line height")
 		// Actual ink, rather than only the native client's returned geometry.
@@ -41,7 +58,7 @@ func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 		lineInk := map[int]bool{}
 		for y := int(input.Y); y < int(input.Y+input.H); y++ {
 			ink := false
-			for x := int(input.X + 14); x < int(input.X+100); x++ {
+			for x := int(input.X + left); x < int(input.X+100); x++ {
 				p := image.RGBAAt(x, y)
 				if p.R < 60 && p.G < 60 && p.B < 60 {
 					ink = true
@@ -49,7 +66,7 @@ func TestShippedDraftClientInsetsAnd24pxLineAdvance(t *testing.T) {
 				}
 			}
 			if ink {
-				line := int((float32(y) - input.Y - 4) / 24)
+				line := int((float32(y) - input.Y - top) / 24)
 				lineInk[line] = true
 			}
 		}
@@ -66,15 +83,17 @@ func TestShippedDraftClientGrowsAndClipsAtOriginal336pxCap(t *testing.T) {
 			client := NewDraftClient(&draft)
 			tt := shippedDraftTester(&draft, client, 400, hero, false)
 			input, _ := tt.Find("Composer draft")
-			want := max(float32(36), float32(lines*24+4))
+			minH := float32(36)
 			if hero {
-				want = max(52, want)
+				minH = 24
 			}
+			_, _, top := draftInsets(hero)
+			want := max(minH, float32(lines*24)+top)
 			want = min(336, want)
 			closeMetric(t, input.H, want, "shipped growing draft height")
 			image := tt.Image()
 			for y := int(input.Y + input.H + 1); y < int(input.Y+input.H+10); y++ {
-				for x := int(input.X + 14); x < int(input.X+90); x++ {
+				for x := int(input.X + 0); x < int(input.X+90); x++ {
 					p := image.RGBAAt(x, y)
 					if p.R < 60 && p.G < 60 && p.B < 60 {
 						t.Fatalf("draft text escaped scrollport at(%d,%d)", x, y)
@@ -133,9 +152,10 @@ func TestShippedDraftPlaceholderUsesSourceInsetsAndCaption(t *testing.T) {
 			if !ok {
 				t.Fatalf("shipped placeholder missing hero=%v dark=%v", hero, dark)
 			}
-			closeMetric(t, placeholder.X-input.X, 14, "placeholder left inset")
-			closeMetric(t, placeholder.Y-input.Y, 4, "placeholder top inset")
-			if placeholder.X+placeholder.W > input.X+input.W-8+.1 {
+			left, right, top := draftInsets(hero)
+			closeMetric(t, placeholder.X-input.X, left, "placeholder left inset")
+			closeMetric(t, placeholder.Y-input.Y, top, "placeholder top inset")
+			if placeholder.X+placeholder.W > input.X+input.W-right+.1 {
 				t.Errorf("placeholder escaped narrow draft: %v", placeholder)
 			}
 			label := i18n.T(i18n.KeyComposerPlaceholder)
@@ -352,8 +372,9 @@ func TestShippedEmptyDraftPaintsFocusedCaretBesidePlaceholder(t *testing.T) {
 		}
 		input, _ := tt.Find("Composer draft")
 		caret, active := tt.TextCaret()
-		closeMetric(t, caret.X-input.X, 14, "empty native caret left inset")
-		closeMetric(t, caret.Y-input.Y, 4, "empty native caret top inset")
+		left, _, top := draftInsets(hero)
+		closeMetric(t, caret.X-input.X, left, "empty native caret left inset")
+		closeMetric(t, caret.Y-input.Y, top, "empty native caret top inset")
 		closeMetric(t, caret.H, 24, "empty native caret height")
 		if !active {
 			t.Fatal("empty draft native input method inactive")

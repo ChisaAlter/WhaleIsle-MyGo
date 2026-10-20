@@ -149,7 +149,10 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	// --dsw-alias-scrollbar-bg-l1/hover-l1 (--dsw-static-neutral-200/300 in the
 	// light palette, 700/600 in the dark one).
 	t.ScrollbarWidth = 5
-	t.ScrollbarAlways = true
+	// The reference's scrollbar.css paints the thumb only while its container is
+	// hovered or dragged; an always-on track left a bar down the sidebar and every
+	// list, which the installed build does not show.
+	t.ScrollbarAlways = false
 	if dark {
 		t.Scrollbar = ui.RGBA(60, 60, 61, 1)
 		t.ScrollbarHover = ui.RGBA(84, 85, 87, 1)

@@ -8,6 +8,8 @@ package i18n
 const (
 
 	// remote
+	KeySurfacesSettingsOpenConfig     = "surfaces.settings.open_config"
+	KeySurfacesSettingsOpenConfigHint = "surfaces.settings.open_config_hint"
 	KeyMiscRemotePairingLinkValid = "misc.remote.pairing_link_valid"
 	KeyMiscRemoteScanPrivatelyToPairYourPhone = "misc.remote.scan_privately_to_pair_your_phone"
 	KeyMiscRemoteQrUnavailableCopyTheTemporaryLinkP = "misc.remote.qr_unavailable_copy_the_temporary_link_p"
@@ -520,6 +522,8 @@ const (
 func init() {
 
 	// remote
+	Register(KeySurfacesSettingsOpenConfig, "打开配置文件", "Open config file")
+	Register(KeySurfacesSettingsOpenConfigHint, "此构建尚未接入配置文件打开", "Opening the config file is not wired in this build")
 	Register(KeyMiscRemotePairingLinkValid, "配对链接有效", "Pairing link valid · ")
 	Register(KeyMiscRemoteScanPrivatelyToPairYourPhone, "用手机扫码配对，请勿分享二维码。", "Scan privately to pair your phone.")
 	Register(KeyMiscRemoteQrUnavailableCopyTheTemporaryLinkP, "二维码不可用，可复制临时配对链接。", "QR unavailable; copy the temporary link privately.")

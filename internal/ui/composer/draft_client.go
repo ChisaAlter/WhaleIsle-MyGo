@@ -15,10 +15,35 @@ const (
 	draftInputMaxHeight  = float32(336)
 )
 
+// draftInsets are the input's own inner insets. The hero card already supplies
+// its 24px side and 20px vertical padding, so the hero input sits flush.
+func draftInsets(hero bool) (left, right, top float32) {
+	if hero {
+		return 0, 0, 0
+	}
+	return draftInputLeft, draftInputRight, draftInputTop
+}
+
+// setInsets records the frame's inner insets so native caret and hit-test
+// geometry agree with the painted text in both card layouts.
+func (c *DraftClient) setInsets(left, right, top float32) {
+	c.insetLeft, c.insetRight, c.insetTop, c.insetSet = left, right, top, true
+}
+
+// ins returns the insets in effect for this frame.
+func (c *DraftClient) ins() (left, right, top float32) {
+	if c.insetSet {
+		return c.insetLeft, c.insetRight, c.insetTop
+	}
+	return draftInputLeft, draftInputRight, draftInputTop
+}
+
 // DraftClient implements ui.TextInputClient for the composer draft (*string).
 // Selection and IME marked ranges use UTF-16 code units, matching MyGo native
 // text services. Call Sync after programmatic draft edits from chips or suggest.
 type DraftClient struct {
+	insetLeft, insetRight, insetTop float32
+	insetSet                        bool
 	regionStop  [2]stopSequence
 	suggestions SuggestionState
 	stop        stopSequence
@@ -247,8 +272,9 @@ func (c *DraftClient) BoundsForRange(r ui.TextInputRange) (ui.Rect, ui.TextInput
 			b = rects[0]
 		}
 	}
-	b.X += draftInputLeft
-	b.Y += draftInputTop - c.scrollY
+	l, _, t := c.ins()
+	b.X += l
+	b.Y += t - c.scrollY
 	return b, r, true
 }
 
@@ -289,11 +315,12 @@ func (c *DraftClient) revealCaretInViewport() {
 	if c.layout == nil || c.viewportHeight <= 0 {
 		return
 	}
-	limit := max(0, c.visualHeight()+draftInputTop-c.viewportHeight)
+	_, _, t := c.ins()
+	limit := max(0, c.visualHeight()+t-c.viewportHeight)
 	caret := c.visualCaret(c.selection.Caret())
-	top, bottom := caret.Y+draftInputTop, caret.Y+draftInputTop+caret.H
-	if top < c.scrollY {
-		c.scrollY = max(0, top-draftInputTop)
+	topY, bottom := caret.Y+t, caret.Y+t+caret.H
+	if topY < c.scrollY {
+		c.scrollY = max(0, topY-t)
 	}
 	if bottom > c.scrollY+c.viewportHeight {
 		c.scrollY = min(limit, bottom-c.viewportHeight)

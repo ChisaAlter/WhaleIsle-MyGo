@@ -119,12 +119,9 @@ func TestViewRemembersRightPreferenceAcrossResizeAndExplicitClose(t *testing.T) 
 	}
 	check(400, 518)
 	tt.SetSize(900, 800)
-	collapsed := SidebarCollapsedWidth()
-	sidebarDivider := float32(1)
-	if collapsed == 0 {
-		sidebarDivider = 0
-	}
-	check(400, 900-collapsed-sidebarDivider-SplitterWidth-400)
+	// The sidebar keeps its 280-DIP track at 900 DIP (the auto-collapse band is the
+	// phone drawer), so the right pane concedes entirely; the preference survives.
+	check(619, 0)
 	tt.SetSize(1600, 800)
 	check(778, 540)
 	open = false
@@ -177,12 +174,9 @@ func TestRightDragChangesPreferenceAndSurvivesReopen(t *testing.T) {
 		t.Fatalf("drag sizes=%+v right=%v, want right468 center450", sizes, right)
 	}
 	tt.SetSize(900, 800)
-	collapsed := SidebarCollapsedWidth()
-	if collapsed == 0 {
-		if sizes.Right != 468 || right != 468 || sizes.Center != 431 {
-			t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
-		}
-	} else if sizes.Right != 468 || right != 442 {
+	// 900 DIP keeps the 280-DIP sidebar track, so the right pane is squeezed out
+	// while the preference it will reopen at stays 468.
+	if sizes.Right != 468 || right != 0 || sizes.Center != 619 {
 		t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
 	}
 	tt.SetSize(1600, 800)
@@ -393,7 +387,7 @@ func TestTerminalToggleDoesNotStealFocusFromSidebar(t *testing.T) {
 			}
 			for _, width := range []int{900, 1600} {
 				tt.SetSize(width, 800)
-				if width < 1024 && SidebarCollapsedWidth() == 0 {
+				if width < 768 && SidebarCollapsedWidth() == 0 {
 					continue
 				}
 				if !tt.Focused(label) || tt.Focused("Composer draft") {

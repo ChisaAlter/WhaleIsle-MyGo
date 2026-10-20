@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -58,7 +59,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 							ui.Text(c, modelProviderTitle(namespace.NS)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
 							ui.Text(c, namespace.NS).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 						})
-						if ui.Button(c, providerCopy("配置", "Configure")).Disabled((m.OnSelectNamespace == nil && a.OnConfigure == nil) || state.Loading || state.Saving).Clicked() {
+						if widgets.Button(c, fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), providerCopy("编辑", "Edit"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: (m.OnSelectNamespace == nil && a.OnConfigure == nil) || state.Loading || state.Saving}).Clicked() {
 							if a.OnConfigure != nil {
 								*editing = !*editing
 								a.OnConfigure(namespace.NS)

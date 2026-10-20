@@ -9,17 +9,22 @@ import (
 
 // TestFirstRunAppearanceMatchesHarnessDefaults pins the install defaults of
 // ui-theme/src/theme-settings.ts DEFAULT_THEME_SETTINGS, so a fresh profile
-// matches the harness look instead of starting from an empty backdrop.
+// matches the harness look instead of starting from an empty backdrop. The
+// gradient preset is the installed build's own backdrop, sampled for Pass 2
+// (wallpapers.PresetColors("dune")).
 func TestFirstRunAppearanceMatchesHarnessDefaults(t *testing.T) {
 	p := FirstRunAppearance()
-	if p.Effect != "gradient" || p.Preset != "aurora" || p.Variant != "orbs" {
-		t.Fatalf("first-run backdrop = %q/%q/%q, want gradient/aurora/orbs", p.Effect, p.Preset, p.Variant)
+	if p.Effect != "gradient" || p.Preset != "dune" || p.Variant != "orbs" {
+		t.Fatalf("first-run backdrop = %q/%q/%q, want gradient/dune/orbs", p.Effect, p.Preset, p.Variant)
 	}
 	if p.Speed != 190 || p.Count != 5 {
 		t.Fatalf("first-run ambient speed/count = %v/%v, want 190/5", p.Speed, p.Count)
 	}
-	if p.Colors != ([7]string{"", "", "#34d399", "#22d3ee", "#a78bfa", "#4ade80", "#38bdf8"}) {
-		t.Fatalf("first-run bloom colors drift: %v", p.Colors)
+	if p.Colors != ([7]string{"#D1D6DC", "#C6C4DB", "#F4F4F8", "#B7D4C8", "#B2D0CB", "#D0D4DD", "#CED5DD"}) {
+		t.Fatalf("first-run gradient colors drift: %v", p.Colors)
+	}
+	if p.Colors != wallpapers.PresetColors("dune") {
+		t.Fatalf("first-run colors disagree with the dune preset: %v", p.Colors)
 	}
 	if p.Glass != 80 || p.Terminal != 75 {
 		t.Fatalf("first-run glass/terminal = %v/%v, want 80/75", p.Glass, p.Terminal)

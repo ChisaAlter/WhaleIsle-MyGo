@@ -62,14 +62,16 @@ func (c *DraftClient) visualHeight() float32 {
 
 func (c *DraftClient) setViewport(height float32) {
 	c.viewportHeight = height
-	limit := max(0, c.visualHeight()+draftInputTop-height)
+	_, _, t := c.ins()
+	limit := max(0, c.visualHeight()+t-height)
 	c.scrollY = min(limit, max(0, c.scrollY))
 	if c.revealCaret {
 		c.revealCaretInViewport()
 	}
 }
 func (c *DraftClient) scrollBy(dy float32) bool {
-	limit := max(0, c.visualHeight()+draftInputTop-c.viewportHeight)
+	_, _, t := c.ins()
+	limit := max(0, c.visualHeight()+t-c.viewportHeight)
 	if limit == 0 {
 		return false
 	}

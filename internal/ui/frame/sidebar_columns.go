@@ -25,7 +25,13 @@ func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 	if sizes.Responsive == nil {
 		sizes.Responsive = &SidebarResponsive{}
 	}
-	narrow := width < 1024
+	// ui-layout columns.ts only auto-collapses the sidebar in the portrait band
+	// (SIDEBAR_AUTO_COLLAPSE = 1024 with !landscape); a desktop window is
+	// landscape, so it keeps the saved preference — 280 DIP by default — and the
+	// phone drawer takes over below PHONE_MAX. Collapsing the desktop track at a
+	// window width instead lost the brand, the sections and the account row on
+	// every 960-DIP desktop.
+	narrow := width < phoneMax
 	if sizes.Responsive.narrow != narrow {
 		sizes.Responsive.expanded = false
 	}

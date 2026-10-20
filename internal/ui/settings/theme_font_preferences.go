@@ -5,59 +5,36 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func themeFontPane(c *ui.Context, e *theme.Editor) {
 	if e == nil {
 		return
 	}
-	themeLibraryPane(c, e, c.Theme().Text, c.Theme().TextMuted)
+	themeLibraryPane(c, e, theme.Resolve(theme.IDDeepseekLight).Light, c.Theme().Text, c.Theme().TextMuted)
 	themeTypographyPane(c, e, c.Theme().Text, c.Theme().TextMuted)
 }
-func themeLibraryPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
+func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, muted ui.Color) {
 	if e == nil {
 		return
 	}
-	bodyHeading(c, providerCopy("主题库", "Theme library"), providerCopy("分别为浅色与深色外观选择主题。", "Choose a theme family for each color scheme."), fg, muted)
-	ids := []string{}
-	for _, f := range e.Draft.Families() {
-		ids = append(ids, f.ID)
-	}
-	for _, half := range []struct {
-		label string
-		value *string
-	}{{providerCopy("浅色主题", "Light theme"), &e.Draft.Light}, {providerCopy("深色主题", "Dark theme"), &e.Draft.Dark}} {
-		bodyPreferenceRow(c, "theme-half-"+half.label, half.label, "", fg, muted, func() {
-			if ui.Select(c, half.value, ids).FillWidth().Label(half.label).Disabled(e.OnSave == nil).Changed() {
-				e.SelectThemeHalf(half.value == &e.Draft.Dark, *half.value)
-			}
+	border := theme.Color(colors.Border)
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+			ui.Text(c, providerCopy("主题", "Themes")).FillWidth().FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			ui.Text(c, providerCopy("浅色与深色各选一个主题，卡片上半为浅色预览，下半为深色预览。", "Pick one theme for each color scheme; each card previews its light half above and dark half below.")).
+				FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 		})
-	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		for _, f := range e.Draft.Families() {
-			ui.Column(c.Key("theme-family-" + f.ID)).Width(124).MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).Gap(2).Children(func() {
-					for index, s := range []theme.Seed{f.Light, f.Dark} {
-						if ui.Button(c, "Aa").Width(60).Height(42).FontSize(20).Background(chrome.Color(s.Background)).TextColor(chrome.Color(s.Foreground)).Padding(8).Disabled(e.OnSave == nil).Clicked() {
-							e.SelectThemeHalf(index == 1, f.ID)
-						}
-					}
-				})
-				ui.Text(c, f.Name).FillWidth().SingleLine().Tooltip(f.Name).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				ui.Row(c).Wrap().Gap(4).Children(func() {
-					if ui.Button(c, providerCopy("复制", "Duplicate")).Disabled(e.OnSave == nil).Clicked() {
-						copy := e.Draft.DuplicateFamily(f)
-						e.StartFamily(copy)
-					}
-				})
-			})
-		}
-	})
-	ui.Row(c).Wrap().Gap(8).Children(func() {
-		if ui.Button(c, providerCopy("创建主题", "Create theme")).Disabled(e.OnSave == nil).Clicked() {
+		if widgets.Button(c, colors, providerCopy("创建主题", "Create theme"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: e.OnSave == nil}).Clicked() {
 			e.StartFamily(e.Saved.DuplicateFamily(e.Saved.Family(e.Saved.Dark)))
 		}
-		if e.OnImport != nil && ui.Button(c, providerCopy("导入主题文件", "Import theme file")).Disabled(e.OnSave == nil).Clicked() {
+		importDisabled := e.OnSave == nil || e.OnImport == nil
+		importButton := widgets.Button(c, colors, providerCopy("导入主题", "Import theme"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: importDisabled})
+		if importDisabled {
+			importButton.Tooltip(providerCopy("此构建未接入主题文件导入", "Theme file import is not wired in this build"))
+		}
+		if !importDisabled && importButton.Clicked() {
 			raw, err := e.OnImport()
 			if err != nil {
 				e.Status = err.Error()
@@ -72,6 +49,96 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 			}
 		}
 	})
+	grid := ui.Grid(c.Key("theme-grid")).FillWidth().MinWidth(0).Gap(12)
+	grid.Columns(2).Children(func() {
+		for _, f := range e.Draft.Families() {
+			family := f
+			currentLight := e.Draft.Light == family.ID
+			currentDark := e.Draft.Dark == family.ID
+			card := ui.Column(c.Key("theme-card-"+family.ID)).FillWidth().MinWidth(0).Gap(0).Radius(10).Clip().Border(.5, border)
+			if currentLight || currentDark {
+				card.Border(1.5, fg)
+			}
+			card.Children(func() {
+				ui.Row(c).FillWidth().Height(92).Children(func() {
+					themePreviewHalf(c, family, family.Light, "light", currentLight, e.OnSave == nil, muted, func() {
+						e.SelectThemeHalf(false, family.ID)
+					})
+					themePreviewHalf(c, family, family.Dark, "dark", currentDark, e.OnSave == nil, muted, func() {
+						e.SelectThemeHalf(true, family.ID)
+					})
+				})
+				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, family.Name).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
+					if currentLight {
+						ui.Text(c, providerCopy("浅色当前", "Light")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					}
+					if currentDark {
+						ui.Text(c, providerCopy("深色当前", "Dark")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					}
+				})
+			})
+		}
+	})
+	bodyDisclosure(c, "theme-names", providerCopy("按名称选择主题", "Pick themes by name"), func() {
+		ids := []string{}
+		for _, f := range e.Draft.Families() {
+			ids = append(ids, f.ID)
+		}
+		for _, half := range []struct {
+			label string
+			value *string
+		}{{providerCopy("浅色主题", "Light theme"), &e.Draft.Light}, {providerCopy("深色主题", "Dark theme"), &e.Draft.Dark}} {
+			bodyPreferenceRow(c, "theme-half-"+half.label, half.label, "", fg, muted, func() {
+				if ui.Select(c, half.value, ids).FillWidth().Label(half.label).Disabled(e.OnSave == nil).Changed() {
+					e.SelectThemeHalf(half.value == &e.Draft.Dark, *half.value)
+				}
+			})
+		}
+	})
+	themeCustomEditor(c, e, fg, muted)
+}
+
+// themePreviewHalf is one half of a theme card: the seed's own background, its
+// accent dot, two skeleton lines and the scheme chip. A click selects that half.
+func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, muted ui.Color, onPick func()) {
+	root := ui.Button(c.Key("theme-half-"+family.ID+"-"+scheme), "").
+		Label(family.Name + " " + scheme).
+		FillWidth().Grow(1).MinWidth(0).Height(92).Padding(12).
+		Background(chrome.Color(seed.Background)).BorderWidth(0).Disabled(disabled)
+	if root.Hovered() && !disabled {
+		root = root.Opacity(0.92)
+	}
+	root.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
+			ui.Box(c).Size(10, 10).Shrink(0).Radius(5).Background(chrome.Color(seed.Accent))
+			ui.Box(c).Width(38).Height(6).Shrink(0).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.35))
+			ui.Box(c).Grow(1)
+			if current {
+				ui.Text(c, "✓").FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(seed.Foreground))
+			}
+		})
+		ui.Box(c).Height(4)
+		ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
+		ui.Box(c).Height(0)
+		ui.Box(c).Grow(1)
+		switchText := providerCopy(map[string]string{"light": "浅色", "dark": "深色"}[scheme], map[string]string{"light": "Light", "dark": "Dark"}[scheme])
+		if current {
+			switchText = providerCopy(map[string]string{"light": "浅色（当前模式）", "dark": "深色（当前模式）"}[scheme], map[string]string{"light": "Light (current)", "dark": "Dark (current)"}[scheme])
+		}
+		ui.Row(c).Gap(0).Children(func() {
+			ui.Text(c, switchText).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
+				Border(.5, chrome.Color(seed.Foreground).Alpha(.25)).TextColor(chrome.Color(seed.Foreground).Alpha(.85))
+		})
+	})
+	if root.Clicked() && !disabled {
+		onPick()
+	}
+}
+
+// themeCustomEditor is the advanced editor for custom theme families, kept out of
+// the visual theme grid.
+func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	ui.Column(c.Key("custom-theme-editor")).FillWidth().Gap(8).Children(func() {
 		customIDs := []string{""}
 		for _, f := range e.Draft.Custom {

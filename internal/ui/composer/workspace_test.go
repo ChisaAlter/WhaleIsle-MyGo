@@ -45,8 +45,13 @@ func TestInertComposerCardOpensWorkspaceWithoutEditingOrSubmitting(t *testing.T)
 			if tt.Focused("Composer draft") {
 				t.Fatal("inert input received focus")
 			}
+			// The inert card offers the workspace entry but never presents the
+			// global default path as the session's workspace.
+			if tt.HasText("C:/global-default") || tt.HasText("global-default") {
+				t.Fatalf("global default impersonated a selected workspace: %v", tt.Texts())
+			}
 			if !tt.HasText(i18n.T(i18n.KeyChatHeroChooseWorkspace)) {
-				t.Fatal("global default impersonated a selected workspace")
+				t.Fatalf("inert composer lost the workspace entry: %v", tt.Texts())
 			}
 			if err := tt.Click("Composer draft"); err != nil {
 				t.Fatal(err)

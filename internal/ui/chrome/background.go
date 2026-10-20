@@ -3,8 +3,10 @@ package chrome
 import (
 	"github.com/egoist/mygo/ui"
 	"image"
+	"image/color"
 	"image/draw"
 	"math"
+	"sync"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
@@ -144,33 +146,77 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 		if !reduced {
 			t = float64(painter.Now().UnixMilli()) / 1000 * p.Speed / 100
 		}
-		painter.FillGradient(r, ui.LinearGradient{From: resolved[0], To: resolved[1], Angle: 40 + float32(math.Sin(t*.05)*20)}, 0)
+		// The wash runs top to bottom, the axis the sheet's gradient band fills,
+		// and the blooms sit where the installed build's backdrop has its colour:
+		// the bright centre, the greens of the lower left and floor, the grey-blue
+		// right flank and the cooler top. They drift a tenth of the window, so the
+		// composition stays the sampled one while it still flows.
+		painter.FillGradient(r, ui.LinearGradient{From: resolved[0], To: resolved[1], Angle: 180}, 0)
+		anchors := [5][2]float32{{.5, .34}, {.2, .82}, {.5, .96}, {.86, .56}, {.72, .1}}
 		for i := 0; i < min(5, max(1, int(p.Count))); i++ {
 			phase := float64(i) * 1.73
-			x := r.X + r.W*float32(.5+.36*math.Sin(t*.13+phase))
-			y := r.Y + r.H*float32(.5+.35*math.Cos(t*.11+phase))
-			w, h := r.W*.45, r.H*.55
-			radius := min(w, h) / 2
-			switch p.Variant {
-			case "aurora":
-				w = r.W * .8
-				h = r.H * .18
-				radius = h / 2
-			case "rays":
-				w = r.W * .18
-				h = r.H * 1.4
-				radius = 0
-			case "chaos":
-				w *= float32(.7 + .3*math.Sin(t*.2+phase))
-				h *= float32(.8 + .4*math.Cos(t*.17+phase))
+			anchor := anchors[i]
+			x := r.X + r.W*(anchor[0]+float32(.1*math.Sin(t*.22+phase)))
+			y := r.Y + r.H*(anchor[1]+float32(.08*math.Cos(t*.19+phase)))
+			w, h := r.W*.78, r.H*.78
+			if p.Variant == "chaos" {
+				w *= float32(.8 + .2*math.Sin(t*.13+phase))
+				h *= float32(.85 + .2*math.Cos(t*.11+phase))
 			}
-			painter.Shadow(ui.Rect{X: x - w/2, Y: y - h/2, W: w, H: h}, radius, 0, 0, 60, 0, resolved[i+2].Alpha(.38))
+			// A soft radial bloom, not a blurred shadow: a shadow's cast box
+			// leaves the hard circle edge the first pass saw over the wallpaper.
+			painter.Image(bloomBitmap(resolved[i+2]), ui.Rect{X: x - w/2, Y: y - h/2, W: w, H: h}, ui.FillBox)
 		}
 		if !reduced {
 			painter.AnimationFrame()
 		}
 	}
 }
+
+// bloomCache keeps the radial glows of the ambient gradient, one per colour.
+var bloomCache sync.Map // ui.Color -> *ui.Bitmap
+
+// bloomBitmap is a soft radial glow of c: its colour at the centre fading to
+// nothing at the rim along a metaball falloff, so the gradient behind it never
+// shows an edge where the bloom ends. Colours without an alpha of their own
+// take half; a colour with one of its own keeps it.
+func bloomBitmap(c ui.Color) *ui.Bitmap {
+	if bmp, ok := bloomCache.Load(c); ok {
+		return bmp.(*ui.Bitmap)
+	}
+	const n = 96
+	alpha := c.A
+	if alpha == 0 {
+		alpha = 128
+	}
+	img := image.NewRGBA(image.Rect(0, 0, n, n))
+	for y := 0; y < n; y++ {
+		for x := 0; x < n; x++ {
+			dx := (float64(x)+.5)/n*2 - 1
+			dy := (float64(y)+.5)/n*2 - 1
+			d2 := dx*dx + dy*dy
+			if d2 >= 1 {
+				continue
+			}
+			// (1 - d²)³ reaches zero with a zero slope at the rim, which is what
+			// keeps the bloom's edge out of the picture. The pixels are
+			// premultiplied, as every surface bitmap is.
+			falloff := 1 - d2
+			falloff = falloff * falloff * falloff
+			a := uint8(float64(alpha) * falloff)
+			img.SetRGBA(x, y, color.RGBA{
+				R: uint8(int(c.R) * int(a) / 255),
+				G: uint8(int(c.G) * int(a) / 255),
+				B: uint8(int(c.B) * int(a) / 255),
+				A: a,
+			})
+		}
+	}
+	bmp := ui.NewBitmap(img)
+	bloomCache.Store(c, bmp)
+	return bmp
+}
+
 func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
 	s := &backgroundState
 	if s.path == path && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil {

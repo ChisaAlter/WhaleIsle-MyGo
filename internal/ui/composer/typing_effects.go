@@ -182,8 +182,9 @@ func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretI
 			return
 		}
 		caret := client.visualCaret(client.selection.Caret())
-		caret.X += r.X + draftInputLeft
-		caret.Y += r.Y + draftInputTop - client.scrollY
+		left, _, top := client.ins()
+		caret.X += r.X + left
+		caret.Y += r.Y + top - client.scrollY
 		if fx.enabled && fx.style.Cursor != "native" {
 			if client.selection.Range.Start != client.selection.Range.End {
 				fx.caretBorn = time.Time{}
