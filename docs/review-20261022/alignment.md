@@ -28,3 +28,10 @@
 
 - 每次修改后：`go build` + 相关包测试 + PrintWindow 实机截图。
 - 像素/几何差异记录在 `docs/review-20261020/visual-acceptance.md`。
+
+## 27 轮回归（2026-10-22）
+
+- 首屏：`docs/review-20261022/evidence/final-hero.png`（2160×1380，150% DPI）
+- 设置：`settings-general.png`、`settings-appearance.png`、`settings-interface.png`、`settings-models.png`、`settings-about.png`。
+- 折叠栏：`.devdata/collapsed-pass93.png`。
+- 全量测试通过；残留：B5 原生菜单（MyGo overlay 渲染阻塞）、B7 弹层退出动画、B19 模型页结构有意差异。
