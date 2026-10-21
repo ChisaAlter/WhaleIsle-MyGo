@@ -90,7 +90,7 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
+	bg := chrome.Color(colors.Field)
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
