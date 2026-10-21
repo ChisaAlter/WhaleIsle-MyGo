@@ -20,7 +20,7 @@ func TestManyProjectsKeepSettingsFooterInsideSidebar(t *testing.T) {
 		tt := ui.NewTester(func(c *ui.Context) {
 			View(c, Model{Projects: projects.Model{Expanded: true, Loaded: true, Workspace: "C:/fixture", Listing: projectflow.Listing{Available: true, Projects: rows}}, OnOpenSettings: func() {}})
 		}, 280, height)
-		footer, found := tt.Find(i18n.T(i18n.KeySettingsOpen))
+		footer, found := tt.Find(i18n.T(i18n.KeySettingsAccountSeat))
 		if !found || footer.H <= 0 || footer.Y < 0 || footer.Y+footer.H > float32(height) {
 			t.Fatalf("%d: project rows displaced the pinned settings control: %+v", height, footer)
 		}
