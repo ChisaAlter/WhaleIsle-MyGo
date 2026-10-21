@@ -85,3 +85,15 @@
 - **C2 实机**：关闭「显示代码工作视图」→ Host profile 写 `enabled: false` → 重启 → 开关仍为 Off → 恢复 On，跨重启持久化通过。
 - **E3 根因**：宠物窗口创建后，WebView2 加载 `whale-pet://localhost/index.html` 报 `COREWEBVIEW2_WEB_ERROR_STATUS 14`；预注册 scheme 无效，已移除临时改动。设置页会显示该错误，不再静默。
 - 当前运行：`whaleisle-pass43.exe`（pid 8，Host pid 39976）。
+## 9. 最终快照（pass49，2026-10-21）
+
+- 运行：`whaleisle-pass49.exe`，pid 25568；主窗口 2160×1380，响应正常。
+- 首屏证据：`evidence/acceptance/G1-first-screen-final.png`（hero、composer、侧栏、账号行完整可见）。
+- 测试：`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 通过。
+- 总表：**PASS 17 / PARTIAL 4 / BLOCKED 6 / FAIL 1**，按项 17/28 ≈ 61%，实机可复现 PASS 约 12 项。
+- 不可继续推进的项均有明确外部条件：
+  - A3/A4/E2：缺 `DEEPSEEK_API_KEY`；
+  - F2/F3：dsh-im 未安装；
+  - A7：UIA 文本注入会令自绘输入框卡死；
+  - E3：当前直接运行环境 WebView2 导航整体返回 status 0/14，`whale-pet://` 与回环 HTTP 均失败。
+- 结论：MyGo鲸屿在会话/消息/失败提示/设置/任务/插件/远程设置/终端/鲸鱼娘设置等已具备可用实现；模型工具链、IM/Office、桌宠和部分视觉动效尚未达到与原版完整对齐。
