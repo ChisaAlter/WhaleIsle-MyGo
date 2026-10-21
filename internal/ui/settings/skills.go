@@ -366,7 +366,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						if detail != "" {
 							detail += " · "
 						}
-						detail += h.Status
+						detail += skillStatusLabel(h.Status)
 					}
 					if detail != "" {
 						ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -380,6 +380,25 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 
+	}
+}
+
+// skillStatusLabel localizes the hub status token; unknown values stay visible
+// so a new Host status is not hidden.
+func skillStatusLabel(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "installed":
+		return pluginsText("已安装", "Installed")
+	case "conflict":
+		return pluginsText("冲突", "Conflict")
+	case "not-installed":
+		return pluginsText("未安装", "Not installed")
+	case "available":
+		return pluginsText("可安装", "Available")
+	case "update-available":
+		return pluginsText("有更新", "Update available")
+	default:
+		return status
 	}
 }
 

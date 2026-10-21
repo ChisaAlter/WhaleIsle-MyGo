@@ -200,3 +200,6 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 设置·内置插件网格修复（pass39）：卡片在 Grid 单元格里误用 FillWidth，按整行宽布局导致右列被裁切；移除后两列各占一半、长包名省略号收口，新增 TestBuiltinPluginCardsStayInTheirColumns，实机截图 settings-live/plugins.png。
 
 - 插件状态本地化（pass40）：management-required 不再直接显示，改为「由桌面宿主管理」/Managed by the desktop host；卡片与只读原因列表同时生效。实机 settings-live/plugins.png 已更新。
+
+- 技能 hub 状态本地化（pass41）：installed/conflict/
+ot-installed/update-available 不再原样显示，改为已安装/冲突/未安装/有更新；未知状态保留原值。
