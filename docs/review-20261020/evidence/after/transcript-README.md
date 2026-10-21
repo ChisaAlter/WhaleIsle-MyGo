@@ -18,6 +18,7 @@ go test -count=1 ./internal/ui/interaction -run TestTranscriptGallery
 | `transcript-approval-card.png` | 1200×360 | 审批卡：warn 左边条 + warn 边框、StateDot + `等待你的确认`、15/24 标题、`bash` 等宽命令块（含复制座位）、右对齐 `拒绝`（outline→danger）/ `允许`（primary） | `internal/ui/interaction/gallery_test.go` `TestTranscriptGalleryApprovalCard` |
 | `transcript-question-card.png` | 1200×700 | 提问卡：StateDot 表头、15/24 问题、三个选项卡（20px 序号徽章 + 描述）、自定义回答占位、`‹ 1 / 3 ›` 翻页器、`跳过此题` + `下一步`（未作答禁用）、`暂时隐藏` / `拒绝` | `TestTranscriptGalleryQuestionCard` |
 | `transcript-tool-kinds.png` | 1200×900 | search / web / todo 三类各一条展开：grep 命中列表（`path:line` + 高亮片段 + 复制）、web 搜索卡（标题 + 域名·日期 + 两行摘要，点击打开链接）、todo 清单（状态点 + 文本 + 状态词，完成项删除线弱化） | `TestTranscriptGalleryToolKinds` |
+| `transcript-turn-failure.png` | 1200×320 | 失败回合卡片：无 API Key 时显示本地化标题「还没有配置 API Key」+ 说明 +「打开模型设置」（primary）；原始 Host 错误与 `MISSING_API_KEY` 只在「详情」里；未知错误（HTTP 502）只给通用标题 + 详情 | `TestTranscriptGalleryTurnFailure` |
 | `transcript-queue-dock.png` | 1200×260 | 队列 dock：标题 + 条数、两行 preview（单行截断）+ 图标动作（编辑 / 插话 / 删除） | `internal/ui/chat/gallery_test.go` `TestTranscriptGalleryQueueDock` |
 | `transcript-turn-rail.png` | 1200×300 | 回合轨：4 个刻度（12px 座位内 4px 条），当前回合 accent 实心 6px | `TestTranscriptGalleryTurnRail` |
 

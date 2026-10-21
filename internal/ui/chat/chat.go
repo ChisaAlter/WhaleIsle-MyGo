@@ -25,6 +25,9 @@ type Model struct {
 	OpenUIParent          uintptr
 	OpenUIWindow          *mygo.Window
 	OpenUIMediaOcclusions []mygo.Rectangle
+	// OnOpenModelSettings opens Settings → Models, the place a failed turn tells the
+	// user to fix a missing or rejected API key.
+	OnOpenModelSettings func()
 	// OnInspectToolCall opens the session inspector at the record that carries a
 	// tool call. The message ID and sequence travel with the call ID so the
 	// inspector can select the exact log row instead of guessing.
@@ -220,6 +223,14 @@ func View(c *ui.Context, m Model) {
 						key := "turn-end:" + msg.ID
 						open := isThinkingExpanded(m.ThinkingExpanded, key)
 						detail := terminalReasonDetail(msg)
+						if turnStatusKind(msg) == "failed" && detail != "" {
+							// A failed turn keeps its raw host reason but shows the same
+							// actionable, localized card as a system failure. Without this
+							// the strip read only 「运行失败」until the user expanded it.
+							paintTurnFailure(row.Context, "turn-end:"+msg.ID, classifyTurnFailure(detail, ""), colors, fg, muted, m.OnOpenModelSettings)
+							TurnUsageView(row.Context, m, msg, muted)
+							return
+						}
 						root := ui.Column(row.Context).FillWidth().MinWidth(0).Gap(2)
 						root.Children(func() {
 							paintDisclosureRow(row.Context, disclosureRow{
@@ -245,34 +256,8 @@ func View(c *ui.Context, m Model) {
 					}
 					// Electron chat: system failures as red banner; no role chips on user/assistant.
 					if isSystem {
-						body := msg.Body
-						code := ""
-						if i := strings.LastIndex(body, " MISSING_"); i >= 0 {
-							code = strings.TrimSpace(body[i+1:])
-							body = strings.TrimSpace(body[:i])
-						}
-						title := i18n.T(i18n.KeyChatRunFailed)
-						detail := body
-						if strings.HasPrefix(body, title) {
-							detail = strings.TrimSpace(strings.TrimPrefix(body, title))
-							detail = strings.TrimLeft(detail, "：: ")
-						} else if strings.HasPrefix(body, "本轮运行失败") {
-							detail = strings.TrimSpace(strings.TrimPrefix(body, "本轮运行失败"))
-							detail = strings.TrimLeft(detail, "：: ")
-						}
-						fail := chrome.Color("rgb(220, 38, 38)")
-						ui.Row(row.Context).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-							ui.Text(row.Context, "●").FontSize(12).TextColor(fail)
-							ui.Text(row.Context, title).FontSize(13).FontWeight(700).TextColor(fail)
-							if detail != "" {
-								ui.Text(row.Context, detail).FontSize(12).TextColor(fg).Grow(1)
-							} else {
-								ui.Box(row.Context).Grow(1)
-							}
-							if code != "" {
-								ui.Text(row.Context, code).FontSize(11).FontWeight(600).TextColor(muted)
-							}
-						})
+						text, code := splitTurnFailure(msg.Body)
+						paintTurnFailure(row.Context, msg.ID, classifyTurnFailure(text, code), colors, fg, muted, m.OnOpenModelSettings)
 						return
 					}
 					if msg.Kind != session.MessageKindText || (msg.Role != "user" && msg.Role != "assistant") {

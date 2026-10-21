@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"path/filepath"
 	"strings"
 	"time"
 	"whaleisle/internal/ui/widgets"
@@ -64,6 +65,17 @@ func FileWorkspace(c *ui.Context, m Model) bool {
 	if m.FileClient == nil || m.FileSessionID == "" || !m.HarnessReady || !m.RemoteWorkspaceEnabled {
 		state.Suspend()
 		return false
+	}
+	// A scratch session has no folder to mirror. Asking the Host to resolve one
+	// returned a 404 JSON error and left the right pane with a retry button; show
+	// the real reason instead of a failing remote call.
+	cwd := strings.TrimSpace(m.FileCwd)
+	if cwd == "" || strings.EqualFold(filepath.Base(filepath.Clean(cwd)), "no-workspace") {
+		anchor.Grow(1).FillWidth().MinHeight(0).Padding(12, 16, 12, 16).Gap(4).Children(func() {
+			ui.Text(c, label("此会话没有工作区文件夹", "This session has no workspace folder")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
+			ui.Text(c, label("在左侧选择或添加项目目录后，这里会显示工作区文件。", "Choose or add a project folder on the left to see its files here.")).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
+		})
+		return true
 	}
 	s := state.Files.Snapshot()
 	if !s.Resolved && !s.Resolving && s.ResolveError == "" {

@@ -6,12 +6,13 @@ import (
 	"whaleisle/internal/config"
 )
 
-// ModeUsesSSH reports whether remoteMode selects the SSH remote workspace stub.
+// ModeUsesSSH reports whether remoteMode selects the SSH remote workspace.
 func ModeUsesSSH(mode string) bool {
 	return strings.Contains(strings.ToLower(strings.TrimSpace(mode)), "ssh")
 }
 
-// Readiness is a config/credentials checklist for SSH mode (no live SSH probe).
+// Readiness is a config/credentials checklist for SSH mode; live tunneling is
+// tracked separately by TunnelSession.
 type Readiness string
 
 const (
@@ -25,7 +26,8 @@ const (
 	ReadinessReady Readiness = "ready"
 )
 
-// Snapshot is config-derived SSH stub status (no live SSH session probe).
+// Snapshot is config-derived SSH readiness; live sessions come from the
+// tunnel session itself.
 type Snapshot struct {
 	Active                 bool
 	RemoteWorkspaceEnabled bool

@@ -21,7 +21,7 @@ const (
 	ReadinessReady Readiness = "ready"
 )
 
-// Snapshot is config-derived phone remote stub status.
+// Snapshot is config-derived phone remote readiness.
 type Snapshot struct {
 	RemoteEnabled       bool
 	RemoteMode          string

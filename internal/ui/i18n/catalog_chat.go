@@ -284,6 +284,19 @@ const (
 	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
 	KeyChatQuestionTakeTime = "chat.question.take_time"
 
+	// Turn failure cards: localized headline plus the raw Host error in details.
+	KeyChatFailureAPIKeyTitle = "chat.failure.api_key.title"
+	KeyChatFailureAPIKeyBody  = "chat.failure.api_key.body"
+	KeyChatFailureAuthTitle   = "chat.failure.auth.title"
+	KeyChatFailureAuthBody    = "chat.failure.auth.body"
+	KeyChatFailureQuotaTitle  = "chat.failure.quota.title"
+	KeyChatFailureQuotaBody   = "chat.failure.quota.body"
+	KeyChatFailureInterruptedTitle = "chat.failure.interrupted.title"
+	KeyChatFailureInterruptedBody  = "chat.failure.interrupted.body"
+	KeyChatFailureDetails     = "chat.failure.details"
+	KeyChatFailureDetailsHide = "chat.failure.details_hide"
+	KeyChatOpenModelSettings  = "chat.failure.open_model_settings"
+
 	// Search / web / todo evidence blocks.
 	KeyChatToolNoMatches = "chat.tool.no_matches"
 	KeyChatToolMoreHits  = "chat.tool.more_hits"
@@ -582,6 +595,18 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
 	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
 	Register(KeyChatQuestionTakeTime, "让我慢慢回答", "Take my time")
+	Register(KeyChatFailureAPIKeyTitle, "还没有配置 API Key", "No API key yet")
+	Register(KeyChatFailureAPIKeyBody, "当前模型路线需要可用的 API Key。打开设置 → 模型填入后即可开始对话；原始错误仍在详情里。", "This route needs a working API key. Add one in Settings → Models to start chatting; the raw error stays under details.")
+	Register(KeyChatFailureAuthTitle, "API Key 无效", "API key is invalid")
+	Register(KeyChatFailureAuthBody, "Host 拒绝了这个 API Key。请在设置 → 模型里检查后重试。", "The Host rejected this key. Check it in Settings → Models and try again.")
+	Register(KeyChatFailureQuotaTitle, "额度不足", "Quota exhausted")
+	Register(KeyChatFailureQuotaBody, "账户额度或余额不足，本次请求没有发出。", "The account has no quota or balance left, so this request was not sent.")
+	Register(KeyChatFailureInterruptedTitle, "已中断", "Interrupted")
+	Register(KeyChatFailureInterruptedBody, "本次运行已被中断，可以重新发送。", "This turn was interrupted; send it again to continue.")
+	Register(KeyChatFailureDetails, "详情", "Details")
+	Register(KeyChatFailureDetailsHide, "收起", "Hide")
+	Register(KeyChatOpenModelSettings, "打开模型设置", "Open model settings")
+
 	Register(KeyChatToolNoMatches, "没有命中", "No matches")
 	Register(KeyChatToolMoreHits, "还有 %d 条", "%d more")
 	Register(KeyChatWebTruncated, "结果已截断", "Results truncated")

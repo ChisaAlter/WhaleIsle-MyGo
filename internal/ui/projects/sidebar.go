@@ -13,17 +13,15 @@ import (
 // View keeps navigation in the sidebar while reader/editor routes occupy their
 // own modal layer. Collapsing the section never withdraws an open route.
 func View(c *ui.Context, m Model) {
-	if !m.Listing.Available && len(m.Listing.Projects) == 0 {
-		projectModals(c, m)
-		return
-	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
 	section := ui.Column(c).FillWidth().MinWidth(0).Padding(8, 0).Gap(4)
 	m.presentation = ui.Local(section, "project-presentation", newProjectPresentation)
 	section.Children(func() {
-		projectFilterControls(c, &m)
+		if m.Expanded && (len(m.Listing.Projects) > 0 || m.SearchQuery != "") {
+			projectFilterControls(c, &m)
+		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
 			category := ui.Button(c, "").Label("Project").Height(36).Grow(1).MinWidth(0).Padding(0, 4).BorderWidth(0).Background(ui.Transparent)
 			category.Children(func() {
@@ -59,6 +57,9 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 		})
+		if !m.Expanded && len(m.Listing.Projects) == 0 && !m.History && m.SearchQuery == "" {
+			ui.Text(c, tr("添加项目目录，开始持续对话。", "Add a project directory to start a continuing conversation.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
+		}
 		if !m.Expanded {
 			return
 		}
@@ -73,6 +74,9 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Loaded && !m.Listing.Available {
 			ui.Text(c, tr("项目当前不可用，请刷新重试。", "Projects are unavailable; refresh to retry.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		}
+		if !m.Listing.Available && len(m.Listing.Projects) == 0 {
+			ui.Text(c, tr("添加项目目录，开始持续对话。", "Add a project directory to start a continuing conversation.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
 		}
 		if m.Loaded && m.Listing.Available && !m.Busy && len(visible) == 0 {
 			if !m.History && m.SearchQuery == "" {

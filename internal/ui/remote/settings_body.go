@@ -132,6 +132,19 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Column(c.Key("gateway-settings")).FillWidth().MinWidth(0).Gap(0).Children(func() {
 		gatewaySettingsFields(c, m, fg, muted)
 		gatewayRefreshRow(c, m, e, fg, muted, colors)
+		// Device actions finish asynchronously in the runtime; show their real
+		// progress/result for this page's rotate action only.
+		if action := m.PhoneRuntime.DeviceAction; action.Operation == "rotate" && (action.Busy || action.Error != "" || action.Message != "") {
+			text, color := action.Message, muted
+			switch {
+			case action.Busy:
+				text = label("正在更新配对码…", "Renewing the pairing code…")
+			case action.Error != "":
+				text, color = action.Error, chrome.Color(colors.Accent)
+			}
+			ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+				TextColor(color).Padding(10, 0, 10, 0)
+		}
 		if e.Error != "" {
 			ui.Text(c, e.Error).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
 				TextColor(fg).Padding(10, 0, 10, 0)
@@ -168,6 +181,15 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		e.Error = ""
 		e.Expected = next
+		if next.Mode != current.Mode {
+			e.Draft.Mode = next.Mode
+		}
+		if next.BindAddress != current.BindAddress {
+			e.Draft.BindAddress = next.BindAddress
+		}
+		if next.RelayTLS != current.RelayTLS {
+			e.Draft.RelayTLS = next.RelayTLS
+		}
 		if next.RelayEndpoint != current.RelayEndpoint {
 			e.Draft.RelayEndpoint = remoteGatewayRelayDisplay(next.RelayEndpoint)
 		}

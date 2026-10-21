@@ -56,7 +56,20 @@ type Message struct {
 	At        string `json:"at"` // RFC3339
 	Outbound  bool   `json:"outbound"`
 	Remote    bool   `json:"remote,omitempty"` // true when merged from server history
+	// State records what happened to an outbound message: pending while the
+	// im/send RPC is in flight, sent/failed from its real result, local when no
+	// send RPC exists, and unknown when the process ended mid-send. Empty means
+	// the legacy history predates this field.
+	State string `json:"state,omitempty"`
 }
+
+const (
+	MessageStatePending = "pending"
+	MessageStateSent    = "sent"
+	MessageStateFailed  = "failed"
+	MessageStateLocal   = "local"
+	MessageStateUnknown = "unknown"
+)
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
@@ -298,8 +311,10 @@ func (s *Store) Persist() error {
 	return s.saveHistoryLocked()
 }
 
-// SendDraft appends to local history (and clears the draft). When an im/send
-// candidate answers it also calls the harness; otherwise LastSend notes local queue.
+// SendDraft appends one outbound message and calls the resolved im/send RPC.
+// The message starts pending and only becomes sent after the RPC answers;
+// without a send RPC it stays local. A failed call is marked failed, so the
+// history never presents an undelivered message as delivered.
 func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 	channelID = strings.TrimSpace(channelID)
 	text = strings.TrimSpace(text)
@@ -307,17 +322,21 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		return
 	}
 
+	s.mu.Lock()
+	client := s.client
+	sendMethod := s.pickSendMethodLocked()
+	state := MessageStateLocal
+	if client != nil && sendMethod != "" {
+		state = MessageStatePending
+	}
 	msg := Message{
 		ID:        fmt.Sprintf("m-%d", time.Now().UnixNano()),
 		ChannelID: channelID,
 		Text:      text,
 		At:        time.Now().UTC().Format(time.RFC3339),
 		Outbound:  true,
+		State:     state,
 	}
-
-	s.mu.Lock()
-	client := s.client
-	sendMethod := s.pickSendMethodLocked()
 	bridge := s.bridgeMode
 	if s.history == nil {
 		s.history = map[string][]Message{}
@@ -351,12 +370,26 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		s.mu.Lock()
 		if err != nil {
 			s.lastSend = err.Error()
+			s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
 		} else {
 			s.lastSend = "sent via " + sendMethod
+			s.setMessageStateLocked(channelID, msg.ID, MessageStateSent)
 		}
+		_ = s.saveHistoryLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+// setMessageStateLocked updates one message's delivery state. The caller holds
+// s.mu and persists the history before releasing it.
+func (s *Store) setMessageStateLocked(channelID, id, state string) {
+	for index := range s.history[channelID] {
+		if s.history[channelID][index].ID == id {
+			s.history[channelID][index].State = state
+			return
+		}
+	}
 }
 
 func (s *Store) pickSendMethodLocked() string {
@@ -677,6 +710,16 @@ func (s *Store) load() error {
 	}
 	if s.history == nil {
 		s.history = map[string][]Message{}
+	}
+	// A pending send cannot survive a restart: the RPC result was never
+	// recorded, so say the outcome is unknown rather than claiming delivery.
+	for channel, messages := range s.history {
+		for index := range messages {
+			if messages[index].State == MessageStatePending {
+				messages[index].State = MessageStateUnknown
+			}
+		}
+		s.history[channel] = messages
 	}
 	return nil
 }

@@ -5173,6 +5173,42 @@ func mainView(c *ui.Context) {
 				standaloneScheduleRendered = true
 				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 					SessionLinks:  sessionLinks,
+					OnRefresh: func() {
+						if schedStore == nil {
+							state.refuseHostAction()
+							return
+						}
+						scheduler := schedStore
+						go scheduler.Refresh(context.Background(), sid)
+					},
+					OnDelete: func(id string) {
+						if schedStore == nil {
+							state.refuseHostAction()
+							return
+						}
+						scheduler := schedStore
+						go scheduler.Delete(context.Background(), sid, id)
+					},
+					OnHistory: func(id string) {
+						if schedStore == nil {
+							state.refuseHostAction()
+							return
+						}
+						scheduler := schedStore
+						go func() {
+							text, err := scheduler.History(context.Background(), sid, id)
+							state.mu.Lock()
+							if err != nil {
+								state.pendingToast = saveFailedToast(resumeText("读取任务历史", "Read task history"), err)
+							} else {
+								state.scheduleHistoryText = text
+							}
+							state.mu.Unlock()
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
 					OnOpenSession: state.openScheduleSession,
 					OnSaveTitle: func(id, title string) {
 						if schedStore == nil {
@@ -6463,6 +6499,7 @@ func mainView(c *ui.Context) {
 						PageShortcutBindings: state.pageShortcutBindings(),
 						SessionSearchFocus:   &state.commandSearchFocus,
 						OnOpenWorkspaceFiles: func() { filesPaneOpen = true; rightPaneTab = "files" },
+						OnOpenModelSettings:  state.openModelSettings,
 						Store:                sessions,
 						ScheduleStore:        schedStore,
 						OnOpenScheduleTask: func(row schedstore.Entry) {

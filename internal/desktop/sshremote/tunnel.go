@@ -67,8 +67,9 @@ type activeForward struct {
 }
 
 // NewTunnelSession returns an idle session. Unknown host keys are accepted
-// and stored under userData/ssh/known_hosts (TOFU) until UI prompting lands;
-// call SetTrustOnFirstUse(false) to receive *UnknownHostKey instead.
+// and stored under userData/ssh/known_hosts (TOFU); the desktop connect flow
+// calls SetTrustOnFirstUse(false) so the user sees the fingerprint prompt
+// first and AcceptHostKey records the chosen key.
 func NewTunnelSession() *TunnelSession {
 	return &TunnelSession{state: TunnelIdle, tofu: true, hostKeyMode: HostKeyAcceptNew, forwards: make(map[string]*activeForward)}
 }

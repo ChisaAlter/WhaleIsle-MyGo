@@ -24,14 +24,14 @@ func (f *officeUITransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"type":"server-response","rpcId":"` + req.RPCID + `","result":{"ok":true,"value":{"schemaVersion":1,"configured":true,"connected":false,"state":"idle","tokenConfigured":true,"config":{"protocolVersion":"office-harness.v1","baseUrl":"https://office.invalid","deviceId":"device-one","maxConcurrency":1,"heartbeatSeconds":30,"workspaces":{},"instructionPresets":{}}}}}`)), Request: r}, nil
 }
-func TestOfficeUnreadConfigurationShowsEmptyState(t *testing.T) {
+func TestOfficeEmptyStateNamesTheMissingDependency(t *testing.T) {
 	s := imstore.New()
 	opened := 0
 	tt := ui.NewTester(func(c *ui.Context) {
 		officeSettingsView(c, Model{Store: s, ThemeID: "deepseek", HarnessReady: true, OnOpenPluginWeb: func() { opened++ }})
 	}, 900, 700)
-	if !tt.HasText("连接 Host 后显示 Office 配置。") {
-		t.Fatalf("missing empty state: %v", tt.Texts())
+	if !tt.HasText("dsh-im 插件未就绪。") {
+		t.Fatalf("missing plugin dependency: %v", tt.Texts())
 	}
 	for _, banned := range []string{"尚未读取配置", "原版插件页面仍可使用", "stub", "未实现"} {
 		if tt.HasText(banned) {
@@ -43,6 +43,13 @@ func TestOfficeUnreadConfigurationShowsEmptyState(t *testing.T) {
 	}
 	if opened != 1 {
 		t.Fatalf("plugin page opens = %d, want 1", opened)
+	}
+
+	host := ui.NewTester(func(c *ui.Context) {
+		officeSettingsView(c, Model{Store: s, ThemeID: "deepseek", HarnessReady: false, OnOpenPluginWeb: func() {}})
+	}, 900, 700)
+	if !host.HasText("连接 Host 后显示 Office 配置。") {
+		t.Fatalf("missing Host dependency: %v", host.Texts())
 	}
 }
 

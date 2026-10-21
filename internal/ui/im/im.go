@@ -98,7 +98,13 @@ func View(c *ui.Context, m Model) {
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
 			if !snap.HasIMRPC {
-				ui.Text(c, i18n.T(i18n.KeyIMStubNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				note := i18n.T(i18n.KeyIMStubNote)
+				if m.HarnessReady {
+					// The Host answered, so its plugin is the missing piece;
+					// do not tell a connected user to connect again.
+					note = i18n.T(keyIMPluginNotReady)
+				}
+				ui.Text(c, note).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 
 			if !m.Embedded {
@@ -253,6 +259,13 @@ func View(c *ui.Context, m Model) {
 								line := prefix + " · " + when
 								ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 									ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
+									if state := imMessageStateLabel(entry.State); state != "" {
+										color := muted
+										if entry.State == imstore.MessageStateFailed || entry.State == imstore.MessageStateUnknown {
+											color = accent
+										}
+										ui.Text(c, state).FontSize(theme.InterfaceSize(11)).TextColor(color).Shrink(0)
+									}
 									if strings.TrimSpace(entry.Text) != "" {
 										if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
 											mygo.Clipboard.WriteText(entry.Text)
@@ -294,6 +307,23 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 	})
+}
+
+// imMessageStateLabel names the real delivery state of an outbound message.
+// Legacy entries carry no state and stay unlabelled.
+func imMessageStateLabel(state string) string {
+	switch state {
+	case imstore.MessageStatePending:
+		return i18n.T(keyIMSendPending)
+	case imstore.MessageStateFailed:
+		return i18n.T(keyIMSendFailed)
+	case imstore.MessageStateLocal:
+		return i18n.T(keyIMSendLocal)
+	case imstore.MessageStateUnknown:
+		return i18n.T(keyIMSendUnknown)
+	default:
+		return ""
+	}
 }
 
 func formatIMTime(at string) string {

@@ -326,6 +326,9 @@ type Model struct {
 	OnOpenLauncher        func()
 	OnContactAccount      func()
 	OnOpenSettings        func()
+	// OnOpenModelSettings opens Settings on the Models page; a failed turn offers
+	// it as the fix for a missing or rejected API key.
+	OnOpenModelSettings func()
 	OnVoiceSettings       func()
 	OnToggleTools         func()
 	OnToggleTerminal      func()
@@ -935,7 +938,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										})
 									} else {
 										chat.View(c, chat.Model{
-											OnInspectToolCall: inspectActionFor(inspectToolCall, m.toolCallInspector()),
+											OnInspectToolCall:    inspectActionFor(inspectToolCall, m.toolCallInspector()),
+											OnOpenModelSettings: m.OnOpenModelSettings,
 											Inspector:         sessionInspectorChatNavigation(m),
 											GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 											DisableDeveloperTools: m.DisableDeveloperTools,

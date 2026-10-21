@@ -55,11 +55,15 @@ func officeSettingsView(c *ui.Context, m Model) {
 						ui.Text(c, "正在读取 Office 配置…").FontSize(theme.InterfaceSize(12)).TextColor(muted)
 						return
 					}
-					// No state has been read yet: say so plainly and offer the
-					// two real ways forward instead of a plugin fallback note.
+					// No state has been read yet: name the actual missing piece
+					// (Host, plugin, or just an unread snapshot) and keep the one
+					// real way forward.
 					title, hint := "还没有读取到 Office 配置。", "刷新后重试；也可以打开插件页完成配置。"
-					if !v.Available || !m.HarnessReady {
+					switch {
+					case !m.HarnessReady:
 						title, hint = "连接 Host 后显示 Office 配置。", "连接到 Host 后刷新；也可以打开插件页完成配置。"
+					case !v.Available:
+						title, hint = "dsh-im 插件未就绪。", "安装并启用 dsh-im 后即可读取和修改 Office 配置；也可以打开插件页。"
 					}
 					ui.Column(c).FillWidth().Background(chrome.Color(colors.Field)).Border(1, border).Radius(12).Padding(20).Gap(8).Children(func() {
 						ui.Text(c, title).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)

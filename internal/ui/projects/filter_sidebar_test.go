@@ -140,8 +140,11 @@ func TestProjectSearchHistorySharedSidebarControls(t *testing.T) {
 	}
 	m.Listing.Available = false
 	tt.Frame()
-	if tt.HasText("Add Project…") || tt.HasText("No matching Projects") {
-		t.Fatal("unavailable Project category reported as empty")
+	if !tt.HasText("Add a project directory to start a continuing conversation.") {
+		t.Fatal("unavailable Project category lacks the reference guidance")
+	}
+	if tt.HasText("No matching Projects") {
+		t.Fatal("unavailable Project category reported as an empty result")
 	}
 	if mutations != 0 || refreshes != 0 || opens != 1 || m.SelectedSession != "lead-active" {
 		t.Fatal("filters dispatched unrelated actions", mutations, refreshes, opens)

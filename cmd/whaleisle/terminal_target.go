@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	desktopwebview "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/desktop/workspacefs"
 	browserpreviewui "whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
@@ -67,13 +68,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 				return desktopwebview.OpenExternal(normalized)
 			},
 			OpenPath: func(path string, line int) error {
-				model := files.Model{
-					BindingID: m.FileBindingID, SessionID: before.SelectedID, WorkspaceRoot: cwd,
-					Tabs: m.FileTabs, SelectedFile: m.SelectedFile,
-					Preview: m.FilePreview, PreviewErr: m.FilePreviewErr,
-					Editing: m.FileEditing, EditDraft: m.FileEditDraft, EditStatus: m.FileEditStatus,
-					StatNote: m.FileStatNote, EditViewMode: m.FileEditViewMode, EditSplit: m.FileEditSplit,
-				}
+				model := terminalFilesModel(m, cwd, before.SelectedID)
 				handled, err := files.OpenPresentedPath(model, path)
 				if err != nil {
 					return err
@@ -91,5 +86,26 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 				return nil
 			},
 		})
+	}
+}
+
+// terminalFilesModel is the file preview a terminal link opens: it shares the
+// pane's tabs and editor state and, unlike the remote navigation model, writes
+// into this terminal's local workspace. The save queue still re-reads the file
+// and refuses a write when it changed on disk.
+func terminalFilesModel(m frame.Model, cwd, sessionID string) files.Model {
+	return files.Model{
+		BindingID: m.FileBindingID, SessionID: sessionID, WorkspaceRoot: cwd,
+		Tabs: m.FileTabs, SelectedFile: m.SelectedFile,
+		Preview: m.FilePreview, PreviewErr: m.FilePreviewErr,
+		Editing: m.FileEditing, EditDraft: m.FileEditDraft, EditStatus: m.FileEditStatus,
+		StatNote: m.FileStatNote, EditViewMode: m.FileEditViewMode, EditSplit: m.FileEditSplit,
+		OnSaveEdit: func(rel, text string) error {
+			full, err := workspacefs.JoinRoot(cwd, rel)
+			if err != nil {
+				return err
+			}
+			return workspacefs.WriteFileText(full, text)
+		},
 	}
 }

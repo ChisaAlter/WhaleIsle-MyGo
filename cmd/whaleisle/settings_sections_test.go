@@ -100,6 +100,9 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 		}
 	}
 	state := mainState{}
+	// The market entry is intentionally absent from the rail; the section still
+	// opens through the deep link the plugins page uses.
+	state.settingsEmbeddedSection = settings.SectionMarket
 	open := true
 	selectedGeneral := 0
 	locale := "en"
@@ -117,9 +120,7 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 			marketui.View(c, marketui.Model{Store: catalog, Embedded: true, ThemeID: theme.IDDeepseekLight})
 		}))
 	}, 1000, 760)
-	if err := tt.Click(i18n.T(i18n.KeySettingsSectionMarket)); err != nil {
-		t.Fatal(err)
-	}
+	tt.Frame()
 	if !tt.HasText("First plugin") || !tt.HasText(i18n.T(i18n.KeySettingsTitle)) {
 		t.Fatal("market content or settings navigation disappeared")
 	}

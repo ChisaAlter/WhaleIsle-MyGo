@@ -76,7 +76,7 @@ type HostKeyOptions struct {
 	Path string
 	// TrustOnFirstUse, when true, auto-adds unknown host keys (TOFU).
 	// When false, unknown hosts return *UnknownHostKey so UI can prompt.
-	// TunnelSession.Connect defaults to TOFU until a prompt UI lands.
+	// The desktop connect flow sets it false and shows the fingerprint prompt.
 	TrustOnFirstUse bool
 	// Mode is the explicit host-key policy. Empty keeps the legacy
 	// TrustOnFirstUse behavior, with true mapping to accept-new and false to

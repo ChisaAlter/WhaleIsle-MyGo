@@ -288,10 +288,17 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			snap := a.Catalog.Snapshot
 			if !*details {
 				for _, entry := range snap.Rows {
-					if entry.Id == r.ID && entry.Connection != nil && len(entry.Connection.Tools) > 0 {
-						if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
-							a.Catalog.OnInspect(r.ID)
-						}
+					if entry.Id != r.ID || entry.Connection == nil {
+						continue
+					}
+					// A connected server with no tools says so, instead of showing the
+					// same empty row a not-yet-read server shows.
+					if len(entry.Connection.Tools) == 0 {
+						ui.Text(c, providerCopy("没有工具", "no tools")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						continue
+					}
+					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
+						a.Catalog.OnInspect(r.ID)
 					}
 				}
 			}

@@ -463,11 +463,95 @@ func TestSendDraftCallsIMSendHTTPtest(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if strings.Contains(s.Snapshot().LastSend, "im/send") {
+			snap := s.Snapshot()
+			if len(snap.Messages) != 1 || snap.Messages[0].State != MessageStateSent {
+				t.Fatalf("delivery state = %+v", snap.Messages)
+			}
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("LastSend = %q", s.Snapshot().LastSend)
+}
+
+func TestSendDraftMarksFailedRPCAsNotSent(t *testing.T) {
+	old, had := api.Registry["im/send"]
+	api.Registry["im/send"] = api.Endpoint{Method: "im/send"}
+	defer func() {
+		if had {
+			api.Registry["im/send"] = old
+		} else {
+			delete(api.Registry, "im/send")
+		}
+	}()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		rpcID, _ := body["rpcId"].(string)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"type":   "server-response",
+			"rpcId":  rpcID,
+			"result": map[string]any{"ok": false, "error": map[string]any{"code": "SEND_FAILED", "message": "fixture rejected"}},
+		})
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+	s.SendDraft(context.Background(), "general", "must not look delivered")
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snap := s.Snapshot()
+		if snap.LastSend != "" && len(snap.Messages) == 1 && snap.Messages[0].State != MessageStatePending {
+			if snap.Messages[0].State != MessageStateFailed {
+				t.Fatalf("delivery state = %q, want failed", snap.Messages[0].State)
+			}
+			reopened, err := Open(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reopened.Select("general")
+			if got := reopened.Snapshot().Messages; len(got) != 1 || got[0].State != MessageStateFailed {
+				t.Fatalf("persisted state = %+v", got)
+			}
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("send never settled: %+v", s.Snapshot())
+}
+
+func TestOpenMarksInterruptedPendingSendAsUnknown(t *testing.T) {
+	dir := t.TempDir()
+	root := Dir(dir)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	history := map[string][]Message{"general": {{
+		ID: "m-interrupted", ChannelID: "general", Text: "was sending",
+		At: "2026-01-01T00:00:00Z", Outbound: true, State: MessageStatePending,
+	}}}
+	data, err := json.Marshal(history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "history.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Select("general")
+	messages := s.Snapshot().Messages
+	if len(messages) != 1 || messages[0].State != MessageStateUnknown {
+		t.Fatalf("interrupted send = %+v", messages)
+	}
 }
 
 func TestSendDraftWithoutRegisteredIMSendStaysLocal(t *testing.T) {
@@ -504,6 +588,9 @@ func TestSendDraftWithoutRegisteredIMSendStaysLocal(t *testing.T) {
 	}
 	if len(snap.Messages) != 1 || snap.Messages[0].Text != "local queue" {
 		t.Fatalf("messages = %+v", snap.Messages)
+	}
+	if snap.Messages[0].State != MessageStateLocal {
+		t.Fatalf("local delivery state = %q", snap.Messages[0].State)
 	}
 	select {
 	case <-requests:

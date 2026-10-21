@@ -1,0 +1,1 @@
+﻿hwnd=6688318 title=MyGo鲸屿 hung=True responsive=False
