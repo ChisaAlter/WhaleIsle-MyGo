@@ -985,7 +985,7 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 	} else {
 		popup = popup.BottomPercent(100).Margin(0, 0, 4, 0)
 	}
-	popup = menuSurface(popup.MaxHeight(height).Padding(4).Gap(2), colors)
+	popup = menuSurface(c, popup.MaxHeight(height).Padding(4).Gap(2), colors)
 	popup.Children(func() {
 		paintReferenceBreadcrumbs(c, m, tok)
 		ui.Text(c, title).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)

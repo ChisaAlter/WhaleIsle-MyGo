@@ -51,7 +51,7 @@ func paintContextMeter(c *ui.Context, snapshot session.ViewState, colors theme.C
 		return
 	}
 	ui.PopoverBase(c, trigger, &state.Open, func(panel ui.Element) {
-		panel = menuSurface(panel.Width(260).Padding(8).Gap(8), colors)
+		panel = menuSurface(c, panel.Width(260).Padding(8).Gap(8), colors)
 		panel.Children(func() {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerContextUsed), reading)).FontSize(13).TextColor(chrome.Color(colors.FG))
 			ui.Text(c, fmt.Sprintf("~%s / %s", compactCount(value.UsedTokens), compactCount(value.ContextWindow))).

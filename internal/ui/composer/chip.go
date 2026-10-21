@@ -31,8 +31,9 @@ const (
 
 // menuSurface gives a popup the shared menu material: sampled glass fill, the
 // 0.5 DIP hairline and the elevation shadow every floating menu uses.
-func menuSurface(e ui.Element, colors theme.Colors) ui.Element {
-	return chrome.MenuSurface(e, chrome.Color(colors.BG), chrome.Color(colors.Border), menuRadius)
+func menuSurface(c *ui.Context, e ui.Element, colors theme.Colors) ui.Element {
+	e = chrome.MenuSurface(e, chrome.Color(colors.BG), chrome.Color(colors.Border), menuRadius)
+	return e.Opacity(chrome.Reveal(c, e, chrome.PopoverDuration))
 }
 
 // menuRow is one selectable row inside a popover menu: no frame of its own, a

@@ -108,7 +108,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(panel.Padding(6).Gap(2).MinWidth(240).MaxWidthPercent(100), colors)
+		panel = menuSurface(c, panel.Padding(6).Gap(2).MinWidth(240).MaxWidthPercent(100), colors)
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.Rows[nav.Active].RequestFocus(c)
