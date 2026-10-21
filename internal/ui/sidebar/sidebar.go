@@ -190,7 +190,7 @@ func View(c *ui.Context, m Model) {
 							})
 							// Baselines line up: the 10px wordmark sits on the 18px
 							// line's baseline, as the original's titleRow does.
-							ui.Text(c, "MYGO鲸屿").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(12)).
+							ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(12)).
 								FontWeight(600).LetterSpacing(1.2).TextColor(fg).Padding(7, 0, 0, 0)
 						})
 						ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8)).
@@ -204,9 +204,19 @@ func View(c *ui.Context, m Model) {
 				})
 				if m.OnCreate != nil {
 					// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
-					btn := ui.Button(c, "+  "+i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
+					btn := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
 						Background(chrome.Color(colors.Field)).Border(1, border).
 						TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 16, 8, 16)
+					btn.Children(func() {
+						ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.Center).Gap(8).Children(func() {
+							plus := ui.Box(c).Size(18, 18).Radius(9).Border(1, fg.Alpha(.55)).Center()
+							plus.Children(func() {
+								ui.Icon(c, ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>`))).Size(10, 10).TextColor(fg)
+							})
+							ui.Text(c, i18n.T(i18n.KeySidebarNewSessionFallback)).
+								FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg).SingleLine()
+						})
+					})
 					if btn.Clicked() {
 						m.OnCreate()
 					}
