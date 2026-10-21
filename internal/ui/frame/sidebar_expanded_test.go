@@ -31,7 +31,7 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	}
 	// The brand block: wordmark and subtitle, plus the collapse control at its
 	// top right (the rail's expand control must not be built).
-	for _, text := range []string{"MYGO鲸屿", "BASED ON DEEPSEEK HARNESS"} {
+	for _, text := range []string{"WHALE ISLE", "BASED ON DEEPSEEK HARNESS"} {
 		if !tt.HasText(text) {
 			t.Fatalf("expanded sidebar lost the brand %q; texts=%q", text, tt.Texts())
 		}
