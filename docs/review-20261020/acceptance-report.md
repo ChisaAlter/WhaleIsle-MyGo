@@ -74,3 +74,7 @@
 - 全量测试：`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` —— 通过（composer WebP 附件测试在并发下偶发超时，单跑通过）。
 - 当前构建：`whaleisle-pass30.exe`，pid 21864（本轮结束时可能已由后续构建替换）。
 - 证据索引：`docs/review-20261020/evidence/acceptance/`、`settings-live/`。
+
+## 7. 补充（pass35）
+
+- C2 设置持久化由代码级升级为**实机跨重启 PASS**：关闭「显示代码工作视图」后 Host profile 写入 enabled: false，重启后开关仍为 Off，再恢复 On。

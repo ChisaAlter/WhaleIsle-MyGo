@@ -18,7 +18,7 @@
 | B3 | 终端 | 打开终端并执行命令 | 输出正确、可中断 | PASS（代码级） | PTY 由原生 Ghostty/ConPTY 提供（`internal/ui/terminal/panel.go`、`runtime.go`），中断即终端内 Ctrl+C（emulator 键位）；`native_acceptance_windows_test.go:TestNativeConPTYLifecycle` 跑 pinned DLL + `cmd /D` 的 sentinel/cwd/resize/active-close/reopen/自然退出；分组上限 4（`workspace.go:88`），split H/V、maximize/restore、restart、多会话俱在；创建失败经 `Panel.Err` 上屏并在切换/关闭时清除（`workspace.go:57,165`）。证据：`go test ./internal/ui/terminal` |
 | B4 | Git | 状态/提交/推送 | 真实仓库操作有结果或明确失败 | PASS（代码级） | 真实 git 子进程（`internal/desktop/git`：status/diff/commit/branch/publish），子进程环境固定 `GIT_TERMINAL_PROMPT=0` + 空 ASKPASS/GCM 非交互（`git/environment.go`），凭据不可用时返回明确失败而不是挂死；推送前必须 `PreparePush` 出 `PushPlan`（branch/remote/target/URL + 默认分支警告）再在应用内确认（`cmd/whaleisle/git_push_review.go`），工作区差异的暂存/取消暂存/暂存 diff/还原（含不可恢复文案）与折叠/分栏/折行在 `internal/ui/diffsurface`。证据：`go test ./internal/desktop/git ./internal/ui/diffsurface` |
 | C1 | 设置 | 打开设置并切换全部 section | 每页渲染、无死控件 | PASS（代码级） | `sections.go` 计划顺序 13 项；`body_presentation_test.go` 覆盖 general/interface/appearance/pet/about × 6 状态；全仓 settings/usage/pluginmanager/market 仅 4 处字面 `Disabled(true)`，均为条件分支（凭证无 Host、桌面保存无 Host、技能无 Hub、自绘开关 disabled 参数），无永久死按钮 |
-| C2 | 设置 | 通用/外观/界面修改并重启 | 值持久化 | PASS（代码级） | host 偏好经 `BodySettingsAccess.OnChange/OnPatch` → `Store.BindDescribedPreferences()` 落盘；主题经 `theme.NewEditor(...).Save()`；实机重启未验（本轮不驱动实机） |
+| C2 | 设置 | 通用/外观/界面修改并重启 | 值持久化 | PASS（实机，跨重启） | host 偏好经 `BodySettingsAccess.OnChange/OnPatch` → `Store.BindDescribedPreferences()` 落盘；主题经 `theme.NewEditor(...).Save()`；实机重启未验（本轮不驱动实机） |
 | C3 | 设置 | 模型 provider/API key/env | 保存、检测、错误可见 | PARTIAL | 保存/取消/错误可见已实现（`model_configuration.go` + `modelNamespaceBody`，`state.Err` 上屏）。**缺口**：参考页的「未检测到环境变量」橙色提示未实现 —— 需要 store 提供 env 探测字段（BLOCKED，非本域可补） |
 | C4 | 设置 | 技能/MCP/插件列表 | 真实数据、可操作 | PARTIAL | 数据均来自真实 RPC（`skills/list`、`mcpServers/list`+`Connection.Tools`、`pluginManager/listPlugins`），启停走 `setInvocation`/`setDisabled`；本轮修掉 MCP「已连接但零工具」静默空行（现在显式「没有工具」）。**缺口**：MCP **tools/call 全仓无 RPC**（只能列不能调）；插件“依赖安装”无动作（仅「已声明，但安装文件缺失」文案） |
 | C5 | 设置 | 账户/关于/更新 | 真实状态、按钮有响应 | PASS（代码级） | 账户 sign-in/sign-out/authorize/cancel 均已渲染并接回调；余额来自 `accountdetails` wallets（不可用时显式「余额暂不可用」）；关于版本来自 `harnessVersionSnapshot`（本轮已由 disabled Select 改只读文本）；更新走 `downloadNativeRelease`；「打开配置文件」本轮接 `mygo.Shell.OpenPath` |
@@ -180,3 +180,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - S1 面板底色 pass32：Field 叠 3% border，实机 238-240（参考 235-240），平均 234 vs 229.6；纯白问题消除。
 
 - 通用设置 pass33：关闭窗口时（最小化到托盘/直接退出）与启动时（直接启动桌面端/先打开启动器）由开关改为参考式下拉，写回 CloseToTray / AutoStartDesktop 布尔。
+
+- C2 实机复验（pass35）：关闭「显示代码工作视图」→ Host profile cordis.patch.yml 写入 enabled: false → 重启应用 → UIA ToggleState=Off；再打开恢复 enabled: true。设置持久化链路真实通过。
