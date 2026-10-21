@@ -335,9 +335,6 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 				}
 			})
 		}
-		if len(packages) > 0 && len(enabled)+len(disabled) == 0 {
-			ui.Text(c, copyText("没有匹配的插件。", "No matching plugins.")).FillWidth().TextColor(muted)
-		}
 		if len(packages) == 0 && s.Status == "ready" {
 			ui.Text(c, copyText("还没有安装任何插件。", "No plugins installed yet.")).FillWidth().TextColor(muted)
 		}
