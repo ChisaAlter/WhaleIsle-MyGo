@@ -285,7 +285,7 @@ func acknowledgeEffect(a *BodySettingsAccess, draft *effectDraft) bool {
 
 func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg, muted ui.Color) {
 	enabledKey, styleKey, presetsKey := "composerBeam", "composerBeamStyle", "composerBeamPresets"
-	title := providerCopy("输入框边框光效", "Composer beam")
+	title := providerCopy("发送消息时的思考炫光", "Thinking glow while sending")
 	if typing {
 		enabledKey, styleKey, presetsKey = "typingFx", "typingFxStyle", "typingFxPresets"
 		title = providerCopy("打字特效", "Typing effects")
