@@ -205,3 +205,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 ot-installed/update-available 不再原样显示，改为已安装/冲突/未安装/有更新；未知状态保留原值。
 
 - E3 根因证据（pass42）：设置页显示 mygo: failed to load whale-pet://localhost/index.html: navigation failed (COREWEBVIEW2_WEB_ERROR_STATUS 14)；尝试在窗口创建前预注册 whale-pet scheme 未能消除，已移除该临时改动。桌宠在 WebView2 自定义 scheme 加载层失败，不是开关或配置问题。
+
+- 主窗口尺寸适配（pass47）：新增 itWindowSize，按主屏 work area 收敛 1440×920，并同步收敛最小尺寸；本机 work area 2560×1440，实机窗口保持 2160×1380 不变；1138×640 DIP 小屏用例由单测覆盖。

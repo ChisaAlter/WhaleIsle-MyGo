@@ -2160,12 +2160,13 @@ func main() {
 		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
+		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
 			Title:                    i18n.T(i18n.KeyAppName),
-			Width:                    1440,
-			Height:                   920,
-			MinWidth:                 960,
-			MinHeight:                640,
+			Width:                    winWidth,
+			Height:                   winHeight,
+			MinWidth:                 winMinWidth,
+			MinHeight:                winMinHeight,
 			StateKey:                 "main",
 			Hidden:                   hidden || background,
 			TitleBarStyle:            mygo.TitleBarHidden,
