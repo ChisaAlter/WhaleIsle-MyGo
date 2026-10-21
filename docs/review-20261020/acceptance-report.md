@@ -78,3 +78,10 @@
 ## 7. 补充（pass35）
 
 - C2 设置持久化由代码级升级为**实机跨重启 PASS**：关闭「显示代码工作视图」后 Host profile 写入 enabled: false，重启后开关仍为 Off，再恢复 On。
+
+## 8. 本轮追加（pass43）
+
+- **设置视觉/内容**：面板底色 238-240（参考 235-240）；主题卡预览改为 Column，方案标签不再竖排；主题名按语言单语；关闭窗口/启动时改为参考式下拉；内置插件两列不再裁切；`management-required` 显示为「由桌面宿主管理」；技能 hub 状态本地化。
+- **C2 实机**：关闭「显示代码工作视图」→ Host profile 写 `enabled: false` → 重启 → 开关仍为 Off → 恢复 On，跨重启持久化通过。
+- **E3 根因**：宠物窗口创建后，WebView2 加载 `whale-pet://localhost/index.html` 报 `COREWEBVIEW2_WEB_ERROR_STATUS 14`；预注册 scheme 无效，已移除临时改动。设置页会显示该错误，不再静默。
+- 当前运行：`whaleisle-pass43.exe`（pid 8，Host pid 39976）。
