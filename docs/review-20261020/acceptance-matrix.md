@@ -122,3 +122,15 @@
 - IM/Office：未安装 dsh-im；启用按钮与空态已接。
 - 远程真机配对/公网 relay、桌宠多屏/DPI：需设备/桌面解锁环境。
 - 设置 general/appearance/skills/market 缺 ours 真机截图；视觉像素级对比仍不完整。
+### 第二轮实机（pass15，设置/插件/任务/鲸鱼娘）
+
+| 项 | 结果 | 证据/说明 |
+| --- | --- | --- |
+| C1 设置 13 区 | PASS（实机） | 通用/外观/界面/模型/插件/技能/MCP/远程/Agent 预设/用量/桌宠/关于 均可进入并渲染；左侧「市场」已移除。证据：`C1-settings-models.png`（设置模型页）；关于页实机文本见本轮记录 |
+| C4 插件页 | PASS（实机，带差异） | 真实 inventory：内置（子代理/网页搜索/代理循环/终端）+ 实验性卡片 + 开关；`C4-plugins.png`。差异：卡片的 Open/Enable 可访问名仍是英文 |
+| C5 关于/更新 | PASS（实机，已修） | About 渲染版本 `dev`、来源、复制版本；打开即检查更新。修复前弹窗直接显示 `not_configured` + 英文内部信息；现在显示「当前构建没有配置更新源（开发版）…」；`updateCheckMessage` 测试覆盖四种状态 |
+| D1 自动化任务 | PASS（实机空态） | 「暂无任务。在会话中创建的任务会显示在这里。」+「新建自动化任务」；`D1-schedule.png` |
+| E1 鲸鱼娘设置 | PASS（实机） | 「鲸鱼娘 · 人设与长期记忆」「模型、IM 与技能」「她的技能 · 已启用 0 / 0」「长期记忆/MEMORY.md」「名字与称呼」；真实 Host 路径显示；`E1-whale.png` |
+| B3 终端 / E3 桌宠拖动 | BLOCKED（实机） | 桌面处于锁屏，鼠标点击/E2E 拖动不可达；面板菜单按钮不支持 InvokePattern。终端 PTY 与桌宠状态仍只有代码级/单测证据 |
+
+本轮修复：关于页自动检查更新的弹窗不再泄露 `not_configured`/内部英文，改为产品文案（`cmd/whaleisle/update_check_lifecycle.go`，`update_check_message_test.go`）。

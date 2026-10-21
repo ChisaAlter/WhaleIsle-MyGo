@@ -37,6 +37,37 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 	}()
 }
 
+// updateCheckMessage turns the feed result into product copy. The raw status
+// token (not_configured, up_to_date, ...) is an implementation detail and used
+// to leak into the confirmation dialog.
+func updateCheckMessage(res desktopupdate.Result, err error) string {
+	switch {
+	case err != nil:
+		return resumeText("检查更新失败：", "Could not check for updates: ") + err.Error()
+	case res.Status == desktopupdate.StatusNotConfigured:
+		return resumeText("当前构建没有配置更新源（开发版）。发布版会通过官方更新源检查更新。", "This build has no update feed configured (development build). Release builds check the official feed.")
+	case res.Status == desktopupdate.StatusUpToDate:
+		msg := resumeText("当前版本已是最新", "You are on the latest version")
+		if res.Version != "" {
+			msg += "（" + res.Version + "）"
+		}
+		return msg
+	case res.Status == desktopupdate.StatusUpdateAvailable:
+		msg := resumeText("发现新版本", "Update available")
+		if res.Version != "" {
+			msg += " " + res.Version
+		}
+		if res.ReleaseURL != "" {
+			msg += "\n" + res.ReleaseURL
+		}
+		return msg
+	case strings.TrimSpace(res.Message) != "":
+		return res.Message
+	default:
+		return resumeText("检查完成。", "Check complete.")
+	}
+}
+
 func (s *mainState) runUpdateCheck(win *mygo.Window) {
 	canPresent := func() bool {
 		s.mu.Lock()
@@ -48,15 +79,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		return
 	}
 	res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, s.updateDownloadRoute())
-	msg := res.Message
-	if err != nil {
-		msg = err.Error()
-	} else {
-		msg = fmt.Sprintf("%s\n\n%s", res.Status, res.Message)
-		if res.ReleaseURL != "" {
-			msg += "\n" + res.ReleaseURL
-		}
-	}
+	msg := updateCheckMessage(res, err)
 	download := err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != ""
 	confirmLabel := resumeText("好", "OK")
 	if download {
