@@ -14,7 +14,7 @@ var usagePageRefreshed atomic.Bool
 
 // The desktop market is a settings section in the original registry. Keep its
 // existing store and installer callbacks, but paint it inside the modal shell.
-func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*ui.Context)) settings.Model {
+func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*ui.Context, settings.SectionID)) settings.Model {
 	s.mu.Lock()
 	section := s.settingsEmbeddedSection
 	s.mu.Unlock()
@@ -22,7 +22,13 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 		s.usage.RefreshStats(context.Background(), true)
 	}
 	if (section == settings.SectionMarket || section == settings.SectionRemote || section == settings.SectionRemoteWorkspace || section == settings.SectionUsageStats) && sectionContent != nil {
-		m.ActiveSection, m.SectionContent = section, sectionContent
+		// Capture the section: OnClose clears settingsEmbeddedSection before the
+		// modal builds its content, and a live read would paint the chat behind
+		// the dialog with the same ListState as the page (panic: ListState shown
+		// by two Lists).
+		embedded := section
+		m.ActiveSection = embedded
+		m.SectionContent = func(c *ui.Context) { sectionContent(c, embedded) }
 	}
 	clear := func() {
 		s.mu.Lock()

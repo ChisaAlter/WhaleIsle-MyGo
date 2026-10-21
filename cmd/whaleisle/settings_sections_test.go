@@ -48,13 +48,13 @@ func TestSettingsEmbeddedPagesStayInModalAcrossWidths(t *testing.T) {
 						return
 					}
 					m := settings.Model{ThemeID: theme.IDDeepseekLight, DesktopActive: true, Desktop: &settings.DesktopAccess{Fields: settings.DesktopFields{Locale: &locale}}, OnSelectDesktop: func() { general++ }, OnClose: func() { open = false }, OnOpenRemote: func() {}, OnOpenUsage: func() {}, OnSelectNamespace: func(string) {}}
-					settings.ModalView(c, s.settingsSectionModel(m, func(c *ui.Context) {
-						ui.Text(c, "body-route:"+string(section))
-						if section == settings.SectionUsageStats {
+					settings.ModalView(c, s.settingsSectionModel(m, func(c *ui.Context, route settings.SectionID) {
+						ui.Text(c, "body-route:"+string(route))
+						if route == settings.SectionUsageStats {
 							usageui.View(c, usageui.Model{Embedded: true, ThemeID: theme.IDDeepseekLight})
 						} else {
 							page := "remote"
-							if section == settings.SectionRemoteWorkspace {
+							if route == settings.SectionRemoteWorkspace {
 								page = "workspace"
 							}
 							remoteui.View(c, remoteui.Model{Embedded: true, SettingsPage: page, ThemeID: theme.IDDeepseekLight})
@@ -116,7 +116,10 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 			OnSelectDesktop: func() { selectedGeneral++ }, OnClose: func() { open = false },
 			OnOpenMarket: func() { state.settingsEmbeddedSection = settings.SectionMarket },
 		}
-		settings.ModalView(c, state.settingsSectionModel(m, func(c *ui.Context) {
+		settings.ModalView(c, state.settingsSectionModel(m, func(c *ui.Context, route settings.SectionID) {
+			if route != settings.SectionMarket {
+				t.Fatalf("market deep link painted %q", route)
+			}
 			marketui.View(c, marketui.Model{Store: catalog, Embedded: true, ThemeID: theme.IDDeepseekLight})
 		}))
 	}, 1000, 760)
@@ -158,7 +161,7 @@ func TestSettingsExternalSelectionReplacesEmbeddedMarket(t *testing.T) {
 		t.Run(string(target.Action)+target.Section, func(t *testing.T) {
 			s := mainState{settingsEmbeddedSection: settings.SectionMarket}
 			s.applyDeeplink(target)
-			m := s.settingsSectionModel(settings.Model{ModelsActive: s.settingsModelsActive, AccountActive: s.settingsAccountActive}, func(*ui.Context) {
+			m := s.settingsSectionModel(settings.Model{ModelsActive: s.settingsModelsActive, AccountActive: s.settingsAccountActive}, func(*ui.Context, settings.SectionID) {
 				t.Fatal("external settings entry still paints Market")
 			})
 			if s.settingsEmbeddedSection != "" || m.SectionContent != nil || m.ActiveSection != "" || !s.settingsOpen {
@@ -174,7 +177,7 @@ func TestSettingsExternalSelectionReplacesEmbeddedMarket(t *testing.T) {
 func TestPetSettingsEntryReplacesEmbeddedMarket(t *testing.T) {
 	s := mainState{settingsEmbeddedSection: settings.SectionMarket}
 	s.openPetSettings()
-	m := s.settingsSectionModel(settings.Model{}, func(*ui.Context) { t.Fatal("Pet entry still paints Market") })
+	m := s.settingsSectionModel(settings.Model{}, func(*ui.Context, settings.SectionID) { t.Fatal("Pet entry still paints Market") })
 	if !s.settingsOpen || s.settingsEmbeddedSection != "" || m.SectionContent != nil {
 		t.Fatal("Pet entry retained the embedded Market selection")
 	}

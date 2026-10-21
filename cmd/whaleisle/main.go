@@ -5043,10 +5043,7 @@ func mainView(c *ui.Context) {
 					},
 				}
 				state.wireSettingsBodies(&settingsModel)
-				settings.ModalView(c, state.settingsSectionModel(settingsModel, func(_ *ui.Context) {
-					state.mu.Lock()
-					section := state.settingsEmbeddedSection
-					state.mu.Unlock()
+				settings.ModalView(c, state.settingsSectionModel(settingsModel, func(_ *ui.Context, section settings.SectionID) {
 					paintMainContent(section)
 				}))
 				return

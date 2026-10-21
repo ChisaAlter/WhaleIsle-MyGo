@@ -134,3 +134,16 @@
 | B3 终端 / E3 桌宠拖动 | BLOCKED（实机） | 桌面处于锁屏，鼠标点击/E2E 拖动不可达；面板菜单按钮不支持 InvokePattern。终端 PTY 与桌宠状态仍只有代码级/单测证据 |
 
 本轮修复：关于页自动检查更新的弹窗不再泄露 `not_configured`/内部英文，改为产品文案（`cmd/whaleisle/update_check_lifecycle.go`，`update_check_message_test.go`）。
+### 实机发现的 P0 崩溃（已修）
+
+打开 设置 → 远程 → 返回 时应用进程 panic 退出：
+
+```
+panic: ui: a ListState shown by two Lists
+chat.View → ui.List(...).Rows
+settings.ModalView → SectionContent → paintMainContent("")
+```
+
+根因：`settingsSectionModel` 先把 `ActiveSection=remote` 和 SectionContent 装到模型上，但回调执行时又去读**实时**的 `settingsEmbeddedSection`；`OnClose` 已把它清空，于是内容区用 `""` 重画了主聊天，与页面自身的 `ChatList` 同帧复用，触发框架的 ListState 唯一性保护。
+
+修复：构建模型时捕获 section，传给回调使用；新增 `TestEmbeddedSectionContentKeepsTheSectionItWasBuiltFor`。实机复验：设置→远程→返回，进程存活并回到会话（pass16）。
