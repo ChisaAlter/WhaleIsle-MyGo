@@ -68,13 +68,13 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "transcriptView", providerCopy("工作详情", "Work details"), providerCopy("选择任务过程展示的详细程度。", "Choose how much of the task's work is shown."), fg, muted)
 	bodyHostPreference(c, d.Host, "ui-chat", "collapseTiming", providerCopy("工作详情收起时机", "Collapse completed work"), "", fg, muted)
-	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("开发者工具", "Developer tools"), providerCopy("显示开发与调试入口。", "Show development and debugging controls."), fg, muted)
+	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show the code work view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换。", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
 	if d.Shortcuts != nil {
 		bodyDisclosure(c, "general-shortcuts", providerCopy("键盘快捷键", "Keyboard shortcuts"), func() { shortcutsPane(c, d.Shortcuts, fg, muted) })
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "linkOpening", providerCopy("链接打开方式", "Open links in"), "", fg, muted)
-	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("运行时按 Enter", "Enter while running"), providerCopy("排队发送下一条消息，或引导正在运行的任务。", "Queue the next message or steer the running task."), fg, muted)
-	bodyLocalToggle(c, "general-close", i18n.T(i18n.KeySettingsDesktopCloseToTray), providerCopy("关闭窗口后保留托盘入口。", "Keep the app in the tray after closing the window."), d.Fields.CloseToTray, d.OnSave == nil, fg, muted, nil)
+	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("繁忙时的发送行为", "Sending while busy"), providerCopy("智能体运行时 Enter 和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为。", "What Enter and Send do while the agent runs; Cmd/Ctrl+Enter uses the other action."), fg, muted)
+	bodyLocalToggle(c, "general-close", providerCopy("关闭窗口时最小化到托盘", "Minimize to tray on close"), providerCopy("关闭时隐藏到托盘；关闭此开关则直接退出并停止本机 Harness 服务。", "Hide to the tray on close; turn this off to quit and stop the local Harness service."), d.Fields.CloseToTray, d.OnSave == nil, fg, muted, nil)
 	bodyLocalToggle(c, "general-login", i18n.T(i18n.KeySettingsDesktopOpenAtLogin), "", d.Fields.OpenAtLogin, d.OnSave == nil, fg, muted, nil)
 	bodyLocalToggle(c, "general-autostart", i18n.T(i18n.KeySettingsInterfaceAutoStart), i18n.T(i18n.KeySettingsInterfaceAutoStartDesc), d.AutoStartDesktop, d.OnSave == nil, fg, muted, nil)
 	generalCustomInstructions(c, d.Host, fg, muted)

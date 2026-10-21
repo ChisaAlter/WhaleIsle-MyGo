@@ -169,3 +169,6 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 外观主题网格溢出已修（pass21）：卡片在 Grid 里误用 FillWidth 导致每张卡按整行宽度布局、互相重叠并被面板裁切；移除卡片 FillWidth 后两列各占 50%，新增 TestThemeGridStaysInsideThePane 断言两半都在面板内。实机截图已更新 settings-live/appearance.png。
 
 - 设置导航标签对齐参考：通用设置 / 界面设置 / 内置插件 / 鲸鱼娘 / 用量统计（英文 General settings / Interface settings / Built-in plugins / Whale / Usage stats），行高收到 38 + 4 间距，新增 TestSettingsSectionLabelsMatchTheReference。
+
+- G1 首屏证据补齐：evidence/acceptance/G1-first-screen.png（2160×1380，无第三方窗口遮挡；终端抽屉关闭后的 hero 空态）。
+- 通用设置文案对齐参考：显示代码工作视图（轨迹/代码差异/预设切换）、繁忙时的发送行为、关闭窗口时最小化到托盘（并说明关闭即退出并停止 Harness）。
