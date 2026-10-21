@@ -143,6 +143,7 @@ type mainState struct {
 	cfgStore               *config.Store
 	viewPreferences        *workspaceViewPreferences
 	desktopPet             *pet.Companion
+	settingsLaunchHandled  bool
 	petEvents              petEventController
 	petPersonality         petPersonalityMirror
 	navigationFile         *navigationFileRequest
@@ -2973,6 +2974,15 @@ func mainView(c *ui.Context) {
 	if state.settings == nil {
 		state.settings = settingsstore.New()
 		state.settings.SetVisualReplyEnableCheck(state.verifyVisualReplyEnable)
+	}
+	if !state.settingsLaunchHandled {
+		state.settingsLaunchHandled = true
+		if slices.Contains(os.Args, "--settings") {
+			state.settingsOpen = true
+			state.settingsDesktopActive = true
+			state.seedDesktopDraft()
+			state.settings.OpenSettingsDocument(context.Background())
+		}
 	}
 	setStore := state.settings
 	settingsOpen := state.settingsOpen
